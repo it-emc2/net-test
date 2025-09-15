@@ -1,0 +1,47 @@
+{
+  "name": "net-test",
+  "version": "1.0.0",
+  "description": "EMC2 Konfigurator API + Frontend server",
+  "main": "src/app.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon --watch src --ext js,mjs,json src/app.js",
+    "start": "node src/app.js",
+    "seed:products": "node scripts/seedProducts.js",
+    "health": "node -e \"fetch('http://localhost:'+(process.env.PORT||3000)+'/api/health').then(r=>r.text()).then(console.log).catch(console.error)\"",
+    "test": "echo \"No tests defined\" && exit 0",
+    "lint": "echo \"Add your linter (eslint/biome) here\" && exit 0"
+  },
+  "keywords": [
+    "express",
+    "mongoose",
+    "mongo",
+    "konfigurator",
+    "pricing"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "cross-env": "^7.0.3",
+    "dayjs": "^1.11.18",
+    "docx-templates": "^4.14.1",
+    "docxtemplater": "^3.66.2",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "mongoose": "^8.18.1",
+    "morgan": "^1.10.1",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^3.11.174",
+    "pdfkit": "^0.17.2",
+    "pizzip": "^3.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  },
+  "engines": {
+    "node": ">=18.17"
+  }
+}
