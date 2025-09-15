@@ -8,7 +8,7 @@ import pdfjs from 'pdfjs-dist';
 const { getDocument } = pdfjs;
 
 export const router = express.Router();
-
+const templatePath = path.resolve(process.cwd(), "src", "templates", "Angebot.docx");
 function log(...args) {
   console.log('[pdf-template]', ...args);
 }
