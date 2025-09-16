@@ -1,131 +1,224 @@
-// src/app.js
-import express from "express";
-import helmet from "helmet";
-import cors from "cors";
-import compression from "compression";
-import morgan from "morgan";
-import mongoose from "mongoose";
-import path from "path";
-import { fileURLToPath } from "url";
+import 'dotenv/config';
+import express from 'express';
+import helmet from 'helmet';
+import cors from 'cors';
+import morgan from 'morgan';
+import compression from 'compression';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import mongoose from 'mongoose';
 
-// --- Resolve paths (ESM)
+// PDF/DOCX routes (unchanged)
+import { router as pdfRouter } from './routes/pdf.js';
+import pdfTemplateRouter from './routes/pdf-template.js';
+import docxTemplateRouter from './routes/docx-template.js';
+
+// Models (ESM default exports; ensure files export default)
+import Product from './models/Product.js';
+import Submission from './models/Submission.js';
+
+// Pricing logic (ESM default export -> factory(Product))
+import pricingFactory from './logic/pricing.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const ROOT = process.cwd();
-const PUBLIC_DIR = path.resolve(ROOT, "src", "public");
 
-// --- App + middleware
 const app = express();
-app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors()); // optionally restrict to your Back4App URL later
-app.use(compression());
-app.use(morgan("dev"));
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
 
-// --- Models & logic
-import Product from "./models/Product.js";
-import Submission from "./models/Submission.js";
-import computePrice from "./logic/pricing.js"; // adjust to named import if your file exports named
+const PORT = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_DB = process.env.MONGODB_DB || 'KonfiguratorDB';
 
-// --- API: Products
-app.post("/api/products/bulk", async (req, res) => {
+process.env.PDFJS_DISABLE_WORKER = 'true';
+
+// ---------------- Middleware ----------------
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      scriptSrc: [
+        "'self'", 
+        "'sha256-/N6XS1N1HWcS1jcxJkTULItDFffd/I1mw8tPD5FTS3o='",
+        "'sha256-5RmoD/+nJXNc4AM8oTu6YJEmH8lgRnYL9t8PcLUZxcY='",
+        "'sha256-pmi68vLyMeGurqDvTzm+MD6lhDeARWXCNqv7x536RmA='"
+      ],
+    },
+  },
+}));
+
+// Trust proxy because ngrok is a reverse proxy
+app.set('trust proxy', 1);
+
+// Dynamic CORS allowing localhost and any HTTPS subdomain of ngrok-free.app
+const allowedExact = new Set([
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+]);
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true; // allow same-origin/no Origin (curl, Postman)
+  if (allowedExact.has(origin)) return true;
+
   try {
-    const docs = Array.isArray(req.body) ? req.body : [];
-    if (!docs.length) return res.status(400).json({ error: "Empty payload" });
-    const ops = docs.map((d) => ({
-      updateOne: { filter: { productId: d.productId }, update: { $set: d }, upsert: true },
+    const u = new URL(origin);
+    // Allow any HTTPS origin on ngrok-free.app (any subdomain)
+    if (
+      u.protocol === 'https:' &&
+      (u.hostname === 'ngrok-free.app' || u.hostname.endsWith('.ngrok-free.app'))
+    ) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+app.use(
+  cors({
+    origin(origin, cb) {
+      if (isAllowedOrigin(origin)) return cb(null, true);
+      return cb(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  })
+);
+
+// Handle preflight for all routes
+app.options(
+  /.*/,
+  cors({
+    origin(origin, cb) {
+      if (isAllowedOrigin(origin)) return cb(null, true);
+      return cb(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  })
+);
+
+app.use(compression());
+app.use(morgan('dev'));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+
+// ----- MongoDB connect -----
+mongoose.set('strictQuery', true);
+
+if (!MONGODB_URI) {
+  console.error('Missing MONGODB_URI. Set it in .env');
+  process.exit(1);
+}
+
+await mongoose.connect(MONGODB_URI, { dbName: MONGODB_DB });
+console.log('MongoDB connected ->', MONGODB_DB);
+
+// ----- Business logic -----
+const pricing = pricingFactory(Product);
+
+// ----- Existing routes (PDF/DOCX) -----
+app.use('/pdf', pdfRouter);
+app.use('/pdf-template', pdfTemplateRouter);
+app.use('/docx-template', docxTemplateRouter);
+
+// ----- New API: health -----
+app.get('/api/health', (req, res) =>
+  res.json({ ok: true, db: MONGODB_DB, time: new Date().toISOString() })
+);
+
+// ----- New API: Products -----
+
+// Bulk upsert products: [{ productId, name, price }]
+app.post('/api/products/bulk', async (req, res) => {
+  try {
+    const items = Array.isArray(req.body) ? req.body : [];
+    if (!items.length) {
+      return res.status(400).json({ error: 'Body must be an array of products' });
+    }
+    const ops = items.map((p) => ({
+      updateOne: {
+        filter: { productId: p.productId },
+        update: { $set: { name: p.name, price: Number(p.price || 0) } },
+        upsert: true,
+      },
     }));
-    const result = await Product.bulkWrite(ops, { ordered: false });
+    const result = await Product.bulkWrite(ops);
     res.json({ ok: true, result });
   } catch (err) {
-    console.error("bulk products error:", err);
-    res.status(500).json({ error: "Bulk upsert failed" });
+    console.error(err);
+    res.status(500).json({ error: String(err) });
   }
 });
 
-app.get("/api/products/:id", async (req, res) => {
+// Get single product by Hersteller productId
+app.get('/api/products/:id', async (req, res) => {
   try {
-    const doc = await Product.findOne({ productId: req.params.id });
-    if (!doc) return res.status(404).json({ error: "Not found" });
-    res.json(doc);
+    const p = await Product.findOne({ productId: req.params.id }).lean();
+    if (!p) return res.status(404).json({ error: 'Not found' });
+    res.json(p);
   } catch (err) {
-    console.error("get product error:", err);
-    res.status(500).json({ error: "Error fetching product" });
+    console.error(err);
+    res.status(500).json({ error: String(err) });
   }
 });
 
-// --- API: Pricing
-app.post("/api/price", async (req, res) => {
+// ----- New API: Pricing (does not save) -----
+app.post('/api/price', async (req, res) => {
   try {
-    const payload = req.body || {};
-    const computed = await computePrice(payload);
-    res.json(computed);
+    const payload = req.body;
+    const result = await pricing.computePrices(payload);
+    res.json(result);
   } catch (err) {
-    console.error("pricing error:", err);
-    res.status(500).json({ error: "Pricing failed" });
+    console.error(err);
+    res.status(500).json({ error: String(err) });
   }
 });
 
-// --- API: Submissions
-app.post("/api/submissions", async (req, res) => {
+// ----- New API: Submissions (save + computed) -----
+app.post('/api/submissions', async (req, res) => {
   try {
-    const { payload, computed } = req.body || {};
-    const sub = await Submission.create({
-      payload: payload || {},
-      computed: computed || null,
-      createdAt: new Date(),
-    });
-    res.status(201).json({ ok: true, id: sub._id });
+    const payload = req.body;
+    const computed = await pricing.computePrices(payload);
+    const doc = await Submission.create({ payload, computed });
+    res.status(201).json({ id: doc._id, computed });
   } catch (err) {
-    console.error("submission error:", err);
-    res.status(500).json({ error: "Submission failed" });
+    console.error(err);
+    res.status(500).json({ error: String(err) });
   }
 });
 
-// --- Export routes (PDF/DOCX) — import-safe for default OR named `router`
-function pickRouter(mod) {
-  return (mod && (mod.router || mod.default)) || mod;
-}
-import * as docxModule from "./routes/docx-template.js";
-import * as pdfTemplateModule from "./routes/pdf-template.js";
-// If you have a /pdf router file:
-import * as pdfModule from "./routes/pdf.js";
+// Legacy health (kept)
+app.get('/health', (req, res) =>
+  res.json({ ok: true, time: new Date().toISOString() })
+);
 
-const docxRouter = pickRouter(docxModule);
-const pdfTemplateRouter = pickRouter(pdfTemplateModule);
-const pdfRouter = pickRouter(pdfModule);
+// Static assets
+app.use(express.static(path.join(__dirname, 'public')));
 
-if (docxRouter) { app.use("/docx-template", docxRouter); console.log("Mounted: POST /docx-template"); }
-if (pdfTemplateRouter) { app.use("/pdf-template", pdfTemplateRouter); console.log("Mounted: POST /pdf-template"); }
-if (pdfRouter) { app.use("/pdf", pdfRouter); console.log("Mounted: /pdf"); }
-
-// --- Static SPA & health
-app.use(express.static(PUBLIC_DIR));
-app.get("/healthz", (_req, res) => res.status(200).send("ok"));
-app.get("*", (req, res, next) => {
-  if (req.method !== "GET") return next();
-  res.sendFile(path.join(PUBLIC_DIR, "index.html"));
+// Simple echo submit (kept)
+app.post('/submit', (req, res) => {
+  const payload = {
+    receivedAt: new Date().toISOString(),
+    ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
+    userAgent: req.headers['user-agent'],
+    contentType: req.headers['content-type'],
+    body: req.body,
+  };
+  res.status(201).json(payload);
 });
 
-// --- Start server AFTER DB connects
-const PORT = Number(process.env.PORT || 3000);
-const HOST = "0.0.0.0";
-const MONGODB_URI = process.env.MONGODB_URI;
-const MONGODB_DB = process.env.MONGODB_DB || "KonfiguratorDB";
+// Fallback to SPA index.html
+// Express 5 + path-to-regexp v8: use a RegExp catch-all instead of "*"
+app.get(/.*/, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
-async function start() {
-  try {
-    if (!MONGODB_URI) throw new Error("MONGODB_URI is not set");
-    await mongoose.connect(MONGODB_URI, { dbName: MONGODB_DB });
-    console.log(`MongoDB connected -> ${MONGODB_DB}`);
-
-    app.listen(PORT, HOST, () => {
-      console.log(`Server listening on http://${HOST}:${PORT}`);
-    });
-  } catch (err) {
-    console.error("Startup error:", err);
-    process.exit(1);
-  }
-}
-start();
+app.listen(PORT, () => {
+  console.log(`Server listening on http://localhost:${PORT}`);
+  console.log('Mounted: POST /pdf-template');
+  console.log('Mounted: POST /docx-template');
+  console.log('Mounted: POST /api/products/bulk');
+  console.log('Mounted: GET  /api/products/:id');
+  console.log('Mounted: POST /api/price');
+  console.log('Mounted: POST /api/submissions');
+});
