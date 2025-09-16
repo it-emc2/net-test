@@ -57,22 +57,23 @@ const allowedExact = new Set([
   'http://127.0.0.1:5173',
 ]);
 
-function isAllowedOrigin(origin) {
-  if (!origin) return true; // allow same-origin/no Origin (curl, Postman)
-  if (allowedExact.has(origin)) return true;
+// add near your CORS logic
+const allowedSuffixes = [
+  '.containers.back4app.com', // Back4App default domains
+  // '.back4app.io',           // uncomment if you map a .back4app.io subdomain
+];
 
+function isAllowedOrigin(origin) {
+  if (!origin) return true; // same-origin / curl
+  if (allowedExact.has(origin)) return true;
   try {
     const u = new URL(origin);
-    // Allow any HTTPS origin on ngrok-free.app (any subdomain)
     if (
       u.protocol === 'https:' &&
-      (u.hostname === 'ngrok-free.app' || u.hostname.endsWith('.ngrok-free.app'))
-    ) {
-      return true;
-    }
-  } catch {
-    return false;
-  }
+      (u.hostname === 'ngrok-free.app' || u.hostname.endsWith('.ngrok-free.app') ||
+       allowedSuffixes.some(s => u.hostname.endsWith(s)))
+    ) return true;
+  } catch { /* ignore */ }
   return false;
 }
 
@@ -214,13 +215,18 @@ app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Server listening on http://${HOST}:${PORT}`);
-  console.log(`Server listening on http://localhost:${PORT}`);
-  console.log('Mounted: POST /pdf-template');
-  console.log('Mounted: POST /docx-template');
-  console.log('Mounted: POST /api/products/bulk');
-  console.log('Mounted: GET  /api/products/:id');
-  console.log('Mounted: POST /api/price');
-  console.log('Mounted: POST /api/submissions');
+app.listen(PORT, HOST, () => {
+  const bound = `http://${HOST}:${PORT}`;
+  const localHint = `http://localhost:${PORT}`; // for local dev only
+
+  console.log(`Server listening on ${bound}  (local hint: ${localHint})`);
+
+  [
+    'POST /pdf-template',
+    'POST /docx-template',
+    'POST /api/products/bulk',
+    'GET  /api/products/:id',
+    'POST /api/price',
+    'POST /api/submissions',
+  ].forEach(r => console.log(`Mounted: ${r}`));
 });
