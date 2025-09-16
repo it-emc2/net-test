@@ -1,224 +1,135 @@
-import 'dotenv/config';
-import express from 'express';
-import helmet from 'helmet';
-import cors from 'cors';
-import morgan from 'morgan';
-import compression from 'compression';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import mongoose from 'mongoose';
+// src/app.js
+import express from "express";
+import helmet from "helmet";
+import cors from "cors";
+import compression from "compression";
+import morgan from "morgan";
+import mongoose from "mongoose";
+import path from "path";
+import { fileURLToPath } from "url";
 
-// PDF/DOCX routes (unchanged)
-import { router as pdfRouter } from './routes/pdf.js';
-import pdfTemplateRouter from './routes/pdf-template.js';
-import docxTemplateRouter from './routes/docx-template.js';
-
-// Models (ESM default exports; ensure files export default)
-import Product from './models/Product.js';
-import Submission from './models/Submission.js';
-
-// Pricing logic (ESM default export -> factory(Product))
-import pricingFactory from './logic/pricing.js';
-
+// --- Resolve __dirname (ESM) and key paths
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const ROOT = process.cwd();
+const PUBLIC_DIR = path.resolve(ROOT, "src", "public");
 
+// --- App + middleware
 const app = express();
-
-const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI;
-const MONGODB_DB = process.env.MONGODB_DB || 'KonfiguratorDB';
-
-process.env.PDFJS_DISABLE_WORKER = 'true';
-
-// ---------------- Middleware ----------------
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      scriptSrc: [
-        "'self'", 
-        "'sha256-/N6XS1N1HWcS1jcxJkTULItDFffd/I1mw8tPD5FTS3o='",
-        "'sha256-5RmoD/+nJXNc4AM8oTu6YJEmH8lgRnYL9t8PcLUZxcY='",
-        "'sha256-pmi68vLyMeGurqDvTzm+MD6lhDeARWXCNqv7x536RmA='"
-      ],
-    },
-  },
-}));
-
-// Trust proxy because ngrok is a reverse proxy
-app.set('trust proxy', 1);
-
-// Dynamic CORS allowing localhost and any HTTPS subdomain of ngrok-free.app
-const allowedExact = new Set([
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-]);
-
-function isAllowedOrigin(origin) {
-  if (!origin) return true; // allow same-origin/no Origin (curl, Postman)
-  if (allowedExact.has(origin)) return true;
-
-  try {
-    const u = new URL(origin);
-    // Allow any HTTPS origin on ngrok-free.app (any subdomain)
-    if (
-      u.protocol === 'https:' &&
-      (u.hostname === 'ngrok-free.app' || u.hostname.endsWith('.ngrok-free.app'))
-    ) {
-      return true;
-    }
-  } catch {
-    return false;
-  }
-  return false;
-}
-
-app.use(
-  cors({
-    origin(origin, cb) {
-      if (isAllowedOrigin(origin)) return cb(null, true);
-      return cb(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
-  })
-);
-
-// Handle preflight for all routes
-app.options(
-  /.*/,
-  cors({
-    origin(origin, cb) {
-      if (isAllowedOrigin(origin)) return cb(null, true);
-      return cb(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
-  })
-);
-
+app.use(helmet({ contentSecurityPolicy: false })); // keep simple & compatible with inline scripts if any
+app.use(cors()); // optionally restrict later to your Back4App URL
 app.use(compression());
-app.use(morgan('dev'));
+app.use(morgan("dev"));
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json({ limit: '10mb' }));
 
-// ----- MongoDB connect -----
-mongoose.set('strictQuery', true);
+// --- MongoDB connection
+const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_DB = process.env.MONGODB_DB || "KonfiguratorDB";
 
 if (!MONGODB_URI) {
-  console.error('Missing MONGODB_URI. Set it in .env');
-  process.exit(1);
+  console.error("❌ MONGODB_URI is not set");
 }
 
-await mongoose.connect(MONGODB_URI, { dbName: MONGODB_DB });
-console.log('MongoDB connected ->', MONGODB_DB);
+await mongoose.connect(MONGODB_URI, {
+  dbName: MONGODB_DB,
+});
+console.log(`MongoDB connected -> ${MONGODB_DB}`);
 
-// ----- Business logic -----
-const pricing = pricingFactory(Product);
+// --- Models & logic
+import Product from "./models/Product.js";
+import Submission from "./models/Submission.js";
+import computePrice from "./logic/pricing.js"; // assumes default export = function(payload) -> { items, totals, ... }
 
-// ----- Existing routes (PDF/DOCX) -----
-app.use('/pdf', pdfRouter);
-app.use('/pdf-template', pdfTemplateRouter);
-app.use('/docx-template', docxTemplateRouter);
-
-// ----- New API: health -----
-app.get('/api/health', (req, res) =>
-  res.json({ ok: true, db: MONGODB_DB, time: new Date().toISOString() })
-);
-
-// ----- New API: Products -----
-
-// Bulk upsert products: [{ productId, name, price }]
-app.post('/api/products/bulk', async (req, res) => {
+// --- API: Products
+// Bulk upsert: [{ productId, name, price }, ...]
+app.post("/api/products/bulk", async (req, res) => {
   try {
-    const items = Array.isArray(req.body) ? req.body : [];
-    if (!items.length) {
-      return res.status(400).json({ error: 'Body must be an array of products' });
-    }
-    const ops = items.map((p) => ({
+    const docs = Array.isArray(req.body) ? req.body : [];
+    if (!docs.length) return res.status(400).json({ error: "Empty payload" });
+
+    const ops = docs.map((d) => ({
       updateOne: {
-        filter: { productId: p.productId },
-        update: { $set: { name: p.name, price: Number(p.price || 0) } },
+        filter: { productId: d.productId },
+        update: { $set: d },
         upsert: true,
       },
     }));
-    const result = await Product.bulkWrite(ops);
-    res.json({ ok: true, result });
+
+    const result = await Product.bulkWrite(ops, { ordered: false });
+    return res.json({ ok: true, result });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: String(err) });
+    console.error("bulk products error:", err);
+    return res.status(500).json({ error: "Bulk upsert failed" });
   }
 });
 
-// Get single product by Hersteller productId
-app.get('/api/products/:id', async (req, res) => {
+// Get single product by productId
+app.get("/api/products/:id", async (req, res) => {
   try {
-    const p = await Product.findOne({ productId: req.params.id }).lean();
-    if (!p) return res.status(404).json({ error: 'Not found' });
-    res.json(p);
+    const doc = await Product.findOne({ productId: req.params.id });
+    if (!doc) return res.status(404).json({ error: "Not found" });
+    return res.json(doc);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: String(err) });
+    console.error("get product error:", err);
+    return res.status(500).json({ error: "Error fetching product" });
   }
 });
 
-// ----- New API: Pricing (does not save) -----
-app.post('/api/price', async (req, res) => {
+// --- API: Pricing
+app.post("/api/price", async (req, res) => {
   try {
-    const payload = req.body;
-    const result = await pricing.computePrices(payload);
-    res.json(result);
+    const payload = req.body || {};
+    const computed = await computePrice(payload);
+    return res.json(computed);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: String(err) });
+    console.error("pricing error:", err);
+    return res.status(500).json({ error: "Pricing failed" });
   }
 });
 
-// ----- New API: Submissions (save + computed) -----
-app.post('/api/submissions', async (req, res) => {
+// --- API: Submissions
+app.post("/api/submissions", async (req, res) => {
   try {
-    const payload = req.body;
-    const computed = await pricing.computePrices(payload);
-    const doc = await Submission.create({ payload, computed });
-    res.status(201).json({ id: doc._id, computed });
+    const { payload, computed } = req.body || {};
+    const sub = await Submission.create({
+      payload: payload || {},
+      computed: computed || null,
+      createdAt: new Date(),
+    });
+    return res.status(201).json({ ok: true, id: sub._id });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: String(err) });
+    console.error("submission error:", err);
+    return res.status(500).json({ error: "Submission failed" });
   }
 });
 
-// Legacy health (kept)
-app.get('/health', (req, res) =>
-  res.json({ ok: true, time: new Date().toISOString() })
-);
+// --- Export routes (PDF/DOCX)
+import docxRouter from "./routes/docx-template.js";
+import pdfTemplateRouter from "./routes/pdf-template.js";
+import pdfRouter from "./routes/pdf.js"; // if this exists as a router in your project
 
-// Static assets
-app.use(express.static(path.join(__dirname, 'public')));
+app.use("/docx-template", docxRouter);
+app.use("/pdf-template", pdfTemplateRouter);
+app.use("/pdf", pdfRouter);
 
-// Simple echo submit (kept)
-app.post('/submit', (req, res) => {
-  const payload = {
-    receivedAt: new Date().toISOString(),
-    ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
-    userAgent: req.headers['user-agent'],
-    contentType: req.headers['content-type'],
-    body: req.body,
-  };
-  res.status(201).json(payload);
+// --- Static SPA & health
+app.use(express.static(PUBLIC_DIR));
+
+app.get("/healthz", (_req, res) => res.status(200).send("ok"));
+
+// Serve index.html for the root and any client-side routes
+app.get("*", (req, res, next) => {
+  // only fall back for GET/HTML requests
+  if (req.method !== "GET") return next();
+  res.sendFile(path.join(PUBLIC_DIR, "index.html"));
 });
 
-// Fallback to SPA index.html
-// Express 5 + path-to-regexp v8: use a RegExp catch-all instead of "*"
-app.get(/.*/, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// --- Start server (bind to all interfaces, use platform PORT)
+const PORT = Number(process.env.PORT || 3000);
+const HOST = "0.0.0.0";
+app.listen(PORT, HOST, () => {
+  console.log(`Server listening on http://${HOST}:${PORT}`);
 });
 
-app.listen(PORT, () => {
-  console.log(`Server listening on http://localhost:${PORT}`);
-  console.log('Mounted: POST /pdf-template');
-  console.log('Mounted: POST /docx-template');
-  console.log('Mounted: POST /api/products/bulk');
-  console.log('Mounted: GET  /api/products/:id');
-  console.log('Mounted: POST /api/price');
-  console.log('Mounted: POST /api/submissions');
-});
+export default app;
