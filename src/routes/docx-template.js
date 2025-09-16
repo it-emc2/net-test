@@ -8,8 +8,8 @@ import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 
 // 1) Import your Mongoose model and pricing factory
-import ProductModel from '../models/Product.js'; // adjust path
-import pricingFactory from '../logic/pricing.js'; // adjust path
+import ProductModel from '../models/Product.js';
+import pricingFactory from '../logic/pricing.js';
 
 export const router = express.Router();
 
@@ -29,9 +29,11 @@ function mapData(body = {}, computed = {}) {
   const b = body.bereich || {};
   const tb = body.textbausteine || {};
 
-  // computed defaults
+  // Computed fields from pricing.computePrices
   const {
     items = [],
+    productsSubtotal = 0,
+    services = { title: '', lines: [], sum: 0, payer: '', zoneLabel: '', distanceKm: 0, laborHours: 0, laborRate: 0 },
     subtotal = 0,
     markupPct = 0,
     markup = 0,
@@ -39,30 +41,43 @@ function mapData(body = {}, computed = {}) {
     total = 0,
   } = computed;
 
-  // If your template expects specific fields under "preise" and "summe",
-  // construct them from computed data. Adjust as needed.
+  // If your template still uses some manual price fields, keep them
   const prix = body.preise || {};
   const sum = body.summe || {};
 
-  // Decide where "Arbeit" and "Material" come from:
-  // If you want to keep using provided prix.* when present, fall back to computed subtotal/markup/etc.
-  // Or, compute them explicitly if you split your catalog by type. For now, we’ll just expose totals.
-  const Arbeit = prix.arbeit ?? '';     // keep existing behavior unless you want to compute
-  const Material = prix.material ?? ''; // keep existing behavior unless you want to compute
-
-  // Build sums: use body.summe if present, else compute from pricing
+  // Totals (fall back to computed if body.* not provided)
   const Nettobetrag = sum.netto ?? fmtCurrency(subtotal);
-  const Rabatt = sum.rabatt ?? ''; // if you implement discounts, compute here
-  const MwSt = sum.mwst ?? '';     // if VAT applies, compute here
+  const Rabatt = sum.rabatt ?? '';
+  const MwSt = sum.mwst ?? '';
   const Gesamtsumme = sum.gesamt ?? fmtCurrency(total);
   const Selbstkostenanteil = sum.selbstkostenanteil ?? '';
   const Zuschusskrankenkasse = sum.zuschuss ?? '';
   const Gesamtsummerabatt = sum.gesamtsummerabatt ?? '';
 
-  // Build a human friendly markup string, if needed
+  // Markup display fields
   const MarkupPctStr = markupPct ? `${Math.round(markupPct * 100)}%` : '';
   const MarkupValue = fmtCurrency(markup);
   const TravelValue = fmtCurrency(travel);
+
+  // Build the service position placeholders
+  const serviceLines = (services?.lines || []).map(l => l.label);
+  const ServicePosTitle = services?.title || 'Auszuführende Arbeiten';
+  const ServiceUnitPrice = fmtCurrency(services?.sum || 0); // Einheitspreis (per 1 Stk)
+  const ServiceTotal = fmtCurrency(services?.sum || 0);     // Gesamt (1 Stk)
+
+  // Optional meta for debugging/placeholders if needed
+  const PayerKind = services?.payer || (b.payer || '');          // 'KK' / 'SZ'
+  const ZoneChosen = services?.zoneLabel || '';
+  const DistanceKm =
+(services && services.distanceKm !== undefined && services.distanceKm !== null)
+? services.distanceKm
+: (Number(b.distanceKm ?? 0) || 0);
+
+const LaborHours =
+(services && services.laborHours !== undefined && services.laborHours !== null)
+? services.laborHours
+: (Number(b.laborHours ?? 0) || 0);
+  const LaborRate = services?.laborRate ?? 0;
 
   return {
     // Address / meta
@@ -78,24 +93,14 @@ function mapData(body = {}, computed = {}) {
     Greeting: b.salutation === 'Frau' ? 'Sehr geehrte Frau' : (b.salutation === 'Herr' ? 'Sehr geehrter Herr' : 'Guten Tag'),
     Angebotsnummer: body.offerNumber || 'ANG-0001',
 
-    // Optional: keep original price fields if you already use them
-    Arbeit,
-    Material,
+    // Legacy/optional price fields if used elsewhere in your template
+    Arbeit: prix.arbeit ?? '',
+    Material: prix.material ?? '',
 
     // Text blocks
     Long1: tb.long1 ?? '',
     Long3: tb.long3 ?? '',
     Long: tb.long ?? '',
-
-    // Bonus/position fields (unchanged)
-    Pos003: body.pos003 ?? '',
-    Bonus1Stk: body.bonus1Stk ?? '',
-    Bonus1: body.bonus1 ?? '',
-    Bonus1Price: body.bonus1Price ?? '',
-    Pos004: body.pos004 ?? '',
-    Bonus2Stk: body.bonus2Stk ?? '',
-    Bonus2: body.bonus2 ?? '',
-    Bonus2Price: body.bonus2Price ?? '',
 
     // Sums (use computed when not provided)
     Nettobetrag,
@@ -106,49 +111,67 @@ function mapData(body = {}, computed = {}) {
     Zuschusskrankenkasse,
     Gesamtsummerabatt,
 
-    // Also expose computed fields explicitly, in case you add placeholders in DOCX:
+    // Computed summary (always available)
     Subtotal: fmtCurrency(subtotal),
     MarkupPct: MarkupPctStr,
     MarkupValue,
     TravelValue,
 
-    // Expose items for a repeating table in DOCX (see template instructions below)
+    // Materials (catalog items) table (if your DOCX uses a repeating table)
     Items: items.map(i => ({
       ProduktId: i.productId,
       Menge: i.qty,
       Einzelpreis: fmtCurrency(i.unitPrice),
       Zwischensumme: fmtCurrency(i.lineTotal),
     })),
+    ProdukteZwischensumme: fmtCurrency(productsSubtotal),
+
+    // NEW: Service position placeholders for "Auszuführende Arbeiten"
+    ServicePosTitle,
+    ServiceUnitPrice,
+    ServiceTotal,
+    ServiceLines: serviceLines.map(txt => ({ ServiceLine: txt })),
+
+    // Optional debug/extra placeholders you can show in the document if needed
+    PayerKind,
+    ZoneChosen,
+    DistanceKm,
+    LaborHours,
+    LaborRate: LaborRate ? `${LaborRate.toFixed(2)} €` : '',
   };
 }
 
 router.post('/', async (req, res) => {
   try {
+    // 1) Load DOCX template
     const templatePath = path.join(process.cwd(), 'src', 'templates', 'Angebot.docx');
     const content = await fs.readFile(templatePath); // Buffer
 
-    // 3) Compute prices using the incoming payload
+    // 2) Compute prices using the incoming payload
     // Make sure req.body matches the expected structure for collectSelections(payload)
     const computed = await pricing.computePrices(req.body || {});
 
+    // 3) Prepare docxtemplater
     const zip = new PizZip(content);
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
-      linebreaks: true
+      linebreaks: true,
     });
 
     // 4) Map data into template variables
     const data = mapData(req.body || {}, computed);
     console.log('[docx-template] replacing keys:', Object.keys(data));
+    // If you need to inspect service lines:
+    // console.log('[docx-template] service lines:', data.ServiceLines);
 
     doc.setData(data);
 
-    // Will throw if a placeholder in DOCX has no value and your template has "strict" tags
+    // Will throw if a placeholder in DOCX is malformed (strict mode in tags)
     doc.render();
 
     const out = doc.getZip().generate({ type: 'nodebuffer' });
 
-    // Optional: write to disk for verification during debugging
+    // Optional: write to disk for verification during development
     try {
       const verifyOut = path.join(process.cwd(), 'out-Angebot.docx');
       fsSync.writeFileSync(verifyOut, out);
@@ -157,6 +180,7 @@ router.post('/', async (req, res) => {
       console.warn('[docx-template] could not write verify file:', e?.message || e);
     }
 
+    // 5) Send as download
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', 'attachment; filename="Angebot.docx"');
     res.send(out);

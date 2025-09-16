@@ -12,24 +12,18 @@ export default (ProductModel) => {
     const out = [];
     const opt = payload?.optional || {};
 
-    // Map UI alias keys to actual product IDs in DB
     const aliasToId = {
       CL_BASIN: 'CL',
-      // add more aliases here if your UI uses them
     };
 
     const push = (id, qtyRaw, checked) => {
       const qtyNum = qtyRaw !== undefined && qtyRaw !== null && qtyRaw !== ''
         ? Number(qtyRaw)
         : (checked ? 1 : 0);
-
       const qty = Number.isFinite(qtyNum) ? qtyNum : 0;
-      if ((checked || qty > 0) && qty > 0) {
-        out.push({ productId: id, qty });
-      }
+      if ((checked || qty > 0) && qty > 0) out.push({ productId: id, qty });
     };
 
-    // Iterate over optional keys and include any opt_* / qty_* pairs
     for (const [key, val] of Object.entries(opt)) {
       if (key.startsWith('opt_')) {
         const k = key.slice(4);
@@ -43,11 +37,6 @@ export default (ProductModel) => {
         push(id, qty, checked);
       }
     }
-
-    // If you have any fixed items not represented by optional.*, add them explicitly here:
-    // Example:
-    // push('DEPKS', opt['qty_DEPKS'], opt['opt_DEPKS']);
-
     return out;
   }
 
@@ -62,8 +51,93 @@ export default (ProductModel) => {
     return 0;
   };
 
+  // NEW: Service cost calculator for "Auszuführende Arbeiten"
+  function computeServiceCosts(payload) {
+    const b = payload?.bereich || {};
+    const payer = b.payer === 'Kassenkunde' ? 'KK' : (b.payer === 'Selbstzahler' ? 'SZ' : '');
+    const distanceKm = Number(payload?.bereich?.distanceKm || 0) || 0;
+    const laborHours = Number(payload?.bereich?.laborHours || 0) || 0;
+
+    // Zone chosen
+    const zoneKK = payload?.bereich?.zoneKK || ''; // 'Zone 1'...'Zone 12'
+    const zoneSZ = payload?.bereich?.zoneSZ || '';
+
+    // Tariffs
+    const tableKK = {
+      'Zone 1': 46.33, 'Zone 2': 69.50, 'Zone 3': 92.66, 'Zone 4': 139.00,
+      'Zone 5': 185.33, 'Zone 6': 231.66, 'Zone 7': 278.00, 'Zone 8': 324.32,
+      'Zone 9': 370.66, 'Zone 10': 416.99, 'Zone 11': 461.48, 'Zone 12': 508.74, 'Zone 13': 556.00,
+    };
+    const tableSZ = {
+      'Zone 1': 39.66, 'Zone 2': 59.50, 'Zone 3': 79.33, 'Zone 4': 119.00,
+      'Zone 5': 158.66, 'Zone 6': 198.32, 'Zone 7': 238.00, 'Zone 8': 277.65,
+      'Zone 9': 317.31, 'Zone 10': 356.00, 'Zone 11': 395.08, 'Zone 12': 435.54, 'Zone 13': 476.00,
+    };
+    const laborRateKK = 69.50;
+    const laborRateSZ = 59.50;
+    const kmRate = 0.70;
+
+    const zoneLabel = payer === 'KK' ? (zoneKK || '') : (payer === 'SZ' ? (zoneSZ || '') : '');
+    const zonePrice = payer === 'KK' ? (tableKK[zoneLabel] || 0) : (payer === 'SZ' ? (tableSZ[zoneLabel] || 0) : 0);
+
+    const fahrzeugbereitstellung = 80.00;
+    const werkzeug = 7.50;
+    const kilometerpauschale = round2(distanceKm * kmRate);
+    const laborRate = payer === 'KK' ? laborRateKK : (payer === 'SZ' ? laborRateSZ : 0);
+    const facharbeiter = round2(laborHours * 2 * laborRate);
+
+    const lines = [];
+    if (zoneLabel && zonePrice > 0) {
+      lines.push({
+        key: 'zone',
+        label: `- 1,00 Stk An- und Abfahrtzone ${zoneLabel}`,
+        amount: round2(zonePrice),
+      });
+    }
+    lines.push({
+      key: 'fahrzeug',
+      label: '- 1,00 Stk Fahrzeugbereitstellung',
+      amount: round2(fahrzeugbereitstellung),
+    });
+    lines.push({
+      key: 'werkzeuge',
+      label: '- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen',
+      amount: round2(werkzeug),
+    });
+    if (distanceKm > 0) {
+      lines.push({
+        key: 'kilometer',
+        label: `- ${distanceKm} km Kilometerpauschale`,
+        amount: kilometerpauschale,
+      });
+    }
+    if (laborHours > 0 && laborRate > 0) {
+      lines.push({
+        key: 'facharbeiter',
+        label: `- ${laborHours} Std × 2 Facharbeiter × ${laborRate.toFixed(2)} €`,
+        amount: facharbeiter,
+      });
+    }
+
+    const posTitle = (payload?.bereich?.offerType === 'Wanne zu Dusche')
+      ? 'Auszuführende Arbeiten - Wanne zu Dusche'
+      : (payload?.bereich?.offerType === 'Dusche zu Dusche'
+          ? 'Auszuführende Arbeiten - Dusche zu Dusche'
+          : 'Auszuführende Arbeiten');
+
+    const sum = round2(lines.reduce((a, x) => a + (x.amount || 0), 0));
+
+    return {
+      title: posTitle,
+      lines,
+      sum,
+      payer, zoneLabel, distanceKm, laborHours, laborRate,
+    };
+  }
+
   return {
     computePrices: async (payload) => {
+      // Products
       const selections = collectSelections(payload);
       const ids = [...new Set(selections.map(s => s.productId))];
       const priceOf = await getPricesByIds(ids);
@@ -79,13 +153,28 @@ export default (ProductModel) => {
         };
       });
 
-      const subtotal = round2(items.reduce((sum, i) => sum + i.lineTotal, 0));
-      const markupPct = extractMarkupPct(payload);
-      const markup = round2(subtotal * markupPct);
-      const travel = 0;
-      const total = round2(subtotal + markup + travel);
+      // Service costs
+      const services = computeServiceCosts(payload);
 
-      return { items, subtotal, markupPct, markup, travel, total };
+      // Totals: product subtotal + service sum
+      const productsSubtotal = round2(items.reduce((sum, i) => sum + i.lineTotal, 0));
+      const baseSubtotal = round2(productsSubtotal + (services.sum || 0));
+
+      const markupPct = extractMarkupPct(payload);
+      const markup = round2(baseSubtotal * markupPct);
+      const travel = 0; // reserved if you keep a separate travel field
+      const total = round2(baseSubtotal + markup + travel);
+
+      return {
+        items,
+        productsSubtotal,
+        services,       // expose breakdown
+        subtotal: baseSubtotal,
+        markupPct,
+        markup,
+        travel,
+        total
+      };
     }
   };
 };
