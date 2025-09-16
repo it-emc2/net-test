@@ -26,6 +26,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 const PORT = process.env.PORT || 3000;
+const HOST = '0.0.0.0'; // IMPORTANT: bind to all interfaces in a container
 const MONGODB_URI = process.env.MONGODB_URI;
 const MONGODB_DB = process.env.MONGODB_DB || 'KonfiguratorDB';
 
@@ -214,6 +215,7 @@ app.get(/.*/, (req, res) => {
 });
 
 app.listen(PORT, () => {
+  console.log(`Server listening on http://${HOST}:${PORT}`);
   console.log(`Server listening on http://localhost:${PORT}`);
   console.log('Mounted: POST /pdf-template');
   console.log('Mounted: POST /docx-template');
