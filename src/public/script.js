@@ -78,10 +78,9 @@ function validateBereich(){
   const d = document.getElementById('date'); if (d && !d.value) d.valueAsDate = new Date();
 
   // Native constraints first (required toggled by initPflegegrad etc.)
-  // reportValidity shows bubbles; checkValidity is silent.
   if (!form.checkValidity()) return false;
 
-  // Extra minimal guards you already had
+  // Extra minimal guards
   const req = ['date','firstName','lastName','customerNumber'];
   let bad = req.map(id=>document.getElementById(id)).find(el=>!el?.value);
   if (!bad){
@@ -115,13 +114,25 @@ function validateWandverkleidung(){
 }
 function validateOptional(){ return true; }
 
+/* Focus helper for Bereich conditional errors (defined in initBereichErrorHints) */
+function focusFirstBereichConditionalError(){
+  if (typeof window.__bereichFocusFirstError__ === 'function'){
+    return window.__bereichFocusFirstError__();
+  }
+  return false;
+}
+
 // Use this wherever you need the Bereich page to be valid before proceeding
 function requireBereichValid(){
   const form = document.getElementById('form-bereich');
   // Trigger native bubbles
-  if (!form.reportValidity()) return false;
-  // Run your custom guards
-  return validateBereich();
+  if (!form.reportValidity()){
+    focusFirstBereichConditionalError();
+    return false;
+  }
+  const ok = validateBereich();
+  if (!ok) focusFirstBereichConditionalError();
+  return ok;
 }
 
 /* ========== NAV BUTTONS ========== */
@@ -201,6 +212,132 @@ document.body.addEventListener('click', e=>{
     if (['payer','hasPflegegrad','pflegegrad','wohnumfeldDone'].includes(t.name)) apply();
     if (t.id==='budgetCopay') applyCopay();
   });
+})();
+
+/* ========== ACCESSIBLE ERROR HINTS FOR BEREICH CONDITIONALS ========== */
+(function initBereichErrorHints(){
+  const form = document.getElementById('form-bereich'); if (!form) return;
+
+  function ensureHint(afterEl, id){
+    if (!afterEl) return null;
+    let hint = document.getElementById(id);
+    if (!hint){
+      hint = document.createElement('div');
+      hint.id = id;
+      hint.role = 'alert';
+      hint.style.color = 'var(--danger)';
+      hint.style.marginTop = '6px';
+      hint.style.fontSize = '0.9rem';
+      hint.style.display = 'none';
+      afterEl.appendChild(hint);
+    }
+    return hint;
+  }
+  function showHint(hint, msg){
+    if (!hint) return;
+    hint.textContent = msg || '';
+    hint.style.display = msg ? 'block' : 'none';
+  }
+
+  const pgLevelRow = document.getElementById('pflegegradLevelRow');
+  const wePanel = document.getElementById('wohnumfeldPanel');
+  const weDoneGroup = document.getElementById('wohnumfeldDoneGroup');
+  const weAppGroup = document.getElementById('wohnumfeldApplicationGroup');
+  const weAmountRow = document.getElementById('wohnumfeldAmountRow');
+
+  const hintPG  = ensureHint(pgLevelRow, 'hint_pg_level');
+  const hintWE  = ensureHint(weDoneGroup, 'hint_we_done');
+  const hintApp = ensureHint(weAppGroup, 'hint_we_app');
+  const hintAmt = ensureHint(weAmountRow, 'hint_we_amount');
+
+  const isKK = () => form.querySelector('input[name="payer"]:checked')?.value === 'Kassenkunde';
+  const hasPG = () => form.querySelector('input[name="hasPflegegrad"]:checked')?.value === 'Ja';
+  const pgSelected = () => !!form.querySelector('input[name="pflegegrad"]:checked');
+  const weDoneSelected = () => !!form.querySelector('input[name="wohnumfeldDone"]:checked');
+  const weAppSelected = () => !!form.querySelector('input[name="wohnumfeldApplication"]:checked');
+  const weDoneYes = () => !!form.querySelector('input[name="wohnumfeldDone"][value="Ja"]:checked');
+  const amtVal = () => {
+    const el = document.getElementById('wohnumfeldAmount');
+    if (!el || el.closest('[hidden]')) return '';
+    return el.value?.trim() || '';
+  };
+
+  function validateHints(){
+    // Pflegegrad level
+    if (!pgLevelRow?.hidden && hasPG() && !pgSelected()){
+      showHint(hintPG, 'Bitte wählen Sie einen Pflegegrad.');
+    } else {
+      showHint(hintPG, '');
+    }
+
+    // Wohnumfeld: Done
+    if (!wePanel?.hidden && isKK()){
+      if (!weDoneSelected()){
+        showHint(hintWE, 'Bitte wählen Sie Ja oder Nein.');
+      } else {
+        showHint(hintWE, '');
+      }
+    } else {
+      showHint(hintWE, '');
+    }
+
+    // Wohnumfeld: Application
+    if (!wePanel?.hidden && isKK()){
+      if (!weAppSelected()){
+        showHint(hintApp, 'Bitte wählen Sie, wer den Antrag stellt.');
+      } else {
+        showHint(hintApp, '');
+      }
+    } else {
+      showHint(hintApp, '');
+    }
+
+    // Wohnumfeld: Amount when Ja
+    if (!weAmountRow?.hidden && isKK() && weDoneYes()){
+      const v = amtVal();
+      if (!v){
+        showHint(hintAmt, 'Bitte geben Sie den Betrag an.');
+      } else {
+        showHint(hintAmt, '');
+      }
+    } else {
+      showHint(hintAmt, '');
+    }
+  }
+
+  // Initial and on change
+  validateHints();
+  form.addEventListener('change', validateHints);
+  form.addEventListener('input', validateHints);
+
+  // Expose focus helper used by requireBereichValid
+  window.__bereichFocusFirstError__ = function(){
+    if (!pgLevelRow?.hidden && hasPG() && !pgSelected()){
+      pgLevelRow.scrollIntoView({behavior:'smooth', block:'center'});
+      const first = pgLevelRow.querySelector('input[type="radio"]');
+      first?.focus();
+      return true;
+    }
+    if (isKK() && !weDoneSelected()){
+      weDoneGroup?.scrollIntoView({behavior:'smooth', block:'center'});
+      const first = weDoneGroup?.querySelector('input[type="radio"]');
+      first?.focus();
+      return true;
+    }
+    if (isKK() && weDoneYes() && !amtVal()){
+      const amt = document.getElementById('wohnumfeldAmount');
+      amt?.scrollIntoView({behavior:'smooth', block:'center'});
+      amt?.focus();
+      return true;
+    }
+    if (isKK() && !weAppSelected()){
+      weAppGroup?.scrollIntoView({behavior:'smooth', block:'center'});
+      const first = weAppGroup?.querySelector('input[type="radio"]');
+      first?.focus();
+      return true;
+    }
+    return false;
+  };
 })();
 
 /* ========== DUSCHWANNE DEFAULTS ========== */
@@ -400,7 +537,6 @@ async function requestPdfAndDownload(payload, filename='Anfrage.pdf'){
   const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 document.getElementById('makePdf')?.addEventListener('click', async ()=>{
-  // Require Bereich to be valid before generating preview document
   if (!requireBereichValid()) { location.hash='bereich'; return; }
   try{ await requestPdfAndDownload(buildPayload()); document.getElementById('pdfActions')?.style.setProperty('display','flex'); }
   catch(e){ show({error:String(e)}, false); }
