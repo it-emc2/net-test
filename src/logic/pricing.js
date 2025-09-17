@@ -1,6 +1,5 @@
 // src/logic/pricing.js
 export default (ProductModel) => {
-  // Fetch product docs for given IDs (price + name)
   async function getProductsByIds(ids) {
     const unique = [...new Set((ids || []).filter(Boolean))];
     if (!unique.length) return new Map();
@@ -18,12 +17,10 @@ export default (ProductModel) => {
   const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
   const ceilSafe = (n) => Math.ceil((Number(n) || 0) - 1e-12);
 
-  // Legacy optional collector (kept)
   function collectSelections(payload) {
     const out = [];
     const opt = payload?.optional || {};
     const aliasToId = { CL_BASIN: 'CL' };
-
     const push = (id, qtyRaw, checked) => {
       const qtyNum = qtyRaw !== undefined && qtyRaw !== null && qtyRaw !== ''
         ? Number(qtyRaw)
@@ -31,7 +28,6 @@ export default (ProductModel) => {
       const qty = Number.isFinite(qtyNum) ? qtyNum : 0;
       if ((checked || qty > 0) && qty > 0) out.push({ productId: id, qty });
     };
-
     for (const [key, val] of Object.entries(opt)) {
       if (key.startsWith('opt_')) {
         const k = key.slice(4);
@@ -59,7 +55,6 @@ export default (ProductModel) => {
     return 0;
   };
 
-  // Materials calculator (Option A for adhesive: packs)
   async function computeMaterials(payload) {
     const dusch = payload?.duschwanne || {};
     const wv = payload?.wandverkleidung || {};
@@ -80,8 +75,8 @@ export default (ProductModel) => {
       });
     };
 
-    // Duschwanne size
-    const traySize = dusch.traySize; // '120 x 100 x 3 cm' ...
+    // Duschwanne
+    const traySize = dusch.traySize;
     const trayMap = new Map([
       ['180 x 100 x 3 cm', 'SLA180100'],
       ['160 x 100 x 3 cm', 'SLA160100'],
@@ -93,45 +88,35 @@ export default (ProductModel) => {
     ]);
     if (trayMap.has(traySize)) add(trayMap.get(traySize), 1);
 
-    // Abdichtband, Ablaufgarnitur
     if (dusch.abdichtSet) add('TRWDB', 1);
     if (dusch.drainSet) add('AGD9060', 1);
 
-    // Kleinmaterial
-    if (dusch.smallMaterial) {
-      const v = dusch.smallMaterialVariant;
-      if (v === '150€ groß') add('KM02', 1);
-      else add('KM01', 1);
-    }
+    // Kleinmaterial: always 150 € (KM02) when selected
+    if (dusch.smallMaterial) add('KM02', 1);
 
-    // Stelzlager
     if (dusch.stelzlager) add('STELZ', 1);
 
     // Fußboden
     const addFlooring = !!dusch.addFlooring;
     const floorArea = Number(String(dusch.floorArea ?? '').replace(',', '.')) || 0;
     if (addFlooring && floorArea > 0) {
-      // Panels: 1 m² = 4 Panels, 1 panel = 20.97 €
+      // Panels
       const panels = ceilSafe(floorArea * 4);
       add('V5FB02', panels, `- ${panels} Stk Fußboden-Paneele (1 m² = 4 Paneele)`, 20.97);
 
-      // Adhesive as packs (Option A)
-      const piecesNeeded = ceilSafe(floorArea / 0.60); // 0.60 m² per piece
-      const packs = ceilSafe(piecesNeeded / 20); // 20 Stück per pack
-      if (packs > 0) add('V4FK600', packs, `- ${packs} Pkg Flächenkleber (à 20 Stk; 0,60 m²/Stk)`, 17.39);
+      // NEW adhesive packs: 4 packs per 2.4 m² => 1 pack per 0.6 m²
+      const packs = ceilSafe(floorArea / 0.6);
+      if (packs > 0) add('V4FK600', packs, `- ${packs} Pkg Flächenkleber (1 Pkg je 0,60 m²)`, 17.39);
 
-      // Floor sealing (checkbox)
       if (dusch.floorSealing) add('TRBDSET7', 1);
     }
 
     // Wandverkleidung
-    const wv997Checked = !!wv?.wv997;
-    const wv1497Checked = !!wv?.wv1497;
     const qty997 = Number(wv?.wvQty997 || 0) || 0;
     const qty1497 = Number(wv?.wvQty1497 || 0) || 0;
 
-    if (wv997Checked && qty997 > 0) add('V3WVK09', qty997, `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`);
-    if (wv1497Checked && qty1497 > 0) add('V3WV09', qty1497, `- ${qty1497} Stk Wandverkleidung 3.0 Alu 1497×2550 mm`);
+    if (wv?.wv997 && qty997 > 0) add('V3WVK09', qty997, `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`);
+    if (wv?.wv1497 && qty1497 > 0) add('V3WV09', qty1497, `- ${qty1497} Stk Wandverkleidung 3.0 Alu 1497×2550 mm`);
 
     if (wv?.wvSealing) add('TRWDSET5', 1);
 
@@ -146,7 +131,7 @@ export default (ProductModel) => {
       if (wv?.wvProfileAdhesive && q > 0) add('V4RPKIT', q);
     }
 
-    // Waschtisch rule in Optional
+    // Waschtisch required accessories
     const basinQty = Number(opt?.qty_CL60 || 0) || 0;
     const basinSelected = !!opt?.opt_CL60 && basinQty > 0;
     if (basinSelected) {
@@ -159,57 +144,36 @@ export default (ProductModel) => {
       }
     }
 
-    // Resolve product data
+    // Resolve names + prices
     const productMap = await getProductsByIds([...idsNeeded]);
-
     const resolved = lines.map(l => {
       const prod = productMap.get(l.id) || { price: 0, name: '' };
       const unit = Number.isFinite(l.unitOverride) ? l.unitOverride : prod.price;
       const lineTotal = round2(unit * l.qty);
       return {
         productId: l.id,
-        name: prod.name || '',       // include DB name
+        name: prod.name || '',
         qty: l.qty,
         unitPrice: unit,
         lineTotal,
-        label: l.label,              // your custom label if any
+        label: l.label,
       };
     });
 
     const sum = round2(resolved.reduce((a, x) => a + (x.lineTotal || 0), 0));
-    return {
-      title: 'Material für Badumbau',
-      lines: resolved,
-      sum,
-    };
+    return { title: 'Material für Badumbau', lines: resolved, sum };
   }
 
-  // Service cost calculator (full implementation)
+  // Services (zones removed)
   function computeServiceCosts(payload) {
     const b = payload?.bereich || {};
     const payer = b.payer === 'Kassenkunde' ? 'KK' : (b.payer === 'Selbstzahler' ? 'SZ' : '');
-    const distanceKm = Number(payload?.bereich?.distanceKm || 0) || 0;
-    const laborHours = Number(payload?.bereich?.laborHours || 0) || 0;
+    const distanceKm = Number(b.distanceKm || 0) || 0;
+    const laborHours = Number(b.laborHours || 0) || 0;
 
-    const zoneKK = payload?.bereich?.zoneKK || '';
-       const zoneSZ = payload?.bereich?.zoneSZ || '';
-
-    const tableKK = {
-      'Zone 1': 46.33, 'Zone 2': 69.50, 'Zone 3': 92.66, 'Zone 4': 139.00,
-      'Zone 5': 185.33, 'Zone 6': 231.66, 'Zone 7': 278.00, 'Zone 8': 324.32,
-      'Zone 9': 370.66, 'Zone 10': 416.99, 'Zone 11': 461.48, 'Zone 12': 508.74, 'Zone 13': 556.00,
-    };
-    const tableSZ = {
-      'Zone 1': 39.66, 'Zone 2': 59.50, 'Zone 3': 79.33, 'Zone 4': 119.00,
-      'Zone 5': 158.66, 'Zone 6': 198.32, 'Zone 7': 238.00, 'Zone 8': 277.65,
-      'Zone 9': 317.31, 'Zone 10': 356.00, 'Zone 11': 395.08, 'Zone 12': 435.54, 'Zone 13': 476.00,
-    };
     const laborRateKK = 69.50;
     const laborRateSZ = 59.50;
     const kmRate = 0.70;
-
-    const zoneLabel = payer === 'KK' ? (zoneKK || '') : (payer === 'SZ' ? (zoneSZ || '') : '');
-    const zonePrice = payer === 'KK' ? (tableKK[zoneLabel] || 0) : (payer === 'SZ' ? (tableSZ[zoneLabel] || 0) : 0);
 
     const fahrzeugbereitstellung = 80.00;
     const werkzeug = 7.50;
@@ -218,9 +182,6 @@ export default (ProductModel) => {
     const facharbeiter = round2(laborHours * 2 * laborRate);
 
     const lines = [];
-    if (zoneLabel && zonePrice > 0) {
-      lines.push({ key: 'zone', label: `- 1,00 Stk An- und Abfahrtzone ${zoneLabel}`, amount: round2(zonePrice) });
-    }
     lines.push({ key: 'fahrzeug', label: '- 1,00 Stk Fahrzeugbereitstellung', amount: round2(fahrzeugbereitstellung) });
     lines.push({ key: 'werkzeuge', label: '- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen', amount: round2(werkzeug) });
     if (distanceKm > 0) {
@@ -230,24 +191,15 @@ export default (ProductModel) => {
       lines.push({ key: 'facharbeiter', label: `- ${laborHours} Std × 2 Facharbeiter × ${laborRate.toFixed(2)} €`, amount: facharbeiter });
     }
 
-    const posTitle = (payload?.bereich?.offerType === 'Wanne zu Dusche')
-      ? 'Auszuführende Arbeiten - Wanne zu Dusche'
-      : (payload?.bereich?.offerType === 'Dusche zu Dusche'
-          ? 'Auszuführende Arbeiten - Dusche zu Dusche'
-          : 'Auszuführende Arbeiten');
-
+    const posTitle = 'Auszuführende Arbeiten';
     const sum = round2(lines.reduce((a, x) => a + (x.amount || 0), 0));
-
-    return { title: posTitle, lines, sum, payer, zoneLabel, distanceKm, laborHours, laborRate };
+    return { title: posTitle, lines, sum, payer, zoneLabel: '', distanceKm, laborHours, laborRate };
   }
 
   return {
     computePrices: async (payload) => {
-      // Optional selections (legacy)
       const selections = collectSelections(payload);
       const ids = [...new Set(selections.map(s => s.productId))];
-
-      // Fetch product meta for legacy items too (so we could include names later if needed)
       const productMap = await getProductsByIds(ids);
 
       const items = selections.map(s => {
@@ -262,14 +214,12 @@ export default (ProductModel) => {
         };
       });
 
-      // Compute materials and services with guards
       let materials = { title: '', lines: [], sum: 0 };
       try { materials = await computeMaterials(payload); } catch (e) { console.error('[pricing] computeMaterials failed:', e); }
 
       let services = { title: '', lines: [], sum: 0, payer: '', zoneLabel: '', distanceKm: 0, laborHours: 0, laborRate: 0 };
       try { services = computeServiceCosts(payload) || services; } catch (e) { console.error('[pricing] computeServiceCosts failed:', e); }
 
-      // Totals
       const productsSubtotal = round2(
         (items || []).reduce((sum, i) => sum + (i?.lineTotal || 0), 0) +
         (materials?.sum ?? 0)
