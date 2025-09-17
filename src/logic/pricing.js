@@ -177,13 +177,16 @@ export default (ProductModel) => {
 
     const fahrzeugbereitstellung = 80.00;
     const werkzeug = 7.50;
+    const beraeumung = 4.50; // NEW: Beräumung der Baustelle
+
     const kilometerpauschale = round2(distanceKm * kmRate);
     const laborRate = payer === 'KK' ? laborRateKK : (payer === 'SZ' ? laborRateSZ : 0);
     const facharbeiter = round2(laborHours * 2 * laborRate);
 
     const lines = [];
-    lines.push({ key: 'fahrzeug', label: '- 1,00 Stk Fahrzeugbereitstellung', amount: round2(fahrzeugbereitstellung) });
-    lines.push({ key: 'werkzeuge', label: '- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen', amount: round2(werkzeug) });
+    lines.push({ key: 'fahrzeug',   label: '- 1,00 Stk Fahrzeugbereitstellung', amount: round2(fahrzeugbereitstellung) });
+    lines.push({ key: 'werkzeuge',  label: '- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen', amount: round2(werkzeug) });
+    lines.push({ key: 'beraeumung', label: '- 1,00 Stk Beräumung der Baustelle', amount: round2(beraeumung) }); // always included
     if (distanceKm > 0) {
       lines.push({ key: 'kilometer', label: `- ${distanceKm} km Kilometerpauschale`, amount: kilometerpauschale });
     }
