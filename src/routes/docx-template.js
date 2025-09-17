@@ -36,9 +36,11 @@ function mapData(body = {}, computed = {}) {
     total = 0,
   } = computed || {};
 
+  // Manual/legacy price fields if still used in your template
   const prix = body.preise || {};
   const sum = body.summe || {};
 
+  // Totals with computed fallbacks
   const Nettobetrag = sum.netto ?? fmtCurrency(subtotal);
   const Rabatt = sum.rabatt ?? '';
   const MwSt = sum.mwst ?? '';
@@ -47,17 +49,25 @@ function mapData(body = {}, computed = {}) {
   const Zuschusskrankenkasse = sum.zuschuss ?? '';
   const Gesamtsummerabatt = sum.gesamtsummerabatt ?? '';
 
+  // Markup/travel presentation
   const MarkupPctStr = markupPct ? `${Math.round(markupPct * 100)}%` : '';
   const MarkupValue = fmtCurrency(markup);
   const TravelValue = fmtCurrency(travel);
 
-  // Service block
+  // New: expose offer type selected in the UI
+  const offerTypeRaw = b.offerType || ''; // expected: 'Wanne zu Dusche' | 'Dusche zu Dusche'
+  const OfferType = offerTypeRaw || '';
+  const OfferTypeCode = offerTypeRaw === 'Wanne zu Dusche'
+    ? 'W2D'
+    : (offerTypeRaw === 'Dusche zu Dusche' ? 'D2D' : '');
+
+  // Service position (strings only for DOCX)
   const serviceLines = (services?.lines || []).map(l => l.label);
   const ServicePosTitle = services?.title || 'Auszuführende Arbeiten';
   const ServiceUnitPrice = fmtCurrency(services?.sum || 0);
   const ServiceTotal = fmtCurrency(services?.sum || 0);
 
-  // Materials block: use db name when no custom label
+  // Materials position (use DB name when no custom label is provided)
   const MaterialsPosTitle = materials?.title || 'Material für Badumbau';
   const MaterialsUnitPrice = fmtCurrency(materials?.sum || 0);
   const MaterialsTotal = fmtCurrency(materials?.sum || 0);
@@ -66,12 +76,12 @@ function mapData(body = {}, computed = {}) {
     const nameOrId = l.name || l.productId || '';
     return {
       MaterialLine: l.label
-        ? l.label // keep your crafted text
+        ? l.label
         : `- ${qtyStr} Stk ${nameOrId}`,
     };
   });
 
-  // Optional meta
+  // Optional meta useful for debugging or optional fields
   const PayerKind = services?.payer || (b.payer || '');
   const ZoneChosen = services?.zoneLabel || '';
   const DistanceKm =
@@ -98,7 +108,11 @@ function mapData(body = {}, computed = {}) {
     Greeting: b.salutation === 'Frau' ? 'Sehr geehrte Frau' : (b.salutation === 'Herr' ? 'Sehr geehrter Herr' : 'Guten Tag'),
     Angebotsnummer: body.offerNumber || 'ANG-0001',
 
-    // Legacy fields if still used
+    // New placeholders for offer type
+    OfferType,
+    OfferTypeCode,
+
+    // Legacy/optional price fields
     Arbeit: prix.arbeit ?? '',
     Material: prix.material ?? '',
 
@@ -143,7 +157,7 @@ function mapData(body = {}, computed = {}) {
     MaterialsTotal,
     MaterialsLines,
 
-    // Meta
+    // Optional meta
     PayerKind,
     ZoneChosen,
     DistanceKm,
@@ -160,7 +174,10 @@ router.post('/', async (req, res) => {
     const computed = await pricing.computePrices(req.body || {});
 
     const zip = new PizZip(content);
-    const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
+    });
 
     const data = mapData(req.body || {}, computed);
     console.log('[docx-template] replacing keys:', Object.keys(data));
@@ -174,12 +191,20 @@ router.post('/', async (req, res) => {
       if (e?.properties?.errors) {
         for (const er of e.properties.errors) {
           console.error('- Docx error:', {
-            id: er.id, explanation: er.explanation, file: er.file,
-            xtag: er.xtag, context: er.context, offset: er.offset,
+            id: er.id,
+            explanation: er.explanation,
+            file: er.file,
+            xtag: er.xtag,
+            context: er.context,
+            offset: er.offset,
           });
         }
       }
-      return res.status(500).json({ error: 'DOCX render failed', detail: e.message || String(e), properties: e.properties || null });
+      return res.status(500).json({
+        error: 'DOCX render failed',
+        detail: e.message || String(e),
+        properties: e.properties || null,
+      });
     }
 
     const out = doc.getZip().generate({ type: 'nodebuffer' });
