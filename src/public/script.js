@@ -16,51 +16,45 @@ function applyTheme(mode){
 })();
 themeToggle?.addEventListener('change',()=>applyTheme(themeToggle.checked?'dark':'light'));
 
-/* ========== WIZARD NAV ========== */
+/* ========== NAVIGATION ========== */
 const steps = ['bereich','duschwanne','wandverkleidung','optional','zusammenfassung'];
-const nav = document.getElementById('stepsNav');
 const pages = Object.fromEntries(steps.map(s => [s, document.getElementById('page-'+s)]));
+const nav = document.getElementById('stepsNav');
 
-function getCurrentStep(){
-  const h = location.hash.replace('#','');
-  return steps.includes(h) ? h : steps[0];
-}
+function getCurrentStep(){ const h = location.hash.replace('#',''); return steps.includes(h) ? h : steps[0]; }
 function setStep(step){
-  steps.forEach((s) => {
+  steps.forEach((s,i)=>{
     const link = nav?.querySelector(`[data-step="${s}"]`);
-    if (link){
-      link.classList.remove('active','done');
-      if (s === step) link.classList.add('active');
-      else if (steps.indexOf(s) < steps.indexOf(step)) link.classList.add('done');
-    }
-    const page = pages[s];
-    if (page) page.hidden = (s !== step);
+    link?.classList.toggle('active', s===step);
+    link?.classList.toggle('done', steps.indexOf(step) > i);
+    if (pages[s]) pages[s].hidden = s !== step;
   });
   location.hash = step;
   updateSummary();
 }
-nav?.addEventListener('click', (e) => {
+nav?.addEventListener('click', e => {
   const a = e.target.closest('a.step'); if (!a) return;
-  e.preventDefault();
-  setStep(a.dataset.step);
+  e.preventDefault(); setStep(a.dataset.step);
 });
 setStep(getCurrentStep());
-window.addEventListener('hashchange', () => setStep(getCurrentStep()));
+window.addEventListener('hashchange', ()=>setStep(getCurrentStep()));
 
-/* ========== SUMMARY / PAYLOAD / STATUS ========== */
+/* ========== PAYLOAD / SUMMARY / STATUS ========== */
 function formToObject(form){ return Object.fromEntries(new FormData(form).entries()); }
 function buildPayload(){
   return {
     bereich: formToObject(document.getElementById('form-bereich')),
-    duschwanne: formToObject(document.getElementById('form-duschwanne')),
+    duschwanne: { ...formToObject(document.getElementById('form-duschwanne')), computed: window.__DW_COMPUTED__ || {} },
     wandverkleidung: formToObject(document.getElementById('form-wandverkleidung')),
     optional: formToObject(document.getElementById('form-optional'))
   };
 }
+window.buildPayload = buildPayload; // expose for extensions
 function updateSummary(){
   if (getCurrentStep() !== 'zusammenfassung') return;
   const el = document.getElementById('summaryText');
-  if (el) el.textContent = 'Vorschau: ' + JSON.stringify(buildPayload());
+  const payload = buildPayload();
+  el.textContent = 'Vorschau: ' + JSON.stringify(payload);
 }
 const statusEl = document.getElementById('status');
 function show(obj, ok=true){
@@ -69,309 +63,212 @@ function show(obj, ok=true){
   statusEl.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
 }
 
-/* Helpers */
+/* ========== HELPERS ========== */
 function flashInvalid(el){
   if (!el) return;
-  el.style.borderColor = 'var(--danger)';
-  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.style.borderColor = 'var(--danger)'; el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   setTimeout(()=> el.style.borderColor = '', 1200);
 }
-function highlightTileForInput(input, on){
-  const label = input?.closest?.('label.image-check');
-  if (!label) return;
-  label.classList.toggle('is-checked', !!on);
-}
+function euro(n){ return new Intl.NumberFormat('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n||0)); }
+function highlightTileForInput(input, on){ input?.closest('label.image-check')?.classList.toggle('is-checked', !!on); }
 
-/* ========== VALIDATORS ========== */
+/* ========== VALIDATION ========== */
 function validateBereich(){
-  const form = document.getElementById('form-bereich');
-  if (!form) return true;
+  const form = document.getElementById('form-bereich'); if (!form) return true;
   const d = document.getElementById('date'); if (d && !d.value) d.valueAsDate = new Date();
-
-  const requiredIds = ['date','firstName','lastName','customerNumber'];
-  let firstBad = null;
-  requiredIds.forEach(id => {
-    const el = document.getElementById(id);
-    const bad = !el || !el.value || (el.type === 'date' && isNaN(new Date(el.value).getTime()));
-    if (bad && !firstBad) firstBad = el;
-  });
-
-  const needRadios = ['salutation','hasContactPerson','customerType','payer'];
-  needRadios.forEach(name => {
-    const chosen = form.querySelector(`input[name="${name}"]:checked`);
-    if (!chosen && !firstBad) firstBad = form.querySelector(`input[name="${name}"]`)?.closest('label');
-  });
-
-  if (firstBad){
-    flashInvalid(firstBad.tagName === 'INPUT' ? firstBad : firstBad.querySelector('input,select,textarea'));
-    alert('Bitte füllen Sie alle Pflichtfelder aus.');
-    return false;
+  const req = ['date','firstName','lastName','customerNumber'];
+  let bad = req.map(id=>document.getElementById(id)).find(el=>!el?.value);
+  if (!bad){
+    const radios = ['salutation','hasContactPerson','customerType','payer'];
+    for (const n of radios){
+      if (!form.querySelector(`input[name="${n}"]:checked`)){ bad = form.querySelector(`input[name="${n}"]`)?.closest('label'); break; }
+    }
   }
+  if (bad){ flashInvalid(bad.tagName==='INPUT'?bad:bad.querySelector('input')); alert('Bitte füllen Sie alle Pflichtfelder aus.'); return false; }
   return true;
 }
-
 function validateDuschwanne(){
-  const form = document.getElementById('form-duschwanne');
-  if (!form) return true;
-
-  let firstBad = null;
-  const traySize = form.querySelector('input[name="traySize"]:checked');
-  if (!traySize && !firstBad) firstBad = form.querySelector('input[name="traySize"]')?.closest('label');
-
-  const addFloor = form.querySelector('#addFlooring');
-  if (addFloor && addFloor.checked) {
-    const hasFlooring = !!form.querySelector('input[name="flooringProduct[]"]:checked');
-    const hasAdhesive = !!form.querySelector('input[name="floorAdhesive[]"]:checked');
-    const hasSealing  = !!form.querySelector('input[name="floorSealing[]"]:checked');
-    const areaEl = form.querySelector('#floorArea');
-    const areaOk = areaEl && areaEl.value.trim().length > 0;
-
-    if (!hasFlooring && !firstBad) firstBad = form.querySelector('input[name="flooringProduct[]"]')?.closest('label');
-    if (!areaOk && !firstBad) firstBad = areaEl;
-    if (!hasAdhesive && !firstBad) firstBad = form.querySelector('input[name="floorAdhesive[]"]')?.closest('label');
-    if (!hasSealing && !firstBad) firstBad = form.querySelector('input[name="floorSealing[]"]')?.closest('label');
-
-    if (firstBad){
-      const target = firstBad.tagName ? firstBad : firstBad.querySelector('input,select');
-      flashInvalid(target);
-      alert('Bitte füllen Sie alle Pflichtfelder im Abschnitt „Duschwanne“ aus.');
-      return false;
-    }
+  const f = document.getElementById('form-duschwanne'); if (!f) return true;
+  let bad = f.querySelector('input[name="traySize"]:checked') ? null : f.querySelector('input[name="traySize"]')?.closest('label');
+  const add = f.querySelector('#addFlooring');
+  if (add?.checked){
+    const area = f.querySelector('#floorArea'); if (!area?.value && !bad) bad = area;
+    if (!f.querySelector('input[name="flooringProduct[]"]:checked') && !bad) bad = f.querySelector('input[name="flooringProduct[]"]')?.closest('label');
+    if (!f.querySelector('input[name="floorAdhesive[]"]:checked') && !bad) bad = f.querySelector('input[name="floorAdhesive[]"]')?.closest('label');
+    if (!f.querySelector('input[name="floorSealing[]"]:checked') && !bad) bad = f.querySelector('input[name="floorSealing[]"]')?.closest('label');
   }
-
-  if (firstBad){
-    flashInvalid(firstBad.tagName === 'INPUT' || firstBad.tagName === 'SELECT' ? firstBad : firstBad.querySelector('input,select'));
-    alert('Bitte füllen Sie alle Pflichtfelder in „Duschwanne“ aus.');
-    return false;
-  }
+  if (bad){ flashInvalid(bad.tagName==='INPUT'?bad:bad.querySelector('input')); alert('Bitte füllen Sie alle Pflichtfelder in „Duschwanne“ aus.'); return false; }
   return true;
 }
-
 function validateWandverkleidung(){
-  const form = document.getElementById('form-wandverkleidung');
-  if (!form) return true;
-
-  const kind = form.querySelector('input[name="wvKind"]:checked');
-  if (!kind){
-    const first = form.querySelector('input[name="wvKind"]')?.closest('label');
-    const target = first?.querySelector('input');
-    flashInvalid(target || first);
-    alert('Bitte wählen Sie die Art der Wandverkleidung.');
-    return false;
+  const f = document.getElementById('form-wandverkleidung'); if (!f) return true;
+  if (!f.querySelector('input[name="wvKind"]:checked')){
+    const t = f.querySelector('input[name="wvKind"]')?.closest('label'); flashInvalid(t?.querySelector('input')||t); alert('Bitte wählen Sie die Art der Wandverkleidung.'); return false;
   }
   return true;
 }
+function validateOptional(){ return true; }
 
-function validateOptional(){
-  const form = document.getElementById('form-optional');
-  if (!form) return true;
-  const selected = Array.from(form.querySelectorAll('label.image-check > input[type="checkbox"][id^="opt_"]:checked'));
-  for (const cb of selected){
-    const key = cb.id.replace('opt_','');
-    const qty = form.querySelector(`#qty_${key}`);
-    if (qty && !qty.value){
-      flashInvalid(qty);
-      alert('Bitte geben Sie die Menge für die ausgewählte Option ein.');
-      return false;
-    }
-  }
-  return true;
-}
-
-/* ========== NEXT/PREV ========== */
-document.body.addEventListener('click', (e) => {
+/* ========== NAV BUTTONS ========== */
+document.body.addEventListener('click', e=>{
   const btn = e.target.closest('[data-nav]'); if (!btn) return;
-  const dir = btn.getAttribute('data-nav');
-  const current = getCurrentStep();
-  const idx = steps.indexOf(current);
-
-  if (dir === 'prev'){
-    setStep(steps[Math.max(idx-1, 0)]);
-    return;
-  }
-  if (dir === 'next'){
-    const ok =
-      (current === 'bereich' ? validateBereich() :
-       current === 'duschwanne' ? validateDuschwanne() :
-       current === 'wandverkleidung' ? validateWandverkleidung() :
-       current === 'optional' ? validateOptional() : true);
-    if (!ok) return;
-    setStep(steps[Math.min(idx+1, steps.length-1)]);
+  const dir = btn.getAttribute('data-nav'); const step = getCurrentStep(); const idx = steps.indexOf(step);
+  if (dir==='prev') return setStep(steps[Math.max(0, idx-1)]);
+  if (dir==='next'){
+    const ok = step==='bereich' ? validateBereich() :
+               step==='duschwanne' ? validateDuschwanne() :
+               step==='wandverkleidung' ? validateWandverkleidung() :
+               step==='optional' ? validateOptional() : true;
+    if (!ok) return; setStep(steps[Math.min(steps.length-1, idx+1)]);
   }
 });
 
-/* ========== UI DYNAMICS ========== */
+/* ========== BERICH UI: CONTACT PERSON + AUFSCHLAG/PFLEGEGRAD ========== */
 (function initContactPersonToggle(){
-  const form = document.getElementById('form-bereich');
-  const section = document.getElementById('contactPersonSection');
-  const radioName = 'hasContactPerson';
-  const requiredWhenYes = ['cp_name','cp_street','cp_city','cp_postalCode'].map(id => document.getElementById(''+id));
-  function setRequired(el, on){ if (!el) return; if (on) el.setAttribute('required','required'); else el.removeAttribute('required'); }
-  function toggleSection(show){
-    if (!section) return;
-    section.hidden = !show;
-    section.setAttribute('aria-hidden', show ? 'false' : 'true');
-    requiredWhenYes.forEach(el => setRequired(el, show));
-    if (!show) requiredWhenYes.forEach(el => { if (el) el.value = ''; });
+  const form = document.getElementById('form-bereich'); const section = document.getElementById('contactPersonSection');
+  const req = ['cp_name','cp_street','cp_city','cp_postalCode'].map(id=>document.getElementById(id));
+  function setReq(el,on){ if (!el) return; on?el.setAttribute('required','required'):el.removeAttribute('required'); }
+  function show(on){
+    section.hidden = !on; section.setAttribute('aria-hidden', on?'false':'true');
+    req.forEach(r=>setReq(r,on)); if (!on) req.forEach(r=>r && (r.value=''));
   }
-  function currentYesSelected(){ const checked = form?.querySelector(`input[name="${radioName}"]:checked`); return checked && checked.value === 'Ja'; }
-  toggleSection(currentYesSelected());
-  form?.addEventListener('change', (e) => { if (e.target?.name === radioName) toggleSection(e.target.value === 'Ja'); });
+  function isYes(){ const c = form?.querySelector('input[name="hasContactPerson"]:checked'); return c && c.value==='Ja'; }
+  show(isYes()); form?.addEventListener('change', e=>{ if (e.target?.name==='hasContactPerson') show(e.target.value==='Ja'); });
 })();
-
-/* Aufschlag: default 50% for Kassenkunde */
 (function initAufschlag(){
-  const payerRadios = document.querySelectorAll('input[name="payer"]');
-  const r35 = document.querySelector('input[name="aufschlag"][value="35%"]');
-  const r40 = document.querySelector('input[name="aufschlag"][value="40%"]');
-  const r45 = document.querySelector('input[name="aufschlag"][value="45%"]');
-  const r50 = document.querySelector('input[name="aufschlag"][value="50%"]');
-  function applyDefault(){
-    const payer = document.querySelector('input[name="payer"]:checked')?.value || '';
-    if (payer === 'Kassenkunde' && r50) {
-      r50.checked = true;
-      [r35,r40,r45].forEach(r => r && (r.required = false));
-      r50.required = true;
-    }
-  }
-  payerRadios.forEach(r => r.addEventListener('change', applyDefault));
-  applyDefault();
+  const radios = document.querySelectorAll('input[name="payer"]'); const r50 = document.querySelector('input[name="aufschlag"][value="50%"]');
+  function apply(){ const v = document.querySelector('input[name="payer"]:checked')?.value; if (v==='Kassenkunde' && r50){ r50.checked=true; r50.required=true; } }
+  radios.forEach(r=>r.addEventListener('change', apply)); apply();
 })();
 
-/* Pflegegrad: wohnumfeldPanel always visible; amount row toggled by Ja/Nein */
-(function initPflegegrad(){
-  const form = document.getElementById('form-bereich');
-  const pgLevelRow = document.getElementById('pflegegradLevelRow');
-  const budgetPanel = document.getElementById('budgetOptionsPanel');
-  const wePanel = document.getElementById('wohnumfeldPanel');
-  const weDoneGroup = document.getElementById('wohnumfeldDoneGroup');
-  const weAmountRow = document.getElementById('wohnumfeldAmountRow');
-  const weAmount = document.getElementById('wohnumfeldAmount');
-
-  function show(el,on){ if (el){ el.hidden = !on; el.setAttribute('aria-hidden', on ? 'false' : 'true'); } }
-  function setReq(el,on){ if (!el) return; if (on) el.setAttribute('required','required'); else el.removeAttribute('required'); }
-  function isKK(){ const p = form?.querySelector('input[name="payer"]:checked'); return p && p.value==='Kassenkunde'; }
-  function hasPG(){ const r = form?.querySelector('input[name="hasPflegegrad"]:checked'); return r && r.value==='Ja'; }
-
-  function applyWeAmountVisibility(){
-    const yes = form?.querySelector('input[name="wohnumfeldDone"][value="Ja"]:checked');
-    const on = !!yes;
-    show(weAmountRow, on);
-    setReq(weAmount, on);
-    if (!on && weAmount) weAmount.value = '';
-  }
-
-  function apply(){
-    const kk = isKK(); const has = hasPG();
-    show(pgLevelRow, has);
-    show(budgetPanel, kk && has);
-    show(wePanel, true); // always visible per your request
-    applyWeAmountVisibility();
-  }
-
-  apply();
-  form?.addEventListener('change', (e)=>{
-    const t = e.target; if (!t) return;
-    if (['payer','hasPflegegrad','wohnumfeldDone'].includes(t.name)) {
-      if (t.name === 'wohnumfeldDone') applyWeAmountVisibility();
-      else apply();
-    }
+/* ========== DUSCHWANNE DEFAULTS ========== */
+(function initDuschwanneDefaults(){
+  const f = document.getElementById('form-duschwanne'); if (!f) return;
+  const deps = ['abdichtSet','drainSet','stelzlager','#smallMaterial'];
+  f.querySelectorAll('input[name="traySize"]').forEach(r=>{
+    r.addEventListener('change', ()=>{
+      deps.forEach(sel=>{
+        const i = sel.startsWith('#') ? f.querySelector(sel) : f.querySelector(`input[name="${sel}"]`);
+        if (i){ i.checked = true; highlightTileForInput(i, true); }
+      });
+    });
   });
 })();
 
-/* Duschwanne: auto-select related defaults on tray selection */
-(function initDuschwanneDefaults(){
-  const form = document.getElementById('form-duschwanne');
-  if (!form) return;
-  const trayRadios = form.querySelectorAll('input[name="traySize"]');
-  const abdicht = form.querySelector('input[name="abdichtSet"]');
-  const drain = form.querySelector('input[name="drainSet"]');
-  const stelz = form.querySelector('input[name="stelzlager"]');
-  const smallMat = form.querySelector('#smallMaterial');
-
-  function apply(){
-    if (abdicht) { abdicht.checked = true; highlightTileForInput(abdicht, true); }
-    if (drain) { drain.checked = true; highlightTileForInput(drain, true); }
-    if (stelz) { stelz.checked = true; highlightTileForInput(stelz, true); }
-    if (smallMat) { smallMat.checked = true; highlightTileForInput(smallMat, true); } // Backend enforces KM02 pricing
+/* ========== PRICE FETCH (single endpoint) ========== */
+const productCache = new Map();
+async function getProduct(id){
+  if (!id) return null;
+  if (productCache.has(id)) return productCache.get(id);
+  try{
+    const res = await fetch(`/api/products/${encodeURIComponent(id)}`);
+    if (!res.ok) throw new Error(res.status);
+    const p = await res.json();
+    productCache.set(id, p);
+    return p;
+  }catch(e){
+    console.warn('Product fetch failed for', id, e);
+    productCache.set(id, null);
+    return null;
   }
-  trayRadios.forEach(r => r.addEventListener('change', apply));
-})();
+}
 
-/* Duschwanne: Flooring dependencies + live adhesive preview */
-(function initDuschwanneFlooringCheckboxes(){
-  const form = document.getElementById('form-duschwanne');
-  if (!form) return;
-
+/* ========== FLOORING: LIVE PREVIEW + DB PRICES + COMPUTED PAYLOAD ========== */
+(function initFlooringSection(){
+  const f = document.getElementById('form-duschwanne'); if (!f) return;
   const toggle = document.getElementById('addFlooring');
-  const panel = document.getElementById('flooringPanel');
-  const area  = document.getElementById('floorArea');
+  const panel  = document.getElementById('flooringPanel');
+  const area   = document.getElementById('floorArea');
 
-  const grpFlooring = Array.from(form.querySelectorAll('input[name="flooringProduct[]"]'));
-  const grpAdhesive = Array.from(form.querySelectorAll('input[name="floorAdhesive[]"]'));
-  const grpSealing  = Array.from(form.querySelectorAll('input[name="floorSealing[]"]'));
+  const tileAdh = document.getElementById('tile_V4FK600');
+  const tileSeal= document.getElementById('tile_TRBDSET7');
 
-  function show(el,on){ if (el){ el.hidden = !on; el.setAttribute('aria-hidden', on ? 'false' : 'true'); } }
-  function setReq(el,on){ if (!el) return; if (on) el.setAttribute('required','required'); else el.removeAttribute('required'); }
-  function syncTile(i){ highlightTileForInput(i, i.checked); }
+  const adhesivePriceEl = document.getElementById('floorAdhesivePrice');
+  const sealingPriceEl  = document.getElementById('floorSealingPrice');
+  const panelsPriceEl   = document.getElementById('flooringPanelsPrice');
 
-  function parseAreaVal(raw){
-    if (!raw) return 0;
-    const norm = String(raw).replace(',', '.').trim();
-    const n = Number(norm);
-    return Number.isFinite(n) && n > 0 ? n : 0;
+  const liveAdh = document.getElementById('adhesiveLivePreview');
+  const liveSeal= document.getElementById('sealingLivePreview');
+
+  function show(el,on){ if (el){ el.hidden=!on; el.setAttribute('aria-hidden', on?'false':'true'); } }
+  function setReq(el,on){ if (!el) return; on?el.setAttribute('required','required'):el.removeAttribute('required'); }
+  function parseArea(){ const v=(area?.value||'').replace(',','.'); const n=Number(v); return Number.isFinite(n)&&n>0?n:0; }
+  const packsForAdhesive = (m2)=> Math.ceil(m2/0.6 - 1e-12);
+  const setsForSealing   = (m2)=> m2>0 ? 1 : 0;
+
+  const computed = { areaM2:0, adhesive:{productId:'V4FK600',packs:0,unit:0,total:0}, sealing:{productId:'TRBDSET7',sets:0,unit:0,total:0} };
+  window.__DW_COMPUTED__ = computed;
+
+  let unitAdh = 0, unitSeal = 0;
+
+  async function ensureUnits(){
+    if (!unitAdh){
+      const p = await getProduct('V4FK600'); unitAdh = Number(p?.price||0);
+      // reflect DB name if you want: tileAdh?.querySelector('.caption')?.append(' • ' + (p?.price?.toFixed ? euro(p.price) : ''));
+    }
+    if (!unitSeal){
+      const p = await getProduct('TRBDSET7'); unitSeal = Number(p?.price||0);
+    }
   }
-  function computePacks(areaVal){
-    return Math.ceil(areaVal / 0.6 - 1e-12); // 1 pack per 0.60 m²
+
+  function updateUI(){
+    const m2 = parseArea(); computed.areaM2 = m2;
+
+    // Adhesive
+    const packs = m2 ? packsForAdhesive(m2) : 0;
+    const totalA = packs * unitAdh;
+    if (liveAdh) liveAdh.textContent = packs ? `= ${packs} Pkg bei ${area.value.trim()} m²` : '';
+    if (adhesivePriceEl) adhesivePriceEl.textContent = packs ? euro(totalA) : '0';
+    computed.adhesive = { productId:'V4FK600', packs, unit:unitAdh, total:+(totalA.toFixed(2)) };
+
+    // Sealing
+    const sets = m2 ? setsForSealing(m2) : 0;
+    const totalS = sets * unitSeal;
+    if (liveSeal) liveSeal.textContent = sets ? `= ${sets} Set bei ${area.value.trim()} m²` : '';
+    if (sealingPriceEl) sealingPriceEl.textContent = sets ? euro(totalS) : '0';
+    computed.sealing = { productId:'TRBDSET7', sets, unit:unitSeal, total:+(totalS.toFixed(2)) };
+
+    // Panels price (optional). If you want DB-backed V5FB02 pricing, uncomment below and ensure product exists:
+    // const pPanels = productCache.get('V5FB02') || null;
+    // const unitPanels = Number(pPanels?.price||0);
+    // const qtyPanels = Math.ceil((m2*4) - 1e-12);
+    // panelsPriceEl.textContent = qtyPanels ? euro(qtyPanels * unitPanels) : '0';
+    panelsPriceEl.textContent = '0'; // keep as 0 unless you want the calculation
   }
 
-  // Live preview span inside the adhesive hint
-  const hintPara = document.getElementById('floorAdhesiveHint');
-  let liveSpan = document.getElementById('adhesiveLivePreview');
-  if (!liveSpan && hintPara) {
-    liveSpan = document.createElement('span');
-    liveSpan.id = 'adhesiveLivePreview';
-    liveSpan.style.marginLeft = '6px';
-    hintPara.appendChild(liveSpan);
-  }
-  function updateLivePreview(){
-    if (!liveSpan) return;
-    const val = parseAreaVal(area?.value);
-    if (val <= 0) { liveSpan.textContent = ''; return; }
-    const packs = computePacks(val);
-    const valStr = String(area.value).trim();
-    liveSpan.textContent = `= ${packs} Pkg bei ${valStr} m²`;
+  async function init(){
+    await ensureUnits(); // fetch DB prices once
+    updateUI();
   }
 
   function apply(){
-    const on = !!(toggle && toggle.checked);
-    show(panel, on);
-    setReq(area, on);
+    const on = !!toggle?.checked;
+    show(panel,on); setReq(area,on);
+    // auto-check tiles when enabled
     if (on){
-      grpFlooring.forEach(i => { i.checked = true; syncTile(i); });
-      grpAdhesive.forEach(i => { i.checked = true; syncTile(i); });
-      grpSealing.forEach(i => { i.checked = true; syncTile(i); });
-      updateLivePreview();
+      f.querySelectorAll('input[name="flooringProduct[]"],input[name="floorAdhesive[]"],input[name="floorSealing[]"]').forEach(i=>{ i.checked = true; highlightTileForInput(i,true); });
+      init();
     } else {
-      if (area) area.value = '';
-      grpFlooring.forEach(i => { i.checked = false; syncTile(i); });
-      grpAdhesive.forEach(i => { i.checked = false; syncTile(i); });
-      grpSealing.forEach(i => { i.checked = false; syncTile(i); });
-      if (liveSpan) liveSpan.textContent = '';
+      if (area) area.value='';
+      f.querySelectorAll('input[name="flooringProduct[]"],input[name="floorAdhesive[]"],input[name="floorSealing[]"]').forEach(i=>{ i.checked = false; highlightTileForInput(i,false); });
+      if (liveAdh) liveAdh.textContent=''; if (liveSeal) liveSeal.textContent='';
+      if (adhesivePriceEl) adhesivePriceEl.textContent='0'; if (sealingPriceEl) sealingPriceEl.textContent='0'; if (panelsPriceEl) panelsPriceEl.textContent='0';
+      unitAdh = unitSeal = 0;
+      computed.areaM2 = 0; computed.adhesive = {productId:'V4FK600',packs:0,unit:0,total:0}; computed.sealing = {productId:'TRBDSET7',sets:0,unit:0,total:0};
     }
   }
 
   toggle?.addEventListener('change', apply);
-  area?.addEventListener('input', updateLivePreview);
+  area?.addEventListener('input', ()=>{ ensureUnits().then(updateUI); });
 
-  // Initial tile highlight sync
-  [...grpFlooring, ...grpAdhesive, ...grpSealing].forEach(inp => {
-    inp.addEventListener('change', () => syncTile(inp));
-    syncTile(inp);
+  // initial tile highlight
+  f.querySelectorAll('label.image-check > input[type="checkbox"]').forEach(cb=>{
+    cb.addEventListener('change', ()=>highlightTileForInput(cb, cb.checked));
+    highlightTileForInput(cb, cb.checked);
   });
 })();
 
-/* Wandverkleidung: auto sealing + qty toggles */
+/* ========== WANDVERKLEIDUNG SMALL UX ========== */
 (function initWVSynch(){
   const cb997 = document.getElementById('wv997');
   const cb1497 = document.getElementById('wv1497');
@@ -381,128 +278,109 @@ document.body.addEventListener('click', (e) => {
   function show(el,on){ if (el){ el.hidden=!on; el.setAttribute('aria-hidden', on?'false':'true'); } }
   function apply(){
     const any = !!cb997?.checked || !!cb1497?.checked;
-    if (any && seal) { seal.checked = true; highlightTileForInput(seal, true); }
-    show(qty997Wrap, !!cb997?.checked);
-    show(qty1497Wrap, !!cb1497?.checked);
+    if (any && seal){ seal.checked = true; highlightTileForInput(seal,true); }
+    show(qty997Wrap, !!cb997?.checked); show(qty1497Wrap, !!cb1497?.checked);
   }
-  cb997?.addEventListener('change', apply);
-  cb1497?.addEventListener('change', apply);
+  cb997?.addEventListener('change', apply); cb1497?.addEventListener('change', apply);
 })();
 
-/* Optional: categories -> menus (defensive), tile highlights, Mengen */
-(function initOptionalCategories(){
-  const form = document.getElementById('form-optional');
-  if (!form) return;
 
-  const map = {
-    cat_SHOWER: 'menu_SHOWER',
-    cat_GRAB: 'menu_GRAB',
-    cat_FOLD: 'menu_FOLD',
-    cat_BASIN: 'menu_BASIN',
-    cat_BASIN_TAP: 'menu_BASIN_TAP',
-    cat_THERMO: 'menu_THERMO',
-    cat_SEAT: 'menu_SEAT',
-    cat_BASIN_ACC: 'menu_BASIN_ACC'
-  };
+/* Wandverkleidung: Farbauswahl (radio-like image tiles) */
+(function initWVColors(){
+  const wrap = document.getElementById('wvColors'); if (!wrap) return;
 
-  function syncLabelChecked(input){
-    input.closest('label.image-check')?.classList.toggle('is-checked', input.checked);
+  function syncAll(){
+    const all = wrap.querySelectorAll('label.image-check > input[name="wvColor"]');
+    all.forEach(inp => inp.closest('label.image-check')?.classList.toggle('is-checked', inp.checked));
   }
-  function setShown(menuId, on){
-    const el = document.getElementById(menuId);
-    if (!el) return; // defensive: menu not in DOM
-    el.hidden = !on; el.setAttribute('aria-hidden', on ? 'false' : 'true');
+
+  wrap.addEventListener('change', (e)=>{
+    if (e.target?.name === 'wvColor') syncAll();
+  });
+
+  // Optional: preselect first color if none chosen
+  const anyChecked = wrap.querySelector('input[name="wvColor"]:checked');
+  if (!anyChecked){
+    const first = wrap.querySelector('input[name="wvColor"]');
+    if (first) first.checked = true;
+  }
+
+  syncAll();
+})();
+
+/* ========== OPTIONAL (menus open/close and qty toggles) ========== */
+(function initOptionalCategories(){
+  const form = document.getElementById('form-optional'); if (!form) return;
+  const map = {cat_SHOWER:'menu_SHOWER',cat_GRAB:'menu_GRAB',cat_FOLD:'menu_FOLD',cat_BASIN:'menu_BASIN',cat_BASIN_TAP:'menu_BASIN_TAP',cat_THERMO:'menu_THERMO',cat_SEAT:'menu_SEAT',cat_BASIN_ACC:'menu_BASIN_ACC'};
+  function setShown(id,on){
+    const el = document.getElementById(id); if (!el) return;
+    el.hidden = !on; el.setAttribute('aria-hidden', on?'false':'true');
     if (!on){
-      el.querySelectorAll('label.image-check > input[type="checkbox"]').forEach(cb => { cb.checked=false; cb.dispatchEvent(new Event('change')); });
-      el.querySelectorAll('input[type="number"],input[type="text"]').forEach(i => { i.value=''; i.removeAttribute('required'); });
-      el.querySelectorAll('label.image-check').forEach(l => l.classList.remove('is-checked'));
+      el.querySelectorAll('label.image-check > input[type="checkbox"]').forEach(cb=>{ cb.checked=false; highlightTileForInput(cb,false); });
+      el.querySelectorAll('input[type="number"]').forEach(i=>{ i.value=''; i.removeAttribute('required'); });
     }
   }
-
-  const catChecks = Array.from(document.querySelectorAll('#optCategories input[type="checkbox"]'));
-  catChecks.forEach(cb => {
-    cb.addEventListener('change', () => { syncLabelChecked(cb); if (map[cb.id]) setShown(map[cb.id], cb.checked); });
-    syncLabelChecked(cb);
+  document.querySelectorAll('#optCategories input[type="checkbox"]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{ cb.closest('label.image-check')?.classList.toggle('is-checked', cb.checked); if (map[cb.id]) setShown(map[cb.id], cb.checked); });
+    cb.closest('label.image-check')?.classList.toggle('is-checked', cb.checked);
     if (map[cb.id]) setShown(map[cb.id], cb.checked);
   });
-
-  // Product tiles: Menge wrap toggle
-  const allProductChecks = form.querySelectorAll('label.image-check > input[type="checkbox"][id^="opt_"]');
-  function applyQtyFor(cb){
+  form.querySelectorAll('label.image-check > input[type="checkbox"][id^="opt_"]').forEach(cb=>{
     const key = cb.id.replace('opt_','');
-    const wrap = form.querySelector(`#qty_${key}_wrap`);
-    const qty  = form.querySelector(`#qty_${key}`);
-    if (!wrap || !qty) return;
-    const on = cb.checked;
-    wrap.hidden = !on; wrap.setAttribute('aria-hidden', on ? 'false' : 'true');
-    if (on) qty.setAttribute('required','required'); else { qty.removeAttribute('required'); qty.value=''; }
-  }
-  allProductChecks.forEach(cb => {
-    cb.addEventListener('change', () => {
-      cb.closest('label.image-check')?.classList.toggle('is-checked', cb.checked);
-      applyQtyFor(cb);
-    });
-    cb.closest('label.image-check')?.classList.toggle('is-checked', cb.checked);
-    applyQtyFor(cb);
+    const wrap = form.querySelector(`#qty_${key}_wrap`); const qty = form.querySelector(`#qty_${key}`);
+    function sync(){
+      const on = cb.checked && wrap && qty; if (!wrap || !qty) return;
+      wrap.hidden = !on; wrap.setAttribute('aria-hidden', on?'false':'true'); if (on) qty.setAttribute('required','required'); else { qty.removeAttribute('required'); qty.value=''; }
+      highlightTileForInput(cb, cb.checked);
+    }
+    cb.addEventListener('change', sync); sync();
   });
 })();
 
-/* PDF/DOCX actions */
-async function requestPdfAndDownload(payload, filename = 'Anfrage.pdf') {
+/* ========== PDF/DOCX + API TEST BUTTONS ========== */
+async function requestPdfAndDownload(payload, filename='Anfrage.pdf'){
   const resp = await fetch('/pdf', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
   if (!resp.ok){ const txt = await resp.text().catch(()=> ''); throw new Error(`PDF Fehler (${resp.status}): ${txt}`); }
   const blob = await resp.blob(); const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
-async function downloadPdfFromTemplate() {
-  const resp = await fetch('/pdf-template', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(buildPayload()) });
-  if (!resp.ok){ const txt = await resp.text().catch(()=> ''); throw new Error('PDF failed: ' + (txt || resp.status)); }
-  const blob = await resp.blob(); const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href=url; a.download='Angebot_aus_Vorlage.pdf'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-}
-async function downloadDocxFromTemplate() {
-  const resp = await fetch('/docx-template', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(buildPayload()) });
-  if (!resp.ok){ let msg='DOCX Fehler: '+resp.status; try{ const j=await resp.json(); if (j?.detail) msg=j.detail; }catch{} throw new Error(msg); }
-  const blob = await resp.blob(); const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href=url; a.download='Angebot_'+Date.now() + '.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-}
-document.getElementById('makePdf')?.addEventListener('click', async () => {
-  if (!validateBereich()) { location.hash = 'bereich'; return; }
-  try { await requestPdfAndDownload(buildPayload()); document.getElementById('pdfActions')?.style.setProperty('display','flex'); }
-  catch (err){ show({ error: String(err) }, false); }
+document.getElementById('makePdf')?.addEventListener('click', async ()=>{
+  if (!validateBereich()) { location.hash='bereich'; return; }
+  try{ await requestPdfAndDownload(buildPayload()); document.getElementById('pdfActions')?.style.setProperty('display','flex'); }
+  catch(e){ show({error:String(e)}, false); }
 });
-document.getElementById('downloadPdf')?.addEventListener('click', async () => {
-  try { await requestPdfAndDownload(buildPayload()); } catch (err){ show({ error: String(err) }, false); }
+document.getElementById('downloadPdf')?.addEventListener('click', async ()=>{
+  try{ await requestPdfAndDownload(buildPayload()); } catch(e){ show({error:String(e)}, false); }
 });
-document.getElementById('makePdfFromTemplate')?.addEventListener('click', async () => {
-  try { await downloadPdfFromTemplate(); document.getElementById('pdfActions')?.style.setProperty('display','flex'); }
-  catch (err){ show({ error: String(err) }, false); }
+document.getElementById('makePdfFromTemplate')?.addEventListener('click', async ()=>{
+  try{
+    const resp = await fetch('/pdf-template', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(buildPayload()) });
+    if (!resp.ok) throw new Error(await resp.text());
+    const blob = await resp.blob(); const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='Angebot_aus_Vorlage.pdf'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    document.getElementById('pdfActions')?.style.setProperty('display','flex');
+  }catch(e){ show({error:String(e)}, false); }
 });
-document.getElementById('downloadDocx')?.addEventListener('click', async () => {
-  if (!validateBereich()) { location.hash = 'bereich'; return; }
-  try { await downloadDocxFromTemplate(); } catch (err){ show({ error: String(err) }, false); }
+document.getElementById('downloadDocx')?.addEventListener('click', async ()=>{
+  if (!validateBereich()) { location.hash='bereich'; return; }
+  try{
+    const resp = await fetch('/docx-template', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(buildPayload()) });
+    if (!resp.ok) throw new Error(await resp.text());
+    const blob = await resp.blob(); const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download=`Angebot_${Date.now()}.docx`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }catch(e){ show({error:String(e)}, false); }
 });
-
-/* Preview and Save */
-document.getElementById('sendForm')?.addEventListener('click', async () => {
-  try {
-    const payload = buildPayload();
-    const r = await fetch('/api/price', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || r.status);
+document.getElementById('sendForm')?.addEventListener('click', async ()=>{
+  try{
+    const r = await fetch('/api/price', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(buildPayload()) });
+    const data = await r.json(); if (!r.ok) throw new Error(data.error || r.status);
     show({ pricePreview: data }, true);
-  } catch (err) {
-    show({ error:String(err) }, false);
-  }
+  }catch(e){ show({error:String(e)}, false); }
 });
-document.getElementById('sendJson')?.addEventListener('click', async () => {
-  try {
-    const payload = buildPayload();
-    const r = await fetch('/api/submissions', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || r.status);
+document.getElementById('sendJson')?.addEventListener('click', async ()=>{
+  try{
+    const r = await fetch('/api/submissions', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(buildPayload()) });
+    const data = await r.json(); if (!r.ok) throw new Error(data.error || r.status);
     show({ message:'Submission gespeichert', ...data }, true);
-  } catch (err) {
-    show({ error:String(err) }, false);
-  }
+  }catch(e){ show({error:String(e)}, false); }
 });
