@@ -172,7 +172,6 @@ function validateOptional(){
       return false;
     }
   }
-  // Basin-required handled in UI defaults
   return true;
 }
 
@@ -217,7 +216,7 @@ document.body.addEventListener('click', (e) => {
   form?.addEventListener('change', (e) => { if (e.target?.name === radioName) toggleSection(e.target.value === 'Ja'); });
 })();
 
-/* Aufschlag: show always; default 50% for Kassenkunde */
+/* Aufschlag: default 50% for Kassenkunde */
 (function initAufschlag(){
   const payerRadios = document.querySelectorAll('input[name="payer"]');
   const r35 = document.querySelector('input[name="aufschlag"][value="35%"]');
@@ -236,9 +235,7 @@ document.body.addEventListener('click', (e) => {
   applyDefault();
 })();
 
-/* Zones hidden: nothing to init */
-
-/* Pflegegrad visibility retained from earlier, unchanged minimal */
+/* Pflegegrad minimal visibility (kept) */
 (function initPflegegrad(){
   const form = document.getElementById('form-bereich');
   const pgLevelRow = document.getElementById('pflegegradLevelRow');
@@ -261,7 +258,7 @@ document.body.addEventListener('click', (e) => {
   });
 })();
 
-/* Duschwanne defaults */
+/* Duschwanne: auto-select related defaults on tray selection */
 (function initDuschwanneDefaults(){
   const form = document.getElementById('form-duschwanne');
   if (!form) return;
@@ -275,21 +272,34 @@ document.body.addEventListener('click', (e) => {
     if (abdicht) abdicht.checked = true;
     if (drain) drain.checked = true;
     if (stelz) stelz.checked = true;
-    if (smallMat) smallMat.checked = true; // 150€ enforced in backend
+    if (smallMat) smallMat.checked = true; // Backend enforces KM02 pricing
   }
   trayRadios.forEach(r => r.addEventListener('change', apply));
 })();
 
-/* Duschwanne: Flooring dependencies */
+/* Duschwanne: Flooring dependencies + live adhesive preview */
 (function initDuschwanneFlooringCheckboxes(){
   const form = document.getElementById('form-duschwanne');
   if (!form) return;
+
   const toggle = document.getElementById('addFlooring');
   const panel = document.getElementById('flooringPanel');
   const area  = document.getElementById('floorArea');
+
   const grpFlooring = Array.from(form.querySelectorAll('input[name="flooringProduct[]"]'));
   const grpAdhesive = Array.from(form.querySelectorAll('input[name="floorAdhesive[]"]'));
   const grpSealing  = Array.from(form.querySelectorAll('input[name="floorSealing[]"]'));
+
+  // Create or find live preview span in the adhesive hint paragraph
+  let hintPara = panel?.querySelector('.field .req');
+  if (hintPara && hintPara.textContent.includes('Flächenkleber')) {
+    // inject a span at the end for live packs text
+    const live = document.createElement('span');
+    live.id = 'adhesiveLivePreview';
+    live.style.marginLeft = '6px';
+    hintPara.appendChild(live);
+  }
+  const livePreview = () => document.getElementById('adhesiveLivePreview');
 
   function syncLabelChecked(input){
     input.closest('label.image-check')?.classList.toggle('is-checked', input.checked);
@@ -302,6 +312,25 @@ document.body.addEventListener('click', (e) => {
   function show(el,on){ if (el){ el.hidden = !on; el.setAttribute('aria-hidden', on ? 'false' : 'true'); } }
   function setReq(el,on){ if (!el) return; if (on) el.setAttribute('required','required'); else el.removeAttribute('required'); }
 
+  function parseAreaVal(raw){
+    if (!raw) return 0;
+    const norm = String(raw).replace(',', '.').trim();
+    const n = Number(norm);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+  function computePacks(areaVal){
+    // 1 pack per 0.60 m²
+    return Math.ceil(areaVal / 0.6 - 1e-12);
+  }
+  function updateLivePreview(){
+    const el = livePreview(); if (!el) return;
+    const val = parseAreaVal(area?.value);
+    if (val <= 0) { el.textContent = ''; return; }
+    const packs = computePacks(val);
+    const valStr = String(area.value).trim(); // keep user’s comma/decimal style for display
+    el.textContent = `= ${packs} Pkg bei ${valStr} m²`;
+  }
+
   function apply(){
     const on = !!(toggle && toggle.checked);
     show(panel, on);
@@ -310,17 +339,21 @@ document.body.addEventListener('click', (e) => {
       grpFlooring.forEach(i => { i.checked = true; syncLabelChecked(i); });
       grpAdhesive.forEach(i => { i.checked = true; syncLabelChecked(i); });
       grpSealing.forEach(i => { i.checked = true; syncLabelChecked(i); });
+      updateLivePreview();
     } else {
-      area.value = '';
+      if (area) area.value = '';
       grpFlooring.forEach(i => { i.checked = false; syncLabelChecked(i); });
       grpAdhesive.forEach(i => { i.checked = false; syncLabelChecked(i); });
       grpSealing.forEach(i => { i.checked = false; syncLabelChecked(i); });
+      const el = livePreview(); if (el) el.textContent = '';
     }
   }
+
   toggle?.addEventListener('change', apply);
+  area?.addEventListener('input', updateLivePreview);
 })();
 
-/* Wandverkleidung: auto sealing */
+/* Wandverkleidung: auto sealing + qty toggles */
 (function initWVSynch(){
   const cb997 = document.getElementById('wv997');
   const cb1497 = document.getElementById('wv1497');
@@ -338,8 +371,63 @@ document.body.addEventListener('click', (e) => {
   cb1497?.addEventListener('change', apply);
 })();
 
-/* Optional section init remains as in your original (quantities toggling, basin accessories, etc.) */
-/* For brevity, reuse your existing logic from before or keep as-is. */
+/* Optional section logic (kept minimal; add your previous extended logic if needed) */
+(function initOptionalCategories(){
+  const form = document.getElementById('form-optional');
+  if (!form) return;
+
+  const map = {
+    cat_SHOWER: 'menu_SHOWER',
+    cat_GRAB: 'menu_GRAB',
+    cat_FOLD: 'menu_FOLD',
+    cat_BASIN: 'menu_BASIN',
+    cat_BASIN_TAP: 'menu_BASIN_TAP',
+    cat_THERMO: 'menu_THERMO',
+    cat_SEAT: 'menu_SEAT',
+    cat_BASIN_ACC: 'menu_BASIN_ACC'
+  };
+
+  function syncLabelChecked(input){
+    input.closest('label.image-check')?.classList.toggle('is-checked', input.checked);
+  }
+  function setShown(menuId, on){
+    const el = document.getElementById(menuId);
+    if (!el) return;
+    el.hidden = !on; el.setAttribute('aria-hidden', on ? 'false' : 'true');
+    if (!on){
+      el.querySelectorAll('label.image-check > input[type="checkbox"]').forEach(cb => { cb.checked=false; cb.dispatchEvent(new Event('change')); });
+      el.querySelectorAll('input[type="number"],input[type="text"]').forEach(i => { i.value=''; i.removeAttribute('required'); });
+      el.querySelectorAll('label.image-check').forEach(l => l.classList.remove('is-checked'));
+    }
+  }
+
+  const catChecks = Array.from(document.querySelectorAll('#optCategories input[type="checkbox"]'));
+  catChecks.forEach(cb => {
+    cb.addEventListener('change', () => { syncLabelChecked(cb); if (map[cb.id]) setShown(map[cb.id], cb.checked); });
+    syncLabelChecked(cb);
+    if (map[cb.id]) setShown(map[cb.id], cb.checked);
+  });
+
+  // Quantities toggling for product tiles
+  const allProductChecks = form.querySelectorAll('label.image-check > input[type="checkbox"][id^="opt_"]');
+  function applyQtyFor(cb){
+    const key = cb.id.replace('opt_','');
+    const wrap = form.querySelector(`#qty_${key}_wrap`);
+    const qty  = form.querySelector(`#qty_${key}`);
+    if (!wrap || !qty) return;
+    const on = cb.checked;
+    wrap.hidden = !on; wrap.setAttribute('aria-hidden', on ? 'false' : 'true');
+    if (on) qty.setAttribute('required','required'); else { qty.removeAttribute('required'); qty.value=''; }
+  }
+  allProductChecks.forEach(cb => {
+    cb.addEventListener('change', () => {
+      cb.closest('label.image-check')?.classList.toggle('is-checked', cb.checked);
+      applyQtyFor(cb);
+    });
+    cb.closest('label.image-check')?.classList.toggle('is-checked', cb.checked);
+    applyQtyFor(cb);
+  });
+})();
 
 /* PDF/DOCX actions */
 async function requestPdfAndDownload(payload, filename = 'Anfrage.pdf') {
