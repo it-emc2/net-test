@@ -1,4 +1,3 @@
-/* ========== THEME ========== */
 const root = document.documentElement;
 const themeToggle = document.getElementById('themeToggle');
 const themeLabel = document.getElementById('themeLabel');
@@ -30,10 +29,6 @@ function setStep(step){
     if (pages[s]) pages[s].hidden = s !== step;
   });
   location.hash = step;
-
-  // Late-init Optional when entering that step
-  if (step === 'optional') initOptionalCategories();
-
   updateSummary();
 }
 nav?.addEventListener('click', e => {
@@ -504,65 +499,109 @@ async function getProduct(id){
   syncAll();
 })();
 
-/* ========== OPTIONAL (menus open/close and qty toggles) ========== */
-function initOptionalCategories(){
+/* Optional: categories -> menus, highlight, Mengen, Basin-required logic */
+(function initOptionalCategories(){
   const form = document.getElementById('form-optional');
-  const catsWrap = document.getElementById('optCategories');
-  if (!form || !catsWrap) return;
+  if (!form) return;
 
   const map = {
-    cat_SHOWER:'menu_SHOWER',
-    cat_GRAB:'menu_GRAB',
-    cat_FOLD:'menu_FOLD',
-    cat_BASIN:'menu_BASIN',
-    cat_BASIN_TAP:'menu_BASIN_TAP',
-    cat_THERMO:'menu_THERMO',
-    cat_SEAT:'menu_SEAT',
-    cat_BASIN_ACC:'menu_BASIN_ACC'
+    cat_SHOWER: 'menu_SHOWER',
+    cat_GRAB: 'menu_GRAB',
+    cat_FOLD: 'menu_FOLD',
+    cat_BASIN: 'menu_BASIN',
+    cat_BASIN_TAP: 'menu_BASIN_TAP',
+    cat_THERMO: 'menu_THERMO',
+    cat_SEAT: 'menu_SEAT',
+    cat_BASIN_ACC: 'menu_BASIN_ACC' // still available as separate tile if you add it later
   };
 
-  function setShown(id,on){
-    const el = document.getElementById(id); if (!el) return;
-    el.hidden = !on; el.setAttribute('aria-hidden', on?'false':'true');
+  function syncLabelChecked(input){
+    input.closest('label.image-check')?.classList.toggle('is-checked', input.checked);
+  }
+  function setShown(menuId, on){
+    const el = document.getElementById(menuId);
+    if (!el) return;
+    el.hidden = !on; el.setAttribute('aria-hidden', on ? 'false' : 'true');
     if (!on){
-      el.querySelectorAll('label.image-check > input[type="checkbox"]').forEach(cb=>{ cb.checked=false; highlightTileForInput(cb,false); });
-      el.querySelectorAll('input[type="number"]').forEach(i=>{ i.value=''; i.removeAttribute('required'); });
+      el.querySelectorAll('label.image-check > input[type="checkbox"]').forEach(cb => { cb.checked=false; cb.dispatchEvent(new Event('change')); });
+      el.querySelectorAll('input[type="number"],input[type="text"]').forEach(i => { i.value=''; i.removeAttribute('required'); });
+      el.querySelectorAll('label.image-check').forEach(l => l.classList.remove('is-checked'));
     }
   }
 
-  // Initialize category checkboxes and their menus
-  catsWrap.querySelectorAll('input[type="checkbox"]').forEach(cb=>{
-    const menuId = map[cb.id];
-    const sync = ()=>{
-      cb.closest('label.image-check')?.classList.toggle('is-checked', cb.checked);
-      if (menuId) setShown(menuId, cb.checked);
-    };
-    cb.removeEventListener?.('__opt_sync__', sync); // noop for older browsers
-    cb.addEventListener('change', sync);
-    sync(); // set initial state
+  const catChecks = Array.from(document.querySelectorAll('#optCategories input[type="checkbox"]'));
+  catChecks.forEach(cb => {
+    cb.addEventListener('change', () => { syncLabelChecked(cb); if (map[cb.id]) setShown(map[cb.id], cb.checked); });
+    syncLabelChecked(cb);
+    if (map[cb.id]) setShown(map[cb.id], cb.checked);
   });
 
-  // For each optional product tile with quantity, keep qty input required only when checked
-  form.querySelectorAll('label.image-check > input[type="checkbox"][id^="opt_"]').forEach(cb=>{
+  // Product tiles highlight + Mengen toggle
+  const allProductChecks = form.querySelectorAll('label.image-check > input[type="checkbox"][id^="opt_"]');
+  function applyQtyFor(cb){
     const key = cb.id.replace('opt_','');
     const wrap = form.querySelector(`#qty_${key}_wrap`);
     const qty  = form.querySelector(`#qty_${key}`);
-    function sync(){
-      const on = cb.checked && wrap && qty; if (!wrap || !qty) return;
-      wrap.hidden = !on; wrap.setAttribute('aria-hidden', on?'false':'true');
-      if (on){ qty.setAttribute('required','required'); } else { qty.removeAttribute('required'); qty.value=''; }
-      highlightTileForInput(cb, cb.checked);
-    }
-    cb.addEventListener('change', sync);
-    sync();
+    if (!wrap || !qty) return;
+    const on = cb.checked;
+    wrap.hidden = !on; wrap.setAttribute('aria-hidden', on ? 'false' : 'true');
+    if (on) qty.setAttribute('required','required'); else { qty.removeAttribute('required'); qty.value=''; }
+  }
+  allProductChecks.forEach(cb => {
+    cb.addEventListener('change', () => {
+      cb.closest('label.image-check')?.classList.toggle('is-checked', cb.checked);
+      applyQtyFor(cb);
+      if (cb.id === 'opt_CL60'){ applyBasinRequired(); }
+    });
+    cb.closest('label.image-check')?.classList.toggle('is-checked', cb.checked);
+    applyQtyFor(cb);
   });
-}
-// Run once after DOM ready in case Optional is visible initially
-document.addEventListener('DOMContentLoaded', initOptionalCategories);
-// Also run whenever we navigate to the Optional step
-window.addEventListener('hashchange', ()=>{
-  if (getCurrentStep() === 'optional') initOptionalCategories();
-});
+
+  // Basin required logic: when CL60 selected, ensure WTBF and RSL are shown and auto-checked; if unselected, clear them
+  const basinSection = document.getElementById('basinRequiredWrap');
+  const basinCheckbox = document.getElementById('opt_CL60');
+  const wtbfCB = document.getElementById('opt_WTBF');
+  const wtbfQty = document.getElementById('qty_WTBF');
+  const rslCB = document.getElementById('opt_RSL');
+  const rslQty = document.getElementById('qty_RSL');
+
+  function show(el,on){ if (!el) return; el.hidden=!on; el.setAttribute('aria-hidden', on?'false':'true'); }
+  function req(el,on){ if (!el) return; if (on) el.setAttribute('required','required'); else el.removeAttribute('required'); }
+
+  function applyBasinRequired(){
+    const on = !!(basinCheckbox && basinCheckbox.checked);
+    show(basinSection, on);
+    if (!wtbfCB || !rslCB) return;
+
+    if (on){
+      // auto-check required items if not already
+      if (!wtbfCB.checked){ wtbfCB.checked = true; wtbfCB.dispatchEvent(new Event('change')); }
+      if (!rslCB.checked){ rslCB.checked = true; rslCB.dispatchEvent(new Event('change')); }
+      req(wtbfCB, true); req(rslCB, true);
+      req(wtbfQty, true); req(rslQty, true);
+    } else {
+      // clear and make optional again
+      [wtbfCB, rslCB].forEach(cb => { cb.checked = false; cb.dispatchEvent(new Event('change')); cb.removeAttribute('required'); });
+      [wtbfQty, rslQty].forEach(q => { if (q){ q.value=''; q.removeAttribute('required'); } });
+    }
+  }
+
+  basinCheckbox?.addEventListener('change', applyBasinRequired);
+  applyBasinRequired();
+
+  // Loose accessories menu: wire Mengen there too
+  ['WTBF__loose','RSL__loose','EV__loose'].forEach(key=>{
+    const cb = form.querySelector(`#opt_${key}`);
+    const qty = form.querySelector(`#qty_${key}`);
+    const wrap = form.querySelector(`#qty_${key}_wrap`);
+    if (!cb || !qty || !wrap) return;
+    cb.addEventListener('change', ()=>{
+      const on = cb.checked; wrap.hidden = !on; wrap.setAttribute('aria-hidden', on?'false':'true');
+      if (on) qty.setAttribute('required','required'); else { qty.removeAttribute('required'); qty.value=''; }
+      cb.closest('label.image-check')?.classList.toggle('is-checked', on);
+    });
+  });
+})();
 
 /* ========== PDF/DOCX + API TEST BUTTONS ========== */
 async function requestPdfAndDownload(payload, filename='Anfrage.pdf'){
@@ -572,6 +611,7 @@ async function requestPdfAndDownload(payload, filename='Anfrage.pdf'){
   const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 document.getElementById('makePdf')?.addEventListener('click', async ()=>{
+  // Require Bereich to be valid before generating preview document
   if (!requireBereichValid()) { location.hash='bereich'; return; }
   try{ await requestPdfAndDownload(buildPayload()); document.getElementById('pdfActions')?.style.setProperty('display','flex'); }
   catch(e){ show({error:String(e)}, false); }
