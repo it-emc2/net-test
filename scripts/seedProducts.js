@@ -52,6 +52,7 @@ const products = [
   { productId: 'STELZ', name: 'Stelzlager höhenverstellar Set', price: 20.00 },
   { productId: 'V5FB02', name: 'Fußboden individ.5.0 1500x200mm Lava beige (8 Paneele=2,4m/2) VIGOUR', price: 159.84 },
   { productId: 'V4FK600', name: 'Flächenkleber 3.0/4.0/5.0 Fußboden und Wandverkleidungspaneele 600ml', price: 16.56 },
+  { productId: 'TRBDSET7', name: 'TRINNITY Bodenabdichtung BASIS-Set 7 qm Dichtb., Sockelb., Außen- + Innenecke', price: 278.38 },
 ];
 
 (async () => {
