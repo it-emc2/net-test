@@ -1,11 +1,18 @@
 // src/logic/pricing.js
 export default (ProductModel) => {
-  async function getPricesByIds(ids) {
+  // Fetch product docs for given IDs (price + name)
+  async function getProductsByIds(ids) {
     const unique = [...new Set((ids || []).filter(Boolean))];
-    if (!unique.length) return () => 0;
+    if (!unique.length) return new Map();
     const docs = await ProductModel.find({ productId: { $in: unique } }).lean();
-    const map = new Map(docs.map(d => [d.productId, Number(d.price) || 0]));
-    return (id) => Number(map.get(id) || 0);
+    const map = new Map();
+    for (const d of docs) {
+      map.set(d.productId, {
+        price: Number(d.price) || 0,
+        name: d.name || '',
+      });
+    }
+    return map;
   }
 
   const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
@@ -152,17 +159,20 @@ export default (ProductModel) => {
       }
     }
 
-    // Resolve prices
-    const priceOf = await getPricesByIds([...idsNeeded]);
+    // Resolve product data
+    const productMap = await getProductsByIds([...idsNeeded]);
+
     const resolved = lines.map(l => {
-      const unit = Number.isFinite(l.unitOverride) ? l.unitOverride : priceOf(l.id);
+      const prod = productMap.get(l.id) || { price: 0, name: '' };
+      const unit = Number.isFinite(l.unitOverride) ? l.unitOverride : prod.price;
       const lineTotal = round2(unit * l.qty);
       return {
         productId: l.id,
+        name: prod.name || '',       // include DB name
         qty: l.qty,
         unitPrice: unit,
         lineTotal,
-        label: l.label,
+        label: l.label,              // your custom label if any
       };
     });
 
@@ -182,7 +192,7 @@ export default (ProductModel) => {
     const laborHours = Number(payload?.bereich?.laborHours || 0) || 0;
 
     const zoneKK = payload?.bereich?.zoneKK || '';
-    const zoneSZ = payload?.bereich?.zoneSZ || '';
+       const zoneSZ = payload?.bereich?.zoneSZ || '';
 
     const tableKK = {
       'Zone 1': 46.33, 'Zone 2': 69.50, 'Zone 3': 92.66, 'Zone 4': 139.00,
@@ -209,11 +219,7 @@ export default (ProductModel) => {
 
     const lines = [];
     if (zoneLabel && zonePrice > 0) {
-      lines.push({
-        key: 'zone',
-        label: `- 1,00 Stk An- und Abfahrtzone ${zoneLabel}`,
-        amount: round2(zonePrice),
-      });
+      lines.push({ key: 'zone', label: `- 1,00 Stk An- und Abfahrtzone ${zoneLabel}`, amount: round2(zonePrice) });
     }
     lines.push({ key: 'fahrzeug', label: '- 1,00 Stk Fahrzeugbereitstellung', amount: round2(fahrzeugbereitstellung) });
     lines.push({ key: 'werkzeuge', label: '- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen', amount: round2(werkzeug) });
@@ -232,12 +238,7 @@ export default (ProductModel) => {
 
     const sum = round2(lines.reduce((a, x) => a + (x.amount || 0), 0));
 
-    return {
-      title: posTitle,
-      lines,
-      sum,
-      payer, zoneLabel, distanceKm, laborHours, laborRate,
-    };
+    return { title: posTitle, lines, sum, payer, zoneLabel, distanceKm, laborHours, laborRate };
   }
 
   return {
@@ -245,10 +246,13 @@ export default (ProductModel) => {
       // Optional selections (legacy)
       const selections = collectSelections(payload);
       const ids = [...new Set(selections.map(s => s.productId))];
-      const priceOf = await getPricesByIds(ids);
+
+      // Fetch product meta for legacy items too (so we could include names later if needed)
+      const productMap = await getProductsByIds(ids);
 
       const items = selections.map(s => {
-        const unit = priceOf(s.productId);
+        const prod = productMap.get(s.productId) || { price: 0 };
+        const unit = prod.price;
         const qty = s.qty || 1;
         return {
           productId: s.productId,
@@ -260,18 +264,10 @@ export default (ProductModel) => {
 
       // Compute materials and services with guards
       let materials = { title: '', lines: [], sum: 0 };
-      try {
-        materials = await computeMaterials(payload);
-      } catch (e) {
-        console.error('[pricing] computeMaterials failed:', e);
-      }
+      try { materials = await computeMaterials(payload); } catch (e) { console.error('[pricing] computeMaterials failed:', e); }
 
       let services = { title: '', lines: [], sum: 0, payer: '', zoneLabel: '', distanceKm: 0, laborHours: 0, laborRate: 0 };
-      try {
-        services = computeServiceCosts(payload) || services;
-      } catch (e) {
-        console.error('[pricing] computeServiceCosts failed:', e);
-      }
+      try { services = computeServiceCosts(payload) || services; } catch (e) { console.error('[pricing] computeServiceCosts failed:', e); }
 
       // Totals
       const productsSubtotal = round2(
@@ -291,17 +287,7 @@ export default (ProductModel) => {
         servicesSum: services?.sum ?? 0,
       });
 
-      return {
-        items,
-        materials,
-        productsSubtotal,
-        services,
-        subtotal: baseSubtotal,
-        markupPct,
-        markup,
-        travel,
-        total,
-      };
+      return { items, materials, productsSubtotal, services, subtotal: baseSubtotal, markupPct, markup, travel, total };
     }
   };
 };

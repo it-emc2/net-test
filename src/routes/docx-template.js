@@ -57,15 +57,19 @@ function mapData(body = {}, computed = {}) {
   const ServiceUnitPrice = fmtCurrency(services?.sum || 0);
   const ServiceTotal = fmtCurrency(services?.sum || 0);
 
-  // Materials block
+  // Materials block: use db name when no custom label
   const MaterialsPosTitle = materials?.title || 'Material für Badumbau';
   const MaterialsUnitPrice = fmtCurrency(materials?.sum || 0);
   const MaterialsTotal = fmtCurrency(materials?.sum || 0);
-  const MaterialsLines = (materials?.lines || []).map(l => ({
-    MaterialLine: l.label
-      ? l.label
-      : `- ${Number(l.qty || 0).toFixed(2).replace(/\.00$/, '')} Stk ${l.productId}`
-  }));
+  const MaterialsLines = (materials?.lines || []).map(l => {
+    const qtyStr = Number(l.qty || 0).toFixed(2).replace(/\.00$/, '');
+    const nameOrId = l.name || l.productId || '';
+    return {
+      MaterialLine: l.label
+        ? l.label // keep your crafted text
+        : `- ${qtyStr} Stk ${nameOrId}`,
+    };
+  });
 
   // Optional meta
   const PayerKind = services?.payer || (b.payer || '');
@@ -156,10 +160,7 @@ router.post('/', async (req, res) => {
     const computed = await pricing.computePrices(req.body || {});
 
     const zip = new PizZip(content);
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true,
-    });
+    const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
 
     const data = mapData(req.body || {}, computed);
     console.log('[docx-template] replacing keys:', Object.keys(data));
