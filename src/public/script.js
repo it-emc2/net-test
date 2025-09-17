@@ -34,7 +34,7 @@ function setStep(step){
       else if (steps.indexOf(s) < steps.indexOf(step)) link.classList.add('done');
     }
     const page = pages[s];
-    if (page) page.hidden = s !== step;
+    if (page) page.hidden = (s !== step);
   });
   location.hash = step;
   updateSummary();
@@ -75,6 +75,11 @@ function flashInvalid(el){
   el.style.borderColor = 'var(--danger)';
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   setTimeout(()=> el.style.borderColor = '', 1200);
+}
+function highlightTileForInput(input, on){
+  const label = input?.closest?.('label.image-check');
+  if (!label) return;
+  label.classList.toggle('is-checked', !!on);
 }
 
 /* ========== VALIDATORS ========== */
@@ -154,8 +159,6 @@ function validateWandverkleidung(){
     alert('Bitte wählen Sie die Art der Wandverkleidung.');
     return false;
   }
-  const kindVal = kind.value;
-  if (kindVal === 'Keine') return true;
   return true;
 }
 
@@ -235,26 +238,44 @@ document.body.addEventListener('click', (e) => {
   applyDefault();
 })();
 
-/* Pflegegrad minimal visibility (kept) */
+/* Pflegegrad: wohnumfeldPanel always visible; amount row toggled by Ja/Nein */
 (function initPflegegrad(){
   const form = document.getElementById('form-bereich');
   const pgLevelRow = document.getElementById('pflegegradLevelRow');
   const budgetPanel = document.getElementById('budgetOptionsPanel');
   const wePanel = document.getElementById('wohnumfeldPanel');
+  const weDoneGroup = document.getElementById('wohnumfeldDoneGroup');
+  const weAmountRow = document.getElementById('wohnumfeldAmountRow');
+  const weAmount = document.getElementById('wohnumfeldAmount');
 
   function show(el,on){ if (el){ el.hidden = !on; el.setAttribute('aria-hidden', on ? 'false' : 'true'); } }
+  function setReq(el,on){ if (!el) return; if (on) el.setAttribute('required','required'); else el.removeAttribute('required'); }
   function isKK(){ const p = form?.querySelector('input[name="payer"]:checked'); return p && p.value==='Kassenkunde'; }
   function hasPG(){ const r = form?.querySelector('input[name="hasPflegegrad"]:checked'); return r && r.value==='Ja'; }
+
+  function applyWeAmountVisibility(){
+    const yes = form?.querySelector('input[name="wohnumfeldDone"][value="Ja"]:checked');
+    const on = !!yes;
+    show(weAmountRow, on);
+    setReq(weAmount, on);
+    if (!on && weAmount) weAmount.value = '';
+  }
+
   function apply(){
     const kk = isKK(); const has = hasPG();
-    show(pgLevelRow,has);
-    show(budgetPanel,kk && has);
-    show(wePanel,kk);
+    show(pgLevelRow, has);
+    show(budgetPanel, kk && has);
+    show(wePanel, true); // always visible per your request
+    applyWeAmountVisibility();
   }
+
   apply();
   form?.addEventListener('change', (e)=>{
     const t = e.target; if (!t) return;
-    if (['payer','hasPflegegrad'].includes(t.name)) apply();
+    if (['payer','hasPflegegrad','wohnumfeldDone'].includes(t.name)) {
+      if (t.name === 'wohnumfeldDone') applyWeAmountVisibility();
+      else apply();
+    }
   });
 })();
 
@@ -269,10 +290,10 @@ document.body.addEventListener('click', (e) => {
   const smallMat = form.querySelector('#smallMaterial');
 
   function apply(){
-    if (abdicht) abdicht.checked = true;
-    if (drain) drain.checked = true;
-    if (stelz) stelz.checked = true;
-    if (smallMat) smallMat.checked = true; // Backend enforces KM02 pricing
+    if (abdicht) { abdicht.checked = true; highlightTileForInput(abdicht, true); }
+    if (drain) { drain.checked = true; highlightTileForInput(drain, true); }
+    if (stelz) { stelz.checked = true; highlightTileForInput(stelz, true); }
+    if (smallMat) { smallMat.checked = true; highlightTileForInput(smallMat, true); } // Backend enforces KM02 pricing
   }
   trayRadios.forEach(r => r.addEventListener('change', apply));
 })();
@@ -290,27 +311,9 @@ document.body.addEventListener('click', (e) => {
   const grpAdhesive = Array.from(form.querySelectorAll('input[name="floorAdhesive[]"]'));
   const grpSealing  = Array.from(form.querySelectorAll('input[name="floorSealing[]"]'));
 
-  // Create or find live preview span in the adhesive hint paragraph
-  let hintPara = panel?.querySelector('.field .req');
-  if (hintPara && hintPara.textContent.includes('Flächenkleber')) {
-    // inject a span at the end for live packs text
-    const live = document.createElement('span');
-    live.id = 'adhesiveLivePreview';
-    live.style.marginLeft = '6px';
-    hintPara.appendChild(live);
-  }
-  const livePreview = () => document.getElementById('adhesiveLivePreview');
-
-  function syncLabelChecked(input){
-    input.closest('label.image-check')?.classList.toggle('is-checked', input.checked);
-  }
-  [...grpFlooring, ...grpAdhesive, ...grpSealing].forEach(inp => {
-    inp.addEventListener('change', () => syncLabelChecked(inp));
-    syncLabelChecked(inp);
-  });
-
   function show(el,on){ if (el){ el.hidden = !on; el.setAttribute('aria-hidden', on ? 'false' : 'true'); } }
   function setReq(el,on){ if (!el) return; if (on) el.setAttribute('required','required'); else el.removeAttribute('required'); }
+  function syncTile(i){ highlightTileForInput(i, i.checked); }
 
   function parseAreaVal(raw){
     if (!raw) return 0;
@@ -319,16 +322,25 @@ document.body.addEventListener('click', (e) => {
     return Number.isFinite(n) && n > 0 ? n : 0;
   }
   function computePacks(areaVal){
-    // 1 pack per 0.60 m²
-    return Math.ceil(areaVal / 0.6 - 1e-12);
+    return Math.ceil(areaVal / 0.6 - 1e-12); // 1 pack per 0.60 m²
+  }
+
+  // Live preview span inside the adhesive hint
+  const hintPara = document.getElementById('floorAdhesiveHint');
+  let liveSpan = document.getElementById('adhesiveLivePreview');
+  if (!liveSpan && hintPara) {
+    liveSpan = document.createElement('span');
+    liveSpan.id = 'adhesiveLivePreview';
+    liveSpan.style.marginLeft = '6px';
+    hintPara.appendChild(liveSpan);
   }
   function updateLivePreview(){
-    const el = livePreview(); if (!el) return;
+    if (!liveSpan) return;
     const val = parseAreaVal(area?.value);
-    if (val <= 0) { el.textContent = ''; return; }
+    if (val <= 0) { liveSpan.textContent = ''; return; }
     const packs = computePacks(val);
-    const valStr = String(area.value).trim(); // keep user’s comma/decimal style for display
-    el.textContent = `= ${packs} Pkg bei ${valStr} m²`;
+    const valStr = String(area.value).trim();
+    liveSpan.textContent = `= ${packs} Pkg bei ${valStr} m²`;
   }
 
   function apply(){
@@ -336,21 +348,27 @@ document.body.addEventListener('click', (e) => {
     show(panel, on);
     setReq(area, on);
     if (on){
-      grpFlooring.forEach(i => { i.checked = true; syncLabelChecked(i); });
-      grpAdhesive.forEach(i => { i.checked = true; syncLabelChecked(i); });
-      grpSealing.forEach(i => { i.checked = true; syncLabelChecked(i); });
+      grpFlooring.forEach(i => { i.checked = true; syncTile(i); });
+      grpAdhesive.forEach(i => { i.checked = true; syncTile(i); });
+      grpSealing.forEach(i => { i.checked = true; syncTile(i); });
       updateLivePreview();
     } else {
       if (area) area.value = '';
-      grpFlooring.forEach(i => { i.checked = false; syncLabelChecked(i); });
-      grpAdhesive.forEach(i => { i.checked = false; syncLabelChecked(i); });
-      grpSealing.forEach(i => { i.checked = false; syncLabelChecked(i); });
-      const el = livePreview(); if (el) el.textContent = '';
+      grpFlooring.forEach(i => { i.checked = false; syncTile(i); });
+      grpAdhesive.forEach(i => { i.checked = false; syncTile(i); });
+      grpSealing.forEach(i => { i.checked = false; syncTile(i); });
+      if (liveSpan) liveSpan.textContent = '';
     }
   }
 
   toggle?.addEventListener('change', apply);
   area?.addEventListener('input', updateLivePreview);
+
+  // Initial tile highlight sync
+  [...grpFlooring, ...grpAdhesive, ...grpSealing].forEach(inp => {
+    inp.addEventListener('change', () => syncTile(inp));
+    syncTile(inp);
+  });
 })();
 
 /* Wandverkleidung: auto sealing + qty toggles */
@@ -363,7 +381,7 @@ document.body.addEventListener('click', (e) => {
   function show(el,on){ if (el){ el.hidden=!on; el.setAttribute('aria-hidden', on?'false':'true'); } }
   function apply(){
     const any = !!cb997?.checked || !!cb1497?.checked;
-    if (any && seal) seal.checked = true;
+    if (any && seal) { seal.checked = true; highlightTileForInput(seal, true); }
     show(qty997Wrap, !!cb997?.checked);
     show(qty1497Wrap, !!cb1497?.checked);
   }
@@ -371,7 +389,7 @@ document.body.addEventListener('click', (e) => {
   cb1497?.addEventListener('change', apply);
 })();
 
-/* Optional section logic (kept minimal; add your previous extended logic if needed) */
+/* Optional: categories -> menus (defensive), tile highlights, Mengen */
 (function initOptionalCategories(){
   const form = document.getElementById('form-optional');
   if (!form) return;
@@ -392,7 +410,7 @@ document.body.addEventListener('click', (e) => {
   }
   function setShown(menuId, on){
     const el = document.getElementById(menuId);
-    if (!el) return;
+    if (!el) return; // defensive: menu not in DOM
     el.hidden = !on; el.setAttribute('aria-hidden', on ? 'false' : 'true');
     if (!on){
       el.querySelectorAll('label.image-check > input[type="checkbox"]').forEach(cb => { cb.checked=false; cb.dispatchEvent(new Event('change')); });
@@ -408,7 +426,7 @@ document.body.addEventListener('click', (e) => {
     if (map[cb.id]) setShown(map[cb.id], cb.checked);
   });
 
-  // Quantities toggling for product tiles
+  // Product tiles: Menge wrap toggle
   const allProductChecks = form.querySelectorAll('label.image-check > input[type="checkbox"][id^="opt_"]');
   function applyQtyFor(cb){
     const key = cb.id.replace('opt_','');
