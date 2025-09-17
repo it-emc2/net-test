@@ -141,6 +141,54 @@ document.body.addEventListener('click', e=>{
   radios.forEach(r=>r.addEventListener('change', apply)); apply();
 })();
 
+
+(function initPflegegrad(){
+  const form = document.getElementById('form-bereich');
+  const pgLevelRow = document.getElementById('pflegegradLevelRow');
+  const pgRadios = Array.from(pgLevelRow?.querySelectorAll('input[name="pflegegrad"]') || []);
+  const budgetPanel = document.getElementById('budgetOptionsPanel');
+  const copayCheckbox = document.getElementById('budgetCopay');
+  const copayField = document.getElementById('copayField'); const copayAmount = document.getElementById('copayAmount');
+  const wePanel = document.getElementById('wohnumfeldPanel');
+  const weDoneGroup = document.getElementById('wohnumfeldDoneGroup');
+  const weAmountRow = document.getElementById('wohnumfeldAmountRow'); const weAmount = document.getElementById('wohnumfeldAmount');
+  const weAppGroup = document.getElementById('wohnumfeldApplicationGroup');
+
+  function show(el,on){ if (el){ el.hidden = !on; el.setAttribute('aria-hidden', on ? 'false' : 'true'); } }
+  function setReq(els,on){ (Array.isArray(els)?els:[els]).forEach(el=> el ? (on?el.setAttribute('required','required'):el.removeAttribute('required')):null); }
+  function clearRadios(radios){ radios.forEach(r=>r.checked=false); }
+  function isKK(){ const p = form?.querySelector('input[name="payer"]:checked'); return p && p.value==='Kassenkunde'; }
+  function hasPG(){ const r = form?.querySelector('input[name="hasPflegegrad"]:checked'); return r && r.value==='Ja'; }
+  function pgVal(){ const r = form?.querySelector('input[name="pflegegrad"]:checked'); return r ? parseInt(r.value,10) : NaN; }
+
+  function applyCopay(){
+    const on = !!(copayCheckbox && copayCheckbox.checked && !copayCheckbox.closest('[hidden]'));
+    show(copayField,on); setReq(copayAmount,on); if (!on && copayAmount) copayAmount.value='';
+  }
+  function apply(){
+    const kk = isKK(); const has = hasPG(); const val = pgVal(); const valid2 = Number.isInteger(val) && val>=2;
+    show(pgLevelRow,has); setReq(pgRadios,has); if (!has) clearRadios(pgRadios);
+    const showBudget = kk && has && valid2; show(budgetPanel,showBudget); if (!showBudget && copayCheckbox){ copayCheckbox.checked=false; applyCopay(); }
+    show(wePanel,kk);
+    const weDoneRadios = Array.from(weDoneGroup?.querySelectorAll('input[name="wohnumfeldDone"]') || []);
+    const weAppRadios = Array.from(weAppGroup?.querySelectorAll('input[name="wohnumfeldApplication"]') || []);
+    setReq(weDoneRadios,kk); setReq(weAppRadios,kk);
+    if (!kk){
+      weDoneRadios.forEach(r=>r.checked=false); weAppRadios.forEach(r=>r.checked=false);
+      show(weAmountRow,false); setReq(weAmount,false); if (weAmount) weAmount.value='';
+    } else {
+      const doneYes = form?.querySelector('input[name="wohnumfeldDone"][value="Ja"]:checked');
+      const showAmt = !!doneYes; show(weAmountRow,showAmt); setReq(weAmount,showAmt); if (!showAmt && weAmount) weAmount.value='';
+    }
+  }
+  apply(); applyCopay();
+  form?.addEventListener('change', (e)=>{
+    const t = e.target; if (!t) return;
+    if (['payer','hasPflegegrad','pflegegrad','wohnumfeldDone'].includes(t.name)) apply();
+    if (t.id==='budgetCopay') applyCopay();
+  });
+})();
+
 /* ========== DUSCHWANNE DEFAULTS ========== */
 (function initDuschwanneDefaults(){
   const f = document.getElementById('form-duschwanne'); if (!f) return;
