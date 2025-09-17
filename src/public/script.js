@@ -30,6 +30,10 @@ function setStep(step){
     if (pages[s]) pages[s].hidden = s !== step;
   });
   location.hash = step;
+
+  // Late-init Optional when entering that step
+  if (step === 'optional') initOptionalCategories();
+
   updateSummary();
 }
 nav?.addEventListener('click', e => {
@@ -501,9 +505,22 @@ async function getProduct(id){
 })();
 
 /* ========== OPTIONAL (menus open/close and qty toggles) ========== */
-(function initOptionalCategories(){
-  const form = document.getElementById('form-optional'); if (!form) return;
-  const map = {cat_SHOWER:'menu_SHOWER',cat_GRAB:'menu_GRAB',cat_FOLD:'menu_FOLD',cat_BASIN:'menu_BASIN',cat_BASIN_TAP:'menu_BASIN_TAP',cat_THERMO:'menu_THERMO',cat_SEAT:'menu_SEAT',cat_BASIN_ACC:'menu_BASIN_ACC'};
+function initOptionalCategories(){
+  const form = document.getElementById('form-optional');
+  const catsWrap = document.getElementById('optCategories');
+  if (!form || !catsWrap) return;
+
+  const map = {
+    cat_SHOWER:'menu_SHOWER',
+    cat_GRAB:'menu_GRAB',
+    cat_FOLD:'menu_FOLD',
+    cat_BASIN:'menu_BASIN',
+    cat_BASIN_TAP:'menu_BASIN_TAP',
+    cat_THERMO:'menu_THERMO',
+    cat_SEAT:'menu_SEAT',
+    cat_BASIN_ACC:'menu_BASIN_ACC'
+  };
+
   function setShown(id,on){
     const el = document.getElementById(id); if (!el) return;
     el.hidden = !on; el.setAttribute('aria-hidden', on?'false':'true');
@@ -512,22 +529,40 @@ async function getProduct(id){
       el.querySelectorAll('input[type="number"]').forEach(i=>{ i.value=''; i.removeAttribute('required'); });
     }
   }
-  document.querySelectorAll('#optCategories input[type="checkbox"]').forEach(cb=>{
-    cb.addEventListener('change', ()=>{ cb.closest('label.image-check')?.classList.toggle('is-checked', cb.checked); if (map[cb.id]) setShown(map[cb.id], cb.checked); });
-    cb.closest('label.image-check')?.classList.toggle('is-checked', cb.checked);
-    if (map[cb.id]) setShown(map[cb.id], cb.checked);
+
+  // Initialize category checkboxes and their menus
+  catsWrap.querySelectorAll('input[type="checkbox"]').forEach(cb=>{
+    const menuId = map[cb.id];
+    const sync = ()=>{
+      cb.closest('label.image-check')?.classList.toggle('is-checked', cb.checked);
+      if (menuId) setShown(menuId, cb.checked);
+    };
+    cb.removeEventListener?.('__opt_sync__', sync); // noop for older browsers
+    cb.addEventListener('change', sync);
+    sync(); // set initial state
   });
+
+  // For each optional product tile with quantity, keep qty input required only when checked
   form.querySelectorAll('label.image-check > input[type="checkbox"][id^="opt_"]').forEach(cb=>{
     const key = cb.id.replace('opt_','');
-    const wrap = form.querySelector(`#qty_${key}_wrap`); const qty = form.querySelector(`#qty_${key}`);
+    const wrap = form.querySelector(`#qty_${key}_wrap`);
+    const qty  = form.querySelector(`#qty_${key}`);
     function sync(){
       const on = cb.checked && wrap && qty; if (!wrap || !qty) return;
-      wrap.hidden = !on; wrap.setAttribute('aria-hidden', on?'false':'true'); if (on) qty.setAttribute('required','required'); else { qty.removeAttribute('required'); qty.value=''; }
+      wrap.hidden = !on; wrap.setAttribute('aria-hidden', on?'false':'true');
+      if (on){ qty.setAttribute('required','required'); } else { qty.removeAttribute('required'); qty.value=''; }
       highlightTileForInput(cb, cb.checked);
     }
-    cb.addEventListener('change', sync); sync();
+    cb.addEventListener('change', sync);
+    sync();
   });
-})();
+}
+// Run once after DOM ready in case Optional is visible initially
+document.addEventListener('DOMContentLoaded', initOptionalCategories);
+// Also run whenever we navigate to the Optional step
+window.addEventListener('hashchange', ()=>{
+  if (getCurrentStep() === 'optional') initOptionalCategories();
+});
 
 /* ========== PDF/DOCX + API TEST BUTTONS ========== */
 async function requestPdfAndDownload(payload, filename='Anfrage.pdf'){
