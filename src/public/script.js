@@ -76,6 +76,12 @@ function highlightTileForInput(input, on){ input?.closest('label.image-check')?.
 function validateBereich(){
   const form = document.getElementById('form-bereich'); if (!form) return true;
   const d = document.getElementById('date'); if (d && !d.value) d.valueAsDate = new Date();
+
+  // Native constraints first (required toggled by initPflegegrad etc.)
+  // reportValidity shows bubbles; checkValidity is silent.
+  if (!form.checkValidity()) return false;
+
+  // Extra minimal guards you already had
   const req = ['date','firstName','lastName','customerNumber'];
   let bad = req.map(id=>document.getElementById(id)).find(el=>!el?.value);
   if (!bad){
@@ -84,7 +90,7 @@ function validateBereich(){
       if (!form.querySelector(`input[name="${n}"]:checked`)){ bad = form.querySelector(`input[name="${n}"]`)?.closest('label'); break; }
     }
   }
-  if (bad){ flashInvalid(bad.tagName==='INPUT'?bad:bad.querySelector('input')); alert('Bitte füllen Sie alle Pflichtfelder aus.'); return false; }
+  if (bad){ flashInvalid(bad.tagName==='INPUT'?bad:bad.querySelector('input')); return false; }
   return true;
 }
 function validateDuschwanne(){
@@ -109,13 +115,22 @@ function validateWandverkleidung(){
 }
 function validateOptional(){ return true; }
 
+// Use this wherever you need the Bereich page to be valid before proceeding
+function requireBereichValid(){
+  const form = document.getElementById('form-bereich');
+  // Trigger native bubbles
+  if (!form.reportValidity()) return false;
+  // Run your custom guards
+  return validateBereich();
+}
+
 /* ========== NAV BUTTONS ========== */
 document.body.addEventListener('click', e=>{
   const btn = e.target.closest('[data-nav]'); if (!btn) return;
   const dir = btn.getAttribute('data-nav'); const step = getCurrentStep(); const idx = steps.indexOf(step);
   if (dir==='prev') return setStep(steps[Math.max(0, idx-1)]);
   if (dir==='next'){
-    const ok = step==='bereich' ? validateBereich() :
+    const ok = step==='bereich' ? requireBereichValid() :
                step==='duschwanne' ? validateDuschwanne() :
                step==='wandverkleidung' ? validateWandverkleidung() :
                step==='optional' ? validateOptional() : true;
@@ -140,7 +155,6 @@ document.body.addEventListener('click', e=>{
   function apply(){ const v = document.querySelector('input[name="payer"]:checked')?.value; if (v==='Kassenkunde' && r50){ r50.checked=true; r50.required=true; } }
   radios.forEach(r=>r.addEventListener('change', apply)); apply();
 })();
-
 
 (function initPflegegrad(){
   const form = document.getElementById('form-bereich');
@@ -252,7 +266,6 @@ async function getProduct(id){
   async function ensureUnits(){
     if (!unitAdh){
       const p = await getProduct('V4FK600'); unitAdh = Number(p?.price||0);
-      // reflect DB name if you want: tileAdh?.querySelector('.caption')?.append(' • ' + (p?.price?.toFixed ? euro(p.price) : ''));
     }
     if (!unitSeal){
       const p = await getProduct('TRBDSET7'); unitSeal = Number(p?.price||0);
@@ -276,12 +289,8 @@ async function getProduct(id){
     if (sealingPriceEl) sealingPriceEl.textContent = sets ? euro(totalS) : '0';
     computed.sealing = { productId:'TRBDSET7', sets, unit:unitSeal, total:+(totalS.toFixed(2)) };
 
-    // Panels price (optional). If you want DB-backed V5FB02 pricing, uncomment below and ensure product exists:
-    // const pPanels = productCache.get('V5FB02') || null;
-    // const unitPanels = Number(pPanels?.price||0);
-    // const qtyPanels = Math.ceil((m2*4) - 1e-12);
-    // panelsPriceEl.textContent = qtyPanels ? euro(qtyPanels * unitPanels) : '0';
-    panelsPriceEl.textContent = '0'; // keep as 0 unless you want the calculation
+    // Panels price (optional)
+    panelsPriceEl.textContent = '0';
   }
 
   async function init(){
@@ -332,7 +341,6 @@ async function getProduct(id){
   cb997?.addEventListener('change', apply); cb1497?.addEventListener('change', apply);
 })();
 
-
 /* Wandverkleidung: Farbauswahl (radio-like image tiles) */
 (function initWVColors(){
   const wrap = document.getElementById('wvColors'); if (!wrap) return;
@@ -346,7 +354,6 @@ async function getProduct(id){
     if (e.target?.name === 'wvColor') syncAll();
   });
 
-  // Optional: preselect first color if none chosen
   const anyChecked = wrap.querySelector('input[name="wvColor"]:checked');
   if (!anyChecked){
     const first = wrap.querySelector('input[name="wvColor"]');
@@ -393,7 +400,8 @@ async function requestPdfAndDownload(payload, filename='Anfrage.pdf'){
   const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 document.getElementById('makePdf')?.addEventListener('click', async ()=>{
-  if (!validateBereich()) { location.hash='bereich'; return; }
+  // Require Bereich to be valid before generating preview document
+  if (!requireBereichValid()) { location.hash='bereich'; return; }
   try{ await requestPdfAndDownload(buildPayload()); document.getElementById('pdfActions')?.style.setProperty('display','flex'); }
   catch(e){ show({error:String(e)}, false); }
 });
@@ -401,6 +409,7 @@ document.getElementById('downloadPdf')?.addEventListener('click', async ()=>{
   try{ await requestPdfAndDownload(buildPayload()); } catch(e){ show({error:String(e)}, false); }
 });
 document.getElementById('makePdfFromTemplate')?.addEventListener('click', async ()=>{
+  if (!requireBereichValid()) { location.hash='bereich'; return; }
   try{
     const resp = await fetch('/pdf-template', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(buildPayload()) });
     if (!resp.ok) throw new Error(await resp.text());
@@ -410,7 +419,7 @@ document.getElementById('makePdfFromTemplate')?.addEventListener('click', async 
   }catch(e){ show({error:String(e)}, false); }
 });
 document.getElementById('downloadDocx')?.addEventListener('click', async ()=>{
-  if (!validateBereich()) { location.hash='bereich'; return; }
+  if (!requireBereichValid()) { location.hash='bereich'; return; }
   try{
     const resp = await fetch('/docx-template', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(buildPayload()) });
     if (!resp.ok) throw new Error(await resp.text());
@@ -419,6 +428,7 @@ document.getElementById('downloadDocx')?.addEventListener('click', async ()=>{
   }catch(e){ show({error:String(e)}, false); }
 });
 document.getElementById('sendForm')?.addEventListener('click', async ()=>{
+  if (!requireBereichValid()) { location.hash='bereich'; return; }
   try{
     const r = await fetch('/api/price', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(buildPayload()) });
     const data = await r.json(); if (!r.ok) throw new Error(data.error || r.status);
@@ -426,6 +436,7 @@ document.getElementById('sendForm')?.addEventListener('click', async ()=>{
   }catch(e){ show({error:String(e)}, false); }
 });
 document.getElementById('sendJson')?.addEventListener('click', async ()=>{
+  if (!requireBereichValid()) { location.hash='bereich'; return; }
   try{
     const r = await fetch('/api/submissions', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(buildPayload()) });
     const data = await r.json(); if (!r.ok) throw new Error(data.error || r.status);
