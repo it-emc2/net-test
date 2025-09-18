@@ -16,7 +16,7 @@ function applyTheme(mode){
 themeToggle?.addEventListener('change',()=>applyTheme(themeToggle.checked?'dark':'light'));
 
 /* ========== NAVIGATION ========== */
-const steps = ['bereich','duschwanne','wandverkleidung','duschabtrennung', 'optional','rabatt' ,'zusammenfassung'];
+const steps = ['bereich','duschwanne','wandverkleidung','duschabtrennung', 'optional','rabatt' ,'zusammenfassung', 'kosten'];
 const pages = Object.fromEntries(steps.map(s => [s, document.getElementById('page-'+s)]));
 const nav = document.getElementById('stepsNav');
 
@@ -152,13 +152,15 @@ document.body.addEventListener('click', e=>{
   const dir = btn.getAttribute('data-nav'); const step = getCurrentStep(); const idx = steps.indexOf(step);
   if (dir==='prev') return setStep(steps[Math.max(0, idx-1)]);
   if (dir==='next'){
-    const ok = step==='bereich' ? requireBereichValid() :
-               step==='duschwanne' ? validateDuschwanne() :
-               step==='wandverkleidung' ? validateWandverkleidung() :
-                step==='duschabtrennung' ? validateDuschabtrennung() :
-               step==='optional' ? validateOptional() : true;
-              step==='rabatt' ? validateRabatt() : true;
-    if (!ok) return; setStep(steps[Math.min(steps.length-1, idx+1)]);
+    const ok =
+      step==='bereich' ? requireBereichValid() :
+      step==='duschwanne' ? validateDuschwanne() :
+      step==='wandverkleidung' ? validateWandverkleidung() :
+      step==='duschabtrennung' ? validateDuschabtrennung() :
+      step==='optional' ? validateOptional() :
+      step==='rabatt' ? validateRabatt() : true;
+    if (!ok) return;
+    setStep(steps[Math.min(steps.length-1, idx+1)]);
   }
 });
 
@@ -777,6 +779,110 @@ setShown(menuId, cb.checked);
       cb.closest('label.image-check')?.classList.toggle('is-checked', on);
     });
   });
+})();
+
+
+(function initKostenDetails(){
+  const container = document.getElementById('costsSummary'); if (!container) return;
+
+  function euro(n){ return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(Number(n||0)); }
+
+  function card(title, bodyHTML, footerHTML=''){
+    return `
+      <div class="card" style="padding:12px;">
+        <div style="font-weight:700; margin-bottom:8px;">${title}</div>
+        <div>${bodyHTML}</div>
+        ${footerHTML ? `<div style="border-top:1px solid var(--border); margin-top:8px; padding-top:8px;">${footerHTML}</div>` : ''}
+      </div>
+    `;
+  }
+
+  function listLines(lines){
+    if (!Array.isArray(lines) || !lines.length) return '<div class="muted">Keine Positionen</div>';
+    return `
+      <div style="display:grid; grid-template-columns: 1fr auto auto auto; gap:6px 10px; align-items:center;">
+        <div style="font-size:12px;color:var(--muted)">Bezeichnung</div>
+        <div style="font-size:12px;color:var(--muted);text-align:right">Menge</div>
+        <div style="font-size:12px;color:var(--muted);text-align:right">Einzelpreis</div>
+        <div style="font-size:12px;color:var(--muted);text-align:right">Gesamt</div>
+        ${lines.map(l => `
+          <div>${l.label ? l.label : (l.name || l.productId || '-')}</div>
+          <div style="text-align:right">${l.qty ?? 1}</div>
+          <div style="text-align:right">${euro(l.unitPrice ?? 0)}</div>
+          <div style="text-align:right; font-weight:600">${euro(l.lineTotal ?? 0)}</div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  async function fetchPrice(payload){
+    const r = await fetch('/api/price', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }
+
+  async function render(){
+    container.innerHTML = '<div class="muted">Berechne …</div>';
+    try{
+      const payload = buildPayload();
+      const data = await fetchPrice(payload);
+
+      // Optional items (collectSelections -> items)
+      const optBody = listLines((data.items || []).map(i => ({
+        productId: i.productId,
+        name: i.productId, // name not returned here; we keep id
+        qty: i.qty,
+        unitPrice: i.unitPrice,
+        lineTotal: i.lineTotal
+      })));
+      const optCard = card('Optional gewählte Produkte', optBody, `<div style="text-align:right"><b>Summe:</b> ${euro((data.items||[]).reduce((a,x)=>a+(x.lineTotal||0),0))}</div>`);
+
+      // Materials (computeMaterials)
+      const matLines = (data.materials?.lines || []).map(l => ({
+        productId: l.productId || l.id,
+        name: l.name,
+        qty: l.qty,
+        unitPrice: l.unitPrice,
+        lineTotal: l.lineTotal,
+        label: l.label
+      }));
+      const matBody = listLines(matLines);
+      const matCard = card(data.materials?.title || 'Material', matBody, `<div style="text-align:right"><b>Summe Material:</b> ${euro(data.materials?.sum || 0)}</div>`);
+
+      // Services (computeServiceCosts)
+      const svcLines = (data.services?.lines || []).map(s => ({
+        productId: s.key,
+        name: s.label,
+        qty: 1,
+        unitPrice: s.amount,
+        lineTotal: s.amount
+      }));
+      const svcBody = listLines(svcLines);
+      const svcCard = card(data.services?.title || 'Leistungen', svcBody, `<div style="text-align:right"><b>Summe Leistungen:</b> ${euro(data.services?.sum || 0)}</div>`);
+
+      // Overview totals
+      const sums = `
+        <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+          <div>Produkte + Material: <b>${euro(data.productsSubtotal || 0)}</b></div>
+          <div>Leistungen: <b>${euro(data.services?.sum || 0)}</b></div>
+          <div>Aufschlag (${Math.round((data.markupPct||0)*100)}%): <b>${euro(data.markup || 0)}</b></div>
+          <div style="font-size:1.05rem;">Zwischensumme: <b>${euro(data.subtotal || 0)}</b></div>
+          <div style="font-size:1.2rem;">Gesamt: <b>${euro(data.total || 0)}</b></div>
+        </div>
+      `;
+      const totalsCard = card('Summen', sums);
+
+      container.innerHTML = [matCard, optCard, svcCard, totalsCard].join('');
+    } catch(e){
+      container.innerHTML = `<div class="status err">Fehler beim Laden der Kosten: ${String(e)}</div>`;
+    }
+  }
+
+  // Re-render whenever this page becomes active
+  window.addEventListener('hashchange', ()=>{
+    if (getCurrentStep() === 'kosten') render();
+  });
+  if (getCurrentStep() === 'kosten') render();
 })();
 
 /* ========== PDF/DOCX + API TEST BUTTONS ========== */

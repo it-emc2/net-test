@@ -663,6 +663,12 @@
         ><div class="dot"></div>
         <span>Zusammenfassung</span></a
       >
+
+      <a class="step" data-step="kosten" href="#kosten">
+
+<div class="dot"></div><span>Kosten-Details</span>
+
+</a>
     </nav>
 
     <div class="container">
@@ -2835,6 +2841,21 @@
         <pre id="status" class="status"></pre>
       </section>
     </div>
+
+          <!-- Kosten-Details -->
+
+
+    <section class="card page" id="page-kosten" hidden>
+  <h2 style="margin:0 0 12px;">Kosten-Details (Debug)</h2>
+  <p class="muted" style="margin:0 0 14px;">Interne Übersicht aller gewählten Positionen mit Mengen, Einzel- und Gesamtpreisen. Dient zum Prüfen der Abrechnung.</p>
+
+  <div id="costsSummary" style="display:flex; flex-direction:column; gap:14px;"></div>
+
+  <div class="actions full" style="margin-top:16px;">
+    <button type="button" data-nav="prev" class="secondary">Zurück</button>
+    <button type="button" data-nav="next">Weiter</button>
+  </div>
+</section>
 
     <script src="/script.js"></script>
   </body>
