@@ -702,212 +702,160 @@ label.image-radio.is-checked .caption,label.image-check.is-checked .caption{colo
 
         <!-- Optional submenus... (unchanged content from prior version) -->
 
-        <!-- MENUS FOR OPTIONAL CATEGORIES -->
-
-<!-- Duschsystem -->
-<div id="menu_SHOWER" class="full field" hidden aria-hidden="true">
-  <div class="subheader">Duschsystem</div>
-  <div style="display:flex; gap:14px; flex-wrap:wrap;">
-    <label class="image-check">
-      <input type="checkbox" id="opt_DS_HEAD" name="showerItems[]" value="Duschkopf Set" />
-      <span class="img-wrap"><img alt="Duschkopf Set" /></span>
-      <span class="caption">Duschkopf Set</span>
-    </label>
-    <div id="qty_DS_HEAD_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
-      <label for="qty_DS_HEAD" class="req">Menge</label>
-      <input id="qty_DS_HEAD" name="qty_DS_HEAD" type="number" min="1" step="1" placeholder="1" />
-    </div>
-
-    <label class="image-check">
-      <input type="checkbox" id="opt_DS_BAR" name="showerItems[]" value="Duschstange Set" />
-      <span class="img-wrap"><img alt="Duschstange Set" /></span>
-      <span class="caption">Duschstange Set</span>
-    </label>
-    <div id="qty_DS_BAR_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
-      <label for="qty_DS_BAR" class="req">Menge</label>
-      <input id="qty_DS_BAR" name="qty_DS_BAR" type="number" min="1" step="1" placeholder="1" />
-    </div>
-  </div>
-</div>
-
-<!-- Haltegriffe -->
-<div id="menu_GRAB" class="full field" hidden aria-hidden="true">
-  <div class="subheader">Haltegriffe</div>
-  <div style="display:flex; gap:14px; flex-wrap:wrap;">
-    <label class="image-check">
-      <input type="checkbox" id="opt_GRAB_30" name="grabItems[]" value="Haltegriff 30 cm" />
-      <span class="img-wrap"><img alt="Haltegriff 30 cm" /></span>
-      <span class="caption">Haltegriff 30 cm</span>
-    </label>
-    <div id="qty_GRAB_30_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
-      <label for="qty_GRAB_30" class="req">Menge</label>
-      <input id="qty_GRAB_30" name="qty_GRAB_30" type="number" min="1" step="1" placeholder="1" />
-    </div>
-
-    <label class="image-check">
-      <input type="checkbox" id="opt_GRAB_60" name="grabItems[]" value="Haltegriff 60 cm" />
-      <span class="img-wrap"><img alt="Haltegriff 60 cm" /></span>
-      <span class="caption">Haltegriff 60 cm</span>
-    </label>
-    <div id="qty_GRAB_60_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
-      <label for="qty_GRAB_60" class="req">Menge</label>
-      <input id="qty_GRAB_60" name="qty_GRAB_60" type="number" min="1" step="1" placeholder="1" />
-    </div>
-  </div>
-</div>
-
-<!-- Stützklappgriffe -->
-<div id="menu_FOLD" class="full field" hidden aria-hidden="true">
-  <div class="subheader">Stützklappgriffe</div>
-  <div style="display:flex; gap:14px; flex-wrap:wrap;">
-    <label class="image-check">
-      <input type="checkbox" id="opt_FOLD_LEFT" name="foldItems[]" value="Stützklappgriff links" />
-      <span class="img-wrap"><img alt="Stützklappgriff links" /></span>
-      <span class="caption">Stützklappgriff links</span>
-    </label>
-    <div id="qty_FOLD_LEFT_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
-      <label for="qty_FOLD_LEFT" class="req">Menge</label>
-      <input id="qty_FOLD_LEFT" name="qty_FOLD_LEFT" type="number" min="1" step="1" placeholder="1" />
-    </div>
-
-    <label class="image-check">
-      <input type="checkbox" id="opt_FOLD_RIGHT" name="foldItems[]" value="Stützklappgriff rechts" />
-      <span class="img-wrap"><img alt="Stützklappgriff rechts" /></span>
-      <span class="caption">Stützklappgriff rechts</span>
-    </label>
-    <div id="qty_FOLD_RIGHT_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
-      <label for="qty_FOLD_RIGHT" class="req">Menge</label>
-      <input id="qty_FOLD_RIGHT" name="qty_FOLD_RIGHT" type="number" min="1" step="1" placeholder="1" />
-    </div>
-  </div>
-</div>
-
-<!-- Waschtisch (Basin) -->
-<div id="menu_BASIN" class="full field" hidden aria-hidden="true">
-  <div class="subheader">Waschtisch</div>
-  <div style="display:flex; gap:14px; flex-wrap:wrap;">
-    <!-- The basin that triggers required accessories -->
-    <label class="image-check">
-      <input type="checkbox" id="opt_CL60" name="basinItems[]" value="Waschtisch CL60" />
-      <span class="img-wrap"><img alt="Waschtisch CL60" /></span>
-      <span class="caption">Waschtisch CL60</span>
-    </label>
-    <div id="qty_CL60_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
-      <label for="qty_CL60" class="req">Menge</label>
-      <input id="qty_CL60" name="qty_CL60" type="number" min="1" step="1" placeholder="1" />
-    </div>
-  </div>
-
-  <!-- Basin required wrap shown by JS when CL60 selected -->
-  <div id="basinRequiredWrap" class="muted" hidden aria-hidden="true" style="margin-top:10px;">
-    <div class="subheader">Erforderliche Zubehörteile für CL60</div>
-    <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:8px;">
-      <label class="image-check">
-        <input type="checkbox" id="opt_WTBF" name="basinReq[]" value="Wandträger WTBF" />
-        <span class="img-wrap"><img alt="Wandträger WTBF" /></span>
-        <span class="caption">Wandträger WTBF</span>
-      </label>
-      <div id="qty_WTBF_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
-        <label for="qty_WTBF" class="req">Menge</label>
-        <input id="qty_WTBF" name="qty_WTBF" type="number" min="1" step="1" placeholder="1" />
-      </div>
-
-      <label class="image-check">
-        <input type="checkbox" id="opt_RSL" name="basinReq[]" value="Rückschlagventil RSL" />
-        <span class="img-wrap"><img alt="Rückschlagventil RSL" /></span>
-        <span class="caption">Rückschlagventil RSL</span>
-      </label>
-      <div id="qty_RSL_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
-        <label for="qty_RSL" class="req">Menge</label>
-        <input id="qty_RSL" name="qty_RSL" type="number" min="1" step="1" placeholder="1" />
+         <!-- Menüs, erscheinen je nach Auswahl -->
+    <div id="menu_SHOWER" class="full field" hidden aria-hidden="true">
+      <div class="subheader">Duscharmatur</div>
+      <div style="display:flex; gap:14px; flex-wrap:wrap;">
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_V22WS1R" name="optShower[]" value="Wannenset individual 2.2 m.Wandhalter Schlauch u.HB 1-str. rund verchr. VIGOUR V22WS1R" /><span class="img-wrap"><img src="./assets/V22WS1R.jpg" alt="V22WS1R" /></span><span class="caption">VIGOUR V22WS1R</span></label>
+          <div id="qty_V22WS1R_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_V22WS1R" class="req">Menge V22WS1R</label><input id="qty_V22WS1R" name="qty_V22WS1R" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_TEMPDSU250" name="optShower[]" value="Duschsystem Tempesta Flex verchromt m.Umstellung KB 210mm Brausegarn. Große TEMPDSU250" /><span class="img-wrap"><img src="./assets/cbad82d117faadf930fcafe8273ddc83.jpg" alt="TEMPDSU250" /></span><span class="caption">Große TEMPDSU250</span></label>
+          <div id="qty_TEMPDSU250_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_TEMPDSU250" class="req">Menge TEMPDSU250</label><input id="qty_TEMPDSU250" name="qty_TEMPDSU250" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_V22BG903R" name="optShower[]" value="Brausegarnitur individ.2.2 m.Stange 90cm Schlauch u.HB 3-str. rund verchr. VIGOUR V22BG903R" /><span class="img-wrap"><img src="./assets/V22BG903R.jpg" alt="V22BG903R" /></span><span class="caption">VIGOUR V22BG903R</span></label>
+          <div id="qty_V22BG903R_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_V22BG903R" class="req">Menge V22BG903R</label><input id="qty_V22BG903R" name="qty_V22BG903R" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_DEDS2503E" name="optShower[]" value="Duschsystem derby Thermostat m KB 250mm HB 3.2 3-fach edge u. Schl. verchr. VIGOUR DEDS2503E" /><span class="img-wrap"><img src="./assets/DEDS2503E.jpg" alt="DEDS2503E" /></span><span class="caption">VIGOUR DEDS2503E</span></label>
+          <div id="qty_DEDS2503E_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_DEDS2503E" class="req">Menge DEDS2503E</label><input id="qty_DEDS2503E" name="qty_DEDS2503E" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Optional: Loose accessories block used by your JS -->
-  <div class="muted" style="margin-top:10px;">
-    <div class="subheader">Lose Zubehörteile</div>
-    <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:8px;">
-      <label class="image-check">
-        <input type="checkbox" id="opt_WTBF__loose" name="basinLoose[]" value="WTBF lose" />
-        <span class="img-wrap"><img alt="WTBF lose" /></span>
-        <span class="caption">WTBF lose</span>
-      </label>
-      <div id="qty_WTBF__loose_wrap" class="field" hidden aria-hidden="true" style="max-width:180px;">
-        <label for="qty_WTBF__loose" class="req">Menge</label>
-        <input id="qty_WTBF__loose" name="qty_WTBF__loose" type="number" min="1" step="1" placeholder="1" />
-      </div>
-
-      <label class="image-check">
-        <input type="checkbox" id="opt_RSL__loose" name="basinLoose[]" value="RSL lose" />
-        <span class="img-wrap"><img alt="RSL lose" /></span>
-        <span class="caption">RSL lose</span>
-      </label>
-      <div id="qty_RSL__loose_wrap" class="field" hidden aria-hidden="true" style="max-width:180px;">
-        <label for="qty_RSL__loose" class="req">Menge</label>
-        <input id="qty_RSL__loose" name="qty_RSL__loose" type="number" min="1" step="1" placeholder="1" />
-      </div>
-
-      <label class="image-check">
-        <input type="checkbox" id="opt_EV__loose" name="basinLoose[]" value="Exzenterventil lose" />
-        <span class="img-wrap"><img alt="Exzenterventil lose" /></span>
-        <span class="caption">Exzenterventil lose</span>
-      </label>
-      <div id="qty_EV__loose_wrap" class="field" hidden aria-hidden="true" style="max-width:180px;">
-        <label for="qty_EV__loose" class="req">Menge</label>
-        <input id="qty_EV__loose" name="qty_EV__loose" type="number" min="1" step="1" placeholder="1" />
+    <div id="menu_THERMO" class="full field" hidden aria-hidden="true">
+      <div class="subheader">AP‑Thermostat / Brausebatterie</div>
+      <div style="display:flex; gap:14px; flex-wrap:wrap;">
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_CLTB" name="optThermo[]" value="AP-Brause-Thermostat clivia, ohne Brausegarnitur CLTB" /><span class="img-wrap"><img src="./assets/5916012808665944211.jpg" alt="CLTB" /></span><span class="caption">VIGOUR CLTB</span></label>
+          <div id="qty_CLTB_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_CLTB" class="req">Menge CLTB</label><input id="qty_CLTB" name="qty_CLTB" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_DEPTB" name="optThermo[]" value="AP-Brause-Thermostat derby plus m.therm. Desinfektion Safe-Tec verchromt VIGOUR DEPTB" /><span class="img-wrap"><img src="./assets/DEPTB.png" alt="DEPTB" /></span><span class="caption">VIGOUR DEPTB</span></label>
+          <div id="qty_DEPTB_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_DEPTB" class="req">Menge DEPTB</label><input id="qty_DEPTB" name="qty_DEPTB" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_CLB" name="optThermo[]" value="Einhand-Aufputz-Brausebatterie clivia ohne Brausegarnitur verchromt VIGOUR CLB" /><span class="img-wrap"><img src="./assets/Einhand-Aufputz-Brausebatterie-clivia-ohne-Brausegarnitur-verchromt-VIGOUR.jpg" alt="CLB" /></span><span class="caption">VIGOUR CLB</span></label>
+          <div id="qty_CLB_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_CLB" class="req">Menge CLB</label><input id="qty_CLB" name="qty_CLB" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
 
-<!-- Waschtischarmatur -->
-<div id="menu_BASIN_TAP" class="full field" hidden aria-hidden="true">
-  <div class="subheader">Waschtischarmatur</div>
-  <div style="display:flex; gap:14px; flex-wrap:wrap;">
-    <label class="image-check">
-      <input type="checkbox" id="opt_TAP_STD" name="basinTapItems[]" value="Einhand-Waschtischbatterie Standard" />
-      <span class="img-wrap"><img alt="Einhand-Waschtischbatterie Standard" /></span>
-      <span class="caption">Einhand-Waschtischbatterie Standard</span>
-    </label>
-    <div id="qty_TAP_STD_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
-      <label for="qty_TAP_STD" class="req">Menge</label>
-      <input id="qty_TAP_STD" name="qty_TAP_STD" type="number" min="1" step="1" placeholder="1" />
+    <div id="menu_GRAB" class="full field" hidden aria-hidden="true">
+      <div class="subheader">Haltegriffe</div>
+      <div style="display:flex; gap:14px; flex-wrap:wrap;">
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_CLPESG40" name="optGrab[]" value="Haltegriff clivia plus 32/400mm Edelstahl poliert VIGOUR CLPESG40" /><span class="img-wrap"><img src="./assets/5b817c33100c0121ede70f11e341601c.jpg" alt="CLPESG40" /></span><span class="caption">CLPESG40</span></label>
+          <div id="qty_CLPESG40_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_CLPESG40" class="req">Menge CLPESG40</label><input id="qty_CLPESG40" name="qty_CLPESG40" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_CLPESG60" name="optGrab[]" value="Haltegriff clivia plus 32/600mm Edelstahl poliert VIGOUR CLPESG60" /><span class="img-wrap"><img src="./assets/CLPESG60.jpg" alt="CLPESG60" /></span><span class="caption">CLPESG60</span></label>
+          <div id="qty_CLPESG60_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_CLPESG60" class="req">Menge CLPESG60</label><input id="qty_CLPESG60" name="qty_CLPESG60" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_CLPESG80" name="optGrab[]" value="Haltegriff clivia plus 32/800mm Edelstahl poliert VIGOUR CLPESG80" /><span class="img-wrap"><img src="./assets/CLPESG80.jpg" alt="CLPESG80" /></span><span class="caption">CLPESG80</span></label>
+          <div id="qty_CLPESG80_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_CLPESG80" class="req">Menge CLPESG80</label><input id="qty_CLPESG80" name="qty_CLPESG80" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
 
-<!-- Thermostat -->
-<div id="menu_THERMO" class="full field" hidden aria-hidden="true">
-  <div class="subheader">Thermostat</div>
-  <div style="display:flex; gap:14px; flex-wrap:wrap;">
-    <label class="image-check">
-      <input type="checkbox" id="opt_THERM_STD" name="thermoItems[]" value="Thermostat Standard" />
-      <span class="img-wrap"><img alt="Thermostat Standard" /></span>
-      <span class="caption">Thermostat Standard</span>
-    </label>
-    <div id="qty_THERM_STD_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
-      <label for="qty_THERM_STD" class="req">Menge</label>
-      <input id="qty_THERM_STD" name="qty_THERM_STD" type="number" min="1" step="1" placeholder="1" />
+    <div id="menu_FOLD" class="full field" hidden aria-hidden="true">
+      <div class="subheader">Stützklappgriff</div>
+      <div style="display:flex; gap:14px; flex-wrap:wrap;">
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_DEPSKG60" name="optFold[]" value="Stützklappgriff derby plus 600mm verchromt VIGOUR DEPSKG60" /><span class="img-wrap"><img src="./assets/DEPSKG60.jpg" alt="DEPSKG60" /></span><span class="caption">DEPSKG60</span></label>
+          <div id="qty_DEPSKG60_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_DEPSKG60" class="req">Menge DEPSKG60</label><input id="qty_DEPSKG60" name="qty_DEPSKG60" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_DEPSKG85" name="optFold[]" value="Stützklappgriff derby plus 850mm verchromt VIGOUR DEPSKG85" /><span class="img-wrap"><img src="./assets/DEPSKG85.jpg" alt="DEPSKG85" /></span><span class="caption">DEPSKG85</span></label>
+          <div id="qty_DEPSKG85_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_DEPSKG85" class="req">Menge DEPSKG85</label><input id="qty_DEPSKG85" name="qty_DEPSKG85" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
 
-<!-- Klappsitz -->
-<div id="menu_SEAT" class="full field" hidden aria-hidden="true">
-  <div class="subheader">Klappsitz</div>
-  <div style="display:flex; gap:14px; flex-wrap:wrap;">
-    <label class="image-check">
-      <input type="checkbox" id="opt_SEAT_STD" name="seatItems[]" value="Klappsitz Standard" />
-      <span class="img-wrap"><img alt="Klappsitz Standard" /></span>
-      <span class="caption">Klappsitz Standard</span>
-    </label>
-    <div id="qty_SEAT_STD_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
-      <label for="qty_SEAT_STD" class="req">Menge</label>
-      <input id="qty_SEAT_STD" name="qty_SEAT_STD" type="number" min="1" step="1" placeholder="1" />
+    <div id="menu_SEAT" class="full field" hidden aria-hidden="true">
+      <div class="subheader">Klappsitz</div>
+      <div style="display:flex; gap:14px; flex-wrap:wrap;">
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_DEPKS" name="optSeat[]" value="Klappsitz derby plus 362x91x381mm bis 110kg verchromt VIGOUR DEPKS" /><span class="img-wrap"><img src="./assets/DEPKS.jpg" alt="DEPKS" /></span><span class="caption">DEPKS</span></label>
+          <div id="qty_DEPKS_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_DEPKS" class="req">Menge DEPKS</label><input id="qty_DEPKS" name="qty_DEPKS" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
+
+    <div id="menu_BASIN_TAP" class="full field" hidden aria-hidden="true">
+      <div class="subheader">Einhand‑Waschtischbatterie</div>
+      <div style="display:flex; gap:14px; flex-wrap:wrap;">
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_CL_BASIN" name="optBasinTap[]" value="Einhand-Waschtischbatterie clivia mit Ablaufgarnitur verchromt VIGOUR CL" /><span class="img-wrap"><img src="./assets/CL.jpg" alt="CL" /></span><span class="caption">VIGOUR CL</span></label>
+          <div id="qty_CL_BASIN_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_CL_BASIN" class="req">Menge CL</label><input id="qty_CL_BASIN" name="qty_CL_BASIN" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_DEPOH" name="optBasinTap[]" value="Einhand-Waschtischbatterie derby plus mit Hebel offen m.Ablg. verchromt VIGOUR DEPOH" /><span class="img-wrap"><img src="./assets/DEPOH.jpg" alt="DEPOH" /></span><span class="caption">VIGOUR DEPOH</span></label>
+          <div id="qty_DEPOH_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_DEPOH" class="req">Menge DEPOH</label><input id="qty_DEPOH" name="qty_DEPOH" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Waschtisch ohne Unterschrank (+ Pflicht-Zubehör) -->
+    <div id="menu_BASIN" class="full field" hidden aria-hidden="true">
+      <div class="subheader">Waschtisch ohne Unterschrank</div>
+      <div style="display:flex; gap:14px; flex-wrap:wrap;">
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_CL60" name="optBasin[]" value="Waschtisch clivia 60x48 cm weiß VIGOUR CL60" /><span class="img-wrap"><img src="./assets/CL60.jpg" alt="CL60" /></span><span class="caption">VIGOUR CL60</span></label>
+          <div id="qty_CL60_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_CL60" class="req">Menge CL60</label><input id="qty_CL60" name="qty_CL60" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
+      </div>
+
+      <!-- Pflichtzubehör bei ausgewähltem Waschtisch -->
+      <div id="basinRequiredWrap" class="muted" hidden aria-hidden="true" style="margin-top:8px;">
+        <div class="subheader">Erforderliches Zubehör</div>
+        <div style="display:flex; gap:14px; flex-wrap:wrap;">
+          <!-- WTBF (required when basin selected) -->
+          <div class="field" style="min-width:220px;">
+            <label class="image-check"><input type="checkbox" id="opt_WTBF" name="optBasinAcc[]" value="Befestigungssatz Fischer WST 10x140 2 Stk. / Waschtisch WTBF" /><span class="img-wrap"><img src="./assets/WTBF.jpg" alt="WTBF" /></span><span class="caption">Befestigungssatz WTBF</span></label>
+            <div id="qty_WTBF_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_WTBF" class="req">Menge WTBF</label><input id="qty_WTBF" name="qty_WTBF" type="number" min="0" step="1" placeholder="0" /></div>
+          </div>
+          <!-- RSL (required when basin selected) -->
+          <div class="field" style="min-width:220px;">
+            <label class="image-check"><input type="checkbox" id="opt_RSL" name="optBasinAcc[]" value="Waschtisch-Röhrensiphon 1 1/4&quot;G mit Verstellrohr 120mm TRINNITY RSL" /><span class="img-wrap"><img src="./assets/51bbb10784d76d7201b75bfdf7af1b4b.jpg" alt="RSL" /></span><span class="caption">Röhrensiphon RSL</span></label>
+            <div id="qty_RSL_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_RSL" class="req">Menge RSL</label><input id="qty_RSL" name="qty_RSL" type="number" min="0" step="1" placeholder="0" /></div>
+          </div>
+        </div>
+
+        <!-- Optional zu Waschtisch ohne Unterschrank -->
+        <div class="full field" style="margin-top:8px;">
+          <div class="subheader">Optional zu Waschtisch ohne Unterschrank</div>
+          <div style="display:flex; gap:14px; flex-wrap:wrap;">
+            <div class="field" style="min-width:220px;">
+              <label class="image-check"><input type="checkbox" id="opt_EV" name="optBasinAcc[]" value="SCHELL Eckventil COMFORT regulierbar ASAG 1/2&quot; chrom EV" /><span class="img-wrap"><img src="./assets/5916012808665944212.jpg" alt="EV" /></span><span class="caption">SCHELL EV</span></label>
+              <div id="qty_EV_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_EV" class="req">Menge EV</label><input id="qty_EV" name="qty_EV" type="number" min="0" step="1" placeholder="0" /></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="menu_BASIN_ACC" class="full field" hidden aria-hidden="true">
+      <div class="subheader">Zubehör zum Waschtisch</div>
+      <p style="margin:6px 0; color:var(--muted);">Diese Sektion ist unabhängig nutzbar (ohne Waschtisch-Auswahl).</p>
+      <div style="display:flex; gap:14px; flex-wrap:wrap;">
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_WTBF__loose" name="optBasinAccLoose[]" value="Befestigungssatz Fischer WST 10x140 2 Stk. / Waschtisch WTBF" /><span class="img-wrap"><img src="./assets/WTBF.jpg" alt="WTBF" /></span><span class="caption">WTBF</span></label>
+          <div id="qty_WTBF__loose_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_WTBF__loose" class="req">Menge WTBF</label><input id="qty_WTBF__loose" name="qty_WTBF__loose" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_RSL__loose" name="optBasinAccLoose[]" value="Waschtisch-Röhrensiphon 1 1/4&quot;G mit Verstellrohr 120mm TRINNITY RSL" /><span class="img-wrap"><img src="./assets/51bbb10784d76d7201b75bfdf7af1b4b.jpg" alt="RSL" /></span><span class="caption">RSL</span></label>
+          <div id="qty_RSL__loose_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_RSL__loose" class="req">Menge RSL</label><input id="qty_RSL__loose" name="qty_RSL__loose" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
+        <div class="field" style="min-width:220px;">
+          <label class="image-check"><input type="checkbox" id="opt_EV__loose" name="optBasinAccLoose[]" value="SCHELL Eckventil COMFORT regulierbar ASAG 1/2&quot; chrom EV" /><span class="img-wrap"><img src="./assets/5916012808665944212.jpg" alt="EV" /></span><span class="caption">SCHELL EV</span></label>
+          <div id="qty_EV__loose_wrap" class="field" hidden aria-hidden="true" style="max-width:220px;"><label for="qty_EV__loose" class="req">Menge EV</label><input id="qty_EV__loose" name="qty_EV__loose" type="number" min="0" step="1" placeholder="0" /></div>
+        </div>
+      </div>
+    </div>
 
         <div class="actions full">
           <button type="button" data-nav="prev" class="secondary">Zurück</button>
