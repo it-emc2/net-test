@@ -721,6 +721,95 @@ async function getProduct(id){
   syncAll();
 })();
 
+(function initV3VDiv(){
+  const form = document.getElementById('form-wandverkleidung'); if (!form) return;
+
+  // Existing panel controls
+  const cb997 = document.getElementById('wv997');
+  const cb1497 = document.getElementById('wv1497');
+  const qty997 = document.getElementById('wvQty997');
+  const qty1497 = document.getElementById('wvQty1497');
+
+  // "Keine Wandverkleidung" radios
+  const wvKindGroup = document.getElementById('wvKindGroup');
+
+  // V3V UI
+  const v3vDiv = document.getElementById('wvV3VDiv');
+  const qtyV3V = document.getElementById('wvV3VQty');
+  const ruleText = document.getElementById('wvV3VRuleText');
+  const cbCorners = document.getElementById('wvCornersCB');
+  const cornersWrap = document.getElementById('wvCornersWrap');
+  const cornersInput = document.getElementById('wvCorners');
+  const v3vSelected = document.getElementById('wvV3VSelected');
+
+  const n = v => {
+    const x = Number(v);
+    return Number.isFinite(x) && x >= 0 ? Math.floor(x) : 0;
+  };
+  const totalPanels = () => {
+    const s = cb997?.checked ? n(qty997?.value) : 0;
+    const l = cb1497?.checked ? n(qty1497?.value) : 0;
+    return s + l;
+  };
+
+  function calc({fromUser} = {}){
+    const total = totalPanels();
+    const base = total >= 2 ? (total - 1) : 0;
+    const ecken = cbCorners?.checked ? n(cornersInput?.value) : 0;
+    const finalQty = Math.max(0, base - ecken);
+
+    if (!fromUser) qtyV3V.value = String(finalQty);
+
+    ruleText.textContent =
+      `Regel: ab 2 Platten 1 Profil. Bei ${total} Platte(n): Basis ${base}` +
+      (ecken ? ` − ${ecken} Ecke(n) = ${finalQty}` : ` = ${finalQty}`) +
+      ` Verbindungsprofil(e).`;
+
+    // If no panels, uncheck the V3V "selected" box to avoid adding it accidentally
+    if (total === 0) v3vSelected.checked = false;
+    else v3vSelected.checked = true;
+  }
+
+  function toggleCorners(){
+    const show = cbCorners.checked;
+    cornersWrap.hidden = !show;
+    if (!show) cornersInput.value = '0';
+    calc();
+  }
+
+  // Hide/show when "Keine Wandverkleidung" is chosen
+  function applyKindVisibility(){
+    const kind = form.querySelector('input[name="wvKind"]:checked')?.value || '';
+    const hide = kind === 'Keine';
+    v3vDiv.hidden = hide;
+    v3vDiv.setAttribute('aria-hidden', hide ? 'true' : 'false');
+    if (hide){
+      v3vSelected.checked = false;
+      qtyV3V.value = '0';
+      cbCorners.checked = false;
+      cornersInput.value = '0';
+      cornersWrap.hidden = true;
+    } else {
+      calc();
+    }
+  }
+
+  // Wire listeners
+  [cb997, cb1497, qty997, qty1497].forEach(el=>{
+    el?.addEventListener('change', ()=>calc());
+    el?.addEventListener('input',  ()=>calc());
+  });
+  cbCorners?.addEventListener('change', toggleCorners);
+  cornersInput?.addEventListener('input', ()=>calc());
+  qtyV3V?.addEventListener('input', ()=>calc({fromUser:true}));
+  wvKindGroup?.addEventListener('change', applyKindVisibility);
+
+  // Init
+  toggleCorners();
+  applyKindVisibility();
+  calc();
+})();
+
 /* Optional: categories -> menus, highlight, Mengen, Basin-required logic */
 (function initOptionalCategories(){
   const form = document.getElementById('form-optional');
@@ -932,6 +1021,8 @@ setShown(menuId, cb.checked);
   });
   if (getCurrentStep() === 'kosten') render();
 })();
+
+
 
 /* ========== PDF/DOCX + API TEST BUTTONS ========== */
 async function requestPdfAndDownload(payload, filename='Anfrage.pdf'){

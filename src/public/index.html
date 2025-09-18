@@ -1835,6 +1835,7 @@
           </div>
 
           <div id="wvEndProfileSection" class="full field">
+
   <label class="req">Abschlussprofil 3.0 255 cm silber eloxiert</label>
 
   <label class="image-check">
@@ -1855,6 +1856,8 @@
     <input id="wvEndProfileQty" name="wvEndProfileQty" type="number" min="0" step="1" placeholder="0" />
   </div>
 </div>
+
+
 
           <div id="wvProfileAdhesiveSection" class="full field">
             <label class="req">Profilklebstoff</label>
@@ -1881,6 +1884,40 @@
               />
             </div>
           </div>
+
+          <!-- Verbindungsprofil V3V (auto) -->
+<div id="wvV3VDiv" class="full field">
+  <label class="req">Verbindungsprofil 3.0 255 cm silber eloxiert (V3V)</label>
+
+  <label class="image-check" style="align-items:flex-start;">
+    <input type="checkbox" id="wvV3VSelected" name="wvV3VSelected" checked />
+    <span class="img-wrap" style="width:120px; height:120px;">
+      <img src="V3V.jpg" alt="Verbindungsprofil V3V" />
+    </span>
+    <span class="caption">
+      Verbindungsprofil V3V
+      <div class="muted" style="margin-top:4px;">Wird automatisch aus der Plattenanzahl berechnet.</div>
+    </span>
+  </label>
+
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:start; max-width:680px;">
+    <div class="field">
+      <label for="wvV3VQty" class="req">Menge Verbindungsprofil(e)</label>
+      <input id="wvV3VQty" name="wvV3VQty" type="number" min="0" step="1" value="0" />
+      <div id="wvV3VRuleText" class="muted" style="margin-top:6px;"></div>
+    </div>
+
+    <div class="field">
+      <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+        <input type="checkbox" id="wvCornersCB" /> Ecke(n) vorhanden
+      </label>
+      <div id="wvCornersWrap" hidden style="margin-top:6px;">
+        <label for="wvCorners" class="muted">Anzahl Ecken ohne Verbindungsprofil</label>
+        <input id="wvCorners" name="wvCorners" type="number" min="0" step="1" value="0" />
+      </div>
+    </div>
+  </div>
+</div>
 
           <div class="actions full">
             <button type="button" data-nav="prev" class="secondary">
