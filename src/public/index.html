@@ -1555,378 +1555,298 @@
       </section>
 
       <!-- Wandverkleidung -->
-      <section class="card page" id="page-wandverkleidung" hidden>
-        <h2 style="margin: 0 0 12px">Wandverkleidungsplatten</h2>
+    <section class="card page" id="page-wandverkleidung" hidden>
+  <h2 style="margin: 0 0 12px">Wandverkleidungsplatten</h2>
 
-        <form id="form-wandverkleidung">
-          <div class="full">
-            <img
-              src="./assets/c27108714a00d1e9ed265a5b07876a85.jpg"
-              alt="Wandverkleidung Beispiel"
-              style="max-width: 100%; border-radius: 12px"
-            />
-          </div>
-
-          <div class="full field">
-            <label class="req"
-              >Welche Art der Wandverkleidung wird benötigt?</label
-            >
-            <div
-              class="radio-group vertical"
-              id="wvKindGroup"
-              role="radiogroup"
-              aria-label="Art der Wandverkleidung"
-            >
-              <label class="radio-pill"
-                ><input type="radio" name="wvKind" value="Fehlstellen" /><span
-                  class="circle"
-                ></span
-                ><span>Nur schließende Fehlstellen</span></label
-              >
-              <label class="radio-pill"
-                ><input type="radio" name="wvKind" value="Deckenhoch" /><span
-                  class="circle"
-                ></span
-                ><span>Deckenhoch im Dusch/Wannenbereich</span></label
-              >
-              <label class="radio-pill"
-                ><input type="radio" name="wvKind" value="Keine" /><span
-                  class="circle"
-                ></span
-                ><span>Keine Wandverkleidung</span></label
-              >
-              <label class="radio-pill"
-                ><input type="radio" name="wvKind" value="Sonstige" /><span
-                  class="circle"
-                ></span
-                ><span>Sonstige</span></label
-              >
-            </div>
-          </div>
-
-          <div id="wvPanelsSection" class="full field">
-            <label class="req">Wandverkleidung</label>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
-              <div class="field" style="min-width: 220px">
-                <label class="image-check">
-                  <input
-                    type="checkbox"
-                    id="wv997"
-                    name="wvPanels[]"
-                    value="Wandverkleidung 3.0 Alu 997x2550 VIGOUR V3WVK09"
-                  />
-                  <span class="img-wrap"
-                    ><img
-                      src="./assets/2213de9935c01b8fba3425df1cd46c4b.jpg"
-                      alt="Wandverkleidung 3.0 Alu 997x2550"
-                  /></span>
-                  <span class="caption"
-                    >Wandverkleidung 3.0 Alu 997×2550 mm</span
-                  >
-                </label>
-                <div
-                  id="wvQty997Wrap"
-                  class="field"
-                  hidden
-                  aria-hidden="true"
-                  style="max-width: 260px; margin-top: 10px"
-                >
-                  <label for="wvQty997" class="req">Menge 997×2550mm</label>
-                  <input
-                    id="wvQty997"
-                    name="wvQty997"
-                    type="number"
-                    min="0"
-                    step="1"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-
-              <div class="field" style="min-width: 220px">
-                <label class="image-check">
-                  <input
-                    type="checkbox"
-                    id="wv1497"
-                    name="wvPanels[]"
-                    value="Wandverkleidung 3.0 Alu 1497x2550 VIGOUR V3WVK09"
-                  />
-                  <span class="img-wrap"
-                    ><img
-                      src="./assets/2213de9935c01b8fba3425df1cd46c4b.jpg"
-                      alt="Wandverkleidung 3.0 Alu 1497x2550"
-                  /></span>
-                  <span class="caption"
-                    >Wandverkleidung 3.0 Alu 1497×2550 mm</span
-                  >
-                </label>
-                <div
-                  id="wvQty1497Wrap"
-                  class="field"
-                  hidden
-                  aria-hidden="true"
-                  style="max-width: 260px; margin-top: 10px"
-                >
-                  <label for="wvQty1497" class="req">Menge 1497×2550mm</label>
-                  <input
-                    id="wvQty1497"
-                    name="wvQty1497"
-                    type="number"
-                    min="0"
-                    step="1"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-
-              <!-- Farbwahl für Wandverkleidung -->
-              <div id="wvColorSection" class="full field">
-                <label class="req">Dekor / Farbe der Wandverkleidung</label>
-                <div
-                  id="wvColors"
-                  style="display: flex; gap: 14px; flex-wrap: wrap"
-                >
-                  <label class="image-check">
-                    <input type="radio" name="wvColor" value="Aragon grau" />
-                    <span class="img-wrap"
-                      ><img src="./assets/Aragon grau.jpeg" alt="Aragon grau"
-                    /></span>
-                    <span class="caption">Aragon grau</span>
-                  </label>
-
-                  <label class="image-check">
-                    <input
-                      type="radio"
-                      name="wvColor"
-                      value="Beton grau metallic"
-                    />
-                    <span class="img-wrap"
-                      ><img
-                        src="./assets/Beton grau metallic.jpeg"
-                        alt="Beton grau metallic"
-                    /></span>
-                    <span class="caption">Beton grau metallic</span>
-                  </label>
-
-                  <label class="image-check">
-                    <input type="radio" name="wvColor" value="Beton grau" />
-                    <span class="img-wrap"
-                      ><img src="./assets/Beton grau.jpeg" alt="Beton grau"
-                    /></span>
-                    <span class="caption">Beton grau</span>
-                  </label>
-
-                  <label class="image-check">
-                    <input type="radio" name="wvColor" value="Marmor weiß" />
-                    <span class="img-wrap"
-                      ><img src="./assets/Marmor weiß.jpeg" alt="Marmor weiß"
-                    /></span>
-                    <span class="caption">Marmor weiß</span>
-                  </label>
-
-                  <label class="image-check">
-                    <input type="radio" name="wvColor" value="Metall oxydant" />
-                    <span class="img-wrap"
-                      ><img
-                        src="./assets/Metall oxydant.jpeg"
-                        alt="Metall oxydant"
-                    /></span>
-                    <span class="caption">Metall oxydant</span>
-                  </label>
-
-                  <label class="image-check">
-                    <input type="radio" name="wvColor" value="Schiefer grau" />
-                    <span class="img-wrap"
-                      ><img
-                        src="./assets/Schiefer grau .jpeg"
-                        alt="Schiefer grau"
-                    /></span>
-                    <span class="caption">Schiefer grau</span>
-                  </label>
-
-                  <label class="image-check">
-                    <input
-                      type="radio"
-                      name="wvColor"
-                      value="Stein anthrazit"
-                    />
-                    <span class="img-wrap"
-                      ><img
-                        src="./assets/Stein anthrazit.jpeg"
-                        alt="Stein anthrazit"
-                    /></span>
-                    <span class="caption">Stein anthrazit</span>
-                  </label>
-
-                  <label class="image-check">
-                    <input type="radio" name="wvColor" value="Stein beige" />
-                    <span class="img-wrap"
-                      ><img src="./assets/Stein beige.jpeg" alt="Stein beige"
-                    /></span>
-                    <span class="caption">Stein beige</span>
-                  </label>
-
-                  <label class="image-check">
-                    <input type="radio" name="wvColor" value="Stein grau" />
-                    <span class="img-wrap"
-                      ><img src="./assets/stein grau .jpeg" alt="Stein grau"
-                    /></span>
-                    <span class="caption">Stein grau</span>
-                  </label>
-
-                  <label class="image-check">
-                    <input type="radio" name="wvColor" value="Struktur weiß" />
-                    <span class="img-wrap"
-                      ><img
-                        src="./assets/Struktur weiß.jpeg"
-                        alt="Struktur weiß"
-                    /></span>
-                    <span class="caption">Struktur weiß</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div id="wvSealingSection" class="full field">
-            <label class="req">TRINNITY Wandabdichtung BASIS-Set</label>
-            <label class="image-check"
-              ><input
-                type="checkbox"
-                name="wvSealing"
-                value="TRINNITY Wandabdichtung BASIS TRWDSET5"
-              /><span class="img-wrap"
-                ><img
-                  src="./assets/d110afd16622742ee292b063792121f1.jpg"
-                  alt="TRINNITY Wandabdichtung BASIS" /></span
-              ><span class="caption"
-                >TRINNITY Wandabdichtung TRWDSET5</span
-              ></label
-            >
-          </div>
-
-          <div id="wvAdhesiveSection" class="full field">
-            <label class="req">Wandverkleidungsklebstoff</label>
-            <label class="image-check"
-              ><input
-                type="checkbox"
-                name="wvAdhesive"
-                value="Wandverkleidungsklebstoff V4RKIT"
-              /><span class="img-wrap"
-                ><img
-                  src="./assets/0c73a7b81315771d054bed4cc9a0c1b8.jpg"
-                  alt="Wandverkleidungsklebstoff" /></span
-              ><span class="caption"
-                >Wandverkleidungsklebstoff V4RKIT</span
-              ></label
-            >
-            <div class="field" style="max-width: 240px">
-              <label for="wvAdhesiveQty">Menge Wandverkleidungsklebstoff</label>
-              <input
-                id="wvAdhesiveQty"
-                name="wvAdhesiveQty"
-                type="number"
-                min="0"
-                step="1"
-                placeholder="0"
-              />
-                  <div id="wvAdhesiveSuggestion" style="margin-top:6px;font-size:0.9rem;color:var(--muted, #8a8a8a);"></div>
-            </div>
-          </div>
-
-          <div id="wvEndProfileSection" class="full field">
-
-  <label class="req">Abschlussprofil 3.0 255 cm silber eloxiert</label>
-
-  <label class="image-check">
-    <input type="checkbox" name="wvEndProfile" value="Abschlussprofil V3A" />
-    <span class="img-wrap">
-      <img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="Abschlussprofil V3A" />
-    </span>
-    <span class="caption">Abschlussprofil V3A</span>
-  </label>
-
-  <!-- Warning note -->
-  <div class="muted" style="margin-top:8px;color:var(--danger);font-weight:600;">
-    ! Bitte die Anzahl der Abschlussleisten prüfen, berechnen und ggf. anpassen !
-  </div>
-
-  <div class="field" style="max-width: 240px">
-    <label for="wvEndProfileQty" class="req">Menge Abschlussprofil</label>
-    <input id="wvEndProfileQty" name="wvEndProfileQty" type="number" min="0" step="1" placeholder="0" />
-  </div>
-</div>
-
-
-
-          <div id="wvProfileAdhesiveSection" class="full field">
-            <label class="req">Profilklebstoff</label>
-            <label class="image-check"
-              ><input
-                type="checkbox"
-                name="wvProfileAdhesive"
-                value="Profilklebstoff V4RPKIT"
-              /><span class="img-wrap"
-                ><img
-                  src="./assets/45add5cb98e727d20989647def35106a.jpg"
-                  alt="Profilklebstoff V4RPKIT" /></span
-              ><span class="caption">Profilklebstoff V4RPKIT</span></label
-            >
-            <div class="field" style="max-width: 240px">
-              <label for="wvProfileAdhesiveQty">Menge Profilklebstoff</label>
-              <input
-                id="wvProfileAdhesiveQty"
-                name="wvProfileAdhesiveQty"
-                type="number"
-                min="0"
-                step="1"
-                placeholder="0"
-              />
-            </div>
-          </div>
-
-          <!-- Verbindungsprofil V3V (auto) -->
-<div id="wvV3VDiv" class="full field">
-  <label class="req">Verbindungsprofil 3.0 255 cm silber eloxiert (V3V)</label>
-      <div class="muted" style="margin-top:4px;">Wird automatisch aus der Plattenanzahl berechnet.</div>
-
-  <label class="image-check" style="align-items:flex-start;">
-    <input type="checkbox" id="wvV3VSelected" name="wvV3VSelected" checked />
-    <span class="img-wrap" style="width:120px; height:120px;">
-      <img src="assets/V3V.jpg" alt="Verbindungsprofil V3V" />
-    </span>
-    <span class="caption">
-      Verbindungsprofil V3V
-    </span>
-  </label>
-
-  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:start; max-width:680px;">
-    <div class="field">
-      <label for="wvV3VQty" class="req">Menge Verbindungsprofil(e)</label>
-      <input id="wvV3VQty" name="wvV3VQty" type="number" min="0" step="1" value="0" />
-      <div id="wvV3VRuleText" class="muted" style="margin-top:6px;"></div>
+  <form id="form-wandverkleidung">
+    <div class="full">
+      <img
+        src="./assets/c27108714a00d1e9ed265a5b07876a85.jpg"
+        alt="Wandverkleidung Beispiel"
+        style="max-width: 100%; border-radius: 12px"
+      />
     </div>
 
-    <div class="field">
-      <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
-        <input type="checkbox" id="wvCornersCB" /> Ecke(n) vorhanden
-      </label>
-      <div id="wvCornersWrap" hidden style="margin-top:6px;">
-        <label for="wvCorners" class="muted">Anzahl Ecken ohne Verbindungsprofil</label>
-        <input id="wvCorners" name="wvCorners" type="number" min="0" step="1" value="0" />
+    <div class="full field">
+      <label class="req">Welche Art der Wandverkleidung wird benötigt?</label>
+      <div
+        class="radio-group vertical"
+        id="wvKindGroup"
+        role="radiogroup"
+        aria-label="Art der Wandverkleidung"
+      >
+        <label class="radio-pill"
+          ><input type="radio" name="wvKind" value="Fehlstellen" /><span class="circle"></span
+          ><span>Nur schließende Fehlstellen</span></label
+        >
+        <label class="radio-pill"
+          ><input type="radio" name="wvKind" value="Deckenhoch" /><span class="circle"></span
+          ><span>Deckenhoch im Dusch/Wannenbereich</span></label
+        >
+        <label class="radio-pill"
+          ><input type="radio" name="wvKind" value="Keine" /><span class="circle"></span
+          ><span>Keine Wandverkleidung</span></label
+        >
+        <label class="radio-pill"
+          ><input type="radio" name="wvKind" value="Sonstige" /><span class="circle"></span
+          ><span>Sonstige</span></label
+        >
       </div>
     </div>
-  </div>
-</div>
 
-          <div class="actions full">
-            <button type="button" data-nav="prev" class="secondary">
-              Zurück
-            </button>
-            <button type="button" data-nav="next">Weiter</button>
+    <div id="wvPanelsSection" class="full field">
+      <label class="req">Wandverkleidung</label>
+      <div style="display: flex; gap: 14px; flex-wrap: wrap">
+        <div class="field" style="min-width: 220px">
+          <label class="image-check">
+            <input
+              type="checkbox"
+              id="wv997"
+              name="wvPanels[]"
+              value="Wandverkleidung 3.0 Alu 997x2550 VIGOUR V3WVK09"
+            />
+            <span class="img-wrap"
+              ><img
+                src="./assets/2213de9935c01b8fba3425df1cd46c4b.jpg"
+                alt="Wandverkleidung 3.0 Alu 997x2550"
+            /></span>
+            <span class="caption">Wandverkleidung 3.0 Alu 997×2550 mm</span>
+          </label>
+          <div
+            id="wvQty997Wrap"
+            class="field"
+            hidden
+            aria-hidden="true"
+            style="max-width: 260px; margin-top: 10px"
+          >
+            <label for="wvQty997" class="req">Menge 997×2550mm</label>
+            <input
+              id="wvQty997"
+              name="wvQty997"
+              type="number"
+              min="0"
+              step="1"
+              placeholder="0"
+            />
           </div>
-        </form>
-      </section>
+        </div>
+
+        <div class="field" style="min-width: 220px">
+          <label class="image-check">
+            <input
+              type="checkbox"
+              id="wv1497"
+              name="wvPanels[]"
+              value="Wandverkleidung 3.0 Alu 1497x2550 VIGOUR V3WVK09"
+            />
+            <span class="img-wrap"
+              ><img
+                src="./assets/2213de9935c01b8fba3425df1cd46c4b.jpg"
+                alt="Wandverkleidung 3.0 Alu 1497x2550"
+            /></span>
+            <span class="caption">Wandverkleidung 3.0 Alu 1497×2550 mm</span>
+          </label>
+          <div
+            id="wvQty1497Wrap"
+            class="field"
+            hidden
+            aria-hidden="true"
+            style="max-width: 260px; margin-top: 10px"
+          >
+            <label for="wvQty1497" class="req">Menge 1497×2550mm</label>
+            <input
+              id="wvQty1497"
+              name="wvQty1497"
+              type="number"
+              min="0"
+              step="1"
+              placeholder="0"
+            />
+          </div>
+        </div>
+
+        <!-- Farbwahl -->
+        <div id="wvColorSection" class="full field">
+          <label class="req">Dekor / Farbe der Wandverkleidung</label>
+          <div id="wvColors" style="display: flex; gap: 14px; flex-wrap: wrap">
+            <label class="image-check">
+              <input type="radio" name="wvColor" value="Aragon grau" />
+              <span class="img-wrap"><img src="./assets/Aragon grau.jpeg" alt="Aragon grau" /></span>
+              <span class="caption">Aragon grau</span>
+            </label>
+
+            <label class="image-check">
+              <input type="radio" name="wvColor" value="Beton grau metallic" />
+              <span class="img-wrap"><img src="./assets/Beton grau metallic.jpeg" alt="Beton grau metallic" /></span>
+              <span class="caption">Beton grau metallic</span>
+            </label>
+
+            <label class="image-check">
+              <input type="radio" name="wvColor" value="Beton grau" />
+              <span class="img-wrap"><img src="./assets/Beton grau.jpeg" alt="Beton grau" /></span>
+              <span class="caption">Beton grau</span>
+            </label>
+
+            <label class="image-check">
+              <input type="radio" name="wvColor" value="Marmor weiß" />
+              <span class="img-wrap"><img src="./assets/Marmor weiß.jpeg" alt="Marmor weiß" /></span>
+              <span class="caption">Marmor weiß</span>
+            </label>
+
+            <label class="image-check">
+              <input type="radio" name="wvColor" value="Metall oxydant" />
+              <span class="img-wrap"><img src="./assets/Metall oxydant.jpeg" alt="Metall oxydant" /></span>
+              <span class="caption">Metall oxydant</span>
+            </label>
+
+            <label class="image-check">
+              <input type="radio" name="wvColor" value="Schiefer grau" />
+              <span class="img-wrap"><img src="./assets/Schiefer grau .jpeg" alt="Schiefer grau" /></span>
+              <span class="caption">Schiefer grau</span>
+            </label>
+
+            <label class="image-check">
+              <input type="radio" name="wvColor" value="Stein anthrazit" />
+              <span class="img-wrap"><img src="./assets/Stein anthrazit.jpeg" alt="Stein anthrazit" /></span>
+              <span class="caption">Stein anthrazit</span>
+            </label>
+
+            <label class="image-check">
+              <input type="radio" name="wvColor" value="Stein beige" />
+              <span class="img-wrap"><img src="./assets/Stein beige.jpeg" alt="Stein beige" /></span>
+              <span class="caption">Stein beige</span>
+            </label>
+
+            <label class="image-check">
+              <input type="radio" name="wvColor" value="Stein grau" />
+              <span class="img-wrap"><img src="./assets/stein grau .jpeg" alt="Stein grau" /></span>
+              <span class="caption">Stein grau</span>
+            </label>
+
+            <label class="image-check">
+              <input type="radio" name="wvColor" value="Struktur weiß" />
+              <span class="img-wrap"><img src="./assets/Struktur weiß.jpeg" alt="Struktur weiß" /></span>
+              <span class="caption">Struktur weiß</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="wvSealingSection" class="full field">
+      <label class="req">TRINNITY Wandabdichtung BASIS-Set</label>
+      <label class="image-check"
+        ><input
+          type="checkbox"
+          name="wvSealing"
+          value="TRINNITY Wandabdichtung BASIS TRWDSET5"
+        /><span class="img-wrap"
+          ><img src="./assets/d110afd16622742ee292b063792121f1.jpg" alt="TRINNITY Wandabdichtung BASIS" /></span
+        ><span class="caption">TRINNITY Wandabdichtung TRWDSET5</span></label
+      >
+    </div>
+
+    <div id="wvAdhesiveSection" class="full field">
+      <label class="req">Wandverkleidungsklebstoff</label>
+      <label class="image-check"
+        ><input
+          type="checkbox"
+          name="wvAdhesive"
+          value="Wandverkleidungsklebstoff V4RKIT"
+        /><span class="img-wrap"
+          ><img src="./assets/0c73a7b81315771d054bed4cc9a0c1b8.jpg" alt="Wandverkleidungsklebstoff" /></span
+        ><span class="caption">Wandverkleidungsklebstoff V4RKIT</span></label
+      >
+      <div class="field" style="max-width: 240px">
+        <label for="wvAdhesiveQty">Menge Wandverkleidungsklebstoff</label>
+        <input id="wvAdhesiveQty" name="wvAdhesiveQty" type="number" min="0" step="1" placeholder="0" />
+        <div id="wvAdhesiveSuggestion" style="margin-top:6px;font-size:0.9rem;color:var(--muted, #8a8a8a);"></div>
+      </div>
+    </div>
+
+    <div id="wvEndProfileSection" class="full field">
+      <label class="req">Abschlussprofil 3.0 255 cm silber eloxiert</label>
+      <label class="image-check">
+        <input type="checkbox" name="wvEndProfile" value="Abschlussprofil V3A" />
+        <span class="img-wrap">
+          <img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="Abschlussprofil V3A" />
+        </span>
+        <span class="caption">Abschlussprofil V3A</span>
+      </label>
+
+      <div class="muted" style="margin-top:8px;color:var(--danger);font-weight:600;">
+        ! Bitte die Anzahl der Abschlussleisten prüfen, berechnen und ggf. anpassen !
+      </div>
+
+      <div class="field" style="max-width: 240px">
+        <label for="wvEndProfileQty" class="req">Menge Abschlussprofil</label>
+        <input id="wvEndProfileQty" name="wvEndProfileQty" type="number" min="0" step="1" placeholder="0" />
+      </div>
+    </div>
+
+    <div id="wvProfileAdhesiveSection" class="full field">
+      <label class="req">Profilklebstoff</label>
+      <label class="image-check"
+        ><input
+          type="checkbox"
+          name="wvProfileAdhesive"
+          value="Profilklebstoff V4RPKIT"
+        /><span class="img-wrap"
+          ><img src="./assets/45add5cb98e727d20989647def35106a.jpg" alt="Profilklebstoff V4RPKIT" /></span
+        ><span class="caption">Profilklebstoff V4RPKIT</span></label
+      >
+      <div class="field" style="max-width: 240px">
+        <label for="wvProfileAdhesiveQty">Menge Profilklebstoff</label>
+        <input id="wvProfileAdhesiveQty" name="wvProfileAdhesiveQty" type="number" min="0" step="1" placeholder="0" />
+      </div>
+    </div>
+
+    <!-- Verbindungsprofil V3V (gleicher Stil wie die anderen Kacheln) -->
+    <div id="wvV3VDiv" class="full field">
+      <label class="req">Verbindungsprofil 3.0 255 cm silber eloxiert (V3V)</label>
+      <div class="muted" style="margin-top:6px;">
+        Wird automatisch aus der Plattenanzahl berechnet. Ecken reduzieren den Bedarf.
+      </div>
+
+      <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:10px;">
+        <div class="field" style="min-width:220px;">
+          <label class="image-check">
+            <input type="checkbox" id="wvV3VSelected" name="wvV3VSelected" checked />
+            <span class="img-wrap">
+              <img src="./assets/V3V.jpg" alt="Verbindungsprofil V3V" />
+            </span>
+            <span class="caption">Verbindungsprofil V3V</span>
+          </label>
+        </div>
+
+        <div class="full" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+          <div class="field" style="max-width:240px;">
+            <label for="wvV3VQty" class="req">Menge Verbindungsprofil(e)</label>
+            <input id="wvV3VQty" name="wvV3VQty" type="number" min="0" step="1" value="0" />
+            <div id="wvV3VRuleText" class="muted" style="margin-top:6px;"></div>
+          </div>
+
+          <div class="field" style="max-width:240px;">
+            <label class="check-pill">
+              <input type="checkbox" id="wvCornersCB" />
+              <span class="box"></span><span>Ecke(n) vorhanden</span>
+            </label>
+
+            <div id="wvCornersWrap" hidden aria-hidden="true" style="margin-top:8px;">
+              <label for="wvCorners" class="muted">Anzahl Ecken ohne Verbindungsprofil</label>
+              <input id="wvCorners" name="wvCorners" type="number" min="0" step="1" value="0" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions full">
+      <button type="button" data-nav="prev" class="secondary">Zurück</button>
+      <button type="button" data-nav="next">Weiter</button>
+    </div>
+  </form>
+</section>
 
             <!-- Kosten Duschabtrennung -->
 
