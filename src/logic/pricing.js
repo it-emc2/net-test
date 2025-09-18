@@ -57,6 +57,7 @@ export default (ProductModel) => {
 
   // Zero-cost "Auszuführende Arbeiten" lines to always print in DOCX
  // Build zero-cost "work notes" that must be printed in DOCX
+// Build zero-cost "work notes" that must be printed in DOCX
 function computeWorkNotes(payload) {
   const opt = payload?.optional || {};
   const kind = payload?.wandverkleidung?.wvKind || '';
