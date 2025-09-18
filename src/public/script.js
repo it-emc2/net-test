@@ -177,9 +177,53 @@ document.body.addEventListener('click', e=>{
   show(isYes()); form?.addEventListener('change', e=>{ if (e.target?.name==='hasContactPerson') show(e.target.value==='Ja'); });
 })();
 (function initAufschlag(){
-  const radios = document.querySelectorAll('input[name="payer"]'); const r50 = document.querySelector('input[name="aufschlag"][value="50%"]');
-  function apply(){ const v = document.querySelector('input[name="payer"]:checked')?.value; if (v==='Kassenkunde' && r50){ r50.checked=true; r50.required=true; } }
-  radios.forEach(r=>r.addEventListener('change', apply)); apply();
+  const payerRadios = Array.from(document.querySelectorAll('input[name="payer"]'));
+  const aufschlagRadios = Array.from(document.querySelectorAll('input[name="aufschlag"]'));
+
+  const r35 = document.querySelector('input[name="aufschlag"][value="35%"]');
+  const r40 = document.querySelector('input[name="aufschlag"][value="40%"]');
+  const r45 = document.querySelector('input[name="aufschlag"][value="45%"]');
+  const r50 = document.querySelector('input[name="aufschlag"][value="50%"]');
+
+  function setDisabled(el, disabled){
+    if (!el) return;
+    el.disabled = disabled;
+    // also gray out the pill visually by toggling aria-disabled and style
+    const pill = el.closest('label.radio-pill');
+    if (pill) {
+      pill.style.opacity = disabled ? '0.6' : '';
+      pill.style.pointerEvents = disabled ? 'none' : '';
+      pill.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    }
+  }
+
+  function anySelected(){ return aufschlagRadios.some(r => r.checked); }
+
+  function apply(){
+    const payer = document.querySelector('input[name="payer"]:checked')?.value;
+
+    if (payer === 'Selbstzahler'){
+      // Force/select 35% and disable other options
+      if (r35 && !r35.checked) r35.checked = true;
+      setDisabled(r35, false);
+      setDisabled(r40, true);
+      setDisabled(r45, true);
+      setDisabled(r50, true);
+    } else if (payer === 'Kassenkunde') {
+      // Re-enable all options
+      [r35, r40, r45, r50].forEach(r => setDisabled(r, false));
+
+      // If nothing selected yet, default to 50% for KK only
+      if (!anySelected() && r50) r50.checked = true;
+    } else {
+      // No payer picked yet: enable all, but do not auto-pick 50%
+      [r35, r40, r45, r50].forEach(r => setDisabled(r, false));
+    }
+  }
+
+  // Wire and init
+  payerRadios.forEach(r => r.addEventListener('change', apply));
+  apply();
 })();
 
 (function initPflegegrad(){
