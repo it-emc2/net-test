@@ -346,8 +346,8 @@ router.post('/material-overview', async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename="Materialuebersicht.docx"');
     res.send(out);
   } catch (e) {
-    console.error('Materialübersicht generation failed:', e);
-    res.status(500).json({ error: 'Materialübersicht generation failed', detail: e.message || String(e) });
+    console.error('Materialubersicht generation failed:', e);
+    res.status(500).json({ error: 'Materialubersicht generation failed', detail: e.message || String(e) });
   }
 });
 
