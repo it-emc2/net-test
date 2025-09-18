@@ -554,6 +554,86 @@ async function getProduct(id){
   recalc();
 })();
 
+(function initWVKindaToggle(){
+  const form = document.getElementById('form-wandverkleidung'); if (!form) return;
+
+  const secPanels   = document.getElementById('wvPanelsSection');
+  const secSealing  = document.getElementById('wvSealingSection');
+  const secAdh      = document.getElementById('wvAdhesiveSection');
+  const secEndProf  = document.getElementById('wvEndProfileSection');
+  const secProfAdh  = document.getElementById('wvProfileAdhesiveSection');
+
+  const cb997 = document.getElementById('wv997');
+  const cb1497 = document.getElementById('wv1497');
+  const qty997 = document.getElementById('wvQty997');
+  const qty1497 = document.getElementById('wvQty1497');
+
+  const wvSealCB = form.querySelector('input[name="wvSealing"]');
+  const wvAdhCB  = form.querySelector('input[name="wvAdhesive"]');
+  const wvAdhQty = document.getElementById('wvAdhesiveQty');
+
+  const endProfCB  = form.querySelector('input[name="wvEndProfile"]');
+  const endProfQty = document.getElementById('wvEndProfileQty');
+
+  const profGlueCB  = form.querySelector('input[name="wvProfileAdhesive"]');
+  const profGlueQty = document.getElementById('wvProfileAdhesiveQty');
+
+  function show(el, on){
+    if (!el) return;
+    el.hidden = !on;
+    el.setAttribute('aria-hidden', on ? 'false' : 'true');
+  }
+  function clearCheckbox(el){ if (el){ el.checked = false; el.dispatchEvent(new Event('change')); } }
+  function clearInput(el){ if (el){ el.value=''; el.removeAttribute('required'); } }
+  function clearQtyWrap(id){
+    const wrap = document.getElementById(id);
+    if (wrap){ wrap.hidden = true; wrap.setAttribute('aria-hidden','true'); }
+  }
+
+  function apply(){
+    const kind = form.querySelector('input[name="wvKind"]:checked')?.value || '';
+    const none = kind === 'Keine';
+
+    // Toggle visibility
+    show(secPanels,   !none);
+    show(secSealing,  !none);
+    show(secAdh,      !none);
+    show(secEndProf,  !none);
+    show(secProfAdh,  !none);
+
+    if (none){
+      // Clear panel selections and quantities
+      clearCheckbox(cb997);
+      clearCheckbox(cb1497);
+      clearInput(qty997);
+      clearInput(qty1497);
+      clearQtyWrap('wvQty997Wrap');
+      clearQtyWrap('wvQty1497Wrap');
+
+      // Clear sealing
+      clearCheckbox(wvSealCB);
+
+      // Clear adhesive + qty
+      clearCheckbox(wvAdhCB);
+      clearInput(wvAdhQty);
+
+      // Clear end profiles + qty
+      clearCheckbox(endProfCB);
+      clearInput(endProfQty);
+
+      // Clear profile glue + qty
+      clearCheckbox(profGlueCB);
+      clearInput(profGlueQty);
+    }
+  }
+
+  // Initial apply and on change
+  apply();
+  form.addEventListener('change', (e)=>{
+    if (e.target?.name === 'wvKind') apply();
+  });
+})();
+
 /* Wandverkleidung: Farbauswahl (radio-like image tiles) */
 (function initWVColors(){
   const wrap = document.getElementById('wvColors'); if (!wrap) return;
