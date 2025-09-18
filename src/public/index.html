@@ -1003,45 +1003,71 @@
           </div>
 
           <div id="travelSection" class="full" style="margin-top: 16px">
-            <details open>
-              <summary class="section-header" style="cursor: pointer">
-                Anfahrzeit zum Kunde
-              </summary>
-              <div
-                class="card"
-                style="
-                  background: var(--section-bg);
-                  border: 1px solid var(--border);
-                  border-radius: 10px;
-                  padding: 12px;
-                "
-              >
-                <div class="full" style="margin-bottom: 12px">
-                  <label for="distanceKm" class="req"
-                    >Wie viele Kilometer ist der Kunde von uns entfernt?
-                    (Kilometerpauschale. Hin- und Rückfahrt wird automatisch
-                    kalkuliert)</label
-                  >
-                  <input
-                    id="distanceKm"
-                    name="distanceKm"
-                    type="number"
-                    min="0"
-                    step="1"
-                    placeholder="z. B. 25"
-                    required
-                  />
-                 <div class="muted" style="margin-top: 6px;">
-  Bitte nur die einfache Strecke (Hin‑Fahrt) eintragen.
-  Rückfahrt wird automatisch mit berechnet:
-  <b><span id="roundTripPreview">= 0 km (Hin- & Rückfahrt)</span></b>
+  <details open>
+    <summary class="section-header" style="cursor: pointer">
+      Anfahrzeit zum Kunde
+    </summary>
+    <div
+      class="card"
+      style="
+        background: var(--section-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+      "
+    >
+      <!-- Distance input -->
+      <div class="full" style="margin-bottom: 12px">
+        <label for="distanceKm" class="req">
+          Wie viele Kilometer ist der Kunde von uns entfernt?
+          (Kilometerpauschale. Hin- und Rückfahrt wird automatisch kalkuliert)
+        </label>
+        <input
+          id="distanceKm"
+          name="distanceKm"
+          type="number"
+          min="0"
+          step="1"
+          placeholder="z. B. 25"
+          required
+        />
+        <div class="muted" style="margin-top: 6px;">
+          Bitte nur die einfache Strecke (Hin‑Fahrt) eintragen.
+          Rückfahrt wird automatisch mit berechnet:
+          <b><span id="roundTripPreview">= 0 km (Hin- & Rückfahrt)</span></b>
+        </div>
+      </div>
+
+      <!-- NEW: Arbeitszeit selection -->
+      <div class="full" style="margin: 8px 0 12px 0">
+        <label class="req">Arbeitszeit in Stunden (pro Arbeiter)</label>
+        <div class="muted" style="margin: 6px 0 8px">
+          Bei einer Entfernung von mehr als 1 Stunde zum Kunden beträgt die Arbeitszeit 10h,
+          bei weniger als 1 Stunde Anfahrt 8h.
+          Es werden immer zwei Facharbeiter kalkuliert (×2).
+        </div>
+        <div class="radio-group" role="radiogroup" aria-label="Arbeitszeit in Stunden">
+          <label class="radio-pill">
+            <input type="radio" name="laborHours" value="8" required />
+            <span class="circle"></span><span>8 Stunden</span>
+          </label>
+          <label class="radio-pill">
+            <input type="radio" name="laborHours" value="10" required />
+            <span class="circle"></span><span>10 Stunden</span>
+          </label>
+        </div>
+        <!-- Optional dynamic suggestion from distance -->
+        <div id="laborSuggestion" class="muted" style="margin-top: 6px"></div>
+      </div>
+
+      <!-- keep zones placeholders below -->
+      <div id="zonesKK" hidden aria-hidden="true"></div>
+      <div id="zonesSZ" hidden aria-hidden="true"></div>
+    </div>
+  </details>
 </div>
-                </div>
-                <div id="zonesKK" hidden aria-hidden="true"></div>
-                <div id="zonesSZ" hidden aria-hidden="true"></div>
-              </div>
-            </details>
-          </div>
+
+          
 
           <div id="pflegegradSection" class="full" style="margin-top: 16px">
             <details open>

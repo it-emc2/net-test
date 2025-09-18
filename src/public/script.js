@@ -447,6 +447,35 @@ document.body.addEventListener('click', e=>{
   update(); // initial
 })();
 
+(function initLaborSuggestion(){
+  const kmInput = document.getElementById('distanceKm');
+  const out = document.getElementById('laborSuggestion');
+  const r8 = document.querySelector('input[name="laborHours"][value="8"]');
+  const r10 = document.querySelector('input[name="laborHours"][value="10"]');
+
+  function parseKm(v){
+    const n = Number(String(v || '').replace(',', '.'));
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  }
+  function update(){
+    if (!out) return;
+    const km = parseKm(kmInput?.value);
+    // rough travel time in hours for one-way
+    const avgSpeedKmH = 60; // configurable if needed
+    const travelH = avgSpeedKmH > 0 ? (km / avgSpeedKmH) : 0;
+
+    const suggested = travelH > 1 ? 10 : 8;
+    out.textContent = km > 0
+      ? `Hinweis: geschätzte Anfahrt ~ ${travelH.toFixed(1)} h → Empfehlung: ${suggested} Stunden.`
+      : '';
+    // Do NOT auto-select. User decides between 8h/10h.
+  }
+
+  kmInput?.addEventListener('input', update);
+  kmInput?.addEventListener('change', update);
+  update();
+})();
+
 /* ========== PRICE FETCH (single endpoint) ========== */
 const productCache = new Map();
 async function getProduct(id){
