@@ -331,11 +331,11 @@ router.post('/material-overview', async (req, res) => {
       materials
     };
 
-    const templatePath = path.join(process.cwd(), 'src', 'templates', 'Materialuebersicht.docx');
+    const templatePath = path.join(process.cwd(), 'src', 'templates', 'Materialubersicht.docx');
     const out = await renderDocx(templatePath, data);
 
     try {
-      const verifyOut = path.join(process.cwd(), 'out-Materialuebersicht.docx');
+      const verifyOut = path.join(process.cwd(), 'out-Materialubersicht.docx');
       fsSync.writeFileSync(verifyOut, out);
       console.log('[material-overview] wrote generated DOCX:', verifyOut, 'size:', out.length);
     } catch (e) {
@@ -343,7 +343,7 @@ router.post('/material-overview', async (req, res) => {
     }
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', 'attachment; filename="Materialuebersicht.docx"');
+    res.setHeader('Content-Disposition', 'attachment; filename="Materialubersicht.docx"');
     res.send(out);
   } catch (e) {
     console.error('Materialubersicht generation failed:', e);
