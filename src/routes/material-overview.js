@@ -40,3 +40,4 @@ router.post('/material-overview', async (req, res) => {
     res.status(500).json({ error: 'Materialübersicht generation failed', detail: e.message || String(e) });
   }
 });
+

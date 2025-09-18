@@ -1099,7 +1099,7 @@ document.getElementById('downloadMaterialOverview')?.addEventListener('click', a
   if (!requireBereichValid()) { location.hash = 'bereich'; return; }
   try {
     const payload = buildPayload();
-    await downloadDocx('/api/docx/material-overview', payload, `Materialuebersicht_${Date.now()}.docx`);
+    await downloadDocx('/docx-template/material-overview', payload, `Materialuebersicht_${Date.now()}.docx`);
   } catch (e) {
     console.error(e);
     show({ error: String(e) }, false);
