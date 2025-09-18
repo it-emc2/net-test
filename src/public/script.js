@@ -188,7 +188,6 @@ document.body.addEventListener('click', e=>{
   function setDisabled(el, disabled){
     if (!el) return;
     el.disabled = disabled;
-    // also gray out the pill visually by toggling aria-disabled and style
     const pill = el.closest('label.radio-pill');
     if (pill) {
       pill.style.opacity = disabled ? '0.6' : '';
@@ -198,6 +197,9 @@ document.body.addEventListener('click', e=>{
   }
 
   function anySelected(){ return aufschlagRadios.some(r => r.checked); }
+  function currentSelection(){
+    return document.querySelector('input[name="aufschlag"]:checked')?.value || '';
+  }
 
   function apply(){
     const payer = document.querySelector('input[name="payer"]:checked')?.value;
@@ -213,15 +215,22 @@ document.body.addEventListener('click', e=>{
       // Re-enable all options
       [r35, r40, r45, r50].forEach(r => setDisabled(r, false));
 
-      // If nothing selected yet, default to 50% for KK only
-      if (!anySelected() && r50) r50.checked = true;
+      const sel = currentSelection();
+
+      // If nothing selected, default to 50% for KK only
+      if (!anySelected() && r50) {
+        r50.checked = true;
+      } else if (sel === '35%') {
+        // If 35% was carried over from Selbstzahler, switch to 50% default for KK
+        if (r50) r50.checked = true;
+      }
+      // If user had already chosen 40/45/50, keep it.
     } else {
-      // No payer picked yet: enable all, but do not auto-pick 50%
+      // No payer picked yet: enable all, but do not auto-pick
       [r35, r40, r45, r50].forEach(r => setDisabled(r, false));
     }
   }
 
-  // Wire and init
   payerRadios.forEach(r => r.addEventListener('change', apply));
   apply();
 })();
