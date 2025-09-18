@@ -721,26 +721,21 @@ async function getProduct(id){
   syncAll();
 })();
 
-(function initV3VDiv(){
+(function initV3V(){
   const form = document.getElementById('form-wandverkleidung'); if (!form) return;
-
-  // Existing panel controls
   const cb997 = document.getElementById('wv997');
   const cb1497 = document.getElementById('wv1497');
   const qty997 = document.getElementById('wvQty997');
   const qty1497 = document.getElementById('wvQty1497');
 
-  // "Keine Wandverkleidung" radios
-  const wvKindGroup = document.getElementById('wvKindGroup');
-
-  // V3V UI
   const v3vDiv = document.getElementById('wvV3VDiv');
+  const v3vSelected = document.getElementById('wvV3VSelected');
   const qtyV3V = document.getElementById('wvV3VQty');
   const ruleText = document.getElementById('wvV3VRuleText');
   const cbCorners = document.getElementById('wvCornersCB');
   const cornersWrap = document.getElementById('wvCornersWrap');
   const cornersInput = document.getElementById('wvCorners');
-  const v3vSelected = document.getElementById('wvV3VSelected');
+  const wvKindGroup = document.getElementById('wvKindGroup');
 
   const n = v => {
     const x = Number(v);
@@ -765,19 +760,18 @@ async function getProduct(id){
       (ecken ? ` − ${ecken} Ecke(n) = ${finalQty}` : ` = ${finalQty}`) +
       ` Verbindungsprofil(e).`;
 
-    // If no panels, uncheck the V3V "selected" box to avoid adding it accidentally
-    if (total === 0) v3vSelected.checked = false;
-    else v3vSelected.checked = true;
+    // Auto-select off if no panels
+    v3vSelected.checked = total > 0;
   }
 
   function toggleCorners(){
-    const show = cbCorners.checked;
-    cornersWrap.hidden = !show;
-    if (!show) cornersInput.value = '0';
+    const on = cbCorners.checked;
+    cornersWrap.hidden = !on;
+    cornersWrap.setAttribute('aria-hidden', on ? 'false' : 'true');
+    if (!on) cornersInput.value = '0';
     calc();
   }
 
-  // Hide/show when "Keine Wandverkleidung" is chosen
   function applyKindVisibility(){
     const kind = form.querySelector('input[name="wvKind"]:checked')?.value || '';
     const hide = kind === 'Keine';
@@ -794,10 +788,9 @@ async function getProduct(id){
     }
   }
 
-  // Wire listeners
   [cb997, cb1497, qty997, qty1497].forEach(el=>{
-    el?.addEventListener('change', ()=>calc());
-    el?.addEventListener('input',  ()=>calc());
+    el?.addEventListener('change', calc);
+    el?.addEventListener('input', calc);
   });
   cbCorners?.addEventListener('change', toggleCorners);
   cornersInput?.addEventListener('input', ()=>calc());
