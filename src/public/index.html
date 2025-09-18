@@ -1828,34 +1828,26 @@
           </div>
 
           <div id="wvEndProfileSection" class="full field">
-            <label class="req"
-              >Abschlussprofil 3.0 255 cm silber eloxiert</label
-            >
-            <label class="image-check"
-              ><input
-                type="checkbox"
-                name="wvEndProfile"
-                value="Abschlussprofil V3A"
-              /><span class="img-wrap"
-                ><img
-                  src="./assets/6dd521ee32b126983e37b93433b29b95.jpg"
-                  alt="Abschlussprofil V3A" /></span
-              ><span class="caption">Abschlussprofil V3A</span></label
-            >
-            <div class="field" style="max-width: 240px">
-              <label for="wvEndProfileQty" class="req"
-                >Menge Abschlussprofil</label
-              >
-              <input
-                id="wvEndProfileQty"
-                name="wvEndProfileQty"
-                type="number"
-                min="0"
-                step="1"
-                placeholder="0"
-              />
-            </div>
-          </div>
+  <label class="req">Abschlussprofil 3.0 255 cm silber eloxiert</label>
+
+  <label class="image-check">
+    <input type="checkbox" name="wvEndProfile" value="Abschlussprofil V3A" />
+    <span class="img-wrap">
+      <img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="Abschlussprofil V3A" />
+    </span>
+    <span class="caption">Abschlussprofil V3A</span>
+  </label>
+
+  <!-- Warning note -->
+  <div class="muted" style="margin-top:8px;color:var(--danger);font-weight:600;">
+    ! Bitte die Anzahl der Abschlussleisten prüfen, berechnen und ggf. anpassen !
+  </div>
+
+  <div class="field" style="max-width: 240px">
+    <label for="wvEndProfileQty" class="req">Menge Abschlussprofil</label>
+    <input id="wvEndProfileQty" name="wvEndProfileQty" type="number" min="0" step="1" placeholder="0" />
+  </div>
+</div>
 
           <div id="wvProfileAdhesiveSection" class="full field">
             <label class="req">Profilklebstoff</label>

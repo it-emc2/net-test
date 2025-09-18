@@ -491,6 +491,69 @@ async function getProduct(id){
   cb997?.addEventListener('change', apply); cb1497?.addEventListener('change', apply);
 })();
 
+(function initWVAutoQty(){
+  const f = document.getElementById('form-wandverkleidung'); if (!f) return;
+
+  const cb997 = document.getElementById('wv997');
+  const cb1497 = document.getElementById('wv1497');
+  const qty997 = document.getElementById('wvQty997');
+  const qty1497 = document.getElementById('wvQty1497');
+
+  const wvAdhCB = f.querySelector('input[name="wvAdhesive"]');
+  const wvAdhQty = document.getElementById('wvAdhesiveQty');
+
+  const endProfCB = f.querySelector('input[name="wvEndProfile"]');
+  const endProfQty = document.getElementById('wvEndProfileQty');
+
+  const profGlueCB = f.querySelector('input[name="wvProfileAdhesive"]');
+  const profGlueQty = document.getElementById('wvProfileAdhesiveQty');
+
+  function n(v){ const x = Number(v); return Number.isFinite(x) ? x : 0; }
+  function anyCheckedPanels(){ return !!cb997?.checked || !!cb1497?.checked; }
+  function counts(){
+    const s = cb997?.checked ? n(qty997?.value) : 0;
+    const l = cb1497?.checked ? n(qty1497?.value) : 0;
+    return { s, l, total: s + l };
+  }
+  function empty(el){ return !el || String(el.value || '').trim() === ''; }
+  function setIfEmpty(el, val){ if (el && empty(el)) el.value = String(val); }
+
+  function recalc(){
+    const { s, l } = counts();
+
+    if (wvAdhCB?.checked){
+      const defAdh = 3*s + 4*l;
+      setIfEmpty(wvAdhQty, defAdh);
+    }
+
+    if (endProfCB?.checked){
+      setIfEmpty(endProfQty, 3);
+    }
+
+    if (profGlueCB?.checked){
+      const ep = n(endProfQty?.value || (endProfCB?.checked ? 3 : 0));
+      setIfEmpty(profGlueQty, ep);
+    }
+  }
+
+  // React to relevant changes
+  f.addEventListener('change', (e)=>{
+    const t = e.target;
+    if (!t) return;
+    if (t === cb997 || t === cb1497 || t === qty997 || t === qty1497 ||
+        t === wvAdhCB || t === endProfCB || t === profGlueCB || t === endProfQty) {
+      recalc();
+    }
+  });
+
+  // On input of panel quantities, keep proposals updated if still empty
+  qty997?.addEventListener('input', recalc);
+  qty1497?.addEventListener('input', recalc);
+
+  // Initial pass
+  recalc();
+})();
+
 /* Wandverkleidung: Farbauswahl (radio-like image tiles) */
 (function initWVColors(){
   const wrap = document.getElementById('wvColors'); if (!wrap) return;

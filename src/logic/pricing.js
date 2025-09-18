@@ -112,24 +112,47 @@ export default (ProductModel) => {
     }
 
     // Wandverkleidung
-    const qty997 = Number(wv?.wvQty997 || 0) || 0;
-    const qty1497 = Number(wv?.wvQty1497 || 0) || 0;
+const qty997 = Number(wv?.wvQty997 || 0) || 0;
+const qty1497 = Number(wv?.wvQty1497 || 0) || 0;
+const totalPanels = qty997 + qty1497;
 
-    if (wv?.wv997 && qty997 > 0) add('V3WVK09', qty997, `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`);
-    if (wv?.wv1497 && qty1497 > 0) add('V3WV09', qty1497, `- ${qty1497} Stk Wandverkleidung 3.0 Alu 1497×2550 mm`);
+if (wv?.wv997 && qty997 > 0) {
+  add('V3WVK09', qty997, `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`);
+}
+if (wv?.wv1497 && qty1497 > 0) {
+  add('V3WV09', qty1497, `- ${qty1497} Stk Wandverkleidung 3.0 Alu 1497×2550 mm`);
+}
 
-    if (wv?.wvSealing) add('TRWDSET5', 1);
+if (wv?.wvSealing) add('TRWDSET5', 1);
 
-    if (wv?.wvAdhesive) {
-      const q = (4 * qty1497) + (3 * qty997);
-      if (q > 0) add('V4RKIT', q, `- ${q} Stk Wandverkleidungsklebstoff 3.0/4.0`);
-    }
+// Wandverkleidungsklebstoff (V4RKIT): use user qty or fallback = 3*small + 4*large
+if (wv?.wvAdhesive) {
+  const userQtyAdh = Number(wv?.wvAdhesiveQty);
+  const fallbackAdh = (3 * qty997) + (4 * qty1497);
+  const qAdh = Number.isFinite(userQtyAdh) && userQtyAdh > 0 ? userQtyAdh : fallbackAdh;
+  if (qAdh > 0) add('V4RKIT', qAdh, `- ${qAdh} Stk Wandverkleidungsklebstoff 3.0/4.0`);
+}
 
-    if (wv?.wvEndProfile) {
-      const q = Number(wv?.wvEndProfileQty || 0) || 0;
-      if (q > 0) add('V3A', q);
-      if (wv?.wvProfileAdhesive && q > 0) add('V4RPKIT', q);
-    }
+// Abschlussprofil (V3A): take user-entered quantity (client will default to 3)
+let endProfilesQty = 0;
+if (wv?.wvEndProfile) {
+  endProfilesQty = Number(wv?.wvEndProfileQty) || 0;
+  if (endProfilesQty > 0) add('V3A', endProfilesQty);
+}
+
+// Verbindungsprofil(e) (V3V): if multiple panels, Anzahl Profile = Anzahl Platten - 1
+if (totalPanels >= 2) {
+  const qV3V = totalPanels - 1;
+  add('V3V', qV3V, `- ${qV3V} Stk Verbindungsprofil(e) (Plattenanzahl - 1)`);
+}
+
+// Profilklebstoff (V4RPKIT): user qty or fallback = Anzahl Endprofile
+if (wv?.wvProfileAdhesive) {
+  const userQtyProfGlue = Number(wv?.wvProfileAdhesiveQty);
+  const fallbackProfGlue = endProfilesQty;
+  const qProfGlue = Number.isFinite(userQtyProfGlue) && userQtyProfGlue > 0 ? userQtyProfGlue : fallbackProfGlue;
+  if (qProfGlue > 0) add('V4RPKIT', qProfGlue, `- ${qProfGlue} Stk Profilklebstoff (pro Abschlussprofil 1 Stk)`);
+}
 
     // Waschtisch required accessories
     const basinQty = Number(opt?.qty_CL60 || 0) || 0;
