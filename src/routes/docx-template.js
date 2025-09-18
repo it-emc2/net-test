@@ -20,6 +20,115 @@ function fmtCurrency(n) {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(num);
 }
 
+async function renderDocx(templatePath, data) {
+  const content = await fs.readFile(templatePath);
+  const zip = new PizZip(content);
+  const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+  doc.setData(data);
+  try {
+    doc.render();
+  } catch (e) {
+    const msg = e?.message || String(e);
+    console.error('Docxtemplater render error:', msg);
+    if (e?.properties?.errors) {
+      for (const er of e.properties.errors) {
+        console.error('- Docx error:', {
+          id: er.id, explanation: er.explanation, file: er.file,
+          xtag: er.xtag, context: er.context, offset: er.offset,
+        });
+      }
+    }
+    throw new Error(`DOCX render failed: ${msg}`);
+  }
+  return doc.getZip().generate({ type: 'nodebuffer' });
+}
+
+// Collect + aggregate materials for the Materialübersicht
+function aggregateMaterialsForOverview(body = {}, computed = {}) {
+  // Prefer computed.materials.lines if you already compute them.
+  const sourceLines = [];
+
+  // 1) From computed.materials.lines (if present)
+  const compMat = computed?.materials;
+  if (Array.isArray(compMat?.lines)) {
+    for (const l of compMat.lines) {
+      sourceLines.push({
+        materialNumber: l.materialNumber || l.sku || l.productId || '',
+        name: l.name || l.label || '',
+        unit: l.unit || 'Stck.',
+        quantity: Number(l.qty ?? l.quantity ?? 0) || 0,
+        remarks: l.remarks || ''
+      });
+    }
+  }
+
+  // 2) Fallback: body.materials (if your UI sends any)
+  if (Array.isArray(body?.materials)) {
+    for (const m of body.materials) {
+      sourceLines.push({
+        materialNumber: m.materialNumber || m.nr || m.id || '',
+        name: m.name || m.title || m.description || '',
+        unit: m.unit || m.einheit || 'Stck.',
+        quantity: Number(m.quantity ?? m.menge ?? 0) || 0,
+        remarks: m.remarks || m.bemerkung || ''
+      });
+    }
+  }
+
+  // 3) Optional: include items as materials (if desired)
+  // If items aren’t materials, you can remove this block.
+  const items = computed?.items || [];
+  for (const it of items) {
+    if (!it) continue;
+    sourceLines.push({
+      materialNumber: it.productId || it.sku || '',
+      name: it.name || '',
+      unit: it.unit || 'Stck.',
+      quantity: Number(it.qty ?? 0) || 0,
+      remarks: ''
+    });
+  }
+
+  // Aggregate by materialNumber + unit
+  const map = new Map();
+  for (const l of sourceLines) {
+    const nr = String(l.materialNumber || '').trim();
+    const unit = String(l.unit || 'Stck.').trim();
+    const qty = Number(l.quantity) || 0;
+    if (!nr || qty <= 0) continue;
+
+    const key = `${nr}||${unit}`;
+    const prev = map.get(key) || { materialNumber: nr, name: String(l.name || '').trim(), unit, quantity: 0, remarks: '' };
+
+    // Prefer longer name
+    const nm = String(l.name || '').trim();
+    if (nm && (!prev.name || nm.length > prev.name.length)) prev.name = nm;
+
+    // Merge remarks
+    const rm = String(l.remarks || '').trim();
+    if (rm) prev.remarks = prev.remarks ? `${prev.remarks}; ${rm}` : rm;
+
+    prev.quantity += qty;
+    map.set(key, prev);
+  }
+
+  // Sort by material number then name
+  const rows = Array.from(map.values()).sort((a, b) => {
+    const n = a.materialNumber.localeCompare(b.materialNumber, 'de', { numeric: true });
+    if (n) return n;
+    return a.name.localeCompare(b.name, 'de', { numeric: true });
+  });
+
+  return rows;
+}
+
+function formatQtyForOverview(q, unit) {
+  const integerUnits = new Set(['Stck.', 'Set', 'Pkg']);
+  if (integerUnits.has(unit)) return String(Math.round(q));
+  const num = Math.round((q + Number.EPSILON) * 100) / 100;
+  return num.toFixed(2).replace('.', ','); // German comma
+}
+
 function mapData(body = {}, computed = {}) {
   const b = body.bereich || {};
   const tb = body.textbausteine || {};
@@ -197,5 +306,8 @@ router.post('/', async (req, res) => {
     res.status(500).json({ error: 'DOCX generation failed', detail: e.message || String(e) });
   }
 });
+
+
+
 
 export default router;
