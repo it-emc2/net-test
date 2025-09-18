@@ -508,8 +508,10 @@ async function getProduct(id){
   const profGlueCB = f.querySelector('input[name="wvProfileAdhesive"]');
   const profGlueQty = document.getElementById('wvProfileAdhesiveQty');
 
+  // NEW: suggestion element
+  const adhSuggest = document.getElementById('wvAdhesiveSuggestion');
+
   function n(v){ const x = Number(v); return Number.isFinite(x) ? x : 0; }
-  function anyCheckedPanels(){ return !!cb997?.checked || !!cb1497?.checked; }
   function counts(){
     const s = cb997?.checked ? n(qty997?.value) : 0;
     const l = cb1497?.checked ? n(qty1497?.value) : 0;
@@ -518,9 +520,23 @@ async function getProduct(id){
   function empty(el){ return !el || String(el.value || '').trim() === ''; }
   function setIfEmpty(el, val){ if (el && empty(el)) el.value = String(val); }
 
+  function updateAdhesiveSuggestion(s, l){
+    if (!adhSuggest) return;
+    const calc = 3*s + 4*l;
+    if ((s + l) > 0) {
+      adhSuggest.textContent = `Vorschlag: ${calc} Stk (3 je 997×2550, 4 je 1497×2550)`;
+    } else {
+      adhSuggest.textContent = '';
+    }
+  }
+
   function recalc(){
     const { s, l } = counts();
 
+    // Update live suggestion always when quantities change
+    updateAdhesiveSuggestion(s, l);
+
+    // Keep defaults only if fields are empty (manual override respected)
     if (wvAdhCB?.checked){
       const defAdh = 3*s + 4*l;
       setIfEmpty(wvAdhQty, defAdh);
@@ -546,7 +562,6 @@ async function getProduct(id){
     }
   });
 
-  // On input of panel quantities, keep proposals updated if still empty
   qty997?.addEventListener('input', recalc);
   qty1497?.addEventListener('input', recalc);
 
