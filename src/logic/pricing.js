@@ -56,62 +56,49 @@ export default (ProductModel) => {
   };
 
   // Build zero-cost "work notes" for DOCX and UI
-  function computeWorkNotes(payload) {
-    const opt = payload && payload.optional ? payload.optional : {};
-    const kind = payload && payload.wandverkleidung ? (payload.wandverkleidung.wvKind || '') : '';
+ function computeWorkNotes(payload) {
+  const opt = payload?.optional || {};
+  const kind = payload?.wandverkleidung?.wvKind || '';
 
-    const picked = new Set();
+  const picked = new Set();
 
-    // Wandverkleidung notes
-    if (kind === 'Fehlstellen') picked.add('Schließen der Fehlstellen');
-    if (kind === 'Deckenhoch') picked.add('Verkleidung Deckenhoch im Dusch/ Wannenbereich');
+  // Wandverkleidung
+  if (kind === 'Fehlstellen') picked.add('Schließen der Fehlstellen');
+  if (kind === 'Deckenhoch') picked.add('Verkleidung Deckenhoch im Dusch/ Wannenbereich');
 
-    // Robust detectors
-    const isChosenFlag = (v) => {
-      if (Array.isArray(v)) return v.length > 0;
-      if (v === true) return true;
-      if (typeof v === 'string') {
-        const s = v.trim().toLowerCase();
-        return s === 'true' || s === '1' || s === 'on' || s === 'yes';
-      }
-      return false;
-    };
-    const isQty = (q) => {
-      const n = Number(q);
-      return Number.isFinite(n) && n > 0;
-    };
-    const chosen = (flag, qty) => isChosenFlag(flag) || isQty(qty);
+  // Generic detector: true if non-empty array/string, or qty > 0
+  const chosen = (flag, qty) => {
+    // Arrays come in as strings right now (single selection), but guard anyway
+    if (Array.isArray(flag) && flag.length > 0) return true;
+    if (typeof flag === 'string' && flag.trim() !== '') return true;
+    if (flag === true) return true;
+    const q = Number(qty);
+    return Number.isFinite(q) && q > 0;
+  };
 
-    // Prefer HTML array names; fallback to flat opt_/qty_ keys
-    const shower = chosen(opt.optShower, opt.qty_Shower) || chosen(opt.opt_DUSCHSYSTEM, opt.qty_DUSCHSYSTEM);
-    const grab   = chosen(opt.optGrab,   opt.qty_Grab)   || chosen(opt.opt_HALTEGRIFF,   opt.qty_HALTEGRIFF);
-    const fold   = chosen(opt.optFold,   opt.qty_Fold)   || chosen(opt.opt_STUETZKLAPP,  opt.qty_STUETZKLAPP);
-    const basin  = chosen(opt.optBasin,  opt.qty_Basin)  || chosen(opt.opt_CL60,         opt.qty_CL60);
-    const tap    = chosen(opt.optBasinTap, opt.qty_BasinTap) || chosen(opt.opt_WTBAT,    opt.qty_WTBAT);
-    const thermo = chosen(opt.optThermo, opt.qty_Thermo) || chosen(opt.opt_THERMO,       opt.qty_THERMO);
-    const seat   = chosen(opt.optSeat,   opt.qty_Seat)   || chosen(opt.opt_SITZ,         opt.qty_SITZ);
+  // IMPORTANT: your keys include [] in their names
+  const shower = chosen(opt['optShower[]'], opt.qty_V22WS1R || opt.qty_TEMPDSU250 || opt.qty_V22BG903R || opt.qty_DEDS2503E);
+  const grab   = chosen(opt['optGrab[]'],   opt.qty_CLPESG40 || opt.qty_CLPESG60 || opt.qty_CLPESG80);
+  const fold   = chosen(opt['optFold[]'],   opt.qty_DEPSKG60 || opt.qty_DEPSKG85);
+  const basin  = chosen(opt['optBasin[]'],  opt.qty_CL60);
+  const tap    = chosen(opt['optBasinTap[]'], opt.qty_CL_BASIN || opt.qty_DEPOH);
+  const thermo = chosen(opt['optThermo[]'], opt.qty_CLTB || opt.qty_DEPTB || opt.qty_CLB);
+  const seat   = chosen(opt['optSeat[]'],   opt.qty_DEPKS);
 
-    if (shower) picked.add('Auswechseln des Duschsystems');
-    if (grab)   picked.add('Anbringen zusätzlicher Haltegriffe');
-    if (fold)   picked.add('Anbringen zusätzlicher Stützklappgriffe');
-    if (basin)  picked.add('Auswechseln eines Waschtisches');
-    if (tap)    picked.add('Einbau einer einhand-Waschtischbatterie');
-    if (thermo) picked.add('Austausch eines Thermostates');
-    if (seat)   picked.add('Einbau eines Klappsitzes');
+  if (shower) picked.add('Auswechseln des Duschsystems');
+  if (grab)   picked.add('Anbringen zusätzlicher Haltegriffe');
+  if (fold)   picked.add('Anbringen zusätzlicher Stützklappgriffe');
+  if (basin)  picked.add('Auswechseln eines Waschtisches');
+  if (tap)    picked.add('Einbau einer einhand-Waschtischbatterie');
+  if (thermo) picked.add('Austausch eines Thermostates');
+  if (seat)   picked.add('Einbau eines Klappsitzes');
 
-    const notes = Array.from(picked).map(txt => ({
-      key: 'worknote',
-      label: `- ${txt}`,
-      amount: 0,
-    }));
-
-    // Minimal debug (remove after verifying)
-    try {
-      console.log('[pricing] work notes computed:', notes.map(n => n.label));
-    } catch {}
-
-    return notes;
-  }
+  return Array.from(picked).map(txt => ({
+    key: 'worknote',
+    label: `- ${txt}`,
+    amount: 0,
+  }));
+}
 
   async function computeMaterials(payload) {
     const dusch = payload?.duschwanne || {};
