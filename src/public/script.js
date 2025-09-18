@@ -41,16 +41,42 @@ window.addEventListener('hashchange', ()=>setStep(getCurrentStep()));
 /* ========== PAYLOAD / SUMMARY / STATUS ========== */
 function formToObject(form){ return Object.fromEntries(new FormData(form).entries()); }
 function buildPayload(){
+  // Base payload from your forms
+  const bereichRaw = formToObject(document.getElementById('form-bereich'));
+  const duschwanne = { ...formToObject(document.getElementById('form-duschwanne')), computed: window.__DW_COMPUTED__ || {} };
+  const wandverkleidung = formToObject(document.getElementById('form-wandverkleidung'));
+  const duschabtrennung = formToObject(document.getElementById('form-duschabtrennung'));
+  const optional = formToObject(document.getElementById('form-optional'));
+  const rabatt = formToObject(document.getElementById('form-rabatt'));
+
+  // Normalize payer and aufschlag to numeric pricing.markupPct
+  const payer = bereichRaw.payer || '';
+  let markupPct = 0.35; // default/fallback
+  if (payer === 'Selbstzahler'){
+    markupPct = 0.35;
+  } else {
+    const auf = bereichRaw.aufschlag; // e.g., "35%"|"40%"...
+    if (auf){
+      const m = /(\d+)\%/.exec(String(auf));
+      if (m) markupPct = Number(m[1]) / 100;
+    }
+  }
+
+  // Keep bereich as-is, but it already has payer/aufschlag strings for display
+  const bereich = bereichRaw;
+
   return {
-    bereich: formToObject(document.getElementById('form-bereich')),
-    duschwanne: { ...formToObject(document.getElementById('form-duschwanne')), computed: window.__DW_COMPUTED__ || {} },
-    wandverkleidung: formToObject(document.getElementById('form-wandverkleidung')),
-    duschabtrennung: formToObject(document.getElementById('form-duschabtrennung')),
-    optional: formToObject(document.getElementById('form-optional')),
-    rabatt: formToObject(document.getElementById('form-rabatt')) 
+    bereich,
+    duschwanne,
+    wandverkleidung,
+    duschabtrennung,
+    optional,
+    rabatt,
+    pricing: { markupPct },
   };
 }
 window.buildPayload = buildPayload; // expose for extensions
+
 function updateSummary(){
   if (getCurrentStep() !== 'zusammenfassung') return;
   const el = document.getElementById('summaryText');
@@ -116,13 +142,13 @@ function validateWandverkleidung(){
 function validateOptional(){ return true; }
 
 function validateRabatt(){
-const f = document.getElementById('form-rabatt'); if (!f) return true;
-return f.reportValidity();
+  const f = document.getElementById('form-rabatt'); if (!f) return true;
+  return f.reportValidity();
 }
 
 function validateDuschabtrennung(){
-const f = document.getElementById('form-duschabtrennung'); if (!f) return true;
-return f.reportValidity();
+  const f = document.getElementById('form-duschabtrennung'); if (!f) return true;
+  return f.reportValidity();
 }
 
 /* Focus helper for Bereich conditional errors (defined in initBereichErrorHints) */
@@ -176,10 +202,36 @@ document.body.addEventListener('click', e=>{
   function isYes(){ const c = form?.querySelector('input[name="hasContactPerson"]:checked'); return c && c.value==='Ja'; }
   show(isYes()); form?.addEventListener('change', e=>{ if (e.target?.name==='hasContactPerson') show(e.target.value==='Ja'); });
 })();
+
+/* NEW: lock Aufschlag to 35% for Selbstzahler; enable choice for Kassenkunde */
 (function initAufschlag(){
-  const radios = document.querySelectorAll('input[name="payer"]'); const r50 = document.querySelector('input[name="aufschlag"][value="50%"]');
-  function apply(){ const v = document.querySelector('input[name="payer"]:checked')?.value; if (v==='Kassenkunde' && r50){ r50.checked=true; r50.required=true; } }
-  radios.forEach(r=>r.addEventListener('change', apply)); apply();
+  const payerRadios = Array.from(document.querySelectorAll('input[name="payer"]'));
+  const aufschlagSection = document.getElementById('aufschlagSection');
+  const aufschlagRadios = Array.from(document.querySelectorAll('input[name="aufschlag"]'));
+
+  function selectAufschlag(valueLabel){
+    for (const r of aufschlagRadios) r.checked = (r.value === valueLabel);
+  }
+  function setAufschlagDisabled(disabled){
+    for (const r of aufschlagRadios) r.disabled = disabled;
+  }
+  function apply(){
+    const payer = document.querySelector('input[name="payer"]:checked')?.value;
+    if (payer === 'Selbstzahler'){
+      selectAufschlag('35%');
+      setAufschlagDisabled(true);
+      aufschlagSection.hidden = false;
+      aufschlagSection.setAttribute('aria-hidden','false');
+    } else {
+      setAufschlagDisabled(false);
+      if (!aufschlagRadios.some(r => r.checked)) selectAufschlag('35%');
+      aufschlagSection.hidden = false;
+      aufschlagSection.setAttribute('aria-hidden','false');
+    }
+  }
+
+  payerRadios.forEach(r=>r.addEventListener('change', apply));
+  apply();
 })();
 
 (function initPflegegrad(){
@@ -461,8 +513,7 @@ async function getProduct(id){
       if (area) area.value='';
       f.querySelectorAll('input[name="flooringProduct[]"],input[name="floorAdhesive[]"],input[name="floorSealing[]"]').forEach(i=>{ i.checked = false; highlightTileForInput(i,false); });
       if (liveAdh) liveAdh.textContent=''; if (liveSeal) liveSeal.textContent='';
-      if (adhesivePriceEl) adhesivePriceEl.textContent='0'; if (sealingPriceEl) se
-alingPriceEl.textContent='0'; if (panelsPriceEl) panelsPriceEl.textContent='0';
+      if (adhesivePriceEl) adhesivePriceEl.textContent='0'; if (sealingPriceEl) sealingPriceEl.textContent='0'; if (panelsPriceEl) panelsPriceEl.textContent='0';
       unitAdh = unitSeal = 0;
       computed.areaM2 = 0; computed.adhesive = {productId:'V4FK600',packs:0,unit:0,total:0}; computed.sealing = {productId:'TRBDSET7',sets:0,unit:0,total:0};
     }

@@ -44,61 +44,65 @@ export default (ProductModel) => {
     return out;
   }
 
+  // Prefer numeric payload.pricing.markupPct; fallback to bereich.aufschlag like "35%".
   const extractMarkupPct = (payload) => {
-    const a = payload?.bereich?.aufschlag;
-    if (!a) return 0;
-    const m = String(a).trim();
-    if (m.endsWith('%')) {
-      const n = Number(m.slice(0, -1));
-      return Number.isFinite(n) ? n / 100 : 0;
+    const fromNumeric = payload?.pricing?.markupPct;
+    if (typeof fromNumeric === 'number' && Number.isFinite(fromNumeric)) {
+      return fromNumeric;
     }
-    return 0;
+    const a = payload?.bereich?.aufschlag;
+    if (!a) return 0.35; // safe default
+    const m = String(a).trim().match(/^(\d+)\%$/);
+    if (m) {
+      const n = Number(m[1]);
+      if (Number.isFinite(n)) return n / 100;
+    }
+    return 0.35;
   };
 
   // Build zero-cost "work notes" for DOCX and UI
- function computeWorkNotes(payload) {
-  const opt = payload?.optional || {};
-  const kind = payload?.wandverkleidung?.wvKind || '';
+  function computeWorkNotes(payload) {
+    const opt = payload?.optional || {};
+    const kind = payload?.wandverkleidung?.wvKind || '';
 
-  const picked = new Set();
+    const picked = new Set();
 
-  // Wandverkleidung
-  if (kind === 'Fehlstellen') picked.add('Schließen der Fehlstellen');
-  if (kind === 'Deckenhoch') picked.add('Verkleidung Deckenhoch im Dusch/ Wannenbereich');
+    // Wandverkleidung
+    if (kind === 'Fehlstellen') picked.add('Schließen der Fehlstellen');
+    if (kind === 'Deckenhoch') picked.add('Verkleidung Deckenhoch im Dusch/ Wannenbereich');
 
-  // Generic detector: true if non-empty array/string, or qty > 0
-  const chosen = (flag, qty) => {
-    // Arrays come in as strings right now (single selection), but guard anyway
-    if (Array.isArray(flag) && flag.length > 0) return true;
-    if (typeof flag === 'string' && flag.trim() !== '') return true;
-    if (flag === true) return true;
-    const q = Number(qty);
-    return Number.isFinite(q) && q > 0;
-  };
+    // Generic detector: true if non-empty array/string, or qty > 0
+    const chosen = (flag, qty) => {
+      if (Array.isArray(flag) && flag.length > 0) return true;
+      if (typeof flag === 'string' && flag.trim() !== '') return true;
+      if (flag === true) return true;
+      const q = Number(qty);
+      return Number.isFinite(q) && q > 0;
+    };
 
-  // IMPORTANT: your keys include [] in their names
-  const shower = chosen(opt['optShower[]'], opt.qty_V22WS1R || opt.qty_TEMPDSU250 || opt.qty_V22BG903R || opt.qty_DEDS2503E);
-  const grab   = chosen(opt['optGrab[]'],   opt.qty_CLPESG40 || opt.qty_CLPESG60 || opt.qty_CLPESG80);
-  const fold   = chosen(opt['optFold[]'],   opt.qty_DEPSKG60 || opt.qty_DEPSKG85);
-  const basin  = chosen(opt['optBasin[]'],  opt.qty_CL60);
-  const tap    = chosen(opt['optBasinTap[]'], opt.qty_CL_BASIN || opt.qty_DEPOH);
-  const thermo = chosen(opt['optThermo[]'], opt.qty_CLTB || opt.qty_DEPTB || opt.qty_CLB);
-  const seat   = chosen(opt['optSeat[]'],   opt.qty_DEPKS);
+    // IMPORTANT: your keys include [] in their names
+    const shower = chosen(opt['optShower[]'], opt.qty_V22WS1R || opt.qty_TEMPDSU250 || opt.qty_V22BG903R || opt.qty_DEDS2503E);
+    const grab   = chosen(opt['optGrab[]'],   opt.qty_CLPESG40 || opt.qty_CLPESG60 || opt.qty_CLPESG80);
+    const fold   = chosen(opt['optFold[]'],   opt.qty_DEPSKG60 || opt.qty_DEPSKG85);
+    const basin  = chosen(opt['optBasin[]'],  opt.qty_CL60);
+    const tap    = chosen(opt['optBasinTap[]'], opt.qty_CL_BASIN || opt.qty_DEPOH);
+    const thermo = chosen(opt['optThermo[]'], opt.qty_CLTB || opt.qty_DEPTB || opt.qty_CLB);
+    const seat   = chosen(opt['optSeat[]'],   opt.qty_DEPKS);
 
-  if (shower) picked.add('Auswechseln des Duschsystems');
-  if (grab)   picked.add('Anbringen zusätzlicher Haltegriffe');
-  if (fold)   picked.add('Anbringen zusätzlicher Stützklappgriffe');
-  if (basin)  picked.add('Auswechseln eines Waschtisches');
-  if (tap)    picked.add('Einbau einer einhand-Waschtischbatterie');
-  if (thermo) picked.add('Austausch eines Thermostates');
-  if (seat)   picked.add('Einbau eines Klappsitzes');
+    if (shower) picked.add('Auswechseln des Duschsystems');
+    if (grab)   picked.add('Anbringen zusätzlicher Haltegriffe');
+    if (fold)   picked.add('Anbringen zusätzlicher Stützklappgriffe');
+    if (basin)  picked.add('Auswechseln eines Waschtisches');
+    if (tap)    picked.add('Einbau einer einhand-Waschtischbatterie');
+    if (thermo) picked.add('Austausch eines Thermostates');
+    if (seat)   picked.add('Einbau eines Klappsitzes');
 
-  return Array.from(picked).map(txt => ({
-    key: 'worknote',
-    label: `- ${txt}`,
-    amount: 0,
-  }));
-}
+    return Array.from(picked).map(txt => ({
+      key: 'worknote',
+      label: `- ${txt}`,
+      amount: 0,
+    }));
+  }
 
   async function computeMaterials(payload) {
     const dusch = payload?.duschwanne || {};
@@ -303,7 +307,13 @@ export default (ProductModel) => {
       );
       const baseSubtotal = round2(productsSubtotal + (services?.sum ?? 0));
 
-      const markupPct = extractMarkupPct(payload);
+      // Extract and enforce markup rules
+      let markupPct = extractMarkupPct(payload);
+      const payer = payload?.bereich?.payer || '';
+      if (payer === 'Selbstzahler') {
+        markupPct = 0.35; // enforce rule regardless of client input
+      }
+
       const markup = round2(baseSubtotal * (markupPct || 0));
       const travel = 0;
       const total = round2(baseSubtotal + markup + travel);
@@ -312,6 +322,7 @@ export default (ProductModel) => {
         items: (items || []).length,
         materialsSum: materials?.sum ?? 0,
         servicesSum: services?.sum ?? 0,
+        markupPct,
       });
 
       return { items, materials, productsSubtotal, services, subtotal: baseSubtotal, markupPct, markup, travel, total };
