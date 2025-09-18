@@ -531,10 +531,14 @@ async function getProduct(id){
 
   const catChecks = Array.from(document.querySelectorAll('#optCategories input[type="checkbox"]'));
   catChecks.forEach(cb => {
-    cb.addEventListener('change', () => { syncLabelChecked(cb); if (map[cb.id]) setShown(map[cb.id], cb.checked); });
-    syncLabelChecked(cb);
-    if (map[cb.id]) setShown(map[cb.id], cb.checked);
-  });
+const menuId = map[cb.id] || cb.id.replace(/^cat_/, 'menu_');
+cb.addEventListener('change', () => {
+syncLabelChecked(cb);
+setShown(menuId, cb.checked);
+});
+syncLabelChecked(cb);
+setShown(menuId, cb.checked);
+});
 
   // Product tiles highlight + Mengen toggle
   const allProductChecks = form.querySelectorAll('label.image-check > input[type="checkbox"][id^="opt_"]');
