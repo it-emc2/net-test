@@ -90,7 +90,7 @@ function mapData(body = {}, computed = {}) {
     Stadt: b.city || '',
     PLZ: b.postalCode || '',
     Datum: b.date || dayjs().format('YYYY-MM-DD'),
-    Ansprechpartner: body.ansprechpartner || (b.hasContactPerson || ''),
+    Ansprechpartner: (b.emc2_contact || '').trim(),
     Kundennummer: b.customerNumber || '',
     Greeting: b.salutation === 'Frau' ? 'Sehr geehrte Frau' : (b.salutation === 'Herr' ? 'Sehr geehrter Herr' : 'Guten Tag'),
     Angebotsnummer: body.offerNumber || 'ANG-0001',
