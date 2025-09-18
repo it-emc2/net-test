@@ -235,47 +235,48 @@ export default (ProductModel) => {
   }
 
   // Services (zones removed)
-  function computeServiceCosts(payload) {
-    const b = payload?.bereich || {};
-    const payer = b.payer === 'Kassenkunde' ? 'KK' : (b.payer === 'Selbstzahler' ? 'SZ' : '');
-    const distanceKm = Number(b.distanceKm || 0) || 0;
-    const laborHours = Number(b.laborHours || 0) || 0;
+ function computeServiceCosts(payload) {
+  const b = payload?.bereich || {};
+  const payer = b.payer === 'Kassenkunde' ? 'KK' : (b.payer === 'Selbstzahler' ? 'SZ' : '');
+  const oneWayKm = Number(b.distanceKm || 0) || 0; // user enters one-way distance
+  const roundTripKm = Math.max(0, oneWayKm * 2);   // bill both ways
+  const laborHours = Number(b.laborHours || 0) || 0;
 
-    const laborRateKK = 69.50;
-    const laborRateSZ = 59.50;
-    const kmRate = 0.70;
+  const laborRateKK = 69.50;
+  const laborRateSZ = 59.50;
+  const kmRate = 0.70;
 
-    const fahrzeugbereitstellung = 80.00;
-    const werkzeug = 7.50;
-    const beraeumung = 4.50; // Beräumung der Baustelle
+  const fahrzeugbereitstellung = 80.00;
+  const werkzeug = 7.50;
+  const beraeumung = 4.50;
 
-    const kilometerpauschale = round2(distanceKm * kmRate);
-    const laborRate = payer === 'KK' ? laborRateKK : (payer === 'SZ' ? laborRateSZ : 0);
-    const facharbeiter = round2(laborHours * 2 * laborRate);
+  const kilometerpauschale = round2(roundTripKm * kmRate);
+  const laborRate = payer === 'KK' ? laborRateKK : (payer === 'SZ' ? laborRateSZ : 0);
+  const facharbeiter = round2(laborHours * 2 * laborRate);
 
-    const lines = [];
-    lines.push({ key: 'fahrzeug',   label: '- 1,00 Stk Fahrzeugbereitstellung', amount: round2(fahrzeugbereitstellung) });
-    lines.push({ key: 'werkzeuge',  label: '- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen', amount: round2(werkzeug) });
-    lines.push({ key: 'beraeumung', label: '- 1,00 Stk Beräumung der Baustelle', amount: round2(beraeumung) });
-    if (distanceKm > 0) {
-      lines.push({ key: 'kilometer', label: `- ${distanceKm} km Kilometerpauschale`, amount: kilometerpauschale });
-    }
-    if (laborHours > 0 && laborRate > 0) {
-      lines.push({ key: 'facharbeiter', label: `- ${laborHours} Std × 2 Facharbeiter × ${laborRate.toFixed(2)} €`, amount: facharbeiter });
-    }
-
-    // Append zero-cost work notes
-    try {
-      const notes = computeWorkNotes(payload);
-      for (const n of notes) lines.push(n);
-    } catch (e) {
-      console.warn('[pricing] computeWorkNotes failed:', e?.message || e);
-    }
-
-    const posTitle = 'Auszuführende Arbeiten';
-    const sum = round2(lines.reduce((a, x) => a + (x.amount || 0), 0));
-    return { title: posTitle, lines, sum, payer, zoneLabel: '', distanceKm, laborHours, laborRate };
+  const lines = [];
+  lines.push({ key: 'fahrzeug',   label: '- 1,00 Stk Fahrzeugbereitstellung', amount: round2(fahrzeugbereitstellung) });
+  lines.push({ key: 'werkzeuge',  label: '- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen', amount: round2(werkzeug) });
+  lines.push({ key: 'beraeumung', label: '- 1,00 Stk Beräumung der Baustelle', amount: round2(beraeumung) });
+  if (roundTripKm > 0) {
+    lines.push({ key: 'kilometer', label: `- ${roundTripKm} km Kilometerpauschale (Hin- & Rückfahrt)`, amount: kilometerpauschale });
   }
+  if (laborHours > 0 && laborRate > 0) {
+    lines.push({ key: 'facharbeiter', label: `- ${laborHours} Std × 2 Facharbeiter × ${laborRate.toFixed(2)} €`, amount: facharbeiter });
+  }
+
+  // Append zero-cost work notes
+  try {
+    const notes = computeWorkNotes(payload);
+    for (const n of notes) lines.push(n);
+  } catch (e) {
+    console.warn('[pricing] computeWorkNotes failed:', e?.message || e);
+  }
+
+  const posTitle = 'Auszuführende Arbeiten';
+  const sum = round2(lines.reduce((a, x) => a + (x.amount || 0), 0));
+  return { title: posTitle, lines, sum, payer, zoneLabel: '', distanceKm: roundTripKm, laborHours, laborRate };
+}
 
   return {
     computePrices: async (payload) => {
