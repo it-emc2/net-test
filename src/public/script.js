@@ -413,6 +413,31 @@ document.body.addEventListener('click', e=>{
   });
 })();
 
+(function initRoundTripPreview(){
+  const input = document.getElementById('distanceKm');
+  const out = document.getElementById('roundTripPreview');
+
+  function parseKm(v){
+    // allow commas or dots
+    const n = Number(String(v || '').replace(',', '.'));
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  }
+  function fmt(n){
+    // show as integer if whole, otherwise one decimal
+    return Number.isInteger(n) ? String(n) : n.toFixed(1);
+  }
+  function update(){
+    if (!input || !out) return;
+    const oneWay = parseKm(input.value);
+    const rt = oneWay * 2;
+    out.textContent = `= ${fmt(rt)} km (Hin- & Rückfahrt)`;
+  }
+
+  input?.addEventListener('input', update);
+  input?.addEventListener('change', update);
+  update(); // initial
+})();
+
 /* ========== PRICE FETCH (single endpoint) ========== */
 const productCache = new Map();
 async function getProduct(id){
