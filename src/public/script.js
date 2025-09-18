@@ -571,6 +571,54 @@ async function getProduct(id){
   recalc();
 })();
 
+(function initV3VHint(){
+  const f = document.getElementById('form-wandverkleidung'); if (!f) return;
+
+  const cb997 = document.getElementById('wv997');
+  const cb1497 = document.getElementById('wv1497');
+  const qty997 = document.getElementById('wvQty997');
+  const qty1497 = document.getElementById('wvQty1497');
+
+  const endProfSection = document.getElementById('wvEndProfileSection');
+  if (!endProfSection) return;
+
+  // Create or reuse hint element
+  let hint = document.getElementById('v3vHint');
+  if (!hint){
+    hint = document.createElement('div');
+    hint.id = 'v3vHint';
+    hint.className = 'muted';
+    hint.style.marginTop = '6px';
+    hint.style.color = 'var(--muted)';
+    hint.style.fontSize = '0.95rem';
+    endProfSection.appendChild(hint);
+  }
+
+  function n(v){ const x = Number(v); return Number.isFinite(x) ? x : 0; }
+  function calc(){
+    const s = cb997?.checked ? n(qty997?.value) : 0;
+    const l = cb1497?.checked ? n(qty1497?.value) : 0;
+    const total = s + l;
+    if (total >= 2){
+      const qV3V = total - 1;
+      hint.textContent = `Hinweis: Verbindungsprofile (V3V) werden automatisch berücksichtigt: bei ${total} Platten = ${qV3V} Verbindungsprofil(e) (Anzahl Platten − 1).`;
+      hint.style.display = '';
+    } else {
+      hint.textContent = '';
+      hint.style.display = 'none';
+    }
+  }
+
+  // Wire up changes
+  [cb997, cb1497, qty997, qty1497].forEach(el => {
+    el?.addEventListener('change', calc);
+    el?.addEventListener('input', calc);
+  });
+
+  // Initial
+  calc();
+})();
+
 (function initWVKindaToggle(){
   const form = document.getElementById('form-wandverkleidung'); if (!form) return;
 

@@ -8,9 +8,8 @@ const MONGODB_URI = process.env.MONGODB_URI;
 const MONGODB_DB  = process.env.MONGODB_DB || 'KonfiguratorDB';
 
 const products = [
-  // Batch 1
   { productId: 'V22WS1R', name: 'Wannenset individual 2.2 m. Wandhalter Schlauch u. HB 1-str. rund verchr. VIGOUR', price: 39.38 },
-  { productId: 'TEMPDSFL210U', name: 'Duschsystem Tempesta Flex verchromt m. Umstellung KB 210mm Brausegarn. Grohe', price: 165.83 },
+  { productId: 'TEMPDSU250', name: 'Duschsystem Tempesta Flex verchromt m. Umstellung KB 210mm Brausegarn. Grohe', price: 165.83 },
   { productId: 'V22BG903R', name: 'Brausegarnitur individ. 2.2 m. Stange 90cm Schlauch u. HB 3-str. rund verchr. VIGOUR', price: 66.55 },
   { productId: 'DEDS2503E', name: 'Duschsystem derby Thermostat m KB 250mm HB 3.2 3-fach edge u. Schl. verchr. VIG (verchromt)', price: 278.40 },
   { productId: 'CLTB', name: 'AP-Brause-Thermostat clivia, ohne Brausegarnitur', price: 95.76 },
@@ -30,14 +29,12 @@ const products = [
   { productId: 'RSL', name: 'Waschtisch-Röhrensiphon 1 1/4" G mit Verstellrohr 120mm TRINNITY', price: 10.40 },
   { productId: 'WESUNIFLWT', name: 'Wandeinbausifon Geberit 11/4" x 32mm f. Waschtisch Abg. horiz. 50/56mm verchromt', price: 81.95 },
   { productId: 'EV', name: 'SCHELL Eckventil COMFORT regulierbar, ASAG, 1/2", chrom', price: 3.61 },
-  // Batch 2
   { productId: 'V3WVK09', name: 'Wandverkleidung 3.0 Alu 997x 2550mm Stein beige VIGOUR Standardfarbe: weiß', price: 168.00 },
   { productId: 'V3WV09', name: 'Wandverkleidung 3.0 Alu 1497x 2550mm Marmor weiß VIGOUR Standardfarbe: weiß', price: 263.76 },
   { productId: 'TRWDSET5', name: 'TRINNITY Wandabdichtung BASIS-Set 5 qm DW bis 100 x 100 / BW bis 180 x 80 cm', price: 152.52 },
   { productId: 'V4RKIT', name: 'Wandverkleidungsklebstoff 3.0/4.0 für Wandverkleidungspaneel VIGOUR', price: 21.54 },
   { productId: 'V3A', name: 'Abschlussprofil 3.0 255 cm silber eloxiert VIGOUR', price: 29.51 },
   { productId: 'V4RPKIT', name: '3.0 / 4.0 Profilklebstoff für Wandverkleidungsprofil VIGOUR', price: 21.54 },
-  // Batch 3
   { productId: 'SLA180100', name: 'Duschwanne Slate 180x100x3cm Mineralguss weiss Nuovvo', price: 556.92 },
   { productId: 'SLA160100', name: 'Duschwanne Slate 160x100x3cm Mineralguss weiss Nuovvo', price: 513.45 },
   { productId: 'SLA140100', name: 'Duschwanne Slate 140x100x3cm Mineralguss weiss Nuovvo', price: 464.31 },
@@ -53,7 +50,9 @@ const products = [
   { productId: 'V5FB02', name: 'Fußboden individ.5.0 1500x200mm Lava beige (8 Paneele=2,4m/2) VIGOUR', price: 159.84 },
   { productId: 'V4FK600', name: 'Flächenkleber 3.0/4.0/5.0 Fußboden und Wandverkleidungspaneele 600ml', price: 16.56 },
   { productId: 'TRBDSET7', name: 'TRINNITY Bodenabdichtung BASIS-Set 7 qm Dichtb., Sockelb., Außen- + Innenecke', price: 278.38 },
-   { productId: 'V4FK600', name: 'Flächenkleber 3.0/4.0/5.0 Fußboden und Wandverkleidungspaneele 600ml VIGOUR', price: 16.56 },
+  { productId: 'V4FK600', name: 'Flächenkleber 3.0/4.0/5.0 Fußboden und Wandverkleidungspaneele 600ml VIGOUR', price: 16.56 },
+  { productId: 'V3V', name: 'Verbindungsprofil 3.0 255 cm silber eloxiert VIGOUR', price: 29.51 }
+
 ];
 
 (async () => {
