@@ -461,7 +461,8 @@ async function getProduct(id){
       if (area) area.value='';
       f.querySelectorAll('input[name="flooringProduct[]"],input[name="floorAdhesive[]"],input[name="floorSealing[]"]').forEach(i=>{ i.checked = false; highlightTileForInput(i,false); });
       if (liveAdh) liveAdh.textContent=''; if (liveSeal) liveSeal.textContent='';
-      if (adhesivePriceEl) adhesivePriceEl.textContent='0'; if (sealingPriceEl) sealingPriceEl.textContent='0'; if (panelsPriceEl) panelsPriceEl.textContent='0';
+      if (adhesivePriceEl) adhesivePriceEl.textContent='0'; if (sealingPriceEl) se
+alingPriceEl.textContent='0'; if (panelsPriceEl) panelsPriceEl.textContent='0';
       unitAdh = unitSeal = 0;
       computed.areaM2 = 0; computed.adhesive = {productId:'V4FK600',packs:0,unit:0,total:0}; computed.sealing = {productId:'TRBDSET7',sets:0,unit:0,total:0};
     }
@@ -835,14 +836,14 @@ async function getProduct(id){
 
   const catChecks = Array.from(document.querySelectorAll('#optCategories input[type="checkbox"]'));
   catChecks.forEach(cb => {
-const menuId = map[cb.id] || cb.id.replace(/^cat_/, 'menu_');
-cb.addEventListener('change', () => {
-syncLabelChecked(cb);
-setShown(menuId, cb.checked);
-});
-syncLabelChecked(cb);
-setShown(menuId, cb.checked);
-});
+    const menuId = map[cb.id] || cb.id.replace(/^cat_/, 'menu_');
+    cb.addEventListener('change', () => {
+      syncLabelChecked(cb);
+      setShown(menuId, cb.checked);
+    });
+    syncLabelChecked(cb);
+    setShown(menuId, cb.checked);
+  });
 
   // Product tiles highlight + Mengen toggle
   const allProductChecks = form.querySelectorAll('label.image-check > input[type="checkbox"][id^="opt_"]');
@@ -1015,15 +1016,15 @@ setShown(menuId, cb.checked);
   if (getCurrentStep() === 'kosten') render();
 })();
 
-
-
 /* ========== PDF/DOCX + API TEST BUTTONS ========== */
+
 async function requestPdfAndDownload(payload, filename='Anfrage.pdf'){
   const resp = await fetch('/pdf', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
   if (!resp.ok){ const txt = await resp.text().catch(()=> ''); throw new Error(`PDF Fehler (${resp.status}): ${txt}`); }
   const blob = await resp.blob(); const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
+
 document.getElementById('makePdf')?.addEventListener('click', async ()=>{
   // Require Bereich to be valid before generating preview document
   if (!requireBereichValid()) { location.hash='bereich'; return; }
@@ -1067,4 +1068,41 @@ document.getElementById('sendJson')?.addEventListener('click', async ()=>{
     const data = await r.json(); if (!r.ok) throw new Error(data.error || r.status);
     show({ message:'Submission gespeichert', ...data }, true);
   }catch(e){ show({error:String(e)}, false); }
+});
+
+/* ========== NEW: Materialübersicht (DOCX) DOWNLOAD ========== */
+
+// small reusable docx download helper
+async function downloadDocx(url, body, filename) {
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => '');
+    throw new Error(`Download failed: ${resp.status} ${txt}`);
+  }
+  const blob = await resp.blob();
+  const urlObj = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = urlObj;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(urlObj);
+}
+
+// wire the new button (make sure you added it in HTML with id="downloadMaterialOverview")
+document.getElementById('downloadMaterialOverview')?.addEventListener('click', async () => {
+  if (!requireBereichValid()) { location.hash = 'bereich'; return; }
+  try {
+    const payload = buildPayload();
+    await downloadDocx('/api/docx/material-overview', payload, `Materialuebersicht_${Date.now()}.docx`);
+  } catch (e) {
+    console.error(e);
+    show({ error: String(e) }, false);
+    alert('Materialübersicht konnte nicht erstellt werden.');
+  }
 });
