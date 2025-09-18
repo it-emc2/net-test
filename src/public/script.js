@@ -16,7 +16,7 @@ function applyTheme(mode){
 themeToggle?.addEventListener('change',()=>applyTheme(themeToggle.checked?'dark':'light'));
 
 /* ========== NAVIGATION ========== */
-const steps = ['bereich','duschwanne','wandverkleidung','optional','rabatt' ,'zusammenfassung'];
+const steps = ['bereich','duschwanne','wandverkleidung','duschabtrennung', 'optional','rabatt' ,'zusammenfassung'];
 const pages = Object.fromEntries(steps.map(s => [s, document.getElementById('page-'+s)]));
 const nav = document.getElementById('stepsNav');
 
@@ -45,6 +45,7 @@ function buildPayload(){
     bereich: formToObject(document.getElementById('form-bereich')),
     duschwanne: { ...formToObject(document.getElementById('form-duschwanne')), computed: window.__DW_COMPUTED__ || {} },
     wandverkleidung: formToObject(document.getElementById('form-wandverkleidung')),
+    duschabtrennung: formToObject(document.getElementById('form-duschabtrennung')),
     optional: formToObject(document.getElementById('form-optional')),
     rabatt: formToObject(document.getElementById('form-rabatt')) 
   };
@@ -119,6 +120,11 @@ const f = document.getElementById('form-rabatt'); if (!f) return true;
 return f.reportValidity();
 }
 
+function validateDuschabtrennung(){
+const f = document.getElementById('form-duschabtrennung'); if (!f) return true;
+return f.reportValidity();
+}
+
 /* Focus helper for Bereich conditional errors (defined in initBereichErrorHints) */
 function focusFirstBereichConditionalError(){
   if (typeof window.__bereichFocusFirstError__ === 'function'){
@@ -149,6 +155,7 @@ document.body.addEventListener('click', e=>{
     const ok = step==='bereich' ? requireBereichValid() :
                step==='duschwanne' ? validateDuschwanne() :
                step==='wandverkleidung' ? validateWandverkleidung() :
+                step==='duschabtrennung' ? validateDuschabtrennung() :
                step==='optional' ? validateOptional() : true;
               step==='rabatt' ? validateRabatt() : true;
     if (!ok) return; setStep(steps[Math.min(steps.length-1, idx+1)]);

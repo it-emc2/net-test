@@ -648,6 +648,9 @@
         ><div class="dot"></div>
         <span>Wandverkleidung</span></a
       >
+
+      <a class="step" data-step="duschabtrennung" href="#duschabtrennung"><div class="dot"></div><span>Kosten Duschabtrennung</span></a>
+
       <a class="step" data-step="optional" href="#optional"
         ><div class="dot"></div>
         <span>Optional</span></a
@@ -1888,6 +1891,77 @@
           </div>
         </form>
       </section>
+
+            <!-- Kosten Duschabtrennung -->
+
+      <section class="card page" id="page-duschabtrennung" hidden>
+
+<h2 style="margin:0 0 12px;">Kosten Duschabtrennung</h2>
+
+<form id="form-duschabtrennung" autocomplete="on">
+
+<div class="field">
+
+<label class="req">Art der Duschabtrennung</label>
+
+<div class="radio-group" role="radiogroup" aria-label="Duschabtrennung">
+
+<label class="radio-pill">
+
+<input type="radio" name="daType" value="Schiebetür" required />
+
+<span class="circle"></span><span>Schiebetür</span>
+
+</label>
+
+<label class="radio-pill">
+
+<input type="radio" name="daType" value="Drehfalttür" required />
+
+<span class="circle"></span><span>Drehfalttür</span>
+
+</label>
+
+<label class="radio-pill">
+
+<input type="radio" name="daType" value="Walk-In" required />
+
+<span class="circle"></span><span>Walk-In</span>
+
+</label>
+
+</div>
+
+</div>
+
+<div class="field" style="max-width:260px;">
+  <label for="daBreite" class="req">Breite (cm)</label>
+  <input id="daBreite" name="daBreite" type="number" min="40" max="240" step="1" placeholder="z. B. 120" required />
+</div>
+
+<div class="field" style="max-width:260px;">
+  <label for="daHoehe">Höhe (cm)</label>
+  <input id="daHoehe" name="daHoehe" type="number" min="150" max="250" step="1" placeholder="z. B. 200" />
+</div>
+
+<div class="field" style="max-width:260px;">
+  <label for="daPreis">Pauschalpreis EUR (optional)</label>
+  <input id="daPreis" name="daPreis" type="number" min="0" step="0.01" placeholder="z. B. 799" />
+</div>
+
+<div class="field full" style="max-width:720px;">
+  <label for="daHinweis">Hinweis / Hersteller (optional)</label>
+  <input id="daHinweis" name="daHinweis" placeholder="z. B. Hersteller/Serie, Glasart, Sondermaß ..." />
+</div>
+
+<div class="actions full">
+  <button type="button" data-nav="prev" class="secondary">Zurück</button>
+  <button type="button" data-nav="next">Weiter</button>
+</div>
+
+</form>
+
+</section>
 
       <!-- Optional -->
       <section class="card page" id="page-optional" hidden>
