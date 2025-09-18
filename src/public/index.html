@@ -879,42 +879,128 @@
           </div>
 
           <div id="offerRequiredDetails" class="full" style="margin-top: 16px">
-  <details open>
-    <summary class="section-header" style="cursor: pointer">
-      Angebot-Pflichtdetails
-    </summary>
-    <div style="display: grid; grid-template-columns: 1fr; gap: 14px; padding: 8px 0;">
-      <div>
-        <label for="emc2_contact" class="req">Name des Ansprechpartners von emc2</label>
-        <input id="emc2_contact" name="emc2_contact" placeholder="z. B. Max Mustermann" required />
-      </div>
+            <details open>
+              <summary class="section-header" style="cursor: pointer">
+                Angebot-Pflichtdetails
+              </summary>
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 1fr;
+                  gap: 14px;
+                  padding: 8px 0;
+                "
+              >
+                <div>
+                  <label for="emc2_contact" class="req"
+                    >Name des Ansprechpartners von emc2</label
+                  >
+                  <input
+                    id="emc2_contact"
+                    name="emc2_contact"
+                    placeholder="z. B. Max Mustermann"
+                    required
+                  />
+                </div>
+                <div>
+                  <label class="req"
+                    >Ist der Kunde Selbstzahler oder Kassenkunde?</label
+                  >
+                  <div
+                    id="payerType"
+                    class="payer-grid"
+                    role="radiogroup"
+                    aria-label="Zahlertyp"
+                  >
+                    <label class="payer-card">
+                      <input type="radio" name="payer" value="Selbstzahler" />
+                      <div class="payer-card-inner">
+                        <div class="icon">
+                          <svg
+                            viewBox="0 0 24 24"
+                            width="64"
+                            height="64"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.6"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"></path>
+                            <path d="M6 21v-2a6 6 0 0 1 6-6"></path>
+                            <path d="M16 21v-2a6 6 0 0 0-3-5.197"></path>
+                          </svg>
+                        </div>
+                        <div class="payer-label">Selbstzahler</div>
+                        <div class="payer-radio"><span></span></div>
+                      </div>
+                    </label>
+                    <label class="payer-card">
+                      <input type="radio" name="payer" value="Kassenkunde" />
+                      <div class="payer-card-inner">
+                        <div class="icon">
+                          <svg
+                            viewBox="0 0 24 24"
+                            width="64"
+                            height="64"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.6"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <rect
+                              x="5"
+                              y="3"
+                              width="14"
+                              height="14"
+                              rx="2"
+                            ></rect>
+                            <path d="M12 6v8M8 10h8"></path>
+                            <path d="M3 21h18"></path>
+                          </svg>
+                        </div>
+                        <div class="payer-label">Kassenkunde</div>
+                        <div class="payer-radio"><span></span></div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
 
-      <div>
-        <label class="req">Ist der Kunde Selbstzahler oder Kassenkunde?</label>
-        <div id="payerType" class="payer-grid" role="radiogroup" aria-label="Zahlertyp">
-          <label class="payer-card">
-            <input type="radio" name="payer" value="Selbstzahler" />
-            <div class="payer-card-inner">...</div>
-          </label>
-          <label class="payer-card">
-            <input type="radio" name="payer" value="Kassenkunde" />
-            <div class="payer-card-inner">...</div>
-          </label>
-        </div>
-      </div>
-
-      <div id="aufschlagSection" class="aufschlag-panel">
-        <label class="req">Wählen Sie den Aufschlag?</label>
-        <div class="radio-group vertical">
-          <label class="radio-pill"><input type="radio" name="aufschlag" value="35%" /><span class="circle"></span><span>35%</span></label>
-          <label class="radio-pill"><input type="radio" name="aufschlag" value="40%" /><span class="circle"></span><span>40%</span></label>
-          <label class="radio-pill"><input type="radio" name="aufschlag" value="45%" /><span class="circle"></span><span>45%</span></label>
-          <label class="radio-pill"><input type="radio" name="aufschlag" value="50%" /><span class="circle"></span><span>50%</span></label>
-        </div>
-      </div>
-    </div>
-  </details>
-</div>
+                <div id="aufschlagSection" class="aufschlag-panel">
+                  <label class="req">Wählen Sie den Aufschlag?</label>
+                  <div class="radio-group vertical">
+                    <label class="radio-pill"
+                      ><input type="radio" name="aufschlag" value="35%" /><span
+                        class="circle"
+                      ></span
+                      ><span>35%</span></label
+                    >
+                    <label class="radio-pill"
+                      ><input type="radio" name="aufschlag" value="40%" /><span
+                        class="circle"
+                      ></span
+                      ><span>40%</span></label
+                    >
+                    <label class="radio-pill"
+                      ><input type="radio" name="aufschlag" value="45%" /><span
+                        class="circle"
+                      ></span
+                      ><span>45%</span></label
+                    >
+                    <label class="radio-pill"
+                      ><input type="radio" name="aufschlag" value="50%" /><span
+                        class="circle"
+                      ></span
+                      ><span>50%</span></label
+                    >
+                  </div>
+                </div>
+              </div>
+            </details>
+          </div>
 
           <div id="travelSection" class="full" style="margin-top: 16px">
             <details open>
