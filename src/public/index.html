@@ -702,6 +702,213 @@ label.image-radio.is-checked .caption,label.image-check.is-checked .caption{colo
 
         <!-- Optional submenus... (unchanged content from prior version) -->
 
+        <!-- MENUS FOR OPTIONAL CATEGORIES -->
+
+<!-- Duschsystem -->
+<div id="menu_SHOWER" class="full field" hidden aria-hidden="true">
+  <div class="subheader">Duschsystem</div>
+  <div style="display:flex; gap:14px; flex-wrap:wrap;">
+    <label class="image-check">
+      <input type="checkbox" id="opt_DS_HEAD" name="showerItems[]" value="Duschkopf Set" />
+      <span class="img-wrap"><img alt="Duschkopf Set" /></span>
+      <span class="caption">Duschkopf Set</span>
+    </label>
+    <div id="qty_DS_HEAD_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
+      <label for="qty_DS_HEAD" class="req">Menge</label>
+      <input id="qty_DS_HEAD" name="qty_DS_HEAD" type="number" min="1" step="1" placeholder="1" />
+    </div>
+
+    <label class="image-check">
+      <input type="checkbox" id="opt_DS_BAR" name="showerItems[]" value="Duschstange Set" />
+      <span class="img-wrap"><img alt="Duschstange Set" /></span>
+      <span class="caption">Duschstange Set</span>
+    </label>
+    <div id="qty_DS_BAR_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
+      <label for="qty_DS_BAR" class="req">Menge</label>
+      <input id="qty_DS_BAR" name="qty_DS_BAR" type="number" min="1" step="1" placeholder="1" />
+    </div>
+  </div>
+</div>
+
+<!-- Haltegriffe -->
+<div id="menu_GRAB" class="full field" hidden aria-hidden="true">
+  <div class="subheader">Haltegriffe</div>
+  <div style="display:flex; gap:14px; flex-wrap:wrap;">
+    <label class="image-check">
+      <input type="checkbox" id="opt_GRAB_30" name="grabItems[]" value="Haltegriff 30 cm" />
+      <span class="img-wrap"><img alt="Haltegriff 30 cm" /></span>
+      <span class="caption">Haltegriff 30 cm</span>
+    </label>
+    <div id="qty_GRAB_30_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
+      <label for="qty_GRAB_30" class="req">Menge</label>
+      <input id="qty_GRAB_30" name="qty_GRAB_30" type="number" min="1" step="1" placeholder="1" />
+    </div>
+
+    <label class="image-check">
+      <input type="checkbox" id="opt_GRAB_60" name="grabItems[]" value="Haltegriff 60 cm" />
+      <span class="img-wrap"><img alt="Haltegriff 60 cm" /></span>
+      <span class="caption">Haltegriff 60 cm</span>
+    </label>
+    <div id="qty_GRAB_60_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
+      <label for="qty_GRAB_60" class="req">Menge</label>
+      <input id="qty_GRAB_60" name="qty_GRAB_60" type="number" min="1" step="1" placeholder="1" />
+    </div>
+  </div>
+</div>
+
+<!-- Stützklappgriffe -->
+<div id="menu_FOLD" class="full field" hidden aria-hidden="true">
+  <div class="subheader">Stützklappgriffe</div>
+  <div style="display:flex; gap:14px; flex-wrap:wrap;">
+    <label class="image-check">
+      <input type="checkbox" id="opt_FOLD_LEFT" name="foldItems[]" value="Stützklappgriff links" />
+      <span class="img-wrap"><img alt="Stützklappgriff links" /></span>
+      <span class="caption">Stützklappgriff links</span>
+    </label>
+    <div id="qty_FOLD_LEFT_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
+      <label for="qty_FOLD_LEFT" class="req">Menge</label>
+      <input id="qty_FOLD_LEFT" name="qty_FOLD_LEFT" type="number" min="1" step="1" placeholder="1" />
+    </div>
+
+    <label class="image-check">
+      <input type="checkbox" id="opt_FOLD_RIGHT" name="foldItems[]" value="Stützklappgriff rechts" />
+      <span class="img-wrap"><img alt="Stützklappgriff rechts" /></span>
+      <span class="caption">Stützklappgriff rechts</span>
+    </label>
+    <div id="qty_FOLD_RIGHT_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
+      <label for="qty_FOLD_RIGHT" class="req">Menge</label>
+      <input id="qty_FOLD_RIGHT" name="qty_FOLD_RIGHT" type="number" min="1" step="1" placeholder="1" />
+    </div>
+  </div>
+</div>
+
+<!-- Waschtisch (Basin) -->
+<div id="menu_BASIN" class="full field" hidden aria-hidden="true">
+  <div class="subheader">Waschtisch</div>
+  <div style="display:flex; gap:14px; flex-wrap:wrap;">
+    <!-- The basin that triggers required accessories -->
+    <label class="image-check">
+      <input type="checkbox" id="opt_CL60" name="basinItems[]" value="Waschtisch CL60" />
+      <span class="img-wrap"><img alt="Waschtisch CL60" /></span>
+      <span class="caption">Waschtisch CL60</span>
+    </label>
+    <div id="qty_CL60_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
+      <label for="qty_CL60" class="req">Menge</label>
+      <input id="qty_CL60" name="qty_CL60" type="number" min="1" step="1" placeholder="1" />
+    </div>
+  </div>
+
+  <!-- Basin required wrap shown by JS when CL60 selected -->
+  <div id="basinRequiredWrap" class="muted" hidden aria-hidden="true" style="margin-top:10px;">
+    <div class="subheader">Erforderliche Zubehörteile für CL60</div>
+    <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:8px;">
+      <label class="image-check">
+        <input type="checkbox" id="opt_WTBF" name="basinReq[]" value="Wandträger WTBF" />
+        <span class="img-wrap"><img alt="Wandträger WTBF" /></span>
+        <span class="caption">Wandträger WTBF</span>
+      </label>
+      <div id="qty_WTBF_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
+        <label for="qty_WTBF" class="req">Menge</label>
+        <input id="qty_WTBF" name="qty_WTBF" type="number" min="1" step="1" placeholder="1" />
+      </div>
+
+      <label class="image-check">
+        <input type="checkbox" id="opt_RSL" name="basinReq[]" value="Rückschlagventil RSL" />
+        <span class="img-wrap"><img alt="Rückschlagventil RSL" /></span>
+        <span class="caption">Rückschlagventil RSL</span>
+      </label>
+      <div id="qty_RSL_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
+        <label for="qty_RSL" class="req">Menge</label>
+        <input id="qty_RSL" name="qty_RSL" type="number" min="1" step="1" placeholder="1" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Optional: Loose accessories block used by your JS -->
+  <div class="muted" style="margin-top:10px;">
+    <div class="subheader">Lose Zubehörteile</div>
+    <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:8px;">
+      <label class="image-check">
+        <input type="checkbox" id="opt_WTBF__loose" name="basinLoose[]" value="WTBF lose" />
+        <span class="img-wrap"><img alt="WTBF lose" /></span>
+        <span class="caption">WTBF lose</span>
+      </label>
+      <div id="qty_WTBF__loose_wrap" class="field" hidden aria-hidden="true" style="max-width:180px;">
+        <label for="qty_WTBF__loose" class="req">Menge</label>
+        <input id="qty_WTBF__loose" name="qty_WTBF__loose" type="number" min="1" step="1" placeholder="1" />
+      </div>
+
+      <label class="image-check">
+        <input type="checkbox" id="opt_RSL__loose" name="basinLoose[]" value="RSL lose" />
+        <span class="img-wrap"><img alt="RSL lose" /></span>
+        <span class="caption">RSL lose</span>
+      </label>
+      <div id="qty_RSL__loose_wrap" class="field" hidden aria-hidden="true" style="max-width:180px;">
+        <label for="qty_RSL__loose" class="req">Menge</label>
+        <input id="qty_RSL__loose" name="qty_RSL__loose" type="number" min="1" step="1" placeholder="1" />
+      </div>
+
+      <label class="image-check">
+        <input type="checkbox" id="opt_EV__loose" name="basinLoose[]" value="Exzenterventil lose" />
+        <span class="img-wrap"><img alt="Exzenterventil lose" /></span>
+        <span class="caption">Exzenterventil lose</span>
+      </label>
+      <div id="qty_EV__loose_wrap" class="field" hidden aria-hidden="true" style="max-width:180px;">
+        <label for="qty_EV__loose" class="req">Menge</label>
+        <input id="qty_EV__loose" name="qty_EV__loose" type="number" min="1" step="1" placeholder="1" />
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Waschtischarmatur -->
+<div id="menu_BASIN_TAP" class="full field" hidden aria-hidden="true">
+  <div class="subheader">Waschtischarmatur</div>
+  <div style="display:flex; gap:14px; flex-wrap:wrap;">
+    <label class="image-check">
+      <input type="checkbox" id="opt_TAP_STD" name="basinTapItems[]" value="Einhand-Waschtischbatterie Standard" />
+      <span class="img-wrap"><img alt="Einhand-Waschtischbatterie Standard" /></span>
+      <span class="caption">Einhand-Waschtischbatterie Standard</span>
+    </label>
+    <div id="qty_TAP_STD_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
+      <label for="qty_TAP_STD" class="req">Menge</label>
+      <input id="qty_TAP_STD" name="qty_TAP_STD" type="number" min="1" step="1" placeholder="1" />
+    </div>
+  </div>
+</div>
+
+<!-- Thermostat -->
+<div id="menu_THERMO" class="full field" hidden aria-hidden="true">
+  <div class="subheader">Thermostat</div>
+  <div style="display:flex; gap:14px; flex-wrap:wrap;">
+    <label class="image-check">
+      <input type="checkbox" id="opt_THERM_STD" name="thermoItems[]" value="Thermostat Standard" />
+      <span class="img-wrap"><img alt="Thermostat Standard" /></span>
+      <span class="caption">Thermostat Standard</span>
+    </label>
+    <div id="qty_THERM_STD_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
+      <label for="qty_THERM_STD" class="req">Menge</label>
+      <input id="qty_THERM_STD" name="qty_THERM_STD" type="number" min="1" step="1" placeholder="1" />
+    </div>
+  </div>
+</div>
+
+<!-- Klappsitz -->
+<div id="menu_SEAT" class="full field" hidden aria-hidden="true">
+  <div class="subheader">Klappsitz</div>
+  <div style="display:flex; gap:14px; flex-wrap:wrap;">
+    <label class="image-check">
+      <input type="checkbox" id="opt_SEAT_STD" name="seatItems[]" value="Klappsitz Standard" />
+      <span class="img-wrap"><img alt="Klappsitz Standard" /></span>
+      <span class="caption">Klappsitz Standard</span>
+    </label>
+    <div id="qty_SEAT_STD_wrap" class="field" hidden aria-hidden="true" style="max-width:200px;">
+      <label for="qty_SEAT_STD" class="req">Menge</label>
+      <input id="qty_SEAT_STD" name="qty_SEAT_STD" type="number" min="1" step="1" placeholder="1" />
+    </div>
+  </div>
+</div>
+
         <div class="actions full">
           <button type="button" data-nav="prev" class="secondary">Zurück</button>
           <button type="button" data-nav="next">Weiter</button>
