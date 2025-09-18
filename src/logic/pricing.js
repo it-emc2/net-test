@@ -56,94 +56,67 @@ export default (ProductModel) => {
   };
 
   // Zero-cost "Auszuführende Arbeiten" lines to always print in DOCX
-  function computeWorkNotes(payload) {
-    const opt = payload?.optional || {};
-    const kind = payload?.wandverkleidung?.wvKind || '';
+ // Build zero-cost "work notes" that must be printed in DOCX
+function computeWorkNotes(payload) {
+  const opt = payload?.optional || {};
+  const kind = payload?.wandverkleidung?.wvKind || '';
 
-    const picked = new Set();
+  const picked = new Set();
 
-    // Wandverkleidung tasks
-    if (kind === 'Fehlstellen') picked.add('Schließen der Fehlstellen');
-    if (kind === 'Deckenhoch') picked.add('Verkleidung Deckenhoch im Dusch/ Wannenbereich');
+  // Wandverkleidung tasks
+  if (kind === 'Fehlstellen') picked.add('Schließen der Fehlstellen');
+  if (kind === 'Deckenhoch') picked.add('Verkleidung Deckenhoch im Dusch/ Wannenbereich');
 
-    // Helper: treat boolean true or quantity > 0 as "chosen"
-    const chosen = (flag, qty) => {
-      const f = typeof flag === 'string' ? flag === 'true' : Boolean(flag);
-      const q = Number(qty);
-      return f || (Number.isFinite(q) && q > 0);
-    };
-
-    // Optional tasks (support multiple likely key variants)
-    // 1) Auswechseln des Duschsystems
-    if (
-      chosen(opt.optShower, opt.qty_Shower) ||
-      chosen(opt.opt_DUSCHSYSTEM, opt.qty_DUSCHSYSTEM) ||
-      chosen(opt.opt_shower, opt.qty_shower)
-    ) {
-      picked.add('Auswechseln des Duschsystems');
+  // Helper: true if array with length > 0 OR qty > 0 OR boolean true/"true"/"1"
+  const chosen = (arrOrFlag, qty) => {
+    if (Array.isArray(arrOrFlag) && arrOrFlag.length > 0) return true;
+    const q = Number(qty);
+    if (Number.isFinite(q) && q > 0) return true;
+    if (arrOrFlag === true) return true;
+    if (typeof arrOrFlag === 'string') {
+      const s = arrOrFlag.trim().toLowerCase();
+      if (s === 'true' || s === '1' || s === 'on' || s === 'yes') return true;
     }
+    return false;
+  };
 
-    // 2) Anbringen zusätzlicher Haltegriffe
-    if (
-      chosen(opt.optGrab, opt.qty_Grab) ||
-      chosen(opt.opt_HALTEGRIFF, opt.qty_HALTEGRIFF) ||
-      chosen(opt.opt_grab, opt.qty_grab)
-    ) {
-      picked.add('Anbringen zusätzlicher Haltegriffe');
-    }
+  // EXACT keys from your HTML (arrays):
+  // - optShower[]        -> Auswechseln des Duschsystems
+  // - optGrab[]          -> Anbringen zusätzlicher Haltegriffe
+  // - optFold[]          -> Anbringen zusätzlicher Stützklappgriffe
+  // - optBasin[]         -> Auswechseln eines Waschtisches
+  // - optBasinTap[]      -> Einbau einer einhand-Waschtischbatterie
+  // - optThermo[]        -> Austausch eines Thermostates
+  // - optSeat[]          -> Einbau eines Klappsitzes
 
-    // 3) Anbringen zusätzlicher Stützklappgriffe
-    if (
-      chosen(opt.optFold, opt.qty_Fold) ||
-      chosen(opt.opt_STUETZKLAPP, opt.qty_STUETZKLAPP) ||
-      chosen(opt.opt_fold, opt.qty_fold)
-    ) {
-      picked.add('Anbringen zusätzlicher Stützklappgriffe');
-    }
-
-    // 4) Auswechseln eines Waschtisches
-    if (
-      chosen(opt.optBasin, opt.qty_Basin) ||
-      chosen(opt.opt_CL60, opt.qty_CL60) || // alias used elsewhere
-      chosen(opt.opt_basin, opt.qty_basin)
-    ) {
-      picked.add('Auswechseln eines Waschtisches');
-    }
-
-    // 5) Einbau einer einhand-Waschtischbatterie
-    if (
-      chosen(opt.optBasinTap, opt.qty_BasinTap) ||
-      chosen(opt.opt_WTBAT, opt.qty_WTBAT) ||
-      chosen(opt.opt_basintap, opt.qty_basintap)
-    ) {
-      picked.add('Einbau einer einhand-Waschtischbatterie');
-    }
-
-    // 6) Austausch eines Thermostates
-    if (
-      chosen(opt.optThermo, opt.qty_Thermo) ||
-      chosen(opt.opt_THERMO, opt.qty_THERMO) ||
-      chosen(opt.opt_thermo, opt.qty_thermo)
-    ) {
-      picked.add('Austausch eines Thermostates');
-    }
-
-    // 7) Einbau eines Klappsitzes
-    if (
-      chosen(opt.optSeat, opt.qty_Seat) ||
-      chosen(opt.opt_SITZ, opt.qty_SITZ) ||
-      chosen(opt.opt_seat, opt.qty_seat)
-    ) {
-      picked.add('Einbau eines Klappsitzes');
-    }
-
-    // Produce zero-cost service lines
-    return Array.from(picked).map(txt => ({
-      key: 'worknote',
-      label: `- ${txt}`,
-      amount: 0,
-    }));
+  if (chosen(opt.optShower, opt.qty_Shower)) {
+    picked.add('Auswechseln des Duschsystems');
   }
+  if (chosen(opt.optGrab, opt.qty_Grab)) {
+    picked.add('Anbringen zusätzlicher Haltegriffe');
+  }
+  if (chosen(opt.optFold, opt.qty_Fold)) {
+    picked.add('Anbringen zusätzlicher Stützklappgriffe');
+  }
+  if (chosen(opt.optBasin, opt.qty_Basin)) {
+    picked.add('Auswechseln eines Waschtisches');
+  }
+  if (chosen(opt.optBasinTap, opt.qty_BasinTap)) {
+    picked.add('Einbau einer einhand-Waschtischbatterie');
+  }
+  if (chosen(opt.optThermo, opt.qty_Thermo)) {
+    picked.add('Austausch eines Thermostates');
+  }
+  if (chosen(opt.optSeat, opt.qty_Seat)) {
+    picked.add('Einbau eines Klappsitzes');
+  }
+
+  return Array.from(picked).map(txt => ({
+    key: 'worknote',
+    label: `- ${txt}`,
+    amount: 0,
+  }));
+}
 
   async function computeMaterials(payload) {
     const dusch = payload?.duschwanne || {};
