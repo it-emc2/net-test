@@ -16,7 +16,7 @@ function applyTheme(mode){
 themeToggle?.addEventListener('change',()=>applyTheme(themeToggle.checked?'dark':'light'));
 
 /* ========== NAVIGATION ========== */
-const steps = ['bereich','duschwanne','wandverkleidung','optional','zusammenfassung'];
+const steps = ['bereich','duschwanne','wandverkleidung','optional','rabatt' ,'zusammenfassung'];
 const pages = Object.fromEntries(steps.map(s => [s, document.getElementById('page-'+s)]));
 const nav = document.getElementById('stepsNav');
 
@@ -45,7 +45,8 @@ function buildPayload(){
     bereich: formToObject(document.getElementById('form-bereich')),
     duschwanne: { ...formToObject(document.getElementById('form-duschwanne')), computed: window.__DW_COMPUTED__ || {} },
     wandverkleidung: formToObject(document.getElementById('form-wandverkleidung')),
-    optional: formToObject(document.getElementById('form-optional'))
+    optional: formToObject(document.getElementById('form-optional')),
+    rabatt: formToObject(document.getElementById('form-rabatt')) 
   };
 }
 window.buildPayload = buildPayload; // expose for extensions
@@ -113,6 +114,11 @@ function validateWandverkleidung(){
 }
 function validateOptional(){ return true; }
 
+function validateRabatt(){
+const f = document.getElementById('form-rabatt'); if (!f) return true;
+return f.reportValidity();
+}
+
 /* Focus helper for Bereich conditional errors (defined in initBereichErrorHints) */
 function focusFirstBereichConditionalError(){
   if (typeof window.__bereichFocusFirstError__ === 'function'){
@@ -144,6 +150,7 @@ document.body.addEventListener('click', e=>{
                step==='duschwanne' ? validateDuschwanne() :
                step==='wandverkleidung' ? validateWandverkleidung() :
                step==='optional' ? validateOptional() : true;
+              step==='rabatt' ? validateRabatt() : true;
     if (!ok) return; setStep(steps[Math.min(steps.length-1, idx+1)]);
   }
 });
