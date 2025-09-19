@@ -17,6 +17,8 @@ export default (ProductModel) => {
   const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
   const ceilSafe = (n) => Math.ceil((Number(n) || 0) - 1e-12);
 
+  const TAX_RATE = 0.19;
+
   function collectSelections(payload) {
     const out = [];
     const opt = payload?.optional || {};
@@ -311,8 +313,7 @@ export default (ProductModel) => {
         (items || []).reduce((sum, i) => sum + (i?.lineTotal || 0), 0) +
         (materials?.sum ?? 0)
       );
-      const baseSubtotal = round2(productsSubtotal + (services?.sum ?? 0));
-
+      
       // Extract and enforce markup rules
       let markupPct = extractMarkupPct(payload);
       const payer = payload?.bereich?.payer || '';
@@ -320,10 +321,37 @@ export default (ProductModel) => {
         markupPct = 0.35; // enforce rule regardless of client input
       }
 
-      const markup = round2(baseSubtotal * (markupPct || 0));
-      const Subtotal = round2(productsSubtotal + (services?.sum ?? 0)+ markup);
+      const markup = round2( (productsSubtotal + (services?.sum ?? 0)) * (markupPct || 0));
       const travel = 0;
-      const total = round2(Subtotal + markup + travel);
+      // Nettobetrag
+      const baseSubtotal = round2(productsSubtotal + (services?.sum ?? 0) + travel + markup );
+
+      
+
+      const vatOnNet = round2((baseSubtotal || 0) * TAX_RATE);
+      const total = round2((baseSubtotal|| 0) + vatOnNet);
+
+// --- Rabatt on MATERIAL only (percent from payload.rabatt.materialDiscountPct) ---
+      const materialPct = Number(payload?.rabatt?.materialDiscountPct || 0); // 0..0.09
+      const rabattAmount = round2((productsSubtotal || 0) * materialPct);
+
+// VAT is applied AFTER discount on net amount:
+      const netAfterDiscount = round2((baseSubtotal|| 0) - rabattAmount);
+      const Vat_on_net_AfterDiscount = round2(netAfterDiscount * TAX_RATE);
+      const totalAfterRabatt = round2(netAfterDiscount + Vat_on_net_AfterDiscount);
+
+// --- Neukundenbonus (after Rabatt) ---
+    const flags = {
+  bonus300: !!payload?.rabatt?.bonus300,
+  bonusGrab: !!payload?.rabatt?.bonusGrab,
+};
+
+// If you want a threshold for the 300 € (e.g., only if totalAfterRabatt ≥ 3000), add it here:
+let bonusGross = 0;
+if (flags.bonus300 ) bonusGross += 300;
+if (flags.bonusGrab) bonusGross += 175;
+
+const totalAfterBonus = round2(Math.max(0, totalAfterRabatt - bonusGross));
 
       console.log('[pricing] subtotals:', {
         items: (items || []).length,
@@ -332,7 +360,22 @@ export default (ProductModel) => {
         markupPct,
       });
 
-      return { items, materials, productsSubtotal, services, subtotal: Subtotal, markupPct, markup, travel, total };
+           
+      return {
+  // before discount:
+  items, materials, productsSubtotal, services,
+  Nettobetrag: baseSubtotal, markupPct, markup, travel, vatOnNet, total, 
+
+  // values after discount 
+   totalAfterRabatt ,netAfterDiscount ,Vat_on_net_AfterDiscount,
+  materialDiscountPct: materialPct,  // for the slider label in UI
+  rabattAmount,
+
+  // rabatt + bonus:
+  bonusGross,
+  totalAfterBonus,
+  bonusFlags: flags,
+};
     }
   };
 };

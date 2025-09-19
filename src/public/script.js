@@ -41,7 +41,8 @@ window.addEventListener('hashchange', ()=>setStep(getCurrentStep()));
 /* ========== PAYLOAD / SUMMARY / STATUS ========== */
 function formToObject(form){ return Object.fromEntries(new FormData(form).entries()); }
 function buildPayload(){
-  return {
+
+  const payload = { 
     bereich: formToObject(document.getElementById('form-bereich')),
     duschwanne: { ...formToObject(document.getElementById('form-duschwanne')), computed: window.__DW_COMPUTED__ || {} },
     wandverkleidung: formToObject(document.getElementById('form-wandverkleidung')),
@@ -49,6 +50,16 @@ function buildPayload(){
     optional: formToObject(document.getElementById('form-optional')),
     rabatt: formToObject(document.getElementById('form-rabatt')) 
   };
+  // ► add the fields the server needs to compute Rabatt & Bonus
+  const pct = parseFloat(document.getElementById('rb-material-discount')?.value || '0'); // 0..9
+  payload.rabatt = {
+    ...payload.rabatt,
+    materialDiscountPct: isFinite(pct) ? pct / 100 : 0,        // 0..0.09
+    bonus300: !!document.getElementById('rb-bonus-300')?.checked,
+    bonusGrab: !!document.getElementById('rb-bonus-grab')?.checked,
+  };
+
+  return payload;
 }
 window.buildPayload = buildPayload; // expose for extensions
 function updateSummary(){
@@ -568,8 +579,9 @@ async function getProduct(id){
       if (area) area.value='';
       f.querySelectorAll('input[name="flooringProduct[]"],input[name="floorAdhesive[]"],input[name="floorSealing[]"]').forEach(i=>{ i.checked = false; highlightTileForInput(i,false); });
       if (liveAdh) liveAdh.textContent=''; if (liveSeal) liveSeal.textContent='';
-      if (adhesivePriceEl) adhesivePriceEl.textContent='0'; if (sealingPriceEl) se
-alingPriceEl.textContent='0'; if (panelsPriceEl) panelsPriceEl.textContent='0';
+      if (adhesivePriceEl) adhesivePriceEl.textContent='0'; 
+      if (sealingPriceEl) sealingPriceEl.textContent='0'; 
+      if (panelsPriceEl) panelsPriceEl.textContent='0';
       unitAdh = unitSeal = 0;
       computed.areaM2 = 0; computed.adhesive = {productId:'V4FK600',packs:0,unit:0,total:0}; computed.sealing = {productId:'TRBDSET7',sets:0,unit:0,total:0};
     }
@@ -1066,7 +1078,12 @@ alingPriceEl.textContent='0'; if (panelsPriceEl) panelsPriceEl.textContent='0';
     }
   });
 })();
+// ========== tiny trigger so markupPct refreshes when you return to Rabatt==========
+document
+  .querySelectorAll('input[name="payer"], input[name="aufschlag"]')
+  .forEach(el => el.addEventListener('change', () => window.updatePricing?.()));
 
+// ========== Kosten-Details ==========
 
 (function initKostenDetails(){
   const container = document.getElementById('costsSummary');
@@ -1141,7 +1158,7 @@ alingPriceEl.textContent='0'; if (panelsPriceEl) panelsPriceEl.textContent='0';
         <div>Produkte + Material: <b>${euro(data.productsSubtotal || 0)}</b></div>
         <div>Leistungen: <b>${euro(data.services?.sum || 0)}</b></div>
         <div>Aufschlag (${Math.round((data.markupPct||0)*100)}%): <b>${euro(data.markup || 0)}</b></div>
-        <div style="font-size:1.05rem;">Zwischensumme: <b>${euro(data.subtotal || 0)}</b></div>
+        <div style="font-size:1.05rem;">Zwischensumme: <b>${euro(data.Nettobetrag || 0)}</b></div>
         <div style="font-size:1.2rem;">Gesamt: <b>${euro(data.total || 0)}</b></div>
       </div>
     `;
@@ -1232,173 +1249,117 @@ document.getElementById('sendJson')?.addEventListener('click', async ()=>{
 });
 
 
-
 // =======================
-// RABATT SECTION (drop-in)
+// RABATT SECTION 
 // =======================
 // ===== ONE global store for all Rabatt code =====
-window.CURRENT = window.CURRENT || {
-  material: 0,
-  arbeit:   0,
-  markup:   0,
-  subtotal: 0,
-  vat:      0,
-  total:    0
-};
-const CURRENT = window.CURRENT;
+// ---- Rabatt UI, driven by server data ----
 
-const TAX_RATE = 0.19;
-const round2   = (n) => Math.round((Number(n)||0) * 100) / 100;
-const euroFmt  = (n) =>
-  (typeof window.euro === 'function')
-    ? window.euro(n)
-    : (Number(n)||0).toLocaleString('de-DE', { style:'currency', currency:'EUR' }).replace(/\u00A0/g, ' ');
+const elDiscount    = document.getElementById('rb-material-discount');
+const elDiscountVal = document.getElementById('rb-material-discount-val');
+const rowRabatt     = document.getElementById('rb-rabatt-row');
+const rowTotalAfter = document.getElementById('rb-total-after-row');
+const outRabatt     = document.getElementById('rb-rabatt');
+const outTotalAfter = document.getElementById('rb-total-after');
+const rowBonusTotal = document.getElementById('rb-bonus-total-row');
+const outBonusTotal = document.getElementById('rb-bonus-total');
 
-const $ = (sel) => document.querySelector(sel);
+const euroFmt = (n) => (Number(n)||0).toLocaleString('de-DE',{style:'currency',currency:'EUR'}).replace(/\u00A0/g,' ');
+const setRowVisible = (row, on) => { if (row){ row.style.display = on?'contents':'none'; row.hidden=!on; row.setAttribute('aria-hidden', String(!on)); } };
 
-// Elements
-const elDiscount    = $('#rb-material-discount');
-const elDiscountVal = $('#rb-material-discount-val');
+// debounce helper so we don’t spam /api/price while sliding
+const debounce = (fn, ms=200) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
+const refreshPricing = debounce(()=> window.updatePricing?.(), 200);
 
-const lblMaterial = $('#rb-material');
-const lblArbeit   = $('#rb-arbeit');
-const lblNet      = $('#rb-net');
-const lblVat      = $('#rb-vat');
-const lblTotal    = $('#rb-total');
-
-const rowRabatt     = $('#rb-rabatt-row');
-const rowTotalAfter = $('#rb-total-after-row');
-const outRabatt     = $('#rb-rabatt');
-const outTotalAfter = $('#rb-total-after');
-
-const cbBonus300    = $('#rb-bonus-300');
-const cbBonusGrab   = $('#rb-bonus-grab');
-const rowBonusTotal = $('#rb-bonus-total-row');
-const outBonusTotal = $('#rb-bonus-total');
-
-const rbTitleEl     = $('#page-rabatt h2');
-
-// Aufschlag (new row you added)
-const elAufLabel = $('#rb-auf-label');
-const elAufValue = $('#rb-auf-value');
-
-// Utils
-function setRowVisible(row, visible) {
-  if (!row) return;
-  row.style.display = visible ? 'contents' : 'none';
-  row.hidden = !visible;
-  row.setAttribute('aria-hidden', String(!visible));
-}
-const clampPct = (p) => Math.max(0, Math.min(9, Number.isFinite(+p) ? +p : 0));
-
-// Title based on payer radios
-function updateRabattTitle() {
-  const payer = document.querySelector('input[name="payer"]:checked')?.value;
-  if (!rbTitleEl) return;
-  rbTitleEl.textContent =
-    payer === 'Selbstzahler' ? 'Rabatt fur Selbstzahler kunde' :
-    payer === 'Kassenkunde'  ? 'Rabatt fur kassenkunde' :
-                               'Rabatt';
-}
-document.querySelectorAll('input[name="payer"]').forEach(r =>
-  r.addEventListener('change', updateRabattTitle)
-);
-
-// Aufschlag label = "Aufschlag <selected pill text>"
-function getSelectedPillText() {
-  const checked = document.querySelector('.radio-group.vertical input[type="radio"]:checked');
-  const pill = checked?.closest('label.radio-pill');
-  return (pill?.textContent || '').trim();
-}
-function renderAufschlag() {
-  if (elAufLabel) elAufLabel.textContent = getSelectedPillText()
-    ? `Aufschlag ${getSelectedPillText()}`
-    : 'Aufschlag';
-  if (elAufValue) elAufValue.textContent = euroFmt(CURRENT.markup);
-}
-document.addEventListener('change', (e) => {
-  if (e.target && e.target.matches('.radio-group.vertical input[type="radio"]')) {
-    renderAufschlag();
-  }
+// Update live % label and ask server to recompute
+elDiscount?.addEventListener('input', () => {
+  const v = parseFloat(elDiscount.value||'0') || 0;
+  if (elDiscountVal) elDiscountVal.textContent = v.toLocaleString('de-DE',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%';
+  refreshPricing();
 });
 
-// Core computations
-function computeAfterRabatt() {
-  const pct = clampPct(elDiscount?.value);
-  const rabatt = round2(CURRENT.material * (pct / 100));        // discount on material only
-  const totalAfterRabatt = round2(Math.max(0, (CURRENT.subtotal - rabatt) * (1+TAX_RATE )));
-  return { pct, rabatt, totalAfterRabatt };
-}
+// Recompute on bonus toggles (server will return new totals)
+document.getElementById('rb-bonus-300')?.addEventListener('change', ()=>window.updatePricing?.());
+document.getElementById('rb-bonus-grab')?.addEventListener('change', ()=>window.updatePricing?.());
 
-function renderRabatt() {
-  const { pct, rabatt, totalAfterRabatt } = computeAfterRabatt();
-
-  if (elDiscountVal) {
-    elDiscountVal.textContent = pct.toLocaleString('de-DE', { minimumFractionDigits:1, maximumFractionDigits:1 }) + '%';
-  }
-
-  const hide = pct === 0;
-  if (outRabatt)     outRabatt.textContent     = euroFmt(hide ? 0 : rabatt);
-  if (outTotalAfter) outTotalAfter.textContent = euroFmt(hide ? 0 : totalAfterRabatt);
-
-  setRowVisible(rowRabatt,     !hide);
-  setRowVisible(rowTotalAfter, !hide);
-}
-
-function renderNeukundenbonus() {
-  const { totalAfterRabatt } = computeAfterRabatt();
-  const anyChecked = !!(cbBonus300?.checked || cbBonusGrab?.checked);
-
-  let bonusGross = 0;
-  if (cbBonus300?.checked ) bonusGross += 300;
-  if (cbBonusGrab?.checked) bonusGross += 175;
-
-  const totalAfterBonus = round2(Math.max(0, totalAfterRabatt - bonusGross));
-  const show = anyChecked || bonusGross > 0;
-
-  if (outBonusTotal) outBonusTotal.textContent = euroFmt(totalAfterBonus);
-  setRowVisible(rowBonusTotal, show);
-}
-
-// One and only entry to feed payload → UI
+// Fill top labels (Material/Arbeit/Netto/MwSt/Gesamt) + Rabatt rows from SERVER
 window.setPricingData = function setPricingData(data) {
-  // Map payload to store
-  CURRENT.material = Number(data?.productsSubtotal ?? 0);
-  CURRENT.arbeit   = Number(data?.services?.sum   ?? 0);
-  CURRENT.markup   = Number(data?.markup         ?? 0);
+  // helpers
+  const fmt  = (n) => (Number(n) || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }).replace(/\u00A0/g, ' ');
+  const byId = (id) => document.getElementById(id);
 
-  // Client-side totals (don’t trust data.total / data.tax)
-  CURRENT.subtotal = round2(CURRENT.material + CURRENT.arbeit + CURRENT.markup);
-  CURRENT.vat      = round2(CURRENT.subtotal * TAX_RATE);
-  CURRENT.total    = round2(CURRENT.subtotal + CURRENT.vat);
+  // Top labels
+  const mat   = Number(data?.productsSubtotal ?? 0);
+  const arbe  = Number(data?.services?.sum   ?? 0);
+  const net   = Number(data?.Nettobetrag ?? data?.subtotal ?? 0);
+  const vat   = Number(data?.vatOnNet ?? (net * 0.19));
+  const total = Number(data?.total ?? (net + vat));
+  const auf   = Number(data?.markup ?? 0);
 
-  // Write header labels
-  if (lblMaterial) lblMaterial.textContent = euroFmt(CURRENT.material);
-  if (lblArbeit)   lblArbeit.textContent   = euroFmt(CURRENT.arbeit);
-  if (lblNet)      lblNet.textContent      = euroFmt(CURRENT.subtotal);
-  if (lblVat)      lblVat.textContent      = euroFmt(CURRENT.vat);
-  if (lblTotal)    lblTotal.textContent    = euroFmt(CURRENT.total);
+  const elMat = byId('rb-material');      if (elMat) elMat.textContent = fmt(mat);
+  const elArb = byId('rb-arbeit');        if (elArb) elArb.textContent = fmt(arbe);
+  const elNet = byId('rb-net');           if (elNet) elNet.textContent = fmt(net);
+  const elVat = byId('rb-vat');           if (elVat) elVat.textContent = fmt(vat);
+  const elTot = byId('rb-total');         if (elTot) elTot.textContent = fmt(total);
+  const elAuf = byId('rb-auf-value');     if (elAuf) elAuf.textContent = fmt(auf);
 
-  // Paint dependent areas
-  updateRabattTitle();
-  renderAufschlag();
-  renderRabatt();
-  renderNeukundenbonus();
+  // Dynamic title (Kundentyp)
+  const payer = (data?.services?.payer ?? data?.payer ?? document.querySelector('input[name="payer"]:checked')?.value ?? '')
+    .toString().toLowerCase();
+  const h2 = document.querySelector('#page-rabatt h2');
+  console.log(payer)
+  if (h2) {
+    h2.textContent =
+      (payer === 'selbstzahler' || payer === 'sz') ? 'Rabatt fur Selbstzahler kunde' :
+      (payer === 'kassenkunde' ||  payer === 'kk' )? 'Rabatt fur kassenkunde' :
+                                 'Rabatt';
+  }
+  console.log(h2.textContent)
+
+  // Aufschlag label with chosen percent
+  let mp = data?.markupPct;
+  if (!Number.isFinite(mp)) {
+    const raw = document.querySelector('input[name="aufschlag"]:checked')?.value || '';
+    const m = String(raw).match(/[\d.]+/);
+    mp = m ? (raw.includes('%') ? parseFloat(m[0]) / 100 : parseFloat(m[0])) : 0;
+  }
+  const pctInt = Math.round((mp <= 1 ? mp * 100 : mp));
+  const elAufLbl = byId('rb-auf-label'); if (elAufLbl) elAufLbl.textContent = `Aufschlag ${pctInt}%`;
+
+  // Rabatt UI (slider + rows) using server numbers
+  const elDiscount    = byId('rb-material-discount');
+  const elDiscountVal = byId('rb-material-discount-val');
+  const rowRabatt     = byId('rb-rabatt-row');
+  const rowTotalAfter = byId('rb-total-after-row');
+  const outRabatt     = byId('rb-rabatt');
+  const outTotalAfter = byId('rb-total-after');
+  const setRowVisible = (row, on) => { if (row) { row.style.display = on ? 'contents' : 'none'; row.hidden = !on; row.setAttribute('aria-hidden', String(!on)); } };
+
+  const pctDisc = Number(data?.materialDiscountPct || 0) * 100; // 0..9
+  if (elDiscountVal) elDiscountVal.textContent = pctDisc.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+  if (elDiscount && Number.isFinite(pctDisc)) elDiscount.value = String(pctDisc);
+
+  const rabattAmt = Number(data?.rabattAmount || 0);
+  const afterRab  = Number(data?.totalAfterRabatt || 0);
+  const hasRabatt = Number(data?.materialDiscountPct || 0) > 0;
+
+  if (outRabatt)     outRabatt.textContent     = fmt(hasRabatt ? rabattAmt : 0);
+  if (outTotalAfter) outTotalAfter.textContent = fmt(hasRabatt ? afterRab  : 0);
+  setRowVisible(rowRabatt,     hasRabatt);
+  setRowVisible(rowTotalAfter, hasRabatt);
+
+  // Neukundenbonus row
+  const rowBonusTotal    = byId('rb-bonus-total-row');
+  const outBonusTotal    = byId('rb-bonus-total');
+  const anyBonus         = !!(data?.bonusFlags?.bonus300 || data?.bonusFlags?.bonusGrab);
+  const bonusGross       = Number(data?.bonusGross || 0);
+  const totalAfterBonus  = Number(data?.totalAfterBonus || 0);
+  if (outBonusTotal) outBonusTotal.textContent = fmt(anyBonus || bonusGross > 0 ? totalAfterBonus : 0);
+  setRowVisible(rowBonusTotal, anyBonus || bonusGross > 0);
 };
 
-// Live updates
-elDiscount && elDiscount.addEventListener('input', () => {
-  renderRabatt();
-  renderNeukundenbonus();
-});
-cbBonus300 && cbBonus300.addEventListener('change', renderNeukundenbonus);
-cbBonusGrab && cbBonusGrab.addEventListener('change', renderNeukundenbonus);
 
-// Initial paint (safe even if no payload yet)
-updateRabattTitle();
-renderAufschlag();
-renderRabatt();
-renderNeukundenbonus();
+
 /* ========== NEW: Materialübersicht (DOCX) DOWNLOAD ========== */
 
 // small reusable docx download helper
