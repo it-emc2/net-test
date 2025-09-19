@@ -177,9 +177,62 @@ document.body.addEventListener('click', e=>{
   show(isYes()); form?.addEventListener('change', e=>{ if (e.target?.name==='hasContactPerson') show(e.target.value==='Ja'); });
 })();
 (function initAufschlag(){
-  const radios = document.querySelectorAll('input[name="payer"]'); const r50 = document.querySelector('input[name="aufschlag"][value="50%"]');
-  function apply(){ const v = document.querySelector('input[name="payer"]:checked')?.value; if (v==='Kassenkunde' && r50){ r50.checked=true; r50.required=true; } }
-  radios.forEach(r=>r.addEventListener('change', apply)); apply();
+  const payerRadios = Array.from(document.querySelectorAll('input[name="payer"]'));
+  const aufschlagRadios = Array.from(document.querySelectorAll('input[name="aufschlag"]'));
+
+  const r35 = document.querySelector('input[name="aufschlag"][value="35%"]');
+  const r40 = document.querySelector('input[name="aufschlag"][value="40%"]');
+  const r45 = document.querySelector('input[name="aufschlag"][value="45%"]');
+  const r50 = document.querySelector('input[name="aufschlag"][value="50%"]');
+
+  function setDisabled(el, disabled){
+    if (!el) return;
+    el.disabled = disabled;
+    const pill = el.closest('label.radio-pill');
+    if (pill) {
+      pill.style.opacity = disabled ? '0.6' : '';
+      pill.style.pointerEvents = disabled ? 'none' : '';
+      pill.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    }
+  }
+
+  function anySelected(){ return aufschlagRadios.some(r => r.checked); }
+  function currentSelection(){
+    return document.querySelector('input[name="aufschlag"]:checked')?.value || '';
+  }
+
+  function apply(){
+    const payer = document.querySelector('input[name="payer"]:checked')?.value;
+
+    if (payer === 'Selbstzahler'){
+      // Force/select 35% and disable other options
+      if (r35 && !r35.checked) r35.checked = true;
+      setDisabled(r35, false);
+      setDisabled(r40, true);
+      setDisabled(r45, true);
+      setDisabled(r50, true);
+    } else if (payer === 'Kassenkunde') {
+      // Re-enable all options
+      [r35, r40, r45, r50].forEach(r => setDisabled(r, false));
+
+      const sel = currentSelection();
+
+      // If nothing selected, default to 50% for KK only
+      if (!anySelected() && r50) {
+        r50.checked = true;
+      } else if (sel === '35%') {
+        // If 35% was carried over from Selbstzahler, switch to 50% default for KK
+        if (r50) r50.checked = true;
+      }
+      // If user had already chosen 40/45/50, keep it.
+    } else {
+      // No payer picked yet: enable all, but do not auto-pick
+      [r35, r40, r45, r50].forEach(r => setDisabled(r, false));
+    }
+  }
+
+  payerRadios.forEach(r => r.addEventListener('change', apply));
+  apply();
 })();
 
 (function initPflegegrad(){
@@ -369,6 +422,60 @@ document.body.addEventListener('click', e=>{
   });
 })();
 
+(function initRoundTripPreview(){
+  const input = document.getElementById('distanceKm');
+  const out = document.getElementById('roundTripPreview');
+
+  function parseKm(v){
+    // allow commas or dots
+    const n = Number(String(v || '').replace(',', '.'));
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  }
+  function fmt(n){
+    // show as integer if whole, otherwise one decimal
+    return Number.isInteger(n) ? String(n) : n.toFixed(1);
+  }
+  function update(){
+    if (!input || !out) return;
+    const oneWay = parseKm(input.value);
+    const rt = oneWay * 2;
+    out.textContent = `= ${fmt(rt)} km (Hin- & Rückfahrt)`;
+  }
+
+  input?.addEventListener('input', update);
+  input?.addEventListener('change', update);
+  update(); // initial
+})();
+
+(function initLaborSuggestion(){
+  const kmInput = document.getElementById('distanceKm');
+  const out = document.getElementById('laborSuggestion');
+  const r8 = document.querySelector('input[name="laborHours"][value="8"]');
+  const r10 = document.querySelector('input[name="laborHours"][value="10"]');
+
+  function parseKm(v){
+    const n = Number(String(v || '').replace(',', '.'));
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  }
+  function update(){
+    if (!out) return;
+    const km = parseKm(kmInput?.value);
+    // rough travel time in hours for one-way
+    const avgSpeedKmH = 60; // configurable if needed
+    const travelH = avgSpeedKmH > 0 ? (km / avgSpeedKmH) : 0;
+
+    const suggested = travelH > 1 ? 10 : 8;
+    out.textContent = km > 0
+      ? `Hinweis: geschätzte Anfahrt ~ ${travelH.toFixed(1)} h → Empfehlung: ${suggested} Stunden.`
+      : '';
+    // Do NOT auto-select. User decides between 8h/10h.
+  }
+
+  kmInput?.addEventListener('input', update);
+  kmInput?.addEventListener('change', update);
+  update();
+})();
+
 /* ========== PRICE FETCH (single endpoint) ========== */
 const productCache = new Map();
 async function getProduct(id){
@@ -461,7 +568,8 @@ async function getProduct(id){
       if (area) area.value='';
       f.querySelectorAll('input[name="flooringProduct[]"],input[name="floorAdhesive[]"],input[name="floorSealing[]"]').forEach(i=>{ i.checked = false; highlightTileForInput(i,false); });
       if (liveAdh) liveAdh.textContent=''; if (liveSeal) liveSeal.textContent='';
-      if (adhesivePriceEl) adhesivePriceEl.textContent='0'; if (sealingPriceEl) sealingPriceEl.textContent='0'; if (panelsPriceEl) panelsPriceEl.textContent='0';
+      if (adhesivePriceEl) adhesivePriceEl.textContent='0'; if (sealingPriceEl) se
+alingPriceEl.textContent='0'; if (panelsPriceEl) panelsPriceEl.textContent='0';
       unitAdh = unitSeal = 0;
       computed.areaM2 = 0; computed.adhesive = {productId:'V4FK600',packs:0,unit:0,total:0}; computed.sealing = {productId:'TRBDSET7',sets:0,unit:0,total:0};
     }
@@ -721,26 +829,21 @@ async function getProduct(id){
   syncAll();
 })();
 
-(function initV3VDiv(){
+(function initV3V(){
   const form = document.getElementById('form-wandverkleidung'); if (!form) return;
-
-  // Existing panel controls
   const cb997 = document.getElementById('wv997');
   const cb1497 = document.getElementById('wv1497');
   const qty997 = document.getElementById('wvQty997');
   const qty1497 = document.getElementById('wvQty1497');
 
-  // "Keine Wandverkleidung" radios
-  const wvKindGroup = document.getElementById('wvKindGroup');
-
-  // V3V UI
   const v3vDiv = document.getElementById('wvV3VDiv');
+  const v3vSelected = document.getElementById('wvV3VSelected');
   const qtyV3V = document.getElementById('wvV3VQty');
   const ruleText = document.getElementById('wvV3VRuleText');
   const cbCorners = document.getElementById('wvCornersCB');
   const cornersWrap = document.getElementById('wvCornersWrap');
   const cornersInput = document.getElementById('wvCorners');
-  const v3vSelected = document.getElementById('wvV3VSelected');
+  const wvKindGroup = document.getElementById('wvKindGroup');
 
   const n = v => {
     const x = Number(v);
@@ -765,19 +868,18 @@ async function getProduct(id){
       (ecken ? ` − ${ecken} Ecke(n) = ${finalQty}` : ` = ${finalQty}`) +
       ` Verbindungsprofil(e).`;
 
-    // If no panels, uncheck the V3V "selected" box to avoid adding it accidentally
-    if (total === 0) v3vSelected.checked = false;
-    else v3vSelected.checked = true;
+    // Auto-select off if no panels
+    v3vSelected.checked = total > 0;
   }
 
   function toggleCorners(){
-    const show = cbCorners.checked;
-    cornersWrap.hidden = !show;
-    if (!show) cornersInput.value = '0';
+    const on = cbCorners.checked;
+    cornersWrap.hidden = !on;
+    cornersWrap.setAttribute('aria-hidden', on ? 'false' : 'true');
+    if (!on) cornersInput.value = '0';
     calc();
   }
 
-  // Hide/show when "Keine Wandverkleidung" is chosen
   function applyKindVisibility(){
     const kind = form.querySelector('input[name="wvKind"]:checked')?.value || '';
     const hide = kind === 'Keine';
@@ -794,10 +896,9 @@ async function getProduct(id){
     }
   }
 
-  // Wire listeners
   [cb997, cb1497, qty997, qty1497].forEach(el=>{
-    el?.addEventListener('change', ()=>calc());
-    el?.addEventListener('input',  ()=>calc());
+    el?.addEventListener('change', calc);
+    el?.addEventListener('input', calc);
   });
   cbCorners?.addEventListener('change', toggleCorners);
   cornersInput?.addEventListener('input', ()=>calc());
@@ -842,14 +943,14 @@ async function getProduct(id){
 
   const catChecks = Array.from(document.querySelectorAll('#optCategories input[type="checkbox"]'));
   catChecks.forEach(cb => {
-const menuId = map[cb.id] || cb.id.replace(/^cat_/, 'menu_');
-cb.addEventListener('change', () => {
-syncLabelChecked(cb);
-setShown(menuId, cb.checked);
-});
-syncLabelChecked(cb);
-setShown(menuId, cb.checked);
-});
+    const menuId = map[cb.id] || cb.id.replace(/^cat_/, 'menu_');
+    cb.addEventListener('change', () => {
+      syncLabelChecked(cb);
+      setShown(menuId, cb.checked);
+    });
+    syncLabelChecked(cb);
+    setShown(menuId, cb.checked);
+  });
 
   // Product tiles highlight + Mengen toggle
   const allProductChecks = form.querySelectorAll('label.image-check > input[type="checkbox"][id^="opt_"]');
@@ -1076,15 +1177,15 @@ setShown(menuId, cb.checked);
   });
 })();
 
-
-
 /* ========== PDF/DOCX + API TEST BUTTONS ========== */
+
 async function requestPdfAndDownload(payload, filename='Anfrage.pdf'){
   const resp = await fetch('/pdf', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
   if (!resp.ok){ const txt = await resp.text().catch(()=> ''); throw new Error(`PDF Fehler (${resp.status}): ${txt}`); }
   const blob = await resp.blob(); const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
+
 document.getElementById('makePdf')?.addEventListener('click', async ()=>{
   // Require Bereich to be valid before generating preview document
   if (!requireBereichValid()) { location.hash='bereich'; return; }
@@ -1298,3 +1399,39 @@ updateRabattTitle();
 renderAufschlag();
 renderRabatt();
 renderNeukundenbonus();
+/* ========== NEW: Materialübersicht (DOCX) DOWNLOAD ========== */
+
+// small reusable docx download helper
+async function downloadDocx(url, body, filename) {
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => '');
+    throw new Error(`Download failed: ${resp.status} ${txt}`);
+  }
+  const blob = await resp.blob();
+  const urlObj = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = urlObj;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(urlObj);
+}
+
+// wire the new button (make sure you added it in HTML with id="downloadMaterialOverview")
+document.getElementById('downloadMaterialOverview')?.addEventListener('click', async () => {
+  if (!requireBereichValid()) { location.hash = 'bereich'; return; }
+  try {
+    const payload = buildPayload();
+    await downloadDocx('/docx-template/material-overview', payload, `Materialuebersicht_${Date.now()}.docx`);
+  } catch (e) {
+    console.error(e);
+    show({ error: String(e) }, false);
+    alert('Materialübersicht konnte nicht erstellt werden.');
+  }
+});

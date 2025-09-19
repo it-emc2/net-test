@@ -649,7 +649,10 @@
         <span>Wandverkleidung</span></a
       >
 
-      <a class="step" data-step="duschabtrennung" href="#duschabtrennung"><div class="dot"></div><span>Kosten Duschabtrennung</span></a>
+      <a class="step" data-step="duschabtrennung" href="#duschabtrennung"
+        ><div class="dot"></div>
+        <span>Kosten Duschabtrennung</span></a
+      >
 
       <a class="step" data-step="optional" href="#optional"
         ><div class="dot"></div>
@@ -665,10 +668,9 @@
       >
 
       <a class="step" data-step="kosten" href="#kosten">
-
-<div class="dot"></div><span>Kosten-Details</span>
-
-</a>
+        <div class="dot"></div>
+        <span>Kosten-Details</span>
+      </a>
     </nav>
 
     <div class="container">
@@ -1001,40 +1003,71 @@
           </div>
 
           <div id="travelSection" class="full" style="margin-top: 16px">
-            <details open>
-              <summary class="section-header" style="cursor: pointer">
-                Anfahrzeit zum Kunde
-              </summary>
-              <div
-                class="card"
-                style="
-                  background: var(--section-bg);
-                  border: 1px solid var(--border);
-                  border-radius: 10px;
-                  padding: 12px;
-                "
-              >
-                <div class="full" style="margin-bottom: 12px">
-                  <label for="distanceKm" class="req"
-                    >Wie viele Kilometer ist der Kunde von uns entfernt?
-                    (Kilometerpauschale. Hin- und Rückfahrt wird automatisch
-                    kalkuliert)</label
-                  >
-                  <input
-                    id="distanceKm"
-                    name="distanceKm"
-                    type="number"
-                    min="0"
-                    step="1"
-                    placeholder="z. B. 25"
-                    required
-                  />
-                </div>
-                <div id="zonesKK" hidden aria-hidden="true"></div>
-                <div id="zonesSZ" hidden aria-hidden="true"></div>
-              </div>
-            </details>
-          </div>
+  <details open>
+    <summary class="section-header" style="cursor: pointer">
+      Anfahrzeit zum Kunde
+    </summary>
+    <div
+      class="card"
+      style="
+        background: var(--section-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+      "
+    >
+      <!-- Distance input -->
+      <div class="full" style="margin-bottom: 12px">
+        <label for="distanceKm" class="req">
+          Wie viele Kilometer ist der Kunde von uns entfernt?
+          (Kilometerpauschale. Hin- und Rückfahrt wird automatisch kalkuliert)
+        </label>
+        <input
+          id="distanceKm"
+          name="distanceKm"
+          type="number"
+          min="0"
+          step="1"
+          placeholder="z. B. 25"
+          required
+        />
+        <div class="muted" style="margin-top: 6px;">
+          Bitte nur die einfache Strecke (Hin‑Fahrt) eintragen.
+          Rückfahrt wird automatisch mit berechnet:
+          <b><span id="roundTripPreview">= 0 km (Hin- & Rückfahrt)</span></b>
+        </div>
+      </div>
+
+      <!-- NEW: Arbeitszeit selection -->
+      <div class="full" style="margin: 8px 0 12px 0">
+        <label class="req">Arbeitszeit in Stunden (pro Arbeiter)</label>
+        <div class="muted" style="margin: 6px 0 8px">
+          Bei einer Entfernung von mehr als 1 Stunde zum Kunden beträgt die Arbeitszeit 10h,
+          bei weniger als 1 Stunde Anfahrt 8h.
+          Es werden immer zwei Facharbeiter kalkuliert (×2).
+        </div>
+        <div class="radio-group" role="radiogroup" aria-label="Arbeitszeit in Stunden">
+          <label class="radio-pill">
+            <input type="radio" name="laborHours" value="8" required />
+            <span class="circle"></span><span>8 Stunden</span>
+          </label>
+          <label class="radio-pill">
+            <input type="radio" name="laborHours" value="10" required />
+            <span class="circle"></span><span>10 Stunden</span>
+          </label>
+        </div>
+        <!-- Optional dynamic suggestion from distance -->
+        <div id="laborSuggestion" class="muted" style="margin-top: 6px"></div>
+      </div>
+
+      <!-- keep zones placeholders below -->
+      <div id="zonesKK" hidden aria-hidden="true"></div>
+      <div id="zonesSZ" hidden aria-hidden="true"></div>
+    </div>
+  </details>
+</div>
+
+          
 
           <div id="pflegegradSection" class="full" style="margin-top: 16px">
             <details open>
@@ -1679,7 +1712,7 @@
                 </div>
               </div>
 
-              <!-- Farbwahl für Wandverkleidung -->
+              <!-- Farbwahl -->
               <div id="wvColorSection" class="full field">
                 <label class="req">Dekor / Farbe der Wandverkleidung</label>
                 <div
@@ -1830,34 +1863,58 @@
                 step="1"
                 placeholder="0"
               />
-                  <div id="wvAdhesiveSuggestion" style="margin-top:6px;font-size:0.9rem;color:var(--muted, #8a8a8a);"></div>
+              <div
+                id="wvAdhesiveSuggestion"
+                style="
+                  margin-top: 6px;
+                  font-size: 0.9rem;
+                  color: var(--muted, #8a8a8a);
+                "
+              ></div>
             </div>
           </div>
 
           <div id="wvEndProfileSection" class="full field">
+            <label class="req"
+              >Abschlussprofil 3.0 255 cm silber eloxiert</label
+            >
+            <label class="image-check">
+              <input
+                type="checkbox"
+                name="wvEndProfile"
+                value="Abschlussprofil V3A"
+              />
+              <span class="img-wrap">
+                <img
+                  src="./assets/6dd521ee32b126983e37b93433b29b95.jpg"
+                  alt="Abschlussprofil V3A"
+                />
+              </span>
+              <span class="caption">Abschlussprofil V3A</span>
+            </label>
 
-  <label class="req">Abschlussprofil 3.0 255 cm silber eloxiert</label>
+            <div
+              class="muted"
+              style="margin-top: 8px; color: var(--danger); font-weight: 600"
+            >
+              ! Bitte die Anzahl der Abschlussleisten prüfen, berechnen und ggf.
+              anpassen !
+            </div>
 
-  <label class="image-check">
-    <input type="checkbox" name="wvEndProfile" value="Abschlussprofil V3A" />
-    <span class="img-wrap">
-      <img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="Abschlussprofil V3A" />
-    </span>
-    <span class="caption">Abschlussprofil V3A</span>
-  </label>
-
-  <!-- Warning note -->
-  <div class="muted" style="margin-top:8px;color:var(--danger);font-weight:600;">
-    ! Bitte die Anzahl der Abschlussleisten prüfen, berechnen und ggf. anpassen !
-  </div>
-
-  <div class="field" style="max-width: 240px">
-    <label for="wvEndProfileQty" class="req">Menge Abschlussprofil</label>
-    <input id="wvEndProfileQty" name="wvEndProfileQty" type="number" min="0" step="1" placeholder="0" />
-  </div>
-</div>
-
-
+            <div class="field" style="max-width: 240px">
+              <label for="wvEndProfileQty" class="req"
+                >Menge Abschlussprofil</label
+              >
+              <input
+                id="wvEndProfileQty"
+                name="wvEndProfileQty"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="0"
+              />
+            </div>
+          </div>
 
           <div id="wvProfileAdhesiveSection" class="full field">
             <label class="req">Profilklebstoff</label>
@@ -1885,39 +1942,90 @@
             </div>
           </div>
 
-          <!-- Verbindungsprofil V3V (auto) -->
-<div id="wvV3VDiv" class="full field">
-  <label class="req">Verbindungsprofil 3.0 255 cm silber eloxiert (V3V)</label>
-      <div class="muted" style="margin-top:4px;">Wird automatisch aus der Plattenanzahl berechnet.</div>
+          <!-- Verbindungsprofil V3V (gleicher Stil wie die anderen Kacheln) -->
+          <div id="wvV3VDiv" class="full field">
+            <label class="req"
+              >Verbindungsprofil 3.0 255 cm silber eloxiert (V3V)</label
+            >
+            <div class="muted" style="margin-top: 6px">
+              Wird automatisch aus der Plattenanzahl berechnet. Ecken reduzieren
+              den Bedarf.
+            </div>
 
-  <label class="image-check" style="align-items:flex-start;">
-    <input type="checkbox" id="wvV3VSelected" name="wvV3VSelected" checked />
-    <span class="img-wrap" style="width:120px; height:120px;">
-      <img src="assets/V3V.jpg" alt="Verbindungsprofil V3V" />
-    </span>
-    <span class="caption">
-      Verbindungsprofil V3V
-    </span>
-  </label>
+            <div
+              style="
+                display: flex;
+                gap: 14px;
+                flex-wrap: wrap;
+                margin-top: 10px;
+              "
+            >
+              <div class="field" style="min-width: 220px">
+                <label class="image-check">
+                  <input
+                    type="checkbox"
+                    id="wvV3VSelected"
+                    name="wvV3VSelected"
+                    checked
+                  />
+                  <span class="img-wrap">
+                    <img src="./assets/V3V.jpg" alt="Verbindungsprofil V3V" />
+                  </span>
+                  <span class="caption">Verbindungsprofil V3V</span>
+                </label>
+              </div>
 
-  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:start; max-width:680px;">
-    <div class="field">
-      <label for="wvV3VQty" class="req">Menge Verbindungsprofil(e)</label>
-      <input id="wvV3VQty" name="wvV3VQty" type="number" min="0" step="1" value="0" />
-      <div id="wvV3VRuleText" class="muted" style="margin-top:6px;"></div>
-    </div>
+              <div
+                class="full"
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px"
+              >
+                <div class="field" style="max-width: 240px">
+                  <label for="wvV3VQty" class="req"
+                    >Menge Verbindungsprofil(e)</label
+                  >
+                  <input
+                    id="wvV3VQty"
+                    name="wvV3VQty"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value="0"
+                  />
+                  <div
+                    id="wvV3VRuleText"
+                    class="muted"
+                    style="margin-top: 6px"
+                  ></div>
+                </div>
 
-    <div class="field">
-      <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
-        <input type="checkbox" id="wvCornersCB" /> Ecke(n) vorhanden
-      </label>
-      <div id="wvCornersWrap" hidden style="margin-top:6px;">
-        <label for="wvCorners" class="muted">Anzahl Ecken ohne Verbindungsprofil</label>
-        <input id="wvCorners" name="wvCorners" type="number" min="0" step="1" value="0" />
-      </div>
-    </div>
-  </div>
-</div>
+                <div class="field" style="max-width: 240px">
+                  <label class="check-pill">
+                    <input type="checkbox" id="wvCornersCB" />
+                    <span class="box"></span><span>Ecke(n) vorhanden</span>
+                  </label>
+
+                  <div
+                    id="wvCornersWrap"
+                    hidden
+                    aria-hidden="true"
+                    style="margin-top: 8px"
+                  >
+                    <label for="wvCorners" class="muted"
+                      >Anzahl Ecken ohne Verbindungsprofil</label
+                    >
+                    <input
+                      id="wvCorners"
+                      name="wvCorners"
+                      type="number"
+                      min="0"
+                      step="1"
+                      value="0"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <div class="actions full">
             <button type="button" data-nav="prev" class="secondary">
@@ -1928,38 +2036,60 @@
         </form>
       </section>
 
-            <!-- Kosten Duschabtrennung -->
-
+      <!-- Kosten Duschabtrennung -->
       <section class="card page" id="page-duschabtrennung" hidden>
-  <h2 style="margin:0 0 12px;">Kosten Duschabtrennung</h2>
+        <h2 style="margin: 0 0 12px">Kosten Duschabtrennung</h2>
 
-  <p style="margin:0 0 6px;">
-    Die Duschabtrennungen werden über den Konfigurator über gc-online konfiguriert.
-    Nach folgende Link:
-  </p>
-  <p style="font-weight:700; font-size:1.15rem; margin:0 0 18px;">
-    <a href="https://www.gconlineplus.de/#SearchConfigurator" target="_blank" rel="noopener noreferrer">
-      https://www.gconlineplus.de/#SearchConfigurator
-    </a>
-  </p>
+        <p style="margin: 0 0 6px">
+          Die Duschabtrennungen werden über den Konfigurator über gc-online
+          konfiguriert. Nach folgende Link:
+        </p>
+        <p style="font-weight: 700; font-size: 1.15rem; margin: 0 0 18px">
+          <a
+            href="https://www.gconlineplus.de/#SearchConfigurator"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            https://www.gconlineplus.de/#SearchConfigurator
+          </a>
+        </p>
 
-  <form id="form-duschabtrennung" autocomplete="on">
-    <div class="field full" style="max-width:560px;">
-      <label for="daName" class="req">Name Duschabtrennung Hassman</label>
-      <input id="daName" name="daName" type="text" placeholder="z. B. Hassman XYZ, Serie/Glasart" required />
-    </div>
+        <form id="form-duschabtrennung" autocomplete="on">
+          <div class="field full" style="max-width: 560px">
+            <label for="daName" class="req">Name Duschabtrennung Hassman</label>
+            <input
+              id="daName"
+              name="daName"
+              type="text"
+              placeholder="z. B. Hassman XYZ, Serie/Glasart"
+              required
+            />
+          </div>
 
-    <div class="field" style="max-width:320px;">
-      <label for="daNetto" class="req">Netto Preis Duschabtrennung Hassman</label>
-      <input id="daNetto" name="daNetto" type="number" inputmode="decimal" min="0" step="0.01" placeholder="z. B. 799.00" required />
-    </div>
+          <div class="field" style="max-width: 320px">
+            <label for="daNetto" class="req"
+              >Netto Preis Duschabtrennung Hassman</label
+            >
+            <input
+              id="daNetto"
+              name="daNetto"
+              type="number"
+              inputmode="decimal"
+              min="0"
+              step="0.01"
+              placeholder="z. B. 799.00"
+              required
+            />
+          </div>
 
-    <div class="actions full">
-      <button type="button" data-nav="prev" class="secondary">Zurück</button>
-      <button type="button" data-nav="next">Weiter</button>
-    </div>
-  </form>
-</section>
+          <div class="actions full">
+            <button type="button" data-nav="prev" class="secondary">
+              Zurück
+            </button>
+            <button type="button" data-nav="next">Weiter</button>
+          </div>
+        </form>
+      </section>
 
       <!-- Optional -->
       <section class="card page" id="page-optional" hidden>
@@ -2871,14 +3001,17 @@
 
 
       <!-- Zusammenfassung -->
+
       <section class="card page" id="page-zusammenfassung" hidden>
         <h2 style="margin: 0 0 12px">Zusammenfassung</h2>
+
         <p class="lead" id="summaryText">
           Prüfen Sie Ihre Eingaben und senden Sie einen Test.
         </p>
 
         <div class="actions">
           <button id="sendForm">Absenden (Form POST)</button>
+
           <button class="secondary" id="sendJson">JSON senden</button>
         </div>
 
@@ -2889,10 +3022,19 @@
           >
             PDF jetzt erzeugen
           </button>
+
           <button id="makePdfFromTemplate">PDF aus Vorlage (Download)</button>
+
           <button class="secondary" id="downloadDocx">
             DOCX aus Vorlage (Download)
           </button>
+
+          <!-- NEW: Materialübersicht button -->
+
+          <button class="secondary" id="downloadMaterialOverview">
+            Materialübersicht (DOCX)
+          </button>
+
           <a class="btn" href="/health" target="_blank">/health</a>
         </div>
 
@@ -2902,22 +3044,28 @@
 
         <pre id="status" class="status"></pre>
       </section>
+
+         <!-- Kosten-Details -->
+      <section class="card page" id="page-kosten" hidden>
+        <h2 style="margin: 0 0 12px">Kosten-Details (Debug)</h2>
+        <p class="muted" style="margin: 0 0 14px">
+          Interne Übersicht aller gewählten Positionen mit Mengen, Einzel- und
+          Gesamtpreisen. Dient zum Prüfen der Abrechnung.
+        </p>
+
+        <div
+          id="costsSummary"
+          style="display: flex; flex-direction: column; gap: 14px"
+        ></div>
+
+        <div class="actions full" style="margin-top: 16px">
+          <button type="button" data-nav="prev" class="secondary">
+            Zurück
+          </button>
+          <button type="button" data-nav="next">Weiter</button>
+        </div>
+      </section>
     </div>
-
-          <!-- Kosten-Details -->
-
-
-    <section class="card page" id="page-kosten" hidden>
-  <h2 style="margin:0 0 12px;">Kosten-Details (Debug)</h2>
-  <p class="muted" style="margin:0 0 14px;">Interne Übersicht aller gewählten Positionen mit Mengen, Einzel- und Gesamtpreisen. Dient zum Prüfen der Abrechnung.</p>
-
-  <div id="costsSummary" style="display:flex; flex-direction:column; gap:14px;"></div>
-
-  <div class="actions full" style="margin-top:16px;">
-    <button type="button" data-nav="prev" class="secondary">Zurück</button>
-    <button type="button" data-nav="next">Weiter</button>
-  </div>
-</section>
 
     <script src="./script.js"></script>
   </body>

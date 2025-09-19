@@ -13,6 +13,7 @@ import pricingFactory from '../logic/pricing.js';
 export const router = express.Router();
 const pricing = pricingFactory(ProductModel);
 
+// -------- Helpers --------
 function fmtCurrency(n) {
   if (n === '' || n === null || n === undefined) return '';
   const num = Number(n);
@@ -20,6 +21,114 @@ function fmtCurrency(n) {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(num);
 }
 
+async function renderDocx(templatePath, data) {
+  const content = await fs.readFile(templatePath);
+  const zip = new PizZip(content);
+  const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+  doc.setData(data);
+  try {
+    doc.render();
+  } catch (e) {
+    const msg = e?.message || String(e);
+    console.error('Docxtemplater render error:', msg);
+    if (e?.properties?.errors) {
+      for (const er of e.properties.errors) {
+        console.error('- Docx error:', {
+          id: er.id, explanation: er.explanation, file: er.file,
+          xtag: er.xtag, context: er.context, offset: er.offset,
+        });
+      }
+    }
+    throw new Error(`DOCX render failed: ${msg}`);
+  }
+  return doc.getZip().generate({ type: 'nodebuffer' });
+}
+
+// Collect + aggregate materials for the Material overview
+function aggregateMaterialsForOverview(body = {}, computed = {}) {
+  const sourceLines = [];
+
+  // 1) From computed.materials.lines (if present)
+  const compMat = computed?.materials;
+  if (Array.isArray(compMat?.lines)) {
+    for (const l of compMat.lines) {
+      sourceLines.push({
+        materialNumber: l.materialNumber || l.sku || l.productId || '',
+        name: l.name || l.label || '',
+        unit: l.unit || 'Stck.',
+        quantity: Number(l.qty ?? l.quantity ?? 0) || 0,
+        remarks: l.remarks || ''
+      });
+    }
+  }
+
+  // 2) Fallback: explicit body.materials (if UI sends any)
+  if (Array.isArray(body?.materials)) {
+    for (const m of body.materials) {
+      sourceLines.push({
+        materialNumber: m.materialNumber || m.nr || m.id || '',
+        name: m.name || m.title || m.description || '',
+        unit: m.unit || m.einheit || 'Stck.',
+        quantity: Number(m.quantity ?? m.menge ?? 0) || 0,
+        remarks: m.remarks || m.bemerkung || ''
+      });
+    }
+  }
+
+  // 3) Optional: include computed items as materials (if desired)
+  const items = computed?.items || [];
+  for (const it of items) {
+    if (!it) continue;
+    sourceLines.push({
+      materialNumber: it.productId || it.sku || '',
+      name: it.name || '',
+      unit: it.unit || 'Stck.',
+      quantity: Number(it.qty ?? 0) || 0,
+      remarks: ''
+    });
+  }
+
+  // Aggregate by materialNumber + unit
+  const map = new Map();
+  for (const l of sourceLines) {
+    const nr = String(l.materialNumber || '').trim();
+    const unit = String(l.unit || 'Stck.').trim();
+    const qty = Number(l.quantity) || 0;
+    if (!nr || qty <= 0) continue;
+
+    const key = `${nr}||${unit}`;
+    const prev = map.get(key) || { materialNumber: nr, name: String(l.name || '').trim(), unit, quantity: 0, remarks: '' };
+
+    // Prefer longer name
+    const nm = String(l.name || '').trim();
+    if (nm && (!prev.name || nm.length > prev.name.length)) prev.name = nm;
+
+    // Merge remarks
+    const rm = String(l.remarks || '').trim();
+    if (rm) prev.remarks = prev.remarks ? `${prev.remarks}; ${rm}` : rm;
+
+    prev.quantity += qty;
+    map.set(key, prev);
+  }
+
+  // Sort by material number then name
+  const rows = Array.from(map.values()).sort((a, b) => {
+    const n = a.materialNumber.localeCompare(b.materialNumber, 'de', { numeric: true });
+    if (n) return n;
+    return a.name.localeCompare(b.name, 'de', { numeric: true });
+  });
+
+  return rows;
+}
+
+function formatQtyForOverview(q, unit) {
+  const integerUnits = new Set(['Stck.', 'Set', 'Pkg']);
+  if (integerUnits.has(unit)) return String(Math.round(q));
+  const num = Math.round((q + Number.EPSILON) * 100) / 100;
+  return num.toFixed(2).replace('.', ','); // German comma
+}
+
+// -------- Existing Angebot mapping --------
 function mapData(body = {}, computed = {}) {
   const b = body.bereich || {};
   const tb = body.textbausteine || {};
@@ -90,7 +199,7 @@ function mapData(body = {}, computed = {}) {
     Stadt: b.city || '',
     PLZ: b.postalCode || '',
     Datum: b.date || dayjs().format('YYYY-MM-DD'),
-    Ansprechpartner: body.ansprechpartner || (b.hasContactPerson || ''),
+    Ansprechpartner: (b.emc2_contact || '').trim(),
     Kundennummer: b.customerNumber || '',
     Greeting: b.salutation === 'Frau' ? 'Sehr geehrte Frau' : (b.salutation === 'Herr' ? 'Sehr geehrter Herr' : 'Guten Tag'),
     Angebotsnummer: body.offerNumber || 'ANG-0001',
@@ -149,6 +258,7 @@ function mapData(body = {}, computed = {}) {
   };
 }
 
+// -------- Existing Angebot DOCX route --------
 router.post('/', async (req, res) => {
   try {
     const templatePath = path.join(process.cwd(), 'src', 'templates', 'Angebot.docx');
@@ -195,6 +305,49 @@ router.post('/', async (req, res) => {
   } catch (e) {
     console.error('DOCX generation failed:', e);
     res.status(500).json({ error: 'DOCX generation failed', detail: e.message || String(e) });
+  }
+});
+
+// -------- NEW: Material overview DOCX route --------
+router.post('/material-overview', async (req, res) => {
+  try {
+    const computed = await pricing.computePrices(req.body || {});
+    const rows = aggregateMaterialsForOverview(req.body || {}, computed);
+
+    const materials = rows.map((m, i) => ({
+      pos: i + 1,
+      materialNumber: m.materialNumber,
+      name: m.name,
+      quantity: formatQtyForOverview(m.quantity, m.unit || 'Stck.'),
+      unit: m.unit || 'Stck.',
+      remarks: m.remarks || ''
+    }));
+
+    const data = {
+      angebotNummer: req.body?.offerNumber || 'ANG-0001',
+      datum: (req.body?.bereich?.date || dayjs().format('YYYY-MM-DD')),
+      kunde: req.body?.bereich?.customerName || req.body?.kunde?.name || '',
+      ansprechpartner: (req.body?.bereich?.emc2_contact || '').trim(),
+      materials
+    };
+
+    const templatePath = path.join(process.cwd(), 'src', 'templates', 'Materialubersicht.docx');
+    const out = await renderDocx(templatePath, data);
+
+    try {
+      const verifyOut = path.join(process.cwd(), 'out-Materialubersicht.docx');
+      fsSync.writeFileSync(verifyOut, out);
+      console.log('[material-overview] wrote generated DOCX:', verifyOut, 'size:', out.length);
+    } catch (e) {
+      console.warn('[material-overview] could not write verify file:', e?.message || e);
+    }
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', 'attachment; filename="Materialubersicht.docx"');
+    res.send(out);
+  } catch (e) {
+    console.error('Materialubersicht generation failed:', e);
+    res.status(500).json({ error: 'Materialubersicht generation failed', detail: e.message || String(e) });
   }
 });
 

@@ -121,6 +121,8 @@ const pricing = pricingFactory(Product);
 app.use('/pdf', pdfRouter);
 app.use('/pdf-template', pdfTemplateRouter);
 app.use('/docx-template', docxTemplateRouter);
+app.use('/material-overview', docxTemplateRouter);
+
 
 // ----- New API: health -----
 app.get('/api/health', (req, res) =>

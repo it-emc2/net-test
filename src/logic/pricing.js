@@ -44,16 +44,65 @@ export default (ProductModel) => {
     return out;
   }
 
+  // Prefer numeric payload.pricing.markupPct; fallback to bereich.aufschlag like "35%".
   const extractMarkupPct = (payload) => {
-    const a = payload?.bereich?.aufschlag;
-    if (!a) return 0;
-    const m = String(a).trim();
-    if (m.endsWith('%')) {
-      const n = Number(m.slice(0, -1));
-      return Number.isFinite(n) ? n / 100 : 0;
+    const fromNumeric = payload?.pricing?.markupPct;
+    if (typeof fromNumeric === 'number' && Number.isFinite(fromNumeric)) {
+      return fromNumeric;
     }
-    return 0;
+    const a = payload?.bereich?.aufschlag;
+    if (!a) return 0.35; // safe default
+    const m = String(a).trim().match(/^(\d+)\%$/);
+    if (m) {
+      const n = Number(m[1]);
+      if (Number.isFinite(n)) return n / 100;
+    }
+    return 0.35;
   };
+
+  // Build zero-cost "work notes" for DOCX and UI
+  function computeWorkNotes(payload) {
+    const opt = payload?.optional || {};
+    const kind = payload?.wandverkleidung?.wvKind || '';
+
+    const picked = new Set();
+
+    // Wandverkleidung
+    if (kind === 'Fehlstellen') picked.add('Schließen der Fehlstellen');
+    if (kind === 'Deckenhoch') picked.add('Verkleidung Deckenhoch im Dusch/ Wannenbereich');
+
+    // Generic detector: true if non-empty array/string, or qty > 0
+    const chosen = (flag, qty) => {
+      if (Array.isArray(flag) && flag.length > 0) return true;
+      if (typeof flag === 'string' && flag.trim() !== '') return true;
+      if (flag === true) return true;
+      const q = Number(qty);
+      return Number.isFinite(q) && q > 0;
+    };
+
+    // IMPORTANT: your keys include [] in their names
+    const shower = chosen(opt['optShower[]'], opt.qty_V22WS1R || opt.qty_TEMPDSU250 || opt.qty_V22BG903R || opt.qty_DEDS2503E);
+    const grab   = chosen(opt['optGrab[]'],   opt.qty_CLPESG40 || opt.qty_CLPESG60 || opt.qty_CLPESG80);
+    const fold   = chosen(opt['optFold[]'],   opt.qty_DEPSKG60 || opt.qty_DEPSKG85);
+    const basin  = chosen(opt['optBasin[]'],  opt.qty_CL60);
+    const tap    = chosen(opt['optBasinTap[]'], opt.qty_CL_BASIN || opt.qty_DEPOH);
+    const thermo = chosen(opt['optThermo[]'], opt.qty_CLTB || opt.qty_DEPTB || opt.qty_CLB);
+    const seat   = chosen(opt['optSeat[]'],   opt.qty_DEPKS);
+
+    if (shower) picked.add('Auswechseln des Duschsystems');
+    if (grab)   picked.add('Anbringen zusätzlicher Haltegriffe');
+    if (fold)   picked.add('Anbringen zusätzlicher Stützklappgriffe');
+    if (basin)  picked.add('Auswechseln eines Waschtisches');
+    if (tap)    picked.add('Einbau einer einhand-Waschtischbatterie');
+    if (thermo) picked.add('Austausch eines Thermostates');
+    if (seat)   picked.add('Einbau eines Klappsitzes');
+
+    return Array.from(picked).map(txt => ({
+      key: 'worknote',
+      label: `- ${txt}`,
+      amount: 0,
+    }));
+  }
 
   async function computeMaterials(payload) {
     const dusch = payload?.duschwanne || {};
@@ -91,7 +140,7 @@ export default (ProductModel) => {
     if (dusch.abdichtSet) add('TRWDB', 1);
     if (dusch.drainSet) add('AGD9060', 1);
 
-    // Kleinmaterial: always 150 € (KM02) when selected
+    // Kleinmaterial pauschal
     if (dusch.smallMaterial) add('KM02', 1);
 
     if (dusch.stelzlager) add('STELZ', 1);
@@ -100,11 +149,9 @@ export default (ProductModel) => {
     const addFlooring = !!dusch.addFlooring;
     const floorArea = Number(String(dusch.floorArea ?? '').replace(',', '.')) || 0;
     if (addFlooring && floorArea > 0) {
-      // Panels
       const panels = ceilSafe(floorArea * 4);
       add('V5FB02', panels, `- ${panels} Stk Fußboden-Paneele (1 m² = 4 Paneele)`, 20.97);
 
-      // NEW adhesive packs: 4 packs per 2.4 m² => 1 pack per 0.6 m²
       const packs = ceilSafe(floorArea / 0.6);
       if (packs > 0) add('V4FK600', packs, `- ${packs} Pkg Flächenkleber (1 Pkg je 0,60 m²)`, 17.39);
 
@@ -112,49 +159,49 @@ export default (ProductModel) => {
     }
 
     // Wandverkleidung
-const qty997 = Number(wv?.wvQty997 || 0) || 0;
-const qty1497 = Number(wv?.wvQty1497 || 0) || 0;
-const totalPanels = qty997 + qty1497;
+    const qty997 = Number(wv?.wvQty997 || 0) || 0;
+    const qty1497 = Number(wv?.wvQty1497 || 0) || 0;
+    const totalPanels = qty997 + qty1497;
 
-if (wv?.wv997 && qty997 > 0) {
-  add('V3WVK09', qty997, `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`);
-}
-if (wv?.wv1497 && qty1497 > 0) {
-  add('V3WV09', qty1497, `- ${qty1497} Stk Wandverkleidung 3.0 Alu 1497×2550 mm`);
-}
+    if (wv?.wv997 && qty997 > 0) {
+      add('V3WVK09', qty997, `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`);
+    }
+    if (wv?.wv1497 && qty1497 > 0) {
+      add('V3WV09', qty1497, `- ${qty1497} Stk Wandverkleidung 3.0 Alu 1497×2550 mm`);
+    }
 
-if (wv?.wvSealing) add('TRWDSET5', 1);
+    if (wv?.wvSealing) add('TRWDSET5', 1);
 
-// Wandverkleidungsklebstoff (V4RKIT): use user qty or fallback = 3*small + 4*large
-if (wv?.wvAdhesive) {
-  const userQtyAdh = Number(wv?.wvAdhesiveQty);
-  const fallbackAdh = (3 * qty997) + (4 * qty1497);
-  const qAdh = Number.isFinite(userQtyAdh) && userQtyAdh > 0 ? userQtyAdh : fallbackAdh;
-  if (qAdh > 0) add('V4RKIT', qAdh, `- ${qAdh} Stk Wandverkleidungsklebstoff 3.0/4.0`);
-}
+    // Wandverkleidungsklebstoff: user qty oder Fallback
+    if (wv?.wvAdhesive) {
+      const userQtyAdh = Number(wv?.wvAdhesiveQty);
+      const fallbackAdh = (3 * qty997) + (4 * qty1497);
+      const qAdh = Number.isFinite(userQtyAdh) && userQtyAdh > 0 ? userQtyAdh : fallbackAdh;
+      if (qAdh > 0) add('V4RKIT', qAdh, `- ${qAdh} Stk Wandverkleidungsklebstoff 3.0/4.0`);
+    }
 
-// Abschlussprofil (V3A): take user-entered quantity (client will default to 3)
-let endProfilesQty = 0;
-if (wv?.wvEndProfile) {
-  endProfilesQty = Number(wv?.wvEndProfileQty) || 0;
-  if (endProfilesQty > 0) add('V3A', endProfilesQty);
-}
+    // Abschlussprofil (V3A)
+    let endProfilesQty = 0;
+    if (wv?.wvEndProfile) {
+      endProfilesQty = Number(wv?.wvEndProfileQty) || 0;
+      if (endProfilesQty > 0) add('V3A', endProfilesQty);
+    }
 
-// Verbindungsprofil(e) (V3V): if multiple panels, Anzahl Profile = Anzahl Platten - 1
-if (totalPanels >= 2) {
-  const qV3V = totalPanels - 1;
-  add('V3V', qV3V, `- ${qV3V} Stk Verbindungsprofil(e) (Plattenanzahl - 1)`);
-}
+    // Verbindungsprofil(e) (V3V): Anzahl Platten - 1
+    if (totalPanels >= 2) {
+      const qV3V = totalPanels - 1;
+      add('V3V', qV3V, `- ${qV3V} Stk Verbindungsprofil(e) (Plattenanzahl - 1)`);
+    }
 
-// Profilklebstoff (V4RPKIT): user qty or fallback = Anzahl Endprofile
-if (wv?.wvProfileAdhesive) {
-  const userQtyProfGlue = Number(wv?.wvProfileAdhesiveQty);
-  const fallbackProfGlue = endProfilesQty;
-  const qProfGlue = Number.isFinite(userQtyProfGlue) && userQtyProfGlue > 0 ? userQtyProfGlue : fallbackProfGlue;
-  if (qProfGlue > 0) add('V4RPKIT', qProfGlue, `- ${qProfGlue} Stk Profilklebstoff (pro Abschlussprofil 1 Stk)`);
-}
+    // Profilklebstoff (V4RPKIT): user qty oder Fallback = Anzahl Endprofile
+    if (wv?.wvProfileAdhesive) {
+      const userQtyProfGlue = Number(wv?.wvProfileAdhesiveQty);
+      const fallbackProfGlue = endProfilesQty;
+      const qProfGlue = Number.isFinite(userQtyProfGlue) && userQtyProfGlue > 0 ? userQtyProfGlue : fallbackProfGlue;
+      if (qProfGlue > 0) add('V4RPKIT', qProfGlue, `- ${qProfGlue} Stk Profilklebstoff (pro Abschlussprofil 1 Stk)`);
+    }
 
-    // Waschtisch required accessories
+    // Waschtisch required accessories (reuse opt)
     const basinQty = Number(opt?.qty_CL60 || 0) || 0;
     const basinSelected = !!opt?.opt_CL60 && basinQty > 0;
     if (basinSelected) {
@@ -171,7 +218,7 @@ if (wv?.wvProfileAdhesive) {
     const productMap = await getProductsByIds([...idsNeeded]);
     const resolved = lines.map(l => {
       const prod = productMap.get(l.id) || { price: 0, name: '' };
-      const unit = Number.isFinite(l.unitOverride) ? l.unitOverride : prod.price;
+      const unit = Number.isFinite(l.unitOverride) ? Number(l.unitOverride) : prod.price;
       const lineTotal = round2(unit * l.qty);
       return {
         productId: l.id,
@@ -191,8 +238,14 @@ if (wv?.wvProfileAdhesive) {
   function computeServiceCosts(payload) {
     const b = payload?.bereich || {};
     const payer = b.payer === 'Kassenkunde' ? 'KK' : (b.payer === 'Selbstzahler' ? 'SZ' : '');
-    const distanceKm = Number(b.distanceKm || 0) || 0;
-    const laborHours = Number(b.laborHours || 0) || 0;
+    const oneWayKm = Number(b.distanceKm || 0) || 0; // user enters one-way distance
+    const roundTripKm = Math.max(0, oneWayKm * 2);   // bill both ways
+
+    // Arbeitszeit via radios: only accept 8h or 10h; otherwise 0
+    const laborHours = (() => {
+      const n = Number(b.laborHours);
+      return Number.isFinite(n) && (n === 8 || n === 10) ? n : 0;
+    })();
 
     const laborRateKK = 69.50;
     const laborRateSZ = 59.50;
@@ -200,26 +253,34 @@ if (wv?.wvProfileAdhesive) {
 
     const fahrzeugbereitstellung = 80.00;
     const werkzeug = 7.50;
-    const beraeumung = 4.50; // NEW: Beräumung der Baustelle
+    const beraeumung = 4.50; // Beräumung der Baustelle
 
-    const kilometerpauschale = round2(distanceKm * kmRate);
+    const kilometerpauschale = round2(roundTripKm * kmRate);
     const laborRate = payer === 'KK' ? laborRateKK : (payer === 'SZ' ? laborRateSZ : 0);
-    const facharbeiter = round2(laborHours * 2 * laborRate);
+    const facharbeiter = round2(laborHours * 2 * laborRate); // always 2 workers
 
     const lines = [];
     lines.push({ key: 'fahrzeug',   label: '- 1,00 Stk Fahrzeugbereitstellung', amount: round2(fahrzeugbereitstellung) });
     lines.push({ key: 'werkzeuge',  label: '- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen', amount: round2(werkzeug) });
-    lines.push({ key: 'beraeumung', label: '- 1,00 Stk Beräumung der Baustelle', amount: round2(beraeumung) }); // always included
-    if (distanceKm > 0) {
-      lines.push({ key: 'kilometer', label: `- ${distanceKm} km Kilometerpauschale`, amount: kilometerpauschale });
+    lines.push({ key: 'beraeumung', label: '- 1,00 Stk Beräumung der Baustelle', amount: round2(beraeumung) });
+    if (roundTripKm > 0) {
+      lines.push({ key: 'kilometer', label: `- ${roundTripKm} km Kilometerpauschale (Hin- & Rückfahrt)`, amount: kilometerpauschale });
     }
     if (laborHours > 0 && laborRate > 0) {
       lines.push({ key: 'facharbeiter', label: `- ${laborHours} Std × 2 Facharbeiter × ${laborRate.toFixed(2)} €`, amount: facharbeiter });
     }
 
+    // Append zero-cost work notes
+    try {
+      const notes = computeWorkNotes(payload);
+      for (const n of notes) lines.push(n);
+    } catch (e) {
+      console.warn('[pricing] computeWorkNotes failed:', e?.message || e);
+    }
+
     const posTitle = 'Auszuführende Arbeiten';
     const sum = round2(lines.reduce((a, x) => a + (x.amount || 0), 0));
-    return { title: posTitle, lines, sum, payer, zoneLabel: '', distanceKm, laborHours, laborRate };
+    return { title: posTitle, lines, sum, payer, zoneLabel: '', distanceKm: roundTripKm, laborHours, laborRate };
   }
 
   return {
@@ -251,7 +312,14 @@ if (wv?.wvProfileAdhesive) {
         (materials?.sum ?? 0)
       );
       const baseSubtotal = round2(productsSubtotal + (services?.sum ?? 0));
-      const markupPct = extractMarkupPct(payload);
+
+      // Extract and enforce markup rules
+      let markupPct = extractMarkupPct(payload);
+      const payer = payload?.bereich?.payer || '';
+      if (payer === 'Selbstzahler') {
+        markupPct = 0.35; // enforce rule regardless of client input
+      }
+
       const markup = round2(baseSubtotal * (markupPct || 0));
       const Subtotal = round2(productsSubtotal + (services?.sum ?? 0)+ markup);
       const travel = 0;
@@ -261,6 +329,7 @@ if (wv?.wvProfileAdhesive) {
         items: (items || []).length,
         materialsSum: materials?.sum ?? 0,
         servicesSum: services?.sum ?? 0,
+        markupPct,
       });
 
       return { items, materials, productsSubtotal, services, subtotal: Subtotal, markupPct, markup, travel, total };
