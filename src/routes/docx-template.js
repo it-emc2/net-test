@@ -133,28 +133,41 @@ function mapData(body = {}, computed = {}) {
   const b = body.bereich || {};
   const tb = body.textbausteine || {};
 
-  const {
+    const {
     items = [],
     productsSubtotal = 0,
     materials = { title: '', lines: [], sum: 0 },
     services = { title: '', lines: [], sum: 0, payer: '', zoneLabel: '', distanceKm: 0, laborHours: 0, laborRate: 0 },
-    subtotal = 0,
+
+    // use server-computed fields (from pricing.js)
+    Nettobetrag: netBeforeDiscount = 0,
     markupPct = 0,
     markup = 0,
     travel = 0,
     total = 0,
+    vatOnNet = 0,
+    Vat_on_net_AfterDiscount: vatAfterDiscount = 0,
+    totalAfterRabatt = 0,
+    rabattAmount = 0,
   } = computed || {};
 
-  const prix = body.preise || {};
-  const sum = body.summe || {};
+  // Map the exact placeholders used in Angebot.docx
+  const Nettobetrag = fmtCurrency(netBeforeDiscount);       // "Nettobetrag (ohne Rabatt)"
+  const Rabatt = fmtCurrency(rabattAmount);  
+                // Materialrabatt Betrag
+  const MwSt = fmtCurrency(vatOnNet);   // 19% MwSt (nach Rabatt, falls vorhanden)
+  const Gesamtsumme = fmtCurrency(total);                   // Brutto vor Rabatt
+  const Gesamtsummerabatt = fmtCurrency(totalAfterRabatt);  // "Gesamtbetrag nach Materialrabatt"
 
-  const Nettobetrag = sum.netto ?? fmtCurrency(subtotal);
-  const Rabatt = sum.rabatt ?? '';
-  const MwSt = sum.mwst ?? '';
-  const Gesamtsumme = sum.gesamt ?? fmtCurrency(total);
-  const Selbstkostenanteil = sum.selbstkostenanteil ?? '';
-  const Zuschusskrankenkasse = sum.zuschuss ?? '';
-  const Gesamtsummerabatt = sum.gesamtsummerabatt ?? '';
+  // Optional: provide synonyms in case the template uses alternative tags
+  const NettobetragOhneRabatt = Nettobetrag;
+  const Materialrabatt = Rabatt;
+  const GesamtbetragNachMaterialrabatt = Gesamtsummerabatt;
+
+  // (If you actually use these in the template, keep them; otherwise you can delete)
+  const Selbstkostenanteil = '';
+  const Zuschusskrankenkasse = '';
+
 
   const MarkupPctStr = markupPct ? `${Math.round(markupPct * 100)}%` : '';
   const MarkupValue = fmtCurrency(markup);
@@ -190,6 +203,20 @@ function mapData(body = {}, computed = {}) {
       : (Number(b.laborHours ?? 0) || 0);
   const LaborRate = services?.laborRate ?? 0;
 
+  const hasRabatt = (rabattAmount ?? 0) > 0;
+//const vatToShow = hasRabatt ? vatAfterDiscount : vatOnNet;
+const vatToShow = vatOnNet;
+  // Build the summary rows exactly as you want them to appear:
+const baseTotals = [
+  { label: 'Nettobetrag (ohne Rabatt)', value: fmtCurrency(netBeforeDiscount) },
+   { label: 'zzgl. 19% MwSt.', value: fmtCurrency(vatToShow) },
+   { label: 'Gesamtsumme', value: fmtCurrency(total) },
+  ...(hasRabatt ? [{ label: 'Rabatt', value: fmtCurrency(rabattAmount) }] : []),
+  ...(hasRabatt ? [{ label: 'Gesamtbetrag nach Materialrabatt', value: fmtCurrency(totalAfterRabatt) }] : []),
+];
+// mark every second row (0-based: 1,3,5,...) as "alt"
+const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
+
   return {
     // Address / meta
     Anrede: b.salutation || '',
@@ -205,8 +232,8 @@ function mapData(body = {}, computed = {}) {
     Angebotsnummer: body.offerNumber || 'ANG-0001',
 
     // Legacy/optional price fields
-    Arbeit: prix.arbeit ?? '',
-    Material: prix.material ?? '',
+    Arbeit: fmtCurrency(services?.sum ?? 0),
+Material: fmtCurrency(materials?.sum ?? 0),
 
     // Text blocks
     Long1: tb.long1 ?? '',
@@ -223,7 +250,7 @@ function mapData(body = {}, computed = {}) {
     Gesamtsummerabatt,
 
     // Computed summary
-    Subtotal: fmtCurrency(subtotal),
+    Nettobetrag: fmtCurrency(netBeforeDiscount),
     MarkupPct: MarkupPctStr,
     MarkupValue,
     TravelValue,
@@ -255,6 +282,11 @@ function mapData(body = {}, computed = {}) {
     DistanceKm,
     LaborHours,
     LaborRate: LaborRate ? `${LaborRate.toFixed(2)} €` : '',
+
+  
+    //  for summay rows
+    hasRabatt,
+  Totals,
   };
 }
 
