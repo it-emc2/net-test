@@ -2786,64 +2786,89 @@
           </div>
         </form>
       </section>
-      <!-- Rabatt -->
+     
 
-      <section class="card page" id="page-rabatt" hidden>
+    <!-- Rabatt -->
+<section class="card page" id="page-rabatt" hidden>
+  <h2 style="margin:0 0 12px;">Rabatt</h2>
 
-<h2 style="margin:0 0 12px;">Rabatt</h2>
-
-<form id="form-rabatt" autocomplete="on">
-
-<div class="field">
-
-<label class="req">Art des Rabatts</label>
-
-<div class="radio-group" role="radiogroup" aria-label="Art des Rabatts">
-
-<label class="radio-pill">
-
-<input type="radio" name="discountType" value="percent" required />
-
-<span class="circle"></span><span>Prozent (%)</span>
-
-</label>
-
-<label class="radio-pill">
-
-<input type="radio" name="discountType" value="amount" required />
-
-<span class="circle"></span><span>Betrag (EUR)</span>
-
-</label>
-
+  <form id="form-rabatt" autocomplete="on">
+    <!-- Top 5 values (auto-filled from JS) -->
+    <div class="full">
+      <div class="subheader">Summen</div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;">
+        <div>Material</div>      <div id="rb-material">0,00 €</div>
+        <div>Arbeit</div>        <div id="rb-arbeit">0,00 €</div>
+        <!-- after the row that shows Arbeit (id="rb-arbeit") -->
+<div id="rb-auf-row" style="display:contents;">
+  <div id="rb-auf-label">Aufschlag</div>
+  <div id="rb-auf-value">0,00 €</div>
 </div>
 
-</div>
+        <div>Nettobetrag</div>   <div id="rb-net">0,00 €</div>
+        <div>zzgl. 19% MwSt.</div><div id="rb-vat">0,00 €</div>
+        <div>Gesamtbetrag</div>  <div id="rb-total">0,00 €</div>
+      </div>
+    </div>
 
-<div class="field" style="max-width:260px;">
-  <label for="discountValue" class="req">Rabattwert</label>
-  <input id="discountValue" name="discountValue" type="number" min="0" step="0.01" placeholder="z. B. 10" required />
-</div>
+    <!-- Rabatt auf Materialkosten (slider/progress) -->
+    <div class="full field" style="margin-top:16px;">
+      <label class="req" for="rb-material-discount">Rabatt auf Materialkosten</label>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="min-width:28px;text-align:right;">0%</span>
+        <input
+          type="range"
+          id="rb-material-discount"
+          min="0" max="9" step="0.1" value="0"
+          style="flex:1;accent-color:var(--accent);"
+          aria-label="Rabatt in Prozent (0–9%)"
+        />
+        <span style="min-width:28px;">9%</span>
+        <span id="rb-material-discount-val" style="min-width:56px;text-align:right;">0,0%</span>
+      </div>
+    </div>
 
-<div class="field full" style="max-width:720px;">
-  <label for="discountReason">Begründung / Hinweis (optional)</label>
-  <input id="discountReason" name="discountReason" placeholder="z. B. Stammkunde, Aktionsrabatt, Kulanz ..." />
-</div>
+    <!-- Outputs that react to the slider -->
+    <div class="full" style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;">
+      <div id="rb-rabatt-row" hidden aria-hidden="true" style="display:contents;">
+        <div>Rabatt</div> <div id="rb-rabatt">0,00 €</div>
+      </div>
+      <div id="rb-total-after-row" hidden aria-hidden="true" style="display:contents;">
+        <div>Gesamtbetrag nach Materialrabatt</div> <div id="rb-total-after">0,00 €</div>
+      </div>
+    </div>
 
-<div class="muted field" style="max-width:720px;">
-  <div class="subheader">Hinweis</div>
-  - Prozent-Rabatt wird später auf die Zwischensumme angewendet.
-  - Betrag-Rabatt wird als fixer Abzug geführt.
-</div>
+    <!-- Bonuses / checkboxes -->
+    <div class="full field" style="margin-top:16px;">
+      <label class="check-pill">
+        <input type="checkbox" id="rb-bonus-300" />
+        <span class="box"></span>
+        <span>Möchten Sie den Neu- oder Bestandskundenbonus in Höhe von 252,10 € hinzufügen?
+          (Rabatt von 300 € ab einem Gesamtwert von 3.000 €)</span>
+      </label>
+    </div>
 
-<div class="actions full">
-  <button type="button" data-nav="prev" class="secondary">Zurück</button>
-  <button type="button" data-nav="next">Weiter</button>
-</div>
+    <div class="full field">
+      <label class="check-pill">
+        <input type="checkbox" id="rb-bonus-grab" />
+        <span class="box"></span>
+        <span>Möchten Sie Neu- oder Bestandskundenbonus 1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage hinzufügen?</span>
+      </label>
+    </div>
 
-</form>
+    <div class="full" style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;">
+      <div id="rb-bonus-total-row" hidden aria-hidden="true" style="display:contents;">
+        <div>Gesamtbetrag nach Neukundenbonus</div><div id="rb-bonus-total">0,00 €</div>
+      </div>
+    </div>
 
+    <div class="actions full" style="margin-top:8px;">
+      <button type="button" data-nav="prev" class="secondary">Zurück</button>
+      <button type="button" data-nav="next">Weiter</button>
+    </div>
+  </form>
 </section>
+
 
       <!-- Zusammenfassung -->
       <section class="card page" id="page-zusammenfassung" hidden>
@@ -2894,6 +2919,6 @@
   </div>
 </section>
 
-    <script src="/script.js"></script>
+    <script src="./script.js"></script>
   </body>
 </html>

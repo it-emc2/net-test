@@ -4,7 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import dayjs from 'dayjs';
-import pdfjs from 'pdfjs-dist';
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 const { getDocument } = pdfjs;
 
 export const router = express.Router();

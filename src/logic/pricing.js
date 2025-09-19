@@ -251,11 +251,11 @@ if (wv?.wvProfileAdhesive) {
         (materials?.sum ?? 0)
       );
       const baseSubtotal = round2(productsSubtotal + (services?.sum ?? 0));
-
       const markupPct = extractMarkupPct(payload);
       const markup = round2(baseSubtotal * (markupPct || 0));
+      const Subtotal = round2(productsSubtotal + (services?.sum ?? 0)+ markup);
       const travel = 0;
-      const total = round2(baseSubtotal + markup + travel);
+      const total = round2(Subtotal + markup + travel);
 
       console.log('[pricing] subtotals:', {
         items: (items || []).length,
@@ -263,7 +263,7 @@ if (wv?.wvProfileAdhesive) {
         servicesSum: services?.sum ?? 0,
       });
 
-      return { items, materials, productsSubtotal, services, subtotal: baseSubtotal, markupPct, markup, travel, total };
+      return { items, materials, productsSubtotal, services, subtotal: Subtotal, markupPct, markup, travel, total };
     }
   };
 };

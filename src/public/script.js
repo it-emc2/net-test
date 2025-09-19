@@ -919,8 +919,57 @@ setShown(menuId, cb.checked);
 })();
 
 
+// ===== Global pricing service =====
+(() => {
+  async function fetchPrice(payload) {
+    const r = await fetch('/api/price', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }
+
+  // latest computed pricing (for any page to reuse)
+  window.__pricing = null;
+
+  // Build -> fetch -> broadcast -> feed Rabatt page
+  window.updatePricing = async function updatePricing(payload) {
+    const pl = payload ?? (typeof window.buildPayload === 'function' ? window.buildPayload() : null);
+    if (!pl) { console.warn('[pricing] No payload available'); return null; }
+
+    const data = await fetchPrice(pl);
+    window.__pricing = data;
+
+    // Update the Rabatt panel immediately
+    window.setPricingData?.(data);
+
+    // Let any listeners (e.g., Kosten renderer) react
+    window.dispatchEvent(new CustomEvent('pricing:updated', { detail: data }));
+
+    return data;
+  };
+
+  // Compute once on load so Rabatt has values even if Kosten is never opened
+  document.addEventListener('DOMContentLoaded', () => {
+    window.updatePricing?.().catch(err => console.warn('[pricing] initial update failed:', err));
+  });
+
+  // Optional: if user jumps straight to Rabatt and we still have no pricing, compute then.
+  window.addEventListener('hashchange', () => {
+    if (typeof window.getCurrentStep === 'function' &&
+        window.getCurrentStep() === 'rabatt' &&
+        !window.__pricing) {
+      window.updatePricing?.();
+    }
+  });
+})();
+
+
 (function initKostenDetails(){
-  const container = document.getElementById('costsSummary'); if (!container) return;
+  const container = document.getElementById('costsSummary');
+  if (!container) return;
 
   function euro(n){ return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(Number(n||0)); }
 
@@ -952,74 +1001,79 @@ setShown(menuId, cb.checked);
     `;
   }
 
-  async function fetchPrice(payload){
-    const r = await fetch('/api/price', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-    if (!r.ok) throw new Error(await r.text());
-    return r.json();
+  // Render purely from data (NO fetching here)
+  function renderFromData(data){
+    if (!data) { container.innerHTML = '<div class="muted">Keine Daten</div>'; return; }
+
+    const optBody = listLines((data.items || []).map(i => ({
+      productId: i.productId,
+      name: i.productId,
+      qty: i.qty,
+      unitPrice: i.unitPrice,
+      lineTotal: i.lineTotal
+    })));
+    const optCard = card('Optional gewählte Produkte', optBody, `<div style="text-align:right"><b>Summe:</b> ${euro((data.items||[]).reduce((a,x)=>a+(x.lineTotal||0),0))}</div>`);
+
+    const matLines = (data.materials?.lines || []).map(l => ({
+      productId: l.productId || l.id,
+      name: l.name,
+      qty: l.qty,
+      unitPrice: l.unitPrice,
+      lineTotal: l.lineTotal,
+      label: l.label
+    }));
+    const matBody = listLines(matLines);
+    const matCard = card(data.materials?.title || 'Material', matBody, `<div style="text-align:right"><b>Summe Material:</b> ${euro(data.materials?.sum || 0)}</div>`);
+
+    const svcLines = (data.services?.lines || []).map(s => ({
+      productId: s.key,
+      name: s.label,
+      qty: 1,
+      unitPrice: s.amount,
+      lineTotal: s.amount
+    }));
+    const svcBody = listLines(svcLines);
+    const svcCard = card(data.services?.title || 'Leistungen', svcBody, `<div style="text-align:right"><b>Summe Leistungen:</b> ${euro(data.services?.sum || 0)}</div>`);
+
+    const sums = `
+      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+        <div>Produkte + Material: <b>${euro(data.productsSubtotal || 0)}</b></div>
+        <div>Leistungen: <b>${euro(data.services?.sum || 0)}</b></div>
+        <div>Aufschlag (${Math.round((data.markupPct||0)*100)}%): <b>${euro(data.markup || 0)}</b></div>
+        <div style="font-size:1.05rem;">Zwischensumme: <b>${euro(data.subtotal || 0)}</b></div>
+        <div style="font-size:1.2rem;">Gesamt: <b>${euro(data.total || 0)}</b></div>
+      </div>
+    `;
+    const totalsCard = card('Summen', sums);
+
+    container.innerHTML = [matCard, optCard, svcCard, totalsCard].join('');
   }
 
-  async function render(){
+  // Open Kosten: use cache if present, otherwise trigger one fetch
+  async function openKosten(){
     container.innerHTML = '<div class="muted">Berechne …</div>';
-    try{
-      const payload = buildPayload();
-      const data = await fetchPrice(payload);
-
-      // Optional items (collectSelections -> items)
-      const optBody = listLines((data.items || []).map(i => ({
-        productId: i.productId,
-        name: i.productId, // name not returned here; we keep id
-        qty: i.qty,
-        unitPrice: i.unitPrice,
-        lineTotal: i.lineTotal
-      })));
-      const optCard = card('Optional gewählte Produkte', optBody, `<div style="text-align:right"><b>Summe:</b> ${euro((data.items||[]).reduce((a,x)=>a+(x.lineTotal||0),0))}</div>`);
-
-      // Materials (computeMaterials)
-      const matLines = (data.materials?.lines || []).map(l => ({
-        productId: l.productId || l.id,
-        name: l.name,
-        qty: l.qty,
-        unitPrice: l.unitPrice,
-        lineTotal: l.lineTotal,
-        label: l.label
-      }));
-      const matBody = listLines(matLines);
-      const matCard = card(data.materials?.title || 'Material', matBody, `<div style="text-align:right"><b>Summe Material:</b> ${euro(data.materials?.sum || 0)}</div>`);
-
-      // Services (computeServiceCosts)
-      const svcLines = (data.services?.lines || []).map(s => ({
-        productId: s.key,
-        name: s.label,
-        qty: 1,
-        unitPrice: s.amount,
-        lineTotal: s.amount
-      }));
-      const svcBody = listLines(svcLines);
-      const svcCard = card(data.services?.title || 'Leistungen', svcBody, `<div style="text-align:right"><b>Summe Leistungen:</b> ${euro(data.services?.sum || 0)}</div>`);
-
-      // Overview totals
-      const sums = `
-        <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
-          <div>Produkte + Material: <b>${euro(data.productsSubtotal || 0)}</b></div>
-          <div>Leistungen: <b>${euro(data.services?.sum || 0)}</b></div>
-          <div>Aufschlag (${Math.round((data.markupPct||0)*100)}%): <b>${euro(data.markup || 0)}</b></div>
-          <div style="font-size:1.05rem;">Zwischensumme: <b>${euro(data.subtotal || 0)}</b></div>
-          <div style="font-size:1.2rem;">Gesamt: <b>${euro(data.total || 0)}</b></div>
-        </div>
-      `;
-      const totalsCard = card('Summen', sums);
-
-      container.innerHTML = [matCard, optCard, svcCard, totalsCard].join('');
-    } catch(e){
-      container.innerHTML = `<div class="status err">Fehler beim Laden der Kosten: ${String(e)}</div>`;
+    if (window.__pricing) {
+      renderFromData(window.__pricing);
+    } else {
+      // One fetch; setPricingData + event will happen inside updatePricing
+      await window.updatePricing?.();
+      // Render from the cache now that it exists
+      renderFromData(window.__pricing);
     }
   }
 
-  // Re-render whenever this page becomes active
+  // Show Kosten when the step becomes active
   window.addEventListener('hashchange', ()=>{
-    if (getCurrentStep() === 'kosten') render();
+    if (getCurrentStep() === 'kosten') openKosten();
   });
-  if (getCurrentStep() === 'kosten') render();
+  if (getCurrentStep() === 'kosten') openKosten();
+
+  // React to pricing updates WITHOUT fetching again (no loop)
+  window.addEventListener('pricing:updated', (ev) => {
+    if (getCurrentStep() === 'kosten') {
+      renderFromData(ev.detail || window.__pricing);
+    }
+  });
 })();
 
 
@@ -1075,3 +1129,172 @@ document.getElementById('sendJson')?.addEventListener('click', async ()=>{
     show({ message:'Submission gespeichert', ...data }, true);
   }catch(e){ show({error:String(e)}, false); }
 });
+
+
+
+// =======================
+// RABATT SECTION (drop-in)
+// =======================
+// ===== ONE global store for all Rabatt code =====
+window.CURRENT = window.CURRENT || {
+  material: 0,
+  arbeit:   0,
+  markup:   0,
+  subtotal: 0,
+  vat:      0,
+  total:    0
+};
+const CURRENT = window.CURRENT;
+
+const TAX_RATE = 0.19;
+const round2   = (n) => Math.round((Number(n)||0) * 100) / 100;
+const euroFmt  = (n) =>
+  (typeof window.euro === 'function')
+    ? window.euro(n)
+    : (Number(n)||0).toLocaleString('de-DE', { style:'currency', currency:'EUR' }).replace(/\u00A0/g, ' ');
+
+const $ = (sel) => document.querySelector(sel);
+
+// Elements
+const elDiscount    = $('#rb-material-discount');
+const elDiscountVal = $('#rb-material-discount-val');
+
+const lblMaterial = $('#rb-material');
+const lblArbeit   = $('#rb-arbeit');
+const lblNet      = $('#rb-net');
+const lblVat      = $('#rb-vat');
+const lblTotal    = $('#rb-total');
+
+const rowRabatt     = $('#rb-rabatt-row');
+const rowTotalAfter = $('#rb-total-after-row');
+const outRabatt     = $('#rb-rabatt');
+const outTotalAfter = $('#rb-total-after');
+
+const cbBonus300    = $('#rb-bonus-300');
+const cbBonusGrab   = $('#rb-bonus-grab');
+const rowBonusTotal = $('#rb-bonus-total-row');
+const outBonusTotal = $('#rb-bonus-total');
+
+const rbTitleEl     = $('#page-rabatt h2');
+
+// Aufschlag (new row you added)
+const elAufLabel = $('#rb-auf-label');
+const elAufValue = $('#rb-auf-value');
+
+// Utils
+function setRowVisible(row, visible) {
+  if (!row) return;
+  row.style.display = visible ? 'contents' : 'none';
+  row.hidden = !visible;
+  row.setAttribute('aria-hidden', String(!visible));
+}
+const clampPct = (p) => Math.max(0, Math.min(9, Number.isFinite(+p) ? +p : 0));
+
+// Title based on payer radios
+function updateRabattTitle() {
+  const payer = document.querySelector('input[name="payer"]:checked')?.value;
+  if (!rbTitleEl) return;
+  rbTitleEl.textContent =
+    payer === 'Selbstzahler' ? 'Rabatt fur Selbstzahler kunde' :
+    payer === 'Kassenkunde'  ? 'Rabatt fur kassenkunde' :
+                               'Rabatt';
+}
+document.querySelectorAll('input[name="payer"]').forEach(r =>
+  r.addEventListener('change', updateRabattTitle)
+);
+
+// Aufschlag label = "Aufschlag <selected pill text>"
+function getSelectedPillText() {
+  const checked = document.querySelector('.radio-group.vertical input[type="radio"]:checked');
+  const pill = checked?.closest('label.radio-pill');
+  return (pill?.textContent || '').trim();
+}
+function renderAufschlag() {
+  if (elAufLabel) elAufLabel.textContent = getSelectedPillText()
+    ? `Aufschlag ${getSelectedPillText()}`
+    : 'Aufschlag';
+  if (elAufValue) elAufValue.textContent = euroFmt(CURRENT.markup);
+}
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.matches('.radio-group.vertical input[type="radio"]')) {
+    renderAufschlag();
+  }
+});
+
+// Core computations
+function computeAfterRabatt() {
+  const pct = clampPct(elDiscount?.value);
+  const rabatt = round2(CURRENT.material * (pct / 100));        // discount on material only
+  const totalAfterRabatt = round2(Math.max(0, (CURRENT.subtotal - rabatt) * (1+TAX_RATE )));
+  return { pct, rabatt, totalAfterRabatt };
+}
+
+function renderRabatt() {
+  const { pct, rabatt, totalAfterRabatt } = computeAfterRabatt();
+
+  if (elDiscountVal) {
+    elDiscountVal.textContent = pct.toLocaleString('de-DE', { minimumFractionDigits:1, maximumFractionDigits:1 }) + '%';
+  }
+
+  const hide = pct === 0;
+  if (outRabatt)     outRabatt.textContent     = euroFmt(hide ? 0 : rabatt);
+  if (outTotalAfter) outTotalAfter.textContent = euroFmt(hide ? 0 : totalAfterRabatt);
+
+  setRowVisible(rowRabatt,     !hide);
+  setRowVisible(rowTotalAfter, !hide);
+}
+
+function renderNeukundenbonus() {
+  const { totalAfterRabatt } = computeAfterRabatt();
+  const anyChecked = !!(cbBonus300?.checked || cbBonusGrab?.checked);
+
+  let bonusGross = 0;
+  if (cbBonus300?.checked ) bonusGross += 300;
+  if (cbBonusGrab?.checked) bonusGross += 175;
+
+  const totalAfterBonus = round2(Math.max(0, totalAfterRabatt - bonusGross));
+  const show = anyChecked || bonusGross > 0;
+
+  if (outBonusTotal) outBonusTotal.textContent = euroFmt(totalAfterBonus);
+  setRowVisible(rowBonusTotal, show);
+}
+
+// One and only entry to feed payload → UI
+window.setPricingData = function setPricingData(data) {
+  // Map payload to store
+  CURRENT.material = Number(data?.productsSubtotal ?? 0);
+  CURRENT.arbeit   = Number(data?.services?.sum   ?? 0);
+  CURRENT.markup   = Number(data?.markup         ?? 0);
+
+  // Client-side totals (don’t trust data.total / data.tax)
+  CURRENT.subtotal = round2(CURRENT.material + CURRENT.arbeit + CURRENT.markup);
+  CURRENT.vat      = round2(CURRENT.subtotal * TAX_RATE);
+  CURRENT.total    = round2(CURRENT.subtotal + CURRENT.vat);
+
+  // Write header labels
+  if (lblMaterial) lblMaterial.textContent = euroFmt(CURRENT.material);
+  if (lblArbeit)   lblArbeit.textContent   = euroFmt(CURRENT.arbeit);
+  if (lblNet)      lblNet.textContent      = euroFmt(CURRENT.subtotal);
+  if (lblVat)      lblVat.textContent      = euroFmt(CURRENT.vat);
+  if (lblTotal)    lblTotal.textContent    = euroFmt(CURRENT.total);
+
+  // Paint dependent areas
+  updateRabattTitle();
+  renderAufschlag();
+  renderRabatt();
+  renderNeukundenbonus();
+};
+
+// Live updates
+elDiscount && elDiscount.addEventListener('input', () => {
+  renderRabatt();
+  renderNeukundenbonus();
+});
+cbBonus300 && cbBonus300.addEventListener('change', renderNeukundenbonus);
+cbBonusGrab && cbBonusGrab.addEventListener('change', renderNeukundenbonus);
+
+// Initial paint (safe even if no payload yet)
+updateRabattTitle();
+renderAufschlag();
+renderRabatt();
+renderNeukundenbonus();
