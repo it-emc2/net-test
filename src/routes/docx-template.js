@@ -149,6 +149,8 @@ function mapData(body = {}, computed = {}) {
     Vat_on_net_AfterDiscount: vatAfterDiscount = 0,
     totalAfterRabatt = 0,
     rabattAmount = 0,
+    bonusGross = 0,
+  totalAfterBonus = 0,
   } = computed || {};
 
   // Map the exact placeholders used in Angebot.docx
@@ -204,15 +206,18 @@ function mapData(body = {}, computed = {}) {
   const LaborRate = services?.laborRate ?? 0;
 
   const hasRabatt = (rabattAmount ?? 0) > 0;
-//const vatToShow = hasRabatt ? vatAfterDiscount : vatOnNet;
-const vatToShow = vatOnNet;
+  const hasBonus  = (bonusGross   ?? 0) > 0;
+
+
   // Build the summary rows exactly as you want them to appear:
 const baseTotals = [
   { label: 'Nettobetrag (ohne Rabatt)', value: fmtCurrency(netBeforeDiscount) },
-   { label: 'zzgl. 19% MwSt.', value: fmtCurrency(vatToShow) },
-   { label: 'Gesamtsumme', value: fmtCurrency(total) },
   ...(hasRabatt ? [{ label: 'Rabatt', value: fmtCurrency(rabattAmount) }] : []),
+   { label: 'zzgl. 19% MwSt.', value: fmtCurrency(vatOnNet) },
+   { label: 'Gesamtsumme', value: fmtCurrency(total) },
   ...(hasRabatt ? [{ label: 'Gesamtbetrag nach Materialrabatt', value: fmtCurrency(totalAfterRabatt) }] : []),
+  ...(hasBonus ? [{ label: 'Gesamtbetrag nach Neukundenbonus', value: fmtCurrency(totalAfterBonus) }] : []),
+
 ];
 // mark every second row (0-based: 1,3,5,...) as "alt"
 const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
@@ -286,6 +291,7 @@ Material: fmtCurrency(materials?.sum ?? 0),
   
     //  for summay rows
     hasRabatt,
+     hasBonus,
   Totals,
   };
 }
