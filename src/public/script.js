@@ -1425,3 +1425,15 @@ document.getElementById('downloadMaterialOverview')?.addEventListener('click', a
     alert('Materialübersicht konnte nicht erstellt werden.');
   }
 });
+
+document.getElementById('downloadDocxAsPdf')?.addEventListener('click', async () => {
+  if (!requireBereichValid()) { location.hash='bereich'; return; }
+  try {
+    const payload = buildPayload();
+    await downloadDocx('/docx-template/pdf', payload, `Angebot_${Date.now()}.pdf`);
+  } catch (e) {
+    console.error(e);
+    show({ error: String(e) }, false);
+    alert('PDF konnte nicht erstellt werden.');
+  }
+});

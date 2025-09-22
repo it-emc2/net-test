@@ -3,6 +3,9 @@ import express from 'express';
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
+import os from 'os';
+import { spawn } from 'child_process';
+import { randomBytes } from 'crypto';
 import dayjs from 'dayjs';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
@@ -128,18 +131,18 @@ function formatQtyForOverview(q, unit) {
   return num.toFixed(2).replace('.', ','); // German comma
 }
 
-// -------- Existing Angebot mapping --------
+// -------- Angebot mapping --------
 function mapData(body = {}, computed = {}) {
   const b = body.bereich || {};
   const tb = body.textbausteine || {};
 
-    const {
+  const {
     items = [],
     productsSubtotal = 0,
     materials = { title: '', lines: [], sum: 0 },
     services = { title: '', lines: [], sum: 0, payer: '', zoneLabel: '', distanceKm: 0, laborHours: 0, laborRate: 0 },
 
-    // use server-computed fields (from pricing.js)
+    // server-computed fields
     Nettobetrag: netBeforeDiscount = 0,
     markupPct = 0,
     markup = 0,
@@ -150,26 +153,23 @@ function mapData(body = {}, computed = {}) {
     totalAfterRabatt = 0,
     rabattAmount = 0,
     bonusGross = 0,
-  totalAfterBonus = 0,
+    totalAfterBonus = 0,
   } = computed || {};
 
-  // Map the exact placeholders used in Angebot.docx
-  const Nettobetrag = fmtCurrency(netBeforeDiscount);       // "Nettobetrag (ohne Rabatt)"
-  const Rabatt = fmtCurrency(rabattAmount);  
-                // Materialrabatt Betrag
-  const MwSt = fmtCurrency(vatOnNet);   // 19% MwSt (nach Rabatt, falls vorhanden)
-  const Gesamtsumme = fmtCurrency(total);                   // Brutto vor Rabatt
-  const Gesamtsummerabatt = fmtCurrency(totalAfterRabatt);  // "Gesamtbetrag nach Materialrabatt"
+  // Map placeholders used in Angebot.docx
+  const Nettobetrag = fmtCurrency(netBeforeDiscount);
+  const Rabatt = fmtCurrency(rabattAmount);
+  const MwSt = fmtCurrency(vatOnNet);
+  const Gesamtsumme = fmtCurrency(total);
+  const Gesamtsummerabatt = fmtCurrency(totalAfterRabatt);
 
-  // Optional: provide synonyms in case the template uses alternative tags
+  // Synonyms if needed by the template
   const NettobetragOhneRabatt = Nettobetrag;
   const Materialrabatt = Rabatt;
   const GesamtbetragNachMaterialrabatt = Gesamtsummerabatt;
 
-  // (If you actually use these in the template, keep them; otherwise you can delete)
   const Selbstkostenanteil = '';
   const Zuschusskrankenkasse = '';
-
 
   const MarkupPctStr = markupPct ? `${Math.round(markupPct * 100)}%` : '';
   const MarkupValue = fmtCurrency(markup);
@@ -188,9 +188,7 @@ function mapData(body = {}, computed = {}) {
   const MaterialsLines = (materials?.lines || []).map(l => {
     const qtyStr = Number(l.qty || 0).toFixed(2).replace(/\.00$/, '');
     const nameOrId = l.name || l.productId || '';
-    return {
-      MaterialLine: l.label ? l.label : `- ${qtyStr} Stk ${nameOrId}`,
-    };
+    return { MaterialLine: l.label ? l.label : `- ${qtyStr} Stk ${nameOrId}` };
   });
 
   const PayerKind = services?.payer || (b.payer || '');
@@ -208,19 +206,15 @@ function mapData(body = {}, computed = {}) {
   const hasRabatt = (rabattAmount ?? 0) > 0;
   const hasBonus  = (bonusGross   ?? 0) > 0;
 
-
-  // Build the summary rows exactly as you want them to appear:
-const baseTotals = [
-  { label: 'Nettobetrag (ohne Rabatt)', value: fmtCurrency(netBeforeDiscount) },
-  ...(hasRabatt ? [{ label: 'Rabatt', value: fmtCurrency(rabattAmount) }] : []),
-   { label: 'zzgl. 19% MwSt.', value: fmtCurrency(vatOnNet) },
-   { label: 'Gesamtsumme', value: fmtCurrency(total) },
-  ...(hasRabatt ? [{ label: 'Gesamtbetrag nach Materialrabatt', value: fmtCurrency(totalAfterRabatt) }] : []),
-  ...(hasBonus ? [{ label: 'Gesamtbetrag nach Neukundenbonus', value: fmtCurrency(totalAfterBonus) }] : []),
-
-];
-// mark every second row (0-based: 1,3,5,...) as "alt"
-const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
+  const baseTotals = [
+    { label: 'Nettobetrag (ohne Rabatt)', value: fmtCurrency(netBeforeDiscount) },
+    ...(hasRabatt ? [{ label: 'Rabatt', value: fmtCurrency(rabattAmount) }] : []),
+    { label: 'zzgl. 19% MwSt.', value: fmtCurrency(vatOnNet) },
+    { label: 'Gesamtsumme', value: fmtCurrency(total) },
+    ...(hasRabatt ? [{ label: 'Gesamtbetrag nach Materialrabatt', value: fmtCurrency(totalAfterRabatt) }] : []),
+    ...(hasBonus ? [{ label: 'Gesamtbetrag nach Neukundenbonus', value: fmtCurrency(totalAfterBonus) }] : []),
+  ];
+  const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
 
   return {
     // Address / meta
@@ -238,7 +232,7 @@ const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
 
     // Legacy/optional price fields
     Arbeit: fmtCurrency(services?.sum ?? 0),
-Material: fmtCurrency(materials?.sum ?? 0),
+    Material: fmtCurrency(materials?.sum ?? 0),
 
     // Text blocks
     Long1: tb.long1 ?? '',
@@ -288,11 +282,10 @@ Material: fmtCurrency(materials?.sum ?? 0),
     LaborHours,
     LaborRate: LaborRate ? `${LaborRate.toFixed(2)} €` : '',
 
-  
-    //  for summay rows
+    // summary rows
     hasRabatt,
-     hasBonus,
-  Totals,
+    hasBonus,
+    Totals,
   };
 }
 
@@ -386,6 +379,102 @@ router.post('/material-overview', async (req, res) => {
   } catch (e) {
     console.error('Materialubersicht generation failed:', e);
     res.status(500).json({ error: 'Materialubersicht generation failed', detail: e.message || String(e) });
+  }
+});
+
+// -------- NEW: DOCX -> PDF (Angebot) route --------
+// Requires LibreOffice (soffice) available in the container/VM
+async function convertDocxToPdf(docxBuffer) {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'docx2pdf-'));
+  const inPath = path.join(tmpDir, `in-${randomBytes(6).toString('hex')}.docx`);
+  const outDir = tmpDir;
+  await fs.writeFile(inPath, docxBuffer);
+
+  const args = ['--headless', '--convert-to', 'pdf', '--outdir', outDir, inPath];
+
+  await new Promise((resolve, reject) => {
+    const p = spawn('soffice', args, { stdio: 'ignore' });
+    p.on('error', reject);
+    p.on('exit', code => (code === 0 ? resolve() : reject(new Error(`LibreOffice exit code ${code}`))));
+  });
+
+  // LibreOffice typically writes a PDF with the same base name
+  let outPath = inPath.replace(/\.docx$/i, '.pdf');
+  let pdf;
+  try {
+    pdf = await fs.readFile(outPath);
+  } catch {
+    // Fallback: find any PDF created in the directory
+    const files = await fs.readdir(outDir);
+    const candidate = files.find(f => f.toLowerCase().endsWith('.pdf'));
+    if (!candidate) {
+      throw new Error('PDF not found after conversion');
+    }
+    outPath = path.join(outDir, candidate);
+    pdf = await fs.readFile(outPath);
+  }
+
+  // Best-effort cleanup
+  try {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  } catch { /* ignore */ }
+
+  return pdf;
+}
+
+router.post('/pdf', async (req, res) => {
+  try {
+    const templatePath = path.join(process.cwd(), 'src', 'templates', 'Angebot.docx');
+    const content = await fs.readFile(templatePath);
+
+    const computed = await pricing.computePrices(req.body || {});
+    const zip = new PizZip(content);
+    const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+
+    const data = mapData(req.body || {}, computed);
+    doc.setData(data);
+
+    try {
+      doc.render();
+    } catch (e) {
+      const msg = e?.message || String(e);
+      console.error('Docxtemplater render error:', msg);
+      if (e?.properties?.errors) {
+        for (const er of e.properties.errors) {
+          console.error('- Docx error:', {
+            id: er.id, explanation: er.explanation, file: er.file,
+            xtag: er.xtag, context: er.context, offset: er.offset,
+          });
+        }
+      }
+      return res.status(500).json({ error: 'DOCX render failed', detail: msg, properties: e.properties || null });
+    }
+
+    const docxBuffer = doc.getZip().generate({ type: 'nodebuffer' });
+
+    // Optional: write debug copy
+    try {
+      const verifyOut = path.join(process.cwd(), 'out-Angebot.docx');
+      fsSync.writeFileSync(verifyOut, docxBuffer);
+      console.log('[docx-template/pdf] wrote generated DOCX for conversion:', verifyOut);
+    } catch (e) {
+      console.warn('[docx-template/pdf] could not write verify docx:', e?.message || e);
+    }
+
+    let pdfBuffer;
+    try {
+      pdfBuffer = await convertDocxToPdf(docxBuffer);
+    } catch (e) {
+      console.error('DOCX->PDF conversion failed:', e);
+      return res.status(500).json({ error: 'DOCX->PDF conversion failed', detail: e.message || String(e) });
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="Angebot.pdf"');
+    res.send(pdfBuffer);
+  } catch (e) {
+    console.error('DOCX->PDF endpoint error:', e);
+    res.status(500).json({ error: 'Failed to build PDF', detail: e.message || String(e) });
   }
 });
 
