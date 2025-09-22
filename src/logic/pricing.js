@@ -326,32 +326,30 @@ export default (ProductModel) => {
       // Nettobetrag
       const baseSubtotal = round2(productsSubtotal + (services?.sum ?? 0) + travel + markup );
 
-      
-
       const vatOnNet = round2((baseSubtotal || 0) * TAX_RATE);
       const total = round2((baseSubtotal|| 0) + vatOnNet);
 
-// --- Rabatt on MATERIAL only (percent from payload.rabatt.materialDiscountPct) ---
+      // --- Rabatt on MATERIAL only (percent from payload.rabatt.materialDiscountPct) ---
       const materialPct = Number(payload?.rabatt?.materialDiscountPct || 0); // 0..0.09
       const rabattAmount = round2((productsSubtotal || 0) * materialPct);
 
-// VAT is applied AFTER discount on net amount:
+      // VAT is applied AFTER discount on net amount:
       const netAfterDiscount = round2((baseSubtotal|| 0) - rabattAmount);
       const Vat_on_net_AfterDiscount = round2(netAfterDiscount * TAX_RATE);
       const totalAfterRabatt = round2(netAfterDiscount + Vat_on_net_AfterDiscount);
 
-// --- Neukundenbonus (after Rabatt) ---
-    const flags = {
-  bonus300: !!payload?.rabatt?.bonus300,
-  bonusGrab: !!payload?.rabatt?.bonusGrab,
-};
+      // --- Neukundenbonus (after Rabatt) ---
+      const flags = {
+        bonus300: !!payload?.rabatt?.bonus300,
+        bonusGrab: !!payload?.rabatt?.bonusGrab,
+      };
 
-// If you want a threshold for the 300 € (e.g., only if totalAfterRabatt ≥ 3000), add it here:
-let bonusGross = 0;
-if (flags.bonus300 ) bonusGross += 300;
-if (flags.bonusGrab) bonusGross += 175;
+      // If you want a threshold for the 300 € (e.g., only if totalAfterRabatt ≥ 3000), add it here:
+      let bonusGross = 0;
+      if (flags.bonus300 ) bonusGross += 300;
+      if (flags.bonusGrab) bonusGross += 175;
 
-const totalAfterBonus = round2(Math.max(0, totalAfterRabatt - bonusGross));
+      const totalAfterBonus = round2(Math.max(0, totalAfterRabatt - bonusGross));
 
       console.log('[pricing] subtotals:', {
         items: (items || []).length,
@@ -360,22 +358,68 @@ const totalAfterBonus = round2(Math.max(0, totalAfterRabatt - bonusGross));
         markupPct,
       });
 
-           
+      // -------- NEW: Zuschuss/Selbstkostenanteil --------
+      // Choose base to subtract subsidy from: prefer most "final" amount
+      const baseForSubsidy =
+        (Number.isFinite(totalAfterBonus) && totalAfterBonus > 0) ? totalAfterBonus :
+        (Number.isFinite(totalAfterRabatt) && totalAfterRabatt > 0) ? totalAfterRabatt :
+        total;
+
+      const b = payload?.bereich || {};
+      const rawOption = (b?.budgetOption || b?.budgetOptionsPanel || '').toString();
+      const zuzahlungRaw = Number(b?.zuzahlung ?? b?.copay ?? 0) || 0;
+      const option = rawOption.trim().toUpperCase();
+
+      let subsidyAmount = 0;
+      switch (option) {
+        case 'MAX_4180':
+        case '4180_MAXIMAL':
+        case 'MAXIMAL_4180':
+          subsidyAmount = 4180;
+          break;
+        case 'KUNDE_MIT_ZUZAHLUNG':
+        case '4180_KUNDE_MIT_ZUZAHLUNG':
+          subsidyAmount = 4180 + Math.max(0, zuzahlungRaw);
+          break;
+        case 'ZUSZAHLUNG_CA':
+          subsidyAmount = Math.max(0, zuzahlungRaw);
+          break;
+        case 'ZWEI_PERSONEN_8360':
+        case '2_PERSONEN_MIT_PFLEGEGRAD':
+        case '8360_ZWEI_PERSONEN':
+          subsidyAmount = 8360;
+          break;
+        default:
+          subsidyAmount = 0;
+      }
+
+      // Cap negative results at 0 for self-pay
+      const selfPayAmount = round2(Math.max(0, Number(baseForSubsidy) - Number(subsidyAmount)));
+      const totalAfterSubsidy = selfPayAmount;
+
       return {
-  // before discount:
-  items, materials, productsSubtotal, services,
-  Nettobetrag: baseSubtotal, markupPct, markup, travel, vatOnNet, total, 
+        // before discount:
+        items, materials, productsSubtotal, services,
+        Nettobetrag: baseSubtotal, markupPct, markup, travel, vatOnNet, total, 
 
-  // values after discount 
-   totalAfterRabatt ,netAfterDiscount ,Vat_on_net_AfterDiscount,
-  materialDiscountPct: materialPct,  // for the slider label in UI
-  rabattAmount,
+        // values after discount 
+        totalAfterRabatt ,netAfterDiscount ,Vat_on_net_AfterDiscount,
+        materialDiscountPct: materialPct,  // for the slider label in UI
+        rabattAmount,
 
-  // rabatt + bonus:
-  bonusGross,
-  totalAfterBonus,
-  bonusFlags: flags,
-};
+        // rabatt + bonus:
+        bonusGross,
+        totalAfterBonus,
+        bonusFlags: flags,
+
+        // NEW: Zuschuss/Selbstkostenanteil for UI + DOCX
+        subsidyKind: option,
+        subsidyInput: Math.max(0, zuzahlungRaw),
+        subsidyAmount,
+        baseForSubsidy,
+        totalAfterSubsidy,
+        selfPayAmount,
+      };
     }
   };
 };
