@@ -51,6 +51,7 @@ app.set('trust proxy', 1);
 // Dynamic CORS allowing localhost and any HTTPS subdomain of ngrok-free.app
 const allowedExact = new Set([
   'https://angebotskonfigurator-emc2.fly.dev',
+  'https://angebotskonfiguratoremc2.fly.dev',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
   'http://localhost:5173',
