@@ -133,7 +133,7 @@ function mapData(body = {}, computed = {}) {
   const b = body.bereich || {};
   const tb = body.textbausteine || {};
 
-  const {
+    const {
     items = [],
     productsSubtotal = 0,
     materials = { title: '', lines: [], sum: 0 },
@@ -150,17 +150,14 @@ function mapData(body = {}, computed = {}) {
     totalAfterRabatt = 0,
     rabattAmount = 0,
     bonusGross = 0,
-    totalAfterBonus = 0,
-
-    // NEW from pricing.js for Zuschuss/Selbstkosten
-    subsidyAmount = 0,
-    selfPayAmount = 0,
+  totalAfterBonus = 0,
   } = computed || {};
 
   // Map the exact placeholders used in Angebot.docx
   const Nettobetrag = fmtCurrency(netBeforeDiscount);       // "Nettobetrag (ohne Rabatt)"
-  const Rabatt = fmtCurrency(rabattAmount);                 // Materialrabatt Betrag
-  const MwSt = fmtCurrency(vatOnNet);                       // 19% MwSt (nach Rabatt, falls vorhanden)
+  const Rabatt = fmtCurrency(rabattAmount);  
+                // Materialrabatt Betrag
+  const MwSt = fmtCurrency(vatOnNet);   // 19% MwSt (nach Rabatt, falls vorhanden)
   const Gesamtsumme = fmtCurrency(total);                   // Brutto vor Rabatt
   const Gesamtsummerabatt = fmtCurrency(totalAfterRabatt);  // "Gesamtbetrag nach Materialrabatt"
 
@@ -169,11 +166,10 @@ function mapData(body = {}, computed = {}) {
   const Materialrabatt = Rabatt;
   const GesamtbetragNachMaterialrabatt = Gesamtsummerabatt;
 
-  // Zuschuss/Selbstkosten based on computed values (hide if 0)
-  const Zuschusskrankenkasse = subsidyAmount > 0 ? fmtCurrency(subsidyAmount) : '';
-  const Selbstkostenanteil = selfPayAmount > 0 ? fmtCurrency(selfPayAmount) : '';
-  const hasZuschuss = subsidyAmount > 0;
-  const hasSelbstkostenanteil = selfPayAmount > 0;
+  // (If you actually use these in the template, keep them; otherwise you can delete)
+  const Selbstkostenanteil = '';
+  const Zuschusskrankenkasse = '';
+
 
   const MarkupPctStr = markupPct ? `${Math.round(markupPct * 100)}%` : '';
   const MarkupValue = fmtCurrency(markup);
@@ -212,62 +208,70 @@ function mapData(body = {}, computed = {}) {
   const hasRabatt = (rabattAmount ?? 0) > 0;
   const hasBonus  = (bonusGross   ?? 0) > 0;
 
-  // --- bonus detection (prefer pricing flags, fallback to payload.rabatt) ---
-  const pricingFlags = computed?.flags || {};
-  const payloadRabatt = body?.rabatt || {};
 
-  const hasBonusGrab = Boolean(
-    pricingFlags.bonusGrab ?? payloadRabatt.bonusGrab ?? false
-  );
 
-  const hasBonus300 = Boolean(
-    pricingFlags.bonus300 ?? payloadRabatt.bonus300 ?? false
-  );
 
-  // Assemble up to two rows; first present gets pos "003", second "004"
-  const BonusRows = [];
-  let pos = '003';
 
-  if (hasBonusGrab) {
-    BonusRows.push({
-      Bonus: pos,
-      BonusMenge: '1 Stk',
-      BonusLabel: 'Aktion: Haltegriff',
-      BonusDetail: '-- 1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage',
-      preis: '-147,06 €',
-      gesamt: '-147,06 €',
-    });
-    pos = '004';
-  }
 
-  if (hasBonus300) {
-    BonusRows.push({
-      Bonus: pos,
-      BonusMenge: '1 Stk',
-      BonusLabel: 'Bestandkundenbonus:',
-      BonusDetail: '-- Rabatt von 300 € ab einem Gesamtwert von 3.000',
-      preis: '-252,10 €',
-      gesamt: '-252,10 €',
-    });
-  }
+// --- bonus detection (prefer pricing flags, fallback to payload.rabatt) ---
+const pricingFlags = computed?.flags || {};
+const payloadRabatt = body?.rabatt || {};
 
-  // Set hasBonus based on whether we actually have rows to render
-  const hasBonusrows = BonusRows.length > 0;
+const hasBonusGrab = Boolean(
+  pricingFlags.bonusGrab ?? payloadRabatt.bonusGrab ?? false
+);
+
+const hasBonus300 = Boolean(
+  pricingFlags.bonus300 ?? payloadRabatt.bonus300 ?? false
+);
+
+
+// Assemble up to two rows; first present gets pos "003", second "004"
+const BonusRows = [];
+let pos = '003';
+
+if (hasBonusGrab) {
+  BonusRows.push({
+    Bonus: pos,
+    BonusMenge: '1 Stk',
+     BonusLabel: 'Aktion: Haltegriff',
+    BonusDetail: '– 1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage',
+    preis: '-147,06 €',
+    gesamt: '-147,06 €',
+  });
+  pos = '004';
+}
+
+if (hasBonus300) {
+  BonusRows.push({
+    Bonus: pos,
+    BonusMenge: '1 Stk',
+     BonusLabel: 'Bestandkundenbonus:',
+    BonusDetail: '– Rabatt von 300 € ab einem Gesamtwert von 3.000',
+    preis: '-252,10 €',
+    gesamt: '-252,10 €',
+  });
+}
+
+// Set hasBonus based on whether we actually have rows to render
+const hasBonusrows = BonusRows.length > 0;
+
 
   // Build the summary rows exactly as you want them to appear:
-  const baseTotals = [
-    { label: 'Nettobetrag (ohne Rabatt)', value: fmtCurrency(netBeforeDiscount) },
-    ...(hasRabatt ? [{ label: 'Rabatt', value: fmtCurrency(rabattAmount) }] : []),
-    { label: 'zzgl. 19% MwSt.', value: fmtCurrency(vatOnNet) },
-    { label: 'Gesamtsumme', value: fmtCurrency(total) },
-    ...(hasRabatt ? [{ label: 'Gesamtbetrag nach Materialrabatt', value: fmtCurrency(totalAfterRabatt) }] : []),
-    ...(hasBonus ? [{ label: 'Gesamtbetrag nach Neukundenbonus', value: fmtCurrency(totalAfterBonus) }] : []),
-    // NEW: show Zuschuss/Selbstkosten when available
-    ...(hasZuschuss ? [{ label: 'Zuschuss Krankenkasse', value: fmtCurrency(subsidyAmount) }] : []),
-    ...(hasSelbstkostenanteil ? [{ label: 'Selbstkostenanteil', value: fmtCurrency(selfPayAmount) }] : []),
-  ];
-  // mark every second row (0-based: 1,3,5,...) as "alt"
-  const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
+const baseTotals = [
+  { label: 'Nettobetrag (ohne Rabatt)', value: fmtCurrency(netBeforeDiscount) },
+  ...(hasRabatt ? [{ label: 'Rabatt', value: fmtCurrency(rabattAmount) }] : []),
+   { label: 'zzgl. 19% MwSt.', value: fmtCurrency(vatOnNet) },
+   { label: 'Gesamtsumme', value: fmtCurrency(total) },
+  ...(hasRabatt ? [{ label: 'Gesamtbetrag nach Materialrabatt', value: fmtCurrency(totalAfterRabatt) }] : []),
+  ...(hasBonus ? [{ label: 'Gesamtbetrag nach Neukundenbonus', value: fmtCurrency(totalAfterBonus) }] : []),
+
+];
+// mark every second row (0-based: 1,3,5,...) as "alt"
+const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
+
+
+
 
   return {
     // Address / meta
@@ -285,14 +289,14 @@ function mapData(body = {}, computed = {}) {
 
     // Legacy/optional price fields
     Arbeit: fmtCurrency(services?.sum ?? 0),
-    Material: fmtCurrency(materials?.sum ?? 0),
+Material: fmtCurrency(materials?.sum ?? 0),
 
     // Text blocks
     Long1: tb.long1 ?? '',
     Long3: tb.long3 ?? '',
     Long: tb.long ?? '',
 
-    // Totals (single placeholders)
+    // Totals
     Nettobetrag,
     Rabatt,
     MwSt,
@@ -335,14 +339,14 @@ function mapData(body = {}, computed = {}) {
     LaborHours,
     LaborRate: LaborRate ? `${LaborRate.toFixed(2)} €` : '',
 
-    // for summary rows / conditionals
+  
+    //  for summay rows
     hasRabatt,
-    hasBonus,
-    hasBonusrows,
-    hasZuschuss,
-    hasSelbstkostenanteil,
-    Totals,
-    BonusRows,
+     hasBonus,
+     hasBonusrows,
+  Totals,
+  BonusRows,
+  
   };
 }
 
