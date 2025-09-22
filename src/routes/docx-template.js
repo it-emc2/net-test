@@ -168,7 +168,7 @@ function mapData(body = {}, computed = {}) {
 
   // (If you actually use these in the template, keep them; otherwise you can delete)
   const Selbstkostenanteil = '';
-  const Zuschusskrankenkasse = '';
+  // const Zuschusskrankenkasse = '';
 
 
   const MarkupPctStr = markupPct ? `${Math.round(markupPct * 100)}%` : '';
@@ -214,7 +214,7 @@ function mapData(body = {}, computed = {}) {
 
 
 // --- bonus detection (prefer pricing flags, fallback to payload.rabatt) ---
-const pricingFlags = computed?.flags || {};
+const pricingFlags = computed?.bonusFlags || computed?.flags || {};
 const payloadRabatt = body?.rabatt || {};
 
 const hasBonusGrab = Boolean(
@@ -270,6 +270,26 @@ const baseTotals = [
 // mark every second row (0-based: 1,3,5,...) as "alt"
 const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
 
+
+// pull the computed subsidy kind + value (you already return these from pricing.js)
+// --- Selbstkostenanteil for DOCX ---
+const toNum = v => (typeof v === 'number' ? v : Number(String(v || '').replace(',', '.')) || 0);
+
+const subsidyAmountNum  = toNum(computed?.subsidyAmount);
+const baseForSubsidyNum = toNum(computed?.baseForSubsidy);
+const selfPayAmountNum  = toNum(computed?.selfPayAmount);
+
+const SelbstkostenanteilFmt = fmtCurrency(selfPayAmountNum);
+const Zuschusskrankenkasse  = fmtCurrency(subsidyAmountNum);
+
+// Show line iff a subsidy actually applied
+const hasSubsidyLine = subsidyAmountNum > 0;
+
+// Optional ready-made sentence (you can use the block tag too)
+let SubsidyLine = '';
+if (hasSubsidyLine) {
+  SubsidyLine = `Der Selbstkostenanteil beträgt ${SelbstkostenanteilFmt} unter Berücksichtigung eines gewährten Zuschusses durch die Pflegekasse i.H.v. ${Zuschusskrankenkasse}.`;
+}
 
 
 
@@ -346,7 +366,13 @@ Material: fmtCurrency(materials?.sum ?? 0),
      hasBonusrows,
   Totals,
   BonusRows,
-  
+
+  // for selbstkostenanteil.
+  Selbstkostenanteil: SelbstkostenanteilFmt,  // keeps {Selbstkostenanteil} working
+SelbstkostenanteilFmt,                      // if you use this tag directly
+Zuschusskrankenkasse,                       // formatted subsidy for template
+hasSubsidyLine,
+SubsidyLine,
   };
 }
 
@@ -356,7 +382,15 @@ router.post('/', async (req, res) => {
     const templatePath = path.join(process.cwd(), 'src', 'templates', 'Angebot.docx');
     const content = await fs.readFile(templatePath);
 
+  
+
     const computed = await pricing.computePrices(req.body || {});
+    console.log('[docx] computed subsidy:',
+  { subsidyAmount: computed?.subsidyAmount,
+    baseForSubsidy: computed?.baseForSubsidy,
+    selfPayAmount: computed?.selfPayAmount }
+);
+
 
     const zip = new PizZip(content);
     const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
@@ -367,6 +401,9 @@ router.post('/', async (req, res) => {
     doc.setData(data);
 
     try {
+      console.log('[docx] subsidyKind:', computed?.subsidyKind);
+
+
       doc.render();
     } catch (e) {
       console.error('Docxtemplater render error:', e?.message || e);

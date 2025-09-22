@@ -359,43 +359,62 @@ export default (ProductModel) => {
       });
 
       // -------- NEW: Zuschuss/Selbstkostenanteil --------
-      // Choose base to subtract subsidy from: prefer most "final" amount
-      const baseForSubsidy =
-        (Number.isFinite(totalAfterBonus) && totalAfterBonus > 0) ? totalAfterBonus :
-        (Number.isFinite(totalAfterRabatt) && totalAfterRabatt > 0) ? totalAfterRabatt :
-        total;
+const b = payload?.bereich || {};
 
-      const b = payload?.bereich || {};
-      const rawOption = (b?.budgetOption || b?.budgetOptionsPanel || '').toString();
-      const zuzahlungRaw = Number(b?.zuzahlung ?? b?.copay ?? 0) || 0;
-      const option = rawOption.trim().toUpperCase();
+// Accept string or array; pick the first non-empty if it's an array
+const rawOptionSrc = b?.budgetOption ?? b?.budgetOptionsPanel ?? b?.budgetOptions ?? '';
+const rawOption = Array.isArray(rawOptionSrc)
+  ? (rawOptionSrc.find(v => v != null && String(v).trim() !== '') || '')
+  : rawOptionSrc;
 
-      let subsidyAmount = 0;
-      switch (option) {
-        case 'MAX_4180':
-        case '4180_MAXIMAL':
-        case 'MAXIMAL_4180':
-          subsidyAmount = 4180;
-          break;
-        case 'KUNDE_MIT_ZUZAHLUNG':
-        case '4180_KUNDE_MIT_ZUZAHLUNG':
-          subsidyAmount = 4180 + Math.max(0, zuzahlungRaw);
-          break;
-        case 'ZUSZAHLUNG_CA':
-          subsidyAmount = Math.max(0, zuzahlungRaw);
-          break;
-        case 'ZWEI_PERSONEN_8360':
-        case '2_PERSONEN_MIT_PFLEGEGRAD':
-        case '8360_ZWEI_PERSONEN':
-          subsidyAmount = 8360;
-          break;
-        default:
-          subsidyAmount = 0;
-      }
+// Canonicalize: underscores->spaces, collapse whitespace, uppercase
+const option = String(rawOption)
+  .toUpperCase()
+  .replace(/_/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
 
-      // Cap negative results at 0 for self-pay
-      const selfPayAmount = round2(Math.max(0, Number(baseForSubsidy) - Number(subsidyAmount)));
-      const totalAfterSubsidy = selfPayAmount;
+// Copay from any field you might use
+const zuzahlungRaw = Number(b?.zuzahlung ?? b?.copay ?? b?.copayAmount ?? 0) || 0;
+
+let subsidyAmount = 0;
+switch (option) {
+  case '4180 MAXIMAL':
+  case 'MAX_4180':
+  case '4180_MAXIMAL':
+  case 'MAXIMAL_4180':
+    subsidyAmount = 4180;
+    break;
+
+  case '4180 MIT ZUZAHLUNG':
+  case 'KUNDE_MIT_ZUZAHLUNG':
+  case '4180_KUNDE_MIT_ZUZAHLUNG':
+  case 'ZUSZAHLUNG_CA':
+    subsidyAmount = 4180 + Math.max(0, zuzahlungRaw);
+    break;
+
+  case 'ZWEI PERSONEN MIT PFLEGEGRAD':
+  case 'ZWEI_PERSONEN_8360':
+  case '2_PERSONEN_MIT_PFLEGEGRAD':
+  case '8360_ZWEI_PERSONEN':
+    subsidyAmount = 8360;
+    break;
+
+  default:
+    subsidyAmount = 0;
+}
+
+// Base to subtract from: prefer most final amount
+const baseForSubsidy =
+  (Number.isFinite(totalAfterBonus)  && totalAfterBonus  > 0 ? totalAfterBonus  :
+   Number.isFinite(totalAfterRabatt) && totalAfterRabatt > 0 ? totalAfterRabatt :
+   total);
+
+const selfPayAmount = round2(Math.max(0, Number(baseForSubsidy) - Number(subsidyAmount)));
+const totalAfterSubsidy = selfPayAmount; // alias (safe to keep)
+
+     
+
 
       return {
         // before discount:
@@ -411,14 +430,17 @@ export default (ProductModel) => {
         bonusGross,
         totalAfterBonus,
         bonusFlags: flags,
+        flags: flags,  
 
         // NEW: Zuschuss/Selbstkostenanteil for UI + DOCX
         subsidyKind: option,
         subsidyInput: Math.max(0, zuzahlungRaw),
         subsidyAmount,
         baseForSubsidy,
-        totalAfterSubsidy,
         selfPayAmount,
+         // (optional but keeps other panels happy)
+  subsidyKind: option,
+       
       };
     }
   };

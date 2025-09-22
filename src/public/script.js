@@ -50,6 +50,28 @@ function buildPayload(){
     optional: formToObject(document.getElementById('form-optional')),
     rabatt: formToObject(document.getElementById('form-rabatt')) 
   };
+    // Read budget option(s)
+ // --- Budget-Option + Zuzahlung -> send to backend ---
+const elMax   = document.querySelector('input[name="budgetMax"]');
+const elCopay = document.querySelector('input[name="budgetCopay"]');
+const elTwo   = document.querySelector('input[name="twoPersons"]');
+const copayEl = document.getElementById('copayAmount');
+
+let selected = '';
+if (elMax?.checked)       selected = elMax.value;            // "4180 MAXIMAL"
+else if (elCopay?.checked) selected = elCopay.value;         // "4180 mit Zuzahlung"
+else if (elTwo?.checked)   selected = elTwo.value;           // "Zwei Personen mit Pflegegrad"
+
+// Optional canonicalization (server also normalizes, but this is nice):
+const canonical = selected
+  ? selected.toUpperCase().replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
+  : '';
+
+payload.bereich = payload.bereich || {};
+payload.bereich.budgetOptionsPanel = canonical || selected || '';
+payload.bereich.copayAmount = copayEl ? Number(copayEl.value || 0) : 0;
+
+
   // ► add the fields the server needs to compute Rabatt & Bonus
   const pct = parseFloat(document.getElementById('rb-material-discount')?.value || '0'); // 0..9
   payload.rabatt = {
@@ -61,6 +83,7 @@ function buildPayload(){
 
   return payload;
 }
+
 window.buildPayload = buildPayload; // expose for extensions
 function updateSummary(){
   if (getCurrentStep() !== 'zusammenfassung') return;
@@ -1436,4 +1459,33 @@ document.getElementById('downloadDocxAsPdf')?.addEventListener('click', async ()
     show({ error: String(e) }, false);
     alert('PDF konnte nicht erstellt werden.');
   }
+});
+
+
+document.addEventListener('DOMContentLoaded', () => {
+  const elMax   = document.querySelector('input[name="budgetMax"]');
+  const elCopay = document.querySelector('input[name="budgetCopay"]');
+  const elTwo   = document.querySelector('input[name="twoPersons"]');
+  const copayField  = document.getElementById('copayField');
+  const copayAmount = document.getElementById('copayAmount');
+
+  const all = [elMax, elCopay, elTwo].filter(Boolean);
+
+  function updateUI() {
+    // single-select behavior
+    const selected = all.filter(el => el.checked);
+    if (selected.length > 1) {
+      // keep the one just checked; uncheck others
+      const last = selected[selected.length - 1];
+      all.forEach(el => { if (el !== last) el.checked = false; });
+    }
+    // copay field only when "mit Zuzahlung" checked
+    const copayOn = !!(elCopay && elCopay.checked);
+    copayField.hidden = !copayOn;
+    copayField.setAttribute('aria-hidden', String(!copayOn));
+    if (!copayOn && copayAmount) copayAmount.value = '';
+  }
+
+  all.forEach(el => el.addEventListener('change', updateUI));
+  updateUI();
 });
