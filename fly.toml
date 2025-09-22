@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for angebotskonfigurator-emc2 on 2025-09-15T16:26:33+02:00
+# fly.toml app configuration file generated for angebotskonfiguratoremc2 on 2025-09-22T09:51:29+02:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'angebotskonfigurator-emc2'
+app = 'angebotskonfiguratoremc2'
 primary_region = 'fra'
 
 [build]
