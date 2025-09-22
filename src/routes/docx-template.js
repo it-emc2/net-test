@@ -209,6 +209,54 @@ function mapData(body = {}, computed = {}) {
   const hasBonus  = (bonusGross   ?? 0) > 0;
 
 
+
+
+
+
+// --- bonus detection (prefer pricing flags, fallback to payload.rabatt) ---
+const pricingFlags = computed?.flags || {};
+const payloadRabatt = body?.rabatt || {};
+
+const hasBonusGrab = Boolean(
+  pricingFlags.bonusGrab ?? payloadRabatt.bonusGrab ?? false
+);
+
+const hasBonus300 = Boolean(
+  pricingFlags.bonus300 ?? payloadRabatt.bonus300 ?? false
+);
+
+
+// Assemble up to two rows; first present gets pos "003", second "004"
+const BonusRows = [];
+let pos = '003';
+
+if (hasBonusGrab) {
+  BonusRows.push({
+    Bonus: pos,
+    BonusMenge: '1 Stk',
+     BonusLabel: 'Aktion: Haltegriff',
+    BonusDetail: '– 1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage',
+    preis: '-147,06 €',
+    gesamt: '-147,06 €',
+  });
+  pos = '004';
+}
+
+if (hasBonus300) {
+  BonusRows.push({
+    Bonus: pos,
+    BonusMenge: '1 Stk',
+     BonusLabel: 'Bestandkundenbonus:',
+    BonusDetail: '– Rabatt von 300 € ab einem Gesamtwert von 3.000',
+    preis: '-252,10 €',
+    gesamt: '-252,10 €',
+  });
+}
+
+// Set hasBonus based on whether we actually have rows to render
+const hasBonusrows = BonusRows.length > 0;
+
+
   // Build the summary rows exactly as you want them to appear:
 const baseTotals = [
   { label: 'Nettobetrag (ohne Rabatt)', value: fmtCurrency(netBeforeDiscount) },
@@ -221,6 +269,9 @@ const baseTotals = [
 ];
 // mark every second row (0-based: 1,3,5,...) as "alt"
 const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
+
+
+
 
   return {
     // Address / meta
@@ -292,7 +343,10 @@ Material: fmtCurrency(materials?.sum ?? 0),
     //  for summay rows
     hasRabatt,
      hasBonus,
+     hasBonusrows,
   Totals,
+  BonusRows,
+  
   };
 }
 
