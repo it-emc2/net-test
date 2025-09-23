@@ -302,6 +302,19 @@ if (hasSubsidyLine) {
   Zuschusses durch die Pflegekasse i.H.v. ${Zuschusskrankenkasse}.`;
 }
 
+// Pick Regie-Stundensatz based on payer
+const payerNorm = String(PayerKind || '').toUpperCase();
+const isKK = payerNorm === 'KK' || payerNorm === 'KASSENKUNDE';
+const isSZ = payerNorm === 'SZ' || payerNorm === 'SELBSTZAHLER';
+
+// Prefer explicit rates per payer; fallback to computed laborRate if neither was selected yet
+let regieRateNum;
+if (isKK) regieRateNum = 69.50;
+else if (isSZ) regieRateNum = 59.50;
+else regieRateNum = Number(services?.laborRate) || 0;
+
+// Format exactly like "69,50€" (no space) to match your paragraph
+const RegieRateFmt = regieRateNum ? `${regieRateNum.toFixed(2).replace('.', ',')}€` : '';
 
   return {
     // Address / meta
@@ -382,6 +395,8 @@ SelbstkostenanteilFmt,                      // if you use this tag directly
 Zuschusskrankenkasse,                       // formatted subsidy for template
 hasSubsidyLine,
 SubsidyLine,
+// for Regie-Stundensatz
+RegieRateFmt,
   };
 }
 
