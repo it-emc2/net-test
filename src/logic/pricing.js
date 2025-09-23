@@ -390,7 +390,8 @@ switch (option) {
   case 'KUNDE_MIT_ZUZAHLUNG':
   case '4180_KUNDE_MIT_ZUZAHLUNG':
   case 'ZUSZAHLUNG_CA':
-    subsidyAmount = 4180 + Math.max(0, zuzahlungRaw);
+    // subsidyAmount = 4180 + Math.max(0, zuzahlungRaw);
+    subsidyAmount = 4180;
     break;
 
   case 'ZWEI PERSONEN MIT PFLEGEGRAD':
