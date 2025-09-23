@@ -448,36 +448,68 @@ async function convertDocxToPdf(docxBuffer) {
   const outDir = tmpDir;
   await fs.writeFile(inPath, docxBuffer);
 
-  const args = ['--headless', '--convert-to', 'pdf', '--outdir', outDir, inPath];
+  const args = ['--headless', '--norestore', '--nolockcheck', '--nodefault', '--nofirststartwizard', '--convert-to', 'pdf', '--outdir', outDir, inPath];
 
-  await new Promise((resolve, reject) => {
-    const p = spawn('soffice', args, { stdio: 'ignore' });
-    p.on('error', reject);
-    p.on('exit', code => (code === 0 ? resolve() : reject(new Error(`LibreOffice exit code ${code}`))));
+  const childResult = await new Promise((resolve) => {
+    const p = spawn('soffice', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+
+    let stdout = '';
+    let stderr = '';
+    p.stdout.on('data', d => (stdout += d.toString()));
+    p.stderr.on('data', d => (stderr += d.toString()));
+
+    p.on('error', (err) => {
+      resolve({ code: -1, err, stdout, stderr });
+    });
+
+    p.on('exit', (code) => {
+      resolve({ code, err: null, stdout, stderr });
+    });
   });
 
   // LibreOffice typically writes a PDF with the same base name
   let outPath = inPath.replace(/\.docx$/i, '.pdf');
-  let pdf;
+
+  // Try to locate a PDF regardless of exit code
+  let pdfBuffer = null;
   try {
-    pdf = await fs.readFile(outPath);
+    pdfBuffer = await fs.readFile(outPath);
   } catch {
     // Fallback: find any PDF created in the directory
     const files = await fs.readdir(outDir);
     const candidate = files.find(f => f.toLowerCase().endsWith('.pdf'));
-    if (!candidate) {
-      throw new Error('PDF not found after conversion');
+    if (candidate) {
+      outPath = path.join(outDir, candidate);
+      pdfBuffer = await fs.readFile(outPath);
     }
-    outPath = path.join(outDir, candidate);
-    pdf = await fs.readFile(outPath);
   }
 
-  // Best-effort cleanup
-  try {
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  } catch { /* ignore */ }
+  // Decide what to do based on result
+  if (!pdfBuffer) {
+    const detail = childResult.err?.message || `LibreOffice exit code ${childResult.code}`;
+    console.error('[docx->pdf] conversion failed, no PDF produced:', { detail, stdout: childResult.stdout, stderr: childResult.stderr });
+    // Cleanup
+    try { await fs.rm(tmpDir, { recursive: true, force: true }); } catch {}
+    throw new Error(detail);
+  }
 
-  return pdf;
+  // If exit code non-zero but PDF exists, log warning and proceed
+  if (childResult.code !== 0) {
+    console.warn('[docx->pdf] soffice returned non-zero exit code but PDF was produced', {
+      code: childResult.code,
+      stdout: childResult.stdout,
+      stderr: childResult.stderr
+    });
+  } else {
+    if (childResult.stdout || childResult.stderr) {
+      console.log('[docx->pdf] soffice output', { stdout: childResult.stdout, stderr: childResult.stderr });
+    }
+  }
+
+  // Cleanup
+  try { await fs.rm(tmpDir, { recursive: true, force: true }); } catch {}
+
+  return pdfBuffer;
 }
 
 router.post('/pdf', async (req, res) => {
