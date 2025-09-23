@@ -1,3 +1,39 @@
+// --- Offer number (ANG-YYYY-MM-DD-HH-mm-ss) + auto-stamp on export clicks ---
+function genOfferNumber() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `AN${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+
+function stampOfferOnExport() {
+  // Prefer #offerNumber, fall back to name selector if needed
+  const offerInput = document.querySelector('#offerNumber') || document.querySelector('input[name="offerNumber"]');
+  if (!offerInput) return;
+
+  // All buttons that trigger a download/export
+  const ids = [
+    'makePdfFromTemplate',
+    'downloadDocx',
+    'downloadDocxAsPdf',
+    'downloadMaterialOverview',
+    'makePdf',
+    'downloadPdf'
+  ];
+
+  const apply = () => { offerInput.value = genOfferNumber(); };
+
+  // Use capture so the value is set before your existing click handlers run
+  ids.forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.addEventListener('click', apply, { capture: true });
+  });
+}
+
+document.addEventListener('DOMContentLoaded', stampOfferOnExport);
+// --- end offer number snippet ---
+
+
+
 const root = document.documentElement;
 const themeToggle = document.getElementById('themeToggle');
 const themeLabel = document.getElementById('themeLabel');
@@ -80,7 +116,7 @@ payload.bereich.copayAmount = copayEl ? Number(copayEl.value || 0) : 0;
     bonus300: !!document.getElementById('rb-bonus-300')?.checked,
     bonusGrab: !!document.getElementById('rb-bonus-grab')?.checked,
   };
-
+payload.offerNumber = (document.getElementById('offerNumber')?.value || '').trim();
   return payload;
 }
 
