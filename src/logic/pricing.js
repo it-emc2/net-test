@@ -437,10 +437,7 @@ const totalAfterSubsidy = selfPayAmount; // alias (safe to keep)
         subsidyInput: Math.max(0, zuzahlungRaw),
         subsidyAmount,
         baseForSubsidy,
-        selfPayAmount,
-         // (optional but keeps other panels happy)
-  subsidyKind: option,
-       
+        selfPayAmount,       
       };
     }
   };

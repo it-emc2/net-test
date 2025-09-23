@@ -24,7 +24,7 @@ function fmtCurrency(n) {
 async function renderDocx(templatePath, data) {
   const content = await fs.readFile(templatePath);
   const zip = new PizZip(content);
-  const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+  const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true , nullGetter: () => ''});
   doc.setData(data);
   try {
     doc.render();
@@ -288,9 +288,9 @@ const hasSubsidyLine = subsidyAmountNum > 0;
 // Optional ready-made sentence (you can use the block tag too)
 let SubsidyLine = '';
 if (hasSubsidyLine) {
-  SubsidyLine = `Der Selbstkostenanteil beträgt ${SelbstkostenanteilFmt} unter Berücksichtigung eines gewährten Zuschusses durch die Pflegekasse i.H.v. ${Zuschusskrankenkasse}.`;
+  SubsidyLine = `Der Selbstkostenanteil beträgt ${SelbstkostenanteilFmt} unter Berücksichtigung eines gewährten 
+  Zuschusses durch die Pflegekasse i.H.v. ${Zuschusskrankenkasse}.`;
 }
-
 
 
   return {
