@@ -3,6 +3,9 @@ import express from 'express';
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
+import os from 'os';
+import { spawn } from 'child_process';
+import { randomBytes } from 'crypto';
 import dayjs from 'dayjs';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
@@ -128,12 +131,12 @@ function formatQtyForOverview(q, unit) {
   return num.toFixed(2).replace('.', ','); // German comma
 }
 
-// -------- Existing Angebot mapping --------
+// -------- Angebot mapping --------
 function mapData(body = {}, computed = {}) {
   const b = body.bereich || {};
   const tb = body.textbausteine || {};
 
-    const {
+  const {
     items = [],
     productsSubtotal = 0,
     materials = { title: '', lines: [], sum: 0 },
@@ -150,18 +153,21 @@ function mapData(body = {}, computed = {}) {
     totalAfterRabatt = 0,
     rabattAmount = 0,
     bonusGross = 0,
-  totalAfterBonus = 0,
+    totalAfterBonus = 0,
+
+    // Zuschuss/Selbstkosten from pricing.js
+    subsidyAmount = 0,
+    selfPayAmount = 0,
   } = computed || {};
 
-  // Map the exact placeholders used in Angebot.docx
+  // Placeholders used in Angebot.docx
   const Nettobetrag = fmtCurrency(netBeforeDiscount);       // "Nettobetrag (ohne Rabatt)"
-  const Rabatt = fmtCurrency(rabattAmount);  
-                // Materialrabatt Betrag
-  const MwSt = fmtCurrency(vatOnNet);   // 19% MwSt (nach Rabatt, falls vorhanden)
+  const Rabatt = fmtCurrency(rabattAmount);                 // Materialrabatt Betrag
+  const MwSt = fmtCurrency(vatOnNet);                       // 19% MwSt (nach Rabatt, falls vorhanden)
   const Gesamtsumme = fmtCurrency(total);                   // Brutto vor Rabatt
   const Gesamtsummerabatt = fmtCurrency(totalAfterRabatt);  // "Gesamtbetrag nach Materialrabatt"
 
-  // Optional: provide synonyms in case the template uses alternative tags
+  // Synonyms if the template uses alternative tags
   const NettobetragOhneRabatt = Nettobetrag;
   const Materialrabatt = Rabatt;
   const GesamtbetragNachMaterialrabatt = Gesamtsummerabatt;
@@ -214,47 +220,46 @@ function mapData(body = {}, computed = {}) {
 
 
 // --- bonus detection (prefer pricing flags, fallback to payload.rabatt) ---
-const pricingFlags = computed?.bonusFlags || computed?.flags || {};
+const pricingFlags = computed?.flags || {};
 const payloadRabatt = body?.rabatt || {};
 
-const hasBonusGrab = Boolean(
-  pricingFlags.bonusGrab ?? payloadRabatt.bonusGrab ?? false
-);
+  const hasBonusGrab = Boolean(
+    pricingFlags.bonusGrab ?? payloadRabatt.bonusGrab ?? false
+  );
 
-const hasBonus300 = Boolean(
-  pricingFlags.bonus300 ?? payloadRabatt.bonus300 ?? false
-);
+  const hasBonus300 = Boolean(
+    pricingFlags.bonus300 ?? payloadRabatt.bonus300 ?? false
+  );
 
+  // Assemble up to two rows; first present gets pos "003", second "004"
+  const BonusRows = [];
+  let pos = '003';
 
-// Assemble up to two rows; first present gets pos "003", second "004"
-const BonusRows = [];
-let pos = '003';
+  if (hasBonusGrab) {
+    BonusRows.push({
+      Bonus: pos,
+      BonusMenge: '1 Stk',
+      BonusLabel: 'Aktion: Haltegriff',
+      BonusDetail: '-- 1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage',
+      preis: '-147,06 €',
+      gesamt: '-147,06 €',
+    });
+    pos = '004';
+  }
 
-if (hasBonusGrab) {
-  BonusRows.push({
-    Bonus: pos,
-    BonusMenge: '1 Stk',
-     BonusLabel: 'Aktion: Haltegriff',
-    BonusDetail: '– 1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage',
-    preis: '-147,06 €',
-    gesamt: '-147,06 €',
-  });
-  pos = '004';
-}
+  if (hasBonus300) {
+    BonusRows.push({
+      Bonus: pos,
+      BonusMenge: '1 Stk',
+      BonusLabel: 'Bestandkundenbonus:',
+      BonusDetail: '-- Rabatt von 300 € ab einem Gesamtwert von 3.000',
+      preis: '-252,10 €',
+      gesamt: '-252,10 €',
+    });
+  }
 
-if (hasBonus300) {
-  BonusRows.push({
-    Bonus: pos,
-    BonusMenge: '1 Stk',
-     BonusLabel: 'Bestandkundenbonus:',
-    BonusDetail: '– Rabatt von 300 € ab einem Gesamtwert von 3.000',
-    preis: '-252,10 €',
-    gesamt: '-252,10 €',
-  });
-}
-
-// Set hasBonus based on whether we actually have rows to render
-const hasBonusrows = BonusRows.length > 0;
+  // Set hasBonus based on whether we actually have rows to render
+  const hasBonusrows = BonusRows.length > 0;
 
 // pull the computed subsidy kind + value (you already return these from pricing.js)
 // --- Selbstkostenanteil for DOCX ---
@@ -314,14 +319,14 @@ if (hasSubsidyLine) {
 
     // Legacy/optional price fields
     Arbeit: fmtCurrency(services?.sum ?? 0),
-Material: fmtCurrency(materials?.sum ?? 0),
+    Material: fmtCurrency(materials?.sum ?? 0),
 
     // Text blocks
     Long1: tb.long1 ?? '',
     Long3: tb.long3 ?? '',
     Long: tb.long ?? '',
 
-    // Totals
+    // Totals (single placeholders)
     Nettobetrag,
     Rabatt,
     MwSt,
@@ -364,8 +369,7 @@ Material: fmtCurrency(materials?.sum ?? 0),
     LaborHours,
     LaborRate: LaborRate ? `${LaborRate.toFixed(2)} €` : '',
 
-  
-    //  for summay rows
+    // for summary rows / conditionals
     hasRabatt,
      hasBonus,
      hasBonusrows,
@@ -442,7 +446,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// -------- NEW: Material overview DOCX route --------
+// -------- Material overview DOCX route --------
 router.post('/material-overview', async (req, res) => {
   try {
     const computed = await pricing.computePrices(req.body || {});
@@ -482,6 +486,102 @@ router.post('/material-overview', async (req, res) => {
   } catch (e) {
     console.error('Materialubersicht generation failed:', e);
     res.status(500).json({ error: 'Materialubersicht generation failed', detail: e.message || String(e) });
+  }
+});
+
+// -------- DOCX -> PDF (Angebot) route --------
+// Requires LibreOffice (soffice) available in the container/VM
+async function convertDocxToPdf(docxBuffer) {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'docx2pdf-'));
+  const inPath = path.join(tmpDir, `in-${randomBytes(6).toString('hex')}.docx`);
+  const outDir = tmpDir;
+  await fs.writeFile(inPath, docxBuffer);
+
+  const args = ['--headless', '--convert-to', 'pdf', '--outdir', outDir, inPath];
+
+  await new Promise((resolve, reject) => {
+    const p = spawn('soffice', args, { stdio: 'ignore' });
+    p.on('error', reject);
+    p.on('exit', code => (code === 0 ? resolve() : reject(new Error(`LibreOffice exit code ${code}`))));
+  });
+
+  // LibreOffice typically writes a PDF with the same base name
+  let outPath = inPath.replace(/\.docx$/i, '.pdf');
+  let pdf;
+  try {
+    pdf = await fs.readFile(outPath);
+  } catch {
+    // Fallback: find any PDF created in the directory
+    const files = await fs.readdir(outDir);
+    const candidate = files.find(f => f.toLowerCase().endsWith('.pdf'));
+    if (!candidate) {
+      throw new Error('PDF not found after conversion');
+    }
+    outPath = path.join(outDir, candidate);
+    pdf = await fs.readFile(outPath);
+  }
+
+  // Best-effort cleanup
+  try {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  } catch { /* ignore */ }
+
+  return pdf;
+}
+
+router.post('/pdf', async (req, res) => {
+  try {
+    const templatePath = path.join(process.cwd(), 'src', 'templates', 'Angebot.docx');
+    const content = await fs.readFile(templatePath);
+
+    const computed = await pricing.computePrices(req.body || {});
+    const zip = new PizZip(content);
+    const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+
+    const data = mapData(req.body || {}, computed);
+    doc.setData(data);
+
+    try {
+      doc.render();
+    } catch (e) {
+      const msg = e?.message || String(e);
+      console.error('Docxtemplater render error:', msg);
+      if (e?.properties?.errors) {
+        for (const er of e.properties.errors) {
+          console.error('- Docx error:', {
+            id: er.id, explanation: er.explanation, file: er.file,
+            xtag: er.xtag, context: er.context, offset: er.offset,
+          });
+        }
+      }
+      return res.status(500).json({ error: 'DOCX render failed', detail: msg, properties: e.properties || null });
+    }
+
+    const docxBuffer = doc.getZip().generate({ type: 'nodebuffer' });
+
+    // Optional: write debug copy
+    try {
+      const verifyOut = path.join(process.cwd(), 'out-Angebot.docx');
+      fsSync.writeFileSync(verifyOut, docxBuffer);
+      console.log('[docx-template/pdf] wrote generated DOCX for conversion:', verifyOut);
+    } catch (e) {
+      console.warn('[docx-template/pdf] could not write verify docx:', e?.message || e);
+    }
+
+    let pdfBuffer;
+    try {
+      pdfBuffer = await convertDocxToPdf(docxBuffer);
+    } catch (e) {
+      console.error('DOCX->PDF conversion failed:', e);
+      return res.status(500).json({ error: 'DOCX->PDF conversion failed', detail: e.message || String(e) });
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="Angebot.pdf"');
+    res.send(pdfBuffer);
+  } catch (e) {
+    console.error('DOCX->PDF endpoint error:', e);
+    res.status(500).json({ error: 'Failed to build PDF', detail: e.message || String(e) });
   }
 });
 
