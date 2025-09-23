@@ -256,21 +256,6 @@ if (hasBonus300) {
 // Set hasBonus based on whether we actually have rows to render
 const hasBonusrows = BonusRows.length > 0;
 
-
-  // Build the summary rows exactly as you want them to appear:
-const baseTotals = [
-  { label: 'Nettobetrag (ohne Rabatt)', value: fmtCurrency(netBeforeDiscount) },
-  ...(hasRabatt ? [{ label: 'Rabatt', value: fmtCurrency(rabattAmount) }] : []),
-   { label: 'zzgl. 19% MwSt.', value: fmtCurrency(vatOnNet) },
-   { label: 'Gesamtsumme', value: fmtCurrency(total) },
-  ...(hasRabatt ? [{ label: 'Gesamtbetrag nach Materialrabatt', value: fmtCurrency(totalAfterRabatt) }] : []),
-  ...(hasBonus ? [{ label: 'Gesamtbetrag nach Neukundenbonus', value: fmtCurrency(totalAfterBonus) }] : []),
-
-];
-// mark every second row (0-based: 1,3,5,...) as "alt"
-const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
-
-
 // pull the computed subsidy kind + value (you already return these from pricing.js)
 // --- Selbstkostenanteil for DOCX ---
 const toNum = v => (typeof v === 'number' ? v : Number(String(v || '').replace(',', '.')) || 0);
@@ -284,6 +269,26 @@ const Zuschusskrankenkasse  = fmtCurrency(subsidyAmountNum);
 
 // Show line iff a subsidy actually applied
 const hasSubsidyLine = subsidyAmountNum > 0;
+const hasZuschuss = subsidyAmountNum > 0;
+const hasSelbstkostenanteil = hasZuschuss;
+
+  // Build the summary rows exactly as you want them to appear:
+const baseTotals = [
+  { label: 'Nettobetrag (ohne Rabatt)', value: fmtCurrency(netBeforeDiscount) },
+  ...(hasRabatt ? [{ label: 'Rabatt', value: fmtCurrency(rabattAmount) }] : []),
+   { label: 'zzgl. 19% MwSt.', value: fmtCurrency(vatOnNet) },
+   { label: 'Gesamtsumme', value: fmtCurrency(total) },
+  ...(hasRabatt ? [{ label: 'Gesamtbetrag nach Materialrabatt', value: fmtCurrency(totalAfterRabatt) }] : []),
+  ...(hasBonus ? [{ label: 'Gesamtbetrag nach Neukundenbonus', value: fmtCurrency(totalAfterBonus) }] : []),
+   ...(hasZuschuss ? [{ label: 'Zuschuss Krankenkasse', value: Zuschusskrankenkasse  }] : []),
+    ...(hasSelbstkostenanteil ? [{ label: 'Selbstkostenanteil', value: SelbstkostenanteilFmt  }] : []),
+
+];
+// mark every second row (0-based: 1,3,5,...) as "alt"
+const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
+
+
+
 
 // Optional ready-made sentence (you can use the block tag too)
 let SubsidyLine = '';
