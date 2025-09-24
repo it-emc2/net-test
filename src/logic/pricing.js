@@ -238,19 +238,17 @@ export default (ProductModel) => {
   
   // Services (zones removed)
   function computeServiceCosts(payload) {
+  
     const b = payload?.bereich || {};
     const payer = b.payer === 'Kassenkunde' ? 'KK' : (b.payer === 'Selbstzahler' ? 'SZ' : '');
     const oneWayKm = Number(b.distanceKm || 0) || 0; // user enters one-way distance
     const roundTripKm = Math.max(0, oneWayKm * 2);   // bill both ways
-    const oneWay_travel_time = Number.isFinite(Number(b.travelTime)) && Number(b.travelTime) >= 0
-    ? Number(b.travelTime)
-    : 0;
- 
-    // Arbeitszeit: freier Zahlenwert vom Nutzer
-     const rawHours = Number(b.laborHours);
-    const laborHours = Number.isFinite(rawHours) && rawHours > 0 ? rawHours : 0;
+    
+   
   // total_hours : travel time(Hin- und Rückfahrt) + Arbeitszeit
-    const total_hours = (oneWay_travel_time * 2) + laborHours;
+  const laborHours = Number(payload?.bereich?.laborNumeric ?? 0);
+    const total_hours_numeric = Number(payload?.bereich?.totalHoursNumeric ?? 0);
+     const total_hours_HH_mm   = String(payload?.bereich?.totalHoursHHMM ?? '');
 
     const handwerkerCount = 2;
     const laborRateKK = 69.50;
@@ -263,7 +261,7 @@ export default (ProductModel) => {
 
     const kilometerpauschale = round2(roundTripKm * kmRate);
     const laborRate = payer === 'KK' ? laborRateKK : (payer === 'SZ' ? laborRateSZ : 0);
-    const facharbeiter = total_hours * handwerkerCount * laborRate;
+    const facharbeiter = total_hours_numeric * handwerkerCount * laborRate;
 
     const lines = [];
     lines.push({ key: 'fahrzeug',   label: '- 1,00 Stk Fahrzeugbereitstellung', amount: round2(fahrzeugbereitstellung) });
@@ -272,11 +270,10 @@ export default (ProductModel) => {
     if (roundTripKm > 0) {
       lines.push({ key: 'kilometer', label: `- ${roundTripKm} km Kilometerpauschale (Hin- & Rückfahrt)`, amount: kilometerpauschale });
     }
-    if (laborHours > 0 && laborRate > 0) {
-      lines.push({ key: 'facharbeiter', label: `- ${total_hours} Std × ${handwerkerCount} Facharbeiter × ${laborRate.toFixed(2)} €`, amount: facharbeiter });
+    if (total_hours_numeric  > 0 && laborRate > 0) {
+      lines.push({ key: 'facharbeiter', label: `- ${total_hours_HH_mm} (${total_hours_numeric}) Std × ${handwerkerCount} Facharbeiter × ${laborRate.toFixed(2)} €`, amount: facharbeiter });
     }
 
-    
 
     // Append zero-cost work notes
     try {

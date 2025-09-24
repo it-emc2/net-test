@@ -1,3 +1,103 @@
+function wireDurationAutoFormat(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+
+  // Live formatting while typing
+  el.addEventListener('input', () => {
+    const digits = el.value.replace(/\D/g, ''); // keep only 0-9
+    if (!digits) { el.value = ''; return; }
+
+    if (digits.length <= 2) {
+      // 1–2 digits: show hours and add ":" placeholder
+      el.value = digits + ':';
+    } else {
+      // 3+ digits: last two are minutes, rest are hours
+      const minsRaw = digits.slice(-2);
+      const hrsRaw  = digits.slice(0, -2);
+      const hrs = (hrsRaw.replace(/^0+(?=\d)/, '') || '0'); // strip leading zeros
+      const mins = String(clamp(parseInt(minsRaw, 10) || 0, 0, 59)).padStart(2, '0');
+      el.value = `${hrs}:${mins}`;
+    }
+  });
+
+  // Normalize on blur (auto “:00”, clamp minutes, etc.)
+  el.addEventListener('blur', () => {
+    const v = (el.value || '').trim();
+    if (!v) return;
+
+    // "7" -> "7:00"
+    if (/^\d+$/.test(v)) {
+      el.value = `${String(parseInt(v, 10) || 0)}:00`;
+      return;
+    }
+    // "7:" -> "7:00"
+    if (/^\d+:$/.test(v)) {
+      el.value = v + '00';
+      return;
+    }
+    // "7:5" -> "7:05", clamp mins
+    const m = v.match(/^(\d+):(\d{1,2})$/);
+    if (m) {
+      const hrs  = String(parseInt(m[1], 10) || 0);
+      const mins = String(clamp(parseInt(m[2], 10) || 0, 0, 59)).padStart(2, '0');
+      el.value = `${hrs}:${mins}`;
+    }
+  });
+}
+function hhmmToHours(v) {
+  if (v == null) return 0;
+  const s = String(v).trim();
+  const m = s.match(/^(\d{1,2}):([0-5]\d)$/);
+  if (!m) return 0;
+  const h = Number(m[1]) || 0;
+  const min = Number(m[2]) || 0;
+  return h + min / 60;
+}
+
+function hoursToHHMM(n) {
+  const mins = Math.max(0, Math.round((Number(n) || 0) * 60));
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${h}:${String(m).padStart(2, '0')}`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  wireDurationAutoFormat('laborHours');
+  wireDurationAutoFormat('travelTime');
+});
+document.addEventListener('DOMContentLoaded', () => {
+  const laborEl   = document.getElementById('laborHours');
+  const travelEl  = document.getElementById('travelTime');
+  const outEl     = document.getElementById('totalHoursHHMM');
+
+  function updateTotalHours() {
+    const laborH   = hhmmToHours(laborEl?.value || '0:00');      // Arbeitszeit
+    const travelH1 = hhmmToHours(travelEl?.value || '0:00');     // Reisezeit (einfach)
+    const totalNum = (travelH1 * 2) + laborH;                    // ← your formula
+
+    // 👉 this is your “total_hours_HH-MM” (as a string)
+    const totalHHMM = hoursToHHMM(totalNum);
+
+    // show it under the hint
+    if (outEl) {
+      outEl.innerHTML = `Gesamtzeit (Arbeit + Fahrt): <strong>${totalHHMM}</strong>`;
+    }
+
+    // (optional) expose numeric if you want to reuse it elsewhere
+    window.total_hours_numeric = Math.max(0, totalNum);
+  }
+
+  // Update on load + whenever user types
+  laborEl?.addEventListener('input', updateTotalHours);
+  laborEl?.addEventListener('blur',  updateTotalHours);
+  travelEl?.addEventListener('input', updateTotalHours);
+  travelEl?.addEventListener('blur',  updateTotalHours);
+  updateTotalHours();
+});
+
+
 // --- Offer number (ANG-YYYY-MM-DD-HH-mm-ss) + auto-stamp on export clicks ---
 function genOfferNumber() {
   const d = new Date();
@@ -32,7 +132,16 @@ function stampOfferOnExport() {
 document.addEventListener('DOMContentLoaded', stampOfferOnExport);
 // --- end offer number snippet ---
 
+const laborEl   = document.getElementById('laborHours');
+const laborHHMM = (laborEl?.value || '').trim();
 
+// Prefer existing helper; fall back safely if it’s missing.
+const laborNumeric = (typeof hhmmToHours === 'function')
+  ? Math.max(0, hhmmToHours(laborHHMM))
+  : (() => {
+      const m = laborHHMM.match(/^(\d+):([0-5]\d)$/);
+      return m ? (Number(m[1]) + Number(m[2]) / 60) : 0;
+    })();
 
 const root = document.documentElement;
 const themeToggle = document.getElementById('themeToggle');
@@ -117,6 +226,12 @@ payload.bereich.copayAmount = copayEl ? Number(copayEl.value || 0) : 0;
     bonusGrab: !!document.getElementById('rb-bonus-grab')?.checked,
   };
 payload.offerNumber = (document.getElementById('offerNumber')?.value || '').trim();
+payload.bereich.totalHoursHHMM = document.getElementById('totalHoursHHMM')?.textContent?.match(/(\d+:\d{2})/)?.[1] || '';
+payload.bereich.totalHoursNumeric = Number(window.total_hours_numeric || 0);
+
+
+payload.bereich.laborHoursHHMM    = laborHHMM;
+payload.bereich.laborHoursNumeric = laborNumeric;
   return payload;
 }
 

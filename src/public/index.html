@@ -619,7 +619,7 @@
   </head>
   <body>
     <header>
-      <input id="offerNumber" name="offerNumber" placeholder="Angebotsnummer" />
+      <input id="offerNumber" name="offerNumber" placeholder="Angebotsnummer" hidden/>
       <div class="brand">
         <div class="dot"></div>
         <div>
@@ -1039,28 +1039,30 @@
         </div>
       </div>
 
-      <!-- NEW: Arbeitszeit selection -->
+      <!-- NEW: Arbeitszeit selection</div> -->
       <div class="full" style="margin: 8px 0 12px 0">
-        <label class="req">Arbeitszeit in Stunden (pro Arbeiter)</label>
+         <!-- <label class="req">Arbeitszeit in Stunden (pro Arbeiter)</label>
         <div class="muted" style="margin: 6px 0 8px">
           Bei einer Entfernung von mehr als 1 Stunde zum Kunden beträgt die Arbeitszeit 10h,
           bei weniger als 1 Stunde Anfahrt 8h.
-          Es werden immer zwei Facharbeiter kalkuliert (×2).
-        </div>
-       <div class="field-row" style="display:flex; gap:12px; align-items:flex-end;">
+          Es werden immer zwei Facharbeiter kalkuliert (×2).-->
+        
+  <div class="field-row" style="display:flex; gap:12px; align-items:flex-end;">
   <label class="field" style="flex:1;">
-    <span>Arbeitszeit (Stunden)</span>
-    <input id="laborHours" name="laborHours" type="number" min="0" step="0.5" required placeholder="z. B. 8" />
+    <span>Arbeitszeit (Dauer, HH:MM)</span>
+   <input id="laborHours"  name="laborHours"  type="text" inputmode="numeric" value="07:00" placeholder="HH:MM" required>
   </label>
 
   <label class="field" style="flex:1;">
-    <span>Reisezeit (Stunden, einfach)</span>
-    <input id="travelTime" name="travelTime" type="number" min="0" step="0.25" placeholder="z. B. 1.5" />
+    <span>Reisezeit (Dauer, HH:MM),  nur Hin‑Fahrt eintragen</span>
+   <input id="travelTime"  name="travelTime"  type="text" inputmode="numeric"               placeholder="HH:MM">
   </label>
 </div>
 
+
         <!-- Optional dynamic suggestion from distance -->
         <div id="laborSuggestion" class="muted" style="margin-top: 6px"></div>
+        <div id="totalHoursHHMM" class="muted" style="margin-top:4px;"></div>
       </div>
 
       <!-- keep zones placeholders below -->
@@ -3075,5 +3077,7 @@
     </div>
 
     <script src="./script.js"></script>
+
+   
   </body>
 </html>
