@@ -242,12 +242,10 @@ export default (ProductModel) => {
     const payer = b.payer === 'Kassenkunde' ? 'KK' : (b.payer === 'Selbstzahler' ? 'SZ' : '');
     const oneWayKm = Number(b.distanceKm || 0) || 0; // user enters one-way distance
     const roundTripKm = Math.max(0, oneWayKm * 2);   // bill both ways
-    const oneWay_travel_time =0
-    // Arbeitszeit via radios: only accept 8h or 10h; otherwise 0
-    // const laborHours = (() => {
-     //  const n = Number(b.laborHours);
-      // return Number.isFinite(n) && (n === 8 || n === 10) ? n : 0;
-    // })();
+    const oneWay_travel_time = Number.isFinite(Number(b.travelTime)) && Number(b.travelTime) >= 0
+    ? Number(b.travelTime)
+    : 0;
+ 
     // Arbeitszeit: freier Zahlenwert vom Nutzer
      const rawHours = Number(b.laborHours);
     const laborHours = Number.isFinite(rawHours) && rawHours > 0 ? rawHours : 0;
@@ -265,7 +263,6 @@ export default (ProductModel) => {
 
     const kilometerpauschale = round2(roundTripKm * kmRate);
     const laborRate = payer === 'KK' ? laborRateKK : (payer === 'SZ' ? laborRateSZ : 0);
-    // const facharbeiter = round2(laborHours * 2  * laborRate); // always 2 workers
     const facharbeiter = total_hours * handwerkerCount * laborRate;
 
     const lines = [];
@@ -276,7 +273,6 @@ export default (ProductModel) => {
       lines.push({ key: 'kilometer', label: `- ${roundTripKm} km Kilometerpauschale (Hin- & Rückfahrt)`, amount: kilometerpauschale });
     }
     if (laborHours > 0 && laborRate > 0) {
-      //lines.push({ key: 'facharbeiter', label: `- ${laborHours} Std × 2 Facharbeiter × ${laborRate.toFixed(2)} €`, amount: facharbeiter });
       lines.push({ key: 'facharbeiter', label: `- ${total_hours} Std × ${handwerkerCount} Facharbeiter × ${laborRate.toFixed(2)} €`, amount: facharbeiter });
     }
 

@@ -1047,10 +1047,17 @@
           bei weniger als 1 Stunde Anfahrt 8h.
           Es werden immer zwei Facharbeiter kalkuliert (×2).
         </div>
-       <label class="field">
-  <span>Arbeitszeit (Stunden)</span>
-  <input id="laborHours" name="laborHours" type="number" min="0" step="0.5" required placeholder="z. B. 8" />
-</label>
+       <div class="field-row" style="display:flex; gap:12px; align-items:flex-end;">
+  <label class="field" style="flex:1;">
+    <span>Arbeitszeit (Stunden)</span>
+    <input id="laborHours" name="laborHours" type="number" min="0" step="0.5" required placeholder="z. B. 8" />
+  </label>
+
+  <label class="field" style="flex:1;">
+    <span>Reisezeit (Stunden, einfach)</span>
+    <input id="travelTime" name="travelTime" type="number" min="0" step="0.25" placeholder="z. B. 1.5" />
+  </label>
+</div>
 
         <!-- Optional dynamic suggestion from distance -->
         <div id="laborSuggestion" class="muted" style="margin-top: 6px"></div>
