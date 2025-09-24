@@ -328,13 +328,13 @@ export default (ProductModel) => {
       if (payer === 'Selbstzahler') {
         markupPct = 0.35; // enforce rule regardless of client input
       }
-      const markup = round2( (productsSubtotal + (services?.sum ?? 0)) * (markupPct || 0));
+      const markup = round2( productsSubtotal  * (markupPct || 0));
 
-      // Extract and enforce markup rules
-      const travel = 0;
+  
+     
       
       // Nettobetrag
-      const baseSubtotal = round2(productsSubtotal + (services?.sum ?? 0) + travel + markup );
+      const baseSubtotal = round2(productsSubtotal + (services?.sum ?? 0) + markup );
 
       const vatOnNet = round2((baseSubtotal || 0) * TAX_RATE);
       const total = round2((baseSubtotal|| 0) + vatOnNet);
@@ -432,7 +432,7 @@ const totalAfterSubsidy = selfPayAmount; // alias (safe to keep)
       return {
         // before discount:
         items, materials, productsSubtotal, services,
-        Nettobetrag: baseSubtotal, markupPct, markup, travel, vatOnNet, total, 
+        Nettobetrag: baseSubtotal, markupPct, markup, vatOnNet, total, 
 
         // values after discount 
         totalAfterRabatt ,netAfterDiscount ,Vat_on_net_AfterDiscount,
