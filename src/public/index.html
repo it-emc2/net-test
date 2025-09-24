@@ -1047,16 +1047,11 @@
           bei weniger als 1 Stunde Anfahrt 8h.
           Es werden immer zwei Facharbeiter kalkuliert (×2).
         </div>
-        <div class="radio-group" role="radiogroup" aria-label="Arbeitszeit in Stunden">
-          <label class="radio-pill">
-            <input type="radio" name="laborHours" value="8" required />
-            <span class="circle"></span><span>8 Stunden</span>
-          </label>
-          <label class="radio-pill">
-            <input type="radio" name="laborHours" value="10" required />
-            <span class="circle"></span><span>10 Stunden</span>
-          </label>
-        </div>
+       <label class="field">
+  <span>Arbeitszeit (Stunden)</span>
+  <input id="laborHours" name="laborHours" type="number" min="0" step="0.5" required placeholder="z. B. 8" />
+</label>
+
         <!-- Optional dynamic suggestion from distance -->
         <div id="laborSuggestion" class="muted" style="margin-top: 6px"></div>
       </div>

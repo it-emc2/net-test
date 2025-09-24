@@ -244,10 +244,13 @@ export default (ProductModel) => {
     const roundTripKm = Math.max(0, oneWayKm * 2);   // bill both ways
     const oneWay_travel_time =0
     // Arbeitszeit via radios: only accept 8h or 10h; otherwise 0
-    const laborHours = (() => {
-      const n = Number(b.laborHours);
-      return Number.isFinite(n) && (n === 8 || n === 10) ? n : 0;
-    })();
+    // const laborHours = (() => {
+     //  const n = Number(b.laborHours);
+      // return Number.isFinite(n) && (n === 8 || n === 10) ? n : 0;
+    // })();
+    // Arbeitszeit: freier Zahlenwert vom Nutzer
+     const rawHours = Number(b.laborHours);
+    const laborHours = Number.isFinite(rawHours) && rawHours > 0 ? rawHours : 0;
   // total_hours : travel time(Hin- und Rückfahrt) + Arbeitszeit
     const total_hours = (oneWay_travel_time * 2) + laborHours;
 
