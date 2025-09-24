@@ -235,20 +235,23 @@ export default (ProductModel) => {
     const sum = round2(resolved.reduce((a, x) => a + (x.lineTotal || 0), 0));
     return { title: 'Material für Badumbau', lines: resolved, sum };
   }
-
+  
   // Services (zones removed)
   function computeServiceCosts(payload) {
     const b = payload?.bereich || {};
     const payer = b.payer === 'Kassenkunde' ? 'KK' : (b.payer === 'Selbstzahler' ? 'SZ' : '');
     const oneWayKm = Number(b.distanceKm || 0) || 0; // user enters one-way distance
     const roundTripKm = Math.max(0, oneWayKm * 2);   // bill both ways
-
+    const oneWay_travel_time =0
     // Arbeitszeit via radios: only accept 8h or 10h; otherwise 0
     const laborHours = (() => {
       const n = Number(b.laborHours);
       return Number.isFinite(n) && (n === 8 || n === 10) ? n : 0;
     })();
+  // total_hours : travel time(Hin- und Rückfahrt) + Arbeitszeit
+    const total_hours = (oneWay_travel_time * 2) + laborHours;
 
+    const handwerkerCount = 2;
     const laborRateKK = 69.50;
     const laborRateSZ = 59.50;
     const kmRate = 0.70;
@@ -259,7 +262,8 @@ export default (ProductModel) => {
 
     const kilometerpauschale = round2(roundTripKm * kmRate);
     const laborRate = payer === 'KK' ? laborRateKK : (payer === 'SZ' ? laborRateSZ : 0);
-    const facharbeiter = round2(laborHours * 2 * laborRate); // always 2 workers
+    // const facharbeiter = round2(laborHours * 2  * laborRate); // always 2 workers
+    const facharbeiter = total_hours * handwerkerCount * laborRate;
 
     const lines = [];
     lines.push({ key: 'fahrzeug',   label: '- 1,00 Stk Fahrzeugbereitstellung', amount: round2(fahrzeugbereitstellung) });
@@ -269,8 +273,11 @@ export default (ProductModel) => {
       lines.push({ key: 'kilometer', label: `- ${roundTripKm} km Kilometerpauschale (Hin- & Rückfahrt)`, amount: kilometerpauschale });
     }
     if (laborHours > 0 && laborRate > 0) {
-      lines.push({ key: 'facharbeiter', label: `- ${laborHours} Std × 2 Facharbeiter × ${laborRate.toFixed(2)} €`, amount: facharbeiter });
+      //lines.push({ key: 'facharbeiter', label: `- ${laborHours} Std × 2 Facharbeiter × ${laborRate.toFixed(2)} €`, amount: facharbeiter });
+      lines.push({ key: 'facharbeiter', label: `- ${total_hours} Std × ${handwerkerCount} Facharbeiter × ${laborRate.toFixed(2)} €`, amount: facharbeiter });
     }
+
+    
 
     // Append zero-cost work notes
     try {
@@ -284,6 +291,8 @@ export default (ProductModel) => {
     const sum = round2(lines.reduce((a, x) => a + (x.amount || 0), 0));
     return { title: posTitle, lines, sum, payer, zoneLabel: '', distanceKm: roundTripKm, laborHours, laborRate };
   }
+
+ 
 
   return {
     computePrices: async (payload) => {
@@ -320,9 +329,11 @@ export default (ProductModel) => {
       if (payer === 'Selbstzahler') {
         markupPct = 0.35; // enforce rule regardless of client input
       }
-
       const markup = round2( (productsSubtotal + (services?.sum ?? 0)) * (markupPct || 0));
+
+      // Extract and enforce markup rules
       const travel = 0;
+      
       // Nettobetrag
       const baseSubtotal = round2(productsSubtotal + (services?.sum ?? 0) + travel + markup );
 
@@ -357,6 +368,8 @@ export default (ProductModel) => {
         servicesSum: services?.sum ?? 0,
         markupPct,
       });
+
+
 
       // -------- NEW: Zuschuss/Selbstkostenanteil --------
 const b = payload?.bereich || {};
@@ -438,7 +451,9 @@ const totalAfterSubsidy = selfPayAmount; // alias (safe to keep)
         subsidyInput: Math.max(0, zuzahlungRaw),
         subsidyAmount,
         baseForSubsidy,
-        selfPayAmount,       
+        selfPayAmount, 
+          
+       
       };
     }
   };
