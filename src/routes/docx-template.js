@@ -182,7 +182,9 @@ function mapData(body = {}, computed = {}) {
   const TravelValue = fmtCurrency(travel);
 
   // Services block
-  const serviceLines = (services?.lines || []).map(l => l.label);
+  const serviceLines = (services?.lines || [])
+  .filter(l => l && l.key !== 'facharbeiter' && !l.docxHide)
+  .map(l => l.label);
   const ServicePosTitle = services?.title || 'Auszuführende Arbeiten';
   const ServiceUnitPrice = fmtCurrency(services?.sum || 0);
   const ServiceTotal = fmtCurrency(services?.sum || 0);
