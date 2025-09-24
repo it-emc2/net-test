@@ -201,6 +201,22 @@ const elMax   = document.querySelector('input[name="budgetMax"]');
 const elCopay = document.querySelector('input[name="budgetCopay"]');
 const elTwo   = document.querySelector('input[name="twoPersons"]');
 const copayEl = document.getElementById('copayAmount');
+
+// Wohnumfeld controls
+const wohDoneRadios = document.querySelectorAll('input[name="wohnumfeldDone"]');
+const wohAmountInput = document.getElementById('wohnumfeldAmount');
+function readWohnumfeld() {
+  const isJa = Array.from(wohDoneRadios).some(r => r.checked && r.value === 'Ja');
+  let amount = 0;
+  if (isJa && wohAmountInput) {
+    const raw = (wohAmountInput.value || '').toString().replace(',', '.');
+    const parsed = parseFloat(raw);
+    amount = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  }
+  return { done: isJa, amount };
+}
+
+
 function parseEuroToNumber(v) {
   const s = String(v ?? '')
     .trim()
@@ -241,6 +257,12 @@ payload.bereich.totalHoursNumeric = Number(window.total_hours_numeric || 0);
 
 payload.bereich.laborHoursHHMM    = laborHHMM;
 payload.bereich.laborHoursNumeric = laborNumeric;
+const woh = readWohnumfeld();
+const isKK =
+  (payload.bereich?.payer ||
+   document.querySelector('input[name="payer"]:checked')?.value) === 'Kassenkunde';
+
+payload.bereich.wohnumfeld = isKK ? woh : { done: false, amount: 0 };
   return payload;
 }
 

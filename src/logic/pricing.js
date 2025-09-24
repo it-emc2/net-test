@@ -400,7 +400,6 @@ switch (option) {
   case '4180_KUNDE_MIT_ZUZAHLUNG':
   case 'ZUSZAHLUNG_CA':
      subsidyAmount = 4180 - Math.max(0, zuzahlungRaw);
-     console.log(" user input ", zuzahlungRaw)
   
     break;
 
@@ -414,6 +413,16 @@ switch (option) {
   default:
     subsidyAmount = 0;
 }
+ // subtract prior Wohnumfeld amount (KK only)
+ console.log("payerrrr ", payer)
+ console.log("and ", b?.wohnumfeld?.done)
+  if ((payer === 'Kassenkunde') && b?.wohnumfeld?.done) {
+    const prior = Number(b.wohnumfeld.amount) || 0;
+    // prevent negative subsidy
+    subsidyAmount = Math.max(0, subsidyAmount - Math.max(0, prior));
+    console.log("payerrrr ", subsidyAmount)
+  }
+
 
 // Base to subtract from: prefer most final amount
 const baseForSubsidy =
