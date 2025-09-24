@@ -201,6 +201,15 @@ const elMax   = document.querySelector('input[name="budgetMax"]');
 const elCopay = document.querySelector('input[name="budgetCopay"]');
 const elTwo   = document.querySelector('input[name="twoPersons"]');
 const copayEl = document.getElementById('copayAmount');
+function parseEuroToNumber(v) {
+  const s = String(v ?? '')
+    .trim()
+    .replace(/[^\d.,-]/g, '')   // drop € and spaces
+    .replace(/\./g, '')         // remove thousand separators
+    .replace(',', '.');         // convert decimal comma to dot
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : 0;
+}
 
 let selected = '';
 if (elMax?.checked)       selected = elMax.value;            // "4180 MAXIMAL"
@@ -214,7 +223,7 @@ const canonical = selected
 
 payload.bereich = payload.bereich || {};
 payload.bereich.budgetOptionsPanel = canonical || selected || '';
-payload.bereich.copayAmount = copayEl ? Number(copayEl.value || 0) : 0;
+payload.bereich.copayAmount = copayEl ? parseEuroToNumber(copayEl.value) : 0;
 
 
   // ► add the fields the server needs to compute Rabatt & Bonus

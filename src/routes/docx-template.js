@@ -274,10 +274,12 @@ const selfPayAmountNum  = toNum(computed?.selfPayAmount);
 const SelbstkostenanteilFmt = fmtCurrency(selfPayAmountNum);
 const Zuschusskrankenkasse  = fmtCurrency(subsidyAmountNum);
 
-// Show line iff a subsidy actually applied
+// Show line in angebote
 const hasSubsidyLine = subsidyAmountNum > 0;
+
+// Show line iff a subsidy actually applied + 
 const hasZuschuss = subsidyAmountNum > 0;
-const hasSelbstkostenanteil = hasZuschuss;
+
 
   // Build the summary rows exactly as you want them to appear:
 const baseTotals = [
@@ -291,21 +293,12 @@ const baseTotals = [
   ...(hasRabatt ? [{ label: 'Gesamtbetrag nach Materialrabatt', value: fmtCurrency(totalAfterRabatt) }] : []),
   ...(hasBonus ? [{ label: 'Gesamtbetrag nach Neukundenbonus', value: fmtCurrency(totalAfterBonus) }] : []),
   ...(hasZuschuss ? [{ label: 'Zuschuss Krankenkasse', value: Zuschusskrankenkasse }] : []),
-  ...(hasSelbstkostenanteil ? [{ label: 'Selbstkostenanteil', value: SelbstkostenanteilFmt }] : []),
+  ...(hasZuschuss ? [{ label: 'Selbstkostenanteil', value: SelbstkostenanteilFmt }] : []),
 ];
 
 // mark every second row (0-based: 1,3,5,...) as "alt"
 const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
 
-
-
-
-// Optional ready-made sentence (you can use the block tag too)
-let SubsidyLine = '';
-if (hasSubsidyLine) {
-  SubsidyLine = `Der Selbstkostenanteil beträgt ${SelbstkostenanteilFmt} unter Berücksichtigung eines gewährten 
-  Zuschusses durch die Pflegekasse i.H.v. ${Zuschusskrankenkasse}.`;
-}
 
 // Pick Regie-Stundensatz based on payer
 const payerNorm = String(PayerKind || '').toUpperCase();
@@ -399,7 +392,7 @@ const RegieRateFmt = regieRateNum ? `${regieRateNum.toFixed(2).replace('.', ',')
 SelbstkostenanteilFmt,                      // if you use this tag directly
 Zuschusskrankenkasse,                       // formatted subsidy for template
 hasSubsidyLine,
-SubsidyLine,
+
 // for Regie-Stundensatz
 RegieRateFmt,
   };
@@ -417,7 +410,8 @@ router.post('/', async (req, res) => {
     console.log('[docx] computed subsidy:',
   { subsidyAmount: computed?.subsidyAmount,
     baseForSubsidy: computed?.baseForSubsidy,
-    selfPayAmount: computed?.selfPayAmount }
+    selfPayAmount: computed?.selfPayAmount ,
+  userInput: computed?.subsidyInput}
 );
 
 

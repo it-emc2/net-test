@@ -399,8 +399,9 @@ switch (option) {
   case 'KUNDE_MIT_ZUZAHLUNG':
   case '4180_KUNDE_MIT_ZUZAHLUNG':
   case 'ZUSZAHLUNG_CA':
-    // subsidyAmount = 4180 + Math.max(0, zuzahlungRaw);
-    subsidyAmount = 4180;
+     subsidyAmount = 4180 - Math.max(0, zuzahlungRaw);
+     console.log(" user input ", zuzahlungRaw)
+  
     break;
 
   case 'ZWEI PERSONEN MIT PFLEGEGRAD':
@@ -421,7 +422,7 @@ const baseForSubsidy =
    total);
 
 const selfPayAmount = round2(Math.max(0, Number(baseForSubsidy) - Number(subsidyAmount)));
-const totalAfterSubsidy = selfPayAmount; // alias (safe to keep)
+
 
      
 
@@ -448,6 +449,7 @@ const totalAfterSubsidy = selfPayAmount; // alias (safe to keep)
         subsidyAmount,
         baseForSubsidy,
         selfPayAmount, 
+      
           
        
       };
