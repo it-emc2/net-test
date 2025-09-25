@@ -1673,6 +1673,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 (function initSmartTraySearch(){
+  const TRAY_KEY = 'dw_tray_selection';
+function saveTraySelection(value, productId){
+  try { localStorage.setItem(TRAY_KEY, JSON.stringify({ value, productId })); } catch {}
+}
+function loadTraySelection(){
+  try { return JSON.parse(localStorage.getItem(TRAY_KEY) || '{}'); } catch { return {}; }
+}
   const wrap = document.getElementById('traySmartSearch');
   if (!wrap) return;
 
@@ -1680,10 +1687,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const wEl  = wrap.querySelector('input[name="tray_w_cm"]');   // Breite
   const lEl  = wrap.querySelector('input[name="tray_l_cm"]');   // Länge
   const hEl  = wrap.querySelector('input[name="tray_h_cm"]');   // Höhe
-  const out  = wrap.querySelector('#traySuggestions'); // container to render the radios
+  const out  = wrap.querySelector('#traySuggestions');           // container for radios
 
-  const debounce = (fn, ms=250)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; };
+  const parseNum = (v) => {
+    const s = String(v ?? '').trim().replace(',', '.');
+    const n = Number(s);
+    return Number.isFinite(n) ? n : NaN;
+  };
 
+  // ensure hidden productId (optional)
   function ensureHiddenPid(){
     let pid = document.getElementById('chosenTrayProductId');
     if (!pid) {
@@ -1702,15 +1714,16 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // if any traySize is already checked (legacy radios or previous pick), don’t force required
+    const alreadyChecked = !!form?.querySelector('input[name="traySize"]:checked');
+
     const radiosHtml = list.slice(0,3).map((p, idx) => {
       const value = `${p.widthCm} x ${p.lengthCm} x ${p.heightCm} cm`;
-      const id    = `traySize_suggest_${p.productId}`;
-      // put required on the FIRST radio so the group is required unless one is chosen
-      const required = idx === 0 ? 'required' : '';
+      // match your old HTML EXACTLY: label.radio-pill > input + span.circle + span(text)
+      const requiredAttr = (!alreadyChecked && idx === 0) ? 'required' : '';
       return `
         <label class="radio-pill">
-          <input type="radio" name="traySize" id="${id}" value="${value}" ${required}
-                 data-product-id="${p.productId}">
+          <input type="radio" name="traySize" value="${value}" ${requiredAttr} data-product-id="${p.productId}">
           <span class="circle"></span>
           <span>${value}</span>
         </label>
@@ -1719,36 +1732,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
     out.innerHTML = `
       <div class="field">
-        <label class="req">Top 3 Größen (automatisch vorgeschlagen)</label>
+        <label class="req">Größe, grundsätzlich größer wählen, als gewünschtes Maß</label>
         <div class="radio-list" id="traySuggestionRadioList">
           ${radiosHtml}
         </div>
       </div>
     `;
 
-    // wire change -> sync hidden productId
     const pidHidden = ensureHiddenPid();
+
+    // keep productId in sync and toggle the visual "is-checked" class just like the old UI
     out.querySelectorAll('input[name="traySize"]').forEach(radio => {
       radio.addEventListener('change', () => {
         pidHidden.value = radio.dataset.productId || '';
-      });
-    });
-
-    // when a legacy radio elsewhere is selected, clear highlight on these (CSS usually handles :checked, but this keeps your class-based styles tidy too)
-    form?.querySelectorAll('input[name="traySize"]').forEach(radio => {
-      radio.addEventListener('change', () => {
+        // mirror old highlighting behaviour
         const listEl = document.getElementById('traySuggestionRadioList');
         if (!listEl) return;
         listEl.querySelectorAll('label.radio-pill').forEach(l => l.classList.remove('is-checked'));
-        // re-apply to the selected one if it’s ours
-        const lab = radio.id ? listEl.querySelector(`label[for="${radio.id}"]`) || radio.closest('label.radio-pill') : null;
-        if (lab && radio.checked) lab.classList.add('is-checked');
+        radio.closest('label.radio-pill')?.classList.add('is-checked');
+        // persist for when we leave/come back
+    saveTraySelection(radio.value, pidHidden.value);
       });
     });
-  }
+    // >>> NEW: after rendering, re-apply previously saved choice (if it exists in this list)
+const saved = loadTraySelection();
+if (saved?.value) {
+  const esc = (css) => css.replace(/([.*+?^${}()|[\]\\])/g, '\\$1'); // tiny CSS.escape
+  const match = out.querySelector(`#traySuggestionRadioList input[name="traySize"][value="${esc(saved.value)}"]`);
+  if (match) {
+    match.checked = true;
+    pidHidden.value = saved.productId || match.dataset.productId || '';
+    match.closest('label.radio-pill')?.classList.add('is-checked');
+    // notify any existing listeners (deps/autochecks/validation)
+    match.dispatchEvent(new Event('change', { bubbles: true }));
+  }}}
 
   async function fetchAndRender(){
-    const w = Number(wEl.value), l = Number(lEl.value), h = Number(hEl.value);
+    const w = parseNum(wEl.value);
+    const l = parseNum(lEl.value);
+    const h = parseNum(hEl.value);
     if (![w,l,h].every(Number.isFinite)) { out.innerHTML = ''; return; }
 
     const url = `/api/trays/suggest?w=${w}&l=${l}&h=${h}`;
@@ -1764,10 +1786,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  const debounce = (fn, ms=250)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; };
   const onChange = debounce(fetchAndRender, 300);
+
   [wEl,lEl,hEl].forEach(el=>{
     el?.addEventListener('input', onChange);
     el?.addEventListener('change', onChange);
+  });
+
+  // >>> NEW: show suggestions immediately if fields already have values (page refresh / step enter)
+  function maybeAutoFetch(){
+    const hasValues = [wEl,lEl,hEl].every(el => (String(el?.value || '').trim() !== ''));
+    if (hasValues) fetchAndRender();
+  }
+  // run now…
+  maybeAutoFetch();
+  // …and when you navigate back into the Duschwanne step
+  window.addEventListener('hashchange', () => {
+    if (typeof getCurrentStep === 'function' && getCurrentStep() === 'duschwanne') {
+      maybeAutoFetch();
+    }
   });
 })();
 
