@@ -1,155 +1,3 @@
-// ========== DUSCHWANNE: Smart size search (L x B x H) ==========
-(function initTraySmartSearch(){
-  const form = document.getElementById('form-duschwanne');
-  if (!form) return;
-
-  // Where to insert the search UI (top of the first .field inside the form)
-  const firstField = form.querySelector('.field') || form;
-  // Radios we will match against
-  const radios = Array.from(form.querySelectorAll('input[type="radio"][name="traySize"]'));
-  if (!radios.length) return;
-
-  // --- UI: input + suggestions ---
-  const wrap = document.createElement('div');
-  wrap.className = 'tray-smart-wrap';
-  wrap.style.marginBottom = '12px';
-  wrap.innerHTML = `
-    <label style="display:block; font-weight:600; margin-bottom:6px;">Smarte Größensuche</label>
-    <input id="traySmartInput" type="text" inputmode="numeric" placeholder="z. B. 1200x900x45 oder 120x90x4.5 cm"
-           style="width:100%; padding:8px; border:1px solid var(--border); border-radius:8px;">
-    <div id="traySmartHint" class="muted" style="margin-top:6px; font-size:.9rem;"></div>
-    <div id="traySmartSuggestions" style="display:grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap:6px; margin-top:8px;"></div>
-  `;
-  firstField.parentNode.insertBefore(wrap, firstField);
-
-  const inputEl = wrap.querySelector('#traySmartInput');
-  const hintEl  = wrap.querySelector('#traySmartHint');
-  const sugEl   = wrap.querySelector('#traySmartSuggestions');
-
-  // --- helpers ---
-  const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
-
-  // Turn "1200x900x45", "120x90x4.5 cm", "1.2x0.9x0.045 m" -> {L,W,H} in mm
-  function parseDims(s){
-    if (!s) return null;
-    const txt = String(s).toLowerCase().replace(/[,;]/g, '.').replace(/[×*]/g, 'x');
-    // detect unit if any
-    const hasM  = /\bm\b/.test(txt);
-    const hasCM = /\bcm\b/.test(txt);
-    const hasMM = /\bmm\b/.test(txt);
-
-    // extract 3 numbers (allow decimals)
-    const nums = txt.match(/(\d+(?:\.\d+)?)/g)?.map(Number) || [];
-    if (nums.length < 2) return null; // need at least L & W
-    const L = nums[0], W = nums[1], H = nums[2] ?? 0;
-
-    // scale to mm
-    const scale = hasM ? 1000 : hasCM ? 10 : hasMM ? 1 : undefined;
-    let l=L, w=W, h=H;
-
-    if (scale) {
-      l*=scale; w*=scale; h*=scale;
-    } else {
-      // Heuristic: if values look like meters (<20), assume meters; if <= 300, cm; else mm
-      const maxVal = Math.max(L,W,H||0);
-      const guessedScale = maxVal < 20 ? 1000 : (maxVal <= 300 ? 10 : 1);
-      l=L*guessedScale; w=W*guessedScale; h=H*guessedScale;
-    }
-
-    // normalize
-    return {
-      L: Math.round(clamp(l, 1, 100000)),
-      W: Math.round(clamp(w, 1, 100000)),
-      H: Math.round(clamp(h, 0, 100000))
-    };
-  }
-
-  // Extract dims from a radio (value or label text). Expect formats like "1200x900x45", "1200×900", "120x90 cm", etc.
-  function dimsFromRadio(r){
-    const label = r.closest('label')?.textContent || '';
-    const src = r.value || label;
-    const d = parseDims(src);
-    if (d) return d;
-
-    // fallback: search digits-x-digits in label
-    const m = (label.match(/(\d+)\s*[x×]\s*(\d+)(?:\s*[x×]\s*(\d+))?/i));
-    if (!m) return null;
-    return parseDims(m[0]);
-  }
-
-  // Collect catalog with original text for display
-  const catalog = radios.map(r => {
-    const d = dimsFromRadio(r);
-    const lbl = (r.closest('label')?.textContent || r.value || '').trim().replace(/\s+/g,' ');
-    return d ? { radio: r, dims: d, label: lbl } : null;
-  }).filter(Boolean);
-
-  // Distance between user dims and option dims (allow L/W swap for best fit)
-  function distance(a, b){
-    const a1 = Math.abs(a.L - b.L) + Math.abs(a.W - b.W);
-    const a2 = Math.abs(a.L - b.W) + Math.abs(a.W - b.L);
-    const planDiff = Math.min(a1, a2);
-    // Height less important; weight it lighter
-    const hDiff = Math.abs((a.H||0) - (b.H||0)) * 0.5;
-    return planDiff + hDiff;
-  }
-
-  function formatDimsMM({L,W,H}){
-    const f = (n)=> n % 10 === 0 ? String(n) : n.toFixed(0);
-    return `${f(L)}×${f(W)}${H?`×${f(H)}`:''} mm`;
-  }
-
-  function renderSuggestions(userDims){
-    if (!userDims){
-      hintEl.textContent = 'Geben Sie Länge × Breite × (optional) Höhe ein, z. B. 1200x900x45.';
-      sugEl.innerHTML = '';
-      return;
-    }
-    // rank by distance
-    const ranked = catalog
-      .map(it => ({...it, dist: distance(userDims, it.dims)}))
-      .sort((a,b) => a.dist - b.dist)
-      .slice(0, 4);
-
-    hintEl.textContent = `Beste Übereinstimmungen zu ${formatDimsMM(userDims)}:`;
-    sugEl.innerHTML = ranked.map(it => `
-      <button type="button" class="tray-suggestion"
-        style="padding:8px 10px; border:1px solid var(--border); border-radius:10px; background:var(--card); text-align:left; cursor:pointer;">
-        ${it.label}
-        <div class="muted" style="font-size:.85rem; margin-top:2px;">(${formatDimsMM(it.dims)})</div>
-      </button>
-    `).join('');
-
-    // click -> select radio, scroll into view, fire change
-    Array.from(sugEl.querySelectorAll('.tray-suggestion')).forEach((btn, i) => {
-      btn.addEventListener('click', () => {
-        const it = ranked[i];
-        it.radio.checked = true;
-        it.radio.dispatchEvent(new Event('change', {bubbles:true}));
-        it.radio.closest('label')?.scrollIntoView({behavior:'smooth', block:'center'});
-      });
-    });
-  }
-
-  // debounce input
-  let t=null;
-  inputEl.addEventListener('input', ()=>{
-    clearTimeout(t);
-    t = setTimeout(()=>{
-      const dims = parseDims(inputEl.value);
-      renderSuggestions(dims);
-    }, 120);
-  });
-
-  // initial state
-  renderSuggestions(null);
-})();
-
-// ========== END DUSCHWANNE: Smart size search (L x B x H) ==========
-
-
-
-
 function wireDurationAutoFormat(id) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -1823,3 +1671,103 @@ document.addEventListener('DOMContentLoaded', () => {
   all.forEach(el => el.addEventListener('change', updateUI));
   updateUI();
 });
+
+(function initSmartTraySearch(){
+  const wrap = document.getElementById('traySmartSearch');
+  if (!wrap) return;
+
+  const form = document.getElementById('form-duschwanne');
+  const wEl  = wrap.querySelector('input[name="tray_w_cm"]');   // Breite
+  const lEl  = wrap.querySelector('input[name="tray_l_cm"]');   // Länge
+  const hEl  = wrap.querySelector('input[name="tray_h_cm"]');   // Höhe
+  const out  = wrap.querySelector('#traySuggestions'); // container to render the radios
+
+  const debounce = (fn, ms=250)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; };
+
+  function ensureHiddenPid(){
+    let pid = document.getElementById('chosenTrayProductId');
+    if (!pid) {
+      pid = document.createElement('input');
+      pid.type = 'hidden';
+      pid.id = 'chosenTrayProductId';
+      pid.name = 'chosenTrayProductId';
+      form?.appendChild(pid);
+    }
+    return pid;
+  }
+
+  function renderRadioSuggestions(list){
+    if (!list.length){
+      out.innerHTML = '<div class="muted">Keine Treffer</div>';
+      return;
+    }
+
+    const radiosHtml = list.slice(0,3).map((p, idx) => {
+      const value = `${p.widthCm} x ${p.lengthCm} x ${p.heightCm} cm`;
+      const id    = `traySize_suggest_${p.productId}`;
+      // put required on the FIRST radio so the group is required unless one is chosen
+      const required = idx === 0 ? 'required' : '';
+      return `
+        <label class="radio-pill">
+          <input type="radio" name="traySize" id="${id}" value="${value}" ${required}
+                 data-product-id="${p.productId}">
+          <span class="circle"></span>
+          <span>${value}</span>
+        </label>
+      `;
+    }).join('');
+
+    out.innerHTML = `
+      <div class="field">
+        <label class="req">Top 3 Größen (automatisch vorgeschlagen)</label>
+        <div class="radio-list" id="traySuggestionRadioList">
+          ${radiosHtml}
+        </div>
+      </div>
+    `;
+
+    // wire change -> sync hidden productId
+    const pidHidden = ensureHiddenPid();
+    out.querySelectorAll('input[name="traySize"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        pidHidden.value = radio.dataset.productId || '';
+      });
+    });
+
+    // when a legacy radio elsewhere is selected, clear highlight on these (CSS usually handles :checked, but this keeps your class-based styles tidy too)
+    form?.querySelectorAll('input[name="traySize"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        const listEl = document.getElementById('traySuggestionRadioList');
+        if (!listEl) return;
+        listEl.querySelectorAll('label.radio-pill').forEach(l => l.classList.remove('is-checked'));
+        // re-apply to the selected one if it’s ours
+        const lab = radio.id ? listEl.querySelector(`label[for="${radio.id}"]`) || radio.closest('label.radio-pill') : null;
+        if (lab && radio.checked) lab.classList.add('is-checked');
+      });
+    });
+  }
+
+  async function fetchAndRender(){
+    const w = Number(wEl.value), l = Number(lEl.value), h = Number(hEl.value);
+    if (![w,l,h].every(Number.isFinite)) { out.innerHTML = ''; return; }
+
+    const url = `/api/trays/suggest?w=${w}&l=${l}&h=${h}`;
+    try {
+      const res  = await fetch(url, { credentials: 'include' });
+      const text = await res.text();
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+      const data = JSON.parse(text);
+      renderRadioSuggestions(data.results || []);
+    } catch (e) {
+      console.error('Smart search error:', e);
+      out.innerHTML = '<div class="err">Fehler bei der Suche.</div>';
+    }
+  }
+
+  const onChange = debounce(fetchAndRender, 300);
+  [wEl,lEl,hEl].forEach(el=>{
+    el?.addEventListener('input', onChange);
+    el?.addEventListener('change', onChange);
+  });
+})();
+

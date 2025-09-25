@@ -7,6 +7,7 @@ import compression from 'compression';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
+import traysRouter from './routes/trays.js';
 
 // PDF/DOCX routes (unchanged)
 import { router as pdfRouter } from './routes/pdf.js';
@@ -165,6 +166,73 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
+// --- ADD: search SLA tray sizes by dimensions ---
+app.get('/api/products/search-sla', async (req, res) => {
+  try {
+    const w = Number(req.query.widthCm);
+    const l = Number(req.query.lengthCm);
+    const h = Number(req.query.heightCm);
+    if (![w, l, h].every(Number.isFinite)) {
+      return res.status(400).json({ error: 'Invalid widthCm/lengthCm/heightCm' });
+    }
+
+    // Only SLA products; project only fields we need
+    const docs = await Product.find(
+      { productId: /^SLA/ },
+      { productId: 1, name: 1, price: 1, widthCm: 1, lengthCm: 1, heightCm: 1 }
+    ).lean();
+
+    // Score by Euclidean distance; keep 3 best
+    const top3 = docs
+      .map(p => {
+        const dw = (p.widthCm ?? 0)  - w;
+        const dl = (p.lengthCm ?? 0) - l;
+        const dh = (p.heightCm ?? 0) - h;
+        return { ...p, score: Math.hypot(dw, dl, dh) };
+      })
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 3);
+
+    res.json({ results: top3, input: { widthCm: w, lengthCm: l, heightCm: h } });
+  } catch (e) {
+    console.error('search-sla failed:', e);
+    res.status(500).json({ error: 'search-sla failed' });
+  }
+});
+
+// Alias for legacy client: /api/trays/suggest?w=&l=&h=
+app.get('/api/trays/suggest', async (req, res) => {
+  try {
+    const w = Number(req.query.w);
+    const l = Number(req.query.l);
+    const h = Number(req.query.h);
+    if (![w, l, h].every(Number.isFinite)) {
+      return res.status(400).json({ error: 'Invalid w/l/h' });
+    }
+
+    const docs = await Product.find(
+      { productId: /^SLA/ },
+      { productId: 1, name: 1, price: 1, widthCm: 1, lengthCm: 1, heightCm: 1 }
+    ).lean();
+
+    const top3 = docs
+      .map(p => {
+        const dw = (p.widthCm ?? 0)  - w;
+        const dl = (p.lengthCm ?? 0) - l;
+        const dh = (p.heightCm ?? 0) - h;
+        return { ...p, score: Math.hypot(dw, dl, dh) };
+      })
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 3);
+
+    res.json({ results: top3, input: { widthCm: w, lengthCm: l, heightCm: h } });
+  } catch (e) {
+    console.error('trays/suggest failed:', e);
+    res.status(500).json({ error: 'trays/suggest failed' });
+  }
+});
+
+
 // ----- New API: Pricing (does not save) -----
 app.post('/api/price', async (req, res) => {
   try {
@@ -194,9 +262,14 @@ app.post('/api/submissions', async (req, res) => {
 app.get('/health', (req, res) =>
   res.json({ ok: true, time: new Date().toISOString() })
 );
-
 // Static assets
 app.use(express.static(path.join(__dirname, 'public')));
+
+// SPA fallback (keep this last)
+app.get(/.*/, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 
 // Simple echo submit (kept)
 app.post('/submit', (req, res) => {
@@ -209,12 +282,15 @@ app.post('/submit', (req, res) => {
   };
   res.status(201).json(payload);
 });
-
+app.use('/api/trays', traysRouter);
 // Fallback to SPA index.html
 // Express 5 + path-to-regexp v8: use a RegExp catch-all instead of "*"
 app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+
+
 
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
