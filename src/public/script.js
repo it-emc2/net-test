@@ -1183,7 +1183,8 @@ async function getProduct(id){
     if (!wrap || !qty) return;
     const on = cb.checked;
     wrap.hidden = !on; wrap.setAttribute('aria-hidden', on ? 'false' : 'true');
-    if (on) qty.setAttribute('required','required'); else { qty.removeAttribute('required'); qty.value=''; }
+    if (on) {qty.setAttribute('required','required'); if (String(qty.value || '').trim() === '') qty.value = '1';
+  } else { qty.removeAttribute('required'); qty.value=''; }
   }
   allProductChecks.forEach(cb => {
     cb.addEventListener('change', () => {
@@ -1235,7 +1236,8 @@ async function getProduct(id){
     if (!cb || !qty || !wrap) return;
     cb.addEventListener('change', ()=>{
       const on = cb.checked; wrap.hidden = !on; wrap.setAttribute('aria-hidden', on?'false':'true');
-      if (on) qty.setAttribute('required','required'); else { qty.removeAttribute('required'); qty.value=''; }
+      if (on) { qty.setAttribute('required','required'); if (String(qty.value || '').trim() === '') qty.value = '1';
+  }else { qty.removeAttribute('required'); qty.value=''; }
       cb.closest('label.image-check')?.classList.toggle('is-checked', on);
     });
   });
