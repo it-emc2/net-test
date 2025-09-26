@@ -207,30 +207,76 @@ app.get('/api/trays/suggest', async (req, res) => {
     const l = Number(req.query.l);
     const h = Number(req.query.h);
     if (![w, l, h].every(Number.isFinite)) {
-      return res.status(400).json({ error: 'Invalid w/l/h' });
+      return res.status(400).json({ error: 'Bad dimensions' });
     }
 
-    const docs = await Product.find(
-      { productId: /^SLA/ },
-      { productId: 1, name: 1, price: 1, widthCm: 1, lengthCm: 1, heightCm: 1 }
-    ).lean();
+    const baseMatch = { productId: /^SLA/i };
 
-    const top3 = docs
-      .map(p => {
-        const dw = (p.widthCm ?? 0)  - w;
-        const dl = (p.lengthCm ?? 0) - l;
-        const dh = (p.heightCm ?? 0) - h;
-        return { ...p, score: Math.hypot(dw, dl, dh) };
-      })
-      .sort((a, b) => a.score - b.score)
-      .slice(0, 3);
+    // 1) Primary: only sizes >= input on all three axes
+    const pipelineGTE = [
+      { $match: { ...baseMatch, widthCm: { $gte: w }, lengthCm: { $gte: l }, heightCm: { $gte: h } } },
+      {
+        $addFields: {
+          score: {
+            $sqrt: {
+              $add: [
+                { $pow: [{ $subtract: ['$widthCm', w] }, 2] },
+                { $pow: [{ $subtract: ['$lengthCm', l] }, 2] },
+                { $pow: [{ $subtract: ['$heightCm', h] }, 2] },
+              ],
+            },
+          },
+        },
+      },
+      { $sort: { score: 1, price: 1 } },
+      { $limit: 3 },
+    ];
 
-    res.json({ results: top3, input: { widthCm: w, lengthCm: l, heightCm: h } });
-  } catch (e) {
-    console.error('trays/suggest failed:', e);
-    res.status(500).json({ error: 'trays/suggest failed' });
+    let results = await Product.aggregate(pipelineGTE).exec();
+
+    // 2) Fallback: if none are >=, return the 3 closest overall (old behavior)
+    if (!results.length) {
+      const pipelineAny = [
+        { $match: baseMatch },
+        {
+          $addFields: {
+            score: {
+              $sqrt: {
+                $add: [
+                  { $pow: [{ $subtract: ['$widthCm', w] }, 2] },
+                  { $pow: [{ $subtract: ['$lengthCm', l] }, 2] },
+                  { $pow: [{ $subtract: ['$heightCm', h] }, 2] },
+                ],
+              },
+            },
+          },
+        },
+        { $sort: { score: 1, price: 1 } },
+        { $limit: 3 },
+      ];
+      results = await Product.aggregate(pipelineAny).exec();
+    }
+
+    res.json({
+      results: results.map(r => ({
+        _id: r._id,
+        productId: r.productId,
+        name: r.name,
+        price: r.price,
+        widthCm: r.widthCm,
+        lengthCm: r.lengthCm,
+        heightCm: r.heightCm,
+        score: r.score,
+      })),
+      input: { widthCm: w, lengthCm: l, heightCm: h },
+      gteFiltered: results.length ? true : false
+    });
+  } catch (err) {
+    console.error('[trays/suggest] error:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 
 // ----- New API: Pricing (does not save) -----
