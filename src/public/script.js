@@ -1550,6 +1550,33 @@ window.setPricingData = function setPricingData(data) {
     const rowBonusTotal = byId('rb-bonus-total-row');
     const outBonusTotal = byId('rb-bonus-total');
 
+    // Show the "300€ Bonus" checkbox only if totalAfterRabatt > 3000
+(function gateBonus300(){
+  const afterRab = Number(data?.totalAfterRabatt || 0);
+
+  // find the most sensible wrapper to hide
+  const wrap =
+    document.getElementById('rb-bonus-300-row') ||   // if you have a dedicated row id
+    cb300?.closest('label.radio-pill') ||            // matches your radio/checkbox pill style
+    cb300?.parentElement ||                          // safe fallback
+    null;
+
+  const shouldShow = afterRab > 3000;
+
+  if (wrap){
+    wrap.style.display = shouldShow ? '' : 'none';
+    wrap.hidden = !shouldShow;
+    wrap.setAttribute('aria-hidden', String(!shouldShow));
+  }
+
+  // If we hide it, also uncheck & notify so totals update correctly
+  if (!shouldShow && cb300?.checked){
+    cb300.checked = false;
+    cb300.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+})();
+
+
     // Slider percent from UI (fallback to server)
     let sliderPct = parseFloat(elDiscount?.value || '0');
     if (!Number.isFinite(sliderPct)) {
