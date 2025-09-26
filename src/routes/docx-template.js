@@ -24,13 +24,18 @@ function fmtCurrency(n) {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(num);
 }
 
+// ✅ UPDATED: Modern docxtemplater API usage
 async function renderDocx(templatePath, data) {
   const content = await fs.readFile(templatePath);
   const zip = new PizZip(content);
-  const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true , nullGetter: () => ''});
-  doc.setData(data);
+  const doc = new Docxtemplater(zip, { 
+    paragraphLoop: true, 
+    linebreaks: true, 
+    nullGetter: () => '' 
+  });
+  
   try {
-    doc.render();
+    doc.render(data);  // ✅ Use render(data) directly instead of setData() + render()
   } catch (e) {
     const msg = e?.message || String(e);
     console.error('Docxtemplater render error:', msg);
@@ -174,8 +179,6 @@ function mapData(body = {}, computed = {}) {
 
   // (If you actually use these in the template, keep them; otherwise you can delete)
   const Selbstkostenanteil = '';
-  // const Zuschusskrankenkasse = '';
-
 
   const MarkupPctStr = markupPct ? `${Math.round(markupPct * 100)}%` : '';
   const MarkupValue = fmtCurrency(markup);
@@ -215,11 +218,6 @@ function mapData(body = {}, computed = {}) {
 
   const hasRabatt = (rabattAmount ?? 0) > 0;
   const hasBonus  = (bonusGross   ?? 0) > 0;
-
-
-
-
-
 
 // --- bonus detection (prefer pricing flags, fallback to payload.rabatt) ---
 const pricingFlags = computed?.flags || {};
@@ -280,7 +278,6 @@ const hasSubsidyLine = subsidyAmountNum > 0;
 // Show line iff a subsidy actually applied + 
 const hasZuschuss = subsidyAmountNum > 0;
 
-
   // Build the summary rows exactly as you want them to appear:
 const baseTotals = [
   {
@@ -298,7 +295,6 @@ const baseTotals = [
 
 // mark every second row (0-based: 1,3,5,...) as "alt"
 const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
-
 
 // Pick Regie-Stundensatz based on payer
 const payerNorm = String(PayerKind || '').toUpperCase();
@@ -404,8 +400,6 @@ router.post('/', async (req, res) => {
     const templatePath = path.join(process.cwd(), 'src', 'templates', 'Angebot.docx');
     const content = await fs.readFile(templatePath);
 
-  
-
     const computed = await pricing.computePrices(req.body || {});
     console.log('[docx] computed subsidy:',
   { subsidyAmount: computed?.subsidyAmount,
@@ -414,20 +408,16 @@ router.post('/', async (req, res) => {
   userInput: computed?.subsidyInput}
 );
 
-
     const zip = new PizZip(content);
     const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
 
     const data = mapData(req.body || {}, computed);
     console.log('[docx-template] replacing keys:', Object.keys(data));
 
-    doc.setData(data);
-
     try {
       console.log('[docx] subsidyKind:', computed?.subsidyKind);
 
-
-      doc.render();
+      doc.render(data);  // ✅ Updated to use modern API
     } catch (e) {
       console.error('Docxtemplater render error:', e?.message || e);
       if (e?.properties?.errors) {
@@ -460,7 +450,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// -------- Material overview DOCX route --------
+// ✅ UPDATED: Material overview DOCX route with proper data extraction
 router.post('/material-overview', async (req, res) => {
   try {
     const computed = await pricing.computePrices(req.body || {});
@@ -475,13 +465,47 @@ router.post('/material-overview', async (req, res) => {
       remarks: m.remarks || ''
     }));
 
+    // ✅ USE THE SAME PATTERN AS THE WORKING ROUTE
+    const b = req.body?.bereich || {};
+    
+    console.log('[DEBUG] bereich object:', JSON.stringify(b, null, 2));
+    
+    // Build customer name the same way as mapData()
+    const salutation = b.salutation || '';
+    const firstName = b.firstName || '';
+    const lastName = b.lastName || '';
+    
+    const kundeName = [salutation, firstName, lastName].filter(Boolean).join(' ') || '';
+    
+    // Build address the same way
+    const street = b.street || '';
+    const city = b.city || '';
+    const plz = b.postalCode || '';
+    
+    const adresse = [street, [plz, city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+
     const data = {
       angebotNummer: req.body?.offerNumber || 'ANG-0001',
-      datum: (req.body?.bereich?.date || dayjs().format('YYYY-MM-DD')),
-      kunde: req.body?.bereich?.customerName || req.body?.kunde?.name || '',
-      ansprechpartner: (req.body?.bereich?.emc2_contact || '').trim(),
+      datum: (b.date || dayjs().format('YYYY-MM-DD')),
+      kunde: kundeName,
+      adresse,
+      ansprechpartner: (b.emc2_contact || '').trim(),
+      // Individual fields for debugging
+      salutation,
+      firstName,
+      lastName,
+      street,
+      plz,
+      city,
       materials
     };
+
+    console.log('[DEBUG] Final template data:', {
+      kunde: data.kunde,
+      adresse: data.adresse,
+      ansprechpartner: data.ansprechpartner,
+      materialsCount: materials.length
+    });
 
     const templatePath = path.join(process.cwd(), 'src', 'templates', 'Materialubersicht.docx');
     const out = await renderDocx(templatePath, data);
@@ -498,8 +522,8 @@ router.post('/material-overview', async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename="Materialubersicht.docx"');
     res.send(out);
   } catch (e) {
-    console.error('Materialubersicht generation failed:', e);
-    res.status(500).json({ error: 'Materialubersicht generation failed', detail: e.message || String(e) });
+    console.error('Materialübersicht generation failed:', e);
+    res.status(500).json({ error: 'Materialübersicht generation failed', detail: e.message || String(e) });
   }
 });
 
@@ -507,40 +531,127 @@ router.post('/material-overview', async (req, res) => {
 // Requires LibreOffice (soffice) available in the container/VM
 async function convertDocxToPdf(docxBuffer) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'docx2pdf-'));
-  const inPath = path.join(tmpDir, `in-${randomBytes(6).toString('hex')}.docx`);
-  const outDir = tmpDir;
-  await fs.writeFile(inPath, docxBuffer);
-
-  const args = ['--headless', '--convert-to', 'pdf', '--outdir', outDir, inPath];
-
-  await new Promise((resolve, reject) => {
-    const p = spawn('soffice', args, { stdio: 'ignore' });
-    p.on('error', reject);
-    p.on('exit', code => (code === 0 ? resolve() : reject(new Error(`LibreOffice exit code ${code}`))));
-  });
-
-  // LibreOffice typically writes a PDF with the same base name
-  let outPath = inPath.replace(/\.docx$/i, '.pdf');
-  let pdf;
+  const timestamp = Date.now();
+  const inPath = path.join(tmpDir, `input-${timestamp}.docx`);
+  
   try {
-    pdf = await fs.readFile(outPath);
-  } catch {
-    // Fallback: find any PDF created in the directory
-    const files = await fs.readdir(outDir);
-    const candidate = files.find(f => f.toLowerCase().endsWith('.pdf'));
-    if (!candidate) {
-      throw new Error('PDF not found after conversion');
+    await fs.writeFile(inPath, docxBuffer);
+    console.log(`[PDF] Written DOCX to: ${inPath}`);
+
+    const args = [
+      '--headless',
+      '--convert-to', 'pdf',
+      '--outdir', tmpDir,
+      '--nologo',
+      '--nolockcheck',
+      '--nodefault',
+      '--norestore',
+      inPath
+    ];
+
+    console.log('[PDF] Starting LibreOffice conversion...');
+    const startTime = Date.now();
+
+    await new Promise((resolve, reject) => {
+      const p = spawn('soffice', args, { 
+        stdio: ['ignore', 'ignore', 'ignore'], // Suppress all output to avoid popups
+        detached: false
+      });
+
+      const timeoutId = setTimeout(() => {
+        p.kill('SIGTERM');
+        reject(new Error('LibreOffice conversion timeout'));
+      }, 45000); // 45 second timeout
+
+      p.on('error', (err) => {
+        clearTimeout(timeoutId);
+        console.error('[PDF] LibreOffice spawn error:', err);
+        reject(err);
+      });
+      
+      p.on('exit', (code, signal) => {
+        clearTimeout(timeoutId);
+        const duration = Date.now() - startTime;
+        console.log(`[PDF] LibreOffice finished in ${duration}ms with code ${code}`);
+        
+        // Don't reject on exit code 1 - LibreOffice often returns this even on success
+        resolve();
+      });
+    });
+
+    // Wait a bit for file system to sync
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Try multiple ways to find the PDF
+    let pdfBuffer = null;
+    
+    // Method 1: Expected filename
+    const expectedPdfPath = inPath.replace(/\.docx$/i, '.pdf');
+    try {
+      pdfBuffer = await fs.readFile(expectedPdfPath);
+      console.log(`[PDF] Found PDF at expected path: ${expectedPdfPath}`);
+    } catch (e) {
+      console.log(`[PDF] PDF not found at expected path: ${expectedPdfPath}`);
     }
-    outPath = path.join(outDir, candidate);
-    pdf = await fs.readFile(outPath);
+
+    // Method 2: Search directory for any PDF
+    if (!pdfBuffer) {
+      try {
+        const files = await fs.readdir(tmpDir);
+        console.log(`[PDF] Files in temp dir: ${files.join(', ')}`);
+        
+        const pdfFile = files.find(f => f.toLowerCase().endsWith('.pdf'));
+        if (pdfFile) {
+          const pdfPath = path.join(tmpDir, pdfFile);
+          pdfBuffer = await fs.readFile(pdfPath);
+          console.log(`[PDF] Found PDF file: ${pdfFile}, size: ${pdfBuffer.length}`);
+        }
+      } catch (e) {
+        console.error('[PDF] Error reading temp directory:', e);
+      }
+    }
+
+    // Method 3: Try common LibreOffice output patterns
+    if (!pdfBuffer) {
+      const patterns = [
+        path.join(tmpDir, `input-${timestamp}.pdf`),
+        path.join(tmpDir, 'input.pdf'),
+        path.join(tmpDir, 'document.pdf')
+      ];
+      
+      for (const pattern of patterns) {
+        try {
+          pdfBuffer = await fs.readFile(pattern);
+          console.log(`[PDF] Found PDF at pattern: ${pattern}`);
+          break;
+        } catch (e) {
+          // Continue to next pattern
+        }
+      }
+    }
+
+    if (!pdfBuffer) {
+      throw new Error('PDF file not found after conversion - LibreOffice may have failed silently');
+    }
+
+    console.log(`[PDF] Successfully converted to PDF, size: ${pdfBuffer.length} bytes`);
+    return pdfBuffer;
+    
+  } finally {
+    // Cleanup with retries
+    for (let i = 0; i < 3; i++) {
+      try {
+        await fs.rm(tmpDir, { recursive: true, force: true });
+        break;
+      } catch (e) {
+        if (i === 2) {
+          console.warn('[PDF] Final cleanup failed:', e.message);
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+    }
   }
-
-  // Best-effort cleanup
-  try {
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  } catch { /* ignore */ }
-
-  return pdf;
 }
 
 router.post('/pdf', async (req, res) => {
@@ -553,10 +664,9 @@ router.post('/pdf', async (req, res) => {
     const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
 
     const data = mapData(req.body || {}, computed);
-    doc.setData(data);
 
     try {
-      doc.render();
+      doc.render(data);  // ✅ Updated to use modern API
     } catch (e) {
       const msg = e?.message || String(e);
       console.error('Docxtemplater render error:', msg);
