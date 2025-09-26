@@ -1592,6 +1592,66 @@ window.setPricingData = function setPricingData(data) {
 };
 
 
+// =======================
+// --- Show Rabatt auf Materialkosten only for Kassenkunde ---
+// =======================
+// --- Show/hide only the "Rabatt auf Materialkosten" slider for KK ---
+(function initMaterialDiscountVisibility(){
+  const sec = document.getElementById('rb-material-discount-section')
+          // fallback: try to find a reasonable wrapper around the slider if no explicit id
+          || elDiscount?.closest('.field') 
+          || elDiscount?.closest('.row') 
+          || elDiscount?.parentElement;
+
+  if (!sec || !elDiscount) return; // nothing to do if we can't find the slider or its wrapper
+
+  function isKK(){
+    const val = document.querySelector('input[name="payer"]:checked')?.value || '';
+    return /^(kk|kassenkunde)$/i.test(val.trim());
+  }
+
+  function show(el, on){
+    el.hidden = !on;
+    el.setAttribute('aria-hidden', String(!on));
+    // keep your grid layout intact if needed
+    if (el.style) el.style.display = on ? '' : 'none';
+  }
+
+  function apply(){
+    if (isKK()){
+      // hide the slider section and force discount to 0%
+      show(sec, false);
+
+      const current = parseFloat(elDiscount.value || '0') || 0;
+      if (current !== 0){
+        elDiscount.value = '0';
+        if (elDiscountVal){
+          elDiscountVal.textContent = '0.0%';
+        }
+        // recompute because the percent changed
+        window.updatePricing?.();
+      }
+    } else {
+      // show the slider section
+      show(sec, true);
+    }
+  }
+
+  // run now and whenever payer changes
+  apply();
+  document.querySelectorAll('input[name="payer"]').forEach(r => {
+    r.addEventListener('change', apply);
+  });
+
+  // also re-apply when returning to the Rabatt step
+  window.addEventListener('hashchange', () => {
+    if (typeof getCurrentStep === 'function' && getCurrentStep() === 'rabatt') {
+      apply();
+    }
+  });
+})();
+
+
 
 
 /* ========== NEW: Materialübersicht (DOCX) DOWNLOAD ========== */
