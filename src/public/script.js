@@ -1747,50 +1747,56 @@ window.setPricingData = function setPricingData(data) {
 
 
 // =======================
-// --- Show Rabatt auf Materialkosten only for Kassenkunde ---
+// --- Show Rabatt slider only for: Kassenkunde + Aufschlag 50% ---
 // =======================
-// --- Show/hide only the "Rabatt auf Materialkosten" slider for KK ---
 (function initMaterialDiscountVisibility(){
+  // try explicit wrapper id first; otherwise climb from the slider
   const sec = document.getElementById('rb-material-discount-section')
-          // fallback: try to find a reasonable wrapper around the slider if no explicit id
-          || elDiscount?.closest('.field') 
-          || elDiscount?.closest('.row') 
-          || elDiscount?.parentElement;
+           || elDiscount?.closest('.field')
+           || elDiscount?.closest('.row')
+           || elDiscount?.parentElement;
 
-  if (!sec || !elDiscount) return; // nothing to do if we can't find the slider or its wrapper
+  if (!sec || !elDiscount) return;
 
- function isSZ(){
-  const val = document.querySelector('input[name="payer"]:checked')?.value || '';
-  return /^(sz|selbstzahler)$/i.test(val.trim());
-}
+  const isKK = () => {
+    const v = (document.querySelector('input[name="payer"]:checked')?.value || '').trim().toLowerCase();
+    return v === 'kassenkunde' || v === 'kk';
+  };
+
+  const isAufschlag50 = () => {
+    const raw = (document.querySelector('input[name="aufschlag"]:checked')?.value || '').trim();
+    // matches "50%" or "50" just in case
+    return /(^|\s)50\s*%?$/.test(raw);
+  };
 
   function show(el, on){
     el.hidden = !on;
     el.setAttribute('aria-hidden', String(!on));
-    // keep your grid layout intact if needed
     if (el.style) el.style.display = on ? '' : 'none';
   }
 
   function apply(){
-  if (isSZ()){
-    show(sec, false);
-    const current = parseFloat(elDiscount.value || '0') || 0;
-    if (current !== 0){
-      elDiscount.value = '0';
-      elDiscountVal && (elDiscountVal.textContent = '0.0%');
-      window.updatePricing?.();
+    const allow = isKK() && isAufschlag50();
+    show(sec, allow);
+
+    // If not allowed, zero the slider and refresh pricing (only if it wasn't already 0)
+    if (!allow) {
+      const cur = parseFloat(elDiscount.value || '0') || 0;
+      if (cur !== 0) {
+        elDiscount.value = '0';
+        if (elDiscountVal) elDiscountVal.textContent = '0.0%';
+        window.updatePricing?.();
+      }
     }
-  } else {
-    show(sec, true);
+    // If allowed, we just show whatever value the user set previously (no auto changes).
   }
-}
 
-
-  // run now and whenever payer changes
+  // run now
   apply();
-  document.querySelectorAll('input[name="payer"]').forEach(r => {
-    r.addEventListener('change', apply);
-  });
+
+  // re-apply when payer or aufschlag changes
+  document.querySelectorAll('input[name="payer"]').forEach(r => r.addEventListener('change', apply));
+  document.querySelectorAll('input[name="aufschlag"]').forEach(r => r.addEventListener('change', apply));
 
   // also re-apply when returning to the Rabatt step
   window.addEventListener('hashchange', () => {
@@ -1799,6 +1805,7 @@ window.setPricingData = function setPricingData(data) {
     }
   });
 })();
+
 
 
 // wire the new button (make sure you added it in HTML with id="downloadMaterialOverview")
