@@ -268,7 +268,7 @@ export default (ProductModel) => {
     lines.push({ key: 'werkzeuge',  label: '- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen', amount: round2(werkzeug) });
     lines.push({ key: 'beraeumung', label: '- 1,00 Stk Beräumung der Baustelle', amount: round2(beraeumung) });
     if (roundTripKm > 0) {
-      lines.push({ key: 'kilometer', label: `- ${roundTripKm} km Kilometerpauschale (Hin- & Rückfahrt)`, amount: kilometerpauschale });
+      lines.push({ key: 'kilometer', label: `- ${roundTripKm} km Kilometerpauschale `, amount: kilometerpauschale });
     }
     if (total_hours_numeric  > 0 && laborRate > 0) {
       lines.push({ key: 'facharbeiter', label: `- ${total_hours_HH_mm} (${total_hours_numeric}) Std × ${handwerkerCount} Facharbeiter × ${laborRate.toFixed(2)} €`, amount: facharbeiter });
