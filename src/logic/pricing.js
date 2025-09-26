@@ -1,5 +1,7 @@
 // src/logic/pricing.js
 export default (ProductModel) => {
+  // --- helper: include selected tray as a material line ---
+
   async function getProductsByIds(ids) {
     const unique = [...new Set((ids || []).filter(Boolean))];
     if (!unique.length) return new Map();
@@ -137,7 +139,11 @@ export default (ProductModel) => {
       ['90 x 90 x 3 cm', 'SLA90'],
       ['80 x 80 x 3 cm', 'SLA80'],
     ]);
-    if (trayMap.has(traySize)) add(trayMap.get(traySize), 1);
+    if (trayMap.has(traySize)) {
+  const id  = trayMap.get(traySize);
+  const qty = 1;
+  add(id, qty, `- ${qty} Stk Duschwanne ${traySize}`);
+}
 
     if (dusch.abdichtSet) add('TRWDB', 1);
     if (dusch.drainSet) add('AGD9060', 1);
@@ -310,6 +316,49 @@ export default (ProductModel) => {
 
       let materials = { title: '', lines: [], sum: 0 };
       try { materials = await computeMaterials(payload); } catch (e) { console.error('[pricing] computeMaterials failed:', e); }
+// --- add the selected Duschwanne (from smart search) as a material line ---
+let selectedTray = null;
+try {
+  const pid = payload?.duschwanne?.chosenTrayProductId;
+  const sizeLabel = (payload?.duschwanne?.traySize || '').trim();
+
+  if (pid) {
+    const already = (materials?.lines || []).some(l =>
+      l?.productId === pid || l?.id === pid
+    );
+
+    if (!already) {
+      const p = await ProductModel.findOne({ productId: pid }).lean();
+      if (p) {
+        const unit = Number(p.price || 0);
+        const qty  = 1; // ← add this
+        const line = {
+          productId: p.productId,
+          name: p.name || '',
+          qty,
+          unitPrice: unit,
+          lineTotal: round2(unit * qty),
+          label: sizeLabel
+            ? `- ${qty} Stk Duschwanne ${sizeLabel}`
+            : `- ${qty} Stk Duschwanne`
+        };
+        materials.lines.push(line);
+        materials.sum = round2((materials.sum || 0) + line.lineTotal);
+
+        selectedTray = {
+          productId: p.productId,
+          name: p.name || '',
+          sizeLabel,
+          unitPrice: unit
+        };
+      }
+    }
+  }
+} catch (e) {
+  console.warn('[pricing] addSelectedTrayLine failed:', e?.message || e);
+}
+
+
 
       let services = { title: '', lines: [], sum: 0, payer: '', zoneLabel: '', distanceKm: 0, laborHours: 0, laborRate: 0 };
       try { services = computeServiceCosts(payload) || services; } catch (e) { console.error('[pricing] computeServiceCosts failed:', e); }
@@ -458,6 +507,7 @@ const selfPayAmount = round2(Math.max(0, Number(baseForSubsidy) - Number(subsidy
         subsidyAmount,
         baseForSubsidy,
         selfPayAmount, 
+        selectedTray,
       
           
        
