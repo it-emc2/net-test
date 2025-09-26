@@ -1,4 +1,3 @@
-// src/routes/docx-template.js
 import express from 'express';
 import fs from 'fs/promises';
 import fsSync from 'fs';
@@ -35,7 +34,7 @@ async function renderDocx(templatePath, data) {
   });
   
   try {
-    doc.render(data);  // ✅ Use render(data) directly instead of setData() + render()
+    doc.render(data);
   } catch (e) {
     const msg = e?.message || String(e);
     console.error('Docxtemplater render error:', msg);
@@ -50,6 +49,184 @@ async function renderDocx(templatePath, data) {
     throw new Error(`DOCX render failed: ${msg}`);
   }
   return doc.getZip().generate({ type: 'nodebuffer' });
+}
+
+// ✅ IMPROVED: Much more robust LibreOffice PDF conversion
+async function convertDocxToPdf(docxBuffer) {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'docx2pdf-'));
+  const timestamp = Date.now();
+  const randomId = randomBytes(4).toString('hex');
+  const inPath = path.join(tmpDir, `input-${timestamp}-${randomId}.docx`);
+  
+  try {
+    await fs.writeFile(inPath, docxBuffer);
+    console.log(`[PDF] Written DOCX to: ${inPath} (${docxBuffer.length} bytes)`);
+
+    const args = [
+      '--headless',
+      '--convert-to', 'pdf',
+      '--outdir', tmpDir,
+      '--nologo',
+      '--nolockcheck',
+      '--nodefault',
+      '--norestore',
+      '--invisible',
+      inPath
+    ];
+
+    console.log('[PDF] Starting LibreOffice conversion...');
+    const startTime = Date.now();
+
+    await new Promise((resolve, reject) => {
+      const p = spawn('soffice', args, { 
+        stdio: ['ignore', 'ignore', 'ignore'], // Suppress all output to avoid popups
+        env: {
+          ...process.env,
+          HOME: tmpDir,           // Temporary home to avoid config conflicts
+          TMPDIR: tmpDir,         // Ensure temp files go to our controlled location
+          DISPLAY: ':99',         // Fake display to avoid GUI (if X11 is available)
+          LIBREOFFICE_USER_PATH: tmpDir  // Isolate user config
+        },
+        detached: false
+      });
+
+      let timeoutId = setTimeout(() => {
+        console.log('[PDF] LibreOffice timeout, killing process...');
+        p.kill('SIGKILL');
+        reject(new Error('LibreOffice conversion timeout after 60 seconds'));
+      }, 60000); // 60 second timeout
+
+      p.on('error', (err) => {
+        clearTimeout(timeoutId);
+        console.error('[PDF] LibreOffice spawn error:', err);
+        reject(err);
+      });
+      
+      p.on('exit', (code, signal) => {
+        clearTimeout(timeoutId);
+        const duration = Date.now() - startTime;
+        console.log(`[PDF] LibreOffice finished in ${duration}ms with code ${code}, signal ${signal}`);
+        
+        // Don't reject on exit code 1 - LibreOffice often returns this even on success
+        resolve();
+      });
+    });
+
+    // Wait a bit for file system to sync
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Try multiple strategies to find the PDF
+    let pdfBuffer = null;
+    
+    console.log('[PDF] Searching for generated PDF...');
+    
+    // Strategy 1: Expected filename pattern
+    const baseName = path.basename(inPath, '.docx');
+    const expectedPdfPath = path.join(tmpDir, `${baseName}.pdf`);
+    try {
+      const stat = await fs.stat(expectedPdfPath);
+      if (stat.isFile() && stat.size > 0) {
+        pdfBuffer = await fs.readFile(expectedPdfPath);
+        console.log(`[PDF] Found PDF at expected path: ${expectedPdfPath} (${pdfBuffer.length} bytes)`);
+      }
+    } catch (e) {
+      console.log(`[PDF] Expected PDF not found: ${expectedPdfPath}`);
+    }
+
+    // Strategy 2: Search directory for any PDF
+    if (!pdfBuffer) {
+      try {
+        const files = await fs.readdir(tmpDir);
+        console.log(`[PDF] Files in temp dir: ${files.join(', ')}`);
+        
+        const pdfFiles = files.filter(f => f.toLowerCase().endsWith('.pdf'));
+        console.log(`[PDF] PDF files found: ${pdfFiles.join(', ')}`);
+        
+        for (const pdfFile of pdfFiles) {
+          try {
+            const pdfPath = path.join(tmpDir, pdfFile);
+            const stat = await fs.stat(pdfPath);
+            if (stat.size > 0) {
+              pdfBuffer = await fs.readFile(pdfPath);
+              console.log(`[PDF] Using PDF file: ${pdfFile} (${pdfBuffer.length} bytes)`);
+              break;
+            }
+          } catch (e) {
+            console.log(`[PDF] Could not read ${pdfFile}:`, e.message);
+          }
+        }
+      } catch (e) {
+        console.error('[PDF] Error reading temp directory:', e);
+      }
+    }
+
+    // Strategy 3: Try common alternative names
+    if (!pdfBuffer) {
+      const alternativeNames = [
+        'input.pdf',
+        'document.pdf',
+        'output.pdf',
+        `${timestamp}.pdf`,
+        `${randomId}.pdf`
+      ];
+      
+      for (const name of alternativeNames) {
+        try {
+          const altPath = path.join(tmpDir, name);
+          const stat = await fs.stat(altPath);
+          if (stat.isFile() && stat.size > 0) {
+            pdfBuffer = await fs.readFile(altPath);
+            console.log(`[PDF] Found PDF with alternative name: ${name} (${pdfBuffer.length} bytes)`);
+            break;
+          }
+        } catch (e) {
+          // Continue to next alternative
+        }
+      }
+    }
+
+    if (!pdfBuffer || pdfBuffer.length === 0) {
+      // List all files for debugging
+      try {
+        const allFiles = await fs.readdir(tmpDir);
+        console.error('[PDF] All files in temp dir:', allFiles);
+        
+        // Check file sizes
+        for (const file of allFiles) {
+          try {
+            const stat = await fs.stat(path.join(tmpDir, file));
+            console.error(`[PDF] ${file}: ${stat.size} bytes`);
+          } catch (e) {
+            console.error(`[PDF] Could not stat ${file}`);
+          }
+        }
+      } catch (e) {
+        console.error('[PDF] Could not list temp directory');
+      }
+      
+      throw new Error('PDF file not found after conversion - LibreOffice may have failed silently');
+    }
+
+    console.log(`[PDF] Successfully converted to PDF, final size: ${pdfBuffer.length} bytes`);
+    return pdfBuffer;
+    
+  } finally {
+    // Cleanup with multiple attempts
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      try {
+        await fs.rm(tmpDir, { recursive: true, force: true });
+        console.log(`[PDF] Cleanup successful on attempt ${attempt}`);
+        break;
+      } catch (e) {
+        if (attempt === 5) {
+          console.warn('[PDF] Final cleanup failed after 5 attempts:', e.message);
+        } else {
+          console.log(`[PDF] Cleanup attempt ${attempt} failed, retrying...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
+      }
+    }
+  }
 }
 
 // Collect + aggregate materials for the Material overview
@@ -417,7 +594,7 @@ router.post('/', async (req, res) => {
     try {
       console.log('[docx] subsidyKind:', computed?.subsidyKind);
 
-      doc.render(data);  // ✅ Updated to use modern API
+      doc.render(data);
     } catch (e) {
       console.error('Docxtemplater render error:', e?.message || e);
       if (e?.properties?.errors) {
@@ -527,133 +704,7 @@ router.post('/material-overview', async (req, res) => {
   }
 });
 
-// -------- DOCX -> PDF (Angebot) route --------
-// Requires LibreOffice (soffice) available in the container/VM
-async function convertDocxToPdf(docxBuffer) {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'docx2pdf-'));
-  const timestamp = Date.now();
-  const inPath = path.join(tmpDir, `input-${timestamp}.docx`);
-  
-  try {
-    await fs.writeFile(inPath, docxBuffer);
-    console.log(`[PDF] Written DOCX to: ${inPath}`);
-
-    const args = [
-      '--headless',
-      '--convert-to', 'pdf',
-      '--outdir', tmpDir,
-      '--nologo',
-      '--nolockcheck',
-      '--nodefault',
-      '--norestore',
-      inPath
-    ];
-
-    console.log('[PDF] Starting LibreOffice conversion...');
-    const startTime = Date.now();
-
-    await new Promise((resolve, reject) => {
-      const p = spawn('soffice', args, { 
-        stdio: ['ignore', 'ignore', 'ignore'], // Suppress all output to avoid popups
-        detached: false
-      });
-
-      const timeoutId = setTimeout(() => {
-        p.kill('SIGTERM');
-        reject(new Error('LibreOffice conversion timeout'));
-      }, 45000); // 45 second timeout
-
-      p.on('error', (err) => {
-        clearTimeout(timeoutId);
-        console.error('[PDF] LibreOffice spawn error:', err);
-        reject(err);
-      });
-      
-      p.on('exit', (code, signal) => {
-        clearTimeout(timeoutId);
-        const duration = Date.now() - startTime;
-        console.log(`[PDF] LibreOffice finished in ${duration}ms with code ${code}`);
-        
-        // Don't reject on exit code 1 - LibreOffice often returns this even on success
-        resolve();
-      });
-    });
-
-    // Wait a bit for file system to sync
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Try multiple ways to find the PDF
-    let pdfBuffer = null;
-    
-    // Method 1: Expected filename
-    const expectedPdfPath = inPath.replace(/\.docx$/i, '.pdf');
-    try {
-      pdfBuffer = await fs.readFile(expectedPdfPath);
-      console.log(`[PDF] Found PDF at expected path: ${expectedPdfPath}`);
-    } catch (e) {
-      console.log(`[PDF] PDF not found at expected path: ${expectedPdfPath}`);
-    }
-
-    // Method 2: Search directory for any PDF
-    if (!pdfBuffer) {
-      try {
-        const files = await fs.readdir(tmpDir);
-        console.log(`[PDF] Files in temp dir: ${files.join(', ')}`);
-        
-        const pdfFile = files.find(f => f.toLowerCase().endsWith('.pdf'));
-        if (pdfFile) {
-          const pdfPath = path.join(tmpDir, pdfFile);
-          pdfBuffer = await fs.readFile(pdfPath);
-          console.log(`[PDF] Found PDF file: ${pdfFile}, size: ${pdfBuffer.length}`);
-        }
-      } catch (e) {
-        console.error('[PDF] Error reading temp directory:', e);
-      }
-    }
-
-    // Method 3: Try common LibreOffice output patterns
-    if (!pdfBuffer) {
-      const patterns = [
-        path.join(tmpDir, `input-${timestamp}.pdf`),
-        path.join(tmpDir, 'input.pdf'),
-        path.join(tmpDir, 'document.pdf')
-      ];
-      
-      for (const pattern of patterns) {
-        try {
-          pdfBuffer = await fs.readFile(pattern);
-          console.log(`[PDF] Found PDF at pattern: ${pattern}`);
-          break;
-        } catch (e) {
-          // Continue to next pattern
-        }
-      }
-    }
-
-    if (!pdfBuffer) {
-      throw new Error('PDF file not found after conversion - LibreOffice may have failed silently');
-    }
-
-    console.log(`[PDF] Successfully converted to PDF, size: ${pdfBuffer.length} bytes`);
-    return pdfBuffer;
-    
-  } finally {
-    // Cleanup with retries
-    for (let i = 0; i < 3; i++) {
-      try {
-        await fs.rm(tmpDir, { recursive: true, force: true });
-        break;
-      } catch (e) {
-        if (i === 2) {
-          console.warn('[PDF] Final cleanup failed:', e.message);
-        } else {
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
-    }
-  }
-}
-
+// ✅ IMPROVED: PDF route with much more robust LibreOffice handling
 router.post('/pdf', async (req, res) => {
   try {
     const templatePath = path.join(process.cwd(), 'src', 'templates', 'Angebot.docx');
@@ -666,7 +717,7 @@ router.post('/pdf', async (req, res) => {
     const data = mapData(req.body || {}, computed);
 
     try {
-      doc.render(data);  // ✅ Updated to use modern API
+      doc.render(data);
     } catch (e) {
       const msg = e?.message || String(e);
       console.error('Docxtemplater render error:', msg);
@@ -692,20 +743,16 @@ router.post('/pdf', async (req, res) => {
       console.warn('[docx-template/pdf] could not write verify docx:', e?.message || e);
     }
 
-    let pdfBuffer;
-    try {
-      pdfBuffer = await convertDocxToPdf(docxBuffer);
-    } catch (e) {
-      console.error('DOCX->PDF conversion failed:', e);
-      return res.status(500).json({ error: 'DOCX->PDF conversion failed', detail: e.message || String(e) });
-    }
+    // Convert to PDF using improved LibreOffice function
+    const pdfBuffer = await convertDocxToPdf(docxBuffer);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="Angebot.pdf"');
     res.send(pdfBuffer);
+    
   } catch (e) {
-    console.error('DOCX->PDF endpoint error:', e);
-    res.status(500).json({ error: 'Failed to build PDF', detail: e.message || String(e) });
+    console.error('DOCX->PDF conversion failed:', e);
+    res.status(500).json({ error: 'DOCX->PDF conversion failed', detail: e.message || String(e) });
   }
 });
 

@@ -10,7 +10,7 @@ function wireDurationAutoFormat(id) {
     if (!digits) { el.value = ''; return; }
 
     if (digits.length <= 2) {
-      // 1–2 digits: show hours and add ":" placeholder
+      // 1--2 digits: show hours and add ":" placeholder
       el.value = digits + ':';
     } else {
       // 3+ digits: last two are minutes, rest are hours
@@ -22,7 +22,7 @@ function wireDurationAutoFormat(id) {
     }
   });
 
-  // Normalize on blur (auto “:00”, clamp minutes, etc.)
+  // Normalize on blur (auto ":00", clamp minutes, etc.)
   el.addEventListener('blur', () => {
     const v = (el.value || '').trim();
     if (!v) return;
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const travelH1 = hhmmToHours(travelEl?.value || '0:00');     // Reisezeit (einfach)
     const totalNum = (travelH1 * 2) + laborH;                    // ← your formula
 
-    // 👉 this is your “total_hours_HH-MM” (as a string)
+    // 👉 this is your "total_hours_HH-MM" (as a string)
     const totalHHMM = hoursToHHMM(totalNum);
 
     // show it under the hint
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', stampOfferOnExport);
 const laborEl   = document.getElementById('laborHours');
 const laborHHMM = (laborEl?.value || '').trim();
 
-// Prefer existing helper; fall back safely if it’s missing.
+// Prefer existing helper; fall back safely if it's missing.
 const laborNumeric = (typeof hhmmToHours === 'function')
   ? Math.max(0, hhmmToHours(laborHHMM))
   : (() => {
@@ -285,6 +285,94 @@ function show(obj, ok=true){
   statusEl.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
 }
 
+// ========== PDF PROGRESS FUNCTIONS ==========
+function showPDFProgress(message, type = 'info') {
+  if (!statusEl) return;
+  
+  const timestamp = new Date().toLocaleTimeString();
+  const emoji = {
+    'info': '🔄',
+    'success': '✅', 
+    'error': '❌',
+    'warning': '⚠️'
+  }[type] || '🔄';
+  
+  statusEl.className = 'status ' + (type === 'error' ? 'err' : 'ok');
+  statusEl.textContent = `${emoji} [${timestamp}] ${message}`;
+}
+
+function updatePDFTimer(seconds) {
+  if (!statusEl) return;
+  const emoji = seconds > 0 ? '⏱️' : '🔄';
+  const text = seconds > 0 ? `${emoji} PDF wird generiert... noch ca. ${seconds}s` : `${emoji} PDF fast fertig...`;
+  statusEl.textContent = text;
+}
+
+// Enhanced PDF download with progress
+async function downloadPDFWithProgress(endpoint, payload, filename) {
+  showPDFProgress('PDF-Generation gestartet...', 'info');
+  
+  // Start countdown timer
+  let timeLeft = 30;
+  updatePDFTimer(timeLeft);
+  
+  const timerInterval = setInterval(() => {
+    timeLeft--;
+    updatePDFTimer(timeLeft);
+  }, 1000);
+
+  try {
+    showPDFProgress('DOCX-Vorlage wird verarbeitet...', 'info');
+    
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      clearInterval(timerInterval);
+      const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+      showPDFProgress(`Fehler: ${errorData.error || 'Unbekannter Fehler'}`, 'error');
+      if (errorData.detail) {
+        setTimeout(() => showPDFProgress(`Details: ${errorData.detail}`, 'error'), 1000);
+      }
+      return;
+    }
+
+    showPDFProgress('PDF wird konvertiert (LibreOffice)...', 'info');
+    
+    const blob = await response.blob();
+    
+    clearInterval(timerInterval);
+    showPDFProgress('PDF erfolgreich erstellt!', 'success');
+    
+    // Download the file
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    
+    setTimeout(() => {
+      showPDFProgress('PDF-Download abgeschlossen!', 'success');
+    }, 500);
+    
+  } catch (error) {
+    clearInterval(timerInterval);
+    showPDFProgress(`Netzwerkfehler: ${error.message}`, 'error');
+    console.error('PDF generation failed:', error);
+  }
+}
+
+// Helper function for collecting all form data (used by PDF functions)
+function collectAllFormData() {
+  return buildPayload();
+}
+
 /* ========== HELPERS ========== */
 function flashInvalid(el){
   if (!el) return;
@@ -324,7 +412,7 @@ function validateDuschwanne(){
     if (!f.querySelector('input[name="floorAdhesive[]"]:checked') && !bad) bad = f.querySelector('input[name="floorAdhesive[]"]')?.closest('label');
     if (!f.querySelector('input[name="floorSealing[]"]:checked') && !bad) bad = f.querySelector('input[name="floorSealing[]"]')?.closest('label');
   }
-  if (bad){ flashInvalid(bad.tagName==='INPUT'?bad:bad.querySelector('input')); alert('Bitte füllen Sie alle Pflichtfelder in „Duschwanne“ aus.'); return false; }
+  if (bad){ flashInvalid(bad.tagName==='INPUT'?bad:bad.querySelector('input')); alert('Bitte füllen Sie alle Pflichtfelder in „Duschwanne" aus.'); return false; }
   return true;
 }
 function validateWandverkleidung(){
@@ -1415,25 +1503,56 @@ async function requestPdfAndDownload(payload, filename='Anfrage.pdf'){
   const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 
+// Updated PDF download handlers with progress indicators
 document.getElementById('makePdf')?.addEventListener('click', async ()=>{
   // Require Bereich to be valid before generating preview document
   if (!requireBereichValid()) { location.hash='bereich'; return; }
-  try{ await requestPdfAndDownload(buildPayload()); document.getElementById('pdfActions')?.style.setProperty('display','flex'); }
-  catch(e){ show({error:String(e)}, false); }
+  try{ 
+    const payload = buildPayload();
+    await downloadPDFWithProgress('/pdf', payload, 'Anfrage.pdf');
+    document.getElementById('pdfActions')?.style.setProperty('display','flex'); 
+  }
+  catch(e){ showPDFProgress(`PDF-Erstellung fehlgeschlagen: ${e.message}`, 'error'); }
 });
+
 document.getElementById('downloadPdf')?.addEventListener('click', async ()=>{
-  try{ await requestPdfAndDownload(buildPayload()); } catch(e){ show({error:String(e)}, false); }
+  try{ 
+    const payload = buildPayload();
+    await downloadPDFWithProgress('/pdf', payload, 'Anfrage.pdf');
+  } catch(e){ showPDFProgress(`PDF-Erstellung fehlgeschlagen: ${e.message}`, 'error'); }
 });
+
 document.getElementById('makePdfFromTemplate')?.addEventListener('click', async ()=>{
   if (!requireBereichValid()) { location.hash='bereich'; return; }
   try{
-    const resp = await fetch('/pdf-template', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(buildPayload()) });
-    if (!resp.ok) throw new Error(await resp.text());
-    const blob = await resp.blob(); const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href=url; a.download='Angebot_aus_Vorlage.pdf'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    const payload = buildPayload();
+    await downloadPDFWithProgress('/pdf-template', payload, 'Angebot_aus_Vorlage.pdf');
     document.getElementById('pdfActions')?.style.setProperty('display','flex');
-  }catch(e){ show({error:String(e)}, false); }
+  }catch(e){ showPDFProgress(`PDF-Erstellung fehlgeschlagen: ${e.message}`, 'error'); }
 });
+
+// small reusable docx download helper
+async function downloadDocx(url, body, filename) {
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => '');
+    throw new Error(`Download failed: ${resp.status} ${txt}`);
+  }
+  const blob = await resp.blob();
+  const urlObj = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = urlObj;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(urlObj);
+}
+
 document.getElementById('downloadDocx')?.addEventListener('click', async ()=>{
   if (!requireBereichValid()) { location.hash='bereich'; return; }
   try{
@@ -1443,6 +1562,7 @@ document.getElementById('downloadDocx')?.addEventListener('click', async ()=>{
     const a = document.createElement('a'); a.href=url; a.download=`Angebot_${Date.now()}.docx`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   }catch(e){ show({error:String(e)}, false); }
 });
+
 document.getElementById('sendForm')?.addEventListener('click', async ()=>{
   if (!requireBereichValid()) { location.hash='bereich'; return; }
   try{
@@ -1479,7 +1599,7 @@ const outBonusTotal = document.getElementById('rb-bonus-total');
 const euroFmt = (n) => (Number(n)||0).toLocaleString('de-DE',{style:'currency',currency:'EUR'}).replace(/\u00A0/g,' ');
 const setRowVisible = (row, on) => { if (row){ row.style.display = on?'contents':'none'; row.hidden=!on; row.setAttribute('aria-hidden', String(!on)); } };
 
-// debounce helper so we don’t spam /api/price while sliding
+// debounce helper so we don't spam /api/price while sliding
 const debounce = (fn, ms=200) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
 const refreshPricing = debounce(()=> window.updatePricing?.(), 200);
 
@@ -1681,32 +1801,6 @@ window.setPricingData = function setPricingData(data) {
 })();
 
 
-
-
-/* ========== NEW: Materialübersicht (DOCX) DOWNLOAD ========== */
-
-// small reusable docx download helper
-async function downloadDocx(url, body, filename) {
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!resp.ok) {
-    const txt = await resp.text().catch(() => '');
-    throw new Error(`Download failed: ${resp.status} ${txt}`);
-  }
-  const blob = await resp.blob();
-  const urlObj = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = urlObj;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(urlObj);
-}
-
 // wire the new button (make sure you added it in HTML with id="downloadMaterialOverview")
 document.getElementById('downloadMaterialOverview')?.addEventListener('click', async () => {
   if (!requireBereichValid()) { location.hash = 'bereich'; return; }
@@ -1720,18 +1814,17 @@ document.getElementById('downloadMaterialOverview')?.addEventListener('click', a
   }
 });
 
+// Updated PDF download button with progress
 document.getElementById('downloadDocxAsPdf')?.addEventListener('click', async () => {
   if (!requireBereichValid()) { location.hash='bereich'; return; }
   try {
     const payload = buildPayload();
-    await downloadDocx('/docx-template/pdf', payload, `Angebot_${Date.now()}.pdf`);
+    await downloadPDFWithProgress('/docx-template/pdf', payload, `Angebot_${Date.now()}.pdf`);
   } catch (e) {
     console.error(e);
-    show({ error: String(e) }, false);
-    alert('PDF konnte nicht erstellt werden.');
+    showPDFProgress(`PDF-Erstellung fehlgeschlagen: ${e.message}`, 'error');
   }
 });
-
 
 document.addEventListener('DOMContentLoaded', () => {
   const elMax   = document.querySelector('input[name="budgetMax"]');
@@ -1803,7 +1896,7 @@ function loadTraySelection(){
       return;
     }
 
-    // if any traySize is already checked (legacy radios or previous pick), don’t force required
+    // if any traySize is already checked (legacy radios or previous pick), don't force required
     const alreadyChecked = !!form?.querySelector('input[name="traySize"]:checked');
 
     const radiosHtml = list.slice(0,3).map((p, idx) => {
@@ -1897,4 +1990,3 @@ if (saved?.value) {
     }
   });
 })();
-
