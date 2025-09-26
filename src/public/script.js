@@ -1605,10 +1605,10 @@ window.setPricingData = function setPricingData(data) {
 
   if (!sec || !elDiscount) return; // nothing to do if we can't find the slider or its wrapper
 
-  function isKK(){
-    const val = document.querySelector('input[name="payer"]:checked')?.value || '';
-    return /^(kk|kassenkunde)$/i.test(val.trim());
-  }
+ function isSZ(){
+  const val = document.querySelector('input[name="payer"]:checked')?.value || '';
+  return /^(sz|selbstzahler)$/i.test(val.trim());
+}
 
   function show(el, on){
     el.hidden = !on;
@@ -1618,24 +1618,19 @@ window.setPricingData = function setPricingData(data) {
   }
 
   function apply(){
-    if (isKK()){
-      // hide the slider section and force discount to 0%
-      show(sec, false);
-
-      const current = parseFloat(elDiscount.value || '0') || 0;
-      if (current !== 0){
-        elDiscount.value = '0';
-        if (elDiscountVal){
-          elDiscountVal.textContent = '0.0%';
-        }
-        // recompute because the percent changed
-        window.updatePricing?.();
-      }
-    } else {
-      // show the slider section
-      show(sec, true);
+  if (isSZ()){
+    show(sec, false);
+    const current = parseFloat(elDiscount.value || '0') || 0;
+    if (current !== 0){
+      elDiscount.value = '0';
+      elDiscountVal && (elDiscountVal.textContent = '0.0%');
+      window.updatePricing?.();
     }
+  } else {
+    show(sec, true);
   }
+}
+
 
   // run now and whenever payer changes
   apply();
