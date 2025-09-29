@@ -837,11 +837,26 @@ async function getProduct(id){
         computed.adhesive = { productId:'V4FK600', packs, unit:unitAdh, total:+(totalA.toFixed(2)) };
 
     // Sealing
-    const sets = m2 ? setsForSealing(m2) : 0;
-    const totalS = sets * unitSeal;
-    if (liveSeal) liveSeal.textContent = sets ? `= ${sets} Set bei ${area.value.trim()} m²` : '';
-    if (sealingPriceEl) sealingPriceEl.textContent = sets ? euro(totalS) : '0';
-    computed.sealing = { productId:'TRBDSET7', sets, unit:unitSeal, total:+(totalS.toFixed(2)) };
+    // Sealing (proportional per m² with +15% waste, priced from TRBDSET7 / 7)
+const effM2 = m2 ? (m2 * 1.15) : 0;
+const ratePerM2 = unitSeal ? (unitSeal / 7) : 0;
+const totalS = effM2 * ratePerM2;
+
+if (liveSeal) {
+  liveSeal.textContent = effM2 ? `= ${effM2.toFixed(2)} m² (inkl. 15% Verschnitt)` : '';
+}
+if (sealingPriceEl) {
+  sealingPriceEl.textContent = effM2 ? euro(totalS) : '0';
+}
+
+computed.sealing = {
+  productId: 'TRBDSET7',
+  effM2: +effM2.toFixed(2),
+  ratePerM2: +ratePerM2.toFixed(2),
+  unitSet: unitSeal, // raw DB set price (7 m²)
+  total: +totalS.toFixed(2)
+};
+
 
     // Panels price mirrors SERVER (pricing.js). Do not compute here.
     updateFlooringPanelsPriceFromPricing();

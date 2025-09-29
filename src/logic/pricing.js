@@ -164,7 +164,24 @@ export default (ProductModel) => {
       const packs = ceilSafe(floorArea / 0.6);
       if (packs > 0) add('V4FK600', packs, `- ${packs} Pkg Flächenkleber (1 Pkg je 0,60 m²)`, 17.39);
 
-      if (dusch.floorSealing) add('TRBDSET7', 1);
+    
+      // Trinnity Bodenabdichtung (TRBDSET7): proportional per m², incl. +15% waste
+      if (dusch.floorSealing) {
+        const effM2 = round2(floorArea * 1.15); // add 15% Verschnitt
+        if (effM2 > 0) {
+          // We’ll price per m² based on the DB price of one 7 m² set:
+          // unit_per_m2 = price(TRBDSET7) / 7
+          // qty shown = effM2 (m²), unit shown = €/m²
+          // Do NOT hardcode 318.38; we derive from DB so future price updates flow through.
+          idsNeeded.add('TRBDSET7');
+          lines.push({
+            id: 'TRBDSET7',
+            qty: effM2, // display quantity in m²
+            label: `- ${effM2} m² Trinnity Bodenabdichtung (inkl. 15% Verschnitt)`,
+            perM2Base: 7 // tell the resolver: divide product price by 7 to get €/m²
+          });
+        }
+      }
     }
 
     // Wandverkleidung
@@ -233,9 +250,17 @@ if (qty1497 > 0) {
 
     // Resolve names + prices
     const productMap = await getProductsByIds([...idsNeeded]);
-    const resolved = lines.map(l => {
+        const resolved = lines.map(l => {
       const prod = productMap.get(l.id) || { price: 0, name: '' };
-      const unit = Number.isFinite(l.unitOverride) ? Number(l.unitOverride) : prod.price;
+      let unit;
+      if (l.perM2Base && prod.price) {
+        // price per m² from a known base area (7 m² set)
+        unit = round2((Number(prod.price) || 0) / Number(l.perM2Base));
+      } else if (Number.isFinite(l.unitOverride)) {
+        unit = Number(l.unitOverride);
+      } else {
+        unit = Number(prod.price) || 0;
+      }
       const lineTotal = round2(unit * l.qty);
       return {
         productId: l.id,
