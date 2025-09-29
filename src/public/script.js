@@ -300,6 +300,22 @@ const isKK =
    document.querySelector('input[name="payer"]:checked')?.value) === 'Kassenkunde';
 
 payload.bereich.wohnumfeld = isKK ? woh : { done: false, amount: 0 };
+  // --- DUSCHWANNE: ensure tray selection persists in payload even if suggestion UI isn't rendered
+  (function ensureTraySelection() {
+    const dw = payload.duschwanne || (payload.duschwanne = {});
+    const hasSize = !!(dw.traySize && String(dw.traySize).trim());
+    const hasPid  = !!(dw.chosenTrayProductId && String(dw.chosenTrayProductId).trim());
+    if (hasSize && hasPid) return;
+
+    try {
+      const raw = localStorage.getItem('dw_tray_selection');
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (!hasSize && saved?.value)    dw.traySize = saved.value;
+      if (!hasPid  && saved?.productId) dw.chosenTrayProductId = saved.productId;
+    } catch { /* ignore */ }
+  })();
+
   return payload;
 }
 
@@ -2111,12 +2127,39 @@ if (saved?.value) {
     // notify any existing listeners (deps/autochecks/validation)
     match.dispatchEvent(new Event('change', { bubbles: true }));
   }}}
+  // --- ADD: render saved selection even if we cannot fetch suggestions yet
+  function renderSavedSelectionIfAny() {
+    const saved = loadTraySelection();
+    if (!saved?.value) { out.innerHTML = ''; return; }
+
+    out.innerHTML = `
+      <div class="field">
+        <label>Ausgewählte Größe</label>
+        <div class="radio-list" id="traySavedSelection">
+          <label class="radio-pill is-checked">
+            <input type="radio" name="traySize" value="${saved.value}" checked data-product-id="${saved.productId || ''}">
+            <span class="circle"></span>
+            <span>${saved.value}</span>
+          </label>
+        </div>
+      </div>
+    `;
+
+    const pidHidden = ensureHiddenPid();
+    pidHidden.value = saved.productId || '';
+
+    // Fire change so any dependent logic stays in sync
+    const radio = out.querySelector('#traySavedSelection input[name="traySize"]');
+    radio?.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+
 
   async function fetchAndRender(){
     const w = parseNum(wEl.value);
     const l = parseNum(lEl.value);
     const h = parseNum(hEl.value);
-    if (![w,l,h].every(Number.isFinite)) { out.innerHTML = ''; return; }
+    if (![w,l,h].every(Number.isFinite)) { renderSavedSelectionIfAny(); return; }
 
     const url = `/api/trays/suggest?w=${w}&l=${l}&h=${h}`;
     try {
@@ -2140,10 +2183,12 @@ if (saved?.value) {
   });
 
   // >>> NEW: show suggestions immediately if fields already have values (page refresh / step enter)
-  function maybeAutoFetch(){
+    function maybeAutoFetch(){
     const hasValues = [wEl,lEl,hEl].every(el => (String(el?.value || '').trim() !== ''));
     if (hasValues) fetchAndRender();
+    else renderSavedSelectionIfAny();
   }
+
   // run now…
   maybeAutoFetch();
   // …and when you navigate back into the Duschwanne step
