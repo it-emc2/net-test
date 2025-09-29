@@ -229,91 +229,153 @@ async function convertDocxToPdf(docxBuffer) {
   }
 }
 
-// Collect + aggregate materials for the Material overview
-function aggregateMaterialsForOverview(body = {}, computed = {}) {
-  const sourceLines = [];
+/* ===========================
+   Material Overview Aggregation
+   =========================== */
 
-  // 1) From computed.materials.lines (if present)
-  const compMat = computed?.materials;
-  if (Array.isArray(compMat?.lines)) {
-    for (const l of compMat.lines) {
-      sourceLines.push({
-        materialNumber: l.materialNumber || l.sku || l.productId || '',
-        name: l.name || l.label || '',
+// Fill missing names by querying products once (for optional items etc.)
+async function ensureNames(lines) {
+  const missingIds = [...new Set(
+    lines
+      .filter(l => (!l.name || !l.name.trim()) && l.materialNumber)
+      .map(l => l.materialNumber)
+  )];
+  if (!missingIds.length) return lines;
+
+  const docs = await ProductModel.find(
+    { productId: { $in: missingIds } },
+    { productId: 1, name: 1 }
+  ).lean();
+
+  const map = new Map(docs.map(d => [d.productId, d.name || '']));
+  for (const l of lines) {
+    if ((!l.name || !l.name.trim()) && l.materialNumber) {
+      const nm = map.get(l.materialNumber);
+      if (nm) l.name = nm;
+    }
+  }
+  return lines;
+}
+
+function normalizeSourceLine(raw) {
+  if (!raw) return null;
+  const id = raw.productId || raw.id || raw.materialNumber || raw.nr || '';
+  const qty = Number(raw.qty ?? raw.quantity ?? raw.menge ?? 0) || 0;
+  const label = raw.label || '';
+  const unit = raw.unit || raw.einheit || 'Stck.';
+  let name = raw.name || raw.title || raw.description || '';
+
+  // Prefer the label if name is empty; strip leading "- "
+  if (label && !name) name = label.replace(/^-+\s*/, '');
+
+  return {
+    materialNumber: String(id || '').trim(),
+    name: String(name || '').trim(),
+    unit,
+    quantity: qty
+  };
+}
+
+function isFloorPanelLine(l) {
+  return (l.materialNumber === 'V5FB02'); // floor panels
+}
+function isWVPanelLine(l) {
+  return (l.materialNumber === 'V3WVK09' || l.materialNumber === 'V3WV09'); // WV panels 997/1497
+}
+
+async function aggregateMaterialsForOverview(body = {}, computed = {}) {
+  const src = [];
+
+  // 1) computed.materials.lines (primary)
+  if (Array.isArray(computed?.materials?.lines)) {
+    for (const l of computed.materials.lines) {
+      src.push(normalizeSourceLine({
+        productId: l.productId || l.id,
+        name: l.name,
+        qty: l.qty,
         unit: l.unit || 'Stck.',
-        quantity: Number(l.qty ?? l.quantity ?? 0) || 0,
-        remarks: l.remarks || ''
-      });
+        label: l.label || ''
+      }));
     }
   }
 
-  // 2) Fallback: explicit body.materials (if UI sends any)
+  // 2) body.materials (fallback from client)
   if (Array.isArray(body?.materials)) {
     for (const m of body.materials) {
-      sourceLines.push({
-        materialNumber: m.materialNumber || m.nr || m.id || '',
-        name: m.name || m.title || m.description || '',
-        unit: m.unit || m.einheit || 'Stck.',
-        quantity: Number(m.quantity ?? m.menge ?? 0) || 0,
-        remarks: m.remarks || m.bemerkung || ''
-      });
+      src.push(normalizeSourceLine(m));
     }
   }
 
-  // 3) Optional: include computed items as materials (if desired)
-  const items = computed?.items || [];
-  for (const it of items) {
-    if (!it) continue;
-    sourceLines.push({
-      materialNumber: it.productId || it.sku || '',
-      name: it.name || '',
-      unit: it.unit || 'Stck.',
-      quantity: Number(it.qty ?? 0) || 0,
-      remarks: ''
-    });
+  // 3) computed.items (optional products as materials lines, if desired)
+  if (Array.isArray(computed?.items)) {
+    for (const it of computed.items) {
+      src.push(normalizeSourceLine({
+        productId: it.productId,
+        name: it.name, // may be empty; will be resolved via DB
+        qty: it.qty,
+        unit: 'Stck.'
+      }));
+    }
   }
 
-  // Aggregate by materialNumber + unit
+  let lines = src.filter(Boolean).filter(l => l.quantity > 0);
+
+  // Ensure all missing names are filled from DB (particularly for optionals)
+  lines = await ensureNames(lines);
+
+  // Apply business rules and group by key
   const map = new Map();
-  for (const l of sourceLines) {
-    const nr = String(l.materialNumber || '').trim();
-    const unit = String(l.unit || 'Stck.').trim();
-    const qty = Number(l.quantity) || 0;
-    if (!nr || qty <= 0) continue;
 
-    const key = `${nr}||${unit}`;
-    const prev = map.get(key) || { materialNumber: nr, name: String(l.name || '').trim(), unit, quantity: 0, remarks: '' };
+  for (const l of lines) {
+    // WV panels fallback name if somehow name is still empty
+    if (!l.name && isWVPanelLine(l)) {
+      l.name = 'Wandverkleidung 3.0 Alu Paneel';
+    }
+    // Flooring: readable name; article number will be hidden
+    if (isFloorPanelLine(l)) {
+      if (!l.name) l.name = 'Fußboden‑Paneele (Einzelpaneele)';
+      else l.name = l.name.replace(/^-+\s*/, '');
+    }
 
-    // Prefer longer name
-    const nm = String(l.name || '').trim();
-    if (nm && (!prev.name || nm.length > prev.name.length)) prev.name = nm;
+    const unit = l.unit || 'Stck.';
+    // Hide material number for floor panels by using a neutral grouping key
+    const key = isFloorPanelLine(l) ? `FLOOR_PANELS||${unit}` : `${l.materialNumber}||${unit}`;
 
-    // Merge remarks
-    const rm = String(l.remarks || '').trim();
-    if (rm) prev.remarks = prev.remarks ? `${prev.remarks}; ${rm}` : rm;
+    const prev = map.get(key) || {
+      materialNumber: isFloorPanelLine(l) ? '' : l.materialNumber, // empty for V5FB02
+      name: l.name,
+      unit,
+      quantity: 0,
+      remarks: ''
+    };
 
-    prev.quantity += qty;
+    // Prefer the longer/more descriptive name when merging
+    if (l.name && (!prev.name || l.name.length > prev.name.length)) prev.name = l.name;
+
+    prev.quantity += l.quantity;
     map.set(key, prev);
   }
 
-  // Sort by material number then name
+  // Sort: by material number first (empty will sort first), then by name
   const rows = Array.from(map.values()).sort((a, b) => {
-    const n = a.materialNumber.localeCompare(b.materialNumber, 'de', { numeric: true });
+    const n = (a.materialNumber || '').localeCompare(b.materialNumber || '', 'de', { numeric: true });
     if (n) return n;
-    return a.name.localeCompare(b.name, 'de', { numeric: true });
+    return (a.name || '').localeCompare(b.name || '', 'de', { numeric: true });
   });
 
   return rows;
 }
 
 function formatQtyForOverview(q, unit) {
-  const integerUnits = new Set(['Stck.', 'Set', 'Pkg']);
+  const integerUnits = new Set(['Stck.', 'Set', 'Pkg', 'Stk', 'Stück']);
   if (integerUnits.has(unit)) return String(Math.round(q));
   const num = Math.round((q + Number.EPSILON) * 100) / 100;
   return num.toFixed(2).replace('.', ','); // German comma
 }
 
-// -------- Angebot mapping --------
+/* ===========================
+   Angebot mapping
+   =========================== */
 function mapData(body = {}, computed = {}) {
   const b = body.bereich || {};
   const tb = body.textbausteine || {};
@@ -396,9 +458,9 @@ function mapData(body = {}, computed = {}) {
   const hasRabatt = (rabattAmount ?? 0) > 0;
   const hasBonus  = (bonusGross   ?? 0) > 0;
 
-// --- bonus detection (prefer pricing flags, fallback to payload.rabatt) ---
-const pricingFlags = computed?.flags || {};
-const payloadRabatt = body?.rabatt || {};
+  // --- bonus detection (prefer pricing flags, fallback to payload.rabatt) ---
+  const pricingFlags = computed?.flags || {};
+  const payloadRabatt = body?.rabatt || {};
 
   const hasBonusGrab = Boolean(
     pricingFlags.bonusGrab ?? payloadRabatt.bonusGrab ?? false
@@ -438,54 +500,50 @@ const payloadRabatt = body?.rabatt || {};
   // Set hasBonus based on whether we actually have rows to render
   const hasBonusrows = BonusRows.length > 0;
 
-// pull the computed subsidy kind + value (you already return these from pricing.js)
-// --- Selbstkostenanteil for DOCX ---
-const toNum = v => (typeof v === 'number' ? v : Number(String(v || '').replace(',', '.')) || 0);
+  // --- Selbstkostenanteil for DOCX ---
+  const toNum = v => (typeof v === 'number' ? v : Number(String(v || '').replace(',', '.')) || 0);
 
-const subsidyAmountNum  = toNum(computed?.subsidyAmount);
-const baseForSubsidyNum = toNum(computed?.baseForSubsidy);
-const selfPayAmountNum  = toNum(computed?.selfPayAmount);
+  const subsidyAmountNum  = toNum(computed?.subsidyAmount);
+  const baseForSubsidyNum = toNum(computed?.baseForSubsidy);
+  const selfPayAmountNum  = toNum(computed?.selfPayAmount);
 
-const SelbstkostenanteilFmt = fmtCurrency(selfPayAmountNum);
-const Zuschusskrankenkasse  = fmtCurrency(subsidyAmountNum);
+  const SelbstkostenanteilFmt = fmtCurrency(selfPayAmountNum);
+  const Zuschusskrankenkasse  = fmtCurrency(subsidyAmountNum);
 
-// Show line in angebote
-const hasSubsidyLine = subsidyAmountNum > 0;
-
-// Show line iff a subsidy actually applied + 
-const hasZuschuss = subsidyAmountNum > 0;
+  // Show line iff a subsidy actually applied
+  const hasZuschuss = subsidyAmountNum > 0;
 
   // Build the summary rows exactly as you want them to appear:
-const baseTotals = [
-  {
-    label: hasRabatt ? 'Nettobetrag (ohne Rabatt)' : 'Nettobetrag',
-    value: fmtCurrency(netBeforeDiscount)
-  },
-  ...(hasRabatt ? [{ label: 'Rabatt', value: fmtCurrency(rabattAmount) }] : []),
-  { label: 'zzgl. 19% MwSt.', value: fmtCurrency(vatOnNet) },
-  { label: 'Gesamtsumme', value: fmtCurrency(total) },
-  ...(hasRabatt ? [{ label: 'Gesamtbetrag nach Materialrabatt', value: fmtCurrency(totalAfterRabatt) }] : []),
-  ...(hasBonus ? [{ label: 'Gesamtbetrag nach Neukundenbonus', value: fmtCurrency(totalAfterBonus) }] : []),
-  ...(hasZuschuss ? [{ label: 'Zuschuss Krankenkasse', value: Zuschusskrankenkasse }] : []),
-  ...(hasZuschuss ? [{ label: 'Selbstkostenanteil', value: SelbstkostenanteilFmt }] : []),
-];
+  const baseTotals = [
+    {
+      label: hasRabatt ? 'Nettobetrag (ohne Rabatt)' : 'Nettobetrag',
+      value: fmtCurrency(netBeforeDiscount)
+    },
+    ...(hasRabatt ? [{ label: 'Rabatt', value: fmtCurrency(rabattAmount) }] : []),
+    { label: 'zzgl. 19% MwSt.', value: fmtCurrency(vatOnNet) },
+    { label: 'Gesamtsumme', value: fmtCurrency(total) },
+    ...(hasRabatt ? [{ label: 'Gesamtbetrag nach Materialrabatt', value: fmtCurrency(totalAfterRabatt) }] : []),
+    ...(hasBonus ? [{ label: 'Gesamtbetrag nach Neukundenbonus', value: fmtCurrency(totalAfterBonus) }] : []),
+    ...(hasZuschuss ? [{ label: 'Zuschuss Krankenkasse', value: Zuschusskrankenkasse }] : []),
+    ...(hasZuschuss ? [{ label: 'Selbstkostenanteil', value: SelbstkostenanteilFmt }] : []),
+  ];
 
-// mark every second row (0-based: 1,3,5,...) as "alt"
-const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
+  // mark every second row (0-based: 1,3,5,...) as "alt"
+  const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
 
-// Pick Regie-Stundensatz based on payer
-const payerNorm = String(PayerKind || '').toUpperCase();
-const isKK = payerNorm === 'KK' || payerNorm === 'KASSENKUNDE';
-const isSZ = payerNorm === 'SZ' || payerNorm === 'SELBSTZAHLER';
+  // Pick Regie-Stundensatz based on payer
+  const payerNorm = String(PayerKind || '').toUpperCase();
+  const isKK = payerNorm === 'KK' || payerNorm === 'KASSENKUNDE';
+  const isSZ = payerNorm === 'SZ' || payerNorm === 'SELBSTZAHLER';
 
-// Prefer explicit rates per payer; fallback to computed laborRate if neither was selected yet
-let regieRateNum;
-if (isKK) regieRateNum = 69.50;
-else if (isSZ) regieRateNum = 59.50;
-else regieRateNum = Number(services?.laborRate) || 0;
+  // Prefer explicit rates per payer; fallback to computed laborRate if neither was selected yet
+  let regieRateNum;
+  if (isKK) regieRateNum = 69.50;
+  else if (isSZ) regieRateNum = 59.50;
+  else regieRateNum = Number(services?.laborRate) || 0;
 
-// Format exactly like "69,50€" (no space) to match your paragraph
-const RegieRateFmt = regieRateNum ? `${regieRateNum.toFixed(2).replace('.', ',')}€` : '';
+  // Format exactly like "69,50€" (no space) to match your paragraph
+  const RegieRateFmt = regieRateNum ? `${regieRateNum.toFixed(2).replace('.', ',')}€` : '';
 
   return {
     // Address / meta
@@ -555,21 +613,25 @@ const RegieRateFmt = regieRateNum ? `${regieRateNum.toFixed(2).replace('.', ',')
 
     // for summary rows / conditionals
     hasRabatt,
-     hasBonus,
-     hasBonusrows,
-  Totals,
-  BonusRows,
+    hasBonus,
+    hasBonusrows,
+    Totals,
+    BonusRows,
 
-  // for selbstkostenanteil.
-  Selbstkostenanteil: SelbstkostenanteilFmt,  // keeps {Selbstkostenanteil} working
-SelbstkostenanteilFmt,                      // if you use this tag directly
-Zuschusskrankenkasse,                       // formatted subsidy for template
-hasSubsidyLine,
+    // for selbstkostenanteil.
+    Selbstkostenanteil: SelbstkostenanteilFmt,  // keeps {Selbstkostenanteil} working
+    SelbstkostenanteilFmt,                      // if you use this tag directly
+    Zuschusskrankenkasse,                       // formatted subsidy for template
+    hasSubsidyLine: hasZuschuss,
 
-// for Regie-Stundensatz
-RegieRateFmt,
+    // for Regie-Stundensatz
+    RegieRateFmt,
   };
 }
+
+/* ===========================
+   Routes
+   =========================== */
 
 // -------- Existing Angebot DOCX route --------
 router.post('/', async (req, res) => {
@@ -579,11 +641,11 @@ router.post('/', async (req, res) => {
 
     const computed = await pricing.computePrices(req.body || {});
     console.log('[docx] computed subsidy:',
-  { subsidyAmount: computed?.subsidyAmount,
-    baseForSubsidy: computed?.baseForSubsidy,
-    selfPayAmount: computed?.selfPayAmount ,
-  userInput: computed?.subsidyInput}
-);
+      { subsidyAmount: computed?.subsidyAmount,
+        baseForSubsidy: computed?.baseForSubsidy,
+        selfPayAmount: computed?.selfPayAmount ,
+        userInput: computed?.subsidyInput}
+    );
 
     const zip = new PizZip(content);
     const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
@@ -593,7 +655,6 @@ router.post('/', async (req, res) => {
 
     try {
       console.log('[docx] subsidyKind:', computed?.subsidyKind);
-
       doc.render(data);
     } catch (e) {
       console.error('Docxtemplater render error:', e?.message || e);
@@ -627,38 +688,30 @@ router.post('/', async (req, res) => {
   }
 });
 
-// ✅ UPDATED: Material overview DOCX route with proper data extraction
+// ✅ UPDATED: Material overview DOCX route with enhanced aggregation and name resolution
 router.post('/material-overview', async (req, res) => {
   try {
     const computed = await pricing.computePrices(req.body || {});
-    const rows = aggregateMaterialsForOverview(req.body || {}, computed);
+    const rows = await aggregateMaterialsForOverview(req.body || {}, computed);
 
     const materials = rows.map((m, i) => ({
       pos: i + 1,
-      materialNumber: m.materialNumber,
-      name: m.name,
+      materialNumber: m.materialNumber || '', // blank for V5FB02 (floor panels)
+      name: m.name || '',
       quantity: formatQtyForOverview(m.quantity, m.unit || 'Stck.'),
       unit: m.unit || 'Stck.',
       remarks: m.remarks || ''
     }));
 
-    // ✅ USE THE SAME PATTERN AS THE WORKING ROUTE
+    // Build customer header fields
     const b = req.body?.bereich || {};
-    
-    console.log('[DEBUG] bereich object:', JSON.stringify(b, null, 2));
-    
-    // Build customer name the same way as mapData()
     const salutation = b.salutation || '';
     const firstName = b.firstName || '';
     const lastName = b.lastName || '';
-    
     const kundeName = [salutation, firstName, lastName].filter(Boolean).join(' ') || '';
-    
-    // Build address the same way
     const street = b.street || '';
     const city = b.city || '';
     const plz = b.postalCode || '';
-    
     const adresse = [street, [plz, city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
 
     const data = {
@@ -667,7 +720,6 @@ router.post('/material-overview', async (req, res) => {
       kunde: kundeName,
       adresse,
       ansprechpartner: (b.emc2_contact || '').trim(),
-      // Individual fields for debugging
       salutation,
       firstName,
       lastName,
@@ -677,18 +729,11 @@ router.post('/material-overview', async (req, res) => {
       materials
     };
 
-    console.log('[DEBUG] Final template data:', {
-      kunde: data.kunde,
-      adresse: data.adresse,
-      ansprechpartner: data.ansprechpartner,
-      materialsCount: materials.length
-    });
-
-    const templatePath = path.join(process.cwd(), 'src', 'templates', 'Materialubersicht.docx');
+    const templatePath = path.join(process.cwd(), 'src', 'templates', 'Materialuebersicht.docx');
     const out = await renderDocx(templatePath, data);
 
     try {
-      const verifyOut = path.join(process.cwd(), 'out-Materialubersicht.docx');
+      const verifyOut = path.join(process.cwd(), 'out-Materialuebersicht.docx');
       fsSync.writeFileSync(verifyOut, out);
       console.log('[material-overview] wrote generated DOCX:', verifyOut, 'size:', out.length);
     } catch (e) {
@@ -696,7 +741,7 @@ router.post('/material-overview', async (req, res) => {
     }
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', 'attachment; filename="Materialubersicht.docx"');
+    res.setHeader('Content-Disposition', 'attachment; filename="Materialuebersicht.docx"');
     res.send(out);
   } catch (e) {
     console.error('Materialübersicht generation failed:', e);
