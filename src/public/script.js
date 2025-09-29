@@ -996,6 +996,24 @@ window.resolveMaterialsSubtotal    = window.resolveMaterialsSubtotal    || resol
 
   let unitAdh = 0, unitSeal = 0;
 
+    // --- ADD: minimal persistence for the area field so it reappears when you come back ---
+  const AREA_KEY = 'dw_floor_area';
+
+  // Restore saved value only if the field is empty (don’t override current edits)
+  try {
+    if (area && !String(area.value || '').trim()) {
+      const saved = localStorage.getItem(AREA_KEY);
+      if (saved) area.value = saved;
+    }
+  } catch {}
+
+  // Existing listener: keep but extend to save to storage and refresh UI
+  area?.addEventListener('input', () => {
+    try { localStorage.setItem(AREA_KEY, area.value); } catch {}
+    ensureUnits().then(updateUI);
+  });
+
+
   async function ensureUnits(){
     if (!unitAdh){
       const p = await getProduct('V4FK600'); unitAdh = Number(p?.price||0);
@@ -1052,6 +1070,18 @@ window.resolveMaterialsSubtotal    = window.resolveMaterialsSubtotal    || resol
 
   toggle?.addEventListener('change', apply);
   area?.addEventListener('input', ()=>{ ensureUnits().then(updateUI); });
+
+    // --- FIX 1: run once on init, so a pre-checked toggle shows the panel ---
+  apply();
+
+  // --- FIX 2: when you navigate back to Duschwanne, re-apply state + refresh prices ---
+  window.addEventListener('hashchange', () => {
+    if (typeof getCurrentStep === 'function' && getCurrentStep() === 'duschwanne') {
+      apply();
+      // if the panel is on, refresh unit prices & UI (keeps totals/snippets in sync)
+      if (toggle?.checked) ensureUnits().then(updateUI);
+    }
+  });
 
   // initial tile highlight
   f.querySelectorAll('label.image-check > input[type="checkbox"]').forEach(cb=>{
