@@ -703,7 +703,7 @@ document.addEventListener('DOMContentLoaded', () => {
     show(copayField,on); setReq(copayAmount,on); if (!on && copayAmount) copayAmount.value='';
   }
   function apply(){
-    const kk = isKK(); const has = hasPG(); const val = pgVal(); const valid2 = Number.isInteger(val) && val>=2;
+    const kk = isKK(); const has = hasPG(); const val = pgVal(); const valid2 = Number.isInteger(val) && val>=1;
     show(pgLevelRow,has); setReq(pgRadios,has); if (!has) clearRadios(pgRadios);
     const showBudget = kk && has && valid2; show(budgetPanel,showBudget); if (!showBudget && copayCheckbox){ copayCheckbox.checked=false; applyCopay(); }
     show(wePanel,kk);
