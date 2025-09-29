@@ -157,7 +157,8 @@ export default (ProductModel) => {
     const addFlooring = !!dusch.addFlooring;
     const floorArea = Number(String(dusch.floorArea ?? '').replace(',', '.')) || 0;
     if (addFlooring && floorArea > 0) {
-      const panels = ceilSafe(floorArea * 4);
+      const panels = ceilSafe((floorArea * 1.15) / 0.3);
+      console.log(panels , " panels")
       add('V5FB02', panels, `- ${panels} Stk Fußboden-Paneele (1 m² = 4 Paneele)`, 20.97);
 
       const packs = ceilSafe(floorArea / 0.6);
