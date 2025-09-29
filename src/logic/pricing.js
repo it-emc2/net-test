@@ -22,50 +22,31 @@ export default (ProductModel) => {
   const TAX_RATE = 0.19;
 
   function collectSelections(payload) {
-  const out = [];
-  const opt = payload?.optional || {};
-
-  // Map special aliases (keep your existing ones)
-  const aliasToId = { CL_BASIN: 'CL' };
-
-  // Normalize: returns the canonical productId used in DB
-  const normId = (k) => aliasToId[k] || k;
-
-  // Push helper with EK doubling
-  const push = (id, qtyRaw, checked) => {
-    const qtyNum = qtyRaw !== undefined && qtyRaw !== null && qtyRaw !== ''
-      ? Number(qtyRaw)
-      : (checked ? 1 : 0);
-
-    let qty = Number.isFinite(qtyNum) ? qtyNum : 0;
-
-    // Eckventil must always be doubled
-    // Adjust the ids below to match your real EK productId(s)
-    const isEK = (id === 'EK' || id === 'EKcventil' || id === 'EKCV');
-    if (isEK && qty > 0) qty = qty * 2;
-
-    if ((checked || qty > 0) && qty > 0) {
-      out.push({ productId: id, qty });
+    const out = [];
+    const opt = payload?.optional || {};
+    const aliasToId = { CL_BASIN: 'CL' };
+    const push = (id, qtyRaw, checked) => {
+      const qtyNum = qtyRaw !== undefined && qtyRaw !== null && qtyRaw !== ''
+        ? Number(qtyRaw)
+        : (checked ? 1 : 0);
+      const qty = Number.isFinite(qtyNum) ? qtyNum : 0;
+      if ((checked || qty > 0) && qty > 0) out.push({ productId: id, qty });
+    };
+    for (const [key, val] of Object.entries(opt)) {
+      if (key.startsWith('opt_')) {
+        const k = key.slice(4);
+        const id = aliasToId[k] || k;
+        push(id, opt[`qty_${k}`], Boolean(val));
+      } else if (key.startsWith('qty_')) {
+        const k = key.slice(4);
+        const id = aliasToId[k] || k;
+        const qty = val;
+        const checked = Boolean(opt[`opt_${k}`]);
+        push(id, qty, checked);
+      }
     }
-  };
-
-  // Legacy pattern: opt_<ID> and qty_<ID>
-  for (const [key, val] of Object.entries(opt)) {
-    if (key.startsWith('opt_')) {
-      const k = key.slice(4);
-      const id = normId(k);
-      push(id, opt[`qty_${k}`], Boolean(val));
-    } else if (key.startsWith('qty_')) {
-      const k = key.slice(4);
-      const id = normId(k);
-      const qty = opt[key];
-      const checked = Boolean(opt[`opt_${k}`]);
-      push(id, qty, checked);
-    }
+    return out;
   }
-
-  return out;
-}
 
   // Prefer numeric payload.pricing.markupPct; fallback to bereich.aufschlag like "35%".
   const extractMarkupPct = (payload) => {
