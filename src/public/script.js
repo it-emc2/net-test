@@ -190,6 +190,37 @@ window.addEventListener('hashchange', ()=>setStep(getCurrentStep()));
 
 /* ========== PAYLOAD / SUMMARY / STATUS ========== */
 function formToObject(form){ return Object.fromEntries(new FormData(form).entries()); }
+// collector for Wandverkleidung ---
+function collectWandverkleidungMaterials(doc) {
+  // `doc` is your payload object; fallback to a local then return if you prefer
+  const page = document.getElementById('page-wandverkleidung');
+  if (!page) return;
+
+  const out = [];
+
+  function pushIfSelected(cbSel, qtySel, friendlyName) {
+    const cb = page.querySelector(cbSel);
+    const qtyEl = page.querySelector(qtySel);
+    if (!cb || !cb.checked) return;
+    const qty = parseInt((qtyEl && qtyEl.value) || '0', 10);
+    if (!qty) return;
+
+    const productId = cb.getAttribute('data-product-id'); // e.g. V3WVK09 / V3WV09
+    out.push({
+      productId,
+      name: friendlyName || cb.value, // safe fallback; pricing should use productId
+      qty
+    });
+  }
+
+  pushIfSelected('#wv997',  '#wvQty997',  'Wandverkleidung 3.0 Alu 997×2550');
+  pushIfSelected('#wv1497', '#wvQty1497', 'Wandverkleidung 3.0 Alu 1497×2550');
+
+  // attach to your existing payload
+  if (!doc.materials) doc.materials = [];
+  doc.materials.push(...out);
+}
+
 function buildPayload(){
 
   const payload = { 
@@ -200,6 +231,7 @@ function buildPayload(){
     optional: formToObject(document.getElementById('form-optional')),
     rabatt: formToObject(document.getElementById('form-rabatt')) 
   };
+  collectWandverkleidungMaterials(payload)
     // Read budget option(s)
  // --- Budget-Option + Zuzahlung -> send to backend ---
 const elMax   = document.querySelector('input[name="budgetMax"]');
@@ -276,6 +308,8 @@ function updateSummary(){
   if (getCurrentStep() !== 'zusammenfassung') return;
   const el = document.getElementById('summaryText');
   const payload = buildPayload();
+  collectWandverkleidungMaterials(payload);
+
   el.textContent = 'Vorschau: ' + JSON.stringify(payload);
 }
 const statusEl = document.getElementById('status');
@@ -471,6 +505,91 @@ document.body.addEventListener('click', e=>{
     if (!ok) return;
     setStep(steps[Math.min(steps.length-1, idx+1)]);
   }
+});
+async function updateKostenDetails() {
+  const payload = buildPayload(); // keep your existing builder
+  // Make sure your WV collector is called inside buildPayload() or right after:
+  // collectWandverkleidungMaterials(payload); // (only if not already called)
+
+  // NEW: resolve materials by productId, compute subtotal locally
+  const { allResolved, materialsSubtotal } = await window.resolveMaterialsSubtotal(payload);
+
+  // Use your existing renderer so UI formatting stays the same:
+  renderKostenDetails(allResolved);
+
+  // If your old code also sets a materials subtotal field, keep doing it:
+  // setMaterialsSubtotal(materialsSubtotal); // only if you already had this
+}
+
+// --- ADD: wandverkleidung page wiring ---
+function setupWandverkleidungPage() {
+  const page = document.getElementById('page-wandverkleidung');
+  if (!page || page.dataset._wired === 'true') return; // guard: wire once
+  page.dataset._wired = 'true';
+
+  // 1) Defensive: ensure "Marmor weiß" is selected by default
+  const defaultColor = page.querySelector('input[type="radio"][name="wvColor"][value="Marmor weiß"]');
+  const anyColorChecked = page.querySelector('input[type="radio"][name="wvColor"]:checked');
+  if (defaultColor && !anyColorChecked) {
+    defaultColor.checked = true;
+  }
+
+  // 2) Auto qty = 1 when a panel is checked, show qty wrap; reset when unchecked
+  const wv997 = page.querySelector('#wv997');
+  const wv1497 = page.querySelector('#wv1497');
+  const wvQty997 = page.querySelector('#wvQty997');
+  const wvQty1497 = page.querySelector('#wvQty1497');
+  const wvQty997Wrap = page.querySelector('#wvQty997Wrap');
+  const wvQty1497Wrap = page.querySelector('#wvQty1497Wrap');
+
+  function handlePanelToggle(cb, qtyInput, wrap) {
+    if (!cb || !qtyInput || !wrap) return;
+    cb.addEventListener('change', () => {
+      if (cb.checked) {
+        wrap.hidden = false;
+        wrap.setAttribute('aria-hidden', 'false');
+        // Only set to 1 if empty or 0, so user changes are preserved on re-check
+        const current = parseInt(qtyInput.value || '0', 10);
+        if (!current) qtyInput.value = '1';
+      } else {
+        // hide + clear (so pricing won’t count it)
+        wrap.hidden = true;
+        wrap.setAttribute('aria-hidden', 'true');
+        qtyInput.value = '0';
+      }
+      // Trigger your existing totals recompute (if you have a debounced updater, call it instead)
+      if (typeof updateTotals === 'function') updateTotals();
+      if (typeof updateKostenDetails === 'function') updateKostenDetails();
+    });
+
+    // If checkbox is preselected (e.g. restoring state), enforce UI now
+    if (cb.checked) {
+      wrap.hidden = false;
+      wrap.setAttribute('aria-hidden', 'false');
+      if (!parseInt(qtyInput.value || '0', 10)) qtyInput.value = '1';
+    }
+  }
+
+  handlePanelToggle(wv997, wvQty997, wvQty997Wrap);
+  handlePanelToggle(wv1497, wvQty1497, wvQty1497Wrap);
+
+  // 3) When qty is edited manually, keep pricing in sync
+  [wvQty997, wvQty1497].forEach(inp => {
+    if (!inp) return;
+    inp.addEventListener('input', () => {
+      if (typeof updateTotals === 'function') updateTotals();
+      if (typeof updateKostenDetails === 'function') updateKostenDetails();
+    });
+  });
+}
+
+// Call this when navigating to the page (hash or button nav).
+// If you already have a router-like function, call inside it instead.
+window.addEventListener('hashchange', () => {
+  if (location.hash === '#wandverkleidung') setupWandverkleidungPage();
+});
+document.addEventListener('DOMContentLoaded', () => {
+  if (location.hash === '#wandverkleidung') setupWandverkleidungPage();
 });
 
 /* ========== BERICH UI: CONTACT PERSON + AUFSCHLAG/PFLEGEGRAD ========== */
@@ -802,6 +921,36 @@ async function getProduct(id){
     return null;
   }
 }
+// --- ADD: front-end resolvers for Kosten-Details (use getProduct) ---
+async function fetchPriceById(id) {
+  const p = await getProduct(id);
+  return Number(p?.price || 0);
+}
+
+async function resolveMaterialsByProductId(materials, { fetchPriceById }) {
+  const resolved = [];
+  for (const m of (materials || [])) {
+    if (!m || !m.productId || !m.qty) continue;
+    const unitPrice = await fetchPriceById(m.productId);
+    resolved.push({
+      ...m,
+      unitPrice: unitPrice || 0,
+      total: (unitPrice || 0) * m.qty,
+    });
+  }
+  return resolved;
+}
+
+async function resolveMaterialsSubtotal(payload) {
+  const resolvedWV = await resolveMaterialsByProductId(payload.materials, { fetchPriceById });
+  const allResolved = resolvedWV; // merge others here if you add more categories later
+  const materialsSubtotal = allResolved.reduce((s, r) => s + (r.total || 0), 0);
+  return { allResolved, materialsSubtotal };
+}
+
+// Expose to the rest of the front-end
+window.resolveMaterialsByProductId = window.resolveMaterialsByProductId || resolveMaterialsByProductId;
+window.resolveMaterialsSubtotal    = window.resolveMaterialsSubtotal    || resolveMaterialsSubtotal;
 
 /* ========== FLOORING: LIVE PREVIEW + DB PRICES + COMPUTED PAYLOAD ========== */
 (function initFlooringSection(){
@@ -1509,6 +1658,8 @@ document.getElementById('makePdf')?.addEventListener('click', async ()=>{
   if (!requireBereichValid()) { location.hash='bereich'; return; }
   try{ 
     const payload = buildPayload();
+    collectWandverkleidungMaterials(payload);
+
     await downloadPDFWithProgress('/pdf', payload, 'Anfrage.pdf');
     document.getElementById('pdfActions')?.style.setProperty('display','flex'); 
   }
@@ -1518,6 +1669,8 @@ document.getElementById('makePdf')?.addEventListener('click', async ()=>{
 document.getElementById('downloadPdf')?.addEventListener('click', async ()=>{
   try{ 
     const payload = buildPayload();
+    collectWandverkleidungMaterials(payload);
+
     await downloadPDFWithProgress('/pdf', payload, 'Anfrage.pdf');
   } catch(e){ showPDFProgress(`PDF-Erstellung fehlgeschlagen: ${e.message}`, 'error'); }
 });
@@ -1526,6 +1679,7 @@ document.getElementById('makePdfFromTemplate')?.addEventListener('click', async 
   if (!requireBereichValid()) { location.hash='bereich'; return; }
   try{
     const payload = buildPayload();
+    collectWandverkleidungMaterials(payload);
     await downloadPDFWithProgress('/pdf-template', payload, 'Angebot_aus_Vorlage.pdf');
     document.getElementById('pdfActions')?.style.setProperty('display','flex');
   }catch(e){ showPDFProgress(`PDF-Erstellung fehlgeschlagen: ${e.message}`, 'error'); }
@@ -1813,6 +1967,7 @@ document.getElementById('downloadMaterialOverview')?.addEventListener('click', a
   if (!requireBereichValid()) { location.hash = 'bereich'; return; }
   try {
     const payload = buildPayload();
+    collectWandverkleidungMaterials(payload);
     await downloadDocx('/docx-template/material-overview', payload, `Materialuebersicht_${Date.now()}.docx`);
   } catch (e) {
     console.error(e);
@@ -1826,6 +1981,7 @@ document.getElementById('downloadDocxAsPdf')?.addEventListener('click', async ()
   if (!requireBereichValid()) { location.hash='bereich'; return; }
   try {
     const payload = buildPayload();
+    collectWandverkleidungMaterials(payload);
     await downloadPDFWithProgress('/docx-template/pdf', payload, `Angebot_${Date.now()}.pdf`);
   } catch (e) {
     console.error(e);

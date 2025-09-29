@@ -171,12 +171,12 @@ export default (ProductModel) => {
     const qty1497 = Number(wv?.wvQty1497 || 0) || 0;
     const totalPanels = qty997 + qty1497;
 
-    if (wv?.wv997 && qty997 > 0) {
-      add('V3WVK09', qty997, `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`);
-    }
-    if (wv?.wv1497 && qty1497 > 0) {
-      add('V3WV09', qty1497, `- ${qty1497} Stk Wandverkleidung 3.0 Alu 1497×2550 mm`);
-    }
+   if (qty997 > 0) {
+  add('V3WVK09', qty997, `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`);
+}
+if (qty1497 > 0) {
+  add('V3WV09', qty1497, `- ${qty1497} Stk Wandverkleidung 3.0 Alu 1497×2550 mm`);
+}
 
     if (wv?.wvSealing) add('TRWDSET5', 1);
 
