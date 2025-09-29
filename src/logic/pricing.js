@@ -159,7 +159,7 @@ export default (ProductModel) => {
     if (addFlooring && floorArea > 0) {
       const panels = ceilSafe((floorArea * 1.15) / 0.3);
       console.log(panels , " panels")
-      add('V5FB02', panels, `- ${panels} Stk Fußboden-Paneele (1 m² = 4 Paneele)`, 20.97);
+      add('V5FB02', panels, `- ${panels} Stk Fußboden-Paneele (1 Paneele = 0.3 m² )`, 20.97);
 
       const packs = ceilSafe(floorArea / 0.6);
       if (packs > 0) add('V4FK600', packs, `- ${packs} Pkg Flächenkleber (1 Pkg je 0,60 m²)`, 17.39);
