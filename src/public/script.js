@@ -67,11 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
   wireDurationAutoFormat('laborHours');
   wireDurationAutoFormat('travelTime');
 });
-// force the default on load only when the field Arbeitszeit is empty
-//document.addEventListener('DOMContentLoaded', () => {
-  //const el = document.getElementById('laborHours');
-  //if (el && !el.value) el.value = '07:00';   // set default only if empty
-//});
+
 document.addEventListener('DOMContentLoaded', () => {
   const laborEl   = document.getElementById('laborHours');
   const travelEl  = document.getElementById('travelTime');
@@ -80,28 +76,23 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateTotalHours() {
     const laborH   = hhmmToHours(laborEl?.value || '0:00');      // Arbeitszeit
     const travelH1 = hhmmToHours(travelEl?.value || '0:00');     // Reisezeit (einfach)
-    const totalNum = (travelH1 * 2) + laborH;                    // ← your formula
+    const totalNum = (travelH1 * 2) + laborH;
 
-    // 👉 this is your "total_hours_HH-MM" (as a string)
     const totalHHMM = hoursToHHMM(totalNum);
 
-    // show it under the hint
     if (outEl) {
       outEl.innerHTML = `Gesamtzeit (Arbeit + Fahrt): <strong>${totalHHMM}</strong>`;
     }
 
-    // (optional) expose numeric if you want to reuse it elsewhere
     window.total_hours_numeric = Math.max(0, totalNum);
   }
 
-  // Update on load + whenever user types
   laborEl?.addEventListener('input', updateTotalHours);
   laborEl?.addEventListener('blur',  updateTotalHours);
   travelEl?.addEventListener('input', updateTotalHours);
   travelEl?.addEventListener('blur',  updateTotalHours);
   updateTotalHours();
 });
-
 
 // --- Offer number (ANG-YYYY-MM-DD-HH-mm-ss) + auto-stamp on export clicks ---
 function genOfferNumber() {
@@ -111,11 +102,9 @@ function genOfferNumber() {
 }
 
 function stampOfferOnExport() {
-  // Prefer #offerNumber, fall back to name selector if needed
   const offerInput = document.querySelector('#offerNumber') || document.querySelector('input[name="offerNumber"]');
   if (!offerInput) return;
 
-  // All buttons that trigger a download/export
   const ids = [
     'makePdfFromTemplate',
     'downloadDocx',
@@ -127,20 +116,16 @@ function stampOfferOnExport() {
 
   const apply = () => { offerInput.value = genOfferNumber(); };
 
-  // Use capture so the value is set before your existing click handlers run
   ids.forEach(id => {
     const btn = document.getElementById(id);
     if (btn) btn.addEventListener('click', apply, { capture: true });
   });
 }
-
 document.addEventListener('DOMContentLoaded', stampOfferOnExport);
 // --- end offer number snippet ---
 
 const laborEl   = document.getElementById('laborHours');
 const laborHHMM = (laborEl?.value || '').trim();
-
-// Prefer existing helper; fall back safely if it's missing.
 const laborNumeric = (typeof hhmmToHours === 'function')
   ? Math.max(0, hhmmToHours(laborHHMM))
   : (() => {
@@ -190,14 +175,13 @@ window.addEventListener('hashchange', ()=>setStep(getCurrentStep()));
 
 /* ========== PAYLOAD / SUMMARY / STATUS ========== */
 function formToObject(form){ return Object.fromEntries(new FormData(form).entries()); }
+
 // collector for Wandverkleidung ---
 function collectWandverkleidungMaterials(doc) {
-  // `doc` is your payload object; fallback to a local then return if you prefer
   const page = document.getElementById('page-wandverkleidung');
   if (!page) return;
 
   const out = [];
-
   function pushIfSelected(cbSel, qtySel, friendlyName) {
     const cb = page.querySelector(cbSel);
     const qtyEl = page.querySelector(qtySel);
@@ -205,24 +189,18 @@ function collectWandverkleidungMaterials(doc) {
     const qty = parseInt((qtyEl && qtyEl.value) || '0', 10);
     if (!qty) return;
 
-    const productId = cb.getAttribute('data-product-id'); // e.g. V3WVK09 / V3WV09
-    out.push({
-      productId,
-      name: friendlyName || cb.value, // safe fallback; pricing should use productId
-      qty
-    });
+    const productId = cb.getAttribute('data-product-id');
+    out.push({ productId, name: friendlyName || cb.value, qty });
   }
 
   pushIfSelected('#wv997',  '#wvQty997',  'Wandverkleidung 3.0 Alu 997×2550');
   pushIfSelected('#wv1497', '#wvQty1497', 'Wandverkleidung 3.0 Alu 1497×2550');
 
-  // attach to your existing payload
   if (!doc.materials) doc.materials = [];
   doc.materials.push(...out);
 }
 
 function buildPayload(){
-
   const payload = { 
     bereich: formToObject(document.getElementById('form-bereich')),
     duschwanne: { ...formToObject(document.getElementById('form-duschwanne')), computed: window.__DW_COMPUTED__ || {} },
@@ -231,103 +209,98 @@ function buildPayload(){
     optional: formToObject(document.getElementById('form-optional')),
     rabatt: formToObject(document.getElementById('form-rabatt')) 
   };
-  collectWandverkleidungMaterials(payload)
-    // Read budget option(s)
- // --- Budget-Option + Zuzahlung -> send to backend ---
-const elMax   = document.querySelector('input[name="budgetMax"]');
-const elCopay = document.querySelector('input[name="budgetCopay"]');
-const elTwo   = document.querySelector('input[name="twoPersons"]');
-const copayEl = document.getElementById('copayAmount');
 
-// Wohnumfeld controls
-const wohDoneRadios = document.querySelectorAll('input[name="wohnumfeldDone"]');
-const wohAmountInput = document.getElementById('wohnumfeldAmount');
-function readWohnumfeld() {
-  const isJa = Array.from(wohDoneRadios).some(r => r.checked && r.value === 'Ja');
-  let amount = 0;
-  if (isJa && wohAmountInput) {
-    const raw = (wohAmountInput.value || '').toString().replace(',', '.');
-    const parsed = parseFloat(raw);
-    amount = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  collectWandverkleidungMaterials(payload);
+
+  // Budget/Zuzahlung
+  const elMax   = document.querySelector('input[name="budgetMax"]');
+  const elCopay = document.querySelector('input[name="budgetCopay"]');
+  const elTwo   = document.querySelector('input[name="twoPersons"]');
+  const copayEl = document.getElementById('copayAmount');
+
+  const wohDoneRadios  = document.querySelectorAll('input[name="wohnumfeldDone"]');
+  const wohAmountInput = document.getElementById('wohnumfeldAmount');
+  function readWohnumfeld() {
+    const isJa = Array.from(wohDoneRadios).some(r => r.checked && r.value === 'Ja');
+    let amount = 0;
+    if (isJa && wohAmountInput) {
+      const raw = (wohAmountInput.value || '').toString().replace(',', '.');
+      const parsed = parseFloat(raw);
+      amount = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    }
+    return { done: isJa, amount };
   }
-  return { done: isJa, amount };
-}
 
+  function parseEuroToNumber(v) {
+    const s = String(v ?? '')
+      .trim().replace(/[^\d.,-]/g, '')
+      .replace(/\./g, '')
+      .replace(',', '.');
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : 0;
+  }
 
-function parseEuroToNumber(v) {
-  const s = String(v ?? '')
-    .trim()
-    .replace(/[^\d.,-]/g, '')   // drop € and spaces
-    .replace(/\./g, '')         // remove thousand separators
-    .replace(',', '.');         // convert decimal comma to dot
-  const n = parseFloat(s);
-  return Number.isFinite(n) ? n : 0;
-}
+  let selected = '';
+  if (elMax?.checked)        selected = elMax.value;
+  else if (elCopay?.checked) selected = elCopay.value;
+  else if (elTwo?.checked)   selected = elTwo.value;
 
-let selected = '';
-if (elMax?.checked)       selected = elMax.value;            // "4180 MAXIMAL"
-else if (elCopay?.checked) selected = elCopay.value;         // "4180 mit Zuzahlung"
-else if (elTwo?.checked)   selected = elTwo.value;           // "Zwei Personen mit Pflegegrad"
+  const canonical = selected
+    ? selected.toUpperCase().replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
+    : '';
 
-// Optional canonicalization (server also normalizes, but this is nice):
-const canonical = selected
-  ? selected.toUpperCase().replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
-  : '';
+  payload.bereich = payload.bereich || {};
+  payload.bereich.budgetOptionsPanel = canonical || selected || '';
+  payload.bereich.copayAmount = copayEl ? parseEuroToNumber(copayEl.value) : 0;
 
-payload.bereich = payload.bereich || {};
-payload.bereich.budgetOptionsPanel = canonical || selected || '';
-payload.bereich.copayAmount = copayEl ? parseEuroToNumber(copayEl.value) : 0;
-
-
-  // ► add the fields the server needs to compute Rabatt & Bonus
-  const pct = parseFloat(document.getElementById('rb-material-discount')?.value || '0'); // 0..9
+  // Rabatt fields for server
+  const pct = parseFloat(document.getElementById('rb-material-discount')?.value || '0');
   payload.rabatt = {
     ...payload.rabatt,
-    materialDiscountPct: isFinite(pct) ? pct / 100 : 0,        // 0..0.09
+    materialDiscountPct: isFinite(pct) ? pct / 100 : 0,
     bonus300: !!document.getElementById('rb-bonus-300')?.checked,
     bonusGrab: !!document.getElementById('rb-bonus-grab')?.checked,
   };
-payload.offerNumber = (document.getElementById('offerNumber')?.value || '').trim();
-payload.bereich.totalHoursHHMM = document.getElementById('totalHoursHHMM')?.textContent?.match(/(\d+:\d{2})/)?.[1] || '';
-payload.bereich.totalHoursNumeric = Number(window.total_hours_numeric || 0);
 
+  payload.offerNumber = (document.getElementById('offerNumber')?.value || '').trim();
+  payload.bereich.totalHoursHHMM    = document.getElementById('totalHoursHHMM')?.textContent?.match(/(\d+:\d{2})/)?.[1] || '';
+  payload.bereich.totalHoursNumeric = Number(window.total_hours_numeric || 0);
+  payload.bereich.laborHoursHHMM    = laborHHMM;
+  payload.bereich.laborHoursNumeric = laborNumeric;
 
-payload.bereich.laborHoursHHMM    = laborHHMM;
-payload.bereich.laborHoursNumeric = laborNumeric;
-const woh = readWohnumfeld();
-const isKK =
-  (payload.bereich?.payer ||
-   document.querySelector('input[name="payer"]:checked')?.value) === 'Kassenkunde';
+  const woh = readWohnumfeld();
+  const isKK =
+    (payload.bereich?.payer ||
+     document.querySelector('input[name="payer"]:checked')?.value) === 'Kassenkunde';
+  payload.bereich.wohnumfeld = isKK ? woh : { done: false, amount: 0 };
 
-payload.bereich.wohnumfeld = isKK ? woh : { done: false, amount: 0 };
-  // --- DUSCHWANNE: ensure tray selection persists in payload even if suggestion UI isn't rendered
+  // --- Ensure tray selection persists in payload even if suggestion UI isn't rendered
   (function ensureTraySelection() {
     const dw = payload.duschwanne || (payload.duschwanne = {});
     const hasSize = !!(dw.traySize && String(dw.traySize).trim());
     const hasPid  = !!(dw.chosenTrayProductId && String(dw.chosenTrayProductId).trim());
     if (hasSize && hasPid) return;
-
     try {
       const raw = localStorage.getItem('dw_tray_selection');
       if (!raw) return;
       const saved = JSON.parse(raw);
-      if (!hasSize && saved?.value)    dw.traySize = saved.value;
+      if (!hasSize && saved?.value)     dw.traySize = saved.value;
       if (!hasPid  && saved?.productId) dw.chosenTrayProductId = saved.productId;
-    } catch { /* ignore */ }
+    } catch {}
   })();
 
   return payload;
 }
 
-window.buildPayload = buildPayload; // expose for extensions
+window.buildPayload = buildPayload;
+
 function updateSummary(){
   if (getCurrentStep() !== 'zusammenfassung') return;
   const el = document.getElementById('summaryText');
   const payload = buildPayload();
-  collectWandverkleidungMaterials(payload);
-
   el.textContent = 'Vorschau: ' + JSON.stringify(payload);
 }
+
 const statusEl = document.getElementById('status');
 function show(obj, ok=true){
   if (!statusEl) return;
@@ -338,15 +311,10 @@ function show(obj, ok=true){
 // ========== PDF PROGRESS FUNCTIONS ==========
 function showPDFProgress(message, type = 'info') {
   if (!statusEl) return;
-  
   const timestamp = new Date().toLocaleTimeString();
   const emoji = {
-    'info': '🔄',
-    'success': '✅', 
-    'error': '❌',
-    'warning': '⚠️'
+    'info': '🔄','success': '✅','error': '❌','warning': '⚠️'
   }[type] || '🔄';
-  
   statusEl.className = 'status ' + (type === 'error' ? 'err' : 'ok');
   statusEl.textContent = `${emoji} [${timestamp}] ${message}`;
 }
@@ -361,22 +329,14 @@ function updatePDFTimer(seconds) {
 // Enhanced PDF download with progress
 async function downloadPDFWithProgress(endpoint, payload, filename) {
   showPDFProgress('PDF-Generation gestartet...', 'info');
-  
-  // Start countdown timer
   let timeLeft = 30;
   updatePDFTimer(timeLeft);
-  
-  const timerInterval = setInterval(() => {
-    timeLeft--;
-    updatePDFTimer(timeLeft);
-  }, 1000);
+  const timerInterval = setInterval(() => { timeLeft--; updatePDFTimer(timeLeft); }, 1000);
 
   try {
     showPDFProgress('DOCX-Vorlage wird verarbeitet...', 'info');
-    
     const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
@@ -384,33 +344,20 @@ async function downloadPDFWithProgress(endpoint, payload, filename) {
       clearInterval(timerInterval);
       const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
       showPDFProgress(`Fehler: ${errorData.error || 'Unbekannter Fehler'}`, 'error');
-      if (errorData.detail) {
-        setTimeout(() => showPDFProgress(`Details: ${errorData.detail}`, 'error'), 1000);
-      }
+      if (errorData.detail) setTimeout(() => showPDFProgress(`Details: ${errorData.detail}`, 'error'), 1000);
       return;
     }
 
     showPDFProgress('PDF wird konvertiert (LibreOffice)...', 'info');
-    
     const blob = await response.blob();
-    
+
     clearInterval(timerInterval);
     showPDFProgress('PDF erfolgreich erstellt!', 'success');
-    
-    // Download the file
+
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    
-    setTimeout(() => {
-      showPDFProgress('PDF-Download abgeschlossen!', 'success');
-    }, 500);
-    
+    const a = document.createElement('a'); a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    setTimeout(() => { showPDFProgress('PDF-Download abgeschlossen!', 'success'); }, 500);
   } catch (error) {
     clearInterval(timerInterval);
     showPDFProgress(`Netzwerkfehler: ${error.message}`, 'error');
@@ -418,10 +365,7 @@ async function downloadPDFWithProgress(endpoint, payload, filename) {
   }
 }
 
-// Helper function for collecting all form data (used by PDF functions)
-function collectAllFormData() {
-  return buildPayload();
-}
+function collectAllFormData() { return buildPayload(); }
 
 /* ========== HELPERS ========== */
 function flashInvalid(el){
@@ -436,11 +380,8 @@ function highlightTileForInput(input, on){ input?.closest('label.image-check')?.
 function validateBereich(){
   const form = document.getElementById('form-bereich'); if (!form) return true;
   const d = document.getElementById('date'); if (d && !d.value) d.valueAsDate = new Date();
-
-  // Native constraints first (required toggled by initPflegegrad etc.)
   if (!form.checkValidity()) return false;
 
-  // Extra minimal guards
   const req = ['date','firstName','lastName','customerNumber'];
   let bad = req.map(id=>document.getElementById(id)).find(el=>!el?.value);
   if (!bad){
@@ -475,13 +416,13 @@ function validateWandverkleidung(){
 function validateOptional(){ return true; }
 
 function validateRabatt(){
-const f = document.getElementById('form-rabatt'); if (!f) return true;
-return f.reportValidity();
+  const f = document.getElementById('form-rabatt'); if (!f) return true;
+  return f.reportValidity();
 }
 
 function validateDuschabtrennung(){
-const f = document.getElementById('form-duschabtrennung'); if (!f) return true;
-return f.reportValidity();
+  const f = document.getElementById('form-duschabtrennung'); if (!f) return true;
+  return f.reportValidity();
 }
 
 /* Focus helper for Bereich conditional errors (defined in initBereichErrorHints) */
@@ -492,10 +433,8 @@ function focusFirstBereichConditionalError(){
   return false;
 }
 
-// Use this wherever you need the Bereich page to be valid before proceeding
 function requireBereichValid(){
   const form = document.getElementById('form-bereich');
-  // Trigger native bubbles
   if (!form.reportValidity()){
     focusFirstBereichConditionalError();
     return false;
@@ -522,85 +461,57 @@ document.body.addEventListener('click', e=>{
     setStep(steps[Math.min(steps.length-1, idx+1)]);
   }
 });
-async function updateKostenDetails() {
-  const payload = buildPayload(); // keep your existing builder
-  // Make sure your WV collector is called inside buildPayload() or right after:
-  // collectWandverkleidungMaterials(payload); // (only if not already called)
 
-  // NEW: resolve materials by productId, compute subtotal locally
-  const { allResolved, materialsSubtotal } = await window.resolveMaterialsSubtotal(payload);
+/* ========== WANDVERKLEIDUNG PAGE WIRING (auto color, qty=1, etc.) ========== */
+function updateKostenDetails(){ window.updatePricing?.(); } // safe, no direct rendering
 
-  // Use your existing renderer so UI formatting stays the same:
-  renderKostenDetails(allResolved);
-
-  // If your old code also sets a materials subtotal field, keep doing it:
-  // setMaterialsSubtotal(materialsSubtotal); // only if you already had this
-}
-
-// --- ADD: wandverkleidung page wiring ---
 function setupWandverkleidungPage() {
   const page = document.getElementById('page-wandverkleidung');
-  if (!page || page.dataset._wired === 'true') return; // guard: wire once
+  if (!page || page.dataset._wired === 'true') return;
   page.dataset._wired = 'true';
 
-  // 1) Defensive: ensure "Marmor weiß" is selected by default
   const defaultColor = page.querySelector('input[type="radio"][name="wvColor"][value="Marmor weiß"]');
   const anyColorChecked = page.querySelector('input[type="radio"][name="wvColor"]:checked');
-  if (defaultColor && !anyColorChecked) {
-    defaultColor.checked = true;
+  if (defaultColor && !anyColorChecked) defaultColor.checked = true;
+
+  const pairs = [
+    { cb: '#wv997',  wrap: '#wvQty997Wrap',  qty: '#wvQty997'  },
+    { cb: '#wv1497', wrap: '#wvQty1497Wrap', qty: '#wvQty1497' },
+  ];
+
+  function showWrap(wrapEl, show) {
+    if (!wrapEl) return;
+    wrapEl.hidden = !show;
+    wrapEl.setAttribute('aria-hidden', show ? 'false' : 'true');
   }
 
-  // 2) Auto qty = 1 when a panel is checked, show qty wrap; reset when unchecked
-  const wv997 = page.querySelector('#wv997');
-  const wv1497 = page.querySelector('#wv1497');
-  const wvQty997 = page.querySelector('#wvQty997');
-  const wvQty1497 = page.querySelector('#wvQty1497');
-  const wvQty997Wrap = page.querySelector('#wvQty997Wrap');
-  const wvQty1497Wrap = page.querySelector('#wvQty1497Wrap');
+  pairs.forEach(({ cb, wrap, qty }) => {
+    const cbEl = page.querySelector(cb);
+    const wrapEl = page.querySelector(wrap);
+    const qtyEl = page.querySelector(qty);
+    if (!cbEl || !wrapEl || !qtyEl) return;
 
-  function handlePanelToggle(cb, qtyInput, wrap) {
-    if (!cb || !qtyInput || !wrap) return;
-    cb.addEventListener('change', () => {
-      if (cb.checked) {
-        wrap.hidden = false;
-        wrap.setAttribute('aria-hidden', 'false');
-        // Only set to 1 if empty or 0, so user changes are preserved on re-check
-        const current = parseInt(qtyInput.value || '0', 10);
-        if (!current) qtyInput.value = '1';
+    if (cbEl.checked) {
+      showWrap(wrapEl, true);
+      if (!parseInt(qtyEl.value || '0', 10)) qtyEl.value = '1';
+    }
+
+    cbEl.addEventListener('change', () => {
+      if (cbEl.checked) {
+        showWrap(wrapEl, true);
+        if (!parseInt(qtyEl.value || '0', 10)) qtyEl.value = '1';
       } else {
-        // hide + clear (so pricing won’t count it)
-        wrap.hidden = true;
-        wrap.setAttribute('aria-hidden', 'true');
-        qtyInput.value = '0';
+        showWrap(wrapEl, false);
+        qtyEl.value = '0';
       }
-      // Trigger your existing totals recompute (if you have a debounced updater, call it instead)
-      if (typeof updateTotals === 'function') updateTotals();
       if (typeof updateKostenDetails === 'function') updateKostenDetails();
     });
 
-    // If checkbox is preselected (e.g. restoring state), enforce UI now
-    if (cb.checked) {
-      wrap.hidden = false;
-      wrap.setAttribute('aria-hidden', 'false');
-      if (!parseInt(qtyInput.value || '0', 10)) qtyInput.value = '1';
-    }
-  }
-
-  handlePanelToggle(wv997, wvQty997, wvQty997Wrap);
-  handlePanelToggle(wv1497, wvQty1497, wvQty1497Wrap);
-
-  // 3) When qty is edited manually, keep pricing in sync
-  [wvQty997, wvQty1497].forEach(inp => {
-    if (!inp) return;
-    inp.addEventListener('input', () => {
-      if (typeof updateTotals === 'function') updateTotals();
+    qtyEl.addEventListener('input', () => {
       if (typeof updateKostenDetails === 'function') updateKostenDetails();
     });
   });
 }
-
-// Call this when navigating to the page (hash or button nav).
-// If you already have a router-like function, call inside it instead.
 window.addEventListener('hashchange', () => {
   if (location.hash === '#wandverkleidung') setupWandverkleidungPage();
 });
@@ -608,7 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (location.hash === '#wandverkleidung') setupWandverkleidungPage();
 });
 
-/* ========== BERICH UI: CONTACT PERSON + AUFSCHLAG/PFLEGEGRAD ========== */
+/* ========== BEREICH UI (contact, aufschlag/pflegegrad, etc.) ========== */
 (function initContactPersonToggle(){
   const form = document.getElementById('form-bereich'); const section = document.getElementById('contactPersonSection');
   const req = ['cp_name','cp_street','cp_city','cp_postalCode'].map(id=>document.getElementById(id));
@@ -649,28 +560,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const payer = document.querySelector('input[name="payer"]:checked')?.value;
 
     if (payer === 'Selbstzahler'){
-      // Force/select 35% and disable other options
       if (r35 && !r35.checked) r35.checked = true;
-      setDisabled(r35, false);
-      setDisabled(r40, true);
-      setDisabled(r45, true);
-      setDisabled(r50, true);
+      setDisabled(r35, false); setDisabled(r40, true); setDisabled(r45, true); setDisabled(r50, true);
     } else if (payer === 'Kassenkunde') {
-      // Re-enable all options
       [r35, r40, r45, r50].forEach(r => setDisabled(r, false));
-
       const sel = currentSelection();
-
-      // If nothing selected, default to 50% for KK only
-      if (!anySelected() && r50) {
-        r50.checked = true;
-      } else if (sel === '35%') {
-        // If 35% was carried over from Selbstzahler, switch to 50% default for KK
-        if (r50) r50.checked = true;
-      }
-      // If user had already chosen 40/45/50, keep it.
+      if (!anySelected() && r50) r50.checked = true;
+      else if (sel === '35%') { if (r50) r50.checked = true; }
     } else {
-      // No payer picked yet: enable all, but do not auto-pick
       [r35, r40, r45, r50].forEach(r => setDisabled(r, false));
     }
   }
@@ -703,7 +600,7 @@ document.addEventListener('DOMContentLoaded', () => {
     show(copayField,on); setReq(copayAmount,on); if (!on && copayAmount) copayAmount.value='';
   }
   function apply(){
-    const kk = isKK(); const has = hasPG(); const val = pgVal(); const valid2 = Number.isInteger(val) && val>=1;
+    const kk = isKK(); const has = hasPG(); const val = pgVal(); const valid2 = Number.isInteger(val) && val>=2;
     show(pgLevelRow,has); setReq(pgRadios,has); if (!has) clearRadios(pgRadios);
     const showBudget = kk && has && valid2; show(budgetPanel,showBudget); if (!showBudget && copayCheckbox){ copayCheckbox.checked=false; applyCopay(); }
     show(wePanel,kk);
@@ -775,14 +672,12 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   function validateHints(){
-    // Pflegegrad level
     if (!pgLevelRow?.hidden && hasPG() && !pgSelected()){
       showHint(hintPG, 'Bitte wählen Sie einen Pflegegrad.');
     } else {
       showHint(hintPG, '');
     }
 
-    // Wohnumfeld: Done
     if (!wePanel?.hidden && isKK()){
       if (!weDoneSelected()){
         showHint(hintWE, 'Bitte wählen Sie Ja oder Nein.');
@@ -793,7 +688,6 @@ document.addEventListener('DOMContentLoaded', () => {
       showHint(hintWE, '');
     }
 
-    // Wohnumfeld: Application
     if (!wePanel?.hidden && isKK()){
       if (!weAppSelected()){
         showHint(hintApp, 'Bitte wählen Sie, wer den Antrag stellt.');
@@ -804,7 +698,6 @@ document.addEventListener('DOMContentLoaded', () => {
       showHint(hintApp, '');
     }
 
-    // Wohnumfeld: Amount when Ja
     if (!weAmountRow?.hidden && isKK() && weDoneYes()){
       const v = amtVal();
       if (!v){
@@ -817,12 +710,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Initial and on change
   validateHints();
   form.addEventListener('change', validateHints);
   form.addEventListener('input', validateHints);
 
-  // Expose focus helper used by requireBereichValid
   window.__bereichFocusFirstError__ = function(){
     if (!pgLevelRow?.hidden && hasPG() && !pgSelected()){
       pgLevelRow.scrollIntoView({behavior:'smooth', block:'center'});
@@ -866,60 +757,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 })();
 
-(function initRoundTripPreview(){
-  const input = document.getElementById('distanceKm');
-  const out = document.getElementById('roundTripPreview');
-
-  function parseKm(v){
-    // allow commas or dots
-    const n = Number(String(v || '').replace(',', '.'));
-    return Number.isFinite(n) && n >= 0 ? n : 0;
-  }
-  function fmt(n){
-    // show as integer if whole, otherwise one decimal
-    return Number.isInteger(n) ? String(n) : n.toFixed(1);
-  }
-  function update(){
-    if (!input || !out) return;
-    const oneWay = parseKm(input.value);
-    const rt = oneWay * 2;
-    out.textContent = `= ${fmt(rt)} km (Hin- & Rückfahrt)`;
-  }
-
-  input?.addEventListener('input', update);
-  input?.addEventListener('change', update);
-  update(); // initial
-})();
-
-(function initLaborSuggestion(){
-  const kmInput = document.getElementById('distanceKm');
-  const out = document.getElementById('laborSuggestion');
-  const r8 = document.querySelector('input[name="laborHours"][value="8"]');
-  const r10 = document.querySelector('input[name="laborHours"][value="10"]');
-
-  function parseKm(v){
-    const n = Number(String(v || '').replace(',', '.'));
-    return Number.isFinite(n) && n >= 0 ? n : 0;
-  }
-  function update(){
-    if (!out) return;
-    const km = parseKm(kmInput?.value);
-    // rough travel time in hours for one-way
-    const avgSpeedKmH = 60; // configurable if needed
-    const travelH = avgSpeedKmH > 0 ? (km / avgSpeedKmH) : 0;
-
-    const suggested = travelH > 1 ? 10 : 8;
-    out.textContent = km > 0
-      ? `Hinweis: geschätzte Anfahrt ~ ${travelH.toFixed(1)} h → Empfehlung: ${suggested} Stunden.`
-      : '';
-    // Do NOT auto-select. User decides between 8h/10h.
-  }
-
-  kmInput?.addEventListener('input', update);
-  kmInput?.addEventListener('change', update);
-  update();
-})();
-
 /* ========== PRICE FETCH (single endpoint) ========== */
 const productCache = new Map();
 async function getProduct(id){
@@ -937,38 +774,9 @@ async function getProduct(id){
     return null;
   }
 }
-// --- ADD: front-end resolvers for Kosten-Details (use getProduct) ---
-async function fetchPriceById(id) {
-  const p = await getProduct(id);
-  return Number(p?.price || 0);
-}
 
-async function resolveMaterialsByProductId(materials, { fetchPriceById }) {
-  const resolved = [];
-  for (const m of (materials || [])) {
-    if (!m || !m.productId || !m.qty) continue;
-    const unitPrice = await fetchPriceById(m.productId);
-    resolved.push({
-      ...m,
-      unitPrice: unitPrice || 0,
-      total: (unitPrice || 0) * m.qty,
-    });
-  }
-  return resolved;
-}
-
-async function resolveMaterialsSubtotal(payload) {
-  const resolvedWV = await resolveMaterialsByProductId(payload.materials, { fetchPriceById });
-  const allResolved = resolvedWV; // merge others here if you add more categories later
-  const materialsSubtotal = allResolved.reduce((s, r) => s + (r.total || 0), 0);
-  return { allResolved, materialsSubtotal };
-}
-
-// Expose to the rest of the front-end
-window.resolveMaterialsByProductId = window.resolveMaterialsByProductId || resolveMaterialsByProductId;
-window.resolveMaterialsSubtotal    = window.resolveMaterialsSubtotal    || resolveMaterialsSubtotal;
-
-/* ========== FLOORING: LIVE PREVIEW + DB PRICES + COMPUTED PAYLOAD ========== */
+/* ========== FLOORING: LIVE PREVIEW + DB PRICES (adhesive/sealing) ==========
+   NOTE: panels price now mirrors SERVER pricing; no client re-calculation. */
 (function initFlooringSection(){
   const f = document.getElementById('form-duschwanne'); if (!f) return;
   const toggle = document.getElementById('addFlooring');
@@ -994,50 +802,29 @@ window.resolveMaterialsSubtotal    = window.resolveMaterialsSubtotal    || resol
   const computed = { areaM2:0, adhesive:{productId:'V4FK600',packs:0,unit:0,total:0}, sealing:{productId:'TRBDSET7',sets:0,unit:0,total:0} };
   window.__DW_COMPUTED__ = computed;
 
- let unitAdh = 0, unitSeal = 0;
-const PANEL_UNIT = 20.97; // must match server computeMaterials()
-
-    // --- ADD: minimal persistence for the area field so it reappears when you come back ---
-  const AREA_KEY = 'dw_floor_area';
-
-  // Restore saved value only if the field is empty (don’t override current edits)
-  try {
-    if (area && !String(area.value || '').trim()) {
-      const saved = localStorage.getItem(AREA_KEY);
-      if (saved) area.value = saved;
-    }
-  } catch {}
-
-  // Existing listener: keep but extend to save to storage and refresh UI
-  area?.addEventListener('input', () => {
-    try { localStorage.setItem(AREA_KEY, area.value); } catch {}
-    ensureUnits().then(updateUI);
-  });
-
-function updateFlooringPanelsPriceFromPricing() {
-  if (!panelsPriceEl) return;
-  const data = window.__pricing;
-  // default to 0 until server pricing is available
-  if (!data || !data.materials || !Array.isArray(data.materials.lines)) {
-    panelsPriceEl.textContent = '0';
-    return;
-  }
-  // find the Fußboden-Paneele line (V5FB02) from server-computed materials
-  const line = data.materials.lines.find(l => (l.productId || l.id) === 'V5FB02');
-  panelsPriceEl.textContent = line ? euro(line.lineTotal || 0) : '0';
-}
+  let unitAdh = 0, unitSeal = 0;
 
   async function ensureUnits(){
-  if (!unitAdh){
-    const p = await getProduct('V4FK600'); unitAdh = Number(p?.price||0);
+    if (!unitAdh){
+      const p = await getProduct('V4FK600'); unitAdh = Number(p?.price||0);
+    }
+    if (!unitSeal){
+      const p = await getProduct('TRBDSET7'); unitSeal = Number(p?.price||0);
+    }
   }
-  if (!unitSeal){
-    const p = await getProduct('TRBDSET7'); unitSeal = Number(p?.price||0);
+
+  function updateFlooringPanelsPriceFromPricing() {
+    if (!panelsPriceEl) return;
+    const data = window.__pricing;
+    if (!data || !data.materials || !Array.isArray(data.materials.lines)) {
+      panelsPriceEl.textContent = '0';
+      return;
+    }
+    const line = data.materials.lines.find(l => (l.productId || l.id) === 'V5FB02');
+    panelsPriceEl.textContent = line ? euro(line.lineTotal || 0) : '0';
   }
-  //if (!unitPanel){
-    //const p = await getProduct('V5FB02');  unitPanel = Number(p?.price||0);   // ← Fußboden-Paneele
-  //}
-}
+  // expose globally so outside listeners can call safely
+  window.updateFlooringPanelsPriceFromPricing = updateFlooringPanelsPriceFromPricing;
 
   function updateUI(){
     const m2 = parseArea(); computed.areaM2 = m2;
@@ -1047,7 +834,7 @@ function updateFlooringPanelsPriceFromPricing() {
     const totalA = packs * unitAdh;
     if (liveAdh) liveAdh.textContent = packs ? `= ${packs} Pkg bei ${area.value.trim()} m²` : '';
     if (adhesivePriceEl) adhesivePriceEl.textContent = packs ? euro(totalA) : '0';
-    computed.adhesive = { productId:'V4FK600', packs, unit:unitAdh, total:+(totalA.toFixed(2)) };
+        computed.adhesive = { productId:'V4FK600', packs, unit:unitAdh, total:+(totalA.toFixed(2)) };
 
     // Sealing
     const sets = m2 ? setsForSealing(m2) : 0;
@@ -1056,61 +843,59 @@ function updateFlooringPanelsPriceFromPricing() {
     if (sealingPriceEl) sealingPriceEl.textContent = sets ? euro(totalS) : '0';
     computed.sealing = { productId:'TRBDSET7', sets, unit:unitSeal, total:+(totalS.toFixed(2)) };
 
-    // Panels price (Fußboden-Paneele: 1 m² = 4 Paneele)
- // const panels = m2 ? Math.ceil(m2 * 4 - 1e-12) : 0;
- // const totalP = panels * PANEL_UNIT;
- // if (panelsPriceEl) panelsPriceEl.textContent = panels ? euro(totalP) : '0';
-
-// keep the computed mirror up-to-date too
-// computed.panels = { productId:'V5FB02', panels, unit:PANEL_UNIT, total:+(totalP.toFixed(2)) };
-updateFlooringPanelsPriceFromPricing();
+    // Panels price mirrors SERVER (pricing.js). Do not compute here.
+    updateFlooringPanelsPriceFromPricing();
   }
 
+  // ---- persistence for area field
+  const AREA_KEY = 'dw_floor_area';
+  try {
+    if (area && !String(area.value || '').trim()) {
+      const saved = localStorage.getItem(AREA_KEY);
+      if (saved) area.value = saved;
+    }
+  } catch {}
+
   async function init(){
-    await ensureUnits(); // fetch DB prices once
+    await ensureUnits();
     updateUI();
   }
 
   function apply(){
     const on = !!toggle?.checked;
     show(panel,on); setReq(area,on);
-    // auto-check tiles when enabled
     if (on){
-      f.querySelectorAll('input[name="flooringProduct[]"],input[name="floorAdhesive[]"],input[name="floorSealing[]"]').forEach(i=>{ i.checked = true; highlightTileForInput(i,true); });
+      // auto-check tiles when enabled
+      f.querySelectorAll('input[name="flooringProduct[]"],input[name="floorAdhesive[]"],input[name="floorSealing[]"]').forEach(i=>{
+        i.checked = true; highlightTileForInput(i,true);
+      });
       init();
     } else {
       if (area) area.value='';
-      f.querySelectorAll('input[name="flooringProduct[]"],input[name="floorAdhesive[]"],input[name="floorSealing[]"]').forEach(i=>{ i.checked = false; highlightTileForInput(i,false); });
-      if (liveAdh) liveAdh.textContent=''; if (liveSeal) liveSeal.textContent='';
-      if (adhesivePriceEl) adhesivePriceEl.textContent='0'; 
-      if (sealingPriceEl) sealingPriceEl.textContent='0'; 
-      if (panelsPriceEl) panelsPriceEl.textContent='0';
-      computed.panels = { productId:'V5FB02', panels:0, unit:0, total:0 }; 
+      try { localStorage.removeItem(AREA_KEY); } catch {}
+      f.querySelectorAll('input[name="flooringProduct[]"],input[name="floorAdhesive[]"],input[name="floorSealing[]"]').forEach(i=>{
+        i.checked = false; highlightTileForInput(i,false);
+      });
+      if (liveAdh)  liveAdh.textContent='';
+      if (liveSeal) liveSeal.textContent='';
+      if (adhesivePriceEl) adhesivePriceEl.textContent='0';
+      if (sealingPriceEl)  sealingPriceEl.textContent='0';
+      if (panelsPriceEl)   panelsPriceEl.textContent='0';
       unitAdh = unitSeal = 0;
-      computed.areaM2 = 0; computed.adhesive = {productId:'V4FK600',packs:0,unit:0,total:0}; computed.sealing = {productId:'TRBDSET7',sets:0,unit:0,total:0};computed.panels   = {productId:'V5FB02', panels:0, unit:PANEL_UNIT, total:0};
+      computed.areaM2 = 0;
+      computed.adhesive = {productId:'V4FK600',packs:0,unit:0,total:0};
+      computed.sealing  = {productId:'TRBDSET7',sets:0,unit:0,total:0};
     }
+    // Keep totals in sync with server
     window.updatePricing?.();
   }
 
   toggle?.addEventListener('change', apply);
+
   area?.addEventListener('input', () => {
-  ensureUnits().then(updateUI);
-  window.updatePricing?.();
-});
-
-    // --- FIX 1: run once on init, so a pre-checked toggle shows the panel ---
-  apply();
-
-  // --- FIX 2: when you navigate back to Duschwanne, re-apply state + refresh prices ---
-  window.addEventListener('hashchange', () => {
-    if (typeof getCurrentStep === 'function' && getCurrentStep() === 'duschwanne') {
-      apply();
-      // if the panel is on, refresh unit prices & UI (keeps totals/snippets in sync)
-      if (toggle?.checked) ensureUnits().then(updateUI);
-       // NEW: refresh span from existing pricing, or compute if missing
-    if (window.__pricing) updateFlooringPanelsPriceFromPricing();
-    else window.updatePricing?.();
-    }
+    try { localStorage.setItem(AREA_KEY, area.value); } catch {}
+    ensureUnits().then(updateUI);
+    window.updatePricing?.();
   });
 
   // initial tile highlight
@@ -1118,446 +903,196 @@ updateFlooringPanelsPriceFromPricing();
     cb.addEventListener('change', ()=>highlightTileForInput(cb, cb.checked));
     highlightTileForInput(cb, cb.checked);
   });
-})();
 
-/* ========== WANDVERKLEIDUNG SMALL UX ========== */
-(function initWVSynch(){
-  const cb997 = document.getElementById('wv997');
-  const cb1497 = document.getElementById('wv1497');
-  const seal = document.querySelector('input[name="wvSealing"]');
-  const qty997Wrap = document.getElementById('wvQty997Wrap');
-  const qty1497Wrap = document.getElementById('wvQty1497Wrap');
-  function show(el,on){ if (el){ el.hidden=!on; el.setAttribute('aria-hidden', on?'false':'true'); } }
-  function apply(){
-    const any = !!cb997?.checked || !!cb1497?.checked;
-    if (any && seal){ seal.checked = true; highlightTileForInput(seal,true); }
-    show(qty997Wrap, !!cb997?.checked); show(qty1497Wrap, !!cb1497?.checked);
-  }
-  cb997?.addEventListener('change', apply); cb1497?.addEventListener('change', apply);
-})();
-
-(function initWVAutoQty(){
-  const f = document.getElementById('form-wandverkleidung'); if (!f) return;
-
-  const cb997 = document.getElementById('wv997');
-  const cb1497 = document.getElementById('wv1497');
-  const qty997 = document.getElementById('wvQty997');
-  const qty1497 = document.getElementById('wvQty1497');
-
-  const wvAdhCB = f.querySelector('input[name="wvAdhesive"]');
-  const wvAdhQty = document.getElementById('wvAdhesiveQty');
-
-  const endProfCB = f.querySelector('input[name="wvEndProfile"]');
-  const endProfQty = document.getElementById('wvEndProfileQty');
-
-  const profGlueCB = f.querySelector('input[name="wvProfileAdhesive"]');
-  const profGlueQty = document.getElementById('wvProfileAdhesiveQty');
-
-  // NEW: suggestion element
-  const adhSuggest = document.getElementById('wvAdhesiveSuggestion');
-
-  function n(v){ const x = Number(v); return Number.isFinite(x) ? x : 0; }
-  function counts(){
-    const s = cb997?.checked ? n(qty997?.value) : 0;
-    const l = cb1497?.checked ? n(qty1497?.value) : 0;
-    return { s, l, total: s + l };
-  }
-  function empty(el){ return !el || String(el.value || '').trim() === ''; }
-  function setIfEmpty(el, val){ if (el && empty(el)) el.value = String(val); }
-
-  function updateAdhesiveSuggestion(s, l){
-    if (!adhSuggest) return;
-    const calc = 3*s + 4*l;
-    if ((s + l) > 0) {
-      adhSuggest.textContent = `Vorschlag: ${calc} Stk (3 je 997×2550, 4 je 1497×2550)`;
-    } else {
-      adhSuggest.textContent = '';
-    }
-  }
-
-  function recalc(){
-    const { s, l } = counts();
-
-    // Update live suggestion always when quantities change
-    updateAdhesiveSuggestion(s, l);
-
-    // Keep defaults only if fields are empty (manual override respected)
-    if (wvAdhCB?.checked){
-      const defAdh = 3*s + 4*l;
-      setIfEmpty(wvAdhQty, defAdh);
-    }
-
-    if (endProfCB?.checked){
-      setIfEmpty(endProfQty, 3);
-    }
-
-    if (profGlueCB?.checked){
-      const ep = n(endProfQty?.value || (endProfCB?.checked ? 3 : 0));
-      setIfEmpty(profGlueQty, ep);
-    }
-  }
-
-  // React to relevant changes
-  f.addEventListener('change', (e)=>{
-    const t = e.target;
-    if (!t) return;
-    if (t === cb997 || t === cb1497 || t === qty997 || t === qty1497 ||
-        t === wvAdhCB || t === endProfCB || t === profGlueCB || t === endProfQty) {
-      recalc();
-    }
-  });
-
-  qty997?.addEventListener('input', recalc);
-  qty1497?.addEventListener('input', recalc);
-
-  // Initial pass
-  recalc();
-})();
-
-(function initV3VHint(){
-  const f = document.getElementById('form-wandverkleidung'); if (!f) return;
-
-  const cb997 = document.getElementById('wv997');
-  const cb1497 = document.getElementById('wv1497');
-  const qty997 = document.getElementById('wvQty997');
-  const qty1497 = document.getElementById('wvQty1497');
-
-  const endProfSection = document.getElementById('wvEndProfileSection');
-  if (!endProfSection) return;
-
-  // Create or reuse hint element
-  let hint = document.getElementById('v3vHint');
-  if (!hint){
-    hint = document.createElement('div');
-    hint.id = 'v3vHint';
-    hint.className = 'muted';
-    hint.style.marginTop = '6px';
-    hint.style.color = 'var(--muted)';
-    hint.style.fontSize = '0.95rem';
-    endProfSection.appendChild(hint);
-  }
-
-  function n(v){ const x = Number(v); return Number.isFinite(x) ? x : 0; }
-  function calc(){
-    const s = cb997?.checked ? n(qty997?.value) : 0;
-    const l = cb1497?.checked ? n(qty1497?.value) : 0;
-    const total = s + l;
-    if (total >= 2){
-      const qV3V = total - 1;
-      hint.textContent = `Hinweis: Verbindungsprofile (V3V) werden automatisch berücksichtigt: bei ${total} Platten = ${qV3V} Verbindungsprofil(e) (Anzahl Platten − 1).`;
-      hint.style.display = '';
-    } else {
-      hint.textContent = '';
-      hint.style.display = 'none';
-    }
-  }
-
-  // Wire up changes
-  [cb997, cb1497, qty997, qty1497].forEach(el => {
-    el?.addEventListener('change', calc);
-    el?.addEventListener('input', calc);
-  });
-
-  // Initial
-  calc();
-})();
-
-(function initWVKindaToggle(){
-  const form = document.getElementById('form-wandverkleidung'); if (!form) return;
-
-  const secPanels   = document.getElementById('wvPanelsSection');
-  const secSealing  = document.getElementById('wvSealingSection');
-  const secAdh      = document.getElementById('wvAdhesiveSection');
-  const secEndProf  = document.getElementById('wvEndProfileSection');
-  const secProfAdh  = document.getElementById('wvProfileAdhesiveSection');
-
-  const cb997 = document.getElementById('wv997');
-  const cb1497 = document.getElementById('wv1497');
-  const qty997 = document.getElementById('wvQty997');
-  const qty1497 = document.getElementById('wvQty1497');
-
-  const wvSealCB = form.querySelector('input[name="wvSealing"]');
-  const wvAdhCB  = form.querySelector('input[name="wvAdhesive"]');
-  const wvAdhQty = document.getElementById('wvAdhesiveQty');
-
-  const endProfCB  = form.querySelector('input[name="wvEndProfile"]');
-  const endProfQty = document.getElementById('wvEndProfileQty');
-
-  const profGlueCB  = form.querySelector('input[name="wvProfileAdhesive"]');
-  const profGlueQty = document.getElementById('wvProfileAdhesiveQty');
-
-  function show(el, on){
-    if (!el) return;
-    el.hidden = !on;
-    el.setAttribute('aria-hidden', on ? 'false' : 'true');
-  }
-  function clearCheckbox(el){ if (el){ el.checked = false; el.dispatchEvent(new Event('change')); } }
-  function clearInput(el){ if (el){ el.value=''; el.removeAttribute('required'); } }
-  function clearQtyWrap(id){
-    const wrap = document.getElementById(id);
-    if (wrap){ wrap.hidden = true; wrap.setAttribute('aria-hidden','true'); }
-  }
-
-  function apply(){
-    const kind = form.querySelector('input[name="wvKind"]:checked')?.value || '';
-    const none = kind === 'Keine';
-
-    // Toggle visibility
-    show(secPanels,   !none);
-    show(secSealing,  !none);
-    show(secAdh,      !none);
-    show(secEndProf,  !none);
-    show(secProfAdh,  !none);
-
-    if (none){
-      // Clear panel selections and quantities
-      clearCheckbox(cb997);
-      clearCheckbox(cb1497);
-      clearInput(qty997);
-      clearInput(qty1497);
-      clearQtyWrap('wvQty997Wrap');
-      clearQtyWrap('wvQty1497Wrap');
-
-      // Clear sealing
-      clearCheckbox(wvSealCB);
-
-      // Clear adhesive + qty
-      clearCheckbox(wvAdhCB);
-      clearInput(wvAdhQty);
-
-      // Clear end profiles + qty
-      clearCheckbox(endProfCB);
-      clearInput(endProfQty);
-
-      // Clear profile glue + qty
-      clearCheckbox(profGlueCB);
-      clearInput(profGlueQty);
-    }
-  }
-
-  // Initial apply and on change
+  // run once so a pre-checked toggle shows its panel
   apply();
-  form.addEventListener('change', (e)=>{
-    if (e.target?.name === 'wvKind') apply();
+
+  // When coming back to Duschwanne, re-apply and refresh from server pricing
+  window.addEventListener('hashchange', () => {
+    if (typeof getCurrentStep === 'function' && getCurrentStep() === 'duschwanne') {
+      apply();
+      if (toggle?.checked) ensureUnits().then(updateUI);
+      if (window.__pricing) updateFlooringPanelsPriceFromPricing();
+      else window.updatePricing?.();
+    }
+  });
+
+  // Update panel price when pricing is refreshed
+  window.addEventListener('pricing:updated', () => {
+    updateFlooringPanelsPriceFromPricing();
   });
 })();
 
-/* Wandverkleidung: Farbauswahl (radio-like image tiles) */
-(function initWVColors(){
-  const wrap = document.getElementById('wvColors'); if (!wrap) return;
+/* ========== SMART TRAY SEARCH (equal-or-bigger filter, persist/deselect) ========== */
+/* Smart Duschwanne search: live suggestions on ANY input change */
+(function initSmartTraySearch(){
+  const TRAY_KEY = 'dw_tray_selection';
 
-  function syncAll(){
-    const all = wrap.querySelectorAll('label.image-check > input[name="wvColor"]');
-    all.forEach(inp => inp.closest('label.image-check')?.classList.toggle('is-checked', inp.checked));
+  function saveTraySelection(value, productId){
+    try { localStorage.setItem(TRAY_KEY, JSON.stringify({ value, productId })); } catch {}
+  }
+  function loadTraySelection(){
+    try { return JSON.parse(localStorage.getItem(TRAY_KEY) || '{}'); } catch { return {}; }
   }
 
-  wrap.addEventListener('change', (e)=>{
-    if (e.target?.name === 'wvColor') syncAll();
-  });
+  const wrap = document.getElementById('traySmartSearch');
+  if (!wrap) return; // no UI on this page
 
-  const anyChecked = wrap.querySelector('input[name="wvColor"]:checked');
-  if (!anyChecked){
-    const first = wrap.querySelector('input[name="wvColor"]');
-    if (first) first.checked = true;
-  }
+  // idempotent wiring
+  if (wrap.dataset._smartwired === 'true') return;
+  wrap.dataset._smartwired = 'true';
 
-  syncAll();
-})();
+  const form = document.getElementById('form-duschwanne');
+  const wEl  = wrap.querySelector('input[name="tray_w_cm"]');   // Breite
+  const lEl  = wrap.querySelector('input[name="tray_l_cm"]');   // Länge
+  const hEl  = wrap.querySelector('input[name="tray_h_cm"]');   // Höhe
+  const out  = wrap.querySelector('#traySuggestions');          // container for radios
 
-(function initV3V(){
-  const form = document.getElementById('form-wandverkleidung'); if (!form) return;
-  const cb997 = document.getElementById('wv997');
-  const cb1497 = document.getElementById('wv1497');
-  const qty997 = document.getElementById('wvQty997');
-  const qty1497 = document.getElementById('wvQty1497');
-
-  const v3vDiv = document.getElementById('wvV3VDiv');
-  const v3vSelected = document.getElementById('wvV3VSelected');
-  const qtyV3V = document.getElementById('wvV3VQty');
-  const ruleText = document.getElementById('wvV3VRuleText');
-  const cbCorners = document.getElementById('wvCornersCB');
-  const cornersWrap = document.getElementById('wvCornersWrap');
-  const cornersInput = document.getElementById('wvCorners');
-  const wvKindGroup = document.getElementById('wvKindGroup');
-
-  const n = v => {
-    const x = Number(v);
-    return Number.isFinite(x) && x >= 0 ? Math.floor(x) : 0;
-  };
-  const totalPanels = () => {
-    const s = cb997?.checked ? n(qty997?.value) : 0;
-    const l = cb1497?.checked ? n(qty1497?.value) : 0;
-    return s + l;
+  const parseNum = (v) => {
+    const s = String(v ?? '').trim().replace(',', '.');
+    const n = Number(s);
+    return Number.isFinite(n) ? n : NaN;
   };
 
-  function calc({fromUser} = {}){
-    const total = totalPanels();
-    const base = total >= 2 ? (total - 1) : 0;
-    const ecken = cbCorners?.checked ? n(cornersInput?.value) : 0;
-    const finalQty = Math.max(0, base - ecken);
-
-    if (!fromUser) qtyV3V.value = String(finalQty);
-
-    ruleText.textContent =
-      `Regel: ab 2 Platten 1 Profil. Bei ${total} Platte(n): Basis ${base}` +
-      (ecken ? ` − ${ecken} Ecke(n) = ${finalQty}` : ` = ${finalQty}`) +
-      ` Verbindungsprofil(e).`;
-
-    // Auto-select off if no panels
-    v3vSelected.checked = total > 0;
+  // ensure hidden productId (optional)
+  function ensureHiddenPid(){
+    let pid = document.getElementById('chosenTrayProductId');
+    if (!pid) {
+      pid = document.createElement('input');
+      pid.type = 'hidden';
+      pid.id = 'chosenTrayProductId';
+      pid.name = 'chosenTrayProductId';
+      form?.appendChild(pid);
+    }
+    return pid;
   }
 
-  function toggleCorners(){
-    const on = cbCorners.checked;
-    cornersWrap.hidden = !on;
-    cornersWrap.setAttribute('aria-hidden', on ? 'false' : 'true');
-    if (!on) cornersInput.value = '0';
-    calc();
-  }
+  function renderRadioSuggestions(list){
+    if (!list.length){
+      out.innerHTML = '<div class="muted">Keine Treffer</div>';
+      return;
+    }
 
-  function applyKindVisibility(){
-    const kind = form.querySelector('input[name="wvKind"]:checked')?.value || '';
-    const hide = kind === 'Keine';
-    v3vDiv.hidden = hide;
-    v3vDiv.setAttribute('aria-hidden', hide ? 'true' : 'false');
-    if (hide){
-      v3vSelected.checked = false;
-      qtyV3V.value = '0';
-      cbCorners.checked = false;
-      cornersInput.value = '0';
-      cornersWrap.hidden = true;
-    } else {
-      calc();
+    const alreadyChecked = !!form?.querySelector('input[name="traySize"]:checked');
+
+    const radiosHtml = list.slice(0,3).map((p, idx) => {
+      const value = `${p.widthCm} x ${p.lengthCm} x ${p.heightCm} cm`;
+      const requiredAttr = (!alreadyChecked && idx === 0) ? 'required' : '';
+      return `
+        <label class="radio-pill">
+          <input type="radio" name="traySize" value="${value}" ${requiredAttr} data-product-id="${p.productId}">
+          <span class="circle"></span>
+          <span>${value}</span>
+        </label>
+      `;
+    }).join('');
+
+    out.innerHTML = `
+      <div class="field">
+        <label class="req">Größe, grundsätzlich größer wählen, als gewünschtes Maß</label>
+        <div class="radio-list" id="traySuggestionRadioList">
+          ${radiosHtml}
+        </div>
+      </div>
+    `;
+
+    const pidHidden = ensureHiddenPid();
+
+    // keep productId in sync and toggle "is-checked" like legacy UI
+    out.querySelectorAll('input[name="traySize"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        pidHidden.value = radio.dataset.productId || '';
+        const listEl = document.getElementById('traySuggestionRadioList');
+        if (listEl) {
+          listEl.querySelectorAll('label.radio-pill').forEach(l => l.classList.remove('is-checked'));
+          radio.closest('label.radio-pill')?.classList.add('is-checked');
+        }
+        saveTraySelection(radio.value, pidHidden.value);
+      });
+    });
+
+    // Re-apply previously saved choice if it's in the new list
+    const saved = loadTraySelection();
+    if (saved?.value) {
+      const esc = (css) => css.replace(/([.*+?^${}()|[\]\\])/g, '\\$1');
+      const match = out.querySelector(`#traySuggestionRadioList input[name="traySize"][value="${esc(saved.value)}"]`);
+      if (match) {
+        match.checked = true;
+        pidHidden.value = saved.productId || match.dataset.productId || '';
+        match.closest('label.radio-pill')?.classList.add('is-checked');
+        match.dispatchEvent(new Event('change', { bubbles: true }));
+      }
     }
   }
 
-  [cb997, cb1497, qty997, qty1497].forEach(el=>{
-    el?.addEventListener('change', calc);
-    el?.addEventListener('input', calc);
-  });
-  cbCorners?.addEventListener('change', toggleCorners);
-  cornersInput?.addEventListener('input', ()=>calc());
-  qtyV3V?.addEventListener('input', ()=>calc({fromUser:true}));
-  wvKindGroup?.addEventListener('change', applyKindVisibility);
+  // Abort previous fetch if user types fast
+  let inflight = null;
 
-  // Init
-  toggleCorners();
-  applyKindVisibility();
-  calc();
-})();
+  async function fetchAndRender(){
+    const w = parseNum(wEl?.value);
+    const l = parseNum(lEl?.value);
+    const h = parseNum(hEl?.value);
+    // Wait until ALL three numbers are provided
+    if (![w,l,h].every(Number.isFinite)) { out.innerHTML = ''; return; }
 
-/* Optional: categories -> menus, highlight, Mengen, Basin-required logic */
-(function initOptionalCategories(){
-  const form = document.getElementById('form-optional');
-  if (!form) return;
+    const url = `/api/trays/suggest?w=${w}&l=${l}&h=${h}`;
+    try {
+      // cancel older request
+      inflight?.abort?.();
+      inflight = new AbortController();
 
-  const map = {
-    cat_SHOWER: 'menu_SHOWER',
-    cat_GRAB: 'menu_GRAB',
-    cat_FOLD: 'menu_FOLD',
-    cat_BASIN: 'menu_BASIN',
-    cat_BASIN_TAP: 'menu_BASIN_TAP',
-    cat_THERMO: 'menu_THERMO',
-    cat_SEAT: 'menu_SEAT',
-    cat_BASIN_ACC: 'menu_BASIN_ACC' // still available as separate tile if you add it later
-  };
-
-  function syncLabelChecked(input){
-    input.closest('label.image-check')?.classList.toggle('is-checked', input.checked);
-  }
-  function setShown(menuId, on){
-    const el = document.getElementById(menuId);
-    if (!el) return;
-    el.hidden = !on; el.setAttribute('aria-hidden', on ? 'false' : 'true');
-    if (!on){
-      el.querySelectorAll('label.image-check > input[type="checkbox"]').forEach(cb => { cb.checked=false; cb.dispatchEvent(new Event('change')); });
-      el.querySelectorAll('input[type="number"],input[type="text"]').forEach(i => { i.value=''; i.removeAttribute('required'); });
-      el.querySelectorAll('label.image-check').forEach(l => l.classList.remove('is-checked'));
+      const res  = await fetch(url, { credentials: 'include', signal: inflight.signal });
+      const text = await res.text();
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+      const data = JSON.parse(text);
+      renderRadioSuggestions(data.results || []);
+    } catch (e) {
+      if (e.name === 'AbortError') return; // user kept typing
+      console.error('Smart search error:', e);
+      out.innerHTML = '<div class="err">Fehler bei der Suche.</div>';
     }
   }
 
-  const catChecks = Array.from(document.querySelectorAll('#optCategories input[type="checkbox"]'));
-  catChecks.forEach(cb => {
-    const menuId = map[cb.id] || cb.id.replace(/^cat_/, 'menu_');
-    cb.addEventListener('change', () => {
-      syncLabelChecked(cb);
-      setShown(menuId, cb.checked);
-    });
-    syncLabelChecked(cb);
-    setShown(menuId, cb.checked);
-  });
+  // Small debounce so we don’t spam the backend
+  const debounce = (fn, ms=250)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; };
+  const onChange = debounce(fetchAndRender, 200);
 
-  // Product tiles highlight + Mengen toggle
-  const allProductChecks = form.querySelectorAll('label.image-check > input[type="checkbox"][id^="opt_"]');
-  function applyQtyFor(cb){
-    const key = cb.id.replace('opt_','');
-    const wrap = form.querySelector(`#qty_${key}_wrap`);
-    const qty  = form.querySelector(`#qty_${key}`);
-    if (!wrap || !qty) return;
-    const on = cb.checked;
-    wrap.hidden = !on; wrap.setAttribute('aria-hidden', on ? 'false' : 'true');
-    if (on) {qty.setAttribute('required','required'); if (String(qty.value || '').trim() === '') qty.value = '1';
-  } else { qty.removeAttribute('required'); qty.value=''; }
-  }
-  allProductChecks.forEach(cb => {
-    cb.addEventListener('change', () => {
-      cb.closest('label.image-check')?.classList.toggle('is-checked', cb.checked);
-      applyQtyFor(cb);
-      if (cb.id === 'opt_CL60'){ applyBasinRequired(); }
-    });
-    cb.closest('label.image-check')?.classList.toggle('is-checked', cb.checked);
-    applyQtyFor(cb);
-  });
-
-  // Basin required logic: when CL60 selected, ensure WTBF and RSL are shown and auto-checked; if unselected, clear them
-  const basinSection = document.getElementById('basinRequiredWrap');
-  const basinCheckbox = document.getElementById('opt_CL60');
-  const wtbfCB = document.getElementById('opt_WTBF');
-  const wtbfQty = document.getElementById('qty_WTBF');
-  const rslCB = document.getElementById('opt_RSL');
-  const rslQty = document.getElementById('qty_RSL');
-
-  function show(el,on){ if (!el) return; el.hidden=!on; el.setAttribute('aria-hidden', on?'false':'true'); }
-  function req(el,on){ if (!el) return; if (on) el.setAttribute('required','required'); else el.removeAttribute('required'); }
-
-  function applyBasinRequired(){
-    const on = !!(basinCheckbox && basinCheckbox.checked);
-    show(basinSection, on);
-    if (!wtbfCB || !rslCB) return;
-
-    if (on){
-      // auto-check required items if not already
-      if (!wtbfCB.checked){ wtbfCB.checked = true; wtbfCB.dispatchEvent(new Event('change')); }
-      if (!rslCB.checked){ rslCB.checked = true; rslCB.dispatchEvent(new Event('change')); }
-      req(wtbfCB, true); req(rslCB, true);
-      req(wtbfQty, true); req(rslQty, true);
-    } else {
-      // clear and make optional again
-      [wtbfCB, rslCB].forEach(cb => { cb.checked = false; cb.dispatchEvent(new Event('change')); cb.removeAttribute('required'); });
-      [wtbfQty, rslQty].forEach(q => { if (q){ q.value=''; q.removeAttribute('required'); } });
+  // ✅ KEY FIX: delegate to the wrapper so it still works if inputs are re-rendered
+  wrap.addEventListener('input', (e) => {
+    const t = e.target;
+    if (!t || t.tagName !== 'INPUT') return;
+    const name = t.getAttribute('name') || '';
+    if (name === 'tray_w_cm' || name === 'tray_l_cm' || name === 'tray_h_cm') {
+      onChange();
     }
+  });
+  // Also listen to change (for mobile, number steppers, etc.)
+  wrap.addEventListener('change', (e) => {
+    const t = e.target;
+    if (!t || t.tagName !== 'INPUT') return;
+    const name = t.getAttribute('name') || '';
+    if (name === 'tray_w_cm' || name === 'tray_l_cm' || name === 'tray_h_cm') {
+      onChange();
+    }
+  });
+
+  // First paint: if inputs already have values (refresh / back navigation), fetch immediately
+  function maybeAutoFetch(){
+    const hasValues = [wEl,lEl,hEl].every(el => (String(el?.value || '').trim() !== ''));
+    if (hasValues) fetchAndRender();
   }
+  maybeAutoFetch();
 
-  basinCheckbox?.addEventListener('change', applyBasinRequired);
-  applyBasinRequired();
-
-  // Loose accessories menu: wire Mengen there too
-  ['WTBF__loose','RSL__loose','EV__loose'].forEach(key=>{
-    const cb = form.querySelector(`#opt_${key}`);
-    const qty = form.querySelector(`#qty_${key}`);
-    const wrap = form.querySelector(`#qty_${key}_wrap`);
-    if (!cb || !qty || !wrap) return;
-    cb.addEventListener('change', ()=>{
-      const on = cb.checked; wrap.hidden = !on; wrap.setAttribute('aria-hidden', on?'false':'true');
-      if (on) { qty.setAttribute('required','required'); if (String(qty.value || '').trim() === '') qty.value = '1';
-  }else { qty.removeAttribute('required'); qty.value=''; }
-      cb.closest('label.image-check')?.classList.toggle('is-checked', on);
-    });
+  // When returning to the Duschwanne step, refresh suggestions for current values
+  window.addEventListener('hashchange', () => {
+    if (typeof getCurrentStep === 'function' && getCurrentStep() === 'duschwanne') {
+      maybeAutoFetch();
+    }
   });
 })();
 
 
-// ===== Global pricing service =====
+/* ========== GLOBAL PRICING SERVICE (fetch -> cache -> event) ========== */
 (() => {
   async function fetchPrice(payload) {
     const r = await fetch('/api/price', {
@@ -1569,10 +1104,8 @@ updateFlooringPanelsPriceFromPricing();
     return r.json();
   }
 
-  // latest computed pricing (for any page to reuse)
   window.__pricing = null;
 
-  // Build -> fetch -> broadcast -> feed Rabatt page
   window.updatePricing = async function updatePricing(payload) {
     const pl = payload ?? (typeof window.buildPayload === 'function' ? window.buildPayload() : null);
     if (!pl) { console.warn('[pricing] No payload available'); return null; }
@@ -1580,21 +1113,20 @@ updateFlooringPanelsPriceFromPricing();
     const data = await fetchPrice(pl);
     window.__pricing = data;
 
-    // Update the Rabatt panel immediately
+    // Update Rabatt panel immediately
     window.setPricingData?.(data);
 
-    // Let any listeners (e.g., Kosten renderer) react
+    // Notify listeners (Kosten, flooring panels span, etc.)
     window.dispatchEvent(new CustomEvent('pricing:updated', { detail: data }));
-
     return data;
   };
 
-  // Compute once on load so Rabatt has values even if Kosten is never opened
+  // Compute once on load so Rabatt has values and spans have data
   document.addEventListener('DOMContentLoaded', () => {
     window.updatePricing?.().catch(err => console.warn('[pricing] initial update failed:', err));
   });
 
-  // Optional: if user jumps straight to Rabatt and we still have no pricing, compute then.
+  // If user jumps straight to Rabatt and no pricing yet
   window.addEventListener('hashchange', () => {
     if (typeof window.getCurrentStep === 'function' &&
         window.getCurrentStep() === 'rabatt' &&
@@ -1602,22 +1134,19 @@ updateFlooringPanelsPriceFromPricing();
       window.updatePricing?.();
     }
   });
-  window.addEventListener('pricing:updated', () => {
-  updateFlooringPanelsPriceFromPricing();
-});
 })();
-// ========== tiny trigger so markupPct refreshes when you return to Rabatt==========
+
+// Recompute when payer/aufschlag changes (keeps Rabatt in sync)
 document
   .querySelectorAll('input[name="payer"], input[name="aufschlag"]')
   .forEach(el => el.addEventListener('change', () => window.updatePricing?.()));
 
-// ========== Kosten-Details ==========
-
+/* ========== KOSTEN-DETAILS (render from __pricing only) ========== */
 (function initKostenDetails(){
   const container = document.getElementById('costsSummary');
   if (!container) return;
 
-  function euro(n){ return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(Number(n||0)); }
+  function euroC(n){ return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(Number(n||0)); }
 
   function card(title, bodyHTML, footerHTML=''){
     return `
@@ -1640,14 +1169,13 @@ document
         ${lines.map(l => `
           <div>${l.label ? l.label : (l.name || l.productId || '-')}</div>
           <div style="text-align:right">${l.qty ?? 1}</div>
-          <div style="text-align:right">${euro(l.unitPrice ?? 0)}</div>
-          <div style="text-align:right; font-weight:600">${euro(l.lineTotal ?? 0)}</div>
+          <div style="text-align:right">${euroC(l.unitPrice ?? 0)}</div>
+          <div style="text-align:right; font-weight:600">${euroC(l.lineTotal ?? 0)}</div>
         `).join('')}
       </div>
     `;
   }
 
-  // Render purely from data (NO fetching here)
   function renderFromData(data){
     if (!data) { container.innerHTML = '<div class="muted">Keine Daten</div>'; return; }
 
@@ -1658,7 +1186,7 @@ document
       unitPrice: i.unitPrice,
       lineTotal: i.lineTotal
     })));
-    const optCard = card('Optional gewählte Produkte', optBody, `<div style="text-align:right"><b>Summe:</b> ${euro((data.items||[]).reduce((a,x)=>a+(x.lineTotal||0),0))}</div>`);
+    const optCard = card('Optional gewählte Produkte', optBody, `<div style="text-align:right"><b>Summe:</b> ${euroC((data.items||[]).reduce((a,x)=>a+(x.lineTotal||0),0))}</div>`);
 
     const matLines = (data.materials?.lines || []).map(l => ({
       productId: l.productId || l.id,
@@ -1669,7 +1197,7 @@ document
       label: l.label
     }));
     const matBody = listLines(matLines);
-    const matCard = card(data.materials?.title || 'Material', matBody, `<div style="text-align:right"><b>Summe Material:</b> ${euro(data.materials?.sum || 0)}</div>`);
+    const matCard = card(data.materials?.title || 'Material', matBody, `<div style="text-align:right"><b>Summe Material:</b> ${euroC(data.materials?.sum || 0)}</div>`);
 
     const svcLines = (data.services?.lines || []).map(s => ({
       productId: s.key,
@@ -1679,15 +1207,15 @@ document
       lineTotal: s.amount
     }));
     const svcBody = listLines(svcLines);
-    const svcCard = card(data.services?.title || 'Leistungen', svcBody, `<div style="text-align:right"><b>Summe Leistungen:</b> ${euro(data.services?.sum || 0)}</div>`);
+    const svcCard = card(data.services?.title || 'Leistungen', svcBody, `<div style="text-align:right"><b>Summe Leistungen:</b> ${euroC(data.services?.sum || 0)}</div>`);
 
     const sums = `
       <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
-        <div>Produkte + Material: <b>${euro(data.productsSubtotal || 0)}</b></div>
-        <div>Leistungen: <b>${euro(data.services?.sum || 0)}</b></div>
-        <div>Aufschlag (${Math.round((data.markupPct||0)*100)}%): <b>${euro(data.markup || 0)}</b></div>
-        <div style="font-size:1.05rem;">Zwischensumme: <b>${euro(data.Nettobetrag || 0)}</b></div>
-        <div style="font-size:1.2rem;">Gesamt: <b>${euro(data.total || 0)}</b></div>
+        <div>Produkte + Material: <b>${euroC(data.productsSubtotal || 0)}</b></div>
+        <div>Leistungen: <b>${euroC(data.services?.sum || 0)}</b></div>
+        <div>Aufschlag (${Math.round((data.markupPct||0)*100)}%): <b>${euroC(data.markup || 0)}</b></div>
+        <div style="font-size:1.05rem;">Zwischensumme: <b>${euroC(data.Nettobetrag || 0)}</b></div>
+        <div style="font-size:1.2rem;">Gesamt: <b>${euroC(data.total || 0)}</b></div>
       </div>
     `;
     const totalsCard = card('Summen', sums);
@@ -1695,26 +1223,21 @@ document
     container.innerHTML = [matCard, optCard, svcCard, totalsCard].join('');
   }
 
-  // Open Kosten: use cache if present, otherwise trigger one fetch
   async function openKosten(){
     container.innerHTML = '<div class="muted">Berechne …</div>';
     if (window.__pricing) {
       renderFromData(window.__pricing);
     } else {
-      // One fetch; setPricingData + event will happen inside updatePricing
       await window.updatePricing?.();
-      // Render from the cache now that it exists
       renderFromData(window.__pricing);
     }
   }
 
-  // Show Kosten when the step becomes active
   window.addEventListener('hashchange', ()=>{
     if (getCurrentStep() === 'kosten') openKosten();
   });
   if (getCurrentStep() === 'kosten') openKosten();
 
-  // React to pricing updates WITHOUT fetching again (no loop)
   window.addEventListener('pricing:updated', (ev) => {
     if (getCurrentStep() === 'kosten') {
       renderFromData(ev.detail || window.__pricing);
@@ -1722,7 +1245,7 @@ document
   });
 })();
 
-/* ========== PDF/DOCX + API TEST BUTTONS ========== */
+/* ========== PDF/DOCX + API BUTTONS ========== */
 
 async function requestPdfAndDownload(payload, filename='Anfrage.pdf'){
   const resp = await fetch('/pdf', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
@@ -1731,25 +1254,18 @@ async function requestPdfAndDownload(payload, filename='Anfrage.pdf'){
   const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 
-// Updated PDF download handlers with progress indicators
 document.getElementById('makePdf')?.addEventListener('click', async ()=>{
-  // Require Bereich to be valid before generating preview document
   if (!requireBereichValid()) { location.hash='bereich'; return; }
-  try{ 
+  try{
     const payload = buildPayload();
-    collectWandverkleidungMaterials(payload);
-
     await downloadPDFWithProgress('/pdf', payload, 'Anfrage.pdf');
-    document.getElementById('pdfActions')?.style.setProperty('display','flex'); 
-  }
-  catch(e){ showPDFProgress(`PDF-Erstellung fehlgeschlagen: ${e.message}`, 'error'); }
+    document.getElementById('pdfActions')?.style.setProperty('display','flex');
+  } catch(e){ showPDFProgress(`PDF-Erstellung fehlgeschlagen: ${e.message}`, 'error'); }
 });
 
 document.getElementById('downloadPdf')?.addEventListener('click', async ()=>{
-  try{ 
+  try{
     const payload = buildPayload();
-    collectWandverkleidungMaterials(payload);
-
     await downloadPDFWithProgress('/pdf', payload, 'Anfrage.pdf');
   } catch(e){ showPDFProgress(`PDF-Erstellung fehlgeschlagen: ${e.message}`, 'error'); }
 });
@@ -1758,13 +1274,11 @@ document.getElementById('makePdfFromTemplate')?.addEventListener('click', async 
   if (!requireBereichValid()) { location.hash='bereich'; return; }
   try{
     const payload = buildPayload();
-    collectWandverkleidungMaterials(payload);
     await downloadPDFWithProgress('/pdf-template', payload, 'Angebot_aus_Vorlage.pdf');
     document.getElementById('pdfActions')?.style.setProperty('display','flex');
   }catch(e){ showPDFProgress(`PDF-Erstellung fehlgeschlagen: ${e.message}`, 'error'); }
 });
 
-// small reusable docx download helper
 async function downloadDocx(url, body, filename) {
   const resp = await fetch(url, {
     method: 'POST',
@@ -1804,6 +1318,7 @@ document.getElementById('sendForm')?.addEventListener('click', async ()=>{
     show({ pricePreview: data }, true);
   }catch(e){ show({error:String(e)}, false); }
 });
+
 document.getElementById('sendJson')?.addEventListener('click', async ()=>{
   if (!requireBereichValid()) { location.hash='bereich'; return; }
   try{
@@ -1813,13 +1328,32 @@ document.getElementById('sendJson')?.addEventListener('click', async ()=>{
   }catch(e){ show({error:String(e)}, false); }
 });
 
+// Material-Übersicht DOCX
+document.getElementById('downloadMaterialOverview')?.addEventListener('click', async () => {
+  if (!requireBereichValid()) { location.hash = 'bereich'; return; }
+  try {
+    const payload = buildPayload();
+    await downloadDocx('/docx-template/material-overview', payload, `Materialuebersicht_${Date.now()}.docx`);
+  } catch (e) {
+    console.error(e);
+    show({ error: String(e) }, false);
+    alert('Materialübersicht konnte nicht erstellt werden.');
+  }
+});
 
-// =======================
-// RABATT SECTION 
-// =======================
-// ===== ONE global store for all Rabatt code =====
-// ---- Rabatt UI, driven by server data ----
+// Angebot als PDF aus DOCX-Vorlage
+document.getElementById('downloadDocxAsPdf')?.addEventListener('click', async () => {
+  if (!requireBereichValid()) { location.hash='bereich'; return; }
+  try {
+    const payload = buildPayload();
+    await downloadPDFWithProgress('/docx-template/pdf', payload, `Angebot_${Date.now()}.pdf`);
+  } catch (e) {
+    console.error(e);
+    showPDFProgress(`PDF-Erstellung fehlgeschlagen: ${e.message}`, 'error');
+  }
+});
 
+/* ========== RABATT SECTION (UI bound to server data) ========== */
 const elDiscount    = document.getElementById('rb-material-discount');
 const elDiscountVal = document.getElementById('rb-material-discount-val');
 const rowRabatt     = document.getElementById('rb-rabatt-row');
@@ -1836,26 +1370,22 @@ const setRowVisible = (row, on) => { if (row){ row.style.display = on?'contents'
 const debounce = (fn, ms=200) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
 const refreshPricing = debounce(()=> window.updatePricing?.(), 200);
 
-// Update live % label and ask server to recompute
 elDiscount?.addEventListener('input', () => {
   const v = parseFloat(elDiscount.value||'0') || 0;
   if (elDiscountVal) elDiscountVal.textContent = v.toLocaleString('de-DE',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%';
   refreshPricing();
 });
 
-// Recompute on bonus toggles (server will return new totals)
+// Bonuses recompute totals
 document.getElementById('rb-bonus-300')?.addEventListener('change', ()=>window.updatePricing?.());
 document.getElementById('rb-bonus-grab')?.addEventListener('change', ()=>window.updatePricing?.());
 
-// Fill top labels (Material/Arbeit/Netto/MwSt/Gesamt) + Rabatt rows from SERVER
+// Fill labels from server
 window.setPricingData = function setPricingData(data) {
   try {
     const byId = (id) => document.getElementById(id);
-    const fmt = (n) => (Number(n) || 0)
-      .toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
-      .replace(/\u00A0/g, ' ');
+    const fmt = (n) => (Number(n) || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }).replace(/\u00A0/g, ' ');
 
-    // --- Top labels
     const mat   = Number(data?.productsSubtotal ?? 0);
     const arbe  = Number(data?.services?.sum   ?? 0);
     const net   = Number(data?.Nettobetrag ?? 0);
@@ -1870,7 +1400,6 @@ window.setPricingData = function setPricingData(data) {
     byId('rb-total')   ?.replaceChildren(document.createTextNode(fmt(total)));
     byId('rb-auf-value')?.replaceChildren(document.createTextNode(fmt(auf)));
 
-    // --- Dynamic title (SZ/KK supported)
     const payerRaw =
       data?.services?.payer ??
       data?.payer ??
@@ -1887,7 +1416,7 @@ window.setPricingData = function setPricingData(data) {
       : 'Rabatt';
     }
 
-    // --- Aufschlag label shows chosen %
+    // Aufschlag label
     let mp = data?.markupPct;
     if (!Number.isFinite(mp)) {
       const raw = document.querySelector('input[name="aufschlag"]:checked')?.value || '';
@@ -1897,59 +1426,34 @@ window.setPricingData = function setPricingData(data) {
     const pctInt = Math.round((mp <= 1 ? mp * 100 : mp));
     byId('rb-auf-label')?.replaceChildren(document.createTextNode(`Aufschlag ${pctInt}%`));
 
-    // --- Rabatt & Bonus UI (visibility driven by current UI, values from server)
-    const elDiscount    = byId('rb-material-discount');
-    const elDiscountVal = byId('rb-material-discount-val');
-    const rowRabatt     = byId('rb-rabatt-row');
-    const rowTotalAfter = byId('rb-total-after-row');
-    const outRabatt     = byId('rb-rabatt');
-    const outTotalAfter = byId('rb-total-after');
+    // Show/hide 300€ bonus based on threshold (after rab.)
+    (function gateBonus300(){
+      const afterRab = Number(data?.totalAfterRabatt || 0);
+      const cb300 = byId('rb-bonus-300');
+      const wrap =
+        document.getElementById('rb-bonus-300-row') ||
+        cb300?.closest('label.radio-pill') ||
+        cb300?.parentElement ||
+        null;
+      const shouldShow = afterRab > 3000;
+      if (wrap){
+        wrap.style.display = shouldShow ? '' : 'none';
+        wrap.hidden = !shouldShow;
+        wrap.setAttribute('aria-hidden', String(!shouldShow));
+      }
+      if (!shouldShow && cb300?.checked){
+        cb300.checked = false;
+        cb300.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    })();
+
+    let sliderPct = parseFloat(elDiscount?.value || '0');
+    if (!Number.isFinite(sliderPct)) sliderPct = Number(data?.materialDiscountPct || 0) * 100;
+    if (elDiscountVal) elDiscountVal.textContent = sliderPct.toLocaleString('de-DE',{ minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+    if (elDiscount && Number.isFinite(sliderPct)) elDiscount.value = String(sliderPct);
 
     const cb300 = byId('rb-bonus-300');
     const cbGrab= byId('rb-bonus-grab');
-    const rowBonusTotal = byId('rb-bonus-total-row');
-    const outBonusTotal = byId('rb-bonus-total');
-
-    // Show the "300€ Bonus" checkbox only if totalAfterRabatt > 3000
-(function gateBonus300(){
-  const afterRab = Number(data?.totalAfterRabatt || 0);
-
-  // find the most sensible wrapper to hide
-  const wrap =
-    document.getElementById('rb-bonus-300-row') ||   // if you have a dedicated row id
-    cb300?.closest('label.radio-pill') ||            // matches your radio/checkbox pill style
-    cb300?.parentElement ||                          // safe fallback
-    null;
-
-  const shouldShow = afterRab > 3000;
-
-  if (wrap){
-    wrap.style.display = shouldShow ? '' : 'none';
-    wrap.hidden = !shouldShow;
-    wrap.setAttribute('aria-hidden', String(!shouldShow));
-  }
-
-  // If we hide it, also uncheck & notify so totals update correctly
-  if (!shouldShow && cb300?.checked){
-    cb300.checked = false;
-    cb300.dispatchEvent(new Event('change', { bubbles: true }));
-  }
-})();
-
-
-    // Slider percent from UI (fallback to server)
-    let sliderPct = parseFloat(elDiscount?.value || '0');
-    if (!Number.isFinite(sliderPct)) {
-      sliderPct = Number(data?.materialDiscountPct || 0) * 100;
-    }
-    if (elDiscountVal) {
-      elDiscountVal.textContent = sliderPct.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
-    }
-    if (elDiscount && Number.isFinite(sliderPct)) {
-      elDiscount.value = String(sliderPct);
-    }
-
-    // Visibility decisions (from UI state so it reacts immediately)
     const hasRabatt = (sliderPct > 0);
     const anyBonus  = !!(cb300?.checked || cbGrab?.checked || Number(data?.bonusGross || 0) > 0);
 
@@ -1957,15 +1461,12 @@ window.setPricingData = function setPricingData(data) {
       if (!row) return;
       row.hidden = !on;
       row.setAttribute('aria-hidden', String(!on));
-      // keep grid layout intact
       row.style.display = on ? 'contents' : 'none';
     };
-
     showRow(rowRabatt, hasRabatt);
     showRow(rowTotalAfter, hasRabatt);
     showRow(rowBonusTotal, anyBonus);
 
-    // Values (from server)
     const rabattAmt = Number(data?.rabattAmount || 0);
     const afterRab  = Number(data?.totalAfterRabatt || 0);
     if (outRabatt)     outRabatt.textContent     = fmt(hasRabatt ? rabattAmt : 0);
@@ -1978,12 +1479,8 @@ window.setPricingData = function setPricingData(data) {
   }
 };
 
-
-// =======================
-// --- Show Rabatt slider only for: Kassenkunde + Aufschlag 50% ---
-// =======================
+// Show discount slider only for: KK + Aufschlag 50%
 (function initMaterialDiscountVisibility(){
-  // try explicit wrapper id first; otherwise climb from the slider
   const sec = document.getElementById('rb-material-discount-section')
            || elDiscount?.closest('.field')
            || elDiscount?.closest('.row')
@@ -1995,24 +1492,18 @@ window.setPricingData = function setPricingData(data) {
     const v = (document.querySelector('input[name="payer"]:checked')?.value || '').trim().toLowerCase();
     return v === 'kassenkunde' || v === 'kk';
   };
-
   const isAufschlag50 = () => {
     const raw = (document.querySelector('input[name="aufschlag"]:checked')?.value || '').trim();
-    // matches "50%" or "50" just in case
     return /(^|\s)50\s*%?$/.test(raw);
   };
-
   function show(el, on){
     el.hidden = !on;
     el.setAttribute('aria-hidden', String(!on));
     if (el.style) el.style.display = on ? '' : 'none';
   }
-
   function apply(){
     const allow = isKK() && isAufschlag50();
     show(sec, allow);
-
-    // If not allowed, zero the slider and refresh pricing (only if it wasn't already 0)
     if (!allow) {
       const cur = parseFloat(elDiscount.value || '0') || 0;
       if (cur !== 0) {
@@ -2021,243 +1512,12 @@ window.setPricingData = function setPricingData(data) {
         window.updatePricing?.();
       }
     }
-    // If allowed, we just show whatever value the user set previously (no auto changes).
   }
-
-  // run now
   apply();
-
-  // re-apply when payer or aufschlag changes
   document.querySelectorAll('input[name="payer"]').forEach(r => r.addEventListener('change', apply));
   document.querySelectorAll('input[name="aufschlag"]').forEach(r => r.addEventListener('change', apply));
-
-  // also re-apply when returning to the Rabatt step
   window.addEventListener('hashchange', () => {
-    if (typeof getCurrentStep === 'function' && getCurrentStep() === 'rabatt') {
-      apply();
-    }
+    if (typeof getCurrentStep === 'function' && getCurrentStep() === 'rabatt') apply();
   });
 })();
 
-
-
-// wire the new button (make sure you added it in HTML with id="downloadMaterialOverview")
-document.getElementById('downloadMaterialOverview')?.addEventListener('click', async () => {
-  if (!requireBereichValid()) { location.hash = 'bereich'; return; }
-  try {
-    const payload = buildPayload();
-    collectWandverkleidungMaterials(payload);
-    await downloadDocx('/docx-template/material-overview', payload, `Materialuebersicht_${Date.now()}.docx`);
-  } catch (e) {
-    console.error(e);
-    show({ error: String(e) }, false);
-    alert('Materialübersicht konnte nicht erstellt werden.');
-  }
-});
-
-// Updated PDF download button with progress
-document.getElementById('downloadDocxAsPdf')?.addEventListener('click', async () => {
-  if (!requireBereichValid()) { location.hash='bereich'; return; }
-  try {
-    const payload = buildPayload();
-    collectWandverkleidungMaterials(payload);
-    await downloadPDFWithProgress('/docx-template/pdf', payload, `Angebot_${Date.now()}.pdf`);
-  } catch (e) {
-    console.error(e);
-    showPDFProgress(`PDF-Erstellung fehlgeschlagen: ${e.message}`, 'error');
-  }
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-  const elMax   = document.querySelector('input[name="budgetMax"]');
-  const elCopay = document.querySelector('input[name="budgetCopay"]');
-  const elTwo   = document.querySelector('input[name="twoPersons"]');
-  const copayField  = document.getElementById('copayField');
-  const copayAmount = document.getElementById('copayAmount');
-
-  const all = [elMax, elCopay, elTwo].filter(Boolean);
-
-  function updateUI() {
-    // single-select behavior
-    const selected = all.filter(el => el.checked);
-    if (selected.length > 1) {
-      // keep the one just checked; uncheck others
-      const last = selected[selected.length - 1];
-      all.forEach(el => { if (el !== last) el.checked = false; });
-    }
-    // copay field only when "mit Zuzahlung" checked
-    const copayOn = !!(elCopay && elCopay.checked);
-    copayField.hidden = !copayOn;
-    copayField.setAttribute('aria-hidden', String(!copayOn));
-    if (!copayOn && copayAmount) copayAmount.value = '';
-  }
-
-  all.forEach(el => el.addEventListener('change', updateUI));
-  updateUI();
-});
-
-(function initSmartTraySearch(){
-  const TRAY_KEY = 'dw_tray_selection';
-function saveTraySelection(value, productId){
-  try { localStorage.setItem(TRAY_KEY, JSON.stringify({ value, productId })); } catch {}
-}
-function loadTraySelection(){
-  try { return JSON.parse(localStorage.getItem(TRAY_KEY) || '{}'); } catch { return {}; }
-}
-  const wrap = document.getElementById('traySmartSearch');
-  if (!wrap) return;
-
-  const form = document.getElementById('form-duschwanne');
-  const wEl  = wrap.querySelector('input[name="tray_w_cm"]');   // Breite
-  const lEl  = wrap.querySelector('input[name="tray_l_cm"]');   // Länge
-  const hEl  = wrap.querySelector('input[name="tray_h_cm"]');   // Höhe
-  const out  = wrap.querySelector('#traySuggestions');           // container for radios
-
-  const parseNum = (v) => {
-    const s = String(v ?? '').trim().replace(',', '.');
-    const n = Number(s);
-    return Number.isFinite(n) ? n : NaN;
-  };
-
-  // ensure hidden productId (optional)
-  function ensureHiddenPid(){
-    let pid = document.getElementById('chosenTrayProductId');
-    if (!pid) {
-      pid = document.createElement('input');
-      pid.type = 'hidden';
-      pid.id = 'chosenTrayProductId';
-      pid.name = 'chosenTrayProductId';
-      form?.appendChild(pid);
-    }
-    return pid;
-  }
-
-  function renderRadioSuggestions(list){
-    if (!list.length){
-      out.innerHTML = '<div class="muted">Keine Treffer</div>';
-      return;
-    }
-
-    // if any traySize is already checked (legacy radios or previous pick), don't force required
-    const alreadyChecked = !!form?.querySelector('input[name="traySize"]:checked');
-
-    const radiosHtml = list.slice(0,3).map((p, idx) => {
-      const value = `${p.widthCm} x ${p.lengthCm} x ${p.heightCm} cm`;
-      // match your old HTML EXACTLY: label.radio-pill > input + span.circle + span(text)
-      const requiredAttr = (!alreadyChecked && idx === 0) ? 'required' : '';
-      return `
-        <label class="radio-pill">
-          <input type="radio" name="traySize" value="${value}" ${requiredAttr} data-product-id="${p.productId}">
-          <span class="circle"></span>
-          <span>${value}</span>
-        </label>
-      `;
-    }).join('');
-
-    out.innerHTML = `
-      <div class="field">
-        <label class="req">Größe, grundsätzlich größer wählen, als gewünschtes Maß</label>
-        <div class="radio-list" id="traySuggestionRadioList">
-          ${radiosHtml}
-        </div>
-      </div>
-    `;
-
-    const pidHidden = ensureHiddenPid();
-
-    // keep productId in sync and toggle the visual "is-checked" class just like the old UI
-    out.querySelectorAll('input[name="traySize"]').forEach(radio => {
-      radio.addEventListener('change', () => {
-        pidHidden.value = radio.dataset.productId || '';
-        // mirror old highlighting behaviour
-        const listEl = document.getElementById('traySuggestionRadioList');
-        if (!listEl) return;
-        listEl.querySelectorAll('label.radio-pill').forEach(l => l.classList.remove('is-checked'));
-        radio.closest('label.radio-pill')?.classList.add('is-checked');
-        // persist for when we leave/come back
-    saveTraySelection(radio.value, pidHidden.value);
-      });
-    });
-    // >>> NEW: after rendering, re-apply previously saved choice (if it exists in this list)
-const saved = loadTraySelection();
-if (saved?.value) {
-  const esc = (css) => css.replace(/([.*+?^${}()|[\]\\])/g, '\\$1'); // tiny CSS.escape
-  const match = out.querySelector(`#traySuggestionRadioList input[name="traySize"][value="${esc(saved.value)}"]`);
-  if (match) {
-    match.checked = true;
-    pidHidden.value = saved.productId || match.dataset.productId || '';
-    match.closest('label.radio-pill')?.classList.add('is-checked');
-    // notify any existing listeners (deps/autochecks/validation)
-    match.dispatchEvent(new Event('change', { bubbles: true }));
-  }}}
-  // --- ADD: render saved selection even if we cannot fetch suggestions yet
-  function renderSavedSelectionIfAny() {
-    const saved = loadTraySelection();
-    if (!saved?.value) { out.innerHTML = ''; return; }
-
-    out.innerHTML = `
-      <div class="field">
-        <label>Ausgewählte Größe</label>
-        <div class="radio-list" id="traySavedSelection">
-          <label class="radio-pill is-checked">
-            <input type="radio" name="traySize" value="${saved.value}" checked data-product-id="${saved.productId || ''}">
-            <span class="circle"></span>
-            <span>${saved.value}</span>
-          </label>
-        </div>
-      </div>
-    `;
-
-    const pidHidden = ensureHiddenPid();
-    pidHidden.value = saved.productId || '';
-
-    // Fire change so any dependent logic stays in sync
-    const radio = out.querySelector('#traySavedSelection input[name="traySize"]');
-    radio?.dispatchEvent(new Event('change', { bubbles: true }));
-  }
-
-
-
-  async function fetchAndRender(){
-    const w = parseNum(wEl.value);
-    const l = parseNum(lEl.value);
-    const h = parseNum(hEl.value);
-    if (![w,l,h].every(Number.isFinite)) { renderSavedSelectionIfAny(); return; }
-
-    const url = `/api/trays/suggest?w=${w}&l=${l}&h=${h}`;
-    try {
-      const res  = await fetch(url, { credentials: 'include' });
-      const text = await res.text();
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
-      const data = JSON.parse(text);
-      renderRadioSuggestions(data.results || []);
-    } catch (e) {
-      console.error('Smart search error:', e);
-      out.innerHTML = '<div class="err">Fehler bei der Suche.</div>';
-    }
-  }
-
-  const debounce = (fn, ms=250)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; };
-  const onChange = debounce(fetchAndRender, 300);
-
-  [wEl,lEl,hEl].forEach(el=>{
-    el?.addEventListener('input', onChange);
-    el?.addEventListener('change', onChange);
-  });
-
-  // >>> NEW: show suggestions immediately if fields already have values (page refresh / step enter)
-    function maybeAutoFetch(){
-    const hasValues = [wEl,lEl,hEl].every(el => (String(el?.value || '').trim() !== ''));
-    if (hasValues) fetchAndRender();
-    else renderSavedSelectionIfAny();
-  }
-
-  // run now…
-  maybeAutoFetch();
-  // …and when you navigate back into the Duschwanne step
-  window.addEventListener('hashchange', () => {
-    if (typeof getCurrentStep === 'function' && getCurrentStep() === 'duschwanne') {
-      maybeAutoFetch();
-    }
-  });
-})();
