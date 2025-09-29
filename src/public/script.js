@@ -994,7 +994,8 @@ window.resolveMaterialsSubtotal    = window.resolveMaterialsSubtotal    || resol
   const computed = { areaM2:0, adhesive:{productId:'V4FK600',packs:0,unit:0,total:0}, sealing:{productId:'TRBDSET7',sets:0,unit:0,total:0} };
   window.__DW_COMPUTED__ = computed;
 
-  let unitAdh = 0, unitSeal = 0;
+ let unitAdh = 0, unitSeal = 0;
+const PANEL_UNIT = 20.97; // must match server computeMaterials()
 
     // --- ADD: minimal persistence for the area field so it reappears when you come back ---
   const AREA_KEY = 'dw_floor_area';
@@ -1013,15 +1014,30 @@ window.resolveMaterialsSubtotal    = window.resolveMaterialsSubtotal    || resol
     ensureUnits().then(updateUI);
   });
 
+function updateFlooringPanelsPriceFromPricing() {
+  if (!panelsPriceEl) return;
+  const data = window.__pricing;
+  // default to 0 until server pricing is available
+  if (!data || !data.materials || !Array.isArray(data.materials.lines)) {
+    panelsPriceEl.textContent = '0';
+    return;
+  }
+  // find the Fußboden-Paneele line (V5FB02) from server-computed materials
+  const line = data.materials.lines.find(l => (l.productId || l.id) === 'V5FB02');
+  panelsPriceEl.textContent = line ? euro(line.lineTotal || 0) : '0';
+}
 
   async function ensureUnits(){
-    if (!unitAdh){
-      const p = await getProduct('V4FK600'); unitAdh = Number(p?.price||0);
-    }
-    if (!unitSeal){
-      const p = await getProduct('TRBDSET7'); unitSeal = Number(p?.price||0);
-    }
+  if (!unitAdh){
+    const p = await getProduct('V4FK600'); unitAdh = Number(p?.price||0);
   }
+  if (!unitSeal){
+    const p = await getProduct('TRBDSET7'); unitSeal = Number(p?.price||0);
+  }
+  //if (!unitPanel){
+    //const p = await getProduct('V5FB02');  unitPanel = Number(p?.price||0);   // ← Fußboden-Paneele
+  //}
+}
 
   function updateUI(){
     const m2 = parseArea(); computed.areaM2 = m2;
@@ -1040,8 +1056,14 @@ window.resolveMaterialsSubtotal    = window.resolveMaterialsSubtotal    || resol
     if (sealingPriceEl) sealingPriceEl.textContent = sets ? euro(totalS) : '0';
     computed.sealing = { productId:'TRBDSET7', sets, unit:unitSeal, total:+(totalS.toFixed(2)) };
 
-    // Panels price (optional)
-    panelsPriceEl.textContent = '0';
+    // Panels price (Fußboden-Paneele: 1 m² = 4 Paneele)
+ // const panels = m2 ? Math.ceil(m2 * 4 - 1e-12) : 0;
+ // const totalP = panels * PANEL_UNIT;
+ // if (panelsPriceEl) panelsPriceEl.textContent = panels ? euro(totalP) : '0';
+
+// keep the computed mirror up-to-date too
+// computed.panels = { productId:'V5FB02', panels, unit:PANEL_UNIT, total:+(totalP.toFixed(2)) };
+updateFlooringPanelsPriceFromPricing();
   }
 
   async function init(){
@@ -1063,13 +1085,18 @@ window.resolveMaterialsSubtotal    = window.resolveMaterialsSubtotal    || resol
       if (adhesivePriceEl) adhesivePriceEl.textContent='0'; 
       if (sealingPriceEl) sealingPriceEl.textContent='0'; 
       if (panelsPriceEl) panelsPriceEl.textContent='0';
+      computed.panels = { productId:'V5FB02', panels:0, unit:0, total:0 }; 
       unitAdh = unitSeal = 0;
-      computed.areaM2 = 0; computed.adhesive = {productId:'V4FK600',packs:0,unit:0,total:0}; computed.sealing = {productId:'TRBDSET7',sets:0,unit:0,total:0};
+      computed.areaM2 = 0; computed.adhesive = {productId:'V4FK600',packs:0,unit:0,total:0}; computed.sealing = {productId:'TRBDSET7',sets:0,unit:0,total:0};computed.panels   = {productId:'V5FB02', panels:0, unit:PANEL_UNIT, total:0};
     }
+    window.updatePricing?.();
   }
 
   toggle?.addEventListener('change', apply);
-  area?.addEventListener('input', ()=>{ ensureUnits().then(updateUI); });
+  area?.addEventListener('input', () => {
+  ensureUnits().then(updateUI);
+  window.updatePricing?.();
+});
 
     // --- FIX 1: run once on init, so a pre-checked toggle shows the panel ---
   apply();
@@ -1080,6 +1107,9 @@ window.resolveMaterialsSubtotal    = window.resolveMaterialsSubtotal    || resol
       apply();
       // if the panel is on, refresh unit prices & UI (keeps totals/snippets in sync)
       if (toggle?.checked) ensureUnits().then(updateUI);
+       // NEW: refresh span from existing pricing, or compute if missing
+    if (window.__pricing) updateFlooringPanelsPriceFromPricing();
+    else window.updatePricing?.();
     }
   });
 
@@ -1572,6 +1602,9 @@ window.resolveMaterialsSubtotal    = window.resolveMaterialsSubtotal    || resol
       window.updatePricing?.();
     }
   });
+  window.addEventListener('pricing:updated', () => {
+  updateFlooringPanelsPriceFromPricing();
+});
 })();
 // ========== tiny trigger so markupPct refreshes when you return to Rabatt==========
 document
