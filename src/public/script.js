@@ -2151,50 +2151,34 @@ window.setPricingData = function setPricingData(data) {
 
 /* ========== OPTIONAL MENUS (show/hide + qty fields) ========== */
 // ---- BASIN auto-accessories + quantity controller (minimal, reuses existing IDs) ----
-// Replace your previous initBasinAutoAccessories with this version
+
+
 function initBasinAutoAccessories() {
-  // Containers
-  const reqWrap = document.getElementById('basinRequiredWrap');   // "Erforderliches Zubehör" (required set)
-  const mainWrap = document.getElementById('menu_WASCHTISCH');    // page root (optional)
+  const reqWrap = document.getElementById('basinRequiredWrap');
   if (!reqWrap) return;
 
-  // Scope a query *inside the required block only*
-  const q = (sel) => reqWrap.querySelector(sel);
+  // Main product
+  const cl60 = document.getElementById('opt_CL60');
+  const qCL  = document.getElementById('qty_CL60');
 
-  // Main product (VIGOUR CL60) — keep these OUTSIDE reqWrap, since CL60 sits in the main area
-  const cl60   = document.getElementById('opt_CL60');
-  const qCL    = document.getElementById('qty_CL60');
-
-  // Required accessories — scoped to required block so we don't hit the independent section
-  const wtbf   = q('#opt_WTBF');
-  const qWT    = q('#qty_WTBF');
-
-  const rsl    = q('#opt_RSL');
-  const qRSL   = q('#qty_RSL');
-
-  const ev     = q('#opt_EV');
-  const qEV    = q('#qty_EV');
-  const evLbl  = (q('label[for="qty_EV"]') || document.querySelector('label[for="qty_EV"]')); // fallback
+  // Required accessories
+  const wtbf  = document.getElementById('opt_WTBF');
+  const qWT   = document.getElementById('qty_WTBF');
+  const rsl   = document.getElementById('opt_RSL');
+  const qRSL  = document.getElementById('qty_RSL');
+  const ev    = document.getElementById('opt_EV');
+  const qEV   = document.getElementById('qty_EV');
+  const evLbl = document.querySelector('label[for="qty_EV"]');
 
   if (!cl60 || !qCL || !wtbf || !qWT || !rsl || !qRSL || !ev || !qEV || !evLbl) return;
 
-  // helpers
+  // ---------- helpers ----------
   const num = (v, d=0) => {
     const s = String(v ?? '').trim().replace(/\./g, '').replace(',', '.');
     const n = Number(s);
     return Number.isFinite(n) ? n : d;
   };
-  const setChecked = (el, v=true) => {
-    if (!el) return;
-    if (el.checked === !!v) return;
-    el.checked = !!v;
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-  };
-  const setVal = (el, v) => {
-    if (!el) return;
-    const sv = String(v);
-    if (el.value === sv) return;
-    el.value = sv;
+  const dispatch = (el) => {
     el.dispatchEvent(new Event('input',  { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   };
@@ -2203,56 +2187,107 @@ function initBasinAutoAccessories() {
     el.hidden = !v;
     el.setAttribute('aria-hidden', String(!v));
   };
-  const updateEvPairsLabel = (evQty) => {
+  const updateEvPairsLabel = () => {
     const base = evLbl.dataset.baseLabel || evLbl.textContent.replace(/\s*\(.*\)\s*$/,'');
     evLbl.dataset.baseLabel = base;
-    const pairs = evQty / 2;
+    const qty = num(qEV.value, 0);
+    const pairs = qty / 2;
     evLbl.textContent = `${base} (${Number.isInteger(pairs) ? pairs : pairs.toFixed(1)} paare)`;
   };
 
-  // Core sync triggered by CL60
-  const syncFromCL60 = () => {
-    if (!cl60.checked) return;                 // only when CL60 selected
-    const qn = Math.max(1, num(qCL.value, 1)); // default 1
-
-    // Auto-select only the REQUIRED accessories (scoped ones)
-    setChecked(wtbf, true);
-    setChecked(rsl,  true);
-    setChecked(ev,   true);
-
-    // Ensure the required block is visible (but do NOT show the independent section)
-    show(reqWrap, true);
-
-    // Quantities follow CL60; EV is double
-    setVal(qWT,  qn);
-    setVal(qRSL, qn);
-    setVal(qEV,  2 * qn);
-
-    // Update EV pairs label
-    updateEvPairsLabel(num(qEV.value, 0));
+  // ---------- persistence ----------
+  const KEY = 'basin_required_state';
+  const loadState = () => {
+    try { return JSON.parse(localStorage.getItem(KEY) || 'null') || {}; }
+    catch { return {}; }
+  };
+  const saveState = () => {
+    const s = {
+      cl60: { checked: !!cl60.checked, qty: num(qCL.value, 0) },
+      wtbf: { checked: !!wtbf.checked, qty: num(qWT.value, 0) },
+      rsl:  { checked: !!rsl.checked,  qty: num(qRSL.value, 0) },
+      ev:   { checked: !!ev.checked,   qty: num(qEV.value, 0)  },
+    };
+    try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {}
+  };
+  const applyState = (s) => {
+    if (s.cl60) {
+      cl60.checked = !!s.cl60.checked; dispatch(cl60);
+      if (Number.isFinite(s.cl60.qty)) { qCL.value = String(s.cl60.qty); dispatch(qCL); }
+    }
+    if (s.wtbf) { wtbf.checked = !!s.wtbf.checked; dispatch(wtbf);
+      if (Number.isFinite(s.wtbf.qty)) { qWT.value = String(s.wtbf.qty); dispatch(qWT); } }
+    if (s.rsl)  { rsl.checked  = !!s.rsl.checked;  dispatch(rsl);
+      if (Number.isFinite(s.rsl.qty))  { qRSL.value = String(s.rsl.qty);  dispatch(qRSL); } }
+    if (s.ev)   { ev.checked   = !!s.ev.checked;   dispatch(ev);
+      if (Number.isFinite(s.ev.qty))   { qEV.value = String(s.ev.qty);   dispatch(qEV);  } }
+    updateEvPairsLabel();
   };
 
-  // Wire events
-  cl60.addEventListener('change', () => {
+  // ---------- rule (apply ONLY on user CL60 change) ----------
+  const applyRuleFromCL = () => {
+    if (!cl60.checked) return;
+    let q = num(qCL.value, 1);
+    if (q < 1) { q = 1; qCL.value = '1'; dispatch(qCL); }
+
+    // Overwrite accessory quantities when CL60 qty changes (user action)
+    if (wtbf.checked) { qWT.value  = String(q);     dispatch(qWT);  }
+    if (rsl.checked)  { qRSL.value = String(q);     dispatch(qRSL); }
+    if (ev.checked)   { qEV.value  = String(q * 2); dispatch(qEV);  }
+    updateEvPairsLabel();
+    saveState();
+  };
+
+  // ---------- wire events ----------
+  // When CL60 is turned ON by the user: show required section, select accessories and set base values once
+  cl60.addEventListener('change', (e) => {
     if (cl60.checked) {
-      if (!num(qCL.value)) setVal(qCL, 1);
-      syncFromCL60();
+      show(reqWrap, true);
+      if (!wtbf.checked) { wtbf.checked = true; dispatch(wtbf); }
+      if (!rsl.checked)  { rsl.checked  = true; dispatch(rsl);  }
+      if (!ev.checked)   { ev.checked   = true; dispatch(ev);   }
+      if (!num(qCL.value)) { qCL.value = '1'; dispatch(qCL); }
+      // Do not apply the rule on load—only when user actually changes qCL
+      saveState();
+    } else {
+      saveState();
     }
   });
-  qCL.addEventListener('input',  syncFromCL60);
-  qCL.addEventListener('change', syncFromCL60);
 
-  // Keep label correct if user edits EV manually
-  const onEvQtyChange = () => updateEvPairsLabel(num(qEV.value, 0));
-  qEV.addEventListener('input', onEvQtyChange);
-  qEV.addEventListener('change', onEvQtyChange);
+  // RULE TRIGGER: only when user changes CL60 quantity
+  qCL.addEventListener('input',  applyRuleFromCL);
+  qCL.addEventListener('change', applyRuleFromCL);
 
-  // Initial pass (restored state)
-  if (cl60.checked) {
-    if (!num(qCL.value)) setVal(qCL, 1);
-    syncFromCL60();
+  // Any manual edits by the user should persist
+  [qWT, qRSL, qEV].forEach(el => {
+    el.addEventListener('input',  () => { updateEvPairsLabel(); saveState(); });
+    el.addEventListener('change', () => { updateEvPairsLabel(); saveState(); });
+  });
+  [wtbf, rsl, ev].forEach(cb => cb.addEventListener('change', saveState));
+
+  // ---------- initial restore (NO rule application here) ----------
+  const state = loadState();
+  const hasSaved = Object.keys(state).length > 0;
+  if (hasSaved) {
+    // Restore exactly what the user had last time; don't run the rule.
+    applyState(state);
+    show(reqWrap, !!cl60.checked); // keep required block visible if CL60 was selected
+  } else {
+    // First-time defaults if CL60 already checked (e.g. server-side prefill)
+    if (cl60.checked) {
+      show(reqWrap, true);
+      // Select accessories & set base values, but still no rule until user changes qCL
+      if (!wtbf.checked) { wtbf.checked = true; dispatch(wtbf); }
+      if (!rsl.checked)  { rsl.checked  = true; dispatch(rsl);  }
+      if (!ev.checked)   { ev.checked   = true; dispatch(ev);   }
+      if (!num(qCL.value)) { qCL.value = '1'; dispatch(qCL); }
+      // set initial visible EV pairs label
+      updateEvPairsLabel();
+      saveState();
+    }
   }
 }
+
 
 
 
@@ -2381,8 +2416,52 @@ function initBasinAutoAccessories() {
   wireTileQty("opt_EV__loose", "qty_EV__loose_wrap");
   initBasinAutoAccessories();
 })();
+
+function initLivePricingSync() {
+  // WATCH EVERYTHING (best: your main form; fallback: document.body)
+  const watchRoot =
+    document.getElementById('form-konfigurator') || // <- put your main form's id here if you have one
+    document.querySelector('form') ||
+    document.body;
+
+  let t = null;
+  const debounce = (fn, ms=250) => { clearTimeout(t); t = setTimeout(fn, ms); };
+
+  async function repriceNow() {
+    const payload = buildPayload();            // reuse your builder
+    const r = await fetch('/api/price', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', body: JSON.stringify(payload),
+    });
+    const result = await r.json();
+
+    if (typeof renderKostenDetails === 'function') renderKostenDetails(result, payload);
+    else if (typeof renderCostsDebug === 'function') renderCostsDebug(result, payload);
+
+    document.dispatchEvent(new CustomEvent('price:updated', { detail: { result, payload } }));
+    window.lastPrice = result;
+  }
+
+  // Single delegated listener covers ALL inputs/checkboxes/selects in the app
+  const handler = () => debounce(repriceNow, 180);
+  watchRoot.addEventListener('input', handler, true);
+  watchRoot.addEventListener('change', handler, true);
+
+  // Also watch hidden fields that we set programmatically
+  ['chosenTrayProductId','traySize'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.addEventListener('input', handler); el.addEventListener('change', handler); }
+  });
+
+  // Initial run
+  repriceNow();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initSmartTraySearch();
-  initTraySizeAutoLabel();    
+  initTraySizeAutoLabel();
+  initOptionalMenus && initOptionalMenus(); 
+  initBasinAutoAccessories && initBasinAutoAccessories();
+  initLivePricingSync(); //   
 });
 
