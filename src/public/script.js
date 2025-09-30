@@ -2151,23 +2151,30 @@ window.setPricingData = function setPricingData(data) {
 
 /* ========== OPTIONAL MENUS (show/hide + qty fields) ========== */
 // ---- BASIN auto-accessories + quantity controller (minimal, reuses existing IDs) ----
+// Replace your previous initBasinAutoAccessories with this version
 function initBasinAutoAccessories() {
-  // Elements (exactly as in index.html)
-  const cl60 = document.getElementById('opt_CL60');
-  const qCL  = document.getElementById('qty_CL60');
+  // Containers
+  const reqWrap = document.getElementById('basinRequiredWrap');   // "Erforderliches Zubehör" (required set)
+  const mainWrap = document.getElementById('menu_WASCHTISCH');    // page root (optional)
+  if (!reqWrap) return;
 
-  const wtbf = document.getElementById('opt_WTBF');
-  const qWT  = document.getElementById('qty_WTBF');
+  // Scope a query *inside the required block only*
+  const q = (sel) => reqWrap.querySelector(sel);
 
-  const rsl  = document.getElementById('opt_RSL');
-  const qRSL = document.getElementById('qty_RSL');
+  // Main product (VIGOUR CL60) — keep these OUTSIDE reqWrap, since CL60 sits in the main area
+  const cl60   = document.getElementById('opt_CL60');
+  const qCL    = document.getElementById('qty_CL60');
 
-  const ev   = document.getElementById('opt_EV');
-  const qEV  = document.getElementById('qty_EV');
-  const evLbl = document.querySelector('label[for="qty_EV"]');
+  // Required accessories — scoped to required block so we don't hit the independent section
+  const wtbf   = q('#opt_WTBF');
+  const qWT    = q('#qty_WTBF');
 
-  const reqWrap = document.getElementById('basinRequiredWrap');   // "Erforderliches Zubehör"
-  const accWrap = document.getElementById('menu_BASIN_ACC');      // "Optional zu Waschtisch ..."
+  const rsl    = q('#opt_RSL');
+  const qRSL   = q('#qty_RSL');
+
+  const ev     = q('#opt_EV');
+  const qEV    = q('#qty_EV');
+  const evLbl  = (q('label[for="qty_EV"]') || document.querySelector('label[for="qty_EV"]')); // fallback
 
   if (!cl60 || !qCL || !wtbf || !qWT || !rsl || !qRSL || !ev || !qEV || !evLbl) return;
 
@@ -2181,7 +2188,6 @@ function initBasinAutoAccessories() {
     if (!el) return;
     if (el.checked === !!v) return;
     el.checked = !!v;
-    // let your existing logic (show qty wraps etc.) run
     el.dispatchEvent(new Event('change', { bubbles: true }));
   };
   const setVal = (el, v) => {
@@ -2189,8 +2195,7 @@ function initBasinAutoAccessories() {
     const sv = String(v);
     if (el.value === sv) return;
     el.value = sv;
-    // trigger your existing calculation/render hooks
-    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('input',  { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   };
   const show = (el, v=true) => {
@@ -2199,59 +2204,56 @@ function initBasinAutoAccessories() {
     el.setAttribute('aria-hidden', String(!v));
   };
   const updateEvPairsLabel = (evQty) => {
-    if (!evLbl) return;
     const base = evLbl.dataset.baseLabel || evLbl.textContent.replace(/\s*\(.*\)\s*$/,'');
     evLbl.dataset.baseLabel = base;
-    const pairs = evQty/2;
+    const pairs = evQty / 2;
     evLbl.textContent = `${base} (${Number.isInteger(pairs) ? pairs : pairs.toFixed(1)} paare)`;
   };
 
-  // Core sync: when CL60 selected or its qty changes
+  // Core sync triggered by CL60
   const syncFromCL60 = () => {
-    if (!cl60.checked) return;                 // only enforce when CL60 is selected
-    const q = Math.max(1, num(qCL.value, 1));  // default 1
+    if (!cl60.checked) return;                 // only when CL60 selected
+    const qn = Math.max(1, num(qCL.value, 1)); // default 1
 
-    // auto-select accessories (WTBF, RSL, EV)
+    // Auto-select only the REQUIRED accessories (scoped ones)
     setChecked(wtbf, true);
     setChecked(rsl,  true);
     setChecked(ev,   true);
 
-    // ensure accessory zones are visible
+    // Ensure the required block is visible (but do NOT show the independent section)
     show(reqWrap, true);
-    show(accWrap, true);
 
-    // quantities follow CL60; EV is double
-    setVal(qWT,  q);
-    setVal(qRSL, q);
-    setVal(qEV,  2*q);
+    // Quantities follow CL60; EV is double
+    setVal(qWT,  qn);
+    setVal(qRSL, qn);
+    setVal(qEV,  2 * qn);
 
-    // label "Menge EV (x paare)" where x = EV/2
+    // Update EV pairs label
     updateEvPairsLabel(num(qEV.value, 0));
   };
 
-  // Wire events (minimal: piggyback on existing logic)
+  // Wire events
   cl60.addEventListener('change', () => {
     if (cl60.checked) {
-      // if user ticks CL60, ensure a sensible default qty, then sync
       if (!num(qCL.value)) setVal(qCL, 1);
       syncFromCL60();
     }
   });
-
   qCL.addEventListener('input',  syncFromCL60);
   qCL.addEventListener('change', syncFromCL60);
 
-  // keep EV pairs label correct even if user edits EV manually
+  // Keep label correct if user edits EV manually
   const onEvQtyChange = () => updateEvPairsLabel(num(qEV.value, 0));
   qEV.addEventListener('input', onEvQtyChange);
   qEV.addEventListener('change', onEvQtyChange);
 
-  // Initial pass (e.g., restored state)
+  // Initial pass (restored state)
   if (cl60.checked) {
     if (!num(qCL.value)) setVal(qCL, 1);
     syncFromCL60();
   }
 }
+
 
 
 (function initOptionalMenus() {
