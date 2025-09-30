@@ -2241,19 +2241,27 @@ function initBasinAutoAccessories() {
 
   // ---------- wire events ----------
   // When CL60 is turned ON by the user: show required section, select accessories and set base values once
-  cl60.addEventListener('change', (e) => {
-    if (cl60.checked) {
-      show(reqWrap, true);
-      if (!wtbf.checked) { wtbf.checked = true; dispatch(wtbf); }
-      if (!rsl.checked)  { rsl.checked  = true; dispatch(rsl);  }
-      if (!ev.checked)   { ev.checked   = true; dispatch(ev);   }
-      if (!num(qCL.value)) { qCL.value = '1'; dispatch(qCL); }
-      // Do not apply the rule on load—only when user actually changes qCL
-      saveState();
-    } else {
-      saveState();
-    }
-  });
+ cl60.addEventListener('change', (e) => {
+  if (cl60.checked) {
+    show(reqWrap, true);
+
+    // Ensure required accessories are selected (quantities will be set by the rule)
+    if (!wtbf.checked) { wtbf.checked = true; dispatch(wtbf); }
+    if (!rsl.checked)  { rsl.checked  = true; dispatch(rsl);  }
+    if (!ev.checked)   { ev.checked   = true; dispatch(ev);   }
+
+    // Set CL60 to 1 if empty/invalid
+    if (!num(qCL.value)) { qCL.value = '1'; dispatch(qCL); }
+
+    // ⬇️ Apply the rule NOW so we land on 1 / 1 / 2 immediately
+    applyRuleFromCL();
+
+    saveState();
+  } else {
+    saveState();
+  }
+});
+
 
   // RULE TRIGGER: only when user changes CL60 quantity
   qCL.addEventListener('input',  applyRuleFromCL);
