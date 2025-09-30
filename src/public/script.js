@@ -1060,7 +1060,8 @@ computed.sealing = {
       const text = await res.text();
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
       const data = JSON.parse(text);
-      renderRadioSuggestions(data.results || []);
+      // accept both shapes: {results:[...]} (new) or {suggestions:[...]} (old)
+      renderRadioSuggestions((data && (data.results || data.suggestions || [])) || []);
     } catch (e) {
       if (e.name === 'AbortError') return; // user kept typing
       console.error('Smart search error:', e);
