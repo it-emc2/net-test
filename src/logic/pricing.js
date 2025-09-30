@@ -128,23 +128,6 @@ export default (ProductModel) => {
       });
     };
 
-    // Duschwanne
-    const traySize = dusch.traySize;
-    const trayMap = new Map([
-      ['180 x 100 x 3 cm', 'SLA180100'],
-      ['160 x 100 x 3 cm', 'SLA160100'],
-      ['140 x 100 x 3 cm', 'SLA140100'],
-      ['120 x 100 x 3 cm', 'SLA120100'],
-      ['100 x 100 x 3 cm', 'SLA100'],
-      ['90 x 90 x 3 cm', 'SLA90'],
-      ['80 x 80 x 3 cm', 'SLA80'],
-    ]);
-    if (trayMap.has(traySize)) {
-  const id  = trayMap.get(traySize);
-  const qty = 1;
-  add(id, qty, `- ${qty} Stk Duschwanne ${traySize}`);
-}
-
     if (dusch.abdichtSet) add('TRWDB', 1);
     if (dusch.drainSet) add('AGD9060', 1);
 
@@ -355,6 +338,7 @@ let selectedTray = null;
 try {
   const pid = payload?.duschwanne?.chosenTrayProductId;
   const sizeLabel = (payload?.duschwanne?.traySize || '').trim();
+ 
 
   if (pid) {
     const already = (materials?.lines || []).some(l =>

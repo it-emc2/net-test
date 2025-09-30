@@ -330,22 +330,31 @@ function buildPayload() {
     "Kassenkunde";
   payload.bereich.wohnumfeld = isKK ? woh : { done: false, amount: 0 };
 
-  // --- Ensure tray selection persists in payload even if suggestion UI isn't rendered
-  (function ensureTraySelection() {
-    const dw = payload.duschwanne || (payload.duschwanne = {});
-    const hasSize = !!(dw.traySize && String(dw.traySize).trim());
-    const hasPid = !!(
-      dw.chosenTrayProductId && String(dw.chosenTrayProductId).trim()
-    );
-    if (hasSize && hasPid) return;
-    try {
-      const raw = localStorage.getItem("dw_tray_selection");
-      if (!raw) return;
-      const saved = JSON.parse(raw);
-      if (!hasSize && saved?.value) dw.traySize = saved.value;
-      if (!hasPid && saved?.productId) dw.chosenTrayProductId = saved.productId;
-    } catch {}
-  })();
+  // --- Attach Duschwanne selection from DOM (if present) ---
+{
+  const pid  = document.getElementById('chosenTrayProductId')?.value?.trim();
+  const size = document.getElementById('traySize')?.value?.trim();
+
+  const dw = payload.duschwanne || (payload.duschwanne = {});
+  if (pid)  dw.chosenTrayProductId = pid;
+  if (size) dw.traySize = size;
+}
+
+// --- Ensure tray selection persists in payload even if suggestion UI isn't rendered
+(function ensureTraySelection() {
+  const dw = payload.duschwanne || (payload.duschwanne = {});
+  const hasSize = !!(dw.traySize && String(dw.traySize).trim());
+  const hasPid = !!(dw.chosenTrayProductId && String(dw.chosenTrayProductId).trim());
+  if (hasSize && hasPid) return;
+  try {
+    const raw = localStorage.getItem("dw_tray_selection");
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (!hasSize && saved?.value)      dw.traySize = saved.value;
+    if (!hasPid  && saved?.productId)  dw.chosenTrayProductId = saved.productId;
+  } catch {}
+})();
+
 
   return payload;
 }
@@ -1244,80 +1253,124 @@ async function getProduct(id) {
 
 /* ========== SMART TRAY SEARCH (equal-or-bigger filter, persist/deselect) ========== */
 function initSmartTraySearch() {
-  // --- explicit selectors based on your fields & container ---
+  // ----- DOM -----
   const elB = document.querySelector('input[name="tray_w_cm"]'); // Breite
   const elL = document.querySelector('input[name="tray_l_cm"]'); // Länge
   const elH = document.querySelector('input[name="tray_h_cm"]'); // Höhe
-  const out = document.querySelector('#tray-suggestions');
-  const chosenHidden = document.querySelector('#chosenTrayProductId');
+  const out = document.getElementById('tray-suggestions');
+  const hiddenId = document.getElementById('chosenTrayProductId');
+  const hiddenSize = document.getElementById('traySize');
 
   if (!out || (!elB && !elL && !elH)) {
-    console.warn('SmartTray: container or inputs not found', { out: !!out, elB: !!elB, elL: !!elL, elH: !!elH });
+    console.warn('initSmartTraySearch: missing inputs or #tray-suggestions');
     return;
   }
 
-  // Localized number parser: "90", "90,0", "1.200,5" -> Number or null
+  // ----- helpers -----
   const parseNum = (v) => {
     if (v == null) return null;
     const s = String(v).trim().replace(/\./g, '').replace(',', '.');
     const n = Number(s);
     return Number.isFinite(n) ? n : null;
   };
+  const makeLabel = (w, l, h) => (w && l && h ? `${w} x ${l} x ${h} cm` : '');
 
-  const fmtDim = (w, l, h) => [w,l,h].filter(x => x != null).map(x => `${x} cm`).join(' × ');
-function renderSuggestions(list) {
-  const out = document.querySelector('#tray-suggestions');
-  const chosenHidden = document.querySelector('#chosenTrayProductId');
+  // Keep a selected-state toggle class without relying on :has()
+  const applySelectedStyles = () => {
+    const cards = Array.from(out.querySelectorAll('.suggestion-card'));
+    const checked = out.querySelector('input[name="traySuggestion"]:checked');
+    cards.forEach(card => {
+      const input = card.querySelector('input[name="traySuggestion"]');
+      card.classList.toggle('is-selected', checked && input === checked);
+    });
+  };
 
-  if (!out) return;
+  // Save to localStorage in the exact shape your ensureTraySelection() expects
+  const persistSelection = (productId, label) => {
+    try {
+      localStorage.setItem('dw_tray_selection', JSON.stringify({ productId, value: label }));
+    } catch {}
+  };
 
-  // No results UI
-  if (!Array.isArray(list) || list.length === 0) {
-    out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
-    if (chosenHidden) chosenHidden.value = '';
-    return;
+  // When a suggestion is chosen, update hidden fields + localStorage
+  const applySelection = (inputEl) => {
+    if (!inputEl) return;
+    const pid = inputEl.value || '';
+    const w = Number(inputEl.dataset.w) || null;
+    const l = Number(inputEl.dataset.l) || null;
+    const h = Number(inputEl.dataset.h) || null;
+
+    const label = makeLabel(w, l, h);
+    if (hiddenId) hiddenId.value = pid;
+    if (hiddenSize) hiddenSize.value = label;
+
+    persistSelection(pid, label);
+    applySelectedStyles();
+  };
+
+  // While typing, keep a provisional size label; a chosen suggestion will overwrite it
+  const updateTraySizeFromInputs = () => {
+    if (!hiddenSize) return;
+    const b = elB?.value?.trim();
+    const l = elL?.value?.trim();
+    const h = elH?.value?.trim();
+    hiddenSize.value = (b && l && h) ? `${b} x ${l} x ${h} cm` : '';
+  };
+
+  // ----- render -----
+  function renderSuggestions(list) {
+    if (!Array.isArray(list) || list.length === 0) {
+      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
+      applySelectedStyles();
+      return;
+    }
+
+    const top = list.slice(0, 3);
+    const radios = top.map((p, i) => {
+      const id = `tray-suggest-${i}`;
+      const dims = `${p.widthCm} × ${p.lengthCm} × ${p.heightCm} cm`;
+      const price = (p.price != null) ? ` — ${Number(p.price).toFixed(2)} €` : '';
+      const title = p.name || p.productId || 'Duschwanne';
+      const value = p.productId || '';
+
+      return `
+        <label class="suggestion-card" for="${id}">
+          <input type="radio"
+                 id="${id}"
+                 name="traySuggestion"
+                 value="${value}"
+                 data-w="${p.widthCm || ''}"
+                 data-l="${p.lengthCm || ''}"
+                 data-h="${p.heightCm || ''}"
+                 ${i === 0 ? 'checked' : ''} />
+          <div class="info">
+            <div class="title">${title}</div>
+            <div class="meta">${dims}${price}</div>
+          </div>
+        </label>
+      `;
+    }).join('');
+
+    out.innerHTML = `
+      <div class="suggestion-heading">Vorschläge</div>
+      <div class="suggestion-list">${radios}</div>
+    `;
+
+    // initial apply (first is checked)
+    const first = out.querySelector('input[name="traySuggestion"]:checked');
+    if (first) applySelection(first);
+
+    // change handler (one container listener)
+    out.addEventListener('change', (e) => {
+      if (e.target && e.target.name === 'traySuggestion') {
+        applySelection(e.target);
+      }
+    }, { once: true });
+
+    applySelectedStyles();
   }
 
-  // Only show up to 3 (your API may already do this; this is a second guard)
-  const top = list.slice(0, 3);
-
-  // Build radios as card labels (clickable)
-  const radios = top.map((p, i) => {
-    const id = `tray-suggest-${i}`;
-    const title = p.name || p.productId || 'Duschwanne';
-    const dims = [p.widthCm, p.lengthCm, p.heightCm].filter(x => x != null).join(' × ') + ' cm';
-    const price = (p.price != null) ? ` — ${Number(p.price).toFixed(2)} €` : '';
-    const value = p.productId || '';
-
-    return `
-      <label class="suggestion-card" for="${id}">
-        <input type="radio" id="${id}" name="traySuggestion" value="${value}" ${i === 0 ? 'checked' : ''} />
-        <div class="info">
-          <div class="title">${title}</div>
-          <div class="meta">${dims}${price}</div>
-        </div>
-      </label>
-    `;
-  }).join('');
-
-  out.innerHTML = `
-    <div class="suggestion-heading">Vorschläge</div>
-    <div class="suggestion-list">${radios}</div>
-  `;
-
-  // Keep hidden field in sync + allow initial selection
-  const selected = out.querySelector('input[name="traySuggestion"]:checked');
-  if (chosenHidden) chosenHidden.value = selected ? selected.value : '';
-
-  out.addEventListener('change', (e) => {
-    if (e.target && e.target.name === 'traySuggestion') {
-      if (chosenHidden) chosenHidden.value = e.target.value || '';
-    }
-  }, { once: true });
-}
-
-
-  // --- progressive fetch ---
+  // ----- fetch logic (progressive) -----
   let inflight = null;
   let debounceT = null;
 
@@ -1326,12 +1379,16 @@ function renderSuggestions(list) {
     const l = elL ? parseNum(elL.value) : null;
     const h = elH ? parseNum(elH.value) : null;
 
-    const provided = { w: b, l, h };
-    const hasAny = Object.values(provided).some(v => v !== null);
-
-    if (!hasAny) {
+    // If nothing typed, clear UI and try to restore persisted selection to hidden fields
+    if (b === null && l === null && h === null) {
       out.innerHTML = '';
-      if (chosenHidden) chosenHidden.value = '';
+      try {
+        const saved = JSON.parse(localStorage.getItem('dw_tray_selection') || 'null');
+        if (saved?.productId) {
+          if (hiddenId) hiddenId.value = saved.productId;
+          if (hiddenSize) hiddenSize.value = saved.value || '';
+        }
+      } catch {}
       return;
     }
 
@@ -1341,12 +1398,11 @@ function renderSuggestions(list) {
     if (h !== null) qs.set('h', String(h));
     const url = `/api/trays/suggest?${qs.toString()}`;
 
-    // visible status (helps diagnose)
-    out.innerHTML = `<div class="text-sm text-muted-foreground">Suche… <code>${url}</code></div>`;
-
     // cancel previous
     try { inflight?.abort?.(); } catch {}
     inflight = new AbortController();
+
+    out.innerHTML = `<div class="meta">Suche… <code>${url}</code></div>`;
 
     try {
       const r = await fetch(url, { signal: inflight.signal, credentials: 'include' });
@@ -1355,13 +1411,8 @@ function renderSuggestions(list) {
         out.innerHTML = `<div class="text-sm text-destructive">Fehler ${r.status}</div><pre class="text-xs">${text}</pre>`;
         return;
       }
-      // show raw length for quick sanity
       const data = JSON.parse(text);
       const list = Array.isArray(data?.results) ? data.results : [];
-      if (!list.length) {
-        out.innerHTML = `<div class="text-sm text-muted-foreground">Keine passenden Vorschläge (0 Treffer) für <code>${qs.toString()}</code>.</div>`;
-        return;
-      }
       renderSuggestions(list);
     } catch (err) {
       if (err.name === 'AbortError') return;
@@ -1370,22 +1421,72 @@ function renderSuggestions(list) {
     }
   }
 
-  const request = () => { clearTimeout(debounceT); debounceT = setTimeout(fetchAndRender, 150); };
+  const request = () => { clearTimeout(debounceT); debounceT = setTimeout(fetchAndRender, 160); };
 
+  // Input listeners
   [elB, elL, elH].forEach(el => {
     if (!el) return;
-    el.addEventListener('input', request);
+    el.addEventListener('input', () => {
+      updateTraySizeFromInputs();
+      request();
+    });
     el.addEventListener('change', request);
   });
 
-  // If values are prefilled (restore), trigger once
+  // Try to restore persisted selection immediately (hidden fields only)
+  try {
+    const saved = JSON.parse(localStorage.getItem('dw_tray_selection') || 'null');
+    if (saved?.productId) {
+      if (hiddenId) hiddenId.value = saved.productId;
+      if (hiddenSize) hiddenSize.value = saved.value || '';
+    }
+  } catch {}
+
+  // Kick off first search if there are prefilled values
+  updateTraySizeFromInputs();
   request();
 
-  // expose (optional)
+  // Expose debug (optional)
   window.__smartTray = { fetchAndRender };
 }
 
 
+function initTraySizeAutoLabel() {
+  const traySizeEl = document.getElementById('traySize');
+  const wEl = document.querySelector('input[name="tray_w_cm"]');
+  const lEl = document.querySelector('input[name="tray_l_cm"]');
+  const hEl = document.querySelector('input[name="tray_h_cm"]');
+
+  if (!traySizeEl || (!wEl && !lEl && !hEl)) return;
+
+  const updateTraySizeFromInputs = () => {
+    const b = wEl?.value?.trim();
+    const l = lEl?.value?.trim();
+    const h = hEl?.value?.trim();
+    traySizeEl.value = (b && l && h) ? `${b} x ${l} x ${h} cm` : '';
+  };
+
+  // keep it updated while typing
+  [wEl, lEl, hEl].forEach(el => el && el.addEventListener('input', updateTraySizeFromInputs));
+
+  // set initial value if fields are prefilled
+  updateTraySizeFromInputs();
+
+  // expose in case you want to call it from elsewhere
+  window.updateTraySizeFromInputs = updateTraySizeFromInputs;
+}
+
+function attachDuschwanneToPayload(payload) {
+  const pid  = document.getElementById('chosenTrayProductId')?.value || null;
+  const size = document.getElementById('traySize')?.value || '';
+
+  // pricing.js expects these nested under payload.duschwanne.*
+  payload.duschwanne = payload.duschwanne || {};
+  payload.duschwanne.chosenTrayProductId = pid;
+  payload.duschwanne.traySize = size;
+
+  return payload;
+}
 
 /* ========== GLOBAL PRICING SERVICE (fetch -> cache -> event) ========== */
 (() => {
@@ -1763,6 +1864,7 @@ document
     }
     try {
       const payload = buildPayload();
+      
       await downloadDocx(
         "/docx-template/material-overview",
         payload,
@@ -2156,5 +2258,6 @@ window.setPricingData = function setPricingData(data) {
 })();
 document.addEventListener('DOMContentLoaded', () => {
   initSmartTraySearch();
+  initTraySizeAutoLabel();
 });
 
