@@ -2150,6 +2150,110 @@ window.setPricingData = function setPricingData(data) {
 })();
 
 /* ========== OPTIONAL MENUS (show/hide + qty fields) ========== */
+// ---- BASIN auto-accessories + quantity controller (minimal, reuses existing IDs) ----
+function initBasinAutoAccessories() {
+  // Elements (exactly as in index.html)
+  const cl60 = document.getElementById('opt_CL60');
+  const qCL  = document.getElementById('qty_CL60');
+
+  const wtbf = document.getElementById('opt_WTBF');
+  const qWT  = document.getElementById('qty_WTBF');
+
+  const rsl  = document.getElementById('opt_RSL');
+  const qRSL = document.getElementById('qty_RSL');
+
+  const ev   = document.getElementById('opt_EV');
+  const qEV  = document.getElementById('qty_EV');
+  const evLbl = document.querySelector('label[for="qty_EV"]');
+
+  const reqWrap = document.getElementById('basinRequiredWrap');   // "Erforderliches Zubehör"
+  const accWrap = document.getElementById('menu_BASIN_ACC');      // "Optional zu Waschtisch ..."
+
+  if (!cl60 || !qCL || !wtbf || !qWT || !rsl || !qRSL || !ev || !qEV || !evLbl) return;
+
+  // helpers
+  const num = (v, d=0) => {
+    const s = String(v ?? '').trim().replace(/\./g, '').replace(',', '.');
+    const n = Number(s);
+    return Number.isFinite(n) ? n : d;
+  };
+  const setChecked = (el, v=true) => {
+    if (!el) return;
+    if (el.checked === !!v) return;
+    el.checked = !!v;
+    // let your existing logic (show qty wraps etc.) run
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+  const setVal = (el, v) => {
+    if (!el) return;
+    const sv = String(v);
+    if (el.value === sv) return;
+    el.value = sv;
+    // trigger your existing calculation/render hooks
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+  const show = (el, v=true) => {
+    if (!el) return;
+    el.hidden = !v;
+    el.setAttribute('aria-hidden', String(!v));
+  };
+  const updateEvPairsLabel = (evQty) => {
+    if (!evLbl) return;
+    const base = evLbl.dataset.baseLabel || evLbl.textContent.replace(/\s*\(.*\)\s*$/,'');
+    evLbl.dataset.baseLabel = base;
+    const pairs = evQty/2;
+    evLbl.textContent = `${base} (${Number.isInteger(pairs) ? pairs : pairs.toFixed(1)} paare)`;
+  };
+
+  // Core sync: when CL60 selected or its qty changes
+  const syncFromCL60 = () => {
+    if (!cl60.checked) return;                 // only enforce when CL60 is selected
+    const q = Math.max(1, num(qCL.value, 1));  // default 1
+
+    // auto-select accessories (WTBF, RSL, EV)
+    setChecked(wtbf, true);
+    setChecked(rsl,  true);
+    setChecked(ev,   true);
+
+    // ensure accessory zones are visible
+    show(reqWrap, true);
+    show(accWrap, true);
+
+    // quantities follow CL60; EV is double
+    setVal(qWT,  q);
+    setVal(qRSL, q);
+    setVal(qEV,  2*q);
+
+    // label "Menge EV (x paare)" where x = EV/2
+    updateEvPairsLabel(num(qEV.value, 0));
+  };
+
+  // Wire events (minimal: piggyback on existing logic)
+  cl60.addEventListener('change', () => {
+    if (cl60.checked) {
+      // if user ticks CL60, ensure a sensible default qty, then sync
+      if (!num(qCL.value)) setVal(qCL, 1);
+      syncFromCL60();
+    }
+  });
+
+  qCL.addEventListener('input',  syncFromCL60);
+  qCL.addEventListener('change', syncFromCL60);
+
+  // keep EV pairs label correct even if user edits EV manually
+  const onEvQtyChange = () => updateEvPairsLabel(num(qEV.value, 0));
+  qEV.addEventListener('input', onEvQtyChange);
+  qEV.addEventListener('change', onEvQtyChange);
+
+  // Initial pass (e.g., restored state)
+  if (cl60.checked) {
+    if (!num(qCL.value)) setVal(qCL, 1);
+    syncFromCL60();
+  }
+}
+
+
 (function initOptionalMenus() {
   const map = {
     cat_SHOWER: "menu_SHOWER",
@@ -2273,9 +2377,10 @@ window.setPricingData = function setPricingData(data) {
   wireTileQty("opt_WTBF__loose", "qty_WTBF__loose_wrap");
   wireTileQty("opt_RSL__loose", "qty_RSL__loose_wrap");
   wireTileQty("opt_EV__loose", "qty_EV__loose_wrap");
+  initBasinAutoAccessories();
 })();
 document.addEventListener('DOMContentLoaded', () => {
   initSmartTraySearch();
-  initTraySizeAutoLabel();
+  initTraySizeAutoLabel();    
 });
 
