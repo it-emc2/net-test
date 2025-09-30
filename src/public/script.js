@@ -1318,57 +1318,75 @@ function initSmartTraySearch() {
   };
 
   // ----- render -----
-  function renderSuggestions(list) {
-    if (!Array.isArray(list) || list.length === 0) {
-      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
-      applySelectedStyles();
-      return;
-    }
-
-    const top = list.slice(0, 3);
-    const radios = top.map((p, i) => {
-      const id = `tray-suggest-${i}`;
-      const dims = `${p.widthCm} × ${p.lengthCm} × ${p.heightCm} cm`;
-      const price = (p.price != null) ? ` — ${Number(p.price).toFixed(2)} €` : '';
-      const title = p.name || p.productId || 'Duschwanne';
-      const value = p.productId || '';
-
-      return `
-        <label class="suggestion-card" for="${id}">
-          <input type="radio"
-                 id="${id}"
-                 name="traySuggestion"
-                 value="${value}"
-                 data-w="${p.widthCm || ''}"
-                 data-l="${p.lengthCm || ''}"
-                 data-h="${p.heightCm || ''}"
-                 ${i === 0 ? 'checked' : ''} />
-          <div class="info">
-            <div class="title">${title}</div>
-            <div class="meta">${dims}${price}</div>
-          </div>
-        </label>
-      `;
-    }).join('');
-
-    out.innerHTML = `
-      <div class="suggestion-heading">Vorschläge</div>
-      <div class="suggestion-list">${radios}</div>
-    `;
-
-    // initial apply (first is checked)
-    const first = out.querySelector('input[name="traySuggestion"]:checked');
-    if (first) applySelection(first);
-
-    // change handler (one container listener)
-    out.addEventListener('change', (e) => {
-      if (e.target && e.target.name === 'traySuggestion') {
-        applySelection(e.target);
-      }
-    }, { once: true });
-
+ function renderSuggestions(list) {
+  if (!Array.isArray(list) || list.length === 0) {
+    out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
     applySelectedStyles();
+    return;
   }
+
+  // 1) Try to restore previously saved selection
+  let savedPid = null;
+  try {
+    const saved = JSON.parse(localStorage.getItem('dw_tray_selection') || 'null');
+    savedPid = saved?.productId || null;
+  } catch {}
+
+  const top = list.slice(0, 3);
+
+  // If savedPid is in the suggestions, pre-check THAT; otherwise check NONE
+  const savedIndex = savedPid ? top.findIndex(p => p.productId === savedPid) : -1;
+
+  const radios = top.map((p, i) => {
+    const id = `tray-suggest-${i}`;
+    const dims = `${p.widthCm} × ${p.lengthCm} × ${p.heightCm} cm`;
+    const price = (p.price != null) ? ` — ${Number(p.price).toFixed(2)} €` : '';
+    const title = p.name || p.productId || 'Duschwanne';
+    const value = p.productId || '';
+    const checkedAttr = (i === savedIndex) ? 'checked' : ''; // <-- only check if it matches saved
+
+    return `
+      <label class="suggestion-card" for="${id}">
+        <input type="radio"
+               id="${id}"
+               name="traySuggestion"
+               value="${value}"
+               data-w="${p.widthCm || ''}"
+               data-l="${p.lengthCm || ''}"
+               data-h="${p.heightCm || ''}"
+               ${checkedAttr} />
+        <div class="info">
+          <div class="title">${title}</div>
+          <div class="meta">${dims}${price}</div>
+        </div>
+      </label>
+    `;
+  }).join('');
+
+  out.innerHTML = `
+    <div class="suggestion-heading">Vorschläge</div>
+    <div class="suggestion-list">${radios}</div>
+  `;
+
+  // 2) If we restored a match, apply it to hidden fields.
+  if (savedIndex >= 0) {
+    const restored = out.querySelectorAll('input[name="traySuggestion"]')[savedIndex];
+    applySelection(restored);
+  } else {
+    // Important: DO NOT auto-select the first one anymore.
+    // Keep whatever is already in the hidden fields (user's previous choice).
+  }
+
+  // 3) Listen for future changes (not once: we might re-render multiple times)
+  out.addEventListener('change', (e) => {
+    if (e.target && e.target.name === 'traySuggestion') {
+      applySelection(e.target);
+    }
+  });
+
+  applySelectedStyles();
+}
+
 
   // ----- fetch logic (progressive) -----
   let inflight = null;
