@@ -1398,11 +1398,13 @@
         <form id="form-duschwanne" autocomplete="on">
           <!-- Put this above the radio group -->
 <div id="traySmartSearch" class="field">
-  <label>Maße (B × L × H in cm)</label>
+  <!-- <label>Maße (B × L × H in cm)</label> -->
+  <label>Maße (B × L in cm)</label>
   <div class="row" style="gap:8px;">
-    <input type="number" min="40" step="1" placeholder="Breite" name="tray_w_cm">
-    <input type="number" min="40" step="1" placeholder="Länge"  name="tray_l_cm">
-    <input type="number" min="2"  step="1" placeholder="Höhe"   name="tray_h_cm">
+    <input type="number" min="20" step="1" placeholder="Breite" name="tray_w_cm">
+    <input type="number" min="2" step="1" placeholder="Länge"  name="tray_l_cm">
+    <input type="hidden" name="tray_h_cm" value="">
+    <!--  <input type="number" min="1"  step="1" placeholder="Höhe"   name="tray_h_cm"> -->
   </div>
   <!--<div id="traySuggestions" style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;"></div> -->
  
