@@ -118,6 +118,7 @@ console.log('MongoDB connected ->', MONGODB_DB);
 // ----- Business logic -----
 const pricing = pricingFactory(Product);
 
+app.use('/api/trays', traysRouter);
 // ----- Existing routes (PDF/DOCX) -----
 app.use('/pdf', pdfRouter);
 app.use('/pdf-template', pdfTemplateRouter);
@@ -153,6 +154,34 @@ app.post('/api/products/bulk', async (req, res) => {
     res.status(500).json({ error: String(err) });
   }
 });
+// --- ADD THIS ABOVE the :id route ---
+app.get('/api/products/sla', async (req, res) => {
+  try {
+    const docs = await Product.find(
+      { productId: /^SLA/i },
+      { productId: 1, name: 1, widthCm: 1, lengthCm: 1, heightCm: 1, price: 1 }
+    )
+    .sort({ lengthCm: 1, widthCm: 1, heightCm: 1 })
+    .lean();
+
+    return res.json(docs); // return [] if none
+  } catch (e) {
+    console.error('GET /api/products/sla failed:', e);
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+// Keep this AFTER the /sla route
+app.get('/api/products/:id', async (req, res) => {
+  try {
+    const p = await Product.findOne({ productId: req.params.id }).lean();
+    if (!p) return res.status(404).json({ error: 'Not found' });
+    res.json(p);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: String(err) });
+  }
+});
 
 // Get single product by Hersteller productId
 app.get('/api/products/:id', async (req, res) => {
@@ -165,118 +194,6 @@ app.get('/api/products/:id', async (req, res) => {
     res.status(500).json({ error: String(err) });
   }
 });
-
-// --- ADD: search SLA tray sizes by dimensions ---
-app.get('/api/products/search-sla', async (req, res) => {
-  try {
-    const w = Number(req.query.widthCm);
-    const l = Number(req.query.lengthCm);
-    const h = Number(req.query.heightCm);
-    if (![w, l, h].every(Number.isFinite)) {
-      return res.status(400).json({ error: 'Invalid widthCm/lengthCm/heightCm' });
-    }
-
-    // Only SLA products; project only fields we need
-    const docs = await Product.find(
-      { productId: /^SLA/ },
-      { productId: 1, name: 1, price: 1, widthCm: 1, lengthCm: 1, heightCm: 1 }
-    ).lean();
-
-    // Score by Euclidean distance; keep 3 best
-    const top3 = docs
-      .map(p => {
-        const dw = (p.widthCm ?? 0)  - w;
-        const dl = (p.lengthCm ?? 0) - l;
-        const dh = (p.heightCm ?? 0) - h;
-        return { ...p, score: Math.hypot(dw, dl, dh) };
-      })
-      .sort((a, b) => a.score - b.score)
-      .slice(0, 3);
-
-    res.json({ results: top3, input: { widthCm: w, lengthCm: l, heightCm: h } });
-  } catch (e) {
-    console.error('search-sla failed:', e);
-    res.status(500).json({ error: 'search-sla failed' });
-  }
-});
-
-// Alias for legacy client: /api/trays/suggest?w=&l=&h=
-app.get('/api/trays/suggest', async (req, res) => {
-  try {
-    const w = Number(req.query.w);
-    const l = Number(req.query.l);
-    const h = Number(req.query.h);
-    if (![w, l, h].every(Number.isFinite)) {
-      return res.status(400).json({ error: 'Bad dimensions' });
-    }
-
-    const baseMatch = { productId: /^SLA/i };
-
-    // 1) Primary: only sizes >= input on all three axes
-    const pipelineGTE = [
-      { $match: { ...baseMatch, widthCm: { $gte: w }, lengthCm: { $gte: l }, heightCm: { $gte: h } } },
-      {
-        $addFields: {
-          score: {
-            $sqrt: {
-              $add: [
-                { $pow: [{ $subtract: ['$widthCm', w] }, 2] },
-                { $pow: [{ $subtract: ['$lengthCm', l] }, 2] },
-                { $pow: [{ $subtract: ['$heightCm', h] }, 2] },
-              ],
-            },
-          },
-        },
-      },
-      { $sort: { score: 1, price: 1 } },
-      { $limit: 3 },
-    ];
-
-    let results = await Product.aggregate(pipelineGTE).exec();
-
-    // 2) Fallback: if none are >=, return the 3 closest overall (old behavior)
-    if (!results.length) {
-      const pipelineAny = [
-        { $match: baseMatch },
-        {
-          $addFields: {
-            score: {
-              $sqrt: {
-                $add: [
-                  { $pow: [{ $subtract: ['$widthCm', w] }, 2] },
-                  { $pow: [{ $subtract: ['$lengthCm', l] }, 2] },
-                  { $pow: [{ $subtract: ['$heightCm', h] }, 2] },
-                ],
-              },
-            },
-          },
-        },
-        { $sort: { score: 1, price: 1 } },
-        { $limit: 3 },
-      ];
-      results = await Product.aggregate(pipelineAny).exec();
-    }
-
-    res.json({
-      results: results.map(r => ({
-        _id: r._id,
-        productId: r.productId,
-        name: r.name,
-        price: r.price,
-        widthCm: r.widthCm,
-        lengthCm: r.lengthCm,
-        heightCm: r.heightCm,
-        score: r.score,
-      })),
-      input: { widthCm: w, lengthCm: l, heightCm: h },
-      gteFiltered: results.length ? true : false
-    });
-  } catch (err) {
-    console.error('[trays/suggest] error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
 
 
 // ----- New API: Pricing (does not save) -----
@@ -311,6 +228,10 @@ app.get('/health', (req, res) =>
 // Static assets
 app.use(express.static(path.join(__dirname, 'public')));
 
+// List all SLA products with dimensions (debug utility)
+
+
+
 // SPA fallback (keep this last)
 app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -328,7 +249,7 @@ app.post('/submit', (req, res) => {
   };
   res.status(201).json(payload);
 });
-app.use('/api/trays', traysRouter);
+
 // Fallback to SPA index.html
 // Express 5 + path-to-regexp v8: use a RegExp catch-all instead of "*"
 app.get(/.*/, (req, res) => {
