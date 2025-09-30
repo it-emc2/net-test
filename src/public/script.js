@@ -341,19 +341,26 @@ function buildPayload() {
 }
 
 // --- Ensure tray selection persists in payload even if suggestion UI isn't rendered
+// --- Ensure tray selection persists ONLY if the user actually touched the Duschwanne step
 (function ensureTraySelection() {
   const dw = payload.duschwanne || (payload.duschwanne = {});
   const hasSize = !!(dw.traySize && String(dw.traySize).trim());
-  const hasPid = !!(dw.chosenTrayProductId && String(dw.chosenTrayProductId).trim());
+  const hasPid  = !!(dw.chosenTrayProductId && String(dw.chosenTrayProductId).trim());
   if (hasSize && hasPid) return;
+
+  const chosenNow = document.getElementById('chosenTrayProductId')?.value?.trim();
+  const touched = !!(chosenNow || sessionStorage.getItem('dw_tray_touched') === '1');
+  if (!touched) return; // ← no backfill unless a tray was actually chosen this session
+
   try {
-    const raw = localStorage.getItem("dw_tray_selection");
+    const raw = localStorage.getItem('dw_tray_selection');
     if (!raw) return;
     const saved = JSON.parse(raw);
     if (!hasSize && saved?.value)      dw.traySize = saved.value;
     if (!hasPid  && saved?.productId)  dw.chosenTrayProductId = saved.productId;
   } catch {}
 })();
+
 
 
   return payload;
@@ -1268,14 +1275,16 @@ function initSmartTraySearch() {
 
   // ----- helpers -----
   const parseNum = (v) => {
-    if (v == null) return null;
-    const s = String(v).trim().replace(/\./g, '').replace(',', '.');
-    const n = Number(s);
-    return Number.isFinite(n) ? n : null;
-  };
+  if (v == null) return null;
+  const raw = String(v).trim();
+  if (raw === '') return null;                     // <-- key line
+  const s = raw.replace(/\./g, '').replace(',', '.');
+  const n = Number(s);
+  if (!Number.isFinite(n)) return null;
+  return n > 0 ? n : null;                         // ignore 0 or negatives
+};
   const makeLabel = (w, l, h) => (w && l && h ? `${w} x ${l} x ${h} cm` : '');
 
-  // Keep a selected-state toggle class without relying on :has()
   const applySelectedStyles = () => {
     const cards = Array.from(out.querySelectorAll('.suggestion-card'));
     const checked = out.querySelector('input[name="traySuggestion"]:checked');
@@ -1285,30 +1294,28 @@ function initSmartTraySearch() {
     });
   };
 
-  // Save to localStorage in the exact shape your ensureTraySelection() expects
   const persistSelection = (productId, label) => {
     try {
       localStorage.setItem('dw_tray_selection', JSON.stringify({ productId, value: label }));
     } catch {}
   };
 
-  // When a suggestion is chosen, update hidden fields + localStorage
   const applySelection = (inputEl) => {
     if (!inputEl) return;
+    try { sessionStorage.setItem('dw_tray_touched', '1'); } catch {}
     const pid = inputEl.value || '';
     const w = Number(inputEl.dataset.w) || null;
     const l = Number(inputEl.dataset.l) || null;
     const h = Number(inputEl.dataset.h) || null;
 
     const label = makeLabel(w, l, h);
-    if (hiddenId) hiddenId.value = pid;
+    if (hiddenId)   hiddenId.value = pid;
     if (hiddenSize) hiddenSize.value = label;
 
     persistSelection(pid, label);
     applySelectedStyles();
   };
 
-  // While typing, keep a provisional size label; a chosen suggestion will overwrite it
   const updateTraySizeFromInputs = () => {
     if (!hiddenSize) return;
     const b = elB?.value?.trim();
@@ -1318,78 +1325,75 @@ function initSmartTraySearch() {
   };
 
   // ----- render -----
- function renderSuggestions(list) {
-  if (!Array.isArray(list) || list.length === 0) {
-    out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
-    applySelectedStyles();
-    return;
-  }
-
-  // 1) Try to restore previously saved selection
-  let savedPid = null;
-  try {
-    const saved = JSON.parse(localStorage.getItem('dw_tray_selection') || 'null');
-    savedPid = saved?.productId || null;
-  } catch {}
-
-  const top = list.slice(0, 3);
-
-  // If savedPid is in the suggestions, pre-check THAT; otherwise check NONE
-  const savedIndex = savedPid ? top.findIndex(p => p.productId === savedPid) : -1;
-
-  const radios = top.map((p, i) => {
-    const id = `tray-suggest-${i}`;
-    const dims = `${p.widthCm} × ${p.lengthCm} × ${p.heightCm} cm`;
-    const price = (p.price != null) ? ` — ${Number(p.price).toFixed(2)} €` : '';
-    const title = p.name || p.productId || 'Duschwanne';
-    const value = p.productId || '';
-    const checkedAttr = (i === savedIndex) ? 'checked' : ''; // <-- only check if it matches saved
-
-    return `
-      <label class="suggestion-card" for="${id}">
-        <input type="radio"
-               id="${id}"
-               name="traySuggestion"
-               value="${value}"
-               data-w="${p.widthCm || ''}"
-               data-l="${p.lengthCm || ''}"
-               data-h="${p.heightCm || ''}"
-               ${checkedAttr} />
-        <div class="info">
-          <div class="title">${title}</div>
-          <div class="meta">${dims}${price}</div>
-        </div>
-      </label>
-    `;
-  }).join('');
-
-  out.innerHTML = `
-    <div class="suggestion-heading">Vorschläge</div>
-    <div class="suggestion-list">${radios}</div>
-  `;
-
-  // 2) If we restored a match, apply it to hidden fields.
-  if (savedIndex >= 0) {
-    const restored = out.querySelectorAll('input[name="traySuggestion"]')[savedIndex];
-    applySelection(restored);
-  } else {
-    // Important: DO NOT auto-select the first one anymore.
-    // Keep whatever is already in the hidden fields (user's previous choice).
-  }
-
-  // 3) Listen for future changes (not once: we might re-render multiple times)
-  out.addEventListener('change', (e) => {
-    if (e.target && e.target.name === 'traySuggestion') {
-      applySelection(e.target);
+  function renderSuggestions(list) {
+    if (!Array.isArray(list) || list.length === 0) {
+      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
+      applySelectedStyles();
+      return;
     }
-  });
 
-  applySelectedStyles();
-}
+    // Only restore a saved PID if the user actually chose in THIS session
+    const allowAutoCheck = sessionStorage.getItem('dw_tray_touched') === '1';
+    let savedPid = null;
+    try {
+      const saved = JSON.parse(localStorage.getItem('dw_tray_selection') || 'null');
+      savedPid = saved?.productId || null;
+    } catch {}
 
+    const top = list.slice(0, 3);
+    const savedIndex = (allowAutoCheck && savedPid)
+      ? top.findIndex(p => p.productId === savedPid)
+      : -1;
 
-  // ----- fetch logic (progressive) -----
+    const radios = top.map((p, i) => {
+      const id = `tray-suggest-${i}`;
+      const dims = `${p.widthCm} × ${p.lengthCm} × ${p.heightCm} cm`;
+      const price = (p.price != null) ? ` — ${Number(p.price).toFixed(2)} €` : '';
+      const title = p.name || p.productId || 'Duschwanne';
+      const value = p.productId || '';
+      const checkedAttr = (i === savedIndex) ? 'checked' : '';
+
+      return `
+        <label class="suggestion-card" for="${id}">
+          <input type="radio"
+                 id="${id}"
+                 name="traySuggestion"
+                 value="${value}"
+                 data-w="${p.widthCm || ''}"
+                 data-l="${p.lengthCm || ''}"
+                 data-h="${p.heightCm || ''}"
+                 ${checkedAttr} />
+          <div class="info">
+            <div class="title">${title}</div>
+            <div class="meta">${dims}${price}</div>
+          </div>
+        </label>
+      `;
+    }).join('');
+
+    out.innerHTML = `
+      <div class="suggestion-heading">Vorschläge</div>
+      <div class="suggestion-list">${radios}</div>
+    `;
+
+    if (savedIndex >= 0) {
+      const restored = out.querySelectorAll('input[name="traySuggestion"]')[savedIndex];
+      applySelection(restored);
+    }
+
+    // (Re)bind change once per render (fine if multiple; idempotent behavior)
+    out.addEventListener('change', (e) => {
+      if (e.target && e.target.name === 'traySuggestion') {
+        applySelection(e.target);
+      }
+    });
+
+    applySelectedStyles();
+  }
+
+  // ----- fetch logic (progressive) with abort + anti-stale guard -----
   let inflight = null;
+  let reqSeq = 0; // monotonically increasing sequence to ignore late responses
   let debounceT = null;
 
   async function fetchAndRender() {
@@ -1397,16 +1401,15 @@ function initSmartTraySearch() {
     const l = elL ? parseNum(elL.value) : null;
     const h = elH ? parseNum(elH.value) : null;
 
-    // If nothing typed, clear UI and try to restore persisted selection to hidden fields
+    // If nothing typed → clear everything and ensure no stale results repaint
     if (b === null && l === null && h === null) {
       out.innerHTML = '';
-      try {
-        const saved = JSON.parse(localStorage.getItem('dw_tray_selection') || 'null');
-        if (saved?.productId) {
-          if (hiddenId) hiddenId.value = saved.productId;
-          if (hiddenSize) hiddenSize.value = saved.value || '';
-        }
-      } catch {}
+      if (hiddenId)   hiddenId.value = '';
+      if (hiddenSize) hiddenSize.value = '';
+      try { sessionStorage.removeItem('dw_tray_touched'); } catch {}
+      // Cancel any in-flight request and bump sequence so its response is ignored
+      try { inflight?.abort?.(); } catch {}
+      reqSeq++;
       return;
     }
 
@@ -1416,15 +1419,16 @@ function initSmartTraySearch() {
     if (h !== null) qs.set('h', String(h));
     const url = `/api/trays/suggest?${qs.toString()}`;
 
-    // cancel previous
     try { inflight?.abort?.(); } catch {}
     inflight = new AbortController();
+    const mySeq = ++reqSeq;
 
     out.innerHTML = `<div class="meta">Suche… <code>${url}</code></div>`;
 
     try {
       const r = await fetch(url, { signal: inflight.signal, credentials: 'include' });
       const text = await r.text();
+      if (mySeq !== reqSeq) return; // stale response, ignore
       if (!r.ok) {
         out.innerHTML = `<div class="text-sm text-destructive">Fehler ${r.status}</div><pre class="text-xs">${text}</pre>`;
         return;
@@ -1435,38 +1439,35 @@ function initSmartTraySearch() {
     } catch (err) {
       if (err.name === 'AbortError') return;
       console.error('Smart tray search failed:', err);
+      if (mySeq !== reqSeq) return; // ignore stale error
       out.innerHTML = `<div class="text-sm text-destructive">Netzwerkfehler</div><pre class="text-xs">${String(err)}</pre>`;
     }
   }
 
   const request = () => { clearTimeout(debounceT); debounceT = setTimeout(fetchAndRender, 160); };
 
-  // Input listeners
   [elB, elL, elH].forEach(el => {
     if (!el) return;
     el.addEventListener('input', () => {
+      // Do NOT set dw_tray_touched here. Only on actual suggestion pick.
+      if (hiddenId) hiddenId.value = '';
       updateTraySizeFromInputs();
       request();
     });
-    el.addEventListener('change', request);
+    el.addEventListener('change', () => {
+      if (hiddenId) hiddenId.value = '';
+      request();
+    });
   });
 
-  // Try to restore persisted selection immediately (hidden fields only)
-  try {
-    const saved = JSON.parse(localStorage.getItem('dw_tray_selection') || 'null');
-    if (saved?.productId) {
-      if (hiddenId) hiddenId.value = saved.productId;
-      if (hiddenSize) hiddenSize.value = saved.value || '';
-    }
-  } catch {}
-
-  // Kick off first search if there are prefilled values
+  // Initial kick (will early-return with empty inputs)
   updateTraySizeFromInputs();
   request();
 
-  // Expose debug (optional)
   window.__smartTray = { fetchAndRender };
 }
+
+
 
 
 function initTraySizeAutoLabel() {
