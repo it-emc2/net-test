@@ -387,7 +387,7 @@ function mapData(body = {}, computed = {}) {
     services = { title: '', lines: [], sum: 0, payer: '', zoneLabel: '', distanceKm: 0, laborHours: 0, laborRate: 0 },
 
     // use server-computed fields (from pricing.js)
-    Nettobetrag: netBeforeDiscount = 0,
+    Nettobetrag: netAfterRabatt_and_Bonus = 0,
     markupPct = 0,
     markup = 0,
     travel = 0,
@@ -405,7 +405,7 @@ function mapData(body = {}, computed = {}) {
   } = computed || {};
 
   // Placeholders used in Angebot.docx
-  const Nettobetrag = fmtCurrency(netBeforeDiscount);       // "Nettobetrag (ohne Rabatt)"
+  const Nettobetrag = fmtCurrency(netAfterRabatt_and_Bonus);       // "Nettobetrag (ohne Rabatt)"
   const Rabatt = fmtCurrency(rabattAmount);                 // Materialrabatt Betrag
   const MwSt = fmtCurrency(vatOnNet);                       // 19% MwSt (nach Rabatt, falls vorhanden)
   const Gesamtsumme = fmtCurrency(total);                   // Brutto vor Rabatt
@@ -480,8 +480,8 @@ function mapData(body = {}, computed = {}) {
       BonusMenge: '1 Stk',
       BonusLabel: 'Aktion: Haltegriff',
       BonusDetail: '-- 1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage',
-      preis: '-147,06 €',
-      gesamt: '-147,06 €',
+      preis: '0,00 €',
+      gesamt: '-0,00 €',
     });
     pos = '004';
   }
@@ -504,7 +504,7 @@ function mapData(body = {}, computed = {}) {
   const toNum = v => (typeof v === 'number' ? v : Number(String(v || '').replace(',', '.')) || 0);
 
   const subsidyAmountNum  = toNum(computed?.subsidyAmount);
-  const baseForSubsidyNum = toNum(computed?.baseForSubsidy);
+  const totalNum = toNum(computed?.total);
   const selfPayAmountNum  = toNum(computed?.selfPayAmount);
 
   const SelbstkostenanteilFmt = fmtCurrency(selfPayAmountNum);
@@ -514,7 +514,7 @@ function mapData(body = {}, computed = {}) {
   const hasZuschuss = subsidyAmountNum > 0;
 
   // Build the summary rows exactly as you want them to appear:
-  const baseTotals = [
+  /*const baseTotals = [
     {
       label: hasRabatt ? 'Nettobetrag (ohne Rabatt)' : 'Nettobetrag',
       value: fmtCurrency(netBeforeDiscount)
@@ -526,6 +526,13 @@ function mapData(body = {}, computed = {}) {
     ...(hasBonus ? [{ label: 'Gesamtbetrag nach Neukundenbonus', value: fmtCurrency(totalAfterBonus) }] : []),
     ...(hasZuschuss ? [{ label: 'Zuschuss Krankenkasse', value: Zuschusskrankenkasse }] : []),
     ...(hasZuschuss ? [{ label: 'Selbstkostenanteil', value: SelbstkostenanteilFmt }] : []),
+  ]; */
+
+  const baseTotals = [
+    { label: 'Nettobetrag', value: fmtCurrency(netAfterRabatt_and_Bonus) },
+    { label: 'zzgl. 19% MwSt.', value: fmtCurrency(vatOnNet) },
+    { label: 'Gesamtsumme', value: fmtCurrency(total) },
+ 
   ];
 
   // mark every second row (0-based: 1,3,5,...) as "alt"
@@ -578,7 +585,7 @@ function mapData(body = {}, computed = {}) {
     Gesamtsummerabatt,
 
     // Computed summary
-    Nettobetrag: fmtCurrency(netBeforeDiscount),
+    Nettobetrag: fmtCurrency(netAfterRabatt_and_Bonus),
     MarkupPct: MarkupPctStr,
     MarkupValue,
     TravelValue,
@@ -642,7 +649,7 @@ router.post('/', async (req, res) => {
     const computed = await pricing.computePrices(req.body || {});
     console.log('[docx] computed subsidy:',
       { subsidyAmount: computed?.subsidyAmount,
-        baseForSubsidy: computed?.baseForSubsidy,
+        total: computed?.total,
         selfPayAmount: computed?.selfPayAmount ,
         userInput: computed?.subsidyInput}
     );

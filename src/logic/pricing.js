@@ -457,36 +457,31 @@ try {
       }
       const markup = round2( productsSubtotal  * (markupPct || 0));
 
-  
-     
-      
       // Nettobetrag
       const baseSubtotal = round2(productsSubtotal + (services?.sum ?? 0) + markup );
-
-      const vatOnNet = round2((baseSubtotal || 0) * TAX_RATE);
-      const total = round2((baseSubtotal|| 0) + vatOnNet);
 
       // --- Rabatt on MATERIAL only (percent from payload.rabatt.materialDiscountPct) ---
       const materialPct = Number(payload?.rabatt?.materialDiscountPct || 0); // 0..0.09
       const rabattAmount = round2((productsSubtotal || 0) * materialPct);
 
       // VAT is applied AFTER discount on net amount:
-      const netAfterDiscount = round2((baseSubtotal|| 0) - rabattAmount);
-      const Vat_on_net_AfterDiscount = round2(netAfterDiscount * TAX_RATE);
-      const totalAfterRabatt = round2(netAfterDiscount + Vat_on_net_AfterDiscount);
+      const netAfterRabatt = round2((baseSubtotal|| 0) - rabattAmount);
+      //const Vat_on_net_AfterDiscount = round2(netAfterDiscount * TAX_RATE);
+      //const totalAfterRabatt = round2(netAfterDiscount + Vat_on_net_AfterDiscount);
 
       // --- Neukundenbonus (after Rabatt) ---
       const flags = {
-        bonus300: !!payload?.rabatt?.bonus300,
-        bonusGrab: !!payload?.rabatt?.bonusGrab,
+        bonus_neu: !!payload?.rabatt?.bonus300,
+        bonus_Haltegriff: !!payload?.rabatt?.bonusGrab,
       };
 
       // If you want a threshold for the 300 € (e.g., only if totalAfterRabatt ≥ 3000), add it here:
       let bonusGross = 0;
-      if (flags.bonus300 ) bonusGross += 300;
-      if (flags.bonusGrab) bonusGross += 175;
+      if (flags.bonus_neu) bonusGross += 252.1;
+      if (flags.bonus_Haltegriff) bonusGross += 147.06;
 
-      const totalAfterBonus = round2(Math.max(0, totalAfterRabatt - bonusGross));
+      // const totalAfterBonus = round2(Math.max(0, totalAfterRabatt - bonusGross));
+      const netAfterRabatt_and_Bonus = round2(Math.max(0, netAfterRabatt - bonusGross));
 
       console.log('[pricing] subtotals:', {
         items: (items || []).length,
@@ -495,6 +490,9 @@ try {
         markupPct,
       });
 
+
+const vatOnNet = round2((netAfterRabatt_and_Bonus || 0) * TAX_RATE);
+      const total = round2((netAfterRabatt_and_Bonus|| 0) + vatOnNet);
 
 
       // -------- NEW: Zuschuss/Selbstkostenanteil --------
@@ -515,8 +513,9 @@ const option = String(rawOption)
 
 // Copay from any field you might use
 const zuzahlungRaw = Number(b?.zuzahlung ?? b?.copay ?? b?.copayAmount ?? 0) || 0;
-
+const prior = Number(b.wohnumfeld.amount) || 0;
 let subsidyAmount = 0;
+let subsidyAmount_max = 0;  // changed if prior different from 0
 switch (option) {
   case '4180 MAXIMAL':
   case 'MAX_4180':
@@ -543,24 +542,26 @@ switch (option) {
   default:
     subsidyAmount = 0;
 }
+subsidyAmount_max = subsidyAmount;
  // subtract prior Wohnumfeld amount (KK only)
  console.log("payerrrr ", payer)
  console.log("and ", b?.wohnumfeld?.done)
   if ((payer === 'Kassenkunde') && b?.wohnumfeld?.done) {
-    const prior = Number(b.wohnumfeld.amount) || 0;
     // prevent negative subsidy
-    subsidyAmount = Math.max(0, subsidyAmount - Math.max(0, prior));
-    console.log("payerrrr ", subsidyAmount)
+   
+    subsidyAmount_max  = Math.max(0, subsidyAmount - Math.max(0, prior));  //   // we substract prior (wohnumfeldAmount ) if exist from money help pfelegebudget
+    console.log("subsidyAmount", subsidyAmount)
+    console.log("subsidyAmount_max", subsidyAmount_max)
   }
 
 
 // Base to subtract from: prefer most final amount
-const baseForSubsidy =
-  (Number.isFinite(totalAfterBonus)  && totalAfterBonus  > 0 ? totalAfterBonus  :
-   Number.isFinite(totalAfterRabatt) && totalAfterRabatt > 0 ? totalAfterRabatt :
-   total);
+// const baseForSubsidy =
+  // (Number.isFinite(totalAfterBonus)  && totalAfterBonus  > 0 ? totalAfterBonus  :
+  //  Number.isFinite(totalAfterRabatt) && totalAfterRabatt > 0 ? totalAfterRabatt :
+  //  total);
 
-const selfPayAmount = round2(Math.max(0, Number(baseForSubsidy) - Number(subsidyAmount)));
+const selfPayAmount = round2(Math.max(0, Number(total) - Number(subsidyAmount_max )));
 
 
      
@@ -569,24 +570,24 @@ const selfPayAmount = round2(Math.max(0, Number(baseForSubsidy) - Number(subsidy
       return {
         // before discount:
         items, materials, productsSubtotal, services,
-        Nettobetrag: baseSubtotal, markupPct, markup, vatOnNet, total, 
+        Nettobetrag: baseSubtotal, markupPct, markup, vatOnNet, total, netAfterRabatt_and_Bonus,
 
         // values after discount 
-        totalAfterRabatt ,netAfterDiscount ,Vat_on_net_AfterDiscount,
+        netAfterRabatt ,
         materialDiscountPct: materialPct,  // for the slider label in UI
         rabattAmount,
 
         // rabatt + bonus:
         bonusGross,
-        totalAfterBonus,
         bonusFlags: flags,
         flags: flags,  
 
         // NEW: Zuschuss/Selbstkostenanteil for UI + DOCX
         subsidyKind: option,
         subsidyInput: Math.max(0, zuzahlungRaw),
-        subsidyAmount,
-        baseForSubsidy,
+        subsidyAmount, // money help pfelegebudget
+        prior, //  wohnumfeldAmount
+        subsidyAmount_max,
         selfPayAmount, 
         selectedTray,
       
