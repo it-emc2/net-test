@@ -812,15 +812,16 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function applyCopay() {
-    const on = !!(
-      copayCheckbox &&
-      copayCheckbox.checked &&
-      !copayCheckbox.closest("[hidden]")
-    );
-    show(copayField, on);
-    setReq(copayAmount, on);
-    if (!on && copayAmount) copayAmount.value = "";
-  }
+  const on = !!(
+    copayCheckbox &&
+    copayCheckbox.checked &&
+    !copayCheckbox.closest("[hidden]")
+  );
+  show(copayField, on);
+  // Make it optional: never mark as required
+  if (!on && copayAmount) copayAmount.value = "";
+}
+
  function apply(){
   const kk = isKK(); 
   const has = hasPG(); 
