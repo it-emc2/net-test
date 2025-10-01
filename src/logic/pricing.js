@@ -213,8 +213,9 @@ async function computeMaterials(payload) {
     const packs = ceilSafe(floorArea / 0.6);
     if (packs > 0) add('V4FK600', packs, `- ${packs} Pkg Flächenkleber (1 Pkg je 0,60 m²)`, 17.39);
 
-    // Trinnity Bodenabdichtung (pro m² aus 7m²-Set)
-    if (dusch.floorSealing) {
+    // Abdichtung per m² (checkbox is named "floorSealing[]" in the form)
+ const floorSealingOn = !!(dusch.floorSealing || dusch['floorSealing[]']);
+  if (floorSealingOn) {
       const effM2 = round2(floorArea * 1.15);
       if (effM2 > 0) {
         idsNeeded.add('TRBDSET7');
