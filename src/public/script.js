@@ -1056,6 +1056,10 @@ async function getProduct(id) {
   const adhesivePriceEl = document.getElementById("floorAdhesivePrice");
   const sealingPriceEl = document.getElementById("floorSealingPrice");
   const panelsPriceEl = document.getElementById("flooringPanelsPrice");
+  // ⬇️ NEW little fields we’ll fill
+  const panelsQtyEl   = document.getElementById("floorPanelsQty");
+  const panelsUnitEl  = document.getElementById("floorPanelsUnit");
+  const individPriceEl = document.getElementById("floorIndividPrice");
 
   const liveAdh = document.getElementById("adhesiveLivePreview");
   const liveSeal = document.getElementById("sealingLivePreview");
@@ -1100,23 +1104,37 @@ async function getProduct(id) {
       unitSeal = Number(p?.price || 0);
     }
   }
-
-  function updateFlooringPanelsPriceFromPricing() {
-    if (!panelsPriceEl) return;
-    const data = window.__pricing;
-    if (!data || !data.materials || !Array.isArray(data.materials.lines)) {
-      panelsPriceEl.textContent = "0";
+function updateFlooringPanelsPriceFromPricing() {
+    // We mirror the *server* truth from window.__pricing materials
+    if (!panelsPriceEl || !window.__pricing || !Array.isArray(window.__pricing?.materials?.lines)) {
+      if (panelsPriceEl) panelsPriceEl.textContent = "0";
+      if (panelsQtyEl)   panelsQtyEl.textContent   = "0";
+      if (panelsUnitEl)  panelsUnitEl.textContent  = "0";
+      if (individPriceEl) individPriceEl.textContent = "0";
       return;
     }
-    const line = data.materials.lines.find(
-      (l) => (l.productId || l.id) === "V5FB02"
-    );
-    panelsPriceEl.textContent = line ? euro(line.lineTotal || 0) : "0";
-  }
-  // expose globally so outside listeners can call safely
-  window.updateFlooringPanelsPriceFromPricing =
-    updateFlooringPanelsPriceFromPricing;
 
+    const line = window.__pricing.materials.lines.find(l => (l.productId || l.id) === "V5FB02");
+    if (!line) {
+      panelsPriceEl.textContent = "0";
+      if (panelsQtyEl)   panelsQtyEl.textContent   = "0";
+      if (panelsUnitEl)  panelsUnitEl.textContent  = "0";
+      if (individPriceEl) individPriceEl.textContent = "0";
+      return;
+    }// Fill qty, unit, total — all currency formatted like elsewhere
+    const fmt = (n) => (Number(n) || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    if (panelsQtyEl)   panelsQtyEl.textContent   = String(line.qty ?? 0);
+    if (panelsUnitEl)  panelsUnitEl.textContent  = fmt(line.unitPrice ?? 0);
+    panelsPriceEl.textContent = fmt(line.lineTotal ?? 0);
+
+    // “Preis (individ. 5.0 V5FB02)” mirrors the same total as the panels line
+    if (individPriceEl) individPriceEl.textContent = fmt(line.lineTotal ?? 0);
+  }
+
+
+  // expose globally so outside listeners can call safely
+  window.updateFlooringPanelsPriceFromPricing = updateFlooringPanelsPriceFromPricing;
   function updateUI() {
     const m2 = parseArea();
     computed.areaM2 = m2;
