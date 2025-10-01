@@ -2297,43 +2297,67 @@ function initBasinAutoAccessories() {
   }
 }
 
-
-
-
-(function initOptionalMenus() {
+function initOptionalMenus() {
+  // Map main category checkboxes -> their panels
   const map = {
-    cat_SHOWER: "menu_SHOWER",
-    cat_GRAB: "menu_GRAB",
-    cat_FOLD: "menu_FOLD",
-    cat_BASIN: "menu_BASIN",
-    cat_BASIN_TAP: "menu_BASIN_TAP",
-    cat_THERMO: "menu_THERMO",
-    cat_SEAT: "menu_SEAT",
-    // If you later add more main categories, list them here
+    cat_SHOWER:     "menu_SHOWER",
+    cat_GRAB:       "menu_GRAB",
+    cat_FOLD:       "menu_FOLD",
+    cat_BASIN:      "menu_BASIN",
+    cat_BASIN_TAP:  "menu_BASIN_TAP",
+    cat_THERMO:     "menu_THERMO",
+    cat_SEAT:       "menu_SEAT",
+    // Add more categories here if needed
   };
 
-  const showPanel = (id, on) => {
+  // ---- helpers ----
+  function showPanel(id, on) {
     const el = document.getElementById(id);
     if (!el) return;
     el.hidden = !on;
     el.setAttribute("aria-hidden", String(!on));
-  };
+  }
 
-  // Toggle menus based on main category checkboxes
-  Object.entries(map).forEach(([catId, menuId]) => {
-    const cat = document.getElementById(catId);
-    if (!cat) return;
-    const apply = () => showPanel(menuId, !!cat.checked);
-    cat.addEventListener("change", apply);
-    // initial state (in case of persisted checks)
-    apply();
-  });
+  // Reset ONLY the given panel (no global side effects, no event dispatch),
+  // so re-selecting tiles later will naturally re-show qty wrappers via wireTileQty.
+  function resetPanel(menuId) {
+    const panel = document.getElementById(menuId);
+    if (!panel) return;
 
-  // Helper to wire each tile checkbox to its quantity wrapper
+    // Uncheck all toggles inside this panel (no events)
+    panel.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(i => {
+      i.checked = false;
+    });
+
+    // Zero all numbers, remove required, and hide their *local* wrappers
+    panel.querySelectorAll('input[type="number"]').forEach(n => {
+      n.value = '0';
+      n.removeAttribute('required');
+      const wrap = n.closest('[id$="_wrap"]');
+      if (wrap) {
+        wrap.hidden = true;
+        wrap.setAttribute('aria-hidden', 'true');
+      }
+    });
+
+    // Basin-only: collapse "Erforderliches Zubehör" within this panel and clear saved state
+    const reqWrap = panel.querySelector('#basinRequiredWrap');
+    if (reqWrap) {
+      reqWrap.hidden = true;
+      reqWrap.setAttribute('aria-hidden', 'true');
+    }
+    try { localStorage.removeItem('basin_required_state'); } catch {}
+
+    // Keep totals in sync
+    window.updatePricing?.();
+  }
+
+  // Wire a tile checkbox to its qty-wrapper (show on check, hide & zero on uncheck)
   function wireTileQty(tileCheckboxId, qtyWrapId) {
-    const cb = document.getElementById(tileCheckboxId);
+    const cb   = document.getElementById(tileCheckboxId);
     const wrap = document.getElementById(qtyWrapId);
     if (!cb || !wrap) return;
+
     const qty = wrap.querySelector('input[type="number"]');
     const apply = () => {
       const on = !!cb.checked;
@@ -2348,42 +2372,59 @@ function initBasinAutoAccessories() {
       }
     };
     cb.addEventListener("change", apply);
+    // initial
     apply();
   }
 
-  // SHOWER
-  wireTileQty("opt_V22WS1R", "qty_V22WS1R_wrap");
+  // ---- category toggles: show/hide, and reset the panel ONLY when turning OFF ----
+  Object.entries(map).forEach(([catId, menuId]) => {
+    const cat = document.getElementById(catId);
+    if (!cat) return;
+
+    function apply() {
+      const on = !!cat.checked;
+      if (!on) resetPanel(menuId);   // clear the content when category is deselected
+      showPanel(menuId, on);
+    }
+
+    cat.addEventListener("change", apply);
+    // initial state (in case some categories are pre-checked)
+    apply();
+  });
+
+  // ---- SHOWER ----
+  wireTileQty("opt_V22WS1R",    "qty_V22WS1R_wrap");
   wireTileQty("opt_TEMPDSU250", "qty_TEMPDSU250_wrap");
-  wireTileQty("opt_V22BG903R", "qty_V22BG903R_wrap");
-  wireTileQty("opt_DEDS2503E", "qty_DEDS2503E_wrap");
+  wireTileQty("opt_V22BG903R",  "qty_V22BG903R_wrap");
+  wireTileQty("opt_DEDS2503E",  "qty_DEDS2503E_wrap");
 
-  // THERMO
-  wireTileQty("opt_CLTB", "qty_CLTB_wrap");
+  // ---- THERMO ----
+  wireTileQty("opt_CLTB",  "qty_CLTB_wrap");
   wireTileQty("opt_DEPTB", "qty_DEPTB_wrap");
-  wireTileQty("opt_CLB", "qty_CLB_wrap");
+  wireTileQty("opt_CLB",   "qty_CLB_wrap");
 
-  // GRAB
+  // ---- GRAB ----
   wireTileQty("opt_CLPESG40", "qty_CLPESG40_wrap");
   wireTileQty("opt_CLPESG60", "qty_CLPESG60_wrap");
   wireTileQty("opt_CLPESG80", "qty_CLPESG80_wrap");
 
-  // FOLD
+  // ---- FOLD ----
   wireTileQty("opt_DEPSKG60", "qty_DEPSKG60_wrap");
   wireTileQty("opt_DEPSKG85", "qty_DEPSKG85_wrap");
 
-  // SEAT
+  // ---- SEAT ----
   wireTileQty("opt_DEPKS", "qty_DEPKS_wrap");
 
-  // BASIN_TAP
+  // ---- BASIN TAP ----
   wireTileQty("opt_CL_BASIN", "qty_CL_BASIN_wrap");
-  wireTileQty("opt_DEPOH", "qty_DEPOH_wrap");
+  wireTileQty("opt_DEPOH",    "qty_DEPOH_wrap");
 
-  // BASIN (and its required accessories within the basin menu)
+  // ---- BASIN (main CL60 tile) ----
   wireTileQty("opt_CL60", "qty_CL60_wrap");
 
-  // When Waschtisch (opt_CL60) is checked, show the “Erforderliches Zubehör” block and wire its tiles
+  // Show/hide "Erforderliches Zubehör" when CL60 is toggled (no cross-panel effects)
   (function wireBasinRequired() {
-    const wt = document.getElementById("opt_CL60");
+    const wt      = document.getElementById("opt_CL60");
     const reqWrap = document.getElementById("basinRequiredWrap");
     if (!wt || !reqWrap) return;
 
@@ -2392,7 +2433,7 @@ function initBasinAutoAccessories() {
       reqWrap.hidden = !on;
       reqWrap.setAttribute("aria-hidden", String(!on));
       if (!on) {
-        // Reset accessory qty wrappers
+        // reset only the required accessory tiles/qty inside this box
         ["qty_WTBF_wrap", "qty_RSL_wrap", "qty_EV_wrap"].forEach((id) => {
           const wrap = document.getElementById(id);
           const input = wrap?.querySelector('input[type="number"]');
@@ -2407,24 +2448,32 @@ function initBasinAutoAccessories() {
           const cb = document.getElementById(id);
           if (cb) cb.checked = false;
         });
+        try { localStorage.removeItem('basin_required_state'); } catch {}
+        window.updatePricing?.();
       }
     };
+
     wt.addEventListener("change", apply);
     apply();
 
-    // Required accessory tiles inside basinRequiredWrap
+    // Accessory tiles inside required block
     wireTileQty("opt_WTBF", "qty_WTBF_wrap");
-    wireTileQty("opt_RSL", "qty_RSL_wrap");
-    // Optional accessory (EV) within basin required box is optional; show qty when checked
-    wireTileQty("opt_EV", "qty_EV_wrap");
+    wireTileQty("opt_RSL",  "qty_RSL_wrap");
+    wireTileQty("opt_EV",   "qty_EV_wrap");
   })();
 
-  // Independent “Zubehör zum Waschtisch” section (menu_BASIN_ACC)
+  // ---- Independent “Zubehör zum Waschtisch” (loose accessories) ----
   wireTileQty("opt_WTBF__loose", "qty_WTBF__loose_wrap");
-  wireTileQty("opt_RSL__loose", "qty_RSL__loose_wrap");
-  wireTileQty("opt_EV__loose", "qty_EV__loose_wrap");
-  initBasinAutoAccessories();
-})();
+  wireTileQty("opt_RSL__loose",  "qty_RSL__loose_wrap");
+  wireTileQty("opt_EV__loose",   "qty_EV__loose_wrap");
+
+  // Keep your existing rule engine for CL60 & accessories (1 / 1 / 2 and persistence)
+  if (typeof initBasinAutoAccessories === "function") {
+    initBasinAutoAccessories();
+  }
+}
+
+
 
 function initLivePricingSync() {
   // WATCH EVERYTHING (best: your main form; fallback: document.body)
