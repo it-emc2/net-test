@@ -1,5 +1,69 @@
 // src/logic/pricing.js
 export default (ProductModel) => {
+  // Add any "optional" UI selection into materials as real product lines
+// Add any "optional" UI selection into materials as real product lines
+async function addOptionalSelectionsToMaterials(ProductModel, payload, materials) {
+  try {
+    const opt = payload?.optional || {};
+    if (!opt || typeof opt !== 'object') return;
+
+    // find all opt_<ID> flags
+    const ids = new Set(
+      Object.keys(opt)
+        .filter(k => k.startsWith('opt_') && opt[k] && String(opt[k]).toLowerCase() !== 'false')
+        .map(k => k.substring(4))
+        .filter(id => id)
+    );
+
+    for (const id of ids) {
+      // quantity default 1 if checked but missing/invalid
+      const rawQty = opt[`qty_${id}`];
+      let qty = Number(rawQty);
+      if (!Number.isFinite(qty) || qty <= 0) qty = 1;
+
+      // fetch product for real name + price
+      const p = await ProductModel.findOne({ productId: id }).lean();
+
+      // build a friendly label string that DOCX/PDF will print
+      // fallbacks: name -> id
+      const displayName = (p?.name || '').trim() || id;
+      const niceLabel = `- ${qty} Stk ${displayName}`;
+console.log("displayName ", displayName)
+      if (!p) {
+        // still push a visible line so it shows up
+        materials.lines.push({
+          productId: id,
+          name: displayName,     // fallback to id if no name
+          qty,
+          unitPrice: 0,
+          lineTotal: 0,
+          label: niceLabel,      // <-- important for DOCX/PDF
+          source: 'optional',
+        });
+        continue;
+      }
+
+      const unit = Number(p.price || 0);
+      const lineTotal = Math.round(unit * qty * 100) / 100;
+
+      materials.lines.push({
+        productId: p.productId,
+        name: p.name || id,
+        qty,
+        unitPrice: unit,
+        lineTotal,
+        label: niceLabel,        // <-- important for DOCX/PDF
+        source: 'optional',
+      });
+
+      materials.sum = Math.round((Number(materials.sum || 0) + lineTotal) * 100) / 100;
+    }
+  } catch (err) {
+    console.warn('[pricing] addOptionalSelectionsToMaterials failed:', err?.message || err);
+  }
+}
+
+
   // --- helper: include selected tray as a material line ---
 
   async function getProductsByIds(ids) {
@@ -219,41 +283,48 @@ if (qty1497 > 0) {
     }
 
     // Waschtisch required accessories (reuse opt)
-    const basinQty = Number(opt?.qty_CL60 || 0) || 0;
-    const basinSelected = !!opt?.opt_CL60 && basinQty > 0;
-    if (basinSelected) {
-      add('CL60', basinQty);
-      add('WTBF', basinQty);
-      add('RSL', basinQty);
-      if (opt?.opt_EV) {
-        const evQty = Number(opt?.qty_EV || 1) || 1;
-        add('EV', evQty);
-      }
-    }
+    // --- Optional menu selections: include ALL checked items as materials ---
+try {
+  // collectSelections(payload) already exists and returns [{ productId, qty }]
+  const opts = collectSelections(payload);
+  for (const s of opts) {
+    // push every selected optional item as a material line
+    add(s.productId, s.qty);
+  }
+} catch (e) {
+  console.warn('[pricing] add optional selections into materials failed:', e?.message || e);
+}
+
 
     // Resolve names + prices
     const productMap = await getProductsByIds([...idsNeeded]);
-        const resolved = lines.map(l => {
-      const prod = productMap.get(l.id) || { price: 0, name: '' };
-      let unit;
-      if (l.perM2Base && prod.price) {
-        // price per m² from a known base area (7 m² set)
-        unit = round2((Number(prod.price) || 0) / Number(l.perM2Base));
-      } else if (Number.isFinite(l.unitOverride)) {
-        unit = Number(l.unitOverride);
-      } else {
-        unit = Number(prod.price) || 0;
-      }
-      const lineTotal = round2(unit * l.qty);
-      return {
-        productId: l.id,
-        name: prod.name || '',
-        qty: l.qty,
-        unitPrice: unit,
-        lineTotal,
-        label: l.label,
-      };
-    });
+     const resolved = lines.map(l => {
+  const prod = productMap.get(l.id) || { price: 0, name: '' };
+
+  let unit;
+  if (l.perM2Base && prod.price) {
+    unit = round2((Number(prod.price) || 0) / Number(l.perM2Base));
+  } else if (Number.isFinite(l.unitOverride)) {
+    unit = Number(l.unitOverride);
+  } else {
+    unit = Number(prod.price) || 0;
+  }
+
+  const displayName = (prod.name || '').trim() || l.id;
+  const builtLabel = `- ${l.qty} Stk ${displayName}`;
+  const label = l.label || builtLabel; // ← ensure a printable label exists
+
+  const lineTotal = round2(unit * l.qty);
+  return {
+    productId: l.id,
+    name: displayName,
+    qty: l.qty,
+    unitPrice: unit,
+    lineTotal,
+    label,
+  };
+});
+  
 
     const sum = round2(resolved.reduce((a, x) => a + (x.lineTotal || 0), 0));
     return { title: 'Material für Badumbau', lines: resolved, sum };
