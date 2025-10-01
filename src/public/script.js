@@ -1570,6 +1570,7 @@ document
   );
 
 /* ========== KOSTEN-DETAILS (render from __pricing only) ========== */
+/* ========== KOSTEN-DETAILS (render from __pricing only) ========== */
 (function initKostenDetails() {
   const container = document.getElementById("costsSummary");
   if (!container) return;
@@ -1620,32 +1621,57 @@ document
     `;
   }
 
-  function renderFromData(data) {
+  // --- NEW: resolve DB names for optional items (by productId)
+  async function withResolvedOptionalNames(items) {
+    if (!Array.isArray(items) || !items.length) return [];
+    const result = await Promise.all(
+      items.map(async (i) => {
+        const pid = i.productId || i.id || "";
+        let name = i.name || ""; // server might already send a name (keep if present)
+        if (!name && pid) {
+          try {
+            const p = await getProduct(pid);          // <- uses your existing cache + /api/products/:id
+            if (p?.name) name = p.name;
+          } catch {}
+        }
+        // Fallbacks: keep label if present, else pid
+        if (!name) name = i.label || pid || "-";
+        return { ...i, name };
+      })
+    );
+    return result;
+  }
+
+  // Make this async so we can await name lookups for optional items
+  async function renderFromData(data) {
     if (!data) {
       container.innerHTML = '<div class="muted">Keine Daten</div>';
       return;
     }
 
-    const optBody = listLines(
-      (data.items || []).map((i) => ({
-        productId: i.productId,
-        name: i.productId,
-        qty: i.qty,
-        unitPrice: i.unitPrice,
-        lineTotal: i.lineTotal,
-      }))
-    );
+    // ----- OPTIONAL (resolve names) -----
+    const optionalItems = Array.isArray(data.items) ? data.items : [];
+    const optLinesResolved = (await withResolvedOptionalNames(optionalItems)).map((i) => ({
+      productId: i.productId || i.id,
+      name: i.name,                              // <- resolved name here
+      qty: i.qty,
+      unitPrice: i.unitPrice,
+      lineTotal: i.lineTotal,
+      label: i.label,                            // if the server crafted a label, keep it (takes precedence when rendered)
+    }));
+    const optBody = listLines(optLinesResolved);
     const optCard = card(
       "Optional gewählte Produkte",
       optBody,
       `<div style="text-align:right"><b>Summe:</b> ${euroC(
-        (data.items || []).reduce((a, x) => a + (x.lineTotal || 0), 0)
+        optLinesResolved.reduce((a, x) => a + (x.lineTotal || 0), 0)
       )}</div>`
     );
 
+    // ----- MATERIAL (unchanged: server usually provides names, keep fallback)
     const matLines = (data.materials?.lines || []).map((l) => ({
       productId: l.productId || l.id,
-      name: l.name,
+      name: l.name || l.label || l.productId || l.id, // keep existing logic
       qty: l.qty,
       unitPrice: l.unitPrice,
       lineTotal: l.lineTotal,
@@ -1660,6 +1686,7 @@ document
       )}</div>`
     );
 
+    // ----- SERVICES (unchanged)
     const svcLines = (data.services?.lines || []).map((s) => ({
       productId: s.key,
       name: s.label,
@@ -1701,10 +1728,10 @@ document
   async function openKosten() {
     container.innerHTML = '<div class="muted">Berechne …</div>';
     if (window.__pricing) {
-      renderFromData(window.__pricing);
+      await renderFromData(window.__pricing); // await async renderer
     } else {
       await window.updatePricing?.();
-      renderFromData(window.__pricing);
+      await renderFromData(window.__pricing);
     }
   }
 
@@ -1713,12 +1740,13 @@ document
   });
   if (getCurrentStep() === "kosten") openKosten();
 
-  window.addEventListener("pricing:updated", (ev) => {
+  window.addEventListener("pricing:updated", async (ev) => {
     if (getCurrentStep() === "kosten") {
-      renderFromData(ev.detail || window.__pricing);
+      await renderFromData(ev.detail || window.__pricing);
     }
   });
 })();
+
 
 /* ========== PDF/DOCX + API BUTTONS ========== */
 
