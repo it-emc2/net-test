@@ -172,164 +172,150 @@ console.log("displayName ", displayName)
     }));
   }
 
-  async function computeMaterials(payload) {
-    const dusch = payload?.duschwanne || {};
-    const wv = payload?.wandverkleidung || {};
-    const opt = payload?.optional || {};
+async function computeMaterials(payload) {
+  const dusch = payload?.duschwanne || {};
+  const wv = payload?.wandverkleidung || {};
+  const opt = payload?.optional || {};
 
-    const lines = [];
-    const idsNeeded = new Set();
+  const lines = [];
+  const idsNeeded = new Set();
 
-    const add = (id, qty, labelOverride, unitOverride) => {
-      const q = Number(qty) || 0;
-      if (!id || q <= 0) return;
-      idsNeeded.add(id);
-      lines.push({
-        id,
-        qty: q,
-        label: labelOverride || null,
-        unitOverride: Number.isFinite(unitOverride) ? Number(unitOverride) : null
-      });
-    };
+  const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+  const ceilSafe = (n) => Math.ceil((Number(n) || 0) - 1e-12);
 
-    if (dusch.abdichtSet) add('TRWDB', 1);
-    if (dusch.drainSet) add('AGD9060', 1);
+  // add helper with source tag support
+  const add = (id, qty, labelOverride, unitOverride, source) => {
+    const q = Number(qty) || 0;
+    if (!id || q <= 0) return;
+    idsNeeded.add(id);
+    lines.push({
+      id,
+      qty: q,
+      label: labelOverride || null,
+      unitOverride: Number.isFinite(unitOverride) ? Number(unitOverride) : null,
+      source: source || null, // 'optional' for optional items, else null
+    });
+  };
 
-    // Kleinmaterial pauschal
-    if (dusch.smallMaterial) add('KM02', 1);
+  // Duschwanne ancillary
+  if (dusch.abdichtSet) add('TRWDB', 1);
+  if (dusch.drainSet)   add('AGD9060', 1);
+  if (dusch.smallMaterial) add('KM02', 1);
+  if (dusch.stelzlager) add('STELZ', 1);
 
-    if (dusch.stelzlager) add('STELZ', 1);
+  // Fußboden
+  const addFlooring = !!dusch.addFlooring;
+  const floorArea = Number(String(dusch.floorArea ?? '').replace(',', '.')) || 0;
+  if (addFlooring && floorArea > 0) {
+    const panels = ceilSafe((floorArea * 1.15) / 0.3);
+    add('V5FB02', panels, `- ${panels} Stk Fußboden-Paneele (1 Paneele = 0.3 m² )`, 20.97);
 
-    // Fußboden
-    const addFlooring = !!dusch.addFlooring;
-    const floorArea = Number(String(dusch.floorArea ?? '').replace(',', '.')) || 0;
-    if (addFlooring && floorArea > 0) {
-      const panels = ceilSafe((floorArea * 1.15) / 0.3);
-      console.log(panels , " panels")
-      add('V5FB02', panels, `- ${panels} Stk Fußboden-Paneele (1 Paneele = 0.3 m² )`, 20.97);
+    const packs = ceilSafe(floorArea / 0.6);
+    if (packs > 0) add('V4FK600', packs, `- ${packs} Pkg Flächenkleber (1 Pkg je 0,60 m²)`, 17.39);
 
-      const packs = ceilSafe(floorArea / 0.6);
-      if (packs > 0) add('V4FK600', packs, `- ${packs} Pkg Flächenkleber (1 Pkg je 0,60 m²)`, 17.39);
-
-    
-      // Trinnity Bodenabdichtung (TRBDSET7): proportional per m², incl. +15% waste
-      if (dusch.floorSealing) {
-        const effM2 = round2(floorArea * 1.15); // add 15% Verschnitt
-        if (effM2 > 0) {
-          // We’ll price per m² based on the DB price of one 7 m² set:
-          // unit_per_m2 = price(TRBDSET7) / 7
-          // qty shown = effM2 (m²), unit shown = €/m²
-          // Do NOT hardcode 318.38; we derive from DB so future price updates flow through.
-          idsNeeded.add('TRBDSET7');
-          lines.push({
-            id: 'TRBDSET7',
-            qty: effM2, // display quantity in m²
-            label: `- ${effM2} m² Trinnity Bodenabdichtung (inkl. 15% Verschnitt)`,
-            perM2Base: 7 // tell the resolver: divide product price by 7 to get €/m²
-          });
-        }
+    // Trinnity Bodenabdichtung (pro m² aus 7m²-Set)
+    if (dusch.floorSealing) {
+      const effM2 = round2(floorArea * 1.15);
+      if (effM2 > 0) {
+        idsNeeded.add('TRBDSET7');
+        lines.push({
+          id: 'TRBDSET7',
+          qty: effM2,
+          label: `- ${effM2} m² Trinnity Bodenabdichtung (inkl. 15% Verschnitt)`,
+          perM2Base: 7,
+          source: null,
+        });
       }
     }
-
-    // Wandverkleidung
-    const qty997 = Number(wv?.wvQty997 || 0) || 0;
-    const qty1497 = Number(wv?.wvQty1497 || 0) || 0;
-    const totalPanels = qty997 + qty1497;
-
-// NEW: read selected color (fallback to empty if somehow missing)
-const wvColor = String(wv?.wvColor || '').trim();
-
-// Add panel lines; include color in the label if available
-if (qty997 > 0) {
-  const base = `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`;
-  const label = wvColor ? `${base} — Farbe: ${wvColor}` : base;   // ← append color
-  add('V3WVK09', qty997, label);
-}
-if (qty1497 > 0) {
-  const base = `- ${qty1497} Stk Wandverkleidung 3.0 Alu 1497×2550 mm`;
-  const label = wvColor ? `${base} — Farbe: ${wvColor}` : base;   // ← append color
-  add('V3WV09', qty1497, label);
-}
-
-    if (wv?.wvSealing) add('TRWDSET5', 1);
-
-    // Wandverkleidungsklebstoff: user qty oder Fallback
-    if (wv?.wvAdhesive) {
-      const userQtyAdh = Number(wv?.wvAdhesiveQty);
-      const fallbackAdh = (3 * qty997) + (4 * qty1497);
-      const qAdh = Number.isFinite(userQtyAdh) && userQtyAdh > 0 ? userQtyAdh : fallbackAdh;
-      if (qAdh > 0) add('V4RKIT', qAdh, `- ${qAdh} Stk Wandverkleidungsklebstoff 3.0/4.0`);
-    }
-
-    // Abschlussprofil (V3A)
-    let endProfilesQty = 0;
-    if (wv?.wvEndProfile) {
-      endProfilesQty = Number(wv?.wvEndProfileQty) || 0;
-      if (endProfilesQty > 0) add('V3A', endProfilesQty);
-    }
-
-    // Verbindungsprofil(e) (V3V): Anzahl Platten - 1
-    if (totalPanels >= 2) {
-      const qV3V = totalPanels - 1;
-      add('V3V', qV3V, `- ${qV3V} Stk Verbindungsprofil(e) (Plattenanzahl - 1)`);
-    }
-
-    // Profilklebstoff (V4RPKIT): user qty oder Fallback = Anzahl Endprofile
-    if (wv?.wvProfileAdhesive) {
-      const userQtyProfGlue = Number(wv?.wvProfileAdhesiveQty);
-      const fallbackProfGlue = endProfilesQty;
-      const qProfGlue = Number.isFinite(userQtyProfGlue) && userQtyProfGlue > 0 ? userQtyProfGlue : fallbackProfGlue;
-      if (qProfGlue > 0) add('V4RPKIT', qProfGlue, `- ${qProfGlue} Stk Profilklebstoff (pro Abschlussprofil 1 Stk)`);
-    }
-
-    // Waschtisch required accessories (reuse opt)
-    // --- Optional menu selections: include ALL checked items as materials ---
-try {
-  // collectSelections(payload) already exists and returns [{ productId, qty }]
-  const opts = collectSelections(payload);
-  for (const s of opts) {
-    // push every selected optional item as a material line
-    add(s.productId, s.qty);
-  }
-} catch (e) {
-  console.warn('[pricing] add optional selections into materials failed:', e?.message || e);
-}
-
-
-    // Resolve names + prices
-    const productMap = await getProductsByIds([...idsNeeded]);
-     const resolved = lines.map(l => {
-  const prod = productMap.get(l.id) || { price: 0, name: '' };
-
-  let unit;
-  if (l.perM2Base && prod.price) {
-    unit = round2((Number(prod.price) || 0) / Number(l.perM2Base));
-  } else if (Number.isFinite(l.unitOverride)) {
-    unit = Number(l.unitOverride);
-  } else {
-    unit = Number(prod.price) || 0;
   }
 
-  const displayName = (prod.name || '').trim() || l.id;
-  const builtLabel = `- ${l.qty} Stk ${displayName}`;
-  const label = l.label || builtLabel; // ← ensure a printable label exists
+  // Wandverkleidung
+  const qty997 = Number(wv?.wvQty997 || 0) || 0;
+  const qty1497 = Number(wv?.wvQty1497 || 0) || 0;
+  const totalPanels = qty997 + qty1497;
+  const wvColor = String(wv?.wvColor || '').trim();
 
-  const lineTotal = round2(unit * l.qty);
-  return {
-    productId: l.id,
-    name: displayName,
-    qty: l.qty,
-    unitPrice: unit,
-    lineTotal,
-    label,
-  };
-});
-  
-
-    const sum = round2(resolved.reduce((a, x) => a + (x.lineTotal || 0), 0));
-    return { title: 'Material für Badumbau', lines: resolved, sum };
+  if (qty997 > 0) {
+    const base = `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`;
+    const label = wvColor ? `${base} — Farbe: ${wvColor}` : base;
+    add('V3WVK09', qty997, label);
   }
-  
+  if (qty1497 > 0) {
+    const base = `- ${qty1497} Stk Wandverkleidung 3.0 Alu 1497×2550 mm`;
+    const label = wvColor ? `${base} — Farbe: ${wvColor}` : base;
+    add('V3WV09', qty1497, label);
+  }
+  if (wv?.wvSealing) add('TRWDSET5', 1);
+
+  if (wv?.wvAdhesive) {
+    const userQtyAdh = Number(wv?.wvAdhesiveQty);
+    const fallbackAdh = (3 * qty997) + (4 * qty1497);
+    const qAdh = Number.isFinite(userQtyAdh) && userQtyAdh > 0 ? userQtyAdh : fallbackAdh;
+    if (qAdh > 0) add('V4RKIT', qAdh, `- ${qAdh} Stk Wandverkleidungsklebstoff 3.0/4.0`);
+  }
+
+  let endProfilesQty = 0;
+  if (wv?.wvEndProfile) {
+    endProfilesQty = Number(wv?.wvEndProfileQty) || 0;
+    if (endProfilesQty > 0) add('V3A', endProfilesQty);
+  }
+
+  if (totalPanels >= 2) {
+    const qV3V = totalPanels - 1;
+    add('V3V', qV3V, `- ${qV3V} Stk Verbindungsprofil(e) (Plattenanzahl - 1)`);
+  }
+
+  if (wv?.wvProfileAdhesive) {
+    const userQtyProfGlue = Number(wv?.wvProfileAdhesiveQty);
+    const fallbackProfGlue = endProfilesQty;
+    const qProfGlue = Number.isFinite(userQtyProfGlue) && userQtyProfGlue > 0 ? userQtyProfGlue : fallbackProfGlue;
+    if (qProfGlue > 0) add('V4RPKIT', qProfGlue, `- ${qProfGlue} Stk Profilklebstoff (pro Abschlussprofil 1 Stk)`);
+  }
+
+  // ---- OPTIONAL: include all checked optional items as material lines (for DOCX/PDF)
+  try {
+    const selections = collectSelections(payload); // [{productId, qty}]
+    for (const s of selections) {
+      add(s.productId, s.qty, null, null, 'optional'); // tag them
+    }
+  } catch (e) {
+    console.warn('[pricing] optional->materials failed:', e?.message || e);
+  }
+
+  // ---- Resolve prices/names
+  const productMap = await getProductsByIds([...idsNeeded]);
+  const resolved = lines.map(l => {
+    const prod = productMap.get(l.id) || { price: 0, name: '' };
+
+    let unit;
+    if (l.perM2Base && prod.price) {
+      unit = round2((Number(prod.price) || 0) / Number(l.perM2Base));
+    } else if (Number.isFinite(l.unitOverride)) {
+      unit = Number(l.unitOverride);
+    } else {
+      unit = Number(prod.price) || 0;
+    }
+
+    const displayName = (prod.name || '').trim() || l.id;
+    const builtLabel = `- ${l.qty} Stk ${displayName}`;
+    const label = l.label || builtLabel;
+    const lineTotal = round2(unit * l.qty);
+
+    return {
+      productId: l.id,
+      name: displayName,
+      qty: l.qty,
+      unitPrice: unit,
+      lineTotal,
+      label,
+      source: l.source || null,
+    };
+  });
+
+  const sum = round2(resolved.reduce((a, x) => a + (x.lineTotal || 0), 0));
+  return { title: 'Material für Badumbau', lines: resolved, sum };
+}
+
   // Services (zones removed)
   function computeServiceCosts(payload) {
   

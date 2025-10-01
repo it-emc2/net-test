@@ -1669,22 +1669,29 @@ document
     );
 
     // ----- MATERIAL (unchanged: server usually provides names, keep fallback)
-    const matLines = (data.materials?.lines || []).map((l) => ({
+ // show only non-optional material lines in the Material card;
+// if there are none (i.e., only optionals exist), show a friendly hint.
+const allMat = (data.materials?.lines || []);
+const coreMat = allMat.filter(l => l.source !== 'optional');
+
+const matLinesArr = (coreMat.length ? coreMat : []);
+const matBody = matLinesArr.length
+  ? listLines(matLinesArr.map(l => ({
       productId: l.productId || l.id,
-      name: l.name || l.label || l.productId || l.id, // keep existing logic
+      name: l.name,
       qty: l.qty,
       unitPrice: l.unitPrice,
       lineTotal: l.lineTotal,
       label: l.label,
-    }));
-    const matBody = listLines(matLines);
-    const matCard = card(
-      data.materials?.title || "Material",
-      matBody,
-      `<div style="text-align:right"><b>Summe Material:</b> ${euroC(
-        data.materials?.sum || 0
-      )}</div>`
-    );
+    })))
+  : '<div class="muted">Keine Materialpositionen (alle Materialpositionen sind optional – siehe Abschnitt unten)</div>';
+
+const matCard = card(
+  data.materials?.title || "Material",
+  matBody,
+  `<div style="text-align:right"><b>Summe Material:</b> ${euroC(data.materials?.sum || 0)}</div>`
+);
+
 
     // ----- SERVICES (unchanged)
     const svcLines = (data.services?.lines || []).map((s) => ({
