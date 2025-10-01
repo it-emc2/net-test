@@ -2045,8 +2045,8 @@ window.setPricingData = function setPricingData(data) {
     const mat = Number(data?.productsSubtotal ?? 0);
     const arbe = Number(data?.services?.sum ?? 0);
     const net = Number(data?.Nettobetrag ?? 0);
-    const vat = Number(data?.vatOnNet ?? net * 0.19);
-    const total = Number(data?.total ?? net + vat);
+    const vat = Number(data?.baseVat ?? 0);
+    const total = Number(data?.base_total ?? 0);
     const auf = Number(data?.markup ?? 0);
 
     byId("rb-material")?.replaceChildren(document.createTextNode(fmt(mat)));

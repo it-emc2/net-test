@@ -458,8 +458,9 @@ try {
       const markup = round2( productsSubtotal  * (markupPct || 0));
 
       // Nettobetrag
-      const baseSubtotal = round2(productsSubtotal + (services?.sum ?? 0) + markup );
-
+      const baseSubtotal = round2(productsSubtotal + (services?.sum ?? 0) + markup );    
+      const baseVat = round2(baseSubtotal * TAX_RATE);
+      const base_total =  round2(baseSubtotal +  baseVat );
       // --- Rabatt on MATERIAL only (percent from payload.rabatt.materialDiscountPct) ---
       const materialPct = Number(payload?.rabatt?.materialDiscountPct || 0); // 0..0.09
       const rabattAmount = round2((productsSubtotal || 0) * materialPct);
@@ -467,7 +468,8 @@ try {
       // VAT is applied AFTER discount on net amount:
       const netAfterRabatt = round2((baseSubtotal|| 0) - rabattAmount);
       //const Vat_on_net_AfterDiscount = round2(netAfterDiscount * TAX_RATE);
-      //const totalAfterRabatt = round2(netAfterDiscount + Vat_on_net_AfterDiscount);
+      const totalAfterRabatt = round2(netAfterRabatt * (1+TAX_RATE));
+      console.log("totalAfterRabatt  ", totalAfterRabatt )
 
       // --- Neukundenbonus (after Rabatt) ---
       const flags = {
@@ -576,6 +578,7 @@ const selfPayAmount = round2(Math.max(0, Number(total) - Number(subsidyAmount_ma
         netAfterRabatt ,
         materialDiscountPct: materialPct,  // for the slider label in UI
         rabattAmount,
+        totalAfterRabatt ,baseVat, base_total ,
 
         // rabatt + bonus:
         bonusGross,

@@ -411,10 +411,6 @@ function mapData(body = {}, computed = {}) {
   const Gesamtsumme = fmtCurrency(total);                   // Brutto vor Rabatt
   const Gesamtsummerabatt = fmtCurrency(totalAfterRabatt);  // "Gesamtbetrag nach Materialrabatt"
 
-  // Synonyms if the template uses alternative tags
-  const NettobetragOhneRabatt = Nettobetrag;
-  const Materialrabatt = Rabatt;
-  const GesamtbetragNachMaterialrabatt = Gesamtsummerabatt;
 
   // (If you actually use these in the template, keep them; otherwise you can delete)
   const Selbstkostenanteil = '';
@@ -479,9 +475,9 @@ function mapData(body = {}, computed = {}) {
       Bonus: pos,
       BonusMenge: '1 Stk',
       BonusLabel: 'Aktion: Haltegriff',
-      BonusDetail: '-- 1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage',
+      BonusDetail: '1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage',
       preis: '0,00 €',
-      gesamt: '-0,00 €',
+      gesamt: '0,00 €',
     });
     pos = '004';
   }
