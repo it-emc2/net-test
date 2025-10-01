@@ -227,6 +227,11 @@ async function computeMaterials(payload) {
         });
       }
     }
+      // ⭐ NEW: “individ. 5.0 V5FB02” — quantity is entered m², unit is DB price of V5FB02
+  const m2 = round2(floorArea);
+  if (m2 > 0) {
+    add('V5FB02', m2, `- ${m2} m² Fußboden individ.5.0 V5FB02`);
+}
   }
 
   // Wandverkleidung
