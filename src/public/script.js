@@ -1,3 +1,115 @@
+
+// call this whenever those panels become visible (no reload needed)
+document.getElementById('nav-rabatt')?.addEventListener('click', refreshAllPanels);
+document.getElementById('nav-debug') ?.addEventListener('click', refreshAllPanels);
+// If you use hash-based navigation:
+window.addEventListener('hashchange', () => {
+  const id = location.hash.replace('#','');
+  if (id === 'rabatt' || id === 'kosten-details') refreshAllPanels();
+});
+function buildPayload() {
+  // Use your existing payload builder if you already have one.
+  // This is just a stub name to indicate where you collect all form values.
+  return collectFormPayload(); // or whatever your function is called
+}
+
+async function refetchAndRender() {
+  const payload = buildPayload();
+  const res = await fetch('/api/price', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  // Re-render Kosten-Details
+  if (typeof renderFromData === 'function') renderFromData(data);
+  // If you have a dedicated Rabatt renderer, call it here too:
+  if (typeof renderRabattPanel === 'function') renderRabattPanel(data);
+}
+
+// Refresh when a panel becomes visible (by hash or tab click)
+function autoRefreshOnEnter() {
+  // 1) Hash-based navigation (#rabatt, #kosten-details, #debug …)
+  window.addEventListener('hashchange', () => {
+    const h = (location.hash || '').toLowerCase();
+    if (h.includes('rabatt') || h.includes('kosten') || h.includes('debug')) {
+      refetchAndRender();
+    }
+  });
+
+  // 2) If you have explicit nav links:
+  document.querySelectorAll('a[href*="#rabatt"], [data-panel="rabatt"]').forEach(el => {
+    el.addEventListener('click', () => setTimeout(refetchAndRender, 0));
+  });
+  document.querySelectorAll('a[href*="#kosten"], a[href*="#debug"], [data-panel="kosten-details"]').forEach(el => {
+    el.addEventListener('click', () => setTimeout(refetchAndRender, 0));
+  });
+
+  // 3) Bonus checkbox itself should also re-render on change
+  document.getElementById('rb-bonus-grab')?.addEventListener('change', () => {
+    refetchAndRender();
+  });
+}
+
+// Call once on startup (after DOM ready)
+document.addEventListener('DOMContentLoaded', autoRefreshOnEnter);
+
+// Recompute prices on the server and re-render both Debug + Rabatt UIs
+async function recomputeAndRefresh() {
+  try {
+    const payload = collectFormPayload(); // <-- your existing form->payload function
+    const res = await fetch('/api/price', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    // keep a global for debugging if you like
+    window.__pricing = data;
+
+    // Debug pane
+    await renderFromData(data);
+
+    // Rabatt pane (if you have a renderer; otherwise just update fields here)
+    if (typeof renderRabattFromData === 'function') {
+      renderRabattFromData(data);
+    } else {
+      // minimal fill if you don’t have a dedicated function
+      const rbAfter = document.getElementById('rb-total-after');
+      if (rbAfter) rbAfter.textContent = euroC(data.total || 0);
+      const rbVat  = document.getElementById('rb-vat');
+      if (rbVat) rbVat.textContent = euroC(data.vatOnNet || 0);
+    }
+  } catch (e) {
+    console.warn('[recomputeAndRefresh] failed:', e);
+  }
+}
+
+// Install listeners so entering the sections auto-refreshes latest data
+function installAutoRefreshOnNav() {
+  // Hash-based navigation support: e.g. #rabatt, #kosten-details
+  window.addEventListener('hashchange', () => {
+    const id = (location.hash || '').replace(/^#/, '');
+    if (id === 'rabatt' || id === 'kosten-details') {
+      // tiny defer to let DOM switch classes/visibility first
+      setTimeout(recomputeAndRefresh, 0);
+    }
+  });
+
+  // If you have explicit nav buttons/tabs, hook them too
+  const rabTab   = document.querySelector('[data-target="#rabatt"], #nav-rabatt, a[href="#rabatt"]');
+  const kostTab  = document.querySelector('[data-target="#kosten-details"], #nav-kosten-details, a[href="#kosten-details"]');
+
+  [rabTab, kostTab].forEach(el => {
+    if (!el) return;
+    el.addEventListener('click', () => setTimeout(recomputeAndRefresh, 0));
+  });
+}
+
+// call once on load
+installAutoRefreshOnNav();
+
+
 function wireDurationAutoFormat(id) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -1679,105 +1791,128 @@ async function renderFromData(data) {
     return;
   }
 
-  // ---------- MATERIAL (Debug) ----------
-  const mat = (data.materialsDisplayUI?.lines || data.materials?.lines || []).map(l => ({
-    productId: l.productId || l.id,
-    name: l.name || l.productId || '',
-    qty: Number(l.qty || 0),
-    unitPrice: Number(l.unitPrice || 0),
-    lineTotal: Number(l.lineTotal || 0),
-    label: l.label || ''
-  }));
-  const matSum = data.materialsDisplayUI?.sum ?? data.materials?.sum ?? 0;
-
-  const matBody = listLines(mat);
-  const matCard = card(
-    (data.materials?.title) || 'Material für Badumbau',
-    matBody,
-    `<div style="text-align:right"><b>Summe Material:</b> ${euroC(matSum)}</div>`
-  );
-
-  // ---------- OPTIONAL (Debug) ----------
-  const opt = (data.optionalDisplayUI?.lines || []).map(l => ({
-    productId: l.productId || l.id,
-    name: l.name || l.productId || '',
-    qty: Number(l.qty || 0),
-    unitPrice: Number(l.unitPrice || 0),
-    lineTotal: Number(l.lineTotal || 0),
-    label: l.label || ''
-  }));
+  // --- Optional (Debug): use optionalDisplayUI if present, else fallback to items
+  const optLines = (data.optionalDisplayUI && Array.isArray(data.optionalDisplayUI.lines))
+    ? data.optionalDisplayUI.lines
+    : ((data.items || []).map(i => ({
+        productId: i.productId,
+        name: i.productId,
+        qty: i.qty,
+        unitPrice: i.unitPrice,
+        lineTotal: i.lineTotal,
+      })));
+  const optBody = listLines(optLines);
+  // const optSum = (data.optionalDisplayUI && typeof data.optionalDisplayUI.sum === 'number')
   const optSum = data.optionalDisplayUI?.sum ?? 0;
-
-  const optBody = listLines(opt);
+   //  ? data.optionalDisplayUI.sum
+   //  : (optLines.reduce((a, x) => a + (x.lineTotal || 0), 0));
   const optCard = card(
-    'Optional gewählte Produkte',
+    "Optional gewählte Produkte",
     optBody,
     `<div style="text-align:right"><b>Summe:</b> ${euroC(optSum)}</div>`
   );
 
-  // ---------- LEISTUNGEN (Debug) ----------
-  const svcSrc = (data.servicesDisplayUI?.lines || data.services?.lines || []);
-  const svc = svcSrc.map(s => ({
-    productId: s.key || s.productId || '',
-    name: s.label || '',
-    qty: 1,
-    unitPrice: Number(s.amount || 0),
-    lineTotal: Number(s.amount || 0)
-  }));
-  const svcSum = data.services?.sum || 0;
+  // --- Material (Debug): show only non-optional UI lines
+  const matLines = (data.materialsDisplayUI && Array.isArray(data.materialsDisplayUI.lines))
+    ? data.materialsDisplayUI.lines
+    : ((data.materials && Array.isArray(data.materials.lines)) ? data.materials.lines : []);
+  const matBody = listLines(matLines.map(l => ({
+    productId: l.productId || l.id,
+    name: l.name,
+    qty: l.qty,
+    unitPrice: l.unitPrice,
+    lineTotal: l.lineTotal,
+    label: l.label,
+  })));
+  const mat = (data.materialsDisplayUI?.lines || data.materials?.lines || []);
+  const matSum = data.materialsDisplayUI?.sum ?? data.materials?.sum ?? 0;
 
-  const svcBody = listLines(svc);
-  const svcCard = card(
-    (data.services?.title) || 'Leistungen',
-    svcBody,
-    `<div style="text-align:right"><b>Summe Leistungen:</b> ${euroC(svcSum)}</div>`
+// Optional (Debug): ONLY optional
+const opt = (data.optionalDisplayUI?.lines || []);
+
+  //const matSum = (data.materialsDisplayUI && typeof data.materialsDisplayUI.sum === 'number')
+  //  ? data.materialsDisplayUI.sum
+  //  : (data.materials?.sum || 0);
+  const matCard = card(
+    (data.materials && data.materials.title) || "Material für Badumbau",
+    matBody,
+    `<div style="text-align:right"><b>Summe Material:</b> ${euroC(matSum)}</div>`
   );
 
-  // ---------- SUMMEN ----------
+  // --- Leistungen (Debug): use servicesDisplayUI if present
+  const svcSource = (data.servicesDisplayUI && Array.isArray(data.servicesDisplayUI.lines))
+    ? data.servicesDisplayUI.lines
+    : ((data.services && Array.isArray(data.services.lines)) ? data.services.lines : []);
+  const svcLines = svcSource.map(s => ({
+    productId: s.key || s.productId,
+    name: s.label,
+    qty: 1,
+    unitPrice: s.amount,
+    lineTotal: s.amount,
+  }));
+  const svcBody = listLines(svcLines);
+  const svcCard = card(
+    (data.services && data.services.title) || "Leistungen",
+    svcBody,
+    `<div style="text-align:right"><b>Summe Leistungen:</b> ${euroC(data.services?.sum || 0)}</div>`
+  );
+
+  // --- Totals (unchanged)
   const sums = `
     <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
       <div>Produkte + Material: <b>${euroC(data.productsSubtotal || 0)}</b></div>
-      <div>Leistungen: <b>${euroC(svcSum)}</b></div>
+      <div>Leistungen: <b>${euroC(data.services?.sum || 0)}</b></div>
       <div>Aufschlag (${Math.round((data.markupPct || 0) * 100)}%): <b>${euroC(data.markup || 0)}</b></div>
       <div style="font-size:1.05rem;">Zwischensumme (Netto): <b>${euroC(data.Nettobetrag || 0)}</b></div>
       <div style="font-size:1.2rem;">Gesamt: <b>${euroC(data.total || 0)}</b></div>
     </div>
   `;
-  const totalsCard = card('Summen', sums);
+  const totalsCard = card("Summen", sums);
 
-  // ---------- BONUS HALTEGRIFF Sichtbarkeit ----------
-  (function () {
-    const bonusGrab = document.getElementById('rb-bonus-grab');
-    if (!bonusGrab) return;
+  // --- Show/hide "Haltegriff gratis" checkbox based on CLPESG40 presence
+ (function () {
+  const bonusGrab = document.getElementById('rb-bonus-grab');
+  if (!bonusGrab) return;
 
-    // Prefer a server-provided count if you added one; otherwise detect from optionalDisplayUI
-    const serverCL40 =
-      Number(data?.grabCounts?.cl40 || data?.materials?.grabCounts?.cl40 || 0);
+  // authoritative source from server:
+  const cl40 = Number(data?.grabCounts?.cl40 || 0);
+  const shouldShow = cl40 > 0;
 
-    const hasCL40FromOptionals = (data?.optionalDisplayUI?.lines || [])
-      .some(l => (l.productId || l.id) === 'CLPESG40' && Number(l.qty || 0) > 0);
-
-    const shouldShow = (serverCL40 > 0) || hasCL40FromOptionals;
-
-    const row = bonusGrab.closest('.form-row') || bonusGrab.closest('label') || bonusGrab.parentElement;
-    if (shouldShow) {
-      if (row) row.style.display = '';
-      bonusGrab.disabled = false;
-    } else {
-      if (row) row.style.display = 'none';
-      if (bonusGrab.checked) {
-        bonusGrab.checked = false;
-        bonusGrab.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-      bonusGrab.disabled = true;
+  const row = bonusGrab.closest('.form-row') || bonusGrab.closest('label') || bonusGrab.parentElement;
+  if (shouldShow) {
+    if (row) row.style.display = '';
+    bonusGrab.disabled = false;
+  } else {
+    if (row) row.style.display = 'none';
+    if (bonusGrab.checked) {
+      bonusGrab.checked = false;
+      bonusGrab.dispatchEvent(new Event('change', { bubbles: true }));
     }
-  })();
+    bonusGrab.disabled = true;
+  }
+})();
 
-  // ---------- RENDER ----------
-  container.innerHTML = [matCard, optCard, svcCard, totalsCard].join('');
+
+  container.innerHTML = [matCard, optCard, svcCard, totalsCard].join("");
 }
 
 
+function refreshAllPanels() {
+  // re-post with current form and re-render everything
+  const payload = collectAllFormData(); // your existing function
+  fetch('/api/price', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(data => {
+    lastComputed = data;                   // keep your cached result if you use one
+    renderRabatt(data);                    // your existing render
+    renderFromData(data);                  // Kosten-Details
+  })
+  .catch(console.error);
+}
 
   async function openKosten() {
     container.innerHTML = '<div class="muted">Berechne …</div>';
@@ -2618,10 +2753,21 @@ function initLivePricingSync() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+
+   // If you have explicit nav buttons/tabs:
+  const btnRabatt = document.getElementById('nav-rabatt');
+  const btnDebug  = document.getElementById('nav-debug');
+  if (btnRabatt) btnRabatt.addEventListener('click', refreshAllPanels);
+  if (btnDebug)  btnDebug .addEventListener('click', refreshAllPanels);
+
   initSmartTraySearch();
   initTraySizeAutoLabel();
   initOptionalMenus && initOptionalMenus(); 
   initBasinAutoAccessories && initBasinAutoAccessories();
-  initLivePricingSync(); //   
+  initLivePricingSync(); //  
+   window.addEventListener('hashchange', () => {
+    const id = location.hash.replace('#','');
+    if (id === 'rabatt' || id === 'kosten-details') refreshAllPanels();
+  }); 
 });
 

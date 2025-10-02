@@ -422,8 +422,11 @@ const svc = (computed?.servicesDisplayDocx?.lines  || services?.lines  || []);
   const MarkupValue = fmtCurrency(markup);
   const TravelValue = fmtCurrency(travel);
 
-// Services block (labels for the docx list)
-const serviceLines = (svc || [])
+
+// Services block
+// Services block (prefer adjusted display for DOCX)
+const svcForDoc = (computed.servicesDisplayDocx?.lines || computed.services?.lines || []);
+const serviceLines = svcForDoc
   .filter(l => l && l.key !== 'facharbeiter' && !l.docxHide)
   .map(l => l.label);
   const ServicePosTitle = services?.title || 'Auszuführende Arbeiten';
@@ -435,12 +438,12 @@ const serviceLines = (svc || [])
   const MaterialsUnitPrice = fmtCurrency(materials?.sum || 0);
   const MaterialsTotal = fmtCurrency(materials?.sum || 0);
   // Materials block (lines for "Material für Badumbau")
-const MaterialsLines = (mat || []).map(l => {
+// Materials block
+const matForDoc = (computed.materialsDisplayDocx?.lines || computed.materials?.lines || []);
+const MaterialsLines = matForDoc.map(l => {
   const qtyStr = Number(l.qty || 0).toFixed(2).replace(/\.00$/, '');
   const nameOrId = l.name || l.productId || '';
-  return {
-    MaterialLine: l.label ? l.label : `- ${qtyStr} Stk ${nameOrId}`,
-  };
+  return { MaterialLine: l.label ? l.label : `- ${qtyStr} Stk ${nameOrId}` };
 });
   const PayerKind = services?.payer || (b.payer || '');
   const ZoneChosen = services?.zoneLabel || '';

@@ -118,8 +118,10 @@ async function computeMaterials(payload) {
   const dusch = payload?.duschwanne || {};
   const wv = payload?.wandverkleidung || {};
   const opt = payload?.optional || {};
+
+  // For Haltegriff counts (used by UI logic later)
   let grabTotalQty = 0;
-let cl40Qty = 0;
+  let cl40Qty = 0;
 
   const lines = [];
   const idsNeeded = new Set();
@@ -127,7 +129,7 @@ let cl40Qty = 0;
   const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
   const ceilSafe = (n) => Math.ceil((Number(n) || 0) - 1e-12);
 
-  // add helper with source tag support
+  // helper to push unresolved lines; we resolve names/prices at the end
   const add = (id, qty, labelOverride, unitOverride, source) => {
     const q = Number(qty) || 0;
     if (!id || q <= 0) return;
@@ -137,29 +139,32 @@ let cl40Qty = 0;
       qty: q,
       label: labelOverride || null,
       unitOverride: Number.isFinite(unitOverride) ? Number(unitOverride) : null,
-      source: source || null, // 'optional' for optional items, else null
+      source: source || null, // 'optional' for optionals, else null
     });
   };
 
-  // Duschwanne ancillary
+  // ------- Duschwanne ancillary
   if (dusch.abdichtSet) add('TRWDB', 1);
   if (dusch.drainSet)   add('AGD9060', 1);
   if (dusch.smallMaterial) add('KM02', 1);
   if (dusch.stelzlager) add('STELZ', 1);
 
-  // Fußboden
+  // ------- Fußboden
   const addFlooring = !!dusch.addFlooring;
   const floorArea = Number(String(dusch.floorArea ?? '').replace(',', '.')) || 0;
+
   if (addFlooring && floorArea > 0) {
+    // Paneele inkl. 15% Verschnitt
     const panels = ceilSafe((floorArea * 1.15) / 0.3);
     add('V5FB02', panels, `- ${panels} Stk Fußboden-Paneele (1 Paneele = 0.3 m² )`, 20.97);
 
+    // Flächenkleber (0,60 m²/Pack)
     const packs = ceilSafe(floorArea / 0.6);
     if (packs > 0) add('V4FK600', packs, `- ${packs} Pkg Flächenkleber (1 Pkg je 0,60 m²)`, 17.39);
 
-    // Abdichtung per m² (checkbox is named "floorSealing[]" in the form)
- const floorSealingOn = !!(dusch.floorSealing || dusch['floorSealing[]']);
-  if (floorSealingOn) {
+    // Bodenabdichtung pro m² (Checkbox name can be floorSealing or floorSealing[])
+    const floorSealingOn = !!(dusch.floorSealing || dusch['floorSealing[]']);
+    if (floorSealingOn) {
       const effM2 = round2(floorArea * 1.15);
       if (effM2 > 0) {
         idsNeeded.add('TRBDSET7');
@@ -167,19 +172,20 @@ let cl40Qty = 0;
           id: 'TRBDSET7',
           qty: effM2,
           label: `- ${effM2} m² Trinnity Bodenabdichtung (inkl. 15% Verschnitt)`,
-          perM2Base: 7,
+          perM2Base: 7, // derive €/m² = price(TRBDSET7)/7
           source: null,
         });
       }
     }
-      // ⭐ NEW: “individ. 5.0 V5FB02” — quantity is entered m², unit is DB price of V5FB02
-  const m2 = round2(floorArea);
-  if (m2 > 0) {
-    add('V5FB02', m2, `- ${m2} m² Fußboden individ.5.0 V5FB02`);
-}
+
+    // individ. 5.0 V5FB02 — Menge = eingegebene m², Preis/Einheit = DB-Preis von V5FB02
+    const m2 = round2(floorArea);
+    if (m2 > 0) {
+      add('V5FB02', m2, `- ${m2} m² Fußboden individ.5.0 V5FB02`);
+    }
   }
 
-  // Wandverkleidung
+  // ------- Wandverkleidung
   const qty997 = Number(wv?.wvQty997 || 0) || 0;
   const qty1497 = Number(wv?.wvQty1497 || 0) || 0;
   const totalPanels = qty997 + qty1497;
@@ -195,6 +201,7 @@ let cl40Qty = 0;
     const label = wvColor ? `${base} — Farbe: ${wvColor}` : base;
     add('V3WV09', qty1497, label);
   }
+
   if (wv?.wvSealing) add('TRWDSET5', 1);
 
   if (wv?.wvAdhesive) {
@@ -222,60 +229,68 @@ let cl40Qty = 0;
     if (qProfGlue > 0) add('V4RPKIT', qProfGlue, `- ${qProfGlue} Stk Profilklebstoff (pro Abschlussprofil 1 Stk)`);
   }
 
-  // ---- OPTIONAL: include all checked optional items as material lines (for DOCX/PDF)
+  // ------- OPTIONALS as material lines (tagged so UI can filter them out of Material/Debug)
   try {
     const selections = collectSelections(payload); // [{productId, qty}]
     const isGrabId = id => id === 'CLPESG40' || id === 'CLPESG60' || id === 'CLPESG80';
-  grabTotalQty = selections
-    .filter(s => isGrabId(s.productId))
-    .reduce((a, s) => a + (Number(s.qty) || 0), 0);
 
-  cl40Qty = selections
-    .filter(s => s.productId === 'CLPESG40')
-    .reduce((a, s) => a + (Number(s.qty) || 0), 0);
+    grabTotalQty = selections
+      .filter(s => isGrabId(s.productId))
+      .reduce((a, s) => a + (Number(s.qty) || 0), 0);
 
-  for (const s of selections) {
-    add(s.productId, s.qty, null, null, 'optional'); // tag them
+    cl40Qty = selections
+      .filter(s => s.productId === 'CLPESG40')
+      .reduce((a, s) => a + (Number(s.qty) || 0), 0);
+
+    for (const s of selections) {
+      add(s.productId, s.qty, null, null, 'optional');
+    }
+  } catch (e) {
+    console.warn('[pricing] optional->materials failed:', e?.message || e);
   }
-} catch (e) {
-  console.warn('[pricing] optional->materials failed:', e?.message || e);
-}
 
-  // ---- Resolve prices/names
+  // ------- Resolve names/prices once
   const productMap = await getProductsByIds([...idsNeeded]);
- const resolved = lines.map(l => {
-  const prod = productMap.get(l.id) || { price: 0, name: '' };
 
-  let unit;
-  if (l.perM2Base && prod.price) {
-    unit = round2((Number(prod.price) || 0) / Number(l.perM2Base));
-  } else if (Number.isFinite(l.unitOverride)) {
-    unit = Number(l.unitOverride);
-  } else {
-    unit = Number(prod.price) || 0;
-  }
+  const resolved = lines.map(l => {
+    const prod = productMap.get(l.id) || { price: 0, name: '' };
 
-  const displayName = (prod.name || '').trim() || l.id;
-  const builtLabel = `- ${l.qty} Stk ${displayName}`;
-  const label = l.label || builtLabel;
-  const lineTotal = round2(unit * l.qty);
+    let unit;
+    if (l.perM2Base && prod.price) {
+      unit = round2((Number(prod.price) || 0) / Number(l.perM2Base)); // €/m² from set
+    } else if (Number.isFinite(l.unitOverride)) {
+      unit = Number(l.unitOverride);
+    } else {
+      unit = Number(prod.price) || 0;
+    }
 
-  return {
-    productId: l.id,
-    name: displayName,
-    qty: l.qty,
-    unitPrice: unit,
-    lineTotal,
-    label,
-    source: l.source || null,
-  };
-});
+    const displayName = (prod.name || '').trim() || l.id;
+    const builtLabel  = `- ${l.qty} Stk ${displayName}`;
+    const label       = l.label || builtLabel;
+    const lineTotal   = round2(unit * l.qty);
 
+    return {
+      productId: l.id,
+      name: displayName,
+      qty: l.qty,
+      unitPrice: unit,
+      lineTotal,
+      label,
+      source: l.source || null,
+    };
+  });
 
   const sum = round2(resolved.reduce((a, x) => a + (x.lineTotal || 0), 0));
-return { title: 'Material für Badumbau', lines: resolved, sum, grabCounts: { cl40: cl40Qty, total: grabTotalQty } };
 
+  // Return grabCounts at materials-level; UI or computePrices can bubble it up
+  return {
+    title: 'Material für Badumbau',
+    lines: resolved,
+    sum,
+    grabCounts: { cl40: cl40Qty, total: grabTotalQty },
+  };
 }
+
 
   // Services (zones removed)
   function computeServiceCosts(payload) {
@@ -358,65 +373,100 @@ try { services = computeServiceCosts(payload) || services; } catch (e) { console
 
 
 // ----- UI/DOCX display adjustments for Haltegriff-Bonus (presentation only) -----
+// ---- HALTEGRIFF + DISPLAY PREP ----
+const grabCounts = (materials?.grabCounts) || { cl40: 0, total: 0 };
 const bonusHG = !!payload?.rabatt?.bonusGrab;
 
-const uiMaterials   = (materials?.lines || []).map(x => ({ ...x }));
-const docxMaterials = (materials?.lines || []).map(x => ({ ...x }));
+// Split materials into non-optional (for UI) and all (for DOCX)
+const allMatLines = Array.isArray(materials?.lines) ? materials.lines.map(x => ({ ...x })) : [];
+const optLines = allMatLines.filter(l => l.source === 'optional');
+const nonOptLines = allMatLines.filter(l => l.source !== 'optional');
 
-const GRAB_NOTE = '- Anbringen zusätzlicher Haltegriffe';
-const uiServices   = (services?.lines || []).map(x => ({ ...x }));
+// Sums
+const optSum = optLines.reduce((a, x) => a + (Number(x.lineTotal) || 0), 0);
+const nonOptSum = (materials?.sum || 0) - optSum;
+
+// --- UI MATERIALS: show ONLY non-optional under “Material für Badumbau”
+const uiMaterials = nonOptLines.map(x => ({ ...x }));
+// --- UI OPTIONALS: show ONLY optional under “Optional gewählte Produkte”
+const uiOptionals = optLines.map(x => ({ ...x }));
+
+// --- DOCX MATERIALS: include everything (business rule)
+const docxMaterials = allMatLines.map(x => ({ ...x }));
+
+// --- SERVICES display copies
+const uiServices = (services?.lines || []).map(x => ({ ...x }));
 const docxServices = (services?.lines || []).map(x => ({ ...x }));
 
-// Use counters from computeMaterials:
-const { cl40: cl40Qty, total: grabTotalQty } = (materials?.grabCounts || { cl40: 0, total: 0 });
+// ===== Apply bonus presentation rules =====
+const ONLY_ONE_CL40 = grabCounts.total === 1 && grabCounts.cl40 === 1;
 
-if (bonusHG && cl40Qty > 0) {
-  const onlyOneCL40 = (grabTotalQty === 1 && cl40Qty === 1);
-
-  // UI materials: annotate/decrement CLPESG40
-  const uiLine = uiMaterials.find(l => (l.productId || l.id) === 'CLPESG40');
-  if (uiLine) {
-    if (onlyOneCL40) {
-      uiLine.name  = (uiLine.name  || '').replace(/\s*\(hidden\)\s*$/,'') + ' (hidden)';
-      uiLine.label = (uiLine.label || '').replace(/\s*\(hidden\)\s*$/,'') + ' (hidden)';
-    } else if (uiLine.qty > 0) {
-      uiLine.qty = Math.max(0, Number(uiLine.qty || 0) - 1);
+// Helper: decrement CLPESG40 qty by exactly 1 across an array (remove if qty -> 0)
+function decOneCL40(arr, { removeIfZero }) {
+  let left = 1;
+  for (let i = 0; i < arr.length && left > 0; i++) {
+    const l = arr[i];
+    const pid = l.productId || l.id;
+    if (pid === 'CLPESG40') {
+      const q = Number(l.qty || 0);
+      if (q > 0) {
+        const newQ = Math.max(0, q - left);
+        left = Math.max(0, left - q);
+        l.qty = newQ;
+        // recompute lineTotal for display only (prices NEVER used from these lists)
+        l.lineTotal = Math.round((Number(l.unitPrice || 0) * newQ + Number.EPSILON) * 100) / 100;
+        if (removeIfZero && newQ === 0) {
+          arr.splice(i, 1);
+          i--;
+        }
+      }
     }
-  }
-
-  // DOCX materials: hide/decrement CLPESG40
-  const dIdx = docxMaterials.findIndex(l => (l.productId || l.id) === 'CLPESG40');
-  if (dIdx >= 0) {
-    const dLine = docxMaterials[dIdx];
-    if (onlyOneCL40) {
-      docxMaterials.splice(dIdx, 1);
-    } else if (dLine.qty > 0) {
-      dLine.qty = Math.max(0, Number(dLine.qty || 0) - 1);
-      if (dLine.qty === 0) docxMaterials.splice(dIdx, 1);
-    }
-  }
-
-  // Services note tweak
-  const uiNoteIdx = uiServices.findIndex(s => (s.label || '').includes(GRAB_NOTE));
-  const dxNoteIdx = docxServices.findIndex(s => (s.label || '').includes(GRAB_NOTE));
-  if (onlyOneCL40) {
-    if (uiNoteIdx >= 0) uiServices[uiNoteIdx].label = uiServices[uiNoteIdx].label.replace(/\s*\(hidden\)\s*$/,'') + ' (hidden)';
-    if (dxNoteIdx >= 0) docxServices.splice(dxNoteIdx, 1); // hide in DOCX
   }
 }
 
-// ✅ NEW: split for UI
-const allLines = materials?.lines || [];
-const uiMatCore = uiMaterials.filter(l => l.source !== 'optional');     // shown under "Material für Badumbau"
-const uiOptOnly = allLines.filter(l => l.source === 'optional');        // shown under "Optional gewählte Produkte"
+// UI rules
+if (bonusHG && grabCounts.cl40 > 0) {
+  if (ONLY_ONE_CL40) {
+    // Optional list: keep qty as is but annotate (hidden)
+    const uiOptCL40 = uiOptionals.find(l => (l.productId || l.id) === 'CLPESG40');
+    if (uiOptCL40) {
+      const suffix = ' (hidden)';
+      if (!/\(hidden\)\s*$/.test(uiOptCL40.name || ''))  uiOptCL40.name  = (uiOptCL40.name  || '')  + suffix;
+      if (!/\(hidden\)\s*$/.test(uiOptCL40.label || '')) uiOptCL40.label = (uiOptCL40.label || '') + suffix;
+    }
+    // Services UI: annotate the haltegriffe worknote
+    const GRAB_NOTE = 'Anbringen zusätzlicher Haltegriffe';
+    const uiNote = uiServices.find(s => (s.label || '').includes(GRAB_NOTE));
+    if (uiNote && !/\(hidden\)\s*$/.test(uiNote.label)) uiNote.label += ' (hidden)';
+  } else {
+    // Multiple grab bars: show CLPESG40 as qty-1 in Optional UI
+    decOneCL40(uiOptionals, { removeIfZero: false });
+  }
+}
 
-const sumOf = arr => round2(arr.reduce((a, x) => a + (x.lineTotal || 0), 0));
+// DOCX rules
+if (bonusHG && grabCounts.cl40 > 0) {
+  if (ONLY_ONE_CL40) {
+    // Single CLPESG40 → hide it completely in DOCX materials
+    const idx = docxMaterials.findIndex(l => (l.productId || l.id) === 'CLPESG40');
+    if (idx >= 0) docxMaterials.splice(idx, 1);
+    // Remove the worknote line from DOCX services
+    const GRAB_NOTE = 'Anbringen zusätzlicher Haltegriffe';
+    const dn = docxServices.findIndex(s => (s.label || '').includes(GRAB_NOTE));
+    if (dn >= 0) docxServices.splice(dn, 1);
+  } else {
+    // Multiple → decrement one from DOCX
+    decOneCL40(docxMaterials, { removeIfZero: true });
+  }
+}
 
-const materialsDisplayUI   = { title: materials.title, lines: uiMatCore,   sum: sumOf(uiMatCore)   };
-const optionalDisplayUI    = { title: 'Optional gewählte Produkte', lines: uiOptOnly, sum: sumOf(uiOptOnly) };
-const materialsDisplayDocx = { title: materials.title, lines: docxMaterials }; // keep everything (minus hidden) for DOCX
-const servicesDisplayUI    = { ...services, lines: uiServices };
-const servicesDisplayDocx  = { ...services, lines: docxServices };
+// Pack adjusted displays (presentation only; totals remain from server truth)
+const materialsDisplayUI     = { title: materials.title, sum: nonOptSum, lines: uiMaterials };
+const optionalDisplayUI      = { sum: optSum,            lines: uiOptionals };
+const materialsDisplayDocx   = { title: materials.title, lines: docxMaterials };
+const servicesDisplayUI      = { ...services, lines: uiServices };
+const servicesDisplayDocx    = { ...services, lines: docxServices };
+
 
 
 
@@ -618,17 +668,16 @@ const selfPayAmount = round2(Math.max(0, Number(total) - Number(subsidyAmount_ma
         selectedTray,
 
 
-//  for Haltegriff-Bonus
-      materials, services,
-  // presentation data:
-  materialsDisplayUI,        // UI: Material ohne optionals
-  optionalDisplayUI,         // UI: nur optionals
-  materialsDisplayDocx,      // DOCX: Material (inkl. optionals, nach Bonus-Regel evtl. reduziert)
-  servicesDisplayUI,
-  servicesDisplayDocx,
- // keep grabCounts for client logic if needed:
-  grabCounts: (materials?.grabCounts || { cl40: 0, total: 0 }),
+  // NEW display-only blocks
+ grabCounts,
 
+  // presentation-only copies
+  materialsDisplayUI,
+  optionalDisplayUI,
+  servicesDisplayUI,
+
+  materialsDisplayDocx,
+  servicesDisplayDocx,
 
       
           
