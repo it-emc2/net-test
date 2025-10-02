@@ -2155,7 +2155,7 @@ window.setPricingData = function setPricingData(data) {
 
     const totalAfterBonus = Number(data?.totalAfterBonus || 0);
     if (outBonusTotal)
-      outBonusTotal.textContent = fmt(anyBonus ? totalAfterBonus : 0);
+      outBonusTotal.textContent = fmt(anyBonus ? data.total : 0);
   } catch (err) {
     console.error("[rabatt] setPricingData failed:", err);
   }
