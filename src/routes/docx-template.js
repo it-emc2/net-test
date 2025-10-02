@@ -403,6 +403,9 @@ function mapData(body = {}, computed = {}) {
     subsidyAmount = 0,
     selfPayAmount = 0,
   } = computed || {};
+// Prefer document-specific displays if present (fallback to raw)
+const mat = (computed?.materialsDisplayDocx?.lines || materials?.lines || []);
+const svc = (computed?.servicesDisplayDocx?.lines  || services?.lines  || []);
 
   // Placeholders used in Angebot.docx
   const Nettobetrag = fmtCurrency(netAfterRabatt_and_Bonus);       // "Nettobetrag (ohne Rabatt)"
@@ -419,8 +422,8 @@ function mapData(body = {}, computed = {}) {
   const MarkupValue = fmtCurrency(markup);
   const TravelValue = fmtCurrency(travel);
 
-  // Services block
-  const serviceLines = (services?.lines || [])
+// Services block (labels for the docx list)
+const serviceLines = (svc || [])
   .filter(l => l && l.key !== 'facharbeiter' && !l.docxHide)
   .map(l => l.label);
   const ServicePosTitle = services?.title || 'Auszuführende Arbeiten';
@@ -431,14 +434,14 @@ function mapData(body = {}, computed = {}) {
   const MaterialsPosTitle = materials?.title || 'Material für Badumbau';
   const MaterialsUnitPrice = fmtCurrency(materials?.sum || 0);
   const MaterialsTotal = fmtCurrency(materials?.sum || 0);
-  const MaterialsLines = (materials?.lines || []).map(l => {
-    const qtyStr = Number(l.qty || 0).toFixed(2).replace(/\.00$/, '');
-    const nameOrId = l.name || l.productId || '';
-    return {
-      MaterialLine: l.label ? l.label : `- ${qtyStr} Stk ${nameOrId}`,
-    };
-  });
-
+  // Materials block (lines for "Material für Badumbau")
+const MaterialsLines = (mat || []).map(l => {
+  const qtyStr = Number(l.qty || 0).toFixed(2).replace(/\.00$/, '');
+  const nameOrId = l.name || l.productId || '';
+  return {
+    MaterialLine: l.label ? l.label : `- ${qtyStr} Stk ${nameOrId}`,
+  };
+});
   const PayerKind = services?.payer || (b.payer || '');
   const ZoneChosen = services?.zoneLabel || '';
   const DistanceKm =

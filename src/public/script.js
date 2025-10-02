@@ -1673,94 +1673,111 @@ document
   }
 
   // Make this async so we can await name lookups for optional items
-  async function renderFromData(data) {
-    if (!data) {
-      container.innerHTML = '<div class="muted">Keine Daten</div>';
-      return;
-    }
-
-    // ----- OPTIONAL (resolve names) -----
-    const optionalItems = Array.isArray(data.items) ? data.items : [];
-    const optLinesResolved = (await withResolvedOptionalNames(optionalItems)).map((i) => ({
-      productId: i.productId || i.id,
-      name: i.name,                              // <- resolved name here
-      qty: i.qty,
-      unitPrice: i.unitPrice,
-      lineTotal: i.lineTotal,
-      label: i.label,                            // if the server crafted a label, keep it (takes precedence when rendered)
-    }));
-    const optBody = listLines(optLinesResolved);
-    const optCard = card(
-      "Optional gewählte Produkte",
-      optBody,
-      `<div style="text-align:right"><b>Summe:</b> ${euroC(
-        optLinesResolved.reduce((a, x) => a + (x.lineTotal || 0), 0)
-      )}</div>`
-    );
-
-    // ----- MATERIAL (unchanged: server usually provides names, keep fallback)
- // show only non-optional material lines in the Material card;
-// if there are none (i.e., only optionals exist), show a friendly hint.
-const allMat = (data.materials?.lines || []);
-const coreMat = allMat.filter(l => l.source !== 'optional');
-
-const matLinesArr = (coreMat.length ? coreMat : []);
-const matBody = matLinesArr.length
-  ? listLines(matLinesArr.map(l => ({
-      productId: l.productId || l.id,
-      name: l.name,
-      qty: l.qty,
-      unitPrice: l.unitPrice,
-      lineTotal: l.lineTotal,
-      label: l.label,
-    })))
-  : '<div class="muted">Keine Materialpositionen (alle Materialpositionen sind optional – siehe Abschnitt unten)</div>';
-
-const matCard = card(
-  data.materials?.title || "Material",
-  matBody,
-  `<div style="text-align:right"><b>Summe Material:</b> ${euroC(data.materials?.sum || 0)}</div>`
-);
-
-
-    // ----- SERVICES (unchanged)
-    const svcLines = (data.services?.lines || []).map((s) => ({
-      productId: s.key,
-      name: s.label,
-      qty: 1,
-      unitPrice: s.amount,
-      lineTotal: s.amount,
-    }));
-    const svcBody = listLines(svcLines);
-    const svcCard = card(
-      data.services?.title || "Leistungen",
-      svcBody,
-      `<div style="text-align:right"><b>Summe Leistungen:</b> ${euroC(
-        data.services?.sum || 0
-      )}</div>`
-    );
-
-    const sums = `
-      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
-        <div>Produkte + Material: <b>${euroC(
-          data.productsSubtotal || 0
-        )}</b></div>
-        <div>Leistungen: <b>${euroC(data.services?.sum || 0)}</b></div>
-        <div>Aufschlag (${Math.round(
-          (data.markupPct || 0) * 100
-        )}%): <b>${euroC(data.markup || 0)}</b></div>
-        <div style="font-size:1.05rem;">Zwischensumme: <b>${euroC(
-          data.Nettobetrag || 0
-        )}</b></div>
-        <div style="font-size:1.2rem;">Gesamt: <b>${euroC(
-          data.total || 0
-        )}</b></div>
-      </div>
-    `;
-    const totalsCard = card("Summen", sums);
-
-    container.innerHTML = [matCard, optCard, svcCard, totalsCard].join("");
+async function renderFromData(data) {
+  if (!data) {
+    container.innerHTML = '<div class="muted">Keine Daten</div>';
+    return;
   }
+
+  // ---------- MATERIAL (Debug) ----------
+  const mat = (data.materialsDisplayUI?.lines || data.materials?.lines || []).map(l => ({
+    productId: l.productId || l.id,
+    name: l.name || l.productId || '',
+    qty: Number(l.qty || 0),
+    unitPrice: Number(l.unitPrice || 0),
+    lineTotal: Number(l.lineTotal || 0),
+    label: l.label || ''
+  }));
+  const matSum = data.materialsDisplayUI?.sum ?? data.materials?.sum ?? 0;
+
+  const matBody = listLines(mat);
+  const matCard = card(
+    (data.materials?.title) || 'Material für Badumbau',
+    matBody,
+    `<div style="text-align:right"><b>Summe Material:</b> ${euroC(matSum)}</div>`
+  );
+
+  // ---------- OPTIONAL (Debug) ----------
+  const opt = (data.optionalDisplayUI?.lines || []).map(l => ({
+    productId: l.productId || l.id,
+    name: l.name || l.productId || '',
+    qty: Number(l.qty || 0),
+    unitPrice: Number(l.unitPrice || 0),
+    lineTotal: Number(l.lineTotal || 0),
+    label: l.label || ''
+  }));
+  const optSum = data.optionalDisplayUI?.sum ?? 0;
+
+  const optBody = listLines(opt);
+  const optCard = card(
+    'Optional gewählte Produkte',
+    optBody,
+    `<div style="text-align:right"><b>Summe:</b> ${euroC(optSum)}</div>`
+  );
+
+  // ---------- LEISTUNGEN (Debug) ----------
+  const svcSrc = (data.servicesDisplayUI?.lines || data.services?.lines || []);
+  const svc = svcSrc.map(s => ({
+    productId: s.key || s.productId || '',
+    name: s.label || '',
+    qty: 1,
+    unitPrice: Number(s.amount || 0),
+    lineTotal: Number(s.amount || 0)
+  }));
+  const svcSum = data.services?.sum || 0;
+
+  const svcBody = listLines(svc);
+  const svcCard = card(
+    (data.services?.title) || 'Leistungen',
+    svcBody,
+    `<div style="text-align:right"><b>Summe Leistungen:</b> ${euroC(svcSum)}</div>`
+  );
+
+  // ---------- SUMMEN ----------
+  const sums = `
+    <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+      <div>Produkte + Material: <b>${euroC(data.productsSubtotal || 0)}</b></div>
+      <div>Leistungen: <b>${euroC(svcSum)}</b></div>
+      <div>Aufschlag (${Math.round((data.markupPct || 0) * 100)}%): <b>${euroC(data.markup || 0)}</b></div>
+      <div style="font-size:1.05rem;">Zwischensumme (Netto): <b>${euroC(data.Nettobetrag || 0)}</b></div>
+      <div style="font-size:1.2rem;">Gesamt: <b>${euroC(data.total || 0)}</b></div>
+    </div>
+  `;
+  const totalsCard = card('Summen', sums);
+
+  // ---------- BONUS HALTEGRIFF Sichtbarkeit ----------
+  (function () {
+    const bonusGrab = document.getElementById('rb-bonus-grab');
+    if (!bonusGrab) return;
+
+    // Prefer a server-provided count if you added one; otherwise detect from optionalDisplayUI
+    const serverCL40 =
+      Number(data?.grabCounts?.cl40 || data?.materials?.grabCounts?.cl40 || 0);
+
+    const hasCL40FromOptionals = (data?.optionalDisplayUI?.lines || [])
+      .some(l => (l.productId || l.id) === 'CLPESG40' && Number(l.qty || 0) > 0);
+
+    const shouldShow = (serverCL40 > 0) || hasCL40FromOptionals;
+
+    const row = bonusGrab.closest('.form-row') || bonusGrab.closest('label') || bonusGrab.parentElement;
+    if (shouldShow) {
+      if (row) row.style.display = '';
+      bonusGrab.disabled = false;
+    } else {
+      if (row) row.style.display = 'none';
+      if (bonusGrab.checked) {
+        bonusGrab.checked = false;
+        bonusGrab.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      bonusGrab.disabled = true;
+    }
+  })();
+
+  // ---------- RENDER ----------
+  container.innerHTML = [matCard, optCard, svcCard, totalsCard].join('');
+}
+
+
 
   async function openKosten() {
     container.innerHTML = '<div class="muted">Berechne …</div>';
@@ -2159,6 +2176,26 @@ window.setPricingData = function setPricingData(data) {
   } catch (err) {
     console.error("[rabatt] setPricingData failed:", err);
   }
+  (() => {
+  const row = document.getElementById('rb-bonus-grab-row')
+           || document.getElementById('rb-bonus-grab')?.closest('label.radio-pill')
+           || document.getElementById('rb-bonus-grab')?.parentElement;
+  const cb  = document.getElementById('rb-bonus-grab');
+
+  const cl40 = Number(data?.grabCounts?.cl40 || 0);
+  const allow = cl40 > 0;
+
+  if (row) {
+    row.style.display = allow ? '' : 'none';
+    row.hidden = !allow;
+    row.setAttribute('aria-hidden', String(!allow));
+  }
+  if (!allow && cb && cb.checked) {
+    cb.checked = false;
+    cb.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+})();
+
 };
 
 // Show discount slider only for: KK + Aufschlag 50%

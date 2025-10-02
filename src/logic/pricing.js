@@ -1,70 +1,6 @@
 // src/logic/pricing.js
 export default (ProductModel) => {
-  // Add any "optional" UI selection into materials as real product lines
-// Add any "optional" UI selection into materials as real product lines
-async function addOptionalSelectionsToMaterials(ProductModel, payload, materials) {
-  try {
-    const opt = payload?.optional || {};
-    if (!opt || typeof opt !== 'object') return;
-
-    // find all opt_<ID> flags
-    const ids = new Set(
-      Object.keys(opt)
-        .filter(k => k.startsWith('opt_') && opt[k] && String(opt[k]).toLowerCase() !== 'false')
-        .map(k => k.substring(4))
-        .filter(id => id)
-    );
-
-    for (const id of ids) {
-      // quantity default 1 if checked but missing/invalid
-      const rawQty = opt[`qty_${id}`];
-      let qty = Number(rawQty);
-      if (!Number.isFinite(qty) || qty <= 0) qty = 1;
-
-      // fetch product for real name + price
-      const p = await ProductModel.findOne({ productId: id }).lean();
-
-      // build a friendly label string that DOCX/PDF will print
-      // fallbacks: name -> id
-      const displayName = (p?.name || '').trim() || id;
-      const niceLabel = `- ${qty} Stk ${displayName}`;
-console.log("displayName ", displayName)
-      if (!p) {
-        // still push a visible line so it shows up
-        materials.lines.push({
-          productId: id,
-          name: displayName,     // fallback to id if no name
-          qty,
-          unitPrice: 0,
-          lineTotal: 0,
-          label: niceLabel,      // <-- important for DOCX/PDF
-          source: 'optional',
-        });
-        continue;
-      }
-
-      const unit = Number(p.price || 0);
-      const lineTotal = Math.round(unit * qty * 100) / 100;
-
-      materials.lines.push({
-        productId: p.productId,
-        name: p.name || id,
-        qty,
-        unitPrice: unit,
-        lineTotal,
-        label: niceLabel,        // <-- important for DOCX/PDF
-        source: 'optional',
-      });
-
-      materials.sum = Math.round((Number(materials.sum || 0) + lineTotal) * 100) / 100;
-    }
-  } catch (err) {
-    console.warn('[pricing] addOptionalSelectionsToMaterials failed:', err?.message || err);
-  }
-}
-
-
-  // --- helper: include selected tray as a material line ---
+// --- helper: include selected tray as a material line ---
 
   async function getProductsByIds(ids) {
     const unique = [...new Set((ids || []).filter(Boolean))];
@@ -88,6 +24,12 @@ console.log("displayName ", displayName)
   function collectSelections(payload) {
     const out = [];
     const opt = payload?.optional || {};
+    // --- quantities for Haltegriffe (esp. CLPESG40) ---
+const cl40Qty = Number(opt?.qty_CLPESG40 ?? (opt?.opt_CLPESG40 ? 1 : 0)) || 0;
+// if you also use the other grab bars anywhere, define them too (optional):
+const cl60Qty = Number(opt?.qty_CLPESG60 ?? (opt?.opt_CLPESG60 ? 1 : 0)) || 0;
+const cl80Qty = Number(opt?.qty_CLPESG80 ?? (opt?.opt_CLPESG80 ? 1 : 0)) || 0;
+
     const aliasToId = { CL_BASIN: 'CL' };
     const push = (id, qtyRaw, checked) => {
       const qtyNum = qtyRaw !== undefined && qtyRaw !== null && qtyRaw !== ''
@@ -176,6 +118,8 @@ async function computeMaterials(payload) {
   const dusch = payload?.duschwanne || {};
   const wv = payload?.wandverkleidung || {};
   const opt = payload?.optional || {};
+  let grabTotalQty = 0;
+let cl40Qty = 0;
 
   const lines = [];
   const idsNeeded = new Set();
@@ -281,45 +225,56 @@ async function computeMaterials(payload) {
   // ---- OPTIONAL: include all checked optional items as material lines (for DOCX/PDF)
   try {
     const selections = collectSelections(payload); // [{productId, qty}]
-    for (const s of selections) {
-      add(s.productId, s.qty, null, null, 'optional'); // tag them
-    }
-  } catch (e) {
-    console.warn('[pricing] optional->materials failed:', e?.message || e);
+    const isGrabId = id => id === 'CLPESG40' || id === 'CLPESG60' || id === 'CLPESG80';
+  grabTotalQty = selections
+    .filter(s => isGrabId(s.productId))
+    .reduce((a, s) => a + (Number(s.qty) || 0), 0);
+
+  cl40Qty = selections
+    .filter(s => s.productId === 'CLPESG40')
+    .reduce((a, s) => a + (Number(s.qty) || 0), 0);
+
+  for (const s of selections) {
+    add(s.productId, s.qty, null, null, 'optional'); // tag them
   }
+} catch (e) {
+  console.warn('[pricing] optional->materials failed:', e?.message || e);
+}
 
   // ---- Resolve prices/names
   const productMap = await getProductsByIds([...idsNeeded]);
-  const resolved = lines.map(l => {
-    const prod = productMap.get(l.id) || { price: 0, name: '' };
+ const resolved = lines.map(l => {
+  const prod = productMap.get(l.id) || { price: 0, name: '' };
 
-    let unit;
-    if (l.perM2Base && prod.price) {
-      unit = round2((Number(prod.price) || 0) / Number(l.perM2Base));
-    } else if (Number.isFinite(l.unitOverride)) {
-      unit = Number(l.unitOverride);
-    } else {
-      unit = Number(prod.price) || 0;
-    }
+  let unit;
+  if (l.perM2Base && prod.price) {
+    unit = round2((Number(prod.price) || 0) / Number(l.perM2Base));
+  } else if (Number.isFinite(l.unitOverride)) {
+    unit = Number(l.unitOverride);
+  } else {
+    unit = Number(prod.price) || 0;
+  }
 
-    const displayName = (prod.name || '').trim() || l.id;
-    const builtLabel = `- ${l.qty} Stk ${displayName}`;
-    const label = l.label || builtLabel;
-    const lineTotal = round2(unit * l.qty);
+  const displayName = (prod.name || '').trim() || l.id;
+  const builtLabel = `- ${l.qty} Stk ${displayName}`;
+  const label = l.label || builtLabel;
+  const lineTotal = round2(unit * l.qty);
 
-    return {
-      productId: l.id,
-      name: displayName,
-      qty: l.qty,
-      unitPrice: unit,
-      lineTotal,
-      label,
-      source: l.source || null,
-    };
-  });
+  return {
+    productId: l.id,
+    name: displayName,
+    qty: l.qty,
+    unitPrice: unit,
+    lineTotal,
+    label,
+    source: l.source || null,
+  };
+});
+
 
   const sum = round2(resolved.reduce((a, x) => a + (x.lineTotal || 0), 0));
-  return { title: 'Material für Badumbau', lines: resolved, sum };
+return { title: 'Material für Badumbau', lines: resolved, sum, grabCounts: { cl40: cl40Qty, total: grabTotalQty } };
+
 }
 
   // Services (zones removed)
@@ -394,8 +349,77 @@ async function computeMaterials(payload) {
         };
       });
 
-      let materials = { title: '', lines: [], sum: 0 };
-      try { materials = await computeMaterials(payload); } catch (e) { console.error('[pricing] computeMaterials failed:', e); }
+ let materials = { title: '', lines: [], sum: 0 };
+try { materials = await computeMaterials(payload); } catch (e) { console.error('[pricing] computeMaterials failed:', e); }
+
+let services = { title: '', lines: [], sum: 0, payer: '', zoneLabel: '', distanceKm: 0, laborHours: 0, laborRate: 0 };
+try { services = computeServiceCosts(payload) || services; } catch (e) { console.error('[pricing] computeServiceCosts failed:', e); }
+
+
+
+// ----- UI/DOCX display adjustments for Haltegriff-Bonus (presentation only) -----
+const bonusHG = !!payload?.rabatt?.bonusGrab;
+
+const uiMaterials   = (materials?.lines || []).map(x => ({ ...x }));
+const docxMaterials = (materials?.lines || []).map(x => ({ ...x }));
+
+const GRAB_NOTE = '- Anbringen zusätzlicher Haltegriffe';
+const uiServices   = (services?.lines || []).map(x => ({ ...x }));
+const docxServices = (services?.lines || []).map(x => ({ ...x }));
+
+// Use counters from computeMaterials:
+const { cl40: cl40Qty, total: grabTotalQty } = (materials?.grabCounts || { cl40: 0, total: 0 });
+
+if (bonusHG && cl40Qty > 0) {
+  const onlyOneCL40 = (grabTotalQty === 1 && cl40Qty === 1);
+
+  // UI materials: annotate/decrement CLPESG40
+  const uiLine = uiMaterials.find(l => (l.productId || l.id) === 'CLPESG40');
+  if (uiLine) {
+    if (onlyOneCL40) {
+      uiLine.name  = (uiLine.name  || '').replace(/\s*\(hidden\)\s*$/,'') + ' (hidden)';
+      uiLine.label = (uiLine.label || '').replace(/\s*\(hidden\)\s*$/,'') + ' (hidden)';
+    } else if (uiLine.qty > 0) {
+      uiLine.qty = Math.max(0, Number(uiLine.qty || 0) - 1);
+    }
+  }
+
+  // DOCX materials: hide/decrement CLPESG40
+  const dIdx = docxMaterials.findIndex(l => (l.productId || l.id) === 'CLPESG40');
+  if (dIdx >= 0) {
+    const dLine = docxMaterials[dIdx];
+    if (onlyOneCL40) {
+      docxMaterials.splice(dIdx, 1);
+    } else if (dLine.qty > 0) {
+      dLine.qty = Math.max(0, Number(dLine.qty || 0) - 1);
+      if (dLine.qty === 0) docxMaterials.splice(dIdx, 1);
+    }
+  }
+
+  // Services note tweak
+  const uiNoteIdx = uiServices.findIndex(s => (s.label || '').includes(GRAB_NOTE));
+  const dxNoteIdx = docxServices.findIndex(s => (s.label || '').includes(GRAB_NOTE));
+  if (onlyOneCL40) {
+    if (uiNoteIdx >= 0) uiServices[uiNoteIdx].label = uiServices[uiNoteIdx].label.replace(/\s*\(hidden\)\s*$/,'') + ' (hidden)';
+    if (dxNoteIdx >= 0) docxServices.splice(dxNoteIdx, 1); // hide in DOCX
+  }
+}
+
+// ✅ NEW: split for UI
+const allLines = materials?.lines || [];
+const uiMatCore = uiMaterials.filter(l => l.source !== 'optional');     // shown under "Material für Badumbau"
+const uiOptOnly = allLines.filter(l => l.source === 'optional');        // shown under "Optional gewählte Produkte"
+
+const sumOf = arr => round2(arr.reduce((a, x) => a + (x.lineTotal || 0), 0));
+
+const materialsDisplayUI   = { title: materials.title, lines: uiMatCore,   sum: sumOf(uiMatCore)   };
+const optionalDisplayUI    = { title: 'Optional gewählte Produkte', lines: uiOptOnly, sum: sumOf(uiOptOnly) };
+const materialsDisplayDocx = { title: materials.title, lines: docxMaterials }; // keep everything (minus hidden) for DOCX
+const servicesDisplayUI    = { ...services, lines: uiServices };
+const servicesDisplayDocx  = { ...services, lines: docxServices };
+
+
+
 // --- add the selected Duschwanne (from smart search) as a material line ---
 let selectedTray = null;
 try {
@@ -441,8 +465,7 @@ try {
 
 
 
-      let services = { title: '', lines: [], sum: 0, payer: '', zoneLabel: '', distanceKm: 0, laborHours: 0, laborRate: 0 };
-      try { services = computeServiceCosts(payload) || services; } catch (e) { console.error('[pricing] computeServiceCosts failed:', e); }
+    
 
       const productsSubtotal = round2(
         (items || []).reduce((sum, i) => sum + (i?.lineTotal || 0), 0) +
@@ -593,6 +616,20 @@ const selfPayAmount = round2(Math.max(0, Number(total) - Number(subsidyAmount_ma
         subsidyAmount_max,
         selfPayAmount, 
         selectedTray,
+
+
+//  for Haltegriff-Bonus
+      materials, services,
+  // presentation data:
+  materialsDisplayUI,        // UI: Material ohne optionals
+  optionalDisplayUI,         // UI: nur optionals
+  materialsDisplayDocx,      // DOCX: Material (inkl. optionals, nach Bonus-Regel evtl. reduziert)
+  servicesDisplayUI,
+  servicesDisplayDocx,
+ // keep grabCounts for client logic if needed:
+  grabCounts: (materials?.grabCounts || { cl40: 0, total: 0 }),
+
+
       
           
        
