@@ -5,7 +5,7 @@ document.getElementById('nav-debug') ?.addEventListener('click', refreshAllPanel
 // If you use hash-based navigation:
 window.addEventListener('hashchange', () => {
   const id = location.hash.replace('#','');
-  if (id === 'rabatt' || id === 'kosten-details') refreshAllPanels();
+  if (id === 'rabatt' || id === 'kosten') refreshAllPanels();
 });
 function buildPayload() {
   // Use your existing payload builder if you already have one.
@@ -90,20 +90,20 @@ function installAutoRefreshOnNav() {
   // Hash-based navigation support: e.g. #rabatt, #kosten-details
   window.addEventListener('hashchange', () => {
     const id = (location.hash || '').replace(/^#/, '');
-    if (id === 'rabatt' || id === 'kosten-details') {
-      // tiny defer to let DOM switch classes/visibility first
-      setTimeout(recomputeAndRefresh, 0);
-    }
+    if (id === 'rabatt' || id === 'kosten') {
+  setTimeout(() => window.updatePricing?.(), 0);
+}
+
   });
 
   // If you have explicit nav buttons/tabs, hook them too
   const rabTab   = document.querySelector('[data-target="#rabatt"], #nav-rabatt, a[href="#rabatt"]');
-  const kostTab  = document.querySelector('[data-target="#kosten-details"], #nav-kosten-details, a[href="#kosten-details"]');
+  const kostTab  = document.querySelector('[data-target="#kosten"], #nav-kosten, a[href="#kosten"]');
 
-  [rabTab, kostTab].forEach(el => {
-    if (!el) return;
-    el.addEventListener('click', () => setTimeout(recomputeAndRefresh, 0));
-  });
+  [ rabTab, kostTab ].forEach(el => {
+  if (!el) return;
+  el.addEventListener('click', () => setTimeout(() => window.updatePricing?.(), 0));
+});
 }
 
 // call once on load
@@ -309,7 +309,14 @@ function setStep(step) {
   });
   location.hash = step;
   updateSummary();
+
+  // ✅ Recompute whenever entering Rabatt or Kosten
+  if (step === 'rabatt' || step === 'kosten') {
+    // small defer to let layout/classes switch
+    setTimeout(() => window.updatePricing?.(), 0);
+  }
 }
+
 nav?.addEventListener("click", (e) => {
   const a = e.target.closest("a.step");
   if (!a) return;
@@ -1721,7 +1728,6 @@ document
   );
 
 /* ========== KOSTEN-DETAILS (render from __pricing only) ========== */
-/* ========== KOSTEN-DETAILS (render from __pricing only) ========== */
 (function initKostenDetails() {
   const container = document.getElementById("costsSummary");
   if (!container) return;
@@ -1907,8 +1913,7 @@ const opt = (data.optionalDisplayUI?.lines || []);
 
 
 function refreshAllPanels() {
-  // re-post with current form and re-render everything
-  const payload = collectAllFormData(); // your existing function
+  const payload = collectAllFormData();
   fetch('/api/price', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1916,12 +1921,21 @@ function refreshAllPanels() {
   })
   .then(r => r.json())
   .then(data => {
-    lastComputed = data;                   // keep your cached result if you use one
-    renderRabatt(data);                    // your existing render
-    renderFromData(data);                  // Kosten-Details
+    lastComputed = data;
+    // Rabatt
+    if (typeof renderRabatt === 'function') {
+      renderRabatt(data);
+    } else if (typeof window.setPricingData === 'function') {
+      window.setPricingData(data);
+    }
+    // Kosten-Details
+    if (typeof renderFromData === 'function') {
+      renderFromData(data);
+    }
   })
   .catch(console.error);
 }
+
 
   async function openKosten() {
     container.innerHTML = '<div class="muted">Berechne …</div>';
@@ -2774,9 +2788,10 @@ document.addEventListener('DOMContentLoaded', () => {
   initOptionalMenus && initOptionalMenus(); 
   initBasinAutoAccessories && initBasinAutoAccessories();
   initLivePricingSync(); //  
-   window.addEventListener('hashchange', () => {
-    const id = location.hash.replace('#','');
-    if (id === 'rabatt' || id === 'kosten-details') refreshAllPanels();
-  }); 
+  window.addEventListener('hashchange', () => {
+  const id = location.hash.replace('#','');
+  if (id === 'rabatt' || id === 'kosten') refreshAllPanels();
+});
+
 });
 
