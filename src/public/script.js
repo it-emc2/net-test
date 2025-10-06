@@ -1862,59 +1862,48 @@ const opt = (data.optionalDisplayUI?.lines || []);
   );
 
   // --- Leistungen (Debug): use servicesDisplayUI if present
- const svcSource = (data.servicesDisplayUI && Array.isArray(data.servicesDisplayUI.lines))
-  ? data.servicesDisplayUI.lines
-  : ((data.services && Array.isArray(data.services.lines)) ? data.services.lines : []);
+// --- Leistungen split into two groups with a tiny whitelist
+const svcSource = (data.servicesDisplayUI?.lines || data.services?.lines || []);
 
-const norm = s => String(s || '').trim();
-const stripBullet = s => norm(s).replace(/^-+\s*/, '').trim();
-
-const DW_TASKS = new Set([
-  'Entfernen und Entsorgen der Badewanne inkl. Befliesung',
-  'Entfernen und Entsorgen der Duschabtrennung',
-  'Einbau der Duschwanne',
-  'Einbau der Duschabtrennung',
-]);
-const isFehlstellen = s => /schließen der fehlstellen/i.test(s);
-
-const primary = [];
-const included = [];
+const primarySvc = [];
+const includedSvc = [];
 
 for (const s of svcSource) {
   if (!s) continue;
-  const label = norm(s.label);
-  const plain = stripBullet(label);
+  const label = String(s.label || '').trim();
+  const plain = label.replace(/^\s*-\s*/, '');
+
+  const goesIncluded =
+    /fahrzeugbereitstellung/i.test(plain) ||
+    /bereitstellung.*werkzeug/i.test(plain) ||
+    /beräumung der baustelle/i.test(plain) ||
+    /kilometerpauschale/i.test(plain) ||
+     /facharbeiter/i.test(plain);  
+
+     const laborRate = Number(data?.services?.laborRate || 0);
+
+// when building the Facharbeiter row:
+const isFacharbeiter = (s.key === 'facharbeiter') || /facharbeiter/i.test(s.label || '');
   const row = {
     productId: s.key || s.productId,
     label: label || s.name || s.productId || '-',
     qty: 1,
-    unitPrice: s.amount,
+    unitPrice: isFacharbeiter && laborRate ? laborRate : (s.amount ?? 0),
     lineTotal: s.amount,
   };
-if (
-  DW_TASKS.has(plain) ||
-  isFehlstellen(plain) ||
-  /anbringen\s+zusätzlicher\s+haltegriffe/i.test(plain)
-) {
-  primary.push(row);
-} else {
-  included.push(row);
+
+  (goesIncluded ? includedSvc : primarySvc).push(row);
 }
 
-}
+const svcBodyPrimary  = listLines(primarySvc);
+const svcBodyIncluded = listLines(includedSvc);
 
-// Build UI with a subtitle row
-const groupedSvcLines = [
-  ...primary,
-  ...(included.length ? [{ __subtitle: true, label: 'Enthält je Einheit' }, ...included] : [])
-];
+const svcCard = `
+  ${card((data.services?.title || 'Auszuführende Arbeiten'), svcBodyPrimary)}
+  <div style="height:8px"></div>
+  ${card('Enthält je Einheit', svcBodyIncluded, `<div style="text-align:right"><b>Summe Leistungen:</b> ${euroC(data.services?.sum || 0)}</div>`)}
+`;
 
-const svcBody = listLines(groupedSvcLines);
-const svcCard = card(
-  (data.services && data.services.title) || "Auszuführende Arbeiten",
-  svcBody,
-  `<div style="text-align:right"><b>Summe Leistungen:</b> ${euroC(data.services?.sum || 0)}</div>`
-);
 
 
   // --- Totals (unchanged)

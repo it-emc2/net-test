@@ -446,22 +446,25 @@ const primary = [];
 const included = [];
 
 for (const l of svcForDoc) {
-   if (!l || l.docxHide) continue; // keep this filter
-  const label = norm(l.label);
-  const plain = stripBullet(label);
+  if (!l || l.docxHide) continue;
+
+  const label  = String(l.label || '').trim();
   const bullet = label.startsWith('-') ? label : `- ${label}`;
+  const plain  = label.replace(/^\s*-\s*/, '');
 
-  if (
-  DW_TASKS.has(plain) ||
-  isFehlstellen(plain) ||
-  /anbringen\s+zusätzlicher\s+haltegriffe/i.test(plain)
-) {
-  primary.push(bullet);
-} else {
-  included.push(bullet);
+  const goesIncluded =
+    /fahrzeugbereitstellung/i.test(plain) ||
+    /bereitstellung.*werkzeug/i.test(plain) ||
+    /beräumung der baustelle/i.test(plain) ||
+    /kilometerpauschale/i.test(plain) ||
+    /facharbeiter/i.test(plain);  
+  if (goesIncluded) {
+    included.push(bullet);
+  } else {
+    primary.push(bullet);
+  }
 }
 
-}
 
 // Arrays exactly as the template expects:
 const PrimaryServiceLines  = primary.map(txt => ({ ServiceLine: txt }));
