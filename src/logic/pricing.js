@@ -101,6 +101,7 @@ const cl80Qty = Number(opt?.qty_CLPESG80 ?? (opt?.opt_CLPESG80 ? 1 : 0)) || 0;
   function computeWorkNotes(payload) {
     const opt = payload?.optional || {};
     const kind = payload?.wandverkleidung?.wvKind || '';
+     const dusch = payload?.duschwanne || {};
 
     const picked = new Set();
 
@@ -133,6 +134,56 @@ const cl80Qty = Number(opt?.qty_CLPESG80 ?? (opt?.opt_CLPESG80 ? 1 : 0)) || 0;
     if (tap)    picked.add('Einbau einer einhand-Waschtischbatterie');
     if (thermo) picked.add('Austausch eines Thermostates');
     if (seat)   picked.add('Einbau eines Klappsitzes');
+
+// >>> robust DW workTasks parse (handles odd literal keys like "duschwanne[workTasks][]")
+function normalizeDWTasks(payload) {
+  const dw = payload?.duschwanne ?? {};
+  const out = [];
+
+  const addVal = (v) => {
+    if (!v) return;
+    if (Array.isArray(v)) { out.push(...v); return; }
+    if (typeof v === 'string') {
+      // try JSON array first; else comma-separated; else single value
+      try { const parsed = JSON.parse(v); if (Array.isArray(parsed)) { out.push(...parsed); return; } } catch {}
+      const parts = v.includes(',') ? v.split(',') : [v];
+      out.push(...parts.map(s => s.trim()).filter(Boolean));
+      return;
+    }
+  };
+
+  // Expected shapes
+  addVal(dw.workTasks);
+  addVal(dw['workTasks[]']);
+  addVal(payload?.['duschwanne[workTasks][]']);
+  addVal(payload?.['duschwanne.workTasks']);
+  addVal(payload?.duschwanne_workTasks);
+
+  // NEW: catch any weird nesting under duschwanne (like "duschwanne[workTasks][]")
+  for (const [k, v] of Object.entries(dw)) {
+    if (/worktasks/i.test(k)) addVal(v);
+  }
+
+  // de-dup & return
+  return Array.from(new Set(out));
+}
+
+const MAP_DW = {
+  remove_tub:        'Entfernen und Entsorgen der Badewanne inkl. Befliesung',
+  remove_enclosure:  'Entfernen und Entsorgen der Duschabtrennung',
+  install_tray:      'Einbau der Duschwanne',
+  install_enclosure: 'Einbau der Duschabtrennung',
+};
+
+const dwTasks = normalizeDWTasks(payload);
+for (const key of dwTasks) {
+  const label = MAP_DW[String(key)];
+  if (label) picked.add(label);
+}
+// <<< end robust parse
+
+console.log('[worknotes] dw raw:', payload?.duschwanne);
+console.log('[worknotes] dw tasks norm:', normalizeDWTasks(payload));
 
     return Array.from(picked).map(txt => ({
       key: 'worknote',

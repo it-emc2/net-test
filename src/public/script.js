@@ -355,17 +355,39 @@ function buildPayload() {
       ...formToObject(document.getElementById("form-duschwanne")),
       computed: window.__DW_COMPUTED__ || {},
     },
-    wandverkleidung: formToObject(
-      document.getElementById("form-wandverkleidung")
-    ),
-    duschabtrennung: formToObject(
-      document.getElementById("form-duschabtrennung")
-    ),
+    wandverkleidung: formToObject(document.getElementById("form-wandverkleidung")),
+    duschabtrennung: formToObject(document.getElementById("form-duschabtrennung")),
     optional: formToObject(document.getElementById("form-optional")),
     rabatt: formToObject(document.getElementById("form-rabatt")),
   };
 
   collectWandverkleidungMaterials(payload);
+
+  // ---- NEW: reliably collect ALL Duschwanne work tasks (checkbox array) ----
+  try {
+    const formDW = document.getElementById("form-duschwanne");
+    if (formDW) {
+      const fdDW = new FormData(formDW);
+      const dwTasks = fdDW.getAll("duschwanne[workTasks][]"); // ✅ all checked values
+      const dw = (payload.duschwanne ||= {});
+      if (dwTasks.length) {
+        dw.workTasks = dwTasks; // canonical key the server normalizer reads
+      } else {
+        // Fallback: if serializer stored a single string under a weird key, normalize to array
+        const weird = dw["duschwanne[workTasks][]"];
+        if (typeof weird === "string" && weird.trim()) {
+          dw.workTasks = [weird.trim()];
+        }
+      }
+      // Clean any stray literal key so it doesn't confuse server logs
+      if ("duschwanne[workTasks][]" in payload.duschwanne) {
+        delete payload.duschwanne["duschwanne[workTasks][]"];
+      }
+    }
+  } catch (e) {
+    console.warn("[buildPayload] workTasks normalization failed:", e);
+  }
+  // -------------------------------------------------------------------------
 
   // Budget/Zuzahlung
   const elMax = document.querySelector('input[name="budgetMax"]');
@@ -373,14 +395,10 @@ function buildPayload() {
   const elTwo = document.querySelector('input[name="twoPersons"]');
   const copayEl = document.getElementById("copayAmount");
 
-  const wohDoneRadios = document.querySelectorAll(
-    'input[name="wohnumfeldDone"]'
-  );
+  const wohDoneRadios = document.querySelectorAll('input[name="wohnumfeldDone"]');
   const wohAmountInput = document.getElementById("wohnumfeldAmount");
   function readWohnumfeld() {
-    const isJa = Array.from(wohDoneRadios).some(
-      (r) => r.checked && r.value === "Ja"
-    );
+    const isJa = Array.from(wohDoneRadios).some((r) => r.checked && r.value === "Ja");
     let amount = 0;
     if (isJa && wohAmountInput) {
       const raw = (wohAmountInput.value || "").toString().replace(",", ".");
@@ -414,9 +432,7 @@ function buildPayload() {
   payload.bereich.copayAmount = copayEl ? parseEuroToNumber(copayEl.value) : 0;
 
   // Rabatt fields for server
-  const pct = parseFloat(
-    document.getElementById("rb-material-discount")?.value || "0"
-  );
+  const pct = parseFloat(document.getElementById("rb-material-discount")?.value || "0");
   payload.rabatt = {
     ...payload.rabatt,
     materialDiscountPct: isFinite(pct) ? pct / 100 : 0,
@@ -424,13 +440,9 @@ function buildPayload() {
     bonusGrab: !!document.getElementById("rb-bonus-grab")?.checked,
   };
 
-  payload.offerNumber = (
-    document.getElementById("offerNumber")?.value || ""
-  ).trim();
+  payload.offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
   payload.bereich.totalHoursHHMM =
-    document
-      .getElementById("totalHoursHHMM")
-      ?.textContent?.match(/(\d+:\d{2})/)?.[1] || "";
+    document.getElementById("totalHoursHHMM")?.textContent?.match(/(\d+:\d{2})/)?.[1] || "";
   payload.bereich.totalHoursNumeric = Number(window.total_hours_numeric || 0);
   payload.bereich.laborHoursHHMM = laborHHMM;
   payload.bereich.laborHoursNumeric = laborNumeric;
@@ -438,45 +450,42 @@ function buildPayload() {
   const woh = readWohnumfeld();
   const isKK =
     (payload.bereich?.payer ||
-      document.querySelector('input[name="payer"]:checked')?.value) ===
-    "Kassenkunde";
+      document.querySelector('input[name="payer"]:checked')?.value) === "Kassenkunde";
   payload.bereich.wohnumfeld = isKK ? woh : { done: false, amount: 0 };
 
   // --- Attach Duschwanne selection from DOM (if present) ---
-{
-  const pid  = document.getElementById('chosenTrayProductId')?.value?.trim();
-  const size = document.getElementById('traySize')?.value?.trim();
+  {
+    const pid = document.getElementById("chosenTrayProductId")?.value?.trim();
+    const size = document.getElementById("traySize")?.value?.trim();
 
-  const dw = payload.duschwanne || (payload.duschwanne = {});
-  if (pid)  dw.chosenTrayProductId = pid;
-  if (size) dw.traySize = size;
-}
+    const dw = payload.duschwanne || (payload.duschwanne = {});
+    if (pid) dw.chosenTrayProductId = pid;
+    if (size) dw.traySize = size;
+  }
 
-// --- Ensure tray selection persists in payload even if suggestion UI isn't rendered
-// --- Ensure tray selection persists ONLY if the user actually touched the Duschwanne step
-(function ensureTraySelection() {
-  const dw = payload.duschwanne || (payload.duschwanne = {});
-  const hasSize = !!(dw.traySize && String(dw.traySize).trim());
-  const hasPid  = !!(dw.chosenTrayProductId && String(dw.chosenTrayProductId).trim());
-  if (hasSize && hasPid) return;
+  // --- Ensure tray selection persists ONLY if the user actually touched the Duschwanne step
+  (function ensureTraySelection() {
+    const dw = payload.duschwanne || (payload.duschwanne = {});
+    const hasSize = !!(dw.traySize && String(dw.traySize).trim());
+    const hasPid = !!(dw.chosenTrayProductId && String(dw.chosenTrayProductId).trim());
+    if (hasSize && hasPid) return;
 
-  const chosenNow = document.getElementById('chosenTrayProductId')?.value?.trim();
-  const touched = !!(chosenNow || sessionStorage.getItem('dw_tray_touched') === '1');
-  if (!touched) return; // ← no backfill unless a tray was actually chosen this session
+    const chosenNow = document.getElementById("chosenTrayProductId")?.value?.trim();
+    const touched = !!(chosenNow || sessionStorage.getItem("dw_tray_touched") === "1");
+    if (!touched) return;
 
-  try {
-    const raw = localStorage.getItem('dw_tray_selection');
-    if (!raw) return;
-    const saved = JSON.parse(raw);
-    if (!hasSize && saved?.value)      dw.traySize = saved.value;
-    if (!hasPid  && saved?.productId)  dw.chosenTrayProductId = saved.productId;
-  } catch {}
-})();
-
-
+    try {
+      const raw = localStorage.getItem("dw_tray_selection");
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (!hasSize && saved?.value) dw.traySize = saved.value;
+      if (!hasPid && saved?.productId) dw.chosenTrayProductId = saved.productId;
+    } catch {}
+  })();
 
   return payload;
 }
+
 
 window.buildPayload = buildPayload;
 

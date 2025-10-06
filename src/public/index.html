@@ -466,6 +466,43 @@
         display: grid;
         gap: 10px;
       }
+.checkbox-grid { display: grid; gap: .5rem; }
+.section-block { margin-top: 1.25rem; }
+.section-title { font-weight: 600; font-size: 1.05rem; margin-bottom: .25rem; }
+.section-subtitle { color: #6b7280; font-size: .9rem; margin: 0 0 .75rem; }
+
+.task-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: .75rem;
+}
+
+.task-card {
+  display: grid;
+  grid-template-columns: 1.25rem 1fr;
+  align-items: start;
+  gap: .75rem;
+  padding: .85rem .95rem;
+  border: 1px solid #e5e7eb;
+  border-radius: .75rem;
+  background: #fff;
+  cursor: pointer;
+  user-select: none;
+  transition: box-shadow .15s ease, border-color .15s ease, transform .02s ease;
+}
+
+.task-card:hover { box-shadow: 0 6px 16px rgba(0,0,0,.06); border-color: #d1d5db; }
+.task-card:active { transform: translateY(1px); }
+
+.task-card input[type="checkbox"] {
+  width: 1.1rem; height: 1.1rem; margin-top: .2rem;
+  accent-color: #111827; /* falls back gracefully if unsupported */
+}
+
+.task-card__body { display: flex; flex-direction: column; gap: .25rem; }
+.task-card__title { font-weight: 600; line-height: 1.3; }
+.task-card__hint { color: #6b7280; font-size: .85rem; line-height: 1.3; }
+
 
       /* Aufschlag panel */
       .aufschlag-panel {
@@ -1414,6 +1451,49 @@
 
 </div>
 
+<!-- Auszuführende Arbeiten (Duschwanne) -->
+<fieldset class="section-block" id="dw-worktasks">
+  <legend class="section-title">Auszuführende Arbeiten</legend>
+  <p class="section-subtitle">Wählen Sie die Arbeiten aus, die im Zuge des Einbaus ausgeführt werden sollen.</p>
+
+  <div class="task-cards">
+    <!-- Entfernen & Entsorgen Badewanne -->
+    <label class="task-card">
+      <input type="checkbox" name="duschwanne[workTasks][]" value="remove_tub" />
+      <span class="task-card__body">
+        <span class="task-card__title">Entfernen und Entsorgen der Badewanne inkl. Befliesung</span>
+        <span class="task-card__hint">Demontage, Abtransport & fachgerechte Entsorgung</span>
+      </span>
+    </label>
+
+    <!-- Entfernen & Entsorgen Duschabtrennung -->
+    <label class="task-card">
+      <input type="checkbox" name="duschwanne[workTasks][]" value="remove_enclosure" />
+      <span class="task-card__body">
+        <span class="task-card__title">Entfernen und Entsorgen der Duschabtrennung</span>
+        <span class="task-card__hint">Demontage vorhandener Abtrennung inkl. Entsorgung</span>
+      </span>
+    </label>
+
+    <!-- Einbau Duschwanne -->
+    <label class="task-card">
+      <input type="checkbox" name="duschwanne[workTasks][]" value="install_tray" />
+      <span class="task-card__body">
+        <span class="task-card__title">Einbau der Duschwanne</span>
+        <span class="task-card__hint">Montage, Ausrichtung & Anschluss</span>
+      </span>
+    </label>
+
+    <!-- Einbau Duschabtrennung -->
+    <label class="task-card">
+      <input type="checkbox" name="duschwanne[workTasks][]" value="install_enclosure" />
+      <span class="task-card__body">
+        <span class="task-card__title">Einbau der Duschabtrennung</span>
+        <span class="task-card__hint">Montage & Abdichtung gemäß Herstellerangaben</span>
+      </span>
+    </label>
+  </div>
+</fieldset>
 
 
 
