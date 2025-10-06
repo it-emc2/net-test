@@ -1913,7 +1913,7 @@ const svcCard = `
       <div>Produkte + Material: <b>${euroC(data.productsSubtotal || 0)}</b></div>
       <div>Leistungen: <b>${euroC(data.services?.sum || 0)}</b></div>
       <div>Aufschlag (${Math.round((data.markupPct || 0) * 100)}%): <b>${euroC(data.markup || 0)}</b></div>
-      <div style="font-size:1.05rem;">Zwischensumme (Netto): <b>${euroC(data.Nettobetrag || 0)}</b></div>
+      <div style="font-size:1.05rem;">Zwischensumme (Netto): <b>${euroC(data.netAfterRabatt_and_Bonus || 0)}</b></div>
       <div style="font-size:1.2rem;">Gesamt: <b>${euroC(data.total || 0)}</b></div>
     </div>
   `;

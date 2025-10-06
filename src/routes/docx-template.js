@@ -387,13 +387,13 @@ function mapData(body = {}, computed = {}) {
     services = { title: '', lines: [], sum: 0, payer: '', zoneLabel: '', distanceKm: 0, laborHours: 0, laborRate: 0 },
 
     // use server-computed fields (from pricing.js)
-    Nettobetrag: netAfterRabatt_and_Bonus = 0,
+    netAfterRabatt_and_Bonus = 0,
     markupPct = 0,
     markup = 0,
     travel = 0,
     total = 0,
     vatOnNet = 0,
-    Vat_on_net_AfterDiscount: vatAfterDiscount = 0,
+    Vat_on_net_AfterDiscount = 0,
     totalAfterRabatt = 0,
     rabattAmount = 0,
     bonusGross = 0,
@@ -408,10 +408,10 @@ const mat = (computed?.materialsDisplayDocx?.lines || materials?.lines || []);
 const svc = (computed?.servicesDisplayDocx?.lines  || services?.lines  || []);
 
   // Placeholders used in Angebot.docx
-  const Nettobetrag = fmtCurrency(netAfterRabatt_and_Bonus);       // "Nettobetrag (ohne Rabatt)"
+  const Nettobetrag = fmtCurrency(computed?.netAfterRabatt_and_Bonus ?? 0);       // "Nettobetrag (ohne Rabatt)"
   const Rabatt = fmtCurrency(rabattAmount);                 // Materialrabatt Betrag
-  const MwSt = fmtCurrency(vatOnNet);                       // 19% MwSt (nach Rabatt, falls vorhanden)
-  const Gesamtsumme = fmtCurrency(total);                   // Brutto vor Rabatt
+  const MwSt = fmtCurrency(computed?.vatOnNet ?? 0);                        // 19% MwSt (nach Rabatt, falls vorhanden)
+  const Gesamtsumme = fmtCurrency(computed?.total ?? 0);                     // final Brutto 
   const Gesamtsummerabatt = fmtCurrency(totalAfterRabatt);  // "Gesamtbetrag nach Materialrabatt"
 
 
