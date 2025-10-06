@@ -405,7 +405,7 @@ async function computeMaterials(payload) {
       lines.push({ key: 'kilometer', label: `- ${roundTripKm} km Kilometerpauschale `, amount: kilometerpauschale });
     }
     if (total_hours_numeric  > 0 && laborRate > 0) {
-      lines.push({ key: 'facharbeiter', label: `- ${total_hours_HH_mm} (${total_hours_numeric}) Std × ${handwerkerCount} Facharbeiter × ${laborRate.toFixed(2)} €`, amount: facharbeiter });
+      lines.push({ key: 'facharbeiter', label: `- ${total_hours_HH_mm} (${total_hours_numeric}) Std × ${handwerkerCount} Facharbeiter × ${laborRate.toFixed(2)} €`, amount: facharbeiter , docxHide: true  });
     }
 
 
@@ -586,10 +586,9 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
 
     
 
-      const productsSubtotal = round2(
-        (items || []).reduce((sum, i) => sum + (i?.lineTotal || 0), 0) +
-        (materials?.sum ?? 0)
-      );
+       //const productsSubtotal = round2((items || []).reduce((sum, i) => sum + (i?.lineTotal || 0), 0) +(materials?.sum ?? 0));
+       const productsSubtotal = round2(Number(materials?.sum || 0));
+
       
       // Extract and enforce markup rules
       let markupPct = extractMarkupPct(payload);

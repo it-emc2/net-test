@@ -1881,7 +1881,7 @@ const primary = [];
 const included = [];
 
 for (const s of svcSource) {
-  if (!s || s.docxHide) continue;
+  if (!s) continue;
   const label = norm(s.label);
   const plain = stripBullet(label);
   const row = {

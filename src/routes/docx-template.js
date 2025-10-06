@@ -446,7 +446,7 @@ const primary = [];
 const included = [];
 
 for (const l of svcForDoc) {
-  if (!l || l.key === 'facharbeiter' || l.docxHide) continue;   // keep this filter
+   if (!l || l.docxHide) continue; // keep this filter
   const label = norm(l.label);
   const plain = stripBullet(label);
   const bullet = label.startsWith('-') ? label : `- ${label}`;
