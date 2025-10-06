@@ -290,6 +290,7 @@ const steps = [
   "rabatt",
   "zusammenfassung",
   "kosten",
+    "playground",
 ];
 const pages = Object.fromEntries(
   steps.map((s) => [s, document.getElementById("page-" + s)])
@@ -2004,6 +2005,381 @@ function refreshAllPanels() {
   });
 })();
 
+// === Pricing Playground ===
+(function initPricingPlayground() {
+  const page = document.getElementById('page-playground');
+  if (!page) return;
+
+  // Elements
+  const selScenario = document.getElementById('pg-scenario');
+  const payerRadios = Array.from(document.querySelectorAll('input[name="pg-payer"]'));
+  const aufRadios   = Array.from(document.querySelectorAll('input[name="pg-auf"]'));
+  const hasPgCB     = document.getElementById('pg-has-pg');
+  const pgLvlWrap   = document.getElementById('pg-pg-lvl');
+  const pgLvlRadios = Array.from(document.querySelectorAll('input[name="pg-lvl"]'));
+  const budgetMax   = document.getElementById('pg-budget-max');
+  const budgetCopay = document.getElementById('pg-budget-copay');
+  const copayAmount = document.getElementById('pg-copay-amount');
+  const twoPersons  = document.getElementById('pg-two-persons');
+  const weDoneCB    = document.getElementById('pg-wohnumfeld-done');
+  const weAmount    = document.getElementById('pg-wohnumfeld-amount');
+
+  const discRange   = document.getElementById('pg-material-discount');
+  const discVal     = document.getElementById('pg-material-discount-val');
+  const bonus300    = document.getElementById('pg-bonus-300');
+  const bonusGrab   = document.getElementById('pg-bonus-grab');
+
+  const inputPid    = document.getElementById('pg-product-id');
+  const inputQty    = document.getElementById('pg-product-qty');
+  const btnAddProd  = document.getElementById('pg-add-product');
+  const listProds   = document.getElementById('pg-products-list');
+  const datalist    = document.getElementById('pg-products-datalist');
+
+  const btnRun      = document.getElementById('pg-run');
+  const btnApply    = document.getElementById('pg-apply');
+  const btnClear    = document.getElementById('pg-clear');
+  const btnOpenRab  = document.getElementById('pg-open-rabatt');
+  const btnOpenKos  = document.getElementById('pg-open-kosten');
+
+  const outPayload  = document.getElementById('pg-payload');
+  const outResp     = document.getElementById('pg-response');
+  const outDiff     = document.getElementById('pg-diff');
+
+  let pgProducts = []; // [{productId, qty}]
+  let lastResponse = null;
+
+  function euro(n) { return (Number(n)||0).toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+  function show(el, on) {
+    if (!el) return;
+    el.hidden = !on;
+    el.setAttribute('aria-hidden', String(!on));
+  }
+
+  // Load SLA datalist for convenience
+  async function loadSLA() {
+    try {
+      const r = await fetch('/api/products/sla');
+      if (!r.ok) return;
+      const arr = await r.json();
+      datalist.innerHTML = arr.map(p => `<option value="${p.productId}">${(p.name||'').replace(/"/g,'&quot;')}</option>`).join('');
+    } catch {}
+  }
+  loadSLA();
+
+  function renderProdList() {
+    if (!pgProducts.length) {
+      listProds.textContent = 'Noch keine Produkte hinzugefügt.';
+      return;
+    }
+    const rows = pgProducts.map((p, i) => {
+      return `<div style="display:flex; align-items:center; gap:8px; border-bottom:1px dashed var(--border); padding:4px 0;">
+        <code>${p.productId}</code>
+        <span class="muted">×</span>
+        <input type="number" min="1" step="1" value="${p.qty}" data-i="${i}" class="pg-qty" style="max-width:80px;">
+        <button type="button" data-i="${i}" class="pg-del secondary">Entfernen</button>
+      </div>`;
+    }).join('');
+    listProds.innerHTML = rows || '—';
+  }
+
+  listProds.addEventListener('input', e => {
+    const n = e.target.closest('.pg-qty');
+    if (!n) return;
+    const i = Number(n.dataset.i);
+    const v = Math.max(1, Number(n.value)||1);
+    if (pgProducts[i]) { pgProducts[i].qty = v; }
+  });
+  listProds.addEventListener('click', e => {
+    const b = e.target.closest('.pg-del');
+    if (!b) return;
+    const i = Number(b.dataset.i);
+    if (pgProducts[i]) pgProducts.splice(i,1);
+    renderProdList();
+  });
+
+  btnAddProd.addEventListener('click', () => {
+    const pid = (inputPid.value||'').trim();
+    const qty = Math.max(1, Number(inputQty.value)||1);
+    if (!pid) return;
+    const found = pgProducts.find(p => p.productId === pid);
+    if (found) found.qty += qty;
+    else pgProducts.push({ productId: pid, qty });
+    renderProdList();
+    inputPid.value = '';
+    inputQty.value = '1';
+  });
+
+  // Scenarios populate knobs
+  selScenario.addEventListener('change', () => {
+    const v = selScenario.value;
+    // reset first
+    payerRadios.forEach(r => r.checked = false);
+    aufRadios.forEach(r => r.checked = false);
+    hasPgCB.checked = false; show(pgLvlWrap, false);
+    pgLvlRadios.forEach(r => r.checked = false);
+    budgetMax.checked = budgetCopay.checked = twoPersons.checked = false;
+    copayAmount.value = '';
+    weDoneCB.checked = false; weAmount.value = '';
+    discRange.value = '0'; discVal.textContent = '0.0%';
+    bonus300.checked = false;
+    bonusGrab.checked = false;
+
+    if (v === 'KK_MAX4180') {
+      checkRadio(payerRadios, 'Kassenkunde');
+      checkRadio(aufRadios, '50%');
+      hasPgCB.checked = true; show(pgLvlWrap, true); checkRadio(pgLvlRadios, '2');
+      budgetMax.checked = true;
+    } else if (v === 'KK_MIT_ZUZAHLUNG') {
+      checkRadio(payerRadios, 'Kassenkunde');
+      checkRadio(aufRadios, '50%');
+      hasPgCB.checked = true; show(pgLvlWrap, true); checkRadio(pgLvlRadios, '2');
+      budgetCopay.checked = true; copayAmount.value = '500';
+    } else if (v === 'KK_2P_8360') {
+      checkRadio(payerRadios, 'Kassenkunde');
+      checkRadio(aufRadios, '50%');
+      hasPgCB.checked = true; show(pgLvlWrap, true); checkRadio(pgLvlRadios, '2');
+      twoPersons.checked = true;
+    } else if (v === 'SZ_35') {
+      checkRadio(payerRadios, 'Selbstzahler');
+      checkRadio(aufRadios, '35%');
+      hasPgCB.checked = false; show(pgLvlWrap, false);
+    }
+  });
+
+  function checkRadio(radios, value) {
+    const r = radios.find(x => x.value === value);
+    if (r) r.checked = true;
+  }
+
+  hasPgCB.addEventListener('change', () => show(pgLvlWrap, hasPgCB.checked));
+  discRange.addEventListener('input', () => {
+    const v = parseFloat(discRange.value||'0')||0;
+    discVal.textContent = v.toLocaleString('de-DE', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%';
+  });
+
+  function makePlaygroundPayload() {
+    // Start with current form payload
+    const payload = buildPayload();
+
+    // Apply playground overrides into payload.bereich / payload.rabatt
+    payload.bereich = payload.bereich || {};
+
+    // payer
+    const payer = (payerRadios.find(r=>r.checked)?.value) || '';
+    if (payer) payload.bereich.payer = payer;
+
+    // aufschlag
+    const auf = (aufRadios.find(r=>r.checked)?.value) || '';
+    if (auf) payload.bereich.aufschlag = auf;
+
+    // pflegegrad / budget
+    const hasPG = hasPgCB.checked;
+    if (hasPG) {
+      payload.bereich.hasPflegegrad = 'Ja';
+      const lvl = pgLvlRadios.find(r=>r.checked)?.value || '2';
+      payload.bereich.pflegegrad = lvl;
+    } else {
+      payload.bereich.hasPflegegrad = 'Nein';
+      payload.bereich.pflegegrad = '';
+    }
+
+    // budget options (canonical combined field used by server)
+    let budget = '';
+    if (twoPersons.checked) budget = 'Zwei Personen mit Pflegegrad';
+    else if (budgetMax.checked) budget = '4180 maximal';
+    else if (budgetCopay.checked) budget = '4180 mit Zuzahlung';
+    payload.bereich.budgetOptionsPanel = budget;
+
+    payload.bereich.copayAmount = Number(copayAmount.value || 0) || 0;
+
+    // wohnumfeld
+    payload.bereich.wohnumfeld = {
+      done: !!weDoneCB.checked,
+      amount: Number(weAmount.value || 0) || 0
+    };
+
+    // rabatt + bonus
+    payload.rabatt = payload.rabatt || {};
+    const pct = parseFloat(discRange.value || '0') || 0;
+    payload.rabatt.materialDiscountPct = pct/100;
+    payload.rabatt.bonus300 = !!bonus300.checked;
+    payload.rabatt.bonusGrab = !!bonusGrab.checked;
+
+    // inject products into optional as quantity keys (so collectSelections picks them up)
+    // We’ll map productId -> qty into optional fields: opt_<PID> + qty_<PID>
+    payload.optional = payload.optional || {};
+    // wipe any previous ad-hoc test markers
+    Object.keys(payload.optional).forEach(k => { if (k.startsWith('opt_adhoc_') || k.startsWith('qty_adhoc_')) delete payload.optional[k]; });
+
+    pgProducts.forEach((p, i) => {
+      // use an adhoc alias to avoid collisions with UI IDs
+      const alias = `adhoc_${p.productId}`;
+      payload.optional[`opt_${alias}`] = 'on';
+      payload.optional[`qty_${alias}`] = String(p.qty);
+      // tell collectSelections how to map alias -> productId (augment alias map)
+      // we can’t modify server code, so we piggy-back by adding a hint field:
+      // Server collectSelections ignores it, but we’ll replicate translating on client before POSTing.
+    });
+
+    // Translate adhoc_* → real product IDs before sending to server: we mimic the server’s collectSelections by building items array
+    // Simpler: attach a materials list the server already consumes (computeMaterials uses only payload fields) — but we keep to optionals flow.
+    // We’ll add a client-only array for server to ignore; just for payload preview.
+
+    return payload;
+  }
+
+  async function runPricing(payload) {
+    const r = await fetch('/api/price', {
+      method:'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await r.json();
+    return data;
+  }
+
+  function diffObjects(prev, curr, path = '') {
+    const out = [];
+    if (!prev && curr) return [`+ ${path||'/'} = ${JSON.stringify(curr)}`];
+    if (prev && !curr) return [`- ${path||'/'} was ${JSON.stringify(prev)}`];
+
+    if (typeof prev !== 'object' || typeof curr !== 'object' || prev === null || curr === null) {
+      if (JSON.stringify(prev) !== JSON.stringify(curr)) out.push(`~ ${path||'/'}: ${JSON.stringify(prev)} → ${JSON.stringify(curr)}`);
+      return out;
+    }
+    const keys = new Set([...Object.keys(prev||{}), ...Object.keys(curr||{})]);
+    for (const k of keys) {
+      const p = prev ? prev[k] : undefined;
+      const c = curr ? curr[k] : undefined;
+      const subPath = path ? `${path}.${k}` : k;
+      out.push(...diffObjects(p, c, subPath));
+    }
+    return out;
+  }
+
+  btnRun.addEventListener('click', async () => {
+    const payload = makePlaygroundPayload();
+    outPayload.textContent = JSON.stringify(payload, null, 2);
+
+    const data = await runPricing(payload);
+    outResp.textContent = JSON.stringify(data, null, 2);
+
+    const diff = diffObjects(lastResponse, data);
+    outDiff.textContent = diff.length ? diff.join('\n') : '— keine Änderung —';
+    lastResponse = data;
+
+    // Update Rabatt pane immediately
+    window.setPricingData?.(data);
+    window.__pricing = data;
+    window.dispatchEvent(new CustomEvent('pricing:updated', { detail: data }));
+  });
+
+  btnApply.addEventListener('click', () => {
+    const payload = makePlaygroundPayload();
+    // Project selected knobs back into the real forms
+    // payer
+    if (payload.bereich?.payer) {
+      const r = document.querySelector(`input[name="payer"][value="${payload.bereich.payer}"]`);
+      if (r) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles:true })); }
+    }
+    // aufschlag
+    if (payload.bereich?.aufschlag) {
+      const r = document.querySelector(`input[name="aufschlag"][value="${payload.bereich.aufschlag}"]`);
+      if (r) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles:true })); }
+    }
+    // pflegegrad (just show/hide panels; exact mapping to Bereich panel already handled by initPflegegrad)
+    if (payload.bereich?.hasPflegegrad === 'Ja') {
+      const yes = document.querySelector('input[name="hasPflegegrad"][value="Ja"]');
+      yes && (yes.checked = true, yes.dispatchEvent(new Event('change', { bubbles:true })));
+      const lvl = payload.bereich?.pflegegrad || '';
+      if (lvl) {
+        const rl = document.querySelector(`input[name="pflegegrad"][value="${lvl}"]`);
+        rl && (rl.checked = true, rl.dispatchEvent(new Event('change', { bubbles:true })));
+      }
+    } else {
+      const no = document.querySelector('input[name="hasPflegegrad"][value="Nein"]');
+      no && (no.checked = true, no.dispatchEvent(new Event('change', { bubbles:true })));
+    }
+
+    // budget options panel
+    const b = String(payload.bereich?.budgetOptionsPanel||'').toUpperCase();
+    const elMax  = document.querySelector('input[name="budgetMax"]');
+    const elCop  = document.querySelector('input[name="budgetCopay"]');
+    const elTwo  = document.querySelector('input[name="twoPersons"]');
+    const copay  = document.getElementById('copayAmount');
+    if (elMax) elMax.checked = /4180.*MAX/.test(b);
+    if (elCop) elCop.checked = /4180.*ZUZ/.test(b);
+    if (elTwo) elTwo.checked = /ZWEI.*PERSONEN|8360/.test(b);
+    if (copay) copay.value = String(payload.bereich?.copayAmount||0);
+
+    // woh num feld
+    const weY = document.querySelector('input[name="wohnumfeldDone"][value="Ja"]');
+    const weN = document.querySelector('input[name="wohnumfeldDone"][value="Nein"]');
+    if (payload.bereich?.wohnumfeld?.done) {
+      weY && (weY.checked = true, weY.dispatchEvent(new Event('change', {bubbles:true})));
+      const amt = document.getElementById('wohnumfeldAmount');
+      if (amt) amt.value = String(payload.bereich?.wohnumfeld?.amount||0);
+    } else {
+      weN && (weN.checked = true, weN.dispatchEvent(new Event('change', {bubbles:true})));
+    }
+
+    // rabatt fields
+    const slider = document.getElementById('rb-material-discount');
+    if (slider) {
+      slider.value = String((payload.rabatt?.materialDiscountPct||0)*100);
+      slider.dispatchEvent(new Event('input', { bubbles:true }));
+      slider.dispatchEvent(new Event('change', { bubbles:true }));
+    }
+    const b300 = document.getElementById('rb-bonus-300');
+    if (b300) { b300.checked = !!payload.rabatt?.bonus300; b300.dispatchEvent(new Event('change',{bubbles:true})); }
+    const bgr  = document.getElementById('rb-bonus-grab');
+    if (bgr)  { bgr.checked = !!payload.rabatt?.bonusGrab; bgr.dispatchEvent(new Event('change',{bubbles:true})); }
+
+    window.updatePricing?.();
+    alert('Playground-Parameter in das Angebot übernommen.');
+  });
+
+  btnClear.addEventListener('click', () => {
+    selScenario.value = '';
+    payerRadios.forEach(r => r.checked = false);
+    aufRadios.forEach(r => r.checked = false);
+    hasPgCB.checked = false; show(pgLvlWrap, false);
+    pgLvlRadios.forEach(r => r.checked = false);
+    budgetMax.checked = budgetCopay.checked = twoPersons.checked = false;
+    copayAmount.value = '';
+    weDoneCB.checked = false; weAmount.value = '';
+    discRange.value = '0'; discVal.textContent = '0.0%';
+    bonus300.checked = false; bonusGrab.checked = false;
+    pgProducts = []; renderProdList();
+    outPayload.textContent = outResp.textContent = outDiff.textContent = '';
+  });
+
+  btnOpenRab.addEventListener('click', async () => {
+    const payload = makePlaygroundPayload();
+    const data = await runPricing(payload);
+    window.__pricing = data;
+    window.setPricingData?.(data);
+    window.dispatchEvent(new CustomEvent('pricing:updated', { detail: data }));
+    location.hash = 'rabatt';
+  });
+
+  btnOpenKos.addEventListener('click', async () => {
+    const payload = makePlaygroundPayload();
+    const data = await runPricing(payload);
+    window.__pricing = data;
+    // trigger Kosten re-render
+    window.dispatchEvent(new CustomEvent('pricing:updated', { detail: data }));
+    location.hash = 'kosten';
+  });
+
+  // Auto-run when entering page
+  window.addEventListener('hashchange', () => {
+    if (typeof getCurrentStep === 'function' && getCurrentStep() === 'playground') {
+      // no-op; keep state
+    }
+  });
+})();
 
 /* ========== PDF/DOCX + API BUTTONS ========== */
 

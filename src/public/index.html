@@ -788,6 +788,11 @@
         <div class="dot"></div>
         <span>Kosten-Details</span>
       </a>
+
+      <a class="step" data-step="playground" href="#playground">
+  <div class="dot"></div>
+  <span>Pricing Playground</span>
+</a>
     </nav>
 
     <div class="container">
@@ -3224,6 +3229,133 @@
           <button type="button" data-nav="next">Weiter</button>
         </div>
       </section>
+
+      <!-- Pricing Playground -->
+<section class="card page" id="page-playground" hidden>
+  <h2 style="margin:0 0 12px;">Pricing Playground</h2>
+
+  <div class="muted" style="margin-bottom:12px">
+    Teste pricing.js mit vordefinierten Szenarien und/ oder beliebigen Produkten aus der DB.
+    Links: Szenario wählen. Rechts: Produkte hinzufügen. Unten: Live-Response vom Server.
+  </div>
+
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+    <!-- Left: scenarios and flags -->
+    <div class="card" style="padding:12px;">
+      <div class="section-header">Szenarien</div>
+
+      <div class="field">
+        <label for="pg-scenario">Szenario laden</label>
+        <select id="pg-scenario">
+          <option value="">— Bitte wählen —</option>
+          <option value="KK_MAX4180">Kassenkunde: 4180 maximal</option>
+          <option value="KK_MIT_ZUZAHLUNG">Kassenkunde: 4180 mit Zuzahlung</option>
+          <option value="KK_2P_8360">2 Personen mit Pflegegrad (8360)</option>
+          <option value="SZ_35">Selbstzahler (Aufschlag 35%)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <div class="subheader">Basis</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <label class="radio-pill"><input type="radio" name="pg-payer" value="Kassenkunde"><span class="circle"></span><span>Kassenkunde</span></label>
+          <label class="radio-pill"><input type="radio" name="pg-payer" value="Selbstzahler"><span class="circle"></span><span>Selbstzahler</span></label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Aufschlag</label>
+        <div class="radio-group" id="pg-aufschlag">
+          <label class="radio-pill"><input type="radio" name="pg-auf" value="35%"><span class="circle"></span><span>35%</span></label>
+          <label class="radio-pill"><input type="radio" name="pg-auf" value="40%"><span class="circle"></span><span>40%</span></label>
+          <label class="radio-pill"><input type="radio" name="pg-auf" value="45%"><span class="circle"></span><span>45%</span></label>
+          <label class="radio-pill"><input type="radio" name="pg-auf" value="50%"><span class="circle"></span><span>50%</span></label>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="subheader">Pflegegrad / Zuschuss</div>
+        <div class="checkbox-grid">
+          <label class="check-pill"><input type="checkbox" id="pg-has-pg"><span class="box"></span><span>Kunde hat Pflegegrad</span></label>
+          <div id="pg-pg-lvl" hidden>
+            <label>Pflegegrad</label>
+            <div class="radio-group" style="flex-wrap:wrap;">
+              <label class="radio-pill"><input type="radio" name="pg-lvl" value="1"><span class="circle"></span><span>1</span></label>
+              <label class="radio-pill"><input type="radio" name="pg-lvl" value="2"><span class="circle"></span><span>2</span></label>
+              <label class="radio-pill"><input type="radio" name="pg-lvl" value="3"><span class="circle"></span><span>3</span></label>
+              <label class="radio-pill"><input type="radio" name="pg-lvl" value="4"><span class="circle"></span><span>4</span></label>
+              <label class="radio-pill"><input type="radio" name="pg-lvl" value="5"><span class="circle"></span><span>5</span></label>
+            </div>
+          </div>
+
+          <label class="check-pill"><input type="checkbox" id="pg-budget-max"><span class="box"></span><span>4180€ maximal</span></label>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label class="check-pill"><input type="checkbox" id="pg-budget-copay"><span class="box"></span><span>4180€ mit Zuzahlung</span></label>
+            <input id="pg-copay-amount" type="number" placeholder="Zuzahlung €" style="max-width:140px;">
+          </div>
+          <label class="check-pill"><input type="checkbox" id="pg-two-persons"><span class="box"></span><span>2 Personen (8360€)</span></label>
+          <label class="check-pill"><input type="checkbox" id="pg-wohnumfeld-done"><span class="box"></span><span>Wohnumfeld bereits genutzt</span></label>
+          <input id="pg-wohnumfeld-amount" type="number" placeholder="Bereits genutzt €" style="max-width:180px;">
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="subheader">Rabatt & Bonus</div>
+        <label>Materialrabatt (0–9%)</label>
+        <input id="pg-material-discount" type="range" min="0" max="9" step="0.1" value="0">
+        <div><small>Aktuell: <span id="pg-material-discount-val">0.0%</span></small></div>
+        <label class="check-pill" style="margin-top:8px;"><input type="checkbox" id="pg-bonus-300"><span class="box"></span><span>Bonus 300 (252,10 € netto)</span></label>
+        <label class="check-pill"><input type="checkbox" id="pg-bonus-grab"><span class="box"></span><span>Aktion: Haltegriff</span></label>
+      </div>
+
+      <div class="actions" style="margin-top:8px;">
+        <button type="button" id="pg-apply">Auf Angebot übertragen</button>
+        <button type="button" class="secondary" id="pg-clear">Zurücksetzen</button>
+      </div>
+    </div>
+
+    <!-- Right: product adder -->
+    <div class="card" style="padding:12px;">
+      <div class="section-header">Produkte hinzufügen (DB)</div>
+      <div class="field">
+        <label for="pg-product-id">Artikelnummer (productId)</label>
+        <div style="display:flex; gap:8px;">
+          <input id="pg-product-id" placeholder="z.B. CLPESG40" list="pg-products-datalist">
+          <datalist id="pg-products-datalist"></datalist>
+          <input id="pg-product-qty" type="number" min="1" step="1" value="1" style="max-width:100px">
+          <button type="button" id="pg-add-product">Hinzufügen</button>
+        </div>
+        <small class="muted">Tipp: Liste lädt automatisch die SLA-Artikel; freie Eingabe für andere IDs möglich.</small>
+      </div>
+
+      <div id="pg-products-list" class="muted" style="max-height:180px; overflow:auto; border:1px dashed var(--border); border-radius:10px; padding:8px;">
+        Noch keine Produkte hinzugefügt.
+      </div>
+
+      <div class="actions" style="margin-top:8px;">
+        <button type="button" id="pg-run">Pricing ausführen</button>
+        <button type="button" class="secondary" id="pg-open-rabatt">Im Rabatt-Panel öffnen</button>
+        <button type="button" class="secondary" id="pg-open-kosten">Im Kosten-Panel öffnen</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:12px; margin-top:12px;">
+    <div class="section-header">Server-Response</div>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+      <div>
+        <div class="subheader">Payload (gesendet)</div>
+        <pre id="pg-payload" class="status" style="max-height:300px; overflow:auto;"></pre>
+      </div>
+      <div>
+        <div class="subheader">Antwort (computed)</div>
+        <pre id="pg-response" class="status" style="max-height:300px; overflow:auto;"></pre>
+      </div>
+    </div>
+    <div class="subheader" style="margin-top:12px;">Delta (vs. letzte Antwort)</div>
+    <pre id="pg-diff" class="status" style="max-height:200px; overflow:auto;"></pre>
+  </div>
+</section>
     </div>
 
     <script src="./script.js"></script>
