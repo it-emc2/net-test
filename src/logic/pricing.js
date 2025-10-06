@@ -448,7 +448,48 @@ try { materials = await computeMaterials(payload); } catch (e) { console.error('
 let services = { title: '', lines: [], sum: 0, payer: '', zoneLabel: '', distanceKm: 0, laborHours: 0, laborRate: 0 };
 try { services = computeServiceCosts(payload) || services; } catch (e) { console.error('[pricing] computeServiceCosts failed:', e); }
 
+// --- add the selected Duschwanne (from smart search) as a material line ---
+let selectedTray = null;
+try {
+  const pid = payload?.duschwanne?.chosenTrayProductId;
+  const sizeLabel = (payload?.duschwanne?.traySize || '').trim();
+ 
 
+  if (pid) {
+    const already = (materials?.lines || []).some(l =>
+      l?.productId === pid || l?.id === pid
+    );
+
+    if (!already) {
+      const p = await ProductModel.findOne({ productId: pid }).lean();
+      if (p) {
+        const unit = Number(p.price || 0);
+        const qty  = 1; // ← add this
+        const line = {
+          productId: p.productId,
+          name: p.name || '',
+          qty,
+          unitPrice: unit,
+          lineTotal: round2(unit * qty),
+          label: sizeLabel
+            ? `- ${qty} Stk Duschwanne ${sizeLabel}`
+            : `- ${qty} Stk Duschwanne`
+        };
+        materials.lines.push(line);
+        materials.sum = round2((materials.sum || 0) + line.lineTotal);
+
+        selectedTray = {
+          productId: p.productId,
+          name: p.name || '',
+          sizeLabel,
+          unitPrice: unit
+        };
+      }
+    }
+  }
+} catch (e) {
+  console.warn('[pricing] addSelectedTrayLine failed:', e?.message || e);
+}
 
 // ----- UI/DOCX display adjustments for Haltegriff-Bonus (presentation only) -----
 // ---- HALTEGRIFF + DISPLAY PREP ----
@@ -540,49 +581,6 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
 
 
 
-
-// --- add the selected Duschwanne (from smart search) as a material line ---
-let selectedTray = null;
-try {
-  const pid = payload?.duschwanne?.chosenTrayProductId;
-  const sizeLabel = (payload?.duschwanne?.traySize || '').trim();
- 
-
-  if (pid) {
-    const already = (materials?.lines || []).some(l =>
-      l?.productId === pid || l?.id === pid
-    );
-
-    if (!already) {
-      const p = await ProductModel.findOne({ productId: pid }).lean();
-      if (p) {
-        const unit = Number(p.price || 0);
-        const qty  = 1; // ← add this
-        const line = {
-          productId: p.productId,
-          name: p.name || '',
-          qty,
-          unitPrice: unit,
-          lineTotal: round2(unit * qty),
-          label: sizeLabel
-            ? `- ${qty} Stk Duschwanne ${sizeLabel}`
-            : `- ${qty} Stk Duschwanne`
-        };
-        materials.lines.push(line);
-        materials.sum = round2((materials.sum || 0) + line.lineTotal);
-
-        selectedTray = {
-          productId: p.productId,
-          name: p.name || '',
-          sizeLabel,
-          unitPrice: unit
-        };
-      }
-    }
-  }
-} catch (e) {
-  console.warn('[pricing] addSelectedTrayLine failed:', e?.message || e);
-}
 
 
 
