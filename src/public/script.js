@@ -1753,30 +1753,37 @@ document
     `;
   }
 
-  function listLines(lines) {
-    if (!Array.isArray(lines) || !lines.length)
-      return '<div class="muted">Keine Positionen</div>';
+function listLines(lines) {
+  if (!Array.isArray(lines) || !lines.length)
+    return '<div class="muted">Keine Positionen</div>';
+
+  const header = `
+    <div style="font-size:12px;color:var(--muted)">Bezeichnung</div>
+    <div style="font-size:12px;color:var(--muted);text-align:right">Menge</div>
+    <div style="font-size:12px;color:var(--muted);text-align:right">Einzelpreis</div>
+    <div style="font-size:12px;color:var(--muted);text-align:right">Gesamt</div>
+  `;
+
+  const rows = lines.map(l => {
+    if (l.__subtitle) {
+      return `<div style="grid-column:1 / -1; font-weight:700; margin:8px 0 2px;">${l.label}</div>`;
+    }
     return `
-      <div style="display:grid; grid-template-columns: 1fr auto auto auto; gap:6px 10px; align-items:center;">
-        <div style="font-size:12px;color:var(--muted)">Bezeichnung</div>
-        <div style="font-size:12px;color:var(--muted);text-align:right">Menge</div>
-        <div style="font-size:12px;color:var(--muted);text-align:right">Einzelpreis</div>
-        <div style="font-size:12px;color:var(--muted);text-align:right">Gesamt</div>
-        ${lines
-          .map(
-            (l) => `
-          <div>${l.label ? l.label : l.name || l.productId || "-"}</div>
-          <div style="text-align:right">${l.qty ?? 1}</div>
-          <div style="text-align:right">${euroC(l.unitPrice ?? 0)}</div>
-          <div style="text-align:right; font-weight:600">${euroC(
-            l.lineTotal ?? 0
-          )}</div>
-        `
-          )
-          .join("")}
-      </div>
+      <div>${l.label ? l.label : l.name || l.productId || "-"}</div>
+      <div style="text-align:right">${l.qty ?? 1}</div>
+      <div style="text-align:right">${euroC(l.unitPrice ?? 0)}</div>
+      <div style="text-align:right; font-weight:600">${euroC(l.lineTotal ?? 0)}</div>
     `;
-  }
+  }).join('');
+
+  return `
+    <div style="display:grid; grid-template-columns: 1fr auto auto auto; gap:6px 10px; align-items:center;">
+      ${header}
+      ${rows}
+    </div>
+  `;
+}
+
 
   // --- NEW: resolve DB names for optional items (by productId)
   async function withResolvedOptionalNames(items) {
@@ -1855,22 +1862,60 @@ const opt = (data.optionalDisplayUI?.lines || []);
   );
 
   // --- Leistungen (Debug): use servicesDisplayUI if present
-  const svcSource = (data.servicesDisplayUI && Array.isArray(data.servicesDisplayUI.lines))
-    ? data.servicesDisplayUI.lines
-    : ((data.services && Array.isArray(data.services.lines)) ? data.services.lines : []);
-  const svcLines = svcSource.map(s => ({
+ const svcSource = (data.servicesDisplayUI && Array.isArray(data.servicesDisplayUI.lines))
+  ? data.servicesDisplayUI.lines
+  : ((data.services && Array.isArray(data.services.lines)) ? data.services.lines : []);
+
+const norm = s => String(s || '').trim();
+const stripBullet = s => norm(s).replace(/^-+\s*/, '').trim();
+
+const DW_TASKS = new Set([
+  'Entfernen und Entsorgen der Badewanne inkl. Befliesung',
+  'Entfernen und Entsorgen der Duschabtrennung',
+  'Einbau der Duschwanne',
+  'Einbau der Duschabtrennung',
+]);
+const isFehlstellen = s => /schließen der fehlstellen/i.test(s);
+
+const primary = [];
+const included = [];
+
+for (const s of svcSource) {
+  if (!s || s.key === 'facharbeiter' || s.docxHide) continue;
+  const label = norm(s.label);
+  const plain = stripBullet(label);
+  const row = {
     productId: s.key || s.productId,
-    name: s.label,
+    label: label || s.name || s.productId || '-',
     qty: 1,
     unitPrice: s.amount,
     lineTotal: s.amount,
-  }));
-  const svcBody = listLines(svcLines);
-  const svcCard = card(
-    (data.services && data.services.title) || "Leistungen",
-    svcBody,
-    `<div style="text-align:right"><b>Summe Leistungen:</b> ${euroC(data.services?.sum || 0)}</div>`
-  );
+  };
+if (
+  DW_TASKS.has(plain) ||
+  isFehlstellen(plain) ||
+  /anbringen\s+zusätzlicher\s+haltegriffe/i.test(plain)
+) {
+  primary.push(row);
+} else {
+  included.push(row);
+}
+
+}
+
+// Build UI with a subtitle row
+const groupedSvcLines = [
+  ...primary,
+  ...(included.length ? [{ __subtitle: true, label: 'Enthält je Einheit' }, ...included] : [])
+];
+
+const svcBody = listLines(groupedSvcLines);
+const svcCard = card(
+  (data.services && data.services.title) || "Auszuführende Arbeiten",
+  svcBody,
+  `<div style="text-align:right"><b>Summe Leistungen:</b> ${euroC(data.services?.sum || 0)}</div>`
+);
+
 
   // --- Totals (unchanged)
   const sums = `

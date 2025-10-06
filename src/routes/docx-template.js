@@ -425,13 +425,59 @@ const svc = (computed?.servicesDisplayDocx?.lines  || services?.lines  || []);
 
 // Services block
 // Services block (prefer adjusted display for DOCX)
+// --- Group service lines into main and included ---
+// --- Group service lines into main and included ---
 const svcForDoc = (computed.servicesDisplayDocx?.lines || computed.services?.lines || []);
-const serviceLines = svcForDoc
-  .filter(l => l && l.key !== 'facharbeiter' && !l.docxHide)
-  .map(l => l.label);
-  const ServicePosTitle = services?.title || 'Auszuführende Arbeiten';
-  const ServiceUnitPrice = fmtCurrency(services?.sum || 0);
-  const ServiceTotal = fmtCurrency(services?.sum || 0);
+
+const norm = s => String(s || '').trim();
+const stripBullet = s => norm(s).replace(/^-+\s*/, '').trim();
+
+// DW tasks that belong under "Auszuführende Arbeiten"
+const DW_TASKS = new Set([
+  'Entfernen und Entsorgen der Badewanne inkl. Befliesung',
+  'Entfernen und Entsorgen der Duschabtrennung',
+  'Einbau der Duschwanne',
+  'Einbau der Duschabtrennung',
+]);
+const isFehlstellen = s => /schließen der fehlstellen/i.test(s);
+
+
+const primary = [];
+const included = [];
+
+for (const l of svcForDoc) {
+  if (!l || l.key === 'facharbeiter' || l.docxHide) continue;   // keep this filter
+  const label = norm(l.label);
+  const plain = stripBullet(label);
+  const bullet = label.startsWith('-') ? label : `- ${label}`;
+
+  if (
+  DW_TASKS.has(plain) ||
+  isFehlstellen(plain) ||
+  /anbringen\s+zusätzlicher\s+haltegriffe/i.test(plain)
+) {
+  primary.push(bullet);
+} else {
+  included.push(bullet);
+}
+
+}
+
+// Arrays exactly as the template expects:
+const PrimaryServiceLines  = primary.map(txt => ({ ServiceLine: txt }));
+const IncludedServiceLines = included.map(txt => ({ ServiceLine: txt }));
+const HasIncluded          = included.length > 0;
+
+// (optional) quick sanity in server log
+console.log('[docx] svc split:', {
+  total: svcForDoc.length, primary: primary.length, included: included.length
+});
+
+// Title and totals unchanged:
+const ServicePosTitle = services?.title || 'Auszuführende Arbeiten';
+const ServiceUnitPrice = fmtCurrency(services?.sum || 0);
+const ServiceTotal     = fmtCurrency(services?.sum || 0);
+
 
   // Materials block
   const MaterialsPosTitle = materials?.title || 'Material für Badumbau';
@@ -605,7 +651,11 @@ const MaterialsLines = matForDoc.map(l => {
     ServicePosTitle,
     ServiceUnitPrice,
     ServiceTotal,
-    ServiceLines: serviceLines.map(txt => ({ ServiceLine: txt })),
+  
+    
+PrimaryServiceLines,
+IncludedServiceLines,
+HasIncluded,
 
     // Materials position
     MaterialsPosTitle,
