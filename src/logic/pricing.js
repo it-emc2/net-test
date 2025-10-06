@@ -1,5 +1,32 @@
 // src/logic/pricing.js
 export default (ProductModel) => {
+
+  // Minimal helper: adjust only the visible label to billable qty (selected - 1)
+// - Does NOT change qty, unitPrice, or lineTotal (so totals remain untouched).
+// - If billable becomes 0 and hideWhenZero=true, remove the line from the list (keeps "0 Stk" hidden).
+function setCL40LabelToBillable(list, { hideWhenZero = false } = {}) {
+  const row = list?.find(l => (l.productId || l.id) === 'CLPESG40');
+  if (!row) return;
+
+  const selectedQty = Number(row.qty || 0) || 0;
+  const billableQty = Math.max(0, selectedQty - 1);
+
+  if (billableQty === 0 && hideWhenZero) {
+    const idx = list.indexOf(row);
+    if (idx > -1) list.splice(idx, 1);
+    return;
+  }
+
+  // strip any "(hidden)" that older logic may have appended
+  const baseName = (row.name || row.label || row.productId || '')
+    .replace(/\s*\(hidden\)\s*$/,'')
+    .trim();
+
+  row.label = `- ${billableQty} Stk ${baseName}`;
+  // IMPORTANT: do not touch row.qty / row.unitPrice / row.lineTotal
+}
+
+
 // --- helper: include selected tray as a material line ---
 
   async function getProductsByIds(ids) {
@@ -426,21 +453,14 @@ function decOneCL40(arr, { removeIfZero }) {
 
 // UI rules
 if (bonusHG && grabCounts.cl40 > 0) {
-  if (ONLY_ONE_CL40) {
-    // Optional list: keep qty as is but annotate (hidden)
-    const uiOptCL40 = uiOptionals.find(l => (l.productId || l.id) === 'CLPESG40');
-    if (uiOptCL40) {
-      const suffix = ' (hidden)';
-      if (!/\(hidden\)\s*$/.test(uiOptCL40.name || ''))  uiOptCL40.name  = (uiOptCL40.name  || '')  + suffix;
-      if (!/\(hidden\)\s*$/.test(uiOptCL40.label || '')) uiOptCL40.label = (uiOptCL40.label || '') + suffix;
-    }
-    // Services UI: annotate the haltegriffe worknote
-    const GRAB_NOTE = 'Anbringen zusätzlicher Haltegriffe';
-    const uiNote = uiServices.find(s => (s.label || '').includes(GRAB_NOTE));
-    if (uiNote && !/\(hidden\)\s*$/.test(uiNote.label)) uiNote.label += ' (hidden)';
-  } else {
+
     // Multiple grab bars: show CLPESG40 as qty-1 in Optional UI
-    decOneCL40(uiOptionals, { removeIfZero: false });
+    setCL40LabelToBillable(uiOptionals, { hideWhenZero: false }); // show "0 Stk ..." in UI
+  // Particular case: single CLPESG40 and no other grab bars → hide the worknote in UI (to mirror DOCX behavior)
+  if (ONLY_ONE_CL40) {
+    const GRAB_NOTE = 'Anbringen zusätzlicher Haltegriffe';
+    const uiNoteIdx = uiServices.findIndex(s => (s.label || '').includes(GRAB_NOTE));
+    if (uiNoteIdx >= 0) uiServices.splice(uiNoteIdx, 1);
   }
 }
 
@@ -456,7 +476,7 @@ if (bonusHG && grabCounts.cl40 > 0) {
     if (dn >= 0) docxServices.splice(dn, 1);
   } else {
     // Multiple → decrement one from DOCX
-    decOneCL40(docxMaterials, { removeIfZero: true });
+    setCL40LabelToBillable(docxMaterials, { hideWhenZero: true }); // hide when 0 in PDF
   }
 }
 
