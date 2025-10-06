@@ -327,6 +327,26 @@ async function computeMaterials(payload) {
     console.warn('[pricing] optional->materials failed:', e?.message || e);
   }
 
+// ------- Sonderduschabtrennung Hassmann (user-entered net price)
+try {
+  const raw = payload?.duschabtrennung?.daNetto ?? '';
+  // allow 1.234,56 or 1234.56
+  const val = Number(String(raw).trim().replace(/\s/g, '').replace(/\./g, '').replace(',', '.'));
+  if (Number.isFinite(val) && val > 0) {
+    // Add as a non-optional material line so it shows under "Material für Badumbau"
+    add(
+      'HASSMANN_CUSTOM',                         // arbitrary id (no DB lookup needed)
+      1,                                         // qty
+      '- 1 Stk Sonderduschabtrennung Hassmann',  // exact label to display
+      val,                                       // unitOverride = user price
+      null                                       // source=null => regular material
+    );
+  }
+} catch (e) {
+  console.warn('[pricing] Hassmann price add failed:', e?.message || e);
+}
+
+
   // ------- Resolve names/prices once
   const productMap = await getProductsByIds([...idsNeeded]);
 
