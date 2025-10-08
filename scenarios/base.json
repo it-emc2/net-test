@@ -11,13 +11,13 @@
     "payer": "Kassenkunde",
     "hasPflegegrad": "Ja",
     "pflegegrad": 2,
+    "budgetOptionsPanel": "", 
     "distanceKm": 14,
     "laborHoursHHMM": "0:00",
     "laborHoursNumeric": 0,
     "totalHoursHHMM": "0:00",
     "totalHoursNumeric": 0,
     "wohnumfeld": { "done": false, "amount": 0 },
-    "budgetOptionsPanel": "",
     "copayAmount": 0
   },
 

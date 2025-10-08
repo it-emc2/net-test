@@ -174,7 +174,8 @@ function hhmmToHours(v) {
   if (!m) return 0;
   const h = Number(m[1]) || 0;
   const min = Number(m[2]) || 0;
-  return h + min / 60;
+  const dec = h + min / 60;
+  return Math.round(dec * 100) / 100;
 }
 
 function hoursToHHMM(n) {
@@ -256,7 +257,7 @@ const laborEl = document.getElementById("laborHours");
 const laborHHMM = (laborEl?.value || "").trim();
 const laborNumeric =
   typeof hhmmToHours === "function"
-    ? Math.max(0, hhmmToHours(laborHHMM))
+    ? Math.max(0, hhmmToHours())  //Math.ceil(laborHHMM * 100) / 100;
     : (() => {
         const m = laborHHMM.match(/^(\d+):([0-5]\d)$/);
         return m ? Number(m[1]) + Number(m[2]) / 60 : 0;
@@ -801,6 +802,69 @@ function setupWandverkleidungPage() {
     });
   });
 }
+function initWVConnectorsUI() {
+  const qtyVEl   = document.getElementById('wvV3VQty');       // user-entered connectors
+  const outEl    = document.getElementById('wvV3VRuleText');  // hint line
+  const cb997    = document.getElementById('wv997');
+  const cb1497   = document.getElementById('wv1497');
+  const q997El   = document.getElementById('wvQty997');
+  const q1497El  = document.getElementById('wvQty1497');
+  const corners  = document.getElementById('wvCornersCB');
+
+  if (!qtyVEl || !outEl) return;
+
+  const n = (v) => {
+    const x = parseInt(String(v ?? '0').replace(/[^\d-]/g, ''), 10);
+    return Number.isFinite(x) && x > 0 ? x : 0;
+  };
+
+  function recommendedVCount() {
+    const use997  = !!cb997?.checked;
+    const use1497 = !!cb1497?.checked;
+    const q997    = use997  ? n(q997El?.value)   : 0;
+    const q1497   = use1497 ? n(q1497El?.value)  : 0;
+
+    const totalPanels = q997 + q1497;
+    let rec = Math.max(0, totalPanels - 1);    // joints between panels in a run
+    if (corners?.checked) rec -= 1;            // add vertical profiles for corners
+    return rec;
+  }
+
+  function render() {
+    const rec = recommendedVCount();
+    const cur = n(qtyVEl.value);
+    outEl.textContent = rec > 0
+      ? `- Verbindungsprofil(e) empfohlen: ${rec} Stk • aktuell: ${cur} Stk`
+      : (cur > 0 ? `- Verbindungsprofil(e): ${cur} Stk` : '');
+  }
+
+  // Wire listeners (any change should refresh the hint)
+  ['input','change','blur'].forEach(ev => {
+    qtyVEl.addEventListener(ev, render);
+    q997El?.addEventListener(ev, render);
+    q1497El?.addEventListener(ev, render);
+  });
+  cb997?.addEventListener('change', render);
+  cb1497?.addEventListener('change', render);
+  corners?.addEventListener('change', render);
+
+  // First paint
+  render();
+}
+
+// init when the WV page is visible
+window.addEventListener('hashchange', () => {
+  if (typeof getCurrentStep === 'function' && getCurrentStep() === 'wandverkleidung') {
+    initWVConnectorsUI();
+  }
+});
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof getCurrentStep === 'function' && getCurrentStep() === 'wandverkleidung') {
+    initWVConnectorsUI();
+  }
+});
+
+
 window.addEventListener("hashchange", () => {
   if (location.hash === "#wandverkleidung") setupWandverkleidungPage();
 });
