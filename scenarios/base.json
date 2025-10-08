@@ -1,0 +1,108 @@
+{
+  "bereich": {
+    "date": "2025-01-01",
+    "salutation": "Herr",
+    "firstName": "Max",
+    "lastName": "Muster",
+    "street": "Musterweg 1",
+    "city": "Berlin",
+    "postalCode": "10115",
+    "customerNumber": "K-1001",
+    "payer": "Kassenkunde",
+    "hasPflegegrad": "Ja",
+    "pflegegrad": 2,
+    "distanceKm": 14,
+    "laborHoursHHMM": "0:00",
+    "laborHoursNumeric": 0,
+    "totalHoursHHMM": "0:00",
+    "totalHoursNumeric": 0,
+    "wohnumfeld": { "done": false, "amount": 0 },
+    "budgetOptionsPanel": "",
+    "copayAmount": 0
+  },
+
+  "duschwanne": {
+    "tray_w_cm": "",
+    "tray_l_cm": "",
+    "tray_h_cm": "",
+    "traySize": "",
+    "chosenTrayProductId": "",
+    "workTasks": [],                 
+    "trayColor": "",
+    "abdichtSet": "",
+    "drainSet": "",
+    "smallMaterial": "",
+    "stelzlager": "",
+    "addFlooring": false,
+    "floorArea": "",
+    "flooringProduct": [],
+    "floorAdhesive": [],
+    "floorSealing": [],
+    "computed": { "areaM2": 0 }
+  },
+
+  "wandverkleidung": {
+    "wvKind": "",                    
+    "wvColor": "",
+    "wvPanels997": 0,
+    "wvPanels1497": 0,
+    "fehlstellen": "",              
+    "tooling": false
+  },
+
+  "duschabtrennung": {
+    "kind": "",                     
+    "profileColor": "",
+    "door": "",
+    "widthCm": "",
+    "heightCm": "",
+    "daNetto": 0                    
+  },
+
+  "optional": {
+    "cat_SHOWER": false,
+    "opt_V22WS1R": false, "qty_V22WS1R": 0,
+    "opt_TEMPDSU250": false, "qty_TEMPDSU250": 0,
+    "opt_V22BG903R": false, "qty_V22BG903R": 0,
+    "opt_DEDS2503E": false, "qty_DEDS2503E": 0,
+
+    "cat_THERMO": false,
+    "opt_CLTB": false, "qty_CLTB": 0,
+    "opt_DEPTB": false, "qty_DEPTB": 0,
+    "opt_CLB": false, "qty_CLB": 0,
+
+    "cat_GRAB": false,
+    "opt_CLPESG40": false, "qty_CLPESG40": 0,
+    "opt_CLPESG60": false, "qty_CLPESG60": 0,
+    "opt_CLPESG80": false, "qty_CLPESG80": 0,
+
+    "cat_FOLD": false,
+    "opt_DEPSKG60": false, "qty_DEPSKG60": 0,
+    "opt_DEPSKG85": false, "qty_DEPSKG85": 0,
+
+    "cat_SEAT": false,
+    "opt_DEPKS": false, "qty_DEPKS": 0,
+
+    "cat_BASIN": false,
+    "opt_CL60": false, "qty_CL60": 0,
+    "opt_WTBF": false, "qty_WTBF": 0,
+    "opt_RSL": false, "qty_RSL": 0,
+    "opt_EV": false, "qty_EV": 0,
+
+    "cat_BASIN_TAP": false,
+    "opt_CL_BASIN": false, "qty_CL_BASIN": 0,
+    "opt_DEPOH": false, "qty_DEPOH": 0,
+
+    "opt_WTBF__loose": false, "qty_WTBF__loose": 0,
+    "opt_RSL__loose": false,  "qty_RSL__loose": 0,
+    "opt_EV__loose": false,   "qty_EV__loose": 0
+  },
+
+  "rabatt": {
+    "materialDiscountPct": 0,   
+    "bonus300": false,
+    "bonusGrab": false
+  },
+
+  "offerNumber": "ANTEST0001"
+}

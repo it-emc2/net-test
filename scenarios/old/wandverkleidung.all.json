@@ -1,0 +1,53 @@
+{
+  "bereich": {
+    "payer": "Kassenkunde",
+    "aufschlag": "50%",
+    "date": "2025-01-15",
+    "firstName": "Max",
+    "lastName": "Mustermann",
+    "customerNumber": "K-10001",
+    "hasPflegegrad": "Ja",
+    "pflegegrad": "2"
+  },
+  "wandverkleidung": {
+    "wvKind": "2Wandverkleidungsplatten",
+    "wvColor": "Marmor weiß",
+
+    "wv997": "on",
+    "wvQty997": "3",
+    "wv1497": "on",
+    "wvQty1497": "2",
+
+    "wvAccessory_adhesive": "on",
+    "wvAccessory_adhesive_qty": "4",
+
+    "wvAccessory_primer": "on",
+    "wvAccessory_primer_qty": "1",
+
+    "wvAccessory_silicone": "on",
+    "wvAccessory_silicone_qty": "3",
+
+    "wvAccessory_profile_inner": "on",
+    "wvAccessory_profile_inner_qty": "2",
+
+    "wvAccessory_profile_outer": "on",
+    "wvAccessory_profile_outer_qty": "4",
+
+    "wvCutoutsCount": "2",
+    "wvSpecialNotes": "Ausschnitt für Armatur + Steckdose"
+  },
+
+ 
+  "materials": [
+    { "productId": "V3WVK09", "name": "Wandverkleidung 3.0 Alu 997×2550",  "qty": 3, "unit": "Stck." },
+    { "productId": "V3WV09",  "name": "Wandverkleidung 3.0 Alu 1497×2550", "qty": 2, "unit": "Stck." }
+
+  
+  ],
+
+  "rabatt": {
+    "materialDiscountPct": 0.0,
+    "bonus300": false,
+    "bonusGrab": false
+  }
+}

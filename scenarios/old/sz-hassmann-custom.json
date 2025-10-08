@@ -1,0 +1,10 @@
+{
+  "bereich": {
+    "payer": "Selbstzahler",
+    "laborHoursHHMM": "3:00",
+    "laborHoursNumeric": 3
+  },
+  "duschabtrennung": {
+    "daNetto": 1199
+  }
+}

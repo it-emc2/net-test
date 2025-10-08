@@ -219,9 +219,10 @@ document.addEventListener("DOMContentLoaded", () => {
 function genOfferNumber() {
   const d = new Date();
   const p = (n) => String(n).padStart(2, "0");
-  return `AN${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}${p(
-    d.getHours()
-  )}${p(d.getMinutes())}${p(d.getSeconds())}`;
+  const yyyy = d.getFullYear();
+  const mmdd = `${p(d.getMonth() + 1)}${p(d.getDate())}`; // MMDD
+  const hhmmss = `${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; // HHmmss
+  return `ANG${yyyy}-${mmdd}-${hhmmss}`; // e.g. ANG2025-1008-092040
 }
 
 function stampOfferOnExport() {

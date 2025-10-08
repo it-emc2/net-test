@@ -182,8 +182,6 @@ for (const key of dwTasks) {
 }
 // <<< end robust parse
 
-console.log('[worknotes] dw raw:', payload?.duschwanne);
-console.log('[worknotes] dw tasks norm:', normalizeDWTasks(payload));
 
     return Array.from(picked).map(txt => ({
       key: 'worknote',
@@ -630,7 +628,6 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
       const netAfterRabatt = round2((baseSubtotal|| 0) - rabattAmount);
       //const Vat_on_net_AfterDiscount = round2(netAfterDiscount * TAX_RATE);
       const totalAfterRabatt = round2(netAfterRabatt * (1+TAX_RATE));
-      console.log("totalAfterRabatt  ", totalAfterRabatt )
 
       // --- Neukundenbonus (after Rabatt) ---
       const flags = {
@@ -645,13 +642,6 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
 
       // const totalAfterBonus = round2(Math.max(0, totalAfterRabatt - bonusGross));
       const netAfterRabatt_and_Bonus = round2(Math.max(0, netAfterRabatt - bonusGross));
-
-      console.log('[pricing] subtotals:', {
-        items: (items || []).length,
-        materialsSum: materials?.sum ?? 0,
-        servicesSum: services?.sum ?? 0,
-        markupPct,
-      });
 
 
 const vatOnNet = round2((netAfterRabatt_and_Bonus || 0) * TAX_RATE);
@@ -707,14 +697,12 @@ switch (option) {
 }
 subsidyAmount_max = subsidyAmount;
  // subtract prior Wohnumfeld amount (KK only)
- console.log("payerrrr ", payer)
- console.log("and ", b?.wohnumfeld?.done)
+
   if ((payer === 'Kassenkunde') && b?.wohnumfeld?.done) {
     // prevent negative subsidy
    
     subsidyAmount_max  = Math.max(0, subsidyAmount - Math.max(0, prior));  //   // we substract prior (wohnumfeldAmount ) if exist from money help pfelegebudget
-    console.log("subsidyAmount", subsidyAmount)
-    console.log("subsidyAmount_max", subsidyAmount_max)
+   
   }
 
 

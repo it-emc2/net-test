@@ -1,0 +1,25 @@
+{
+  "bereich": {
+    "payer": "Kassenkunde",
+    "laborHoursHHMM": "7:30",
+    "laborHoursNumeric": 7.5,
+    "distanceKm": 25
+  },
+  "duschwanne": {
+    "workTasks": ["remove_tub", "install_enclosure"],
+    "addFlooring": true,
+    "floorArea": "6.5",
+    "flooringProduct": ["V5FB02"],
+    "floorAdhesive": ["V4FK600"],
+    "floorSealing": ["TRBDSET7"]
+  },
+  "optional": {
+    "cat_GRAB": true,
+    "opt_CLPESG40": true,
+    "qty_CLPESG40": 1
+  },
+  "rabatt": {
+    "materialDiscountPct": 0.1,
+    "bonusGrab": true
+  }
+}
