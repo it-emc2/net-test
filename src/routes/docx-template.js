@@ -16,6 +16,42 @@ export const router = express.Router();
 const pricing = pricingFactory(ProductModel);
 
 // -------- Helpers --------
+// Add this small helper near the top of the file:
+function toBoolish(v) {
+  if (v === true || v === 1) return true;
+  if (typeof v === 'number') return v === 1;
+  if (typeof v === 'string') {
+    const s = v.trim().toLowerCase();
+    return s === 'true' || s === 'ja' || s === 'on' || s === '1' || s === 'yes';
+  }
+  return false;
+}
+function getPath(body, pathLike) {
+  // supports: "a.b.c", "a[b][c]", "a[b].c", and flat keys with dots/brackets
+  if (!body) return undefined;
+
+  // direct hit first (handles flat payloads like {"duschwanne.ebenerdigeMontage":"on"})
+  if (pathLike in body) return body[pathLike];
+
+  // normalize to dot notation
+  const norm = pathLike
+    .replace(/\[(\w+)\]/g, '.$1') // a[b] -> a.b
+    .replace(/\.\./g, '.')
+    .replace(/^\./, '');
+
+  // nested walk
+  return norm.split('.').reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), body);
+}
+
+function firstDefined(body, keys) {
+  for (const k of keys) {
+    const v = getPath(body, k);
+    if (v !== undefined && v !== null && v !== '') return v;
+  }
+  return undefined;
+}
+
+
 function fmtCurrency(n) {
   if (n === '' || n === null || n === undefined) return '';
   const num = Number(n);
@@ -385,6 +421,31 @@ function formatQtyForOverview(q, unit) {
 function mapData(body = {}, computed = {}) {
   const b = body.bereich || {};
   const tb = body.textbausteine || {};
+   // Find the toggle from any plausible field name/shape
+  const ebRaw = firstDefined(body, [
+    // nested objects
+    'duschwanne.ebenerdigNote',
+    'duschwanne.ebenerdigeMontage',
+    'duschwanne.ebenerdige_montage',
+    'duschwanne.ebenerdig',
+    // flat payloads that keep form names as-is
+    'duschwanne[ebenerdigNote]',
+    'duschwanne[ebenerdigeMontage]',
+    'duschwanne[ebenerdige_montage]',
+    'duschwanne[ebenerdig]',
+    // dot-flattened keys from some serializers
+    'duschwanne.ebenerdigNote',
+    'duschwanne.ebenerdigeMontage',
+    'duschwanne.ebenerdige_montage',
+    'duschwanne.ebenerdig',
+    // legacy fallbacks
+    'ebenerdigNote', 'ebenerdigeMontage', 'ebenerdige_montage', 'ebenerdig',
+  ]);
+
+  const EbenerdigHinweis = toBoolish(ebRaw) ? [{}] : [];
+  // Optional: quick debug to verify input value at runtime
+  console.log('[DOCX] Ebenerdig raw:', ebRaw, '-> show?', !!toBoolish(ebRaw));
+
 
   const {
     items = [],
@@ -694,6 +755,8 @@ HasIncluded,
 
     // for Regie-Stundensatz
     RegieRateFmt,
+    // for the toggle is on (ebenerdigNote / ebenerdigeMontage 
+     EbenerdigHinweis,
   };
 }
 

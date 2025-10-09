@@ -951,10 +951,24 @@
       </section>
 
       <!-- Duschwanne -->
-      <section class="card page" id="page-duschwanne" hidden>
-        <h2 style="margin: 0 0 12px">Duschwanne</h2>
+<section class="card page" id="page-duschwanne" hidden>
+  <div style="margin:0 0 12px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+    <h2 style="margin:0">Duschwanne</h2>
 
-        <form id="form-duschwanne" autocomplete="on">
+    <!-- Toggle: ebenerdige Montage (default OFF) -->
+    <label for="ebenerdigeToggle" style="display:flex; align-items:center; gap:8px; font-weight:500; cursor:pointer;">
+      <input
+        id="ebenerdigeToggle"
+        type="checkbox"
+        name="ebenerdigeMontage"
+        style="transform:scale(1.2); cursor:pointer;"
+      />
+      <span>ebenerdige Montage</span>
+    </label>
+  </div>
+
+  <form id="form-duschwanne" autocomplete="on">
+
           <!-- Put this above the radio group -->
 <div id="traySmartSearch" class="field">
   <!-- <label>Maße (B × L × H in cm)</label> -->

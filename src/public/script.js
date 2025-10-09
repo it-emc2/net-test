@@ -376,11 +376,17 @@ function buildPayload() {
   // ---- NEW: reliably collect ALL Duschwanne work tasks (checkbox array) ----
   try {
     const formDW = document.getElementById("form-duschwanne");
+    // wherever you build payload.duschwanne = {...}
+
     if (formDW) {
       const fdDW = new FormData(formDW);
       const dwTasks = fdDW.getAll("duschwanne[workTasks][]"); // ✅ all checked values
       const dw = (payload.duschwanne ||= {});
+
       if (dwTasks.length) {
+        const eb = document.getElementById('ebenerdigeToggle')?.checked;
+if (!payload.duschwanne) payload.duschwanne = {};
+payload.duschwanne.ebenerdigNote = eb ? 'true' : '';
         dw.workTasks = dwTasks; // canonical key the server normalizer reads
       } else {
         // Fallback: if serializer stored a single string under a weird key, normalize to array
