@@ -23,6 +23,12 @@ function fmtCurrency(n) {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(num);
 }
 
+function fmtDateDE(input) {
+  // accepts '', 'YYYY-MM-DD', Date, etc. -> 'DD.MM.YYYY'
+  const d = input ? dayjs(input) : dayjs();
+  return d.isValid() ? d.format('DD.MM.YYYY') : '';
+}
+
 // ✅ UPDATED: Modern docxtemplater API usage
 async function renderDocx(templatePath, data) {
   const content = await fs.readFile(templatePath);
@@ -611,7 +617,7 @@ const MaterialsLines = matForDoc.map(l => {
     Adresse: b.street || '',
     Stadt: b.city || '',
     PLZ: b.postalCode || '',
-    Datum: b.date || dayjs().format('YYYY-MM-DD'),
+    Datum: fmtDateDE(b.date),
     Ansprechpartner: (b.emc2_contact || '').trim(),
     Kundennummer: b.customerNumber || '',
     Greeting: b.salutation === 'Frau' ? 'Sehr geehrte Frau' : (b.salutation === 'Herr' ? 'Sehr geehrter Herr' : 'Guten Tag'),
