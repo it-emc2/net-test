@@ -1490,6 +1490,25 @@ if (!anyAdh) {
     }
   );
 
+  // --- Optional: persist TRINNITY Bodenabdichtung selection ---
+  const SEAL_KEY = 'dw_floor_sealing';
+  f.querySelectorAll('input[name="floorSealing[]"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const any = !!f.querySelector('input[name="floorSealing[]"]:checked');
+      try { localStorage.setItem(SEAL_KEY, any ? '1' : '0'); } catch {}
+    });
+  });
+  try {
+    const saved = localStorage.getItem(SEAL_KEY);
+    if (saved === '1') {
+      f.querySelectorAll('input[name="floorSealing[]"]').forEach(i => {
+        i.checked = true;
+        highlightTileForInput(i, true);
+      });
+    }
+  } catch {}
+  // --- end optional persistence ---
+
   // run once so a pre-checked toggle shows its panel
   apply();
 
