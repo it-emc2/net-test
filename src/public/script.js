@@ -662,8 +662,7 @@ function validateDuschwanne() {
         ?.closest("label");
     if (!f.querySelector('input[name="floorAdhesive[]"]:checked') && !bad)
       bad = f.querySelector('input[name="floorAdhesive[]"]')?.closest("label");
-    if (!f.querySelector('input[name="floorSealing[]"]:checked') && !bad)
-      bad = f.querySelector('input[name="floorSealing[]"]')?.closest("label");
+    
   }
   if (bad) {
     flashInvalid(bad.tagName === "INPUT" ? bad : bad.querySelector("input"));
@@ -1358,26 +1357,39 @@ async function getProduct(id) {
 
     // Sealing
     // Sealing (proportional per m² with +15% waste, priced from TRBDSET7 / 7)
-    const effM2 = m2 ? m2 * 1.15 : 0;
-    const ratePerM2 = unitSeal ? unitSeal / 7 : 0;
-    const totalS = effM2 * ratePerM2;
+ const sealingSelected = !!f.querySelector('input[name="floorSealing[]"]:checked');
 
-    if (liveSeal) {
-      liveSeal.textContent = effM2
-        ? `= ${effM2.toFixed(2)} m² (inkl. 15% Verschnitt)`
-        : "";
-    }
-    if (sealingPriceEl) {
-      sealingPriceEl.textContent = effM2 ? euro(totalS) : "0";
-    }
+if (sealingSelected && m2 > 0) {
+  const effM2 = m2 * 1.15;                 // +15% Verschnitt
+  const ratePerM2 = unitSeal ? unitSeal / 7 : 0;
+  const totalS = effM2 * ratePerM2;
 
-    computed.sealing = {
-      productId: "TRBDSET7",
-      effM2: +effM2.toFixed(2),
-      ratePerM2: +ratePerM2.toFixed(2),
-      unitSet: unitSeal, // raw DB set price (7 m²)
-      total: +totalS.toFixed(2),
-    };
+  if (liveSeal) {
+    liveSeal.textContent = `= ${effM2.toFixed(2)} m² (inkl. 15% Verschnitt)`;
+  }
+  if (sealingPriceEl) {
+    sealingPriceEl.textContent = euro(totalS);
+  }
+
+  computed.sealing = {
+    productId: "TRBDSET7",
+    effM2: +effM2.toFixed(2),
+    ratePerM2: +ratePerM2.toFixed(2),
+    unitSet: unitSeal, // 7 m² Setpreis
+    total: +totalS.toFixed(2),
+  };
+} else {
+  if (liveSeal) liveSeal.textContent = "";
+  if (sealingPriceEl) sealingPriceEl.textContent = "0";
+  computed.sealing = {
+    productId: "TRBDSET7",
+    effM2: 0,
+    ratePerM2: 0,
+    unitSet: unitSeal || 0,
+    total: 0,
+  };
+}
+
 
     // Panels price mirrors SERVER (pricing.js). Do not compute here.
     updateFlooringPanelsPriceFromPricing();
@@ -1398,19 +1410,39 @@ async function getProduct(id) {
     await ensureUnits();
     updateUI();
   }
-
+// Recompute sealing price whenever the sealing tile is toggled
+f.querySelectorAll('input[name="floorSealing[]"]').forEach(cb => {
+  cb.addEventListener('change', () => {
+    ensureUnits().then(updateUI);   // refresh "= … m²" hint + price
+    window.updatePricing?.();       // keep server totals in sync
+  });
+});
   function apply() {
     const on = !!toggle?.checked;
     show(panel, on);
     setReq(area, on);
     if (on) {
       // auto-check tiles when enabled
-      f.querySelectorAll(
-        'input[name="flooringProduct[]"],input[name="floorAdhesive[]"],input[name="floorSealing[]"]'
-      ).forEach((i) => {
-        i.checked = true;
-        highlightTileForInput(i, true);
-      });
+// Auto-check panels + adhesive ONLY if user hasn't chosen yet
+const anyProd = f.querySelector('input[name="flooringProduct[]"]:checked');
+if (!anyProd) {
+  f.querySelectorAll('input[name="flooringProduct[]"]').forEach((i) => {
+    i.checked = true;
+    highlightTileForInput(i, true);
+  });
+}
+const anyAdh = f.querySelector('input[name="floorAdhesive[]"]:checked');
+if (!anyAdh) {
+  f.querySelectorAll('input[name="floorAdhesive[]"]').forEach((i) => {
+    i.checked = true;
+    highlightTileForInput(i, true);
+  });
+}
+// DO NOT touch floorSealing[] here — user controls it
+
+
+
+
       init();
     } else {
       if (area) area.value = "";
