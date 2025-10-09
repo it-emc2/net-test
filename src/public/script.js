@@ -1070,6 +1070,31 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 })();
 
+// Live round-trip preview (Bereich → Entfernung)
+(function initRoundTripPreview() {
+  const kmInput = document.getElementById('distanceKm');
+  const out = document.getElementById('roundTripPreview');
+  if (!kmInput || !out) return;
+
+  const paint = (v) => {
+    const n = Math.max(0, Number(v) || 0);
+    out.textContent = `= ${Math.round(n * 2)} km (Hin- & Rückfahrt)`;
+  };
+
+  // 1) immediate feedback while typing
+  kmInput.addEventListener('input', () => paint(kmInput.value));
+  kmInput.addEventListener('change', () => paint(kmInput.value));
+  paint(kmInput.value); // initial
+
+  // 2) keep in sync when server recomputes pricing
+  window.addEventListener('pricing:updated', (ev) => {
+    const km = ev.detail?.roundTripKm ?? window.__pricing?.roundTripKm;
+    if (typeof km === 'number' && isFinite(km)) {
+      out.textContent = `= ${Math.round(km)} km (Hin- & Rückfahrt)`;
+    }
+  });
+})();
+
 /* ========== ACCESSIBLE ERROR HINTS FOR BEREICH CONDITIONALS ========== */
 (function initBereichErrorHints() {
   const form = document.getElementById("form-bereich");
