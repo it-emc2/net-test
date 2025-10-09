@@ -6,10 +6,225 @@
     <title>Angebotskonfigurator-emc2</title>
     
     <link rel="stylesheet" href="./style.css" />
+    <style>
+      :root {
+        --bg: #f6f7fb;
+        --panel: #ffffff;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --accent: #6d28d9;
+        --accent-weak: #ede9fe;
+        --accent-strong: #5b21b6;
+        --shadow: 0 10px 30px rgba(17, 24, 39, 0.08);
+        --ring: rgba(109, 40, 217, 0.25);
+        --step-active: #6d28d9;
+        --step-done: #a78bfa;
+        --step-idle: #cbd5e1;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .app {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        max-width: 1300px;
+        margin: 0 auto;
+        min-height: calc(100dvh - 80px);
+      }
+
+      .sidebar {
+        position: sticky;
+        top: 0;
+        align-self: start;
+        height: calc(100dvh);
+        background: var(--panel);
+        border-right: 1px solid var(--border);
+        padding: 10px 10px 16px;
+        box-shadow: var(--shadow);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .sidebar .logo-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 4px 10px;
+      }
+
+      .sidebar .logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+      }
+
+      .sidebar .logo .dot {
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 0 4px var(--accent-weak);
+      }
+
+      .menu {
+        display: grid;
+        gap: 6px;
+      }
+
+      .side-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        text-decoration: none;
+        color: inherit;
+        border: 1px solid transparent;
+        transition: background-color 0.18s ease, box-shadow 0.18s ease,
+          color 0.18s ease;
+      }
+
+      .side-link:hover {
+        background: var(--accent-weak);
+      }
+
+      .side-link.active {
+        background: var(--accent-weak);
+        border-color: var(--accent);
+        color: var(--accent-strong);
+        box-shadow: 0 0 0 3px var(--ring);
+      }
+
+      .side-link.done {
+        color: var(--step-done);
+      }
+
+      .side-link .dot {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 2px solid var(--step-idle);
+        display: grid;
+        place-items: center;
+        transition: border-color 0.2s ease;
+      }
+
+      .side-link .dot::after {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: transparent;
+        transition: background-color 0.2s ease, transform 0.2s ease;
+        transform: scale(0.5);
+      }
+
+      .side-link.active .dot {
+        border-color: var(--step-active);
+      }
+
+      .side-link.active .dot::after {
+        background: var(--step-active);
+        transform: scale(1);
+      }
+
+      .side-link.done .dot {
+        border-color: var(--step-done);
+      }
+
+      .side-link.done .dot::after {
+        background: var(--step-done);
+        transform: scale(1);
+      }
+
+      .main {
+        padding: 0 20px 40px;
+      }
+
+      .main .container {
+        padding-top: 16px;
+      }
+
+      .sidebar-toggle {
+        display: none;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        padding: 8px 10px;
+        border-radius: 10px;
+        cursor: pointer;
+        gap: 8px;
+        align-items: center;
+      }
+
+      @media (max-width: 900px) {
+        .app {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          position: fixed;
+          inset: 0 auto 0 0;
+          width: 84%;
+          max-width: 320px;
+          transform: translateX(-105%);
+          transition: transform 0.25s ease;
+          z-index: 50;
+        }
+
+        .sidebar.open {
+          transform: translateX(0);
+        }
+
+        #sidebarBackdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(15, 23, 42, 0.45);
+          backdrop-filter: blur(2px);
+          z-index: 40;
+          display: none;
+        }
+
+        #sidebarBackdrop.visible {
+          display: block;
+        }
+
+        .sidebar-toggle {
+          display: inline-flex;
+        }
+
+        .main {
+          padding: 0 12px 36px;
+        }
+
+        header {
+          padding-inline: 12px;
+        }
+      }
+    </style>
   </head>
   <body>
     <header>
-      <input id="offerNumber" name="offerNumber" placeholder="Angebotsnummer" hidden/>
+      <button
+        id="openSidebar"
+        class="sidebar-toggle"
+        type="button"
+        aria-label="Menü öffnen"
+      >
+        ☰ Menü
+      </button>
+
+      <input
+        id="offerNumber"
+        name="offerNumber"
+        placeholder="Angebotsnummer"
+        hidden
+      />
       <div class="brand">
         <div class="dot"></div>
         <div>
@@ -26,48 +241,76 @@
       </label>
     </header>
 
-    <nav class="steps" id="stepsNav" aria-label="Wizard steps">
-      <a class="step" data-step="bereich" href="#bereich"
-        ><div class="dot"></div>
-        <span>Bereich</span></a
-      >
-      <a class="step" data-step="duschwanne" href="#duschwanne"
-        ><div class="dot"></div>
-        <span>Duschwanne</span></a
-      >
-      <a class="step" data-step="wandverkleidung" href="#wandverkleidung"
-        ><div class="dot"></div>
-        <span>Wandverkleidung</span></a
-      >
+    <div id="sidebarBackdrop"></div>
 
-      <a class="step" data-step="duschabtrennung" href="#duschabtrennung"
-        ><div class="dot"></div>
-        <span>Kosten Duschabtrennung</span></a
-      >
+    <div class="app">
+      <aside id="sidebar" class="sidebar" aria-label="Seitennavigation">
+        <div class="logo-row">
+          <div class="logo">
+            <span class="dot"></span>
+            <span>Navigation</span>
+          </div>
+          <button
+            id="closeSidebar"
+            class="sidebar-toggle"
+            type="button"
+            aria-label="Menü schließen"
+          >
+            ✕
+          </button>
+        </div>
 
-      <a class="step" data-step="optional" href="#optional"
-        ><div class="dot"></div>
-        <span>Optional</span></a
-      >
-      <a class="step" data-step="rabatt" href="#rabatt"
-        ><div class="dot"></div>
-        <span>Rabatt</span></a
-      >
-      <a class="step" data-step="zusammenfassung" href="#zusammenfassung"
-        ><div class="dot"></div>
-        <span>Zusammenfassung</span></a
-      >
-
-      <a class="step" data-step="kosten" href="#kosten">
-        <div class="dot"></div>
-        <span>Kosten-Details</span>
-      </a>
-
-      <a class="step" data-step="playground" href="#playground">
-  <div class="dot"></div>
-  <span>Pricing Playground</span>
-</a>
-    </nav>
+        <nav class="menu" id="sideMenu">
+          <a class="side-link" data-step="bereich" href="#bereich">
+            <div class="dot"></div>
+            <span>Bereich</span>
+          </a>
+          <a class="side-link" data-step="duschwanne" href="#duschwanne">
+            <div class="dot"></div>
+            <span>Duschwanne</span>
+          </a>
+          <a
+            class="side-link"
+            data-step="wandverkleidung"
+            href="#wandverkleidung"
+          >
+            <div class="dot"></div>
+            <span>Wandverkleidung</span>
+          </a>
+          <a
+            class="side-link"
+            data-step="duschabtrennung"
+            href="#duschabtrennung"
+          >
+            <div class="dot"></div>
+            <span>Kosten Duschabtrennung</span>
+          </a>
+          <a class="side-link" data-step="optional" href="#optional">
+            <div class="dot"></div>
+            <span>Optional</span>
+          </a>
+          <a class="side-link" data-step="rabatt" href="#rabatt">
+            <div class="dot"></div>
+            <span>Rabatt</span>
+          </a>
+          <a
+            class="side-link"
+            data-step="zusammenfassung"
+            href="#zusammenfassung"
+          >
+            <div class="dot"></div>
+            <span>Zusammenfassung</span>
+          </a>
+          <a class="side-link" data-step="kosten" href="#kosten">
+            <div class="dot"></div>
+            <span>Kosten-Details</span>
+          </a>
+          <a class="side-link" data-step="playground" href="#playground">
+            <div class="dot"></div>
+            <span>Pricing Playground</span>
+          </a>
+        </nav>
+      </aside>
 
     <div class="container">
       <!-- Bereich -->
@@ -2599,7 +2842,7 @@
           <input id="pg-product-qty" type="number" min="1" step="1" value="1" style="max-width:100px">
           <button type="button" id="pg-add-product">Hinzufügen</button>
         </div>
-        <small class="muted">Tipp: Liste lädt automatisch die SLA-Artikel; freie Eingabe für andere IDs möglich.</small>
+        <small class="muted" >Tipp: Liste lädt automatisch die SLA-Artikel; freie Eingabe für andere IDs möglich.</small>
       </div>
 
       <div id="pg-products-list" class="muted" style="max-height:180px; overflow:auto; border:1px dashed var(--border); border-radius:10px; padding:8px;">
@@ -2632,6 +2875,9 @@
 </section>
     </div>
 
+
+
+    
     <script src="./script.js"></script>
 
    

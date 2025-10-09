@@ -3268,3 +3268,105 @@ document.addEventListener('DOMContentLoaded', () => {
 
 });
 
+
+      //<!-- Sidebar + wizard nav sync -->
+
+(function () {
+        const sidebar = document.getElementById("sidebar");
+        const backdrop = document.getElementById("sidebarBackdrop");
+        const openBtn = document.getElementById("openSidebar");
+        const closeBtn = document.getElementById("closeSidebar");
+
+        const toggleSidebar = (open) => {
+          if (!sidebar) return;
+          sidebar.classList.toggle("open", open);
+          backdrop?.classList.toggle("visible", open);
+          if (open) {
+            document.body.style.overflow = "hidden";
+          } else {
+            document.body.style.overflow = "";
+          }
+        };
+
+        openBtn?.addEventListener("click", () => toggleSidebar(true));
+        closeBtn?.addEventListener("click", () => toggleSidebar(false));
+        backdrop?.addEventListener("click", () => toggleSidebar(false));
+
+        sidebar?.addEventListener("click", (event) => {
+          const link = event.target.closest("a.side-link");
+          if (link) toggleSidebar(false);
+        });
+      })();
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const navLinks = Array.from(
+          document.querySelectorAll(".side-link[data-step]")
+        );
+        const pages = Array.from(document.querySelectorAll(".card.page"));
+
+        if (!navLinks.length || !pages.length) return;
+
+        const stepOrder = navLinks.map((link) => link.dataset.step);
+
+        const validStep = (candidate) =>
+          stepOrder.includes(candidate) ? candidate : stepOrder[0];
+
+        const showStep = (stepId) => {
+          const current = validStep(stepId);
+          const currentIndex = stepOrder.indexOf(current);
+
+          navLinks.forEach((link, index) => {
+            const stateStep = link.dataset.step;
+            link.classList.toggle("active", stateStep === current);
+            if (index < currentIndex) {
+              link.classList.add("done");
+            } else {
+              link.classList.remove("done");
+            }
+          });
+
+          pages.forEach((section) => {
+            section.hidden = section.id !== `page-${current}`;
+          });
+
+          window.scrollTo({ top: 0, behavior: "instant" });
+        };
+
+        const syncWithHash = () => {
+          const hash = window.location.hash.replace("#", "");
+          showStep(hash || stepOrder[0]);
+        };
+
+        navLinks.forEach((link) => {
+          link.addEventListener("click", (event) => {
+            event.preventDefault();
+            const targetStep = validStep(link.dataset.step);
+            if (window.location.hash !== `#${targetStep}`) {
+              window.location.hash = targetStep;
+            } else {
+              showStep(targetStep);
+            }
+          });
+        });
+
+        document.addEventListener("click", (event) => {
+          const button = event.target.closest("[data-nav]");
+          if (!button) return;
+
+          const currentStep = validStep(
+            window.location.hash.replace("#", "") || stepOrder[0]
+          );
+          const currentIndex = stepOrder.indexOf(currentStep);
+
+          if (button.dataset.nav === "next" && currentIndex < stepOrder.length - 1) {
+            window.location.hash = stepOrder[currentIndex + 1];
+          }
+
+          if (button.dataset.nav === "prev" && currentIndex > 0) {
+            window.location.hash = stepOrder[currentIndex - 1];
+          }
+        });
+
+        window.addEventListener("hashchange", syncWithHash);
+        syncWithHash();
+      });
