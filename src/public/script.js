@@ -1254,7 +1254,7 @@ async function getProduct(id) {
   // ⬇️ NEW little fields we’ll fill
   const panelsQtyEl   = document.getElementById("floorPanelsQty");
   const panelsUnitEl  = document.getElementById("floorPanelsUnit");
-  const individPriceEl = document.getElementById("floorIndividPrice");
+   //const individPriceEl = document.getElementById("floorIndividPrice");
 
   const liveAdh = document.getElementById("adhesiveLivePreview");
   const liveSeal = document.getElementById("sealingLivePreview");
@@ -1307,12 +1307,12 @@ async function getProduct(id) {
   const euro = (n) =>
     (Number(n) || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  function updateIndividPrice() {
-    if (!individPriceEl) return;
-    const m2 = parseArea();                // user-entered m² (no +15% here)
-    const total = (unitPanel || 0) * m2;   // as requested: unit DB price × surface
-    individPriceEl.textContent = euro(total);
-  }
+  // function updateIndividPrice() {
+    // if (!individPriceEl) return;
+    // const m2 = parseArea();                // user-entered m² (no +15% here)
+   //  const total = (unitPanel || 0) * m2;   // as requested: unit DB price × surface
+   //  individPriceEl.textContent = euro(total);
+  // }
 // Mirrors SERVER truth for panels (quantity, unit, total) — set it ONLY here
   function updateFlooringPanelsPriceFromPricing() {
     if (!window.__pricing || !Array.isArray(window.__pricing?.materials?.lines)) {
@@ -1382,7 +1382,7 @@ async function getProduct(id) {
     // Panels price mirrors SERVER (pricing.js). Do not compute here.
     updateFlooringPanelsPriceFromPricing();
     // individ. price (unitPanel × entered m²)
-    updateIndividPrice();
+   // updateIndividPrice();
   }
 
   // ---- persistence for area field
@@ -1475,11 +1475,9 @@ async function getProduct(id) {
   });
 
   // Update panel price when pricing is refreshed
-  window.addEventListener("pricing:updated", () => {
-    updateFlooringPanelsPriceFromPricing();
-     // keep individ price up-to-date too
-    ensureUnits().then(updateIndividPrice);
-  });
+ window.addEventListener("pricing:updated", () => {
+  updateFlooringPanelsPriceFromPricing();
+});
 })();
 
 /* ========== SMART TRAY SEARCH (equal-or-bigger filter, persist/deselect) ========== */

@@ -255,10 +255,10 @@ async function computeMaterials(payload) {
     }
 
     // individ. 5.0 V5FB02 — Menge = eingegebene m², Preis/Einheit = DB-Preis von V5FB02
-    const m2 = round2(floorArea);
-    if (m2 > 0) {
-      add('V5FB02', m2, `- ${m2} m² Fußboden individ.5.0 V5FB02`);
-    }
+    // const m2 = round2(floorArea);
+    // if (m2 > 0) {
+    //   add('V5FB02', m2, `- ${m2} m² Fußboden individ.5.0 V5FB02`);
+    // }
   }
 
   // ------- Wandverkleidung
