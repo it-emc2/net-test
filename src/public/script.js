@@ -21,6 +21,64 @@ async function refetchAndRender() {
   if (typeof renderRabattPanel === 'function') renderRabattPanel(data);
 }
 
+function wireDAQtyAutoFill() {
+  const Pairs = [
+    ['da-pendeltuer-preis','da-pendeltuer-qty'],
+    ['da-gleittuer-preis', 'da-gleittuer-qty'],
+    ['da-faltpendel-preis','da-faltpendel-qty'],
+    ['da-walkin-preis',    'da-walkin-qty'],
+  ];
+
+  const parseMoney = (v) => {
+    const s = String(v ?? '').trim();
+    if (!s) return 0;
+    const cleaned = s.replace(/\s+/g,'').replace(/\./g,'').replace(',', '.');
+    const n = parseFloat(cleaned);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const clampQty = (v) => {
+    const n = parseInt(String(v ?? '').trim(), 10);
+    if (!Number.isFinite(n)) return '';
+    return Math.max(1, n);
+  };
+
+  Pairs.forEach(([preisId, qtyId]) => {
+    const p = document.getElementById(preisId);
+    const q = document.getElementById(qtyId);
+    if (!p || !q) return;
+
+    p.addEventListener('input', () => {
+      p.value = p.value.replace(/[^\d.,]/g, '');
+      const val = parseMoney(p.value);
+      if (val > 0) {
+        if (!q.value) q.value = '1';
+      } else {
+        q.value = '';
+      }
+    });
+
+    p.addEventListener('blur', () => {
+      const val = parseMoney(p.value);
+      if (val > 0) {
+        p.value = val.toFixed(2).replace('.', ',');
+        if (!q.value) q.value = '1';
+      } else {
+        p.value = '';
+        q.value = '';
+      }
+    });
+
+    q.addEventListener('input', () => {
+      if (q.value === '') return;        // allow empty while editing
+      q.value = String(clampQty(q.value));
+    });
+
+    q.addEventListener('blur', () => {
+      const val = parseMoney(p.value);
+      if (!(val > 0)) q.value = '';
+    });
+  });
+}
 
 // Refresh when a panel becomes visible (by hash or tab click)
 function autoRefreshOnEnter() {
@@ -3406,6 +3464,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTraySizeAutoLabel();
   initOptionalMenus && initOptionalMenus(); 
   initBasinAutoAccessories && initBasinAutoAccessories();
+  wireDAQtyAutoFill(); 
   initLivePricingSync(); //  
   window.addEventListener('hashchange', () => {
   const id = location.hash.replace('#','');
