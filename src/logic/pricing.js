@@ -614,7 +614,43 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
       if (payer === 'Selbstzahler') {
         markupPct = 0.35; // enforce rule regardless of client input
       }
-      const markup = round2( productsSubtotal  * (markupPct || 0));
+
+       // Bonus checkboxes in Rabatt Menu --
+      const flags = {
+        bonus_neu: !!payload?.rabatt?.bonus300,
+        bonus_Haltegriff: !!payload?.rabatt?.bonusGrab,
+      };
+
+      // NEW: rebuild markup from material lines with the two exceptions
+      // st markup = round2( productsSubtotal  * (markupPct || 0));
+      
+      const lines = Array.isArray(materials?.lines) ? materials.lines : [];
+      let markupBase = 0;
+
+      for (const row of lines) {
+        const id  = String(row?.productId || row?.id || '').trim();
+        const qty = Number(row?.qty ?? row?.quantity ?? 0) || 0;
+        const unitPrice = Number(row?.unitPrice ?? 0) || 0;
+
+        if (!qty || !unitPrice) continue;
+
+        // 1) skip Kleinmaterial (added as KM02 when the checkbox is on)
+        if (id === 'KM02') continue;
+
+        // 2) if Haltegriff bonus is active, one CLPESG40 is free for markup purposes
+        if (id === 'CLPESG40' && flags?.bonus_Haltegriff === true) {
+          const effectiveQty = Math.max(qty - 1, 0);
+          if (effectiveQty > 0) markupBase += effectiveQty * unitPrice;
+          continue;
+        }
+
+        // default: count full qty
+        markupBase += qty * unitPrice;
+      }
+
+      // Final markup using the existing percentage
+      const markup = round2(markupBase * (markupPct || 0));
+
 
       // Nettobetrag
       const baseSubtotal = round2(productsSubtotal + (services?.sum ?? 0) + markup );    
@@ -629,11 +665,7 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
       //const Vat_on_net_AfterDiscount = round2(netAfterDiscount * TAX_RATE);
       const totalAfterRabatt = round2(netAfterRabatt * (1+TAX_RATE));
 
-      // --- Neukundenbonus (after Rabatt) ---
-      const flags = {
-        bonus_neu: !!payload?.rabatt?.bonus300,
-        bonus_Haltegriff: !!payload?.rabatt?.bonusGrab,
-      };
+     
 
       // If you want a threshold for the 300 € (e.g., only if totalAfterRabatt ≥ 3000), add it here:
       let bonusGross = 0;
