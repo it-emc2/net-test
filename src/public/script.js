@@ -7,12 +7,6 @@ window.addEventListener('hashchange', () => {
   const id = location.hash.replace('#','');
   if (id === 'rabatt' || id === 'kosten') refreshAllPanels();
 });
-function buildPayload() {
-  // Use your existing payload builder if you already have one.
-  // This is just a stub name to indicate where you collect all form values.
-  return collectFormPayload(); // or whatever your function is called
-}
-
 async function refetchAndRender() {
   const payload = buildPayload();
   const res = await fetch('/api/price', {
@@ -26,6 +20,7 @@ async function refetchAndRender() {
   // If you have a dedicated Rabatt renderer, call it here too:
   if (typeof renderRabattPanel === 'function') renderRabattPanel(data);
 }
+
 
 // Refresh when a panel becomes visible (by hash or tab click)
 function autoRefreshOnEnter() {
@@ -357,6 +352,66 @@ function collectWandverkleidungMaterials(doc) {
   if (!doc.materials) doc.materials = [];
   doc.materials.push(...out);
 }
+// --- Duschabtrennung Quick-Add (Hassmann) collector ---
+// Mirrors wireDuschabtrennungQuickAdd(): only add when price > 0,
+// default qty to 1 when price is given but qty is empty/0.
+function collectDuschabtrennungQuickAdd(doc) {
+  const $ = (id) => document.getElementById(id);
+
+  // same normalization logic as the input handlers
+ // drop-in replacement inside collectDuschabtrennungQuickAdd
+const parseMoneyInput = (v) => {
+  let s = String(v ?? '').trim().replace(/\s+/g, '');
+  if (!s) return 0;
+
+  const hasComma = s.includes(',');
+  const hasDot   = s.includes('.');
+
+  if (hasComma && hasDot) {
+    // German style: 1.234,56  -> 1234.56
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (hasComma) {
+    // 1234,56 -> 1234.56
+    s = s.replace(',', '.');
+  } else if (hasDot) {
+    // If it's thousand-grouped like 1.234 or 12.345.678 (no decimals), strip dots.
+    // Otherwise keep single dot as decimal separator (10.00, 99.5, etc.)
+    if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+  }
+
+  const n = parseFloat(s);
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+};
+
+  const parseIntInput = (v) => {
+    const n = parseInt(String(v ?? '').trim(), 10);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  };
+
+  // rows: map DOM ids → canonical kind + label (no parentheses to avoid dup variants)
+  const rows = [
+    { qty: 'da-pendeltuer-qty', id: 'da-pendeltuer-id', price: 'da-pendeltuer-preis', kind: 'pendeltuer', label: 'Pendeltür Hassmann' },
+    { qty: 'da-gleittuer-qty',  id: 'da-gleittuer-id',  price: 'da-gleittuer-preis',  kind: 'gleittuer',  label: 'Gleittür Hassmann' },
+    { qty: 'da-faltpendel-qty', id: 'da-faltpendel-id', price: 'da-faltpendel-preis', kind: 'faltpendel', label: 'Falt-Pendeltür Hassmann' },
+    { qty: 'da-walkin-qty',     id: 'da-walkin-id',     price: 'da-walkin-preis',     kind: 'walkin',     label: 'Walk-In Hassmann' },
+  ];
+
+  const qa = [];
+  for (const r of rows) {
+    const price = parseMoneyInput($(r.price)?.value);
+    if (price <= 0) continue;                   // rule: only add when price is set
+
+    let qty = parseIntInput($(r.qty)?.value);
+    if (qty <= 0) qty = 1;                      // rule: default qty=1 when price present
+
+    const productId = ($(r.id)?.value || '').trim(); // optional
+    qa.push({ kind: r.kind, label: r.label, qty, price, productId });
+  }
+
+  doc.duschabtrennung = doc.duschabtrennung || {};
+  doc.duschabtrennung.quickAdd = qa;
+}
+
 
 function buildPayload() {
   const payload = {
@@ -372,6 +427,8 @@ function buildPayload() {
   };
 
   collectWandverkleidungMaterials(payload);
+   // ✅ NEW: collect quick-add shower screens
+  collectDuschabtrennungQuickAdd(payload);
 
   // ---- NEW: reliably collect ALL Duschwanne work tasks (checkbox array) ----
   try {
@@ -876,6 +933,7 @@ window.addEventListener("hashchange", () => {
 document.addEventListener("DOMContentLoaded", () => {
   if (location.hash === "#wandverkleidung") setupWandverkleidungPage();
 });
+
 
 /* ========== BEREICH UI (contact, aufschlag/pflegegrad, etc.) ========== */
 (function initContactPersonToggle() {
@@ -1562,6 +1620,8 @@ if (!anyAdh) {
 });
 })();
 
+
+
 /* ========== SMART TRAY SEARCH (equal-or-bigger filter, persist/deselect) ========== */
 function initSmartTraySearch() {
   // ----- DOM -----
@@ -1578,6 +1638,7 @@ function initSmartTraySearch() {
   }
 
   // ----- helpers -----
+  
   const parseNum = (v) => {
   if (v == null) return null;
   const raw = String(v).trim();
@@ -1872,6 +1933,9 @@ document
   .forEach((el) =>
     el.addEventListener("change", () => window.updatePricing?.())
   );
+
+/* ========== Kosten Duschabtrennung========== */
+
 
 /* ========== KOSTEN-DETAILS (render from __pricing only) ========== */
 (function initKostenDetails() {

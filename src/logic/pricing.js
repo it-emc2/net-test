@@ -343,6 +343,28 @@ try {
 } catch (e) {
   console.warn('[pricing] Hassmann price add failed:', e?.message || e);
 }
+// ------- Duschabtrennung Quick-Add (Hassmann) rows (Pendeltür, Gleittür, Falt-Pendeltür, Walk-In)
+try {
+  const qa = payload?.duschabtrennung?.quickAdd || [];
+  if (Array.isArray(qa) && qa.length) {
+    for (const x of qa) {
+      const qty   = Number(x?.qty)   || 0;
+      const price = Number(x?.price) || 0;
+      if (qty <= 0 || price <= 0) continue;
+
+      const kind  = String(x?.kind || 'GEN').toUpperCase();
+      const pid   = (String(x?.productId || '').trim()) || `HASS_${kind}`;
+      const base  = String(x?.label || 'Duschabtrennung (Hassmann)').trim();
+      const label = `- ${qty} Stk ${base}`;
+
+      // Push as a normal MATERIAL line (source = null) with user-entered unit price.
+      // Using unitOverride ensures we don't need a DB price for pid.
+      add(pid, qty, label, price, null);
+    }
+  }
+} catch (e) {
+  console.warn('[pricing] quickAdd (Hassmann) merge failed:', e?.message || e);
+}
 
 
   // ------- Resolve names/prices once
@@ -502,6 +524,7 @@ try {
           sizeLabel,
           unitPrice: unit
         };
+        
       }
     }
   }
@@ -596,8 +619,6 @@ const optionalDisplayUI      = { sum: optSum,            lines: uiOptionals };
 const materialsDisplayDocx   = { title: materials.title, lines: docxMaterials };
 const servicesDisplayUI      = { ...services, lines: uiServices };
 const servicesDisplayDocx    = { ...services, lines: docxServices };
-
-
 
 
 

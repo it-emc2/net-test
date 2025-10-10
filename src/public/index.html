@@ -1741,20 +1741,43 @@
           >
             https://www.gconlineplus.de/#SearchConfigurator
           </a>
-        </p>
-
+        </p>    
         <form id="form-duschabtrennung" autocomplete="on">
-         <!--  <div class="field full" style="max-width: 560px">
-            <label for="daName" class="req">Name Duschabtrennung Hassman</label>
-            <input
-              id="daName"
-              name="daName"
-              type="text"
-              placeholder="z. B. Hassman XYZ, Serie/Glasart"
-              required
-            />
-          </div> -->
-<p style="margin: 0 0 6px">
+<!-- QUICK-ADD: Duschabtrennung (Hassmann) -->
+<div class="card subtle" style="margin-bottom:12px;">
+  <div style="font-weight:600; margin-bottom:8px;">Schnellerfassung (Hassmann)</div>
+
+  <!-- label | Menge | Produkt-ID | Preis -->
+  <div class="grid" style="grid-template-columns: 1fr 90px 160px 160px; gap:8px; align-items:center;">
+    <!-- Pendeltür -->
+    <label>Pendeltür</label>
+    <input id="da-pendeltuer-qty"   type="number" min="1" step="1" placeholder="">
+    <input id="da-pendeltuer-id"    type="text"   placeholder="Produkt-ID (optional)">
+    <input id="da-pendeltuer-preis" type="number" min="0" step="0.01" placeholder="Preis (netto) €">
+
+    <!-- Gleittür -->
+    <label>Gleittür</label>
+    <input id="da-gleittuer-qty"   type="number" min="1" step="1" placeholder="">
+    <input id="da-gleittuer-id"    type="text"   placeholder="Produkt-ID (optional)">
+    <input id="da-gleittuer-preis" type="number" min="0" step="0.01" placeholder="Preis (netto) €">
+
+    <!-- Falt-Pendeltür -->
+    <label>Falt-Pendeltür</label>
+    <input id="da-faltpendel-qty"   type="number" min="1" step="1" placeholder="">
+    <input id="da-faltpendel-id"    type="text"   placeholder="Produkt-ID (optional)">
+    <input id="da-faltpendel-preis" type="number" min="0" step="0.01" placeholder="Preis (netto) €">
+
+    <!-- Walk-In -->
+    <label>Walk-In</label>
+    <input id="da-walkin-qty"   type="number" min="1" step="1" placeholder="">
+    <input id="da-walkin-id"    type="text"   placeholder="Produkt-ID (optional)">
+    <input id="da-walkin-preis" type="number" min="0" step="0.01" placeholder="Preis (netto) €">
+  </div>
+</div>
+
+
+          <div>
+          <p style="margin: 0 0 6px">
           Bitte im Konfigurator den Warenkorb mit dem Kundennamen bezeichnen
         </p>
           <div class="field" style="max-width: 320px">
@@ -1771,7 +1794,7 @@
               placeholder="z. B. 799.00"
               required
             />
-          </div>
+          </div></div>
 
           <div class="actions full">
             <button type="button" data-nav="prev" class="secondary">
