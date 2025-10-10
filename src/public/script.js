@@ -414,61 +414,50 @@ function collectWandverkleidungMaterials(doc) {
 // Mirrors wireDuschabtrennungQuickAdd(): only add when price > 0,
 // default qty to 1 when price is given but qty is empty/0.
 function collectDuschabtrennungQuickAdd(doc) {
-  const $ = (id) => document.getElementById(id);
+  const root = document.querySelector('section.da-quickadd');
+  if (!root) return;
 
-  // same normalization logic as the input handlers
- // drop-in replacement inside collectDuschabtrennungQuickAdd
-const parseMoneyInput = (v) => {
-  let s = String(v ?? '').trim().replace(/\s+/g, '');
-  if (!s) return 0;
-
-  const hasComma = s.includes(',');
-  const hasDot   = s.includes('.');
-
-  if (hasComma && hasDot) {
-    // German style: 1.234,56  -> 1234.56
-    s = s.replace(/\./g, '').replace(',', '.');
-  } else if (hasComma) {
-    // 1234,56 -> 1234.56
-    s = s.replace(',', '.');
-  } else if (hasDot) {
-    // If it's thousand-grouped like 1.234 or 12.345.678 (no decimals), strip dots.
-    // Otherwise keep single dot as decimal separator (10.00, 99.5, etc.)
-    if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
-  }
-
-  const n = parseFloat(s);
-  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
-};
-
-  const parseIntInput = (v) => {
+  const parseMoney = (v) => {
+    let s = String(v ?? '').trim();
+    if (!s) return 0;
+    s = s.replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
+    const n = parseFloat(s);
+    return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+  };
+  const parseQty = (v) => {
     const n = parseInt(String(v ?? '').trim(), 10);
     return Number.isFinite(n) && n > 0 ? n : 0;
   };
 
-  // rows: map DOM ids → canonical kind + label (no parentheses to avoid dup variants)
-  const rows = [
-    { qty: 'da-pendeltuer-qty', id: 'da-pendeltuer-id', price: 'da-pendeltuer-preis', kind: 'pendeltuer', label: 'Pendeltür Hassmann' },
-    { qty: 'da-gleittuer-qty',  id: 'da-gleittuer-id',  price: 'da-gleittuer-preis',  kind: 'gleittuer',  label: 'Gleittür Hassmann' },
-    { qty: 'da-faltpendel-qty', id: 'da-faltpendel-id', price: 'da-faltpendel-preis', kind: 'faltpendel', label: 'Falt-Pendeltür Hassmann' },
-    { qty: 'da-walkin-qty',     id: 'da-walkin-id',     price: 'da-walkin-preis',     kind: 'walkin',     label: 'Walk-In Hassmann' },
-  ];
+  const KIND_TO_LABEL = {
+    pendeltuer:  'Pendeltür Hassmann',
+    gleittuer:   'Gleittür Hassmann',
+    faltpendel:  'Falt-Pendeltür Hassmann',
+    walkin:      'Walk-In Hassmann',
+  };
 
   const qa = [];
-  for (const r of rows) {
-    const price = parseMoneyInput($(r.price)?.value);
-    if (price <= 0) continue;                   // rule: only add when price is set
+  root.querySelectorAll('fieldset.da-row[data-kind]').forEach(fs => {
+    const kind  = fs.dataset.kind;
+    const label = KIND_TO_LABEL[kind] || 'Duschabtrennung (Hassmann)';
 
-    let qty = parseIntInput($(r.qty)?.value);
-    if (qty <= 0) qty = 1;                      // rule: default qty=1 when price present
+    fs.querySelectorAll('.da-item').forEach(item => {
+      const price = parseMoney(item.querySelector('.da-price')?.value);
+      if (price <= 0) return; // only rows with price
 
-    const productId = ($(r.id)?.value || '').trim(); // optional
-    qa.push({ kind: r.kind, label: r.label, qty, price, productId });
-  }
+      let qty = parseQty(item.querySelector('.da-qty')?.value);
+      if (qty <= 0) qty = 1; // default 1 when price present
+
+      const productId = (item.querySelector('.da-id')?.value || '').trim();
+
+      qa.push({ kind, label, qty, price, productId });
+    });
+  });
 
   doc.duschabtrennung = doc.duschabtrennung || {};
   doc.duschabtrennung.quickAdd = qa;
 }
+
 
 
 function buildPayload() {
@@ -992,6 +981,194 @@ document.addEventListener("DOMContentLoaded", () => {
   if (location.hash === "#wandverkleidung") setupWandverkleidungPage();
 });
 
+// === Duschabtrennung QuickAdd Repeater (multi-row per kind) ===
+(function initDARepeater() {
+  const section = document.querySelector('section.da-quickadd');
+  if (!section) return;
+
+  const TPL = document.getElementById('da-item-template');
+  const KINDS = [
+    { kind: 'pendeltuer',   label: 'Pendeltür Hassmann' },
+    { kind: 'gleittuer',    label: 'Gleittür Hassmann' },
+    { kind: 'faltpendel',   label: 'Falt-Pendeltür Hassmann' },
+    { kind: 'walkin',       label: 'Walk-In Hassmann' },
+  ];
+
+  const LS_KEY = 'daQuickAddRows:v1';
+
+  const parseMoney = (v) => {
+    let s = String(v ?? '').trim();
+    if (!s) return 0;
+    s = s.replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
+    const n = parseFloat(s);
+    return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+  };
+
+  const saveState = () => {
+    const state = {};
+    for (const fs of section.querySelectorAll('fieldset.da-row[data-kind]')) {
+      const kind = fs.dataset.kind;
+      const rows = [];
+      fs.querySelectorAll('.da-item').forEach(item => {
+        const price = parseMoney(item.querySelector('.da-price')?.value);
+        const qtyEl = item.querySelector('.da-qty');
+        const idEl  = item.querySelector('.da-id');
+        const qty   = Math.max(1, parseInt((qtyEl?.value || '').trim(), 10) || 0);
+        const pid   = (idEl?.value || '').trim();
+        rows.push({ price, qty, productId: pid });
+      });
+      state[kind] = rows;
+    }
+    try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch {}
+  };
+
+  const restoreState = () => {
+    let data = null;
+    try { data = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch {}
+    if (!data || typeof data !== 'object') return;
+
+    for (const fs of section.querySelectorAll('fieldset.da-row[data-kind]')) {
+      const kind = fs.dataset.kind;
+      const wrap = fs.querySelector('.da-items');
+      if (!wrap) continue;
+
+      const rows = Array.isArray(data[kind]) ? data[kind] : [];
+      // Keep the first existing row, clear others
+      const first = wrap.querySelector('.da-item');
+      if (!first) continue;
+      wrap.querySelectorAll('.da-item:not(:first-child)').forEach(n => n.remove());
+
+      // Fill first
+      const fill = (item, row) => {
+        const priceEl = item.querySelector('.da-price');
+        const qtyEl   = item.querySelector('.da-qty');
+        const idEl    = item.querySelector('.da-id');
+        if (priceEl) priceEl.value = row?.price ? String(row.price).replace('.', ',') : '';
+        if (qtyEl)   qtyEl.value   = row?.price ? String(Math.max(1, row.qty || 1)) : '';
+        if (idEl)    idEl.value    = row?.productId || '';
+      };
+
+      if (rows.length > 0) {
+        fill(first, rows[0]);
+        for (let i = 1; i < rows.length; i++) {
+          const item = addRow(kind, fs, false);
+          fill(item, rows[i]);
+        }
+      } else {
+        // if no saved rows, leave first row empty
+        const priceEl = first.querySelector('.da-price');
+        const qtyEl   = first.querySelector('.da-qty');
+        const idEl    = first.querySelector('.da-id');
+        if (priceEl) priceEl.value = '';
+        if (qtyEl)   qtyEl.value   = '';
+        if (idEl)    idEl.value    = '';
+      }
+    }
+  };
+
+  function addRow(kind, fs, focusPrice = true) {
+    const wrap = fs.querySelector('.da-items');
+    if (!wrap || !TPL?.content) return null;
+
+    // rule: only add if the last existing row has a filled price
+    const last = wrap.querySelector('.da-item:last-child');
+    if (last) {
+      const lastPrice = parseMoney(last.querySelector('.da-price')?.value);
+      if (lastPrice <= 0) return null; // do nothing
+    }
+
+    const node = TPL.content.firstElementChild.cloneNode(true);
+    wrap.appendChild(node);
+    wireRow(node);
+    if (focusPrice) node.querySelector('.da-price')?.focus();
+    saveState();
+    return node;
+  }
+
+  function removeRow(btn) {
+    const item = btn.closest('.da-item');
+    const fs   = btn.closest('fieldset.da-row[data-kind]');
+    if (!item || !fs) return;
+
+    const wrap = fs.querySelector('.da-items');
+    // keep at least one row visible per kind
+    if (wrap && wrap.querySelectorAll('.da-item').length <= 1) {
+      // clear instead of remove
+      item.querySelector('.da-price').value = '';
+      item.querySelector('.da-qty').value   = '';
+      item.querySelector('.da-id').value    = '';
+    } else {
+      item.remove();
+    }
+    saveState();
+  }
+
+  function wireRow(item) {
+    const priceEl = item.querySelector('.da-price');
+    const qtyEl   = item.querySelector('.da-qty');
+
+    // During typing: keep only digits, comma, dot
+    priceEl?.addEventListener('input', () => {
+      priceEl.value = priceEl.value.replace(/[^\d.,]/g, '');
+    });
+
+    // On blur: normalize; if valid price and qty empty -> qty = 1; if price empty -> clear qty
+    priceEl?.addEventListener('blur', () => {
+      let s = (priceEl.value || '').trim();
+      if (!s) {
+        priceEl.value = '';
+        if (qtyEl) qtyEl.value = '';
+        saveState();
+        return;
+      }
+      s = s.replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
+      const n = parseFloat(s);
+      if (!Number.isFinite(n) || n <= 0) {
+        priceEl.value = '';
+        if (qtyEl) qtyEl.value = '';
+        saveState();
+        return;
+      }
+      const parts = n.toFixed(2).split('.');
+      parts[0] = parts[0].replace(/^0+(?=\d)/, ''); // strip leading zeros
+      priceEl.value = parts.join(',');
+      if (qtyEl && !qtyEl.value) qtyEl.value = '1';
+      saveState();
+    });
+
+    // Qty: keep min=1 if non-empty; allow empty if price cleared
+    qtyEl?.addEventListener('input', () => {
+      const v = qtyEl.value.trim();
+      if (!v) { saveState(); return; }
+      const n = Math.max(1, parseInt(v, 10) || 1);
+      if (String(n) !== v) qtyEl.value = String(n);
+      saveState();
+    });
+  }
+
+  // Wire existing first rows + add buttons + trash
+  section.querySelectorAll('fieldset.da-row[data-kind]').forEach(fs => {
+    const addBtn = fs.querySelector('.da-add');
+    const wrap   = fs.querySelector('.da-items');
+    // wire existing row
+    wrap?.querySelectorAll('.da-item').forEach(wireRow);
+
+    // “+” add a row (but only if last row has price)
+    addBtn?.addEventListener('click', () => addRow(fs.dataset.kind, fs, true));
+
+    // trash via event delegation
+    fs.addEventListener('click', (e) => {
+      const btn = e.target.closest('.da-remove');
+      if (btn) removeRow(btn);
+    });
+  });
+
+  // Restore from localStorage once
+  restoreState();
+
+  // Re-save on navigation away (optional)
+  window.addEventListener('beforeunload', saveState);
+})();
 
 /* ========== BEREICH UI (contact, aufschlag/pflegegrad, etc.) ========== */
 (function initContactPersonToggle() {

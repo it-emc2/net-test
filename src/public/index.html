@@ -1779,197 +1779,226 @@
         </p>    
         <form id="form-duschabtrennung" autocomplete="on">
 <!-- QUICK-ADD: Duschabtrennung (Hassmann) -->
-<section aria-labelledby="da-quickadd-title" class="da-quickadd">
-  <h3 id="da-quickadd-title">Duschabtrennung (Hassmann) – Schnell hinzufügen</h3>
-
-  <p class="muted" id="da-quickadd-hint">
-    Geben Sie pro Modell den Preis (Netto) an. Wenn ein Preis gesetzt ist und die Menge leer bleibt, wird automatisch <b>1</b> Stück verwendet.
-  </p>
+   
+<section aria-labelledby="da-quickadd-title" class="da-quickadd da-grid-2cols">
+  <h3 id="da-quickadd-title" class="visually-hidden">Duschabtrennung – Schnell hinzufügen</h3>
 
   <!-- Pendeltür -->
-  <fieldset class="da-row" aria-describedby="pendeltuer-help">
-    <legend class="da-legend">Pendeltür</legend>
-    <div class="da-grid">
-      <label for="da-pendeltuer-preis" class="da-label">
-        Preis (Netto)
-        <input
-          id="da-pendeltuer-preis"
-          name="da-pendeltuer-preis"
-          type="text"
-          inputmode="decimal"
-          placeholder="z. B. 799,00"
-          aria-describedby="pendeltuer-help"
-        />
-      </label>
+  <fieldset class="da-row" data-kind="pendeltuer" aria-describedby="pendeltuer-help">
+    <legend class="da-legend">
+      Pendeltür
+      <button type="button" class="da-add" aria-label="Weitere Pendeltür hinzufügen">+</button>
+    </legend>
 
-      <label for="da-pendeltuer-qty" class="da-label">
-        Menge
-        <input
-          id="da-pendeltuer-qty"
-          name="da-pendeltuer-qty"
-          type="number"
-          inputmode="numeric"
-          min="1"
-          step="1"
-        
-          aria-describedby="pendeltuer-help"
-        />
-      </label>
+    <div class="da-items">
+      <div class="da-item">
+        <div class="da-grid">
+          <label class="da-label">
+            Preis
+            <input
+              class="da-price"
+              type="text"
+              inputmode="decimal"
+              placeholder="z. B. 799,00"
+              aria-describedby="pendeltuer-help"
+            />
+          </label>
 
-      <label for="da-pendeltuer-id" class="da-label">
-      ID
-        <input
-          id="da-pendeltuer-id"
-          name="da-pendeltuer-id"
-          type="text"
-          placeholder="z. B. HASS-PEN-123"
-          aria-describedby="pendeltuer-help"
-        />
-      </label>
+          <label class="da-label">
+            Menge
+            <input
+              class="da-qty"
+              type="number"
+              inputmode="numeric"
+              min="1"
+              step="1"
+              aria-describedby="pendeltuer-help"
+            />
+          </label>
+
+          <label class="da-label">
+            ID
+            <input
+              class="da-id"
+              type="text"
+              placeholder="z. B. HASS-PEN-123"
+              aria-describedby="pendeltuer-help"
+            />
+          </label>
+        </div>
+        <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+      </div>
     </div>
-    <small id="pendeltuer-help" class="da-help">
-      Wenn der Preis eingetragen ist und die Menge leer bleibt, wird die Menge automatisch auf 1 gesetzt.
-    </small>
   </fieldset>
 
   <!-- Gleittür -->
-  <fieldset class="da-row" aria-describedby="gleittuer-help">
-    <legend class="da-legend">Gleittür</legend>
-    <div class="da-grid">
-      <label for="da-gleittuer-preis" class="da-label">
-        Preis (Netto)
-        <input
-          id="da-gleittuer-preis"
-          name="da-gleittuer-preis"
-          type="text"
-          inputmode="decimal"
-          placeholder="z. B. 899,00"
-          aria-describedby="gleittuer-help"
-        />
-      </label>
+  <fieldset class="da-row" data-kind="gleittuer" aria-describedby="gleittuer-help">
+    <legend class="da-legend">
+      Gleittür
+      <button type="button" class="da-add" aria-label="Weitere Gleittür hinzufügen">+</button>
+    </legend>
 
-      <label for="da-gleittuer-qty" class="da-label">
-        Menge
-        <input
-          id="da-gleittuer-qty"
-          name="da-gleittuer-qty"
-          type="number"
-          inputmode="numeric"
-          min="1"
-          step="1"
-          
-          aria-describedby="gleittuer-help"
-        />
-      </label>
+    <div class="da-items">
+      <div class="da-item">
+        <div class="da-grid">
+          <label class="da-label">
+            Preis
+            <input
+              class="da-price"
+              type="text"
+              inputmode="decimal"
+              placeholder="z. B. 899,00"
+              aria-describedby="gleittuer-help"
+            />
+          </label>
 
-      <label for="da-gleittuer-id" class="da-label">
-        ID
-        <input
-          id="da-gleittuer-id"
-          name="da-gleittuer-id"
-          type="text"
-          placeholder="z. B. HASS-GL-456"
-          aria-describedby="gleittuer-help"
-        />
-      </label>
+          <label class="da-label">
+            Menge
+            <input
+              class="da-qty"
+              type="number"
+              inputmode="numeric"
+              min="1"
+              step="1"
+              aria-describedby="gleittuer-help"
+            />
+          </label>
+
+          <label class="da-label">
+            ID
+            <input
+              class="da-id"
+              type="text"
+              placeholder="z. B. HASS-GL-456"
+              aria-describedby="gleittuer-help"
+            />
+          </label>
+        </div>
+        <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+      </div>
     </div>
-    <small id="gleittuer-help" class="da-help">
-      Preis eingeben → Menge leer lassen = 1 Stück.
-    </small>
   </fieldset>
 
   <!-- Falt-Pendeltür -->
-  <fieldset class="da-row" aria-describedby="faltpendel-help">
-    <legend class="da-legend">Falt-Pendeltür</legend>
-    <div class="da-grid">
-      <label for="da-faltpendel-preis" class="da-label">
-        Preis (Netto)
-        <input
-          id="da-faltpendel-preis"
-          name="da-faltpendel-preis"
-          type="text"
-          inputmode="decimal"
-          placeholder="z. B. 1.099,00"
-          aria-describedby="faltpendel-help"
-        />
-      </label>
+  <fieldset class="da-row" data-kind="faltpendel" aria-describedby="faltpendel-help">
+    <legend class="da-legend">
+      Falt-Pendeltür
+      <button type="button" class="da-add" aria-label="Weitere Falt-Pendeltür hinzufügen">+</button>
+    </legend>
 
-      <label for="da-faltpendel-qty" class="da-label">
-        Menge
-        <input
-          id="da-faltpendel-qty"
-          name="da-faltpendel-qty"
-          type="number"
-          inputmode="numeric"
-          min="1"
-          step="1"
-         
-          aria-describedby="faltpendel-help"
-        />
-      </label>
+    <div class="da-items">
+      <div class="da-item">
+        <div class="da-grid">
+          <label class="da-label">
+            Preis
+            <input
+              class="da-price"
+              type="text"
+              inputmode="decimal"
+              placeholder="z. B. 1.099,00"
+              aria-describedby="faltpendel-help"
+            />
+          </label>
 
-      <label for="da-faltpendel-id" class="da-label">
-        ID 
-        <input
-          id="da-faltpendel-id"
-          name="da-faltpendel-id"
-          type="text"
-          placeholder="z. B. HASS-FP-789"
-          aria-describedby="faltpendel-help"
-        />
-      </label>
+          <label class="da-label">
+            Menge
+            <input
+              class="da-qty"
+              type="number"
+              inputmode="numeric"
+              min="1"
+              step="1"
+              aria-describedby="faltpendel-help"
+            />
+          </label>
+
+          <label class="da-label">
+            ID
+            <input
+              class="da-id"
+              type="text"
+              placeholder="z. B. HASS-FP-789"
+              aria-describedby="faltpendel-help"
+            />
+          </label>
+        </div>
+        <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+      </div>
     </div>
-    <small id="faltpendel-help" class="da-help">
-      Preis muss > 0 sein, sonst wird die Zeile nicht übernommen.
-    </small>
   </fieldset>
 
   <!-- Walk-In -->
-  <fieldset class="da-row" aria-describedby="walkin-help">
-    <legend class="da-legend">Walk-In</legend>
-    <div class="da-grid">
-      <label for="da-walkin-preis" class="da-label">
-        Preis (Netto)
-        <input
-          id="da-walkin-preis"
-          name="da-walkin-preis"
-          type="text"
-          inputmode="decimal"
-          placeholder="z. B. 699,00"
-          aria-describedby="walkin-help"
-        />
-      </label>
+  <fieldset class="da-row" data-kind="walkin" aria-describedby="walkin-help">
+    <legend class="da-legend">
+      Walk-In
+      <button type="button" class="da-add" aria-label="Weiteren Walk-In hinzufügen">+</button>
+    </legend>
 
-      <label for="da-walkin-qty" class="da-label">
-        Menge
-        <input
-          id="da-walkin-qty"
-          name="da-walkin-qty"
-          type="number"
-          inputmode="numeric"
-          min="1"
-          step="1"
-         
-          aria-describedby="walkin-help"
-        />
-      </label>
+    <div class="da-items">
+      <div class="da-item">
+        <div class="da-grid">
+          <label class="da-label">
+            Preis
+            <input
+              class="da-price"
+              type="text"
+              inputmode="decimal"
+              placeholder="z. B. 699,00"
+              aria-describedby="walkin-help"
+            />
+          </label>
 
-      <label for="da-walkin-id" class="da-label">
-        ID 
-        <input
-          id="da-walkin-id"
-          name="da-walkin-id"
-          type="text"
-          placeholder="z. B. HASS-WI-321"
-          aria-describedby="walkin-help"
-        />
-      </label>
+          <label class="da-label">
+            Menge
+            <input
+              class="da-qty"
+              type="number"
+              inputmode="numeric"
+              min="1"
+              step="1"
+              aria-describedby="walkin-help"
+            />
+          </label>
+
+          <label class="da-label">
+            ID
+            <input
+              class="da-id"
+              type="text"
+              placeholder="z. B. HASS-WI-321"
+              aria-describedby="walkin-help"
+            />
+          </label>
+        </div>
+        <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+      </div>
     </div>
-    <small id="walkin-help" class="da-help">
-      Produkt-ID ist optional – für interne Zuordnung.
-    </small>
   </fieldset>
+
+  <!-- Shared row template (used by JS to add rows) -->
+  <template id="da-item-template">
+    <div class="da-item">
+      <div class="da-grid">
+        <label class="da-label">
+          Preis
+          <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 799,00" />
+        </label>
+
+        <label class="da-label">
+          Menge
+          <input class="da-qty" type="number" inputmode="numeric" min="1" step="1" />
+        </label>
+
+        <label class="da-label">
+          ID
+          <input class="da-id" type="text" placeholder="z. B. HASS-XXX-123" />
+        </label>
+      </div>
+      <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+    </div>
+  </template>
 </section>
+
 
 
 
