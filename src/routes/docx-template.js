@@ -493,8 +493,76 @@ const svc = (computed?.servicesDisplayDocx?.lines  || services?.lines  || []);
 // Services block
 // Services block (prefer adjusted display for DOCX)
 // --- Group service lines into main and included ---
-// --- Group service lines into main and included ---
-const svcForDoc = (computed.servicesDisplayDocx?.lines || computed.services?.lines || []);
+// clone so we can append derived tasks
+const svcForDoc = [
+  ...(computed.servicesDisplayDocx?.lines || computed.services?.lines || [])
+];
+// --- Use aggregated materials qty to decide singular/plural for VIGOUR CL60 ---
+{
+  // Robust numeric parser: handles "2", "2,0", "2.0", "2 Stk", etc.
+  const parseQty = (v) => {
+    if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+    const m = String(v ?? '').match(/[\d.,]+/);
+    return m ? parseFloat(m[0].replace(',', '.')) || 0 : 0;
+  };
+
+  // Prefer the aggregated DOCX materials; fallback to computed/materials/body if needed
+  const sources = [
+    Array.isArray(computed?.materialsDisplayDocx?.lines) ? computed.materialsDisplayDocx.lines : null,
+    Array.isArray(computed?.materials?.lines) ? computed.materials.lines : null,
+    Array.isArray(body?.materials) ? body.materials : null,
+  ].filter(Boolean);
+
+  // Find qty of VIGOUR CL60 from the first source that contains it
+  let cl60Qty = 0;
+  for (const src of sources) {
+    let sum = 0;
+    for (const row of src) {
+      const text = [
+        row?.name, row?.label, row?.description, row?.title, row?.productId, row?.model
+      ].map(x => String(x || '').toLowerCase()).join(' ');
+      if (text.includes('vigour') && /\bcl\s*60\b/.test(text)) {
+        sum += parseQty(row?.qty ?? row?.quantity ?? row?.menge ?? 1);
+      }
+    }
+    if (sum > 0) { cl60Qty = sum; break; } // take the first source that yields a count
+  }
+
+  // If we didn’t find it in materials, last-chance fallback to items (may be all 1s)
+  if (cl60Qty === 0) {
+    const list = Array.isArray(computed?.items) ? computed.items : Array.isArray(items) ? items : [];
+    for (const it of list) {
+      const s = [
+        it?.name, it?.title, it?.label, it?.model
+      ].map(x => String(x || '').toLowerCase()).join(' ');
+      if (s.includes('vigour') && /\bcl\s*60\b/.test(s)) {
+        cl60Qty += parseQty(it?.qty ?? it?.quantity ?? 1);
+      }
+    }
+  }
+
+  // Decide target label
+  if (cl60Qty > 0) {
+    const singular = 'Anbringen zusätzliches Waschbeckens ohne Unterschrank';
+    const plural   = 'Anbringen zusätzlicher Waschbecken ohne Unterschrank';
+    const target   = cl60Qty === 1 ? singular : plural;
+
+    // Rename the existing generic Waschtisch line (first match only)
+    const waschRegex = /^\s*-?\s*auswechseln\s+eines\s+waschtisches(?:\s+ohne\s+unterschrank)?/i;
+    for (const l of svcForDoc) {
+      const lbl = String(l?.label || '');
+      if (waschRegex.test(lbl)) {
+        l.label = target;
+        break;
+      }
+    }
+  }
+
+  // Optional: one-line debug
+  console.log('[svc] VIGOUR CL60 qty (aggregated):', cl60Qty);
+}
+// --- end CL60 singular/plural ---
+
 
 const norm = s => String(s || '').trim();
 const stripBullet = s => norm(s).replace(/^-+\s*/, '').trim();
