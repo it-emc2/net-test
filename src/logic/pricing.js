@@ -691,7 +691,12 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
       // If you want a threshold for the 300 € (e.g., only if totalAfterRabatt ≥ 3000), add it here:
       let bonusGross = 0;
       if (flags.bonus_neu) bonusGross += 252.1;
-      if (flags.bonus_Haltegriff) bonusGross += 147.06;
+      if (flags.bonus_Haltegriff) {
+  // Use actual net unit price of CLPESG40 (one piece free)
+  const cl40 = (materials?.lines || []).find(l => (l.productId || l.id) === 'CLPESG40');
+  const cl40Unit = Number(cl40?.unitPrice) || 0;
+  bonusGross += round2(cl40Unit);
+}
 
       // const totalAfterBonus = round2(Math.max(0, totalAfterRabatt - bonusGross));
       const netAfterRabatt_and_Bonus = round2(Math.max(0, netAfterRabatt - bonusGross));
