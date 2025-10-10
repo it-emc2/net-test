@@ -104,6 +104,41 @@
       .side-link.done {
         color: var(--step-done);
       }
+/* 2×2 layout for the four models */
+.da-quickadd {
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 900px) {
+  .da-quickadd {
+    grid-template-columns: 1fr 1fr; /* 2 columns */
+  }
+}
+
+/* nice cardy look (optional) */
+.da-row {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--panel, #fff);
+}
+
+/* inner 3-input layout */
+.da-grid {
+  display: grid;
+  gap: 10px;
+}
+@media (min-width: 640px) {
+  .da-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* small helpers (optional) */
+.da-legend { font-weight: 700; margin-bottom: 8px; }
+.da-label  { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
+.da-help   { color: #6b7280; display: block; margin-top: 6px; }
+.muted     { color: #6b7280; font-weight: 400; }
 
       .side-link .dot {
         width: 18px;
@@ -1744,36 +1779,198 @@
         </p>    
         <form id="form-duschabtrennung" autocomplete="on">
 <!-- QUICK-ADD: Duschabtrennung (Hassmann) -->
-<div class="card subtle" style="margin-bottom:12px;">
-  <div style="font-weight:600; margin-bottom:8px;">Schnellerfassung (Hassmann)</div>
+<section aria-labelledby="da-quickadd-title" class="da-quickadd">
+  <h3 id="da-quickadd-title">Duschabtrennung (Hassmann) – Schnell hinzufügen</h3>
 
-  <!-- label | Menge | Produkt-ID | Preis -->
-  <div class="grid" style="grid-template-columns: 1fr 90px 160px 160px; gap:8px; align-items:center;">
-    <!-- Pendeltür -->
-    <label>Pendeltür</label>
-    <input id="da-pendeltuer-qty"   type="number" min="1" step="1" placeholder="">
-    <input id="da-pendeltuer-id"    type="text"   placeholder="Produkt-ID (optional)">
-    <input id="da-pendeltuer-preis" type="number" min="0" step="0.01" placeholder="Preis (netto) €">
+  <p class="muted" id="da-quickadd-hint">
+    Geben Sie pro Modell den Preis (Netto) an. Wenn ein Preis gesetzt ist und die Menge leer bleibt, wird automatisch <b>1</b> Stück verwendet.
+  </p>
 
-    <!-- Gleittür -->
-    <label>Gleittür</label>
-    <input id="da-gleittuer-qty"   type="number" min="1" step="1" placeholder="">
-    <input id="da-gleittuer-id"    type="text"   placeholder="Produkt-ID (optional)">
-    <input id="da-gleittuer-preis" type="number" min="0" step="0.01" placeholder="Preis (netto) €">
+  <!-- Pendeltür -->
+  <fieldset class="da-row" aria-describedby="pendeltuer-help">
+    <legend class="da-legend">Pendeltür</legend>
+    <div class="da-grid">
+      <label for="da-pendeltuer-preis" class="da-label">
+        Preis (Netto)
+        <input
+          id="da-pendeltuer-preis"
+          name="da-pendeltuer-preis"
+          type="text"
+          inputmode="decimal"
+          placeholder="z. B. 799,00"
+          aria-describedby="pendeltuer-help"
+        />
+      </label>
 
-    <!-- Falt-Pendeltür -->
-    <label>Falt-Pendeltür</label>
-    <input id="da-faltpendel-qty"   type="number" min="1" step="1" placeholder="">
-    <input id="da-faltpendel-id"    type="text"   placeholder="Produkt-ID (optional)">
-    <input id="da-faltpendel-preis" type="number" min="0" step="0.01" placeholder="Preis (netto) €">
+      <label for="da-pendeltuer-qty" class="da-label">
+        Menge
+        <input
+          id="da-pendeltuer-qty"
+          name="da-pendeltuer-qty"
+          type="number"
+          inputmode="numeric"
+          min="1"
+          step="1"
+          placeholder="1"
+          aria-describedby="pendeltuer-help"
+        />
+      </label>
 
-    <!-- Walk-In -->
-    <label>Walk-In</label>
-    <input id="da-walkin-qty"   type="number" min="1" step="1" placeholder="">
-    <input id="da-walkin-id"    type="text"   placeholder="Produkt-ID (optional)">
-    <input id="da-walkin-preis" type="number" min="0" step="0.01" placeholder="Preis (netto) €">
-  </div>
-</div>
+      <label for="da-pendeltuer-id" class="da-label">
+      ID
+        <input
+          id="da-pendeltuer-id"
+          name="da-pendeltuer-id"
+          type="text"
+          placeholder="z. B. HASS-PEN-123"
+          aria-describedby="pendeltuer-help"
+        />
+      </label>
+    </div>
+    <small id="pendeltuer-help" class="da-help">
+      Wenn der Preis eingetragen ist und die Menge leer bleibt, wird die Menge automatisch auf 1 gesetzt.
+    </small>
+  </fieldset>
+
+  <!-- Gleittür -->
+  <fieldset class="da-row" aria-describedby="gleittuer-help">
+    <legend class="da-legend">Gleittür</legend>
+    <div class="da-grid">
+      <label for="da-gleittuer-preis" class="da-label">
+        Preis (Netto)
+        <input
+          id="da-gleittuer-preis"
+          name="da-gleittuer-preis"
+          type="text"
+          inputmode="decimal"
+          placeholder="z. B. 899,00"
+          aria-describedby="gleittuer-help"
+        />
+      </label>
+
+      <label for="da-gleittuer-qty" class="da-label">
+        Menge
+        <input
+          id="da-gleittuer-qty"
+          name="da-gleittuer-qty"
+          type="number"
+          inputmode="numeric"
+          min="1"
+          step="1"
+          placeholder="1"
+          aria-describedby="gleittuer-help"
+        />
+      </label>
+
+      <label for="da-gleittuer-id" class="da-label">
+        ID
+        <input
+          id="da-gleittuer-id"
+          name="da-gleittuer-id"
+          type="text"
+          placeholder="z. B. HASS-GL-456"
+          aria-describedby="gleittuer-help"
+        />
+      </label>
+    </div>
+    <small id="gleittuer-help" class="da-help">
+      Preis eingeben → Menge leer lassen = 1 Stück.
+    </small>
+  </fieldset>
+
+  <!-- Falt-Pendeltür -->
+  <fieldset class="da-row" aria-describedby="faltpendel-help">
+    <legend class="da-legend">Falt-Pendeltür</legend>
+    <div class="da-grid">
+      <label for="da-faltpendel-preis" class="da-label">
+        Preis (Netto)
+        <input
+          id="da-faltpendel-preis"
+          name="da-faltpendel-preis"
+          type="text"
+          inputmode="decimal"
+          placeholder="z. B. 1.099,00"
+          aria-describedby="faltpendel-help"
+        />
+      </label>
+
+      <label for="da-faltpendel-qty" class="da-label">
+        Menge
+        <input
+          id="da-faltpendel-qty"
+          name="da-faltpendel-qty"
+          type="number"
+          inputmode="numeric"
+          min="1"
+          step="1"
+          placeholder="1"
+          aria-describedby="faltpendel-help"
+        />
+      </label>
+
+      <label for="da-faltpendel-id" class="da-label">
+        ID 
+        <input
+          id="da-faltpendel-id"
+          name="da-faltpendel-id"
+          type="text"
+          placeholder="z. B. HASS-FP-789"
+          aria-describedby="faltpendel-help"
+        />
+      </label>
+    </div>
+    <small id="faltpendel-help" class="da-help">
+      Preis muss > 0 sein, sonst wird die Zeile nicht übernommen.
+    </small>
+  </fieldset>
+
+  <!-- Walk-In -->
+  <fieldset class="da-row" aria-describedby="walkin-help">
+    <legend class="da-legend">Walk-In</legend>
+    <div class="da-grid">
+      <label for="da-walkin-preis" class="da-label">
+        Preis (Netto)
+        <input
+          id="da-walkin-preis"
+          name="da-walkin-preis"
+          type="text"
+          inputmode="decimal"
+          placeholder="z. B. 699,00"
+          aria-describedby="walkin-help"
+        />
+      </label>
+
+      <label for="da-walkin-qty" class="da-label">
+        Menge
+        <input
+          id="da-walkin-qty"
+          name="da-walkin-qty"
+          type="number"
+          inputmode="numeric"
+          min="1"
+          step="1"
+          placeholder="1"
+          aria-describedby="walkin-help"
+        />
+      </label>
+
+      <label for="da-walkin-id" class="da-label">
+        ID 
+        <input
+          id="da-walkin-id"
+          name="da-walkin-id"
+          type="text"
+          placeholder="z. B. HASS-WI-321"
+          aria-describedby="walkin-help"
+        />
+      </label>
+    </div>
+    <small id="walkin-help" class="da-help">
+      Produkt-ID ist optional – für interne Zuordnung.
+    </small>
+  </fieldset>
+</section>
+
 
 
           <div>
