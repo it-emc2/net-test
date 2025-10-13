@@ -260,6 +260,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     window.total_hours_numeric = Math.max(0, totalNum);
+    window.reise_hours_numeric = Math.max(0, travelH1 * 2 );
+    window.arbeit_hours_numeric = Math.max(0, laborH);
   }
 
   laborEl?.addEventListener("input", updateTotalHours);
@@ -571,6 +573,9 @@ payload.duschwanne.ebenerdigNote = eb ? 'true' : '';
   payload.bereich.totalHoursHHMM =
     document.getElementById("totalHoursHHMM")?.textContent?.match(/(\d+:\d{2})/)?.[1] || "";
   payload.bereich.totalHoursNumeric = Number(window.total_hours_numeric || 0);
+
+   payload.bereich.ReiseHoursNumeric = Number(window.reise_hours_numeric || 0);
+     payload.bereich.ArbeitHoursNumeric = Number(window.arbeit_hours_numeric || 0);
   payload.bereich.laborHoursHHMM = laborHHMM;
   payload.bereich.laborHoursNumeric = laborNumeric;
 

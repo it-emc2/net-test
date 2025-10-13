@@ -437,10 +437,14 @@ try {
     const total_hours_numeric = Number(payload?.bereich?.totalHoursNumeric ?? 0);
      const total_hours_HH_mm   = String(payload?.bereich?.totalHoursHHMM ?? '');
 
+     const reise_hours_numeric = Number(payload?.bereich?.ReiseHoursNumeric ?? 0);
+     const Arbeitszeit_hours_numeric = Number(payload?.bereich?.ArbeitHoursNumeric?? 0);
+
     const handwerkerCount = 2;
     const laborRateKK = 69.50;
     const laborRateSZ = 59.50;
-    const kmRate = 0.70;
+    const kmRate = 0.35;
+    const sitz_reise_Rate = 25;
 
     const fahrzeugbereitstellung = 80.00;
     const werkzeug = 7.50;
@@ -448,7 +452,8 @@ try {
 
     const kilometerpauschale = round2(roundTripKm * kmRate);
     const laborRate = payer === 'KK' ? laborRateKK : (payer === 'SZ' ? laborRateSZ : 0);
-    const facharbeiter = total_hours_numeric * handwerkerCount * laborRate;
+      //const facharbeiter = total_hours_numeric * handwerkerCount * laborRate;
+    const facharbeiter = (Arbeitszeit_hours_numeric * handwerkerCount * laborRate) + (reise_hours_numeric * (laborRate + sitz_reise_Rate ));
 
     const lines = [];
     lines.push({ key: 'fahrzeug',   label: '- 1,00 Stk Fahrzeugbereitstellung', amount: round2(fahrzeugbereitstellung) });
