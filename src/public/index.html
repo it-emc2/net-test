@@ -27,6 +27,15 @@
         background: var(--bg);
         color: var(--text);
       }
+/* Make the numeric “Ecke(n) vorhanden” input editable again */
+#wvCornersCount {
+  display: inline-block !important;
+  position: static !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  width: 90px;
+  margin-left: 10px;
+}
 
       .app {
         display: grid;
@@ -1913,10 +1922,20 @@ section.da-quickadd .da-remove:focus-visible {
                 </div>
 
                 <div class="field" style="max-width: 240px">
-                  <label class="check-pill">
-                    <input type="checkbox" id="wvCornersCB" />
-                    <span class="box"></span><span>Ecke(n) vorhanden</span>
-                  </label>
+                 <!-- Wandverkleidung: Ecke(n) vorhanden -->
+<div class="field-row" id="wvCornersRow" style="display:flex;align-items:center;gap:10px;">
+  <label for="wvCornersCount" style="margin:0;">Ecke(n) vorhanden</label>
+  <input
+    type="number"
+    id="wvCornersCount"
+    min="0"
+    step="1"
+    value="0"
+    style="width:90px;"
+  />
+</div>
+
+
 
                   <div
                     id="wvCornersWrap"

@@ -925,7 +925,7 @@ function initWVConnectorsUI() {
   const cb1497   = document.getElementById('wv1497');
   const q997El   = document.getElementById('wvQty997');
   const q1497El  = document.getElementById('wvQty1497');
-  const corners  = document.getElementById('wvCornersCB');
+ const corners  = document.getElementById('wvCornersCount');
 
   if (!qtyVEl || !outEl) return;
 
@@ -942,27 +942,34 @@ function initWVConnectorsUI() {
 
     const totalPanels = q997 + q1497;
     let rec = Math.max(0, totalPanels - 1);    // joints between panels in a run
-    if (corners?.checked) rec -= 1;            // add vertical profiles for corners
+    const ecken = Math.max(0, n(corners?.value));
+  rec = Math.max(0, rec - ecken);          // add vertical profiles for corners
     return rec;
   }
 
   function render() {
     const rec = recommendedVCount();
     const cur = n(qtyVEl.value);
-    outEl.textContent = rec > 0
-      ? `- Verbindungsprofil(e) empfohlen: ${rec} Stk • aktuell: ${cur} Stk`
-      : (cur > 0 ? `- Verbindungsprofil(e): ${cur} Stk` : '');
+      if (rec > 0) {
+    outEl.classList.remove('warn');
+    outEl.textContent = `- Verbindungsprofil(e) empfohlen: ${rec} Stk • aktuell: ${cur} Stk`;
+  } else {
+    outEl.classList.add('warn');
+    outEl.textContent =
+      '⚠️ Keine Verbindungsprofile empfohlen. Bitte Paneelanzahl und „Ecke(n) vorhanden“ prüfen.';
   }
+}
 
   // Wire listeners (any change should refresh the hint)
   ['input','change','blur'].forEach(ev => {
     qtyVEl.addEventListener(ev, render);
     q997El?.addEventListener(ev, render);
     q1497El?.addEventListener(ev, render);
+    corners?.addEventListener(ev, render);
   });
   cb997?.addEventListener('change', render);
   cb1497?.addEventListener('change', render);
-  corners?.addEventListener('change', render);
+  
 
   // First paint
   render();
