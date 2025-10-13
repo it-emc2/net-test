@@ -307,7 +307,7 @@ const parseMoneyStrict = (v) => {
 // Prefer explicit user-entered qty from the WV form
 const userRaw = wv?.wvV3VQty;
 const userV3VQty = Math.max(0, parseInt(userRaw, 10) || 0);
-const corner = Number(wv?.wvCornersCount || 0) || 0;
+const corners = Number(wv?.wvCornersCount || 0) || 0;
 
 
 // If the user provided a value (including 0), use it; else fall back to (panels - 1)
@@ -315,8 +315,8 @@ if (userRaw !== undefined && userRaw !== null && String(userRaw).trim() !== '') 
   if (userV3VQty > 0) {
     add('V3V', userV3VQty, `- ${userV3VQty} Stk Verbindungsprofil(e)`);
   }} else if (totalPanels >= 2) {
-    console.log("corn ", corner)
-  const qV3V = totalPanels - 1 - corner;
+    console.log("corn ", corners)
+  const qV3V = Math.max(0, (totalPanels - 1) - corners);
   add('V3V', qV3V, `- ${qV3V} Stk Verbindungsprofil(e) (Plattenanzahl - 1 - ecken)`);
 }
 
