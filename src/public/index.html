@@ -204,6 +204,44 @@ section.da-quickadd .da-remove {
 }
 section.da-quickadd .da-add svg,
 section.da-quickadd .da-remove svg { stroke: currentColor; fill: none; }
+/* 1) Max specificity for these buttons */
+section.da-quickadd button.da-add,
+section.da-quickadd .da-add {
+  color: var(--accent, var(--brand, #a855f7)) !important;
+  background: transparent !important;
+  border-color: var(--border, rgba(0,0,0,.12)) !important;
+}
+
+section.da-quickadd button.da-remove,
+section.da-quickadd .da-remove {
+  color: var(--destructive, #ef4444) !important;
+  background: transparent !important;
+  border-color: var(--border, rgba(0,0,0,.12)) !important;
+}
+
+/* 2) Force inline SVGs to inherit currentColor */
+section.da-quickadd .da-add svg,
+section.da-quickadd .da-remove svg {
+  color: currentColor !important;      /* some icon sets read this */
+  fill: none !important;               /* neutral default */
+  stroke: currentColor !important;     /* for stroke-based icons */
+}
+
+/* If your icons are fill-based (not stroke), enable this too: */
+section.da-quickadd .da-add svg [fill]:not([fill="none"]),
+section.da-quickadd .da-remove svg [fill]:not([fill="none"]) {
+  fill: currentColor !important;
+}
+
+/* 3) Hover tint without relying on color-mix */
+section.da-quickadd .da-add:hover,
+section.da-quickadd .da-add:focus-visible {
+  background: rgba(168, 85, 247, .12) !important; /* purple */
+}
+section.da-quickadd .da-remove:hover,
+section.da-quickadd .da-remove:focus-visible {
+  background: rgba(239, 68, 68, .12) !important;  /* red */
+}
 
 
 /* One column on narrow viewports */
