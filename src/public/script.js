@@ -413,50 +413,57 @@ function collectWandverkleidungMaterials(doc) {
 // --- Duschabtrennung Quick-Add (Hassmann) collector ---
 // Mirrors wireDuschabtrennungQuickAdd(): only add when price > 0,
 // default qty to 1 when price is given but qty is empty/0.
+// Collects all rows from the 5 quick-add fieldsets and writes payload.duschabtrennung.quickAdd
 function collectDuschabtrennungQuickAdd(doc) {
   const root = document.querySelector('section.da-quickadd');
   if (!root) return;
 
-  const parseMoney = (v) => {
-    let s = String(v ?? '').trim();
-    if (!s) return 0;
-    s = s.replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
-    const n = parseFloat(s);
-    return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
-  };
-  const parseQty = (v) => {
-    const n = parseInt(String(v ?? '').trim(), 10);
-    return Number.isFinite(n) && n > 0 ? n : 0;
-  };
-
+  // Canonical label per kind (used for every row — no DOM-derived labels)
   const KIND_TO_LABEL = {
-    pendeltuer:  'Pendeltür Hassmann',
-    gleittuer:   'Gleittür Hassmann',
-    faltpendel:  'Falt-Pendeltür Hassmann',
-    walkin:      'Walk-In Hassmann',
+    pendeltuer: 'Pendeltür Hassmann',
+    gleittuer: 'Gleittür Hassmann',
+    faltpendel: 'Falt-Pendeltür Hassmann',
+    walkin: 'Walk-In Hassmann',
+    sonder: 'Sonderduschabtrennung Hassmann',
   };
 
   const qa = [];
-  root.querySelectorAll('fieldset.da-row[data-kind]').forEach(fs => {
-    const kind  = fs.dataset.kind;
-    const label = KIND_TO_LABEL[kind] || 'Duschabtrennung (Hassmann)';
 
-    fs.querySelectorAll('.da-item').forEach(item => {
-      const price = parseMoney(item.querySelector('.da-price')?.value);
-      if (price <= 0) return; // only rows with price
+  root.querySelectorAll('fieldset.da-row').forEach(fs => {
+    const kind = (fs.getAttribute('data-kind') || '').toLowerCase();
+    const canonicalLabel = KIND_TO_LABEL[kind] || 'Duschabtrennung (Hassmann)';
 
-      let qty = parseQty(item.querySelector('.da-qty')?.value);
-      if (qty <= 0) qty = 1; // default 1 when price present
+    fs.querySelectorAll('.da-items .da-item').forEach(item => {
+      const priceEl = item.querySelector('.da-price');
+      const qtyEl   = item.querySelector('.da-qty');
+      const idEl    = item.querySelector('.da-id');
 
-      const productId = (item.querySelector('.da-id')?.value || '').trim();
+      // 1) PRICE: keep raw input string (e.g., "1.099,00") – parsing happens in pricing.js
+      const priceRaw = (priceEl?.value ?? '').trim();
+      if (!priceRaw) return; // rule: only add a row if price is filled
 
-      qa.push({ kind, label, qty, price, productId });
+      // 2) QTY: default to 1 if empty/invalid; min 1
+      let qty = parseInt((qtyEl?.value ?? '').trim(), 10);
+      if (!Number.isFinite(qty) || qty <= 0) qty = 1;
+
+      // 3) Optional product id
+      const productId = (idEl?.value ?? '').trim();
+
+      qa.push({
+        kind,                          // e.g. "pendeltuer"
+        label: canonicalLabel,         // always set explicit label
+        qty,
+        price: priceRaw,               // <-- raw string, NOT cents, NOT parsed
+        productId
+      });
     });
   });
 
   doc.duschabtrennung = doc.duschabtrennung || {};
   doc.duschabtrennung.quickAdd = qa;
 }
+
+
 
 
 
@@ -996,75 +1003,107 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const LS_KEY = 'daQuickAddRows:v1';
 
-  const parseMoney = (v) => {
-    let s = String(v ?? '').trim();
-    if (!s) return 0;
-    s = s.replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
-    const n = parseFloat(s);
-    return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
-  };
+const parseMoney = (v) => {
+  let s = String(v ?? '').trim();
+  if (!s) return 0;
+  s = s.replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(s);
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+};
 
-  const saveState = () => {
-    const state = {};
-    for (const fs of section.querySelectorAll('fieldset.da-row[data-kind]')) {
-      const kind = fs.dataset.kind;
-      const rows = [];
-      fs.querySelectorAll('.da-item').forEach(item => {
-        const price = parseMoney(item.querySelector('.da-price')?.value);
-        const qtyEl = item.querySelector('.da-qty');
-        const idEl  = item.querySelector('.da-id');
-        const qty   = Math.max(1, parseInt((qtyEl?.value || '').trim(), 10) || 0);
-        const pid   = (idEl?.value || '').trim();
-        rows.push({ price, qty, productId: pid });
-      });
-      state[kind] = rows;
-    }
-    try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch {}
-  };
+const saveState = () => {
+  const state = {};
+  for (const fs of section.querySelectorAll('fieldset.da-row[data-kind]')) {
+    const kind = fs.dataset.kind;
+    const rows = [];
+    fs.querySelectorAll('.da-item').forEach(item => {
+      const price = parseMoney(item.querySelector('.da-price')?.value);
+      const qtyEl = item.querySelector('.da-qty');
+      const idEl  = item.querySelector('.da-id');
+      const qty   = Math.max(1, parseInt((qtyEl?.value || '').trim(), 10) || 0);
+      const pid   = (idEl?.value || '').trim();
+      rows.push({ price, qty, productId: pid });
+    });
+    state[kind] = rows;
+  }
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch {}
+};
 
   const restoreState = () => {
-    let data = null;
-    try { data = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch {}
-    if (!data || typeof data !== 'object') return;
+  let data = null;
+  try { data = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch {}
+  if (!data || typeof data !== 'object') return;
 
-    for (const fs of section.querySelectorAll('fieldset.da-row[data-kind]')) {
-      const kind = fs.dataset.kind;
-      const wrap = fs.querySelector('.da-items');
-      if (!wrap) continue;
+  // we'll re-save a migrated copy per kind
+  const migrated = {};
 
-      const rows = Array.isArray(data[kind]) ? data[kind] : [];
-      // Keep the first existing row, clear others
-      const first = wrap.querySelector('.da-item');
-      if (!first) continue;
-      wrap.querySelectorAll('.da-item:not(:first-child)').forEach(n => n.remove());
+  for (const fs of section.querySelectorAll('fieldset.da-row[data-kind]')) {
+    const kind = fs.dataset.kind;
+    const wrap = fs.querySelector('.da-items');
+    if (!wrap) continue;
 
-      // Fill first
-      const fill = (item, row) => {
-        const priceEl = item.querySelector('.da-price');
-        const qtyEl   = item.querySelector('.da-qty');
-        const idEl    = item.querySelector('.da-id');
-        if (priceEl) priceEl.value = row?.price ? String(row.price).replace('.', ',') : '';
-        if (qtyEl)   qtyEl.value   = row?.price ? String(Math.max(1, row.qty || 1)) : '';
-        if (idEl)    idEl.value    = row?.productId || '';
-      };
+    const rows = Array.isArray(data[kind]) ? data[kind] : [];
+    // --- normalize legacy rows (string prices, cents→euros, pid→productId)
+ const normalizeRow = (r) => {
+      if (!r || typeof r !== 'object') return { price: 0, qty: 0, productId: '' };
+      let price = r.price;
 
-      if (rows.length > 0) {
-        fill(first, rows[0]);
-        for (let i = 1; i < rows.length; i++) {
-          const item = addRow(kind, fs, false);
-          fill(item, rows[i]);
-        }
-      } else {
-        // if no saved rows, leave first row empty
-        const priceEl = first.querySelector('.da-price');
-        const qtyEl   = first.querySelector('.da-qty');
-        const idEl    = first.querySelector('.da-id');
-        if (priceEl) priceEl.value = '';
-        if (qtyEl)   qtyEl.value   = '';
-        if (idEl)    idEl.value    = '';
+      if (typeof price === 'string') {
+        const s = price.trim().replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
+        const n = parseFloat(s);
+        price = Number.isFinite(n) ? n : 0;
       }
+      if (typeof price === 'number' && Number.isFinite(price) && price > 999 && Number.isInteger(price)) {
+        // legacy cents → euros
+        price = price / 100;
+      }
+      price = Number.isFinite(price) && price > 0 ? Math.round(price * 100) / 100 : 0;
+
+      const qty = Math.max(price > 0 ? 1 : 0, parseInt(r.qty, 10) || 0);
+      const productId = (r.productId || r.pid || '').trim();
+      return { price, qty, productId };
+    };
+
+// normalize all rows (and later save back to LS so we "migrate" once)
+const normRows = rows.map(normalizeRow);
+migrated[kind] = normRows;
+   // --- render: keep first row, rebuild others
+    const first = wrap.querySelector('.da-item');
+    if (!first) continue;
+    wrap.querySelectorAll('.da-item:not(:first-child)').forEach(n => n.remove());
+
+    const fill = (item, row) => {
+      const priceEl = item.querySelector('.da-price');
+      const qtyEl   = item.querySelector('.da-qty');
+      const idEl    = item.querySelector('.da-id');
+
+      // ensure two decimals for UI
+      const priceStr = row?.price ? row.price.toFixed(2).replace('.', ',') : '';
+
+      if (priceEl) priceEl.value = priceStr;
+      if (qtyEl)   qtyEl.value   = row?.price ? String(Math.max(1, row.qty || 1)) : '';
+      if (idEl)    idEl.value    = row?.productId || '';
+    };
+
+    if (normRows.length > 0) {
+      fill(first, normRows[0]);
+      for (let i = 1; i < normRows.length; i++) {
+        const item = addRow(kind, fs, false); // addRow already exists in this IIFE
+        if (item) fill(item, normRows[i]);
+      }
+    } else {
+      const priceEl = first.querySelector('.da-price');
+      const qtyEl   = first.querySelector('.da-qty');
+      const idEl    = first.querySelector('.da-id');
+      if (priceEl) priceEl.value = '';
+      if (qtyEl)   qtyEl.value   = '';
+      if (idEl)    idEl.value    = '';
     }
-  };
+  }
+
+  // write back migrated (once) so old “×100” never returns
+  try { localStorage.setItem(LS_KEY, JSON.stringify(migrated)); } catch {}
+};
 
   function addRow(kind, fs, focusPrice = true) {
     const wrap = fs.querySelector('.da-items');

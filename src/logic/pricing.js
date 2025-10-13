@@ -205,6 +205,17 @@ async function computeMaterials(payload) {
   const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
   const ceilSafe = (n) => Math.ceil((Number(n) || 0) - 1e-12);
 
+  // normalize "1.234,56", "1234.56", "100" → Number
+const parseMoneyStrict = (v) => {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  const s = String(v ?? '').trim();
+  if (!s) return 0;
+  const cleaned = s.replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(cleaned);
+  return Number.isFinite(n) ? n : 0;
+};
+
+
   // helper to push unresolved lines; we resolve names/prices at the end
   const add = (id, qty, labelOverride, unitOverride, source) => {
     const q = Number(qty) || 0;
@@ -326,45 +337,36 @@ async function computeMaterials(payload) {
   }
 
 // ------- Sonderduschabtrennung Hassmann (user-entered net price)
-try {
-  const raw = payload?.duschabtrennung?.daNetto ?? '';
-  // allow 1.234,56 or 1234.56
-  const val = Number(String(raw).trim().replace(/\s/g, '').replace(/\./g, '').replace(',', '.'));
-  if (Number.isFinite(val) && val > 0) {
-    // Add as a non-optional material line so it shows under "Material für Badumbau"
-    add(
-      'HASSMANN_CUSTOM',                         // arbitrary id (no DB lookup needed)
-      1,                                         // qty
-      '- 1 Stk Sonderduschabtrennung Hassmann',  // exact label to display
-      val,                                       // unitOverride = user price
-      null                                       // source=null => regular material
-    );
-  }
-} catch (e) {
-  console.warn('[pricing] Hassmann price add failed:', e?.message || e);
-}
 // ------- Duschabtrennung Quick-Add (Hassmann) rows (Pendeltür, Gleittür, Falt-Pendeltür, Walk-In)
+// ------- Duschabtrennung Quick-Add (Hassmann)
 try {
+  const KIND_TO_LABEL = {
+    PENDELTUER: 'Pendeltür Hassmann',
+    GLEITTUER: 'Gleittür Hassmann',
+    FALTPENDEL: 'Falt-Pendeltür Hassmann',
+    WALKIN: 'Walk-In Hassmann',
+    SONDER: 'Sonderduschabtrennung Hassmann',
+  };
+
   const qa = payload?.duschabtrennung?.quickAdd || [];
   if (Array.isArray(qa) && qa.length) {
     for (const x of qa) {
-      const qty   = Number(x?.qty)   || 0;
-      const price = Number(x?.price) || 0;
+      const qty   = Number(x?.qty) || 0;
+      const price = parseMoneyStrict(x?.price) || 0;  // parses "1.099,00" etc.
       if (qty <= 0 || price <= 0) continue;
 
-      const kind  = String(x?.kind || 'GEN').toUpperCase();
-      const pid   = (String(x?.productId || '').trim()) || `HASS_${kind}`;
-      const base  = String(x?.label || 'Duschabtrennung (Hassmann)').trim();
-      const label = `- ${qty} Stk ${base}`;
+      const kindUp = String(x?.kind || 'GEN').toUpperCase();
+      const pid    = (String(x?.productId || '').trim()) || `HASS_${kindUp}`;
+      const base   = String(x?.label || '').trim() || KIND_TO_LABEL[kindUp] || 'Duschabtrennung (Hassmann)';
+      const label  = `- ${qty} Stk ${base}`;
 
-      // Push as a normal MATERIAL line (source = null) with user-entered unit price.
-      // Using unitOverride ensures we don't need a DB price for pid.
       add(pid, qty, label, price, null);
     }
   }
 } catch (e) {
   console.warn('[pricing] quickAdd (Hassmann) merge failed:', e?.message || e);
 }
+
 
 
   // ------- Resolve names/prices once

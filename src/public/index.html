@@ -71,6 +71,78 @@
         background: var(--accent);
         box-shadow: 0 0 0 4px var(--accent-weak);
       }
+/* make the quick-add area span full width and grid nicely */
+.da-quickadd {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(320px, 1fr)); /* 2 columns */
+  gap: 18px 22px;                                       /* row/col gaps */
+  align-items: start;
+  width: 100%;
+}
+
+/* allow it to shrink to 1 column on smaller viewports */
+@media (max-width: 900px) {
+  .da-quickadd {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ensure the surrounding form/card doesn’t force a narrow column */
+#page-duschabtrennung .card,
+#page-duschabtrennung form {
+  width: 100%;
+}
+
+/* each fieldset should look like a card and fill its cell */
+.da-row {
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--border, #e4e4e7);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+}
+
+/* legend + add button row */
+.da-legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
+/* inputs grid inside each item row */
+.da-grid {
+  display: grid;
+  grid-template-columns: 1fr 120px 1fr; /* Preis | Menge | ID */
+  gap: 10px 12px;
+}
+
+@media (max-width: 520px) {
+  .da-grid { grid-template-columns: 1fr; }
+}
+
+/* “+” and “🗑” buttons look consistent */
+.da-add,
+.da-remove {
+  border: 1px solid var(--border, #e4e4e7);
+  background: var(--bg, #f8f9fb);
+  border-radius: 10px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.da-add { font-weight: 700; }
+.da-remove { margin-top: 8px; }
+
+/* small help text spacing */
+.da-help { margin: 8px 0 0; color: var(--muted, #6b7280); font-size: .9rem; }
+
+/* optional: center the whole page content a bit nicer */
+#page-duschabtrennung {
+  max-width: 1100px;        /* keep it from stretching too wide on big screens */
+  margin-inline: auto;      /* center horizontally */
+}
 
       .menu {
         display: grid;
@@ -104,6 +176,77 @@
       .side-link.done {
         color: var(--step-done);
       }
+      /* 1) Make the whole Duschabtrennung page span the full app grid */
+#page-duschabtrennung {
+  grid-column: 1 / -1;     /* if parent uses CSS Grid */
+  width: 100%;
+}
+
+/* If your <form> is in a grid, ensure the quickadd spans full width there too */
+#form-duschabtrennung .da-quickadd {
+  grid-column: 1 / -1;
+  width: 100%;
+  max-width: none;
+}
+
+/* 2) Layout: two columns inside the quick-add area (auto wraps to one on small screens) */
+.da-quickadd {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(320px, 1fr));
+  gap: 18px 22px;
+  align-items: start;
+}
+
+/* One column on narrow viewports */
+@media (max-width: 900px) {
+  .da-quickadd {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 3) Keep your theme colors — no hard backgrounds here */
+.da-row {
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--border, currentColor);
+  border-radius: 12px;
+  /* background: inherit;   <- inherit theme surface */
+  /* color: inherit;        <- inherit text color */
+}
+
+/* Legend + add button row */
+.da-legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
+/* Inputs grid inside each row */
+.da-grid {
+  display: grid;
+  grid-template-columns: 1fr 120px 1fr;  /* Preis | Menge | ID */
+  gap: 10px 12px;
+}
+@media (max-width: 520px) {
+  .da-grid { grid-template-columns: 1fr; }
+}
+
+/* Keep buttons neutral so theme colors show through */
+.da-add,
+.da-remove {
+  border: 1px solid var(--border, currentColor);
+  background: transparent; /* don’t overwrite your theme */
+  border-radius: 10px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.da-add { font-weight: 700; }
+
+.da-help { margin: 8px 0 0; opacity: .8; font-size: .9rem; }
+
 /* 2×2 layout for the four models */
 .da-quickadd {
   display: grid;
@@ -1760,276 +1903,222 @@
         </form>
       </section>
 
-      <!-- Kosten Duschabtrennung -->
-      <section class="card page" id="page-duschabtrennung" hidden>
-        <h2 style="margin: 0 0 12px">Kosten Duschabtrennung</h2>
+     <!-- Kosten Duschabtrennung -->
+<section class="card page" id="page-duschabtrennung" hidden>
+  <h2>Kosten Duschabtrennung</h2>
 
-        <p style="margin: 0 0 6px">
-          Die Duschabtrennungen werden über den Konfigurator über gc-online
-          konfiguriert. Nach folgende Link:
-        </p>
-        <p style="font-weight: 700; font-size: 1.15rem; margin: 0 0 18px">
-          <a
-            href="https://www.gconlineplus.de/#SearchConfigurator"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            https://www.gconlineplus.de/#SearchConfigurator
-          </a>
-        </p>    
-        <form id="form-duschabtrennung" autocomplete="on">
-<!-- QUICK-ADD: Duschabtrennung (Hassmann) -->
-   
-<section aria-labelledby="da-quickadd-title" class="da-quickadd da-grid-2cols">
-  <h3 id="da-quickadd-title" class="visually-hidden">Duschabtrennung – Schnell hinzufügen</h3>
+  <p>
+    Die Duschabtrennungen werden über den Konfigurator über GC-Online konfiguriert.
+    Nachfolgender Link:
+  </p>
+  <p class="external-link">
+    <a href="https://www.gconlineplus.de/#SearchConfigurator" target="_blank" rel="noopener noreferrer">
+      https://www.gconlineplus.de/#SearchConfigurator
+    </a>
+  </p>
 
-  <!-- Pendeltür -->
-  <fieldset class="da-row" data-kind="pendeltuer" aria-describedby="pendeltuer-help">
-    <legend class="da-legend">
-      Pendeltür
-      <button type="button" class="da-add" aria-label="Weitere Pendeltür hinzufügen">+</button>
-    </legend>
+  <form id="form-duschabtrennung" autocomplete="on">
+    <!-- QUICK-ADD: Duschabtrennung (Hassmann) -->
+    <section aria-labelledby="da-quickadd-title" class="da-quickadd">
 
-    <div class="da-items">
-      <div class="da-item">
-        <div class="da-grid">
-          <label class="da-label">
-            Preis
-            <input
-              class="da-price"
-              type="text"
-              inputmode="decimal"
-              placeholder="z. B. 799,00"
-              aria-describedby="pendeltuer-help"
-            />
-          </label>
+      <h3 id="da-quickadd-title" class="visually-hidden">Duschabtrennung – Schnell hinzufügen</h3>
 
-          <label class="da-label">
-            Menge
-            <input
-              class="da-qty"
-              type="number"
-              inputmode="numeric"
-              min="1"
-              step="1"
-              aria-describedby="pendeltuer-help"
-            />
-          </label>
+      <!-- Pendeltür -->
+      <fieldset class="da-row" data-kind="pendeltuer" aria-describedby="pendeltuer-help">
+        <legend class="da-legend">
+          Pendeltür
+          <button type="button" class="da-add" aria-label="Weitere Pendeltür hinzufügen">+</button>
+        </legend>
 
-          <label class="da-label">
-            ID
-            <input
-              class="da-id"
-              type="text"
-              placeholder="z. B. HASS-PEN-123"
-              aria-describedby="pendeltuer-help"
-            />
-          </label>
+        <div class="da-items">
+          <div class="da-item" data-kind="pendeltuer">
+            <div class="da-grid">
+              <label class="da-label">
+                Preis
+                <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 799,00" aria-describedby="pendeltuer-help" />
+              </label>
+              <label class="da-label">
+                Menge
+                <input class="da-qty" type="number" inputmode="numeric" min="1" step="1" aria-describedby="pendeltuer-help" />
+              </label>
+              <label class="da-label">
+                ID
+                <input class="da-id" type="text" placeholder="z. B. HASS-PEN-123" aria-describedby="pendeltuer-help" />
+              </label>
+            </div>
+            <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+          </div>
         </div>
-        <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
-      </div>
-    </div>
-  </fieldset>
 
-  <!-- Gleittür -->
-  <fieldset class="da-row" data-kind="gleittuer" aria-describedby="gleittuer-help">
-    <legend class="da-legend">
-      Gleittür
-      <button type="button" class="da-add" aria-label="Weitere Gleittür hinzufügen">+</button>
-    </legend>
+      </fieldset>
 
-    <div class="da-items">
-      <div class="da-item">
-        <div class="da-grid">
-          <label class="da-label">
-            Preis
-            <input
-              class="da-price"
-              type="text"
-              inputmode="decimal"
-              placeholder="z. B. 899,00"
-              aria-describedby="gleittuer-help"
-            />
-          </label>
+      <!-- Gleittür -->
+      <fieldset class="da-row" data-kind="gleittuer" aria-describedby="gleittuer-help">
+        <legend class="da-legend">
+          Gleittür
+          <button type="button" class="da-add" aria-label="Weitere Gleittür hinzufügen">+</button>
+        </legend>
 
-          <label class="da-label">
-            Menge
-            <input
-              class="da-qty"
-              type="number"
-              inputmode="numeric"
-              min="1"
-              step="1"
-              aria-describedby="gleittuer-help"
-            />
-          </label>
-
-          <label class="da-label">
-            ID
-            <input
-              class="da-id"
-              type="text"
-              placeholder="z. B. HASS-GL-456"
-              aria-describedby="gleittuer-help"
-            />
-          </label>
+        <div class="da-items">
+          <div class="da-item" data-kind="gleittuer">
+            <div class="da-grid">
+              <label class="da-label">
+                Preis
+                <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 899,00" aria-describedby="gleittuer-help" />
+              </label>
+              <label class="da-label">
+                Menge
+                <input class="da-qty" type="number" inputmode="numeric" min="1" step="1" aria-describedby="gleittuer-help" />
+              </label>
+              <label class="da-label">
+                ID
+                <input class="da-id" type="text" placeholder="z. B. HASS-GL-456" aria-describedby="gleittuer-help" />
+              </label>
+            </div>
+            <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+          </div>
         </div>
-        <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
-      </div>
-    </div>
-  </fieldset>
 
-  <!-- Falt-Pendeltür -->
-  <fieldset class="da-row" data-kind="faltpendel" aria-describedby="faltpendel-help">
-    <legend class="da-legend">
-      Falt-Pendeltür
-      <button type="button" class="da-add" aria-label="Weitere Falt-Pendeltür hinzufügen">+</button>
-    </legend>
+      
+      </fieldset>
 
-    <div class="da-items">
-      <div class="da-item">
-        <div class="da-grid">
-          <label class="da-label">
-            Preis
-            <input
-              class="da-price"
-              type="text"
-              inputmode="decimal"
-              placeholder="z. B. 1.099,00"
-              aria-describedby="faltpendel-help"
-            />
-          </label>
+      <!-- Falt-Pendeltür -->
+      <fieldset class="da-row" data-kind="faltpendel" aria-describedby="faltpendel-help">
+        <legend class="da-legend">
+          Falt-Pendeltür
+          <button type="button" class="da-add" aria-label="Weitere Falt-Pendeltür hinzufügen">+</button>
+        </legend>
 
-          <label class="da-label">
-            Menge
-            <input
-              class="da-qty"
-              type="number"
-              inputmode="numeric"
-              min="1"
-              step="1"
-              aria-describedby="faltpendel-help"
-            />
-          </label>
-
-          <label class="da-label">
-            ID
-            <input
-              class="da-id"
-              type="text"
-              placeholder="z. B. HASS-FP-789"
-              aria-describedby="faltpendel-help"
-            />
-          </label>
+        <div class="da-items">
+          <div class="da-item" data-kind="faltpendel">
+            <div class="da-grid">
+              <label class="da-label">
+                Preis
+                <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 1.099,00" aria-describedby="faltpendel-help" />
+              </label>
+              <label class="da-label">
+                Menge
+                <input class="da-qty" type="number" inputmode="numeric" min="1" step="1" aria-describedby="faltpendel-help" />
+              </label>
+              <label class="da-label">
+                ID
+                <input class="da-id" type="text" placeholder="z. B. HASS-FP-789" aria-describedby="faltpendel-help" />
+              </label>
+            </div>
+            <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+          </div>
         </div>
-        <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
-      </div>
-    </div>
-  </fieldset>
 
-  <!-- Walk-In -->
-  <fieldset class="da-row" data-kind="walkin" aria-describedby="walkin-help">
-    <legend class="da-legend">
-      Walk-In
-      <button type="button" class="da-add" aria-label="Weiteren Walk-In hinzufügen">+</button>
-    </legend>
+      </fieldset>
 
-    <div class="da-items">
-      <div class="da-item">
-        <div class="da-grid">
-          <label class="da-label">
-            Preis
-            <input
-              class="da-price"
-              type="text"
-              inputmode="decimal"
-              placeholder="z. B. 699,00"
-              aria-describedby="walkin-help"
-            />
-          </label>
+      <!-- Walk-In -->
+      <fieldset class="da-row" data-kind="walkin" aria-describedby="walkin-help">
+        <legend class="da-legend">
+          Walk-In
+          <button type="button" class="da-add" aria-label="Weiteren Walk-In hinzufügen">+</button>
+        </legend>
 
-          <label class="da-label">
-            Menge
-            <input
-              class="da-qty"
-              type="number"
-              inputmode="numeric"
-              min="1"
-              step="1"
-              aria-describedby="walkin-help"
-            />
-          </label>
-
-          <label class="da-label">
-            ID
-            <input
-              class="da-id"
-              type="text"
-              placeholder="z. B. HASS-WI-321"
-              aria-describedby="walkin-help"
-            />
-          </label>
+        <div class="da-items">
+          <div class="da-item" data-kind="walkin">
+            <div class="da-grid">
+              <label class="da-label">
+                Preis
+                <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 699,00" aria-describedby="walkin-help" />
+              </label>
+              <label class="da-label">
+                Menge
+                <input class="da-qty" type="number" inputmode="numeric" min="1" step="1" aria-describedby="walkin-help" />
+              </label>
+              <label class="da-label">
+                ID
+                <input class="da-id" type="text" placeholder="z. B. HASS-WI-321" aria-describedby="walkin-help" />
+              </label>
+            </div>
+            <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+          </div>
         </div>
-        <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+
+    
+      </fieldset>
+
+      <!-- Sonderduschabtrennung -->
+      <fieldset class="da-row" data-kind="sonder" aria-describedby="sonder-help">
+        <legend class="da-legend">
+          Sonderduschabtrennung
+          <button type="button" class="da-add" aria-label="Weitere Sonderduschabtrennung hinzufügen">+</button>
+        </legend>
+
+        <div class="da-items">
+          <div class="da-item" data-kind="sonder">
+            <div class="da-grid">
+              <label class="da-label">
+                Preis
+                <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 1.299,00" aria-describedby="sonder-help" />
+              </label>
+              <label class="da-label">
+                Menge
+                <input class="da-qty" type="number" inputmode="numeric" min="1" step="1" aria-describedby="sonder-help" />
+              </label>
+              <label class="da-label">
+                ID
+                <input class="da-id" type="text" placeholder="z. B. HASS-SON-001" aria-describedby="sonder-help" />
+              </label>
+            </div>
+            <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+          </div>
+        </div>
+
+    
+      </fieldset>
+
+      <!-- Shared row template (used by JS to add rows) -->
+      <template id="da-item-template">
+        <div class="da-item">
+          <div class="da-grid">
+            <label class="da-label">
+              Preis
+              <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 799,00" />
+            </label>
+            <label class="da-label">
+              Menge
+              <input class="da-qty" type="number" inputmode="numeric" min="1" step="1" />
+            </label>
+            <label class="da-label">
+              ID
+              <input class="da-id" type="text" placeholder="z. B. HASS-XXX-123" />
+            </label>
+          </div>
+          <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+        </div>
+      </template>
+    </section>
+
+    <!-- Legacy daNetto block (kept, but hidden/unused) -->
+    <div id="legacy-daNetto" hidden>
+      <p>Bitte im Konfigurator den Warenkorb mit dem Kundennamen bezeichnen</p>
+      <div class="field">
+        <label for="daNetto" class="req">Netto Preis Duschabtrennung Hassmann</label>
+        <input
+          id="daNetto"
+          name="daNetto"
+          type="number"
+          inputmode="decimal"
+          min="0"
+          step="0.01"
+          placeholder="z. B. 799.00"
+          required
+        />
       </div>
     </div>
-  </fieldset>
 
-  <!-- Shared row template (used by JS to add rows) -->
-  <template id="da-item-template">
-    <div class="da-item">
-      <div class="da-grid">
-        <label class="da-label">
-          Preis
-          <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 799,00" />
-        </label>
-
-        <label class="da-label">
-          Menge
-          <input class="da-qty" type="number" inputmode="numeric" min="1" step="1" />
-        </label>
-
-        <label class="da-label">
-          ID
-          <input class="da-id" type="text" placeholder="z. B. HASS-XXX-123" />
-        </label>
-      </div>
-      <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+    <div class="actions full">
+      <button type="button" data-nav="prev" class="secondary">Zurück</button>
+      <button type="button" data-nav="next">Weiter</button>
     </div>
-  </template>
+  </form>
 </section>
 
-
-
-
-          <div>
-          <p style="margin: 0 0 6px">
-          Bitte im Konfigurator den Warenkorb mit dem Kundennamen bezeichnen
-        </p>
-          <div class="field" style="max-width: 320px">
-            <label for="daNetto" class="req"
-              >Netto Preis Duschabtrennung Hassmann</label
-            >
-            <input
-              id="daNetto"
-              name="daNetto"
-              type="number"
-              inputmode="decimal"
-              min="0"
-              step="0.01"
-              placeholder="z. B. 799.00"
-              required
-            />
-          </div></div>
-
-          <div class="actions full">
-            <button type="button" data-nav="prev" class="secondary">
-              Zurück
-            </button>
-            <button type="button" data-nav="next">Weiter</button>
-          </div>
-        </form>
-      </section>
+  
 
       <!-- Optional -->
       <section class="card page" id="page-optional" hidden>
