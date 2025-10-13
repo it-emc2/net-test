@@ -1980,7 +1980,19 @@ section.da-quickadd .da-remove:focus-visible {
      <!-- Hassmann Duschsysteme -->
 <section class="card page" id="page-duschabtrennung" hidden>
   <h2>Hassmann Duschsysteme</h2>
-  <iframe src="https://gconlineplus.de" style="width:100%;height:80vh;"></iframe>
+  <section class="card" id="hassmann-embed">
+  <div class="embed-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
+    <div class="title" style="font-weight:600;">Hassmann Duschsysteme (Live)</div>
+    <button id="refreshHassmann" type="button" class="btn small secondary" title="Neu laden">⟲ Aktualisieren</button>
+  </div>
+
+  <iframe
+    id="hassmannFrame"
+    src="https://gconlineplus.de"
+    style="width:100%;height:80vh;border:1px solid var(--border);border-radius:8px;background:#fff;"
+  ></iframe>
+</section>
+
 
 
   <p>

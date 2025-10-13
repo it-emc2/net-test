@@ -3481,6 +3481,24 @@ function initBasinAutoAccessories() {
     }
   }
 }
+function refreshHassmannFrame() {
+  const iframe = document.getElementById('hassmannFrame');
+  if (!iframe) return;
+
+  // Base URL to reload (use data attr if you later change src dynamically)
+  const base = iframe.dataset.src || iframe.getAttribute('src') || 'https://gconlineplus.de';
+
+  // Simple cache-buster so the remote site fully re-renders
+  const bust = (base.includes('?') ? '&' : '?') + '_=' + Date.now();
+
+  // Safari-safe reload: blank, then set URL
+  iframe.src = 'about:blank';
+  setTimeout(() => { iframe.src = base + bust; }, 0);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('refreshHassmann')?.addEventListener('click', refreshHassmannFrame);
+});
 
 function initOptionalMenus() {
   // Map main category checkboxes -> their panels
