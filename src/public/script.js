@@ -3089,7 +3089,8 @@ const euroFmt = (n) =>
     .replace(/\u00A0/g, " ");
 const setRowVisible = (row, on) => {
   if (row) {
-    row.style.display = on ? "contents" : "none";
+     // row.style.display = on ? "contents" : "none";
+      row.style.display = on ? "" : "none";
     row.hidden = !on;
     row.setAttribute("aria-hidden", String(!on));
   }
@@ -3237,6 +3238,14 @@ window.setPricingData = function setPricingData(data) {
     showRow(rowRabatt, hasRabatt);
     showRow(rowTotalAfter, hasRabatt);
     showRow(rowBonusTotal, anyBonus);
+
+    const nothingToShow = !hasRabatt && !anyBonus;
+const emptyNote = document.getElementById('rb-empty-note');
+if (emptyNote) {
+  emptyNote.style.display = nothingToShow ? 'block' : 'none';
+  emptyNote.hidden = !nothingToShow;
+}
+
 
     const rabattAmt = Number(data?.rabattAmount || 0);
     const afterRab = Number(data?.totalAfterRabatt || 0);

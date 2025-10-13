@@ -282,6 +282,7 @@ section.da-quickadd .da-remove:focus-visible {
   margin: 0 0 8px;
 }
 
+
 /* Inputs grid inside each row */
 .da-grid {
   display: grid;
@@ -442,6 +443,10 @@ section.da-quickadd .da-remove:focus-visible {
           padding-inline: 12px;
         }
       }
+      #page-rabatt .card {
+  min-width: 640px;        /* tweak 600–720px to taste */
+  max-width: 860px;        /* optional: if you want a cap */
+}
     </style>
   </head>
   <body>
@@ -3040,6 +3045,19 @@ section.da-quickadd .da-remove:focus-visible {
         <div>Gesamtbetrag</div>  <div id="rb-total">0,00 €</div>
       </div>
     </div>
+    <div id="rb-empty-note" class="muted" style="display:none; margin-top:8px;">
+  Keine Rabatte oder Boni anwendbar.
+</div>
+
+<!-- Width sizer: takes zero height but preserves the same width as the slider row -->
+<div id="rb-width-sizer" aria-hidden="true"
+     style="height:0; overflow:hidden; line-height:0; margin:0; padding:0;">
+  <div style="display:flex; gap:12px; align-items:center; white-space:nowrap;">
+    <span style="display:inline-block; width:12ch;"></span>
+    <input type="range" style="width:420px;">
+    <span style="display:inline-block; width:6ch;"></span>
+  </div>
+</div>
 
     <!-- Rabatt auf Materialkosten (slider/progress) -->
     <div class="full field" style="margin-top:16px;">
@@ -3091,6 +3109,7 @@ section.da-quickadd .da-remove:focus-visible {
         <div>Gesamtbetrag nach bonus</div><div id="rb-bonus-total">0,00 €</div>
       </div>
     </div>
+    
 
     <div class="actions full" style="margin-top:8px;">
       <button type="button" data-nav="prev" class="secondary">Zurück</button>
