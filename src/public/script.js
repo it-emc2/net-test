@@ -310,8 +310,7 @@ document.addEventListener("DOMContentLoaded", stampOfferOnExport);
 
 const laborEl = document.getElementById("laborHours");
 const laborHHMM = (laborEl?.value || "").trim();
-const laborNumeric =
-  typeof hhmmToHours === "function"
+const laborNumeric = typeof hhmmToHours === "function"
     ? Math.max(0, hhmmToHours())  //Math.ceil(laborHHMM * 100) / 100;
     : (() => {
         const m = laborHHMM.match(/^(\d+):([0-5]\d)$/);
@@ -574,8 +573,8 @@ payload.duschwanne.ebenerdigNote = eb ? 'true' : '';
     document.getElementById("totalHoursHHMM")?.textContent?.match(/(\d+:\d{2})/)?.[1] || "";
   payload.bereich.totalHoursNumeric = Number(window.total_hours_numeric || 0);
 
-   payload.bereich.ReiseHoursNumeric = Number(window.reise_hours_numeric || 0);
-     payload.bereich.ArbeitHoursNumeric = Number(window.arbeit_hours_numeric || 0);
+  payload.bereich.ReiseHoursNumeric = Number(window.reise_hours_numeric || 0);
+  payload.bereich.ArbeitHoursNumeric = Number(window.arbeit_hours_numeric || 0);
   payload.bereich.laborHoursHHMM = laborHHMM;
   payload.bereich.laborHoursNumeric = laborNumeric;
 
@@ -701,6 +700,8 @@ async function downloadPDFWithProgress(endpoint, payload, filename) {
 
     clearInterval(timerInterval);
     showPDFProgress("PDF erfolgreich erstellt!", "success");
+    // Save snapshot now that the export succeeded
+await saveFinalOfferSnapshot();
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -2898,6 +2899,97 @@ async function requestPdfAndDownload(payload, filename = "Anfrage.pdf") {
   a.remove();
   URL.revokeObjectURL(url);
 }
+async function restoreConfiguratorFromOffer(offer) {
+  if (!offer?.payload) return;
+
+  const p = offer.payload;
+
+  // small helper
+  const fill = (name, val) => {
+    if (val == null) return;
+    const el = document.querySelector(`[name="${name}"]`) || document.getElementById(name);
+    if (!el) return;
+    if (el.type === 'checkbox') {
+      el.checked = !!val;
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    } else if (el.type === 'radio') {
+      const r = document.querySelector(`[name="${name}"][value="${val}"]`);
+      if (r) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }
+    } else {
+      el.value = String(val);
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  };
+
+  // --- examples (expand as you like) ---
+  fill('firstName', p?.bereich?.firstName);
+  fill('lastName', p?.bereich?.lastName);
+  fill('customerNumber', p?.bereich?.customerNumber);
+  if (p?.bereich?.payer) fill('payer', p.bereich.payer);
+  if (p?.bereich?.aufschlag) fill('aufschlag', p.bereich.aufschlag);
+
+  fill('traySize', p?.duschwanne?.traySize);
+  fill('chosenTrayProductId', p?.duschwanne?.chosenTrayProductId);
+
+  // Optional fields bulk
+  if (p?.optional) {
+    for (const [k, v] of Object.entries(p.optional)) {
+      fill(k, v);
+    }
+  }
+
+  if (offer.pricing) {
+    window.__pricing = offer.pricing;
+    window.setPricingData?.(offer.pricing);
+    window.dispatchEvent(new CustomEvent('pricing:updated', { detail: offer.pricing }));
+  } else {
+    await window.updatePricing?.(p);
+  }
+}
+
+document.getElementById('btnLoadOffer')?.addEventListener('click', async () => {
+  const n = document.getElementById('loadOfferNumber')?.value?.trim();
+  if (!n) return alert('Bitte Angebotsnummer eingeben.');
+  try {
+    const r = await fetch(`/api/offers/${encodeURIComponent(n)}`, { credentials: 'include' });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data?.error || r.status);
+    await restoreConfiguratorFromOffer(data.offer);
+    alert('Angebot geladen.');
+  } catch (e) {
+    alert('Konnte Angebot nicht laden.');
+    console.warn(e);
+  }
+});
+
+// Save a final snapshot after a successful export
+async function saveFinalOfferSnapshot() {
+  try {
+    const offerNumber =
+      document.getElementById('offerNumber')?.value?.trim() ||
+      (typeof genOfferNumber === 'function' ? genOfferNumber() : '');
+
+    if (!offerNumber) return;
+
+    const payload = typeof buildPayload === 'function' ? buildPayload() : {};
+    let pricing = window.__pricing;
+    if (!pricing && typeof window.updatePricing === 'function') {
+      pricing = await window.updatePricing(payload);
+    }
+    if (!pricing) return;
+
+    await fetch('/api/offers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ offerNumber, payload, pricing }),
+    });
+  } catch (e) {
+    console.warn('[saveFinalOfferSnapshot] failed:', e);
+  }
+}
+
 
 document.getElementById("makePdf")?.addEventListener("click", async () => {
   if (!requireBereichValid()) {
@@ -2961,6 +3053,7 @@ async function downloadDocx(url, body, filename) {
   a.download = filename;
   document.body.appendChild(a);
   a.click();
+  await saveFinalOfferSnapshot(); // <-- add this after a.click()
   a.remove();
   URL.revokeObjectURL(urlObj);
 }

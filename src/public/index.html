@@ -556,6 +556,10 @@ section.da-quickadd .da-remove:focus-visible {
     <div class="container">
       <!-- Bereich -->
       <section class="card page" id="page-bereich">
+            <div class="field" style="display:flex; gap:8px; max-width:380px;">
+  <input id="loadOfferNumber" type="text" placeholder="ANG2025-1008-092040" />
+  <button type="button" id="btnLoadOffer" class="secondary">Angebot laden</button>
+</div>
         <div class="section-header">Kontaktdaten des Kunden</div>
         <form id="form-bereich" novalidate>
           <div
@@ -3183,6 +3187,8 @@ section.da-quickadd .da-remove:focus-visible {
          <!-- Kosten-Details -->
       <section class="card page" id="page-kosten" hidden>
         <h2 style="margin: 0 0 12px">Kosten-Details (Debug)</h2>
+    
+
         <p class="muted" style="margin: 0 0 14px">
           Interne Übersicht aller gewählten Positionen mit Mengen, Einzel- und
           Gesamtpreisen. Dient zum Prüfen der Abrechnung.

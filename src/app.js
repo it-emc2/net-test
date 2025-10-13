@@ -7,18 +7,22 @@ import compression from 'compression';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
+import offersRouter from './routes/offers.js';
+
+
 import traysRouter from './routes/trays.js';
 
-// PDF/DOCX routes (unchanged)
+// PDF/DOCX routes
 import { router as pdfRouter } from './routes/pdf.js';
 import pdfTemplateRouter from './routes/pdf-template.js';
 import docxTemplateRouter from './routes/docx-template.js';
 
-// Models (ESM default exports; ensure files export default)
+// Models (ESM default exports)
 import Product from './models/Product.js';
 import Submission from './models/Submission.js';
+import Offer from './models/Offer.js'; // <-- NEW (ESM import)
 
-// Pricing logic (ESM default export -> factory(Product))
+// Pricing logic (factory(Product))
 import pricingFactory from './logic/pricing.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -32,62 +36,42 @@ const MONGODB_DB = process.env.MONGODB_DB || 'KonfiguratorDB';
 
 process.env.PDFJS_DISABLE_WORKER = 'true';
 
-// ---------------- Middleware ----------------
-app.use(helmet({
-  // We’re setting our own CSP below
-  contentSecurityPolicy: {
-    useDefaults: true,
-    directives: {
-      defaultSrc: ["'self'"],
-
-      // ✅ allow embedding gconlineplus in an <iframe>
-      frameSrc: [
-        "'self'",
-        "https://gconlineplus.de",
-        "https://*.gconlineplus.de",
-      ],
-
-      // keep your current script hashes + any CDNs you really need
-      scriptSrc: [
-        "'self'",
-        // your existing hashes:
-        "'sha256-/N6XS1N1HWcS1jcxJkTULItDFffd/I1mw8tPD5FTS3o='",
-        "'sha256-5RmoD/+nJXNc4AM8oTu6YJEmH8lgRnYL9t8PcLUZxcY='",
-        "'sha256-pmi68vLyMeGurqDvTzm+MD6lhDeARWXCNqv7x536RmA='",
-        // (add any script CDNs you truly use)
-      ],
-
-      // if you inline styles anywhere, keep 'unsafe-inline'
-      styleSrc: ["'self'", "'unsafe-inline'"],
-
-      imgSrc: ["'self'", "data:", "blob:"],
-      fontSrc: ["'self'", "data:"],
-      connectSrc: [
-        "'self'",
-        // allow your API origin(s) if different (add more as needed)
-      ],
-      objectSrc: ["'none'"],
-      baseUri: ["'self'"],
-      frameAncestors: ["'self'"], // who may embed *your* app (safe default)
-      upgradeInsecureRequests: null, // keep null to avoid forcing http->https in dev
+// ---------------- Helmet / CSP ----------------
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        defaultSrc: ["'self'"],
+        frameSrc: ["'self'", "https://gconlineplus.de", "https://*.gconlineplus.de"],
+        scriptSrc: [
+          "'self'",
+          // keep your hashes:
+          "'sha256-/N6XS1N1HWcS1jcxJkTULItDFffd/I1mw8tPD5FTS3o='",
+          "'sha256-5RmoD/+nJXNc4AM8oTu6YJEmH8lgRnYL9t8PcLUZxcY='",
+          "'sha256-pmi68vLyMeGurqDvTzm+MD6lhDeARWXCNqv7x536RmA='",
+        ],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "blob:"],
+        fontSrc: ["'self'", "data:"],
+        connectSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        frameAncestors: ["'self'"],
+        upgradeInsecureRequests: null,
+      },
     },
-  },
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+  })
+);
 
-  // (optional) some Helmet sub-policies can block older embeds; keep defaults:
-  crossOriginEmbedderPolicy: false,
-  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
-}));
-
-
-
-
-// Trust proxy because ngrok is a reverse proxy
+// Trust proxy (Fly/ngrok)
 app.set('trust proxy', 1);
 
-// Dynamic CORS allowing localhost and any HTTPS subdomain of ngrok-free.app
+// ---------------- CORS ----------------
 const allowedExact = new Set([
   'https://angebotskonfiguratoremc2.fly.dev',
-  //  'https://<YOUR-FLY-APP>.fly.dev', 
   'http://localhost:3000',
   'http://127.0.0.1:3000',
   'http://localhost:5173',
@@ -95,12 +79,10 @@ const allowedExact = new Set([
 ]);
 
 function isAllowedOrigin(origin) {
-  if (!origin) return true; // allow same-origin/no Origin (curl, Postman)
+  if (!origin) return true;
   if (allowedExact.has(origin)) return true;
-
   try {
     const u = new URL(origin);
-    // Allow any HTTPS origin on ngrok-free.app (any subdomain)
     if (
       u.protocol === 'https:' &&
       (u.hostname === 'ngrok-free.app' || u.hostname.endsWith('.ngrok-free.app'))
@@ -123,7 +105,7 @@ app.use(
   })
 );
 
-// Handle preflight for all routes
+// Preflight
 app.options(
   /.*/,
   cors({
@@ -135,39 +117,39 @@ app.options(
   })
 );
 
+// ---------------- Common middleware ----------------
 app.use(compression());
 app.use(morgan('dev'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: '10mb' }));
 
-// ----- MongoDB connect -----
+// ---------------- Mongo ----------------
 mongoose.set('strictQuery', true);
 
 if (!MONGODB_URI) {
   console.error('Missing MONGODB_URI. Set it in .env');
   process.exit(1);
 }
-
 await mongoose.connect(MONGODB_URI, { dbName: MONGODB_DB });
 console.log('MongoDB connected ->', MONGODB_DB);
 
-// ----- Business logic -----
+// ---------------- Business logic ----------------
 const pricing = pricingFactory(Product);
 
+// ---------------- Routers ----------------
 app.use('/api/trays', traysRouter);
-// ----- Existing routes (PDF/DOCX) -----
 app.use('/pdf', pdfRouter);
 app.use('/pdf-template', pdfTemplateRouter);
 app.use('/docx-template', docxTemplateRouter);
 app.use('/material-overview', docxTemplateRouter);
+app.use('/api/offers', offersRouter);
 
-
-// ----- New API: health -----
+// ---------------- Health ----------------
 app.get('/api/health', (req, res) =>
   res.json({ ok: true, db: MONGODB_DB, time: new Date().toISOString() })
 );
 
-// ----- New API: Products -----
+// ---------------- Products APIs ----------------
 
 // Bulk upsert products: [{ productId, name, price }]
 app.post('/api/products/bulk', async (req, res) => {
@@ -190,24 +172,25 @@ app.post('/api/products/bulk', async (req, res) => {
     res.status(500).json({ error: String(err) });
   }
 });
-// --- ADD THIS ABOVE the :id route ---
+
+// SLA list (debug/helper)
 app.get('/api/products/sla', async (req, res) => {
   try {
     const docs = await Product.find(
       { productId: /^SLA/i },
       { productId: 1, name: 1, widthCm: 1, lengthCm: 1, heightCm: 1, price: 1 }
     )
-    .sort({ lengthCm: 1, widthCm: 1, heightCm: 1 })
-    .lean();
+      .sort({ lengthCm: 1, widthCm: 1, heightCm: 1 })
+      .lean();
 
-    return res.json(docs); // return [] if none
+    return res.json(docs);
   } catch (e) {
     console.error('GET /api/products/sla failed:', e);
     res.status(500).json({ error: 'server error' });
   }
 });
 
-// Keep this AFTER the /sla route
+// Single product by productId
 app.get('/api/products/:id', async (req, res) => {
   try {
     const p = await Product.findOne({ productId: req.params.id }).lean();
@@ -219,20 +202,7 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
-// Get single product by Hersteller productId
-app.get('/api/products/:id', async (req, res) => {
-  try {
-    const p = await Product.findOne({ productId: req.params.id }).lean();
-    if (!p) return res.status(404).json({ error: 'Not found' });
-    res.json(p);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: String(err) });
-  }
-});
-
-
-// ----- New API: Pricing (does not save) -----
+// ---------------- Pricing (stateless) ----------------
 app.post('/api/price', async (req, res) => {
   try {
     const payload = req.body;
@@ -244,7 +214,7 @@ app.post('/api/price', async (req, res) => {
   }
 });
 
-// ----- New API: Submissions (save + computed) -----
+// ---------------- Submissions (legacy) ----------------
 app.post('/api/submissions', async (req, res) => {
   try {
     const payload = req.body;
@@ -257,44 +227,20 @@ app.post('/api/submissions', async (req, res) => {
   }
 });
 
-// Legacy health (kept)
+// ---------------- Health (legacy) ----------------
 app.get('/health', (req, res) =>
   res.json({ ok: true, time: new Date().toISOString() })
 );
-// Static assets
+
+// ---------------- Static ----------------
 app.use(express.static(path.join(__dirname, 'public')));
 
-// List all SLA products with dimensions (debug utility)
-
-
-
-// SPA fallback (keep this last)
+// ---------------- SPA fallback (keep LAST) ----------------
 app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-
-// Simple echo submit (kept)
-app.post('/submit', (req, res) => {
-  const payload = {
-    receivedAt: new Date().toISOString(),
-    ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
-    userAgent: req.headers['user-agent'],
-    contentType: req.headers['content-type'],
-    body: req.body,
-  };
-  res.status(201).json(payload);
-});
-
-// Fallback to SPA index.html
-// Express 5 + path-to-regexp v8: use a RegExp catch-all instead of "*"
-app.get(/.*/, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-
-
-
+// ---------------- Listen ----------------
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
   console.log('Mounted: POST /pdf-template');
@@ -303,4 +249,6 @@ app.listen(PORT, () => {
   console.log('Mounted: GET  /api/products/:id');
   console.log('Mounted: POST /api/price');
   console.log('Mounted: POST /api/submissions');
+  console.log('Mounted: POST /api/offers/save');
+  console.log('Mounted: GET  /api/offers/:offerNumber');
 });
