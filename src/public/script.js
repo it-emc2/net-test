@@ -2236,6 +2236,17 @@ document
       </div>
     `;
   }
+// UI-only: if a Duschabtrennung (Hassmann) quick-add has a user ID,
+// show it in the Kosten-Details label. Do NOT affect server, DOCX, or PDF.
+function decorateDALabel(line) {
+  const pid  = String(line.productId || line.id || '').trim();
+  const base = (line.label ? line.label : (line.name || pid || '-'));
+  // Show the ID only for Hassmann quick-add lines, and only if it's not our generic fallback "HASS_*"
+  if (pid && !/^HASS_/i.test(pid) && /Hassmann/i.test(base)) {
+    return `${base} [${pid}]`;
+  }
+  return base;
+}
 
 function listLines(lines) {
   if (!Array.isArray(lines) || !lines.length)
@@ -2253,7 +2264,7 @@ function listLines(lines) {
       return `<div style="grid-column:1 / -1; font-weight:700; margin:8px 0 2px;">${l.label}</div>`;
     }
     return `
-      <div>${l.label ? l.label : l.name || l.productId || "-"}</div>
+      <div>${decorateDALabel(l)}</div>
       <div style="text-align:right">${l.qty ?? 1}</div>
       <div style="text-align:right">${euroC(l.unitPrice ?? 0)}</div>
       <div style="text-align:right; font-weight:600">${euroC(l.lineTotal ?? 0)}</div>
