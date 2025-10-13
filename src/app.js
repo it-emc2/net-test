@@ -35,16 +35,28 @@ process.env.PDFJS_DISABLE_WORKER = 'true';
 // ---------------- Middleware ----------------
 app.use(helmet({
   contentSecurityPolicy: {
+    useDefaults: true,
     directives: {
-      scriptSrc: [
-        "'self'", 
+      // keep your existing script hashes here:
+      "script-src": [
+        "'self'",
         "'sha256-/N6XS1N1HWcS1jcxJkTULItDFffd/I1mw8tPD5FTS3o='",
         "'sha256-5RmoD/+nJXNc4AM8oTu6YJEmH8lgRnYL9t8PcLUZxcY='",
         "'sha256-pmi68vLyMeGurqDvTzm+MD6lhDeARWXCNqv7x536RmA='"
       ],
-    },
-  },
+      // allow your existing inline styles / loaded CSS (adjust if you use a CDN)
+      "style-src": ["'self'", "'unsafe-inline'"],
+      // allow local + data: fonts; add a CDN here if you load fonts from one
+      "font-src": ["'self'", "data:"],
+      // typical safe allowances for images (adjust if you need a CDN)
+      "img-src": ["'self'", "data:", "blob:"],
+      // the only thing we need for the iframe:
+      "frame-src": ["'self'", "https://gconlineplus.de", "https://*.gconlineplus.de"]
+    }
+  }
 }));
+
+
 
 // Trust proxy because ngrok is a reverse proxy
 app.set('trust proxy', 1);
