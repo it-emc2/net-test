@@ -1,3 +1,5 @@
+// top-level (once)
+window.__restoring = false;
 
 function euroC(n) {
   return (Number(n)||0)
@@ -7,6 +9,22 @@ function euroC(n) {
 
 
 // ---- RESTORE HELPERS ----
+function restoreBudgetPanel(bereich) {
+  if (!bereich) return;
+  const txt = String(bereich.budgetOptionsPanel || '').toUpperCase();
+
+  const elMax = document.querySelector('input[name="budgetMax"]');
+  const elCop = document.querySelector('input[name="budgetCopay"]');
+  const elTwo = document.querySelector('input[name="twoPersons"]');
+  const copay = document.getElementById('copayAmount');
+
+  if (elMax) elMax.checked = /4180.*MAX/.test(txt);
+  if (elCop) elCop.checked = /4180.*(ZUZ|COPAY)/.test(txt);
+  if (elTwo) elTwo.checked = /(ZWEI|8360)/.test(txt);
+
+  if (copay) copay.value = (bereich.copayAmount ?? '') + '';
+}
+
 function setRadio(name, value) {
   if (value == null) return;
   const r = document.querySelector(`input[type="radio"][name="${name}"][value="${value}"]`);
@@ -2552,29 +2570,34 @@ const svcCard = `
 }
 
 
-window.refreshAllPanels = function refreshAllPanels() {
-  const payload = collectAllFormData();
-  fetch('/api/price', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  })
-  .then(r => r.json())
-  .then(data => {
+window.refreshAllPanels = async function refreshAllPanels() {
+  try {
+    const payload = collectAllFormData();
+    const r = await fetch('/api/price', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await r.json();
+
     window.lastComputed = data;
+
     // Rabatt
     if (typeof renderRabatt === 'function') {
       renderRabatt(data);
     } else if (typeof window.setPricingData === 'function') {
       window.setPricingData(data);
     }
-    // Kosten-Details
+
+    // Kosten-Details (renderFromData is async)
     if (typeof renderFromData === 'function') {
-      renderFromData(data);
+      await renderFromData(data);
     }
-  })
-  .catch(console.error);
-}
+  } catch (err) {
+    console.error(err);
+  }
+};
+
 // call this whenever those panels become visible (no reload needed)
 document.getElementById('nav-rabatt')?.addEventListener('click', refreshAllPanels);
 document.getElementById('nav-debug') ?.addEventListener('click', refreshAllPanels);
@@ -3197,6 +3220,8 @@ function restoreRabatt(r) {
 
 // Call this with the full document returned by GET /api/offers/:offerNumber
 async function restoreConfiguratorFromOffer(doc) {
+  window.__restoring = true;
+  try {
   const offer = doc?.offer || doc; // accept either shape
   const p = offer?.payload;
   if (!p) return;
@@ -3232,6 +3257,7 @@ async function restoreConfiguratorFromOffer(doc) {
   // internals
   setByNameOrId('emc2_contact', p?.bereich?.emc2_contact);
   setRadio('payer', p?.bereich?.payer);
+  restoreBudgetPanel(p?.bereich);
   setRadio('aufschlag', p?.bereich?.aufschlag);
 
   // ★ trigger dependent Bereich logic now (shows budget / WE panels, etc.)
@@ -3258,7 +3284,7 @@ async function restoreConfiguratorFromOffer(doc) {
   setByNameOrId('trayColor', p?.duschwanne?.trayColor);
   setSelect('abdichtSet', p?.duschwanne?.abdichtSet);
   setSelect('drainSet', p?.duschwanne?.drainSet);
-  setSelect('smallMaterial', p?.duschwanne?.smallMaterial);
+  setByNameOrId('smallMaterial', p?.duschwanne?.smallMaterial);
   setSelect('stelzlager', p?.duschwanne?.stelzlager);
 
   restoreTraySelection(p?.duschwanne);
@@ -3393,6 +3419,9 @@ async function restoreConfiguratorFromOffer(doc) {
       ?.dispatchEvent(new Event('change', { bubbles: true }));
     document.getElementById('rb-bonus-grab')
       ?.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+}finally {
+    window.__restoring = false;
   }
 }
 
@@ -3856,9 +3885,9 @@ if (emptyNote) {
   function apply() {
     const allow = isKK() && isAufschlag50();
     show(sec, allow);
-    if (!allow) {
+    if (!allow || window.__restoring) {
       const cur = parseFloat(elDiscount.value || "0") || 0;
-      if (cur !== 0) {
+      if (!window.__restoring && cur !== 0) {
         elDiscount.value = "0";
         if (elDiscountVal) elDiscountVal.textContent = "0.0%";
         window.updatePricing?.();
@@ -4234,7 +4263,10 @@ function initLivePricingSync() {
 
 
   // Single delegated listener covers ALL inputs/checkboxes/selects in the app
-  const handler = () => debounce(repriceNow, 180);
+  const handler = () => {
+  if (window.__restoring) return;   // ← don’t spam while restoring
+   debounce(repriceNow, 180);
+ };
   watchRoot.addEventListener('input', handler, true);
   watchRoot.addEventListener('change', handler, true);
 
