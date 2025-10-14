@@ -1,3 +1,58 @@
+ // the toast helper
+function ntToast(type, title, message, {duration = 3600, withBackdrop = true} = {}) {
+  const host = document.getElementById('nt-toaster');
+  const backdrop = document.getElementById('nt-toast-backdrop');
+
+  // Fallback if container missing
+  if (!host) return alert([title, message].filter(Boolean).join('\n'));
+
+  // Ensure strings
+  const safeTitle = String(title ?? '');
+  const safeMsg   = String(message ?? '');
+
+  const el = document.createElement('div');
+  el.className = `nt-toast ${type||'info'}`;
+  el.innerHTML = `
+    <div class="nt-title">${safeTitle}</div>
+    <button class="nt-close" aria-label="Schließen">×</button>
+    ${safeMsg ? `<div class="nt-msg">${safeMsg}</div>` : ''}
+  `;
+  host.appendChild(el);
+
+  // Backdrop
+  if (withBackdrop && backdrop) {
+    backdrop.hidden = false;
+    requestAnimationFrame(() => {
+      backdrop.style.opacity = '1';
+      backdrop.style.pointerEvents = 'auto';
+    });
+  }
+
+  // enter animation
+  requestAnimationFrame(() => el.classList.add('show'));
+
+  const close = () => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 180);
+    if (withBackdrop && backdrop) {
+      backdrop.style.opacity = '0';
+      backdrop.style.pointerEvents = 'none';
+      setTimeout(() => { backdrop.hidden = true; }, 180);
+    }
+  };
+
+  el.querySelector('.nt-close')?.addEventListener('click', close);
+  if (duration > 0) setTimeout(close, duration);
+}
+
+const toast = {
+  success: (t, m, opts) => ntToast('success', t, m, opts),
+  error:   (t, m, opts) => ntToast('error',   t, m, opts),
+  info:    (t, m, opts) => ntToast('info',    t, m, opts),
+  warn:    (t, m, opts) => ntToast('warn',    t, m, opts),
+};
+
+
 // top-level (once)
 window.__restoring = false;
 
@@ -3532,20 +3587,65 @@ restoreTraySelection(p?.duschwanne);
 
 
 
-document.getElementById('btnLoadOffer')?.addEventListener('click', async () => {
-  const n = document.getElementById('loadOfferNumber')?.value?.trim();
-  if (!n) return alert('Bitte Angebotsnummer eingeben.');
+document.getElementById('btnLoadOffer')?.addEventListener('click', async (ev) => {
+  const btn = ev.currentTarget;
+  const input = document.getElementById('loadOfferNumber');
+  const n = input?.value?.trim();
+
+  // Validate
+  if (!n) {
+    toast.warn('Eingabe fehlt', 'Bitte Angebotsnummer eingeben.');
+    input?.focus();
+    return;
+  }
+  // (Optional) quick format hint: ANGYYYY-MMDD-HHmmss
+  // if (!/^ANG\d{4}-\d{4}-\d{6}$/.test(n)) {
+  //   toast.info('Format prüfen', 'Die Angebotsnummer wirkt ungewöhnlich.');
+  // }
+
+  // Loading state
+  const prev = btn?.textContent;
+  if (btn) { btn.disabled = true; btn.textContent = 'Lädt…'; }
+
   try {
     const r = await fetch(`/api/offers/${encodeURIComponent(n)}`, { credentials: 'include' });
+
+    if (r.status === 404) {
+      toast.error('Nicht gefunden', `Kein Angebot mit der Nummer <b>${n}</b> vorhanden.`);
+      input?.focus();
+      input?.select?.();
+      return;
+    }
+
+    // Other non-OK
+    if (!r.ok) {
+      let msg = '';
+      try { const j = await r.json(); msg = j?.error || ''; } catch {}
+      toast.error('Nicht gefunden', `Kein Angebot mit der Nummer <b>${n}</b> vorhanden.`, { withBackdrop: true });
+
+      return;
+    }
+
     const data = await r.json();
-    if (!r.ok) throw new Error(data?.error || r.status);
+
+    // Restore UI
     await restoreConfiguratorFromOffer(data);
-    alert('Angebot geladen.');
+
+    // Success toast
+    const who = data?.offer?.payload?.bereich?.firstName && data?.offer?.payload?.bereich?.lastName
+      ? `für ${data.offer.payload.bereich.firstName} ${data.offer.payload.bereich.lastName}`
+      : '';
+    toast.success('Angebot geladen', `Nummer <b>${n}</b>`, { withBackdrop: true });
+
+
   } catch (e) {
-    alert('Konnte Angebot nicht laden.');
     console.warn(e);
+    toast.error('Netzwerkfehler', 'Bitte Internetverbindung prüfen und erneut versuchen.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = prev || 'Angebot laden'; }
   }
 });
+
 
 
 // Save a final snapshot after a successful export

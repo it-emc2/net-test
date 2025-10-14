@@ -38,6 +38,126 @@
   width: 90px;
   margin-left: 10px;
 }
+/* Backdrop (dim the page while the toast is in the center) */
+/* Backdrop (dim the page while the toast is in the center) */
+#nt-toast-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.28);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease;
+  z-index: 9998;
+}
+
+/* Centered container */
+#nt-toaster {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 9999;
+  pointer-events: none; /* clicks pass through except on the toast box itself */
+}
+
+/* Toast card */
+.nt-toast {
+  pointer-events: auto;
+  min-width: 340px;
+  max-width: min(92vw, 560px);
+  border-radius: 14px;
+  border: 1px solid transparent;
+  box-shadow: 0 20px 45px rgba(0,0,0,.25);
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 12px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .18s ease, transform .18s ease, border-color .18s ease, background .18s ease, color .18s ease;
+}
+
+/* Light theme defaults */
+:root:not([data-theme="dark"]) .nt-toast {
+  background: #ffffff;
+  color: #111827; /* near-black */
+  border-color: #e5e7eb;
+}
+
+/* Dark theme */
+:root[data-theme="dark"] .nt-toast {
+  background: #111827; /* slate-900-ish */
+  color: #f9fafb;      /* near-white */
+  border-color: rgba(255,255,255,.12);
+}
+
+.nt-toast.show { opacity: 1; transform: translateY(0); }
+
+.nt-toast .nt-title { font-weight: 700; font-size: 15px; }
+.nt-toast .nt-msg   { grid-column: 1 / -1; opacity: .92; font-size: 14px; }
+
+/* Type accents just change border color (kept subtle) */
+.nt-toast.success { border-color: #10b981; } /* emerald */
+.nt-toast.error   { border-color: #ef4444; } /* red */
+.nt-toast.info    { border-color: #3b82f6; } /* blue */
+.nt-toast.warn    { border-color: #f59e0b; } /* amber */
+
+.nt-toast .nt-close {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: .65;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+.nt-toast .nt-close:hover { opacity: 1; }
+/* Strong, colored borders + inner ring for visibility */
+.nt-toast { 
+  position: relative;
+  border-width: 1px; /* thicker border so the color reads */
+}
+
+/* success = green */
+.nt-toast.success {
+  --nt-accent: #10b981;
+  border-color: var(--nt-accent) !important;
+  box-shadow:
+    0 20px 45px rgba(0,0,0,.25),            /* existing elevation */
+    0 0 0 1px var(--nt-accent) inset;       /* inner ring = clear color cue */
+}
+
+/* error = red */
+.nt-toast.error {
+  --nt-accent: #ef4444;
+  border-color: var(--nt-accent) !important;
+  box-shadow:
+    0 20px 45px rgba(0,0,0,.25),
+    0 0 0 1px var(--nt-accent) inset;
+}
+
+/* info = blue */
+.nt-toast.info {
+  --nt-accent: #3b82f6;
+  border-color: var(--nt-accent) !important;
+  box-shadow:
+    0 20px 45px rgba(0,0,0,.25),
+    0 0 0 1px var(--nt-accent) inset;
+}
+
+/* warn = amber */
+.nt-toast.warn {
+  --nt-accent: #f59e0b;
+  border-color: var(--nt-accent) !important;
+  box-shadow:
+    0 20px 45px rgba(0,0,0,.25),
+    0 0 0 1px var(--nt-accent) inset;
+}
+
 
       .app {
         display: grid;
@@ -3335,6 +3455,10 @@ section.da-quickadd .da-remove:focus-visible {
 </section>
     </div>
 
+
+
+<div id="nt-toast-backdrop" hidden></div>
+<div id="nt-toaster" aria-live="polite" aria-atomic="true"></div>
 
 
     
