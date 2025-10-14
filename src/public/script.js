@@ -3753,6 +3753,21 @@ document
 
 /* ========== RABATT SECTION (UI bound to server data) ========== */
 const elDiscount = document.getElementById("rb-material-discount");
+// -- BEGIN: bonus-300 first-click fix helpers --
+const __rbGuard = { applying: false };
+
+async function __recalcRabattNow() {
+  if (__rbGuard.applying) return;          // prevent loops
+  __rbGuard.applying = true;
+  try {
+    await window.updatePricing?.();         // single source of truth
+  } finally {
+    __rbGuard.applying = false;
+  }
+}
+// -- END: bonus-300 first-click fix helpers --
+
+
 const elDiscountVal = document.getElementById("rb-material-discount-val");
 const rowRabatt = document.getElementById("rb-rabatt-row");
 const rowTotalAfter = document.getElementById("rb-total-after-row");
@@ -3813,8 +3828,22 @@ async function __recalcRabattNow() {
   }
 }
 
-document.getElementById("rb-bonus-300")
-  ?.addEventListener("change", () => queueMicrotask(__recalcRabattNow));
+document.getElementById("rb-bonus-300")?.addEventListener("change", async () => {
+  const cb = document.getElementById("rb-bonus-300");
+  if (!cb) return;
+
+  const want = !!cb.checked;           // what the user asked for
+
+  // phase 1: recompute once with the new payload
+  await __recalcRabattNow();
+
+  // renderer may have toggled visibility or state; enforce user's intent
+  if (cb.checked !== want) cb.checked = want;
+
+  // phase 2: recompute again so totals reflect the final state immediately
+  await __recalcRabattNow();
+});
+
 
 document.getElementById("rb-bonus-grab")
   ?.addEventListener("change", () => queueMicrotask(__recalcRabattNow));
@@ -3883,25 +3912,29 @@ window.setPricingData = function setPricingData(data) {
     );
 
     // Show/hide 300€ bonus based on threshold (after rab.)
-    (function gateBonus300() {
-      const afterRab = Number(data?.totalAfterRabatt || 0);
-      const cb300 = byId("rb-bonus-300");
-      const wrap =
-        document.getElementById("rb-bonus-300-row") ||
-        cb300?.closest("label.radio-pill") ||
-        cb300?.parentElement ||
-        null;
-      const shouldShow = afterRab > 3000;
-      if (wrap) {
-        wrap.style.display = shouldShow ? "" : "none";
-        wrap.hidden = !shouldShow;
-        wrap.setAttribute("aria-hidden", String(!shouldShow));
-      }
-      if (!shouldShow && cb300?.checked) {
-        cb300.checked = false;
-        cb300.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-    })();
+  (function gateBonus300() {
+  const afterRab = Number(data?.totalAfterRabatt || 0);
+  const cb300 = document.getElementById("rb-bonus-300");
+  const row =
+    document.getElementById("rb-bonus-300-row") ||
+    cb300?.closest("label.radio-pill") ||
+    cb300?.parentElement ||
+    null;
+
+  const shouldShow = afterRab > 3000;
+
+  if (row) {
+    row.style.display = shouldShow ? "" : "none";
+    row.hidden = !shouldShow;
+    row.setAttribute("aria-hidden", String(!shouldShow));
+  }
+
+  // If ineligible, clear silently (no 'change' dispatch → no race)
+  if (!shouldShow && cb300 && cb300.checked) {
+    cb300.checked = false;
+  }
+})();
+
 
     let sliderPct = parseFloat(elDiscount?.value || "0");
     if (!Number.isFinite(sliderPct))
