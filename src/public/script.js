@@ -623,10 +623,7 @@ function buildPayload() {
       const dw = (payload.duschwanne ||= {});
 
       if (dwTasks.length) {
-        const eb = document.getElementById('ebenerdigeToggle')?.checked;
-if (!payload.duschwanne) payload.duschwanne = {};
-payload.duschwanne.ebenerdigNote = eb ? 'true' : '';
-        dw.workTasks = dwTasks; // canonical key the server normalizer reads
+       dw.workTasks = dwTasks;
       } else {
         // Fallback: if serializer stored a single string under a weird key, normalize to array
         const weird = dw["duschwanne[workTasks][]"];
@@ -720,10 +717,12 @@ payload.duschwanne.ebenerdigNote = eb ? 'true' : '';
 
   // --- Attach Duschwanne selection from DOM (if present) ---
   {
+    const eb = !!document.getElementById('ebenerdigeToggle')?.checked;
     const pid = document.getElementById("chosenTrayProductId")?.value?.trim();
     const size = document.getElementById("traySize")?.value?.trim();
 
     const dw = payload.duschwanne || (payload.duschwanne = {});
+    dw.ebenerdigeMontage = eb; 
     if (pid) dw.chosenTrayProductId = pid;
     if (size) dw.traySize = size;
   }
@@ -3318,6 +3317,8 @@ setHiddenById('traySize', p?.duschwanne?.traySize);
 
 // Color is typically a radio/tile; keep as-is:
 setByNameOrId('trayColor', p?.duschwanne?.trayColor);
+ // ebenerdige Montage toggle (checkbox)
+ setCheckbox('ebenerdigeToggle', !!p?.duschwanne?.ebenerdigeMontage);
 
 // Restore the 4 dependency toggles as *checkboxes*, not selects:
  setCheckbox('abdichtSet',   !!p?.duschwanne?.abdichtSet);
@@ -3795,12 +3796,29 @@ elDiscount?.addEventListener("input", () => {
 });
 
 // Bonuses recompute totals
-document
-  .getElementById("rb-bonus-300")
-  ?.addEventListener("change", () => window.updatePricing?.());
-document
-  .getElementById("rb-bonus-grab")
-  ?.addEventListener("change", () => window.updatePricing?.());
+// ---- one-and-done reliable recompute for bonus toggles ----
+async function __recalcRabattNow() {
+  try {
+    const pl = (typeof buildPayload === 'function') ? buildPayload() : null;
+    if (!pl) return;
+    await window.updatePricing?.(pl);                 // recompute with the current payload
+    if (typeof window.refreshAllPanels === 'function') {
+      await window.refreshAllPanels();                // repaint Rabatt/Kosten deterministically
+    } else if (typeof window.setPricingData === 'function' && window.__pricing) {
+      window.setPricingData(window.__pricing);
+      window.dispatchEvent(new CustomEvent('pricing:updated', { detail: window.__pricing }));
+    }
+  } catch (e) {
+    console.warn('[rabatt] recompute failed', e);
+  }
+}
+
+document.getElementById("rb-bonus-300")
+  ?.addEventListener("change", () => queueMicrotask(__recalcRabattNow));
+
+document.getElementById("rb-bonus-grab")
+  ?.addEventListener("change", () => queueMicrotask(__recalcRabattNow));
+
 
 // Fill labels from server
 window.setPricingData = function setPricingData(data) {
