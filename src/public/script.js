@@ -55,12 +55,8 @@ const toast = {
 
 // top-level (once)
 window.__restoring = false;
+window.__RESTORING__ = false;
 
-function euroC(n) {
-  return (Number(n)||0)
-    .toLocaleString("de-DE", { style: "currency", currency: "EUR" })
-    .replace(/\u00A0/g, " ");
-}
 
 
 // ---- RESTORE HELPERS ----
@@ -119,6 +115,144 @@ function setHiddenById(id, value) {
   el.value = value == null ? '' : String(value);
   // no events on purpose
 }
+function ensureTrinitySealingSelectedFromPayload(dw) {
+  // must have an array with a value including TRBDSET7
+  const chosen = Array.isArray(dw?.floorSealing) ? dw.floorSealing : [];
+  const hasTRBD = chosen.some(s => String(s || '').includes('TRBDSET7'));
+  if (!hasTRBD) return;
+
+  const toggle = document.getElementById('addFlooring');
+  const tile   = document.getElementById('tile_TRBDSET7');
+  const input  = tile?.querySelector('input[type="checkbox"][name="floorSealing[]"]');
+
+  const selectNow = () => {
+    if (!input) return;
+
+    // 1) make sure the section is open
+    if (toggle && !toggle.checked) {
+      toggle.checked = true;
+      toggle.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    // 2) actually tick the TRBDSET7 tile
+    if (!input.checked) {
+      input.checked = true;
+      // keep the picture tile UI in sync
+      if (typeof highlightTileForInput === 'function') {
+        highlightTileForInput(input, true);
+      }
+      // persist “on” so future loads keep it checked
+      try { localStorage.setItem('dw_floor_sealing', '1'); } catch {}
+      // notify any listeners that rely on change
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  };
+
+  // Run it on the next tick, then once more after the flooring apply() likely ran
+  queueMicrotask(selectNow);
+  setTimeout(selectNow, 0);
+}
+
+function restoreTrinnityFloorSealing(dw) {
+  if (!dw) return;
+
+  const chosen = Array.isArray(dw.floorSealing) ? dw.floorSealing : [];
+  const hasTRBD = chosen.some(s => String(s || '').includes('TRBDSET7'));
+  if (!hasTRBD) return;
+
+  const form   = document.getElementById('form-duschwanne');
+  const toggle = document.getElementById('addFlooring');
+  const tile   = document.getElementById('tile_TRBDSET7');
+  const input  = tile?.querySelector('input[type="checkbox"][name="floorSealing[]"]');
+
+  // 1) open the panel if needed
+  if (toggle && !toggle.checked) {
+    toggle.checked = true;
+    toggle.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  // 2) tick the tile’s checkbox
+  if (input && !input.checked) {
+    input.checked = true;
+    // keep the picture tile UI in sync
+    if (typeof highlightTileForInput === 'function') highlightTileForInput(input, true);
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  // 3) make sure pricing/UI reflect it immediately
+  if (typeof window.updatePricing === 'function') window.updatePricing();
+}
+
+function restoreFlooringSelections(dw) {
+  if (!dw) return;
+  const f = document.getElementById('form-duschwanne');
+  if (!f) return;
+
+  // Normalize a stored entry like "TRINNITY Bodenabdichtung TRBDSET7" → "TRBDSET7"
+  const extractPid = (s) => {
+    const m = String(s || '').match(/([A-Z0-9]{5,})\s*$/);
+    return m ? m[1] : '';
+  };
+
+  // Tick a checkbox by either exact value or by productId found at end
+  const checkByValueOrPid = (name, raw) => {
+    const val = String(raw || '');
+    const pid = extractPid(val);
+
+    let input = f.querySelector(`input[name="${name}"][value="${CSS?.escape ? CSS.escape(val) : val}"]`);
+    if (!input && pid) {
+      input = f.querySelector(`input[name="${name}"][value="${CSS?.escape ? CSS.escape(pid) : pid}"]`);
+    }
+    if (!input && val) {
+      // Last resort: match by label text
+      const candidates = f.querySelectorAll(`input[name="${name}"]`);
+      for (const i of candidates) {
+        const lbl = i.closest('label');
+        const text = (lbl?.textContent || '').trim();
+        if (text.includes(val) || (pid && text.includes(pid))) { input = i; break; }
+      }
+    }
+
+    if (input) {
+      input.checked = true;
+      // keep tile UI in sync
+      if (typeof highlightTileForInput === 'function') {
+        highlightTileForInput(input, true);
+      }
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    }
+    return false;
+  };
+
+  const arr = {
+    'flooringProduct[]': Array.isArray(dw.flooringProduct) ? dw.flooringProduct : [],
+    'floorAdhesive[]'  : Array.isArray(dw.floorAdhesive)   ? dw.floorAdhesive   : [],
+    'floorSealing[]'   : Array.isArray(dw.floorSealing)    ? dw.floorSealing    : [],
+  };
+
+  const anyFlooringChosen = Object.values(arr).some(a => a && a.length);
+
+  // Ensure the panel is open if something was chosen in the DB
+  if (anyFlooringChosen) {
+    const toggle = document.getElementById('addFlooring');
+    if (toggle && !toggle.checked) {
+      toggle.checked = true;
+      toggle.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+
+  // Apply each saved selection (this will re-check TRINNITY/TRBDSET7 too)
+  Object.entries(arr).forEach(([name, list]) => {
+    list.forEach(val => checkByValueOrPid(name, val));
+  });
+
+  // Keep totals consistent
+  if (typeof window.updatePricing === 'function') {
+    window.updatePricing();
+  }
+}
+
 
 
 function setByNameOrId(nameOrId, value) {
@@ -694,6 +828,33 @@ function buildPayload() {
   } catch (e) {
     console.warn("[buildPayload] workTasks normalization failed:", e);
   }
+
+  // ---- DUSCHWANNE: ensure multi-select arrays are captured ----
+try {
+  const formDW = document.getElementById("form-duschwanne");
+  if (formDW) {
+    const fdDW = new FormData(formDW);
+
+    const getAllVals = (name) => fdDW.getAll(name).map(v => String(v));
+
+    // Persist true arrays (not last value)
+    const flooringProduct = getAllVals("flooringProduct[]");
+    const floorAdhesive   = getAllVals("floorAdhesive[]");
+    const floorSealing    = getAllVals("floorSealing[]");
+
+    payload.duschwanne = payload.duschwanne || {};
+    if (flooringProduct.length) payload.duschwanne.flooringProduct = flooringProduct;
+    if (floorAdhesive.length)   payload.duschwanne.floorAdhesive   = floorAdhesive;
+    if (floorSealing.length)    payload.duschwanne.floorSealing    = floorSealing;
+
+    // Normalize toggle to boolean (safer than relying on "on")
+    payload.duschwanne.addFlooring = !!document.getElementById('addFlooring')?.checked;
+  }
+} catch (e) {
+  console.warn('[buildPayload] flooring arrays capture failed:', e);
+}
+
+
   // -------------------------------------------------------------------------
 
   // Budget/Zuzahlung
@@ -3360,7 +3521,6 @@ async function restoreConfiguratorFromOffer(doc) {
     setNumber('copayAmount', p?.bereich?.copayAmount);
 
     // ---- Duschwanne ----
-   // ---- Duschwanne ----
 // numeric inputs (quiet during restore)
 setByNameOrId('tray_w_cm', p?.duschwanne?.tray_w_cm);
 setByNameOrId('tray_l_cm', p?.duschwanne?.tray_l_cm);
@@ -3384,11 +3544,9 @@ setByNameOrId('trayColor', p?.duschwanne?.trayColor);
 // keep hidden selection fields
 setHiddenById('chosenTrayProductId', p?.duschwanne?.chosenTrayProductId);
 
-// optional flooring toggle/area
-if ('addFlooring' in (p?.duschwanne || {})) {
-  setCheckbox('addFlooring', !!p.duschwanne.addFlooring); // guard suppresses events
-}
+
 setNumber('floorArea', p?.duschwanne?.floorArea);
+
 
 // work tasks → only set now; nudge after restore
 restoreWorkTasks(p?.duschwanne);
@@ -3403,6 +3561,9 @@ restoreTraySelection(p?.duschwanne);
       // don't dispatch yet; we'll nudge once after restore
     }
     setNumber('floorArea', p?.duschwanne?.floorArea);
+    
+// restore specific flooring tiles (panels/adhesive/sealing)
+restoreTrinnityFloorSealing(p?.duschwanne);
 
     setByNameOrId('chosenTrayProductId', p?.duschwanne?.chosenTrayProductId);
     // Persist selection so SmartTray can auto-check it on render
@@ -3567,6 +3728,8 @@ restoreTraySelection(p?.duschwanne);
     const pl = p || (typeof buildPayload === 'function' ? buildPayload() : null);
     await window.updatePricing(pl);
     await window.updatePricing(pl); // belt & suspenders for Rabatt visibility
+    ensureTrinitySealingSelectedFromPayload(p?.duschwanne);
+
 
     if (typeof window.setPricingData === 'function' && window.__pricing) {
       window.setPricingData(window.__pricing);
@@ -3853,18 +4016,6 @@ document
 
 /* ========== RABATT SECTION (UI bound to server data) ========== */
 const elDiscount = document.getElementById("rb-material-discount");
-// -- BEGIN: bonus-300 first-click fix helpers --
-const __rbGuard = { applying: false };
-
-async function __recalcRabattNow() {
-  if (__rbGuard.applying) return;          // prevent loops
-  __rbGuard.applying = true;
-  try {
-    await window.updatePricing?.();         // single source of truth
-  } finally {
-    __rbGuard.applying = false;
-  }
-}
 // -- END: bonus-300 first-click fix helpers --
 
 
