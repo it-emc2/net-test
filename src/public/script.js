@@ -2959,6 +2959,45 @@ async function requestPdfAndDownload(payload, filename = "Anfrage.pdf") {
   a.remove();
   URL.revokeObjectURL(url);
 }
+function restoreWorkTasks(dw) {
+  if (!dw) return;
+
+  // Support both array and legacy boolean flags
+  let tasks = [];
+  if (Array.isArray(dw.workTasks)) {
+    tasks = dw.workTasks.map(String);
+  } else {
+    if (dw.remove_tub === true || dw.remove_tub === 'on' || dw.remove_tub === '1') tasks.push('remove_tub');
+    if (dw.remove_enclosure === true || dw.remove_enclosure === 'on' || dw.remove_enclosure === '1') tasks.push('remove_enclosure');
+  }
+
+  // Try common field names your UI might use
+  const candidateNames = ['workTasks[]', 'dw_workTasks[]', 'duschwanne_workTasks[]'];
+
+  for (const name of candidateNames) {
+    const boxes = Array.from(document.querySelectorAll(`input[type="checkbox"][name="${name}"]`));
+    if (!boxes.length) continue;
+
+    // Uncheck all first
+    boxes.forEach(cb => {
+      cb.checked = false;
+      cb.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    // Check the ones from payload
+    tasks.forEach(val => {
+      const cb = boxes.find(b => String(b.value) === String(val));
+      if (cb) {
+        cb.checked = true;
+        cb.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+
+    // We restored using this group; stop looking further
+    break;
+  }
+}
+
 // Call this with the full document returned by GET /api/offers/:offerNumber
 async function restoreConfiguratorFromOffer(doc) {
   const offer = doc?.offer || doc; // accept either shape
@@ -3021,6 +3060,9 @@ async function restoreConfiguratorFromOffer(doc) {
 
   // If you store chosen tray productId
   setByNameOrId('chosenTrayProductId', p?.duschwanne?.chosenTrayProductId);
+
+  // ✅ NEW: restore work task checkboxes so pricing can add the service notes
+restoreWorkTasks(p?.duschwanne);
 
   // ---- Wandverkleidung ----
   setSelect('wvKind', p?.wandverkleidung?.wvKind);
