@@ -7,6 +7,66 @@ window.addEventListener('hashchange', () => {
   const id = location.hash.replace('#','');
   if (id === 'rabatt' || id === 'kosten') refreshAllPanels();
 });
+
+// ---- RESTORE HELPERS (place once) ----
+function setByNameOrId(nameOrId, value) {
+  // allow "0" and false
+  if (value === undefined || value === null) return;
+  const byName = document.querySelector(`[name="${nameOrId}"]`);
+  const el = byName || document.getElementById(nameOrId);
+  if (!el) return;
+
+  const t = (el.type || '').toLowerCase();
+  if (t === 'checkbox') {
+    el.checked = !!value;
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    return;
+  }
+  if (t === 'radio') {
+    const r = document.querySelector(`[name="${nameOrId}"][value="${String(value)}"]`);
+    if (r) {
+      r.checked = true;
+      r.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    return;
+  }
+  el.value = String(value);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function setSelect(nameOrId, value) {
+  if (value === undefined || value === null) return;
+  const el = document.querySelector(`[name="${nameOrId}"]`) || document.getElementById(nameOrId);
+  if (!el) return;
+  el.value = String(value);
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function setNumber(nameOrId, value) {
+  if (value === undefined || value === null) return;
+  const el = document.querySelector(`[name="${nameOrId}"]`) || document.getElementById(nameOrId);
+  if (!el) return;
+  el.value = String(value); // keep "0"
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function setCheckbox(nameOrId, on) {
+  const el = document.querySelector(`[name="${nameOrId}"]`) || document.getElementById(nameOrId);
+  if (!el) return;
+  el.checked = !!on;
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function setRadio(name, val) {
+  const r = document.querySelector(`[name="${name}"][value="${String(val)}"]`);
+  if (r) {
+    r.checked = true;
+    r.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+}
+
 async function refetchAndRender() {
   const payload = buildPayload();
   const res = await fetch('/api/price', {
@@ -2899,52 +2959,147 @@ async function requestPdfAndDownload(payload, filename = "Anfrage.pdf") {
   a.remove();
   URL.revokeObjectURL(url);
 }
-async function restoreConfiguratorFromOffer(offer) {
-  if (!offer?.payload) return;
+// Call this with the full document returned by GET /api/offers/:offerNumber
+async function restoreConfiguratorFromOffer(doc) {
+  const offer = doc?.offer || doc; // accept either shape
+  const p = offer?.payload;
+  if (!p) return;
 
-  const p = offer.payload;
+  // ---- Bereich / Kunde ----
+  setSelect('salutation', p?.bereich?.salutation);
+  setByNameOrId('date', p?.bereich?.date);
+  setByNameOrId('firstName', p?.bereich?.firstName);
+  setByNameOrId('lastName', p?.bereich?.lastName);
+  setByNameOrId('phone', p?.bereich?.phone);
+  setByNameOrId('email', p?.bereich?.email);
+  setByNameOrId('street', p?.bereich?.street);
+  setByNameOrId('city', p?.bereich?.city);
+  setByNameOrId('state', p?.bereich?.state);
+  setByNameOrId('postalCode', p?.bereich?.postalCode);
+  setByNameOrId('deployment', p?.bereich?.deployment);
+  setByNameOrId('customerNumber', p?.bereich?.customerNumber);
+  setSelect('customerType', p?.bereich?.customerType);
 
-  // small helper
-  const fill = (name, val) => {
-    if (val == null) return;
-    const el = document.querySelector(`[name="${name}"]`) || document.getElementById(name);
-    if (!el) return;
-    if (el.type === 'checkbox') {
-      el.checked = !!val;
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-    } else if (el.type === 'radio') {
-      const r = document.querySelector(`[name="${name}"][value="${val}"]`);
-      if (r) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }
-    } else {
-      el.value = String(val);
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-  };
+  // contact person
+  setRadio('hasContactPerson', p?.bereich?.hasContactPerson);
+  setByNameOrId('cp_name', p?.bereich?.cp_name);
+  setByNameOrId('cp_phone', p?.bereich?.cp_phone);
+  setByNameOrId('cp_street', p?.bereich?.cp_street);
+  setByNameOrId('cp_city', p?.bereich?.cp_city);
+  setByNameOrId('cp_state', p?.bereich?.cp_state);
+  setByNameOrId('cp_postalCode', p?.bereich?.cp_postalCode);
 
-  // --- examples (expand as you like) ---
-  fill('firstName', p?.bereich?.firstName);
-  fill('lastName', p?.bereich?.lastName);
-  fill('customerNumber', p?.bereich?.customerNumber);
-  if (p?.bereich?.payer) fill('payer', p.bereich.payer);
-  if (p?.bereich?.aufschlag) fill('aufschlag', p.bereich.aufschlag);
+  // internals
+  setByNameOrId('emc2_contact', p?.bereich?.emc2_contact);
+  setRadio('payer', p?.bereich?.payer);
+  setSelect('aufschlag', p?.bereich?.aufschlag);
 
-  fill('traySize', p?.duschwanne?.traySize);
-  fill('chosenTrayProductId', p?.duschwanne?.chosenTrayProductId);
+  // Distances & Times
+  setNumber('distanceKm', p?.bereich?.distanceKm);
+  setByNameOrId('travelTime', p?.bereich?.travelTime);   // "5:00"
+  setByNameOrId('laborHours', p?.bereich?.laborHours);   // "07:00"
+  setRadio('hasPflegegrad', p?.bereich?.hasPflegegrad);  // "Ja"/"Nein"
+  setNumber('copayAmount', p?.bereich?.copayAmount);
 
-  // Optional fields bulk
-  if (p?.optional) {
-    for (const [k, v] of Object.entries(p.optional)) {
-      fill(k, v);
+  // ---- Duschwanne ----
+  setByNameOrId('tray_w_cm', p?.duschwanne?.tray_w_cm);
+  setByNameOrId('tray_l_cm', p?.duschwanne?.tray_l_cm);
+  setByNameOrId('tray_h_cm', p?.duschwanne?.tray_h_cm);
+  setByNameOrId('traySize', p?.duschwanne?.traySize);
+  setByNameOrId('trayColor', p?.duschwanne?.trayColor);
+  setSelect('abdichtSet', p?.duschwanne?.abdichtSet);
+  setSelect('drainSet', p?.duschwanne?.drainSet);
+  setSelect('smallMaterial', p?.duschwanne?.smallMaterial);
+  setSelect('stelzlager', p?.duschwanne?.stelzlager);
+
+  // optional flooring toggle/area
+  if ('addFlooring' in (p?.duschwanne || {})) {
+    // if you used a checkbox named "addFlooring"
+    setCheckbox('addFlooring', !!p.duschwanne.addFlooring);
+  }
+  setNumber('floorArea', p?.duschwanne?.floorArea);
+
+  // If you store chosen tray productId
+  setByNameOrId('chosenTrayProductId', p?.duschwanne?.chosenTrayProductId);
+
+  // ---- Wandverkleidung ----
+  setSelect('wvKind', p?.wandverkleidung?.wvKind);
+  // quantities (keep zeros)
+  setNumber('wvQty997', p?.wandverkleidung?.wvQty997);
+  setNumber('wvQty1497', p?.wandverkleidung?.wvQty1497);
+  setSelect('wvColor', p?.wandverkleidung?.wvColor);
+  setSelect('wvSealing', p?.wandverkleidung?.wvSealing);
+  setSelect('wvAdhesive', p?.wandverkleidung?.wvAdhesive);
+  setNumber('wvAdhesiveQty', p?.wandverkleidung?.wvAdhesiveQty);
+  setSelect('wvEndProfile', p?.wandverkleidung?.wvEndProfile);
+  setNumber('wvEndProfileQty', p?.wandverkleidung?.wvEndProfileQty);
+  setSelect('wvProfileAdhesive', p?.wandverkleidung?.wvProfileAdhesive);
+  setNumber('wvProfileAdhesiveQty', p?.wandverkleidung?.wvProfileAdhesiveQty);
+  setNumber('wvV3VQty', p?.wandverkleidung?.wvV3VQty);
+  setNumber('wvCornersCount', p?.wandverkleidung?.wvCornersCount);
+
+  // ---- Hassmann quick add rows (if your UI has dynamic rows) ----
+  if (Array.isArray(p?.duschabtrennung?.quickAdd)) {
+    const fs = document.querySelector('fieldset.da-row[data-kind]'); // your DA container
+    if (fs) {
+      const wrap = fs.querySelector('.da-items');
+      if (wrap) {
+        // clear existing extra rows
+        wrap.querySelectorAll('.da-item:not(:first-child)').forEach(n => n.remove());
+        const first = wrap.querySelector('.da-item');
+        const fillRow = (item, row) => {
+          const idEl = item.querySelector('.da-id');
+          const priceEl = item.querySelector('.da-price');
+          const qtyEl = item.querySelector('.da-qty');
+          if (idEl) idEl.value = row?.productId || '';
+          if (priceEl) priceEl.value = row?.price ? String(row.price).replace('.', ',') : (row?.priceRaw || '');
+          if (qtyEl) qtyEl.value = String(row?.qty ?? '');
+          // bubble changes
+          idEl?.dispatchEvent(new Event('input', { bubbles: true }));
+          priceEl?.dispatchEvent(new Event('input', { bubbles: true }));
+          qtyEl?.dispatchEvent(new Event('input', { bubbles: true }));
+          qtyEl?.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+        if (p.duschabtrennung.quickAdd.length > 0) {
+          fillRow(first, p.duschabtrennung.quickAdd[0]);
+          for (let i = 1; i < p.duschabtrennung.quickAdd.length; i++) {
+            const item = window.addRow ? window.addRow('quick', fs, false) : first.cloneNode(true);
+            if (!item.isConnected) wrap.appendChild(item);
+            fillRow(item, p.duschabtrennung.quickAdd[i]);
+          }
+        } else {
+          // no rows -> blank first
+          first?.querySelectorAll('input').forEach(i => (i.value = ''));
+        }
+      }
     }
   }
 
-  if (offer.pricing) {
-    window.__pricing = offer.pricing;
-    window.setPricingData?.(offer.pricing);
-    window.dispatchEvent(new CustomEvent('pricing:updated', { detail: offer.pricing }));
-  } else {
-    await window.updatePricing?.(p);
+  // ---- Optional block (example): restore quantities by name
+  if (p?.optional) {
+    for (const [k, v] of Object.entries(p.optional)) {
+      // this keeps zeros and strings
+      setByNameOrId(k, v);
+    }
+  }
+
+  // Show the loaded offer number in the UI if you have an input
+  if (offer?.offerNumber) {
+    const el = document.querySelector('#offerNumber');
+    if (el) el.value = offer.offerNumber;
+  }
+
+  // ---- FINAL: recompute pricing from restored payload so UI & totals match
+  // (Even if you also show server snapshot)
+  if (typeof window.updatePricing === 'function') {
+    const recomputed = await window.updatePricing(p);
+    window.__pricing = recomputed || offer?.pricing || null;
+
+    // If you have a renderer to push totals/materials into the panels:
+    if (typeof window.setPricingData === 'function' && window.__pricing) {
+      window.setPricingData(window.__pricing);
+      window.dispatchEvent(new CustomEvent('pricing:updated', { detail: window.__pricing }));
+    }
   }
 }
 
@@ -2955,13 +3110,14 @@ document.getElementById('btnLoadOffer')?.addEventListener('click', async () => {
     const r = await fetch(`/api/offers/${encodeURIComponent(n)}`, { credentials: 'include' });
     const data = await r.json();
     if (!r.ok) throw new Error(data?.error || r.status);
-    await restoreConfiguratorFromOffer(data.offer);
+    await restoreConfiguratorFromOffer(data);
     alert('Angebot geladen.');
   } catch (e) {
     alert('Konnte Angebot nicht laden.');
     console.warn(e);
   }
 });
+
 
 // Save a final snapshot after a successful export
 async function saveFinalOfferSnapshot() {

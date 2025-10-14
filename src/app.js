@@ -143,6 +143,7 @@ app.use('/pdf-template', pdfTemplateRouter);
 app.use('/docx-template', docxTemplateRouter);
 app.use('/material-overview', docxTemplateRouter);
 app.use('/api/offers', offersRouter);
+app.use('/api/offers', offersRouter);
 
 // ---------------- Health ----------------
 app.get('/api/health', (req, res) =>
