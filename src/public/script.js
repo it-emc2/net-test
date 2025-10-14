@@ -72,24 +72,26 @@ function setSelect(nameOrId, value) {
 function restorePflegegradAndWohnumfeld(b) {
   if (!b) return;
 
-  // hasPflegegrad: "Ja"/"Nein" radio
+  // hasPflegegrad + level
   if (b.hasPflegegrad) setRadio('hasPflegegrad', b.hasPflegegrad);
-
-  // pflegegrad number (1..5) if present
   if (b.pflegegrad != null && b.pflegegrad !== '') {
     setRadio('pflegegrad', String(b.pflegegrad));
   }
 
-  // Wohnumfeld: radio or checkbox + amount
-  // Your payload uses both "wohnumfeldDone" and nested "wohnumfeld.done"
-  const done = (b.wohnumfeldDone === 'Ja') || b.wohnumfeld?.done === true;
-  // If UI is radio “Wurden … durchgeführt? (Ja/Nein)”
+  // Wohnumfeld object is the source of truth
+  const we = b.wohnumfeld || {};
+  const done = !!we.done || b.wohnumfeldDone === 'Ja';
   setRadio('wohnumfeldDone', done ? 'Ja' : 'Nein');
 
-  // Amount
-  const amount = b.wohnumfeldAmount ?? b.wohnumfeld?.amount ?? 0;
+  if (we.application) {
+    // e.g. 'Kunde', 'Sanitaer', 'Angehörige' – whatever your values are
+    setRadio('wohnumfeldApplication', String(we.application));
+  }
+
+  const amount = we.amount ?? b.wohnumfeldAmount ?? 0;
   setInputByNameOrId('wohnumfeldAmount', amount);
 }
+
 
 function setNumber(nameOrId, value) {
   if (value === undefined || value === null) return;
@@ -3015,63 +3017,81 @@ function restoreTraySelection(dw) {
 function restoreWorkTasks(dw) {
   if (!dw) return;
 
-  // Support both array and legacy boolean flags
   let tasks = [];
   if (Array.isArray(dw.workTasks)) {
     tasks = dw.workTasks.map(String);
   } else {
-    if (dw.remove_tub === true || dw.remove_tub === 'on' || dw.remove_tub === '1') tasks.push('remove_tub');
-    if (dw.remove_enclosure === true || dw.remove_enclosure === 'on' || dw.remove_enclosure === '1') tasks.push('remove_enclosure');
+    if (dw.remove_tub) tasks.push('remove_tub');
+    if (dw.remove_enclosure) tasks.push('remove_enclosure');
   }
 
-  // Try common field names your UI might use
-  const candidateNames = ['workTasks[]', 'dw_workTasks[]', 'duschwanne_workTasks[]'];
+  // Look for all common patterns
+  const groupSelectors = [
+    'input[type="checkbox"][name="workTasks[]"]',
+    'input[type="checkbox"][name="dw_workTasks[]"]',
+    'input[type="checkbox"][name="duschwanne_workTasks[]"]',
+    'input[type="checkbox"][name="duschwanne[workTasks][]"]',
+  ];
 
-  for (const name of candidateNames) {
-    const boxes = Array.from(document.querySelectorAll(`input[type="checkbox"][name="${name}"]`));
+  for (const sel of groupSelectors) {
+    const boxes = Array.from(document.querySelectorAll(sel));
     if (!boxes.length) continue;
 
-    // Uncheck all first
     boxes.forEach(cb => {
-      cb.checked = false;
+      const on = tasks.includes(String(cb.value));
+      cb.checked = on;
       cb.dispatchEvent(new Event('change', { bubbles: true }));
     });
-
-    // Check the ones from payload
-    tasks.forEach(val => {
-      const cb = boxes.find(b => String(b.value) === String(val));
-      if (cb) {
-        cb.checked = true;
-        cb.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    });
-
-    // We restored using this group; stop looking further
-    break;
+    break; // stop after the group we found
   }
 }
+
 function restoreWV(wv) {
   if (!wv) return;
 
-  // Kind radio (“Deckenhoch”, etc.)
+  // Kind is a radio
   if (wv.wvKind) setRadio('wvKind', wv.wvKind);
 
-  // Panel picks: if you store a single-choice radio like wvPanels[]
-  if (wv['wvPanels[]']) setRadio('wvPanels[]', wv['wvPanels[]']);
+  // Color may be radio too – restore if present
+  if (wv.wvColor) setRadio('wvColor', wv.wvColor);
 
-  // Quantities
-  setInputByNameOrId('wvQty997',   wv.wvQty997);
-  setInputByNameOrId('wvQty1497',  wv.wvQty1497);
+  // Quantities (keep zeros)
+  const pairs = [
+    { cb: 'wv997',   qty: 'wvQty997',   wrap: 'wvQty997Wrap' },
+    { cb: 'wv1497',  qty: 'wvQty1497',  wrap: 'wvQty1497Wrap' },
+  ];
 
-  // Profiles & adhesives qty if present
+  pairs.forEach(({ cb, qty, wrap }) => {
+    const qtyEl = document.getElementById(qty);
+    const cbEl  = document.getElementById(cb);
+    const wrapEl= document.getElementById(wrap);
+    const n = parseInt(wv[qty] ?? '0', 10) || 0;
+
+    setInputByNameOrId(qty, n);
+    if (cbEl) {
+      cbEl.checked = n > 0;                       // tick the panel if qty>0
+      cbEl.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    if (wrapEl) {
+      wrapEl.hidden = !(n > 0);
+      wrapEl.setAttribute('aria-hidden', n>0 ? 'false':'true');
+    }
+  });
+
+  // Other numbers
   setInputByNameOrId('wvEndProfileQty',      wv.wvEndProfileQty);
   setInputByNameOrId('wvProfileAdhesiveQty', wv.wvProfileAdhesiveQty);
   setInputByNameOrId('wvAdhesiveQty',        wv.wvAdhesiveQty);
+  setInputByNameOrId('wvV3VQty',             wv.wvV3VQty);
+  setInputByNameOrId('wvCornersCount',       wv.wvCornersCount);
 
-  // V3V override + corners
-  setInputByNameOrId('wvV3VQty',       wv.wvV3VQty);
-  setInputByNameOrId('wvCornersCount', wv.wvCornersCount);
+  // Selects/radios for accessories
+  if (wv.wvEndProfile)      setSelect('wvEndProfile', wv.wvEndProfile);
+  if (wv.wvProfileAdhesive) setSelect('wvProfileAdhesive', wv.wvProfileAdhesive);
+  if (wv.wvAdhesive)        setSelect('wvAdhesive', wv.wvAdhesive);
+  if (wv.wvSealing)         setSelect('wvSealing', wv.wvSealing);
 }
+
 function restoreHassmannQuickAdd(da) {
   const rows = Array.isArray(da?.quickAdd) ? da.quickAdd : [];
   // Find the fieldsets by data-kind (gleittuer, pendeltuer, etc.)
@@ -3119,26 +3139,48 @@ function restoreHassmannQuickAdd(da) {
 function restoreOptional(opt) {
   if (!opt) return;
 
-  // Set all qty_ fields
-  Object.keys(opt).forEach(k => {
-    if (k.startsWith('qty_')) setInputByNameOrId(k, opt[k]);
+  // 1) Set all qty_ fields and opt_ toggles
+  Object.entries(opt).forEach(([k, v]) => {
+    if (k.startsWith('qty_')) setInputByNameOrId(k, v);
+    if (k.startsWith('opt_')) setCheckboxById(k, !!v); // if IDs == names
+    setByNameOrId(k, v); // fallback by name
   });
 
-  // Restore “selector” style options (radio/checkbox with value = product label)
-  ['optShower[]', 'optGrab[]', 'optBasin[]'].forEach(name => {
-    const v = opt[name];
-    if (!v) return;
-    // If these are radios: set one. If they’re checkboxes: set the matching one.
-    const radios = document.querySelectorAll(`input[name="${name}"][type="radio"]`);
-    if (radios.length) {
-      const r = document.querySelector(`input[name="${name}"][type="radio"][value="${v}"]`);
-      if (r) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }
-    } else {
-      const cb = document.querySelector(`input[name="${name}"][type="checkbox"][value="${v}"]`);
-      if (cb) { cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true })); }
+  // 2) Open parent categories if any child is active
+  const categories = {
+    SHOWER:    [/^opt_V22|^opt_TEMPDSU|^opt_V22BG|^opt_DEDS/],
+    GRAB:      [/^opt_CLPESG/],
+    FOLD:      [/^opt_DEPSKG/],
+    BASIN:     [/^opt_CL60$/, /^opt_WTBF/, /^opt_RSL/, /^opt_EV/],
+    BASIN_TAP: [/^opt_CL_BASIN$/, /^opt_DEPOH$/],
+    THERMO:    [/^opt_CLTB$|^opt_DEPTB$|^opt_CLB$/],
+    SEAT:      [/^opt_DEPKS$/],
+  };
+
+  Object.entries(categories).forEach(([cat, patterns]) => {
+    const active = Object.entries(opt).some(([k, v]) => {
+      if (!patterns.some(rx => rx.test(k))) return false;
+      if (k.startsWith('qty_')) return (parseInt(v, 10) || 0) > 0;
+      if (k.startsWith('opt_')) return v === 'on' || v === true || v === 'true';
+      return false;
+    });
+
+    if (active) {
+      const parent = document.getElementById(`cat_${cat}`);
+      const menuId = `menu_${cat}`;
+      if (parent && !parent.checked) {
+        parent.checked = true;
+        parent.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      const panel = document.getElementById(menuId);
+      if (panel) {
+        panel.hidden = false;
+        panel.setAttribute('aria-hidden', 'false');
+      }
     }
   });
 }
+
 function restoreRabatt(r) {
   if (!r) return;
   const slider = document.getElementById('rb-material-discount');
@@ -3159,6 +3201,8 @@ async function restoreConfiguratorFromOffer(doc) {
   const p = offer?.payload;
   if (!p) return;
 
+  const dispatchChange = (el) => { if (el) el.dispatchEvent(new Event('change', { bubbles: true })); };
+
   // ---- Bereich / Kunde ----
   setSelect('salutation', p?.bereich?.salutation);
   setByNameOrId('date', p?.bereich?.date);
@@ -3176,7 +3220,6 @@ async function restoreConfiguratorFromOffer(doc) {
 
   restorePflegegradAndWohnumfeld(p?.bereich);
 
-
   // contact person
   setRadio('hasContactPerson', p?.bereich?.hasContactPerson);
   setByNameOrId('cp_name', p?.bereich?.cp_name);
@@ -3191,12 +3234,20 @@ async function restoreConfiguratorFromOffer(doc) {
   setRadio('payer', p?.bereich?.payer);
   setRadio('aufschlag', p?.bereich?.aufschlag);
 
+  // ★ trigger dependent Bereich logic now (shows budget / WE panels, etc.)
+  dispatchChange(document.querySelector('input[name="payer"]:checked'));
+  dispatchChange(document.querySelector('input[name="aufschlag"]:checked'));
 
   // Distances & Times
   setNumber('distanceKm', p?.bereich?.distanceKm);
   setByNameOrId('travelTime', p?.bereich?.travelTime);   // "5:00"
   setByNameOrId('laborHours', p?.bereich?.laborHours);   // "07:00"
   setRadio('hasPflegegrad', p?.bereich?.hasPflegegrad);  // "Ja"/"Nein"
+  // If Ja, also set pflegegrad level radio
+  if (p?.bereich?.pflegegrad) setRadio('pflegegrad', String(p.bereich.pflegegrad));
+  dispatchChange(document.querySelector('input[name="hasPflegegrad"]:checked'));
+  dispatchChange(document.querySelector('input[name="pflegegrad"]:checked'));
+
   setNumber('copayAmount', p?.bereich?.copayAmount);
 
   // ---- Duschwanne ----
@@ -3212,22 +3263,23 @@ async function restoreConfiguratorFromOffer(doc) {
 
   restoreTraySelection(p?.duschwanne);
 
-
   // optional flooring toggle/area
   if ('addFlooring' in (p?.duschwanne || {})) {
-    // if you used a checkbox named "addFlooring"
     setCheckbox('addFlooring', !!p.duschwanne.addFlooring);
+    dispatchChange(document.getElementById('addFlooring')); // ★ open panel immediately
   }
   setNumber('floorArea', p?.duschwanne?.floorArea);
 
-  // If you store chosen tray productId
   setByNameOrId('chosenTrayProductId', p?.duschwanne?.chosenTrayProductId);
 
-  // ✅ NEW: restore work task checkboxes so pricing can add the service notes
-restoreWorkTasks(p?.duschwanne);
+  // ✅ restore work task checkboxes so pricing can add the service notes
+  restoreWorkTasks(p?.duschwanne);
+  // ★ nudge UI wrappers that depend on these
+  dispatchChange(document.querySelector('#form-duschwanne input[name*="workTasks"]'));
 
   // ---- Wandverkleidung ----
-  setSelect('wvKind', p?.wandverkleidung?.wvKind);
+  // ★ wvKind is a radio in your UI
+  if (p?.wandverkleidung?.wvKind) setRadio('wvKind', p.wandverkleidung.wvKind);
   // quantities (keep zeros)
   setNumber('wvQty997', p?.wandverkleidung?.wvQty997);
   setNumber('wvQty1497', p?.wandverkleidung?.wvQty1497);
@@ -3241,15 +3293,19 @@ restoreWorkTasks(p?.duschwanne);
   setNumber('wvProfileAdhesiveQty', p?.wandverkleidung?.wvProfileAdhesiveQty);
   setNumber('wvV3VQty', p?.wandverkleidung?.wvV3VQty);
   setNumber('wvCornersCount', p?.wandverkleidung?.wvCornersCount);
-restoreWV(p?.wandverkleidung);
+
+  restoreWV(p?.wandverkleidung);
+
+  // ★ run page wiring so qty wrappers & hints match restored state
+  try { typeof setupWandverkleidungPage === 'function' && setupWandverkleidungPage(); } catch {}
+  dispatchChange(document.querySelector('input[name="wvKind"]:checked'));
 
   // ---- Hassmann quick add rows (if your UI has dynamic rows) ----
   if (Array.isArray(p?.duschabtrennung?.quickAdd)) {
-    const fs = document.querySelector('fieldset.da-row[data-kind]'); // your DA container
+    const fs = document.querySelector('fieldset.da-row[data-kind]');
     if (fs) {
       const wrap = fs.querySelector('.da-items');
       if (wrap) {
-        // clear existing extra rows
         wrap.querySelectorAll('.da-item:not(:first-child)').forEach(n => n.remove());
         const first = wrap.querySelector('.da-item');
         const fillRow = (item, row) => {
@@ -3259,7 +3315,6 @@ restoreWV(p?.wandverkleidung);
           if (idEl) idEl.value = row?.productId || '';
           if (priceEl) priceEl.value = row?.price ? String(row.price).replace('.', ',') : (row?.priceRaw || '');
           if (qtyEl) qtyEl.value = String(row?.qty ?? '');
-          // bubble changes
           idEl?.dispatchEvent(new Event('input', { bubbles: true }));
           priceEl?.dispatchEvent(new Event('input', { bubbles: true }));
           qtyEl?.dispatchEvent(new Event('input', { bubbles: true }));
@@ -3273,23 +3328,49 @@ restoreWV(p?.wandverkleidung);
             fillRow(item, p.duschabtrennung.quickAdd[i]);
           }
         } else {
-          // no rows -> blank first
           first?.querySelectorAll('input').forEach(i => (i.value = ''));
         }
       }
     }
   }
-restoreHassmannQuickAdd(p?.duschabtrennung);
+  restoreHassmannQuickAdd(p?.duschabtrennung);
 
-  // ---- Optional block (example): restore quantities by name
+  // ---- Optional block ----
   if (p?.optional) {
     for (const [k, v] of Object.entries(p.optional)) {
-      // this keeps zeros and strings
       setByNameOrId(k, v);
     }
   }
-restoreOptional(p?.optional);
-restoreRabatt(p?.rabatt);
+  restoreOptional(p?.optional);
+
+  // ★ ensure parent category checkboxes are ON if any child in that category is selected
+  (function ensureOptionalParentsSelected(opt) {
+    if (!opt) return;
+    const map = {
+      cat_SHOWER:    ['opt_V22WS1R','opt_TEMPDSU250','opt_V22BG903R','opt_DEDS2503E'],
+      cat_THERMO:    ['opt_CLTB','opt_DEPTB','opt_CLB'],
+      cat_GRAB:      ['opt_CLPESG40','opt_CLPESG60','opt_CLPESG80'],
+      cat_FOLD:      ['opt_DEPSKG60','opt_DEPSKG85'],
+      cat_SEAT:      ['opt_DEPKS'],
+      cat_BASIN:     ['opt_CL60'],
+      cat_BASIN_TAP: ['opt_CL_BASIN','opt_DEPOH'],
+    };
+    Object.entries(map).forEach(([parentId, kids]) => {
+      const anyKidChecked = kids.some(id => {
+        const el = document.getElementById(id);
+        return !!(el && el.checked);
+      });
+      if (anyKidChecked) {
+        const parent = document.getElementById(parentId);
+        if (parent && !parent.checked) {
+          parent.checked = true;
+          parent.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+    });
+  })(p?.optional);
+
+  restoreRabatt(p?.rabatt);
 
   // Show the loaded offer number in the UI if you have an input
   if (offer?.offerNumber) {
@@ -3298,18 +3379,23 @@ restoreRabatt(p?.rabatt);
   }
 
   // ---- FINAL: recompute pricing from restored payload so UI & totals match
-  // (Even if you also show server snapshot)
   if (typeof window.updatePricing === 'function') {
     const recomputed = await window.updatePricing(p);
     window.__pricing = recomputed || offer?.pricing || null;
 
-    // If you have a renderer to push totals/materials into the panels:
     if (typeof window.setPricingData === 'function' && window.__pricing) {
       window.setPricingData(window.__pricing);
       window.dispatchEvent(new CustomEvent('pricing:updated', { detail: window.__pricing }));
     }
+
+    // ★ Nudge bonus checkboxes once pricing is ready (fixes “need to load twice”)
+    document.getElementById('rb-bonus-300')
+      ?.dispatchEvent(new Event('change', { bubbles: true }));
+    document.getElementById('rb-bonus-grab')
+      ?.dispatchEvent(new Event('change', { bubbles: true }));
   }
 }
+
 
 document.getElementById('btnLoadOffer')?.addEventListener('click', async () => {
   const n = document.getElementById('loadOfferNumber')?.value?.trim();
@@ -3731,7 +3817,7 @@ if (emptyNote) {
     row.setAttribute('aria-hidden', String(!allow));
   }
   if (!allow && cb && cb.checked) {
-    cb.checked = false;
+    //cb.checked = false;
     cb.dispatchEvent(new Event('change', { bubbles: true }));
   }
 })();
