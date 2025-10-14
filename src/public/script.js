@@ -1,14 +1,41 @@
 
-// call this whenever those panels become visible (no reload needed)
-document.getElementById('nav-rabatt')?.addEventListener('click', refreshAllPanels);
-document.getElementById('nav-debug') ?.addEventListener('click', refreshAllPanels);
-// If you use hash-based navigation:
-window.addEventListener('hashchange', () => {
-  const id = location.hash.replace('#','');
-  if (id === 'rabatt' || id === 'kosten') refreshAllPanels();
-});
+function euroC(n) {
+  return (Number(n)||0)
+    .toLocaleString("de-DE", { style: "currency", currency: "EUR" })
+    .replace(/\u00A0/g, " ");
+}
 
-// ---- RESTORE HELPERS (place once) ----
+
+// ---- RESTORE HELPERS ----
+function setRadio(name, value) {
+  if (value == null) return;
+  const r = document.querySelector(`input[type="radio"][name="${name}"][value="${value}"]`);
+  if (r) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }
+}
+
+function setCheckboxByName(name, on) {
+  const el = document.querySelector(`input[type="checkbox"][name="${name}"]`);
+  if (!el) return;
+  el.checked = !!on;
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function setCheckboxById(id, on) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.checked = !!on;
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function setInputByNameOrId(key, val) {
+  if (val == null) return;
+  const el = document.querySelector(`[name="${key}"]`) || document.getElementById(key);
+  if (!el) return;
+  el.value = String(val);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
 function setByNameOrId(nameOrId, value) {
   // allow "0" and false
   if (value === undefined || value === null) return;
@@ -42,6 +69,27 @@ function setSelect(nameOrId, value) {
   el.value = String(value);
   el.dispatchEvent(new Event('change', { bubbles: true }));
 }
+function restorePflegegradAndWohnumfeld(b) {
+  if (!b) return;
+
+  // hasPflegegrad: "Ja"/"Nein" radio
+  if (b.hasPflegegrad) setRadio('hasPflegegrad', b.hasPflegegrad);
+
+  // pflegegrad number (1..5) if present
+  if (b.pflegegrad != null && b.pflegegrad !== '') {
+    setRadio('pflegegrad', String(b.pflegegrad));
+  }
+
+  // Wohnumfeld: radio or checkbox + amount
+  // Your payload uses both "wohnumfeldDone" and nested "wohnumfeld.done"
+  const done = (b.wohnumfeldDone === 'Ja') || b.wohnumfeld?.done === true;
+  // If UI is radio “Wurden … durchgeführt? (Ja/Nein)”
+  setRadio('wohnumfeldDone', done ? 'Ja' : 'Nein');
+
+  // Amount
+  const amount = b.wohnumfeldAmount ?? b.wohnumfeld?.amount ?? 0;
+  setInputByNameOrId('wohnumfeldAmount', amount);
+}
 
 function setNumber(nameOrId, value) {
   if (value === undefined || value === null) return;
@@ -59,13 +107,6 @@ function setCheckbox(nameOrId, on) {
   el.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
-function setRadio(name, val) {
-  const r = document.querySelector(`[name="${name}"][value="${String(val)}"]`);
-  if (r) {
-    r.checked = true;
-    r.dispatchEvent(new Event('change', { bubbles: true }));
-  }
-}
 
 async function refetchAndRender() {
   const payload = buildPayload();
@@ -370,12 +411,7 @@ document.addEventListener("DOMContentLoaded", stampOfferOnExport);
 
 const laborEl = document.getElementById("laborHours");
 const laborHHMM = (laborEl?.value || "").trim();
-const laborNumeric = typeof hhmmToHours === "function"
-    ? Math.max(0, hhmmToHours())  //Math.ceil(laborHHMM * 100) / 100;
-    : (() => {
-        const m = laborHHMM.match(/^(\d+):([0-5]\d)$/);
-        return m ? Number(m[1]) + Number(m[2]) / 60 : 0;
-      })();
+//const laborNumeric = typeof hhmmToHours === "function"? Math.max(0, hhmmToHours())  //Math.ceil(laborHHMM * 100) / 100;: (() => {const m = laborHHMM.match(/^(\d+):([0-5]\d)$/);return m ? Number(m[1]) + Number(m[2]) / 60 : 0;})();
 
 const root = document.documentElement;
 const themeToggle = document.getElementById("themeToggle");
@@ -636,7 +672,7 @@ payload.duschwanne.ebenerdigNote = eb ? 'true' : '';
   payload.bereich.ReiseHoursNumeric = Number(window.reise_hours_numeric || 0);
   payload.bereich.ArbeitHoursNumeric = Number(window.arbeit_hours_numeric || 0);
   payload.bereich.laborHoursHHMM = laborHHMM;
-  payload.bereich.laborHoursNumeric = laborNumeric;
+  //payload.bereich.laborHoursNumeric = laborNumeric;
 
   const woh = readWohnumfeld();
   const isKK =
@@ -2375,7 +2411,7 @@ function listLines(lines) {
   }
 
   // Make this async so we can await name lookups for optional items
-async function renderFromData(data) {
+window.renderFromData = async function renderFromData(data) {
   if (!data) {
     container.innerHTML = '<div class="muted">Keine Daten</div>';
     return;
@@ -2514,7 +2550,7 @@ const svcCard = `
 }
 
 
-function refreshAllPanels() {
+window.refreshAllPanels = function refreshAllPanels() {
   const payload = collectAllFormData();
   fetch('/api/price', {
     method: 'POST',
@@ -2523,7 +2559,7 @@ function refreshAllPanels() {
   })
   .then(r => r.json())
   .then(data => {
-    lastComputed = data;
+    window.lastComputed = data;
     // Rabatt
     if (typeof renderRabatt === 'function') {
       renderRabatt(data);
@@ -2537,7 +2573,14 @@ function refreshAllPanels() {
   })
   .catch(console.error);
 }
-
+// call this whenever those panels become visible (no reload needed)
+document.getElementById('nav-rabatt')?.addEventListener('click', refreshAllPanels);
+document.getElementById('nav-debug') ?.addEventListener('click', refreshAllPanels);
+// If you use hash-based navigation:
+window.addEventListener('hashchange', () => {
+  const id = location.hash.replace('#','');
+  if (id === 'rabatt' || id === 'kosten') refreshAllPanels();
+});
 
   async function openKosten() {
     container.innerHTML = '<div class="muted">Berechne …</div>';
@@ -2959,6 +3002,16 @@ async function requestPdfAndDownload(payload, filename = "Anfrage.pdf") {
   a.remove();
   URL.revokeObjectURL(url);
 }
+function restoreTraySelection(dw) {
+  if (!dw) return;
+  // keep suggestion radio if you have it
+  if (dw.traySuggestion) setRadio('traySuggestion', dw.traySuggestion);
+  // hidden fields:
+  setInputByNameOrId('chosenTrayProductId', dw.chosenTrayProductId);
+  setInputByNameOrId('traySize', dw.traySize);
+}
+
+
 function restoreWorkTasks(dw) {
   if (!dw) return;
 
@@ -2997,6 +3050,108 @@ function restoreWorkTasks(dw) {
     break;
   }
 }
+function restoreWV(wv) {
+  if (!wv) return;
+
+  // Kind radio (“Deckenhoch”, etc.)
+  if (wv.wvKind) setRadio('wvKind', wv.wvKind);
+
+  // Panel picks: if you store a single-choice radio like wvPanels[]
+  if (wv['wvPanels[]']) setRadio('wvPanels[]', wv['wvPanels[]']);
+
+  // Quantities
+  setInputByNameOrId('wvQty997',   wv.wvQty997);
+  setInputByNameOrId('wvQty1497',  wv.wvQty1497);
+
+  // Profiles & adhesives qty if present
+  setInputByNameOrId('wvEndProfileQty',      wv.wvEndProfileQty);
+  setInputByNameOrId('wvProfileAdhesiveQty', wv.wvProfileAdhesiveQty);
+  setInputByNameOrId('wvAdhesiveQty',        wv.wvAdhesiveQty);
+
+  // V3V override + corners
+  setInputByNameOrId('wvV3VQty',       wv.wvV3VQty);
+  setInputByNameOrId('wvCornersCount', wv.wvCornersCount);
+}
+function restoreHassmannQuickAdd(da) {
+  const rows = Array.isArray(da?.quickAdd) ? da.quickAdd : [];
+  // Find the fieldsets by data-kind (gleittuer, pendeltuer, etc.)
+  for (const fs of document.querySelectorAll('fieldset.da-row[data-kind]')) {
+    const kind = fs.dataset.kind;
+    const wrap = fs.querySelector('.da-items');
+    if (!wrap) continue;
+
+    // Clear existing (keep one blank)
+    const first = wrap.querySelector('.da-item');
+    if (!first) continue;
+    wrap.querySelectorAll('.da-item:not(:first-child)').forEach(n => n.remove());
+
+    const list = rows.filter(r => r.kind === kind);
+    const fill = (item, row) => {
+      const qtyEl = item.querySelector('.da-qty');
+      const priceEl = item.querySelector('.da-price');
+      const idEl = item.querySelector('.da-id');
+      if (qtyEl) qtyEl.value = String(row.qty || 0);
+      if (priceEl) priceEl.value = row.price != null ? String(row.price).replace('.', ',') : (row.priceRaw || '');
+      if (idEl) idEl.value = row.productId || '';
+      // fire events
+      if (qtyEl) qtyEl.dispatchEvent(new Event('input', { bubbles: true }));
+      if (priceEl) priceEl.dispatchEvent(new Event('input', { bubbles: true }));
+      if (idEl) idEl.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    if (list.length) {
+      fill(first, list[0]);
+      for (let i = 1; i < list.length; i++) {
+        const item = (typeof window.addRow === 'function') ? window.addRow(kind, fs, false) : null;
+        if (item) fill(item, list[i]);
+      }
+    } else {
+      // leave the first row blank
+      const qtyEl = first.querySelector('.da-qty');
+      const priceEl = first.querySelector('.da-price');
+      const idEl = first.querySelector('.da-id');
+      if (qtyEl) qtyEl.value = '';
+      if (priceEl) priceEl.value = '';
+      if (idEl) idEl.value = '';
+    }
+  }
+}
+function restoreOptional(opt) {
+  if (!opt) return;
+
+  // Set all qty_ fields
+  Object.keys(opt).forEach(k => {
+    if (k.startsWith('qty_')) setInputByNameOrId(k, opt[k]);
+  });
+
+  // Restore “selector” style options (radio/checkbox with value = product label)
+  ['optShower[]', 'optGrab[]', 'optBasin[]'].forEach(name => {
+    const v = opt[name];
+    if (!v) return;
+    // If these are radios: set one. If they’re checkboxes: set the matching one.
+    const radios = document.querySelectorAll(`input[name="${name}"][type="radio"]`);
+    if (radios.length) {
+      const r = document.querySelector(`input[name="${name}"][type="radio"][value="${v}"]`);
+      if (r) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }
+    } else {
+      const cb = document.querySelector(`input[name="${name}"][type="checkbox"][value="${v}"]`);
+      if (cb) { cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true })); }
+    }
+  });
+}
+function restoreRabatt(r) {
+  if (!r) return;
+  const slider = document.getElementById('rb-material-discount');
+  if (slider) {
+    const raw = r.materialDiscountPct || 0; // 0..1
+    slider.value = String(raw * 100);
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    slider.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  setCheckboxById('rb-bonus-300', !!r.bonus300);
+  setCheckboxById('rb-bonus-grab', !!r.bonusGrab);
+}
+
 
 // Call this with the full document returned by GET /api/offers/:offerNumber
 async function restoreConfiguratorFromOffer(doc) {
@@ -3019,6 +3174,9 @@ async function restoreConfiguratorFromOffer(doc) {
   setByNameOrId('customerNumber', p?.bereich?.customerNumber);
   setSelect('customerType', p?.bereich?.customerType);
 
+  restorePflegegradAndWohnumfeld(p?.bereich);
+
+
   // contact person
   setRadio('hasContactPerson', p?.bereich?.hasContactPerson);
   setByNameOrId('cp_name', p?.bereich?.cp_name);
@@ -3031,7 +3189,8 @@ async function restoreConfiguratorFromOffer(doc) {
   // internals
   setByNameOrId('emc2_contact', p?.bereich?.emc2_contact);
   setRadio('payer', p?.bereich?.payer);
-  setSelect('aufschlag', p?.bereich?.aufschlag);
+  setRadio('aufschlag', p?.bereich?.aufschlag);
+
 
   // Distances & Times
   setNumber('distanceKm', p?.bereich?.distanceKm);
@@ -3050,6 +3209,9 @@ async function restoreConfiguratorFromOffer(doc) {
   setSelect('drainSet', p?.duschwanne?.drainSet);
   setSelect('smallMaterial', p?.duschwanne?.smallMaterial);
   setSelect('stelzlager', p?.duschwanne?.stelzlager);
+
+  restoreTraySelection(p?.duschwanne);
+
 
   // optional flooring toggle/area
   if ('addFlooring' in (p?.duschwanne || {})) {
@@ -3079,6 +3241,7 @@ restoreWorkTasks(p?.duschwanne);
   setNumber('wvProfileAdhesiveQty', p?.wandverkleidung?.wvProfileAdhesiveQty);
   setNumber('wvV3VQty', p?.wandverkleidung?.wvV3VQty);
   setNumber('wvCornersCount', p?.wandverkleidung?.wvCornersCount);
+restoreWV(p?.wandverkleidung);
 
   // ---- Hassmann quick add rows (if your UI has dynamic rows) ----
   if (Array.isArray(p?.duschabtrennung?.quickAdd)) {
@@ -3116,6 +3279,7 @@ restoreWorkTasks(p?.duschwanne);
       }
     }
   }
+restoreHassmannQuickAdd(p?.duschabtrennung);
 
   // ---- Optional block (example): restore quantities by name
   if (p?.optional) {
@@ -3124,6 +3288,8 @@ restoreWorkTasks(p?.duschwanne);
       setByNameOrId(k, v);
     }
   }
+restoreOptional(p?.optional);
+restoreRabatt(p?.rabatt);
 
   // Show the loaded offer number in the UI if you have an input
   if (offer?.offerNumber) {
@@ -3968,7 +4134,6 @@ function initOptionalMenus() {
 }
 
 
-
 function initLivePricingSync() {
   // WATCH EVERYTHING (best: your main form; fallback: document.body)
   const watchRoot =
@@ -3979,20 +4144,8 @@ function initLivePricingSync() {
   let t = null;
   const debounce = (fn, ms=250) => { clearTimeout(t); t = setTimeout(fn, ms); };
 
-  async function repriceNow() {
-    const payload = buildPayload();            // reuse your builder
-    const r = await fetch('/api/price', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      credentials: 'include', body: JSON.stringify(payload),
-    });
-    const result = await r.json();
+  async function repriceNow() { await window.updatePricing?.(); }
 
-    if (typeof renderKostenDetails === 'function') renderKostenDetails(result, payload);
-    else if (typeof renderCostsDebug === 'function') renderCostsDebug(result, payload);
-
-    document.dispatchEvent(new CustomEvent('price:updated', { detail: { result, payload } }));
-    window.lastPrice = result;
-  }
 
   // Single delegated listener covers ALL inputs/checkboxes/selects in the app
   const handler = () => debounce(repriceNow, 180);
