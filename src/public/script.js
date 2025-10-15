@@ -60,6 +60,24 @@ window.__RESTORING__ = false;
 
 
 // ---- RESTORE HELPERS ----
+function findInputByProductId(pid) {
+  const host = document.getElementById('page-wandverkleidung') || document;
+  const lab  = host.querySelector(`[data-product-id="${pid}"]`);
+  return lab?.querySelector('input[type="checkbox"],input[type="radio"]') || null;
+}
+function setByProductId(pid, on) {
+  const input = findInputByProductId(pid);
+  if (!input) return false;
+  input.checked = !!on;
+  if (typeof highlightTileForInput === 'function') {
+    highlightTileForInput(input, !!on);
+  }
+  if (!window.__RESTORING__) {
+   input.dispatchEvent(new Event('change', { bubbles: true }));
+ }
+  return true;
+}
+
 function restoreBudgetPanel(bereich) {
   if (!bereich) return;
   const txt = String(bereich.budgetOptionsPanel || '').toUpperCase();
@@ -782,6 +800,35 @@ function collectDuschabtrennungQuickAdd(doc) {
 
 
 
+function readWVConsumablesStrict() {
+  const form = document.getElementById('form-wandverkleidung');
+  if (!form) return [];
+
+  // If we have checkbox tiles, use ONLY those (true source of truth)
+  const boxInputs = form.querySelectorAll(
+    'input[type="checkbox"][name="wvSealing[]"],' +
+    'input[type="checkbox"][name="wvAdhesive[]"],' +
+    'input[type="checkbox"][name="wvEndProfile[]"],' +
+    'input[type="checkbox"][name="wvProfileAdhesive[]"]'
+  );
+
+  const picked = [];
+  if (boxInputs.length) {
+    boxInputs.forEach(i => { if (i.checked) picked.push(String(i.value)); });
+    return Array.from(new Set(picked));
+  }
+
+  // Fallback (no boxes present): accept singles from <select>s,
+  // but only when the control is visible & enabled.
+  ['wvSealing','wvAdhesive','wvEndProfile','wvProfileAdhesive'].forEach(name => {
+    const el = form.querySelector(`[name="${name}"]`);
+    if (el && !el.disabled && !el.closest('[hidden]') && el.value) {
+      picked.push(String(el.value));
+    }
+  });
+
+  return Array.from(new Set(picked));
+}
 
 
 function buildPayload() {
@@ -852,6 +899,14 @@ try {
   }
 } catch (e) {
   console.warn('[buildPayload] flooring arrays capture failed:', e);
+}
+// WV consumables – ONLY what's actually selected in the UI
+try {
+  const values = readWVConsumablesStrict();
+  payload.wandverkleidung = payload.wandverkleidung || {};
+  payload.wandverkleidung.consumables = values;
+} catch (e) {
+  console.warn('[buildPayload] WV consumables capture failed:', e);
 }
 
 
@@ -1226,14 +1281,18 @@ function setupWandverkleidungPage() {
   const page = document.getElementById("page-wandverkleidung");
   if (!page || page.dataset._wired === "true") return;
   page.dataset._wired = "true";
-
-  const defaultColor = page.querySelector(
-    'input[type="radio"][name="wvColor"][value="Marmor weiß"]'
+ const defaultColor = page.querySelector(
+   'input[type="radio"][name="wvColor"][value="Marmor weiß"]'
   );
   const anyColorChecked = page.querySelector(
     'input[type="radio"][name="wvColor"]:checked'
   );
-  if (defaultColor && !anyColorChecked) defaultColor.checked = true;
+  // only force default if NO color has been restored
+  if (defaultColor && !anyColorChecked && !page.dataset.wvColorRestored) {
+    defaultColor.checked = true;
+  }
+
+ 
 
   const pairs = [
     { cb: "#wv997", wrap: "#wvQty997Wrap", qty: "#wvQty997" },
@@ -3307,12 +3366,19 @@ function restoreWorkTasks(dw) {
 
 function restoreWV(wv) {
   if (!wv) return;
+ const prev = window.__RESTORING__;
+ window.__RESTORING__ = true;
+  // --- 2a) WV consumables: clear the 4 “defaulty” items first
+const WV_DEFAULT_PIDS = ['TRWDSET5','V4RKIT','V3A','V4RPKIT'];
+ WV_DEFAULT_PIDS.forEach(pid => setByProductId(pid, false));
 
   // Kind is a radio
   if (wv.wvKind) setRadio('wvKind', wv.wvKind);
 
   // Color may be radio too – restore if present
   if (wv.wvColor) setRadio('wvColor', wv.wvColor);
+  const pageWV = document.getElementById('page-wandverkleidung');
+ if (pageWV && wv.wvColor) pageWV.dataset.wvColorRestored = '1';
 
   // Quantities (keep zeros)
   const pairs = [
@@ -3343,6 +3409,27 @@ function restoreWV(wv) {
   setInputByNameOrId('wvAdhesiveQty',        wv.wvAdhesiveQty);
   setInputByNameOrId('wvV3VQty',             wv.wvV3VQty);
   setInputByNameOrId('wvCornersCount',       wv.wvCornersCount);
+
+   // --- 2b) Re-enable only what DB says was selected
+ // Works with multiple possible DB shapes; keeps it robust.
+ const chosenStrings = []
+   .concat(wv?.materials || [])
+   .concat(wv?.consumables || [])
+   .concat(wv?.selected || [])
+   .concat(wv?.floorSealing || [])
+   .concat(wv?.adhesives || [])
+   .concat(wv?.profiles || [])
+   .filter(Boolean)
+   .map(String);
+
+ const chosenHas = (shortPid) =>
+   chosenStrings.some(s => s.includes(shortPid)); // e.g. "... TRWDSET5"
+
+ setByProductId('TRWDSET5',  chosenHas('TRWDSET5')); // TRINNITY Wandabdichtung
+ setByProductId('V4RKIT',    chosenHas('V4RKIT'));   // Wandverkleidungsklebstoff
+ setByProductId('V3A',       chosenHas('V3A'));      // Abschlussprofil
+ setByProductId('V4RPKIT',   chosenHas('V4RPKIT'));  // Profilklebstoff
+ window.__RESTORING__ = prev;
 
   // Selects/radios for accessories
   if (wv.wvEndProfile)      setSelect('wvEndProfile', wv.wvEndProfile);
@@ -3580,10 +3667,15 @@ restoreTrinnityFloorSealing(p?.duschwanne);
     restoreWorkTasks(p?.duschwanne);
 
     // ---- Wandverkleidung ----
-    if (p?.wandverkleidung?.wvKind) setRadio('wvKind', p.wandverkleidung.wvKind);
+     if (p?.wandverkleidung?.wvKind) setRadio('wvKind', p.wandverkleidung.wvKind);
+ if (p?.wandverkleidung?.wvColor) {
+   setRadio('wvColor', p.wandverkleidung.wvColor);
+   const pageWV = document.getElementById('page-wandverkleidung');
+   if (pageWV) pageWV.dataset.wvColorRestored = '1';
+ }
     setNumber('wvQty997', p?.wandverkleidung?.wvQty997);
     setNumber('wvQty1497', p?.wandverkleidung?.wvQty1497);
-    setSelect('wvColor', p?.wandverkleidung?.wvColor);
+    if (p?.wandverkleidung?.wvColor) setRadio('wvColor', p.wandverkleidung.wvColor);
     setSelect('wvSealing', p?.wandverkleidung?.wvSealing);
     setSelect('wvAdhesive', p?.wandverkleidung?.wvAdhesive);
     setNumber('wvAdhesiveQty', p?.wandverkleidung?.wvAdhesiveQty);
