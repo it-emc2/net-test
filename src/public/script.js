@@ -4552,6 +4552,96 @@ function initBasinAutoAccessories() {
     }
   }
 }
+// === WV selection ↔ menge sync (minimal, non-invasive) ===
+(function () {
+  const byId = (id) => document.getElementById(id);
+  const q = (sel, root = document) => root.querySelector(sel);
+
+  // Elements for the 4 items
+  const pairs = [
+    // Wandverkleidungsklebstoff V4RKIT
+    { cb: q('#wvAdhesiveSection input[type=checkbox][name="wvAdhesive"]'), qty: byId('wvAdhesiveQty'), kind: 'ADH' },
+    // Abschlussprofil V3A
+    { cb: q('#wvEndProfileSection input[type=checkbox][name="wvEndProfile"]'), qty: byId('wvEndProfileQty'), kind: 'END' },
+    // Profilklebstoff V4RPKIT
+    { cb: q('#wvProfileAdhesiveSection input[type=checkbox][name="wvProfileAdhesive"]'), qty: byId('wvProfileAdhesiveQty'), kind: 'PADH' },
+    // Verbindungsprofil V3V (checkbox is UI only; qty governs pricing)
+    { cb: byId('wvV3VSelected'), qty: byId('wvV3VQty'), kind: 'V3V' },
+  ].filter(p => p.cb && p.qty);
+
+  // Try to read an integer suggestion from #wvAdhesiveSuggestion text, else null
+  function readAdhesiveSuggestion() {
+    const el = byId('wvAdhesiveSuggestion');
+    if (!el) return null;
+    const m = (el.textContent || '').match(/\d+/);
+    return m ? parseInt(m[0], 10) : null;
+  }
+
+  // When a checkbox is toggled
+  function onCheckboxChange(p) {
+    const current = +p.qty.value || 0;
+    if (p.cb.checked) {
+      if (current === 0) {
+        // Use fallback for adhesive if visible, otherwise min 1
+        let v = 1;
+        if (p.kind === 'ADH') {
+          const sug = readAdhesiveSuggestion();
+          if (Number.isInteger(sug) && sug > 0) v = sug;
+        }
+        p.qty.value = v;
+        // propagate to any existing listeners
+        p.qty.dispatchEvent(new Event('input', { bubbles: true }));
+        p.qty.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    } else {
+      if (current !== 0) {
+        p.qty.value = 0;
+        p.qty.dispatchEvent(new Event('input', { bubbles: true }));
+        p.qty.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+  }
+
+  // When quantity changes, reflect on the checkbox (reflexive)
+  function onQtyChange(p) {
+    const v = +p.qty.value || 0;
+    if (v <= 0) {
+      if (p.cb.checked) {
+        p.cb.checked = false;
+        p.cb.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    } else {
+      if (!p.cb.checked) {
+        p.cb.checked = true;
+        p.cb.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+  }
+
+  // Wire listeners and perform initial sync
+  pairs.forEach((p) => {
+    p.cb.addEventListener('change', () => onCheckboxChange(p));
+    p.qty.addEventListener('input', () => onQtyChange(p));
+    p.qty.addEventListener('change', () => onQtyChange(p));
+
+    // Initial sync (page load): keep any prefilled qty (e.g., fallback).
+    const current = +p.qty.value || 0;
+
+    if (p.cb.checked && current === 0) {
+      // If something marked it selected but left qty empty, set minimum
+      let v = 1;
+      if (p.kind === 'ADH') {
+        const sug = readAdhesiveSuggestion();
+        if (Number.isInteger(sug) && sug > 0) v = sug;
+      }
+      p.qty.value = v;
+    }
+
+    // Reflect qty to checkbox for V3V and others
+    onQtyChange(p);
+  });
+})();
+
 function refreshHassmannFrame() {
   const iframe = document.getElementById('hassmannFrame');
   if (!iframe) return;
