@@ -173,6 +173,8 @@ const MAP_DW = {
   remove_enclosure:  'Entfernen und Entsorgen der Duschabtrennung',
   install_tray:      'Einbau der Duschwanne',
   install_enclosure: 'Einbau der Duschabtrennung',
+  relocate_faucet:   'Armatur verlegen',
+  relocate_drain:    'Abfluss verlegen',
 };
 
 const dwTasks = normalizeDWTasks(payload);
