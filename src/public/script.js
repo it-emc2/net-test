@@ -4842,6 +4842,27 @@ wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
     initBasinAutoAccessories();
   }
 }
+function initTECEADSPairsLabel() {
+  const qty = document.getElementById('qty_TECEADS');
+  const lbl = document.querySelector('label[for="qty_TECEADS"]');
+  if (!qty || !lbl) return;
+
+  const base = (lbl.dataset.baseLabel ||= lbl.textContent.replace(/\s*\(.*\)\s*$/, ''));
+
+  const paint = () => {
+    const raw = String(qty.value || '').replace(/\./g, '').replace(',', '.');
+    const n = Number(raw);
+    const items = Number.isFinite(n) && n > 0 ? n : 0;     // input = items
+    const pairs = items / 2;                               // show pairs
+    const pairsStr = Number.isInteger(pairs) ? String(pairs) : pairs.toFixed(1);
+    lbl.textContent = `${base} (${pairsStr} paare)`;
+  };
+
+  ['input','change','blur'].forEach(ev => qty.addEventListener(ev, paint));
+  paint(); // initial
+}
+
+document.addEventListener('DOMContentLoaded', initTECEADSPairsLabel);
 
 
 function initLivePricingSync() {
