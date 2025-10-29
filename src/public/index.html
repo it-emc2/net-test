@@ -2431,6 +2431,16 @@ section.da-quickadd .da-remove:focus-visible {
                 /></span>
                 <span class="caption">Einbau eines Klappsitz</span>
               </label>
+              <label class="image-check">
+              <input type="checkbox" id="cat_METER" />
+              <span class="img-wrap"
+                ><img
+                  src="./assets/TECEADS.jpg"
+                  alt="Eingabe der (Verlege)-Meter"
+              /></span>
+              <span class="caption">Eingabe der (Verlege)-Meter</span>
+            </label>
+
             </div>
           </div>
 
@@ -3167,6 +3177,42 @@ section.da-quickadd .da-remove:focus-visible {
               </div>
             </div>
           </div>
+
+          <div id="menu_METER" class="full field" hidden aria-hidden="true">
+  <div class="subheader">Verlege-Meter</div>
+  <div style="display: flex; gap: 14px; flex-wrap: wrap">
+    <div class="field" style="min-width: 220px">
+      <label class="image-check"
+        ><input
+          type="checkbox"
+          id="opt_TECEADS"
+          name="optMeter[]"
+          value="TECE ADS Abdichtung/Verlegung pro Meter TECEADS"
+        /><span class="img-wrap"
+          ><img src="./assets/TECEADS.jpg" alt="TECEADS" /></span
+        ><span class="caption">TECEADS</span></label
+      >
+      <div
+        id="qty_TECEADS_wrap"
+        class="field"
+        hidden
+        aria-hidden="true"
+        style="max-width: 220px"
+      >
+        <label for="qty_TECEADS" class="req">Menge TECEADS</label
+        ><input
+          id="qty_TECEADS"
+          name="qty_TECEADS"
+          type="number"
+          min="0"
+          step="1"
+          placeholder="0"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+
 
           <div class="actions full">
             <button type="button" data-nav="prev" class="secondary">

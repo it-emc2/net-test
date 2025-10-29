@@ -3501,6 +3501,8 @@ function restoreOptional(opt) {
     BASIN_TAP: [/^opt_CL_BASIN$/, /^opt_DEPOH$/],
     THERMO:    [/^opt_CLTB$|^opt_DEPTB$|^opt_CLB$/],
     SEAT:      [/^opt_DEPKS$/],
+      METER:     [/^opt_TECEADS$|^qty_TECEADS$/],
+
   };
 
   Object.entries(categories).forEach(([cat, patterns]) => {
@@ -4672,6 +4674,7 @@ function initOptionalMenus() {
     cat_THERMO:     "menu_THERMO",
     cat_SEAT:       "menu_SEAT",
     // Add more categories here if needed
+    cat_METER:     "menu_METER",
   };
 
   // ---- helpers ----
@@ -4785,6 +4788,9 @@ function initOptionalMenus() {
 
   // ---- BASIN (main CL60 tile) ----
   wireTileQty("opt_CL60", "qty_CL60_wrap");
+  // ---- METER ----
+wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
+
 
   // Show/hide "Erforderliches Zubehör" when CL60 is toggled (no cross-panel effects)
   (function wireBasinRequired() {
