@@ -245,11 +245,11 @@ const parseMoneyStrict = (v) => {
   if (addFlooring && floorArea > 0) {
     // Paneele inkl. 15% Verschnitt
     const panels = ceilSafe((floorArea * 1.15) / 0.3);
-    add('V5FB02', panels, `- ${panels} Stk Fußboden-Paneele (1 Paneele = 0.3 m² )`, 20.97);
+    add('V5FB02', panels, `- ${panels} Stk Fußboden-Paneele (1 Paneele = 0.3 m² )`);
 
     // Flächenkleber (0,60 m²/Pack)
     const packs = ceilSafe(floorArea / 0.6);
-    if (packs > 0) add('V4FK600', packs, `- ${packs} Pkg Flächenkleber (1 Pkg je 0,60 m²)`, 17.39);
+    if (packs > 0) add('V4FK600', packs, `- ${packs} Pkg Flächenkleber (1 Pkg je 0,60 m²)`);
 
     // Bodenabdichtung pro m² (Checkbox name can be floorSealing or floorSealing[])
     const floorSealingOn = !!(dusch.floorSealing || dusch['floorSealing[]']);
@@ -293,11 +293,11 @@ const parseMoneyStrict = (v) => {
 
   if (wv?.wvSealing) add('TRWDSET5', 1);
 
-  if (wv?.wvAdhesive) {
-    const userQtyAdh = Number(wv?.wvAdhesiveQty);
-    const fallbackAdh = (3 * qty997) + (4 * qty1497);
+  if (wv?.flechenkleber) {
+    const userQtyAdh = Number(wv?.wvFlachenQty);
+    const fallbackAdh = (2 * qty997) + (2 * qty1497);
     const qAdh = Number.isFinite(userQtyAdh) && userQtyAdh > 0 ? userQtyAdh : fallbackAdh;
-    if (qAdh > 0) add('V4RKIT', qAdh, `- ${qAdh} Stk Wandverkleidungsklebstoff 3.0/4.0`);
+    if (qAdh > 0) add('V4FK600', qAdh, `- ${qAdh} Pkg Flächenkleber (Wandverkleidung)`);
   }
 
   let endProfilesQty = 0;

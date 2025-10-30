@@ -807,7 +807,7 @@ function readWVConsumablesStrict() {
   // If we have checkbox tiles, use ONLY those (true source of truth)
   const boxInputs = form.querySelectorAll(
     'input[type="checkbox"][name="wvSealing[]"],' +
-    'input[type="checkbox"][name="wvAdhesive[]"],' +
+    'input[type="checkbox"][name="flechenkleber[]"],' +
     'input[type="checkbox"][name="wvEndProfile[]"],' +
     'input[type="checkbox"][name="wvProfileAdhesive[]"]'
   );
@@ -820,7 +820,7 @@ function readWVConsumablesStrict() {
 
   // Fallback (no boxes present): accept singles from <select>s,
   // but only when the control is visible & enabled.
-  ['wvSealing','wvAdhesive','wvEndProfile','wvProfileAdhesive'].forEach(name => {
+  ['wvSealing','flechenkleber','wvEndProfile','wvProfileAdhesive'].forEach(name => {
     const el = form.querySelector(`[name="${name}"]`);
     if (el && !el.disabled && !el.closest('[hidden]') && el.value) {
       picked.push(String(el.value));
@@ -3369,7 +3369,7 @@ function restoreWV(wv) {
  const prev = window.__RESTORING__;
  window.__RESTORING__ = true;
   // --- 2a) WV consumables: clear the 4 “defaulty” items first
-const WV_DEFAULT_PIDS = ['TRWDSET5','V4RKIT','V3A','V4RPKIT'];
+const WV_DEFAULT_PIDS = ['TRWDSET5','V4FK600','V3A','V4RPKIT'];
  WV_DEFAULT_PIDS.forEach(pid => setByProductId(pid, false));
 
   // Kind is a radio
@@ -3406,7 +3406,7 @@ const WV_DEFAULT_PIDS = ['TRWDSET5','V4RKIT','V3A','V4RPKIT'];
   // Other numbers
   setInputByNameOrId('wvEndProfileQty',      wv.wvEndProfileQty);
   setInputByNameOrId('wvProfileAdhesiveQty', wv.wvProfileAdhesiveQty);
-  setInputByNameOrId('wvAdhesiveQty',        wv.wvAdhesiveQty);
+  setInputByNameOrId('wvFlachenQty',        wv.wvFlachenQty);
   setInputByNameOrId('wvV3VQty',             wv.wvV3VQty);
   setInputByNameOrId('wvCornersCount',       wv.wvCornersCount);
 
@@ -3426,7 +3426,7 @@ const WV_DEFAULT_PIDS = ['TRWDSET5','V4RKIT','V3A','V4RPKIT'];
    chosenStrings.some(s => s.includes(shortPid)); // e.g. "... TRWDSET5"
 
  setByProductId('TRWDSET5',  chosenHas('TRWDSET5')); // TRINNITY Wandabdichtung
- setByProductId('V4RKIT',    chosenHas('V4RKIT'));   // Wandverkleidungsklebstoff
+ setByProductId('V4FK600',    chosenHas('V4FK600'));   // Flächenkleber (Wandverkleidung)
  setByProductId('V3A',       chosenHas('V3A'));      // Abschlussprofil
  setByProductId('V4RPKIT',   chosenHas('V4RPKIT'));  // Profilklebstoff
  window.__RESTORING__ = prev;
@@ -3434,7 +3434,7 @@ const WV_DEFAULT_PIDS = ['TRWDSET5','V4RKIT','V3A','V4RPKIT'];
   // Selects/radios for accessories
   if (wv.wvEndProfile)      setSelect('wvEndProfile', wv.wvEndProfile);
   if (wv.wvProfileAdhesive) setSelect('wvProfileAdhesive', wv.wvProfileAdhesive);
-  if (wv.wvAdhesive)        setSelect('wvAdhesive', wv.wvAdhesive);
+  if (wv.flechenkleber)        setSelect('flechenkleber', wv.flechenkleber);
   if (wv.wvSealing)         setSelect('wvSealing', wv.wvSealing);
 }
 
@@ -3679,8 +3679,8 @@ restoreTrinnityFloorSealing(p?.duschwanne);
     setNumber('wvQty1497', p?.wandverkleidung?.wvQty1497);
     if (p?.wandverkleidung?.wvColor) setRadio('wvColor', p.wandverkleidung.wvColor);
     setSelect('wvSealing', p?.wandverkleidung?.wvSealing);
-    setSelect('wvAdhesive', p?.wandverkleidung?.wvAdhesive);
-    setNumber('wvAdhesiveQty', p?.wandverkleidung?.wvAdhesiveQty);
+    setSelect('flechenkleber', p?.wandverkleidung?.flechenkleber);
+    setNumber('wvFlachenQty', p?.wandverkleidung?.wvFlachenQty);
     setSelect('wvEndProfile', p?.wandverkleidung?.wvEndProfile);
     setNumber('wvEndProfileQty', p?.wandverkleidung?.wvEndProfileQty);
     setSelect('wvProfileAdhesive', p?.wandverkleidung?.wvProfileAdhesive);
@@ -4561,8 +4561,8 @@ function initBasinAutoAccessories() {
 
   // Elements for the 4 items
   const pairs = [
-    // Wandverkleidungsklebstoff V4RKIT
-    { cb: q('#wvAdhesiveSection input[type=checkbox][name="wvAdhesive"]'), qty: byId('wvAdhesiveQty'), kind: 'ADH' },
+    // Flächenkleber V4FK600
+    { cb: q('#flechenSection input[type=checkbox][name="flechenkleber"]'), qty: byId('wvFlachenQty'), kind: 'ADH' },
     // Abschlussprofil V3A
     { cb: q('#wvEndProfileSection input[type=checkbox][name="wvEndProfile"]'), qty: byId('wvEndProfileQty'), kind: 'END' },
     // Profilklebstoff V4RPKIT
