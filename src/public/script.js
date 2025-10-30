@@ -5023,24 +5023,7 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         });
 
-        document.addEventListener("click", (event) => {
-          const button = event.target.closest("[data-nav]");
-          if (!button) return;
-
-          const currentStep = validStep(
-            window.location.hash.replace("#", "") || stepOrder[0]
-          );
-          const currentIndex = stepOrder.indexOf(currentStep);
-
-          if (button.dataset.nav === "next" && currentIndex < stepOrder.length - 1) {
-            window.location.hash = stepOrder[currentIndex + 1];
-          }
-
-          if (button.dataset.nav === "prev" && currentIndex > 0) {
-            window.location.hash = stepOrder[currentIndex - 1];
-          }
-        });
-
+    
         window.addEventListener("hashchange", syncWithHash);
         syncWithHash();
       });
