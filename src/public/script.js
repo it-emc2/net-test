@@ -1315,6 +1315,8 @@ function setupWandverkleidungPage() {
       showWrap(wrapEl, true);
       if (!parseInt(qtyEl.value || "0", 10)) qtyEl.value = "1";
     }
+    recomputeWVFlachenQty();
+
 
     cbEl.addEventListener("change", () => {
       if (cbEl.checked) {
@@ -1324,14 +1326,37 @@ function setupWandverkleidungPage() {
         showWrap(wrapEl, false);
         qtyEl.value = "0";
       }
+      recomputeWVFlachenQty(); 
       if (typeof updateKostenDetails === "function") updateKostenDetails();
     });
 
     qtyEl.addEventListener("input", () => {
-      if (typeof updateKostenDetails === "function") updateKostenDetails();
-    });
+  recomputeWVFlachenQty();   // <-- added
+  if (typeof updateKostenDetails === "function") updateKostenDetails();
+});
+qtyEl.addEventListener("change", () => {
+  recomputeWVFlachenQty();   // <-- added
+});
+recomputeWVFlachenQty();     // <-- initial paint based on current panel Mengen
+
   });
 }
+// === WV PANELS → FLÄCHENKLEBER (one-way) ==============================
+function recomputeWVFlachenQty() {
+  const n = (id) => parseInt(document.getElementById(id)?.value || '0', 10) || 0;
+  const out = document.getElementById('wvFlachenQty');
+  if (!out) return;
+
+  const v = (2 * n('wvQty997')) + (2 * n('wvQty1497'));
+  // Write only if changed (prevents noisy loops)
+  if ((parseInt(out.value || '0', 10) || 0) !== v) {
+    out.value = String(v);
+    // notify any listeners (pricing, UI mirrors, etc.)
+    out.dispatchEvent(new Event('input',  { bubbles: true }));
+    out.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+}
+
 function initWVConnectorsUI() {
   const qtyVEl   = document.getElementById('wvV3VQty');       // user-entered connectors
   const outEl    = document.getElementById('wvV3VRuleText');  // hint line
