@@ -244,7 +244,9 @@ const parseMoneyStrict = (v) => {
 
   if (addFlooring && floorArea > 0) {
     // Paneele inkl. 15% Verschnitt
+    //const chosenFloor = document.querySelector('input[name="flooringProduct[]"][data-flooring-color]:checked');
     const panels = ceilSafe((floorArea * 1.15) / 0.3);
+    //add('V5FB02', panels, `- ${panels} Stk Fußboden-Paneele (1 Paneele = 0.3 m² ) — Farbe: ${chosenFloor.dataset.flooringColor}`);
     add('V5FB02', panels, `- ${panels} Stk Fußboden-Paneele (1 Paneele = 0.3 m² )`);
 
     // Flächenkleber (0,60 m²/Pack)

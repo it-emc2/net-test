@@ -1538,22 +1538,77 @@ section.da-quickadd .da-remove:focus-visible {
           <div id="flooringPanel" class="field" aria-hidden="true" hidden>
             <h3 style="margin: 0 0 8px">Fußboden</h3>
 
-            <div class="field">
-              <label class="req">Fußboden für Fehlstellen-Ausgleich</label>
-              <label class="image-check" data-product-id="V5FB02">
-                <input
-                  type="checkbox"
-                  name="flooringProduct[]"
-                  value="Fußboden individ.5.0 V5FB02"
-                />
-                <span class="img-wrap"
-                  ><img
-                    src="./assets/V5FB02.jpg"
-                    alt="Fußboden individ.5.0 V5FB02"
-                /></span>
-                <span class="caption">Fußboden individ.5.0 V5FB02</span>
-              </label>
-            </div>
+            <div class="field" id="flooringColors">
+  <label class="req">Fußboden für Fehlstellen-Ausgleich</label>
+
+  <div style="display:flex; gap:14px; flex-wrap:wrap">
+    <!-- 1) Lava-Beige (your default if area > 0 and none selected) -->
+    <label class="image-check" data-product-id="V5FB02">
+      <input
+        type="checkbox"
+        name="flooringProduct[]"
+        value="Fußboden individ.5.0 V5FB02"
+        data-product-id="V5FB02"
+        data-color="Lava-Beige"
+      />
+      <span class="img-wrap"><img src="./assets/V5_Lava_Beige.jpg" alt="Fußboden V5FB02 — Lava-Beige" /></span>
+      <span class="caption">Fußboden individ.5.0 V5FB02</span>
+    </label>
+
+    <!-- 2) Schiefer-Beige -->
+    <label class="image-check" data-product-id="V5FB02">
+      <input
+        type="checkbox"
+        name="flooringProduct[]"
+        value="Fußboden individ.5.0 V5FB02"
+        data-product-id="V5FB02"
+        data-color="Schiefer-Beige"
+      />
+      <span class="img-wrap"><img src="./assets/V5_Schiefer_beige.jpg" alt="Fußboden V5FB02 — Schiefer-Beige" /></span>
+      <span class="caption">Fußboden individ.5.0 V5FB02</span>
+    </label>
+
+    <!-- 3) Speckstein-Schwarz -->
+    <label class="image-check" data-product-id="V5FB02">
+      <input
+        type="checkbox"
+        name="flooringProduct[]"
+        value="Fußboden individ.5.0 V5FB02"
+        data-product-id="V5FB02"
+        data-color="Speckstein-Schwarz"
+      />
+      <span class="img-wrap"><img src="./assets/V5_Speckstein_schwarz.jpg" alt="Fußboden V5FB02 — Speckstein-Schwarz" /></span>
+      <span class="caption">Fußboden individ.5.0 V5FB02</span>
+    </label>
+
+    <!-- 4) Eiche-Natur -->
+    <label class="image-check" data-product-id="V5FB02">
+      <input
+        type="checkbox"
+        name="flooringProduct[]"
+        value="Fußboden individ.5.0 V5FB02"
+        data-product-id="V5FB02"
+        data-color="Eiche-Natur"
+      />
+      <span class="img-wrap"><img src="./assets/V5_Eiche_natur.jpg" alt="Fußboden V5FB02 — Eiche-Natur" /></span>
+      <span class="caption">Fußboden individ.5.0 V5FB02</span>
+    </label>
+
+    <!-- 5) Loft-Grau -->
+    <label class="image-check" data-product-id="V5FB02">
+      <input
+        type="checkbox"
+        name="flooringProduct[]"
+        value="Fußboden individ.5.0 V5FB02"
+        data-product-id="V5FB02"
+        data-color="Loft-Grau"
+      />
+      <span class="img-wrap"><img src="./assets/V5_loft_grau.jpg" alt="Fußboden V5FB02 — Loft-Grau" /></span>
+      <span class="caption">Fußboden individ.5.0 V5FB02</span>
+    </label>
+  </div>
+</div>
+
 
             <div class="field">
               <label for="floorArea" class="req">gewünschte Fläche m²</label>

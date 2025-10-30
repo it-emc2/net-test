@@ -1124,6 +1124,52 @@ await saveFinalOfferSnapshot();
     console.error("PDF generation failed:", error);
   }
 }
+// === FIX: area <-> color coupling (self-contained) ===
+function syncColorWithAreaDW() {
+  const form = document.getElementById('form-duschwanne');
+  if (!form) return;
+
+  const areaEl = form.querySelector('#floorArea');
+  const raw = (areaEl?.value || '').replace(',', '.');
+  const hasArea = Number.isFinite(+raw) && +raw > 0;
+
+  const colors = Array.from(form.querySelectorAll('input[name="flooringProduct[]"]'));
+  if (!colors.length) return;
+
+  // ensure exclusivity helper
+  const uncheckAll = () => colors.forEach(i => { i.checked = false; highlightTileForInput(i, false); });
+
+  const anyChecked = form.querySelector('input[name="flooringProduct[]"]:checked');
+
+  if (!hasArea) {
+    // area empty/0 -> NO color selected
+    uncheckAll();
+  } else if (!anyChecked) {
+    // area > 0 -> ensure exactly ONE is selected (default: Lava-Beige if present)
+    const def =
+      form.querySelector('input[name="flooringProduct[]"][data-color="Lava-Beige"]') ||
+      colors[0];
+    if (def) {
+      def.checked = true;
+      // make sure we keep exclusivity visually
+      colors.forEach(i => highlightTileForInput(i, i === def));
+    }
+  } else {
+    // area > 0 and one is already checked -> enforce exclusivity (in case multiple were ticked)
+    const first = anyChecked;
+    colors.forEach(i => {
+      if (i !== first && i.checked) {
+        i.checked = false;
+        highlightTileForInput(i, false);
+      }
+    });
+    highlightTileForInput(first, true);
+  }
+
+  // keep server totals in sync
+  window.updatePricing?.();
+}
+
 
 function collectAllFormData() {
   return buildPayload();
@@ -2227,69 +2273,78 @@ f.querySelectorAll('input[name="floorSealing[]"]').forEach(cb => {
     window.updatePricing?.();       // keep server totals in sync
   });
 });
-  function apply() {
-    const on = !!toggle?.checked;
-    show(panel, on);
-    setReq(area, on);
-    if (on) {
-      // auto-check tiles when enabled
-// Auto-check panels + adhesive ONLY if user hasn't chosen yet
-const anyProd = f.querySelector('input[name="flooringProduct[]"]:checked');
-if (!anyProd) {
-  f.querySelectorAll('input[name="flooringProduct[]"]').forEach((i) => {
-    i.checked = true;
-    highlightTileForInput(i, true);
-  });
-}
-const anyAdh = f.querySelector('input[name="floorAdhesive[]"]:checked');
-if (!anyAdh) {
-  f.querySelectorAll('input[name="floorAdhesive[]"]').forEach((i) => {
-    i.checked = true;
-    highlightTileForInput(i, true);
-  });
-}
-// DO NOT touch floorSealing[] here — user controls it
+ function apply() {
+  const on = !!toggle?.checked;
+  show(panel, on);
+  setReq(area, on);
 
-
-
-
-      init();
-    } else {
-      if (area) area.value = "";
-      try {
-        localStorage.removeItem(AREA_KEY);
-      } catch {}
-      f.querySelectorAll(
-        'input[name="flooringProduct[]"],input[name="floorAdhesive[]"],input[name="floorSealing[]"]'
-      ).forEach((i) => {
-        i.checked = false;
-        highlightTileForInput(i, false);
-      });
-      if (liveAdh) liveAdh.textContent = "";
-      if (liveSeal) liveSeal.textContent = "";
-      if (adhesivePriceEl) adhesivePriceEl.textContent = "0";
-      if (sealingPriceEl) sealingPriceEl.textContent = "0";
-      if (panelsPriceEl) panelsPriceEl.textContent = "0";
-      unitAdh = unitSeal = 0;
-      computed.areaM2 = 0;
-      computed.adhesive = { productId: "V4FK600", packs: 0, unit: 0, total: 0 };
-      computed.sealing = { productId: "TRBDSET7", sets: 0, unit: 0, total: 0 };
+  if (on) {
+    // Adhesive: if none picked, pick the default SINGLE adhesive
+    const anyAdh = f.querySelector('input[name="floorAdhesive[]"]:checked');
+    if (!anyAdh) {
+      const defAdh =
+        f.querySelector('#tile_V4FK600 input[name="floorAdhesive[]"]') ||
+        f.querySelector('input[name="floorAdhesive[]"]');
+      if (defAdh) {
+        defAdh.checked = true;
+        highlightTileForInput(defAdh, true);
+      }
     }
-    // Keep totals in sync with server
-    window.updatePricing?.();
+
+    // Keep color selection consistent with area (>0 => ensure ONE color; 0 => none)
+    ensureUnits().then(() => { updateUI(); syncColorWithAreaDW(); });
+
+
+    init(); // keep
+  } else {
+    if (area) area.value = "";
+    try { localStorage.removeItem(AREA_KEY); } catch {}
+
+    f.querySelectorAll(
+      'input[name="flooringProduct[]"],input[name="floorAdhesive[]"],input[name="floorSealing[]"]'
+    ).forEach((i) => {
+      i.checked = false;
+      highlightTileForInput(i, false);
+    });
+
+    if (liveAdh) adhesivePriceEl.textContent = "0";
+    if (liveSeal) sealingPriceEl.textContent = "0";
+    if (panelsPriceEl) panelsPriceEl.textContent = "0";
+
+    unitAdh = unitSeal = 0;
+    computed.areaM2 = 0;
+    computed.adhesive = { productId: "V4FK600", packs: 0, unit: 0, total: 0 };
+    computed.sealing  = { productId: "TRBDSET7", sets: 0, unit: 0, total: 0 };
   }
+
+  // Keep totals in sync with server
+  window.updatePricing?.();
+}
+
+const floorColors = Array.from(f.querySelectorAll('input[name="flooringProduct[]"]'));
+floorColors.forEach(cb => {
+  cb.addEventListener('change', () => {
+    if (cb.checked) {
+      floorColors.forEach(other => { if (other !== cb) { other.checked = false; highlightTileForInput(other, false); } });
+      highlightTileForInput(cb, true);
+    }
+    ensureUnits().then(() => { updateUI(); syncColorWithAreaDW(); });
+  });
+});
+
 
   toggle?.addEventListener("change", apply);
 
-  area?.addEventListener("input", () => {
-    try {
-      localStorage.setItem(AREA_KEY, area.value);
-    } catch {}
-    ensureUnits().then(updateUI);
-    window.updatePricing?.();
-  });
+ area?.addEventListener("input", () => {
+  try { localStorage.setItem(AREA_KEY, area.value); } catch {}
+  ensureUnits().then(() => { updateUI(); syncColorWithAreaDW(); });
+  window.updatePricing?.();
+});
+
+
  // run once so a pre-checked toggle shows its panel
   (async () => { await ensureUnits(); updateUI(); })();
+
   // initial tile highlight
   f.querySelectorAll('label.image-check > input[type="checkbox"]').forEach(
     (cb) => {
