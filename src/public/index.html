@@ -1539,8 +1539,16 @@ section.da-quickadd .da-remove:focus-visible {
             <h3 style="margin: 0 0 8px">Fußboden</h3>
 
             <div class="field" id="flooringColors">
-  <label class="req">Fußboden für Fehlstellen-Ausgleich</label>
-
+  <!--<label class="req">Fußboden für Fehlstellen-Ausgleich</label> -->
+ <div class="field">
+              <label for="floorArea" class="req">gewünschte Fläche m²</label>
+              <input
+                id="floorArea"
+                name="floorArea"
+                inputmode="decimal"
+                placeholder="z. B. 12,5"
+              />
+            </div>
   <div style="display:flex; gap:14px; flex-wrap:wrap">
     <!-- 1) Lava-Beige (your default if area > 0 and none selected) -->
     <label class="image-check" data-product-id="V5FB02">
@@ -1610,15 +1618,7 @@ section.da-quickadd .da-remove:focus-visible {
 </div>
 
 
-            <div class="field">
-              <label for="floorArea" class="req">gewünschte Fläche m²</label>
-              <input
-                id="floorArea"
-                name="floorArea"
-                inputmode="decimal"
-                placeholder="z. B. 12,5"
-              />
-            </div>
+           
 
            <!-- Preis for the “Fußboden individ.5.0 V5FB02” line 
 <div class="row" style="gap:8px; align-items:center;">
