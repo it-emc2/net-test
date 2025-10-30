@@ -245,7 +245,16 @@ const parseMoneyStrict = (v) => {
   if (addFlooring && floorArea > 0) {
     // Paneele inkl. 15% Verschnitt
     const panels = ceilSafe((floorArea * 1.15) / 0.3);
-    add('V5FB02', panels, `- ${panels} Stk Fußboden-Paneele (1 Paneele = 0.3 m² )`);
+
+      // minimal inline color extraction from the first selected item
+  const fp = Array.isArray(dusch.flooringProduct) ? (dusch.flooringProduct[0] || '') : '';
+  const color = fp.includes('|') ? fp.split('|', 2)[1].trim() : '';
+
+    add(
+    'V5FB02',
+    panels,
+    `- ${panels} Stk Fußboden-Paneele (1 Paneele = 0.3 m² )${color ? ' — Farbe: ' + color : ''}`
+  );
 
     // Flächenkleber (0,60 m²/Pack)
     const packs = ceilSafe(floorArea / 0.6);
