@@ -567,6 +567,47 @@ section.da-quickadd .da-remove:focus-visible {
   min-width: 640px;        /* tweak 600–720px to taste */
   max-width: 860px;        /* optional: if you want a cap */
 }
+/* 1) Let the whole flooring panel use the full form width */
+#flooringPanel {
+  grid-column: 1 / -1;   /* span both columns of the form grid */
+}
+
+/* 2) Ensure nothing inside clamps width */
+#flooringPanel .field,
+#flooringPanel .row {
+  max-width: none;
+}
+
+/* 3) Make the 5 color tiles fill the entire row on desktop */
+#flooringColors { display: flex; gap: 14px; flex-wrap: wrap; }
+
+@media (min-width: 1024px) {
+  #flooringColors { flex-wrap: nowrap; }
+
+  /* kill any global max-width on image-check cards inside this panel */
+  #flooringPanel .image-check { 
+    max-width: none; 
+    flex: 0 0 calc((100% - (4 * 14px)) / 5);
+  }
+
+  #flooringPanel .img-wrap {
+    display: block;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    overflow: hidden;
+    border-radius: 8px;
+  }
+
+  #flooringPanel .img-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+
+
     </style>
   </head>
   <body>
@@ -1535,87 +1576,94 @@ section.da-quickadd .da-remove:focus-visible {
             >
           </div>
 
-          <div id="flooringPanel" class="field" aria-hidden="true" hidden>
-            <h3 style="margin: 0 0 8px">Fußboden</h3>
+<div id="flooringPanel" class="field" aria-hidden="true" hidden>
+  <h3 style="margin: 0 0 8px">Fußboden</h3>
 
-            <div class="field" id="flooringColors">
-  <!--<label class="req">Fußboden für Fehlstellen-Ausgleich</label> -->
- <div class="field">
-              <label for="floorArea" class="req">gewünschte Fläche m²</label>
-              <input
-                id="floorArea"
-                name="floorArea"
-                inputmode="decimal"
-                placeholder="z. B. 12,5"
-              />
-            </div>
-  <div style="display:flex; gap:14px; flex-wrap:wrap">
-    <!-- 1) Lava-Beige (your default if area > 0 and none selected) -->
-    <label class="image-check" data-product-id="V5FB02">
-      <input
-        type="checkbox"
-        name="flooringProduct[]"
-        value="V5FB02|Lava-Beige"
-        data-product-id="V5FB02"
-        data-color="Lava-Beige"
-      />
-      <span class="img-wrap"><img src="./assets/V5_Lava_Beige.jpg" alt="Fußboden V5FB02 — Lava-Beige" /></span>
-      <span class="caption">Fußboden individ.5.0 V5FB02</span>
-    </label>
-
-    <!-- 2) Schiefer-Beige -->
-    <label class="image-check" data-product-id="V5FB02">
-      <input
-        type="checkbox"
-        name="flooringProduct[]"
-        value="V5FB02|Schiefer-Beige"
-        data-product-id="V5FB02"
-        data-color="Schiefer-Beige"
-      />
-      <span class="img-wrap"><img src="./assets/V5_Schiefer_beige.jpg" alt="Fußboden V5FB02 — Schiefer-Beige" /></span>
-      <span class="caption">Fußboden individ.5.0 V5FB02</span>
-    </label>
-
-    <!-- 3) Speckstein-Schwarz -->
-    <label class="image-check" data-product-id="V5FB02">
-      <input
-        type="checkbox"
-        name="flooringProduct[]"
-        value="V5FB02|Speckstein-Schwarz"
-        data-product-id="V5FB02"
-        data-color="Speckstein-Schwarz"
-      />
-      <span class="img-wrap"><img src="./assets/V5_Speckstein_schwarz.jpg" alt="Fußboden V5FB02 — Speckstein-Schwarz" /></span>
-      <span class="caption">Fußboden individ.5.0 V5FB02</span>
-    </label>
-
-    <!-- 4) Eiche-Natur -->
-    <label class="image-check" data-product-id="V5FB02">
-      <input
-        type="checkbox"
-        name="flooringProduct[]"
-        value="V5FB02|Eiche-Natur"
-        data-product-id="V5FB02"
-        data-color="Eiche-Natur"
-      />
-      <span class="img-wrap"><img src="./assets/V5_Eiche_natur.jpg" alt="Fußboden V5FB02 — Eiche-Natur" /></span>
-      <span class="caption">Fußboden individ.5.0 V5FB02</span>
-    </label>
-
-    <!-- 5) Loft-Grau -->
-    <label class="image-check" data-product-id="V5FB02">
-      <input
-        type="checkbox"
-        name="flooringProduct[]"
-        value="V5FB02|Loft-Grau"
-        data-product-id="V5FB02"
-        data-color="Loft-Grau"
-      />
-      <span class="img-wrap"><img src="./assets/V5_loft_grau.jpg" alt="Fußboden V5FB02 — Loft-Grau" /></span>
-      <span class="caption">Fußboden individ.5.0 V5FB02</span>
-    </label>
+  <!-- Area input: its own field, full width -->
+  <div class="field">
+    <label for="floorArea" class="req">gewünschte Fläche m²</label>
+    <input
+      id="floorArea"
+      name="floorArea"
+      inputmode="decimal"
+      placeholder="z. B. 12,5"
+    />
   </div>
-</div>
+
+  <!-- Label + the five tiles directly after it -->
+  <div class="field">
+    <label class="req">Fußboden für Fehlstellen-Ausgleich</label>
+
+    <div id="flooringColors">
+      <!-- 1) Lava-Beige (default if area > 0 and none selected) -->
+      <label class="image-check" data-product-id="V5FB02">
+        <input
+          type="checkbox"
+          name="flooringProduct[]"
+          value="V5FB02|Lava-Beige"
+          data-product-id="V5FB02"
+          data-color="Lava-Beige"
+        />
+        <span class="img-wrap"><img src="./assets/V5_Lava_Beige.jpg" alt="Fußboden V5FB02 — Lava-Beige" /></span>
+        <span class="caption">Fußboden individ.5.0 V5FB02</span>
+      </label>
+
+      <!-- 2) Schiefer-Beige -->
+      <label class="image-check" data-product-id="V5FB02">
+        <input
+          type="checkbox"
+          name="flooringProduct[]"
+          value="V5FB02|Schiefer-Beige"
+          data-product-id="V5FB02"
+          data-color="Schiefer-Beige"
+        />
+        <span class="img-wrap"><img src="./assets/V5_Schiefer_beige.jpg" alt="Fußboden V5FB02 — Schiefer-Beige" /></span>
+        <span class="caption">Fußboden individ.5.0 V5FB02</span>
+      </label>
+
+      <!-- 3) Speckstein-Schwarz -->
+      <label class="image-check" data-product-id="V5FB02">
+        <input
+          type="checkbox"
+          name="flooringProduct[]"
+          value="V5FB02|Speckstein-Schwarz"
+          data-product-id="V5FB02"
+          data-color="Speckstein-Schwarz"
+        />
+        <span class="img-wrap"><img src="./assets/V5_Speckstein_schwarz.jpg" alt="Fußboden V5FB02 — Speckstein-Schwarz" /></span>
+        <span class="caption">Fußboden individ.5.0 V5FB02</span>
+      </label>
+
+      <!-- 4) Eiche-Natur -->
+      <label class="image-check" data-product-id="V5FB02">
+        <input
+          type="checkbox"
+          name="flooringProduct[]"
+          value="V5FB02|Eiche-Natur"
+          data-product-id="V5FB02"
+          data-color="Eiche-Natur"
+        />
+        <span class="img-wrap"><img src="./assets/V5_Eiche_natur.jpg" alt="Fußboden V5FB02 — Eiche-Natur" /></span>
+        <span class="caption">Fußboden individ.5.0 V5FB02</span>
+      </label>
+
+      <!-- 5) Loft-Grau -->
+      <label class="image-check" data-product-id="V5FB02">
+        <input
+          type="checkbox"
+          name="flooringProduct[]"
+          value="V5FB02|Loft-Grau"
+          data-product-id="V5FB02"
+          data-color="Loft-Grau"
+        />
+        <span class="img-wrap"><img src="./assets/V5_loft_grau.jpg" alt="Fußboden V5FB02 — Loft-Grau" /></span>
+        <span class="caption">Fußboden individ.5.0 V5FB02</span>
+      </label>
+    </div>
+  </div>
+  <!-- …rest of your panel stays the same -->
+
+
 
 
            
