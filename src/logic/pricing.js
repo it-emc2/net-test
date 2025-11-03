@@ -152,21 +152,29 @@ function normalizeDWTasks(payload) {
     }
   };
 
-  // Expected shapes
+  // Existing sources (checkbox tasks)
   addVal(dw.workTasks);
   addVal(dw['workTasks[]']);
   addVal(payload?.['duschwanne[workTasks][]']);
   addVal(payload?.['duschwanne.workTasks']);
   addVal(payload?.duschwanne_workTasks);
 
-  // NEW: catch any weird nesting under duschwanne (like "duschwanne[workTasks][]")
+  // ✅ NEW: free-text extra tasks
+  addVal(dw.extraTasks);
+  addVal(dw['extraTasks[]']);
+  addVal(payload?.['duschwanne[extraTasks][]']);
+  addVal(payload?.['duschwanne.extraTasks']);
+  addVal(payload?.duschwanne_extraTasks);
+
+  // Catch any weird nesting under duschwanne, e.g. "duschwanne[extraTasks][]"
   for (const [k, v] of Object.entries(dw)) {
-    if (/worktasks/i.test(k)) addVal(v);
+    if (/worktasks/i.test(k) || /extratasks?/i.test(k)) addVal(v);
   }
 
   // de-dup & return
   return Array.from(new Set(out));
 }
+
 
 const MAP_DW = {
   remove_tub:        'Entfernen und Entsorgen der Badewanne inkl. Befliesung',
@@ -179,9 +187,11 @@ const MAP_DW = {
 
 const dwTasks = normalizeDWTasks(payload);
 for (const key of dwTasks) {
-  const label = MAP_DW[String(key)];
-  if (label) picked.add(label);
+  const k = String(key).trim();
+  const mapped = MAP_DW[k];
+  picked.add(mapped || k);   // <-- keep free-text as-is if no mapping exists
 }
+
 // <<< end robust parse
 
 

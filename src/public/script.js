@@ -877,29 +877,37 @@ function buildPayload() {
   }
 
   // ---- DUSCHWANNE: ensure multi-select arrays are captured ----
+// ---- DUSCHWANNE: ensure multi-select arrays are captured ----
 try {
   const formDW = document.getElementById("form-duschwanne");
   if (formDW) {
     const fdDW = new FormData(formDW);
-
     const getAllVals = (name) => fdDW.getAll(name).map(v => String(v));
 
-    // Persist true arrays (not last value)
+    // Existing
     const flooringProduct = getAllVals("flooringProduct[]");
     const floorAdhesive   = getAllVals("floorAdhesive[]");
     const floorSealing    = getAllVals("floorSealing[]");
+
+    // ✅ Read the actual field name you used:
+    const extraTasks = [
+      ...getAllVals("duschwanne[extraTasks][]"), // primary (your markup)
+      ...getAllVals("extraTasks[]"),             // optional fallback if ever used
+    ].map(s => s.trim()).filter(Boolean);
 
     payload.duschwanne = payload.duschwanne || {};
     if (flooringProduct.length) payload.duschwanne.flooringProduct = flooringProduct;
     if (floorAdhesive.length)   payload.duschwanne.floorAdhesive   = floorAdhesive;
     if (floorSealing.length)    payload.duschwanne.floorSealing    = floorSealing;
+    if (extraTasks.length)      payload.duschwanne.extraTasks      = Array.from(new Set(extraTasks));
 
-    // Normalize toggle to boolean (safer than relying on "on")
+    // Normalize toggle to boolean
     payload.duschwanne.addFlooring = !!document.getElementById('addFlooring')?.checked;
   }
 } catch (e) {
   console.warn('[buildPayload] flooring arrays capture failed:', e);
 }
+
 // WV consumables – ONLY what's actually selected in the UI
 try {
   const values = readWVConsumablesStrict();
@@ -1699,6 +1707,110 @@ migrated[kind] = normRows;
 
   // Re-save on navigation away (optional)
   window.addEventListener('beforeunload', saveState);
+})();
+
+// ===== DUSCHWANNE: free-text extra tasks (repeater) =====
+(function initDWExtraTasks() {
+  const fs   = document.getElementById('dw-extra-tasks');
+  if (!fs) return;
+
+  const wrap = fs.querySelector('.da-items');
+  const addBtn = fs.querySelector('.da-add');
+  const LS_KEY = 'dwExtraTasks:v1';
+
+  function makeItem(value = '') {
+    const item = document.createElement('div');
+    item.className = 'da-item';
+    item.setAttribute('data-kind', 'extra');
+    item.innerHTML = `
+      <div class="da-grid">
+        <label class="da-label" style="grid-column: 1 / -1;">
+          Aufgabe
+          <input class="dw-extra" type="text" name="duschwanne[extraTasks][]" />
+        </label>
+      </div>
+      <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+    `;
+    const input = item.querySelector('.dw-extra');
+    input.value = value || '';
+    wireItem(item);
+    return item;
+  }
+
+  function wireItem(item) {
+    const input = item.querySelector('.dw-extra');
+    const removeBtn = item.querySelector('.da-remove');
+
+    input?.addEventListener('input', saveState);
+    removeBtn?.addEventListener('click', () => {
+      const all = wrap.querySelectorAll('.da-item');
+      if (all.length <= 1) {
+        // keep one row; just clear it
+        input.value = '';
+      } else {
+        item.remove();
+      }
+      saveState();
+      // keep pricing/UI in sync if you want
+      window.updatePricing?.();
+    });
+  }
+
+  function saveState() {
+    const vals = Array.from(wrap.querySelectorAll('.dw-extra'))
+      .map(i => String(i.value || '').trim())
+      .filter(Boolean);
+    try { localStorage.setItem(LS_KEY, JSON.stringify(vals)); } catch {}
+  }
+
+  function restoreFromLocalStorage() {
+    let vals = null;
+    try { vals = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch {}
+    if (!Array.isArray(vals) || !vals.length) return false;
+
+    // leave only first row and fill/append others
+    const first = wrap.querySelector('.da-item');
+    if (first) {
+      const input = first.querySelector('.dw-extra');
+      input.value = vals[0] || '';
+      wireItem(first);
+    }
+    for (let i = 1; i < vals.length; i++) {
+      wrap.appendChild(makeItem(vals[i]));
+    }
+    return true;
+  }
+
+  function ensureOneRow() {
+    if (!wrap.querySelector('.da-item')) {
+      wrap.appendChild(makeItem(''));
+    } else {
+      // wire existing first row once
+      wrap.querySelectorAll('.da-item').forEach(wireItem);
+    }
+  }
+
+  addBtn?.addEventListener('click', () => {
+    wrap.appendChild(makeItem(''));
+    saveState();
+  });
+
+  // expose an optional payload-based restore (call this from your global restore pipeline)
+  window.restoreDWExtraTasksFromPayload = function(dw) {
+    if (!dw || !Array.isArray(dw.extraTasks)) return;
+    // reset to exactly what's in payload
+    wrap.innerHTML = '';
+    if (dw.extraTasks.length === 0) {
+      wrap.appendChild(makeItem(''));
+    } else {
+      dw.extraTasks.forEach(t => wrap.appendChild(makeItem(String(t || ''))));
+    }
+    saveState(); // mirror to LS so navigation keeps it
+  };
+
+  ensureOneRow();
+  // if we didn't restore from payload, at least restore last local edits
+  restoreFromLocalStorage();
 })();
 
 /* ========== BEREICH UI (contact, aufschlag/pflegegrad, etc.) ========== */

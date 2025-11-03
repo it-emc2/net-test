@@ -606,6 +606,26 @@ section.da-quickadd .da-remove:focus-visible {
   }
 }
 
+/* Duschwanne extra tasks buttons look like Hassmann buttons */
+#dw-extra-tasks .da-add,
+#dw-extra-tasks .da-remove {
+  border: 1px solid var(--border, rgba(0,0,0,.12));
+  background: transparent;
+  color: var(--text);
+  border-radius: 10px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+#dw-extra-tasks .da-add { font-weight: 700; }
+#dw-extra-tasks .da-add:hover,
+#dw-extra-tasks .da-add:focus-visible {
+  background: rgba(168,85,247,.12);
+}
+#dw-extra-tasks .da-remove:hover,
+#dw-extra-tasks .da-remove:focus-visible {
+  background: rgba(239,68,68,.12);
+}
+
 
 
     </style>
@@ -1402,6 +1422,32 @@ section.da-quickadd .da-remove:focus-visible {
  <div id="tray-suggestions" class="space-y-2"></div>
   <input type="hidden" id="chosenTrayProductId" name="chosenTrayProductId">
   <input type="hidden" id="traySize" name="traySize">
+  <!-- Extra worker tasks (free text) -->
+<fieldset class="da-row" id="dw-extra-tasks" data-kind="extra" aria-describedby="dw-extra-help">
+  <legend class="da-legend">
+    Weitere auszuführende Arbeiten (optional)
+    <button type="button" class="da-add" aria-label="Weitere Aufgabe hinzufügen">+</button>
+  </legend>
+
+  <div class="da-items">
+    <div class="da-item" data-kind="extra">
+      <div class="da-grid">
+        <label class="da-label" style="grid-column: 1 / -1;">
+          Aufgabe
+          <input class="dw-extra" type="text"
+                 name="duschwanne[extraTasks][]"
+                 placeholder="z. B. Estrich ausgleichen, Silikonfugen erneuern" />
+        </label>
+      </div>
+      <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+    </div>
+  </div>
+
+  <small id="dw-extra-help" class="da-help">
+    Fügen Sie beliebige Tätigkeiten hinzu. Diese erscheinen unter „Auszuführende Arbeiten“.
+  </small>
+</fieldset>
+
 
 </div>
 
@@ -2121,7 +2167,7 @@ section.da-quickadd .da-remove:focus-visible {
               <label for="wvSilikonQty">Menge Silikon</label>
               <input
                 id="wvSilikonQty"
-                name="wvSilikonQty"
+                name="wvProfileAdhesiveQty"
                 type="number"
                 min="0"
                 step="1"
