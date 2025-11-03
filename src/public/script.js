@@ -809,7 +809,7 @@ function readWVConsumablesStrict() {
     'input[type="checkbox"][name="wvSealing[]"],' +
     'input[type="checkbox"][name="flechenkleber[]"],' +
     'input[type="checkbox"][name="wvEndProfile[]"],' +
-    'input[type="checkbox"][name="wvProfileAdhesive[]"]'
+    'input[type="checkbox"][name="wvSilikon[]"]'
   );
 
   const picked = [];
@@ -820,7 +820,7 @@ function readWVConsumablesStrict() {
 
   // Fallback (no boxes present): accept singles from <select>s,
   // but only when the control is visible & enabled.
-  ['wvSealing','flechenkleber','wvEndProfile','wvProfileAdhesive'].forEach(name => {
+  ['wvSealing','flechenkleber','wvEndProfile','wvSilikon'].forEach(name => {
     const el = form.querySelector(`[name="${name}"]`);
     if (el && !el.disabled && !el.closest('[hidden]') && el.value) {
       picked.push(String(el.value));
@@ -3485,7 +3485,7 @@ const WV_DEFAULT_PIDS = ['TRWDSET5','V4FK600','V3A','V4RPKIT'];
 
   // Other numbers
   setInputByNameOrId('wvEndProfileQty',      wv.wvEndProfileQty);
-  setInputByNameOrId('wvProfileAdhesiveQty', wv.wvProfileAdhesiveQty);
+  setInputByNameOrId('wvSilikonQty', wv.wvSilikonQty);
   setInputByNameOrId('wvFlachenQty',        wv.wvFlachenQty);
   setInputByNameOrId('wvV3VQty',             wv.wvV3VQty);
   setInputByNameOrId('wvCornersCount',       wv.wvCornersCount);
@@ -3508,12 +3508,12 @@ const WV_DEFAULT_PIDS = ['TRWDSET5','V4FK600','V3A','V4RPKIT'];
  setByProductId('TRWDSET5',  chosenHas('TRWDSET5')); // TRINNITY Wandabdichtung
  setByProductId('V4FK600',    chosenHas('V4FK600'));   // Flächenkleber (Wandverkleidung)
  setByProductId('V3A',       chosenHas('V3A'));      // Abschlussprofil
- setByProductId('V4RPKIT',   chosenHas('V4RPKIT'));  // Profilklebstoff
+ setByProductId('CARESMH',   chosenHas('CARESMH'));  // Silikon
  window.__RESTORING__ = prev;
 
   // Selects/radios for accessories
   if (wv.wvEndProfile)      setSelect('wvEndProfile', wv.wvEndProfile);
-  if (wv.wvProfileAdhesive) setSelect('wvProfileAdhesive', wv.wvProfileAdhesive);
+  if (wv.wvSilikon) setSelect('wvSilikon', wv.wvSilikon);
   if (wv.flechenkleber)        setSelect('flechenkleber', wv.flechenkleber);
   if (wv.wvSealing)         setSelect('wvSealing', wv.wvSealing);
 }
@@ -3763,8 +3763,8 @@ restoreTrinnityFloorSealing(p?.duschwanne);
     setNumber('wvFlachenQty', p?.wandverkleidung?.wvFlachenQty);
     setSelect('wvEndProfile', p?.wandverkleidung?.wvEndProfile);
     setNumber('wvEndProfileQty', p?.wandverkleidung?.wvEndProfileQty);
-    setSelect('wvProfileAdhesive', p?.wandverkleidung?.wvProfileAdhesive);
-    setNumber('wvProfileAdhesiveQty', p?.wandverkleidung?.wvProfileAdhesiveQty);
+    setSelect('wvSilikon', p?.wandverkleidung?.wvSilikon);
+    setNumber('wvSilikonQty', p?.wandverkleidung?.wvSilikonQty);
     setNumber('wvV3VQty', p?.wandverkleidung?.wvV3VQty);
     setNumber('wvCornersCount', p?.wandverkleidung?.wvCornersCount);
 
@@ -4646,7 +4646,7 @@ function initBasinAutoAccessories() {
     // Abschlussprofil V3A
     { cb: q('#wvEndProfileSection input[type=checkbox][name="wvEndProfile"]'), qty: byId('wvEndProfileQty'), kind: 'END' },
     // Profilklebstoff V4RPKIT
-    { cb: q('#wvProfileAdhesiveSection input[type=checkbox][name="wvProfileAdhesive"]'), qty: byId('wvProfileAdhesiveQty'), kind: 'PADH' },
+    { cb: q('#wvProfileAdhesiveSection input[type=checkbox][name="wvSilikon"]'), qty: byId('wvSilikonQty'), kind: 'PADH' },
     // Verbindungsprofil V3V (checkbox is UI only; qty governs pricing)
     { cb: byId('wvV3VSelected'), qty: byId('wvV3VQty'), kind: 'V3V' },
   ].filter(p => p.cb && p.qty);

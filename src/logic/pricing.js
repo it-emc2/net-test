@@ -331,11 +331,11 @@ if (userRaw !== undefined && userRaw !== null && String(userRaw).trim() !== '') 
   add('V3V', qV3V, `- ${qV3V} Stk Verbindungsprofil(e) (Plattenanzahl - 1 - ecken)`);
 }
 
-  if (wv?.wvProfileAdhesive) {
-    const userQtyProfGlue = Number(wv?.wvProfileAdhesiveQty);
+  if (wv?.wvSilikon) {
+    const userQtyProfGlue = Number(wv?.wvSilikonQty);
     const fallbackProfGlue = endProfilesQty;
     const qProfGlue = Number.isFinite(userQtyProfGlue) && userQtyProfGlue > 0 ? userQtyProfGlue : fallbackProfGlue;
-    if (qProfGlue > 0) add('V4RPKIT', qProfGlue, `- ${qProfGlue} Stk Profilklebstoff (pro Abschlussprofil 1 Stk)`);
+    if (qProfGlue > 0) add('CARESMH', qProfGlue, `- ${qProfGlue} Stk Silikon (pro Abschlussprofil 1 Stk)`);
   }
 
   // ------- OPTIONALS as material lines (tagged so UI can filter them out of Material/Debug)
