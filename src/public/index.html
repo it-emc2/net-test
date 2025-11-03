@@ -607,24 +607,43 @@ section.da-quickadd .da-remove:focus-visible {
 }
 
 /* Duschwanne extra tasks buttons look like Hassmann buttons */
+/* Scope styles to the Duschwanne extra-tasks fieldset */
 #dw-extra-tasks .da-add,
 #dw-extra-tasks .da-remove {
-  border: 1px solid var(--border, rgba(0,0,0,.12));
-  background: transparent;
-  color: var(--text);
+  background: transparent;                 /* no white box */
+  border: 1px solid var(--border, #e5e7eb);
   border-radius: 10px;
   padding: 4px 10px;
   cursor: pointer;
 }
-#dw-extra-tasks .da-add { font-weight: 700; }
+
+/* Purple “add” like Hassmann */
+#dw-extra-tasks .da-add {
+  color: var(--accent, #a855f7);           /* purple text/icon */
+  font-weight: 700;
+}
 #dw-extra-tasks .da-add:hover,
 #dw-extra-tasks .da-add:focus-visible {
-  background: rgba(168,85,247,.12);
+  background: rgba(168, 85, 247, .12);     /* soft purple hover */
+}
+
+/* Red “delete” like Hassmann */
+#dw-extra-tasks .da-remove {
+  color: #ef4444;                          /* red text/icon */
 }
 #dw-extra-tasks .da-remove:hover,
 #dw-extra-tasks .da-remove:focus-visible {
-  background: rgba(239,68,68,.12);
+  background: rgba(239, 68, 68, .12);      /* soft red hover */
 }
+
+/* If you ever swap emoji for inline SVG icons, keep them inheriting color */
+#dw-extra-tasks .da-add svg,
+#dw-extra-tasks .da-remove svg {
+  color: currentColor;
+  stroke: currentColor;
+  fill: none;
+}
+
 
 
 
