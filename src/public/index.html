@@ -646,6 +646,31 @@ section.da-quickadd .da-remove:focus-visible {
 
 
 
+/* 4-column variant used by "Freier Posten" */
+.da-grid-4 { display: grid; gap: 10px; }
+@media (min-width: 640px) {
+  .da-grid-4 { grid-template-columns: minmax(180px, 1fr) 1fr 80px 1fr; }
+}
+
+/* (Optional) ensure Hassmann buttons keep your purple/red scheme even outside .da-quickadd */
+#form-duschabtrennung .da-add {
+  color: var(--accent, #a855f7) !important;
+  background: transparent !important;
+  border: 1px solid var(--border, rgba(0,0,0,.12)) !important;
+}
+#form-duschabtrennung .da-add:hover,
+#form-duschabtrennung .da-add:focus-visible {
+  background: rgba(168, 85, 247, .12) !important;
+}
+#form-duschabtrennung .da-remove {
+  color: #ef4444 !important;
+  background: transparent !important;
+  border: 1px solid var(--border, rgba(0,0,0,.12)) !important;
+}
+#form-duschabtrennung .da-remove:hover,
+#form-duschabtrennung .da-remove:focus-visible {
+  background: rgba(239, 68, 68, .12) !important;
+}
 
     </style>
   </head>
@@ -2327,12 +2352,49 @@ section.da-quickadd .da-remove:focus-visible {
       https://www.gconlineplus.de/#SearchConfigurator
     </a>
   </p>
+  <h3 id="da-quickadd-title" class="visually-hidden">Duschabtrennung & Türen – Schnell hinzufügen</h3>
 
   <form id="form-duschabtrennung" autocomplete="on">
     <!-- QUICK-ADD: Duschabtrennung (Hassmann) -->
     <section aria-labelledby="da-quickadd-title" class="da-quickadd">
 
-      <h3 id="da-quickadd-title" class="visually-hidden">Duschabtrennung & Türen – Schnell hinzufügen</h3>
+      
+<fieldset class="da-row" id="hass-custom" data-kind="custom"
+          data-template="da-item-template-custom" aria-describedby="custom-help">
+  <legend class="da-legend">
+    Freier Posten
+    <button type="button" class="da-add" aria-label="Weitere Position hinzufügen">+</button>
+  </legend>
+
+  <div class="da-items">
+    <div class="da-item" data-kind="custom">
+      <div class="da-grid-4">
+        <label class="da-label">
+          Bezeichnung
+          <input class="da-name" type="text" placeholder="z. B. Sonderanfertigung Glas" />
+        </label>
+        <label class="da-label">
+          Preis
+          <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 799,00" />
+        </label>
+        <label class="da-label">
+          Menge
+          <input class="da-qty" type="number" inputmode="numeric" min="1" step="1" />
+        </label>
+        <label class="da-label">
+          ID
+          <input class="da-id" type="text" placeholder="z. B. HASS-CUS-001" />
+        </label>
+      </div>
+      <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+    </div>
+  </div>
+
+  <small id="custom-help" class="da-help">
+    Freier Posten mit eigener Bezeichnung. Preis kann Komma oder Punkt als Dezimaltrenner enthalten.
+  </small>
+</fieldset>
+
 
       <!-- Pendeltür -->
       <fieldset class="da-row" data-kind="pendeltuer" aria-describedby="pendeltuer-help">
@@ -2502,6 +2564,32 @@ section.da-quickadd .da-remove:focus-visible {
           <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
         </div>
       </template>
+      <!-- Only for Freier Posten (with Name field) -->
+<template id="da-item-template-custom">
+  <div class="da-item" data-kind="custom">
+    <div class="da-grid-4">
+      <label class="da-label">
+        Bezeichnung
+        <input class="da-name" type="text" placeholder="z. B. Sonderanfertigung Glas" />
+      </label>
+      <label class="da-label">
+        Preis
+        <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 799,00" />
+      </label>
+      <label class="da-label">
+        Menge
+        <input class="da-qty" type="number" inputmode="numeric" min="1" step="1" />
+      </label>
+      <label class="da-label">
+        ID
+        <input class="da-id" type="text" placeholder="z. B. HASS-CUS-001" />
+      </label>
+    </div>
+    <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+  </div>
+</template>
+
+
     </section>
 
   

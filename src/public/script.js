@@ -1178,6 +1178,25 @@ function syncColorWithAreaDW() {
   window.updatePricing?.();
 }
 
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.da-add');
+  if (!btn) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+
+  const fs = btn.closest('fieldset.da-row');
+  const target = fs?.querySelector('.da-items');
+  if (!fs || !target) return;
+
+  const tplId = fs.dataset.template || 'da-item-template';
+  const tpl = document.getElementById(tplId);
+  if (!tpl) return;
+
+  const node = tpl.content.firstElementChild.cloneNode(true);
+  target.appendChild(node);
+});
+
+
 
 function collectAllFormData() {
   return buildPayload();
