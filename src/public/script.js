@@ -1655,23 +1655,37 @@ migrated[kind] = normRows;
     return node;
   }
 
-  function removeRow(btn) {
-    const item = btn.closest('.da-item');
-    const fs   = btn.closest('fieldset.da-row[data-kind]');
-    if (!item || !fs) return;
+ function removeRow(btn) {
+  var item = btn.closest('.da-item');
+  var fs   = btn.closest('fieldset.da-row[data-kind]');
+  if (!item || !fs) return;
 
-    const wrap = fs.querySelector('.da-items');
-    // keep at least one row visible per kind
-    if (wrap && wrap.querySelectorAll('.da-item').length <= 1) {
-      // clear instead of remove
-      item.querySelector('.da-price').value = '';
-      item.querySelector('.da-qty').value   = '';
-      item.querySelector('.da-id').value    = '';
-    } else {
-      item.remove();
+  var wrap = fs.querySelector('.da-items');
+  var onlyOne = wrap && wrap.querySelectorAll('.da-item').length <= 1;
+
+  if (onlyOne) {
+    // Clear inputs instead of removing the last row
+    var priceEl = item.querySelector('.da-price');
+    var qtyEl   = item.querySelector('.da-qty');
+    var idEl    = item.querySelector('.da-id');
+    if (priceEl) priceEl.value = '';
+    if (qtyEl)   qtyEl.value   = '';
+    if (idEl)    idEl.value    = '';
+
+    // Special: Freier Posten (custom) also clears the label (da-name)
+    if ((fs.getAttribute('data-kind') || '') === 'custom') {
+      var nameEl = item.querySelector('.da-name');
+      if (nameEl) nameEl.value = '';
     }
-    saveState();
+  } else {
+    // Remove the row normally
+    if (item.parentNode) item.parentNode.removeChild(item);
   }
+
+  // Persist state after any change
+  if (typeof saveState === 'function') saveState();
+}
+
 
   function wireRow(item) {
     const priceEl = item.querySelector('.da-price');
