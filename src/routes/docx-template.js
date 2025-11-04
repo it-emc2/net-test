@@ -749,7 +749,7 @@ const MaterialsLines = matForDoc.map(l => {
     Datum: fmtDateDE(b.date),
     Ansprechpartner: (b.emc2_contact || '').trim(),
     Kundennummer: b.customerNumber || '',
-    Greeting: b.salutation === 'Frau' ? 'Sehr geehrte Frau' : (b.salutation === 'Herr' ? 'Sehr geehrter Herr' : 'Guten Tag'),
+    Greeting: b.salutation === 'Frau' ? 'Sehr geehrte Frau' : (b.salutation === 'Herr' ? 'Sehr geehrter Herr' : (b.salutation === 'Familie' ? 'Sehr geehrter Familie' :'Guten Tag')),
     Angebotsnummer: body.offerNumber || 'ANG-0001',
 
     // Legacy/optional price fields
