@@ -592,33 +592,70 @@ document.addEventListener("DOMContentLoaded", () => {
   wireDurationAutoFormat("travelTime");
 });
 
+// Replace your current DOMContentLoaded block that defines updateTotalHours with this:
 document.addEventListener("DOMContentLoaded", () => {
-  const laborEl = document.getElementById("laborHours");
-  const travelEl = document.getElementById("travelTime");
-  const outEl = document.getElementById("totalHoursHHMM");
+  const laborEl  = document.getElementById("laborHours");   // Arbeitszeit (HH:MM)
+  const travelEl = document.getElementById("travelTime");   // Reisezeit (one-way, HH:MM)
+  const outEl    = document.getElementById("totalHoursHHMM");
 
   function updateTotalHours() {
-    const laborH = hhmmToHours(laborEl?.value || "0:00"); // Arbeitszeit
-    const travelH1 = hhmmToHours(travelEl?.value || "0:00"); // Reisezeit (einfach)
-    const totalNum = travelH1 * 2 + laborH;
+    // Parse inputs (HH:MM -> decimal hours)
+    const arbeitsH   = hhmmToHours(laborEl?.value  || "0:00");
+    const reiseOneH  = hhmmToHours(travelEl?.value || "0:00");
 
-    const totalHHMM = hoursToHHMM(totalNum);
+    // Daily cap after travel (10h/day total − 2× one-way travel)
+    const capPerDayH = 10 - (2 * reiseOneH);
 
-    if (outEl) {
-      outEl.innerHTML = `Gesamtzeit (Arbeit + Fahrt): <strong>${totalHHMM}</strong>`;
+    let days = 0;
+    let totalH = 0;
+    let infeasible = false;
+
+    if (arbeitsH <= 0) {
+      // No work => no days, no time
+      days = 0;
+      totalH = 0;
+    } else if (capPerDayH > 0) {
+      // How many days needed to fit all work under daily cap
+      days = Math.ceil(arbeitsH / capPerDayH);
+      // Total time across all days = pure work + per-day travel
+      totalH = arbeitsH + days * (2 * reiseOneH);
+    } else {
+      // No time left for work once travel is counted
+      infeasible = true;
+      days = 0;
+      totalH = 0;
     }
 
-    window.total_hours_numeric = Math.max(0, totalNum);
-    window.reise_hours_numeric = Math.max(0, travelH1 * 2 );
-    window.arbeit_hours_numeric = Math.max(0, laborH);
+    // Render line: total HH:MM + number of days (+ warning if infeasible)
+    if (outEl) {
+      const totalHHMM = hoursToHHMM(totalH);
+      const daysHTML  = ` • Arbeitstage: <strong>${days}</strong>`;
+      const warnHTML  = infeasible
+        ? ` <span style="color:var(--danger)">&nbsp;⚠️ Reisezeit zu lang für 10:00 h/Tag – bitte Zeiten prüfen.</span>`
+        : "";
+      outEl.innerHTML = `Gesamtzeit (Arbeit + Fahrt): <strong>${totalHHMM}</strong>${daysHTML}${warnHTML}`;
+    }
+
+    // Expose numeric mirrors (useful for payload/pricing)
+    // - total_hours_numeric: total time (work + all travel across days)
+    // - reise_hours_numeric: total travel time across all days
+    // - arbeit_hours_numeric: pure work time
+    const totalTravelH = days * (2 * reiseOneH);
+    window.total_hours_numeric  = Math.max(0, totalH);
+    window.reise_hours_numeric  = Math.max(0, totalTravelH);
+    window.arbeit_hours_numeric = Math.max(0, arbeitsH);
   }
 
+  // Live updates
   laborEl?.addEventListener("input", updateTotalHours);
-  laborEl?.addEventListener("blur", updateTotalHours);
+  laborEl?.addEventListener("blur",  updateTotalHours);
   travelEl?.addEventListener("input", updateTotalHours);
-  travelEl?.addEventListener("blur", updateTotalHours);
+  travelEl?.addEventListener("blur",  updateTotalHours);
+
+  // Initial paint
   updateTotalHours();
 });
+
 
 // --- Offer number (ANG-YYYY-MM-DD-HH-mm-ss) + auto-stamp on export clicks ---
 function genOfferNumber() {
