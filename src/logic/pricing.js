@@ -217,12 +217,13 @@ async function computeMaterials(payload) {
   const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
   const ceilSafe = (n) => Math.ceil((Number(n) || 0) - 1e-12);
 
-  // normalize "1.234,56", "1234.56", "100" → Number
+// normalize "1.234,56", "1234.56", "100", "1.234,56 €" → Number
 const parseMoneyStrict = (v) => {
   if (typeof v === 'number' && Number.isFinite(v)) return v;
-  const s = String(v ?? '').trim();
+  let s = String(v ?? '').trim();
   if (!s) return 0;
-  const cleaned = s.replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
+  // drop currency symbols & extraneous chars, keep digits and separators
+  const cleaned = s.replace(/[^\d,.\-]/g, '').replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
   const n = parseFloat(cleaned);
   return Number.isFinite(n) ? n : 0;
 };
@@ -389,6 +390,7 @@ try {
 
       const kindUp = String(x?.kind || 'GEN').toUpperCase();
       const pid    = (String(x?.productId || '').trim()) || `HASS_${kindUp}`;
+     // For "Freier Posten" we already receive exact label via collector.
       const base   = String(x?.label || '').trim() || KIND_TO_LABEL[kindUp] || 'Duschabtrennung (Hassmann)';
       const label  = `- ${qty} Stk ${base}`;
 

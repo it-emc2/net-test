@@ -1,4 +1,24 @@
- // the toast helper
+// --- GLOBAL: tolerant EUR money parser used across the Hassmann page ---
+// Accepts "1.099,50", "1099.50", "€ 1 099,50", "12,2", "12.2" -> Number in euros
+window.parseMoneyEuro = function (v) {
+  let s = String(v ?? '').trim();
+  if (!s) return 0;
+  s = s.replace(/[^\d,.,,-]/g, '').replace(/\s+/g, ''); // keep digits , .
+  const hasComma = s.includes(',');
+  const hasDot   = s.includes('.');
+  if (hasComma && hasDot) {
+    // assume European: dots are thousands, comma is decimal
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (hasComma) {
+    // single comma → decimal
+    s = s.replace(',', '.');
+  } else {
+    // only dot → decimal (do not strip)
+  }
+  const n = parseFloat(s);
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+};
+// the toast helper
 function ntToast(type, title, message, {duration = 3600, withBackdrop = true} = {}) {
   const host = document.getElementById('nt-toaster');
   const backdrop = document.getElementById('nt-toast-backdrop');
@@ -364,13 +384,7 @@ function wireDAQtyAutoFill() {
     ['da-walkin-preis',    'da-walkin-qty'],
   ];
 
-  const parseMoney = (v) => {
-    const s = String(v ?? '').trim();
-    if (!s) return 0;
-    const cleaned = s.replace(/\s+/g,'').replace(/\./g,'').replace(',', '.');
-    const n = parseFloat(cleaned);
-    return Number.isFinite(n) ? n : 0;
-  };
+ 
   const clampQty = (v) => {
     const n = parseInt(String(v ?? '').trim(), 10);
     if (!Number.isFinite(n)) return '';
@@ -384,7 +398,7 @@ function wireDAQtyAutoFill() {
 
     p.addEventListener('input', () => {
       p.value = p.value.replace(/[^\d.,]/g, '');
-      const val = parseMoney(p.value);
+      const val = window.parseMoneyEuro(p.value);
       if (val > 0) {
         if (!q.value) q.value = '1';
       } else {
@@ -393,7 +407,7 @@ function wireDAQtyAutoFill() {
     });
 
     p.addEventListener('blur', () => {
-      const val = parseMoney(p.value);
+      const val = window.parseMoneyEuro(p.value);
       if (val > 0) {
         p.value = val.toFixed(2).replace('.', ',');
         if (!q.value) q.value = '1';
@@ -409,7 +423,7 @@ function wireDAQtyAutoFill() {
     });
 
     q.addEventListener('blur', () => {
-      const val = parseMoney(p.value);
+      const val = window.parseMoneyEuro(p.value);
       if (!(val > 0)) q.value = '';
     });
   });
@@ -765,32 +779,41 @@ function collectDuschabtrennungQuickAdd(doc) {
   const qa = [];
 
   root.querySelectorAll('fieldset.da-row').forEach(fs => {
-    const kind = (fs.getAttribute('data-kind') || '').toLowerCase();
+    const kind = fs.dataset.kind || '';
+    const isCustom = kind === 'custom';
     const canonicalLabel = KIND_TO_LABEL[kind] || 'Duschabtrennung (Hassmann)';
-
-    fs.querySelectorAll('.da-items .da-item').forEach(item => {
+    fs.querySelectorAll('.da-item').forEach(item => {
       const priceEl = item.querySelector('.da-price');
       const qtyEl   = item.querySelector('.da-qty');
       const idEl    = item.querySelector('.da-id');
-
-      // 1) PRICE: keep raw input string (e.g., "1.099,00") – parsing happens in pricing.js
+     const nameEl  = item.querySelector('.da-name'); // only in Freier Posten
       const priceRaw = (priceEl?.value ?? '').trim();
-      if (!priceRaw) return; // rule: only add a row if price is filled
-
-      // 2) QTY: default to 1 if empty/invalid; min 1
-      let qty = parseInt((qtyEl?.value ?? '').trim(), 10);
-      if (!Number.isFinite(qty) || qty <= 0) qty = 1;
-
-      // 3) Optional product id
-      const productId = (idEl?.value ?? '').trim();
-
-      qa.push({
-        kind,                          // e.g. "pendeltuer"
-        label: canonicalLabel,         // always set explicit label
-        qty,
-        price: priceRaw,               // <-- raw string, NOT cents, NOT parsed
-        productId
-      });
+      const priceNum = window.parseMoneyEuro(priceRaw);
+      const qty = Math.max(0, parseInt((qtyEl?.value ?? '').trim(), 10) || 0);
+      if (isCustom) {
+        const name = (nameEl?.value ?? '').trim();
+        if (!name) return;               // require label
+        if (priceNum <= 0) return;       // require price
+        const productId = (idEl?.value ?? '').trim();
+        qa.push({
+          kind,
+          label: name,                   // exact custom label
+          qty: Math.max(1, qty || 1),   // default to 1 if blank
+          price: priceRaw,               // keep raw string; parsed later
+          productId
+        });
+      } else {
+        if (priceNum <= 0) return;       // only priced rows
+        if (qty <= 0) return;
+        const productId = (idEl?.value ?? '').trim();
+        qa.push({
+          kind,
+           label: canonicalLabel,
+          qty,
+          price: priceRaw,
+          productId
+        });
+      }
     });
   });
 
@@ -1178,24 +1201,6 @@ function syncColorWithAreaDW() {
   window.updatePricing?.();
 }
 
-document.addEventListener('click', (e) => {
-  const btn = e.target.closest('.da-add');
-  if (!btn) return;
-  e.preventDefault();
-  e.stopImmediatePropagation();
-
-  const fs = btn.closest('fieldset.da-row');
-  const target = fs?.querySelector('.da-items');
-  if (!fs || !target) return;
-
-  const tplId = fs.dataset.template || 'da-item-template';
-  const tpl = document.getElementById(tplId);
-  if (!tpl) return;
-
-  const node = tpl.content.firstElementChild.cloneNode(true);
-  target.appendChild(node);
-});
-
 
 
 function collectAllFormData() {
@@ -1522,21 +1527,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const LS_KEY = 'daQuickAddRows:v1';
 
-const parseMoney = (v) => {
-  let s = String(v ?? '').trim();
-  if (!s) return 0;
-  s = s.replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
-  const n = parseFloat(s);
-  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
-};
-
 const saveState = () => {
   const state = {};
   for (const fs of section.querySelectorAll('fieldset.da-row[data-kind]')) {
     const kind = fs.dataset.kind;
     const rows = [];
     fs.querySelectorAll('.da-item').forEach(item => {
-      const price = parseMoney(item.querySelector('.da-price')?.value);
+      const price = window.parseMoneyEuro(item.querySelector('.da-price')?.value);
       const qtyEl = item.querySelector('.da-qty');
       const idEl  = item.querySelector('.da-id');
       const qty   = Math.max(1, parseInt((qtyEl?.value || '').trim(), 10) || 0);
@@ -1628,11 +1625,26 @@ migrated[kind] = normRows;
     const wrap = fs.querySelector('.da-items');
     if (!wrap || !TPL?.content) return null;
 
-    // rule: only add if the last existing row has a filled price
+    // rule: only add if the last existing row is valid
     const last = wrap.querySelector('.da-item:last-child');
     if (last) {
-      const lastPrice = parseMoney(last.querySelector('.da-price')?.value);
-      if (lastPrice <= 0) return null; // do nothing
+            const lastPrice = window.parseMoneyEuro(last.querySelector('.da-price')?.value);
+      if (kind === 'custom') {
+        const lastName = (last.querySelector('.da-name')?.value || '').trim();
+        if (!lastName) {
+          last.querySelector('.da-name')?.focus();
+          return null;
+        }
+        if (lastPrice <= 0) {
+          last.querySelector('.da-price')?.focus();
+          return null;
+        }
+      } else {
+        if (lastPrice <= 0) {
+          last.querySelector('.da-price')?.focus();
+          return null;
+        }
+      }
     }
 
     const node = TPL.content.firstElementChild.cloneNode(true);
@@ -1667,20 +1679,12 @@ migrated[kind] = normRows;
 
     // During typing: keep only digits, comma, dot
     priceEl?.addEventListener('input', () => {
-      priceEl.value = priceEl.value.replace(/[^\d.,]/g, '');
+       priceEl.value = priceEl.value.replace(/[^\d.,]/g, '');
     });
 
     // On blur: normalize; if valid price and qty empty -> qty = 1; if price empty -> clear qty
     priceEl?.addEventListener('blur', () => {
-      let s = (priceEl.value || '').trim();
-      if (!s) {
-        priceEl.value = '';
-        if (qtyEl) qtyEl.value = '';
-        saveState();
-        return;
-      }
-      s = s.replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
-      const n = parseFloat(s);
+    const n = window.parseMoneyEuro(priceEl.value);
       if (!Number.isFinite(n) || n <= 0) {
         priceEl.value = '';
         if (qtyEl) qtyEl.value = '';
@@ -1688,8 +1692,10 @@ migrated[kind] = normRows;
         return;
       }
       const parts = n.toFixed(2).split('.');
-      parts[0] = parts[0].replace(/^0+(?=\d)/, ''); // strip leading zeros
-      priceEl.value = parts.join(',');
+      parts[0] = parts[0]
+        .replace(/^0+(?=\d)/, '')         // strip leading zeros
+        .replace(/\B(?=(\d{3})+(?!\d))/g, '.'); // thousands with dots
+      priceEl.value = parts.join(',') + ' €';
       if (qtyEl && !qtyEl.value) qtyEl.value = '1';
       saveState();
     });
@@ -1711,7 +1717,7 @@ migrated[kind] = normRows;
     // wire existing row
     wrap?.querySelectorAll('.da-item').forEach(wireRow);
 
-    // “+” add a row (but only if last row has price)
+    //  “+” add a row (only if last row is valid)
     addBtn?.addEventListener('click', () => addRow(fs.dataset.kind, fs, true));
 
     // trash via event delegation
