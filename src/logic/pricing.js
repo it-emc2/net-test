@@ -477,6 +477,7 @@ try {
     const laborRate = payer === 'KK' ? laborRateKK : (payer === 'SZ' ? laborRateSZ : 0);
       //const facharbeiter = total_hours_numeric * handwerkerCount * laborRate;
     const facharbeiter = (Arbeitszeit_hours_numeric * handwerkerCount * laborRate) + (reise_hours_numeric * (laborRate + sitz_reise_Rate ));
+  
 
     const lines = [];
     lines.push({ key: 'fahrzeug',   label: '- 1,00 Stk Fahrzeugbereitstellung', amount: round2(fahrzeugbereitstellung) });

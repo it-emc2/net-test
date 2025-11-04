@@ -1034,10 +1034,7 @@ try {
   payload.offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
   payload.bereich.totalHoursHHMM =
     document.getElementById("totalHoursHHMM")?.textContent?.match(/(\d+:\d{2})/)?.[1] || "";
-  //payload.bereich.totalHoursNumeric = Number(window.total_hours_numeric || 0);
-
-  //payload.bereich.ReiseHoursNumeric = Number(window.reise_hours_numeric || 0);
- // payload.bereich.ArbeitHoursNumeric = Number(window.arbeit_hours_numeric || 0);
+ 
    // Fallback compute if mirrors are not populated yet
   const _L = typeof hhmmToHours === 'function' ? hhmmToHours(document.getElementById('laborHours')?.value || '0:00') : 0;
   const _T1= typeof hhmmToHours === 'function' ? hhmmToHours(document.getElementById('travelTime')?.value || '0:00') : 0;
