@@ -81,7 +81,7 @@ const cl80Qty = Number(opt?.qty_CLPESG80 ?? (opt?.opt_CLPESG80 ? 1 : 0)) || 0;
     return out;
   }
 
-  // Prefer numeric payload.pricing.markupPct; fallback to bereich.aufschlag like "35%".
+  // Prefer numeric payload.pricing.markupPct; fallback to Kundendaten.aufschlag like "35%".
   const extractMarkupPct = (payload) => {
     const fromNumeric = payload?.pricing?.markupPct;
     if (typeof fromNumeric === 'number' && Number.isFinite(fromNumeric)) {
@@ -449,7 +449,7 @@ try {
   // Services (zones removed)
   function computeServiceCosts(payload) {
   
-    const b = payload?.bereich || {};
+    const b = payload?.Kundendaten || {};
     const payer = b.payer === 'Kassenkunde' ? 'KK' : (b.payer === 'Selbstzahler' ? 'SZ' : '');
     const oneWayKm = Number(b.distanceKm || 0) || 0; // user enters one-way distance
     const roundTripKm = Math.max(0, oneWayKm * 2);   // bill both ways

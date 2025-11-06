@@ -419,7 +419,7 @@ function formatQtyForOverview(q, unit) {
    Angebot mapping
    =========================== */
 function mapData(body = {}, computed = {}) {
-  const b = body.bereich || {};
+  const b = body.Kundendaten || {};
   const tb = body.textbausteine || {};
    // Find the toggle from any plausible field name/shape
   const ebRaw = firstDefined(body, [
@@ -903,7 +903,7 @@ router.post('/material-overview', async (req, res) => {
     }));
 
     // Build customer header fields
-    const b = req.body?.bereich || {};
+    const b = req.body?.Kundendaten || {};
     const salutation = b.salutation || '';
     const firstName = b.firstName || '';
     const lastName = b.lastName || '';

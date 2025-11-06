@@ -3461,20 +3461,20 @@ window.addEventListener('hashchange', () => {
     const payload = makePlaygroundPayload();
     // Project selected knobs back into the real forms
     // payer
-    if (payload.bereich?.payer) {
-      const r = document.querySelector(`input[name="payer"][value="${payload.bereich.payer}"]`);
+    if (payload.Kundendaten?.payer) {
+      const r = document.querySelector(`input[name="payer"][value="${payload.Kundendaten.payer}"]`);
       if (r) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles:true })); }
     }
     // aufschlag
-    if (payload.bereich?.aufschlag) {
-      const r = document.querySelector(`input[name="aufschlag"][value="${payload.bereich.aufschlag}"]`);
+    if (payload.Kundendaten?.aufschlag) {
+      const r = document.querySelector(`input[name="aufschlag"][value="${payload.Kundendaten.aufschlag}"]`);
       if (r) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles:true })); }
     }
-    // pflegegrad (just show/hide panels; exact mapping to Bereich panel already handled by initPflegegrad)
-    if (payload.bereich?.hasPflegegrad === 'Ja') {
+    // pflegegrad (just show/hide panels; exact mapping to Kundendaten panel already handled by initPflegegrad)
+    if (payload.Kundendaten?.hasPflegegrad === 'Ja') {
       const yes = document.querySelector('input[name="hasPflegegrad"][value="Ja"]');
       yes && (yes.checked = true, yes.dispatchEvent(new Event('change', { bubbles:true })));
-      const lvl = payload.bereich?.pflegegrad || '';
+      const lvl = payload.Kundendaten?.pflegegrad || '';
       if (lvl) {
         const rl = document.querySelector(`input[name="pflegegrad"][value="${lvl}"]`);
         rl && (rl.checked = true, rl.dispatchEvent(new Event('change', { bubbles:true })));
@@ -3485,7 +3485,7 @@ window.addEventListener('hashchange', () => {
     }
 
     // budget options panel
-    const b = String(payload.bereich?.budgetOptionsPanel||'').toUpperCase();
+    const b = String(payload.Kundendaten?.budgetOptionsPanel||'').toUpperCase();
     const elMax  = document.querySelector('input[name="budgetMax"]');
     const elCop  = document.querySelector('input[name="budgetCopay"]');
     const elTwo  = document.querySelector('input[name="twoPersons"]');
@@ -3493,15 +3493,15 @@ window.addEventListener('hashchange', () => {
     if (elMax) elMax.checked = /4180.*MAX/.test(b);
     if (elCop) elCop.checked = /4180.*ZUZ/.test(b);
     if (elTwo) elTwo.checked = /ZWEI.*PERSONEN|8360/.test(b);
-    if (copay) copay.value = String(payload.bereich?.copayAmount||0);
+    if (copay) copay.value = String(payload.Kundendaten?.copayAmount||0);
 
     // woh num feld
     const weY = document.querySelector('input[name="wohnumfeldDone"][value="Ja"]');
     const weN = document.querySelector('input[name="wohnumfeldDone"][value="Nein"]');
-    if (payload.bereich?.wohnumfeld?.done) {
+    if (payload.Kundendaten?.wohnumfeld?.done) {
       weY && (weY.checked = true, weY.dispatchEvent(new Event('change', {bubbles:true})));
       const amt = document.getElementById('wohnumfeldAmount');
-      if (amt) amt.value = String(payload.bereich?.wohnumfeld?.amount||0);
+      if (amt) amt.value = String(payload.Kundendaten?.wohnumfeld?.amount||0);
     } else {
       weN && (weN.checked = true, weN.dispatchEvent(new Event('change', {bubbles:true})));
     }
@@ -3830,49 +3830,49 @@ async function restoreConfiguratorFromOffer(doc) {
     p = offer?.payload;
     if (!p) return;
 
-    // ---- Bereich / Kunde ----
-    setSelect('salutation', p?.bereich?.salutation);
-    setByNameOrId('date', p?.bereich?.date);
-    setByNameOrId('firstName', p?.bereich?.firstName);
-    setByNameOrId('lastName', p?.bereich?.lastName);
-    setByNameOrId('phone', p?.bereich?.phone);
-    setByNameOrId('email', p?.bereich?.email);
-    setByNameOrId('street', p?.bereich?.street);
-    setByNameOrId('city', p?.bereich?.city);
-    setByNameOrId('state', p?.bereich?.state);
-    setByNameOrId('postalCode', p?.bereich?.postalCode);
-    setByNameOrId('deployment', p?.bereich?.deployment);
-    setByNameOrId('customerNumber', p?.bereich?.customerNumber);
-    setSelect('customerType', p?.bereich?.customerType);
+    // ---- Kundendaten / Kunde ----
+    setSelect('salutation', p?.Kundendaten?.salutation);
+    setByNameOrId('date', p?.Kundendaten?.date);
+    setByNameOrId('firstName', p?.Kundendaten?.firstName);
+    setByNameOrId('lastName', p?.Kundendaten?.lastName);
+    setByNameOrId('phone', p?.Kundendaten?.phone);
+    setByNameOrId('email', p?.Kundendaten?.email);
+    setByNameOrId('street', p?.Kundendaten?.street);
+    setByNameOrId('city', p?.Kundendaten?.city);
+    setByNameOrId('state', p?.Kundendaten?.state);
+    setByNameOrId('postalCode', p?.Kundendaten?.postalCode);
+    setByNameOrId('deployment', p?.Kundendaten?.deployment);
+    setByNameOrId('customerNumber', p?.Kundendaten?.customerNumber);
+    setSelect('customerType', p?.Kundendaten?.customerType);
 
     // contact person
-    setRadio('hasContactPerson', p?.bereich?.hasContactPerson);
-    setByNameOrId('cp_name', p?.bereich?.cp_name);
-    setByNameOrId('cp_phone', p?.bereich?.cp_phone);
-    setByNameOrId('cp_street', p?.bereich?.cp_street);
-    setByNameOrId('cp_city', p?.bereich?.cp_city);
-    setByNameOrId('cp_state', p?.bereich?.cp_state);
-    setByNameOrId('cp_postalCode', p?.bereich?.cp_postalCode);
+    setRadio('hasContactPerson', p?.Kundendaten?.hasContactPerson);
+    setByNameOrId('cp_name', p?.Kundendaten?.cp_name);
+    setByNameOrId('cp_phone', p?.Kundendaten?.cp_phone);
+    setByNameOrId('cp_street', p?.Kundendaten?.cp_street);
+    setByNameOrId('cp_city', p?.Kundendaten?.cp_city);
+    setByNameOrId('cp_state', p?.Kundendaten?.cp_state);
+    setByNameOrId('cp_postalCode', p?.Kundendaten?.cp_postalCode);
 
     // internals (+ budget)
-    setByNameOrId('emc2_contact', p?.bereich?.emc2_contact);
-    setRadio('payer', p?.bereich?.payer);
-    if (typeof restoreBudgetPanel === 'function') restoreBudgetPanel(p?.bereich);
-    setRadio('aufschlag', p?.bereich?.aufschlag);
+    setByNameOrId('emc2_contact', p?.Kundendaten?.emc2_contact);
+    setRadio('payer', p?.Kundendaten?.payer);
+    if (typeof restoreBudgetPanel === 'function') restoreBudgetPanel(p?.Kundendaten);
+    setRadio('aufschlag', p?.Kundendaten?.aufschlag);
 
     // Distances & Times
-    setNumber('distanceKm', p?.bereich?.distanceKm);
-    setByNameOrId('travelTime', p?.bereich?.travelTime);   // "5:00"
-    setByNameOrId('laborHours', p?.bereich?.laborHours);   // "07:00"
+    setNumber('distanceKm', p?.Kundendaten?.distanceKm);
+    setByNameOrId('travelTime', p?.Kundendaten?.travelTime);   // "5:00"
+    setByNameOrId('laborHours', p?.Kundendaten?.laborHours);   // "07:00"
 
     // Pflegegrad radios FIRST…
-    setRadio('hasPflegegrad', p?.bereich?.hasPflegegrad);  // "Ja"/"Nein"
-    if (p?.bereich?.pflegegrad) setRadio('pflegegrad', String(p.bereich.pflegegrad));
+    setRadio('hasPflegegrad', p?.Kundendaten?.hasPflegegrad);  // "Ja"/"Nein"
+    if (p?.Kundendaten?.pflegegrad) setRadio('pflegegrad', String(p.Kundendaten.pflegegrad));
 
     // …then Wohnumfeld (depends on payer/PG visibility)
-    restorePflegegradAndWohnumfeld(p?.bereich);
+    restorePflegegradAndWohnumfeld(p?.Kundendaten);
 
-    setNumber('copayAmount', p?.bereich?.copayAmount);
+    setNumber('copayAmount', p?.Kundendaten?.copayAmount);
 
     // ---- Duschwanne ----
 // numeric inputs (quiet during restore)
@@ -4037,7 +4037,7 @@ restoreTrinnityFloorSealing(p?.duschwanne);
   // ===== POST-RESTORE NUDGES (single, ordered) =====
   const fire = (sel) => dispatchChange(document.querySelector(sel));
 
-  // Bereich dependencies
+  // Kundendaten dependencies
   fire('input[name="payer"]:checked');
   fire('input[name="aufschlag"]:checked');
   fire('input[name="hasPflegegrad"]:checked');
@@ -4154,8 +4154,8 @@ document.getElementById('btnLoadOffer')?.addEventListener('click', async (ev) =>
     await restoreConfiguratorFromOffer(data);
 
     // Success toast
-    const who = data?.offer?.payload?.bereich?.firstName && data?.offer?.payload?.bereich?.lastName
-      ? `für ${data.offer.payload.bereich.firstName} ${data.offer.payload.bereich.lastName}`
+    const who = data?.offer?.payload?.Kundendaten?.firstName && data?.offer?.payload?.Kundendaten?.lastName
+      ? `für ${data.offer.payload.Kundendaten.firstName} ${data.offer.payload.Kundendaten.lastName}`
       : '';
     toast.success('Angebot geladen', `Nummer <b>${n}</b>`, { withBackdrop: true });
 
@@ -4200,7 +4200,7 @@ async function saveFinalOfferSnapshot() {
 
 document.getElementById("makePdf")?.addEventListener("click", async () => {
   if (!requireBereichValid()) {
-    location.hash = "bereich";
+    location.hash = "Kundendaten";
     return;
   }
   try {
@@ -4225,7 +4225,7 @@ document
   .getElementById("makePdfFromTemplate")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "bereich";
+      location.hash = "Kundendaten";
       return;
     }
     try {
@@ -4267,7 +4267,7 @@ async function downloadDocx(url, body, filename) {
 
 document.getElementById("downloadDocx")?.addEventListener("click", async () => {
   if (!requireBereichValid()) {
-    location.hash = "bereich";
+    location.hash = "Kundendaten";
     return;
   }
   try {
@@ -4293,7 +4293,7 @@ document.getElementById("downloadDocx")?.addEventListener("click", async () => {
 
 document.getElementById("sendForm")?.addEventListener("click", async () => {
   if (!requireBereichValid()) {
-    location.hash = "bereich";
+    location.hash = "Kundendaten";
     return;
   }
   try {
@@ -4312,7 +4312,7 @@ document.getElementById("sendForm")?.addEventListener("click", async () => {
 
 document.getElementById("sendJson")?.addEventListener("click", async () => {
   if (!requireBereichValid()) {
-    location.hash = "bereich";
+    location.hash = "Kundendaten";
     return;
   }
   try {
@@ -4334,7 +4334,7 @@ document
   .getElementById("downloadMaterialOverview")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "bereich";
+      location.hash = "Kundendaten";
       return;
     }
     try {
@@ -4357,7 +4357,7 @@ document
   .getElementById("downloadDocxAsPdf")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "bereich";
+      location.hash = "Kundendaten";
       return;
     }
     try {
