@@ -87,7 +87,7 @@ const cl80Qty = Number(opt?.qty_CLPESG80 ?? (opt?.opt_CLPESG80 ? 1 : 0)) || 0;
     if (typeof fromNumeric === 'number' && Number.isFinite(fromNumeric)) {
       return fromNumeric;
     }
-    const a = payload?.bereich?.aufschlag;
+    const a = payload?.Kundendaten?.aufschlag;
     if (!a) return 0.35; // safe default
     const m = String(a).trim().match(/^(\d+)\%$/);
     if (m) {
@@ -456,12 +456,12 @@ try {
     
    
   // total_hours : travel time(Hin- und Rückfahrt) + Arbeitszeit
-  const laborHours = Number(payload?.bereich?.laborNumeric ?? 0);
-    const total_hours_numeric = Number(payload?.bereich?.totalHoursNumeric ?? 0);
-     const total_hours_HH_mm   = String(payload?.bereich?.totalHoursHHMM ?? '');
+  const laborHours = Number(payload?.Kundendaten?.laborNumeric ?? 0);
+    const total_hours_numeric = Number(payload?.Kundendaten?.totalHoursNumeric ?? 0);
+     const total_hours_HH_mm   = String(payload?.Kundendaten?.totalHoursHHMM ?? '');
 
-     const reise_hours_numeric = Number(payload?.bereich?.ReiseHoursNumeric ?? 0);
-     const Arbeitszeit_hours_numeric = Number(payload?.bereich?.ArbeitHoursNumeric?? 0);
+     const reise_hours_numeric = Number(payload?.Kundendaten?.ReiseHoursNumeric ?? 0);
+     const Arbeitszeit_hours_numeric = Number(payload?.Kundendaten?.ArbeitHoursNumeric?? 0);
 
     const handwerkerCount = 2;
     const laborRateKK = 69.50;
@@ -673,7 +673,7 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
       
       // Extract and enforce markup rules
       let markupPct = extractMarkupPct(payload);
-      const payer = payload?.bereich?.payer || '';
+      const payer = payload?.Kundendaten?.payer || '';
       if (payer === 'Selbstzahler') {
         markupPct = 0.35; // enforce rule regardless of client input
       }
@@ -749,7 +749,7 @@ const vatOnNet = round2((netAfterRabatt_and_Bonus || 0) * TAX_RATE);
 
 
       // -------- NEW: Zuschuss/Selbstkostenanteil --------
-const b = payload?.bereich || {};
+const b = payload?.Kundendaten || {};
 
 // Accept string or array; pick the first non-empty if it's an array
 const rawOptionSrc = b?.budgetOption ?? b?.budgetOptionsPanel ?? b?.budgetOptions ?? '';

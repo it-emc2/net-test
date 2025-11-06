@@ -98,9 +98,9 @@ function setByProductId(pid, on) {
   return true;
 }
 
-function restoreBudgetPanel(bereich) {
-  if (!bereich) return;
-  const txt = String(bereich.budgetOptionsPanel || '').toUpperCase();
+function restoreBudgetPanel(Kundendaten) {
+  if (!Kundendaten) return;
+  const txt = String(Kundendaten.budgetOptionsPanel || '').toUpperCase();
 
   const elMax = document.querySelector('input[name="budgetMax"]');
   const elCop = document.querySelector('input[name="budgetCopay"]');
@@ -111,7 +111,7 @@ function restoreBudgetPanel(bereich) {
   if (elCop) elCop.checked = /4180.*(ZUZ|COPAY)/.test(txt);
   if (elTwo) elTwo.checked = /(ZWEI|8360)/.test(txt);
 
-  if (copay) copay.value = (bereich.copayAmount ?? '') + '';
+  if (copay) copay.value = (Kundendaten.copayAmount ?? '') + '';
 }
 
 function safeDispatch(el, type) {
@@ -719,7 +719,7 @@ themeToggle?.addEventListener("change", () =>
 
 /* ========== NAVIGATION ========== */
 const steps = [
-  "bereich",
+  "Kundendaten",
   "duschwanne",
   "wandverkleidung",
   "duschabtrennung",
@@ -893,7 +893,7 @@ function readWVConsumablesStrict() {
 
 function buildPayload() {
   const payload = {
-    bereich: formToObject(document.getElementById("form-bereich")),
+    Kundendaten: formToObject(document.getElementById("form-Kundendaten")),
     duschwanne: {
       ...formToObject(document.getElementById("form-duschwanne")),
       computed: window.__DW_COMPUTED__ || {},
@@ -1018,9 +1018,9 @@ try {
     ? selected.toUpperCase().replace(/_/g, " ").replace(/\s+/g, " ").trim()
     : "";
 
-  payload.bereich = payload.bereich || {};
-  payload.bereich.budgetOptionsPanel = canonical || selected || "";
-  payload.bereich.copayAmount = copayEl ? parseEuroToNumber(copayEl.value) : 0;
+  payload.Kundendaten = payload.Kundendaten || {};
+  payload.Kundendaten.budgetOptionsPanel = canonical || selected || "";
+  payload.Kundendaten.copayAmount = copayEl ? parseEuroToNumber(copayEl.value) : 0;
 
   // Rabatt fields for server
   const pct = parseFloat(document.getElementById("rb-material-discount")?.value || "0");
@@ -1032,24 +1032,24 @@ try {
   };
 
   payload.offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
-  payload.bereich.totalHoursHHMM =
+  payload.Kundendaten.totalHoursHHMM =
     document.getElementById("totalHoursHHMM")?.textContent?.match(/(\d+:\d{2})/)?.[1] || "";
  
    // Fallback compute if mirrors are not populated yet
   const _L = typeof hhmmToHours === 'function' ? hhmmToHours(document.getElementById('laborHours')?.value || '0:00') : 0;
   const _T1= typeof hhmmToHours === 'function' ? hhmmToHours(document.getElementById('travelTime')?.value || '0:00') : 0;
   const F_total  = (_T1 * 2) + _L;
-  payload.bereich.totalHoursNumeric = Number(window.total_hours_numeric ?? F_total ?? 0);
-  payload.bereich.ReiseHoursNumeric = Number(window.reise_hours_numeric  ?? (_T1 * 2) ?? 0);
-  payload.bereich.ArbeitHoursNumeric= Number(window.arbeit_hours_numeric ?? _L ?? 0);
-  payload.bereich.laborHoursHHMM = laborHHMM;
-  //payload.bereich.laborHoursNumeric = laborNumeric;
+  payload.Kundendaten.totalHoursNumeric = Number(window.total_hours_numeric ?? F_total ?? 0);
+  payload.Kundendaten.ReiseHoursNumeric = Number(window.reise_hours_numeric  ?? (_T1 * 2) ?? 0);
+  payload.Kundendaten.ArbeitHoursNumeric= Number(window.arbeit_hours_numeric ?? _L ?? 0);
+  payload.Kundendaten.laborHoursHHMM = laborHHMM;
+  //payload.Kundendaten.laborHoursNumeric = laborNumeric;
 
   const woh = readWohnumfeld();
   const isKK =
-    (payload.bereich?.payer ||
+    (payload.Kundendaten?.payer ||
       document.querySelector('input[name="payer"]:checked')?.value) === "Kassenkunde";
-  payload.bereich.wohnumfeld = isKK ? woh : { done: false, amount: 0 };
+  payload.Kundendaten.wohnumfeld = isKK ? woh : { done: false, amount: 0 };
 
   // --- Attach Duschwanne selection from DOM (if present) ---
   {
@@ -1260,7 +1260,7 @@ function highlightTileForInput(input, on) {
 
 /* ========== VALIDATION ========== */
 function validateBereich() {
-  const form = document.getElementById("form-bereich");
+  const form = document.getElementById("form-Kundendaten");
   if (!form) return true;
   const d = document.getElementById("date");
   if (d && !d.value) d.valueAsDate = new Date();
@@ -1337,7 +1337,7 @@ function validateDuschabtrennung() {
   return f.reportValidity();
 }
 
-/* Focus helper for Bereich conditional errors (defined in initBereichErrorHints) */
+/* Focus helper for Kundendaten conditional errors (defined in initBereichErrorHints) */
 function focusFirstBereichConditionalError() {
   if (typeof window.__bereichFocusFirstError__ === "function") {
     return window.__bereichFocusFirstError__();
@@ -1346,7 +1346,7 @@ function focusFirstBereichConditionalError() {
 }
 
 function requireBereichValid() {
-  const form = document.getElementById("form-bereich");
+  const form = document.getElementById("form-Kundendaten");
   if (!form.reportValidity()) {
     focusFirstBereichConditionalError();
     return false;
@@ -1366,7 +1366,7 @@ document.body.addEventListener("click", (e) => {
   if (dir === "prev") return setStep(steps[Math.max(0, idx - 1)]);
   if (dir === "next") {
     const ok =
-      step === "bereich"
+      step === "Kundendaten"
         ? requireBereichValid()
         : step === "duschwanne"
         ? validateDuschwanne()
@@ -1886,9 +1886,9 @@ migrated[kind] = normRows;
   restoreFromLocalStorage();
 })();
 
-/* ========== BEREICH UI (contact, aufschlag/pflegegrad, etc.) ========== */
+/* ========== Kundendaten UI (contact, aufschlag/pflegegrad, etc.) ========== */
 (function initContactPersonToggle() {
-  const form = document.getElementById("form-bereich");
+  const form = document.getElementById("form-Kundendaten");
   const section = document.getElementById("contactPersonSection");
   const req = ["cp_name", "cp_street", "cp_city", "cp_postalCode"].map((id) =>
     document.getElementById(id)
@@ -1973,7 +1973,7 @@ migrated[kind] = normRows;
 })();
 
 (function initPflegegrad() {
-  const form = document.getElementById("form-bereich");
+  const form = document.getElementById("form-Kundendaten");
   const pgLevelRow = document.getElementById("pflegegradLevelRow");
   const pgRadios = Array.from(
     pgLevelRow?.querySelectorAll('input[name="pflegegrad"]') || []
@@ -2085,7 +2085,7 @@ migrated[kind] = normRows;
   });
 })();
 
-// Live round-trip preview (Bereich → Entfernung)
+// Live round-trip preview (Kundendaten → Entfernung)
 (function initRoundTripPreview() {
   const kmInput = document.getElementById('distanceKm');
   const out = document.getElementById('roundTripPreview');
@@ -2110,9 +2110,9 @@ migrated[kind] = normRows;
   });
 })();
 
-/* ========== ACCESSIBLE ERROR HINTS FOR BEREICH CONDITIONALS ========== */
+/* ========== ACCESSIBLE ERROR HINTS FOR Kundendaten CONDITIONALS ========== */
 (function initBereichErrorHints() {
-  const form = document.getElementById("form-bereich");
+  const form = document.getElementById("form-Kundendaten");
   if (!form) return;
 
   function ensureHint(afterEl, id) {
@@ -3344,26 +3344,26 @@ window.addEventListener('hashchange', () => {
     // Start with current form payload
     const payload = buildPayload();
 
-    // Apply playground overrides into payload.bereich / payload.rabatt
-    payload.bereich = payload.bereich || {};
+    // Apply playground overrides into payload.Kundendaten / payload.rabatt
+    payload.Kundendaten = payload.Kundendaten || {};
 
     // payer
     const payer = (payerRadios.find(r=>r.checked)?.value) || '';
-    if (payer) payload.bereich.payer = payer;
+    if (payer) payload.Kundendaten.payer = payer;
 
     // aufschlag
     const auf = (aufRadios.find(r=>r.checked)?.value) || '';
-    if (auf) payload.bereich.aufschlag = auf;
+    if (auf) payload.Kundendaten.aufschlag = auf;
 
     // pflegegrad / budget
     const hasPG = hasPgCB.checked;
     if (hasPG) {
-      payload.bereich.hasPflegegrad = 'Ja';
+      payload.Kundendaten.hasPflegegrad = 'Ja';
       const lvl = pgLvlRadios.find(r=>r.checked)?.value || '2';
-      payload.bereich.pflegegrad = lvl;
+      payload.Kundendaten.pflegegrad = lvl;
     } else {
-      payload.bereich.hasPflegegrad = 'Nein';
-      payload.bereich.pflegegrad = '';
+      payload.Kundendaten.hasPflegegrad = 'Nein';
+      payload.Kundendaten.pflegegrad = '';
     }
 
     // budget options (canonical combined field used by server)
@@ -3371,12 +3371,12 @@ window.addEventListener('hashchange', () => {
     if (twoPersons.checked) budget = 'Zwei Personen mit Pflegegrad';
     else if (budgetMax.checked) budget = '4180 maximal';
     else if (budgetCopay.checked) budget = '4180 mit Zuzahlung';
-    payload.bereich.budgetOptionsPanel = budget;
+    payload.Kundendaten.budgetOptionsPanel = budget;
 
-    payload.bereich.copayAmount = Number(copayAmount.value || 0) || 0;
+    payload.Kundendaten.copayAmount = Number(copayAmount.value || 0) || 0;
 
     // wohnumfeld
-    payload.bereich.wohnumfeld = {
+    payload.Kundendaten.wohnumfeld = {
       done: !!weDoneCB.checked,
       amount: Number(weAmount.value || 0) || 0
     };
@@ -4002,7 +4002,7 @@ restoreTrinnityFloorSealing(p?.duschwanne);
         cat_THERMO:    ['opt_CLTB','opt_DEPTB','opt_CLB'],
         cat_GRAB:      ['opt_CLPESG40','opt_CLPESG60','opt_CLPESG80'],
         cat_FOLD:      ['opt_DEPSKG60','opt_DEPSKG85'],
-        cat_SEAT:      ['opt_DEPKS'],
+        cat_SEAT:      ['opt_DEPKS', 'opt_CLPESDH'],
         cat_BASIN:     ['opt_CL60'],
         cat_BASIN_TAP: ['opt_CL_BASIN','opt_DEPOH'],
       };
@@ -5046,6 +5046,7 @@ function initOptionalMenus() {
 
   // ---- SEAT ----
   wireTileQty("opt_DEPKS", "qty_DEPKS_wrap");
+  wireTileQty("opt_CLPESDH", "qty_CLPESDH_wrap");
 
   // ---- BASIN TAP ----
   wireTileQty("opt_CL_BASIN", "qty_CL_BASIN_wrap");

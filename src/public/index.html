@@ -728,9 +728,9 @@ section.da-quickadd .da-remove:focus-visible {
 
         <nav class="menu" id="sideMenu">
 
-          <a class="side-link" data-step="bereich" href="#bereich">
+          <a class="side-link" data-step="Kundendaten" href="#Kundendaten">
             <div class="dot"></div>
-            <span>Bereich</span>
+            <span>Kundendaten</span>
           </a>
 
           <a class="side-link" data-step="duschwanne" href="#duschwanne">
@@ -791,13 +791,13 @@ section.da-quickadd .da-remove:focus-visible {
 
     <div class="container">
       <!-- Bereich -->
-      <section class="card page" id="page-bereich">
+      <section class="card page" id="page-Kundendaten">
             <div class="field" style="display:flex; gap:8px; max-width:380px;">
   <input id="loadOfferNumber" type="text" placeholder="ANG2025-1008-092040" />
   <button type="button" id="btnLoadOffer" class="secondary">Angebot laden</button>
 </div>
         <div class="section-header">Kontaktdaten des Kunden</div>
-        <form id="form-bereich" novalidate>
+        <form id="form-Kundendaten" novalidate>
           <div
             class="full"
             style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px"
@@ -3111,6 +3111,36 @@ section.da-quickadd .da-remove:focus-visible {
                   ><input
                     id="qty_DEPKS"
                     name="qty_DEPKS"
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <div class="field" style="min-width: 220px">
+                <label class="image-check"
+                  ><input
+                    type="checkbox"
+                    id="opt_CLPESDH"
+                    name="optSeat[]"
+                    value="Duschhocker clivia V2 plus Sitzfläche we geschäumt.Edelstahl glatt poliert,VIGOUR"
+                  /><span class="img-wrap"
+                    ><img src="./assets/CLPESDH.jpg" alt="CLPESDH" /></span
+                  ><span class="caption">CLPESDH</span></label
+                >
+                <div
+                  id="qty_CLPESDH_wrap"
+                  class="field"
+                  hidden
+                  aria-hidden="true"
+                  style="max-width: 220px"
+                >
+                  <label for="qty_CLPESDH" class="req">Menge CLPESDH</label
+                  ><input
+                    id="qty_CLPESDH"
+                    name="qty_CLPESDH"
                     type="number"
                     min="0"
                     step="1"
