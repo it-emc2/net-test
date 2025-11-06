@@ -671,6 +671,46 @@ section.da-quickadd .da-remove:focus-visible {
 #form-duschabtrennung .da-remove:focus-visible {
   background: rgba(239, 68, 68, .12) !important;
 }
+/* Optional → Sonderprodukte buttons should look like Hassmann */
+#page-optional #menu_SONDER .da-add,
+#page-optional #menu_SONDER .da-remove {
+  background: transparent !important;
+  border: 1px solid var(--border, rgba(0,0,0,.12)) !important;
+  border-radius: 10px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+/* purple add */
+#page-optional #menu_SONDER .da-add {
+  color: var(--accent, #a855f7) !important;
+  font-weight: 700;
+}
+#page-optional #menu_SONDER .da-add:hover,
+#page-optional #menu_SONDER .da-add:focus-visible {
+  background: rgba(168, 85, 247, .12) !important;
+}
+
+/* red delete */
+#page-optional #menu_SONDER .da-remove {
+  color: #ef4444 !important;
+}
+#page-optional #menu_SONDER .da-remove:hover,
+#page-optional #menu_SONDER .da-remove:focus-visible {
+  background: rgba(239, 68, 68, .12) !important;
+}
+
+/* ensure any inline SVG icons inherit the color */
+#page-optional #menu_SONDER .da-add svg,
+#page-optional #menu_SONDER .da-remove svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+  fill: none !important;
+}
+#page-optional #menu_SONDER .da-add svg [fill]:not([fill="none"]),
+#page-optional #menu_SONDER .da-remove svg [fill]:not([fill="none"]) {
+  fill: currentColor !important;
+}
 
     </style>
   </head>
@@ -2698,6 +2738,14 @@ section.da-quickadd .da-remove:focus-visible {
               /></span>
               <span class="caption">Eingabe der (Verlege)-Meter</span>
             </label>
+<!-- NEW parent: Sonderprodukte -->
+<label class="image-check">
+  <input type="checkbox" id="cat_SONDER" />
+  <span class="img-wrap">
+    <img src="./assets/sonder.jpg" alt="Sonderprodukte" />
+  </span>
+  <span class="caption">Sonderprodukte</span>
+</label>
 
             </div>
           </div>
@@ -3466,7 +3514,7 @@ section.da-quickadd .da-remove:focus-visible {
             </div>
           </div>
 
-          <div id="menu_METER" class="full field" hidden aria-hidden="true">
+  <div id="menu_METER" class="full field" hidden aria-hidden="true">
   <div class="subheader">Verlege-Meter</div>
   <div style="display: flex; gap: 14px; flex-wrap: wrap">
     <div class="field" style="min-width: 220px">
@@ -3500,6 +3548,73 @@ section.da-quickadd .da-remove:focus-visible {
     </div>
   </div>
 </div>
+<!-- NEW children for “Sonderprodukte” -->
+<div id="menu_SONDER" class="full field" hidden aria-hidden="true">
+  <div class="subheader">Sonderprodukte (Freie Zusatzpositionen)</div>
+
+  <!-- Looks/behaves like Hassmann “Freier Posten” (4 inputs) -->
+  <fieldset class="da-row" id="opt-sonder" data-kind="custom" aria-describedby="opt-sonder-help">
+    <legend class="da-legend">
+      Freier Posten
+      <button type="button" class="da-add" aria-label="Weitere Position hinzufügen">+</button>
+    </legend>
+
+    <div class="da-items">
+      <!-- first row -->
+      <div class="da-item" data-kind="custom">
+        <div class="da-grid-4">
+          <label class="da-label">
+            Bezeichnung
+            <input class="opt-name" type="text" placeholder="z. B. Sonderzubehör" />
+          </label>
+          <label class="da-label">
+            Preis (netto)
+            <input class="opt-price" type="text" inputmode="decimal" placeholder="z. B. 199,00" />
+          </label>
+          <label class="da-label">
+            Menge
+            <input class="opt-qty" type="number" min="1" step="1" placeholder="1" />
+          </label>
+          <label class="da-label">
+            Artikel-ID (optional)
+            <input class="opt-id" type="text" placeholder="z. B. OPT-123" />
+          </label>
+        </div>
+        <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+      </div>
+    </div>
+
+    <small id="opt-sonder-help" class="da-help">
+      Neue Zeile ist nur möglich, wenn <em>Bezeichnung</em> und <em>Preis</em> gefüllt sind. Letzte Zeile: Löschen leert alle 4 Felder.
+    </small>
+  </fieldset>
+</div>
+<!-- Template for extra Sonderprodukt rows -->
+<template id="opt-item-template">
+  <div class="da-item" data-kind="custom">
+    <div class="da-grid-4">
+      <label class="da-label">
+        Bezeichnung
+        <input class="opt-name" type="text" placeholder="z. B. Sonderzubehör" />
+      </label>
+      <label class="da-label">
+        Preis (netto)
+        <input class="opt-price" type="text" inputmode="decimal" placeholder="z. B. 199,00" />
+      </label>
+      <label class="da-label">
+        Menge
+        <input class="opt-qty" type="number" min="1" step="1" placeholder="1" />
+      </label>
+      <label class="da-label">
+        Artikel-ID (optional)
+        <input class="opt-id" type="text" placeholder="z. B. OPT-123" />
+      </label>
+    </div>
+    <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+  </div>
+</template>
+
+
 
 
           <div class="actions full">

@@ -858,6 +858,36 @@ function collectDuschabtrennungQuickAdd(doc) {
   doc.duschabtrennung.quickAdd = qa;
 }
 
+// helper: collect "Freier Posten / Sonderprodukte" rows from a container
+function collectCustomRows(root) {
+  if (!root) return [];
+  return [...root.querySelectorAll('fieldset.da-row[data-kind="custom"] .da-item')].map(item => {
+    const name  = item.querySelector('.da-name')?.value?.trim() || '';
+    const price = item.querySelector('.da-price')?.value || '';
+    const qty   = item.querySelector('.da-qty')?.value || '';
+    const id    = item.querySelector('.da-id')?.value?.trim() || '';
+
+    // normalize numeric price (accepts "1.234,56" or "1234.56")
+    const priceNum = (() => {
+      const raw = String(price).trim();
+      if (!raw) return 0;
+      const norm = raw.replace(/\./g, '').replace(',', '.'); // de → en
+      const n = Number(norm);
+      return Number.isFinite(n) ? n : 0;
+    })();
+
+    const qtyNum = Math.max(0, parseInt(qty, 10) || 0);
+
+    return {
+      kind: 'custom',
+      name,
+      id,
+      price: priceNum,
+      qty: qtyNum,
+      total: +(priceNum * qtyNum).toFixed(2)
+    };
+  }).filter(x => x.name && x.price > 0 && x.qty > 0);
+}
 
 
 function readWVConsumablesStrict() {
@@ -1007,6 +1037,32 @@ try {
       .replace(",", ".");
     const n = parseFloat(s);
     return Number.isFinite(n) ? n : 0;
+  }
+  // --- OPTIONAL: Sonderprodukte (Freier Posten unter Optional) ---
+  try {
+    const root = document.getElementById('menu_SONDER');
+    if (root) {
+      const rows = [...root.querySelectorAll('fieldset.da-row[data-kind="custom"] .da-item')];
+      const items = rows.map(item => {
+        const name  = item.querySelector('.da-name')?.value?.trim() || '';
+        const price = parseEuroToNumber(item.querySelector('.da-price')?.value || '');
+        const qty   = Math.max(0, parseInt(item.querySelector('.da-qty')?.value || '0', 10) || 0);
+        const id    = item.querySelector('.da-id')?.value?.trim() || '';
+
+        return { kind: 'custom', name, id, price, qty, total: +(price * qty || 0).toFixed(2) };
+      }).filter(x => x.name && x.price > 0 && x.qty > 0);
+
+      if (items.length) {
+        payload.optional = payload.optional || {};
+        payload.optional.sonderprodukte = items;
+      } else {
+        // keep structure predictable (optional)
+        payload.optional = payload.optional || {};
+        delete payload.optional.sonderprodukte;
+      }
+    }
+  } catch (e) {
+    console.warn('[buildPayload] optional.sonderprodukte capture failed:', e);
   }
 
   let selected = "";
@@ -4940,6 +4996,7 @@ function initOptionalMenus() {
     cat_SEAT:       "menu_SEAT",
     // Add more categories here if needed
     cat_METER:     "menu_METER",
+    cat_SONDER:     "menu_SONDER",
   };
 
   // ---- helpers ----
