@@ -1584,6 +1584,14 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!section) return;
 
   const TPL = document.getElementById('da-item-template');
+  // Pick the correct <template> for a fieldset (Freier Posten has its own)
+function getTemplateFor(fs) {
+  const tplId = fs && fs.getAttribute('data-template');
+  const t = tplId ? document.getElementById(tplId) : TPL;
+  // Fallback to shared TPL if custom template missing
+  return (t && t.content) ? t : TPL;
+}
+
   const KINDS = [
     { kind: 'pendeltuer',   label: 'Pendeltür Hassmann' },
     { kind: 'gleittuer',    label: 'Gleittür Hassmann' },
@@ -1689,7 +1697,10 @@ migrated[kind] = normRows;
 
   function addRow(kind, fs, focusPrice = true) {
     const wrap = fs.querySelector('.da-items');
-    if (!wrap || !TPL?.content) return null;
+    if (!wrap) return null;
+const tpl = getTemplateFor(fs);
+if (!tpl?.content) return null;
+
 
     // rule: only add if the last existing row is valid
     const last = wrap.querySelector('.da-item:last-child');
@@ -1713,7 +1724,8 @@ migrated[kind] = normRows;
       }
     }
 
-    const node = TPL.content.firstElementChild.cloneNode(true);
+    const node = tpl.content.firstElementChild.cloneNode(true);
+
     wrap.appendChild(node);
     wireRow(node);
     if (focusPrice) node.querySelector('.da-price')?.focus();
@@ -4341,7 +4353,6 @@ function initOptionalSonderprodukte() {
   };
 
   const clearRow = (row) => writeRow(row, { label: '', productId: '', qty: '', price: '' });
-
   const saveAll = () => {
     const rows = queryRows()
       .map(readRow)
@@ -4467,7 +4478,6 @@ if ($price) {
     saveAll();
   };
 
-  // Restore from storage
  // Restore from storage
 const restored = loadAll();
 const removeAllDomRows = () => {
