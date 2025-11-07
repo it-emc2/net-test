@@ -400,6 +400,26 @@ try {
 } catch (e) {
   console.warn('[pricing] quickAdd (Hassmann) merge failed:', e?.message || e);
 }
+// OPTIONAL → Sonderprodukte quick-add
+try {
+  const oq = payload?.optional?.quickAdd || [];
+  if (Array.isArray(oq) && oq.length) {
+    for (const x of oq) {
+      const qty   = Number(x?.qty) || 0;
+      const price = parseMoneyStrict(x?.price) || 0;
+      if (qty <= 0 || price <= 0) continue;
+
+      const pid   = (String(x?.productId || '').trim()) || 'OPT_CUSTOM';
+      const base  = (String(x?.label || '').trim()) || 'Sonderprodukt';
+      const label = `- ${qty} Stk ${base}`;
+
+      // subgroup null/undefined: follow your Optional pricing bucket
+      add(pid, qty, label, price, 'optional');
+    }
+  }
+} catch (e) {
+  console.warn('[pricing] optional quick-add failed:', e);
+}
 
 
 

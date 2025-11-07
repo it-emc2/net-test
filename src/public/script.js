@@ -1039,31 +1039,7 @@ try {
     return Number.isFinite(n) ? n : 0;
   }
   // --- OPTIONAL: Sonderprodukte (Freier Posten unter Optional) ---
-  try {
-    const root = document.getElementById('menu_SONDER');
-    if (root) {
-      const rows = [...root.querySelectorAll('fieldset.da-row[data-kind="custom"] .da-item')];
-      const items = rows.map(item => {
-        const name  = item.querySelector('.da-name')?.value?.trim() || '';
-        const price = parseEuroToNumber(item.querySelector('.da-price')?.value || '');
-        const qty   = Math.max(0, parseInt(item.querySelector('.da-qty')?.value || '0', 10) || 0);
-        const id    = item.querySelector('.da-id')?.value?.trim() || '';
-
-        return { kind: 'custom', name, id, price, qty, total: +(price * qty || 0).toFixed(2) };
-      }).filter(x => x.name && x.price > 0 && x.qty > 0);
-
-      if (items.length) {
-        payload.optional = payload.optional || {};
-        payload.optional.sonderprodukte = items;
-      } else {
-        // keep structure predictable (optional)
-        payload.optional = payload.optional || {};
-        delete payload.optional.sonderprodukte;
-      }
-    }
-  } catch (e) {
-    console.warn('[buildPayload] optional.sonderprodukte capture failed:', e);
-  }
+  collectOptionalQuickAdd(payload);
 
   let selected = "";
   if (elMax?.checked) selected = elMax.value;
@@ -4223,6 +4199,249 @@ document.getElementById('btnLoadOffer')?.addEventListener('click', async (ev) =>
     if (btn) { btn.disabled = false; btn.textContent = prev || 'Angebot laden'; }
   }
 });
+// Collect rows from Optional → Sonderprodukte into payload.optional.quickAdd
+function collectOptionalQuickAdd(payload) {
+  const panel = document.getElementById('optSonderPanel') || document.getElementById('opt-sonder');
+
+  if (!panel) return;
+
+  const rows = panel.querySelectorAll('.da-item');
+  const parseEuro = (typeof parseMoneyStrict === 'function')
+    ? (v) => (parseMoneyStrict(v) || 0)
+    : (v) => {
+        if (typeof parseMoneyEuro === 'function') {
+          const n = parseMoneyEuro(v);
+          if (!isNaN(n) && n > 0) return n;
+        }
+        if (typeof v !== 'string') v = String(v ?? '');
+        const cleaned = v.replace(/[^\d.,-]/g, '').replace(/\./g, '').replace(',', '.');
+        const n = Number(cleaned);
+        return isFinite(n) ? n : 0;
+      };
+
+  const out = [];
+  rows.forEach(row => {
+    const label = row.querySelector('.opt-name')?.value?.trim() || '';
+    const pid   = row.querySelector('.opt-id')?.value?.trim() || '';
+    const qtyV  = row.querySelector('.opt-qty')?.value ?? '';
+    const priceV= row.querySelector('.opt-price')?.value ?? '';
+
+    const price = parseEuro(priceV) || 0;
+    let qty = Number(String(qtyV).replace(/[^\d-]/g, ''));
+    if (!Number.isFinite(qty) || qty <= 0) {
+      // default qty=1 if price valid and name present, mirroring add-row behavior
+      qty = (label && price > 0) ? 1 : 0;
+    }
+
+    // Keep only valid lines
+    if (label && price > 0 && qty > 0) {
+      out.push({ label, price, qty, productId: pid });
+    }
+  });
+
+  if (!payload.optional) payload.optional = {};
+  payload.optional.quickAdd = out;
+}
+
+// === Optional → Sonderprodukte (Quick-Add) ===
+// Assumes presence of the following DOM nodes in index.html:
+//   #optSonderToggle  (optional UI toggle; we keep it if present)
+//   #optSonderPanel   (panel that contains rows)
+//   #opt-item-template  (template to clone rows)
+//   #cat_SONDER checkbox controls visibility of #menu_SONDER (category enable)
+// Row inputs inside a row (.da-item):
+//   .opt-name, .opt-price, .opt-qty, .opt-id
+// Row buttons (optional):
+//   .btn-del-row  (delete/clear row)
+// Add button (outside rows, somewhere inside panel):
+//   .btn-add-row
+function initOptionalSonderprodukte() {
+  const LS_KEY = 'optQuickAddRows:v1';
+
+  const toggle = document.getElementById('optSonderToggle') || null;
+  const panel  = document.getElementById('optSonderPanel') || document.getElementById('opt-sonder');
+
+  const tpl    = document.getElementById('opt-item-template');
+  const catCb  = document.getElementById('cat_SONDER');
+
+  if (!panel || !tpl) {
+    console.warn('[sonder] missing panel/template, skipping init');
+    return;
+  }
+
+  // Helper: robust euro parsing (reuse existing tolerant parsers if available)
+  const parseEuro = (v) => {
+    if (typeof parseMoneyStrict === 'function') {
+      const n = parseMoneyStrict(v);
+      if (!isNaN(n) && n > 0) return n;
+    }
+    if (typeof parseMoneyEuro === 'function') {
+      const n = parseMoneyEuro(v);
+      if (!isNaN(n) && n > 0) return n;
+    }
+    if (typeof v !== 'string') v = String(v ?? '');
+    // accept "1.234,56", "1234.56", "199", "199 €"
+    const cleaned = v
+      .replace(/[^\d.,-]/g, '')
+      .replace(/\./g, '')      // drop thousands sep
+      .replace(',', '.');      // unify decimal
+    const n = Number(cleaned);
+    return isFinite(n) ? n : 0;
+  };
+
+  const rowsContainer = panel.querySelector('.da-items') || panel; // fall back to panel
+  rowsContainer.addEventListener('click', (e) => {
+  const del = e.target.closest('.da-remove');
+  if (!del) return;
+  e.preventDefault();
+
+  const row = del.closest('.da-item');
+  if (!row) return;
+
+  const rows = queryRows();
+  if (rows.length <= 1) {
+    // keep one row visible → just clear it
+    clearRow(row);
+  } else {
+    row.remove();
+  }
+  saveAll();
+});
+
+  const queryRows = () => Array.from(rowsContainer.querySelectorAll('.da-item'));
+
+  const readRow = (row) => {
+    const name  = row.querySelector('.opt-name')?.value?.trim() || '';
+    const pid   = row.querySelector('.opt-id')?.value?.trim() || '';
+    const qtyV  = row.querySelector('.opt-qty')?.value ?? '';
+    const priceV= row.querySelector('.opt-price')?.value ?? '';
+
+    const price = parseEuro(priceV) || 0;
+    let qty = Number(String(qtyV).replace(/[^\d-]/g, ''));
+    if (!Number.isFinite(qty) || qty <= 0) qty = 0;
+
+    return { label: name, productId: pid, qty, price };
+  };
+
+  const writeRow = (row, data) => {
+    if (!row) return;
+    const { label = '', productId = '', qty = '', price = '' } = data || {};
+    const $n = row.querySelector('.opt-name');   if ($n) $n.value = label;
+    const $i = row.querySelector('.opt-id');     if ($i) $i.value = productId;
+    const $q = row.querySelector('.opt-qty');    if ($q) $q.value = (qty || qty === 0) ? qty : '';
+    const $p = row.querySelector('.opt-price');  if ($p) $p.value = price !== '' ? price : '';
+  };
+
+  const validateRow = (row) => {
+    const { label, price, qty } = readRow(row);
+    if (!label) return false;
+    if (!(price > 0)) return false;
+    // qty can be empty here; we’ll auto-default to 1 on add if needed
+    return true;
+  };
+
+  const clearRow = (row) => writeRow(row, { label: '', productId: '', qty: '', price: '' });
+
+  const saveAll = () => {
+    const rows = queryRows()
+      .map(readRow)
+      .filter(r => r.label || r.price || r.qty || r.productId); // keep even partial so user doesn’t lose text
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(rows));
+    } catch (e) {
+      console.warn('[sonder] save failed', e);
+    }
+  };
+
+  const loadAll = () => {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const createRow = (prefill) => {
+    const node = tpl.content
+      ? tpl.content.firstElementChild.cloneNode(true)
+      : tpl.cloneNode(true);
+    node.classList.add('da-item'); // ensure class present
+    writeRow(node, prefill || {});
+
+   // Wire per-row delete
+
+
+    // Save on any input change
+    node.addEventListener('input', saveAll, { passive: true });
+
+    return node;
+  };
+
+  const ensureAtLeastOneRow = () => {
+    const rows = queryRows();
+    if (!rows.length) {
+      rowsContainer.appendChild(createRow());
+    }
+  };
+
+  const addRow = () => {
+    const rows = queryRows();
+    if (rows.length) {
+      const last = rows[rows.length - 1];
+      // enforce validation: need a valid last row before adding
+      if (!validateRow(last)) {
+        // If price valid but qty missing, auto-default qty=1 and accept
+        const r = readRow(last);
+        if (r.label && r.price > 0 && (!r.qty || r.qty <= 0)) {
+          const q = last.querySelector('.opt-qty');
+          if (q) q.value = 1;
+        } else {
+          // don’t add a new row yet
+          return;
+        }
+      }
+    }
+    rowsContainer.appendChild(createRow());
+    saveAll();
+  };
+
+  // Restore from storage
+  const restored = loadAll();
+  if (restored.length) {
+    restored.forEach(r => rowsContainer.appendChild(createRow(r)));
+  } else {
+    ensureAtLeastOneRow();
+  }
+
+  // Wire "+" add button
+  const addBtn = panel.querySelector('.da-add');
+  if (addBtn) addBtn.addEventListener('click', (e) => { e.preventDefault(); addRow(); });
+
+  // Optional: toggle shows/hides the panel (SONDER category still governs main visibility)
+  if (toggle) {
+    const applyToggle = () => {
+      const on = !!(toggle.checked || toggle.getAttribute('aria-pressed') === 'true');
+      panel.style.display = on ? '' : 'none';
+      // If turning off, we do NOT clear rows automatically (you can change if desired)
+    };
+    toggle.addEventListener('change', applyToggle);
+    applyToggle();
+  }
+
+  // Show/hide with SONDER category checkbox
+  const applyCatVisibility = () => {
+    // Only manage panel visibility if no explicit toggle in use
+    if (!toggle) {
+      const on = catCb ? !!catCb.checked : true;
+      panel.style.display = on ? '' : 'none';
+    }
+  };
+  if (catCb) catCb.addEventListener('change', applyCatVisibility);
+  applyCatVisibility();
+}
 
 
 
@@ -5232,6 +5451,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initOptionalMenus && initOptionalMenus(); 
   initBasinAutoAccessories && initBasinAutoAccessories();
   wireDAQtyAutoFill(); 
+  initOptionalSonderprodukte();
+
   initLivePricingSync(); //  
   window.addEventListener('hashchange', () => {
   const id = location.hash.replace('#','');
