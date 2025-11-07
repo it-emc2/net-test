@@ -711,6 +711,70 @@ section.da-quickadd .da-remove:focus-visible {
 #page-optional #menu_SONDER .da-remove svg [fill]:not([fill="none"]) {
   fill: currentColor !important;
 }
+/* Shared look for top-level buttons (Kundendaten + collapsible groups) */
+.menu .nav-top,
+.menu .nav-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: 0;
+  border-radius: 14px;
+  padding: 10px 14px;
+  background: #6f34e8;              /* primary purple */
+  color: #fff;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,.08);
+  transition: transform .04s ease, box-shadow .2s ease, background .2s ease, opacity .2s ease;
+}
+
+/* Make sure anchors render like buttons */
+.menu .nav-top { appearance: none; }
+
+/* Hover/active states */
+.menu .nav-top:hover,
+.menu .nav-group:hover {
+  background: #5f2dd0;
+  box-shadow: 0 4px 10px rgba(0,0,0,.12);
+}
+
+.menu .nav-top:active,
+.menu .nav-group:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 6px rgba(0,0,0,.10);
+}
+
+/* Focus-visible ring */
+.menu .nav-top:focus-visible,
+.menu .nav-group:focus-visible {
+  outline: 3px solid rgba(111,52,232,.35);
+  outline-offset: 2px;
+}
+
+/* Space between top-level items */
+.menu .nav-top,
+.menu .nav-group { margin: 4px 0; }
+
+/* Caret rotation for groups (keep if you use a caret span) */
+.nav-group-caret { transition: transform .2s ease; }
+.nav-group[aria-expanded="true"] .nav-group-caret { transform: rotate(90deg); }
+
+/* Hide the tiny radio-dot inside top-level buttons */
+.menu .nav-top .dot { display: none; }
+
+/* Active state parity: when Kundendaten is current */
+.menu .nav-top.active {
+  background: #5f2dd0;
+}
+
+/* Optional: unify label weight/size */
+.menu .nav-top span,
+.menu .nav-group .nav-group-label {
+  font-weight: 600;
+  letter-spacing: .2px;
+}
+
 
     </style>
   </head>
@@ -768,73 +832,125 @@ section.da-quickadd .da-remove:focus-visible {
 
         <nav class="menu" id="sideMenu">
 
-          <a class="side-link" data-step="Kundendaten" href="#Kundendaten">
+          <a class="side-link nav-top" data-step="Kundendaten" href="#Kundendaten">
             <div class="dot"></div>
             <span>Kundendaten</span>
           </a>
 
+
+         <!-- BU Badumbau (collapsible group) -->
+      <button id="nav-bu-toggle"
+              class="nav-group"
+              type="button"
+              aria-expanded="false"
+              aria-controls="nav-bu-sublist">
+        <span class="nav-group-label">BU Badumbau</span>
+        <span class="nav-group-caret" aria-hidden="true">▸</span>
+      </button>
+
+      <ul id="nav-bu-sublist" class="nav-sublist" hidden style="list-style:none; padding-left:0">
+
+        <li>
           <a class="side-link" data-step="duschwanne" href="#duschwanne">
             <div class="dot"></div>
             <span>Duschwanne</span>
           </a>
-
-          <a
-            class="side-link"
-            data-step="wandverkleidung"
-            href="#wandverkleidung"
-          >
+        </li>
+        <li>
+          <a class="side-link" data-step="wandverkleidung" href="#wandverkleidung">
             <div class="dot"></div>
             <span>Wandverkleidung</span>
           </a>
-
-          <a
-            class="side-link"
-            data-step="duschabtrennung"
-            href="#duschabtrennung"
-          >
+        </li>
+        <li>
+          <a class="side-link" data-step="duschabtrennung" href="#duschabtrennung">
             <div class="dot"></div>
             <span>Hassmann Duschsysteme</span>
           </a>
-
-
-
+        </li>
+        <li>
           <a class="side-link" data-step="optional" href="#optional">
             <div class="dot"></div>
             <span>Optional</span>
           </a>
-
-
+        </li>
+        <li>
           <a class="side-link" data-step="rabatt" href="#rabatt">
             <div class="dot"></div>
             <span>Rabatt</span>
           </a>
-
-
-          <a
-            class="side-link"
-            data-step="zusammenfassung"
-            href="#zusammenfassung"
-          >
+        </li>
+        <li>
+          <a class="side-link" data-step="zusammenfassung" href="#zusammenfassung">
             <div class="dot"></div>
             <span>Zusammenfassung</span>
           </a>
+        </li>
+        <li>
           <a class="side-link" data-step="kosten" href="#kosten">
             <div class="dot"></div>
             <span>Kosten-Details</span>
           </a>
+        </li>
+        <li>
           <a class="side-link" data-step="playground" href="#playground">
             <div class="dot"></div>
             <span>Pricing Playground</span>
           </a>
-        </nav>
-      </aside>
+        </li>
+      </ul>
+      <!-- BWT Badewannetür -->
+<button id="nav-bwt-toggle" class="nav-group" type="button"
+        aria-expanded="false" aria-controls="nav-bwt-sublist">
+  <span class="nav-group-label">BWT Badewannetür</span>
+  <span class="nav-group-caret" aria-hidden="true">▸</span>
+</button>
+<ul id="nav-bwt-sublist" class="nav-sublist" hidden>
+  <!-- put child pages here later as <li><a class="side-link" ...>…</a></li> -->
+</ul>
 
-    <div class="container">
-      <!-- Kundendaten -->
-      <section class="card page" id="page-Kundendaten">
-            <div class="field" style="display:flex; gap:8px; max-width:380px;">
-  <input id="loadOfferNumber" type="text" placeholder="ANG2025-1008-092040" />
-  <button type="button" id="btnLoadOffer" class="secondary">Angebot laden</button>
+<!-- HL Handlauf -->
+<button id="nav-hl-toggle" class="nav-group" type="button"
+        aria-expanded="false" aria-controls="nav-hl-sublist">
+  <span class="nav-group-label">HL Handlauf</span>
+  <span class="nav-group-caret" aria-hidden="true">▸</span>
+</button>
+<ul id="nav-hl-sublist" class="nav-sublist" hidden></ul>
+
+<!-- AH Alltagshilfe -->
+<button id="nav-ah-toggle" class="nav-group" type="button"
+        aria-expanded="false" aria-controls="nav-ah-sublist">
+  <span class="nav-group-label">AH Alltagshilfe</span>
+  <span class="nav-group-caret" aria-hidden="true">▸</span>
+</button>
+<ul id="nav-ah-sublist" class="nav-sublist" hidden></ul>
+
+<!-- HMS Hausmeister-Service -->
+<button id="nav-hms-toggle" class="nav-group" type="button"
+        aria-expanded="false" aria-controls="nav-hms-sublist">
+  <span class="nav-group-label">HMS Hausmeister-Service</span>
+  <span class="nav-group-caret" aria-hidden="true">▸</span>
+</button>
+<ul id="nav-hms-sublist" class="nav-sublist" hidden></ul>
+
+<!-- WD Winterdienst -->
+<button id="nav-wd-toggle" class="nav-group" type="button"
+        aria-expanded="false" aria-controls="nav-wd-sublist">
+  <span class="nav-group-label">WD Winterdienst</span>
+  <span class="nav-group-caret" aria-hidden="true">▸</span>
+</button>
+<ul id="nav-wd-sublist" class="nav-sublist" hidden></ul>
+
+
+              </nav>
+            </aside>
+
+                <div class="container">
+                  <!-- Kundendaten -->
+                  <section class="card page" id="page-Kundendaten">
+                        <div class="field" style="display:flex; gap:8px; max-width:380px;">
+              <input id="loadOfferNumber" type="text" placeholder="ANG2025-1008-092040" />
+              <button type="button" id="btnLoadOffer" class="secondary">Angebot laden</button>
 </div>
         <div class="section-header">Kontaktdaten des Kunden</div>
         <form id="form-Kundendaten" novalidate>
