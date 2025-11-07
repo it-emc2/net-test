@@ -1703,26 +1703,22 @@ if (!tpl?.content) return null;
 
 
     // rule: only add if the last existing row is valid
-    const last = wrap.querySelector('.da-item:last-child');
-    if (last) {
-            const lastPrice = window.parseMoneyEuro(last.querySelector('.da-price')?.value);
-      if (kind === 'custom') {
-        const lastName = (last.querySelector('.da-name')?.value || '').trim();
-        if (!lastName) {
-          last.querySelector('.da-name')?.focus();
-          return null;
-        }
-        if (lastPrice <= 0) {
-          last.querySelector('.da-price')?.focus();
-          return null;
-        }
-      } else {
-        if (lastPrice <= 0) {
-          last.querySelector('.da-price')?.focus();
-          return null;
-        }
-      }
-    }
+   const last = wrap.querySelector('.da-item:last-child');
+if (last) {
+  const lastPrice = window.parseMoneyEuro(last.querySelector('.da-price')?.value);
+  const lastId = (last.querySelector('.da-id')?.value || '').trim();
+
+  if (kind === 'custom') {
+    const lastName = (last.querySelector('.da-name')?.value || '').trim();
+    if (!lastName) { last.querySelector('.da-name')?.focus(); return null; }
+    if (lastPrice <= 0) { last.querySelector('.da-price')?.focus(); return null; }
+    if (!lastId) { last.querySelector('.da-id')?.focus(); return null; }
+  } else {
+    if (lastPrice <= 0) { last.querySelector('.da-price')?.focus(); return null; }
+    if (!lastId) { last.querySelector('.da-id')?.focus(); return null; }
+  }
+}
+
 
     const node = tpl.content.firstElementChild.cloneNode(true);
 
@@ -4345,12 +4341,13 @@ function initOptionalSonderprodukte() {
   };
 
   const validateRow = (row) => {
-    const { label, price, qty } = readRow(row);
-    if (!label) return false;
-    if (!(price > 0)) return false;
-    // qty can be empty here; we’ll auto-default to 1 on add if needed
-    return true;
-  };
+  const { label, price, productId } = readRow(row);
+  if (!label) return false;
+  if (!(price > 0)) return false;
+  if (!productId) return false; // ID is required
+  return true;
+};
+
 
   const clearRow = (row) => writeRow(row, { label: '', productId: '', qty: '', price: '' });
   const saveAll = () => {
@@ -4460,20 +4457,23 @@ if ($price) {
   const addRow = () => {
     const rows = queryRows();
     if (rows.length) {
-      const last = rows[rows.length - 1];
-      // enforce validation: need a valid last row before adding
-      if (!validateRow(last)) {
-        // If price valid but qty missing, auto-default qty=1 and accept
-        const r = readRow(last);
-        if (r.label && r.price > 0 && (!r.qty || r.qty <= 0)) {
-          const q = last.querySelector('.opt-qty');
-          if (q) q.value = 1;
-        } else {
-          // don’t add a new row yet
-          return;
-        }
-      }
-    }
+  const last = rows[rows.length - 1];
+  const r = readRow(last);
+
+  // If label missing → focus label
+  if (!r.label) { last.querySelector('.opt-name')?.focus(); return; }
+  // If price invalid → focus price
+  if (!(r.price > 0)) { last.querySelector('.opt-price')?.focus(); return; }
+  // If ID missing → focus ID
+  if (!r.productId) { last.querySelector('.opt-id')?.focus(); return; }
+
+  // If price valid & ID present but qty missing/≤0 → auto-default qty to 1
+  if (!r.qty || r.qty <= 0) {
+    const q = last.querySelector('.opt-qty');
+    if (q) q.value = 1;
+  }
+}
+
     rowsContainer.appendChild(createRow());
     saveAll();
   };

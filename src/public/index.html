@@ -2590,7 +2590,7 @@ section.da-quickadd .da-remove:focus-visible {
     
       </fieldset>
 
-      <!-- Shared row template (used by JS to add rows) -->
+      <!-- Shared row template  for turen in Hassmann (used by JS to add rows) -->
       <template id="da-item-template">
         <div class="da-item">
           <div class="da-grid">
@@ -2604,13 +2604,14 @@ section.da-quickadd .da-remove:focus-visible {
             </label>
             <label class="da-label">
               ID
-              <input class="da-id" type="text" placeholder="z. B. HASS-XXX-123" />
+                  <input class="da-id" type="text" required placeholder="z. B. HASS-XXX-123" />
+
             </label>
           </div>
           <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
         </div>
       </template>
-      <!-- Only for Freier Posten (with Name field) -->
+      <!-- Only for Freier Posten  hassmann (with Name field) -->
 <template id="da-item-template-custom">
   <div class="da-item" data-kind="custom">
     <div class="da-grid-4">
@@ -2628,7 +2629,7 @@ section.da-quickadd .da-remove:focus-visible {
       </label>
       <label class="da-label">
         ID
-        <input class="da-id" type="text" placeholder="z. B. HASS-CUS-001" />
+         <input class="da-id" type="text" required placeholder="z. B. HASS-CUS-001" />
       </label>
     </div>
     <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
@@ -3576,7 +3577,7 @@ section.da-quickadd .da-remove:focus-visible {
             <input class="opt-qty" type="number" min="1" step="1" placeholder="1" />
           </label>
           <label class="da-label">
-            Artikel-ID (optional)
+            Artikel-ID
             <input class="opt-id" type="text" placeholder="z. B. OPT-123" />
           </label>
         </div>
@@ -3585,7 +3586,7 @@ section.da-quickadd .da-remove:focus-visible {
     </div>
 
     <small id="opt-sonder-help" class="da-help">
-      Neue Zeile ist nur möglich, wenn <em>Bezeichnung</em> und <em>Preis</em> gefüllt sind. Letzte Zeile: Löschen leert alle 4 Felder.
+      Neue Zeile ist nur möglich, wenn <em>Bezeichnung</em>, <em>Preis</em> und <em>Artikel-ID</em> gefüllt sind. Letzte Zeile: Löschen leert alle 4 Felder.
     </small>
   </fieldset>
 </div>
@@ -3606,8 +3607,9 @@ section.da-quickadd .da-remove:focus-visible {
         <input class="opt-qty" type="number" min="1" step="1" placeholder="1" />
       </label>
       <label class="da-label">
-        Artikel-ID (optional)
-        <input class="opt-id" type="text" placeholder="z. B. OPT-123" />
+        Artikel-ID 
+        <input class="opt-id" type="text" required placeholder="…" />
+
       </label>
     </div>
     <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
