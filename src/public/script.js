@@ -4328,7 +4328,7 @@ function initOptionalSonderprodukte() {
     const { label = '', productId = '', qty = '', price = '' } = data || {};
     const $n = row.querySelector('.opt-name');   if ($n) $n.value = label;
     const $i = row.querySelector('.opt-id');     if ($i) $i.value = productId;
-    const $q = row.querySelector('.opt-qty');    if ($q) $q.value = (qty || qty === 0) ? qty : '';
+    const $q = row.querySelector('.opt-qty');    if ($q) $q.value = (Number(qty) > 0) ? qty : '';
     const $p = row.querySelector('.opt-price');  if ($p) $p.value = price !== '' ? price : '';
   };
 
@@ -4371,7 +4371,60 @@ function initOptionalSonderprodukte() {
     node.classList.add('da-item'); // ensure class present
     writeRow(node, prefill || {});
 
-   // Wire per-row delete
+   // === Sonderprodukte qty/price behavior ===
+const $qty   = node.querySelector('.opt-qty');
+const $price = node.querySelector('.opt-price');
+
+// When user types in qty:
+//  - strip non-digits
+//  - if "0" → make it empty immediately
+if ($qty) {
+  $qty.addEventListener('input', (e) => {
+    const raw = String(e.target.value || '');
+    const digits = raw.replace(/[^\d]/g, '');
+    if (digits === '0') {
+      e.target.value = ''; // 0 becomes empty
+    } else {
+      e.target.value = digits;
+    }
+    // persist
+    if (typeof saveAll === 'function') saveAll();
+  });
+
+  // On blur: if price is valid and qty empty/≤0 → set to 1. If price invalid → keep empty.
+  $qty.addEventListener('blur', () => {
+    const r = readRow(node);
+    const p = parseEuro(r.price);
+    let q = Number(String($qty.value || '').replace(/[^\d]/g, ''));
+    if (!Number.isFinite(q)) q = 0;
+    if (p > 0 && (!q || q <= 0)) {
+      $qty.value = 1;
+    } else if (q === 0) {
+      $qty.value = ''; // never show 0
+    }
+    if (typeof saveAll === 'function') saveAll();
+  });
+}
+
+// When user types a price:
+//  - if price becomes valid and qty empty/≤0 → set qty to 1 automatically
+if ($price) {
+  $price.addEventListener('input', () => {
+    const r = readRow(node);
+    const p = parseEuro(r.price);
+    if (p > 0 && $qty) {
+      let q = Number(String($qty.value || '').replace(/[^\d]/g, ''));
+      if (!Number.isFinite(q) || q <= 0) {
+        $qty.value = 1;
+      }
+    } else if ($qty) {
+      // if price cleared/invalid, normalize a "0" qty to empty
+      if (String($qty.value).trim() === '0') $qty.value = '';
+    }
+    if (typeof saveAll === 'function') saveAll();
+  });
+}
+
 
 
     // Save on any input change
@@ -4409,12 +4462,22 @@ function initOptionalSonderprodukte() {
   };
 
   // Restore from storage
-  const restored = loadAll();
-  if (restored.length) {
-    restored.forEach(r => rowsContainer.appendChild(createRow(r)));
-  } else {
-    ensureAtLeastOneRow();
-  }
+ // Restore from storage
+const restored = loadAll();
+const removeAllDomRows = () => {
+  queryRows().forEach(el => el.remove());
+};
+
+if (restored.length) {
+  // Remove any pre-rendered rows (e.g., initial “Freier Posten”) to avoid duplicates
+  removeAllDomRows();
+  restored.forEach(r => rowsContainer.appendChild(createRow(r)));
+} else {
+  // Start clean: ensure exactly one empty row
+  removeAllDomRows();
+  ensureAtLeastOneRow();
+}
+
 
   // Wire "+" add button
   const addBtn = panel.querySelector('.da-add');
