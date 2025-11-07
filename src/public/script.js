@@ -4363,6 +4363,12 @@ function initOptionalSonderprodukte() {
       return [];
     }
   };
+// Permanently clear all stored Sonderprodukte rows
+function clearAll() {
+  try {
+    localStorage.removeItem(LS_KEY);
+  } catch (e) {}
+}
 
   const createRow = (prefill) => {
     const node = tpl.content
@@ -4493,6 +4499,26 @@ if (restored.length) {
     toggle.addEventListener('change', applyToggle);
     applyToggle();
   }
+// When the parent category checkbox is toggled: if turned off, wipe storage + DOM rows
+if (catCb) {
+  catCb.addEventListener('change', (e) => {
+    const checked = !!e.target.checked;
+    if (!checked) {
+      // 1) clear persistence
+      clearAll();
+
+      // 2) remove all rows from DOM
+      queryRows().forEach(el => el.remove());
+
+      // 3) do NOT call saveAll() here — we want the key gone, not set to "[]"
+      // panel will be hidden by applyCatVisibility()
+    } else {
+      // Re-enabled: start fresh with one empty row (no restore)
+      ensureAtLeastOneRow();
+      // Optional: do not call saveAll() yet; let user input drive persistence
+    }
+  });
+}
 
   // Show/hide with SONDER category checkbox
   const applyCatVisibility = () => {
