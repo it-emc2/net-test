@@ -2965,13 +2965,34 @@ document
   }
 // UI-only: if a Duschabtrennung (Hassmann) quick-add has a user ID,
 // show it in the Kosten-Details label. Do NOT affect server, DOCX, or PDF.
+// UI-only: append [ID] to Kosten-Details labels.
+// - Already handled: “... Hassmann ...” lines (e.g., Pendeltür Hassmann).
+// - NEW: also handle both “Freier Posten” variants (Hassmann + Optional/Sonderprodukte),
+//        whose labels typically look like "- 1 Stk <text>" without the word "Hassmann".
 function decorateDALabel(line) {
   const pid  = String(line.productId || line.id || '').trim();
   const base = (line.label ? line.label : (line.name || pid || '-'));
-  // Show the ID only for Hassmann quick-add lines, and only if it's not our generic fallback "HASS_*"
-  if (pid && !/^HASS_/i.test(pid) && /Hassmann/i.test(base)) {
+
+  // If no ID, nothing to decorate
+  if (!pid) return base;
+
+  // Avoid double-appending when label already includes the same [ID]
+  if (base.includes(`[${pid}]`)) return base;
+
+  // 1) Original rule: show ID for Hassmann quick-add (kept as-is)
+  if (!/^HASS_/i.test(pid) && /Hassmann/i.test(base)) {
     return `${base} [${pid}]`;
   }
+
+  // 2) NEW rule: “Freier Posten” rows (both Hassmann and Optional) often look like "- 1 Stk …"
+  //    Add [ID] for any line that looks like a free-text item (qty label form), even if it doesn’t say "Hassmann".
+  //    This safely covers Freier Posten without affecting unrelated lines.
+  const looksLikeQtyLabel = /^\s*-\s*\d+\s*Stk\b/i.test(base);
+  if (looksLikeQtyLabel) {
+    return `${base} [${pid}]`;
+  }
+
+  // Otherwise leave untouched
   return base;
 }
 
