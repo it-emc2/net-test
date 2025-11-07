@@ -301,22 +301,47 @@ async function ensureNames(lines) {
 
 function normalizeSourceLine(raw) {
   if (!raw) return null;
-  const id = raw.productId || raw.id || raw.materialNumber || raw.nr || '';
-  const qty = Number(raw.qty ?? raw.quantity ?? raw.menge ?? 0) || 0;
-  const label = raw.label || '';
-  const unit = raw.unit || raw.einheit || 'Stck.';
-  let name = raw.name || raw.title || raw.description || '';
 
-  // Prefer the label if name is empty; strip leading "- "
-  if (label && !name) name = label.replace(/^-+\s*/, '');
+  const id    = raw.productId || raw.id || raw.materialNumber || raw.nr || '';
+  const qty   = Number(raw.qty ?? raw.quantity ?? raw.menge ?? 0) || 0;
+  const unit  = raw.unit || raw.einheit || 'Stck.';
+  const label = String(raw.label || '').trim();
+
+  // Start with whatever upstream resolved as "name"
+  let name = String(raw.name || raw.title || raw.description || '').trim();
+
+  // If the upstream "name" is empty or is just the article number (common for Freier Posten),
+  // prefer the human-friendly label text.
+  const idTrim = String(id || '').trim();
+  const looksLikeJustId = !!name && idTrim && name === idTrim;
+
+  // Extract a clean Bezeichnung from labels like: "- 1 Stk <Text>"
+  // This is how Freier Posten (Hassmann + Optional) are labeled upstream.
+  let nameFromLabel = '';
+  if (label) {
+    // remove leading dash and quantity/unit pattern
+    nameFromLabel = label
+      .replace(/^-+\s*/, '')
+      .replace(/^\d+\s*Stk\s+/i, '')   // when label starts like "1 Stk <Text>"
+      .replace(/^-\s*\d+\s*Stk\s+/i, '') // when label starts like "- 1 Stk <Text>"
+      .trim();
+  }
+
+  if ((!name || looksLikeJustId) && nameFromLabel) {
+    name = nameFromLabel;
+  } else if (!name && label) {
+    // Fallback: at least strip a leading "- " if present
+    name = label.replace(/^-+\s*/, '').trim();
+  }
 
   return {
-    materialNumber: String(id || '').trim(),
-    name: String(name || '').trim(),
+    materialNumber: idTrim,      // stays the ID
+    name: name,                  // now the human label/Bezeichnung
     unit,
     quantity: qty
   };
 }
+
 
 function isFloorPanelLine(l) {
   return (l.materialNumber === 'V5FB02'); // floor panels
