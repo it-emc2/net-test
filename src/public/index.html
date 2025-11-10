@@ -764,9 +764,16 @@ section.da-quickadd .da-remove:focus-visible {
 .menu .nav-top .dot { display: none; }
 
 /* Active state parity: when Kundendaten is current */
-.menu .nav-top.active {
-  background: #5f2dd0;
+/* Current main menu (Kundendaten or any active group) */
+/* Current main menu (Kundendaten or any active group) */
+.menu .nav-top.active,
+.menu .nav-group.is-current-group {
+  background: #392c58;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.16);
+  border: 1px solid #ffffff;
 }
+
+
 
 /* Optional: unify label weight/size */
 .menu .nav-top span,
