@@ -342,7 +342,6 @@ function normalizeSourceLine(raw) {
   };
 }
 
-
 function isFloorPanelLine(l) {
   return (l.materialNumber === 'V5FB02'); // floor panels
 }

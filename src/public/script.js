@@ -3731,7 +3731,7 @@ const WV_DEFAULT_PIDS = ['TRWDSET5','V4FK600','V3A','V4RPKIT'];
 
   // Other numbers
   setInputByNameOrId('wvEndProfileQty',      wv.wvEndProfileQty);
-  setInputByNameOrId('wvSilikonQty', wv.wvSilikonQty);
+  setInputByNameOrId('wvSilikonQty',        wv.wvSilikonQty);
   setInputByNameOrId('wvFlachenQty',        wv.wvFlachenQty);
   setInputByNameOrId('wvV3VQty',             wv.wvV3VQty);
   setInputByNameOrId('wvCornersCount',       wv.wvCornersCount);
@@ -3759,7 +3759,7 @@ const WV_DEFAULT_PIDS = ['TRWDSET5','V4FK600','V3A','V4RPKIT'];
 
   // Selects/radios for accessories
   if (wv.wvEndProfile)      setSelect('wvEndProfile', wv.wvEndProfile);
-  if (wv.wvSilikon) setSelect('wvSilikon', wv.wvSilikon);
+  if (wv.wvSilikon)          setSelect('wvSilikon', wv.wvSilikon);
   if (wv.flechenkleber)        setSelect('flechenkleber', wv.flechenkleber);
   if (wv.wvSealing)         setSelect('wvSealing', wv.wvSealing);
 }

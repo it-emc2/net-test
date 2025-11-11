@@ -264,7 +264,7 @@ const parseMoneyStrict = (v) => {
     add(
     'V5FB02',
     panels,
-    `- ${panels} Stk Fußboden-Paneele (1 Paneele = 0.3 m² )${color ? ' — Farbe: ' + color : ''}`
+    `- ${panels} Stk Fußboden-Paneele (1 Paneele = 0.3 m²)${color ? ' — Farbe: ' + color : ''}`
   );
 
     // Flächenkleber (0,60 m²/Pack)
@@ -343,10 +343,17 @@ if (userRaw !== undefined && userRaw !== null && String(userRaw).trim() !== '') 
 }
 
   if (wv?.wvSilikon) {
-    const userQtyProfGlue = Number(wv?.wvSilikonQty);
-    const fallbackProfGlue = endProfilesQty;
-    const qProfGlue = Number.isFinite(userQtyProfGlue) && userQtyProfGlue > 0 ? userQtyProfGlue : fallbackProfGlue;
-    if (qProfGlue > 0) add('CARESMH', qProfGlue, `- ${qProfGlue} Stk Silikon (pro Abschlussprofil 1 Stk)`);
+      const userQtySilikon = Number(wv?.wvSilikonQty);
+  const qtyAbschlussprofil = endProfilesQty; // this is the qty of V3A
+  let qSilikon;
+  if (Number.isFinite(userQtySilikon) && userQtySilikon > 0) {
+    // take user choice, but minimum is qty of Abschlussprofil
+    qSilikon = Math.max(userQtySilikon, qtyAbschlussprofil);
+  } else {
+    // if user did not enter a valid value, fall back to Abschlussprofil qty
+    qSilikon = qtyAbschlussprofil;
+  }
+  if (qSilikon > 0) add('CARESMH', qSilikon);
   }
 
   // ------- OPTIONALS as material lines (tagged so UI can filter them out of Material/Debug)
