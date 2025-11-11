@@ -2381,7 +2381,7 @@ async function getProduct(id) {
     }
      if (!unitPanel) { // NEW: fetch V5FB02 once
       const p = await getProduct("V5FB02");
-      unitPanel = Number(p?.price || 0);
+      unitPanel =   Number((p?.price) || 0);
     }
   }
   const euro = (n) =>

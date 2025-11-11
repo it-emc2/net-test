@@ -437,7 +437,10 @@ try {
     } else {
       unit = Number(prod.price) || 0;
     }
-
+ // 👇 special rule for Fußboden-Paneele
+  if (l.id === 'V5FB02') {
+    unit = round2(unit / 8);
+  }
     const displayName = (prod.name || '').trim() || l.id;
     const builtLabel  = `- ${l.qty} Stk ${displayName}`;
     const label       = l.label || builtLabel;
