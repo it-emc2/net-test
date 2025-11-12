@@ -1,3 +1,96 @@
+// --- Offer Catalog (BU only for now) ---
+const OFFERS = {
+  bu: {
+    name: "BU · Badumbau",
+    // Ordered list controls Next/Back (we’ll hook that next)
+    pages: [
+      "Kundendaten",
+      "duschwanne",
+      "wandverkleidung",
+      "duschabtrennung",
+      "optional",
+      "rabatt",
+      "zusammenfassung",
+      "kosten",
+      "playground",
+    ],
+  },
+};
+
+// Slug <-> step mapping (DOM ids still like: #page-Kundendaten, etc.)
+const SLUG2STEP = {
+  kundendaten: "Kundendaten",
+  duschwanne: "duschwanne",
+  wandverkleidung: "wandverkleidung",
+  duschabtrennung: "duschabtrennung",
+  optional: "optional",
+  rabatt: "rabatt",
+  zusammenfassung: "zusammenfassung",
+  kosten: "kosten",
+  playground: "playground",
+};
+
+function parseRoute() {
+  const h = (location.hash || "").slice(1); // drop '#'
+  if (h.startsWith("/")) {
+    const parts = h.split("/"); // ["", offer, page]
+    const offer = parts[1] || null;
+    const pageSlug = parts[2] || null;
+    const step = pageSlug ? (SLUG2STEP[pageSlug.toLowerCase()] || null) : null;
+    return { offer, step };
+  }
+  // Legacy: treat as single step (e.g. "#Kundendaten")
+  const legacy = h || null;
+  return { offer: null, step: legacy };
+}
+
+function applyOfferSidebar(offerKey) {
+  const sideLinks = document.querySelectorAll('#sideMenu .side-link[data-step]');
+  if (!sideLinks.length) return;
+
+  // If no offer chosen (home or legacy), show all (status quo)
+  if (!offerKey || !OFFERS[offerKey]) {
+    sideLinks.forEach(a => (a.hidden = false));
+    return;
+  }
+
+  // Show only links that belong to this offer's page list
+  const allow = new Set(OFFERS[offerKey].pages);
+  sideLinks.forEach(a => {
+    const step = a.getAttribute('data-step');
+    a.hidden = !allow.has(step);
+  });
+}
+
+function navigateFromRoute() {
+  const { offer, step } = parseRoute();
+
+  // Home (or empty)
+  if (!offer && (!step || step.toLowerCase() === "home")) {
+    applyOfferSidebar(null);
+    // showStep is your existing function that reveals the section
+    showStep("home");
+    return;
+  }
+
+  // Offer routing (BU only for now)
+  if (offer && OFFERS[offer]) {
+    const list = OFFERS[offer].pages;
+    applyOfferSidebar(offer);
+    const target = step && list.includes(step) ? step : list[0]; // first page fallback
+    showStep(target);
+    return;
+  }
+
+  // Legacy hashes remain working (e.g., #Kundendaten)
+  applyOfferSidebar(null);
+  if (step) showStep(step);
+}
+
+// Hook up
+window.addEventListener("hashchange", navigateFromRoute);
+document.addEventListener("DOMContentLoaded", navigateFromRoute);
+
 // --- GLOBAL: tolerant EUR money parser used across the Hassmann page ---
 // Accepts "1.099,50", "1099.50", "€ 1 099,50", "12,2", "12.2" -> Number in euros
 window.parseMoneyEuro = function (v) {

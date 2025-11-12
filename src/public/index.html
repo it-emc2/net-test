@@ -885,141 +885,88 @@ body:has(#page-home:not([hidden])) .app {
 
     <div class="app">
       <aside id="sidebar" class="sidebar" aria-label="Seitennavigation">
-        <div class="logo-row">
-          <div class="logo">
-            <span class="dot"></span>
-            <span>Navigation</span>
-          </div>
-          <button
-            id="closeSidebar"
-            class="sidebar-toggle"
-            type="button"
-            aria-label="Menü schließen"
-          >
-            ✕
-          </button>
-        </div>
+  <div class="logo-row">
+    <div class="logo">
+      <span class="dot"></span>
+      <span>Navigation</span>
+    </div>
+    <button
+      id="closeSidebar"
+      class="sidebar-toggle"
+      type="button"
+      aria-label="Menü schließen"
+    >
+      ✕
+    </button>
+  </div>
 
-        <nav class="menu" id="sideMenu">
-<a class="side-link nav-top" data-step="home" href="#home">
-  <div class="dot"></div>
-  <span>Home</span>
-</a>
+  <nav class="menu" id="sideMenu">
+    <a class="side-link nav-top" data-step="home" href="#home">
+      <div class="dot"></div>
+      <span>Home</span>
+    </a>
 
-          <a class="side-link nav-top" data-step="Kundendaten" href="#Kundendaten">
-            <div class="dot"></div>
-            <span>Kundendaten</span>
-          </a>
+    <a class="side-link" data-step="Kundendaten" href="#Kundendaten">
+      <div class="dot"></div>
+      <span>Kundendaten</span>
+    </a>
 
-
-         <!-- BU Badumbau (collapsible group) -->
-      <button id="nav-bu-toggle"
-              class="nav-group"
-              type="button"
-              aria-expanded="false"
-              aria-controls="nav-bu-sublist">
-        <span class="nav-group-label">BU Badumbau</span>
-        <span class="nav-group-caret" aria-hidden="true">▸</span>
-      </button>
-
-      <ul id="nav-bu-sublist" class="nav-sublist" hidden style="list-style:none; padding-left:0">
-
-        <li>
-          <a class="side-link" data-step="duschwanne" href="#duschwanne">
-            <div class="dot"></div>
-            <span>Duschwanne</span>
-          </a>
-        </li>
-        <li>
-          <a class="side-link" data-step="wandverkleidung" href="#wandverkleidung">
-            <div class="dot"></div>
-            <span>Wandverkleidung</span>
-          </a>
-        </li>
-        <li>
-          <a class="side-link" data-step="duschabtrennung" href="#duschabtrennung">
-            <div class="dot"></div>
-            <span>Hassmann Duschsysteme</span>
-          </a>
-        </li>
-        <li>
-          <a class="side-link" data-step="optional" href="#optional">
-            <div class="dot"></div>
-            <span>Optional</span>
-          </a>
-        </li>
-        <li>
-          <a class="side-link" data-step="rabatt" href="#rabatt">
-            <div class="dot"></div>
-            <span>Rabatt</span>
-          </a>
-        </li>
-        <li>
-          <a class="side-link" data-step="zusammenfassung" href="#zusammenfassung">
-            <div class="dot"></div>
-            <span>Zusammenfassung</span>
-          </a>
-        </li>
-        <li>
-          <a class="side-link" data-step="kosten" href="#kosten">
-            <div class="dot"></div>
-            <span>Kosten-Details</span>
-          </a>
-        </li>
-        <li>
-          <a class="side-link" data-step="playground" href="#playground">
-            <div class="dot"></div>
-            <span>Pricing Playground</span>
-          </a>
-        </li>
-      </ul>
-      <!-- BWT Badewannetür -->
-<button id="nav-bwt-toggle" class="nav-group" type="button"
-        aria-expanded="false" aria-controls="nav-bwt-sublist">
-  <span class="nav-group-label">BWT Badewannetür</span>
-  <span class="nav-group-caret" aria-hidden="true">▸</span>
-</button>
-<ul id="nav-bwt-sublist" class="nav-sublist" hidden>
-  <!-- put child pages here later as <li><a class="side-link" ...>…</a></li> -->
-</ul>
-
-<!-- HL Handlauf -->
-<button id="nav-hl-toggle" class="nav-group" type="button"
-        aria-expanded="false" aria-controls="nav-hl-sublist">
-  <span class="nav-group-label">HL Handlauf</span>
-  <span class="nav-group-caret" aria-hidden="true">▸</span>
-</button>
-<ul id="nav-hl-sublist" class="nav-sublist" hidden></ul>
-
-<!-- AH Alltagshilfe -->
-<button id="nav-ah-toggle" class="nav-group" type="button"
-        aria-expanded="false" aria-controls="nav-ah-sublist">
-  <span class="nav-group-label">AH Alltagshilfe</span>
-  <span class="nav-group-caret" aria-hidden="true">▸</span>
-</button>
-<ul id="nav-ah-sublist" class="nav-sublist" hidden></ul>
-
-<!-- HMS Hausmeister-Service -->
-<button id="nav-hms-toggle" class="nav-group" type="button"
-        aria-expanded="false" aria-controls="nav-hms-sublist">
-  <span class="nav-group-label">HMS Hausmeister-Service</span>
-  <span class="nav-group-caret" aria-hidden="true">▸</span>
-</button>
-<ul id="nav-hms-sublist" class="nav-sublist" hidden></ul>
-
-<!-- WD Winterdienst -->
-<button id="nav-wd-toggle" class="nav-group" type="button"
-        aria-expanded="false" aria-controls="nav-wd-sublist">
-  <span class="nav-group-label">WD Winterdienst</span>
-  <span class="nav-group-caret" aria-hidden="true">▸</span>
-</button>
-<ul id="nav-wd-sublist" class="nav-sublist" hidden></ul>
+    <!-- BU sub pages: remove 'hidden' so they are visible -->
+    <ul id="nav-bu-sublist" class="nav-sublist" style="list-style:none; padding-left:0">
+      <li>
+        <a class="side-link" data-step="duschwanne" href="#duschwanne">
+          <div class="dot"></div>
+          <span>Duschwanne</span>
+        </a>
+      </li>
+      <li>
+        <a class="side-link" data-step="wandverkleidung" href="#wandverkleidung">
+          <div class="dot"></div>
+          <span>Wandverkleidung</span>
+        </a>
+      </li>
+      <li>
+        <a class="side-link" data-step="duschabtrennung" href="#duschabtrennung">
+          <div class="dot"></div>
+          <span>Hassmann Duschsysteme</span>
+        </a>
+      </li>
+      <li>
+        <a class="side-link" data-step="optional" href="#optional">
+          <div class="dot"></div>
+          <span>Optional</span>
+        </a>
+      </li>
+      <li>
+        <a class="side-link" data-step="rabatt" href="#rabatt">
+          <div class="dot"></div>
+          <span>Rabatt</span>
+        </a>
+      </li>
+      <li>
+        <a class="side-link" data-step="zusammenfassung" href="#zusammenfassung">
+          <div class="dot"></div>
+          <span>Zusammenfassung</span>
+        </a>
+      </li>
+      <li>
+        <a class="side-link" data-step="kosten" href="#kosten">
+          <div class="dot"></div>
+          <span>Kosten-Details</span>
+        </a>
+      </li>
+      <li>
+        <a class="side-link" data-step="playground" href="#playground">
+          <div class="dot"></div>
+          <span>Pricing Playground</span>
+        </a>
+      </li>
+    </ul>
+  </nav>
+</aside>
 
 
-              </nav>
-            </aside>
-
-                <div class="container">
+  <div class="container">
                   <!-- Home (new landing page) -->
 <section class="card page" id="page-home">
   <h2 style="margin: 0 0 12px">Willkommen</h2>
