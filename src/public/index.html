@@ -781,6 +781,53 @@ section.da-quickadd .da-remove:focus-visible {
   font-weight: 600;
   letter-spacing: .2px;
 }
+/* Home landing tiles */
+#page-home .home-tiles {
+  display: grid;
+  gap: 14px;
+}
+
+@media (min-width: 760px) {
+  #page-home .home-tiles {
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+  }
+}
+@media (min-width: 1080px) {
+  #page-home .home-tiles {
+    grid-template-columns: repeat(3, minmax(260px, 1fr));
+  }
+}
+
+#page-home .tile-btn {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  transition: transform .06s ease, box-shadow .2s ease, background .2s ease, color .2s ease, border-color .2s ease;
+}
+
+#page-home .tile-btn:hover,
+#page-home .tile-btn:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
+  transform: translateY(-1px);
+}
+
+#page-home .tile-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--accent-strong);
+}
+
+#page-home .tile-sub {
+  color: var(--muted);
+  font-size: .95rem;
+}
 
 
     </style>
@@ -818,6 +865,7 @@ section.da-quickadd .da-remove:focus-visible {
       </label>
     </header>
 
+
     <div id="sidebarBackdrop"></div>
 
     <div class="app">
@@ -838,6 +886,10 @@ section.da-quickadd .da-remove:focus-visible {
         </div>
 
         <nav class="menu" id="sideMenu">
+<a class="side-link nav-top" data-step="home" href="#home">
+  <div class="dot"></div>
+  <span>Home</span>
+</a>
 
           <a class="side-link nav-top" data-step="Kundendaten" href="#Kundendaten">
             <div class="dot"></div>
@@ -953,8 +1005,40 @@ section.da-quickadd .da-remove:focus-visible {
             </aside>
 
                 <div class="container">
+                  <!-- Home (new landing page) -->
+<section class="card page" id="page-home">
+  <h2 style="margin: 0 0 12px">Willkommen</h2>
+  <p class="muted" style="margin: 0 0 16px">Wählen Sie einen Bereich, um zu starten.</p>
+
+  <div class="home-tiles">
+    <a class="tile-btn" data-step="BU-Badumbau" href="#BU-Badumbau">
+      <span class="tile-title">BU · Badumbau</span>
+    </a>
+
+    <a class="tile-btn" data-step="BWT-Badewannentür" href="#BWT-Badewannentür">
+      <span class="tile-title">BWT · Badewannentür</span>
+    </a>
+
+    <a class="tile-btn" data-step="HL-Handlauf" href="#HL-Handlauf">
+      <span class="tile-title">HL · Handlauf</span>
+    </a>
+
+    <a class="tile-btn" data-step="AH-Alltagshilfe" href="#AH-Alltagshilfe">
+      <span class="tile-title">AH · Alltagshilfe</span>
+    </a>
+
+    <a class="tile-btn" data-step="HMS-Hausmeister-Service" href="#HMS-Hausmeister-Service">
+      <span class="tile-title">HMS · Hausmeister-Service</span>
+    </a>
+
+    <a class="tile-btn" data-step="WD-Winterdienst" href="#WD-Winterdienst">
+      <span class="tile-title">WD · Winterdienst</span>
+    </a>
+  </div>
+</section>
+
                   <!-- Kundendaten -->
-                  <section class="card page" id="page-Kundendaten">
+                  <section class="card page" id="page-Kundendaten" hidden>
                         <div class="field" style="display:flex; gap:8px; max-width:380px;">
               <input id="loadOfferNumber" type="text" placeholder="ANG2025-1008-092040" />
               <button type="button" id="btnLoadOffer" class="secondary">Angebot laden</button>

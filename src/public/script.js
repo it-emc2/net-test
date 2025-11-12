@@ -719,6 +719,7 @@ themeToggle?.addEventListener("change", () =>
 
 /* ========== NAVIGATION ========== */
 const steps = [
+  "home",
   "Kundendaten",
   "duschwanne",
   "wandverkleidung",
