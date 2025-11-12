@@ -9,37 +9,30 @@
     
     <link rel="stylesheet" href="./style.css" />
     <style>
-      :root {
-        --bg: #f6f7fb;
-        --panel: #ffffff;
-        --text: #1f2937;
-        --muted: #6b7280;
-        --border: #e5e7eb;
-        --accent: #6d28d9;
-        --accent-weak: #ede9fe;
-        --accent-strong: #5b21b6;
-        --shadow: 0 10px 30px rgba(17, 24, 39, 0.08);
-        --ring: rgba(109, 40, 217, 0.25);
-        --step-active: #6d28d9;
-        --step-done: #a78bfa;
-        --step-idle: #cbd5e1;
-      }
 
-      body {
-        background: var(--bg);
-        color: var(--text);
-      }
-/* Make the numeric “Ecke(n) vorhanden” input editable again */
-#wvCornersCount {
-  display: inline-block !important;
-  position: static !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
-  width: 90px;
-  margin-left: 10px;
+:root {
+  --bg: #f6f7fb;
+  --panel: #ffffff;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --accent: #6d28d9;
+  --accent-weak: #ede9fe;
+  --accent-strong: #5b21b6;
+  --shadow: 0 10px 30px rgba(17, 24, 39, 0.08);
+  --ring: rgba(109, 40, 217, 0.25);
+  --step-active: #6d28d9;
+  --step-done: #a78bfa;
+  --step-idle: #cbd5e1;
 }
-/* Backdrop (dim the page while the toast is in the center) */
-/* Backdrop (dim the page while the toast is in the center) */
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ---------------- Toaster ---------------- */
+
 #nt-toast-backdrop {
   position: fixed;
   inset: 0;
@@ -50,7 +43,6 @@
   z-index: 9998;
 }
 
-/* Centered container */
 #nt-toaster {
   position: fixed;
   left: 50%;
@@ -60,10 +52,9 @@
   flex-direction: column;
   gap: 12px;
   z-index: 9999;
-  pointer-events: none; /* clicks pass through except on the toast box itself */
+  pointer-events: none;
 }
 
-/* Toast card */
 .nt-toast {
   pointer-events: auto;
   min-width: 340px;
@@ -78,771 +69,254 @@
   opacity: 0;
   transform: translateY(8px);
   transition: opacity .18s ease, transform .18s ease, border-color .18s ease, background .18s ease, color .18s ease;
-}
-
-/* Light theme defaults */
-:root:not([data-theme="dark"]) .nt-toast {
-  background: #ffffff;
-  color: #111827; /* near-black */
-  border-color: #e5e7eb;
-}
-
-/* Dark theme */
-:root[data-theme="dark"] .nt-toast {
-  background: #111827; /* slate-900-ish */
-  color: #f9fafb;      /* near-white */
-  border-color: rgba(255,255,255,.12);
-}
-
-.nt-toast.show { opacity: 1; transform: translateY(0); }
-
-.nt-toast .nt-title { font-weight: 700; font-size: 15px; }
-.nt-toast .nt-msg   { grid-column: 1 / -1; opacity: .92; font-size: 14px; }
-
-/* Type accents just change border color (kept subtle) */
-.nt-toast.success { border-color: #10b981; } /* emerald */
-.nt-toast.error   { border-color: #ef4444; } /* red */
-.nt-toast.info    { border-color: #3b82f6; } /* blue */
-.nt-toast.warn    { border-color: #f59e0b; } /* amber */
-
-.nt-toast .nt-close {
-  appearance: none;
-  border: none;
-  background: transparent;
-  color: inherit;
-  opacity: .65;
-  cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
-}
-.nt-toast .nt-close:hover { opacity: 1; }
-/* Strong, colored borders + inner ring for visibility */
-.nt-toast { 
   position: relative;
-  border-width: 1px; /* thicker border so the color reads */
+  border-width: 1px;
 }
-
-/* success = green */
-.nt-toast.success {
-  --nt-accent: #10b981;
-  border-color: var(--nt-accent) !important;
-  box-shadow:
-    0 20px 45px rgba(0,0,0,.25),            /* existing elevation */
-    0 0 0 1px var(--nt-accent) inset;       /* inner ring = clear color cue */
+:root:not([data-theme="dark"]) .nt-toast {
+  background: #ffffff; color: #111827; border-color: #e5e7eb;
 }
-
-/* error = red */
-.nt-toast.error {
-  --nt-accent: #ef4444;
-  border-color: var(--nt-accent) !important;
-  box-shadow:
-    0 20px 45px rgba(0,0,0,.25),
-    0 0 0 1px var(--nt-accent) inset;
+:root[data-theme="dark"] .nt-toast {
+  background: #111827; color: #f9fafb; border-color: rgba(255,255,255,.12);
 }
+.nt-toast.show { opacity: 1; transform: translateY(0); }
+.nt-toast .nt-title { font-weight: 700; font-size: 15px; }
+.nt-toast .nt-msg { grid-column: 1 / -1; opacity: .92; font-size: 14px; }
+.nt-toast .nt-close { appearance: none; border: 0; background: transparent; color: inherit; opacity: .65; cursor: pointer; font-size: 18px; line-height: 1; }
+.nt-toast .nt-close:hover { opacity: 1; }
+.nt-toast.success { --nt-accent:#10b981; border-color: var(--nt-accent)!important; box-shadow: 0 20px 45px rgba(0,0,0,.25), 0 0 0 1px var(--nt-accent) inset; }
+.nt-toast.error   { --nt-accent:#ef4444; border-color: var(--nt-accent)!important; box-shadow: 0 20px 45px rgba(0,0,0,.25), 0 0 0 1px var(--nt-accent) inset; }
+.nt-toast.info    { --nt-accent:#3b82f6; border-color: var(--nt-accent)!important; box-shadow: 0 20px 45px rgba(0,0,0,.25), 0 0 0 1px var(--nt-accent) inset; }
+.nt-toast.warn    { --nt-accent:#f59e0b; border-color: var(--nt-accent)!important; box-shadow: 0 20px 45px rgba(0,0,0,.25), 0 0 0 1px var(--nt-accent) inset; }
 
-/* info = blue */
-.nt-toast.info {
-  --nt-accent: #3b82f6;
-  border-color: var(--nt-accent) !important;
-  box-shadow:
-    0 20px 45px rgba(0,0,0,.25),
-    0 0 0 1px var(--nt-accent) inset;
-}
+/* ---------------- Layout ---------------- */
 
-/* warn = amber */
-.nt-toast.warn {
-  --nt-accent: #f59e0b;
-  border-color: var(--nt-accent) !important;
-  box-shadow:
-    0 20px 45px rgba(0,0,0,.25),
-    0 0 0 1px var(--nt-accent) inset;
-}
-
-
-      .app {
-        display: grid;
-        grid-template-columns: 260px 1fr;
-        max-width: 1300px;
-        margin: 0 auto;
-        min-height: calc(100dvh - 80px);
-      }
-
-      .sidebar {
-        position: sticky;
-        top: 0;
-        align-self: start;
-        height: calc(100dvh);
-        background: var(--panel);
-        border-right: 1px solid var(--border);
-        padding: 10px 10px 16px;
-        box-shadow: var(--shadow);
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-
-      .sidebar .logo-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 6px 4px 10px;
-      }
-
-      .sidebar .logo {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-weight: 700;
-      }
-
-      .sidebar .logo .dot {
-        width: 13px;
-        height: 13px;
-        border-radius: 50%;
-        background: var(--accent);
-        box-shadow: 0 0 0 4px var(--accent-weak);
-      }
-/* make the quick-add area span full width and grid nicely */
-.da-quickadd {
+.app {
   display: grid;
-  grid-template-columns: repeat(2, minmax(320px, 1fr)); /* 2 columns */
-  gap: 18px 22px;                                       /* row/col gaps */
-  align-items: start;
-  width: 100%;
+  grid-template-columns: 260px 1fr;
+  max-width: 1300px;
+  margin: 0 auto;
+  min-height: calc(100dvh - 80px);
 }
 
-/* allow it to shrink to 1 column on smaller viewports */
-@media (max-width: 900px) {
-  .da-quickadd {
-    grid-template-columns: 1fr;
-  }
+.sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: calc(100dvh);
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 10px 10px 16px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-/* ensure the surrounding form/card doesn’t force a narrow column */
-#page-duschabtrennung .card,
-#page-duschabtrennung form {
-  width: 100%;
-}
-
-/* each fieldset should look like a card and fill its cell */
-.da-row {
-  margin: 0;
-  padding: 14px;
-  border: 1px solid var(--border, #e4e4e7);
-  border-radius: 12px;
-  background: var(--surface, #fff);
-}
-
-/* legend + add button row */
-.da-legend {
+.sidebar .logo-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  font-weight: 700;
-  margin: 0 0 8px;
+  padding: 6px 4px 10px;
 }
 
-/* inputs grid inside each item row */
-.da-grid {
-  display: grid;
-  grid-template-columns: 1fr 120px 1fr; /* Preis | Menge | ID */
-  gap: 10px 12px;
-}
-
-@media (max-width: 520px) {
-  .da-grid { grid-template-columns: 1fr; }
-}
-
-/* “+” and “🗑” buttons look consistent */
-.da-add,
-.da-remove {
-  border: 1px solid var(--border, #e4e4e7);
-  background: var(--bg, #f8f9fb);
-  border-radius: 10px;
-  padding: 4px 10px;
-  cursor: pointer;
-}
-.da-add { font-weight: 700; }
-.da-remove { margin-top: 8px; }
-
-/* small help text spacing */
-.da-help { margin: 8px 0 0; color: var(--muted, #6b7280); font-size: .9rem; }
-
-/* optional: center the whole page content a bit nicer */
-#page-duschabtrennung {
-  max-width: 1100px;        /* keep it from stretching too wide on big screens */
-  margin-inline: auto;      /* center horizontally */
-}
-
-      .menu {
-        display: grid;
-        gap: 6px;
-      }
-
-      .side-link {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
-        border-radius: 12px;
-        text-decoration: none;
-        color: inherit;
-        border: 1px solid transparent;
-        transition: background-color 0.18s ease, box-shadow 0.18s ease,
-          color 0.18s ease;
-      }
-
-      .side-link:hover {
-        background: var(--accent-weak);
-      }
-
-      .side-link.active {
-        background: var(--accent-weak);
-        border-color: var(--accent);
-        color: var(--accent-strong);
-        box-shadow: 0 0 0 3px var(--ring);
-      }
-
-      .side-link.done {
-        color: var(--step-done);
-      }
-      /* 1) Make the whole Duschabtrennung page span the full app grid */
-#page-duschabtrennung {
-  grid-column: 1 / -1;     /* if parent uses CSS Grid */
-  width: 100%;
-}
-
-/* If your <form> is in a grid, ensure the quickadd spans full width there too */
-#form-duschabtrennung .da-quickadd {
-  grid-column: 1 / -1;
-  width: 100%;
-  max-width: none;
-}
-
-/* 2) Layout: two columns inside the quick-add area (auto wraps to one on small screens) */
-.da-quickadd {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(320px, 1fr));
-  gap: 18px 22px;
-  align-items: start;
-}
-section.da-quickadd .btn,
-section.da-quickadd .btn.secondary,
-section.da-quickadd .da-add,
-section.da-quickadd .da-remove {
-  color: var(--foreground) !important;
-}
-section.da-quickadd .da-add svg,
-section.da-quickadd .da-remove svg { stroke: currentColor; fill: none; }
-/* 1) Max specificity for these buttons */
-section.da-quickadd button.da-add,
-section.da-quickadd .da-add {
-  color: var(--accent, var(--brand, #a855f7)) !important;
-  background: transparent !important;
-  border-color: var(--border, rgba(0,0,0,.12)) !important;
-}
-
-section.da-quickadd button.da-remove,
-section.da-quickadd .da-remove {
-  color: var(--destructive, #ef4444) !important;
-  background: transparent !important;
-  border-color: var(--border, rgba(0,0,0,.12)) !important;
-}
-
-/* 2) Force inline SVGs to inherit currentColor */
-section.da-quickadd .da-add svg,
-section.da-quickadd .da-remove svg {
-  color: currentColor !important;      /* some icon sets read this */
-  fill: none !important;               /* neutral default */
-  stroke: currentColor !important;     /* for stroke-based icons */
-}
-
-/* If your icons are fill-based (not stroke), enable this too: */
-section.da-quickadd .da-add svg [fill]:not([fill="none"]),
-section.da-quickadd .da-remove svg [fill]:not([fill="none"]) {
-  fill: currentColor !important;
-}
-
-/* 3) Hover tint without relying on color-mix */
-section.da-quickadd .da-add:hover,
-section.da-quickadd .da-add:focus-visible {
-  background: rgba(168, 85, 247, .12) !important; /* purple */
-}
-section.da-quickadd .da-remove:hover,
-section.da-quickadd .da-remove:focus-visible {
-  background: rgba(239, 68, 68, .12) !important;  /* red */
-}
-
-
-/* One column on narrow viewports */
-@media (max-width: 900px) {
-  .da-quickadd {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* 3) Keep your theme colors — no hard backgrounds here */
-.da-row {
-  margin: 0;
-  padding: 14px;
-  border: 1px solid var(--border, currentColor);
-  border-radius: 12px;
-  /* background: inherit;   <- inherit theme surface */
-  /* color: inherit;        <- inherit text color */
-}
-
-/* Legend + add button row */
-.da-legend {
+.sidebar .logo {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-weight: 700;
-  margin: 0 0 8px;
-}
-
-
-/* Inputs grid inside each row */
-.da-grid {
-  display: grid;
-  grid-template-columns: 1fr 120px 1fr;  /* Preis | Menge | ID */
-  gap: 10px 12px;
-}
-@media (max-width: 520px) {
-  .da-grid { grid-template-columns: 1fr; }
-}
-
-/* Keep buttons neutral so theme colors show through */
-.da-add,
-.da-remove {
-  border: 1px solid var(--border, currentColor);
-  background: transparent; /* don’t overwrite your theme */
-  border-radius: 10px;
-  padding: 4px 10px;
-  cursor: pointer;
-}
-.da-add { font-weight: 700; }
-
-.da-help { margin: 8px 0 0; opacity: .8; font-size: .9rem; }
-
-/* 2×2 layout for the four models */
-.da-quickadd {
-  display: grid;
-  gap: 16px;
-}
-@media (min-width: 900px) {
-  .da-quickadd {
-    grid-template-columns: 1fr 1fr; /* 2 columns */
-  }
-}
-
-/* nice cardy look (optional) */
-.da-row {
-  border: 1px solid var(--border, #e5e7eb);
-  border-radius: 10px;
-  padding: 12px;
-  background: var(--panel, #fff);
-}
-
-/* inner 3-input layout */
-.da-grid {
-  display: grid;
   gap: 10px;
-}
-@media (min-width: 640px) {
-  .da-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-/* small helpers (optional) */
-.da-legend { font-weight: 700; margin-bottom: 8px; }
-.da-label  { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
-.da-help   { color: #6b7280; display: block; margin-top: 6px; }
-.muted     { color: #6b7280; font-weight: 400; }
-
-      .side-link .dot {
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        border: 2px solid var(--step-idle);
-        display: grid;
-        place-items: center;
-        transition: border-color 0.2s ease;
-      }
-
-      .side-link .dot::after {
-        content: "";
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: transparent;
-        transition: background-color 0.2s ease, transform 0.2s ease;
-        transform: scale(0.5);
-      }
-
-      .side-link.active .dot {
-        border-color: var(--step-active);
-      }
-
-      .side-link.active .dot::after {
-        background: var(--step-active);
-        transform: scale(1);
-      }
-
-      .side-link.done .dot {
-        border-color: var(--step-done);
-      }
-
-      .side-link.done .dot::after {
-        background: var(--step-done);
-        transform: scale(1);
-      }
-
-      .main {
-        padding: 0 20px 40px;
-      }
-
-      .main .container {
-        padding-top: 16px;
-      }
-
-      .sidebar-toggle {
-        display: none;
-        border: 1px solid var(--border);
-        background: var(--panel);
-        padding: 8px 10px;
-        border-radius: 10px;
-        cursor: pointer;
-        gap: 8px;
-        align-items: center;
-      }
-
-      @media (max-width: 900px) {
-        .app {
-          grid-template-columns: 1fr;
-        }
-
-        .sidebar {
-          position: fixed;
-          inset: 0 auto 0 0;
-          width: 84%;
-          max-width: 320px;
-          transform: translateX(-105%);
-          transition: transform 0.25s ease;
-          z-index: 50;
-        }
-
-        .sidebar.open {
-          transform: translateX(0);
-        }
-
-        #sidebarBackdrop {
-          position: fixed;
-          inset: 0;
-          background: rgba(15, 23, 42, 0.45);
-          backdrop-filter: blur(2px);
-          z-index: 40;
-          display: none;
-        }
-
-        #sidebarBackdrop.visible {
-          display: block;
-        }
-
-        .sidebar-toggle {
-          display: inline-flex;
-        }
-
-        .main {
-          padding: 0 12px 36px;
-        }
-
-        header {
-          padding-inline: 12px;
-        }
-      }
-      #page-rabatt .card {
-  min-width: 640px;        /* tweak 600–720px to taste */
-  max-width: 860px;        /* optional: if you want a cap */
-}
-/* 1) Let the whole flooring panel use the full form width */
-#flooringPanel {
-  grid-column: 1 / -1;   /* span both columns of the form grid */
-}
-
-/* 2) Ensure nothing inside clamps width */
-#flooringPanel .field,
-#flooringPanel .row {
-  max-width: none;
-}
-
-/* 3) Make the 5 color tiles fill the entire row on desktop */
-#flooringColors { display: flex; gap: 14px; flex-wrap: wrap; }
-
-@media (min-width: 1024px) {
-  #flooringColors { flex-wrap: nowrap; }
-
-  /* kill any global max-width on image-check cards inside this panel */
-  #flooringPanel .image-check { 
-    max-width: none; 
-    flex: 0 0 calc((100% - (4 * 14px)) / 5);
-  }
-
-  #flooringPanel .img-wrap {
-    display: block;
-    width: 100%;
-    aspect-ratio: 3 / 4;
-    overflow: hidden;
-    border-radius: 8px;
-  }
-
-  #flooringPanel .img-wrap img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-}
-
-/* Duschwanne extra tasks buttons look like Hassmann buttons */
-/* Scope styles to the Duschwanne extra-tasks fieldset */
-#dw-extra-tasks .da-add,
-#dw-extra-tasks .da-remove {
-  background: transparent;                 /* no white box */
-  border: 1px solid var(--border, #e5e7eb);
-  border-radius: 10px;
-  padding: 4px 10px;
-  cursor: pointer;
-}
-
-/* Purple “add” like Hassmann */
-#dw-extra-tasks .da-add {
-  color: var(--accent, #a855f7);           /* purple text/icon */
   font-weight: 700;
 }
-#dw-extra-tasks .da-add:hover,
-#dw-extra-tasks .da-add:focus-visible {
-  background: rgba(168, 85, 247, .12);     /* soft purple hover */
+
+.sidebar .logo .dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-weak);
 }
 
-/* Red “delete” like Hassmann */
-#dw-extra-tasks .da-remove {
-  color: #ef4444;                          /* red text/icon */
-}
-#dw-extra-tasks .da-remove:hover,
-#dw-extra-tasks .da-remove:focus-visible {
-  background: rgba(239, 68, 68, .12);      /* soft red hover */
-}
+.menu { display: grid; gap: 6px; }
 
-/* If you ever swap emoji for inline SVG icons, keep them inheriting color */
-#dw-extra-tasks .da-add svg,
-#dw-extra-tasks .da-remove svg {
-  color: currentColor;
-  stroke: currentColor;
-  fill: none;
-}
-
-
-
-/* 4-column variant used by "Freier Posten" */
-.da-grid-4 { display: grid; gap: 10px; }
-@media (min-width: 640px) {
-  .da-grid-4 { grid-template-columns: minmax(180px, 1fr) 1fr 80px 1fr; }
-}
-
-/* (Optional) ensure Hassmann buttons keep your purple/red scheme even outside .da-quickadd */
-#form-duschabtrennung .da-add {
-  color: var(--accent, #a855f7) !important;
-  background: transparent !important;
-  border: 1px solid var(--border, rgba(0,0,0,.12)) !important;
-}
-#form-duschabtrennung .da-add:hover,
-#form-duschabtrennung .da-add:focus-visible {
-  background: rgba(168, 85, 247, .12) !important;
-}
-#form-duschabtrennung .da-remove {
-  color: #ef4444 !important;
-  background: transparent !important;
-  border: 1px solid var(--border, rgba(0,0,0,.12)) !important;
-}
-#form-duschabtrennung .da-remove:hover,
-#form-duschabtrennung .da-remove:focus-visible {
-  background: rgba(239, 68, 68, .12) !important;
-}
-/* Optional → Sonderprodukte buttons should look like Hassmann */
-#page-optional #menu_SONDER .da-add,
-#page-optional #menu_SONDER .da-remove {
-  background: transparent !important;
-  border: 1px solid var(--border, rgba(0,0,0,.12)) !important;
-  border-radius: 10px;
-  padding: 4px 10px;
-  cursor: pointer;
-}
-
-/* purple add */
-#page-optional #menu_SONDER .da-add {
-  color: var(--accent, #a855f7) !important;
-  font-weight: 700;
-}
-#page-optional #menu_SONDER .da-add:hover,
-#page-optional #menu_SONDER .da-add:focus-visible {
-  background: rgba(168, 85, 247, .12) !important;
-}
-
-/* red delete */
-#page-optional #menu_SONDER .da-remove {
-  color: #ef4444 !important;
-}
-#page-optional #menu_SONDER .da-remove:hover,
-#page-optional #menu_SONDER .da-remove:focus-visible {
-  background: rgba(239, 68, 68, .12) !important;
-}
-
-/* ensure any inline SVG icons inherit the color */
-#page-optional #menu_SONDER .da-add svg,
-#page-optional #menu_SONDER .da-remove svg {
-  color: currentColor !important;
-  stroke: currentColor !important;
-  fill: none !important;
-}
-#page-optional #menu_SONDER .da-add svg [fill]:not([fill="none"]),
-#page-optional #menu_SONDER .da-remove svg [fill]:not([fill="none"]) {
-  fill: currentColor !important;
-}
-/* Shared look for top-level buttons (Kundendaten + collapsible groups) */
-.menu .nav-top,
-.menu .nav-group {
+/* Sidebar links */
+.side-link {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  border: 0;
-  border-radius: 14px;
-  padding: 10px 14px;
-  background: #6f34e8;              /* primary purple */
-  color: #fff;
-  text-decoration: none;
-  cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0,0,0,.08);
-  transition: transform .04s ease, box-shadow .2s ease, background .2s ease, opacity .2s ease;
-}
-
-/* Make sure anchors render like buttons */
-.menu .nav-top { appearance: none; }
-
-/* Hover/active states */
-.menu .nav-top:hover,
-.menu .nav-group:hover {
-  background: #5f2dd0;
-  box-shadow: 0 4px 10px rgba(0,0,0,.12);
-}
-
-.menu .nav-top:active,
-.menu .nav-group:active {
-  transform: translateY(1px);
-  box-shadow: 0 2px 6px rgba(0,0,0,.10);
-}
-
-/* Focus-visible ring */
-.menu .nav-top:focus-visible,
-.menu .nav-group:focus-visible {
-  outline: 3px solid rgba(111,52,232,.35);
-  outline-offset: 2px;
-}
-
-/* Space between top-level items */
-.menu .nav-top,
-.menu .nav-group { margin: 4px 0; }
-
-/* Caret rotation for groups (keep if you use a caret span) */
-.nav-group-caret { transition: transform .2s ease; }
-.nav-group[aria-expanded="true"] .nav-group-caret { transform: rotate(90deg); }
-
-/* Hide the tiny radio-dot inside top-level buttons */
-.menu .nav-top .dot { display: none; }
-
-/* Active state parity: when Kundendaten is current */
-/* Current main menu (Kundendaten or any active group) */
-/* Current main menu (Kundendaten or any active group) */
-.menu .nav-top.active,
-.menu .nav-group.is-current-group {
-  background: #392c58;
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.16);
-  border: 1px solid #ffffff;
-}
-
-
-
-/* Optional: unify label weight/size */
-.menu .nav-top span,
-.menu .nav-group .nav-group-label {
-  font-weight: 600;
-  letter-spacing: .2px;
-}
-/* Home landing tiles */
-#page-home .home-tiles {
-  display: grid;
-  gap: 14px;
-}
-
-@media (min-width: 760px) {
-  #page-home .home-tiles {
-    grid-template-columns: repeat(2, minmax(260px, 1fr));
-  }
-}
-@media (min-width: 1080px) {
-  #page-home .home-tiles {
-    grid-template-columns: repeat(3, minmax(260px, 1fr));
-  }
-}
-
-#page-home .tile-btn {
-  display: grid;
-  gap: 6px;
-  padding: 16px 18px;
-  border-radius: 14px;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
   text-decoration: none;
   color: inherit;
+  border: 1px solid transparent;
+  transition: background-color .18s ease, box-shadow .18s ease, color .18s ease;
+}
+
+.side-link:hover { background: var(--accent-weak); }
+
+.side-link.active {
+  background: var(--accent-weak);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.side-link.done { color: var(--step-done); }
+
+/* Progress dot */
+.side-link .dot {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--step-idle);
+  display: grid; place-items: center;
+  transition: border-color .2s ease;
+}
+.side-link .dot::after {
+  content: ""; width: 8px; height: 8px; border-radius: 50%;
+  background: transparent; transition: background-color .2s ease, transform .2s ease; transform: scale(.5);
+}
+.side-link.active .dot { border-color: var(--step-active); }
+.side-link.active .dot::after { background: var(--step-active); transform: scale(1); }
+.side-link.done .dot { border-color: var(--step-done); }
+.side-link.done .dot::after { background: var(--step-done); transform: scale(1); }
+
+/* Main area */
+.main { padding: 0 20px 40px; }
+.main .container { padding-top: 16px; }
+
+/* Sidebar toggle + mobile drawer */
+.sidebar-toggle {
+  display: none;
   border: 1px solid var(--border);
   background: var(--panel);
-  box-shadow: var(--shadow);
-  transition: transform .06s ease, box-shadow .2s ease, background .2s ease, color .2s ease, border-color .2s ease;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  gap: 8px; align-items: center;
 }
 
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 84%;
+    max-width: 320px;
+    transform: translateX(-105%);
+    transition: transform .25s ease;
+    z-index: 50;
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  #sidebarBackdrop {
+    position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+    z-index: 40; display: none;
+  }
+  #sidebarBackdrop.visible { display: block; }
+
+  .sidebar-toggle { display: inline-flex; }
+
+  .main { padding: 0 12px 36px; }
+  header { padding-inline: 12px; }
+}
+
+/* ---------------- Home tiles ---------------- */
+
+#page-home .home-tiles { display: grid; gap: 14px; }
+@media (min-width: 760px) { #page-home .home-tiles { grid-template-columns: repeat(2, minmax(260px, 1fr)); } }
+@media (min-width: 1080px){ #page-home .home-tiles { grid-template-columns: repeat(3, minmax(260px, 1fr)); } }
+
+#page-home .tile-btn {
+  display: grid; gap: 6px; padding: 16px 18px;
+  border-radius: 14px; text-decoration: none; color: inherit;
+  border: 1px solid var(--border); background: var(--panel); box-shadow: var(--shadow);
+  transition: transform .06s ease, box-shadow .2s ease, background .2s ease, color .2s ease, border-color .2s ease;
+}
 #page-home .tile-btn:hover,
 #page-home .tile-btn:focus-visible {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--ring);
   transform: translateY(-1px);
 }
+#page-home .tile-title { font-weight: 700; font-size: 1.05rem; color: var(--accent-strong); }
+#page-home .tile-sub   { color: var(--muted); font-size: .95rem; }
 
-#page-home .tile-title {
-  font-weight: 700;
-  font-size: 1.05rem;
-  color: var(--accent-strong);
-}
-
-#page-home .tile-sub {
-  color: var(--muted);
-  font-size: .95rem;
-}
-
-/* When Home is visible, hide the whole sidebar and its backdrop */
+/* Hide sidebar on Home */
 body:has(#page-home:not([hidden])) #sidebar,
-body:has(#page-home:not([hidden])) #sidebarBackdrop {
-  display: none;
-}
+body:has(#page-home:not([hidden])) #sidebarBackdrop { display: none; }
+body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 
-/* If your layout uses a grid with the sidebar as a column, let content go full-width */
-body:has(#page-home:not([hidden])) .app {
-  grid-template-columns: 1fr;
-}
-
-.is-home #sidebar,
-.is-home #sidebarBackdrop { display: none; }
+/* JS fallback if you ever add body.is-home */
+.is-home #sidebar, .is-home #sidebarBackdrop { display: none; }
 .is-home .app { grid-template-columns: 1fr; }
+
+/* ---------------- Page-specific tweaks (kept) ---------------- */
+
+/* Make the numeric “Ecke(n) vorhanden” input editable again */
+#wvCornersCount { display:inline-block!important; position:static!important; opacity:1!important; pointer-events:auto!important; width:90px; margin-left:10px; }
+
+/* Rabatt page width */
+#page-rabatt .card { min-width: 640px; max-width: 860px; }
+
+/* Flooring panel */
+#flooringPanel { grid-column: 1 / -1; }
+#flooringPanel .field, #flooringPanel .row { max-width: none; }
+#flooringColors { display:flex; gap:14px; flex-wrap:wrap; }
+@media (min-width: 1024px) {
+  #flooringColors { flex-wrap: nowrap; }
+  #flooringPanel .image-check { max-width:none; flex:0 0 calc((100% - (4 * 14px)) / 5); }
+  #flooringPanel .img-wrap { display:block; width:100%; aspect-ratio:3 / 4; overflow:hidden; border-radius:8px; }
+  #flooringPanel .img-wrap img { width:100%; height:100%; object-fit:cover; display:block; }
+}
+
+/* Duschabtrennung quick-add & controls (deduped) */
+#page-duschabtrennung { grid-column: 1 / -1; width: 100%; max-width:1100px; margin-inline:auto; }
+#page-duschabtrennung .card, #page-duschabtrennung form { width:100%; }
+.da-quickadd { display:grid; gap:18px 22px; grid-template-columns: repeat(2, minmax(320px, 1fr)); align-items:start; }
+@media (max-width: 900px){ .da-quickadd { grid-template-columns: 1fr; } }
+
+.da-row { margin:0; padding:14px; border:1px solid var(--border,#e4e4e7); border-radius:12px; background: var(--panel,#fff); }
+.da-legend { display:flex; align-items:center; justify-content:space-between; gap:8px; font-weight:700; margin:0 0 8px; }
+.da-grid { display:grid; grid-template-columns: 1fr 120px 1fr; gap:10px 12px; }
+@media (max-width:520px){ .da-grid { grid-template-columns:1fr; } }
+
+.da-add, .da-remove { border:1px solid var(--border,#e4e4e7); background: transparent; border-radius:10px; padding:4px 10px; cursor:pointer; }
+.da-add { font-weight:700; }
+.da-add:hover, .da-add:focus-visible { background: rgba(168,85,247,.12); }
+.da-remove { color:#ef4444; }
+.da-remove:hover, .da-remove:focus-visible { background: rgba(239,68,68,.12); }
+.da-help { margin:8px 0 0; color: var(--muted,#6b7280); font-size:.9rem; }
+
+/* Freier Posten 4-col variant */
+.da-grid-4 { display:grid; gap:10px; }
+@media (min-width:640px){ .da-grid-4 { grid-template-columns: minmax(180px,1fr) 1fr 80px 1fr; } }
+
+/* Make Hassmann buttons keep color scheme inside forms */
+#form-duschabtrennung .da-add { color: var(--accent,#a855f7)!important; border:1px solid var(--border,rgba(0,0,0,.12))!important; }
+#form-duschabtrennung .da-add:hover, #form-duschabtrennung .da-add:focus-visible { background: rgba(168,85,247,.12)!important; }
+#form-duschabtrennung .da-remove { color:#ef4444!important; border:1px solid var(--border,rgba(0,0,0,.12))!important; }
+#form-duschabtrennung .da-remove:hover, #form-duschabtrennung .da-remove:focus-visible { background: rgba(239,68,68,.12)!important; }
+
+/* Optional → Sonderprodukte buttons */
+#page-optional #menu_SONDER .da-add,
+#page-optional #menu_SONDER .da-remove {
+  background: transparent!important;
+  border: 1px solid var(--border, rgba(0,0,0,.12))!important;
+  border-radius: 10px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+#page-optional #menu_SONDER .da-add { color: var(--accent,#a855f7)!important; font-weight:700; }
+#page-optional #menu_SONDER .da-add:hover, #page-optional #menu_SONDER .da-add:focus-visible { background: rgba(168,85,247,.12)!important; }
+#page-optional #menu_SONDER .da-remove { color:#ef4444!important; }
+#page-optional #menu_SONDER .da-remove:hover, #page-optional #menu_SONDER .da-remove:focus-visible { background: rgba(239,68,68,.12)!important; }
+#page-optional #menu_SONDER .da-add svg, #page-optional #menu_SONDER .da-remove svg { color: currentColor!important; stroke: currentColor!important; fill: none!important; }
+#page-optional #menu_SONDER .da-add svg [fill]:not([fill="none"]), #page-optional #menu_SONDER .da-remove svg [fill]:not([fill="none"]) { fill: currentColor!important; }
+
+/* Small utility */
+.muted { color: #6b7280; font-weight: 400; }
+
+/* Specific input fix kept from your CSS */
+#wvCornersCount { display:inline-block!important; position:static!important; opacity:1!important; pointer-events:auto!important; width:90px; margin-left:10px; }
 
 
     </style>
@@ -901,7 +375,7 @@ body:has(#page-home:not([hidden])) .app {
   </div>
 
   <nav class="menu" id="sideMenu">
-    <a class="side-link nav-top" data-step="home" href="#home">
+    <a class="side-link" data-step="home" href="#home">
       <div class="dot"></div>
       <span>Home</span>
     </a>
