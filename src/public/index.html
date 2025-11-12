@@ -829,6 +829,18 @@ section.da-quickadd .da-remove:focus-visible {
   font-size: .95rem;
 }
 
+/* When Home is visible, hide the whole sidebar and its backdrop */
+body:has(#page-home:not([hidden])) #sidebar,
+body:has(#page-home:not([hidden])) #sidebarBackdrop {
+  display: none;
+}
+
+/* If your layout uses a grid with the sidebar as a column, let content go full-width */
+body:has(#page-home:not([hidden])) .app {
+  grid-template-columns: 1fr;
+}
+
+
 
     </style>
   </head>
@@ -1011,7 +1023,7 @@ section.da-quickadd .da-remove:focus-visible {
   <p class="muted" style="margin: 0 0 16px">Wählen Sie einen Bereich, um zu starten.</p>
 
   <div class="home-tiles">
-    <a class="tile-btn" data-step="BU-Badumbau" href="#BU-Badumbau">
+    <a class="tile-btn" data-step="BU-Badumbau" href="#Kundendaten">
       <span class="tile-title">BU · Badumbau</span>
     </a>
 
