@@ -5323,7 +5323,6 @@ function refreshHassmannFrame() {
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('refreshHassmann')?.addEventListener('click', refreshHassmannFrame);
 });
-
 function initOptionalMenus() {
   // Map main category checkboxes -> their panels
   const map = {
@@ -5628,6 +5627,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const showStep = (stepId) => {
           const current = validStep(stepId);
           const currentIndex = stepOrder.indexOf(current);
+          // inside showStep(stepId) after: const current = validStep(stepId);
+document.body.classList.toggle('is-home', current === 'home');
+
 
           navLinks.forEach((link, index) => {
             const stateStep = link.dataset.step;
@@ -5667,91 +5669,3 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener("hashchange", syncWithHash);
         syncWithHash();
       });
-(function initCollapsibleNavGroups() {
-  const groupBtns = Array.from(document.querySelectorAll(".nav-group"));
-  if (!groupBtns.length) return;
-
-  const setExpanded = (btn, on) => {
-    const sublistId = btn.getAttribute("aria-controls");
-    const sublist = sublistId ? document.getElementById(sublistId) : null;
-    btn.setAttribute("aria-expanded", on ? "true" : "false");
-    if (sublist) {
-      if (on) sublist.removeAttribute("hidden");
-      else sublist.setAttribute("hidden", "");
-    }
-  };
-
-  const hasActiveChild = (sublist) => {
-    if (!sublist) return false;
-    const children = Array.from(
-      sublist.querySelectorAll("a.side-link, button.side-link")
-    );
-    // your nav code uses "active" on current link
-    if (children.some((el) => el.classList.contains("active"))) return true;
-    const hash = window.location.hash || "";
-    if (
-      hash &&
-      children.some((el) => (el.getAttribute("href") || "").endsWith(hash))
-    )
-      return true;
-    return false;
-  };
-
-  const updateCurrentGroup = (btn) => {
-    const sublistId = btn.getAttribute("aria-controls");
-    const sublist = sublistId ? document.getElementById(sublistId) : null;
-    if (hasActiveChild(sublist)) {
-      btn.classList.add("is-current-group");
-    } else {
-      btn.classList.remove("is-current-group");
-    }
-  };
-
-  // init each group
-  groupBtns.forEach((btn) => {
-    const sublistId = btn.getAttribute("aria-controls");
-    const sublist = sublistId ? document.getElementById(sublistId) : null;
-
-    const active = hasActiveChild(sublist);
-    setExpanded(btn, active);
-    if (active) btn.classList.add("is-current-group");
-
-    const toggle = () =>
-      setExpanded(btn, btn.getAttribute("aria-expanded") !== "true");
-
-    btn.addEventListener("click", toggle);
-    btn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        toggle();
-      }
-      if (e.key === "ArrowRight") setExpanded(btn, true);
-      if (e.key === "ArrowLeft") setExpanded(btn, false);
-    });
-
-    if (sublist) {
-      sublist.addEventListener("click", (e) => {
-        if (e.target.closest("a.side-link, button.side-link")) {
-          setExpanded(btn, true);
-          updateCurrentGroup(btn);
-        }
-      });
-    }
-  });
-
-  const refreshGroups = () => {
-    groupBtns.forEach((btn) => {
-      const sublist = document.getElementById(
-        btn.getAttribute("aria-controls") || ""
-      );
-      const active = hasActiveChild(sublist);
-      if (active) setExpanded(btn, true);
-      updateCurrentGroup(btn);
-    });
-  };
-
-  window.addEventListener("hashchange", refreshGroups);
-  document.addEventListener("app:navigation", refreshGroups);
-})();
-
-
