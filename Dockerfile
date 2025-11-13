@@ -18,7 +18,8 @@ FROM base AS build
 
 # Install packages needed to build node modules
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3
+    apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3 && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install node modules
 COPY package-lock.json package.json ./
@@ -30,6 +31,11 @@ COPY . .
 
 # Final stage for app image
 FROM base
+
+# INSTALL: LibreOffice for DOCX -> PDF conversion (plus minimal fonts)
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y libreoffice-writer fonts-dejavu-core && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy built application
 COPY --from=build /app /app

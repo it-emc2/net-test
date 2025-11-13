@@ -10,7 +10,8 @@
     "seed:products": "node scripts/seedProducts.js",
     "health": "node -e \"fetch('http://localhost:'+(process.env.PORT||3000)+'/api/health').then(r=>r.text()).then(console.log).catch(console.error)\"",
     "test": "echo \"No tests defined\" && exit 0",
-    "lint": "echo \"Add your linter (eslint/biome) here\" && exit 0"
+    "lint": "echo \"Add your linter (eslint/biome) here\" && exit 0",
+    "scenarios": "node ./scripts/run-scenarios.mjs"
   },
   "keywords": [
     "express",
@@ -31,19 +32,21 @@
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
+    "mammoth": "^1.11.0",
     "mongoose": "^8.18.1",
     "morgan": "^1.10.1",
     "pdf-lib": "^1.17.1",
-    "pdfjs-dist": "^3.11.174",
+    "pdfjs-dist": "^5.4.149",
     "pdfkit": "^0.17.2",
     "pizzip": "^3.2.0",
+    "puppeteer": "^24.22.3",
     "string-width": "^8.1.0",
     "strip-ansi": "^7.1.2",
     "wrap-ansi": "^9.0.2"
   },
   "devDependencies": {
     "@flydotio/dockerfile": "^0.7.10",
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.11"
   },
   "engines": {
     "node": ">=18.17"
