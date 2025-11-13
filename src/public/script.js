@@ -1,8 +1,7 @@
-// --- Offer Catalog (BU only for now) ---
+// --- Offer Catalog (single source of truth) ---
 const OFFERS = {
   bu: {
     name: "BU · Badumbau",
-    // Ordered list controls Next/Back (we’ll hook that next)
     pages: [
       "Kundendaten",
       "duschwanne",
@@ -15,81 +14,12 @@ const OFFERS = {
       "playground",
     ],
   },
+  bwt: {
+    name: "BWT · Badewannentür",
+    pages: ["Kundendaten", "zusammenfassung", "kosten"],
+  },
 };
 
-// Slug <-> step mapping (DOM ids still like: #page-Kundendaten, etc.)
-const SLUG2STEP = {
-  kundendaten: "Kundendaten",
-  duschwanne: "duschwanne",
-  wandverkleidung: "wandverkleidung",
-  duschabtrennung: "duschabtrennung",
-  optional: "optional",
-  rabatt: "rabatt",
-  zusammenfassung: "zusammenfassung",
-  kosten: "kosten",
-  playground: "playground",
-};
-
-function parseRoute() {
-  const h = (location.hash || "").slice(1); // drop '#'
-  if (h.startsWith("/")) {
-    const parts = h.split("/"); // ["", offer, page]
-    const offer = parts[1] || null;
-    const pageSlug = parts[2] || null;
-    const step = pageSlug ? (SLUG2STEP[pageSlug.toLowerCase()] || null) : null;
-    return { offer, step };
-  }
-  // Legacy: treat as single step (e.g. "#Kundendaten")
-  const legacy = h || null;
-  return { offer: null, step: legacy };
-}
-
-function applyOfferSidebar(offerKey) {
-  const sideLinks = document.querySelectorAll('#sideMenu .side-link[data-step]');
-  if (!sideLinks.length) return;
-
-  // If no offer chosen (home or legacy), show all (status quo)
-  if (!offerKey || !OFFERS[offerKey]) {
-    sideLinks.forEach(a => (a.hidden = false));
-    return;
-  }
-
-  // Show only links that belong to this offer's page list
-  const allow = new Set(OFFERS[offerKey].pages);
-  sideLinks.forEach(a => {
-    const step = a.getAttribute('data-step');
-    a.hidden = !allow.has(step);
-  });
-}
-
-function navigateFromRoute() {
-  const { offer, step } = parseRoute();
-
-  // Home (or empty)
-  if (!offer && (!step || step.toLowerCase() === "home")) {
-    applyOfferSidebar(null);
-    // showStep is your existing function that reveals the section
-    showStep("home");
-    return;
-  }
-
-  // Offer routing (BU only for now)
-  if (offer && OFFERS[offer]) {
-    const list = OFFERS[offer].pages;
-    applyOfferSidebar(offer);
-    const target = step && list.includes(step) ? step : list[0]; // first page fallback
-    showStep(target);
-    return;
-  }
-
-  // Legacy hashes remain working (e.g., #Kundendaten)
-  applyOfferSidebar(null);
-  if (step) showStep(step);
-}
-
-// Hook up
-window.addEventListener("hashchange", navigateFromRoute);
-document.addEventListener("DOMContentLoaded", navigateFromRoute);
 
 // --- GLOBAL: tolerant EUR money parser used across the Hassmann page ---
 // Accepts "1.099,50", "1099.50", "€ 1 099,50", "12,2", "12.2" -> Number in euros
@@ -5704,61 +5634,4 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       })();
 
-      document.addEventListener("DOMContentLoaded", () => {
-        const navLinks = Array.from(
-          document.querySelectorAll(".side-link[data-step]")
-        );
-        const pages = Array.from(document.querySelectorAll(".card.page"));
-
-        if (!navLinks.length || !pages.length) return;
-
-        const stepOrder = navLinks.map((link) => link.dataset.step);
-
-        const validStep = (candidate) =>
-          stepOrder.includes(candidate) ? candidate : stepOrder[0];
-
-        const showStep = (stepId) => {
-          const current = validStep(stepId);
-          const currentIndex = stepOrder.indexOf(current);
-          // inside showStep(stepId) after: const current = validStep(stepId);
-document.body.classList.toggle('is-home', current === 'home');
-
-
-          navLinks.forEach((link, index) => {
-            const stateStep = link.dataset.step;
-            link.classList.toggle("active", stateStep === current);
-            if (index < currentIndex) {
-              link.classList.add("done");
-            } else {
-              link.classList.remove("done");
-            }
-          });
-
-          pages.forEach((section) => {
-            section.hidden = section.id !== `page-${current}`;
-          });
-
-          window.scrollTo({ top: 0, behavior: "instant" });
-        };
-
-        const syncWithHash = () => {
-          const hash = window.location.hash.replace("#", "");
-          showStep(hash || stepOrder[0]);
-        };
-
-        navLinks.forEach((link) => {
-          link.addEventListener("click", (event) => {
-            event.preventDefault();
-            const targetStep = validStep(link.dataset.step);
-            if (window.location.hash !== `#${targetStep}`) {
-              window.location.hash = targetStep;
-            } else {
-              showStep(targetStep);
-            }
-          });
-        });
-
-    
-        window.addEventListener("hashchange", syncWithHash);
-        syncWithHash();
-      });
+  
