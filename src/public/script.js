@@ -1026,7 +1026,7 @@ function filterPayloadByOffer(payload) {
   const pagesForOffer = OFFERS[currentOfferKey].pages || [];
   const allowedPages = new Set(pagesForOffer);
 
-  // Map: page-id in OFFERS.pages → key name in payload
+  // Map: page-id in OFFERS.pages → key name in payload object
   const pageToKey = {
     Kundendaten: "Kundendaten",
     duschwanne: "duschwanne",
@@ -2154,25 +2154,21 @@ if (last) {
   }
 
   function apply() {
-    const payer = document.querySelector('input[name="payer"]:checked')?.value;
+  const payer = document.querySelector('input[name="payer"]:checked')?.value;
 
-    if (payer === "Selbstzahler") {
-      if (r35 && !r35.checked) r35.checked = true;
-      setDisabled(r35, false);
-      setDisabled(r40, true);
-      setDisabled(r45, true);
-      setDisabled(r50, true);
-    } else if (payer === "Kassenkunde") {
-      [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
-      const sel = currentSelection();
-      if (!anySelected() && r50) r50.checked = true;
-      else if (sel === "35%") {
-        if (r50) r50.checked = true;
-      }
-    } else {
-      [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
+  // Treat Selbstzahler exactly like Kassenkunde for the percentage selection
+  if (payer === "Kassenkunde" || payer === "Selbstzahler") {
+    [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
+    const sel = currentSelection();
+    if (!anySelected() && r50) r50.checked = true;
+    else if (sel === "35%") {
+      if (r50) r50.checked = true;
     }
+  } else {
+    [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
   }
+}
+
 
   payerRadios.forEach((r) => r.addEventListener("change", apply));
   apply();

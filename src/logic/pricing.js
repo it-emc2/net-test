@@ -703,11 +703,7 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
       
       // Extract and enforce markup rules
       let markupPct = extractMarkupPct(payload);
-      const payer = payload?.Kundendaten?.payer || '';
-      if (payer === 'Selbstzahler') {
-        markupPct = 0.35; // enforce rule regardless of client input
-      }
-
+    
        // Bonus checkboxes in Rabatt Menu --
       const flags = {
         bonus_neu: !!payload?.rabatt?.bonus300,
@@ -743,7 +739,6 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
 
       // Final markup using the existing percentage
       const markup = round2(markupBase * (markupPct || 0));
-
 
       // Nettobetrag
       const baseSubtotal = round2(productsSubtotal + (services?.sum ?? 0) + markup );    
