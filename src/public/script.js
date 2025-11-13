@@ -10,8 +10,8 @@ const OFFERS = {
       "optional",
       "rabatt",
       "zusammenfassung",
-      "kosten",
-      "playground",
+      "kosten"
+      ,
     ],
   },
   bwt: {

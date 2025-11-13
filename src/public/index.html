@@ -318,7 +318,6 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 /* Specific input fix kept from your CSS */
 #wvCornersCount { display:inline-block!important; position:static!important; opacity:1!important; pointer-events:auto!important; width:90px; margin-left:10px; }
 
-
     </style>
   </head>
   <body>
@@ -975,8 +974,8 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
                   <div
                     style="
                       display: grid;
-                      grid-template-columns: 1fr 180px;
-                      gap: 12px;
+                      grid-template-columns: 2fr 250px;
+                      gap: 10px;
                       align-items: center;
                     "
                   >
@@ -994,8 +993,9 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
                       </label>
                       
                     <div id="copayField" hidden aria-hidden="true">
-                      <label for="copayAmount" class="sr-only"
-                        >Zuzahlung ca.</label
+                     <!--  <label for="copayAmount" class="sr-only" -->
+                      <label for="copayAmount" 
+                        >Mögliche Zuzahlung durch Kunden</label
                       >
                       <input
                         id="copayAmount"
