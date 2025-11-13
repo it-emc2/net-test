@@ -3443,26 +3443,127 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 
        <!-- bwt -->
       <section class="card page" id="page-bwt" hidden>
-        <h2 style="margin: 0 0 12px">bwt</h2>
-    
 
-        <p class="muted" style="margin: 0 0 14px">
-          Interne Übersicht aller gewählten Positionen mit Mengen, Einzel- und
-          Gesamtpreisen. Dient zum Prüfen der Abrechnung.
-        </p>
+<h2 style="margin: 0 0 12px">Badewanne — Bestandsaufnahme</h2>
 
-        <div
-          id="costsSummary"
-          style="display: flex; flex-direction: column; gap: 14px"
-        ></div>
+<form id="form-bwt">
 
-        <div class="actions full" style="margin-top: 16px">
-          <button type="button" data-nav="prev" class="secondary">
-            Zurück
-          </button>
-          <button type="button" data-nav="next">Weiter</button>
-        </div>
-      </section>
+<!-- Wannenform -->
+
+<div class="full field">
+
+<label class="req">Wählen Sie Ihre bestehende Wannenform</label>
+
+
+  <div style="display:flex; gap:14px; flex-wrap:wrap">
+    <!-- Normal rechteckig -->
+    <label class="image-check" style="min-width:220px">
+      <input
+        type="radio"
+        name="bwtShape"
+        value="Normal, rechteckig"
+        required
+      />
+      <span class="img-wrap">
+        <img
+          src="./assets/Normal, rechteckig.png"
+          alt="Normal, rechteckig"
+        />
+      </span>
+      <span class="caption">Normal, rechteckig</span>
+    </label>
+
+    <!-- abgerundete Eckbadewanne -->
+    <label class="image-check" style="min-width:220px">
+      <input
+        type="radio"
+        name="bwtShape"
+        value="abgerundete Eckbadewanne"
+        required
+      />
+      <span class="img-wrap">
+        <img
+          src="./assets/abgerundete Eckbadewanne.png"
+          alt="abgerundete Eckbadewanne"
+        />
+      </span>
+      <span class="caption">abgerundete Eckbadewanne</span>
+    </label>
+
+    <!-- eckige Eckbadewanne -->
+    <label class="image-check" style="min-width:220px">
+      <input
+        type="radio"
+        name="bwtShape"
+        value="eckige Eckbadewanne"
+        required
+      />
+      <span class="img-wrap">
+        <img
+          src="./assets/eckige Eckbadewanne.png"
+          alt="eckige Eckbadewanne"
+        />
+      </span>
+      <span class="caption">eckige Eckbadewanne</span>
+    </label>
+
+    <!-- spezielle Form -->
+    <label class="image-check" style="min-width:220px">
+      <input
+        type="radio"
+        name="bwtShape"
+        value="spezielle Form"
+        required
+      />
+      <span class="img-wrap">
+        <img
+          src="./assets/spezielle Form.png"
+          alt="spezielle Form"
+        />
+      </span>
+      <span class="caption">spezielle Form</span>
+    </label>
+  </div>
+</div>
+
+<!-- Material -->
+<div class="full field" style="margin-top: 8px">
+  <label>Wählen Sie das Material, aus dem Ihre Wanne besteht</label>
+  <div class="radio-group vertical" role="radiogroup" aria-label="Material der Wanne" id="bwtMaterialGroup">
+    <label class="radio-pill">
+      <input type="radio" name="bwtMaterial" value="Acryl" />
+      <span class="circle"></span>
+      <span>Acryl</span>
+    </label>
+
+    <label class="radio-pill">
+      <input type="radio" name="bwtMaterial" value="Stahl emailliert" />
+      <span class="circle"></span>
+      <span>Stahl emailliert</span>
+    </label>
+
+    <label class="radio-pill">
+      <input type="radio" name="bwtMaterial" value="Gusseisen" />
+      <span class="circle"></span>
+      <span>Gusseisen</span>
+    </label>
+
+    <label class="radio-pill">
+      <input type="radio" name="bwtMaterial" value="Weiß ich nicht" />
+      <span class="circle"></span>
+      <span>Weiß ich nicht</span>
+    </label>
+  </div>
+</div>
+
+<div class="actions full" style="margin-top:16px">
+  <button type="button" data-nav="prev" class="secondary">Zurück</button>
+  <button type="button" data-nav="next">Weiter</button>
+</div>
+
+</form>
+
+</section>
 
       <!-- Pricing Playground -->
 <section class="card page" id="page-playground" hidden>
