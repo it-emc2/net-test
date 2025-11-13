@@ -18,6 +18,10 @@ const OFFERS = {
     name: "BWT · Badewannentür",
     pages: ["Kundendaten", "zusammenfassung", "kosten"],
   },
+  hl: {
+    name: "HL · Handlauf",
+    pages: ["Kundendaten", "zusammenfassung"],
+  },
 };
 
 
@@ -741,22 +745,62 @@ themeToggle?.addEventListener("change", () =>
 );
 
 /* ========== NAVIGATION ========== */
-const steps = [
-  "home",
-  "Kundendaten",
-  "duschwanne",
-  "wandverkleidung",
-  "duschabtrennung",
-  "optional",
-  "rabatt",
-  "zusammenfassung",
-  "kosten",
-    "playground",
-];
+/* ========== NAVIGATION ========== */
+// Build the global "steps" list from OFFERS so OFFERS is the only source of truth
+const ALL_PAGES = Array.from(
+  new Set(
+    Object.values(OFFERS).flatMap((offer) => offer.pages)
+  )
+);
+
+// "steps" is just the union of all pages across all offers plus "home"
+const steps = ["home", ...ALL_PAGES];
+
 const pages = Object.fromEntries(
   steps.map((s) => [s, document.getElementById("page-" + s)])
 );
 const nav = document.getElementById("stepsNav");
+const sideMenu = document.getElementById("sideMenu");
+
+// Currently active offer key (e.g. "bu", "bwt"), or null when no flow is active
+let currentOfferKey = null;
+
+// Effective list of steps used for prev/next navigation
+function getFlowSteps() {
+  if (currentOfferKey && OFFERS[currentOfferKey]) {
+    return OFFERS[currentOfferKey].pages;
+  }
+  return steps;
+}
+
+// Show only the pages for the active offer in the sidebar
+function updateSidebarForOffer() {
+  if (!sideMenu) return;
+  const flow = getFlowSteps();
+  const allowed = new Set(flow);
+
+  // If you later want Home in the sidebar, keep this:
+  allowed.add("home");
+
+  sideMenu.querySelectorAll(".side-link").forEach((link) => {
+    const step = link.getAttribute("data-step");
+    if (!step) return;
+    const visible = allowed.has(step);
+    link.style.display = visible ? "" : "none";
+  });
+}
+
+// Start a flow for a given offer and jump to its first page
+function startOfferFlow(offerKey) {
+  if (!OFFERS[offerKey]) return;
+  currentOfferKey = offerKey;
+  updateSidebarForOffer();
+
+  const flow = getFlowSteps();
+  const first = flow[0];
+  if (first) setStep(first);
+}
+
 
 function getCurrentStep() {
   const h = location.hash.replace("#", "");
@@ -768,6 +812,11 @@ function setStep(step) {
     link?.classList.toggle("active", s === step);
     link?.classList.toggle("done", steps.indexOf(step) > i);
     if (pages[s]) pages[s].hidden = s !== step;
+
+    // sync sidebar highlight
+    const sideLink = sideMenu?.querySelector(`.side-link[data-step="${s}"]`);
+    sideLink?.classList.toggle("active", s === step);
+    sideLink?.classList.toggle("done", steps.indexOf(step) > i);
   });
   location.hash = step;
   updateSummary();
@@ -1411,15 +1460,47 @@ function requireBereichValid() {
   if (!ok) focusFirstBereichConditionalError();
   return ok;
 }
+// Map home tiles (data-step on .tile-btn) to OFFERS keys
+const TILE_TO_OFFER = {
+  "BU-Badumbau": "bu",
+  "BWT-Badewannentür": "bwt",
+   "HL-Handlauf": "hl",
+  // "AH-Alltagshilfe": "ah",
+  // "HMS-Hausmeister-Service": "hms",
+  // "WD-Winterdienst": "wd",
+};
+
+// Home tiles → start the corresponding offer flow
+document.addEventListener("click", (event) => {
+  const tile = event.target.closest(".tile-btn");
+  if (!tile) return;
+
+  const tileId = tile.getAttribute("data-step");
+  const offerKey = TILE_TO_OFFER[tileId];
+  if (!offerKey) return; // no mapping yet -> do nothing, default href can still work if you want
+
+  event.preventDefault();
+  startOfferFlow(offerKey);
+});
 
 /* ========== NAV BUTTONS ========== */
 document.body.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-nav]");
   if (!btn) return;
+
   const dir = btn.getAttribute("data-nav");
   const step = getCurrentStep();
-  const idx = steps.indexOf(step);
-  if (dir === "prev") return setStep(steps[Math.max(0, idx - 1)]);
+  const flow = getFlowSteps();
+  const idx = flow.indexOf(step);
+
+  // If the current step is not part of the flow (should not happen in normal use), do nothing
+  if (idx === -1) return;
+
+  if (dir === "prev") {
+    const prevIdx = Math.max(0, idx - 1);
+    return setStep(flow[prevIdx]);
+  }
+
   if (dir === "next") {
     const ok =
       step === "Kundendaten"
@@ -1435,8 +1516,11 @@ document.body.addEventListener("click", (e) => {
         : step === "rabatt"
         ? validateRabatt()
         : true;
+
     if (!ok) return;
-    setStep(steps[Math.min(steps.length - 1, idx + 1)]);
+
+    const nextIdx = Math.min(flow.length - 1, idx + 1);
+    setStep(flow[nextIdx]);
   }
 });
 
@@ -5629,9 +5713,17 @@ document.addEventListener('DOMContentLoaded', () => {
         backdrop?.addEventListener("click", () => toggleSidebar(false));
 
         sidebar?.addEventListener("click", (event) => {
-          const link = event.target.closest("a.side-link");
-          if (link) toggleSidebar(false);
-        });
+  const link = event.target.closest("a.side-link");
+  if (!link) return;
+
+  const step = link.getAttribute("data-step");
+  if (step) {
+    event.preventDefault();
+    setStep(step);
+  }
+  toggleSidebar(false);
+});
+
       })();
 
   
