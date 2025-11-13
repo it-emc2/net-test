@@ -911,7 +911,7 @@ function collectDuschabtrennungQuickAdd(doc) {
   };
 
   const qa = [];
-
+//test
   root.querySelectorAll('fieldset.da-row').forEach(fs => {
     const kind = fs.dataset.kind || '';
     const isCustom = kind === 'custom';
