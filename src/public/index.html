@@ -3442,7 +3442,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
       </section>
 
        <!-- bwt -->
-      <section class="card page" id="page-bwt" hidden>
+     <section class="card page" id="page-bwt" hidden>
 
 <h2 style="margin: 0 0 12px">Badewanne — Bestandsaufnahme</h2>
 
@@ -3465,10 +3465,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         required
       />
       <span class="img-wrap">
-        <img
-          src="./assets/Normal, rechteckig.png"
-          alt="Normal, rechteckig"
-        />
+        <img src="./assets/Normal, rechteckig.png" alt="Normal, rechteckig" />
       </span>
       <span class="caption">Normal, rechteckig</span>
     </label>
@@ -3482,10 +3479,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         required
       />
       <span class="img-wrap">
-        <img
-          src="./assets/abgerundete Eckbadewanne.png"
-          alt="abgerundete Eckbadewanne"
-        />
+        <img src="./assets/abgerundete Eckbadewanne.png" alt="abgerundete Eckbadewanne" />
       </span>
       <span class="caption">abgerundete Eckbadewanne</span>
     </label>
@@ -3499,10 +3493,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         required
       />
       <span class="img-wrap">
-        <img
-          src="./assets/eckige Eckbadewanne.png"
-          alt="eckige Eckbadewanne"
-        />
+        <img src="./assets/eckige Eckbadewanne.png" alt="eckige Eckbadewanne" />
       </span>
       <span class="caption">eckige Eckbadewanne</span>
     </label>
@@ -3516,10 +3507,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         required
       />
       <span class="img-wrap">
-        <img
-          src="./assets/spezielle Form.png"
-          alt="spezielle Form"
-        />
+        <img src="./assets/spezielle Form.png" alt="spezielle Form" />
       </span>
       <span class="caption">spezielle Form</span>
     </label>
@@ -3552,6 +3540,55 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
       <input type="radio" name="bwtMaterial" value="Weiß ich nicht" />
       <span class="circle"></span>
       <span>Weiß ich nicht</span>
+    </label>
+  </div>
+</div>
+
+<!-- Hinweis -->
+<p class="muted" style="margin: 14px 0 6px">
+  Hinweis: Die Farbe von Tür und Rahmen kann individuell angepasst werden. Jede Farbe wird gleich berechnet.
+</p>
+
+<!-- Tür-Typ: only Standard Tür – Wien -->
+<div class="full field">
+  <label class="req">Wählen Sie Ihren gewünschten Tür-Typen</label>
+
+  <div style="display:flex; gap:14px; flex-wrap:wrap">
+    <!-- Standard Tür – Wien -->
+    <label class="image-check" style="min-width:260px">
+      <input
+        type="radio"
+        name="bwtDoorType"
+        value="Standard Tür – Wien"
+        required
+      />
+      <span class="img-wrap">
+        <img src="./assets/tur.jpg" alt="Standard Tür – Wien" />
+      </span>
+      <span class="caption">
+        Standard Tür – Wien<br />
+        <span class="muted">Edelstahl Verschluss; Farbe: weiß</span>
+      </span>
+    </label>
+  </div>
+</div>
+
+<!-- Einstiegshilfen: only Haltegriff -->
+<div class="full field">
+  <label class="req">Wählen Sie Ihre zusätzlichen Einstiegshilfen</label>
+
+  <div style="display:flex; gap:14px; flex-wrap:wrap">
+    <!-- Haltegriff -->
+    <label class="image-check" style="min-width:220px">
+      <input
+        type="checkbox"
+        name="bwtAids[]"
+        value="Haltegriff"
+      />
+      <span class="img-wrap">
+        <img src="./assets/haltegriff.jpg" alt="Haltegriff" />
+      </span>
+      <span class="caption">Haltegriff</span>
     </label>
   </div>
 </div>
