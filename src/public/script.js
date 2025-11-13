@@ -20,7 +20,7 @@ const OFFERS = {
   },
   hl: {
     name: "HL · Handlauf",
-    pages: ["Kundendaten", "zusammenfassung"],
+    pages: ["Kundendaten", "zusammenfassung", "kosten"],
   },
 };
 
