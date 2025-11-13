@@ -745,7 +745,6 @@ themeToggle?.addEventListener("change", () =>
 );
 
 /* ========== NAVIGATION ========== */
-/* ========== NAVIGATION ========== */
 // Build the global "steps" list from OFFERS so OFFERS is the only source of truth
 const ALL_PAGES = Array.from(
   new Set(
@@ -764,6 +763,26 @@ const sideMenu = document.getElementById("sideMenu");
 
 // Currently active offer key (e.g. "bu", "bwt"), or null when no flow is active
 let currentOfferKey = null;
+
+// Reset all forms to their initial HTML defaults for a fresh start per offer
+function resetAllForms() {
+  const formIds = [
+    "form-Kundendaten",
+    "form-duschwanne",
+    "form-wandverkleidung",
+    "form-duschabtrennung",
+    "form-optional",
+    "form-rabatt",
+  ];
+
+  formIds.forEach((id) => {
+    const form = document.getElementById(id);
+    if (form && typeof form.reset === "function") {
+      form.reset();
+    }
+  });
+}
+
 
 // Effective list of steps used for prev/next navigation
 function getFlowSteps() {
@@ -793,6 +812,10 @@ function updateSidebarForOffer() {
 // Start a flow for a given offer and jump to its first page
 function startOfferFlow(offerKey) {
   if (!OFFERS[offerKey]) return;
+
+  // Fresh start for this offer: clear all forms back to their HTML defaults
+  resetAllForms();
+
   currentOfferKey = offerKey;
   updateSidebarForOffer();
 
@@ -800,6 +823,7 @@ function startOfferFlow(offerKey) {
   const first = flow[0];
   if (first) setStep(first);
 }
+
 
 
 function getCurrentStep() {
@@ -993,6 +1017,36 @@ function readWVConsumablesStrict() {
   return Array.from(new Set(picked));
 }
 
+// Remove or empty sections that do not belong to the currently active offer
+function filterPayloadByOffer(payload) {
+  if (!currentOfferKey || !OFFERS[currentOfferKey]) {
+    return payload;
+  }
+
+  const pagesForOffer = OFFERS[currentOfferKey].pages || [];
+  const allowedPages = new Set(pagesForOffer);
+
+  // Map: page-id in OFFERS.pages → key name in payload
+  const pageToKey = {
+    Kundendaten: "Kundendaten",
+    duschwanne: "duschwanne",
+    wandverkleidung: "wandverkleidung",
+    duschabtrennung: "duschabtrennung",
+    optional: "optional",
+    rabatt: "rabatt",
+  };
+
+  Object.entries(pageToKey).forEach(([page, key]) => {
+    if (!allowedPages.has(page) && key in payload) {
+      // For non-selected pages, make their contribution empty
+      payload[key] = {};
+      // If you prefer deleting instead, you can use:
+      // delete payload[key];
+    }
+  });
+
+  return payload;
+}
 
 function buildPayload() {
   const payload = {
@@ -1188,7 +1242,11 @@ try {
     } catch {}
   })();
 
-  return payload;
+    // Remember which offer was active when building this payload
+  payload.activeOffer = currentOfferKey || null;
+
+  // Remove/empty sections that are not part of the active offer's pages
+  return filterPayloadByOffer(payload);
 }
 
 
