@@ -3640,13 +3640,23 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
   <button type="button" data-nav="prev" class="secondary">Zurück</button>
   <button type="button" data-nav="next">Weiter</button>
 </div>
- <!-- test -->
 
 <label class="task-card">
-      <input type="checkbox" name="duschwanne[workTasks][]" value="remove_tub" checked/>
+      <input type="checkbox" name="bwt[bwtinfoTasks][]" value="flat_surface" checked/>
       <span class="task-card__body">
-        <span class="task-card__title">Entfernen und Entsorgen der Badewanne inkl. Befliesung</span>
-        <span class="task-card__hint">Demontage, Abtransport & fachgerechte Entsorgung</span>
+        <span class="task-card__title">Fläche ist gerade und eben im Bereich der BWT</span>
+      </span>
+    </label>
+    <label class="task-card">
+      <input type="checkbox" name="bwt[bwtinfoTasks][]" value="fixture_free" checked/>
+      <span class="task-card__body">
+        <span class="task-card__title">Fläche ist frei von Armaturen</span>
+      </span>
+    </label>
+    <label class="task-card">
+      <input type="checkbox" name="bwt[bwtinfoTasks][]" value="not_whirlpool" checked/>
+      <span class="task-card__body">
+        <span class="task-card__title">Ist kein Whirlpool</span>
       </span>
     </label>
 
