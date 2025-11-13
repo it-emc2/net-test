@@ -425,6 +425,11 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
           <div class="dot"></div>
           <span>Pricing Playground</span>
         </a>
+
+        <a class="side-link" data-step="bwt" href="#bwt">
+          <div class="dot"></div>
+          <span>bwt</span>
+        </a>
     
   </nav>
 </aside>
@@ -3416,6 +3421,29 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
          <!-- Kosten-Details -->
       <section class="card page" id="page-kosten" hidden>
         <h2 style="margin: 0 0 12px">Kosten-Details (Debug)</h2>
+    
+
+        <p class="muted" style="margin: 0 0 14px">
+          Interne Übersicht aller gewählten Positionen mit Mengen, Einzel- und
+          Gesamtpreisen. Dient zum Prüfen der Abrechnung.
+        </p>
+
+        <div
+          id="costsSummary"
+          style="display: flex; flex-direction: column; gap: 14px"
+        ></div>
+
+        <div class="actions full" style="margin-top: 16px">
+          <button type="button" data-nav="prev" class="secondary">
+            Zurück
+          </button>
+          <button type="button" data-nav="next">Weiter</button>
+        </div>
+      </section>
+
+       <!-- bwt -->
+      <section class="card page" id="bwt" hidden>
+        <h2 style="margin: 0 0 12px">bwt</h2>
     
 
         <p class="muted" style="margin: 0 0 14px">
