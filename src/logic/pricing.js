@@ -703,7 +703,7 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
       
       // Extract and enforce markup rules
       let markupPct = extractMarkupPct(payload);
-    
+     const payer = payload?.Kundendaten?.payer || '';
        // Bonus checkboxes in Rabatt Menu --
       const flags = {
         bonus_neu: !!payload?.rabatt?.bonus300,
