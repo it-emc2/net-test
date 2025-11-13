@@ -3920,7 +3920,7 @@ const WV_DEFAULT_PIDS = ['TRWDSET5','V4FK600','V3A','V4RPKIT'];
  setByProductId('TRWDSET5',  chosenHas('TRWDSET5')); // TRINNITY Wandabdichtung
  setByProductId('V4FK600',    chosenHas('V4FK600'));   // Flächenkleber (Wandverkleidung)
  setByProductId('V3A',       chosenHas('V3A'));      // Abschlussprofil
- setByProductId('CARESMH',   chosenHas('CARESMH'));  // Silikon
+ setByProductId('CARESSW',   chosenHas('CARESSW'));  // Silikon
  window.__RESTORING__ = prev;
 
   // Selects/radios for accessories
