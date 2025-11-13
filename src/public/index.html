@@ -3599,17 +3599,40 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 
   <div style="display:flex; gap:14px; flex-wrap:wrap">
     <!-- Haltegriff -->
-    <label class="image-check" style="min-width:220px">
-      <input
-        type="checkbox"
-        name="bwtAids[]"
-        value="Haltegriff"
-      />
-      <span class="img-wrap">
-        <img src="./assets/haltegriff.jpg" alt="Haltegriff" />
-      </span>
-      <span class="caption">Haltegriff</span>
-    </label>
+    <div class="field" style="min-width:220px">
+      <label class="image-check">
+        <input
+          type="checkbox"
+          id="bwtAidsHaltegriff"
+          name="bwtAids[]"
+          value="Haltegriff"
+        />
+        <span class="img-wrap">
+          <img src="./assets/haltegriff.jpg" alt="Haltegriff" />
+        </span>
+        <span class="caption">Haltegriff</span>
+      </label>
+
+      <!-- Menge (shown always) -->
+      <div
+        id="bwtAidsHaltegriffQtyWrap"
+        class="field"
+        aria-hidden="false"
+        style="max-width:260px; margin-top:10px"
+      >
+        <label for="bwtAidsHaltegriffQty" class="req">Menge Haltegriff</label>
+        <input
+          id="bwtAidsHaltegriffQty"
+          name="bwtAidsHaltegriffQty"
+          type="number"
+          min="1"
+          step="1"
+          placeholder="1"
+          inputmode="numeric"
+          value="1"
+        />
+      </div>
+    </div>
   </div>
 </div>
 
