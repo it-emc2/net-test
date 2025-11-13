@@ -435,6 +435,10 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
                   <!-- Home (new landing page) -->
 <section class="card page" id="page-home">
   <h2 style="margin: 0 0 12px">Willkommen</h2>
+          <div class="field" style="display:flex; gap:8px; max-width:380px;" >
+              <input hidden id="loadOfferNumber" type="text" placeholder="ANG2025-1008-092040" />
+              <button  hidden type="button" id="btnLoadOffer" class="secondary">Angebot laden</button>
+              </div>
   <p class="muted" style="margin: 0 0 16px">Wählen Sie einen Bereich, um zu starten.</p>
 
   <div class="home-tiles">
@@ -466,11 +470,6 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 
   <!-- Kundendaten -->
 <section class="card page" id="page-Kundendaten" hidden>
-
-                    <div class="field" style="display:flex; gap:8px; max-width:380px;">
-              <input id="loadOfferNumber" type="text" placeholder="ANG2025-1008-092040" />
-              <button type="button" id="btnLoadOffer" class="secondary">Angebot laden</button>
-              </div>
 
         <div class="section-header">Kontaktdaten des Kunden</div>
         <form id="form-Kundendaten" novalidate>
