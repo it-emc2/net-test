@@ -48,6 +48,27 @@ function setCL40LabelToBillable(list, { hideWhenZero = false } = {}) {
 
   const TAX_RATE = 0.19;
 
+    // --- active offer / Bereich helpers ---
+  function getActiveOffer(payload) {
+    // default to 'bu' for backward compatibility
+    const k = payload?.activeOffer;
+    if (k === 'bwt' || k === 'hl' || k === 'bu') return k;
+    return 'bu';
+  }
+
+  function getMaterialsTitle(offerKey) {
+    switch (offerKey) {
+      case 'bwt':
+        return 'Material für Badewannentür';
+      case 'hl':
+        return 'Material für Handlauf';
+      case 'bu':
+      default:
+        return 'Material für Badumbau';
+    }
+  }
+
+
   function collectSelections(payload) {
     const out = [];
     const opt = payload?.optional || {};
@@ -203,9 +224,12 @@ for (const key of dwTasks) {
   }
 
 async function computeMaterials(payload) {
+  const offer = getActiveOffer(payload);  // 'bu' | 'bwt' | 'hl'
+
   const dusch = payload?.duschwanne || {};
   const wv = payload?.wandverkleidung || {};
   const opt = payload?.optional || {};
+
 
   // For Haltegriff counts (used by UI logic later)
   let grabTotalQty = 0;
@@ -464,16 +488,17 @@ try {
     };
   });
 
-  const sum = round2(resolved.reduce((a, x) => a + (x.lineTotal || 0), 0));
+    const sum = round2(resolved.reduce((a, x) => a + (x.lineTotal || 0), 0));
 
   // Return grabCounts at materials-level; UI or computePrices can bubble it up
   return {
-    title: 'Material für Badumbau',
+    title: getMaterialsTitle(offer),
     lines: resolved,
     sum,
     grabCounts: { cl40: cl40Qty, total: grabTotalQty },
   };
 }
+
 
 
   // Services (zones removed)
