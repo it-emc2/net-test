@@ -3510,13 +3510,13 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
           type="checkbox"
           id="bwtDoorStd"
           name="bwtDoorType"
-          value="Standard Tür – Wien"
+          value="Universal / Standard Tür"
           data-product-id="BWT-DOOR-STD"
         />
         <span class="img-wrap">
-          <img src="./assets/tur.jpg" alt="Standard Tür – Wien" />
+          <img src="./assets/tur.jpg" alt="Universal / Standard Tür" />
         </span>
-        <span class="caption">Standard Tür – Wien</span>
+        <span class="caption">Universal / Standard Tür</span>
       </label>
 
       <!-- Menge (shown always) -->
@@ -3526,7 +3526,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         aria-hidden="false"
         style="max-width: 260px; margin-top: 10px"
       >
-        <label for="bwtDoorStdQty" class="req">Menge Tür – Wien</label>
+        <label for="bwtDoorStdQty" class="req">Menge Universal / Standard Tür</label>
         <input
           id="bwtDoorStdQty"
           name="bwtDoorStdQty"
@@ -3750,20 +3750,79 @@ grundsätzlich wird automatisch mitkalkuliert
   </div>
 </div>
 
-  <!-- Tür-Typ: Standard Tür – Wien with Menge -->
+<!--  
+<div class="task-cards">
+<label class="task-card">
+      <input type="checkbox" name="bwt[bwtinfoTasks][]" value="flat_surface" checked/>
+      <span class="task-card__body">
+        <span class="task-card__title">Fläche ist gerade und eben im Bereich der BWT</span>
+      </span>
+    </label>
+    <label class="task-card">
+      <input type="checkbox" name="bwt[bwtinfoTasks][]" value="fixture_free" checked/>
+      <span class="task-card__body">
+        <span class="task-card__title">Fläche ist frei von Armaturen</span>
+      </span>
+    </label>
+    <label class="task-card">
+      <input type="checkbox" name="bwt[bwtinfoTasks][]" value="not_whirlpool" checked/>
+      <span class="task-card__body">
+        <span class="task-card__title">Ist kein Whirlpool</span>
+      </span>
+    </label>
+</div>
+
+
+<div class="full field" style="margin-top: 8px">
+  <label>Wählen Sie das Material, aus dem Ihre Wanne besteht</label>
+  <div class="radio-group vertical" role="radiogroup" aria-label="Material der Wanne" id="bwtMaterialGroup">
+    <label class="radio-pill">
+      <input type="radio" name="bwtMaterial" value="Acryl" />
+      <span class="circle"></span>
+      <span>Acryl</span>
+    </label>
+
+    <label class="radio-pill">
+      <input type="radio" name="bwtMaterial" value="Stahl emailliert" />
+      <span class="circle"></span>
+      <span>Stahl emailliert</span>
+    </label>
+
+    <label class="radio-pill">
+      <input type="radio" name="bwtMaterial" value="Gusseisen" />
+      <span class="circle"></span>
+      <span>Gusseisen</span>
+    </label>
+
+    <label class="radio-pill">
+      <input type="radio" name="bwtMaterial" value="Weiß ich nicht" />
+      <span class="circle"></span>
+      <span>Weiß ich nicht</span>
+    </label>
+  </div>
+</div>
+
+
+<p class="muted" style="margin: 14px 0 6px">
+  Hinweis: Die Farbe von Tür und Rahmen kann individuell angepasst werden. Jede Farbe wird gleich berechnet.
+</p> -->
+
+
+<h3 style="margin: 0 0 12px"> Materialauswahl für Innenbereich</h2>
+  <!-- Rohr-Typ -->
 <div class="full field">
-  <label class="req">Wählen Sie Ihren gewünschten Tür-Typen</label>
+  <label class="req">Wählen Sie Ihren gewünschten Rohr-Typen</label>
 
   <div style="display:flex; gap:14px; flex-wrap:wrap">
-    <!-- Card wrapper to host checkbox + qty -->
+  
     <div class="field" style="min-width:220px">
       <label class="image-check">
         <input
           type="checkbox"
-          id="bwtDoorStd"
-          name="bwtDoorType"
-          value="Standard Tür – Wien"
-          data-product-id="BWT-DOOR-STD"
+          id="bwtPipeSteel"
+          name="bwtPipeType"
+          value="Stahlrohr"
+          data-product-id="BWT-PIPE-STEEL"
         />
         <span class="img-wrap">
           <img src="./assets/Stahlrohr.png" alt="Stahlrohr" />
@@ -3773,10 +3832,10 @@ grundsätzlich wird automatisch mitkalkuliert
       <label class="image-check">
         <input
           type="checkbox"
-          id="bwtDoorStd"
-          name="bwtDoorType"
-          value="Standard Tür – Wien"
-          data-product-id="BWT-DOOR-STD"
+          id="bwtPipeAlu"
+          name="bwtPipeType"
+          value="Aluminiumrohr"
+          data-product-id="BWT-PIPE-ALU"
         />
         <span class="img-wrap">
           <img src="./assets/Aluminiumrohr.png" alt="Aluminiumrohr" />
@@ -3786,10 +3845,10 @@ grundsätzlich wird automatisch mitkalkuliert
       <label class="image-check">
         <input
           type="checkbox"
-          id="bwtDoorStd"
-          name="bwtDoorType"
-          value="Standard Tür – Wien"
-          data-product-id="BWT-DOOR-STD"
+          id="bwtPipeWood"
+          name="bwtPipeType"
+          value="Massivholz"
+          data-product-id="BWT-PIPE-WOOD"
         />
         <span class="img-wrap">
           <img src="./assets/Massivholz.png" alt="Massivholz" />
@@ -3806,6 +3865,859 @@ Tiefe oben 25 cm
 Tiefe unten 25 cm
 </p> -->
     </div>
+  </div>
+</div>
+<!-- Farbauswahl Stahlrohr -->
+
+<div class="field full">
+  <div class="section-title">Farbauswahl Stahlrohr</div>
+  <p class="section-subtitle">Bitte wählen Sie eine Wunschfarbe aus.</p>
+
+  <div class="color-swatch-group color-swatch-group--stacked">
+    
+    <!-- Anthrazitgrau mit Silberstreif -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Anthrazitgrau mit Silberstreif"
+        aria-label="Anthrazitgrau mit Silberstreif"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Anthrazitgrau mit Silberstreif.jpg" alt="Anthrazitgrau mit Silberstreif" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Anthrazitgrau mit Silberstreif</span>
+      </div>
+    </label>
+
+    <!-- Birnbaum dunkel mit Struktur -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Birnbaum dunkel mit Struktur"
+        aria-label="Birnbaum dunkel mit Struktur"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Birnbaum dunkel mit Struktur.jpg" alt="Birnbaum dunkel mit Struktur" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Birnbaum dunkel mit Struktur</span>
+      </div>
+    </label>
+
+    <!-- Eiche Sand -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Eiche Sand"
+        aria-label="Eiche Sand"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Eiche Sand.png" alt="Eiche Sand" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Eiche Sand</span>
+      </div>
+    </label>
+
+    <!-- Grau Holzstruktur -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Grau Holzstruktur"
+        aria-label="Grau Holzstruktur"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Grau Holzstruktur.png" alt="Grau Holzstruktur" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Grau Holzstruktur</span>
+      </div>
+    </label>
+
+    <!-- Eiche hellbraun -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Eiche hellbraun"
+        aria-label="Eiche hellbraun"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Eiche hellbraun.png" alt="Eiche hellbraun" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Eiche hellbraun</span>
+      </div>
+    </label>
+
+    <!-- Eiche Creme -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Eiche Creme"
+        aria-label="Eiche Creme"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Eiche Creme.png" alt="Eiche Creme" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Eiche Creme</span>
+      </div>
+    </label>
+
+    <!-- Esche weiß -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Esche weiß"
+        aria-label="Esche weiß"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Esche weiß.png" alt="Esche weiß" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Esche weiß</span>
+      </div>
+    </label>
+
+    <!-- Eiche gekalkt -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Eiche gekalkt"
+        aria-label="Eiche gekalkt"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Eiche gekalkt.png" alt="Eiche gekalkt" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Eiche gekalkt</span>
+      </div>
+    </label>
+
+    <!-- Golden Rust -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Golden Rust"
+        aria-label="Golden Rust"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Golden Rust.png" alt="Golden Rust" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Golden Rust</span>
+      </div>
+    </label>
+
+    <!-- Rot -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Rot"
+        aria-label="Rot"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Rot.png" alt="Rot" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Rot</span>
+      </div>
+    </label>
+
+    <!-- Weiß -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Weiß"
+        aria-label="Weiß"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Weiß.png" alt="Weiß" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Weiß</span>
+      </div>
+    </label>
+
+    <!-- Silber matt -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Silber matt"
+        aria-label="Silber matt"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Silber matt.png" alt="Silber matt" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Silber matt</span>
+      </div>
+    </label>
+
+    <!-- Schwarz mit Silberstreifen -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Schwarz mit Silberstreifen"
+        aria-label="Schwarz mit Silberstreifen"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Schwarz mit Silberstreifen.png" alt="Schwarz mit Silberstreifen" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Schwarz mit Silberstreifen</span>
+      </div>
+    </label>
+
+    <!-- Messing Längsstruktur -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Messing Längsstruktur"
+        aria-label="Messing Längsstruktur"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Messing Längsstruktur.png" alt="Messing Längsstruktur" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Messing Längsstruktur</span>
+      </div>
+    </label>
+
+    <!-- Eiche dunkel -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Eiche dunkel"
+        aria-label="Eiche dunkel"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Eiche dunkel.png" alt="Eiche dunkel" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Eiche dunkel</span>
+      </div>
+    </label>
+
+    <!-- Eiche mittel -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Eiche mittel"
+        aria-label="Eiche mittel"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Eiche mittel.png" alt="Eiche mittel" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Eiche mittel</span>
+      </div>
+    </label>
+
+    <!-- Eiche hell -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Eiche hell"
+        aria-label="Eiche hell"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Eiche hell.png" alt="Eiche hell" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Eiche hell</span>
+      </div>
+    </label>
+
+    <!-- Wurzelholz -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Wurzelholz"
+        aria-label="Wurzelholz"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Wurzelholz.png" alt="Wurzelholz" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Wurzelholz</span>
+      </div>
+    </label>
+
+    <!-- Nussbaum -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Nussbaum"
+        aria-label="Nussbaum"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Nussbaum.png" alt="Nussbaum" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Nussbaum</span>
+      </div>
+    </label>
+
+    <!-- Kirsche mittel -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Kirsche mittel"
+        aria-label="Kirsche mittel"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Kirsche mittel.png" alt="Kirsche mittel" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Kirsche mittel</span>
+      </div>
+    </label>
+
+    <!-- Buche hell -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="Buche hell"
+        aria-label="Buche hell"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Stahl/Buche hell.png" alt="Buche hell" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Buche hell</span>
+      </div>
+    </label>
+
+  </div>
+</div>
+
+<!-- Farbauswahl Aluminiumrohr -->
+
+<div class="field full">
+  <div class="section-title">Farbe Aluminiumrohr</div>
+  <p class="section-subtitle">Bitte wählen Sie eine Oberfläche aus.</p>
+
+  <div class="color-swatch-group color-swatch-group--stacked">
+
+    <!-- Edelstahl-Rohr, Deco-Rohr, TIG geschweißt, 320 Korn -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="alurohr_color"
+        value="Edelstahl-Rohr, Deco-Rohr, TIG geschweißt, 320 Korn"
+        aria-label="Edelstahl-Rohr, Deco-Rohr, TIG geschweißt, 320 Korn"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Edelstahl-Rohr, Deco-Rohr, TIG geschweißt, 320 Korn.png"
+             alt="Edelstahl-Rohr, Deco-Rohr, TIG geschweißt, 320 Korn" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Edelstahl-Rohr, Deco-Rohr, TIG geschweißt, 320 Korn</span>
+      </div>
+    </label>
+
+    <!-- Oak Khaki -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Oak Khaki" aria-label="Oak Khaki" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Oak Khaki.png" alt="Oak Khaki" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Oak Khaki</span>
+      </div>
+    </label>
+
+    <!-- Irish Oak -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Irish Oak" aria-label="Irish Oak" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Irish Oak.png" alt="Irish Oak" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Irish Oak</span>
+      </div>
+    </label>
+
+    <!-- Rubinrot -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Rubinrot" aria-label="Rubinrot" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Rubinrot.png" alt="Rubinrot" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Rubinrot</span>
+      </div>
+    </label>
+
+    <!-- Hammerschlag Anthrazit -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Hammerschlag Anthrazit" aria-label="Hammerschlag Anthrazit" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Hammerschlag Anthrazit.png" alt="Hammerschlag Anthrazit" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Hammerschlag Anthrazit</span>
+      </div>
+    </label>
+
+    <!-- Dunkelgrün -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Dunkelgrün" aria-label="Dunkelgrün" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Dunkelgrün.png" alt="Dunkelgrün" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Dunkelgrün</span>
+      </div>
+    </label>
+
+    <!-- Vitriolgrün -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Vitriolgrün" aria-label="Vitriolgrün" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Vitriolgrün.png" alt="Vitriolgrün" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Vitriolgrün</span>
+      </div>
+    </label>
+
+    <!-- Schiefer -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Schiefer" aria-label="Schiefer" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Schiefer.png" alt="Schiefer" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Schiefer</span>
+      </div>
+    </label>
+
+    <!-- Betongrau -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Betongrau" aria-label="Betongrau" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Betongrau.png" alt="Betongrau" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Betongrau</span>
+      </div>
+    </label>
+
+    <!-- Eiche Rauch -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Eiche Rauch" aria-label="Eiche Rauch" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Eiche Rauch.png" alt="Eiche Rauch" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Eiche Rauch</span>
+      </div>
+    </label>
+
+    <!-- Eiche Polar -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Eiche Polar" aria-label="Eiche Polar" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Eiche Polar.png" alt="Eiche Polar" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Eiche Polar</span>
+      </div>
+    </label>
+
+    <!-- Eiche Schokolade -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Eiche Schokolade" aria-label="Eiche Schokolade" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Eiche Schokolade.png" alt="Eiche Schokolade" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Eiche Schokolade</span>
+      </div>
+    </label>
+
+    <!-- Birke -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Birke" aria-label="Birke" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Birke.png" alt="Birke" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Birke</span>
+      </div>
+    </label>
+
+    <!-- Gelb -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Gelb" aria-label="Gelb" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Gelb.png" alt="Gelb" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Gelb</span>
+      </div>
+    </label>
+
+    <!-- Rot -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Rot" aria-label="Rot" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Rot.png" alt="Rot" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Rot</span>
+      </div>
+    </label>
+
+    <!-- Mooreiche -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Mooreiche" aria-label="Mooreiche" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Mooreiche.png" alt="Mooreiche" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Mooreiche</span>
+      </div>
+    </label>
+
+    <!-- Nussbaum -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Nussbaum" aria-label="Nussbaum" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Nussbaum.png" alt="Nussbaum" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Nussbaum</span>
+      </div>
+    </label>
+
+    <!-- Mahagoni -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Mahagoni" aria-label="Mahagoni" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Mahagoni.png" alt="Mahagoni" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Mahagoni</span>
+      </div>
+    </label>
+
+    <!-- Balsamico -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Balsamico" aria-label="Balsamico" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Balsamico.png" alt="Balsamico" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Balsamico</span>
+      </div>
+    </label>
+
+    <!-- Kirsche mittel -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Kirsche mittel" aria-label="Kirsche mittel" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Kirsche mittel.png" alt="Kirsche mittel" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Kirsche mittel</span>
+      </div>
+    </label>
+
+    <!-- Buche hell -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Buche hell" aria-label="Buche hell" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Buche hell.png" alt="Buche hell" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Buche hell</span>
+      </div>
+    </label>
+
+    <!-- Golden Oak -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Golden Oak" aria-label="Golden Oak" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Golden Oak.png" alt="Golden Oak" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Golden Oak</span>
+      </div>
+    </label>
+
+    <!-- Rost (Rustic Steel) -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Rost (Rustic Steel)" aria-label="Rost (Rustic Steel)" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Rost (Rustic Steel).png" alt="Rost (Rustic Steel)" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Rost (Rustic Steel)</span>
+      </div>
+    </label>
+
+    <!-- Anthrazitgrau -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Anthrazitgrau" aria-label="Anthrazitgrau" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Anthrazitgrau.png" alt="Anthrazitgrau" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Anthrazitgrau</span>
+      </div>
+    </label>
+
+    <!-- Dunkelgrau -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Dunkelgrau" aria-label="Dunkelgrau" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Dunkelgrau.png" alt="Dunkelgrau" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Dunkelgrau</span>
+      </div>
+    </label>
+
+    <!-- Aluminiumoptik -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Aluminiumoptik" aria-label="Aluminiumoptik" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Aluminiumoptik.png" alt="Aluminiumoptik" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Aluminiumoptik</span>
+      </div>
+    </label>
+
+    <!-- Stahlblau -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Stahlblau" aria-label="Stahlblau" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Stahlblau.png" alt="Stahlblau" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Stahlblau</span>
+      </div>
+    </label>
+
+    <!-- Schwarz -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Schwarz" aria-label="Schwarz" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Schwarz.png" alt="Schwarz" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Schwarz</span>
+      </div>
+    </label>
+
+    <!-- Weiß -->
+    <label class="color-swatch">
+      <input type="radio" name="alurohr_color" value="Weiß" aria-label="Weiß" />
+      <div class="color-swatch__preview">
+        <img src="assets/Aluminiumrohr/Weiß.png" alt="Weiß" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Weiß</span>
+      </div>
+    </label>
+
+  </div>
+</div>
+
+<!-- Farbauswahl Massivholz -->
+
+<div class="field full">
+  <div class="section-title">Massivholz</div>
+  <p class="section-subtitle">Bitte wählen Sie eine Holzart und Länge aus.</p>
+
+  <div class="color-swatch-group color-swatch-group--stacked">
+
+    <!-- Eiche, Länge 0,5 m -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="massivholz"
+        value="Eiche, Länge 0,5 m"
+        aria-label="Eiche, Länge 0,5 m"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Massivholz/Eiche, Länge 0,5 m.png" alt="Eiche, Länge 0,5 m" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Eiche, Länge 0,5 m</span>
+      </div>
+    </label>
+
+    <!-- Eiche, Länge 1,0 m -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="massivholz"
+        value="Eiche, Länge 1,0 m"
+        aria-label="Eiche, Länge 1,0 m"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Massivholz/Eiche, Länge 1,0 m.png" alt="Eiche, Länge 1,0 m" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Eiche, Länge 1,0 m</span>
+      </div>
+    </label>
+
+    <!-- Buche, Länge 0,5 m -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="massivholz"
+        value="Buche, Länge 0,5 m"
+        aria-label="Buche, Länge 0,5 m"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Massivholz/Buche, Länge 0,5 m.png" alt="Buche, Länge 0,5 m" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Buche, Länge 0,5 m</span>
+      </div>
+    </label>
+
+    <!-- Buche, Länge 1,0 m -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="massivholz"
+        value="Buche, Länge 1,0 m"
+        aria-label="Buche, Länge 1,0 m"
+      />
+      <div class="color-swatch__preview">
+        <img src="assets/Massivholz/Buche, Länge 1,0 m.png" alt="Buche, Länge 1,0 m" />
+      </div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio"><div class="color-swatch__radio-inner"></div></div>
+        <span class="color-swatch__label">Buche, Länge 1,0 m</span>
+      </div>
+    </label>
+
   </div>
 </div>
 
@@ -3834,78 +4746,6 @@ Tiefe unten 25 cm
 grundsätzlich wird automatisch mitkalkuliert
 </p>
 
-<div class="field full">
-  <div class="section-title">Farbe der Tür</div>
-  <p class="section-subtitle">Bitte wählen Sie eine Wunschfarbe aus.</p>
-
-  <div class="color-swatch-group">
-
-      <!-- Pergamon -->
-    <label class="color-swatch">
-      <input
-        type="radio"
-        name="tray_color"
-        value="pergamon"
-        aria-label="Pergamon (#FDF5EA)"
-      />
-      <div
-        class="color-swatch__preview"
-        style="background-color: #FDF5EA;"
-      ></div>
-      <div class="color-swatch__info">
-        <div class="color-swatch__radio">
-          <div class="color-swatch__radio-inner"></div>
-        </div>
-        <span class="color-swatch__label">Pergamon</span>
-        <span class="color-swatch__code">#FDF5EA</span>
-      </div>
-    </label>
-
-    <!-- Manhattan -->
-    <label class="color-swatch">
-      <input
-        type="radio"
-        name="tray_color"
-        value="manhattan"
-        aria-label="Manhattan (#D1D0CC)"
-      />
-      <div
-        class="color-swatch__preview"
-        style="background-color: #D1D0CC;"
-      ></div>
-      <div class="color-swatch__info">
-        <div class="color-swatch__radio">
-          <div class="color-swatch__radio-inner"></div>
-        </div>
-        <span class="color-swatch__label">Manhattan</span>
-        <span class="color-swatch__code">#D1D0CC</span>
-      </div>
-    </label>
-
-    <!-- Bahama Beige -->
-    <label class="color-swatch">
-      <input
-        type="radio"
-        name="tray_color"
-        value="bahama_beige"
-        aria-label="Bahama Beige (#D1B7A8)"
-      />
-      <div
-        class="color-swatch__preview"
-        style="background-color: #D1B7A8;"
-      ></div>
-      <div class="color-swatch__info">
-        <div class="color-swatch__radio">
-          <div class="color-swatch__radio-inner"></div>
-        </div>
-        <span class="color-swatch__label">Bahama Beige</span>
-        <span class="color-swatch__code">#D1B7A8</span>
-      </div>
-    </label>
-
-  
-  </div>
-</div>
 
 <!-- Einstiegshilfen: only Haltegriff -->
 <div class="full field">
