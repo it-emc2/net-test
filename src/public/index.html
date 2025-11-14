@@ -3811,7 +3811,7 @@ grundsätzlich wird automatisch mitkalkuliert
 <h3 style="margin: 0 0 12px"> Materialauswahl für Innenbereich</h2>
 
   <!-- Rohr-Typ -->
-   
+
 <div class="full field">
   <label class="req">Wählen Sie Ihren gewünschten Rohr-Typen</label>
 
@@ -4726,151 +4726,121 @@ Tiefe unten 25 cm
 
 <!-- Sonstige Innen -->
 
-<div class="field full" id="sonstige-innen-field">
+<div class="field full">
   <div class="section-title">Sonstige Innen</div>
   <p class="section-subtitle">Bitte wählen Sie alle gewünschten Zusatzkomponenten aus.</p>
 
-  <!-- this hidden input is what you actually submit with the form -->
-  <input type="hidden" name="sonstige_innen" id="sonstige-innen-input" value="">
-
   <div class="color-swatch-group color-swatch-group--stacked">
 
-    <!-- Each item has data-value, JS will toggle .is-selected -->
-    <button type="button"
-            class="color-swatch js-multi-swatch"
-            data-value="Chrom matt">
-      <div class="color-swatch__preview">
+    <!-- Chrom matt -->
+    <label class="image-check small">
+      <input
+        type="checkbox"
+        name="sonstige_innen[]"
+        value="Chrom matt"
+      />
+      <div class="img-wrap">
         <img src="assets/SonstigeInnen/Chrom matt.png" alt="Chrom matt">
       </div>
-      <div class="color-swatch__info">
-        <div class="color-swatch__radio">
-          <div class="color-swatch__radio-inner"></div>
-        </div>
-        <span class="color-swatch__label">Chrom matt</span>
-      </div>
-    </button>
+      <div class="caption">Chrom matt</div>
+    </label>
 
-    <button type="button"
-            class="color-swatch js-multi-swatch"
-            data-value="Chrom glanz">
-      <div class="color-swatch__preview">
+    <!-- Chrom glanz -->
+    <label class="image-check small">
+      <input
+        type="checkbox"
+        name="sonstige_innen[]"
+        value="Chrom glanz"
+      />
+      <div class="img-wrap">
         <img src="assets/SonstigeInnen/Chrom glanz.png" alt="Chrom glanz">
       </div>
-      <div class="color-swatch__info">
-        <div class="color-swatch__radio">
-          <div class="color-swatch__radio-inner"></div>
-        </div>
-        <span class="color-swatch__label">Chrom glanz</span>
-      </div>
-    </button>
+      <div class="caption">Chrom glanz</div>
+    </label>
 
-    <button type="button"
-            class="color-swatch js-multi-swatch"
-            data-value="Schwarz">
-      <div class="color-swatch__preview">
+    <!-- Schwarz -->
+    <label class="image-check small">
+      <input
+        type="checkbox"
+        name="sonstige_innen[]"
+        value="Schwarz"
+      />
+      <div class="img-wrap">
         <img src="assets/SonstigeInnen/Schwarz.png" alt="Schwarz">
       </div>
-      <div class="color-swatch__info">
-        <div class="color-swatch__radio">
-          <div class="color-swatch__radio-inner"></div>
-        </div>
-        <span class="color-swatch__label">Schwarz</span>
-      </div>
-    </button>
+      <div class="caption">Schwarz</div>
+    </label>
 
-    <button type="button"
-            class="color-swatch js-multi-swatch"
-            data-value="Flexo-Gelenk">
-      <div class="color-swatch__preview">
+    <!-- Flexo-Gelenk -->
+    <label class="image-check small">
+      <input
+        type="checkbox"
+        name="sonstige_innen[]"
+        value="Flexo-Gelenk"
+      />
+      <div class="img-wrap">
         <img src="assets/SonstigeInnen/Flexo-Gelenk.png" alt="Flexo-Gelenk">
       </div>
-      <div class="color-swatch__info">
-        <div class="color-swatch__radio">
-          <div class="color-swatch__radio-inner"></div>
-        </div>
-        <span class="color-swatch__label">Flexo-Gelenk</span>
-      </div>
-    </button>
+      <div class="caption">Flexo-Gelenk</div>
+    </label>
 
-    <button type="button"
-            class="color-swatch js-multi-swatch"
-            data-value="90 Bogen">
-      <div class="color-swatch__preview">
+    <!-- 90 Bogen -->
+    <label class="image-check small">
+      <input
+        type="checkbox"
+        name="sonstige_innen[]"
+        value="90 Bogen"
+      />
+      <div class="img-wrap">
         <img src="assets/SonstigeInnen/90 Bogen.png" alt="90 Bogen">
       </div>
-      <div class="color-swatch__info">
-        <div class="color-swatch__radio">
-          <div class="color-swatch__radio-inner"></div>
-        </div>
-        <span class="color-swatch__label">90 Bogen</span>
-      </div>
-    </button>
+      <div class="caption">90 Bogen</div>
+    </label>
 
-    <button type="button"
-            class="color-swatch js-multi-swatch"
-            data-value="Sonderabschluss">
-      <div class="color-swatch__preview">
+    <!-- Sonderabschluss -->
+    <label class="image-check small">
+      <input
+        type="checkbox"
+        name="sonstige_innen[]"
+        value="Sonderabschluss"
+      />
+      <div class="img-wrap">
         <img src="assets/SonstigeInnen/Sonderabschluss.png" alt="Sonderabschluss">
       </div>
-      <div class="color-swatch__info">
-        <div class="color-swatch__radio">
-          <div class="color-swatch__radio-inner"></div>
-        </div>
-        <span class="color-swatch__label">Sonderabschluss</span>
-      </div>
-    </button>
+      <div class="caption">Sonderabschluss</div>
+    </label>
 
-    <button type="button"
-            class="color-swatch js-multi-swatch"
-            data-value="Wandabschlussbogen">
-      <div class="color-swatch__preview">
+    <!-- Wandabschlussbogen -->
+    <label class="image-check small">
+      <input
+        type="checkbox"
+        name="sonstige_innen[]"
+        value="Wandabschlussbogen"
+      />
+      <div class="img-wrap">
         <img src="assets/SonstigeInnen/Wandabschlussbogen.png" alt="Wandabschlussbogen">
       </div>
-      <div class="color-swatch__info">
-        <div class="color-swatch__radio">
-          <div class="color-swatch__radio-inner"></div>
-        </div>
-        <span class="color-swatch__label">Wandabschlussbogen</span>
-      </div>
-    </button>
+      <div class="caption">Wandabschlussbogen</div>
+    </label>
 
-    <button type="button"
-            class="color-swatch js-multi-swatch"
-            data-value="Handlaufhalter">
-      <div class="color-swatch__preview">
+    <!-- Handlaufhalter -->
+    <label class="image-check small">
+      <input
+        type="checkbox"
+        name="sonstige_innen[]"
+        value="Handlaufhalter"
+      />
+      <div class="img-wrap">
         <img src="assets/SonstigeInnen/Handlaufhalter.png" alt="Handlaufhalter">
       </div>
-      <div class="color-swatch__info">
-        <div class="color-swatch__radio">
-          <div class="color-swatch__radio-inner"></div>
-        </div>
-        <span class="color-swatch__label">Handlaufhalter</span>
-      </div>
-    </button>
+      <div class="caption">Handlaufhalter</div>
+    </label>
 
   </div>
 </div>
 
-<script>
-  (function () {
-    const hiddenInput = document.getElementById('sonstige-innen-input');
-    const buttons = document.querySelectorAll('.js-multi-swatch');
+ 
 
-    function updateHiddenInput() {
-      const selected = Array.from(buttons)
-        .filter(btn => btn.classList.contains('is-selected'))
-        .map(btn => btn.dataset.value);
-      hiddenInput.value = selected.join(',');  // or JSON.stringify(selected)
-    }
-
-    buttons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        btn.classList.toggle('is-selected');
-        updateHiddenInput();
-      });
-    });
-  })();
-</script>
 
 <!-- Türanschlag -->
 

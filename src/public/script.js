@@ -6149,4 +6149,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
       })();
 
-  
+   (function () {
+    const hiddenInput = document.getElementById('sonstige-innen-input');
+    const buttons = document.querySelectorAll('.js-multi-swatch');
+
+    function updateHiddenInput() {
+      const selected = Array.from(buttons)
+        .filter(btn => btn.classList.contains('is-selected'))
+        .map(btn => btn.dataset.value);
+      hiddenInput.value = selected.join(',');  // or JSON.stringify(selected)
+    }
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        btn.classList.toggle('is-selected');
+        updateHiddenInput();
+      });
+    });
+  })();

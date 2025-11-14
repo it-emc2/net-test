@@ -892,6 +892,18 @@ label.image-check.is-checked .caption {
   color: var(--accent-strong);
 }
 
+/* Smaller variant for image cards (e.g. Sonstige Innen) */
+.image-check.small {
+  width: min(185px, 100%);   /* or 200px if you prefer */
+  padding: 10px;
+}
+
+.image-check.small .img-wrap {
+  width: 130px;
+  height: 130px;
+  aspect-ratio: auto;        /* so width/height rule dominates */
+  margin-inline: auto;       /* center image in card */
+}
 /* ---------- Subheaders & muted panels ---------- */
 .subheader {
   background: var(--section-bg);
