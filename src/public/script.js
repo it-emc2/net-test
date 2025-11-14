@@ -1146,30 +1146,65 @@ function getCurrentStep() {
   return steps.includes(h) ? h : steps[0];
 }
 function setStep(step) {
-  steps.forEach((s, i) => {
-    const link = nav?.querySelector(`[data-step="${s}"]`);
-    link?.classList.toggle("active", s === step);
-    link?.classList.toggle("done", steps.indexOf(step) > i);
-    if (pages[s]) pages[s].hidden = s !== step;
+  const flowSteps = getFlowSteps();           // pages for the current offer (or all steps if none)
+  const progressIndex = flowSteps.indexOf(step);
 
-    // sync sidebar highlight
-    const sideLink = sideMenu?.querySelector(`.side-link[data-step="${s}"]`);
-    sideLink?.classList.toggle("active", s === step);
-    sideLink?.classList.toggle("done", steps.indexOf(step) > i);
+  // Helper: decide if a given step should be marked as "done"
+  function isDoneInFlow(s) {
+    // On home, nothing is done
+    if (step === "home") return false;
+
+    // Treat "home" as the step before the first page (like before)
+    if (s === "home") {
+      return progressIndex >= 0;
+    }
+
+    const idx = flowSteps.indexOf(s);
+    return progressIndex >= 0 && idx >= 0 && idx < progressIndex;
+  }
+
+  // 1) Show/hide pages (same behavior as before)
+  steps.forEach((s) => {
+    if (pages[s]) {
+      pages[s].hidden = s !== step;
+    }
   });
+
+  // 2) Top navigation ("Weg" oben)
+  steps.forEach((s) => {
+    const link = nav?.querySelector(`[data-step="${s}"]`);
+    if (!link) return;
+
+    const isActive = s === step;
+    const isDone = isDoneInFlow(s);
+
+    link.classList.toggle("active", isActive);
+    link.classList.toggle("done", isDone);
+  });
+
+  // 3) Left sidebar (radio-style)
+  const sideLinks = sideMenu?.querySelectorAll(".side-link");
+  sideLinks?.forEach((sideLink) => {
+    const s = sideLink.dataset.step;
+    const isActive = s === step;
+    const isDone = isDoneInFlow(s);
+
+    sideLink.classList.toggle("active", isActive);
+    sideLink.classList.toggle("done", isDone);
+  });
+
+  // 4) URL + summary + pricing refresh (unchanged)
   location.hash = step;
   updateSummary();
 
-  // ✅ Recompute whenever entering Rabatt or Kosten
-  if (step === 'rabatt' || step === 'kosten') {
+  if (step === "rabatt" || step === "kosten") {
     // small defer to let layout/classes switch
     setTimeout(() => window.updatePricing?.(), 0);
-  }
-    if (step === 'rabatt' || step === 'kosten') {
-   // Do a full panel refresh (pricing + paint), not just pricing
+    // Full panel refresh (pricing + paint)
     setTimeout(() => window.refreshAllPanels?.(), 0);
- }
+  }
 }
+
 // --- CENTRAL WIZARD STATE WIRING (offer type + step) ---
 // Capture the original navigation functions so we can delegate to them
 originalSetStep = setStep;
