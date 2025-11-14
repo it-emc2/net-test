@@ -3570,6 +3570,8 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
   Hinweis: Die Farbe von Tür und Rahmen kann individuell angepasst werden. Jede Farbe wird gleich berechnet.
 </p>
 
+
+
   <!-- Tür-Typ: Standard Tür – Wien with Menge -->
 <div class="full field">
   <label class="req">Wählen Sie Ihren gewünschten Tür-Typen</label>
@@ -3610,7 +3612,112 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
           value="1"
         />
       </div>
+
+      <p class="muted" style="margin: 14px 0 6px">
+Höhe 40 bis 33 cm abschneidbar
+Breite 40,5 cm fix
+Tiefe oben 25 cm
+Tiefe unten 25 cm
+</p>
     </div>
+  </div>
+</div>
+
+<!-- Türanschlag -->
+
+<div class="full field" style="margin-top: 8px">
+  <label>Wählen Sie den Türanschlag</label>
+  <div class="radio-group vertical" role="radiogroup" aria-label="Anschlag der Tür" id="bwtAnschlagGroup">
+    <label class="radio-pill">
+      <input type="radio" name="bwtAnschlag" value="Links" />
+      <span class="circle"></span>
+      <span>Tür-Anschlag links</span>
+    </label>
+
+    <label class="radio-pill">
+      <input type="radio" name="bwtAnschlag" value="Rechts" />
+      <span class="circle"></span>
+      <span>Tür-Anschlag rechts</span>
+    </label>
+  </div>
+</div>
+
+<!-- Hinweis -->
+<p class="muted" style="margin: 14px 0 6px">
+  Hinweis: Zusätzlicher Verschluss 49€ EK-Preis
+grundsätzlich wird automatisch mitkalkuliert
+</p>
+
+<div class="field full">
+  <div class="section-title">Farbe der Tür</div>
+  <p class="section-subtitle">Bitte wählen Sie eine Wunschfarbe aus.</p>
+
+  <div class="color-swatch-group">
+
+      <!-- Pergamon -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="pergamon"
+        aria-label="Pergamon (#FDF5EA)"
+      />
+      <div
+        class="color-swatch__preview"
+        style="background-color: #FDF5EA;"
+      ></div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Pergamon</span>
+        <span class="color-swatch__code">#FDF5EA</span>
+      </div>
+    </label>
+
+    <!-- Manhattan -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="manhattan"
+        aria-label="Manhattan (#D1D0CC)"
+      />
+      <div
+        class="color-swatch__preview"
+        style="background-color: #D1D0CC;"
+      ></div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Manhattan</span>
+        <span class="color-swatch__code">#D1D0CC</span>
+      </div>
+    </label>
+
+    <!-- Bahama Beige -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="bahama_beige"
+        aria-label="Bahama Beige (#D1B7A8)"
+      />
+      <div
+        class="color-swatch__preview"
+        style="background-color: #D1B7A8;"
+      ></div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Bahama Beige</span>
+        <span class="color-swatch__code">#D1B7A8</span>
+      </div>
+    </label>
+
+  
   </div>
 </div>
 
