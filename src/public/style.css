@@ -680,7 +680,7 @@ a.btn {
   margin: 0 0 0.75rem;
 }
 
-/* ---------- Task cards ---------- */
+/* ---------- Task cards (tokenized for light/dark) ---------- */
 .task-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -693,17 +693,30 @@ a.btn {
   align-items: start;
   gap: 0.75rem;
   padding: 0.85rem 0.95rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 0.75rem;
-  background: #fff;
+  background: var(--card);
+  color: var(--card-foreground);
   cursor: pointer;
   user-select: none;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.02s ease;
+  transition:
+    box-shadow 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.02s ease,
+    background-color 0.15s ease;
 }
 
 .task-card:hover {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
-  border-color: #d1d5db;
+  box-shadow: var(--shadow);
+  border-color: var(--input-border);
+  background: var(--card-hover);
+}
+
+.task-card.is-selected,
+.task-card:has(input[type="checkbox"]:checked) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
+  background: var(--card-selected);
 }
 
 .task-card:active {
@@ -714,7 +727,8 @@ a.btn {
   width: 1.1rem;
   height: 1.1rem;
   margin-top: 0.2rem;
-  accent-color: #111827;
+  /* Use accent to align with your theme tokens in both modes */
+  accent-color: var(--accent);
 }
 
 .task-card__body {
@@ -726,10 +740,11 @@ a.btn {
 .task-card__title {
   font-weight: 600;
   line-height: 1.3;
+  color: var(--card-foreground);
 }
 
 .task-card__hint {
-  color: #6b7280;
+  color: var(--muted-foreground);
   font-size: 0.85rem;
   line-height: 1.3;
 }
@@ -943,4 +958,153 @@ label.image-check.is-checked .caption {
   border-color: var(--ring, #2563eb);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
   background: var(--card-selected);
+}
+
+/* ---------- Color swatch cards ---------- */
+.color-swatch-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* einzelne Karte: 185 x 200 px wie gewünscht */
+.color-swatch {
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 10px;
+  width: 185px;
+  height: 200px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--card-foreground);
+  cursor: pointer;
+  position: relative;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.05s ease;
+  box-sizing: border-box;
+}
+
+/* Hover-Effekt wie bei anderen Karten */
+.color-swatch:hover {
+  background: var(--card-hover);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+/* das eigentliche Radio verstecken */
+.color-swatch input[type="radio"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Farbquadrat: 130 x 130 px */
+.color-swatch__preview {
+  width: 130px;
+  height: 130px;
+  margin: 0 auto;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* leichte „Textur“ wie im Screenshot */
+.color-swatch__preview::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image:
+    linear-gradient(135deg, rgba(255,255,255,.18), rgba(255,255,255,0)),
+    linear-gradient(0deg, rgba(0,0,0,.06), rgba(0,0,0,0));
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+/* Beschriftungsbereich unten */
+.color-swatch__info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  font-size: 0.9rem;
+  color: var(--muted-foreground);
+}
+
+/* runder Radio‑Indikator links */
+.color-swatch__radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid var(--input-border);
+  display: grid;
+  place-items: center;
+  background: var(--card);
+  flex-shrink: 0;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.color-swatch__radio-inner {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.color-swatch__label {
+  font-weight: 500;
+  color: var(--card-foreground);
+}
+
+.color-swatch__code {
+  margin-left: auto;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+/* Checked‑State – nutzt deine Accent‑/Ring‑Variablen */
+.color-swatch:has(input[type="radio"]:checked) {
+  border-color: var(--accent);
+  background: var(--card-selected);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.color-swatch:has(input[type="radio"]:checked) .color-swatch__radio {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.color-swatch:has(input[type="radio"]:checked) .color-swatch__radio-inner {
+  background: var(--accent);
+}
+
+.color-swatch:has(input[type="radio"]:checked) .color-swatch__label {
+  color: var(--accent-strong);
+}
+
+/* Responsive: auf kleinen Screens Karten untereinander */
+@media (max-width: 600px) {
+  .color-swatch-group {
+    gap: 10px;
+  }
+
+  .color-swatch {
+    width: 48%;
+    min-width: 170px;
+  }
+}
+
+@media (max-width: 420px) {
+  .color-swatch {
+    width: 100%;
+    max-width: 260px;
+  }
 }

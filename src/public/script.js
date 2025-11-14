@@ -16,11 +16,11 @@ const OFFERS = {
   },
   bwt: {
     name: "BWT · Badewannentür",
-    pages: ["Kundendaten", "zusammenfassung", "kosten"],
+    pages: ["Kundendaten", "bwt", "zusammenfassung", "kosten" ],
   },
   hl: {
     name: "HL · Handlauf",
-    pages: ["Kundendaten", "zusammenfassung", "kosten"],
+    pages: ["Kundendaten", "hl", "zusammenfassung", "kosten" ],
   },
 };
 
@@ -1273,7 +1273,7 @@ function collectDuschabtrennungQuickAdd(doc) {
         const productId = (idEl?.value ?? '').trim();
         qa.push({
           kind,
-           label: canonicalLabel,
+           label: productId,
           qty,
           price: priceRaw,
           productId
