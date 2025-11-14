@@ -1011,6 +1011,8 @@ function resetAllForms() {
     "form-duschabtrennung",
     "form-optional",
     "form-rabatt",
+    "form-bwt",
+    "form-hl",
   ];
 
   // 1) Reset all forms back to their HTML defaults
@@ -1365,6 +1367,8 @@ function filterPayloadByOffer(payload) {
     duschabtrennung: "duschabtrennung",
     optional: "optional",
     rabatt: "rabatt",
+    bwt : "bwt",
+    hl : "hl"
   };
 
   Object.entries(pageToKey).forEach(([page, key]) => {
@@ -1390,6 +1394,8 @@ function buildPayload() {
     duschabtrennung: formToObject(document.getElementById("form-duschabtrennung")),
     optional: formToObject(document.getElementById("form-optional")),
     rabatt: formToObject(document.getElementById("form-rabatt")),
+    bwt : formToObject(document.getElementById("form-bwt")),
+    hl: formToObject(document.getElementById("form-hl")),
   };
 
   collectWandverkleidungMaterials(payload);
