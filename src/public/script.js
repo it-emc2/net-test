@@ -24,6 +24,244 @@ const OFFERS = {
   },
 };
 
+// === Central state for current offer + step (small helper) ===
+const STATE_KEY = "konfigurator_state_v1";
+
+function saveWizardState(offerType, step) {
+  try {
+    sessionStorage.setItem(
+      STATE_KEY,
+      JSON.stringify({ offerType: offerType || null, step: step || null })
+    );
+  } catch {}
+}
+
+function loadWizardState() {
+  try {
+    const raw = sessionStorage.getItem(STATE_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (!s || typeof s !== "object") return null;
+    return { offerType: s.offerType || null, step: s.step || null };
+  } catch {
+    return null;
+  }
+}
+
+function clearWizardState() {
+  try {
+    sessionStorage.removeItem(STATE_KEY);
+  } catch {}
+}
+
+// helper to get allowed pages for an offer type from OFFERS config
+// helper to get allowed pages for an offer type from OFFERS config
+function getPagesForOfferType(offerType) {
+  const cfg = OFFERS && OFFERS[offerType];
+  if (!cfg || !Array.isArray(cfg.pages)) return [];
+  return cfg.pages.map(p => (typeof p === "string" ? p : p.id));
+}
+
+const HOME_HASH = "#home";
+let originalSetStep = null;
+let originalGetCurrentStep = null;
+let isApplyingState = false;
+
+// Normalize a step so it is always valid for a given offer type
+function normalizeStepForOffer(step, offerType) {
+  const pages = getPagesForOfferType(offerType);
+  if (!pages.length) return null;
+  if (step && pages.includes(step)) return step;
+  return pages[0];
+}
+
+// Apply a full wizard state (offerType + step) to the UI and persist it.
+// This always:
+//   - keeps currentOfferKey in sync
+//   - redraws the sidebar via updateSidebarForOffer()
+//   - navigates using the original setStep implementation
+function applyWizardState(state) {
+  if (!state || !state.offerType) return;
+
+  const pages = getPagesForOfferType(state.offerType);
+  if (!pages.length) return;
+
+  const normalizedStep = normalizeStepForOffer(state.step, state.offerType);
+  state.step = normalizedStep;
+
+  // Persist to sessionStorage
+  saveWizardState(state.offerType, normalizedStep);
+
+  // Keep existing logic working
+  currentOfferKey = state.offerType;
+  if (typeof updateSidebarForOffer === "function") {
+    updateSidebarForOffer();
+  }
+
+  if (!originalSetStep) return;
+
+  isApplyingState = true;
+  try {
+    if (normalizedStep) {
+      originalSetStep(normalizedStep);
+    } else {
+      originalSetStep("home");
+    }
+  } finally {
+    isApplyingState = false;
+  }
+}
+
+// Wrapper that is used everywhere instead of the raw setStep.
+// It NEVER changes the offer type, only the step inside the current offer.
+function setStepWithState(step) {
+  // Explicit "back to start"
+  if (step === "home") {
+    goHomeWithoutOffer();
+    return;
+  }
+
+  const state = loadWizardState() || {};
+
+  // If we don't yet know an offer type, behave like the old logic
+  if (!state.offerType) {
+    if (originalSetStep) {
+      originalSetStep(step);
+    }
+    return;
+  }
+
+  const pages = getPagesForOfferType(state.offerType);
+  if (!pages.length) {
+    if (originalSetStep) {
+      originalSetStep(step);
+    }
+    return;
+  }
+
+  const validStep = normalizeStepForOffer(step, state.offerType);
+  const nextState = {
+    offerType: state.offerType,
+    step: validStep,
+  };
+
+  applyWizardState(nextState);
+}
+
+// Wrapper for getCurrentStep that prefers the stored state,
+// but falls back to the original hash-based behavior if there is none.
+function getCurrentStepFromState() {
+  const state = loadWizardState();
+  if (state && state.step) return state.step;
+  if (originalGetCurrentStep) {
+    return originalGetCurrentStep();
+  }
+  return "home";
+}
+
+// Completely reset wizard state and go to the home screen.
+// This is used when the user types "/#home" or "/" or explicitly navigates home.
+function goHomeWithoutOffer() {
+  clearWizardState();
+  currentOfferKey = null;
+
+  if (typeof updateSidebarForOffer === "function") {
+    updateSidebarForOffer();
+  }
+
+  if (originalSetStep) {
+    originalSetStep("home");
+  }
+
+  // Normalize the URL to "#home"
+  if (location.hash !== HOME_HASH) {
+    try {
+      history.replaceState(null, "", HOME_HASH);
+    } catch {
+      location.hash = "home";
+    }
+  }
+}
+
+// Initial load: restore from sessionStorage + URL hash.
+// - If URL is "/" or "/#home" → real home, no active offer.
+// - If there is saved offerType + step → restore that wizard.
+// - Any other weird hash without a saved offer → normalize to home.
+function handleBoot() {
+  const state = loadWizardState();
+  const hash = (location.hash || "").replace("#", "");
+  const hasOffer = !!(state && state.offerType);
+  const manualAllowed = ["", "home"];
+
+  if (manualAllowed.includes(hash)) {
+    // Always interpret bare "/" or "/#home" as a clean home screen
+    goHomeWithoutOffer();
+    return;
+  }
+
+  if (hasOffer) {
+    const pages = getPagesForOfferType(state.offerType);
+    let step = state.step;
+
+    // If hash is a valid step for this offer, respect it (reload deep-link)
+    if (hash && pages.includes(hash)) {
+      step = hash;
+    }
+
+    applyWizardState({
+      offerType: state.offerType,
+      step,
+    });
+    return;
+  }
+
+  // No saved offer type and a non-home hash → normalize back to home
+  goHomeWithoutOffer();
+}
+
+// Hash change: only allow home ("/#home") or valid pages for the current offer.
+// Everything else is normalized back to the stored state or home.
+function handleHashChange() {
+  if (isApplyingState) {
+    // This event was triggered by applyWizardState -> ignore
+    return;
+  }
+
+  const state = loadWizardState();
+  const hash = (location.hash || "").replace("#", "");
+  const hasOffer = !!(state && state.offerType);
+  const manualAllowed = ["", "home"];
+
+  // Typing "/#home" or clearing the hash -> always go to a fresh home
+  if (manualAllowed.includes(hash)) {
+    goHomeWithoutOffer();
+    return;
+  }
+
+  // Any non-home hash without an active offer is invalid.
+  if (!hasOffer) {
+    goHomeWithoutOffer();
+    return;
+  }
+
+  const pages = getPagesForOfferType(state.offerType);
+  if (!pages.length) {
+    goHomeWithoutOffer();
+    return;
+  }
+
+  // If hash is not one of the allowed pages for the current offer, revert to stored step
+  if (!pages.includes(hash)) {
+    applyWizardState(state);
+    return;
+  }
+
+  // Valid step for the active offer => treat as navigation
+  applyWizardState({
+    offerType: state.offerType,
+    step: hash,
+  });
+}
 
 // --- GLOBAL: tolerant EUR money parser used across the Hassmann page ---
 // Accepts "1.099,50", "1099.50", "€ 1 099,50", "12,2", "12.2" -> Number in euros
@@ -816,13 +1054,17 @@ function startOfferFlow(offerKey) {
   // Fresh start for this offer: clear all forms back to their HTML defaults
   resetAllForms();
 
-  currentOfferKey = offerKey;
-  updateSidebarForOffer();
+  const pages = getPagesForOfferType(offerKey);
+  if (!pages.length) return;
 
-  const flow = getFlowSteps();
-  const first = flow[0];
-  if (first) setStep(first);
+  const first = pages[0] || null;
+
+  applyWizardState({
+    offerType: offerKey,
+    step: first,
+  });
 }
+
 
 
 
@@ -855,6 +1097,20 @@ function setStep(step) {
     setTimeout(() => window.refreshAllPanels?.(), 0);
  }
 }
+// --- CENTRAL WIZARD STATE WIRING (offer type + step) ---
+// Capture the original navigation functions so we can delegate to them
+originalSetStep = setStep;
+originalGetCurrentStep = getCurrentStep;
+
+// Replace them with the state-aware wrappers
+setStep = window.setStep = setStepWithState;
+getCurrentStep = window.getCurrentStep = getCurrentStepFromState;
+
+// Small helper so other code can ask which offer is active
+window.getCurrentOfferType = function () {
+  const s = loadWizardState();
+  return s ? s.offerType : null;
+};
 
 nav?.addEventListener("click", (e) => {
   const a = e.target.closest("a.step");
@@ -862,8 +1118,12 @@ nav?.addEventListener("click", (e) => {
   e.preventDefault();
   setStep(a.dataset.step);
 });
-setStep(getCurrentStep());
-window.addEventListener("hashchange", () => setStep(getCurrentStep()));
+// Initial boot: restore offer type + step + sidebar
+handleBoot();
+
+// React to manual URL changes / back-forward strictly
+window.addEventListener("hashchange", handleHashChange);
+
 
 /* ========== PAYLOAD / SUMMARY / STATUS ========== */
 function formToObject(form) {
