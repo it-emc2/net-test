@@ -5724,13 +5724,6 @@ function initBasinAutoAccessories() {
     { cb: byId('wvV3VSelected'), qty: byId('wvV3VQty'), kind: 'V3V' },
   ].filter(p => p.cb && p.qty);
 
-  // Try to read an integer suggestion from #wvAdhesiveSuggestion text, else null
-  function readAdhesiveSuggestion() {
-    const el = byId('wvAdhesiveSuggestion');
-    if (!el) return null;
-    const m = (el.textContent || '').match(/\d+/);
-    return m ? parseInt(m[0], 10) : null;
-  }
 
   // When a checkbox is toggled
   function onCheckboxChange(p) {
@@ -5739,10 +5732,7 @@ function initBasinAutoAccessories() {
       if (current === 0) {
         // Use fallback for adhesive if visible, otherwise min 1
         let v = 1;
-        if (p.kind === 'ADH') {
-          const sug = readAdhesiveSuggestion();
-          if (Number.isInteger(sug) && sug > 0) v = sug;
-        }
+        
         p.qty.value = v;
         // propagate to any existing listeners
         p.qty.dispatchEvent(new Event('input', { bubbles: true }));
@@ -5795,10 +5785,7 @@ function initBasinAutoAccessories() {
     if (p.cb.checked && current === 0) {
       // If something marked it selected but left qty empty, set minimum
       let v = 1;
-      if (p.kind === 'ADH') {
-        const sug = readAdhesiveSuggestion();
-        if (Number.isInteger(sug) && sug > 0) v = sug;
-      }
+     
       p.qty.value = v;
     }
 

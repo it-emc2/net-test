@@ -1978,41 +1978,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
     <section aria-labelledby="da-quickadd-title" class="da-quickadd">
 
       
-<fieldset class="da-row" id="hass-custom" data-kind="custom"
-          data-template="da-item-template-custom" aria-describedby="custom-help">
-  <legend class="da-legend">
-    Freier Posten
-    <button type="button" class="da-add" aria-label="Weitere Position hinzufügen">+</button>
-  </legend>
 
-  <div class="da-items">
-    <div class="da-item" data-kind="custom">
-      <div class="da-grid-4">
-        <label class="da-label">
-          Bezeichnung
-          <input class="da-name" type="text" placeholder="z. B. Sonderanfertigung Glas" />
-        </label>
-        <label class="da-label">
-          Preis
-          <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 799,00" />
-        </label>
-        <label class="da-label">
-          Menge
-          <input class="da-qty" type="number" inputmode="numeric" min="1" step="1" />
-        </label>
-        <label class="da-label">
-          ID
-          <input class="da-id" type="text" placeholder="z. B. HASS-CUS-001" />
-        </label>
-      </div>
-      <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
-    </div>
-  </div>
-
-  <small id="custom-help" class="da-help">
-    Freier Posten mit eigener Bezeichnung. Preis kann Komma oder Punkt als Dezimaltrenner enthalten.
-  </small>
-</fieldset>
 
 
       <!-- Pendeltür -->
@@ -2162,7 +2128,41 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 
     
       </fieldset>
+<fieldset class="da-row" id="hass-custom" data-kind="custom"
+          data-template="da-item-template-custom" aria-describedby="custom-help">
+  <legend class="da-legend">
+    Freier Posten
+    <button type="button" class="da-add" aria-label="Weitere Position hinzufügen">+</button>
+  </legend>
 
+  <div class="da-items">
+    <div class="da-item" data-kind="custom">
+      <div class="da-grid-4">
+        <label class="da-label">
+          Bezeichnung
+          <input class="da-name" type="text" placeholder="z. B. Sonderanfertigung Glas" />
+        </label>
+        <label class="da-label">
+          Preis
+          <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 799,00" />
+        </label>
+        <label class="da-label">
+          Menge
+          <input class="da-qty" type="number" inputmode="numeric" min="1" step="1" />
+        </label>
+        <label class="da-label">
+          ID
+          <input class="da-id" type="text" placeholder="z. B. HASS-CUS-001" />
+        </label>
+      </div>
+      <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+    </div>
+  </div>
+
+  <small id="custom-help" class="da-help">
+    Freier Posten mit eigener Bezeichnung. Preis kann Komma oder Punkt als Dezimaltrenner enthalten.
+  </small>
+</fieldset>
       <!-- Shared row template  for turen in Hassmann (used by JS to add rows) -->
       <template id="da-item-template">
         <div class="da-item">
