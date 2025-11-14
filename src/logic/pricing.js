@@ -353,7 +353,7 @@ if (userRaw !== undefined && userRaw !== null && String(userRaw).trim() !== '') 
     // if user did not enter a valid value, fall back to Abschlussprofil qty
     qSilikon = qtyAbschlussprofil;
   }
-  if (qSilikon > 0) add('CARESMH', qSilikon);
+  if (qSilikon > 0) add('CARESSW', qSilikon);
   }
 
   // ------- OPTIONALS as material lines (tagged so UI can filter them out of Material/Debug)

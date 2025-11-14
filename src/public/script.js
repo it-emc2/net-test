@@ -1013,13 +1013,36 @@ function resetAllForms() {
     "form-rabatt",
   ];
 
+  // 1) Reset all forms back to their HTML defaults
   formIds.forEach((id) => {
     const form = document.getElementById(id);
     if (form && typeof form.reset === "function") {
       form.reset();
     }
   });
+
+  // 2) Re-apply selection/quantity logic for ALL toggles
+  //    (WV sync, wireTileQty, highlighting, etc.) in one pass.
+  try {
+    window.__restoring = true;
+    window.__RESTORING__ = true;
+  } catch (e) {}
+
+  const toggles = document.querySelectorAll('input[type="checkbox"], input[type="radio"]');
+  toggles.forEach((el) => {
+    // Trigger all existing "change" handlers once with the new default state
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+
+  try {
+    window.__restoring = false;
+    window.__RESTORING__ = false;
+  } catch (e) {}
+
+  // 3) One clean pricing refresh after reset (if pricing exists)
+  window.updatePricing?.();
 }
+
 
 
 // Effective list of steps used for prev/next navigation
@@ -4224,7 +4247,7 @@ const WV_DEFAULT_PIDS = ['TRWDSET5','V4FK600','V3A','V4RPKIT'];
  setByProductId('TRWDSET5',  chosenHas('TRWDSET5')); // TRINNITY Wandabdichtung
  setByProductId('V4FK600',    chosenHas('V4FK600'));   // Flächenkleber (Wandverkleidung)
  setByProductId('V3A',       chosenHas('V3A'));      // Abschlussprofil
- setByProductId('CARESMH',   chosenHas('CARESMH'));  // Silikon
+ setByProductId('CARESSW',   chosenHas('CARESSW'));  // Silikon
  window.__RESTORING__ = prev;
 
   // Selects/radios for accessories
@@ -5735,8 +5758,17 @@ function initBasinAutoAccessories() {
   }
 
   // When quantity changes, reflect on the checkbox (reflexive)
-  function onQtyChange(p) {
-    const v = +p.qty.value || 0;
+   function onQtyChange(p) {
+    let v = +p.qty.value || 0;
+
+    // When we are restoring after a full resetAllForms(),
+    // do NOT allow a checked item to end up with qty 0.
+    // Enforce minimum qty = 1 in that special case.
+    if (window.__restoring && v <= 0 && p.cb && p.cb.checked) {
+      v = 1;
+      p.qty.value = v;
+    }
+
     if (v <= 0) {
       if (p.cb.checked) {
         p.cb.checked = false;
@@ -5749,6 +5781,7 @@ function initBasinAutoAccessories() {
       }
     }
   }
+
 
   // Wire listeners and perform initial sync
   pairs.forEach((p) => {
