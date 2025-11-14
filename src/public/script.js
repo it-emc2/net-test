@@ -1031,21 +1031,69 @@ function getFlowSteps() {
 }
 
 // Show only the pages for the active offer in the sidebar
+// Refresh sidebar based on current state (offerType + step)
 function updateSidebarForOffer() {
   if (!sideMenu) return;
-  const flow = getFlowSteps();
-  const allowed = new Set(flow);
 
-  // If you later want Home in the sidebar, keep this:
-  allowed.add("home");
+  // Read current state (what we already use for routing)
+  const state = loadWizardState();
+  const activeOffer = state && state.offerType;
+  const activeStep = state && state.step;
 
-  sideMenu.querySelectorAll(".side-link").forEach((link) => {
-    const step = link.getAttribute("data-step");
-    if (!step) return;
-    const visible = allowed.has(step);
-    link.style.display = visible ? "" : "none";
+  // Clear existing sidebar items
+  sideMenu.innerHTML = "";
+
+  // Helper to create a <a class="side-link"> with the same structure as before
+  function makeLink(stepId, label) {
+    const a = document.createElement("a");
+    a.className = "side-link";
+    a.href = `#${stepId}`;
+    a.dataset.step = stepId;
+
+    const dot = document.createElement("div");
+    dot.className = "dot";
+
+    const span = document.createElement("span");
+    span.textContent = label;
+
+    a.appendChild(dot);
+    a.appendChild(span);
+
+    return a;
+  }
+
+  // --- Always render "Home" as first item ---
+  const homeNav = nav?.querySelector('a.step[data-step="home"]');
+  const homeLabel = homeNav ? homeNav.textContent.trim() : "Home";
+  sideMenu.appendChild(makeLink("home", homeLabel));
+
+  // If no offer is selected, we stop here → only Home is shown.
+  if (!activeOffer) {
+    return;
+  }
+
+  // --- Render only the pages that belong to the active offer ---
+  const pages = getPagesForOfferType(activeOffer);
+
+  pages.forEach((pageId) => {
+    // We already added "home" explicitly above
+    if (pageId === "home") return;
+
+    // Reuse the label from the top nav if possible, otherwise fallback to the id
+    const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
+    const label = navLink ? navLink.textContent.trim() : pageId;
+    sideMenu.appendChild(makeLink(pageId, label));
   });
+
+  // NOTE:
+  // We do NOT set "active" / "done" classes here.
+  // originalSetStep (called via applyWizardState / setStepWithState)
+  // will take care of toggling .active / .done on both nav and sidebar,
+  // exactly as before.
 }
+
+
+
 
 // Start a flow for a given offer and jump to its first page
 function startOfferFlow(offerKey) {
