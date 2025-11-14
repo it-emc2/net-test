@@ -3451,6 +3451,8 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
        <!-- bwt -->
      <section class="card page" id="page-bwt" hidden>
 
+      
+
 <h2 style="margin: 0 0 12px">Badewanne — Bestandsaufnahme</h2>
 
 <form id="form-bwt">
@@ -3782,6 +3784,298 @@ grundsätzlich wird automatisch mitkalkuliert
 
 </section>
 
+<!-- hl -->
+     <section class="card page" id="page-hl" hidden>
+
+      
+
+<h2 style="margin: 0 0 12px"> Handläufe — Handlaufsystem</h2>
+
+<form id="form-hl">
+
+<!-- Wannenform -->
+
+<div class="full field">
+
+<label class="req">Brauchen Sie Handläufe für den Innenbereich oder für den Außenbereich?</label>
+
+
+  <div style="display:flex; gap:14px; flex-wrap:wrap">
+    <!-- inside -->
+    <label class="image-check" style="min-width:220px">
+      <input
+        type="radio"
+        name="hlinstallationarea"
+        value="inside"
+        required
+      />
+      <span class="img-wrap">
+        <img src="./assets/Innenbereich.png" alt="Innenbereich" />
+      </span>
+      <span class="caption">Innenbereich</span>
+    </label>
+
+    <!-- outside -->
+    <label class="image-check" style="min-width:220px">
+      <input
+        type="radio"
+        name="hlinstallationarea"
+        value="outside"
+        required
+      />
+      <span class="img-wrap">
+        <img src="./assets/Außenbereich.png" alt="Außenbereich" />
+      </span>
+      <span class="caption">Außenbereich</span>
+    </label>
+
+  
+  </div>
+</div>
+
+<!--  
+<div class="task-cards">
+<label class="task-card">
+      <input type="checkbox" name="bwt[bwtinfoTasks][]" value="flat_surface" checked/>
+      <span class="task-card__body">
+        <span class="task-card__title">Fläche ist gerade und eben im Bereich der BWT</span>
+      </span>
+    </label>
+    <label class="task-card">
+      <input type="checkbox" name="bwt[bwtinfoTasks][]" value="fixture_free" checked/>
+      <span class="task-card__body">
+        <span class="task-card__title">Fläche ist frei von Armaturen</span>
+      </span>
+    </label>
+    <label class="task-card">
+      <input type="checkbox" name="bwt[bwtinfoTasks][]" value="not_whirlpool" checked/>
+      <span class="task-card__body">
+        <span class="task-card__title">Ist kein Whirlpool</span>
+      </span>
+    </label>
+</div>
+
+
+<div class="full field" style="margin-top: 8px">
+  <label>Wählen Sie das Material, aus dem Ihre Wanne besteht</label>
+  <div class="radio-group vertical" role="radiogroup" aria-label="Material der Wanne" id="bwtMaterialGroup">
+    <label class="radio-pill">
+      <input type="radio" name="bwtMaterial" value="Acryl" />
+      <span class="circle"></span>
+      <span>Acryl</span>
+    </label>
+
+    <label class="radio-pill">
+      <input type="radio" name="bwtMaterial" value="Stahl emailliert" />
+      <span class="circle"></span>
+      <span>Stahl emailliert</span>
+    </label>
+
+    <label class="radio-pill">
+      <input type="radio" name="bwtMaterial" value="Gusseisen" />
+      <span class="circle"></span>
+      <span>Gusseisen</span>
+    </label>
+
+    <label class="radio-pill">
+      <input type="radio" name="bwtMaterial" value="Weiß ich nicht" />
+      <span class="circle"></span>
+      <span>Weiß ich nicht</span>
+    </label>
+  </div>
+</div>
+
+
+<p class="muted" style="margin: 14px 0 6px">
+  Hinweis: Die Farbe von Tür und Rahmen kann individuell angepasst werden. Jede Farbe wird gleich berechnet.
+</p> -->
+
+
+
+  <!-- Tür-Typ: Standard Tür – Wien with Menge -->
+<div class="full field">
+  <label class="req">Wählen Sie Ihren gewünschten Tür-Typen</label>
+
+  <div style="display:flex; gap:14px; flex-wrap:wrap">
+    <!-- Card wrapper to host checkbox + qty -->
+    <div class="field" style="min-width:220px">
+      <label class="image-check">
+        <input
+          type="checkbox"
+          id="bwtDoorStd"
+          name="bwtDoorType"
+          value="Standard Tür – Wien"
+          data-product-id="BWT-DOOR-STD"
+        />
+        <span class="img-wrap">
+          <img src="./assets/Massivholz.png" alt="Massivholz" />
+        </span>
+        <span class="caption">Massivholz</span>
+      </label>
+
+      
+
+      <p class="muted" style="margin: 14px 0 6px">
+Höhe 40 bis 33 cm abschneidbar
+Breite 40,5 cm fix
+Tiefe oben 25 cm
+Tiefe unten 25 cm
+</p>
+    </div>
+  </div>
+</div>
+
+<!-- Türanschlag -->
+
+<div class="full field" style="margin-top: 8px">
+  <label>Wählen Sie den Türanschlag</label>
+  <div class="radio-group vertical" role="radiogroup" aria-label="Anschlag der Tür" id="bwtAnschlagGroup">
+    <label class="radio-pill">
+      <input type="radio" name="bwtAnschlag" value="Links" />
+      <span class="circle"></span>
+      <span>Tür-Anschlag links</span>
+    </label>
+
+    <label class="radio-pill">
+      <input type="radio" name="bwtAnschlag" value="Rechts" />
+      <span class="circle"></span>
+      <span>Tür-Anschlag rechts</span>
+    </label>
+  </div>
+</div>
+
+<!-- Hinweis -->
+<p class="muted" style="margin: 14px 0 6px">
+  Hinweis: Zusätzlicher Verschluss 49€ EK-Preis
+grundsätzlich wird automatisch mitkalkuliert
+</p>
+
+<div class="field full">
+  <div class="section-title">Farbe der Tür</div>
+  <p class="section-subtitle">Bitte wählen Sie eine Wunschfarbe aus.</p>
+
+  <div class="color-swatch-group">
+
+      <!-- Pergamon -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="pergamon"
+        aria-label="Pergamon (#FDF5EA)"
+      />
+      <div
+        class="color-swatch__preview"
+        style="background-color: #FDF5EA;"
+      ></div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Pergamon</span>
+        <span class="color-swatch__code">#FDF5EA</span>
+      </div>
+    </label>
+
+    <!-- Manhattan -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="manhattan"
+        aria-label="Manhattan (#D1D0CC)"
+      />
+      <div
+        class="color-swatch__preview"
+        style="background-color: #D1D0CC;"
+      ></div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Manhattan</span>
+        <span class="color-swatch__code">#D1D0CC</span>
+      </div>
+    </label>
+
+    <!-- Bahama Beige -->
+    <label class="color-swatch">
+      <input
+        type="radio"
+        name="tray_color"
+        value="bahama_beige"
+        aria-label="Bahama Beige (#D1B7A8)"
+      />
+      <div
+        class="color-swatch__preview"
+        style="background-color: #D1B7A8;"
+      ></div>
+      <div class="color-swatch__info">
+        <div class="color-swatch__radio">
+          <div class="color-swatch__radio-inner"></div>
+        </div>
+        <span class="color-swatch__label">Bahama Beige</span>
+        <span class="color-swatch__code">#D1B7A8</span>
+      </div>
+    </label>
+
+  
+  </div>
+</div>
+
+<!-- Einstiegshilfen: only Haltegriff -->
+<div class="full field">
+  <label class="req">Wählen Sie Ihre zusätzlichen Einstiegshilfen</label>
+
+  <div style="display:flex; gap:14px; flex-wrap:wrap">
+    <!-- Haltegriff -->
+    <div class="field" style="min-width:220px">
+      <label class="image-check">
+        <input
+          type="checkbox"
+          id="bwtAidsHaltegriff"
+          name="bwtAids[]"
+          value="Haltegriff"
+        />
+        <span class="img-wrap">
+          <img src="./assets/haltegriff.jpg" alt="Haltegriff" />
+        </span>
+        <span class="caption">Haltegriff</span>
+      </label>
+
+      <!-- Menge (shown always) -->
+      <div
+        id="bwtAidsHaltegriffQtyWrap"
+        class="field"
+        aria-hidden="false"
+        style="max-width:260px; margin-top:10px"
+      >
+        <label for="bwtAidsHaltegriffQty" class="req">Menge Haltegriff</label>
+        <input
+          id="bwtAidsHaltegriffQty"
+          name="bwtAidsHaltegriffQty"
+          type="number"
+          min="1"
+          step="1"
+          placeholder="1"
+          inputmode="numeric"
+          value="1"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="actions full" style="margin-top:16px">
+  <button type="button" data-nav="prev" class="secondary">Zurück</button>
+  <button type="button" data-nav="next">Weiter</button>
+</div>
+
+
+
+</form>
+
+</section>
       <!-- Pricing Playground -->
 <section class="card page" id="page-playground" hidden>
   <h2 style="margin:0 0 12px;">Pricing Playground</h2>
