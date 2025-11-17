@@ -387,7 +387,7 @@ if (userRaw !== undefined && userRaw !== null && String(userRaw).trim() !== '') 
     const doorQty = Number(bwt?.bwtDoorStdQty || 0) || 0;
     if (doorQty > 0) {
       add(
-        'TODO_BWT_DOOR_STD',   // TODO: replace with real productId from DB
+        'Universal / Standard Tür',   // TODO: replace with real productId from DB
         doorQty,
         null,                  // use DB name as label
         null,                  // use DB price as unit
@@ -399,7 +399,7 @@ if (userRaw !== undefined && userRaw !== null && String(userRaw).trim() !== '') 
     const aidsHgQty = Number(bwt?.bwtAidsHaltegriffQty || 0) || 0;
     if (aidsHgQty > 0) {
       add(
-        'TODO_BWT_AID_GRAB',   // TODO: replace with real productId
+        'Haltegriff',   // TODO: replace with real productId
         aidsHgQty,
         null,
         null,
