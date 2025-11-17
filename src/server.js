@@ -40,7 +40,16 @@ api.post('/products/bulk', async (req, res) => {
     const ops = items.map(p => ({
       updateOne: {
         filter: { productId: p.productId },
-        update: { $set: { name: p.name, price: Number(p.price || 0) } },
+        update: {
+  $set: {
+    name:   p.name,
+    price:  Number(p.price || 0),
+    widthCm:  p.widthCm  ?? null,
+    lengthCm: p.lengthCm ?? null,
+    heightCm: p.heightCm ?? null,
+    source:   p.source   ?? null,   // <‑‑ allow setting source
+  },
+},
         upsert: true
       }
     }));
