@@ -9,7 +9,8 @@ const productSchema = new mongoose.Schema(
     // Optional dimensions (in centimeters)
     widthCm:  { type: Number, min: 0, default: null },
     heightCm: { type: Number, min: 0, default: null },
-    lengthCm: { type: Number, min: 0, default: null }
+    lengthCm: { type: Number, min: 0, default: null },
+        source:    { type: String, default: null },
   },
   { timestamps: true, collection: 'Products' }
 );

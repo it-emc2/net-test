@@ -11,7 +11,8 @@ const OFFERS = {
       "optional",
       "rabatt",
       "zusammenfassung",
-      "kosten"
+      "kosten",
+      "admin"
       ,
     ],
   },
@@ -1022,7 +1023,7 @@ const ALL_PAGES = Array.from(
 );
 
 // "steps" is just the union of all pages across all offers plus "home"
-const steps = ["home", ...ALL_PAGES];
+const steps = ["home", ...ALL_PAGES, "admin" ];
 
 const pages = Object.fromEntries(
   steps.map((s) => [s, document.getElementById("page-" + s)])
@@ -1045,6 +1046,7 @@ function resetAllForms() {
     "form-rabatt",
     "form-bwt",
     "form-hl",
+    "form-admin"
   ];
 
   // 1) Reset all forms back to their HTML defaults
@@ -1132,6 +1134,8 @@ function updateSidebarForOffer() {
   // --- Render only the pages that belong to the active offer ---
   const pages = getPagesForOfferType(activeOffer);
 
+  
+
   pages.forEach((pageId) => {
     // We already added "home" explicitly above
     if (pageId === "home") return;
@@ -1140,7 +1144,10 @@ function updateSidebarForOffer() {
     const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
     const label = navLink ? navLink.textContent.trim() : pageId;
     sideMenu.appendChild(makeLink(pageId, label));
+    
   });
+
+  
 
   // NOTE:
   // We do NOT set "active" / "done" classes here.
@@ -1436,7 +1443,8 @@ function filterPayloadByOffer(payload) {
     optional: "optional",
     rabatt: "rabatt",
     bwt : "bwt",
-    hl : "hl"
+    hl : "hl",
+    admin : "admin"
   };
 
   Object.entries(pageToKey).forEach(([page, key]) => {
@@ -6192,6 +6200,213 @@ function initLivePricingSync() {
   // Initial run
   repriceNow();
 }
+
+/* ========== ADMIN: Produkte & Leistungen ========== */
+(function initAdminProducts() {
+  const page = document.getElementById('page-admin');
+  if (!page) return;
+
+  const form   = document.getElementById('form-admin-product');
+  const status = document.getElementById('ap_status');
+  const tblBody= document.getElementById('ap_tableBody');
+  const search = document.getElementById('ap_search');
+
+  const idEl   = document.getElementById('ap_productId');
+  const nameEl = document.getElementById('ap_name');
+  const priceEl= document.getElementById('ap_price');
+  const wEl    = document.getElementById('ap_width');
+  const lEl    = document.getElementById('ap_length');
+  const hEl    = document.getElementById('ap_height');
+  const sourceEl = document.getElementById('ap_source');
+  const resetBtn = document.getElementById('ap_reset');
+
+  if (!form || !status || !tblBody || !idEl || !nameEl || !priceEl) return;
+
+  const euroFmt = (n) =>
+    (Number(n) || 0).toLocaleString("de-DE", {
+      style: "currency",
+      currency: "EUR",
+    });
+
+  function setStatus(msg, ok = true) {
+    status.className = "status " + (ok ? "ok" : "err");
+    status.textContent = msg;
+  }
+
+  function clearForm() {
+    form.reset();
+    setStatus("Bereit.", true);
+  }
+
+  resetBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    clearForm();
+  });
+
+  // ---- Laden und anzeigen ----
+  async function loadProducts(q = "") {
+    try {
+      setStatus("Lade Produkte …", true);
+      const url = q ? `/api/products?q=${encodeURIComponent(q)}` : '/api/products';
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const list = await res.json();
+
+      if (!Array.isArray(list) || !list.length) {
+        tblBody.innerHTML = `<tr><td colspan="5" style="padding:4px;">Keine Produkte gefunden.</td></tr>`;
+        setStatus("Keine Produkte gefunden.", true);
+        return;
+      }
+
+      tblBody.innerHTML = list.map(p => {
+        const dim = [
+          p.widthCm != null ? p.widthCm : "",
+          p.lengthCm != null ? p.lengthCm : "",
+          p.heightCm != null ? p.heightCm : "",
+        ].filter(v => v !== "").join(" / ");
+
+        const priceStr = euroFmt(p.price ?? 0);
+  const sourceStr = (p.source || '').toString();
+        return `
+          <tr data-id="${p.productId}">
+            <td style="padding:4px;">${p.productId}</td>
+            <td style="padding:4px;">${p.name || ""}</td>
+            <td style="padding:4px; text-align:right;">${priceStr}</td>
+            <td style="padding:4px; text-align:center;">${dim}</td>
+                  <td style="padding:4px;">${sourceStr}</td>
+            <td style="padding:4px; text-align:right;">
+              <button type="button" class="secondary ap-edit-btn">Bearbeiten</button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      setStatus(`${list.length} Produkt(e) geladen.`, true);
+    } catch (err) {
+      console.error(err);
+      tblBody.innerHTML = `<tr><td colspan="5" style="padding:4px;">Fehler beim Laden.</td></tr>`;
+      setStatus(`Fehler beim Laden: ${err.message}`, false);
+    }
+  }
+
+  // Initiales Laden
+  loadProducts();
+
+  // Suche
+  let searchTimer = null;
+  search?.addEventListener('input', () => {
+    const q = search.value.trim();
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => loadProducts(q), 250);
+  });
+
+  // Klick auf "Bearbeiten" → Formular mit Zeile füllen
+  tblBody.addEventListener('click', (e) => {
+    const btn = e.target.closest('.ap-edit-btn');
+    if (!btn) return;
+    const tr = btn.closest('tr[data-id]');
+    if (!tr) return;
+
+    const pid = tr.getAttribute('data-id') || '';
+    const tds = tr.querySelectorAll('td');
+    const name = tds[1]?.textContent?.trim() || '';
+    const priceStr = tds[2]?.textContent?.trim() || '';
+    const dimsStr  = tds[3]?.textContent?.trim() || '';
+      const srcStr  = tds[4]?.textContent?.trim() || '';       // NEW (column 4)
+
+    idEl.value = pid;
+    nameEl.value = name;
+
+    // Preis zurück in Eingabeformat bringen (z.B. "1.234,56 €" → "1234,56")
+    const pClean = priceStr.replace(/[^\d.,-]/g, '');
+    priceEl.value = pClean;
+
+    // grobe Dims-Parsing "B / L / H"
+    const parts = dimsStr.split('/').map(s => s.trim()).filter(Boolean);
+    wEl.value = parts[0] || '';
+    lEl.value = parts[1] || '';
+    hEl.value = parts[2] || '';
+
+      if (sourceEl) sourceEl.value = srcStr;                   // preload
+
+    setStatus(`Produkt ${pid} im Formular geladen.`, true);
+    idEl.focus();
+  });
+
+  // ---- Speichern via /api/products/bulk ----
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const productId = idEl.value.trim();
+    const name = nameEl.value.trim();
+    const priceRaw = priceEl.value.trim();
+      const source    = sourceEl?.value.trim() || '';
+
+    if (!productId || !name || !priceRaw) {
+      setStatus("Bitte mindestens Produkt-ID, Name und Preis ausfüllen.", false);
+      return;
+    }
+
+    // tolerant EUR parser wiederverwenden
+    const priceNum = typeof window.parseMoneyEuro === 'function'
+      ? window.parseMoneyEuro(priceRaw)
+      : Number(priceRaw.replace(',', '.'));
+
+    if (!(priceNum > 0)) {
+      setStatus("Preis ist ungültig oder 0.", false);
+      return;
+    }
+
+    const widthCm  = wEl.value ? Number(wEl.value) : undefined;
+    const lengthCm = lEl.value ? Number(lEl.value) : undefined;
+    const heightCm = hEl.value ? Number(hEl.value) : undefined;
+
+    const body = [{
+      productId,
+      name,
+      price: priceNum,
+      ...(widthCm  != null && !isNaN(widthCm)  ? { widthCm }  : {}),
+      ...(lengthCm != null && !isNaN(lengthCm) ? { lengthCm } : {}),
+      ...(heightCm != null && !isNaN(heightCm) ? { heightCm } : {}),
+          ...(source    ? { source }              : {}),
+    }];
+
+    try {
+      setStatus("Speichere Produkt …", true);
+      const res = await fetch('/api/products/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+
+      setStatus(`Produkt ${productId} gespeichert.`, true);
+      if (window.toast?.success) {
+        toast.success('Gespeichert', `Produkt <b>${productId}</b> wurde gespeichert.`);
+      }
+
+      await loadProducts(search?.value.trim() || '');
+    } catch (err) {
+      console.error(err);
+      setStatus(`Fehler beim Speichern: ${err.message}`, false);
+      if (window.toast?.error) {
+        toast.error('Fehler', err.message);
+      }
+    }
+  });
+
+  // Auto-Neuladen, wenn Admin-Seite aufgerufen wird
+  window.addEventListener('hashchange', () => {
+    if (typeof getCurrentStep === 'function' && getCurrentStep() === 'admin') {
+      loadProducts(search?.value.trim() || '');
+    }
+  });
+})();
 
 document.addEventListener('DOMContentLoaded', () => {
 

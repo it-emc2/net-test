@@ -8,8 +8,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
 import offersRouter from './routes/offers.js';
-
-
 import traysRouter from './routes/trays.js';
 
 // PDF/DOCX routes
@@ -143,7 +141,8 @@ app.use('/pdf-template', pdfTemplateRouter);
 app.use('/docx-template', docxTemplateRouter);
 app.use('/material-overview', docxTemplateRouter);
 app.use('/api/offers', offersRouter);
-app.use('/api/offers', offersRouter);
+// (you had this twice; once is enough)
+// app.use('/api/offers', offersRouter);
 
 // ---------------- Health ----------------
 app.get('/api/health', (req, res) =>
@@ -162,7 +161,16 @@ app.post('/api/products/bulk', async (req, res) => {
     const ops = items.map((p) => ({
       updateOne: {
         filter: { productId: p.productId },
-        update: { $set: { name: p.name, price: Number(p.price || 0) } },
+        update: {
+  $set: {
+    name:   p.name,
+    price:  Number(p.price || 0),
+    widthCm:  p.widthCm  ?? null,
+    lengthCm: p.lengthCm ?? null,
+    heightCm: p.heightCm ?? null,
+    source:   p.source   ?? null,   // <‑‑ allow setting source
+  },
+},
         upsert: true,
       },
     }));
@@ -188,6 +196,30 @@ app.get('/api/products/sla', async (req, res) => {
   } catch (e) {
     console.error('GET /api/products/sla failed:', e);
     res.status(500).json({ error: 'server error' });
+  }
+});
+
+// Alle Produkte auflisten (Admin/Debug)
+app.get('/api/products', async (req, res) => {
+  try {
+    const { q } = req.query;
+    const filter = {};
+
+    if (q) {
+      filter.$or = [
+        { productId: new RegExp(q, 'i') },
+        { name: new RegExp(q, 'i') },
+      ];
+    }
+
+    const docs = await Product.find(filter)
+      .sort({ productId: 1 })
+      .lean();
+
+    res.json(docs);
+  } catch (err) {
+    console.error('GET /api/products failed:', err);
+    res.status(500).json({ error: 'Serverfehler beim Laden der Produkte' });
   }
 });
 
@@ -247,6 +279,7 @@ app.listen(PORT, () => {
   console.log('Mounted: POST /pdf-template');
   console.log('Mounted: POST /docx-template');
   console.log('Mounted: POST /api/products/bulk');
+  console.log('Mounted: GET  /api/products');
   console.log('Mounted: GET  /api/products/:id');
   console.log('Mounted: POST /api/price');
   console.log('Mounted: POST /api/submissions');

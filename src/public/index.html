@@ -399,6 +399,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
       <span class="tile-title">WD · Winterdienst</span>
     </a>
   </div>
+
 </section>
 
   <!-- Kundendaten -->
@@ -5075,7 +5076,93 @@ grundsätzlich wird automatisch mitkalkuliert
     <pre id="pg-diff" class="status" style="max-height:200px; overflow:auto;"></pre>
   </div>
 </section>
+
+<!-- Page Admin -->
+<section class="card page" id="page-admin" hidden>
+  <div class="container">
+    <h2>Admin · Produkte & Leistungen</h2>
+    <p class="section-subtitle">
+      Interne Verwaltung von Artikeln und Preisen. Änderungen wirken sich direkt
+      auf die Kalkulation aus.
+    </p>
+
+    <div class="card" style="margin-bottom: 1rem;">
+      <div class="section-title">Neues Produkt / Produkt aktualisieren</div>
+      <form id="form-admin-product">
+        <div class="field full">
+          <label for="ap_productId" class="req">Produkt-ID (z.B. V4FK600)</label>
+          <input id="ap_productId" name="productId" required />
+        </div>
+        <div class="field full">
+          <label for="ap_name" class="req">Bezeichnung</label>
+          <input id="ap_name" name="name" required />
+        </div>
+        <div class="field">
+          <label for="ap_price" class="req">Preis (netto, EUR)</label>
+          <input id="ap_price" name="price" type="text" required placeholder="z.B. 199,90" />
+        </div>
+        <div class="field">
+          <label for="ap_width">Breite (cm, optional)</label>
+          <input id="ap_width" name="widthCm" type="number" step="0.1" />
+        </div>
+        <div class="field">
+          <label for="ap_length">Länge (cm, optional)</label>
+          <input id="ap_length" name="lengthCm" type="number" step="0.1" />
+        </div>
+        <div class="field">
+          <label for="ap_height">Höhe (cm, optional)</label>
+          <input id="ap_height" name="heightCm" type="number" step="0.1" />
+        </div>
+          <!-- NEW: Quelle / source -->
+  <div class="field">
+    <label for="ap_source">Quelle / source (optional)</label>
+    <input
+      id="ap_source"
+      name="source"
+      type="text"
+      placeholder="z.B. hassmann, optional, seed"
+    />
+  </div>
+        <div class="actions">
+          <button type="submit">Speichern / Aktualisieren</button>
+          <button type="button" class="secondary" id="ap_reset">Zurücksetzen</button>
+        </div>
+      </form>
+      <div id="ap_status" class="status" style="margin-top: 8px;"></div>
     </div>
+
+    <div class="card">
+      <div class="section-title">Datenbank-Inhalt</div>
+      <div class="field">
+        <label for="ap_search">Suche (Produkt-ID oder Name)</label>
+        <input id="ap_search" type="search" placeholder="z.B. V4FK600 oder Kleber" />
+      </div>
+
+      <div id="ap_tableWrap" class="muted" style="margin-top: 10px; max-height: 420px; overflow: auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+          <thead>
+            <tr>
+              <th style="text-align:left; padding:4px;">Produkt-ID</th>
+              <th style="text-align:left; padding:4px;">Name</th>
+              <th style="text-align:right; padding:4px;">Preis</th>
+              <th style="text-align:center; padding:4px;">B/L/H (cm)</th>
+                    <!-- NEW -->
+      <th style="text-align:left; padding:4px;">Quelle</th>
+              <th style="text-align:right; padding:4px;">Aktion</th>
+            </tr>
+          </thead>
+          <tbody id="ap_tableBody">
+            <tr><td colspan="5" style="padding:4px;">Lade Daten …</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+    </div>
+
+
 
 
 
