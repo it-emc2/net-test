@@ -5160,6 +5160,84 @@ grundsätzlich wird automatisch mitkalkuliert
   </div>
 </section>
 
+<!-- Page Admin Services -->
+<section class="card page" id="page-as" hidden >
+  <h2>Admin: Services</h2>
+
+  <form id="form-as">
+    <div class="field full">
+      <label for="as_serviceId" class="req">Service-ID</label>
+      <input id="as_serviceId" name="serviceId" required />
+    </div>
+
+    <div class="field full">
+      <label for="as_name" class="req">Name</label>
+      <input id="as_name" name="name" required />
+    </div>
+
+    <div class="field full">
+      <label for="as_internal_name">Interner Name</label>
+      <input id="as_internal_name" name="internal_name" />
+    </div>
+
+    <div class="field full">
+      <label for="as_description">Beschreibung</label>
+      <textarea id="as_description" name="description" rows="2"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="as_price" class="req">Preis (netto, EUR)</label>
+      <input id="as_price" name="price" type="text" required placeholder="z.B. 79,90" />
+    </div>
+
+    <div class="field">
+      <label for="as_time" class="req">Zeit (Minuten)</label>
+      <input id="as_time" name="time" type="number" min="0" step="1" required />
+    </div>
+
+    <div class="field">
+      <label for="as_source">Quelle / source (optional)</label>
+      <input
+        id="as_source"
+        name="source"
+        type="text"
+        placeholder="z.B. emc2, optional, seed"
+      />
+    </div>
+
+    <div class="actions">
+      <button type="submit">Speichern / Aktualisieren</button>
+      <button type="button" class="secondary" id="as_reset">Zurücksetzen</button>
+    </div>
+  </form>
+
+  <hr />
+
+  <div class="field full">
+    <label for="as_search">Filter (ID, Name, interner Name)</label>
+    <input id="as_search" placeholder="Suchbegriff eingeben…" />
+  </div>
+
+  <table class="admin-table" style="width:100%; border-collapse:collapse; margin-top:8px;">
+    <thead>
+      <tr>
+        <th style="text-align:left; padding:4px;">Service-ID</th>
+        <th style="text-align:left; padding:4px;">Name</th>
+        <th style="text-align:left; padding:4px;">Interner Name</th>
+        <th style="text-align:left; padding:4px;">Beschreibung</th>
+        <th style="text-align:right; padding:4px;">Preis</th>
+        <th style="text-align:right; padding:4px;">Zeit (Min)</th>
+        <th style="text-align:left; padding:4px;">Quelle</th>
+        <th style="text-align:right; padding:4px;">Aktion</th>
+      </tr>
+    </thead>
+    <tbody id="as_tableBody">
+      <!-- Zeilen werden per JS gerendert -->
+    </tbody>
+  </table>
+
+  <div id="as_status" class="status-line">Bereit.</div>
+</section>
     </div>
 
 

@@ -12,7 +12,8 @@ const OFFERS = {
       "rabatt",
       "zusammenfassung",
       "kosten",
-      "admin"
+      "admin",
+      "as"
       ,
     ],
   },
@@ -1023,7 +1024,7 @@ const ALL_PAGES = Array.from(
 );
 
 // "steps" is just the union of all pages across all offers plus "home"
-const steps = ["home", ...ALL_PAGES, "admin" ];
+const steps = ["home", ...ALL_PAGES, "admin", "as" ];
 
 const pages = Object.fromEntries(
   steps.map((s) => [s, document.getElementById("page-" + s)])
@@ -1046,7 +1047,8 @@ function resetAllForms() {
     "form-rabatt",
     "form-bwt",
     "form-hl",
-    "form-admin"
+    "form-admin",
+    "form-as"
   ];
 
   // 1) Reset all forms back to their HTML defaults
@@ -1444,7 +1446,8 @@ function filterPayloadByOffer(payload) {
     rabatt: "rabatt",
     bwt : "bwt",
     hl : "hl",
-    admin : "admin"
+    admin : "admin",
+    as: "as",
   };
 
   Object.entries(pageToKey).forEach(([page, key]) => {
@@ -6404,6 +6407,232 @@ function initLivePricingSync() {
   window.addEventListener('hashchange', () => {
     if (typeof getCurrentStep === 'function' && getCurrentStep() === 'admin') {
       loadProducts(search?.value.trim() || '');
+    }
+  });
+})();
+
+/* ========== ADMIN: Services ========== */
+(function initAdminServices() {
+  const page = document.getElementById('page-as');
+  if (!page) return;
+
+  const form    = document.getElementById('form-as');
+  const status  = document.getElementById('as_status');
+  const tblBody = document.getElementById('as_tableBody');
+  const search  = document.getElementById('as_search');
+
+  const idEl        = document.getElementById('as_serviceId');
+  const nameEl      = document.getElementById('as_name');
+  const internalEl  = document.getElementById('as_internal_name');
+  const descEl      = document.getElementById('as_description');
+  const priceEl     = document.getElementById('as_price');
+  const timeEl      = document.getElementById('as_time');
+  const sourceEl    = document.getElementById('as_source');
+  const resetBtn    = document.getElementById('as_reset');
+
+  if (!form || !status || !tblBody || !idEl || !nameEl || !priceEl || !timeEl) return;
+
+  const euroFmt = (n) =>
+    (Number(n) || 0).toLocaleString('de-DE', {
+      style: 'currency',
+      currency: 'EUR',
+    });
+
+  function setStatus(msg, ok = true) {
+    status.className = 'status ' + (ok ? 'ok' : 'err');
+    status.textContent = msg;
+  }
+
+  function clearForm() {
+    form.reset();
+    setStatus('Bereit.', true);
+  }
+
+  resetBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    clearForm();
+  });
+
+  // ---- Laden und anzeigen ----
+  async function loadServices(q = '') {
+    try {
+      setStatus('Lade Services …', true);
+      const url = q ? `/api/services?q=${encodeURIComponent(q)}` : '/api/services';
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const list = await res.json();
+
+      if (!Array.isArray(list) || !list.length) {
+        tblBody.innerHTML =
+          `<tr><td colspan="8" style="padding:4px;">Keine Services gefunden.</td></tr>`;
+        setStatus('Keine Services gefunden.', true);
+        return;
+      }
+
+      tblBody.innerHTML = list
+        .map((s) => {
+          const priceStr = euroFmt(s.price ?? 0);
+          const timeStr  = (s.time ?? 0).toString();
+          const sourceStr = (s.source || '').toString();
+
+          const desc = (s.description || '').toString();
+          const descShort = desc.length > 80 ? desc.slice(0, 77) + '…' : desc;
+          const descEsc = desc.replace(/"/g, '&quot;');
+
+          return `
+            <tr data-id="${s.serviceId}">
+              <td style="padding:4px;">${s.serviceId}</td>
+              <td style="padding:4px;">${s.name || ''}</td>
+              <td style="padding:4px;">${s.internal_name || ''}</td>
+              <td style="padding:4px;" title="${descEsc}">${descShort}</td>
+              <td style="padding:4px; text-align:right;">${priceStr}</td>
+              <td style="padding:4px; text-align:right;">${timeStr}</td>
+              <td style="padding:4px;">${sourceStr}</td>
+              <td style="padding:4px; text-align:right;">
+                <button type="button" class="secondary as-edit-btn">Bearbeiten</button>
+              </td>
+            </tr>
+          `;
+        })
+        .join('');
+
+      setStatus(`${list.length} Service(s) geladen.`, true);
+    } catch (err) {
+      console.error(err);
+      tblBody.innerHTML =
+        `<tr><td colspan="8" style="padding:4px;">Fehler beim Laden.</td></tr>`;
+      setStatus(`Fehler beim Laden: ${err.message}`, false);
+    }
+  }
+
+  // Initiales Laden
+  loadServices();
+
+  // Suche
+  let searchTimer = null;
+  search?.addEventListener('input', () => {
+    const q = search.value.trim();
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => loadServices(q), 250);
+  });
+
+  // Klick auf "Bearbeiten" → Formular mit Zeile füllen
+  tblBody.addEventListener('click', (e) => {
+    const btn = e.target.closest('.as-edit-btn');
+    if (!btn) return;
+    const tr = btn.closest('tr[data-id]');
+    if (!tr) return;
+
+    const sid = tr.getAttribute('data-id') || '';
+    const tds = tr.querySelectorAll('td');
+
+    const name     = tds[1]?.textContent?.trim() || '';
+    const internal = tds[2]?.textContent?.trim() || '';
+    const desc     = tds[3]?.getAttribute('title') || tds[3]?.textContent?.trim() || '';
+    const priceStr = tds[4]?.textContent?.trim() || '';
+    const timeStr  = tds[5]?.textContent?.trim() || '';
+    const srcStr   = tds[6]?.textContent?.trim() || '';
+
+    idEl.value       = sid;
+    nameEl.value     = name;
+    internalEl.value = internal;
+    descEl.value     = desc;
+
+    // Preis zurück in Eingabeformat (z.B. "1.234,56 €" → "1234,56")
+    const pClean = priceStr.replace(/[^\d.,-]/g, '');
+    priceEl.value = pClean;
+
+    // Zeit: nur Ziffern
+    const tClean = timeStr.replace(/[^\d]/g, '');
+    timeEl.value = tClean;
+
+    if (sourceEl) sourceEl.value = srcStr;
+
+    setStatus(`Service ${sid} im Formular geladen.`, true);
+    idEl.focus();
+  });
+
+  // ---- Speichern via /api/services/bulk ----
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const serviceId    = idEl.value.trim();
+    const name         = nameEl.value.trim();
+    const internalName = internalEl?.value.trim() || '';
+    const description  = descEl?.value.trim() || '';
+    const priceRaw     = priceEl.value.trim();
+    const timeRaw      = timeEl.value.trim();
+    const source       = sourceEl?.value.trim() || '';
+
+    if (!serviceId || !name || !priceRaw || !timeRaw) {
+      setStatus(
+        'Bitte mindestens Service-ID, Name, Preis und Zeit (Minuten) ausfüllen.',
+        false
+      );
+      return;
+    }
+
+    const priceNum =
+      typeof window.parseMoneyEuro === 'function'
+        ? window.parseMoneyEuro(priceRaw)
+        : Number(priceRaw.replace(',', '.'));
+
+    if (!(priceNum >= 0)) {
+      setStatus('Preis ist ungültig.', false);
+      return;
+    }
+
+    const timeNum = Number(timeRaw);
+    if (!(timeNum >= 0)) {
+      setStatus('Zeit ist ungültig.', false);
+      return;
+    }
+
+    const body = [
+      {
+        serviceId,
+        name,
+        price: priceNum,
+        time: timeNum,
+        ...(internalName ? { internal_name: internalName } : {}),
+        ...(description ? { description } : {}),
+        ...(source ? { source } : {}),
+      },
+    ];
+
+    try {
+      setStatus('Speichere Service …', true);
+      const res = await fetch('/api/services/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+
+      setStatus(`Service ${serviceId} gespeichert.`, true);
+      if (window.toast?.success) {
+        toast.success('Gespeichert', `Service <b>${serviceId}</b> wurde gespeichert.`);
+      }
+
+      await loadServices(search?.value.trim() || '');
+    } catch (err) {
+      console.error(err);
+      setStatus(`Fehler beim Speichern: ${err.message}`, false);
+      if (window.toast?.error) {
+        toast.error('Fehler', err.message);
+      }
+    }
+  });
+
+  // Auto-Neuladen, wenn Admin-Seite aufgerufen wird
+  window.addEventListener('hashchange', () => {
+    if (typeof getCurrentStep === 'function' && getCurrentStep() === 'admin') {
+      loadServices(search?.value.trim() || '');
     }
   });
 })();
