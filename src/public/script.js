@@ -1731,12 +1731,34 @@ window.buildPayload = buildPayload;
 
 
 window.buildPayload = buildPayload;
+function stripEmptySectionsForPreview(payload) {
+  const copy = {};
+
+  for (const [key, value] of Object.entries(payload || {})) {
+    // If it's a plain object and completely empty → skip it in preview
+    if (
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      Object.keys(value).length === 0
+    ) {
+      continue;
+    }
+    copy[key] = value;
+  }
+
+  return copy;
+}
 
 function updateSummary() {
   if (getCurrentStep() !== "zusammenfassung") return;
   const el = document.getElementById("summaryText");
   const payload = buildPayload();
-  el.textContent = "Vorschau: " + JSON.stringify(payload);
+
+  // ✅ Only for UI: hide completely empty sections (like BU-only pages in BWT/HL)
+  const preview = stripEmptySectionsForPreview(payload);
+
+  el.textContent = "Vorschau: " + JSON.stringify(preview);
 }
 
 const statusEl = document.getElementById("status");
