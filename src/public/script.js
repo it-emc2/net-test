@@ -4,6 +4,7 @@ const OFFERS = {
     name: "BU · Badumbau",
     pages: [
       "Kundendaten",
+      "Arbeitszeit",
       "duschwanne",
       "wandverkleidung",
       "duschabtrennung",
@@ -16,11 +17,11 @@ const OFFERS = {
   },
   bwt: {
     name: "BWT · Badewannentür",
-    pages: ["Kundendaten", "bwt", "zusammenfassung", "kosten" ],
+    pages: ["Kundendaten", "Arbeitszeit", "bwt", "zusammenfassung", "kosten" ],
   },
   hl: {
     name: "HL · Handlauf",
-    pages: ["Kundendaten", "hl", "zusammenfassung", "kosten" ],
+    pages: ["Kundendaten", "Arbeitszeit", "hl", "zusammenfassung", "kosten" ],
   },
 };
 
@@ -910,7 +911,37 @@ document.addEventListener("DOMContentLoaded", () => {
     window.reise_hours_numeric  = Math.max(0, totalTravelH);
     window.arbeit_hours_numeric = Math.max(0, arbeitsH);
   }
+// --- wiring specifically for Arbeitszeit page ---
+function wireArbeitszeitInputs() {
+  const page = document.getElementById("page-Arbeitszeit");
+  if (!page) return;
 
+  const laborEl  = page.querySelector("#laborHours");
+  const travelEl = page.querySelector("#travelTime");
+
+  if (!laborEl || !travelEl) return;
+
+  // avoid duplicates
+  laborEl.removeEventListener("input", updateTotalHours);
+  laborEl.removeEventListener("blur",  updateTotalHours);
+  travelEl.removeEventListener("input", updateTotalHours);
+  travelEl.removeEventListener("blur",  updateTotalHours);
+
+  laborEl.addEventListener("input", updateTotalHours);
+  laborEl.addEventListener("blur",  updateTotalHours);
+  travelEl.addEventListener("input", updateTotalHours);
+  travelEl.addEventListener("blur",  updateTotalHours);
+
+  // initial render
+  updateTotalHours();
+}
+
+// make them accessible from other scripts
+window.updateTotalHours = updateTotalHours;
+window.wireArbeitszeitInputs = wireArbeitszeitInputs;
+
+// try once after DOM is ready (if page is already in DOM)
+document.addEventListener("DOMContentLoaded", wireArbeitszeitInputs);
   // Live updates
   laborEl?.addEventListener("input", updateTotalHours);
   laborEl?.addEventListener("blur",  updateTotalHours);
@@ -1006,6 +1037,7 @@ let currentOfferKey = null;
 function resetAllForms() {
   const formIds = [
     "form-Kundendaten",
+    "form-Arbeitszeit",
     "form-duschwanne",
     "form-wandverkleidung",
     "form-duschabtrennung",
@@ -1397,6 +1429,7 @@ function filterPayloadByOffer(payload) {
   // Map: page-id in OFFERS.pages → key name in payload object
   const pageToKey = {
     Kundendaten: "Kundendaten",
+     Arbeitszeit: "Arbeitszeit",  
     duschwanne: "duschwanne",
     wandverkleidung: "wandverkleidung",
     duschabtrennung: "duschabtrennung",
@@ -1429,18 +1462,17 @@ function buildPayload() {
     duschabtrennung: formToObject(document.getElementById("form-duschabtrennung")),
     optional: formToObject(document.getElementById("form-optional")),
     rabatt: formToObject(document.getElementById("form-rabatt")),
-    bwt : formToObject(document.getElementById("form-bwt")),
+    bwt: formToObject(document.getElementById("form-bwt")),
     hl: formToObject(document.getElementById("form-hl")),
   };
 
   collectWandverkleidungMaterials(payload);
-   // ✅ NEW: collect quick-add shower screens
+  // ✅ NEW: collect quick-add shower screens
   collectDuschabtrennungQuickAdd(payload);
 
   // ---- NEW: reliably collect ALL Duschwanne work tasks (checkbox array) ----
   try {
     const formDW = document.getElementById("form-duschwanne");
-    // wherever you build payload.duschwanne = {...}
 
     if (formDW) {
       const fdDW = new FormData(formDW);
@@ -1448,7 +1480,7 @@ function buildPayload() {
       const dw = (payload.duschwanne ||= {});
 
       if (dwTasks.length) {
-       dw.workTasks = dwTasks;
+        dw.workTasks = dwTasks;
       } else {
         // Fallback: if serializer stored a single string under a weird key, normalize to array
         const weird = dw["duschwanne[workTasks][]"];
@@ -1466,49 +1498,52 @@ function buildPayload() {
   }
 
   // ---- DUSCHWANNE: ensure multi-select arrays are captured ----
-// ---- DUSCHWANNE: ensure multi-select arrays are captured ----
-try {
-  const formDW = document.getElementById("form-duschwanne");
-  if (formDW) {
-    const fdDW = new FormData(formDW);
-    const getAllVals = (name) => fdDW.getAll(name).map(v => String(v));
+  try {
+    const formDW = document.getElementById("form-duschwanne");
+    if (formDW) {
+      const fdDW = new FormData(formDW);
+      const getAllVals = (name) => fdDW.getAll(name).map((v) => String(v));
 
-    // Existing
-    const flooringProduct = getAllVals("flooringProduct[]");
-    const floorAdhesive   = getAllVals("floorAdhesive[]");
-    const floorSealing    = getAllVals("floorSealing[]");
+      // Existing
+      const flooringProduct = getAllVals("flooringProduct[]");
+      const floorAdhesive = getAllVals("floorAdhesive[]");
+      const floorSealing = getAllVals("floorSealing[]");
 
-    // ✅ Read the actual field name you used:
-    const extraTasks = [
-      ...getAllVals("duschwanne[extraTasks][]"), // primary (your markup)
-      ...getAllVals("extraTasks[]"),             // optional fallback if ever used
-    ].map(s => s.trim()).filter(Boolean);
+      // ✅ Read the actual field name you used:
+      const extraTasks = [
+        ...getAllVals("duschwanne[extraTasks][]"), // primary (your markup)
+        ...getAllVals("extraTasks[]"), // optional fallback if ever used
+      ]
+        .map((s) => s.trim())
+        .filter(Boolean);
 
-    payload.duschwanne = payload.duschwanne || {};
-    if (flooringProduct.length) payload.duschwanne.flooringProduct = flooringProduct;
-    if (floorAdhesive.length)   payload.duschwanne.floorAdhesive   = floorAdhesive;
-    if (floorSealing.length)    payload.duschwanne.floorSealing    = floorSealing;
-    if (extraTasks.length)      payload.duschwanne.extraTasks      = Array.from(new Set(extraTasks));
+      payload.duschwanne = payload.duschwanne || {};
+      if (flooringProduct.length)
+        payload.duschwanne.flooringProduct = flooringProduct;
+      if (floorAdhesive.length)
+        payload.duschwanne.floorAdhesive = floorAdhesive;
+      if (floorSealing.length)
+        payload.duschwanne.floorSealing = floorSealing;
+      if (extraTasks.length)
+        payload.duschwanne.extraTasks = Array.from(new Set(extraTasks));
 
-    // Normalize toggle to boolean
-    payload.duschwanne.addFlooring = !!document.getElementById('addFlooring')?.checked;
+      // Normalize toggle to boolean
+      payload.duschwanne.addFlooring = !!document.getElementById("addFlooring")?.checked;
+    }
+  } catch (e) {
+    console.warn("[buildPayload] flooring arrays capture failed:", e);
   }
-} catch (e) {
-  console.warn('[buildPayload] flooring arrays capture failed:', e);
-}
 
-// WV consumables – ONLY what's actually selected in the UI
-try {
-  const values = readWVConsumablesStrict();
-  payload.wandverkleidung = payload.wandverkleidung || {};
-  payload.wandverkleidung.consumables = values;
-} catch (e) {
-  console.warn('[buildPayload] WV consumables capture failed:', e);
-}
-
+  // WV consumables – ONLY what's actually selected in the UI
+  try {
+    const values = readWVConsumablesStrict();
+    payload.wandverkleidung = payload.wandverkleidung || {};
+    payload.wandverkleidung.consumables = values;
+  } catch (e) {
+    console.warn("[buildPayload] WV consumables capture failed:", e);
+  }
 
   // -------------------------------------------------------------------------
-
   // Budget/Zuzahlung
   const elMax = document.querySelector('input[name="budgetMax"]');
   const elCopay = document.querySelector('input[name="budgetCopay"]');
@@ -1517,8 +1552,11 @@ try {
 
   const wohDoneRadios = document.querySelectorAll('input[name="wohnumfeldDone"]');
   const wohAmountInput = document.getElementById("wohnumfeldAmount");
+
   function readWohnumfeld() {
-    const isJa = Array.from(wohDoneRadios).some((r) => r.checked && r.value === "Ja");
+    const isJa = Array.from(wohDoneRadios).some(
+      (r) => r.checked && r.value === "Ja",
+    );
     let amount = 0;
     if (isJa && wohAmountInput) {
       const raw = (wohAmountInput.value || "").toString().replace(",", ".");
@@ -1537,6 +1575,7 @@ try {
     const n = parseFloat(s);
     return Number.isFinite(n) ? n : 0;
   }
+
   // --- OPTIONAL: Sonderprodukte (Freier Posten unter Optional) ---
   collectOptionalQuickAdd(payload);
 
@@ -1554,7 +1593,9 @@ try {
   payload.Kundendaten.copayAmount = copayEl ? parseEuroToNumber(copayEl.value) : 0;
 
   // Rabatt fields for server
-  const pct = parseFloat(document.getElementById("rb-material-discount")?.value || "0");
+  const pct = parseFloat(
+    document.getElementById("rb-material-discount")?.value || "0",
+  );
   payload.rabatt = {
     ...payload.rabatt,
     materialDiscountPct: isFinite(pct) ? pct / 100 : 0,
@@ -1563,33 +1604,84 @@ try {
   };
 
   payload.offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
-  payload.Kundendaten.totalHoursHHMM =
-    document.getElementById("totalHoursHHMM")?.textContent?.match(/(\d+:\d{2})/)?.[1] || "";
- 
-   // Fallback compute if mirrors are not populated yet
-  const _L = typeof hhmmToHours === 'function' ? hhmmToHours(document.getElementById('laborHours')?.value || '0:00') : 0;
-  const _T1= typeof hhmmToHours === 'function' ? hhmmToHours(document.getElementById('travelTime')?.value || '0:00') : 0;
-  const F_total  = (_T1 * 2) + _L;
-  payload.Kundendaten.totalHoursNumeric = Number(window.total_hours_numeric ?? F_total ?? 0);
-  payload.Kundendaten.ReiseHoursNumeric = Number(window.reise_hours_numeric  ?? (_T1 * 2) ?? 0);
-  payload.Kundendaten.ArbeitHoursNumeric= Number(window.arbeit_hours_numeric ?? _L ?? 0);
-  payload.Kundendaten.laborHoursHHMM = laborHHMM;
-  //payload.Kundendaten.laborHoursNumeric = laborNumeric;
+
+  // -------------------------------------------------------------------------
+  // NEW: Arbeitszeit / travel payload block (moved out of Kundendaten)
+  // -------------------------------------------------------------------------
+  (function buildArbeitszeitBlock() {
+    // Read formatted total from the Arbeitszeit page output element
+    const totalHHMM =
+      document
+        .getElementById("totalHoursHHMM")
+        ?.textContent?.match(/(\d+:\d{2})/)?.[1] || "";
+
+    // Read raw HH:MM inputs (Arbeitszeit & one-way Reisezeit)
+    const laborHHMM = (document.getElementById("laborHours")?.value || "")
+      .toString()
+      .trim();
+    const travelHHMM = (document.getElementById("travelTime")?.value || "")
+      .toString()
+      .trim();
+
+    // Safely compute numeric hours (fallback if window.* mirrors are not yet populated)
+    const _L =
+      typeof hhmmToHours === "function"
+        ? hhmmToHours(laborHHMM || "0:00")
+        : 0;
+    const _T1 =
+      typeof hhmmToHours === "function"
+        ? hhmmToHours(travelHHMM || "0:00")
+        : 0;
+
+    const F_total = _L + 2 * _T1;
+
+    // Use the global mirrors if they exist (set by updateTotalHours), otherwise fallback
+    const totalNumeric = Number(window.total_hours_numeric ?? F_total ?? 0);
+    const travelNumeric = Number(
+      window.reise_hours_numeric ?? 2 * _T1 ?? 0,
+    );
+    const laborNumeric = Number(window.arbeit_hours_numeric ?? _L ?? 0);
+
+    // Optional: distance in km field (if you have it on the Arbeitszeit page)
+    const distanceKm = (document.getElementById("distanceKm")?.value || "")
+      .toString()
+      .trim();
+
+    payload.Arbeitszeit = {
+      totalHoursHHMM: totalHHMM,
+      totalHoursNumeric: totalNumeric,
+      ReiseHoursNumeric: travelNumeric,
+      ArbeitHoursNumeric: laborNumeric,
+      laborHoursHHMM: laborHHMM,
+      travelTimeHHMM: travelHHMM,
+      distanceKm,
+    };
+
+    // If your backend still expects some of this under Kundendaten, you can mirror it:
+    // payload.Kundendaten.totalHoursHHMM     = totalHHMM;
+    // payload.Kundendaten.totalHoursNumeric  = totalNumeric;
+    // payload.Kundendaten.ReiseHoursNumeric  = travelNumeric;
+    // payload.Kundendaten.ArbeitHoursNumeric = laborNumeric;
+    // payload.Kundendaten.laborHoursHHMM     = laborHHMM;
+  })();
+
+  // -------------------------------------------------------------------------
 
   const woh = readWohnumfeld();
   const isKK =
     (payload.Kundendaten?.payer ||
-      document.querySelector('input[name="payer"]:checked')?.value) === "Kassenkunde";
+      document.querySelector('input[name="payer"]:checked')?.value) ===
+    "Kassenkunde";
   payload.Kundendaten.wohnumfeld = isKK ? woh : { done: false, amount: 0 };
 
   // --- Attach Duschwanne selection from DOM (if present) ---
   {
-    const eb = !!document.getElementById('ebenerdigeToggle')?.checked;
+    const eb = !!document.getElementById("ebenerdigeToggle")?.checked;
     const pid = document.getElementById("chosenTrayProductId")?.value?.trim();
     const size = document.getElementById("traySize")?.value?.trim();
 
     const dw = payload.duschwanne || (payload.duschwanne = {});
-    dw.ebenerdigeMontage = eb; 
+    dw.ebenerdigeMontage = eb;
     if (pid) dw.chosenTrayProductId = pid;
     if (size) dw.traySize = size;
   }
@@ -1601,8 +1693,11 @@ try {
     const hasPid = !!(dw.chosenTrayProductId && String(dw.chosenTrayProductId).trim());
     if (hasSize && hasPid) return;
 
-    const chosenNow = document.getElementById("chosenTrayProductId")?.value?.trim();
-    const touched = !!(chosenNow || sessionStorage.getItem("dw_tray_touched") === "1");
+    const chosenNow = document
+      .getElementById("chosenTrayProductId")
+      ?.value?.trim();
+    const touched =
+      !!chosenNow || sessionStorage.getItem("dw_tray_touched") === "1";
     if (!touched) return;
 
     try {
@@ -1614,12 +1709,14 @@ try {
     } catch {}
   })();
 
-    // Remember which offer was active when building this payload
+  // Remember which offer was active when building this payload
   payload.activeOffer = currentOfferKey || null;
 
   // Remove/empty sections that are not part of the active offer's pages
   return filterPayloadByOffer(payload);
 }
+
+window.buildPayload = buildPayload;
 
 
 window.buildPayload = buildPayload;
@@ -1890,6 +1987,12 @@ function requireBereichValid() {
   if (!ok) focusFirstBereichConditionalError();
   return ok;
 }
+
+function validateArbeitszeit() {
+  const f = document.getElementById("form-Arbeitszeit");
+  if (!f) return true;
+  return f.reportValidity(); // nutzt HTML5 required etc.
+}
 // Map home tiles (data-step on .tile-btn) to OFFERS keys
 const TILE_TO_OFFER = {
   "BU-Badumbau": "bu",
@@ -1935,6 +2038,8 @@ document.body.addEventListener("click", (e) => {
     const ok =
       step === "Kundendaten"
         ? requireBereichValid()
+         : step === "Arbeitszeit"
+        ? validateArbeitszeit()  
         : step === "duschwanne"
         ? validateDuschwanne()
         : step === "wandverkleidung"

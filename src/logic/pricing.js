@@ -477,62 +477,110 @@ try {
 
 
   // Services (zones removed)
-  function computeServiceCosts(payload) {
-  
-    const b = payload?.Kundendaten || {};
-    const payer = b.payer === 'Kassenkunde' ? 'KK' : (b.payer === 'Selbstzahler' ? 'SZ' : '');
-    const oneWayKm = Number(b.distanceKm || 0) || 0; // user enters one-way distance
-    const roundTripKm = Math.max(0, oneWayKm * 2);   // bill both ways
-    
-   
-  // total_hours : travel time(Hin- und Rückfahrt) + Arbeitszeit
-  const laborHours = Number(payload?.Kundendaten?.laborNumeric ?? 0);
-    const total_hours_numeric = Number(payload?.Kundendaten?.totalHoursNumeric ?? 0);
-     const total_hours_HH_mm   = String(payload?.Kundendaten?.totalHoursHHMM ?? '');
+ function computeServiceCosts(payload) {
+  const b = payload?.Kundendaten || {};
+  const arbeits = payload?.Arbeitszeit || {};
 
-     const reise_hours_numeric = Number(payload?.Kundendaten?.ReiseHoursNumeric ?? 0);
-     const Arbeitszeit_hours_numeric = Number(payload?.Kundendaten?.ArbeitHoursNumeric?? 0);
+  const payer =
+    b.payer === 'Kassenkunde'
+      ? 'KK'
+      : b.payer === 'Selbstzahler'
+      ? 'SZ'
+      : '';
 
-    const handwerkerCount = 2;
-    const laborRateKK = 69.50;
-    const laborRateSZ = 59.50;
-    const kmRate = 0.35;
-    const sitz_reise_Rate = 25;
+  // NEW: distance from Arbeitszeit, fallback to Kundendaten
+  const oneWayKm = Number(arbeits.distanceKm ?? b.distanceKm ?? 0) || 0;
+  const roundTripKm = Math.max(0, oneWayKm * 2);
 
-    const fahrzeugbereitstellung = 80.00;
-    const werkzeug = 7.50;
-    const beraeumung = 4.50; // Beräumung der Baustelle
+  // NEW: hours from Arbeitszeit, fallback to old Kundendaten keys
+  const total_hours_numeric =
+    Number(arbeits.totalHoursNumeric ?? b.totalHoursNumeric ?? 0) || 0;
 
-    const kilometerpauschale = round2(roundTripKm * kmRate);
-    const laborRate = payer === 'KK' ? laborRateKK : (payer === 'SZ' ? laborRateSZ : 0);
-      //const facharbeiter = total_hours_numeric * handwerkerCount * laborRate;
-    const facharbeiter = (Arbeitszeit_hours_numeric * handwerkerCount * laborRate) + (reise_hours_numeric * (laborRate + sitz_reise_Rate ));
-  
+  const total_hours_HH_mm =
+    String(arbeits.totalHoursHHMM ?? b.totalHoursHHMM ?? '') || '';
 
-    const lines = [];
-    lines.push({ key: 'fahrzeug',   label: '- 1,00 Stk Fahrzeugbereitstellung', amount: round2(fahrzeugbereitstellung) });
-    lines.push({ key: 'werkzeuge',  label: '- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen', amount: round2(werkzeug) });
-    lines.push({ key: 'beraeumung', label: '- 1,00 Stk Beräumung der Baustelle', amount: round2(beraeumung) });
-    if (roundTripKm > 0) {
-      lines.push({ key: 'kilometer', label: `- ${roundTripKm} km Kilometerpauschale `, amount: kilometerpauschale });
-    }
-    if (total_hours_numeric  > 0 && laborRate > 0) {
-      lines.push({ key: 'facharbeiter', label: `- ${total_hours_HH_mm} (${total_hours_numeric}) Std × ${handwerkerCount} Facharbeiter × ${laborRate.toFixed(2)} €`, amount: facharbeiter , docxHide: true  });
-    }
+  const reise_hours_numeric =
+    Number(arbeits.ReiseHoursNumeric ?? b.ReiseHoursNumeric ?? 0) || 0;
 
+  const Arbeitszeit_hours_numeric =
+    Number(arbeits.ArbeitHoursNumeric ?? b.ArbeitHoursNumeric ?? 0) || 0;
 
-    // Append zero-cost work notes
-    try {
-      const notes = computeWorkNotes(payload);
-      for (const n of notes) lines.push(n);
-    } catch (e) {
-      console.warn('[pricing] computeWorkNotes failed:', e?.message || e);
-    }
+  const laborHours = Arbeitszeit_hours_numeric;
 
-    const posTitle = 'Auszuführende Arbeiten';
-    const sum = round2(lines.reduce((a, x) => a + (x.amount || 0), 0));
-    return { title: posTitle, lines, sum, payer, zoneLabel: '', distanceKm: roundTripKm, laborHours, laborRate };
+  const handwerkerCount = 2;
+  const laborRateKK = 69.5;
+  const laborRateSZ = 59.5;
+  const kmRate = 0.35;
+  const sitz_reise_Rate = 25;
+
+  const fahrzeugbereitstellung = 80.0;
+  const werkzeug = 7.5;
+  const beraeumung = 4.5;
+
+  const kilometerpauschale = round2(roundTripKm * kmRate);
+  const laborRate =
+    payer === 'KK' ? laborRateKK : payer === 'SZ' ? laborRateSZ : 0;
+
+  const facharbeiter =
+    Arbeitszeit_hours_numeric * handwerkerCount * laborRate +
+    reise_hours_numeric * (laborRate + sitz_reise_Rate);
+
+  const lines = [];
+  lines.push({
+    key: 'fahrzeug',
+    label: '- 1,00 Stk Fahrzeugbereitstellung',
+    amount: round2(fahrzeugbereitstellung),
+  });
+  lines.push({
+    key: 'werkzeuge',
+    label:
+      '- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen',
+    amount: round2(werkzeug),
+  });
+  lines.push({
+    key: 'beraeumung',
+    label: '- 1,00 Stk Beräumung der Baustelle',
+    amount: round2(beraeumung),
+  });
+  if (roundTripKm > 0) {
+    lines.push({
+      key: 'kilometer',
+      label: `- ${roundTripKm} km Kilometerpauschale `,
+      amount: kilometerpauschale,
+    });
   }
+  if (total_hours_numeric > 0 && laborRate > 0) {
+    lines.push({
+      key: 'facharbeiter',
+      label: `- ${total_hours_HH_mm} (${total_hours_numeric}) Std × ${handwerkerCount} Facharbeiter × ${laborRate.toFixed(
+        2,
+      )} €`,
+      amount: facharbeiter,
+      docxHide: true,
+    });
+  }
+
+  // Work notes unchanged
+  try {
+    const notes = computeWorkNotes(payload);
+    for (const n of notes) lines.push(n);
+  } catch (e) {
+    console.warn('[pricing] computeWorkNotes failed:', e?.message || e);
+  }
+
+  const posTitle = 'Auszuführende Arbeiten';
+  const sum = round2(lines.reduce((a, x) => a + (x.amount || 0), 0));
+  return {
+    title: posTitle,
+    lines,
+    sum,
+    payer,
+    zoneLabel: '',
+    distanceKm: roundTripKm,
+    laborHours,
+    laborRate,
+  };
+}
 
  
 
