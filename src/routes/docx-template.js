@@ -695,6 +695,78 @@ const MaterialsLines = matForDoc.map(l => {
   return { MaterialLine: l.label ? l.label : `- ${qtyStr} Stk ${nameOrId}` };
 });
   const PayerKind = services?.payer || (b.payer || '');
+    // -------- BWT-specific Angebotspositionen (Tür + optional Haltegriff) --------
+  // We only build these rows when the active offer is BWT.
+  const offerKey =
+    body.activeOffer ||
+    body.currentOfferKey ||
+    computed.activeOffer ||
+    '';
+
+  let BwtRows = [];
+
+  if (offerKey === 'bwt') {
+    // Prefer DOCX-specific material lines, fallback to generic materials
+    const docxLines = Array.isArray(computed?.materialsDisplayDocx?.lines)
+      ? computed.materialsDisplayDocx.lines
+      : Array.isArray(materials?.lines)
+      ? materials.lines
+      : [];
+
+    const findLine = (id) =>
+      docxLines.find((l) => String(l.productId || l.id || '').trim() === id);
+
+    const formatQty = (q) => {
+      const n = Number(q || 0);
+      if (!Number.isFinite(n) || n <= 0) return '';
+      return n.toFixed(2).replace(/\.00$/, '');
+    };
+
+    // Our two products in BWT:
+    const doorLine = findLine('1226');      // Universal/Standard Tür
+    const grabLine = findLine('CLPESG40');  // Haltegriff
+
+    // --- Pos 001: Badewannentür (Universal/Standard) ---
+    if (doorLine) {
+      BwtRows.push({
+        Pos: '001',
+        Menge: formatQty(doorLine.qty),
+        Einheitspreis: fmtCurrency(doorLine.unitPrice || 0),
+        Gesamt: fmtCurrency(doorLine.lineTotal || 0),
+
+        // Bezeichnung parts – template can style Title bold & larger
+        Title: 'Liefern und Montieren einer Badewannentür',
+        Detail1:
+          'Liefern und Montieren einer Badewannentür (Universal/Standard) Höhe 40 cm, Breite 40,5 cm.',
+        Detail2: 'inkl. dazugehörige Materialien.',
+        Detail3: 'inkl. An- & Abfahrten / Dieselzuschlag',
+        Detail4: ' inkl. Bereitstellung Maschinen / Werkzeug',
+        Detail5: 'inkl. Vorhaltung und Beräumung der Baustelle',
+        Detail6: 'inkl. dazugehörige Materialie.',
+      });
+    }
+
+    // --- Pos 002 (oder 001 wenn keine Tür): Haltegriff CLPESG40 ---
+    if (grabLine) {
+      const pos = doorLine ? '002' : '001';
+      const cleanLabel = String(grabLine.label || grabLine.name || '')
+        .replace(/^-+\s*/, '')
+        .trim();
+
+      BwtRows.push({
+        Pos: pos,
+        Menge: formatQty(grabLine.qty),
+        Einheitspreis: fmtCurrency(grabLine.unitPrice || 0),
+        Gesamt: fmtCurrency(grabLine.lineTotal || 0),
+
+        // For Haltegriff we just show the full label as "Title"
+        Title: cleanLabel,
+        Detail1: '',
+        Detail2: '',
+      });
+    }
+  }
+
   const ZoneChosen = services?.zoneLabel || '';
   const DistanceKm =
     (services && services.distanceKm !== undefined && services.distanceKm !== null)
@@ -890,6 +962,9 @@ HasIncluded,
     RegieRateFmt,
     // for the toggle is on (ebenerdigNote / ebenerdigeMontage 
      EbenerdigHinweis,
+
+     // BWT table rows (used only in Angebot-BWT.docx)
+    BwtRows,
   };
 }
 
