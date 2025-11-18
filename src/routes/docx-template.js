@@ -746,31 +746,33 @@ if (offerKey === 'bwt') {
     // door qty for the three material lines
     const doorQtyPlain = formatPlain(doorLine.qty);
 
-    BwtRows.push({
-      Pos: '001',
-      Menge: formatQty(doorLine.qty),
-      Einheitspreis: fmtCurrency(doorLine.unitPrice || 0),
-      Gesamt: fmtCurrency(doorLine.lineTotal || 0),
+   BwtRows.push({
+  Pos: '001',
+  Menge: formatQty(doorLine.qty),
+  Einheitspreis: fmtCurrency(doorLine.unitPrice || 0),
+  Gesamt: fmtCurrency(doorLine.lineTotal || 0),
 
-      // Bezeichnung block
-      Title: 'Liefern und Montieren einer Badewannentür',
-      Bullet1:
-        'Liefern und Montieren einer Badewannentür (Universal/Standard) Höhe 40 cm, Breite 40,5 cm',
-      Bullet2: 'inkl. dazugehörige Materialien',
-      Bullet3: 'inkl. An- & Abfahrten / Dieselzuschlag',
-      Bullet4: 'inkl. Bereitstellung Maschinen / Werkzeug',
-      Bullet5: 'inkl. Vorhaltung und Beräumung der Baustelle',
-      Bullet6: 'inkl. Lieferkosten',
+  // Bezeichnung block
+  Title: 'Liefern und Montieren einer Badewannentür',
+  Bullet1:
+    'Liefern und Montieren einer Badewannentür (Universal/Standard) Höhe 40 cm, Breite 40,5 cm',
+  Bullet2: 'inkl. dazugehörige Materialien',
+  Bullet3: 'inkl. An- & Abfahrten / Dieselzuschlag',
+  Bullet4: 'inkl. Bereitstellung Maschinen / Werkzeug',
+  Bullet5: 'inkl. Vorhaltung und Beräumung der Baustelle',
+  Bullet6: 'inkl. Lieferkosten',
 
-      // Bullet7 only if Haltegriff gewählt ist
-      Bullet7: grabLine ? 'Montage Haltegriff 40 cm' : '',
+  // Bullet7 only if Haltegriff gewählt ist
+  HasBullet7: !!grabLine,
+  Bullet7: 'Montage Haltegriff 40 cm',
 
-      // Enthält je Einheit
-      EnthKmQty,               // -> {EnthKmQty} km Kilometerpauschale
-      EnthDeliverQty: doorQtyPlain, // -> {EnthDeliverQty} Stk Lieferkosten Badewannentür
-      EnthDoorQty: doorQtyPlain,    // -> {EnthDoorQty} Stk Universal / Standard Tür
-      EnthKleinQty: doorQtyPlain,   // -> {EnthKleinQty} Stk Kleinmaterial
-    });
+  // Enthält je Einheit
+  EnthKmQty,
+  EnthDeliverQty: doorQtyPlain,
+  EnthDoorQty: doorQtyPlain,
+  EnthKleinQty: doorQtyPlain,
+});
+
   }
 
   // --- Haltegriff row (Pos 002 oder 001) ---
