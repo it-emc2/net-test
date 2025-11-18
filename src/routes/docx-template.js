@@ -695,77 +695,105 @@ const MaterialsLines = matForDoc.map(l => {
   return { MaterialLine: l.label ? l.label : `- ${qtyStr} Stk ${nameOrId}` };
 });
   const PayerKind = services?.payer || (b.payer || '');
-    // -------- BWT-specific Angebotspositionen (Tür + optional Haltegriff) --------
-  // We only build these rows when the active offer is BWT.
+
+
+      // -------- BWT-specific Angebotspositionen --------
   const offerKey =
-    body.activeOffer ||
-    body.currentOfferKey ||
-    computed.activeOffer ||
-    '';
+  body.activeOffer ||
+  body.currentOfferKey ||
+  computed.activeOffer ||
+  '';
 
-  let BwtRows = [];
+let BwtRows = [];       // Tür rows (usually 0 or 1)
+let BwtGrabRows = [];   // Haltegriff rows (0 or 1)
 
-  if (offerKey === 'bwt') {
-    // Prefer DOCX-specific material lines, fallback to generic materials
-    const docxLines = Array.isArray(computed?.materialsDisplayDocx?.lines)
-      ? computed.materialsDisplayDocx.lines
-      : Array.isArray(materials?.lines)
-      ? materials.lines
-      : [];
+if (offerKey === 'bwt') {
+  const docxLines = Array.isArray(computed?.materialsDisplayDocx?.lines)
+    ? computed.materialsDisplayDocx.lines
+    : Array.isArray(materials?.lines)
+    ? materials.lines
+    : [];
 
-    const findLine = (id) =>
-      docxLines.find((l) => String(l.productId || l.id || '').trim() === id);
+  const findLine = (id) =>
+    docxLines.find((l) => String(l.productId || l.id || '').trim() === id);
 
-    const formatQty = (q) => {
-      const n = Number(q || 0);
-      if (!Number.isFinite(n) || n <= 0) return '';
-      return n.toFixed(2).replace(/\.00$/, '');
-    };
+  // Menge in der Tabelle: "1 Stk", "2 Stk", ...
+  const formatQty = (q) => {
+    const n = Number(q || 0);
+    if (!Number.isFinite(n) || n <= 0) return '';
+    const base = n.toFixed(2).replace(/\.00$/, '');
+    return `${base} Stk`;
+  };
 
-    // Our two products in BWT:
-    const doorLine = findLine('1226');      // Universal/Standard Tür
-    const grabLine = findLine('CLPESG40');  // Haltegriff
+  // Plain number "1,00", "254,00" für Enthält je Einheit
+  const formatPlain = (q) => {
+    const n = Number(q || 0);
+    if (!Number.isFinite(n) || n <= 0) return '';
+    return n.toFixed(2).replace('.', ',');
+  };
 
-    // --- Pos 001: Badewannentür (Universal/Standard) ---
-    if (doorLine) {
-      BwtRows.push({
-        Pos: '001',
-        Menge: formatQty(doorLine.qty),
-        Einheitspreis: fmtCurrency(doorLine.unitPrice || 0),
-        Gesamt: fmtCurrency(doorLine.lineTotal || 0),
+  const doorLine = findLine('1226');      // Universal/Standard Tür
+  const grabLine = findLine('CLPESG40');  // Haltegriff
 
-        // Bezeichnung parts – template can style Title bold & larger
-        Title: 'Liefern und Montieren einer Badewannentür',
-        Detail1:
-          'Liefern und Montieren einer Badewannentür (Universal/Standard) Höhe 40 cm, Breite 40,5 cm.',
-        Detail2: 'inkl. dazugehörige Materialien.',
-        Detail3: 'inkl. An- & Abfahrten / Dieselzuschlag',
-        Detail4: ' inkl. Bereitstellung Maschinen / Werkzeug',
-        Detail5: 'inkl. Vorhaltung und Beräumung der Baustelle',
-        Detail6: 'inkl. dazugehörige Materialie.',
-      });
-    }
+  // --- Tür row (Pos 001) ---
+  if (doorLine) {
+    // distance from pricing (round-trip km)
+    const roundTripKm = Number(services?.distanceKm || 0);
+    console.log( "roundTripKm ", roundTripKm);
+    const EnthKmQty = formatPlain(roundTripKm);
+    console.log( "EnthKmQty ", EnthKmQty);
 
-    // --- Pos 002 (oder 001 wenn keine Tür): Haltegriff CLPESG40 ---
-    if (grabLine) {
-      const pos = doorLine ? '002' : '001';
-      const cleanLabel = String(grabLine.label || grabLine.name || '')
-        .replace(/^-+\s*/, '')
-        .trim();
+    // door qty for the three material lines
+    const doorQtyPlain = formatPlain(doorLine.qty);
 
-      BwtRows.push({
-        Pos: pos,
-        Menge: formatQty(grabLine.qty),
-        Einheitspreis: fmtCurrency(grabLine.unitPrice || 0),
-        Gesamt: fmtCurrency(grabLine.lineTotal || 0),
+    BwtRows.push({
+      Pos: '001',
+      Menge: formatQty(doorLine.qty),
+      Einheitspreis: fmtCurrency(doorLine.unitPrice || 0),
+      Gesamt: fmtCurrency(doorLine.lineTotal || 0),
 
-        // For Haltegriff we just show the full label as "Title"
-        Title: cleanLabel,
-        Detail1: '',
-        Detail2: '',
-      });
-    }
+      // Bezeichnung block
+      Title: 'Liefern und Montieren einer Badewannentür',
+      Bullet1:
+        'Liefern und Montieren einer Badewannentür (Universal/Standard) Höhe 40 cm, Breite 40,5 cm',
+      Bullet2: 'inkl. dazugehörige Materialien',
+      Bullet3: 'inkl. An- & Abfahrten / Dieselzuschlag',
+      Bullet4: 'inkl. Bereitstellung Maschinen / Werkzeug',
+      Bullet5: 'inkl. Vorhaltung und Beräumung der Baustelle',
+      Bullet6: 'inkl. Lieferkosten',
+
+      // Bullet7 only if Haltegriff gewählt ist
+      Bullet7: grabLine ? 'Montage Haltegriff 40 cm' : '',
+
+      // Enthält je Einheit
+      EnthKmQty,               // -> {EnthKmQty} km Kilometerpauschale
+      EnthDeliverQty: doorQtyPlain, // -> {EnthDeliverQty} Stk Lieferkosten Badewannentür
+      EnthDoorQty: doorQtyPlain,    // -> {EnthDoorQty} Stk Universal / Standard Tür
+      EnthKleinQty: doorQtyPlain,   // -> {EnthKleinQty} Stk Kleinmaterial
+    });
   }
+
+  // --- Haltegriff row (Pos 002 oder 001) ---
+  if (grabLine) {
+    const pos = doorLine ? '002' : '001';
+
+    const rawText = String(grabLine.label || grabLine.name || '').trim();
+    let cleanLabel = rawText.replace(/^-+\s*/, ''); // "- 1 Stk ..." -> "1 Stk ..."
+    cleanLabel = cleanLabel.replace(/^\d+[.,]?\d*\s*Stk\s*/i, ''); // "1 Stk Haltegriff..." -> "Haltegriff..."
+    cleanLabel = cleanLabel.trim();
+
+    BwtGrabRows.push({
+      Pos: pos,
+      Menge: formatQty(grabLine.qty),
+      Text: cleanLabel,
+      Einheitspreis: fmtCurrency(grabLine.unitPrice || 0),
+      Gesamt: fmtCurrency(grabLine.lineTotal || 0),
+    });
+  }
+}
+
+// -------- END of BWT-specific Angebotspositionen --------
+
 
   const ZoneChosen = services?.zoneLabel || '';
   const DistanceKm =
@@ -965,6 +993,7 @@ HasIncluded,
 
      // BWT table rows (used only in Angebot-BWT.docx)
     BwtRows,
+    BwtGrabRows,
   };
 }
 
