@@ -8,6 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
 import offersRouter from './routes/offers.js';
+import Service from './models/Service.js'; // <‑‑ NEU
 import traysRouter from './routes/trays.js';
 
 // PDF/DOCX routes
@@ -178,6 +179,78 @@ app.post('/api/products/bulk', async (req, res) => {
     res.json({ ok: true, result });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ---------------- Services APIs ----------------
+
+// Bulk upsert services: [{ serviceId, name, price, time, description, internal_name, source }]
+app.post('/api/services/bulk', async (req, res) => {
+  try {
+    const items = Array.isArray(req.body) ? req.body : [];
+    if (!items.length) {
+      return res.status(400).json({ error: 'Body must be an array of services' });
+    }
+
+    const ops = items.map((s) => ({
+      updateOne: {
+        filter: { serviceId: s.serviceId },
+        update: {
+          $set: {
+            name:          s.name,
+            description:   s.description ?? null,
+            internal_name: s.internal_name ?? null,
+            price:         Number(s.price || 0),
+            time:          Number(s.time || 0),
+            source:        s.source ?? null,
+          },
+        },
+        upsert: true,
+      },
+    }));
+
+    const result = await Service.bulkWrite(ops);
+    res.json({ ok: true, result });
+  } catch (err) {
+    console.error('POST /api/services/bulk failed:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// Alle Services auflisten (Admin/Debug)
+app.get('/api/services', async (req, res) => {
+  try {
+    const { q } = req.query;
+    const filter = {};
+
+    if (q) {
+      filter.$or = [
+        { serviceId: new RegExp(q, 'i') },
+        { name: new RegExp(q, 'i') },
+        { internal_name: new RegExp(q, 'i') },
+      ];
+    }
+
+    const docs = await Service.find(filter)
+      .sort({ serviceId: 1 })
+      .lean();
+
+    res.json(docs);
+  } catch (err) {
+    console.error('GET /api/services failed:', err);
+    res.status(500).json({ error: 'Serverfehler beim Laden der Services' });
+  }
+});
+
+// Single service by serviceId
+app.get('/api/services/:id', async (req, res) => {
+  try {
+    const s = await Service.findOne({ serviceId: req.params.id }).lean();
+    if (!s) return res.status(404).json({ error: 'Not found' });
+    res.json(s);
+  } catch (err) {
+    console.error('GET /api/services/:id failed:', err);
     res.status(500).json({ error: String(err) });
   }
 });

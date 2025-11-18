@@ -8,7 +8,7 @@ const serviceSchema = new mongoose.Schema(
     internal_name: { type: String, default: null },
     price: { type: Number, required: true, min: 0 },
     time: { type: Number, required: true, min: 0 },
-    source:    { type: String, default: null },
+    source:    { type: String, default: null } ,
   },
   { timestamps: true, collection: 'Services' }
 );
