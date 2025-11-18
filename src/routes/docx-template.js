@@ -13,6 +13,47 @@ import ProductModel from '../models/Product.js';
 import pricingFactory from '../logic/pricing.js';
 
 export const router = express.Router();
+
+// Pick Angebot template depending on active offer / Bereich
+function getAngebotTemplatePath(body) {
+  // Try to find activeOffer in various common places
+  const findOffer = (src) => {
+    if (!src || typeof src !== 'object') return null;
+    return (
+      src.activeOffer ||
+      src.currentOfferKey ||
+      src.offerType ||
+      null
+    );
+  };
+
+  const offer =
+    findOffer(body) ||
+    findOffer(body?.payload) ||
+    findOffer(body?.pricePreview) ||
+    'bu'; // default for old flows
+
+  let file;
+  switch (offer) {
+    case 'bwt':
+      console.log("under bwt ")
+      file = 'Angebot-BWT.docx';   // <-- your BWT template filename
+      break;
+    // later:
+    // case 'hl':
+    //   file = 'Angebot-HL.docx';
+    //   break;
+    case 'bu':
+      console.log("under bu ")
+    default:
+      console.log("under default ")
+      file = 'Angebot.docx';       // <-- your BU template filename
+      break;
+  }
+
+  return path.join(process.cwd(), 'src', 'templates', file);
+}
+
 const pricing = pricingFactory(ProductModel);
 
 // -------- Helpers --------
@@ -859,7 +900,7 @@ HasIncluded,
 // -------- Existing Angebot DOCX route --------
 router.post('/', async (req, res) => {
   try {
-    const templatePath = path.join(process.cwd(), 'src', 'templates', 'Angebot.docx');
+     const templatePath = getAngebotTemplatePath(req.body);
     const content = await fs.readFile(templatePath);
 
     const computed = await pricing.computePrices(req.body || {});
@@ -975,7 +1016,7 @@ router.post('/material-overview', async (req, res) => {
 // ✅ IMPROVED: PDF route with much more robust LibreOffice handling
 router.post('/pdf', async (req, res) => {
   try {
-    const templatePath = path.join(process.cwd(), 'src', 'templates', 'Angebot.docx');
+     const templatePath = getAngebotTemplatePath(req.body);
     const content = await fs.readFile(templatePath);
 
     const computed = await pricing.computePrices(req.body || {});

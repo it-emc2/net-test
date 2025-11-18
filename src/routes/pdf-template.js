@@ -195,7 +195,7 @@ router.post('/', async (req, res) => {
   if (!process.env.PDFJS_DISABLE_WORKER) process.env.PDFJS_DISABLE_WORKER = 'true';
 
   try {
-    const templatePath = path.join(process.cwd(), 'src', 'templates', 'KK WZD Rabatt.pdf');
+     const templatePath = getAngebotTemplatePath(req.body);
     log('Reading template from', templatePath);
 
     let templateBytes;
