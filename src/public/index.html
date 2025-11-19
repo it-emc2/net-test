@@ -87,6 +87,64 @@ body {
 .nt-toast.error   { --nt-accent:#ef4444; border-color: var(--nt-accent)!important; box-shadow: 0 20px 45px rgba(0,0,0,.25), 0 0 0 1px var(--nt-accent) inset; }
 .nt-toast.info    { --nt-accent:#3b82f6; border-color: var(--nt-accent)!important; box-shadow: 0 20px 45px rgba(0,0,0,.25), 0 0 0 1px var(--nt-accent) inset; }
 .nt-toast.warn    { --nt-accent:#f59e0b; border-color: var(--nt-accent)!important; box-shadow: 0 20px 45px rgba(0,0,0,.25), 0 0 0 1px var(--nt-accent) inset; }
+
+/* ---------------- Sticky customer summary widget ---------------- */
+
+.summary-widget {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 60; /* above sidebar (z=50), below toaster (9999) */
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 8px 14px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+/* Hide widget on the Home screen, like the sidebar */
+body:has(#page-home:not([hidden])) #summaryWidget {
+  display: none;
+}
+
+.summary-widget .sw-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.summary-widget .sw-label {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.summary-widget .sw-value {
+  font-weight: 600;
+}
+
+.summary-widget .sw-selfpay .sw-value {
+  color: var(--accent-strong);
+}
+
+@media (max-width: 900px) {
+  .summary-widget {
+    top: 10px;
+    right: 10px;
+    font-size: 0.8rem;
+    padding: 6px 10px;
+  }
+}
+
+
+
+
+
+
 /* ---------------- Home confirm modal ---------------- */
 
 #homeConfirmOverlay {
@@ -473,12 +531,16 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
                     required
                   /><span class="circle"></span><span>Herr</span></label>
                    <label class="radio-pill">
-                <input type="radio" 
-                name="salutation" 
-                value="Familie"
-                required 
-                /><span class="circle"></span>Familie</span>
-              </label>
+  <input 
+    type="radio" 
+    name="salutation" 
+    value="Familie"
+    required 
+  />
+  <span class="circle"></span>
+  <span>Familie</span>
+</label>
+
               </div>
             </div>
             <div>
@@ -1031,98 +1093,99 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 
   <!-- Arbeitszeit -->
 <section class="card page" id="page-Arbeitszeit" hidden>
-
-        <div class="section-header">Arbeitszeit</div>
-        <form id="form-Arbeitszeit" novalidate>
-          <div
-
-            class="full"
-            style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px"
-          >
-            
-        
-
-          <div id="travelSection" class="full" style="margin-top: 16px">
-  <details open>
-    <summary class="section-header" style="cursor: pointer">
-      Anfahrzeit zum Kunde
-    </summary>
+  <div class="section-header">Arbeitszeit</div>
+  <form id="form-Arbeitszeit" novalidate>
     <div
-      class="card"
-      style="
-        background: var(--section-bg);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 12px;
-      "
+      class="full"
+      style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px"
     >
-      <!-- Distance input -->
-      <div class="full" style="margin-bottom: 12px">
-        <label for="distanceKm" class="req">
-          Wie viele Kilometer ist der Kunde von uns entfernt?
-          (Kilometerpauschale. Hin- und Rückfahrt wird automatisch kalkuliert)
-        </label>
-        <input
-          id="distanceKm"
-          name="distanceKm"
-          type="number"
-          min="0"
-          step="1"
-          placeholder="z. B. 25"
-          required
-        />
-        <div class="muted" style="margin-top: 6px;">
-          Bitte nur die einfache Strecke (Hin‑Fahrt) eintragen.
-          Rückfahrt wird automatisch mit berechnet:
-          <b><span id="roundTripPreview">= 0 km (Hin- & Rückfahrt)</span></b>
-        </div>
-      </div>
+      <div id="travelSection" class="full" style="margin-top: 16px">
+        <details open>
+          <summary class="section-header" style="cursor: pointer">
+            Anfahrzeit zum Kunde
+          </summary>
+          <div
+            class="card"
+            style="
+              background: var(--section-bg);
+              border: 1px solid var(--border);
+              border-radius: 10px;
+              padding: 12px;
+            "
+          >
+            <!-- Distance input -->
+            <div class="full" style="margin-bottom: 12px">
+              <label for="distanceKm" class="req">
+                Wie viele Kilometer ist der Kunde von uns entfernt?
+                (Kilometerpauschale. Hin- und Rückfahrt wird automatisch kalkuliert)
+              </label>
+              <input
+                id="distanceKm"
+                name="distanceKm"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="z. B. 25"
+                required
+              />
+              <div class="muted" style="margin-top: 6px;">
+                Bitte nur die einfache Strecke (Hin-Fahrt) eintragen.
+                Rückfahrt wird automatisch mit berechnet:
+                <b><span id="roundTripPreview">= 0 km (Hin- & Rückfahrt)</span></b>
+              </div>
+            </div>
 
-      <!-- NEW: Arbeitszeit selection</div> -->
-      <div class="full" style="margin: 8px 0 12px 0">
-         <!-- <label class="req">Arbeitszeit in Stunden (pro Arbeiter)</label>
-        <div class="muted" style="margin: 6px 0 8px">
-          Bei einer Entfernung von mehr als 1 Stunde zum Kunden beträgt die Arbeitszeit 10h,
-          bei weniger als 1 Stunde Anfahrt 8h.
-          Es werden immer zwei Facharbeiter kalkuliert (×2).-->
-        
-  <div class="field-row" style="display:flex; gap:12px; align-items:flex-end;">
-  <label class="field" style="flex:1;">
-    <span>Arbeitszeit (Dauer, HH:MM)</span>
-   <input id="laborHours"  name="laborHours"  type="text" inputmode="numeric" value="07:00" autocomplete="off" placeholder="HH:MM" required>
-  </label>
+            <!-- NEW: Arbeitszeit selection -->
+            <div class="full" style="margin: 8px 0 12px 0">
+              <div class="field-row" style="display:flex; gap:12px; align-items:flex-end;">
+                <label class="field" style="flex:1;">
+                  <span>Arbeitszeit (Dauer, HH:MM)</span>
+                  <input
+                    id="laborHours"
+                    name="laborHours"
+                    type="text"
+                    inputmode="numeric"
+                    value="07:00"
+                    autocomplete="off"
+                    placeholder="HH:MM"
+                    required
+                  >
+                </label>
 
-  <label class="field" style="flex:1;">
-    <span>Reisezeit (Dauer, HH:MM),  nur Hin‑Fahrt eintragen</span>
-   <input id="travelTime"  name="travelTime"  type="text" inputmode="numeric"               placeholder="HH:MM">
-  </label>
-</div>
+                <label class="field" style="flex:1;">
+                  <span>Reisezeit (Dauer, HH:MM),  nur Hin-Fahrt eintragen</span>
+                  <input
+                    id="travelTime"
+                    name="travelTime"
+                    type="text"
+                    inputmode="numeric"
+                    placeholder="HH:MM"
+                  >
+                </label>
+              </div>
 
+              <!-- Optional dynamic suggestion from distance -->
+              <div id="laborSuggestion" class="muted" style="margin-top: 6px"></div>
+              <div id="totalHoursHHMM" class="muted" style="margin-top:4px;"></div>
+            </div>
 
-        <!-- Optional dynamic suggestion from distance -->
-        <div id="laborSuggestion" class="muted" style="margin-top: 6px"></div>
-        <div id="totalHoursHHMM" class="muted" style="margin-top:4px;"></div>
-      </div>
-
-      <!-- keep zones placeholders below -->
-      <div id="zonesKK" hidden aria-hidden="true"></div>
-      <div id="zonesSZ" hidden aria-hidden="true"></div>
-    </div>
-  </details>
-</div>
-
-          
-
-          
-
-          <div class="actions full">
-            <button type="button" data-nav="prev" class="secondary">
-              Zurück
-            </button>
-            <button type="button" data-nav="next">Weiter</button>
+            <!-- keep zones placeholders below -->
+            <div id="zonesKK" hidden aria-hidden="true"></div>
+            <div id="zonesSZ" hidden aria-hidden="true"></div>
           </div>
-        </form>
-      </section>     
+        </details>
+      </div>
+    </div> <!-- ✅ closes the grid .full wrapper -->
+
+    <div class="actions full">
+      <button type="button" data-nav="prev" class="secondary">
+        Zurück
+      </button>
+      <button type="button" data-nav="next">Weiter</button>
+    </div>
+  </form>
+</section>
+
 
 
       <!-- Duschwanne -->
@@ -5285,9 +5348,19 @@ grundsätzlich wird automatisch mitkalkuliert
 
   <div id="as_status" class="status-line">Bereit.</div>
 </section>
-    </div>
+    </div>    </div> <!-- closes .container -->
+  </div>   <!-- closes .app -->
 
-
+<div id="summaryWidget" class="summary-widget" aria-live="polite">
+  <div class="sw-line sw-name">
+    <span class="sw-label">Kunde:</span>
+    <span id="swNameValue" class="sw-value">–</span>
+  </div>
+  <div class="sw-line sw-selfpay">
+    <span class="sw-label">Eigenanteil:</span>
+    <span id="swSelfPayValue" class="sw-value">–</span>
+  </div>
+</div>
 
 
 
@@ -5315,6 +5388,7 @@ grundsätzlich wird automatisch mitkalkuliert
     </div>
   </div>
 </div>
+
 
 
     

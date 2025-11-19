@@ -879,7 +879,7 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
   bonusGross += round2(cl40Unit);
 }
 
-      // const totalAfterBonus = round2(Math.max(0, totalAfterRabatt - bonusGross));
+    
       const netAfterRabatt_and_Bonus = round2(Math.max(0, netAfterRabatt - bonusGross));
 
 
@@ -944,12 +944,6 @@ subsidyAmount_max = subsidyAmount;
    
   }
 
-
-// Base to subtract from: prefer most final amount
-// const baseForSubsidy =
-  // (Number.isFinite(totalAfterBonus)  && totalAfterBonus  > 0 ? totalAfterBonus  :
-  //  Number.isFinite(totalAfterRabatt) && totalAfterRabatt > 0 ? totalAfterRabatt :
-  //  total);
 
 const selfPayAmount = round2(Math.max(0, Number(total) - Number(subsidyAmount_max )));
 
