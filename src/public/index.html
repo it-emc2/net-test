@@ -5374,17 +5374,23 @@ grundsätzlich wird automatisch mitkalkuliert
     </div>    </div> <!-- closes .container -->
   </div>   <!-- closes .app -->
 
+  <!-- widget-->
 <div id="summaryWidget" class="summary-widget" aria-live="polite">
   <div class="sw-line sw-name">
     <span class="sw-label">Kunde:</span>
     <span id="swNameValue" class="sw-value">–</span>
   </div>
-  <div class="sw-line sw-selfpay">
+  <div class="sw-line sw-total">
+    <span class="sw-label">Gesamt:</span>
+    <span id="swTotalValue" class="sw-value">–</span>
+  </div>
+  <div class="sw-line sw-selfpay" id="swSelfPayRow">
     <span class="sw-label">Eigenanteil:</span>
     <span id="swSelfPayValue" class="sw-value">–</span>
   </div>
 </div>
 
+<!-- end widget -->
 
 
 <div id="nt-toast-backdrop" hidden></div>

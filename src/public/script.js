@@ -1080,13 +1080,20 @@ function resetAllForms() {
   // 3) One clean pricing refresh after reset (if pricing exists)
   window.updatePricing?.();
     // Also reset the small top-right summary widget
-  if (typeof updateSummaryWidgetName === "function") {
-    updateSummaryWidgetName();      // will show "–" because first/last are now empty
+   if (typeof updateSummaryWidgetName === "function") {
+    updateSummaryWidgetName();
   }
   if (typeof updateSummaryWidgetSelfPay === "function") {
-    updateSummaryWidgetSelfPay(null);  // clears Eigenanteil -> "–"
+    updateSummaryWidgetSelfPay(null);
+  }
+  if (typeof updateSummaryWidgetTotal === "function") {
+    updateSummaryWidgetTotal(null);
+  }
+  if (typeof updateSummaryWidgetSubsidyVisibility === "function") {
+    updateSummaryWidgetSubsidyVisibility();
   }
 }
+
 
 
 
@@ -1962,6 +1969,35 @@ function updateSummaryWidgetSelfPay(selfPayAmount) {
     outEl.textContent = formatted;
   }
 }
+function updateSummaryWidgetTotal(totalAmount) {
+  const outEl = document.getElementById("swTotalValue");
+  if (!outEl) return;
+
+  const n = Number(totalAmount || 0);
+  if (!Number.isFinite(n) || n <= 0) {
+    outEl.textContent = "–";
+    return;
+  }
+
+  if (typeof euroC === "function") {
+    outEl.innerHTML = euroC(n);
+  } else {
+    const formatted = n.toFixed(2).replace(".", ",") + " €";
+    outEl.textContent = formatted;
+  }
+}
+function updateSummaryWidgetSubsidyVisibility() {
+  const row = document.getElementById("swSelfPayRow");
+  if (!row) return;
+
+  const budgetMaxChecked = !!document.querySelector('input[name="budgetMax"]:checked');
+  const twoPersonsChecked = !!document.querySelector('input[name="twoPersons"]:checked');
+
+  const show = budgetMaxChecked || twoPersonsChecked;
+  row.style.display = show ? "" : "none";
+}
+
+
 /* ========== End HELPERS  for the floating widget ========== */
 
 function updateCustomerNumberVisibility() {
@@ -3637,14 +3673,19 @@ function attachDuschwanneToPayload(payload) {
     window.setPricingData?.(data);
 
     // Notify listeners (Kosten, flooring panels span, etc.)
-    window.dispatchEvent(new CustomEvent("pricing:updated", { detail: data }));
+  window.dispatchEvent(new CustomEvent("pricing:updated", { detail: data }));
 
-  // 🔹 Keep Eigenanteil widget in sync on every pricing update
+  // 🔹 Keep Gesamt + Eigenanteil in sync on every pricing update
+  if (typeof updateSummaryWidgetTotal === "function") {
+    updateSummaryWidgetTotal(data.total);
+  }
   if (typeof updateSummaryWidgetSelfPay === "function") {
     updateSummaryWidgetSelfPay(data.selfPayAmount);
   }
-    return data;
-  };
+
+  return data;
+};
+
 
   // Compute once on load so Rabatt has values and spans have data
   document.addEventListener("DOMContentLoaded", () => {
@@ -6824,6 +6865,14 @@ document.addEventListener('DOMContentLoaded', () => {
   fn && fn.addEventListener("input", updateSummaryWidgetName);
   ln && ln.addEventListener("input", updateSummaryWidgetName);
   updateSummaryWidgetName();
+
+  // Widget: Eigenanteil nur, wenn eine Budget-Option gesetzt ist
+  document
+    .querySelectorAll('input[name="budgetMax"], input[name="twoPersons"]')
+    .forEach((el) => {
+      el.addEventListener("change", updateSummaryWidgetSubsidyVisibility);
+    });
+  updateSummaryWidgetSubsidyVisibility();
 
 });
 
