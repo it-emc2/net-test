@@ -1349,9 +1349,10 @@ function collectDuschabtrennungQuickAdd(doc) {
         if (priceNum <= 0) return;       // only priced rows
         if (qty <= 0) return;
         const productId = (idEl?.value ?? '').trim();
+        const label = canonicalLabel || productId || 'Duschabtrennung (Hassmann)';
         qa.push({
           kind,
-           label: productId,
+           label,
           qty,
           price: priceRaw,
           productId
