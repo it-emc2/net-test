@@ -200,6 +200,7 @@ function normalizeDWTasks(payload) {
 
 const MAP_DW = {
   remove_tub:        'Entfernen und Entsorgen der Badewanne inkl. Befliesung',
+  remove_showertub:   'Entfernen und Entsorgen der Duschwanne inkl. Befliesung',
   remove_enclosure:  'Entfernen und Entsorgen der Duschabtrennung',
   install_tray:      'Einbau der Duschwanne',
   install_enclosure: 'Einbau der Duschabtrennung',

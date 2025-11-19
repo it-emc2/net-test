@@ -635,6 +635,7 @@ const stripBullet = s => norm(s).replace(/^-+\s*/, '').trim();
 // DW tasks that belong under "Auszuführende Arbeiten"
 const DW_TASKS = new Set([
   'Entfernen und Entsorgen der Badewanne inkl. Befliesung',
+  'Entfernen und Entsorgen der Duschwanne inkl. Befliesung',
   'Entfernen und Entsorgen der Duschabtrennung',
   'Einbau der Duschwanne',
   'Einbau der Duschabtrennung',
