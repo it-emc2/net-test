@@ -2790,6 +2790,8 @@ if (last) {
   const copayCheckbox = document.getElementById("budgetCopay");
   const copayField = document.getElementById("copayField");
   const copayAmount = document.getElementById("copayAmount");
+   const budgetMaxCheckbox  = form?.querySelector('input[name="budgetMax"]');
+  const twoPersonsCheckbox = form?.querySelector('input[name="twoPersons"]');
   const wePanel = document.getElementById("wohnumfeldPanel");
   const weDoneGroup = document.getElementById("wohnumfeldDoneGroup");
   const weAmountRow = document.getElementById("wohnumfeldAmountRow");
@@ -2847,12 +2849,26 @@ if (last) {
     show(pgLevelRow, has);
     setReq(pgRadios, has);
     if (!has) clearRadios(pgRadios);
-    const showBudget = kk && has && valid1;
+        const showBudget = kk && has && valid1;
     show(budgetPanel, showBudget);
-    if (!showBudget && copayCheckbox) {
-      copayCheckbox.checked = false;
-      applyCopay();
+
+    if (!showBudget) {
+      // 1) always clear the copay checkbox + field
+      if (copayCheckbox) {
+        copayCheckbox.checked = false;
+        applyCopay();
+      }
+
+      // 2) NEW: also clear "4.180€ maximal" and "2 Personen"
+      if (budgetMaxCheckbox)  budgetMaxCheckbox.checked = false;
+      if (twoPersonsCheckbox) twoPersonsCheckbox.checked = false;
+
+      // 3) If you use the little Eigenanteil widget, update its visibility too
+      if (typeof updateSummaryWidgetSubsidyVisibility === "function") {
+        updateSummaryWidgetSubsidyVisibility();
+      }
     }
+
     show(wePanel, kk);
     const weDoneRadios = Array.from(
       weDoneGroup?.querySelectorAll('input[name="wohnumfeldDone"]') || []
