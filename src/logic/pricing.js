@@ -206,6 +206,7 @@ const MAP_DW = {
   install_enclosure: 'Einbau der Duschabtrennung',
   relocate_faucet:   'Armatur verlegen',
   relocate_drain:    'Abfluss verlegen',
+  close_valve: 'Stilllegen der Armatur',
 };
 
 const dwTasks = normalizeDWTasks(payload);

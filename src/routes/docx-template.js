@@ -639,6 +639,7 @@ const DW_TASKS = new Set([
   'Entfernen und Entsorgen der Duschabtrennung',
   'Einbau der Duschwanne',
   'Einbau der Duschabtrennung',
+  'Stilllegen der Armatur',
 ]);
 const isFehlstellen = s => /schließen der fehlstellen/i.test(s);
 
