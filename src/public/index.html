@@ -1267,6 +1267,15 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
       </span>
     </label>
 
+    <!-- Entfernen & Entsorgen Duschwanne -->
+    <label class="task-card">
+      <input type="checkbox" name="duschwanne[workTasks][]" value="remove_showertub" />
+      <span class="task-card__body">
+        <span class="task-card__title">Entfernen und Entsorgen der Duschwanne inkl. Befliesung</span>
+        <span class="task-card__hint">Demontage, Abtransport & fachgerechte Entsorgung</span>
+      </span>
+    </label>
+
     <!-- Entfernen & Entsorgen Duschabtrennung -->
     <label class="task-card">
       <input type="checkbox" name="duschwanne[workTasks][]" value="remove_enclosure" />
@@ -1312,6 +1321,14 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
       </span>
     </label>
 
+<!-- Stilllegen der Armatur -->
+    <label class="task-card">
+      <input type="checkbox" name="duschwanne[workTasks][]" value="close_valve" />
+      <span class="task-card__body">
+        <span class="task-card__title">Stilllegen der Armatur</span>
+        <span class="task-card__hint">Armatur vorübergehend stilllegen</span>
+      </span>
+    </label>
 
 </fieldset>
 
@@ -1642,6 +1659,12 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
                   class="circle"
                 ></span
                 ><span>Deckenhoch im Dusch/Wannenbereich</span></label
+              >
+               <label class="radio-pill"
+                ><input type="radio" name="wvKind" value="Duschabtrennung" /><span
+                  class="circle"
+                ></span
+                ><span>Im Duschbereich so hoch wie Duschabtrennung</span></label
               >
               <label class="radio-pill"
                 ><input type="radio" name="wvKind" value="Fliesenspiegel" checked/><span
