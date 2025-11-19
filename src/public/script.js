@@ -1923,6 +1923,24 @@ function euro(n) {
 function highlightTileForInput(input, on) {
   input?.closest("label.image-check")?.classList.toggle("is-checked", !!on);
 }
+function updateCustomerNumberVisibility() {
+  const row = document.getElementById("customerNumberRow");
+  if (!row) return;
+
+  const selected = document.querySelector('input[name="customerType"]:checked');
+  const type = selected ? selected.value : "";
+
+  const show = type === "Bestandskunde";
+
+  // show/hide row
+  row.style.display = show ? "" : "none";
+
+  // if we hide it, clear the value so it doesn't get saved by accident
+  if (!show) {
+    const input = document.getElementById("customerNumber");
+    if (input) input.value = "";
+  }
+}
 
 /* ========== VALIDATION ========== */
 function validateBereich() {
@@ -1932,7 +1950,7 @@ function validateBereich() {
   if (d && !d.value) d.valueAsDate = new Date();
   if (!form.checkValidity()) return false;
 
-  const req = ["date", "firstName", "lastName", "customerNumber"];
+  const req = ["date", "firstName", "lastName"];
   let bad = req
     .map((id) => document.getElementById(id))
     .find((el) => !el?.value);
@@ -6724,7 +6742,7 @@ function initLivePricingSync() {
 
 document.addEventListener('DOMContentLoaded', () => {
 
-   // If you have explicit nav buttons/tabs:
+  // If you have explicit nav buttons/tabs:
   const btnRabatt = document.getElementById('nav-rabatt');
   const btnDebug  = document.getElementById('nav-debug');
   if (btnRabatt) btnRabatt.addEventListener('click', refreshAllPanels);
@@ -6737,13 +6755,20 @@ document.addEventListener('DOMContentLoaded', () => {
   wireDAQtyAutoFill(); 
   initOptionalSonderprodukte();
 
-  initLivePricingSync(); //  
+  initLivePricingSync();  
   window.addEventListener('hashchange', () => {
-  const id = location.hash.replace('#','');
-  if (id === 'rabatt' || id === 'kosten') refreshAllPanels();
-});
+    const id = location.hash.replace('#','');
+    if (id === 'rabatt' || id === 'kosten') refreshAllPanels();
+  });
+
+  // Kundennummer nur bei Bestandskunde anzeigen
+  document.querySelectorAll('input[name="customerType"]').forEach((r) => {
+    r.addEventListener("change", updateCustomerNumberVisibility);
+  });
+  updateCustomerNumberVisibility();
 
 });
+
 
 // Small helper: confirmation dialog before going back to Home from the sidebar
 function askBeforeGoingHome(onConfirm) {

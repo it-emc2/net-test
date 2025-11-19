@@ -538,12 +538,9 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
             <label for="deployment">Abweichender Einsatzort</label
             ><input id="deployment" name="deployment" />
           </div>
-          <div class="full">
-            <label for="customerNumber" class="req"
-              >Kundennummer (Nur falls nicht vorhanden: Nachname des
-              Kunden)</label
-            ><input id="customerNumber" name="customerNumber" required />
-          </div>
+
+
+          
           <div>
             <label class="req">Neukunde oder Bestandskunde?</label>
             <div
@@ -570,6 +567,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
               >
             </div>
           </div>
+
           <div>
             <label class="req">Ansprechpartner vorhanden?</label>
             <div
@@ -596,7 +594,12 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
               >
             </div>
           </div>
-
+        <div class="full" id="customerNumberRow">
+  <label for="customerNumber">
+    Kundennummer
+  </label>
+  <input id="customerNumber" name="customerNumber" />
+</div>
           <div id="contactPersonSection" class="full" hidden aria-hidden="true">
             <div class="section-header">Kontaktdaten des Ansprechpartners</div>
             <div
