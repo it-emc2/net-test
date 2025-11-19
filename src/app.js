@@ -10,6 +10,7 @@ import mongoose from 'mongoose';
 import offersRouter from './routes/offers.js';
 import Service from './models/Service.js'; // <‑‑ NEU
 import traysRouter from './routes/trays.js';
+import magicRouter from './routes/magic.js';
 
 // PDF/DOCX routes
 import { router as pdfRouter } from './routes/pdf.js';
@@ -142,6 +143,7 @@ app.use('/pdf-template', pdfTemplateRouter);
 app.use('/docx-template', docxTemplateRouter);
 app.use('/material-overview', docxTemplateRouter);
 app.use('/api/offers', offersRouter);
+app.use('/api/magic', magicRouter);
 // (you had this twice; once is enough)
 // app.use('/api/offers', offersRouter);
 
