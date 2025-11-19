@@ -6744,6 +6744,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
 });
 
+// Small helper: confirmation dialog before going back to Home from the sidebar
+function askBeforeGoingHome(onConfirm) {
+  const overlay   = document.getElementById("homeConfirmOverlay");
+  const cancelBtn = document.getElementById("homeConfirmCancel");
+  const goBtn     = document.getElementById("homeConfirmGo");
+
+  // Fallback: native confirm if markup is missing
+  if (!overlay || !cancelBtn || !goBtn) {
+    const ok = window.confirm(
+      "Wenn Sie zur Startseite zurückkehren, gehen alle eingegebenen Daten verloren und Sie müssen neu beginnen. Möchten Sie fortfahren?"
+    );
+    if (ok && typeof onConfirm === "function") onConfirm();
+    return;
+  }
+
+  function cleanup() {
+    overlay.classList.remove("visible");
+    cancelBtn.removeEventListener("click", handleCancel);
+    goBtn.removeEventListener("click", handleGo);
+  }
+
+  function handleCancel() {
+    cleanup();
+  }
+
+  function handleGo() {
+    cleanup();
+    if (typeof onConfirm === "function") onConfirm();
+  }
+
+  cancelBtn.addEventListener("click", handleCancel);
+  goBtn.addEventListener("click", handleGo);
+
+  overlay.classList.add("visible");
+}
 
       //<!-- Sidebar + wizard nav sync -->
 
@@ -6768,17 +6803,39 @@ document.addEventListener('DOMContentLoaded', () => {
         closeBtn?.addEventListener("click", () => toggleSidebar(false));
         backdrop?.addEventListener("click", () => toggleSidebar(false));
 
-        sidebar?.addEventListener("click", (event) => {
+sidebar?.addEventListener("click", (event) => {
   const link = event.target.closest("a.side-link");
   if (!link) return;
 
   const step = link.getAttribute("data-step");
-  if (step) {
-    event.preventDefault();
+  if (!step) return;
+
+  event.preventDefault();
+
+  if (step === "home") {
+    // Already on home? Just close the sidebar.
+    const current =
+      typeof getCurrentStep === "function"
+        ? getCurrentStep()
+        : (location.hash || "").replace("#", "") || "home";
+
+    if (current === "home") {
+      toggleSidebar(false);
+      return;
+    }
+
+    // Ask the user before resetting and going back to home
+    askBeforeGoingHome(() => {
+      setStep("home");
+      toggleSidebar(false);
+    });
+  } else {
+    // Normal behavior for all other steps
     setStep(step);
+    toggleSidebar(false);
   }
-  toggleSidebar(false);
 });
+
 
       })();
 

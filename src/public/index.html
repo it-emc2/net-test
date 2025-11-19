@@ -87,6 +87,48 @@ body {
 .nt-toast.error   { --nt-accent:#ef4444; border-color: var(--nt-accent)!important; box-shadow: 0 20px 45px rgba(0,0,0,.25), 0 0 0 1px var(--nt-accent) inset; }
 .nt-toast.info    { --nt-accent:#3b82f6; border-color: var(--nt-accent)!important; box-shadow: 0 20px 45px rgba(0,0,0,.25), 0 0 0 1px var(--nt-accent) inset; }
 .nt-toast.warn    { --nt-accent:#f59e0b; border-color: var(--nt-accent)!important; box-shadow: 0 20px 45px rgba(0,0,0,.25), 0 0 0 1px var(--nt-accent) inset; }
+/* ---------------- Home confirm modal ---------------- */
+
+#homeConfirmOverlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.35);
+  z-index: 9990;
+}
+
+#homeConfirmOverlay.visible {
+  display: flex;
+}
+
+.home-confirm-dialog {
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 16px;
+  padding: 18px 20px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.45);
+  max-width: 440px;
+  width: calc(100% - 32px);
+}
+
+.home-confirm-dialog h3 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+.home-confirm-dialog p {
+  margin: 0 0 16px;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.home-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
 
 /* ---------------- Layout ---------------- */
 
@@ -5247,6 +5289,28 @@ grundsätzlich wird automatisch mitkalkuliert
 
 <div id="nt-toast-backdrop" hidden></div>
 <div id="nt-toaster" aria-live="polite" aria-atomic="true"></div>
+<div id="homeConfirmOverlay" class="home-confirm-overlay" aria-hidden="true">
+  <div
+    class="home-confirm-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="homeConfirmTitle"
+  >
+    <h3 id="homeConfirmTitle">Konfiguration zurücksetzen?</h3>
+    <p>
+      Wenn Sie zur Home (Startseite) zurückkehren, gehen alle aktuell eingegebenen Daten verloren
+      und Sie müssen die Konfiguration neu beginnen.
+    </p>
+    <div class="home-confirm-actions">
+      <button type="button" class="secondary" id="homeConfirmCancel">
+        Abbrechen
+      </button>
+      <button type="button" class="primary" id="homeConfirmGo">
+        Zur Home
+      </button>
+    </div>
+  </div>
+</div>
 
 
     
