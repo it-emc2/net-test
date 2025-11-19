@@ -10,8 +10,8 @@ const OFFERS = {
       "duschabtrennung",
       "optional",
       "rabatt",
-      "zusammenfassung",
       "kosten",
+      "zusammenfassung",
       "admin",
       "as"
       ,
@@ -19,11 +19,11 @@ const OFFERS = {
   },
   bwt: {
     name: "BWT · Badewannentür",
-    pages: ["Kundendaten", "Arbeitszeit", "bwt", "zusammenfassung", "kosten" ],
+    pages: ["Kundendaten", "Arbeitszeit", "bwt","kosten", "zusammenfassung" ],
   },
   hl: {
     name: "HL · Handlauf",
-    pages: ["Kundendaten", "Arbeitszeit", "hl", "zusammenfassung", "kosten" ],
+    pages: ["Kundendaten", "Arbeitszeit", "hl","kosten", "zusammenfassung" ],
   },
 };
 
@@ -3720,6 +3720,51 @@ function listLines(lines) {
     );
     return result;
   }
+// Build "Enthält je Einheit" lines for BWT only
+function buildBwtIncludedLines(data) {
+  const out = [];
+
+  // 1) Kilometerpauschale from services
+  const svcSrc = (data.servicesDisplayUI?.lines || data.services?.lines || []) || [];
+  const kmRow = svcSrc.find(s =>
+    /kilometerpauschale/i.test(String(s.label || s.name || ''))
+  );
+
+  if (kmRow) {
+    out.push({
+      productId: kmRow.key || kmRow.productId || null,
+      label: String(kmRow.label || kmRow.name || '-'),
+      qty: 1,                         // we show it "per unit"
+      unitPrice: Number(kmRow.amount ?? 0),
+      lineTotal: Number(kmRow.amount ?? 0),
+    });
+  }
+
+  // 2) Tür-Menge aus Materialien (1226)
+  const matSrc = (data.materialsDisplayUI?.lines || data.materials?.lines || []) || [];
+  const doorLine = matSrc.find(l => String(l.productId || l.id || '').trim() === '1226');
+  const doorQty = Number(doorLine?.qty || 0) || 0;
+
+  if (doorQty > 0) {
+    const qtyStr = doorQty.toFixed(2).replace(/\.00$/, '');
+
+    const makeRow = (shortLabel) => ({
+      productId: null,
+      label: `- ${qtyStr} Stk ${shortLabel}`,
+      qty: doorQty,       // column "Menge" (numerisch)
+      unitPrice: 0,       // rein informativ im Debug, keine echte Kalkulation
+      lineTotal: 0,
+    });
+
+    out.push(
+      makeRow('Lieferkosten Badewannentür'),
+      makeRow('Universal / Standard Tür'),
+      makeRow('Kleinmaterial')
+    );
+  }
+
+  return out;
+}
 
   // Make this async so we can await name lookups for optional items
 window.renderFromData = async function renderFromData(data) {
@@ -3781,7 +3826,7 @@ const opt = (data.optionalDisplayUI?.lines || []);
 const svcSource = (data.servicesDisplayUI?.lines || data.services?.lines || []);
 
 const primarySvc = [];
-const includedSvc = [];
+let includedSvc = [];
 
 for (const s of svcSource) {
   if (!s) continue;
@@ -3808,6 +3853,23 @@ const isFacharbeiter = (s.key === 'facharbeiter') || /facharbeiter/i.test(s.labe
   };
 
   (goesIncluded ? includedSvc : primarySvc).push(row);
+}
+// --- Für BWT: "Enthält je Einheit" komplett neu aufbauen ---
+try {
+  let currentOffer = null;
+
+  if (typeof getCurrentOfferType === 'function') {
+    currentOffer = getCurrentOfferType();
+  } else if (typeof loadWizardState === 'function') {
+    const st = loadWizardState();
+    currentOffer = st && st.offerType;
+  }
+
+  if (currentOffer === 'bwt') {
+    includedSvc = buildBwtIncludedLines(data);
+  }
+} catch (e) {
+  console.warn('[kosten-debug] BWT Enthält-je-Einheit override failed:', e);
 }
 
 const svcBodyPrimary  = listLines(primarySvc);
