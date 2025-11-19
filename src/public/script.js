@@ -1079,7 +1079,15 @@ function resetAllForms() {
 
   // 3) One clean pricing refresh after reset (if pricing exists)
   window.updatePricing?.();
+    // Also reset the small top-right summary widget
+  if (typeof updateSummaryWidgetName === "function") {
+    updateSummaryWidgetName();      // will show "–" because first/last are now empty
+  }
+  if (typeof updateSummaryWidgetSelfPay === "function") {
+    updateSummaryWidgetSelfPay(null);  // clears Eigenanteil -> "–"
+  }
 }
+
 
 
 
@@ -1923,6 +1931,39 @@ function euro(n) {
 function highlightTileForInput(input, on) {
   input?.closest("label.image-check")?.classList.toggle("is-checked", !!on);
 }
+/* ========== HELPERS  for the floating widget ========== */
+function updateSummaryWidgetName() {
+  const firstEl = document.getElementById("firstName");
+  const lastEl  = document.getElementById("lastName");
+  const outEl   = document.getElementById("swNameValue");
+  if (!outEl) return;
+
+  const first = (firstEl?.value || "").trim();
+  const last  = (lastEl?.value || "").trim();
+  const name  = [first, last].filter(Boolean).join(" ");
+
+  outEl.textContent = name || "–";
+}
+function updateSummaryWidgetSelfPay(selfPayAmount) {
+  const outEl = document.getElementById("swSelfPayValue");
+  if (!outEl) return;
+
+  const n = Number(selfPayAmount || 0);
+  if (!Number.isFinite(n) || n <= 0) {
+    outEl.textContent = "–";
+    return;
+  }
+
+  // Prefer your existing euroC formatter if present
+  if (typeof euroC === "function") {
+    outEl.innerHTML = euroC(n);
+  } else {
+    const formatted = n.toFixed(2).replace(".", ",") + " €";
+    outEl.textContent = formatted;
+  }
+}
+/* ========== End HELPERS  for the floating widget ========== */
+
 function updateCustomerNumberVisibility() {
   const row = document.getElementById("customerNumberRow");
   if (!row) return;
@@ -3597,6 +3638,11 @@ function attachDuschwanneToPayload(payload) {
 
     // Notify listeners (Kosten, flooring panels span, etc.)
     window.dispatchEvent(new CustomEvent("pricing:updated", { detail: data }));
+
+  // 🔹 Keep Eigenanteil widget in sync on every pricing update
+  if (typeof updateSummaryWidgetSelfPay === "function") {
+    updateSummaryWidgetSelfPay(data.selfPayAmount);
+  }
     return data;
   };
 
@@ -3789,7 +3835,16 @@ function buildBwtIncludedLines(data) {
 window.renderFromData = async function renderFromData(data) {
   if (!data) {
     container.innerHTML = '<div class="muted">Keine Daten</div>';
+     // also clear widget if there is no data
+    if (typeof updateSummaryWidgetSelfPay === "function") {
+      updateSummaryWidgetSelfPay(null);
+    }
     return;
+  }
+  // 🔹 Update the top-right Eigenanteil widget
+  if (typeof updateSummaryWidgetSelfPay === "function") {
+    // data is the computed pricing result from /api/price -> contains selfPayAmount
+    updateSummaryWidgetSelfPay(data.selfPayAmount);
   }
 
   // --- Optional (Debug): use optionalDisplayUI if present, else fallback to items
@@ -6278,10 +6333,7 @@ document.addEventListener('DOMContentLoaded', initTECEADSPairsLabel);
 
 function initLivePricingSync() {
   // WATCH EVERYTHING (best: your main form; fallback: document.body)
-  const watchRoot =
-    document.getElementById('form-konfigurator') || // <- put your main form's id here if you have one
-    document.querySelector('form') ||
-    document.body;
+    const watchRoot = document.body;
 
   let t = null;
   const debounce = (fn, ms=250) => { clearTimeout(t); t = setTimeout(fn, ms); };
@@ -6766,6 +6818,12 @@ document.addEventListener('DOMContentLoaded', () => {
     r.addEventListener("change", updateCustomerNumberVisibility);
   });
   updateCustomerNumberVisibility();
+  // Live update of "Kunde:" in the top-right widget
+  const fn = document.getElementById("firstName");
+  const ln = document.getElementById("lastName");
+  fn && fn.addEventListener("input", updateSummaryWidgetName);
+  ln && ln.addEventListener("input", updateSummaryWidgetName);
+  updateSummaryWidgetName();
 
 });
 
