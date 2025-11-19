@@ -3638,6 +3638,11 @@ function attachDuschwanneToPayload(payload) {
 
     // Notify listeners (Kosten, flooring panels span, etc.)
     window.dispatchEvent(new CustomEvent("pricing:updated", { detail: data }));
+
+  // 🔹 Keep Eigenanteil widget in sync on every pricing update
+  if (typeof updateSummaryWidgetSelfPay === "function") {
+    updateSummaryWidgetSelfPay(data.selfPayAmount);
+  }
     return data;
   };
 
@@ -6328,10 +6333,7 @@ document.addEventListener('DOMContentLoaded', initTECEADSPairsLabel);
 
 function initLivePricingSync() {
   // WATCH EVERYTHING (best: your main form; fallback: document.body)
-  const watchRoot =
-    document.getElementById('form-konfigurator') || // <- put your main form's id here if you have one
-    document.querySelector('form') ||
-    document.body;
+    const watchRoot = document.body;
 
   let t = null;
   const debounce = (fn, ms=250) => { clearTimeout(t); t = setTimeout(fn, ms); };
