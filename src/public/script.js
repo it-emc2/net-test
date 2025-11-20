@@ -6792,6 +6792,9 @@ function initLivePricingSync() {
   });
 })();
 
+
+
+
 document.addEventListener('DOMContentLoaded', () => {
 
   // If you have explicit nav buttons/tabs:
@@ -6825,6 +6828,189 @@ document.addEventListener('DOMContentLoaded', () => {
   ln && ln.addEventListener("input", updateSummaryWidgetName);
   updateSummaryWidgetName();
 
+});
+
+function initHassmannBestFinder() {
+  console.log('[HF] initHassmannBestFinder called');  // <--
+  const form = document.getElementById('hassmannFinderForm');
+  const btn  = document.getElementById('hf_searchBtn');
+  const statusEl  = document.getElementById('hf_status');
+  const resultsEl = document.getElementById('hf_results');
+
+    console.log('[HF] elements', {
+    form: !!form,
+    btn: !!btn,
+    statusEl: !!statusEl,
+    resultsEl: !!resultsEl,
+  });
+
+  if (!form || !btn || !statusEl || !resultsEl) return;
+
+  const euroC = (n) =>
+    new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
+      .format(Number(n || 0));
+
+  function setStatus(msg, ok = true) {
+    statusEl.className = 'status ' + (ok ? 'ok' : 'err');
+    statusEl.textContent = msg;
+  }
+
+  function buildPayloadFromForm() {
+    const width  = Number(form.hf_width.value || 0);
+    const depth  = Number(form.hf_depth.value || 0);
+    const minP   = Number(form.hf_minPrice.value || 0);
+    const maxP   = Number(form.hf_maxPrice.value || 0);
+    const shortS = !!form.hf_shortSide.checked;
+    const orient = form.hf_orientation.value || null;
+
+    const openings = Array.from(
+      form.querySelectorAll('input[name="hf_opening"]:checked')
+    ).map((el) => el.value);
+
+    const payload = {
+      width,
+      depth,
+      priceRange: {
+        min: minP || 0,
+        max: maxP || 0,
+      },
+      openingTypes: openings.length ? openings : undefined,
+      isShortSidewall: shortS,
+    };
+
+    if (orient) payload.orientation = orient;
+
+    return payload;
+  }
+
+  function getKind() {
+    const r = form.querySelector('input[name="hf_showerType"]:checked');
+    return r ? r.value : 'corner';
+  }
+
+ function renderResults(list) {
+  if (!Array.isArray(list) || !list.length) {
+    resultsEl.innerHTML = '<div class="muted">Keine passenden Produkte gefunden.</div>';
+    return;
+  }
+
+  const html = list
+    .map((combo, index) => {
+      const main = combo.best || combo; // fallback if backend ever returns flat products
+
+      const title = main.name || `Produkt ${index + 1}`;
+      const pid   = main.modelNumber || main.id || '-';
+
+      // total price for the whole combination (net)
+      const totalNet = combo.totalPriceNet ?? null;
+
+      // individual component prices (gross preferred)
+      const bestPrice  = main.priceGross  ?? main.priceNet  ?? null;
+      const door2Price = combo.tuer2?.priceGross    ?? combo.tuer2?.priceNet    ?? null;
+      const sidePrice  = combo.sidePanel?.priceGross ?? combo.sidePanel?.priceNet ?? null;
+      const trayPrice  = combo.tray?.priceGross     ?? combo.tray?.priceNet     ?? null;
+
+      const fmt = (v) => (v != null ? euroC(v) : 'n/a');
+
+      // images – adjust base URL if needed
+      const imgBase = 'https://gconlineplus.de/media/'; // <- change if different
+      const imgUrl  = main.productLink ? imgBase + main.productLink : '';
+
+      const door2Name = combo.tuer2?.name || null;
+      const sideName  = combo.sidePanel?.name || null;
+      const trayName  = combo.tray?.name || null;
+
+      return `
+        <div class="card" style="margin-bottom:8px; padding:10px 12px;">
+          <div style="display:flex; gap:12px; align-items:flex-start;">
+            ${imgUrl ? `
+              <div style="flex:0 0 120px; max-width:120px;">
+                <img src="${imgUrl}"
+                     alt="${title}"
+                     style="width:100%;height:auto;border-radius:4px;object-fit:cover;" />
+              </div>
+            ` : ''}
+
+            <div style="flex:1 1 auto;">
+              <div style="font-weight:600; margin-bottom:2px;">${title}</div>
+              <div style="font-size:0.9rem; color:var(--muted-foreground);">
+                ID / Modell: <code>${pid}</code>
+              </div>
+
+              <div style="margin-top:6px;">
+                Gesamtpreis (netto): <strong>${fmt(totalNet)}</strong>
+              </div>
+
+              <div style="margin-top:6px; font-size:0.9rem;">
+                <div><strong>Tür 1:</strong> ${title} – Preis (brutto): <strong>${fmt(bestPrice)}</strong></div>
+
+                ${door2Name ? `
+                  <div><strong>Tür 2:</strong> ${door2Name} – Preis (brutto): <strong>${fmt(door2Price)}</strong></div>
+                ` : ''}
+
+                ${sideName ? `
+                  <div><strong>Seitenwand:</strong> ${sideName} – Preis (brutto): <strong>${fmt(sidePrice)}</strong></div>
+                ` : ''}
+
+                ${trayName ? `
+                  <div><strong>Duschwanne:</strong> ${trayName} – Preis (brutto): <strong>${fmt(trayPrice)}</strong></div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+
+  resultsEl.innerHTML = html;
+}
+
+  async function doSearch() {
+    if (!form.reportValidity()) return;
+
+    const kind    = getKind();                 // corner / niche / uform / walkin
+    const payload = buildPayloadFromForm();
+
+    setStatus('Suche wird ausgeführt …', true);
+    resultsEl.innerHTML = '';
+
+    try {
+      const res = await fetch('/api/magic/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ kind, payload }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        console.error('Hassmann search failed:', data);
+        setStatus(data.error || 'Fehler bei der Suche.', false);
+        return;
+      }
+
+      // Erwartete Struktur: { results: [...] } – bei Bedarf anpassen
+      const list = Array.isArray(data.results) ? data.results : data;
+      setStatus(`Es wurden ${list.length} Produkt(e) gefunden.`, true);
+      renderResults(list);
+    } catch (err) {
+      console.error(err);
+      setStatus('Netzwerkfehler bei der Suche.', false);
+    }
+  }
+
+  btn.addEventListener('click', () => {
+  console.log('[HF] search button clicked');
+  doSearch();
+});
+
+}
+
+// im DOMContentLoaded-Block aufrufen:
+document.addEventListener('DOMContentLoaded', () => {
+  // ... dein bisheriger Code ...
+  initHassmannBestFinder();
 });
 
 

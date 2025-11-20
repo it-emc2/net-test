@@ -2371,6 +2371,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 </template>
 
 
+
     </section>
 
   
@@ -2382,7 +2383,121 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
   </form>
 </section>
 
-  
+  <!-- Best Product Finder – Hassmann (unterhalb des Live-Frames einfügen) -->
+<section id="hassmann-best-finder" class="section-block">
+  <div class="section-title">Best Product Finder (Hassmann)</div>
+  <p class="section-subtitle">
+    Finde die passende Duschabtrennung auf Basis deiner Maße. Die Suche
+    greift auf den Hassmann‑Konfigurator zu.
+  </p>
+
+  <div class="card">
+    <form id="hassmannFinderForm">
+      <!-- Shower Type -->
+      <div class="field full">
+        <label class="req">Shower Type</label>
+        <div class="radio-group">
+          <label class="radio-pill">
+            <input type="radio" name="hf_showerType" value="corner" checked />
+            <span class="circle"></span>
+            <span>Corner Entry</span>
+          </label>
+          <label class="radio-pill">
+            <input type="radio" name="hf_showerType" value="niche" />
+            <span class="circle"></span>
+            <span>Niche</span>
+          </label>
+          <label class="radio-pill">
+            <input type="radio" name="hf_showerType" value="uform" />
+            <span class="circle"></span>
+            <span>U-Form</span>
+          </label>
+          <label class="radio-pill">
+            <input type="radio" name="hf_showerType" value="walkin" />
+            <span class="circle"></span>
+            <span>Walk-In</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Maße -->
+      <div class="field">
+        <label class="req" for="hf_width">Width (mm)</label>
+        <input id="hf_width" name="hf_width" type="number" min="300" step="10" required value="1000" />
+      </div>
+      <div class="field">
+        <label class="req" for="hf_depth">Depth (mm)</label>
+        <input id="hf_depth" name="hf_depth" type="number" min="300" step="10" required value="900" />
+      </div>
+
+      <!-- Preisbereich -->
+      <div class="field">
+        <label for="hf_minPrice">Min Price (€)</label>
+        <input id="hf_minPrice" name="hf_minPrice" type="number" min="0" step="50" value="0" />
+      </div>
+      <div class="field">
+        <label for="hf_maxPrice">Max Price (€)</label>
+        <input id="hf_maxPrice" name="hf_maxPrice" type="number" min="0" step="50" value="2000" />
+      </div>
+
+      <!-- Short Sidewall -->
+      <div class="field full">
+        <label class="check-pill">
+          <input id="hf_shortSide" name="hf_shortSide" type="checkbox" />
+          <span class="box"></span>
+          <span>Short Sidewall</span>
+        </label>
+      </div>
+
+      <!-- Orientierung -->
+      <div class="field">
+        <label for="hf_orientation">Orientation</label>
+        <select id="hf_orientation" name="hf_orientation">
+          <option value="">Auto</option>
+          <option value="LEFT">Left</option>
+          <option value="RIGHT">Right</option>
+        </select>
+      </div>
+
+      <!-- Door Type Filter -->
+      <div class="field full">
+        <label>Door Type Filter</label>
+        <div class="checkbox-grid">
+          <label class="check-pill">
+            <input type="checkbox" name="hf_opening" value="GLEITUR" />
+            <span class="box"></span>
+            <span>Sliding Door</span>
+          </label>
+          <label class="check-pill">
+            <input type="checkbox" name="hf_opening" value="PANDELTUER" />
+            <span class="box"></span>
+            <span>Swing Door</span>
+          </label>
+          <label class="check-pill">
+            <input type="checkbox" name="hf_opening" value="FALTPENDEL" />
+            <span class="box"></span>
+            <span>Folding Swing Door</span>
+          </label>
+          <label class="check-pill">
+            <input type="checkbox" name="hf_opening" value="WALKIN" />
+            <span class="box"></span>
+            <span>Walk-In Without Door</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="hf_searchBtn">Search Products</button>
+      </div>
+    </form>
+
+    <!-- Result & Debug -->
+    <div id="hf_status" class="status" style="margin-top:12px;">
+      Noch keine Suche ausgeführt.
+    </div>
+    <div id="hf_results" class="section-block" style="margin-top:12px;"></div>
+  </div>
+</section>
 
       <!-- Optional -->
       <section class="card page" id="page-optional" hidden>
