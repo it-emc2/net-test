@@ -141,6 +141,28 @@ body:has(#page-home:not([hidden])) #summaryWidget {
 }
 
 
+.summary-widget .sw-actions {
+  margin-top: 6px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.summary-widget .sw-save-btn {
+  border: 1px solid var(--border);
+  background: var(--accent-weak);
+  color: var(--accent-strong);
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.summary-widget .sw-save-btn:hover,
+.summary-widget .sw-save-btn:focus-visible {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 0 2px var(--ring);
+}
 
 
 
@@ -504,6 +526,31 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 
   <!-- Kundendaten -->
 <section class="card page" id="page-Kundendaten" hidden>
+    <!-- NEW: Draft search/load UI -->
+  <div class="full" style="margin-bottom: 12px;">
+    <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end;">
+      <div style="flex:1 1 220px;">
+        <label for="draftSearchInput" class="muted" style="font-size:0.85rem;">
+          Entwurf laden (aktueller Bereich)
+        </label>
+        <input
+          id="draftSearchInput"
+          type="text"
+          placeholder="Name des Entwurfs..."
+          autocomplete="off"
+        />
+      </div>
+      <div>
+        <button type="button" id="btnLoadSelectedDraft" class="secondary">
+          Laden
+        </button>
+      </div>
+    </div>
+    <div
+      id="draftSearchResults"
+      style="margin-top:6px; max-height:160px; overflow:auto; border:1px solid var(--border); border-radius:8px; padding:4px 0; display:none;"
+    ></div>
+  </div>
 
         <div class="section-header">Kontaktdaten des Kunden</div>
         <form id="form-Kundendaten" novalidate>
@@ -5388,9 +5435,16 @@ grundsätzlich wird automatisch mitkalkuliert
     <span class="sw-label">Eigenanteil:</span>
     <span id="swSelfPayValue" class="sw-value">–</span>
   </div>
+    <!-- NEW: save button -->
+  <div class="sw-actions">
+    <button type="button" id="btnSaveDraft" class="sw-save-btn">
+     Entwurf Speichern
+    </button>
+  </div>
 </div>
 
 <!-- end widget -->
+
 
 
 <div id="nt-toast-backdrop" hidden></div>

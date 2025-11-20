@@ -345,6 +345,16 @@ const toast = {
 window.__restoring = false;
 window.__RESTORING__ = false;
 
+// ----  HELPERS ----
+function showToast(message, type = 'info') {
+  // If you have a proper toaster utility, call it here.
+  // For now, simple fallback:
+  if (window.showNiceToast) {
+    window.showNiceToast(message, type);
+  } else {
+    console.log(`[${type}] ${message}`);
+  }
+}
 
 
 // ---- RESTORE HELPERS ----
@@ -4625,7 +4635,164 @@ function restoreTraySelection(dw) {
   setHiddenById('traySize', dw.traySize);
 }
 
+/* ========== save current Draft ========== */
+async function saveCurrentDraft() {
+  try {
+    if (typeof window.buildPayload !== "function") {
+      alert("Konfigurator-Payload kann nicht gebaut werden.");
+      return;
+    }
 
+    const offerType =
+      (typeof window.getCurrentOfferType === "function" && window.getCurrentOfferType()) ||
+      "bu";
+
+    const name = prompt("Bitte geben Sie einen Namen für den Entwurf ein:");
+    if (!name) return;
+
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
+
+    const payload = window.buildPayload();
+    if (!payload) {
+      alert("Keine Daten zum Speichern gefunden.");
+      return;
+    }
+
+    const res = await fetch("/api/drafts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: trimmedName,
+        offerType,
+        payload,
+      }),
+    });
+
+    if (res.status === 409) {
+      const body = await res.json().catch(() => ({}));
+      alert(body.error || "Ein Entwurf mit diesem Namen existiert bereits.");
+      return;
+    }
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      console.error("saveCurrentDraft failed:", body);
+      alert(body.error || "Fehler beim Speichern des Entwurfs.");
+      return;
+    }
+
+    const data = await res.json();
+    console.log("Draft saved:", data);
+    showToast("Entwurf gespeichert.", "success");
+  } catch (e) {
+    console.error("saveCurrentDraft error:", e);
+    alert("Fehler beim Speichern des Entwurfs.");
+  }
+}
+
+/* ========== Enbd save current Draft ========== */
+/* ========== Live search + load functions ========== */
+function renderDraftSearchResults(list) {
+  const container = document.getElementById("draftSearchResults");
+  if (!container) return;
+
+  container.innerHTML = "";
+  if (!Array.isArray(list) || list.length === 0) {
+    container.style.display = "none";
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  list.forEach((d) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "draft-result-row";
+    btn.dataset.id = d._id || d.id;
+    btn.style.display = "block";
+    btn.style.width = "100%";
+    btn.style.textAlign = "left";
+    btn.style.padding = "4px 10px";
+    btn.style.border = "none";
+    btn.style.background = "transparent";
+    btn.style.cursor = "pointer";
+    btn.onmouseenter = () => (btn.style.background = "#eef2ff");
+    btn.onmouseleave = () => (btn.style.background = "transparent");
+
+    const updated =
+      d.updatedAt ? new Date(d.updatedAt).toLocaleString("de-DE") : "";
+
+    btn.innerHTML = `<strong>${d.name}</strong>${
+      updated ? ` <span style="font-size:0.8em; color:#6b7280;">(${updated})</span>` : ""
+    }`;
+
+    frag.appendChild(btn);
+  });
+
+  container.appendChild(frag);
+  container.style.display = "block";
+}
+
+async function searchDraftsForCurrentOfferType(query) {
+  const offerType =
+    (typeof window.getCurrentOfferType === "function" && window.getCurrentOfferType()) ||
+    "bu";
+
+  const params = new URLSearchParams();
+  params.set("offerType", offerType);
+  if (query) params.set("q", query);
+
+  const res = await fetch(`/api/drafts/search?${params.toString()}`, {
+    method: "GET",
+  });
+  if (!res.ok) {
+    console.warn("search drafts failed:", await res.text());
+    renderDraftSearchResults([]);
+    return;
+  }
+  const data = await res.json();
+  renderDraftSearchResults(data);
+}
+
+async function loadDraftById(id) {
+  try {
+    const res = await fetch(`/api/drafts/${encodeURIComponent(id)}`, {
+      method: "GET",
+    });
+    if (!res.ok) {
+      alert("Entwurf konnte nicht geladen werden.");
+      return;
+    }
+    const doc = await res.json();
+
+    const payload = doc.payload || doc; // fallback
+
+    // If we have a central restore helper, use it.
+    if (typeof window.restoreConfiguratorFromOffer === "function") {
+      // wrap so it matches the expected shape (with .payload)
+      window.restoreConfiguratorFromOffer({ payload });
+    } else if (typeof window.restoreConfiguratorFromSnapshot === "function") {
+      window.restoreConfiguratorFromSnapshot({ payload });
+    } else {
+      // fallback: just reset and rebuild forms manually if needed
+      console.warn("No restore function found. Please wire restoreConfiguratorFromOffer or restoreConfiguratorFromSnapshot.");
+      alert("Wiederherstellen ist noch nicht implementiert.");
+      return;
+    }
+
+    // after restore, recompute pricing → widget + panels up to date
+    if (typeof window.updatePricing === "function") {
+      window.updatePricing();
+    }
+
+    showToast(`Entwurf "${doc.name}" geladen.`, "info");
+  } catch (e) {
+    console.error("loadDraftById error:", e);
+    alert("Fehler beim Laden des Entwurfs.");
+  }
+}
+
+/* ========== End Live search + load functions ========== */
 
 function restoreWorkTasks(dw) {
   if (!dw) return;
@@ -6993,6 +7160,61 @@ document.addEventListener('DOMContentLoaded', () => {
       el.addEventListener("change", updateSummaryWidgetSubsidyVisibility);
     });
   updateSummaryWidgetSubsidyVisibility();
+    // --- Draft save button under widget ---
+  const btnSaveDraft = document.getElementById("btnSaveDraft");
+  if (btnSaveDraft) {
+    btnSaveDraft.addEventListener("click", () => {
+      saveCurrentDraft();
+    });
+  }
+
+  // --- Draft search / load on Kundendaten ---
+  (function initDraftSearchUI() {
+    const input = document.getElementById("draftSearchInput");
+    const results = document.getElementById("draftSearchResults");
+    const btnLoad = document.getElementById("btnLoadSelectedDraft");
+    if (!input || !results || !btnLoad) return;
+
+    let lastResults = [];
+    let selectedId = null;
+    let debounceTimer = null;
+
+    function debounce(fn, ms) {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(fn, ms);
+    }
+
+    input.addEventListener("input", () => {
+      const q = input.value.trim();
+      selectedId = null;
+      if (!q) {
+        results.style.display = "none";
+        results.innerHTML = "";
+        return;
+      }
+      debounce(() => searchDraftsForCurrentOfferType(q), 200);
+    });
+
+    results.addEventListener("click", (ev) => {
+      const btn = ev.target.closest("button.draft-result-row");
+      if (!btn) return;
+      selectedId = btn.dataset.id;
+
+      // highlight selection
+      Array.from(results.querySelectorAll("button.draft-result-row")).forEach((b) => {
+        b.style.background = b === btn ? "#e0e7ff" : "transparent";
+      });
+    });
+
+    btnLoad.addEventListener("click", () => {
+      if (!selectedId) {
+        alert("Bitte wählen Sie zuerst einen Entwurf aus der Liste.");
+        return;
+      }
+      loadDraftById(selectedId);
+    });
+  })();
+
 
 });
 

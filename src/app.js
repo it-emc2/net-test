@@ -20,7 +20,8 @@ import docxTemplateRouter from './routes/docx-template.js';
 // Models (ESM default exports)
 import Product from './models/Product.js';
 import Submission from './models/Submission.js';
-import Offer from './models/Offer.js'; // <-- NEW (ESM import)
+import Offer from './models/Offer.js'; // (ESM import)
+import Draft from './models/Draft.js';
 
 // Pricing logic (factory(Product))
 import pricingFactory from './logic/pricing.js';
@@ -319,6 +320,104 @@ app.post('/api/price', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: String(err) });
+  }
+});
+
+// ---------------- Drafts (Entwürfe) ----------------
+
+// POST /api/drafts
+// body: { name, offerType, payload }
+app.post('/api/drafts', async (req, res) => {
+  try {
+    const { name, offerType, payload } = req.body || {};
+
+    if (!name || !offerType || !payload) {
+      return res.status(400).json({ error: 'name, offerType und payload sind erforderlich' });
+    }
+
+    const trimmedName = String(name).trim();
+    const trimmedOffer = String(offerType).trim();
+
+    if (!trimmedName) {
+      return res.status(400).json({ error: 'Name darf nicht leer sein' });
+    }
+
+    // Ensure uniqueness per (offerType, name)
+    const existing = await Draft.findOne({ name: trimmedName, offerType: trimmedOffer }).lean();
+    if (existing) {
+      return res.status(409).json({ error: 'Ein Entwurf mit diesem Namen existiert bereits für diesen Bereich' });
+    }
+
+    const doc = await Draft.create({
+      name: trimmedName,
+      offerType: trimmedOffer,
+      payload,
+    });
+
+    return res.status(201).json({
+      id: doc._id,
+      name: doc.name,
+      offerType: doc.offerType,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+    });
+  } catch (err) {
+    console.error('POST /api/drafts failed:', err);
+    res.status(500).json({ error: 'Serverfehler beim Speichern des Entwurfs' });
+  }
+});
+
+// GET /api/drafts/search?offerType=bu&q=meier
+app.get('/api/drafts/search', async (req, res) => {
+  try {
+    const { offerType, q } = req.query || {};
+    const filter = {};
+
+    if (!offerType) {
+      return res.status(400).json({ error: 'offerType ist erforderlich' });
+    }
+
+    filter.offerType = String(offerType).trim();
+
+    if (q) {
+      const re = new RegExp(String(q).trim(), 'i');
+      filter.name = re;
+    }
+
+    const docs = await Draft.find(filter, {
+      name: 1,
+      offerType: 1,
+      updatedAt: 1,
+    })
+      .sort({ updatedAt: -1 })
+      .limit(10)
+      .lean();
+
+    res.json(docs);
+  } catch (err) {
+    console.error('GET /api/drafts/search failed:', err);
+    res.status(500).json({ error: 'Serverfehler bei der Suche nach Entwürfen' });
+  }
+});
+
+// GET /api/drafts/:id
+app.get('/api/drafts/:id', async (req, res) => {
+  try {
+    const doc = await Draft.findById(req.params.id).lean();
+    if (!doc) return res.status(404).json({ error: 'Entwurf nicht gefunden' });
+
+    // Keep it simple: send payload along with meta
+    res.json({
+      id: doc._id,
+      name: doc.name,
+      offerType: doc.offerType,
+      payload: doc.payload,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+    });
+  } catch (err) {
+    console.error('GET /api/drafts/:id failed:', err);
+    res.status(500).json({ error: 'Serverfehler beim Laden des Entwurfs' });
   }
 });
 
