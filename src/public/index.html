@@ -2400,12 +2400,12 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
           <label class="radio-pill">
             <input type="radio" name="hf_showerType" value="corner" checked />
             <span class="circle"></span>
-            <span>Corner Entry</span>
+            <span>Eckeinstieg</span>
           </label>
           <label class="radio-pill">
             <input type="radio" name="hf_showerType" value="niche" />
             <span class="circle"></span>
-            <span>Niche</span>
+            <span>Nische</span>
           </label>
           <label class="radio-pill">
             <input type="radio" name="hf_showerType" value="uform" />
@@ -2422,21 +2422,21 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 
       <!-- Maße -->
       <div class="field">
-        <label class="req" for="hf_width">Width (mm)</label>
+        <label class="req" for="hf_width">Breite (mm)</label>
         <input id="hf_width" name="hf_width" type="number" min="300" step="10" required value="1000" />
       </div>
       <div class="field">
-        <label class="req" for="hf_depth">Depth (mm)</label>
+        <label class="req" for="hf_depth">Tiefe (mm)</label>
         <input id="hf_depth" name="hf_depth" type="number" min="300" step="10" required value="900" />
       </div>
 
       <!-- Preisbereich -->
       <div class="field">
-        <label for="hf_minPrice">Min Price (€)</label>
+        <label for="hf_minPrice">Min Preis (€)</label>
         <input id="hf_minPrice" name="hf_minPrice" type="number" min="0" step="50" value="0" />
       </div>
       <div class="field">
-        <label for="hf_maxPrice">Max Price (€)</label>
+        <label for="hf_maxPrice">Max Preis (€)</label>
         <input id="hf_maxPrice" name="hf_maxPrice" type="number" min="0" step="50" value="2000" />
       </div>
 
@@ -2445,17 +2445,17 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         <label class="check-pill">
           <input id="hf_shortSide" name="hf_shortSide" type="checkbox" />
           <span class="box"></span>
-          <span>Short Sidewall</span>
+          <span>mit Seitenwand verkürzt</span>
         </label>
       </div>
 
       <!-- Orientierung -->
       <div class="field">
-        <label for="hf_orientation">Orientation</label>
+        <label for="hf_orientation">Anschlag</label>
         <select id="hf_orientation" name="hf_orientation">
           <option value="">Auto</option>
-          <option value="LEFT">Left</option>
-          <option value="RIGHT">Right</option>
+          <option value="LEFT">Links</option>
+          <option value="RIGHT">Rechts</option>
         </select>
       </div>
 
@@ -2466,28 +2466,28 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
           <label class="check-pill">
             <input type="checkbox" name="hf_opening" value="GLEITUR" />
             <span class="box"></span>
-            <span>Sliding Door</span>
+            <span>Gleittür</span>
           </label>
           <label class="check-pill">
             <input type="checkbox" name="hf_opening" value="PANDELTUER" />
             <span class="box"></span>
-            <span>Swing Door</span>
+            <span>Pendeltür</span>
           </label>
           <label class="check-pill">
             <input type="checkbox" name="hf_opening" value="FALTPENDEL" />
             <span class="box"></span>
-            <span>Folding Swing Door</span>
+            <span>Falt-Pendeltür</span>
           </label>
           <label class="check-pill">
             <input type="checkbox" name="hf_opening" value="WALKIN" />
             <span class="box"></span>
-            <span>Walk-In Without Door</span>
+            <span>Walk-In ohne Tür</span>
           </label>
         </div>
       </div>
 
       <div class="actions">
-        <button type="button" id="hf_searchBtn">Search Products</button>
+        <button type="button" id="hf_searchBtn">Produkte suchen</button>
       </div>
     </form>
 
