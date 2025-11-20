@@ -107,7 +107,7 @@ body {
   font-size: 0.95rem;
 }
 
-/* Hide widget on the Home screen, like the sidebar */
+/* Hide widget on the Auswahl der Leistung screen, like the sidebar */
 body:has(#page-home:not([hidden])) #summaryWidget {
   display: none;
 }
@@ -145,7 +145,7 @@ body:has(#page-home:not([hidden])) #summaryWidget {
 
 
 
-/* ---------------- Home confirm modal ---------------- */
+/* ---------------- Auswahl der Leistung confirm modal ---------------- */
 
 #homeConfirmOverlay {
   position: fixed;
@@ -319,7 +319,7 @@ body:has(#page-home:not([hidden])) #summaryWidget {
   header { padding-inline: 12px; }
 }
 
-/* ---------------- Home tiles ---------------- */
+/* ---------------- Auswahl der Leistung tiles ---------------- */
 
 #page-home .home-tiles { display: grid; gap: 14px; }
 @media (min-width: 760px) { #page-home .home-tiles { grid-template-columns: repeat(2, minmax(260px, 1fr)); } }
@@ -340,7 +340,7 @@ body:has(#page-home:not([hidden])) #summaryWidget {
 #page-home .tile-title { font-weight: 700; font-size: 1.05rem; color: var(--accent-strong); }
 #page-home .tile-sub   { color: var(--muted); font-size: .95rem; }
 
-/* Hide sidebar on Home */
+/* Hide sidebar on Auswahl der Leistung */
 body:has(#page-home:not([hidden])) #sidebar,
 body:has(#page-home:not([hidden])) #sidebarBackdrop { display: none; }
 body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
@@ -465,7 +465,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 
 
   <div class="container">
-                  <!-- Home (new landing page) -->
+                  <!-- Auswahl der Leistung (new landing page) -->
 <section class="card page" id="page-home">
   <h2 style="margin: 0 0 12px">Willkommen</h2>
           <div class="field" style="display:flex; gap:8px; max-width:380px;" >
@@ -5404,7 +5404,7 @@ grundsätzlich wird automatisch mitkalkuliert
   >
     <h3 id="homeConfirmTitle">Konfiguration zurücksetzen?</h3>
     <p>
-      Wenn Sie zur Home (Startseite) zurückkehren, gehen alle aktuell eingegebenen Daten verloren
+      Wenn Sie zur Auswahl der Leistung zurückkehren, gehen alle aktuell eingegebenen Daten verloren
       und Sie müssen die Konfiguration neu beginnen.
     </p>
     <div class="home-confirm-actions">
@@ -5412,7 +5412,7 @@ grundsätzlich wird automatisch mitkalkuliert
         Abbrechen
       </button>
       <button type="button" class="primary" id="homeConfirmGo">
-        Zur Home
+        Zur Auswahl der Leistung
       </button>
     </div>
   </div>

@@ -1178,12 +1178,12 @@ function updateSidebarForOffer() {
     return a;
   }
 
-  // --- Always render "Home" as first item ---
-  const homeNav = nav?.querySelector('a.step[data-step="home"]');
-  const homeLabel = homeNav ? homeNav.textContent.trim() : "Home";
+  // --- Always render "Auswahl der Leistung" as first item ---
+  const homeNav = nav?.querySelector('a.step[data-step="Auswahl der Leistung"]');
+  const homeLabel = homeNav ? homeNav.textContent.trim() : "Auswahl der Leistung";
   sideMenu.appendChild(makeLink("home", homeLabel));
 
-  // If no offer is selected, we stop here → only Home is shown.
+  // If no offer is selected, we stop here → only Auswahl der Leistung is shown.
   if (!activeOffer) {
     return;
   }
@@ -2172,7 +2172,7 @@ const TILE_TO_OFFER = {
   // "WD-Winterdienst": "wd",
 };
 
-// Home tiles → start the corresponding offer flow
+// Auswahl der Leistung tiles → start the corresponding offer flow
 document.addEventListener("click", (event) => {
   const tile = event.target.closest(".tile-btn");
   if (!tile) return;
@@ -6997,7 +6997,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
-// Small helper: confirmation dialog before going back to Home from the sidebar
+// Small helper: confirmation dialog before going back to Auswahl der Leistung from the sidebar
 function askBeforeGoingHome(onConfirm) {
   const overlay   = document.getElementById("homeConfirmOverlay");
   const cancelBtn = document.getElementById("homeConfirmCancel");
