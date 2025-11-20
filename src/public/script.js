@@ -5,25 +5,25 @@ const OFFERS = {
     pages: [
       "Kundendaten",
       "Arbeitszeit",
-      "duschwanne",
-      "wandverkleidung",
-      "duschabtrennung",
-      "optional",
-      "rabatt",
-      "kosten",
-      "zusammenfassung",
+      "Duschwanne",
+      "Wandverkleidung",
+      "Duschabtrennung",
+      "Optional",
+      "Rabatt",
+      "Kosten",
+      "Zusammenfassung",
       "admin",
-      "as"
+      "services"
       ,
     ],
   },
   bwt: {
     name: "BWT · Badewannentür",
-    pages: ["Kundendaten", "Arbeitszeit", "bwt","kosten", "zusammenfassung" ],
+    pages: ["Kundendaten", "Arbeitszeit", "bwt","Kosten", "Zusammenfassung" ],
   },
   hl: {
     name: "HL · Handlauf",
-    pages: ["Kundendaten", "Arbeitszeit", "hl","kosten", "zusammenfassung" ],
+    pages: ["Kundendaten", "Arbeitszeit", "hl","Kosten", "Zusammenfassung" ],
   },
 };
 
@@ -349,7 +349,7 @@ window.__RESTORING__ = false;
 
 // ---- RESTORE HELPERS ----
 function findInputByProductId(pid) {
-  const host = document.getElementById('page-wandverkleidung') || document;
+  const host = document.getElementById('page-Wandverkleidung') || document;
   const lab  = host.querySelector(`[data-product-id="${pid}"]`);
   return lab?.querySelector('input[type="checkbox"],input[type="radio"]') || null;
 }
@@ -1064,7 +1064,7 @@ const ALL_PAGES = Array.from(
 );
 
 // "steps" is just the union of all pages across all offers plus "home"
-const steps = ["home", ...ALL_PAGES, "admin", "as" ];
+const steps = ["home", ...ALL_PAGES, "admin", "services" ];
 
 const pages = Object.fromEntries(
   steps.map((s) => [s, document.getElementById("page-" + s)])
@@ -1191,14 +1191,14 @@ function updateSidebarForOffer() {
   // --- Render only the pages that belong to the active offer ---
   const pages = getPagesForOfferType(activeOffer);
 
-  const normalPages = pages.filter((pageId) => pageId !== "home" && pageId !== "admin" && pageId !== "as");
+  const normalPages = pages.filter((pageId) => pageId !== "home" && pageId !== "admin" && pageId !== "services");
   normalPages.forEach((pageId) => {
     const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
     const label = navLink ? navLink.textContent.trim() : pageId;
     sideMenu.appendChild(makeLink(pageId, label));
   });
 
-  const adminPages = pages.filter((pageId) => pageId === "admin" || pageId === "as");
+  const adminPages = pages.filter((pageId) => pageId === "admin" || pageId === "services");
   if (adminPages.length) {
     const group = document.createElement("div");
     group.className = "accordion-group";
@@ -1372,7 +1372,7 @@ function formToObject(form) {
 
 // collector for Wandverkleidung ---
 function collectWandverkleidungMaterials(doc) {
-  const page = document.getElementById("page-wandverkleidung");
+  const page = document.getElementById("page-Wandverkleidung");
   if (!page) return;
 
   const out = [];
@@ -1531,15 +1531,15 @@ function filterPayloadByOffer(payload) {
   const pageToKey = {
     Kundendaten: "Kundendaten",
      Arbeitszeit: "Arbeitszeit",  
-    duschwanne: "duschwanne",
-    wandverkleidung: "wandverkleidung",
-    duschabtrennung: "duschabtrennung",
-    optional: "optional",
-    rabatt: "rabatt",
+    Duschwanne: "Duschwanne",
+    Wandverkleidung: "Wandverkleidung",
+    Duschabtrennung: "Duschabtrennung",
+    Optional: "Optional",
+    Rabatt: "Rabatt",
     bwt : "bwt",
     hl : "hl",
     admin : "admin",
-    as: "as",
+    services: "services",
   };
 
   Object.entries(pageToKey).forEach(([page, key]) => {
@@ -6929,7 +6929,7 @@ function initLivePricingSync() {
 
 /* ========== ADMIN: Services ========== */
 (function initAdminServices() {
-  const page = document.getElementById('page-as');
+  const page = document.getElementById('page-services');
   if (!page) return;
 
   const form    = document.getElementById('form-as');
