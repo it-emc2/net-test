@@ -365,6 +365,43 @@ function setByProductId(pid, on) {
  }
   return true;
 }
+function enforceBudgetOptionsGroup() {
+  const form = document.getElementById("form-Kundendaten");
+  if (!form) return;
+
+  const elMax     = form.querySelector('input[name="budgetMax"]');
+  const elTwo     = form.querySelector('input[name="twoPersons"]');
+  const elPremium = form.querySelector('input[name="premium"]');
+  const elCopay   = form.querySelector('input[name="budgetCopay"]');
+
+  const mains = [elMax, elTwo, elPremium].filter(Boolean);
+
+  // 1) Max one of [budgetMax, twoPersons, premium] checked
+  const checkedMains = mains.filter(cb => cb && cb.checked);
+  if (checkedMains.length > 1) {
+    // keep the first that is checked, uncheck the others
+    const keep = checkedMains[0];
+    mains.forEach(cb => {
+      if (cb && cb !== keep) cb.checked = false;
+    });
+  }
+
+  // 2) budgetCopay only allowed if any of the 3 is checked
+  const anyMain = mains.some(cb => cb && cb.checked);
+
+  if (elCopay) {
+    elCopay.disabled = !anyMain;
+    if (!anyMain && elCopay.checked) {
+      elCopay.checked = false;
+      // fire change so existing logic (applyCopay, pricing, widget) stays in sync
+      if (typeof safeDispatch === "function") {
+        safeDispatch(elCopay, "change");
+      } else {
+        elCopay.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }
+  }
+}
 
 function restoreBudgetPanel(Kundendaten) {
   if (!Kundendaten) return;
@@ -380,6 +417,9 @@ function restoreBudgetPanel(Kundendaten) {
   if (elTwo) elTwo.checked = /(ZWEI|8360)/.test(txt);
 
   if (copay) copay.value = (Kundendaten.copayAmount ?? '') + '';
+  
+  // Enforce group rules after restoring from payload
+  enforceBudgetOptionsGroup();
 }
 
 function safeDispatch(el, type) {
@@ -1080,13 +1120,20 @@ function resetAllForms() {
   // 3) One clean pricing refresh after reset (if pricing exists)
   window.updatePricing?.();
     // Also reset the small top-right summary widget
-  if (typeof updateSummaryWidgetName === "function") {
-    updateSummaryWidgetName();      // will show "–" because first/last are now empty
+   if (typeof updateSummaryWidgetName === "function") {
+    updateSummaryWidgetName();
   }
   if (typeof updateSummaryWidgetSelfPay === "function") {
-    updateSummaryWidgetSelfPay(null);  // clears Eigenanteil -> "–"
+    updateSummaryWidgetSelfPay(null);
+  }
+  if (typeof updateSummaryWidgetTotal === "function") {
+    updateSummaryWidgetTotal(null);
+  }
+  if (typeof updateSummaryWidgetSubsidyVisibility === "function") {
+    updateSummaryWidgetSubsidyVisibility();
   }
 }
+
 
 
 
@@ -1962,6 +2009,35 @@ function updateSummaryWidgetSelfPay(selfPayAmount) {
     outEl.textContent = formatted;
   }
 }
+function updateSummaryWidgetTotal(totalAmount) {
+  const outEl = document.getElementById("swTotalValue");
+  if (!outEl) return;
+
+  const n = Number(totalAmount || 0);
+  if (!Number.isFinite(n) || n <= 0) {
+    outEl.textContent = "–";
+    return;
+  }
+
+  if (typeof euroC === "function") {
+    outEl.innerHTML = euroC(n);
+  } else {
+    const formatted = n.toFixed(2).replace(".", ",") + " €";
+    outEl.textContent = formatted;
+  }
+}
+function updateSummaryWidgetSubsidyVisibility() {
+  const row = document.getElementById("swSelfPayRow");
+  if (!row) return;
+
+  const budgetMaxChecked = !!document.querySelector('input[name="budgetMax"]:checked');
+  const twoPersonsChecked = !!document.querySelector('input[name="twoPersons"]:checked');
+
+  const show = budgetMaxChecked || twoPersonsChecked;
+  row.style.display = show ? "" : "none";
+}
+
+
 /* ========== End HELPERS  for the floating widget ========== */
 
 function updateCustomerNumberVisibility() {
@@ -2754,6 +2830,8 @@ if (last) {
   const copayCheckbox = document.getElementById("budgetCopay");
   const copayField = document.getElementById("copayField");
   const copayAmount = document.getElementById("copayAmount");
+   const budgetMaxCheckbox  = form?.querySelector('input[name="budgetMax"]');
+  const twoPersonsCheckbox = form?.querySelector('input[name="twoPersons"]');
   const wePanel = document.getElementById("wohnumfeldPanel");
   const weDoneGroup = document.getElementById("wohnumfeldDoneGroup");
   const weAmountRow = document.getElementById("wohnumfeldAmountRow");
@@ -2811,12 +2889,26 @@ if (last) {
     show(pgLevelRow, has);
     setReq(pgRadios, has);
     if (!has) clearRadios(pgRadios);
-    const showBudget = kk && has && valid1;
+        const showBudget = kk && has && valid1;
     show(budgetPanel, showBudget);
-    if (!showBudget && copayCheckbox) {
-      copayCheckbox.checked = false;
-      applyCopay();
+
+    if (!showBudget) {
+      // 1) always clear the copay checkbox + field
+      if (copayCheckbox) {
+        copayCheckbox.checked = false;
+        applyCopay();
+      }
+
+      // 2) NEW: also clear "4.180€ maximal" and "2 Personen"
+      if (budgetMaxCheckbox)  budgetMaxCheckbox.checked = false;
+      if (twoPersonsCheckbox) twoPersonsCheckbox.checked = false;
+
+      // 3) If you use the little Eigenanteil widget, update its visibility too
+      if (typeof updateSummaryWidgetSubsidyVisibility === "function") {
+        updateSummaryWidgetSubsidyVisibility();
+      }
     }
+
     show(wePanel, kk);
     const weDoneRadios = Array.from(
       weDoneGroup?.querySelectorAll('input[name="wohnumfeldDone"]') || []
@@ -2855,6 +2947,70 @@ if (last) {
       apply();
     if (t.id === "budgetCopay") applyCopay();
   });
+})();
+// Enforce mutual exclusion for Pflegebudget options + Copay dependency
+(function initBudgetOptionsGroupBehavior() {
+  const form = document.getElementById("form-Kundendaten");
+  if (!form) return;
+
+  const elMax     = form.querySelector('input[name="budgetMax"]');
+  const elTwo     = form.querySelector('input[name="twoPersons"]');
+  const elPremium = form.querySelector('input[name="premium"]');
+  const elCopay   = form.querySelector('input[name="budgetCopay"]');
+
+  const mains = [elMax, elTwo, elPremium].filter(Boolean);
+  if (!mains.length) return;
+
+  function syncGroup() {
+    // reuse central helper if available
+    if (typeof enforceBudgetOptionsGroup === "function") {
+      enforceBudgetOptionsGroup();
+      return;
+    }
+
+    // fallback (should not really run if helper exists)
+    const anyMain = mains.some(cb => cb && cb.checked);
+    if (elCopay) {
+      elCopay.disabled = !anyMain;
+      if (!anyMain && elCopay.checked) {
+        elCopay.checked = false;
+        if (typeof safeDispatch === "function") {
+          safeDispatch(elCopay, "change");
+        } else {
+          elCopay.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      }
+    }
+  }
+
+  function onMainChange(ev) {
+    const t = ev.target;
+    if (!t || !t.checked) {
+      syncGroup();
+      return;
+    }
+    // Only one of the 3 "main" checkboxes at a time
+    mains.forEach(cb => {
+      if (cb && cb !== t) cb.checked = false;
+    });
+    syncGroup();
+  }
+
+  mains.forEach(cb => cb && cb.addEventListener("change", onMainChange));
+
+  if (elCopay) {
+    elCopay.addEventListener("change", () => {
+      // If copay toggled on while no main is selected, undo it immediately
+      const anyMain = mains.some(cb => cb && cb.checked);
+      if (!anyMain && elCopay.checked) {
+        elCopay.checked = false;
+      }
+      syncGroup();
+    });
+  }
+
+  // Initial sync on load
+  syncGroup();
 })();
 
 // Live round-trip preview (Kundendaten → Entfernung)
@@ -3637,14 +3793,19 @@ function attachDuschwanneToPayload(payload) {
     window.setPricingData?.(data);
 
     // Notify listeners (Kosten, flooring panels span, etc.)
-    window.dispatchEvent(new CustomEvent("pricing:updated", { detail: data }));
+  window.dispatchEvent(new CustomEvent("pricing:updated", { detail: data }));
 
-  // 🔹 Keep Eigenanteil widget in sync on every pricing update
+  // 🔹 Keep Gesamt + Eigenanteil in sync on every pricing update
+  if (typeof updateSummaryWidgetTotal === "function") {
+    updateSummaryWidgetTotal(data.total);
+  }
   if (typeof updateSummaryWidgetSelfPay === "function") {
     updateSummaryWidgetSelfPay(data.selfPayAmount);
   }
-    return data;
-  };
+
+  return data;
+};
+
 
   // Compute once on load so Rabatt has values and spans have data
   document.addEventListener("DOMContentLoaded", () => {
@@ -6827,6 +6988,14 @@ document.addEventListener('DOMContentLoaded', () => {
   fn && fn.addEventListener("input", updateSummaryWidgetName);
   ln && ln.addEventListener("input", updateSummaryWidgetName);
   updateSummaryWidgetName();
+
+  // Widget: Eigenanteil nur, wenn eine Budget-Option gesetzt ist
+  document
+    .querySelectorAll('input[name="budgetMax"], input[name="twoPersons"]')
+    .forEach((el) => {
+      el.addEventListener("change", updateSummaryWidgetSubsidyVisibility);
+    });
+  updateSummaryWidgetSubsidyVisibility();
 
 });
 
