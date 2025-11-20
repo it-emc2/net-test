@@ -1322,3 +1322,17 @@ label.image-check.is-checked .caption {
   font-size: 0.75rem;
   opacity: 0.7;
 }
+
+.bitrix-actions-row {
+  margin-top: 8px;
+}
+
+.bitrix-search-wrapper {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.bitrix-search-wrapper input {
+  flex: 1;
+}

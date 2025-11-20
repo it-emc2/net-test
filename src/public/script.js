@@ -7199,6 +7199,90 @@ document.addEventListener('DOMContentLoaded', () => {
 
 });
 
+const bitrixIdInput = document.getElementById('bitrixContactId');
+const loadBitrixBtn = document.getElementById('loadBitrixContactBtn');
+
+if (bitrixIdInput && loadBitrixBtn) {
+  const loadBitrixContact = async () => {
+    const id = bitrixIdInput.value.trim();
+    if (!id) {
+      showCustomerMessage('Bitte eine Bitrix Kontakt ID eingeben', 'error');
+      return;
+    }
+
+    try {
+      loadBitrixBtn.disabled = true;
+      loadBitrixBtn.textContent = 'Laden...';
+
+      const res = await fetch(`/api/bitrix/contact/${encodeURIComponent(id)}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Fehler beim Laden aus Bitrix');
+      }
+
+      const data = await res.json();
+      console.log('[Bitrix frontend] raw data from backend:', data);
+
+      // n8n‑Antwort hat Form: { result: { ID, NAME, LAST_NAME, PHONE, EMAIL, ... }, time: {...} }
+      const contact = data.result;
+      if (!contact || !contact.ID) {
+        throw new Error('Kontakt nicht gefunden');
+      }
+
+      // Bitrix → Formular-Mapping
+      const phone =
+        Array.isArray(contact.PHONE) && contact.PHONE[0]
+          ? contact.PHONE[0].VALUE
+          : '';
+      const email =
+        Array.isArray(contact.EMAIL) && contact.EMAIL[0]
+          ? contact.EMAIL[0].VALUE
+          : '';
+
+      const mapped = {
+        // falls du schon eine Kundennummer im Formular hast, nicht überschreiben
+        customerNumber:
+          document.getElementById('customerNumber')?.value || contact.ID,
+        firstName: contact.NAME || '',
+        lastName: contact.LAST_NAME || '',
+        company: contact.COMPANY_TITLE || '',
+        email,
+        phone,
+        street: contact.ADDRESS || '',
+        city: contact.ADDRESS_CITY || '',
+        postalCode: contact.ADDRESS_POSTAL_CODE || '',
+        state:
+          contact.ADDRESS_REGION ||
+          contact.ADDRESS_PROVINCE ||
+          '',
+        country: contact.ADDRESS_COUNTRY || '',
+      };
+
+      fillCustomerForm(mapped);
+      showCustomerMessage('Kontakt aus Bitrix übernommen', 'success');
+    } catch (e) {
+      console.error(e);
+      showCustomerMessage(
+        e.message || 'Fehler beim Laden des Bitrix Kontakts',
+        'error'
+      );
+    } finally {
+      loadBitrixBtn.disabled = false;
+      loadBitrixBtn.textContent = 'Aus Bitrix laden';
+    }
+  };
+
+  loadBitrixBtn.addEventListener('click', loadBitrixContact);
+
+  // Enter im ID-Feld löst ebenfalls das Laden aus
+  bitrixIdInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      loadBitrixContact();
+    }
+  });
+}
+
 function initHassmannBestFinder() {
   console.log('[HF] initHassmannBestFinder called');  // <--
   const form = document.getElementById('hassmannFinderForm');

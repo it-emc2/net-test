@@ -743,7 +743,23 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
     </div>
   </div>
 
-
+<!-- Bitrix contact search by ID -->
+  <div class="form-row bitrix-actions-row">
+    <div class="form-field">
+      <label for="bitrixContactId">Bitrix Kontakt ID</label>
+      <div class="bitrix-search-wrapper">
+        <input
+          type="text"
+          id="bitrixContactId"
+          placeholder="z.B. 12345"
+          autocomplete="off"
+        />
+        <button type="button" id="loadBitrixContactBtn" class="btn-secondary">
+          Aus Bitrix laden
+        </button>
+      </div>
+    </div>
+  </div>
           <div id="offerRequiredDetails" class="full" style="margin-top: 16px">
             <details open>
               <summary class="section-header" style="cursor: pointer">

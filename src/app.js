@@ -12,6 +12,7 @@ import Service from './models/Service.js'; // <‑‑ NEU
 import traysRouter from './routes/trays.js';
 import magicRouter from './routes/magic.js';
 import customersRouter from './routes/customers.js';
+import bitrixRouter from './routes/bitrix.js';
 // PDF/DOCX routes
 import { router as pdfRouter } from './routes/pdf.js';
 import pdfTemplateRouter from './routes/pdf-template.js';
@@ -145,6 +146,7 @@ app.use('/material-overview', docxTemplateRouter);
 app.use('/api/offers', offersRouter);
 app.use('/api/magic', magicRouter);
 app.use('/api/customers', customersRouter);
+app.use('/api/bitrix', bitrixRouter);
 // (you had this twice; once is enough)
 // app.use('/api/offers', offersRouter);
 
