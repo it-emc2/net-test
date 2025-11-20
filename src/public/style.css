@@ -1138,3 +1138,187 @@ label.image-check.is-checked .caption {
   display: block;
 }
 
+/* --- Sidebar accordion for Admin --- */
+.accordion-group {
+  border-radius: 10px;
+  background: transparent;
+  margin-top: 8px;
+}
+
+/* transparent, flat header */
+.accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 12px;
+  cursor: pointer;
+  user-select: none;
+  background: transparent;
+  border: none;
+  color: var(--muted-foreground); /* same as your normal sidebar labels */
+  font-size: 0.9rem;
+}
+
+.accordion-header:hover {
+  background: rgba(255, 255, 255, 0.04); /* subtle hover */
+}
+
+.accordion-header span {
+  font-weight: 500;
+}
+
+/* simple chevron, same color as text */
+.accordion-chevron {
+  display: inline-block;
+  font-size: 0.8rem;
+  color: inherit;
+  transition: transform 0.15s ease;
+}
+
+.accordion-header[aria-expanded="true"] .accordion-chevron {
+  transform: rotate(90deg);
+}
+
+/* body is a simple panel like in your example screenshot */
+.accordion-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.18s ease;
+  border-radius: 10px;
+  background: var(--panel); /* same as other panels */
+  margin-top: 4px;
+  padding: 0 0 4px 0;
+  position: relative;
+}
+
+/* vertical line on the left, like the example */
+.accordion-body::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.accordion-body.open {
+  max-height: 260px; /* adjust if you add more items */
+}
+
+/* inner links look like normal side links, but indented */
+.accordion-body .side-link {
+  border-radius: 0;
+  border-left: none;
+  padding-left: 28px; /* indent to the right of the vertical line */
+  margin: 2px 0;
+}
+
+.accordion-body .side-link .dot {
+  display: none; /* optional: hide radio-style dot for sub-items */
+}
+
+.accordion-body .side-link span {
+  font-size: 0.85rem;
+}
+
+.accordion-body .side-link.active {
+  color: var(--accent);
+}
+
+/* Explicitly ensure accordion header does NOT look like a purple step button */
+.accordion-header {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.accordion-header:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+
+.customer-actions-row {
+  align-items: flex-end;
+  gap: 16px;
+}
+
+/* invisible label for alignment */
+.invisible-label {
+  visibility: hidden;
+  font-size: 0.875rem;
+}
+
+/* secondary button style matching your dark UI */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--accent);
+  color: var(--foreground);
+}
+
+/* search dropdown */
+.customer-search-wrapper {
+  position: relative;
+}
+
+.customer-search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: var(--panel);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 40;
+  display: none;
+}
+
+.customer-search-results.visible {
+  display: block;
+}
+
+.customer-result-item {
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--muted-foreground);
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.customer-result-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--foreground);
+}
+
+.customer-result-main {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.customer-result-meta {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}

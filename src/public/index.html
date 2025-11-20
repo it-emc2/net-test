@@ -720,6 +720,30 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
             </div>
           </div>
 
+
+
+<!-- Customer actions: save + search -->
+  <div class="form-field" >
+    <label class="invisible-label">&nbsp;</label>
+    <button type="button" id="saveCustomerBtn" class="btn-secondary">
+      Kunde speichern
+    </button>
+  </div>
+
+  <div class="form-field">
+    <label for="customerSearch">Kunde suchen</label>
+    <div class="customer-search-wrapper">
+      <input
+        type="text"
+        id="customerSearch"
+        placeholder="Name / Kundennummer"
+        autocomplete="off"
+      />
+      <div id="customerSearchResults" class="customer-search-results"></div>
+    </div>
+  </div>
+
+
           <div id="offerRequiredDetails" class="full" style="margin-top: 16px">
             <details open>
               <summary class="section-header" style="cursor: pointer">
@@ -2381,10 +2405,125 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
       <button type="button" data-nav="next">Weiter</button>
     </div>
   </form>
+
+  <div class="section-title">Best Product Finder (Hassmann)</div>
+  <p class="section-subtitle">
+    Finde die passende Duschabtrennung auf Basis deiner Maße. Die Suche
+    greift auf den Hassmann‑Konfigurator zu.
+  </p>
+
+  <div class="card">
+    <form id="hassmannFinderForm">
+      <!-- Shower Type -->
+      <div class="field full">
+        <label class="req">Shower Type</label>
+        <div class="radio-group">
+          <label class="radio-pill">
+            <input type="radio" name="hf_showerType" value="corner" checked />
+            <span class="circle"></span>
+            <span>Eckeinstieg</span>
+          </label>
+          <label class="radio-pill">
+            <input type="radio" name="hf_showerType" value="niche" />
+            <span class="circle"></span>
+            <span>Nische</span>
+          </label>
+          <label class="radio-pill">
+            <input type="radio" name="hf_showerType" value="uform" />
+            <span class="circle"></span>
+            <span>U-Form</span>
+          </label>
+          <label class="radio-pill">
+            <input type="radio" name="hf_showerType" value="walkin" />
+            <span class="circle"></span>
+            <span>Walk-In</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Maße -->
+      <div class="field">
+        <label class="req" for="hf_width">Breite (mm)</label>
+        <input id="hf_width" name="hf_width" type="number" min="300" step="10" required value="1000" />
+      </div>
+      <div class="field">
+        <label class="req" for="hf_depth">Tiefe (mm)</label>
+        <input id="hf_depth" name="hf_depth" type="number" min="300" step="10" required value="900" />
+      </div>
+
+      <!-- Preisbereich -->
+      <div class="field">
+        <label for="hf_minPrice">Min Preis (€)</label>
+        <input id="hf_minPrice" name="hf_minPrice" type="number" min="0" step="50" value="0" />
+      </div>
+      <div class="field">
+        <label for="hf_maxPrice">Max Preis (€)</label>
+        <input id="hf_maxPrice" name="hf_maxPrice" type="number" min="0" step="50" value="2000" />
+      </div>
+
+      <!-- Short Sidewall -->
+      <div class="field full">
+        <label class="check-pill">
+          <input id="hf_shortSide" name="hf_shortSide" type="checkbox" />
+          <span class="box"></span>
+          <span>mit Seitenwand verkürzt</span>
+        </label>
+      </div>
+
+      <!-- Orientierung -->
+      <div class="field">
+        <label for="hf_orientation">Anschlag</label>
+        <select id="hf_orientation" name="hf_orientation">
+          <option value="">Auto</option>
+          <option value="LEFT">Links</option>
+          <option value="RIGHT">Rechts</option>
+        </select>
+      </div>
+
+      <!-- Door Type Filter -->
+      <div class="field full">
+        <label>Door Type Filter</label>
+        <div class="checkbox-grid">
+          <label class="check-pill">
+            <input type="checkbox" name="hf_opening" value="GLEITUR" />
+            <span class="box"></span>
+            <span>Gleittür</span>
+          </label>
+          <label class="check-pill">
+            <input type="checkbox" name="hf_opening" value="PANDELTUER" />
+            <span class="box"></span>
+            <span>Pendeltür</span>
+          </label>
+          <label class="check-pill">
+            <input type="checkbox" name="hf_opening" value="FALTPENDEL" />
+            <span class="box"></span>
+            <span>Falt-Pendeltür</span>
+          </label>
+          <label class="check-pill">
+            <input type="checkbox" name="hf_opening" value="WALKIN" />
+            <span class="box"></span>
+            <span>Walk-In ohne Tür</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="hf_searchBtn">Produkte suchen</button>
+      </div>
+    </form>
+
+    <!-- Result & Debug -->
+    <div id="hf_status" class="status" style="margin-top:12px;">
+      Noch keine Suche ausgeführt.
+    </div>
+    <div id="hf_results" class="section-block" style="margin-top:12px;"></div>
+  </div>
+
+
 </section>
 
   <!-- Best Product Finder – Hassmann (unterhalb des Live-Frames einfügen) -->
-<section id="hassmann-best-finder" class="section-block">
+<section id="hassmann-best-finder" class="section-block" hidden>
   <div class="section-title">Best Product Finder (Hassmann)</div>
   <p class="section-subtitle">
     Finde die passende Duschabtrennung auf Basis deiner Maße. Die Suche
@@ -5324,6 +5463,8 @@ grundsätzlich wird automatisch mitkalkuliert
     <pre id="pg-diff" class="status" style="max-height:200px; overflow:auto;"></pre>
   </div>
 </section>
+
+
 
 <!-- Page Admin -->
 <section class="card page" id="page-admin" hidden>

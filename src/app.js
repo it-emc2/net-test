@@ -11,7 +11,7 @@ import offersRouter from './routes/offers.js';
 import Service from './models/Service.js'; // <‑‑ NEU
 import traysRouter from './routes/trays.js';
 import magicRouter from './routes/magic.js';
-
+import customersRouter from './routes/customers.js';
 // PDF/DOCX routes
 import { router as pdfRouter } from './routes/pdf.js';
 import pdfTemplateRouter from './routes/pdf-template.js';
@@ -144,6 +144,7 @@ app.use('/docx-template', docxTemplateRouter);
 app.use('/material-overview', docxTemplateRouter);
 app.use('/api/offers', offersRouter);
 app.use('/api/magic', magicRouter);
+app.use('/api/customers', customersRouter);
 // (you had this twice; once is enough)
 // app.use('/api/offers', offersRouter);
 
