@@ -365,6 +365,43 @@ function setByProductId(pid, on) {
  }
   return true;
 }
+function enforceBudgetOptionsGroup() {
+  const form = document.getElementById("form-Kundendaten");
+  if (!form) return;
+
+  const elMax     = form.querySelector('input[name="budgetMax"]');
+  const elTwo     = form.querySelector('input[name="twoPersons"]');
+  const elPremium = form.querySelector('input[name="premium"]');
+  const elCopay   = form.querySelector('input[name="budgetCopay"]');
+
+  const mains = [elMax, elTwo, elPremium].filter(Boolean);
+
+  // 1) Max one of [budgetMax, twoPersons, premium] checked
+  const checkedMains = mains.filter(cb => cb && cb.checked);
+  if (checkedMains.length > 1) {
+    // keep the first that is checked, uncheck the others
+    const keep = checkedMains[0];
+    mains.forEach(cb => {
+      if (cb && cb !== keep) cb.checked = false;
+    });
+  }
+
+  // 2) budgetCopay only allowed if any of the 3 is checked
+  const anyMain = mains.some(cb => cb && cb.checked);
+
+  if (elCopay) {
+    elCopay.disabled = !anyMain;
+    if (!anyMain && elCopay.checked) {
+      elCopay.checked = false;
+      // fire change so existing logic (applyCopay, pricing, widget) stays in sync
+      if (typeof safeDispatch === "function") {
+        safeDispatch(elCopay, "change");
+      } else {
+        elCopay.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }
+  }
+}
 
 function restoreBudgetPanel(Kundendaten) {
   if (!Kundendaten) return;
@@ -380,6 +417,9 @@ function restoreBudgetPanel(Kundendaten) {
   if (elTwo) elTwo.checked = /(ZWEI|8360)/.test(txt);
 
   if (copay) copay.value = (Kundendaten.copayAmount ?? '') + '';
+  
+  // Enforce group rules after restoring from payload
+  enforceBudgetOptionsGroup();
 }
 
 function safeDispatch(el, type) {
@@ -2907,6 +2947,70 @@ if (last) {
       apply();
     if (t.id === "budgetCopay") applyCopay();
   });
+})();
+// Enforce mutual exclusion for Pflegebudget options + Copay dependency
+(function initBudgetOptionsGroupBehavior() {
+  const form = document.getElementById("form-Kundendaten");
+  if (!form) return;
+
+  const elMax     = form.querySelector('input[name="budgetMax"]');
+  const elTwo     = form.querySelector('input[name="twoPersons"]');
+  const elPremium = form.querySelector('input[name="premium"]');
+  const elCopay   = form.querySelector('input[name="budgetCopay"]');
+
+  const mains = [elMax, elTwo, elPremium].filter(Boolean);
+  if (!mains.length) return;
+
+  function syncGroup() {
+    // reuse central helper if available
+    if (typeof enforceBudgetOptionsGroup === "function") {
+      enforceBudgetOptionsGroup();
+      return;
+    }
+
+    // fallback (should not really run if helper exists)
+    const anyMain = mains.some(cb => cb && cb.checked);
+    if (elCopay) {
+      elCopay.disabled = !anyMain;
+      if (!anyMain && elCopay.checked) {
+        elCopay.checked = false;
+        if (typeof safeDispatch === "function") {
+          safeDispatch(elCopay, "change");
+        } else {
+          elCopay.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      }
+    }
+  }
+
+  function onMainChange(ev) {
+    const t = ev.target;
+    if (!t || !t.checked) {
+      syncGroup();
+      return;
+    }
+    // Only one of the 3 "main" checkboxes at a time
+    mains.forEach(cb => {
+      if (cb && cb !== t) cb.checked = false;
+    });
+    syncGroup();
+  }
+
+  mains.forEach(cb => cb && cb.addEventListener("change", onMainChange));
+
+  if (elCopay) {
+    elCopay.addEventListener("change", () => {
+      // If copay toggled on while no main is selected, undo it immediately
+      const anyMain = mains.some(cb => cb && cb.checked);
+      if (!anyMain && elCopay.checked) {
+        elCopay.checked = false;
+      }
+      syncGroup();
+    });
+  }
+
+  // Initial sync on load
+  syncGroup();
 })();
 
 // Live round-trip preview (Kundendaten → Entfernung)
