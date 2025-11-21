@@ -5,25 +5,25 @@ const OFFERS = {
     pages: [
       "Kundendaten",
       "Arbeitszeit",
-      "duschwanne",
-      "wandverkleidung",
-      "duschabtrennung",
-      "optional",
-      "rabatt",
-      "kosten",
-      "zusammenfassung",
+      "Duschwanne",
+      "Wandverkleidung",
+      "Duschabtrennung",
+      "Optional",
+      "Rabatt",
+      "Kosten",
+      "Zusammenfassung",
       "admin",
-      "as"
+      "services"
       ,
     ],
   },
   bwt: {
     name: "BWT · Badewannentür",
-    pages: ["Kundendaten", "Arbeitszeit", "bwt","kosten", "zusammenfassung" ],
+    pages: ["Kundendaten", "Arbeitszeit", "bwt","Kosten", "Zusammenfassung" ],
   },
   hl: {
     name: "HL · Handlauf",
-    pages: ["Kundendaten", "Arbeitszeit", "hl","kosten", "zusammenfassung" ],
+    pages: ["Kundendaten", "Arbeitszeit", "hl","Kosten", "Zusammenfassung" ],
   },
 };
 
@@ -359,7 +359,7 @@ function showToast(message, type = 'info') {
 
 // ---- RESTORE HELPERS ----
 function findInputByProductId(pid) {
-  const host = document.getElementById('page-wandverkleidung') || document;
+  const host = document.getElementById('page-Wandverkleidung') || document;
   const lab  = host.querySelector(`[data-product-id="${pid}"]`);
   return lab?.querySelector('input[type="checkbox"],input[type="radio"]') || null;
 }
@@ -1074,7 +1074,7 @@ const ALL_PAGES = Array.from(
 );
 
 // "steps" is just the union of all pages across all offers plus "home"
-const steps = ["home", ...ALL_PAGES, "admin", "as" ];
+const steps = ["home", ...ALL_PAGES, "admin", "services" ];
 
 const pages = Object.fromEntries(
   steps.map((s) => [s, document.getElementById("page-" + s)])
@@ -1201,20 +1201,56 @@ function updateSidebarForOffer() {
   // --- Render only the pages that belong to the active offer ---
   const pages = getPagesForOfferType(activeOffer);
 
-  
-
-  pages.forEach((pageId) => {
-    // We already added "home" explicitly above
-    if (pageId === "home") return;
-
-    // Reuse the label from the top nav if possible, otherwise fallback to the id
+  const normalPages = pages.filter((pageId) => pageId !== "home" && pageId !== "admin" && pageId !== "services");
+  normalPages.forEach((pageId) => {
     const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
     const label = navLink ? navLink.textContent.trim() : pageId;
     sideMenu.appendChild(makeLink(pageId, label));
-    
   });
 
-  
+  const adminPages = pages.filter((pageId) => pageId === "admin" || pageId === "services");
+  if (adminPages.length) {
+    const group = document.createElement("div");
+    group.className = "accordion-group";
+
+    const header = document.createElement("button");
+    header.type = "button";
+    header.className = "accordion-header";
+    header.setAttribute("aria-expanded", "false");
+
+    const titleSpan = document.createElement("span");
+    titleSpan.textContent = "Developer";
+
+    const chevron = document.createElement("span");
+    chevron.className = "accordion-chevron";
+    chevron.textContent = "›";
+
+    header.appendChild(titleSpan);
+    header.appendChild(chevron);
+
+    const body = document.createElement("div");
+    body.className = "accordion-body";
+
+    adminPages.forEach((pageId) => {
+      const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
+      const label = navLink ? navLink.textContent.trim() : pageId;
+      body.appendChild(makeLink(pageId, label));
+    });
+
+    header.addEventListener("click", () => {
+      const isOpen = body.classList.toggle("open");
+      header.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    });
+
+    if (adminPages.includes(activeStep)) {
+      body.classList.add("open");
+      header.setAttribute("aria-expanded", "true");
+    }
+
+    group.appendChild(header);
+    group.appendChild(body);
+    sideMenu.appendChild(group);
+  }
 
   // NOTE:
   // We do NOT set "active" / "done" classes here.
@@ -1346,7 +1382,7 @@ function formToObject(form) {
 
 // collector for Wandverkleidung ---
 function collectWandverkleidungMaterials(doc) {
-  const page = document.getElementById("page-wandverkleidung");
+  const page = document.getElementById("page-Wandverkleidung");
   if (!page) return;
 
   const out = [];
@@ -1505,15 +1541,15 @@ function filterPayloadByOffer(payload) {
   const pageToKey = {
     Kundendaten: "Kundendaten",
      Arbeitszeit: "Arbeitszeit",  
-    duschwanne: "duschwanne",
-    wandverkleidung: "wandverkleidung",
-    duschabtrennung: "duschabtrennung",
-    optional: "optional",
-    rabatt: "rabatt",
+    Duschwanne: "Duschwanne",
+    Wandverkleidung: "Wandverkleidung",
+    Duschabtrennung: "Duschabtrennung",
+    Optional: "Optional",
+    Rabatt: "Rabatt",
     bwt : "bwt",
     hl : "hl",
     admin : "admin",
-    as: "as",
+    services: "services",
   };
 
   Object.entries(pageToKey).forEach(([page, key]) => {
@@ -2748,6 +2784,9 @@ if (last) {
   restoreFromLocalStorage();
 })();
 
+
+
+
 /* ========== Kundendaten UI (contact, aufschlag/pflegegrad, etc.) ========== */
 (function initContactPersonToggle() {
   const form = document.getElementById("form-Kundendaten");
@@ -3174,6 +3213,167 @@ if (last) {
     return false;
   };
 })();
+
+
+// ------- Customer helpers -------
+
+// map form fields you already have
+function getCustomerFormData() {
+  return {
+    customerNumber: document.getElementById('customerNumber')?.value || '',
+    firstName: document.getElementById('firstName')?.value || '',
+    lastName: document.getElementById('lastName')?.value || '',
+    company: document.getElementById('company')?.value || '',
+    email: document.getElementById('email')?.value || '',
+    phone: document.getElementById('phone')?.value || '',
+    street: document.getElementById('street')?.value || '',
+    city: document.getElementById('city')?.value || '',
+    postalCode: document.getElementById('postalCode')?.value || '',
+    state: document.getElementById('state')?.value || '',
+    country: document.getElementById('country')?.value || '',
+  };
+}
+
+function fillCustomerForm(data) {
+  const set = (id, value) => {
+    const el = document.getElementById(id);
+    if (el && value != null) el.value = value;
+  };
+
+  set('customerNumber', data.customerNumber);
+  set('firstName', data.firstName);
+  set('lastName', data.lastName);
+  set('company', data.company);
+  set('email', data.email);
+  set('phone', data.phone);
+  set('street', data.street);
+  set('city', data.city);
+  set('postalCode', data.postalCode);
+  set('state', data.state);
+  set('country', data.country);
+}
+
+// simple toast or alert helper
+function showCustomerMessage(msg, type = 'info') {
+  console.log(type.toUpperCase(), msg);
+  // optionally integrate with your existing toast system
+}
+
+// ------- Wiring -------
+
+const saveCustomerBtn = document.getElementById('saveCustomerBtn');
+const customerSearchInput = document.getElementById('customerSearch');
+const customerSearchResults = document.getElementById('customerSearchResults');
+
+if (saveCustomerBtn) {
+  saveCustomerBtn.addEventListener('click', async () => {
+    const data = getCustomerFormData();
+
+    try {
+      const res = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Fehler beim Speichern');
+      }
+
+      const saved = await res.json();
+      fillCustomerForm(saved); // make sure any generated customerNumber is shown
+      showCustomerMessage('Kunde gespeichert', 'success');
+    } catch (e) {
+      showCustomerMessage(e.message || 'Fehler beim Speichern des Kunden', 'error');
+    }
+  });
+}
+
+let customerSearchTimeout;
+
+if (customerSearchInput && customerSearchResults) {
+  customerSearchInput.addEventListener('input', () => {
+    const q = customerSearchInput.value.trim();
+
+    clearTimeout(customerSearchTimeout);
+
+    if (!q) {
+      customerSearchResults.classList.remove('visible');
+      customerSearchResults.innerHTML = '';
+      return;
+    }
+
+    customerSearchTimeout = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/customers/search?q=${encodeURIComponent(q)}`
+        );
+        if (!res.ok) throw new Error('Suche fehlgeschlagen');
+
+        const results = await res.json();
+        renderCustomerSearchResults(results);
+      } catch (e) {
+        console.error(e);
+      }
+    }, 250); // small debounce
+  });
+
+  // hide results on outside click
+  document.addEventListener('click', (e) => {
+    if (
+      !customerSearchResults.contains(e.target) &&
+      e.target !== customerSearchInput
+    ) {
+      customerSearchResults.classList.remove('visible');
+    }
+  });
+}
+
+function renderCustomerSearchResults(list) {
+  customerSearchResults.innerHTML = '';
+
+  if (!list.length) {
+    const empty = document.createElement('div');
+    empty.className = 'customer-result-item';
+    empty.textContent = 'Kein Kunde gefunden';
+    customerSearchResults.appendChild(empty);
+    customerSearchResults.classList.add('visible');
+    return;
+  }
+
+  list.forEach((c) => {
+    const item = document.createElement('div');
+    item.className = 'customer-result-item';
+
+    const main = document.createElement('div');
+    main.className = 'customer-result-main';
+    main.textContent =
+      [c.company, c.firstName, c.lastName].filter(Boolean).join(' • ') ||
+      c.email ||
+      c.customerNumber;
+
+    const meta = document.createElement('div');
+    meta.className = 'customer-result-meta';
+    meta.textContent = [c.customerNumber, c.city].filter(Boolean).join(' • ');
+
+    item.appendChild(main);
+    item.appendChild(meta);
+
+    item.addEventListener('click', () => {
+      customerSearchResults.classList.remove('visible');
+      customerSearchResults.innerHTML = '';
+      customerSearchInput.value = '';
+
+      fillCustomerForm(c);
+      showCustomerMessage('Kunde übernommen', 'info');
+    });
+
+    customerSearchResults.appendChild(item);
+  });
+
+  customerSearchResults.classList.add('visible');
+}
 
 /* ========== DUSCHWANNE DEFAULTS ========== */
 (function initDuschwanneDefaults() {
@@ -6941,7 +7141,7 @@ function initLivePricingSync() {
 
 /* ========== ADMIN: Services ========== */
 (function initAdminServices() {
-  const page = document.getElementById('page-as');
+  const page = document.getElementById('page-services');
   if (!page) return;
 
   const form    = document.getElementById('form-as');
@@ -7165,6 +7365,9 @@ function initLivePricingSync() {
   });
 })();
 
+
+
+
 document.addEventListener('DOMContentLoaded', () => {
 
   // If you have explicit nav buttons/tabs:
@@ -7261,6 +7464,273 @@ document.addEventListener('DOMContentLoaded', () => {
   })();
 
 
+});
+
+const bitrixIdInput = document.getElementById('bitrixContactId');
+const loadBitrixBtn = document.getElementById('loadBitrixContactBtn');
+
+if (bitrixIdInput && loadBitrixBtn) {
+  const loadBitrixContact = async () => {
+    const id = bitrixIdInput.value.trim();
+    if (!id) {
+      showCustomerMessage('Bitte eine Bitrix Kontakt ID eingeben', 'error');
+      return;
+    }
+
+    try {
+      loadBitrixBtn.disabled = true;
+      loadBitrixBtn.textContent = 'Laden...';
+
+      const res = await fetch(`/api/bitrix/contact/${encodeURIComponent(id)}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Fehler beim Laden aus Bitrix');
+      }
+
+      const data = await res.json();
+      console.log('[Bitrix frontend] raw data from backend:', data);
+
+      // n8n‑Antwort hat Form: { result: { ID, NAME, LAST_NAME, PHONE, EMAIL, ... }, time: {...} }
+      const contact = data.result;
+      if (!contact || !contact.ID) {
+        throw new Error('Kontakt nicht gefunden');
+      }
+
+      // Bitrix → Formular-Mapping
+      const phone =
+        Array.isArray(contact.PHONE) && contact.PHONE[0]
+          ? contact.PHONE[0].VALUE
+          : '';
+      const email =
+        Array.isArray(contact.EMAIL) && contact.EMAIL[0]
+          ? contact.EMAIL[0].VALUE
+          : '';
+
+      const mapped = {
+        // falls du schon eine Kundennummer im Formular hast, nicht überschreiben
+        customerNumber:
+          document.getElementById('customerNumber')?.value || contact.ID,
+        firstName: contact.NAME || '',
+        lastName: contact.LAST_NAME || '',
+        company: contact.COMPANY_TITLE || '',
+        email,
+        phone,
+        street: contact.ADDRESS || '',
+        city: contact.ADDRESS_CITY || '',
+        postalCode: contact.ADDRESS_POSTAL_CODE || '',
+        state:
+          contact.ADDRESS_REGION ||
+          contact.ADDRESS_PROVINCE ||
+          '',
+        country: contact.ADDRESS_COUNTRY || '',
+      };
+
+      fillCustomerForm(mapped);
+      showCustomerMessage('Kontakt aus Bitrix übernommen', 'success');
+    } catch (e) {
+      console.error(e);
+      showCustomerMessage(
+        e.message || 'Fehler beim Laden des Bitrix Kontakts',
+        'error'
+      );
+    } finally {
+      loadBitrixBtn.disabled = false;
+      loadBitrixBtn.textContent = 'Aus Bitrix laden';
+    }
+  };
+
+  loadBitrixBtn.addEventListener('click', loadBitrixContact);
+
+  // Enter im ID-Feld löst ebenfalls das Laden aus
+  bitrixIdInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      loadBitrixContact();
+    }
+  });
+}
+
+function initHassmannBestFinder() {
+  console.log('[HF] initHassmannBestFinder called');  // <--
+  const form = document.getElementById('hassmannFinderForm');
+  const btn  = document.getElementById('hf_searchBtn');
+  const statusEl  = document.getElementById('hf_status');
+  const resultsEl = document.getElementById('hf_results');
+
+    console.log('[HF] elements', {
+    form: !!form,
+    btn: !!btn,
+    statusEl: !!statusEl,
+    resultsEl: !!resultsEl,
+  });
+
+  if (!form || !btn || !statusEl || !resultsEl) return;
+
+  const euroC = (n) =>
+    new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
+      .format(Number(n || 0));
+
+  function setStatus(msg, ok = true) {
+    statusEl.className = 'status ' + (ok ? 'ok' : 'err');
+    statusEl.textContent = msg;
+  }
+
+  function buildPayloadFromForm() {
+    const width  = Number(form.hf_width.value || 0);
+    const depth  = Number(form.hf_depth.value || 0);
+    const minP   = Number(form.hf_minPrice.value || 0);
+    const maxP   = Number(form.hf_maxPrice.value || 0);
+    const shortS = !!form.hf_shortSide.checked;
+    const orient = form.hf_orientation.value || null;
+
+    const openings = Array.from(
+      form.querySelectorAll('input[name="hf_opening"]:checked')
+    ).map((el) => el.value);
+
+    const payload = {
+      width,
+      depth,
+      priceRange: {
+        min: minP || 0,
+        max: maxP || 0,
+      },
+      openingTypes: openings.length ? openings : undefined,
+      isShortSidewall: shortS,
+    };
+
+    if (orient) payload.orientation = orient;
+
+    return payload;
+  }
+
+  function getKind() {
+    const r = form.querySelector('input[name="hf_showerType"]:checked');
+    return r ? r.value : 'corner';
+  }
+
+ function renderResults(list) {
+  if (!Array.isArray(list) || !list.length) {
+    resultsEl.innerHTML = '<div class="muted">Keine passenden Produkte gefunden.</div>';
+    return;
+  }
+
+  const html = list
+    .map((combo, index) => {
+      const main = combo.best || combo; // fallback if backend ever returns flat products
+
+      const title = main.name || `Produkt ${index + 1}`;
+      const pid   = main.modelNumber || main.id || '-';
+
+      // total price for the whole combination (net)
+      const totalNet = combo.totalPriceNet ?? null;
+
+      // individual component prices (gross preferred)
+      const bestPrice  = main.priceGross  ?? main.priceNet  ?? null;
+      const door2Price = combo.tuer2?.priceGross    ?? combo.tuer2?.priceNet    ?? null;
+      const sidePrice  = combo.sidePanel?.priceGross ?? combo.sidePanel?.priceNet ?? null;
+      const trayPrice  = combo.tray?.priceGross     ?? combo.tray?.priceNet     ?? null;
+
+      const fmt = (v) => (v != null ? euroC(v) : 'n/a');
+
+      // images – adjust base URL if needed
+      const imgBase = 'https://gconlineplus.de/media/'; // <- change if different
+      const imgUrl  = main.productLink ? imgBase + main.productLink : '';
+
+      const door2Name = combo.tuer2?.name || null;
+      const sideName  = combo.sidePanel?.name || null;
+      const trayName  = combo.tray?.name || null;
+
+      return `
+        <div class="card" style="margin-bottom:8px; padding:10px 12px;">
+          <div style="display:flex; gap:12px; align-items:flex-start;">
+            ${imgUrl ? `
+              <div style="flex:0 0 120px; max-width:120px;">
+                <img src="${imgUrl}"
+                     alt="${title}"
+                     style="width:100%;height:auto;border-radius:4px;object-fit:cover;" />
+              </div>
+            ` : ''}
+
+            <div style="flex:1 1 auto;">
+              <div style="font-weight:600; margin-bottom:2px;">${title}</div>
+              <div style="font-size:0.9rem; color:var(--muted-foreground);">
+                ID / Modell: <code>${pid}</code>
+              </div>
+
+              <div style="margin-top:6px;">
+                Gesamtpreis (netto): <strong>${fmt(totalNet)}</strong>
+              </div>
+
+              <div style="margin-top:6px; font-size:0.9rem;">
+                <div><strong>Tür 1:</strong> ${title} – Preis (brutto): <strong>${fmt(bestPrice)}</strong></div>
+
+                ${door2Name ? `
+                  <div><strong>Tür 2:</strong> ${door2Name} – Preis (brutto): <strong>${fmt(door2Price)}</strong></div>
+                ` : ''}
+
+                ${sideName ? `
+                  <div><strong>Seitenwand:</strong> ${sideName} – Preis (brutto): <strong>${fmt(sidePrice)}</strong></div>
+                ` : ''}
+
+                ${trayName ? `
+                  <div><strong>Duschwanne:</strong> ${trayName} – Preis (brutto): <strong>${fmt(trayPrice)}</strong></div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+
+  resultsEl.innerHTML = html;
+}
+
+  async function doSearch() {
+    if (!form.reportValidity()) return;
+
+    const kind    = getKind();                 // corner / niche / uform / walkin
+    const payload = buildPayloadFromForm();
+
+    setStatus('Suche wird ausgeführt …', true);
+    resultsEl.innerHTML = '';
+
+    try {
+      const res = await fetch('/api/magic/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ kind, payload }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        console.error('Hassmann search failed:', data);
+        setStatus(data.error || 'Fehler bei der Suche.', false);
+        return;
+      }
+
+      // Erwartete Struktur: { results: [...] } – bei Bedarf anpassen
+      const list = Array.isArray(data.results) ? data.results : data;
+      setStatus(`Es wurden ${list.length} Produkt(e) gefunden.`, true);
+      renderResults(list);
+    } catch (err) {
+      console.error(err);
+      setStatus('Netzwerkfehler bei der Suche.', false);
+    }
+  }
+
+  btn.addEventListener('click', () => {
+  console.log('[HF] search button clicked');
+  doSearch();
+});
+
+}
+
+// im DOMContentLoaded-Block aufrufen:
+document.addEventListener('DOMContentLoaded', () => {
+  // ... dein bisheriger Code ...
+  initHassmannBestFinder();
 });
 
 
