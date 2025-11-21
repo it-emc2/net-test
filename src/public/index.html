@@ -1220,7 +1220,22 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
                 Rückfahrt wird automatisch mit berechnet:
                 <b><span id="roundTripPreview">= 0 km (Hin- & Rückfahrt)</span></b>
               </div>
+              
+<!-- NEW: routing suggestion hint -->
+  <div id="routingSuggestion" class="muted" style="margin-top:4px; font-size:0.85rem;"></div>
+
+  <!-- Optional button: explicit trigger -->
+  <button
+    type="button"
+    id="btnRoutingSuggest"
+    class="btn-secondary"
+    style="margin-top:4px;"
+  >
+    Strecke aus Adresse vorschlagen
+  </button>
             </div>
+
+
 
             <!-- NEW: Arbeitszeit selection -->
             <div class="full" style="margin: 8px 0 12px 0">

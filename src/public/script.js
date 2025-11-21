@@ -6697,6 +6697,123 @@ function refreshHassmannFrame() {
   setTimeout(() => { iframe.src = base + bust; }, 0);
 }
 
+// --- Routing suggestion: one-way km from address -> Vorschlag neben distanceKm ---
+
+async function suggestDistanceFromAddress() {
+  const out = document.getElementById('routingSuggestion');
+  const kmInput = document.getElementById('distanceKm');
+  if (!out) return;
+
+  // Extract Kundendaten from the existing form
+  const form = document.getElementById('form-Kundendaten');
+  if (!form) {
+    out.textContent = 'Kundendaten-Formular nicht gefunden.';
+    return;
+  }
+
+  const streetEl = document.getElementById('street');
+  const cityEl = document.getElementById('city');
+  const plzEl = document.getElementById('postalCode');
+
+  const street = (streetEl?.value || '').trim();
+  const city   = (cityEl?.value || '').trim();
+  const plz    = (plzEl?.value || '').trim();
+
+  if (!street && !city && !plz) {
+    out.textContent = 'Bitte zuerst Adresse, PLZ oder Ort beim Kunden ausfüllen.';
+    return;
+  }
+
+  out.textContent = 'Berechne Routenvorschlag …';
+
+  // Minimal Kundendaten payload (matches backend expectations)
+  const kundendaten = {
+    street,
+    city,
+    postalCode: plz,
+    state: document.getElementById('state')?.value || '',
+    country: document.getElementById('country')?.value || '',
+  };
+
+  try {
+    const res = await fetch('/api/routing/suggest-distance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ Kundendaten: kundendaten }),
+      credentials: 'include',
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      out.textContent = err.error || 'Routenvorschlag fehlgeschlagen.';
+      return;
+    }
+
+    const data = await res.json();
+    if (!data.ok) {
+      out.textContent = data.error || 'Routenvorschlag fehlgeschlagen.';
+      return;
+    }
+
+    const oneWayKm = Number(data.oneWayKm || 0);
+    const roundKm  = Number(data.roundTripKm || 0);
+
+    if (!Number.isFinite(oneWayKm) || oneWayKm <= 0) {
+      out.textContent = 'Keine sinnvolle Strecke ermittelt.';
+      return;
+    }
+
+    const oneWayStr = oneWayKm.toFixed(1).replace('.', ',');
+    const roundStr  = roundKm.toFixed(1).replace('.', ',');
+
+    // Render suggestion + “Übernehmen” link
+    out.innerHTML = `
+      Vorschlag: <strong>${oneWayStr} km</strong> (Hin- &amp; Rückfahrt: ${roundStr} km)
+      <button type="button" id="btnApplyRoutingSuggestion" class="btn-secondary" style="margin-left:8px;">
+        Übernehmen
+      </button>
+      <div style="font-size:0.75rem; opacity:0.8; margin-top:2px;">
+        Basis: Strecke von <em>${data.from?.address || 'Firma'}</em> zu
+        <em>${data.to?.address || 'Kundenadresse'}</em>
+      </div>
+    `;
+
+    // Wire “Übernehmen” button: fill distanceKm and trigger existing preview + pricing
+    document
+      .getElementById('btnApplyRoutingSuggestion')
+      ?.addEventListener('click', () => {
+        if (kmInput) {
+          kmInput.value = String(oneWayKm.toFixed(1));
+          kmInput.dispatchEvent(new Event('input', { bubbles: true }));
+          kmInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      });
+  } catch (e) {
+    console.warn('[routing] suggestDistanceFromAddress failed:', e);
+    out.textContent = 'Routenvorschlag fehlgeschlagen (Netzwerkfehler).';
+  }
+}
+
+// Hook the button + optional auto-refresh
+document.addEventListener('DOMContentLoaded', () => {
+  document
+    .getElementById('btnRoutingSuggest')
+    ?.addEventListener('click', suggestDistanceFromAddress);
+
+  // Optional: auto-update hint when address changes (without auto-filling)
+  const addrFields = ['street', 'city', 'postalCode', 'state', 'country']
+    .map(id => document.getElementById(id))
+    .filter(Boolean);
+
+  let routingTimer = null;
+  addrFields.forEach(el => {
+    el.addEventListener('change', () => {
+      clearTimeout(routingTimer);
+      routingTimer = setTimeout(suggestDistanceFromAddress, 400);
+    });
+  });
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('refreshHassmann')?.addEventListener('click', refreshHassmannFrame);
 });
@@ -7945,3 +8062,6 @@ sidebar?.addEventListener("click", (event) => {
       });
     });
   })();
+
+
+  
