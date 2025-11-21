@@ -2828,6 +2828,10 @@ if (last) {
   const r45 = document.querySelector('input[name="aufschlag"][value="45%"]');
   const r50 = document.querySelector('input[name="aufschlag"][value="50%"]');
 
+  const labelEl  = document.getElementById('aufschlagLabel');
+  const bodyEl   = document.getElementById('aufschlagBody');
+  const toggleBt = document.getElementById('toggleAufschlag');
+
   function setDisabled(el, disabled) {
     if (!el) return;
     el.disabled = disabled;
@@ -2842,31 +2846,54 @@ if (last) {
   function anySelected() {
     return aufschlagRadios.some((r) => r.checked);
   }
+
   function currentSelection() {
     return (
       document.querySelector('input[name="aufschlag"]:checked')?.value || ""
     );
   }
 
-  function apply() {
-  const payer = document.querySelector('input[name="payer"]:checked')?.value;
-
-  // Treat Selbstzahler exactly like Kassenkunde for the percentage selection
-  if (payer === "Kassenkunde" || payer === "Selbstzahler") {
-    [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
-    const sel = currentSelection();
-    if (!anySelected() && r50) r50.checked = true;
-    else if (sel === "35%") {
-      if (r50) r50.checked = true;
+  // Show/hide label + radios, and toggle button text
+  function setAufschlagVisible(visible) {
+    if (labelEl) labelEl.style.display = visible ? "" : "none";
+    if (bodyEl)  bodyEl.style.display  = visible ? "" : "none";
+    if (toggleBt) {
+      toggleBt.textContent = visible ? "Ausblenden" : "Anzeigen";
+      toggleBt.setAttribute("aria-expanded", visible ? "true" : "false");
     }
-  } else {
-    [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
   }
-}
 
+  function toggleAufschlag() {
+    const currentlyVisible = !bodyEl || bodyEl.style.display !== "none";
+    setAufschlagVisible(!currentlyVisible);
+  }
 
-  payerRadios.forEach((r) => r.addEventListener("change", apply));
-  apply();
+  // Original Aufschlag rules per payer
+  function applyAufschlagRules() {
+    const payer = document.querySelector('input[name="payer"]:checked')?.value;
+
+    // Treat Selbstzahler exactly like Kassenkunde for the percentage selection
+    if (payer === "Kassenkunde" || payer === "Selbstzahler") {
+      [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
+      const sel = currentSelection();
+      if (!anySelected() && r50) {
+        r50.checked = true;
+      } else if (sel === "35%") {
+        if (r50) r50.checked = true;
+      }
+    } else {
+      // Other payers: all allowed
+      [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
+    }
+  }
+
+  // Events
+  payerRadios.forEach((r) => r.addEventListener("change", applyAufschlagRules));
+  if (toggleBt) toggleBt.addEventListener("click", toggleAufschlag);
+
+  // Initial state: visible with rules applied
+  setAufschlagVisible(true);
+  applyAufschlagRules();
 })();
 
 (function initPflegegrad() {
