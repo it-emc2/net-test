@@ -7608,53 +7608,60 @@ function initHassmannBestFinder() {
     return r ? r.value : 'corner';
   }
 
- function renderResults(list) {
+function renderResults(list) {
   if (!Array.isArray(list) || !list.length) {
-    resultsEl.innerHTML = '<div class="muted">Keine passenden Produkte gefunden.</div>';
+    resultsEl.innerHTML =
+      '<div class="muted">Keine passenden Produkte gefunden.</div>';
     return;
   }
 
+  const MEDIA_PREFIX = 'https://media.onlineplus.store/';
+  const fmt = (v) => (v != null ? euroC(v) : 'n/a');
+
   const html = list
     .map((combo, index) => {
-      const main = combo.best || combo; // fallback if backend ever returns flat products
+      const main = combo.best || combo;
+      const side = combo.sidePanel || combo.tuer2 || null;
+      const tray = combo.tray || null;
 
       const title = main.name || `Produkt ${index + 1}`;
       const pid   = main.modelNumber || main.id || '-';
 
-      // total price for the whole combination (net)
       const totalNet = combo.totalPriceNet ?? null;
 
-      // individual component prices (gross preferred)
-      const bestPrice  = main.priceGross  ?? main.priceNet  ?? null;
-      const door2Price = combo.tuer2?.priceGross    ?? combo.tuer2?.priceNet    ?? null;
-      const sidePrice  = combo.sidePanel?.priceGross ?? combo.sidePanel?.priceNet ?? null;
-      const trayPrice  = combo.tray?.priceGross     ?? combo.tray?.priceNet     ?? null;
+      const bestPrice  = main.priceGross ?? main.priceNet ?? null;
+      const sidePrice  = side?.priceGross ?? side?.priceNet ?? null;
+      const trayPrice  = tray?.priceGross ?? tray?.priceNet ?? null;
 
-      const fmt = (v) => (v != null ? euroC(v) : 'n/a');
+      const sideName = side?.name || null;
+      const trayName = tray?.name || null;
 
-      // images – adjust base URL if needed
-      const imgBase = 'https://gconlineplus.de/media/'; // <- change if different
-      const imgUrl  = main.productLink ? imgBase + main.productLink : '';
+      // --- MAIN IMAGE (best) ---
+      const mainImg = pickImage(main, 2);
 
-      const door2Name = combo.tuer2?.name || null;
-      const sideName  = combo.sidePanel?.name || null;
-      const trayName  = combo.tray?.name || null;
+      // --- small strips for side & tray ---
+      const sideImg = pickImage(side, 1);
+      const trayImg = pickImage(tray, 1);
 
       return `
         <div class="card" style="margin-bottom:8px; padding:10px 12px;">
-          <div style="display:flex; gap:12px; align-items:flex-start;">
-            ${imgUrl ? `
-              <div style="flex:0 0 120px; max-width:120px;">
-                <img src="${imgUrl}"
-                     alt="${title}"
-                     style="width:100%;height:auto;border-radius:4px;object-fit:cover;" />
-              </div>
-            ` : ''}
+          <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
 
-            <div style="flex:1 1 auto;">
-              <div style="font-weight:600; margin-bottom:2px;">${title}</div>
+            ${
+              mainImg
+                ? `
+              <div style="flex:0 0 140px; max-width:140px;">
+                ${mainImg}
+              </div>`
+                : ''
+            }
+
+            <div style="flex:1 1 220px; min-width:220px;">
+              <div style="font-weight:600; margin-bottom:2px;">${escapeHtml(
+                title
+              )}</div>
               <div style="font-size:0.9rem; color:var(--muted-foreground);">
-                ID / Modell: <code>${pid}</code>
+                ID / Modell: <code>${escapeHtml(pid)}</code>
               </div>
 
               <div style="margin-top:6px;">
@@ -7662,24 +7669,115 @@ function initHassmannBestFinder() {
               </div>
 
               <div style="margin-top:6px; font-size:0.9rem;">
-                <div><strong>Tür 1:</strong> ${title} – Preis (brutto): <strong>${fmt(bestPrice)}</strong></div>
+                <div><strong>Tür 1:</strong> ${escapeHtml(
+                  title
+                )} – Preis (brutto): <strong>${fmt(bestPrice)}</strong></div>
 
-                ${door2Name ? `
-                  <div><strong>Tür 2:</strong> ${door2Name} – Preis (brutto): <strong>${fmt(door2Price)}</strong></div>
-                ` : ''}
+                ${
+                  sideName
+                    ? `<div><strong>Seitenwand / Tür 2:</strong> ${escapeHtml(
+                        sideName
+                      )} – Preis (brutto): <strong>${fmt(
+                        sidePrice
+                      )}</strong></div>`
+                    : ''
+                }
 
-                ${sideName ? `
-                  <div><strong>Seitenwand:</strong> ${sideName} – Preis (brutto): <strong>${fmt(sidePrice)}</strong></div>
-                ` : ''}
-
-                ${trayName ? `
-                  <div><strong>Duschwanne:</strong> ${trayName} – Preis (brutto): <strong>${fmt(trayPrice)}</strong></div>
-                ` : ''}
+                ${
+                  trayName
+                    ? `<div><strong>Duschwanne:</strong> ${escapeHtml(
+                        trayName
+                      )} – Preis (brutto): <strong>${fmt(
+                        trayPrice
+                      )}</strong></div>`
+                    : ''
+                }
               </div>
+
+              ${
+                combo.widthRangeMessage
+                  ? `<div style="margin-top:6px;font-size:0.8rem;color:#b26a00;background:#fff5e6;border:1px solid #ffcc80;border-radius:4px;padding:4px 6px;">
+                       ${escapeHtml(combo.widthRangeMessage)}
+                     </div>`
+                  : ''
+              }
+
+              ${
+                sideImg || trayImg
+                  ? `
+                <div style="margin-top:8px; display:flex; gap:12px; flex-wrap:wrap;">
+                  ${
+                    sideImg
+                      ? `<div style="flex:0 0 90px; max-width:90px;">
+                           <div style="font-size:0.75rem;margin-bottom:2px;">Seite</div>
+                           ${sideImg}
+                         </div>`
+                      : ''
+                  }
+                  ${
+                    trayImg
+                      ? `<div style="flex:0 0 90px; max-width:90px;">
+                           <div style="font-size:0.75rem;margin-bottom:2px;">Wanne</div>
+                           ${trayImg}
+                         </div>`
+                      : ''
+                  }
+                </div>`
+                  : ''
+              }
+
             </div>
           </div>
         </div>
       `;
+
+      // ---- helpers ----
+
+      function pickImage(product, maxCount) {
+        if (!product) return '';
+
+        const links = Array.isArray(product.productLinks)
+          ? product.productLinks
+          : [];
+
+        const imgs = links.slice(0, maxCount).map((pl) => {
+          const url = normalizeMediaUrl(pl.link);
+          if (!url) return '';
+          return `<img src="${url}"
+                       alt="${escapeHtml(product.name || '')}"
+                       loading="lazy"
+                       style="width:100%;height:auto;border-radius:4px;object-fit:cover;border:1px solid #e0e0e0;margin-bottom:4px;" />`;
+        });
+
+        if (!imgs.length && product.productLink) {
+          const url = normalizeMediaUrl(product.productLink);
+          imgs.push(
+            `<img src="${url}"
+                  alt="${escapeHtml(product.name || '')}"
+                  loading="lazy"
+                  style="width:100%;height:auto;border-radius:4px;object-fit:cover;border:1px solid #e0e0e0;" />`
+          );
+        }
+
+        return imgs.join('');
+      }
+
+      function normalizeMediaUrl(link) {
+        if (!link) return null;
+        if (link.startsWith('http://') || link.startsWith('https://')) {
+          return link;
+        }
+        return MEDIA_PREFIX + link.replace(/^\/+/, '');
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
     })
     .join('');
 
