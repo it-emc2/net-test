@@ -228,6 +228,7 @@ for (const key of dwTasks) {
 
 async function computeMaterials(payload) {
   const offer = getActiveOffer(payload);   // 'bu' | 'bwt' | 'hl'
+  
 
   const dusch = payload?.duschwanne || {};
   const wv    = payload?.wandverkleidung || {};
@@ -650,7 +651,80 @@ try {
   };
 }
 
- 
+   // --- BWT: "Enthält je Einheit" rows, with real prices from DB ---
+  async function computeBwtIncludedLines(payload) {
+    const offer = getActiveOffer(payload);
+    if (offer !== 'bwt') return [];
+
+    const b = payload?.Arbeitszeit || {};
+    const bwt = payload?.bwt || {};
+
+    // distance (same logic as in computeServiceCosts)
+    const oneWayKm = Number(b.distanceKm || 0) || 0;
+    const roundTripKm = Math.max(0, oneWayKm * 2);
+    const billedKm = Math.max(0, roundTripKm - 200);  // only km > 200 are billed
+    const kmRate = 0.35;
+    const kmAmount = round2(billedKm * kmRate);
+
+    // door quantity (fallback 1 if somehow 0, so labels don't look broken)
+    const rawDoorQty = Number(bwt?.bwtDoorStdQty || 0) || 0;
+    const doorQty = rawDoorQty > 0 ? rawDoorQty : 1;
+    const qtyStr = doorQty.toFixed(2).replace(/\.00$/, '');
+
+    // fetch unit prices for Lieferkosten + Kleinmaterial
+    const ids = ['BWT_LIEFER', 'KM02'];
+    const map = await getProductsByIds(ids);
+
+    const lieferPrice = Number(map.get('BWT_LIEFER')?.price || 0);
+    const kleinPrice  = Number(map.get('KM02')?.price || 0);
+
+    const out = [];
+
+    // 1) Kilometerpauschale (already reduced to >200km)
+    if (kmAmount > 0) {
+      out.push({
+        key: 'bwt_km',
+        label: `- ${roundTripKm} km Kilometerpauschale`,
+        qty: 1,
+        unitPrice: kmAmount,
+        lineTotal: kmAmount,
+      });
+    }
+
+    // 2) Lieferkosten Badewannentür (real price from DB)
+    if (lieferPrice > 0) {
+      out.push({
+        key: 'bwt_liefer',
+        label: `- ${qtyStr} Stk Lieferkosten Badewannentür`,
+        qty: doorQty,
+        unitPrice: lieferPrice,
+        lineTotal: round2(lieferPrice * doorQty),
+      });
+    }
+
+    // 3) Universal / Standard Tür (price forced to 0 here – already counted in materials)
+    out.push({
+      key: 'bwt_tuer',
+      label: `- ${qtyStr} Stk Universal / Standard Tür`,
+      qty: doorQty,
+      unitPrice: 0,
+      lineTotal: 0,
+    });
+
+    // 4) Kleinmaterial (real price from DB)
+    if (kleinPrice > 0) {
+      out.push({
+        key: 'km02',
+        label: `- ${qtyStr} Stk Kleinmaterial`,
+        qty: doorQty,
+        unitPrice: kleinPrice,
+        lineTotal: round2(kleinPrice * doorQty),
+      });
+    }
+
+    return out;
+  }
+
 
   return {
     computePrices: async (payload) => {
@@ -670,14 +744,32 @@ try {
         };
       });
 
- let materials = { title: '', lines: [], sum: 0 };
+let materials = { title: '', lines: [], sum: 0 };
 try { materials = await computeMaterials(payload); } catch (e) { console.error('[pricing] computeMaterials failed:', e); }
 
 let services = { title: '', lines: [], sum: 0, payer: '', zoneLabel: '', distanceKm: 0, laborHours: 0, laborRate: 0 };
 try { services = computeServiceCosts(payload) || services; } catch (e) { console.error('[pricing] computeServiceCosts failed:', e); }
 
+// figure out active offer here
+const offer =
+  payload?.activeOffer ||
+  payload?.currentOfferKey ||
+  payload?.offerType ||
+  'bu';
+
+// --- BWT: Enthält-je-Einheit rows with real prices ---
+let bwtIncludedDisplayUI = [];
+if (offer === 'bwt') {
+  try {
+    bwtIncludedDisplayUI = await computeBwtIncludedLines(payload);
+  } catch (e) {
+    console.error('[pricing] computeBwtIncludedLines failed:', e);
+  }
+}
+
 // --- add the selected Duschwanne (from smart search) as a material line ---
 let selectedTray = null;
+
 try {
   const pid = payload?.duschwanne?.chosenTrayProductId;
   const sizeLabel = (payload?.duschwanne?.traySize || '').trim();
@@ -990,7 +1082,8 @@ const selfPayAmount = round2(Math.max(0, Number(total) - Number(subsidyAmount_ma
   materialsDisplayDocx,
   servicesDisplayDocx,
 
-      
+       // BWT-only helper for "Enthält je Einheit"
+        bwtIncludedDisplayUI,
           
        
       };

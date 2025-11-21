@@ -3959,48 +3959,80 @@ function listLines(lines) {
 // Build "Enthält je Einheit" lines for BWT only
 function buildBwtIncludedLines(data) {
   const out = [];
+    // If server already computed BWT "Enthält je Einheit" rows, use them directly
+  const bwtSrc = Array.isArray(data?.bwtIncludedDisplayUI)
+    ? data.bwtIncludedDisplayUI
+    : null;
 
-  // 1) Kilometerpauschale from services
+  if (bwtSrc && bwtSrc.length) {
+    return bwtSrc.map(row => ({
+      productId: row.productId || row.key || null,
+      label: String(row.label || '-'),
+      qty: Number(row.qty || 0) || 0,
+      unitPrice: Number(row.unitPrice ?? 0),
+      lineTotal: Number(row.lineTotal ?? 0),
+    }));
+  }
+
+
+  // 1) Kilometerpauschale from services (already has correct amount)
   const svcSrc = (data.servicesDisplayUI?.lines || data.services?.lines || []) || [];
   const kmRow = svcSrc.find(s =>
     /kilometerpauschale/i.test(String(s.label || s.name || ''))
   );
 
-  if (kmRow) {
+  if (kmRow && typeof kmRow.amount === 'number' && kmRow.amount > 0) {
     out.push({
-      productId: kmRow.key || kmRow.productId || null,
+      productId: kmRow.key || kmRow.productId || 'kilometer',
       label: String(kmRow.label || kmRow.name || '-'),
-      qty: 1,                         // we show it "per unit"
-      unitPrice: Number(kmRow.amount ?? 0),
-      lineTotal: Number(kmRow.amount ?? 0),
+      qty: 1,                        // per unit
+      unitPrice: Number(kmRow.amount || 0),
+      lineTotal: Number(kmRow.amount || 0),
     });
   }
 
-  // 2) Tür-Menge aus Materialien (1226)
-  const matSrc = (data.materialsDisplayUI?.lines || data.materials?.lines || []) || [];
-  const doorLine = matSrc.find(l => String(l.productId || l.id || '').trim() === '1226');
-  const doorQty = Number(doorLine?.qty || 0) || 0;
+  // 2) Materials: Tür + Lieferkosten + Kleinmaterial
+  //    → take them from the *resolved* material list (with prices)
+  const matSrc =
+    (Array.isArray(data.materialsDisplayDocx?.lines) && data.materialsDisplayDocx.lines.length)
+      ? data.materialsDisplayDocx.lines
+      : (data.materials?.lines || []);
 
-  if (doorQty > 0) {
-    const qtyStr = doorQty.toFixed(2).replace(/\.00$/, '');
+  const findMat = (id) =>
+    matSrc.find(l => String(l.productId || l.id || '').trim() === id);
 
-    const makeRow = (shortLabel) => ({
-      productId: null,
+  const doorLine   = findMat('1226');       // Universal / Standard Tür
+  const lieferLine = findMat('BWT_LIEFER'); // Lieferkosten Badewannentür
+  const kleinLine  = findMat('KM02');       // Kleinmaterial
+
+  const makeRowFromLine = (line, shortLabel, forceId) => {
+    if (!line) return null;
+    const qtyNum = Number(line.qty || 0) || 0;
+    if (!Number.isFinite(qtyNum) || qtyNum <= 0) return null;
+
+    const qtyStr = qtyNum.toFixed(2).replace(/\.00$/, '');
+
+    return {
+      productId: forceId || line.productId || line.id || null,
       label: `- ${qtyStr} Stk ${shortLabel}`,
-      qty: doorQty,       // column "Menge" (numerisch)
-      unitPrice: 0,       // rein informativ im Debug, keine echte Kalkulation
-      lineTotal: 0,
-    });
+      qty: qtyNum,                                // numeric, for the "Menge" column
+      unitPrice: Number(line.unitPrice || 0),     // comes from pricing.js / DB
+      lineTotal: Number(line.lineTotal || 0),     // = qty * unitPrice
+    };
+  };
 
-    out.push(
-      makeRow('Lieferkosten Badewannentür'),
-      makeRow('Universal / Standard Tür'),
-      makeRow('Kleinmaterial')
-    );
-  }
+  const rLiefer = makeRowFromLine(lieferLine, 'Lieferkosten Badewannentür', 'BWT_LIEFER');
+  if (rLiefer) out.push(rLiefer);
+
+  const rDoor = makeRowFromLine(doorLine, 'Universal / Standard Tür', '1226');
+  if (rDoor) out.push(rDoor);
+
+  const rKlein = makeRowFromLine(kleinLine, 'Kleinmaterial', 'KM02');
+  if (rKlein) out.push(rKlein);
 
   return out;
 }
+
 
   // Make this async so we can await name lookups for optional items
 window.renderFromData = async function renderFromData(data) {
@@ -4100,6 +4132,7 @@ const isFacharbeiter = (s.key === 'facharbeiter') || /facharbeiter/i.test(s.labe
   (goesIncluded ? includedSvc : primarySvc).push(row);
 }
 // --- Für BWT: "Enthält je Einheit" komplett neu aufbauen ---
+let isBwtOffer = false;
 try {
   let currentOffer = null;
 
@@ -4111,6 +4144,7 @@ try {
   }
 
   if (currentOffer === 'bwt') {
+    isBwtOffer = true;
     includedSvc = buildBwtIncludedLines(data);
   }
 } catch (e) {
@@ -4120,10 +4154,21 @@ try {
 const svcBodyPrimary  = listLines(primarySvc);
 const svcBodyIncluded = listLines(includedSvc);
 
+// Summe für "Enthält je Einheit":
+//  - BWT: Summe der 4 BWT-Zeilen (bwt_km, bwt_liefer, bwt_tuer, bwt_km02)
+//  - sonst: wie bisher data.services.sum
+const includedSvcSum = (includedSvc || []).reduce(
+  (acc, row) => acc + (Number(row.lineTotal) || 0),
+  0
+);
+const sumLeistungenEnth = isBwtOffer
+  ? includedSvcSum
+  : (data.services?.sum || 0);
+
 const svcCard = `
   ${card((data.services?.title || 'Auszuführende Arbeiten'), svcBodyPrimary)}
   <div style="height:8px"></div>
-  ${card('Enthält je Einheit', svcBodyIncluded, `<div style="text-align:right"><b>Summe Leistungen:</b> ${euroC(data.services?.sum || 0)}</div>`)}
+  ${card('Enthält je Einheit', svcBodyIncluded, `<div style="text-align:right"><b>Summe Leistungen:</b> ${euroC(sumLeistungenEnth)}</div>`)}
 `;
 
 
