@@ -7639,9 +7639,16 @@ function renderResults(list) {
       // --- MAIN IMAGE (best) ---
       const mainImg = pickImage(main, 2);
 
-      // --- small strips for side & tray ---
+      // --- small strip for side (aus den Produktdaten) ---
       const sideImg = pickImage(side, 1);
-      const trayImg = pickImage(tray, 1);
+
+      // --- WANNENBILD: IMMER LOKALES ASSET ---
+      const trayImg = `
+        <img src="/assets/duschwanne.jpeg"
+             alt="Duschwanne"
+             loading="lazy"
+             style="width:100%;height:auto;border-radius:4px;object-fit:cover;border:1px solid #e0e0e0;margin-bottom:4px;" />
+      `;
 
       return `
         <div class="card" style="margin-bottom:8px; padding:10px 12px;">
@@ -7702,29 +7709,22 @@ function renderResults(list) {
                   : ''
               }
 
-              ${
-                sideImg || trayImg
-                  ? `
-                <div style="margin-top:8px; display:flex; gap:12px; flex-wrap:wrap;">
-                  ${
-                    sideImg
-                      ? `<div style="flex:0 0 90px; max-width:90px;">
-                           <div style="font-size:0.75rem;margin-bottom:2px;">Seite</div>
-                           ${sideImg}
-                         </div>`
-                      : ''
-                  }
-                  ${
-                    trayImg
-                      ? `<div style="flex:0 0 90px; max-width:90px;">
-                           <div style="font-size:0.75rem;margin-bottom:2px;">Wanne</div>
-                           ${trayImg}
-                         </div>`
-                      : ''
-                  }
-                </div>`
-                  : ''
-              }
+              <div style="margin-top:8px; display:flex; gap:12px; flex-wrap:wrap;">
+                ${
+                  sideImg
+                    ? `<div style="flex:0 0 90px; max-width:90px;">
+                         <div style="font-size:0.75rem;margin-bottom:2px;">Seite</div>
+                         ${sideImg}
+                       </div>`
+                    : ''
+                }
+
+                <!-- Wanne: IMMER anzeigen -->
+                <div style="flex:0 0 90px; max-width:90px;">
+                  <div style="font-size:0.75rem;margin-bottom:2px;">Wanne</div>
+                  ${trayImg}
+                </div>
+              </div>
 
             </div>
           </div>
