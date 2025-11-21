@@ -399,7 +399,7 @@ if (userRaw !== undefined && userRaw !== null && String(userRaw).trim() !== '') 
     }
 
     // Example: aids / Haltegriff quantity
-    const aidsHgQty = Number(bwt?.bwtAidsHaltegriffQty || 0) || 0;
+    const aidsHgQty = Number(bwt?.bwtAidsHaltegriff40Qty || 0) || 0;
     if (aidsHgQty > 0) {
       add(
         'CLPESG40',   // TODO: replace with real productId
@@ -766,6 +766,16 @@ if (offer === 'bwt') {
     console.error('[pricing] computeBwtIncludedLines failed:', e);
   }
 }
+// --- BWT: Summe Leistungen nur aus den 4 BWT-Zeilen ---
+let bwtLeistungenSum = 0;
+if (offer === 'bwt' && Array.isArray(bwtIncludedDisplayUI) && bwtIncludedDisplayUI.length) {
+  bwtLeistungenSum = round2(
+    bwtIncludedDisplayUI.reduce((acc, row) => acc + (Number(row.lineTotal) || 0), 0)
+  );
+  // Überschreibe Services-Summe für BWT, damit UI + DOCX denselben Betrag sehen
+  services.sum = bwtLeistungenSum;
+}
+
 
 // --- add the selected Duschwanne (from smart search) as a material line ---
 let selectedTray = null;
@@ -906,12 +916,12 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
     
 
        //const productsSubtotal = round2((items || []).reduce((sum, i) => sum + (i?.lineTotal || 0), 0) +(materials?.sum ?? 0));
-       const productsSubtotal = round2(Number(materials?.sum || 0));
+      const productsSubtotal = round2(Number(materials?.sum || 0));
 
       
       // Extract and enforce markup rules
       let markupPct = extractMarkupPct(payload);
-     const payer = payload?.Kundendaten?.payer || '';
+      const payer = payload?.Kundendaten?.payer || '';
        // Bonus checkboxes in Rabatt Menu --
       const flags = {
         bonus_neu: !!payload?.rabatt?.bonus300,
@@ -919,34 +929,42 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
       };
 
       // NEW: rebuild markup from material lines with the two exceptions
-      // st markup = round2( productsSubtotal  * (markupPct || 0));
-      
       const lines = Array.isArray(materials?.lines) ? materials.lines : [];
       let markupBase = 0;
 
-      for (const row of lines) {
-        const id  = String(row?.productId || row?.id || '').trim();
-        const qty = Number(row?.qty ?? row?.quantity ?? 0) || 0;
-        const unitPrice = Number(row?.unitPrice ?? 0) || 0;
+      if (offer !== 'bwt') {
+        // Normal BU/HL-Markup-Logik
+        for (const row of lines) {
+          const id  = String(row?.productId || row?.id || '').trim();
+          const qty = Number(row?.qty ?? row?.quantity ?? 0) || 0;
+          const unitPrice = Number(row?.unitPrice ?? 0) || 0;
 
-        if (!qty || !unitPrice) continue;
+          if (!qty || !unitPrice) continue;
 
-        // 1) skip Kleinmaterial (added as KM02 when the checkbox is on)
-        if (id === 'KM02') continue;
+          // 1) skip Kleinmaterial (added as KM02 when the checkbox is on)
+          if (id === 'KM02') continue;
 
-        // 2) if Haltegriff bonus is active, one CLPESG40 is free for markup purposes
-        if (id === 'CLPESG40' && flags?.bonus_Haltegriff === true) {
-          const effectiveQty = Math.max(qty - 1, 0);
-          if (effectiveQty > 0) markupBase += effectiveQty * unitPrice;
-          continue;
+          // 2) if Haltegriff bonus is active, one CLPESG40 is free for markup purposes
+          if (id === 'CLPESG40' && flags?.bonus_Haltegriff === true) {
+            const effectiveQty = Math.max(qty - 1, 0);
+            if (effectiveQty > 0) markupBase += effectiveQty * unitPrice;
+            continue;
+          }
+
+          // default: count full qty
+          markupBase += qty * unitPrice;
         }
-
-        // default: count full qty
-        markupBase += qty * unitPrice;
+      } else {
+        // BWT: kein Aufschlag
+        markupPct = 0;
+        markupBase = 0;
       }
 
       // Final markup using the existing percentage
-      const markup = round2(markupBase * (markupPct || 0));
+      const markup = (offer === 'bwt')
+        ? 0
+        : round2(markupBase * (markupPct || 0));
+
 
       // Nettobetrag
       const baseSubtotal = round2(productsSubtotal + (services?.sum ?? 0) + markup );    
