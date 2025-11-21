@@ -4266,7 +4266,7 @@ window.renderFromData = async function renderFromData(data) {
    //  ? data.optionalDisplayUI.sum
    //  : (optLines.reduce((a, x) => a + (x.lineTotal || 0), 0));
   const optCard = card(
-    "Optional gewählte Produkte",
+    "Additional gewählte Produkte",
     optBody,
     `<div style="text-align:right"><b>Summe:</b> ${euroC(optSum)}</div>`
   );

@@ -873,7 +873,7 @@ const nonOptSum = (materials?.sum || 0) - optSum;
 
 // --- UI MATERIALS: show ONLY non-optional under “Material für Badumbau”
 const uiMaterials = nonOptLines.map(x => ({ ...x }));
-// --- UI OPTIONALS: show ONLY optional under “Optional gewählte Produkte”
+// --- UI OPTIONALS: show ONLY optional under “Additional gewählte Produkte”
 const uiOptionals = optLines.map(x => ({ ...x }));
 
 // --- DOCX MATERIALS: include everything (business rule)
