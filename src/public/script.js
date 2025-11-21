@@ -4069,7 +4069,7 @@ document
             : ""
         }
       </div>
-    `;
+    `;              
   }
 // UI-only: if a Duschabtrennung (Hassmann) quick-add has a user ID,
 // show it in the Kosten-Details label. Do NOT affect server, DOCX, or PDF.
@@ -4461,12 +4461,12 @@ window.addEventListener('hashchange', () => {
   }
 
   window.addEventListener("hashchange", () => {
-    if (getCurrentStep() === "kosten") openKosten();
+    if (getCurrentStep() === "Kosten") openKosten();
   });
-  if (getCurrentStep() === "kosten") openKosten();
+  if (getCurrentStep() === "Kosten") openKosten();
 
   window.addEventListener("pricing:updated", async (ev) => {
-    if (getCurrentStep() === "kosten") {
+    if (getCurrentStep() === "Kosten") {
       await renderFromData(ev.detail || window.__pricing);
     }
   });
@@ -4961,15 +4961,18 @@ function renderDraftSearchResults(list) {
     btn.style.border = "none";
     btn.style.background = "transparent";
     btn.style.cursor = "pointer";
+    // ensure readable text color (works in dark/light themes via CSS vars)
+    btn.style.color = "var(--text)";
     btn.onmouseenter = () => (btn.style.background = "#eef2ff");
     btn.onmouseleave = () => (btn.style.background = "transparent");
 
     const updated =
       d.updatedAt ? new Date(d.updatedAt).toLocaleString("de-DE") : "";
 
-    btn.innerHTML = `<strong>${d.name}</strong>${
+        btn.innerHTML = `<strong style="color:var(--accent-strong);">${d.name}</strong>${
       updated ? ` <span style="font-size:0.8em; color:#6b7280;">(${updated})</span>` : ""
     }`;
+
 
     frag.appendChild(btn);
   });
