@@ -228,6 +228,7 @@ for (const key of dwTasks) {
 
 async function computeMaterials(payload) {
   const offer = getActiveOffer(payload);   // 'bu' | 'bwt' | 'hl'
+  const markupPctForBwt = extractMarkupPct(payload); // 0.35 for "35%", etc.
   
 
   const dusch = payload?.duschwanne || {};
@@ -500,7 +501,7 @@ try {
   // ------- Resolve names/prices once
   const productMap = await getProductsByIds([...idsNeeded]);
 
-  const resolved = lines.map(l => {
+    const resolved = lines.map(l => {
     const prod = productMap.get(l.id) || { price: 0, name: '' };
 
     let unit;
@@ -515,8 +516,22 @@ try {
   if (l.id === 'V5FB02') {
     unit = round2(unit / 8);
   }
+
+  // 👇 BWT: Einstiegshilfen (Haltegriffe) → Einzelpreis = DB-Preis * (1 + Aufschlag)
+  if (offer === 'bwt') {
+    const pid = String(l.id || '').trim();
+    const isBwtGrab =
+      (pid === 'CLPESG40' || pid === 'CLPESG60' || pid === 'CLPESG80') &&
+      (l.source !== 'optional'); // only the BWT page "zusätzliche Einstiegshilfen", not global optionals
+
+    if (isBwtGrab && markupPctForBwt > 0) {
+      unit = round2(unit * (1 + markupPctForBwt));
+    }
+  }
+
     const displayName = (prod.name || '').trim() || l.id;
     const builtLabel  = `- ${l.qty} Stk ${displayName}`;
+
     const label       = l.label || builtLabel;
     const lineTotal   = round2(unit * l.qty);
 
