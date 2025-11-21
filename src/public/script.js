@@ -2280,7 +2280,7 @@ function updateKostenDetails() {
 } // safe, no direct rendering
 
 function setupWandverkleidungPage() {
-  const page = document.getElementById("page-wandverkleidung");
+  const page = document.getElementById("page-Wandverkleidung");
   if (!page || page.dataset._wired === "true") return;
   page.dataset._wired = "true";
  const defaultColor = page.querySelector(
@@ -2418,22 +2418,22 @@ function initWVConnectorsUI() {
 
 // init when the WV page is visible
 window.addEventListener('hashchange', () => {
-  if (typeof getCurrentStep === 'function' && getCurrentStep() === 'wandverkleidung') {
+  if (typeof getCurrentStep === 'function' && getCurrentStep() === 'Wandverkleidung') {
     initWVConnectorsUI();
   }
 });
 document.addEventListener('DOMContentLoaded', () => {
-  if (typeof getCurrentStep === 'function' && getCurrentStep() === 'wandverkleidung') {
+  if (typeof getCurrentStep === 'function' && getCurrentStep() === 'Wandverkleidung') {
     initWVConnectorsUI();
   }
 });
 
 
 window.addEventListener("hashchange", () => {
-  if (location.hash === "#wandverkleidung") setupWandverkleidungPage();
+  if (location.hash === "#Wandverkleidung") setupWandverkleidungPage();
 });
 document.addEventListener("DOMContentLoaded", () => {
-  if (location.hash === "#wandverkleidung") setupWandverkleidungPage();
+  if (location.hash === "#Wandverkleidung") setupWandverkleidungPage();
 });
 
 // === Duschabtrennung QuickAdd Repeater (multi-row per kind) ===
