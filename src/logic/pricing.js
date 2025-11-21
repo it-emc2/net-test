@@ -173,24 +173,44 @@ function normalizeDWTasks(payload) {
       return;
     }
   };
+  const addExtraVal = (v) => {
+    if (!v) return;
+    if (Array.isArray(v)) {
+      for (const x of v) {
+        const s = String(x ?? '').trim();
+        if (s) out.push(s);
+      }
+      return;
+    }
+    if (typeof v === 'string') {
+      const s = v.trim();
+      if (s) out.push(s);
+      return;
+    }
+  };
 
-  // Existing sources (checkbox tasks)
+    // Existing sources (checkbox tasks)
   addVal(dw.workTasks);
   addVal(dw['workTasks[]']);
   addVal(payload?.['duschwanne[workTasks][]']);
   addVal(payload?.['duschwanne.workTasks']);
   addVal(payload?.duschwanne_workTasks);
 
-  // ✅ NEW: free-text extra tasks
-  addVal(dw.extraTasks);
-  addVal(dw['extraTasks[]']);
-  addVal(payload?.['duschwanne[extraTasks][]']);
-  addVal(payload?.['duschwanne.extraTasks']);
-  addVal(payload?.duschwanne_extraTasks);
+  // ✅ NEW: free-text extra tasks (no comma-splitting)
+  addExtraVal(dw.extraTasks);
+  addExtraVal(dw['extraTasks[]']);
+  addExtraVal(payload?.['duschwanne[extraTasks][]']);
+  addExtraVal(payload?.['duschwanne.extraTasks']);
+  addExtraVal(payload?.duschwanne_extraTasks);
+
 
   // Catch any weird nesting under duschwanne, e.g. "duschwanne[extraTasks][]"
   for (const [k, v] of Object.entries(dw)) {
-    if (/worktasks/i.test(k) || /extratasks?/i.test(k)) addVal(v);
+    if (/worktasks/i.test(k)) {
+      addVal(v);          // checkbox-style lists: keep comma-splitting
+    } else if (/extratasks?/i.test(k)) {
+      addExtraVal(v);     // free text: NO comma-splitting
+    }
   }
 
   // de-dup & return
