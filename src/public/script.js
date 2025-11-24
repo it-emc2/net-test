@@ -617,11 +617,12 @@ function restoreFlooringSelections(dw) {
     return false;
   };
 
-  const arr = {
+const arr = {
     'flooringProduct[]': Array.isArray(dw.flooringProduct) ? dw.flooringProduct : [],
     'floorAdhesive[]'  : Array.isArray(dw.floorAdhesive)   ? dw.floorAdhesive   : [],
     'floorSealing[]'   : Array.isArray(dw.floorSealing)    ? dw.floorSealing    : [],
   };
+
 
   const anyFlooringChosen = Object.values(arr).some(a => a && a.length);
 
@@ -5383,25 +5384,27 @@ setByNameOrId('trayColor', p?.duschwanne?.trayColor);
    setCheckbox('smallMaterial',!!p?.duschwanne?.smallMaterial); // "Kleinmaterial"
    setCheckbox('stelzlager',   !!p?.duschwanne?.stelzlager);
 
-// keep hidden selection fields
-setHiddenById('chosenTrayProductId', p?.duschwanne?.chosenTrayProductId);
+  // keep hidden selection fields
+  setHiddenById('chosenTrayProductId', p?.duschwanne?.chosenTrayProductId);
 
 
-setNumber('floorArea', p?.duschwanne?.floorArea);
+  setNumber('floorArea', p?.duschwanne?.floorArea);
 
 
-// work tasks → only set now; nudge after restore
-restoreWorkTasks(p?.duschwanne);
+  // work tasks → only set now; nudge after restore
+  restoreWorkTasks(p?.duschwanne);
 
-// if you keep a helper for selection, ensure it ONLY sets hidden fields (see below)
-restoreTraySelection(p?.duschwanne);
+  // if you keep a helper for selection, ensure it ONLY sets hidden fields (see below)
+  restoreTraySelection(p?.duschwanne);
 
 
     // optional flooring toggle/area
     if ('addFlooring' in (p?.duschwanne || {})) {
       setCheckbox('addFlooring', !!p.duschwanne.addFlooring);
-      // don't dispatch yet; we'll nudge once after restore
+      // don't dispatch yet; 
+
     }
+
     setNumber('floorArea', p?.duschwanne?.floorArea);
     
 // restore specific flooring tiles (panels/adhesive/sealing)
