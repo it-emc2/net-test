@@ -63,7 +63,7 @@ app.use(
         // "https://*.onlineplus.store",
       ],
       fontSrc: ["'self'", "data:"],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", "https://fly-n8n-1.fly.dev"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
       frameAncestors: ["'self'"],

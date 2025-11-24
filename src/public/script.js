@@ -25,6 +25,10 @@ const OFFERS = {
     name: "HL · Handlauf",
     pages: ["Kundendaten", "Arbeitszeit", "hl","Kosten", "Zusammenfassung" ],
   },
+  ah: {
+    name: "AH · Alltagshilfe",
+    pages: ["Kundendaten", "Arbeitszeit", "ah","Kosten", "Zusammenfassung" ],
+  },
 };
 
 // === Central state for current offer + step (small helper) ===
@@ -1098,7 +1102,8 @@ function resetAllForms() {
     "form-bwt",
     "form-hl",
     "form-admin",
-    "form-as"
+    "form-as",
+"form-ah"
   ];
 
   // 1) Reset all forms back to their HTML defaults
@@ -1550,6 +1555,7 @@ function filterPayloadByOffer(payload) {
     hl : "hl",
     admin : "admin",
     services: "services",
+    ah : "ah"
   };
 
   Object.entries(pageToKey).forEach(([page, key]) => {
@@ -1577,6 +1583,8 @@ function buildPayload() {
     rabatt: formToObject(document.getElementById("form-rabatt")),
     bwt: formToObject(document.getElementById("form-bwt")),
     hl: formToObject(document.getElementById("form-hl")),
+    ah: formToObject(document.getElementById("form-ah")),
+
   };
 
   collectWandverkleidungMaterials(payload);
@@ -2213,7 +2221,7 @@ const TILE_TO_OFFER = {
   "BU-Badumbau": "bu",
   "BWT-Badewannentür": "bwt",
    "HL-Handlauf": "hl",
-  // "AH-Alltagshilfe": "ah",
+  "AH-Alltagshilfe": "ah",
   // "HMS-Hausmeister-Service": "hms",
   // "WD-Winterdienst": "wd",
 };
@@ -4498,6 +4506,8 @@ window.addEventListener('hashchange', () => {
     }
   });
 })();
+
+
 
 // === Pricing Playground ===
 (function initPricingPlayground() {
@@ -7509,7 +7519,100 @@ function initLivePricingSync() {
   });
 })();
 
+// Alltagshilfe: abhängige Leistungsart + ausgegraute, nicht verfügbare Option
+(function initAlltagshilfePage() {
+  const form = document.getElementById('form-ah');
+  if (!form) return;
 
+  const artAlltag   = document.getElementById('ahArtAlltagsbegleitung');
+  const artHaushalt = document.getElementById('ahArtHaushalt');
+
+  const wrap          = document.getElementById('ahLeistungsTypWrap');
+  const blockAlltag   = document.getElementById('ahLeistungsTypAlltagsbegleitung');
+  const blockHaushalt = document.getElementById('ahLeistungsTypHaushalt');
+
+  const inputFahrten = document.getElementById('ahLeistungsTypFahrten');
+  const inputPausch  = document.getElementById('ahLeistungsTypReinigungsPauschale');
+
+  // Labels separat greifen, damit wir sie „grau“ stylen können
+  const labelFahrten = inputFahrten?.closest('label.radio-pill');
+  const labelPausch  = inputPausch?.closest('label.radio-pill');
+
+  if (!wrap || !blockAlltag || !blockHaushalt || !inputFahrten || !inputPausch) return;
+
+  function show(el, on) {
+    if (!el) return;
+    el.hidden = !on;
+    el.setAttribute('aria-hidden', on ? 'false' : 'true');
+  }
+
+  // exakt derselbe „Grau‑Look“ wie beim Aufschlag:
+  // disabled + geringere Opacity + keine Klicks
+  function setDisabled(labelEl, inputEl, disabled) {
+    if (!labelEl || !inputEl) return;
+    inputEl.disabled = disabled;
+    labelEl.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    labelEl.style.opacity = disabled ? '0.45' : '';
+    labelEl.style.pointerEvents = disabled ? 'none' : '';
+    labelEl.style.filter = disabled ? 'grayscale(0.3)' : '';
+  }
+
+  function applySelection(kind) {
+    // Block sichtbar, sobald eine Haupt‑Art gewählt wurde
+    show(wrap, true);
+
+    // Beide Detail‑Zeilen sollen immer sichtbar bleiben
+    show(blockAlltag, true);
+    show(blockHaushalt, true);
+
+    if (kind === 'Alltagsbegleitung') {
+      // Fahrten aktiv, Pauschale grau/disabled
+      setDisabled(labelFahrten, inputFahrten, false);
+      setDisabled(labelPausch,  inputPausch,  true);
+
+      // Fahrten vorwählen
+      inputFahrten.checked = true;
+      inputPausch.checked  = false;
+      inputFahrten.dispatchEvent(new Event('change', { bubbles: true }));
+    } else if (kind === 'Haushaltsnahedienstleistungen') {
+      // Pauschale aktiv, Fahrten grau/disabled
+      setDisabled(labelFahrten, inputFahrten, true);
+      setDisabled(labelPausch,  inputPausch,  false);
+
+      inputPausch.checked  = true;
+      inputFahrten.checked = false;
+      inputPausch.dispatchEvent(new Event('change', { bubbles: true }));
+    } else {
+      // Nichts gewählt → alles zurücksetzen und ausblenden
+      show(wrap, false);
+      show(blockAlltag, false);
+      show(blockHaushalt, false);
+
+      setDisabled(labelFahrten, inputFahrten, false);
+      setDisabled(labelPausch,  inputPausch,  false);
+      inputFahrten.checked = false;
+      inputPausch.checked  = false;
+    }
+  }
+
+  // Listener für die zwei Haupt‑Radiobuttons
+  artAlltag?.addEventListener('change', () => {
+    if (artAlltag.checked) applySelection('Alltagsbegleitung');
+  });
+  artHaushalt?.addEventListener('change', () => {
+    if (artHaushalt.checked) applySelection('Haushaltsnahedienstleistungen');
+  });
+
+  // Initialzustand beim Laden (z.B. beim Bearbeiten eines Entwurfs)
+  const current = form.querySelector('input[name="ahArt"]:checked');
+  if (current) {
+    applySelection(current.value);
+  } else {
+    show(wrap, false);
+    show(blockAlltag, false);
+    show(blockHaushalt, false);
+  }
+})();
 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -7993,7 +8096,6 @@ function renderResults(list) {
   }
 
   async function fetchOfferPdfBlob() {
-    // Verwendet denselben Payload wie andere Export-Funktionen
     if (typeof buildPayload !== 'function') {
       throw new Error('buildPayload ist nicht verfügbar.');
     }
@@ -8019,7 +8121,6 @@ function renderResults(list) {
       reader.onerror = () => reject(new Error('FileReader-Fehler beim Konvertieren des PDFs.'));
       reader.onload = () => {
         const dataUrl = String(reader.result || '');
-        // dataUrl Format: "data:application/pdf;base64,AAAA..."
         const base64 = dataUrl.split(',')[1] || '';
         resolve(base64);
       };
@@ -8035,8 +8136,19 @@ function renderResults(list) {
       return;
     }
 
-    // Optional: Mindestlänge prüfen
-    // if (auftragId.length < 3) { ... }
+    // Bestehende Angebotsnummer lesen – NICHT neu erzeugen
+    const offerInput  = document.getElementById('offerNumber');
+    const offerNumber = (offerInput?.value || '').trim();
+
+    if (!offerNumber) {
+      // Variante A: Fehler, wenn keine Angebotsnummer vorhanden ist
+      setStatus('Bitte zuerst eine Angebotsnummer generieren (offerNumber ist leer).', 'error');
+      offerInput?.focus();
+      return;
+
+      // Variante B (alternativ): pdfName einfach weglassen
+      // -> dann diesen return entfernen und unten pdfName optional machen
+    }
 
     try {
       sendBtn.disabled = true;
@@ -8049,9 +8161,13 @@ function renderResults(list) {
 
       setStatus('Sende PDF an Auftrag-Webhook …', 'info');
 
+      // pdfName exakt aus der bereits existierenden Angebotsnummer ableiten
+      const pdfName = `${offerNumber}.pdf`;
+
       const body = {
-        auftragId,        // wie gewünscht
-        pdfBase64,        // kompletter Base64‑String ohne data: Prefix
+        auftragId,   // Auftrag ID aus Input
+        pdfBase64,   // PDF als Base64
+        pdfName,     // nur aus bestehender offerNumber
       };
 
       const res = await fetch(WEBHOOK_URL, {
@@ -8067,15 +8183,13 @@ function renderResults(list) {
 
       setStatus('Angebots-PDF erfolgreich an Auftrag gesendet.', 'success');
 
-      // Optional: Antwort-JSON loggen
       try {
         const json = await res.json();
         console.log('[Auftrag-Webhook] Antwort:', json);
       } catch {
-        // falls kein JSON zurückkommt, ignorieren
+        // kein JSON zurück — egal
       }
 
-      // Optional: Angebot-Snapshot nach erfolgreichem Senden speichern
       if (typeof saveFinalOfferSnapshot === 'function') {
         try { await saveFinalOfferSnapshot(); } catch (e) {
           console.warn('[sendPdfToAuftrag] saveFinalOfferSnapshot fehlgeschlagen:', e);
@@ -8090,7 +8204,6 @@ function renderResults(list) {
   }
 
   sendBtn.addEventListener('click', () => {
-    // Optional: sicherstellen, dass Kundendaten gültig sind
     if (typeof requireBereichValid === 'function' && !requireBereichValid()) {
       location.hash = 'Kundendaten';
       return;
