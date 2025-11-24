@@ -5584,6 +5584,74 @@ setByNameOrId('trayColor', p?.duschwanne?.trayColor);
     }
     restoreOptional(p?.optional);
 
+    // Optional → Sonderprodukte (Freier Posten quick-add)
+    if (Array.isArray(p?.optional?.quickAdd)) {
+      const panel =
+        document.getElementById('optSonderPanel') ||
+        document.getElementById('opt-sonder');
+
+      if (panel) {
+        const rowsContainer = panel.querySelector('.da-items') || panel;
+        let rows = Array.from(rowsContainer.querySelectorAll('.da-item'));
+
+        // Ensure we have at least one template row
+        if (!rows.length) {
+          const tpl = document.getElementById('opt-item-template');
+          if (tpl && tpl.content && tpl.content.firstElementChild) {
+            const node = tpl.content.firstElementChild.cloneNode(true);
+            node.classList.add('da-item');
+            rowsContainer.appendChild(node);
+            rows = [node];
+          }
+        }
+
+        if (rows.length) {
+          const tplRow = rows[0];
+          const items = p.optional.quickAdd;
+
+          // Remove extra rows if there are more rows than items
+          while (rows.length > items.length && rows.length > 1) {
+            const last = rows.pop();
+            if (last) last.remove();
+          }
+
+          // Add missing rows to match items.length
+          while (rows.length < items.length) {
+            const clone = tplRow.cloneNode(true);
+            rowsContainer.appendChild(clone);
+            rows.push(clone);
+          }
+
+          // Fill each row with payload data
+          rows.forEach((row, index) => {
+            const data = items[index] || {};
+            const nameEl  = row.querySelector('.opt-name');
+            const idEl    = row.querySelector('.opt-id');
+            const qtyEl   = row.querySelector('.opt-qty');
+            const priceEl = row.querySelector('.opt-price');
+
+            const label = data.label ?? '';
+            const pid   = data.productId ?? '';
+            const qty   = data.qty ?? '';
+            let price   = data.price ?? '';
+
+            if (typeof price === 'number') {
+              price = String(price).replace('.', ',');
+            } else if (price !== '') {
+              price = String(price);
+            } else {
+              price = '';
+            }
+
+            if (nameEl)  nameEl.value  = label;
+            if (idEl)    idEl.value    = pid;
+            if (qtyEl)   qtyEl.value   = qty !== '' ? String(qty) : '';
+            if (priceEl) priceEl.value = price;
+          });
+        }
+      }
+    }
+
     // ensure parent categories ON if any kid is selected
     (function ensureOptionalParentsSelected(opt) {
       if (!opt) return;
@@ -5610,6 +5678,7 @@ setByNameOrId('trayColor', p?.duschwanne?.trayColor);
         }
       });
     })(p?.optional);
+
 
     restoreRabatt(p?.rabatt);
 
