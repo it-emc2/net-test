@@ -5401,14 +5401,59 @@ setByNameOrId('trayColor', p?.duschwanne?.trayColor);
     // optional flooring toggle/area
     if ('addFlooring' in (p?.duschwanne || {})) {
       setCheckbox('addFlooring', !!p.duschwanne.addFlooring);
-      // don't dispatch yet; 
-
+      // don't dispatch yet; we'll nudge once after restore
     }
 
     setNumber('floorArea', p?.duschwanne?.floorArea);
-    
-// restore specific flooring tiles (panels/adhesive/sealing)
-restoreTrinnityFloorSealing(p?.duschwanne);
+
+    // restore flooring color selection from payload
+    (function restoreFloorColorFromPayload(dw) {
+      if (!dw) return;
+      const form = document.getElementById('form-duschwanne');
+      if (!form) return;
+
+      // collect possible stored values from different shapes
+      let vals = [];
+
+      if (Array.isArray(dw.flooringProduct)) {
+        vals = dw.flooringProduct.slice();
+      } else if (typeof dw.flooringProduct === 'string' && dw.flooringProduct) {
+        vals = [dw.flooringProduct];
+      } else if (Array.isArray(dw['flooringProduct[]'])) {
+        vals = dw['flooringProduct[]'].slice();
+      } else if (typeof dw['flooringProduct[]'] === 'string' && dw['flooringProduct[]']) {
+        vals = [dw['flooringProduct[]']];
+      } else if (dw.computed && Array.isArray(dw.computed.flooringProduct)) {
+        vals = dw.computed.flooringProduct.slice();
+      }
+
+      if (!vals.length) return;
+
+      // we only expect ONE color in UI, take the first
+      const target = String(vals[0] || '');
+      if (!target) return;
+
+      const inputs = Array.from(
+        form.querySelectorAll('input[name="flooringProduct[]"]')
+      );
+      if (!inputs.length) return;
+
+      inputs.forEach(cb => {
+        cb.checked = (cb.value === target);
+        if (typeof highlightTileForInput === 'function') {
+          highlightTileForInput(cb, cb.checked);
+        }
+      });
+
+      // keep area/color coupling logic happy (prevents Lava-Beige default)
+      if (typeof syncColorWithAreaDW === 'function') {
+        syncColorWithAreaDW();
+      }
+    })(p?.duschwanne);
+
+    // restore specific flooring tiles
+    restoreTrinnityFloorSealing(p?.duschwanne);
+
 
     setByNameOrId('chosenTrayProductId', p?.duschwanne?.chosenTrayProductId);
     // Persist selection so SmartTray can auto-check it on render
