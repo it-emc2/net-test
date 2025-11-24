@@ -7969,6 +7969,136 @@ function renderResults(list) {
 
 }
 
+// ===== Angebot als PDF erzeugen und an Auftrag (n8n) senden =====
+(function initSendOfferPdfToAuftrag() {
+  const auftragInput = document.getElementById('auftragId');
+  const sendBtn      = document.getElementById('sendPdfToAuftrag');
+  const statusBox    = document.getElementById('auftragPdfStatus');
+
+  if (!sendBtn || !auftragInput || !statusBox) return;
+
+  const WEBHOOK_URL = 'https://fly-n8n-1.fly.dev/webhook/c1aa786a-9cc4-4f7d-aba7-b4ac9c978f69';
+
+  function setStatus(msg, type = 'info') {
+    if (!statusBox) return;
+    const ts = new Date().toLocaleTimeString();
+    const prefix =
+      type === 'success' ? '✅' :
+      type === 'error'   ? '❌' :
+      type === 'warn'    ? '⚠️' :
+                           'ℹ️';
+
+    statusBox.className = 'status ' + (type === 'error' ? 'err' : 'ok');
+    statusBox.textContent = `${prefix} [${ts}] ${msg}`;
+  }
+
+  async function fetchOfferPdfBlob() {
+    // Verwendet denselben Payload wie andere Export-Funktionen
+    if (typeof buildPayload !== 'function') {
+      throw new Error('buildPayload ist nicht verfügbar.');
+    }
+    const payload = buildPayload();
+
+    const resp = await fetch('/docx-template/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+      const txt = await resp.text().catch(() => '');
+      throw new Error(`PDF-Generierung fehlgeschlagen (${resp.status}): ${txt}`);
+    }
+
+    return await resp.blob();
+  }
+
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('FileReader-Fehler beim Konvertieren des PDFs.'));
+      reader.onload = () => {
+        const dataUrl = String(reader.result || '');
+        // dataUrl Format: "data:application/pdf;base64,AAAA..."
+        const base64 = dataUrl.split(',')[1] || '';
+        resolve(base64);
+      };
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function sendPdfToAuftrag() {
+    const auftragId = (auftragInput.value || '').trim();
+    if (!auftragId) {
+      setStatus('Bitte zuerst eine Auftrag ID eingeben.', 'error');
+      auftragInput.focus();
+      return;
+    }
+
+    // Optional: Mindestlänge prüfen
+    // if (auftragId.length < 3) { ... }
+
+    try {
+      sendBtn.disabled = true;
+      setStatus('Erzeuge Angebots-PDF …', 'info');
+
+      const pdfBlob = await fetchOfferPdfBlob();
+      setStatus('Konvertiere PDF nach Base64 …', 'info');
+
+      const pdfBase64 = await blobToBase64(pdfBlob);
+
+      setStatus('Sende PDF an Auftrag-Webhook …', 'info');
+
+      const body = {
+        auftragId,        // wie gewünscht
+        pdfBase64,        // kompletter Base64‑String ohne data: Prefix
+      };
+
+      const res = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`Webhook-Fehler (${res.status}): ${txt}`);
+      }
+
+      setStatus('Angebots-PDF erfolgreich an Auftrag gesendet.', 'success');
+
+      // Optional: Antwort-JSON loggen
+      try {
+        const json = await res.json();
+        console.log('[Auftrag-Webhook] Antwort:', json);
+      } catch {
+        // falls kein JSON zurückkommt, ignorieren
+      }
+
+      // Optional: Angebot-Snapshot nach erfolgreichem Senden speichern
+      if (typeof saveFinalOfferSnapshot === 'function') {
+        try { await saveFinalOfferSnapshot(); } catch (e) {
+          console.warn('[sendPdfToAuftrag] saveFinalOfferSnapshot fehlgeschlagen:', e);
+        }
+      }
+    } catch (err) {
+      console.error('sendPdfToAuftrag error:', err);
+      setStatus(err.message || 'Fehler beim Senden des Angebots-PDF.', 'error');
+    } finally {
+      sendBtn.disabled = false;
+    }
+  }
+
+  sendBtn.addEventListener('click', () => {
+    // Optional: sicherstellen, dass Kundendaten gültig sind
+    if (typeof requireBereichValid === 'function' && !requireBereichValid()) {
+      location.hash = 'Kundendaten';
+      return;
+    }
+    sendPdfToAuftrag();
+  });
+})();
+
 // im DOMContentLoaded-Block aufrufen:
 document.addEventListener('DOMContentLoaded', () => {
   // ... dein bisheriger Code ...
