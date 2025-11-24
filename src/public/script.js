@@ -5202,18 +5202,25 @@ function restoreHassmannQuickAdd(da) {
     if (!first) continue;
     wrap.querySelectorAll('.da-item:not(:first-child)').forEach(n => n.remove());
 
-    const list = rows.filter(r => r.kind === kind);
+       const list = rows.filter(r => r.kind === kind);
     const fill = (item, row) => {
-      const qtyEl = item.querySelector('.da-qty');
+      const qtyEl   = item.querySelector('.da-qty');
       const priceEl = item.querySelector('.da-price');
-      const idEl = item.querySelector('.da-id');
-      if (qtyEl) qtyEl.value = String(row.qty || 0);
-      if (priceEl) priceEl.value = row.price != null ? String(row.price).replace('.', ',') : (row.priceRaw || '');
-      if (idEl) idEl.value = row.productId || '';
-      // fire events
-      if (qtyEl) qtyEl.dispatchEvent(new Event('input', { bubbles: true }));
+      const idEl    = item.querySelector('.da-id');
+      const nameEl  = item.querySelector('.da-name'); // only present for Freier Posten
+
+      if (qtyEl)  qtyEl.value  = String(row.qty || 0);
+      if (priceEl) priceEl.value = row.price != null
+        ? String(row.price).replace('.', ',')
+        : (row.priceRaw || '');
+      if (idEl)   idEl.value   = row.productId || '';
+      if (nameEl) nameEl.value = row.label || row.name || '';
+
+      // fire events so existing logic (sum, validation, etc.) runs
+      if (qtyEl)   qtyEl.dispatchEvent(new Event('input', { bubbles: true }));
       if (priceEl) priceEl.dispatchEvent(new Event('input', { bubbles: true }));
-      if (idEl) idEl.dispatchEvent(new Event('input', { bubbles: true }));
+      if (idEl)    idEl.dispatchEvent(new Event('input', { bubbles: true }));
+      if (nameEl)  nameEl.dispatchEvent(new Event('input', { bubbles: true }));
     };
 
     if (list.length) {
@@ -5224,13 +5231,17 @@ function restoreHassmannQuickAdd(da) {
       }
     } else {
       // leave the first row blank
-      const qtyEl = first.querySelector('.da-qty');
+      const qtyEl   = first.querySelector('.da-qty');
       const priceEl = first.querySelector('.da-price');
-      const idEl = first.querySelector('.da-id');
-      if (qtyEl) qtyEl.value = '';
+      const idEl    = first.querySelector('.da-id');
+      const nameEl  = first.querySelector('.da-name');
+
+      if (qtyEl)   qtyEl.value = '';
       if (priceEl) priceEl.value = '';
-      if (idEl) idEl.value = '';
+      if (idEl)    idEl.value = '';
+      if (nameEl)  nameEl.value = '';
     }
+ 
   }
 }
 function restoreOptional(opt) {
