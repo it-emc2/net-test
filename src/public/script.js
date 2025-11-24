@@ -5652,7 +5652,7 @@ setByNameOrId('trayColor', p?.duschwanne?.trayColor);
       }
     }
 
-    // ensure parent categories ON if any kid is selected
+       // ensure parent categories ON if any kid is selected
     (function ensureOptionalParentsSelected(opt) {
       if (!opt) return;
       const map = {
@@ -5677,7 +5677,18 @@ setByNameOrId('trayColor', p?.duschwanne?.trayColor);
           }
         }
       });
+
+      // Sonderprodukte: if there is at least one Freier Posten (quickAdd),
+      // the parent cat_SONDER must be checked.
+      if (Array.isArray(opt.quickAdd) && opt.quickAdd.length > 0) {
+        const sonder = document.getElementById('cat_SONDER');
+        if (sonder && !sonder.checked) {
+          sonder.checked = true;
+          // change event will be dispatched in the post-restore nudge list
+        }
+      }
     })(p?.optional);
+
 
 
     restoreRabatt(p?.rabatt);
@@ -5735,11 +5746,12 @@ setByNameOrId('trayColor', p?.duschwanne?.trayColor);
   // Wandverkleidung dependencies
   fire('input[name="wvKind"]:checked');
 
-  // Optional parent categories
+    // Optional parent categories
   [
     '#cat_SHOWER', '#cat_THERMO', '#cat_GRAB', '#cat_FOLD',
-    '#cat_SEAT', '#cat_BASIN', '#cat_BASIN_TAP'
+    '#cat_SEAT', '#cat_BASIN', '#cat_BASIN_TAP', '#cat_SONDER'
   ].forEach(id => dispatchChange(document.querySelector(id)));
+
 
   // ===== Deterministic recompute (twice to squash any stragglers) =====
   if (typeof window.updatePricing === 'function') {
