@@ -5202,21 +5202,23 @@ function restoreHassmannQuickAdd(da) {
     if (!first) continue;
     wrap.querySelectorAll('.da-item:not(:first-child)').forEach(n => n.remove());
 
-       const list = rows.filter(r => r.kind === kind);
+    const list = rows.filter(r => r.kind === kind);
     const fill = (item, row) => {
       const qtyEl   = item.querySelector('.da-qty');
       const priceEl = item.querySelector('.da-price');
       const idEl    = item.querySelector('.da-id');
-      const nameEl  = item.querySelector('.da-name'); // only present for Freier Posten
+      const nameEl  = item.querySelector('.da-name'); // only present for Freier Posten (custom)
 
-      if (qtyEl)  qtyEl.value  = String(row.qty || 0);
+      if (qtyEl)   qtyEl.value   = String(row.qty || 0);
       if (priceEl) priceEl.value = row.price != null
         ? String(row.price).replace('.', ',')
         : (row.priceRaw || '');
-      if (idEl)   idEl.value   = row.productId || '';
-      if (nameEl) nameEl.value = row.label || row.name || '';
+      if (idEl)    idEl.value    = row.productId || '';
 
-      // fire events so existing logic (sum, validation, etc.) runs
+      // For Freier Posten rows (kind === "custom"), we stored the custom label in row.label
+      if (nameEl)  nameEl.value  = row.label || row.name || '';
+
+      // fire events so totals / LS / validation stay in sync
       if (qtyEl)   qtyEl.dispatchEvent(new Event('input', { bubbles: true }));
       if (priceEl) priceEl.dispatchEvent(new Event('input', { bubbles: true }));
       if (idEl)    idEl.dispatchEvent(new Event('input', { bubbles: true }));
@@ -5236,11 +5238,13 @@ function restoreHassmannQuickAdd(da) {
       const idEl    = first.querySelector('.da-id');
       const nameEl  = first.querySelector('.da-name');
 
-      if (qtyEl)   qtyEl.value = '';
+      if (qtyEl)   qtyEl.value   = '';
       if (priceEl) priceEl.value = '';
-      if (idEl)    idEl.value = '';
-      if (nameEl)  nameEl.value = '';
+      if (idEl)    idEl.value    = '';
+      if (nameEl)  nameEl.value  = '';
     }
+
+
  
   }
 }
@@ -5504,36 +5508,75 @@ setByNameOrId('trayColor', p?.duschwanne?.trayColor);
     try { typeof setupWandverkleidungPage === 'function' && setupWandverkleidungPage(); } catch {}
 
     // ---- Hassmann quick add rows ----
+       // ---- Hassmann quick add rows (all sections) ----
     if (Array.isArray(p?.duschabtrennung?.quickAdd)) {
-      const fs = document.querySelector('fieldset.da-row[data-kind]');
-      if (fs) {
+      const rows = p.duschabtrennung.quickAdd;
+
+      // group by kind: quick, custom, sonder, etc.
+      const byKind = {};
+      rows.forEach(r => {
+        const k = r?.kind || 'quick';
+        if (!byKind[k]) byKind[k] = [];
+        byKind[k].push(r);
+      });
+
+      const root = document.getElementById('page-duschabtrennung') || document;
+
+      root.querySelectorAll('fieldset.da-row[data-kind]').forEach(fs => {
+        const kind = fs.dataset.kind;
+        const list = byKind[kind] || [];
         const wrap = fs.querySelector('.da-items');
-        if (wrap) {
-          wrap.querySelectorAll('.da-item:not(:first-child)').forEach(n => n.remove());
-          const first = wrap.querySelector('.da-item');
-          const fillRow = (item, row) => {
-            const idEl = item.querySelector('.da-id');
-            const priceEl = item.querySelector('.da-price');
-            const qtyEl = item.querySelector('.da-qty');
-            if (idEl)   idEl.value   = row?.productId || '';
-            if (priceEl) priceEl.value = row?.price ? String(row.price).replace('.', ',') : (row?.priceRaw || '');
-            if (qtyEl)   qtyEl.value   = String(row?.qty ?? '');
-            // no dispatch during restore
-          };
-          if (p.duschabtrennung.quickAdd.length > 0) {
-            fillRow(first, p.duschabtrennung.quickAdd[0]);
-            for (let i = 1; i < p.duschabtrennung.quickAdd.length; i++) {
-              const item = window.addRow ? window.addRow('quick', fs, false) : first.cloneNode(true);
-              if (!item.isConnected) wrap.appendChild(item);
-              fillRow(item, p.duschabtrennung.quickAdd[i]);
+        if (!wrap) return;
+        const first = wrap.querySelector('.da-item');
+        if (!first) return;
+
+        // remove all but first
+        wrap.querySelectorAll('.da-item:not(:first-child)').forEach(n => n.remove());
+
+        const fillRow = (item, row) => {
+          const idEl    = item.querySelector('.da-id');
+          const priceEl = item.querySelector('.da-price');
+          const qtyEl   = item.querySelector('.da-qty');
+          const nameEl  = item.querySelector('.da-name'); // only exists for some kinds (e.g. custom)
+
+          if (idEl)    idEl.value    = row?.productId || '';
+          if (priceEl) priceEl.value = row?.price != null
+            ? String(row.price).replace('.', ',')
+            : (row?.priceRaw || '');
+          if (qtyEl)   qtyEl.value   = row?.qty != null ? String(row.qty) : '';
+          if (nameEl)  nameEl.value  = row?.label || row?.name || '';
+
+          // no dispatch during restore; pricing is recomputed later
+        };
+
+        if (list.length) {
+          // first row
+          fillRow(first, list[0]);
+
+          // more rows for this kind → use existing "+" logic
+          for (let i = 1; i < list.length; i++) {
+            let item = typeof window.addRow === 'function'
+              ? window.addRow(kind, fs, false)
+              : null;
+
+            if (!item) {
+              item = first.cloneNode(true);
+              wrap.appendChild(item);
             }
-          } else {
-            first?.querySelectorAll('input').forEach(i => (i.value = ''));
+
+            fillRow(item, list[i]);
           }
+        } else {
+          // no rows of this kind in payload → clear first row
+          [first.querySelector('.da-id'),
+           first.querySelector('.da-price'),
+           first.querySelector('.da-qty'),
+           first.querySelector('.da-name'),
+          ].forEach(el => { if (el) el.value = ''; });
         }
-      }
+      });
     }
-    restoreHassmannQuickAdd(p?.duschabtrennung);
+
 
     // ---- Optional block ----
     if (p?.optional) {
