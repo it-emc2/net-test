@@ -5746,11 +5746,16 @@ setByNameOrId('trayColor', p?.duschwanne?.trayColor);
   // Wandverkleidung dependencies
   fire('input[name="wvKind"]:checked');
 
-    // Optional parent categories
+// Optional parent categories
   [
     '#cat_SHOWER', '#cat_THERMO', '#cat_GRAB', '#cat_FOLD',
-    '#cat_SEAT', '#cat_BASIN', '#cat_BASIN_TAP', '#cat_SONDER'
+    '#cat_SEAT',   '#cat_BASIN', '#cat_BASIN_TAP', '#cat_SONDER'
   ].forEach(id => dispatchChange(document.querySelector(id)));
+
+  // Optional child tiles (checked): ensure their qty-wrappers and rules are in sync
+  document
+    .querySelectorAll('#form-optional input[type="checkbox"][id^="opt_"]:checked')
+    .forEach(el => dispatchChange(el));
 
 
   // ===== Deterministic recompute (twice to squash any stragglers) =====
