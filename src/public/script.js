@@ -420,17 +420,53 @@ function restoreBudgetPanel(Kundendaten) {
   const elMax = document.querySelector('input[name="budgetMax"]');
   const elCop = document.querySelector('input[name="budgetCopay"]');
   const elTwo = document.querySelector('input[name="twoPersons"]');
+  const elPremium = document.querySelector('input[name="premium"]');
   const copay = document.getElementById('copayAmount');
 
-  if (elMax) elMax.checked = /4180.*MAX/.test(txt);
-  if (elCop) elCop.checked = /4180.*(ZUZ|COPAY)/.test(txt);
-  if (elTwo) elTwo.checked = /(ZWEI|8360)/.test(txt);
+  // 1) Determine which main option should be checked
+  let mainKey = null;
 
+  // Prefer explicit flags from Kundendaten (from formToObject)
+  if (Object.prototype.hasOwnProperty.call(Kundendaten, 'premium') && Kundendaten.premium) {
+    mainKey = 'premium';
+  } else if (Object.prototype.hasOwnProperty.call(Kundendaten, 'twoPersons') && Kundendaten.twoPersons) {
+    mainKey = 'twoPersons';
+  } else if (Object.prototype.hasOwnProperty.call(Kundendaten, 'budgetMax') && Kundendaten.budgetMax) {
+    mainKey = 'budgetMax';
+  } else {
+    // Fallback to canonical text (for older payloads)
+    if (/PREMIUM/.test(txt)) mainKey = 'premium';
+    else if (/(ZWEI|2 PERSONEN|8360)/.test(txt)) mainKey = 'twoPersons';
+    else if (/4180.*MAX/.test(txt)) mainKey = 'budgetMax';
+  }
+
+  if (elMax) elMax.checked = mainKey === 'budgetMax';
+  if (elTwo) elTwo.checked = mainKey === 'twoPersons';
+  if (elPremium) elPremium.checked = mainKey === 'premium';
+
+  // 2) budgetCopay: just checked or not, based on stored payload
+  if (elCop) {
+    if (Object.prototype.hasOwnProperty.call(Kundendaten, 'budgetCopay')) {
+      // any truthy value (e.g. "4180 mit Zuzahlung") → checked
+      elCop.checked = !!Kundendaten.budgetCopay;
+    } else {
+      // fallback for older payloads that only had budgetOptionsPanel
+      elCop.checked = /4180.*(ZUZ|COPAY)/.test(txt);
+    }
+  }
+
+  // 3) Copay amount
   if (copay) copay.value = (Kundendaten.copayAmount ?? '') + '';
-  
-  // Enforce group rules after restoring from payload
+
+  // 4) Enforce group rules after restoring from payload
   enforceBudgetOptionsGroup();
+
+  // 5) Fire change on copay so applyCopay() and widgets sync with restored state
+  if (elCop) {
+    elCop.dispatchEvent(new Event('change', { bubbles: true }));
+  }
 }
+
 
 function safeDispatch(el, type) {
   if (!el) return;
@@ -1661,6 +1697,7 @@ function buildPayload() {
   const elMax = document.querySelector('input[name="budgetMax"]');
   const elCopay = document.querySelector('input[name="budgetCopay"]');
   const elTwo = document.querySelector('input[name="twoPersons"]');
+  const elPremium = document.querySelector('input[name="premium"]');
   const copayEl = document.getElementById("copayAmount");
 
   const wohDoneRadios = document.querySelectorAll('input[name="wohnumfeldDone"]');
@@ -1692,18 +1729,21 @@ function buildPayload() {
   // --- OPTIONAL: Sonderprodukte (Freier Posten unter Optional) ---
   collectOptionalQuickAdd(payload);
 
-  let selected = "";
-  if (elMax?.checked) selected = elMax.value;
-  else if (elCopay?.checked) selected = elCopay.value;
-  else if (elTwo?.checked) selected = elTwo.value;
+  // Canonical main budget option (Max / 2 Personen / Premium),
+  // independent from whether copay is used.
+  let selectedMain = "";
+  if (elMax?.checked) selectedMain = elMax.value;
+  else if (elTwo?.checked) selectedMain = elTwo.value;
+  else if (elPremium?.checked) selectedMain = elPremium.value;
 
-  const canonical = selected
-    ? selected.toUpperCase().replace(/_/g, " ").replace(/\s+/g, " ").trim()
+  const canonicalMain = selectedMain
+    ? selectedMain.toUpperCase().replace(/_/g, " ").replace(/\s+/g, " ").trim()
     : "";
 
   payload.Kundendaten = payload.Kundendaten || {};
-  payload.Kundendaten.budgetOptionsPanel = canonical || selected || "";
+  payload.Kundendaten.budgetOptionsPanel = canonicalMain || selectedMain || "";
   payload.Kundendaten.copayAmount = copayEl ? parseEuroToNumber(copayEl.value) : 0;
+
 
   // Rabatt fields for server
   const pct = parseFloat(
