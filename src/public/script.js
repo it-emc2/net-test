@@ -5301,6 +5301,7 @@ async function restoreConfiguratorFromOffer(doc) {
 
     // internals (+ budget)
     setByNameOrId('emc2_contact', p?.Kundendaten?.emc2_contact);
+    setByNameOrId('bitrixContactId', p?.Kundendaten?.bitrixContactId);
     setRadio('payer', p?.Kundendaten?.payer);
     if (typeof restoreBudgetPanel === 'function') restoreBudgetPanel(p?.Kundendaten);
     setRadio('aufschlag', p?.Kundendaten?.aufschlag);

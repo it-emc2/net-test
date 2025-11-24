@@ -793,11 +793,12 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 <!-- Bitrix contact search by ID -->
   <div class="form-row bitrix-actions-row">
     <div class="form-field">
-      <label for="bitrixContactId">Bitrix Kontakt ID</label>
+           <label for="bitrixContactId">Bitrix Kontakt ID</label>
       <div class="bitrix-search-wrapper">
         <input
           type="text"
           id="bitrixContactId"
+          name="bitrixContactId"
           placeholder="z.B. 12345"
           autocomplete="off"
         />
