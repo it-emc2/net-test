@@ -5306,9 +5306,11 @@ async function restoreConfiguratorFromOffer(doc) {
     setRadio('aufschlag', p?.Kundendaten?.aufschlag);
 
     // Distances & Times
-    setNumber('distanceKm', p?.Kundendaten?.distanceKm);
-    setByNameOrId('travelTime', p?.Kundendaten?.travelTime);   // "5:00"
-    setByNameOrId('laborHours', p?.Kundendaten?.laborHours);   // "07:00"
+    const aw = p?.Arbeitszeit || {};
+    setNumber('distanceKm', p?.Arbeitszeit?.distanceKm);
+    setByNameOrId('travelTime', p?.Arbeitszeit?.travelTimeHHMM);   // "5:00"
+    setByNameOrId('laborHours', p?.Arbeitszeit?.laborHoursHHMM);   // "07:00"
+    
 
     // Pflegegrad radios FIRST…
     setRadio('hasPflegegrad', p?.Kundendaten?.hasPflegegrad);  // "Ja"/"Nein"
@@ -7446,16 +7448,24 @@ document.addEventListener('DOMContentLoaded', () => {
       debounce(() => searchDraftsForCurrentOfferType(q), 200);
     });
 
-    results.addEventListener("click", (ev) => {
-      const btn = ev.target.closest("button.draft-result-row");
-      if (!btn) return;
-      selectedId = btn.dataset.id;
+  results.addEventListener("click", (ev) => {
+  const btn = ev.target.closest("button.draft-result-row");
+  if (!btn) return;
+  selectedId = btn.dataset.id;
 
-      // highlight selection
-      Array.from(results.querySelectorAll("button.draft-result-row")).forEach((b) => {
-        b.style.background = b === btn ? "#e0e7ff" : "transparent";
-      });
-    });
+  // highlight selection
+  Array.from(results.querySelectorAll("button.draft-result-row")).forEach((b) => {
+    b.style.background = b === btn ? "#e0e7ff" : "transparent";
+  });
+
+  // auto-load on click
+  loadDraftById(selectedId);
+
+  // optionally: update the input and hide the list
+  input.value = btn.textContent.trim();
+  results.style.display = "none";
+});
+
 
     btnLoad.addEventListener("click", () => {
       if (!selectedId) {
