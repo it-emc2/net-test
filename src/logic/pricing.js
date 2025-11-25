@@ -728,10 +728,10 @@ try {
     const qtyStr = doorQty.toFixed(2).replace(/\.00$/, '');
 
     // fetch unit prices for Lieferkosten + Kleinmaterial
-    const ids = ['BWT_LIEFER', 'KM02'];
+    const ids = ['140322', 'KM02'];
     const map = await getProductsByIds(ids);
 
-    const lieferPrice = Number(map.get('BWT_LIEFER')?.price || 0);
+    const lieferPrice = Number(map.get('140322')?.price || 0);
     const kleinPrice  = Number(map.get('KM02')?.price || 0);
 
     const out = [];
@@ -750,7 +750,7 @@ try {
     // 2) Lieferkosten Badewannentür (real price from DB)
     if (lieferPrice > 0) {
       out.push({
-        key: 'bwt_liefer',
+        key: '140322',
         label: `- ${qtyStr} Stk Lieferkosten Badewannentür`,
         qty: doorQty,
         unitPrice: lieferPrice,
@@ -760,7 +760,7 @@ try {
 
     // 3) Universal / Standard Tür (price forced to 0 here – already counted in materials)
     out.push({
-      key: 'bwt_tuer',
+      key: '',
       label: `- ${qtyStr} Stk Universal / Standard Tür`,
       qty: doorQty,
       unitPrice: 0,

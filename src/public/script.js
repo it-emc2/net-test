@@ -1445,6 +1445,70 @@ function collectWandverkleidungMaterials(doc) {
   if (!doc.materials) doc.materials = [];
   doc.materials.push(...out);
 }
+
+// collector for BWT (Badewannentür) – door + Haltegriffe
+function collectBwtMaterials(doc) {
+  const page = document.getElementById("page-bwt");
+  if (!page) return;
+
+  const out = [];
+
+  // Universal / Standard Tür
+  (function () {
+    const cb = page.querySelector("#bwtDoorStd");
+    const qtyEl = page.querySelector("#bwtDoorStdQty");
+    if (!cb || !cb.checked) return;
+    const qty = parseInt((qtyEl && qtyEl.value) || "0", 10);
+    if (!qty) return;
+
+    const productId = cb.getAttribute("data-product-id") || "BWT-DOOR-STD";
+    out.push({
+      productId,
+      name: cb.value || "Universal / Standard Tür",
+      qty,
+    });
+  })();
+
+  // Haltegriffe helper
+  function pushHg(cbSel, qtySel, productId, friendlyName) {
+    const cb = page.querySelector(cbSel);
+    const qtyEl = page.querySelector(qtySel);
+    if (!cb || !cb.checked) return;
+    const qty = parseInt((qtyEl && qtyEl.value) || "0", 10);
+    if (!qty) return;
+
+    out.push({
+      productId,
+      name: friendlyName,
+      qty,
+    });
+  }
+
+  // Map to the same productIds you use in pricing.js
+  pushHg(
+    "#bwtAidsHaltegriff40",
+    "#bwtAidsHaltegriff40Qty",
+    "CLPESG40",
+    "Haltegriff 40 cm"
+  );
+  pushHg(
+    "#bwtAidsHaltegriff60",
+    "#bwtAidsHaltegriff60Qty",
+    "CLPESG60",
+    "Haltegriff 60 cm"
+  );
+  pushHg(
+    "#bwtAidsHaltegriff80",
+    "#bwtAidsHaltegriff80Qty",
+    "CLPESG80",
+    "Haltegriff 80 cm"
+  );
+
+  if (!out.length) return;
+
+  if (!doc.materials) doc.materials = [];
+  doc.materials.push(...out);
+}
 // --- Duschabtrennung Quick-Add (Hassmann) collector ---
 // Mirrors wireDuschabtrennungQuickAdd(): only add when price > 0,
 // default qty to 1 when price is given but qty is empty/0.
@@ -1628,8 +1692,10 @@ function buildPayload() {
   };
 
   collectWandverkleidungMaterials(payload);
-  // ✅ NEW: collect quick-add shower screens
+  //  collect quick-add shower screens
   collectDuschabtrennungQuickAdd(payload);
+   //  collect BWT door + Haltegriffe as materials
+  collectBwtMaterials(payload);
 
   // ---- NEW: reliably collect ALL Duschwanne work tasks (checkbox array) ----
   try {
@@ -1873,6 +1939,48 @@ function buildPayload() {
       if (!hasPid && saved?.productId) dw.chosenTrayProductId = saved.productId;
     } catch {}
   })();
+
+
+  // ---- BWT: ensure multi-select arrays are captured ----
+  try {
+    const formBwt = document.getElementById("form-bwt");
+    if (formBwt) {
+      const fdBwt = new FormData(formBwt);
+      const bwt = payload.bwt || (payload.bwt = {});
+
+      // bwt[bwtinfoTasks][] → bwt.bwtinfoTasks (array)
+      const infoTasks = fdBwt.getAll("bwt[bwtinfoTasks][]").map((v) => String(v));
+      if (infoTasks.length) {
+        bwt.bwtinfoTasks = infoTasks;
+      } else {
+        const weird = bwt["bwt[bwtinfoTasks][]"];
+        if (typeof weird === "string" && weird.trim()) {
+          bwt.bwtinfoTasks = [weird.trim()];
+        }
+      }
+      if ("bwt[bwtinfoTasks][]" in bwt) {
+        delete bwt["bwt[bwtinfoTasks][]"];
+      }
+
+      // bwtAids[] → bwt.bwtAids (array of "Haltegriff40"/"Haltegriff60"/"Haltegriff80")
+      const aids = fdBwt.getAll("bwtAids[]").map((v) => String(v));
+      if (aids.length) {
+        bwt.bwtAids = aids;
+      } else {
+        const weirdAids = bwt["bwtAids[]"];
+        if (typeof weirdAids === "string" && weirdAids.trim()) {
+          bwt.bwtAids = [weirdAids.trim()];
+        }
+      }
+      if ("bwtAids[]" in bwt) {
+        delete bwt["bwtAids[]"];
+      }
+    }
+  } catch (e) {
+    console.warn("[buildPayload] BWT arrays capture failed:", e);
+  }
+
+  // end bwt payload block
 
   // Remember which offer was active when building this payload
   payload.activeOffer = currentOfferKey || null;
@@ -4281,7 +4389,7 @@ function buildBwtIncludedLines(data) {
     matSrc.find(l => String(l.productId || l.id || '').trim() === id);
 
   const doorLine   = findMat('1226');       // Universal / Standard Tür
-  const lieferLine = findMat('BWT_LIEFER'); // Lieferkosten Badewannentür
+  const lieferLine = findMat('140322'); // Lieferkosten Badewannentür
   const kleinLine  = findMat('KM02');       // Kleinmaterial
 
   const makeRowFromLine = (line, shortLabel, forceId) => {
@@ -4300,7 +4408,7 @@ function buildBwtIncludedLines(data) {
     };
   };
 
-  const rLiefer = makeRowFromLine(lieferLine, 'Lieferkosten Badewannentür', 'BWT_LIEFER');
+  const rLiefer = makeRowFromLine(lieferLine, 'Lieferkosten Badewannentür', '140322');
   if (rLiefer) out.push(rLiefer);
 
   const rDoor = makeRowFromLine(doorLine, 'Universal / Standard Tür', '1226');
@@ -4434,7 +4542,7 @@ const svcBodyPrimary  = listLines(primarySvc);
 const svcBodyIncluded = listLines(includedSvc);
 
 // Summe für "Enthält je Einheit":
-//  - BWT: Summe der 4 BWT-Zeilen (bwt_km, bwt_liefer, bwt_tuer, bwt_km02)
+//  - BWT: Summe der 4 BWT-Zeilen (bwt_km, 140322, bwt_tuer, bwt_km02)
 //  - sonst: wie bisher data.services.sum
 const includedSvcSum = (includedSvc || []).reduce(
   (acc, row) => acc + (Number(row.lineTotal) || 0),
