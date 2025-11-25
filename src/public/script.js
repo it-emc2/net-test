@@ -5409,6 +5409,10 @@ setByNameOrId('trayColor', p?.duschwanne?.trayColor);
 
   // work tasks → only set now; nudge after restore
   restoreWorkTasks(p?.duschwanne);
+  // free-text extra tasks (Weitere auszuführende Arbeiten)
+if (typeof window.restoreDWExtraTasksFromPayload === 'function') {
+  window.restoreDWExtraTasksFromPayload(p?.duschwanne);
+}
 
   // if you keep a helper for selection, ensure it ONLY sets hidden fields (see below)
   restoreTraySelection(p?.duschwanne);
@@ -5482,8 +5486,6 @@ setByNameOrId('trayColor', p?.duschwanne?.trayColor);
     }
   } catch {}
 
-    // work tasks → only set now; nudge after restore
-    restoreWorkTasks(p?.duschwanne);
 
     // ---- Wandverkleidung ----
      if (p?.wandverkleidung?.wvKind) setRadio('wvKind', p.wandverkleidung.wvKind);
