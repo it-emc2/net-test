@@ -5294,6 +5294,8 @@ function restoreOptional(opt) {
 }
 
 
+
+
 function restoreRabatt(r) {
   if (!r) return;
   const slider = document.getElementById('rb-material-discount');
@@ -5577,7 +5579,7 @@ setByNameOrId('trayColor', p?.duschwanne?.trayColor);
     }
 
 
-    // ---- Optional block ----
+ // ---- Optional block ----
 // Only restore quantity fields here; the checkboxes are restored in restoreOptional().
 if (p?.optional) {
   for (const [k, v] of Object.entries(p.optional)) {
@@ -5586,6 +5588,9 @@ if (p?.optional) {
     }
   }
 }
+restoreOptional(p?.optional);
+
+
 restoreOptional(p?.optional);
 
 
@@ -5755,7 +5760,7 @@ restoreOptional(p?.optional);
 // Optional parent categories
   [
     '#cat_SHOWER', '#cat_THERMO', '#cat_GRAB', '#cat_FOLD',
-    '#cat_SEAT',   '#cat_BASIN', '#cat_BASIN_TAP', '#cat_SONDER'
+    '#cat_SEAT',   '#cat_BASIN', '#cat_BASIN_TAP', '#cat_METER', '#cat_SONDER'
   ].forEach(id => dispatchChange(document.querySelector(id)));
 
   // Optional child tiles (checked): ensure their qty-wrappers and rules are in sync
