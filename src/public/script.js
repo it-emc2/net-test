@@ -5457,6 +5457,117 @@ function restoreRabatt(r) {
   setCheckboxById('rb-bonus-grab', !!r.bonusGrab);
 }
 
+function restoreBwt(bwt) {
+  if (!bwt) return;
+
+  const form = document.getElementById('form-bwt');
+  if (!form) return;
+
+  // We deliberately do NOT check __restoring / __RESTORING__ here,
+  // because we want the tile wiring (wireTileQty) to re-run and
+  // sync visibility + qty based on the restored state.
+  const fireChange = (el) => {
+    if (!el) return;
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+
+  // --- Wannenform (bwtShape: radio) ---
+  if (bwt.bwtShape) {
+    setRadio('bwtShape', bwt.bwtShape);
+  }
+
+  // --- BWT Umbau Info: bwt[bwtinfoTasks][] -> checkboxes ---
+  let infoTasks = [];
+  if (Array.isArray(bwt.bwtinfoTasks)) {
+    infoTasks = bwt.bwtinfoTasks.map(String);
+  } else if (typeof bwt['bwt[bwtinfoTasks][]'] === 'string') {
+    infoTasks = [String(bwt['bwt[bwtinfoTasks][]'])];
+  }
+
+  if (infoTasks.length) {
+    const boxes = form.querySelectorAll(
+      'input[type="checkbox"][name="bwt[bwtinfoTasks][]"]'
+    );
+    boxes.forEach((cb) => {
+      cb.checked = infoTasks.includes(String(cb.value));
+    });
+  }
+
+  // --- Material (bwtMaterial: radio in #bwtMaterialGroup) ---
+  if (bwt.bwtMaterial) {
+    setRadio('bwtMaterial', bwt.bwtMaterial);
+  }
+
+  // --- Tür-Typ (bwtDoorType: checkbox tile(s) + qty) ---
+  if (bwt.bwtDoorType) {
+    const doorInputs = form.querySelectorAll('input[name="bwtDoorType"]');
+    doorInputs.forEach((el) => {
+      const on = String(el.value) === String(bwt.bwtDoorType);
+      el.checked = on;
+      if (on) fireChange(el); // let wireTileQty handle qty-wrapper & required
+    });
+  }
+
+  if (bwt.bwtDoorStdQty != null) {
+    setByNameOrId('bwtDoorStdQty', bwt.bwtDoorStdQty);
+  }
+
+  // --- Anschlag (bwtAnschlag: radio) ---
+  if (bwt.bwtAnschlag) {
+    setRadio('bwtAnschlag', bwt.bwtAnschlag);
+  }
+
+  // --- Farbe (tray_color: color radio group) ---
+  if (bwt.tray_color) {
+    setRadio('tray_color', bwt.tray_color);
+  }
+
+  // --- Haltegriffe (bwtAids[] + *_Qty) ---
+  let aids = [];
+  if (Array.isArray(bwt.bwtAids)) {
+    aids = bwt.bwtAids.map(String);
+  } else if (typeof bwt['bwtAids[]'] === 'string') {
+    aids = [String(bwt['bwtAids[]'])];
+  }
+
+  const aidConfigs = [
+    {
+      value: 'Haltegriff40',
+      cbId: 'bwtAidsHaltegriff40',
+      qtyName: 'bwtAidsHaltegriff40Qty',
+    },
+    {
+      value: 'Haltegriff60',
+      cbId: 'bwtAidsHaltegriff60',
+      qtyName: 'bwtAidsHaltegriff60Qty',
+    },
+    {
+      value: 'Haltegriff80',
+      cbId: 'bwtAidsHaltegriff80',
+      qtyName: 'bwtAidsHaltegriff80Qty',
+    },
+  ];
+
+  aidConfigs.forEach(({ value, cbId, qtyName }) => {
+    const cb = document.getElementById(cbId);
+    const qtyInput = document.getElementById(qtyName);
+    const num = Number(bwt[qtyName] || 0) || 0;
+
+    const isOn = aids.includes(value) || num > 0;
+
+    if (cb) {
+      cb.checked = isOn;
+    }
+    if (qtyInput && bwt[qtyName] != null) {
+      qtyInput.value = String(bwt[qtyName]);
+    }
+
+    // Trigger wireTileQty so:
+    // - wrappers are shown/hidden correctly
+    // - qty 1/0 and required attribute are synced
+    fireChange(cb);
+  });
+}
 
 // Call this with the full document returned by GET /api/offers/:offerNumber
 async function restoreConfiguratorFromOffer(doc) {
@@ -5555,6 +5666,13 @@ setByNameOrId('trayColor', p?.duschwanne?.trayColor);
   setNumber('floorArea', p?.duschwanne?.floorArea);
 
 
+
+
+     // ---- BWT · Badewannentür ----
+    // Only restore BWT when this draft/offer is actually of type "bwt"
+ 
+      restoreBwt(p?.bwt);
+   
   // work tasks → only set now; nudge after restore
   restoreWorkTasks(p?.duschwanne);
   // free-text extra tasks (Weitere auszuführende Arbeiten)
