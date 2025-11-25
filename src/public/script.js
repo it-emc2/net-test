@@ -6561,9 +6561,9 @@ window.setPricingData = function setPricingData(data) {
   }
 
   // If ineligible, clear silently (no 'change' dispatch → no race)
-  if (!shouldShow && cb300 && cb300.checked) {
-    cb300.checked = false;
-  }
+  // if (!shouldShow && cb300 && cb300.checked) {
+   // cb300.checked = false;
+  //}
 })();
 
 
