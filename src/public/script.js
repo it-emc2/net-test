@@ -5251,49 +5251,48 @@ function restoreHassmannQuickAdd(da) {
 function restoreOptional(opt) {
   if (!opt) return;
 
-  // 1) Set all qty_ fields and opt_ toggles
-  Object.entries(opt).forEach(([k, v]) => {
-    if (k.startsWith('qty_')) setInputByNameOrId(k, v);
-    if (k.startsWith('opt_')) setCheckboxById(k, !!v); // if IDs == names
-    setByNameOrId(k, v); // fallback by name
-  });
-
-  // 2) Open parent categories if any child is active
-  const categories = {
-    SHOWER:    [/^opt_V22|^opt_TEMPDSU|^opt_V22BG|^opt_DEDS/],
-    GRAB:      [/^opt_CLPESG/],
-    FOLD:      [/^opt_DEPSKG/],
-    BASIN:     [/^opt_CL60$/, /^opt_WTBF/, /^opt_RSL/, /^opt_EV/],
-    BASIN_TAP: [/^opt_CL_BASIN$/, /^opt_DEPOH$/],
-    THERMO:    [/^opt_CLTB$|^opt_DEPTB$|^opt_CLB$/],
-    SEAT:      [/^opt_DEPKS$/],
-      METER:     [/^opt_TECEADS$|^qty_TECEADS$/],
-
+  // Local dispatcher that respects the global restore guard
+  const dispatchChange = (el) => {
+    if (!el) return;
+    if (window.__restoring || window.__RESTORING__) return;
+    el.dispatchEvent(new Event('change', { bubbles: true }));
   };
 
-  Object.entries(categories).forEach(([cat, patterns]) => {
-    const active = Object.entries(opt).some(([k, v]) => {
-      if (!patterns.some(rx => rx.test(k))) return false;
-      if (k.startsWith('qty_')) return (parseInt(v, 10) || 0) > 0;
-      if (k.startsWith('opt_')) return v === 'on' || v === true || v === 'true';
-      return false;
+  const form = document.getElementById('form-optional');
+  if (!form) return;
+
+  // 1) Reset all optional kid checkboxes
+  form
+    .querySelectorAll('input[type="checkbox"][id^="opt_"]')
+    .forEach(cb => {
+      cb.checked = false;
     });
 
-    if (active) {
-      const parent = document.getElementById(`cat_${cat}`);
-      const menuId = `menu_${cat}`;
-      if (parent && !parent.checked) {
-        parent.checked = true;
-        parent.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-      const panel = document.getElementById(menuId);
-      if (panel) {
-        panel.hidden = false;
-        panel.setAttribute('aria-hidden', 'false');
-      }
+  // 2) Restore quantities + derive checkbox state from qty_* fields
+  Object.entries(opt).forEach(([key, val]) => {
+    if (!key.startsWith('qty_')) return;
+
+    // Restore the number field itself
+    const qtyInput = document.getElementById(key);
+    if (qtyInput) {
+      qtyInput.value = val;
     }
+
+    // Matching checkbox id: opt_XXXX from qty_XXXX
+    const baseId = key.slice(4); // remove "qty_"
+    const cb = document.getElementById(`opt_${baseId}`);
+    if (!cb) return;
+
+    const num = parseInt(String(val), 10) || 0;
+    cb.checked = num > 0;
   });
+
+  // 3) Fire change for all checked kids so wireTileQty and visibility sync up
+  form
+    .querySelectorAll('input[type="checkbox"][id^="opt_"]:checked')
+    .forEach(el => dispatchChange(el));
 }
+
 
 function restoreRabatt(r) {
   if (!r) return;
@@ -5579,10 +5578,16 @@ setByNameOrId('trayColor', p?.duschwanne?.trayColor);
 
 
     // ---- Optional block ----
-    if (p?.optional) {
-      for (const [k, v] of Object.entries(p.optional)) setByNameOrId(k, v);
+// Only restore quantity fields here; the checkboxes are restored in restoreOptional().
+if (p?.optional) {
+  for (const [k, v] of Object.entries(p.optional)) {
+    if (k.startsWith('qty_')) {
+      setByNameOrId(k, v);
     }
-    restoreOptional(p?.optional);
+  }
+}
+restoreOptional(p?.optional);
+
 
     // Optional → Sonderprodukte (Freier Posten quick-add)
     if (Array.isArray(p?.optional?.quickAdd)) {
@@ -5663,6 +5668,7 @@ setByNameOrId('trayColor', p?.duschwanne?.trayColor);
         cat_SEAT:      ['opt_DEPKS', 'opt_CLPESDH'],
         cat_BASIN:     ['opt_CL60'],
         cat_BASIN_TAP: ['opt_CL_BASIN','opt_DEPOH'],
+        cat_METER:     ['opt_TECEADS'], 
       };
       Object.entries(map).forEach(([parentId, kids]) => {
         const anyKidChecked = kids.some(id => {
