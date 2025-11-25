@@ -5709,7 +5709,7 @@ restoreOptional(p?.optional);
         cat_THERMO:    ['opt_CLTB','opt_DEPTB','opt_CLB'],
         cat_GRAB:      ['opt_CLPESG40','opt_CLPESG60','opt_CLPESG80'],
         cat_FOLD:      ['opt_DEPSKG60','opt_DEPSKG85'],
-        cat_SEAT:      ['opt_DEPKS', 'opt_CLPESDH'],
+        cat_SEAT:      ['opt_DEPKS', 'opt_CLPESDH', 'opt_78090000'],
         cat_BASIN:     ['opt_CL60'],
         cat_BASIN_TAP: ['opt_CL_BASIN','opt_DEPOH'],
         cat_METER:     ['opt_TECEADS'], 
@@ -7221,6 +7221,7 @@ function initOptionalMenus() {
   // ---- SEAT ----
   wireTileQty("opt_DEPKS", "qty_DEPKS_wrap");
   wireTileQty("opt_CLPESDH", "qty_CLPESDH_wrap");
+  wireTileQty("opt_78090000", "qty_78090000_wrap");
 
   // ---- BASIN TAP ----
   wireTileQty("opt_CL_BASIN", "qty_CL_BASIN_wrap");
