@@ -25,6 +25,10 @@ const OFFERS = {
     name: "HL · Handlauf",
     pages: ["Kundendaten", "Arbeitszeit", "hl","Kosten", "Zusammenfassung" ],
   },
+  ah: {
+    name: "AH · Alltagshilfe",
+    pages: ["Kundendaten", "Arbeitszeit", "ah","Kosten", "Zusammenfassung" ],
+  },
 };
 
 // === Central state for current offer + step (small helper) ===
@@ -1135,7 +1139,8 @@ function resetAllForms() {
     "form-bwt",
     "form-hl",
     "form-admin",
-    "form-as"
+    "form-as",
+"form-ah"
   ];
 
   // 1) Reset all forms back to their HTML defaults
@@ -1587,6 +1592,7 @@ function filterPayloadByOffer(payload) {
     hl : "hl",
     admin : "admin",
     services: "services",
+    ah : "ah"
   };
 
   Object.entries(pageToKey).forEach(([page, key]) => {
@@ -1614,6 +1620,8 @@ function buildPayload() {
     rabatt: formToObject(document.getElementById("form-rabatt")),
     bwt: formToObject(document.getElementById("form-bwt")),
     hl: formToObject(document.getElementById("form-hl")),
+    ah: formToObject(document.getElementById("form-ah")),
+
   };
 
   collectWandverkleidungMaterials(payload);
@@ -2254,7 +2262,7 @@ const TILE_TO_OFFER = {
   "BU-Badumbau": "bu",
   "BWT-Badewannentür": "bwt",
    "HL-Handlauf": "hl",
-  // "AH-Alltagshilfe": "ah",
+  "AH-Alltagshilfe": "ah",
   // "HMS-Hausmeister-Service": "hms",
   // "WD-Winterdienst": "wd",
 };
@@ -2869,6 +2877,10 @@ if (last) {
   const r45 = document.querySelector('input[name="aufschlag"][value="45%"]');
   const r50 = document.querySelector('input[name="aufschlag"][value="50%"]');
 
+  const labelEl  = document.getElementById('aufschlagLabel');
+  const bodyEl   = document.getElementById('aufschlagBody');
+  const toggleBt = document.getElementById('toggleAufschlag');
+
   function setDisabled(el, disabled) {
     if (!el) return;
     el.disabled = disabled;
@@ -2883,31 +2895,54 @@ if (last) {
   function anySelected() {
     return aufschlagRadios.some((r) => r.checked);
   }
+
   function currentSelection() {
     return (
       document.querySelector('input[name="aufschlag"]:checked')?.value || ""
     );
   }
 
-  function apply() {
-  const payer = document.querySelector('input[name="payer"]:checked')?.value;
-
-  // Treat Selbstzahler exactly like Kassenkunde for the percentage selection
-  if (payer === "Kassenkunde" || payer === "Selbstzahler") {
-    [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
-    const sel = currentSelection();
-    if (!anySelected() && r50) r50.checked = true;
-    else if (sel === "35%") {
-      if (r50) r50.checked = true;
+  // Show/hide label + radios, and toggle button text
+  function setAufschlagVisible(visible) {
+    if (labelEl) labelEl.style.display = visible ? "" : "none";
+    if (bodyEl)  bodyEl.style.display  = visible ? "" : "none";
+    if (toggleBt) {
+      toggleBt.textContent = visible ? "Ausblenden" : "Anzeigen";
+      toggleBt.setAttribute("aria-expanded", visible ? "true" : "false");
     }
-  } else {
-    [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
   }
-}
 
+  function toggleAufschlag() {
+    const currentlyVisible = !bodyEl || bodyEl.style.display !== "none";
+    setAufschlagVisible(!currentlyVisible);
+  }
 
-  payerRadios.forEach((r) => r.addEventListener("change", apply));
-  apply();
+  // Original Aufschlag rules per payer
+  function applyAufschlagRules() {
+    const payer = document.querySelector('input[name="payer"]:checked')?.value;
+
+    // Treat Selbstzahler exactly like Kassenkunde for the percentage selection
+    if (payer === "Kassenkunde" || payer === "Selbstzahler") {
+      [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
+      const sel = currentSelection();
+      if (!anySelected() && r50) {
+        r50.checked = true;
+      } else if (sel === "35%") {
+        if (r50) r50.checked = true;
+      }
+    } else {
+      // Other payers: all allowed
+      [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
+    }
+  }
+
+  // Events
+  payerRadios.forEach((r) => r.addEventListener("change", applyAufschlagRules));
+  if (toggleBt) toggleBt.addEventListener("click", toggleAufschlag);
+
+  // Initial state: visible with rules applied
+  setAufschlagVisible(true);
+  applyAufschlagRules();
 })();
 
 (function initPflegegrad() {
@@ -4512,6 +4547,8 @@ window.addEventListener('hashchange', () => {
     }
   });
 })();
+
+
 
 // === Pricing Playground ===
 (function initPricingPlayground() {
@@ -6944,6 +6981,123 @@ function refreshHassmannFrame() {
   setTimeout(() => { iframe.src = base + bust; }, 0);
 }
 
+// --- Routing suggestion: one-way km from address -> Vorschlag neben distanceKm ---
+
+async function suggestDistanceFromAddress() {
+  const out = document.getElementById('routingSuggestion');
+  const kmInput = document.getElementById('distanceKm');
+  if (!out) return;
+
+  // Extract Kundendaten from the existing form
+  const form = document.getElementById('form-Kundendaten');
+  if (!form) {
+    out.textContent = 'Kundendaten-Formular nicht gefunden.';
+    return;
+  }
+
+  const streetEl = document.getElementById('street');
+  const cityEl = document.getElementById('city');
+  const plzEl = document.getElementById('postalCode');
+
+  const street = (streetEl?.value || '').trim();
+  const city   = (cityEl?.value || '').trim();
+  const plz    = (plzEl?.value || '').trim();
+
+  if (!street && !city && !plz) {
+    out.textContent = 'Bitte zuerst Adresse, PLZ oder Ort beim Kunden ausfüllen.';
+    return;
+  }
+
+  out.textContent = 'Berechne Routenvorschlag …';
+
+  // Minimal Kundendaten payload (matches backend expectations)
+  const kundendaten = {
+    street,
+    city,
+    postalCode: plz,
+    state: document.getElementById('state')?.value || '',
+    country: document.getElementById('country')?.value || '',
+  };
+
+  try {
+    const res = await fetch('/api/routing/suggest-distance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ Kundendaten: kundendaten }),
+      credentials: 'include',
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      out.textContent = err.error || 'Routenvorschlag fehlgeschlagen.';
+      return;
+    }
+
+    const data = await res.json();
+    if (!data.ok) {
+      out.textContent = data.error || 'Routenvorschlag fehlgeschlagen.';
+      return;
+    }
+
+    const oneWayKm = Number(data.oneWayKm || 0);
+    const roundKm  = Number(data.roundTripKm || 0);
+
+    if (!Number.isFinite(oneWayKm) || oneWayKm <= 0) {
+      out.textContent = 'Keine sinnvolle Strecke ermittelt.';
+      return;
+    }
+
+    const oneWayStr = oneWayKm.toFixed(1).replace('.', ',');
+    const roundStr  = roundKm.toFixed(1).replace('.', ',');
+
+    // Render suggestion + “Übernehmen” link
+    out.innerHTML = `
+      Vorschlag: <strong>${oneWayStr} km</strong> (Hin- &amp; Rückfahrt: ${roundStr} km)
+      <button type="button" id="btnApplyRoutingSuggestion" class="btn-secondary" style="margin-left:8px;">
+        Übernehmen
+      </button>
+      <div style="font-size:0.75rem; opacity:0.8; margin-top:2px;">
+        Basis: Strecke von <em>${data.from?.address || 'Firma'}</em> zu
+        <em>${data.to?.address || 'Kundenadresse'}</em>
+      </div>
+    `;
+
+    // Wire “Übernehmen” button: fill distanceKm and trigger existing preview + pricing
+    document
+      .getElementById('btnApplyRoutingSuggestion')
+      ?.addEventListener('click', () => {
+        if (kmInput) {
+          kmInput.value = String(oneWayKm.toFixed(1));
+          kmInput.dispatchEvent(new Event('input', { bubbles: true }));
+          kmInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      });
+  } catch (e) {
+    console.warn('[routing] suggestDistanceFromAddress failed:', e);
+    out.textContent = 'Routenvorschlag fehlgeschlagen (Netzwerkfehler).';
+  }
+}
+
+// Hook the button + optional auto-refresh
+document.addEventListener('DOMContentLoaded', () => {
+  document
+    .getElementById('btnRoutingSuggest')
+    ?.addEventListener('click', suggestDistanceFromAddress);
+
+  // Optional: auto-update hint when address changes (without auto-filling)
+  const addrFields = ['street', 'city', 'postalCode', 'state', 'country']
+    .map(id => document.getElementById(id))
+    .filter(Boolean);
+
+  let routingTimer = null;
+  addrFields.forEach(el => {
+    el.addEventListener('change', () => {
+      clearTimeout(routingTimer);
+      routingTimer = setTimeout(suggestDistanceFromAddress, 400);
+    });
+  });
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('refreshHassmann')?.addEventListener('click', refreshHassmannFrame);
 });
@@ -7612,7 +7766,100 @@ function initLivePricingSync() {
   });
 })();
 
+// Alltagshilfe: abhängige Leistungsart + ausgegraute, nicht verfügbare Option
+(function initAlltagshilfePage() {
+  const form = document.getElementById('form-ah');
+  if (!form) return;
 
+  const artAlltag   = document.getElementById('ahArtAlltagsbegleitung');
+  const artHaushalt = document.getElementById('ahArtHaushalt');
+
+  const wrap          = document.getElementById('ahLeistungsTypWrap');
+  const blockAlltag   = document.getElementById('ahLeistungsTypAlltagsbegleitung');
+  const blockHaushalt = document.getElementById('ahLeistungsTypHaushalt');
+
+  const inputFahrten = document.getElementById('ahLeistungsTypFahrten');
+  const inputPausch  = document.getElementById('ahLeistungsTypReinigungsPauschale');
+
+  // Labels separat greifen, damit wir sie „grau“ stylen können
+  const labelFahrten = inputFahrten?.closest('label.radio-pill');
+  const labelPausch  = inputPausch?.closest('label.radio-pill');
+
+  if (!wrap || !blockAlltag || !blockHaushalt || !inputFahrten || !inputPausch) return;
+
+  function show(el, on) {
+    if (!el) return;
+    el.hidden = !on;
+    el.setAttribute('aria-hidden', on ? 'false' : 'true');
+  }
+
+  // exakt derselbe „Grau‑Look“ wie beim Aufschlag:
+  // disabled + geringere Opacity + keine Klicks
+  function setDisabled(labelEl, inputEl, disabled) {
+    if (!labelEl || !inputEl) return;
+    inputEl.disabled = disabled;
+    labelEl.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    labelEl.style.opacity = disabled ? '0.45' : '';
+    labelEl.style.pointerEvents = disabled ? 'none' : '';
+    labelEl.style.filter = disabled ? 'grayscale(0.3)' : '';
+  }
+
+  function applySelection(kind) {
+    // Block sichtbar, sobald eine Haupt‑Art gewählt wurde
+    show(wrap, true);
+
+    // Beide Detail‑Zeilen sollen immer sichtbar bleiben
+    show(blockAlltag, true);
+    show(blockHaushalt, true);
+
+    if (kind === 'Alltagsbegleitung') {
+      // Fahrten aktiv, Pauschale grau/disabled
+      setDisabled(labelFahrten, inputFahrten, false);
+      setDisabled(labelPausch,  inputPausch,  true);
+
+      // Fahrten vorwählen
+      inputFahrten.checked = true;
+      inputPausch.checked  = false;
+      inputFahrten.dispatchEvent(new Event('change', { bubbles: true }));
+    } else if (kind === 'Haushaltsnahedienstleistungen') {
+      // Pauschale aktiv, Fahrten grau/disabled
+      setDisabled(labelFahrten, inputFahrten, true);
+      setDisabled(labelPausch,  inputPausch,  false);
+
+      inputPausch.checked  = true;
+      inputFahrten.checked = false;
+      inputPausch.dispatchEvent(new Event('change', { bubbles: true }));
+    } else {
+      // Nichts gewählt → alles zurücksetzen und ausblenden
+      show(wrap, false);
+      show(blockAlltag, false);
+      show(blockHaushalt, false);
+
+      setDisabled(labelFahrten, inputFahrten, false);
+      setDisabled(labelPausch,  inputPausch,  false);
+      inputFahrten.checked = false;
+      inputPausch.checked  = false;
+    }
+  }
+
+  // Listener für die zwei Haupt‑Radiobuttons
+  artAlltag?.addEventListener('change', () => {
+    if (artAlltag.checked) applySelection('Alltagsbegleitung');
+  });
+  artHaushalt?.addEventListener('change', () => {
+    if (artHaushalt.checked) applySelection('Haushaltsnahedienstleistungen');
+  });
+
+  // Initialzustand beim Laden (z.B. beim Bearbeiten eines Entwurfs)
+  const current = form.querySelector('input[name="ahArt"]:checked');
+  if (current) {
+    applySelection(current.value);
+  } else {
+    show(wrap, false);
+    show(blockAlltag, false);
+    show(blockHaushalt, false);
+  }
+})();
 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -7863,53 +8110,67 @@ function initHassmannBestFinder() {
     return r ? r.value : 'corner';
   }
 
- function renderResults(list) {
+function renderResults(list) {
   if (!Array.isArray(list) || !list.length) {
-    resultsEl.innerHTML = '<div class="muted">Keine passenden Produkte gefunden.</div>';
+    resultsEl.innerHTML =
+      '<div class="muted">Keine passenden Produkte gefunden.</div>';
     return;
   }
 
+  const MEDIA_PREFIX = 'https://media.onlineplus.store/';
+  const fmt = (v) => (v != null ? euroC(v) : 'n/a');
+
   const html = list
     .map((combo, index) => {
-      const main = combo.best || combo; // fallback if backend ever returns flat products
+      const main = combo.best || combo;
+      const side = combo.sidePanel || combo.tuer2 || null;
+      const tray = combo.tray || null;
 
       const title = main.name || `Produkt ${index + 1}`;
       const pid   = main.modelNumber || main.id || '-';
 
-      // total price for the whole combination (net)
       const totalNet = combo.totalPriceNet ?? null;
 
-      // individual component prices (gross preferred)
-      const bestPrice  = main.priceGross  ?? main.priceNet  ?? null;
-      const door2Price = combo.tuer2?.priceGross    ?? combo.tuer2?.priceNet    ?? null;
-      const sidePrice  = combo.sidePanel?.priceGross ?? combo.sidePanel?.priceNet ?? null;
-      const trayPrice  = combo.tray?.priceGross     ?? combo.tray?.priceNet     ?? null;
+      const bestPrice  = main.priceGross ?? main.priceNet ?? null;
+      const sidePrice  = side?.priceGross ?? side?.priceNet ?? null;
+      const trayPrice  = tray?.priceGross ?? tray?.priceNet ?? null;
 
-      const fmt = (v) => (v != null ? euroC(v) : 'n/a');
+      const sideName = side?.name || null;
+      const trayName = tray?.name || null;
 
-      // images – adjust base URL if needed
-      const imgBase = 'https://gconlineplus.de/media/'; // <- change if different
-      const imgUrl  = main.productLink ? imgBase + main.productLink : '';
+      // --- MAIN IMAGE (best) ---
+      const mainImg = pickImage(main, 2);
 
-      const door2Name = combo.tuer2?.name || null;
-      const sideName  = combo.sidePanel?.name || null;
-      const trayName  = combo.tray?.name || null;
+      // --- small strip for side (aus den Produktdaten) ---
+      const sideImg = pickImage(side, 1);
+
+      // --- WANNENBILD: IMMER LOKALES ASSET ---
+      const trayImg = `
+        <img src="/assets/duschwanne.jpeg"
+             alt="Duschwanne"
+             loading="lazy"
+             style="width:100%;height:auto;border-radius:4px;object-fit:cover;border:1px solid #e0e0e0;margin-bottom:4px;" />
+      `;
 
       return `
         <div class="card" style="margin-bottom:8px; padding:10px 12px;">
-          <div style="display:flex; gap:12px; align-items:flex-start;">
-            ${imgUrl ? `
-              <div style="flex:0 0 120px; max-width:120px;">
-                <img src="${imgUrl}"
-                     alt="${title}"
-                     style="width:100%;height:auto;border-radius:4px;object-fit:cover;" />
-              </div>
-            ` : ''}
+          <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
 
-            <div style="flex:1 1 auto;">
-              <div style="font-weight:600; margin-bottom:2px;">${title}</div>
+            ${
+              mainImg
+                ? `
+              <div style="flex:0 0 140px; max-width:140px;">
+                ${mainImg}
+              </div>`
+                : ''
+            }
+
+            <div style="flex:1 1 220px; min-width:220px;">
+              <div style="font-weight:600; margin-bottom:2px;">${escapeHtml(
+                title
+              )}</div>
               <div style="font-size:0.9rem; color:var(--muted-foreground);">
-                ID / Modell: <code>${pid}</code>
+                ID / Modell: <code>${escapeHtml(pid)}</code>
               </div>
 
               <div style="margin-top:6px;">
@@ -7917,24 +8178,108 @@ function initHassmannBestFinder() {
               </div>
 
               <div style="margin-top:6px; font-size:0.9rem;">
-                <div><strong>Tür 1:</strong> ${title} – Preis (brutto): <strong>${fmt(bestPrice)}</strong></div>
+                <div><strong>Tür 1:</strong> ${escapeHtml(
+                  title
+                )} – Preis (brutto): <strong>${fmt(bestPrice)}</strong></div>
 
-                ${door2Name ? `
-                  <div><strong>Tür 2:</strong> ${door2Name} – Preis (brutto): <strong>${fmt(door2Price)}</strong></div>
-                ` : ''}
+                ${
+                  sideName
+                    ? `<div><strong>Seitenwand / Tür 2:</strong> ${escapeHtml(
+                        sideName
+                      )} – Preis (brutto): <strong>${fmt(
+                        sidePrice
+                      )}</strong></div>`
+                    : ''
+                }
 
-                ${sideName ? `
-                  <div><strong>Seitenwand:</strong> ${sideName} – Preis (brutto): <strong>${fmt(sidePrice)}</strong></div>
-                ` : ''}
-
-                ${trayName ? `
-                  <div><strong>Duschwanne:</strong> ${trayName} – Preis (brutto): <strong>${fmt(trayPrice)}</strong></div>
-                ` : ''}
+                ${
+                  trayName
+                    ? `<div><strong>Duschwanne:</strong> ${escapeHtml(
+                        trayName
+                      )} – Preis (brutto): <strong>${fmt(
+                        trayPrice
+                      )}</strong></div>`
+                    : ''
+                }
               </div>
+
+              ${
+                combo.widthRangeMessage
+                  ? `<div style="margin-top:6px;font-size:0.8rem;color:#b26a00;background:#fff5e6;border:1px solid #ffcc80;border-radius:4px;padding:4px 6px;">
+                       ${escapeHtml(combo.widthRangeMessage)}
+                     </div>`
+                  : ''
+              }
+
+              <div style="margin-top:8px; display:flex; gap:12px; flex-wrap:wrap;">
+                ${
+                  sideImg
+                    ? `<div style="flex:0 0 90px; max-width:90px;">
+                         <div style="font-size:0.75rem;margin-bottom:2px;">Seite</div>
+                         ${sideImg}
+                       </div>`
+                    : ''
+                }
+
+                <!-- Wanne: IMMER anzeigen -->
+                <div style="flex:0 0 90px; max-width:90px;">
+                  <div style="font-size:0.75rem;margin-bottom:2px;">Wanne</div>
+                  ${trayImg}
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
       `;
+
+      // ---- helpers ----
+
+      function pickImage(product, maxCount) {
+        if (!product) return '';
+
+        const links = Array.isArray(product.productLinks)
+          ? product.productLinks
+          : [];
+
+        const imgs = links.slice(0, maxCount).map((pl) => {
+          const url = normalizeMediaUrl(pl.link);
+          if (!url) return '';
+          return `<img src="${url}"
+                       alt="${escapeHtml(product.name || '')}"
+                       loading="lazy"
+                       style="width:100%;height:auto;border-radius:4px;object-fit:cover;border:1px solid #e0e0e0;margin-bottom:4px;" />`;
+        });
+
+        if (!imgs.length && product.productLink) {
+          const url = normalizeMediaUrl(product.productLink);
+          imgs.push(
+            `<img src="${url}"
+                  alt="${escapeHtml(product.name || '')}"
+                  loading="lazy"
+                  style="width:100%;height:auto;border-radius:4px;object-fit:cover;border:1px solid #e0e0e0;" />`
+          );
+        }
+
+        return imgs.join('');
+      }
+
+      function normalizeMediaUrl(link) {
+        if (!link) return null;
+        if (link.startsWith('http://') || link.startsWith('https://')) {
+          return link;
+        }
+        return MEDIA_PREFIX + link.replace(/^\/+/, '');
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
     })
     .join('');
 
@@ -7981,6 +8326,146 @@ function initHassmannBestFinder() {
 });
 
 }
+
+// ===== Angebot als PDF erzeugen und an Auftrag (n8n) senden =====
+(function initSendOfferPdfToAuftrag() {
+  const auftragInput = document.getElementById('auftragId');
+  const sendBtn      = document.getElementById('sendPdfToAuftrag');
+  const statusBox    = document.getElementById('auftragPdfStatus');
+
+  if (!sendBtn || !auftragInput || !statusBox) return;
+
+  const WEBHOOK_URL = 'https://fly-n8n-1.fly.dev/webhook/c1aa786a-9cc4-4f7d-aba7-b4ac9c978f69';
+
+  function setStatus(msg, type = 'info') {
+    if (!statusBox) return;
+    const ts = new Date().toLocaleTimeString();
+    const prefix =
+      type === 'success' ? '✅' :
+      type === 'error'   ? '❌' :
+      type === 'warn'    ? '⚠️' :
+                           'ℹ️';
+
+    statusBox.className = 'status ' + (type === 'error' ? 'err' : 'ok');
+    statusBox.textContent = `${prefix} [${ts}] ${msg}`;
+  }
+
+  async function fetchOfferPdfBlob() {
+    if (typeof buildPayload !== 'function') {
+      throw new Error('buildPayload ist nicht verfügbar.');
+    }
+    const payload = buildPayload();
+
+    const resp = await fetch('/docx-template/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+      const txt = await resp.text().catch(() => '');
+      throw new Error(`PDF-Generierung fehlgeschlagen (${resp.status}): ${txt}`);
+    }
+
+    return await resp.blob();
+  }
+
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('FileReader-Fehler beim Konvertieren des PDFs.'));
+      reader.onload = () => {
+        const dataUrl = String(reader.result || '');
+        const base64 = dataUrl.split(',')[1] || '';
+        resolve(base64);
+      };
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function sendPdfToAuftrag() {
+    const auftragId = (auftragInput.value || '').trim();
+    if (!auftragId) {
+      setStatus('Bitte zuerst eine Auftrag ID eingeben.', 'error');
+      auftragInput.focus();
+      return;
+    }
+
+    // Bestehende Angebotsnummer lesen – NICHT neu erzeugen
+    const offerInput  = document.getElementById('offerNumber');
+    const offerNumber = (offerInput?.value || '').trim();
+
+    if (!offerNumber) {
+      // Variante A: Fehler, wenn keine Angebotsnummer vorhanden ist
+      setStatus('Bitte zuerst eine Angebotsnummer generieren (offerNumber ist leer).', 'error');
+      offerInput?.focus();
+      return;
+
+      // Variante B (alternativ): pdfName einfach weglassen
+      // -> dann diesen return entfernen und unten pdfName optional machen
+    }
+
+    try {
+      sendBtn.disabled = true;
+      setStatus('Erzeuge Angebots-PDF …', 'info');
+
+      const pdfBlob = await fetchOfferPdfBlob();
+      setStatus('Konvertiere PDF nach Base64 …', 'info');
+
+      const pdfBase64 = await blobToBase64(pdfBlob);
+
+      setStatus('Sende PDF an Auftrag-Webhook …', 'info');
+
+      // pdfName exakt aus der bereits existierenden Angebotsnummer ableiten
+      const pdfName = `${offerNumber}.pdf`;
+
+      const body = {
+        auftragId,   // Auftrag ID aus Input
+        pdfBase64,   // PDF als Base64
+        pdfName,     // nur aus bestehender offerNumber
+      };
+
+      const res = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`Webhook-Fehler (${res.status}): ${txt}`);
+      }
+
+      setStatus('Angebots-PDF erfolgreich an Auftrag gesendet.', 'success');
+
+      try {
+        const json = await res.json();
+        console.log('[Auftrag-Webhook] Antwort:', json);
+      } catch {
+        // kein JSON zurück — egal
+      }
+
+      if (typeof saveFinalOfferSnapshot === 'function') {
+        try { await saveFinalOfferSnapshot(); } catch (e) {
+          console.warn('[sendPdfToAuftrag] saveFinalOfferSnapshot fehlgeschlagen:', e);
+        }
+      }
+    } catch (err) {
+      console.error('sendPdfToAuftrag error:', err);
+      setStatus(err.message || 'Fehler beim Senden des Angebots-PDF.', 'error');
+    } finally {
+      sendBtn.disabled = false;
+    }
+  }
+
+  sendBtn.addEventListener('click', () => {
+    if (typeof requireBereichValid === 'function' && !requireBereichValid()) {
+      location.hash = 'Kundendaten';
+      return;
+    }
+    sendPdfToAuftrag();
+  });
+})();
 
 // im DOMContentLoaded-Block aufrufen:
 document.addEventListener('DOMContentLoaded', () => {
@@ -8102,3 +8587,6 @@ sidebar?.addEventListener("click", (event) => {
       });
     });
   })();
+
+
+  

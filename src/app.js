@@ -13,6 +13,7 @@ import traysRouter from './routes/trays.js';
 import magicRouter from './routes/magic.js';
 import customersRouter from './routes/customers.js';
 import bitrixRouter from './routes/bitrix.js';
+import routingRouter from './routes/routing.js';
 // PDF/DOCX routes
 import { router as pdfRouter } from './routes/pdf.js';
 import pdfTemplateRouter from './routes/pdf-template.js';
@@ -40,32 +41,38 @@ process.env.PDFJS_DISABLE_WORKER = 'true';
 
 // ---------------- Helmet / CSP ----------------
 app.use(
-  helmet({
-    contentSecurityPolicy: {
-      useDefaults: true,
-      directives: {
-        defaultSrc: ["'self'"],
-        frameSrc: ["'self'", "https://gconlineplus.de", "https://*.gconlineplus.de"],
-        scriptSrc: [
-          "'self'",
-          // keep your hashes:
-          "'sha256-/N6XS1N1HWcS1jcxJkTULItDFffd/I1mw8tPD5FTS3o='",
-          "'sha256-5RmoD/+nJXNc4AM8oTu6YJEmH8lgRnYL9t8PcLUZxcY='",
-          "'sha256-pmi68vLyMeGurqDvTzm+MD6lhDeARWXCNqv7x536RmA='",
-        ],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "blob:"],
-        fontSrc: ["'self'", "data:"],
-        connectSrc: ["'self'"],
-        objectSrc: ["'none'"],
-        baseUri: ["'self'"],
-        frameAncestors: ["'self'"],
-        upgradeInsecureRequests: null,
-      },
+ helmet({
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      defaultSrc: ["'self'"],
+      frameSrc: ["'self'", "https://gconlineplus.de", "https://*.gconlineplus.de"],
+      scriptSrc: [
+        "'self'",
+        "'sha256-/N6XS1N1HWcS1jcxJkTULItDFffd/I1mw8tPD5FTS3o='",
+        "'sha256-5RmoD/+nJXNc4AM8oTu6YJEmH8lgRnYL9t8PcLUZxcY='",
+        "'sha256-pmi68vLyMeGurqDvTzm+MD6lhDeARWXCNqv7x536RmA='",
+      ],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: [
+        "'self'",
+        "data:",
+        "blob:",
+        "https://media.onlineplus.store",
+        // optional:
+        // "https://*.onlineplus.store",
+      ],
+      fontSrc: ["'self'", "data:"],
+      connectSrc: ["'self'", "https://fly-n8n-1.fly.dev"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      frameAncestors: ["'self'"],
+      upgradeInsecureRequests: null,
     },
-    crossOriginEmbedderPolicy: false,
-    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
-  })
+  },
+  crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+})
 );
 
 // Trust proxy (Fly/ngrok)
@@ -148,6 +155,7 @@ app.use('/api/offers', offersRouter);
 app.use('/api/magic', magicRouter);
 app.use('/api/customers', customersRouter);
 app.use('/api/bitrix', bitrixRouter);
+app.use('/api/routing', routingRouter);   // <--- NEW
 // (you had this twice; once is enough)
 // app.use('/api/offers', offersRouter);
 
