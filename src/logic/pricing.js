@@ -155,7 +155,7 @@ const cl80Qty = Number(opt?.qty_CLPESG80 ?? (opt?.opt_CLPESG80 ? 1 : 0)) || 0;
     if (basin)  picked.add('Auswechseln eines Waschtisches');
     if (tap)    picked.add('Einbau einer einhand-Waschtischbatterie');
     if (thermo) picked.add('Austausch eines Thermostates');
-    if (seat)   picked.add('Einbau eines Klappsitzes');
+    if (seat)   picked.add('Einbau einer Duschhocker es');
 
 // >>> robust DW workTasks parse (handles odd literal keys like "duschwanne[workTasks][]")
 function normalizeDWTasks(payload) {
