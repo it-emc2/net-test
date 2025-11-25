@@ -422,18 +422,36 @@ if (userRaw !== undefined && userRaw !== null && String(userRaw).trim() !== '') 
       );
     }
 
-    // Example: aids / Haltegriff quantity
-    const aidsHgQty = Number(bwt?.bwtAidsHaltegriff40Qty || 0) || 0;
-    if (aidsHgQty > 0) {
+     // Aids / Haltegriffe quantities (40 / 60 / 80 cm)
+    const aidsHg40Qty = Number(bwt?.bwtAidsHaltegriff40Qty || 0) || 0;
+    const aidsHg60Qty = Number(bwt?.bwtAidsHaltegriff60Qty || 0) || 0;
+    const aidsHg80Qty = Number(bwt?.bwtAidsHaltegriff80Qty || 0) || 0;
+
+    // Helper so BWT Haltegriffe are included in grabTotalQty / cl40Qty
+    const addGrab = (pid, qty) => {
+      const q = Number(qty) || 0;
+      if (q <= 0) return;
+
       add(
-        'CLPESG40',   // TODO: replace with real productId
-        aidsHgQty,
-        null,
-        null,
+        pid,
+        q,
+        null,   // use DB name as label
+        null,   // use DB price as unit
         null
       );
-      // If these are CLPESG40/60/80, you can also update grabTotalQty/cl40Qty here.
-    }
+
+      // keep global grab counts in sync (used later in pricing/UI logic)
+      grabTotalQty += q;
+      if (pid === 'CLPESG40') {
+        cl40Qty += q;
+      }
+    };
+
+    addGrab('CLPESG40', aidsHg40Qty);
+    addGrab('CLPESG60', aidsHg60Qty);
+    addGrab('CLPESG80', aidsHg80Qty);
+
+    // bwt[bwtinfoTasks][] can later be mapped to extra materials or work notes if needed.
 
     // bwt[bwtinfoTasks][] can later be mapped to extra materials or work notes if needed.
   }

@@ -7281,6 +7281,17 @@ wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
   wireTileQty("opt_RSL__loose",  "qty_RSL__loose_wrap");
   wireTileQty("opt_EV__loose",   "qty_EV__loose_wrap");
 
+
+    // ---- BWT · Badewannentür ----
+  // Door + Haltegriffe behave like other tile+qty pairs:
+  //  - unchecked  → qty=0, wrapper hidden
+  //  - checked    → qty>=1, wrapper visible
+  //  - resetAllForms() re-applies this logic via dispatching "change" events
+  wireTileQty("bwtDoorStd",           "bwtDoorStdQtyWrap");
+  wireTileQty("bwtAidsHaltegriff40",  "bwtAidsHaltegriff40QtyWrap");
+  wireTileQty("bwtAidsHaltegriff60",  "bwtAidsHaltegriff60QtyWrap");
+  wireTileQty("bwtAidsHaltegriff80",  "bwtAidsHaltegriff80QtyWrap");
+
   // Keep your existing rule engine for CL60 & accessories (1 / 1 / 2 and persistence)
   if (typeof initBasinAutoAccessories === "function") {
     initBasinAutoAccessories();
