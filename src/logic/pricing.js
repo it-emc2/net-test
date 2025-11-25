@@ -52,7 +52,10 @@ function setCL40LabelToBillable(list, { hideWhenZero = false } = {}) {
   function getActiveOffer(payload) {
     // default to 'bu' for backward compatibility
     const k = payload?.activeOffer;
-    if (k === 'bu' || k === 'bwt' || k === 'hl') return k;
+    if (k === 'bu' || k === 'bwt' || k === 'hl') {
+      console.log("current offer type is ", k);
+      return k;}
+    
     return 'bu';
   }
 

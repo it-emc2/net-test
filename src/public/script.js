@@ -1580,32 +1580,35 @@ function filterPayloadByOffer(payload) {
   const allowedPages = new Set(pagesForOffer);
 
   // Map: page-id in OFFERS.pages → key name in payload object
+  // left: page name in OFFERS.*.pages
+  // right: actual key name in buildPayload()
   const pageToKey = {
     Kundendaten: "Kundendaten",
-     Arbeitszeit: "Arbeitszeit",  
-    Duschwanne: "Duschwanne",
-    Wandverkleidung: "Wandverkleidung",
-    Duschabtrennung: "Duschabtrennung",
-    Optional: "Optional",
-    Rabatt: "Rabatt",
-    bwt : "bwt",
-    hl : "hl",
-    admin : "admin",
+    Arbeitszeit: "Arbeitszeit",
+    Duschwanne: "duschwanne",
+    Wandverkleidung: "wandverkleidung",
+    Duschabtrennung: "duschabtrennung",
+    Optional: "optional",
+    Rabatt: "rabatt",
+    bwt: "bwt",
+    hl: "hl",
+    ah: "ah",
+    admin: "admin",
     services: "services",
-    ah : "ah"
   };
 
   Object.entries(pageToKey).forEach(([page, key]) => {
-    if (!allowedPages.has(page) && key in payload) {
+    if (!allowedPages.has(page) &&
+        Object.prototype.hasOwnProperty.call(payload, key)) {
       // For non-selected pages, make their contribution empty
       payload[key] = {};
-      // If you prefer deleting instead, you can use:
-      // delete payload[key];
+      // Or: delete payload[key];
     }
   });
 
   return payload;
 }
+
 
 function buildPayload() {
   const payload = {
