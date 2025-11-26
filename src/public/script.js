@@ -5200,19 +5200,20 @@ async function loadDraftById(id) {
       alert("Entwurf konnte nicht geladen werden.");
       return;
     }
-    const doc = await res.json();
+       const doc = await res.json();
 
-    const payload = doc.payload || doc; // fallback
-
-    // If we have a central restore helper, use it.
+    // If we have a central restore helper, use it with the full document.
+    // restoreConfiguratorFromOffer already knows how to handle doc.offer or doc.payload.
     if (typeof window.restoreConfiguratorFromOffer === "function") {
-      // wrap so it matches the expected shape (with .payload)
-      window.restoreConfiguratorFromOffer({ payload });
+      window.restoreConfiguratorFromOffer(doc);
     } else if (typeof window.restoreConfiguratorFromSnapshot === "function") {
+      const payload = doc.payload || doc;
       window.restoreConfiguratorFromSnapshot({ payload });
     } else {
       // fallback: just reset and rebuild forms manually if needed
       console.warn("No restore function found. Please wire restoreConfiguratorFromOffer or restoreConfiguratorFromSnapshot.");
+    
+
       alert("Wiederherstellen ist noch nicht implementiert.");
       return;
     }
@@ -5591,6 +5592,18 @@ async function restoreConfiguratorFromOffer(doc) {
     p = offer?.payload;
     if (!p) return;
 
+      // Normalize offer type from the document / payload itself
+    const rawOfferType =
+      doc?.offerType ||
+      offer?.offerType ||
+      p?.activeOffer ||
+      p?.offerType ||
+      null;
+
+    const offerType = rawOfferType
+      ? String(rawOfferType).trim().toLowerCase()
+      : null;
+
     // ---- Kundendaten / Kunde ----
     setSelect('salutation', p?.Kundendaten?.salutation);
     setByNameOrId('date', p?.Kundendaten?.date);
@@ -5666,12 +5679,13 @@ setByNameOrId('trayColor', p?.duschwanne?.trayColor);
   setNumber('floorArea', p?.duschwanne?.floorArea);
 
 
-
-
      // ---- BWT · Badewannentür ----
-    // Only restore BWT when this draft/offer is actually of type "bwt"
- 
+    // Only restore BWT if this offer actually is BWT,
+    // OR if we clearly see BWT data in the payload as a fallback.
+    const hasBwtData = !!(p?.bwt && Object.keys(p.bwt).length);
+    if (offerType === 'bwt' || (!offerType && hasBwtData)) {
       restoreBwt(p?.bwt);
+    }
    
   // work tasks → only set now; nudge after restore
   restoreWorkTasks(p?.duschwanne);
@@ -5690,7 +5704,6 @@ if (typeof window.restoreDWExtraTasksFromPayload === 'function') {
       // don't dispatch yet; we'll nudge once after restore
     }
 
-    setNumber('floorArea', p?.duschwanne?.floorArea);
 
     // restore flooring color selection from payload
     (function restoreFloorColorFromPayload(dw) {
@@ -5762,7 +5775,6 @@ if (typeof window.restoreDWExtraTasksFromPayload === 'function') {
  }
     setNumber('wvQty997', p?.wandverkleidung?.wvQty997);
     setNumber('wvQty1497', p?.wandverkleidung?.wvQty1497);
-    if (p?.wandverkleidung?.wvColor) setRadio('wvColor', p.wandverkleidung.wvColor);
     setSelect('wvSealing', p?.wandverkleidung?.wvSealing);
     setSelect('flechenkleber', p?.wandverkleidung?.flechenkleber);
     setNumber('wvFlachenQty', p?.wandverkleidung?.wvFlachenQty);
@@ -5859,7 +5871,6 @@ if (p?.optional) {
 restoreOptional(p?.optional);
 
 
-restoreOptional(p?.optional);
 
 
     // Optional → Sonderprodukte (Freier Posten quick-add)
