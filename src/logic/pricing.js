@@ -707,79 +707,87 @@ try {
   };
 }
 
-   // --- BWT: "Enthält je Einheit" rows, with real prices from DB ---
-  async function computeBwtIncludedLines(payload) {
-    const offer = getActiveOffer(payload);
-    if (offer !== 'bwt') return [];
+ // --- BWT: "Enthält je Einheit" rows, with real prices from DB ---
+async function computeBwtIncludedLines(payload) {
+  const offer = getActiveOffer(payload);
+  if (offer !== 'bwt') return [];
 
-    const b = payload?.Arbeitszeit || {};
-    const bwt = payload?.bwt || {};
+  const b = payload?.Arbeitszeit || {};
+  const bwt = payload?.bwt || {};
 
-    // distance (same logic as in computeServiceCosts)
-    const oneWayKm = Number(b.distanceKm || 0) || 0;
-    const roundTripKm = Math.max(0, oneWayKm * 2);
-    const billedKm = Math.max(0, roundTripKm - 200);  // only km > 200 are billed
-    const kmRate = 0.35;
-    const kmAmount = round2(billedKm * kmRate);
+  // distance (same logic as in computeServiceCosts)
+  const oneWayKm = Number(b.distanceKm || 0) || 0;
+  const roundTripKm = Math.max(0, oneWayKm * 2);
+  const billedKm = Math.max(0, roundTripKm - 200);  // only km > 200 are billed
+  const kmRate = 0.35;
+  const kmAmount = round2(billedKm * kmRate);
 
-    // door quantity (fallback 1 if somehow 0, so labels don't look broken)
-    const rawDoorQty = Number(bwt?.bwtDoorStdQty || 0) || 0;
-    const doorQty = rawDoorQty > 0 ? rawDoorQty : 1;
-    const qtyStr = doorQty.toFixed(2).replace(/\.00$/, '');
+  // door quantity: ONLY use real qty > 0, no fallback
+  const rawDoorQty = Number(bwt?.bwtDoorStdQty || 0) || 0;
+  const doorQty = rawDoorQty > 0 ? rawDoorQty : 0;
+  const hasDoor = !!bwt?.bwtDoorType && doorQty > 0;
 
-    // fetch unit prices for Lieferkosten + Kleinmaterial
-    const ids = ['140322', 'KM02'];
-    const map = await getProductsByIds(ids);
+  const out = [];
 
-    const lieferPrice = Number(map.get('140322')?.price || 0);
-    const kleinPrice  = Number(map.get('KM02')?.price || 0);
-
-    const out = [];
-
-    // 1) Kilometerpauschale (already reduced to >200km)
-    if (kmAmount > 0) {
-      out.push({
-        key: 'bwt_km',
-        label: `- ${roundTripKm} km Kilometerpauschale`,
-        qty: 1,
-        unitPrice: kmAmount,
-        lineTotal: kmAmount,
-      });
-    }
-
-    // 2) Lieferkosten Badewannentür (real price from DB)
-    if (lieferPrice > 0) {
-      out.push({
-        key: '140322',
-        label: `- ${qtyStr} Stk Lieferkosten Badewannentür`,
-        qty: doorQty,
-        unitPrice: lieferPrice,
-        lineTotal: round2(lieferPrice * doorQty),
-      });
-    }
-
-    // 3) Universal / Standard Tür (price forced to 0 here – already counted in materials)
+  // 1) Kilometerpauschale (already reduced to >200km)
+  if (kmAmount > 0) {
     out.push({
-      key: '',
-      label: `- ${qtyStr} Stk Universal / Standard Tür`,
-      qty: doorQty,
-      unitPrice: 0,
-      lineTotal: 0,
+      key: 'bwt_km',
+      label: `- ${roundTripKm} km Kilometerpauschale`,
+      qty: 1,
+      unitPrice: kmAmount,
+      lineTotal: kmAmount,
     });
+  }
 
-    // 4) Kleinmaterial (real price from DB)
-    if (kleinPrice > 0) {
-      out.push({
-        key: 'km02',
-        label: `- ${qtyStr} Stk Kleinmaterial`,
-        qty: doorQty,
-        unitPrice: kleinPrice,
-        lineTotal: round2(kleinPrice * doorQty),
-      });
-    }
-
+  // If no door selected (qty 0 or no type), skip Lieferkosten / Tür / Kleinmaterial
+  if (!hasDoor) {
     return out;
   }
+
+  const qtyStr = doorQty.toFixed(2).replace(/\.00$/, '');
+
+  // fetch unit prices for Lieferkosten + Kleinmaterial
+  const ids = ['140322', 'KM02'];
+  const map = await getProductsByIds(ids);
+
+  const lieferPrice = Number(map.get('140322')?.price || 0);
+  const kleinPrice  = Number(map.get('KM02')?.price || 0);
+
+  // 2) Lieferkosten Badewannentür (real price from DB)
+  if (lieferPrice > 0) {
+    out.push({
+      key: '140322',
+      label: `- ${qtyStr} Stk Lieferkosten Badewannentür`,
+      qty: doorQty,
+      unitPrice: lieferPrice,
+      lineTotal: round2(lieferPrice * doorQty),
+    });
+  }
+
+  // 3) Universal / Standard Tür (price forced to 0 here – already counted in materials)
+  out.push({
+    key: '',
+    label: `- ${qtyStr} Stk Universal / Standard Tür`,
+    qty: doorQty,
+    unitPrice: 0,
+    lineTotal: 0,
+  });
+
+  // 4) Kleinmaterial (real price from DB)
+  if (kleinPrice > 0) {
+    out.push({
+      key: 'km02',
+      label: `- ${qtyStr} Stk Kleinmaterial`,
+      qty: doorQty,
+      unitPrice: kleinPrice,
+      lineTotal: round2(kleinPrice * doorQty),
+    });
+  }
+
+  return out;
+}
+
 
 
   return {
