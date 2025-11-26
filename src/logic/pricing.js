@@ -735,6 +735,8 @@ const reise_ampunt_zeit = round2(billed_reise_zeit* bwt_reise_Rate * bwt_handwer
 
 const bwt_reise_amount = reise_ampunt_zeit + kmAmount ;
  
+console.log("reise_hours_numeric ", reise_hours_numeric);
+console.log("billed_reise_zeit ", billed_reise_zeit);
 console.log("reise_ampunt_zeit ", reise_ampunt_zeit);
 console.log("kmAmount ", kmAmount);
 
@@ -1188,7 +1190,8 @@ const selfPayAmount = round2(Math.max(0, Number(total) - Number(subsidyAmount_ma
 
        // BWT-only helper for "Enthält je Einheit"
         bwtIncludedDisplayUI,
-          
+
+      // BU we show in the angebote this amount instead of pure material 
        material_plus_aufschlag,
       };
     }

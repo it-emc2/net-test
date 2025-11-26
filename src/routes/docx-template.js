@@ -783,11 +783,14 @@ if (grabLabelsUnique.length === 1) {
     const EnthKmQty   = formatPlain(roundTripKm);
     const doorQtyPlain = formatPlain(doorLine.qty);
 
+    // "Summe Leistungen" from pricing.js
+const serviceSum = Number(services?.sum || 0) || 0;
    BwtRows.push({
       Pos: '001',
       Menge: formatQty(doorLine.qty),
-      Einheitspreis: fmtCurrency(doorLine.unitPrice || 0),
-      Gesamt: fmtCurrency(doorLine.lineTotal || 0),
+        // add Summe Leistungen to both unit price and total to the door price
+    Einheitspreis: fmtCurrency((doorLine.unitPrice || 0) + serviceSum),
+    Gesamt:       fmtCurrency((doorLine.lineTotal || 0) + serviceSum),
 
       Title: 'Liefern und Montieren einer Badewannentür',
       Bullet1:
@@ -797,7 +800,7 @@ if (grabLabelsUnique.length === 1) {
       Bullet4: 'inkl. Bereitstellung Maschinen / Werkzeug',
       Bullet5: 'inkl. Vorhaltung und Beräumung der Baustelle',
       Bullet6: 'inkl. Lieferkosten',
-      
+
   // Bullet7 only if at least one Haltegriff gewählt ist
   HasBullet7: !!bullet7Text,
   Bullet7: bullet7Text,

@@ -963,7 +963,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const reiseOneH  = hhmmToHours(travelEl?.value || "0:00");
 
     // Daily cap after travel (10h/day total − 2× one-way travel)
-    const capPerDayH = 10 - (2 * reiseOneH);
+    const capPerDayH = 9.75 - (2 * reiseOneH);
 
     let days = 0;
     let totalH = 0;
@@ -990,7 +990,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const totalHHMM = hoursToHHMM(totalH);
       const daysHTML  = ` • Arbeitstage: <strong>${days}</strong>`;
       const warnHTML  = infeasible
-        ? ` <span style="color:var(--danger)">&nbsp;⚠️ Reisezeit zu lang für 10:00 h/Tag – bitte Zeiten prüfen.</span>`
+        ? ` <span style="color:var(--danger)">&nbsp;⚠️ Reisezeit zu lang für 09:45 h/Tag – bitte Zeiten prüfen.</span>`
         : "";
       outEl.innerHTML = `Gesamtzeit (Arbeit + Fahrt): <strong>${totalHHMM}</strong>${daysHTML}${warnHTML}`;
     }
