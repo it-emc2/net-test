@@ -740,63 +740,93 @@ if (offerKey === 'bwt') {
   };
 
   const doorLine = findLine('1226');      // Universal/Standard Tür
-  const grabLine = findLine('CLPESG40');  // Haltegriff
+  //  collect all Haltegriff lines (40 / 60 / 80 cm)
+   const grabIds = ['CLPESG40', 'CLPESG60', 'CLPESG80'];
+  const grabLines = docxLines.filter(l =>
+    grabIds.includes(String(l.productId || l.id || '').trim())
+  );
+// Map productId -> human name
+const grabLabelMap = {
+  CLPESG40: 'Haltegriff 40 cm',
+  CLPESG60: 'Haltegriff 60 cm',
+  CLPESG80: 'Haltegriff 80 cm',
+};
 
+// Build a unique list of names for the selected grab bars
+const grabLabelsUnique = [
+  ...new Set(
+    grabLines.map((l) => {
+      const id = String(l.productId || l.id || '').trim();
+      return grabLabelMap[id] || '';
+    })
+  ),
+].filter(Boolean);
+
+// Build the actual Bullet7 text
+let bullet7Text = '';
+if (grabLabelsUnique.length === 1) {
+  // e.g. "Montage Haltegriff 40 cm"
+  bullet7Text = `Montage ${grabLabelsUnique[0]}`;
+} else if (grabLabelsUnique.length > 1) {
+  // e.g. "Montage Haltegriffe (40 cm, 60 cm)"
+  const sizes = grabLabelsUnique.map((t) => t.replace('Haltegriff ', '')); // "40 cm"
+  bullet7Text = `Montage Haltegriffe (${sizes.join(', ')})`;
+}
+
+
+  const hasAnyGrab = grabLines.length > 0;
+
+  
   // --- Tür row (Pos 001) ---
   if (doorLine) {
-    // distance from pricing (round-trip km)
     const roundTripKm = Number(services?.distanceKm || 0);
-    console.log( "roundTripKm ", roundTripKm);
-    const EnthKmQty = formatPlain(roundTripKm);
-    console.log( "EnthKmQty ", EnthKmQty);
-
-    // door qty for the three material lines
+    const EnthKmQty   = formatPlain(roundTripKm);
     const doorQtyPlain = formatPlain(doorLine.qty);
 
    BwtRows.push({
-  Pos: '001',
-  Menge: formatQty(doorLine.qty),
-  Einheitspreis: fmtCurrency(doorLine.unitPrice || 0),
-  Gesamt: fmtCurrency(doorLine.lineTotal || 0),
+      Pos: '001',
+      Menge: formatQty(doorLine.qty),
+      Einheitspreis: fmtCurrency(doorLine.unitPrice || 0),
+      Gesamt: fmtCurrency(doorLine.lineTotal || 0),
 
-  // Bezeichnung block
-  Title: 'Liefern und Montieren einer Badewannentür',
-  Bullet1:
-    'Liefern und Montieren einer Badewannentür (Universal/Standard) Höhe 40 cm, Breite 40,5 cm',
-  Bullet2: 'inkl. dazugehörige Materialien',
-  Bullet3: 'inkl. An- & Abfahrten / Dieselzuschlag',
-  Bullet4: 'inkl. Bereitstellung Maschinen / Werkzeug',
-  Bullet5: 'inkl. Vorhaltung und Beräumung der Baustelle',
-  Bullet6: 'inkl. Lieferkosten',
+      Title: 'Liefern und Montieren einer Badewannentür',
+      Bullet1:
+        'Liefern und Montieren einer Badewannentür (Universal/Standard) Höhe 40 cm, Breite 40,5 cm',
+      Bullet2: 'inkl. dazugehörige Materialien',
+      Bullet3: 'inkl. An- & Abfahrten / Dieselzuschlag',
+      Bullet4: 'inkl. Bereitstellung Maschinen / Werkzeug',
+      Bullet5: 'inkl. Vorhaltung und Beräumung der Baustelle',
+      Bullet6: 'inkl. Lieferkosten',
+      
+  // Bullet7 only if at least one Haltegriff gewählt ist
+  HasBullet7: !!bullet7Text,
+  Bullet7: bullet7Text,
 
-  // Bullet7 only if Haltegriff gewählt ist
-  HasBullet7: !!grabLine,
-  Bullet7: 'Montage Haltegriff 40 cm',
-
-  // Enthält je Einheit
-  EnthKmQty,
-  EnthDeliverQty: doorQtyPlain,
-  EnthDoorQty: doorQtyPlain,
-  EnthKleinQty: doorQtyPlain,
-});
-
+      EnthKmQty,
+      EnthDeliverQty: doorQtyPlain,
+      EnthDoorQty: doorQtyPlain,
+      EnthKleinQty: doorQtyPlain,
+    });
   }
 
-  // --- Haltegriff row (Pos 002 oder 001) ---
-  if (grabLine) {
-    const pos = doorLine ? '002' : '001';
+  // --- Haltegriff rows (Pos 002, 003, ... or 001, 002, ... if no door) ---
+  if (grabLines.length) {
+    grabLines.forEach((line, idx) => {
+      const posNumber = doorLine ? 2 + idx : 1 + idx;
+      const pos = String(posNumber).padStart(3, '0');
 
-    const rawText = String(grabLine.label || grabLine.name || '').trim();
-    let cleanLabel = rawText.replace(/^-+\s*/, ''); // "- 1 Stk ..." -> "1 Stk ..."
-    cleanLabel = cleanLabel.replace(/^\d+[.,]?\d*\s*Stk\s*/i, ''); // "1 Stk Haltegriff..." -> "Haltegriff..."
-    cleanLabel = cleanLabel.trim();
+      const rawText = String(line.label || line.name || '').trim();
+      let cleanLabel = rawText.replace(/^-+\s*/, '');
+      cleanLabel = cleanLabel.replace(/^\d+[.,]?\d*\s*Stk\s*/i, '');
+      cleanLabel = cleanLabel.trim();
 
-    BwtGrabRows.push({
-      Pos: pos,
-      Menge: formatQty(grabLine.qty),
-      Text: cleanLabel,
-      Einheitspreis: fmtCurrency(grabLine.unitPrice || 0),
-      Gesamt: fmtCurrency(grabLine.lineTotal || 0),
+      BwtGrabRows.push({
+        Pos: pos,
+        Menge: formatQty(line.qty),
+        Text: cleanLabel,
+        Einheitspreis: fmtCurrency(line.unitPrice || 0),
+        Gesamt: fmtCurrency(line.lineTotal || 0),
+      });
     });
   }
 }
