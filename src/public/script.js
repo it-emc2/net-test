@@ -5570,17 +5570,374 @@ function restoreBwt(bwt) {
   });
 }
 
-// Call this with the full document returned by GET /api/offers/:offerNumber
+
+// ---- RESTORE HELPERS PER PAGE ----
+
+// Kundendaten / Kunde
+function restoreKundendaten(k, offer) {
+  if (!k) return;
+
+   setRadio('salutation', k.salutation);
+  setByNameOrId('date', k.date);
+  setByNameOrId('firstName', k.firstName);
+  setByNameOrId('lastName', k.lastName);
+  setByNameOrId('phone', k.phone);
+  setByNameOrId('email', k.email);
+  setByNameOrId('street', k.street);
+  setByNameOrId('city', k.city);
+  setByNameOrId('state', k.state);
+  setByNameOrId('postalCode', k.postalCode);
+  setByNameOrId('deployment', k.deployment);
+  setByNameOrId('customerNumber', k.customerNumber);
+  setSelect('customerType', k.customerType);
+
+  // contact person
+  setRadio('hasContactPerson', k.hasContactPerson);
+  setByNameOrId('cp_name', k.cp_name);
+  setByNameOrId('cp_phone', k.cp_phone);
+  setByNameOrId('cp_street', k.cp_street);
+  setByNameOrId('cp_city', k.cp_city);
+  setByNameOrId('cp_state', k.cp_state);
+  setByNameOrId('cp_postalCode', k.cp_postalCode);
+
+  // internals (+ budget)
+  setByNameOrId('emc2_contact', k.emc2_contact);
+  setByNameOrId('bitrixContactId', k.bitrixContactId);
+  setRadio('payer', k.payer);
+  if (typeof restoreBudgetPanel === 'function') restoreBudgetPanel(k);
+  setRadio('aufschlag', k.aufschlag);
+
+  // Pflegegrad + Wohnumfeld
+  setRadio('hasPflegegrad', k.hasPflegegrad);
+  if (k.pflegegrad) setRadio('pflegegrad', String(k.pflegegrad));
+  if (typeof restorePflegegradAndWohnumfeld === 'function') {
+    restorePflegegradAndWohnumfeld(k);
+  }
+
+  setNumber('copayAmount', k.copayAmount);
+}
+
+// Arbeitszeit / Distanz
+function restoreArbeitszeit(aw) {
+  if (!aw) return;
+  setNumber('distanceKm', aw.distanceKm);
+  setByNameOrId('travelTime', aw.travelTimeHHMM);
+  setByNameOrId('laborHours', aw.laborHoursHHMM);
+}
+
+// Duschwanne
+function restoreDuschwanne(dw) {
+  if (!dw) return;
+
+  // numeric inputs (quiet during restore)
+  setByNameOrId('tray_w_cm', dw.tray_w_cm);
+  setByNameOrId('tray_l_cm', dw.tray_l_cm);
+  setByNameOrId('tray_h_cm', dw.tray_h_cm);
+
+  // hidden traySize
+  setHiddenById('traySize', dw.traySize);
+
+  // color etc.
+  setByNameOrId('trayColor', dw.trayColor);
+
+  // toggles
+  setCheckbox('ebenerdigeToggle', !!dw.ebenerdigeMontage);
+  setCheckbox('abdichtSet',   !!dw.abdichtSet);
+  setCheckbox('drainSet',     !!dw.drainSet);
+  setCheckbox('smallMaterial',!!dw.smallMaterial);
+  setCheckbox('stelzlager',   !!dw.stelzlager);
+
+  setHiddenById('chosenTrayProductId', dw.chosenTrayProductId);
+  setNumber('floorArea', dw.floorArea);
+
+  // work tasks
+  if (typeof restoreWorkTasks === 'function') {
+    restoreWorkTasks(dw);
+  }
+  if (typeof window.restoreDWExtraTasksFromPayload === 'function') {
+    window.restoreDWExtraTasksFromPayload(dw);
+  }
+  if (typeof restoreTraySelection === 'function') {
+    restoreTraySelection(dw);
+  }
+
+  if ('addFlooring' in dw) {
+    setCheckbox('addFlooring', !!dw.addFlooring);
+  }
+
+  // flooring color from payload
+  (function restoreFloorColorFromPayload(innerDw) {
+    if (!innerDw) return;
+    const form = document.getElementById('form-duschwanne');
+    if (!form) return;
+
+    let vals = [];
+
+    if (Array.isArray(innerDw.flooringProduct)) {
+      vals = innerDw.flooringProduct.slice();
+    } else if (typeof innerDw.flooringProduct === 'string' && innerDw.flooringProduct) {
+      vals = [innerDw.flooringProduct];
+    } else if (Array.isArray(innerDw['flooringProduct[]'])) {
+      vals = innerDw['flooringProduct[]'].slice();
+    } else if (typeof innerDw['flooringProduct[]'] === 'string' && innerDw['flooringProduct[]']) {
+      vals = [innerDw['flooringProduct[]']];
+    } else if (innerDw.computed && Array.isArray(innerDw.computed.flooringProduct)) {
+      vals = innerDw.computed.flooringProduct.slice();
+    }
+
+    if (!vals.length) return;
+
+    const target = String(vals[0] || '');
+    if (!target) return;
+
+    const inputs = Array.from(
+      form.querySelectorAll('input[name="flooringProduct[]"]')
+    );
+    if (!inputs.length) return;
+
+    inputs.forEach(cb => {
+      cb.checked = (cb.value === target);
+      if (typeof highlightTileForInput === 'function') {
+        highlightTileForInput(cb, cb.checked);
+      }
+    });
+
+    if (typeof syncColorWithAreaDW === 'function') {
+      syncColorWithAreaDW();
+    }
+  })(dw);
+
+  if (typeof restoreTrinnityFloorSealing === 'function') {
+    restoreTrinnityFloorSealing(dw);
+  }
+
+  // persist SmartTray selection in storage
+  try {
+    const pid = dw.chosenTrayProductId || '';
+    const label = dw.traySize || '';
+    if (pid) {
+      localStorage.setItem('dw_tray_selection', JSON.stringify({ productId: pid, value: label }));
+      sessionStorage.setItem('dw_tray_touched', '1');
+    }
+  } catch {}
+}
+
+// BWT – you already have this; keep your current implementation
+// function restoreBwt(bwt) { ... }
+
+// Optional
+function restoreOptionalPage(opt) {
+  if (!opt) return;
+
+  // qty_* fields
+  for (const [k, v] of Object.entries(opt)) {
+    if (k.startsWith('qty_')) {
+      setByNameOrId(k, v);
+    }
+  }
+
+  // existing granular restore
+  restoreOptional(opt);
+
+  // Sonderprodukte (quickAdd)
+  if (Array.isArray(opt.quickAdd)) {
+    const panel =
+      document.getElementById('optSonderPanel') ||
+      document.getElementById('opt-sonder');
+
+    if (panel) {
+      const rowsContainer = panel.querySelector('.da-items') || panel;
+      let rows = Array.from(rowsContainer.querySelectorAll('.da-item'));
+
+      if (!rows.length) {
+        const tpl = document.getElementById('opt-item-template');
+        if (tpl && tpl.content && tpl.content.firstElementChild) {
+          const node = tpl.content.firstElementChild.cloneNode(true);
+          node.classList.add('da-item');
+          rowsContainer.appendChild(node);
+          rows = [node];
+        }
+      }
+
+      if (rows.length) {
+        const tplRow = rows[0];
+        const items = opt.quickAdd;
+
+        while (rows.length > items.length && rows.length > 1) {
+          const last = rows.pop();
+          if (last) last.remove();
+        }
+
+        while (rows.length < items.length) {
+          const clone = tplRow.cloneNode(true);
+          rowsContainer.appendChild(clone);
+          rows.push(clone);
+        }
+
+        rows.forEach((row, index) => {
+          const data = items[index] || {};
+          const nameEl  = row.querySelector('.opt-name');
+          const idEl    = row.querySelector('.opt-id');
+          const qtyEl   = row.querySelector('.opt-qty');
+          const priceEl = row.querySelector('.opt-price');
+
+          const label = data.label ?? '';
+          const pid   = data.productId ?? '';
+          const qty   = data.qty ?? '';
+          let price   = data.price ?? '';
+
+          if (typeof price === 'number') {
+            price = String(price).replace('.', ',');
+          } else if (price !== '') {
+            price = String(price);
+          } else {
+            price = '';
+          }
+
+          if (nameEl)  nameEl.value  = label;
+          if (idEl)    idEl.value    = pid;
+          if (qtyEl)   qtyEl.value   = qty !== '' ? String(qty) : '';
+          if (priceEl) priceEl.value = price;
+        });
+      }
+    }
+  }
+
+  // ensure parent categories ON if kids selected
+  (function ensureOptionalParentsSelected(innerOpt) {
+    if (!innerOpt) return;
+    const map = {
+      cat_SHOWER:    ['opt_V22WS1R','opt_TEMPDSU250','opt_V22BG903R','opt_DEDS2503E'],
+      cat_THERMO:    ['opt_CLTB','opt_DEPTB','opt_CLB'],
+      cat_GRAB:      ['opt_CLPESG40','opt_CLPESG60','opt_CLPESG80'],
+      cat_FOLD:      ['opt_DEPSKG60','opt_DEPSKG85'],
+      cat_SEAT:      ['opt_DEPKS', 'opt_CLPESDH', 'opt_78090000'],
+      cat_BASIN:     ['opt_CL60'],
+      cat_BASIN_TAP: ['opt_CL_BASIN','opt_DEPOH'],
+      cat_METER:     ['opt_TECEADS'],
+    };
+    Object.entries(map).forEach(([parentId, kids]) => {
+      const anyKidChecked = kids.some(id => {
+        const el = document.getElementById(id);
+        return !!(el && el.checked);
+      });
+      if (anyKidChecked) {
+        const parent = document.getElementById(parentId);
+        if (parent && !parent.checked) {
+          parent.checked = true;
+        }
+      }
+    });
+
+    if (Array.isArray(innerOpt.quickAdd) && innerOpt.quickAdd.length > 0) {
+      const sonder = document.getElementById('cat_SONDER');
+      if (sonder && !sonder.checked) {
+        sonder.checked = true;
+      }
+    }
+  })(opt);
+}
+
+// Duschabtrennung quick-add (you already have logic inside restoreConfiguratorFromOffer;
+// wrap it into a function so we can call it from the router)
+function restoreDuschabtrennung(da) {
+  if (!da || !Array.isArray(da.quickAdd)) return;
+
+  const rows = da.quickAdd;
+  const byKind = {};
+  rows.forEach(r => {
+    const k = r?.kind || 'quick';
+    if (!byKind[k]) byKind[k] = [];
+    byKind[k].push(r);
+  });
+
+  const root = document.getElementById('page-duschabtrennung') || document;
+
+  root.querySelectorAll('fieldset.da-row[data-kind]').forEach(fs => {
+    const kind = fs.dataset.kind;
+    const list = byKind[kind] || [];
+    const wrap = fs.querySelector('.da-items');
+    if (!wrap) return;
+    const first = wrap.querySelector('.da-item');
+    if (!first) return;
+
+    wrap.querySelectorAll('.da-item:not(:first-child)').forEach(n => n.remove());
+
+    const fillRow = (item, row) => {
+      const idEl    = item.querySelector('.da-id');
+      const priceEl = item.querySelector('.da-price');
+      const qtyEl   = item.querySelector('.da-qty');
+      const nameEl  = item.querySelector('.da-name');
+
+      if (idEl)    idEl.value    = row?.productId || '';
+      if (priceEl) priceEl.value = row?.price != null
+        ? String(row.price).replace('.', ',')
+        : (row?.priceRaw || '');
+      if (qtyEl)   qtyEl.value   = row?.qty != null ? String(row.qty) : '';
+      if (nameEl)  nameEl.value  = row?.label || row?.name || '';
+    };
+
+    if (list.length) {
+      fillRow(first, list[0]);
+
+      for (let i = 1; i < list.length; i++) {
+        let item = typeof window.addRow === 'function'
+          ? window.addRow(kind, fs, false)
+          : null;
+
+        if (!item) {
+          item = first.cloneNode(true);
+          wrap.appendChild(item);
+        }
+
+        fillRow(item, list[i]);
+      }
+    } else {
+      [first.querySelector('.da-id'),
+       first.querySelector('.da-price'),
+       first.querySelector('.da-qty'),
+       first.querySelector('.da-name'),
+      ].forEach(el => { if (el) el.value = ''; });
+    }
+  });
+}
+
+// ---- PAGE → RESTORE HANDLER MAP ----
+
+const RESTORE_HANDLERS = {
+  Kundendaten: (p, ctx) => restoreKundendaten(p?.Kundendaten, ctx.offer),
+  Arbeitszeit: (p, ctx) => restoreArbeitszeit(p?.Arbeitszeit),
+
+  Duschwanne: (p, ctx) => restoreDuschwanne(p?.duschwanne),
+
+  Wandverkleidung: (p, ctx) =>
+    typeof restoreWV === 'function' && restoreWV(p?.wandverkleidung),
+
+  Duschabtrennung: (p, ctx) =>
+    restoreDuschabtrennung(p?.duschabtrennung),
+
+  Optional: (p, ctx) => restoreOptionalPage(p?.optional),
+
+  Rabatt: (p, ctx) =>
+    typeof restoreRabatt === 'function' && restoreRabatt(p?.rabatt),
+
+  bwt: (p, ctx) =>
+    typeof restoreBwt === 'function' && restoreBwt(p?.bwt),
+
+  hl: (p, ctx) =>
+    typeof restoreHl === 'function' && restoreHl(p?.hl),
+
+  ah: (p, ctx) =>
+    typeof restoreAh === 'function' && restoreAh(p?.ah),
+};
+
 async function restoreConfiguratorFromOffer(doc) {
-  // guard (support both spellings in case other code checks one of them)
   window.__restoring = true;
   window.__RESTORING__ = true;
 
-  // we'll need these after the try/finally as well
   let offer = null;
   let p = null;
 
-  // local safe dispatcher (no events while restoring)
   const dispatchChange = (el) => {
     if (!el) return;
     if (window.__restoring || window.__RESTORING__) return;
@@ -5588,413 +5945,52 @@ async function restoreConfiguratorFromOffer(doc) {
   };
 
   try {
-    offer = doc?.offer || doc; // accept either shape
+    offer = doc?.offer || doc;
     p = offer?.payload;
     if (!p) return;
 
-      // Normalize offer type from the document / payload itself
+    // normalize offerType
     const rawOfferType =
       doc?.offerType ||
       offer?.offerType ||
       p?.activeOffer ||
       p?.offerType ||
-      null;
+      'bu';
 
-    const offerType = rawOfferType
-      ? String(rawOfferType).trim().toLowerCase()
-      : null;
+    const offerType = String(rawOfferType).trim().toLowerCase();
 
-    // ---- Kundendaten / Kunde ----
-    setSelect('salutation', p?.Kundendaten?.salutation);
-    setByNameOrId('date', p?.Kundendaten?.date);
-    setByNameOrId('firstName', p?.Kundendaten?.firstName);
-    setByNameOrId('lastName', p?.Kundendaten?.lastName);
-    setByNameOrId('phone', p?.Kundendaten?.phone);
-    setByNameOrId('email', p?.Kundendaten?.email);
-    setByNameOrId('street', p?.Kundendaten?.street);
-    setByNameOrId('city', p?.Kundendaten?.city);
-    setByNameOrId('state', p?.Kundendaten?.state);
-    setByNameOrId('postalCode', p?.Kundendaten?.postalCode);
-    setByNameOrId('deployment', p?.Kundendaten?.deployment);
-    setByNameOrId('customerNumber', p?.Kundendaten?.customerNumber);
-    setSelect('customerType', p?.Kundendaten?.customerType);
+    // compute pages for this offer
+    const basePages = ['Kundendaten', 'Arbeitszeit']; // always restore these
+    const offerPages = (OFFERS[offerType] && OFFERS[offerType].pages) || [];
+    const pagesToRestore = Array.from(new Set([...basePages, ...offerPages]));
 
-    // contact person
-    setRadio('hasContactPerson', p?.Kundendaten?.hasContactPerson);
-    setByNameOrId('cp_name', p?.Kundendaten?.cp_name);
-    setByNameOrId('cp_phone', p?.Kundendaten?.cp_phone);
-    setByNameOrId('cp_street', p?.Kundendaten?.cp_street);
-    setByNameOrId('cp_city', p?.Kundendaten?.cp_city);
-    setByNameOrId('cp_state', p?.Kundendaten?.cp_state);
-    setByNameOrId('cp_postalCode', p?.Kundendaten?.cp_postalCode);
+    const ctx = { offerType, offer, doc };
 
-    // internals (+ budget)
-    setByNameOrId('emc2_contact', p?.Kundendaten?.emc2_contact);
-    setByNameOrId('bitrixContactId', p?.Kundendaten?.bitrixContactId);
-    setRadio('payer', p?.Kundendaten?.payer);
-    if (typeof restoreBudgetPanel === 'function') restoreBudgetPanel(p?.Kundendaten);
-    setRadio('aufschlag', p?.Kundendaten?.aufschlag);
-
-    // Distances & Times
-    const aw = p?.Arbeitszeit || {};
-    setNumber('distanceKm', p?.Arbeitszeit?.distanceKm);
-    setByNameOrId('travelTime', p?.Arbeitszeit?.travelTimeHHMM);   // "5:00"
-    setByNameOrId('laborHours', p?.Arbeitszeit?.laborHoursHHMM);   // "07:00"
-    
-
-    // Pflegegrad radios FIRST…
-    setRadio('hasPflegegrad', p?.Kundendaten?.hasPflegegrad);  // "Ja"/"Nein"
-    if (p?.Kundendaten?.pflegegrad) setRadio('pflegegrad', String(p.Kundendaten.pflegegrad));
-
-    // …then Wohnumfeld (depends on payer/PG visibility)
-    restorePflegegradAndWohnumfeld(p?.Kundendaten);
-
-    setNumber('copayAmount', p?.Kundendaten?.copayAmount);
-
-    // ---- Duschwanne ----
-// numeric inputs (quiet during restore)
-setByNameOrId('tray_w_cm', p?.duschwanne?.tray_w_cm);
-setByNameOrId('tray_l_cm', p?.duschwanne?.tray_l_cm);
-setByNameOrId('tray_h_cm', p?.duschwanne?.tray_h_cm);
-
-// IMPORTANT: do NOT touch the traySize RADIO group here (it shares the name).
-// Only fill the hidden text field by its ID so we don't fire defaults:
-setHiddenById('traySize', p?.duschwanne?.traySize);
-
-// Color is typically a radio/tile; keep as-is:
-setByNameOrId('trayColor', p?.duschwanne?.trayColor);
- // ebenerdige Montage toggle (checkbox)
- setCheckbox('ebenerdigeToggle', !!p?.duschwanne?.ebenerdigeMontage);
-
-// Restore the 4 dependency toggles as *checkboxes*, not selects:
- setCheckbox('abdichtSet',   !!p?.duschwanne?.abdichtSet);
-   setCheckbox('drainSet',     !!p?.duschwanne?.drainSet);
-   setCheckbox('smallMaterial',!!p?.duschwanne?.smallMaterial); // "Kleinmaterial"
-   setCheckbox('stelzlager',   !!p?.duschwanne?.stelzlager);
-
-  // keep hidden selection fields
-  setHiddenById('chosenTrayProductId', p?.duschwanne?.chosenTrayProductId);
-
-
-  setNumber('floorArea', p?.duschwanne?.floorArea);
-
-
-     // ---- BWT · Badewannentür ----
-    // Only restore BWT if this offer actually is BWT,
-    // OR if we clearly see BWT data in the payload as a fallback.
-    const hasBwtData = !!(p?.bwt && Object.keys(p.bwt).length);
-    if (offerType === 'bwt' || (!offerType && hasBwtData)) {
-      restoreBwt(p?.bwt);
-    }
-   
-  // work tasks → only set now; nudge after restore
-  restoreWorkTasks(p?.duschwanne);
-  // free-text extra tasks (Weitere auszuführende Arbeiten)
-if (typeof window.restoreDWExtraTasksFromPayload === 'function') {
-  window.restoreDWExtraTasksFromPayload(p?.duschwanne);
-}
-
-  // if you keep a helper for selection, ensure it ONLY sets hidden fields (see below)
-  restoreTraySelection(p?.duschwanne);
-
-
-    // optional flooring toggle/area
-    if ('addFlooring' in (p?.duschwanne || {})) {
-      setCheckbox('addFlooring', !!p.duschwanne.addFlooring);
-      // don't dispatch yet; we'll nudge once after restore
-    }
-
-
-    // restore flooring color selection from payload
-    (function restoreFloorColorFromPayload(dw) {
-      if (!dw) return;
-      const form = document.getElementById('form-duschwanne');
-      if (!form) return;
-
-      // collect possible stored values from different shapes
-      let vals = [];
-
-      if (Array.isArray(dw.flooringProduct)) {
-        vals = dw.flooringProduct.slice();
-      } else if (typeof dw.flooringProduct === 'string' && dw.flooringProduct) {
-        vals = [dw.flooringProduct];
-      } else if (Array.isArray(dw['flooringProduct[]'])) {
-        vals = dw['flooringProduct[]'].slice();
-      } else if (typeof dw['flooringProduct[]'] === 'string' && dw['flooringProduct[]']) {
-        vals = [dw['flooringProduct[]']];
-      } else if (dw.computed && Array.isArray(dw.computed.flooringProduct)) {
-        vals = dw.computed.flooringProduct.slice();
-      }
-
-      if (!vals.length) return;
-
-      // we only expect ONE color in UI, take the first
-      const target = String(vals[0] || '');
-      if (!target) return;
-
-      const inputs = Array.from(
-        form.querySelectorAll('input[name="flooringProduct[]"]')
-      );
-      if (!inputs.length) return;
-
-      inputs.forEach(cb => {
-        cb.checked = (cb.value === target);
-        if (typeof highlightTileForInput === 'function') {
-          highlightTileForInput(cb, cb.checked);
-        }
-      });
-
-      // keep area/color coupling logic happy (prevents Lava-Beige default)
-      if (typeof syncColorWithAreaDW === 'function') {
-        syncColorWithAreaDW();
-      }
-    })(p?.duschwanne);
-
-    // restore specific flooring tiles
-    restoreTrinnityFloorSealing(p?.duschwanne);
-
-
-    setByNameOrId('chosenTrayProductId', p?.duschwanne?.chosenTrayProductId);
-    // Persist selection so SmartTray can auto-check it on render
-  try {
-   const pid = p?.duschwanne?.chosenTrayProductId || '';
-    const label = p?.duschwanne?.traySize || '';
-    if (pid) {
-      localStorage.setItem('dw_tray_selection', JSON.stringify({ productId: pid, value: label }));
-     sessionStorage.setItem('dw_tray_touched', '1');
-    }
-  } catch {}
-
-
-    // ---- Wandverkleidung ----
-     if (p?.wandverkleidung?.wvKind) setRadio('wvKind', p.wandverkleidung.wvKind);
- if (p?.wandverkleidung?.wvColor) {
-   setRadio('wvColor', p.wandverkleidung.wvColor);
-   const pageWV = document.getElementById('page-wandverkleidung');
-   if (pageWV) pageWV.dataset.wvColorRestored = '1';
- }
-    setNumber('wvQty997', p?.wandverkleidung?.wvQty997);
-    setNumber('wvQty1497', p?.wandverkleidung?.wvQty1497);
-    setSelect('wvSealing', p?.wandverkleidung?.wvSealing);
-    setSelect('flechenkleber', p?.wandverkleidung?.flechenkleber);
-    setNumber('wvFlachenQty', p?.wandverkleidung?.wvFlachenQty);
-    setSelect('wvEndProfile', p?.wandverkleidung?.wvEndProfile);
-    setNumber('wvEndProfileQty', p?.wandverkleidung?.wvEndProfileQty);
-    setSelect('wvSilikon', p?.wandverkleidung?.wvSilikon);
-    setNumber('wvSilikonQty', p?.wandverkleidung?.wvSilikonQty);
-    setNumber('wvV3VQty', p?.wandverkleidung?.wvV3VQty);
-    setNumber('wvCornersCount', p?.wandverkleidung?.wvCornersCount);
-
-    restoreWV(p?.wandverkleidung);
-    try { typeof setupWandverkleidungPage === 'function' && setupWandverkleidungPage(); } catch {}
-
-    // ---- Hassmann quick add rows ----
-       // ---- Hassmann quick add rows (all sections) ----
-    if (Array.isArray(p?.duschabtrennung?.quickAdd)) {
-      const rows = p.duschabtrennung.quickAdd;
-
-      // group by kind: quick, custom, sonder, etc.
-      const byKind = {};
-      rows.forEach(r => {
-        const k = r?.kind || 'quick';
-        if (!byKind[k]) byKind[k] = [];
-        byKind[k].push(r);
-      });
-
-      const root = document.getElementById('page-duschabtrennung') || document;
-
-      root.querySelectorAll('fieldset.da-row[data-kind]').forEach(fs => {
-        const kind = fs.dataset.kind;
-        const list = byKind[kind] || [];
-        const wrap = fs.querySelector('.da-items');
-        if (!wrap) return;
-        const first = wrap.querySelector('.da-item');
-        if (!first) return;
-
-        // remove all but first
-        wrap.querySelectorAll('.da-item:not(:first-child)').forEach(n => n.remove());
-
-        const fillRow = (item, row) => {
-          const idEl    = item.querySelector('.da-id');
-          const priceEl = item.querySelector('.da-price');
-          const qtyEl   = item.querySelector('.da-qty');
-          const nameEl  = item.querySelector('.da-name'); // only exists for some kinds (e.g. custom)
-
-          if (idEl)    idEl.value    = row?.productId || '';
-          if (priceEl) priceEl.value = row?.price != null
-            ? String(row.price).replace('.', ',')
-            : (row?.priceRaw || '');
-          if (qtyEl)   qtyEl.value   = row?.qty != null ? String(row.qty) : '';
-          if (nameEl)  nameEl.value  = row?.label || row?.name || '';
-
-          // no dispatch during restore; pricing is recomputed later
-        };
-
-        if (list.length) {
-          // first row
-          fillRow(first, list[0]);
-
-          // more rows for this kind → use existing "+" logic
-          for (let i = 1; i < list.length; i++) {
-            let item = typeof window.addRow === 'function'
-              ? window.addRow(kind, fs, false)
-              : null;
-
-            if (!item) {
-              item = first.cloneNode(true);
-              wrap.appendChild(item);
-            }
-
-            fillRow(item, list[i]);
-          }
-        } else {
-          // no rows of this kind in payload → clear first row
-          [first.querySelector('.da-id'),
-           first.querySelector('.da-price'),
-           first.querySelector('.da-qty'),
-           first.querySelector('.da-name'),
-          ].forEach(el => { if (el) el.value = ''; });
-        }
-      });
-    }
-
-
- // ---- Optional block ----
-// Only restore quantity fields here; the checkboxes are restored in restoreOptional().
-if (p?.optional) {
-  for (const [k, v] of Object.entries(p.optional)) {
-    if (k.startsWith('qty_')) {
-      setByNameOrId(k, v);
-    }
-  }
-}
-restoreOptional(p?.optional);
-
-
-
-
-    // Optional → Sonderprodukte (Freier Posten quick-add)
-    if (Array.isArray(p?.optional?.quickAdd)) {
-      const panel =
-        document.getElementById('optSonderPanel') ||
-        document.getElementById('opt-sonder');
-
-      if (panel) {
-        const rowsContainer = panel.querySelector('.da-items') || panel;
-        let rows = Array.from(rowsContainer.querySelectorAll('.da-item'));
-
-        // Ensure we have at least one template row
-        if (!rows.length) {
-          const tpl = document.getElementById('opt-item-template');
-          if (tpl && tpl.content && tpl.content.firstElementChild) {
-            const node = tpl.content.firstElementChild.cloneNode(true);
-            node.classList.add('da-item');
-            rowsContainer.appendChild(node);
-            rows = [node];
-          }
-        }
-
-        if (rows.length) {
-          const tplRow = rows[0];
-          const items = p.optional.quickAdd;
-
-          // Remove extra rows if there are more rows than items
-          while (rows.length > items.length && rows.length > 1) {
-            const last = rows.pop();
-            if (last) last.remove();
-          }
-
-          // Add missing rows to match items.length
-          while (rows.length < items.length) {
-            const clone = tplRow.cloneNode(true);
-            rowsContainer.appendChild(clone);
-            rows.push(clone);
-          }
-
-          // Fill each row with payload data
-          rows.forEach((row, index) => {
-            const data = items[index] || {};
-            const nameEl  = row.querySelector('.opt-name');
-            const idEl    = row.querySelector('.opt-id');
-            const qtyEl   = row.querySelector('.opt-qty');
-            const priceEl = row.querySelector('.opt-price');
-
-            const label = data.label ?? '';
-            const pid   = data.productId ?? '';
-            const qty   = data.qty ?? '';
-            let price   = data.price ?? '';
-
-            if (typeof price === 'number') {
-              price = String(price).replace('.', ',');
-            } else if (price !== '') {
-              price = String(price);
-            } else {
-              price = '';
-            }
-
-            if (nameEl)  nameEl.value  = label;
-            if (idEl)    idEl.value    = pid;
-            if (qtyEl)   qtyEl.value   = qty !== '' ? String(qty) : '';
-            if (priceEl) priceEl.value = price;
-          });
-        }
+    // ---- per-page restore, driven by OFFERS[offerType].pages ----
+    for (const page of pagesToRestore) {
+      const handler = RESTORE_HANDLERS[page];
+      if (typeof handler === 'function') {
+        handler(p, ctx);
       }
     }
 
-       // ensure parent categories ON if any kid is selected
-    (function ensureOptionalParentsSelected(opt) {
-      if (!opt) return;
-      const map = {
-        cat_SHOWER:    ['opt_V22WS1R','opt_TEMPDSU250','opt_V22BG903R','opt_DEDS2503E'],
-        cat_THERMO:    ['opt_CLTB','opt_DEPTB','opt_CLB'],
-        cat_GRAB:      ['opt_CLPESG40','opt_CLPESG60','opt_CLPESG80'],
-        cat_FOLD:      ['opt_DEPSKG60','opt_DEPSKG85'],
-        cat_SEAT:      ['opt_DEPKS', 'opt_CLPESDH', 'opt_78090000'],
-        cat_BASIN:     ['opt_CL60'],
-        cat_BASIN_TAP: ['opt_CL_BASIN','opt_DEPOH'],
-        cat_METER:     ['opt_TECEADS'], 
-      };
-      Object.entries(map).forEach(([parentId, kids]) => {
-        const anyKidChecked = kids.some(id => {
-          const el = document.getElementById(id);
-          return !!(el && el.checked);
-        });
-        if (anyKidChecked) {
-          const parent = document.getElementById(parentId);
-          if (parent && !parent.checked) {
-            parent.checked = true;
-            // don't dispatch yet; we’ll nudge once after restore
-          }
-        }
-      });
+    // Rabatt page might not be in OFFERS.pages for some types; ensure it
+    if (!pagesToRestore.includes('Rabatt') && RESTORE_HANDLERS.Rabatt) {
+      RESTORE_HANDLERS.Rabatt(p, ctx);
+    }
 
-      // Sonderprodukte: if there is at least one Freier Posten (quickAdd),
-      // the parent cat_SONDER must be checked.
-      if (Array.isArray(opt.quickAdd) && opt.quickAdd.length > 0) {
-        const sonder = document.getElementById('cat_SONDER');
-        if (sonder && !sonder.checked) {
-          sonder.checked = true;
-          // change event will be dispatched in the post-restore nudge list
-        }
-      }
-    })(p?.optional);
-
-
-
-    restoreRabatt(p?.rabatt);
-
-    // Show the loaded offer number
+    // Show loaded offer number if present
     if (offer?.offerNumber) {
       const el = document.querySelector('#offerNumber');
       if (el) el.value = offer.offerNumber;
     }
+
   } finally {
-    // end restore guard
     window.__restoring = false;
     window.__RESTORING__ = false;
   }
 
-  // ===== POST-RESTORE NUDGES (single, ordered) =====
+  // ===== POST-RESTORE NUDGES =====
   const fire = (sel) => dispatchChange(document.querySelector(sel));
 
   // Kundendaten dependencies
@@ -6004,74 +6000,71 @@ restoreOptional(p?.optional);
   fire('input[name="pflegegrad"]:checked');
   fire('input[name="wohnumfeldDone"]:checked');
 
-   // Re-run the HH:MM → numeric mirrors so Reisezeit counts
- (() => {
-   const labor = document.getElementById('laborHours');
-   const travel = document.getElementById('travelTime');
-   // trigger the live listeners
-   labor?.dispatchEvent(new Event('input', { bubbles: true }));
-   travel?.dispatchEvent(new Event('input', { bubbles: true }));
-   // hard fallback if listeners are guarded:
-   if (typeof hhmmToHours === 'function') {
-     const L = hhmmToHours(labor?.value || '0:00');
-     const T1 = hhmmToHours(travel?.value || '0:00');
-     window.arbeit_hours_numeric = Math.max(0, L);
-     window.reise_hours_numeric  = Math.max(0, T1 * 2);
-     window.total_hours_numeric  = window.arbeit_hours_numeric + window.reise_hours_numeric;
-   }
- })();
+  // Re-run HH:MM → numeric mirrors
+  (() => {
+    const labor = document.getElementById('laborHours');
+    const travel = document.getElementById('travelTime');
+    labor?.dispatchEvent(new Event('input', { bubbles: true }));
+    travel?.dispatchEvent(new Event('input', { bubbles: true }));
+    if (typeof hhmmToHours === 'function') {
+      const L = hhmmToHours(labor?.value || '0:00');
+      const T1 = hhmmToHours(travel?.value || '0:00');
+      window.arbeit_hours_numeric = Math.max(0, L);
+      window.reise_hours_numeric  = Math.max(0, T1 * 2);
+      window.total_hours_numeric  = window.arbeit_hours_numeric + window.reise_hours_numeric;
+    }
+  })();
 
-   // Duschwanne dependencies
+  // Duschwanne dependencies
   fire('#addFlooring');
   document
     .querySelectorAll('#form-duschwanne input[name*="workTasks"]')
     .forEach(el => dispatchChange(el));
 
-  // Ensure suggestions render and auto-select the restored pick
   if (window.__smartTray && typeof window.__smartTray.fetchAndRender === 'function') {
     window.__smartTray.fetchAndRender();
   }
 
-
   // Wandverkleidung dependencies
   fire('input[name="wvKind"]:checked');
 
-// Optional parent categories
+  // Optional parents
   [
     '#cat_SHOWER', '#cat_THERMO', '#cat_GRAB', '#cat_FOLD',
     '#cat_SEAT',   '#cat_BASIN', '#cat_BASIN_TAP', '#cat_METER', '#cat_SONDER'
   ].forEach(id => dispatchChange(document.querySelector(id)));
 
-  // Optional child tiles (checked): ensure their qty-wrappers and rules are in sync
+  // Optional child tiles
   document
     .querySelectorAll('#form-optional input[type="checkbox"][id^="opt_"]:checked')
     .forEach(el => dispatchChange(el));
 
-
-  // ===== Deterministic recompute (twice to squash any stragglers) =====
+  // ===== Recompute pricing =====
   if (typeof window.updatePricing === 'function') {
     const pl = p || (typeof buildPayload === 'function' ? buildPayload() : null);
     await window.updatePricing(pl);
-    await window.updatePricing(pl); // belt & suspenders for Rabatt visibility
-    ensureTrinitySealingSelectedFromPayload(p?.duschwanne);
+    await window.updatePricing(pl);
 
+    if (typeof ensureTrinitySealingSelectedFromPayload === 'function') {
+      ensureTrinitySealingSelectedFromPayload(p?.duschwanne);
+    }
 
     if (typeof window.setPricingData === 'function' && window.__pricing) {
       window.setPricingData(window.__pricing);
       window.dispatchEvent(new CustomEvent('pricing:updated', { detail: window.__pricing }));
     }
-       // Make sure Rabatt/Kosten UIs are fully rendered with fresh data
+
     if (typeof window.refreshAllPanels === 'function') {
-     await window.refreshAllPanels();
+      await window.refreshAllPanels();
     }
 
-    // Final nudge for bonus controls that show/hide based on computed data
     document.getElementById('rb-bonus-300')
       ?.dispatchEvent(new Event('change', { bubbles: true }));
     document.getElementById('rb-bonus-grab')
       ?.dispatchEvent(new Event('change', { bubbles: true }));
   }
 }
+
 
 
 
