@@ -722,6 +722,23 @@ async function computeBwtIncludedLines(payload) {
   const kmRate = 0.35;
   const kmAmount = round2(billedKm * kmRate);
 
+
+
+   const reise_hours_numeric = Number( b.ReiseHoursNumeric ?? 0) || 0;
+
+
+// Reisezeit for bwt
+const bwt_reise_Rate = 35;
+const bwt_handwerkerCount = 2;
+const billed_reise_zeit = Math.max(0, reise_hours_numeric  - 2);
+const reise_ampunt_zeit = round2(billed_reise_zeit* bwt_reise_Rate * bwt_handwerkerCount);
+
+const bwt_reise_amount = reise_ampunt_zeit + kmAmount ;
+ 
+console.log("reise_ampunt_zeit ", reise_ampunt_zeit);
+console.log("kmAmount ", kmAmount);
+
+
   // door quantity: ONLY use real qty > 0, no fallback
   const rawDoorQty = Number(bwt?.bwtDoorStdQty || 0) || 0;
   const doorQty = rawDoorQty > 0 ? rawDoorQty : 0;
@@ -730,13 +747,13 @@ async function computeBwtIncludedLines(payload) {
   const out = [];
 
   // 1) Kilometerpauschale (already reduced to >200km)
-  if (kmAmount > 0) {
+  if (bwt_reise_amount> 0) {
     out.push({
       key: 'bwt_km',
-      label: `- ${roundTripKm} km Kilometerpauschale`,
+      label: `- ${roundTripKm} km Kilometerpauschale + Reisezeit`,
       qty: 1,
-      unitPrice: kmAmount,
-      lineTotal: kmAmount,
+      unitPrice: bwt_reise_amount,
+      lineTotal: bwt_reise_amount,
     });
   }
 
