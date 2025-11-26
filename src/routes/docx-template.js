@@ -534,6 +534,7 @@ function mapData(body = {}, computed = {}) {
     // Zuschuss/Selbstkosten from pricing.js
     subsidyAmount = 0,
     selfPayAmount = 0,
+    material_plus_aufschlag = 0,
   } = computed || {};
 // Prefer document-specific displays if present (fallback to raw)
 const mat = (computed?.materialsDisplayDocx?.lines || materials?.lines || []);
@@ -686,8 +687,12 @@ const ServiceTotal     = fmtCurrency(services?.sum || 0);
 
   // Materials block
   const MaterialsPosTitle = materials?.title || 'Material für Badumbau';
-  const MaterialsUnitPrice = fmtCurrency(materials?.sum || 0);
-  const MaterialsTotal = fmtCurrency(materials?.sum || 0);
+  const MaterialsUnitPrice = fmtCurrency(material_plus_aufschlag || 0);
+
+  //const MaterialsTotal = fmtCurrency(materials?.sum || 0);
+
+  const MaterialsTotal = fmtCurrency(material_plus_aufschlag || 0);
+
   // Materials block (lines for "Material für Badumbau")
 // Materials block
 const matForDoc = (computed.materialsDisplayDocx?.lines || computed.materials?.lines || []);

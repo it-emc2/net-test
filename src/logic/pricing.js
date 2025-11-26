@@ -1032,6 +1032,10 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
 
       // VAT is applied AFTER discount on net amount:
       const netAfterRabatt = round2((baseSubtotal|| 0) - rabattAmount);
+
+      //  show material + aufschlag in angebote file
+       const material_plus_aufschlag = netAfterRabatt - (services?.sum ?? 0);
+
       //const Vat_on_net_AfterDiscount = round2(netAfterDiscount * TAX_RATE);
       const totalAfterRabatt = round2(netAfterRabatt * (1+TAX_RATE));
 
@@ -1049,6 +1053,7 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
 
     
       const netAfterRabatt_and_Bonus = round2(Math.max(0, netAfterRabatt - bonusGross));
+    
 
 
 const vatOnNet = round2((netAfterRabatt_and_Bonus || 0) * TAX_RATE);
@@ -1159,7 +1164,7 @@ const selfPayAmount = round2(Math.max(0, Number(total) - Number(subsidyAmount_ma
        // BWT-only helper for "Enthält je Einheit"
         bwtIncludedDisplayUI,
           
-       
+       material_plus_aufschlag,
       };
     }
   };
