@@ -5812,7 +5812,7 @@ function restoreOptionalPage(opt) {
       cat_GRAB:      ['opt_CLPESG40','opt_CLPESG60','opt_CLPESG80'],
       cat_FOLD:      ['opt_DEPSKG60','opt_DEPSKG85'],
       cat_SEAT:      ['opt_DEPKS', 'opt_CLPESDH', 'opt_78090000'],
-      cat_BASIN:     ['opt_CL60'],
+      cat_BASIN:     ['opt_CL60', 'opt_CL65', 'opt_CL55'],
       cat_BASIN_TAP: ['opt_CL_BASIN','opt_DEPOH'],
       cat_METER:     ['opt_TECEADS'],
     };
@@ -6974,9 +6974,15 @@ function initBasinAutoAccessories() {
   const reqWrap = document.getElementById('basinRequiredWrap');
   if (!reqWrap) return;
 
-  // Main product
+  // Main products
   const cl60 = document.getElementById('opt_CL60');
-  const qCL  = document.getElementById('qty_CL60');
+  const qCL60 = document.getElementById('qty_CL60');
+
+  const cl65 = document.getElementById('opt_CL65');
+  const qCL65 = document.getElementById('qty_CL65');
+
+  const cl55 = document.getElementById('opt_CL55');
+  const qCL55 = document.getElementById('qty_CL55');
 
   // Required accessories
   const wtbf  = document.getElementById('opt_WTBF');
@@ -6987,23 +6993,33 @@ function initBasinAutoAccessories() {
   const qEV   = document.getElementById('qty_EV');
   const evLbl = document.querySelector('label[for="qty_EV"]');
 
-  if (!cl60 || !qCL || !wtbf || !qWT || !rsl || !qRSL || !ev || !qEV || !evLbl) return;
+  // CL60 + accessories must exist; CL65/CL55 may be absent in older HTML
+  if (!cl60 || !qCL60 || !wtbf || !qWT || !rsl || !qRSL || !ev || !qEV || !evLbl) return;
+
+  const basins = [
+    { key: 'cl60', cb: cl60, qtyInput: qCL60 },
+    { key: 'cl65', cb: cl65, qtyInput: qCL65 },
+    { key: 'cl55', cb: cl55, qtyInput: qCL55 },
+  ].filter(b => b.cb && b.qtyInput);
 
   // ---------- helpers ----------
-  const num = (v, d=0) => {
+  const num = (v, d = 0) => {
     const s = String(v ?? '').trim().replace(/\./g, '').replace(',', '.');
     const n = Number(s);
     return Number.isFinite(n) ? n : d;
   };
   const dispatch = (el) => {
+    if (!el) return;
     el.dispatchEvent(new Event('input',  { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   };
-  const show = (el, v=true) => {
+  const show = (el, v = true) => {
     if (!el) return;
     el.hidden = !v;
     el.setAttribute('aria-hidden', String(!v));
   };
+  const anyBasinChecked = () => basins.some(b => b.cb.checked);
+
   const updateEvPairsLabel = () => {
     const base = evLbl.dataset.baseLabel || evLbl.textContent.replace(/\s*\(.*\)\s*$/,'');
     evLbl.dataset.baseLabel = base;
@@ -7020,7 +7036,10 @@ function initBasinAutoAccessories() {
   };
   const saveState = () => {
     const s = {
-      cl60: { checked: !!cl60.checked, qty: num(qCL.value, 0) },
+      // each basin gets its own state
+      cl60: { checked: !!cl60.checked, qty: num(qCL60.value, 0) },
+      cl65: cl65 && qCL65 ? { checked: !!cl65.checked, qty: num(qCL65.value, 0) } : undefined,
+      cl55: cl55 && qCL55 ? { checked: !!cl55.checked, qty: num(qCL55.value, 0) } : undefined,
       wtbf: { checked: !!wtbf.checked, qty: num(qWT.value, 0) },
       rsl:  { checked: !!rsl.checked,  qty: num(qRSL.value, 0) },
       ev:   { checked: !!ev.checked,   qty: num(qEV.value, 0)  },
@@ -7030,58 +7049,94 @@ function initBasinAutoAccessories() {
   const applyState = (s) => {
     if (s.cl60) {
       cl60.checked = !!s.cl60.checked; dispatch(cl60);
-      if (Number.isFinite(s.cl60.qty)) { qCL.value = String(s.cl60.qty); dispatch(qCL); }
+      if (Number.isFinite(s.cl60.qty)) { qCL60.value = String(s.cl60.qty); dispatch(qCL60); }
     }
-    if (s.wtbf) { wtbf.checked = !!s.wtbf.checked; dispatch(wtbf);
-      if (Number.isFinite(s.wtbf.qty)) { qWT.value = String(s.wtbf.qty); dispatch(qWT); } }
-    if (s.rsl)  { rsl.checked  = !!s.rsl.checked;  dispatch(rsl);
-      if (Number.isFinite(s.rsl.qty))  { qRSL.value = String(s.rsl.qty);  dispatch(qRSL); } }
-    if (s.ev)   { ev.checked   = !!s.ev.checked;   dispatch(ev);
-      if (Number.isFinite(s.ev.qty))   { qEV.value = String(s.ev.qty);   dispatch(qEV);  } }
+    if (s.cl65 && cl65 && qCL65) {
+      cl65.checked = !!s.cl65.checked; dispatch(cl65);
+      if (Number.isFinite(s.cl65.qty)) { qCL65.value = String(s.cl65.qty); dispatch(qCL65); }
+    }
+    if (s.cl55 && cl55 && qCL55) {
+      cl55.checked = !!s.cl55.checked; dispatch(cl55);
+      if (Number.isFinite(s.cl55.qty)) { qCL55.value = String(s.cl55.qty); dispatch(qCL55); }
+    }
+    if (s.wtbf) {
+      wtbf.checked = !!s.wtbf.checked; dispatch(wtbf);
+      if (Number.isFinite(s.wtbf.qty)) { qWT.value = String(s.wtbf.qty); dispatch(qWT); }
+    }
+    if (s.rsl)  {
+      rsl.checked  = !!s.rsl.checked; dispatch(rsl);
+      if (Number.isFinite(s.rsl.qty)) { qRSL.value = String(s.rsl.qty); dispatch(qRSL); }
+    }
+    if (s.ev)   {
+      ev.checked   = !!s.ev.checked; dispatch(ev);
+      if (Number.isFinite(s.ev.qty)) { qEV.value = String(s.ev.qty); dispatch(qEV); }
+    }
     updateEvPairsLabel();
   };
 
-  // ---------- rule (apply ONLY on user CL60 change) ----------
-  const applyRuleFromCL = () => {
-    if (!cl60.checked) return;
-    let q = num(qCL.value, 1);
-    if (q < 1) { q = 1; qCL.value = '1'; dispatch(qCL); }
+  // ---------- rule: apply on user basin qty change ----------
+  const applyRuleFromBasins = () => {
+    if (!anyBasinChecked()) {
+      // no basin selected → just keep pairs label + save state
+      updateEvPairsLabel();
+      saveState();
+      return;
+    }
 
-    // Overwrite accessory quantities when CL60 qty changes (user action)
-    if (wtbf.checked) { qWT.value  = String(q);     dispatch(qWT);  }
-    if (rsl.checked)  { qRSL.value = String(q);     dispatch(qRSL); }
-    if (ev.checked)   { qEV.value  = String(q * 2); dispatch(qEV);  }
+    // sum of all selected basin quantities
+    let total = 0;
+    basins.forEach(({ cb, qtyInput }) => {
+      if (!cb.checked) return;
+      let q = num(qtyInput.value, 1);
+      if (q < 1) {
+        q = 1;
+        qtyInput.value = '1';
+        dispatch(qtyInput);
+      }
+      total += q;
+    });
+
+    // Overwrite accessory quantities when any basin qty changes (user action)
+    if (wtbf.checked) { qWT.value  = String(total);     dispatch(qWT);  }
+    if (rsl.checked)  { qRSL.value = String(total);     dispatch(qRSL); }
+    if (ev.checked)   { qEV.value  = String(total * 2); dispatch(qEV);  }
+
     updateEvPairsLabel();
     saveState();
   };
 
   // ---------- wire events ----------
-  // When CL60 is turned ON by the user: show required section, select accessories and set base values once
- cl60.addEventListener('change', (e) => {
-  if (cl60.checked) {
-    show(reqWrap, true);
+  // When any basin is turned ON by the user: show required section, select accessories and set base values once
+  basins.forEach(({ cb, qtyInput }) => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) {
+        show(reqWrap, true);
 
-    // Ensure required accessories are selected (quantities will be set by the rule)
-    if (!wtbf.checked) { wtbf.checked = true; dispatch(wtbf); }
-    if (!rsl.checked)  { rsl.checked  = true; dispatch(rsl);  }
-    if (!ev.checked)   { ev.checked   = true; dispatch(ev);   }
+        // Ensure required accessories are selected (quantities will be set by the rule)
+        if (!wtbf.checked) { wtbf.checked = true; dispatch(wtbf); }
+        if (!rsl.checked)  { rsl.checked  = true; dispatch(rsl);  }
+        if (!ev.checked)   { ev.checked   = true; dispatch(ev);   }
 
-    // Set CL60 to 1 if empty/invalid
-    if (!num(qCL.value)) { qCL.value = '1'; dispatch(qCL); }
+        // Set this basin to 1 if empty/invalid
+        if (!num(qtyInput.value)) {
+          qtyInput.value = '1';
+          dispatch(qtyInput);
+        }
 
-    // ⬇️ Apply the rule NOW so we land on 1 / 1 / 2 immediately
-    applyRuleFromCL();
+        // Apply the rule NOW so we land on correct WTBF/RSL/EV quantities immediately
+        applyRuleFromBasins();
+      } else {
+        // if this one is turned off, we still keep the section visible
+        // as long as any other basin is checked
+        show(reqWrap, anyBasinChecked());
+        saveState();
+      }
+    });
 
-    saveState();
-  } else {
-    saveState();
-  }
-});
-
-
-  // RULE TRIGGER: only when user changes CL60 quantity
-  qCL.addEventListener('input',  applyRuleFromCL);
-  qCL.addEventListener('change', applyRuleFromCL);
+    // RULE TRIGGER: when user changes this basin's quantity
+    qtyInput.addEventListener('input',  applyRuleFromBasins);
+    qtyInput.addEventListener('change', applyRuleFromBasins);
+  });
 
   // Any manual edits by the user should persist
   [qWT, qRSL, qEV].forEach(el => {
@@ -7096,22 +7151,29 @@ function initBasinAutoAccessories() {
   if (hasSaved) {
     // Restore exactly what the user had last time; don't run the rule.
     applyState(state);
-    show(reqWrap, !!cl60.checked); // keep required block visible if CL60 was selected
+    show(reqWrap, anyBasinChecked());
   } else {
-    // First-time defaults if CL60 already checked (e.g. server-side prefill)
-    if (cl60.checked) {
+    // First-time defaults if any basin already checked (e.g. server-side prefill)
+    if (anyBasinChecked()) {
       show(reqWrap, true);
-      // Select accessories & set base values, but still no rule until user changes qCL
+      // Select accessories & set base values, but still no rule until user changes qty
       if (!wtbf.checked) { wtbf.checked = true; dispatch(wtbf); }
       if (!rsl.checked)  { rsl.checked  = true; dispatch(rsl);  }
       if (!ev.checked)   { ev.checked   = true; dispatch(ev);   }
-      if (!num(qCL.value)) { qCL.value = '1'; dispatch(qCL); }
-      // set initial visible EV pairs label
+
+      basins.forEach(({ cb, qtyInput }) => {
+        if (cb.checked && !num(qtyInput.value)) {
+          qtyInput.value = '1';
+          dispatch(qtyInput);
+        }
+      });
+
       updateEvPairsLabel();
       saveState();
     }
   }
 }
+
 // === WV selection ↔ menge sync (minimal, non-invasive) ===
 (function () {
   const byId = (id) => document.getElementById(id);
@@ -7462,6 +7524,8 @@ function initOptionalMenus() {
 
   // ---- BASIN (main CL60 tile) ----
   wireTileQty("opt_CL60", "qty_CL60_wrap");
+  wireTileQty("opt_CL65", "qty_CL65_wrap");
+  wireTileQty("opt_CL55", "qty_CL55_wrap");
   // ---- METER ----
 wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
 
