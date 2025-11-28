@@ -11,6 +11,7 @@ const HassmannItemSchema = new Schema({
 
 const OfferSchema = new Schema({
   offerNumber: { type: String, unique: true, index: true, required: true },
+  offerType:   { type: String, index: true }, 
   createdAt:   { type: Date, default: Date.now },
   updatedAt:   { type: Date, default: Date.now },
 

@@ -10,18 +10,21 @@ const get = (obj, path, def = undefined) =>
 
 // Utility: derive fast-searchable customer fields
 function deriveCustomer(payload) {
+  const k = payload?.Kundendaten || {};
   const b = payload?.bereich || {};
+
   return {
-    salutation: b.salutation || b.Anrede || '',
-    firstName:  b.firstName  || b.Vorname || '',
-    lastName:   b.lastName   || b.Nachname || '',
-    customerNumber: b.customerNumber || '',
-    city:       b.city || b.Stadt || '',
-    postalCode: b.postalCode || b.PLZ || '',
-    phone:      b.phone || '',
-    email:      b.email || '',
+    salutation: k.salutation || b.salutation || b.Anrede || '',
+    firstName:  k.firstName  || b.firstName  || b.Vorname || '',
+    lastName:   k.lastName   || b.lastName   || b.Nachname || '',
+    customerNumber: k.customerNumber || b.customerNumber || '',
+    city:       k.city || b.city || b.Stadt || '',
+    postalCode: k.postalCode || b.postalCode || b.PLZ || '',
+    phone:      k.phone || b.phone || '',
+    email:      k.email || b.email || '',
   };
 }
+
 
 // Utility: derive hassmann quick add FROM payload only
 function deriveHassmannQuickAdd(payload) {
@@ -42,7 +45,7 @@ function deriveHassmannQuickAdd(payload) {
 // POST /api/offers  (create/replace a snapshot by offerNumber)
 router.post('/', async (req, res) => {
   try {
-    const { offerNumber, payload, pricing, pdfUrl } = req.body || {};
+    const { offerNumber, offerType, payload, pricing, pdfUrl } = req.body || {};
     if (!offerNumber || !payload || !pricing) {
       return res.status(400).json({ error: 'offerNumber, payload and pricing are required.' });
     }
@@ -50,15 +53,22 @@ router.post('/', async (req, res) => {
     const customer = deriveCustomer(payload);
     const hassmannQuickAdd = deriveHassmannQuickAdd(payload);
 
+    const effectiveOfferType =
+      offerType ||
+      payload.activeOffer ||
+      payload.offerType ||
+      'bu';
+
     const doc = await Offer.findOneAndUpdate(
       { offerNumber },
       {
         $set: {
           offerNumber,
+          offerType: effectiveOfferType,
           payload,
           pricing,
           customer,
-          hassmannQuickAdd,   // <- derived here
+          hassmannQuickAdd,
           pdfUrl: pdfUrl || null,
           updatedAt: new Date(),
         },
@@ -73,6 +83,7 @@ router.post('/', async (req, res) => {
     return res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 // GET /api/offers/:offerNumber (fetch snapshot)
 router.get('/:offerNumber', async (req, res) => {

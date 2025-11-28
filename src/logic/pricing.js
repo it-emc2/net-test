@@ -1028,11 +1028,11 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
           if (id === 'KM02') continue;
 
           // 2) if Haltegriff bonus is active, one CLPESG40 is free for markup purposes
-          if (id === 'CLPESG40' && flags?.bonus_Haltegriff === true) {
-            const effectiveQty = Math.max(qty - 1, 0);
-            if (effectiveQty > 0) markupBase += effectiveQty * unitPrice;
-            continue;
-          }
+          // if (id === 'CLPESG40' && flags?.bonus_Haltegriff === true) {
+            // const effectiveQty = Math.max(qty - 1, 0);
+            // if (effectiveQty > 0) markupBase += effectiveQty * unitPrice;
+            // continue;
+          // }
 
           // default: count full qty
           markupBase += qty * unitPrice;
@@ -1056,12 +1056,15 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
       // --- Rabatt on MATERIAL only (percent from payload.rabatt.materialDiscountPct) ---
       const materialPct = Number(payload?.rabatt?.materialDiscountPct || 0); // 0..0.09
       const rabattAmount = round2((productsSubtotal || 0) * materialPct);
+      console.log("rabattAmount ", rabattAmount)
+      console.log("productsSubtotal  ", productsSubtotal )
+      console.log("materialPct ", materialPct)
 
       // VAT is applied AFTER discount on net amount:
       const netAfterRabatt = round2((baseSubtotal|| 0) - rabattAmount);
 
       //  show material + aufschlag in angebote file
-       const material_plus_aufschlag = netAfterRabatt - (services?.sum ?? 0);
+       
 
       //const Vat_on_net_AfterDiscount = round2(netAfterDiscount * TAX_RATE);
       const totalAfterRabatt = round2(netAfterRabatt * (1+TAX_RATE));
@@ -1081,7 +1084,7 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
     
       const netAfterRabatt_and_Bonus = round2(Math.max(0, netAfterRabatt - bonusGross));
     
-
+const material_plus_aufschlag = netAfterRabatt_and_Bonus - (services?.sum ?? 0);
 
 const vatOnNet = round2((netAfterRabatt_and_Bonus || 0) * TAX_RATE);
       const total = round2((netAfterRabatt_and_Bonus|| 0) + vatOnNet);

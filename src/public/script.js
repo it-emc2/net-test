@@ -169,6 +169,10 @@ function getCurrentStepFromState() {
 // Completely reset wizard state and go to the home screen.
 // This is used when the user types "/#home" or "/" or explicitly navigates home.
 function goHomeWithoutOffer() {
+    if (window.__loadingOffer) {
+    console.log('[goHomeWithoutOffer] suppressed during offer load');
+    return;
+  }
   clearWizardState();
   currentOfferKey = null;
 
@@ -195,6 +199,14 @@ function goHomeWithoutOffer() {
 // - If there is saved offerType + step → restore that wizard.
 // - Any other weird hash without a saved offer → normalize to home.
 function handleBoot() {
+    if (window.__loadingOffer) {
+    console.log('[handleBoot] skipped during offer load');
+    return;
+  }
+ if (window.__loadingOffer) {
+    return;
+  }
+
   const state = loadWizardState();
   const hash = (location.hash || "").replace("#", "");
   const hasOffer = !!(state && state.offerType);
@@ -231,6 +243,12 @@ function handleBoot() {
 function handleHashChange() {
   if (isApplyingState) {
     // This event was triggered by applyWizardState -> ignore
+    return;
+  }
+
+  // ⬇️ NEW: do not fight programmatic navigation while an Angebot is loading
+  if (window.__loadingOffer) {
+    console.log('[handleHashChange] ignoring hashchange during offer load');
     return;
   }
 
@@ -1330,31 +1348,29 @@ function getCurrentStep() {
   return steps.includes(h) ? h : steps[0];
 }
 function setStep(step) {
+  console.log('[setStep] called with', step);
+  console.trace('[setStep] stack');
+
   const flowSteps = getFlowSteps();           // pages for the current offer (or all steps if none)
   const progressIndex = flowSteps.indexOf(step);
-
-  // Helper: decide if a given step should be marked as "done"
   function isDoneInFlow(s) {
-    // On home, nothing is done
     if (step === "home") return false;
-
-    // Treat "home" as the step before the first page (like before)
     if (s === "home") {
       return progressIndex >= 0;
     }
-
     const idx = flowSteps.indexOf(s);
     return progressIndex >= 0 && idx >= 0 && idx < progressIndex;
   }
 
-  // 1) Show/hide pages (same behavior as before)
+  // --- rest of your existing setStep stays exactly as it is ---
+  // 1) Show/hide pages
   steps.forEach((s) => {
     if (pages[s]) {
       pages[s].hidden = s !== step;
     }
   });
 
-  // 2) Top navigation ("Weg" oben)
+  // 2) Top navigation
   steps.forEach((s) => {
     const link = nav?.querySelector(`[data-step="${s}"]`);
     if (!link) return;
@@ -1366,7 +1382,7 @@ function setStep(step) {
     link.classList.toggle("done", isDone);
   });
 
-  // 3) Left sidebar (radio-style)
+  // 3) Left sidebar
   const sideLinks = sideMenu?.querySelectorAll(".side-link");
   sideLinks?.forEach((sideLink) => {
     const s = sideLink.dataset.step;
@@ -1377,14 +1393,12 @@ function setStep(step) {
     sideLink.classList.toggle("done", isDone);
   });
 
-  // 4) URL + summary + pricing refresh (unchanged)
+  // 4) URL + summary + pricing refresh
   location.hash = step;
   updateSummary();
 
   if (step === "rabatt" || step === "kosten") {
-    // small defer to let layout/classes switch
     setTimeout(() => window.updatePricing?.(), 0);
-    // Full panel refresh (pricing + paint)
     setTimeout(() => window.refreshAllPanels?.(), 0);
   }
 }
@@ -6066,66 +6080,107 @@ async function restoreConfiguratorFromOffer(doc) {
 }
 
 
+function setCurrentOfferType(offerType) {
+  const key = String(offerType || 'bu').trim().toLowerCase();
+  console.log('[setCurrentOfferType] key =', key);
 
+  const state = loadWizardState() || {};
+  state.offerType = key;
 
-document.getElementById('btnLoadOffer')?.addEventListener('click', async (ev) => {
-  const btn = ev.currentTarget;
+  const flowSteps = typeof getFlowSteps === 'function'
+    ? getFlowSteps()
+    : steps;
+
+  console.log('[setCurrentOfferType] flowSteps =', flowSteps);
+
+ state.step = (flowSteps && flowSteps.find(s => s !== 'home')) || 'home';
+
+  if (typeof saveWizardState === 'function') {
+    saveWizardState(state);
+  }
+
+  document.querySelectorAll('[data-offer-key]').forEach(tile => {
+    const tKey = String(tile.dataset.offerKey || '').trim().toLowerCase();
+    tile.classList.toggle('active', tKey === key);
+  });
+
+  console.log('[setCurrentOfferType] navigating to step', state.step);
+  setStep(state.step);
+}
+
+document.getElementById('btnLoadOffer')?.addEventListener('click', async () => {
   const input = document.getElementById('loadOfferNumber');
   const n = input?.value?.trim();
-
-  // Validate
   if (!n) {
-    toast.warn('Eingabe fehlt', 'Bitte Angebotsnummer eingeben.');
-    input?.focus();
+    alert('Bitte Angebotsnummer eingeben.');
     return;
   }
-  // (Optional) quick format hint: ANGYYYY-MMDD-HHmmss
-  // if (!/^ANG\d{4}-\d{4}-\d{6}$/.test(n)) {
-  //   toast.info('Format prüfen', 'Die Angebotsnummer wirkt ungewöhnlich.');
-  // }
-
-  // Loading state
-  const prev = btn?.textContent;
-  if (btn) { btn.disabled = true; btn.textContent = 'Lädt…'; }
 
   try {
-    const r = await fetch(`/api/offers/${encodeURIComponent(n)}`, { credentials: 'include' });
+    const res = await fetch(`/api/offers/${encodeURIComponent(n)}`, {
+      method: 'GET',
+      credentials: 'include',
+    });
 
-    if (r.status === 404) {
-      toast.error('Nicht gefunden', `Kein Angebot mit der Nummer <b>${n}</b> vorhanden.`);
-      input?.focus();
-      input?.select?.();
+    if (!res.ok) {
+      alert('Angebot wurde nicht gefunden.');
       return;
     }
 
-    // Other non-OK
-    if (!r.ok) {
-      let msg = '';
-      try { const j = await r.json(); msg = j?.error || ''; } catch {}
-      toast.error('Nicht gefunden', `Kein Angebot mit der Nummer <b>${n}</b> vorhanden.`, { withBackdrop: true });
+    const data = await res.json();
+    const doc = data.offer || data;
+    const offer = doc.offer || doc;
+    const payload = offer.payload || {};
 
-      return;
+    const rawOfferType =
+      offer.offerType ||
+      payload.activeOffer ||
+      payload.offerType ||
+      'bu';
+
+    const offerType = String(rawOfferType).trim().toLowerCase();
+
+    // 🔹 Decide which step to open for this offer
+    let pages = [];
+    if (typeof getPagesForOfferType === 'function') {
+      pages = getPagesForOfferType(offerType);
+    } else if (typeof getFlowSteps === 'function') {
+      pages = getFlowSteps();
+    } else {
+      pages = steps || [];
     }
 
-    const data = await r.json();
+    const targetStep = (pages && pages[1]) || pages[0] || 'home'; // [1] = first real page in your logic
 
-    // Restore UI
-    await restoreConfiguratorFromOffer(data);
+    // 🔹 Set wizard state + navigate using the same core function used by boot/hashchange
+    if (typeof window.applyWizardState === 'function') {
+      window.applyWizardState({
+        offerType,
+        step: targetStep,
+      });
+    } else {
+      // fallback if applyWizardState does not exist
+      const state = (typeof loadWizardState === 'function' ? loadWizardState() : {}) || {};
+      state.offerType = offerType;
+      state.step = targetStep;
+      if (typeof saveWizardState === 'function') saveWizardState(state);
+      setStep(targetStep);
+    }
 
-    // Success toast
-    const who = data?.offer?.payload?.Kundendaten?.firstName && data?.offer?.payload?.Kundendaten?.lastName
-      ? `für ${data.offer.payload.Kundendaten.firstName} ${data.offer.payload.Kundendaten.lastName}`
-      : '';
-    toast.success('Angebot geladen', `Nummer <b>${n}</b>`, { withBackdrop: true });
-
-
-  } catch (e) {
-    console.warn(e);
-    toast.error('Netzwerkfehler', 'Bitte Internetverbindung prüfen und erneut versuchen.');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = prev || 'Angebot laden'; }
+    // 🔹 Restore all form fields from the offer
+    if (typeof window.restoreConfiguratorFromOffer === 'function') {
+      await window.restoreConfiguratorFromOffer(doc);
+    }
+  } catch (err) {
+    console.error('Failed to load offer:', err);
+    alert('Fehler beim Laden des Angebots.');
   }
 });
+
+
+
+
+
 // Collect rows from Optional → Sonderprodukte into payload.optional.quickAdd
 function collectOptionalQuickAdd(payload) {
   const panel = document.getElementById('optSonderPanel') || document.getElementById('opt-sonder');
@@ -6463,30 +6518,55 @@ if (catCb) {
 
 
 
-// Save a final snapshot after a successful export
+// Save a final offer snapshot after a successful export
 async function saveFinalOfferSnapshot() {
+  if (typeof buildPayload !== 'function') return;
+
+  // 1) Build full payload from UI
+  const fullPayload = buildPayload();
+
+  // 2) Filter by offer type (same as drafts)
+  const filteredPayload = typeof filterPayloadByOffer === 'function'
+    ? filterPayloadByOffer(fullPayload)
+    : fullPayload;
+
+  // 3) Determine offer type (same logic as drafts / restore)
+  const rawOfferType =
+    filteredPayload.activeOffer ||
+    filteredPayload.offerType   ||
+    (typeof getCurrentOfferType === 'function'
+      ? getCurrentOfferType()
+      : null) ||
+    'bu';
+
+  const offerType = String(rawOfferType).trim().toLowerCase();
+
+  // 4) Offer number
+  const offerNumber =
+    document.getElementById('offerNumber')?.value?.trim() ||
+    (typeof genOfferNumber === 'function' ? genOfferNumber() : '');
+
+  // 5) Ensure pricing snapshot (use filtered payload!)
+  let pricing = window.__pricing;
+  if (!pricing && typeof window.updatePricing === 'function') {
+    pricing = await window.updatePricing(filteredPayload);
+  }
+
+  // 6) Persist finished offer snapshot
   try {
-    const offerNumber =
-      document.getElementById('offerNumber')?.value?.trim() ||
-      (typeof genOfferNumber === 'function' ? genOfferNumber() : '');
-
-    if (!offerNumber) return;
-
-    const payload = typeof buildPayload === 'function' ? buildPayload() : {};
-    let pricing = window.__pricing;
-    if (!pricing && typeof window.updatePricing === 'function') {
-      pricing = await window.updatePricing(payload);
-    }
-    if (!pricing) return;
-
     await fetch('/api/offers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ offerNumber, payload, pricing }),
+      body: JSON.stringify({
+        offerNumber,
+        offerType,
+        payload: filteredPayload,
+        pricing,
+      }),
     });
-  } catch (e) {
-    console.warn('[saveFinalOfferSnapshot] failed:', e);
+  } catch (err) {
+    console.error('Failed to save final offer snapshot:', err);
   }
 }
 
@@ -8782,6 +8862,14 @@ document.addEventListener('DOMContentLoaded', () => {
   initHassmannBestFinder();
 });
 
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('[data-offer-key]').forEach(tile => {
+    tile.addEventListener('click', () => {
+      const key = tile.dataset.offerKey;
+      setCurrentOfferType(key);
+    });
+  });
+});
 
 // Small helper: confirmation dialog before going back to Auswahl der Leistung from the sidebar
 function askBeforeGoingHome(onConfirm) {
