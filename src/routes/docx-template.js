@@ -106,6 +106,16 @@ function fmtDateDE(input) {
   return d.isValid() ? d.format('DD.MM.YYYY') : '';
 }
 
+function safeFileNameFromOffer(offerNumber = '', fallbackBase = 'Angebot') {
+  const raw = typeof offerNumber === 'string' ? offerNumber : '';
+  const base = raw || fallbackBase;
+
+  // allow only letters, numbers, underscore, dash → everything else becomes '_'
+  const cleaned = base.replace(/[^a-zA-Z0-9_\-]/g, '_');
+
+  return cleaned || fallbackBase;
+}
+
 // ✅ UPDATED: Modern docxtemplater API usage
 async function renderDocx(templatePath, data) {
   const content = await fs.readFile(templatePath);
@@ -429,6 +439,34 @@ async function aggregateMaterialsForOverview(body = {}, computed = {}) {
 
   // Ensure all missing names are filled from DB (particularly for optionals)
   lines = await ensureNames(lines);
+
+  // --- EXTRA: Silikon-Duschabzieher (only for BU, only in Materialübersicht) ---
+  try {
+    const offerKey =
+      body.activeOffer ||
+      body.currentOfferKey ||
+      body.offerType ||
+      computed.activeOffer ||
+      'bu';
+
+    const isBU = String(offerKey || '').toLowerCase() === 'bu';
+
+    if (isBU) {
+      // Avoid double-adding if it ever appears in materials
+      const already = lines.some(l => l.materialNumber === 'QR3923540');
+      if (!already) {
+        lines.push({
+          materialNumber: 'QR3923540',
+          name: 'Silikon-Duschabzieher mit Halter',
+          unit: 'Stck.',
+          quantity: 1,
+          remarks: '',
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('[material-overview] failed to add QR3923540:', e?.message || e);
+  }
 
   // Apply business rules and group by key
   const map = new Map();
@@ -1079,17 +1117,21 @@ BwtProxyNoteEnabled:
    =========================== */
 
 // -------- Existing Angebot DOCX route --------
+// -------- Angebot DOCX route --------
+// -------- Angebot DOCX route --------
 router.post('/', async (req, res) => {
   try {
-     const templatePath = getAngebotTemplatePath(req.body);
+    const templatePath = getAngebotTemplatePath(req.body);
     const content = await fs.readFile(templatePath);
 
     const computed = await pricing.computePrices(req.body || {});
     console.log('[docx] computed subsidy:',
-      { subsidyAmount: computed?.subsidyAmount,
+      {
+        subsidyAmount: computed?.subsidyAmount,
         total: computed?.total,
-        selfPayAmount: computed?.selfPayAmount ,
-        userInput: computed?.subsidyInput}
+        selfPayAmount: computed?.selfPayAmount,
+        userInput: computed?.subsidyInput,
+      }
     );
 
     const zip = new PizZip(content);
@@ -1106,12 +1148,20 @@ router.post('/', async (req, res) => {
       if (e?.properties?.errors) {
         for (const er of e.properties.errors) {
           console.error('- Docx error:', {
-            id: er.id, explanation: er.explanation, file: er.file,
-            xtag: er.xtag, context: er.context, offset: er.offset,
+            id: er.id,
+            explanation: er.explanation,
+            file: er.file,
+            xtag: er.xtag,
+            context: er.context,
+            offset: er.offset,
           });
         }
       }
-      return res.status(500).json({ error: 'DOCX render failed', detail: e.message || String(e), properties: e.properties || null });
+      return res.status(500).json({
+        error: 'DOCX render failed',
+        detail: e.message || String(e),
+        properties: e.properties || null,
+      });
     }
 
     const out = doc.getZip().generate({ type: 'nodebuffer' });
@@ -1124,12 +1174,28 @@ router.post('/', async (req, res) => {
       console.warn('[docx-template] could not write verify file:', e?.message || e);
     }
 
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', 'attachment; filename="Angebot.docx"');
+    // ----- NEW: use Angebotsnummer for download filename -----
+    const baseName = safeFileNameFromOffer(
+      data.Angebotsnummer, // from mapData: body.offerNumber || 'ANG-0001'
+      'Angebot'
+    );
+    const fname = `${baseName}.docx`;
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${fname}"`
+    );
     res.send(out);
   } catch (e) {
     console.error('DOCX generation failed:', e);
-    res.status(500).json({ error: 'DOCX generation failed', detail: e.message || String(e) });
+    res.status(500).json({
+      error: 'DOCX generation failed',
+      detail: e.message || String(e),
+    });
   }
 });
 
@@ -1185,6 +1251,8 @@ router.post('/material-overview', async (req, res) => {
       console.warn('[material-overview] could not write verify file:', e?.message || e);
     }
 
+    
+
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', 'attachment; filename="Materialuebersicht.docx"');
     res.send(out);
@@ -1197,7 +1265,7 @@ router.post('/material-overview', async (req, res) => {
 // ✅ IMPROVED: PDF route with much more robust LibreOffice handling
 router.post('/pdf', async (req, res) => {
   try {
-     const templatePath = getAngebotTemplatePath(req.body);
+    const templatePath = getAngebotTemplatePath(req.body);
     const content = await fs.readFile(templatePath);
 
     const computed = await pricing.computePrices(req.body || {});
@@ -1214,12 +1282,20 @@ router.post('/pdf', async (req, res) => {
       if (e?.properties?.errors) {
         for (const er of e.properties.errors) {
           console.error('- Docx error:', {
-            id: er.id, explanation: er.explanation, file: er.file,
-            xtag: er.xtag, context: er.context, offset: er.offset,
+            id: er.id,
+            explanation: er.explanation,
+            file: er.file,
+            xtag: er.xtag,
+            context: er.context,
+            offset: er.offset,
           });
         }
       }
-      return res.status(500).json({ error: 'DOCX render failed', detail: msg, properties: e.properties || null });
+      return res.status(500).json({
+        error: 'DOCX render failed',
+        detail: msg,
+        properties: e.properties || null,
+      });
     }
 
     const docxBuffer = doc.getZip().generate({ type: 'nodebuffer' });
@@ -1236,13 +1312,26 @@ router.post('/pdf', async (req, res) => {
     // Convert to PDF using improved LibreOffice function
     const pdfBuffer = await convertDocxToPdf(docxBuffer);
 
+    // ----- NEW: use Angebotsnummer for download filename -----
+    const baseName = safeFileNameFromOffer(
+      data.Angebotsnummer, // from mapData: body.offerNumber || 'ANG-0001'
+      'Angebot'
+    );
+    const fname = `${baseName}.pdf`;
+
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="Angebot.pdf"');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${fname}"`
+    );
     res.send(pdfBuffer);
-    
+
   } catch (e) {
     console.error('DOCX->PDF conversion failed:', e);
-    res.status(500).json({ error: 'DOCX->PDF conversion failed', detail: e.message || String(e) });
+    res.status(500).json({
+      error: 'DOCX->PDF conversion failed',
+      detail: e.message || String(e),
+    });
   }
 });
 
