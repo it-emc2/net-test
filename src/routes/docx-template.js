@@ -1138,6 +1138,7 @@ router.post('/', async (req, res) => {
     const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
 
     const data = mapData(req.body || {}, computed);
+    console.log('[docx-template] Angebotsnummer in data:', data.Angebotsnummer);
     console.log('[docx-template] replacing keys:', Object.keys(data));
 
     try {

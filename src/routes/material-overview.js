@@ -29,8 +29,10 @@ async function renderDocx(templatePath, data) {
 // ✅ COMPLETE: Material overview DOCX route
 router.post('/material-overview', async (req, res) => {
   try {
-    const computed = await pricing.computePrices(req.body || {});
-    const rows = aggregateMaterialsForOverview(req.body || {}, computed);
+    const body = req.body || {};
+
+    const computed = await pricing.computePrices(body);
+    const rows = aggregateMaterialsForOverview(body, computed);
 
     const materials = rows.map((m, i) => ({
       pos: i + 1,
@@ -41,30 +43,34 @@ router.post('/material-overview', async (req, res) => {
       remarks: m.remarks || ''
     }));
 
-    // === USE THE SAME PATTERN AS THE WORKING ROUTE ===
-    const b = req.body?.bereich || {};
-    
-    // Build customer name the same way as mapData()
+    // === Build customer context (same as before) ===
+    const b = body.bereich || {};
+
     const salutation = b.salutation || '';
-    const firstName = b.firstName || '';
-    const lastName = b.lastName || '';
-    
-    const kundeName = [salutation, firstName, lastName].filter(Boolean).join(' ') || '';
-    
-    // Build address the same way
-    const street = b.street || '';
-    const city = b.city || '';
-    const plz = b.postalCode || '';
-    
-    const adresse = [street, [plz, city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    const firstName  = b.firstName  || '';
+    const lastName   = b.lastName   || '';
+
+    const kundeName = [salutation, firstName, lastName]
+      .filter(Boolean)
+      .join(' ') || '';
+
+    const street = b.street      || '';
+    const city   = b.city        || '';
+    const plz    = b.postalCode  || '';
+
+    const adresse = [
+      street,
+      [plz, city].filter(Boolean).join(' ')
+    ].filter(Boolean).join(', ');
+
+    const angebotNummer = (body.offerNumber || '').trim() || 'ANG-0001';
 
     const data = {
-      angebotNummer: req.body?.offerNumber || 'ANG-0001',
-      datum: (b.date || dayjs().format('YYYY-MM-DD')),
+      angebotNummer,
+      datum: b.date || dayjs().format('YYYY-MM-DD'),
       kunde: kundeName,
       adresse,
       ansprechpartner: (b.emc2_contact || '').trim(),
-      // Individual fields for debugging
       salutation,
       firstName,
       lastName,
@@ -75,6 +81,7 @@ router.post('/material-overview', async (req, res) => {
     };
 
     console.log('[DEBUG] Template data:', {
+      angebotNummer: data.angebotNummer,
       kunde: data.kunde,
       adresse: data.adresse,
       ansprechpartner: data.ansprechpartner,
@@ -82,24 +89,52 @@ router.post('/material-overview', async (req, res) => {
       firstMaterial: materials[0] || null
     });
 
-    const templatePath = path.join(process.cwd(), 'src', 'templates', 'Materialuebersicht.docx');
+    const templatePath = path.join(
+      process.cwd(),
+      'src',
+      'templates',
+      'Materialuebersicht.docx'
+    );
     const out = await renderDocx(templatePath, data);
 
-    // Optional: write debug copy
+    // Optional debug copy
     try {
-      const verifyOut = path.join(process.cwd(), 'out-Materialuebersicht.docx');
+      const verifyOut = path.join(
+        process.cwd(),
+        'out-Materialuebersicht.docx'
+      );
       fsSync.writeFileSync(verifyOut, out);
-      console.log('[material-overview] wrote generated DOCX:', verifyOut, 'size:', out.length);
+      console.log(
+        '[material-overview] wrote generated DOCX:',
+        verifyOut,
+        'size:',
+        out.length
+      );
     } catch (e) {
-      console.warn('[material-overview] could not write verify file:', e?.message || e);
+      console.warn(
+        '[material-overview] could not write verify file:',
+        e?.message || String(e)
+      );
     }
 
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', 'attachment; filename="Materialuebersicht.docx"');
+    // === NEW: dynamic filename with offer number ===
+    const safeOffer = angebotNummer.replace(/[^A-Za-z0-9_\-]+/g, '_');
+    const filename  = `Materialuebersicht_${safeOffer}.docx`;
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${filename}"`
+    );
     res.send(out);
-    
   } catch (e) {
     console.error('Materialübersicht generation failed:', e);
-    res.status(500).json({ error: 'Materialübersicht generation failed', detail: e.message || String(e) });
+    res.status(500).json({
+      error: 'Materialübersicht generation failed',
+      detail: e.message || String(e),
+    });
   }
 });

@@ -2182,7 +2182,7 @@ function updatePDFTimer(seconds) {
 }
 
 // Enhanced PDF download with progress
-async function downloadPDFWithProgress(endpoint, payload, filename) {
+async function downloadPDFWithProgress(endpoint, payload) {
   showPDFProgress("PDF-Generation gestartet...", "info");
   let timeLeft = 30;
   updatePDFTimer(timeLeft);
@@ -2216,22 +2216,33 @@ async function downloadPDFWithProgress(endpoint, payload, filename) {
       return;
     }
 
+    // --- NEW: read filename from header ---
+    const cd = response.headers.get("content-disposition") || "";
+    let serverFilename = "Angebot.pdf";
+    const match = cd.match(/filename="?(.*?)"?$/i);
+    if (match && match[1]) {
+      serverFilename = match[1];
+    }
+    console.log("[downloadPDF] serverFilename:", serverFilename);
+
     showPDFProgress("PDF wird konvertiert (LibreOffice)...", "info");
     const blob = await response.blob();
 
     clearInterval(timerInterval);
     showPDFProgress("PDF erfolgreich erstellt!", "success");
+
     // Save snapshot now that the export succeeded
-await saveFinalOfferSnapshot();
+    await saveFinalOfferSnapshot();
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = filename;
+    a.download = serverFilename; // uses backend name
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+
     setTimeout(() => {
       showPDFProgress("PDF-Download abgeschlossen!", "success");
     }, 500);
@@ -5178,7 +5189,8 @@ async function requestPdfAndDownload(payload, filename = "Anfrage.pdf") {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename;
+  //a.download = filename;
+   a.download = serverFilename;    
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -6708,7 +6720,7 @@ document.getElementById("makePdf")?.addEventListener("click", async () => {
 document.getElementById("downloadPdf")?.addEventListener("click", async () => {
   try {
     const payload = buildPayload();
-    await downloadPDFWithProgress("/pdf", payload, "Anfrage.pdf");
+    await downloadPDFWithProgress("/pdf", payload);
   } catch (e) {
     showPDFProgress(`PDF-Erstellung fehlgeschlagen: ${e.message}`, "error");
   }
@@ -6725,8 +6737,8 @@ document
       const payload = buildPayload();
       await downloadPDFWithProgress(
         "/pdf-template",
-        payload,
-        "Angebot_aus_Vorlage.pdf"
+        payload
+    
       );
       document
         .getElementById("pdfActions")
@@ -6736,26 +6748,37 @@ document
     }
   });
 
-async function downloadDocx(url, body, filename) {
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+async function downloadDocx(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!resp.ok) {
-    const txt = await resp.text().catch(() => "");
-    throw new Error(`Download failed: ${resp.status} ${txt}`);
+
+  if (!res.ok) {
+    console.error('DOCX download failed', res.status, await res.text());
+    return;
   }
-  const blob = await resp.blob();
-  const urlObj = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = urlObj;
-  a.download = filename;
+
+  // Read filename from Content-Disposition
+  const cd = res.headers.get('content-disposition') || '';
+  let serverFilename = 'Angebot.docx';
+  const match = cd.match(/filename="?(.*?)"?$/i);
+  if (match && match[1]) {
+    serverFilename = match[1];
+  }
+  console.log('[downloadDocx] serverFilename:', serverFilename);
+
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = objectUrl;
+  a.download = serverFilename;      // <- use backend name here
   document.body.appendChild(a);
   a.click();
-  await saveFinalOfferSnapshot(); // <-- add this after a.click()
   a.remove();
-  URL.revokeObjectURL(urlObj);
+  URL.revokeObjectURL(objectUrl);
 }
 
 document.getElementById("downloadDocx")?.addEventListener("click", async () => {
@@ -6764,21 +6787,8 @@ document.getElementById("downloadDocx")?.addEventListener("click", async () => {
     return;
   }
   try {
-    const resp = await fetch("/docx-template", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(buildPayload()),
-    });
-    if (!resp.ok) throw new Error(await resp.text());
-    const blob = await resp.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Angebot_${Date.now()}.docx`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    const payload = buildPayload();
+    await downloadDocx("/docx-template", payload);
   } catch (e) {
     show({ error: String(e) }, false);
   }
@@ -6835,8 +6845,8 @@ document
       
       await downloadDocx(
         "/docx-template/material-overview",
-        payload,
-        `Materialuebersicht_${Date.now()}.docx`
+        payload
+       // `Materialuebersicht_${Date.now()}.docx`
       );
     } catch (e) {
       console.error(e);
@@ -6857,8 +6867,7 @@ document
       const payload = buildPayload();
       await downloadPDFWithProgress(
         "/docx-template/pdf",
-        payload,
-        `Angebot_${Date.now()}.pdf`
+        payload
       );
     } catch (e) {
       console.error(e);
