@@ -619,7 +619,7 @@ try {
 
   // NEW: hours from Arbeitszeit, fallback to old Kundendaten keys
   const total_hours_numeric =
-    Number(arbeits.totalHoursNumeric ?? b.totalHoursNumeric ?? 0) || 0;
+    Number(b.totalHoursNumeric ?? arbeits.totalHoursNumeric ?? 0) || 0;
 
   const total_hours_HH_mm =
     String(arbeits.totalHoursHHMM ?? b.totalHoursHHMM ?? '') || '';

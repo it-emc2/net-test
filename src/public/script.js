@@ -6014,20 +6014,29 @@ async function restoreConfiguratorFromOffer(doc) {
   fire('input[name="pflegegrad"]:checked');
   fire('input[name="wohnumfeldDone"]:checked');
 
-  // Re-run HH:MM → numeric mirrors
-  (() => {
-    const labor = document.getElementById('laborHours');
-    const travel = document.getElementById('travelTime');
-    labor?.dispatchEvent(new Event('input', { bubbles: true }));
-    travel?.dispatchEvent(new Event('input', { bubbles: true }));
-    if (typeof hhmmToHours === 'function') {
-      const L = hhmmToHours(labor?.value || '0:00');
-      const T1 = hhmmToHours(travel?.value || '0:00');
-      window.arbeit_hours_numeric = Math.max(0, L);
-      window.reise_hours_numeric  = Math.max(0, T1 * 2);
-      window.total_hours_numeric  = window.arbeit_hours_numeric + window.reise_hours_numeric;
-    }
-  })();
+ // Re-run the HH:MM → numeric mirrors so Reisezeit + Tage are correct
+(() => {
+  const labor  = document.getElementById('laborHours');
+  const travel = document.getElementById('travelTime');
+
+  // Prefer the new multi-day helper if available
+  if (typeof window.updateTotalHours === 'function') {
+    window.updateTotalHours();
+    return;
+  }
+
+  // VERY LAST RESORT: only if updateTotalHours does not exist at all
+  if (typeof hhmmToHours === 'function') {
+    const L  = hhmmToHours(labor?.value  || '0:00');
+    const T1 = hhmmToHours(travel?.value || '0:00');
+
+    // Do NOT assume 1 day here anymore – just mirror simple values
+    window.arbeit_hours_numeric = Math.max(0, L);
+    window.reise_hours_numeric  = Math.max(0, T1 * 2);
+    window.total_hours_numeric  = window.arbeit_hours_numeric + window.reise_hours_numeric;
+  }
+})();
+
 
   // Duschwanne dependencies
   fire('#addFlooring');
@@ -6150,7 +6159,7 @@ document.getElementById('btnLoadOffer')?.addEventListener('click', async () => {
       pages = steps || [];
     }
 
-    const targetStep = (pages && pages[1]) || pages[0] || 'home'; // [1] = first real page in your logic
+    const targetStep = (pages && pages[0]) || 'home'; // [1] = first real page in your logic
 
     // 🔹 Set wizard state + navigate using the same core function used by boot/hashchange
     if (typeof window.applyWizardState === 'function') {
