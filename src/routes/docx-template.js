@@ -944,7 +944,7 @@ const serviceSum = Number(services?.sum || 0) || 0;
 
   // Format exactly like "69,50€" (no space) to match your paragraph
   const RegieRateFmt = regieRateNum ? `${regieRateNum.toFixed(2).replace('.', ',')}€` : '';
-
+const bwt = body.bwt || {};
   return {
     // Address / meta
     Anrede: b.salutation || '',
@@ -1036,6 +1036,10 @@ HasIncluded,
      // BWT table rows (used only in Angebot-BWT.docx)
     BwtRows,
     BwtGrabRows,
+
+    // BWT specific additions (new):
+    BwtFreeText: (bwt.bwtNote || '').trim(),
+
   };
 }
 

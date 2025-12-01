@@ -24,6 +24,7 @@ function mapData(body = {}) {
   const sum = body.summe || {};
   const prix = body.preise || {};
   const tb = body.textbausteine || {};
+    const bwt = body.bwt || {};
   return {
     Anrede: b.salutation || '',
     Vorname: b.firstName || '',
