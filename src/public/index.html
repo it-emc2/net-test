@@ -4516,18 +4516,60 @@ grundsätzlich wird automatisch mitkalkuliert.<br>
 
 </div>
 
-<div class="card">
-  <h3>Zusätzliche Positionen (BWT)</h3>
-  <p class="hint">
-    Freie Posten mit eigener Bezeichnung. Preis kann Komma oder Punkt als Dezimaltrenner enthalten.
-  </p>
+<fieldset class="da-row"
+          id="bwt-extras"
+          data-kind="bwt-extra"
+          data-template="da-item-template-custom"
+          aria-describedby="bwt-extras-help">
+  <legend class="da-legend">
+    Freier Posten (BWT)
+    <button type="button"
+            class="da-add"
+            aria-label="Weitere Position hinzufügen">+</button>
+  </legend>
 
-  <div id="bwtExtrasContainer"></div>
+  <div class="da-items">
+    <div class="da-item" data-kind="bwt-extra">
+      <div class="da-grid-4">
+        <label class="da-label">
+          Bezeichnung
+          <input class="da-name"
+                 type="text"
+                 placeholder="z. B. Sonderanfertigung Glas" />
+        </label>
+        <label class="da-label">
+          Preis
+          <input class="da-price"
+                 type="text"
+                 inputmode="decimal"
+                 placeholder="z. B. 799,00" />
+        </label>
+        <label class="da-label">
+          Menge
+          <input class="da-qty"
+                 type="number"
+                 inputmode="numeric"
+                 min="1"
+                 step="1" />
+        </label>
+        <label class="da-label">
+          ID
+          <input class="da-id"
+                 type="text"
+                 placeholder="z. B. BWT-CUS-001" />
+        </label>
+      </div>
+      <button type="button"
+              class="da-remove"
+              aria-label="Diese Zeile entfernen">🗑</button>
+    </div>
+  </div>
 
-  <button type="button" class="btn ghost" id="bwtExtraAddBtn">
-    + Freier Posten hinzufügen
-  </button>
-</div>
+  <small id="bwt-extras-help" class="da-help">
+    Freier Posten mit eigener Bezeichnung. Preis kann Komma oder Punkt als Dezimaltrenner enthalten.
+  </small>
+</fieldset>
+
 
 <div class="field full">
     <label for="bwtNote">

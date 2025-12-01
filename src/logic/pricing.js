@@ -451,6 +451,40 @@ if (userRaw !== undefined && userRaw !== null && String(userRaw).trim() !== '') 
     addGrab('CLPESG60', aidsHg60Qty);
     addGrab('CLPESG80', aidsHg80Qty);
 
+ // BWT: Freier Posten (Zusätzliche Positionen BWT) → as materials
+if (Array.isArray(bwt?.quickAdd) && bwt.quickAdd.length) {
+  for (const row of bwt.quickAdd) {
+    if (!row) continue;
+
+    const qty = Number(row.qty ?? 0) || 0;
+    if (qty <= 0) continue;
+
+    // robust parse of "1.234,56", "1234.56", "799,00 €", etc.
+    const unitPrice = parseMoneyStrict(row.price);
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) continue;
+
+    const labelSource = row.label ?? row.name ?? '';
+    const label = String(labelSource).trim() || null;
+
+    const pidSource =
+      row.productId !== undefined && row.productId !== null
+        ? row.productId
+        : 'BWT_CUSTOM';
+    const pid = String(pidSource).trim() || 'BWT_CUSTOM';
+
+    // add(id, qty, labelOverride, unitOverride, source)
+    add(
+      pid,
+      qty,
+      label,      // label override for Kosten-Details + DOCX
+      unitPrice,  // use user-entered unit price
+      null        // normal material, *not* "optional"
+    );
+  }
+}
+
+
+
     // bwt[bwtinfoTasks][] can later be mapped to extra materials or work notes if needed.
 
     // bwt[bwtinfoTasks][] can later be mapped to extra materials or work notes if needed.

@@ -380,6 +380,61 @@ function showToast(message, type = 'info') {
 
 
 // ---- RESTORE HELPERS ----
+function restoreBwtExtras(bwt) {
+  if (!bwt || !Array.isArray(bwt.quickAdd)) return;
+
+  const fs = document.getElementById("bwt-extras");
+  if (!fs) return;
+  const wrap = fs.querySelector(".da-items");
+  if (!wrap) return;
+
+  let rows = Array.from(wrap.querySelectorAll(".da-item"));
+  if (!rows.length) return;
+
+  const tplRow = rows[0];
+  const items = bwt.quickAdd;
+
+  // shrink rows if there are more DOM rows than items
+  while (rows.length > items.length && rows.length > 1) {
+    const last = rows.pop();
+    if (last) last.remove();
+  }
+
+  // grow rows if there are more items than DOM rows
+  while (rows.length < items.length) {
+    const clone = tplRow.cloneNode(true);
+    wrap.appendChild(clone);
+    rows.push(clone);
+  }
+
+  // fill each row
+  rows.forEach((row, index) => {
+    const data = items[index] || {};
+    const nameEl  = row.querySelector(".da-name");
+    const idEl    = row.querySelector(".da-id");
+    const qtyEl   = row.querySelector(".da-qty");
+    const priceEl = row.querySelector(".da-price");
+
+    const label = data.label ?? "";
+    const pid   = data.productId ?? "";
+    const qty   = data.qty ?? "";
+    let price   = data.price ?? "";
+
+    if (typeof price === "number") {
+      price = String(price).replace(".", ",");
+    } else if (price !== "") {
+      price = String(price);
+    } else {
+      price = "";
+    }
+
+    if (nameEl)  nameEl.value  = label;
+    if (idEl)    idEl.value    = pid;
+    if (qtyEl)   qtyEl.value   = qty !== "" ? String(qty) : "";
+    if (priceEl) priceEl.value = price;
+  });
+}
+
 function findInputByProductId(pid) {
   const host = document.getElementById('page-Wandverkleidung') || document;
   const lab  = host.querySelector(`[data-product-id="${pid}"]`);
@@ -1717,6 +1772,59 @@ function filterPayloadByOffer(payload) {
   return payload;
 }
 
+function collectBwtExtras(payload) {
+  const formBwt = document.getElementById("form-bwt");
+  if (!formBwt) return;
+
+  const fs = document.getElementById("bwt-extras");
+  if (!fs) return;
+
+  const wrap = fs.querySelector(".da-items");
+  if (!wrap) return;
+
+  const rows = [];
+  wrap.querySelectorAll(".da-item").forEach((item) => {
+    const nameEl  = item.querySelector(".da-name");
+    const idEl    = item.querySelector(".da-id");
+    const qtyEl   = item.querySelector(".da-qty");
+    const priceEl = item.querySelector(".da-price");
+
+    const label     = (nameEl?.value || "").trim();
+    const productId = (idEl?.value || "").trim();
+    const qty       = Number(qtyEl?.value || 0) || 0;
+    let   priceRaw  = (priceEl?.value || "").trim();
+
+    // Completely empty row → ignore
+    if (!label && !productId && !priceRaw && qty <= 0) return;
+
+    let price = 0;
+    if (priceRaw) {
+      // "1.299,00" → 1299
+      price = Number(
+        priceRaw
+          .replace(/\s+/g, "")
+          .replace(/\./g, "")
+          .replace(",", ".")
+      ) || 0;
+    }
+
+    rows.push({
+      kind: "bwt-extra",
+      label,
+      productId,
+      qty,
+      price,
+    });
+  });
+
+  const bwt = payload.bwt || (payload.bwt = {});
+
+  if (rows.length) {
+    bwt.quickAdd = rows;
+  } else {
+    delete bwt.quickAdd;
+  }
+}
 
 function buildPayload() {
   const payload = {
@@ -1740,6 +1848,8 @@ function buildPayload() {
   collectDuschabtrennungQuickAdd(payload);
    //  collect BWT door + Haltegriffe as materials
   collectBwtMaterials(payload);
+  //  collect BWT freie Posten (quick add)
+  collectBwtExtras(payload);
 
   // ---- NEW: reliably collect ALL Duschwanne work tasks (checkbox array) ----
   try {
@@ -2023,8 +2133,9 @@ function buildPayload() {
   } catch (e) {
     console.warn("[buildPayload] BWT arrays capture failed:", e);
   }
-
   // end bwt payload block
+
+
 
   // Remember which offer was active when building this payload
   payload.activeOffer = currentOfferKey || null;
@@ -5612,6 +5723,8 @@ function restoreBwt(bwt) {
     // - qty 1/0 and required attribute are synced
     fireChange(cb);
   });
+  // Freier Posten (BWT) quickAdd
+  restoreBwtExtras(bwt);
 }
 
 
