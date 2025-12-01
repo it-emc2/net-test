@@ -573,40 +573,70 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
   color: #ffffff;
 }
 
+.theme-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* keep it visually lightweight */
+.theme-controls select {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
     </style>
   </head>
   <body>
     <header>
-      <button
-        id="openSidebar"
-        class="sidebar-toggle"
-        type="button"
-        aria-label="Menü öffnen"
-      >
-        ☰ Menü
-      </button>
+  <button
+    id="openSidebar"
+    class="sidebar-toggle"
+    type="button"
+    aria-label="Menü öffnen"
+  >
+    ☰ Menü
+  </button>
 
-      <input
-        id="offerNumber"
-        name="offerNumber"
-        placeholder="Angebotsnummer"
-        hidden
-      />
-      <div class="brand">
-        <div class="dot"></div>
-        <div>
-          <h1>Angebotskonfigurator-emc2</h1>
-          <p class="lead">
-            Bereich-Seite detailgetreu • Light/Dark • PDF-Export • ngrok-ready
-          </p>
-        </div>
-      </div>
-      <label class="toggle" title="Theme umschalten">
-        <input id="themeToggle" type="checkbox" />
-        <div class="thumb"></div>
-        <span id="themeLabel">Light</span>
-      </label>
-    </header>
+  <input
+    id="offerNumber"
+    name="offerNumber"
+    placeholder="Angebotsnummer"
+    hidden
+  />
+
+  <div class="brand">
+    <div class="dot"></div>
+    <div>
+      <h1>Angebotskonfigurator-emc2</h1>
+      <p class="lead">
+        Bereich-spezifische Themes • Light/Dark • PDF-Export • ngrok-ready
+      </p>
+    </div>
+  </div>
+
+  <div class="theme-controls">
+    <!-- Domain / Bereich selector -->
+    <select id="themeSelect" aria-label="Farbthema wählen">
+      <option value="base">Standard</option>
+      <option value="wohnen">Wohnen</option>
+      <option value="pflege">Pflege</option>
+      <option value="gesundheit">Gesundheit</option>
+      <option value="kfz">KFZ</option>
+    </select>
+
+    <!-- Light / Dark toggle (reusing your existing markup) -->
+    <label class="toggle" title="Light/Dark umschalten">
+      <input id="modeToggle" type="checkbox" />
+      <div class="thumb"></div>
+      <span id="themeLabel">Light</span>
+    </label>
+  </div>
+</header>
 
 
     <div id="sidebarBackdrop"></div>

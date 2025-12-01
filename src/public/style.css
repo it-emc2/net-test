@@ -12,56 +12,141 @@
 }
 
 /* ---------- Theme tokens ---------- */
+/* Base scales (do NOT use directly in components; they are building blocks) */
 :root {
-  --bg: #f6f7fb;
-  --panel: #ffffff;
-  --text: #1f2937;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --accent: #6d28d9;
-  --accent-weak: #ede9fe;
-  --accent-strong: #5b21b6;
-  --success: #16a34a;
-  --danger: #ef4444;
-  --input-bg: #ffffff;
-  --input-border: #d1d5db;
-  --shadow: 0 10px 30px rgba(17, 24, 39, 0.08);
-  --ring: rgba(109, 40, 217, 0.25);
-  --step-done: #a78bfa;
-  --step-active: #6d28d9;
-  --step-idle: #cbd5e1;
-  --section-bg: #efe7f6;
-  --card: #ffffff;
-  --card-hover: #f5f7fa;
-  --card-selected: #eef4ff;
-  --card-foreground: #111827;
-  --muted-foreground: #6b7280;
+  /* base neutrals */
+  --base-bg: #f6f7fb;
+  --base-panel: #ffffff;
+  --base-text: #1f2937;
+  --base-muted: #6b7280;
+  --base-border: #e5e7eb;
+  --base-input-bg: #ffffff;
+  --base-input-border: #d1d5db;
+  --base-shadow-light: 0 10px 30px rgba(17, 24, 39, 0.08);
+
+  /* base purple theme (current default accent) */
+  --accent-base: #7C3AED;               /* NEW main purple */
+  --accent-weak-base: #ede9fe;          /* stays */
+  --accent-strong-base: #7C3AED;        /* deeper purple still ok */
+  --ring-base: rgba(124, 58, 237, 0.25);/* adjusted to match #7C3AED */
+  --step-done-base: #a78bfa;            /* can stay */
+  --step-active-base: #7C3AED;          /* match new accent */
+  --step-idle-base: #cbd5e1;
+
+  --section-bg-base: #efe7f6;
+  --card-base: #ffffff;
+  --card-hover-base: #f5f7fa;
+  --card-selected-base: #eef4ff;
+  --card-foreground-base: #111827;
+  --muted-foreground-base: #6b7280;
+
+  --success-base: #16a34a;
+  --danger-base: #ef4444;
 }
 
-:root[data-theme="dark"], [data-theme="dark"] {
-  --bg: linear-gradient(180deg, #0b1220, #0d1422);
+/* ---------- Per-domain accent definitions (light mode) ---------- */
+/* Only accent palette changes per “domain” theme; neutrals stay base. */
+
+/* Default / legacy purple (if data-theme is not set or "base") */
+:root,
+:root[data-theme="base"] {
+  --accent: var(--accent-base);
+  --accent-weak: var(--accent-weak-base);
+  --accent-strong: var(--accent-strong-base);
+  --ring: var(--ring-base);
+  --step-done: var(--step-done-base);
+  --step-active: var(--step-active-base);
+  --step-idle: var(--step-idle-base);
+}
+
+/* WOHNEN #75C19F */
+:root[data-theme="wohnen"] {
+  --accent: #75c19f;
+  --accent-weak: #e6f5ee;
+  --accent-strong: #3b8a68;
+  --ring: rgba(117, 193, 159, 0.35);
+  --step-done: #75c19f;
+  --step-active: #3b8a68;
+  --step-idle: #cbd5e1;
+  --section-bg-base: #e6f5ee;
+}
+
+/* PFLEGE #AC84BC */
+:root[data-theme="pflege"] {
+  --accent: #ac84bc;
+  --accent-weak: #f6edf9;
+  --accent-strong: #7b5590;
+  --ring: rgba(172, 132, 188, 0.35);
+  --step-done: #c9a6d7;
+  --step-active: #7b5590;
+  --step-idle: #cbd5e1;
+  --section-bg-base: #f6edf9;
+}
+
+/* GESUNDHEIT #00C6F6 */
+:root[data-theme="gesundheit"] {
+  --accent: #00c6f6;
+  --accent-weak: #e4f9ff;
+  --accent-strong: #008ab1;
+  --ring: rgba(0, 198, 246, 0.35);
+  --step-done: #7ae5ff;
+  --step-active: #008ab1;
+  --step-idle: #cbd5e1;
+  --section-bg-base:#e4f9ff;
+}
+
+/* KFZ #DFA029 */
+:root[data-theme="kfz"] {
+  --accent: #dfa029;
+  --accent-weak: #fff6e5;
+  --accent-strong: #a26e10;
+  --ring: rgba(223, 160, 41, 0.35);
+  --step-done: #f2c56e;
+  --step-active: #a26e10;
+  --step-idle: #cbd5e1;
+  --section-bg-base: #fff6e5;
+}
+
+/* ---------- Mode (light / dark) ---------- */
+/* Light mode (default) uses base neutrals and per-domain accent above. */
+:root,
+:root[data-mode="light"] {
+  --bg: var(--base-bg);
+  --panel: var(--base-panel);
+  --text: var(--base-text);
+  --muted: var(--base-muted);
+  --border: var(--base-border);
+  --input-bg: var(--base-input-bg);
+  --input-border: var(--base-input-border);
+  --shadow: var(--base-shadow-light);
+  --section-bg: var(--section-bg-base);
+  --card: var(--card-base);
+  --card-hover: var(--card-hover-base);
+  --card-selected: var(--card-selected-base);
+  --card-foreground: var(--card-foreground-base);
+  --muted-foreground: var(--muted-foreground-base);
+  --success: var(--success-base);
+  --danger: var(--danger-base);
+}
+
+/* Dark mode — switches neutrals; accent remains per domain. */
+:root[data-mode="dark"] {
+    --bg: linear-gradient(180deg, #0b1220, #0d1422);
   --panel: rgba(17, 24, 39, 0.7);
   --text: #e5e7eb;
   --muted: #94a3b8;
   --border: #1f2937;
-  --accent: #8b5cf6;
-  --accent-weak: rgba(139, 92, 246, 0.12);
-  --accent-strong: #7c3aed;
-  --success: #22c55e;
-  --danger: #f87171;
   --input-bg: #0b1220;
   --input-border: #334155;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  --ring: rgba(139, 92, 246, 0.3);
-  --step-done: #8b5cf6;
-  --step-active: #7c3aed;
-  --step-idle: #475569;
-  --section-bg: rgba(139, 92, 246, 0.12);
-  --card: #0f172a;
+  --section-bg: rgba(148, 163, 184, 0.13);
+   --card: #0f172a;
   --card-hover: #111827;
   --card-selected: #0b1220;
   --card-foreground: #e5e7eb;
   --muted-foreground: #9ca3af;
+   --success: #22c55e;
+  --danger: #f87171;
 }
 
 /* ---------- Reset / basics ---------- */

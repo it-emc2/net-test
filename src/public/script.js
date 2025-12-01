@@ -993,6 +993,87 @@ function hoursToHHMM(n) {
   apply();
 })();
 
+(function initColorThemes() {
+  const THEME_KEY = 'emc2.theme';
+  const MODE_KEY = 'emc2.mode';
+
+  const root = document.documentElement;
+  const themeSelect = document.getElementById('themeSelect');
+  const modeToggle = document.getElementById('modeToggle');
+  const themeLabel = document.getElementById('themeLabel');
+
+  const offerDefaults = {
+    bu: 'wohnen',
+    bwt: 'gesundheit',
+    ah: 'pflege',
+    hl: 'pflege',
+    kfz: 'kfz',
+  };
+
+  function setTheme(theme, { save = true } = {}) {
+    if (!theme) return;
+    root.dataset.theme = theme;
+
+    if (themeSelect) themeSelect.value = theme;
+
+    if (save) {
+      try { localStorage.setItem(THEME_KEY, theme); } catch {}
+    }
+  }
+
+  function setMode(mode, { save = true } = {}) {
+    if (!mode) return;
+    root.dataset.mode = mode;
+
+    if (modeToggle) modeToggle.checked = mode === 'dark';
+    if (themeLabel) themeLabel.textContent = mode === 'dark' ? 'Dark' : 'Light';
+
+    if (save) {
+      try { localStorage.setItem(MODE_KEY, mode); } catch {}
+    }
+  }
+
+  function detectOfferType() {
+    // adapt if you have a better source for active offer
+    if (window.currentOfferType) return window.currentOfferType;
+    const el = document.querySelector('[data-offer-type-current]');
+    return el?.getAttribute('data-offer-type-current') || 'bu';
+  }
+
+  function initFromDefaults() {
+    let theme = null;
+    let mode = null;
+
+    try {
+      theme = localStorage.getItem(THEME_KEY);
+      mode = localStorage.getItem(MODE_KEY);
+    } catch {}
+
+    if (!theme) {
+      const offer = String(detectOfferType() || '').toLowerCase();
+      theme = offerDefaults[offer] || 'base';
+    }
+
+    if (!mode) mode = 'light';
+
+    setTheme(theme, { save: false });
+    setMode(mode, { save: false });
+  }
+
+  if (themeSelect) {
+    themeSelect.addEventListener('change', (e) => {
+      setTheme(e.target.value);
+    });
+  }
+
+  if (modeToggle) {
+    modeToggle.addEventListener('change', (e) => {
+      setMode(e.target.checked ? 'dark' : 'light');
+    });
+  }
+
+  initFromDefaults();
+})();
 
 document.addEventListener("DOMContentLoaded", () => {
   wireDurationAutoFormat("laborHours");
