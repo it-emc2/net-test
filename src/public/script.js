@@ -4573,11 +4573,11 @@ const svcCard = `
 `;
 
 
-
+// <div>Produkte + Material: <b>${euroC(data.productsSubtotal || 0)}</b></div>
   // --- Totals (unchanged)
   const sums = `
     <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
-      <div>Produkte + Material: <b>${euroC(data.productsSubtotal || 0)}</b></div>
+      <div>Produkte + Material: <b>${euroC(data.material_afterRabatt_and_aufschlag || 0)}</b></div>
       <div>Leistungen: <b>${euroC(data.services?.sum || 0)}</b></div>
       <div>Aufschlag (${Math.round((data.markupPct || 0) * 100)}%): <b>${euroC(data.markup || 0)}</b></div>
       <div style="font-size:1.05rem;">Zwischensumme (Netto): <b>${euroC(data.netAfterRabatt_and_Bonus || 0)}</b></div>

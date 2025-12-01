@@ -1056,9 +1056,7 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
       // --- Rabatt on MATERIAL only (percent from payload.rabatt.materialDiscountPct) ---
       const materialPct = Number(payload?.rabatt?.materialDiscountPct || 0); // 0..0.09
       const rabattAmount = round2((productsSubtotal || 0) * materialPct);
-      console.log("rabattAmount ", rabattAmount)
-      console.log("productsSubtotal  ", productsSubtotal )
-      console.log("materialPct ", materialPct)
+     
 
       // VAT is applied AFTER discount on net amount:
       const netAfterRabatt = round2((baseSubtotal|| 0) - rabattAmount);
@@ -1082,9 +1080,9 @@ const servicesDisplayDocx    = { ...services, lines: docxServices };
 }
 
     
-      const netAfterRabatt_and_Bonus = round2(Math.max(0, netAfterRabatt - bonusGross));
-    
+      const netAfterRabatt_and_Bonus = round2(Math.max(0, netAfterRabatt - bonusGross));    
 const material_plus_aufschlag = netAfterRabatt_and_Bonus - (services?.sum ?? 0);
+const material_afterRabatt_and_aufschlag = material_plus_aufschlag - markup; 
 
 const vatOnNet = round2((netAfterRabatt_and_Bonus || 0) * TAX_RATE);
       const total = round2((netAfterRabatt_and_Bonus|| 0) + vatOnNet);
@@ -1191,11 +1189,14 @@ const selfPayAmount = round2(Math.max(0, Number(total) - Number(subsidyAmount_ma
   materialsDisplayDocx,
   servicesDisplayDocx,
 
+      // Produkte + Material in kosten-details
+       material_afterRabatt_and_aufschlag,
        // BWT-only helper for "Enthält je Einheit"
         bwtIncludedDisplayUI,
 
       // BU we show in the angebote this amount instead of pure material 
        material_plus_aufschlag,
+ 
       };
     }
   };
