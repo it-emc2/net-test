@@ -550,6 +550,19 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 
 /* Specific input fix kept from your CSS */
 #wvCornersCount { display:inline-block!important; position:static!important; opacity:1!important; pointer-events:auto!important; width:90px; margin-left:10px; }
+/* Make all + buttons use accent colors by default */
+.da-add {
+  border: 1px solid var(--accent, #a855f7);
+  background: var(--accent-weak, #ede9fe);
+  color: var(--accent-strong, #5b21b6);
+  font-weight: 700;
+}
+
+.da-add:hover,
+.da-add:focus-visible {
+  background: var(--accent, #a855f7);
+  color: #ffffff;
+}
 
     </style>
   </head>
