@@ -451,7 +451,7 @@ if (userRaw !== undefined && userRaw !== null && String(userRaw).trim() !== '') 
     addGrab('CLPESG60', aidsHg60Qty);
     addGrab('CLPESG80', aidsHg80Qty);
 
- // BWT: Freier Posten (Zusätzliche Positionen BWT) → as materials
+// BWT: Freier Posten (Zusätzliche Positionen BWT) → as materials
 if (Array.isArray(bwt?.quickAdd) && bwt.quickAdd.length) {
   for (const row of bwt.quickAdd) {
     if (!row) continue;
@@ -463,22 +463,37 @@ if (Array.isArray(bwt?.quickAdd) && bwt.quickAdd.length) {
     const unitPrice = parseMoneyStrict(row.price);
     if (!Number.isFinite(unitPrice) || unitPrice <= 0) continue;
 
-    const labelSource = row.label ?? row.name ?? '';
-    const label = String(labelSource).trim() || null;
+    // base name / Bezeichnung
+    const rawLabel = String(row.label ?? row.name ?? "").trim();
+    const rawPid   = String(row.productId ?? "").trim();
 
-    const pidSource =
-      row.productId !== undefined && row.productId !== null
-        ? row.productId
-        : 'BWT_CUSTOM';
-    const pid = String(pidSource).trim() || 'BWT_CUSTOM';
+    const pid = rawPid || "BWT_CUSTOM";
+
+    // build "name [id]" part
+    let base = rawLabel;
+    if (rawLabel && rawPid) {
+      base = `${rawLabel} [${rawPid}]`;
+    }
+
+    // qty formatting (e.g. "3" instead of "3.0")
+    let qtyDisplay = "";
+    if (Number.isFinite(qty)) {
+      qtyDisplay = Number.isInteger(qty) ? String(qty) : String(qty);
+    }
+
+    // final label: "qty Stk name [id]"
+    let label = base || null;
+    if (base && qtyDisplay) {
+      label = `- ${qtyDisplay} Stk ${base}`;
+    }
 
     // add(id, qty, labelOverride, unitOverride, source)
     add(
       pid,
       qty,
-      label,      // label override for Kosten-Details + DOCX
-      unitPrice,  // use user-entered unit price
-      null        // normal material, *not* "optional"
+      label,      // e.g. "3 Stk Filterpatrone [FP-123]"
+      unitPrice,  // user-entered unit price
+      null        // normal material, not "optional"
     );
   }
 }
