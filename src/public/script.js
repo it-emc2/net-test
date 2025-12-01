@@ -964,6 +964,36 @@ function hoursToHHMM(n) {
   return `${h}:${String(m).padStart(2, "0")}`;
 }
 
+(function initBwtSteelAutoNote() {
+  const form = document.getElementById('form-bwt');
+  if (!form) return;
+
+  const matRadios = form.querySelectorAll('input[name="bwtMaterial"]');
+  const steelCheckbox = document.getElementById('bwtSteelNoteEnabled');
+
+  if (!matRadios.length || !steelCheckbox) return;
+
+  function apply() {
+    const selected = form.querySelector('input[name="bwtMaterial"]:checked');
+    const val = (selected?.value || '').toLowerCase();
+    const isSteel = val.includes('stahl') && val.includes('email'); // matches "Stahl emailliert"
+
+    if (isSteel) {
+      // auto-check if not already; but do NOT auto-uncheck if user manually ticks it
+      if (!steelCheckbox.checked) {
+        steelCheckbox.checked = true;
+        steelCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+  }
+
+  matRadios.forEach(r => r.addEventListener('change', apply));
+
+  // initial, in case a material was already restored/selected
+  apply();
+})();
+
+
 document.addEventListener("DOMContentLoaded", () => {
   wireDurationAutoFormat("laborHours");
   wireDurationAutoFormat("travelTime");

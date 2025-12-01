@@ -944,7 +944,18 @@ const serviceSum = Number(services?.sum || 0) || 0;
 
   // Format exactly like "69,50€" (no space) to match your paragraph
   const RegieRateFmt = regieRateNum ? `${regieRateNum.toFixed(2).replace('.', ',')}€` : '';
-const bwt = body.bwt || {};
+
+  //BWT STUFF
+  const bwt = body.bwt || {};
+   const freeRaw   = (bwt.bwtNote || '').trim();
+  const steelRaw  = (bwt.bwtSteelNoteText || '').trim();
+  const proxyRaw  = (bwt.bwtProxyNoteText || '').trim();
+
+  const steelEnabled =
+    bwt.bwtSteelNoteEnabled === true || bwt.bwtSteelNoteEnabled === 'on';
+  const proxyEnabled =
+    bwt.bwtProxyNoteEnabled === true || bwt.bwtProxyNoteEnabled === 'on';
+
   return {
     // Address / meta
     Anrede: b.salutation || '',
@@ -1037,8 +1048,28 @@ HasIncluded,
     BwtRows,
     BwtGrabRows,
 
-    // BWT specific additions (new):
-    BwtFreeText: (bwt.bwtNote || '').trim(),
+    // BWT specific additions (existing free text)
+BwtFreeText: (bwt.bwtNote || '').trim(),
+
+// compute raw texts once
+// (you can also move these consts above the return if you prefer)
+BwtSteelNote: (
+  (bwt.bwtSteelNoteEnabled === true || bwt.bwtSteelNoteEnabled === 'on')
+    ? (bwt.bwtSteelNoteText || '').trim()
+    : ''
+),
+BwtSteelNoteEnabled:
+  bwt.bwtSteelNoteEnabled === true ||
+  bwt.bwtSteelNoteEnabled === 'on',
+
+BwtProxyNote: (
+  (bwt.bwtProxyNoteEnabled === true || bwt.bwtProxyNoteEnabled === 'on')
+    ? (bwt.bwtProxyNoteText || '').trim()
+    : ''
+),
+BwtProxyNoteEnabled:
+  bwt.bwtProxyNoteEnabled === true ||
+  bwt.bwtProxyNoteEnabled === 'on',
 
   };
 }
