@@ -2776,7 +2776,7 @@ function getTemplateFor(fs) {
 
 const saveState = () => {
   const state = {};
-  for (const fs of section.querySelectorAll('fieldset.da-row[data-kind]')) {
+for (const fs of document.querySelectorAll('fieldset.da-row[data-kind]')) {
     const kind = fs.dataset.kind;
     const rows = [];
     fs.querySelectorAll('.da-item').forEach(item => {
@@ -2800,7 +2800,7 @@ const saveState = () => {
   // we'll re-save a migrated copy per kind
   const migrated = {};
 
-  for (const fs of section.querySelectorAll('fieldset.da-row[data-kind]')) {
+  for (const fs of document.querySelectorAll('fieldset.da-row[data-kind]')) {
     const kind = fs.dataset.kind;
     const wrap = fs.querySelector('.da-items');
     if (!wrap) continue;
@@ -2919,11 +2919,13 @@ if (last) {
     if (qtyEl)   qtyEl.value   = '';
     if (idEl)    idEl.value    = '';
 
-    // Special: Freier Posten (custom) also clears the label (da-name)
-    if ((fs.getAttribute('data-kind') || '') === 'custom') {
-      var nameEl = item.querySelector('.da-name');
-      if (nameEl) nameEl.value = '';
-    }
+     // Special: Freier Posten (custom + BWT) also clears the label (da-name)
+  var kind = (fs.getAttribute('data-kind') || '');
+  if (kind === 'custom' || kind === 'bwt-extra') {
+    var nameEl = item.querySelector('.da-name');
+    if (nameEl) nameEl.value = '';
+  }
+
   } else {
     // Remove the row normally
     if (item.parentNode) item.parentNode.removeChild(item);
@@ -2933,46 +2935,57 @@ if (last) {
   if (typeof saveState === 'function') saveState();
 }
 
+function wireRow(item) {
+  const priceEl = item.querySelector('.da-price');
+  const qtyEl   = item.querySelector('.da-qty');
+  const nameEl  = item.querySelector('.da-name');
+  const idEl    = item.querySelector('.da-id');
 
-  function wireRow(item) {
-    const priceEl = item.querySelector('.da-price');
-    const qtyEl   = item.querySelector('.da-qty');
+  // During typing: keep only digits, comma, dot
+  priceEl?.addEventListener('input', () => {
+    priceEl.value = priceEl.value.replace(/[^\d.,]/g, '');
+  });
 
-    // During typing: keep only digits, comma, dot
-    priceEl?.addEventListener('input', () => {
-       priceEl.value = priceEl.value.replace(/[^\d.,]/g, '');
-    });
-
-    // On blur: normalize; if valid price and qty empty -> qty = 1; if price empty -> clear qty
-    priceEl?.addEventListener('blur', () => {
+  // On blur: normalize; if valid price and qty empty -> qty = 1; if price empty -> clear qty
+  priceEl?.addEventListener('blur', () => {
     const n = window.parseMoneyEuro(priceEl.value);
-      if (!Number.isFinite(n) || n <= 0) {
-        priceEl.value = '';
-        if (qtyEl) qtyEl.value = '';
-        saveState();
-        return;
-      }
-      const parts = n.toFixed(2).split('.');
-      parts[0] = parts[0]
-        .replace(/^0+(?=\d)/, '')         // strip leading zeros
-        .replace(/\B(?=(\d{3})+(?!\d))/g, '.'); // thousands with dots
-      priceEl.value = parts.join(',') + ' €';
-      if (qtyEl && !qtyEl.value) qtyEl.value = '1';
+    if (!Number.isFinite(n) || n <= 0) {
+      priceEl.value = '';
+      if (qtyEl) qtyEl.value = '';
       saveState();
-    });
+      return;
+    }
+    const parts = n.toFixed(2).split('.');
+    parts[0] = parts[0]
+      .replace(/^0+(?=\d)/, '')               // strip leading zeros
+      .replace(/\B(?=(\d{3})+(?!\d))/g, '.'); // thousands with dots
+    priceEl.value = parts.join(',') + ' €';
+    if (qtyEl && !qtyEl.value) qtyEl.value = '1';
+    saveState();
+  });
 
-    // Qty: keep min=1 if non-empty; allow empty if price cleared
-    qtyEl?.addEventListener('input', () => {
-      const v = qtyEl.value.trim();
-      if (!v) { saveState(); return; }
-      const n = Math.max(1, parseInt(v, 10) || 1);
-      if (String(n) !== v) qtyEl.value = String(n);
-      saveState();
-    });
-  }
+  // Qty: keep min=1 if non-empty; allow empty if price cleared
+  qtyEl?.addEventListener('input', () => {
+    const v = qtyEl.value.trim();
+    if (!v) { saveState(); return; }
+    const n = Math.max(1, parseInt(v, 10) || 1);
+    if (String(n) !== v) qtyEl.value = String(n);
+    saveState();
+  });
+
+  // Bezeichnung (da-name) → any change should be persisted
+  nameEl?.addEventListener('input', () => {
+    saveState();
+  });
+
+  // ID (da-id) → any change should be persisted
+  idEl?.addEventListener('input', () => {
+    saveState();
+  });
+}
 
   // Wire existing first rows + add buttons + trash
-  section.querySelectorAll('fieldset.da-row[data-kind]').forEach(fs => {
+  document.querySelectorAll('fieldset.da-row[data-kind]').forEach(fs => {
     const addBtn = fs.querySelector('.da-add');
     const wrap   = fs.querySelector('.da-items');
     // wire existing row
