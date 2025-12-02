@@ -1633,21 +1633,30 @@ function collectBwtMaterials(doc) {
 
   const out = [];
 
-  // Universal / Standard Tür
-  (function () {
-    const cb = page.querySelector("#bwtDoorStd");
-    const qtyEl = page.querySelector("#bwtDoorStdQty");
-    if (!cb || !cb.checked) return;
-    const qty = parseInt((qtyEl && qtyEl.value) || "0", 10);
+    // Tür-Typen helper
+  function pushDoor(cbId, qtyId, fallbackName) {
+    const cb    = page.querySelector(cbId);
+    const qtyEl = page.querySelector(qtyId);
+    if (!cb || !qtyEl || !cb.checked) return;
+
+    const qty = parseInt((qtyEl.value || "0"), 10);
     if (!qty) return;
 
-    const productId = cb.getAttribute("data-product-id") || "BWT-DOOR-STD";
+    const productId = cb.getAttribute("data-product-id") || "";
     out.push({
-      productId,
-      name: cb.value || "Universal / Standard Tür",
+      productId: productId || null,
+      name: cb.value || fallbackName,
       qty,
     });
-  })();
+  }
+
+  // All BWT door variants
+  pushDoor("#bwtDoorStd",          "#bwtDoorStdQty",          "Universal / Standard Tür");
+  pushDoor("#bwtDoorBudget",       "#bwtDoorBudgetQty",       "Budget Tür - Verona");
+  pushDoor("#bwtDoorIndWienGlas",  "#bwtDoorIndWienGlasQty",  "Individual Tür - Wien Glas");
+  pushDoor("#bwtDoorVariodoor",    "#bwtDoorVariodoorQty",    "Variodoor");
+  pushDoor("#bwtDoorIndWien",      "#bwtDoorIndWienQty",      "Individual Tür - Wien");
+
 
   // Haltegriffe helper
   function pushHg(cbSel, qtySel, productId, friendlyName) {
@@ -5766,6 +5775,19 @@ function restoreBwt(bwt) {
   if (bwt.bwtDoorStdQty != null) {
     setByNameOrId('bwtDoorStdQty', bwt.bwtDoorStdQty);
   }
+    if (bwt.bwtDoorBudgetQty != null) {
+    setByNameOrId('bwtDoorBudgetQty', bwt.bwtDoorBudgetQty);
+  }
+  if (bwt.bwtDoorIndWienGlasQty != null) {
+    setByNameOrId('bwtDoorIndWienGlasQty', bwt.bwtDoorIndWienGlasQty);
+  }
+  if (bwt.bwtDoorVariodoorQty != null) {
+    setByNameOrId('bwtDoorVariodoorQty', bwt.bwtDoorVariodoorQty);
+  }
+  if (bwt.bwtDoorIndWienQty != null) {
+    setByNameOrId('bwtDoorIndWienQty', bwt.bwtDoorIndWienQty);
+  }
+
 
   // --- Anschlag (bwtAnschlag: radio) ---
   if (bwt.bwtAnschlag) {
@@ -7910,6 +7932,10 @@ wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
   //  - checked    → qty>=1, wrapper visible
   //  - resetAllForms() re-applies this logic via dispatching "change" events
   wireTileQty("bwtDoorStd",           "bwtDoorStdQtyWrap");
+   wireTileQty("bwtDoorBudget",        "bwtDoorBudgetQtyWrap");
+  wireTileQty("bwtDoorIndWienGlas",   "bwtDoorIndWienGlasQtyWrap");
+  wireTileQty("bwtDoorVariodoor",     "bwtDoorVariodoorQtyWrap");
+  wireTileQty("bwtDoorIndWien",       "bwtDoorIndWienQtyWrap");
   wireTileQty("bwtAidsHaltegriff40",  "bwtAidsHaltegriff40QtyWrap");
   wireTileQty("bwtAidsHaltegriff60",  "bwtAidsHaltegriff60QtyWrap");
   wireTileQty("bwtAidsHaltegriff80",  "bwtAidsHaltegriff80QtyWrap");

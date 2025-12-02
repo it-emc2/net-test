@@ -411,16 +411,27 @@ if (userRaw !== undefined && userRaw !== null && String(userRaw).trim() !== '') 
   // ------- BWT · Badewannentür materials -------
   if (offer === 'bwt') {
     // Example: standard door quantity
-    const doorQty = Number(bwt?.bwtDoorStdQty || 0) || 0;
-    if (doorQty > 0) {
-      add(
-        '1226',   // TODO: replace with real productId from DB
-        doorQty,
-        null,                  // use DB name as label
-        null,                  // use DB price as unit
-        null
-      );
-    }
+      // Tür-Varianten: jede ausgewählte Tür einzeln mit ihrer Menge hinzufügen
+  const doors = [
+    { qty: Number(bwt?.bwtDoorStdQty          || 0) || 0, pid: '1226' },
+    { qty: Number(bwt?.bwtDoorBudgetQty       || 0) || 0, pid: '1225' },
+    { qty: Number(bwt?.bwtDoorIndWienGlasQty  || 0) || 0, pid: '1228' },
+    { qty: Number(bwt?.bwtDoorVariodoorQty    || 0) || 0, pid: '1320' },
+    { qty: Number(bwt?.bwtDoorIndWienQty      || 0) || 0, pid: '1227' },
+  ];
+
+  for (const door of doors) {
+    if (!door.qty) continue;
+
+    add(
+      door.pid,  // Tür-spezifische Artikelnummer
+      door.qty,  // jeweilige Menge
+      null,      // Label aus DB
+      null,      // Preis aus DB
+      null
+    );
+  }
+
 
      // Aids / Haltegriffe quantities (40 / 60 / 80 cm)
     const aidsHg40Qty = Number(bwt?.bwtAidsHaltegriff40Qty || 0) || 0;
@@ -790,10 +801,17 @@ console.log("reise_ampunt_zeit ", reise_ampunt_zeit);
 console.log("kmAmount ", kmAmount);
 
 
-  // door quantity: ONLY use real qty > 0, no fallback
-  const rawDoorQty = Number(bwt?.bwtDoorStdQty || 0) || 0;
-  const doorQty = rawDoorQty > 0 ? rawDoorQty : 0;
-  const hasDoor = !!bwt?.bwtDoorType && doorQty > 0;
+// door quantity: sum of ALL BWT door variants, only real qty > 0
+const rawDoorQty =
+  (Number(bwt?.bwtDoorStdQty         || 0) || 0) +
+  (Number(bwt?.bwtDoorBudgetQty      || 0) || 0) +
+  (Number(bwt?.bwtDoorIndWienGlasQty || 0) || 0) +
+  (Number(bwt?.bwtDoorVariodoorQty   || 0) || 0) +
+  (Number(bwt?.bwtDoorIndWienQty     || 0) || 0);
+
+const doorQty = rawDoorQty > 0 ? rawDoorQty : 0;
+const hasDoor = doorQty > 0;
+
 
   const out = [];
 

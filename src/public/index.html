@@ -4278,12 +4278,20 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 
 
 
-  <!-- Tür-Typ: Standard Tür – Wien with Menge -->
+  <!-- Tür-Typ: Standard Tür – Wien with Menge  etc-->
 <div class="full field">
   <label class="req">Wählen Sie Ihren gewünschten Tür-Typen</label>
 
-  <div style="display:flex; gap:14px; flex-wrap:wrap">
-    <!-- Card wrapper to host checkbox + qty -->
+    <div
+    style="
+      display:flex;
+      gap:14px;
+      flex-wrap:nowrap;
+      overflow-x:auto;
+      align-items:flex-start;
+    ">
+
+    <!-- Universal / Standard Tür -->
     <div class="field" style="min-width:220px">
       <label class="image-check">
         <input
@@ -4299,7 +4307,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         <span class="caption">Universal / Standard Tür</span>
       </label>
 
-      <!-- Menge (shown always) -->
+      <!-- Menge (shown always initially) -->
       <div
         id="bwtDoorStdQtyWrap"
         class="field"
@@ -4318,16 +4326,154 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
           value="1"
         />
       </div>
+    </div>
+      <!-- Individual Tür - Wien Glas -->
+    <div class="field" style="min-width:220px">
+      <label class="image-check">
+        <input
+          type="checkbox"
+          id="bwtDoorIndWienGlas"
+          name="bwtDoorType"
+          value="Individual Tür - Wien Glas"
+          data-product-id="BWT-DOOR-WIEN-GLAS"
+        />
+        <span class="img-wrap">
+          <img src="./assets/wienglas.jpg" alt="Individual Tür - Wien Glas" />
+        </span>
+        <span class="caption">Individual Tür - Wien Glas</span>
+      </label>
 
-      <p class="muted" style="margin: 14px 0 6px">
-Höhe 40 bis 33 cm abschneidbar
-Breite 40,5 cm fix
-Tiefe oben 25 cm
-Tiefe unten 25 cm
-</p>
+      <div
+        id="bwtDoorIndWienGlasQtyWrap"
+        class="field"
+        aria-hidden="true"
+        style="max-width: 260px; margin-top: 10px"
+      >
+        <label for="bwtDoorIndWienGlasQty" class="req">Menge Individual Tür - Wien Glas</label>
+        <input
+          id="bwtDoorIndWienGlasQty"
+          name="bwtDoorIndWienGlasQty"
+          type="number"
+          min="1"
+          step="1"
+          placeholder="1"
+          inputmode="numeric"
+          value="1"
+        />
+      </div>
+    </div>
+
+    <!-- Budget Tür - Verona -->
+    <div class="field" style="min-width:220px">
+      <label class="image-check">
+        <input
+          type="checkbox"
+          id="bwtDoorBudget"
+          name="bwtDoorType"
+          value="Budget Tür - Verona"
+          data-product-id="BWT-DOOR-BUDGET"
+        />
+        <span class="img-wrap">
+          <img src="./assets/verona.jpg" alt="Budget Tür - Verona" />
+        </span>
+        <span class="caption">Budget Tür - Verona</span>
+      </label>
+
+      <div
+        id="bwtDoorBudgetQtyWrap"
+        class="field"
+        aria-hidden="true"
+        style="max-width: 260px; margin-top: 10px"
+      >
+        <label for="bwtDoorBudgetQty" class="req">Menge Budget Tür - Verona</label>
+        <input
+          id="bwtDoorBudgetQty"
+          name="bwtDoorBudgetQty"
+          type="number"
+          min="1"
+          step="1"
+          placeholder="1"
+          inputmode="numeric"
+          value="1"
+        />
+      </div>
+
+      
+    </div>
+
+    <!-- Individual Tür - Wien -->
+    <div class="field" style="min-width:220px">
+      <label class="image-check">
+        <input
+          type="checkbox"
+          id="bwtDoorIndWien"
+          name="bwtDoorType"
+          value="Individual Tür - Wien"
+          data-product-id="BWT-DOOR-WIEN"
+        />
+        <span class="img-wrap">
+          <img src="./assets/wien.jpg" alt="Individual Tür - Wien" />
+        </span>
+        <span class="caption">Individual Tür - Wien</span>
+      </label>
+
+      <div
+        id="bwtDoorIndWienQtyWrap"
+        class="field"
+        aria-hidden="true"
+        style="max-width: 260px; margin-top: 10px"
+      >
+        <label for="bwtDoorIndWienQty" class="req">Menge Individual Tür - Wien</label>
+        <input
+          id="bwtDoorIndWienQty"
+          name="bwtDoorIndWienQty"
+          type="number"
+          min="1"
+          step="1"
+          placeholder="1"
+          inputmode="numeric"
+          value="1"
+        />
+      </div>
+    </div>
+     <!-- Variodoor -->
+    <div class="field" style="min-width:220px">
+      <label class="image-check">
+        <input
+          type="checkbox"
+          id="bwtDoorVariodoor"
+          name="bwtDoorType"
+          value="Variodoor"
+          data-product-id="BWT-DOOR-VARIODOOR"
+        />
+        <span class="img-wrap">
+          <img src="./assets/variodoor.jpg" alt="Variodoor" />
+        </span>
+        <span class="caption">Variodoor</span>
+      </label>
+
+      <div
+        id="bwtDoorVariodoorQtyWrap"
+        class="field"
+        aria-hidden="true"
+        style="max-width: 260px; margin-top: 10px"
+      >
+        <label for="bwtDoorVariodoorQty" class="req">Menge Variodoor</label>
+        <input
+          id="bwtDoorVariodoorQty"
+          name="bwtDoorVariodoorQty"
+          type="number"
+          min="1"
+          step="1"
+          placeholder="1"
+          inputmode="numeric"
+          value="1"
+        />
+      </div>
     </div>
   </div>
 </div>
+
 
 <!-- Türanschlag -->
 
