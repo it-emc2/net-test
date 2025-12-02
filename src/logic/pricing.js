@@ -493,7 +493,7 @@ if (Array.isArray(bwt?.quickAdd) && bwt.quickAdd.length) {
       qty,
       label,      // e.g. "3 Stk Filterpatrone [FP-123]"
       unitPrice,  // user-entered unit price
-      null        // normal material, not "optional"
+      "BWT_EXTRA"        // 🔹 mark as Freier Posten (BWT) for DOCX
     );
   }
 }

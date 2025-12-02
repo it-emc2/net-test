@@ -778,11 +778,22 @@ if (offerKey === 'bwt') {
   };
 
   const doorLine = findLine('1226');      // Universal/Standard Tür
+
   //  collect all Haltegriff lines (40 / 60 / 80 cm)
-   const grabIds = ['CLPESG40', 'CLPESG60', 'CLPESG80'];
-  const grabLines = docxLines.filter(l =>
+  const grabIds = ['CLPESG40', 'CLPESG60', 'CLPESG80'];
+  const grabLines = docxLines.filter((l) =>
     grabIds.includes(String(l.productId || l.id || '').trim())
   );
+
+  // Freier Posten (BWT) → aus materials, markiert mit source = "BWT_EXTRA"
+  const extraLines = docxLines.filter((l) =>
+    String(l.source || '').trim() === 'BWT_EXTRA'
+  );
+
+  // Alle Zusatzartikel (Haltegriffe + Freier Posten BWT)
+  const additionalLines = [...grabLines, ...extraLines];
+
+
 // Map productId -> human name
 const grabLabelMap = {
   CLPESG40: 'Haltegriff 40 cm',
@@ -850,27 +861,61 @@ const serviceSum = Number(services?.sum || 0) || 0;
     });
   }
 
-  // --- Haltegriff rows (Pos 002, 003, ... or 001, 002, ... if no door) ---
-  if (grabLines.length) {
-    grabLines.forEach((line, idx) => {
-      const posNumber = doorLine ? 2 + idx : 1 + idx;
-      const pos = String(posNumber).padStart(3, '0');
+  // --- Zusatliche Artikel (Haltegriffe + Freier Posten BWT) ---
+  if (additionalLines.length) {
+    const toNumber = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    };
 
-      const rawText = String(line.label || line.name || '').trim();
-      let cleanLabel = rawText.replace(/^-+\s*/, '');
-      cleanLabel = cleanLabel.replace(/^\d+[.,]?\d*\s*Stk\s*/i, '');
-      cleanLabel = cleanLabel.trim();
+    const totalAdditional = additionalLines.reduce(
+      (sum, line) => sum + toNumber(line.lineTotal),
+      0
+    );
+
+    // Pos: "002" wenn eine Tür vorhanden, sonst "001"
+    const summaryPos = doorLine ? '002' : '001';
+
+    // Sammelzeile "Zusatliche Artikel"
+    BwtGrabRows.push({
+      Pos: summaryPos,
+      Menge: '1 Stk',
+      Text: 'Zusatliche Artikel',
+      Einheitspreis: fmtCurrency(totalAdditional),
+      Gesamt: fmtCurrency(totalAdditional),
+    });
+
+    // Darunter: jede einzelne Zusatz-Position in eigener Zeile (nur Text)
+    additionalLines.forEach((line) => {
+      const isBwtExtra =
+        String(line.source || '').trim() === 'BWT_EXTRA';
+
+      const rawBase = String(line.label || line.name || '').trim();
+      let cleanBase = rawBase.replace(/^-+\s*/, '').trim();
+      if (!cleanBase) return;
+
+      let text;
+      if (isBwtExtra) {
+        // Freier Posten (BWT): Label kommt schon als "qty Stk name [id]"
+        text = cleanBase;
+      } else {
+        // Haltegriffe: "Menge + Name"
+        const qtyTxt = formatQty(line.qty); // e.g. "2 Stk"
+        text = (qtyTxt ? `${qtyTxt} ${cleanBase}` : cleanBase).trim();
+      }
 
       BwtGrabRows.push({
-        Pos: pos,
-        Menge: formatQty(line.qty),
-        Text: cleanLabel,
-        Einheitspreis: fmtCurrency(line.unitPrice || 0),
-        Gesamt: fmtCurrency(line.lineTotal || 0),
+        Pos: '',
+        Menge: '',
+        Text: text,
+        Einheitspreis: '',
+        Gesamt: '',
       });
     });
   }
+
 }
+
 
 // -------- END of BWT-specific Angebotspositionen --------
 
