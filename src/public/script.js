@@ -1048,6 +1048,87 @@ function hoursToHHMM(n) {
   apply();
 })();
 
+(function initColorThemes() {
+  const THEME_KEY = 'emc2.theme';
+  const MODE_KEY = 'emc2.mode';
+
+  const root = document.documentElement;
+  const themeSelect = document.getElementById('themeSelect');
+  const modeToggle = document.getElementById('modeToggle');
+  const themeLabel = document.getElementById('themeLabel');
+
+  const offerDefaults = {
+    bu: 'wohnen',
+    bwt: 'gesundheit',
+    ah: 'pflege',
+    hl: 'pflege',
+    kfz: 'kfz',
+  };
+
+  function setTheme(theme, { save = true } = {}) {
+    if (!theme) return;
+    root.dataset.theme = theme;
+
+    if (themeSelect) themeSelect.value = theme;
+
+    if (save) {
+      try { localStorage.setItem(THEME_KEY, theme); } catch {}
+    }
+  }
+
+  function setMode(mode, { save = true } = {}) {
+    if (!mode) return;
+    root.dataset.mode = mode;
+
+    if (modeToggle) modeToggle.checked = mode === 'dark';
+    if (themeLabel) themeLabel.textContent = mode === 'dark' ? 'Dark' : 'Light';
+
+    if (save) {
+      try { localStorage.setItem(MODE_KEY, mode); } catch {}
+    }
+  }
+
+  function detectOfferType() {
+    // adapt if you have a better source for active offer
+    if (window.currentOfferType) return window.currentOfferType;
+    const el = document.querySelector('[data-offer-type-current]');
+    return el?.getAttribute('data-offer-type-current') || 'bu';
+  }
+
+  function initFromDefaults() {
+    let theme = null;
+    let mode = null;
+
+    try {
+      theme = localStorage.getItem(THEME_KEY);
+      mode = localStorage.getItem(MODE_KEY);
+    } catch {}
+
+    if (!theme) {
+      const offer = String(detectOfferType() || '').toLowerCase();
+      theme = offerDefaults[offer] || 'base';
+    }
+
+    if (!mode) mode = 'light';
+
+    setTheme(theme, { save: false });
+    setMode(mode, { save: false });
+  }
+
+  if (themeSelect) {
+    themeSelect.addEventListener('change', (e) => {
+      setTheme(e.target.value);
+    });
+  }
+
+  if (modeToggle) {
+    modeToggle.addEventListener('change', (e) => {
+      setMode(e.target.checked ? 'dark' : 'light');
+    });
+  }
+
+  initFromDefaults();
+})();
 
 document.addEventListener("DOMContentLoaded", () => {
   wireDurationAutoFormat("laborHours");
@@ -2205,7 +2286,7 @@ function updatePDFTimer(seconds) {
 }
 
 // Enhanced PDF download with progress
-async function downloadPDFWithProgress(endpoint, payload, filename) {
+async function downloadPDFWithProgress(endpoint, payload) {
   showPDFProgress("PDF-Generation gestartet...", "info");
   let timeLeft = 30;
   updatePDFTimer(timeLeft);
@@ -2239,22 +2320,33 @@ async function downloadPDFWithProgress(endpoint, payload, filename) {
       return;
     }
 
+    // --- NEW: read filename from header ---
+    const cd = response.headers.get("content-disposition") || "";
+    let serverFilename = "Angebot.pdf";
+    const match = cd.match(/filename="?(.*?)"?$/i);
+    if (match && match[1]) {
+      serverFilename = match[1];
+    }
+    console.log("[downloadPDF] serverFilename:", serverFilename);
+
     showPDFProgress("PDF wird konvertiert (LibreOffice)...", "info");
     const blob = await response.blob();
 
     clearInterval(timerInterval);
     showPDFProgress("PDF erfolgreich erstellt!", "success");
+
     // Save snapshot now that the export succeeded
-await saveFinalOfferSnapshot();
+    await saveFinalOfferSnapshot();
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = filename;
+    a.download = serverFilename; // uses backend name
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+
     setTimeout(() => {
       showPDFProgress("PDF-Download abgeschlossen!", "success");
     }, 500);
@@ -5214,7 +5306,8 @@ async function requestPdfAndDownload(payload, filename = "Anfrage.pdf") {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename;
+  //a.download = filename;
+   a.download = serverFilename;    
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -6746,7 +6839,7 @@ document.getElementById("makePdf")?.addEventListener("click", async () => {
 document.getElementById("downloadPdf")?.addEventListener("click", async () => {
   try {
     const payload = buildPayload();
-    await downloadPDFWithProgress("/pdf", payload, "Anfrage.pdf");
+    await downloadPDFWithProgress("/pdf", payload);
   } catch (e) {
     showPDFProgress(`PDF-Erstellung fehlgeschlagen: ${e.message}`, "error");
   }
@@ -6763,8 +6856,8 @@ document
       const payload = buildPayload();
       await downloadPDFWithProgress(
         "/pdf-template",
-        payload,
-        "Angebot_aus_Vorlage.pdf"
+        payload
+    
       );
       document
         .getElementById("pdfActions")
@@ -6774,26 +6867,37 @@ document
     }
   });
 
-async function downloadDocx(url, body, filename) {
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+async function downloadDocx(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!resp.ok) {
-    const txt = await resp.text().catch(() => "");
-    throw new Error(`Download failed: ${resp.status} ${txt}`);
+
+  if (!res.ok) {
+    console.error('DOCX download failed', res.status, await res.text());
+    return;
   }
-  const blob = await resp.blob();
-  const urlObj = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = urlObj;
-  a.download = filename;
+
+  // Read filename from Content-Disposition
+  const cd = res.headers.get('content-disposition') || '';
+  let serverFilename = 'Angebot.docx';
+  const match = cd.match(/filename="?(.*?)"?$/i);
+  if (match && match[1]) {
+    serverFilename = match[1];
+  }
+  console.log('[downloadDocx] serverFilename:', serverFilename);
+
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = objectUrl;
+  a.download = serverFilename;      // <- use backend name here
   document.body.appendChild(a);
   a.click();
-  await saveFinalOfferSnapshot(); // <-- add this after a.click()
   a.remove();
-  URL.revokeObjectURL(urlObj);
+  URL.revokeObjectURL(objectUrl);
 }
 
 document.getElementById("downloadDocx")?.addEventListener("click", async () => {
@@ -6802,21 +6906,8 @@ document.getElementById("downloadDocx")?.addEventListener("click", async () => {
     return;
   }
   try {
-    const resp = await fetch("/docx-template", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(buildPayload()),
-    });
-    if (!resp.ok) throw new Error(await resp.text());
-    const blob = await resp.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Angebot_${Date.now()}.docx`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    const payload = buildPayload();
+    await downloadDocx("/docx-template", payload);
   } catch (e) {
     show({ error: String(e) }, false);
   }
@@ -6873,8 +6964,8 @@ document
       
       await downloadDocx(
         "/docx-template/material-overview",
-        payload,
-        `Materialuebersicht_${Date.now()}.docx`
+        payload
+       // `Materialuebersicht_${Date.now()}.docx`
       );
     } catch (e) {
       console.error(e);
@@ -6895,8 +6986,7 @@ document
       const payload = buildPayload();
       await downloadPDFWithProgress(
         "/docx-template/pdf",
-        payload,
-        `Angebot_${Date.now()}.pdf`
+        payload
       );
     } catch (e) {
       console.error(e);

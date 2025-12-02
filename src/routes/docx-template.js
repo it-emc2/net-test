@@ -1067,7 +1067,7 @@ if (additionalLines.length) {
     Ansprechpartner: (b.emc2_contact || '').trim(),
     Kundennummer: b.customerNumber || '',
     Greeting: b.salutation === 'Frau' ? 'Sehr geehrte Frau' : (b.salutation === 'Herr' ? 'Sehr geehrter Herr' : (b.salutation === 'Familie' ? 'Sehr geehrter Familie' :'Guten Tag')),
-    Angebotsnummer: body.offerNumber || 'ANG-0001',
+    Angebotsnummer: body.offerNumber || `ANG-${Date.now()}`,
 
     // Legacy/optional price fields
     Arbeit: fmtCurrency(services?.sum ?? 0),
@@ -1199,6 +1199,7 @@ router.post('/', async (req, res) => {
     const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
 
     const data = mapData(req.body || {}, computed);
+    console.log('[docx-template] Angebotsnummer in data:', data.Angebotsnummer);
     console.log('[docx-template] replacing keys:', Object.keys(data));
 
     try {
