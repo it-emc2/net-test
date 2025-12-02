@@ -1789,32 +1789,25 @@ function collectBwtExtras(payload) {
     const qtyEl   = item.querySelector(".da-qty");
     const priceEl = item.querySelector(".da-price");
 
-    const label     = (nameEl?.value || "").trim();
-    const productId = (idEl?.value || "").trim();
-    const qty       = Number(qtyEl?.value || 0) || 0;
-    let   priceRaw  = (priceEl?.value || "").trim();
+   const label     = (nameEl?.value || "").trim();
+const productId = (idEl?.value || "").trim();
+const qty       = Number(qtyEl?.value || 0) || 0;
+const priceRaw  = (priceEl?.value || "").trim();
 
-    // Completely empty row → ignore
-    if (!label && !productId && !priceRaw && qty <= 0) return;
+// Completely empty row → ignore
+if (!label && !productId && !priceRaw && qty <= 0) return;
 
-    let price = 0;
-    if (priceRaw) {
-      // "1.299,00" → 1299
-      price = Number(
-        priceRaw
-          .replace(/\s+/g, "")
-          .replace(/\./g, "")
-          .replace(",", ".")
-      ) || 0;
-    }
+// Use the global tolerant parser (handles "799,00", "799,00 €", etc.)
+const price = window.parseMoneyEuro(priceRaw);
 
-    rows.push({
-      kind: "bwt-extra",
-      label,
-      productId,
-      qty,
-      price,
-    });
+rows.push({
+  kind: "bwt-extra",
+  label,
+  productId,
+  qty,
+  price,
+});
+
   });
 
   const bwt = payload.bwt || (payload.bwt = {});
