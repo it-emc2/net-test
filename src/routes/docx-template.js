@@ -862,57 +862,73 @@ const serviceSum = Number(services?.sum || 0) || 0;
   }
 
   // --- Zusatliche Artikel (Haltegriffe + Freier Posten BWT) ---
-  if (additionalLines.length) {
-    const toNumber = (v) => {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : 0;
-    };
+if (additionalLines.length) {
+  const toNumber = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
 
-    const totalAdditional = additionalLines.reduce(
-      (sum, line) => sum + toNumber(line.lineTotal),
-      0
-    );
+  const totalAdditional = additionalLines.reduce(
+    (sum, line) => sum + toNumber(line.lineTotal),
+    0
+  );
 
-    // Pos: "002" wenn eine Tür vorhanden, sonst "001"
-    const summaryPos = doorLine ? '002' : '001';
+  // Pos: "002" wenn eine Tür vorhanden, sonst "001"
+  const summaryPos = doorLine ? '002' : '001';
 
-    // Sammelzeile "Zusatliche Artikel"
-    BwtGrabRows.push({
-      Pos: summaryPos,
-      Menge: '1 Stk',
-      Text: 'Zusatliche Artikel',
-      Einheitspreis: fmtCurrency(totalAdditional),
-      Gesamt: fmtCurrency(totalAdditional),
-    });
+   // Alle Einzelzeilen-texte aufbauen
+  const detailLines = [];
 
-    // Darunter: jede einzelne Zusatz-Position in eigener Zeile (nur Text)
-    additionalLines.forEach((line) => {
-      const isBwtExtra =
-        String(line.source || '').trim() === 'BWT_EXTRA';
+  additionalLines.forEach((line) => {
+    const isBwtExtra =
+      String(line.source || '').trim() === 'BWT_EXTRA';
 
-      const rawBase = String(line.label || line.name || '').trim();
-      let cleanBase = rawBase.replace(/^-+\s*/, '').trim();
-      if (!cleanBase) return;
+    const rawBase = String(line.label || line.name || '').trim();
 
-      let text;
-      if (isBwtExtra) {
-        // Freier Posten (BWT): Label kommt schon als "qty Stk name [id]"
-        text = cleanBase;
-      } else {
-        // Haltegriffe: "Menge + Name"
-        const qtyTxt = formatQty(line.qty); // e.g. "2 Stk"
-        text = (qtyTxt ? `${qtyTxt} ${cleanBase}` : cleanBase).trim();
-      }
+    // 1) Grundbereinigung: führende "-" entfernen
+    let cleanBase = rawBase.replace(/^-+\s*/, '').trim();
+    if (!cleanBase) return;
 
-      BwtGrabRows.push({
-        Pos: '',
-        Menge: '',
-        Text: text,
-        Einheitspreis: '',
-        Gesamt: '',
-      });
-    });
-  }
+    // 2) Führende Mengenangabe wie "1 Stk", "2,0 Stk" entfernen,
+    //    weil wir die Menge separat über qty wieder vorne dran hängen
+    cleanBase = cleanBase.replace(/^\d+[.,]?\d*\s*Stk\s*/i, '').trim();
+
+    const qtyTxt = formatQty(line.qty); // z.B. "1 Stk", "4 Stk"
+    let text;
+
+    if (isBwtExtra) {
+      // Freier Posten (BWT):
+      // wir wollen KEINEN [Code] anzeigen → am Ende entfernen
+      const withoutId = cleanBase
+        .replace(/\s*\[[^\]]*\]\s*$/i, '') // trailing " [id]" weg
+        .trim();
+
+      text = (qtyTxt ? `${qtyTxt} ${withoutId}` : withoutId);
+    } else {
+      // Haltegriffe:
+      // nach Schritt (2) enthält cleanBase KEIN "1 Stk" mehr,
+      // daher hier einmal korrekt "qty Stk + Name" bauen
+      text = (qtyTxt ? `${qtyTxt} ${cleanBase}` : cleanBase);
+    }
+
+    detailLines.push(text.trim());
+  });
+
+
+  // Alle Produkte in EINEM Feld, mit Zeilenumbrüchen
+  const combinedText = detailLines.join('\n');
+
+  // Eine einzige Datenzeile:
+  // - "Zusatliche Artikel" schreibst du direkt im Template (größer, fett)
+  // - {Text} in der Zeile darunter zeigt dann alle Produkte (multi-line)
+  BwtGrabRows.push({
+    Pos: summaryPos,
+    Menge: '1 Stk',
+    Text: combinedText,
+    Einheitspreis: fmtCurrency(totalAdditional),
+    Gesamt: fmtCurrency(totalAdditional),
+  });
+}
 
 }
 
