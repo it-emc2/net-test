@@ -1425,14 +1425,25 @@ function updateSidebarForOffer() {
   }
 
   // --- Render only the pages that belong to the active offer ---
+   // --- Render only the pages that belong to the active offer ---
   const pages = getPagesForOfferType(activeOffer);
 
-  const normalPages = pages.filter((pageId) => pageId !== "home" && pageId !== "admin" && pageId !== "services");
+  const normalPages = pages.filter(
+    (pageId) => pageId !== "home" && pageId !== "admin" && pageId !== "services"
+  );
+
   normalPages.forEach((pageId) => {
     const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
-    const label = navLink ? navLink.textContent.trim() : pageId;
+    let label = navLink ? navLink.textContent.trim() : pageId;
+
+    // Special display label for the BWT page
+    if (pageId === "bwt") {
+      label = "BWT";
+    }
+
     sideMenu.appendChild(makeLink(pageId, label));
   });
+
 
   const adminPages = pages.filter((pageId) => pageId === "admin" || pageId === "services");
   if (adminPages.length) {
