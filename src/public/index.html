@@ -588,6 +588,44 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
   color: var(--text);
   font-size: 0.85rem;
 }
+/* --- default / desktop: keep your existing positioning --- */
+/* (no change here – use whatever you already have) */
+
+
+/* --- tablet & smaller: make it a full-width bar, not floating --- */
+@media (max-width: 1024px) {
+  #summaryWidget {
+    position: static !important; /* stop overlaying header */
+    width: 100%;
+    max-width: 100%;
+    margin: 0 0 12px 0;
+    box-sizing: border-box;
+  }
+
+  /* align lines nicely in a compact bar */
+  #summaryWidget .sw-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  #summaryWidget .sw-actions {
+    margin-top: 6px;
+  }
+
+  /* show the toggle button only on small screens */
+  #swToggleSummary {
+    display: inline-flex;
+  }
+}
+.sw-toggle-btn {
+  border: none;
+  background: transparent;
+  font-size: 0.85rem;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
 
     </style>
   </head>
@@ -6520,8 +6558,20 @@ grundsätzlich wird automatisch mitkalkuliert
     </div>    </div> <!-- closes .container -->
   </div>   <!-- closes .app -->
 
-  <!-- widget-->
+<!-- widget-->
 <div id="summaryWidget" class="summary-widget" aria-live="polite">
+  <div class="sw-header">
+    <button
+      type="button"
+      id="swToggleSummary"
+      class="sw-toggle-btn"
+      aria-expanded="true"
+      style="display:none"  <!-- will be shown via media query -->
+    >
+      Details ausblenden
+    </button>
+  </div>
+
   <div class="sw-line sw-name">
     <span class="sw-label">Kunde:</span>
     <span id="swNameValue" class="sw-value">–</span>
@@ -6534,13 +6584,14 @@ grundsätzlich wird automatisch mitkalkuliert
     <span class="sw-label">Eigenanteil:</span>
     <span id="swSelfPayValue" class="sw-value">–</span>
   </div>
-    <!-- NEW: save button -->
+  <!-- NEW: save button -->
   <div class="sw-actions">
     <button type="button" id="btnSaveDraft" class="sw-save-btn">
-     Entwurf Speichern
+      Entwurf Speichern
     </button>
   </div>
 </div>
+
 
 <!-- end widget -->
 
