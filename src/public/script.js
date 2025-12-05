@@ -368,6 +368,37 @@ window.__restoring = false;
 window.__RESTORING__ = false;
 
 // ----  HELPERS ----
+// show sections with data-offer="..." only for the current offer
+function updateOfferSpecificSections() {
+  var offer = '';
+
+  // Prefer the global helper you already expose
+  if (typeof window.getCurrentOfferType === 'function') {
+    offer = window.getCurrentOfferType() || '';
+  } else if (typeof loadWizardState === 'function') {
+    // Fallback: read from stored wizard state
+    var state = loadWizardState();
+    offer = state && state.offerType ? state.offerType : '';
+  }
+
+  offer = String(offer || '').trim().toLowerCase();
+
+  document.querySelectorAll('[data-offer]').forEach(function (el) {
+    var attr = (el.getAttribute('data-offer') || '').trim();
+    if (!attr) return; // nothing to filter
+
+    // support comma-separated list like "bu,bwt"
+    var offers = attr
+      .split(',')
+      .map(function (s) { return s.trim().toLowerCase(); })
+      .filter(Boolean);
+
+    var visible = offers.indexOf(offer) !== -1;
+    el.style.display = visible ? '' : 'none';
+  });
+}
+
+
 function showToast(message, type = 'info') {
   // If you have a proper toaster utility, call it here.
   // For now, simple fallback:
@@ -944,8 +975,11 @@ function installAutoRefreshOnNav() {
 installAutoRefreshOnNav();
 
 
-function wireDurationAutoFormat(id) {
-  const el = document.getElementById(id);
+function wireDurationAutoFormat(target) {
+  const el =
+    typeof target === "string"
+      ? document.getElementById(target)
+      : target;
   if (!el) return;
 
   const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
@@ -1391,6 +1425,11 @@ function updateSidebarForOffer() {
   const state = loadWizardState();
   const activeOffer = state && state.offerType;
   const activeStep = state && state.step;
+
+    // Show/hide sections that are specific to an offer (data-offer="...")
+  if (typeof updateOfferSpecificSections === "function") {
+    updateOfferSpecificSections();
+  }
 
   // Clear existing sidebar items
   sideMenu.innerHTML = "";
@@ -2126,7 +2165,7 @@ function buildPayload() {
       .toString()
       .trim();
 
-    payload.Arbeitszeit = {
+        const arbeitsBlock = {
       totalHoursHHMM: totalHHMM,
       totalHoursNumeric: totalNumeric,
       ReiseHoursNumeric: travelNumeric,
@@ -2136,6 +2175,67 @@ function buildPayload() {
       distanceKm,
     };
 
+     // Extra Arbeitszeit (BWT) – always recompute from DOM if fieldset exists
+  (function computeExtraArbeitszeit() {
+    const fs = document.getElementById('bwtAzExtraFieldset');
+    console.log('[ExtraAZ] computeExtraArbeitszeit, fs exists?', !!fs);
+
+    if (!fs || typeof hhmmToHours !== 'function') {
+      console.log('[ExtraAZ] bail: missing fieldset or hhmmToHours');
+      delete arbeitsBlock.extraTasks;
+      delete arbeitsBlock.extraHoursTotal;
+      return;
+    }
+
+    const items = fs.querySelectorAll('.bwt-az-item');
+    const extraTasks = [];
+    let extraHoursTotal = 0;
+
+    items.forEach(function (item, i) {
+      const durEl  = item.querySelector('.bwt-az-duration');
+      const taskEl = item.querySelector('.bwt-az-task');
+
+      const durRaw = (durEl && durEl.value || '').trim();
+      const task   = (taskEl && taskEl.value || '').trim();
+
+      console.log('[ExtraAZ] row', i, { durRaw, task });
+
+      if (!durRaw && !task) return;
+
+      const hours = hhmmToHours(durRaw || '0:00') || 0;
+
+      console.log('[ExtraAZ] row', i, 'hours=', hours);
+
+      extraTasks.push({
+        durationHHMM: durRaw,
+        durationHours: hours,
+        task,
+      });
+
+      if (hours > 0) {
+        extraHoursTotal += hours;
+      }
+    });
+
+    console.log('[ExtraAZ] total hours:', extraHoursTotal);
+
+    if (extraTasks.length) {
+      arbeitsBlock.extraTasks = extraTasks;
+      arbeitsBlock.extraHoursTotal =
+        Math.round(extraHoursTotal * 100) / 100;
+      console.log('[ExtraAZ] saved extraHoursTotal=', arbeitsBlock.extraHoursTotal);
+    } else {
+      delete arbeitsBlock.extraTasks;
+      delete arbeitsBlock.extraHoursTotal;
+      console.log('[ExtraAZ] no valid rows, clearing extra fields');
+    }
+  })();
+
+ 
+
+
+    payload.Arbeitszeit = arbeitsBlock;
+
     // If your backend still expects some of this under Kundendaten, you can mirror it:
     // payload.Kundendaten.totalHoursHHMM     = totalHHMM;
     // payload.Kundendaten.totalHoursNumeric  = totalNumeric;
@@ -2143,6 +2243,7 @@ function buildPayload() {
     // payload.Kundendaten.ArbeitHoursNumeric = laborNumeric;
     // payload.Kundendaten.laborHoursHHMM     = laborHHMM;
   })();
+
 
   // -------------------------------------------------------------------------
 
@@ -9269,6 +9370,76 @@ sidebar?.addEventListener("click", (event) => {
       });
     });
   })();
+(function initBwtExtraArbeitszeit() {
+  var fs   = document.getElementById('bwtAzExtraFieldset');
+  if (!fs) return;
+
+  var wrap = fs.querySelector('.bwt-az-items');
+  var tpl  = document.getElementById('tpl-bwtAzExtraItem');
+
+  // If something is missing in the HTML, do nothing.
+  if (!wrap || !tpl || !tpl.content) return;
+
+  function addExtraRow(focusTask) {
+    if (focusTask === undefined) focusTask = true;
+
+    var first = tpl.content.firstElementChild;
+    if (!first) return null;
+
+    var node = first.cloneNode(true);
+    wrap.appendChild(node);
+
+    // wire HH:MM auto-format on the duration input
+    var durEl = node.querySelector('.bwt-az-duration');
+    if (durEl && typeof wireDurationAutoFormat === 'function') {
+      wireDurationAutoFormat(durEl);
+  }
+
+  if (focusTask) {
+    var taskEl = node.querySelector('.bwt-az-task');
+    if (taskEl) taskEl.focus();
+  }
+  return node;
+}
+
+
+  function removeExtraRow(btn) {
+    var item = btn.closest('.bwt-az-item');
+    if (!item) return;
+
+    var items = wrap.querySelectorAll('.bwt-az-item');
+
+    // If it's the only row, just clear inputs instead of removing
+    if (items.length <= 1) {
+      var durEl  = item.querySelector('.bwt-az-duration');
+      var taskEl = item.querySelector('.bwt-az-task');
+      if (durEl)  durEl.value  = '';
+      if (taskEl) taskEl.value = '';
+      return;
+    }
+
+    item.remove();
+  }
+
+  // Event delegation for "+" and 🗑
+  fs.addEventListener('click', function (e) {
+    var addBtn = e.target.closest('.bwt-az-add');
+    if (addBtn) {
+      addExtraRow(true);
+      return;
+    }
+
+    var removeBtn = e.target.closest('.bwt-az-remove');
+    if (removeBtn) {
+      removeExtraRow(removeBtn);
+      return;
+    }
+  });
+
+  // Optional: start with one empty row
+  // addExtraRow(false);
+})();
+
 
 
   

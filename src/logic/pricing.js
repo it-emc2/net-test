@@ -509,10 +509,6 @@ if (Array.isArray(bwt?.quickAdd) && bwt.quickAdd.length) {
   }
 }
 
-
-
-    // bwt[bwtinfoTasks][] can later be mapped to extra materials or work notes if needed.
-
     // bwt[bwtinfoTasks][] can later be mapped to extra materials or work notes if needed.
   }
 
@@ -701,7 +697,6 @@ try {
   const fahrzeugbereitstellung = 80.0;
   const werkzeug = 7.5;
   const beraeumung = 4.5;
-
   const kilometerpauschale = round2(roundTripKm * kmRate);
   const laborRate =
     payer === 'KK' ? laborRateKK : payer === 'SZ' ? laborRateSZ : 0;
@@ -709,6 +704,7 @@ try {
   const facharbeiter =
     Arbeitszeit_hours_numeric * handwerkerCount * laborRate +
     reise_hours_numeric * (laborRate + sitz_reise_Rate);
+  let extraAufgabeAmount = 0;
 
   const lines = [];
   lines.push({
@@ -744,6 +740,21 @@ try {
       docxHide: true,
     });
   }
+  // Extra Arbeitszeit (BWT): Summe der zusätzlichen Aufgaben
+    const extraHours =
+    Number(arbeits.extraHoursTotal ?? 0) || 0;
+
+  if (extraHours > 0 && laborRate > 0) {
+    const extraAmount = round2(extraHours * handwerkerCount * laborRate);
+    extraAufgabeAmount = extraAmount;  // 🔹 remember for Zwischensumme
+
+    lines.push({
+      key: 'extraAufgabe',
+      label: '- extra Aufgabe',
+      amount: extraAmount,
+    });
+  }
+
 
   // Work notes unchanged
   try {
@@ -755,7 +766,7 @@ try {
 
   const posTitle = 'Auszuführende Arbeiten';
   const sum = round2(lines.reduce((a, x) => a + (x.amount || 0), 0));
-  return {
+    return {
     title: posTitle,
     lines,
     sum,
@@ -764,7 +775,9 @@ try {
     distanceKm: roundTripKm,
     laborHours,
     laborRate,
+    extraAufgabeAmount,
   };
+
 }
 
  // --- BWT: "Enthält je Einheit" rows, with real prices from DB ---
@@ -874,8 +887,6 @@ const hasDoor = doorQty > 0;
   return out;
 }
 
-
-
   return {
     computePrices: async (payload) => {
       const selections = collectSelections(payload);
@@ -899,7 +910,7 @@ try { materials = await computeMaterials(payload); } catch (e) { console.error('
 
 let services = { title: '', lines: [], sum: 0, payer: '', zoneLabel: '', distanceKm: 0, laborHours: 0, laborRate: 0 };
 try { services = computeServiceCosts(payload) || services; } catch (e) { console.error('[pricing] computeServiceCosts failed:', e); }
-
+const originalServicesSum = Number(services?.sum || 0);
 // figure out active offer here
 const offer =
   payload?.activeOffer ||
@@ -916,15 +927,19 @@ if (offer === 'bwt') {
     console.error('[pricing] computeBwtIncludedLines failed:', e);
   }
 }
+
 // --- BWT: Summe Leistungen nur aus den 4 BWT-Zeilen ---
 let bwtLeistungenSum = 0;
 if (offer === 'bwt' && Array.isArray(bwtIncludedDisplayUI) && bwtIncludedDisplayUI.length) {
   bwtLeistungenSum = round2(
     bwtIncludedDisplayUI.reduce((acc, row) => acc + (Number(row.lineTotal) || 0), 0)
   );
-  // Überschreibe Services-Summe für BWT, damit UI + DOCX denselben Betrag sehen
+
+  // For BWT, use ONLY these four Zeilen as "Leistungen" for UI/DOCX + splitting
   services.sum = bwtLeistungenSum;
 }
+
+
 
 
 // --- add the selected Duschwanne (from smart search) as a material line ---

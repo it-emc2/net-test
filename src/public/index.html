@@ -626,6 +626,30 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
   cursor: pointer;
   text-decoration: underline;
 }
+.bwt-az-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.bwt-az-item {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.bwt-az-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .bwt-az-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
     </style>
   </head>
@@ -1491,6 +1515,63 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
           </div>
         </details>
       </div>
+      <!-- Extra Arbeitszeit – only for BWT -->
+<fieldset
+  id="bwtAzExtraFieldset"
+  class="field az-bwt-only"
+  data-offer="bwt"
+>
+  <legend class="da-legend" style="display:flex; align-items:center; gap:8px;">
+    Extra Arbeitszeit
+    <button
+      type="button"
+      class="bwt-az-add"
+      aria-label="Weitere Extra-Arbeitszeit hinzufügen"
+    >
+      +
+    </button>
+  </legend>
+
+  <div class="bwt-az-items">
+    <!-- we start with no rows; user adds them with "+" -->
+  </div>
+
+  <template id="tpl-bwtAzExtraItem">
+    <div class="bwt-az-item">
+      <div class="bwt-az-grid">
+        <label class="da-label">
+  Dauer (HH:MM)
+  <input
+    type="text"
+    class="bwt-az-duration"
+    inputmode="numeric"
+    placeholder="z. B. 01:30"
+  />
+</label>
+
+
+        <label class="da-label">
+          Aufgabe / Tätigkeit
+          <input
+            type="text"
+            class="bwt-az-task"
+            placeholder="z. B. Zusätzliche Anpassungsarbeiten"
+          />
+        </label>
+      </div>
+
+      <button
+        type="button"
+        class="bwt-az-remove"
+        aria-label="Diese Extra-Arbeitszeit entfernen"
+        style="margin-top:4px"
+      >
+        🗑
+      </button>
+    </div>
+  </template>
+</fieldset>
+
     </div> <!-- ✅ closes the grid .full wrapper -->
 
     <div class="actions full">
