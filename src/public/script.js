@@ -9192,7 +9192,8 @@ function renderResults(list) {
       setStatus('Sende PDF an Auftrag-Webhook …', 'info');
 
       // pdfName exakt aus der bereits existierenden Angebotsnummer ableiten
-      const pdfName = `${offerNumber}.pdf`;
+      //const pdfName = `${offerNumber}.pdf`;
+      const pdfName = offerNumber;
 
       const body = {
         auftragId,   // Auftrag ID aus Input
