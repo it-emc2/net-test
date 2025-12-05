@@ -928,15 +928,20 @@ if (offer === 'bwt') {
   }
 }
 
-// --- BWT: Summe Leistungen nur aus den 4 BWT-Zeilen ---
+// --- BWT: Summe Leistungen aus den 4 BWT-Zeilen + Extra Arbeitszeit ---
 let bwtLeistungenSum = 0;
 if (offer === 'bwt' && Array.isArray(bwtIncludedDisplayUI) && bwtIncludedDisplayUI.length) {
   bwtLeistungenSum = round2(
     bwtIncludedDisplayUI.reduce((acc, row) => acc + (Number(row.lineTotal) || 0), 0)
   );
 
-  // For BWT, use ONLY these four Zeilen as "Leistungen" for UI/DOCX + splitting
-  services.sum = bwtLeistungenSum;
+  // Extra Arbeitszeit from Arbeitszeit page (computed in computeServiceCosts)
+  const extraAufgabe = Number(services?.extraAufgabeAmount || 0);
+
+  // For BWT: base BWT-Leistungen + Extra Arbeitszeit
+  const bwtServicesTotal = round2(bwtLeistungenSum + extraAufgabe);
+
+  services.sum = bwtServicesTotal;
 }
 
 
@@ -1075,10 +1080,6 @@ const materialsDisplayDocx   = { title: materials.title, lines: docxMaterials };
 const servicesDisplayUI      = { ...services, lines: uiServices };
 const servicesDisplayDocx    = { ...services, lines: docxServices };
 
-
-
-
-    
 
        //const productsSubtotal = round2((items || []).reduce((sum, i) => sum + (i?.lineTotal || 0), 0) +(materials?.sum ?? 0));
       const productsSubtotal = round2(Number(materials?.sum || 0));
