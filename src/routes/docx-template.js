@@ -777,7 +777,7 @@ const MaterialsLines = matForDoc.map(l => {
   '';
 
 let BwtRows = [];       // Tür rows (usually 0 or 1)
-let BwtGrabRows = [];   // Haltegriff rows (0 or 1)
+// let BwtGrabRows = [];   // Haltegriff rows (0 or 1)
 
 if (offerKey === 'bwt') {
   const docxLines = Array.isArray(computed?.materialsDisplayDocx?.lines)
@@ -877,6 +877,15 @@ const doorUnitPrice =
   // Alle Zusatzartikel (Haltegriffe + Freier Posten BWT)
   const additionalLines = [...grabLines, ...extraLines];
 
+    // These will show under "Enthält je Einheit" in the template
+  const EnthExtraItems = additionalLines.map((line) => {
+    // strip leading "- " if present in the label
+    const rawLabel = String(line.label || '').trim();
+    const cleaned = rawLabel.replace(/^-\s*/, '');
+    return { Text: cleaned };
+  });
+
+
 
 // Map productId -> human name
 const grabLabelMap = {
@@ -948,12 +957,13 @@ if (hasDoor) {
     EnthDoorQty: doorQtyPlain,
     EnthDoorLabel: enthDoorLabel,  
     EnthKleinQty: doorQtyPlain,
+    EnthExtraItems,
   });
 }
 
 
 // --- Zusatliche Artikel (Haltegriffe + Freier Posten BWT) ---
-if (additionalLines.length) {
+/* if (additionalLines.length) {
   const toNumber = (v) => {
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
@@ -977,12 +987,12 @@ if (additionalLines.length) {
     const rawBase = String(line.label || line.name || '').trim();
 
     // 1) Grundbereinigung: führende "-" entfernen
-    let cleanBase = rawBase.replace(/^-+\s*/, '').trim();
+    
     if (!cleanBase) return;
 
     // 2) Führende Mengenangabe wie "1 Stk", "2,0 Stk" entfernen,
     //    weil wir die Menge separat über qty wieder vorne dran hängen
-    cleanBase = cleanBase.replace(/^\d+[.,]?\d*\s*Stk\s*/i, '').trim();
+    cleanBase = cleanBase.replace(/^\d+[.,]?
 
     const qtyTxt = formatQty(line.qty); // z.B. "1 Stk", "4 Stk"
     let text;
@@ -1019,7 +1029,7 @@ if (additionalLines.length) {
     Einheitspreis: fmtCurrency(totalAdditional),
     Gesamt: fmtCurrency(totalAdditional),
   });
-}
+}*/
 
 }
 
@@ -1227,7 +1237,7 @@ HasIncluded,
 
      // BWT table rows (used only in Angebot-BWT.docx)
     BwtRows,
-    BwtGrabRows,
+    //BwtGrabRows,
 
     // BWT specific additions (existing free text)
 BwtFreeText: (bwt.bwtNote || '').trim(),
