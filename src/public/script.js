@@ -6013,7 +6013,13 @@ function restoreArbeitszeit(aw) {
   setNumber('distanceKm', aw.distanceKm);
   setByNameOrId('travelTime', aw.travelTimeHHMM);
   setByNameOrId('laborHours', aw.laborHoursHHMM);
+
+  // BWT: Extra Arbeitszeit rows (if present in payload)
+  if (typeof window.restoreBwtExtraArbeitszeitFromPayload === 'function') {
+    window.restoreBwtExtraArbeitszeitFromPayload(aw);
+  }
 }
+
 
 // Duschwanne
 function restoreDuschwanne(dw) {
@@ -9377,11 +9383,77 @@ sidebar?.addEventListener("click", (event) => {
 
   var wrap = fs.querySelector('.bwt-az-items');
   var tpl  = document.getElementById('tpl-bwtAzExtraItem');
+  var LS_KEY = 'bwtExtraTasks:v1';
 
   // If something is missing in the HTML, do nothing.
   if (!wrap || !tpl || !tpl.content) return;
 
-  function addExtraRow(focusTask) {
+  // --- helpers like in initDWExtraTasks -------------------------
+
+  function serializeRows() {
+    var rows = [];
+    var items = wrap.querySelectorAll('.bwt-az-item');
+
+    items.forEach(function (item) {
+      var durEl  = item.querySelector('.bwt-az-duration');
+      var taskEl = item.querySelector('.bwt-az-task');
+
+      var durRaw = (durEl && durEl.value || '').trim();
+      var task   = (taskEl && taskEl.value || '').trim();
+
+      if (!durRaw && !task) return;
+      rows.push({
+        durationHHMM: durRaw,
+        task: task,
+      });
+    });
+
+    return rows;
+  }
+
+  function saveState() {
+    try {
+      var rows = serializeRows();
+      localStorage.setItem(LS_KEY, JSON.stringify(rows));
+    } catch (e) {
+      console.warn('[ExtraAZ] saveState failed', e);
+    }
+  }
+
+  function restoreFromLocalStorage() {
+    var rows = null;
+    try {
+      rows = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+    } catch (e) {
+      rows = null;
+    }
+    if (!Array.isArray(rows) || !rows.length) return false;
+
+    wrap.innerHTML = '';
+    rows.forEach(function (row) {
+      addExtraRow(false, row);
+    });
+    return true;
+  }
+
+  function wireRow(node) {
+    var durEl  = node.querySelector('.bwt-az-duration');
+    var taskEl = node.querySelector('.bwt-az-task');
+
+    if (durEl && typeof wireDurationAutoFormat === 'function') {
+      wireDurationAutoFormat(durEl);
+    }
+
+    [durEl, taskEl].forEach(function (el) {
+      if (!el) return;
+      el.addEventListener('input', saveState);
+      el.addEventListener('change', saveState);
+    });
+  }
+
+  // --- UI row creation / removal ------------------------------
+
+  function addExtraRow(focusTask, prefill) {
     if (focusTask === undefined) focusTask = true;
 
     var first = tpl.content.firstElementChild;
@@ -9390,19 +9462,21 @@ sidebar?.addEventListener("click", (event) => {
     var node = first.cloneNode(true);
     wrap.appendChild(node);
 
-    // wire HH:MM auto-format on the duration input
-    var durEl = node.querySelector('.bwt-az-duration');
-    if (durEl && typeof wireDurationAutoFormat === 'function') {
-      wireDurationAutoFormat(durEl);
-  }
+    wireRow(node);
 
-  if (focusTask) {
-    var taskEl = node.querySelector('.bwt-az-task');
-    if (taskEl) taskEl.focus();
-  }
-  return node;
-}
+    if (prefill && typeof prefill === 'object') {
+      var durEl  = node.querySelector('.bwt-az-duration');
+      var taskEl = node.querySelector('.bwt-az-task');
+      if (durEl)  durEl.value  = prefill.durationHHMM || '';
+      if (taskEl) taskEl.value = prefill.task || '';
+    }
 
+    if (focusTask) {
+      var taskEl2 = node.querySelector('.bwt-az-task');
+      if (taskEl2) taskEl2.focus();
+    }
+    return node;
+  }
 
   function removeExtraRow(btn) {
     var item = btn.closest('.bwt-az-item');
@@ -9416,10 +9490,12 @@ sidebar?.addEventListener("click", (event) => {
       var taskEl = item.querySelector('.bwt-az-task');
       if (durEl)  durEl.value  = '';
       if (taskEl) taskEl.value = '';
+      saveState();
       return;
     }
 
     item.remove();
+    saveState();
   }
 
   // Event delegation for "+" and 🗑
@@ -9427,6 +9503,7 @@ sidebar?.addEventListener("click", (event) => {
     var addBtn = e.target.closest('.bwt-az-add');
     if (addBtn) {
       addExtraRow(true);
+      saveState();
       return;
     }
 
@@ -9437,9 +9514,33 @@ sidebar?.addEventListener("click", (event) => {
     }
   });
 
-  // Optional: start with one empty row
-  // addExtraRow(false);
+  // --- payload-based restore hook (like restoreDWExtraTasksFromPayload) ---
+
+  window.restoreBwtExtraArbeitszeitFromPayload = function (aw) {
+    if (!aw || !Array.isArray(aw.extraTasks)) return;
+
+    wrap.innerHTML = '';
+
+    if (aw.extraTasks.length === 0) {
+      // keep section empty; user can add rows with "+"
+      try { localStorage.removeItem(LS_KEY); } catch (e) {}
+      return;
+    }
+
+    aw.extraTasks.forEach(function (row) {
+      addExtraRow(false, {
+        durationHHMM: row.durationHHMM || '',
+        task: row.task || '',
+      });
+    });
+
+    saveState(); // mirror payload → LS so a refresh keeps it
+  };
+
+  // On first load, restore last local edits (if any)
+  restoreFromLocalStorage();
 })();
+
 
 
 
