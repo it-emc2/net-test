@@ -933,8 +933,8 @@ if (hasDoor) {
     Menge: formatQty(doorQty),
 
     // add Summe Leistungen to both unit price and total to the door price
-    Einheitspreis: fmtCurrency(doorUnitPrice + serviceSum),
-    Gesamt:        fmtCurrency(doorMaterialsTotal + serviceSum),
+    Einheitspreis: fmtCurrency(netAfterRabatt_and_Bonus), //Einheitspreis: fmtCurrency(doorUnitPrice + serviceSum)
+    Gesamt:        fmtCurrency(netAfterRabatt_and_Bonus),// fmtCurrency(doorMaterialsTotal + serviceSum) 
 
     Title: 'Liefern und Montieren einer Badewannentür',
    Bullet1: bullet1Text,
