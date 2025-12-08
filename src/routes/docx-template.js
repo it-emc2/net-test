@@ -794,7 +794,31 @@ if (offerKey === 'bwt') {
     return n.toFixed(2).replace('.', ',');
   };
 
-  const doorLine = findLine('1226');      // Universal/Standard Tür
+  // All BWT door productIds (materials)
+const doorProductIds = ['1226', '1225', '1228', '1320', '1227'];
+
+const doorLines = docxLines.filter((l) =>
+  doorProductIds.includes(String(l.productId || l.id || '').trim())
+);
+
+// total door quantity over all variants
+const doorQty = doorLines.reduce(
+  (sum, l) => sum + (Number(l.qty || 0) || 0),
+  0
+);
+
+const hasDoor = doorQty > 0;
+
+// sum of material totals over all selected doors
+const doorMaterialsTotal = doorLines.reduce(
+  (sum, l) => sum + (Number(l.lineTotal || 0) || 0),
+  0
+);
+
+// average unit price per door (only door materials)
+const doorUnitPrice =
+  hasDoor && doorQty > 0 ? doorMaterialsTotal / doorQty : 0;
+
 
   //  collect all Haltegriff lines (40 / 60 / 80 cm)
   const grabIds = ['CLPESG40', 'CLPESG60', 'CLPESG80'];
@@ -844,43 +868,46 @@ if (grabLabelsUnique.length === 1) {
 
   
   // --- Tür row (Pos 001) ---
-  if (doorLine) {
-    const roundTripKm = Number(services?.distanceKm || 0);
-    const EnthKmQty   = formatPlain(roundTripKm);
-    const doorQtyPlain = formatPlain(doorLine.qty);
+if (hasDoor) {
+  const roundTripKm  = Number(services?.distanceKm || 0);
+  const EnthKmQty    = formatPlain(roundTripKm);
+  const doorQtyPlain = formatPlain(doorQty);
 
-    // "Summe Leistungen" from pricing.js
-const serviceSum = Number(services?.sum || 0) || 0;
-console.log("serviceSum ", serviceSum)
-   BwtRows.push({
-      Pos: '001',
-      Menge: formatQty(doorLine.qty),
-        // add Summe Leistungen to both unit price and total to the door price
-    Einheitspreis: fmtCurrency((doorLine.unitPrice || 0) + serviceSum),
-    Gesamt:       fmtCurrency((doorLine.lineTotal || 0) + serviceSum),
+  // "Summe Leistungen" from pricing.js (already incl. BWT + Extra Arbeitszeit)
+  const serviceSum = Number(services?.sum || 0) || 0;
 
-      Title: 'Liefern und Montieren einer Badewannentür',
-      Bullet1:
-        'Liefern und Montieren einer Badewannentür (Universal/Standard) Höhe 40 cm, Breite 40,5 cm',
-      Bullet2: 'inkl. dazugehörige Materialien',
-      Bullet3: 'inkl. An- & Abfahrten / Dieselzuschlag',
-      Bullet4: 'inkl. Bereitstellung Maschinen / Werkzeug',
-      Bullet5: 'inkl. Vorhaltung und Beräumung der Baustelle',
-      Bullet6: 'inkl. Lieferkosten',
+  BwtRows.push({
+    Pos: '001',
+    Menge: formatQty(doorQty),
 
-  // Bullet7 only if at least one Haltegriff gewählt ist
-  HasBullet7: !!bullet7Text,
-  Bullet7: bullet7Text,
-  // 🔹 Extra Arbeitszeit bullets
+    // add Summe Leistungen to both unit price and total to the door price
+    Einheitspreis: fmtCurrency(doorUnitPrice + serviceSum),
+    Gesamt:        fmtCurrency(doorMaterialsTotal + serviceSum),
+
+    Title: 'Liefern und Montieren einer Badewannentür',
+    Bullet1:
+      'Liefern und Montieren einer Badewannentür (Universal/Standard) Höhe 40 cm, Breite 40,5 cm',
+    Bullet2: 'inkl. dazugehörige Materialien',
+    Bullet3: 'inkl. An- & Abfahrten / Dieselzuschlag',
+    Bullet4: 'inkl. Bereitstellung Maschinen / Werkzeug',
+    Bullet5: 'inkl. Vorhaltung und Beräumung der Baustelle',
+    Bullet6: 'inkl. Lieferkosten',
+
+    // Bullet7 only if at least one Haltegriff gewählt ist
+    HasBullet7: !!bullet7Text,
+    Bullet7: bullet7Text,
+
+    // Extra Arbeitszeit bullets (from previous step)
     HasExtraTasks: ExtraAzTasks.length > 0,
     ExtraTasks: ExtraAzTasks,
 
-      EnthKmQty,
-      EnthDeliverQty: doorQtyPlain,
-      EnthDoorQty: doorQtyPlain,
-      EnthKleinQty: doorQtyPlain,
-    });
-  }
+    EnthKmQty,
+    EnthDeliverQty: doorQtyPlain,
+    EnthDoorQty: doorQtyPlain,
+    EnthKleinQty: doorQtyPlain,
+  });
+}
+
 
 // --- Zusatliche Artikel (Haltegriffe + Freier Posten BWT) ---
 if (additionalLines.length) {
@@ -895,7 +922,7 @@ if (additionalLines.length) {
   );
 
   // Pos: "002" wenn eine Tür vorhanden, sonst "001"
-  const summaryPos = doorLine ? '002' : '001';
+  const summaryPos = hasDoor ? '002' : '001';
 
    // Alle Einzelzeilen-texte aufbauen
   const detailLines = [];
