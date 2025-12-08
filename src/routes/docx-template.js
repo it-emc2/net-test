@@ -524,6 +524,23 @@ function formatQtyForOverview(q, unit) {
 function mapData(body = {}, computed = {}) {
   const b = body.Kundendaten || {};
   const tb = body.textbausteine || {};
+  // --- Extra Arbeitszeit (Arbeitszeit page) -----------------------------
+  const arbeits = body.Arbeitszeit || {};
+  const rawExtraTasks = Array.isArray(arbeits.extraTasks)
+    ? arbeits.extraTasks
+    : [];
+
+  // Normalize to an array of { Text } for DOCX bullets (only the text, no time)
+  const ExtraAzTasks = rawExtraTasks
+    .map((row) => {
+      if (!row) return null;
+      const txt = String(row.task || '').trim();
+      if (!txt) return null;        // 🔹 skip completely empty rows
+      return { Text: txt };         // 🔹 only the description
+    })
+    .filter(Boolean);
+
+
    // Find the toggle from any plausible field name/shape
   const ebRaw = firstDefined(body, [
     // nested objects
@@ -834,6 +851,7 @@ if (grabLabelsUnique.length === 1) {
 
     // "Summe Leistungen" from pricing.js
 const serviceSum = Number(services?.sum || 0) || 0;
+console.log("serviceSum ", serviceSum)
    BwtRows.push({
       Pos: '001',
       Menge: formatQty(doorLine.qty),
@@ -853,6 +871,9 @@ const serviceSum = Number(services?.sum || 0) || 0;
   // Bullet7 only if at least one Haltegriff gewählt ist
   HasBullet7: !!bullet7Text,
   Bullet7: bullet7Text,
+  // 🔹 Extra Arbeitszeit bullets
+    HasExtraTasks: ExtraAzTasks.length > 0,
+    ExtraTasks: ExtraAzTasks,
 
       EnthKmQty,
       EnthDeliverQty: doorQtyPlain,
@@ -861,7 +882,7 @@ const serviceSum = Number(services?.sum || 0) || 0;
     });
   }
 
-  // --- Zusatliche Artikel (Haltegriffe + Freier Posten BWT) ---
+// --- Zusatliche Artikel (Haltegriffe + Freier Posten BWT) ---
 if (additionalLines.length) {
   const toNumber = (v) => {
     const n = Number(v);
