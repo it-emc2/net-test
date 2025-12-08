@@ -865,9 +865,32 @@ const hasDoor = doorQty > 0;
   }
 
   // 3) Universal / Standard Tür (price forced to 0 here – already counted in materials)
+  // --- which door variants are selected? ---
+  const DOOR_VARIANTS = [
+    { key: 'bwtDoorStdQty',         label: 'Universal / Standard Tür' },
+    { key: 'bwtDoorBudgetQty',      label: 'Budget Tür' },
+    { key: 'bwtDoorIndWienGlasQty', label: 'Individuelle Tür Wien Glas' },
+    { key: 'bwtDoorVariodoorQty',   label: 'Variodoor' },
+    { key: 'bwtDoorIndWienQty',     label: 'Individuelle Tür Wien' },
+  ];
+
+  const doorLabelParts = [];
+  for (const v of DOOR_VARIANTS) {
+    const q = Number(bwt?.[v.key] || 0) || 0;
+    if (q > 0) doorLabelParts.push(v.label);
+  }
+
+  let doorLabelText = 'Badewannentür';
+  if (doorLabelParts.length === 1) {
+    doorLabelText = doorLabelParts[0];
+  } else if (doorLabelParts.length > 1) {
+    doorLabelText = doorLabelParts.join(', ');
+  }
+
+  // 3) Tür (price forced to 0 here – already counted in materials)
   out.push({
     key: '',
-    label: `- ${qtyStr} Stk Universal / Standard Tür`,
+    label: `- ${qtyStr} Stk ${doorLabelText}`,
     qty: doorQty,
     unitPrice: 0,
     lineTotal: 0,

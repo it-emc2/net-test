@@ -524,6 +524,16 @@ function formatQtyForOverview(q, unit) {
 function mapData(body = {}, computed = {}) {
   const b = body.Kundendaten || {};
   const tb = body.textbausteine || {};
+  //BWT STUFF
+  const bwt = body.bwt || {};
+   const freeRaw   = (bwt.bwtNote || '').trim();
+  const steelRaw  = (bwt.bwtSteelNoteText || '').trim();
+  const proxyRaw  = (bwt.bwtProxyNoteText || '').trim();
+
+  const steelEnabled =
+    bwt.bwtSteelNoteEnabled === true || bwt.bwtSteelNoteEnabled === 'on';
+  const proxyEnabled =
+    bwt.bwtProxyNoteEnabled === true || bwt.bwtProxyNoteEnabled === 'on';
   // --- Extra Arbeitszeit (Arbeitszeit page) -----------------------------
   const arbeits = body.Arbeitszeit || {};
   const rawExtraTasks = Array.isArray(arbeits.extraTasks)
@@ -815,6 +825,39 @@ const doorMaterialsTotal = doorLines.reduce(
   0
 );
 
+  // --- Door variant text for bullets -------------------------
+  const DOOR_VARIANTS = [
+    { key: 'bwtDoorStdQty',         label: 'Universal / Standard Tür' },
+    { key: 'bwtDoorBudgetQty',      label: 'Budget Tür' },
+    { key: 'bwtDoorIndWienGlasQty', label: 'Individuelle Tür Wien Glas' },
+    { key: 'bwtDoorVariodoorQty',   label: 'Variodoor' },
+    { key: 'bwtDoorIndWienQty',     label: 'Individuelle Tür Wien' },
+  ];
+
+  const doorLabelParts = [];
+  DOOR_VARIANTS.forEach(v => {
+    const q = Number(bwt?.[v.key] || 0) || 0;
+    if (q > 0) doorLabelParts.push(v.label);
+  });
+
+  let doorVariantText = '';
+  if (doorLabelParts.length === 1) {
+    doorVariantText = doorLabelParts[0];
+  } else if (doorLabelParts.length > 1) {
+    doorVariantText = doorLabelParts.join(', ');
+  }
+
+  let bullet1Text = 'Liefern und Montieren einer Badewannentür';
+  if (doorVariantText) {
+    // requested form: "Liefern und Montieren einer Badewannentür (...)"
+    bullet1Text = `Liefern und Montieren einer Badewannentür (${doorVariantText})`;
+  } else {
+    bullet1Text = 'Liefern und Montieren einer Badewannentür';
+  }
+  // Label for "Enthält je Einheit" Tür-Zeile
+const enthDoorLabel = doorVariantText || 'Universal / Standard Tür';
+
+
 // average unit price per door (only door materials)
 const doorUnitPrice =
   hasDoor && doorQty > 0 ? doorMaterialsTotal / doorQty : 0;
@@ -885,8 +928,7 @@ if (hasDoor) {
     Gesamt:        fmtCurrency(doorMaterialsTotal + serviceSum),
 
     Title: 'Liefern und Montieren einer Badewannentür',
-    Bullet1:
-      'Liefern und Montieren einer Badewannentür (Universal/Standard) Höhe 40 cm, Breite 40,5 cm',
+   Bullet1: bullet1Text,
     Bullet2: 'inkl. dazugehörige Materialien',
     Bullet3: 'inkl. An- & Abfahrten / Dieselzuschlag',
     Bullet4: 'inkl. Bereitstellung Maschinen / Werkzeug',
@@ -904,6 +946,7 @@ if (hasDoor) {
     EnthKmQty,
     EnthDeliverQty: doorQtyPlain,
     EnthDoorQty: doorQtyPlain,
+    EnthDoorLabel: enthDoorLabel,  
     EnthKleinQty: doorQtyPlain,
   });
 }
@@ -1092,16 +1135,7 @@ if (additionalLines.length) {
   // Format exactly like "69,50€" (no space) to match your paragraph
   const RegieRateFmt = regieRateNum ? `${regieRateNum.toFixed(2).replace('.', ',')}€` : '';
 
-  //BWT STUFF
-  const bwt = body.bwt || {};
-   const freeRaw   = (bwt.bwtNote || '').trim();
-  const steelRaw  = (bwt.bwtSteelNoteText || '').trim();
-  const proxyRaw  = (bwt.bwtProxyNoteText || '').trim();
-
-  const steelEnabled =
-    bwt.bwtSteelNoteEnabled === true || bwt.bwtSteelNoteEnabled === 'on';
-  const proxyEnabled =
-    bwt.bwtProxyNoteEnabled === true || bwt.bwtProxyNoteEnabled === 'on';
+  
 
   return {
     // Address / meta
