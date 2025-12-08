@@ -1471,17 +1471,22 @@ function updateSidebarForOffer() {
     (pageId) => pageId !== "home" && pageId !== "admin" && pageId !== "services"
   );
 
-  normalPages.forEach((pageId) => {
-    const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
-    let label = navLink ? navLink.textContent.trim() : pageId;
+ const specialLabels = {
+  bwt: "BWT",
+  hl:  "HL",
+};
 
-    // Special display label for the BWT page
-    if (pageId === "bwt") {
-      label = "BWT";
-    }
+normalPages.forEach((pageId) => {
+  const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
+  let label = navLink ? navLink.textContent.trim() : pageId;
 
-    sideMenu.appendChild(makeLink(pageId, label));
-  });
+  if (specialLabels[pageId]) {
+    label = specialLabels[pageId];
+  }
+
+  sideMenu.appendChild(makeLink(pageId, label));
+});
+
 
 
   const adminPages = pages.filter((pageId) => pageId === "admin" || pageId === "services");
@@ -6468,7 +6473,13 @@ async function restoreConfiguratorFromOffer(doc) {
     document.getElementById('rb-bonus-grab')
       ?.dispatchEvent(new Event('change', { bubbles: true }));
   }
+
+  // ⬅️ NEW: after restore + pricing, sync the widget name from Kundendaten
+  if (typeof updateSummaryWidgetName === "function") {
+    updateSummaryWidgetName();
+  }
 }
+
 
 
 function setCurrentOfferType(offerType) {
