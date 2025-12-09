@@ -659,6 +659,7 @@ try {
 
   // Services (zones removed)
  function computeServiceCosts(payload) {
+  const offer = getActiveOffer(payload); 
   const b = payload?.Kundendaten || {};
   const arbeits = payload?.Arbeitszeit || {};
 
@@ -704,7 +705,6 @@ try {
   const facharbeiter =
     Arbeitszeit_hours_numeric * handwerkerCount * laborRate +
     reise_hours_numeric * (laborRate + sitz_reise_Rate);
-  let extraAufgabeAmount = 0;
 
   const lines = [];
   lines.push({
@@ -740,20 +740,25 @@ try {
       docxHide: true,
     });
   }
-  // Extra Arbeitszeit (BWT): Summe der zusätzlichen Aufgaben
-    const extraHours =
-    Number(arbeits.extraHoursTotal ?? 0) || 0;
+   let extraAufgabeAmount = 0;
 
-  if (extraHours > 0 && laborRate > 0) {
-    const extraAmount = round2(extraHours * handwerkerCount * laborRate);
-    extraAufgabeAmount = extraAmount;  // 🔹 remember for Zwischensumme
+  // Extra Arbeitszeit: nur für BWT-Angebote berücksichtigen
+  let extraHours = 0;
+  if (offer === 'bwt') {
+    extraHours = Number(arbeits.extraHoursTotal ?? 0) || 0;
 
-    lines.push({
-      key: 'extraAufgabe',
-      label: '- extra Aufgabe',
-      amount: extraAmount,
-    });
+    if (extraHours > 0 && laborRate > 0) {
+      const extraAmount = round2(extraHours * handwerkerCount * laborRate);
+      extraAufgabeAmount = extraAmount;  // 🔹 remember for Zwischensumme
+
+      lines.push({
+        key: 'extraAufgabe',
+        label: '- extra Aufgabe',
+        amount: extraAmount,
+      });
+    }
   }
+
 
 
   // Work notes unchanged

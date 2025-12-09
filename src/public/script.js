@@ -1402,6 +1402,18 @@ function resetAllForms() {
   if (typeof updateSummaryWidgetSubsidyVisibility === "function") {
     updateSummaryWidgetSubsidyVisibility();
   }
+  // Clear BWT Extra Arbeitszeit rows for a brand new offer
+try {
+  localStorage.removeItem('bwtExtraTasks:v1');
+} catch (e) {
+  console.warn('[ExtraAZ] failed to clear localStorage on reset', e);
+}
+
+// Also clear the UI rows if the helper exists
+if (typeof window.restoreBwtExtraArbeitszeitFromPayload === 'function') {
+  window.restoreBwtExtraArbeitszeitFromPayload({ extraTasks: [] });
+}
+
 }
 
 
