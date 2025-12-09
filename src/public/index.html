@@ -4406,28 +4406,31 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 
 
 
-  <!-- Tür-Typ: Standard Tür – Wien with Menge  etc-->
+<!-- Tür-Typ: Standard Tür – Wien with Menge etc. -->
 <div class="full field">
   <label class="req">Wählen Sie Ihren gewünschten Tür-Typen</label>
 
-    <div
+  <!-- GRID container -->
+  <div
+    id="bwtDoors"
     style="
-      display:flex;
-      gap:14px;
-      flex-wrap:nowrap;
-      overflow-x:auto;
-      align-items:flex-start;
-    ">
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 14px;
+      align-items: flex-start;
+    "
+  >
 
     <!-- Universal / Standard Tür -->
-    <div class="field" style="min-width:220px">
+    <div class="field">
       <label class="image-check">
         <input
           type="checkbox"
           id="bwtDoorStd"
           name="bwtDoorType"
           value="Universal / Standard Tür"
-          data-product-id="BWT-DOOR-STD" checked
+          data-product-id="BWT-DOOR-STD"
+          checked
         />
         <span class="img-wrap">
           <img src="./assets/tur.jpg" alt="Universal / Standard Tür" />
@@ -4435,14 +4438,15 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         <span class="caption">Universal / Standard Tür</span>
       </label>
 
-      <!-- Menge (shown always initially) -->
       <div
         id="bwtDoorStdQtyWrap"
         class="field"
         aria-hidden="false"
         style="max-width: 260px; margin-top: 10px"
       >
-        <label for="bwtDoorStdQty" class="req">Menge Universal / Standard Tür</label>
+        <label for="bwtDoorStdQty" class="req">
+          Menge Universal / Standard Tür
+        </label>
         <input
           id="bwtDoorStdQty"
           name="bwtDoorStdQty"
@@ -4455,8 +4459,9 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         />
       </div>
     </div>
- <!-- Individual Tür - Wien -->
-    <div class="field" style="min-width:220px">
+
+    <!-- Individual Tür - Wien -->
+    <div class="field">
       <label class="image-check">
         <input
           type="checkbox"
@@ -4477,7 +4482,9 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         aria-hidden="true"
         style="max-width: 260px; margin-top: 10px"
       >
-        <label for="bwtDoorIndWienQty" class="req">Menge Individual Tür - Wien</label>
+        <label for="bwtDoorIndWienQty" class="req">
+          Menge Individual Tür - Wien
+        </label>
         <input
           id="bwtDoorIndWienQty"
           name="bwtDoorIndWienQty"
@@ -4491,8 +4498,8 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
       </div>
     </div>
 
-      <!-- Individual Tür - Wien Glas -->
-    <div class="field" style="min-width:220px">
+    <!-- Individual Tür - Wien Glas -->
+    <div class="field">
       <label class="image-check">
         <input
           type="checkbox"
@@ -4513,7 +4520,9 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         aria-hidden="true"
         style="max-width: 260px; margin-top: 10px"
       >
-        <label for="bwtDoorIndWienGlasQty" class="req">Menge Individual Tür - Wien Glas</label>
+        <label for="bwtDoorIndWienGlasQty" class="req">
+          Menge Individual Tür - Wien Glas
+        </label>
         <input
           id="bwtDoorIndWienGlasQty"
           name="bwtDoorIndWienGlasQty"
@@ -4528,7 +4537,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
     </div>
 
     <!-- Budget Tür - Verona -->
-    <div class="field" style="min-width:220px">
+    <div class="field">
       <label class="image-check">
         <input
           type="checkbox"
@@ -4549,7 +4558,9 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         aria-hidden="true"
         style="max-width: 260px; margin-top: 10px"
       >
-        <label for="bwtDoorBudgetQty" class="req">Menge Budget Tür - Verona</label>
+        <label for="bwtDoorBudgetQty" class="req">
+          Menge Budget Tür - Verona
+        </label>
         <input
           id="bwtDoorBudgetQty"
           name="bwtDoorBudgetQty"
@@ -4561,13 +4572,10 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
           value="1"
         />
       </div>
-
-      
     </div>
 
-   
-     <!-- Variodoor -->
-    <div class="field" style="min-width:220px">
+    <!-- Variodoor -->
+    <div class="field">
       <label class="image-check">
         <input
           type="checkbox"
@@ -4588,7 +4596,9 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         aria-hidden="true"
         style="max-width: 260px; margin-top: 10px"
       >
-        <label for="bwtDoorVariodoorQty" class="req">Menge Variodoor</label>
+        <label for="bwtDoorVariodoorQty" class="req">
+          Menge Variodoor
+        </label>
         <input
           id="bwtDoorVariodoorQty"
           name="bwtDoorVariodoorQty"
@@ -4601,6 +4611,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         />
       </div>
     </div>
+
   </div>
 </div>
 
