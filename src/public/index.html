@@ -4427,7 +4427,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
           id="bwtDoorStd"
           name="bwtDoorType"
           value="Universal / Standard Tür"
-          data-product-id="BWT-DOOR-STD"
+          data-product-id="BWT-DOOR-STD" checked
         />
         <span class="img-wrap">
           <img src="./assets/tur.jpg" alt="Universal / Standard Tür" />
@@ -4455,6 +4455,42 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         />
       </div>
     </div>
+ <!-- Individual Tür - Wien -->
+    <div class="field" style="min-width:220px">
+      <label class="image-check">
+        <input
+          type="checkbox"
+          id="bwtDoorIndWien"
+          name="bwtDoorType"
+          value="Individual Tür - Wien"
+          data-product-id="BWT-DOOR-WIEN"
+        />
+        <span class="img-wrap">
+          <img src="./assets/wien.jpg" alt="Individual Tür - Wien" />
+        </span>
+        <span class="caption">Individual Tür - Wien</span>
+      </label>
+
+      <div
+        id="bwtDoorIndWienQtyWrap"
+        class="field"
+        aria-hidden="true"
+        style="max-width: 260px; margin-top: 10px"
+      >
+        <label for="bwtDoorIndWienQty" class="req">Menge Individual Tür - Wien</label>
+        <input
+          id="bwtDoorIndWienQty"
+          name="bwtDoorIndWienQty"
+          type="number"
+          min="1"
+          step="1"
+          placeholder="1"
+          inputmode="numeric"
+          value="1"
+        />
+      </div>
+    </div>
+
       <!-- Individual Tür - Wien Glas -->
     <div class="field" style="min-width:220px">
       <label class="image-check">
@@ -4529,41 +4565,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
       
     </div>
 
-    <!-- Individual Tür - Wien -->
-    <div class="field" style="min-width:220px">
-      <label class="image-check">
-        <input
-          type="checkbox"
-          id="bwtDoorIndWien"
-          name="bwtDoorType"
-          value="Individual Tür - Wien"
-          data-product-id="BWT-DOOR-WIEN"
-        />
-        <span class="img-wrap">
-          <img src="./assets/wien.jpg" alt="Individual Tür - Wien" />
-        </span>
-        <span class="caption">Individual Tür - Wien</span>
-      </label>
-
-      <div
-        id="bwtDoorIndWienQtyWrap"
-        class="field"
-        aria-hidden="true"
-        style="max-width: 260px; margin-top: 10px"
-      >
-        <label for="bwtDoorIndWienQty" class="req">Menge Individual Tür - Wien</label>
-        <input
-          id="bwtDoorIndWienQty"
-          name="bwtDoorIndWienQty"
-          type="number"
-          min="1"
-          step="1"
-          placeholder="1"
-          inputmode="numeric"
-          value="1"
-        />
-      </div>
-    </div>
+   
      <!-- Variodoor -->
     <div class="field" style="min-width:220px">
       <label class="image-check">

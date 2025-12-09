@@ -1402,6 +1402,18 @@ function resetAllForms() {
   if (typeof updateSummaryWidgetSubsidyVisibility === "function") {
     updateSummaryWidgetSubsidyVisibility();
   }
+  // Clear BWT Extra Arbeitszeit rows for a brand new offer
+try {
+  localStorage.removeItem('bwtExtraTasks:v1');
+} catch (e) {
+  console.warn('[ExtraAZ] failed to clear localStorage on reset', e);
+}
+
+// Also clear the UI rows if the helper exists
+if (typeof window.restoreBwtExtraArbeitszeitFromPayload === 'function') {
+  window.restoreBwtExtraArbeitszeitFromPayload({ extraTasks: [] });
+}
+
 }
 
 
@@ -1471,17 +1483,22 @@ function updateSidebarForOffer() {
     (pageId) => pageId !== "home" && pageId !== "admin" && pageId !== "services"
   );
 
-  normalPages.forEach((pageId) => {
-    const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
-    let label = navLink ? navLink.textContent.trim() : pageId;
+ const specialLabels = {
+  bwt: "BWT",
+  hl:  "HL",
+};
 
-    // Special display label for the BWT page
-    if (pageId === "bwt") {
-      label = "BWT";
-    }
+normalPages.forEach((pageId) => {
+  const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
+  let label = navLink ? navLink.textContent.trim() : pageId;
 
-    sideMenu.appendChild(makeLink(pageId, label));
-  });
+  if (specialLabels[pageId]) {
+    label = specialLabels[pageId];
+  }
+
+  sideMenu.appendChild(makeLink(pageId, label));
+});
+
 
 
   const adminPages = pages.filter((pageId) => pageId === "admin" || pageId === "services");
@@ -3403,23 +3420,19 @@ function wireRow(item) {
   }
 
   // Original Aufschlag rules per payer
-  function applyAufschlagRules() {
-    const payer = document.querySelector('input[name="payer"]:checked')?.value;
+ function applyAufschlagRules() {
+  const payer = document.querySelector('input[name="payer"]:checked')?.value;
 
-    // Treat Selbstzahler exactly like Kassenkunde for the percentage selection
-    if (payer === "Kassenkunde" || payer === "Selbstzahler") {
-      [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
-      const sel = currentSelection();
-      if (!anySelected() && r50) {
-        r50.checked = true;
-      } else if (sel === "35%") {
-        if (r50) r50.checked = true;
-      }
-    } else {
-      // Other payers: all allowed
-      [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
-    }
+  // For now: all these payers allow all percentages
+  [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
+
+  // Only set a default if *nothing* is selected yet
+  // (e.g. brand new offer). Do NOT override an existing selection.
+  if (!anySelected() && (payer === "Kassenkunde" || payer === "Selbstzahler")) {
+    if (r50) r50.checked = true; // keep your current default at 50%
   }
+}
+
 
   // Events
   payerRadios.forEach((r) => r.addEventListener("change", applyAufschlagRules));
@@ -6468,7 +6481,13 @@ async function restoreConfiguratorFromOffer(doc) {
     document.getElementById('rb-bonus-grab')
       ?.dispatchEvent(new Event('change', { bubbles: true }));
   }
+
+  // ⬅️ NEW: after restore + pricing, sync the widget name from Kundendaten
+  if (typeof updateSummaryWidgetName === "function") {
+    updateSummaryWidgetName();
+  }
 }
+
 
 
 function setCurrentOfferType(offerType) {
