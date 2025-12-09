@@ -8199,9 +8199,8 @@ function initTECEADSPairsLabel() {
     const raw = String(qty.value || '').replace(/\./g, '').replace(',', '.');
     const n = Number(raw);
     const items = Number.isFinite(n) && n > 0 ? n : 0;     // input = items
-    const pairs = items / 2;                               // show pairs
-    const pairsStr = Number.isInteger(pairs) ? String(pairs) : pairs.toFixed(1);
-    lbl.textContent = `${base} (${pairsStr} paare)`;
+  
+    lbl.textContent = `${base} (${items} paare)`;
   };
 
   ['input','change','blur'].forEach(ev => qty.addEventListener(ev, paint));
