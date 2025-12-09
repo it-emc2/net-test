@@ -8086,6 +8086,112 @@ wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
     initBasinAutoAccessories();
   }
 }
+
+// === Optional: Mutual exclusivity for Duscharmatur & Thermostat ===
+(function initOptionalExclusiveGroups() {
+  const form = document.getElementById('form-optional');
+  if (!form) return;
+
+  // Define exclusive groups: only one can be selected at a time
+  const exclusiveGroups = [
+    {
+      name: 'Duscharmatur',
+      members: [
+        'opt_V22WS1R',    // Wannenset individual 2.2
+        'opt_TEMPDSU250', // Duschsystem Tempesta Flex
+        'opt_V22BG903R',  // Brausegarnitur individ.2.2
+        'opt_DEDS2503E',  // Duschsystem derby Thermostat
+      ]
+    },
+    {
+      name: 'AP-Thermostat / Brausebatterie',
+      members: [
+        'opt_CLTB',  // AP-Brause-Thermostat clivia
+        'opt_DEPTB', // AP-Brause-Thermostat derby plus
+        'opt_CLB',   // Einhand-Aufputz-Brausebatterie clivia
+      ]
+    }
+  ];
+
+  function setDisabled(elId, disabled) {
+    const cb = document.getElementById(elId);
+    if (!cb) return;
+    
+    const pill = cb.closest('label.radio-pill') || cb.closest('label.image-check');
+    if (!pill) return;
+
+    cb.disabled = disabled;
+    pill.style.opacity = disabled ? '0.6' : '';
+    pill.style.pointerEvents = disabled ? 'none' : '';
+    pill.style.filter = disabled ? 'grayscale(0.3)' : '';
+    pill.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+  }
+
+  function enforceGroupExclusivity(group) {
+    const members = group.members.map(id => document.getElementById(id)).filter(Boolean);
+    if (!members.length) return;
+
+    const checked = members.find(cb => cb.checked);
+
+    members.forEach(cb => {
+      const shouldDisable = checked && cb !== checked;
+      setDisabled(cb.id, shouldDisable);
+    });
+  }
+
+  function applyAllGroups() {
+    exclusiveGroups.forEach(group => enforceGroupExclusivity(group));
+  }
+
+  // Wire change listeners for all members
+  exclusiveGroups.forEach(group => {
+    group.members.forEach(id => {
+      const cb = document.getElementById(id);
+      if (!cb) return;
+      
+      cb.addEventListener('change', () => {
+        if (cb.checked) {
+          // When this one is checked, uncheck others in the same group
+          group.members.forEach(otherId => {
+            if (otherId === id) return;
+            const other = document.getElementById(otherId);
+            if (other && other.checked) {
+              other.checked = false;
+              // Also clear its quantity if it has one
+              const qtyWrap = document.getElementById(`qty_${otherId}_wrap`);
+              if (qtyWrap) {
+                const qtyInput = qtyWrap.querySelector('input[type="number"]');
+                if (qtyInput) {
+                  qtyInput.value = '0';
+                  qtyInput.removeAttribute('required');
+                  qtyWrap.hidden = true;
+                }
+              }
+            }
+          });
+        }
+        
+        applyAllGroups();
+        
+        // Keep pricing in sync
+        if (typeof window.updatePricing === 'function') {
+          window.updatePricing();
+        }
+      });
+    });
+  });
+
+  // Initial state
+  applyAllGroups();
+
+  // Re-apply when Optional page becomes visible
+  window.addEventListener('hashchange', () => {
+    if (typeof getCurrentStep === 'function' && getCurrentStep() === 'optional') {
+      applyAllGroups();
+    }
+  });
+})();
+
 function initTECEADSPairsLabel() {
   const qty = document.getElementById('qty_TECEADS');
   const lbl = document.querySelector('label[for="qty_TECEADS"]');
