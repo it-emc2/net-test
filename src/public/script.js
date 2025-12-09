@@ -3420,23 +3420,19 @@ function wireRow(item) {
   }
 
   // Original Aufschlag rules per payer
-  function applyAufschlagRules() {
-    const payer = document.querySelector('input[name="payer"]:checked')?.value;
+ function applyAufschlagRules() {
+  const payer = document.querySelector('input[name="payer"]:checked')?.value;
 
-    // Treat Selbstzahler exactly like Kassenkunde for the percentage selection
-    if (payer === "Kassenkunde" || payer === "Selbstzahler") {
-      [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
-      const sel = currentSelection();
-      if (!anySelected() && r50) {
-        r50.checked = true;
-      } else if (sel === "35%") {
-        if (r50) r50.checked = true;
-      }
-    } else {
-      // Other payers: all allowed
-      [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
-    }
+  // For now: all these payers allow all percentages
+  [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
+
+  // Only set a default if *nothing* is selected yet
+  // (e.g. brand new offer). Do NOT override an existing selection.
+  if (!anySelected() && (payer === "Kassenkunde" || payer === "Selbstzahler")) {
+    if (r50) r50.checked = true; // keep your current default at 50%
   }
+}
+
 
   // Events
   payerRadios.forEach((r) => r.addEventListener("change", applyAufschlagRules));
