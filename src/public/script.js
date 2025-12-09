@@ -8932,8 +8932,20 @@ if (bitrixIdInput && loadBitrixBtn) {
         country: contact.ADDRESS_COUNTRY || '',
       };
 
-      fillCustomerForm(mapped);
+            fillCustomerForm(mapped);
+
+      // 🔹 update the top-left summary widget (Kunde: ...)
+      if (typeof updateSummaryWidgetName === 'function') {
+        updateSummaryWidgetName();
+      }
+
+      // (optional) if you want total / selfPay to refresh too:
+      if (typeof window.updatePricing === 'function') {
+        window.updatePricing();
+      }
+
       showCustomerMessage('Kontakt aus Bitrix übernommen', 'success');
+
     } catch (e) {
       console.error(e);
       showCustomerMessage(
