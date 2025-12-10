@@ -8088,6 +8088,15 @@ wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
   const form = document.getElementById('form-optional');
   if (!form) return;
 
+  // Map for BWT door → qty wrapper
+  const bwtDoorQtyWrapIds = {
+    bwtDoorStd:        'bwtDoorStdQtyWrap',
+    bwtDoorBudget:     'bwtDoorBudgetQtyWrap',
+    bwtDoorIndWienGlas:'bwtDoorIndWienGlasQtyWrap',
+    bwtDoorVariodoor:  'bwtDoorVariodoorQtyWrap',
+    bwtDoorIndWien:    'bwtDoorIndWienQtyWrap',
+  };
+
   // Define exclusive groups: only one can be selected at a time
   const exclusiveGroups = [
     {
@@ -8105,6 +8114,17 @@ wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
         'opt_CLTB',  // AP-Brause-Thermostat clivia
         'opt_DEPTB', // AP-Brause-Thermostat derby plus
         'opt_CLB',   // Einhand-Aufputz-Brausebatterie clivia
+      ]
+    },
+    {
+      // BWT: Tür-Typ – only one door model allowed
+      name: 'BWT Tür-Typ',
+      members: [
+        'bwtDoorStd',
+        'bwtDoorBudget',
+        'bwtDoorIndWienGlas',
+        'bwtDoorVariodoor',
+        'bwtDoorIndWien',
       ]
     }
   ];
@@ -8153,15 +8173,23 @@ wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
             const other = document.getElementById(otherId);
             if (other && other.checked) {
               other.checked = false;
-              // Also clear its quantity if it has one
-              const qtyWrap = document.getElementById(`qty_${otherId}_wrap`);
+
+              // Clear its quantity if it has one
+              let qtyWrap = document.getElementById(`qty_${otherId}_wrap`);
+
+              // Special case: BWT doors use different wrapper ids
+              if (!qtyWrap && bwtDoorQtyWrapIds[otherId]) {
+                qtyWrap = document.getElementById(bwtDoorQtyWrapIds[otherId]);
+              }
+
               if (qtyWrap) {
                 const qtyInput = qtyWrap.querySelector('input[type="number"]');
                 if (qtyInput) {
                   qtyInput.value = '0';
                   qtyInput.removeAttribute('required');
-                  qtyWrap.hidden = true;
                 }
+                qtyWrap.hidden = true;
+                qtyWrap.setAttribute('aria-hidden', 'true');
               }
             }
           });
@@ -8187,6 +8215,7 @@ wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
     }
   });
 })();
+
 
 function initTECEADSPairsLabel() {
   const qty = document.getElementById('qty_TECEADS');
