@@ -527,13 +527,18 @@ if (Array.isArray(bwt?.quickAdd) && bwt.quickAdd.length) {
     const selections = collectSelections(payload); // [{productId, qty}]
     const isGrabId = id => id === 'CLPESG40' || id === 'CLPESG60' || id === 'CLPESG80';
 
-    grabTotalQty = selections
-      .filter(s => isGrabId(s.productId))
-      .reduce((a, s) => a + (Number(s.qty) || 0), 0);
+    const optGrabTotal = selections
+  .filter(s => isGrabId(s.productId))
+  .reduce((a, s) => a + (Number(s.qty) || 0), 0);
 
-    cl40Qty = selections
-      .filter(s => s.productId === 'CLPESG40')
-      .reduce((a, s) => a + (Number(s.qty) || 0), 0);
+const optCl40 = selections
+  .filter(s => s.productId === 'CLPESG40')
+  .reduce((a, s) => a + (Number(s.qty) || 0), 0);
+
+// 🔹 accumulate instead of overwrite
+grabTotalQty += optGrabTotal;
+cl40Qty += optCl40;
+
 
     for (const s of selections) {
       add(s.productId, s.qty, null, null, 'optional');

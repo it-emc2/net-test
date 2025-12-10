@@ -19,7 +19,7 @@ const OFFERS = {
   },
   bwt: {
     name: "BWT · Badewannentür",
-    pages: ["Kundendaten", "Arbeitszeit", "bwt","Kosten", "Zusammenfassung" ],
+    pages: ["Kundendaten", "Arbeitszeit", "bwt","Rabatt", "Kosten", "Zusammenfassung" ],
   },
   hl: {
     name: "HL · Handlauf",
