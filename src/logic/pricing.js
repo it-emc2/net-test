@@ -603,23 +603,29 @@ try {
   // ------- Resolve names/prices once
   const productMap = await getProductsByIds([...idsNeeded]);
 
-    const resolved = lines.map(l => {
-    const prod = productMap.get(l.id) || { price: 0, name: '' };
+   const resolved = lines.map(l => {
+  const prod = productMap.get(l.id) || { price: 0, name: '' };
 
-    let unit;
-    if (l.perM2Base && prod.price) {
-      unit = round2((Number(prod.price) || 0) / Number(l.perM2Base)); // €/m² from set
-    } else if (Number.isFinite(l.unitOverride)) {
-      unit = Number(l.unitOverride);
-    } else {
-      unit = Number(prod.price) || 0;
-    }
- // 👇 special rule for Fußboden-Paneele
+  let unit;
+  if (l.perM2Base && prod.price) {
+    unit = round2((Number(prod.price) || 0) / Number(l.perM2Base)); // €/m² from set
+  } else if (Number.isFinite(l.unitOverride)) {
+    unit = Number(l.unitOverride);
+  } else {
+    unit = Number(prod.price) || 0;
+  }
+
+  // 👇 special rule for Fußboden-Paneele
   if (l.id === 'V5FB02') {
     unit = round2(unit / 8);
   }
 
-  // 👇 BWT: Einstiegshilfen (Haltegriffe) → Einzelpreis = DB-Preis * (1 + Aufschlag)
+  const displayName = (prod.name || '').trim() || l.id;
+  const builtLabel  = `- ${l.qty} Stk ${displayName}`;
+  const label       = l.label || builtLabel;
+
+  // --- BWT: Einstiegshilfen (Haltegriffe) ---
+  let lineTotal;
   if (offer === 'bwt') {
     const pid = String(l.id || '').trim();
     const isBwtGrab =
@@ -627,26 +633,28 @@ try {
       (l.source !== 'optional'); // only the BWT page "zusätzliche Einstiegshilfen", not global optionals
 
     if (isBwtGrab && markupPctForBwt > 0) {
-      unit = round2(unit * (1 + markupPctForBwt));
+      // unitPrice stays = DB price
+      // lineTotal gets DB price * (1 + Aufschlag) * qty
+      lineTotal = round2(unit * (1 + markupPctForBwt) * l.qty);
+    } else {
+      lineTotal = round2(unit * l.qty);
     }
+  } else {
+    // non-BWT: normal calculation
+    lineTotal = round2(unit * l.qty);
   }
 
-    const displayName = (prod.name || '').trim() || l.id;
-    const builtLabel  = `- ${l.qty} Stk ${displayName}`;
-
-    const label       = l.label || builtLabel;
-    const lineTotal   = round2(unit * l.qty);
-
-    return {
-      productId: l.id,
-      name: displayName,
-      qty: l.qty,
-      unitPrice: unit,
-      lineTotal,
-      label,
-      source: l.source || null,
-    };
-  });
+  return {
+    productId: l.id,
+    name: displayName,
+    qty: l.qty,
+    unitPrice: unit,   // DB price (or overridden), unchanged for BWT
+    lineTotal,
+    label,
+    source: l.source || null,
+  };
+});
+ 
 
      const sum = round2(resolved.reduce((a, x) => a + (x.lineTotal || 0), 0));
 
