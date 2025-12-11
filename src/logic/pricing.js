@@ -133,6 +133,10 @@ const cl80Qty = Number(opt?.qty_CLPESG80 ?? (opt?.opt_CLPESG80 ? 1 : 0)) || 0;
     // Wandverkleidung
     if (kind === 'Fehlstellen') picked.add('Schließen der Fehlstellen');
     if (kind === 'Deckenhoch') picked.add('Verkleidung Deckenhoch im Dusch/ Wannenbereich');
+    if (kind === 'Duschabtrennung') picked.add('Herstellung des Fliesenspiegels');
+    if (kind === 'Fliesenspiegel') picked.add('Herstellung des Fliesenspiegels');
+    if (kind === 'Innenraum-der-Kabine') picked.add('Verkleidung im Innenraum der Kabine');
+    if (kind === 'alle-Bad-Wände') picked.add('Verkleidung aller Bad-Wände');
 
     // Generic detector: true if non-empty array/string, or qty > 0
     const chosen = (flag, qty) => {
