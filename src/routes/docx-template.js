@@ -1140,6 +1140,8 @@ if (hasDoor) {
   const BASE_SELF_PAY_SENTENCE =
     'Dieser wird bei Auftragsbestätigung vorab fällig.';
 
+  
+
   const PARA_kk_uber2000_LINES = [
     'Zahlungsbedingungen für den Selbstkostenanteil:',
     '- 100 % sofort abzüglich 2 % Skonto oder',
@@ -1153,12 +1155,18 @@ if (hasDoor) {
     'Für die Anzahlung wird eine Anzahlungsrechnung erstellt. Die Überweisung darf erst nach Erhalt dieser Rechnung erfolgen.',
   ];
 
-  // Default: old single sentence, no bold
-  let SelfPayLines = [
-    { Text: BASE_SELF_PAY_SENTENCE, IsTitle: false },
+  // SZ: Selbstzahler-Text
+  const PARA_sz_LINES = [
+    'Wählen Sie aus folgenden Zahlungsbedingungen (bitte ankreuzen):',
+    'O 20 % Anzahlung - ohne Abzug oder',
+    'O 30 % Anzahlung abzüglich 1 % Skonto vom Anzahlungsbetrag oder',
+    'O 40 % Anzahlung abzüglich 2 % Skonto vom Anzahlungsbetrag',
   ];
 
-  // Nur für Kassenkunde (KK) und wenn überhaupt ein Selbstkostenanteil > 0 existiert
+  // Default: nichts anzeigen
+  let SelfPayLines = [];
+
+  // Kassenkunde (KK) + es gibt einen Selbstkostenanteil
   if (isKK && selfPayAmountNum > 0) {
     const src =
       selfPayAmountNum >= 2000
@@ -1167,10 +1175,19 @@ if (hasDoor) {
 
     SelfPayLines = src.map((text, idx) => ({
       Text: text,
-      // nur die erste Zeile fett:
+      // erste Zeile fett
       IsTitle: idx === 0,
     }));
   }
+  // Selbstzahler (SZ): immer den SZ-Block anzeigen
+  else if (isSZ) {
+    SelfPayLines = PARA_sz_LINES.map((text, idx) => ({
+      Text: text,
+      // erste Zeile fett (darin ist das Wort "Zahlungsbedingungen")
+      IsTitle: idx === 0,
+    }));
+  }
+
 
 
   // Prefer explicit rates per payer; fallback to computed laborRate if neither was selected yet
