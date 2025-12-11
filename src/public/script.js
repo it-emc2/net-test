@@ -3419,6 +3419,8 @@ function wireRow(item) {
   const r40 = document.querySelector('input[name="aufschlag"][value="40%"]');
   const r45 = document.querySelector('input[name="aufschlag"][value="45%"]');
   const r50 = document.querySelector('input[name="aufschlag"][value="50%"]');
+  const r60 = document.querySelector('input[name="aufschlag"][value="60%"]');
+
 
   const labelEl  = document.getElementById('aufschlagLabel');
   const bodyEl   = document.getElementById('aufschlagBody');
@@ -3465,7 +3467,7 @@ function wireRow(item) {
   const payer = document.querySelector('input[name="payer"]:checked')?.value;
 
   // For now: all these payers allow all percentages
-  [r35, r40, r45, r50].forEach((r) => setDisabled(r, false));
+  [r35, r40, r45, r50, r60].forEach((r) => setDisabled(r, false));
 
   // Only set a default if *nothing* is selected yet
   // (e.g. brand new offer). Do NOT override an existing selection.
@@ -7458,11 +7460,17 @@ if (emptyNote) {
       .toLowerCase();
     return v === "kassenkunde" || v === "kk";
   };
-  const isAufschlag50 = () => {
+  const isAufschlagAtLeast50 = () => {
     const raw = (
       document.querySelector('input[name="aufschlag"]:checked')?.value || ""
-    ).trim();
-    return /(^|\s)50\s*%?$/.test(raw);
+    ).trim();                 // z.B. "35%", "50%", "60%"
+
+    const m = raw.match(/(\d+)\s*%?/);   // Zahl vor dem %
+    if (!m) return false;
+    const pct = parseInt(m[1], 10);
+    if (!Number.isFinite(pct)) return false;
+
+    return pct >= 50;         // alles ab 50% → Rabatt erlaubt
   };
   function show(el, on) {
     el.hidden = !on;
@@ -7470,8 +7478,9 @@ if (emptyNote) {
     if (el.style) el.style.display = on ? "" : "none";
   }
   function apply() {
-    const allow = isKK() && isAufschlag50();
+    const allow = isKK() && isAufschlagAtLeast50();
     show(sec, allow);
+
     if (!allow || window.__restoring) {
       const cur = parseFloat(elDiscount.value || "0") || 0;
       if (!window.__restoring && cur !== 0) {
