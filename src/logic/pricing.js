@@ -377,7 +377,38 @@ if (qty1497 > 0) {
   const label = color1497 ? `${base} — Farbe: ${color1497}` : base;
   add('V3WV09', qty1497, label);
 }
+if (wv?.wvSealing) add('TRWDSET5', 1); 
+if (wv?.flechenkleber) 
+  { const userQtyAdh = Number(wv?.wvFlachenQty); 
+    const fallbackAdh = (2 * qty997) + (2 * qty1497); 
+    const qAdh = Number.isFinite(userQtyAdh) && userQtyAdh > 0 ? userQtyAdh : fallbackAdh; 
+    if (qAdh > 0) add('V4FK600', qAdh, `- ${qAdh} Pkg Flächenkleber (Wandverkleidung)`); }
+let endProfilesQty = 0; 
+if (wv?.wvEndProfile) { 
+  endProfilesQty = Number(wv?.wvEndProfileQty) || 0; 
+  if (endProfilesQty > 0) add('V3A', endProfilesQty);
+ } 
+// Prefer explicit user-entered qty from the WV form 
+const userRaw = wv?.wvV3VQty; 
+const userV3VQty = Math.max(0, parseInt(userRaw, 10) || 0); 
+const corners = Number(wv?.wvCornersCount || 0) || 0;
 
+// If the user provided a value (including 0), use it; else fall back to (panels - 1) 
+if (userRaw !== undefined && userRaw !== null && String(userRaw).trim() !== '') 
+  { if (userV3VQty > 0) { add('V3V', userV3VQty, `- ${userV3VQty} Stk Verbindungsprofil(e)`); }} 
+else if (totalPanels >= 2) { console.log("corn ", corners) 
+  const qV3V = Math.max(0, (totalPanels - 1) - corners); add('V3V', qV3V, `- ${qV3V} Stk Verbindungsprofil(e) (Plattenanzahl - 1 - ecken)`); } 
+if (wv?.wvSilikon) {
+   const userQtySilikon = Number(wv?.wvSilikonQty); 
+  const qtyAbschlussprofil = endProfilesQty;
+   // this is the qty of V3A 
+   let qSilikon; 
+   if (Number.isFinite(userQtySilikon) && userQtySilikon > 0) 
+    { // take user choice, but minimum is qty of Abschlussprofil 
+    qSilikon = Math.max(userQtySilikon, qtyAbschlussprofil); } 
+    else { // if user did not enter a valid value, fall back to Abschlussprofil qty 
+    qSilikon = qtyAbschlussprofil; } 
+    if (qSilikon > 0) add('CARESSW', qSilikon); }
   // ------- BWT · Badewannentür materials -------
   if (offer === 'bwt') {
     // Example: standard door quantity
