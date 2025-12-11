@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { spawn } from 'child_process';
+import { fileURLToPath } from 'url';
 
 import ProductModel from '../models/Product.js';
 import pricingFactory from '../logic/pricing.js';
@@ -11,6 +12,10 @@ import { mapOfferToDocxData } from '../logic/offerMapping.js';
 
 export const router = express.Router();
 const pricing = pricingFactory(ProductModel);
+
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ---------- Helpers ----------
 
@@ -134,12 +139,48 @@ function runPdfLatex(tmpDir, baseName) {
   });
 }
 
+// Copy logo to temporary directory
+async function copyLogoToTempDir(tmpDir) {
+  try {
+    // Try multiple possible logo locations
+    const possibleLogoPaths = [
+      path.join(process.cwd(), 'src', 'public', 'assets', 'logo.png'),
+      path.join(process.cwd(), 'public', 'assets', 'logo.png'),
+      path.join(__dirname, '..', 'public', 'assets', 'logo.png'),
+      path.join(__dirname, '..', '..', 'public', 'assets', 'logo.png'),
+    ];
+
+    for (const logoPath of possibleLogoPaths) {
+      try {
+        await fs.access(logoPath);
+        const destPath = path.join(tmpDir, 'logo.png');
+        await fs.copyFile(logoPath, destPath);
+        console.log(`[latex] Logo copied from: ${logoPath}`);
+        return true;
+      } catch {
+        // Try next path
+        continue;
+      }
+    }
+
+    console.warn('[latex] Logo file not found in any expected location');
+    return false;
+  } catch (error) {
+    console.warn('[latex] Failed to copy logo:', error.message);
+    return false;
+  }
+}
+
 // Compile LaTeX source to PDF via pdflatex (with double compilation)
 async function compileLatexToPdf(texSource, baseName = 'Angebot') {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'latex2pdf-'));
   const texPath = path.join(tmpDir, `${baseName}.tex`);
 
   try {
+    // Copy logo to temp directory BEFORE writing .tex file
+    await copyLogoToTempDir(tmpDir);
+
+    // Write the .tex file
     await fs.writeFile(texPath, texSource, 'utf8');
 
     // First compilation - generates .aux file with page references

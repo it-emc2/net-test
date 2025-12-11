@@ -21,7 +21,7 @@
 \geometry{
     left=2.5cm,
     right=2.5cm,
-    top=2cm,
+    top=0.5cm,
     bottom=3.5cm
 }
 
@@ -54,7 +54,11 @@
 % Custom command for logo
 \newcommand{\companylogo}{%
     \begin{flushright}
-        \includegraphics[height=2.5cm]{/Users/digital_neu/Documents/GitHub/net-test/src/public/assets/logo.png}\\[0.2em]
+        \IfFileExists{logo.png}{%
+            \includegraphics[height=2.5cm]{logo.png}\\[0.2em]
+        }{%
+            \vspace{2.5cm}% Placeholder space if logo missing
+        }%
     \end{flushright}
 }
 
