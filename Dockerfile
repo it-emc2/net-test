@@ -33,8 +33,15 @@ COPY . .
 FROM base
 
 # INSTALL: LibreOffice for DOCX -> PDF conversion (plus minimal fonts)
+# INSTALL: LaTeX for PDF generation
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y libreoffice-writer fonts-dejavu-core && \
+    apt-get install --no-install-recommends -y \
+    libreoffice-writer \
+    fonts-dejavu-core \
+    texlive-latex-base \
+    texlive-latex-extra \
+    texlive-fonts-recommended \
+    texlive-lang-german && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy built application

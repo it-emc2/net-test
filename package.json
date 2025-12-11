@@ -40,6 +40,7 @@
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.4.149",
     "pdfkit": "^0.17.2",
+    "pdflatex": "^0.0.1",
     "pizzip": "^3.2.0",
     "puppeteer": "^24.22.3",
     "string-width": "^8.1.0",
