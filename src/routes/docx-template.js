@@ -1136,6 +1136,43 @@ if (hasDoor) {
   const isKK = payerNorm === 'KK' || payerNorm === 'KASSENKUNDE';
   const isSZ = payerNorm === 'SZ' || payerNorm === 'SELBSTZAHLER';
 
+
+  const BASE_SELF_PAY_SENTENCE =
+    'Dieser wird bei Auftragsbestätigung vorab fällig.';
+
+  const PARA_kk_uber2000_LINES = [
+    'Zahlungsbedingungen für den Selbstkostenanteil:',
+    '- 100 % sofort abzüglich 2 % Skonto oder',
+    '- 50 % sofort und 50 % nach Fertigstellung, ohne Abzug',
+    'Für die Anzahlung wird eine Anzahlungsrechnung erstellt. Die Überweisung darf erst nach Erhalt dieser Rechnung erfolgen.',
+  ];
+
+  const PARA_kk_unter2000_LINES = [
+    'Zahlungsbedingungen für den Selbstkostenanteil:',
+    '100 % sofort bei Auftragsbestätigung – ohne Abzug',
+    'Für die Anzahlung wird eine Anzahlungsrechnung erstellt. Die Überweisung darf erst nach Erhalt dieser Rechnung erfolgen.',
+  ];
+
+  // Default: old single sentence, no bold
+  let SelfPayLines = [
+    { Text: BASE_SELF_PAY_SENTENCE, IsTitle: false },
+  ];
+
+  // Nur für Kassenkunde (KK) und wenn überhaupt ein Selbstkostenanteil > 0 existiert
+  if (isKK && selfPayAmountNum > 0) {
+    const src =
+      selfPayAmountNum >= 2000
+        ? PARA_kk_uber2000_LINES
+        : PARA_kk_unter2000_LINES;
+
+    SelfPayLines = src.map((text, idx) => ({
+      Text: text,
+      // nur die erste Zeile fett:
+      IsTitle: idx === 0,
+    }));
+  }
+
+
   // Prefer explicit rates per payer; fallback to computed laborRate if neither was selected yet
   let regieRateNum;
   if (isKK) regieRateNum = 69.50;
@@ -1229,6 +1266,10 @@ HasIncluded,
     SelbstkostenanteilFmt,                      // if you use this tag directly
     Zuschusskrankenkasse,                       // formatted subsidy for template
     hasSubsidyLine: hasZuschuss,
+
+     // Textblock zur Fälligkeit des Selbstkostenanteils unter oder nach 2000 fur kk
+    SelfPayLines,
+  
 
     // for Regie-Stundensatz
     RegieRateFmt,
