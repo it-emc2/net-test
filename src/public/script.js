@@ -2073,7 +2073,48 @@ function buildPayload() {
   } catch (e) {
     console.warn("[buildPayload] WV consumables capture failed:", e);
   }
+//  per-panel color config for WV (997 / 1497) ---
+  try {
+    const formWV = document.getElementById("form-wandverkleidung");
+    if (formWV) {
+      const fdWV = new FormData(formWV);
 
+      const globalColor =
+        (fdWV.get("wvColor") || "").toString().trim();
+
+      const color997 =
+        (fdWV.get("wvColor_997") || "").toString().trim();
+
+      const color1497 =
+        (fdWV.get("wvColor_1497") || "").toString().trim();
+
+      const enabled997 = !!document.getElementById("wv997")?.checked;
+      const enabled1497 = !!document.getElementById("wv1497")?.checked;
+
+      const qty997 =
+        Number(document.getElementById("wvQty997")?.value || 0) || 0;
+      const qty1497 =
+        Number(document.getElementById("wvQty1497")?.value || 0) || 0;
+
+      payload.wandverkleidung = payload.wandverkleidung || {};
+
+      // Clean, canonical structure used later in pricing / DOCX
+      payload.wandverkleidung.panelConfigs = {
+        "997x2550": {
+          enabled: enabled997,
+          qty: qty997,
+          color: color997 || globalColor || "",
+        },
+        "1497x2550": {
+          enabled: enabled1497,
+          qty: qty1497,
+          color: color1497 || globalColor || "",
+        },
+      };
+    }
+  } catch (e) {
+    console.warn("[buildPayload] WV panel color config failed:", e);
+  }
   // -------------------------------------------------------------------------
   // Budget/Zuzahlung
   const elMax = document.querySelector('input[name="budgetMax"]');
