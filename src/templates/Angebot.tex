@@ -1,0 +1,246 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+\usepackage[ngerman]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{eurosym}
+\usepackage{ragged2e}
+
+% Page geometry
+\geometry{
+    left=2.5cm,
+    right=2.5cm,
+    top=2cm,
+    bottom=3.5cm
+}
+
+% Colors
+\definecolor{emc2green}{RGB}{120,180,80}
+\definecolor{rowgray}{RGB}{230,230,230}
+
+% Hyperlinks
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black
+}
+
+% Header and footer
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[C]{%
+    \footnotesize
+    \begin{tabular}{@{}c@{}}
+        EmC2 Attila Landgrafe | Waldstraße 5 | 95032 Hof\\
+        Steuernummer: 22324320478 | USt-IdNr.: DE296903997\\
+        VR Bank Bayreuth-Hof eG | IBAN: DE43 7806 0896 0007 0794 43 | BIC: GENODEF1HO1
+    \end{tabular}
+}
+\fancyfoot[R]{\footnotesize Seite \thepage/\pageref{LastPage}}
+
+% Custom command for logo
+% Custom command for logo
+\newcommand{\companylogo}{%
+    \begin{flushright}
+        \includegraphics[height=2.5cm]{/Users/digital_neu/Documents/GitHub/net-test/src/public/assets/logo.png}\\[0.2em]
+    \end{flushright}
+}
+
+% Fixed column widths for consistent alignment
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+\begin{document}
+
+% === PAGE 1 ===
+
+% Logo
+\companylogo
+
+\vspace{0.5cm}
+
+% Sender line
+\noindent
+{\footnotesize EmC2 Attila Landgrafe, Waldstraße 5, 95032 Hof}
+
+\vspace{0.8cm}
+
+% Address and document info side by side
+\noindent
+\begin{minipage}[t]{0.5\textwidth}
+    \raggedright
+    Frau\\
+    Byron Hayden\\
+    Minus voluptas eiusm\\
+    Est recusandae Qui Est quo dicta aut vi
+\end{minipage}%
+\begin{minipage}[t]{0.5\textwidth}
+    \raggedleft
+    \begin{tabular}{@{}r@{\hspace{0.8em}}l@{}}
+        Angebotsnummer & ANG2025-1201-162210\\
+        Datum & 20.11.1981\\
+        Ansprechpartner & Tana Hodge\\
+        Telefon & 09281 5915900\\
+        E-Mail & service@e-m-c-2.de\\[0.5em]
+        \textbf{Referenz} & \textbf{30}
+    \end{tabular}
+\end{minipage}
+
+\vspace{1.5cm}
+
+% Document title
+{\Large\textbf{Ihr Angebot ANG2025-1201-162210}}
+
+\vspace{0.8cm}
+
+Sehr geehrte Frau Hayden,
+
+\vspace{0.5cm}
+
+vielen Dank für Ihre Anfrage und Ihr damit verbundenes Interesse.\\
+Wir freuen uns, Ihnen folgendes Angebot unterbreiten zu können.
+
+\vspace{0.8cm}
+
+% Items table header with gray background
+\noindent
+\colorbox{rowgray}{%
+    \parbox{\dimexpr\textwidth-2\fboxsep}{%
+        \begin{tabularx}{\dimexpr\textwidth-2\fboxsep}{@{}P{0.8cm}P{1.2cm}X R{2.3cm}R{2.3cm}@{}}
+            \textbf{Pos} & \textbf{Menge} & \textbf{Bezeichnung} & \textbf{Einheitspreis} & \textbf{Gesamt}
+        \end{tabularx}%
+    }%
+}
+
+\vspace{0.3cm}
+
+% Item 001
+\noindent
+\begin{tabularx}{\textwidth}{@{}P{0.8cm}P{1.2cm}X R{2.3cm}R{2.3cm}@{}}
+    001 & 1 Stk & \textbf{Auszuführende Arbeiten} & 925,00\,\euro & 925,00\,\euro\\
+\end{tabularx}
+
+\vspace{0.2cm}
+\hspace{2cm}
+\begin{minipage}{0.8\textwidth}
+    \small
+    Enthält je Einheit\\[0.2em]
+    - 1,00 Stk Fahrzeugbereitstellung\\
+    - 1,00 Stk Bereitstellung und Vorhaltung von Maschinen \&\\
+    \hspace{0.5cm}Werkzeugen\\
+    - 1,00 Stk Beräumung der Baustelle
+\end{minipage}
+
+\vspace{0.5cm}
+
+% Item 002
+\noindent
+\begin{tabularx}{\textwidth}{@{}P{0.8cm}P{1.2cm}X R{2.3cm}R{2.3cm}@{}}
+    002 & 1 Stk & \textbf{Material für Badumbau} & 550,04\,\euro & 550,04\,\euro\\
+\end{tabularx}
+
+\vspace{0.2cm}
+\hspace{2cm}
+\begin{minipage}{0.8\textwidth}
+    \small
+    - 1 Stk TRINNITY Wannenabdichtband-Set 3,4 m\\
+    \hspace{0.5cm}Nass-/Trockenanbindung entspr. DIN 18534\\
+    - 1 Stk Ablaufgarnitur Rohbauset m.Sifon BH60mm\\
+    \hspace{0.5cm}f.flache Duschw.m.90mm Ablauf TRINNITY\\
+    - 1 Stk Kleinmaterial\\
+    - 1 Stk Stelzlager höhenverstellbar Set\\
+    - 1 Stk TRINNITY Wandabdichtung BASIS-Set 5 qm DW bis\\
+    \hspace{0.5cm}100 x 100 / BW bis 180 x 80 cm\\
+    - 1 Pkg Flächenkleber (Wandverkleidung)\\
+    - 1 Stk Abschlussprofil 3.0 255 cm silber eloxiert VIGOUR\\
+    - 1 Stk CARE Sanitär Silikon Weiß 310ml
+\end{minipage}
+
+% === PAGE 2 ===
+\newpage
+
+% Totals table - first and last row gray, middle row white
+\noindent
+\colorbox{rowgray}{%
+    \parbox{\dimexpr\textwidth-2\fboxsep}{%
+        \begin{tabularx}{\dimexpr\textwidth-2\fboxsep}{@{}X R{2.5cm}@{}}
+            Nettobetrag & 1.475,04\,\euro
+        \end{tabularx}%
+    }%
+}
+
+\noindent
+\hspace{\fboxsep}%
+\parbox{\dimexpr\textwidth-2\fboxsep}{%
+    \begin{tabularx}{\dimexpr\textwidth-2\fboxsep}{@{}X R{2.5cm}@{}}
+        zzgl. 19\% MwSt. & 280,26\,\euro
+    \end{tabularx}%
+}
+
+\noindent
+\colorbox{rowgray}{%
+    \parbox{\dimexpr\textwidth-2\fboxsep}{%
+        \begin{tabularx}{\dimexpr\textwidth-2\fboxsep}{@{}X R{2.5cm}@{}}
+            \textbf{Gesamtsumme} & \textbf{1.755,30\,\euro}
+        \end{tabularx}%
+    }%
+}
+
+\vspace{1cm}
+
+Es handelt sich hierbei um ein Festpreisangebot für die oben definierten Leistungen.
+
+\vspace{0.6cm}
+
+\textbf{ACHTUNG:} Ob eine ebenerdige Montage der Duschwanne möglich ist, kann erst nach dem Ausbau der bestehenden Wanne beurteilt werden. Sollten dabei zusätzliche oder weitere Leistungen erforderlich oder von Ihnen gewünscht sein, können zusätzliche Kosten entstehen.
+
+\vspace{0.5cm}
+
+Diese werden vorab mit Ihnen besprochen, bedürfen Ihrer Zustimmung und werden auf Regiebasis nach tatsächlichem Aufwand abgerechnet.\\
+(Stundensatz-Facharbeiter: 59,50\euro{} netto)
+
+\vspace{0.5cm}
+
+Dieser wird bei Auftragsbestätigung vorab fällig.
+
+\vspace{0.5cm}
+
+Bitte unterschreiben Sie bei Annahme an entsprechender Stelle und senden uns das Angebot wieder zurück -- gerne auch per E-Mail an service@e-m-c-2.de. Die Unterschrift gilt für uns als Auftragsbestätigung.
+
+\vspace{0.8cm}
+
+\textbf{Angebot akzeptiert / Auftrag bestätigt:}
+
+\vspace{2cm}
+
+\noindent
+\parbox{6cm}{
+    \rule{6cm}{0.4pt}\\
+    Ort, Datum, Unterschrift
+}
+
+\vspace{1cm}
+
+Für Rückfragen stehen wir Ihnen gerne zur Verfügung. Wir bedanken uns für Ihr Vertrauen und freuen uns, von Ihnen zu hören.
+
+\vspace{0.6cm}
+
+Mit freundlichen Grüßen
+
+\vspace{0.4cm}
+
+Ihr Team von EmC2
+
+\end{document}

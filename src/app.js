@@ -28,6 +28,10 @@ import Draft from './models/Draft.js';
 // Pricing logic (factory(Product))
 import pricingFactory from './logic/pricing.js';
 
+// app.txt (top imports)
+import latexTemplateRouter from './routes/latex-template.js';
+
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -158,6 +162,7 @@ app.use('/api/bitrix', bitrixRouter);
 app.use('/api/routing', routingRouter);   // <--- NEW
 // (you had this twice; once is enough)
 // app.use('/api/offers', offersRouter);
+app.use('/latex-template', latexTemplateRouter);
 
 // ---------------- Health ----------------
 app.get('/api/health', (req, res) =>

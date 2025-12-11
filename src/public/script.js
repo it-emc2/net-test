@@ -410,6 +410,8 @@ function showToast(message, type = 'info') {
 }
 
 
+
+
 // ---- RESTORE HELPERS ----
 function restoreBwtExtras(bwt) {
   if (!bwt || !Array.isArray(bwt.quickAdd)) return;
@@ -1287,6 +1289,7 @@ function stampOfferOnExport() {
     "downloadMaterialOverview",
     "makePdf",
     "downloadPdf",
+    "downloadLatexPdf"
   ];
 
   const apply = () => {
@@ -3946,6 +3949,8 @@ if (customerSearchInput && customerSearchResults) {
     }
   });
 }
+
+
 
 function renderCustomerSearchResults(list) {
   customerSearchResults.innerHTML = '';
@@ -7175,6 +7180,26 @@ document
       alert("Materialübersicht konnte nicht erstellt werden.");
     }
   });
+
+  // Angebot als PDF aus LATEX-Vorlage
+document
+  .getElementById("downloadLatexPdf")
+  ?.addEventListener("click", async () => {
+    if (!requireBereichValid()) {
+      location.hash = "Kundendaten";
+      return;
+    }
+    try {
+      const payload = buildPayload();
+      await downloadPDFWithProgress("/latex-template/pdf", payload);
+    } catch (e) {
+      showPDFProgress(
+        `LaTeX-PDF-Erstellung fehlgeschlagen: ${e.message}`,
+        "error"
+      );
+    }
+  });
+
 
 // Angebot als PDF aus DOCX-Vorlage
 document
