@@ -414,10 +414,9 @@ function showToast(message, type = 'info') {
 
 // ---- RESTORE HELPERS ----
 function restoreBwtExtras(bwt) {
-  if (!bwt || !Array.isArray(bwt.quickAdd)) return;
-
   const fs = document.getElementById("bwt-extras");
   if (!fs) return;
+  
   const wrap = fs.querySelector(".da-items");
   if (!wrap) return;
 
@@ -425,7 +424,29 @@ function restoreBwtExtras(bwt) {
   if (!rows.length) return;
 
   const tplRow = rows[0];
-  const items = bwt.quickAdd;
+  const items = Array.isArray(bwt?.quickAdd) ? bwt.quickAdd : [];
+
+  // *** Handle empty items - just clear to one empty row ***
+  if (items.length === 0) {
+    // Remove all but first
+    while (rows.length > 1) {
+      const last = rows.pop();
+      if (last) last.remove();
+    }
+    // Clear first row
+    const first = rows[0];
+    if (first) {
+      const nameEl  = first.querySelector(".da-name");
+      const idEl    = first.querySelector(".da-id");
+      const qtyEl   = first.querySelector(".da-qty");
+      const priceEl = first.querySelector(".da-price");
+      if (nameEl)  nameEl.value  = '';
+      if (idEl)    idEl.value    = '';
+      if (qtyEl)   qtyEl.value   = '';
+      if (priceEl) priceEl.value = '';
+    }
+    return;
+  }
 
   // shrink rows if there are more DOM rows than items
   while (rows.length > items.length && rows.length > 1) {
@@ -1347,7 +1368,9 @@ const sideMenu = document.getElementById("sideMenu");
 // Currently active offer key (e.g. "bu", "bwt"), or null when no flow is active
 let currentOfferKey = null;
 
-// Reset all forms to their initial HTML defaults for a fresh start per offer
+// ============================================================
+// UPDATED resetAllForms() - Complete localStorage + DOM cleanup
+// ============================================================
 function resetAllForms() {
   const formIds = [
     "form-Kundendaten",
@@ -1361,7 +1384,7 @@ function resetAllForms() {
     "form-hl",
     "form-admin",
     "form-as",
-"form-ah"
+    "form-ah"
   ];
 
   // 1) Reset all forms back to their HTML defaults
@@ -1372,8 +1395,51 @@ function resetAllForms() {
     }
   });
 
-  // 2) Re-apply selection/quantity logic for ALL toggles
-  //    (WV sync, wireTileQty, highlighting, etc.) in one pass.
+  // 2) Clear ALL localStorage keys used by repeaters/persisted UI state
+  const localStorageKeysToClear = [
+    // Duschwanne
+    'dwExtraTasks:v1',
+    'dw_tray_selection',
+    'dw_floor_area',
+    'dw_floor_sealing',
+    
+    // Duschabtrennung (Hassmann)
+    'daQuickAddRows:v1',
+    
+    // Optional
+    'optQuickAddRows:v1',
+    'basin_required_state',
+    
+    // BWT
+    'bwtExtraTasks:v1',
+    
+    // WV (if any future persistence)
+    'wv_state',
+  ];
+
+  localStorageKeysToClear.forEach((key) => {
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      console.warn('[resetAllForms] failed to clear localStorage key:', key, e);
+    }
+  });
+
+  // 3) Clear sessionStorage keys
+  const sessionStorageKeysToClear = [
+    'dw_tray_touched',
+  ];
+
+  sessionStorageKeysToClear.forEach((key) => {
+    try {
+      sessionStorage.removeItem(key);
+    } catch (e) {}
+  });
+
+  // 4) Explicitly reset all repeater DOMs (form.reset() doesn't remove dynamic rows)
+  resetAllRepeaterDOMs();
+
+  // 5) Re-apply selection/quantity logic for ALL toggles
   try {
     window.__restoring = true;
     window.__RESTORING__ = true;
@@ -1381,7 +1447,6 @@ function resetAllForms() {
 
   const toggles = document.querySelectorAll('input[type="checkbox"], input[type="radio"]');
   toggles.forEach((el) => {
-    // Trigger all existing "change" handlers once with the new default state
     el.dispatchEvent(new Event("change", { bubbles: true }));
   });
 
@@ -1390,10 +1455,11 @@ function resetAllForms() {
     window.__RESTORING__ = false;
   } catch (e) {}
 
-  // 3) One clean pricing refresh after reset (if pricing exists)
+  // 6) One clean pricing refresh after reset
   window.updatePricing?.();
-    // Also reset the small top-right summary widget
-   if (typeof updateSummaryWidgetName === "function") {
+
+  // 7) Reset the summary widget
+  if (typeof updateSummaryWidgetName === "function") {
     updateSummaryWidgetName();
   }
   if (typeof updateSummaryWidgetSelfPay === "function") {
@@ -1405,18 +1471,143 @@ function resetAllForms() {
   if (typeof updateSummaryWidgetSubsidyVisibility === "function") {
     updateSummaryWidgetSubsidyVisibility();
   }
-  // Clear BWT Extra Arbeitszeit rows for a brand new offer
-try {
-  localStorage.removeItem('bwtExtraTasks:v1');
-} catch (e) {
-  console.warn('[ExtraAZ] failed to clear localStorage on reset', e);
 }
 
-// Also clear the UI rows if the helper exists
-if (typeof window.restoreBwtExtraArbeitszeitFromPayload === 'function') {
-  window.restoreBwtExtraArbeitszeitFromPayload({ extraTasks: [] });
-}
+// ============================================================
+// NEW HELPER: Reset all repeater DOMs to clean state
+// ============================================================
+function resetAllRepeaterDOMs() {
+  // --- DW Extra Tasks ---
+  if (typeof window.restoreDWExtraTasksFromPayload === 'function') {
+    window.restoreDWExtraTasksFromPayload({ extraTasks: [] });
+  } else {
+    // Fallback: manually clear
+    const dwExtraWrap = document.querySelector('#dw-extra-tasks .da-items');
+    if (dwExtraWrap) {
+      const rows = dwExtraWrap.querySelectorAll('.da-item');
+      rows.forEach((row, idx) => {
+        if (idx > 0) {
+          row.remove();
+        } else {
+          const input = row.querySelector('.dw-extra');
+          if (input) input.value = '';
+        }
+      });
+    }
+  }
 
+  // --- BWT Extra Arbeitszeit ---
+  if (typeof window.restoreBwtExtraArbeitszeitFromPayload === 'function') {
+    window.restoreBwtExtraArbeitszeitFromPayload({ extraTasks: [] });
+  } else {
+    // Fallback: manually clear
+    const bwtAzWrap = document.querySelector('#bwtAzExtraFieldset .bwt-az-items');
+    if (bwtAzWrap) {
+      const rows = bwtAzWrap.querySelectorAll('.bwt-az-item');
+      rows.forEach((row, idx) => {
+        if (idx > 0) {
+          row.remove();
+        } else {
+          const durEl = row.querySelector('.bwt-az-duration');
+          const taskEl = row.querySelector('.bwt-az-task');
+          if (durEl) durEl.value = '';
+          if (taskEl) taskEl.value = '';
+        }
+      });
+    }
+  }
+
+  // --- Hassmann Quick-Add (Duschabtrennung) ---
+  document.querySelectorAll('section.da-quickadd fieldset.da-row[data-kind]').forEach((fs) => {
+    const wrap = fs.querySelector('.da-items');
+    if (!wrap) return;
+    
+    const rows = Array.from(wrap.querySelectorAll('.da-item'));
+    rows.forEach((row, idx) => {
+      if (idx > 0) {
+        row.remove();
+      } else {
+        // Clear the first row's inputs
+        const priceEl = row.querySelector('.da-price');
+        const qtyEl = row.querySelector('.da-qty');
+        const idEl = row.querySelector('.da-id');
+        const nameEl = row.querySelector('.da-name');
+        if (priceEl) priceEl.value = '';
+        if (qtyEl) qtyEl.value = '';
+        if (idEl) idEl.value = '';
+        if (nameEl) nameEl.value = '';
+      }
+    });
+  });
+
+  // --- BWT Extras (Freier Posten) ---
+  const bwtExtrasFs = document.getElementById('bwt-extras');
+  if (bwtExtrasFs) {
+    const wrap = bwtExtrasFs.querySelector('.da-items');
+    if (wrap) {
+      const rows = Array.from(wrap.querySelectorAll('.da-item'));
+      rows.forEach((row, idx) => {
+        if (idx > 0) {
+          row.remove();
+        } else {
+          const nameEl = row.querySelector('.da-name');
+          const idEl = row.querySelector('.da-id');
+          const qtyEl = row.querySelector('.da-qty');
+          const priceEl = row.querySelector('.da-price');
+          if (nameEl) nameEl.value = '';
+          if (idEl) idEl.value = '';
+          if (qtyEl) qtyEl.value = '';
+          if (priceEl) priceEl.value = '';
+        }
+      });
+    }
+  }
+
+  // --- Optional Sonderprodukte ---
+  const optSonderPanel = document.getElementById('optSonderPanel') || document.getElementById('opt-sonder');
+  if (optSonderPanel) {
+    const rowsContainer = optSonderPanel.querySelector('.da-items') || optSonderPanel;
+    const rows = Array.from(rowsContainer.querySelectorAll('.da-item'));
+    rows.forEach((row, idx) => {
+      if (idx > 0) {
+        row.remove();
+      } else {
+        const nameEl = row.querySelector('.opt-name');
+        const idEl = row.querySelector('.opt-id');
+        const qtyEl = row.querySelector('.opt-qty');
+        const priceEl = row.querySelector('.opt-price');
+        if (nameEl) nameEl.value = '';
+        if (idEl) idEl.value = '';
+        if (qtyEl) qtyEl.value = '';
+        if (priceEl) priceEl.value = '';
+      }
+    });
+  }
+
+  // --- Basin Accessories ---
+  // Reset checkbox + qty states (the localStorage is already cleared)
+  ['opt_WTBF', 'opt_RSL', 'opt_EV'].forEach((id) => {
+    const cb = document.getElementById(id);
+    if (cb) cb.checked = false;
+  });
+  ['qty_WTBF', 'qty_RSL', 'qty_EV'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = '0';
+  });
+
+  // --- Tray Search Suggestions ---
+  const traySuggestions = document.getElementById('tray-suggestions');
+  if (traySuggestions) {
+    traySuggestions.innerHTML = '';
+  }
+  const chosenTrayPid = document.getElementById('chosenTrayProductId');
+  if (chosenTrayPid) chosenTrayPid.value = '';
+  const traySize = document.getElementById('traySize');
+  if (traySize) traySize.value = '';
+
+  // --- Floor Area ---
+  const floorArea = document.getElementById('floorArea');
+  if (floorArea) floorArea.value = '';
 }
 
 
@@ -2032,41 +2223,56 @@ function buildPayload() {
   }
 
   // ---- DUSCHWANNE: ensure multi-select arrays are captured ----
-  try {
-    const formDW = document.getElementById("form-duschwanne");
-    if (formDW) {
-      const fdDW = new FormData(formDW);
-      const getAllVals = (name) => fdDW.getAll(name).map((v) => String(v));
+  // ---- DUSCHWANNE: ensure multi-select arrays are captured ----
+try {
+  const formDW = document.getElementById("form-duschwanne");
+  if (formDW) {
+    const fdDW = new FormData(formDW);
+    const getAllVals = (name) => fdDW.getAll(name).map((v) => String(v));
 
-      // Existing
-      const flooringProduct = getAllVals("flooringProduct[]");
-      const floorAdhesive = getAllVals("floorAdhesive[]");
-      const floorSealing = getAllVals("floorSealing[]");
+    // Existing
+    const flooringProduct = getAllVals("flooringProduct[]");
+    const floorAdhesive = getAllVals("floorAdhesive[]");
+    const floorSealing = getAllVals("floorSealing[]");
 
-      // ✅ Read the actual field name you used:
-      const extraTasks = [
-        ...getAllVals("duschwanne[extraTasks][]"), // primary (your markup)
-        ...getAllVals("extraTasks[]"), // optional fallback if ever used
-      ]
-        .map((s) => s.trim())
-        .filter(Boolean);
-
-      payload.duschwanne = payload.duschwanne || {};
-      if (flooringProduct.length)
-        payload.duschwanne.flooringProduct = flooringProduct;
-      if (floorAdhesive.length)
-        payload.duschwanne.floorAdhesive = floorAdhesive;
-      if (floorSealing.length)
-        payload.duschwanne.floorSealing = floorSealing;
-      if (extraTasks.length)
-        payload.duschwanne.extraTasks = Array.from(new Set(extraTasks));
-
-      // Normalize toggle to boolean
-      payload.duschwanne.addFlooring = !!document.getElementById("addFlooring")?.checked;
+    // ✅ FIX: Query DOM directly for ALL extra task inputs
+    let extraTasks = [];
+    
+    // First try FormData (for inputs with correct name attribute)
+    extraTasks = [
+      ...getAllVals("duschwanne[extraTasks][]"),
+      ...getAllVals("extraTasks[]"),
+    ].map((s) => s.trim()).filter(Boolean);
+    
+    // If FormData didn't find any, query the DOM directly
+    if (extraTasks.length === 0) {
+      const extraTaskInputs = document.querySelectorAll('#dw-extra-tasks .da-items .dw-extra');
+      extraTaskInputs.forEach((input) => {
+        const val = (input.value || '').trim();
+        if (val) {
+          extraTasks.push(val);
+        }
+      });
     }
-  } catch (e) {
-    console.warn("[buildPayload] flooring arrays capture failed:", e);
+    
+    console.log('[buildPayload] extraTasks collected:', extraTasks); // Debug
+
+    payload.duschwanne = payload.duschwanne || {};
+    if (flooringProduct.length)
+      payload.duschwanne.flooringProduct = flooringProduct;
+    if (floorAdhesive.length)
+      payload.duschwanne.floorAdhesive = floorAdhesive;
+    if (floorSealing.length)
+      payload.duschwanne.floorSealing = floorSealing;
+    if (extraTasks.length)
+      payload.duschwanne.extraTasks = Array.from(new Set(extraTasks));
+
+    // Normalize toggle to boolean
+    payload.duschwanne.addFlooring = !!document.getElementById("addFlooring")?.checked;
   }
+} catch (e) {
+  console.warn("[buildPayload] flooring arrays capture failed:", e);
+}
 
   // WV consumables – ONLY what's actually selected in the UI
   try {
@@ -3362,17 +3568,26 @@ function wireRow(item) {
   });
 
   // expose an optional payload-based restore (call this from your global restore pipeline)
-  window.restoreDWExtraTasksFromPayload = function(dw) {
-    if (!dw || !Array.isArray(dw.extraTasks)) return;
-    // reset to exactly what's in payload
+
+// In initDWExtraTasks IIFE, update the exposed function:
+window.restoreDWExtraTasksFromPayload = function(dw) {
+  // Handle null/undefined dw or missing extraTasks - clear to one empty row
+  if (!dw || !Array.isArray(dw.extraTasks)) {
     wrap.innerHTML = '';
-    if (dw.extraTasks.length === 0) {
-      wrap.appendChild(makeItem(''));
-    } else {
-      dw.extraTasks.forEach(t => wrap.appendChild(makeItem(String(t || ''))));
-    }
-    saveState(); // mirror to LS so navigation keeps it
-  };
+    wrap.appendChild(makeItem(''));
+    saveState(); // Clear localStorage too
+    return;
+  }
+  
+  // reset to exactly what's in payload
+  wrap.innerHTML = '';
+  if (dw.extraTasks.length === 0) {
+    wrap.appendChild(makeItem(''));
+  } else {
+    dw.extraTasks.forEach(t => wrap.appendChild(makeItem(String(t || ''))));
+  }
+  saveState(); // mirror to LS so navigation keeps it
+};
 
   ensureOneRow();
   // if we didn't restore from payload, at least restore last local edits
@@ -5776,7 +5991,8 @@ const WV_DEFAULT_PIDS = ['TRWDSET5','V4FK600','V3A','V4RPKIT'];
 
 function restoreHassmannQuickAdd(da) {
   const rows = Array.isArray(da?.quickAdd) ? da.quickAdd : [];
-  // Find the fieldsets by data-kind (gleittuer, pendeltuer, etc.)
+  
+  // Find the fieldsets by data-kind
   for (const fs of document.querySelectorAll('fieldset.da-row[data-kind]')) {
     const kind = fs.dataset.kind;
     const wrap = fs.querySelector('.da-items');
@@ -5788,49 +6004,53 @@ function restoreHassmannQuickAdd(da) {
     wrap.querySelectorAll('.da-item:not(:first-child)').forEach(n => n.remove());
 
     const list = rows.filter(r => r.kind === kind);
+    
     const fill = (item, row) => {
-      const qtyEl   = item.querySelector('.da-qty');
-      const priceEl = item.querySelector('.da-price');
       const idEl    = item.querySelector('.da-id');
-      const nameEl  = item.querySelector('.da-name'); // only present for Freier Posten (custom)
+      const priceEl = item.querySelector('.da-price');
+      const qtyEl   = item.querySelector('.da-qty');
+      const nameEl  = item.querySelector('.da-name');
 
-      if (qtyEl)   qtyEl.value   = String(row.qty || 0);
-      if (priceEl) priceEl.value = row.price != null
+      if (idEl)    idEl.value    = row?.productId || '';
+      if (priceEl) priceEl.value = row?.price != null
         ? String(row.price).replace('.', ',')
-        : (row.priceRaw || '');
-      if (idEl)    idEl.value    = row.productId || '';
-
-      // For Freier Posten rows (kind === "custom"), we stored the custom label in row.label
-      if (nameEl)  nameEl.value  = row.label || row.name || '';
-
-      // fire events so totals / LS / validation stay in sync
-      if (qtyEl)   qtyEl.dispatchEvent(new Event('input', { bubbles: true }));
-      if (priceEl) priceEl.dispatchEvent(new Event('input', { bubbles: true }));
-      if (idEl)    idEl.dispatchEvent(new Event('input', { bubbles: true }));
-      if (nameEl)  nameEl.dispatchEvent(new Event('input', { bubbles: true }));
+        : (row?.priceRaw || '');
+      if (qtyEl)   qtyEl.value   = row?.qty != null ? String(row.qty) : '';
+      if (nameEl)  nameEl.value  = row?.label || row?.name || '';
     };
 
     if (list.length) {
       fill(first, list[0]);
+
       for (let i = 1; i < list.length; i++) {
-        const item = (typeof window.addRow === 'function') ? window.addRow(kind, fs, false) : null;
-        if (item) fill(item, list[i]);
+        let item = typeof window.addRow === 'function'
+          ? window.addRow(kind, fs, false)
+          : null;
+
+        if (!item) {
+          item = first.cloneNode(true);
+          wrap.appendChild(item);
+        }
+
+        fill(item, list[i]);
       }
     } else {
-      // leave the first row blank
-      const qtyEl   = first.querySelector('.da-qty');
-      const priceEl = first.querySelector('.da-price');
+      // *** NEW: No data for this kind - ensure first row is cleared ***
       const idEl    = first.querySelector('.da-id');
+      const priceEl = first.querySelector('.da-price');
+      const qtyEl   = first.querySelector('.da-qty');
       const nameEl  = first.querySelector('.da-name');
-
-      if (qtyEl)   qtyEl.value   = '';
-      if (priceEl) priceEl.value = '';
       if (idEl)    idEl.value    = '';
+      if (priceEl) priceEl.value = '';
+      if (qtyEl)   qtyEl.value   = '';
       if (nameEl)  nameEl.value  = '';
     }
-
-
- 
+  }
+  
+  // *** NEW: Update localStorage to match restored state ***
+  // This prevents stale localStorage from overriding on next navigation
+  if (typeof saveState === 'function') {
+    saveState();
   }
 }
 function restoreOptional(opt) {
