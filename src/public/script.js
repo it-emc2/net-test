@@ -308,6 +308,16 @@ window.parseMoneyEuro = function (v) {
   const n = parseFloat(s);
   return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
 };
+
+// Global HTML escape helper (used by multiple modules)
+function escapeHtml(str) {
+  if (str == null) return '';
+  const div = document.createElement('div');
+  div.textContent = String(str);
+  return div.innerHTML;
+}
+window.escapeHtml = escapeHtml;
+
 // the toast helper
 function ntToast(type, title, message, {duration = 3600, withBackdrop = true} = {}) {
   const host = document.getElementById('nt-toaster');
@@ -3230,13 +3240,13 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!section) return;
 
   const TPL = document.getElementById('da-item-template');
+  
   // Pick the correct <template> for a fieldset (Freier Posten has its own)
-function getTemplateFor(fs) {
-  const tplId = fs && fs.getAttribute('data-template');
-  const t = tplId ? document.getElementById(tplId) : TPL;
-  // Fallback to shared TPL if custom template missing
-  return (t && t.content) ? t : TPL;
-}
+  function getTemplateFor(fs) {
+    const tplId = fs && fs.getAttribute('data-template');
+    const t = tplId ? document.getElementById(tplId) : TPL;
+    return (t && t.content) ? t : TPL;
+  }
 
   const KINDS = [
     { kind: 'pendeltuer',   label: 'Pendeltür Hassmann' },
@@ -3247,127 +3257,128 @@ function getTemplateFor(fs) {
 
   const LS_KEY = 'daQuickAddRows:v1';
 
-const saveState = () => {
-  const state = {};
-for (const fs of document.querySelectorAll('fieldset.da-row[data-kind]')) {
-    const kind = fs.dataset.kind;
-    const rows = [];
-    fs.querySelectorAll('.da-item').forEach(item => {
-      const price = window.parseMoneyEuro(item.querySelector('.da-price')?.value);
-      const qtyEl = item.querySelector('.da-qty');
-      const idEl  = item.querySelector('.da-id');
-      const qty   = Math.max(1, parseInt((qtyEl?.value || '').trim(), 10) || 0);
-      const pid   = (idEl?.value || '').trim();
-      rows.push({ price, qty, productId: pid });
-    });
-    state[kind] = rows;
-  }
-  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch {}
-};
+  const saveState = () => {
+    const state = {};
+    for (const fs of document.querySelectorAll('fieldset.da-row[data-kind]')) {
+      const kind = fs.dataset.kind;
+      const rows = [];
+      fs.querySelectorAll('.da-item').forEach(item => {
+        const price = window.parseMoneyEuro(item.querySelector('.da-price')?.value);
+        const qtyEl = item.querySelector('.da-qty');
+        const idEl  = item.querySelector('.da-id');
+        const nameEl = item.querySelector('.da-name');
+        const qty   = Math.max(1, parseInt((qtyEl?.value || '').trim(), 10) || 0);
+        const pid   = (idEl?.value || '').trim();
+        const name  = (nameEl?.value || '').trim();
+        rows.push({ price, qty, productId: pid, name });
+      });
+      state[kind] = rows;
+    }
+    try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch {}
+  };
+
+  // Expose saveState globally for restore functions
+  window.__daQuickAddSaveState = saveState;
 
   const restoreState = () => {
-  let data = null;
-  try { data = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch {}
-  if (!data || typeof data !== 'object') return;
+    let data = null;
+    try { data = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch {}
+    if (!data || typeof data !== 'object') return;
 
-  // we'll re-save a migrated copy per kind
-  const migrated = {};
+    const migrated = {};
 
-  for (const fs of document.querySelectorAll('fieldset.da-row[data-kind]')) {
-    const kind = fs.dataset.kind;
-    const wrap = fs.querySelector('.da-items');
-    if (!wrap) continue;
+    for (const fs of document.querySelectorAll('fieldset.da-row[data-kind]')) {
+      const kind = fs.dataset.kind;
+      const wrap = fs.querySelector('.da-items');
+      if (!wrap) continue;
 
-    const rows = Array.isArray(data[kind]) ? data[kind] : [];
-    // --- normalize legacy rows (string prices, cents→euros, pid→productId)
- const normalizeRow = (r) => {
-      if (!r || typeof r !== 'object') return { price: 0, qty: 0, productId: '' };
-      let price = r.price;
+      const rows = Array.isArray(data[kind]) ? data[kind] : [];
+      
+      const normalizeRow = (r) => {
+        if (!r || typeof r !== 'object') return { price: 0, qty: 0, productId: '', name: '' };
+        let price = r.price;
 
-      if (typeof price === 'string') {
-        const s = price.trim().replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
-        const n = parseFloat(s);
-        price = Number.isFinite(n) ? n : 0;
+        if (typeof price === 'string') {
+          const s = price.trim().replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
+          const n = parseFloat(s);
+          price = Number.isFinite(n) ? n : 0;
+        }
+        if (typeof price === 'number' && Number.isFinite(price) && price > 999 && Number.isInteger(price)) {
+          price = price / 100;
+        }
+        price = Number.isFinite(price) && price > 0 ? Math.round(price * 100) / 100 : 0;
+
+        const qty = Math.max(price > 0 ? 1 : 0, parseInt(r.qty, 10) || 0);
+        const productId = (r.productId || r.pid || '').trim();
+        const name = (r.name || r.label || '').trim();
+        return { price, qty, productId, name };
+      };
+
+      const normRows = rows.map(normalizeRow);
+      migrated[kind] = normRows;
+
+      const first = wrap.querySelector('.da-item');
+      if (!first) continue;
+      wrap.querySelectorAll('.da-item:not(:first-child)').forEach(n => n.remove());
+
+      const fill = (item, row) => {
+        const priceEl = item.querySelector('.da-price');
+        const qtyEl   = item.querySelector('.da-qty');
+        const idEl    = item.querySelector('.da-id');
+        const nameEl  = item.querySelector('.da-name');
+
+        const priceStr = row?.price ? row.price.toFixed(2).replace('.', ',') : '';
+
+        if (priceEl) priceEl.value = priceStr;
+        if (qtyEl)   qtyEl.value   = row?.price ? String(Math.max(1, row.qty || 1)) : '';
+        if (idEl)    idEl.value    = row?.productId || '';
+        if (nameEl)  nameEl.value  = row?.name || '';
+      };
+
+      if (normRows.length > 0) {
+        fill(first, normRows[0]);
+        for (let i = 1; i < normRows.length; i++) {
+          const item = addRow(kind, fs, false);
+          if (item) fill(item, normRows[i]);
+        }
+      } else {
+        const priceEl = first.querySelector('.da-price');
+        const qtyEl   = first.querySelector('.da-qty');
+        const idEl    = first.querySelector('.da-id');
+        const nameEl  = first.querySelector('.da-name');
+        if (priceEl) priceEl.value = '';
+        if (qtyEl)   qtyEl.value   = '';
+        if (idEl)    idEl.value    = '';
+        if (nameEl)  nameEl.value  = '';
       }
-      if (typeof price === 'number' && Number.isFinite(price) && price > 999 && Number.isInteger(price)) {
-        // legacy cents → euros
-        price = price / 100;
-      }
-      price = Number.isFinite(price) && price > 0 ? Math.round(price * 100) / 100 : 0;
-
-      const qty = Math.max(price > 0 ? 1 : 0, parseInt(r.qty, 10) || 0);
-      const productId = (r.productId || r.pid || '').trim();
-      return { price, qty, productId };
-    };
-
-// normalize all rows (and later save back to LS so we "migrate" once)
-const normRows = rows.map(normalizeRow);
-migrated[kind] = normRows;
-   // --- render: keep first row, rebuild others
-    const first = wrap.querySelector('.da-item');
-    if (!first) continue;
-    wrap.querySelectorAll('.da-item:not(:first-child)').forEach(n => n.remove());
-
-    const fill = (item, row) => {
-      const priceEl = item.querySelector('.da-price');
-      const qtyEl   = item.querySelector('.da-qty');
-      const idEl    = item.querySelector('.da-id');
-
-      // ensure two decimals for UI
-      const priceStr = row?.price ? row.price.toFixed(2).replace('.', ',') : '';
-
-      if (priceEl) priceEl.value = priceStr;
-      if (qtyEl)   qtyEl.value   = row?.price ? String(Math.max(1, row.qty || 1)) : '';
-      if (idEl)    idEl.value    = row?.productId || '';
-    };
-
-    if (normRows.length > 0) {
-      fill(first, normRows[0]);
-      for (let i = 1; i < normRows.length; i++) {
-        const item = addRow(kind, fs, false); // addRow already exists in this IIFE
-        if (item) fill(item, normRows[i]);
-      }
-    } else {
-      const priceEl = first.querySelector('.da-price');
-      const qtyEl   = first.querySelector('.da-qty');
-      const idEl    = first.querySelector('.da-id');
-      if (priceEl) priceEl.value = '';
-      if (qtyEl)   qtyEl.value   = '';
-      if (idEl)    idEl.value    = '';
     }
-  }
 
-  // write back migrated (once) so old “×100” never returns
-  try { localStorage.setItem(LS_KEY, JSON.stringify(migrated)); } catch {}
-};
+    try { localStorage.setItem(LS_KEY, JSON.stringify(migrated)); } catch {}
+  };
 
   function addRow(kind, fs, focusPrice = true) {
     const wrap = fs.querySelector('.da-items');
     if (!wrap) return null;
-const tpl = getTemplateFor(fs);
-if (!tpl?.content) return null;
+    const tpl = getTemplateFor(fs);
+    if (!tpl?.content) return null;
 
+    const last = wrap.querySelector('.da-item:last-child');
+    if (last) {
+      const lastPrice = window.parseMoneyEuro(last.querySelector('.da-price')?.value);
+      const lastId = (last.querySelector('.da-id')?.value || '').trim();
 
-    // rule: only add if the last existing row is valid
-   const last = wrap.querySelector('.da-item:last-child');
-if (last) {
-  const lastPrice = window.parseMoneyEuro(last.querySelector('.da-price')?.value);
-  const lastId = (last.querySelector('.da-id')?.value || '').trim();
-
-  if (kind === 'custom') {
-    const lastName = (last.querySelector('.da-name')?.value || '').trim();
-    if (!lastName) { last.querySelector('.da-name')?.focus(); return null; }
-    if (lastPrice <= 0) { last.querySelector('.da-price')?.focus(); return null; }
-    if (!lastId) { last.querySelector('.da-id')?.focus(); return null; }
-  } else {
-    if (lastPrice <= 0) { last.querySelector('.da-price')?.focus(); return null; }
-    if (!lastId) { last.querySelector('.da-id')?.focus(); return null; }
-  }
-}
-
+      if (kind === 'custom') {
+        const lastName = (last.querySelector('.da-name')?.value || '').trim();
+        if (!lastName) { last.querySelector('.da-name')?.focus(); return null; }
+        if (lastPrice <= 0) { last.querySelector('.da-price')?.focus(); return null; }
+        if (!lastId) { last.querySelector('.da-id')?.focus(); return null; }
+      } else {
+        if (lastPrice <= 0) { last.querySelector('.da-price')?.focus(); return null; }
+        if (!lastId) { last.querySelector('.da-id')?.focus(); return null; }
+      }
+    }
 
     const node = tpl.content.firstElementChild.cloneNode(true);
-
     wrap.appendChild(node);
     wireRow(node);
     if (focusPrice) node.querySelector('.da-price')?.focus();
@@ -3375,99 +3386,90 @@ if (last) {
     return node;
   }
 
- function removeRow(btn) {
-  var item = btn.closest('.da-item');
-  var fs   = btn.closest('fieldset.da-row[data-kind]');
-  if (!item || !fs) return;
+  // Expose addRow globally for restore functions
+  window.addRow = addRow;
 
-  var wrap = fs.querySelector('.da-items');
-  var onlyOne = wrap && wrap.querySelectorAll('.da-item').length <= 1;
+  function removeRow(btn) {
+    var item = btn.closest('.da-item');
+    var fs   = btn.closest('fieldset.da-row[data-kind]');
+    if (!item || !fs) return;
 
-  if (onlyOne) {
-    // Clear inputs instead of removing the last row
-    var priceEl = item.querySelector('.da-price');
-    var qtyEl   = item.querySelector('.da-qty');
-    var idEl    = item.querySelector('.da-id');
-    if (priceEl) priceEl.value = '';
-    if (qtyEl)   qtyEl.value   = '';
-    if (idEl)    idEl.value    = '';
+    var wrap = fs.querySelector('.da-items');
+    var onlyOne = wrap && wrap.querySelectorAll('.da-item').length <= 1;
 
-     // Special: Freier Posten (custom + BWT) also clears the label (da-name)
-  var kind = (fs.getAttribute('data-kind') || '');
-  if (kind === 'custom' || kind === 'bwt-extra') {
-    var nameEl = item.querySelector('.da-name');
-    if (nameEl) nameEl.value = '';
-  }
+    if (onlyOne) {
+      var priceEl = item.querySelector('.da-price');
+      var qtyEl   = item.querySelector('.da-qty');
+      var idEl    = item.querySelector('.da-id');
+      if (priceEl) priceEl.value = '';
+      if (qtyEl)   qtyEl.value   = '';
+      if (idEl)    idEl.value    = '';
 
-  } else {
-    // Remove the row normally
-    if (item.parentNode) item.parentNode.removeChild(item);
-  }
-
-  // Persist state after any change
-  if (typeof saveState === 'function') saveState();
-}
-
-function wireRow(item) {
-  const priceEl = item.querySelector('.da-price');
-  const qtyEl   = item.querySelector('.da-qty');
-  const nameEl  = item.querySelector('.da-name');
-  const idEl    = item.querySelector('.da-id');
-
-  // During typing: keep only digits, comma, dot
-  priceEl?.addEventListener('input', () => {
-    priceEl.value = priceEl.value.replace(/[^\d.,]/g, '');
-  });
-
-  // On blur: normalize; if valid price and qty empty -> qty = 1; if price empty -> clear qty
-  priceEl?.addEventListener('blur', () => {
-    const n = window.parseMoneyEuro(priceEl.value);
-    if (!Number.isFinite(n) || n <= 0) {
-      priceEl.value = '';
-      if (qtyEl) qtyEl.value = '';
-      saveState();
-      return;
+      var kind = (fs.getAttribute('data-kind') || '');
+      if (kind === 'custom' || kind === 'bwt-extra') {
+        var nameEl = item.querySelector('.da-name');
+        if (nameEl) nameEl.value = '';
+      }
+    } else {
+      if (item.parentNode) item.parentNode.removeChild(item);
     }
-    const parts = n.toFixed(2).split('.');
-    parts[0] = parts[0]
-      .replace(/^0+(?=\d)/, '')               // strip leading zeros
-      .replace(/\B(?=(\d{3})+(?!\d))/g, '.'); // thousands with dots
-    priceEl.value = parts.join(',') + ' €';
-    if (qtyEl && !qtyEl.value) qtyEl.value = '1';
-    saveState();
-  });
 
-  // Qty: keep min=1 if non-empty; allow empty if price cleared
-  qtyEl?.addEventListener('input', () => {
-    const v = qtyEl.value.trim();
-    if (!v) { saveState(); return; }
-    const n = Math.max(1, parseInt(v, 10) || 1);
-    if (String(n) !== v) qtyEl.value = String(n);
     saveState();
-  });
+  }
 
-  // Bezeichnung (da-name) → any change should be persisted
-  nameEl?.addEventListener('input', () => {
-    saveState();
-  });
+  function wireRow(item) {
+    const priceEl = item.querySelector('.da-price');
+    const qtyEl   = item.querySelector('.da-qty');
+    const nameEl  = item.querySelector('.da-name');
+    const idEl    = item.querySelector('.da-id');
 
-  // ID (da-id) → any change should be persisted
-  idEl?.addEventListener('input', () => {
-    saveState();
-  });
-}
+    priceEl?.addEventListener('input', () => {
+      priceEl.value = priceEl.value.replace(/[^\d.,]/g, '');
+    });
+
+    priceEl?.addEventListener('blur', () => {
+      const n = window.parseMoneyEuro(priceEl.value);
+      if (!Number.isFinite(n) || n <= 0) {
+        priceEl.value = '';
+        if (qtyEl) qtyEl.value = '';
+        saveState();
+        return;
+      }
+      const parts = n.toFixed(2).split('.');
+      parts[0] = parts[0]
+        .replace(/^0+(?=\d)/, '')
+        .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      priceEl.value = parts.join(',') + ' €';
+      if (qtyEl && !qtyEl.value) qtyEl.value = '1';
+      saveState();
+    });
+
+    qtyEl?.addEventListener('input', () => {
+      const v = qtyEl.value.trim();
+      if (!v) { saveState(); return; }
+      const n = Math.max(1, parseInt(v, 10) || 1);
+      if (String(n) !== v) qtyEl.value = String(n);
+      saveState();
+    });
+
+    nameEl?.addEventListener('input', () => {
+      saveState();
+    });
+
+    idEl?.addEventListener('input', () => {
+      saveState();
+    });
+  }
 
   // Wire existing first rows + add buttons + trash
   document.querySelectorAll('fieldset.da-row[data-kind]').forEach(fs => {
     const addBtn = fs.querySelector('.da-add');
     const wrap   = fs.querySelector('.da-items');
-    // wire existing row
+    
     wrap?.querySelectorAll('.da-item').forEach(wireRow);
 
-    //  “+” add a row (only if last row is valid)
     addBtn?.addEventListener('click', () => addRow(fs.dataset.kind, fs, true));
 
-    // trash via event delegation
     fs.addEventListener('click', (e) => {
       const btn = e.target.closest('.da-remove');
       if (btn) removeRow(btn);
@@ -3477,7 +3479,7 @@ function wireRow(item) {
   // Restore from localStorage once
   restoreState();
 
-  // Re-save on navigation away (optional)
+  // Re-save on navigation away
   window.addEventListener('beforeunload', saveState);
 })();
 
@@ -3498,13 +3500,11 @@ function wireRow(item) {
       <div class="da-grid">
         <label class="da-label" style="grid-column: 1 / -1;">
           Aufgabe
-          <input class="dw-extra" type="text" name="duschwanne[extraTasks][]" />
+          <input class="dw-extra" type="text" name="duschwanne[extraTasks][]" value="${escapeHtml(value)}" />
         </label>
       </div>
       <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
     `;
-    const input = item.querySelector('.dw-extra');
-    input.value = value || '';
     wireItem(item);
     return item;
   }
@@ -3517,13 +3517,11 @@ function wireRow(item) {
     removeBtn?.addEventListener('click', () => {
       const all = wrap.querySelectorAll('.da-item');
       if (all.length <= 1) {
-        // keep one row; just clear it
         input.value = '';
       } else {
         item.remove();
       }
       saveState();
-      // keep pricing/UI in sync if you want
       window.updatePricing?.();
     });
   }
@@ -3540,16 +3538,9 @@ function wireRow(item) {
     try { vals = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch {}
     if (!Array.isArray(vals) || !vals.length) return false;
 
-    // leave only first row and fill/append others
-    const first = wrap.querySelector('.da-item');
-    if (first) {
-      const input = first.querySelector('.dw-extra');
-      input.value = vals[0] || '';
-      wireItem(first);
-    }
-    for (let i = 1; i < vals.length; i++) {
-      wrap.appendChild(makeItem(vals[i]));
-    }
+    // Clear existing and rebuild
+    wrap.innerHTML = '';
+    vals.forEach(v => wrap.appendChild(makeItem(v)));
     return true;
   }
 
@@ -3557,7 +3548,6 @@ function wireRow(item) {
     if (!wrap.querySelector('.da-item')) {
       wrap.appendChild(makeItem(''));
     } else {
-      // wire existing first row once
       wrap.querySelectorAll('.da-item').forEach(wireItem);
     }
   }
@@ -3567,30 +3557,27 @@ function wireRow(item) {
     saveState();
   });
 
-  // expose an optional payload-based restore (call this from your global restore pipeline)
-
-// In initDWExtraTasks IIFE, update the exposed function:
-window.restoreDWExtraTasksFromPayload = function(dw) {
-  // Handle null/undefined dw or missing extraTasks - clear to one empty row
-  if (!dw || !Array.isArray(dw.extraTasks)) {
+  // Expose payload-based restore for global restore pipeline
+  window.restoreDWExtraTasksFromPayload = function(dw) {
+    // Handle null/undefined dw or missing extraTasks - clear to one empty row
+    if (!dw || !Array.isArray(dw.extraTasks)) {
+      wrap.innerHTML = '';
+      wrap.appendChild(makeItem(''));
+      saveState();
+      return;
+    }
+    
+    // Reset to exactly what's in payload
     wrap.innerHTML = '';
-    wrap.appendChild(makeItem(''));
-    saveState(); // Clear localStorage too
-    return;
-  }
-  
-  // reset to exactly what's in payload
-  wrap.innerHTML = '';
-  if (dw.extraTasks.length === 0) {
-    wrap.appendChild(makeItem(''));
-  } else {
-    dw.extraTasks.forEach(t => wrap.appendChild(makeItem(String(t || ''))));
-  }
-  saveState(); // mirror to LS so navigation keeps it
-};
+    if (dw.extraTasks.length === 0) {
+      wrap.appendChild(makeItem(''));
+    } else {
+      dw.extraTasks.forEach(t => wrap.appendChild(makeItem(String(t || ''))));
+    }
+    saveState();
+  };
 
   ensureOneRow();
-  // if we didn't restore from payload, at least restore last local edits
   restoreFromLocalStorage();
 })();
 
@@ -6023,11 +6010,13 @@ function restoreHassmannQuickAdd(da) {
       fill(first, list[0]);
 
       for (let i = 1; i < list.length; i++) {
+        // Use the globally exposed addRow function
         let item = typeof window.addRow === 'function'
           ? window.addRow(kind, fs, false)
           : null;
 
         if (!item) {
+          // Fallback: clone the first item
           item = first.cloneNode(true);
           wrap.appendChild(item);
         }
@@ -6035,7 +6024,7 @@ function restoreHassmannQuickAdd(da) {
         fill(item, list[i]);
       }
     } else {
-      // *** NEW: No data for this kind - ensure first row is cleared ***
+      // No data for this kind - ensure first row is cleared
       const idEl    = first.querySelector('.da-id');
       const priceEl = first.querySelector('.da-price');
       const qtyEl   = first.querySelector('.da-qty');
@@ -6047,10 +6036,9 @@ function restoreHassmannQuickAdd(da) {
     }
   }
   
-  // *** NEW: Update localStorage to match restored state ***
-  // This prevents stale localStorage from overriding on next navigation
-  if (typeof saveState === 'function') {
-    saveState();
+  // Update localStorage to match restored state using globally exposed function
+  if (typeof window.__daQuickAddSaveState === 'function') {
+    window.__daQuickAddSaveState();
   }
 }
 function restoreOptional(opt) {
