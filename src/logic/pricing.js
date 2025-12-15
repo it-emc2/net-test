@@ -552,10 +552,10 @@ cl40Qty += optCl40;
 // ------- Duschabtrennung Quick-Add (Hassmann) rows (Pendeltür, Gleittür, Falt-Pendeltür, Walk-In)
 try {
   const KIND_TO_LABEL = {
-    PENDELTUER: 'Pendeltür Hassmann',
-    GLEITTUER: 'Gleittür Hassmann',
-    FALTPENDEL: 'Falt-Pendeltür Hassmann',
-    WALKIN: 'Walk-In Hassmann',
+    PANDELTUER: 'Pendeltür Hassmann',
+    GLEITUR: 'Gleittür Hassmann',
+    FLATPANELTUER: 'Falt-Pendeltür Hassmann',
+    WALKIN_OHNE_TUER: 'Walk-In Hassmann',
     SONDER: 'Sonderduschabtrennung Hassmann',
   };
 
