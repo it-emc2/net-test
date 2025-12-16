@@ -9,7 +9,7 @@ class EventBus {
       this.listeners.set(event, []);
     }
     this.listeners.get(event).push({ callback, context });
-    
+
     // Return unsubscribe function
     return () => this.off(event, callback);
   }
@@ -17,7 +17,7 @@ class EventBus {
   off(event, callback) {
     if (!this.listeners.has(event)) return;
     const listeners = this.listeners.get(event);
-    const index = listeners.findIndex(l => l.callback === callback);
+    const index = listeners.findIndex((l) => l.callback === callback);
     if (index > -1) listeners.splice(index, 1);
   }
 
@@ -44,22 +44,22 @@ export const eventBus = new EventBus();
 // Event constants to prevent typos
 export const Events = {
   // Navigation
-  STEP_CHANGED: 'step:changed',
-  OFFER_STARTED: 'offer:started',
-  OFFER_RESET: 'offer:reset',
-  
+  STEP_CHANGED: "step:changed",
+  OFFER_STARTED: "offer:started",
+  OFFER_RESET: "offer:reset",
+
   // Data
-  PRICING_UPDATED: 'pricing:updated',
-  FORM_CHANGED: 'form:changed',
-  FORM_VALIDATED: 'form:validated',
-  
+  PRICING_UPDATED: "pricing:updated",
+  FORM_CHANGED: "form:changed",
+  FORM_VALIDATED: "form:validated",
+
   // UI
-  TOAST_SHOW: 'toast:show',
-  SIDEBAR_UPDATE: 'sidebar:update',
-  WIDGET_UPDATE: 'widget:update',
-  
+  TOAST_SHOW: "toast:show",
+  SIDEBAR_UPDATE: "sidebar:update",
+  WIDGET_UPDATE: "widget:update",
+
   // Persistence
-  DRAFT_SAVED: 'draft:saved',
-  DRAFT_LOADED: 'draft:loaded',
-  OFFER_EXPORTED: 'offer:exported',
+  DRAFT_SAVED: "draft:saved",
+  DRAFT_LOADED: "draft:loaded",
+  OFFER_EXPORTED: "offer:exported",
 };

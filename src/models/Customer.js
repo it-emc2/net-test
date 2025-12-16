@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const customerSchema = new mongoose.Schema(
   {
@@ -17,19 +17,20 @@ const customerSchema = new mongoose.Schema(
     // any other fields you actually have in the Kundendaten form:
     // e.g. differentSite, isExisting, etc.
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 customerSchema.index(
   {
-    firstName: 'text',
-    lastName: 'text',
-    company: 'text',
-    email: 'text',
+    firstName: "text",
+    lastName: "text",
+    company: "text",
+    email: "text",
   },
-  { default_language: 'none' }
+  { default_language: "none" },
 );
 
-const Customer = mongoose.models.Customer || mongoose.model('Customer', customerSchema);
+const Customer =
+  mongoose.models.Customer || mongoose.model("Customer", customerSchema);
 
 export default Customer;

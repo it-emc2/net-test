@@ -1,20 +1,22 @@
 // src/views/ViewBase.js
-import { eventBus } from '../events/EventBus.js';
+import { eventBus } from "../events/EventBus.js";
 
 export class ViewBase {
   constructor(containerId) {
     this.container = document.getElementById(containerId);
     this._eventSubscriptions = [];
     this._domListeners = [];
-    
+
     if (!this.container) {
-      console.warn(`[${this.constructor.name}] Container #${containerId} not found`);
+      console.warn(
+        `[${this.constructor.name}] Container #${containerId} not found`,
+      );
     }
   }
 
   // Template method for subclasses
   render(data) {
-    throw new Error('render() must be implemented by subclass');
+    throw new Error("render() must be implemented by subclass");
   }
 
   // Safely add event listener with automatic cleanup tracking
@@ -45,14 +47,14 @@ export class ViewBase {
   show() {
     if (this.container) {
       this.container.hidden = false;
-      this.container.setAttribute('aria-hidden', 'false');
+      this.container.setAttribute("aria-hidden", "false");
     }
   }
 
   hide() {
     if (this.container) {
       this.container.hidden = true;
-      this.container.setAttribute('aria-hidden', 'true');
+      this.container.setAttribute("aria-hidden", "true");
     }
   }
 
@@ -65,7 +67,7 @@ export class ViewBase {
     this._domListeners = [];
 
     // Unsubscribe from EventBus
-    this._eventSubscriptions.forEach(unsub => unsub());
+    this._eventSubscriptions.forEach((unsub) => unsub());
     this._eventSubscriptions = [];
   }
 }

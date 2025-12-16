@@ -1,15 +1,15 @@
-import express from 'express';
-import Customer from '../models/Customer.js';
+import express from "express";
+import Customer from "../models/Customer.js";
 
 const router = express.Router();
 
 // Create or update customer
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const data = req.body || {};
 
     if (!data.lastName && !data.company) {
-      return res.status(400).json({ error: 'Name oder Firma erforderlich' });
+      return res.status(400).json({ error: "Name oder Firma erforderlich" });
     }
 
     let customer;
@@ -23,18 +23,18 @@ router.post('/', async (req, res) => {
 
     res.json(customer);
   } catch (err) {
-    console.error('POST /api/customers error:', err);
-    res.status(500).json({ error: 'Fehler beim Speichern des Kunden' });
+    console.error("POST /api/customers error:", err);
+    res.status(500).json({ error: "Fehler beim Speichern des Kunden" });
   }
 });
 
 // Search customers
-router.get('/search', async (req, res) => {
+router.get("/search", async (req, res) => {
   try {
-    const q = (req.query.q || '').trim();
+    const q = (req.query.q || "").trim();
     if (!q) return res.json([]);
 
-    const regex = new RegExp(q, 'i');
+    const regex = new RegExp(q, "i");
 
     const customers = await Customer.find({
       $or: [
@@ -50,20 +50,21 @@ router.get('/search', async (req, res) => {
 
     res.json(customers);
   } catch (err) {
-    console.error('GET /api/customers/search error:', err);
-    res.status(500).json({ error: 'Fehler bei der Kundensuche' });
+    console.error("GET /api/customers/search error:", err);
+    res.status(500).json({ error: "Fehler bei der Kundensuche" });
   }
 });
 
 // Get by id
-router.get('/:id', async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
     const customer = await Customer.findById(req.params.id).lean();
-    if (!customer) return res.status(404).json({ error: 'Kunde nicht gefunden' });
+    if (!customer)
+      return res.status(404).json({ error: "Kunde nicht gefunden" });
     res.json(customer);
   } catch (err) {
-    console.error('GET /api/customers/:id error:', err);
-    res.status(500).json({ error: 'Fehler beim Laden des Kunden' });
+    console.error("GET /api/customers/:id error:", err);
+    res.status(500).json({ error: "Fehler beim Laden des Kunden" });
   }
 });
 

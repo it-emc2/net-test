@@ -15,20 +15,20 @@ export function euroC(n) {
 
 export function fmtDateDE(input) {
   const d = input ? dayjs(input) : dayjs();
-  return d.isValid() ? d.format('DD.MM.YYYY') : '';
+  return d.isValid() ? d.format("DD.MM.YYYY") : "";
 }
 
 // src/utils/parsers.js
 export function parseMoneyEuro(v) {
-  let s = String(v ?? '').trim();
+  let s = String(v ?? "").trim();
   if (!s) return 0;
-  s = s.replace(/[^\d,.,,-]/g, '').replace(/\s+/g, '');
-  const hasComma = s.includes(',');
-  const hasDot = s.includes('.');
+  s = s.replace(/[^\d,.,,-]/g, "").replace(/\s+/g, "");
+  const hasComma = s.includes(",");
+  const hasDot = s.includes(".");
   if (hasComma && hasDot) {
-    s = s.replace(/\./g, '').replace(',', '.');
+    s = s.replace(/\./g, "").replace(",", ".");
   } else if (hasComma) {
-    s = s.replace(',', '.');
+    s = s.replace(",", ".");
   }
   const n = parseFloat(s);
   return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;

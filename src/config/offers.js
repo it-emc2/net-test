@@ -1,36 +1,27 @@
 // src/config/offers.js
 export const OFFERS = {
   bu: {
-    name: 'Badumbau',
+    name: "Badumbau",
     pages: [
-      'Kundendaten',
-      'Arbeitszeit',
-      'Duschwanne',
-      'Wandverkleidung',
-      'Duschabtrennung',
-      'Optional',
-      'Rabatt'
-    ]
+      "Kundendaten",
+      "Arbeitszeit",
+      "Duschwanne",
+      "Wandverkleidung",
+      "Duschabtrennung",
+      "Optional",
+      "Rabatt",
+    ],
   },
   bwt: {
-    name: 'BWT',
-    pages: [
-      'Kundendaten',
-      'bwt'
-    ]
+    name: "BWT",
+    pages: ["Kundendaten", "bwt"],
   },
   hl: {
-    name: 'Haltegriffe/Lifter',
-    pages: [
-      'Kundendaten',
-      'hl'
-    ]
+    name: "Haltegriffe/Lifter",
+    pages: ["Kundendaten", "hl"],
   },
   ah: {
-    name: 'Alltagshilfen',
-    pages: [
-      'Kundendaten',
-      'ah'
-    ]
-  }
+    name: "Alltagshilfen",
+    pages: ["Kundendaten", "ah"],
+  },
 };

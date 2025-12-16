@@ -1,13 +1,13 @@
 // src/models/StateManager.js
-import { eventBus, Events } from '../events/EventBus.js';
+import { eventBus, Events } from "../events/EventBus.js";
 
 class StateManager {
   constructor() {
     this._state = {
       // Wizard state
       currentOfferType: null,
-      currentStep: 'home',
-      
+      currentStep: "home",
+
       // Form data per page
       forms: {
         Kundendaten: {},
@@ -21,17 +21,17 @@ class StateManager {
         hl: {},
         ah: {},
       },
-      
+
       // Computed pricing (from server)
       pricing: null,
-      
+
       // UI state
       ui: {
         isRestoring: false,
         isDirty: false,
-      }
+      },
     };
-    
+
     this._subscribers = new Map();
   }
 
@@ -94,7 +94,7 @@ class StateManager {
 
   // Bulk operations
   resetForms() {
-    Object.keys(this._state.forms).forEach(key => {
+    Object.keys(this._state.forms).forEach((key) => {
       this._state.forms[key] = {};
     });
     this._state.ui.isDirty = false;
@@ -114,7 +114,8 @@ class StateManager {
     if (!json) return;
     this.setRestoring(true);
     try {
-      if (json.currentOfferType) this._state.currentOfferType = json.currentOfferType;
+      if (json.currentOfferType)
+        this._state.currentOfferType = json.currentOfferType;
       if (json.currentStep) this._state.currentStep = json.currentStep;
       if (json.forms) {
         Object.entries(json.forms).forEach(([key, data]) => {
