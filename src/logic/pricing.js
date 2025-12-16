@@ -1233,7 +1233,7 @@ const option = String(rawOption)
 
 // Copay from any field you might use
 const zuzahlungRaw = Number(b?.zuzahlung ?? b?.copay ?? b?.copayAmount ?? 0) || 0;
-const prior = Number(b.wohnumfeld.amount) || 0;
+const prior = Number(b?.wohnumfeld?.amount) || 0;
 let subsidyAmount = 0;
 let subsidyAmount_max = 0;  // changed if prior different from 0
 switch (option) {
