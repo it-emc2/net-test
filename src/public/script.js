@@ -1,3 +1,6 @@
+// =================================================================
+// #region 1. CONFIGURATION & STATE MANAGEMENT
+// =================================================================
 // --- Offer Catalog (single source of truth) ---
 const OFFERS = {
   bu: {
@@ -19,15 +22,15 @@ const OFFERS = {
   },
   bwt: {
     name: "BWT · Badewannentür",
-    pages: ["Kundendaten", "Arbeitszeit", "bwt","Rabatt", "Kosten", "Zusammenfassung" ],
+    pages: ["Kundendaten", "Arbeitszeit", "bwt", "Rabatt", "Kosten", "Zusammenfassung"],
   },
   hl: {
     name: "HL · Handlauf",
-    pages: ["Kundendaten", "Arbeitszeit", "hl","Kosten", "Zusammenfassung" ],
+    pages: ["Kundendaten", "Arbeitszeit", "hl", "Kosten", "Zusammenfassung"],
   },
   ah: {
     name: "AH · Alltagshilfe",
-    pages: ["Kundendaten", "Arbeitszeit", "ah","Kosten", "Zusammenfassung" ],
+    pages: ["Kundendaten", "Arbeitszeit", "ah", "Kosten", "Zusammenfassung"],
   },
 };
 
@@ -40,7 +43,7 @@ function saveWizardState(offerType, step) {
       STATE_KEY,
       JSON.stringify({ offerType: offerType || null, step: step || null })
     );
-  } catch {}
+  } catch { }
 }
 
 function loadWizardState() {
@@ -58,7 +61,7 @@ function loadWizardState() {
 function clearWizardState() {
   try {
     sessionStorage.removeItem(STATE_KEY);
-  } catch {}
+  } catch { }
 }
 
 // helper to get allowed pages for an offer type from OFFERS config
@@ -169,7 +172,7 @@ function getCurrentStepFromState() {
 // Completely reset wizard state and go to the home screen.
 // This is used when the user types "/#home" or "/" or explicitly navigates home.
 function goHomeWithoutOffer() {
-    if (window.__loadingOffer) {
+  if (window.__loadingOffer) {
     console.log('[goHomeWithoutOffer] suppressed during offer load');
     return;
   }
@@ -199,11 +202,11 @@ function goHomeWithoutOffer() {
 // - If there is saved offerType + step → restore that wizard.
 // - Any other weird hash without a saved offer → normalize to home.
 function handleBoot() {
-    if (window.__loadingOffer) {
+  if (window.__loadingOffer) {
     console.log('[handleBoot] skipped during offer load');
     return;
   }
- if (window.__loadingOffer) {
+  if (window.__loadingOffer) {
     return;
   }
 
@@ -287,7 +290,11 @@ function handleHashChange() {
     step: hash,
   });
 }
+// #endregion
 
+// =================================================================
+// #region 2. GLOBAL UTILITIES (Formatting, Toasts, HTML)
+// =================================================================
 // --- GLOBAL: tolerant EUR money parser used across the Hassmann page ---
 // Accepts "1.099,50", "1099.50", "€ 1 099,50", "12,2", "12.2" -> Number in euros
 window.parseMoneyEuro = function (v) {
@@ -295,7 +302,7 @@ window.parseMoneyEuro = function (v) {
   if (!s) return 0;
   s = s.replace(/[^\d,.,,-]/g, '').replace(/\s+/g, ''); // keep digits , .
   const hasComma = s.includes(',');
-  const hasDot   = s.includes('.');
+  const hasDot = s.includes('.');
   if (hasComma && hasDot) {
     // assume European: dots are thousands, comma is decimal
     s = s.replace(/\./g, '').replace(',', '.');
@@ -319,7 +326,7 @@ function escapeHtml(str) {
 window.escapeHtml = escapeHtml;
 
 // the toast helper
-function ntToast(type, title, message, {duration = 3600, withBackdrop = true} = {}) {
+function ntToast(type, title, message, { duration = 3600, withBackdrop = true } = {}) {
   const host = document.getElementById('nt-toaster');
   const backdrop = document.getElementById('nt-toast-backdrop');
 
@@ -328,10 +335,10 @@ function ntToast(type, title, message, {duration = 3600, withBackdrop = true} = 
 
   // Ensure strings
   const safeTitle = String(title ?? '');
-  const safeMsg   = String(message ?? '');
+  const safeMsg = String(message ?? '');
 
   const el = document.createElement('div');
-  el.className = `nt-toast ${type||'info'}`;
+  el.className = `nt-toast ${type || 'info'}`;
   el.innerHTML = `
     <div class="nt-title">${safeTitle}</div>
     <button class="nt-close" aria-label="Schließen">×</button>
@@ -367,9 +374,9 @@ function ntToast(type, title, message, {duration = 3600, withBackdrop = true} = 
 
 const toast = {
   success: (t, m, opts) => ntToast('success', t, m, opts),
-  error:   (t, m, opts) => ntToast('error',   t, m, opts),
-  info:    (t, m, opts) => ntToast('info',    t, m, opts),
-  warn:    (t, m, opts) => ntToast('warn',    t, m, opts),
+  error: (t, m, opts) => ntToast('error', t, m, opts),
+  info: (t, m, opts) => ntToast('info', t, m, opts),
+  warn: (t, m, opts) => ntToast('warn', t, m, opts),
 };
 
 
@@ -377,6 +384,11 @@ const toast = {
 window.__restoring = false;
 window.__RESTORING__ = false;
 
+// #endregion
+
+// =================================================================
+// #region 3. UI HELPERS & TOGGLES
+// =================================================================
 // ----  HELPERS ----
 // show sections with data-offer="..." only for the current offer
 function updateOfferSpecificSections() {
@@ -407,8 +419,6 @@ function updateOfferSpecificSections() {
     el.style.display = visible ? '' : 'none';
   });
 }
-
-
 function showToast(message, type = 'info') {
   // If you have a proper toaster utility, call it here.
   // For now, simple fallback:
@@ -418,15 +428,16 @@ function showToast(message, type = 'info') {
     console.log(`[${type}] ${message}`);
   }
 }
+// #endregion
 
-
-
-
+// =================================================================
+// #region 4. RESTORE LOGIC (Helpers for restoring form state)
+// =================================================================
 // ---- RESTORE HELPERS ----
 function restoreBwtExtras(bwt) {
   const fs = document.getElementById("bwt-extras");
   if (!fs) return;
-  
+
   const wrap = fs.querySelector(".da-items");
   if (!wrap) return;
 
@@ -446,13 +457,13 @@ function restoreBwtExtras(bwt) {
     // Clear first row
     const first = rows[0];
     if (first) {
-      const nameEl  = first.querySelector(".da-name");
-      const idEl    = first.querySelector(".da-id");
-      const qtyEl   = first.querySelector(".da-qty");
+      const nameEl = first.querySelector(".da-name");
+      const idEl = first.querySelector(".da-id");
+      const qtyEl = first.querySelector(".da-qty");
       const priceEl = first.querySelector(".da-price");
-      if (nameEl)  nameEl.value  = '';
-      if (idEl)    idEl.value    = '';
-      if (qtyEl)   qtyEl.value   = '';
+      if (nameEl) nameEl.value = '';
+      if (idEl) idEl.value = '';
+      if (qtyEl) qtyEl.value = '';
       if (priceEl) priceEl.value = '';
     }
     return;
@@ -474,15 +485,15 @@ function restoreBwtExtras(bwt) {
   // fill each row
   rows.forEach((row, index) => {
     const data = items[index] || {};
-    const nameEl  = row.querySelector(".da-name");
-    const idEl    = row.querySelector(".da-id");
-    const qtyEl   = row.querySelector(".da-qty");
+    const nameEl = row.querySelector(".da-name");
+    const idEl = row.querySelector(".da-id");
+    const qtyEl = row.querySelector(".da-qty");
     const priceEl = row.querySelector(".da-price");
 
     const label = data.label ?? "";
-    const pid   = data.productId ?? "";
-    const qty   = data.qty ?? "";
-    let price   = data.price ?? "";
+    const pid = data.productId ?? "";
+    const qty = data.qty ?? "";
+    let price = data.price ?? "";
 
     if (typeof price === "number") {
       price = String(price).replace(".", ",");
@@ -492,16 +503,16 @@ function restoreBwtExtras(bwt) {
       price = "";
     }
 
-    if (nameEl)  nameEl.value  = label;
-    if (idEl)    idEl.value    = pid;
-    if (qtyEl)   qtyEl.value   = qty !== "" ? String(qty) : "";
+    if (nameEl) nameEl.value = label;
+    if (idEl) idEl.value = pid;
+    if (qtyEl) qtyEl.value = qty !== "" ? String(qty) : "";
     if (priceEl) priceEl.value = price;
   });
 }
 
 function findInputByProductId(pid) {
   const host = document.getElementById('page-Wandverkleidung') || document;
-  const lab  = host.querySelector(`[data-product-id="${pid}"]`);
+  const lab = host.querySelector(`[data-product-id="${pid}"]`);
   return lab?.querySelector('input[type="checkbox"],input[type="radio"]') || null;
 }
 function setByProductId(pid, on) {
@@ -512,18 +523,18 @@ function setByProductId(pid, on) {
     highlightTileForInput(input, !!on);
   }
   if (!window.__RESTORING__) {
-   input.dispatchEvent(new Event('change', { bubbles: true }));
- }
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
   return true;
 }
 function enforceBudgetOptionsGroup() {
   const form = document.getElementById("form-Kundendaten");
   if (!form) return;
 
-  const elMax     = form.querySelector('input[name="budgetMax"]');
-  const elTwo     = form.querySelector('input[name="twoPersons"]');
+  const elMax = form.querySelector('input[name="budgetMax"]');
+  const elTwo = form.querySelector('input[name="twoPersons"]');
   const elPremium = form.querySelector('input[name="premium"]');
-  const elCopay   = form.querySelector('input[name="budgetCopay"]');
+  const elCopay = form.querySelector('input[name="budgetCopay"]');
 
   const mains = [elMax, elTwo, elPremium].filter(Boolean);
 
@@ -638,7 +649,7 @@ function setInputByNameOrId(key, val) {
   if (!el) return;
   el.value = String(val);
   if (!window.__RESTORING__) {                    // <-- quiet during restore
-    el.dispatchEvent(new Event('input',  { bubbles: true }));
+    el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
 }
@@ -655,8 +666,8 @@ function ensureTrinitySealingSelectedFromPayload(dw) {
   if (!hasTRBD) return;
 
   const toggle = document.getElementById('addFlooring');
-  const tile   = document.getElementById('tile_TRBDSET7');
-  const input  = tile?.querySelector('input[type="checkbox"][name="floorSealing[]"]');
+  const tile = document.getElementById('tile_TRBDSET7');
+  const input = tile?.querySelector('input[type="checkbox"][name="floorSealing[]"]');
 
   const selectNow = () => {
     if (!input) return;
@@ -675,7 +686,7 @@ function ensureTrinitySealingSelectedFromPayload(dw) {
         highlightTileForInput(input, true);
       }
       // persist “on” so future loads keep it checked
-      try { localStorage.setItem('dw_floor_sealing', '1'); } catch {}
+      try { localStorage.setItem('dw_floor_sealing', '1'); } catch { }
       // notify any listeners that rely on change
       input.dispatchEvent(new Event('change', { bubbles: true }));
     }
@@ -693,10 +704,10 @@ function restoreTrinnityFloorSealing(dw) {
   const hasTRBD = chosen.some(s => String(s || '').includes('TRBDSET7'));
   if (!hasTRBD) return;
 
-  const form   = document.getElementById('form-duschwanne');
+  const form = document.getElementById('form-duschwanne');
   const toggle = document.getElementById('addFlooring');
-  const tile   = document.getElementById('tile_TRBDSET7');
-  const input  = tile?.querySelector('input[type="checkbox"][name="floorSealing[]"]');
+  const tile = document.getElementById('tile_TRBDSET7');
+  const input = tile?.querySelector('input[type="checkbox"][name="floorSealing[]"]');
 
   // 1) open the panel if needed
   if (toggle && !toggle.checked) {
@@ -758,10 +769,10 @@ function restoreFlooringSelections(dw) {
     return false;
   };
 
-const arr = {
+  const arr = {
     'flooringProduct[]': Array.isArray(dw.flooringProduct) ? dw.flooringProduct : [],
-    'floorAdhesive[]'  : Array.isArray(dw.floorAdhesive)   ? dw.floorAdhesive   : [],
-    'floorSealing[]'   : Array.isArray(dw.floorSealing)    ? dw.floorSealing    : [],
+    'floorAdhesive[]': Array.isArray(dw.floorAdhesive) ? dw.floorAdhesive : [],
+    'floorSealing[]': Array.isArray(dw.floorSealing) ? dw.floorSealing : [],
   };
 
 
@@ -787,8 +798,6 @@ const arr = {
   }
 }
 
-
-
 function setByNameOrId(nameOrId, value) {
   if (value === undefined || value === null) return;
   const el = document.querySelector(`[name="${nameOrId}"]`) || document.getElementById(nameOrId);
@@ -805,7 +814,7 @@ function setByNameOrId(nameOrId, value) {
   }
   el.value = String(value);
   if (!window.__RESTORING__) {
-    el.dispatchEvent(new Event('input',  { bubbles: true }));
+    el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
 }
@@ -857,12 +866,16 @@ function setCheckbox(nameOrId, on) {
   el.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
+// #endregion
 
+// =================================================================
+// #region 5. AUTO-CALCULATION & FORMATTING WIRING & black white theme
+// =================================================================
 async function refetchAndRender() {
   const payload = buildPayload();
   const res = await fetch('/api/price', {
     method: 'POST',
-    headers: {'Content-Type':'application/json'},
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
   const data = await res.json();
@@ -874,13 +887,13 @@ async function refetchAndRender() {
 
 function wireDAQtyAutoFill() {
   const Pairs = [
-    ['da-pendeltuer-preis','da-pendeltuer-qty'],
+    ['da-pendeltuer-preis', 'da-pendeltuer-qty'],
     ['da-gleittuer-preis', 'da-gleittuer-qty'],
-    ['da-faltpendel-preis','da-faltpendel-qty'],
-    ['da-walkin-preis',    'da-walkin-qty'],
+    ['da-faltpendel-preis', 'da-faltpendel-qty'],
+    ['da-walkin-preis', 'da-walkin-qty'],
   ];
 
- 
+
   const clampQty = (v) => {
     const n = parseInt(String(v ?? '').trim(), 10);
     if (!Number.isFinite(n)) return '';
@@ -975,7 +988,7 @@ async function recomputeAndRefresh() {
       // minimal fill if you don’t have a dedicated function
       const rbAfter = document.getElementById('rb-total-after');
       if (rbAfter) rbAfter.textContent = euroC(data.total || 0);
-      const rbVat  = document.getElementById('rb-vat');
+      const rbVat = document.getElementById('rb-vat');
       if (rbVat) rbVat.textContent = euroC(data.vatOnNet || 0);
     }
   } catch (e) {
@@ -989,19 +1002,19 @@ function installAutoRefreshOnNav() {
   window.addEventListener('hashchange', () => {
     const id = (location.hash || '').replace(/^#/, '');
     if (id === 'rabatt' || id === 'kosten') {
-  setTimeout(() => window.updatePricing?.(), 0);
-}
+      setTimeout(() => window.updatePricing?.(), 0);
+    }
 
   });
 
   // If you have explicit nav buttons/tabs, hook them too
-  const rabTab   = document.querySelector('[data-target="#rabatt"], #nav-rabatt, a[href="#rabatt"]');
-  const kostTab  = document.querySelector('[data-target="#kosten"], #nav-kosten, a[href="#kosten"]');
+  const rabTab = document.querySelector('[data-target="#rabatt"], #nav-rabatt, a[href="#rabatt"]');
+  const kostTab = document.querySelector('[data-target="#kosten"], #nav-kosten, a[href="#kosten"]');
 
-  [ rabTab, kostTab ].forEach(el => {
-  if (!el) return;
-  el.addEventListener('click', () => setTimeout(() => window.updatePricing?.(), 0));
-});
+  [rabTab, kostTab].forEach(el => {
+    if (!el) return;
+    el.addEventListener('click', () => setTimeout(() => window.updatePricing?.(), 0));
+  });
 }
 
 // call once on load
@@ -1139,7 +1152,7 @@ function hoursToHHMM(n) {
     if (themeSelect) themeSelect.value = theme;
 
     if (save) {
-      try { localStorage.setItem(THEME_KEY, theme); } catch {}
+      try { localStorage.setItem(THEME_KEY, theme); } catch { }
     }
   }
 
@@ -1151,7 +1164,7 @@ function hoursToHHMM(n) {
     if (themeLabel) themeLabel.textContent = mode === 'dark' ? 'Dark' : 'Light';
 
     if (save) {
-      try { localStorage.setItem(MODE_KEY, mode); } catch {}
+      try { localStorage.setItem(MODE_KEY, mode); } catch { }
     }
   }
 
@@ -1169,7 +1182,7 @@ function hoursToHHMM(n) {
     try {
       theme = localStorage.getItem(THEME_KEY);
       mode = localStorage.getItem(MODE_KEY);
-    } catch {}
+    } catch { }
 
     if (!theme) {
       const offer = String(detectOfferType() || '').toLowerCase();
@@ -1204,14 +1217,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Replace your current DOMContentLoaded block that defines updateTotalHours with this:
 document.addEventListener("DOMContentLoaded", () => {
-  const laborEl  = document.getElementById("laborHours");   // Arbeitszeit (HH:MM)
+  const laborEl = document.getElementById("laborHours");   // Arbeitszeit (HH:MM)
   const travelEl = document.getElementById("travelTime");   // Reisezeit (one-way, HH:MM)
-  const outEl    = document.getElementById("totalHoursHHMM");
+  const outEl = document.getElementById("totalHoursHHMM");
 
   function updateTotalHours() {
     // Parse inputs (HH:MM -> decimal hours)
-    const arbeitsH   = hhmmToHours(laborEl?.value  || "0:00");
-    const reiseOneH  = hhmmToHours(travelEl?.value || "0:00");
+    const arbeitsH = hhmmToHours(laborEl?.value || "0:00");
+    const reiseOneH = hhmmToHours(travelEl?.value || "0:00");
 
     // Daily cap after travel (10h/day total − 2× one-way travel)
     const capPerDayH = 9.75 - (2 * reiseOneH);
@@ -1239,8 +1252,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // Render line: total HH:MM + number of days (+ warning if infeasible)
     if (outEl) {
       const totalHHMM = hoursToHHMM(totalH);
-      const daysHTML  = ` • Arbeitstage: <strong>${days}</strong>`;
-      const warnHTML  = infeasible
+      const daysHTML = ` • Arbeitstage: <strong>${days}</strong>`;
+      const warnHTML = infeasible
         ? ` <span style="color:var(--danger)">&nbsp;⚠️ Reisezeit zu lang für 09:45 h/Tag – bitte Zeiten prüfen.</span>`
         : "";
       outEl.innerHTML = `Gesamtzeit (Arbeit + Fahrt): <strong>${totalHHMM}</strong>${daysHTML}${warnHTML}`;
@@ -1251,46 +1264,46 @@ document.addEventListener("DOMContentLoaded", () => {
     // - reise_hours_numeric: total travel time across all days
     // - arbeit_hours_numeric: pure work time
     const totalTravelH = days * (2 * reiseOneH);
-    window.total_hours_numeric  = Math.max(0, totalH);
-    window.reise_hours_numeric  = Math.max(0, totalTravelH);
+    window.total_hours_numeric = Math.max(0, totalH);
+    window.reise_hours_numeric = Math.max(0, totalTravelH);
     window.arbeit_hours_numeric = Math.max(0, arbeitsH);
   }
-// --- wiring specifically for Arbeitszeit page ---
-function wireArbeitszeitInputs() {
-  const page = document.getElementById("page-Arbeitszeit");
-  if (!page) return;
+  // --- wiring specifically for Arbeitszeit page ---
+  function wireArbeitszeitInputs() {
+    const page = document.getElementById("page-Arbeitszeit");
+    if (!page) return;
 
-  const laborEl  = page.querySelector("#laborHours");
-  const travelEl = page.querySelector("#travelTime");
+    const laborEl = page.querySelector("#laborHours");
+    const travelEl = page.querySelector("#travelTime");
 
-  if (!laborEl || !travelEl) return;
+    if (!laborEl || !travelEl) return;
 
-  // avoid duplicates
-  laborEl.removeEventListener("input", updateTotalHours);
-  laborEl.removeEventListener("blur",  updateTotalHours);
-  travelEl.removeEventListener("input", updateTotalHours);
-  travelEl.removeEventListener("blur",  updateTotalHours);
+    // avoid duplicates
+    laborEl.removeEventListener("input", updateTotalHours);
+    laborEl.removeEventListener("blur", updateTotalHours);
+    travelEl.removeEventListener("input", updateTotalHours);
+    travelEl.removeEventListener("blur", updateTotalHours);
 
-  laborEl.addEventListener("input", updateTotalHours);
-  laborEl.addEventListener("blur",  updateTotalHours);
-  travelEl.addEventListener("input", updateTotalHours);
-  travelEl.addEventListener("blur",  updateTotalHours);
+    laborEl.addEventListener("input", updateTotalHours);
+    laborEl.addEventListener("blur", updateTotalHours);
+    travelEl.addEventListener("input", updateTotalHours);
+    travelEl.addEventListener("blur", updateTotalHours);
 
-  // initial render
-  updateTotalHours();
-}
+    // initial render
+    updateTotalHours();
+  }
 
-// make them accessible from other scripts
-window.updateTotalHours = updateTotalHours;
-window.wireArbeitszeitInputs = wireArbeitszeitInputs;
+  // make them accessible from other scripts
+  window.updateTotalHours = updateTotalHours;
+  window.wireArbeitszeitInputs = wireArbeitszeitInputs;
 
-// try once after DOM is ready (if page is already in DOM)
-document.addEventListener("DOMContentLoaded", wireArbeitszeitInputs);
+  // try once after DOM is ready (if page is already in DOM)
+  document.addEventListener("DOMContentLoaded", wireArbeitszeitInputs);
   // Live updates
   laborEl?.addEventListener("input", updateTotalHours);
-  laborEl?.addEventListener("blur",  updateTotalHours);
+  laborEl?.addEventListener("blur", updateTotalHours);
   travelEl?.addEventListener("input", updateTotalHours);
-  travelEl?.addEventListener("blur",  updateTotalHours);
+  travelEl?.addEventListener("blur", updateTotalHours);
 
   // Initial paint
   updateTotalHours();
@@ -1358,6 +1371,11 @@ themeToggle?.addEventListener("change", () =>
   applyTheme(themeToggle.checked ? "dark" : "light")
 );
 
+// #endregion
+
+// =================================================================
+// #region 6. NAVIGATION & SIDEBAR LOGIC
+// =================================================================
 /* ========== NAVIGATION ========== */
 // Build the global "steps" list from OFFERS so OFFERS is the only source of truth
 const ALL_PAGES = Array.from(
@@ -1367,7 +1385,7 @@ const ALL_PAGES = Array.from(
 );
 
 // "steps" is just the union of all pages across all offers plus "home"
-const steps = ["home", ...ALL_PAGES, "admin", "services" ];
+const steps = ["home", ...ALL_PAGES, "admin", "services"];
 
 const pages = Object.fromEntries(
   steps.map((s) => [s, document.getElementById("page-" + s)])
@@ -1412,17 +1430,17 @@ function resetAllForms() {
     'dw_tray_selection',
     'dw_floor_area',
     'dw_floor_sealing',
-    
+
     // Duschabtrennung (Hassmann)
     'daQuickAddRows:v1',
-    
+
     // Optional
     'optQuickAddRows:v1',
     'basin_required_state',
-    
+
     // BWT
     'bwtExtraTasks:v1',
-    
+
     // WV (if any future persistence)
     'wv_state',
   ];
@@ -1443,7 +1461,7 @@ function resetAllForms() {
   sessionStorageKeysToClear.forEach((key) => {
     try {
       sessionStorage.removeItem(key);
-    } catch (e) {}
+    } catch (e) { }
   });
 
   // 4) Explicitly reset all repeater DOMs (form.reset() doesn't remove dynamic rows)
@@ -1453,7 +1471,7 @@ function resetAllForms() {
   try {
     window.__restoring = true;
     window.__RESTORING__ = true;
-  } catch (e) {}
+  } catch (e) { }
 
   const toggles = document.querySelectorAll('input[type="checkbox"], input[type="radio"]');
   toggles.forEach((el) => {
@@ -1463,7 +1481,7 @@ function resetAllForms() {
   try {
     window.__restoring = false;
     window.__RESTORING__ = false;
-  } catch (e) {}
+  } catch (e) { }
 
   // 6) One clean pricing refresh after reset
   window.updatePricing?.();
@@ -1531,7 +1549,7 @@ function resetAllRepeaterDOMs() {
   document.querySelectorAll('section.da-quickadd fieldset.da-row[data-kind]').forEach((fs) => {
     const wrap = fs.querySelector('.da-items');
     if (!wrap) return;
-    
+
     const rows = Array.from(wrap.querySelectorAll('.da-item'));
     rows.forEach((row, idx) => {
       if (idx > 0) {
@@ -1620,10 +1638,6 @@ function resetAllRepeaterDOMs() {
   if (floorArea) floorArea.value = '';
 }
 
-
-
-
-
 // Effective list of steps used for prev/next navigation
 function getFlowSteps() {
   if (currentOfferKey && OFFERS[currentOfferKey]) {
@@ -1642,7 +1656,7 @@ function updateSidebarForOffer() {
   const activeOffer = state && state.offerType;
   const activeStep = state && state.step;
 
-    // Show/hide sections that are specific to an offer (data-offer="...")
+  // Show/hide sections that are specific to an offer (data-offer="...")
   if (typeof updateOfferSpecificSections === "function") {
     updateOfferSpecificSections();
   }
@@ -1680,28 +1694,28 @@ function updateSidebarForOffer() {
   }
 
   // --- Render only the pages that belong to the active offer ---
-   // --- Render only the pages that belong to the active offer ---
+  // --- Render only the pages that belong to the active offer ---
   const pages = getPagesForOfferType(activeOffer);
 
   const normalPages = pages.filter(
     (pageId) => pageId !== "home" && pageId !== "admin" && pageId !== "services"
   );
 
- const specialLabels = {
-  bwt: "BWT",
-  hl:  "HL",
-};
+  const specialLabels = {
+    bwt: "BWT",
+    hl: "HL",
+  };
 
-normalPages.forEach((pageId) => {
-  const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
-  let label = navLink ? navLink.textContent.trim() : pageId;
+  normalPages.forEach((pageId) => {
+    const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
+    let label = navLink ? navLink.textContent.trim() : pageId;
 
-  if (specialLabels[pageId]) {
-    label = specialLabels[pageId];
-  }
+    if (specialLabels[pageId]) {
+      label = specialLabels[pageId];
+    }
 
-  sideMenu.appendChild(makeLink(pageId, label));
-});
+    sideMenu.appendChild(makeLink(pageId, label));
+  });
 
 
 
@@ -1755,10 +1769,6 @@ normalPages.forEach((pageId) => {
   // will take care of toggling .active / .done on both nav and sidebar,
   // exactly as before.
 }
-
-
-
-
 // Start a flow for a given offer and jump to its first page
 function startOfferFlow(offerKey) {
   if (!OFFERS[offerKey]) return;
@@ -1776,10 +1786,6 @@ function startOfferFlow(offerKey) {
     step: first,
   });
 }
-
-
-
-
 function getCurrentStep() {
   const h = location.hash.replace("#", "");
   return steps.includes(h) ? h : steps[0];
@@ -1866,7 +1872,10 @@ handleBoot();
 
 // React to manual URL changes / back-forward strictly
 window.addEventListener("hashchange", handleHashChange);
-
+// #endregion
+// =================================================================
+// #region 7. PAYLOAD COLLECTION (Reading the forms)
+// =================================================================
 
 /* ========== PAYLOAD / SUMMARY / STATUS ========== */
 function formToObject(form) {
@@ -1904,9 +1913,9 @@ function collectBwtMaterials(doc) {
 
   const out = [];
 
-    // Tür-Typen helper
+  // Tür-Typen helper
   function pushDoor(cbId, qtyId, fallbackName) {
-    const cb    = page.querySelector(cbId);
+    const cb = page.querySelector(cbId);
     const qtyEl = page.querySelector(qtyId);
     if (!cb || !qtyEl || !cb.checked) return;
 
@@ -1922,11 +1931,11 @@ function collectBwtMaterials(doc) {
   }
 
   // All BWT door variants
-  pushDoor("#bwtDoorStd",          "#bwtDoorStdQty",          "Universal / Standard Tür");
-  pushDoor("#bwtDoorBudget",       "#bwtDoorBudgetQty",       "Budget Tür - Verona");
-  pushDoor("#bwtDoorIndWienGlas",  "#bwtDoorIndWienGlasQty",  "Individual Tür - Wien Glas");
-  pushDoor("#bwtDoorVariodoor",    "#bwtDoorVariodoorQty",    "Variodoor");
-  pushDoor("#bwtDoorIndWien",      "#bwtDoorIndWienQty",      "Individual Tür - Wien");
+  pushDoor("#bwtDoorStd", "#bwtDoorStdQty", "Universal / Standard Tür");
+  pushDoor("#bwtDoorBudget", "#bwtDoorBudgetQty", "Budget Tür - Verona");
+  pushDoor("#bwtDoorIndWienGlas", "#bwtDoorIndWienGlasQty", "Individual Tür - Wien Glas");
+  pushDoor("#bwtDoorVariodoor", "#bwtDoorVariodoorQty", "Variodoor");
+  pushDoor("#bwtDoorIndWien", "#bwtDoorIndWienQty", "Individual Tür - Wien");
 
 
   // Haltegriffe helper
@@ -1994,9 +2003,9 @@ function collectDuschabtrennungQuickAdd(doc) {
     const canonicalLabel = KIND_TO_LABEL[kind] || 'Duschabtrennung (Hassmann)';
     fs.querySelectorAll('.da-item').forEach(item => {
       const priceEl = item.querySelector('.da-price');
-      const qtyEl   = item.querySelector('.da-qty');
-      const idEl    = item.querySelector('.da-id');
-     const nameEl  = item.querySelector('.da-name'); // only in Freier Posten
+      const qtyEl = item.querySelector('.da-qty');
+      const idEl = item.querySelector('.da-id');
+      const nameEl = item.querySelector('.da-name'); // only in Freier Posten
       const priceRaw = (priceEl?.value ?? '').trim();
       const priceNum = window.parseMoneyEuro(priceRaw);
       const qty = Math.max(0, parseInt((qtyEl?.value ?? '').trim(), 10) || 0);
@@ -2019,7 +2028,7 @@ function collectDuschabtrennungQuickAdd(doc) {
         const label = canonicalLabel || productId || 'Duschabtrennung (Hassmann)';
         qa.push({
           kind,
-           label,
+          label,
           qty,
           price: priceRaw,
           productId
@@ -2036,10 +2045,10 @@ function collectDuschabtrennungQuickAdd(doc) {
 function collectCustomRows(root) {
   if (!root) return [];
   return [...root.querySelectorAll('fieldset.da-row[data-kind="custom"] .da-item')].map(item => {
-    const name  = item.querySelector('.da-name')?.value?.trim() || '';
+    const name = item.querySelector('.da-name')?.value?.trim() || '';
     const price = item.querySelector('.da-price')?.value || '';
-    const qty   = item.querySelector('.da-qty')?.value || '';
-    const id    = item.querySelector('.da-id')?.value?.trim() || '';
+    const qty = item.querySelector('.da-qty')?.value || '';
+    const id = item.querySelector('.da-id')?.value?.trim() || '';
 
     // normalize numeric price (accepts "1.234,56" or "1234.56")
     const priceNum = (() => {
@@ -2084,7 +2093,7 @@ function readWVConsumablesStrict() {
 
   // Fallback (no boxes present): accept singles from <select>s,
   // but only when the control is visible & enabled.
-  ['wvSealing','flechenkleber','wvEndProfile','wvSilikon'].forEach(name => {
+  ['wvSealing', 'flechenkleber', 'wvEndProfile', 'wvSilikon'].forEach(name => {
     const el = form.querySelector(`[name="${name}"]`);
     if (el && !el.disabled && !el.closest('[hidden]') && el.value) {
       picked.push(String(el.value));
@@ -2123,7 +2132,7 @@ function filterPayloadByOffer(payload) {
 
   Object.entries(pageToKey).forEach(([page, key]) => {
     if (!allowedPages.has(page) &&
-        Object.prototype.hasOwnProperty.call(payload, key)) {
+      Object.prototype.hasOwnProperty.call(payload, key)) {
       // For non-selected pages, make their contribution empty
       payload[key] = {};
       // Or: delete payload[key];
@@ -2145,29 +2154,29 @@ function collectBwtExtras(payload) {
 
   const rows = [];
   wrap.querySelectorAll(".da-item").forEach((item) => {
-    const nameEl  = item.querySelector(".da-name");
-    const idEl    = item.querySelector(".da-id");
-    const qtyEl   = item.querySelector(".da-qty");
+    const nameEl = item.querySelector(".da-name");
+    const idEl = item.querySelector(".da-id");
+    const qtyEl = item.querySelector(".da-qty");
     const priceEl = item.querySelector(".da-price");
 
-   const label     = (nameEl?.value || "").trim();
-const productId = (idEl?.value || "").trim();
-const qty       = Number(qtyEl?.value || 0) || 0;
-const priceRaw  = (priceEl?.value || "").trim();
+    const label = (nameEl?.value || "").trim();
+    const productId = (idEl?.value || "").trim();
+    const qty = Number(qtyEl?.value || 0) || 0;
+    const priceRaw = (priceEl?.value || "").trim();
 
-// Completely empty row → ignore
-if (!label && !productId && !priceRaw && qty <= 0) return;
+    // Completely empty row → ignore
+    if (!label && !productId && !priceRaw && qty <= 0) return;
 
-// Use the global tolerant parser (handles "799,00", "799,00 €", etc.)
-const price = window.parseMoneyEuro(priceRaw);
+    // Use the global tolerant parser (handles "799,00", "799,00 €", etc.)
+    const price = window.parseMoneyEuro(priceRaw);
 
-rows.push({
-  kind: "bwt-extra",
-  label,
-  productId,
-  qty,
-  price,
-});
+    rows.push({
+      kind: "bwt-extra",
+      label,
+      productId,
+      qty,
+      price,
+    });
 
   });
 
@@ -2200,7 +2209,7 @@ function buildPayload() {
   collectWandverkleidungMaterials(payload);
   //  collect quick-add shower screens
   collectDuschabtrennungQuickAdd(payload);
-   //  collect BWT door + Haltegriffe as materials
+  //  collect BWT door + Haltegriffe as materials
   collectBwtMaterials(payload);
   //  collect BWT freie Posten (quick add)
   collectBwtExtras(payload);
@@ -2234,55 +2243,55 @@ function buildPayload() {
 
   // ---- DUSCHWANNE: ensure multi-select arrays are captured ----
   // ---- DUSCHWANNE: ensure multi-select arrays are captured ----
-try {
-  const formDW = document.getElementById("form-duschwanne");
-  if (formDW) {
-    const fdDW = new FormData(formDW);
-    const getAllVals = (name) => fdDW.getAll(name).map((v) => String(v));
+  try {
+    const formDW = document.getElementById("form-duschwanne");
+    if (formDW) {
+      const fdDW = new FormData(formDW);
+      const getAllVals = (name) => fdDW.getAll(name).map((v) => String(v));
 
-    // Existing
-    const flooringProduct = getAllVals("flooringProduct[]");
-    const floorAdhesive = getAllVals("floorAdhesive[]");
-    const floorSealing = getAllVals("floorSealing[]");
+      // Existing
+      const flooringProduct = getAllVals("flooringProduct[]");
+      const floorAdhesive = getAllVals("floorAdhesive[]");
+      const floorSealing = getAllVals("floorSealing[]");
 
-    // ✅ FIX: Query DOM directly for ALL extra task inputs
-    let extraTasks = [];
-    
-    // First try FormData (for inputs with correct name attribute)
-    extraTasks = [
-      ...getAllVals("duschwanne[extraTasks][]"),
-      ...getAllVals("extraTasks[]"),
-    ].map((s) => s.trim()).filter(Boolean);
-    
-    // If FormData didn't find any, query the DOM directly
-    if (extraTasks.length === 0) {
-      const extraTaskInputs = document.querySelectorAll('#dw-extra-tasks .da-items .dw-extra');
-      extraTaskInputs.forEach((input) => {
-        const val = (input.value || '').trim();
-        if (val) {
-          extraTasks.push(val);
-        }
-      });
+      // ✅ FIX: Query DOM directly for ALL extra task inputs
+      let extraTasks = [];
+
+      // First try FormData (for inputs with correct name attribute)
+      extraTasks = [
+        ...getAllVals("duschwanne[extraTasks][]"),
+        ...getAllVals("extraTasks[]"),
+      ].map((s) => s.trim()).filter(Boolean);
+
+      // If FormData didn't find any, query the DOM directly
+      if (extraTasks.length === 0) {
+        const extraTaskInputs = document.querySelectorAll('#dw-extra-tasks .da-items .dw-extra');
+        extraTaskInputs.forEach((input) => {
+          const val = (input.value || '').trim();
+          if (val) {
+            extraTasks.push(val);
+          }
+        });
+      }
+
+      console.log('[buildPayload] extraTasks collected:', extraTasks); // Debug
+
+      payload.duschwanne = payload.duschwanne || {};
+      if (flooringProduct.length)
+        payload.duschwanne.flooringProduct = flooringProduct;
+      if (floorAdhesive.length)
+        payload.duschwanne.floorAdhesive = floorAdhesive;
+      if (floorSealing.length)
+        payload.duschwanne.floorSealing = floorSealing;
+      if (extraTasks.length)
+        payload.duschwanne.extraTasks = Array.from(new Set(extraTasks));
+
+      // Normalize toggle to boolean
+      payload.duschwanne.addFlooring = !!document.getElementById("addFlooring")?.checked;
     }
-    
-    console.log('[buildPayload] extraTasks collected:', extraTasks); // Debug
-
-    payload.duschwanne = payload.duschwanne || {};
-    if (flooringProduct.length)
-      payload.duschwanne.flooringProduct = flooringProduct;
-    if (floorAdhesive.length)
-      payload.duschwanne.floorAdhesive = floorAdhesive;
-    if (floorSealing.length)
-      payload.duschwanne.floorSealing = floorSealing;
-    if (extraTasks.length)
-      payload.duschwanne.extraTasks = Array.from(new Set(extraTasks));
-
-    // Normalize toggle to boolean
-    payload.duschwanne.addFlooring = !!document.getElementById("addFlooring")?.checked;
+  } catch (e) {
+    console.warn("[buildPayload] flooring arrays capture failed:", e);
   }
-} catch (e) {
-  console.warn("[buildPayload] flooring arrays capture failed:", e);
-}
 
   // WV consumables – ONLY what's actually selected in the UI
   try {
@@ -2292,7 +2301,7 @@ try {
   } catch (e) {
     console.warn("[buildPayload] WV consumables capture failed:", e);
   }
-//  per-panel color config for WV (997 / 1497) ---
+  //  per-panel color config for WV (997 / 1497) ---
   try {
     const formWV = document.getElementById("form-wandverkleidung");
     if (formWV) {
@@ -2442,7 +2451,7 @@ try {
       .toString()
       .trim();
 
-        const arbeitsBlock = {
+    const arbeitsBlock = {
       totalHoursHHMM: totalHHMM,
       totalHoursNumeric: totalNumeric,
       ReiseHoursNumeric: travelNumeric,
@@ -2452,63 +2461,63 @@ try {
       distanceKm,
     };
 
-     // Extra Arbeitszeit (BWT) – always recompute from DOM if fieldset exists
-  (function computeExtraArbeitszeit() {
-    const fs = document.getElementById('bwtAzExtraFieldset');
-    console.log('[ExtraAZ] computeExtraArbeitszeit, fs exists?', !!fs);
+    // Extra Arbeitszeit (BWT) – always recompute from DOM if fieldset exists
+    (function computeExtraArbeitszeit() {
+      const fs = document.getElementById('bwtAzExtraFieldset');
+      console.log('[ExtraAZ] computeExtraArbeitszeit, fs exists?', !!fs);
 
-    if (!fs || typeof hhmmToHours !== 'function') {
-      console.log('[ExtraAZ] bail: missing fieldset or hhmmToHours');
-      delete arbeitsBlock.extraTasks;
-      delete arbeitsBlock.extraHoursTotal;
-      return;
-    }
+      if (!fs || typeof hhmmToHours !== 'function') {
+        console.log('[ExtraAZ] bail: missing fieldset or hhmmToHours');
+        delete arbeitsBlock.extraTasks;
+        delete arbeitsBlock.extraHoursTotal;
+        return;
+      }
 
-    const items = fs.querySelectorAll('.bwt-az-item');
-    const extraTasks = [];
-    let extraHoursTotal = 0;
+      const items = fs.querySelectorAll('.bwt-az-item');
+      const extraTasks = [];
+      let extraHoursTotal = 0;
 
-    items.forEach(function (item, i) {
-      const durEl  = item.querySelector('.bwt-az-duration');
-      const taskEl = item.querySelector('.bwt-az-task');
+      items.forEach(function (item, i) {
+        const durEl = item.querySelector('.bwt-az-duration');
+        const taskEl = item.querySelector('.bwt-az-task');
 
-      const durRaw = (durEl && durEl.value || '').trim();
-      const task   = (taskEl && taskEl.value || '').trim();
+        const durRaw = (durEl && durEl.value || '').trim();
+        const task = (taskEl && taskEl.value || '').trim();
 
-      console.log('[ExtraAZ] row', i, { durRaw, task });
+        console.log('[ExtraAZ] row', i, { durRaw, task });
 
-      if (!durRaw && !task) return;
+        if (!durRaw && !task) return;
 
-      const hours = hhmmToHours(durRaw || '0:00') || 0;
+        const hours = hhmmToHours(durRaw || '0:00') || 0;
 
-      console.log('[ExtraAZ] row', i, 'hours=', hours);
+        console.log('[ExtraAZ] row', i, 'hours=', hours);
 
-      extraTasks.push({
-        durationHHMM: durRaw,
-        durationHours: hours,
-        task,
+        extraTasks.push({
+          durationHHMM: durRaw,
+          durationHours: hours,
+          task,
+        });
+
+        if (hours > 0) {
+          extraHoursTotal += hours;
+        }
       });
 
-      if (hours > 0) {
-        extraHoursTotal += hours;
+      console.log('[ExtraAZ] total hours:', extraHoursTotal);
+
+      if (extraTasks.length) {
+        arbeitsBlock.extraTasks = extraTasks;
+        arbeitsBlock.extraHoursTotal =
+          Math.round(extraHoursTotal * 100) / 100;
+        console.log('[ExtraAZ] saved extraHoursTotal=', arbeitsBlock.extraHoursTotal);
+      } else {
+        delete arbeitsBlock.extraTasks;
+        delete arbeitsBlock.extraHoursTotal;
+        console.log('[ExtraAZ] no valid rows, clearing extra fields');
       }
-    });
+    })();
 
-    console.log('[ExtraAZ] total hours:', extraHoursTotal);
 
-    if (extraTasks.length) {
-      arbeitsBlock.extraTasks = extraTasks;
-      arbeitsBlock.extraHoursTotal =
-        Math.round(extraHoursTotal * 100) / 100;
-      console.log('[ExtraAZ] saved extraHoursTotal=', arbeitsBlock.extraHoursTotal);
-    } else {
-      delete arbeitsBlock.extraTasks;
-      delete arbeitsBlock.extraHoursTotal;
-      console.log('[ExtraAZ] no valid rows, clearing extra fields');
-    }
-  })();
-
- 
 
 
     payload.Arbeitszeit = arbeitsBlock;
@@ -2563,7 +2572,7 @@ try {
       const saved = JSON.parse(raw);
       if (!hasSize && saved?.value) dw.traySize = saved.value;
       if (!hasPid && saved?.productId) dw.chosenTrayProductId = saved.productId;
-    } catch {}
+    } catch { }
   })();
 
 
@@ -2657,7 +2666,10 @@ function show(obj, ok = true) {
   statusEl.textContent =
     typeof obj === "string" ? obj : JSON.stringify(obj, null, 2);
 }
-
+// #endregion
+// =================================================================
+// #region 8. PDF & EXPORT HANDLERS
+// =================================================================
 // ========== PDF PROGRESS FUNCTIONS ==========
 function showPDFProgress(message, type = "info") {
   if (!statusEl) return;
@@ -2672,7 +2684,6 @@ function showPDFProgress(message, type = "info") {
   statusEl.className = "status " + (type === "error" ? "err" : "ok");
   statusEl.textContent = `${emoji} [${timestamp}] ${message}`;
 }
-
 function updatePDFTimer(seconds) {
   if (!statusEl) return;
   const emoji = seconds > 0 ? "⏱️" : "🔄";
@@ -2682,7 +2693,6 @@ function updatePDFTimer(seconds) {
       : `${emoji} PDF fast fertig...`;
   statusEl.textContent = text;
 }
-
 // Enhanced PDF download with progress
 async function downloadPDFWithProgress(endpoint, payload) {
   showPDFProgress("PDF-Generation gestartet...", "info");
@@ -2754,6 +2764,8 @@ async function downloadPDFWithProgress(endpoint, payload) {
     console.error("PDF generation failed:", error);
   }
 }
+// #endregion
+
 // === FIX: area <-> color coupling (self-contained) ===
 function syncColorWithAreaDW() {
   const form = document.getElementById('form-duschwanne');
@@ -2799,13 +2811,12 @@ function syncColorWithAreaDW() {
   // keep server totals in sync
   window.updatePricing?.();
 }
-
-
-
 function collectAllFormData() {
   return buildPayload();
 }
-
+// =================================================================
+// #region 9. HELPERS
+// =================================================================
 /* ========== HELPERS ========== */
 function flashInvalid(el) {
   if (!el) return;
@@ -2825,13 +2836,13 @@ function highlightTileForInput(input, on) {
 /* ========== HELPERS  for the floating widget ========== */
 function updateSummaryWidgetName() {
   const firstEl = document.getElementById("firstName");
-  const lastEl  = document.getElementById("lastName");
-  const outEl   = document.getElementById("swNameValue");
+  const lastEl = document.getElementById("lastName");
+  const outEl = document.getElementById("swNameValue");
   if (!outEl) return;
 
   const first = (firstEl?.value || "").trim();
-  const last  = (lastEl?.value || "").trim();
-  const name  = [first, last].filter(Boolean).join(" ");
+  const last = (lastEl?.value || "").trim();
+  const name = [first, last].filter(Boolean).join(" ");
 
   outEl.textContent = name || "–";
 }
@@ -2883,6 +2894,7 @@ function updateSummaryWidgetSubsidyVisibility() {
 
 
 /* ========== End HELPERS  for the floating widget ========== */
+// #endregion
 
 function updateCustomerNumberVisibility() {
   const row = document.getElementById("customerNumberRow");
@@ -2902,7 +2914,9 @@ function updateCustomerNumberVisibility() {
     if (input) input.value = "";
   }
 }
-
+// =================================================================
+// #region 9. VALIDATION
+// =================================================================
 /* ========== VALIDATION ========== */
 function validateBereich() {
   const form = document.getElementById("form-Kundendaten");
@@ -2946,7 +2960,7 @@ function validateDuschwanne() {
         ?.closest("label");
     if (!f.querySelector('input[name="floorAdhesive[]"]:checked') && !bad)
       bad = f.querySelector('input[name="floorAdhesive[]"]')?.closest("label");
-    
+
   }
   if (bad) {
     flashInvalid(bad.tagName === "INPUT" ? bad : bad.querySelector("input"));
@@ -2969,19 +2983,16 @@ function validateWandverkleidung() {
 function validateOptional() {
   return true;
 }
-
 function validateRabatt() {
   const f = document.getElementById("form-rabatt");
   if (!f) return true;
   return f.reportValidity();
 }
-
 function validateDuschabtrennung() {
   const f = document.getElementById("form-duschabtrennung");
   if (!f) return true;
   return f.reportValidity();
 }
-
 /* Focus helper for Kundendaten conditional errors (defined in initBereichErrorHints) */
 function focusFirstBereichConditionalError() {
   if (typeof window.__bereichFocusFirstError__ === "function") {
@@ -2989,7 +3000,6 @@ function focusFirstBereichConditionalError() {
   }
   return false;
 }
-
 function requireBereichValid() {
   const form = document.getElementById("form-Kundendaten");
   if (!form.reportValidity()) {
@@ -3000,17 +3010,18 @@ function requireBereichValid() {
   if (!ok) focusFirstBereichConditionalError();
   return ok;
 }
-
 function validateArbeitszeit() {
   const f = document.getElementById("form-Arbeitszeit");
   if (!f) return true;
   return f.reportValidity(); // nutzt HTML5 required etc.
 }
+// #endregion
+
 // Map home tiles (data-step on .tile-btn) to OFFERS keys
 const TILE_TO_OFFER = {
   "BU-Badumbau": "bu",
   "BWT-Badewannentür": "bwt",
-   "HL-Handlauf": "hl",
+  "HL-Handlauf": "hl",
   "AH-Alltagshilfe": "ah",
   // "HMS-Hausmeister-Service": "hms",
   // "WD-Winterdienst": "wd",
@@ -3051,19 +3062,19 @@ document.body.addEventListener("click", (e) => {
     const ok =
       step === "Kundendaten"
         ? requireBereichValid()
-         : step === "Arbeitszeit"
-        ? validateArbeitszeit()  
-        : step === "duschwanne"
-        ? validateDuschwanne()
-        : step === "wandverkleidung"
-        ? validateWandverkleidung()
-        : step === "duschabtrennung"
-        ? validateDuschabtrennung()
-        : step === "optional"
-        ? validateOptional()
-        : step === "rabatt"
-        ? validateRabatt()
-        : true;
+        : step === "Arbeitszeit"
+          ? validateArbeitszeit()
+          : step === "duschwanne"
+            ? validateDuschwanne()
+            : step === "wandverkleidung"
+              ? validateWandverkleidung()
+              : step === "duschabtrennung"
+                ? validateDuschabtrennung()
+                : step === "optional"
+                  ? validateOptional()
+                  : step === "rabatt"
+                    ? validateRabatt()
+                    : true;
 
     if (!ok) return;
 
@@ -3071,6 +3082,10 @@ document.body.addEventListener("click", (e) => {
     setStep(flow[nextIdx]);
   }
 });
+
+// =================================================================
+// #region 10. PAGE SPECIFIC LOGIC (Wandverkleidung, Duschwanne, etc)
+// =================================================================
 
 /* ========== WANDVERKLEIDUNG PAGE WIRING (auto color, qty=1, etc.) ========== */
 function updateKostenDetails() {
@@ -3081,8 +3096,8 @@ function setupWandverkleidungPage() {
   const page = document.getElementById("page-Wandverkleidung");
   if (!page || page.dataset._wired === "true") return;
   page.dataset._wired = "true";
- const defaultColor = page.querySelector(
-   'input[type="radio"][name="wvColor"][value="Marmor weiß"]'
+  const defaultColor = page.querySelector(
+    'input[type="radio"][name="wvColor"][value="Marmor weiß"]'
   );
   const anyColorChecked = page.querySelector(
     'input[type="radio"][name="wvColor"]:checked'
@@ -3092,7 +3107,7 @@ function setupWandverkleidungPage() {
     defaultColor.checked = true;
   }
 
- 
+
 
   const pairs = [
     { cb: "#wv997", wrap: "#wvQty997Wrap", qty: "#wvQty997" },
@@ -3126,18 +3141,18 @@ function setupWandverkleidungPage() {
         showWrap(wrapEl, false);
         qtyEl.value = "0";
       }
-      recomputeWVFlachenQty(); 
+      recomputeWVFlachenQty();
       if (typeof updateKostenDetails === "function") updateKostenDetails();
     });
 
     qtyEl.addEventListener("input", () => {
-  recomputeWVFlachenQty();   // <-- added
-  if (typeof updateKostenDetails === "function") updateKostenDetails();
-});
-qtyEl.addEventListener("change", () => {
-  recomputeWVFlachenQty();   // <-- added
-});
-recomputeWVFlachenQty();     // <-- initial paint based on current panel Mengen
+      recomputeWVFlachenQty();   // <-- added
+      if (typeof updateKostenDetails === "function") updateKostenDetails();
+    });
+    qtyEl.addEventListener("change", () => {
+      recomputeWVFlachenQty();   // <-- added
+    });
+    recomputeWVFlachenQty();     // <-- initial paint based on current panel Mengen
 
   });
 }
@@ -3152,19 +3167,19 @@ function recomputeWVFlachenQty() {
   if ((parseInt(out.value || '0', 10) || 0) !== v) {
     out.value = String(v);
     // notify any listeners (pricing, UI mirrors, etc.)
-    out.dispatchEvent(new Event('input',  { bubbles: true }));
+    out.dispatchEvent(new Event('input', { bubbles: true }));
     out.dispatchEvent(new Event('change', { bubbles: true }));
   }
 }
 
 function initWVConnectorsUI() {
-  const qtyVEl   = document.getElementById('wvV3VQty');       // user-entered connectors
-  const outEl    = document.getElementById('wvV3VRuleText');  // hint line
-  const cb997    = document.getElementById('wv997');
-  const cb1497   = document.getElementById('wv1497');
-  const q997El   = document.getElementById('wvQty997');
-  const q1497El  = document.getElementById('wvQty1497');
- const corners  = document.getElementById('wvCornersCount');
+  const qtyVEl = document.getElementById('wvV3VQty');       // user-entered connectors
+  const outEl = document.getElementById('wvV3VRuleText');  // hint line
+  const cb997 = document.getElementById('wv997');
+  const cb1497 = document.getElementById('wv1497');
+  const q997El = document.getElementById('wvQty997');
+  const q1497El = document.getElementById('wvQty1497');
+  const corners = document.getElementById('wvCornersCount');
 
   if (!qtyVEl || !outEl) return;
 
@@ -3174,33 +3189,33 @@ function initWVConnectorsUI() {
   };
 
   function recommendedVCount() {
-    const use997  = !!cb997?.checked;
+    const use997 = !!cb997?.checked;
     const use1497 = !!cb1497?.checked;
-    const q997    = use997  ? n(q997El?.value)   : 0;
-    const q1497   = use1497 ? n(q1497El?.value)  : 0;
+    const q997 = use997 ? n(q997El?.value) : 0;
+    const q1497 = use1497 ? n(q1497El?.value) : 0;
 
     const totalPanels = q997 + q1497;
     let rec = Math.max(0, totalPanels - 1);    // joints between panels in a run
     const ecken = Math.max(0, n(corners?.value));
-  rec = Math.max(0, rec - ecken);          // add vertical profiles for corners
+    rec = Math.max(0, rec - ecken);          // add vertical profiles for corners
     return rec;
   }
 
   function render() {
     const rec = recommendedVCount();
     const cur = n(qtyVEl.value);
-      if (rec > 0) {
-    outEl.classList.remove('warn');
-    outEl.textContent = `- Verbindungsprofil(e) empfohlen: ${rec} Stk • aktuell: ${cur} Stk`;
-  } else {
-    outEl.classList.add('warn');
-    outEl.textContent =
-      '⚠️ Keine Verbindungsprofile empfohlen. Bitte Paneelanzahl und „Ecke(n) vorhanden“ prüfen.';
+    if (rec > 0) {
+      outEl.classList.remove('warn');
+      outEl.textContent = `- Verbindungsprofil(e) empfohlen: ${rec} Stk • aktuell: ${cur} Stk`;
+    } else {
+      outEl.classList.add('warn');
+      outEl.textContent =
+        '⚠️ Keine Verbindungsprofile empfohlen. Bitte Paneelanzahl und „Ecke(n) vorhanden“ prüfen.';
+    }
   }
-}
 
   // Wire listeners (any change should refresh the hint)
-  ['input','change','blur'].forEach(ev => {
+  ['input', 'change', 'blur'].forEach(ev => {
     qtyVEl.addEventListener(ev, render);
     q997El?.addEventListener(ev, render);
     q1497El?.addEventListener(ev, render);
@@ -3208,7 +3223,7 @@ function initWVConnectorsUI() {
   });
   cb997?.addEventListener('change', render);
   cb1497?.addEventListener('change', render);
-  
+
 
   // First paint
   render();
@@ -3240,7 +3255,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!section) return;
 
   const TPL = document.getElementById('da-item-template');
-  
+
   // Pick the correct <template> for a fieldset (Freier Posten has its own)
   function getTemplateFor(fs) {
     const tplId = fs && fs.getAttribute('data-template');
@@ -3249,10 +3264,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const KINDS = [
-    { kind: 'pendeltuer',   label: 'Pendeltür Hassmann' },
-    { kind: 'gleittuer',    label: 'Gleittür Hassmann' },
-    { kind: 'faltpendel',   label: 'Falt-Pendeltür Hassmann' },
-    { kind: 'walkin',       label: 'Walk-In Hassmann' },
+    { kind: 'pendeltuer', label: 'Pendeltür Hassmann' },
+    { kind: 'gleittuer', label: 'Gleittür Hassmann' },
+    { kind: 'faltpendel', label: 'Falt-Pendeltür Hassmann' },
+    { kind: 'walkin', label: 'Walk-In Hassmann' },
   ];
 
   const LS_KEY = 'daQuickAddRows:v1';
@@ -3265,16 +3280,16 @@ document.addEventListener("DOMContentLoaded", () => {
       fs.querySelectorAll('.da-item').forEach(item => {
         const price = window.parseMoneyEuro(item.querySelector('.da-price')?.value);
         const qtyEl = item.querySelector('.da-qty');
-        const idEl  = item.querySelector('.da-id');
+        const idEl = item.querySelector('.da-id');
         const nameEl = item.querySelector('.da-name');
-        const qty   = Math.max(1, parseInt((qtyEl?.value || '').trim(), 10) || 0);
-        const pid   = (idEl?.value || '').trim();
-        const name  = (nameEl?.value || '').trim();
+        const qty = Math.max(1, parseInt((qtyEl?.value || '').trim(), 10) || 0);
+        const pid = (idEl?.value || '').trim();
+        const name = (nameEl?.value || '').trim();
         rows.push({ price, qty, productId: pid, name });
       });
       state[kind] = rows;
     }
-    try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch {}
+    try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch { }
   };
 
   // Expose saveState globally for restore functions
@@ -3282,7 +3297,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const restoreState = () => {
     let data = null;
-    try { data = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch {}
+    try { data = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch { }
     if (!data || typeof data !== 'object') return;
 
     const migrated = {};
@@ -3293,7 +3308,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!wrap) continue;
 
       const rows = Array.isArray(data[kind]) ? data[kind] : [];
-      
+
       const normalizeRow = (r) => {
         if (!r || typeof r !== 'object') return { price: 0, qty: 0, productId: '', name: '' };
         let price = r.price;
@@ -3323,16 +3338,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const fill = (item, row) => {
         const priceEl = item.querySelector('.da-price');
-        const qtyEl   = item.querySelector('.da-qty');
-        const idEl    = item.querySelector('.da-id');
-        const nameEl  = item.querySelector('.da-name');
+        const qtyEl = item.querySelector('.da-qty');
+        const idEl = item.querySelector('.da-id');
+        const nameEl = item.querySelector('.da-name');
 
         const priceStr = row?.price ? row.price.toFixed(2).replace('.', ',') : '';
 
         if (priceEl) priceEl.value = priceStr;
-        if (qtyEl)   qtyEl.value   = row?.price ? String(Math.max(1, row.qty || 1)) : '';
-        if (idEl)    idEl.value    = row?.productId || '';
-        if (nameEl)  nameEl.value  = row?.name || '';
+        if (qtyEl) qtyEl.value = row?.price ? String(Math.max(1, row.qty || 1)) : '';
+        if (idEl) idEl.value = row?.productId || '';
+        if (nameEl) nameEl.value = row?.name || '';
       };
 
       if (normRows.length > 0) {
@@ -3343,17 +3358,17 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       } else {
         const priceEl = first.querySelector('.da-price');
-        const qtyEl   = first.querySelector('.da-qty');
-        const idEl    = first.querySelector('.da-id');
-        const nameEl  = first.querySelector('.da-name');
+        const qtyEl = first.querySelector('.da-qty');
+        const idEl = first.querySelector('.da-id');
+        const nameEl = first.querySelector('.da-name');
         if (priceEl) priceEl.value = '';
-        if (qtyEl)   qtyEl.value   = '';
-        if (idEl)    idEl.value    = '';
-        if (nameEl)  nameEl.value  = '';
+        if (qtyEl) qtyEl.value = '';
+        if (idEl) idEl.value = '';
+        if (nameEl) nameEl.value = '';
       }
     }
 
-    try { localStorage.setItem(LS_KEY, JSON.stringify(migrated)); } catch {}
+    try { localStorage.setItem(LS_KEY, JSON.stringify(migrated)); } catch { }
   };
 
   function addRow(kind, fs, focusPrice = true) {
@@ -3391,7 +3406,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function removeRow(btn) {
     var item = btn.closest('.da-item');
-    var fs   = btn.closest('fieldset.da-row[data-kind]');
+    var fs = btn.closest('fieldset.da-row[data-kind]');
     if (!item || !fs) return;
 
     var wrap = fs.querySelector('.da-items');
@@ -3399,11 +3414,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (onlyOne) {
       var priceEl = item.querySelector('.da-price');
-      var qtyEl   = item.querySelector('.da-qty');
-      var idEl    = item.querySelector('.da-id');
+      var qtyEl = item.querySelector('.da-qty');
+      var idEl = item.querySelector('.da-id');
       if (priceEl) priceEl.value = '';
-      if (qtyEl)   qtyEl.value   = '';
-      if (idEl)    idEl.value    = '';
+      if (qtyEl) qtyEl.value = '';
+      if (idEl) idEl.value = '';
 
       var kind = (fs.getAttribute('data-kind') || '');
       if (kind === 'custom' || kind === 'bwt-extra') {
@@ -3419,9 +3434,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function wireRow(item) {
     const priceEl = item.querySelector('.da-price');
-    const qtyEl   = item.querySelector('.da-qty');
-    const nameEl  = item.querySelector('.da-name');
-    const idEl    = item.querySelector('.da-id');
+    const qtyEl = item.querySelector('.da-qty');
+    const nameEl = item.querySelector('.da-name');
+    const idEl = item.querySelector('.da-id');
 
     priceEl?.addEventListener('input', () => {
       priceEl.value = priceEl.value.replace(/[^\d.,]/g, '');
@@ -3464,8 +3479,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // Wire existing first rows + add buttons + trash
   document.querySelectorAll('fieldset.da-row[data-kind]').forEach(fs => {
     const addBtn = fs.querySelector('.da-add');
-    const wrap   = fs.querySelector('.da-items');
-    
+    const wrap = fs.querySelector('.da-items');
+
     wrap?.querySelectorAll('.da-item').forEach(wireRow);
 
     addBtn?.addEventListener('click', () => addRow(fs.dataset.kind, fs, true));
@@ -3485,7 +3500,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ===== DUSCHWANNE: free-text extra tasks (repeater) =====
 (function initDWExtraTasks() {
-  const fs   = document.getElementById('dw-extra-tasks');
+  const fs = document.getElementById('dw-extra-tasks');
   if (!fs) return;
 
   const wrap = fs.querySelector('.da-items');
@@ -3530,12 +3545,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const vals = Array.from(wrap.querySelectorAll('.dw-extra'))
       .map(i => String(i.value || '').trim())
       .filter(Boolean);
-    try { localStorage.setItem(LS_KEY, JSON.stringify(vals)); } catch {}
+    try { localStorage.setItem(LS_KEY, JSON.stringify(vals)); } catch { }
   }
 
   function restoreFromLocalStorage() {
     let vals = null;
-    try { vals = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch {}
+    try { vals = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch { }
     if (!Array.isArray(vals) || !vals.length) return false;
 
     // Clear existing and rebuild
@@ -3558,7 +3573,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Expose payload-based restore for global restore pipeline
-  window.restoreDWExtraTasksFromPayload = function(dw) {
+  window.restoreDWExtraTasksFromPayload = function (dw) {
     // Handle null/undefined dw or missing extraTasks - clear to one empty row
     if (!dw || !Array.isArray(dw.extraTasks)) {
       wrap.innerHTML = '';
@@ -3566,7 +3581,7 @@ document.addEventListener("DOMContentLoaded", () => {
       saveState();
       return;
     }
-    
+
     // Reset to exactly what's in payload
     wrap.innerHTML = '';
     if (dw.extraTasks.length === 0) {
@@ -3627,8 +3642,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const r60 = document.querySelector('input[name="aufschlag"][value="60%"]');
 
 
-  const labelEl  = document.getElementById('aufschlagLabel');
-  const bodyEl   = document.getElementById('aufschlagBody');
+  const labelEl = document.getElementById('aufschlagLabel');
+  const bodyEl = document.getElementById('aufschlagBody');
   const toggleBt = document.getElementById('toggleAufschlag');
 
   function setDisabled(el, disabled) {
@@ -3655,7 +3670,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Show/hide label + radios, and toggle button text
   function setAufschlagVisible(visible) {
     if (labelEl) labelEl.style.display = visible ? "" : "none";
-    if (bodyEl)  bodyEl.style.display  = visible ? "" : "none";
+    if (bodyEl) bodyEl.style.display = visible ? "" : "none";
     if (toggleBt) {
       toggleBt.textContent = visible ? "Ausblenden" : "Anzeigen";
       toggleBt.setAttribute("aria-expanded", visible ? "true" : "false");
@@ -3668,18 +3683,18 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Original Aufschlag rules per payer
- function applyAufschlagRules() {
-  const payer = document.querySelector('input[name="payer"]:checked')?.value;
+  function applyAufschlagRules() {
+    const payer = document.querySelector('input[name="payer"]:checked')?.value;
 
-  // For now: all these payers allow all percentages
-  [r35, r40, r45, r50, r60].forEach((r) => setDisabled(r, false));
+    // For now: all these payers allow all percentages
+    [r35, r40, r45, r50, r60].forEach((r) => setDisabled(r, false));
 
-  // Only set a default if *nothing* is selected yet
-  // (e.g. brand new offer). Do NOT override an existing selection.
-  if (!anySelected() && (payer === "Kassenkunde" || payer === "Selbstzahler")) {
-    if (r50) r50.checked = true; // keep your current default at 50%
+    // Only set a default if *nothing* is selected yet
+    // (e.g. brand new offer). Do NOT override an existing selection.
+    if (!anySelected() && (payer === "Kassenkunde" || payer === "Selbstzahler")) {
+      if (r50) r50.checked = true; // keep your current default at 50%
+    }
   }
-}
 
 
   // Events
@@ -3701,7 +3716,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const copayCheckbox = document.getElementById("budgetCopay");
   const copayField = document.getElementById("copayField");
   const copayAmount = document.getElementById("copayAmount");
-   const budgetMaxCheckbox  = form?.querySelector('input[name="budgetMax"]');
+  const budgetMaxCheckbox = form?.querySelector('input[name="budgetMax"]');
   const twoPersonsCheckbox = form?.querySelector('input[name="twoPersons"]');
   const wePanel = document.getElementById("wohnumfeldPanel");
   const weDoneGroup = document.getElementById("wohnumfeldDoneGroup");
@@ -3741,26 +3756,26 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function applyCopay() {
-  const on = !!(
-    copayCheckbox &&
-    copayCheckbox.checked &&
-    !copayCheckbox.closest("[hidden]")
-  );
-  show(copayField, on);
-  // Make it optional: never mark as required
-  if (!on && copayAmount) copayAmount.value = "";
-}
+    const on = !!(
+      copayCheckbox &&
+      copayCheckbox.checked &&
+      !copayCheckbox.closest("[hidden]")
+    );
+    show(copayField, on);
+    // Make it optional: never mark as required
+    if (!on && copayAmount) copayAmount.value = "";
+  }
 
- function apply(){
-  const kk = isKK(); 
-  const has = hasPG(); 
-  const val = pgVal(); 
-  // before: const valid2 = Number.isInteger(val) && val>=2;
-  const valid1 = Number.isInteger(val) && val>=1; // allow from Pflegegrad 1
+  function apply() {
+    const kk = isKK();
+    const has = hasPG();
+    const val = pgVal();
+    // before: const valid2 = Number.isInteger(val) && val>=2;
+    const valid1 = Number.isInteger(val) && val >= 1; // allow from Pflegegrad 1
     show(pgLevelRow, has);
     setReq(pgRadios, has);
     if (!has) clearRadios(pgRadios);
-        const showBudget = kk && has && valid1;
+    const showBudget = kk && has && valid1;
     show(budgetPanel, showBudget);
 
     if (!showBudget) {
@@ -3771,7 +3786,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       // 2) NEW: also clear "4.180€ maximal" and "2 Personen"
-      if (budgetMaxCheckbox)  budgetMaxCheckbox.checked = false;
+      if (budgetMaxCheckbox) budgetMaxCheckbox.checked = false;
       if (twoPersonsCheckbox) twoPersonsCheckbox.checked = false;
 
       // 3) If you use the little Eigenanteil widget, update its visibility too
@@ -3824,10 +3839,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("form-Kundendaten");
   if (!form) return;
 
-  const elMax     = form.querySelector('input[name="budgetMax"]');
-  const elTwo     = form.querySelector('input[name="twoPersons"]');
+  const elMax = form.querySelector('input[name="budgetMax"]');
+  const elTwo = form.querySelector('input[name="twoPersons"]');
   const elPremium = form.querySelector('input[name="premium"]');
-  const elCopay   = form.querySelector('input[name="budgetCopay"]');
+  const elCopay = form.querySelector('input[name="budgetCopay"]');
 
   const mains = [elMax, elTwo, elPremium].filter(Boolean);
   if (!mains.length) return;
@@ -4206,7 +4221,7 @@ function renderCustomerSearchResults(list) {
   const deps = ["abdichtSet", "drainSet", "stelzlager", "#smallMaterial"];
   f.querySelectorAll('input[name="traySize"]').forEach((r) => {
     r.addEventListener("change", () => {
-      if (window.__RESTORING__) return;  
+      if (window.__RESTORING__) return;
       deps.forEach((sel) => {
         const i = sel.startsWith("#")
           ? f.querySelector(sel)
@@ -4254,9 +4269,9 @@ async function getProduct(id) {
   const sealingPriceEl = document.getElementById("floorSealingPrice");
   const panelsPriceEl = document.getElementById("flooringPanelsPrice");
   // ⬇️ NEW little fields we’ll fill
-  const panelsQtyEl   = document.getElementById("floorPanelsQty");
-  const panelsUnitEl  = document.getElementById("floorPanelsUnit");
-   //const individPriceEl = document.getElementById("floorIndividPrice");
+  const panelsQtyEl = document.getElementById("floorPanelsQty");
+  const panelsUnitEl = document.getElementById("floorPanelsUnit");
+  //const individPriceEl = document.getElementById("floorIndividPrice");
 
   const liveAdh = document.getElementById("adhesiveLivePreview");
   const liveSeal = document.getElementById("sealingLivePreview");
@@ -4290,7 +4305,7 @@ async function getProduct(id) {
 
   let unitAdh = 0,
     unitSeal = 0;
-    let unitPanel = 0;
+  let unitPanel = 0;
 
   async function ensureUnits() {
     if (!unitAdh) {
@@ -4301,39 +4316,39 @@ async function getProduct(id) {
       const p = await getProduct("TRBDSET7");
       unitSeal = Number(p?.price || 0);
     }
-     if (!unitPanel) { // NEW: fetch V5FB02 once
+    if (!unitPanel) { // NEW: fetch V5FB02 once
       const p = await getProduct("V5FB02");
-      unitPanel =   Number((p?.price) || 0);
+      unitPanel = Number((p?.price) || 0);
     }
   }
   const euro = (n) =>
     (Number(n) || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // function updateIndividPrice() {
-    // if (!individPriceEl) return;
-    // const m2 = parseArea();                // user-entered m² (no +15% here)
-   //  const total = (unitPanel || 0) * m2;   // as requested: unit DB price × surface
-   //  individPriceEl.textContent = euro(total);
+  // if (!individPriceEl) return;
+  // const m2 = parseArea();                // user-entered m² (no +15% here)
+  //  const total = (unitPanel || 0) * m2;   // as requested: unit DB price × surface
+  //  individPriceEl.textContent = euro(total);
   // }
-// Mirrors SERVER truth for panels (quantity, unit, total) — set it ONLY here
+  // Mirrors SERVER truth for panels (quantity, unit, total) — set it ONLY here
   function updateFlooringPanelsPriceFromPricing() {
     if (!window.__pricing || !Array.isArray(window.__pricing?.materials?.lines)) {
       if (panelsPriceEl) panelsPriceEl.textContent = "0";
-      if (panelsQtyEl)   panelsQtyEl.textContent   = "0";
-      if (panelsUnitEl)  panelsUnitEl.textContent  = "0";
+      if (panelsQtyEl) panelsQtyEl.textContent = "0";
+      if (panelsUnitEl) panelsUnitEl.textContent = "0";
       return;
     }
-    const line = window.__pricing.materials.lines.find(l => (l.productId || l.id) === "V5FB02" && !String(l.label || '').includes('individ.')); 
+    const line = window.__pricing.materials.lines.find(l => (l.productId || l.id) === "V5FB02" && !String(l.label || '').includes('individ.'));
     // ^ pick the *panels* line; ignore the "individ." line we’ll add on the server
 
     if (!line) {
       if (panelsPriceEl) panelsPriceEl.textContent = "0";
-      if (panelsQtyEl)   panelsQtyEl.textContent   = "0";
-      if (panelsUnitEl)  panelsUnitEl.textContent  = "0";
+      if (panelsQtyEl) panelsQtyEl.textContent = "0";
+      if (panelsUnitEl) panelsUnitEl.textContent = "0";
       return;
     }
-    if (panelsQtyEl)   panelsQtyEl.textContent   = String(line.qty ?? 0);
-    if (panelsUnitEl)  panelsUnitEl.textContent  = euro(line.unitPrice ?? 0);
+    if (panelsQtyEl) panelsQtyEl.textContent = String(line.qty ?? 0);
+    if (panelsUnitEl) panelsUnitEl.textContent = euro(line.unitPrice ?? 0);
     if (panelsPriceEl) panelsPriceEl.textContent = euro(line.lineTotal ?? 0);
   }
   window.updateFlooringPanelsPriceFromPricing = updateFlooringPanelsPriceFromPricing;
@@ -4360,44 +4375,44 @@ async function getProduct(id) {
 
     // Sealing
     // Sealing (proportional per m² with +15% waste, priced from TRBDSET7 / 7)
- const sealingSelected = !!f.querySelector('input[name="floorSealing[]"]:checked');
+    const sealingSelected = !!f.querySelector('input[name="floorSealing[]"]:checked');
 
-if (sealingSelected && m2 > 0) {
-  const effM2 = m2 * 1.15;                 // +15% Verschnitt
-  const ratePerM2 = unitSeal ? unitSeal / 7 : 0;
-  const totalS = effM2 * ratePerM2;
+    if (sealingSelected && m2 > 0) {
+      const effM2 = m2 * 1.15;                 // +15% Verschnitt
+      const ratePerM2 = unitSeal ? unitSeal / 7 : 0;
+      const totalS = effM2 * ratePerM2;
 
-  if (liveSeal) {
-    liveSeal.textContent = `= ${effM2.toFixed(2)} m² (inkl. 15% Verschnitt)`;
-  }
-  if (sealingPriceEl) {
-    sealingPriceEl.textContent = euro(totalS);
-  }
+      if (liveSeal) {
+        liveSeal.textContent = `= ${effM2.toFixed(2)} m² (inkl. 15% Verschnitt)`;
+      }
+      if (sealingPriceEl) {
+        sealingPriceEl.textContent = euro(totalS);
+      }
 
-  computed.sealing = {
-    productId: "TRBDSET7",
-    effM2: +effM2.toFixed(2),
-    ratePerM2: +ratePerM2.toFixed(2),
-    unitSet: unitSeal, // 7 m² Setpreis
-    total: +totalS.toFixed(2),
-  };
-} else {
-  if (liveSeal) liveSeal.textContent = "";
-  if (sealingPriceEl) sealingPriceEl.textContent = "0";
-  computed.sealing = {
-    productId: "TRBDSET7",
-    effM2: 0,
-    ratePerM2: 0,
-    unitSet: unitSeal || 0,
-    total: 0,
-  };
-}
+      computed.sealing = {
+        productId: "TRBDSET7",
+        effM2: +effM2.toFixed(2),
+        ratePerM2: +ratePerM2.toFixed(2),
+        unitSet: unitSeal, // 7 m² Setpreis
+        total: +totalS.toFixed(2),
+      };
+    } else {
+      if (liveSeal) liveSeal.textContent = "";
+      if (sealingPriceEl) sealingPriceEl.textContent = "0";
+      computed.sealing = {
+        productId: "TRBDSET7",
+        effM2: 0,
+        ratePerM2: 0,
+        unitSet: unitSeal || 0,
+        total: 0,
+      };
+    }
 
 
     // Panels price mirrors SERVER (pricing.js). Do not compute here.
     updateFlooringPanelsPriceFromPricing();
     // individ. price (unitPanel × entered m²)
-   // updateIndividPrice();
+    // updateIndividPrice();
   }
 
   // ---- persistence for area field
@@ -4407,89 +4422,89 @@ if (sealingSelected && m2 > 0) {
       const saved = localStorage.getItem(AREA_KEY);
       if (saved) area.value = saved;
     }
-  } catch {}
+  } catch { }
 
   async function init() {
     await ensureUnits();
     updateUI();
   }
-// Recompute sealing price whenever the sealing tile is toggled
-f.querySelectorAll('input[name="floorSealing[]"]').forEach(cb => {
-  cb.addEventListener('change', () => {
-    ensureUnits().then(updateUI);   // refresh "= … m²" hint + price
-    window.updatePricing?.();       // keep server totals in sync
+  // Recompute sealing price whenever the sealing tile is toggled
+  f.querySelectorAll('input[name="floorSealing[]"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      ensureUnits().then(updateUI);   // refresh "= … m²" hint + price
+      window.updatePricing?.();       // keep server totals in sync
+    });
   });
-});
- function apply() {
-  const on = !!toggle?.checked;
-  show(panel, on);
-  setReq(area, on);
+  function apply() {
+    const on = !!toggle?.checked;
+    show(panel, on);
+    setReq(area, on);
 
-  if (on) {
-    // Adhesive: if none picked, pick the default SINGLE adhesive
-    const anyAdh = f.querySelector('input[name="floorAdhesive[]"]:checked');
-    if (!anyAdh) {
-      const defAdh =
-        f.querySelector('#tile_V4FK600 input[name="floorAdhesive[]"]') ||
-        f.querySelector('input[name="floorAdhesive[]"]');
-      if (defAdh) {
-        defAdh.checked = true;
-        highlightTileForInput(defAdh, true);
+    if (on) {
+      // Adhesive: if none picked, pick the default SINGLE adhesive
+      const anyAdh = f.querySelector('input[name="floorAdhesive[]"]:checked');
+      if (!anyAdh) {
+        const defAdh =
+          f.querySelector('#tile_V4FK600 input[name="floorAdhesive[]"]') ||
+          f.querySelector('input[name="floorAdhesive[]"]');
+        if (defAdh) {
+          defAdh.checked = true;
+          highlightTileForInput(defAdh, true);
+        }
       }
+
+      // Keep color selection consistent with area (>0 => ensure ONE color; 0 => none)
+      ensureUnits().then(() => { updateUI(); syncColorWithAreaDW(); });
+
+
+      init(); // keep
+    } else {
+      if (area) area.value = "";
+      try { localStorage.removeItem(AREA_KEY); } catch { }
+
+      f.querySelectorAll(
+        'input[name="flooringProduct[]"],input[name="floorAdhesive[]"],input[name="floorSealing[]"]'
+      ).forEach((i) => {
+        i.checked = false;
+        highlightTileForInput(i, false);
+      });
+
+      if (liveAdh) adhesivePriceEl.textContent = "0";
+      if (liveSeal) sealingPriceEl.textContent = "0";
+      if (panelsPriceEl) panelsPriceEl.textContent = "0";
+
+      unitAdh = unitSeal = 0;
+      computed.areaM2 = 0;
+      computed.adhesive = { productId: "V4FK600", packs: 0, unit: 0, total: 0 };
+      computed.sealing = { productId: "TRBDSET7", sets: 0, unit: 0, total: 0 };
     }
 
-    // Keep color selection consistent with area (>0 => ensure ONE color; 0 => none)
-    ensureUnits().then(() => { updateUI(); syncColorWithAreaDW(); });
-
-
-    init(); // keep
-  } else {
-    if (area) area.value = "";
-    try { localStorage.removeItem(AREA_KEY); } catch {}
-
-    f.querySelectorAll(
-      'input[name="flooringProduct[]"],input[name="floorAdhesive[]"],input[name="floorSealing[]"]'
-    ).forEach((i) => {
-      i.checked = false;
-      highlightTileForInput(i, false);
-    });
-
-    if (liveAdh) adhesivePriceEl.textContent = "0";
-    if (liveSeal) sealingPriceEl.textContent = "0";
-    if (panelsPriceEl) panelsPriceEl.textContent = "0";
-
-    unitAdh = unitSeal = 0;
-    computed.areaM2 = 0;
-    computed.adhesive = { productId: "V4FK600", packs: 0, unit: 0, total: 0 };
-    computed.sealing  = { productId: "TRBDSET7", sets: 0, unit: 0, total: 0 };
+    // Keep totals in sync with server
+    window.updatePricing?.();
   }
 
-  // Keep totals in sync with server
-  window.updatePricing?.();
-}
-
-const floorColors = Array.from(f.querySelectorAll('input[name="flooringProduct[]"]'));
-floorColors.forEach(cb => {
-  cb.addEventListener('change', () => {
-    if (cb.checked) {
-      floorColors.forEach(other => { if (other !== cb) { other.checked = false; highlightTileForInput(other, false); } });
-      highlightTileForInput(cb, true);
-    }
-    ensureUnits().then(() => { updateUI(); syncColorWithAreaDW(); });
+  const floorColors = Array.from(f.querySelectorAll('input[name="flooringProduct[]"]'));
+  floorColors.forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) {
+        floorColors.forEach(other => { if (other !== cb) { other.checked = false; highlightTileForInput(other, false); } });
+        highlightTileForInput(cb, true);
+      }
+      ensureUnits().then(() => { updateUI(); syncColorWithAreaDW(); });
+    });
   });
-});
 
 
   toggle?.addEventListener("change", apply);
 
- area?.addEventListener("input", () => {
-  try { localStorage.setItem(AREA_KEY, area.value); } catch {}
-  ensureUnits().then(() => { updateUI(); syncColorWithAreaDW(); });
-  window.updatePricing?.();
-});
+  area?.addEventListener("input", () => {
+    try { localStorage.setItem(AREA_KEY, area.value); } catch { }
+    ensureUnits().then(() => { updateUI(); syncColorWithAreaDW(); });
+    window.updatePricing?.();
+  });
 
 
- // run once so a pre-checked toggle shows its panel
+  // run once so a pre-checked toggle shows its panel
   (async () => { await ensureUnits(); updateUI(); })();
 
   // initial tile highlight
@@ -4507,7 +4522,7 @@ floorColors.forEach(cb => {
   f.querySelectorAll('input[name="floorSealing[]"]').forEach(cb => {
     cb.addEventListener('change', () => {
       const any = !!f.querySelector('input[name="floorSealing[]"]:checked');
-      try { localStorage.setItem(SEAL_KEY, any ? '1' : '0'); } catch {}
+      try { localStorage.setItem(SEAL_KEY, any ? '1' : '0'); } catch { }
     });
   });
   try {
@@ -4518,7 +4533,7 @@ floorColors.forEach(cb => {
         highlightTileForInput(i, true);
       });
     }
-  } catch {}
+  } catch { }
   // --- end optional persistence ---
 
   // run once so a pre-checked toggle shows its panel
@@ -4538,9 +4553,9 @@ floorColors.forEach(cb => {
   });
 
   // Update panel price when pricing is refreshed
- window.addEventListener("pricing:updated", () => {
-  updateFlooringPanelsPriceFromPricing();
-});
+  window.addEventListener("pricing:updated", () => {
+    updateFlooringPanelsPriceFromPricing();
+  });
 })();
 
 
@@ -4561,16 +4576,16 @@ function initSmartTraySearch() {
   }
 
   // ----- helpers -----
-  
+
   const parseNum = (v) => {
-  if (v == null) return null;
-  const raw = String(v).trim();
-  if (raw === '') return null;                     // <-- key line
-  const s = raw.replace(/\./g, '').replace(',', '.');
-  const n = Number(s);
-  if (!Number.isFinite(n)) return null;
-  return n > 0 ? n : null;                         // ignore 0 or negatives
-};
+    if (v == null) return null;
+    const raw = String(v).trim();
+    if (raw === '') return null;                     // <-- key line
+    const s = raw.replace(/\./g, '').replace(',', '.');
+    const n = Number(s);
+    if (!Number.isFinite(n)) return null;
+    return n > 0 ? n : null;                         // ignore 0 or negatives
+  };
   const makeLabel = (w, l, h) => (w && l && h ? `${w} x ${l} x ${h} cm` : '');
 
   const applySelectedStyles = () => {
@@ -4585,19 +4600,19 @@ function initSmartTraySearch() {
   const persistSelection = (productId, label) => {
     try {
       localStorage.setItem('dw_tray_selection', JSON.stringify({ productId, value: label }));
-    } catch {}
+    } catch { }
   };
 
   const applySelection = (inputEl) => {
     if (!inputEl) return;
-    try { sessionStorage.setItem('dw_tray_touched', '1'); } catch {}
+    try { sessionStorage.setItem('dw_tray_touched', '1'); } catch { }
     const pid = inputEl.value || '';
     const w = Number(inputEl.dataset.w) || null;
     const l = Number(inputEl.dataset.l) || null;
     const h = Number(inputEl.dataset.h) || null;
 
     const label = makeLabel(w, l, h);
-    if (hiddenId)   hiddenId.value = pid;
+    if (hiddenId) hiddenId.value = pid;
     if (hiddenSize) hiddenSize.value = label;
 
     persistSelection(pid, label);
@@ -4626,7 +4641,7 @@ function initSmartTraySearch() {
     try {
       const saved = JSON.parse(localStorage.getItem('dw_tray_selection') || 'null');
       savedPid = saved?.productId || null;
-    } catch {}
+    } catch { }
 
     const top = list.slice(0, 3);
     const savedIndex = (allowAutoCheck && savedPid)
@@ -4692,11 +4707,11 @@ function initSmartTraySearch() {
     // If nothing typed → clear everything and ensure no stale results repaint
     if (b === null && l === null && h === null) {
       out.innerHTML = '';
-      if (hiddenId)   hiddenId.value = '';
+      if (hiddenId) hiddenId.value = '';
       if (hiddenSize) hiddenSize.value = '';
-      try { sessionStorage.removeItem('dw_tray_touched'); } catch {}
+      try { sessionStorage.removeItem('dw_tray_touched'); } catch { }
       // Cancel any in-flight request and bump sequence so its response is ignored
-      try { inflight?.abort?.(); } catch {}
+      try { inflight?.abort?.(); } catch { }
       reqSeq++;
       return;
     }
@@ -4707,7 +4722,7 @@ function initSmartTraySearch() {
     if (h !== null) qs.set('h', String(h));
     const url = `/api/trays/suggest?${qs.toString()}`;
 
-    try { inflight?.abort?.(); } catch {}
+    try { inflight?.abort?.(); } catch { }
     inflight = new AbortController();
     const mySeq = ++reqSeq;
 
@@ -4754,10 +4769,6 @@ function initSmartTraySearch() {
 
   window.__smartTray = { fetchAndRender };
 }
-
-
-
-
 function initTraySizeAutoLabel() {
   const traySizeEl = document.getElementById('traySize');
   const wEl = document.querySelector('input[name="tray_w_cm"]');
@@ -4782,9 +4793,8 @@ function initTraySizeAutoLabel() {
   // expose in case you want to call it from elsewhere
   window.updateTraySizeFromInputs = updateTraySizeFromInputs;
 }
-
 function attachDuschwanneToPayload(payload) {
-  const pid  = document.getElementById('chosenTrayProductId')?.value || null;
+  const pid = document.getElementById('chosenTrayProductId')?.value || null;
   const size = document.getElementById('traySize')?.value || '';
 
   // pricing.js expects these nested under payload.duschwanne.*
@@ -4794,7 +4804,6 @@ function attachDuschwanneToPayload(payload) {
 
   return payload;
 }
-
 /* ========== GLOBAL PRICING SERVICE (fetch -> cache -> event) ========== */
 (() => {
   async function fetchPrice(payload) {
@@ -4827,18 +4836,18 @@ function attachDuschwanneToPayload(payload) {
     window.setPricingData?.(data);
 
     // Notify listeners (Kosten, flooring panels span, etc.)
-  window.dispatchEvent(new CustomEvent("pricing:updated", { detail: data }));
+    window.dispatchEvent(new CustomEvent("pricing:updated", { detail: data }));
 
-  // 🔹 Keep Gesamt + Eigenanteil in sync on every pricing update
-  if (typeof updateSummaryWidgetTotal === "function") {
-    updateSummaryWidgetTotal(data.total);
-  }
-  if (typeof updateSummaryWidgetSelfPay === "function") {
-    updateSummaryWidgetSelfPay(data.selfPayAmount);
-  }
+    // 🔹 Keep Gesamt + Eigenanteil in sync on every pricing update
+    if (typeof updateSummaryWidgetTotal === "function") {
+      updateSummaryWidgetTotal(data.total);
+    }
+    if (typeof updateSummaryWidgetSelfPay === "function") {
+      updateSummaryWidgetSelfPay(data.selfPayAmount);
+    }
 
-  return data;
-};
+    return data;
+  };
 
 
   // Compute once on load so Rabatt has values and spans have data
@@ -4887,77 +4896,76 @@ document
       <div class="card" style="padding:12px;">
         <div style="font-weight:700; margin-bottom:8px;">${title}</div>
         <div>${bodyHTML}</div>
-        ${
-          footerHTML
-            ? `<div style="border-top:1px solid var(--border); margin-top:8px; padding-top:8px;">${footerHTML}</div>`
-            : ""
-        }
+        ${footerHTML
+        ? `<div style="border-top:1px solid var(--border); margin-top:8px; padding-top:8px;">${footerHTML}</div>`
+        : ""
+      }
       </div>
-    `;              
+    `;
   }
-// UI-only: if a Duschabtrennung (Hassmann) quick-add has a user ID,
-// show it in the Kosten-Details label. Do NOT affect server, DOCX, or PDF.
-// UI-only: append [ID] to Kosten-Details labels.
-// - Already handled: “... Hassmann ...” lines (e.g., Pendeltür Hassmann).
-// - NEW: also handle both “Freier Posten” variants (Hassmann + Optional/Sonderprodukte),
-//        whose labels typically look like "- 1 Stk <text>" without the word "Hassmann".
-function decorateDALabel(line) {
-  const pid  = String(line.productId || line.id || '').trim();
-  const base = (line.label ? line.label : (line.name || pid || '-'));
+  // UI-only: if a Duschabtrennung (Hassmann) quick-add has a user ID,
+  // show it in the Kosten-Details label. Do NOT affect server, DOCX, or PDF.
+  // UI-only: append [ID] to Kosten-Details labels.
+  // - Already handled: “... Hassmann ...” lines (e.g., Pendeltür Hassmann).
+  // - NEW: also handle both “Freier Posten” variants (Hassmann + Optional/Sonderprodukte),
+  //        whose labels typically look like "- 1 Stk <text>" without the word "Hassmann".
+  function decorateDALabel(line) {
+    const pid = String(line.productId || line.id || '').trim();
+    const base = (line.label ? line.label : (line.name || pid || '-'));
 
-  // If no ID, nothing to decorate
-  if (!pid) return base;
+    // If no ID, nothing to decorate
+    if (!pid) return base;
 
-  // Avoid double-appending when label already includes the same [ID]
-  if (base.includes(`[${pid}]`)) return base;
+    // Avoid double-appending when label already includes the same [ID]
+    if (base.includes(`[${pid}]`)) return base;
 
-  // 1) Original rule: show ID for Hassmann quick-add (kept as-is)
-  if (!/^HASS_/i.test(pid) && /Hassmann/i.test(base)) {
-    return `${base} [${pid}]`;
+    // 1) Original rule: show ID for Hassmann quick-add (kept as-is)
+    if (!/^HASS_/i.test(pid) && /Hassmann/i.test(base)) {
+      return `${base} [${pid}]`;
+    }
+
+    // 2) NEW rule: “Freier Posten” rows (both Hassmann and Optional) often look like "- 1 Stk …"
+    //    Add [ID] for any line that looks like a free-text item (qty label form), even if it doesn’t say "Hassmann".
+    //    This safely covers Freier Posten without affecting unrelated lines.
+    const looksLikeQtyLabel = /^\s*-\s*\d+\s*Stk\b/i.test(base);
+    if (looksLikeQtyLabel) {
+      return `${base} [${pid}]`;
+    }
+
+    // Otherwise leave untouched
+    return base;
   }
 
-  // 2) NEW rule: “Freier Posten” rows (both Hassmann and Optional) often look like "- 1 Stk …"
-  //    Add [ID] for any line that looks like a free-text item (qty label form), even if it doesn’t say "Hassmann".
-  //    This safely covers Freier Posten without affecting unrelated lines.
-  const looksLikeQtyLabel = /^\s*-\s*\d+\s*Stk\b/i.test(base);
-  if (looksLikeQtyLabel) {
-    return `${base} [${pid}]`;
-  }
+  function listLines(lines) {
+    if (!Array.isArray(lines) || !lines.length)
+      return '<div class="muted">Keine Positionen</div>';
 
-  // Otherwise leave untouched
-  return base;
-}
-
-function listLines(lines) {
-  if (!Array.isArray(lines) || !lines.length)
-    return '<div class="muted">Keine Positionen</div>';
-
-  const header = `
+    const header = `
     <div style="font-size:12px;color:var(--muted)">Bezeichnung</div>
     <div style="font-size:12px;color:var(--muted);text-align:right">Menge</div>
     <div style="font-size:12px;color:var(--muted);text-align:right">Einzelpreis</div>
     <div style="font-size:12px;color:var(--muted);text-align:right">Gesamt</div>
   `;
 
-  const rows = lines.map(l => {
-    if (l.__subtitle) {
-      return `<div style="grid-column:1 / -1; font-weight:700; margin:8px 0 2px;">${l.label}</div>`;
-    }
-    return `
+    const rows = lines.map(l => {
+      if (l.__subtitle) {
+        return `<div style="grid-column:1 / -1; font-weight:700; margin:8px 0 2px;">${l.label}</div>`;
+      }
+      return `
       <div>${decorateDALabel(l)}</div>
       <div style="text-align:right">${l.qty ?? 1}</div>
       <div style="text-align:right">${euroC(l.unitPrice ?? 0)}</div>
       <div style="text-align:right; font-weight:600">${euroC(l.lineTotal ?? 0)}</div>
     `;
-  }).join('');
+    }).join('');
 
-  return `
+    return `
     <div style="display:grid; grid-template-columns: 1fr auto auto auto; gap:6px 10px; align-items:center;">
       ${header}
       ${rows}
     </div>
   `;
-}
+  }
 
 
   // --- NEW: resolve DB names for optional items (by productId)
@@ -4971,7 +4979,7 @@ function listLines(lines) {
           try {
             const p = await getProduct(pid);          // <- uses your existing cache + /api/products/:id
             if (p?.name) name = p.name;
-          } catch {}
+          } catch { }
         }
         // Fallbacks: keep label if present, else pid
         if (!name) name = i.label || pid || "-";
@@ -4980,225 +4988,225 @@ function listLines(lines) {
     );
     return result;
   }
-// Build "Enthält je Einheit" lines for BWT only
-function buildBwtIncludedLines(data) {
-  const out = [];
+  // Build "Enthält je Einheit" lines for BWT only
+  function buildBwtIncludedLines(data) {
+    const out = [];
     // If server already computed BWT "Enthält je Einheit" rows, use them directly
-  const bwtSrc = Array.isArray(data?.bwtIncludedDisplayUI)
-    ? data.bwtIncludedDisplayUI
-    : null;
+    const bwtSrc = Array.isArray(data?.bwtIncludedDisplayUI)
+      ? data.bwtIncludedDisplayUI
+      : null;
 
-  if (bwtSrc && bwtSrc.length) {
-    return bwtSrc.map(row => ({
-      productId: row.productId || row.key || null,
-      label: String(row.label || '-'),
-      qty: Number(row.qty || 0) || 0,
-      unitPrice: Number(row.unitPrice ?? 0),
-      lineTotal: Number(row.lineTotal ?? 0),
-    }));
-  }
+    if (bwtSrc && bwtSrc.length) {
+      return bwtSrc.map(row => ({
+        productId: row.productId || row.key || null,
+        label: String(row.label || '-'),
+        qty: Number(row.qty || 0) || 0,
+        unitPrice: Number(row.unitPrice ?? 0),
+        lineTotal: Number(row.lineTotal ?? 0),
+      }));
+    }
 
 
-  // 1) Kilometerpauschale from services (already has correct amount)
-  const svcSrc = (data.servicesDisplayUI?.lines || data.services?.lines || []) || [];
-  const kmRow = svcSrc.find(s =>
-    /kilometerpauschale/i.test(String(s.label || s.name || ''))
-  );
+    // 1) Kilometerpauschale from services (already has correct amount)
+    const svcSrc = (data.servicesDisplayUI?.lines || data.services?.lines || []) || [];
+    const kmRow = svcSrc.find(s =>
+      /kilometerpauschale/i.test(String(s.label || s.name || ''))
+    );
 
-  if (kmRow && typeof kmRow.amount === 'number' && kmRow.amount > 0) {
-    out.push({
-      productId: kmRow.key || kmRow.productId || 'kilometer',
-      label: String(kmRow.label || kmRow.name || '-'),
-      qty: 1,                        // per unit
-      unitPrice: Number(kmRow.amount || 0),
-      lineTotal: Number(kmRow.amount || 0),
-    });
-  }
+    if (kmRow && typeof kmRow.amount === 'number' && kmRow.amount > 0) {
+      out.push({
+        productId: kmRow.key || kmRow.productId || 'kilometer',
+        label: String(kmRow.label || kmRow.name || '-'),
+        qty: 1,                        // per unit
+        unitPrice: Number(kmRow.amount || 0),
+        lineTotal: Number(kmRow.amount || 0),
+      });
+    }
 
-  // 2) Materials: Tür + Lieferkosten + Kleinmaterial
-  //    → take them from the *resolved* material list (with prices)
-  const matSrc =
-    (Array.isArray(data.materialsDisplayDocx?.lines) && data.materialsDisplayDocx.lines.length)
-      ? data.materialsDisplayDocx.lines
-      : (data.materials?.lines || []);
+    // 2) Materials: Tür + Lieferkosten + Kleinmaterial
+    //    → take them from the *resolved* material list (with prices)
+    const matSrc =
+      (Array.isArray(data.materialsDisplayDocx?.lines) && data.materialsDisplayDocx.lines.length)
+        ? data.materialsDisplayDocx.lines
+        : (data.materials?.lines || []);
 
-  const findMat = (id) =>
-    matSrc.find(l => String(l.productId || l.id || '').trim() === id);
+    const findMat = (id) =>
+      matSrc.find(l => String(l.productId || l.id || '').trim() === id);
 
-  const doorLine   = findMat('1226');       // Universal / Standard Tür
-  const lieferLine = findMat('140322'); // Lieferkosten Badewannentür
-  const kleinLine  = findMat('KM02');       // Kleinmaterial
+    const doorLine = findMat('1226');       // Universal / Standard Tür
+    const lieferLine = findMat('140322'); // Lieferkosten Badewannentür
+    const kleinLine = findMat('KM02');       // Kleinmaterial
 
-  const makeRowFromLine = (line, shortLabel, forceId) => {
-    if (!line) return null;
-    const qtyNum = Number(line.qty || 0) || 0;
-    if (!Number.isFinite(qtyNum) || qtyNum <= 0) return null;
+    const makeRowFromLine = (line, shortLabel, forceId) => {
+      if (!line) return null;
+      const qtyNum = Number(line.qty || 0) || 0;
+      if (!Number.isFinite(qtyNum) || qtyNum <= 0) return null;
 
-    const qtyStr = qtyNum.toFixed(2).replace(/\.00$/, '');
+      const qtyStr = qtyNum.toFixed(2).replace(/\.00$/, '');
 
-    return {
-      productId: forceId || line.productId || line.id || null,
-      label: `- ${qtyStr} Stk ${shortLabel}`,
-      qty: qtyNum,                                // numeric, for the "Menge" column
-      unitPrice: Number(line.unitPrice || 0),     // comes from pricing.js / DB
-      lineTotal: Number(line.lineTotal || 0),     // = qty * unitPrice
+      return {
+        productId: forceId || line.productId || line.id || null,
+        label: `- ${qtyStr} Stk ${shortLabel}`,
+        qty: qtyNum,                                // numeric, for the "Menge" column
+        unitPrice: Number(line.unitPrice || 0),     // comes from pricing.js / DB
+        lineTotal: Number(line.lineTotal || 0),     // = qty * unitPrice
+      };
     };
-  };
 
-  const rLiefer = makeRowFromLine(lieferLine, 'Lieferkosten Badewannentür', '140322');
-  if (rLiefer) out.push(rLiefer);
+    const rLiefer = makeRowFromLine(lieferLine, 'Lieferkosten Badewannentür', '140322');
+    if (rLiefer) out.push(rLiefer);
 
-  const rDoor = makeRowFromLine(doorLine, 'Universal / Standard Tür', '1226');
-  if (rDoor) out.push(rDoor);
+    const rDoor = makeRowFromLine(doorLine, 'Universal / Standard Tür', '1226');
+    if (rDoor) out.push(rDoor);
 
-  const rKlein = makeRowFromLine(kleinLine, 'Kleinmaterial', 'KM02');
-  if (rKlein) out.push(rKlein);
+    const rKlein = makeRowFromLine(kleinLine, 'Kleinmaterial', 'KM02');
+    if (rKlein) out.push(rKlein);
 
-  return out;
-}
+    return out;
+  }
 
 
   // Make this async so we can await name lookups for optional items
-window.renderFromData = async function renderFromData(data) {
-  if (!data) {
-    container.innerHTML = '<div class="muted">Keine Daten</div>';
-     // also clear widget if there is no data
-    if (typeof updateSummaryWidgetSelfPay === "function") {
-      updateSummaryWidgetSelfPay(null);
+  window.renderFromData = async function renderFromData(data) {
+    if (!data) {
+      container.innerHTML = '<div class="muted">Keine Daten</div>';
+      // also clear widget if there is no data
+      if (typeof updateSummaryWidgetSelfPay === "function") {
+        updateSummaryWidgetSelfPay(null);
+      }
+      return;
     }
-    return;
-  }
-  // 🔹 Update the top-right Eigenanteil widget
-  if (typeof updateSummaryWidgetSelfPay === "function") {
-    // data is the computed pricing result from /api/price -> contains selfPayAmount
-    updateSummaryWidgetSelfPay(data.selfPayAmount);
-  }
+    // 🔹 Update the top-right Eigenanteil widget
+    if (typeof updateSummaryWidgetSelfPay === "function") {
+      // data is the computed pricing result from /api/price -> contains selfPayAmount
+      updateSummaryWidgetSelfPay(data.selfPayAmount);
+    }
 
-  // --- Optional (Debug): use optionalDisplayUI if present, else fallback to items
-  const optLines = (data.optionalDisplayUI && Array.isArray(data.optionalDisplayUI.lines))
-    ? data.optionalDisplayUI.lines
-    : ((data.items || []).map(i => ({
+    // --- Optional (Debug): use optionalDisplayUI if present, else fallback to items
+    const optLines = (data.optionalDisplayUI && Array.isArray(data.optionalDisplayUI.lines))
+      ? data.optionalDisplayUI.lines
+      : ((data.items || []).map(i => ({
         productId: i.productId,
         name: i.productId,
         qty: i.qty,
         unitPrice: i.unitPrice,
         lineTotal: i.lineTotal,
       })));
-  const optBody = listLines(optLines);
-  // const optSum = (data.optionalDisplayUI && typeof data.optionalDisplayUI.sum === 'number')
-  const optSum = data.optionalDisplayUI?.sum ?? 0;
-   //  ? data.optionalDisplayUI.sum
-   //  : (optLines.reduce((a, x) => a + (x.lineTotal || 0), 0));
-  const optCard = card(
-    "Additional gewählte Produkte",
-    optBody,
-    `<div style="text-align:right"><b>Summe:</b> ${euroC(optSum)}</div>`
-  );
+    const optBody = listLines(optLines);
+    // const optSum = (data.optionalDisplayUI && typeof data.optionalDisplayUI.sum === 'number')
+    const optSum = data.optionalDisplayUI?.sum ?? 0;
+    //  ? data.optionalDisplayUI.sum
+    //  : (optLines.reduce((a, x) => a + (x.lineTotal || 0), 0));
+    const optCard = card(
+      "Additional gewählte Produkte",
+      optBody,
+      `<div style="text-align:right"><b>Summe:</b> ${euroC(optSum)}</div>`
+    );
 
-  // --- Material (Debug): show only non-optional UI lines
-  const matLines = (data.materialsDisplayUI && Array.isArray(data.materialsDisplayUI.lines))
-    ? data.materialsDisplayUI.lines
-    : ((data.materials && Array.isArray(data.materials.lines)) ? data.materials.lines : []);
-  const matBody = listLines(matLines.map(l => ({
-    productId: l.productId || l.id,
-    name: l.name,
-    qty: l.qty,
-    unitPrice: l.unitPrice,
-    lineTotal: l.lineTotal,
-    label: l.label,
-  })));
-  const mat = (data.materialsDisplayUI?.lines || data.materials?.lines || []);
-  const matSum = data.materialsDisplayUI?.sum ?? data.materials?.sum ?? 0;
+    // --- Material (Debug): show only non-optional UI lines
+    const matLines = (data.materialsDisplayUI && Array.isArray(data.materialsDisplayUI.lines))
+      ? data.materialsDisplayUI.lines
+      : ((data.materials && Array.isArray(data.materials.lines)) ? data.materials.lines : []);
+    const matBody = listLines(matLines.map(l => ({
+      productId: l.productId || l.id,
+      name: l.name,
+      qty: l.qty,
+      unitPrice: l.unitPrice,
+      lineTotal: l.lineTotal,
+      label: l.label,
+    })));
+    const mat = (data.materialsDisplayUI?.lines || data.materials?.lines || []);
+    const matSum = data.materialsDisplayUI?.sum ?? data.materials?.sum ?? 0;
 
-// Optional (Debug): ONLY optional
-const opt = (data.optionalDisplayUI?.lines || []);
+    // Optional (Debug): ONLY optional
+    const opt = (data.optionalDisplayUI?.lines || []);
 
-  //const matSum = (data.materialsDisplayUI && typeof data.materialsDisplayUI.sum === 'number')
-  //  ? data.materialsDisplayUI.sum
-  //  : (data.materials?.sum || 0);
-  const matCard = card(
-    (data.materials && data.materials.title) || "Material für Badumbau",
-    matBody,
-    `<div style="text-align:right"><b>Summe Material:</b> ${euroC(matSum)}</div>`
-  );
+    //const matSum = (data.materialsDisplayUI && typeof data.materialsDisplayUI.sum === 'number')
+    //  ? data.materialsDisplayUI.sum
+    //  : (data.materials?.sum || 0);
+    const matCard = card(
+      (data.materials && data.materials.title) || "Material für Badumbau",
+      matBody,
+      `<div style="text-align:right"><b>Summe Material:</b> ${euroC(matSum)}</div>`
+    );
 
-  // --- Leistungen (Debug): use servicesDisplayUI if present
-// --- Leistungen split into two groups with a tiny whitelist
-const svcSource = (data.servicesDisplayUI?.lines || data.services?.lines || []);
+    // --- Leistungen (Debug): use servicesDisplayUI if present
+    // --- Leistungen split into two groups with a tiny whitelist
+    const svcSource = (data.servicesDisplayUI?.lines || data.services?.lines || []);
 
-const primarySvc = [];
-let includedSvc = [];
+    const primarySvc = [];
+    let includedSvc = [];
 
-for (const s of svcSource) {
-  if (!s) continue;
-  const label = String(s.label || '').trim();
-  const plain = label.replace(/^\s*-\s*/, '');
+    for (const s of svcSource) {
+      if (!s) continue;
+      const label = String(s.label || '').trim();
+      const plain = label.replace(/^\s*-\s*/, '');
 
-  const goesIncluded =
-    /fahrzeugbereitstellung/i.test(plain) ||
-    /bereitstellung.*werkzeug/i.test(plain) ||
-    /beräumung der baustelle/i.test(plain) ||
-    /kilometerpauschale/i.test(plain) ||
-     /facharbeiter/i.test(plain);  
+      const goesIncluded =
+        /fahrzeugbereitstellung/i.test(plain) ||
+        /bereitstellung.*werkzeug/i.test(plain) ||
+        /beräumung der baustelle/i.test(plain) ||
+        /kilometerpauschale/i.test(plain) ||
+        /facharbeiter/i.test(plain);
 
-     const laborRate = Number(data?.services?.laborRate || 0);
+      const laborRate = Number(data?.services?.laborRate || 0);
 
-// when building the Facharbeiter row:
-const isFacharbeiter = (s.key === 'facharbeiter') || /facharbeiter/i.test(s.label || '');
-  const row = {
-    productId: s.key || s.productId,
-    label: label || s.name || s.productId || '-',
-    qty: 1,
-    unitPrice: isFacharbeiter && laborRate ? laborRate : (s.amount ?? 0),
-    lineTotal: s.amount,
-  };
+      // when building the Facharbeiter row:
+      const isFacharbeiter = (s.key === 'facharbeiter') || /facharbeiter/i.test(s.label || '');
+      const row = {
+        productId: s.key || s.productId,
+        label: label || s.name || s.productId || '-',
+        qty: 1,
+        unitPrice: isFacharbeiter && laborRate ? laborRate : (s.amount ?? 0),
+        lineTotal: s.amount,
+      };
 
-  (goesIncluded ? includedSvc : primarySvc).push(row);
-}
-// --- Für BWT: "Enthält je Einheit" komplett neu aufbauen ---
-let isBwtOffer = false;
-try {
-  let currentOffer = null;
+      (goesIncluded ? includedSvc : primarySvc).push(row);
+    }
+    // --- Für BWT: "Enthält je Einheit" komplett neu aufbauen ---
+    let isBwtOffer = false;
+    try {
+      let currentOffer = null;
 
-  if (typeof getCurrentOfferType === 'function') {
-    currentOffer = getCurrentOfferType();
-  } else if (typeof loadWizardState === 'function') {
-    const st = loadWizardState();
-    currentOffer = st && st.offerType;
-  }
+      if (typeof getCurrentOfferType === 'function') {
+        currentOffer = getCurrentOfferType();
+      } else if (typeof loadWizardState === 'function') {
+        const st = loadWizardState();
+        currentOffer = st && st.offerType;
+      }
 
-  if (currentOffer === 'bwt') {
-    isBwtOffer = true;
-    includedSvc = buildBwtIncludedLines(data);
-  }
-} catch (e) {
-  console.warn('[kosten-debug] BWT Enthält-je-Einheit override failed:', e);
-}
+      if (currentOffer === 'bwt') {
+        isBwtOffer = true;
+        includedSvc = buildBwtIncludedLines(data);
+      }
+    } catch (e) {
+      console.warn('[kosten-debug] BWT Enthält-je-Einheit override failed:', e);
+    }
 
-const svcBodyPrimary  = listLines(primarySvc);
-const svcBodyIncluded = listLines(includedSvc);
+    const svcBodyPrimary = listLines(primarySvc);
+    const svcBodyIncluded = listLines(includedSvc);
 
-// Summe für "Enthält je Einheit":
-//  - BWT: Summe der 4 BWT-Zeilen (bwt_km, 140322, bwt_tuer, bwt_km02)
-//  - sonst: wie bisher data.services.sum
-const includedSvcSum = (includedSvc || []).reduce(
-  (acc, row) => acc + (Number(row.lineTotal) || 0),
-  0
-);
-const sumLeistungenEnth = isBwtOffer
-  ? includedSvcSum
-  : (data.services?.sum || 0);
+    // Summe für "Enthält je Einheit":
+    //  - BWT: Summe der 4 BWT-Zeilen (bwt_km, 140322, bwt_tuer, bwt_km02)
+    //  - sonst: wie bisher data.services.sum
+    const includedSvcSum = (includedSvc || []).reduce(
+      (acc, row) => acc + (Number(row.lineTotal) || 0),
+      0
+    );
+    const sumLeistungenEnth = isBwtOffer
+      ? includedSvcSum
+      : (data.services?.sum || 0);
 
-const svcCard = `
+    const svcCard = `
   ${card((data.services?.title || 'Auszuführende Arbeiten'), svcBodyPrimary)}
   <div style="height:8px"></div>
   ${card('Enthält je Einheit', svcBodyIncluded, `<div style="text-align:right"><b>Summe Leistungen:</b> ${euroC(sumLeistungenEnth)}</div>`)}
 `;
 
 
-// <div>Produkte + Material: <b>${euroC(data.productsSubtotal || 0)}</b></div>
-  // --- Totals (unchanged)
-  const sums = `
+    // <div>Produkte + Material: <b>${euroC(data.productsSubtotal || 0)}</b></div>
+    // --- Totals (unchanged)
+    const sums = `
     <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
       <div>Produkte + Material: <b>${euroC(data.material_afterRabatt_and_aufschlag || 0)}</b></div>
       <div>Leistungen: <b>${euroC(data.services?.sum || 0)}</b></div>
@@ -5207,72 +5215,72 @@ const svcCard = `
       <div style="font-size:1.2rem;">Gesamt: <b>${euroC(data.total || 0)}</b></div>
     </div>
   `;
-  const totalsCard = card("Summen", sums);
+    const totalsCard = card("Summen", sums);
 
-  // --- Show/hide "Haltegriff gratis" checkbox based on CLPESG40 presence
- (function () {
-  const bonusGrab = document.getElementById('rb-bonus-grab');
-  if (!bonusGrab) return;
+    // --- Show/hide "Haltegriff gratis" checkbox based on CLPESG40 presence
+    (function () {
+      const bonusGrab = document.getElementById('rb-bonus-grab');
+      if (!bonusGrab) return;
 
-  // authoritative source from server:
-  const cl40 = Number(data?.grabCounts?.cl40 || 0);
-  const shouldShow = cl40 > 0;
+      // authoritative source from server:
+      const cl40 = Number(data?.grabCounts?.cl40 || 0);
+      const shouldShow = cl40 > 0;
 
-  const row = bonusGrab.closest('.form-row') || bonusGrab.closest('label') || bonusGrab.parentElement;
-  if (shouldShow) {
-    if (row) row.style.display = '';
-    bonusGrab.disabled = false;
-  } else {
-    if (row) row.style.display = 'none';
-    if (bonusGrab.checked) {
-      bonusGrab.checked = false;
-      bonusGrab.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-    bonusGrab.disabled = true;
+      const row = bonusGrab.closest('.form-row') || bonusGrab.closest('label') || bonusGrab.parentElement;
+      if (shouldShow) {
+        if (row) row.style.display = '';
+        bonusGrab.disabled = false;
+      } else {
+        if (row) row.style.display = 'none';
+        if (bonusGrab.checked) {
+          bonusGrab.checked = false;
+          bonusGrab.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        bonusGrab.disabled = true;
+      }
+    })();
+
+
+    container.innerHTML = [matCard, optCard, svcCard, totalsCard].join("");
   }
-})();
 
 
-  container.innerHTML = [matCard, optCard, svcCard, totalsCard].join("");
-}
+  window.refreshAllPanels = async function refreshAllPanels() {
+    try {
+      const payload = collectAllFormData();
+      const r = await fetch('/api/price', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await r.json();
 
+      window.lastComputed = data;
 
-window.refreshAllPanels = async function refreshAllPanels() {
-  try {
-    const payload = collectAllFormData();
-    const r = await fetch('/api/price', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await r.json();
+      // Rabatt
+      if (typeof renderRabatt === 'function') {
+        renderRabatt(data);
+      } else if (typeof window.setPricingData === 'function') {
+        window.setPricingData(data);
+      }
 
-    window.lastComputed = data;
-
-    // Rabatt
-    if (typeof renderRabatt === 'function') {
-      renderRabatt(data);
-    } else if (typeof window.setPricingData === 'function') {
-      window.setPricingData(data);
+      // Kosten-Details (renderFromData is async)
+      if (typeof renderFromData === 'function') {
+        await renderFromData(data);
+      }
+    } catch (err) {
+      console.error(err);
     }
+  };
 
-    // Kosten-Details (renderFromData is async)
-    if (typeof renderFromData === 'function') {
-      await renderFromData(data);
-    }
-  } catch (err) {
-    console.error(err);
-  }
-};
-
-// call this whenever those panels become visible (no reload needed)
-document.getElementById('nav-rabatt')?.addEventListener('click', refreshAllPanels);
-document.getElementById('nav-debug') ?.addEventListener('click', refreshAllPanels);
-// If you use hash-based navigation:
-window.addEventListener('hashchange', () => {
-  const id = location.hash.replace('#','');
-  if (id === 'rabatt' || id === 'kosten') refreshAllPanels();
-});
+  // call this whenever those panels become visible (no reload needed)
+  document.getElementById('nav-rabatt')?.addEventListener('click', refreshAllPanels);
+  document.getElementById('nav-debug')?.addEventListener('click', refreshAllPanels);
+  // If you use hash-based navigation:
+  window.addEventListener('hashchange', () => {
+    const id = location.hash.replace('#', '');
+    if (id === 'rabatt' || id === 'kosten') refreshAllPanels();
+  });
 
   async function openKosten() {
     container.innerHTML = '<div class="muted">Berechne …</div>';
@@ -5306,42 +5314,42 @@ window.addEventListener('hashchange', () => {
   // Elements
   const selScenario = document.getElementById('pg-scenario');
   const payerRadios = Array.from(document.querySelectorAll('input[name="pg-payer"]'));
-  const aufRadios   = Array.from(document.querySelectorAll('input[name="pg-auf"]'));
-  const hasPgCB     = document.getElementById('pg-has-pg');
-  const pgLvlWrap   = document.getElementById('pg-pg-lvl');
+  const aufRadios = Array.from(document.querySelectorAll('input[name="pg-auf"]'));
+  const hasPgCB = document.getElementById('pg-has-pg');
+  const pgLvlWrap = document.getElementById('pg-pg-lvl');
   const pgLvlRadios = Array.from(document.querySelectorAll('input[name="pg-lvl"]'));
-  const budgetMax   = document.getElementById('pg-budget-max');
+  const budgetMax = document.getElementById('pg-budget-max');
   const budgetCopay = document.getElementById('pg-budget-copay');
   const copayAmount = document.getElementById('pg-copay-amount');
-  const twoPersons  = document.getElementById('pg-two-persons');
-  const weDoneCB    = document.getElementById('pg-wohnumfeld-done');
-  const weAmount    = document.getElementById('pg-wohnumfeld-amount');
+  const twoPersons = document.getElementById('pg-two-persons');
+  const weDoneCB = document.getElementById('pg-wohnumfeld-done');
+  const weAmount = document.getElementById('pg-wohnumfeld-amount');
 
-  const discRange   = document.getElementById('pg-material-discount');
-  const discVal     = document.getElementById('pg-material-discount-val');
-  const bonus300    = document.getElementById('pg-bonus-300');
-  const bonusGrab   = document.getElementById('pg-bonus-grab');
+  const discRange = document.getElementById('pg-material-discount');
+  const discVal = document.getElementById('pg-material-discount-val');
+  const bonus300 = document.getElementById('pg-bonus-300');
+  const bonusGrab = document.getElementById('pg-bonus-grab');
 
-  const inputPid    = document.getElementById('pg-product-id');
-  const inputQty    = document.getElementById('pg-product-qty');
-  const btnAddProd  = document.getElementById('pg-add-product');
-  const listProds   = document.getElementById('pg-products-list');
-  const datalist    = document.getElementById('pg-products-datalist');
+  const inputPid = document.getElementById('pg-product-id');
+  const inputQty = document.getElementById('pg-product-qty');
+  const btnAddProd = document.getElementById('pg-add-product');
+  const listProds = document.getElementById('pg-products-list');
+  const datalist = document.getElementById('pg-products-datalist');
 
-  const btnRun      = document.getElementById('pg-run');
-  const btnApply    = document.getElementById('pg-apply');
-  const btnClear    = document.getElementById('pg-clear');
-  const btnOpenRab  = document.getElementById('pg-open-rabatt');
-  const btnOpenKos  = document.getElementById('pg-open-kosten');
+  const btnRun = document.getElementById('pg-run');
+  const btnApply = document.getElementById('pg-apply');
+  const btnClear = document.getElementById('pg-clear');
+  const btnOpenRab = document.getElementById('pg-open-rabatt');
+  const btnOpenKos = document.getElementById('pg-open-kosten');
 
-  const outPayload  = document.getElementById('pg-payload');
-  const outResp     = document.getElementById('pg-response');
-  const outDiff     = document.getElementById('pg-diff');
+  const outPayload = document.getElementById('pg-payload');
+  const outResp = document.getElementById('pg-response');
+  const outDiff = document.getElementById('pg-diff');
 
   let pgProducts = []; // [{productId, qty}]
   let lastResponse = null;
 
-  function euro(n) { return (Number(n)||0).toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+  function euro(n) { return (Number(n) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
   function show(el, on) {
     if (!el) return;
@@ -5355,8 +5363,8 @@ window.addEventListener('hashchange', () => {
       const r = await fetch('/api/products/sla');
       if (!r.ok) return;
       const arr = await r.json();
-      datalist.innerHTML = arr.map(p => `<option value="${p.productId}">${(p.name||'').replace(/"/g,'&quot;')}</option>`).join('');
-    } catch {}
+      datalist.innerHTML = arr.map(p => `<option value="${p.productId}">${(p.name || '').replace(/"/g, '&quot;')}</option>`).join('');
+    } catch { }
   }
   loadSLA();
 
@@ -5380,20 +5388,20 @@ window.addEventListener('hashchange', () => {
     const n = e.target.closest('.pg-qty');
     if (!n) return;
     const i = Number(n.dataset.i);
-    const v = Math.max(1, Number(n.value)||1);
+    const v = Math.max(1, Number(n.value) || 1);
     if (pgProducts[i]) { pgProducts[i].qty = v; }
   });
   listProds.addEventListener('click', e => {
     const b = e.target.closest('.pg-del');
     if (!b) return;
     const i = Number(b.dataset.i);
-    if (pgProducts[i]) pgProducts.splice(i,1);
+    if (pgProducts[i]) pgProducts.splice(i, 1);
     renderProdList();
   });
 
   btnAddProd.addEventListener('click', () => {
-    const pid = (inputPid.value||'').trim();
-    const qty = Math.max(1, Number(inputQty.value)||1);
+    const pid = (inputPid.value || '').trim();
+    const qty = Math.max(1, Number(inputQty.value) || 1);
     if (!pid) return;
     const found = pgProducts.find(p => p.productId === pid);
     if (found) found.qty += qty;
@@ -5447,8 +5455,8 @@ window.addEventListener('hashchange', () => {
 
   hasPgCB.addEventListener('change', () => show(pgLvlWrap, hasPgCB.checked));
   discRange.addEventListener('input', () => {
-    const v = parseFloat(discRange.value||'0')||0;
-    discVal.textContent = v.toLocaleString('de-DE', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%';
+    const v = parseFloat(discRange.value || '0') || 0;
+    discVal.textContent = v.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
   });
 
   function makePlaygroundPayload() {
@@ -5459,18 +5467,18 @@ window.addEventListener('hashchange', () => {
     payload.Kundendaten = payload.Kundendaten || {};
 
     // payer
-    const payer = (payerRadios.find(r=>r.checked)?.value) || '';
+    const payer = (payerRadios.find(r => r.checked)?.value) || '';
     if (payer) payload.Kundendaten.payer = payer;
 
     // aufschlag
-    const auf = (aufRadios.find(r=>r.checked)?.value) || '';
+    const auf = (aufRadios.find(r => r.checked)?.value) || '';
     if (auf) payload.Kundendaten.aufschlag = auf;
 
     // pflegegrad / budget
     const hasPG = hasPgCB.checked;
     if (hasPG) {
       payload.Kundendaten.hasPflegegrad = 'Ja';
-      const lvl = pgLvlRadios.find(r=>r.checked)?.value || '2';
+      const lvl = pgLvlRadios.find(r => r.checked)?.value || '2';
       payload.Kundendaten.pflegegrad = lvl;
     } else {
       payload.Kundendaten.hasPflegegrad = 'Nein';
@@ -5495,7 +5503,7 @@ window.addEventListener('hashchange', () => {
     // rabatt + bonus
     payload.rabatt = payload.rabatt || {};
     const pct = parseFloat(discRange.value || '0') || 0;
-    payload.rabatt.materialDiscountPct = pct/100;
+    payload.rabatt.materialDiscountPct = pct / 100;
     payload.rabatt.bonus300 = !!bonus300.checked;
     payload.rabatt.bonusGrab = !!bonusGrab.checked;
 
@@ -5524,8 +5532,8 @@ window.addEventListener('hashchange', () => {
 
   async function runPricing(payload) {
     const r = await fetch('/api/price', {
-      method:'POST',
-      headers: {'Content-Type':'application/json'},
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
     const data = await r.json();
@@ -5534,14 +5542,14 @@ window.addEventListener('hashchange', () => {
 
   function diffObjects(prev, curr, path = '') {
     const out = [];
-    if (!prev && curr) return [`+ ${path||'/'} = ${JSON.stringify(curr)}`];
-    if (prev && !curr) return [`- ${path||'/'} was ${JSON.stringify(prev)}`];
+    if (!prev && curr) return [`+ ${path || '/'} = ${JSON.stringify(curr)}`];
+    if (prev && !curr) return [`- ${path || '/'} was ${JSON.stringify(prev)}`];
 
     if (typeof prev !== 'object' || typeof curr !== 'object' || prev === null || curr === null) {
-      if (JSON.stringify(prev) !== JSON.stringify(curr)) out.push(`~ ${path||'/'}: ${JSON.stringify(prev)} → ${JSON.stringify(curr)}`);
+      if (JSON.stringify(prev) !== JSON.stringify(curr)) out.push(`~ ${path || '/'}: ${JSON.stringify(prev)} → ${JSON.stringify(curr)}`);
       return out;
     }
-    const keys = new Set([...Object.keys(prev||{}), ...Object.keys(curr||{})]);
+    const keys = new Set([...Object.keys(prev || {}), ...Object.keys(curr || {})]);
     for (const k of keys) {
       const p = prev ? prev[k] : undefined;
       const c = curr ? curr[k] : undefined;
@@ -5574,60 +5582,60 @@ window.addEventListener('hashchange', () => {
     // payer
     if (payload.Kundendaten?.payer) {
       const r = document.querySelector(`input[name="payer"][value="${payload.Kundendaten.payer}"]`);
-      if (r) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles:true })); }
+      if (r) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }
     }
     // aufschlag
     if (payload.Kundendaten?.aufschlag) {
       const r = document.querySelector(`input[name="aufschlag"][value="${payload.Kundendaten.aufschlag}"]`);
-      if (r) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles:true })); }
+      if (r) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }
     }
     // pflegegrad (just show/hide panels; exact mapping to Kundendaten panel already handled by initPflegegrad)
     if (payload.Kundendaten?.hasPflegegrad === 'Ja') {
       const yes = document.querySelector('input[name="hasPflegegrad"][value="Ja"]');
-      yes && (yes.checked = true, yes.dispatchEvent(new Event('change', { bubbles:true })));
+      yes && (yes.checked = true, yes.dispatchEvent(new Event('change', { bubbles: true })));
       const lvl = payload.Kundendaten?.pflegegrad || '';
       if (lvl) {
         const rl = document.querySelector(`input[name="pflegegrad"][value="${lvl}"]`);
-        rl && (rl.checked = true, rl.dispatchEvent(new Event('change', { bubbles:true })));
+        rl && (rl.checked = true, rl.dispatchEvent(new Event('change', { bubbles: true })));
       }
     } else {
       const no = document.querySelector('input[name="hasPflegegrad"][value="Nein"]');
-      no && (no.checked = true, no.dispatchEvent(new Event('change', { bubbles:true })));
+      no && (no.checked = true, no.dispatchEvent(new Event('change', { bubbles: true })));
     }
 
     // budget options panel
-    const b = String(payload.Kundendaten?.budgetOptionsPanel||'').toUpperCase();
-    const elMax  = document.querySelector('input[name="budgetMax"]');
-    const elCop  = document.querySelector('input[name="budgetCopay"]');
-    const elTwo  = document.querySelector('input[name="twoPersons"]');
-    const copay  = document.getElementById('copayAmount');
+    const b = String(payload.Kundendaten?.budgetOptionsPanel || '').toUpperCase();
+    const elMax = document.querySelector('input[name="budgetMax"]');
+    const elCop = document.querySelector('input[name="budgetCopay"]');
+    const elTwo = document.querySelector('input[name="twoPersons"]');
+    const copay = document.getElementById('copayAmount');
     if (elMax) elMax.checked = /4180.*MAX/.test(b);
     if (elCop) elCop.checked = /4180.*ZUZ/.test(b);
     if (elTwo) elTwo.checked = /ZWEI.*PERSONEN|8360/.test(b);
-    if (copay) copay.value = String(payload.Kundendaten?.copayAmount||0);
+    if (copay) copay.value = String(payload.Kundendaten?.copayAmount || 0);
 
     // woh num feld
     const weY = document.querySelector('input[name="wohnumfeldDone"][value="Ja"]');
     const weN = document.querySelector('input[name="wohnumfeldDone"][value="Nein"]');
     if (payload.Kundendaten?.wohnumfeld?.done) {
-      weY && (weY.checked = true, weY.dispatchEvent(new Event('change', {bubbles:true})));
+      weY && (weY.checked = true, weY.dispatchEvent(new Event('change', { bubbles: true })));
       const amt = document.getElementById('wohnumfeldAmount');
-      if (amt) amt.value = String(payload.Kundendaten?.wohnumfeld?.amount||0);
+      if (amt) amt.value = String(payload.Kundendaten?.wohnumfeld?.amount || 0);
     } else {
-      weN && (weN.checked = true, weN.dispatchEvent(new Event('change', {bubbles:true})));
+      weN && (weN.checked = true, weN.dispatchEvent(new Event('change', { bubbles: true })));
     }
 
     // rabatt fields
     const slider = document.getElementById('rb-material-discount');
     if (slider) {
-      slider.value = String((payload.rabatt?.materialDiscountPct||0)*100);
-      slider.dispatchEvent(new Event('input', { bubbles:true }));
-      slider.dispatchEvent(new Event('change', { bubbles:true }));
+      slider.value = String((payload.rabatt?.materialDiscountPct || 0) * 100);
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+      slider.dispatchEvent(new Event('change', { bubbles: true }));
     }
     const b300 = document.getElementById('rb-bonus-300');
-    if (b300) { b300.checked = !!payload.rabatt?.bonus300; b300.dispatchEvent(new Event('change',{bubbles:true})); }
-    const bgr  = document.getElementById('rb-bonus-grab');
-    if (bgr)  { bgr.checked = !!payload.rabatt?.bonusGrab; bgr.dispatchEvent(new Event('change',{bubbles:true})); }
+    if (b300) { b300.checked = !!payload.rabatt?.bonus300; b300.dispatchEvent(new Event('change', { bubbles: true })); }
+    const bgr = document.getElementById('rb-bonus-grab');
+    if (bgr) { bgr.checked = !!payload.rabatt?.bonusGrab; bgr.dispatchEvent(new Event('change', { bubbles: true })); }
 
     window.updatePricing?.();
     alert('Playground-Parameter in das Angebot übernommen.');
@@ -5691,7 +5699,7 @@ async function requestPdfAndDownload(payload, filename = "Anfrage.pdf") {
   const a = document.createElement("a");
   a.href = url;
   //a.download = filename;
-   a.download = serverFilename;    
+  a.download = serverFilename;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -5796,9 +5804,8 @@ function renderDraftSearchResults(list) {
     const updated =
       d.updatedAt ? new Date(d.updatedAt).toLocaleString("de-DE") : "";
 
-        btn.innerHTML = `<strong style="color:var(--accent-strong);">${d.name}</strong>${
-      updated ? ` <span style="font-size:0.8em; color:#6b7280;">(${updated})</span>` : ""
-    }`;
+    btn.innerHTML = `<strong style="color:var(--accent-strong);">${d.name}</strong>${updated ? ` <span style="font-size:0.8em; color:#6b7280;">(${updated})</span>` : ""
+      }`;
 
 
     frag.appendChild(btn);
@@ -5838,7 +5845,7 @@ async function loadDraftById(id) {
       alert("Entwurf konnte nicht geladen werden.");
       return;
     }
-       const doc = await res.json();
+    const doc = await res.json();
 
     // If we have a central restore helper, use it with the full document.
     // restoreConfiguratorFromOffer already knows how to handle doc.offer or doc.payload.
@@ -5850,7 +5857,7 @@ async function loadDraftById(id) {
     } else {
       // fallback: just reset and rebuild forms manually if needed
       console.warn("No restore function found. Please wire restoreConfiguratorFromOffer or restoreConfiguratorFromSnapshot.");
-    
+
 
       alert("Wiederherstellen ist noch nicht implementiert.");
       return;
@@ -5904,11 +5911,11 @@ function restoreWorkTasks(dw) {
 
 function restoreWV(wv) {
   if (!wv) return;
- const prev = window.__RESTORING__;
- window.__RESTORING__ = true;
+  const prev = window.__RESTORING__;
+  window.__RESTORING__ = true;
   // --- 2a) WV consumables: clear the 4 “defaulty” items first
-const WV_DEFAULT_PIDS = ['TRWDSET5','V4FK600','V3A','V4RPKIT'];
- WV_DEFAULT_PIDS.forEach(pid => setByProductId(pid, false));
+  const WV_DEFAULT_PIDS = ['TRWDSET5', 'V4FK600', 'V3A', 'V4RPKIT'];
+  WV_DEFAULT_PIDS.forEach(pid => setByProductId(pid, false));
 
   // Kind is a radio
   if (wv.wvKind) setRadio('wvKind', wv.wvKind);
@@ -5916,18 +5923,18 @@ const WV_DEFAULT_PIDS = ['TRWDSET5','V4FK600','V3A','V4RPKIT'];
   // Color may be radio too – restore if present
   if (wv.wvColor) setRadio('wvColor', wv.wvColor);
   const pageWV = document.getElementById('page-wandverkleidung');
- if (pageWV && wv.wvColor) pageWV.dataset.wvColorRestored = '1';
+  if (pageWV && wv.wvColor) pageWV.dataset.wvColorRestored = '1';
 
   // Quantities (keep zeros)
   const pairs = [
-    { cb: 'wv997',   qty: 'wvQty997',   wrap: 'wvQty997Wrap' },
-    { cb: 'wv1497',  qty: 'wvQty1497',  wrap: 'wvQty1497Wrap' },
+    { cb: 'wv997', qty: 'wvQty997', wrap: 'wvQty997Wrap' },
+    { cb: 'wv1497', qty: 'wvQty1497', wrap: 'wvQty1497Wrap' },
   ];
 
   pairs.forEach(({ cb, qty, wrap }) => {
     const qtyEl = document.getElementById(qty);
-    const cbEl  = document.getElementById(cb);
-    const wrapEl= document.getElementById(wrap);
+    const cbEl = document.getElementById(cb);
+    const wrapEl = document.getElementById(wrap);
     const n = parseInt(wv[qty] ?? '0', 10) || 0;
 
     setInputByNameOrId(qty, n);
@@ -5937,48 +5944,48 @@ const WV_DEFAULT_PIDS = ['TRWDSET5','V4FK600','V3A','V4RPKIT'];
     }
     if (wrapEl) {
       wrapEl.hidden = !(n > 0);
-      wrapEl.setAttribute('aria-hidden', n>0 ? 'false':'true');
+      wrapEl.setAttribute('aria-hidden', n > 0 ? 'false' : 'true');
     }
   });
 
   // Other numbers
-  setInputByNameOrId('wvEndProfileQty',      wv.wvEndProfileQty);
-  setInputByNameOrId('wvSilikonQty',        wv.wvSilikonQty);
-  setInputByNameOrId('wvFlachenQty',        wv.wvFlachenQty);
-  setInputByNameOrId('wvV3VQty',             wv.wvV3VQty);
-  setInputByNameOrId('wvCornersCount',       wv.wvCornersCount);
+  setInputByNameOrId('wvEndProfileQty', wv.wvEndProfileQty);
+  setInputByNameOrId('wvSilikonQty', wv.wvSilikonQty);
+  setInputByNameOrId('wvFlachenQty', wv.wvFlachenQty);
+  setInputByNameOrId('wvV3VQty', wv.wvV3VQty);
+  setInputByNameOrId('wvCornersCount', wv.wvCornersCount);
 
-   // --- 2b) Re-enable only what DB says was selected
- // Works with multiple possible DB shapes; keeps it robust.
- const chosenStrings = []
-   .concat(wv?.materials || [])
-   .concat(wv?.consumables || [])
-   .concat(wv?.selected || [])
-   .concat(wv?.floorSealing || [])
-   .concat(wv?.adhesives || [])
-   .concat(wv?.profiles || [])
-   .filter(Boolean)
-   .map(String);
+  // --- 2b) Re-enable only what DB says was selected
+  // Works with multiple possible DB shapes; keeps it robust.
+  const chosenStrings = []
+    .concat(wv?.materials || [])
+    .concat(wv?.consumables || [])
+    .concat(wv?.selected || [])
+    .concat(wv?.floorSealing || [])
+    .concat(wv?.adhesives || [])
+    .concat(wv?.profiles || [])
+    .filter(Boolean)
+    .map(String);
 
- const chosenHas = (shortPid) =>
-   chosenStrings.some(s => s.includes(shortPid)); // e.g. "... TRWDSET5"
+  const chosenHas = (shortPid) =>
+    chosenStrings.some(s => s.includes(shortPid)); // e.g. "... TRWDSET5"
 
- setByProductId('TRWDSET5',  chosenHas('TRWDSET5')); // TRINNITY Wandabdichtung
- setByProductId('V4FK600',    chosenHas('V4FK600'));   // Flächenkleber (Wandverkleidung)
- setByProductId('V3A',       chosenHas('V3A'));      // Abschlussprofil
- setByProductId('CARESSW',   chosenHas('CARESSW'));  // Silikon
- window.__RESTORING__ = prev;
+  setByProductId('TRWDSET5', chosenHas('TRWDSET5')); // TRINNITY Wandabdichtung
+  setByProductId('V4FK600', chosenHas('V4FK600'));   // Flächenkleber (Wandverkleidung)
+  setByProductId('V3A', chosenHas('V3A'));      // Abschlussprofil
+  setByProductId('CARESSW', chosenHas('CARESSW'));  // Silikon
+  window.__RESTORING__ = prev;
 
   // Selects/radios for accessories
-  if (wv.wvEndProfile)      setSelect('wvEndProfile', wv.wvEndProfile);
-  if (wv.wvSilikon)          setSelect('wvSilikon', wv.wvSilikon);
-  if (wv.flechenkleber)        setSelect('flechenkleber', wv.flechenkleber);
-  if (wv.wvSealing)         setSelect('wvSealing', wv.wvSealing);
+  if (wv.wvEndProfile) setSelect('wvEndProfile', wv.wvEndProfile);
+  if (wv.wvSilikon) setSelect('wvSilikon', wv.wvSilikon);
+  if (wv.flechenkleber) setSelect('flechenkleber', wv.flechenkleber);
+  if (wv.wvSealing) setSelect('wvSealing', wv.wvSealing);
 }
 
 function restoreHassmannQuickAdd(da) {
   const rows = Array.isArray(da?.quickAdd) ? da.quickAdd : [];
-  
+
   // Find the fieldsets by data-kind
   for (const fs of document.querySelectorAll('fieldset.da-row[data-kind]')) {
     const kind = fs.dataset.kind;
@@ -5991,19 +5998,19 @@ function restoreHassmannQuickAdd(da) {
     wrap.querySelectorAll('.da-item:not(:first-child)').forEach(n => n.remove());
 
     const list = rows.filter(r => r.kind === kind);
-    
-    const fill = (item, row) => {
-      const idEl    = item.querySelector('.da-id');
-      const priceEl = item.querySelector('.da-price');
-      const qtyEl   = item.querySelector('.da-qty');
-      const nameEl  = item.querySelector('.da-name');
 
-      if (idEl)    idEl.value    = row?.productId || '';
+    const fill = (item, row) => {
+      const idEl = item.querySelector('.da-id');
+      const priceEl = item.querySelector('.da-price');
+      const qtyEl = item.querySelector('.da-qty');
+      const nameEl = item.querySelector('.da-name');
+
+      if (idEl) idEl.value = row?.productId || '';
       if (priceEl) priceEl.value = row?.price != null
         ? String(row.price).replace('.', ',')
         : (row?.priceRaw || '');
-      if (qtyEl)   qtyEl.value   = row?.qty != null ? String(row.qty) : '';
-      if (nameEl)  nameEl.value  = row?.label || row?.name || '';
+      if (qtyEl) qtyEl.value = row?.qty != null ? String(row.qty) : '';
+      if (nameEl) nameEl.value = row?.label || row?.name || '';
     };
 
     if (list.length) {
@@ -6025,17 +6032,17 @@ function restoreHassmannQuickAdd(da) {
       }
     } else {
       // No data for this kind - ensure first row is cleared
-      const idEl    = first.querySelector('.da-id');
+      const idEl = first.querySelector('.da-id');
       const priceEl = first.querySelector('.da-price');
-      const qtyEl   = first.querySelector('.da-qty');
-      const nameEl  = first.querySelector('.da-name');
-      if (idEl)    idEl.value    = '';
+      const qtyEl = first.querySelector('.da-qty');
+      const nameEl = first.querySelector('.da-name');
+      if (idEl) idEl.value = '';
       if (priceEl) priceEl.value = '';
-      if (qtyEl)   qtyEl.value   = '';
-      if (nameEl)  nameEl.value  = '';
+      if (qtyEl) qtyEl.value = '';
+      if (nameEl) nameEl.value = '';
     }
   }
-  
+
   // Update localStorage to match restored state using globally exposed function
   if (typeof window.__daQuickAddSaveState === 'function') {
     window.__daQuickAddSaveState();
@@ -6156,7 +6163,7 @@ function restoreBwt(bwt) {
   if (bwt.bwtDoorStdQty != null) {
     setByNameOrId('bwtDoorStdQty', bwt.bwtDoorStdQty);
   }
-    if (bwt.bwtDoorBudgetQty != null) {
+  if (bwt.bwtDoorBudgetQty != null) {
     setByNameOrId('bwtDoorBudgetQty', bwt.bwtDoorBudgetQty);
   }
   if (bwt.bwtDoorIndWienGlasQty != null) {
@@ -6236,7 +6243,7 @@ function restoreBwt(bwt) {
 function restoreKundendaten(k, offer) {
   if (!k) return;
 
-   setRadio('salutation', k.salutation);
+  setRadio('salutation', k.salutation);
   setByNameOrId('date', k.date);
   setByNameOrId('firstName', k.firstName);
   setByNameOrId('lastName', k.lastName);
@@ -6307,10 +6314,10 @@ function restoreDuschwanne(dw) {
 
   // toggles
   setCheckbox('ebenerdigeToggle', !!dw.ebenerdigeMontage);
-  setCheckbox('abdichtSet',   !!dw.abdichtSet);
-  setCheckbox('drainSet',     !!dw.drainSet);
-  setCheckbox('smallMaterial',!!dw.smallMaterial);
-  setCheckbox('stelzlager',   !!dw.stelzlager);
+  setCheckbox('abdichtSet', !!dw.abdichtSet);
+  setCheckbox('drainSet', !!dw.drainSet);
+  setCheckbox('smallMaterial', !!dw.smallMaterial);
+  setCheckbox('stelzlager', !!dw.stelzlager);
 
   setHiddenById('chosenTrayProductId', dw.chosenTrayProductId);
   setNumber('floorArea', dw.floorArea);
@@ -6384,7 +6391,7 @@ function restoreDuschwanne(dw) {
       localStorage.setItem('dw_tray_selection', JSON.stringify({ productId: pid, value: label }));
       sessionStorage.setItem('dw_tray_touched', '1');
     }
-  } catch {}
+  } catch { }
 }
 
 // BWT – you already have this; keep your current implementation
@@ -6441,15 +6448,15 @@ function restoreOptionalPage(opt) {
 
         rows.forEach((row, index) => {
           const data = items[index] || {};
-          const nameEl  = row.querySelector('.opt-name');
-          const idEl    = row.querySelector('.opt-id');
-          const qtyEl   = row.querySelector('.opt-qty');
+          const nameEl = row.querySelector('.opt-name');
+          const idEl = row.querySelector('.opt-id');
+          const qtyEl = row.querySelector('.opt-qty');
           const priceEl = row.querySelector('.opt-price');
 
           const label = data.label ?? '';
-          const pid   = data.productId ?? '';
-          const qty   = data.qty ?? '';
-          let price   = data.price ?? '';
+          const pid = data.productId ?? '';
+          const qty = data.qty ?? '';
+          let price = data.price ?? '';
 
           if (typeof price === 'number') {
             price = String(price).replace('.', ',');
@@ -6459,9 +6466,9 @@ function restoreOptionalPage(opt) {
             price = '';
           }
 
-          if (nameEl)  nameEl.value  = label;
-          if (idEl)    idEl.value    = pid;
-          if (qtyEl)   qtyEl.value   = qty !== '' ? String(qty) : '';
+          if (nameEl) nameEl.value = label;
+          if (idEl) idEl.value = pid;
+          if (qtyEl) qtyEl.value = qty !== '' ? String(qty) : '';
           if (priceEl) priceEl.value = price;
         });
       }
@@ -6472,14 +6479,14 @@ function restoreOptionalPage(opt) {
   (function ensureOptionalParentsSelected(innerOpt) {
     if (!innerOpt) return;
     const map = {
-      cat_SHOWER:    ['opt_V22WS1R','opt_TEMPDSU250','opt_V22BG903R','opt_DEDS2503E'],
-      cat_THERMO:    ['opt_CLTB','opt_DEPTB','opt_CLB'],
-      cat_GRAB:      ['opt_CLPESG40','opt_CLPESG60','opt_CLPESG80'],
-      cat_FOLD:      ['opt_DEPSKG60','opt_DEPSKG85'],
-      cat_SEAT:      ['opt_DEPKS', 'opt_CLPESDH', 'opt_78090000'],
-      cat_BASIN:     ['opt_CL60', 'opt_CL65', 'opt_CL55'],
-      cat_BASIN_TAP: ['opt_CL_BASIN','opt_DEPOH'],
-      cat_METER:     ['opt_TECEADS'],
+      cat_SHOWER: ['opt_V22WS1R', 'opt_TEMPDSU250', 'opt_V22BG903R', 'opt_DEDS2503E'],
+      cat_THERMO: ['opt_CLTB', 'opt_DEPTB', 'opt_CLB'],
+      cat_GRAB: ['opt_CLPESG40', 'opt_CLPESG60', 'opt_CLPESG80'],
+      cat_FOLD: ['opt_DEPSKG60', 'opt_DEPSKG85'],
+      cat_SEAT: ['opt_DEPKS', 'opt_CLPESDH', 'opt_78090000'],
+      cat_BASIN: ['opt_CL60', 'opt_CL65', 'opt_CL55'],
+      cat_BASIN_TAP: ['opt_CL_BASIN', 'opt_DEPOH'],
+      cat_METER: ['opt_TECEADS'],
     };
     Object.entries(map).forEach(([parentId, kids]) => {
       const anyKidChecked = kids.some(id => {
@@ -6529,17 +6536,17 @@ function restoreDuschabtrennung(da) {
     wrap.querySelectorAll('.da-item:not(:first-child)').forEach(n => n.remove());
 
     const fillRow = (item, row) => {
-      const idEl    = item.querySelector('.da-id');
+      const idEl = item.querySelector('.da-id');
       const priceEl = item.querySelector('.da-price');
-      const qtyEl   = item.querySelector('.da-qty');
-      const nameEl  = item.querySelector('.da-name');
+      const qtyEl = item.querySelector('.da-qty');
+      const nameEl = item.querySelector('.da-name');
 
-      if (idEl)    idEl.value    = row?.productId || '';
+      if (idEl) idEl.value = row?.productId || '';
       if (priceEl) priceEl.value = row?.price != null
         ? String(row.price).replace('.', ',')
         : (row?.priceRaw || '');
-      if (qtyEl)   qtyEl.value   = row?.qty != null ? String(row.qty) : '';
-      if (nameEl)  nameEl.value  = row?.label || row?.name || '';
+      if (qtyEl) qtyEl.value = row?.qty != null ? String(row.qty) : '';
+      if (nameEl) nameEl.value = row?.label || row?.name || '';
     };
 
     if (list.length) {
@@ -6559,9 +6566,9 @@ function restoreDuschabtrennung(da) {
       }
     } else {
       [first.querySelector('.da-id'),
-       first.querySelector('.da-price'),
-       first.querySelector('.da-qty'),
-       first.querySelector('.da-name'),
+      first.querySelector('.da-price'),
+      first.querySelector('.da-qty'),
+      first.querySelector('.da-name'),
       ].forEach(el => { if (el) el.value = ''; });
     }
   });
@@ -6665,28 +6672,28 @@ async function restoreConfiguratorFromOffer(doc) {
   fire('input[name="pflegegrad"]:checked');
   fire('input[name="wohnumfeldDone"]:checked');
 
- // Re-run the HH:MM → numeric mirrors so Reisezeit + Tage are correct
-(() => {
-  const labor  = document.getElementById('laborHours');
-  const travel = document.getElementById('travelTime');
+  // Re-run the HH:MM → numeric mirrors so Reisezeit + Tage are correct
+  (() => {
+    const labor = document.getElementById('laborHours');
+    const travel = document.getElementById('travelTime');
 
-  // Prefer the new multi-day helper if available
-  if (typeof window.updateTotalHours === 'function') {
-    window.updateTotalHours();
-    return;
-  }
+    // Prefer the new multi-day helper if available
+    if (typeof window.updateTotalHours === 'function') {
+      window.updateTotalHours();
+      return;
+    }
 
-  // VERY LAST RESORT: only if updateTotalHours does not exist at all
-  if (typeof hhmmToHours === 'function') {
-    const L  = hhmmToHours(labor?.value  || '0:00');
-    const T1 = hhmmToHours(travel?.value || '0:00');
+    // VERY LAST RESORT: only if updateTotalHours does not exist at all
+    if (typeof hhmmToHours === 'function') {
+      const L = hhmmToHours(labor?.value || '0:00');
+      const T1 = hhmmToHours(travel?.value || '0:00');
 
-    // Do NOT assume 1 day here anymore – just mirror simple values
-    window.arbeit_hours_numeric = Math.max(0, L);
-    window.reise_hours_numeric  = Math.max(0, T1 * 2);
-    window.total_hours_numeric  = window.arbeit_hours_numeric + window.reise_hours_numeric;
-  }
-})();
+      // Do NOT assume 1 day here anymore – just mirror simple values
+      window.arbeit_hours_numeric = Math.max(0, L);
+      window.reise_hours_numeric = Math.max(0, T1 * 2);
+      window.total_hours_numeric = window.arbeit_hours_numeric + window.reise_hours_numeric;
+    }
+  })();
 
 
   // Duschwanne dependencies
@@ -6705,7 +6712,7 @@ async function restoreConfiguratorFromOffer(doc) {
   // Optional parents
   [
     '#cat_SHOWER', '#cat_THERMO', '#cat_GRAB', '#cat_FOLD',
-    '#cat_SEAT',   '#cat_BASIN', '#cat_BASIN_TAP', '#cat_METER', '#cat_SONDER'
+    '#cat_SEAT', '#cat_BASIN', '#cat_BASIN_TAP', '#cat_METER', '#cat_SONDER'
   ].forEach(id => dispatchChange(document.querySelector(id)));
 
   // Optional child tiles
@@ -6744,8 +6751,6 @@ async function restoreConfiguratorFromOffer(doc) {
   }
 }
 
-
-
 function setCurrentOfferType(offerType) {
   const key = String(offerType || 'bu').trim().toLowerCase();
   console.log('[setCurrentOfferType] key =', key);
@@ -6759,7 +6764,7 @@ function setCurrentOfferType(offerType) {
 
   console.log('[setCurrentOfferType] flowSteps =', flowSteps);
 
- state.step = (flowSteps && flowSteps.find(s => s !== 'home')) || 'home';
+  state.step = (flowSteps && flowSteps.find(s => s !== 'home')) || 'home';
 
   if (typeof saveWizardState === 'function') {
     saveWizardState(state);
@@ -6843,10 +6848,6 @@ document.getElementById('btnLoadOffer')?.addEventListener('click', async () => {
   }
 });
 
-
-
-
-
 // Collect rows from Optional → Sonderprodukte into payload.optional.quickAdd
 function collectOptionalQuickAdd(payload) {
   const panel = document.getElementById('optSonderPanel') || document.getElementById('opt-sonder');
@@ -6857,22 +6858,22 @@ function collectOptionalQuickAdd(payload) {
   const parseEuro = (typeof parseMoneyStrict === 'function')
     ? (v) => (parseMoneyStrict(v) || 0)
     : (v) => {
-        if (typeof parseMoneyEuro === 'function') {
-          const n = parseMoneyEuro(v);
-          if (!isNaN(n) && n > 0) return n;
-        }
-        if (typeof v !== 'string') v = String(v ?? '');
-        const cleaned = v.replace(/[^\d.,-]/g, '').replace(/\./g, '').replace(',', '.');
-        const n = Number(cleaned);
-        return isFinite(n) ? n : 0;
-      };
+      if (typeof parseMoneyEuro === 'function') {
+        const n = parseMoneyEuro(v);
+        if (!isNaN(n) && n > 0) return n;
+      }
+      if (typeof v !== 'string') v = String(v ?? '');
+      const cleaned = v.replace(/[^\d.,-]/g, '').replace(/\./g, '').replace(',', '.');
+      const n = Number(cleaned);
+      return isFinite(n) ? n : 0;
+    };
 
   const out = [];
   rows.forEach(row => {
     const label = row.querySelector('.opt-name')?.value?.trim() || '';
-    const pid   = row.querySelector('.opt-id')?.value?.trim() || '';
-    const qtyV  = row.querySelector('.opt-qty')?.value ?? '';
-    const priceV= row.querySelector('.opt-price')?.value ?? '';
+    const pid = row.querySelector('.opt-id')?.value?.trim() || '';
+    const qtyV = row.querySelector('.opt-qty')?.value ?? '';
+    const priceV = row.querySelector('.opt-price')?.value ?? '';
 
     const price = parseEuro(priceV) || 0;
     let qty = Number(String(qtyV).replace(/[^\d-]/g, ''));
@@ -6907,10 +6908,10 @@ function initOptionalSonderprodukte() {
   const LS_KEY = 'optQuickAddRows:v1';
 
   const toggle = document.getElementById('optSonderToggle') || null;
-  const panel  = document.getElementById('optSonderPanel') || document.getElementById('opt-sonder');
+  const panel = document.getElementById('optSonderPanel') || document.getElementById('opt-sonder');
 
-  const tpl    = document.getElementById('opt-item-template');
-  const catCb  = document.getElementById('cat_SONDER');
+  const tpl = document.getElementById('opt-item-template');
+  const catCb = document.getElementById('cat_SONDER');
 
   if (!panel || !tpl) {
     console.warn('[sonder] missing panel/template, skipping init');
@@ -6939,30 +6940,30 @@ function initOptionalSonderprodukte() {
 
   const rowsContainer = panel.querySelector('.da-items') || panel; // fall back to panel
   rowsContainer.addEventListener('click', (e) => {
-  const del = e.target.closest('.da-remove');
-  if (!del) return;
-  e.preventDefault();
+    const del = e.target.closest('.da-remove');
+    if (!del) return;
+    e.preventDefault();
 
-  const row = del.closest('.da-item');
-  if (!row) return;
+    const row = del.closest('.da-item');
+    if (!row) return;
 
-  const rows = queryRows();
-  if (rows.length <= 1) {
-    // keep one row visible → just clear it
-    clearRow(row);
-  } else {
-    row.remove();
-  }
-  saveAll();
-});
+    const rows = queryRows();
+    if (rows.length <= 1) {
+      // keep one row visible → just clear it
+      clearRow(row);
+    } else {
+      row.remove();
+    }
+    saveAll();
+  });
 
   const queryRows = () => Array.from(rowsContainer.querySelectorAll('.da-item'));
 
   const readRow = (row) => {
-    const name  = row.querySelector('.opt-name')?.value?.trim() || '';
-    const pid   = row.querySelector('.opt-id')?.value?.trim() || '';
-    const qtyV  = row.querySelector('.opt-qty')?.value ?? '';
-    const priceV= row.querySelector('.opt-price')?.value ?? '';
+    const name = row.querySelector('.opt-name')?.value?.trim() || '';
+    const pid = row.querySelector('.opt-id')?.value?.trim() || '';
+    const qtyV = row.querySelector('.opt-qty')?.value ?? '';
+    const priceV = row.querySelector('.opt-price')?.value ?? '';
 
     const price = parseEuro(priceV) || 0;
     let qty = Number(String(qtyV).replace(/[^\d-]/g, ''));
@@ -6974,19 +6975,19 @@ function initOptionalSonderprodukte() {
   const writeRow = (row, data) => {
     if (!row) return;
     const { label = '', productId = '', qty = '', price = '' } = data || {};
-    const $n = row.querySelector('.opt-name');   if ($n) $n.value = label;
-    const $i = row.querySelector('.opt-id');     if ($i) $i.value = productId;
-    const $q = row.querySelector('.opt-qty');    if ($q) $q.value = (Number(qty) > 0) ? qty : '';
-    const $p = row.querySelector('.opt-price');  if ($p) $p.value = price !== '' ? price : '';
+    const $n = row.querySelector('.opt-name'); if ($n) $n.value = label;
+    const $i = row.querySelector('.opt-id'); if ($i) $i.value = productId;
+    const $q = row.querySelector('.opt-qty'); if ($q) $q.value = (Number(qty) > 0) ? qty : '';
+    const $p = row.querySelector('.opt-price'); if ($p) $p.value = price !== '' ? price : '';
   };
 
   const validateRow = (row) => {
-  const { label, price, productId } = readRow(row);
-  if (!label) return false;
-  if (!(price > 0)) return false;
-  if (!productId) return false; // ID is required
-  return true;
-};
+    const { label, price, productId } = readRow(row);
+    if (!label) return false;
+    if (!(price > 0)) return false;
+    if (!productId) return false; // ID is required
+    return true;
+  };
 
 
   const clearRow = (row) => writeRow(row, { label: '', productId: '', qty: '', price: '' });
@@ -7011,12 +7012,12 @@ function initOptionalSonderprodukte() {
       return [];
     }
   };
-// Permanently clear all stored Sonderprodukte rows
-function clearAll() {
-  try {
-    localStorage.removeItem(LS_KEY);
-  } catch (e) {}
-}
+  // Permanently clear all stored Sonderprodukte rows
+  function clearAll() {
+    try {
+      localStorage.removeItem(LS_KEY);
+    } catch (e) { }
+  }
 
   const createRow = (prefill) => {
     const node = tpl.content
@@ -7025,59 +7026,59 @@ function clearAll() {
     node.classList.add('da-item'); // ensure class present
     writeRow(node, prefill || {});
 
-   // === Sonderprodukte qty/price behavior ===
-const $qty   = node.querySelector('.opt-qty');
-const $price = node.querySelector('.opt-price');
+    // === Sonderprodukte qty/price behavior ===
+    const $qty = node.querySelector('.opt-qty');
+    const $price = node.querySelector('.opt-price');
 
-// When user types in qty:
-//  - strip non-digits
-//  - if "0" → make it empty immediately
-if ($qty) {
-  $qty.addEventListener('input', (e) => {
-    const raw = String(e.target.value || '');
-    const digits = raw.replace(/[^\d]/g, '');
-    if (digits === '0') {
-      e.target.value = ''; // 0 becomes empty
-    } else {
-      e.target.value = digits;
-    }
-    // persist
-    if (typeof saveAll === 'function') saveAll();
-  });
+    // When user types in qty:
+    //  - strip non-digits
+    //  - if "0" → make it empty immediately
+    if ($qty) {
+      $qty.addEventListener('input', (e) => {
+        const raw = String(e.target.value || '');
+        const digits = raw.replace(/[^\d]/g, '');
+        if (digits === '0') {
+          e.target.value = ''; // 0 becomes empty
+        } else {
+          e.target.value = digits;
+        }
+        // persist
+        if (typeof saveAll === 'function') saveAll();
+      });
 
-  // On blur: if price is valid and qty empty/≤0 → set to 1. If price invalid → keep empty.
-  $qty.addEventListener('blur', () => {
-    const r = readRow(node);
-    const p = parseEuro(r.price);
-    let q = Number(String($qty.value || '').replace(/[^\d]/g, ''));
-    if (!Number.isFinite(q)) q = 0;
-    if (p > 0 && (!q || q <= 0)) {
-      $qty.value = 1;
-    } else if (q === 0) {
-      $qty.value = ''; // never show 0
+      // On blur: if price is valid and qty empty/≤0 → set to 1. If price invalid → keep empty.
+      $qty.addEventListener('blur', () => {
+        const r = readRow(node);
+        const p = parseEuro(r.price);
+        let q = Number(String($qty.value || '').replace(/[^\d]/g, ''));
+        if (!Number.isFinite(q)) q = 0;
+        if (p > 0 && (!q || q <= 0)) {
+          $qty.value = 1;
+        } else if (q === 0) {
+          $qty.value = ''; // never show 0
+        }
+        if (typeof saveAll === 'function') saveAll();
+      });
     }
-    if (typeof saveAll === 'function') saveAll();
-  });
-}
 
-// When user types a price:
-//  - if price becomes valid and qty empty/≤0 → set qty to 1 automatically
-if ($price) {
-  $price.addEventListener('input', () => {
-    const r = readRow(node);
-    const p = parseEuro(r.price);
-    if (p > 0 && $qty) {
-      let q = Number(String($qty.value || '').replace(/[^\d]/g, ''));
-      if (!Number.isFinite(q) || q <= 0) {
-        $qty.value = 1;
-      }
-    } else if ($qty) {
-      // if price cleared/invalid, normalize a "0" qty to empty
-      if (String($qty.value).trim() === '0') $qty.value = '';
+    // When user types a price:
+    //  - if price becomes valid and qty empty/≤0 → set qty to 1 automatically
+    if ($price) {
+      $price.addEventListener('input', () => {
+        const r = readRow(node);
+        const p = parseEuro(r.price);
+        if (p > 0 && $qty) {
+          let q = Number(String($qty.value || '').replace(/[^\d]/g, ''));
+          if (!Number.isFinite(q) || q <= 0) {
+            $qty.value = 1;
+          }
+        } else if ($qty) {
+          // if price cleared/invalid, normalize a "0" qty to empty
+          if (String($qty.value).trim() === '0') $qty.value = '';
+        }
+        if (typeof saveAll === 'function') saveAll();
+      });
     }
-    if (typeof saveAll === 'function') saveAll();
-  });
-}
 
 
 
@@ -7097,42 +7098,42 @@ if ($price) {
   const addRow = () => {
     const rows = queryRows();
     if (rows.length) {
-  const last = rows[rows.length - 1];
-  const r = readRow(last);
+      const last = rows[rows.length - 1];
+      const r = readRow(last);
 
-  // If label missing → focus label
-  if (!r.label) { last.querySelector('.opt-name')?.focus(); return; }
-  // If price invalid → focus price
-  if (!(r.price > 0)) { last.querySelector('.opt-price')?.focus(); return; }
-  // If ID missing → focus ID
-  if (!r.productId) { last.querySelector('.opt-id')?.focus(); return; }
+      // If label missing → focus label
+      if (!r.label) { last.querySelector('.opt-name')?.focus(); return; }
+      // If price invalid → focus price
+      if (!(r.price > 0)) { last.querySelector('.opt-price')?.focus(); return; }
+      // If ID missing → focus ID
+      if (!r.productId) { last.querySelector('.opt-id')?.focus(); return; }
 
-  // If price valid & ID present but qty missing/≤0 → auto-default qty to 1
-  if (!r.qty || r.qty <= 0) {
-    const q = last.querySelector('.opt-qty');
-    if (q) q.value = 1;
-  }
-}
+      // If price valid & ID present but qty missing/≤0 → auto-default qty to 1
+      if (!r.qty || r.qty <= 0) {
+        const q = last.querySelector('.opt-qty');
+        if (q) q.value = 1;
+      }
+    }
 
     rowsContainer.appendChild(createRow());
     saveAll();
   };
 
- // Restore from storage
-const restored = loadAll();
-const removeAllDomRows = () => {
-  queryRows().forEach(el => el.remove());
-};
+  // Restore from storage
+  const restored = loadAll();
+  const removeAllDomRows = () => {
+    queryRows().forEach(el => el.remove());
+  };
 
-if (restored.length) {
-  // Remove any pre-rendered rows (e.g., initial “Freier Posten”) to avoid duplicates
-  removeAllDomRows();
-  restored.forEach(r => rowsContainer.appendChild(createRow(r)));
-} else {
-  // Start clean: ensure exactly one empty row
-  removeAllDomRows();
-  ensureAtLeastOneRow();
-}
+  if (restored.length) {
+    // Remove any pre-rendered rows (e.g., initial “Freier Posten”) to avoid duplicates
+    removeAllDomRows();
+    restored.forEach(r => rowsContainer.appendChild(createRow(r)));
+  } else {
+    // Start clean: ensure exactly one empty row
+    removeAllDomRows();
+    ensureAtLeastOneRow();
+  }
 
 
   // Wire "+" add button
@@ -7149,26 +7150,26 @@ if (restored.length) {
     toggle.addEventListener('change', applyToggle);
     applyToggle();
   }
-// When the parent category checkbox is toggled: if turned off, wipe storage + DOM rows
-if (catCb) {
-  catCb.addEventListener('change', (e) => {
-    const checked = !!e.target.checked;
-    if (!checked) {
-      // 1) clear persistence
-      clearAll();
+  // When the parent category checkbox is toggled: if turned off, wipe storage + DOM rows
+  if (catCb) {
+    catCb.addEventListener('change', (e) => {
+      const checked = !!e.target.checked;
+      if (!checked) {
+        // 1) clear persistence
+        clearAll();
 
-      // 2) remove all rows from DOM
-      queryRows().forEach(el => el.remove());
+        // 2) remove all rows from DOM
+        queryRows().forEach(el => el.remove());
 
-      // 3) do NOT call saveAll() here — we want the key gone, not set to "[]"
-      // panel will be hidden by applyCatVisibility()
-    } else {
-      // Re-enabled: start fresh with one empty row (no restore)
-      ensureAtLeastOneRow();
-      // Optional: do not call saveAll() yet; let user input drive persistence
-    }
-  });
-}
+        // 3) do NOT call saveAll() here — we want the key gone, not set to "[]"
+        // panel will be hidden by applyCatVisibility()
+      } else {
+        // Re-enabled: start fresh with one empty row (no restore)
+        ensureAtLeastOneRow();
+        // Optional: do not call saveAll() yet; let user input drive persistence
+      }
+    });
+  }
 
   // Show/hide with SONDER category checkbox
   const applyCatVisibility = () => {
@@ -7181,8 +7182,6 @@ if (catCb) {
   if (catCb) catCb.addEventListener('change', applyCatVisibility);
   applyCatVisibility();
 }
-
-
 
 // Save a final offer snapshot after a successful export
 async function saveFinalOfferSnapshot() {
@@ -7199,7 +7198,7 @@ async function saveFinalOfferSnapshot() {
   // 3) Determine offer type (same logic as drafts / restore)
   const rawOfferType =
     filteredPayload.activeOffer ||
-    filteredPayload.offerType   ||
+    filteredPayload.offerType ||
     (typeof getCurrentOfferType === 'function'
       ? getCurrentOfferType()
       : null) ||
@@ -7272,7 +7271,7 @@ document
       await downloadPDFWithProgress(
         "/pdf-template",
         payload
-    
+
       );
       document
         .getElementById("pdfActions")
@@ -7376,11 +7375,11 @@ document
     }
     try {
       const payload = buildPayload();
-      
+
       await downloadDocx(
         "/docx-template/material-overview",
         payload
-       // `Materialuebersicht_${Date.now()}.docx`
+        // `Materialuebersicht_${Date.now()}.docx`
       );
     } catch (e) {
       console.error(e);
@@ -7389,7 +7388,7 @@ document
     }
   });
 
-  // Angebot als PDF aus LATEX-Vorlage
+// Angebot als PDF aus LATEX-Vorlage
 document
   .getElementById("downloadLatexPdf")
   ?.addEventListener("click", async () => {
@@ -7448,8 +7447,8 @@ const euroFmt = (n) =>
     .replace(/\u00A0/g, " ");
 const setRowVisible = (row, on) => {
   if (row) {
-     // row.style.display = on ? "contents" : "none";
-      row.style.display = on ? "" : "none";
+    // row.style.display = on ? "contents" : "none";
+    row.style.display = on ? "" : "none";
     row.hidden = !on;
     row.setAttribute("aria-hidden", String(!on));
   }
@@ -7548,16 +7547,16 @@ window.setPricingData = function setPricingData(data) {
       key === "sz" || key === "selbstzahler"
         ? "selbstzahler"
         : key === "kk" || key === "kassenkunde"
-        ? "kassenkunde"
-        : "";
+          ? "kassenkunde"
+          : "";
     const h2 = document.querySelector("#page-rabatt h2");
     if (h2) {
       h2.textContent =
         norm === "selbstzahler"
           ? "Rabatt für Selbstzahler"
           : norm === "kassenkunde"
-          ? "Rabatt für Kassenkunde"
-          : "Rabatt";
+            ? "Rabatt für Kassenkunde"
+            : "Rabatt";
     }
 
     // Aufschlag label
@@ -7578,28 +7577,28 @@ window.setPricingData = function setPricingData(data) {
     );
 
     // Show/hide 300€ bonus based on threshold (after rab.)
-  (function gateBonus300() {
-  const afterRab = Number(data?.totalAfterRabatt || 0);
-  const cb300 = document.getElementById("rb-bonus-300");
-  const row =
-    document.getElementById("rb-bonus-300-row") ||
-    cb300?.closest("label.radio-pill") ||
-    cb300?.parentElement ||
-    null;
+    (function gateBonus300() {
+      const afterRab = Number(data?.totalAfterRabatt || 0);
+      const cb300 = document.getElementById("rb-bonus-300");
+      const row =
+        document.getElementById("rb-bonus-300-row") ||
+        cb300?.closest("label.radio-pill") ||
+        cb300?.parentElement ||
+        null;
 
-  const shouldShow = afterRab > 3000;
+      const shouldShow = afterRab > 3000;
 
-  if (row) {
-    row.style.display = shouldShow ? "" : "none";
-    row.hidden = !shouldShow;
-    row.setAttribute("aria-hidden", String(!shouldShow));
-  }
+      if (row) {
+        row.style.display = shouldShow ? "" : "none";
+        row.hidden = !shouldShow;
+        row.setAttribute("aria-hidden", String(!shouldShow));
+      }
 
-  // If ineligible, clear silently (no 'change' dispatch → no race)
-  // if (!shouldShow && cb300 && cb300.checked) {
-   // cb300.checked = false;
-  //}
-})();
+      // If ineligible, clear silently (no 'change' dispatch → no race)
+      // if (!shouldShow && cb300 && cb300.checked) {
+      // cb300.checked = false;
+      //}
+    })();
 
 
     let sliderPct = parseFloat(elDiscount?.value || "0");
@@ -7634,11 +7633,11 @@ window.setPricingData = function setPricingData(data) {
     showRow(rowBonusTotal, anyBonus);
 
     const nothingToShow = !hasRabatt && !anyBonus;
-const emptyNote = document.getElementById('rb-empty-note');
-if (emptyNote) {
-  emptyNote.style.display = nothingToShow ? 'block' : 'none';
-  emptyNote.hidden = !nothingToShow;
-}
+    const emptyNote = document.getElementById('rb-empty-note');
+    if (emptyNote) {
+      emptyNote.style.display = nothingToShow ? 'block' : 'none';
+      emptyNote.hidden = !nothingToShow;
+    }
 
 
     const rabattAmt = Number(data?.rabattAmount || 0);
@@ -7654,24 +7653,24 @@ if (emptyNote) {
     console.error("[rabatt] setPricingData failed:", err);
   }
   (() => {
-  const row = document.getElementById('rb-bonus-grab-row')
-           || document.getElementById('rb-bonus-grab')?.closest('label.radio-pill')
-           || document.getElementById('rb-bonus-grab')?.parentElement;
-  const cb  = document.getElementById('rb-bonus-grab');
+    const row = document.getElementById('rb-bonus-grab-row')
+      || document.getElementById('rb-bonus-grab')?.closest('label.radio-pill')
+      || document.getElementById('rb-bonus-grab')?.parentElement;
+    const cb = document.getElementById('rb-bonus-grab');
 
-  const cl40 = Number(data?.grabCounts?.cl40 || 0);
-  const allow = cl40 > 0;
+    const cl40 = Number(data?.grabCounts?.cl40 || 0);
+    const allow = cl40 > 0;
 
-  if (row) {
-    row.style.display = allow ? '' : 'none';
-    row.hidden = !allow;
-    row.setAttribute('aria-hidden', String(!allow));
-  }
-  if (!allow && cb && cb.checked) {
-    //cb.checked = false;
-    cb.dispatchEvent(new Event('change', { bubbles: true }));
-  }
-})();
+    if (row) {
+      row.style.display = allow ? '' : 'none';
+      row.hidden = !allow;
+      row.setAttribute('aria-hidden', String(!allow));
+    }
+    if (!allow && cb && cb.checked) {
+      //cb.checked = false;
+      cb.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  })();
 
 };
 
@@ -7755,12 +7754,12 @@ function initBasinAutoAccessories() {
   const qCL55 = document.getElementById('qty_CL55');
 
   // Required accessories
-  const wtbf  = document.getElementById('opt_WTBF');
-  const qWT   = document.getElementById('qty_WTBF');
-  const rsl   = document.getElementById('opt_RSL');
-  const qRSL  = document.getElementById('qty_RSL');
-  const ev    = document.getElementById('opt_EV');
-  const qEV   = document.getElementById('qty_EV');
+  const wtbf = document.getElementById('opt_WTBF');
+  const qWT = document.getElementById('qty_WTBF');
+  const rsl = document.getElementById('opt_RSL');
+  const qRSL = document.getElementById('qty_RSL');
+  const ev = document.getElementById('opt_EV');
+  const qEV = document.getElementById('qty_EV');
   const evLbl = document.querySelector('label[for="qty_EV"]');
 
   // CL60 + accessories must exist; CL65/CL55 may be absent in older HTML
@@ -7780,7 +7779,7 @@ function initBasinAutoAccessories() {
   };
   const dispatch = (el) => {
     if (!el) return;
-    el.dispatchEvent(new Event('input',  { bubbles: true }));
+    el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   };
   const show = (el, v = true) => {
@@ -7791,7 +7790,7 @@ function initBasinAutoAccessories() {
   const anyBasinChecked = () => basins.some(b => b.cb.checked);
 
   const updateEvPairsLabel = () => {
-    const base = evLbl.dataset.baseLabel || evLbl.textContent.replace(/\s*\(.*\)\s*$/,'');
+    const base = evLbl.dataset.baseLabel || evLbl.textContent.replace(/\s*\(.*\)\s*$/, '');
     evLbl.dataset.baseLabel = base;
     const qty = num(qEV.value, 0);
     const pairs = qty / 2;
@@ -7811,10 +7810,10 @@ function initBasinAutoAccessories() {
       cl65: cl65 && qCL65 ? { checked: !!cl65.checked, qty: num(qCL65.value, 0) } : undefined,
       cl55: cl55 && qCL55 ? { checked: !!cl55.checked, qty: num(qCL55.value, 0) } : undefined,
       wtbf: { checked: !!wtbf.checked, qty: num(qWT.value, 0) },
-      rsl:  { checked: !!rsl.checked,  qty: num(qRSL.value, 0) },
-      ev:   { checked: !!ev.checked,   qty: num(qEV.value, 0)  },
+      rsl: { checked: !!rsl.checked, qty: num(qRSL.value, 0) },
+      ev: { checked: !!ev.checked, qty: num(qEV.value, 0) },
     };
-    try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {}
+    try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { }
   };
   const applyState = (s) => {
     if (s.cl60) {
@@ -7833,12 +7832,12 @@ function initBasinAutoAccessories() {
       wtbf.checked = !!s.wtbf.checked; dispatch(wtbf);
       if (Number.isFinite(s.wtbf.qty)) { qWT.value = String(s.wtbf.qty); dispatch(qWT); }
     }
-    if (s.rsl)  {
-      rsl.checked  = !!s.rsl.checked; dispatch(rsl);
+    if (s.rsl) {
+      rsl.checked = !!s.rsl.checked; dispatch(rsl);
       if (Number.isFinite(s.rsl.qty)) { qRSL.value = String(s.rsl.qty); dispatch(qRSL); }
     }
-    if (s.ev)   {
-      ev.checked   = !!s.ev.checked; dispatch(ev);
+    if (s.ev) {
+      ev.checked = !!s.ev.checked; dispatch(ev);
       if (Number.isFinite(s.ev.qty)) { qEV.value = String(s.ev.qty); dispatch(qEV); }
     }
     updateEvPairsLabel();
@@ -7867,9 +7866,9 @@ function initBasinAutoAccessories() {
     });
 
     // Overwrite accessory quantities when any basin qty changes (user action)
-    if (wtbf.checked) { qWT.value  = String(total);     dispatch(qWT);  }
-    if (rsl.checked)  { qRSL.value = String(total);     dispatch(qRSL); }
-    if (ev.checked)   { qEV.value  = String(total * 2); dispatch(qEV);  }
+    if (wtbf.checked) { qWT.value = String(total); dispatch(qWT); }
+    if (rsl.checked) { qRSL.value = String(total); dispatch(qRSL); }
+    if (ev.checked) { qEV.value = String(total * 2); dispatch(qEV); }
 
     updateEvPairsLabel();
     saveState();
@@ -7884,8 +7883,8 @@ function initBasinAutoAccessories() {
 
         // Ensure required accessories are selected (quantities will be set by the rule)
         if (!wtbf.checked) { wtbf.checked = true; dispatch(wtbf); }
-        if (!rsl.checked)  { rsl.checked  = true; dispatch(rsl);  }
-        if (!ev.checked)   { ev.checked   = true; dispatch(ev);   }
+        if (!rsl.checked) { rsl.checked = true; dispatch(rsl); }
+        if (!ev.checked) { ev.checked = true; dispatch(ev); }
 
         // Set this basin to 1 if empty/invalid
         if (!num(qtyInput.value)) {
@@ -7904,13 +7903,13 @@ function initBasinAutoAccessories() {
     });
 
     // RULE TRIGGER: when user changes this basin's quantity
-    qtyInput.addEventListener('input',  applyRuleFromBasins);
+    qtyInput.addEventListener('input', applyRuleFromBasins);
     qtyInput.addEventListener('change', applyRuleFromBasins);
   });
 
   // Any manual edits by the user should persist
   [qWT, qRSL, qEV].forEach(el => {
-    el.addEventListener('input',  () => { updateEvPairsLabel(); saveState(); });
+    el.addEventListener('input', () => { updateEvPairsLabel(); saveState(); });
     el.addEventListener('change', () => { updateEvPairsLabel(); saveState(); });
   });
   [wtbf, rsl, ev].forEach(cb => cb.addEventListener('change', saveState));
@@ -7928,8 +7927,8 @@ function initBasinAutoAccessories() {
       show(reqWrap, true);
       // Select accessories & set base values, but still no rule until user changes qty
       if (!wtbf.checked) { wtbf.checked = true; dispatch(wtbf); }
-      if (!rsl.checked)  { rsl.checked  = true; dispatch(rsl);  }
-      if (!ev.checked)   { ev.checked   = true; dispatch(ev);   }
+      if (!rsl.checked) { rsl.checked = true; dispatch(rsl); }
+      if (!ev.checked) { ev.checked = true; dispatch(ev); }
 
       basins.forEach(({ cb, qtyInput }) => {
         if (cb.checked && !num(qtyInput.value)) {
@@ -7969,7 +7968,7 @@ function initBasinAutoAccessories() {
       if (current === 0) {
         // Use fallback for adhesive if visible, otherwise min 1
         let v = 1;
-        
+
         p.qty.value = v;
         // propagate to any existing listeners
         p.qty.dispatchEvent(new Event('input', { bubbles: true }));
@@ -7985,7 +7984,7 @@ function initBasinAutoAccessories() {
   }
 
   // When quantity changes, reflect on the checkbox (reflexive)
-   function onQtyChange(p) {
+  function onQtyChange(p) {
     let v = +p.qty.value || 0;
 
     // When we are restoring after a full resetAllForms(),
@@ -8022,7 +8021,7 @@ function initBasinAutoAccessories() {
     if (p.cb.checked && current === 0) {
       // If something marked it selected but left qty empty, set minimum
       let v = 1;
-     
+
       p.qty.value = v;
     }
 
@@ -8065,8 +8064,8 @@ async function suggestDistanceFromAddress() {
   const plzEl = document.getElementById('postalCode');
 
   const street = (streetEl?.value || '').trim();
-  const city   = (cityEl?.value || '').trim();
-  const plz    = (plzEl?.value || '').trim();
+  const city = (cityEl?.value || '').trim();
+  const plz = (plzEl?.value || '').trim();
 
   if (!street && !city && !plz) {
     out.textContent = 'Bitte zuerst Adresse, PLZ oder Ort beim Kunden ausfüllen.';
@@ -8105,7 +8104,7 @@ async function suggestDistanceFromAddress() {
     }
 
     const oneWayKm = Number(data.oneWayKm || 0);
-    const roundKm  = Number(data.roundTripKm || 0);
+    const roundKm = Number(data.roundTripKm || 0);
 
     if (!Number.isFinite(oneWayKm) || oneWayKm <= 0) {
       out.textContent = 'Keine sinnvolle Strecke ermittelt.';
@@ -8113,7 +8112,7 @@ async function suggestDistanceFromAddress() {
     }
 
     const oneWayStr = oneWayKm.toFixed(1).replace('.', ',');
-    const roundStr  = roundKm.toFixed(1).replace('.', ',');
+    const roundStr = roundKm.toFixed(1).replace('.', ',');
 
     // Render suggestion + “Übernehmen” link
     out.innerHTML = `
@@ -8169,16 +8168,16 @@ document.addEventListener('DOMContentLoaded', () => {
 function initOptionalMenus() {
   // Map main category checkboxes -> their panels
   const map = {
-    cat_SHOWER:     "menu_SHOWER",
-    cat_GRAB:       "menu_GRAB",
-    cat_FOLD:       "menu_FOLD",
-    cat_BASIN:      "menu_BASIN",
-    cat_BASIN_TAP:  "menu_BASIN_TAP",
-    cat_THERMO:     "menu_THERMO",
-    cat_SEAT:       "menu_SEAT",
+    cat_SHOWER: "menu_SHOWER",
+    cat_GRAB: "menu_GRAB",
+    cat_FOLD: "menu_FOLD",
+    cat_BASIN: "menu_BASIN",
+    cat_BASIN_TAP: "menu_BASIN_TAP",
+    cat_THERMO: "menu_THERMO",
+    cat_SEAT: "menu_SEAT",
     // Add more categories here if needed
-    cat_METER:     "menu_METER",
-    cat_SONDER:     "menu_SONDER",
+    cat_METER: "menu_METER",
+    cat_SONDER: "menu_SONDER",
   };
 
   // ---- helpers ----
@@ -8217,7 +8216,7 @@ function initOptionalMenus() {
       reqWrap.hidden = true;
       reqWrap.setAttribute('aria-hidden', 'true');
     }
-    try { localStorage.removeItem('basin_required_state'); } catch {}
+    try { localStorage.removeItem('basin_required_state'); } catch { }
 
     // Keep totals in sync
     window.updatePricing?.();
@@ -8225,7 +8224,7 @@ function initOptionalMenus() {
 
   // Wire a tile checkbox to its qty-wrapper (show on check, hide & zero on uncheck)
   function wireTileQty(tileCheckboxId, qtyWrapId) {
-    const cb   = document.getElementById(tileCheckboxId);
+    const cb = document.getElementById(tileCheckboxId);
     const wrap = document.getElementById(qtyWrapId);
     if (!cb || !wrap) return;
 
@@ -8264,15 +8263,15 @@ function initOptionalMenus() {
   });
 
   // ---- SHOWER ----
-  wireTileQty("opt_V22WS1R",    "qty_V22WS1R_wrap");
+  wireTileQty("opt_V22WS1R", "qty_V22WS1R_wrap");
   wireTileQty("opt_TEMPDSU250", "qty_TEMPDSU250_wrap");
-  wireTileQty("opt_V22BG903R",  "qty_V22BG903R_wrap");
-  wireTileQty("opt_DEDS2503E",  "qty_DEDS2503E_wrap");
+  wireTileQty("opt_V22BG903R", "qty_V22BG903R_wrap");
+  wireTileQty("opt_DEDS2503E", "qty_DEDS2503E_wrap");
 
   // ---- THERMO ----
-  wireTileQty("opt_CLTB",  "qty_CLTB_wrap");
+  wireTileQty("opt_CLTB", "qty_CLTB_wrap");
   wireTileQty("opt_DEPTB", "qty_DEPTB_wrap");
-  wireTileQty("opt_CLB",   "qty_CLB_wrap");
+  wireTileQty("opt_CLB", "qty_CLB_wrap");
 
   // ---- GRAB ----
   wireTileQty("opt_CLPESG40", "qty_CLPESG40_wrap");
@@ -8290,19 +8289,19 @@ function initOptionalMenus() {
 
   // ---- BASIN TAP ----
   wireTileQty("opt_CL_BASIN", "qty_CL_BASIN_wrap");
-  wireTileQty("opt_DEPOH",    "qty_DEPOH_wrap");
+  wireTileQty("opt_DEPOH", "qty_DEPOH_wrap");
 
   // ---- BASIN (main CL60 tile) ----
   wireTileQty("opt_CL60", "qty_CL60_wrap");
   wireTileQty("opt_CL65", "qty_CL65_wrap");
   wireTileQty("opt_CL55", "qty_CL55_wrap");
   // ---- METER ----
-wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
+  wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
 
 
   // Show/hide "Erforderliches Zubehör" when CL60 is toggled (no cross-panel effects)
   (function wireBasinRequired() {
-    const wt      = document.getElementById("opt_CL60");
+    const wt = document.getElementById("opt_CL60");
     const reqWrap = document.getElementById("basinRequiredWrap");
     if (!wt || !reqWrap) return;
 
@@ -8326,7 +8325,7 @@ wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
           const cb = document.getElementById(id);
           if (cb) cb.checked = false;
         });
-        try { localStorage.removeItem('basin_required_state'); } catch {}
+        try { localStorage.removeItem('basin_required_state'); } catch { }
         window.updatePricing?.();
       }
     };
@@ -8336,29 +8335,29 @@ wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
 
     // Accessory tiles inside required block
     wireTileQty("opt_WTBF", "qty_WTBF_wrap");
-    wireTileQty("opt_RSL",  "qty_RSL_wrap");
-    wireTileQty("opt_EV",   "qty_EV_wrap");
+    wireTileQty("opt_RSL", "qty_RSL_wrap");
+    wireTileQty("opt_EV", "qty_EV_wrap");
   })();
 
   // ---- Independent “Zubehör zum Waschtisch” (loose accessories) ----
   wireTileQty("opt_WTBF__loose", "qty_WTBF__loose_wrap");
-  wireTileQty("opt_RSL__loose",  "qty_RSL__loose_wrap");
-  wireTileQty("opt_EV__loose",   "qty_EV__loose_wrap");
+  wireTileQty("opt_RSL__loose", "qty_RSL__loose_wrap");
+  wireTileQty("opt_EV__loose", "qty_EV__loose_wrap");
 
 
-    // ---- BWT · Badewannentür ----
+  // ---- BWT · Badewannentür ----
   // Door + Haltegriffe behave like other tile+qty pairs:
   //  - unchecked  → qty=0, wrapper hidden
   //  - checked    → qty>=1, wrapper visible
   //  - resetAllForms() re-applies this logic via dispatching "change" events
-  wireTileQty("bwtDoorStd",           "bwtDoorStdQtyWrap");
-   wireTileQty("bwtDoorBudget",        "bwtDoorBudgetQtyWrap");
-  wireTileQty("bwtDoorIndWienGlas",   "bwtDoorIndWienGlasQtyWrap");
-  wireTileQty("bwtDoorVariodoor",     "bwtDoorVariodoorQtyWrap");
-  wireTileQty("bwtDoorIndWien",       "bwtDoorIndWienQtyWrap");
-  wireTileQty("bwtAidsHaltegriff40",  "bwtAidsHaltegriff40QtyWrap");
-  wireTileQty("bwtAidsHaltegriff60",  "bwtAidsHaltegriff60QtyWrap");
-  wireTileQty("bwtAidsHaltegriff80",  "bwtAidsHaltegriff80QtyWrap");
+  wireTileQty("bwtDoorStd", "bwtDoorStdQtyWrap");
+  wireTileQty("bwtDoorBudget", "bwtDoorBudgetQtyWrap");
+  wireTileQty("bwtDoorIndWienGlas", "bwtDoorIndWienGlasQtyWrap");
+  wireTileQty("bwtDoorVariodoor", "bwtDoorVariodoorQtyWrap");
+  wireTileQty("bwtDoorIndWien", "bwtDoorIndWienQtyWrap");
+  wireTileQty("bwtAidsHaltegriff40", "bwtAidsHaltegriff40QtyWrap");
+  wireTileQty("bwtAidsHaltegriff60", "bwtAidsHaltegriff60QtyWrap");
+  wireTileQty("bwtAidsHaltegriff80", "bwtAidsHaltegriff80QtyWrap");
 
   // Keep your existing rule engine for CL60 & accessories (1 / 1 / 2 and persistence)
   if (typeof initBasinAutoAccessories === "function") {
@@ -8373,11 +8372,11 @@ wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
 
   // Map for BWT door → qty wrapper
   const bwtDoorQtyWrapIds = {
-    bwtDoorStd:        'bwtDoorStdQtyWrap',
-    bwtDoorBudget:     'bwtDoorBudgetQtyWrap',
-    bwtDoorIndWienGlas:'bwtDoorIndWienGlasQtyWrap',
-    bwtDoorVariodoor:  'bwtDoorVariodoorQtyWrap',
-    bwtDoorIndWien:    'bwtDoorIndWienQtyWrap',
+    bwtDoorStd: 'bwtDoorStdQtyWrap',
+    bwtDoorBudget: 'bwtDoorBudgetQtyWrap',
+    bwtDoorIndWienGlas: 'bwtDoorIndWienGlasQtyWrap',
+    bwtDoorVariodoor: 'bwtDoorVariodoorQtyWrap',
+    bwtDoorIndWien: 'bwtDoorIndWienQtyWrap',
   };
 
   // Define exclusive groups: only one can be selected at a time
@@ -8415,7 +8414,7 @@ wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
   function setDisabled(elId, disabled) {
     const cb = document.getElementById(elId);
     if (!cb) return;
-    
+
     const pill = cb.closest('label.radio-pill') || cb.closest('label.image-check');
     if (!pill) return;
 
@@ -8447,7 +8446,7 @@ wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
     group.members.forEach(id => {
       const cb = document.getElementById(id);
       if (!cb) return;
-      
+
       cb.addEventListener('change', () => {
         if (cb.checked) {
           // When this one is checked, uncheck others in the same group
@@ -8477,9 +8476,9 @@ wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
             }
           });
         }
-        
+
         applyAllGroups();
-        
+
         // Keep pricing in sync
         if (typeof window.updatePricing === 'function') {
           window.updatePricing();
@@ -8511,11 +8510,11 @@ function initTECEADSPairsLabel() {
     const raw = String(qty.value || '').replace(/\./g, '').replace(',', '.');
     const n = Number(raw);
     const items = Number.isFinite(n) && n > 0 ? n : 0;     // input = items
-  
+
     lbl.textContent = `${base} (${items} paare)`;
   };
 
-  ['input','change','blur'].forEach(ev => qty.addEventListener(ev, paint));
+  ['input', 'change', 'blur'].forEach(ev => qty.addEventListener(ev, paint));
   paint(); // initial
 }
 
@@ -8524,24 +8523,24 @@ document.addEventListener('DOMContentLoaded', initTECEADSPairsLabel);
 
 function initLivePricingSync() {
   // WATCH EVERYTHING (best: your main form; fallback: document.body)
-    const watchRoot = document.body;
+  const watchRoot = document.body;
 
   let t = null;
-  const debounce = (fn, ms=250) => { clearTimeout(t); t = setTimeout(fn, ms); };
+  const debounce = (fn, ms = 250) => { clearTimeout(t); t = setTimeout(fn, ms); };
 
   async function repriceNow() { await window.updatePricing?.(); }
 
 
   // Single delegated listener covers ALL inputs/checkboxes/selects in the app
   const handler = () => {
-  if (window.__restoring) return;   // ← don’t spam while restoring
-   debounce(repriceNow, 180);
- };
+    if (window.__restoring) return;   // ← don’t spam while restoring
+    debounce(repriceNow, 180);
+  };
   watchRoot.addEventListener('input', handler, true);
   watchRoot.addEventListener('change', handler, true);
 
   // Also watch hidden fields that we set programmatically
-  ['chosenTrayProductId','traySize'].forEach(id => {
+  ['chosenTrayProductId', 'traySize'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.addEventListener('input', handler); el.addEventListener('change', handler); }
   });
@@ -8549,23 +8548,27 @@ function initLivePricingSync() {
   // Initial run
   repriceNow();
 }
+// #endregion
 
+// =================================================================
+// #region 12. ADMIN & INTEGRATIONS
+// =================================================================
 /* ========== ADMIN: Produkte & Leistungen ========== */
 (function initAdminProducts() {
   const page = document.getElementById('page-admin');
   if (!page) return;
 
-  const form   = document.getElementById('form-admin-product');
+  const form = document.getElementById('form-admin-product');
   const status = document.getElementById('ap_status');
-  const tblBody= document.getElementById('ap_tableBody');
+  const tblBody = document.getElementById('ap_tableBody');
   const search = document.getElementById('ap_search');
 
-  const idEl   = document.getElementById('ap_productId');
+  const idEl = document.getElementById('ap_productId');
   const nameEl = document.getElementById('ap_name');
-  const priceEl= document.getElementById('ap_price');
-  const wEl    = document.getElementById('ap_width');
-  const lEl    = document.getElementById('ap_length');
-  const hEl    = document.getElementById('ap_height');
+  const priceEl = document.getElementById('ap_price');
+  const wEl = document.getElementById('ap_width');
+  const lEl = document.getElementById('ap_length');
+  const hEl = document.getElementById('ap_height');
   const sourceEl = document.getElementById('ap_source');
   const resetBtn = document.getElementById('ap_reset');
 
@@ -8615,7 +8618,7 @@ function initLivePricingSync() {
         ].filter(v => v !== "").join(" / ");
 
         const priceStr = euroFmt(p.price ?? 0);
-  const sourceStr = (p.source || '').toString();
+        const sourceStr = (p.source || '').toString();
         return `
           <tr data-id="${p.productId}">
             <td style="padding:4px;">${p.productId}</td>
@@ -8660,8 +8663,8 @@ function initLivePricingSync() {
     const tds = tr.querySelectorAll('td');
     const name = tds[1]?.textContent?.trim() || '';
     const priceStr = tds[2]?.textContent?.trim() || '';
-    const dimsStr  = tds[3]?.textContent?.trim() || '';
-      const srcStr  = tds[4]?.textContent?.trim() || '';       // NEW (column 4)
+    const dimsStr = tds[3]?.textContent?.trim() || '';
+    const srcStr = tds[4]?.textContent?.trim() || '';       // NEW (column 4)
 
     idEl.value = pid;
     nameEl.value = name;
@@ -8676,7 +8679,7 @@ function initLivePricingSync() {
     lEl.value = parts[1] || '';
     hEl.value = parts[2] || '';
 
-      if (sourceEl) sourceEl.value = srcStr;                   // preload
+    if (sourceEl) sourceEl.value = srcStr;                   // preload
 
     setStatus(`Produkt ${pid} im Formular geladen.`, true);
     idEl.focus();
@@ -8689,7 +8692,7 @@ function initLivePricingSync() {
     const productId = idEl.value.trim();
     const name = nameEl.value.trim();
     const priceRaw = priceEl.value.trim();
-      const source    = sourceEl?.value.trim() || '';
+    const source = sourceEl?.value.trim() || '';
 
     if (!productId || !name || !priceRaw) {
       setStatus("Bitte mindestens Produkt-ID, Name und Preis ausfüllen.", false);
@@ -8706,7 +8709,7 @@ function initLivePricingSync() {
       return;
     }
 
-    const widthCm  = wEl.value ? Number(wEl.value) : undefined;
+    const widthCm = wEl.value ? Number(wEl.value) : undefined;
     const lengthCm = lEl.value ? Number(lEl.value) : undefined;
     const heightCm = hEl.value ? Number(hEl.value) : undefined;
 
@@ -8714,10 +8717,10 @@ function initLivePricingSync() {
       productId,
       name,
       price: priceNum,
-      ...(widthCm  != null && !isNaN(widthCm)  ? { widthCm }  : {}),
+      ...(widthCm != null && !isNaN(widthCm) ? { widthCm } : {}),
       ...(lengthCm != null && !isNaN(lengthCm) ? { lengthCm } : {}),
       ...(heightCm != null && !isNaN(heightCm) ? { heightCm } : {}),
-          ...(source    ? { source }              : {}),
+      ...(source ? { source } : {}),
     }];
 
     try {
@@ -8762,19 +8765,19 @@ function initLivePricingSync() {
   const page = document.getElementById('page-services');
   if (!page) return;
 
-  const form    = document.getElementById('form-as');
-  const status  = document.getElementById('as_status');
+  const form = document.getElementById('form-as');
+  const status = document.getElementById('as_status');
   const tblBody = document.getElementById('as_tableBody');
-  const search  = document.getElementById('as_search');
+  const search = document.getElementById('as_search');
 
-  const idEl        = document.getElementById('as_serviceId');
-  const nameEl      = document.getElementById('as_name');
-  const internalEl  = document.getElementById('as_internal_name');
-  const descEl      = document.getElementById('as_description');
-  const priceEl     = document.getElementById('as_price');
-  const timeEl      = document.getElementById('as_time');
-  const sourceEl    = document.getElementById('as_source');
-  const resetBtn    = document.getElementById('as_reset');
+  const idEl = document.getElementById('as_serviceId');
+  const nameEl = document.getElementById('as_name');
+  const internalEl = document.getElementById('as_internal_name');
+  const descEl = document.getElementById('as_description');
+  const priceEl = document.getElementById('as_price');
+  const timeEl = document.getElementById('as_time');
+  const sourceEl = document.getElementById('as_source');
+  const resetBtn = document.getElementById('as_reset');
 
   if (!form || !status || !tblBody || !idEl || !nameEl || !priceEl || !timeEl) return;
 
@@ -8818,7 +8821,7 @@ function initLivePricingSync() {
       tblBody.innerHTML = list
         .map((s) => {
           const priceStr = euroFmt(s.price ?? 0);
-          const timeStr  = (s.time ?? 0).toString();
+          const timeStr = (s.time ?? 0).toString();
           const sourceStr = (s.source || '').toString();
 
           const desc = (s.description || '').toString();
@@ -8872,17 +8875,17 @@ function initLivePricingSync() {
     const sid = tr.getAttribute('data-id') || '';
     const tds = tr.querySelectorAll('td');
 
-    const name     = tds[1]?.textContent?.trim() || '';
+    const name = tds[1]?.textContent?.trim() || '';
     const internal = tds[2]?.textContent?.trim() || '';
-    const desc     = tds[3]?.getAttribute('title') || tds[3]?.textContent?.trim() || '';
+    const desc = tds[3]?.getAttribute('title') || tds[3]?.textContent?.trim() || '';
     const priceStr = tds[4]?.textContent?.trim() || '';
-    const timeStr  = tds[5]?.textContent?.trim() || '';
-    const srcStr   = tds[6]?.textContent?.trim() || '';
+    const timeStr = tds[5]?.textContent?.trim() || '';
+    const srcStr = tds[6]?.textContent?.trim() || '';
 
-    idEl.value       = sid;
-    nameEl.value     = name;
+    idEl.value = sid;
+    nameEl.value = name;
     internalEl.value = internal;
-    descEl.value     = desc;
+    descEl.value = desc;
 
     // Preis zurück in Eingabeformat (z.B. "1.234,56 €" → "1234,56")
     const pClean = priceStr.replace(/[^\d.,-]/g, '');
@@ -8902,13 +8905,13 @@ function initLivePricingSync() {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const serviceId    = idEl.value.trim();
-    const name         = nameEl.value.trim();
+    const serviceId = idEl.value.trim();
+    const name = nameEl.value.trim();
     const internalName = internalEl?.value.trim() || '';
-    const description  = descEl?.value.trim() || '';
-    const priceRaw     = priceEl.value.trim();
-    const timeRaw      = timeEl.value.trim();
-    const source       = sourceEl?.value.trim() || '';
+    const description = descEl?.value.trim() || '';
+    const priceRaw = priceEl.value.trim();
+    const timeRaw = timeEl.value.trim();
+    const source = sourceEl?.value.trim() || '';
 
     if (!serviceId || !name || !priceRaw || !timeRaw) {
       setStatus(
@@ -8982,25 +8985,26 @@ function initLivePricingSync() {
     }
   });
 })();
+// #endregion
 
 // Alltagshilfe: abhängige Leistungsart + ausgegraute, nicht verfügbare Option
 (function initAlltagshilfePage() {
   const form = document.getElementById('form-ah');
   if (!form) return;
 
-  const artAlltag   = document.getElementById('ahArtAlltagsbegleitung');
+  const artAlltag = document.getElementById('ahArtAlltagsbegleitung');
   const artHaushalt = document.getElementById('ahArtHaushalt');
 
-  const wrap          = document.getElementById('ahLeistungsTypWrap');
-  const blockAlltag   = document.getElementById('ahLeistungsTypAlltagsbegleitung');
+  const wrap = document.getElementById('ahLeistungsTypWrap');
+  const blockAlltag = document.getElementById('ahLeistungsTypAlltagsbegleitung');
   const blockHaushalt = document.getElementById('ahLeistungsTypHaushalt');
 
   const inputFahrten = document.getElementById('ahLeistungsTypFahrten');
-  const inputPausch  = document.getElementById('ahLeistungsTypReinigungsPauschale');
+  const inputPausch = document.getElementById('ahLeistungsTypReinigungsPauschale');
 
   // Labels separat greifen, damit wir sie „grau“ stylen können
   const labelFahrten = inputFahrten?.closest('label.radio-pill');
-  const labelPausch  = inputPausch?.closest('label.radio-pill');
+  const labelPausch = inputPausch?.closest('label.radio-pill');
 
   if (!wrap || !blockAlltag || !blockHaushalt || !inputFahrten || !inputPausch) return;
 
@@ -9032,18 +9036,18 @@ function initLivePricingSync() {
     if (kind === 'Alltagsbegleitung') {
       // Fahrten aktiv, Pauschale grau/disabled
       setDisabled(labelFahrten, inputFahrten, false);
-      setDisabled(labelPausch,  inputPausch,  true);
+      setDisabled(labelPausch, inputPausch, true);
 
       // Fahrten vorwählen
       inputFahrten.checked = true;
-      inputPausch.checked  = false;
+      inputPausch.checked = false;
       inputFahrten.dispatchEvent(new Event('change', { bubbles: true }));
     } else if (kind === 'Haushaltsnahedienstleistungen') {
       // Pauschale aktiv, Fahrten grau/disabled
       setDisabled(labelFahrten, inputFahrten, true);
-      setDisabled(labelPausch,  inputPausch,  false);
+      setDisabled(labelPausch, inputPausch, false);
 
-      inputPausch.checked  = true;
+      inputPausch.checked = true;
       inputFahrten.checked = false;
       inputPausch.dispatchEvent(new Event('change', { bubbles: true }));
     } else {
@@ -9053,9 +9057,9 @@ function initLivePricingSync() {
       show(blockHaushalt, false);
 
       setDisabled(labelFahrten, inputFahrten, false);
-      setDisabled(labelPausch,  inputPausch,  false);
+      setDisabled(labelPausch, inputPausch, false);
       inputFahrten.checked = false;
-      inputPausch.checked  = false;
+      inputPausch.checked = false;
     }
   }
 
@@ -9078,25 +9082,28 @@ function initLivePricingSync() {
   }
 })();
 
+// =================================================================
+// #region 13. GLOBAL EVENT LISTENERS (The Footer)
+// =================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
 
   // If you have explicit nav buttons/tabs:
   const btnRabatt = document.getElementById('nav-rabatt');
-  const btnDebug  = document.getElementById('nav-debug');
+  const btnDebug = document.getElementById('nav-debug');
   if (btnRabatt) btnRabatt.addEventListener('click', refreshAllPanels);
-  if (btnDebug)  btnDebug .addEventListener('click', refreshAllPanels);
+  if (btnDebug) btnDebug.addEventListener('click', refreshAllPanels);
 
   initSmartTraySearch();
   initTraySizeAutoLabel();
-  initOptionalMenus && initOptionalMenus(); 
+  initOptionalMenus && initOptionalMenus();
   initBasinAutoAccessories && initBasinAutoAccessories();
-  wireDAQtyAutoFill(); 
+  wireDAQtyAutoFill();
   initOptionalSonderprodukte();
 
-  initLivePricingSync();  
+  initLivePricingSync();
   window.addEventListener('hashchange', () => {
-    const id = location.hash.replace('#','');
+    const id = location.hash.replace('#', '');
     if (id === 'rabatt' || id === 'kosten') refreshAllPanels();
   });
 
@@ -9119,7 +9126,7 @@ document.addEventListener('DOMContentLoaded', () => {
       el.addEventListener("change", updateSummaryWidgetSubsidyVisibility);
     });
   updateSummaryWidgetSubsidyVisibility();
-    // --- Draft save button under widget ---
+  // --- Draft save button under widget ---
   const btnSaveDraft = document.getElementById("btnSaveDraft");
   if (btnSaveDraft) {
     btnSaveDraft.addEventListener("click", () => {
@@ -9154,23 +9161,23 @@ document.addEventListener('DOMContentLoaded', () => {
       debounce(() => searchDraftsForCurrentOfferType(q), 200);
     });
 
-  results.addEventListener("click", (ev) => {
-  const btn = ev.target.closest("button.draft-result-row");
-  if (!btn) return;
-  selectedId = btn.dataset.id;
+    results.addEventListener("click", (ev) => {
+      const btn = ev.target.closest("button.draft-result-row");
+      if (!btn) return;
+      selectedId = btn.dataset.id;
 
-  // highlight selection
-  Array.from(results.querySelectorAll("button.draft-result-row")).forEach((b) => {
-    b.style.background = b === btn ? "#e0e7ff" : "transparent";
-  });
+      // highlight selection
+      Array.from(results.querySelectorAll("button.draft-result-row")).forEach((b) => {
+        b.style.background = b === btn ? "#e0e7ff" : "transparent";
+      });
 
-  // auto-load on click
-  loadDraftById(selectedId);
+      // auto-load on click
+      loadDraftById(selectedId);
 
-  // optionally: update the input and hide the list
-  input.value = btn.textContent.trim();
-  results.style.display = "none";
-});
+      // optionally: update the input and hide the list
+      input.value = btn.textContent.trim();
+      results.style.display = "none";
+    });
 
 
     btnLoad.addEventListener("click", () => {
@@ -9244,7 +9251,7 @@ if (bitrixIdInput && loadBitrixBtn) {
         country: contact.ADDRESS_COUNTRY || '',
       };
 
-            fillCustomerForm(mapped);
+      fillCustomerForm(mapped);
 
       // 🔹 update the top-left summary widget (Kunde: ...)
       if (typeof updateSummaryWidgetName === 'function') {
@@ -9284,11 +9291,11 @@ if (bitrixIdInput && loadBitrixBtn) {
 function initHassmannBestFinder() {
   console.log('[HF] initHassmannBestFinder called');  // <--
   const form = document.getElementById('hassmannFinderForm');
-  const btn  = document.getElementById('hf_searchBtn');
-  const statusEl  = document.getElementById('hf_status');
+  const btn = document.getElementById('hf_searchBtn');
+  const statusEl = document.getElementById('hf_status');
   const resultsEl = document.getElementById('hf_results');
 
-    console.log('[HF] elements', {
+  console.log('[HF] elements', {
     form: !!form,
     btn: !!btn,
     statusEl: !!statusEl,
@@ -9307,10 +9314,10 @@ function initHassmannBestFinder() {
   }
 
   function buildPayloadFromForm() {
-    const width  = Number(form.hf_width.value || 0);
-    const depth  = Number(form.hf_depth.value || 0);
-    const minP   = Number(form.hf_minPrice.value || 0);
-    const maxP   = Number(form.hf_maxPrice.value || 0);
+    const width = Number(form.hf_width.value || 0);
+    const depth = Number(form.hf_depth.value || 0);
+    const minP = Number(form.hf_minPrice.value || 0);
+    const maxP = Number(form.hf_maxPrice.value || 0);
     const shortS = !!form.hf_shortSide.checked;
     const orient = form.hf_orientation.value || null;
 
@@ -9339,65 +9346,64 @@ function initHassmannBestFinder() {
     return r ? r.value : 'corner';
   }
 
-function renderResults(list) {
-  if (!Array.isArray(list) || !list.length) {
-    resultsEl.innerHTML =
-      '<div class="muted">Keine passenden Produkte gefunden.</div>';
-    return;
-  }
+  function renderResults(list) {
+    if (!Array.isArray(list) || !list.length) {
+      resultsEl.innerHTML =
+        '<div class="muted">Keine passenden Produkte gefunden.</div>';
+      return;
+    }
 
-  const MEDIA_PREFIX = 'https://media.onlineplus.store/';
-  const fmt = (v) => (v != null ? euroC(v) : 'n/a');
+    const MEDIA_PREFIX = 'https://media.onlineplus.store/';
+    const fmt = (v) => (v != null ? euroC(v) : 'n/a');
 
-  const html = list
-    .map((combo, index) => {
-      const main = combo.best || combo;
-      const side = combo.sidePanel || combo.tuer2 || null;
-      const tray = combo.tray || null;
+    const html = list
+      .map((combo, index) => {
+        const main = combo.best || combo;
+        const side = combo.sidePanel || combo.tuer2 || null;
+        const tray = combo.tray || null;
 
-      const title = main.name || `Produkt ${index + 1}`;
-      const pid   = main.modelNumber || main.id || '-';
+        const title = main.name || `Produkt ${index + 1}`;
+        const pid = main.modelNumber || main.id || '-';
 
-      const totalNet = combo.totalPriceNet ?? null;
+        const totalNet = combo.totalPriceNet ?? null;
 
-      const bestPrice  = main.priceGross ?? main.priceNet ?? null;
-      const sidePrice  = side?.priceGross ?? side?.priceNet ?? null;
-      const trayPrice  = tray?.priceGross ?? tray?.priceNet ?? null;
+        const bestPrice = main.priceGross ?? main.priceNet ?? null;
+        const sidePrice = side?.priceGross ?? side?.priceNet ?? null;
+        const trayPrice = tray?.priceGross ?? tray?.priceNet ?? null;
 
-      const sideName = side?.name || null;
-      const trayName = tray?.name || null;
+        const sideName = side?.name || null;
+        const trayName = tray?.name || null;
 
-      // --- MAIN IMAGE (best) ---
-      const mainImg = pickImage(main, 2);
+        // --- MAIN IMAGE (best) ---
+        const mainImg = pickImage(main, 2);
 
-      // --- small strip for side (aus den Produktdaten) ---
-      const sideImg = pickImage(side, 1);
+        // --- small strip for side (aus den Produktdaten) ---
+        const sideImg = pickImage(side, 1);
 
-      // --- WANNENBILD: IMMER LOKALES ASSET ---
-      const trayImg = `
+        // --- WANNENBILD: IMMER LOKALES ASSET ---
+        const trayImg = `
         <img src="/assets/duschwanne.jpeg"
              alt="Duschwanne"
              loading="lazy"
              style="width:100%;height:auto;border-radius:4px;object-fit:cover;border:1px solid #e0e0e0;margin-bottom:4px;" />
       `;
 
-      return `
+        return `
         <div class="card" style="margin-bottom:8px; padding:10px 12px;">
           <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
 
-            ${
-              mainImg
-                ? `
+            ${mainImg
+            ? `
               <div style="flex:0 0 140px; max-width:140px;">
                 ${mainImg}
               </div>`
-                : ''
-            }
+            : ''
+          }
 
             <div style="flex:1 1 220px; min-width:220px;">
               <div style="font-weight:600; margin-bottom:2px;">${escapeHtml(
-                title
-              )}</div>
+            title
+          )}</div>
               <div style="font-size:0.9rem; color:var(--muted-foreground);">
                 ID / Modell: <code>${escapeHtml(pid)}</code>
               </div>
@@ -9408,47 +9414,43 @@ function renderResults(list) {
 
               <div style="margin-top:6px; font-size:0.9rem;">
                 <div><strong>Tür 1:</strong> ${escapeHtml(
-                  title
-                )} – Preis (brutto): <strong>${fmt(bestPrice)}</strong></div>
+            title
+          )} – Preis (brutto): <strong>${fmt(bestPrice)}</strong></div>
 
-                ${
-                  sideName
-                    ? `<div><strong>Seitenwand / Tür 2:</strong> ${escapeHtml(
-                        sideName
-                      )} – Preis (brutto): <strong>${fmt(
-                        sidePrice
-                      )}</strong></div>`
-                    : ''
-                }
+                ${sideName
+            ? `<div><strong>Seitenwand / Tür 2:</strong> ${escapeHtml(
+              sideName
+            )} – Preis (brutto): <strong>${fmt(
+              sidePrice
+            )}</strong></div>`
+            : ''
+          }
 
-                ${
-                  trayName
-                    ? `<div><strong>Duschwanne:</strong> ${escapeHtml(
-                        trayName
-                      )} – Preis (brutto): <strong>${fmt(
-                        trayPrice
-                      )}</strong></div>`
-                    : ''
-                }
+                ${trayName
+            ? `<div><strong>Duschwanne:</strong> ${escapeHtml(
+              trayName
+            )} – Preis (brutto): <strong>${fmt(
+              trayPrice
+            )}</strong></div>`
+            : ''
+          }
               </div>
 
-              ${
-                combo.widthRangeMessage
-                  ? `<div style="margin-top:6px;font-size:0.8rem;color:#b26a00;background:#fff5e6;border:1px solid #ffcc80;border-radius:4px;padding:4px 6px;">
+              ${combo.widthRangeMessage
+            ? `<div style="margin-top:6px;font-size:0.8rem;color:#b26a00;background:#fff5e6;border:1px solid #ffcc80;border-radius:4px;padding:4px 6px;">
                        ${escapeHtml(combo.widthRangeMessage)}
                      </div>`
-                  : ''
-              }
+            : ''
+          }
 
               <div style="margin-top:8px; display:flex; gap:12px; flex-wrap:wrap;">
-                ${
-                  sideImg
-                    ? `<div style="flex:0 0 90px; max-width:90px;">
+                ${sideImg
+            ? `<div style="flex:0 0 90px; max-width:90px;">
                          <div style="font-size:0.75rem;margin-bottom:2px;">Seite</div>
                          ${sideImg}
                        </div>`
-                    : ''
-                }
+            : ''
+          }
 
                 <!-- Wanne: IMMER anzeigen -->
                 <div style="flex:0 0 90px; max-width:90px;">
@@ -9462,63 +9464,63 @@ function renderResults(list) {
         </div>
       `;
 
-      // ---- helpers ----
+        // ---- helpers ----
 
-      function pickImage(product, maxCount) {
-        if (!product) return '';
+        function pickImage(product, maxCount) {
+          if (!product) return '';
 
-        const links = Array.isArray(product.productLinks)
-          ? product.productLinks
-          : [];
+          const links = Array.isArray(product.productLinks)
+            ? product.productLinks
+            : [];
 
-        const imgs = links.slice(0, maxCount).map((pl) => {
-          const url = normalizeMediaUrl(pl.link);
-          if (!url) return '';
-          return `<img src="${url}"
+          const imgs = links.slice(0, maxCount).map((pl) => {
+            const url = normalizeMediaUrl(pl.link);
+            if (!url) return '';
+            return `<img src="${url}"
                        alt="${escapeHtml(product.name || '')}"
                        loading="lazy"
                        style="width:100%;height:auto;border-radius:4px;object-fit:cover;border:1px solid #e0e0e0;margin-bottom:4px;" />`;
-        });
+          });
 
-        if (!imgs.length && product.productLink) {
-          const url = normalizeMediaUrl(product.productLink);
-          imgs.push(
-            `<img src="${url}"
+          if (!imgs.length && product.productLink) {
+            const url = normalizeMediaUrl(product.productLink);
+            imgs.push(
+              `<img src="${url}"
                   alt="${escapeHtml(product.name || '')}"
                   loading="lazy"
                   style="width:100%;height:auto;border-radius:4px;object-fit:cover;border:1px solid #e0e0e0;" />`
-          );
+            );
+          }
+
+          return imgs.join('');
         }
 
-        return imgs.join('');
-      }
-
-      function normalizeMediaUrl(link) {
-        if (!link) return null;
-        if (link.startsWith('http://') || link.startsWith('https://')) {
-          return link;
+        function normalizeMediaUrl(link) {
+          if (!link) return null;
+          if (link.startsWith('http://') || link.startsWith('https://')) {
+            return link;
+          }
+          return MEDIA_PREFIX + link.replace(/^\/+/, '');
         }
-        return MEDIA_PREFIX + link.replace(/^\/+/, '');
-      }
 
-      function escapeHtml(str) {
-        return String(str)
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#039;');
-      }
-    })
-    .join('');
+        function escapeHtml(str) {
+          return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+        }
+      })
+      .join('');
 
-  resultsEl.innerHTML = html;
-}
+    resultsEl.innerHTML = html;
+  }
 
   async function doSearch() {
     if (!form.reportValidity()) return;
 
-    const kind    = getKind();                 // corner / niche / uform / walkin
+    const kind = getKind();                 // corner / niche / uform / walkin
     const payload = buildPayloadFromForm();
 
     setStatus('Suche wird ausgeführt …', true);
@@ -9550,17 +9552,17 @@ function renderResults(list) {
   }
 
   btn.addEventListener('click', () => {
-  console.log('[HF] search button clicked');
-  doSearch();
-});
+    console.log('[HF] search button clicked');
+    doSearch();
+  });
 
 }
 
 // ===== Angebot als PDF erzeugen und an Auftrag (n8n) senden =====
 (function initSendOfferPdfToAuftrag() {
   const auftragInput = document.getElementById('auftragId');
-  const sendBtn      = document.getElementById('sendPdfToAuftrag');
-  const statusBox    = document.getElementById('auftragPdfStatus');
+  const sendBtn = document.getElementById('sendPdfToAuftrag');
+  const statusBox = document.getElementById('auftragPdfStatus');
 
   if (!sendBtn || !auftragInput || !statusBox) return;
 
@@ -9571,9 +9573,9 @@ function renderResults(list) {
     const ts = new Date().toLocaleTimeString();
     const prefix =
       type === 'success' ? '✅' :
-      type === 'error'   ? '❌' :
-      type === 'warn'    ? '⚠️' :
-                           'ℹ️';
+        type === 'error' ? '❌' :
+          type === 'warn' ? '⚠️' :
+            'ℹ️';
 
     statusBox.className = 'status ' + (type === 'error' ? 'err' : 'ok');
     statusBox.textContent = `${prefix} [${ts}] ${msg}`;
@@ -9621,7 +9623,7 @@ function renderResults(list) {
     }
 
     // Bestehende Angebotsnummer lesen – NICHT neu erzeugen
-    const offerInput  = document.getElementById('offerNumber');
+    const offerInput = document.getElementById('offerNumber');
     const offerNumber = (offerInput?.value || '').trim();
 
     if (!offerNumber) {
@@ -9714,9 +9716,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Small helper: confirmation dialog before going back to Auswahl der Leistung from the sidebar
 function askBeforeGoingHome(onConfirm) {
-  const overlay   = document.getElementById("homeConfirmOverlay");
+  const overlay = document.getElementById("homeConfirmOverlay");
   const cancelBtn = document.getElementById("homeConfirmCancel");
-  const goBtn     = document.getElementById("homeConfirmGo");
+  const goBtn = document.getElementById("homeConfirmGo");
 
   // Fallback: native confirm if markup is missing
   if (!overlay || !cancelBtn || !goBtn) {
@@ -9748,89 +9750,89 @@ function askBeforeGoingHome(onConfirm) {
   overlay.classList.add("visible");
 }
 
-      //<!-- Sidebar + wizard nav sync -->
+//<!-- Sidebar + wizard nav sync -->
 
 (function () {
-        const sidebar = document.getElementById("sidebar");
-        const backdrop = document.getElementById("sidebarBackdrop");
-        const openBtn = document.getElementById("openSidebar");
-        const closeBtn = document.getElementById("closeSidebar");
+  const sidebar = document.getElementById("sidebar");
+  const backdrop = document.getElementById("sidebarBackdrop");
+  const openBtn = document.getElementById("openSidebar");
+  const closeBtn = document.getElementById("closeSidebar");
 
-        const toggleSidebar = (open) => {
-          if (!sidebar) return;
-          sidebar.classList.toggle("open", open);
-          backdrop?.classList.toggle("visible", open);
-          if (open) {
-            document.body.style.overflow = "hidden";
-          } else {
-            document.body.style.overflow = "";
-          }
-        };
-
-        openBtn?.addEventListener("click", () => toggleSidebar(true));
-        closeBtn?.addEventListener("click", () => toggleSidebar(false));
-        backdrop?.addEventListener("click", () => toggleSidebar(false));
-
-sidebar?.addEventListener("click", (event) => {
-  const link = event.target.closest("a.side-link");
-  if (!link) return;
-
-  const step = link.getAttribute("data-step");
-  if (!step) return;
-
-  event.preventDefault();
-
-  if (step === "home") {
-    // Already on home? Just close the sidebar.
-    const current =
-      typeof getCurrentStep === "function"
-        ? getCurrentStep()
-        : (location.hash || "").replace("#", "") || "home";
-
-    if (current === "home") {
-      toggleSidebar(false);
-      return;
+  const toggleSidebar = (open) => {
+    if (!sidebar) return;
+    sidebar.classList.toggle("open", open);
+    backdrop?.classList.toggle("visible", open);
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
     }
+  };
 
-    // Ask the user before resetting and going back to home
-    askBeforeGoingHome(() => {
-      setStep("home");
-      toggleSidebar(false);
-    });
-  } else {
-    // Normal behavior for all other steps
-    setStep(step);
-    toggleSidebar(false);
-  }
-});
+  openBtn?.addEventListener("click", () => toggleSidebar(true));
+  closeBtn?.addEventListener("click", () => toggleSidebar(false));
+  backdrop?.addEventListener("click", () => toggleSidebar(false));
 
+  sidebar?.addEventListener("click", (event) => {
+    const link = event.target.closest("a.side-link");
+    if (!link) return;
 
-      })();
+    const step = link.getAttribute("data-step");
+    if (!step) return;
 
-   (function () {
-    const hiddenInput = document.getElementById('sonstige-innen-input');
-    const buttons = document.querySelectorAll('.js-multi-swatch');
+    event.preventDefault();
 
-    function updateHiddenInput() {
-      const selected = Array.from(buttons)
-        .filter(btn => btn.classList.contains('is-selected'))
-        .map(btn => btn.dataset.value);
-      hiddenInput.value = selected.join(',');  // or JSON.stringify(selected)
-    }
+    if (step === "home") {
+      // Already on home? Just close the sidebar.
+      const current =
+        typeof getCurrentStep === "function"
+          ? getCurrentStep()
+          : (location.hash || "").replace("#", "") || "home";
 
-    buttons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        btn.classList.toggle('is-selected');
-        updateHiddenInput();
+      if (current === "home") {
+        toggleSidebar(false);
+        return;
+      }
+
+      // Ask the user before resetting and going back to home
+      askBeforeGoingHome(() => {
+        setStep("home");
+        toggleSidebar(false);
       });
+    } else {
+      // Normal behavior for all other steps
+      setStep(step);
+      toggleSidebar(false);
+    }
+  });
+
+
+})();
+
+(function () {
+  const hiddenInput = document.getElementById('sonstige-innen-input');
+  const buttons = document.querySelectorAll('.js-multi-swatch');
+
+  function updateHiddenInput() {
+    const selected = Array.from(buttons)
+      .filter(btn => btn.classList.contains('is-selected'))
+      .map(btn => btn.dataset.value);
+    hiddenInput.value = selected.join(',');  // or JSON.stringify(selected)
+  }
+
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.classList.toggle('is-selected');
+      updateHiddenInput();
     });
-  })();
+  });
+})();
 (function initBwtExtraArbeitszeit() {
-  var fs   = document.getElementById('bwtAzExtraFieldset');
+  var fs = document.getElementById('bwtAzExtraFieldset');
   if (!fs) return;
 
   var wrap = fs.querySelector('.bwt-az-items');
-  var tpl  = document.getElementById('tpl-bwtAzExtraItem');
+  var tpl = document.getElementById('tpl-bwtAzExtraItem');
   var LS_KEY = 'bwtExtraTasks:v1';
 
   // If something is missing in the HTML, do nothing.
@@ -9843,11 +9845,11 @@ sidebar?.addEventListener("click", (event) => {
     var items = wrap.querySelectorAll('.bwt-az-item');
 
     items.forEach(function (item) {
-      var durEl  = item.querySelector('.bwt-az-duration');
+      var durEl = item.querySelector('.bwt-az-duration');
       var taskEl = item.querySelector('.bwt-az-task');
 
       var durRaw = (durEl && durEl.value || '').trim();
-      var task   = (taskEl && taskEl.value || '').trim();
+      var task = (taskEl && taskEl.value || '').trim();
 
       if (!durRaw && !task) return;
       rows.push({
@@ -9885,7 +9887,7 @@ sidebar?.addEventListener("click", (event) => {
   }
 
   function wireRow(node) {
-    var durEl  = node.querySelector('.bwt-az-duration');
+    var durEl = node.querySelector('.bwt-az-duration');
     var taskEl = node.querySelector('.bwt-az-task');
 
     if (durEl && typeof wireDurationAutoFormat === 'function') {
@@ -9913,9 +9915,9 @@ sidebar?.addEventListener("click", (event) => {
     wireRow(node);
 
     if (prefill && typeof prefill === 'object') {
-      var durEl  = node.querySelector('.bwt-az-duration');
+      var durEl = node.querySelector('.bwt-az-duration');
       var taskEl = node.querySelector('.bwt-az-task');
-      if (durEl)  durEl.value  = prefill.durationHHMM || '';
+      if (durEl) durEl.value = prefill.durationHHMM || '';
       if (taskEl) taskEl.value = prefill.task || '';
     }
 
@@ -9934,9 +9936,9 @@ sidebar?.addEventListener("click", (event) => {
 
     // If it's the only row, just clear inputs instead of removing
     if (items.length <= 1) {
-      var durEl  = item.querySelector('.bwt-az-duration');
+      var durEl = item.querySelector('.bwt-az-duration');
       var taskEl = item.querySelector('.bwt-az-task');
-      if (durEl)  durEl.value  = '';
+      if (durEl) durEl.value = '';
       if (taskEl) taskEl.value = '';
       saveState();
       return;
@@ -9971,7 +9973,7 @@ sidebar?.addEventListener("click", (event) => {
 
     if (aw.extraTasks.length === 0) {
       // keep section empty; user can add rows with "+"
-      try { localStorage.removeItem(LS_KEY); } catch (e) {}
+      try { localStorage.removeItem(LS_KEY); } catch (e) { }
       return;
     }
 
@@ -9989,7 +9991,6 @@ sidebar?.addEventListener("click", (event) => {
   restoreFromLocalStorage();
 })();
 
+// #endregion
 
 
-
-  
