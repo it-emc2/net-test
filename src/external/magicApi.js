@@ -1,10 +1,10 @@
 // src/external/magicApi.js
-import axios from 'axios';
+import axios from "axios";
 
 const baseURL = process.env.EXTERNAL_API_BASE;
 
 if (!baseURL) {
-  console.error('Missing EXTERNAL_API_BASE in .env');
+  console.error("Missing EXTERNAL_API_BASE in .env");
 }
 
 let cachedToken = null;
@@ -19,7 +19,7 @@ async function login() {
       email: process.env.EXTERNAL_API_USER,
       password: process.env.EXTERNAL_API_PASSWORD,
     },
-    { timeout: 10_000 }
+    { timeout: 10_000 },
   );
 
   const { token } = res.data;

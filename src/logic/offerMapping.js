@@ -1,14 +1,14 @@
 // src/logic/offerMapping.js
-import dayjs from 'dayjs';
+import dayjs from "dayjs";
 
 // ---------------- Helpers (copied from docx-template.js) ----------------
 
 export function toBoolish(v) {
   if (v === true || v === 1) return true;
-  if (typeof v === 'number') return v === 1;
-  if (typeof v === 'string') {
+  if (typeof v === "number") return v === 1;
+  if (typeof v === "string") {
     const s = v.trim().toLowerCase();
-    return s === 'true' || s === 'ja' || s === 'on' || s === '1' || s === 'yes';
+    return s === "true" || s === "ja" || s === "on" || s === "1" || s === "yes";
   }
   return false;
 }
@@ -21,41 +21,40 @@ export function getPath(body, pathLike) {
 
   // normalize to dot notation
   const norm = pathLike
-    .replace(/\[(\w+)\]/g, '.$1') // a[b] -> a.b
-    .replace(/\.\./g, '.')
-    .replace(/^\./, '');
+    .replace(/\[(\w+)\]/g, ".$1") // a[b] -> a.b
+    .replace(/\.\./g, ".")
+    .replace(/^\./, "");
 
   return norm
-    .split('.')
+    .split(".")
     .reduce(
-      (acc, key) =>
-        acc && acc[key] !== undefined ? acc[key] : undefined,
-      body
+      (acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined),
+      body,
     );
 }
 
 export function firstDefined(body, keys) {
   for (const k of keys) {
     const v = getPath(body, k);
-    if (v !== undefined && v !== null && v !== '') return v;
+    if (v !== undefined && v !== null && v !== "") return v;
   }
   return undefined;
 }
 
 export function fmtCurrency(n) {
-  if (n === '' || n === null || n === undefined) return '';
+  if (n === "" || n === null || n === undefined) return "";
   const num = Number(n);
-  if (!Number.isFinite(num)) return '';
-  return new Intl.NumberFormat('de-DE', {
-    style: 'currency',
-    currency: 'EUR',
+  if (!Number.isFinite(num)) return "";
+  return new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: "EUR",
   }).format(num);
 }
 
 export function fmtDateDE(input) {
   // accepts '', 'YYYY-MM-DD', Date, etc. -> 'DD.MM.YYYY'
   const d = input ? dayjs(input) : dayjs();
-  return d.isValid() ? d.format('DD.MM.YYYY') : '';
+  return d.isValid() ? d.format("DD.MM.YYYY") : "";
 }
 
 // ---------------- mapData (unchanged logic, exported) ----------------
@@ -74,7 +73,7 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
   const ExtraAzTasks = rawExtraTasks
     .map((row) => {
       if (!row) return null;
-      const txt = String(row.task || '').trim();
+      const txt = String(row.task || "").trim();
       if (!txt) return null;
       return { Text: txt };
     })
@@ -82,34 +81,34 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
 
   // ---- Ebenerdig Hinweis ----
   const ebRaw = firstDefined(body, [
-    'duschwanne.ebenerdigNote',
-    'duschwanne.ebenerdigeMontage',
-    'duschwanne.ebenerdige_montage',
-    'duschwanne.ebenerdig',
-    'duschwanne[ebenerdigNote]',
-    'duschwanne[ebenerdigeMontage]',
-    'duschwanne[ebenerdige_montage]',
-    'duschwanne[ebenerdig]',
-    'ebenerdigNote',
-    'ebenerdigeMontage',
-    'ebenerdige_montage',
-    'ebenerdig',
+    "duschwanne.ebenerdigNote",
+    "duschwanne.ebenerdigeMontage",
+    "duschwanne.ebenerdige_montage",
+    "duschwanne.ebenerdig",
+    "duschwanne[ebenerdigNote]",
+    "duschwanne[ebenerdigeMontage]",
+    "duschwanne[ebenerdige_montage]",
+    "duschwanne[ebenerdig]",
+    "ebenerdigNote",
+    "ebenerdigeMontage",
+    "ebenerdige_montage",
+    "ebenerdig",
   ]);
 
   const EbenerdigHinweis = toBoolish(ebRaw) ? [{}] : [];
-  console.log('[DOCX] Ebenerdig raw:', ebRaw, '-> show?', !!toBoolish(ebRaw));
+  console.log("[DOCX] Ebenerdig raw:", ebRaw, "-> show?", !!toBoolish(ebRaw));
 
   // ---- Pull fields from computed pricing ----
   const {
     items = [],
     productsSubtotal = 0,
-    materials = { title: '', lines: [], sum: 0 },
+    materials = { title: "", lines: [], sum: 0 },
     services = {
-      title: '',
+      title: "",
       lines: [],
       sum: 0,
-      payer: '',
-      zoneLabel: '',
+      payer: "",
+      zoneLabel: "",
       distanceKm: 0,
       laborHours: 0,
       laborRate: 0,
@@ -135,37 +134,29 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
   const mat = computed?.materialsDisplayDocx?.lines || materials?.lines || [];
   const svc = computed?.servicesDisplayDocx?.lines || services?.lines || [];
 
-  const Nettobetrag = fmtCurrency(
-    computed?.netAfterRabatt_and_Bonus ?? 0
-  );
+  const Nettobetrag = fmtCurrency(computed?.netAfterRabatt_and_Bonus ?? 0);
   const Rabatt = fmtCurrency(rabattAmount);
   const MwSt = fmtCurrency(computed?.vatOnNet ?? 0);
   const Gesamtsumme = fmtCurrency(computed?.total ?? 0);
   const Gesamtsummerabatt = fmtCurrency(totalAfterRabatt);
 
-  const Selbstkostenanteil = '';
+  const Selbstkostenanteil = "";
 
-  const MarkupPctStr = markupPct
-    ? `${Math.round(markupPct * 100)}%`
-    : '';
+  const MarkupPctStr = markupPct ? `${Math.round(markupPct * 100)}%` : "";
   const MarkupValue = fmtCurrency(markup);
   const TravelValue = fmtCurrency(travel);
 
   // ---- Services split into primary + included ----
   const svcForDoc = [
-    ...(computed.servicesDisplayDocx?.lines ||
-      computed.services?.lines ||
-      []),
+    ...(computed.servicesDisplayDocx?.lines || computed.services?.lines || []),
   ];
 
   // VIGOUR CL60 logic etc. (copied exactly)
   {
     const parseQty = (v) => {
-      if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
-      const m = String(v ?? '').match(/[\d.,]+/);
-      return m
-        ? parseFloat(m[0].replace(',', '.')) || 0
-        : 0;
+      if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+      const m = String(v ?? "").match(/[\d.,]+/);
+      return m ? parseFloat(m[0].replace(",", ".")) || 0 : 0;
     };
 
     const sources = [
@@ -190,15 +181,10 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
           row?.productId,
           row?.model,
         ]
-          .map((x) => String(x || '').toLowerCase())
-          .join(' ');
-        if (
-          text.includes('vigour') &&
-          /\bcl\s*60\b/.test(text)
-        ) {
-          sum += parseQty(
-            row?.qty ?? row?.quantity ?? row?.menge ?? 1
-          );
+          .map((x) => String(x || "").toLowerCase())
+          .join(" ");
+        if (text.includes("vigour") && /\bcl\s*60\b/.test(text)) {
+          sum += parseQty(row?.qty ?? row?.quantity ?? row?.menge ?? 1);
         }
       }
       if (sum > 0) {
@@ -211,32 +197,27 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
       const list = Array.isArray(computed?.items)
         ? computed.items
         : Array.isArray(items)
-        ? items
-        : [];
+          ? items
+          : [];
       for (const it of list) {
         const s = [it?.name, it?.title, it?.label, it?.model]
-          .map((x) => String(x || '').toLowerCase())
-          .join(' ');
-        if (
-          s.includes('vigour') &&
-          /\bcl\s*60\b/.test(s)
-        ) {
+          .map((x) => String(x || "").toLowerCase())
+          .join(" ");
+        if (s.includes("vigour") && /\bcl\s*60\b/.test(s)) {
           cl60Qty += parseQty(it?.qty ?? it?.quantity ?? 1);
         }
       }
     }
 
     if (cl60Qty > 0) {
-      const singular =
-        'Anbringen zusätzliches Waschbeckens ohne Unterschrank';
-      const plural =
-        'Anbringen zusätzlicher Waschbecken ohne Unterschrank';
+      const singular = "Anbringen zusätzliches Waschbeckens ohne Unterschrank";
+      const plural = "Anbringen zusätzlicher Waschbecken ohne Unterschrank";
       const target = cl60Qty === 1 ? singular : plural;
 
       const waschRegex =
         /^\s*-?\s*auswechseln\s+eines\s+waschtisches(?:\s+ohne\s+unterschrank)?/i;
       for (const l of svcForDoc) {
-        const lbl = String(l?.label || '');
+        const lbl = String(l?.label || "");
         if (waschRegex.test(lbl)) {
           l.label = target;
           break;
@@ -244,7 +225,7 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
       }
     }
 
-    console.log('[svc] VIGOUR CL60 qty (aggregated):', cl60Qty);
+    console.log("[svc] VIGOUR CL60 qty (aggregated):", cl60Qty);
   }
 
   const primary = [];
@@ -253,9 +234,9 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
   for (const l of svcForDoc) {
     if (!l || l.docxHide) continue;
 
-    const label = String(l.label || '').trim();
-    const bullet = label.startsWith('-') ? label : `- ${label}`;
-    const plain = label.replace(/^\s*-\s*/, '');
+    const label = String(l.label || "").trim();
+    const bullet = label.startsWith("-") ? label : `- ${label}`;
+    const plain = label.replace(/^\s*-\s*/, "");
 
     const goesIncluded =
       /fahrzeugbereitstellung/i.test(plain) ||
@@ -279,122 +260,92 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
   }));
   const HasIncluded = included.length > 0;
 
-  const ServicePosTitle =
-    services?.title || 'Auszuführende Arbeiten';
+  const ServicePosTitle = services?.title || "Auszuführende Arbeiten";
   const ServiceUnitPrice = fmtCurrency(services?.sum || 0);
   const ServiceTotal = fmtCurrency(services?.sum || 0);
 
   // ---- Materials block ----
-  const MaterialsPosTitle =
-    materials?.title || 'Material für Badumbau';
-  const MaterialsUnitPrice = fmtCurrency(
-    material_plus_aufschlag || 0
-  );
-  const MaterialsTotal = fmtCurrency(
-    material_plus_aufschlag || 0
-  );
+  const MaterialsPosTitle = materials?.title || "Material für Badumbau";
+  const MaterialsUnitPrice = fmtCurrency(material_plus_aufschlag || 0);
+  const MaterialsTotal = fmtCurrency(material_plus_aufschlag || 0);
 
   const matForDoc =
-    computed.materialsDisplayDocx?.lines ||
-    computed.materials?.lines ||
-    [];
+    computed.materialsDisplayDocx?.lines || computed.materials?.lines || [];
   const MaterialsLines = matForDoc.map((l) => {
     const qtyStr = Number(l.qty || 0)
       .toFixed(2)
-      .replace(/\.00$/, '');
-    const nameOrId = l.name || l.productId || '';
+      .replace(/\.00$/, "");
+    const nameOrId = l.name || l.productId || "";
     return {
-      MaterialLine: l.label
-        ? l.label
-        : `- ${qtyStr} Stk ${nameOrId}`,
+      MaterialLine: l.label ? l.label : `- ${qtyStr} Stk ${nameOrId}`,
     };
   });
 
-  const PayerKind = services?.payer || b.payer || '';
+  const PayerKind = services?.payer || b.payer || "";
 
   // ---- BWT-specific mapping (unchanged from docx-template) ----
   const offerKey =
-    body.activeOffer ||
-    body.currentOfferKey ||
-    computed.activeOffer ||
-    '';
+    body.activeOffer || body.currentOfferKey || computed.activeOffer || "";
 
   let BwtRows = [];
 
-  if (offerKey === 'bwt') {
-    const docxLines = Array.isArray(
-      computed?.materialsDisplayDocx?.lines
-    )
+  if (offerKey === "bwt") {
+    const docxLines = Array.isArray(computed?.materialsDisplayDocx?.lines)
       ? computed.materialsDisplayDocx.lines
       : Array.isArray(materials?.lines)
-      ? materials.lines
-      : [];
+        ? materials.lines
+        : [];
 
     const findLine = (id) =>
-      docxLines.find(
-        (l) =>
-          String(l.productId || l.id || '').trim() === id
-      );
+      docxLines.find((l) => String(l.productId || l.id || "").trim() === id);
 
     const formatQty = (q) => {
       const n = Number(q || 0);
-      if (!Number.isFinite(n) || n <= 0) return '';
-      const base = n
-        .toFixed(2)
-        .replace(/\.00$/, '');
+      if (!Number.isFinite(n) || n <= 0) return "";
+      const base = n.toFixed(2).replace(/\.00$/, "");
       return `${base} Stk`;
     };
 
     const formatPlain = (q) => {
       const n = Number(q || 0);
-      if (!Number.isFinite(n) || n <= 0) return '';
-      return n.toFixed(2).replace('.', ',');
+      if (!Number.isFinite(n) || n <= 0) return "";
+      return n.toFixed(2).replace(".", ",");
     };
 
-    const doorProductIds = [
-      '1226',
-      '1225',
-      '1228',
-      '1320',
-      '1227',
-    ];
+    const doorProductIds = ["1226", "1225", "1228", "1320", "1227"];
     const doorLines = docxLines.filter((l) =>
-      doorProductIds.includes(
-        String(l.productId || l.id || '').trim()
-      )
+      doorProductIds.includes(String(l.productId || l.id || "").trim()),
     );
     const doorQty = doorLines.reduce(
-      (sum, l) =>
-        sum + (Number(l.qty || 0) || 0),
-      0
+      (sum, l) => sum + (Number(l.qty || 0) || 0),
+      0,
     );
     const hasDoor = doorQty > 0;
     const doorMaterialsTotal = doorLines.reduce(
-      (sum, l) =>
-        sum + (Number(l.lineTotal || 0) || 0),
-      0
+      (sum, l) => sum + (Number(l.lineTotal || 0) || 0),
+      0,
     );
 
     const DOOR_VARIANTS = [
       {
-        key: 'bwtDoorStdQty',
-        label: 'Universal / Standard Tür',
+        key: "bwtDoorStdQty",
+        label: "Universal / Standard Tür",
       },
       {
-        key: 'bwtDoorBudgetQty',
-        label: 'Budget Tür',
+        key: "bwtDoorBudgetQty",
+        label: "Budget Tür",
       },
       {
-        key: 'bwtDoorIndWienGlasQty',
-        label: 'Individuelle Tür Wien Glas',
+        key: "bwtDoorIndWienGlasQty",
+        label: "Individuelle Tür Wien Glas",
       },
       {
-        key: 'bwtDoorVariodoorQty',
-        label: 'Variodoor',
+        key: "bwtDoorVariodoorQty",
+        label: "Variodoor",
       },
       {
-        key: 'bwtDoorIndWienQty',
-        label: 'Individuelle Tür Wien',
+        key: "bwtDoorIndWienQty",
+        label: "Individuelle Tür Wien",
       },
     ];
 
@@ -404,100 +355,81 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
       if (q > 0) doorLabelParts.push(v.label);
     });
 
-    let doorVariantText = '';
+    let doorVariantText = "";
     if (doorLabelParts.length === 1) {
       doorVariantText = doorLabelParts[0];
     } else if (doorLabelParts.length > 1) {
-      doorVariantText = doorLabelParts.join(', ');
+      doorVariantText = doorLabelParts.join(", ");
     }
 
-    let bullet1Text =
-      'Liefern und Montieren einer Badewannentür';
+    let bullet1Text = "Liefern und Montieren einer Badewannentür";
     if (doorVariantText) {
       bullet1Text = `Liefern und Montieren einer Badewannentür (${doorVariantText})`;
     }
 
-    const enthDoorLabel =
-      doorVariantText || 'Universal / Standard Tür';
+    const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
 
-    const grabIds = ['CLPESG40', 'CLPESG60', 'CLPESG80'];
+    const grabIds = ["CLPESG40", "CLPESG60", "CLPESG80"];
     const grabLines = docxLines.filter((l) =>
-      grabIds.includes(
-        String(l.productId || l.id || '').trim()
-      )
+      grabIds.includes(String(l.productId || l.id || "").trim()),
     );
 
     const extraLines = docxLines.filter(
-      (l) =>
-        String(l.source || '').trim() === 'BWT_EXTRA'
+      (l) => String(l.source || "").trim() === "BWT_EXTRA",
     );
 
     const additionalLines = [...grabLines, ...extraLines];
 
     const EnthExtraItems = additionalLines.map((line) => {
-      const rawLabel = String(line.label || '').trim();
-      const cleaned = rawLabel.replace(/^-\s*/, '');
+      const rawLabel = String(line.label || "").trim();
+      const cleaned = rawLabel.replace(/^-\s*/, "");
       return { Text: cleaned };
     });
 
     const grabLabelMap = {
-      CLPESG40: 'Haltegriff 40 cm',
-      CLPESG60: 'Haltegriff 60 cm',
-      CLPESG80: 'Haltegriff 80 cm',
+      CLPESG40: "Haltegriff 40 cm",
+      CLPESG60: "Haltegriff 60 cm",
+      CLPESG80: "Haltegriff 80 cm",
     };
 
     const grabLabelsUnique = [
       ...new Set(
         grabLines
           .map((l) => {
-            const id = String(
-              l.productId || l.id || ''
-            ).trim();
-            return grabLabelMap[id] || '';
+            const id = String(l.productId || l.id || "").trim();
+            return grabLabelMap[id] || "";
           })
-          .filter(Boolean)
+          .filter(Boolean),
       ),
     ];
 
-    let bullet7Text = '';
+    let bullet7Text = "";
     if (grabLabelsUnique.length === 1) {
       bullet7Text = `Montage ${grabLabelsUnique[0]}`;
     } else if (grabLabelsUnique.length > 1) {
-      const sizes = grabLabelsUnique.map((t) =>
-        t.replace('Haltegriff ', '')
-      );
-      bullet7Text = `Montage Haltegriffe (${sizes.join(
-        ', '
-      )})`;
+      const sizes = grabLabelsUnique.map((t) => t.replace("Haltegriff ", ""));
+      bullet7Text = `Montage Haltegriffe (${sizes.join(", ")})`;
     }
 
     const hasAnyGrab = grabLines.length > 0;
 
     if (hasDoor) {
-      const roundTripKm = Number(
-        services?.distanceKm || 0
-      );
+      const roundTripKm = Number(services?.distanceKm || 0);
       const EnthKmQty = formatPlain(roundTripKm);
       const doorQtyPlain = formatPlain(doorQty);
 
       BwtRows.push({
-        Pos: '001',
+        Pos: "001",
         Menge: formatQty(doorQty),
-        Einheitspreis: fmtCurrency(
-          netAfterRabatt_and_Bonus
-        ),
+        Einheitspreis: fmtCurrency(netAfterRabatt_and_Bonus),
         Gesamt: fmtCurrency(netAfterRabatt_and_Bonus),
-        Title:
-          'Liefern und Montieren einer Badewannentür',
+        Title: "Liefern und Montieren einer Badewannentür",
         Bullet1: bullet1Text,
-        Bullet2: 'inkl. dazugehörige Materialien',
-        Bullet3:
-          'inkl. An- & Abfahrten / Dieselzuschlag',
-        Bullet4:
-          'inkl. Bereitstellung Maschinen / Werkzeug',
-        Bullet5:
-          'inkl. Vorhaltung und Beräumung der Baustelle',
-        Bullet6: 'inkl. Lieferkosten',
+        Bullet2: "inkl. dazugehörige Materialien",
+        Bullet3: "inkl. An- & Abfahrten / Dieselzuschlag",
+        Bullet4: "inkl. Bereitstellung Maschinen / Werkzeug",
+        Bullet5: "inkl. Vorhaltung und Beräumung der Baustelle",
+        Bullet6: "inkl. Lieferkosten",
         HasBullet7: !!bullet7Text,
         Bullet7: bullet7Text,
         HasExtraTasks: ExtraAzTasks.length > 0,
@@ -514,54 +446,36 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
 
   // ---- Zuschuss / Selbstkosten ----
   const toNum = (v) =>
-    typeof v === 'number'
-      ? v
-      : Number(
-          String(v || '').replace(',', '.')
-        ) || 0;
+    typeof v === "number" ? v : Number(String(v || "").replace(",", ".")) || 0;
 
-  const subsidyAmountNum = toNum(
-    computed?.subsidyAmount
-  );
-  const selfPayAmountNum = toNum(
-    computed?.selfPayAmount
-  );
+  const subsidyAmountNum = toNum(computed?.subsidyAmount);
+  const selfPayAmountNum = toNum(computed?.selfPayAmount);
 
-  const SelbstkostenanteilFmt =
-    fmtCurrency(selfPayAmountNum);
-  const Zuschusskrankenkasse =
-    fmtCurrency(subsidyAmountNum);
+  const SelbstkostenanteilFmt = fmtCurrency(selfPayAmountNum);
+  const Zuschusskrankenkasse = fmtCurrency(subsidyAmountNum);
   const hasZuschuss = subsidyAmountNum > 0;
 
-  const payerNorm = String(
-    PayerKind || ''
-  ).toUpperCase();
-  const isKK =
-    payerNorm === 'KK' ||
-    payerNorm === 'KASSENKUNDE';
-  const isSZ =
-    payerNorm === 'SZ' ||
-    payerNorm === 'SELBSTZAHLER';
+  const payerNorm = String(PayerKind || "").toUpperCase();
+  const isKK = payerNorm === "KK" || payerNorm === "KASSENKUNDE";
+  const isSZ = payerNorm === "SZ" || payerNorm === "SELBSTZAHLER";
 
   const BASE_SELF_PAY_SENTENCE =
-    'Dieser wird bei Auftragsbestätigung vorab fällig.';
+    "Dieser wird bei Auftragsbestätigung vorab fällig.";
 
   const PARA_kk_uber2000_LINES = [
-    'Zahlungsbedingungen für den Selbstkostenanteil:',
-    '- 100 % sofort abzüglich 2 % Skonto oder',
-    '- 50 % sofort und 50 % nach Fertigstellung, ohne Abzug',
-    'Für die Anzahlung wird eine Anzahlungsrechnung erstellt. Die Überweisung darf erst nach Erhalt dieser Rechnung erfolgen.',
+    "Zahlungsbedingungen für den Selbstkostenanteil:",
+    "- 100 % sofort abzüglich 2 % Skonto oder",
+    "- 50 % sofort und 50 % nach Fertigstellung, ohne Abzug",
+    "Für die Anzahlung wird eine Anzahlungsrechnung erstellt. Die Überweisung darf erst nach Erhalt dieser Rechnung erfolgen.",
   ];
 
   const PARA_kk_unter2000_LINES = [
-    'Zahlungsbedingungen für den Selbstkostenanteil:',
-    '100 % sofort bei Auftragsbestätigung – ohne Abzug',
-    'Für die Anzahlung wird eine Anzahlungsrechnung erstellt. Die Überweisung darf erst nach Erhalt dieser Rechnung erfolgen.',
+    "Zahlungsbedingungen für den Selbstkostenanteil:",
+    "100 % sofort bei Auftragsbestätigung – ohne Abzug",
+    "Für die Anzahlung wird eine Anzahlungsrechnung erstellt. Die Überweisung darf erst nach Erhalt dieser Rechnung erfolgen.",
   ];
 
-  let SelfPayLines = [
-    { Text: BASE_SELF_PAY_SENTENCE, IsTitle: false },
-  ];
+  let SelfPayLines = [{ Text: BASE_SELF_PAY_SENTENCE, IsTitle: false }];
 
   if (isKK && selfPayAmountNum > 0) {
     const src =
@@ -578,16 +492,11 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
   let regieRateNum;
   if (isKK) regieRateNum = 69.5;
   else if (isSZ) regieRateNum = 59.5;
-  else
-    regieRateNum = Number(
-      services?.laborRate
-    ) || 0;
+  else regieRateNum = Number(services?.laborRate) || 0;
 
   const RegieRateFmt = regieRateNum
-    ? `${regieRateNum
-        .toFixed(2)
-        .replace('.', ',')}€`
-    : '';
+    ? `${regieRateNum.toFixed(2).replace(".", ",")}€`
+    : "";
 
   // --- Rabatt + Bonus detection ---
   const hasRabatt = (rabattAmount ?? 0) > 0;
@@ -597,41 +506,36 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
   const payloadRabatt = body?.rabatt || {};
 
   const hasBonusGrab = Boolean(
-    pricingFlags.bonusGrab ??
-      payloadRabatt.bonusGrab ??
-      false
+    pricingFlags.bonusGrab ?? payloadRabatt.bonusGrab ?? false,
   );
   const hasBonus300 = Boolean(
-    pricingFlags.bonus300 ??
-      payloadRabatt.bonus300 ??
-      false
+    pricingFlags.bonus300 ?? payloadRabatt.bonus300 ?? false,
   );
 
   const BonusRows = [];
-  let pos = '003';
+  let pos = "003";
 
   if (hasBonusGrab) {
     BonusRows.push({
       Bonus: pos,
-      BonusMenge: '1 Stk',
-      BonusLabel: 'Aktion: Haltegriff',
+      BonusMenge: "1 Stk",
+      BonusLabel: "Aktion: Haltegriff",
       BonusDetail:
-        '1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage',
-      preis: '0,00 €',
-      gesamt: '0,00 €',
+        "1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage",
+      preis: "0,00 €",
+      gesamt: "0,00 €",
     });
-    pos = '004';
+    pos = "004";
   }
 
   if (hasBonus300) {
     BonusRows.push({
       Bonus: pos,
-      BonusMenge: '1 Stk',
-      BonusLabel: 'Bestandkundenbonus:',
-      BonusDetail:
-        '-- Rabatt von 300 € ab einem Gesamtwert von 3.000',
-      preis: '-252,10 €',
-      gesamt: '-252,10 €',
+      BonusMenge: "1 Stk",
+      BonusLabel: "Bestandkundenbonus:",
+      BonusDetail: "-- Rabatt von 300 € ab einem Gesamtwert von 3.000",
+      preis: "-252,10 €",
+      gesamt: "-252,10 €",
     });
   }
 
@@ -639,17 +543,15 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
 
   const baseTotals = [
     {
-      label: 'Nettobetrag',
-      value: fmtCurrency(
-        netAfterRabatt_and_Bonus
-      ),
+      label: "Nettobetrag",
+      value: fmtCurrency(netAfterRabatt_and_Bonus),
     },
     {
-      label: 'zzgl. 19% MwSt.',
+      label: "zzgl. 19% MwSt.",
       value: fmtCurrency(vatOnNet),
     },
     {
-      label: 'Gesamtsumme',
+      label: "Gesamtsumme",
       value: fmtCurrency(total),
     },
   ];
@@ -659,67 +561,55 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
     isAlt: i % 2 === 0,
   }));
 
-  const ZoneChosen = services?.zoneLabel || '';
-  const DistanceKm =
-    services?.distanceKm ??
-    Number(b.distanceKm ?? 0) ??
-    0;
-  const LaborHours =
-    services?.laborHours ??
-    Number(b.laborHours ?? 0) ??
-    0;
-  const LaborRate =
-    services?.laborRate ?? 0;
+  const ZoneChosen = services?.zoneLabel || "";
+  const DistanceKm = services?.distanceKm ?? Number(b.distanceKm ?? 0) ?? 0;
+  const LaborHours = services?.laborHours ?? Number(b.laborHours ?? 0) ?? 0;
+  const LaborRate = services?.laborRate ?? 0;
 
   // ---- BWT free text / notes ----
-  const BwtFreeText = (bwt.bwtNote || '').trim();
+  const BwtFreeText = (bwt.bwtNote || "").trim();
   const BwtSteelNoteEnabled =
-    bwt.bwtSteelNoteEnabled === true ||
-    bwt.bwtSteelNoteEnabled === 'on';
-  const BwtSteelNote =
-    BwtSteelNoteEnabled
-      ? (bwt.bwtSteelNoteText || '').trim()
-      : '';
+    bwt.bwtSteelNoteEnabled === true || bwt.bwtSteelNoteEnabled === "on";
+  const BwtSteelNote = BwtSteelNoteEnabled
+    ? (bwt.bwtSteelNoteText || "").trim()
+    : "";
   const BwtProxyNoteEnabled =
-    bwt.bwtProxyNoteEnabled === true ||
-    bwt.bwtProxyNoteEnabled === 'on';
-  const BwtProxyNote =
-    BwtProxyNoteEnabled
-      ? (bwt.bwtProxyNoteText || '').trim()
-      : '';
+    bwt.bwtProxyNoteEnabled === true || bwt.bwtProxyNoteEnabled === "on";
+  const BwtProxyNote = BwtProxyNoteEnabled
+    ? (bwt.bwtProxyNoteText || "").trim()
+    : "";
 
   // ---------------- Final data object ----------------
 
   return {
     // Address / meta
-    Anrede: b.salutation || '',
-    Vorname: b.firstName || '',
-    Nachname: b.lastName || '',
-    Adresse: b.street || '',
-    Stadt: b.city || '',
-    PLZ: b.postalCode || '',
+    Anrede: b.salutation || "",
+    Vorname: b.firstName || "",
+    Nachname: b.lastName || "",
+    Adresse: b.street || "",
+    Stadt: b.city || "",
+    PLZ: b.postalCode || "",
     Datum: fmtDateDE(b.date),
-    Ansprechpartner: (b.emc2_contact || '').trim(),
-    Kundennummer: b.customerNumber || '',
+    Ansprechpartner: (b.emc2_contact || "").trim(),
+    Kundennummer: b.customerNumber || "",
     Greeting:
-      b.salutation === 'Frau'
-        ? 'Sehr geehrte Frau'
-        : b.salutation === 'Herr'
-        ? 'Sehr geehrter Herr'
-        : b.salutation === 'Familie'
-        ? 'Sehr geehrter Familie'
-        : 'Guten Tag',
-    Angebotsnummer:
-      body.offerNumber || `ANG-${Date.now()}`,
+      b.salutation === "Frau"
+        ? "Sehr geehrte Frau"
+        : b.salutation === "Herr"
+          ? "Sehr geehrter Herr"
+          : b.salutation === "Familie"
+            ? "Sehr geehrter Familie"
+            : "Guten Tag",
+    Angebotsnummer: body.offerNumber || `ANG-${Date.now()}`,
 
     // Legacy/optional price fields
     Arbeit: fmtCurrency(services?.sum ?? 0),
     Material: fmtCurrency(materials?.sum ?? 0),
 
     // Text blocks
-    Long1: tb.long1 ?? '',
-    Long3: tb.long3 ?? '',
-    Long: tb.long ?? '',
+    Long1: tb.long1 ?? "",
+    Long3: tb.long3 ?? "",
+    Long: tb.long ?? "",
 
     // Totals (single placeholders)
     Nettobetrag,
@@ -731,9 +621,7 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
     Gesamtsummerabatt,
 
     // Computed summary
-    Nettobetrag2: fmtCurrency(
-      netAfterRabatt_and_Bonus
-    ), // if you need a separate field
+    Nettobetrag2: fmtCurrency(netAfterRabatt_and_Bonus), // if you need a separate field
     MarkupPct: MarkupPctStr,
     MarkupValue,
     TravelValue,
@@ -745,9 +633,7 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
       Einzelpreis: fmtCurrency(i.unitPrice),
       Zwischensumme: fmtCurrency(i.lineTotal),
     })),
-    ProdukteZwischensumme: fmtCurrency(
-      productsSubtotal
-    ),
+    ProdukteZwischensumme: fmtCurrency(productsSubtotal),
 
     // Services
     ServicePosTitle,
@@ -768,9 +654,7 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
     ZoneChosen,
     DistanceKm,
     LaborHours,
-    LaborRate: LaborRate
-      ? `${LaborRate.toFixed(2)} €`
-      : '',
+    LaborRate: LaborRate ? `${LaborRate.toFixed(2)} €` : "",
 
     hasRabatt,
     hasBonus,

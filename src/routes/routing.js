@@ -1,35 +1,35 @@
 // src/routes/routing.js
-import express from 'express';
+import express from "express";
 
 const router = express.Router();
 
 // Read from env
 const ORS_API_KEY = process.env.ORS_API_KEY;
-const COMPANY_ADDRESS = process.env.COMPANY_ADDRESS || 'Kornhausacker 10, Hof';
+const COMPANY_ADDRESS = process.env.COMPANY_ADDRESS || "Kornhausacker 10, Hof";
 
 if (!ORS_API_KEY) {
-  console.warn('[routing] Missing ORS_API_KEY in env – will use OSRM fallback');
+  console.warn("[routing] Missing ORS_API_KEY in env – will use OSRM fallback");
 }
 
 // --- Helpers -------------------------------------------------------------
 
 function buildCustomerAddress({ street, postalCode, city, state, country }) {
   const parts = [
-    street || '',
-    [postalCode, city].filter(Boolean).join(' '),
-    state || '',
-    country || '',
+    street || "",
+    [postalCode, city].filter(Boolean).join(" "),
+    state || "",
+    country || "",
   ].filter(Boolean);
-  return parts.join(', ');
+  return parts.join(", ");
 }
 
 async function geocode(address) {
   const url =
-    'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' +
+    "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" +
     encodeURIComponent(address);
 
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'emc2-configurator/1.0 (routing suggestion)' },
+    headers: { "User-Agent": "emc2-configurator/1.0 (routing suggestion)" },
   });
 
   if (!res.ok) {
@@ -68,31 +68,33 @@ async function osrmDistanceKm(a, b) {
   const url = `https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`;
 
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'emc2-configurator/1.0 (routing suggestion)' },
+    headers: { "User-Agent": "emc2-configurator/1.0 (routing suggestion)" },
   });
 
   if (!res.ok) {
-    const errorText = await res.text().catch(() => '');
+    const errorText = await res.text().catch(() => "");
     throw new Error(`OSRM error: HTTP ${res.status} - ${errorText}`);
   }
 
   const data = await res.json();
-  
-  if (data.code !== 'Ok') {
-    throw new Error(`OSRM error: ${data.code} - ${data.message || 'Unknown error'}`);
+
+  if (data.code !== "Ok") {
+    throw new Error(
+      `OSRM error: ${data.code} - ${data.message || "Unknown error"}`,
+    );
   }
 
   const meters = data?.routes?.[0]?.distance ?? null;
 
-  if (typeof meters !== 'number' || !Number.isFinite(meters)) {
-    throw new Error('OSRM returned invalid distance data');
+  if (typeof meters !== "number" || !Number.isFinite(meters)) {
+    throw new Error("OSRM returned invalid distance data");
   }
   return meters / 1000;
 }
 
 async function orsDistanceKm(a, b) {
   if (!ORS_API_KEY) {
-    throw new Error('ORS_API_KEY not configured');
+    throw new Error("ORS_API_KEY not configured");
   }
 
   const url = `https://api.openrouteservice.org/v2/directions/driving-car/geojson?api_key=${ORS_API_KEY}`;
@@ -104,22 +106,21 @@ async function orsDistanceKm(a, b) {
   });
 
   const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body,
   });
 
   if (!res.ok) {
-    const errorText = await res.text().catch(() => '');
+    const errorText = await res.text().catch(() => "");
     throw new Error(`ORS error: HTTP ${res.status} - ${errorText}`);
   }
 
   const data = await res.json();
-  const meters =
-    data?.features?.[0]?.properties?.summary?.distance ?? null;
+  const meters = data?.features?.[0]?.properties?.summary?.distance ?? null;
 
-  if (typeof meters !== 'number' || !Number.isFinite(meters)) {
-    throw new Error('ORS returned invalid distance data');
+  if (typeof meters !== "number" || !Number.isFinite(meters)) {
+    throw new Error("ORS returned invalid distance data");
   }
   return meters / 1000;
 }
@@ -128,19 +129,19 @@ async function getRoadDistanceKm(a, b) {
   // Try ORS first if API key is available
   if (ORS_API_KEY) {
     try {
-      console.log('[routing] Attempting ORS routing...');
+      console.log("[routing] Attempting ORS routing...");
       const km = await orsDistanceKm(a, b);
-      console.log('[routing] ORS routing successful');
+      console.log("[routing] ORS routing successful");
       return km;
     } catch (err) {
-      console.warn('[routing] ORS failed, falling back to OSRM:', err.message);
+      console.warn("[routing] ORS failed, falling back to OSRM:", err.message);
     }
   }
 
   // Fallback to OSRM (free, no API key required)
-  console.log('[routing] Using OSRM routing...');
+  console.log("[routing] Using OSRM routing...");
   const km = await osrmDistanceKm(a, b);
-  console.log('[routing] OSRM routing successful');
+  console.log("[routing] OSRM routing successful");
   return km;
 }
 
@@ -158,18 +159,18 @@ async function getRoadDistanceKm(a, b) {
  * 400: { error: '...' } if address missing/invalid
  * 500: { error: '...' } if routing service fails
  */
-router.post('/suggest-distance', async (req, res) => {
+router.post("/suggest-distance", async (req, res) => {
   try {
     const k = req.body?.Kundendaten || req.body?.bereich || {};
 
-    const street = k.street || '';
-    const postalCode = k.postalCode || k.PLZ || '';
-    const city = k.city || k.Stadt || '';
+    const street = k.street || "";
+    const postalCode = k.postalCode || k.PLZ || "";
+    const city = k.city || k.Stadt || "";
 
     if (!street && !city && !postalCode) {
       return res
         .status(400)
-        .json({ error: 'Missing address fields in Kundendaten.' });
+        .json({ error: "Missing address fields in Kundendaten." });
     }
 
     const customerAddress = buildCustomerAddress({
@@ -177,19 +178,19 @@ router.post('/suggest-distance', async (req, res) => {
       postalCode,
       city,
       state: k.state,
-      country: k.country || 'Deutschland',
+      country: k.country || "Deutschland",
     });
 
     if (!customerAddress.trim()) {
       return res
         .status(400)
-        .json({ error: 'Customer address could not be built.' });
+        .json({ error: "Customer address could not be built." });
     }
 
     if (!COMPANY_ADDRESS) {
       return res
         .status(500)
-        .json({ error: 'COMPANY_ADDRESS missing on server.' });
+        .json({ error: "COMPANY_ADDRESS missing on server." });
     }
 
     // 1) Geocode both addresses
@@ -231,10 +232,10 @@ router.post('/suggest-distance', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('[routing] suggest-distance failed:', err);
-    return res.status(500).json({ 
-      error: err.message || 'Routing lookup failed',
-      details: 'Road-based routing is required but unavailable'
+    console.error("[routing] suggest-distance failed:", err);
+    return res.status(500).json({
+      error: err.message || "Routing lookup failed",
+      details: "Road-based routing is required but unavailable",
     });
   }
 });

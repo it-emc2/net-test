@@ -1,5 +1,5 @@
 // src/models/Draft.js
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const DraftSchema = new mongoose.Schema(
   {
@@ -20,10 +20,10 @@ const DraftSchema = new mongoose.Schema(
   },
   {
     timestamps: true, // createdAt, updatedAt
-  }
+  },
 );
 
 // unique per (offerType, name)
 DraftSchema.index({ offerType: 1, name: 1 }, { unique: true });
 
-export default mongoose.model('Draft', DraftSchema);
+export default mongoose.model("Draft", DraftSchema);

@@ -1,22 +1,23 @@
 // src/routes/pdf-template.js
-import express from 'express';
-import fs from 'fs/promises';
-import path from 'path';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import dayjs from 'dayjs';
-import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
+import express from "express";
+import fs from "fs/promises";
+import path from "path";
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import dayjs from "dayjs";
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
+  //import * as pdfjsLib from "/pdfjs/pdf.min.mjs";
 const { getDocument } = pdfjs;
 
 export const router = express.Router();
 
 function log(...args) {
-  console.log('[pdf-template]', ...args);
+  console.log("[pdf-template]", ...args);
 }
 function warn(...args) {
-  console.warn('[pdf-template][WARN]', ...args);
+  console.warn("[pdf-template][WARN]", ...args);
 }
 function errlog(...args) {
-  console.error('[pdf-template][ERROR]', ...args);
+  console.error("[pdf-template][ERROR]", ...args);
 }
 
 function mapData(body = {}) {
@@ -24,50 +25,63 @@ function mapData(body = {}) {
   const sum = body.summe || {};
   const prix = body.preise || {};
   const tb = body.textbausteine || {};
-    const bwt = body.bwt || {};
+  const bwt = body.bwt || {};
   return {
-    Anrede: b.salutation || '',
-    Vorname: b.firstName || '',
-    Nachname: b.lastName || '',
-    Adresse: b.street || '',
-    Stadt: b.city || '',
-    PLZ: b.postalCode || '',
-    Datum: b.date || dayjs().format('YYYY-MM-DD'),
-    Ansprechpartner: body.ansprechpartner || (b.hasContactPerson || ''),
-    Kundennummer: b.customerNumber || '',
-    Greeting: b.salutation === 'Frau' ? 'Sehr geehrte Frau' : (b.salutation === 'Herr' ? 'Sehr geehrter Herr' : 'Guten Tag'),
+    Anrede: b.salutation || "",
+    Vorname: b.firstName || "",
+    Nachname: b.lastName || "",
+    Adresse: b.street || "",
+    Stadt: b.city || "",
+    PLZ: b.postalCode || "",
+    Datum: b.date || dayjs().format("YYYY-MM-DD"),
+    Ansprechpartner: body.ansprechpartner || b.hasContactPerson || "",
+    Kundennummer: b.customerNumber || "",
+    Greeting:
+      b.salutation === "Frau"
+        ? "Sehr geehrte Frau"
+        : b.salutation === "Herr"
+          ? "Sehr geehrter Herr"
+          : "Guten Tag",
 
-    Angebotsnummer: body.offerNumber || 'ANG-0001',
-    Arbeit: prix.arbeit ?? '',
-    Material: prix.material ?? '',
-    Long1: tb.long1 ?? '',
-    Long3: tb.long3 ?? '',
-    Long: tb.long ?? '',
-    Pos003: body.pos003 ?? '',
-    Bonus1Stk: body.bonus1Stk ?? '',
-    Bonus1: body.bonus1 ?? '',
-    Bonus1Price: body.bonus1Price ?? '',
-    Pos004: body.pos004 ?? '',
-    Bonus2Stk: body.bonus2Stk ?? '',
-    Bonus2: body.bonus2 ?? '',
-    Bonus2Price: body.bonus2Price ?? '',
-    Nettobetrag: sum.netto ?? '',
-    Rabatt: sum.rabatt ?? '',
-    MwSt: sum.mwst ?? '',
-    Gesamtsumme: sum.gesamt ?? '',
-    Selbstkostenanteil: sum.selbstkostenanteil ?? '',
-    Zuschusskrankenkasse: sum.zuschuss ?? '',
-    Gesamtsummerabatt: sum.gesamtsummerabatt ?? '',
+    Angebotsnummer: body.offerNumber || "ANG-0001",
+    Arbeit: prix.arbeit ?? "",
+    Material: prix.material ?? "",
+    Long1: tb.long1 ?? "",
+    Long3: tb.long3 ?? "",
+    Long: tb.long ?? "",
+    Pos003: body.pos003 ?? "",
+    Bonus1Stk: body.bonus1Stk ?? "",
+    Bonus1: body.bonus1 ?? "",
+    Bonus1Price: body.bonus1Price ?? "",
+    Pos004: body.pos004 ?? "",
+    Bonus2Stk: body.bonus2Stk ?? "",
+    Bonus2: body.bonus2 ?? "",
+    Bonus2Price: body.bonus2Price ?? "",
+    Nettobetrag: sum.netto ?? "",
+    Rabatt: sum.rabatt ?? "",
+    MwSt: sum.mwst ?? "",
+    Gesamtsumme: sum.gesamt ?? "",
+    Selbstkostenanteil: sum.selbstkostenanteil ?? "",
+    Zuschusskrankenkasse: sum.zuschuss ?? "",
+    Gesamtsummerabatt: sum.gesamtsummerabatt ?? "",
   };
 }
 
 function toUint8Array(input) {
   if (input instanceof Uint8Array && !(input instanceof Buffer)) return input;
   if (input instanceof Buffer) {
-    return new Uint8Array(input.buffer, input.byteOffset, input.byteLength).slice();
+    return new Uint8Array(
+      input.buffer,
+      input.byteOffset,
+      input.byteLength,
+    ).slice();
   }
   if (input?.buffer instanceof ArrayBuffer) {
-    return new Uint8Array(input.buffer, input.byteOffset || 0, input.byteLength || input.length || 0).slice();
+    return new Uint8Array(
+      input.buffer,
+      input.byteOffset || 0,
+      input.byteLength || input.length || 0,
+    ).slice();
   }
   return new Uint8Array(input);
 }
@@ -75,10 +89,10 @@ function toUint8Array(input) {
 // Join consecutive pdfjs text items into a single string with mapping back to item indices.
 // This helps detect tokens that are split across runs.
 function joinItems(items) {
-  let text = '';
+  let text = "";
   const map = []; // map char index -> { itemIndex, localIndex }
   items.forEach((it, idx) => {
-    const str = it.str || '';
+    const str = it.str || "";
     for (let i = 0; i < str.length; i++) {
       map.push({ itemIndex: idx, localIndex: i });
     }
@@ -102,7 +116,9 @@ function measureToken(items, startIdx, endIdx) {
   for (let i = startIdx; i <= endIdx; i++) {
     const it = items[i];
     // Approx width from transform matrix [a c e; b d f; ...] — use scale (a) times string length heuristic
-    const w = Math.abs((it?.width || 0)) || Math.abs(a) * (String(it?.str || '').length * 0.6);
+    const w =
+      Math.abs(it?.width || 0) ||
+      Math.abs(a) * (String(it?.str || "").length * 0.6);
     width += Number.isFinite(w) ? w : 0;
   }
   return { x, y, fontSize, width };
@@ -111,7 +127,12 @@ function measureToken(items, startIdx, endIdx) {
 // Find placeholders robustly: detects tokens even if split across multiple items.
 async function findPlaceholdersCoords(pdfBytesU8, placeholders) {
   const u8 = toUint8Array(pdfBytesU8);
-  log('Starting placeholder scan. Bytes:', u8?.byteLength || 'n/a', 'Placeholders:', placeholders.length);
+  log(
+    "Starting placeholder scan. Bytes:",
+    u8?.byteLength || "n/a",
+    "Placeholders:",
+    placeholders.length,
+  );
   const t0 = Date.now();
 
   let pdf;
@@ -119,11 +140,17 @@ async function findPlaceholdersCoords(pdfBytesU8, placeholders) {
     const loadingTask = getDocument({ data: u8 });
     pdf = await loadingTask.promise;
   } catch (e) {
-    errlog('pdfjs getDocument failed:', e);
-    throw new Error('pdfjs getDocument failed: ' + (e?.message || e));
+    errlog("pdfjs getDocument failed:", e);
+    throw new Error("pdfjs getDocument failed: " + (e?.message || e));
   }
 
-  log('PDF loaded with pdfjs. Pages:', pdf.numPages, 'Init took', Date.now() - t0, 'ms');
+  log(
+    "PDF loaded with pdfjs. Pages:",
+    pdf.numPages,
+    "Init took",
+    Date.now() - t0,
+    "ms",
+  );
 
   const result = [];
   for (let p = 1; p <= pdf.numPages; p++) {
@@ -131,16 +158,18 @@ async function findPlaceholdersCoords(pdfBytesU8, placeholders) {
     const page = await pdf.getPage(p);
     const textContent = await page.getTextContent();
 
-    const items = textContent.items.map(it => ({
-      str: it.str || '',
+    const items = textContent.items.map((it) => ({
+      str: it.str || "",
       transform: it.transform,
       width: it.width,
     }));
 
     log(`Page ${p}: items=${items.length}`);
     if (items.length) {
-      const sample = items.slice(0, Math.min(5, items.length)).map(i => ({
-        str: i.str, x: i.transform?.[4], y: i.transform?.[5],
+      const sample = items.slice(0, Math.min(5, items.length)).map((i) => ({
+        str: i.str,
+        x: i.transform?.[4],
+        y: i.transform?.[5],
       }));
       log(`Page ${p} sample:`, sample);
     }
@@ -183,66 +212,80 @@ async function findPlaceholdersCoords(pdfBytesU8, placeholders) {
       }
     }
 
-    log(`Page ${p}: matches=${deduped.length}, scan took ${Date.now() - tPage}ms`);
+    log(
+      `Page ${p}: matches=${deduped.length}, scan took ${Date.now() - tPage}ms`,
+    );
     result.push({ pageIndex: p - 1, matches: deduped });
     page.cleanup();
   }
 
-  log('Placeholder scan done in', Date.now() - t0, 'ms');
+  log("Placeholder scan done in", Date.now() - t0, "ms");
   return result;
 }
 
-router.post('/', async (req, res) => {
-  if (!process.env.PDFJS_DISABLE_WORKER) process.env.PDFJS_DISABLE_WORKER = 'true';
+router.post("/", async (req, res) => {
+  if (!process.env.PDFJS_DISABLE_WORKER)
+    process.env.PDFJS_DISABLE_WORKER = "true";
 
   try {
-     const templatePath = getAngebotTemplatePath(req.body);
-    log('Reading template from', templatePath);
+    const templatePath = getAngebotTemplatePath(req.body);
+    log("Reading template from", templatePath);
 
     let templateBytes;
     try {
       templateBytes = await fs.readFile(templatePath); // Buffer for pdf-lib
     } catch (e) {
-      errlog('Failed to read template:', e);
-      return res.status(500).json({ error: 'Template not found', detail: String(e) });
+      errlog("Failed to read template:", e);
+      return res
+        .status(500)
+        .json({ error: "Template not found", detail: String(e) });
     }
     if (!templateBytes || templateBytes.length < 1000) {
-      warn('Template bytes look suspicious:', templateBytes?.length);
+      warn("Template bytes look suspicious:", templateBytes?.length);
     }
 
     const templateU8 = toUint8Array(templateBytes); // for pdfjs
     const data = mapData(req.body || {});
     const keys = Object.keys(data);
-    log('Mapped data keys:', keys.length);
+    log("Mapped data keys:", keys.length);
 
     // 1) Detect positions
     let coords;
     try {
       coords = await findPlaceholdersCoords(templateU8, keys);
     } catch (e) {
-      errlog('Placeholder scan failed:', e);
-      return res.status(500).json({ error: 'Placeholder scan failed', detail: String(e) });
+      errlog("Placeholder scan failed:", e);
+      return res
+        .status(500)
+        .json({ error: "Placeholder scan failed", detail: String(e) });
     }
 
     const totalMatches = coords.reduce((acc, c) => acc + c.matches.length, 0);
-    log('Total placeholder matches found:', totalMatches);
-    if (totalMatches === 0) warn('No placeholders matched. Are tokens like [Anrede] present in the PDF text layer?');
+    log("Total placeholder matches found:", totalMatches);
+    if (totalMatches === 0)
+      warn(
+        "No placeholders matched. Are tokens like [Anrede] present in the PDF text layer?",
+      );
 
     // 2) Draw overlays with pdf-lib (use original Buffer)
     let pdfDoc;
     try {
       pdfDoc = await PDFDocument.load(templateBytes);
     } catch (e) {
-      errlog('pdf-lib load failed:', e);
-      return res.status(500).json({ error: 'PDF load failed', detail: String(e) });
+      errlog("pdf-lib load failed:", e);
+      return res
+        .status(500)
+        .json({ error: "PDF load failed", detail: String(e) });
     }
 
     let font;
     try {
       font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     } catch (e) {
-      errlog('Font embed failed:', e);
-      return res.status(500).json({ error: 'Font embed failed', detail: String(e) });
+      errlog("Font embed failed:", e);
+      return res
+        .status(500)
+        .json({ error: "Font embed failed", detail: String(e) });
     }
 
     const white = rgb(1, 1, 1);
@@ -258,8 +301,8 @@ router.post('/', async (req, res) => {
         const page = pdfDoc.getPage(pageIndex);
         const yAdj = yAdjustByPage[pageIndex] ?? 0;
 
-        matches.forEach(m => {
-          const value = data[m.key] ?? '';
+        matches.forEach((m) => {
+          const value = data[m.key] ?? "";
           const size = Math.max(9, Math.min(12, m.fontSize || 11));
           const baselineY = m.y + yAdj;
 
@@ -285,25 +328,34 @@ router.post('/', async (req, res) => {
         });
       });
     } catch (e) {
-      errlog('Drawing overlays failed:', e);
-      return res.status(500).json({ error: 'Drawing overlays failed', detail: String(e) });
+      errlog("Drawing overlays failed:", e);
+      return res
+        .status(500)
+        .json({ error: "Drawing overlays failed", detail: String(e) });
     }
 
     let out;
     try {
       out = await pdfDoc.save();
     } catch (e) {
-      errlog('PDF save failed:', e);
-      return res.status(500).json({ error: 'PDF save failed', detail: String(e) });
+      errlog("PDF save failed:", e);
+      return res
+        .status(500)
+        .json({ error: "PDF save failed", detail: String(e) });
     }
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="Angebot_aus_Vorlage.pdf"');
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="Angebot_aus_Vorlage.pdf"',
+    );
     res.send(Buffer.from(out));
   } catch (err) {
-    errlog('Unhandled error:', err);
-    errlog(err?.stack || '');
-    res.status(500).json({ error: 'PDF generation failed', detail: String(err) });
+    errlog("Unhandled error:", err);
+    errlog(err?.stack || "");
+    res
+      .status(500)
+      .json({ error: "PDF generation failed", detail: String(err) });
   }
 });
 

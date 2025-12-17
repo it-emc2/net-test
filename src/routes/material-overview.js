@@ -2,32 +2,36 @@
 async function renderDocx(templatePath, data) {
   const content = await fs.readFile(templatePath);
   const zip = new PizZip(content);
-  const doc = new Docxtemplater(zip, { 
-    paragraphLoop: true, 
-    linebreaks: true, 
-    nullGetter: () => '' 
+  const doc = new Docxtemplater(zip, {
+    paragraphLoop: true,
+    linebreaks: true,
+    nullGetter: () => "",
   });
-  
+
   try {
-    doc.render(data);  // ✅ Use render(data) directly instead of setData() + render()
+    doc.render(data); // ✅ Use render(data) directly instead of setData() + render()
   } catch (e) {
     const msg = e?.message || String(e);
-    console.error('Docxtemplater render error:', msg);
+    console.error("Docxtemplater render error:", msg);
     if (e?.properties?.errors) {
       for (const er of e.properties.errors) {
-        console.error('- Docx error:', {
-          id: er.id, explanation: er.explanation, file: er.file,
-          xtag: er.xtag, context: er.context, offset: er.offset,
+        console.error("- Docx error:", {
+          id: er.id,
+          explanation: er.explanation,
+          file: er.file,
+          xtag: er.xtag,
+          context: er.context,
+          offset: er.offset,
         });
       }
     }
     throw new Error(`DOCX render failed: ${msg}`);
   }
-  return doc.getZip().generate({ type: 'nodebuffer' });
+  return doc.getZip().generate({ type: "nodebuffer" });
 }
 
 // ✅ COMPLETE: Material overview DOCX route
-router.post('/material-overview', async (req, res) => {
+router.post("/material-overview", async (req, res) => {
   try {
     const body = req.body || {};
 
@@ -38,102 +42,94 @@ router.post('/material-overview', async (req, res) => {
       pos: i + 1,
       materialNumber: m.materialNumber,
       name: m.name,
-      quantity: formatQtyForOverview(m.quantity, m.unit || 'Stck.'),
-      unit: m.unit || 'Stck.',
-      remarks: m.remarks || ''
+      quantity: formatQtyForOverview(m.quantity, m.unit || "Stck."),
+      unit: m.unit || "Stck.",
+      remarks: m.remarks || "",
     }));
 
     // === Build customer context (same as before) ===
     const b = body.bereich || {};
 
-    const salutation = b.salutation || '';
-    const firstName  = b.firstName  || '';
-    const lastName   = b.lastName   || '';
+    const salutation = b.salutation || "";
+    const firstName = b.firstName || "";
+    const lastName = b.lastName || "";
 
-    const kundeName = [salutation, firstName, lastName]
+    const kundeName =
+      [salutation, firstName, lastName].filter(Boolean).join(" ") || "";
+
+    const street = b.street || "";
+    const city = b.city || "";
+    const plz = b.postalCode || "";
+
+    const adresse = [street, [plz, city].filter(Boolean).join(" ")]
       .filter(Boolean)
-      .join(' ') || '';
+      .join(", ");
 
-    const street = b.street      || '';
-    const city   = b.city        || '';
-    const plz    = b.postalCode  || '';
-
-    const adresse = [
-      street,
-      [plz, city].filter(Boolean).join(' ')
-    ].filter(Boolean).join(', ');
-
-    const angebotNummer = (body.offerNumber || '').trim() || 'ANG-0001';
+    const angebotNummer = (body.offerNumber || "").trim() || "ANG-0001";
 
     const data = {
       angebotNummer,
-      datum: b.date || dayjs().format('YYYY-MM-DD'),
+      datum: b.date || dayjs().format("YYYY-MM-DD"),
       kunde: kundeName,
       adresse,
-      ansprechpartner: (b.emc2_contact || '').trim(),
+      ansprechpartner: (b.emc2_contact || "").trim(),
       salutation,
       firstName,
       lastName,
       street,
       plz,
       city,
-      materials
+      materials,
     };
 
-    console.log('[DEBUG] Template data:', {
+    console.log("[DEBUG] Template data:", {
       angebotNummer: data.angebotNummer,
       kunde: data.kunde,
       adresse: data.adresse,
       ansprechpartner: data.ansprechpartner,
       materialsCount: materials.length,
-      firstMaterial: materials[0] || null
+      firstMaterial: materials[0] || null,
     });
 
     const templatePath = path.join(
       process.cwd(),
-      'src',
-      'templates',
-      'Materialuebersicht.docx'
+      "src",
+      "templates",
+      "Materialuebersicht.docx",
     );
     const out = await renderDocx(templatePath, data);
 
     // Optional debug copy
     try {
-      const verifyOut = path.join(
-        process.cwd(),
-        'out-Materialuebersicht.docx'
-      );
+      const verifyOut = path.join(process.cwd(), "out-Materialuebersicht.docx");
       fsSync.writeFileSync(verifyOut, out);
       console.log(
-        '[material-overview] wrote generated DOCX:',
+        "[material-overview] wrote generated DOCX:",
         verifyOut,
-        'size:',
-        out.length
+        "size:",
+        out.length,
       );
     } catch (e) {
       console.warn(
-        '[material-overview] could not write verify file:',
-        e?.message || String(e)
+        "[material-overview] could not write verify file:",
+        e?.message || String(e),
       );
     }
 
     // === NEW: dynamic filename with offer number ===
-    const safeOffer = angebotNummer.replace(/[^A-Za-z0-9_\-]+/g, '_');
-    const filename  = `Materialuebersicht_${safeOffer}.docx`;
+    const safeOffer = angebotNummer.replace(/[^A-Za-z0-9_\-]+/g, "_");
+    const filename = `Materialuebersicht_${safeOffer}.docx`;
 
     res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     );
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${filename}"`
-    );
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.send(out);
   } catch (e) {
-    console.error('Materialübersicht generation failed:', e);
+    console.error("Materialübersicht generation failed:", e);
     res.status(500).json({
-      error: 'Materialübersicht generation failed',
+      error: "Materialübersicht generation failed",
       detail: e.message || String(e),
     });
   }
