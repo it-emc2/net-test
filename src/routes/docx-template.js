@@ -1641,3 +1641,4 @@ router.post("/pdf", async (req, res) => {
 });
 
 export default router;
+export { renderDocx, convertDocxToPdf, mapData, getAngebotTemplatePath };

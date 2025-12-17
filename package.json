@@ -47,7 +47,7 @@
     "morgan": "^1.10.1",
     "node-fetch": "^3.3.2",
     "pdf-lib": "^1.17.1",
-    "pdfjs-dist": "^5.4.149",
+    "pdfjs-dist": "^5.4.449",
     "pdfkit": "^0.17.2",
     "pdflatex": "^0.0.1",
     "pizzip": "^3.2.0",
@@ -75,7 +75,6 @@
   "engines": {
     "node": ">=18.17"
   },
-
   "jest": {
     "testEnvironment": "node",
     "transform": {},
@@ -97,13 +96,19 @@
       "!src/server.js"
     ],
     "coverageDirectory": "coverage",
-    "coverageReporters": ["text", "lcov", "html"],
-    "testPathIgnorePatterns": ["/node_modules/", "/coverage/"],
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "html"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/coverage/"
+    ],
     "verbose": true,
     "testTimeout": 10000,
     "globals": {
       "jest": true
     }
   }
-
 }

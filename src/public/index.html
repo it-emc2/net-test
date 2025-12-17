@@ -841,6 +841,24 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
               placeholder="name@example.com"
             />
           </div>
+          <!-- Bitrix contact search by ID -->
+  <div class="form-row bitrix-actions-row">
+    <div class="form-field">
+           <label for="bitrixContactId">Bitrix Kontakt ID</label>
+      <div class="bitrix-search-wrapper">
+        <input
+          type="text"
+          id="bitrixContactId"
+          name="bitrixContactId"
+          placeholder="z.B. 12345"
+          autocomplete="off"
+        />
+        <button type="button" id="loadBitrixContactBtn" class="btn-secondary">
+          Kontakt aus Bitrix laden
+        </button>
+      </div>
+    </div>
+  </div>
           <div class="full">
             <label class="req">Adressdaten des Kunden</label>
           </div>
@@ -1015,24 +1033,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
     </div>
   </div>
 
-<!-- Bitrix contact search by ID -->
-  <div class="form-row bitrix-actions-row">
-    <div class="form-field">
-           <label for="bitrixContactId">Bitrix Auftrag ID</label>
-      <div class="bitrix-search-wrapper">
-        <input
-          type="text"
-          id="bitrixContactId"
-          name="bitrixContactId"
-          placeholder="z.B. 12345"
-          autocomplete="off"
-        />
-        <button type="button" id="loadBitrixContactBtn" class="btn-secondary">
-          Aus Bitrix laden
-        </button>
-      </div>
-    </div>
-  </div>
+
           <div id="offerRequiredDetails" class="full" style="margin-top: 16px">
             <details open>
               <summary class="section-header" style="cursor: pointer">
@@ -1984,6 +1985,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
               <span id="floorAdhesivePrice">0</span>
               <span class="muted">EUR</span>
             </div>
+            
 
             <div class="field">
               <label class="req">TRINNITY Bodenabdichtung für Fußboden</label>
@@ -4291,14 +4293,16 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         </div>
 
         <button id="downloadLatexPdf">Angebot (LaTeX → PDF)</button>
-<!-- Remove or hide the button -->
-<!-- <button id="previewPdfBtn">PDF Vorschau</button> -->
 
-<!-- Add embedded PDF viewer -->
-<div id="pdf-preview-container" style="width: 100%; height: 800px; border: 1px solid #ccc;">
-  <iframe 
-    id="pdf-preview-frame"
-    style="width: 100%; height: 100%; border: none;"
+
+<button type="button" id="previewPdfBtn">PDF Vorschau</button>
+
+<div id="pdfPreviewContainer"
+     style="display:none; margin-top: 20px; width: 100%; height: 800px; border: 2px solid #ccc; border-radius: 4px;">
+  <iframe
+    id="pdfPreviewFrame"
+    title="PDF Vorschau"
+    style="width:100%; height:100%; border:none;"
     src="about:blank">
   </iframe>
 </div>
@@ -7191,5 +7195,6 @@ grundsätzlich wird automatisch mitkalkuliert
     <!-- Page-specific initialization -->
    <!--  <script type="module" src="/js/pages/kundendaten-init.js"></script> -->
     <script src="./script.js"></script>
+    
   </body>
 </html>

@@ -14,6 +14,7 @@ import magicRouter from "./routes/magic.js";
 import customersRouter from "./routes/customers.js";
 import bitrixRouter from "./routes/bitrix.js";
 import routingRouter from "./routes/routing.js";
+//import pdfPreviewRouter from "./routes/pdf-preview.js";
 import pdfPreviewRouter from "./routes/pdf-preview.js";
 // PDF/DOCX routes
 import { router as pdfRouter } from "./routes/pdf.js";
@@ -50,31 +51,74 @@ app.use(
       useDefaults: true,
       directives: {
         defaultSrc: ["'self'"],
+
+        // Allow embedding external pages in iframes on *your* site
         frameSrc: [
           "'self'",
           "https://gconlineplus.de",
           "https://*.gconlineplus.de",
         ],
+
+        // IMPORTANT:
+        // Allow *your site* to be embedded by gconlineplus (otherwise it can’t frame you).
+        // If you do NOT want your site embedded there, keep only "'self'".
+        frameAncestors: [
+          "'self'",
+          "https://gconlineplus.de",
+          "https://*.gconlineplus.de",
+        ],
+
+        // Allow PDF.js from unpkg + allow the inline <script> in your srcdoc (hash-based).
+        // Also add scriptSrcElem explicitly to match browser error "script-src-elem".
         scriptSrc: [
           "'self'",
+          "https://unpkg.com",
+
+          // your existing allowed inline hashes
           "'sha256-/N6XS1N1HWcS1jcxJkTULItDFffd/I1mw8tPD5FTS3o='",
           "'sha256-5RmoD/+nJXNc4AM8oTu6YJEmH8lgRnYL9t8PcLUZxcY='",
           "'sha256-pmi68vLyMeGurqDvTzm+MD6lhDeARWXCNqv7x536RmA='",
+
+          // hash suggested by the browser for the srcdoc inline script
+          "'sha256-bVEWo/cK6LT6bDOoke6lkc5oHnahn1AxmUQubJ3s0eA='",
         ],
+
+        // Some browsers treat <script> tags under script-src-elem specifically.
+        scriptSrcElem: [
+          "'self'",
+          "https://unpkg.com",
+
+          "'sha256-/N6XS1N1HWcS1jcxJkTULItDFffd/I1mw8tPD5FTS3o='",
+          "'sha256-5RmoD/+nJXNc4AM8oTu6YJEmH8lgRnYL9t8PcLUZxcY='",
+          "'sha256-pmi68vLyMeGurqDvTzm+MD6lhDeARWXCNqv7x536RmA='",
+          "'sha256-bVEWo/cK6LT6bDOoke6lkc5oHnahn1AxmUQubJ3s0eA='",
+        ],
+
+        // PDF.js may create a Worker. If you use pdf.worker.min.js from unpkg,
+        // allow it here; otherwise worker creation can fail.
+        workerSrc: ["'self'", "blob:", "https://unpkg.com"],
+
         styleSrc: ["'self'", "'unsafe-inline'"],
+
         imgSrc: [
           "'self'",
           "data:",
           "blob:",
           "https://media.onlineplus.store",
-          // optional:
           // "https://*.onlineplus.store",
         ],
+
         fontSrc: ["'self'", "data:"],
-        connectSrc: ["'self'", "https://fly-n8n-1.fly.dev"],
+
+        connectSrc: [
+          "'self'",
+          "https://fly-n8n-1.fly.dev",
+          // if your viewer fetches PDFs or assets from unpkg via fetch/XHR:
+          "https://unpkg.com",
+        ],
+
         objectSrc: ["'none'"],
         baseUri: ["'self'"],
-        frameAncestors: ["'self'"],
         upgradeInsecureRequests: null,
       },
     },
@@ -165,7 +209,9 @@ app.use("/api/magic", magicRouter);
 app.use("/api/customers", customersRouter);
 app.use("/api/bitrix", bitrixRouter);
 app.use("/api/routing", routingRouter); // <--- NEW
-app.use("/pdf-preview", pdfPreviewRouter);
+app.use("/api/docx", pdfPreviewRouter);
+//app.use("/pdf-preview", pdfPreviewRouter);
+//app.use('/api/docx/pdf-preview', pdfPreviewRouter); // ADD THIS
 // (you had this twice; once is enough)
 // app.use('/api/offers', offersRouter);
 app.use("/latex-template", latexTemplateRouter);
@@ -475,6 +521,21 @@ app.get("/health", (req, res) =>
 
 // ---------------- Static ----------------
 app.use(express.static(path.join(__dirname, "public")));
+
+// ---------------- Static: PDF.js (MUST be before SPA fallback) ----------------
+app.use(
+  "/pdfjs",
+  express.static(path.join(__dirname, "public", "pdfjs"), {
+    fallthrough: false, // IMPORTANT: prevents SPA fallback HTML for missing files
+    setHeaders(res, filePath) {
+      // Ensure correct JS MIME type (nosniff otherwise blocks)
+      if (filePath.endsWith(".js") || filePath.endsWith(".mjs")) {
+        res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+      }
+    },
+  }),
+);
+
 
 // ---------------- SPA fallback (keep LAST) ----------------
 app.get(/.*/, (req, res) => {

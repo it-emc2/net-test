@@ -2880,59 +2880,159 @@ async function downloadPDFWithProgress(endpoint, payload) {
 }
 
 
-// PDF Preview Handler - Embedded Version
-document.getElementById("previewPdf")?.addEventListener("click", async () => {
-  if (!requireBereichValid()) {
-    location.hash = "Kundendaten";
-    return;
+// ===============================
+// PDF Preview (Embedded PDF.js) - CSP safe
+// ===============================
+(function initPdfPreview() {
+  const btn = document.getElementById("previewPdfBtn");
+  const container = document.getElementById("pdfPreviewContainer");
+  const iframe = document.getElementById("pdfPreviewFrame");
+
+  if (!btn || !container || !iframe) return;
+
+  // Minimal embedded viewer HTML (NO inline scripts!)
+  const PDF_VIEWER_SRCDOC = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PDF Preview</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;height:100vh;display:flex;flex-direction:column;background:#525659;overflow:hidden}
+    #toolbar{background:#323639;color:#fff;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    #toolbar button{background:#4a5056;color:#fff;border:0;padding:7px 12px;border-radius:6px;cursor:pointer}
+    #toolbar button:disabled{opacity:.5;cursor:not-allowed}
+    #viewport-container{flex:1;overflow:auto;padding:14px}
+    #viewport{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:14px;align-items:center}
+    .page-container{background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.35)}
+    canvas{display:block;max-width:100%;height:auto}
+    #loading{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.25)}
+    #loading.active{display:grid}
+    #loading .box{background:#fff;padding:14px 18px;border-radius:10px}
+    #error{position:fixed;top:12px;left:50%;transform:translateX(-50%);display:none;background:#dc3545;color:#fff;padding:10px 14px;border-radius:8px;max-width:min(90vw,680px)}
+    #error.active{display:block}
+    #page-info,#zoom-level{white-space:nowrap}
+  </style>
+</head>
+<body>
+  <div id="toolbar" role="toolbar">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button id="prev-page">◀</button>
+      <span id="page-info">Page <span id="current-page">-</span> of <span id="total-pages">-</span></span>
+      <button id="next-page">▶</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button id="zoom-out">−</button>
+      <span id="zoom-level">100%</span>
+      <button id="zoom-in">+</button>
+      <button id="zoom-fit">Fit</button>
+    </div>
+  </div>
+
+  <div id="error"></div>
+  <div id="loading"><div class="box">Loading PDF…</div></div>
+
+  <div id="viewport-container">
+    <div id="viewport"></div>
+  </div>
+
+  <script type="module" src="/pdfjs/viewer.mjs"><\\/script>
+</body>
+</html>`;
+
+  function ensureViewerLoaded() {
+    // reload every time if you want a clean viewer each click:
+    // iframe.srcdoc = PDF_VIEWER_SRCDOC;
+
+    // or keep it once:
+    if (!iframe.srcdoc) iframe.srcdoc = PDF_VIEWER_SRCDOC;
   }
-  
-  try {
-    const payload = buildPayload();
-    
-    // Encode payload as URL parameter
-    const encodedPayload = encodeURIComponent(JSON.stringify(payload));
-    
-    // Find or create embedded preview container
-    let previewContainer = document.getElementById('pdf-preview-container');
-    
-    if (!previewContainer) {
-      // Create container if it doesn't exist
-      previewContainer = document.createElement('div');
-      previewContainer.id = 'pdf-preview-container';
-      previewContainer.style.cssText = 'width: 100%; height: 800px; margin: 20px 0; border: 2px solid #0066cc; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
-      
-      const previewFrame = document.createElement('iframe');
-      previewFrame.id = 'pdf-preview-frame';
-      previewFrame.style.cssText = 'width: 100%; height: 100%; border: none;';
-      previewFrame.src = 'about:blank';
-      
-      previewContainer.appendChild(previewFrame);
-      
-      // Insert after the preview button or before submit button
-      const previewBtn = document.getElementById('previewPdf');
-      if (previewBtn) {
-        previewBtn.parentNode.insertBefore(previewContainer, previewBtn.nextSibling);
-      } else {
-        // Fallback: insert before form submit button
-        const submitButton = document.querySelector('button[type="submit"]');
-        submitButton?.parentNode.insertBefore(previewContainer, submitButton);
+
+  function waitForViewerReady(timeoutMs = 5000) {
+    return new Promise((resolve, reject) => {
+      let done = false;
+
+      const t = setTimeout(() => {
+        if (!done) reject(new Error("PDF viewer not ready (timeout)."));
+      }, timeoutMs);
+
+      function onMsg(ev) {
+        if (ev?.source !== iframe.contentWindow) return; // ensure it’s from the iframe
+        if (ev?.data?.type === "VIEWER_READY") {
+          done = true;
+          clearTimeout(t);
+          window.removeEventListener("message", onMsg);
+          resolve();
+        }
       }
-    }
-    
-    // Update iframe with PDF viewer
-    const iframe = document.getElementById('pdf-preview-frame');
-    iframe.src = `/pdf-preview/viewer?payload=${encodedPayload}`;
-    
-    // Scroll to preview
-    previewContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    
-  } catch (e) {
-    console.error('PDF preview failed:', e);
-    alert(`PDF-Vorschau fehlgeschlagen: ${e.message}`);
+      window.addEventListener("message", onMsg);
+    });
   }
-});
+
+  async function fetchPdfBlobForPreview() {
+    if (typeof window.buildPayload !== "function") {
+      throw new Error("buildPayload() is missing.");
+    }
+
+    const payload = window.buildPayload();
+
+    const res = await fetch("/api/docx/pdf-preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`Preview PDF failed (${res.status}): ${txt}`);
+    }
+    return await res.blob();
+  }
+
+  btn.addEventListener("click", async () => {
+    try {
+      btn.disabled = true;
+      btn.textContent = "Generating preview…";
+      container.style.display = "block";
+
+      ensureViewerLoaded();
+
+      // Wait until the iframe exists and has loaded the module
+      await waitForViewerReady(5000);
+
+      const pdfBlob = await fetchPdfBlobForPreview();
+      const buf = await pdfBlob.arrayBuffer();
+
+      // Transfer the ArrayBuffer (zero-copy)
+      iframe.contentWindow.postMessage(
+        { type: "LOAD_PDF_ARRAYBUFFER", buffer: buf },
+        window.location.origin,
+        [buf]
+      );
+    } catch (e) {
+      console.error("[pdf-preview] failed:", e);
+      alert("PDF preview failed:\n" + (e?.message || String(e)));
+      container.style.display = "none";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "PDF Preview";
+    }
+  });
+})();
 // #endregion
+
+window.addEventListener("message", (ev) => {
+  console.log("[parent] message", {
+    origin: ev.origin,
+    data: ev.data,
+    fromIframe: ev.source === document.getElementById("pdfPreviewFrame")?.contentWindow,
+  });
+});
+
+document.getElementById("pdfPreviewFrame")?.addEventListener("load", () => {
+  console.log("[parent] iframe load fired");
+});
 
 // === FIX: area <-> color coupling (self-contained) ===
 function syncColorWithAreaDW() {
