@@ -651,6 +651,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
   }
 }
 
+
     </style>
   </head>
   <body>
@@ -5023,7 +5024,7 @@ grundsätzlich wird automatisch mitkalkuliert.<br>
 
 <div class="full field">
 
-<label class="req">Brauchen Sie Handläufe für den Innenbereich oder für den Außenbereich?</label>
+ <label class="req">Brauchen Sie Handläufe für den Innenbereich oder für den Außenbereich?</label>
 
 
   <div style="display:flex; gap:14px; flex-wrap:wrap">
@@ -5056,6 +5057,144 @@ grundsätzlich wird automatisch mitkalkuliert.<br>
     </label>
 
   
+  </div>
+</div>
+<!-- Add this inside: <section class="card page" id="page-hl" hidden> ... </section> -->  
+<div class="full field">
+  <label class="req">Mounting type</label>
+
+  <div id="hlMountTypeWrap" style="display:flex; gap:14px; flex-wrap:wrap;">
+    <label class="image-check">
+      <input type="radio" name="hlMountType" value="boden-befestigung" required />
+      <span class="img-wrap"><img src="./assets/boden-handlauf.jpg" alt="boden-befestigung" /></span>
+      <span class="caption">boden-befestigung</span>
+    </label>
+
+    <label class="image-check">
+      <input type="radio" name="hlMountType" value="wand-befestigung" />
+      <span class="img-wrap"><img src="./assets/wandhandlauf.jpg" alt="wand-befestigung" /></span>
+      <span class="caption">wand-befestigung</span>
+    </label>
+  </div>
+</div>
+<!-- Material in Edelstahl -->
+<div class="full field">
+  <h3>Material in Edelstahl, vor allem im Außenbereich; inkl. Standardschrauben + Dübel</h3>
+  <p class="hint">Sie benötigen IMMER Stütze + Abdeckrosette (bei Stütze Bodenbefestigung)</p>
+  <p class="hint">Choose all that apply im Außenbereich</p>
+
+  <div class="img-check-grid">
+    <!-- 1 -->
+    <label class="image-check">
+      <input type="checkbox" name="hlAussenbereich[]" value="Edelstahlstütze, betonieren (120 cm), mit Gewindebohrung" />
+      <span class="img-wrap"><img src="./assets/Edelstahlstütze.png" alt="" /></span>
+      <span class="caption">Edelstahlstütze, betonieren (120 cm), mit Gewindebohrung</span>
+    </label>
+
+    <!-- 2 -->
+    <label class="image-check">
+      <input type="checkbox" name="hlAussenbereich[]" value="Edelstahlstütze, betonieren (150 cm), mit Gewindebohrung" />
+      <span class="img-wrap"><img src="./assets/Edelstahlstütze.png" alt="" /></span>
+      <span class="caption">Edelstahlstütze, betonieren (150 cm), mit Gewindebohrung</span>
+    </label>
+
+    <!-- 3 -->
+    <label class="image-check">
+      <input type="checkbox" name="hlAussenbereich[]" value="Edelstahlstütze, Bodenbefestigung mit Schrauben" />
+      <span class="img-wrap"><img src="./assets/Edelstahlstütze.png" alt="" /></span>
+      <span class="caption">Edelstahlstütze, Bodenbefestigung mit Schrauben</span>
+    </label>
+
+    <!-- 4 -->
+    <label class="image-check">
+      <input type="checkbox" name="hlAussenbereich[]" value="Abdeckrosette (halbrund)" />
+      <span class="img-wrap"><img src="./assets/Abdeckrosette .png" alt="" /></span>
+      <span class="caption">Abdeckrosette (halbrund)</span>
+    </label>
+
+    <!-- 5 -->
+    <label class="image-check">
+      <input type="checkbox" name="hlAussenbereich[]" value="Edelstahlstütze, seitl. Befestigung (20 mm)" />
+      <span class="img-wrap"><img src="./assets/Edelstahlstütze, seitl..png" alt="" /></span>
+      <span class="caption">Edelstahlstütze, seitl. Befestigung (20 mm)</span>
+    </label>
+
+    <!-- 6 -->
+    <label class="image-check">
+      <input type="checkbox" name="hlAussenbereich[]" value="Edelstahlstütze, seitl. Befestigung (40 mm)" />
+      <span class="img-wrap"><img src="./assets/Edelstahlstütze, seitl..png" alt="" /></span>
+      <span class="caption">Edelstahlstütze, seitl. Befestigung (40 mm)</span>
+    </label>
+
+    <!-- 7 -->
+    <label class="image-check">
+      <input type="checkbox" name="hlAussenbereich[]" value="Auflage für Edelstahlstütze, waagrecht (fest), lang" />
+      <span class="img-wrap"><img src="./assets/Auflage für Edelstahlstütze.png" alt="" /></span>
+      <span class="caption">Auflage für Edelstahlstütze, waagrecht (fest), lang</span>
+    </label>
+
+    <!-- 8 -->
+    <label class="image-check">
+      <input type="checkbox" name="hlAussenbereich[]" value="Auflage für Edelstahlstütze: flexibel, lang" />
+      <span class="img-wrap"><img src="./assets/Auflage für Edel lang.png" alt="" /></span>
+      <span class="caption">Auflage für Edelstahlstütze: flexibel, lang</span>
+    </label>
+
+    <!-- 9 -->
+    <label class="image-check">
+      <input type="checkbox" name="hlAussenbereich[]" value="Handlaufhalter 7,5 cm bis Handlaufmitte" />
+      <span class="img-wrap"><img src="./assets/Handlaufhalter 7,5 cm.png" alt="" /></span>
+      <span class="caption">Handlaufhalter 7,5 cm bis Handlaufmitte</span>
+    </label>
+
+    <!-- 10 -->
+    <label class="image-check">
+      <input type="checkbox" name="hlAussenbereich[]" value="Handlaufhalter 10 cm bis Handlaufmitte" />
+      <span class="img-wrap"><img src="./assets/Handlaufhalter 7,5 cm.png" alt="" /></span>
+      <span class="caption">Handlaufhalter 10 cm bis Handlaufmitte</span>
+    </label>
+
+    <!-- 11 -->
+    <label class="image-check">
+      <input type="checkbox" name="hlAussenbereich[]" value="Handlaufhalter 12,5 cm bis Handlaufmitte" />
+      <span class="img-wrap"><img src="./assets/Handlaufhalter 7,5 cm.png" alt="" /></span>
+      <span class="caption">Handlaufhalter 12,5 cm bis Handlaufmitte</span>
+    </label>
+
+    <!-- 12 -->
+    <label class="image-check">
+      <input type="checkbox" name="hlAussenbereich[]" value="Handlaufhalter 15 cm bis Handlaufmitte" />
+      <span class="img-wrap"><img src="./assets/Handlaufhalter 7,5 cm.png" alt="" /></span>
+      <span class="caption">Handlaufhalter 15 cm bis Handlaufmitte</span>
+    </label>
+
+    <!-- 13 -->
+    <label class="image-check">
+      <input type="checkbox" name="hlAussenbereich[]" value="Abschlusskappe flach, Außenbefestigung, 35 mm" />
+      <span class="img-wrap"><img src="./assets/Wandanschluss gerade.png" alt="" /></span>
+      <span class="caption">Abschlusskappe flach, Außenbefestigung, 35 mm</span>
+    </label>
+
+    <!-- 14 -->
+    <label class="image-check">
+      <input type="checkbox" name="hlAussenbereich[]" value="Abschlusskappe flach, Innenbefestigung, 35 mm" />
+      <span class="img-wrap"><img src="./assets/Wandanschluss gerade.png" alt="" /></span>
+      <span class="caption">Abschlusskappe flach, Innenbefestigung, 35 mm</span>
+    </label>
+
+    <!-- 15 -->
+    <label class="image-check">
+      <input type="checkbox" name="hlAussenbereich[]" value="Wandanschluss gerade für Außenbefestigung 35 mm" />
+      <span class="img-wrap"><img src="./assets/Wandanschluss gerade.png" alt="" /></span>
+      <span class="caption">Wandanschluss gerade für Außenbefestigung 35 mm</span>
+    </label>
+
+    <!-- 16 -->
+    <label class="image-check">
+      <input type="checkbox" name="hlAussenbereich[]" value="Wandanschluss schräg für 35 mm Rohr mit Kugelverbindung" />
+      <span class="img-wrap"><img src="./assets/Wandanschluss schräg.png" alt="" /></span>
+      <span class="caption">Wandanschluss schräg für 35 mm Rohr mit Kugelverbindung</span>
+    </label>
   </div>
 </div>
 
@@ -5117,7 +5256,7 @@ grundsätzlich wird automatisch mitkalkuliert.<br>
 </p> -->
 
 
-<h3 style="margin: 0 0 12px"> Materialauswahl für Innenbereich</h2>
+<h3 style="margin: 0 0 12px"> Materialauswahl für Innenbereich</h3>
 
   <!-- Rohr-Typ -->
 
