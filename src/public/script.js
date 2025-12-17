@@ -2878,6 +2878,60 @@ async function downloadPDFWithProgress(endpoint, payload) {
     console.error("PDF generation failed:", error);
   }
 }
+
+
+// PDF Preview Handler - Embedded Version
+document.getElementById("previewPdf")?.addEventListener("click", async () => {
+  if (!requireBereichValid()) {
+    location.hash = "Kundendaten";
+    return;
+  }
+  
+  try {
+    const payload = buildPayload();
+    
+    // Encode payload as URL parameter
+    const encodedPayload = encodeURIComponent(JSON.stringify(payload));
+    
+    // Find or create embedded preview container
+    let previewContainer = document.getElementById('pdf-preview-container');
+    
+    if (!previewContainer) {
+      // Create container if it doesn't exist
+      previewContainer = document.createElement('div');
+      previewContainer.id = 'pdf-preview-container';
+      previewContainer.style.cssText = 'width: 100%; height: 800px; margin: 20px 0; border: 2px solid #0066cc; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
+      
+      const previewFrame = document.createElement('iframe');
+      previewFrame.id = 'pdf-preview-frame';
+      previewFrame.style.cssText = 'width: 100%; height: 100%; border: none;';
+      previewFrame.src = 'about:blank';
+      
+      previewContainer.appendChild(previewFrame);
+      
+      // Insert after the preview button or before submit button
+      const previewBtn = document.getElementById('previewPdf');
+      if (previewBtn) {
+        previewBtn.parentNode.insertBefore(previewContainer, previewBtn.nextSibling);
+      } else {
+        // Fallback: insert before form submit button
+        const submitButton = document.querySelector('button[type="submit"]');
+        submitButton?.parentNode.insertBefore(previewContainer, submitButton);
+      }
+    }
+    
+    // Update iframe with PDF viewer
+    const iframe = document.getElementById('pdf-preview-frame');
+    iframe.src = `/pdf-preview/viewer?payload=${encodedPayload}`;
+    
+    // Scroll to preview
+    previewContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+  } catch (e) {
+    console.error('PDF preview failed:', e);
+    alert(`PDF-Vorschau fehlgeschlagen: ${e.message}`);
+  }
+});
 // #endregion
 
 // === FIX: area <-> color coupling (self-contained) ===

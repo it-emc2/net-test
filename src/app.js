@@ -14,6 +14,7 @@ import magicRouter from "./routes/magic.js";
 import customersRouter from "./routes/customers.js";
 import bitrixRouter from "./routes/bitrix.js";
 import routingRouter from "./routes/routing.js";
+import pdfPreviewRouter from "./routes/pdf-preview.js";
 // PDF/DOCX routes
 import { router as pdfRouter } from "./routes/pdf.js";
 import pdfTemplateRouter from "./routes/pdf-template.js";
@@ -164,6 +165,7 @@ app.use("/api/magic", magicRouter);
 app.use("/api/customers", customersRouter);
 app.use("/api/bitrix", bitrixRouter);
 app.use("/api/routing", routingRouter); // <--- NEW
+app.use("/pdf-preview", pdfPreviewRouter);
 // (you had this twice; once is enough)
 // app.use('/api/offers', offersRouter);
 app.use("/latex-template", latexTemplateRouter);
@@ -491,4 +493,6 @@ app.listen(PORT, () => {
   console.log("Mounted: POST /api/submissions");
   console.log("Mounted: POST /api/offers/save");
   console.log("Mounted: GET  /api/offers/:offerNumber");
+    console.log("Mounted: GET  /pdf-preview/viewer");
+  console.log("Mounted: POST /pdf-preview/generate");
 });

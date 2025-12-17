@@ -4291,6 +4291,18 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         </div>
 
         <button id="downloadLatexPdf">Angebot (LaTeX → PDF)</button>
+<!-- Remove or hide the button -->
+<!-- <button id="previewPdfBtn">PDF Vorschau</button> -->
+
+<!-- Add embedded PDF viewer -->
+<div id="pdf-preview-container" style="width: 100%; height: 800px; border: 1px solid #ccc;">
+  <iframe 
+    id="pdf-preview-frame"
+    style="width: 100%; height: 100%; border: none;"
+    src="about:blank">
+  </iframe>
+</div>
+
 
         <pre id="status" class="status"></pre>
 
