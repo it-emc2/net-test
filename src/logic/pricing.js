@@ -468,7 +468,7 @@ export default (ProductModel) => {
         // if user did not enter a valid value, fall back to Abschlussprofil qty
         qSilikon = qtyAbschlussprofil;
       }
-      if (qSilikon > 0) add("CARESSW", qSilikon);
+      if (qSilikon > 0) add("2000302", qSilikon);
     }
     // ------- BWT · Badewannentür materials -------
     if (offer === "bwt") {

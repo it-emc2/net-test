@@ -6476,7 +6476,7 @@ function restoreWV(wv) {
   setByProductId("TRWDSET5", chosenHas("TRWDSET5")); // TRINNITY Wandabdichtung
   setByProductId("V4FK600", chosenHas("V4FK600")); // Flächenkleber (Wandverkleidung)
   setByProductId("V3A", chosenHas("V3A")); // Abschlussprofil
-  setByProductId("CARESSW", chosenHas("CARESSW")); // Silikon
+  setByProductId("2000302", chosenHas("2000302")); // Silikon
   window.__RESTORING__ = prev;
 
   // Selects/radios for accessories
