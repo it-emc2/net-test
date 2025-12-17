@@ -17,6 +17,8 @@ class StateManager {
         bwt: {},
         hl: {},
         ah: {},
+         hms: {},
+          wd: {},
       },
       pricing: null,
       ui: {

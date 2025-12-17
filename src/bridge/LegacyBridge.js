@@ -67,6 +67,8 @@ export function installLegacyBridge() {
       bwt: forms.bwt,
       hl: forms.hl,
       ah: forms.ah,
+      hms: forms.hms,
+      wd: forms.wd,
       activeOffer: stateManager.currentOfferType,
       offerNumber: document.getElementById("offerNumber")?.value || "",
     };

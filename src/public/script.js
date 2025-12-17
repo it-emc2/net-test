@@ -38,6 +38,14 @@ const OFFERS = {
     name: "AH · Alltagshilfe",
     pages: ["Kundendaten", "Arbeitszeit", "ah", "Kosten", "Zusammenfassung"],
   },
+  hms: {
+    name: "HMS · Hausmeisterservice",
+    pages: ["Kundendaten", "Arbeitszeit", "hms", "Kosten", "Zusammenfassung"],
+  },
+  wd: {
+    name: "WD · Winterdienst",
+    pages: ["Kundendaten", "Arbeitszeit", "wd", "Kosten", "Zusammenfassung"],
+  },
 };
 
 // === Central state for current offer + step (small helper) ===
@@ -1486,6 +1494,8 @@ function resetAllForms() {
     "form-admin",
     "form-as",
     "form-ah",
+    "form-hms",
+    "form-wd",
   ];
 
   // 1) Reset all forms back to their HTML defaults
@@ -2222,6 +2232,8 @@ function filterPayloadByOffer(payload) {
     bwt: "bwt",
     hl: "hl",
     ah: "ah",
+        hms: "hms",
+            wd: "wd",
     admin: "admin",
     services: "services",
   };
@@ -2304,6 +2316,10 @@ function buildPayload() {
     bwt: formToObject(document.getElementById("form-bwt")),
     hl: formToObject(document.getElementById("form-hl")),
     ah: formToObject(document.getElementById("form-ah")),
+        hms: formToObject(document.getElementById("form-hms")),
+
+            wd: formToObject(document.getElementById("form-wd")),
+
   };
 
   collectWandverkleidungMaterials(payload);
@@ -3132,8 +3148,8 @@ const TILE_TO_OFFER = {
   "BWT-Badewannentür": "bwt",
   "HL-Handlauf": "hl",
   "AH-Alltagshilfe": "ah",
-  // "HMS-Hausmeister-Service": "hms",
-  // "WD-Winterdienst": "wd",
+   "HMS-Hausmeister-Service": "hms",
+   "WD-Winterdienst": "wd",
 };
 
 // Auswahl der Leistung tiles → start the corresponding offer flow
@@ -6952,6 +6968,10 @@ const RESTORE_HANDLERS = {
   hl: (p, ctx) => typeof restoreHl === "function" && restoreHl(p?.hl),
 
   ah: (p, ctx) => typeof restoreAh === "function" && restoreAh(p?.ah),
+    hms: (p, ctx) => typeof restoreHms === "function" && restoreAh(p?.hms),
+
+    wd: (p, ctx) => typeof restoreWd === "function" && restoreAh(p?.wd),
+
 };
 
 async function restoreConfiguratorFromOffer(doc) {

@@ -24,4 +24,12 @@ export const OFFERS = {
     name: "Alltagshilfen",
     pages: ["Kundendaten", "ah"],
   },
+  hms: {
+    name: "Alltagshilfen",
+    pages: ["Kundendaten", "hms"],
+  },
+  wd: {
+    name: "Alltagshilfen",
+    pages: ["Kundendaten", "wd"],
+  },
 };

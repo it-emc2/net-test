@@ -55,6 +55,8 @@ export class PricingController {
       bwt: forms.bwt,
       hl: forms.hl,
       ah: forms.ah,
+       hms: forms.hms,
+        wd: forms.wd,
       activeOffer: stateManager.currentOfferType,
     };
   }
