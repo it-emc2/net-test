@@ -4590,7 +4590,7 @@ async function getProduct(id) {
   const panel = document.getElementById("flooringPanel");
   const area = document.getElementById("floorArea");
 
-  const tileAdh = document.getElementById("tile_V4FK600");
+  const tileAdh = document.getElementById("tile_R_4260602");
   const tileSeal = document.getElementById("tile_TRBDSET7");
 
   const adhesivePriceEl = document.getElementById("floorAdhesivePrice");
@@ -4626,7 +4626,7 @@ async function getProduct(id) {
 
   const computed = {
     areaM2: 0,
-    adhesive: { productId: "V4FK600", packs: 0, unit: 0, total: 0 },
+    adhesive: { productId: "R_4260602", packs: 0, unit: 0, total: 0 },
     sealing: { productId: "TRBDSET7", sets: 0, unit: 0, total: 0 },
   };
   window.__DW_COMPUTED__ = computed;
@@ -4637,7 +4637,7 @@ async function getProduct(id) {
 
   async function ensureUnits() {
     if (!unitAdh) {
-      const p = await getProduct("V4FK600");
+      const p = await getProduct("R_4260602");
       unitAdh = Number(p?.price || 0);
     }
     if (!unitSeal) {
@@ -4707,7 +4707,7 @@ async function getProduct(id) {
     if (adhesivePriceEl)
       adhesivePriceEl.textContent = packs ? euro(totalA) : "0";
     computed.adhesive = {
-      productId: "V4FK600",
+      productId: "R_4260602",
       packs,
       unit: unitAdh,
       total: +totalA.toFixed(2),
@@ -4786,7 +4786,7 @@ async function getProduct(id) {
       const anyAdh = f.querySelector('input[name="floorAdhesive[]"]:checked');
       if (!anyAdh) {
         const defAdh =
-          f.querySelector('#tile_V4FK600 input[name="floorAdhesive[]"]') ||
+          f.querySelector('#tile_R_4260602 input[name="floorAdhesive[]"]') ||
           f.querySelector('input[name="floorAdhesive[]"]');
         if (defAdh) {
           defAdh.checked = true;
@@ -4820,7 +4820,7 @@ async function getProduct(id) {
 
       unitAdh = unitSeal = 0;
       computed.areaM2 = 0;
-      computed.adhesive = { productId: "V4FK600", packs: 0, unit: 0, total: 0 };
+      computed.adhesive = { productId: "R_4260602", packs: 0, unit: 0, total: 0 };
       computed.sealing = { productId: "TRBDSET7", sets: 0, unit: 0, total: 0 };
     }
 
@@ -6417,7 +6417,7 @@ function restoreWV(wv) {
   const prev = window.__RESTORING__;
   window.__RESTORING__ = true;
   // --- 2a) WV consumables: clear the 4 “defaulty” items first
-  const WV_DEFAULT_PIDS = ["TRWDSET5", "V4FK600", "V3A", "V4RPKIT"];
+  const WV_DEFAULT_PIDS = ["TRWDSET5", "R_4260602", "V3A", "V4RPKIT"];
   WV_DEFAULT_PIDS.forEach((pid) => setByProductId(pid, false));
 
   // Kind is a radio
@@ -6474,7 +6474,7 @@ function restoreWV(wv) {
     chosenStrings.some((s) => s.includes(shortPid)); // e.g. "... TRWDSET5"
 
   setByProductId("TRWDSET5", chosenHas("TRWDSET5")); // TRINNITY Wandabdichtung
-  setByProductId("V4FK600", chosenHas("V4FK600")); // Flächenkleber (Wandverkleidung)
+  setByProductId("R_4260602", chosenHas("R_4260602")); // Flächenkleber (Wandverkleidung)
   setByProductId("V3A", chosenHas("V3A")); // Abschlussprofil
   setByProductId("2000302", chosenHas("2000302")); // Silikon
   window.__RESTORING__ = prev;
@@ -8593,7 +8593,7 @@ function initBasinAutoAccessories() {
 
   // Elements for the 4 items
   const pairs = [
-    // Flächenkleber V4FK600
+    // Flächenkleber R_4260602
     {
       cb: q('#flechenSection input[type=checkbox][name="flechenkleber"]'),
       qty: byId("wvFlachenQty"),

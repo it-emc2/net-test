@@ -363,7 +363,7 @@ export default (ProductModel) => {
       const packs = ceilSafe(floorArea / 0.6);
       if (packs > 0)
         add(
-          "V4FK600",
+          "R_4260602",
           packs,
           `- ${packs} Pkg Flächenkleber (1 Pkg je 0,60 m²)`,
         );
@@ -426,7 +426,7 @@ export default (ProductModel) => {
           ? userQtyAdh
           : fallbackAdh;
       if (qAdh > 0)
-        add("V4FK600", qAdh, `- ${qAdh} Pkg Flächenkleber (Wandverkleidung)`);
+        add("R_4260602", qAdh, `- ${qAdh} Pkg Flächenkleber (Wandverkleidung)`);
     }
     let endProfilesQty = 0;
     if (wv?.wvEndProfile) {
