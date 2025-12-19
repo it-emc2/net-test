@@ -8704,6 +8704,13 @@ function refreshHassmannFrame() {
 }
 
 // --- Routing suggestion: one-way km from address -> Vorschlag neben distanceKm ---
+function secondsToHHMM(totalSeconds) {
+  if (!Number.isFinite(totalSeconds) || totalSeconds < 0) return "";
+  const minutes = Math.round(totalSeconds / 60); // round to nearest minute
+  const hh = String(Math.floor(minutes / 60)).padStart(2, "0");
+  const mm = String(minutes % 60).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
 
 async function suggestDistanceFromAddress() {
   const out = document.getElementById("routingSuggestion");
@@ -8784,6 +8791,16 @@ async function suggestDistanceFromAddress() {
         <em>${data.to?.address || "Kundenadresse"}</em>
       </div>
     `;
+
+    // fill #travelTime from the API response
+    const travelTimeEl = document.getElementById("travelTime");
+
+const hhmm = secondsToHHMM(data.oneWaySeconds ?? null); // or roundTripSeconds if you want total drive time
+if (travelTimeEl && hhmm) {
+  travelTimeEl.value = hhmm;
+  travelTimeEl.dispatchEvent(new Event("input", { bubbles: true }));
+  travelTimeEl.dispatchEvent(new Event("change", { bubbles: true }));
+}
 
     // Wire “Übernehmen” button: fill distanceKm and trigger existing preview + pricing
     document

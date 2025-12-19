@@ -145,6 +145,86 @@ async function getRoadDistanceKm(a, b) {
   return km;
 }
 
+// --- duration helpers --------------------------
+async function osrmDistanceAndDuration(a, b) {
+  const url = `https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`;
+
+  const res = await fetch(url, {
+    headers: { "User-Agent": "emc2-configurator/1.0 (routing suggestion)" },
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => "");
+    throw new Error(`OSRM error: HTTP ${res.status} - ${errorText}`);
+  }
+
+  const data = await res.json();
+  if (data.code !== "Ok") {
+    throw new Error(`OSRM error: ${data.code} - ${data.message || "Unknown error"}`);
+  }
+
+  const route = data?.routes?.[0];
+  const meters = route?.distance;
+  const seconds = route?.duration;
+
+  if (typeof meters !== "number" || !Number.isFinite(meters)) throw new Error("OSRM returned invalid distance data");
+  if (typeof seconds !== "number" || !Number.isFinite(seconds)) throw new Error("OSRM returned invalid duration data");
+
+  return { km: meters / 1000, seconds };
+}
+
+async function orsDistanceAndDuration(a, b) {
+  if (!ORS_API_KEY) throw new Error("ORS_API_KEY not configured");
+
+  const url = `https://api.openrouteservice.org/v2/directions/driving-car/geojson?api_key=${ORS_API_KEY}`;
+  const body = JSON.stringify({
+    coordinates: [
+      [a.lng, a.lat],
+      [b.lng, b.lat],
+    ],
+  });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => "");
+    throw new Error(`ORS error: HTTP ${res.status} - ${errorText}`);
+  }
+
+  const data = await res.json();
+  const summary = data?.features?.[0]?.properties?.summary;
+
+  const meters = summary?.distance;
+  const seconds = summary?.duration;
+
+  if (typeof meters !== "number" || !Number.isFinite(meters)) throw new Error("ORS returned invalid distance data");
+  if (typeof seconds !== "number" || !Number.isFinite(seconds)) throw new Error("ORS returned invalid duration data");
+
+  return { km: meters / 1000, seconds };
+}
+
+async function getRoadDistanceAndDuration(a, b) {
+  if (ORS_API_KEY) {
+    try {
+      console.log("[routing] Attempting ORS routing...");
+      const out = await orsDistanceAndDuration(a, b);
+      console.log("[routing] ORS routing successful");
+      return out;
+    } catch (err) {
+      console.warn("[routing] ORS failed, falling back to OSRM:", err.message);
+    }
+  }
+
+  console.log("[routing] Using OSRM routing...");
+  const out = await osrmDistanceAndDuration(a, b);
+  console.log("[routing] OSRM routing successful");
+  return out;
+}
+
 // --- Route: POST /api/routing/suggest-distance --------------------------
 /**
  * Body:
@@ -200,7 +280,7 @@ router.post("/suggest-distance", async (req, res) => {
     ]);
 
     // 2) Get road-based distance (tries ORS, falls back to OSRM)
-    const km = await getRoadDistanceKm(start, dest);
+    const { km, seconds } = await getRoadDistanceAndDuration(start, dest);
 
     // COMMENTED OUT: Haversine fallback removed to ensure road-based routing only
     // let km = null;
@@ -218,10 +298,15 @@ router.post("/suggest-distance", async (req, res) => {
     const oneWayKm = Math.round(km * 2) / 2;
     const roundTripKm = Math.round(oneWayKm * 2 * 10) / 10;
 
+    const oneWaySeconds = Math.round(seconds); // keep as int
+    const roundTripSeconds = oneWaySeconds * 2;
+
     return res.json({
       ok: true,
       oneWayKm,
       roundTripKm,
+      oneWaySeconds,
+  roundTripSeconds,
       from: {
         address: COMPANY_ADDRESS,
         geocoded: start.displayName,
