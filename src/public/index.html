@@ -3182,8 +3182,39 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
           <!-- Menüs, erscheinen je nach Auswahl -->
           <div id="menu_REHA" class="full field" hidden aria-hidden="true">
   <div class="subheader">REHA-Team</div>
-  <div class="hint" style="opacity:.85;">
-    (Items will be added here)
+
+
+
+  <div style="display: flex; gap: 14px; flex-wrap: wrap">
+    <div class="field" style="min-width: 220px">
+                <label class="image-check"
+                  ><input
+                    type="checkbox"
+                    id="opt_24081000"
+                    name="optShower[]"
+                    value="VitaL Hüftkissen schwarz 24081000"
+                  /><span class="img-wrap"
+                    ><img src="./assets/24081000.jpg" alt="24081000" /></span
+                  ><span class="caption">VitaL Hüftkissen schwarz 24081000</span></label
+                >
+                <div
+                  id="qty_240810000_wrap"
+                  class="field"
+                  hidden
+                  aria-hidden="true"
+                  style="max-width: 220px"
+                >
+                  <label for="qty_240810000" class="req">Menge 24081000</label
+                  ><input
+                    id="qty_24081000"
+                    name="qty_24081000"
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
   </div>
 </div>
 
