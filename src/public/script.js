@@ -8870,7 +8870,8 @@ document.addEventListener("DOMContentLoaded", () => {
 function initOptionalMenus() {
   // Map main category checkboxes -> their panels
   const map = {
-    cat_SHOWER: "menu_SHOWER",
+        cat_REHA: "menu_REHA",
+cat_SHOWER: "menu_SHOWER",
     cat_GRAB: "menu_GRAB",
     cat_FOLD: "menu_FOLD",
     cat_BASIN: "menu_BASIN",

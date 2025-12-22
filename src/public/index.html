@@ -3081,7 +3081,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
               id="optCategories"
               style="display: flex; gap: 14px; flex-wrap: wrap"
             >
-              <label class="image-check">
+<label class="image-check">
                 <input type="checkbox" id="cat_SHOWER" />
                 <span class="img-wrap"
                   ><img
@@ -3157,6 +3157,14 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
               /></span>
               <span class="caption">Abdichtung Rohrmanschette</span>
             </label>
+            
+              <label class="image-check">
+  <input type="checkbox" id="cat_REHA" />
+  <span class="img-wrap">
+    <img src="./assets/reha-team.png" alt="REHA-Team" />
+  </span>
+  <span class="caption">REHA-Team</span>
+</label>
 <!-- NEW parent: Sonderprodukte -->
 <label class="image-check">
   <input type="checkbox" id="cat_SONDER" />
@@ -3172,7 +3180,14 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
           <!-- Optional submenus... (unchanged content from prior version) -->
 
           <!-- Menüs, erscheinen je nach Auswahl -->
-          <div id="menu_SHOWER" class="full field" hidden aria-hidden="true">
+          <div id="menu_REHA" class="full field" hidden aria-hidden="true">
+  <div class="subheader">REHA-Team</div>
+  <div class="hint" style="opacity:.85;">
+    (Items will be added here)
+  </div>
+</div>
+
+<div id="menu_SHOWER" class="full field" hidden aria-hidden="true">
             <div class="subheader">Duscharmatur</div>
             <div style="display: flex; gap: 14px; flex-wrap: wrap">
               <div class="field" style="min-width: 220px">
