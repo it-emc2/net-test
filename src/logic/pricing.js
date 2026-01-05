@@ -663,8 +663,17 @@ console.log("[REHA DEBUG] selections =", selections);
 
       // add delivery once if any REHA picked
       if (hasReha) {
-        add("REHA_DELIVERY", 1, "Lieferung (REHA-Team)", 6, "optional");
-      }
+  idsNeeded.add("REHA_DELIVERY");
+  lines.push({
+    id: "REHA_DELIVERY",
+    qty: 1,
+    label: "Lieferung (REHA-Team)",
+    unitOverride: 6,
+    source: "optional",
+    docxHide: true, // ✅ hide only in generated file
+  });
+}
+
 
     } catch (e) {
       console.warn("[pricing] optional->materials failed:", e?.message || e);
@@ -783,6 +792,7 @@ console.log("[REHA DEBUG] selections =", selections);
         lineTotal,
         label,
         source: l.source || null,
+        docxHide: !!l.docxHide, // ✅ IMPORTANT: keep the flag
       };
     });
 
@@ -1198,7 +1208,11 @@ console.log("[REHA DEBUG] selections =", selections);
       const uiOptionals = optLines.map((x) => ({ ...x }));
 
       // --- DOCX MATERIALS: include everything (business rule)
-      const docxMaterials = allMatLines.map((x) => ({ ...x }));
+    
+     const docxMaterials = allMatLines
+  .filter((l) => !l.docxHide)
+  .map((x) => ({ ...x }));
+
 
       // --- SERVICES display copies
       const uiServices = (services?.lines || []).map((x) => ({ ...x }));
