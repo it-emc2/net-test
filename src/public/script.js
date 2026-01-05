@@ -7004,6 +7004,15 @@ function restoreOptionalPage(opt) {
       cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55"],
       cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH"],
       cat_METER: ["opt_TECEADS"],
+      cat_REHA : ["opt_24081000","opt_24081100","opt_24081500","opt_24081600","opt_24081005",
+        "opt_24081105", "opt_24081505", "opt_24081605", "opt_25670000", "opt_24081800",
+        "opt_24096000", "opt_24097000", "opt_24096240", "opt_19034422", "opt_35035200",
+        "opt_35035145", "opt_35035148", "opt_35035281", "opt_35035280", "opt_78700800", 
+        "opt_78701700", "opt_78700400","opt_78701500",  "opt_78700750", "opt_78700850",
+        "opt_11096600", "opt_11096610", "opt_11020600", "opt_11020700", "opt_11020710",
+        "opt_11020300", "opt_14661000", "opt_14662000", "opt_26013000", "opt_26014000",
+        "opt_26014200", "opt_091095504", "opt_10440000", 
+          ]
     };
     Object.entries(map).forEach(([parentId, kids]) => {
       const anyKidChecked = kids.some((id) => {
@@ -9004,6 +9013,46 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_CL55", "qty_CL55_wrap");
   // ---- METER ----
   wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
+  // ---- cat_REHA ----
+wireTileQty("opt_24081000", "qty_24081000_wrap");
+wireTileQty("opt_24081100", "qty_24081100_wrap");
+wireTileQty("opt_24081500", "qty_24081500_wrap");
+wireTileQty("opt_24081600", "qty_24081600_wrap");
+wireTileQty("opt_24081005", "qty_24081005_wrap");
+wireTileQty("opt_24081105", "qty_24081105_wrap");
+wireTileQty("opt_24081505", "qty_24081505_wrap");
+wireTileQty("opt_24081605", "qty_24081605_wrap");
+wireTileQty("opt_25670000", "qty_25670000_wrap");
+wireTileQty("opt_24081800", "qty_24081800_wrap");
+wireTileQty("opt_24096000", "qty_24096000_wrap");
+wireTileQty("opt_24097000", "qty_24097000_wrap");
+wireTileQty("opt_24096240", "qty_24096240_wrap");
+wireTileQty("opt_19034422", "qty_19034422_wrap");
+wireTileQty("opt_35035200", "qty_35035200_wrap");
+wireTileQty("opt_35035145", "qty_35035145_wrap");
+wireTileQty("opt_35035148", "qty_35035148_wrap");
+wireTileQty("opt_35035281", "qty_35035281_wrap");
+wireTileQty("opt_35035280", "qty_35035280_wrap");
+wireTileQty("opt_78700800", "qty_78700800_wrap");
+wireTileQty("opt_78701700", "qty_78701700_wrap");
+wireTileQty("opt_78700400", "qty_78700400_wrap");
+wireTileQty("opt_78701500", "qty_78701500_wrap");
+wireTileQty("opt_78700750", "qty_78700750_wrap");
+wireTileQty("opt_78700850", "qty_78700850_wrap");
+wireTileQty("opt_11096600", "qty_11096600_wrap");
+wireTileQty("opt_11096610", "qty_11096610_wrap");
+wireTileQty("opt_11020600", "qty_11020600_wrap");
+wireTileQty("opt_11020700", "qty_11020700_wrap");
+wireTileQty("opt_11020710", "qty_11020710_wrap");
+wireTileQty("opt_11020300", "qty_11020300_wrap");
+wireTileQty("opt_14661000", "qty_14661000_wrap");
+wireTileQty("opt_14662000", "qty_14662000_wrap");
+wireTileQty("opt_26013000", "qty_26013000_wrap");
+wireTileQty("opt_26014000", "qty_26014000_wrap");
+wireTileQty("opt_26014200", "qty_26014200_wrap");
+wireTileQty("opt_091095504", "qty_091095504_wrap");
+wireTileQty("opt_10440000", "qty_10440000_wrap");
+
 
   // Show/hide "Erforderliches Zubehör" when CL60 is toggled (no cross-panel effects)
   (function wireBasinRequired() {
