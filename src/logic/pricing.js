@@ -99,15 +99,59 @@ export default (ProductModel) => {
         const id = aliasToId[k] || k;
         push(id, opt[`qty_${k}`], Boolean(val));
       } else if (key.startsWith("qty_")) {
-        const k = key.slice(4);
-        const id = aliasToId[k] || k;
-        const qty = val;
-        const checked = Boolean(opt[`opt_${k}`]);
-        push(id, qty, checked);
-      }
+  const k = key.slice(4);
+
+  // ✅ IMPORTANT: if we already have opt_<k>, it will handle qty_<k> there
+  // so we must NOT push again here (prevents duplicates)
+  if (opt[`opt_${k}`] !== undefined) continue;
+
+  const id = aliasToId[k] || k;
+  const qty = val;
+  const checked = Boolean(opt[`opt_${k}`]);
+  push(id, qty, checked);
+}
+
     }
     return out;
   }
+
+//  Detect which selected items belong to REHA
+function extractRehaIdsFromOptional(opt) {
+  const out = new Set();
+
+  // optReha[] is expected to exist because your checkboxes use name="optReha[]"
+  const raw = opt?.["optReha[]"];
+
+  const addFromVal = (v) => {
+    const s = String(v ?? "").trim();
+    if (!s) return;
+
+    // common case: "VitaL Hüftkissen schwarz 24081000" -> last token is the id
+    const m = s.match(/(\d{5,})\s*$/);
+    if (m) out.add(m[1]);
+  };
+
+  if (Array.isArray(raw)) {
+    for (const v of raw) addFromVal(v);
+  } else if (raw) {
+    // sometimes payload sends a single string instead of array
+    addFromVal(raw);
+  }
+
+  return out;
+}
+
+// Convert REHA DB price (gross) → net
+function grossToNet(gross, taxRate) {
+  const g = Number(gross);
+  if (!Number.isFinite(g)) return 0;
+
+  const r = Number(taxRate);
+  if (!Number.isFinite(r) || r <= 0) return g;
+
+  // taxRate in this file is 0.19
+  return g / (1 + r);
+}
 
   // Prefer numeric payload.pricing.markupPct; fallback to Kundendaten.aufschlag like "35%".
   const extractMarkupPct = (payload) => {
@@ -601,9 +645,27 @@ export default (ProductModel) => {
       grabTotalQty += optGrabTotal;
       cl40Qty += optCl40;
 
+      const rehaIds = extractRehaIdsFromOptional(opt);
+      let hasReha = false;
+console.log("[REHA DEBUG] selections =", selections);
+
       for (const s of selections) {
-        add(s.productId, s.qty, null, null, "optional");
+        const pid = String(s.productId || "").trim();
+        const isReha = rehaIds.has(pid);
+
+        if (isReha) hasReha = true;
+ if (pid.startsWith("240") || isReha) {
+    console.log("[REHA DEBUG] pid", pid, "isReha?", isReha, "sourceRaw optReha[] =", opt?.["optReha[]"]);
+  }
+        // IMPORTANT: still an "optional", but categorized
+        add(pid, s.qty, null, null, isReha ? "optional_reha" : "optional");
       }
+
+      // add delivery once if any REHA picked
+      if (hasReha) {
+        add("REHA_DELIVERY", 1, "Lieferung (REHA-Team)", 6, "optional");
+      }
+
     } catch (e) {
       console.warn("[pricing] optional->materials failed:", e?.message || e);
     }
@@ -684,6 +746,10 @@ export default (ProductModel) => {
       if (l.id === "V5FB02") {
         unit = round2(unit / 8);
       }
+      if (l.source === "optional_reha") {
+      unit = round2(grossToNet(unit, TAX_RATE));
+    }
+
 
       const displayName = (prod.name || "").trim() || l.id;
       const builtLabel = `- ${l.qty} Stk ${displayName}`;
@@ -1112,8 +1178,12 @@ export default (ProductModel) => {
       const allMatLines = Array.isArray(materials?.lines)
         ? materials.lines.map((x) => ({ ...x }))
         : [];
-      const optLines = allMatLines.filter((l) => l.source === "optional");
-      const nonOptLines = allMatLines.filter((l) => l.source !== "optional");
+      const isOptionalSource = (src) =>
+      src === "optional" || src === "optional_reha";
+
+      const optLines = allMatLines.filter((l) => isOptionalSource(l.source));
+      const nonOptLines = allMatLines.filter((l) => !isOptionalSource(l.source));
+
 
       // Sums
       const optSum = optLines.reduce(

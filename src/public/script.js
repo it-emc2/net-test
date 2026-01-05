@@ -1974,8 +1974,27 @@ window.addEventListener("hashchange", handleHashChange);
 
 /* ========== PAYLOAD / SUMMARY / STATUS ========== */
 function formToObject(form) {
-  return Object.fromEntries(new FormData(form).entries());
+  const fd = new FormData(form);
+  const obj = {};
+
+  for (const [key, value] of fd.entries()) {
+    if (key in obj) {
+      // convert to array on second occurrence
+      if (!Array.isArray(obj[key])) obj[key] = [obj[key]];
+      obj[key].push(value);
+    } else {
+      obj[key] = value;
+    }
+  }
+
+  // Optional: normalize keys ending with [] to always be arrays
+  for (const k of Object.keys(obj)) {
+    if (k.endsWith("[]") && !Array.isArray(obj[k])) obj[k] = [obj[k]];
+  }
+
+  return obj;
 }
+
 
 // collector for Wandverkleidung ---
 function collectWandverkleidungMaterials(doc) {
@@ -2329,6 +2348,41 @@ function buildPayload() {
   collectBwtMaterials(payload);
   //  collect BWT freie Posten (quick add)
   collectBwtExtras(payload);
+
+  // --- OPTIONAL: ensure REHA checkboxes are represented as opt_* keys ---
+try {
+  const formOpt = document.getElementById("form-optional");
+  if (formOpt) {
+    const optObj = payload.optional || (payload.optional = {});
+    const fdOpt = new FormData(formOpt);
+
+    // 1) ensure optReha[] is an array (all selected values)
+    const rehaVals = fdOpt.getAll("optReha[]").map(v => String(v));
+    if (rehaVals.length) optObj["optReha[]"] = rehaVals;
+
+    // 2) ensure checked REHA boxes also appear as opt_<ID> keys
+    // (because pricing.collectSelections() only reads keys starting with opt_)
+    const rehaChecked = Array.from(
+      formOpt.querySelectorAll('input[type="checkbox"][name="optReha[]"]:checked')
+    );
+
+    for (const cb of rehaChecked) {
+      const pid = String(cb.id || "").startsWith("opt_") ? cb.id.slice(4) : "";
+      if (!pid) continue;
+
+      // create the canonical key expected by collectSelections
+      optObj[`opt_${pid}`] = true;
+
+      // if you have qty input, ensure it's included (usually already is)
+      const qtyEl = document.getElementById(`qty_${pid}`);
+      if (qtyEl && qtyEl.value !== "") {
+        optObj[`qty_${pid}`] = qtyEl.value;
+      }
+    }
+  }
+} catch (e) {
+  console.warn("[buildPayload] optional REHA normalization failed:", e);
+}
 
   // ---- NEW: reliably collect ALL Duschwanne work tasks (checkbox array) ----
   try {
@@ -10266,7 +10320,7 @@ function initHassmannBestFinder() {
       `;
 
         // ---- helpers ----
-
+    
         function pickImage(product, maxCount) {
           if (!product) return "";
 
