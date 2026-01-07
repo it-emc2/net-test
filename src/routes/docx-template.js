@@ -914,15 +914,37 @@ function mapData(body = {}, computed = {}) {
       doorVariantText = doorLabelParts.join(", ");
     }
 
-    let bullet1Text = "Liefern und Montieren einer Badewannentür";
-    if (doorVariantText) {
-      // requested form: "Liefern und Montieren einer Badewannentür (...)"
-      bullet1Text = `Liefern und Montieren einer Badewannentür (${doorVariantText})`;
-    } else {
-      bullet1Text = "Liefern und Montieren einer Badewannentür";
-    }
-    // Label for "Enthält je Einheit" Tür-Zeile
-    const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
+ let bullet1Text = "Liefern und Montieren einer Badewannentür";
+if (doorVariantText) {
+  bullet1Text = `Liefern und Montieren einer Badewannentür (${doorVariantText})`;
+}
+
+// ✅ append door info lines (only when exactly 1 door pid is selected)
+const doorInfoById = bwt?.doorInfoById || {};
+
+// we already detected selected door materials lines above (doorLines)
+const selectedDoorPids = doorLines
+  .map((l) => String(l.productId || l.id || "").trim())
+  .filter(Boolean);
+
+// normally exactly 1 door pid; if not, skip (no ambiguity)
+const selectedDoorPid = selectedDoorPids.length === 1 ? selectedDoorPids[0] : "";
+
+if (selectedDoorPid) {
+  const raw = doorInfoById[selectedDoorPid];
+  const infoLines = Array.isArray(raw)
+    ? raw.map((x) => String(x || "").trim()).filter(Boolean)
+    : [];
+
+  if (infoLines.length) {
+    // New lines in DOCX (docxtemplater linebreaks:true)
+    bullet1Text += "\n" + infoLines.map((t) => "    " + t).join("\n");
+  }
+}
+
+// Label for "Enthält je Einheit" Tür-Zeile
+const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
+
 
     // average unit price per door (only door materials)
     const doorUnitPrice =
