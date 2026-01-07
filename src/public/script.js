@@ -2019,6 +2019,19 @@ function collectWandverkleidungMaterials(doc) {
   if (!doc.materials) doc.materials = [];
   doc.materials.push(...out);
 }
+// collect caption-sub lines of BWT tür and send them in payload
+function readCaptionSubLinesFromDoorInput(inputEl) {
+  // structure: input is inside <label class="image-check"> ... <span class="caption-sub">
+  const label = inputEl.closest("label") || inputEl.closest(".field");
+  const sub = label?.querySelector(".caption-sub");
+  if (!sub) return [];
+
+  return sub.innerText
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 
 // collector for BWT (Badewannentür) – door + Haltegriffe
 function collectBwtMaterials(doc) {
@@ -2751,6 +2764,21 @@ try {
     if (formBwt) {
       const fdBwt = new FormData(formBwt);
       const bwt = payload.bwt || (payload.bwt = {});
+
+      // ---- BWT: door caption-sub info (map by productId) ----
+bwt.doorInfoById = {}; // reset each buildPayload call
+
+const doorInputs = formBwt.querySelectorAll('input[name="bwtDoorType"]');
+doorInputs.forEach((el) => {
+  if (!el.checked) return;
+
+  const pid = String(el.dataset.productId || "").trim();
+  if (!pid) return;
+
+  const lines = readCaptionSubLinesFromDoorInput(el);
+  if (lines.length) bwt.doorInfoById[pid] = lines;
+});
+
 
       // bwt[bwtinfoTasks][] → bwt.bwtinfoTasks (array)
       const infoTasks = fdBwt
@@ -5376,6 +5404,14 @@ document
     // Otherwise leave untouched
     return base;
   }
+function escapeHtml(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
   function listLines(lines) {
     if (!Array.isArray(lines) || !lines.length)
@@ -5394,7 +5430,7 @@ document
           return `<div style="grid-column:1 / -1; font-weight:700; margin:8px 0 2px;">${l.label}</div>`;
         }
         return `
-      <div>${decorateDALabel(l)}</div>
+      <div style="white-space:pre-line">${escapeHtml(decorateDALabel(l))}</div>
       <div style="text-align:right">${l.qty ?? 1}</div>
       <div style="text-align:right">${euroC(l.unitPrice ?? 0)}</div>
       <div style="text-align:right; font-weight:600">${euroC(l.lineTotal ?? 0)}</div>

@@ -361,20 +361,21 @@ function grossToNet(gross, taxRate) {
     };
 
     // helper to push unresolved lines; we resolve names/prices at the end
-    const add = (id, qty, labelOverride, unitOverride, source) => {
-      const q = Number(qty) || 0;
-      if (!id || q <= 0) return;
-      idsNeeded.add(id);
-      lines.push({
-        id,
-        qty: q,
-        label: labelOverride || null,
-        unitOverride: Number.isFinite(unitOverride)
-          ? Number(unitOverride)
-          : null,
-        source: source || null, // 'optional' for optionals, else null
-      });
-    };
+   const add = (id, qty, labelOverride, unitOverride, source, meta) => {
+  const q = Number(qty) || 0;
+  if (!id || q <= 0) return;
+  idsNeeded.add(id);
+  lines.push({
+    id,
+    qty: q,
+    label: labelOverride || null,
+    unitOverride: Number.isFinite(unitOverride) ? Number(unitOverride) : null,
+    source: source || null,
+    meta: meta || null,          // ✅ add this
+    docxHide: !!meta?.docxHide,  // optional convenience
+  });
+};
+
 
     // ------- Duschwanne ancillary
     if (dusch.abdichtSet) add("TRWDB", 1);
@@ -526,17 +527,18 @@ function grossToNet(gross, taxRate) {
         { qty: Number(bwt?.bwtDoorIndWienQty || 0) || 0, pid: "1227" },
       ];
 
-      for (const door of doors) {
-        if (!door.qty) continue;
+      const doorInfoById = payload?.bwt?.doorInfoById || {};
 
-        add(
-          door.pid, // Tür-spezifische Artikelnummer
-          door.qty, // jeweilige Menge
-          null, // Label aus DB
-          null, // Preis aus DB
-          null,
-        );
-      }
+for (const door of doors) {
+  if (!door.qty) continue;
+
+  const infoLines = Array.isArray(doorInfoById[String(door.pid)])
+    ? doorInfoById[String(door.pid)]
+    : [];
+
+  add(door.pid, door.qty, null, null, null, { doorInfoLines: infoLines });
+}
+
 
       // Aids / Haltegriffe quantities (40 / 60 / 80 cm)
       const aidsHg40Qty = Number(bwt?.bwtAidsHaltegriff40Qty || 0) || 0;
@@ -764,6 +766,24 @@ console.log("[REHA DEBUG] selections =", selections);
       const builtLabel = `- ${l.qty} Stk ${displayName}`;
       const label = l.label || builtLabel;
 
+      let finalLabel = label;
+
+// helper: remove any leading bullets/dashes/spaces from incoming lines
+const cleanInfoLine = (t) =>
+  String(t ?? "")
+    .replace(/^[\s•·\-–—]+/g, "")   // ✅ removes "• ", "-", "–", etc
+    .trim();
+
+const rawInfoLines = l?.meta?.doorInfoLines;
+const infoLines = Array.isArray(rawInfoLines)
+  ? rawInfoLines.map(cleanInfoLine).filter(Boolean)
+  : [];
+
+if (infoLines.length) {
+  // newline based (safe for UI + DOCX)
+  finalLabel += "\n" + infoLines.map((t) => "   • " + t).join("\n");
+}
+
       // --- BWT: Einstiegshilfen (Haltegriffe) ---
       let lineTotal;
       if (offer === "bwt") {
@@ -785,15 +805,17 @@ console.log("[REHA DEBUG] selections =", selections);
       }
 
       return {
-        productId: l.id,
-        name: displayName,
-        qty: l.qty,
-        unitPrice: unit, // DB price (or overridden), unchanged for BWT
-        lineTotal,
-        label,
-        source: l.source || null,
-        docxHide: !!l.docxHide, // ✅ IMPORTANT: keep the flag
-      };
+  productId: l.id,
+  name: displayName,
+  qty: l.qty,
+  unitPrice: unit,
+  lineTotal,
+  label: finalLabel,                 // still available everywhere
+  labelLines: [label, ...infoLines],  // ✅ NEW: UI can render true multiline easily
+  source: l.source || null,
+  docxHide: !!l.docxHide,
+};
+
     });
 
     const sum = round2(resolved.reduce((a, x) => a + (x.lineTotal || 0), 0));
