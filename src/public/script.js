@@ -7088,7 +7088,7 @@ function restoreOptionalPage(opt) {
         "opt_DEDS2503E",
       ],
       cat_THERMO: ["opt_CLTB", "opt_DEPTB", "opt_CLB"],
-      cat_GRAB: ["opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
+      cat_GRAB: ["opt_CLPESG30","opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
       cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
       cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
       cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55"],
@@ -9080,6 +9080,7 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_CLB", "qty_CLB_wrap");
 
   // ---- GRAB ----
+  wireTileQty("opt_CLPESG30", "qty_CLPESG30_wrap");
   wireTileQty("opt_CLPESG40", "qty_CLPESG40_wrap");
   wireTileQty("opt_CLPESG60", "qty_CLPESG60_wrap");
   wireTileQty("opt_CLPESG80", "qty_CLPESG80_wrap");
