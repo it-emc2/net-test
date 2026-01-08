@@ -1082,7 +1082,11 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
 
   // Assemble up to two rows; first present gets pos "003", second "004"
   const BonusRows = [];
+
   let pos = "003";
+  if (offerKey === "bwt"){
+      pos = "002";
+  }
 
   if (hasBonusGrab) {
     BonusRows.push({
@@ -1095,6 +1099,9 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
       gesamt: "0,00 €",
     });
     pos = "004";
+     if (offerKey === "bwt"){
+    pos = "003";
+  }
   }
 
   if (hasBonus300) {
