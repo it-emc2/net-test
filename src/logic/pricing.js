@@ -564,7 +564,7 @@ for (const door of doors) {
         // keep global grab counts in sync (used later in pricing/UI logic)
         grabTotalQty += q;
         if (pid === "CLPESG30") {
-          cl40Qty += q;
+          cl30Qty += q;
         }
       };
       addGrab("CLPESG30", aidsHg30Qty);

@@ -2802,7 +2802,7 @@ doorInputs.forEach((el) => {
         delete bwt["bwt[bwtinfoTasks][]"];
       }
 
-      // bwtAids[] → bwt.bwtAids (array of "Haltegriff40"/"Haltegriff60"/"Haltegriff80")
+      // bwtAids[] → bwt.bwtAids (array of "Haltegriff30"/"Haltegriff40"/"Haltegriff60"/"Haltegriff80")
       const aids = fdBwt.getAll("bwtAids[]").map((v) => String(v));
       if (aids.length) {
         bwt.bwtAids = aids;
