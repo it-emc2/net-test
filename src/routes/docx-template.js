@@ -951,7 +951,7 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
       hasDoor && doorQty > 0 ? doorMaterialsTotal / doorQty : 0;
 
     //  collect all Haltegriff lines (40 / 60 / 80 cm)
-    const grabIds = ["CLPESG40", "CLPESG60", "CLPESG80"];
+    const grabIds = ["CLPESG30", "CLPESG40", "CLPESG60", "CLPESG80"];
     const grabLines = docxLines.filter((l) =>
       grabIds.includes(String(l.productId || l.id || "").trim()),
     );
@@ -973,11 +973,13 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     });
 
     // Map productId -> human name
-    const grabLabelMap = {
-      CLPESG40: "Haltegriff 40 cm",
-      CLPESG60: "Haltegriff 60 cm",
-      CLPESG80: "Haltegriff 80 cm",
-    };
+   const grabLabelMap = {
+  CLPESG30: "Haltegriff 30 cm",
+  CLPESG40: "Haltegriff 40 cm",
+  CLPESG60: "Haltegriff 60 cm",
+  CLPESG80: "Haltegriff 80 cm",
+};
+
 
     // Build a unique list of names for the selected grab bars
     const grabLabelsUnique = [

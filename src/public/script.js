@@ -2084,6 +2084,12 @@ function collectBwtMaterials(doc) {
   }
 
   // Map to the same productIds you use in pricing.js
+    pushHg(
+    "#bwtAidsHaltegriff30",
+    "#bwtAidsHaltegriff30Qty",
+    "CLPESG30",
+    "Haltegriff 30 cm",
+  );
   pushHg(
     "#bwtAidsHaltegriff40",
     "#bwtAidsHaltegriff40Qty",
@@ -5706,14 +5712,14 @@ function escapeHtml(s) {
   `;
     const totalsCard = card("Summen", sums);
 
-    // --- Show/hide "Haltegriff gratis" checkbox based on CLPESG40 presence
+    // --- Show/hide "Haltegriff gratis" checkbox based on CLPESG30 presence
     (function () {
       const bonusGrab = document.getElementById("rb-bonus-grab");
       if (!bonusGrab) return;
 
       // authoritative source from server:
-      const cl40 = Number(data?.grabCounts?.cl40 || 0);
-      const shouldShow = cl40 > 0;
+      const cl30 = Number(data?.grabCounts?.cl30 || 0);
+      const shouldShow = cl30 > 0;
 
       const row =
         bonusGrab.closest(".form-row") ||
@@ -6788,6 +6794,11 @@ function restoreBwt(bwt) {
   }
 
   const aidConfigs = [
+    {
+      value: "Haltegriff30",
+      cbId: "bwtAidsHaltegriff30",
+      qtyName: "bwtAidsHaltegriff30Qty",
+    },
     {
       value: "Haltegriff40",
       cbId: "bwtAidsHaltegriff40",
@@ -8319,8 +8330,8 @@ window.setPricingData = function setPricingData(data) {
       document.getElementById("rb-bonus-grab")?.parentElement;
     const cb = document.getElementById("rb-bonus-grab");
 
-    const cl40 = Number(data?.grabCounts?.cl40 || 0);
-    const allow = cl40 > 0;
+    const cl30 = Number(data?.grabCounts?.cl30 || 0);
+    const allow = cl30 > 0;
 
     if (row) {
       row.style.display = allow ? "" : "none";
@@ -9202,6 +9213,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
   wireTileQty("bwtDoorIndWienGlas", "bwtDoorIndWienGlasQtyWrap");
   wireTileQty("bwtDoorVariodoor", "bwtDoorVariodoorQtyWrap");
   wireTileQty("bwtDoorIndWien", "bwtDoorIndWienQtyWrap");
+  wireTileQty("bwtAidsHaltegriff30", "bwtAidsHaltegriff30QtyWrap");
   wireTileQty("bwtAidsHaltegriff40", "bwtAidsHaltegriff40QtyWrap");
   wireTileQty("bwtAidsHaltegriff60", "bwtAidsHaltegriff60QtyWrap");
   wireTileQty("bwtAidsHaltegriff80", "bwtAidsHaltegriff80QtyWrap");

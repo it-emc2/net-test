@@ -3,8 +3,8 @@ export default (ProductModel) => {
   // Minimal helper: adjust only the visible label to billable qty (selected - 1)
   // - Does NOT change qty, unitPrice, or lineTotal (so totals remain untouched).
   // - If billable becomes 0 and hideWhenZero=true, remove the line from the list (keeps "0 Stk" hidden).
-  function setCL40LabelToBillable(list, { hideWhenZero = false } = {}) {
-    const row = list?.find((l) => (l.productId || l.id) === "CLPESG40");
+  function setCL30LabelToBillable(list, { hideWhenZero = false } = {}) {
+    const row = list?.find((l) => (l.productId || l.id) === "CLPESG30");
     if (!row) return;
 
     const selectedQty = Number(row.qty || 0) || 0;
@@ -73,7 +73,9 @@ export default (ProductModel) => {
   function collectSelections(payload) {
     const out = [];
     const opt = payload?.optional || {};
-    // --- quantities for Haltegriffe (esp. CLPESG40) ---
+    // --- quantities for Haltegriffe (esp. CLPESG30) ---
+     const cl30Qty =
+      Number(opt?.qty_CLPESG30 ?? (opt?.opt_CLPESG30 ? 1 : 0)) || 0;
     const cl40Qty =
       Number(opt?.qty_CLPESG40 ?? (opt?.opt_CLPESG40 ? 1 : 0)) || 0;
     // if you also use the other grab bars anywhere, define them too (optional):
@@ -210,7 +212,7 @@ function grossToNet(gross, taxRate) {
     );
     const grab = chosen(
       opt["optGrab[]"],
-      opt.qty_CLPESG40 || opt.qty_CLPESG60 || opt.qty_CLPESG80,
+      opt.qty_CLPESG30 || opt.qty_CLPESG40 || opt.qty_CLPESG60 || opt.qty_CLPESG80,
     );
     const fold = chosen(opt["optFold[]"], opt.qty_DEPSKG60 || opt.qty_DEPSKG85);
     const basin = chosen(opt["optBasin[]"], opt.qty_CL60);
@@ -337,7 +339,7 @@ function grossToNet(gross, taxRate) {
 
     // For Haltegriff counts (used by UI logic later)
     let grabTotalQty = 0;
-    let cl40Qty = 0;
+    let cl30Qty = 0;
 
     const lines = [];
     const idsNeeded = new Set();
@@ -541,6 +543,7 @@ for (const door of doors) {
 
 
       // Aids / Haltegriffe quantities (40 / 60 / 80 cm)
+      const aidsHg30Qty = Number(bwt?.bwtAidsHaltegriff30Qty || 0) || 0;
       const aidsHg40Qty = Number(bwt?.bwtAidsHaltegriff40Qty || 0) || 0;
       const aidsHg60Qty = Number(bwt?.bwtAidsHaltegriff60Qty || 0) || 0;
       const aidsHg80Qty = Number(bwt?.bwtAidsHaltegriff80Qty || 0) || 0;
@@ -560,11 +563,11 @@ for (const door of doors) {
 
         // keep global grab counts in sync (used later in pricing/UI logic)
         grabTotalQty += q;
-        if (pid === "CLPESG40") {
+        if (pid === "CLPESG30") {
           cl40Qty += q;
         }
       };
-
+      addGrab("CLPESG30", aidsHg30Qty);
       addGrab("CLPESG40", aidsHg40Qty);
       addGrab("CLPESG60", aidsHg60Qty);
       addGrab("CLPESG80", aidsHg80Qty);
@@ -633,19 +636,20 @@ for (const door of doors) {
     try {
       const selections = collectSelections(payload); // [{productId, qty}]
       const isGrabId = (id) =>
-        id === "CLPESG40" || id === "CLPESG60" || id === "CLPESG80";
+  id === "CLPESG30" || id === "CLPESG40" || id === "CLPESG60" || id === "CLPESG80";
+
 
       const optGrabTotal = selections
         .filter((s) => isGrabId(s.productId))
         .reduce((a, s) => a + (Number(s.qty) || 0), 0);
 
-      const optCl40 = selections
-        .filter((s) => s.productId === "CLPESG40")
+      const optCl30 = selections
+        .filter((s) => s.productId === "CLPESG30")
         .reduce((a, s) => a + (Number(s.qty) || 0), 0);
 
       // 🔹 accumulate instead of overwrite
       grabTotalQty += optGrabTotal;
-      cl40Qty += optCl40;
+      cl30Qty += optCl30;
 
       const rehaIds = extractRehaIdsFromOptional(opt);
       let hasReha = false;
@@ -789,7 +793,7 @@ if (infoLines.length) {
       if (offer === "bwt") {
         const pid = String(l.id || "").trim();
         const isBwtGrab =
-          (pid === "CLPESG40" || pid === "CLPESG60" || pid === "CLPESG80") &&
+          (pid === "CLPESG30" || pid === "CLPESG40" || pid === "CLPESG60" || pid === "CLPESG80") &&
           l.source !== "optional"; // only the BWT page "zusätzliche Einstiegshilfen", not global optionals
 
         if (isBwtGrab && markupPctForBwt > 0) {
@@ -825,7 +829,7 @@ if (infoLines.length) {
       title: getMaterialsTitle(offer),
       lines: resolved,
       sum,
-      grabCounts: { cl40: cl40Qty, total: grabTotalQty },
+      grabCounts: { cl30: cl30Qty, total: grabTotalQty },
     };
   }
 
@@ -1203,7 +1207,7 @@ if (infoLines.length) {
 
       // ----- UI/DOCX display adjustments for Haltegriff-Bonus (presentation only) -----
       // ---- HALTEGRIFF + DISPLAY PREP ----
-      const grabCounts = materials?.grabCounts || { cl40: 0, total: 0 };
+      const grabCounts = materials?.grabCounts || { cl30: 0, total: 0 };
       const bonusHG = !!payload?.rabatt?.bonusGrab;
 
       // Split materials into non-optional (for UI) and all (for DOCX)
@@ -1241,40 +1245,14 @@ if (infoLines.length) {
       const docxServices = (services?.lines || []).map((x) => ({ ...x }));
 
       // ===== Apply bonus presentation rules =====
-      const ONLY_ONE_CL40 = grabCounts.total === 1 && grabCounts.cl40 === 1;
-
-      // Helper: decrement CLPESG40 qty by exactly 1 across an array (remove if qty -> 0)
-      function decOneCL40(arr, { removeIfZero }) {
-        let left = 1;
-        for (let i = 0; i < arr.length && left > 0; i++) {
-          const l = arr[i];
-          const pid = l.productId || l.id;
-          if (pid === "CLPESG40") {
-            const q = Number(l.qty || 0);
-            if (q > 0) {
-              const newQ = Math.max(0, q - left);
-              left = Math.max(0, left - q);
-              l.qty = newQ;
-              // recompute lineTotal for display only (prices NEVER used from these lists)
-              l.lineTotal =
-                Math.round(
-                  (Number(l.unitPrice || 0) * newQ + Number.EPSILON) * 100,
-                ) / 100;
-              if (removeIfZero && newQ === 0) {
-                arr.splice(i, 1);
-                i--;
-              }
-            }
-          }
-        }
-      }
+      const ONLY_ONE_CL30 = grabCounts.total === 1 && grabCounts.cl30 === 1;
 
       // UI rules
-      if (bonusHG && grabCounts.cl40 > 0) {
-        // Multiple grab bars: show CLPESG40 as qty-1 in Optional UI
-        setCL40LabelToBillable(uiOptionals, { hideWhenZero: false }); // show "0 Stk ..." in UI
-        // Particular case: single CLPESG40 and no other grab bars → hide the worknote in UI (to mirror DOCX behavior)
-        if (ONLY_ONE_CL40) {
+      if (bonusHG && grabCounts.cl30 > 0) {
+        // Multiple grab bars: show CLPESG30 as qty-1 in Optional UI
+        setCL30LabelToBillable(uiOptionals, { hideWhenZero: false }); // show "0 Stk ..." in UI
+        // Particular case: single CLPESG30 and no other grab bars → hide the worknote in UI (to mirror DOCX behavior)
+        if (ONLY_ONE_CL30) {
           const GRAB_NOTE = "Anbringen zusätzlicher Haltegriffe";
           const uiNoteIdx = uiServices.findIndex((s) =>
             (s.label || "").includes(GRAB_NOTE),
@@ -1284,11 +1262,11 @@ if (infoLines.length) {
       }
 
       // DOCX rules
-      if (bonusHG && grabCounts.cl40 > 0) {
-        if (ONLY_ONE_CL40) {
-          // Single CLPESG40 → hide it completely in DOCX materials
+      if (bonusHG && grabCounts.cl30 > 0) {
+        if (ONLY_ONE_CL30) {
+          // Single CLPESG30 → hide it completely in DOCX materials
           const idx = docxMaterials.findIndex(
-            (l) => (l.productId || l.id) === "CLPESG40",
+            (l) => (l.productId || l.id) === "CLPESG30",
           );
           if (idx >= 0) docxMaterials.splice(idx, 1);
           // Remove the worknote line from DOCX services
@@ -1299,7 +1277,7 @@ if (infoLines.length) {
           if (dn >= 0) docxServices.splice(dn, 1);
         } else {
           // Multiple → decrement one from DOCX
-          setCL40LabelToBillable(docxMaterials, { hideWhenZero: true }); // hide when 0 in PDF
+          setCL30LabelToBillable(docxMaterials, { hideWhenZero: true }); // hide when 0 in PDF
         }
       }
 
@@ -1345,12 +1323,7 @@ if (infoLines.length) {
           // 1) skip Kleinmaterial (added as KM02 when the checkbox is on)
           if (id === "KM02") continue;
 
-          // 2) if Haltegriff bonus is active, one CLPESG40 is free for markup purposes
-          // if (id === 'CLPESG40' && flags?.bonus_Haltegriff === true) {
-          // const effectiveQty = Math.max(qty - 1, 0);
-          // if (effectiveQty > 0) markupBase += effectiveQty * unitPrice;
-          // continue;
-          // }
+        
 
           // default: count full qty
           markupBase += qty * unitPrice;
@@ -1391,12 +1364,12 @@ if (infoLines.length) {
         bonus_neu += 252.1;
       }
       if (flags.bonus_Haltegriff) {
-        // Use actual net unit price of CLPESG40 (one piece free)
-        const cl40 = (materials?.lines || []).find(
-          (l) => (l.productId || l.id) === "CLPESG40",
+        // Use actual net unit price of CLPESG30 (one piece free)
+        const cl30 = (materials?.lines || []).find(
+          (l) => (l.productId || l.id) === "CLPESG30",
         );
-        const cl40Unit = Number(cl40?.unitPrice) || 0;
-        bonusGross += round2(cl40Unit);
+        const cl30Unit = Number(cl30?.unitPrice) || 0;
+        bonusGross += round2(cl30Unit);
       }
 
       const netAfterRabatt_and_Bonus = round2(
