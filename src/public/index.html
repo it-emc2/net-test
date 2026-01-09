@@ -678,6 +678,17 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 .da-quickadd #hass-custom .da-grid-4 {
   grid-template-columns: 2.4fr 1fr 0.8fr 0.8fr; /* wider Bezeichnung */
 }
+/* tiny inline height selector inside caption-sub */
+.bwt-door-height-inline {
+  display: inline-block;
+  width: 58px;
+  min-width: 58px;
+  padding: 0 4px;
+  height: 22px;
+  line-height: 22px;
+  font-size: 0.85rem;
+  vertical-align: baseline;
+}
 
 
     </style>
@@ -975,12 +986,14 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
               >
             </div>
           </div>
-        <div class="full" id="customerNumberRow">
-  <label for="customerNumber">
+
+  <div class="full" id="customerNumberRow">
+    <label for="customerNumber">
     Bitrix Kontakt ID
-  </label>
-  <input id="customerNumber" name="customerNumber" />
+    </label>
+      <input id="customerNumber" name="customerNumber" />
 </div>
+
           <div id="contactPersonSection" class="full" hidden aria-hidden="true">
             <div class="section-header">Kontaktdaten des Ansprechpartners</div>
             <div
@@ -5792,7 +5805,24 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         </span>
         <span class="caption">Universal / Standard Tür</span>
         <span class="caption-sub">
-        • Höhen 39 cm abschneidbar<br />
+        • Höhen
+<select
+  id="bwtDoorStdHeight"
+  name="bwtDoorStdHeight"
+  class="bwt-door-height-inline"
+  aria-label="Höhe in cm"
+>
+  <option value="33">33</option>
+  <option value="34">34</option>
+  <option value="35">35</option>
+  <option value="36">36</option>
+  <option value="37">37</option>
+  <option value="38">38</option>
+  <option value="39" selected>39</option>
+  <option value="40">40</option>
+</select>
+cm abschneidbar<br />
+
         • Fix Bereite 40,5 cm<br />
         • Tiefe O 25cm U 25cm
        </span>

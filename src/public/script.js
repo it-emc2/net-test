@@ -2026,11 +2026,65 @@ function readCaptionSubLinesFromDoorInput(inputEl) {
   const sub = label?.querySelector(".caption-sub");
   if (!sub) return [];
 
-  return sub.innerText
+  // Build text manually to avoid <select>.innerText including ALL options
+  let out = "";
+
+  const walk = (node) => {
+    if (!node) return;
+
+    // Text node
+    if (node.nodeType === 3) {
+  // IMPORTANT: ignore HTML indentation/newlines → treat as spaces
+  out += (node.nodeValue || "").replace(/\s+/g, " ");
+  return;
+}
+
+
+    // Element node
+    if (node.nodeType === 1) {
+      const tag = (node.tagName || "").toLowerCase();
+
+      if (tag === "br") {
+        out += "\n";
+        return;
+      }
+
+      if (tag === "select") {
+        const sel = node;
+        const opt =
+          sel.options && sel.selectedIndex >= 0
+            ? sel.options[sel.selectedIndex]
+            : null;
+        out += String(opt?.textContent || sel.value || "").trim();
+        return;
+      }
+
+      // default: recurse
+      (node.childNodes || []).forEach(walk);
+    }
+  };
+
+  (sub.childNodes || []).forEach(walk);
+out = String(out)
+  // remove spaces around our intentional line breaks
+  .replace(/[ \t]+\n/g, "\n")
+  .replace(/\n[ \t]+/g, "\n")
+  // collapse multiple spaces
+  .replace(/ {2,}/g, " ")
+  .trim();
+
+return out
+  .split("\n")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+  return String(out)
     .split("\n")
-    .map((s) => s.trim())
+    .map((s) => s.replace(/\s+/g, " ").trim()) // normalize whitespace
     .filter(Boolean);
 }
+
+
 
 
 // collector for BWT (Badewannentür) – door + Haltegriffe
@@ -5856,7 +5910,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
 
     if (taskLines.length) {
       // add extra lines under the same service row
-      label = `- Extra Arbeitszeit\n${taskLines.join("\n")}`;
+      label = `Extra Arbeitszeit:\n${taskLines.join("\n")}`;
     }
   }
 }
@@ -7024,6 +7078,10 @@ function restoreBwt(bwt) {
   if (bwt.bwtDoorIndWienQty != null) {
     setByNameOrId("bwtDoorIndWienQty", bwt.bwtDoorIndWienQty);
   }
+if (bwt.bwtDoorStdHeight != null) {
+  setByNameOrId("bwtDoorStdHeight", bwt.bwtDoorStdHeight);
+}
+syncBwtDoorStdHeightCaption();
 
   // --- Anschlag (bwtAnschlag: radio) ---
   if (bwt.bwtAnschlag) {
