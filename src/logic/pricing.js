@@ -779,6 +779,14 @@ console.log("[REHA DEBUG] selections =", selections);
       const label = l.label || builtLabel;
 
       let finalLabel = label;
+// --- BWT: Universal / Standard Tür (1226) color suffix for Kosten/UI ---
+if (offer === "bwt" && String(l.id || "").trim() === "1226") {
+  const c = String(payload?.bwt?.bwtDoorStdColor || "").trim();
+  if (c && !/—\s*Farbe:/i.test(finalLabel)) {
+    finalLabel += ` — Farbe: ${c}`;
+  }
+}
+
 
 // helper: remove any leading bullets/dashes/spaces from incoming lines
 const cleanInfoLine = (t) =>
