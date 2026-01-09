@@ -6,6 +6,8 @@ const router = express.Router();
 // Read from env
 const ORS_API_KEY = process.env.ORS_API_KEY;
 const COMPANY_ADDRESS = process.env.COMPANY_ADDRESS || "Kornhausacker 10, Hof";
+const COMPANY_LAT = parseFloat(process.env.COMPANY_LAT) || null;
+const COMPANY_LNG = parseFloat(process.env.COMPANY_LNG) || null;
 
 if (!ORS_API_KEY) {
   console.warn("[routing] Missing ORS_API_KEY in env – will use OSRM fallback");
@@ -13,6 +15,69 @@ if (!ORS_API_KEY) {
 
 // --- Helpers -------------------------------------------------------------
 
+/**
+ * Build multiple address variants for geocoding fallback
+ * Returns array from most specific to least specific
+ */
+function buildAddressVariants({ street, postalCode, city, state, country }) {
+  const variants = [];
+  
+  // Clean up inputs
+  const cleanStreet = (street || "").trim();
+  const cleanPostal = (postalCode || "").trim();
+  const cleanCity = (city || "").trim();
+  const cleanState = (state || "").trim();
+  const cleanCountry = (country || "Deutschland").trim();
+
+  // Variant 1: Full address with state (most specific)
+  if (cleanStreet && cleanCity && cleanState) {
+    variants.push(
+      [cleanStreet, [cleanPostal, cleanCity].filter(Boolean).join(" "), cleanState, cleanCountry]
+        .filter(Boolean)
+        .join(", ")
+    );
+  }
+
+  // Variant 2: Without state (often works better for German addresses)
+  if (cleanStreet && cleanCity) {
+    variants.push(
+      [cleanStreet, [cleanPostal, cleanCity].filter(Boolean).join(" "), cleanCountry]
+        .filter(Boolean)
+        .join(", ")
+    );
+  }
+
+  // Variant 3: Street + postal code + country (no city name)
+  if (cleanStreet && cleanPostal) {
+    variants.push(
+      [cleanStreet, cleanPostal, cleanCountry]
+        .filter(Boolean)
+        .join(", ")
+    );
+  }
+
+  // Variant 4: Just street and city
+  if (cleanStreet && cleanCity) {
+    variants.push(`${cleanStreet}, ${cleanCity}`);
+  }
+
+  // Variant 5: Postal code and city only (fallback for vague addresses)
+  if (cleanPostal && cleanCity) {
+    variants.push(`${cleanPostal} ${cleanCity}, ${cleanCountry}`);
+  }
+
+  // Variant 6: Just city and country
+  if (cleanCity) {
+    variants.push(`${cleanCity}, ${cleanCountry}`);
+  }
+
+  // Remove duplicates while preserving order
+  return [...new Set(variants)];
+}
+
+/**
+ * Build the "canonical" customer address for display purposes
+ */
 function buildCustomerAddress({ street, postalCode, city, state, country }) {
   const parts = [
     street || "",
@@ -23,7 +88,15 @@ function buildCustomerAddress({ street, postalCode, city, state, country }) {
   return parts.join(", ");
 }
 
-async function geocode(address) {
+// ============================================================
+// GEOCODING PROVIDERS (with fallbacks)
+// ============================================================
+
+/**
+ * Nominatim (OpenStreetMap) - FREE, no API key
+ * Rate limit: 1 request/second
+ */
+async function geocodeWithNominatim(address) {
   const url =
     "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" +
     encodeURIComponent(address);
@@ -38,114 +111,200 @@ async function geocode(address) {
 
   const data = await res.json();
   if (!Array.isArray(data) || data.length === 0) {
-    throw new Error(`Address not found: ${address}`);
+    throw new Error(`Nominatim: Address not found`);
   }
 
   return {
     lat: parseFloat(data[0].lat),
     lng: parseFloat(data[0].lon),
     displayName: data[0].display_name,
+    provider: 'nominatim',
   };
 }
 
-// Haversine distance calculation (straight-line distance)
-// COMMENTED OUT: We now require road-based routing only
-// function haversineKm(a, b) {
-//   const R = 6371;
-//   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-//   const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-//   const la1 = (a.lat * Math.PI) / 180;
-//   const la2 = (b.lat * Math.PI) / 180;
-//
-//   const h =
-//     Math.sin(dLat / 2) ** 2 +
-//     Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
-//   return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-// }
+/**
+ * Photon (Komoot) - FREE, no API key, powered by OSM
+ * No strict rate limit
+ */
+async function geocodeWithPhoton(address) {
+  const url = new URL('https://photon.komoot.io/api/');
+  url.searchParams.set('q', address);
+  url.searchParams.set('limit', '1');
+  url.searchParams.set('lang', 'de');
 
-async function osrmDistanceKm(a, b) {
-  // Using the public OSRM demo server (consider self-hosting for production)
-  const url = `https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`;
-
-  const res = await fetch(url, {
-    headers: { "User-Agent": "emc2-configurator/1.0 (routing suggestion)" },
+  const res = await fetch(url.toString(), {
+    headers: { 'Accept': 'application/json' },
   });
 
   if (!res.ok) {
-    const errorText = await res.text().catch(() => "");
-    throw new Error(`OSRM error: HTTP ${res.status} - ${errorText}`);
+    throw new Error(`Photon error: HTTP ${res.status}`);
   }
 
   const data = await res.json();
+  const feature = data?.features?.[0];
 
-  if (data.code !== "Ok") {
-    throw new Error(
-      `OSRM error: ${data.code} - ${data.message || "Unknown error"}`,
-    );
+  if (!feature?.geometry?.coordinates) {
+    throw new Error('Photon: Address not found');
   }
 
-  const meters = data?.routes?.[0]?.distance ?? null;
+  const [lng, lat] = feature.geometry.coordinates;
+  const props = feature.properties || {};
+  const displayName = [props.name, props.street, props.housenumber, props.postcode, props.city, props.country]
+    .filter(Boolean)
+    .join(', ');
 
-  if (typeof meters !== "number" || !Number.isFinite(meters)) {
-    throw new Error("OSRM returned invalid distance data");
-  }
-  return meters / 1000;
+  return {
+    lat,
+    lng,
+    displayName: displayName || address,
+    provider: 'photon',
+  };
 }
 
-async function orsDistanceKm(a, b) {
+/**
+ * OpenRouteService Geocoding - FREE with API key (2000/day)
+ */
+async function geocodeWithORS(address) {
   if (!ORS_API_KEY) {
-    throw new Error("ORS_API_KEY not configured");
+    throw new Error('ORS API key not configured');
   }
 
-  const url = `https://api.openrouteservice.org/v2/directions/driving-car/geojson?api_key=${ORS_API_KEY}`;
-  const body = JSON.stringify({
-    coordinates: [
-      [a.lng, a.lat],
-      [b.lng, b.lat],
-    ],
-  });
+  const url = new URL('https://api.openrouteservice.org/geocode/search');
+  url.searchParams.set('api_key', ORS_API_KEY);
+  url.searchParams.set('text', address);
+  url.searchParams.set('boundary.country', 'DE');
+  url.searchParams.set('size', '1');
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body,
+  const res = await fetch(url.toString(), {
+    headers: { 'Accept': 'application/json' },
   });
 
   if (!res.ok) {
-    const errorText = await res.text().catch(() => "");
-    throw new Error(`ORS error: HTTP ${res.status} - ${errorText}`);
+    const text = await res.text().catch(() => '');
+    throw new Error(`ORS geocode error: HTTP ${res.status} - ${text.slice(0, 100)}`);
   }
 
   const data = await res.json();
-  const meters = data?.features?.[0]?.properties?.summary?.distance ?? null;
+  const feature = data?.features?.[0];
 
-  if (typeof meters !== "number" || !Number.isFinite(meters)) {
-    throw new Error("ORS returned invalid distance data");
+  if (!feature?.geometry?.coordinates) {
+    throw new Error('ORS: Address not found');
   }
-  return meters / 1000;
+
+  const [lng, lat] = feature.geometry.coordinates;
+
+  return {
+    lat,
+    lng,
+    displayName: feature.properties?.label || address,
+    provider: 'ors',
+  };
 }
 
-async function getRoadDistanceKm(a, b) {
-  // Try ORS first if API key is available
+/**
+ * Try to geocode a single address with all providers
+ */
+async function geocodeSingleAddress(address) {
+  const errors = [];
+
+  // 1. Try Photon first (fast, no rate limit)
+  try {
+    const result = await geocodeWithPhoton(address);
+    return result;
+  } catch (err) {
+    errors.push(`Photon: ${err.message}`);
+  }
+
+  // 2. Try ORS if API key available
   if (ORS_API_KEY) {
     try {
-      console.log("[routing] Attempting ORS routing...");
-      const km = await orsDistanceKm(a, b);
-      console.log("[routing] ORS routing successful");
-      return km;
+      const result = await geocodeWithORS(address);
+      return result;
     } catch (err) {
-      console.warn("[routing] ORS failed, falling back to OSRM:", err.message);
+      errors.push(`ORS: ${err.message}`);
     }
   }
 
-  // Fallback to OSRM (free, no API key required)
-  console.log("[routing] Using OSRM routing...");
-  const km = await osrmDistanceKm(a, b);
-  console.log("[routing] OSRM routing successful");
-  return km;
+  // 3. Try Nominatim as last resort (strict rate limit)
+  try {
+    // Small delay to respect rate limit
+    await new Promise(resolve => setTimeout(resolve, 1100));
+    const result = await geocodeWithNominatim(address);
+    return result;
+  } catch (err) {
+    errors.push(`Nominatim: ${err.message}`);
+  }
+
+  throw new Error(`All geocoders failed for "${address}": ${errors.join('; ')}`);
 }
 
-// --- duration helpers --------------------------
+/**
+ * Geocode with address variant fallbacks
+ * Tries multiple address formats if the first one fails
+ */
+async function geocodeWithVariants(addressParts) {
+  const variants = buildAddressVariants(addressParts);
+  
+  if (variants.length === 0) {
+    throw new Error('Could not build any valid address from the provided fields');
+  }
+
+  console.log(`[routing] Will try ${variants.length} address variant(s)`);
+  
+  const allErrors = [];
+
+  for (let i = 0; i < variants.length; i++) {
+    const variant = variants[i];
+    console.log(`[routing] Trying variant ${i + 1}/${variants.length}: "${variant}"`);
+    
+    try {
+      const result = await geocodeSingleAddress(variant);
+      console.log(`[routing] Success with variant: "${variant}"`);
+      return {
+        ...result,
+        usedAddress: variant,
+        originalParts: addressParts,
+      };
+    } catch (err) {
+      console.warn(`[routing] Variant failed: ${err.message}`);
+      allErrors.push(`"${variant}": ${err.message}`);
+    }
+  }
+
+  throw new Error(`All address variants failed: ${allErrors.join('; ')}`);
+}
+
+/**
+ * Geocode a plain string address (for company address etc.)
+ */
+async function geocode(address) {
+  console.log(`[routing] Geocoding: "${address}"`);
+  return await geocodeSingleAddress(address);
+}
+
+/**
+ * Get company coordinates (from env or geocode)
+ */
+async function getCompanyCoords() {
+  // Use pre-configured coordinates if available
+  if (COMPANY_LAT && COMPANY_LNG) {
+    console.log('[routing] Using pre-configured company coordinates');
+    return {
+      lat: COMPANY_LAT,
+      lng: COMPANY_LNG,
+      displayName: COMPANY_ADDRESS,
+      provider: 'env',
+    };
+  }
+
+  // Otherwise geocode the company address
+  return await geocode(COMPANY_ADDRESS);
+}
+
+// ============================================================
+// ROUTING PROVIDERS
+// ============================================================
+
 async function osrmDistanceAndDuration(a, b) {
   const url = `https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`;
 
@@ -167,16 +326,20 @@ async function osrmDistanceAndDuration(a, b) {
   const meters = route?.distance;
   const seconds = route?.duration;
 
-  if (typeof meters !== "number" || !Number.isFinite(meters)) throw new Error("OSRM returned invalid distance data");
-  if (typeof seconds !== "number" || !Number.isFinite(seconds)) throw new Error("OSRM returned invalid duration data");
+  if (typeof meters !== "number" || !Number.isFinite(meters)) {
+    throw new Error("OSRM returned invalid distance data");
+  }
+  if (typeof seconds !== "number" || !Number.isFinite(seconds)) {
+    throw new Error("OSRM returned invalid duration data");
+  }
 
-  return { km: meters / 1000, seconds };
+  return { km: meters / 1000, seconds, provider: 'osrm' };
 }
 
 async function orsDistanceAndDuration(a, b) {
   if (!ORS_API_KEY) throw new Error("ORS_API_KEY not configured");
 
-  const url = `https://api.openrouteservice.org/v2/directions/driving-car/geojson?api_key=${ORS_API_KEY}`;
+  const url = `https://api.openrouteservice.org/v2/directions/driving-car/geojson`;
   const body = JSON.stringify({
     coordinates: [
       [a.lng, a.lat],
@@ -186,7 +349,10 @@ async function orsDistanceAndDuration(a, b) {
 
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": ORS_API_KEY,
+    },
     body,
   });
 
@@ -201,13 +367,20 @@ async function orsDistanceAndDuration(a, b) {
   const meters = summary?.distance;
   const seconds = summary?.duration;
 
-  if (typeof meters !== "number" || !Number.isFinite(meters)) throw new Error("ORS returned invalid distance data");
-  if (typeof seconds !== "number" || !Number.isFinite(seconds)) throw new Error("ORS returned invalid duration data");
+  if (typeof meters !== "number" || !Number.isFinite(meters)) {
+    throw new Error("ORS returned invalid distance data");
+  }
+  if (typeof seconds !== "number" || !Number.isFinite(seconds)) {
+    throw new Error("ORS returned invalid duration data");
+  }
 
-  return { km: meters / 1000, seconds };
+  return { km: meters / 1000, seconds, provider: 'ors' };
 }
 
 async function getRoadDistanceAndDuration(a, b) {
+  const errors = [];
+
+  // 1. Try ORS first if API key available
   if (ORS_API_KEY) {
     try {
       console.log("[routing] Attempting ORS routing...");
@@ -215,37 +388,41 @@ async function getRoadDistanceAndDuration(a, b) {
       console.log("[routing] ORS routing successful");
       return out;
     } catch (err) {
-      console.warn("[routing] ORS failed, falling back to OSRM:", err.message);
+      errors.push(`ORS: ${err.message}`);
+      console.warn("[routing] ORS failed:", err.message);
     }
   }
 
-  console.log("[routing] Using OSRM routing...");
-  const out = await osrmDistanceAndDuration(a, b);
-  console.log("[routing] OSRM routing successful");
-  return out;
+  // 2. Fallback to OSRM
+  try {
+    console.log("[routing] Using OSRM routing...");
+    const out = await osrmDistanceAndDuration(a, b);
+    console.log("[routing] OSRM routing successful");
+    return out;
+  } catch (err) {
+    errors.push(`OSRM: ${err.message}`);
+    console.warn("[routing] OSRM failed:", err.message);
+  }
+
+  throw new Error(`All routers failed: ${errors.join('; ')}`);
 }
 
-// --- Route: POST /api/routing/suggest-distance --------------------------
+// ============================================================
+// ROUTES
+// ============================================================
+
 /**
- * Body:
- * {
- *   Kundendaten: {
- *     street, postalCode, city, state, country
- *   }
- * }
- *
- * Response:
- * 200: { ok: true, oneWayKm, roundTripKm, from, to }
- * 400: { error: '...' } if address missing/invalid
- * 500: { error: '...' } if routing service fails
+ * POST /api/routing/suggest-distance
  */
 router.post("/suggest-distance", async (req, res) => {
   try {
-    const k = req.body?.Kundendaten || req.body?.bereich || {};
+    const k = req.body?.Kundendaten || req.body?.bereich || req.body || {};
 
     const street = k.street || "";
     const postalCode = k.postalCode || k.PLZ || "";
     const city = k.city || k.Stadt || "";
+    const state = k.state || k.Bundesland || "";
+    const country = k.country || k.Land || "Deutschland";
 
     if (!street && !city && !postalCode) {
       return res
@@ -253,12 +430,13 @@ router.post("/suggest-distance", async (req, res) => {
         .json({ error: "Missing address fields in Kundendaten." });
     }
 
+    // Build the canonical display address (with state)
     const customerAddress = buildCustomerAddress({
       street,
       postalCode,
       city,
-      state: k.state,
-      country: k.country || "Deutschland",
+      state,
+      country,
     });
 
     if (!customerAddress.trim()) {
@@ -273,32 +451,25 @@ router.post("/suggest-distance", async (req, res) => {
         .json({ error: "COMPANY_ADDRESS missing on server." });
     }
 
-    // 1) Geocode both addresses
-    const [start, dest] = await Promise.all([
-      geocode(COMPANY_ADDRESS),
-      geocode(customerAddress),
-    ]);
+    // 1) Get coordinates for company
+    const start = await getCompanyCoords();
 
-    // 2) Get road-based distance (tries ORS, falls back to OSRM)
-    const { km, seconds } = await getRoadDistanceAndDuration(start, dest);
+    // 2) Geocode customer with variant fallbacks
+    const dest = await geocodeWithVariants({
+      street,
+      postalCode,
+      city,
+      state,
+      country,
+    });
 
-    // COMMENTED OUT: Haversine fallback removed to ensure road-based routing only
-    // let km = null;
-    // try {
-    //   km = await orsDistanceKm(start, dest);
-    // } catch (e) {
-    //   console.warn('[routing] ORS failed, will fall back to haversine:', e);
-    // }
-    //
-    // if (!km || !Number.isFinite(km)) {
-    //   km = haversineKm(start, dest);
-    // }
+    // 3) Get road-based distance
+    const { km, seconds, provider: routeProvider } = await getRoadDistanceAndDuration(start, dest);
 
-    // Round sensibly (nearest 0.5 km)
+    // Round sensibly
     const oneWayKm = Math.round(km * 2) / 2;
     const roundTripKm = Math.round(oneWayKm * 2 * 10) / 10;
-
-    const oneWaySeconds = Math.round(seconds); // keep as int
+    const oneWaySeconds = Math.round(seconds);
     const roundTripSeconds = oneWaySeconds * 2;
 
     return res.json({
@@ -306,23 +477,46 @@ router.post("/suggest-distance", async (req, res) => {
       oneWayKm,
       roundTripKm,
       oneWaySeconds,
-  roundTripSeconds,
+      roundTripSeconds,
       from: {
         address: COMPANY_ADDRESS,
         geocoded: start.displayName,
+        lat: start.lat,
+        lng: start.lng,
       },
       to: {
         address: customerAddress,
         geocoded: dest.displayName,
+        usedVariant: dest.usedAddress, // Which address variant worked
+        lat: dest.lat,
+        lng: dest.lng,
       },
+      geocodeProvider: dest.provider,
+      routeProvider,
     });
   } catch (err) {
     console.error("[routing] suggest-distance failed:", err);
     return res.status(500).json({
       error: err.message || "Routing lookup failed",
-      details: "Road-based routing is required but unavailable",
     });
   }
+});
+
+/**
+ * GET /api/routing/health
+ */
+router.get("/health", (req, res) => {
+  res.json({
+    ok: true,
+    companyAddress: COMPANY_ADDRESS,
+    companyCoords: COMPANY_LAT && COMPANY_LNG ? { lat: COMPANY_LAT, lng: COMPANY_LNG } : null,
+    providers: {
+      ors: !!ORS_API_KEY,
+      osrm: true,
+      photon: true,
+      nominatim: true,
+    },
+  });
 });
 
 export default router;
