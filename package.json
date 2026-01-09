@@ -20,7 +20,8 @@
     "format": "prettier --write \"src/**/*.{js,mjs,json}\"",
     "format:check": "prettier --check \"src/**/*.{js,mjs,json}\"",
     "scenarios": "node ./scripts/run-scenarios.mjs",
-    "validate": "npm run lint && npm run test:unit"
+    "validate": "npm run lint && npm run test:unit",
+    "test:address": "node scripts/test-routing.mjs"
   },
   "keywords": [
     "express",
