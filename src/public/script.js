@@ -5829,8 +5829,36 @@ if (supportsOptional) {
 
     for (const s of svcSource) {
       if (!s) continue;
-      const label = String(s.label || "").trim();
-      const plain = label.replace(/^\s*-\s*/, "");
+      let label = String(s.label || "").trim();
+const plain = label.replace(/^\s*-\s*/, "");
+
+// --- BWT: show Extra Arbeitszeit tasks as separate lines (UI-only, keep totals) ---
+const offerKey = String(window.getCurrentOfferType?.() || "").toLowerCase();
+const isExtraAufgabe = s.key === "extraAufgabe" || /extra\s*aufgabe/i.test(plain);
+
+if (offerKey === "bwt" && isExtraAufgabe) {
+  const fs = document.getElementById("bwtAzExtraFieldset");
+  if (fs) {
+    const items = fs.querySelectorAll(".bwt-az-item");
+    const taskLines = [];
+
+    items.forEach((item) => {
+      const durRaw = (item.querySelector(".bwt-az-duration")?.value || "").trim();
+      const task = (item.querySelector(".bwt-az-task")?.value || "").trim();
+      if (!durRaw && !task) return;
+
+      const durPart = durRaw ? ` (${durRaw})` : "";
+      const taskPart = task ? `: ${task}` : "";
+      taskLines.push(`    -${durPart}${taskPart}`);
+    });
+
+    if (taskLines.length) {
+      // add extra lines under the same service row
+      label = `- Extra Arbeitszeit\n${taskLines.join("\n")}`;
+    }
+  }
+}
+
 
       const goesIncluded =
         /fahrzeugbereitstellung/i.test(plain) ||
