@@ -1188,6 +1188,9 @@ color: metaColor || null,
             if (p) {
               const unit = Number(p.price || 0);
               const qty = 1; // ← add this
+              const isSlateTray = String(p.productId || "").startsWith("SLA");
+              const colorSuffix = isSlateTray ? " — Farbe: weiß" : "";
+
               const line = {
                 productId: p.productId,
                 name: p.name || "",
@@ -1195,8 +1198,9 @@ color: metaColor || null,
                 unitPrice: unit,
                 lineTotal: round2(unit * qty),
                 label: sizeLabel
-                  ? `- ${qty} Stk Duschwanne ${sizeLabel}`
-                  : `- ${qty} Stk Duschwanne`,
+                ? `- ${qty} Stk Duschwanne ${sizeLabel}${colorSuffix}`
+                : `- ${qty} Stk Duschwanne${colorSuffix}`,
+
               };
               materials.lines.push(line);
               materials.sum = round2((materials.sum || 0) + line.lineTotal);
