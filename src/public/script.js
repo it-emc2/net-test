@@ -2495,44 +2495,48 @@ try {
     console.warn("[buildPayload] WV consumables capture failed:", e);
   }
   //  per-panel color config for WV (997 / 1497) ---
-  try {
-    const formWV = document.getElementById("form-wandverkleidung");
-    if (formWV) {
-      const fdWV = new FormData(formWV);
+try {
+  const formWV = document.getElementById("form-wandverkleidung");
+  if (formWV) {
+    const fdWV = new FormData(formWV);
 
-      const globalColor = (fdWV.get("wvColor") || "").toString().trim();
+    const globalColor = (fdWV.get("wvColor") || "").toString().trim();
+    const color997 = (fdWV.get("wvColor_997") || "").toString().trim();
+    const color1497 = (fdWV.get("wvColor_1497") || "").toString().trim();
 
-      const color997 = (fdWV.get("wvColor_997") || "").toString().trim();
+    const enabled997 = !!document.getElementById("wv997")?.checked;
+    const enabled1497 = !!document.getElementById("wv1497")?.checked;
 
-      const color1497 = (fdWV.get("wvColor_1497") || "").toString().trim();
+    const qty997 = Number(document.getElementById("wvQty997")?.value || 0) || 0;
+    const qty1497 = Number(document.getElementById("wvQty1497")?.value || 0) || 0;
 
-      const enabled997 = !!document.getElementById("wv997")?.checked;
-      const enabled1497 = !!document.getElementById("wv1497")?.checked;
+    payload.wandverkleidung = payload.wandverkleidung || {};
 
-      const qty997 =
-        Number(document.getElementById("wvQty997")?.value || 0) || 0;
-      const qty1497 =
-        Number(document.getElementById("wvQty1497")?.value || 0) || 0;
+    // ✅ store raw override fields (needed for perfect restore)
+    payload.wandverkleidung.wvColor_997 = color997;     // can be ""
+    payload.wandverkleidung.wvColor_1497 = color1497;   // can be ""
 
-      payload.wandverkleidung = payload.wandverkleidung || {};
-
-      // Clean, canonical structure used later in pricing / DOCX
-      payload.wandverkleidung.panelConfigs = {
-        "997x2550": {
-          enabled: enabled997,
-          qty: qty997,
-          color: color997 || globalColor || "",
-        },
-        "1497x2550": {
-          enabled: enabled1497,
-          qty: qty1497,
-          color: color1497 || globalColor || "",
-        },
-      };
-    }
-  } catch (e) {
-    console.warn("[buildPayload] WV panel color config failed:", e);
+    // Clean, canonical structure used later in pricing / DOCX
+    payload.wandverkleidung.panelConfigs = {
+      "997x2550": {
+        enabled: enabled997,
+        qty: qty997,
+        overrideColor: color997 || "",
+        color: (color997 || globalColor || "").trim(),
+      },
+      "1497x2550": {
+        enabled: enabled1497,
+        qty: qty1497,
+        overrideColor: color1497 || "",
+        color: (color1497 || globalColor || "").trim(),
+      },
+    };
   }
+} catch (e) {
+  console.warn("[buildPayload] WV panel color config failed:", e);
+}
+
+
   // -------------------------------------------------------------------------
   // Budget/Zuzahlung
   const elMax = document.querySelector('input[name="budgetMax"]');
@@ -6517,12 +6521,33 @@ function restoreWV(wv) {
   WV_DEFAULT_PIDS.forEach((pid) => setByProductId(pid, false));
 
   // Kind is a radio
-  if (wv.wvKind) setRadio("wvKind", wv.wvKind);
+    if (wv.wvKind) setRadio("wvKind", wv.wvKind);
 
   // Color may be radio too – restore if present
   if (wv.wvColor) setRadio("wvColor", wv.wvColor);
+
+  // ✅ Restore per-panel overrides (997 / 1497)
+  const panelCfg = wv?.panelConfigs || {};
+  const global = String(wv?.wvColor || "").trim();
+
+  const eff997 = String(panelCfg?.["997x2550"]?.color || "").trim();
+  const eff1497 = String(panelCfg?.["1497x2550"]?.color || "").trim();
+
+  const raw997 =
+    (wv?.wvColor_997 ?? panelCfg?.["997x2550"]?.overrideColor ?? "").toString().trim();
+  const raw1497 =
+    (wv?.wvColor_1497 ?? panelCfg?.["1497x2550"]?.overrideColor ?? "").toString().trim();
+
+  // If legacy data only has effective color (no overrideColor), only set select when it differs from global
+  const sel997 = raw997 || (eff997 && eff997 !== global ? eff997 : "");
+  const sel1497 = raw1497 || (eff1497 && eff1497 !== global ? eff1497 : "");
+
+  if (document.getElementById("wvColor_997")) setSelect("wvColor_997", sel997);
+  if (document.getElementById("wvColor_1497")) setSelect("wvColor_1497", sel1497);
+
   const pageWV = document.getElementById("page-wandverkleidung");
   if (pageWV && wv.wvColor) pageWV.dataset.wvColorRestored = "1";
+
 
   // Quantities (keep zeros)
   const pairs = [
