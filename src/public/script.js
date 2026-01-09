@@ -6962,6 +6962,10 @@ function restoreBwt(bwt) {
   if (bwt.bwtDoorStdQty != null) {
     setByNameOrId("bwtDoorStdQty", bwt.bwtDoorStdQty);
   }
+  if (bwt.bwtDoorStdColor != null) {
+  setByNameOrId("bwtDoorStdColor", bwt.bwtDoorStdColor);
+}
+
   if (bwt.bwtDoorBudgetQty != null) {
     setByNameOrId("bwtDoorBudgetQty", bwt.bwtDoorBudgetQty);
   }

@@ -918,6 +918,9 @@ function mapData(body = {}, computed = {}) {
 if (doorVariantText) {
   bullet1Text = `Liefern und Montieren einer Badewannentür (${doorVariantText})`;
 }
+const doorColor = (bwt?.bwtDoorStdColor || "").trim();
+if (doorColor) bullet1Text += ` — Farbe: ${doorColor}`;
+
 
 // ✅ append door info lines (only when exactly 1 door pid is selected)
 const doorInfoById = bwt?.doorInfoById || {};
