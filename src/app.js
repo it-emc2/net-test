@@ -20,6 +20,7 @@ import pdfPreviewRouter from "./routes/pdf-preview.js";
 import { router as pdfRouter } from "./routes/pdf.js";
 import pdfTemplateRouter from "./routes/pdf-template.js";
 import docxTemplateRouter from "./routes/docx-template.js";
+import adobePdfRouter from "./routes/adobe-pdf.js";
 
 // Models (ESM default exports)
 import Product from "./models/Product.js";
@@ -210,6 +211,7 @@ app.use("/api/customers", customersRouter);
 app.use("/api/bitrix", bitrixRouter);
 app.use("/api/routing", routingRouter); // <--- NEW
 app.use("/api/docx", pdfPreviewRouter);
+app.use("/api/adobe-pdf", adobePdfRouter);
 //app.use("/pdf-preview", pdfPreviewRouter);
 //app.use('/api/docx/pdf-preview', pdfPreviewRouter); // ADD THIS
 // (you had this twice; once is enough)

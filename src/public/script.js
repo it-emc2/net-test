@@ -3183,6 +3183,181 @@ function syncColorWithAreaDW() {
 function collectAllFormData() {
   return buildPayload();
 }
+
+// ===== Adobe PDF Services Integration =====
+(function initAdobePdfButtons() {
+  const btnDocx = document.getElementById("adobeGenerateDocx");
+  const btnPdf = document.getElementById("adobeGeneratePdf");
+  const btnBoth = document.getElementById("adobeGenerateBoth");
+  const statusEl = document.getElementById("adobePdfStatus");
+
+  if (!btnDocx && !btnPdf && !btnBoth) return;
+
+  function setStatus(msg, type = "info") {
+    if (!statusEl) return;
+    const ts = new Date().toLocaleTimeString();
+    const emoji =
+      type === "success"
+        ? "✅"
+        : type === "error"
+          ? "❌"
+          : type === "warn"
+            ? "⚠️"
+            : "🔄";
+
+    statusEl.style.display = "block";
+    statusEl.className = "status " + (type === "error" ? "err" : "ok");
+    statusEl.textContent = `${emoji} [${ts}] ${msg}`;
+  }
+
+  function hideStatus() {
+    if (statusEl) statusEl.style.display = "none";
+  }
+
+  async function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function generateWithAdobe(endpoint, fileType) {
+    if (typeof requireBereichValid === "function" && !requireBereichValid()) {
+      location.hash = "Kundendaten";
+      return;
+    }
+
+    const payload =
+      typeof buildPayload === "function" ? buildPayload() : null;
+    if (!payload) {
+      setStatus("Keine Daten zum Generieren gefunden.", "error");
+      return;
+    }
+
+    try {
+      setStatus(`${fileType} wird mit Adobe generiert...`, "info");
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || err.error || `HTTP ${res.status}`);
+      }
+
+      // Get filename from Content-Disposition header
+      const cd = res.headers.get("content-disposition") || "";
+      let filename = `Angebot.${fileType.toLowerCase()}`;
+      const match = cd.match(/filename="?([^"]+)"?/i);
+      if (match && match[1]) {
+        filename = match[1];
+      }
+
+      const blob = await res.blob();
+      await downloadBlob(blob, filename);
+
+      setStatus(`${fileType} erfolgreich erstellt!`, "success");
+
+      // Save offer snapshot after successful export
+      if (typeof saveFinalOfferSnapshot === "function") {
+        try {
+          await saveFinalOfferSnapshot();
+        } catch (e) {
+          console.warn("[adobe-pdf] saveFinalOfferSnapshot failed:", e);
+        }
+      }
+
+      // Hide status after 3 seconds
+      setTimeout(hideStatus, 3000);
+    } catch (e) {
+      console.error(`[adobe-pdf] ${fileType} generation failed:`, e);
+      setStatus(`${fileType}-Erstellung fehlgeschlagen: ${e.message}`, "error");
+    }
+  }
+
+  async function generateBoth() {
+    if (typeof requireBereichValid === "function" && !requireBereichValid()) {
+      location.hash = "Kundendaten";
+      return;
+    }
+
+    const payload =
+      typeof buildPayload === "function" ? buildPayload() : null;
+    if (!payload) {
+      setStatus("Keine Daten zum Generieren gefunden.", "error");
+      return;
+    }
+
+    try {
+      setStatus("DOCX und PDF werden mit Adobe generiert...", "info");
+
+      const res = await fetch("/api/adobe-pdf/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || err.error || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      if (!data.success || !data.files) {
+        throw new Error("Unerwartete Antwort vom Server");
+      }
+
+      // Download DOCX
+      const docxBlob = new Blob(
+        [Uint8Array.from(atob(data.files.docx.data), (c) => c.charCodeAt(0))],
+        { type: data.files.docx.mimeType }
+      );
+      await downloadBlob(docxBlob, data.files.docx.filename);
+
+      // Download PDF
+      const pdfBlob = new Blob(
+        [Uint8Array.from(atob(data.files.pdf.data), (c) => c.charCodeAt(0))],
+        { type: data.files.pdf.mimeType }
+      );
+      await downloadBlob(pdfBlob, data.files.pdf.filename);
+
+      setStatus("DOCX und PDF erfolgreich erstellt!", "success");
+
+      // Save offer snapshot
+      if (typeof saveFinalOfferSnapshot === "function") {
+        try {
+          await saveFinalOfferSnapshot();
+        } catch (e) {
+          console.warn("[adobe-pdf] saveFinalOfferSnapshot failed:", e);
+        }
+      }
+
+      setTimeout(hideStatus, 3000);
+    } catch (e) {
+      console.error("[adobe-pdf] Batch generation failed:", e);
+      setStatus(`Erstellung fehlgeschlagen: ${e.message}`, "error");
+    }
+  }
+
+  // Event listeners
+  btnDocx?.addEventListener("click", () =>
+    generateWithAdobe("/api/adobe-pdf/docx", "DOCX")
+  );
+
+  btnPdf?.addEventListener("click", () =>
+    generateWithAdobe("/api/adobe-pdf/pdf", "PDF")
+  );
+
+  btnBoth?.addEventListener("click", generateBoth);
+})();
 // =================================================================
 // #region 9. HELPERS
 // =================================================================
