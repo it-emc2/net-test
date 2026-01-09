@@ -5630,6 +5630,14 @@ function escapeHtml(s) {
     </div>
   `;
   }
+// --- helper : to show optinal items in kosten details page only when there is optional page
+function hasOptionalPageForCurrentOffer() {
+  // Optional page/section exists only for offers that support it
+  // (use the strongest selector you already have in your HTML)
+  return !!document.querySelector(
+    '#optionalPage, [data-page="optional"], #page-Optional, section[data-offer-page="optional"]'
+  );
+}
 
   // --- NEW: resolve DB names for optional items (by productId)
   async function withResolvedOptionalNames(items) {
@@ -5750,26 +5758,34 @@ function escapeHtml(s) {
     }
 
     // --- Optional (Debug): use optionalDisplayUI if present, else fallback to items
-    const optLines =
-      data.optionalDisplayUI && Array.isArray(data.optionalDisplayUI.lines)
-        ? data.optionalDisplayUI.lines
-        : (data.items || []).map((i) => ({
-            productId: i.productId,
-            name: i.productId,
-            qty: i.qty,
-            unitPrice: i.unitPrice,
-            lineTotal: i.lineTotal,
-          }));
-    const optBody = listLines(optLines);
-    // const optSum = (data.optionalDisplayUI && typeof data.optionalDisplayUI.sum === 'number')
-    const optSum = data.optionalDisplayUI?.sum ?? 0;
-    //  ? data.optionalDisplayUI.sum
-    //  : (optLines.reduce((a, x) => a + (x.lineTotal || 0), 0));
-    const optCard = card(
-      "Additional gewählte Produkte",
-      optBody,
-      `<div style="text-align:right"><b>Summe:</b> ${euroC(optSum)}</div>`,
-    );
+let optCard = "";
+
+const offerKey = String(window.getCurrentOfferType?.() || "").toLowerCase();
+const supportsOptional = getPagesForOfferType(offerKey).includes("Optional");
+
+if (supportsOptional) {
+  const optLines =
+    data.optionalDisplayUI && Array.isArray(data.optionalDisplayUI.lines)
+      ? data.optionalDisplayUI.lines
+      : (data.items || []).map((i) => ({
+          productId: i.productId,
+          name: i.productId,
+          qty: i.qty,
+          unitPrice: i.unitPrice,
+          lineTotal: i.lineTotal,
+        }));
+
+  const optBody = listLines(optLines);
+  const optSum = data.optionalDisplayUI?.sum ?? 0;
+
+  optCard = card(
+    "Additional gewählte Produkte",
+    optBody,
+    `<div style="text-align:right"><b>Summe:</b> ${euroC(optSum)}</div>`,
+  );
+}
+
+
 
     // --- Material (Debug): show only non-optional UI lines
     const matLines =
@@ -7635,7 +7651,7 @@ function setCurrentOfferType(offerType) {
   console.log("[setCurrentOfferType] navigating to step", state.step);
   setStep(state.step);
 }
-
+// hide aufschlag for bwt offers
 (function enforceAufschlagVisibilityByOffer() {
   const offer = (window.getCurrentOfferType && window.getCurrentOfferType()) || "";
   const sec = document.getElementById("aufschlagSection");
