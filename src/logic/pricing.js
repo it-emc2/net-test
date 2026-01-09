@@ -454,16 +454,17 @@ function grossToNet(gross, taxRate) {
     const color997 = String(cfg997.color || wvColor).trim();
     const color1497 = String(cfg1497.color || wvColor).trim();
 
-    if (qty997 > 0) {
-      const base = `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`;
-      const label = color997 ? `${base} — Farbe: ${color997}` : base;
-      add("V3WVK09", qty997, label);
-    }
-    if (qty1497 > 0) {
-      const base = `- ${qty1497} Stk Wandverkleidung 3.0 Alu 1497×2550 mm`;
-      const label = color1497 ? `${base} — Farbe: ${color1497}` : base;
-      add("V3WV09", qty1497, label);
-    }
+  if (qty997 > 0) {
+  const base = `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`;
+  const label = color997 ? `${base} — Farbe: ${color997}` : base;
+  add("V3WVK09", qty997, label, null, null, { color: color997 });
+}
+if (qty1497 > 0) {
+  const base = `- ${qty1497} Stk Wandverkleidung 3.0 Alu 1497×2550 mm`;
+  const label = color1497 ? `${base} — Farbe: ${color1497}` : base;
+  add("V3WV09", qty1497, label, null, null, { color: color1497 });
+}
+
     if (wv?.wvSealing) add("TRWDSET5", 1);
     if (wv?.flechenkleber) {
       const userQtyAdh = Number(wv?.wvFlachenQty);
@@ -766,7 +767,14 @@ console.log("[REHA DEBUG] selections =", selections);
     }
 
 
-      const displayName = (prod.name || "").trim() || l.id;
+      const displayNameBase = (prod.name || "").trim() || l.id;
+      const metaColor = typeof l?.meta?.color === "string" ? l.meta.color.trim() : "";
+
+      const displayName =
+        metaColor && (l.id === "V3WVK09" || l.id === "V3WV09")
+          ? `${displayNameBase} — Farbe: ${metaColor}`
+          : displayNameBase;
+
       const builtLabel = `- ${l.qty} Stk ${displayName}`;
       const label = l.label || builtLabel;
 
@@ -811,6 +819,7 @@ if (infoLines.length) {
       return {
   productId: l.id,
   name: displayName,
+color: metaColor || null,
   qty: l.qty,
   unitPrice: unit,
   lineTotal,
