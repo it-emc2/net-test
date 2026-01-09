@@ -3358,6 +3358,8 @@ function collectAllFormData() {
 
   btnBoth?.addEventListener("click", generateBoth);
 })();
+
+
 // =================================================================
 // #region 9. HELPERS
 // =================================================================
@@ -9681,6 +9683,252 @@ function initLivePricingSync() {
   // Initial run
   repriceNow();
 }
+
+
+// Add this to script.js or create a new zusammenfassung-init.js
+
+// ========== ZUSAMMENFASSUNG PAGE - SAVE & DEV TOOLS ==========
+
+(function initZusammenfassungPage() {
+  const btnSave = document.getElementById('btnSaveOffer');
+  const statusBanner = document.getElementById('saveStatusBanner');
+  const toggleDevTools = document.getElementById('toggleDevTools');
+  const devToolsPanel = document.getElementById('devToolsPanel');
+  const showPayloadBtn = document.getElementById('showPayload');
+
+  // ========== SAVE OFFER ==========
+  
+  function showSaveStatus(message, type = 'success') {
+    if (!statusBanner) return;
+    
+    statusBanner.hidden = false;
+    statusBanner.className = `save-status-banner ${type}`;
+    
+    const iconMap = {
+      success: '✅',
+      error: '❌',
+      loading: '⏳'
+    };
+    
+    statusBanner.querySelector('.status-icon').textContent = iconMap[type] || 'ℹ️';
+    statusBanner.querySelector('.status-message').textContent = message;
+    
+    // Auto-hide success messages after 5 seconds
+    if (type === 'success') {
+      setTimeout(() => {
+        statusBanner.hidden = true;
+      }, 5000);
+    }
+  }
+
+  function hideSaveStatus() {
+    if (statusBanner) {
+      statusBanner.hidden = true;
+    }
+  }
+
+  async function saveOfferToDatabase() {
+    if (!btnSave) return;
+    
+    // Validate form first
+    if (typeof requireBereichValid === 'function' && !requireBereichValid()) {
+      location.hash = 'Kundendaten';
+      return;
+    }
+
+    const originalText = btnSave.querySelector('.save-text').textContent;
+    
+    try {
+      // Disable button and show loading state
+      btnSave.disabled = true;
+      btnSave.querySelector('.save-icon').textContent = '⏳';
+      btnSave.querySelector('.save-text').textContent = 'Speichern...';
+      showSaveStatus('Angebot wird gespeichert...', 'loading');
+
+      // Build the payload
+      const payload = typeof buildPayload === 'function' ? buildPayload() : null;
+      if (!payload) {
+        throw new Error('Keine Daten zum Speichern vorhanden.');
+      }
+
+      // Get or generate offer number
+      const offerInput = document.getElementById('offerNumber');
+      let offerNumber = offerInput?.value?.trim();
+      
+      if (!offerNumber) {
+        // Generate a new offer number if none exists
+        offerNumber = typeof genOfferNumber === 'function' 
+          ? genOfferNumber() 
+          : `ANG-${Date.now()}`;
+        
+        if (offerInput) {
+          offerInput.value = offerNumber;
+        }
+      }
+
+      // Get current pricing data
+      let pricing = window.__pricing;
+      if (!pricing && typeof window.updatePricing === 'function') {
+        pricing = await window.updatePricing(payload);
+      }
+
+      // Determine offer type
+      const offerType = typeof getCurrentOfferType === 'function' 
+        ? getCurrentOfferType() 
+        : payload.activeOffer || 'bu';
+
+      // Prepare the offer document
+      const offerDoc = {
+        offerNumber,
+        offerType,
+        payload,
+        pricing,
+        status: 'saved',
+        savedAt: new Date().toISOString()
+      };
+
+      // Save to database
+      const response = await fetch('/api/offers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(offerDoc)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Fehler beim Speichern (${response.status})`);
+      }
+
+      const savedOffer = await response.json();
+      
+      // Show success
+      showSaveStatus(
+        `Angebot "${offerNumber}" erfolgreich gespeichert!`, 
+        'success'
+      );
+
+      // Toast notification if available
+      if (window.toast?.success) {
+        window.toast.success(
+          'Gespeichert', 
+          `Angebot <b>${offerNumber}</b> wurde in der Datenbank gespeichert.`
+        );
+      }
+
+      console.log('[SaveOffer] Successfully saved:', savedOffer);
+      
+      return savedOffer;
+
+    } catch (error) {
+      console.error('[SaveOffer] Error:', error);
+      showSaveStatus(error.message || 'Fehler beim Speichern des Angebots.', 'error');
+      
+      if (window.toast?.error) {
+        window.toast.error('Fehler', error.message);
+      }
+      
+    } finally {
+      // Restore button state
+      if (btnSave) {
+        btnSave.disabled = false;
+        btnSave.querySelector('.save-icon').textContent = '💾';
+        btnSave.querySelector('.save-text').textContent = originalText;
+      }
+    }
+  }
+
+  // Wire up save button
+  if (btnSave) {
+    btnSave.addEventListener('click', saveOfferToDatabase);
+  }
+
+  // ========== DEVELOPER TOOLS TOGGLE ==========
+  
+  if (toggleDevTools && devToolsPanel) {
+    toggleDevTools.addEventListener('click', () => {
+      const isHidden = devToolsPanel.hidden;
+      devToolsPanel.hidden = !isHidden;
+      toggleDevTools.classList.toggle('active', isHidden);
+      
+      // Update button text
+      const textSpan = toggleDevTools.querySelector('.toggle-text');
+      if (textSpan) {
+        textSpan.textContent = isHidden 
+          ? 'Entwickler-Optionen ausblenden' 
+          : 'Entwickler-Optionen anzeigen';
+      }
+    });
+  }
+
+  // ========== SHOW PAYLOAD ==========
+  
+  if (showPayloadBtn) {
+    showPayloadBtn.addEventListener('click', () => {
+      const payload = typeof buildPayload === 'function' ? buildPayload() : {};
+      
+      // Create a modal or alert with the payload
+      const payloadStr = JSON.stringify(payload, null, 2);
+      
+      // Try to use a nice modal if available, otherwise use alert
+      if (typeof ntToast === 'function') {
+        ntToast('info', 'Aktueller Payload', 
+          `<pre style="max-height:400px;overflow:auto;font-size:11px;text-align:left;">${escapeHtml(payloadStr)}</pre>`,
+          { duration: 0 }
+        );
+      } else {
+        // Copy to clipboard and alert
+        navigator.clipboard?.writeText(payloadStr).then(() => {
+          alert('Payload wurde in die Zwischenablage kopiert.\n\nSiehe Konsole für Details.');
+        }).catch(() => {
+          alert('Payload (siehe Konsole für vollständige Daten):\n\n' + payloadStr.substring(0, 500) + '...');
+        });
+        console.log('[Payload]', payload);
+      }
+    });
+  }
+
+  // ========== AUTO-REFRESH ON PAGE ENTER ==========
+  
+  function onEnterZusammenfassung() {
+    // Refresh pricing to ensure everything is up to date
+    if (typeof window.updatePricing === 'function') {
+      window.updatePricing().catch(err => {
+        console.warn('[Zusammenfassung] Pricing update failed:', err);
+      });
+    }
+    
+    // Refresh the cost details panel if dev tools are visible
+    if (devToolsPanel && !devToolsPanel.hidden) {
+      if (typeof window.refreshAllPanels === 'function') {
+        window.refreshAllPanels();
+      }
+    }
+  }
+
+  // Watch for navigation to this page
+  window.addEventListener('hashchange', () => {
+    if (typeof getCurrentStep === 'function' && getCurrentStep() === 'Zusammenfassung') {
+      onEnterZusammenfassung();
+    }
+  });
+
+  // Initial check
+  if (typeof getCurrentStep === 'function' && getCurrentStep() === 'Zusammenfassung') {
+    onEnterZusammenfassung();
+  }
+
+})();
+
+// ========== EXPORT: Expose save function globally ==========
+window.saveOfferToDatabase = async function() {
+  const btn = document.getElementById('btnSaveOffer');
+  if (btn) {
+    btn.click();
+  }
+};
+
+
 // #endregion
 
 // =================================================================
