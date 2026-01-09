@@ -7636,6 +7636,16 @@ function setCurrentOfferType(offerType) {
   setStep(state.step);
 }
 
+(function enforceAufschlagVisibilityByOffer() {
+  const offer = (window.getCurrentOfferType && window.getCurrentOfferType()) || "";
+  const sec = document.getElementById("aufschlagSection");
+  if (!sec) return;
+
+  const isBwt = String(offer).toLowerCase() === "bwt";
+  sec.hidden = isBwt;
+  sec.setAttribute("aria-hidden", isBwt ? "true" : "false");
+})();
+
 document.getElementById("btnLoadOffer")?.addEventListener("click", async () => {
   const input = document.getElementById("loadOfferNumber");
   const n = input?.value?.trim();
