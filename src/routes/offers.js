@@ -1,103 +1,119 @@
-// src/routes/offers.js
-import express from "express";
-import Offer from "../models/Offer.js";
+// src/routes/offers.js - Updated POST handler
 
-const router = express.Router();
+import express from 'express';
+import Offer from '../models/Offer.js';
 
-// Utility: safely read nested
-const get = (obj, path, def = undefined) =>
-  path.split(".").reduce((o, k) => (o && o[k] != null ? o[k] : def), obj);
+export const router = express.Router();
 
-// Utility: derive fast-searchable customer fields
-function deriveCustomer(payload) {
-  const k = payload?.Kundendaten || {};
-  const b = payload?.bereich || {};
-
-  return {
-    salutation: k.salutation || b.salutation || b.Anrede || "",
-    firstName: k.firstName || b.firstName || b.Vorname || "",
-    lastName: k.lastName || b.lastName || b.Nachname || "",
-    customerNumber: k.customerNumber || b.customerNumber || "",
-    city: k.city || b.city || b.Stadt || "",
-    postalCode: k.postalCode || b.postalCode || b.PLZ || "",
-    phone: k.phone || b.phone || "",
-    email: k.email || b.email || "",
-  };
-}
-
-// Utility: derive hassmann quick add FROM payload only
-function deriveHassmannQuickAdd(payload) {
-  const rows = get(payload, "duschabtrennung.quickAdd", []);
-  if (!Array.isArray(rows)) return [];
-  return rows
-    .map((r) => ({
-      kind: String(r?.kind || "").trim(),
-      productId: String(r?.productId || r?.id || "").trim(),
-      price:
-        Number(
-          typeof r?.price === "string"
-            ? r.price.replace(/\s+/g, "").replace(/\./g, "").replace(",", ".")
-            : r?.price || 0,
-        ) || 0,
-      qty: Number(r?.qty || 0) || 0,
-    }))
-    .filter((x) => x.kind || x.productId || x.qty || x.price);
-}
-
-// POST /api/offers  (create/replace a snapshot by offerNumber)
-router.post("/", async (req, res) => {
+// GET /api/offers/:offerNumber - Load an offer by number
+router.get('/:offerNumber', async (req, res) => {
   try {
-    const { offerNumber, offerType, payload, pricing, pdfUrl } = req.body || {};
-    if (!offerNumber || !payload || !pricing) {
-      return res
-        .status(400)
-        .json({ error: "offerNumber, payload and pricing are required." });
+    const { offerNumber } = req.params;
+    
+    const offer = await Offer.findOne({ offerNumber }).lean();
+    
+    if (!offer) {
+      return res.status(404).json({ 
+        error: 'Angebot nicht gefunden',
+        offerNumber 
+      });
     }
-
-    const customer = deriveCustomer(payload);
-    const hassmannQuickAdd = deriveHassmannQuickAdd(payload);
-
-    const effectiveOfferType =
-      offerType || payload.activeOffer || payload.offerType || "bu";
-
-    const doc = await Offer.findOneAndUpdate(
-      { offerNumber },
-      {
-        $set: {
-          offerNumber,
-          offerType: effectiveOfferType,
-          payload,
-          pricing,
-          customer,
-          hassmannQuickAdd,
-          pdfUrl: pdfUrl || null,
-          updatedAt: new Date(),
-        },
-        $setOnInsert: { createdAt: new Date() },
-      },
-      { new: true, upsert: true, setDefaultsOnInsert: true },
-    );
-
-    return res.json({
-      ok: true,
-      offer: { id: doc._id, offerNumber: doc.offerNumber },
-    });
+    
+    res.json({ ok: true, offer });
   } catch (err) {
-    console.error("[offers] POST failed:", err);
-    return res.status(500).json({ error: "Server error" });
+    console.error('[offers] GET error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// GET /api/offers/:offerNumber (fetch snapshot)
-router.get("/:offerNumber", async (req, res) => {
+// POST /api/offers - Save a new offer or update existing
+router.post('/', async (req, res) => {
   try {
-    const { offerNumber } = req.params;
-    const doc = await Offer.findOne({ offerNumber }).lean();
-    if (!doc) return res.status(404).json({ error: "Not found" });
-    return res.json({ ok: true, offer: doc });
+    const { offerNumber, offerType, payload, pricing, status } = req.body;
+    
+    if (!offerNumber) {
+      return res.status(400).json({ error: 'offerNumber ist erforderlich' });
+    }
+    
+    if (!payload) {
+      return res.status(400).json({ error: 'payload ist erforderlich' });
+    }
+
+    // Prepare the offer document
+    const offerDoc = {
+      offerNumber,
+      offerType: offerType || 'bu',
+      payload,
+      pricing: pricing || null,
+      status: status || 'saved',
+      updatedAt: new Date()
+    };
+
+    // Upsert: update if exists, insert if not
+    const result = await Offer.findOneAndUpdate(
+      { offerNumber },
+      { 
+        $set: offerDoc,
+        $setOnInsert: { createdAt: new Date() }
+      },
+      { 
+        upsert: true, 
+        new: true,
+        runValidators: true 
+      }
+    );
+
+    console.log('[offers] Saved offer:', offerNumber);
+
+    res.json({
+      ok: true,
+      offer: result,
+      message: `Angebot ${offerNumber} erfolgreich gespeichert`
+    });
+
   } catch (err) {
-    console.error("[offers] GET failed:", err);
-    return res.status(500).json({ error: "Server error" });
+    console.error('[offers] POST error:', err);
+    
+    // Handle duplicate key error
+    if (err.code === 11000) {
+      return res.status(409).json({ 
+        error: 'Ein Angebot mit dieser Nummer existiert bereits' 
+      });
+    }
+    
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/offers - List all offers (with optional search)
+router.get('/', async (req, res) => {
+  try {
+    const { q, offerType, limit = 50 } = req.query;
+    
+    const filter = {};
+    
+    if (q) {
+      filter.$or = [
+        { offerNumber: { $regex: q, $options: 'i' } },
+        { 'payload.Kundendaten.lastName': { $regex: q, $options: 'i' } },
+        { 'payload.Kundendaten.firstName': { $regex: q, $options: 'i' } }
+      ];
+    }
+    
+    if (offerType) {
+      filter.offerType = offerType;
+    }
+
+    const offers = await Offer.find(filter)
+      .sort({ updatedAt: -1 })
+      .limit(parseInt(limit, 10))
+      .select('offerNumber offerType status createdAt updatedAt payload.Kundendaten.firstName payload.Kundendaten.lastName')
+      .lean();
+
+    res.json(offers);
+  } catch (err) {
+    console.error('[offers] LIST error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 

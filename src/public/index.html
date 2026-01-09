@@ -5431,136 +5431,182 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 
       <!-- Zusammenfassung -->
 
-      <section class="card page" id="page-Zusammenfassung" hidden>
-        <h2 style="margin: 0 0 12px">Zusammenfassung</h2>
-
-        <p class="lead" id="summaryText">
-          Prüfen Sie Ihre Eingaben und senden Sie einen Test.
-        </p>
-
-        <div class="actions">
-          <button class="secondary" id="sendForm">Absenden (Form POST)</button>
-
-          <button class="secondary" id="sendJson">JSON senden</button>
-        </div>
-
-        <div class="actions">
-       <!--    <button
-            id="makePdf"
-            title="Erzeugt ein PDF aus den aktuellen Eingaben"
-          >
-            PDF jetzt erzeugen
-          </button>
-
-          <button id="makePdfFromTemplate">PDF aus Vorlage (Download)</button>
--->
-          <button  id="downloadDocx">
-            DOCX aus Vorlage (Download)
-          </button> 
-
-          <button  id="downloadDocxAsPdf">
-  Angebot (DOCX → PDF)
-</button>
-
-          <!-- NEW: Materialübersicht button -->
-
-          <button  id="downloadMaterialOverview">
-            Materialübersicht (DOCX)
-          </button>
-
-          <a class="btn" href="/health" target="_blank">/health</a>
-        </div>
-
-        <div class="actions" id="pdfActions" style="display: none">
-          <button id="downloadPdf">PDF herunterladen (nach Submit)</button>
-        </div>
-
-        <button id="downloadLatexPdf">Angebot (LaTeX → PDF)</button>
-
-        <!-- Add this in the page-zusammenfassung section, after other export buttons -->
-
-<div class="adobe-export-section" style="margin-top: 24px; padding: 16px; background: linear-gradient(135deg, #f5f7fa 0%, #e4e8eb 100%); border-radius: 12px; border: 1px solid #d1d5db;">
-  <h4 style="margin: 0 0 12px 0; display: flex; align-items: center; gap: 8px; color: #1a1a2e;">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#FA0F00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M2 17L12 22L22 17" stroke="#FA0F00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M2 12L12 17L22 12" stroke="#FA0F00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    Adobe PDF Services
-  </h4>
-  <p style="margin: 0 0 16px 0; font-size: 0.9rem; color: #4a5568;">
-    Professionelle Dokumentenerstellung mit Adobe PDF Services – zuverlässiger als LibreOffice.
-  </p>
-  
-  <div style="display: flex; flex-wrap: wrap; gap: 12px;">
-    <button type="button" id="adobeGenerateDocx" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 8px;">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-        <polyline points="14 2 14 8 20 8"/>
-        <line x1="16" y1="13" x2="8" y2="13"/>
-        <line x1="16" y1="17" x2="8" y2="17"/>
-        <polyline points="10 9 9 9 8 9"/>
-      </svg>
-      DOCX erstellen
-    </button>
+      <!-- Replace the existing page-Zusammenfassung content with this -->
+<section id="page-Zusammenfassung" class="page" hidden>
+  <div class="zusammenfassung-container">
     
-    <button type="button" id="adobeGeneratePdf" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #FA0F00 0%, #c40d00 100%);">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-        <polyline points="14 2 14 8 20 8"/>
-        <path d="M12 18v-6"/>
-        <path d="M9 15l3 3 3-3"/>
-      </svg>
-      PDF erstellen (Adobe)
-    </button>
+    <!-- Header with Save Action -->
+    <header class="zusammenfassung-header">
+      <div class="header-content">
+        <h1>Zusammenfassung</h1>
+        <p class="subtitle">Prüfen Sie Ihre Eingaben und erstellen Sie Ihr Angebot</p>
+      </div>
+      <button type="button" id="btnSaveOffer" class="btn-save-primary">
+        <span class="save-icon">💾</span>
+        <span class="save-text">Angebot speichern</span>
+      </button>
+    </header>
+
+    <!-- Save Status Banner -->
+    <div id="saveStatusBanner" class="save-status-banner" hidden>
+      <span class="status-icon"></span>
+      <span class="status-message"></span>
+    </div>
+
+    <!-- Quick Summary Card -->
+    <section class="summary-overview">
+      <div class="summary-card">
+        <div class="summary-row">
+          <span class="summary-label">Kunde:</span>
+          <span class="summary-value" id="summaryCustomerName">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Angebotsnummer:</span>
+          <span class="summary-value" id="summaryOfferNumber">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">Angebotssumme:</span>
+          <span class="summary-value summary-total" id="summaryTotal">—</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Export Actions -->
+    <section class="export-section">
+      <h2 class="section-title">📄 Dokumente erstellen</h2>
+      
+      <div class="export-cards">
+        <!-- DOCX Card -->
+        <div class="export-card">
+          <div class="card-icon">📄</div>
+          <h3>Word-Dokument</h3>
+          <p>Angebot als bearbeitbare DOCX-Datei herunterladen</p>
+          <button type="button" id="downloadDocx" class="btn-export btn-docx">
+            <span class="btn-icon">⬇️</span>
+            DOCX herunterladen
+          </button>
+        </div>
+
+        <!-- PDF Card -->
+        <div class="export-card">
+          <div class="card-icon">📑</div>
+          <h3>PDF-Dokument</h3>
+          <p>Angebot als PDF-Datei erstellen und herunterladen</p>
+          <button type="button" id="downloadDocxAsPdf" class="btn-export btn-pdf">
+            <span class="btn-icon">⬇️</span>
+            PDF herunterladen
+          </button>
+        </div>
+
+        <!-- Material Overview Card -->
+        <div class="export-card">
+          <div class="card-icon">📋</div>
+          <h3>Materialübersicht</h3>
+          <p>Detaillierte Liste aller benötigten Materialien</p>
+          <button type="button" id="downloadMaterialOverview" class="btn-export btn-material">
+            <span class="btn-icon">⬇️</span>
+            Übersicht herunterladen
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Adobe PDF Services Section -->
+    <section class="adobe-section">
+      <div class="adobe-banner">
+        <div class="adobe-logo">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M13.966 22.624l-1.69-4.281H8.122l3.892-9.144 5.662 13.425h-3.71zm-7.732-1.094l-4.784 1.094 4.784-11.186v10.092zm12.282 1.094L23.25 11.44l-4.784-1.094v13.278z"/>
+          </svg>
+        </div>
+        <div class="adobe-content">
+          <h3>Adobe PDF Services</h3>
+          <p>Professionelle Dokumentenerstellung – zuverlässiger und schneller</p>
+        </div>
+        <div class="adobe-actions">
+          <button type="button" id="adobeGenerateDocx" class="btn-adobe btn-adobe-secondary">
+            DOCX erstellen
+          </button>
+          <button type="button" id="adobeGeneratePdf" class="btn-adobe btn-adobe-primary">
+            PDF erstellen
+          </button>
+          <button type="button" id="adobeGenerateBoth" class="btn-adobe btn-adobe-accent">
+            Beide erstellen
+          </button>
+        </div>
+      </div>
+      <div id="adobePdfStatus" class="adobe-status" hidden></div>
+    </section>
+
+    <!-- Bitrix Integration Section -->
+    <section class="bitrix-section">
+      <h2 class="section-title">📤 Bitrix Integration</h2>
+      <div class="bitrix-card">
+        <div class="bitrix-input-group">
+          <label for="auftragId">Auftrag ID</label>
+          <input type="text" id="auftragId" placeholder="z.B. 12345" class="input-auftrag">
+        </div>
+        <button type="button" id="sendPdfToAuftrag" class="btn-bitrix">
+          <span class="btn-icon">📤</span>
+          Angebots-PDF an Bitrix senden
+        </button>
+        <div id="auftragPdfStatus" class="bitrix-status"></div>
+      </div>
+    </section>
+
+    <!-- PDF Preview Section -->
+    <section class="preview-section">
+      <button type="button" id="previewPdfBtn" class="btn-preview">
+        <span class="btn-icon">👁️</span>
+        PDF-Vorschau anzeigen
+      </button>
+      <div id="pdfPreviewContainer" class="pdf-preview-container" style="display: none;">
+        <iframe id="pdfPreviewFrame" class="pdf-preview-frame"></iframe>
+      </div>
+    </section>
+
+    <!-- Developer Tools (Hidden by Default) -->
+    <section class="developer-section">
+      <button type="button" id="toggleDevTools" class="btn-dev-toggle">
+        <span class="toggle-icon">🔧</span>
+        <span class="toggle-text">Entwickler-Optionen anzeigen</span>
+        <span class="toggle-arrow">▼</span>
+      </button>
+      
+      <div id="devToolsPanel" class="dev-tools-panel" hidden>
+        <div class="dev-tools-grid">
+          <div class="dev-tool-group">
+            <h4>Legacy-Funktionen</h4>
+            <button type="button" id="sendForm" class="btn-dev">Form POST absenden</button>
+            <button type="button" id="sendJson" class="btn-dev">JSON senden</button>
+            <button type="button" id="makePdf" class="btn-dev">Legacy PDF erstellen</button>
+            <button type="button" id="makePdfFromTemplate" class="btn-dev">PDF aus Vorlage</button>
+            <button type="button" id="downloadLatexPdf" class="btn-dev">LaTeX → PDF</button>
+          </div>
+          
+          <div class="dev-tool-group">
+            <h4>API & Debug</h4>
+            <button type="button" id="healthCheck" class="btn-dev" 
+                    onclick="fetch('/health').then(r=>r.json()).then(d=>alert(JSON.stringify(d,null,2))).catch(e=>alert('Error: '+e))">
+              /health prüfen
+            </button>
+            <button type="button" id="showPayload" class="btn-dev">Payload anzeigen</button>
+            <button type="button" id="copyPayload" class="btn-dev">Payload kopieren</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Navigation -->
+    <nav class="zusammenfassung-nav">
+      <button type="button" data-nav="prev" class="btn-nav btn-nav-back">
+        <span class="nav-icon">←</span>
+        Zurück
+      </button>
+    </nav>
     
-    <button type="button" id="adobeGenerateBoth" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 8px;">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="3" y="3" width="7" height="7"/>
-        <rect x="14" y="3" width="7" height="7"/>
-        <rect x="14" y="14" width="7" height="7"/>
-        <rect x="3" y="14" width="7" height="7"/>
-      </svg>
-      Beide erstellen
-    </button>
   </div>
-  
-  <div id="adobePdfStatus" class="status" style="margin-top: 12px; display: none;"></div>
-</div>
-
-
-<button type="button" id="previewPdfBtn">PDF Vorschau</button>
-
-<div id="pdfPreviewContainer"
-     style="display:none; margin-top: 20px; width: 100%; height: 800px; border: 2px solid #ccc; border-radius: 4px;">
-  <iframe
-    id="pdfPreviewFrame"
-    title="PDF Vorschau"
-    style="width:100%; height:100%; border:none;"
-    src="about:blank">
-  </iframe>
-</div>
-
-
-        <pre id="status" class="status"></pre>
-
- <!-- Im Bereich "Zusammenfassung", z.B. unter den bestehenden Buttons -->
-<div class="field" style="margin-top: 16px;">
-  <label for="auftragId" class="req">Auftrag ID</label>
-  <input id="auftragId" name="auftragId" type="text" placeholder="z.B. 12345" />
-</div>
-
-<div class="actions" style="margin-top: 8px;">
-  <button type="button" id="sendPdfToAuftrag">
-    Angebots-PDF an Bitrix Auftrag senden
-  </button>
-</div>
-
-<!-- Optional: kleiner Statusbereich speziell für diesen Vorgang -->
-<div id="auftragPdfStatus" class="status" style="margin-top: 8px;"></div>
-
-
-      </section>
+</section>
 
          <!-- Kosten-Details -->
       <section class="card page" id="page-Kosten" hidden>
