@@ -1234,7 +1234,7 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     PLZ: b.postalCode || "",
     Datum: fmtDateDE(b.date),
     Ansprechpartner: (b.emc2_contact || "").trim(),
-    Kundennummer: b.customerNumber || "",
+    Kundennummer: b.customerNumber || b.bitrixContactId || "",
     Greeting:
       b.salutation === "Frau"
         ? "Sehr geehrte Frau"

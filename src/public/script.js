@@ -2413,6 +2413,10 @@ function buildPayload() {
             wd: formToObject(document.getElementById("form-wd")),
 
   };
+payload.Kundendaten = payload.Kundendaten || {};
+if (!payload.Kundendaten.customerNumber) {
+  payload.Kundendaten.customerNumber = payload.Kundendaten.bitrixContactId || "";
+}
 
   collectWandverkleidungMaterials(payload);
   //  collect quick-add shower screens
@@ -3499,24 +3503,6 @@ function updateSummaryWidgetSubsidyVisibility() {
 /* ========== End HELPERS  for the floating widget ========== */
 // #endregion
 
-function updateCustomerNumberVisibility() {
-  const row = document.getElementById("customerNumberRow");
-  if (!row) return;
-
-  const selected = document.querySelector('input[name="customerType"]:checked');
-  const type = selected ? selected.value : "";
-
-  const show = type === "Bestandskunde";
-
-  // show/hide row
-  row.style.display = show ? "" : "none";
-
-  // if we hide it, clear the value so it doesn't get saved by accident
-  if (!show) {
-    const input = document.getElementById("customerNumber");
-    if (input) input.value = "";
-  }
-}
 // =================================================================
 // #region 9. VALIDATION
 // =================================================================
@@ -4707,7 +4693,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // map form fields you already have
 function getCustomerFormData() {
   return {
-    customerNumber: document.getElementById("customerNumber")?.value || "",
+    customerNumber: document.getElementById("bitrixContactId")?.value || "",
     firstName: document.getElementById("firstName")?.value || "",
     lastName: document.getElementById("lastName")?.value || "",
     company: document.getElementById("company")?.value || "",
@@ -4727,7 +4713,7 @@ function fillCustomerForm(data) {
     if (el && value != null) el.value = value;
   };
 
-  set("customerNumber", data.customerNumber);
+set("bitrixContactId", data.bitrixContactId ?? data.customerNumber ?? "");
   set("firstName", data.firstName);
   set("lastName", data.lastName);
   set("company", data.company);
@@ -7164,7 +7150,6 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("state", k.state);
   setByNameOrId("postalCode", k.postalCode);
   setByNameOrId("deployment", k.deployment);
-  setByNameOrId("customerNumber", k.customerNumber);
   setSelect("customerType", k.customerType);
 
   // contact person
@@ -7178,7 +7163,7 @@ function restoreKundendaten(k, offer) {
 
   // internals (+ budget)
   setByNameOrId("emc2_contact", k.emc2_contact);
-  setByNameOrId("bitrixContactId", k.bitrixContactId);
+  setByNameOrId("bitrixContactId", k.bitrixContactId || k.customerNumber);
   setRadio("payer", k.payer);
   if (typeof restoreBudgetPanel === "function") restoreBudgetPanel(k);
   setRadio("aufschlag", k.aufschlag);
@@ -10573,11 +10558,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (id === "rabatt" || id === "kosten") refreshAllPanels();
   });
 
-  // Kundennummer nur bei Bestandskunde anzeigen
-  document.querySelectorAll('input[name="customerType"]').forEach((r) => {
-    r.addEventListener("change", updateCustomerNumberVisibility);
-  });
-  updateCustomerNumberVisibility();
+ 
   // Live update of "Kunde:" in the top-right widget
   const fn = document.getElementById("firstName");
   const ln = document.getElementById("lastName");
@@ -10699,8 +10680,8 @@ if (bitrixIdInput && loadBitrixBtn) {
 
       const mapped = {
         // falls du schon eine Kundennummer im Formular hast, nicht überschreiben
-        customerNumber:
-          document.getElementById("customerNumber")?.value || contact.ID,
+        bitrixContactId: contact.ID,
+customerNumber: contact.ID,
         firstName: contact.NAME || "",
         lastName: contact.LAST_NAME || "",
         company: contact.COMPANY_TITLE || "",
