@@ -2569,6 +2569,15 @@ try {
     const qty1497 = Number(document.getElementById("wvQty1497")?.value || 0) || 0;
 
     payload.wandverkleidung = payload.wandverkleidung || {};
+    const wv = payload.wandverkleidung || (payload.wandverkleidung = {});
+
+// Explicit selection flags (so drafts restore even if default checked changes)
+wv.wvSealingSelected = !!document.getElementById("wvSealingSelected")?.checked;
+wv.wvFlachenSelected = !!document.getElementById("wvFlachenSelected")?.checked;
+wv.wvEndProfileSelected = !!document.getElementById("wvEndProfileSelected")?.checked;
+wv.wvSilikonSelected = !!document.getElementById("wvSilikonSelected")?.checked;
+wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
+
 
     // ✅ store raw override fields (needed for perfect restore)
     payload.wandverkleidung.wvColor_997 = color997;     // can be ""
@@ -6866,6 +6875,12 @@ function restoreWV(wv) {
   if (wv.wvSilikon) setSelect("wvSilikon", wv.wvSilikon);
   if (wv.flechenkleber) setSelect("flechenkleber", wv.flechenkleber);
   if (wv.wvSealing) setSelect("wvSealing", wv.wvSealing);
+  if (wv.wvSealingSelected != null) setByNameOrId("wvSealingSelected", !!wv.wvSealingSelected);
+if (wv.wvFlachenSelected != null) setByNameOrId("wvFlachenSelected", !!wv.wvFlachenSelected);
+if (wv.wvEndProfileSelected != null) setByNameOrId("wvEndProfileSelected", !!wv.wvEndProfileSelected);
+if (wv.wvSilikonSelected != null) setByNameOrId("wvSilikonSelected", !!wv.wvSilikonSelected);
+if (wv.wvV3VSelected != null) setByNameOrId("wvV3VSelected", !!wv.wvV3VSelected);
+
 }
 
 function restoreHassmannQuickAdd(da) {
