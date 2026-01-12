@@ -203,13 +203,8 @@ function grossToNet(gross, taxRate) {
     };
 
     // IMPORTANT: your keys include [] in their names
-    const shower = chosen(
-      opt["optShower[]"],
-      opt.qty_V22WS1R ||
-        opt.qty_TEMPDSU250 ||
-        opt.qty_V22BG903R ||
-        opt.qty_DEDS2503E,
-    );
+    // const shower = chosen( opt["optShower[]"], opt.qty_V22WS1R ||  opt.qty_TEMPDSU250 || opt.qty_V22BG903R ||opt.qty_DEDS2503E,);
+    
     const grab = chosen(
       opt["optGrab[]"],
       opt.qty_CLPESG30 || opt.qty_CLPESG40 || opt.qty_CLPESG60 || opt.qty_CLPESG80,
@@ -223,7 +218,7 @@ function grossToNet(gross, taxRate) {
     );
     const seat = chosen(opt["optSeat[]"], opt.qty_DEPKS);
 
-    if (shower) picked.add("Auswechseln des Duschsystems");
+    // if (shower) picked.add("Auswechseln des Duschsystems");
     if (grab) picked.add("Anbringen zusätzlicher Haltegriffe");
     if (fold) picked.add("Anbringen zusätzlicher Stützklappgriffe");
     if (basin) picked.add("Auswechseln eines Waschtisches");
