@@ -204,7 +204,7 @@ function grossToNet(gross, taxRate) {
 
     // IMPORTANT: your keys include [] in their names
     // const shower = chosen( opt["optShower[]"], opt.qty_V22WS1R ||  opt.qty_TEMPDSU250 || opt.qty_V22BG903R ||opt.qty_DEDS2503E,);
-    
+
     const grab = chosen(
       opt["optGrab[]"],
       opt.qty_CLPESG30 || opt.qty_CLPESG40 || opt.qty_CLPESG60 || opt.qty_CLPESG80,
@@ -304,6 +304,7 @@ function grossToNet(gross, taxRate) {
       relocate_faucet: "Armatur verlegen",
       relocate_drain: "Abfluss verlegen",
       close_valve: "Stilllegen der Armatur",
+      replace_shower_system: "Auswechseln des Duschsystems",
     };
 
     const dwTasks = normalizeDWTasks(payload);

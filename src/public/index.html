@@ -1743,6 +1743,19 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
       </span>
     </label>
   </div>
+  <!-- Auswechseln des Duschsystems -->
+<label class="task-card">
+  <input
+    type="checkbox"
+    name="duschwanne[workTasks][]"
+    value="replace_shower_system"
+  />
+  <span class="task-card__body">
+    <span class="task-card__title">Auswechseln des Duschsystems</span>
+    <span class="task-card__hint">Demontage Altteil + Montage/Anschluss neues Duschsystem</span>
+  </span>
+</label>
+
     <!-- Armatur verlegen -->
     <label class="task-card">
       <input type="checkbox" name="duschwanne[workTasks][]" value="relocate_faucet" />
