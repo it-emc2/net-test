@@ -2544,14 +2544,6 @@ try {
     console.warn("[buildPayload] flooring arrays capture failed:", e);
   }
 
-  // WV consumables – ONLY what's actually selected in the UI
-  try {
-    const values = readWVConsumablesStrict();
-    payload.wandverkleidung = payload.wandverkleidung || {};
-    payload.wandverkleidung.consumables = values;
-  } catch (e) {
-    console.warn("[buildPayload] WV consumables capture failed:", e);
-  }
   //  per-panel color config for WV (997 / 1497) ---
 try {
   const formWV = document.getElementById("form-wandverkleidung");
@@ -6786,10 +6778,6 @@ function restoreWV(wv) {
   if (!wv) return;
   const prev = window.__RESTORING__;
   window.__RESTORING__ = true;
-  // --- 2a) WV consumables: clear the 4 “defaulty” items first
-  const WV_DEFAULT_PIDS = ["TRWDSET5", "R_4260602", "V3A", "V4RPKIT"];
-  WV_DEFAULT_PIDS.forEach((pid) => setByProductId(pid, false));
-
   // Kind is a radio
     if (wv.wvKind) setRadio("wvKind", wv.wvKind);
 
@@ -6820,66 +6808,67 @@ function restoreWV(wv) {
 
 
   // Quantities (keep zeros)
-  const pairs = [
-    { cb: "wv997", qty: "wvQty997", wrap: "wvQty997Wrap" },
-    { cb: "wv1497", qty: "wvQty1497", wrap: "wvQty1497Wrap" },
-  ];
+  // ------------------------------------------------------------
+// 1) Restore numeric inputs first (so checkbox fallbacks can use them)
+// ------------------------------------------------------------
+setInputByNameOrId("wvEndProfileQty", wv.wvEndProfileQty);
+setInputByNameOrId("wvSilikonQty", wv.wvSilikonQty);
+setInputByNameOrId("wvFlachenQty", wv.wvFlachenQty);
+setInputByNameOrId("wvV3VQty", wv.wvV3VQty);
+setInputByNameOrId("wvCornersCount", wv.wvCornersCount);
 
-  pairs.forEach(({ cb, qty, wrap }) => {
-    const qtyEl = document.getElementById(qty);
-    const cbEl = document.getElementById(cb);
-    const wrapEl = document.getElementById(wrap);
-    const n = parseInt(wv[qty] ?? "0", 10) || 0;
+// ------------------------------------------------------------
+// 2) Restore panel quantities + checkbox state + qty wrappers
+// ------------------------------------------------------------
+const pairs = [
+  { cb: "wv997", qty: "wvQty997", wrap: "wvQty997Wrap" },
+  { cb: "wv1497", qty: "wvQty1497", wrap: "wvQty1497Wrap" },
+];
 
-    setInputByNameOrId(qty, n);
-    if (cbEl) {
-      cbEl.checked = n > 0; // tick the panel if qty>0
-      cbEl.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-    if (wrapEl) {
-      wrapEl.hidden = !(n > 0);
-      wrapEl.setAttribute("aria-hidden", n > 0 ? "false" : "true");
-    }
-  });
+pairs.forEach(({ cb, qty, wrap }) => {
+  const cbEl = document.getElementById(cb);
+  const wrapEl = document.getElementById(wrap);
 
-  // Other numbers
-  setInputByNameOrId("wvEndProfileQty", wv.wvEndProfileQty);
-  setInputByNameOrId("wvSilikonQty", wv.wvSilikonQty);
-  setInputByNameOrId("wvFlachenQty", wv.wvFlachenQty);
-  setInputByNameOrId("wvV3VQty", wv.wvV3VQty);
-  setInputByNameOrId("wvCornersCount", wv.wvCornersCount);
+  const n = parseInt(wv?.[qty] ?? "0", 10) || 0;
+  setInputByNameOrId(qty, n);
 
-  // --- 2b) Re-enable only what DB says was selected
-  // Works with multiple possible DB shapes; keeps it robust.
-  const chosenStrings = []
-    .concat(wv?.materials || [])
-    .concat(wv?.consumables || [])
-    .concat(wv?.selected || [])
-    .concat(wv?.floorSealing || [])
-    .concat(wv?.adhesives || [])
-    .concat(wv?.profiles || [])
-    .filter(Boolean)
-    .map(String);
+  const enabled = n > 0;
 
-  const chosenHas = (shortPid) =>
-    chosenStrings.some((s) => s.includes(shortPid)); // e.g. "... TRWDSET5"
+  if (cbEl) {
+    cbEl.checked = enabled; // tick the panel if qty>0
+    cbEl.dispatchEvent(new Event("change", { bubbles: true }));
+  }
 
-  setByProductId("TRWDSET5", chosenHas("TRWDSET5")); // TRINNITY Wandabdichtung
-  setByProductId("R_4260602", chosenHas("R_4260602")); // Flächenkleber (Wandverkleidung)
-  setByProductId("V3A", chosenHas("V3A")); // Abschlussprofil
-  setByProductId("2000302", chosenHas("2000302")); // Silikon
-  window.__RESTORING__ = prev;
+  if (wrapEl) {
+    wrapEl.hidden = !enabled;
+    wrapEl.setAttribute("aria-hidden", enabled ? "false" : "true");
+  }
+});
 
-  // Selects/radios for accessories
-  if (wv.wvEndProfile) setSelect("wvEndProfile", wv.wvEndProfile);
-  if (wv.wvSilikon) setSelect("wvSilikon", wv.wvSilikon);
-  if (wv.flechenkleber) setSelect("flechenkleber", wv.flechenkleber);
-  if (wv.wvSealing) setSelect("wvSealing", wv.wvSealing);
-  if (wv.wvSealingSelected != null) setByNameOrId("wvSealingSelected", !!wv.wvSealingSelected);
-if (wv.wvFlachenSelected != null) setByNameOrId("wvFlachenSelected", !!wv.wvFlachenSelected);
-if (wv.wvEndProfileSelected != null) setByNameOrId("wvEndProfileSelected", !!wv.wvEndProfileSelected);
-if (wv.wvSilikonSelected != null) setByNameOrId("wvSilikonSelected", !!wv.wvSilikonSelected);
-if (wv.wvV3VSelected != null) setByNameOrId("wvV3VSelected", !!wv.wvV3VSelected);
+// ------------------------------------------------------------
+// 3) Restore WV consumable checkboxes (standardized flags)
+//    V3V fallback uses restored qty
+// ------------------------------------------------------------
+const sealingOn = wv.wvSealingSelected ?? !!wv.wvSealing;
+const flachenOn = wv.wvFlachenSelected ?? !!wv.flechenkleber;
+const endProfileOn = wv.wvEndProfileSelected ?? !!wv.wvEndProfile;
+const silikonOn = wv.wvSilikonSelected ?? !!wv.wvSilikon;
+
+// Use explicit flag if present; else fallback to qty > 0 (now reliably restored above)
+const v3vQtyNum = Number(wv.wvV3VQty ?? 0) || 0;
+const v3vOn = wv.wvV3VSelected ?? (v3vQtyNum > 0);
+
+setByNameOrId("wvSealingSelected", !!sealingOn);
+setByNameOrId("wvFlachenSelected", !!flachenOn);
+setByNameOrId("wvEndProfileSelected", !!endProfileOn);
+setByNameOrId("wvSilikonSelected", !!silikonOn);
+setByNameOrId("wvV3VSelected", !!v3vOn);
+
+// ------------------------------------------------------------
+// 4) Done restoring
+// ------------------------------------------------------------
+window.__RESTORING__ = prev;
+
 
 }
 
