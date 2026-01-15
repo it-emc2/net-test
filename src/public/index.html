@@ -690,6 +690,14 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
   vertical-align: baseline;
 }
 
+.adobe-section {
+  opacity: 0;
+  pointer-events: none;
+  height: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
 
     </style>
   </head>
@@ -5503,7 +5511,21 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         </div>
       </div>
     </section>
-
+   <!-- Bitrix Integration Section -->
+    <section class="bitrix-section">
+      <h2 class="section-title">📤 Bitrix Integration</h2>
+      <div class="bitrix-card">
+        <div class="bitrix-input-group">
+          <label for="auftragId">Auftrag ID</label>
+          <input type="text" id="auftragId" placeholder="z.B. 12345" class="input-auftrag">
+        </div>
+        <button type="button" id="sendPdfToAuftrag" class="btn-bitrix">
+          <span class="btn-icon">📤</span>
+          Angebots-PDF an Bitrix senden
+        </button>
+        <div id="auftragPdfStatus" class="bitrix-status"></div>
+      </div>
+    </section>
     <!-- Main Export Actions -->
     <section class="export-section">
       <h2 class="section-title">📄 Dokumente erstellen</h2>
@@ -5545,7 +5567,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
     </section>
 
     <!-- Adobe PDF Services Section -->
-    <section class="adobe-section">
+    <section class="adobe-section" >
       <div class="adobe-banner">
         <div class="adobe-logo">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
@@ -5571,21 +5593,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
       <div id="adobePdfStatus" class="adobe-status" hidden></div>
     </section>
 
-    <!-- Bitrix Integration Section -->
-    <section class="bitrix-section">
-      <h2 class="section-title">📤 Bitrix Integration</h2>
-      <div class="bitrix-card">
-        <div class="bitrix-input-group">
-          <label for="auftragId">Auftrag ID</label>
-          <input type="text" id="auftragId" placeholder="z.B. 12345" class="input-auftrag">
-        </div>
-        <button type="button" id="sendPdfToAuftrag" class="btn-bitrix">
-          <span class="btn-icon">📤</span>
-          Angebots-PDF an Bitrix senden
-        </button>
-        <div id="auftragPdfStatus" class="bitrix-status"></div>
-      </div>
-    </section>
+ 
 
     <!-- PDF Preview Section -->
     <section class="preview-section">
