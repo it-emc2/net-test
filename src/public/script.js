@@ -10924,22 +10924,24 @@ function initHassmannBestFinder() {
       return;
     }
 
-    // Bestehende Angebotsnummer lesen – NICHT neu erzeugen
-    const offerInput = document.getElementById("offerNumber");
-    const offerNumber = (offerInput?.value || "").trim();
+   // Offer number: auto-generate if empty (same idea as PDF export)
+  const offerInput = document.getElementById("offerNumber");
+  let offerNumber = (offerInput?.value || "").trim();
 
-    if (!offerNumber) {
-      // Variante A: Fehler, wenn keine Angebotsnummer vorhanden ist
-      setStatus(
-        "Bitte zuerst eine Angebotsnummer generieren (offerNumber ist leer).",
-        "error",
-      );
-      offerInput?.focus();
-      return;
+  if (!offerNumber) {
+    offerNumber =
+      typeof genOfferNumber === "function" ? genOfferNumber() : `ANG-${Date.now()}`;
 
-      // Variante B (alternativ): pdfName einfach weglassen
-      // -> dann diesen return entfernen und unten pdfName optional machen
+    if (offerInput) offerInput.value = offerNumber;
+
+    // optional: refresh header widgets if you have them
+    if (typeof updateSummaryWidgetName === "function") {
+      try { updateSummaryWidgetName(); } catch {}
     }
+
+    setStatus(`Angebotsnummer automatisch erzeugt: ${offerNumber}`, "info");
+  }
+
 
     try {
       sendBtn.disabled = true;
@@ -10953,8 +10955,8 @@ function initHassmannBestFinder() {
       setStatus("Sende PDF an Auftrag-Webhook …", "info");
 
       // pdfName exakt aus der bereits existierenden Angebotsnummer ableiten
-      //const pdfName = `${offerNumber}.pdf`;
-      const pdfName = offerNumber;
+      const pdfName = `${offerNumber}.pdf`;
+      //const pdfName = offerNumber;
 
       const body = {
         auftragId, // Auftrag ID aus Input
