@@ -699,6 +699,53 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
   overflow: hidden;
 }
 
+/* Zusammenfassung: make export cards smaller/denser */
+#page-Zusammenfassung .export-cards{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+#page-Zusammenfassung .export-card{
+  padding: 12px 14px;
+  border-radius: 12px;
+}
+
+#page-Zusammenfassung .export-card .card-icon{
+  font-size: 22px;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+#page-Zusammenfassung .export-card h3{
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+}
+
+#page-Zusammenfassung .export-card p{
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+#page-Zusammenfassung .btn-export{
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  border-radius: 10px;
+}
+
+/* responsive: 2 columns then 1 */
+@media (max-width: 900px){
+  #page-Zusammenfassung .export-cards{
+    grid-template-columns: repeat(2, minmax(200px, 1fr));
+  }
+}
+@media (max-width: 520px){
+  #page-Zusammenfassung .export-cards{
+    grid-template-columns: 1fr;
+  }
+}
+
     </style>
   </head>
   <body>
