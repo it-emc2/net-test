@@ -11180,6 +11180,57 @@ document.addEventListener("DOMContentLoaded", () => {
   setWoodVisibility(); // initial state
 });
 
+// Handlaufhalter: sync selected size into checkbox value
+document.addEventListener("DOMContentLoaded", () => {
+  const holderCheckbox = document.getElementById("hlHandlaufhalter");
+  const holderSelect = document.getElementById("hlHandlaufhalterSize");
+  if (!holderCheckbox || !holderSelect) return;
+
+  const syncHolderValue = () => {
+    const size = String(holderSelect.value || "").trim();
+    holderCheckbox.value = size
+      ? `Handlaufhalter ${size} cm bis Handlaufmitte`
+      : "Handlaufhalter";
+  };
+
+  holderSelect.addEventListener("change", syncHolderValue);
+  syncHolderValue();
+});
+
+// Edelstahlstütze betonieren: sync selected length into checkbox value
+document.addEventListener("DOMContentLoaded", () => {
+  const postCheckbox = document.getElementById("hlEdelstahlstuetzeBetonieren");
+  const postSelect = document.getElementById("hlEdelstahlstuetzeBetonierenSize");
+  if (!postCheckbox || !postSelect) return;
+
+  const syncPostValue = () => {
+    const size = String(postSelect.value || "").trim();
+    postCheckbox.value = size
+      ? `Edelstahlstütze, betonieren (${size} cm), mit Gewindebohrung`
+      : "Edelstahlstütze, betonieren, mit Gewindebohrung";
+  };
+
+  postSelect.addEventListener("change", syncPostValue);
+  syncPostValue();
+});
+
+// Edelstahlstütze seitl.: sync selected offset into checkbox value
+document.addEventListener("DOMContentLoaded", () => {
+  const sideCheckbox = document.getElementById("hlEdelstahlstuetzeSeitl");
+  const sideSelect = document.getElementById("hlEdelstahlstuetzeSeitlSize");
+  if (!sideCheckbox || !sideSelect) return;
+
+  const syncSideValue = () => {
+    const size = String(sideSelect.value || "").trim();
+    sideCheckbox.value = size
+      ? `Edelstahlstütze, seitl. Befestigung (${size} mm)`
+      : "Edelstahlstütze, seitl. Befestigung";
+  };
+
+  sideSelect.addEventListener("change", syncSideValue);
+  syncSideValue();
+});
+
 // =================================================================
 // # end of HL 
 // =================================================================
