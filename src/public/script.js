@@ -11056,6 +11056,32 @@ document.addEventListener("DOMContentLoaded", () => {
   setOutdoorVisibility(); // initial state
 });
 
+// Toggle it using hl_area=inside
+document.addEventListener("DOMContentLoaded", () => {
+  const insideCheckbox = document.querySelector('input[name="hl_area"][value="inside"]');
+  const section = document.getElementById("hl-inside-pipe-type-section");
+
+  if (!insideCheckbox || !section) return;
+
+  const setVisibility = () => {
+    const show = insideCheckbox.checked;
+
+    section.style.display = show ? "" : "none";
+
+    // prevent hidden inputs from submitting / blocking validation
+    section.querySelectorAll("input, select, textarea").forEach(el => {
+      el.disabled = !show;
+    });
+  };
+
+  // listen to changes on hl_area (inside/outside)
+  document.querySelectorAll('input[name="hl_area"]').forEach(el => {
+    el.addEventListener("change", setVisibility);
+  });
+
+  setVisibility(); // initial state
+});
+
 // =================================================================
 // # end of HL 
 // =================================================================
