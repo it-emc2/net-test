@@ -2389,7 +2389,7 @@ function collectBwtExtras(payload) {
     delete bwt.quickAdd;
   }
 }
-function collectHlHaltegriffe(payload) {
+function collectHl(payload) {
   const form = document.getElementById("form-hl");
   if (!form) return;
 
@@ -2918,7 +2918,7 @@ doorInputs.forEach((el) => {
   }
   // end bwt payload block
 // ---- HL: ensure multi-select arrays are captured ----
-collectHlHaltegriffe(payload);
+collectHl(payload);
 
   // end HL payload block
 
@@ -11101,31 +11101,35 @@ document.addEventListener("DOMContentLoaded", () => {
   setOutdoorVisibility(); // initial state
 });
 
-// Toggle it using hl_area=inside
+// Toggle it using hl_area=inside and sonstige innen
 document.addEventListener("DOMContentLoaded", () => {
   const insideCheckbox = document.querySelector('input[name="hl_area"][value="inside"]');
-  const section = document.getElementById("hl-inside-pipe-type-section");
 
-  if (!insideCheckbox || !section) return;
+  const sections = [
+    document.getElementById("hl-inside-pipe-type-section"),
+    document.getElementById("hl-inside-accessories-section"),
+  ].filter(Boolean);
+
+  if (!insideCheckbox || sections.length === 0) return;
 
   const setVisibility = () => {
     const show = insideCheckbox.checked;
 
-    section.style.display = show ? "" : "none";
-
-    // prevent hidden inputs from submitting / blocking validation
-    section.querySelectorAll("input, select, textarea").forEach(el => {
-      el.disabled = !show;
+    sections.forEach(section => {
+      section.style.display = show ? "" : "none";
+      section.querySelectorAll("input, select, textarea").forEach(el => {
+        el.disabled = !show;
+      });
     });
   };
 
-  // listen to changes on hl_area (inside/outside)
   document.querySelectorAll('input[name="hl_area"]').forEach(el => {
     el.addEventListener("change", setVisibility);
   });
 
-  setVisibility(); // initial state
+  setVisibility();
 });
+
 
 
 // wrapper + toggle for Stahlrohr
