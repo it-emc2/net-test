@@ -2389,6 +2389,41 @@ function collectBwtExtras(payload) {
     delete bwt.quickAdd;
   }
 }
+function collectHlHaltegriffe(payload) {
+  const form = document.getElementById("form-hl");
+  if (!form) return;
+
+  const hl = payload.hl || (payload.hl = {});
+
+  const cfg = [
+    { cbId: "HlAidsHaltegriff30", qtyId: "HlAidsHaltegriff30Qty", productId: "CLPESG30", value: "Haltegriff30", label: "Haltegriff 30 cm" },
+    { cbId: "HlAidsHaltegriff40", qtyId: "HlAidsHaltegriff40Qty", productId: "CLPESG40", value: "Haltegriff40", label: "Haltegriff 40 cm" },
+    { cbId: "HlAidsHaltegriff60", qtyId: "HlAidsHaltegriff60Qty", productId: "CLPESG60", value: "Haltegriff60", label: "Haltegriff 60 cm" },
+    { cbId: "HlAidsHaltegriff80", qtyId: "HlAidsHaltegriff80Qty", productId: "CLPESG80", value: "Haltegriff80", label: "Haltegriff 80 cm" },
+  ];
+
+  hl.hlAids = [];
+  hl.hlAidsLines = []; // optional: ready-to-use for DOCX/UI if you want
+
+  for (const c of cfg) {
+    const cb = document.getElementById(c.cbId);
+    const qtyEl = document.getElementById(c.qtyId);
+
+    const checked = !!cb?.checked;
+    const qty = Math.max(0, parseInt(qtyEl?.value || "0", 10) || 0);
+
+    // store qty always (helps pricing + restore)
+    hl[c.qtyId] = checked ? Math.max(1, qty || 1) : 0;
+
+    if (checked && hl[c.qtyId] > 0) {
+      hl.hlAids.push(c.value);
+      hl.hlAidsLines.push({ productId: c.productId, qty: hl[c.qtyId], name: c.label });
+    }
+  }
+
+  // de-dupe
+  hl.hlAids = Array.from(new Set(hl.hlAids));
+}
 
 function buildPayload() {
   const payload = {
@@ -2488,7 +2523,6 @@ try {
     console.warn("[buildPayload] workTasks normalization failed:", e);
   }
 
-  // ---- DUSCHWANNE: ensure multi-select arrays are captured ----
   // ---- DUSCHWANNE: ensure multi-select arrays are captured ----
   try {
     const formDW = document.getElementById("form-duschwanne");
@@ -2883,6 +2917,11 @@ doorInputs.forEach((el) => {
     console.warn("[buildPayload] BWT arrays capture failed:", e);
   }
   // end bwt payload block
+// ---- HL: ensure multi-select arrays are captured ----
+collectHlHaltegriffe(payload);
+
+  // end HL payload block
+
 
   // Remember which offer was active when building this payload
   payload.activeOffer = currentOfferKey || null;
@@ -9524,6 +9563,12 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
   wireTileQty("bwtAidsHaltegriff40", "bwtAidsHaltegriff40QtyWrap");
   wireTileQty("bwtAidsHaltegriff60", "bwtAidsHaltegriff60QtyWrap");
   wireTileQty("bwtAidsHaltegriff80", "bwtAidsHaltegriff80QtyWrap");
+  // ---- HL · Handlauf: Haltegriffe (tile + qty) ----
+wireTileQty("HlAidsHaltegriff30", "HlAidsHaltegriff30QtyWrap");
+wireTileQty("HlAidsHaltegriff40", "HlAidsHaltegriff40QtyWrap");
+wireTileQty("HlAidsHaltegriff60", "HlAidsHaltegriff60QtyWrap");
+wireTileQty("HlAidsHaltegriff80", "HlAidsHaltegriff80QtyWrap");
+
 
   // Keep your existing rule engine for CL60 & accessories (1 / 1 / 2 and persistence)
   if (typeof initBasinAutoAccessories === "function") {

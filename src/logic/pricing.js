@@ -621,13 +621,26 @@ for (const door of doors) {
 
     // ------- HL · Handlauf materials (placeholder) -------
     if (offer === "hl") {
-      // TODO: read HL form fields from `hl` and map to products with add(...)
-      // Example (you must adapt keys + productIds):
-      // const hlMainQty = Number(hl?.hlMainQty || 0) || 0;
-      // if (hlMainQty > 0) {
-      //   add('TODO_HL_MAIN', hlMainQty, null, null, null);
-      // }
-    }
+  const q30 = Number(hl?.HlAidsHaltegriff30Qty || 0) || 0;
+  const q40 = Number(hl?.HlAidsHaltegriff40Qty || 0) || 0;
+  const q60 = Number(hl?.HlAidsHaltegriff60Qty || 0) || 0;
+  const q80 = Number(hl?.HlAidsHaltegriff80Qty || 0) || 0;
+
+  const addGrab = (pid, qty) => {
+    const q = Number(qty) || 0;
+    if (q <= 0) return;
+    add(pid, q, null, null, null);
+
+    // keep counts consistent (used elsewhere)
+    grabTotalQty += q;
+    if (pid === "CLPESG30") cl30Qty += q;
+  };
+
+  addGrab("CLPESG30", q30);
+  addGrab("CLPESG40", q40);
+  addGrab("CLPESG60", q60);
+  addGrab("CLPESG80", q80);
+}
 
     // ------- OPTIONALS as material lines (tagged so UI can filter them out of Material/Debug)
     try {
