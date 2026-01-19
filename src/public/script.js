@@ -11025,7 +11025,40 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
+// =================================================================
+// # HL 
+// =================================================================
+//Wrap that whole “Edelstahl / Außenbereich” block in a the div container with an id, id="hl-outdoor-section"
+document.addEventListener("DOMContentLoaded", () => {
+  const outdoorCheckbox = document.querySelector('input[name="hl_area"][value="outside"]');
+  const outdoorSection = document.getElementById("hl-outdoor-section");
 
+  if (!outdoorCheckbox || !outdoorSection) return;
+
+  const setOutdoorVisibility = () => {
+    const show = outdoorCheckbox.checked;
+
+    outdoorSection.style.display = show ? "" : "none";
+
+    // Important: prevent hidden inputs from being submitted / blocking validation
+    outdoorSection.querySelectorAll("input, select, textarea").forEach(el => {
+      el.disabled = !show;
+    });
+  };
+
+  outdoorCheckbox.addEventListener("change", setOutdoorVisibility);
+
+  // If you also allow switching between inside/outside, listen to all hl_area inputs:
+  document.querySelectorAll('input[name="hl_area"]').forEach(el => {
+    el.addEventListener("change", setOutdoorVisibility);
+  });
+
+  setOutdoorVisibility(); // initial state
+});
+
+// =================================================================
+// # end of HL 
+// =================================================================
 // Small helper: confirmation dialog before going back to Auswahl der Leistung from the sidebar
 function askBeforeGoingHome(onConfirm) {
   const overlay = document.getElementById("homeConfirmOverlay");
