@@ -791,7 +791,7 @@ function mapData(body = {}, computed = {}) {
     const goesIncluded =
       /fahrzeugbereitstellung/i.test(plain) ||
       /bereitstellung.*werkzeug/i.test(plain) ||
-      /beräumung der baustelle/i.test(plain) ||
+      /ber.?umung der baustelle/i.test(plain) ||
       /kilometerpauschale/i.test(plain) ||
       /facharbeiter/i.test(plain);
     if (goesIncluded) {

@@ -889,22 +889,32 @@ color: metaColor || null,
       Arbeitszeit_hours_numeric * handwerkerCount * laborRate +
       reise_hours_numeric * (laborRate + sitz_reise_Rate);
 
+    const workDays = Number(arbeits.workDays ?? b.workDays ?? 0) || 0;
+    const formatQty = (n) => Number(n || 0).toFixed(2).replace(".", ",");
+
     const lines = [];
     lines.push({
       key: "fahrzeug",
-      label: "- 1,00 Stk Fahrzeugbereitstellung",
-      amount: round2(fahrzeugbereitstellung),
+      label: `- ${formatQty(workDays)} Stk Fahrzeugbereitstellung`,
+      qty: workDays,
+      unitPrice: round2(fahrzeugbereitstellung),
+      amount: round2(fahrzeugbereitstellung * workDays),
     });
     lines.push({
       key: "werkzeuge",
-      label:
-        "- 1,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen",
-      amount: round2(werkzeug),
+      label: `- ${formatQty(
+        workDays,
+      )} Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen`,
+      qty: workDays,
+      unitPrice: round2(werkzeug),
+      amount: round2(werkzeug * workDays),
     });
     lines.push({
       key: "beraeumung",
-      label: "- 1,00 Stk Beräumung der Baustelle",
-      amount: round2(beraeumung),
+      label: `- ${formatQty(workDays)} Stk Beräumung der Baustelle`,
+      qty: workDays,
+      unitPrice: round2(beraeumung),
+      amount: round2(beraeumung * workDays),
     });
     if (roundTripKm > 0) {
       lines.push({

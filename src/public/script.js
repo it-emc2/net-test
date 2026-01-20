@@ -1351,6 +1351,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.total_hours_numeric = Math.max(0, totalH);
     window.reise_hours_numeric = Math.max(0, totalTravelH);
     window.arbeit_hours_numeric = Math.max(0, arbeitsH);
+    window.arbeitstage_numeric = Math.max(0, days);
   }
   // --- wiring specifically for Arbeitszeit page ---
   function wireArbeitszeitInputs() {
@@ -2696,6 +2697,7 @@ wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
     const totalNumeric = Number(window.total_hours_numeric ?? F_total ?? 0);
     const travelNumeric = Number(window.reise_hours_numeric ?? 2 * _T1 ?? 0);
     const laborNumeric = Number(window.arbeit_hours_numeric ?? _L ?? 0);
+    const workDaysNumeric = Number(window.arbeitstage_numeric ?? 0);
 
     // Optional: distance in km field (if you have it on the Arbeitszeit page)
     const distanceKm = (document.getElementById("distanceKm")?.value || "")
@@ -2707,6 +2709,7 @@ wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
       totalHoursNumeric: totalNumeric,
       ReiseHoursNumeric: travelNumeric,
       ArbeitHoursNumeric: laborNumeric,
+      workDays: workDaysNumeric,
       laborHoursHHMM: laborHHMM,
       travelTimeHHMM: travelHHMM,
       distanceKm,
@@ -5910,7 +5913,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       const goesIncluded =
         /fahrzeugbereitstellung/i.test(plain) ||
         /bereitstellung.*werkzeug/i.test(plain) ||
-        /beräumung der baustelle/i.test(plain) ||
+        /ber.?umung der baustelle/i.test(plain) ||
         /kilometerpauschale/i.test(plain) ||
         /facharbeiter/i.test(plain);
 
@@ -5922,8 +5925,8 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       const row = {
         productId: s.key || s.productId,
         label: label || s.name || s.productId || "-",
-        qty: 1,
-        unitPrice: isFacharbeiter && laborRate ? laborRate : (s.amount ?? 0),
+        qty: s.qty ?? 1,
+        unitPrice: isFacharbeiter && laborRate ? laborRate : (s.unitPrice ?? s.amount ?? 0),
         lineTotal: s.amount,
       };
 
