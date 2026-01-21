@@ -11145,146 +11145,19 @@ document.addEventListener("DOMContentLoaded", () => {
 // =================================================================
 // # HL 
 // =================================================================
-//Wrap that whole “Edelstahl / Außenbereich” block in a the div container with an id, id="hl-outdoor-section"
-document.addEventListener("DOMContentLoaded", () => {
-  const outdoorCheckbox = document.querySelector('input[name="hl_area"][value="outside"]');
-  const outdoorSection = document.getElementById("hl-outdoor-section");
-
-  if (!outdoorCheckbox || !outdoorSection) return;
-
-  const setOutdoorVisibility = () => {
-    const show = outdoorCheckbox.checked;
-
-    outdoorSection.style.display = show ? "" : "none";
-
-    // Important: prevent hidden inputs from being submitted / blocking validation
-    outdoorSection.querySelectorAll("input, select, textarea").forEach(el => {
-      el.disabled = !show;
-    });
-  };
-
-  outdoorCheckbox.addEventListener("change", setOutdoorVisibility);
-
-  // If you also allow switching between inside/outside, listen to all hl_area inputs:
-  document.querySelectorAll('input[name="hl_area"]').forEach(el => {
-    el.addEventListener("change", setOutdoorVisibility);
-  });
-
-  setOutdoorVisibility(); // initial state
-});
-
-// Toggle it using hl_area=inside and sonstige innen
-document.addEventListener("DOMContentLoaded", () => {
-  const insideCheckbox = document.querySelector('input[name="hl_area"][value="inside"]');
-
-  const sections = [
-    document.getElementById("hl-inside-pipe-type-section"),
-    document.getElementById("hl-inside-accessories-section"),
-  ].filter(Boolean);
-
-  if (!insideCheckbox || sections.length === 0) return;
-
-  const setVisibility = () => {
-    const show = insideCheckbox.checked;
-
-    sections.forEach(section => {
-      section.style.display = show ? "" : "none";
-      section.querySelectorAll("input, select, textarea").forEach(el => {
-        el.disabled = !show;
-      });
-    });
-  };
-
-  document.querySelectorAll('input[name="hl_area"]').forEach(el => {
-    el.addEventListener("change", setVisibility);
-  });
-
-  setVisibility();
-});
-
-
-
-// wrapper + toggle for Stahlrohr
+// Toggle Stahlrohr colors section by hlPipeSteel
 document.addEventListener("DOMContentLoaded", () => {
   const steelCheckbox = document.getElementById("hlPipeSteel");
   const steelColorSection = document.getElementById("hl-steel-color-section");
-
   if (!steelCheckbox || !steelColorSection) return;
 
   const setSteelColorsVisibility = () => {
-    const show = steelCheckbox.checked;
-
+    const show = !!steelCheckbox.checked;
     steelColorSection.style.display = show ? "" : "none";
-
-    // Prevent hidden radios/inputs from submitting or blocking validation
-    steelColorSection.querySelectorAll("input, select, textarea").forEach(el => {
-      el.disabled = !show;
-    });
   };
 
   steelCheckbox.addEventListener("change", setSteelColorsVisibility);
-
-  // optional: if you uncheck steel because user picked another pipe type, keep it in sync
-  document.querySelectorAll('input[name="hl_pipe_type"]').forEach(el => {
-    el.addEventListener("change", setSteelColorsVisibility);
-  });
-
-  setSteelColorsVisibility(); // initial state
-});
-
-
-// wrapper + toggle for Aluminiumrohr
-document.addEventListener("DOMContentLoaded", () => {
-  const aluCheckbox = document.getElementById("hlPipeAlu");
-  const aluColorSection = document.getElementById("hl-alu-color-section");
-
-  if (!aluCheckbox || !aluColorSection) return;
-
-  const setAluColorsVisibility = () => {
-    const show = aluCheckbox.checked;
-
-    aluColorSection.style.display = show ? "" : "none";
-
-    aluColorSection.querySelectorAll("input, select, textarea").forEach(el => {
-      el.disabled = !show;
-    });
-  };
-
-  aluCheckbox.addEventListener("change", setAluColorsVisibility);
-
-  // keep in sync if user changes pipe type selection
-  document.querySelectorAll('input[name="hl_pipe_type"]').forEach(el => {
-    el.addEventListener("change", setAluColorsVisibility);
-  });
-
-  setAluColorsVisibility(); // initial state
-});
-
-// // wrapper + toggle for Massivholz
-document.addEventListener("DOMContentLoaded", () => {
-  const woodCheckbox = document.getElementById("hlPipeWood");
-  const woodSection = document.getElementById("hl-wood-section");
-
-  if (!woodCheckbox || !woodSection) return;
-
-  const setWoodVisibility = () => {
-    const show = woodCheckbox.checked;
-
-    woodSection.style.display = show ? "" : "none";
-
-    woodSection.querySelectorAll("input, select, textarea").forEach(el => {
-      el.disabled = !show;
-    });
-  };
-
-  woodCheckbox.addEventListener("change", setWoodVisibility);
-
-  // keep in sync if user changes pipe type selection
-  document.querySelectorAll('input[name="hl_pipe_type"]').forEach(el => {
-    el.addEventListener("change", setWoodVisibility);
-  });
-
-  setWoodVisibility(); // initial state
+  setSteelColorsVisibility();
 });
 
 // Handlaufhalter: sync selected size into checkbox value

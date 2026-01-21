@@ -977,6 +977,7 @@ label.image-check.is-checked .caption {
   color: var(--accent-strong);
 }
 
+
 /* Smaller variant for image cards (e.g. Sonstige Innen) */
 .image-check.small {
   width: min(185px, 100%);   /* or 200px if you prefer */
