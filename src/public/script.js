@@ -1352,9 +1352,16 @@ document.addEventListener("DOMContentLoaded", () => {
     window.reise_hours_numeric = Math.max(0, totalTravelH);
     window.arbeit_hours_numeric = Math.max(0, arbeitsH);
     window.arbeitstage_numeric = Math.max(0, days);
-    const overnights = Number(document.getElementById("uebernachten")?.value || 0) || 0;
-    window.uebernachten_numeric = Math.max(0, overnights);
-    window.travel_days_numeric = Math.max(0, days - window.uebernachten_numeric);
+    const overnightsRaw =
+      Number(document.getElementById("uebernachten")?.value || 0) || 0;
+    const overnightsMax = days > 0 ? days - 1 : 0;
+    const overnightsClamped = Math.max(0, Math.min(overnightsRaw, overnightsMax));
+    const uebernachtenEl = document.getElementById("uebernachten");
+    if (uebernachtenEl && String(uebernachtenEl.value) !== String(overnightsClamped)) {
+      uebernachtenEl.value = String(overnightsClamped);
+    }
+    window.uebernachten_numeric = overnightsClamped;
+    window.travel_days_numeric = Math.max(0, days - overnightsClamped);
 
     if (typeof window.updateTravelPreview === "function") {
       window.updateTravelPreview();
@@ -4572,8 +4579,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const paint = () => {
     const n = Math.max(0, Number(kmInput.value) || 0);
     const workDays = getWorkDays();
-    const overnights = getOvernights();
-    const travelDays = getTravelDays();
+    const overnightsRaw = getOvernights();
+    const overnightsMax = workDays > 0 ? workDays - 1 : 0;
+    const overnights = Math.min(overnightsRaw, overnightsMax);
+    if (overnightsInput && String(overnightsInput.value) !== String(overnights)) {
+      overnightsInput.value = String(overnights);
+    }
+    const travelDays = Math.max(0, workDays - overnights);
     window.uebernachten_numeric = overnights;
     window.travel_days_numeric = travelDays;
     out.textContent = `= ${Math.round(n * 2 * travelDays)} km (Hin- & Rueckfahrt x ${travelDays} Reisetage)`;
