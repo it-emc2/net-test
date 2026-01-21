@@ -9244,32 +9244,20 @@ async function suggestDistanceFromAddress() {
     const roundStr = roundKm.toFixed(1).replace(".", ",");
 
     // Render suggestion + “Übernehmen” link
-   out.innerHTML = `
+ // Render suggestion (auto-applied, no button)
+out.innerHTML = `
   <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
     <div>
       Vorschlag: <strong>${oneWayStr} km</strong>
       <span style="opacity:.8;">(Hin- &amp; Rückfahrt: ${roundStr} km)</span>
     </div>
 
-    <button
-      type="button"
-      id="btnApplyRoutingSuggestion"
-      class="btn-primary"
-      style="
-        margin-left:auto;
-        padding:10px 14px;
-        font-weight:700;
-        border-radius:10px;
-        box-shadow:0 6px 16px rgba(0,0,0,.12);
-        display:inline-flex;
-        align-items:center;
-        gap:8px;
-      "
-      aria-label="Vorschlag übernehmen"
-      title="Vorschlag übernehmen"
+    <span
+      style="margin-left:auto; opacity:.75; font-weight:700;"
+      title="Automatically applied"
     >
-      ✅ Übernehmen
-    </button>
+      ✓ Applied
+    </span>
   </div>
 
   <div style="font-size:0.8rem; opacity:0.8; margin-top:6px;">
@@ -9277,6 +9265,7 @@ async function suggestDistanceFromAddress() {
     <em>${data.to?.address || "Kundenadresse"}</em>
   </div>
 `;
+
 
 
     // fill #travelTime from the API response
@@ -9289,16 +9278,14 @@ if (travelTimeEl && hhmm) {
   travelTimeEl.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-    // Wire “Übernehmen” button: fill distanceKm and trigger existing preview + pricing
-    document
-      .getElementById("btnApplyRoutingSuggestion")
-      ?.addEventListener("click", () => {
-        if (kmInput) {
-          kmInput.value = String(oneWayKm.toFixed(1));
-          kmInput.dispatchEvent(new Event("input", { bubbles: true }));
-          kmInput.dispatchEvent(new Event("change", { bubbles: true }));
-        }
-      });
+  
+  // Auto-apply (same effect as clicking the old button)
+if (kmInput) {
+  kmInput.value = String(oneWayKm.toFixed(1));
+  kmInput.dispatchEvent(new Event("input", { bubbles: true }));
+  kmInput.dispatchEvent(new Event("change", { bubbles: true }));
+}
+ 
   } catch (e) {
     console.warn("[routing] suggestDistanceFromAddress failed:", e);
     out.textContent = "Routenvorschlag fehlgeschlagen (Netzwerkfehler).";
