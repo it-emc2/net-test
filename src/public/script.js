@@ -10951,7 +10951,15 @@ function initHassmannBestFinder() {
       );
     }
 
-    return await resp.blob();
+    const cd = resp.headers.get("content-disposition") || "";
+    let filename = "Angebot.pdf";
+    const match = cd.match(/filename="?(.*?)"?$/i);
+    if (match && match[1]) {
+      filename = match[1];
+    }
+
+    const blob = await resp.blob();
+    return { blob, filename };
   }
 
   function blobToBase64(blob) {
@@ -10966,6 +10974,17 @@ function initHassmannBestFinder() {
       };
       reader.readAsDataURL(blob);
     });
+  }
+
+  function triggerBlobDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename || "Angebot.pdf";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   }
 
   async function sendPdfToAuftrag() {
@@ -10999,10 +11018,14 @@ function initHassmannBestFinder() {
       sendBtn.disabled = true;
       setStatus("Erzeuge Angebots-PDF …", "info");
 
-      const pdfBlob = await fetchOfferPdfBlob();
+      const { blob: pdfBlob, filename } = await fetchOfferPdfBlob();
       setStatus("Konvertiere PDF nach Base64 …", "info");
 
       const pdfBase64 = await blobToBase64(pdfBlob);
+
+      setStatus("Starte lokalen PDF-Download ƒ?İ", "info");
+      const downloadName = filename || `${offerNumber}.pdf`;
+      triggerBlobDownload(pdfBlob, downloadName);
 
       setStatus("Sende PDF an Auftrag-Webhook …", "info");
 
