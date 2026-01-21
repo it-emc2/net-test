@@ -11087,6 +11087,29 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
+
+// Show "Kassenkunde Name" only when payer is Kassenkunde
+document.addEventListener("DOMContentLoaded", () => {
+  const fieldWrap = document.getElementById("kassenkundeName")?.closest(".field");
+  if (!fieldWrap) return;
+
+  const radios = document.querySelectorAll('input[name="payer"]');
+  const nameInput = document.getElementById("kassenkundeName");
+
+  const update = () => {
+    const isKassenkunde = Array.from(radios).some(
+      (r) => r.checked && r.value === "Kassenkunde",
+    );
+    fieldWrap.style.display = isKassenkunde ? "" : "none";
+    if (nameInput) {
+      nameInput.disabled = !isKassenkunde;
+      if (!isKassenkunde) nameInput.value = "";
+    }
+  };
+
+  radios.forEach((r) => r.addEventListener("change", update));
+  update();
+});
 // =================================================================
 // # HL 
 // =================================================================
