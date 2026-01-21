@@ -1352,6 +1352,13 @@ document.addEventListener("DOMContentLoaded", () => {
     window.reise_hours_numeric = Math.max(0, totalTravelH);
     window.arbeit_hours_numeric = Math.max(0, arbeitsH);
     window.arbeitstage_numeric = Math.max(0, days);
+    const overnights = Number(document.getElementById("uebernachten")?.value || 0) || 0;
+    window.uebernachten_numeric = Math.max(0, overnights);
+    window.travel_days_numeric = Math.max(0, days - window.uebernachten_numeric);
+
+    if (typeof window.updateTravelPreview === "function") {
+      window.updateTravelPreview();
+    }
   }
   // --- wiring specifically for Arbeitszeit page ---
   function wireArbeitszeitInputs() {
@@ -2698,6 +2705,9 @@ wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
     const travelNumeric = Number(window.reise_hours_numeric ?? 2 * _T1 ?? 0);
     const laborNumeric = Number(window.arbeit_hours_numeric ?? _L ?? 0);
     const workDaysNumeric = Number(window.arbeitstage_numeric ?? 0);
+    const overnightsNumeric = Number(window.uebernachten_numeric ?? 0);
+    const travelDaysNumeric =
+      Number(window.travel_days_numeric ?? Math.max(0, workDaysNumeric - overnightsNumeric));
 
     // Optional: distance in km field (if you have it on the Arbeitszeit page)
     const distanceKm = (document.getElementById("distanceKm")?.value || "")
@@ -2710,6 +2720,8 @@ wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
       ReiseHoursNumeric: travelNumeric,
       ArbeitHoursNumeric: laborNumeric,
       workDays: workDaysNumeric,
+      uebernachten: overnightsNumeric,
+      travelDays: travelDaysNumeric,
       laborHoursHHMM: laborHHMM,
       travelTimeHHMM: travelHHMM,
       distanceKm,
@@ -4548,25 +4560,39 @@ document.addEventListener("DOMContentLoaded", () => {
 (function initRoundTripPreview() {
   const kmInput = document.getElementById("distanceKm");
   const out = document.getElementById("roundTripPreview");
+  const daysOut = document.getElementById("travelDaysPreview");
+  const overnightsInput = document.getElementById("uebernachten");
   if (!kmInput || !out) return;
 
-  const paint = (v) => {
-    const n = Math.max(0, Number(v) || 0);
-    out.textContent = `= ${Math.round(n * 2)} km (Hin- & Rückfahrt)`;
+  const getWorkDays = () => Number(window.arbeitstage_numeric ?? 0) || 0;
+  const getOvernights = () =>
+    Math.max(0, Number(overnightsInput?.value || 0) || 0);
+  const getTravelDays = () => Math.max(0, getWorkDays() - getOvernights());
+
+  const paint = () => {
+    const n = Math.max(0, Number(kmInput.value) || 0);
+    const workDays = getWorkDays();
+    const overnights = getOvernights();
+    const travelDays = getTravelDays();
+    window.uebernachten_numeric = overnights;
+    window.travel_days_numeric = travelDays;
+    out.textContent = `= ${Math.round(n * 2 * travelDays)} km (Hin- & Rueckfahrt x ${travelDays} Reisetage)`;
+    if (daysOut) {
+      daysOut.textContent = `Reisetage: ${travelDays} (Arbeitstage ${workDays} - Uebernachten ${overnights})`;
+    }
   };
 
+  window.updateTravelPreview = paint;
+
   // 1) immediate feedback while typing
-  kmInput.addEventListener("input", () => paint(kmInput.value));
-  kmInput.addEventListener("change", () => paint(kmInput.value));
-  paint(kmInput.value); // initial
+  kmInput.addEventListener("input", paint);
+  kmInput.addEventListener("change", paint);
+  overnightsInput?.addEventListener("input", paint);
+  overnightsInput?.addEventListener("change", paint);
+  paint(); // initial
 
   // 2) keep in sync when server recomputes pricing
-  window.addEventListener("pricing:updated", (ev) => {
-    const km = ev.detail?.roundTripKm ?? window.__pricing?.roundTripKm;
-    if (typeof km === "number" && isFinite(km)) {
-      out.textContent = `= ${Math.round(km)} km (Hin- & Rückfahrt)`;
-    }
-  });
+  window.addEventListener("pricing:updated", () => paint());
 })();
 
 /* ========== ACCESSIBLE ERROR HINTS FOR Kundendaten CONDITIONALS ========== */
@@ -7193,6 +7219,7 @@ function restoreKundendaten(k, offer) {
 function restoreArbeitszeit(aw) {
   if (!aw) return;
   setNumber("distanceKm", aw.distanceKm);
+  setNumber("uebernachten", aw.uebernachten);
   setByNameOrId("travelTime", aw.travelTimeHHMM);
   setByNameOrId("laborHours", aw.laborHoursHHMM);
 

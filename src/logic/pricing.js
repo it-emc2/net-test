@@ -853,9 +853,15 @@ color: metaColor || null,
     const payer =
       b.payer === "Kassenkunde" ? "KK" : b.payer === "Selbstzahler" ? "SZ" : "";
 
+    const workDays = Number(arbeits.workDays ?? b.workDays ?? 0) || 0;
+    const travelDaysRaw = Number(arbeits.travelDays ?? b.travelDays);
+    const travelDays = Number.isFinite(travelDaysRaw)
+      ? Math.max(0, travelDaysRaw)
+      : Math.max(0, workDays || 1);
+
     // NEW: distance from Arbeitszeit, fallback to Kundendaten
     const oneWayKm = Number(arbeits.distanceKm ?? b.distanceKm ?? 0) || 0;
-    const roundTripKm = Math.max(0, oneWayKm * 2);
+    const roundTripKm = Math.max(0, oneWayKm * 2 * travelDays);
 
     // NEW: hours from Arbeitszeit, fallback to old Kundendaten keys
     const total_hours_numeric =
@@ -889,7 +895,6 @@ color: metaColor || null,
       Arbeitszeit_hours_numeric * handwerkerCount * laborRate +
       reise_hours_numeric * (laborRate + sitz_reise_Rate);
 
-    const workDays = Number(arbeits.workDays ?? b.workDays ?? 0) || 0;
     const formatQty = (n) => Number(n || 0).toFixed(2).replace(".", ",");
 
     const lines = [];
@@ -984,8 +989,12 @@ color: metaColor || null,
     const bwt = payload?.bwt || {};
 
     // distance (same logic as in computeServiceCosts)
+    const travelDaysRaw = Number(b.travelDays ?? b.workDays ?? 0);
+    const travelDays = Number.isFinite(travelDaysRaw)
+      ? Math.max(0, travelDaysRaw)
+      : 1;
     const oneWayKm = Number(b.distanceKm || 0) || 0;
-    const roundTripKm = Math.max(0, oneWayKm * 2);
+    const roundTripKm = Math.max(0, oneWayKm * 2 * travelDays);
     const billedKm = Math.max(0, roundTripKm - 200); // only km > 200 are billed
     const kmRate = 0.35;
     const kmAmount = round2(billedKm * kmRate);

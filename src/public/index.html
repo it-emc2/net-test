@@ -1555,8 +1555,24 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
                 Bitte nur die einfache Strecke (Hin-Fahrt) eintragen.
                 Rückfahrt wird automatisch mit berechnet:
                 <b><span id="roundTripPreview">= 0 km (Hin- & Rückfahrt)</span></b>
+                              <div id="travelDaysPreview" style="margin-top: 4px;"></div>
               </div>
               
+              <div class="field-row" style="display:flex; gap:12px; align-items:flex-end; margin-top: 10px;">
+                <label class="field" style="flex:1;">
+                  <span>Uebernachten (Tage ohne Rueckfahrt)</span>
+                  <input
+                    id="uebernachten"
+                    name="uebernachten"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value="0"
+                    inputmode="numeric"
+                  >
+                </label>
+              </div>
+
 <!-- NEW: routing suggestion hint -->
   <div id="routingSuggestion" class="muted" style="margin-top:4px; font-size:0.85rem;"></div>
 
