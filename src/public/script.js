@@ -7214,6 +7214,16 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("emc2_contact", k.emc2_contact);
   setByNameOrId("bitrixContactId", k.bitrixContactId || k.customerNumber);
   setRadio("payer", k.payer);
+  setByNameOrId("kassenkundeName", k.kassenkundeName);
+  const kassenkundeWrap = document
+    .getElementById("kassenkundeName")
+    ?.closest(".field");
+  if (kassenkundeWrap) {
+    const show = String(k.payer || "") === "Kassenkunde";
+    kassenkundeWrap.style.display = show ? "" : "none";
+    const input = document.getElementById("kassenkundeName");
+    if (input) input.disabled = !show;
+  }
   if (typeof restoreBudgetPanel === "function") restoreBudgetPanel(k);
   setRadio("aufschlag", k.aufschlag);
 
