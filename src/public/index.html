@@ -1538,6 +1538,17 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
           >
             <!-- Distance input -->
             <div class="full" style="margin-bottom: 12px">
+               <!-- Optional button: explicit trigger -->
+  <button
+    type="button"
+    id="btnRoutingSuggest"
+    class="btn-secondary"
+    style="margin-top:4px;"
+  >
+    Strecke aus Adresse vorschlagen
+  </button>
+  <!-- NEW: routing suggestion hint -->
+  <div id="routingSuggestion" class="muted" style="margin-top:4px; font-size:0.85rem;"></div>
               <label for="distanceKm" class="req">
                 Wie viele Kilometer ist der Kunde von uns entfernt?
                 (Kilometerpauschale. Hin- und Rückfahrt wird automatisch kalkuliert)
@@ -1573,18 +1584,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
                 </label>
               </div>
 
-<!-- NEW: routing suggestion hint -->
-  <div id="routingSuggestion" class="muted" style="margin-top:4px; font-size:0.85rem;"></div>
-
-  <!-- Optional button: explicit trigger -->
-  <button
-    type="button"
-    id="btnRoutingSuggest"
-    class="btn-secondary"
-    style="margin-top:4px;"
-  >
-    Strecke aus Adresse vorschlagen
-  </button>
+ 
             </div>
 
 
