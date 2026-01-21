@@ -4759,7 +4759,10 @@ function fillCustomerForm(data) {
     if (el && value != null) el.value = value;
   };
 
-set("bitrixContactId", data.bitrixContactId ?? data.customerNumber ?? "");
+  if (data.salutation) {
+    setRadio("salutation", data.salutation);
+  }
+  set("bitrixContactId", data.bitrixContactId ?? data.customerNumber ?? "");
   set("firstName", data.firstName);
   set("lastName", data.lastName);
   set("company", data.company);
@@ -10579,6 +10582,19 @@ if (bitrixIdInput && loadBitrixBtn) {
           ? contact.EMAIL[0].VALUE
           : "";
 
+      const honorificId = String(
+        contact?.HONORIFIC?.STATUS_ID ??
+          contact?.HONORIFIC ??
+          contact?.HONORIFIC_ID ??
+          "",
+      ).trim();
+      const honorificMap = {
+        HNR_DE_1: "Frau",
+        HNR_DE_2: "Herr",
+        "1": "Familie",
+      };
+      const salutation = honorificMap[honorificId] || "";
+
       const mapped = {
         // falls du schon eine Kundennummer im Formular hast, nicht überschreiben
         bitrixContactId: contact.ID,
@@ -10588,6 +10604,7 @@ customerNumber: contact.ID,
         company: contact.COMPANY_TITLE || "",
         email,
         phone,
+        salutation,
         street: contact.ADDRESS || "",
         city: contact.ADDRESS_CITY || "",
         postalCode: contact.ADDRESS_POSTAL_CODE || "",
