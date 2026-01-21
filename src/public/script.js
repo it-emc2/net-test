@@ -7458,6 +7458,7 @@ function restoreOptionalPage(opt) {
       cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55"],
       cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH"],
       cat_METER: ["opt_TECEADS"],
+      cat_RAMPE: ["opt_RAMPE35"],
       cat_REHA : ["opt_24081000","opt_24081100","opt_24081500","opt_24081600","opt_24081005",
         "opt_24081105", "opt_24081505", "opt_24081605", "opt_25670000", "opt_24081800",
         "opt_24096000", "opt_24097000", "opt_24096240", "opt_19034422", "opt_35035200",
@@ -7709,6 +7710,7 @@ async function restoreConfiguratorFromOffer(doc) {
     "#cat_BASIN",
     "#cat_BASIN_TAP",
     "#cat_METER",
+    "#cat_RAMPE",
     "#cat_SONDER",
   ].forEach((id) => dispatchChange(document.querySelector(id)));
 
@@ -9340,6 +9342,7 @@ cat_SHOWER: "menu_SHOWER",
     cat_SEAT: "menu_SEAT",
     // Add more categories here if needed
     cat_METER: "menu_METER",
+    cat_RAMPE: "menu_RAMPE",
     cat_SONDER: "menu_SONDER",
   };
 
@@ -9465,6 +9468,8 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_CL55", "qty_CL55_wrap");
   // ---- METER ----
   wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
+  // ---- RAMPE ----
+  wireTileQty("opt_RAMPE35", "qty_RAMPE35_wrap");
   // ---- cat_REHA ----
 wireTileQty("opt_24081000", "qty_24081000_wrap");
 wireTileQty("opt_24081100", "qty_24081100_wrap");

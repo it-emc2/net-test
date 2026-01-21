@@ -3303,12 +3303,19 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
               <span class="caption">Abdichtung Rohrmanschette</span>
             </label>
             
-              <label class="image-check">
+<label class="image-check">
   <input type="checkbox" id="cat_REHA" />
   <span class="img-wrap">
     <img src="./assets/reha-team.png" alt="REHA-Team" />
   </span>
   <span class="caption">REHA-Team</span>
+</label>
+<label class="image-check">
+  <input type="checkbox" id="cat_RAMPE" />
+  <span class="img-wrap">
+    <img src="./assets/rampe.jpg" alt="Rampe 3.5 cm Hoch" />
+  </span>
+  <span class="caption">Rampe</span>
 </label>
 <!-- NEW parent: Sonderprodukte -->
 <label class="image-check">
@@ -5365,6 +5372,40 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         ><input
           id="qty_TECEADS"
           name="qty_TECEADS"
+          type="number"
+          min="0"
+          step="1"
+          placeholder="0"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+<div id="menu_RAMPE" class="full field" hidden aria-hidden="true">
+  <div class="subheader">Rampe</div>
+  <div style="display: flex; gap: 14px; flex-wrap: wrap">
+    <div class="field" style="min-width: 220px">
+      <label class="image-check"
+        ><input
+          type="checkbox"
+          id="opt_RAMPE35"
+          name="optRampe[]"
+          value="Rampe 3.5 cm Hoch"
+        /><span class="img-wrap"
+          ><img src="./assets/rampe.PNG" alt="Rampe 3.5 cm Hoch" /></span
+        ><span class="caption">Rampe 3.5 cm Hoch</span></label
+      >
+      <div
+        id="qty_RAMPE35_wrap"
+        class="field"
+        hidden
+        aria-hidden="true"
+        style="max-width: 220px"
+      >
+        <label for="qty_RAMPE35" class="req">Menge Rampe 3.5 cm Hoch</label
+        ><input
+          id="qty_RAMPE35"
+          name="qty_RAMPE35"
           type="number"
           min="0"
           step="1"
