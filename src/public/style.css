@@ -1357,6 +1357,40 @@ label.image-check.is-checked .caption {
   color: var(--foreground);
 }
 
+/* Make the routing suggestion CTA more prominent */
+#btnRoutingSuggest {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 14px;
+  padding: 10px 16px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  box-shadow: 0 10px 22px rgba(109, 40, 217, 0.25), 0 0 0 1px rgba(109, 40, 217, 0.2) inset;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+#btnRoutingSuggest::after {
+  content: " ->";
+  font-weight: 700;
+}
+
+#btnRoutingSuggest:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow: 0 14px 28px rgba(109, 40, 217, 0.28), 0 0 0 2px rgba(109, 40, 217, 0.25) inset;
+}
+
+#btnRoutingSuggest:active {
+  transform: translateY(0);
+  filter: brightness(0.98);
+}
+
+#btnRoutingSuggest:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring), 0 10px 22px rgba(109, 40, 217, 0.25);
+}
+
 /* search dropdown */
 .customer-search-wrapper {
   position: relative;
