@@ -2428,6 +2428,37 @@ function buildPayload() {
             wd: formToObject(document.getElementById("form-wd")),
 
   };
+  // HL: pair steel length + quality rows into structured array
+  try {
+    const hl = payload.hl || (payload.hl = {});
+    const lengthsRaw = hl["hl_steel_length[]"];
+    const qualityRaw = hl["hl_steel_quality[]"];
+    const lengths = Array.isArray(lengthsRaw)
+      ? lengthsRaw
+      : lengthsRaw != null
+        ? [lengthsRaw]
+        : [];
+    const qualities = Array.isArray(qualityRaw)
+      ? qualityRaw
+      : qualityRaw != null
+        ? [qualityRaw]
+        : [];
+
+    const steelLines = lengths
+      .map((len, idx) => ({
+        length: String(len || "").trim(),
+        quality: String(qualities[idx] || "").trim(),
+      }))
+      .filter((row) => row.length || row.quality);
+
+    if (steelLines.length) {
+      hl.steelLines = steelLines;
+    } else {
+      delete hl.steelLines;
+    }
+  } catch (e) {
+    console.warn("[buildPayload] hl steel lines build failed:", e);
+  }
 payload.Kundendaten = payload.Kundendaten || {};
 if (!payload.Kundendaten.customerNumber) {
   payload.Kundendaten.customerNumber = payload.Kundendaten.bitrixContactId || "";
@@ -11149,15 +11180,61 @@ document.addEventListener("DOMContentLoaded", () => {
 document.addEventListener("DOMContentLoaded", () => {
   const steelCheckbox = document.getElementById("hlPipeSteel");
   const steelColorSection = document.getElementById("hl-steel-color-section");
+  const steelLinesSection = document.getElementById("hl-steel-length-quality");
   if (!steelCheckbox || !steelColorSection) return;
 
   const setSteelColorsVisibility = () => {
     const show = !!steelCheckbox.checked;
     steelColorSection.style.display = show ? "" : "none";
+    if (steelLinesSection) {
+      steelLinesSection.style.display = show ? "" : "none";
+    }
   };
 
   steelCheckbox.addEventListener("change", setSteelColorsVisibility);
   setSteelColorsVisibility();
+});
+
+// HL steel length/quality rows
+document.addEventListener("DOMContentLoaded", () => {
+  const host = document.getElementById("hl-steel-length-quality");
+  const tpl = document.getElementById("tpl-hl-steel-row");
+  if (!host || !tpl || !tpl.content) return;
+
+  const rowsWrap = host.querySelector(".hl-steel-items");
+  if (!rowsWrap) return;
+
+  const addRow = () => {
+    const node = tpl.content.firstElementChild?.cloneNode(true);
+    if (!node) return;
+    rowsWrap.appendChild(node);
+    node.querySelector(".hl-steel-length")?.focus();
+  };
+
+  const removeRow = (btn) => {
+    const row = btn.closest(".hl-steel-row");
+    if (!row) return;
+    const rows = rowsWrap.querySelectorAll(".hl-steel-row");
+    if (rows.length <= 1) {
+      row.querySelectorAll("input").forEach((input) => {
+        input.value = "";
+      });
+      return;
+    }
+    row.remove();
+  };
+
+  rowsWrap.addEventListener("click", (e) => {
+    const addBtn = e.target.closest(".hl-steel-add");
+    if (addBtn) {
+      addRow();
+      return;
+    }
+    const removeBtn = e.target.closest(".hl-steel-remove");
+    if (removeBtn) {
+      removeRow(removeBtn);
+    }
+  });
 });
 
 // Handlaufhalter: sync selected size into checkbox value

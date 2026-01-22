@@ -6619,7 +6619,57 @@ grundsätzlich wird automatisch mitkalkuliert.<br>
         </span>
         <span class="caption">EdelstahlStahlrohr</span>
       </label>
-
+  <div class="field" id="hl-steel-length-quality">
+    <div class="section-title">Länge und Qualität</div>
+    <div class="hl-steel-items">
+      <div class="hl-steel-row">
+        <label class="hl-steel-label">
+          Länge
+          <input
+            class="hl-steel-length"
+            name="hl_steel_length[]"
+            type="text"
+            placeholder="z. B. 1,20 m"
+          />
+        </label>
+        <label class="hl-steel-label">
+          Qualität
+          <input
+            class="hl-steel-quality"
+            name="hl_steel_quality[]"
+            type="text"
+            placeholder="z. B. V2A"
+          />
+        </label>
+        <button type="button" class="hl-steel-add da-add" aria-label="Zeile hinzufuegen">+</button>
+        <button type="button" class="hl-steel-remove da-remove" aria-label="Zeile entfernen">-</button>
+      </div>
+    </div>
+  </div>
+  <template id="tpl-hl-steel-row">
+    <div class="hl-steel-row">
+      <label class="hl-steel-label">
+        Laenge
+        <input
+          class="hl-steel-length"
+          name="hl_steel_length[]"
+          type="text"
+          placeholder="z. B. 1,20 m"
+        />
+      </label>
+      <label class="hl-steel-label">
+        Qualitaet
+        <input
+          class="hl-steel-quality"
+          name="hl_steel_quality[]"
+          type="text"
+          placeholder="z. B. V2A"
+        />
+      </label>
+      <button type="button" class="hl-steel-add da-add" aria-label="Zeile hinzufuegen">+</button>
+      <button type="button" class="hl-steel-remove da-remove" aria-label="Zeile entfernen">-</button>
+    </div>
+  </template>
       <!-- Farbauswahl Stahlrohr -->
 
 <div id="hl-steel-color-section" class="field full">

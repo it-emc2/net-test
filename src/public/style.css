@@ -990,6 +990,37 @@ label.image-check.is-checked .caption {
   aspect-ratio: auto;        /* so width/height rule dominates */
   margin-inline: auto;       /* center image in card */
 }
+
+/* HL: steel length/quality rows */
+.hl-steel-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hl-steel-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.hl-steel-label {
+  display: grid;
+  gap: 6px;
+}
+
+.hl-steel-label input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 720px) {
+  .hl-steel-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+}
 /* ---------- Subheaders & muted panels ---------- */
 .subheader {
   background: var(--section-bg);
