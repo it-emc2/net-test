@@ -9544,6 +9544,58 @@ wireTileQty("opt_26014200", "qty_26014200_wrap");
 wireTileQty("opt_091095504", "qty_091095504_wrap");
 wireTileQty("opt_10440000", "qty_10440000_wrap");
 
+  // ---- LIVE: when any kid is checked, auto-check its parent category ----
+  const parentToKids = {
+    cat_SHOWER: [
+      "opt_V22WS1R",
+      "opt_TEMPDSU250",
+      "opt_V22BG903R",
+      "opt_DEDS2503E",
+    ],
+    cat_THERMO: ["opt_CLTB", "opt_DEPTB", "opt_CLB"],
+    cat_GRAB: ["opt_CLPESG30", "opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
+    cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
+    cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
+    cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55"],
+    cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH"],
+    cat_METER: ["opt_TECEADS"],
+    cat_RAMPE: ["opt_RAMPE35"],
+    cat_REHA: [
+      "opt_24081000", "opt_24081100", "opt_24081500", "opt_24081600",
+      "opt_24081005", "opt_24081105", "opt_24081505", "opt_24081605",
+      "opt_25670000", "opt_24081800", "opt_24096000", "opt_24097000",
+      "opt_24096240", "opt_19034422", "opt_35035200", "opt_35035145",
+      "opt_35035148", "opt_35035281", "opt_35035280", "opt_78700800",
+      "opt_78701700", "opt_78700400", "opt_78701500", "opt_78700750",
+      "opt_78700850", "opt_11096600", "opt_11096610", "opt_11020600",
+      "opt_11020700", "opt_11020710", "opt_11020300", "opt_14661000",
+      "opt_14662000", "opt_26013000", "opt_26014000", "opt_26014200",
+      "opt_091095504", "opt_10440000",
+    ],
+  };
+
+  const kidToParent = {};
+  Object.entries(parentToKids).forEach(([parentId, kids]) => {
+    kids.forEach((kidId) => {
+      kidToParent[kidId] = parentId;
+    });
+  });
+
+  const optForm = document.getElementById("form-optional");
+  if (optForm) {
+    optForm.addEventListener("change", (e) => {
+      const el = e.target;
+      if (!el || !el.id || !el.checked) return;
+      const parentId = kidToParent[el.id];
+      if (!parentId) return;
+      const parent = document.getElementById(parentId);
+      if (parent && !parent.checked) {
+        parent.checked = true;
+        parent.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+  }
+
 
   // Show/hide "Erforderliches Zubehör" when CL60 is toggled (no cross-panel effects)
   (function wireBasinRequired() {
