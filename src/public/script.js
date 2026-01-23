@@ -11256,6 +11256,20 @@ document.addEventListener("DOMContentLoaded", () => {
   dateInput.value = `${yyyy}-${mm}-${dd}`;
 });
 
+// Duschwanne: auto-check TECEADS when "Armatur verlegen" is selected
+document.addEventListener("DOMContentLoaded", () => {
+  const task = document.querySelector(
+    'input[name="duschwanne[workTasks][]"][value="relocate_faucet"]',
+  );
+  const tece = document.getElementById("opt_TECEADS");
+  if (!task || !tece) return;
+
+  task.addEventListener("change", () => {
+    tece.checked = !!task.checked;
+    tece.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+});
+
 // Handlaufhalter: sync selected size into checkbox value
 document.addEventListener("DOMContentLoaded", () => {
   const holderCheckbox = document.getElementById("hlHandlaufhalter");
