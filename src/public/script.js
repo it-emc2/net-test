@@ -9761,6 +9761,7 @@ wireTileQty("HlAidsHaltegriff80", "HlAidsHaltegriff80QtyWrap");
 function initTECEADSPairsLabel() {
   const qty = document.getElementById("qty_TECEADS");
   const lbl = document.querySelector('label[for="qty_TECEADS"]');
+  const cb = document.getElementById("opt_TECEADS");
   if (!qty || !lbl) return;
 
   const base = (lbl.dataset.baseLabel ||= lbl.textContent.replace(
@@ -9779,6 +9780,12 @@ function initTECEADSPairsLabel() {
   };
 
   ["input", "change", "blur"].forEach((ev) => qty.addEventListener(ev, paint));
+  if (cb) {
+    cb.addEventListener("change", () => {
+      // wireTileQty sets qty on checkbox change; repaint after it runs
+      requestAnimationFrame(paint);
+    });
+  }
   paint(); // initial
 }
 
