@@ -11237,6 +11237,18 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
+// Kundendaten: auto-fill date with today's date (local) if empty
+document.addEventListener("DOMContentLoaded", () => {
+  const dateInput = document.getElementById("date");
+  if (!dateInput || dateInput.value) return;
+
+  const now = new Date();
+  const yyyy = String(now.getFullYear());
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  dateInput.value = `${yyyy}-${mm}-${dd}`;
+});
+
 // Handlaufhalter: sync selected size into checkbox value
 document.addEventListener("DOMContentLoaded", () => {
   const holderCheckbox = document.getElementById("hlHandlaufhalter");
