@@ -379,7 +379,7 @@ function grossToNet(gross, taxRate) {
     if (dusch.abdichtSet) add("TRWDB", 1);
     if (dusch.drainSet) add("AGD9060", 1);
     if (dusch.smallMaterial) add("KM02", 1);
-    if (dusch.stelzlager) add("STELZ", 1);
+    if (dusch.stelzlager) add("PLA5282", 1);
 
     // ------- Fußboden
     const addFlooring = !!dusch.addFlooring;
