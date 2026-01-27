@@ -2896,7 +2896,19 @@ doorInputs.forEach((el) => {
   const pid = String(el.dataset.productId || "").trim();
   if (!pid) return;
 
-  const lines = readCaptionSubLinesFromDoorInput(el);
+  let lines = readCaptionSubLinesFromDoorInput(el);
+
+  // Append height line for Standard Tür (1226)
+  if (pid === "1226") {
+    const h = String(
+      document.getElementById("bwtDoorStdHeight")?.value || "",
+    ).trim();
+    if (h) {
+      lines = Array.isArray(lines) ? [...lines] : [];
+      lines.push(`Höhe: ${h} cm`);
+    }
+  }
+
   if (lines.length) bwt.doorInfoById[pid] = lines;
 });
 
@@ -11306,6 +11318,25 @@ document.addEventListener("DOMContentLoaded", () => {
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const dd = String(now.getDate()).padStart(2, "0");
   dateInput.value = `${yyyy}-${mm}-${dd}`;
+});
+
+// BWT door height clamp (33-40)
+document.addEventListener("DOMContentLoaded", () => {
+  const heightInput = document.getElementById("bwtDoorStdHeight");
+  if (!heightInput) return;
+
+  const clamp = () => {
+    const raw = heightInput.value;
+    if (raw === "" || raw == null) return;
+    const n = Math.round(Number(raw));
+    if (!Number.isFinite(n)) return;
+    if (n < 33) heightInput.value = "33";
+    else if (n > 40) heightInput.value = "40";
+    else heightInput.value = String(n);
+  };
+
+  ["change", "blur"].forEach((ev) => heightInput.addEventListener(ev, clamp));
+  clamp();
 });
 
 // Duschwanne: auto-check TECEADS when "Armatur verlegen" is selected
