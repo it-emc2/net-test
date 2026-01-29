@@ -1051,6 +1051,7 @@ label.image-check.is-checked .caption {
 }
 
 #tray-suggestions .suggestion-card {
+  min-width: 0;
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px;
   padding: 10px 12px;
@@ -1063,6 +1064,10 @@ label.image-check.is-checked .caption {
   transition: background-color 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
 }
 
+#tray-suggestions .suggestion-card > * {
+  min-width: 0;
+}
+
 #tray-suggestions .suggestion-card input[type="radio"] {
   margin-top: 2px;
 }
@@ -1070,11 +1075,13 @@ label.image-check.is-checked .caption {
 #tray-suggestions .title {
   font-weight: 600;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 #tray-suggestions .meta {
   font-size: 12px;
   color: var(--muted-foreground);
+  overflow-wrap: anywhere;
 }
 
 #tray-suggestions .suggestion-card:hover,
@@ -1087,6 +1094,26 @@ label.image-check.is-checked .caption {
   border-color: var(--ring, #2563eb);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
   background: var(--card-selected);
+}
+
+/* iPad / tablet Safari: ensure suggestions span full width and don’t collapse */
+#traySmartSearch,
+#tray-suggestions {
+  width: 100%;
+  max-width: 100%;
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1024px) {
+  #tray-suggestions .suggestion-list {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  #tray-suggestions .suggestion-list {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ---------- Color swatch cards ---------- */
