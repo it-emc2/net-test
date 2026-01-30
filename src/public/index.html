@@ -305,12 +305,25 @@ body:has(#page-home:not([hidden])) #summaryWidget {
 /* Sidebar toggle + mobile drawer */
 .sidebar-toggle {
   display: none;
-  border: 1px solid var(--border);
-  background: var(--panel);
-  padding: 8px 10px;
-  border-radius: 10px;
+  border: 1px solid var(--accent);
+  background: var(--accent-weak);
+  color: var(--accent-strong);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
   cursor: pointer;
-  gap: 8px; align-items: center;
+  gap: 8px;
+  align-items: center;
+  box-shadow: 0 6px 16px rgba(109, 40, 217, 0.2);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.sidebar-toggle:hover,
+.sidebar-toggle:focus-visible {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(109, 40, 217, 0.3);
+  transform: translateY(-1px);
 }
 
 @media (max-width: 900px) {
@@ -767,7 +780,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
     type="button"
     aria-label="Menü öffnen"
   >
-    ☰ Menü
+    ☰ Menu
   </button>
 
   <input
