@@ -2467,8 +2467,10 @@ if (!payload.Kundendaten.customerNumber) {
   collectWandverkleidungMaterials(payload);
   //  collect quick-add shower screens
   collectDuschabtrennungQuickAdd(payload);
-  //  collect BWT door + Haltegriffe as materials
-  collectBwtMaterials(payload);
+  //  collect BWT door + Haltegriffe as materials (only for BWT offer)
+  if (String(currentOfferKey || "").toLowerCase() === "bwt") {
+    collectBwtMaterials(payload);
+  }
   //  collect BWT freie Posten (quick add)
   collectBwtExtras(payload);
 
@@ -8458,9 +8460,18 @@ document
     }
     try {
       const payload = buildPayload();
+      // Safeguard: ensure active offer is present for material overview
+      if (!payload.activeOffer) {
+        payload.activeOffer =
+          (typeof getCurrentOfferType === "function" &&
+            getCurrentOfferType()) ||
+          payload.offerType ||
+          payload.currentOfferKey ||
+          null;
+      }
 
       await downloadDocx(
-        "/docx-template/material-overview",
+        "/material-overview",
         payload,
         // `Materialuebersicht_${Date.now()}.docx`
       );

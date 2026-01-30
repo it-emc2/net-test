@@ -20,6 +20,7 @@ import pdfPreviewRouter from "./routes/pdf-preview.js";
 import { router as pdfRouter } from "./routes/pdf.js";
 import pdfTemplateRouter from "./routes/pdf-template.js";
 import docxTemplateRouter from "./routes/docx-template.js";
+import { router as materialOverviewRouter } from "./routes/material-overview.js";
 import adobePdfRouter from "./routes/adobe-pdf.js";
 
 // Models (ESM default exports)
@@ -204,7 +205,7 @@ app.use("/api/trays", traysRouter);
 app.use("/pdf", pdfRouter);
 app.use("/pdf-template", pdfTemplateRouter);
 app.use("/docx-template", docxTemplateRouter);
-app.use("/material-overview", docxTemplateRouter);
+app.use("/material-overview", materialOverviewRouter);
 app.use("/api/offers", offersRouter);
 app.use("/api/magic", magicRouter);
 app.use("/api/customers", customersRouter);

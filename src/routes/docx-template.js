@@ -470,36 +470,6 @@ async function aggregateMaterialsForOverview(body = {}, computed = {}) {
   // Ensure all missing names are filled from DB (particularly for optionals)
   lines = await ensureNames(lines);
 
-  // --- EXTRA: Silikon-Duschabzieher (only for BU, only in Materialübersicht) ---
-  try {
-    const offerKey =
-      body.activeOffer ||
-      body.currentOfferKey ||
-      body.offerType ||
-      computed.activeOffer ||
-      "bu";
-
-    const isBU = String(offerKey || "").toLowerCase() === "bu";
-
-    if (isBU) {
-      // Avoid double-adding if it ever appears in materials
-      const already = lines.some((l) => l.materialNumber === "QR3923540");
-      if (!already) {
-        lines.push({
-          materialNumber: "QR3923540",
-          name: "Silikon-Duschabzieher mit Halter",
-          unit: "Stck.",
-          quantity: 1,
-          remarks: "",
-        });
-      }
-    }
-  } catch (e) {
-    console.warn(
-      "[material-overview] failed to add QR3923540:",
-      e?.message || e,
-    );
-  }
 
   // Apply business rules and group by key
   const map = new Map();
@@ -557,6 +527,8 @@ function formatQtyForOverview(q, unit) {
   const num = Math.round((q + Number.EPSILON) * 100) / 100;
   return num.toFixed(2).replace(".", ","); // German comma
 }
+
+export { aggregateMaterialsForOverview, formatQtyForOverview };
 
 /* ===========================
    Angebot mapping

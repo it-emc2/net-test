@@ -1,3 +1,21 @@
+import express from "express";
+import fs from "fs/promises";
+import fsSync from "fs";
+import path from "path";
+import dayjs from "dayjs";
+import PizZip from "pizzip";
+import Docxtemplater from "docxtemplater";
+
+import ProductModel from "../models/Product.js";
+import pricingFactory from "../logic/pricing.js";
+import {
+  aggregateMaterialsForOverview,
+  formatQtyForOverview,
+} from "./docx-template.js";
+
+export const router = express.Router();
+const pricing = pricingFactory(ProductModel);
+
 // ✅ UPDATED: Modern docxtemplater API usage
 async function renderDocx(templatePath, data) {
   const content = await fs.readFile(templatePath);
@@ -31,12 +49,47 @@ async function renderDocx(templatePath, data) {
 }
 
 // ✅ COMPLETE: Material overview DOCX route
-router.post("/material-overview", async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const body = req.body || {};
 
     const computed = await pricing.computePrices(body);
-    const rows = aggregateMaterialsForOverview(body, computed);
+    const offerKey =
+      body.activeOffer ||
+      body.currentOfferKey ||
+      body.offerType ||
+      computed?.activeOffer ||
+      "bu";
+
+    // Server-side safeguard: ignore body.materials unless it matches current offer
+    // (use computed.materials instead to avoid cross-offer leakage)
+    const bodyForOverview = { ...body, activeOffer: offerKey };
+    delete bodyForOverview.materials;
+
+    const rows = await aggregateMaterialsForOverview(bodyForOverview, computed);
+
+    // EXTRA: Silikon-Duschabzieher (only for BU, only in Materialübersicht)
+    try {
+      const isBU = String(offerKey || "").toLowerCase() === "bu";
+      if (isBU) {
+        const already = rows.some((r) => r.materialNumber === "QR3923540");
+        if (!already) {
+          rows.push({
+            materialNumber: "QR3923540",
+            name: "Silikon-Duschabzieher mit Halter",
+            unit: "Stck.",
+            quantity: 1,
+            remarks:
+              "Geschenk für den Kunden (nicht im Angebot ausgewiesen).",
+          });
+        }
+      }
+    } catch (e) {
+      console.warn(
+        "[material-overview] failed to add QR3923540:",
+        e?.message || e,
+      );
+    }
 
     const materials = rows.map((m, i) => ({
       pos: i + 1,
@@ -48,7 +101,7 @@ router.post("/material-overview", async (req, res) => {
     }));
 
     // === Build customer context (same as before) ===
-    const b = body.bereich || {};
+    const b = body.Kundendaten || {};
 
     const salutation = b.salutation || "";
     const firstName = b.firstName || "";
