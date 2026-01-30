@@ -466,6 +466,11 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
   font-weight: 700;
   margin: 0 0 8px;
 }
+.da-legend-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 8px;
+}
 
 /* LABEL + INPUT full-width */
 .da-label {
@@ -1753,8 +1758,10 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 <fieldset class="da-row" id="dw-extra-tasks" data-kind="extra" aria-describedby="dw-extra-help">
   <legend class="da-legend">
     Weitere auszuführende Arbeiten (optional)
-    <button type="button" class="da-add" aria-label="Weitere Aufgabe hinzufügen">+</button>
   </legend>
+  <div class="da-legend-actions">
+    <button type="button" class="da-add" aria-label="Weitere Aufgabe hinzufügen">+</button>
+  </div>
 
   <div class="da-items">
     <div class="da-item" data-kind="extra">
