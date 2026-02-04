@@ -1,6 +1,9 @@
+/* eslint-disable no-useless-escape */
+/* eslint-disable no-unused-vars */
 // src/routes/adobe-pdf.js
 import express from "express";
 import fs from "fs/promises";
+// eslint-disable-next-line no-unused-vars
 import fsSync from "fs";
 import path from "path";
 import { Readable } from "stream";

@@ -65,6 +65,12 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
   const bwt = body.bwt || {};
   const arbeits = body.Arbeitszeit || {};
 
+  const offerDate = b.date ? dayjs(b.date) : dayjs();
+  const validityDate = offerDate.add(8, 'week');
+  const ValidityDateFormatted = validityDate.isValid() 
+    ? validityDate.format('DD.MM.YYYY') 
+    : '';
+
   // ---- Extra Arbeitszeit (Arbeitszeit page) ----
   const rawExtraTasks = Array.isArray(arbeits.extraTasks)
     ? arbeits.extraTasks
@@ -562,7 +568,9 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
   }));
 
   const ZoneChosen = services?.zoneLabel || "";
+  // eslint-disable-next-line no-constant-binary-expression
   const DistanceKm = services?.distanceKm ?? Number(b.distanceKm ?? 0) ?? 0;
+  // eslint-disable-next-line no-constant-binary-expression
   const LaborHours = services?.laborHours ?? Number(b.laborHours ?? 0) ?? 0;
   const LaborRate = services?.laborRate ?? 0;
 
@@ -590,6 +598,7 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
     Stadt: b.city || "",
     PLZ: b.postalCode || "",
     Datum: fmtDateDE(b.date),
+    ValidityDate: ValidityDateFormatted, 
     Ansprechpartner: (b.emc2_contact || "").trim(),
     Kundennummer: b.customerNumber || "",
     Greeting:

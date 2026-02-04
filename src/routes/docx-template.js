@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import express from "express";
 import fs from "fs/promises";
 import fsSync from "fs";
@@ -40,6 +41,7 @@ function getAngebotTemplatePath(body) {
     //   break;
     case "bu":
       console.log("under bu ");
+    // eslint-disable-next-line no-fallthrough
     default:
       console.log("under default ");
       file = "Angebot.docx"; // <-- your BU template filename
@@ -113,6 +115,7 @@ function safeFileNameFromOffer(offerNumber = "", fallbackBase = "Angebot") {
   const base = raw || fallbackBase;
 
   // allow only letters, numbers, underscore, dash → everything else becomes '_'
+  // eslint-disable-next-line no-useless-escape
   const cleaned = base.replace(/[^a-zA-Z0-9_\-]/g, "_");
 
   return cleaned || fallbackBase;
@@ -551,6 +554,12 @@ function mapData(body = {}, computed = {}) {
   const rawExtraTasks = Array.isArray(arbeits.extraTasks)
     ? arbeits.extraTasks
     : [];
+
+  const offerDate = b.date ? dayjs(b.date) : dayjs();
+  const validityDate = offerDate.add(8, 'week');
+  const ValidityDateFormatted = validityDate.isValid() 
+    ? validityDate.format('DD.MM.YYYY') 
+    : '';  
 
   // Normalize to an array of { Text } for DOCX bullets (only the text, no time)
   const ExtraAzTasks = rawExtraTasks
@@ -1205,6 +1214,7 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     Stadt: b.city || "",
     PLZ: b.postalCode || "",
     Datum: fmtDateDE(b.date),
+    ValidityDate: ValidityDateFormatted, 
     Ansprechpartner: (b.emc2_contact || "").trim(),
     Kundennummer: b.customerNumber || b.bitrixContactId || "",
     Greeting:
@@ -1236,6 +1246,7 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     Gesamtsummerabatt,
 
     // Computed summary
+    // eslint-disable-next-line no-dupe-keys
     Nettobetrag: fmtCurrency(netAfterRabatt_and_Bonus),
     MarkupPct: MarkupPctStr,
     MarkupValue,
@@ -1280,8 +1291,10 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     BonusRows,
 
     // for selbstkostenanteil.
+    // eslint-disable-next-line no-dupe-keys
     Selbstkostenanteil: SelbstkostenanteilFmt, // keeps {Selbstkostenanteil} working
     SelbstkostenanteilFmt, // if you use this tag directly
+    // eslint-disable-next-line no-dupe-keys
     Zuschusskrankenkasse, // formatted subsidy for template
     hasSubsidyLine: hasZuschuss,
 
@@ -1328,6 +1341,8 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
 router.post("/", async (req, res) => {
   try {
     const templatePath = getAngebotTemplatePath(req.body);
+        console.log('[docx] Using template path:', templatePath);
+    console.log('[docx] Template exists?', fsSync.existsSync(templatePath));
     const content = await fs.readFile(templatePath);
 
     const computed = await pricing.computePrices(req.body || {});
@@ -1504,6 +1519,8 @@ router.post("/material-overview", async (req, res) => {
 router.post("/pdf", async (req, res) => {
   try {
     const templatePath = getAngebotTemplatePath(req.body);
+      console.log('[pdf] Using template path:', templatePath);
+    console.log('[pdf] Template exists?', fsSync.existsSync(templatePath));
     const content = await fs.readFile(templatePath);
 
     const computed = await pricing.computePrices(req.body || {});

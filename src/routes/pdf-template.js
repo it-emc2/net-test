@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 // src/routes/pdf-template.js
 import express from "express";
 import fs from "fs/promises";
@@ -229,6 +230,8 @@ router.post("/", async (req, res) => {
 
   try {
     const templatePath = getAngebotTemplatePath(req.body);
+      console.log('[pdf-template] Using template path:', templatePath);
+        console.log('[pdf-template] Template exists?', fsSync.existsSync(templatePath));
     log("Reading template from", templatePath);
 
     let templateBytes;

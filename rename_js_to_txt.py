@@ -7,17 +7,36 @@ def convert_project_for_llm(root_dir, output_dir="llm_readable_project"):
     - .js and .ts files converted to .txt
     - .html and .css files copied as-is
     - A STRUCTURE.txt file showing the original folder structure
+    - A "core_files" subfolder with specified core project files
     """
     
     # Extensions to process
     convert_extensions = {'.js', '.ts', '.jsx', '.tsx'}
     copy_extensions = {'.html', '.css', '.json'}
     
+    # Core files to be copied to the core_files folder
+    core_filenames = {
+        'app.js',
+        'script.js',
+        'index.html',
+        'style.css',
+        'StateManager.js',
+        'pricing.js',
+        'docx-template.js',
+        'offers.js',
+        'trays.js',
+        'offerMapping.js'
+    }
+    
     # Create output directory
     output_path = os.path.join(os.path.dirname(root_dir), output_dir)
     if os.path.exists(output_path):
         shutil.rmtree(output_path)
     os.makedirs(output_path)
+    
+    # Create core_files subdirectory
+    core_files_path = os.path.join(output_path, "core_files")
+    os.makedirs(core_files_path)
     
     # Collect structure info
     structure_lines = []
@@ -28,6 +47,7 @@ def convert_project_for_llm(root_dir, output_dir="llm_readable_project"):
     structure_lines.append("")
     
     files_processed = []
+    core_files_found = []
     used_filenames = {}  # Track used names to handle duplicates
     
     for dirpath, dirnames, filenames in os.walk(root_dir):
@@ -82,14 +102,27 @@ def convert_project_for_llm(root_dir, output_dir="llm_readable_project"):
                 dest_path = os.path.join(output_path, new_filename)
                 shutil.copy2(src_path, dest_path)
                 
+                # Check if this is a core file and copy to core_files folder
+                is_core = filename in core_filenames
+                if is_core:
+                    core_dest_path = os.path.join(core_files_path, new_filename)
+                    shutil.copy2(src_path, core_dest_path)
+                    core_files_found.append({
+                        'filename': filename,
+                        'original_path': original_rel_path,
+                        'flat_name': new_filename
+                    })
+                
                 # Add to structure
                 file_indent = "  " * (depth + 1)
-                structure_lines.append(f"{file_indent}[FILE] {filename}")
+                core_marker = " [CORE]" if is_core else ""
+                structure_lines.append(f"{file_indent}[FILE] {filename}{core_marker}")
                 
                 files_processed.append({
                     'original': original_rel_path,
                     'flat_name': new_filename,
-                    'type': 'converted' if file_ext in convert_extensions else 'copied'
+                    'type': 'converted' if file_ext in convert_extensions else 'copied',
+                    'is_core': is_core
                 })
     
     # Add summary and file mapping
@@ -98,7 +131,24 @@ def convert_project_for_llm(root_dir, output_dir="llm_readable_project"):
     structure_lines.append("FILE MAPPING (Original Path -> Flat Filename)")
     structure_lines.append("=" * 60)
     for f in files_processed:
-        structure_lines.append(f"{f['original']}  ->  {f['flat_name']}")
+        core_marker = " [CORE]" if f['is_core'] else ""
+        structure_lines.append(f"{f['original']}  ->  {f['flat_name']}{core_marker}")
+    
+    structure_lines.append("")
+    structure_lines.append("=" * 60)
+    structure_lines.append("CORE FILES")
+    structure_lines.append("=" * 60)
+    structure_lines.append(f"Core files found: {len(core_files_found)}/{len(core_filenames)}")
+    structure_lines.append("")
+    for cf in core_files_found:
+        structure_lines.append(f"  ✓ {cf['filename']} (from {cf['original_path']})")
+    
+    missing_core = core_filenames - {cf['filename'] for cf in core_files_found}
+    if missing_core:
+        structure_lines.append("")
+        structure_lines.append("Missing core files:")
+        for missing in sorted(missing_core):
+            structure_lines.append(f"  ✗ {missing}")
     
     structure_lines.append("")
     structure_lines.append("=" * 60)
@@ -107,6 +157,7 @@ def convert_project_for_llm(root_dir, output_dir="llm_readable_project"):
     structure_lines.append(f"Total files: {len(files_processed)}")
     structure_lines.append(f"  - JS/TS converted to .txt: {sum(1 for f in files_processed if f['type'] == 'converted')}")
     structure_lines.append(f"  - HTML/CSS/JSON copied: {sum(1 for f in files_processed if f['type'] == 'copied')}")
+    structure_lines.append(f"  - Core files: {len(core_files_found)}")
     
     # Write structure file
     structure_file_path = os.path.join(output_path, "STRUCTURE.txt")
@@ -116,6 +167,8 @@ def convert_project_for_llm(root_dir, output_dir="llm_readable_project"):
     print(f"\nProject converted successfully!")
     print(f"Output folder: {output_path}")
     print(f"Files processed: {len(files_processed)}")
+    print(f"Core files found: {len(core_files_found)}/{len(core_filenames)}")
+    print(f"Core files folder: {core_files_path}")
     print(f"Structure file: {structure_file_path}")
     
     return output_path
