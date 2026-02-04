@@ -452,7 +452,104 @@ function showToast(message, type = "info") {
     console.log(`[${type}] ${message}`);
   }
 }
+
+// ✅ NEW: Budget Toggle Event Listener + Image Switcher // ✓
+(function initBudgetToggleListener() { // ✓
+  const budgetToggle = document.getElementById("budgetToggle"); // ✓
+  if (!budgetToggle) return; // ✓
+
+  // Helper function to swap floor product images // ✓
+  function updateFloorProductImages(isBudget) { // ✓
+    const floorTiles = document.querySelectorAll('#flooringColors .image-check'); // ✓
+    
+    floorTiles.forEach(tile => { // ✓
+      const img = tile.querySelector('img'); // ✓
+      if (!img) return; // ✓
+      
+      const standardImg = tile.dataset.standardImg; // ✓
+      const budgetImg = tile.dataset.budgetImg; // ✓
+      
+      if (isBudget && budgetImg) { // ✓
+        img.src = budgetImg; // ✓
+        console.log(`[Budget] Switched to budget image: ${budgetImg}`); // ✓
+      } else if (standardImg) { // ✓
+        img.src = standardImg; // ✓
+        console.log(`[Budget] Switched to standard image: ${standardImg}`); // ✓
+      } // ✓
+    }); // ✓
+  } // ✓
+
+  budgetToggle.addEventListener("change", function() { // ✓
+    const isBudget = this.checked; // ✓
+    console.log("[Budget Toggle] Changed to:", isBudget); // ✓
+    
+    // 1) Update floor product images // ✓
+    updateFloorProductImages(isBudget); // ✓
+    
+    // 2) Re-trigger smart tray search with budget flag // ✓
+    if (window.__smartTray?.fetchAndRender) { // ✓
+      window.__smartTray.fetchAndRender(); // ✓
+    } // ✓
+    
+    // 3) Recalculate pricing with new product IDs // ✓
+    if (typeof window.updatePricing === "function") { // ✓
+      window.updatePricing(); // ✓
+    } // ✓
+    
+    // 4) Update any visible price displays // ✓
+    if (typeof updatePriceDisplay === "function") { // ✓
+      updatePriceDisplay(); // ✓
+    } // ✓
+  }); // ✓
+// Find the existing budget toggle listener and update it: <!-- ✓ -->
+budgetToggle.addEventListener("change", function() { // ✓
+  const isBudget = this.checked; // ✓
+  console.log("[Budget Toggle] Changed to:", isBudget); // ✓
+  
+  // 1) Show/hide flooring sections based on budget mode <!-- ✓ -->
+  const standardSection = document.getElementById('flooringStandardSection'); // ✓
+  const budgetSection = document.getElementById('flooringBudgetSection'); // ✓
+  
+  if (standardSection && budgetSection) { // ✓
+    if (isBudget) { // ✓
+      standardSection.style.display = 'none'; // ✓
+      budgetSection.style.display = ''; // ✓
+      // Clear any standard selections <!-- ✓ -->
+      document.querySelectorAll('#flooringColors input[type="checkbox"]').forEach(cb => { // ✓
+        cb.checked = false; // ✓
+      }); // ✓
+    } else { // ✓
+      standardSection.style.display = ''; // ✓
+      budgetSection.style.display = 'none'; // ✓
+      // Clear any budget selections <!-- ✓ -->
+      document.querySelectorAll('#flooringColorsBudget input[type="checkbox"]').forEach(cb => { // ✓
+        cb.checked = false; // ✓
+      }); // ✓
+    } // ✓
+  } // ✓
+  
+  // 2) Re-trigger smart tray search with budget flag
+  if (window.__smartTray?.fetchAndRender) {
+    window.__smartTray.fetchAndRender();
+  }
+  
+  // 3) Recalculate pricing with new product IDs
+  if (typeof window.updatePricing === "function") {
+    window.updatePricing();
+  }
+  
+  // 4) Update any visible price displays
+  if (typeof updatePriceDisplay === "function") {
+    updatePriceDisplay();
+  }
+});
+  // Initial image state on page load // ✓
+  updateFloorProductImages(budgetToggle.checked); // ✓
+})(); // ✓
 // #endregion
+
+
+
 
 // =================================================================
 // #region 4. RESTORE LOGIC (Helpers for restoring form state)
@@ -2423,11 +2520,10 @@ function buildPayload() {
     bwt: formToObject(document.getElementById("form-bwt")),
     hl: formToObject(document.getElementById("form-hl")),
     ah: formToObject(document.getElementById("form-ah")),
-        hms: formToObject(document.getElementById("form-hms")),
-
-            wd: formToObject(document.getElementById("form-wd")),
-
+    hms: formToObject(document.getElementById("form-hms")),
+    wd: formToObject(document.getElementById("form-wd")),
   };
+  
   // HL: pair steel length + quality rows into structured array
   try {
     const hl = payload.hl || (payload.hl = {});
@@ -2459,10 +2555,11 @@ function buildPayload() {
   } catch (e) {
     console.warn("[buildPayload] hl steel lines build failed:", e);
   }
-payload.Kundendaten = payload.Kundendaten || {};
-if (!payload.Kundendaten.customerNumber) {
-  payload.Kundendaten.customerNumber = payload.Kundendaten.bitrixContactId || "";
-}
+  
+  payload.Kundendaten = payload.Kundendaten || {};
+  if (!payload.Kundendaten.customerNumber) {
+    payload.Kundendaten.customerNumber = payload.Kundendaten.bitrixContactId || "";
+  }
 
   collectWandverkleidungMaterials(payload);
   //  collect quick-add shower screens
@@ -2475,39 +2572,39 @@ if (!payload.Kundendaten.customerNumber) {
   collectBwtExtras(payload);
 
   // --- OPTIONAL: ensure REHA checkboxes are represented as opt_* keys ---
-try {
-  const formOpt = document.getElementById("form-optional");
-  if (formOpt) {
-    const optObj = payload.optional || (payload.optional = {});
-    const fdOpt = new FormData(formOpt);
+  try {
+    const formOpt = document.getElementById("form-optional");
+    if (formOpt) {
+      const optObj = payload.optional || (payload.optional = {});
+      const fdOpt = new FormData(formOpt);
 
-    // 1) ensure optReha[] is an array (all selected values)
-    const rehaVals = fdOpt.getAll("optReha[]").map(v => String(v));
-    if (rehaVals.length) optObj["optReha[]"] = rehaVals;
+      // 1) ensure optReha[] is an array (all selected values)
+      const rehaVals = fdOpt.getAll("optReha[]").map(v => String(v));
+      if (rehaVals.length) optObj["optReha[]"] = rehaVals;
 
-    // 2) ensure checked REHA boxes also appear as opt_<ID> keys
-    // (because pricing.collectSelections() only reads keys starting with opt_)
-    const rehaChecked = Array.from(
-      formOpt.querySelectorAll('input[type="checkbox"][name="optReha[]"]:checked')
-    );
+      // 2) ensure checked REHA boxes also appear as opt_<ID> keys
+      // (because pricing.collectSelections() only reads keys starting with opt_)
+      const rehaChecked = Array.from(
+        formOpt.querySelectorAll('input[type="checkbox"][name="optReha[]"]:checked')
+      );
 
-    for (const cb of rehaChecked) {
-      const pid = String(cb.id || "").startsWith("opt_") ? cb.id.slice(4) : "";
-      if (!pid) continue;
+      for (const cb of rehaChecked) {
+        const pid = String(cb.id || "").startsWith("opt_") ? cb.id.slice(4) : "";
+        if (!pid) continue;
 
-      // create the canonical key expected by collectSelections
-      optObj[`opt_${pid}`] = true;
+        // create the canonical key expected by collectSelections
+        optObj[`opt_${pid}`] = true;
 
-      // if you have qty input, ensure it's included (usually already is)
-      const qtyEl = document.getElementById(`qty_${pid}`);
-      if (qtyEl && qtyEl.value !== "") {
-        optObj[`qty_${pid}`] = qtyEl.value;
+        // if you have qty input, ensure it's included (usually already is)
+        const qtyEl = document.getElementById(`qty_${pid}`);
+        if (qtyEl && qtyEl.value !== "") {
+          optObj[`qty_${pid}`] = qtyEl.value;
+        }
       }
     }
+  } catch (e) {
+    console.warn("[buildPayload] optional REHA normalization failed:", e);
   }
-} catch (e) {
-  console.warn("[buildPayload] optional REHA normalization failed:", e);
-}
 
   // ---- NEW: reliably collect ALL Duschwanne work tasks (checkbox array) ----
   try {
@@ -2592,56 +2689,54 @@ try {
   }
 
   //  per-panel color config for WV (997 / 1497) ---
-try {
-  const formWV = document.getElementById("form-wandverkleidung");
-  if (formWV) {
-    const fdWV = new FormData(formWV);
+  try {
+    const formWV = document.getElementById("form-wandverkleidung");
+    if (formWV) {
+      const fdWV = new FormData(formWV);
 
-    const globalColor = (fdWV.get("wvColor") || "").toString().trim();
-    const color997 = (fdWV.get("wvColor_997") || "").toString().trim();
-    const color1497 = (fdWV.get("wvColor_1497") || "").toString().trim();
+      const globalColor = (fdWV.get("wvColor") || "").toString().trim();
+      const color997 = (fdWV.get("wvColor_997") || "").toString().trim();
+      const color1497 = (fdWV.get("wvColor_1497") || "").toString().trim();
 
-    const enabled997 = !!document.getElementById("wv997")?.checked;
-    const enabled1497 = !!document.getElementById("wv1497")?.checked;
+      const enabled997 = !!document.getElementById("wv997")?.checked;
+      const enabled1497 = !!document.getElementById("wv1497")?.checked;
 
-    const qty997 = Number(document.getElementById("wvQty997")?.value || 0) || 0;
-    const qty1497 = Number(document.getElementById("wvQty1497")?.value || 0) || 0;
+      const qty997 = Number(document.getElementById("wvQty997")?.value || 0) || 0;
+      const qty1497 = Number(document.getElementById("wvQty1497")?.value || 0) || 0;
 
-    payload.wandverkleidung = payload.wandverkleidung || {};
-    const wv = payload.wandverkleidung || (payload.wandverkleidung = {});
+      payload.wandverkleidung = payload.wandverkleidung || {};
+      const wv = payload.wandverkleidung || (payload.wandverkleidung = {});
 
-// Explicit selection flags (so drafts restore even if default checked changes)
-wv.wvSealingSelected = !!document.getElementById("wvSealingSelected")?.checked;
-wv.wvFlachenSelected = !!document.getElementById("wvFlachenSelected")?.checked;
-wv.wvEndProfileSelected = !!document.getElementById("wvEndProfileSelected")?.checked;
-wv.wvSilikonSelected = !!document.getElementById("wvSilikonSelected")?.checked;
-wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
+      // Explicit selection flags (so drafts restore even if default checked changes)
+      wv.wvSealingSelected = !!document.getElementById("wvSealingSelected")?.checked;
+      wv.wvFlachenSelected = !!document.getElementById("wvFlachenSelected")?.checked;
+      wv.wvEndProfileSelected = !!document.getElementById("wvEndProfileSelected")?.checked;
+      wv.wvSilikonSelected = !!document.getElementById("wvSilikonSelected")?.checked;
+      wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
 
+      // ✅ store raw override fields (needed for perfect restore)
+      payload.wandverkleidung.wvColor_997 = color997;     // can be ""
+      payload.wandverkleidung.wvColor_1497 = color1497;   // can be ""
 
-    // ✅ store raw override fields (needed for perfect restore)
-    payload.wandverkleidung.wvColor_997 = color997;     // can be ""
-    payload.wandverkleidung.wvColor_1497 = color1497;   // can be ""
-
-    // Clean, canonical structure used later in pricing / DOCX
-    payload.wandverkleidung.panelConfigs = {
-      "997x2550": {
-        enabled: enabled997,
-        qty: qty997,
-        overrideColor: color997 || "",
-        color: (color997 || globalColor || "").trim(),
-      },
-      "1497x2550": {
-        enabled: enabled1497,
-        qty: qty1497,
-        overrideColor: color1497 || "",
-        color: (color1497 || globalColor || "").trim(),
-      },
-    };
+      // Clean, canonical structure used later in pricing / DOCX
+      payload.wandverkleidung.panelConfigs = {
+        "997x2550": {
+          enabled: enabled997,
+          qty: qty997,
+          overrideColor: color997 || "",
+          color: (color997 || globalColor || "").trim(),
+        },
+        "1497x2550": {
+          enabled: enabled1497,
+          qty: qty1497,
+          overrideColor: color1497 || "",
+          color: (color1497 || globalColor || "").trim(),
+        },
+      };
+    }
+  } catch (e) {
+    console.warn("[buildPayload] WV panel color config failed:", e);
   }
-} catch (e) {
-  console.warn("[buildPayload] WV panel color config failed:", e);
-}
-
 
   // -------------------------------------------------------------------------
   // Budget/Zuzahlung
@@ -2826,13 +2921,6 @@ wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
     })();
 
     payload.Arbeitszeit = arbeitsBlock;
-
-    // If your backend still expects some of this under Kundendaten, you can mirror it:
-    // payload.Kundendaten.totalHoursHHMM     = totalHHMM;
-    // payload.Kundendaten.totalHoursNumeric  = totalNumeric;
-    // payload.Kundendaten.ReiseHoursNumeric  = travelNumeric;
-    // payload.Kundendaten.ArbeitHoursNumeric = laborNumeric;
-    // payload.Kundendaten.laborHoursHHMM     = laborHHMM;
   })();
 
   // -------------------------------------------------------------------------
@@ -2847,11 +2935,13 @@ wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
   // --- Attach Duschwanne selection from DOM (if present) ---
   {
     const eb = !!document.getElementById("ebenerdigeToggle")?.checked;
+    const budget = !!document.getElementById("budgetToggle")?.checked; // NEW
     const pid = document.getElementById("chosenTrayProductId")?.value?.trim();
     const size = document.getElementById("traySize")?.value?.trim();
 
     const dw = payload.duschwanne || (payload.duschwanne = {});
     dw.ebenerdigeMontage = eb;
+    dw.budgetMode = budget; // NEW
     if (pid) dw.chosenTrayProductId = pid;
     if (size) dw.traySize = size;
   }
@@ -2889,31 +2979,30 @@ wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
       const bwt = payload.bwt || (payload.bwt = {});
 
       // ---- BWT: door caption-sub info (map by productId) ----
-bwt.doorInfoById = {}; // reset each buildPayload call
+      bwt.doorInfoById = {}; // reset each buildPayload call
 
-const doorInputs = formBwt.querySelectorAll('input[name="bwtDoorType"]');
-doorInputs.forEach((el) => {
-  if (!el.checked) return;
+      const doorInputs = formBwt.querySelectorAll('input[name="bwtDoorType"]');
+      doorInputs.forEach((el) => {
+        if (!el.checked) return;
 
-  const pid = String(el.dataset.productId || "").trim();
-  if (!pid) return;
+        const pid = String(el.dataset.productId || "").trim();
+        if (!pid) return;
 
-  let lines = readCaptionSubLinesFromDoorInput(el);
+        let lines = readCaptionSubLinesFromDoorInput(el);
 
-  // Append height line for Standard Tür (1226)
-  if (pid === "1226") {
-    const h = String(
-      document.getElementById("bwtDoorStdHeight")?.value || "",
-    ).trim();
-    if (h) {
-      lines = Array.isArray(lines) ? [...lines] : [];
-      lines.push(`Höhe: ${h} cm`);
-    }
-  }
+        // Append height line for Standard Tür (1226)
+        if (pid === "1226") {
+          const h = String(
+            document.getElementById("bwtDoorStdHeight")?.value || "",
+          ).trim();
+          if (h) {
+            lines = Array.isArray(lines) ? [...lines] : [];
+            lines.push(`Höhe: ${h} cm`);
+          }
+        }
 
-  if (lines.length) bwt.doorInfoById[pid] = lines;
-});
-
+        if (lines.length) bwt.doorInfoById[pid] = lines;
+      });
 
       // bwt[bwtinfoTasks][] → bwt.bwtinfoTasks (array)
       const infoTasks = fdBwt
@@ -2949,11 +3038,6 @@ doorInputs.forEach((el) => {
     console.warn("[buildPayload] BWT arrays capture failed:", e);
   }
   // end bwt payload block
-// ---- HL: ensure multi-select arrays are captured ----
-
-
-  // end HL payload block
-
 
   // Remember which offer was active when building this payload
   payload.activeOffer = currentOfferKey || null;
@@ -5397,41 +5481,40 @@ function initSmartTraySearch() {
   };
 
   // ----- render -----
-  function renderSuggestions(list) {
-    if (!Array.isArray(list) || list.length === 0) {
-      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
-      applySelectedStyles();
-      return;
-    }
+ function renderSuggestions(list) {
+  if (!Array.isArray(list) || list.length === 0) {
+    out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
+    applySelectedStyles();
+    return;
+  }
 
-    // Only restore a saved PID if the user actually chose in THIS session
-    const allowAutoCheck = sessionStorage.getItem("dw_tray_touched") === "1";
-    let savedPid = null;
-    try {
-      const saved = JSON.parse(
-        localStorage.getItem("dw_tray_selection") || "null",
-      );
-      savedPid = saved?.productId || null;
-    } catch {}
+  const allowAutoCheck = sessionStorage.getItem("dw_tray_touched") === "1";
+  let savedPid = null;
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem("dw_tray_selection") || "null",
+    );
+    savedPid = saved?.productId || null;
+  } catch {}
 
-    const top = list.slice(0, 3);
-    const savedIndex =
-      allowAutoCheck && savedPid
-        ? top.findIndex((p) => p.productId === savedPid)
-        : -1;
+  const top = list.slice(0, 3);
+  const savedIndex =
+    allowAutoCheck && savedPid
+      ? top.findIndex((p) => p.productId === savedPid)
+      : -1;
 
-    const radios = top
-      .map((p, i) => {
-        const id = `tray-suggest-${i}`;
-        const dims = `${p.widthCm} × ${p.lengthCm} × ${p.heightCm} cm`;
-        const price =
-          p.price != null ? ` — ${Number(p.price).toFixed(2)} €` : "";
-        const title = p.name || p.productId || "Duschwanne";
-        const value = p.productId || "";
-        const checkedAttr = i === savedIndex ? "checked" : "";
+  const radios = top
+    .map((p, i) => {
+      const id = `tray-suggest-${i}`;
+      const dims = `${p.widthCm} × ${p.lengthCm} × ${p.heightCm} cm`;
+      const price = p.price != null ? ` — ${Number(p.price).toFixed(2)} €` : "";
+      const title = p.name || p.productId || "Duschwanne";
+      const value = p.productId || "";
+      const checkedAttr = i === savedIndex ? "checked" : "";
+      const budgetClass = p.isBudget ? " is-budget" : ""; // NEW
 
-        return `
-        <label class="suggestion-card" for="${id}">
+      return `
+        <label class="suggestion-card${budgetClass}" for="${id}">
           <input type="radio"
                  id="${id}"
                  name="traySuggestion"
@@ -5446,30 +5529,29 @@ function initSmartTraySearch() {
           </div>
         </label>
       `;
-      })
-      .join("");
+    })
+    .join("");
 
-    out.innerHTML = `
-      <div class="suggestion-heading">Vorschläge</div>
-      <div class="suggestion-list">${radios}</div>
-    `;
+  out.innerHTML = `
+    <div class="suggestion-heading">Vorschläge ${list[0]?.isBudget ? "(Budget-Variante)" : ""}</div>
+    <div class="suggestion-list">${radios}</div>
+  `;
 
-    if (savedIndex >= 0) {
-      const restored = out.querySelectorAll('input[name="traySuggestion"]')[
-        savedIndex
-      ];
-      applySelection(restored);
-    }
-
-    // (Re)bind change once per render (fine if multiple; idempotent behavior)
-    out.addEventListener("change", (e) => {
-      if (e.target && e.target.name === "traySuggestion") {
-        applySelection(e.target);
-      }
-    });
-
-    applySelectedStyles();
+  if (savedIndex >= 0) {
+    const restored = out.querySelectorAll('input[name="traySuggestion"]')[
+      savedIndex
+    ];
+    applySelection(restored);
   }
+
+  out.addEventListener("change", (e) => {
+    if (e.target && e.target.name === "traySuggestion") {
+      applySelection(e.target);
+    }
+  });
+
+  applySelectedStyles();
+}
 
   // ----- fetch logic (progressive) with abort + anti-stale guard -----
   let inflight = null;
@@ -5477,61 +5559,67 @@ function initSmartTraySearch() {
   let debounceT = null;
 
   async function fetchAndRender() {
-    const b = elB ? parseNum(elB.value) : null;
-    const l = elL ? parseNum(elL.value) : null;
-    const h = elH ? parseNum(elH.value) : null;
+  const b = elB ? parseNum(elB.value) : null;
+  const l = elL ? parseNum(elL.value) : null;
+  const h = elH ? parseNum(elH.value) : null;
+  
+  // NEW: Check budget toggle
+  const budgetToggle = document.getElementById("budgetToggle");
+  const useBudget = !!(budgetToggle && budgetToggle.checked);
 
-    // If nothing typed → clear everything and ensure no stale results repaint
-    if (b === null && l === null && h === null) {
-      out.innerHTML = "";
-      if (hiddenId) hiddenId.value = "";
-      if (hiddenSize) hiddenSize.value = "";
-      try {
-        sessionStorage.removeItem("dw_tray_touched");
-      } catch {}
-      // Cancel any in-flight request and bump sequence so its response is ignored
-      try {
-        inflight?.abort?.();
-      } catch {}
-      reqSeq++;
-      return;
-    }
-
-    const qs = new URLSearchParams();
-    if (b !== null) qs.set("w", String(b));
-    if (l !== null) qs.set("l", String(l));
-    if (h !== null) qs.set("h", String(h));
-    const url = `/api/trays/suggest?${qs.toString()}`;
-
+  // If nothing typed → clear everything and ensure no stale results repaint
+  if (b === null && l === null && h === null) {
+    out.innerHTML = "";
+    if (hiddenId) hiddenId.value = "";
+    if (hiddenSize) hiddenSize.value = "";
+    try {
+      sessionStorage.removeItem("dw_tray_touched");
+    } catch {}
+    // Cancel any in-flight request and bump sequence so its response is ignored
     try {
       inflight?.abort?.();
     } catch {}
-    inflight = new AbortController();
-    const mySeq = ++reqSeq;
-
-    out.innerHTML = `<div class="meta">Suche… <code>${url}</code></div>`;
-
-    try {
-      const r = await fetch(url, {
-        signal: inflight.signal,
-        credentials: "include",
-      });
-      const text = await r.text();
-      if (mySeq !== reqSeq) return; // stale response, ignore
-      if (!r.ok) {
-        out.innerHTML = `<div class="text-sm text-destructive">Fehler ${r.status}</div><pre class="text-xs">${text}</pre>`;
-        return;
-      }
-      const data = JSON.parse(text);
-      const list = Array.isArray(data?.results) ? data.results : [];
-      renderSuggestions(list);
-    } catch (err) {
-      if (err.name === "AbortError") return;
-      console.error("Smart tray search failed:", err);
-      if (mySeq !== reqSeq) return; // ignore stale error
-      out.innerHTML = `<div class="text-sm text-destructive">Netzwerkfehler</div><pre class="text-xs">${String(err)}</pre>`;
-    }
+    reqSeq++;
+    return;
   }
+
+  const qs = new URLSearchParams();
+  if (b !== null) qs.set("w", String(b));
+  if (l !== null) qs.set("l", String(l));
+  if (h !== null) qs.set("h", String(h));
+  qs.set("budget", useBudget ? "1" : "0"); // NEW: Pass budget flag to API
+  
+  const url = `/api/trays/suggest?${qs.toString()}`;
+
+  try {
+    inflight?.abort?.();
+  } catch {}
+  inflight = new AbortController();
+  const mySeq = ++reqSeq;
+
+  out.innerHTML = `<div class="meta">Suche… <code>${url}</code></div>`;
+
+  try {
+    const r = await fetch(url, {
+      signal: inflight.signal,
+      credentials: "include",
+    });
+    const text = await r.text();
+    if (mySeq !== reqSeq) return; // stale response, ignore
+    if (!r.ok) {
+      out.innerHTML = `<div class="text-sm text-destructive">Fehler ${r.status}</div><pre class="text-xs">${text}</pre>`;
+      return;
+    }
+    const data = JSON.parse(text);
+    const list = Array.isArray(data?.results) ? data.results : [];
+    renderSuggestions(list);
+  } catch (err) {
+    if (err.name === "AbortError") return;
+    console.error("Smart tray search failed:", err);
+    if (mySeq !== reqSeq) return; // ignore stale error
+    out.innerHTML = `<div class="text-sm text-destructive">Netzwerkfehler</div><pre class="text-xs">${String(err)}</pre>`;
+  }
+}
 
   const request = () => {
     clearTimeout(debounceT);
@@ -5595,6 +5683,122 @@ function attachDuschwanneToPayload(payload) {
 
   return payload;
 }
+/* ========== Budget Toggle ========== */
+// === LOW-BUDGET VARIANT: Toggle + Asset Switching ===
+function initBudgetVariantToggle() {
+  const toggle = document.getElementById("budgetToggle");
+  const smartSearch = document.getElementById("tray-suggestions");
+  
+  if (!toggle) return;
+
+  // Asset maps
+  const BUDGET_ASSETS = {
+    floor: {
+      prefix: "B-",
+      colors: {
+        "Lava-Beige": "/assets/budget/B-cafe.png",
+        "Lava-Creme": "/assets/budget/B-creme.png", 
+        "Lava-Grau": "/assets/budget/B-grau.png",
+        "Lava-Sahara": "/assets/budget/B-sahara.png",
+        "Lava-Steingrau": "/assets/budget/B-steingrau.png"
+      }
+    },
+    accessories: {
+      "TRWDB": "/assets/budget/BL-Dichtband.png",
+      "TRWDSET5": "/assets/budget/BL-Dichtbahn.png",
+      "PLA5282": "/assets/budget/BL-Stelzlager.png"
+    }
+  };
+
+  const PREMIUM_ASSETS = {
+    floor: {
+      colors: {
+        "Lava-Beige": "/assets/V5_Lava_Beige.jpg",
+        "Lava-Creme": "/assets/floor-lava-creme.jpg",
+        "Lava-Grau": "/assets/floor-lava-grau.jpg",
+        "Lava-Sahara": "/assets/floor-lava-sahara.jpg",
+        "Lava-Steingrau": "/assets/floor-lava-steingrau.jpg"
+      }
+    },
+    accessories: {
+      "TRWDB": "/assets/4ab307d6db904aac6d543a80540e67ec.jpg",
+      "TRWDSET5": "/assets/trwdset5-original.jpg", 
+      "PLA5282": "/assets/66c7f69e3b6da9039473c86f44789340.jpg"
+    }
+  };
+
+  function updateFloorImages(useBudget) {
+    const colors = useBudget ? BUDGET_ASSETS.floor.colors : PREMIUM_ASSETS.floor.colors;
+    
+    Object.entries(colors).forEach(([colorKey, imgPath]) => {
+      const tile = document.querySelector(`label[data-color="${colorKey}"]`);
+      if (!tile) return;
+      
+      const img = tile.querySelector("img");
+      if (img) {
+        img.src = imgPath;
+        img.alt = useBudget ? `B-Series ${colorKey}` : colorKey;
+      }
+    });
+  }
+
+  function updateAccessoryImages(useBudget) {
+    const assets = useBudget ? BUDGET_ASSETS.accessories : PREMIUM_ASSETS.accessories;
+    
+    Object.entries(assets).forEach(([productId, imgPath]) => {
+      const tile = document.querySelector(`label[data-product-id="${productId}"]`);
+      if (!tile) return;
+      
+      const img = tile.querySelector("img");
+      if (img) {
+        img.src = imgPath;
+        img.alt = useBudget ? `BL-Series ${productId}` : productId;
+      }
+    });
+  }
+
+  function applyBudgetMode() {
+    const useBudget = !!toggle.checked;
+    
+    // Update all visual assets
+    updateFloorImages(useBudget);
+    updateAccessoryImages(useBudget);
+    
+    // Re-trigger smart tray search with budget flag
+    if (window.__smartTray?.fetchAndRender) {
+      window.__smartTray.fetchAndRender();
+    }
+    
+    // Store preference
+    try {
+      sessionStorage.setItem("dw_budget_mode", useBudget ? "1" : "0");
+    } catch {}
+    
+    // Visual indicator
+    const form = document.getElementById("form-duschwanne");
+    if (form) {
+      form.classList.toggle("budget-mode", useBudget);
+    }
+  }
+
+  toggle.addEventListener("change", applyBudgetMode);
+  
+  // Restore from session
+  try {
+    const saved = sessionStorage.getItem("dw_budget_mode");
+    if (saved === "1" && !toggle.checked) {
+      toggle.checked = true;
+    } else if (saved === "0" && toggle.checked) {
+      toggle.checked = false;
+    }
+  } catch {}
+  
+  // Initial application
+  applyBudgetMode();
+}
+
+// Call after DOM ready
+document.addEventListener("DOMContentLoaded", initBudgetVariantToggle);
 /* ========== GLOBAL PRICING SERVICE (fetch -> cache -> event) ========== */
 (() => {
   async function fetchPrice(payload) {
@@ -7320,6 +7524,16 @@ function restoreDuschwanne(dw) {
   setCheckbox("drainSet", !!dw.drainSet);
   setCheckbox("smallMaterial", !!dw.smallMaterial);
   setCheckbox("stelzlager", !!dw.stelzlager);
+
+  // NEW: Restore budget mode toggle
+    if (dw.budgetMode !== undefined) { 
+    const toggle = document.getElementById("budgetToggle"); 
+    if (toggle) { // ✓
+      toggle.checked = !!dw.budgetMode; 
+      // Trigger change event to update UI/images 
+      toggle.dispatchEvent(new Event("change", { bubbles: true })); 
+    } 
+  } 
 
   setHiddenById("chosenTrayProductId", dw.chosenTrayProductId);
   setNumber("floorArea", dw.floorArea);

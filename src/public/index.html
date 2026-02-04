@@ -1732,7 +1732,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
 
 
 
-      <!-- Duschwanne -->
+<!-- Duschwanne -->
 <section class="card page" id="page-Duschwanne" hidden>
   <div style="margin:0 0 12px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
     <h2 style="margin:0">Duschwanne</h2>
@@ -1747,6 +1747,17 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
         style="transform:scale(1.2); cursor:pointer;"
       />
       <span>Hinweis zu möglichen Zusatzkosten einblenden</span>
+    </label>
+     <!-- Toggle: budget Variante (default OFF) -->
+    <label for="budgetToggle" style="display:flex; align-items:center; gap:8px; font-weight:500; cursor:pointer;">
+      <input
+        id="budgetToggle"
+        type="checkbox"
+        name="budgetToggle"
+        checked 
+        style="transform:scale(1.2); cursor:pointer;"
+      />
+      <span>Low Budget Variante priorisieren</span>
     </label>
   </div>
 
@@ -1791,7 +1802,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
   </div>
 
   <small id="dw-extra-help" class="da-help">
-    Fügen Sie beliebige Tätigkeiten hinzu. Diese erscheinen unter „Auszuführende Arbeiten“.
+    Fügen Sie beliebige Tätigkeiten hinzu. Diese erscheinen unter „Auszuführende Arbeiten".
   </small>
 </fieldset>
 
@@ -1908,16 +1919,18 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
             >
           </div>
 
+          <!-- TRINNITY Wannenabdichtband-Set -->
           <div class="field">
             <label class="req"
               >TRINNITY Wannenabdichtband-Set 3,4 m Nass-/Trockenanbindung
               entspr. DIN 18534</label
             >
-            <label class="image-check"
-              ><input
+            <label class="image-check" data-product-id="TRWDB">
+              <input
                 type="checkbox"
                 name="abdichtSet"
                 value="Wannenabdichtband-Set TRWDB"
+                data-product-id="TRWDB"
                 checked
               /><span class="img-wrap"
                 ><img
@@ -1927,16 +1940,18 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
             >
           </div>
 
+          <!-- Ablaufgarnitur -->
           <div class="field">
             <label class="req"
               >Ablaufgarnitur Rohbauset m. Sifon BH60mm f. flache Duschw. m.
               90mm Ablauf TRINNITY</label
             >
-            <label class="image-check"
-              ><input
+            <label class="image-check" data-product-id="TRAGD9060">
+              <input
                 type="checkbox"
                 name="drainSet"
                 value="Ablaufgarnitur TRAGD9060"
+                data-product-id="TRAGD9060"
                 checked
               /><span class="img-wrap"
                 ><img
@@ -1946,14 +1961,16 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
             >
           </div>
 
+          <!-- Kleinmaterial -->
           <div class="field">
             <label class="req">Kleinmaterial</label>
-            <label class="image-check"
-              ><input
+            <label class="image-check" data-product-id="KLEINMATERIAL">
+              <input
                 type="checkbox"
                 id="smallMaterial"
                 name="smallMaterial"
                 value="Kleinmaterial"
+                data-product-id="KLEINMATERIAL"
                 checked
               /><span class="img-wrap"
                 ><img
@@ -1970,13 +1987,15 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
             hidden
           ></div>
 
+          <!-- Stelzlager höhenverstellbar Set -->
           <div class="field">
             <label>Stelzlager höhenverstellbar Set</label>
-            <label class="image-check"
-              ><input
+            <label class="image-check" data-product-id="PLA5282">
+              <input
                 type="checkbox"
                 name="stelzlager"
                 value="PLA5282"
+                data-product-id="PLA5282"
                 checked
               /><span class="img-wrap"
                 ><img
@@ -1988,7 +2007,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
             >
           </div>
 
-          <div class="field">
+     <div class="field">
             <label class="check-pill"
               ><input
                 type="checkbox"
@@ -2118,20 +2137,20 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
               </p>
               <label
                 class="image-check"
-                data-product-id="R_4260602"
-                id="tile_R_4260602"
+                data-product-id="V4FK600"
+                id="tile_V4FK600"
               >
                 <input
                   type="checkbox"
                   name="floorAdhesive[]"
-                  value="Flächenkleber R_4260602"
+                  value="Flächenkleber V4FK600"
                 />
                 <span class="img-wrap"
                   ><img
-                    src="./assets/Flächen-Kleber.PNG"
-                    alt="Flächenkleber R_4260602"
+                    src="./assets/da7500c58d12e93eabb73f670e646432.jpg"
+                    alt="Flächenkleber V4FK600"
                 /></span>
-                <span class="caption">Flächenkleber R_4260602</span>
+                <span class="caption">Flächenkleber V4FK600</span>
               </label>
             </div>
 
@@ -2140,7 +2159,6 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
               <span id="floorAdhesivePrice">0</span>
               <span class="muted">EUR</span>
             </div>
-            
 
             <div class="field">
               <label class="req">TRINNITY Bodenabdichtung für Fußboden</label>

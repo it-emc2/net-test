@@ -103,7 +103,8 @@ const products = [
             lengthCm: p.lengthCm,
             description: p.description || '',
             color: p.color || '',
-            articleNumber: p.articleNumber || ''
+            articleNumber: p.articleNumber || '',
+            source: 'badolux'  
           } 
         },
         upsert: true

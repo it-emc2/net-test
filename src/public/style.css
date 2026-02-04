@@ -2124,4 +2124,43 @@ label.image-check.is-checked .caption {
     width: 100%;
     justify-content: center;
   }
+
+
+
 }
+
+
+/* ========== BUDGET MODE INDICATOR ========== */
+
+.budget-mode::before {
+  content: "💰 Low Budget Modus aktiv";
+  display: block;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  color: #92400e;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* Budget variant tiles get a small indicator */
+.tray-suggestion.is-budget::after {
+  content: "💰 Budget";
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 2px 6px;
+  background: #fbbf24;
+  color: #78350f;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.tray-suggestion {
+  position: relative; /* for ::after positioning */
+}
+

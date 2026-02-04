@@ -4,37 +4,41 @@ import Product from "../models/Product.js";
 
 const r = Router();
 
-// Parse numbers; accepts "101", "101.0", "101,0"
 function parseDim(v) {
   if (v == null) return null;
-  const s = String(v).trim().replace(/\./g, "").replace(",", "."); // "1.200,5" -> "1200.5"
+  const s = String(v).trim().replace(/\./g, "").replace(",", ".");
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
 
-// map common aliases just in case (B=b=width, L=l=length, H=h=height)
 function readQueryDims(q) {
-  // primary expected keys: w,l,h  (your frontend sends these)
-  // fallbacks: b,l,h or width/length/height
   const w = parseDim(q.w ?? q.b ?? q.width ?? q.widthCm);
   const l = parseDim(q.l ?? q.length ?? q.lengthCm);
   const h = parseDim(q.h ?? q.height ?? q.heightCm);
-  return { w, l, h };
+  const budget = q.budget === "true" || q.budget === "1"; // NEW
+  return { w, l, h, budget };
 }
 
 r.get("/suggest", async (req, res) => {
   try {
-    const { w, l, h } = readQueryDims(req.query);
+    const { w, l, h, budget } = readQueryDims(req.query);
 
-    // nothing provided?
     if (w === null && l === null && h === null) {
       return res.status(400).json({ error: "Provide at least one of w, l, h" });
     }
 
-    // Build strict axis filters ONLY for provided axes.
-    // => User may start with any axis and add others in any order.
-    const filter = { productId: /^SLA/i };
+    // Build base filter
+    const filter = {};
     const axesForScore = [];
+
+    // NEW: If budget mode, restrict to Badolux (DW001-DW025)
+    if (budget) {
+      filter.productId = /^DW0(0[1-9]|1[0-9]|2[0-5])$/; // DW001 to DW025
+      filter.source = "badolux";
+    } else {
+      filter.productId = /^SLA/i; // Standard premium trays
+    }
+
     if (w !== null) {
       filter.widthCm = { $gte: w };
       axesForScore.push(["widthCm", w]);
@@ -48,7 +52,6 @@ r.get("/suggest", async (req, res) => {
       axesForScore.push(["heightCm", h]);
     }
 
-    // Strict match: if no product satisfies all provided axes, return [] (no fallback).
     const docs = await Product.find(filter, {
       productId: 1,
       name: 1,
@@ -56,28 +59,28 @@ r.get("/suggest", async (req, res) => {
       widthCm: 1,
       lengthCm: 1,
       heightCm: 1,
+      source: 1, // NEW
     }).lean();
 
-    // Rank by closeness using ONLY provided axes.
     const score = (p) => {
       let sum = 0;
       for (const [key, want] of axesForScore) {
-        const have = Number(p[key]) || 0; // we already know have >= want from filter
-        const d = have - want; // non-negative
+        const have = Number(p[key]) || 0;
+        const d = have - want;
         sum += d * d;
       }
       return Math.sqrt(sum);
     };
 
     const results = docs
-      .map((p) => ({ ...p, score: score(p) }))
+      .map((p) => ({ ...p, score: score(p), isBudget: p.source === "badolux" }))
       .sort(
         (a, b) =>
           a.score - b.score || (a.price ?? Infinity) - (b.price ?? Infinity),
       )
       .slice(0, 3);
 
-    res.json({ input: { w, l, h }, results });
+    res.json({ input: { w, l, h, budget }, results });
   } catch (e) {
     console.error("trays/suggest error:", e);
     res.status(500).json({ error: "Server error" });
