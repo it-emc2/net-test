@@ -2125,3 +2125,9 @@ label.image-check.is-checked .caption {
     justify-content: center;
   }
 }
+
+.opt-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}

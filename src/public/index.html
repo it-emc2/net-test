@@ -3392,7 +3392,7 @@ body:has(#page-home:not([hidden])) .app { grid-template-columns: 1fr; }
                     placeholder="0"
                   />
                 </div>
-              </div>
+    </div>
 
                 <div class="opt-item">
                 <label class="image-check"
@@ -7215,17 +7215,26 @@ grundsätzlich wird automatisch mitkalkuliert.<br>
       <span class="caption">Auflage für Edelstahlstütze: flexibel, lang</span>
     </label>
 
+    <div class="opt-list">
+
     <!-- 9 -->
-    <label class="image-check">
-      <input
-        type="checkbox"
-        id="hlHandlaufhalter"
-        name="hl_outdoor_components[]"
-        value="Handlaufhalter 7,5 cm bis Handlaufmitte"
-      />
-      <span class="img-wrap"><img src="./assets/Handlaufhalter 7,5 cm.png" alt="" /></span>
-      <span class="caption">Handlaufhalter
-      <span >
+  <div class="opt-item">
+
+  <label class="image-check">
+    <input
+      type="checkbox"
+      id="hlHandlaufhalter"
+      name="hl_outdoor_components[]"
+      value="Handlaufhalter 7,5 cm bis Handlaufmitte"
+    />
+
+    <span class="img-wrap">
+      <img src="./assets/Handlaufhalter 7,5 cm.png" alt="Handlaufhalter" />
+    </span>
+
+    <span class="caption">
+      Handlaufhalter
+      <span>
         <select
           id="hlHandlaufhalterSize"
           name="hlHandlaufhalterSize"
@@ -7237,37 +7246,208 @@ grundsätzlich wird automatisch mitkalkuliert.<br>
           <option value="12,5">12,5</option>
           <option value="15">15</option>
         </select>
-        cm bis Handlaufmitte</span>
+        cm bis Handlaufmitte
       </span>
+    </span>
+  </label>
+
+  <!-- ✅ QUANTITY FIELD (hidden by default) -->
+  <div
+    id="qty_hlHandlaufhalter_wrap"
+    class="field"
+    hidden
+    aria-hidden="true"
+    style="max-width: 220px"
+  >
+    <label for="qty_hlHandlaufhalter" class="req">
+      Menge Handlaufhalter
     </label>
+    <input
+      id="qty_hlHandlaufhalter"
+      name="qty_hlHandlaufhalter"
+      type="number"
+      min="0"
+      step="1"
+      placeholder="0"
+    />
+  </div>
+
+</div>
+
 
     <!-- 13 -->
-    <label class="image-check">
-      <input type="checkbox" name="hl_outdoor_components[]" value="Abschlusskappe flach, Außenbefestigung, 35 mm" />
-      <span class="img-wrap"><img src="./assets/Wandanschluss gerade.png" alt="" /></span>
-      <span class="caption">Abschlusskappe flach, Außenbefestigung, 35 mm</span>
+    <div class="opt-item">
+
+  <label class="image-check">
+    <input
+      type="checkbox"
+      id="hlCapFlatOuter35"
+      name="hl_outdoor_components[]"
+      value="Abschlusskappe flach, Außenbefestigung, 35 mm"
+    />
+
+    <span class="img-wrap">
+      <img src="./assets/Wandanschluss gerade.png" alt="" />
+    </span>
+
+    <span class="caption">
+      Abschlusskappe flach, Außenbefestigung, 35 mm
+    </span>
+  </label>
+
+  <div
+    id="qty_hlCapFlatOuter35_wrap"
+    class="field"
+    hidden
+    aria-hidden="true"
+        style="max-width: 220px"
+
+  >
+    <label for="qty_hlCapFlatOuter35" class="req">
+      Menge
     </label>
+    <input
+      id="qty_hlCapFlatOuter35"
+      name="qty_hlCapFlatOuter35"
+      type="number"
+      min="0"
+      step="1"
+      placeholder="0"
+    />
+  </div>
+
+</div>
 
     <!-- 14 -->
-    <label class="image-check">
-      <input type="checkbox" name="hl_outdoor_components[]" value="Abschlusskappe flach, Innenbefestigung, 35 mm" />
-      <span class="img-wrap"><img src="./assets/Wandanschluss gerade.png" alt="" /></span>
-      <span class="caption">Abschlusskappe flach, Innenbefestigung, 35 mm</span>
+   <div class="opt-item">
+
+  <label class="image-check">
+    <input
+      type="checkbox"
+      id="hlCapFlatInner35"
+      name="hl_outdoor_components[]"
+      value="Abschlusskappe flach, Innenbefestigung, 35 mm"
+    />
+
+    <span class="img-wrap">
+      <img src="./assets/Wandanschluss gerade.png" alt="" />
+    </span>
+
+    <span class="caption">
+      Abschlusskappe flach, Innenbefestigung, 35 mm
+    </span>
+  </label>
+
+  <div
+    id="qty_hlCapFlatInner35_wrap"
+    class="field"
+    hidden
+    aria-hidden="true"
+        style="max-width: 220px"
+
+  >
+    <label for="qty_hlCapFlatInner35" class="req">
+      Menge
     </label>
+    <input
+      id="qty_hlCapFlatInner35"
+      name="qty_hlCapFlatInner35"
+      type="number"
+      min="0"
+      step="1"
+      placeholder="0"
+    />
+  </div>
+
+</div>
 
     <!-- 15 -->
-    <label class="image-check">
-      <input type="checkbox" name="hl_outdoor_components[]" value="Wandanschluss gerade für Außenbefestigung 35 mm" />
-      <span class="img-wrap"><img src="./assets/Wandanschluss gerade.png" alt="" /></span>
-      <span class="caption">Wandanschluss gerade für Außenbefestigung 35 mm</span>
+    <div class="opt-item">
+
+  <label class="image-check">
+    <input
+      type="checkbox"
+      id="hlWallStraightOuter35"
+      name="hl_outdoor_components[]"
+      value="Wandanschluss gerade für Außenbefestigung 35 mm"
+    />
+
+    <span class="img-wrap">
+      <img src="./assets/Wandanschluss gerade.png" alt="" />
+    </span>
+
+    <span class="caption">
+      Wandanschluss gerade für Außenbefestigung 35 mm
+    </span>
+  </label>
+
+  <div
+    id="qty_hlWallStraightOuter35_wrap"
+    class="field"
+    hidden
+    aria-hidden="true"
+        style="max-width: 220px"
+
+  >
+    <label for="qty_hlWallStraightOuter35" class="req">
+      Menge
     </label>
+    <input
+      id="qty_hlWallStraightOuter35"
+      name="qty_hlWallStraightOuter35"
+      type="number"
+      min="0"
+      step="1"
+      placeholder="0"
+    />
+  </div>
+
+</div>
 
     <!-- 16 -->
-    <label class="image-check">
-      <input type="checkbox" name="hl_outdoor_components[]" value="Wandanschluss schräg für 35 mm Rohr mit Kugelverbindung" />
-      <span class="img-wrap"><img src="./assets/Wandanschluss schräg.png" alt="" /></span>
-      <span class="caption">Wandanschluss schräg für 35 mm Rohr mit Kugelverbindung</span>
+   <div class="opt-item">
+
+  <label class="image-check">
+    <input
+      type="checkbox"
+      id="hlWallAngledBall35"
+      name="hl_outdoor_components[]"
+      value="Wandanschluss schräg für 35 mm Rohr mit Kugelverbindung"
+    />
+
+    <span class="img-wrap">
+      <img src="./assets/Wandanschluss schräg.png" alt="" />
+    </span>
+
+    <span class="caption">
+      Wandanschluss schräg für 35 mm Rohr mit Kugelverbindung
+    </span>
+  </label>
+
+  <div
+    id="qty_hlWallAngledBall35_wrap"
+    class="field"
+    hidden
+    aria-hidden="true"
+        style="max-width: 220px"
+
+  >
+    <label for="qty_hlWallAngledBall35" class="req">
+      Menge
     </label>
+    <input
+      id="qty_hlWallAngledBall35"
+      name="qty_hlWallAngledBall35"
+      type="number"
+      min="0"
+      step="1"
+      placeholder="0"
+    />
+  </div>
+
+</div>
+</div>
+
   </div>
 </div>
 

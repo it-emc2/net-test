@@ -9567,6 +9567,8 @@ wireTileQty("opt_26014200", "qty_26014200_wrap");
 wireTileQty("opt_091095504", "qty_091095504_wrap");
 wireTileQty("opt_10440000", "qty_10440000_wrap");
 
+
+
   // ---- LIVE: when any kid is checked, auto-check its parent category ----
   const parentToKids = {
     cat_SHOWER: [
@@ -9687,6 +9689,15 @@ wireTileQty("HlAidsHaltegriff40", "HlAidsHaltegriff40QtyWrap");
 wireTileQty("HlAidsHaltegriff60", "HlAidsHaltegriff60QtyWrap");
 wireTileQty("HlAidsHaltegriff80", "HlAidsHaltegriff80QtyWrap");
 
+// ---- HL · Handlaufhalter (image-check + qty) ----
+wireTileQty(
+  "hlHandlaufhalter",
+  "qty_hlHandlaufhalter_wrap"
+);
+wireTileQty("hlCapFlatOuter35", "qty_hlCapFlatOuter35_wrap");
+wireTileQty("hlCapFlatInner35", "qty_hlCapFlatInner35_wrap");
+wireTileQty("hlWallStraightOuter35", "qty_hlWallStraightOuter35_wrap");
+wireTileQty("hlWallAngledBall35", "qty_hlWallAngledBall35_wrap");
 
   // Keep your existing rule engine for CL60 & accessories (1 / 1 / 2 and persistence)
   if (typeof initBasinAutoAccessories === "function") {
