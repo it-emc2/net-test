@@ -3,7 +3,7 @@
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'angebotskonfiguratoremc2'
+app = 'angebotskonfigurator-emc2-v2'
 primary_region = 'fra'
 
 [build]
