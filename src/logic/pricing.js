@@ -1,3 +1,6 @@
+/* eslint-disable no-useless-escape */
+/* eslint-disable no-empty */
+/* eslint-disable no-unused-vars */
 // src/logic/pricing.js
 export default (ProductModel) => {
   // Minimal helper: adjust only the visible label to billable qty (selected - 1)
@@ -619,12 +622,62 @@ for (const door of doors) {
       // bwt[bwtinfoTasks][] can later be mapped to extra materials or work notes if needed.
     }
 
-    // ------- HL · Handlauf materials (placeholder) -------
-    if (offer === "hl") {
+// ------- HL · Handlauf materials -------
+if (offer === "hl") {
+  // --------------------------------------------------
+  // A) PIPES (canonical only)
+  // --------------------------------------------------
+  const pipeRows = Array.isArray(hl?.pipes) ? hl.pipes : [];
 
+  for (let i = 0; i < pipeRows.length; i++) {
+    const p = pipeRows[i];
+    if (!p) continue;
 
-   // TODO
-   
+    // MUST be DB productId (FF_*)
+    const pid = String(p.productId || "").trim();
+    if (!pid) continue;
+
+    const qty = Number(p.qty ?? 1) || 1;
+
+    const diameter = String(p.diameter || "").trim() || "⌀35mm";
+    const pipeType = String(p.type || "").trim();
+
+    // lengthCm is already canonical (number in cm) from collectHL()
+    const lengthCm = Number(p.lengthCm ?? 0) || 0;
+
+    const quality = String(p.quality || "").trim();
+    const color = String(p.color || "").trim();
+
+    const title = `Edelstahl-Rohr ${diameter}${pipeType ? ` (${pipeType})` : ""}`;
+
+    const info = [];
+    if (pipeType) info.push(`Rohr-Typ: ${pipeType}`);
+    if (lengthCm > 0) info.push(`Länge: ${lengthCm} cm`);
+    if (quality) info.push(`Qualität: ${quality}`);
+    if (color) info.push(`Farbe: ${color}`);
+
+    const label =
+      `- ${qty} Stk ${title}` +
+      (info.length ? `\n${info.map((t) => "   • " + t).join("\n")}` : "");
+
+    add(pid, qty, label, null, "hl_pipe", { color, lengthCm, quality });
+  }
+
+  // --------------------------------------------------
+  // B) EXTRAS (canonical only: hl.extras map of FF_* -> qty)
+  // --------------------------------------------------
+  if (hl?.extras && typeof hl.extras === "object" && !Array.isArray(hl.extras)) {
+    for (const [pidRaw, qtyRaw] of Object.entries(hl.extras)) {
+      const pid = String(pidRaw || "").trim();
+      const q = Number(qtyRaw ?? 0) || 0;
+
+      // Only accept real DB ids (prevents hlBefFlexoGelenk etc)
+      if (!pid.startsWith("FF_")) continue;
+      if (q <= 0) continue;
+
+      add(pid, q, null, null, "hl_extra");
+    }
+  }
 }
 
     // ------- OPTIONALS as material lines (tagged so UI can filter them out of Material/Debug)

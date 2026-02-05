@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import Product from '../src/models/Product.js';

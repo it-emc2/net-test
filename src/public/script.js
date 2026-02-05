@@ -2405,6 +2405,89 @@ function collectBwtExtras(payload) {
   }
 }
 
+function collectHlExtras(payload) {
+  const formHl = document.getElementById("form-hl");
+  if (!formHl) return;
+
+  // Helper: find the nearest .image-check label (your cards are labels)
+  const findImageCheckLabel = (input) => input?.closest?.("label.image-check");
+
+  // Helper: get image src + caption text from a card label
+  const extractCardMeta = (labelEl) => {
+    const imgEl = labelEl?.querySelector?.("img");
+    const captionEl = labelEl?.querySelector?.(".caption");
+
+    const imageUrl = (imgEl?.getAttribute("src") || "").trim();
+
+    // caption can contain nested <select> etc. so textContent is OK (then trim)
+    const captionText = (captionEl?.textContent || "").replace(/\s+/g, " ").trim();
+
+    return { imageUrl, captionText };
+  };
+
+  const rows = [];
+
+  // Collect ALL checked checkboxes inside HL form
+  const checked = formHl.querySelectorAll('input[type="checkbox"]:checked');
+
+  checked.forEach((cb) => {
+    const id = (cb.id || "").trim();
+    const name = (cb.name || "").trim();
+    const value = (cb.value || "").trim();
+
+    // Find the card label for image + caption
+    const cardLabel = findImageCheckLabel(cb);
+    const { imageUrl, captionText } = extractCardMeta(cardLabel);
+
+    // Qty rule:
+    // - if there is a qty input with id="qty_<checkboxId>" => use that
+    // - else qty = 1
+    let qty = 1;
+    if (id) {
+      const qtyEl = formHl.querySelector(`#qty_${CSS.escape(id)}`);
+      if (qtyEl) qty = Number(qtyEl.value || 0) || 0;
+    }
+
+    // Build label preference:
+    // 1) checkbox value (your meaningful text)
+    // 2) caption text
+    // 3) fallback to id
+    const label = (value || captionText || id).trim();
+
+    // productId preference:
+    // 1) data-product-id on checkbox (you already use this pattern)
+    // 2) checkbox id
+    const productId = (cb.dataset?.productId || id || "").trim();
+
+    // Ignore “empty” (shouldn’t happen, but safe)
+    if (!label && !productId) return;
+
+    // If qty input exists but user left it 0, you can decide:
+    // - either ignore the row
+    // - or keep it as 0
+    // I recommend: ignore if qty <= 0
+    if (qty <= 0) return;
+
+    rows.push({
+      kind: "hl-item",
+      group: name,        // optional: helps you group in pricing/mapping
+      label,
+      productId,
+      qty,
+      imageUrl,
+    });
+  });
+
+  const hl = payload.hl || (payload.hl = {});
+
+  if (rows.length) {
+    hl.quickAdd = rows;
+  } else {
+    delete hl.quickAdd;
+  }
+}
+
+
 function buildPayload() {
   const payload = {
     Kundendaten: formToObject(document.getElementById("form-Kundendaten")),
@@ -2949,10 +3032,18 @@ doorInputs.forEach((el) => {
     console.warn("[buildPayload] BWT arrays capture failed:", e);
   }
   // end bwt payload block
-// ---- HL: ensure multi-select arrays are captured ----
-
-
-  // end HL payload block
+// ---- HL: enrich payload.hl with structured pipes + extras ----
+try {
+  payload.hl = payload.hl || {};
+  const hlX = collectHL();
+  // merge, but keep already-built steelLines if you want both
+  payload.hl.pipes = hlX.pipes || [];
+  payload.hl.extras = hlX.extras || {};
+  payload.hl.area = hlX.area || [];
+  payload.hl.mountType = hlX.mountType || [];
+} catch (e) {
+  console.warn("[buildPayload] HL collectHL failed:", e);
+}
 
 
   // Remember which offer was active when building this payload
@@ -2961,6 +3052,8 @@ doorInputs.forEach((el) => {
   // Remove/empty sections that are not part of the active offer's pages
   return filterPayloadByOffer(payload);
 }
+
+
 
 window.buildPayload = buildPayload;
 
@@ -2994,6 +3087,215 @@ function updateSummary() {
 
   el.textContent = "Vorschau: " + JSON.stringify(preview);
 }
+
+
+function parseLengthToCm(raw) {
+  const s = String(raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "");
+  if (!s) return 0;
+
+  // "1,20m" or "1.20m"
+  let m = s.match(/^(\d+(?:[.,]\d+)?)m$/);
+  if (m) return Math.round(parseFloat(m[1].replace(",", ".")) * 100);
+
+  // "120cm"
+  m = s.match(/^(\d+(?:[.,]\d+)?)cm$/);
+  if (m) return Math.round(parseFloat(m[1].replace(",", ".")));
+
+  // plain number -> assume cm
+  m = s.match(/^(\d+(?:[.,]\d+)?)$/);
+  if (m) return Math.round(parseFloat(m[1].replace(",", ".")));
+
+  return 0;
+}
+
+
+function collectHL() {
+  const form = document.getElementById("form-hl");
+  if (!form) return {};
+
+  // -------------------------
+  // Helpers
+  // -------------------------
+  const STEEL_COLOR_TO_PID = {
+    "Buche hell": "FF_01",
+    "Kirsche mittel": "FF_02",
+    "Nussbaum": "FF_03",
+    "Wurzelholz": "FF_04",
+    "Eiche hell": "FF_05",
+    "Eiche mittel": "FF_06",
+    "Eiche dunkel": "FF_07",
+    "Messing Längsstruktur": "FF_08",
+    "Schwarz mit Silberstreifen": "FF_09",
+    "Silber matt": "FF_10",
+    "Weiß": "FF_12",
+    "Rot": "FF_13",
+    "Golden Rust": "FF_14",
+    "Eiche gekalkt": "FF_15",
+    "Anthrazitgrau mit Silberstreif": "FF_18",
+    "Birnbaum dunkel mit Struktur": "FF_22",
+    "Esche weiß": "FF_90",
+    "Eiche Creme": "FF_91",
+    "Eiche hellbraun": "FF_92",
+    "Grau Holzstruktur": "FF_93",
+    "Eiche Sand": "FF_94",
+  };
+
+  function parseLengthToCm(raw) {
+    const s = String(raw || "").trim().toLowerCase();
+    if (!s) return 0;
+
+    // normalize decimal comma
+    const n = parseFloat(s.replace(",", "."));
+
+    // If user writes "120" (no unit), treat as cm
+    if (!/[a-z]/i.test(s) && Number.isFinite(n)) return Math.round(n);
+
+    if (s.includes("mm") && Number.isFinite(n)) return Math.round(n / 10);
+    if (s.includes("cm") && Number.isFinite(n)) return Math.round(n);
+    if (s.includes("m") && Number.isFinite(n)) return Math.round(n * 100);
+
+    // fallback: attempt to parse a number and assume cm
+    return Number.isFinite(n) ? Math.round(n) : 0;
+  }
+
+  function getCheckedValues(name) {
+    return Array.from(form.querySelectorAll(`input[name="${name}"]:checked`)).map(
+      (x) => x.value,
+    );
+  }
+
+  // -------------------------
+  // Info flags (no qty)
+  // -------------------------
+  const area = getCheckedValues("hl_area"); // ["inside","outside"]
+  const mountType = getCheckedValues("hlMountType"); // ["boden-befestigung","wand-befestigung"]
+
+  // -------------------------
+  // Pipe selection (hlPipeSteel = Stahlrohr with decor colors)
+  // -------------------------
+  const pipeRows = [];
+
+  const pipeSteelSelected = !!form.querySelector("#hlPipeSteel")?.checked;
+
+  const steelColor = (
+    form.querySelector('input[name="hl_steel_color"]:checked')?.value || ""
+  ).trim();
+
+  const steelPid = STEEL_COLOR_TO_PID[steelColor] || ""; // MUST match DB
+
+  if (pipeSteelSelected) {
+    const rows = form.querySelectorAll("#hl-steel-length-quality .hl-steel-row");
+
+    rows.forEach((row) => {
+      const lengthText = (row.querySelector(".hl-steel-length")?.value || "").trim();
+      const quality = (row.querySelector(".hl-steel-quality")?.value || "").trim();
+      if (!lengthText && !quality) return;
+
+      const lengthCm = parseLengthToCm(lengthText);
+
+      pipeRows.push({
+        productId: steelPid || "FF_01", // fallback so it never breaks (better: require a color)
+        type: "Stahlrohr",
+        diameter: "⌀35mm",
+        lengthText,
+        lengthCm, // ✅ DB field name / what pricing.js can read
+        quality,
+        color: steelColor, // keep for label
+        qty: 1, // each row is one pipe “line”
+      });
+    });
+  }
+
+  // -------------------------
+  // Extras (DB productIds)
+  // -------------------------
+  const extras = {};
+
+  const addExtra = (checkboxId, qtyInputId, resolvePid) => {
+    const cb = document.getElementById(checkboxId);
+    const qtyEl = document.getElementById(qtyInputId);
+    if (!cb || !cb.checked) return;
+
+    const q = Number(qtyEl?.value || 0) || 0;
+    if (q <= 0) return;
+
+    const pid = typeof resolvePid === "function" ? resolvePid() : resolvePid;
+    if (!pid) return;
+
+    extras[pid] = (extras[pid] || 0) + q;
+  };
+
+  // Edelstahlstütze betonieren (size 120/150)
+  addExtra(
+    "hlEdelstahlstuetzeBetonieren",
+    "qty_hlEdelstahlstuetzeBetonieren",
+    () => {
+      const size = String(
+        document.getElementById("hlEdelstahlstuetzeBetonierenSize")?.value || "120",
+      );
+      return size === "150" ? "FF_E02" : "FF_E01";
+    },
+  );
+
+  // Bodenstütze
+  addExtra("hlEdelstahlstuetzeBoden", "qty_hlEdelstahlstuetzeBoden", "FF_E05");
+
+  // Seitl. Stütze (20/40)
+  addExtra("hlEdelstahlstuetzeSeitl", "qty_hlEdelstahlstuetzeSeitl", () => {
+    const size = String(document.getElementById("hlEdelstahlstuetzeSeitlSize")?.value || "20");
+    return size === "40" ? "FF_E12" : "FF_E11";
+  });
+
+  // Abdeckrosette
+  addExtra("hlAbdeckrosetteHalbrund", "qty_hlAbdeckrosetteHalbrund", "FF_E08");
+
+  // Auflagen
+  addExtra("hlAuflageWaagrechtFestLang", "qty_hlAuflageWaagrechtFestLang", "FF_E22c");
+  addExtra("hlAuflageFlexibelLang", "qty_hlAuflageFlexibelLang", "FF_E22d");
+
+  // Handlaufhalter outdoor (7.5/10/12.5/15)
+  addExtra("hlHandlaufhalter", "qty_hlHandlaufhalter", () => {
+    const v = String(
+      document.getElementById("hlHandlaufhalterSize")?.value || "7,5",
+    ).replace(",", ".");
+    if (v === "10") return "FF_E28";
+    if (v === "12.5") return "FF_E29";
+    if (v === "15") return "FF_E30";
+    return "FF_E27"; // 7.5
+  });
+
+  // Caps + wall connectors
+  addExtra("hlCapFlatOuter35", "qty_hlCapFlatOuter35", "FF_KFS12");
+  addExtra("hlCapFlatInner35", "qty_hlCapFlatInner35", "FF_KFS13");
+  addExtra("hlWallStraightOuter35", "qty_hlWallStraightOuter35", "FF_A06");
+  addExtra("hlWallAngledBall35", "qty_hlWallAngledBall35", "FF_S0001");
+
+  // -------------------------
+  // Indoor “Befestigung” section
+  // ✅ HARD DEFAULT: Chrom matt
+  // TODO: Implement Oberfläche -> variant mapping later (Schwarz/Weiß/Messing/etc.)
+  // -------------------------
+  addExtra("hlBefFlexoGelenk", "qty_hlBefFlexoGelenk", "FF_F04"); // Flexo-Gelenk (Innen) Chrom matt
+  addExtra("hlBef90Bogen", "qty_hlBef90Bogen", "FF_B04"); // 90-Grad-Bogen (Innen) Chrom matt
+  addExtra("hlBefSonderabschluss", "qty_hlBefSonderabschluss", "FF_S04"); // Sonderabschluss (Innen) Chrom matt
+  addExtra("hlBefWandabschlussbogen", "qty_hlBefWandabschlussbogen", "FF_W04"); // Wandabschlussbogen (Innen) Chrom matt
+  addExtra("hlBefHandlaufhalter", "qty_hlBefHandlaufhalter", "FF_H04"); // Handlaufhalter (Innen) Chrom matt
+
+  return {
+    pipes: pipeRows,
+    extras,
+    area,
+    mountType,
+  };
+}
+
+
+// =================================================================
+
+
 
 const statusEl = document.getElementById("status");
 function show(obj, ok = true) {
@@ -3163,34 +3465,46 @@ async function downloadPDFWithProgress(endpoint, payload) {
 </body>
 </html>`;
 
-  function ensureViewerLoaded() {
-    // reload every time if you want a clean viewer each click:
-    // iframe.srcdoc = PDF_VIEWER_SRCDOC;
+function ensureViewerLoaded() {
+  const token = crypto.randomUUID();
+  iframe.dataset.viewerToken = token;
 
-    // or keep it once:
-    if (!iframe.srcdoc) iframe.srcdoc = PDF_VIEWER_SRCDOC;
-  }
+  const srcWithToken = `/pdfjs/viewer.mjs?token=${encodeURIComponent(token)}`;
 
-  function waitForViewerReady(timeoutMs = 5000) {
-    return new Promise((resolve, reject) => {
-      let done = false;
+  // Replace the module script tag's src attribute
+  iframe.srcdoc = PDF_VIEWER_SRCDOC.replace(
+    /<script type="module" src="\/pdfjs\/viewer\.mjs"><\\\/script>/,
+    `<script type="module" src="${srcWithToken}"><\\/script>`
+  );
+}
 
-      const t = setTimeout(() => {
-        if (!done) reject(new Error("PDF viewer not ready (timeout)."));
-      }, timeoutMs);
+ function waitForViewerReady(timeoutMs = 5000) {
+  const expected = iframe.dataset.viewerToken;
 
-      function onMsg(ev) {
-        if (ev?.source !== iframe.contentWindow) return; // ensure it’s from the iframe
-        if (ev?.data?.type === "VIEWER_READY") {
-          done = true;
-          clearTimeout(t);
-          window.removeEventListener("message", onMsg);
-          resolve();
-        }
+  return new Promise((resolve, reject) => {
+    let done = false;
+
+    const t = setTimeout(() => {
+      if (!done) {
+        window.removeEventListener("message", onMsg);
+        reject(new Error("PDF viewer not ready (timeout)."));
       }
-      window.addEventListener("message", onMsg);
-    });
-  }
+    }, timeoutMs);
+
+    function onMsg(ev) {
+      const d = ev?.data || {};
+      if (d.type !== "VIEWER_READY") return;
+      if (d.token !== expected) return; // ensure it’s the current iframe instance
+
+      done = true;
+      clearTimeout(t);
+      window.removeEventListener("message", onMsg);
+      resolve();
+    }
+
+    window.addEventListener("message", onMsg);
+  });
+}
 
   async function fetchPdfBlobForPreview() {
     if (typeof window.buildPayload !== "function") {
@@ -3212,35 +3526,35 @@ async function downloadPDFWithProgress(endpoint, payload) {
     return await res.blob();
   }
 
-  btn.addEventListener("click", async () => {
-    try {
-      btn.disabled = true;
-      btn.textContent = "Generating preview…";
-      container.style.display = "block";
+ btn.addEventListener("click", async () => {
+  try {
+    btn.disabled = true;
+    btn.textContent = "Generating preview…";
+    container.style.display = "block";
 
-      ensureViewerLoaded();
+    // Start waiting first (listener attached),
+    // then load viewer (which triggers VIEWER_READY)
+    const readyPromise = waitForViewerReady(5000);
+    ensureViewerLoaded();
+    await readyPromise;
 
-      // Wait until the iframe exists and has loaded the module
-      await waitForViewerReady(5000);
+    const pdfBlob = await fetchPdfBlobForPreview();
+    const buf = await pdfBlob.arrayBuffer();
 
-      const pdfBlob = await fetchPdfBlobForPreview();
-      const buf = await pdfBlob.arrayBuffer();
-
-      // Transfer the ArrayBuffer (zero-copy)
-      iframe.contentWindow.postMessage(
-        { type: "LOAD_PDF_ARRAYBUFFER", buffer: buf },
-        window.location.origin,
-        [buf]
-      );
-    } catch (e) {
-      console.error("[pdf-preview] failed:", e);
-      alert("PDF preview failed:\n" + (e?.message || String(e)));
-      container.style.display = "none";
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "PDF Preview";
-    }
-  });
+    iframe.contentWindow.postMessage(
+  { type: "LOAD_PDF_ARRAYBUFFER", buffer: buf, token: iframe.dataset.viewerToken },
+  "*",
+  [buf]
+);
+  } catch (e) {
+    console.error("[pdf-preview] failed:", e);
+    alert("PDF preview failed:\n" + (e?.message || String(e)));
+    container.style.display = "none";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "PDF Preview";
+  }
+});
 })();
 // #endregion
 
@@ -11707,3 +12021,59 @@ function askBeforeGoingHome(onConfirm) {
 })();
 
 // #endregion
+
+
+// ✅ HL checkboxes that must NEVER show a Menge field
+const HL_NO_QTY = new Set([
+  "hlAreaInside",
+  "hlAreaOutside",
+  "hlMountTypeBoden",
+  "hlMountTypeWand",
+  "hlPipeSteel",
+]);
+
+document.addEventListener("change", (e) => {
+  const cb = e.target;
+  if (!(cb instanceof HTMLInputElement)) return;
+  if (cb.type !== "checkbox") return;
+  if (!cb.id) return;
+
+  // ✅ IMPORTANT: don't toggle qty for these HL checkboxes
+  if (HL_NO_QTY.has(cb.id)) {
+    const wrap = document.getElementById(`qty_${cb.id}_wrap`);
+    if (wrap) {
+      wrap.hidden = true;
+      wrap.setAttribute("aria-hidden", "true");
+      wrap.querySelectorAll("input,select,textarea").forEach((el) => {
+        el.disabled = true;
+        el.value = "";
+      });
+    }
+    return;
+  }
+
+  const wrap = document.getElementById(`qty_${cb.id}_wrap`);
+  if (!wrap) return;
+
+  wrap.hidden = !cb.checked;
+  wrap.setAttribute("aria-hidden", String(!cb.checked));
+
+  if (!wrap.hidden) {
+    const qtyInput = document.getElementById(`qty_${cb.id}`);
+    if (qtyInput && !qtyInput.value) qtyInput.value = "1";
+  }
+});
+
+// Optional: still enforce on load (in case HTML renders it visible)
+document.addEventListener("DOMContentLoaded", () => {
+  HL_NO_QTY.forEach((id) => {
+    const wrap = document.getElementById(`qty_${id}_wrap`);
+    if (!wrap) return;
+    wrap.hidden = true;
+    wrap.setAttribute("aria-hidden", "true");
+    wrap.querySelectorAll("input,select,textarea").forEach((el) => {
+      el.disabled = true;
+      el.value = "";
+    });
+  });
+});

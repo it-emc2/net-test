@@ -2,6 +2,8 @@ import * as pdfjsLib from "/pdfjs/pdf.min.mjs";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
 
+const token = new URL(import.meta.url).searchParams.get("token");
+
 const errorDiv = document.getElementById("error");
 const loading = document.getElementById("loading");
 const viewportDiv = document.getElementById("viewport");
@@ -21,9 +23,6 @@ let currentPage = 1;
 let totalPages = 0;
 let scale = 1.5;
 let rendering = false;
-
-console.log("[viewer] viewer.mjs executed", { href: location.href, origin: location.origin });
-window.parent?.postMessage({ type: "VIEWER_PING_1" }, window.location.origin);
 
 function showError(message) {
   if (!errorDiv) return;
@@ -141,14 +140,15 @@ async function loadPdfFromArrayBuffer(buf) {
 }
 
 window.addEventListener("message", async (event) => {
-  // strict same-origin (adjust only if you intentionally embed cross-origin)
-  if (event.origin !== window.location.origin) return;
-
   const data = event.data || {};
+
+  // Only accept messages meant for THIS viewer instance
+  if (data.token !== token) return;
+
   if (data.type === "LOAD_PDF_ARRAYBUFFER" && data.buffer) {
     await loadPdfFromArrayBuffer(data.buffer);
   }
 });
 
-// Signal parent when ready
-window.parent?.postMessage({ type: "VIEWER_READY" }, window.location.origin);
+// Signal parent when ready (CSP-safe, works with srcdoc)
+window.parent?.postMessage({ type: "VIEWER_READY", token }, "*");

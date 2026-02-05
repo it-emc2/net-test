@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 // seedNewProducts.js
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';

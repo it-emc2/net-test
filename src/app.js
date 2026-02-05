@@ -522,9 +522,6 @@ app.get("/health", (req, res) =>
   res.json({ ok: true, time: new Date().toISOString() }),
 );
 
-// ---------------- Static ----------------
-app.use(express.static(path.join(__dirname, "public")));
-
 // ---------------- Static: PDF.js (MUST be before SPA fallback) ----------------
 app.use(
   "/pdfjs",
@@ -538,6 +535,11 @@ app.use(
     },
   }),
 );
+
+// ---------------- Static ----------------
+app.use(express.static(path.join(__dirname, "public")));
+
+
 
 
 // ---------------- SPA fallback (keep LAST) ----------------

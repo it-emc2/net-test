@@ -8,6 +8,7 @@
     "dev": "nodemon --watch src --ext js,mjs,json src/app.js",
     "start": "node src/app.js",
     "seed:products": "node scripts/seedProducts.js",
+    "seed:flexofit": "node scripts/seedFlexofit.js",
     "health": "node -e \"fetch('http://localhost:'+(process.env.PORT||3000)+'/api/health').then(r=>r.text()).then(console.log).catch(console.error)\"",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",

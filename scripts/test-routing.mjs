@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 // scripts/test-routing.mjs
 
 import readline from 'readline';
@@ -9,6 +10,7 @@ config();
 // ============================================================
 // CONFIG
 // ============================================================
+// eslint-disable-next-line no-undef
 const API_URL = process.env.API_URL || 'http://localhost:3000';
 const COMPANY_ADDRESS = process.env.COMPANY_ADDRESS || 'Kornhausacker 10, Hof';
 
