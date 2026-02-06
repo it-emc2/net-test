@@ -3150,8 +3150,8 @@ function collectHL() {
     // normalize decimal comma
     const n = parseFloat(s.replace(",", "."));
 
-    // If user writes "120" (no unit), treat as cm
-    if (!/[a-z]/i.test(s) && Number.isFinite(n)) return Math.round(n);
+   // If user writes "12" (no unit), treat as meters
+    if (!/[a-z]/i.test(s) && Number.isFinite(n)) return Math.round(n * 100);
 
     if (s.includes("mm") && Number.isFinite(n)) return Math.round(n / 10);
     if (s.includes("cm") && Number.isFinite(n)) return Math.round(n);

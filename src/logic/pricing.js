@@ -652,7 +652,12 @@ if (offer === "hl") {
 
     const info = [];
     if (pipeType) info.push(`Rohr-Typ: ${pipeType}`);
-    if (lengthCm > 0) info.push(`Länge: ${lengthCm} cm`);
+    if (lengthCm > 0) {
+  const meters = lengthCm / 100;
+  const metersLabel =
+    Number.isInteger(meters) ? String(meters) : String(meters).replace(".", ",");
+  info.push(`Länge: ${metersLabel} m`);
+}
     if (quality) info.push(`Qualität: ${quality}`);
     if (color) info.push(`Farbe: ${color}`);
 
