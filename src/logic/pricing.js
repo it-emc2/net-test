@@ -651,7 +651,7 @@ if (offer === "hl") {
     const title = `Edelstahl-Rohr ${diameter}${pipeType ? ` (${pipeType})` : ""}`;
 
     const info = [];
-    if (pipeType) info.push(`Rohr-Typ: ${pipeType}`);
+    //if (pipeType) info.push(`Rohr-Typ: ${pipeType}`);
     if (lengthCm > 0) {
   const meters = lengthCm / 100;
   const metersLabel =
@@ -809,6 +809,15 @@ console.log("[REHA DEBUG] selections =", selections);
       } else {
         unit = Number(prod.price) || 0;
       }
+
+      // ✅ HL pipe pricing: DB price is €/lfm, multiply by length (m)
+if (l.source === "hl_pipe") {
+  const cm = Number(l?.meta?.lengthCm ?? 0) || 0;
+  if (cm > 0 && Number(prod.price) > 0) {
+    const meters = cm / 100;
+    unit = round2(Number(prod.price) * meters);
+  }
+}
 
       // 👇 special rule for Fußboden-Paneele
       if (l.id === "V5FB02") {
