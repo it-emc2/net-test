@@ -649,7 +649,7 @@ if (offer === "hl") {
     const color = String(p.color || "").trim();
 
     //const title = `Edelstahl-Rohr ${diameter}${pipeType ? ` (${pipeType})` : ""}`;
-    const title = `Edelstahl-Rohr ${diameter}${quality ? ` (${quality})` : ""}`;
+    const title = `Edelstahl-Rohr ${diameter}${quality ? ` (${quality})` : ""}${color ? ` (${color})` : ""}`;
     const info = [];
     //if (pipeType) info.push(`Rohr-Typ: ${pipeType}`);
     if (lengthCm > 0) {
@@ -658,8 +658,8 @@ if (offer === "hl") {
     Number.isInteger(meters) ? String(meters) : String(meters).replace(".", ",");
   info.push(`Länge: ${metersLabel} m`);
 }
-    if (quality) info.push(`Qualität: ${quality}`);
-    if (color) info.push(`Farbe: ${color}`);
+    //if (quality) info.push(`Qualität: ${quality}`);
+    //if (color) info.push(`Farbe: ${color}`);
 
     const label =
       `- ${qty} Stk ${title}` +
@@ -684,6 +684,37 @@ if (offer === "hl") {
     }
   }
 }
+
+    // ------- HL: quickAdd (user-entered, no DB) → as material lines
+    try {
+      const qa = payload?.hl?.quickAdd || [];
+      if (Array.isArray(qa) && qa.length) {
+        for (const row of qa) {
+          if (!row) continue;
+
+          const qty = Number(row?.qty ?? 0) || 0;
+          if (qty <= 0) continue;
+
+          const unitPrice = parseMoneyStrict(row?.price);
+          if (!Number.isFinite(unitPrice) || unitPrice <= 0) continue;
+
+          const rawLabel = String(row?.label ?? row?.name ?? "").trim();
+          const rawPid = String(row?.productId ?? "").trim();
+
+          const pid = rawPid || "HL_CUSTOM";
+          const base =
+            rawPid && rawLabel ? `${rawLabel} [${rawPid}]` : rawLabel || pid;
+
+          const label = `- ${
+            Number.isInteger(qty) ? qty : String(qty)
+          } Stk ${base}`;
+
+          add(pid, qty, label, unitPrice, "hl_quickadd");
+        }
+      }
+    } catch (e) {
+      console.warn("[pricing] hl quick-add failed:", e?.message || e);
+    }
 
     // ------- OPTIONALS as material lines (tagged so UI can filter them out of Material/Debug)
     try {

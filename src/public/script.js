@@ -2478,6 +2478,29 @@ function collectHlExtras(payload) {
     });
   });
 
+  // --- HL: Logistik (Speditionskosten + Preis) as a "product" line in payload.hl.quickAdd ---
+try {
+  const labelRaw = String(
+    formHl.querySelector("#hlSpeditionskosten")?.value || "",
+  ).trim();
+
+  const priceRaw = String(formHl.querySelector("#hlPreis")?.value || "").trim();
+
+  // Add only if user entered something meaningful
+  if (labelRaw || priceRaw) {
+    const price = window.parseMoneyEuro(priceRaw); // tolerant parser (handles "120", "120,00", "120 €", ...)
+    rows.push({
+      kind: "hl-logistik",
+      group: "Logistik",
+      label: labelRaw || "Speditionskosten",
+      productId: "HL_LOGISTIK",
+      qty: 1,
+      price,
+    });
+  }
+} catch (e) {
+  console.warn("[collectHlExtras] logistik collection failed:", e);
+}
   const hl = payload.hl || (payload.hl = {});
 
   if (rows.length) {
@@ -2556,6 +2579,11 @@ if (!payload.Kundendaten.customerNumber) {
   }
   //  collect BWT freie Posten (quick add)
   collectBwtExtras(payload);
+
+    // collect HL freie Posten / Logistik (quick add)
+  if (String(currentOfferKey || "").toLowerCase() === "hl") {
+    collectHlExtras(payload);
+  }
 
   // --- OPTIONAL: ensure REHA checkboxes are represented as opt_* keys ---
 try {
@@ -7953,6 +7981,61 @@ const RESTORE_HANDLERS = {
     wd: (p, ctx) => typeof restoreWd === "function" && restoreAh(p?.wd),
 
 };
+
+function restoreHl(hl) {
+  if (!hl) return;
+
+  const form = document.getElementById("form-hl");
+  if (!form) return;
+
+  // Restore Logistik inputs (preferred)
+  const log = hl.logistik || null;
+
+  const spedEl = form.querySelector("#hlSpeditionskosten");
+  const preisEl = form.querySelector("#hlPreis");
+
+  if (log) {
+    if (spedEl) spedEl.value = String(log.speditionskosten ?? "");
+    if (preisEl) preisEl.value = String(log.preis ?? "");
+  } else {
+    // fallback: derive from quickAdd
+    const qa = Array.isArray(hl.quickAdd) ? hl.quickAdd : [];
+    const row = qa.find((x) => String(x?.productId || "") === "HL_LOGISTIK");
+    if (row) {
+      if (spedEl) spedEl.value = String(row?.label ?? "");
+      if (preisEl) {
+        const p = row?.price;
+        preisEl.value =
+          typeof p === "number" ? String(p).replace(".", ",") : String(p ?? "");
+      }
+    }
+  }
+
+  // Restore selected HL cards from quickAdd (kind: hl-item)
+  const qa = Array.isArray(hl.quickAdd) ? hl.quickAdd : [];
+  for (const row of qa) {
+    if (!row || row.kind !== "hl-item") continue;
+
+    const pid = String(row.productId || "").trim();
+    if (!pid) continue;
+
+    const cb = form.querySelector(
+      `input[type="checkbox"][data-product-id="${CSS.escape(pid)}"]`,
+    );
+    if (!cb) continue;
+
+    cb.checked = true;
+
+    const qty = Number(row.qty ?? 1) || 1;
+    const qtyEl = cb.id ? form.querySelector(`#qty_${CSS.escape(cb.id)}`) : null;
+    if (qtyEl) qtyEl.value = String(qty);
+
+    if (!window.__RESTORING__) {
+      cb.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+}
+
 
 async function restoreConfiguratorFromOffer(doc) {
   window.__restoring = true;
