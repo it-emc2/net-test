@@ -648,8 +648,8 @@ if (offer === "hl") {
     const quality = String(p.quality || "").trim();
     const color = String(p.color || "").trim();
 
-    const title = `Edelstahl-Rohr ${diameter}${pipeType ? ` (${pipeType})` : ""}`;
-
+    //const title = `Edelstahl-Rohr ${diameter}${pipeType ? ` (${pipeType})` : ""}`;
+    const title = `Edelstahl-Rohr ${diameter}${quality ? ` (${quality})` : ""}`;
     const info = [];
     //if (pipeType) info.push(`Rohr-Typ: ${pipeType}`);
     if (lengthCm > 0) {
