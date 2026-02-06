@@ -34,6 +34,7 @@ if (!isBrowser) {
 }
 
 // Mock fetch globally
+// eslint-disable-next-line no-unused-vars
 global.fetch = jest.fn((url, options = {}) => {
   return Promise.resolve({
     ok: true,
