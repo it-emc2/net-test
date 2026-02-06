@@ -35,10 +35,10 @@ function getAngebotTemplatePath(body) {
       console.log("under bwt ");
       file = "Angebot-BWT.docx"; // <-- your BWT template filename
       break;
-    // later:
-    // case 'hl':
-    //   file = 'Angebot-HL.docx';
-    //   break;
+    //later:
+    case 'hl':
+     file = 'Angebot-HL.docx';
+      break;
     case "bu":
       console.log("under bu ");
     // eslint-disable-next-line no-fallthrough
