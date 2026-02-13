@@ -1152,6 +1152,19 @@
 
         <div class="section-header">Kontaktdaten des Kunden</div>
         <form id="form-Kundendaten" novalidate>
+            <!-- Bitrix contact search by ID -->
+          <div class="form-row bitrix-actions-row">
+            <div class="form-field">
+              <label for="bitrixContactId">Bitrix Kontakt ID</label>
+              <div class="bitrix-search-wrapper">
+                <input type="text" id="bitrixContactId" name="bitrixContactId" placeholder="z.B. 12345"
+                  autocomplete="off" />
+                <button type="button" id="loadBitrixContactBtn" class="btn-secondary">
+                  Kontakt aus Bitrix laden
+                </button>
+              </div>
+            </div>
+          </div>
           <div class="full" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
             <div>
               <label class="req">Anrede</label>
@@ -1185,19 +1198,7 @@
             <label for="email">Email</label><input id="email" name="email" type="email"
               placeholder="name@example.com" />
           </div>
-          <!-- Bitrix contact search by ID -->
-          <div class="form-row bitrix-actions-row">
-            <div class="form-field">
-              <label for="bitrixContactId">Bitrix Kontakt ID</label>
-              <div class="bitrix-search-wrapper">
-                <input type="text" id="bitrixContactId" name="bitrixContactId" placeholder="z.B. 12345"
-                  autocomplete="off" />
-                <button type="button" id="loadBitrixContactBtn" class="btn-secondary">
-                  Kontakt aus Bitrix laden
-                </button>
-              </div>
-            </div>
-          </div>
+        
           <div class="full">
             <label class="req">Adressdaten des Kunden</label>
           </div>
@@ -3918,6 +3919,45 @@
                   Übersicht herunterladen
                 </button>
               </div>
+
+              <!-- Arbeitsbericht Card -->
+<div class="export-card">
+  <div class="card-icon">🧾</div>
+  <h3>Arbeitsbericht</h3>
+  <p>Interner Lieferschein / Arbeitsbericht als PDF</p>
+  <button type="button" id="downloadArbeitsbericht" class="btn-export btn-pdf">
+    <span class="btn-icon">⬇️</span>
+    Arbeitsbericht herunterladen
+  </button>
+</div>
+              <!-- Kalkulations Card -->
+               <div class="export-card">
+                <div class="card-icon">🧾</div>
+                  <h3>Kalkulation</h3>
+  <p>Kalkulation als PDF</p>
+<button type="button" id="downloadKalkulationDocx" class="btn-export btn-docx">
+  <span class="btn-icon">⬇️</span>
+  Kalkulation (DOCX)
+</button>
+</div>
+
+<!-- Kalkulation Card -->
+<div class="export-card">
+  <div class="card-icon">🧾</div>
+  <h3>Kalkulation</h3>
+  <p>Kalkulation als PDF</p>
+
+  <button type="button" id="downloadKalkulation" class="btn-export btn-pdf">
+    <span class="btn-icon">⬇️</span>
+    Kalkulation (PDF)
+  </button>
+
+  <!-- optional: preview HTML in new tab -->
+  <button type="button" id="previewKalkulation" class="btn-export btn-docx">
+    <span class="btn-icon">👁️</span>
+    Kalkulation (Preview)
+  </button>
+</div>
             </div>
           </section>
 

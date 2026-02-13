@@ -22,6 +22,9 @@ import pdfTemplateRouter from "./routes/pdf-template.js";
 import docxTemplateRouter from "./routes/docx-template.js";
 import { router as materialOverviewRouter } from "./routes/material-overview.js";
 import adobePdfRouter from "./routes/adobe-pdf.js";
+import arbeitsberichtRouter from "./routes/arbeitsbericht.js";
+import kalkulationRouter from "./routes/kalkulation.js";
+
 
 // Models (ESM default exports)
 import Product from "./models/Product.js";
@@ -214,6 +217,8 @@ app.use("/api/bitrix", bitrixRouter);
 app.use("/api/routing", routingRouter); // <--- NEW
 app.use("/api/docx", pdfPreviewRouter);
 app.use("/api/adobe-pdf", adobePdfRouter);
+app.use("/arbeitsbericht", arbeitsberichtRouter);
+app.use("/kalkulation", kalkulationRouter);
 //app.use("/pdf-preview", pdfPreviewRouter);
 //app.use('/api/docx/pdf-preview', pdfPreviewRouter); // ADD THIS
 // (you had this twice; once is enough)

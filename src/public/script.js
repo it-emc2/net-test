@@ -1432,6 +1432,9 @@ function stampOfferOnExport() {
     "makePdf",
     "downloadPdf",
     "downloadLatexPdf",
+    "downloadArbeitsbericht",
+    "downloadKalkulation",
+"downloadKalkulationDocx",
   ];
 
   const apply = () => {
@@ -8879,6 +8882,35 @@ document
     }
   });
 
+  // Arbeitsbericht PDF
+document
+  .getElementById("downloadArbeitsbericht")
+  ?.addEventListener("click", async () => {
+    if (!requireBereichValid()) {
+      location.hash = "Kundendaten";
+      return;
+    }
+    try {
+      const payload = buildPayload();
+
+      // ensure active offer for server-side checks
+      if (!payload.activeOffer) {
+        payload.activeOffer =
+          (typeof getCurrentOfferType === "function" && getCurrentOfferType()) ||
+          payload.offerType ||
+          payload.currentOfferKey ||
+          "bu";
+      }
+
+      await downloadPDFWithProgress("/arbeitsbericht/docx", payload);
+    } catch (e) {
+      showPDFProgress(
+        `Arbeitsbericht-Erstellung fehlgeschlagen: ${e.message}`,
+        "error",
+      );
+    }
+  });
+
 // Angebot als PDF aus LATEX-Vorlage
 document
   .getElementById("downloadLatexPdf")
@@ -8914,6 +8946,125 @@ document
       showPDFProgress(`PDF-Erstellung fehlgeschlagen: ${e.message}`, "error");
     }
   });
+
+  //Kalkulation als docx von Vorlage
+ document
+  .getElementById("downloadKalkulationDocx")
+  ?.addEventListener("click", async () => {
+    if (!requireBereichValid()) {
+      location.hash = "Kundendaten";
+      return;
+    }
+
+    try {
+      const payload = buildPayload();
+
+      // ensure active offer
+      if (!payload.activeOffer) {
+        payload.activeOffer =
+          (typeof getCurrentOfferType === "function" && getCurrentOfferType()) ||
+          payload.offerType ||
+          payload.currentOfferKey ||
+          "bu";
+      }
+
+      await downloadDocx("/kalkulation/docx", payload);
+    } catch (e) {
+      showPDFProgress(`Kalkulation-DOCX failed: ${e?.message || e}`, "error");
+      console.error(e);
+    }
+  });
+
+  //Kalkualtion PDF
+  document
+  .getElementById("downloadKalkulation")
+  ?.addEventListener("click", async () => {
+    if (!requireBereichValid()) {
+      location.hash = "Kundendaten";
+      return;
+    }
+    try {
+      const payload = buildPayload();
+
+      // ensure active offer for server-side checks
+      if (!payload.activeOffer) {
+        payload.activeOffer =
+          (typeof getCurrentOfferType === "function" && getCurrentOfferType()) ||
+          payload.offerType ||
+          payload.currentOfferKey ||
+          "bu";
+      }
+
+      await downloadPDFWithProgress("/kalkulation/pdf", payload);
+    } catch (e) {
+      showPDFProgress(
+        `Kalkulation-Erstellung fehlgeschlagen: ${e.message}`,
+        "error",
+      );
+    }
+  });
+
+
+  // Kalkulation PDF
+document.getElementById("downloadKalkulation")?.addEventListener("click", async () => {
+  if (!requireBereichValid()) {
+    location.hash = "Kundendaten";
+    return;
+  }
+
+  try {
+    const payload = buildPayload();
+
+    // ensure active offer
+    if (!payload.activeOffer) {
+      payload.activeOffer =
+        (typeof getCurrentOfferType === "function" && getCurrentOfferType()) ||
+        payload.offerType ||
+        payload.currentOfferKey ||
+        "bu";
+    }
+
+    // IMPORTANT: use the same helper you already use elsewhere
+    await downloadPDFWithProgress("/kalkulation/pdf", payload);
+  } catch (e) {
+    console.error(e);
+    showPDFProgress(`Kalkulation-Erstellung fehlgeschlagen: ${e?.message || e}`, "error");
+  }
+});
+
+document.getElementById("previewKalkulation")?.addEventListener("click", async () => {
+  if (!requireBereichValid()) {
+    location.hash = "Kundendaten";
+    return;
+  }
+
+  try {
+    const payload = buildPayload();
+
+    if (!payload.activeOffer) {
+      payload.activeOffer =
+        (typeof getCurrentOfferType === "function" && getCurrentOfferType()) ||
+        payload.offerType ||
+        payload.currentOfferKey ||
+        "bu";
+    }
+
+    const r = await fetch("/kalkulation/preview?debug=1", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const html = await r.text();
+    const w = window.open("", "_blank");
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  } catch (e) {
+    console.error(e);
+    alert("Preview konnte nicht erstellt werden.");
+  }
+});
 
 /* ========== RABATT SECTION (UI bound to server data) ========== */
 const elDiscount = document.getElementById("rb-material-discount");
@@ -9632,6 +9783,76 @@ function refreshHassmannFrame() {
   }, 0);
 }
 
+function isIOSSafari() {
+  const ua = navigator.userAgent || "";
+  const isIOS =
+    /iP(ad|hone|od)/.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); // iPadOS 13+
+  const isSafari = /^((?!chrome|crios|fxios|android).)*safari/i.test(ua);
+  return isIOS && isSafari;
+}
+
+function setupHassmannEmbedFallback() {
+  const container = document.getElementById("hassmann-embed");
+  const iframe = document.getElementById("hassmannFrame");
+  const refreshBtn = document.getElementById("refreshHassmann");
+  if (!container || !iframe) return;
+
+  if (!isIOSSafari()) return;
+
+  // Stop loading the 3rd-party site in an iframe (prevents login loop on iPad Safari)
+  try {
+    iframe.src = "about:blank";
+  } catch (_) {}
+  iframe.remove();
+
+  // Hide refresh (iframe is gone)
+  if (refreshBtn) refreshBtn.style.display = "none";
+
+  // Build fallback UI
+  const box = document.createElement("div");
+  box.className = "card";
+  box.style.padding = "12px";
+  box.style.border = "1px solid var(--border)";
+  box.style.borderRadius = "8px";
+  box.style.background = "#fff";
+
+  const p = document.createElement("p");
+  p.style.margin = "0 0 10px 0";
+  p.textContent =
+    "Hinweis: iPad Safari blockiert Login-Sitzungen in eingebetteten Fenstern (iframe). Bitte öffne GC-Online in einem neuen Tab.";
+
+  const actions = document.createElement("div");
+  actions.style.display = "flex";
+  actions.style.gap = "8px";
+  actions.style.flexWrap = "wrap";
+  actions.style.alignItems = "center";
+
+  const openBtn = document.createElement("button");
+  openBtn.type = "button";
+  openBtn.className = "btn small"; // uses your existing button styling
+  openBtn.textContent = "GC-Online in neuem Tab öffnen";
+  openBtn.addEventListener("click", () => {
+    window.open("https://gconlineplus.de", "_blank", "noopener,noreferrer");
+  });
+
+  const openConfigurator = document.createElement("a");
+  openConfigurator.className = "btn small secondary";
+  openConfigurator.href = "https://www.gconlineplus.de/#SearchConfigurator";
+  openConfigurator.target = "_blank";
+  openConfigurator.rel = "noopener noreferrer";
+  openConfigurator.textContent = "Zum Konfigurator";
+
+  actions.appendChild(openBtn);
+  actions.appendChild(openConfigurator);
+
+  box.appendChild(p);
+  box.appendChild(actions);
+
+  // Insert fallback where iframe was
+  container.appendChild(box);
+}
+
 // --- Routing suggestion: one-way km from address -> Vorschlag neben distanceKm ---
 function secondsToHHMM(totalSeconds) {
   if (!Number.isFinite(totalSeconds) || totalSeconds < 0) return "";
@@ -9782,6 +10003,8 @@ document.addEventListener("DOMContentLoaded", () => {
   document
     .getElementById("refreshHassmann")
     ?.addEventListener("click", refreshHassmannFrame);
+
+  setupHassmannEmbedFallback();
 });
 function initOptionalMenus() {
   // Map main category checkboxes -> their panels
@@ -11770,6 +11993,57 @@ document.addEventListener("DOMContentLoaded", () => {
     tece.checked = !!task.checked;
     tece.dispatchEvent(new Event("change", { bubbles: true }));
   });
+});
+
+// OPTIONAL: If "Replace a thermostat" is selected by the USER,
+// automatically set 2x "Seal pipe collar" (TECEADS).
+document.addEventListener("DOMContentLoaded", () => {
+  const thermoCat = document.getElementById("cat_THERMO");
+  const meterCat = document.getElementById("cat_METER");
+  const teceCb = document.getElementById("opt_TECEADS");
+  const teceQty = document.getElementById("qty_TECEADS");
+
+  if (!thermoCat || !teceCb || !teceQty) return;
+
+  let userTouchedThermo = false;
+
+  // mark only real user interaction
+  thermoCat.addEventListener("pointerdown", () => { userTouchedThermo = true; });
+  thermoCat.addEventListener("keydown", (e) => {
+    if (e.key === " " || e.key === "Enter") userTouchedThermo = true;
+  });
+
+  const ensureTece = () => {
+    // Don’t force anything while restoring/loading an offer
+    if (window.__restoring || window.__RESTORING__) return;
+
+    // Don’t auto-correct old offers: only run after user interaction
+    if (!userTouchedThermo) return;
+
+    if (!thermoCat.checked) return;
+
+    // ensure METER category is enabled/visible
+    if (meterCat && !meterCat.checked) {
+      meterCat.checked = true;
+      meterCat.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    // check TECEADS (wireTileQty then sets qty to at least 1)
+    if (!teceCb.checked) {
+      teceCb.checked = true;
+      teceCb.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    // set quantity to minimum 2 (but don’t overwrite higher user values)
+    const n = parseInt(String(teceQty.value || "0"), 10) || 0;
+    if (n < 2) {
+      teceQty.value = "2";
+      teceQty.dispatchEvent(new Event("input", { bubbles: true }));
+      teceQty.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  };
+
+  thermoCat.addEventListener("change", ensureTece);
 });
 
 // Handlaufhalter: sync selected size into checkbox value
