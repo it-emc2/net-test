@@ -12507,3 +12507,311 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
+
+
+(function initOfferMailV2() {
+  const btn = document.getElementById("sendOfferMail");
+  const toEl = document.getElementById("mailTo");
+  const subjectEl = document.getElementById("mailSubject");
+  const bodyEl = document.getElementById("mailBody");
+  const filesEl = document.getElementById("mailAttachments");
+  const listEl = document.getElementById("mailAttachmentList");
+  const statusEl = document.getElementById("mailStatus");
+
+  if (!btn || !toEl || !subjectEl || !bodyEl || !filesEl || !listEl || !statusEl) return;
+
+  // ---- preset attachments (always included unless removed) ----
+  const presetAttachments = [
+    { id: "abtretung", name: "Abtretungserklärung.pdf" },
+    { id: "barrierefrei", name: "emc2_Barrierefreies_Wohnen.pdf" },
+    { id: "vollmacht", name: "Vollmacht.pdf" },
+  ];
+
+  // ids user removed
+  const excludedPreset = new Set();
+
+  // user-selected files (we manage them ourselves so we can remove)
+  let userFiles = [];
+
+  // subject auto-fill based on offerNumber, but don't overwrite if user edited it
+  let subjectTouched = false;
+  subjectEl.addEventListener("input", () => (subjectTouched = true));
+
+  function getOfferNumber() {
+    return (
+      document.getElementById("offerNumber")?.value?.trim() ||
+      (typeof genOfferNumber === "function" ? genOfferNumber() : "") ||
+      ""
+    );
+  }
+
+  function updateSubjectDefault() {
+    if (subjectTouched) return;
+    const offerNumber = getOfferNumber();
+    if (offerNumber) subjectEl.value = offerNumber;
+  }
+
+  // keep subject synced when offerNumber changes (if user didn't touch)
+  const offerNumberEl = document.getElementById("offerNumber");
+  if (offerNumberEl) {
+    offerNumberEl.addEventListener("input", updateSubjectDefault);
+    offerNumberEl.addEventListener("change", updateSubjectDefault);
+  }
+  // initial fill
+  updateSubjectDefault();
+
+  function setStatus(msg, type = "info") {
+    statusEl.hidden = false;
+    statusEl.textContent = msg;
+    statusEl.dataset.type = type;
+  }
+
+  // Sync our userFiles array back into the <input type="file"> using DataTransfer
+  function syncFileInput() {
+    const dt = new DataTransfer();
+    for (const f of userFiles) dt.items.add(f);
+    filesEl.files = dt.files;
+  }
+
+  filesEl.addEventListener("change", () => {
+    // append newly picked files (do not lose existing)
+    const newly = Array.from(filesEl.files || []);
+    userFiles = userFiles.concat(newly);
+    // remove duplicates by (name+size+lastModified)
+    const seen = new Set();
+    userFiles = userFiles.filter((f) => {
+      const k = `${f.name}|${f.size}|${f.lastModified}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    syncFileInput();
+    renderAttachmentList();
+  });
+
+  function chip(label, onRemove, kind = "file") {
+    const el = document.createElement("div");
+    el.className = "mail-attach-chip";
+    el.dataset.kind = kind;
+
+    const t = document.createElement("span");
+    t.textContent = label;
+
+    const x = document.createElement("span");
+    x.className = "x";
+    x.textContent = "✕";
+    x.title = "Remove";
+    x.addEventListener("click", onRemove);
+
+    el.appendChild(t);
+    el.appendChild(x);
+    return el;
+  }
+
+  function renderAttachmentList() {
+    listEl.innerHTML = "";
+
+    // Offer PDF (always attached)
+    const offerNumber = getOfferNumber();
+    const offerPdfName = `${offerNumber || "Angebot"}.pdf`;
+    const offerChip = document.createElement("div");
+    offerChip.className = "mail-attach-chip";
+    offerChip.innerHTML = `<span>${offerPdfName} (Offer PDF)</span>`;
+    // (no remove button here)
+    listEl.appendChild(offerChip);
+
+    // Presets
+    for (const p of presetAttachments) {
+      if (excludedPreset.has(p.id)) continue;
+      listEl.appendChild(
+        chip(p.name, () => {
+          excludedPreset.add(p.id);
+          renderAttachmentList();
+        }, "preset"),
+      );
+    }
+
+    // User uploads
+    userFiles.forEach((f, idx) => {
+      listEl.appendChild(
+        chip(f.name, () => {
+          userFiles.splice(idx, 1);
+          syncFileInput();
+          renderAttachmentList();
+        }, "upload"),
+      );
+    });
+  }
+
+  // initial render
+  renderAttachmentList();
+
+  btn.addEventListener("click", async () => {
+    try {
+      if (typeof requireBereichValid === "function" && !requireBereichValid()) {
+        location.hash = "Kundendaten";
+        return;
+      }
+
+      const to = (toEl.value || "").trim();
+      if (!to) return setStatus("Please enter a recipient email.", "error");
+
+      const payload = typeof buildPayload === "function" ? buildPayload() : null;
+      if (!payload) throw new Error("buildPayload() is missing / returned nothing");
+
+      // make sure active offer exists (your app does this elsewhere too)
+      if (!payload.activeOffer) {
+        payload.activeOffer =
+          (typeof getCurrentOfferType === "function" && getCurrentOfferType()) ||
+          payload.offerType ||
+          payload.currentOfferKey ||
+          "bu";
+      }
+
+      const offerNumber = getOfferNumber();
+
+      btn.disabled = true;
+      setStatus("Generating offer PDF + sending email…", "info");
+
+      const fd = new FormData();
+      fd.append("to", to);
+      fd.append("subject", (subjectEl.value || offerNumber || "Angebot").trim());
+      fd.append("body", bodyEl.value || "");
+      fd.append("offerNumber", offerNumber);
+      fd.append("offerType", payload.activeOffer || "");
+      fd.append("payload", JSON.stringify(payload));
+      fd.append("excludePreset", JSON.stringify(Array.from(window.__mailExcludedPreset || [])));
+
+      // tell backend which presets to exclude
+      fd.append("excludePreset", JSON.stringify(Array.from(excludedPreset)));
+
+      // user uploads
+      for (const f of userFiles) fd.append("attachments", f, f.name);
+
+      const res = await fetch("/api/email/send-offer", { method: "POST", body: fd });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || err.error || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      setStatus(`Email sent ✅ Attachments: ${data.attachmentNames?.join(", ") || "-"}`, "success");
+
+      if (typeof saveFinalOfferSnapshot === "function") {
+        try { await saveFinalOfferSnapshot(); } catch {}
+      }
+    } catch (e) {
+      console.error("[mail] failed:", e);
+      setStatus(`Send failed: ${e.message}`, "error");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
+
+(function initMailAttachmentTiles() {
+  const filesEl = document.getElementById("mailAttachments");     // <input type=file multiple>
+  const listEl  = document.getElementById("mailAttachmentList");  // tiles container
+  if (!filesEl || !listEl) return;
+
+  // These are the default “always attached” PDFs (server will attach unless excluded)
+  const preset = [
+    { id: "abtretung",    name: "Abtretungserklärung.pdf" },
+    { id: "barrierefrei", name: "emc2_Barrierefreies_Wohnen.pdf" },
+    { id: "vollmacht",    name: "Vollmacht.pdf" },
+  ];
+
+  // Track preset removals -> sent to backend as excludePreset
+  const excludedPreset = new Set();
+
+  // Track user-selected files (so we can remove them)
+  let userFiles = [];
+
+  function syncFileInput() {
+    const dt = new DataTransfer();
+    for (const f of userFiles) dt.items.add(f);
+    filesEl.files = dt.files;
+  }
+
+  function makeTile({ name, meta, onRemove }) {
+    const tile = document.createElement("div");
+    tile.className = "mail-attach-tile";
+
+    const label = document.createElement("div");
+    label.className = "mail-attach-name";
+    label.textContent = name;
+
+    const m = document.createElement("div");
+    m.className = "mail-attach-meta";
+    m.textContent = meta || "";
+
+    const x = document.createElement("div");
+    x.className = "mail-attach-x";
+    x.textContent = "✕";
+    x.title = "Remove";
+    x.addEventListener("click", onRemove);
+
+    tile.appendChild(label);
+    if (meta) tile.appendChild(m);
+    tile.appendChild(x);
+    return tile;
+  }
+
+  function renderTiles() {
+    listEl.innerHTML = "";
+
+    // 1) Preset tiles
+    for (const p of preset) {
+      if (excludedPreset.has(p.id)) continue;
+      listEl.appendChild(
+        makeTile({
+          name: p.name,
+          meta: "Default",
+          onRemove: () => {
+            excludedPreset.add(p.id);
+            renderTiles();
+          },
+        })
+      );
+    }
+
+    // 2) User uploaded files tiles
+    userFiles.forEach((f, idx) => {
+      listEl.appendChild(
+        makeTile({
+          name: f.name,
+          meta: "Added",
+          onRemove: () => {
+            userFiles.splice(idx, 1);
+            syncFileInput();
+            renderTiles();
+          },
+        })
+      );
+    });
+  }
+
+  // When user picks files, append them (don’t overwrite existing)
+  filesEl.addEventListener("change", () => {
+    const newly = Array.from(filesEl.files || []);
+    userFiles = userFiles.concat(newly);
+
+    // de-dup by name+size+lastModified
+    const seen = new Set();
+    userFiles = userFiles.filter((f) => {
+      const k = `${f.name}|${f.size}|${f.lastModified}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+
+    syncFileInput();
+    renderTiles();
+  });
+
+  // Expose excludedPreset so your send handler can include it in FormData
+  window.__mailExcludedPreset = excludedPreset;
+
+  // Initial render so presets show immediately (even before selecting files)
+  renderTiles();
+})();

@@ -2147,3 +2147,122 @@ label.image-check.is-checked .caption {
 .wv-extra-row button {
   margin-left: auto;
 }
+
+.mail-section { margin-top: 14px; }
+.mail-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+}
+.mail-card input, .mail-card textarea {
+  width: 100%;
+  border-radius: 10px;
+  padding: 10px;
+}
+#adobePdfStatus[data-type="error"], #mailStatus[data-type="error"] { color: #ffb3b3; }
+
+
+.mail-attach-box {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.05);
+}
+
+.mail-attach-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.mail-attach-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mail-attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.08);
+  font-size: 0.85rem;
+}
+
+.mail-attach-chip .x {
+  cursor: pointer;
+  font-weight: 700;
+  opacity: 0.85;
+  user-select: none;
+}
+
+.mail-attach-chip .x:hover {
+  opacity: 1;
+}
+
+.mail-attach-hint {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.mail-attach-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.mail-attach-tile{
+  position: relative;
+  border-radius: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.06);
+  min-height: 70px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.mail-attach-name{
+  font-size: 0.88rem;
+  line-height: 1.2;
+  word-break: break-word;
+  padding-right: 26px; /* space for X */
+}
+
+.mail-attach-meta{
+  margin-top: 6px;
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
+.mail-attach-x{
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+
+  cursor: pointer;
+  font-weight: 800;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.2);
+  user-select: none;
+}
+
+.mail-attach-x:hover{
+  background: rgba(0,0,0,0.35);
+}

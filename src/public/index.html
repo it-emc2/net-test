@@ -3994,7 +3994,7 @@
 
 
           <!-- PDF Preview Section -->
-          <section class="preview-section">
+          <!-- <section class="preview-section">
             <button type="button" id="previewPdfBtn" class="btn-preview">
               <span class="btn-icon">👁️</span>
               PDF-Vorschau anzeigen
@@ -4002,7 +4002,41 @@
             <div id="pdfPreviewContainer" class="pdf-preview-container" style="display: none;">
               <iframe id="pdfPreviewFrame" class="pdf-preview-frame"></iframe>
             </div>
-          </section>
+          </section> -->
+
+
+          <!-- Email Versand (unter PDF Vorschau) -->
+<section class="mail-section">
+  <h2 class="section-title">✉️ Send offer by email</h2>
+
+  <div class="mail-card">
+    <label for="mailTo">Recipient email</label>
+    <input id="mailTo" type="email" placeholder="customer@example.com" />
+
+    <label for="mailSubject">Subject</label>
+    <input id="mailSubject" type="text" placeholder="ANG-..." />
+
+    <label for="mailBody">Email body</label>
+    <textarea id="mailBody" rows="6" placeholder="Hello ..."></textarea>
+
+    <label for="mailAttachments">Additional attachments (optional)</label>
+    <input id="mailAttachments" type="file" multiple />
+
+    <!-- Visible attachments list -->
+    <div class="mail-attach-box">
+      <div class="mail-attach-title">Attachments</div>
+  <div id="mailAttachmentList" class="mail-attach-grid"></div>
+        <div class="mail-attach-hint">Click “✕” to remove an attachment.</div>
+    </div>
+
+    <button type="button" id="sendOfferMail" class="btn-export btn-pdf">
+      <span class="btn-icon">📨</span>
+      Send
+    </button>
+
+    <div id="mailStatus" class="adobe-status" hidden></div>
+  </div>
+</section>
 
           <!-- Developer Tools (Hidden by Default) -->
           <section class="developer-section">

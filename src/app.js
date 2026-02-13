@@ -31,6 +31,7 @@ import Product from "./models/Product.js";
 import Submission from "./models/Submission.js";
 import Offer from "./models/Offer.js"; // (ESM import)
 import Draft from "./models/Draft.js";
+import emailRouter from "./routes/email.js";
 
 // Pricing logic (factory(Product))
 import pricingFactory from "./logic/pricing.js";
@@ -219,6 +220,7 @@ app.use("/api/docx", pdfPreviewRouter);
 app.use("/api/adobe-pdf", adobePdfRouter);
 app.use("/arbeitsbericht", arbeitsberichtRouter);
 app.use("/kalkulation", kalkulationRouter);
+app.use("/api/email", emailRouter);
 //app.use("/pdf-preview", pdfPreviewRouter);
 //app.use('/api/docx/pdf-preview', pdfPreviewRouter); // ADD THIS
 // (you had this twice; once is enough)
