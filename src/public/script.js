@@ -2521,23 +2521,20 @@ function buildPayload() {
       ...formToObject(document.getElementById("form-duschwanne")),
       computed: window.__DW_COMPUTED__ || {},
     },
-    wandverkleidung: formToObject(
-      document.getElementById("form-wandverkleidung"),
-    ),
-    duschabtrennung: formToObject(
-      document.getElementById("form-duschabtrennung"),
-    ),
+    wandverkleidung: formToObject(document.getElementById("form-wandverkleidung")),
+    duschabtrennung: formToObject(document.getElementById("form-duschabtrennung")),
     optional: formToObject(document.getElementById("form-optional")),
     rabatt: formToObject(document.getElementById("form-rabatt")),
     bwt: formToObject(document.getElementById("form-bwt")),
     hl: formToObject(document.getElementById("form-hl")),
     ah: formToObject(document.getElementById("form-ah")),
-        hms: formToObject(document.getElementById("form-hms")),
-
-            wd: formToObject(document.getElementById("form-wd")),
-
+    hms: formToObject(document.getElementById("form-hms")),
+    wd: formToObject(document.getElementById("form-wd")),
   };
-  // HL: pair steel length + quality rows into structured array
+
+  /* ===========================
+     HL: pair steel length + quality rows into structured array
+     =========================== */
   try {
     const hl = payload.hl || (payload.hl = {});
     const lengthsRaw = hl["hl_steel_length[]"];
@@ -2560,88 +2557,75 @@ function buildPayload() {
       }))
       .filter((row) => row.length || row.quality);
 
-    if (steelLines.length) {
-      hl.steelLines = steelLines;
-    } else {
-      delete hl.steelLines;
-    }
+    if (steelLines.length) hl.steelLines = steelLines;
+    else delete hl.steelLines;
   } catch (e) {
     console.warn("[buildPayload] hl steel lines build failed:", e);
   }
-payload.Kundendaten = payload.Kundendaten || {};
-if (!payload.Kundendaten.customerNumber) {
-  payload.Kundendaten.customerNumber = payload.Kundendaten.bitrixContactId || "";
-}
+
+  payload.Kundendaten = payload.Kundendaten || {};
+  if (!payload.Kundendaten.customerNumber) {
+    payload.Kundendaten.customerNumber = payload.Kundendaten.bitrixContactId || "";
+  }
 
   collectWandverkleidungMaterials(payload);
-  //  collect quick-add shower screens
   collectDuschabtrennungQuickAdd(payload);
-  //  collect BWT door + Haltegriffe as materials (only for BWT offer)
+
   if (String(currentOfferKey || "").toLowerCase() === "bwt") {
     collectBwtMaterials(payload);
   }
-  //  collect BWT freie Posten (quick add)
   collectBwtExtras(payload);
 
-    // collect HL freie Posten / Logistik (quick add)
   if (String(currentOfferKey || "").toLowerCase() === "hl") {
     collectHlExtras(payload);
   }
 
-  // --- OPTIONAL: ensure REHA checkboxes are represented as opt_* keys ---
-try {
-  const formOpt = document.getElementById("form-optional");
-  if (formOpt) {
-    const optObj = payload.optional || (payload.optional = {});
-    const fdOpt = new FormData(formOpt);
+  /* ===========================
+     OPTIONAL: ensure REHA checkboxes are represented as opt_* keys
+     =========================== */
+  try {
+    const formOpt = document.getElementById("form-optional");
+    if (formOpt) {
+      const optObj = payload.optional || (payload.optional = {});
+      const fdOpt = new FormData(formOpt);
 
-    // 1) ensure optReha[] is an array (all selected values)
-    const rehaVals = fdOpt.getAll("optReha[]").map(v => String(v));
-    if (rehaVals.length) optObj["optReha[]"] = rehaVals;
+      const rehaVals = fdOpt.getAll("optReha[]").map((v) => String(v));
+      if (rehaVals.length) optObj["optReha[]"] = rehaVals;
 
-    // 2) ensure checked REHA boxes also appear as opt_<ID> keys
-    // (because pricing.collectSelections() only reads keys starting with opt_)
-    const rehaChecked = Array.from(
-      formOpt.querySelectorAll('input[type="checkbox"][name="optReha[]"]:checked')
-    );
+      const rehaChecked = Array.from(
+        formOpt.querySelectorAll('input[type="checkbox"][name="optReha[]"]:checked'),
+      );
 
-    for (const cb of rehaChecked) {
-      const pid = String(cb.id || "").startsWith("opt_") ? cb.id.slice(4) : "";
-      if (!pid) continue;
+      for (const cb of rehaChecked) {
+        const pid = String(cb.id || "").startsWith("opt_") ? cb.id.slice(4) : "";
+        if (!pid) continue;
 
-      // create the canonical key expected by collectSelections
-      optObj[`opt_${pid}`] = true;
+        optObj[`opt_${pid}`] = true;
 
-      // if you have qty input, ensure it's included (usually already is)
-      const qtyEl = document.getElementById(`qty_${pid}`);
-      if (qtyEl && qtyEl.value !== "") {
-        optObj[`qty_${pid}`] = qtyEl.value;
+        const qtyEl = document.getElementById(`qty_${pid}`);
+        if (qtyEl && qtyEl.value !== "") optObj[`qty_${pid}`] = qtyEl.value;
       }
     }
+  } catch (e) {
+    console.warn("[buildPayload] optional REHA normalization failed:", e);
   }
-} catch (e) {
-  console.warn("[buildPayload] optional REHA normalization failed:", e);
-}
 
-  // ---- NEW: reliably collect ALL Duschwanne work tasks (checkbox array) ----
+  /* ===========================
+     DUSCHWANNE: reliably collect workTasks array
+     =========================== */
   try {
     const formDW = document.getElementById("form-duschwanne");
-
     if (formDW) {
       const fdDW = new FormData(formDW);
-      const dwTasks = fdDW.getAll("duschwanne[workTasks][]"); // ✅ all checked values
+      const dwTasks = fdDW.getAll("duschwanne[workTasks][]");
       const dw = (payload.duschwanne ||= {});
 
-      if (dwTasks.length) {
-        dw.workTasks = dwTasks;
-      } else {
-        // Fallback: if serializer stored a single string under a weird key, normalize to array
+      if (dwTasks.length) dw.workTasks = dwTasks;
+      else {
         const weird = dw["duschwanne[workTasks][]"];
-        if (typeof weird === "string" && weird.trim()) {
-          dw.workTasks = [weird.trim()];
-        }
+        if (typeof weird === "string" && weird.trim()) dw.workTasks = [weird.trim()];
       }
-      // Clean any stray literal key so it doesn't confuse server logs
+
       if ("duschwanne[workTasks][]" in payload.duschwanne) {
         delete payload.duschwanne["duschwanne[workTasks][]"];
       }
@@ -2650,112 +2634,137 @@ try {
     console.warn("[buildPayload] workTasks normalization failed:", e);
   }
 
-  // ---- DUSCHWANNE: ensure multi-select arrays are captured ----
+  /* ===========================
+     DUSCHWANNE: ensure multi-select arrays are captured
+     =========================== */
   try {
     const formDW = document.getElementById("form-duschwanne");
     if (formDW) {
       const fdDW = new FormData(formDW);
       const getAllVals = (name) => fdDW.getAll(name).map((v) => String(v));
 
-      // Existing
       const flooringProduct = getAllVals("flooringProduct[]");
       const floorAdhesive = getAllVals("floorAdhesive[]");
       const floorSealing = getAllVals("floorSealing[]");
 
-      // ✅ FIX: Query DOM directly for ALL extra task inputs
-      let extraTasks = [];
-
-      // First try FormData (for inputs with correct name attribute)
-      extraTasks = [
+      let extraTasks = [
         ...getAllVals("duschwanne[extraTasks][]"),
         ...getAllVals("extraTasks[]"),
       ]
         .map((s) => s.trim())
         .filter(Boolean);
 
-      // If FormData didn't find any, query the DOM directly
       if (extraTasks.length === 0) {
-        const extraTaskInputs = document.querySelectorAll(
-          "#dw-extra-tasks .da-items .dw-extra",
-        );
+        const extraTaskInputs = document.querySelectorAll("#dw-extra-tasks .da-items .dw-extra");
         extraTaskInputs.forEach((input) => {
           const val = (input.value || "").trim();
-          if (val) {
-            extraTasks.push(val);
-          }
+          if (val) extraTasks.push(val);
         });
       }
 
-      console.log("[buildPayload] extraTasks collected:", extraTasks); // Debug
-
       payload.duschwanne = payload.duschwanne || {};
-      if (flooringProduct.length)
-        payload.duschwanne.flooringProduct = flooringProduct;
-      if (floorAdhesive.length)
-        payload.duschwanne.floorAdhesive = floorAdhesive;
+      if (flooringProduct.length) payload.duschwanne.flooringProduct = flooringProduct;
+      if (floorAdhesive.length) payload.duschwanne.floorAdhesive = floorAdhesive;
       if (floorSealing.length) payload.duschwanne.floorSealing = floorSealing;
-      if (extraTasks.length)
-        payload.duschwanne.extraTasks = Array.from(new Set(extraTasks));
+      if (extraTasks.length) payload.duschwanne.extraTasks = Array.from(new Set(extraTasks));
 
-      // Normalize toggle to boolean
-      payload.duschwanne.addFlooring =
-        !!document.getElementById("addFlooring")?.checked;
+      payload.duschwanne.addFlooring = !!document.getElementById("addFlooring")?.checked;
     }
   } catch (e) {
     console.warn("[buildPayload] flooring arrays capture failed:", e);
   }
 
-  //  per-panel color config for WV (997 / 1497) ---
-try {
-  const formWV = document.getElementById("form-wandverkleidung");
-  if (formWV) {
-    const fdWV = new FormData(formWV);
+  /* ===========================
+     WV panel config + (NEW) additive extra colors
+     =========================== */
+  try {
+    const formWV = document.getElementById("form-wandverkleidung");
+    if (formWV) {
+      const fdWV = new FormData(formWV);
 
-    const globalColor = (fdWV.get("wvColor") || "").toString().trim();
-    const color997 = (fdWV.get("wvColor_997") || "").toString().trim();
-    const color1497 = (fdWV.get("wvColor_1497") || "").toString().trim();
+      const globalColor = (fdWV.get("wvColor") || "").toString().trim();
+      const color997 = (fdWV.get("wvColor_997") || "").toString().trim();
+      const color1497 = (fdWV.get("wvColor_1497") || "").toString().trim();
 
-    const enabled997 = !!document.getElementById("wv997")?.checked;
-    const enabled1497 = !!document.getElementById("wv1497")?.checked;
+      const enabled997 = !!document.getElementById("wv997")?.checked;
+      const enabled1497 = !!document.getElementById("wv1497")?.checked;
 
-    const qty997 = Number(document.getElementById("wvQty997")?.value || 0) || 0;
-    const qty1497 = Number(document.getElementById("wvQty1497")?.value || 0) || 0;
+      const qty997 = Number(document.getElementById("wvQty997")?.value || 0) || 0;
+      const qty1497 = Number(document.getElementById("wvQty1497")?.value || 0) || 0;
 
-    payload.wandverkleidung = payload.wandverkleidung || {};
-    const wv = payload.wandverkleidung || (payload.wandverkleidung = {});
+      const wv = (payload.wandverkleidung ||= {});
 
-// Explicit selection flags (so drafts restore even if default checked changes)
-wv.wvSealingSelected = !!document.getElementById("wvSealingSelected")?.checked;
-wv.wvFlachenSelected = !!document.getElementById("wvFlachenSelected")?.checked;
-wv.wvEndProfileSelected = !!document.getElementById("wvEndProfileSelected")?.checked;
-wv.wvSilikonSelected = !!document.getElementById("wvSilikonSelected")?.checked;
-wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
+      // Explicit selection flags (so drafts restore even if default checked changes)
+      wv.wvSealingSelected = !!document.getElementById("wvSealingSelected")?.checked;
+      wv.wvFlachenSelected = !!document.getElementById("wvFlachenSelected")?.checked;
+      wv.wvEndProfileSelected = !!document.getElementById("wvEndProfileSelected")?.checked;
+      wv.wvSilikonSelected = !!document.getElementById("wvSilikonSelected")?.checked;
+      wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
 
+      // keep raw override fields (needed for perfect restore)
+      wv.wvColor_997 = color997; // can be ""
+      wv.wvColor_1497 = color1497; // can be ""
 
-    // ✅ store raw override fields (needed for perfect restore)
-    payload.wandverkleidung.wvColor_997 = color997;     // can be ""
-    payload.wandverkleidung.wvColor_1497 = color1497;   // can be ""
+      // Canonical structure (existing)
+      wv.panelConfigs = {
+        "997x2550": {
+          enabled: enabled997,
+          qty: qty997,
+          overrideColor: color997 || "",
+          color: (color997 || globalColor || "").trim(),
+        },
+        "1497x2550": {
+          enabled: enabled1497,
+          qty: qty1497,
+          overrideColor: color1497 || "",
+          color: (color1497 || globalColor || "").trim(),
+        },
+      };
 
-    // Clean, canonical structure used later in pricing / DOCX
-    payload.wandverkleidung.panelConfigs = {
-      "997x2550": {
-        enabled: enabled997,
-        qty: qty997,
-        overrideColor: color997 || "",
-        color: (color997 || globalColor || "").trim(),
-      },
-      "1497x2550": {
-        enabled: enabled1497,
-        qty: qty1497,
-        overrideColor: color1497 || "",
-        color: (color1497 || globalColor || "").trim(),
-      },
-    };
+      // ---------- NEW: extra color rows (additive, safe if UI not present) ----------
+      // expected DOM (from our setupWandverkleidungPage changes):
+      //   #wvExtraList997 contains .wv-extra-row with input.wv-extra-qty + select.wv-extra-color
+      //   #wvExtraList1497 contains ...
+      const readExtraList = (listId) => {
+        const listEl = document.getElementById(listId);
+        if (!listEl) return [];
+        const rows = Array.from(listEl.querySelectorAll(".wv-extra-row"));
+        return rows
+          .map((row) => {
+            const qtyEl = row.querySelector(".wv-extra-qty");
+            const colEl = row.querySelector(".wv-extra-color");
+            const qty = Number(qtyEl?.value || 0) || 0;
+            const color = String(colEl?.value || "").trim();
+            return qty > 0 && color ? { qty, color } : null;
+          })
+          .filter(Boolean);
+      };
+
+      const extras997 = readExtraList("wvExtraList997");
+      const extras1497 = readExtraList("wvExtraList1497");
+
+      // Only attach if user added anything (backward compatible)
+      if (extras997.length || extras1497.length) {
+        wv.extraColors = {
+          "997x2550": extras997,
+          "1497x2550": extras1497,
+        };
+
+        // Also mirror into panelConfigs so both shapes are supported on restore
+        // (Some older/newer code may look for extras under panelConfigs[*].extras)
+        if (wv.panelConfigs && wv.panelConfigs["997x2550"]) {
+          wv.panelConfigs["997x2550"].extras = extras997;
+        }
+        if (wv.panelConfigs && wv.panelConfigs["1497x2550"]) {
+          wv.panelConfigs["1497x2550"].extras = extras1497;
+        }
+      } else {
+        delete wv.extraColors;
+      }
+    }
+  } catch (e) {
+    console.warn("[buildPayload] WV panel color config failed:", e);
   }
-} catch (e) {
-  console.warn("[buildPayload] WV panel color config failed:", e);
-}
-
 
   // -------------------------------------------------------------------------
   // Budget/Zuzahlung
@@ -2765,15 +2774,11 @@ wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
   const elPremium = document.querySelector('input[name="premium"]');
   const copayEl = document.getElementById("copayAmount");
 
-  const wohDoneRadios = document.querySelectorAll(
-    'input[name="wohnumfeldDone"]',
-  );
+  const wohDoneRadios = document.querySelectorAll('input[name="wohnumfeldDone"]');
   const wohAmountInput = document.getElementById("wohnumfeldAmount");
 
   function readWohnumfeld() {
-    const isJa = Array.from(wohDoneRadios).some(
-      (r) => r.checked && r.value === "Ja",
-    );
+    const isJa = Array.from(wohDoneRadios).some((r) => r.checked && r.value === "Ja");
     let amount = 0;
     if (isJa && wohAmountInput) {
       const raw = (wohAmountInput.value || "").toString().replace(",", ".");
@@ -2793,11 +2798,8 @@ wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
     return Number.isFinite(n) ? n : 0;
   }
 
-  // --- OPTIONAL: Sonderprodukte (Freier Posten unter Optional) ---
   collectOptionalQuickAdd(payload);
 
-  // Canonical main budget option (Max / 2 Personen / Premium),
-  // independent from whether copay is used.
   let selectedMain = "";
   if (elMax?.checked) selectedMain = elMax.value;
   else if (elTwo?.checked) selectedMain = elTwo.value;
@@ -2809,14 +2811,9 @@ wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
 
   payload.Kundendaten = payload.Kundendaten || {};
   payload.Kundendaten.budgetOptionsPanel = canonicalMain || selectedMain || "";
-  payload.Kundendaten.copayAmount = copayEl
-    ? parseEuroToNumber(copayEl.value)
-    : 0;
+  payload.Kundendaten.copayAmount = copayEl ? parseEuroToNumber(copayEl.value) : 0;
 
-  // Rabatt fields for server
-  const pct = parseFloat(
-    document.getElementById("rb-material-discount")?.value || "0",
-  );
+  const pct = parseFloat(document.getElementById("rb-material-discount")?.value || "0");
   payload.rabatt = {
     ...payload.rabatt,
     materialDiscountPct: isFinite(pct) ? pct / 100 : 0,
@@ -2824,49 +2821,32 @@ wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
     bonusGrab: !!document.getElementById("rb-bonus-grab")?.checked,
   };
 
-  payload.offerNumber = (
-    document.getElementById("offerNumber")?.value || ""
-  ).trim();
+  payload.offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
 
   // -------------------------------------------------------------------------
-  // NEW: Arbeitszeit / travel payload block (moved out of Kundendaten)
+  // Arbeitszeit / travel payload block (unchanged)
   // -------------------------------------------------------------------------
   (function buildArbeitszeitBlock() {
-    // Read formatted total from the Arbeitszeit page output element
     const totalHHMM =
-      document
-        .getElementById("totalHoursHHMM")
-        ?.textContent?.match(/(\d+:\d{2})/)?.[1] || "";
+      document.getElementById("totalHoursHHMM")?.textContent?.match(/(\d+:\d{2})/)?.[1] || "";
 
-    // Read raw HH:MM inputs (Arbeitszeit & one-way Reisezeit)
-    const laborHHMM = (document.getElementById("laborHours")?.value || "")
-      .toString()
-      .trim();
-    const travelHHMM = (document.getElementById("travelTime")?.value || "")
-      .toString()
-      .trim();
+    const laborHHMM = (document.getElementById("laborHours")?.value || "").toString().trim();
+    const travelHHMM = (document.getElementById("travelTime")?.value || "").toString().trim();
 
-    // Safely compute numeric hours (fallback if window.* mirrors are not yet populated)
-    const _L =
-      typeof hhmmToHours === "function" ? hhmmToHours(laborHHMM || "0:00") : 0;
-    const _T1 =
-      typeof hhmmToHours === "function" ? hhmmToHours(travelHHMM || "0:00") : 0;
-
+    const _L = typeof hhmmToHours === "function" ? hhmmToHours(laborHHMM || "0:00") : 0;
+    const _T1 = typeof hhmmToHours === "function" ? hhmmToHours(travelHHMM || "0:00") : 0;
     const F_total = _L + 2 * _T1;
 
-    // Use the global mirrors if they exist (set by updateTotalHours), otherwise fallback
     const totalNumeric = Number(window.total_hours_numeric ?? F_total ?? 0);
     const travelNumeric = Number(window.reise_hours_numeric ?? 2 * _T1 ?? 0);
     const laborNumeric = Number(window.arbeit_hours_numeric ?? _L ?? 0);
     const workDaysNumeric = Number(window.arbeitstage_numeric ?? 0);
     const overnightsNumeric = Number(window.uebernachten_numeric ?? 0);
-    const travelDaysNumeric =
-      Number(window.travel_days_numeric ?? Math.max(0, workDaysNumeric - overnightsNumeric));
+    const travelDaysNumeric = Number(
+      window.travel_days_numeric ?? Math.max(0, workDaysNumeric - overnightsNumeric),
+    );
 
-    // Optional: distance in km field (if you have it on the Arbeitszeit page)
-    const distanceKm = (document.getElementById("distanceKm")?.value || "")
-      .toString()
-      .trim();
+    const distanceKm = (document.getElementById("distanceKm")?.value || "").toString().trim();
 
     const arbeitsBlock = {
       totalHoursHHMM: totalHHMM,
@@ -2881,13 +2861,9 @@ wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
       distanceKm,
     };
 
-    // Extra Arbeitszeit (BWT) – always recompute from DOM if fieldset exists
     (function computeExtraArbeitszeit() {
       const fs = document.getElementById("bwtAzExtraFieldset");
-      console.log("[ExtraAZ] computeExtraArbeitszeit, fs exists?", !!fs);
-
       if (!fs || typeof hhmmToHours !== "function") {
-        console.log("[ExtraAZ] bail: missing fieldset or hhmmToHours");
         delete arbeitsBlock.extraTasks;
         delete arbeitsBlock.extraHoursTotal;
         return;
@@ -2897,64 +2873,35 @@ wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
       const extraTasks = [];
       let extraHoursTotal = 0;
 
-      items.forEach(function (item, i) {
+      items.forEach((item) => {
         const durEl = item.querySelector(".bwt-az-duration");
         const taskEl = item.querySelector(".bwt-az-task");
 
         const durRaw = ((durEl && durEl.value) || "").trim();
         const task = ((taskEl && taskEl.value) || "").trim();
-
-        console.log("[ExtraAZ] row", i, { durRaw, task });
-
         if (!durRaw && !task) return;
 
         const hours = hhmmToHours(durRaw || "0:00") || 0;
 
-        console.log("[ExtraAZ] row", i, "hours=", hours);
-
-        extraTasks.push({
-          durationHHMM: durRaw,
-          durationHours: hours,
-          task,
-        });
-
-        if (hours > 0) {
-          extraHoursTotal += hours;
-        }
+        extraTasks.push({ durationHHMM: durRaw, durationHours: hours, task });
+        if (hours > 0) extraHoursTotal += hours;
       });
-
-      console.log("[ExtraAZ] total hours:", extraHoursTotal);
 
       if (extraTasks.length) {
         arbeitsBlock.extraTasks = extraTasks;
         arbeitsBlock.extraHoursTotal = Math.round(extraHoursTotal * 100) / 100;
-        console.log(
-          "[ExtraAZ] saved extraHoursTotal=",
-          arbeitsBlock.extraHoursTotal,
-        );
       } else {
         delete arbeitsBlock.extraTasks;
         delete arbeitsBlock.extraHoursTotal;
-        console.log("[ExtraAZ] no valid rows, clearing extra fields");
       }
     })();
 
     payload.Arbeitszeit = arbeitsBlock;
-
-    // If your backend still expects some of this under Kundendaten, you can mirror it:
-    // payload.Kundendaten.totalHoursHHMM     = totalHHMM;
-    // payload.Kundendaten.totalHoursNumeric  = totalNumeric;
-    // payload.Kundendaten.ReiseHoursNumeric  = travelNumeric;
-    // payload.Kundendaten.ArbeitHoursNumeric = laborNumeric;
-    // payload.Kundendaten.laborHoursHHMM     = laborHHMM;
   })();
-
-  // -------------------------------------------------------------------------
 
   const woh = readWohnumfeld();
   const isKK =
-    (payload.Kundendaten?.payer ||
-      document.querySelector('input[name="payer"]:checked')?.value) ===
+    (payload.Kundendaten?.payer || document.querySelector('input[name="payer"]:checked')?.value) ===
     "Kassenkunde";
   payload.Kundendaten.wohnumfeld = isKK ? woh : { done: false, amount: 0 };
 
@@ -2970,20 +2917,14 @@ wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
     if (size) dw.traySize = size;
   }
 
-  // --- Ensure tray selection persists ONLY if the user actually touched the Duschwanne step
   (function ensureTraySelection() {
     const dw = payload.duschwanne || (payload.duschwanne = {});
     const hasSize = !!(dw.traySize && String(dw.traySize).trim());
-    const hasPid = !!(
-      dw.chosenTrayProductId && String(dw.chosenTrayProductId).trim()
-    );
+    const hasPid = !!(dw.chosenTrayProductId && String(dw.chosenTrayProductId).trim());
     if (hasSize && hasPid) return;
 
-    const chosenNow = document
-      .getElementById("chosenTrayProductId")
-      ?.value?.trim();
-    const touched =
-      !!chosenNow || sessionStorage.getItem("dw_tray_touched") === "1";
+    const chosenNow = document.getElementById("chosenTrayProductId")?.value?.trim();
+    const touched = !!chosenNow || sessionStorage.getItem("dw_tray_touched") === "1";
     if (!touched) return;
 
     try {
@@ -3002,85 +2943,59 @@ wv.wvV3VSelected = !!document.getElementById("wvV3VSelected")?.checked;
       const fdBwt = new FormData(formBwt);
       const bwt = payload.bwt || (payload.bwt = {});
 
-      // ---- BWT: door caption-sub info (map by productId) ----
-bwt.doorInfoById = {}; // reset each buildPayload call
+      bwt.doorInfoById = {};
+      const doorInputs = formBwt.querySelectorAll('input[name="bwtDoorType"]');
+      doorInputs.forEach((el) => {
+        if (!el.checked) return;
+        const pid = String(el.dataset.productId || "").trim();
+        if (!pid) return;
 
-const doorInputs = formBwt.querySelectorAll('input[name="bwtDoorType"]');
-doorInputs.forEach((el) => {
-  if (!el.checked) return;
+        let lines = readCaptionSubLinesFromDoorInput(el);
 
-  const pid = String(el.dataset.productId || "").trim();
-  if (!pid) return;
+        if (pid === "1226") {
+          const h = String(document.getElementById("bwtDoorStdHeight")?.value || "").trim();
+          if (h) {
+            lines = Array.isArray(lines) ? [...lines] : [];
+            lines.push(`Höhe: ${h} cm`);
+          }
+        }
+        if (lines.length) bwt.doorInfoById[pid] = lines;
+      });
 
-  let lines = readCaptionSubLinesFromDoorInput(el);
-
-  // Append height line for Standard Tür (1226)
-  if (pid === "1226") {
-    const h = String(
-      document.getElementById("bwtDoorStdHeight")?.value || "",
-    ).trim();
-    if (h) {
-      lines = Array.isArray(lines) ? [...lines] : [];
-      lines.push(`Höhe: ${h} cm`);
-    }
-  }
-
-  if (lines.length) bwt.doorInfoById[pid] = lines;
-});
-
-
-      // bwt[bwtinfoTasks][] → bwt.bwtinfoTasks (array)
-      const infoTasks = fdBwt
-        .getAll("bwt[bwtinfoTasks][]")
-        .map((v) => String(v));
-      if (infoTasks.length) {
-        bwt.bwtinfoTasks = infoTasks;
-      } else {
+      const infoTasks = fdBwt.getAll("bwt[bwtinfoTasks][]").map((v) => String(v));
+      if (infoTasks.length) bwt.bwtinfoTasks = infoTasks;
+      else {
         const weird = bwt["bwt[bwtinfoTasks][]"];
-        if (typeof weird === "string" && weird.trim()) {
-          bwt.bwtinfoTasks = [weird.trim()];
-        }
+        if (typeof weird === "string" && weird.trim()) bwt.bwtinfoTasks = [weird.trim()];
       }
-      if ("bwt[bwtinfoTasks][]" in bwt) {
-        delete bwt["bwt[bwtinfoTasks][]"];
-      }
+      if ("bwt[bwtinfoTasks][]" in bwt) delete bwt["bwt[bwtinfoTasks][]"];
 
-      // bwtAids[] → bwt.bwtAids (array of "Haltegriff30"/"Haltegriff40"/"Haltegriff60"/"Haltegriff80")
       const aids = fdBwt.getAll("bwtAids[]").map((v) => String(v));
-      if (aids.length) {
-        bwt.bwtAids = aids;
-      } else {
+      if (aids.length) bwt.bwtAids = aids;
+      else {
         const weirdAids = bwt["bwtAids[]"];
-        if (typeof weirdAids === "string" && weirdAids.trim()) {
-          bwt.bwtAids = [weirdAids.trim()];
-        }
+        if (typeof weirdAids === "string" && weirdAids.trim()) bwt.bwtAids = [weirdAids.trim()];
       }
-      if ("bwtAids[]" in bwt) {
-        delete bwt["bwtAids[]"];
-      }
+      if ("bwtAids[]" in bwt) delete bwt["bwtAids[]"];
     }
   } catch (e) {
     console.warn("[buildPayload] BWT arrays capture failed:", e);
   }
-  // end bwt payload block
-// ---- HL: enrich payload.hl with structured pipes + extras ----
-try {
-  payload.hl = payload.hl || {};
-  const hlX = collectHL();
-  // merge, but keep already-built steelLines if you want both
-  payload.hl.pipes = hlX.pipes || [];
-  payload.hl.extras = hlX.extras || {};
-  payload.hl.area = hlX.area || [];
-  payload.hl.mountType = hlX.mountType || [];
-} catch (e) {
-  console.warn("[buildPayload] HL collectHL failed:", e);
-}
 
+  // ---- HL: enrich payload.hl with structured pipes + extras ----
+  try {
+    payload.hl = payload.hl || {};
+    const hlX = collectHL();
+    payload.hl.pipes = hlX.pipes || [];
+    payload.hl.extras = hlX.extras || {};
+    payload.hl.area = hlX.area || [];
+    payload.hl.mountType = hlX.mountType || [];
+  } catch (e) {
+    console.warn("[buildPayload] HL collectHL failed:", e);
+  }
 
-  // Remember which offer was active when building this payload
   payload.activeOffer = currentOfferKey || null;
 
-  // Remove/empty sections that are not part of the active offer's pages
   return filterPayloadByOffer(payload);
 }
 
@@ -4097,21 +4012,148 @@ function updateKostenDetails() {
   window.updatePricing?.();
 } // safe, no direct rendering
 
+function cloneColorSelect(fromSelectId) {
+  const src = document.getElementById(fromSelectId);
+  const sel = document.createElement("select");
+  sel.className = "wv-extra-color";
+
+  // copy options except the "Wie unten gewählt" empty option (optional)
+  [...src.options].forEach((opt, idx) => {
+    const o = document.createElement("option");
+    o.value = opt.value;
+    o.textContent = opt.textContent;
+    // keep empty option if you want; I usually remove it for extras:
+    if (idx === 0 && opt.value === "") return;
+    sel.appendChild(o);
+  });
+
+  return sel;
+}
+
+function createWvExtraRow({ qty = 1, color = "" } = {}, fromSelectId) {
+  const row = document.createElement("div");
+  row.className = "wv-extra-row";
+
+  const qtyInput = document.createElement("input");
+  qtyInput.type = "number";
+  qtyInput.min = "1";
+  qtyInput.step = "1";
+  qtyInput.value = String(qty || 1);
+  qtyInput.className = "wv-extra-qty";
+
+  const colorSelect = cloneColorSelect(fromSelectId);
+  if (color) colorSelect.value = color;
+
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "btn small";
+  removeBtn.textContent = "Entfernen";
+  removeBtn.addEventListener("click", () => {
+    row.remove();
+    window.updatePricing?.();
+  });
+
+  row.appendChild(qtyInput);
+  row.appendChild(colorSelect);
+  row.appendChild(removeBtn);
+
+  // any change => recalc
+  qtyInput.addEventListener("input", () => window.updatePricing?.());
+  colorSelect.addEventListener("change", () => window.updatePricing?.());
+
+  return row;
+}
+
+
+function restoreExtras(listEl, fromSelectId, extras) {
+  if (!listEl) return;
+  listEl.innerHTML = "";
+  (extras || []).forEach((ex) => {
+    listEl.appendChild(createWvExtraRow(ex, fromSelectId));
+  });
+}
+
+
+function readWvExtras(listEl) {
+  const rows = [...listEl.querySelectorAll(".wv-extra-row")];
+  return rows
+    .map((r) => {
+      const qty = parseInt(r.querySelector(".wv-extra-qty")?.value || "0", 10) || 0;
+      const color = String(r.querySelector(".wv-extra-color")?.value || "").trim();
+      if (!qty || !color) return null;
+      return { qty, color };
+    })
+    .filter(Boolean);
+}
+
 function setupWandverkleidungPage() {
   const page = document.getElementById("page-Wandverkleidung");
   if (!page || page.dataset._wired === "true") return;
   page.dataset._wired = "true";
+
+  // ---- keep legacy default behavior (only if nothing restored) ----
   const defaultColor = page.querySelector(
     'input[type="radio"][name="wvColor"][value="Marmor weiß"]',
   );
   const anyColorChecked = page.querySelector(
     'input[type="radio"][name="wvColor"]:checked',
   );
-  // only force default if NO color has been restored
   if (defaultColor && !anyColorChecked && !page.dataset.wvColorRestored) {
     defaultColor.checked = true;
   }
 
+  // ---- NEW: "Zusätzliche Farben" UI (additive, backward compatible) ----
+  function ensureExtrasUI(fromSelectId, listId, btnId, titleText) {
+    const fromSelect = document.getElementById(fromSelectId);
+    if (!fromSelect) return;
+
+    // avoid double-inject
+    if (document.getElementById(listId) && document.getElementById(btnId)) return;
+
+    // Create container right after the per-panel select
+    const wrap = document.createElement("div");
+    wrap.className = "field wv-extras-wrap";
+    wrap.style.marginTop = "8px";
+
+    const lbl = document.createElement("label");
+    lbl.textContent = titleText || "Zusätzliche Farben (optional)";
+    wrap.appendChild(lbl);
+
+    const list = document.createElement("div");
+    list.id = listId;
+    list.className = "wv-extra-list";
+    wrap.appendChild(list);
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = btnId;
+    btn.className = "btn small";
+    btn.textContent = "+ Farbe hinzufügen";
+    btn.style.marginTop = "8px";
+    wrap.appendChild(btn);
+
+    // insert after the select's field wrapper if possible
+    const hostField = fromSelect.closest(".field") || fromSelect.parentElement;
+    if (hostField && hostField.parentElement) {
+      hostField.insertAdjacentElement("afterend", wrap);
+    } else {
+      page.appendChild(wrap);
+    }
+
+    btn.addEventListener("click", () => {
+      const listEl = document.getElementById(listId);
+      if (!listEl) return;
+      listEl.appendChild(createWvExtraRow({ amount: 1, color: "" }, fromSelectId));
+      if (typeof updateKostenDetails === "function") updateKostenDetails();
+    });
+  }
+
+  // Make sure createWvExtraRow exists (defined elsewhere in script.js)
+  // Inject UI blocks for 997 and 1497
+  ensureExtrasUI("wvColor_997", "wvExtraList997", "btnAddWvExtra997", "Zusätzliche Farben für 997×2550 (optional)");
+  ensureExtrasUI("wvColor_1497", "wvExtraList1497", "btnAddWvExtra1497", "Zusätzliche Farben für 1497×2550 (optional)");
+
+  // ---- existing show/hide qty wraps ----
   const pairs = [
     { cb: "#wv997", wrap: "#wvQty997Wrap", qty: "#wvQty997" },
     { cb: "#wv1497", wrap: "#wvQty1497Wrap", qty: "#wvQty1497" },
@@ -4148,13 +4190,14 @@ function setupWandverkleidungPage() {
     });
 
     qtyEl.addEventListener("input", () => {
-      recomputeWVFlachenQty(); // <-- added
+      recomputeWVFlachenQty();
       if (typeof updateKostenDetails === "function") updateKostenDetails();
     });
     qtyEl.addEventListener("change", () => {
-      recomputeWVFlachenQty(); // <-- added
+      recomputeWVFlachenQty();
     });
-    recomputeWVFlachenQty(); // <-- initial paint based on current panel Mengen
+
+    recomputeWVFlachenQty();
   });
 }
 // === WV PANELS → FLÄCHENKLEBER (one-way) ==============================
@@ -7216,6 +7259,8 @@ function restoreWV(wv) {
   if (!wv) return;
   const prev = window.__RESTORING__;
   window.__RESTORING__ = true;
+  // ensure additive WV extras UI exists before restoring
+  try { setupWandverkleidungPage(); } catch (e) { console.warn('[WV] setup during restore failed:', e); }
   // Kind is a radio
     if (wv.wvKind) setRadio("wvKind", wv.wvKind);
 
@@ -7241,7 +7286,7 @@ function restoreWV(wv) {
   if (document.getElementById("wvColor_997")) setSelect("wvColor_997", sel997);
   if (document.getElementById("wvColor_1497")) setSelect("wvColor_1497", sel1497);
 
-  const pageWV = document.getElementById("page-wandverkleidung");
+  const pageWV = document.getElementById("page-Wandverkleidung");
   if (pageWV && wv.wvColor) pageWV.dataset.wvColorRestored = "1";
 
 
@@ -7301,6 +7346,34 @@ setByNameOrId("wvFlachenSelected", !!flachenOn);
 setByNameOrId("wvEndProfileSelected", !!endProfileOn);
 setByNameOrId("wvSilikonSelected", !!silikonOn);
 setByNameOrId("wvV3VSelected", !!v3vOn);
+
+
+  // ------------------------------------------------------------
+  // 3b) Restore additive "Zusätzliche Farben" (only if present)
+  // Backward compatible:
+  // - New payloads may store extras in wandverkleidung.extraColors[panelKey]
+  // - Some iterations may store extras in panelConfigs[panelKey].extras
+  // - Old Angebote have neither => nothing is rendered
+  // ------------------------------------------------------------
+  const getExtrasForPanel = (panelKey) => {
+    const a = wv?.panelConfigs?.[panelKey]?.extras;
+    if (Array.isArray(a) && a.length) return a;
+    const b = wv?.extraColors?.[panelKey];
+    if (Array.isArray(b) && b.length) return b;
+    return [];
+  };
+
+  restoreExtras(
+    document.getElementById("wvExtraList997"),
+    "wvColor_997",
+    getExtrasForPanel("997x2550"),
+  );
+
+  restoreExtras(
+    document.getElementById("wvExtraList1497"),
+    "wvColor_1497",
+    getExtrasForPanel("1497x2550"),
+  );
 
 // ------------------------------------------------------------
 // 4) Done restoring

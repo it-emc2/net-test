@@ -2131,3 +2131,19 @@ label.image-check.is-checked .caption {
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 16px;
 }
+
+.wv-extra-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 0;
+}
+.wv-extra-row input[type="number"] {
+  width: 80px;
+}
+.wv-extra-row select {
+  min-width: 180px;
+}
+.wv-extra-row button {
+  margin-left: auto;
+}

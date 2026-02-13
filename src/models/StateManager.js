@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 // src/models/StateManager.js
 import { eventBus, Events } from "../events/EventBus.js";
 
