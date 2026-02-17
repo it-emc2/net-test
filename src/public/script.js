@@ -5998,7 +5998,7 @@ function initBathtubSearch() {
     if (!inputEl) return;
     const pid = inputEl.value || "";
     hiddenId.value = pid;
-    hiddenId.dispatchEvent(new Event(\"change\", { bubbles: true }));
+    hiddenId?.dispatchEvent(new Event("change", { bubbles: true }));
     applySelectedStyles();
     window.updatePricing?.();
   };
