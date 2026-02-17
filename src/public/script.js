@@ -7652,6 +7652,47 @@ function restoreTraySelection(dw) {
 
   // hidden fields ONLY — do NOT address [name="traySize"] radios here
   setHiddenById("chosenTrayProductId", dw.chosenTrayProductId);
+  // ===== PATCH: restore bathtub + wannenaufsatz =====
+
+// restore bathtub size inputs if present in payload (optional)
+setByNameOrId("bathtub_w_cm", dw.bathtub_w_cm);
+setByNameOrId("bathtub_l_cm", dw.bathtub_l_cm);
+
+// restore bathtub hidden fields
+setHiddenById("chosenBathtubProductId", dw.chosenBathtubProductId);
+setHiddenById("bathtubSize", dw.bathtubSize);
+
+// screen id is stored in payload as wannenaufsatzProductId
+const screenPid = dw.wannenaufsatzProductId || "";
+setHiddenById("chosenScreenProductId", screenPid);
+
+// restore manual screen search inputs if you store them (optional)
+setByNameOrId("screen_w_cm", dw.screen_w_cm);
+setByNameOrId("screen_h_cm", dw.screen_h_cm);
+
+// persist selections for smart UIs (so radios re-check)
+try {
+  if (dw.chosenBathtubProductId) {
+    localStorage.setItem(
+      "dw_bathtub_selection",
+      JSON.stringify({
+        productId: dw.chosenBathtubProductId,
+        value: dw.bathtubSize || "",
+      }),
+    );
+    sessionStorage.setItem("dw_bathtub_touched", "1");
+  }
+  if (screenPid) {
+    localStorage.setItem("dw_screen_selection", JSON.stringify({ productId: screenPid }));
+    sessionStorage.setItem("dw_screen_touched", "1");
+  }
+} catch {}
+
+// IMPORTANT: nudge listeners so screen picker refreshes after restore
+document.getElementById("chosenBathtubProductId")
+  ?.dispatchEvent(new Event("change", { bubbles: true }));
+document.getElementById("chosenScreenProductId")
+  ?.dispatchEvent(new Event("change", { bubbles: true }));
   setHiddenById("traySize", dw.traySize);
 }
 
@@ -8720,9 +8761,9 @@ async function restoreConfiguratorFromOffer(doc) {
   let offer = null;
   let p = null;
 
+  // ✅ always dispatch (post-restore nudges must fire)
   const dispatchChange = (el) => {
     if (!el) return;
-    if (window.__restoring || window.__RESTORING__) return;
     el.dispatchEvent(new Event("change", { bubbles: true }));
   };
 
@@ -8811,11 +8852,32 @@ async function restoreConfiguratorFromOffer(doc) {
     .querySelectorAll('#form-duschwanne input[name*="workTasks"]')
     .forEach((el) => dispatchChange(el));
 
+  // ✅ NEW: nudge bathtub + screen hidden fields so their listeners refresh UIs
+  document
+    .getElementById("chosenBathtubProductId")
+    ?.dispatchEvent(new Event("change", { bubbles: true }));
+  document
+    .getElementById("chosenScreenProductId")
+    ?.dispatchEvent(new Event("change", { bubbles: true }));
+
+  // ✅ NEW: refresh smart pickers (tray + bathtub + screen)
   if (
     window.__smartTray &&
     typeof window.__smartTray.fetchAndRender === "function"
   ) {
     window.__smartTray.fetchAndRender();
+  }
+  if (
+    window.__smartBathtub &&
+    typeof window.__smartBathtub.fetchAndRender === "function"
+  ) {
+    window.__smartBathtub.fetchAndRender();
+  }
+  if (
+    window.__smartScreenPicker &&
+    typeof window.__smartScreenPicker.refresh === "function"
+  ) {
+    window.__smartScreenPicker.refresh();
   }
 
   // Wandverkleidung dependencies
@@ -8876,6 +8938,150 @@ async function restoreConfiguratorFromOffer(doc) {
   if (typeof updateSummaryWidgetName === "function") {
     updateSummaryWidgetName();
   }
+}
+
+function restoreDuschwanne(dw) {
+  if (!dw) return;
+
+  // numeric inputs (quiet during restore)
+  setByNameOrId("tray_w_cm", dw.tray_w_cm);
+  setByNameOrId("tray_l_cm", dw.tray_l_cm);
+  setByNameOrId("tray_h_cm", dw.tray_h_cm);
+
+  // hidden traySize
+  setHiddenById("traySize", dw.traySize);
+
+  // color etc.
+  setByNameOrId("trayColor", dw.trayColor);
+
+  // toggles
+  setCheckbox("ebenerdigeToggle", !!dw.ebenerdigeMontage);
+  setCheckbox("abdichtSet", !!dw.abdichtSet);
+  setCheckbox("drainSet", !!dw.drainSet);
+  setCheckbox("smallMaterial", !!dw.smallMaterial);
+  setCheckbox("stelzlager", !!dw.stelzlager);
+
+  setHiddenById("chosenTrayProductId", dw.chosenTrayProductId);
+  setNumber("floorArea", dw.floorArea);
+
+  // ===== NEW: restore bathtub + wannenaufsatz =====
+  setByNameOrId("bathtub_w_cm", dw.bathtub_w_cm);
+  setByNameOrId("bathtub_l_cm", dw.bathtub_l_cm);
+
+  setHiddenById("chosenBathtubProductId", dw.chosenBathtubProductId);
+  setHiddenById("bathtubSize", dw.bathtubSize);
+
+  const screenPid =
+    dw.wannenaufsatzProductId || dw.chosenScreenProductId || "";
+  setHiddenById("chosenScreenProductId", screenPid);
+
+  // (optional) manual screen search inputs if stored
+  setByNameOrId("screen_w_cm", dw.screen_w_cm);
+  setByNameOrId("screen_h_cm", dw.screen_h_cm);
+
+  // work tasks
+  if (typeof restoreWorkTasks === "function") {
+    restoreWorkTasks(dw);
+  }
+  if (typeof window.restoreDWExtraTasksFromPayload === "function") {
+    window.restoreDWExtraTasksFromPayload(dw);
+  }
+  if (typeof restoreTraySelection === "function") {
+    restoreTraySelection(dw);
+  }
+
+  if ("addFlooring" in dw) {
+    setCheckbox("addFlooring", !!dw.addFlooring);
+  }
+
+  // flooring color from payload
+  (function restoreFloorColorFromPayload(innerDw) {
+    if (!innerDw) return;
+    const form = document.getElementById("form-duschwanne");
+    if (!form) return;
+
+    let vals = [];
+
+    if (Array.isArray(innerDw.flooringProduct)) {
+      vals = innerDw.flooringProduct.slice();
+    } else if (
+      typeof innerDw.flooringProduct === "string" &&
+      innerDw.flooringProduct
+    ) {
+      vals = [innerDw.flooringProduct];
+    } else if (Array.isArray(innerDw["flooringProduct[]"])) {
+      vals = innerDw["flooringProduct[]"].slice();
+    } else if (
+      typeof innerDw["flooringProduct[]"] === "string" &&
+      innerDw["flooringProduct[]"]
+    ) {
+      vals = [innerDw["flooringProduct[]"]];
+    } else if (
+      innerDw.computed &&
+      Array.isArray(innerDw.computed.flooringProduct)
+    ) {
+      vals = innerDw.computed.flooringProduct.slice();
+    }
+
+    if (!vals.length) return;
+
+    const target = String(vals[0] || "");
+    if (!target) return;
+
+    const inputs = Array.from(
+      form.querySelectorAll('input[name="flooringProduct[]"]'),
+    );
+    if (!inputs.length) return;
+
+    inputs.forEach((cb) => {
+      cb.checked = cb.value === target;
+      if (typeof highlightTileForInput === "function") {
+        highlightTileForInput(cb, cb.checked);
+      }
+    });
+
+    if (typeof syncColorWithAreaDW === "function") {
+      syncColorWithAreaDW();
+    }
+  })(dw);
+
+  if (typeof restoreTrinnityFloorSealing === "function") {
+    restoreTrinnityFloorSealing(dw);
+  }
+
+  // persist SmartTray selection in storage
+  try {
+    const pid = dw.chosenTrayProductId || "";
+    const label = dw.traySize || "";
+    if (pid) {
+      localStorage.setItem(
+        "dw_tray_selection",
+        JSON.stringify({ productId: pid, value: label }),
+      );
+      sessionStorage.setItem("dw_tray_touched", "1");
+    }
+  } catch {}
+
+  // ✅ persist bathtub + screen selections for smart UIs
+  try {
+    if (dw.chosenBathtubProductId) {
+      localStorage.setItem(
+        "dw_bathtub_selection",
+        JSON.stringify({
+          productId: dw.chosenBathtubProductId,
+          value: dw.bathtubSize || "",
+        }),
+      );
+      sessionStorage.setItem("dw_bathtub_touched", "1");
+    }
+    if (screenPid) {
+      localStorage.setItem(
+        "dw_screen_selection",
+        JSON.stringify({ productId: screenPid }),
+      );
+      sessionStorage.setItem("dw_screen_touched", "1");
+    }
+  } catch {}
 }
 
 function setCurrentOfferType(offerType) {
