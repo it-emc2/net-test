@@ -308,6 +308,8 @@ function grossToNet(gross, taxRate) {
       relocate_drain: "Abfluss verlegen",
       close_valve: "Stilllegen der Armatur",
       replace_shower_system: "Auswechseln des Duschsystems",
+      install_bathtub: "Einbau der Badewanne",
+install_bathtub_screen: "Einbau des Wannenaufsatzes",
     };
 
     const dwTasks = normalizeDWTasks(payload);
@@ -1291,6 +1293,83 @@ color: metaColor || null,
       }
 
       // --- add the selected Duschwanne (from smart search) as a material line ---
+      // --- add selected Badewanne + (optional) Wannenaufsatz as material lines ---
+try {
+  const bathtubPid = payload?.duschwanne?.chosenBathtubProductId;
+
+  // robust workTasks read (your payload has weird keys sometimes)
+  const dw = payload?.duschwanne || {};
+  const workTasksRaw =
+    dw.workTasks ||
+    dw["workTasks[]"] ||
+    dw["duschwanne[workTasks][]"] ||
+    payload?.["duschwanne[workTasks][]"];
+
+  const workTasks = Array.isArray(workTasksRaw)
+    ? workTasksRaw.map((x) => String(x))
+    : typeof workTasksRaw === "string" && workTasksRaw.trim()
+      ? [workTasksRaw.trim()]
+      : [];
+
+  if (bathtubPid) {
+    const already = (materials?.lines || []).some(
+      (l) => l?.productId === bathtubPid || l?.id === bathtubPid
+    );
+
+    if (!already) {
+      const p = await ProductModel.findOne({ productId: bathtubPid }).lean();
+      if (p) {
+        const unit = Number(p.price || 0);
+        const qty = 1;
+        const line = {
+          productId: p.productId,
+          name: p.name || "",
+          qty,
+          unitPrice: unit,
+          lineTotal: round2(unit * qty),
+          label: `- ${qty} Stk Badewanne`,
+        };
+        materials.lines.push(line);
+        materials.sum = round2((materials.sum || 0) + line.lineTotal);
+      }
+    }
+  }
+
+  // Wannenaufsatz only if its installation is selected
+  const wantsScreen = workTasks.includes("install_bathtub_screen");
+  // ✅ Backwards compatible: accept either new or old field names
+  const screenPid =
+    payload?.duschwanne?.wannenaufsatzProductId ||
+    payload?.duschwanne?.chosenScreenProductId ||
+    payload?.chosenScreenProductId ||
+    null;
+    
+  if (wantsScreen && screenPid) {
+    const already = (materials?.lines || []).some(
+      (l) => l?.productId === screenPid || l?.id === screenPid
+    );
+
+    if (!already) {
+      const p = await ProductModel.findOne({ productId: screenPid }).lean();
+      if (p) {
+        const unit = Number(p.price || 0);
+        const qty = 1;
+        const line = {
+          productId: p.productId,
+          name: p.name || "",
+          qty,
+          unitPrice: unit,
+          lineTotal: round2(unit * qty),
+          label: `- ${qty} Stk Wannenaufsatz`,
+        };
+        materials.lines.push(line);
+        materials.sum = round2((materials.sum || 0) + line.lineTotal);
+      }
+    }
+  }
+} catch (e) {
+  console.warn("[pricing] addBathtubLines failed:", e?.message || e);
+}
       let selectedTray = null;
 
       try {

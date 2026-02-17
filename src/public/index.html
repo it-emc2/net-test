@@ -1752,6 +1752,24 @@
                   <span class="task-card__hint">Montage & Abdichtung gemäß Herstellerangaben</span>
                 </span>
               </label>
+
+              <!-- Einbau Badewanne -->
+<label class="task-card">
+  <input type="checkbox" name="duschwanne[workTasks][]" value="install_bathtub" />
+  <span class="task-card__body">
+    <span class="task-card__title">Einbau der Badewanne</span>
+    <span class="task-card__hint">Montage, Ausrichtung & Anschluss</span>
+  </span>
+</label>
+
+<!-- Einbau Wannenaufsatz -->
+<label class="task-card">
+  <input type="checkbox" name="duschwanne[workTasks][]" value="install_bathtub_screen" />
+  <span class="task-card__body">
+    <span class="task-card__title">Einbau des Wannenaufsatzes</span>
+    <span class="task-card__hint">Montage & Abdichtung gemäß Herstellerangaben</span>
+  </span>
+</label>
             </div>
             <!-- Auswechseln des Duschsystems -->
             <label class="task-card">
@@ -1795,6 +1813,40 @@
 
 
           <div><img src="./assets/duschwanne.jpeg" alt="Duschwanne" /></div>
+
+        <!-- Bathtub search (only visible when "Einbau der Badewanne" is selected) -->
+<div id="bathtubSearchPanel" class="field" hidden aria-hidden="true" style="margin-top:12px;">
+  <label>Badewanne auswählen (Maße B × L in cm)</label>
+
+  <div class="row" style="gap:8px;">
+    <input type="number" min="20" step="1" placeholder="Breite" name="bathtub_w_cm">
+    <input type="number" min="2" step="1" placeholder="Länge" name="bathtub_l_cm">
+  </div>
+
+  <div id="bathtub-suggestions" class="space-y-2" style="margin-top:8px;"></div>
+
+  <input type="hidden" id="chosenBathtubProductId" name="chosenBathtubProductId">
+  <input type="hidden" id="bathtubSize" name="bathtubSize">
+
+
+</div>
+        <!-- Wannenaufsatz auswählen (only visible when "Wannenaufsatz " is selected) -->
+
+<div id="screenPickerPanel" class="field" hidden aria-hidden="true" style="margin-top:12px;">
+  <div id="screen-reco-hint" class="meta" style="margin-bottom:6px;"></div>
+
+  <label>Wannenaufsatz auswählen</label>
+
+ <div class="row" style="gap:8px; margin-top:8px;">
+  <input type="number" min="1" step="1" placeholder="Breite (cm)" name="screen_w_cm" />
+  <input type="number" min="1" step="1" placeholder="Höhe (cm)" name="screen_h_cm" />
+</div>
+
+  <div id="screen-suggestions" class="space-y-2" style="margin-top:8px;"></div>
+
+  <!-- final chosen screen product -->
+  <input type="hidden" id="chosenScreenProductId" name="chosenScreenProductId" />
+</div>
 
           <div class="field">
             <div class="subheader">Farbe: weiß</div>

@@ -2994,6 +2994,17 @@ function buildPayload() {
     console.warn("[buildPayload] HL collectHL failed:", e);
   }
 
+
+  // ✅ Ensure smart-picked products (tray/bathtub/screen) are included in payload
+  try {
+    if (typeof attachDuschwanneToPayload === "function") {
+      attachDuschwanneToPayload(payload);
+    }
+  } catch (e) {
+    console.warn("[buildPayload] attachDuschwanneToPayload failed:", e);
+  }
+
+
   payload.activeOffer = currentOfferKey || null;
 
   return filterPayloadByOffer(payload);
@@ -5769,8 +5780,9 @@ function initSmartTraySearch() {
     const h = Number(inputEl.dataset.h) || null;
 
     const label = makeLabel(w, l, h);
-    if (hiddenId) hiddenId.value = pid;
-    if (hiddenSize) hiddenSize.value = label;
+  if (hiddenId) hiddenId.value = pid;
+hiddenId?.dispatchEvent(new Event("change", { bubbles: true }));
+if (hiddenSize) hiddenSize.value = label;
 
     persistSelection(pid, label);
     applySelectedStyles();
@@ -5872,7 +5884,10 @@ function initSmartTraySearch() {
     // If nothing typed → clear everything and ensure no stale results repaint
     if (b === null && l === null && h === null) {
       out.innerHTML = "";
-      if (hiddenId) hiddenId.value = "";
+      if (hiddenId) {
+      hiddenId.value = "";
+      hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
+    }
       if (hiddenSize) hiddenSize.value = "";
       try {
         sessionStorage.removeItem("dw_tray_touched");
@@ -5930,12 +5945,18 @@ function initSmartTraySearch() {
     if (!el) return;
     el.addEventListener("input", () => {
       // Do NOT set dw_tray_touched here. Only on actual suggestion pick.
-      if (hiddenId) hiddenId.value = "";
+      if (hiddenId) {
+        hiddenId.value = "";
+        hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
+      }
       updateTraySizeFromInputs();
       request();
     });
     el.addEventListener("change", () => {
-      if (hiddenId) hiddenId.value = "";
+      if (hiddenId) {
+        hiddenId.value = "";
+        hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
+      }
       request();
     });
   });
@@ -5945,6 +5966,570 @@ function initSmartTraySearch() {
   request();
 
   window.__smartTray = { fetchAndRender };
+}
+// Smart search for bathtubs (Badewanne). Reuses the same suggestion-card/list CSS.
+// - Visible only when work task "install_bathtub" is selected
+// - Searches /api/products?q=...
+// - Filters to productId starting with "IRIS" but excludes "IRISWAS" (Wannenaufsatz)
+function initBathtubSearch() {
+  const panel = document.getElementById("bathtubSearchPanel");
+  const input = document.getElementById("bathtubSearch");
+  const out = document.getElementById("bathtub-suggestions");
+  const hiddenId = document.getElementById("chosenBathtubProductId");
+
+  const task = document.querySelector(
+    'input[name="duschwanne[workTasks][]"][value="install_bathtub"]'
+  );
+
+  if (!panel || !input || !out || !hiddenId || !task) return;
+
+  const toUpper = (v) => String(v || "").toUpperCase();
+
+  const applySelectedStyles = () => {
+    const cards = Array.from(out.querySelectorAll(".suggestion-card"));
+    const checked = out.querySelector('input[name="bathtubSuggestion"]:checked');
+    cards.forEach((card) => {
+      const inEl = card.querySelector('input[name="bathtubSuggestion"]');
+      card.classList.toggle("is-selected", !!checked && inEl === checked);
+    });
+  };
+
+  const applySelection = (inputEl) => {
+    if (!inputEl) return;
+    const pid = inputEl.value || "";
+    hiddenId.value = pid;
+    hiddenId.dispatchEvent(new Event(\"change\", { bubbles: true }));
+    applySelectedStyles();
+    window.updatePricing?.();
+  };
+
+  const showPanel = (on) => {
+    panel.hidden = !on;
+    panel.setAttribute("aria-hidden", on ? "false" : "true");
+    if (!on) {
+      input.value = "";
+      out.innerHTML = "";
+      hiddenId.value = "";
+    }
+  };
+
+  // initial state + toggle on checkbox
+  showPanel(!!task.checked);
+  task.addEventListener("change", () => showPanel(!!task.checked));
+
+  function renderSuggestions(list) {
+    if (!Array.isArray(list) || list.length === 0) {
+      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
+      applySelectedStyles();
+      return;
+    }
+
+    const top = list.slice(0, 5);
+
+    const radios = top
+      .map((p, i) => {
+        const id = `bathtub-suggest-${i}`;
+        const title = p.name || p.productId || "Badewanne";
+        const price = p.price != null ? ` — ${Number(p.price).toFixed(2)} €` : "";
+        const value = p.productId || "";
+        return `
+          <label class="suggestion-card" for="${id}">
+            <input type="radio" id="${id}" name="bathtubSuggestion" value="${value}" />
+            <div class="info">
+              <div class="title">${title}</div>
+              <div class="meta">${value}${price}</div>
+            </div>
+          </label>
+        `;
+      })
+      .join("");
+
+    out.innerHTML = `
+      <div class="suggestion-heading">Vorschläge</div>
+      <div class="suggestion-list">${radios}</div>
+    `;
+
+    out.addEventListener("change", (e) => {
+      if (e.target && e.target.name === "bathtubSuggestion") {
+        applySelection(e.target);
+      }
+    });
+
+    applySelectedStyles();
+  }
+
+  let inflight = null;
+  let reqSeq = 0;
+  let debounceT = null;
+
+  async function fetchAndRender(q) {
+    const query = String(q || "").trim();
+    if (!query) {
+      out.innerHTML = "";
+      return;
+    }
+
+    try { inflight?.abort?.(); } catch {}
+    inflight = new AbortController();
+    const mySeq = ++reqSeq;
+
+    const url = `/api/products?q=${encodeURIComponent(query)}`;
+    out.innerHTML = `<div class="meta">Suche…</div>`;
+
+    try {
+      const r = await fetch(url, { signal: inflight.signal, credentials: "include" });
+      const text = await r.text();
+      if (mySeq !== reqSeq) return;
+      if (!r.ok) {
+        out.innerHTML = `<div class="text-sm text-destructive">Fehler ${r.status}</div><pre class="text-xs">${text}</pre>`;
+        return;
+      }
+
+      const data = JSON.parse(text);
+      const arr = Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : []);
+
+      // Only IRIS* but exclude IRISWAS* (screen)
+      const list = arr
+        .filter((p) => toUpper(p?.productId).startsWith("IRIS"))
+        .filter((p) => !toUpper(p?.productId).startsWith("IRISWAS"));
+
+      renderSuggestions(list);
+    } catch (err) {
+      if (err?.name === "AbortError") return;
+      if (mySeq !== reqSeq) return;
+      out.innerHTML = `<div class="text-sm text-destructive">Netzwerkfehler</div><pre class="text-xs">${String(err)}</pre>`;
+    }
+  }
+
+  const request = () => {
+    clearTimeout(debounceT);
+    debounceT = setTimeout(() => fetchAndRender(input.value), 180);
+  };
+
+  input.addEventListener("input", () => {
+    hiddenId.value = "";
+    request();
+  });
+  input.addEventListener("change", () => {
+    hiddenId.value = "";
+    request();
+  });
+}
+/* ========== SMART BATHTUB SEARCH (same UX as trays) ========== */
+function initSmartBathtubSearch() {
+  // Show only when "install_bathtub" is checked
+  const task = document.querySelector(
+    'input[name="duschwanne[workTasks][]"][value="install_bathtub"]'
+  );
+
+  const panel = document.getElementById("bathtubSearchPanel");
+  const elB = document.querySelector('input[name="bathtub_w_cm"]');
+  const elL = document.querySelector('input[name="bathtub_l_cm"]');
+  const out = document.getElementById("bathtub-suggestions");
+  const hiddenId = document.getElementById("chosenBathtubProductId");
+  const hiddenSize = document.getElementById("bathtubSize");
+
+  if (!panel || !out || (!elB && !elL) || !task) return;
+
+  const showPanel = (on) => {
+    panel.hidden = !on;
+    panel.setAttribute("aria-hidden", on ? "false" : "true");
+    if (!on) {
+      if (elB) elB.value = "";
+      if (elL) elL.value = "";
+      out.innerHTML = "";
+      if (hiddenId) {
+        hiddenId.value = "";
+        hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      if (hiddenSize) hiddenSize.value = "";
+      try { inflight?.abort?.(); } catch {}
+      reqSeq++;
+    }
+  };
+
+  showPanel(!!task.checked);
+  task.addEventListener("change", () => showPanel(!!task.checked));
+
+  const parseNum = (v) => {
+    if (v == null) return null;
+    const raw = String(v).trim();
+    if (raw === "") return null;
+    const s = raw.replace(/\./g, "").replace(",", ".");
+    const n = Number(s);
+    if (!Number.isFinite(n)) return null;
+    return n > 0 ? n : null;
+  };
+
+  const makeLabel = (w, l) => (w && l ? `${w} x ${l} cm` : "");
+
+  const applySelectedStyles = () => {
+    const cards = Array.from(out.querySelectorAll(".suggestion-card"));
+    const checked = out.querySelector('input[name="bathtubSuggestion"]:checked');
+    cards.forEach((card) => {
+      const input = card.querySelector('input[name="bathtubSuggestion"]');
+      card.classList.toggle("is-selected", checked && input === checked);
+    });
+  };
+
+  const applySelection = (inputEl) => {
+    if (!inputEl) return;
+    const pid = inputEl.value || "";
+    const w = Number(inputEl.dataset.w) || null;
+    const l = Number(inputEl.dataset.l) || null;
+    const label = makeLabel(w, l);
+
+    if (hiddenId) {
+  hiddenId.value = pid;
+  hiddenId.dispatchEvent(new Event("change", { bubbles: true })); // ✅ important
+}
+if (hiddenSize) hiddenSize.value = label;
+
+applySelectedStyles();
+window.updatePricing?.();
+  };
+
+  function renderSuggestions(list) {
+    if (!Array.isArray(list) || list.length === 0) {
+      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
+      applySelectedStyles();
+      return;
+    }
+
+    const top = list.slice(0, 3);
+    const current = (hiddenId?.value || "").trim();
+
+    const radios = top
+      .map((p, i) => {
+        const id = `bathtub-suggest-${i}`;
+        const dims = `${p.widthCm} × ${p.lengthCm} cm`;
+        const price = p.price != null ? ` — ${Number(p.price).toFixed(2)} €` : "";
+        const title = p.name || p.productId || "Badewanne";
+        const value = p.productId || "";
+
+        return `
+          <label class="suggestion-card" for="${id}">
+            <input type="radio"
+                   id="${id}"
+                   name="bathtubSuggestion"
+                   value="${value}"
+                   ${current && current === value ? "checked" : ""}
+                   data-w="${p.widthCm || ""}"
+                   data-l="${p.lengthCm || ""}" />
+            <div class="info">
+              <div class="title">${title}</div>
+              <div class="meta">${dims}${price}</div>
+            </div>
+          </label>
+        `;
+      })
+      .join("");
+
+    out.innerHTML = `
+      <div class="suggestion-heading">Vorschläge</div>
+      <div class="suggestion-list">${radios}</div>
+    `;
+
+    out.addEventListener("change", (e) => {
+      if (e.target && e.target.name === "bathtubSuggestion") {
+        applySelection(e.target);
+      }
+    });
+
+    applySelectedStyles();
+  }
+
+  // fetch logic (same pattern as trays)
+  let inflight = null;
+  let reqSeq = 0;
+  let debounceT = null;
+
+  async function fetchAndRender() {
+    const b = elB ? parseNum(elB.value) : null;
+    const l = elL ? parseNum(elL.value) : null;
+
+    if (b === null && l === null) {
+      out.innerHTML = "";
+      if (hiddenId) {
+  hiddenId.value = "";
+  hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
+}
+      if (hiddenSize) hiddenSize.value = "";
+      try { inflight?.abort?.(); } catch {}
+      reqSeq++;
+      return;
+    }
+
+    const qs = new URLSearchParams();
+    if (b !== null) qs.set("w", String(b));
+    if (l !== null) qs.set("l", String(l));
+    const url = `/api/bathtubs/suggest?${qs.toString()}`;
+
+    try { inflight?.abort?.(); } catch {}
+    inflight = new AbortController();
+    const mySeq = ++reqSeq;
+
+    out.innerHTML = `<div class="meta">Suche… <code>${url}</code></div>`;
+
+    try {
+      const r = await fetch(url, { signal: inflight.signal, credentials: "include" });
+      const text = await r.text();
+      if (mySeq !== reqSeq) return;
+      if (!r.ok) {
+        out.innerHTML = `<div class="text-sm text-destructive">Fehler ${r.status}</div><pre class="text-xs">${text}</pre>`;
+        return;
+      }
+      const data = JSON.parse(text);
+      const list = Array.isArray(data?.results) ? data.results : [];
+      renderSuggestions(list);
+    } catch (err) {
+      if (err?.name === "AbortError") return;
+      if (mySeq !== reqSeq) return;
+      out.innerHTML = `<div class="text-sm text-destructive">Netzwerkfehler</div><pre class="text-xs">${String(err)}</pre>`;
+    }
+  }
+
+  const request = () => {
+    clearTimeout(debounceT);
+    debounceT = setTimeout(fetchAndRender, 160);
+  };
+
+  [elB, elL].forEach((el) => {
+    if (!el) return;
+    el.addEventListener("input", () => {
+      if (hiddenId) {
+        hiddenId.value = "";
+        hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      if (hiddenSize) hiddenSize.value = makeLabel(parseNum(elB?.value), parseNum(elL?.value));
+      request();
+    });
+    el.addEventListener("change", () => {
+      if (hiddenId) hiddenId.value = "";
+      request();
+    });
+  });
+
+  // initial kick
+  request();
+
+  window.__smartBathtub = { fetchAndRender };
+}
+function initSmartScreenPickerBucket() {
+  const task = document.querySelector(
+    'input[name="duschwanne[workTasks][]"][value="install_bathtub_screen"]',
+  );
+
+  const bathtubIdEl = document.getElementById("chosenBathtubProductId");
+  const panel = document.getElementById("screenPickerPanel");
+  const hint = document.getElementById("screen-reco-hint");
+  const out = document.getElementById("screen-suggestions");
+  const chosen = document.getElementById("chosenScreenProductId");
+
+  const elW = document.querySelector('input[name="screen_w_cm"]');
+  const elH = document.querySelector('input[name="screen_h_cm"]');
+
+  if (!task || !bathtubIdEl || !panel || !hint || !out || !chosen) return;
+
+  let inflight = null;
+  let reqSeq = 0;
+  let debounceT = null;
+
+  const parseNum = (v) => {
+    if (v == null) return null;
+    const s = String(v).trim().replace(/\./g, "").replace(",", ".");
+    if (!s) return null;
+    const n = Number(s);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+
+  const setVisible = (on) => {
+    panel.hidden = !on;
+    panel.setAttribute("aria-hidden", on ? "false" : "true");
+    if (!on) {
+      hint.textContent = "";
+      out.innerHTML = "";
+      chosen.value = "";
+      if (elW) elW.value = "";
+      if (elH) elH.value = "";
+      try {
+        inflight?.abort?.();
+      } catch {}
+      reqSeq++;
+    }
+  };
+
+  const applySelectedStyles = () => {
+    const cards = Array.from(out.querySelectorAll(".suggestion-card"));
+    const checked = out.querySelector('input[name="screenSuggestion"]:checked');
+    cards.forEach((card) => {
+      const input = card.querySelector('input[name="screenSuggestion"]');
+      card.classList.toggle("is-selected", checked && input === checked);
+    });
+  };
+
+  const renderSuggestions = (list) => {
+    if (!Array.isArray(list) || list.length === 0) {
+      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
+      applySelectedStyles();
+      return;
+    }
+
+    const top = list.slice(0, 3);
+    const current = (chosen.value || "").trim();
+
+    out.innerHTML = `
+      <div class="suggestion-heading">Vorschläge</div>
+      ${top
+        .map((p, i) => {
+          const id = `screen-suggest-${i}`;
+          const price = p.price != null ? ` — ${Number(p.price).toFixed(2)} €` : "";
+          const title = p.name || p.productId || "Wannenaufsatz";
+          const value = p.productId || "";
+          const checked = current && current === value ? "checked" : "";
+          return `
+            <label class="suggestion-card" for="${id}">
+              <input
+                type="radio"
+                id="${id}"
+                name="screenSuggestion"
+                value="${value}"
+                ${checked}
+              />
+              <div class="info">
+                <div class="title">${window.escapeHtml ? escapeHtml(title) : title}</div>
+                <div class="meta">${value}${price}</div>
+              </div>
+            </label>
+          `;
+        })
+        .join("")}
+    `;
+
+    out.querySelectorAll('input[name="screenSuggestion"]').forEach((r) => {
+      r.addEventListener("change", () => {
+        chosen.value = r.value || "";
+        applySelectedStyles();
+        window.updatePricing?.();
+      });
+    });
+
+    applySelectedStyles();
+  };
+
+  async function refreshInternal() {
+    const wants = !!task.checked;
+    if (!wants) {
+      setVisible(false);
+      return;
+    }
+
+    setVisible(true);
+
+    const bathtubPid = (bathtubIdEl.value || "").trim();
+    if (!bathtubPid) {
+      hint.textContent = "Bitte zuerst eine Badewanne auswählen.";
+      out.innerHTML = "";
+      chosen.value = "";
+      return;
+    }
+
+    // Manual input takes priority over bucket suggestions
+    const w = parseNum(elW?.value);
+    const h = parseNum(elH?.value);
+    const hasManual = w !== null || h !== null;
+
+    // We still fetch recommendation to show the hint (and maybe side)
+    hint.textContent = "Empfehlung wird geladen…";
+    out.innerHTML = `<div class="meta">Suche…</div>`;
+
+    try {
+      inflight?.abort?.();
+    } catch {}
+    inflight = new AbortController();
+    const mySeq = ++reqSeq;
+
+    const recUrl = `/api/bathtubs/recommend-screen?bathtubProductId=${encodeURIComponent(
+      bathtubPid,
+    )}`;
+
+    const recRes = await fetch(recUrl, {
+      signal: inflight.signal,
+      credentials: "include",
+    });
+
+    const recText = await recRes.text();
+    if (mySeq !== reqSeq) return;
+    if (!recRes.ok) {
+      hint.textContent = "Empfehlung konnte nicht geladen werden.";
+      out.innerHTML = `<pre class="text-xs">${recText}</pre>`;
+      return;
+    }
+
+    const recData = JSON.parse(recText);
+    const rec = recData?.recommended;
+
+    if (!rec || !rec.bucket) {
+      hint.textContent = "Keine Empfehlung gefunden.";
+      out.innerHTML = "";
+      return;
+    }
+
+    // show hint always (even if manual mode)
+    hint.textContent = `Empfohlen: ${rec.productId}`;
+
+    // Build suggest query
+    const qs = new URLSearchParams();
+
+    if (hasManual) {
+      // manual search takes priority
+      if (w !== null) qs.set("w", String(w));
+      if (h !== null) qs.set("h", String(h));
+      // optional: keep side preference if backend supports it
+      if (rec.side === "L" || rec.side === "R") qs.set("side", rec.side);
+    } else {
+      // default bucket search
+      qs.set("bucket", String(rec.bucket));
+      if (rec.side === "L" || rec.side === "R") qs.set("side", rec.side);
+    }
+
+    const sugUrl = `/api/bathtubs/screens/suggest?${qs.toString()}`;
+
+    const sugRes = await fetch(sugUrl, {
+      signal: inflight.signal,
+      credentials: "include",
+    });
+
+    const sugText = await sugRes.text();
+    if (mySeq !== reqSeq) return;
+    if (!sugRes.ok) {
+      out.innerHTML = `<div class="text-sm text-destructive">Fehler ${sugRes.status}</div><pre class="text-xs">${sugText}</pre>`;
+      return;
+    }
+
+    const sugData = JSON.parse(sugText);
+    renderSuggestions(Array.isArray(sugData?.results) ? sugData.results : []);
+  }
+
+  const refresh = () => {
+    clearTimeout(debounceT);
+    debounceT = setTimeout(refreshInternal, 150);
+  };
+
+  // triggers
+  task.addEventListener("change", refresh);
+  bathtubIdEl.addEventListener("change", refresh);
+
+  // manual input triggers (priority)
+  [elW, elH].forEach((el) => {
+    if (!el) return;
+    el.addEventListener("input", refresh);
+    el.addEventListener("change", refresh);
+  });
+
+  // initial
+  window.__smartScreenPicker = { refresh };
+  refresh();
 }
 function initTraySizeAutoLabel() {
   const traySizeEl = document.getElementById("traySize");
@@ -5973,13 +6558,28 @@ function initTraySizeAutoLabel() {
   window.updateTraySizeFromInputs = updateTraySizeFromInputs;
 }
 function attachDuschwanneToPayload(payload) {
+  // tray (existing)
   const pid = document.getElementById("chosenTrayProductId")?.value || null;
   const size = document.getElementById("traySize")?.value || "";
 
-  // pricing.js expects these nested under payload.duschwanne.*
+  // bathtub (new)
+  const bPid = document.getElementById("chosenBathtubProductId")?.value || "";
+  const bSize = document.getElementById("bathtubSize")?.value || "";
+
+  // screen (new) - NO DEFAULT
+  const screenPid =
+    document.getElementById("chosenScreenProductId")?.value || "";
+
   payload.duschwanne = payload.duschwanne || {};
   payload.duschwanne.chosenTrayProductId = pid;
   payload.duschwanne.traySize = size;
+
+  payload.duschwanne.chosenBathtubProductId = bPid.trim() ? bPid.trim() : null;
+  payload.duschwanne.bathtubSize = bSize;
+
+  payload.duschwanne.wannenaufsatzProductId = screenPid.trim()
+    ? screenPid.trim()
+    : null;
 
   return payload;
 }
@@ -10593,7 +11193,7 @@ function initLivePricingSync() {
   watchRoot.addEventListener("change", handler, true);
 
   // Also watch hidden fields that we set programmatically
-  ["chosenTrayProductId", "traySize"].forEach((id) => {
+    ["chosenTrayProductId", "traySize", "chosenBathtubProductId", "bathtubSize", "chosenScreenProductId"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) {
       el.addEventListener("input", handler);
@@ -11272,7 +11872,9 @@ document.addEventListener("DOMContentLoaded", () => {
   initBasinAutoAccessories && initBasinAutoAccessories();
   wireDAQtyAutoFill();
   initOptionalSonderprodukte();
-
+  initBathtubSearch(); 
+initSmartBathtubSearch();
+initSmartScreenPickerBucket();
   initLivePricingSync();
   window.addEventListener("hashchange", () => {
     const id = location.hash.replace("#", "");
@@ -11812,16 +12414,45 @@ function initHassmannBestFinder() {
     });
   }
 
-  function triggerBlobDownload(blob, filename) {
+  function isIOS() {
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
+async function triggerBlobDownload(blob, filename) {
+  const safeName = filename || "Angebot.pdf";
+
+  // iOS: use Share Sheet if possible, else open in a new tab
+  if (isIOS()) {
+    try {
+      const file = new File([blob], safeName, { type: "application/pdf" });
+      if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+        await navigator.share({ files: [file], title: safeName });
+        return;
+      }
+    } catch {
+      // ignore and fall back to opening tab
+    }
+
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename || "Angebot.pdf";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    // Open PDF (user can then Share/Save)
+    window.open(url, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return;
   }
+
+  // Non-iOS: normal download, but delay revoke
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = safeName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
 
   async function sendPdfToAuftrag() {
     const auftragId = (auftragInput.value || "").trim();

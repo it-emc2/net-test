@@ -24,7 +24,7 @@ import { router as materialOverviewRouter } from "./routes/material-overview.js"
 import adobePdfRouter from "./routes/adobe-pdf.js";
 import arbeitsberichtRouter from "./routes/arbeitsbericht.js";
 import kalkulationRouter from "./routes/kalkulation.js";
-
+import bathtubsRouter from "./routes/bathtubs.js";
 
 // Models (ESM default exports)
 import Product from "./models/Product.js";
@@ -221,6 +221,7 @@ app.use("/api/adobe-pdf", adobePdfRouter);
 app.use("/arbeitsbericht", arbeitsberichtRouter);
 app.use("/kalkulation", kalkulationRouter);
 app.use("/api/email", emailRouter);
+app.use("/api/bathtubs", bathtubsRouter);
 //app.use("/pdf-preview", pdfPreviewRouter);
 //app.use('/api/docx/pdf-preview', pdfPreviewRouter); // ADD THIS
 // (you had this twice; once is enough)
