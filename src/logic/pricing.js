@@ -6,8 +6,9 @@ export default (ProductModel) => {
   // Minimal helper: adjust only the visible label to billable qty (selected - 1)
   // - Does NOT change qty, unitPrice, or lineTotal (so totals remain untouched).
   // - If billable becomes 0 and hideWhenZero=true, remove the line from the list (keeps "0 Stk" hidden).
-  function setCL30LabelToBillable(list, { hideWhenZero = false } = {}) {
-    const row = list?.find((l) => (l.productId || l.id) === "CLPESG30");
+  function setGrabLabelToBillable(list, freeId, { hideWhenZero = false } = {}) {
+    if (!freeId) return;
+    const row = list?.find((l) => (l.productId || l.id) === freeId);
     if (!row) return;
 
     const selectedQty = Number(row.qty || 0) || 0;
@@ -936,11 +937,28 @@ color: metaColor || null,
     const sum = round2(resolved.reduce((a, x) => a + (x.lineTotal || 0), 0));
 
     // Return grabCounts at materials-level; UI or computePrices can bubble it up
+    const GRAB_IDS = ["CLPESG30", "CLPESG40", "CLPESG60", "CLPESG80"];
+    const grabQtyById = Object.fromEntries(
+      GRAB_IDS.map((id) => {
+        const row = resolved.find((l) => (l.productId || l.id) === id);
+        return [id, Number(row?.qty || 0) || 0];
+      }),
+    );
+    const grabTotal = GRAB_IDS.reduce((a, id) => a + (grabQtyById[id] || 0), 0);
+    const freeId = GRAB_IDS.find((id) => (grabQtyById[id] || 0) > 0) || null;
+
     return {
       title: getMaterialsTitle(offer),
       lines: resolved,
       sum,
-      grabCounts: { cl30: cl30Qty, total: grabTotalQty },
+      grabCounts: {
+        cl30: grabQtyById.CLPESG30 || 0,
+        cl40: grabQtyById.CLPESG40 || 0,
+        cl60: grabQtyById.CLPESG60 || 0,
+        cl80: grabQtyById.CLPESG80 || 0,
+        total: grabTotal,
+        freeId,
+      },
     };
   }
 
@@ -1456,14 +1474,15 @@ try {
       const docxServices = (services?.lines || []).map((x) => ({ ...x }));
 
       // ===== Apply bonus presentation rules =====
-      const ONLY_ONE_CL30 = grabCounts.total === 1 && grabCounts.cl30 === 1;
+      const freeId = grabCounts?.freeId || null;
+      const ONLY_ONE_GRAB = grabCounts.total === 1;
 
-      // UI rules
-      if (bonusHG && grabCounts.cl30 > 0) {
-        // Multiple grab bars: show CLPESG30 as qty-1 in Optional UI
-        setCL30LabelToBillable(uiOptionals, { hideWhenZero: false }); // show "0 Stk ..." in UI
-        // Particular case: single CLPESG30 and no other grab bars → hide the worknote in UI (to mirror DOCX behavior)
-        if (ONLY_ONE_CL30) {
+      // UI rules (presentation only)
+      if (bonusHG && grabCounts.total > 0) {
+        setGrabLabelToBillable(uiOptionals, freeId, { hideWhenZero: false });
+
+        // Single grab bar → hide the worknote in UI (to mirror DOCX behavior)
+        if (ONLY_ONE_GRAB) {
           const GRAB_NOTE = "Anbringen zusätzlicher Haltegriffe";
           const uiNoteIdx = uiServices.findIndex((s) =>
             (s.label || "").includes(GRAB_NOTE),
@@ -1472,14 +1491,15 @@ try {
         }
       }
 
-      // DOCX rules
-      if (bonusHG && grabCounts.cl30 > 0) {
-        if (ONLY_ONE_CL30) {
-          // Single CLPESG30 → hide it completely in DOCX materials
+      // DOCX rules (presentation only)
+      if (bonusHG && grabCounts.total > 0) {
+        if (ONLY_ONE_GRAB) {
+          // Single grab bar → hide it completely in DOCX materials
           const idx = docxMaterials.findIndex(
-            (l) => (l.productId || l.id) === "CLPESG30",
+            (l) => (l.productId || l.id) === freeId,
           );
           if (idx >= 0) docxMaterials.splice(idx, 1);
+
           // Remove the worknote line from DOCX services
           const GRAB_NOTE = "Anbringen zusätzlicher Haltegriffe";
           const dn = docxServices.findIndex((s) =>
@@ -1487,10 +1507,11 @@ try {
           );
           if (dn >= 0) docxServices.splice(dn, 1);
         } else {
-          // Multiple → decrement one from DOCX
-          setCL30LabelToBillable(docxMaterials, { hideWhenZero: true }); // hide when 0 in PDF
+          // Multiple → decrement one from DOCX (hide when becomes 0)
+          setGrabLabelToBillable(docxMaterials, freeId, { hideWhenZero: true });
         }
       }
+
 
       // Pack adjusted displays (presentation only; totals remain from server truth)
       const materialsDisplayUI = {
@@ -1575,12 +1596,14 @@ try {
         bonus_neu += 252.1;
       }
       if (flags.bonus_Haltegriff) {
-        // Use actual net unit price of CLPESG30 (one piece free)
-        const cl30 = (materials?.lines || []).find(
-          (l) => (l.productId || l.id) === "CLPESG30",
-        );
-        const cl30Unit = Number(cl30?.unitPrice) || 0;
-        bonusGross += round2(cl30Unit);
+        const freeId = materials?.grabCounts?.freeId;
+        if (freeId) {
+          const freeLine = (materials?.lines || []).find(
+            (l) => (l.productId || l.id) === freeId,
+          );
+          const unit = Number(freeLine?.unitPrice) || 0;
+          bonusGross += round2(unit);
+        }
       }
 
       const netAfterRabatt_and_Bonus = round2(

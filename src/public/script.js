@@ -1,3 +1,206 @@
+
+// =================================================================
+// Draft Search UI bootstrap (runs even if later code throws)
+// =================================================================
+(function bootDraftSearch(){
+  function ready(fn){
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+    else fn();
+  }
+
+  function renderDraftSearchResultsLocal(list){
+    const container = document.getElementById('draftSearchResults');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!Array.isArray(list) || list.length === 0) {
+      container.style.display = 'none';
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    for (const d of list){
+      const btn = document.createElement('button');
+      btn.type='button';
+      btn.className='draft-result-row';
+      btn.dataset.id = d._id || d.id;
+      btn.style.display='block';
+      btn.style.width='100%';
+      btn.style.textAlign='left';
+      btn.style.padding='4px 10px';
+      btn.style.border='none';
+      btn.style.background='transparent';
+      btn.style.cursor='pointer';
+      btn.style.color='var(--text)';
+      btn.onmouseenter=()=>btn.style.background='#eef2ff';
+      btn.onmouseleave=()=>btn.style.background='transparent';
+      const updated = d.updatedAt ? new Date(d.updatedAt).toLocaleString('de-DE') : '';
+      btn.innerHTML = `<strong style="color:var(--accent-strong);">${d.name}</strong>` +
+        (updated ? ` <span style="font-size:0.8em; color:#6b7280;">(${updated})</span>` : '');
+      frag.appendChild(btn);
+    }
+    container.appendChild(frag);
+    container.style.display='block';
+  }
+
+  async function searchDraftsLocal(query){
+    const raw = (typeof window.getCurrentOfferType === 'function' && window.getCurrentOfferType()) || 'bu';
+    const offerType = ['bu','bwt','hl'].includes(String(raw).trim().toLowerCase()) ? String(raw).trim().toLowerCase() : 'bu';
+    const params = new URLSearchParams();
+    params.set('offerType', offerType);
+    if (query) params.set('q', query);
+    const res = await fetch(`/api/drafts/search?${params.toString()}`);
+    if (!res.ok) return renderDraftSearchResultsLocal([]);
+    const data = await res.json().catch(()=>[]);
+    renderDraftSearchResultsLocal(data);
+  }
+
+  async function loadDraftLocal(id){
+    try{
+      const res = await fetch(`/api/drafts/${encodeURIComponent(id)}`);
+      if (!res.ok) return alert('Entwurf konnte nicht geladen werden.');
+      const doc = await res.json();
+      if (typeof window.restoreConfiguratorFromOffer === 'function') {
+        window.restoreConfiguratorFromOffer(doc);
+      } else if (typeof window.restoreConfiguratorFromSnapshot === 'function') {
+        const payload = doc.payload || doc;
+        window.restoreConfiguratorFromSnapshot({ payload });
+      } else {
+        return alert('Wiederherstellen ist noch nicht implementiert.');
+      }
+      window.updatePricing?.();
+      window.showToast?.(`Entwurf "${doc.name}" geladen.`, 'info');
+    }catch(e){
+      console.error('loadDraftById error:', e);
+      alert('Fehler beim Laden des Entwurfs.');
+    }
+  }
+
+  function bind(){
+    const input = document.getElementById('draftSearchInput');
+    const results = document.getElementById('draftSearchResults');
+    const btnLoad = document.getElementById('btnLoadSelectedDraft');
+    if (!input || !results || !btnLoad) return;
+
+    // avoid double-binding
+    if (input.dataset.draftBound === '1') return;
+    input.dataset.draftBound = '1';
+
+    let selectedId = null;
+    let debounceTimer = null;
+    const debounce = (fn, ms)=>{ clearTimeout(debounceTimer); debounceTimer=setTimeout(fn, ms); };
+
+    input.addEventListener('input', ()=>{
+      const q = input.value.trim();
+      selectedId = null;
+      if (!q) {
+        results.style.display='none';
+        results.innerHTML='';
+        return;
+      }
+      debounce(()=>searchDraftsLocal(q), 200);
+    });
+
+    results.addEventListener('click', (ev)=>{
+      const btn = ev.target.closest('button.draft-result-row');
+      if (!btn) return;
+      selectedId = btn.dataset.id;
+      Array.from(results.querySelectorAll('button.draft-result-row')).forEach((b)=>{
+        b.style.background = b === btn ? '#e0e7ff' : 'transparent';
+      });
+      loadDraftLocal(selectedId);
+      input.value = btn.textContent.trim();
+      results.style.display='none';
+    });
+
+    btnLoad.addEventListener('click', ()=>{
+      if (!selectedId) return alert('Bitte wählen Sie zuerst einen Entwurf aus der Liste.');
+      loadDraftLocal(selectedId);
+    });
+  }
+
+  ready(bind);
+  window.addEventListener('hashchange', ()=>{
+    // re-bind when navigating (safe no-op if already bound)
+    bind();
+  });
+})();
+
+// =================================================================
+// Summary Widget + Draft Save bootstrap (runs even if later code throws)
+// =================================================================
+(function bootSummaryAndDraftSave(){
+  function ready(fn){
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+    else fn();
+  }
+
+  function computeCustomerName(){
+    const fn = (document.getElementById('firstName')?.value || '').trim();
+    const ln = (document.getElementById('lastName')?.value || '').trim();
+    const company = (document.getElementById('company')?.value || '').trim();
+    const full = [fn, ln].filter(Boolean).join(' ').trim();
+    return full || company || '–';
+  }
+
+  function updateWidgetNameFallback(){
+    const out = document.getElementById('swNameValue');
+    if (!out) return;
+    out.textContent = computeCustomerName();
+  }
+
+  function bindNameLive(){
+    // Use event delegation so it still works even if inputs are re-rendered or listeners fail elsewhere.
+    if (document.documentElement.dataset.swNameBound === '1') return;
+    document.documentElement.dataset.swNameBound = '1';
+
+    document.addEventListener('input', (e) => {
+      const t = e.target;
+      if (!t) return;
+      if (t.id === 'firstName' || t.id === 'lastName' || t.id === 'company') {
+        if (typeof window.updateSummaryWidgetName === 'function') {
+          try { window.updateSummaryWidgetName(); } catch { updateWidgetNameFallback(); }
+        } else {
+          updateWidgetNameFallback();
+        }
+      }
+    }, true);
+
+    // initial fill
+    if (typeof window.updateSummaryWidgetName === 'function') {
+      try { window.updateSummaryWidgetName(); } catch { updateWidgetNameFallback(); }
+    } else {
+      updateWidgetNameFallback();
+    }
+  }
+
+  function bindSaveDraft(){
+    const btn = document.getElementById('btnSaveDraft');
+    if (!btn) return;
+    if (btn.dataset.bound === '1') return;
+    btn.dataset.bound = '1';
+
+    btn.addEventListener('click', async () => {
+      // prefer real function if present
+      const fn = window.saveCurrentDraft;
+      if (typeof fn === 'function') {
+        try { await fn(); } catch (e) { console.error(e); alert('Fehler beim Speichern des Entwurfs.'); }
+        return;
+      }
+      alert('saveCurrentDraft() ist nicht verfügbar (Script-Init fehlgeschlagen).');
+    });
+  }
+
+  function bindAll(){
+    bindNameLive();
+    bindSaveDraft();
+  }
+
+  ready(() => {
+    bindAll();
+    // re-bind when navigating sections (hash-based SPA)
+    window.addEventListener('hashchange', bindAll);
+  });
+})();
+
 // =================================================================
 // #region 1. CONFIGURATION & STATE MANAGEMENT
 // =================================================================
@@ -7065,8 +7268,8 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       if (!bonusGrab) return;
 
       // authoritative source from server:
-      const cl30 = Number(data?.grabCounts?.cl30 || 0);
-      const shouldShow = cl30 > 0;
+      const total = Number(data?.grabCounts?.total || 0);
+    const shouldShow = total > 0;
 
       const row =
         bonusGrab.closest(".form-row") ||
@@ -10179,8 +10382,8 @@ window.setPricingData = function setPricingData(data) {
       document.getElementById("rb-bonus-grab")?.parentElement;
     const cb = document.getElementById("rb-bonus-grab");
 
-    const cl30 = Number(data?.grabCounts?.cl30 || 0);
-    const allow = cl30 > 0;
+    const total = Number(data?.grabCounts?.total || 0);
+    const allow = total > 0;
 
     if (row) {
       row.style.display = allow ? "" : "none";
@@ -12072,22 +12275,34 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnRabatt) btnRabatt.addEventListener("click", refreshAllPanels);
   if (btnDebug) btnDebug.addEventListener("click", refreshAllPanels);
 
-  initSmartTraySearch();
-  initTraySizeAutoLabel();
-  initOptionalMenus && initOptionalMenus();
-  initBasinAutoAccessories && initBasinAutoAccessories();
-  wireDAQtyAutoFill();
-  initOptionalSonderprodukte();
-  initBathtubSearch(); 
-initSmartBathtubSearch();
-initSmartScreenPickerBucket();
-  initLivePricingSync();
+  // ✅ crash-proof init: one failing init won't kill the others
+  const safeInit = (name, fn) => {
+    try {
+      if (typeof fn === "function") fn();
+    } catch (e) {
+      console.error(`[init failed] ${name}`, e);
+    }
+  };
+
+  safeInit("initSmartTraySearch", initSmartTraySearch);
+  safeInit("initTraySizeAutoLabel", initTraySizeAutoLabel);
+  safeInit("initOptionalMenus", typeof initOptionalMenus !== "undefined" ? initOptionalMenus : null);
+  safeInit("initBasinAutoAccessories", typeof initBasinAutoAccessories !== "undefined" ? initBasinAutoAccessories : null);
+  safeInit("wireDAQtyAutoFill", wireDAQtyAutoFill);
+  safeInit("initOptionalSonderprodukte", initOptionalSonderprodukte);
+
+  // ✅ these two control what you're missing in the screenshot
+  safeInit("initBathtubSearch", initBathtubSearch);
+  safeInit("initSmartBathtubSearch", initSmartBathtubSearch);
+  safeInit("initSmartScreenPickerBucket", initSmartScreenPickerBucket);
+
+  safeInit("initLivePricingSync", initLivePricingSync);
+
   window.addEventListener("hashchange", () => {
     const id = location.hash.replace("#", "");
     if (id === "rabatt" || id === "kosten") refreshAllPanels();
   });
 
- 
   // Live update of "Kunde:" in the top-right widget
   const fn = document.getElementById("firstName");
   const ln = document.getElementById("lastName");
@@ -12102,11 +12317,17 @@ initSmartScreenPickerBucket();
       el.addEventListener("change", updateSummaryWidgetSubsidyVisibility);
     });
   updateSummaryWidgetSubsidyVisibility();
+
   // --- Draft save button under widget ---
   const btnSaveDraft = document.getElementById("btnSaveDraft");
   if (btnSaveDraft) {
     btnSaveDraft.addEventListener("click", () => {
-      saveCurrentDraft();
+      try {
+        saveCurrentDraft();
+      } catch (e) {
+        console.error("[draft save] failed:", e);
+        alert("Entwurf speichern ist fehlgeschlagen. Bitte Konsole prüfen.");
+      }
     });
   }
 
@@ -12117,7 +12338,6 @@ initSmartScreenPickerBucket();
     const btnLoad = document.getElementById("btnLoadSelectedDraft");
     if (!input || !results || !btnLoad) return;
 
-    let lastResults = [];
     let selectedId = null;
     let debounceTimer = null;
 
@@ -12143,11 +12363,9 @@ initSmartScreenPickerBucket();
       selectedId = btn.dataset.id;
 
       // highlight selection
-      Array.from(results.querySelectorAll("button.draft-result-row")).forEach(
-        (b) => {
-          b.style.background = b === btn ? "#e0e7ff" : "transparent";
-        },
-      );
+      Array.from(results.querySelectorAll("button.draft-result-row")).forEach((b) => {
+        b.style.background = b === btn ? "#e0e7ff" : "transparent";
+      });
 
       // auto-load on click
       loadDraftById(selectedId);
