@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 // src/controllers/NavigationController.js
 import { eventBus, Events } from "../events/EventBus.js";
 import { stateManager } from "../models/StateManager.js";

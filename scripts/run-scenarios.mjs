@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 // scripts/run-scenarios.mjs
 import fs from 'fs/promises';
 import path from 'path';
@@ -67,6 +68,7 @@ async function runAll() {
 
 runAll().catch(async (e) => {
   console.error(e);
+  // eslint-disable-next-line no-empty
   try { await mongoose.disconnect(); } catch {}
   process.exit(1);
 });

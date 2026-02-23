@@ -380,11 +380,20 @@ install_bathtub_screen: "Einbau des Wannenaufsatzes",
   });
 };
 
-
+   const isBudgetMode =
+  !!dusch?.budgetMode ||
+  dusch?.budgetMode === "1" ||
+  dusch?.budgetMode === 1 ||
+  dusch?.budgetMode === true;
     // ------- Duschwanne ancillary
     if (dusch.abdichtSet) add("TRWDB", 1);
-    if (dusch.drainSet) add("AGD9060", 1);
-    if (dusch.smallMaterial) add("KM02", 1);
+ 
+
+if (dusch.drainSet) add(isBudgetMode ? "AGB001" : "AGD9060", 1);
+    // Budget flag is purely additive: old offers won't have it -> treated as OFF.
+
+
+if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
     if (dusch.stelzlager) add("PLA5282", 1);
 
     // ------- Fußboden
@@ -403,7 +412,7 @@ install_bathtub_screen: "Einbau des Wannenaufsatzes",
       const color = fp.includes("|") ? fp.split("|", 2)[1].trim() : "";
 
       add(
-        "V5FB02",
+        (fp && fp.includes("|") ? fp.split("|", 2)[0].trim() : "V5FB02"),
         panels,
         `- ${panels} Stk Fußboden-Paneele (1 Paneele = 0.3 m²)${color ? " — Farbe: " + color : ""}`,
       );
@@ -457,14 +466,26 @@ install_bathtub_screen: "Einbau des Wannenaufsatzes",
     const color1497 = String(cfg1497.color || wvColor).trim();
 
   if (qty997 > 0) {
+  const raw = String(color997 || "").trim();
+  const hasPid = raw.includes("|");
+  const pid = hasPid ? raw.split("|", 1)[0].trim() : "";
+  const display = hasPid ? raw.split("|").slice(1).join("|").trim() : raw;
+
   const base = `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`;
-  const label = color997 ? `${base} — Farbe: ${color997}` : base;
-  add("V3WVK09", qty997, label, null, null, { color: color997 });
+  const label = display ? `${base} — Farbe: ${display}` : base;
+
+  add(pid || "V3WVK09", qty997, label, null, null, { color: display });
 }
 if (qty1497 > 0) {
+  const raw = String(color1497 || "").trim();
+  const hasPid = raw.includes("|");
+  const pid = hasPid ? raw.split("|", 1)[0].trim() : "";
+  const display = hasPid ? raw.split("|").slice(1).join("|").trim() : raw;
+
   const base = `- ${qty1497} Stk Wandverkleidung 3.0 Alu 1497×2550 mm`;
-  const label = color1497 ? `${base} — Farbe: ${color1497}` : base;
-  add("V3WV09", qty1497, label, null, null, { color: color1497 });
+  const label = display ? `${base} — Farbe: ${display}` : base;
+
+  add(pid || "V3WV09", qty1497, label, null, null, { color: display });
 }
 
     if (wv?.wvSealing) add("TRWDSET5", 1);

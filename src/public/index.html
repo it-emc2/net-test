@@ -1645,6 +1645,8 @@
         <div style="margin:0 0 12px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
           <h2 style="margin:0">Duschwanne</h2>
 
+          <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; justify-content:flex-end;">
+
           <!-- Toggle: ebenerdige Montage (default OFF) -->
           <label for="ebenerdigeToggle"
             style="display:flex; align-items:center; gap:8px; font-weight:500; cursor:pointer;">
@@ -1652,19 +1654,38 @@
               style="transform:scale(1.2); cursor:pointer;" />
             <span>Hinweis zu möglichen Zusatzkosten einblenden</span>
           </label>
+
+          <!-- Checkbox: Low Budget Variante priorisieren (additive) -->
           <label for="budgetToggle"
-  style="display:flex; align-items:center; gap:8px; font-weight:500; cursor:pointer;">
-  <input id="budgetToggle" type="checkbox" name="budgetMode"
-    style="transform:scale(1.2); cursor:pointer;" />
-  <span>Low Budget Variante priorisieren</span>
-</label>
+            style="display:flex; align-items:center; gap:8px; font-weight:500; cursor:pointer;">
+            <input id="budgetToggle" type="checkbox" name="budgetMode" value="1"
+              style="transform:scale(1.2); cursor:pointer;" />
+            <span>Low Budget Variante priorisieren</span>
+          </label>
+
+          </div>
         </div>
 
         <form id="form-duschwanne" autocomplete="on">
 
           <!-- Put this above the radio group -->
           <div id="traySmartSearch" class="field">
-            <!-- <label>Maße (B × L × H in cm)</label> -->
+          
+            <!-- Tray filters -->
+<div class="row" style="gap:16px; margin: 6px 0 10px; flex-wrap:wrap;">
+  <label class="check-pill" style="margin:0;">
+    <input id="trayFilterBadolux" type="checkbox" />
+    <span class="box"></span>
+    <span>Badolux</span>
+  </label>
+
+  <label class="check-pill" style="margin:0;">
+    <input id="trayFilterSlate" type="checkbox" />
+    <span class="box"></span>
+    <span>Slate</span>
+  </label>
+</div>
+  <!-- <label>Maße (B × L × H in cm)</label> -->
             <label>Maße (B × L in cm)</label>
             <div class="row" style="gap:8px;">
               <input type="number" min="20" step="1" placeholder="Breite" name="tray_w_cm">
@@ -1866,32 +1887,49 @@
           <div class="field">
             <label class="req">TRINNITY Wannenabdichtband-Set 3,4 m Nass-/Trockenanbindung
               entspr. DIN 18534</label>
-            <label class="image-check"><input type="checkbox" name="abdichtSet" value="Wannenabdichtband-Set TRWDB"
+            <label class="image-check" data-product-id="TRWDB"><input type="checkbox" data-product-id="TRWDB" name="abdichtSet" value="Wannenabdichtband-Set TRWDB"
                 checked /><span class="img-wrap"><img src="./assets/4ab307d6db904aac6d543a80540e67ec.jpg"
                   alt="Wannenabdichtband-Set" /></span><span class="caption">Wannenabdichtband-Set TRWDB</span></label>
           </div>
 
           <div class="field">
-            <label class="req">Ablaufgarnitur Rohbauset m. Sifon BH60mm f. flache Duschw. m.
-              90mm Ablauf TRINNITY</label>
-            <label class="image-check"><input type="checkbox" name="drainSet" value="Ablaufgarnitur TRAGD9060"
-                checked /><span class="img-wrap"><img src="./assets/6cb23edb7f6d925879e1b66555b46953.jpg"
-                  alt="Ablaufgarnitur" /></span><span class="caption">Ablaufgarnitur TRAGD9060</span></label>
-          </div>
+  <label class="req">Ablaufgarnitur Rohbauset m. Sifon BH60mm f. flache Duschw. m.
+    90mm Ablauf TRINNITY</label>
+
+  <label class="image-check" data-product-id="AGD9060">
+    <input
+      type="checkbox"
+      name="drainSet"
+      value="Ablaufgarnitur TRAGD9060"
+      data-product-id="AGD9060"
+      checked
+    />
+    <span class="img-wrap">
+      <img
+        src="./assets/6cb23edb7f6d925879e1b66555b46953.jpg"
+        alt="Ablaufgarnitur"
+      />
+    </span>
+    <span class="caption">Ablaufgarnitur TRAGD9060</span>
+  </label>
+</div>
 
           <div class="field">
             <label class="req">Kleinmaterial</label>
-            <label class="image-check"><input type="checkbox" id="smallMaterial" name="smallMaterial"
-                value="Kleinmaterial" checked /><span class="img-wrap"><img
-                  src="./assets/f030d384f7446f713c5a34a0633f99fa.jpg" alt="Kleinmaterial" /></span><span
-                class="caption">Kleinmaterial</span></label>
+            <label class="image-check" data-product-id="KM02">
+  <input type="checkbox" id="smallMaterial" name="smallMaterial" value="Kleinmaterial" checked data-product-id="KM02" />
+  <span class="img-wrap">
+    <img src="./assets/f030d384f7446f713c5a34a0633f99fa.jpg" alt="Kleinmaterial" />
+  </span>
+  <span class="caption">Kleinmaterial</span>
+</label>
           </div>
 
           <div id="smallMatChoice" class="field muted" aria-hidden="true" hidden></div>
 
           <div class="field">
             <label>Stelzlager höhenverstellbar Set</label>
-            <label class="image-check"><input type="checkbox" name="stelzlager" value="PLA5282" checked /><span
+            <label class="image-check" data-product-id="PLA5282"><input type="checkbox" data-product-id="PLA5282" name="stelzlager" value="PLA5282" checked /><span
                 class="img-wrap"><img src="./assets/66c7f69e3b6da9039473c86f44789340.jpg"
                   alt="Stelzlager höhenverstellbar Set" /></span><span class="caption">Plattenlager Pro justierbar
                 64–110 mm für Terrassenplatten</span></label>
@@ -1962,7 +2000,17 @@
                 </label>
               </div>
             </div>
-            <!-- …rest of your panel stays the same -->
+            
+            <!-- Budget alternatives (Badolux) — shown only in Low Budget mode -->
+            <div id="flooringBudgetGroup" class="field" aria-hidden="true" hidden>
+              <label>Budget-Fußboden (Badolux)</label>
+              <div id="flooringBudgetOptions" style="display:flex; gap:12px; flex-wrap:wrap;"></div>
+              <div id="flooringBudgetEmpty" class="hint" style="margin-top:8px;" hidden>
+                Keine Budget-Fußbodenoptionen verfügbar.
+              </div>
+            </div>
+
+<!-- …rest of your panel stays the same -->
 
 
 
@@ -2223,14 +2271,22 @@
                   </label>
 
                 </div>
+                <!-- Budget alternatives (Badolux) — shown only in Low Budget mode -->
+<div id="wvBudgetColorSection" class="full field" hidden aria-hidden="true">
+  <label>Budget-Wandpaneele (Badolux)</label>
+  <div id="wvBudgetColors" style="display: flex; gap: 14px; flex-wrap: wrap"></div>
+  <div id="wvBudgetEmpty" class="hint" style="margin-top:8px" hidden>
+    Keine Budget-Wandpaneele verfügbar.
+  </div>
+</div>
               </div>
             </div>
           </div>
 
           <div id="wvSealingSection" class="full field">
             <label class="req">TRINNITY Wandabdichtung BASIS-Set</label>
-            <label class="image-check"><input type="checkbox" name="wvSealing" id="wvSealingSelected"
-                value="TRINNITY Wandabdichtung BASIS TRWDSET5" checked /><span class="img-wrap"><img
+            <label class="image-check" data-product-id="TRWDSET5"><input type="checkbox" data-product-id="TRWDSET5" name="wvSealing" id="wvSealingSelected"
+                data-product-id="TRWDSET5" value="TRINNITY Wandabdichtung BASIS TRWDSET5" checked /><span class="img-wrap"><img
                   src="./assets/d110afd16622742ee292b063792121f1.jpg" alt="TRINNITY Wandabdichtung BASIS" /></span><span
                 class="caption">TRINNITY Wandabdichtung TRWDSET5</span></label>
           </div>
@@ -3926,6 +3982,27 @@
 
           </header>
 
+          <!-- Unterschrift -->
+<section class="export-section">
+  <h2 class="section-title">✍️ Unterschrift</h2>
+
+  <div class="export-cards">
+    <div class="export-card" style="grid-column: 1 / -1;">
+      <p style="margin:0 0 8px 0;">Bitte hier unterschreiben (Finger / Stift / Maus)</p>
+
+      <div class="sig-wrap">
+        <canvas id="signaturePad" class="sig-canvas"></canvas>
+      </div>
+
+      <div class="sig-actions">
+        <button type="button" id="sigClear" class="btn-export secondary">Löschen</button>
+      </div>
+
+      <!-- Optional: hidden preview/debug -->
+      <input type="hidden" id="signatureDataUrl" />
+    </div>
+  </div>
+</section>
 
           <!-- Bitrix Integration Section -->
           <section class="bitrix-section">
@@ -6203,6 +6280,7 @@
   <!-- <script type="module" src="/app-init.js"></script> -->
   <!-- Page-specific initialization -->
   <!--  <script type="module" src="/js/pages/kundendaten-init.js"></script> -->
+    <script src="./ThemeManager.js"></script>
   <script src="./script.js"></script>
 
 </body>

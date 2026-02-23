@@ -1,4 +1,3 @@
-
 // =================================================================
 // Draft Search UI bootstrap (runs even if later code throws)
 // =================================================================
@@ -508,7 +507,6 @@ function handleHashChange() {
   });
 }
 // #endregion
-
 // =================================================================
 // #region 2. GLOBAL UTILITIES (Formatting, Toasts, HTML)
 // =================================================================
@@ -608,7 +606,6 @@ window.__restoring = false;
 window.__RESTORING__ = false;
 
 // #endregion
-
 // =================================================================
 // #region 3. UI HELPERS & TOGGLES
 // =================================================================
@@ -656,7 +653,6 @@ function showToast(message, type = "info") {
   }
 }
 // #endregion
-
 // =================================================================
 // #region 4. RESTORE LOGIC (Helpers for restoring form state)
 // =================================================================
@@ -1143,7 +1139,6 @@ function setCheckbox(nameOrId, on) {
 }
 
 // #endregion
-
 // =================================================================
 // #region 5. AUTO-CALCULATION & FORMATTING WIRING & black white theme
 // =================================================================
@@ -1676,7 +1671,6 @@ themeToggle?.addEventListener("change", () =>
 );
 
 // #endregion
-
 // =================================================================
 // #region 6. NAVIGATION & SIDEBAR LOGIC
 // =================================================================
@@ -3207,10 +3201,21 @@ function buildPayload() {
     console.warn("[buildPayload] attachDuschwanneToPayload failed:", e);
   }
 
-
   payload.activeOffer = currentOfferKey || null;
 
+  
+  // ✅ Signature (add this near the end)
+  const sig = document.getElementById("signatureDataUrl")?.value?.trim();
+  if (sig) {
+    payload.signature = {
+      dataUrl: sig,
+      signedAt: new Date().toISOString(),
+    };
+  }
+
   return filterPayloadByOffer(payload);
+
+
 }
 
 
@@ -3716,7 +3721,6 @@ function ensureViewerLoaded() {
   }
 });
 })();
-// #endregion
 
 window.addEventListener("message", (ev) => {
   console.log("[parent] message", {
@@ -3962,8 +3966,7 @@ function collectAllFormData() {
 
   btnBoth?.addEventListener("click", generateBoth);
 })();
-
-
+// #endregion
 // =================================================================
 // #region 9. HELPERS
 // =================================================================
@@ -3983,6 +3986,167 @@ function euro(n) {
 function highlightTileForInput(input, on) {
   input?.closest("label.image-check")?.classList.toggle("is-checked", !!on);
 }
+
+// =================================================================
+// Budget Wandpaneele (Badolux) — Option A: extra group (additive)
+// Loads from backend: source=badolux + dimensions ~ 997/1497 × 2550
+// =================================================================
+let __budgetWvCache = null;
+let __budgetWvLoading = null;
+
+function approx(n, target, tol) {
+  const x = Number(n);
+  return Number.isFinite(x) && Math.abs(x - target) <= tol;
+}
+
+async function loadBudgetWandPanels() {
+  if (__budgetWvCache) return __budgetWvCache;
+  if (__budgetWvLoading) return __budgetWvLoading;
+
+  __budgetWvLoading = (async () => {
+    // Preferred (after backend update supports source filter)
+    let res = await fetch("/api/products?source=badolux&limit=800");
+    let data = null;
+
+    if (res.ok) data = await res.json().catch(() => null);
+
+    // Fallback if backend doesn't support source param yet
+    if (!Array.isArray(data)) {
+      res = await fetch("/api/products?q=badolux");
+      data = res.ok ? await res.json().catch(() => []) : [];
+    }
+
+    const items = (Array.isArray(data) ? data : []).filter((p) => {
+  const srcOk = String(p.source || "").toLowerCase() === "badolux";
+  const pidOk = String(p.productId || "").toUpperCase().startsWith("WP");
+  return srcOk && pidOk;
+});
+
+    // Sort stable
+    items.sort((a, b) => String(a.productId).localeCompare(String(b.productId)));
+
+    __budgetWvCache = items.map((p) => ({
+      productId: p.productId,
+      name: p.name || p.productId,
+      // Convention for images (adjust if you store differently)
+      img: `./assets/budget/${p.productId}.png`,
+    }));
+    return __budgetWvCache;
+  })();
+
+  return __budgetWvLoading;
+}
+
+function setWvBudgetVisibility(on) {
+  const sec = document.getElementById("wvBudgetColorSection");
+  if (!sec) return;
+  sec.hidden = !on;
+  sec.setAttribute("aria-hidden", (!on).toString());
+}
+
+function addBudgetOptionsToSelect(selectEl, list) {
+  if (!selectEl) return;
+
+  // Avoid duplicates
+  const existing = new Set([...selectEl.querySelectorAll("option")].map((o) => o.value));
+
+  for (const it of list) {
+    const value = `${it.productId}|${it.name}`;
+    if (existing.has(value)) continue;
+
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = `${it.name} (Budget)`;
+    selectEl.appendChild(opt);
+  }
+}
+
+async function renderBudgetWvColors() {
+  const wrap = document.getElementById("wvBudgetColors");
+  const empty = document.getElementById("wvBudgetEmpty");
+  if (!wrap) return;
+
+  wrap.innerHTML = "";
+  const list = await loadBudgetWandPanels();
+
+  if (!list.length) {
+    if (empty) empty.hidden = false;
+    return;
+  }
+  if (empty) empty.hidden = true;
+
+  for (const it of list) {
+    const label = document.createElement("label");
+    label.className = "image-check";
+    label.setAttribute("data-product-id", it.productId);
+
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = "wvColor"; // IMPORTANT: same group as premium -> single-select automatically
+    input.value = `${it.productId}|${it.name}`;
+
+    const imgWrap = document.createElement("span");
+    imgWrap.className = "img-wrap";
+
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.alt = it.name;
+    img.src = it.img;
+
+    // If image missing, keep tile but hide img cleanly
+    img.onerror = () => {
+      img.style.display = "none";
+      imgWrap.style.display = "none";
+    };
+
+    imgWrap.appendChild(img);
+
+    const caption = document.createElement("span");
+    caption.className = "caption";
+    caption.textContent = it.name;
+
+    label.appendChild(input);
+    label.appendChild(imgWrap);
+    label.appendChild(caption);
+
+    wrap.appendChild(label);
+  }
+
+  // Also inject budget options into per-row selects (997 / 1497) so overrides can use them
+  addBudgetOptionsToSelect(document.getElementById("wvColor_997"), list);
+  addBudgetOptionsToSelect(document.getElementById("wvColor_1497"), list);
+
+  // If you have extra rows (.wv-extra-color), inject there too
+  document.querySelectorAll("select.wv-extra-color").forEach((sel) => addBudgetOptionsToSelect(sel, list));
+}
+
+// =================================================================
+// Single-select enforcement for flooring (premium + budget)
+// Keeps checkbox inputs for backwards compatibility, but forces only one checked.
+// =================================================================
+(function initSingleSelectFlooring() {
+  document.addEventListener("change", (e) => {
+    const t = e.target;
+    if (!(t instanceof HTMLInputElement)) return;
+    if (t.type !== "checkbox") return;
+    if (t.name !== "flooringProduct[]") return;
+
+    // Only act when a flooring option is being checked
+    if (!t.checked) return;
+
+    // Uncheck all other flooring options across BOTH groups
+    document
+      .querySelectorAll('input[type="checkbox"][name="flooringProduct[]"]')
+      .forEach((cb) => {
+        if (cb !== t) cb.checked = false;
+      });
+
+    // Re-apply visual highlight if you use it anywhere
+    document
+      .querySelectorAll('input[type="checkbox"][name="flooringProduct[]"]')
+      .forEach((cb) => highlightTileForInput(cb, cb.checked));
+  });
+})();
 /* ========== HELPERS  for the floating widget ========== */
 function updateSummaryWidgetName() {
   const firstEl = document.getElementById("firstName");
@@ -4048,7 +4212,6 @@ function updateSummaryWidgetSubsidyVisibility() {
 
 /* ========== End HELPERS  for the floating widget ========== */
 // #endregion
-
 // =================================================================
 // #region 9. VALIDATION
 // =================================================================
@@ -4160,7 +4323,6 @@ const TILE_TO_OFFER = {
    "HMS-Hausmeister-Service": "hms",
    "WD-Winterdienst": "wd",
 };
-
 // Auswahl der Leistung tiles → start the corresponding offer flow
 document.addEventListener("click", (event) => {
   const tile = event.target.closest(".tile-btn");
@@ -4173,7 +4335,6 @@ document.addEventListener("click", (event) => {
   event.preventDefault();
   startOfferFlow(offerKey);
 });
-
 /* ========== NAV BUTTONS ========== */
 document.body.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-nav]");
@@ -4216,7 +4377,105 @@ document.body.addEventListener("click", (e) => {
     setStep(flow[nextIdx]);
   }
 });
+// Alltagshilfe: abhängige Leistungsart + ausgegraute, nicht verfügbare Option
+(function initAlltagshilfePage() {
+  const form = document.getElementById("form-ah");
+  if (!form) return;
 
+  const artAlltag = document.getElementById("ahArtAlltagsbegleitung");
+  const artHaushalt = document.getElementById("ahArtHaushalt");
+
+  const wrap = document.getElementById("ahLeistungsTypWrap");
+  const blockAlltag = document.getElementById(
+    "ahLeistungsTypAlltagsbegleitung",
+  );
+  const blockHaushalt = document.getElementById("ahLeistungsTypHaushalt");
+
+  const inputFahrten = document.getElementById("ahLeistungsTypFahrten");
+  const inputPausch = document.getElementById(
+    "ahLeistungsTypReinigungsPauschale",
+  );
+
+  // Labels separat greifen, damit wir sie „grau“ stylen können
+  const labelFahrten = inputFahrten?.closest("label.radio-pill");
+  const labelPausch = inputPausch?.closest("label.radio-pill");
+
+  if (!wrap || !blockAlltag || !blockHaushalt || !inputFahrten || !inputPausch)
+    return;
+
+  function show(el, on) {
+    if (!el) return;
+    el.hidden = !on;
+    el.setAttribute("aria-hidden", on ? "false" : "true");
+  }
+
+  // exakt derselbe „Grau‑Look“ wie beim Aufschlag:
+  // disabled + geringere Opacity + keine Klicks
+  function setDisabled(labelEl, inputEl, disabled) {
+    if (!labelEl || !inputEl) return;
+    inputEl.disabled = disabled;
+    labelEl.setAttribute("aria-disabled", disabled ? "true" : "false");
+    labelEl.style.opacity = disabled ? "0.45" : "";
+    labelEl.style.pointerEvents = disabled ? "none" : "";
+    labelEl.style.filter = disabled ? "grayscale(0.3)" : "";
+  }
+
+  function applySelection(kind) {
+    // Block sichtbar, sobald eine Haupt‑Art gewählt wurde
+    show(wrap, true);
+
+    // Beide Detail‑Zeilen sollen immer sichtbar bleiben
+    show(blockAlltag, true);
+    show(blockHaushalt, true);
+
+    if (kind === "Alltagsbegleitung") {
+      // Fahrten aktiv, Pauschale grau/disabled
+      setDisabled(labelFahrten, inputFahrten, false);
+      setDisabled(labelPausch, inputPausch, true);
+
+      // Fahrten vorwählen
+      inputFahrten.checked = true;
+      inputPausch.checked = false;
+      inputFahrten.dispatchEvent(new Event("change", { bubbles: true }));
+    } else if (kind === "Haushaltsnahedienstleistungen") {
+      // Pauschale aktiv, Fahrten grau/disabled
+      setDisabled(labelFahrten, inputFahrten, true);
+      setDisabled(labelPausch, inputPausch, false);
+
+      inputPausch.checked = true;
+      inputFahrten.checked = false;
+      inputPausch.dispatchEvent(new Event("change", { bubbles: true }));
+    } else {
+      // Nichts gewählt → alles zurücksetzen und ausblenden
+      show(wrap, false);
+      show(blockAlltag, false);
+      show(blockHaushalt, false);
+
+      setDisabled(labelFahrten, inputFahrten, false);
+      setDisabled(labelPausch, inputPausch, false);
+      inputFahrten.checked = false;
+      inputPausch.checked = false;
+    }
+  }
+
+  // Listener für die zwei Haupt‑Radiobuttons
+  artAlltag?.addEventListener("change", () => {
+    if (artAlltag.checked) applySelection("Alltagsbegleitung");
+  });
+  artHaushalt?.addEventListener("change", () => {
+    if (artHaushalt.checked) applySelection("Haushaltsnahedienstleistungen");
+  });
+
+  // Initialzustand beim Laden (z.B. beim Bearbeiten eines Entwurfs)
+  const current = form.querySelector('input[name="ahArt"]:checked');
+  if (current) {
+    applySelection(current.value);
+  } else {
+    show(wrap, false);
+    show(blockAlltag, false);
+    show(blockHaushalt, false);
+  }
+})();
 // =================================================================
 // #region 10. PAGE SPECIFIC LOGIC (Wandverkleidung, Duschwanne, etc)
 // =================================================================
@@ -5668,33 +5927,54 @@ async function getProduct(id) {
   //  individPriceEl.textContent = euro(total);
   // }
   // Mirrors SERVER truth for panels (quantity, unit, total) — set it ONLY here
-  function updateFlooringPanelsPriceFromPricing() {
-    if (
-      !window.__pricing ||
-      !Array.isArray(window.__pricing?.materials?.lines)
-    ) {
-      if (panelsPriceEl) panelsPriceEl.textContent = "0";
-      if (panelsQtyEl) panelsQtyEl.textContent = "0";
-      if (panelsUnitEl) panelsUnitEl.textContent = "0";
-      return;
-    }
-    const line = window.__pricing.materials.lines.find(
-      (l) =>
-        (l.productId || l.id) === "V5FB02" &&
-        !String(l.label || "").includes("individ."),
-    );
-    // ^ pick the *panels* line; ignore the "individ." line we’ll add on the server
+  function getSelectedFloorPid() {
+  const checked = document.querySelector(
+    'input[type="checkbox"][name="flooringProduct[]"]:checked',
+  );
+  if (!checked) return "V5FB02"; // fallback for old offers / default
+  const raw = String(checked.value || "");
+  const pid = raw.includes("|") ? raw.split("|", 1)[0].trim() : raw.trim();
+  return pid || "V5FB02";
+}
 
-    if (!line) {
-      if (panelsPriceEl) panelsPriceEl.textContent = "0";
-      if (panelsQtyEl) panelsQtyEl.textContent = "0";
-      if (panelsUnitEl) panelsUnitEl.textContent = "0";
-      return;
-    }
-    if (panelsQtyEl) panelsQtyEl.textContent = String(line.qty ?? 0);
-    if (panelsUnitEl) panelsUnitEl.textContent = euro(line.unitPrice ?? 0);
-    if (panelsPriceEl) panelsPriceEl.textContent = euro(line.lineTotal ?? 0);
+// Mirrors SERVER truth for panels (quantity, unit, total) — set it ONLY here
+function updateFlooringPanelsPriceFromPricing() {
+  if (!window.__pricing || !Array.isArray(window.__pricing?.materials?.lines)) {
+    if (panelsPriceEl) panelsPriceEl.textContent = "0";
+    if (panelsQtyEl) panelsQtyEl.textContent = "0";
+    if (panelsUnitEl) panelsUnitEl.textContent = "0";
+    return;
   }
+
+  const pid = getSelectedFloorPid();
+
+  // Prefer the “Paneele” line for the selected pid.
+  let line = window.__pricing.materials.lines.find((l) => {
+    const id = (l.productId || l.id);
+    const label = String(l.label || "");
+    return id === pid && label.includes("Fußboden-Paneele");
+  });
+
+  // Fallback: same pid but not “individ.” (covers older label variants)
+  if (!line) {
+    line = window.__pricing.materials.lines.find((l) => {
+      const id = (l.productId || l.id);
+      const label = String(l.label || "");
+      return id === pid && !label.includes("individ.");
+    });
+  }
+
+  if (!line) {
+    if (panelsPriceEl) panelsPriceEl.textContent = "0";
+    if (panelsQtyEl) panelsQtyEl.textContent = "0";
+    if (panelsUnitEl) panelsUnitEl.textContent = "0";
+    return;
+  }
+
+  if (panelsQtyEl) panelsQtyEl.textContent = String(line.qty ?? 0);
+  if (panelsUnitEl) panelsUnitEl.textContent = euro(line.unitPrice ?? 0);
+  if (panelsPriceEl) panelsPriceEl.textContent = euro(line.lineTotal ?? 0);
+}
   window.updateFlooringPanelsPriceFromPricing =
     updateFlooringPanelsPriceFromPricing;
 
@@ -5853,7 +6133,36 @@ async function getProduct(id) {
       });
     });
   });
+// ALSO enforce single-select for dynamically added flooring options (Budget-Fußboden)
+document.addEventListener("change", (e) => {
+  const t = e.target;
+  if (!(t instanceof HTMLInputElement)) return;
+  if (t.type !== "checkbox") return;
+  if (t.name !== "flooringProduct[]") return;
 
+  // only react when user checks one
+  if (!t.checked) return;
+
+  // uncheck all others (premium + budget)
+  document
+    .querySelectorAll('input[type="checkbox"][name="flooringProduct[]"]')
+    .forEach((cb) => {
+      if (cb !== t) cb.checked = false;
+    });
+
+  // highlight update for all
+  document
+    .querySelectorAll('input[type="checkbox"][name="flooringProduct[]"]')
+    .forEach((cb) => highlightTileForInput(cb, cb.checked));
+
+  // refresh local UI + server totals
+  ensureUnits().then(() => {
+    updateUI();
+    syncColorWithAreaDW();
+  });
+
+  window.updatePricing?.();
+});
   toggle?.addEventListener("change", apply);
 
   area?.addEventListener("input", () => {
@@ -5936,22 +6245,26 @@ function initSmartTraySearch() {
   const hiddenId = document.getElementById("chosenTrayProductId");
   const hiddenSize = document.getElementById("traySize");
 
+  // NEW: checkbox filters
+  const badoluxEl = document.getElementById("trayFilterBadolux");
+  const slateEl = document.getElementById("trayFilterSlate");
+
   if (!out || (!elB && !elL && !elH)) {
     console.warn("initSmartTraySearch: missing inputs or #tray-suggestions");
     return;
   }
 
   // ----- helpers -----
-
   const parseNum = (v) => {
     if (v == null) return null;
     const raw = String(v).trim();
-    if (raw === "") return null; // <-- key line
+    if (raw === "") return null;
     const s = raw.replace(/\./g, "").replace(",", ".");
     const n = Number(s);
     if (!Number.isFinite(n)) return null;
-    return n > 0 ? n : null; // ignore 0 or negatives
+    return n > 0 ? n : null;
   };
+
   const makeLabel = (w, l, h) => (w && l && h ? `${w} x ${l} x ${h} cm` : "");
 
   const applySelectedStyles = () => {
@@ -5977,15 +6290,17 @@ function initSmartTraySearch() {
     try {
       sessionStorage.setItem("dw_tray_touched", "1");
     } catch {}
+
     const pid = inputEl.value || "";
     const w = Number(inputEl.dataset.w) || null;
     const l = Number(inputEl.dataset.l) || null;
     const h = Number(inputEl.dataset.h) || null;
 
     const label = makeLabel(w, l, h);
-  if (hiddenId) hiddenId.value = pid;
-hiddenId?.dispatchEvent(new Event("change", { bubbles: true }));
-if (hiddenSize) hiddenSize.value = label;
+
+    if (hiddenId) hiddenId.value = pid;
+    hiddenId?.dispatchEvent(new Event("change", { bubbles: true }));
+    if (hiddenSize) hiddenSize.value = label;
 
     persistSelection(pid, label);
     applySelectedStyles();
@@ -5997,6 +6312,21 @@ if (hiddenSize) hiddenSize.value = label;
     const l = elL?.value?.trim();
     const h = elH?.value?.trim();
     hiddenSize.value = b && l && h ? `${b} x ${l} x ${h} cm` : "";
+  };
+
+  // Clear current chosen product when filters/inputs change
+  const clearChosen = () => {
+    if (hiddenId) {
+      hiddenId.value = "";
+      hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  };
+
+  // Optional: make them mutually exclusive (comment out if you want both possible)
+  const enforceExclusiveFilters = (changed) => {
+    if (!changed) return;
+    if (changed === badoluxEl && badoluxEl?.checked && slateEl) slateEl.checked = false;
+    if (changed === slateEl && slateEl?.checked && badoluxEl) badoluxEl.checked = false;
   };
 
   // ----- render -----
@@ -6011,30 +6341,25 @@ if (hiddenSize) hiddenSize.value = label;
     const allowAutoCheck = sessionStorage.getItem("dw_tray_touched") === "1";
     let savedPid = null;
     try {
-      const saved = JSON.parse(
-        localStorage.getItem("dw_tray_selection") || "null",
-      );
+      const saved = JSON.parse(localStorage.getItem("dw_tray_selection") || "null");
       savedPid = saved?.productId || null;
     } catch {}
 
     const top = list.slice(0, 3);
     const savedIndex =
-      allowAutoCheck && savedPid
-        ? top.findIndex((p) => p.productId === savedPid)
-        : -1;
+      allowAutoCheck && savedPid ? top.findIndex((p) => p.productId === savedPid) : -1;
 
     const radios = top
       .map((p, i) => {
         const id = `tray-suggest-${i}`;
         const dims = `${p.widthCm} × ${p.lengthCm} × ${p.heightCm} cm`;
-        const price =
-          p.price != null ? ` — ${Number(p.price).toFixed(2)} €` : "";
+        const price = p.price != null ? ` — ${Number(p.price).toFixed(2)} €` : "";
         const title = p.name || p.productId || "Duschwanne";
         const value = p.productId || "";
         const checkedAttr = i === savedIndex ? "checked" : "";
 
         return `
-        <label class="suggestion-card" for="${id}">
+        <label class="suggestion-card${p.isBudget ? " is-budget" : ""}" for="${id}">
           <input type="radio"
                  id="${id}"
                  name="traySuggestion"
@@ -6053,18 +6378,16 @@ if (hiddenSize) hiddenSize.value = label;
       .join("");
 
     out.innerHTML = `
-      <div class="suggestion-heading">Vorschläge</div>
+      <div class="suggestion-heading">Vorschläge${top[0]?.isBudget ? " (Budget-Variante)" : ""}</div>
       <div class="suggestion-list">${radios}</div>
     `;
 
     if (savedIndex >= 0) {
-      const restored = out.querySelectorAll('input[name="traySuggestion"]')[
-        savedIndex
-      ];
+      const restored = out.querySelectorAll('input[name="traySuggestion"]')[savedIndex];
       applySelection(restored);
     }
 
-    // (Re)bind change once per render (fine if multiple; idempotent behavior)
+    // (Re)bind change once per render (idempotent behavior)
     out.addEventListener("change", (e) => {
       if (e.target && e.target.name === "traySuggestion") {
         applySelection(e.target);
@@ -6076,7 +6399,7 @@ if (hiddenSize) hiddenSize.value = label;
 
   // ----- fetch logic (progressive) with abort + anti-stale guard -----
   let inflight = null;
-  let reqSeq = 0; // monotonically increasing sequence to ignore late responses
+  let reqSeq = 0;
   let debounceT = null;
 
   async function fetchAndRender() {
@@ -6087,15 +6410,11 @@ if (hiddenSize) hiddenSize.value = label;
     // If nothing typed → clear everything and ensure no stale results repaint
     if (b === null && l === null && h === null) {
       out.innerHTML = "";
-      if (hiddenId) {
-      hiddenId.value = "";
-      hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
-    }
+      clearChosen();
       if (hiddenSize) hiddenSize.value = "";
       try {
         sessionStorage.removeItem("dw_tray_touched");
       } catch {}
-      // Cancel any in-flight request and bump sequence so its response is ignored
       try {
         inflight?.abort?.();
       } catch {}
@@ -6107,7 +6426,19 @@ if (hiddenSize) hiddenSize.value = label;
     if (b !== null) qs.set("w", String(b));
     if (l !== null) qs.set("l", String(l));
     if (h !== null) qs.set("h", String(h));
-    const url = `/api/trays/suggest?${qs.toString()}`;
+
+    // Additive: budget mode hint (frontend-first safe; backend may ignore)
+    const budgetEl = document.getElementById("budgetToggle");
+    const wantBudget = !!budgetEl?.checked;
+    if (wantBudget) qs.set("budget", "1");
+
+    // NEW: tray filters
+    // Badolux => source=badolux
+    if (badoluxEl?.checked) qs.set("source", "badolux");
+    // Slate => series=SLA (ID starts with SLA)
+    if (slateEl?.checked) qs.set("series", "SLA");
+
+    let url = `/api/trays/suggest?${qs.toString()}`;
 
     try {
       inflight?.abort?.();
@@ -6118,23 +6449,36 @@ if (hiddenSize) hiddenSize.value = label;
     out.innerHTML = `<div class="meta">Suche… <code>${url}</code></div>`;
 
     try {
-      const r = await fetch(url, {
+      let r = await fetch(url, {
         signal: inflight.signal,
         credentials: "include",
       });
-      const text = await r.text();
+      let text = await r.text();
+
+      // Frontend-first safety: if backend rejects unknown params, retry once without budget
+      if (!r.ok && wantBudget) {
+        try {
+          const qs2 = new URLSearchParams(qs);
+          qs2.delete("budget");
+          url = `/api/trays/suggest?${qs2.toString()}`;
+          r = await fetch(url, { signal: inflight.signal, credentials: "include" });
+          text = await r.text();
+        } catch {}
+      }
+
       if (mySeq !== reqSeq) return; // stale response, ignore
       if (!r.ok) {
         out.innerHTML = `<div class="text-sm text-destructive">Fehler ${r.status}</div><pre class="text-xs">${text}</pre>`;
         return;
       }
+
       const data = JSON.parse(text);
       const list = Array.isArray(data?.results) ? data.results : [];
       renderSuggestions(list);
     } catch (err) {
       if (err.name === "AbortError") return;
       console.error("Smart tray search failed:", err);
-      if (mySeq !== reqSeq) return; // ignore stale error
+      if (mySeq !== reqSeq) return;
       out.innerHTML = `<div class="text-sm text-destructive">Netzwerkfehler</div><pre class="text-xs">${String(err)}</pre>`;
     }
   }
@@ -6144,22 +6488,26 @@ if (hiddenSize) hiddenSize.value = label;
     debounceT = setTimeout(fetchAndRender, 160);
   };
 
+  // inputs -> clear chosen, update label, request
   [elB, elL, elH].forEach((el) => {
     if (!el) return;
     el.addEventListener("input", () => {
-      // Do NOT set dw_tray_touched here. Only on actual suggestion pick.
-      if (hiddenId) {
-        hiddenId.value = "";
-        hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
-      }
+      clearChosen();
       updateTraySizeFromInputs();
       request();
     });
     el.addEventListener("change", () => {
-      if (hiddenId) {
-        hiddenId.value = "";
-        hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
-      }
+      clearChosen();
+      request();
+    });
+  });
+
+  // NEW: checkbox changes -> clear chosen + request (and optional exclusivity)
+  [badoluxEl, slateEl].forEach((el) => {
+    if (!el) return;
+    el.addEventListener("change", () => {
+      enforceExclusiveFilters(el); // comment this line out if you want both checked possible
+      clearChosen();
       request();
     });
   });
@@ -8561,9 +8909,17 @@ function restoreArbeitszeit(aw) {
   }
 }
 
+
+
+
+
+
 // Duschwanne
 function restoreDuschwanne(dw) {
   if (!dw) return;
+
+
+
 
   // numeric inputs (quiet during restore)
   setByNameOrId("tray_w_cm", dw.tray_w_cm);
@@ -8669,6 +9025,7 @@ function restoreDuschwanne(dw) {
     }
   } catch {}
 }
+
 
 // BWT – you already have this; keep your current implementation
 // function restoreBwt(bwt) { ... }
@@ -8902,60 +9259,81 @@ const RESTORE_HANDLERS = {
 
 };
 
-function restoreHl(hl) {
-  if (!hl) return;
+// after RESTORE_HANDLERS is defined
+(async () => {
+  const { initRestoreManager } = await import("./RestoreManager.js");
 
-  const form = document.getElementById("form-hl");
-  if (!form) return;
+  window.__restoreManager = initRestoreManager({
+    OFFERS,
+    restoreHandlers: RESTORE_HANDLERS,
+    hooks: {
+      updatePricing: (...args) => window.updatePricing?.(...args),
+      refreshAllPanels: (...args) => window.refreshAllPanels?.(...args),
+      updateSummaryWidgetName: (...args) => window.updateSummaryWidgetName?.(...args),
+      ensureTrinitySealingSelectedFromPayload: (...args) =>
+        window.ensureTrinitySealingSelectedFromPayload?.(...args),
+    },
+  });
+})();
 
-  // Restore Logistik inputs (preferred)
-  const log = hl.logistik || null;
 
-  const spedEl = form.querySelector("#hlSpeditionskosten");
-  const preisEl = form.querySelector("#hlPreis");
 
-  if (log) {
-    if (spedEl) spedEl.value = String(log.speditionskosten ?? "");
-    if (preisEl) preisEl.value = String(log.preis ?? "");
-  } else {
-    // fallback: derive from quickAdd
-    const qa = Array.isArray(hl.quickAdd) ? hl.quickAdd : [];
-    const row = qa.find((x) => String(x?.productId || "") === "HL_LOGISTIK");
-    if (row) {
-      if (spedEl) spedEl.value = String(row?.label ?? "");
-      if (preisEl) {
-        const p = row?.price;
-        preisEl.value =
-          typeof p === "number" ? String(p).replace(".", ",") : String(p ?? "");
+// ================================================================
+// EmailManager + SignaturePadManager (decoupled managers)
+// ================================================================
+(function bootEmailAndSignatureManagers(){
+  const domReady = () =>
+    new Promise((resolve) => {
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", resolve, { once: true });
+      } else {
+        resolve();
       }
+    });
+
+  // Email manager
+  window.__emailReady = window.__emailReady || (async () => {
+    try {
+      await domReady();
+      const { initEmailManager } = await import("./EmailManager.js");
+      window.__emailManager = initEmailManager({
+        hooks: {
+          requireBereichValid: () =>
+            (typeof window.requireBereichValid === "function"
+              ? window.requireBereichValid()
+              : true),
+          buildPayload: () => (typeof window.buildPayload === "function" ? window.buildPayload() : null),
+          getCurrentOfferType: () => window.getCurrentOfferType?.() || "bu",
+          genOfferNumber: () => (typeof window.genOfferNumber === "function" ? window.genOfferNumber() : ""),
+          saveFinalOfferSnapshot: async () =>
+            (typeof window.saveFinalOfferSnapshot === "function"
+              ? window.saveFinalOfferSnapshot()
+              : undefined),
+        },
+      });
+      return window.__emailManager;
+    } catch (e) {
+      console.warn("[EmailManager] init failed:", e);
+      return null;
     }
-  }
+  })();
 
-  // Restore selected HL cards from quickAdd (kind: hl-item)
-  const qa = Array.isArray(hl.quickAdd) ? hl.quickAdd : [];
-  for (const row of qa) {
-    if (!row || row.kind !== "hl-item") continue;
-
-    const pid = String(row.productId || "").trim();
-    if (!pid) continue;
-
-    const cb = form.querySelector(
-      `input[type="checkbox"][data-product-id="${CSS.escape(pid)}"]`,
-    );
-    if (!cb) continue;
-
-    cb.checked = true;
-
-    const qty = Number(row.qty ?? 1) || 1;
-    const qtyEl = cb.id ? form.querySelector(`#qty_${CSS.escape(cb.id)}`) : null;
-    if (qtyEl) qtyEl.value = String(qty);
-
-    if (!window.__RESTORING__) {
-      cb.dispatchEvent(new Event("change", { bubbles: true }));
+  // Signature pad manager
+  window.__signatureReady = window.__signatureReady || (async () => {
+    try {
+      await domReady();
+      const { initSignaturePadManager } = await import("./SignaturePadManager.js");
+      window.__signaturePad = initSignaturePadManager();
+      return window.__signaturePad;
+    } catch (e) {
+      console.warn("[SignaturePadManager] init failed:", e);
+      return null;
     }
-  }
-}
-
+  })();
+})();
+// =================================================================
+// Draft/Offer restore entry points (exposed on window)
+// =================================================================
 
 async function restoreConfiguratorFromOffer(doc) {
   window.__restoring = true;
@@ -9118,6 +9496,10 @@ async function restoreConfiguratorFromOffer(doc) {
       ensureTrinitySealingSelectedFromPayload(p?.duschwanne);
     }
 
+
+
+
+
     if (typeof window.setPricingData === "function" && window.__pricing) {
       window.setPricingData(window.__pricing);
       window.dispatchEvent(
@@ -9141,10 +9523,108 @@ async function restoreConfiguratorFromOffer(doc) {
   if (typeof updateSummaryWidgetName === "function") {
     updateSummaryWidgetName();
   }
+  }
+
+function restoreConfiguratorFromSnapshot({ payload }) {
+  return restoreConfiguratorFromOffer({ payload });
 }
+
+// Expose for draft loader
+window.restoreConfiguratorFromOffer = restoreConfiguratorFromOffer;
+window.restoreConfiguratorFromSnapshot = restoreConfiguratorFromSnapshot;
+
+
+function restoreHl(hl) {
+  if (!hl) return;
+
+  const form = document.getElementById("form-hl");
+  if (!form) return;
+
+  // Restore Logistik inputs (preferred)
+  const log = hl.logistik || null;
+
+  const spedEl = form.querySelector("#hlSpeditionskosten");
+  const preisEl = form.querySelector("#hlPreis");
+
+  if (log) {
+    if (spedEl) spedEl.value = String(log.speditionskosten ?? "");
+    if (preisEl) preisEl.value = String(log.preis ?? "");
+  } else {
+    // fallback: derive from quickAdd
+    const qa = Array.isArray(hl.quickAdd) ? hl.quickAdd : [];
+    const row = qa.find((x) => String(x?.productId || "") === "HL_LOGISTIK");
+    if (row) {
+      if (spedEl) spedEl.value = String(row?.label ?? "");
+      if (preisEl) {
+        const p = row?.price;
+        preisEl.value =
+          typeof p === "number" ? String(p).replace(".", ",") : String(p ?? "");
+      }
+    }
+  }
+
+  // Restore selected HL cards from quickAdd (kind: hl-item)
+  const qa = Array.isArray(hl.quickAdd) ? hl.quickAdd : [];
+  for (const row of qa) {
+    if (!row || row.kind !== "hl-item") continue;
+
+    const pid = String(row.productId || "").trim();
+    if (!pid) continue;
+
+    const cb = form.querySelector(
+      `input[type="checkbox"][data-product-id="${CSS.escape(pid)}"]`,
+    );
+    if (!cb) continue;
+
+    cb.checked = true;
+
+    const qty = Number(row.qty ?? 1) || 1;
+    const qtyEl = cb.id ? form.querySelector(`#qty_${CSS.escape(cb.id)}`) : null;
+    if (qtyEl) qtyEl.value = String(qty);
+
+    if (!window.__RESTORING__) {
+      cb.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+}
+
+function setSignaturePadFromDataUrl(dataUrl) {
+  const canvas = document.getElementById("signaturePad");
+  const hidden = document.getElementById("signatureDataUrl");
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!dataUrl) {
+    if (hidden) hidden.value = "";
+    return;
+  }
+
+  const img = new Image();
+  img.onload = () => {
+    // draw scaled to fit
+    const cw = canvas.width, ch = canvas.height;
+    const scale = Math.min(cw / img.width, ch / img.height);
+    const w = img.width * scale;
+    const h = img.height * scale;
+    const x = (cw - w) / 2;
+    const y = (ch - h) / 2;
+    ctx.drawImage(img, x, y, w, h);
+    if (hidden) hidden.value = dataUrl;
+  };
+  img.src = dataUrl;
+}
+
+
 
 function restoreDuschwanne(dw) {
   if (!dw) return;
+
+
+
+
+
 
   // numeric inputs (quiet during restore)
   setByNameOrId("tray_w_cm", dw.tray_w_cm);
@@ -11703,7 +12183,6 @@ function initLivePricingSync() {
 
 
 // #endregion
-
 // =================================================================
 // #region 12. ADMIN & INTEGRATIONS
 // =================================================================
@@ -12163,107 +12642,6 @@ function initLivePricingSync() {
   });
 })();
 // #endregion
-
-// Alltagshilfe: abhängige Leistungsart + ausgegraute, nicht verfügbare Option
-(function initAlltagshilfePage() {
-  const form = document.getElementById("form-ah");
-  if (!form) return;
-
-  const artAlltag = document.getElementById("ahArtAlltagsbegleitung");
-  const artHaushalt = document.getElementById("ahArtHaushalt");
-
-  const wrap = document.getElementById("ahLeistungsTypWrap");
-  const blockAlltag = document.getElementById(
-    "ahLeistungsTypAlltagsbegleitung",
-  );
-  const blockHaushalt = document.getElementById("ahLeistungsTypHaushalt");
-
-  const inputFahrten = document.getElementById("ahLeistungsTypFahrten");
-  const inputPausch = document.getElementById(
-    "ahLeistungsTypReinigungsPauschale",
-  );
-
-  // Labels separat greifen, damit wir sie „grau“ stylen können
-  const labelFahrten = inputFahrten?.closest("label.radio-pill");
-  const labelPausch = inputPausch?.closest("label.radio-pill");
-
-  if (!wrap || !blockAlltag || !blockHaushalt || !inputFahrten || !inputPausch)
-    return;
-
-  function show(el, on) {
-    if (!el) return;
-    el.hidden = !on;
-    el.setAttribute("aria-hidden", on ? "false" : "true");
-  }
-
-  // exakt derselbe „Grau‑Look“ wie beim Aufschlag:
-  // disabled + geringere Opacity + keine Klicks
-  function setDisabled(labelEl, inputEl, disabled) {
-    if (!labelEl || !inputEl) return;
-    inputEl.disabled = disabled;
-    labelEl.setAttribute("aria-disabled", disabled ? "true" : "false");
-    labelEl.style.opacity = disabled ? "0.45" : "";
-    labelEl.style.pointerEvents = disabled ? "none" : "";
-    labelEl.style.filter = disabled ? "grayscale(0.3)" : "";
-  }
-
-  function applySelection(kind) {
-    // Block sichtbar, sobald eine Haupt‑Art gewählt wurde
-    show(wrap, true);
-
-    // Beide Detail‑Zeilen sollen immer sichtbar bleiben
-    show(blockAlltag, true);
-    show(blockHaushalt, true);
-
-    if (kind === "Alltagsbegleitung") {
-      // Fahrten aktiv, Pauschale grau/disabled
-      setDisabled(labelFahrten, inputFahrten, false);
-      setDisabled(labelPausch, inputPausch, true);
-
-      // Fahrten vorwählen
-      inputFahrten.checked = true;
-      inputPausch.checked = false;
-      inputFahrten.dispatchEvent(new Event("change", { bubbles: true }));
-    } else if (kind === "Haushaltsnahedienstleistungen") {
-      // Pauschale aktiv, Fahrten grau/disabled
-      setDisabled(labelFahrten, inputFahrten, true);
-      setDisabled(labelPausch, inputPausch, false);
-
-      inputPausch.checked = true;
-      inputFahrten.checked = false;
-      inputPausch.dispatchEvent(new Event("change", { bubbles: true }));
-    } else {
-      // Nichts gewählt → alles zurücksetzen und ausblenden
-      show(wrap, false);
-      show(blockAlltag, false);
-      show(blockHaushalt, false);
-
-      setDisabled(labelFahrten, inputFahrten, false);
-      setDisabled(labelPausch, inputPausch, false);
-      inputFahrten.checked = false;
-      inputPausch.checked = false;
-    }
-  }
-
-  // Listener für die zwei Haupt‑Radiobuttons
-  artAlltag?.addEventListener("change", () => {
-    if (artAlltag.checked) applySelection("Alltagsbegleitung");
-  });
-  artHaushalt?.addEventListener("change", () => {
-    if (artHaushalt.checked) applySelection("Haushaltsnahedienstleistungen");
-  });
-
-  // Initialzustand beim Laden (z.B. beim Bearbeiten eines Entwurfs)
-  const current = form.querySelector('input[name="ahArt"]:checked');
-  if (current) {
-    applySelection(current.value);
-  } else {
-    show(wrap, false);
-    show(blockAlltag, false);
-    show(blockHaushalt, false);
-  }
-})();
-
 // =================================================================
 // #region 13. GLOBAL EVENT LISTENERS (The Footer)
 // =================================================================
@@ -12318,7 +12696,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   updateSummaryWidgetSubsidyVisibility();
 
-  // --- Draft save button under widget ---
+  /* // --- Draft save button under widget ---
   const btnSaveDraft = document.getElementById("btnSaveDraft");
   if (btnSaveDraft) {
     btnSaveDraft.addEventListener("click", () => {
@@ -12329,7 +12707,7 @@ document.addEventListener("DOMContentLoaded", () => {
         alert("Entwurf speichern ist fehlgeschlagen. Bitte Konsole prüfen.");
       }
     });
-  }
+  } */
 
   // --- Draft search / load on Kundendaten ---
   (function initDraftSearchUI() {
@@ -13505,8 +13883,6 @@ function askBeforeGoingHome(onConfirm) {
   restoreFromLocalStorage();
 })();
 
-// #endregion
-
 
 // ✅ HL checkboxes that must NEVER show a Menge field
 const HL_NO_QTY = new Set([
@@ -13516,7 +13892,6 @@ const HL_NO_QTY = new Set([
   "hlMountTypeWand",
   "hlPipeSteel",
 ]);
-
 document.addEventListener("change", (e) => {
   const cb = e.target;
   if (!(cb instanceof HTMLInputElement)) return;
@@ -13548,7 +13923,6 @@ document.addEventListener("change", (e) => {
     if (qtyInput && !qtyInput.value) qtyInput.value = "1";
   }
 });
-
 // Optional: still enforce on load (in case HTML renders it visible)
 document.addEventListener("DOMContentLoaded", () => {
   HL_NO_QTY.forEach((id) => {
@@ -13562,311 +13936,231 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
+;
+// #endregion
+/* ============================================================
+   Additive: Badolux Low Budget (Duschwanne + Zubehör + Fußboden)
+   - Checkbox #budgetToggle (name=budgetMode, value=1) is included in payload only when checked (FormData behavior)
+   - Does not change any existing product IDs / selections; only adds UI preference and optional query param.
+   ============================================================ */
+(function initBadoluxBudgetFrontend() {
+  const SESSION_KEY = "dw_budget_mode";
 
+  const getToggle = () => document.getElementById("budgetToggle");
+  const isOn = () => !!getToggle()?.checked;
 
-(function initOfferMailV2() {
-  const btn = document.getElementById("sendOfferMail");
-  const toEl = document.getElementById("mailTo");
-  const subjectEl = document.getElementById("mailSubject");
-  const bodyEl = document.getElementById("mailBody");
-  const filesEl = document.getElementById("mailAttachments");
-  const listEl = document.getElementById("mailAttachmentList");
-  const statusEl = document.getElementById("mailStatus");
-
-  if (!btn || !toEl || !subjectEl || !bodyEl || !filesEl || !listEl || !statusEl) return;
-
-  // ---- preset attachments (always included unless removed) ----
-  const presetAttachments = [
-    { id: "abtretung", name: "Abtretungserklärung.pdf" },
-    { id: "barrierefrei", name: "emc2_Barrierefreies_Wohnen.pdf" },
-    { id: "vollmacht", name: "Vollmacht.pdf" },
-  ];
-
-  // ids user removed
-  const excludedPreset = new Set();
-
-  // user-selected files (we manage them ourselves so we can remove)
-  let userFiles = [];
-
-  // subject auto-fill based on offerNumber, but don't overwrite if user edited it
-  let subjectTouched = false;
-  subjectEl.addEventListener("input", () => (subjectTouched = true));
-
-  function getOfferNumber() {
-    return (
-      document.getElementById("offerNumber")?.value?.trim() ||
-      (typeof genOfferNumber === "function" ? genOfferNumber() : "") ||
-      ""
-    );
+  function applyBudgetModeUI(on) {
+    const form = document.getElementById("form-duschwanne");
+    if (form) form.classList.toggle("budget-mode", !!on);
   }
 
-  function updateSubjectDefault() {
-    if (subjectTouched) return;
-    const offerNumber = getOfferNumber();
-    if (offerNumber) subjectEl.value = offerNumber;
-  }
+  function swapAccessoryImages(on) {
+    const map = {
+      TRWDB: "./assets/budget/BL-Dichtband.png",
+      TRWDSET5: "./assets/budget/BL-Dichtbahn.png",
+      PLA5282: "./assets/budget/BL-Stelzlager.png",
+        AGD9060: "./assets/budget/AGB001.png",
+          KM02: "./assets/budget/AC004.png",
+    };
 
-  // keep subject synced when offerNumber changes (if user didn't touch)
-  const offerNumberEl = document.getElementById("offerNumber");
-  if (offerNumberEl) {
-    offerNumberEl.addEventListener("input", updateSubjectDefault);
-    offerNumberEl.addEventListener("change", updateSubjectDefault);
-  }
-  // initial fill
-  updateSubjectDefault();
+    Object.entries(map).forEach(([pid, budgetSrc]) => {
+      const label =
+        document.querySelector(`label[data-product-id="${pid}"]`) ||
+        document.querySelector(`[data-product-id="${pid}"]`);
+      const img =
+        label?.querySelector("img") ||
+        document.querySelector(`img[data-product-id="${pid}"]`);
+      if (!img) return;
 
-  function setStatus(msg, type = "info") {
-    statusEl.hidden = false;
-    statusEl.textContent = msg;
-    statusEl.dataset.type = type;
-  }
+      // store original once
+      if (!img.dataset.srcOriginal) img.dataset.srcOriginal = img.getAttribute("src") || "";
 
-  // Sync our userFiles array back into the <input type="file"> using DataTransfer
-  function syncFileInput() {
-    const dt = new DataTransfer();
-    for (const f of userFiles) dt.items.add(f);
-    filesEl.files = dt.files;
-  }
-
-  filesEl.addEventListener("change", () => {
-    // append newly picked files (do not lose existing)
-    const newly = Array.from(filesEl.files || []);
-    userFiles = userFiles.concat(newly);
-    // remove duplicates by (name+size+lastModified)
-    const seen = new Set();
-    userFiles = userFiles.filter((f) => {
-      const k = `${f.name}|${f.size}|${f.lastModified}`;
-      if (seen.has(k)) return false;
-      seen.add(k);
-      return true;
+      if (on) {
+        img.src = budgetSrc;
+        img.onerror = () => {
+          // fall back to original if asset missing
+          if (img.dataset.srcOriginal) img.src = img.dataset.srcOriginal;
+        };
+      } else {
+        if (img.dataset.srcOriginal) img.src = img.dataset.srcOriginal;
+      }
     });
-    syncFileInput();
-    renderAttachmentList();
-  });
-
-  function chip(label, onRemove, kind = "file") {
-    const el = document.createElement("div");
-    el.className = "mail-attach-chip";
-    el.dataset.kind = kind;
-
-    const t = document.createElement("span");
-    t.textContent = label;
-
-    const x = document.createElement("span");
-    x.className = "x";
-    x.textContent = "✕";
-    x.title = "Remove";
-    x.addEventListener("click", onRemove);
-
-    el.appendChild(t);
-    el.appendChild(x);
-    return el;
   }
 
-  function renderAttachmentList() {
-    listEl.innerHTML = "";
+  // ===== Budget Fußboden (Option A): extra group =====
+  let budgetFloorsCache = null;
+  let budgetFloorsLoading = null;
 
-    // Offer PDF (always attached)
-    const offerNumber = getOfferNumber();
-    const offerPdfName = `${offerNumber || "Angebot"}.pdf`;
-    const offerChip = document.createElement("div");
-    offerChip.className = "mail-attach-chip";
-    offerChip.innerHTML = `<span>${offerPdfName} (Offer PDF)</span>`;
-    // (no remove button here)
-    listEl.appendChild(offerChip);
+  function normalizeSource(v) {
+    return String(v || "").trim().toLowerCase();
+  }
+  function startsWithBP(v) {
+    return String(v || "").toUpperCase().startsWith("BP");
+  }
+  function budgetFloorImgFor(pid) {
+    return `./assets/budget/${pid}.png`;
+  }
 
-    // Presets
-    for (const p of presetAttachments) {
-      if (excludedPreset.has(p.id)) continue;
-      listEl.appendChild(
-        chip(p.name, () => {
-          excludedPreset.add(p.id);
-          renderAttachmentList();
-        }, "preset"),
-      );
+  async function loadBudgetFloorsFromBackend() {
+    if (budgetFloorsCache) return budgetFloorsCache;
+    if (budgetFloorsLoading) return budgetFloorsLoading;
+
+    budgetFloorsLoading = (async () => {
+      // Preferred (once backend supports params)
+      let data = null;
+      try {
+        let res = await fetch(`/api/products?prefix=BP&source=badolux&limit=200`, {
+          credentials: "include",
+        });
+        if (res.ok) data = await res.json().catch(() => null);
+      } catch {}
+
+      // Frontend-first fallback: use search and filter client-side
+      if (!Array.isArray(data)) {
+        try {
+          const res2 = await fetch(`/api/products?q=BP`, { credentials: "include" });
+          if (res2.ok) data = await res2.json().catch(() => []);
+          else data = [];
+        } catch {
+          data = [];
+        }
+      }
+
+      const filtered = (Array.isArray(data) ? data : [])
+        .filter((p) => startsWithBP(p.productId) && normalizeSource(p.source) === "badolux")
+        .sort((a, b) => String(a.productId).localeCompare(String(b.productId)));
+
+      budgetFloorsCache = filtered.map((p) => ({
+        productId: p.productId,
+        name: p.name || p.productId,
+        img: budgetFloorImgFor(p.productId),
+      }));
+      return budgetFloorsCache;
+    })();
+
+    return budgetFloorsLoading;
+  }
+
+  async function renderBudgetFloors() {
+    const group = document.getElementById("flooringBudgetGroup");
+    const wrap = document.getElementById("flooringBudgetOptions");
+    const empty = document.getElementById("flooringBudgetEmpty");
+    if (!group || !wrap) return;
+
+    wrap.innerHTML = "";
+
+    const list = await loadBudgetFloorsFromBackend();
+    const has = Array.isArray(list) && list.length > 0;
+
+    if (!has) {
+      if (empty) empty.hidden = false;
+      return;
     }
+    if (empty) empty.hidden = true;
 
-    // User uploads
-    userFiles.forEach((f, idx) => {
-      listEl.appendChild(
-        chip(f.name, () => {
-          userFiles.splice(idx, 1);
-          syncFileInput();
-          renderAttachmentList();
-        }, "upload"),
-      );
-    });
+    for (const item of list) {
+      const pid = item.productId;
+      const name = item.name || pid;
+
+      const label = document.createElement("label");
+      label.className = "image-check";
+      label.setAttribute("data-product-id", pid);
+
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.name = "flooringProduct[]";
+      input.value = `${pid}|${name}`;
+      input.setAttribute("data-product-id", pid);
+      input.setAttribute("data-color", name);
+
+      const imgWrap = document.createElement("span");
+      imgWrap.className = "img-wrap";
+
+      const image = document.createElement("img");
+      image.loading = "lazy";
+      image.alt = `Budget Fußboden — ${name}`;
+      image.src = item.img || "";
+      image.onerror = () => {
+        // if image missing, hide wrapper
+        imgWrap.style.display = "none";
+      };
+
+      imgWrap.appendChild(image);
+
+      const caption = document.createElement("span");
+      caption.className = "caption";
+      caption.textContent = name;
+
+      label.appendChild(input);
+      label.appendChild(imgWrap);
+      label.appendChild(caption);
+
+      wrap.appendChild(label);
+    }
   }
 
-  // initial render
-  renderAttachmentList();
+  async function updateBudgetFloorVisibility() {
+    const group = document.getElementById("flooringBudgetGroup");
+    if (!group) return;
+    const on = isOn();
+    group.hidden = !on;
+    group.setAttribute("aria-hidden", (!on).toString());
+    if (on) await renderBudgetFloors();
+  }
 
-  btn.addEventListener("click", async () => {
+  function init() {
+  const el = getToggle();
+  if (!el) return;
+
+  // Restore session preference only if the checkbox doesn't already have a value from restored offers
+  if (!el.dataset.budgetInit) {
     try {
-      if (typeof requireBereichValid === "function" && !requireBereichValid()) {
-        location.hash = "Kundendaten";
-        return;
-      }
+      const saved = sessionStorage.getItem(SESSION_KEY);
+      if (saved === "1" && !el.checked) el.checked = true;
+    } catch {}
+    el.dataset.budgetInit = "1";
+  }
 
-      const to = (toEl.value || "").trim();
-      if (!to) return setStatus("Please enter a recipient email.", "error");
+  // apply once
+  applyBudgetModeUI(el.checked);
+  swapAccessoryImages(el.checked);
+  updateBudgetFloorVisibility();
 
-      const payload = typeof buildPayload === "function" ? buildPayload() : null;
-      if (!payload) throw new Error("buildPayload() is missing / returned nothing");
+  // NEW: Wandpaneele budget section (Option A)
+  setWvBudgetVisibility?.(el.checked);
+  if (el.checked) renderBudgetWvColors?.();
 
-      // make sure active offer exists (your app does this elsewhere too)
-      if (!payload.activeOffer) {
-        payload.activeOffer =
-          (typeof getCurrentOfferType === "function" && getCurrentOfferType()) ||
-          payload.offerType ||
-          payload.currentOfferKey ||
-          "bu";
-      }
+  // bind once
+  if (el.dataset.boundBudget === "1") return;
+  el.dataset.boundBudget = "1";
 
-      const offerNumber = getOfferNumber();
+  el.addEventListener("change", () => {
+    try {
+      sessionStorage.setItem(SESSION_KEY, el.checked ? "1" : "0");
+    } catch {}
 
-      btn.disabled = true;
-      setStatus("Generating offer PDF + sending email…", "info");
+    applyBudgetModeUI(el.checked);
+    swapAccessoryImages(el.checked);
+    updateBudgetFloorVisibility();
 
-      const fd = new FormData();
-      fd.append("to", to);
-      fd.append("subject", (subjectEl.value || offerNumber || "Angebot").trim());
-      fd.append("body", bodyEl.value || "");
-      fd.append("offerNumber", offerNumber);
-      fd.append("offerType", payload.activeOffer || "");
-      fd.append("payload", JSON.stringify(payload));
-      fd.append("excludePreset", JSON.stringify(Array.from(window.__mailExcludedPreset || [])));
+    // NEW: Wandpaneele budget section (Option A)
+    setWvBudgetVisibility?.(el.checked);
+    if (el.checked) renderBudgetWvColors?.();
 
-      // tell backend which presets to exclude
-      fd.append("excludePreset", JSON.stringify(Array.from(excludedPreset)));
+    // refresh tray suggestions if available
+    if (window.__smartTray?.fetchAndRender) window.__smartTray.fetchAndRender();
 
-      // user uploads
-      for (const f of userFiles) fd.append("attachments", f, f.name);
-
-      const res = await fetch("/api/email/send-offer", { method: "POST", body: fd });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || err.error || `HTTP ${res.status}`);
-      }
-
-      const data = await res.json();
-      setStatus(`Email sent ✅ Attachments: ${data.attachmentNames?.join(", ") || "-"}`, "success");
-
-      if (typeof saveFinalOfferSnapshot === "function") {
-        try { await saveFinalOfferSnapshot(); } catch {}
-      }
-    } catch (e) {
-      console.error("[mail] failed:", e);
-      setStatus(`Send failed: ${e.message}`, "error");
-    } finally {
-      btn.disabled = false;
-    }
+    // OPTIONAL: update pricing immediately if you do live pricing
+    window.updatePricing?.();
   });
+}
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
 })();
 
-(function initMailAttachmentTiles() {
-  const filesEl = document.getElementById("mailAttachments");     // <input type=file multiple>
-  const listEl  = document.getElementById("mailAttachmentList");  // tiles container
-  if (!filesEl || !listEl) return;
 
-  // These are the default “always attached” PDFs (server will attach unless excluded)
-  const preset = [
-    { id: "abtretung",    name: "Abtretungserklärung.pdf" },
-    { id: "barrierefrei", name: "emc2_Barrierefreies_Wohnen.pdf" },
-    { id: "vollmacht",    name: "Vollmacht.pdf" },
-  ];
 
-  // Track preset removals -> sent to backend as excludePreset
-  const excludedPreset = new Set();
-
-  // Track user-selected files (so we can remove them)
-  let userFiles = [];
-
-  function syncFileInput() {
-    const dt = new DataTransfer();
-    for (const f of userFiles) dt.items.add(f);
-    filesEl.files = dt.files;
-  }
-
-  function makeTile({ name, meta, onRemove }) {
-    const tile = document.createElement("div");
-    tile.className = "mail-attach-tile";
-
-    const label = document.createElement("div");
-    label.className = "mail-attach-name";
-    label.textContent = name;
-
-    const m = document.createElement("div");
-    m.className = "mail-attach-meta";
-    m.textContent = meta || "";
-
-    const x = document.createElement("div");
-    x.className = "mail-attach-x";
-    x.textContent = "✕";
-    x.title = "Remove";
-    x.addEventListener("click", onRemove);
-
-    tile.appendChild(label);
-    if (meta) tile.appendChild(m);
-    tile.appendChild(x);
-    return tile;
-  }
-
-  function renderTiles() {
-    listEl.innerHTML = "";
-
-    // 1) Preset tiles
-    for (const p of preset) {
-      if (excludedPreset.has(p.id)) continue;
-      listEl.appendChild(
-        makeTile({
-          name: p.name,
-          meta: "Default",
-          onRemove: () => {
-            excludedPreset.add(p.id);
-            renderTiles();
-          },
-        })
-      );
-    }
-
-    // 2) User uploaded files tiles
-    userFiles.forEach((f, idx) => {
-      listEl.appendChild(
-        makeTile({
-          name: f.name,
-          meta: "Added",
-          onRemove: () => {
-            userFiles.splice(idx, 1);
-            syncFileInput();
-            renderTiles();
-          },
-        })
-      );
-    });
-  }
-
-  // When user picks files, append them (don’t overwrite existing)
-  filesEl.addEventListener("change", () => {
-    const newly = Array.from(filesEl.files || []);
-    userFiles = userFiles.concat(newly);
-
-    // de-dup by name+size+lastModified
-    const seen = new Set();
-    userFiles = userFiles.filter((f) => {
-      const k = `${f.name}|${f.size}|${f.lastModified}`;
-      if (seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    });
-
-    syncFileInput();
-    renderTiles();
-  });
-
-  // Expose excludedPreset so your send handler can include it in FormData
-  window.__mailExcludedPreset = excludedPreset;
-
-  // Initial render so presets show immediately (even before selecting files)
-  renderTiles();
-})();

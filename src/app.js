@@ -360,7 +360,7 @@ app.get("/api/products/sla", async (req, res) => {
 // Alle Produkte auflisten (Admin/Debug)
 app.get("/api/products", async (req, res) => {
   try {
-    const { q } = req.query;
+    const { q, prefix, source, limit } = req.query;
     const filter = {};
 
     if (q) {
@@ -370,14 +370,31 @@ app.get("/api/products", async (req, res) => {
       ];
     }
 
-    const docs = await Product.find(filter).sort({ productId: 1 }).lean();
+    // Additive: prefix filter (e.g. BP)
+    if (prefix) {
+      const safe = String(prefix).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      filter.productId = new RegExp("^" + safe, "i");
+    }
 
+    // Additive: source filter (e.g. badolux)
+    if (source) {
+      filter.source = new RegExp("^" + String(source) + "$", "i");
+    }
+
+    let query = Product.find(filter).sort({ productId: 1 });
+    if (limit) {
+      const n = Math.max(1, Math.min(500, Number(limit) || 200));
+      query = query.limit(n);
+    }
+
+    const docs = await query.lean();
     res.json(docs);
   } catch (err) {
     console.error("GET /api/products failed:", err);
     res.status(500).json({ error: "Serverfehler beim Laden der Produkte" });
   }
 });
+
 
 // Single product by productId
 app.get("/api/products/:id", async (req, res) => {
