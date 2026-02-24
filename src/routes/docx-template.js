@@ -11,6 +11,7 @@ import { randomBytes } from "crypto";
 import dayjs from "dayjs";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
+import ImageModule from "docxtemplater-image-module-free";
 
 import ProductModel from "../models/Product.js";
 import pricingFactory from "../logic/pricing.js";
@@ -175,17 +176,117 @@ function safeFileNameFromOffer(offerNumber = "", fallbackBase = "Angebot") {
   return cleaned || fallbackBase;
 }
 
-// ✅ UPDATED: Modern docxtemplater API usage
+function parseDataUrlImage(tagValue) {
+  if (typeof tagValue !== "string") return null;
+  const m = tagValue.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (!m) return null;
+
+  try {
+    return {
+      mime: m[1],
+      buffer: Buffer.from(m[2], "base64"),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function getImageSizeFromBuffer(buf) {
+  if (!Buffer.isBuffer(buf) || buf.length < 10) return null;
+
+  // PNG
+  if (
+    buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47 &&
+    buf[4] === 0x0d && buf[5] === 0x0a && buf[6] === 0x1a && buf[7] === 0x0a
+  ) {
+    if (buf.length >= 24) {
+      const width = buf.readUInt32BE(16);
+      const height = buf.readUInt32BE(20);
+      if (width > 0 && height > 0) return { width, height };
+    }
+    return null;
+  }
+
+  // JPEG
+  if (buf[0] === 0xff && buf[1] === 0xd8) {
+    let i = 2;
+    while (i < buf.length - 9) {
+      if (buf[i] !== 0xff) { i++; continue; }
+      const marker = buf[i + 1];
+      const isSOF =
+        marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker);
+
+      if (i + 3 >= buf.length) break;
+      const len = buf.readUInt16BE(i + 2);
+
+      if (isSOF && i + 8 < buf.length) {
+        const height = buf.readUInt16BE(i + 5);
+        const width = buf.readUInt16BE(i + 7);
+        if (width > 0 && height > 0) return { width, height };
+        return null;
+      }
+
+      if (len < 2) break;
+      i += 2 + len;
+    }
+  }
+
+  return null;
+}
+
+// ✅ UPDATED: image-enabled docx render (supports {%SignatureImage})
 async function renderDocx(templatePath, data) {
   const content = await fs.readFile(templatePath);
   const zip = new PizZip(content);
+
+  const imageModule = new ImageModule({
+    centered: false,
+    fileType: "docx",
+
+    getImage(tagValue, tagName) {
+      const parsed = parseDataUrlImage(tagValue);
+      if (!parsed) {
+        throw new Error(`[docx-image] Invalid image data for tag "${tagName}"`);
+      }
+      return parsed.buffer;
+    },
+
+    getSize(img, tagValue, tagName) {
+      const size = getImageSizeFromBuffer(img);
+
+      // Tune to your signature field box in template
+      const maxW = 260;
+      const maxH = 90;
+
+      if (!size || !size.width || !size.height) return [maxW, maxH];
+
+      const scale = Math.min(maxW / size.width, maxH / size.height);
+      const w = Math.max(1, Math.round(size.width * scale));
+      const h = Math.max(1, Math.round(size.height * scale));
+      return [w, h];
+    },
+
+    getProps() {
+      return {};
+    },
+  });
+
   const doc = new Docxtemplater(zip, {
     paragraphLoop: true,
     linebreaks: true,
     nullGetter: () => "",
+    modules: [imageModule],
   });
 
   try {
+    console.log("[DOCX] SignatureImage present?", !!data?.SignatureImage);
+    if (data?.SignatureImage) {
+      console.log(
+        "[DOCX] SignatureImage prefix:",
+        String(data.SignatureImage).slice(0, 40),
+      );
+    }
+
     doc.render(data);
   } catch (e) {
     const msg = e?.message || String(e);
@@ -204,6 +305,7 @@ async function renderDocx(templatePath, data) {
     }
     throw new Error(`DOCX render failed: ${msg}`);
   }
+
   return doc.getZip().generate({ type: "nodebuffer" });
 }
 
@@ -650,6 +752,21 @@ function mapData(body = {}, computed = {}) {
   const ValidityDateFormatted = validityDate.isValid() 
     ? validityDate.format('DD.MM.YYYY') 
     : '';  
+
+
+  // Signature from frontend payload (supports nested payload for drafts/offers)
+  const sig = body?.signature || body?.payload?.signature || {};
+  const hasSignature =
+    typeof sig?.dataUrl === "string" &&
+    sig.dataUrl.startsWith("data:image/") &&
+    sig.dataUrl.length > 100;
+
+  const signatureDateFmt = sig?.signedAt ? fmtDateDE(sig.signedAt) : "";
+
+  console.log("[DOCX] signature detected?", hasSignature, {
+    hasDataUrl: !!sig?.dataUrl,
+    signedAt: sig?.signedAt || null,
+  });
 
   // Normalize to an array of { Text } for DOCX bullets (only the text, no time)
   const ExtraAzTasks = rawExtraTasks
@@ -1321,6 +1438,10 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     PLZ: b.postalCode || "",
     Datum: fmtDateDE(b.date),
     ValidityDate: ValidityDateFormatted, 
+    // Signature fields for DOCX image template tag {%SignatureImage}
+    SignatureImage: hasSignature ? sig.dataUrl : null,
+    SignaturePresentText: hasSignature ? "" : "Unterschrift fehlt",
+    SignatureDate: signatureDateFmt,
     Ansprechpartner: (b.emc2_contact || "").trim(),
     Kundennummer: b.customerNumber || b.bitrixContactId || "",
     Greeting:
@@ -1447,9 +1568,8 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
 router.post("/", async (req, res) => {
   try {
     const templatePath = getAngebotTemplatePath(req.body);
-        console.log('[docx] Using template path:', templatePath);
-    console.log('[docx] Template exists?', fsSync.existsSync(templatePath));
-    const content = await fs.readFile(templatePath);
+    console.log("[docx] Using template path:", templatePath);
+    console.log("[docx] Template exists?", fsSync.existsSync(templatePath));
 
     const computed = await pricing.computePrices(req.body || {});
     console.log("[docx] computed subsidy:", {
@@ -1459,45 +1579,23 @@ router.post("/", async (req, res) => {
       userInput: computed?.subsidyInput,
     });
 
-    const zip = new PizZip(content);
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true,
-    });
-
     const dataRaw = mapData(req.body || {}, computed);
     const data = deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST);
+
     if (STATIC_DOCX_WORD_BLOCKLIST.length) {
-      console.log('[docx-template] static word blocklist active:', STATIC_DOCX_WORD_BLOCKLIST);
+      console.log(
+        "[docx-template] static word blocklist active:",
+        STATIC_DOCX_WORD_BLOCKLIST,
+      );
     }
+
     console.log("[docx-template] Angebotsnummer in data:", data.Angebotsnummer);
     console.log("[docx-template] replacing keys:", Object.keys(data));
+    console.log("[docx] subsidyKind:", computed?.subsidyKind);
+    console.log("[docx] SignatureImage present?", !!data.SignatureImage);
 
-    try {
-      console.log("[docx] subsidyKind:", computed?.subsidyKind);
-      doc.render(data);
-    } catch (e) {
-      console.error("Docxtemplater render error:", e?.message || e);
-      if (e?.properties?.errors) {
-        for (const er of e.properties.errors) {
-          console.error("- Docx error:", {
-            id: er.id,
-            explanation: er.explanation,
-            file: er.file,
-            xtag: er.xtag,
-            context: er.context,
-            offset: er.offset,
-          });
-        }
-      }
-      return res.status(500).json({
-        error: "DOCX render failed",
-        detail: e.message || String(e),
-        properties: e.properties || null,
-      });
-    }
-
-    const out = doc.getZip().generate({ type: "nodebuffer" });
+    // ✅ use shared image-enabled renderer
+    const out = await renderDocx(templatePath, data);
 
     try {
       const verifyOut = path.join(process.cwd(), "out-Angebot.docx");
@@ -1515,11 +1613,7 @@ router.post("/", async (req, res) => {
       );
     }
 
-    // ----- NEW: use Angebotsnummer for download filename -----
-    const baseName = safeFileNameFromOffer(
-      data.Angebotsnummer, // from mapData: body.offerNumber || 'ANG-0001'
-      "Angebot",
-    );
+    const baseName = safeFileNameFromOffer(data.Angebotsnummer, "Angebot");
     const fname = `${baseName}.docx`;
 
     res.setHeader(
@@ -1629,46 +1723,18 @@ router.post("/material-overview", async (req, res) => {
 router.post("/pdf", async (req, res) => {
   try {
     const templatePath = getAngebotTemplatePath(req.body);
-      console.log('[pdf] Using template path:', templatePath);
-    console.log('[pdf] Template exists?', fsSync.existsSync(templatePath));
-    const content = await fs.readFile(templatePath);
+    console.log("[pdf] Using template path:", templatePath);
+    console.log("[pdf] Template exists?", fsSync.existsSync(templatePath));
 
     const computed = await pricing.computePrices(req.body || {});
-    const zip = new PizZip(content);
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true,
-    });
+    const dataRaw = mapData(req.body || {}, computed);
+    const data = deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST);
 
-    const data = mapData(req.body || {}, computed);
+    console.log("[pdf] SignatureImage present?", !!data.SignatureImage);
 
-    try {
-      doc.render(data);
-    } catch (e) {
-      const msg = e?.message || String(e);
-      console.error("Docxtemplater render error:", msg);
-      if (e?.properties?.errors) {
-        for (const er of e.properties.errors) {
-          console.error("- Docx error:", {
-            id: er.id,
-            explanation: er.explanation,
-            file: er.file,
-            xtag: er.xtag,
-            context: er.context,
-            offset: er.offset,
-          });
-        }
-      }
-      return res.status(500).json({
-        error: "DOCX render failed",
-        detail: msg,
-        properties: e.properties || null,
-      });
-    }
+    // ✅ render DOCX first with image module, then convert to PDF
+    const docxBuffer = await renderDocx(templatePath, data);
 
-    const docxBuffer = doc.getZip().generate({ type: "nodebuffer" });
-
-    // Optional: write debug copy
     try {
       const verifyOut = path.join(process.cwd(), "out-Angebot.docx");
       fsSync.writeFileSync(verifyOut, docxBuffer);
@@ -1683,14 +1749,9 @@ router.post("/pdf", async (req, res) => {
       );
     }
 
-    // Convert to PDF using improved LibreOffice function
     const pdfBuffer = await convertDocxToPdf(docxBuffer);
 
-    // ----- NEW: use Angebotsnummer for download filename -----
-    const baseName = safeFileNameFromOffer(
-      data.Angebotsnummer, // from mapData: body.offerNumber || 'ANG-0001'
-      "Angebot",
-    );
+    const baseName = safeFileNameFromOffer(data.Angebotsnummer, "Angebot");
     const fname = `${baseName}.pdf`;
 
     res.setHeader("Content-Type", "application/pdf");

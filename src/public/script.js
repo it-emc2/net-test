@@ -9458,6 +9458,32 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       const el = document.querySelector("#offerNumber");
       if (el) el.value = offer.offerNumber;
     }
+
+    // ✅ NEW: restore signature pad from payload (drafts/offers)
+    try {
+      const sigDataUrl = p?.signature?.dataUrl || "";
+
+      if (sigDataUrl) {
+        // Prefer the manager API (handles sizing + redraw)
+        if (window.__signaturePad?.setFromDataUrl) {
+          window.__signaturePad.setFromDataUrl(sigDataUrl);
+        } else if (typeof window.setSignaturePadFromDataUrl === "function") {
+          // Back-compat fallback
+          window.setSignaturePadFromDataUrl(sigDataUrl);
+        } else {
+          // Last resort: at least keep hidden field populated
+          const hiddenSig = document.getElementById("signatureDataUrl");
+          if (hiddenSig) hiddenSig.value = sigDataUrl;
+        }
+      } else {
+        // No signature in payload -> clear visible pad + hidden field
+        window.__signaturePad?.clear?.();
+        const hiddenSig = document.getElementById("signatureDataUrl");
+        if (hiddenSig) hiddenSig.value = "";
+      }
+    } catch (e) {
+      console.warn("[restore] signature restore failed:", e);
+    }
   } finally {
     window.__restoring = false;
     window.__RESTORING__ = false;
@@ -9566,10 +9592,6 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       ensureTrinitySealingSelectedFromPayload(p?.duschwanne);
     }
 
-
-
-
-
     if (typeof window.setPricingData === "function" && window.__pricing) {
       window.setPricingData(window.__pricing);
       window.dispatchEvent(
@@ -9593,7 +9615,7 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
   if (typeof updateSummaryWidgetName === "function") {
     updateSummaryWidgetName();
   }
-  }
+}
 
 function restoreConfiguratorFromSnapshot({ payload }) {
   return restoreConfiguratorFromOffer_LEGACY({ payload });
@@ -12300,20 +12322,31 @@ function initLivePricingSync() {
   // ========== AUTO-REFRESH ON PAGE ENTER ==========
   
   function onEnterZusammenfassung() {
-    // Refresh pricing to ensure everything is up to date
-    if (typeof window.updatePricing === 'function') {
-      window.updatePricing().catch(err => {
-        console.warn('[Zusammenfassung] Pricing update failed:', err);
-      });
-    }
-    
-    // Refresh the cost details panel if dev tools are visible
-    if (devToolsPanel && !devToolsPanel.hidden) {
-      if (typeof window.refreshAllPanels === 'function') {
-        window.refreshAllPanels();
+  // Refresh pricing to ensure everything is up to date
+  if (typeof window.updatePricing === 'function') {
+    window.updatePricing().catch(err => {
+      console.warn('[Zusammenfassung] Pricing update failed:', err);
+    });
+  }
+
+  // Signature pad: if page was hidden during init, force proper sizing after layout
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      try {
+        window.__signaturePad?.resize?.();
+      } catch (e) {
+        console.warn("[Zusammenfassung] signature resize failed:", e);
       }
+    });
+  });
+
+  // Refresh the cost details panel if dev tools are visible
+  if (devToolsPanel && !devToolsPanel.hidden) {
+    if (typeof window.refreshAllPanels === 'function') {
+      window.refreshAllPanels();
     }
   }
+}
 
   // Watch for navigation to this page
   window.addEventListener('hashchange', () => {

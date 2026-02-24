@@ -10,7 +10,7 @@ export function initSignaturePadManager(options = {}) {
     },
     pen: {
       lineWidth: 2,
-      strokeStyle: "#fff",
+      strokeStyle: "#111", // was "#fff" -> invisible on white exports
     },
     ...options,
   };
@@ -21,7 +21,7 @@ export function initSignaturePadManager(options = {}) {
 
   if (!canvas) {
     console.warn("[SignaturePadManager] canvas missing, skipping init");
-    return { setFromDataUrl: () => {}, clear: () => {} };
+    return { setFromDataUrl: () => {}, clear: () => {}, resize: () => {} };
   }
 
   const ctx = canvas.getContext("2d");
@@ -29,19 +29,79 @@ export function initSignaturePadManager(options = {}) {
   let lastX = 0;
   let lastY = 0;
 
-  function resizeCanvas() {
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-
-    // Draw in CSS pixels while keeping retina backing store
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
+  function configureContext() {
     ctx.lineWidth = cfg.pen.lineWidth;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.strokeStyle = cfg.pen.strokeStyle;
+  }
+
+  function drawDataUrlToCanvas(dataUrl) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!dataUrl) {
+      if (hidden) hidden.value = "";
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      const rect = canvas.getBoundingClientRect();
+      const cw = Math.max(1, rect.width);
+      const ch = Math.max(1, rect.height);
+
+      const scale = Math.min(cw / img.width, ch / img.height);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      const x = (cw - w) / 2;
+      const y = (ch - h) / 2;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, x, y, w, h);
+      configureContext();
+      if (hidden) hidden.value = dataUrl;
+    };
+    img.src = dataUrl;
+  }
+
+  function resizeCanvas() {
+    // preserve existing signature before resize (canvas resize clears bitmap)
+    const existing = hidden?.value?.trim() || "";
+
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+
+    const cssW = Math.max(1, Math.floor(rect.width));
+    const cssH = Math.max(1, Math.floor(rect.height));
+    const targetW = Math.max(1, Math.floor(cssW * dpr));
+    const targetH = Math.max(1, Math.floor(cssH * dpr));
+
+    if (canvas.width === targetW && canvas.height === targetH) {
+      configureContext();
+      return;
+    }
+
+    canvas.width = targetW;
+    canvas.height = targetH;
+
+    // Draw in CSS pixels while keeping retina backing store
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    configureContext();
+
+    if (existing) {
+      drawDataUrlToCanvas(existing);
+    }
+  }
+
+  function ensureCanvasSized() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const targetW = Math.max(1, Math.floor(Math.max(1, rect.width) * dpr));
+    const targetH = Math.max(1, Math.floor(Math.max(1, rect.height) * dpr));
+
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      resizeCanvas();
+    }
   }
 
   function getPos(e) {
@@ -50,6 +110,9 @@ export function initSignaturePadManager(options = {}) {
   }
 
   function start(e) {
+    // hidden-init fix
+    ensureCanvasSized();
+
     drawing = true;
     const p = getPos(e);
     lastX = p.x;
@@ -79,29 +142,8 @@ export function initSignaturePadManager(options = {}) {
   }
 
   function setFromDataUrl(dataUrl) {
-    resizeCanvas();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    if (!dataUrl) {
-      if (hidden) hidden.value = "";
-      return;
-    }
-
-    const img = new Image();
-    img.onload = () => {
-      // draw scaled to fit (in CSS pixel space)
-      const rect = canvas.getBoundingClientRect();
-      const cw = rect.width;
-      const ch = rect.height;
-      const scale = Math.min(cw / img.width, ch / img.height);
-      const w = img.width * scale;
-      const h = img.height * scale;
-      const x = (cw - w) / 2;
-      const y = (ch - h) / 2;
-      ctx.drawImage(img, x, y, w, h);
-      if (hidden) hidden.value = dataUrl;
-    };
-    img.src = dataUrl;
+    ensureCanvasSized();
+    drawDataUrlToCanvas(dataUrl || "");
   }
 
   // Pointer events handle mouse + touch + pen
@@ -123,7 +165,7 @@ export function initSignaturePadManager(options = {}) {
   resizeCanvas();
   window.addEventListener("resize", resizeCanvas);
 
-  // Back-compat: expose helper globally (some restore code may call it)
+  // Back-compat: expose helper globally
   window.setSignaturePadFromDataUrl = setFromDataUrl;
 
   return { setFromDataUrl, clear, resize: resizeCanvas };
