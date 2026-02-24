@@ -1,127 +1,74 @@
 // =================================================================
+// #region Startup Config (debug + feature flags)
+// =================================================================
+window.__DEBUG_MANAGERS__ = window.__DEBUG_MANAGERS__ ?? true;
+window.__FEATURES__ = Object.assign({
+  themeManager: true,
+  restoreManager: true,
+  emailManager: true,
+  signatureManager: true,
+  badoluxManager: true,
+  adminManager: true,
+  draftsManager: true,
+  integrationsManager: true,
+}, window.__FEATURES__ || {});
+window.__managers = window.__managers || {};
+// #endregion
+
+// =================================================================
+// #region Shared Startup Helpers
+// =================================================================
+function __startupLog(...args) {
+  if (window.__DEBUG_MANAGERS__) console.log(...args);
+}
+function __startupWarn(...args) {
+  console.warn(...args);
+}
+function __domReady() {
+  if (document.readyState !== "loading") return Promise.resolve();
+  return new Promise((resolve) =>
+    document.addEventListener("DOMContentLoaded", resolve, { once: true }),
+  );
+}
+function __runWhenReady(fn) {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", fn, { once: true });
+  } else {
+    fn();
+  }
+}
+// #endregion
+
+// =================================================================
+// #region Startup Index (documented init order)
+// =================================================================
+// 1) Startup config + shared startup helpers (this section)
+// 2) Optional legacy fallbacks (DraftsLegacyFallback / BadoluxLegacyFallback) when manager flags are off
+// 3) Legacy monolith core app code and business logic (existing script.js body)
+// 4) Decoupled manager bootstraps (Theme / Restore / Email / Signature / Badolux / Admin / Drafts / Integrations)
+// 5) Compatibility globals / window APIs exposed by manager(s) and legacy code
+// #endregion
+
+// =================================================================
 // Draft Search UI bootstrap (runs even if later code throws)
 // =================================================================
-(function bootDraftSearch(){
-  function ready(fn){
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
-    else fn();
-  }
-
-  function renderDraftSearchResultsLocal(list){
-    const container = document.getElementById('draftSearchResults');
-    if (!container) return;
-    container.innerHTML = '';
-    if (!Array.isArray(list) || list.length === 0) {
-      container.style.display = 'none';
-      return;
+// =================================================================
+// Draft Search UI legacy fallback extracted to DraftsLegacyFallback.js
+// (kept only for migration; DraftsManager is preferred)
+// =================================================================
+__runWhenReady(async () => {
+  if (!window.__FEATURES__?.draftsManager) {
+    try {
+      const mod = await import("./DraftsLegacyFallback.js");
+      mod.bootDraftsLegacyFallback?.();
+    } catch (e) {
+      __startupWarn("[Drafts legacy] bootstrap import failed:", e);
     }
-    const frag = document.createDocumentFragment();
-    for (const d of list){
-      const btn = document.createElement('button');
-      btn.type='button';
-      btn.className='draft-result-row';
-      btn.dataset.id = d._id || d.id;
-      btn.style.display='block';
-      btn.style.width='100%';
-      btn.style.textAlign='left';
-      btn.style.padding='4px 10px';
-      btn.style.border='none';
-      btn.style.background='transparent';
-      btn.style.cursor='pointer';
-      btn.style.color='var(--text)';
-      btn.onmouseenter=()=>btn.style.background='#eef2ff';
-      btn.onmouseleave=()=>btn.style.background='transparent';
-      const updated = d.updatedAt ? new Date(d.updatedAt).toLocaleString('de-DE') : '';
-      btn.innerHTML = `<strong style="color:var(--accent-strong);">${d.name}</strong>` +
-        (updated ? ` <span style="font-size:0.8em; color:#6b7280;">(${updated})</span>` : '');
-      frag.appendChild(btn);
-    }
-    container.appendChild(frag);
-    container.style.display='block';
+  } else if (window.__DEBUG_MANAGERS__) {
+    __startupLog("[Drafts legacy] skipped (DraftsManager enabled)");
   }
+});
 
-  async function searchDraftsLocal(query){
-    const raw = (typeof window.getCurrentOfferType === 'function' && window.getCurrentOfferType()) || 'bu';
-    const offerType = ['bu','bwt','hl'].includes(String(raw).trim().toLowerCase()) ? String(raw).trim().toLowerCase() : 'bu';
-    const params = new URLSearchParams();
-    params.set('offerType', offerType);
-    if (query) params.set('q', query);
-    const res = await fetch(`/api/drafts/search?${params.toString()}`);
-    if (!res.ok) return renderDraftSearchResultsLocal([]);
-    const data = await res.json().catch(()=>[]);
-    renderDraftSearchResultsLocal(data);
-  }
-
-  async function loadDraftLocal(id){
-    try{
-      const res = await fetch(`/api/drafts/${encodeURIComponent(id)}`);
-      if (!res.ok) return alert('Entwurf konnte nicht geladen werden.');
-      const doc = await res.json();
-      if (typeof window.restoreConfiguratorFromOffer === 'function') {
-        window.restoreConfiguratorFromOffer(doc);
-      } else if (typeof window.restoreConfiguratorFromSnapshot === 'function') {
-        const payload = doc.payload || doc;
-        window.restoreConfiguratorFromSnapshot({ payload });
-      } else {
-        return alert('Wiederherstellen ist noch nicht implementiert.');
-      }
-      window.updatePricing?.();
-      window.showToast?.(`Entwurf "${doc.name}" geladen.`, 'info');
-    }catch(e){
-      console.error('loadDraftById error:', e);
-      alert('Fehler beim Laden des Entwurfs.');
-    }
-  }
-
-  function bind(){
-    const input = document.getElementById('draftSearchInput');
-    const results = document.getElementById('draftSearchResults');
-    const btnLoad = document.getElementById('btnLoadSelectedDraft');
-    if (!input || !results || !btnLoad) return;
-
-    // avoid double-binding
-    if (input.dataset.draftBound === '1') return;
-    input.dataset.draftBound = '1';
-
-    let selectedId = null;
-    let debounceTimer = null;
-    const debounce = (fn, ms)=>{ clearTimeout(debounceTimer); debounceTimer=setTimeout(fn, ms); };
-
-    input.addEventListener('input', ()=>{
-      const q = input.value.trim();
-      selectedId = null;
-      if (!q) {
-        results.style.display='none';
-        results.innerHTML='';
-        return;
-      }
-      debounce(()=>searchDraftsLocal(q), 200);
-    });
-
-    results.addEventListener('click', (ev)=>{
-      const btn = ev.target.closest('button.draft-result-row');
-      if (!btn) return;
-      selectedId = btn.dataset.id;
-      Array.from(results.querySelectorAll('button.draft-result-row')).forEach((b)=>{
-        b.style.background = b === btn ? '#e0e7ff' : 'transparent';
-      });
-      loadDraftLocal(selectedId);
-      input.value = btn.textContent.trim();
-      results.style.display='none';
-    });
-
-    btnLoad.addEventListener('click', ()=>{
-      if (!selectedId) return alert('Bitte wählen Sie zuerst einen Entwurf aus der Liste.');
-      loadDraftLocal(selectedId);
-    });
-  }
-
-  ready(bind);
-  window.addEventListener('hashchange', ()=>{
-    // re-bind when navigating (safe no-op if already bound)
-    bind();
-  });
-})();
 
 // =================================================================
 // Summary Widget + Draft Save bootstrap (runs even if later code throws)
@@ -9253,9 +9200,9 @@ const RESTORE_HANDLERS = {
   hl: (p, ctx) => typeof restoreHl === "function" && restoreHl(p?.hl),
 
   ah: (p, ctx) => typeof restoreAh === "function" && restoreAh(p?.ah),
-    hms: (p, ctx) => typeof restoreHms === "function" && restoreAh(p?.hms),
+    hms: (p, ctx) => typeof restoreHms === "function" && restoreHms(p?.hms),
 
-    wd: (p, ctx) => typeof restoreWd === "function" && restoreAh(p?.wd),
+    wd: (p, ctx) => typeof restoreWd === "function" && restoreWd(p?.wd),
 
 };
 
@@ -9274,6 +9221,7 @@ const RESTORE_HANDLERS = {
         window.ensureTrinitySealingSelectedFromPayload?.(...args),
     },
   });
+  window.__managers.restore = window.__restoreManager;
 })();
 
 
@@ -9281,6 +9229,125 @@ const RESTORE_HANDLERS = {
 // ================================================================
 // EmailManager + SignaturePadManager (decoupled managers)
 // ================================================================
+
+
+// =================================================================
+// #region Decoupled Manager Bootstraps (startup helpers + single init order)
+// =================================================================
+(function bootThemeManager(){
+  window.__themeReady = window.__themeReady || (async () => {
+    try {
+      await __domReady();
+      if (!window.__FEATURES__?.themeManager) return null;
+      if (typeof window.initThemeManager !== "function") return null;
+      window.__themeManager = window.initThemeManager({
+        getOfferType: () => window.getCurrentOfferType?.() || "bu",
+      });
+      window.__managers.theme = window.__themeManager;
+      __startupLog("[ThemeManager] initialized");
+      return window.__themeManager;
+    } catch (e) {
+      __startupWarn("[ThemeManager] init failed:", e);
+      return null;
+    }
+  })();
+})();
+
+(function bootBadoluxManager(){
+  window.__badoluxReady = window.__badoluxReady || (async () => {
+    try {
+      await __domReady();
+      if (!window.__FEATURES__?.badoluxManager) {
+        // manager disabled -> boot legacy fallback
+        try {
+          const mod = await import("./BadoluxLegacyFallback.js");
+          return mod.bootBadoluxLegacyFallback?.();
+        } catch (e) {
+          __startupWarn("[Badolux legacy] bootstrap import failed:", e);
+          return null;
+        }
+      }
+
+      const { initBadoluxManager } = await import("./BadoluxManager.js");
+      window.__badoluxManager = initBadoluxManager({
+        hooks: {
+          setWvBudgetVisibility: (on) => window.setWvBudgetVisibility?.(on),
+          renderBudgetWvColors: () => window.renderBudgetWvColors?.(),
+          refreshTray: () => window.__smartTray?.fetchAndRender?.(),
+          updatePricing: () => window.updatePricing?.(),
+        },
+      });
+      window.__managers.badolux = window.__badoluxManager;
+      __startupLog("[BadoluxManager] initialized");
+      return window.__badoluxManager;
+    } catch (e) {
+      __startupWarn("[BadoluxManager] init failed:", e);
+      return null;
+    }
+  })();
+})();
+
+(function bootAuxManagers(){
+  window.__adminReady = window.__adminReady || (async () => {
+    try {
+      await __domReady();
+      if (!window.__FEATURES__?.adminManager) return null;
+      const { initAdminManager } = await import("./AdminManager.js");
+      window.__adminManager = initAdminManager({
+        toast: window.showToast || window.toast,
+      });
+      window.__managers.admin = window.__adminManager;
+      __startupLog("[AdminManager] initialized");
+      return window.__adminManager;
+    } catch (e) {
+      __startupWarn("[AdminManager] init failed:", e);
+      return null;
+    }
+  })();
+
+  window.__draftsReady = window.__draftsReady || (async () => {
+    try {
+      await __domReady();
+      if (!window.__FEATURES__?.draftsManager) return null;
+      const { initDraftsManager } = await import("./DraftsManager.js");
+      window.__draftsManager = initDraftsManager({
+        restoreDoc: (doc) => window.restoreConfiguratorFromOffer?.(doc),
+        restoreSnapshot: (payload) => window.restoreConfiguratorFromSnapshot?.({ payload }),
+        toast: (msg, type) => (window.showToast?.(msg, type) || window.toast?.(msg, type)),
+      });
+      window.__managers.drafts = window.__draftsManager;
+      __startupLog("[DraftsManager] initialized");
+      return window.__draftsManager;
+    } catch (e) {
+      __startupWarn("[DraftsManager] init failed:", e);
+      return null;
+    }
+  })();
+
+  window.__integrationsReady = window.__integrationsReady || (async () => {
+    try {
+      await __domReady();
+      if (!window.__FEATURES__?.integrationsManager) return null;
+      const { initIntegrationsManager } = await import("./IntegrationsManager.js");
+      window.__integrationsManager = initIntegrationsManager({
+        hooks: {
+          fillCustomerForm: (data) => (window.fillCustomerForm ? window.fillCustomerForm(data) : window.fillCustomerFormFromBitrix?.(data)),
+          showCustomerMessage: (msg, type) => (window.showCustomerMessage?.(msg, type) || window.showToast?.(msg, type)),
+          updateSummaryWidgetName: () => window.updateSummaryWidgetName?.(),
+          updatePricing: () => window.updatePricing?.(),
+        },
+      });
+      window.__managers.integrations = window.__integrationsManager;
+      __startupLog("[IntegrationsManager] initialized");
+      return window.__integrationsManager;
+    } catch (e) {
+      __startupWarn("[IntegrationsManager] init failed:", e);
+      return null;
+    }
+  })();
+})();
+// #endregion
+
 (function bootEmailAndSignatureManagers(){
   const domReady = () =>
     new Promise((resolve) => {
@@ -9311,6 +9378,7 @@ const RESTORE_HANDLERS = {
               : undefined),
         },
       });
+      window.__managers.email = window.__emailManager;
       return window.__emailManager;
     } catch (e) {
       console.warn("[EmailManager] init failed:", e);
@@ -9324,6 +9392,8 @@ const RESTORE_HANDLERS = {
       await domReady();
       const { initSignaturePadManager } = await import("./SignaturePadManager.js");
       window.__signaturePad = initSignaturePadManager();
+      window.__signaturePadManager = window.__signaturePad;
+      window.__managers.signature = window.__signaturePad;
       return window.__signaturePad;
     } catch (e) {
       console.warn("[SignaturePadManager] init failed:", e);
@@ -9335,7 +9405,7 @@ const RESTORE_HANDLERS = {
 // Draft/Offer restore entry points (exposed on window)
 // =================================================================
 
-async function restoreConfiguratorFromOffer(doc) {
+async function restoreConfiguratorFromOffer_LEGACY(doc) {
   window.__restoring = true;
   window.__RESTORING__ = true;
 
@@ -9526,12 +9596,12 @@ async function restoreConfiguratorFromOffer(doc) {
   }
 
 function restoreConfiguratorFromSnapshot({ payload }) {
-  return restoreConfiguratorFromOffer({ payload });
+  return restoreConfiguratorFromOffer_LEGACY({ payload });
 }
 
 // Expose for draft loader
-window.restoreConfiguratorFromOffer = restoreConfiguratorFromOffer;
-window.restoreConfiguratorFromSnapshot = restoreConfiguratorFromSnapshot;
+if (typeof window.restoreConfiguratorFromOffer !== 'function') window.restoreConfiguratorFromOffer = restoreConfiguratorFromOffer_LEGACY;
+if (typeof window.restoreConfiguratorFromSnapshot !== 'function') window.restoreConfiguratorFromSnapshot = restoreConfiguratorFromSnapshot;
 
 
 function restoreHl(hl) {
@@ -11424,10 +11494,29 @@ function secondsToHHMM(totalSeconds) {
   return `${hh}:${mm}`;
 }
 
-async function suggestDistanceFromAddress() {
+async function suggestDistanceFromAddress(opts = {}) {
+  const { force = false } = opts;
+
   const out = document.getElementById("routingSuggestion");
   const kmInput = document.getElementById("distanceKm");
   if (!out) return;
+
+  // Backward-compatible safety:
+  // Do NOT overwrite restored/manual values unless user explicitly forced it (button click).
+  if (!force && kmInput && String(kmInput.value || "").trim() !== "") {
+    if (window.__DEBUG_MANAGERS__) {
+      console.log("[routing] autosuggest skipped (distanceKm already has value)");
+    }
+    return;
+  }
+
+  // Optional extra restore guard (recommended)
+  if (!force && (window.__RESTORING__ || window.__restoring)) {
+    if (window.__DEBUG_MANAGERS__) {
+      console.log("[routing] autosuggest skipped (restore in progress)");
+    }
+    return;
+  }
 
   // Extract Kundendaten from the existing form
   const form = document.getElementById("form-Kundendaten");
@@ -11445,8 +11534,7 @@ async function suggestDistanceFromAddress() {
   const plz = (plzEl?.value || "").trim();
 
   if (!street && !city && !plz) {
-    out.textContent =
-      "Bitte zuerst Adresse, PLZ oder Ort beim Kunden ausfüllen.";
+    out.textContent = "Bitte zuerst Adresse, PLZ oder Ort beim Kunden ausfüllen.";
     return;
   }
 
@@ -11482,83 +11570,143 @@ async function suggestDistanceFromAddress() {
     }
 
     const oneWayKm = Number(data.oneWayKm || 0);
-    const roundKm = Number(data.roundTripKm || 0);
+    const roundKmRaw = Number(data.roundTripKm || 0);
+    const roundKm = Number.isFinite(roundKmRaw) && roundKmRaw > 0 ? roundKmRaw : oneWayKm * 2;
 
     if (!Number.isFinite(oneWayKm) || oneWayKm <= 0) {
       out.textContent = "Keine sinnvolle Strecke ermittelt.";
       return;
     }
 
+    // Decimals are allowed (keep them)
     const oneWayStr = oneWayKm.toFixed(1).replace(".", ",");
     const roundStr = roundKm.toFixed(1).replace(".", ",");
 
-    // Render suggestion + “Übernehmen” link
- // Render suggestion (auto-applied, no button)
-out.innerHTML = `
-  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-    <div>
-      Vorschlag: <strong>${oneWayStr} km</strong>
-      <span style="opacity:.8;">(Hin- &amp; Rückfahrt: ${roundStr} km)</span>
-    </div>
+    // Render suggestion (auto-applied, but still editable + button kept)
+    const esc =
+      typeof escapeHtml === "function"
+        ? escapeHtml
+        : (s) =>
+            String(s ?? "").replace(/[&<>"']/g, (ch) => ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            }[ch]));
 
-    <span
-      style="margin-left:auto; opacity:.75; font-weight:700;"
-      title="Automatically applied"
-    >
-      ✓ Applied
-    </span>
-  </div>
+    out.innerHTML = `
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <div>
+          Vorschlag: <strong>${oneWayStr} km</strong>
+          <span style="opacity:.8;">(Hin- &amp; Rückfahrt: ${roundStr} km)</span>
+        </div>
 
-  <div style="font-size:0.8rem; opacity:0.8; margin-top:6px;">
-    Basis: Strecke von <em>${data.from?.address || "Firma"}</em> zu
-    <em>${data.to?.address || "Kundenadresse"}</em>
-  </div>
-`;
+        <span
+          style="margin-left:auto; opacity:.75; font-weight:700;"
+          title="Automatisch eingetragen, aber editierbar"
+        >
+          ✓ Automatisch eingetragen
+        </span>
+      </div>
 
-
+      <div style="font-size:0.8rem; opacity:0.8; margin-top:6px;">
+        Basis: Strecke von <em>${esc(data.from?.address || "Firma")}</em> zu
+        <em>${esc(data.to?.address || "Kundenadresse")}</em>
+        · Wert kann manuell angepasst werden
+      </div>
+    `;
 
     // fill #travelTime from the API response
     const travelTimeEl = document.getElementById("travelTime");
+    const hhmm = typeof secondsToHHMM === "function" ? secondsToHHMM(data.oneWaySeconds ?? null) : "";
+    if (travelTimeEl && hhmm) {
+      travelTimeEl.value = hhmm;
+      travelTimeEl.dispatchEvent(new Event("input", { bubbles: true }));
+      travelTimeEl.dispatchEvent(new Event("change", { bubbles: true }));
+    }
 
-const hhmm = secondsToHHMM(data.oneWaySeconds ?? null); // or roundTripSeconds if you want total drive time
-if (travelTimeEl && hhmm) {
-  travelTimeEl.value = hhmm;
-  travelTimeEl.dispatchEvent(new Event("input", { bubbles: true }));
-  travelTimeEl.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
-  
-  // Auto-apply (same effect as clicking the old button)
-if (kmInput) {
-  kmInput.value = String(oneWayKm.toFixed(1));
-  kmInput.dispatchEvent(new Event("input", { bubbles: true }));
-  kmInput.dispatchEvent(new Event("change", { bubbles: true }));
-}
- 
+    // Auto-apply decimal KM (backward-compatible + editable)
+    if (kmInput) {
+      kmInput.value = String(oneWayKm.toFixed(1));
+      kmInput.dispatchEvent(new Event("input", { bubbles: true }));
+      kmInput.dispatchEvent(new Event("change", { bubbles: true }));
+    }
   } catch (e) {
     console.warn("[routing] suggestDistanceFromAddress failed:", e);
     out.textContent = "Routenvorschlag fehlgeschlagen (Netzwerkfehler).";
   }
 }
 
-// Hook the button + optional auto-refresh
+// Hook the button + optional auto-refresh (backward-compatible)
 document.addEventListener("DOMContentLoaded", () => {
-  document
-    .getElementById("btnRoutingSuggest")
-    ?.addEventListener("click", suggestDistanceFromAddress);
+  const btn = document.getElementById("btnRoutingSuggest");
+  if (btn && btn.dataset.routingSuggestBound !== "1") {
+    btn.dataset.routingSuggestBound = "1";
+    // Manual fallback: explicit force recalc
+    btn.addEventListener("click", () => suggestDistanceFromAddress({ force: true }));
+  }
 
-  // Optional: auto-update hint when address changes (without auto-filling)
+  // Optional: auto-update hint + auto-fill when address changes (safe mode = no overwrite)
   const addrFields = ["street", "city", "postalCode", "state", "country"]
     .map((id) => document.getElementById(id))
     .filter(Boolean);
 
   let routingTimer = null;
   addrFields.forEach((el) => {
-    el.addEventListener("change", () => {
+    if (el.dataset.routingAutoBound === "1") return;
+    el.dataset.routingAutoBound = "1";
+
+    const scheduleSuggest = () => {
       clearTimeout(routingTimer);
-      routingTimer = setTimeout(suggestDistanceFromAddress, 400);
-    });
+      routingTimer = setTimeout(() => suggestDistanceFromAddress(), 400);
+    };
+
+    el.addEventListener("change", scheduleSuggest);
+    el.addEventListener("blur", scheduleSuggest);
   });
+
+  // Initial auto-fill only for empty KM (prevents overwriting restored/old offers)
+  const kmInput = document.getElementById("distanceKm");
+  const hasAddress = addrFields.some((el) => String(el?.value || "").trim() !== "");
+  const hasKm = !!String(kmInput?.value || "").trim();
+
+  if (hasAddress && !hasKm) {
+    setTimeout(() => suggestDistanceFromAddress(), 250);
+  }
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  const streetEl = document.getElementById("street");
+  const postalEl = document.getElementById("postalCode");
+  const cityEl = document.getElementById("city");
+  const kmInput = document.getElementById("distanceKm");
+
+  let t;
+  const scheduleSuggest = () => {
+    clearTimeout(t);
+    t = setTimeout(() => suggestDistanceFromAddress(), 400); // safe mode, won't overwrite existing KM
+  };
+
+  [streetEl, postalEl, cityEl].forEach((el) => {
+    if (!el) return;
+    if (el.dataset.routingAutoBound === "1") return;
+    el.dataset.routingAutoBound = "1";
+    el.addEventListener("change", scheduleSuggest);
+    el.addEventListener("blur", scheduleSuggest);
+  });
+
+  // Initial auto-fill only for empty KM (backward compatible)
+  const hasAddress = !!(
+    (streetEl?.value || "").trim() ||
+    (postalEl?.value || "").trim() ||
+    (cityEl?.value || "").trim()
+  );
+  const hasKm = !!String(kmInput?.value || "").trim();
+
+  if (hasAddress && !hasKm) {
+    setTimeout(() => suggestDistanceFromAddress(), 250);
+  }
 });
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -13256,95 +13404,152 @@ async function triggerBlobDownload(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-  async function sendPdfToAuftrag() {
-    const auftragId = (auftragInput.value || "").trim();
-    if (!auftragId) {
-      setStatus("Bitte zuerst eine Auftrag ID eingeben.", "error");
-      auftragInput.focus();
-      return;
-    }
+async function sendPdfToAuftrag() {
+  const auftragId = (auftragInput.value || "").trim();
+  if (!auftragId) {
+    setStatus("Bitte zuerst eine Auftrag ID eingeben.", "error");
+    auftragInput.focus();
+    return;
+  }
 
-   // Offer number: auto-generate if empty (same idea as PDF export)
+  // --- Offer number handling (patched) ---
   const offerInput = document.getElementById("offerNumber");
+  const activeOffer =
+    (typeof getActiveOfferType === "function" ? getActiveOfferType() : "") ||
+    window.activeOffer ||
+    document.body?.dataset?.activeOffer ||
+    "";
+
+  // Track last send context globally so a "new flow" can regenerate automatically
+  window.__bitrixSendState = window.__bitrixSendState || {
+    lastOfferType: null,
+    lastOfferNumber: null,
+    lastSentAt: 0,
+  };
+
   let offerNumber = (offerInput?.value || "").trim();
 
-  if (!offerNumber) {
+  // Heuristics for stale/reused offer number:
+  // 1) field is empty -> generate
+  // 2) same offer type as previous send AND same offer number still present -> likely stale reused value
+  //    (common when user goes back and starts a "new" offer but UI field was not reset)
+  const looksReusedFromPreviousSend =
+    !!offerNumber &&
+    window.__bitrixSendState.lastOfferType === activeOffer &&
+    window.__bitrixSendState.lastOfferNumber === offerNumber;
+
+  // If user manually typed a number after last send, it won't equal lastOfferNumber and will be preserved.
+  if (!offerNumber || looksReusedFromPreviousSend) {
+    const previous = offerNumber;
     offerNumber =
       typeof genOfferNumber === "function" ? genOfferNumber() : `ANG-${Date.now()}`;
 
     if (offerInput) offerInput.value = offerNumber;
 
-    // optional: refresh header widgets if you have them
     if (typeof updateSummaryWidgetName === "function") {
-      try { updateSummaryWidgetName(); } catch {}
+      try {
+        updateSummaryWidgetName();
+      } catch {}
     }
 
-    setStatus(`Angebotsnummer automatisch erzeugt: ${offerNumber}`, "info");
+    if (!previous) {
+      setStatus(`Angebotsnummer automatisch erzeugt: ${offerNumber}`, "info");
+    } else {
+      setStatus(
+        `Vorherige Angebotsnummer erkannt (${previous}) – neue Nummer erzeugt: ${offerNumber}`,
+        "info"
+      );
+    }
   }
 
+  // Debug logs to verify the issue path
+  console.log("[BITRIX DEBUG] sendPdfToAuftrag:start", {
+    activeOffer,
+    auftragId,
+    offerNumberInputValue: offerInput?.value || "",
+    chosenOfferNumber: offerNumber,
+    lastSendState: window.__bitrixSendState,
+  });
+
+  try {
+    sendBtn.disabled = true;
+    setStatus("Erzeuge Angebots-PDF …", "info");
+
+    const { blob: pdfBlob, filename } = await fetchOfferPdfBlob();
+
+    console.log("[BITRIX DEBUG] fetchOfferPdfBlob result", {
+      filenameFromFetchOfferPdfBlob: filename || null,
+      currentOfferNumber: offerNumber,
+      mismatch: !!filename && !String(filename).includes(String(offerNumber)),
+    });
+
+    setStatus("Konvertiere PDF nach Base64 …", "info");
+    const pdfBase64 = await blobToBase64(pdfBlob);
+
+    setStatus("Starte lokalen PDF-Download …", "info");
+    const downloadName = filename || `${offerNumber}.pdf`;
+    triggerBlobDownload(pdfBlob, downloadName);
+
+    setStatus("Sende PDF an Auftrag-Webhook …", "info");
+
+    // Always derive outbound pdfName from the current offer number used above
+    const pdfName = `${offerNumber}.pdf`;
+
+    const body = {
+      auftragId,
+      pdfBase64,
+      pdfName,
+    };
+
+    console.log("[BITRIX DEBUG] webhook payload meta", {
+      auftragId,
+      pdfName,
+      base64Length: typeof pdfBase64 === "string" ? pdfBase64.length : null,
+    });
+
+    const res = await fetch(WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`Webhook-Fehler (${res.status}): ${txt}`);
+    }
+
+    setStatus("Angebots-PDF erfolgreich an Auftrag gesendet.", "success");
 
     try {
-      sendBtn.disabled = true;
-      setStatus("Erzeuge Angebots-PDF …", "info");
-
-      const { blob: pdfBlob, filename } = await fetchOfferPdfBlob();
-      setStatus("Konvertiere PDF nach Base64 …", "info");
-
-      const pdfBase64 = await blobToBase64(pdfBlob);
-
-      setStatus("Starte lokalen PDF-Download ƒ?İ", "info");
-      const downloadName = filename || `${offerNumber}.pdf`;
-      triggerBlobDownload(pdfBlob, downloadName);
-
-      setStatus("Sende PDF an Auftrag-Webhook …", "info");
-
-      // pdfName exakt aus der bereits existierenden Angebotsnummer ableiten
-      const pdfName = `${offerNumber}.pdf`;
-      //const pdfName = offerNumber;
-
-      const body = {
-        auftragId, // Auftrag ID aus Input
-        pdfBase64, // PDF als Base64
-        pdfName, // nur aus bestehender offerNumber
-      };
-
-      const res = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(`Webhook-Fehler (${res.status}): ${txt}`);
-      }
-
-      setStatus("Angebots-PDF erfolgreich an Auftrag gesendet.", "success");
-
-      try {
-        const json = await res.json();
-        console.log("[Auftrag-Webhook] Antwort:", json);
-      } catch {
-        // kein JSON zurück — egal
-      }
-
-      if (typeof saveFinalOfferSnapshot === "function") {
-        try {
-          await saveFinalOfferSnapshot();
-        } catch (e) {
-          console.warn(
-            "[sendPdfToAuftrag] saveFinalOfferSnapshot fehlgeschlagen:",
-            e,
-          );
-        }
-      }
-    } catch (err) {
-      console.error("sendPdfToAuftrag error:", err);
-      setStatus(err.message || "Fehler beim Senden des Angebots-PDF.", "error");
-    } finally {
-      sendBtn.disabled = false;
+      const json = await res.json();
+      console.log("[Auftrag-Webhook] Antwort:", json);
+    } catch {
+      // no JSON returned — ignore
     }
+
+    // Mark this number/type as "last sent" so next accidental reuse can be auto-detected
+    window.__bitrixSendState = {
+      lastOfferType: activeOffer || null,
+      lastOfferNumber: offerNumber,
+      lastSentAt: Date.now(),
+    };
+
+    console.log("[BITRIX DEBUG] send success; updated lastSendState", window.__bitrixSendState);
+
+    if (typeof saveFinalOfferSnapshot === "function") {
+      try {
+        await saveFinalOfferSnapshot();
+      } catch (e) {
+        console.warn("[sendPdfToAuftrag] saveFinalOfferSnapshot fehlgeschlagen:", e);
+      }
+    }
+  } catch (err) {
+    console.error("sendPdfToAuftrag error:", err);
+    setStatus(err.message || "Fehler beim Senden des Angebots-PDF.", "error");
+  } finally {
+    sendBtn.disabled = false;
   }
+}
 
   sendBtn.addEventListener("click", () => {
     if (typeof requireBereichValid === "function" && !requireBereichValid()) {
@@ -13607,6 +13812,35 @@ document.addEventListener("DOMContentLoaded", () => {
 // # end of HL 
 // =================================================================
 // Small helper: confirmation dialog before going back to Auswahl der Leistung from the sidebar
+
+function clearOfferNumberForNewOffer(reason = "") {
+  const offerInput = document.getElementById("offerNumber");
+  if (!offerInput) return;
+
+  const oldValue = (offerInput.value || "").trim();
+  if (!oldValue) return;
+
+  offerInput.value = "";
+
+  // Optional debug
+  console.log("[OFFER DEBUG] Cleared offer number", { reason, oldValue });
+
+  // Optional: reset any send-tracking state if you added one
+  if (window.__bitrixLastPdfSendState) {
+    window.__bitrixLastPdfSendState = {
+      lastOfferType: null,
+      lastOfferNumber: null,
+      lastSentAt: 0,
+    };
+  }
+
+  // Optional UI refresh
+  if (typeof updateSummaryWidgetName === "function") {
+    try { updateSummaryWidgetName(); } catch {}
+  }
+}
+
+// Small helper: confirmation dialog before going back to Auswahl der Leistung from the sidebar
 function askBeforeGoingHome(onConfirm) {
   const overlay = document.getElementById("homeConfirmOverlay");
   const cancelBtn = document.getElementById("homeConfirmCancel");
@@ -13617,7 +13851,10 @@ function askBeforeGoingHome(onConfirm) {
     const ok = window.confirm(
       "Wenn Sie zur Startseite zurückkehren, gehen alle eingegebenen Daten verloren und Sie müssen neu beginnen. Möchten Sie fortfahren?",
     );
-    if (ok && typeof onConfirm === "function") onConfirm();
+    if (ok) {
+      clearOfferNumberForNewOffer("fallback native confirm -> back to Auswahl der Leistung");
+      if (typeof onConfirm === "function") onConfirm();
+    }
     return;
   }
 
@@ -13633,6 +13870,10 @@ function askBeforeGoingHome(onConfirm) {
 
   function handleGo() {
     cleanup();
+
+    // User explicitly confirmed reset/new flow → clear old Angebotsnummer
+    clearOfferNumberForNewOffer("homeConfirmGo confirmed reset");
+
     if (typeof onConfirm === "function") onConfirm();
   }
 
@@ -13943,224 +14184,42 @@ document.addEventListener("DOMContentLoaded", () => {
    - Checkbox #budgetToggle (name=budgetMode, value=1) is included in payload only when checked (FormData behavior)
    - Does not change any existing product IDs / selections; only adds UI preference and optional query param.
    ============================================================ */
-(function initBadoluxBudgetFrontend() {
-  const SESSION_KEY = "dw_budget_mode";
+// =================================================================
+// Badolux legacy fallback moved to ./BadoluxLegacyFallback.js
+// (booted from startup manager section when badoluxManager flag is disabled)
+// =================================================================
 
-  const getToggle = () => document.getElementById("budgetToggle");
-  const isOn = () => !!getToggle()?.checked;
 
-  function applyBudgetModeUI(on) {
-    const form = document.getElementById("form-duschwanne");
-    if (form) form.classList.toggle("budget-mode", !!on);
-  }
 
-  function swapAccessoryImages(on) {
-    const map = {
-      TRWDB: "./assets/budget/BL-Dichtband.png",
-      TRWDSET5: "./assets/budget/BL-Dichtbahn.png",
-      PLA5282: "./assets/budget/BL-Stelzlager.png",
-        AGD9060: "./assets/budget/AGB001.png",
-          KM02: "./assets/budget/AC004.png",
-    };
 
-    Object.entries(map).forEach(([pid, budgetSrc]) => {
-      const label =
-        document.querySelector(`label[data-product-id="${pid}"]`) ||
-        document.querySelector(`[data-product-id="${pid}"]`);
-      const img =
-        label?.querySelector("img") ||
-        document.querySelector(`img[data-product-id="${pid}"]`);
-      if (!img) return;
 
-      // store original once
-      if (!img.dataset.srcOriginal) img.dataset.srcOriginal = img.getAttribute("src") || "";
 
-      if (on) {
-        img.src = budgetSrc;
-        img.onerror = () => {
-          // fall back to original if asset missing
-          if (img.dataset.srcOriginal) img.src = img.dataset.srcOriginal;
-        };
-      } else {
-        if (img.dataset.srcOriginal) img.src = img.dataset.srcOriginal;
-      }
-    });
-  }
-
-  // ===== Budget Fußboden (Option A): extra group =====
-  let budgetFloorsCache = null;
-  let budgetFloorsLoading = null;
-
-  function normalizeSource(v) {
-    return String(v || "").trim().toLowerCase();
-  }
-  function startsWithBP(v) {
-    return String(v || "").toUpperCase().startsWith("BP");
-  }
-  function budgetFloorImgFor(pid) {
-    return `./assets/budget/${pid}.png`;
-  }
-
-  async function loadBudgetFloorsFromBackend() {
-    if (budgetFloorsCache) return budgetFloorsCache;
-    if (budgetFloorsLoading) return budgetFloorsLoading;
-
-    budgetFloorsLoading = (async () => {
-      // Preferred (once backend supports params)
-      let data = null;
-      try {
-        let res = await fetch(`/api/products?prefix=BP&source=badolux&limit=200`, {
-          credentials: "include",
-        });
-        if (res.ok) data = await res.json().catch(() => null);
-      } catch {}
-
-      // Frontend-first fallback: use search and filter client-side
-      if (!Array.isArray(data)) {
-        try {
-          const res2 = await fetch(`/api/products?q=BP`, { credentials: "include" });
-          if (res2.ok) data = await res2.json().catch(() => []);
-          else data = [];
-        } catch {
-          data = [];
-        }
-      }
-
-      const filtered = (Array.isArray(data) ? data : [])
-        .filter((p) => startsWithBP(p.productId) && normalizeSource(p.source) === "badolux")
-        .sort((a, b) => String(a.productId).localeCompare(String(b.productId)));
-
-      budgetFloorsCache = filtered.map((p) => ({
-        productId: p.productId,
-        name: p.name || p.productId,
-        img: budgetFloorImgFor(p.productId),
-      }));
-      return budgetFloorsCache;
-    })();
-
-    return budgetFloorsLoading;
-  }
-
-  async function renderBudgetFloors() {
-    const group = document.getElementById("flooringBudgetGroup");
-    const wrap = document.getElementById("flooringBudgetOptions");
-    const empty = document.getElementById("flooringBudgetEmpty");
-    if (!group || !wrap) return;
-
-    wrap.innerHTML = "";
-
-    const list = await loadBudgetFloorsFromBackend();
-    const has = Array.isArray(list) && list.length > 0;
-
-    if (!has) {
-      if (empty) empty.hidden = false;
-      return;
-    }
-    if (empty) empty.hidden = true;
-
-    for (const item of list) {
-      const pid = item.productId;
-      const name = item.name || pid;
-
-      const label = document.createElement("label");
-      label.className = "image-check";
-      label.setAttribute("data-product-id", pid);
-
-      const input = document.createElement("input");
-      input.type = "checkbox";
-      input.name = "flooringProduct[]";
-      input.value = `${pid}|${name}`;
-      input.setAttribute("data-product-id", pid);
-      input.setAttribute("data-color", name);
-
-      const imgWrap = document.createElement("span");
-      imgWrap.className = "img-wrap";
-
-      const image = document.createElement("img");
-      image.loading = "lazy";
-      image.alt = `Budget Fußboden — ${name}`;
-      image.src = item.img || "";
-      image.onerror = () => {
-        // if image missing, hide wrapper
-        imgWrap.style.display = "none";
+// Startup summary (fallback appended)
+(function () {
+  function __printStartupSummary() {
+    try {
+      if (!window.__DEBUG_MANAGERS__) return;
+      window.__managers = window.__managers || {};
+      const summary = {
+        theme: !!(window.__managers.theme || window.__themeManager),
+        restore: !!(window.__managers.restore || window.__restoreManager),
+        email: !!(window.__managers.email || window.__emailManager),
+        signature: !!(window.__managers.signature || window.__signaturePad || window.__signaturePadManager),
+        badolux: !!(window.__managers.badolux || window.__badoluxManager),
+        admin: !!(window.__managers.admin || window.__adminManager),
+        drafts: !!(window.__managers.drafts || window.__draftsManager),
+        integrations: !!(window.__managers.integrations || window.__integrationsManager),
       };
-
-      imgWrap.appendChild(image);
-
-      const caption = document.createElement("span");
-      caption.className = "caption";
-      caption.textContent = name;
-
-      label.appendChild(input);
-      label.appendChild(imgWrap);
-      label.appendChild(caption);
-
-      wrap.appendChild(label);
+      console.groupCollapsed("[startup summary] managers");
+      console.table(summary);
+      console.groupEnd();
+    } catch (e) {
+      console.warn("[startup summary] failed:", e);
     }
   }
-
-  async function updateBudgetFloorVisibility() {
-    const group = document.getElementById("flooringBudgetGroup");
-    if (!group) return;
-    const on = isOn();
-    group.hidden = !on;
-    group.setAttribute("aria-hidden", (!on).toString());
-    if (on) await renderBudgetFloors();
-  }
-
-  function init() {
-  const el = getToggle();
-  if (!el) return;
-
-  // Restore session preference only if the checkbox doesn't already have a value from restored offers
-  if (!el.dataset.budgetInit) {
-    try {
-      const saved = sessionStorage.getItem(SESSION_KEY);
-      if (saved === "1" && !el.checked) el.checked = true;
-    } catch {}
-    el.dataset.budgetInit = "1";
-  }
-
-  // apply once
-  applyBudgetModeUI(el.checked);
-  swapAccessoryImages(el.checked);
-  updateBudgetFloorVisibility();
-
-  // NEW: Wandpaneele budget section (Option A)
-  setWvBudgetVisibility?.(el.checked);
-  if (el.checked) renderBudgetWvColors?.();
-
-  // bind once
-  if (el.dataset.boundBudget === "1") return;
-  el.dataset.boundBudget = "1";
-
-  el.addEventListener("change", () => {
-    try {
-      sessionStorage.setItem(SESSION_KEY, el.checked ? "1" : "0");
-    } catch {}
-
-    applyBudgetModeUI(el.checked);
-    swapAccessoryImages(el.checked);
-    updateBudgetFloorVisibility();
-
-    // NEW: Wandpaneele budget section (Option A)
-    setWvBudgetVisibility?.(el.checked);
-    if (el.checked) renderBudgetWvColors?.();
-
-    // refresh tray suggestions if available
-    if (window.__smartTray?.fetchAndRender) window.__smartTray.fetchAndRender();
-
-    // OPTIONAL: update pricing immediately if you do live pricing
-    window.updatePricing?.();
-  });
-}
-
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener("DOMContentLoaded", () => setTimeout(__printStartupSummary, 500), { once: true });
   } else {
-    init();
+    setTimeout(__printStartupSummary, 500);
   }
 })();
-
-
-

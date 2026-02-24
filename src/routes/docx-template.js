@@ -1,3 +1,5 @@
+/* eslint-disable no-control-regex */
+/* eslint-disable no-undef */
 /* eslint-disable no-unused-vars */
 import express from "express";
 import fs from "fs/promises";
@@ -14,6 +16,58 @@ import ProductModel from "../models/Product.js";
 import pricingFactory from "../logic/pricing.js";
 
 export const router = express.Router();
+
+
+// ===========================
+// DOCX static word blocklist (backend-enforced)
+// Edit this array to add/remove blocked words or phrases.
+// Matching is case-insensitive and removes the matched text from rendered DOCX data.
+// ===========================
+const STATIC_DOCX_WORD_BLOCKLIST = [
+  // 'foo',
+  // 'bar phrase',
+  'TRINNITY',
+  'Plattenlager',
+  'für Terrassenplatten',
+  'Ramsauer',
+];
+
+function escapeRegExpDocx(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function sanitizeDocxStringByBlocklist(input, words) {
+  if (typeof input !== 'string' || !input) return input;
+  const list = Array.isArray(words)
+    ? words.map((w) => String(w ?? '').trim()).filter(Boolean)
+    : [];
+  if (!list.length) return input;
+
+  let out = input;
+  for (const w of list) {
+    const re = new RegExp(escapeRegExpDocx(w), 'gi');
+    out = out.replace(re, '');
+  }
+  // collapse whitespace introduced by removals (but preserve line breaks reasonably)
+  out = out
+    .replace(/[ 	]{2,}/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return out;
+}
+
+function deepSanitizeDocxPayload(value, words) {
+  if (value == null) return value;
+  if (typeof value === 'string') return sanitizeDocxStringByBlocklist(value, words);
+  if (Array.isArray(value)) return value.map((v) => deepSanitizeDocxPayload(v, words));
+  if (typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = deepSanitizeDocxPayload(v, words);
+    return out;
+  }
+  return value;
+}
 
 // Pick Angebot template depending on active offer / Bereich
 function getAngebotTemplatePath(body) {
@@ -533,6 +587,42 @@ function formatQtyForOverview(q, unit) {
 
 export { aggregateMaterialsForOverview, formatQtyForOverview };
 
+
+function buildDocxWordBlocklist(data) {
+  const candidates = [
+    data?.docxWordBlocklist,
+    data?.docx_word_blocklist,
+    data?.docxFilteredWords,
+    data?.filteredWords,
+    data?.excludeWords,
+    data?.__customerDoc?.wordBlocklist,
+  ];
+
+  let raw = [];
+  for (const c of candidates) {
+    if (!c) continue;
+    if (Array.isArray(c)) raw = raw.concat(c);
+    else if (typeof c === "string") raw = raw.concat(c.split(/[;,\n]/));
+  }
+
+  const seen = new Set();
+  const out = [];
+  for (const item of raw) {
+    const w = String(item ?? "").trim().toLowerCase();
+    if (!w || w.length < 2) continue;
+    if (seen.has(w)) continue;
+    seen.add(w);
+    out.push(w);
+  }
+  return out;
+}
+
+function shouldSuppressDocxLine(line, blocklist) {
+  if (!Array.isArray(blocklist) || blocklist.length === 0) return false;
+  const txt = String(line ?? "").toLowerCase();
+  if (!txt.trim()) return false;
+  return blocklist.some((w) => txt.includes(w));
+}
 /* ===========================
    Angebot mapping
    =========================== */
@@ -811,13 +901,29 @@ function mapData(body = {}, computed = {}) {
   // Materials block
   const matForDoc =
     computed.materialsDisplayDocx?.lines || computed.materials?.lines || [];
-  const MaterialsLines = matForDoc.map((l) => {
-    const qtyStr = Number(l.qty || 0)
-      .toFixed(2)
-      .replace(/\.00$/, "");
-    const nameOrId = l.name || l.productId || "";
-    return { MaterialLine: l.label ? l.label : `- ${qtyStr} Stk ${nameOrId}` };
-  });
+
+  const docxBlockedWords = buildDocxWordBlocklist(body);
+  if (docxBlockedWords.length) {
+    console.log('[docx] hidden word filter active:', docxBlockedWords);
+  }
+
+  const MaterialsLines = matForDoc
+    .map((l) => {
+      const qtyStr = Number(l.qty || 0)
+        .toFixed(2)
+        .replace(/\.00$/, "");
+      const nameOrId = l.name || l.productId || "";
+      const rendered = l.label ? l.label : `- ${qtyStr} Stk ${nameOrId}`;
+      return { MaterialLine: rendered, _raw: l };
+    })
+    .filter((row) => {
+      const hide = shouldSuppressDocxLine(row.MaterialLine, docxBlockedWords);
+      if (hide) {
+        console.log('[docx] filtered material line:', row.MaterialLine);
+      }
+      return !hide;
+    })
+    .map(({ MaterialLine }) => ({ MaterialLine }));
   const PayerKind = services?.payer || b.payer || "";
 
   // -------- BWT-specific Angebotspositionen --------
@@ -1359,7 +1465,11 @@ router.post("/", async (req, res) => {
       linebreaks: true,
     });
 
-    const data = mapData(req.body || {}, computed);
+    const dataRaw = mapData(req.body || {}, computed);
+    const data = deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST);
+    if (STATIC_DOCX_WORD_BLOCKLIST.length) {
+      console.log('[docx-template] static word blocklist active:', STATIC_DOCX_WORD_BLOCKLIST);
+    }
     console.log("[docx-template] Angebotsnummer in data:", data.Angebotsnummer);
     console.log("[docx-template] replacing keys:", Object.keys(data));
 
