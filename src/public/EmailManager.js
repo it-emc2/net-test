@@ -1,5 +1,7 @@
+
 // EmailManager.js
 // Handles offer email sending UI + attachment tiles, decoupled from script.js
+// + posts a Bitrix timeline comment after successful send (best-effort)
 
 export function initEmailManager(options = {}) {
   const cfg = {
@@ -14,11 +16,21 @@ export function initEmailManager(options = {}) {
       offerNumber: "#offerNumber",
     },
     apiUrl: "/api/email/send-offer",
+
+    // Bitrix timeline comment API (backend)
+    bitrix: {
+      commentApiUrl: "/api/bitrix/timeline/comment",
+      // if deal exists -> comment on deal, else fallback to contact
+      dealIdSelector: "#auftragId",
+      contactIdSelector: "#bitrixContactId",
+    },
+
     presetAttachments: [
       { id: "abtretung", name: "Abtretungserklärung.pdf" },
       { id: "barrierefrei", name: "emc2_Barrierefreies_Wohnen.pdf" },
       { id: "vollmacht", name: "Vollmacht.pdf" },
     ],
+
     hooks: {
       requireBereichValid: () => true,
       buildPayload: () => null,
@@ -26,11 +38,13 @@ export function initEmailManager(options = {}) {
       genOfferNumber: () => "",
       saveFinalOfferSnapshot: async () => {},
     },
+
     ...options,
   };
 
-  // shallow-merge hooks
+  // shallow-merge hooks + bitrix config
   cfg.hooks = { ...(cfg.hooks || {}), ...(options.hooks || {}) };
+  cfg.bitrix = { ...(cfg.bitrix || {}), ...(options.bitrix || {}) };
 
   const $btn = document.querySelector(cfg.els.btnSend);
   const $to = document.querySelector(cfg.els.to);
@@ -69,7 +83,82 @@ export function initEmailManager(options = {}) {
     }
   };
 
+  // -----------------------------
+  // Bitrix comment helpers
+  // -----------------------------
+  function buildBitrixEmailComment({ offerNumber, to, subject, body, attachmentNames }) {
+    const when = new Date();
+    const dt = when.toLocaleString("de-DE", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+
+    const safe = (v) => String(v ?? "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+    const subj = safe(subject).trim();
+    const rcpt = safe(to).trim();
+    const onr = safe(offerNumber).trim();
+    const atts = Array.isArray(attachmentNames) ? attachmentNames.filter(Boolean) : [];
+
+    const rawBody = safe(body || "").trim();
+    const maxLen = 1400;
+    const bodyOut =
+      rawBody.length > maxLen ? rawBody.slice(0, maxLen) + "\n…(gekürzt)…" : rawBody;
+
+    return [
+      "📧 Email automatisch von OC gesendet",
+      onr ? `Angebot: ${onr}` : null,
+      `Datum/Zeit: ${dt}`,
+      `Empfänger: ${rcpt || "-"}`,
+      `Betreff: ${subj || "-"}`,
+      `Anhänge: ${atts.length ? atts.join(", ") : "-"}`,
+      "",
+      "Inhalt:",
+      bodyOut || "-",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  function getBitrixTarget() {
+    const dealId = String(
+      document.querySelector(cfg.bitrix.dealIdSelector)?.value || "",
+    ).trim();
+
+    const contactId = String(
+      document.querySelector(cfg.bitrix.contactIdSelector)?.value || "",
+    ).trim();
+
+    if (dealId) return { entityType: "deal", entityId: dealId };
+    if (contactId) return { entityType: "contact", entityId: contactId };
+    return null;
+  }
+
+  async function postBitrixEmailComment({ comment }) {
+    const target = getBitrixTarget();
+    if (!target) return { skipped: true, reason: "no bitrix id" };
+
+    const res = await fetch(cfg.bitrix.commentApiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...target, comment }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Bitrix comment failed (HTTP ${res.status})`);
+    }
+
+    return res.json().catch(() => ({}));
+  }
+
+  // -----------------------------
   // Subject auto-fill unless user edits
+  // -----------------------------
   let subjectTouched = false;
   $subject.addEventListener("input", () => (subjectTouched = true));
 
@@ -83,7 +172,9 @@ export function initEmailManager(options = {}) {
   $offerNumber?.addEventListener("change", updateSubjectDefault);
   updateSubjectDefault();
 
+  // -----------------------------
   // Recipient + body auto-fill unless user edits
+  // -----------------------------
   let toTouched = false;
   let bodyTouched = false;
 
@@ -102,15 +193,9 @@ export function initEmailManager(options = {}) {
     const salutation = getCustomerSalutation();
     const lastName = ($lastName?.value || "").trim();
 
-    if (salutation === "Herr") {
-      return `Sehr geehrter Herr ${lastName || "Mustermann"},`;
-    }
-    if (salutation === "Frau") {
-      return `Sehr geehrte Frau ${lastName || "Mustermann"},`;
-    }
-    if (salutation === "Familie") {
-      return `Sehr geehrte Familie ${lastName || "Mustermann"},`;
-    }
+    if (salutation === "Herr") return `Sehr geehrter Herr ${lastName || "Mustermann"},`;
+    if (salutation === "Frau") return `Sehr geehrte Frau ${lastName || "Mustermann"},`;
+    if (salutation === "Familie") return `Sehr geehrte Familie ${lastName || "Mustermann"},`;
     return "Sehr geehrte Damen und Herren,";
   }
 
@@ -178,7 +263,9 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
   // Initial prefill on load
   updateMailPrefills();
 
-  // ---- Attachment handling ----
+  // -----------------------------
+  // Attachment handling
+  // -----------------------------
   function syncFileInput() {
     const dt = new DataTransfer();
     for (const f of userFiles) dt.items.add(f);
@@ -187,11 +274,7 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
 
   function makeTile({ name, meta, removable, onRemove }) {
     const tile = document.createElement("div");
-    // Prefer tile class if present in CSS; fallback to chip
     tile.className = "mail-attach-tile";
-    if (!document.querySelector(".mail-attach-tile") && !document.querySelector(".mail-attach-chip")) {
-      // keep class anyway; won't hurt
-    }
 
     const label = document.createElement("div");
     label.className = "mail-attach-name";
@@ -228,9 +311,7 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     // Offer PDF (always attached by backend)
     const offerNumber = getOfferNumber();
     const offerPdfName = `${offerNumber || "Angebot"}.pdf`;
-    $list.appendChild(
-      makeTile({ name: offerPdfName, meta: "Offer PDF", removable: false }),
-    );
+    $list.appendChild(makeTile({ name: offerPdfName, meta: "Offer PDF", removable: false }));
 
     // Presets
     for (const p of cfg.presetAttachments) {
@@ -313,10 +394,13 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
       $btn.disabled = true;
       setStatus("Generating offer PDF + sending email…", "info");
 
+      const subject = ($subject.value || offerNumber || "Angebot").trim();
+      const body = $body.value || "";
+
       const fd = new FormData();
       fd.append("to", to);
-      fd.append("subject", ($subject.value || offerNumber || "Angebot").trim());
-      fd.append("body", $body.value || "");
+      fd.append("subject", subject);
+      fd.append("body", body);
       fd.append("offerNumber", offerNumber);
       fd.append("offerType", payload.activeOffer || "");
       fd.append("payload", JSON.stringify(payload));
@@ -331,14 +415,30 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
       }
 
       const data = await res.json().catch(() => ({}));
+
       setStatus(
         `Email sent ✅ Attachments: ${data.attachmentNames?.join(", ") || "-"}`,
         "success",
       );
 
+      // Best-effort Bitrix timeline comment
+      try {
+        const comment = buildBitrixEmailComment({
+          offerNumber,
+          to,
+          subject,
+          body,
+          attachmentNames: data.attachmentNames || [],
+        });
+        await postBitrixEmailComment({ comment });
+      } catch (e) {
+        console.warn("[EmailManager] Bitrix timeline comment failed:", e);
+      }
+
       try {
         await cfg.hooks.saveFinalOfferSnapshot?.();
       } catch {}
+
       return true;
     } catch (e) {
       console.error("[EmailManager] send failed:", e);
@@ -356,3 +456,4 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
 
   return { send, render: renderList, excludedPreset };
 }
+
