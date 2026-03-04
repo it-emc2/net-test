@@ -76,12 +76,107 @@ export function initEmailManager(options = {}) {
   const updateSubjectDefault = () => {
     if (subjectTouched) return;
     const offerNumber = getOfferNumber();
-    if (offerNumber) $subject.value = offerNumber;
+    if (offerNumber) $subject.value = `Ihr Angebot ${offerNumber}`;
   };
 
   $offerNumber?.addEventListener("input", updateSubjectDefault);
   $offerNumber?.addEventListener("change", updateSubjectDefault);
   updateSubjectDefault();
+
+  // Recipient + body auto-fill unless user edits
+  let toTouched = false;
+  let bodyTouched = false;
+
+  $to.addEventListener("input", () => (toTouched = true));
+  $body.addEventListener("input", () => (bodyTouched = true));
+
+  const $customerEmail = document.querySelector("#email");
+  const $lastName = document.querySelector("#lastName");
+
+  function getCustomerSalutation() {
+    const checked = document.querySelector('input[name="salutation"]:checked');
+    return (checked?.value || "").trim(); // Frau | Herr | Familie
+  }
+
+  function buildGreetingLine() {
+    const salutation = getCustomerSalutation();
+    const lastName = ($lastName?.value || "").trim();
+
+    if (salutation === "Herr") {
+      return `Sehr geehrter Herr ${lastName || "Mustermann"},`;
+    }
+    if (salutation === "Frau") {
+      return `Sehr geehrte Frau ${lastName || "Mustermann"},`;
+    }
+    if (salutation === "Familie") {
+      return `Sehr geehrte Familie ${lastName || "Mustermann"},`;
+    }
+    return "Sehr geehrte Damen und Herren,";
+  }
+
+  function buildDefaultMailBody() {
+    const offerNumber = getOfferNumber() || "ANG-2025-_____";
+
+    return `${buildGreetingLine()}
+
+vielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:
+
+• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.
+• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.
+• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.
+• Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.
+• Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.
+• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.
+
+Unser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.
+
+Im Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:
+
+1. Ihr Angebot ${offerNumber}
+2. Abtretungserklärung zur Abrechnung mit der Krankenkasse
+3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3, 4, 5 SGB XI
+4. Unseren aktuellen Flyer "Barrierefreies Wohnen"
+
+Bitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.
+
+Sobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.
+
+Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
+  }
+
+  function updateRecipientDefault() {
+    if (toTouched) return;
+    const v = ($customerEmail?.value || "").trim();
+    if (v) $to.value = v;
+  }
+
+  function updateBodyDefault() {
+    if (bodyTouched) return;
+    $body.value = buildDefaultMailBody();
+  }
+
+  function updateMailPrefills() {
+    updateRecipientDefault();
+    updateBodyDefault();
+  }
+
+  // Listen to Kundendaten changes
+  $customerEmail?.addEventListener("input", updateRecipientDefault);
+  $customerEmail?.addEventListener("change", updateRecipientDefault);
+
+  $lastName?.addEventListener("input", updateBodyDefault);
+  $lastName?.addEventListener("change", updateBodyDefault);
+
+  document.querySelectorAll('input[name="salutation"]').forEach((el) => {
+    el.addEventListener("change", updateBodyDefault);
+  });
+
+  // Rebuild body when offer number changes (only if body wasn't manually edited)
+  $offerNumber?.addEventListener("input", updateBodyDefault);
+  $offerNumber?.addEventListener("change", updateBodyDefault);
+
+  // Initial prefill on load
+  updateMailPrefills();
 
   // ---- Attachment handling ----
   function syncFileInput() {

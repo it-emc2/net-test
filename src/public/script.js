@@ -1744,6 +1744,9 @@ function resetAllForms() {
   if (typeof updateSummaryWidgetSubsidyVisibility === "function") {
     updateSummaryWidgetSubsidyVisibility();
   }
+
+  // Re-apply default date after form.reset() clears date inputs
+  ensureKundendatenDate(true);
 }
 
 // ============================================================
@@ -2095,6 +2098,12 @@ function setStep(step) {
 
   // 4) URL + summary + pricing refresh
   location.hash = step;
+
+  // Ensure Kundendaten date is visible immediately when entering the step
+  if (step === "Kundendaten") {
+    ensureKundendatenDate(true);
+  }
+
   updateSummary();
 
   if (step === "rabatt" || step === "kosten") {
@@ -13695,15 +13704,22 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // Kundendaten: auto-fill date with today's date (local) if empty
-document.addEventListener("DOMContentLoaded", () => {
+function ensureKundendatenDate(defaultIfEmpty = true) {
   const dateInput = document.getElementById("date");
-  if (!dateInput || dateInput.value) return;
+  if (!dateInput) return;
 
-  const now = new Date();
-  const yyyy = String(now.getFullYear());
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  dateInput.value = `${yyyy}-${mm}-${dd}`;
+  // Don't overwrite user-entered value unless explicitly requested
+  if (!defaultIfEmpty || !dateInput.value) {
+    const now = new Date();
+    const yyyy = String(now.getFullYear());
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    dateInput.value = `${yyyy}-${mm}-${dd}`;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  ensureKundendatenDate(true);
 });
 
 // BWT door height clamp (33-40)

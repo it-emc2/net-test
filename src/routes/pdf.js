@@ -1,3 +1,4 @@
+/* eslint-disable no-empty */
 // src/routes/pdf.js
 import express from "express";
 import PDFDocument from "pdfkit";
