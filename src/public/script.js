@@ -9117,7 +9117,14 @@ function restoreOptionalPage(opt) {
 // Duschabtrennung quick-add (you already have logic inside restoreConfiguratorFromOffer;
 // wrap it into a function so we can call it from the router)
 function restoreDuschabtrennung(da) {
-  if (!da || !Array.isArray(da.quickAdd)) return;
+  if (!da) return;
+
+  // ✅ Restore notes (even if there are no quickAdd rows)
+  const noteEl = document.getElementById("daNote");
+  if (noteEl) noteEl.value = da.daNote || "";
+
+  // ✅ Restore quickAdd rows (if present)
+  if (!Array.isArray(da.quickAdd)) return;
 
   const rows = da.quickAdd;
   const byKind = {};
@@ -9137,6 +9144,7 @@ function restoreDuschabtrennung(da) {
     const first = wrap.querySelector(".da-item");
     if (!first) return;
 
+    // reset to exactly one row
     wrap
       .querySelectorAll(".da-item:not(:first-child)")
       .forEach((n) => n.remove());
@@ -9148,11 +9156,12 @@ function restoreDuschabtrennung(da) {
       const nameEl = item.querySelector(".da-name");
 
       if (idEl) idEl.value = row?.productId || "";
-      if (priceEl)
+      if (priceEl) {
         priceEl.value =
           row?.price != null
             ? String(row.price).replace(".", ",")
             : row?.priceRaw || "";
+      }
       if (qtyEl) qtyEl.value = row?.qty != null ? String(row.qty) : "";
       if (nameEl) nameEl.value = row?.label || row?.name || "";
     };
@@ -14271,4 +14280,356 @@ document.addEventListener("DOMContentLoaded", () => {
   } else {
     setTimeout(__printStartupSummary, 500);
   }
+})();
+
+(function initHassmannExpandCollapse() {
+  const page = document.getElementById("page-Duschabtrennung");
+  if (!page) return;
+
+  const btnExpand = page.querySelector("#hmExpandAll");
+  const btnCollapse = page.querySelector("#hmCollapseAll");
+
+  const getAccordions = () => Array.from(page.querySelectorAll("details.form-accordion"));
+
+  const isVisible = (el) => {
+    if (!el) return false;
+    if (el.hidden) return false;
+    const aria = el.getAttribute("aria-hidden");
+    if (aria === "true") return false;
+    return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+  };
+
+  btnExpand?.addEventListener("click", () => {
+    getAccordions().forEach((d) => { if (isVisible(d)) d.open = true; });
+  });
+
+  btnCollapse?.addEventListener("click", () => {
+    getAccordions().forEach((d) => { if (isVisible(d)) d.open = false; });
+  });
+})();
+
+function hassmannAccordionHasValues(detailsEl) {
+  const root = detailsEl?.querySelector(".form-accordion__body") || detailsEl;
+  if (!root) return false;
+
+  const fields = root.querySelectorAll("input, select, textarea");
+  for (const el of fields) {
+    // ignore buttons and hidden fields
+    if (el.tagName === "INPUT") {
+      const type = (el.getAttribute("type") || "").toLowerCase();
+      if (type === "button" || type === "submit" || type === "reset" || type === "hidden") continue;
+
+      if (type === "checkbox" || type === "radio") {
+        if (el.checked) return true;
+        continue;
+      }
+
+      // number/text/etc
+      const v = (el.value ?? "").toString().trim();
+      if (v !== "") return true;
+      continue;
+    }
+
+    if (el.tagName === "SELECT") {
+      const v = (el.value ?? "").toString().trim();
+      if (v !== "") return true;
+      continue;
+    }
+
+    if (el.tagName === "TEXTAREA") {
+      const v = (el.value ?? "").toString().trim();
+      if (v !== "") return true;
+      continue;
+    }
+  }
+
+  return false;
+}
+
+function syncHassmannAccordionOpenState(detailsId) {
+  const page = document.getElementById("page-Duschabtrennung");
+  if (!page) return;
+
+  const d = page.querySelector(`#${CSS.escape(detailsId)}`);
+  if (!d) return;
+
+  // closed by default; open only if something has a value
+  d.open = hassmannAccordionHasValues(d);
+}
+
+(function initHassmannAutoOpenDoorTypesAccordion() {
+  const page = document.getElementById("page-Duschabtrennung");
+  if (!page) return;
+
+  const detailsId = "acc-door-types";
+  const d = page.querySelector(`#${CSS.escape(detailsId)}`);
+  if (!d) return;
+
+  // 1) initial check on load
+  syncHassmannAccordionOpenState(detailsId);
+
+  // 2) open as soon as user types/selects something (and keep open)
+  page.addEventListener("input", (e) => {
+    if (d.contains(e.target) && hassmannAccordionHasValues(d)) d.open = true;
+  });
+  page.addEventListener("change", (e) => {
+    if (d.contains(e.target) && hassmannAccordionHasValues(d)) d.open = true;
+  });
+
+  // 3) if drafts/offers load values programmatically WITHOUT firing events,
+  // do a few delayed re-checks shortly after (cheap + reliable)
+  const delays = [0, 50, 150, 400, 1000];
+  delays.forEach((ms) => setTimeout(() => syncHassmannAccordionOpenState(detailsId), ms));
+})();
+
+(function initFreierPostenTemplates() {
+  const page = document.getElementById("page-Duschabtrennung");
+  if (!page) return;
+
+  const customFieldset = page.querySelector("#hass-custom");
+  if (!customFieldset) return;
+
+  const itemsWrap = customFieldset.querySelector(".da-items");
+  if (!itemsWrap) return;
+
+  // --- Template bundles (add more anytime) ---
+  const FP_TEMPLATES = {
+    duschvorhang: [
+      { name: "HEWI Duschvorhang Dekor 80 uni weiss Polyester B:3000mm H:2000mm", price: "106,75", qty: 1, id: "HEWIDV300200W" },
+      { name: "Deckenstütze derby V3 plus 800mm m.Rosette verchromt VIGOUR",        price: "66,24",  qty: 1, id: "DEPDS80" },
+      { name: "Verbindungsbogen derby V3 plus f.Vorhangstange verchromt VIGOUR",   price: "21,76",  qty: 1, id: "DEPVSBO" },
+      { name: "Befestigungsrosettenpaar derby V3 plus f.Vorhangstangen verchromt VIGOUR", price: "31,04", qty: 1, id: "DEPVSROS" },
+      { name: "Kupplung derby V3 plus f.Vorhangstange verchromt VIGOUR",           price: "24,83",  qty: 1, id: "DEPVSK" },
+    ],
+  };
+// ============================================================
+// Duschvorhang Länge → Vorhangstange mapping
+// ============================================================
+
+const DV_LENGTHS = [80, 90, 100, 120, 150, 180];
+
+const DV_ROD_BY_LENGTH = {
+  80:  { name: "Vorhangstange derby V3 plus 900mm verchromt VIGOUR",  price: "46,59", qty: 1, id: "DEPVS90" },
+  90:  { name: "Vorhangstange derby V3 plus 900mm verchromt VIGOUR",  price: "46,59", qty: 1, id: "DEPVS90" },
+  100: { name: "Vorhangstange derby V3 plus 1000mm verchromt VIGOUR", price: "50,50", qty: 1, id: "DEPVS100" },
+  120: { name: "Vorhangstange derby V3 plus 1200mm verchromt VIGOUR", price: "62,02", qty: 1, id: "DEPVS120" },
+  150: { name: "Vorhangstange derby V3 plus 1500mm verchromt VIGOUR", price: "75,52", qty: 1, id: "DEPVS150" },
+  180: { name: "Vorhangstange derby V3 plus 1800mm verchromt VIGOUR", price: "86,08", qty: 1, id: "DEPVS180" }
+};
+
+const DV_ROD_IDS = new Set(Object.values(DV_ROD_BY_LENGTH).map(x => x.id));
+
+
+// ============================================================
+// helpers
+// ============================================================
+
+function fireRowInputs(row) {
+  row.querySelectorAll("input").forEach(inp => {
+    inp.dispatchEvent(new Event("input",{bubbles:true}));
+    inp.dispatchEvent(new Event("change",{bubbles:true}));
+  });
+}
+
+function findCustomRowByAnyId(idSet){
+  const rows = document.querySelectorAll("#hass-custom .da-item[data-kind='custom']");
+  for(const row of rows){
+    const idEl = row.querySelector(".da-id");
+    const v = (idEl?.value || "").trim();
+    if(v && idSet.has(v)) return row;
+  }
+  return null;
+}
+
+
+// ============================================================
+// create / update Vorhangstange
+// ============================================================
+
+function upsertDuschvorhangRod(length){
+
+  const item = DV_ROD_BY_LENGTH[length];
+  if(!item) return;
+
+  let row = findCustomRowByAnyId(DV_ROD_IDS);
+
+  if(!row){
+    row = createCustomRow();
+    if(!row) return;
+    document.querySelector("#hass-custom .da-items").appendChild(row);
+  }
+
+  fillCustomRow(row,item);
+  fireRowInputs(row);
+}
+
+
+// ============================================================
+// Länge selector UI
+// ============================================================
+
+function ensureDuschvorhangLengthPicker(){
+
+  const host = document.querySelector("#hass-custom-templates");
+  if(!host) return;
+
+  if(host.querySelector(".dv-length")) return;
+
+  const wrap = document.createElement("div");
+  wrap.className = "dv-length";
+
+  wrap.innerHTML = `
+    <div class="dv-length__label">Länge wählen</div>
+    <div class="dv-length__tiles"></div>
+  `;
+
+  host.appendChild(wrap);
+
+  const tiles = wrap.querySelector(".dv-length__tiles");
+
+  DV_LENGTHS.forEach(len=>{
+    const btn = document.createElement("button");
+    btn.type="button";
+    btn.className="dv-tile";
+    btn.dataset.len=len;
+    btn.innerHTML=`${len} cm ✓`;
+    tiles.appendChild(btn);
+  });
+
+  wrap.dataset.selected="80";
+
+  function updateUI(){
+    const sel=wrap.dataset.selected;
+    wrap.querySelectorAll(".dv-tile").forEach(b=>{
+      b.classList.toggle("is-selected",b.dataset.len===sel);
+    });
+  }
+
+  updateUI();
+
+  wrap.addEventListener("click",e=>{
+
+    const btn=e.target.closest(".dv-tile");
+    if(!btn) return;
+
+    wrap.dataset.selected=btn.dataset.len;
+    updateUI();
+
+    upsertDuschvorhangRod(Number(btn.dataset.len));
+
+  });
+
+}
+
+
+// ============================================================
+// when template is added
+// ============================================================
+
+document.addEventListener("click",e=>{
+
+  const btn=e.target.closest("[data-fp-template]");
+  if(!btn) return;
+
+  const key=btn.getAttribute("data-fp-template");
+
+  if(key==="duschvorhang"){
+
+    ensureDuschvorhangLengthPicker();
+
+    const picker=document.querySelector(".dv-length");
+    const len=Number(picker?.dataset?.selected || 80);
+
+    upsertDuschvorhangRod(len);
+
+  }
+
+});
+  function createCustomRow() {
+    // Prefer using the template tag (your code already has it)
+    const tpl = page.querySelector("#da-item-template-custom");
+    if (tpl && tpl.content) {
+      const node = tpl.content.firstElementChild.cloneNode(true);
+      // ensure proper kind marker
+      node.setAttribute("data-kind", "custom");
+      return node;
+    }
+
+    // Fallback: clone the first existing row
+    const existing = customFieldset.querySelector('.da-item[data-kind="custom"]');
+    if (!existing) return null;
+    const node = existing.cloneNode(true);
+
+    // Clear fields
+    node.querySelector(".da-name") && (node.querySelector(".da-name").value = "");
+    node.querySelector(".da-price") && (node.querySelector(".da-price").value = "");
+    node.querySelector(".da-qty") && (node.querySelector(".da-qty").value = "");
+    node.querySelector(".da-id") && (node.querySelector(".da-id").value = "");
+    return node;
+  }
+
+  function fillCustomRow(rowEl, item) {
+    const nameEl = rowEl.querySelector(".da-name");
+    const priceEl = rowEl.querySelector(".da-price");
+    const qtyEl = rowEl.querySelector(".da-qty");
+    const idEl = rowEl.querySelector(".da-id");
+
+    if (nameEl) nameEl.value = item.name ?? "";
+    if (priceEl) priceEl.value = item.price ?? "";
+    if (qtyEl) qtyEl.value = item.qty ?? 1;
+    if (idEl) idEl.value = item.id ?? "";
+  }
+
+  // optional: avoid duplicates by ID
+  function hasIdAlready(id) {
+    if (!id) return false;
+    const ids = customFieldset.querySelectorAll(".da-item[data-kind='custom'] .da-id");
+    return Array.from(ids).some((el) => (el.value || "").trim() === id);
+  }
+
+  function addTemplateItems(templateKey) {
+    const list = FP_TEMPLATES[templateKey];
+    if (!Array.isArray(list) || list.length === 0) return;
+
+    // If the very first row is still empty, we can reuse it for the first item
+    const firstRow = customFieldset.querySelector(".da-item[data-kind='custom']");
+    const firstRowEmpty =
+      firstRow &&
+      !(firstRow.querySelector(".da-name")?.value || "").trim() &&
+      !(firstRow.querySelector(".da-price")?.value || "").trim() &&
+      !(firstRow.querySelector(".da-id")?.value || "").trim();
+
+    list.forEach((item, idx) => {
+      if (hasIdAlready(item.id)) return; // skip duplicates
+
+      let row;
+      if (idx === 0 && firstRow && firstRowEmpty) {
+        row = firstRow;
+      } else {
+        row = createCustomRow();
+        if (!row) return;
+        itemsWrap.appendChild(row);
+      }
+
+      fillCustomRow(row, item);
+
+      // Trigger input events so any live-calcs/export watchers update
+      row.querySelectorAll("input").forEach((inp) => {
+        inp.dispatchEvent(new Event("input", { bubbles: true }));
+        inp.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    });
+
+    // open the Freier Posten accordion if it's wrapped in <details>
+    const details = customFieldset.closest("details.form-accordion");
+    if (details) details.open = true;
+  }
+
+  // Click handler for the template buttons
+  page.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-fp-template]");
+    if (!btn) return;
+    const key = btn.getAttribute("data-fp-template");
+    addTemplateItems(key);
+  });
 })();

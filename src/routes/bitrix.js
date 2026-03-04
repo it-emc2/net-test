@@ -133,4 +133,39 @@ router.get("/contact/:id", async (req, res) => {
   }
 });
 
+
+// POST /api/bitrix/timeline/comment
+// Body: { entityType: 'deal'|'contact'|'company'|'lead'|..., entityId: number|string, comment: string }
+router.post("/timeline/comment", express.json({ limit: "1mb" }), async (req, res) => {
+  try {
+    const entityType = String(req.body?.entityType || "").trim();
+    const entityIdRaw = req.body?.entityId;
+    const comment = String(req.body?.comment || "").trim();
+
+    if (!entityType) return res.status(400).json({ error: "entityType is required" });
+    if (entityIdRaw === undefined || entityIdRaw === null || String(entityIdRaw).trim() === "") {
+      return res.status(400).json({ error: "entityId is required" });
+    }
+    if (!comment) return res.status(400).json({ error: "comment is required" });
+
+    const entityId = Number(entityIdRaw);
+    if (!Number.isFinite(entityId) || entityId <= 0) {
+      return res.status(400).json({ error: "entityId must be a positive number" });
+    }
+
+    const data = await bxGet("crm.timeline.comment.add", {
+      fields: {
+        ENTITY_ID: entityId,
+        ENTITY_TYPE: entityType,
+        COMMENT: comment,
+      },
+    });
+
+    return res.json(data);
+  } catch (err) {
+    console.error("POST /api/bitrix/timeline/comment error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
 export default router;

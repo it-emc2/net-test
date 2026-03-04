@@ -2333,3 +2333,127 @@ label.image-check.is-checked .caption {
   gap: 8px;
   margin-top: 10px;
 }
+
+/* Accordion for Hassmann / Dusch pages */
+.form-accordion {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 10px 0;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.form-accordion summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  list-style: none;
+}
+
+.form-accordion summary::-webkit-details-marker {
+  display: none;
+}
+
+.form-accordion summary::after {
+  content: "▸";
+  transition: transform 0.15s ease;
+  opacity: 0.7;
+}
+
+.form-accordion[open] summary::after {
+  transform: rotate(90deg);
+}
+
+.form-accordion__body {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+}
+
+/* --- Duschvorhang Länge tiles (tokenized: works in light + dark) --- */
+
+.dv-length{
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.dv-length__label{
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: var(--text);
+}
+
+.dv-length__tiles{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 10px;
+}
+
+/* IMPORTANT: override global button styling */
+.dv-tile{
+  position: relative;
+  border-radius: 14px;
+  padding: 10px 10px;
+
+  border: 1px solid var(--border) !important;
+  background: var(--card) !important;
+  color: var(--text) !important;
+
+  cursor: pointer;
+
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+
+  box-shadow: none !important;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.dv-tile:hover{
+  transform: translateY(-1px);
+  background: var(--card-hover) !important;
+}
+
+.dv-tile.is-selected{
+  border-color: var(--accent) !important;
+  background: var(--card-selected) !important;
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.dv-tile__num{
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.dv-tile__unit{
+  font-size: 0.85rem;
+  color: var(--muted-foreground);
+}
+
+.dv-tile__check{
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  color: var(--accent);
+
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.dv-tile.is-selected .dv-tile__check{
+  opacity: 1;
+  transform: scale(1);
+}
+
+.dv-length__hint{
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: var(--muted-foreground);
+}
