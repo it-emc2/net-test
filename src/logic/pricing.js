@@ -311,6 +311,11 @@ function grossToNet(gross, taxRate) {
       replace_shower_system: "Auswechseln des Duschsystems",
       install_bathtub: "Einbau der Badewanne",
 install_bathtub_screen: "Einbau des Wannenaufsatzes",
+remove_toilet: "Entfernen und Entsorgen der Toilette",
+install_toilet: "Einbau der Toilette",
+remove_sink: "Entfernen und Entsorgen eines Waschbeckens",
+install_sink: "Einbau eines Waschbeckens",
+
     };
 
     const dwTasks = normalizeDWTasks(payload);
