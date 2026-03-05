@@ -15001,3 +15001,209 @@ document.addEventListener("DOMContentLoaded", () => {
   initHlFlexofitSearch();
   initHlQuickAddRepeater();
 });
+
+
+// =================================================================
+// DA (BU Badumbau → Duschabtrennung): DB search → fills "Freier Posten"
+// (Additive only — HL code untouched)
+// =================================================================
+function initDaDuschabtrennungDbSearch() {
+  const input = document.getElementById("daProductSearch");
+  const results = document.getElementById("daProductSearchResults");
+  const status = document.getElementById("daProductSearchStatus");
+
+  if (!input || !results) return;
+
+  let abortCtrl = null;
+  let t = null;
+
+  const setStatus = (msg) => {
+    if (!status) return;
+    status.textContent = msg || "";
+  };
+
+  const hideResults = () => {
+    results.hidden = true;
+    results.innerHTML = "";
+  };
+
+  const showResults = () => {
+    results.hidden = false;
+  };
+
+  const euro = (v) => {
+    if (v == null || v === "") return "";
+    const n = typeof v === "number" ? v : Number(String(v).replace(",", "."));
+    if (!isFinite(n)) return String(v);
+    return String(n.toFixed(2)).replace(".", ",");
+  };
+
+  const pickPriceField = (p) => {
+    return (
+      p?.priceNet ||
+      p?.price_net ||
+      p?.netPrice ||
+      p?.price ||
+      p?.ek ||
+      p?.ekPrice ||
+      p?.priceEk ||
+      p?.price_ek ||
+      ""
+    );
+  };
+
+  const addToFreierPosten = (p) => {
+    // Freier Posten is #hass-custom (your existing quick-add section)
+    const wrap = document.querySelector("#hass-custom .da-items");
+    const tpl =
+      document.getElementById("da-item-template-custom") ||
+      document.getElementById("tpl-da-item-template-custom");
+
+    if (!wrap || !tpl?.content?.firstElementChild) {
+      console.warn("[DA DB search] Freier Posten template not found");
+      return;
+    }
+
+    // Reuse empty row first
+    const rows = Array.from(wrap.querySelectorAll(".da-item"));
+    const empty = rows.find((r) => {
+      const n = String(r.querySelector(".da-name")?.value || "").trim();
+      const i = String(r.querySelector(".da-id")?.value || "").trim();
+      const pr = String(r.querySelector(".da-price")?.value || "").trim();
+      return !n && !i && !pr;
+    });
+
+    const rowEl = empty || tpl.content.firstElementChild.cloneNode(true);
+    if (!empty) wrap.appendChild(rowEl);
+
+    const nameEl = rowEl.querySelector(".da-name");
+    const idEl = rowEl.querySelector(".da-id");
+    const qtyEl = rowEl.querySelector(".da-qty");
+    const priceEl = rowEl.querySelector(".da-price");
+
+    const label = String(p?.name || p?.label || p?.title || "").trim();
+    const productId = String(p?.productId || p?._id || p?.id || "").trim();
+    const pr = pickPriceField(p);
+
+    if (nameEl) nameEl.value = label || productId || "";
+    if (idEl) idEl.value = productId || "";
+    if (qtyEl) qtyEl.value = "1";
+    if (priceEl) priceEl.value = pr !== "" ? euro(pr) : "";
+
+    if (typeof showToast === "function") {
+      showToast(`Hinzugefügt: ${label || productId}`, "success");
+    }
+  };
+
+  const render = (items) => {
+    results.innerHTML = "";
+
+    if (!items.length) {
+      results.innerHTML = `<div class="da-search-empty">Keine Treffer.</div>`;
+      showResults();
+      return;
+    }
+
+    items.slice(0, 20).forEach((p) => {
+      const name = String(p?.name || p?.label || p?.title || p?.productId || p?._id || p?.id || "").trim();
+      const pid = String(p?.productId || p?._id || p?.id || "").trim();
+      const pr = pickPriceField(p);
+
+      const div = document.createElement("div");
+      div.className = "da-search-item";
+      div.tabIndex = 0;
+
+      const left = document.createElement("div");
+      const safeName = (typeof escapeHtml === "function") ? escapeHtml(name) : name;
+      const safePid = (typeof escapeHtml === "function") ? escapeHtml(pid || "") : (pid || "");
+      left.innerHTML = `<div class="da-search-name">${safeName}</div>
+                        <div class="da-search-meta">${safePid}</div>`;
+
+      const right = document.createElement("div");
+      right.className = "da-search-meta";
+      right.textContent = pr !== "" ? `${euro(pr)} €` : "";
+
+      div.appendChild(left);
+      div.appendChild(right);
+
+      div.addEventListener("click", () => {
+        addToFreierPosten(p);
+        hideResults();
+        input.value = "";
+        setStatus("");
+      });
+
+      div.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          div.click();
+        }
+      });
+
+      results.appendChild(div);
+    });
+
+    showResults();
+  };
+
+  const search = async () => {
+    const q = String(input.value || "").trim();
+
+    if (q.length < 2) {
+      hideResults();
+      setStatus("");
+      return;
+    }
+
+    setStatus("Suche …");
+
+    try {
+      if (abortCtrl) abortCtrl.abort();
+      abortCtrl = new AbortController();
+
+      /*
+        Mongo idea (server-side):
+        { name: { $regex: q, $options: "i" } }
+
+        // here you can add filters later (e.g. source, category, angebotstyp, ...)
+      */
+      const url = `/api/products?q=${encodeURIComponent(q)}&limit=20`;
+      const res = await fetch(url, { signal: abortCtrl.signal });
+
+      const data = res.ok ? await res.json().catch(() => []) : [];
+      const list = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : []);
+
+      // ignore stale responses if user typed more
+      if (String(input.value || "").trim() !== q) return;
+
+      render(list);
+      setStatus(list.length ? `${list.length} Treffer` : "Keine Treffer");
+    } catch (e) {
+      if (e?.name === "AbortError") return;
+      console.warn("[DA DB search] failed:", e);
+      setStatus("Suche fehlgeschlagen.");
+      hideResults();
+    }
+  };
+
+  input.addEventListener("input", () => {
+    clearTimeout(t);
+    t = setTimeout(search, 220);
+  });
+
+  input.addEventListener("focus", () => {
+    const q = String(input.value || "").trim();
+    if (q.length >= 2 && results.innerHTML.trim()) showResults();
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!results.contains(e.target) && e.target !== input) {
+      hideResults();
+    }
+  });
+}
+
+// Additive init (does NOT touch HL init)
+document.addEventListener("DOMContentLoaded", () => {
+  initDaDuschabtrennungDbSearch();
+});

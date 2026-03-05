@@ -2471,6 +2471,19 @@
   </p>
 </div>
  <!-- Freier Posten -->
+            <!-- DA: Produkte aus Datenbank hinzufügen (Search → Freier Posten) -->
+            <div class="full field" id="da-db-search">
+              <div class="section-title">Produkt aus Datenbank hinzufügen</div>
+              <p class="section-subtitle">Suche nach Produktname und füge per Klick automatisch zu <b>Freier Posten</b> hinzu.</p>
+
+              <div class="da-search-wrapper">
+                <input type="text" id="daProductSearch" placeholder="z. B. glas, rohr, halter …" autocomplete="off" />
+                <div id="daProductSearchResults" class="da-search-results" hidden></div>
+              </div>
+
+              <div class="muted" id="daProductSearchStatus" style="margin-top:6px;" aria-live="polite"></div>
+            </div>
+
           <fieldset class="da-row" id="hass-custom" data-kind="custom" data-template="da-item-template-custom"
             aria-describedby="custom-help">
             <legend class="da-legend">
