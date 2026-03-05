@@ -9741,14 +9741,24 @@ function restoreHl(hl) {
   const preisEl = form.querySelector("#hlPreis");
 
   if (log) {
-    if (spedEl) spedEl.value = String(log.speditionskosten ?? "");
+    if (spedEl) {
+      spedEl.value = String(log.speditionskosten ?? "");
+      if (!String(spedEl.value || "").trim()) {
+        spedEl.value = "zzgl. Speditionskosten lange Rohre";
+      }
+    }
     if (preisEl) preisEl.value = String(log.preis ?? "");
   } else {
     // fallback: derive from quickAdd
     const qa = Array.isArray(hl.quickAdd) ? hl.quickAdd : [];
     const row = qa.find((x) => String(x?.productId || "") === "HL_LOGISTIK");
     if (row) {
-      if (spedEl) spedEl.value = String(row?.label ?? "");
+      if (spedEl) {
+        spedEl.value = String(row?.label ?? "");
+        if (!String(spedEl.value || "").trim()) {
+          spedEl.value = "zzgl. Speditionskosten lange Rohre";
+        }
+      }
       if (preisEl) {
         const p = row?.price;
         preisEl.value =
