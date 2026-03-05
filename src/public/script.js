@@ -2648,7 +2648,7 @@ try {
     rows.push({
       kind: "hl-logistik",
       group: "Logistik",
-      label: labelRaw || "zzgl. Speditionskosten lange Rohre",
+      label: labelRaw || "Speditionskosten",
       productId: "HL_LOGISTIK",
       qty: 1,
       price,
@@ -9730,10 +9730,6 @@ function restoreHl(hl) {
   const form = document.getElementById("form-hl");
   if (!form) return;
 
-  // Restore HL notes (saved in drafts + offer payload)
-  const noteEl = form.querySelector("#hlNote");
-  if (noteEl) noteEl.value = String(hl.hlNote || "");
-
   // Restore Logistik inputs (preferred)
   const log = hl.logistik || null;
 
@@ -9741,24 +9737,14 @@ function restoreHl(hl) {
   const preisEl = form.querySelector("#hlPreis");
 
   if (log) {
-    if (spedEl) {
-      spedEl.value = String(log.speditionskosten ?? "");
-      if (!String(spedEl.value || "").trim()) {
-        spedEl.value = "zzgl. Speditionskosten lange Rohre";
-      }
-    }
+    if (spedEl) spedEl.value = String(log.speditionskosten ?? "");
     if (preisEl) preisEl.value = String(log.preis ?? "");
   } else {
     // fallback: derive from quickAdd
     const qa = Array.isArray(hl.quickAdd) ? hl.quickAdd : [];
     const row = qa.find((x) => String(x?.productId || "") === "HL_LOGISTIK");
     if (row) {
-      if (spedEl) {
-        spedEl.value = String(row?.label ?? "");
-        if (!String(spedEl.value || "").trim()) {
-          spedEl.value = "zzgl. Speditionskosten lange Rohre";
-        }
-      }
+      if (spedEl) spedEl.value = String(row?.label ?? "");
       if (preisEl) {
         const p = row?.price;
         preisEl.value =
@@ -13495,6 +13481,72 @@ function initHassmannBestFinder() {
     return { blob, filename };
   }
 
+
+  // Fetch DOCX (offer) blob from backend (same content as "DOCX herunterladen")
+  async function fetchOfferDocxBlob() {
+    if (typeof buildPayload !== "function") {
+      throw new Error("buildPayload ist nicht verfügbar.");
+    }
+    const payload = buildPayload();
+
+    const resp = await fetch("/docx-template", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+      const txt = await resp.text().catch(() => "");
+      throw new Error(`DOCX-Generierung fehlgeschlagen (${resp.status}): ${txt}`);
+    }
+
+    const cd = resp.headers.get("content-disposition") || "";
+    let filename = "Angebot.docx";
+    const match = cd.match(/filename="?(.*?)"?$/i);
+    if (match && match[1]) filename = match[1];
+
+    const blob = await resp.blob();
+    return { blob, filename };
+  }
+
+  // Fetch Materialübersicht DOCX blob from backend
+  async function fetchMaterialOverviewDocxBlob() {
+    if (typeof buildPayload !== "function") {
+      throw new Error("buildPayload ist nicht verfügbar.");
+    }
+    const payload = buildPayload();
+
+    // safeguard: some endpoints expect activeOffer
+    if (!payload.activeOffer) {
+      payload.activeOffer =
+        (typeof getCurrentOfferType === "function" && getCurrentOfferType()) ||
+        payload.offerType ||
+        payload.currentOfferKey ||
+        null;
+    }
+
+    const resp = await fetch("/material-overview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+      const txt = await resp.text().catch(() => "");
+      throw new Error(
+        `Materialübersicht-Generierung fehlgeschlagen (${resp.status}): ${txt}`,
+      );
+    }
+
+    const cd = resp.headers.get("content-disposition") || "";
+    let filename = "Materialuebersicht.docx";
+    const match = cd.match(/filename="?(.*?)"?$/i);
+    if (match && match[1]) filename = match[1];
+
+    const blob = await resp.blob();
+    return { blob, filename };
+  }
+
   function blobToBase64(blob) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -13635,21 +13687,45 @@ async function sendPdfToAuftrag() {
     const downloadName = filename || `${offerNumber}.pdf`;
     triggerBlobDownload(pdfBlob, downloadName);
 
-    setStatus("Sende PDF an Auftrag-Webhook …", "info");
+    // --- NEW: generate the other 2 docs for Bitrix (DOCX + Materialübersicht) ---
+    setStatus("Erzeuge DOCX …", "info");
+    const { blob: docxBlob, filename: docxFilename } = await fetchOfferDocxBlob();
+    setStatus("Konvertiere DOCX nach Base64 …", "info");
+    const docxBase64 = await blobToBase64(docxBlob);
+
+    setStatus("Erzeuge Materialübersicht …", "info");
+    const { blob: materialBlob, filename: materialFilename } = await fetchMaterialOverviewDocxBlob();
+    setStatus("Konvertiere Materialübersicht nach Base64 …", "info");
+    const materialBase64 = await blobToBase64(materialBlob);
+
+    setStatus("Sende 3 Dateien an Auftrag-Webhook …", "info");
 
     // Always derive outbound pdfName from the current offer number used above
     const pdfName = `${offerNumber}.pdf`;
+    const docxName = docxFilename || `${offerNumber}.docx`;
+    const materialName = materialFilename || `Materialuebersicht_${offerNumber}.docx`;
 
     const body = {
       auftragId,
+      // Offer PDF
       pdfBase64,
       pdfName,
+      // Offer DOCX
+      docxBase64,
+      docxName,
+      // Materialübersicht DOCX
+      materialBase64,
+      materialName,
     };
 
     console.log("[BITRIX DEBUG] webhook payload meta", {
       auftragId,
       pdfName,
-      base64Length: typeof pdfBase64 === "string" ? pdfBase64.length : null,
+      docxName,
+      materialName,
+      pdfBase64Length: typeof pdfBase64 === "string" ? pdfBase64.length : null,
+      docxBase64Length: typeof docxBase64 === "string" ? docxBase64.length : null,
+      materialBase64Length: typeof materialBase64 === "string" ? materialBase64.length : null,
     });
 
     const res = await fetch(WEBHOOK_URL, {
