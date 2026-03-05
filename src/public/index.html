@@ -4821,7 +4821,92 @@
 
         <form id="form-hl">
 
-          <!-- Wannenform -->
+          
+
+          <!-- HL: Produkte hinzufügen (DB · Flexofit) -->
+          <div class="full field" id="hl-db-search">
+            <div class="section-title">Produkte hinzufügen (DB · Flexofit)</div>
+            <p class="section-subtitle">Suche nach Produktname (Quelle: <b>flexofit</b>) und füge per Klick in den Quick-Add ein.</p>
+
+            <div class="hl-search-wrapper">
+              <input type="text" id="hlProductSearch" placeholder="z. B. rohr, bogen, flexo …" autocomplete="off" />
+              <div id="hlProductSearchResults" class="hl-search-results" hidden></div>
+            </div>
+
+            <div id="hlProductSearchStatus" class="muted" style="margin-top:6px;" aria-live="polite"></div>
+          </div>
+
+          <!-- HL: Freier Posten / Quick Add -->
+          <fieldset class="da-row" id="hlQuickAddPanel" data-kind="custom" aria-describedby="hl-quickadd-help">
+            <legend class="da-legend">
+              Freier Posten (Quick Add)
+              <button type="button" id="hlQuickAddAdd" class="da-add" aria-label="Weitere Position hinzufügen">+</button>
+            </legend>
+
+            <div class="da-items" id="hlQuickAddItems">
+              <div class="da-item" data-kind="custom">
+                <div class="da-grid-4">
+                  <label class="da-label">
+                    Bezeichnung
+                    <input class="da-name" type="text" placeholder="z. B. Sonderzubehör" />
+                  </label>
+
+                  <label class="da-label">
+                    Preis (netto)
+                    <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 199,00" />
+                  </label>
+
+                  <label class="da-label">
+                    Menge
+                    <input class="da-qty" type="number" min="1" step="1" placeholder="1" />
+                  </label>
+
+                  <label class="da-label">
+                    Artikel-ID
+                    <input class="da-id" type="text" placeholder="z. B. HL-123" />
+                  </label>
+                </div>
+
+                <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+              </div>
+            </div>
+
+            <small id="hl-quickadd-help" class="da-help">
+              Neue Zeile ist nur möglich, wenn <em>Bezeichnung</em>, <em>Preis</em> und <em>Artikel-ID</em> gefüllt sind.
+              Letzte Zeile: Löschen leert alle 4 Felder.
+            </small>
+          </fieldset>
+
+          <template id="tpl-hl-quickadd-row">
+            <div class="da-item" data-kind="custom">
+              <div class="da-grid-4">
+                <label class="da-label">
+                  Bezeichnung
+                  <input class="da-name" type="text" placeholder="z. B. Sonderzubehör" />
+                </label>
+
+                <label class="da-label">
+                  Preis (netto)
+                  <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 199,00" />
+                </label>
+
+                <label class="da-label">
+                  Menge
+                  <input class="da-qty" type="number" min="1" step="1" placeholder="1" />
+                </label>
+
+                <label class="da-label">
+                  Artikel-ID
+                  <input class="da-id" type="text" placeholder="z. B. HL-123" />
+                </label>
+              </div>
+
+              <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+            </div>
+          </template>
+
+
+<!-- Wannenform -->
           <div class="full field">
             <label class="req">Brauchen Sie Handläufe für den Innenbereich oder für den Außenbereich?</label>
 

@@ -2657,6 +2657,46 @@ try {
 } catch (e) {
   console.warn("[collectHlExtras] logistik collection failed:", e);
 }
+
+  // --- HL Quick-Add (Freier Posten) rows from UI ---
+  try {
+    const wrap = document.getElementById("hlQuickAddItems");
+    if (wrap) {
+      const items = Array.from(wrap.querySelectorAll(".da-item"));
+      items.forEach((rowEl) => {
+        const nameEl = rowEl.querySelector(".da-name");
+        const idEl = rowEl.querySelector(".da-id");
+        const qtyEl = rowEl.querySelector(".da-qty");
+        const priceEl = rowEl.querySelector(".da-price");
+
+        const label = String(nameEl?.value || "").trim();
+        const productId = String(idEl?.value || "").trim();
+        const qtyRaw = String(qtyEl?.value || "").trim();
+        const priceRaw = String(priceEl?.value || "").trim();
+
+        // Only include filled rows
+        if (!label && !productId && !qtyRaw && !priceRaw) return;
+
+        // Require the important fields
+        if (!label || !productId || !priceRaw) return;
+
+        const qty = Math.max(1, Number(qtyRaw || 1) || 1);
+        const price = window.parseMoneyEuro ? window.parseMoneyEuro(priceRaw) : priceRaw;
+
+        rows.push({
+          kind: "hl-custom",
+          group: "QuickAdd",
+          label,
+          productId,
+          qty,
+          price,
+        });
+      });
+    }
+  } catch (e) {
+    console.warn("[collectHlExtras] hl quick-add collection failed:", e);
+  }
+
   const hl = payload.hl || (payload.hl = {});
 
   if (rows.length) {
@@ -2689,7 +2729,47 @@ function buildPayload() {
      HL: pair steel length + quality rows into structured array
      =========================== */
   try {
-    const hl = payload.hl || (payload.hl = {});
+  
+  // --- HL Quick-Add (Freier Posten) rows from UI ---
+  try {
+    const wrap = document.getElementById("hlQuickAddItems");
+    if (wrap) {
+      const items = Array.from(wrap.querySelectorAll(".da-item"));
+      items.forEach((rowEl) => {
+        const nameEl = rowEl.querySelector(".da-name");
+        const idEl = rowEl.querySelector(".da-id");
+        const qtyEl = rowEl.querySelector(".da-qty");
+        const priceEl = rowEl.querySelector(".da-price");
+
+        const label = String(nameEl?.value || "").trim();
+        const productId = String(idEl?.value || "").trim();
+        const qtyRaw = String(qtyEl?.value || "").trim();
+        const priceRaw = String(priceEl?.value || "").trim();
+
+        // Only include filled rows
+        if (!label && !productId && !qtyRaw && !priceRaw) return;
+
+        // Require the important fields
+        if (!label || !productId || !priceRaw) return;
+
+        const qty = Math.max(1, Number(qtyRaw || 1) || 1);
+        const price = window.parseMoneyEuro ? window.parseMoneyEuro(priceRaw) : priceRaw;
+
+        rows.push({
+          kind: "hl-custom",
+          group: "QuickAdd",
+          label,
+          productId,
+          qty,
+          price,
+        });
+      });
+    }
+  } catch (e) {
+    console.warn("[collectHlExtras] hl quick-add collection failed:", e);
+  }
+
+  const hl = payload.hl || (payload.hl = {});
     const lengthsRaw = hl["hl_steel_length[]"];
     const qualityRaw = hl["hl_steel_quality[]"];
     const lengths = Array.isArray(lengthsRaw)
@@ -14633,3 +14713,291 @@ document.addEventListener("click",e=>{
     addTemplateItems(key);
   });
 })();
+
+// =================================================================
+// HL: Flexofit DB search → adds to HL Quick-Add
+// =================================================================
+function initHlFlexofitSearch() {
+  const input = document.getElementById("hlProductSearch");
+  const results = document.getElementById("hlProductSearchResults");
+  const status = document.getElementById("hlProductSearchStatus");
+
+  if (!input || !results) return;
+
+  let lastQuery = "";
+  let abortCtrl = null;
+  let t = null;
+
+  const setStatus = (msg) => {
+    if (!status) return;
+    status.textContent = msg || "";
+  };
+
+  const hideResults = () => {
+    results.hidden = true;
+    results.innerHTML = "";
+  };
+
+  const showResults = () => {
+    results.hidden = false;
+  };
+
+  const euro = (v) => {
+    if (v == null || v === "") return "";
+    const n = typeof v === "number" ? v : Number(String(v).replace(",", "."));
+    if (!isFinite(n)) return String(v);
+    return String(n.toFixed(2)).replace(".", ",");
+  };
+
+  const pickPriceField = (p) => {
+    // keep tolerant: backend might use different keys
+    return (
+      p?.priceNet ||
+      p?.price_net ||
+      p?.netPrice ||
+      p?.price ||
+      p?.ek ||
+      p?.ekPrice ||
+      p?.priceEk ||
+      p?.price_ek ||
+      ""
+    );
+  };
+
+  const addProductToQuickAdd = (p) => {
+    const wrap = document.getElementById("hlQuickAddItems");
+    const tpl = document.getElementById("tpl-hl-quickadd-row");
+    if (!wrap) return;
+
+    const ensureRow = () => {
+      const rows = Array.from(wrap.querySelectorAll(".da-item"));
+      const empty = rows.find((r) => {
+        const n = String(r.querySelector(".da-name")?.value || "").trim();
+        const i = String(r.querySelector(".da-id")?.value || "").trim();
+        const pr = String(r.querySelector(".da-price")?.value || "").trim();
+        return !n && !i && !pr;
+      });
+      if (empty) return empty;
+
+      // if no empty row, create a new one
+      if (tpl?.content?.firstElementChild) {
+        const node = tpl.content.firstElementChild.cloneNode(true);
+        wrap.appendChild(node);
+        wireHlQuickAddRow(node);
+        return node;
+      }
+
+      // fallback: clone last
+      const last = rows[rows.length - 1];
+      if (last) {
+        const node = last.cloneNode(true);
+        node.querySelectorAll("input").forEach((inp) => (inp.value = ""));
+        wrap.appendChild(node);
+        wireHlQuickAddRow(node);
+        return node;
+      }
+      return null;
+    };
+
+    const row = ensureRow();
+    if (!row) return;
+
+    const nameEl = row.querySelector(".da-name");
+    const idEl = row.querySelector(".da-id");
+    const qtyEl = row.querySelector(".da-qty");
+    const priceEl = row.querySelector(".da-price");
+
+    const label = String(p?.name || p?.label || p?.title || "").trim();
+    const productId = String(p?.productId || p?.id || "").trim();
+
+    if (nameEl) nameEl.value = label || productId || "";
+    if (idEl) idEl.value = productId || "";
+    if (qtyEl) qtyEl.value = "1";
+
+    const pr = pickPriceField(p);
+    if (priceEl) priceEl.value = pr !== "" ? euro(pr) : "";
+
+    showToast(`Hinzugefügt: ${label || productId}`, "success");
+  };
+
+  const render = (items) => {
+    results.innerHTML = "";
+
+    if (!items.length) {
+      results.innerHTML = `<div class="hl-search-empty">Keine Treffer.</div>`;
+      showResults();
+      return;
+    }
+
+    items.slice(0, 20).forEach((p) => {
+      const name = String(p?.name || p?.label || p?.title || p?.productId || "").trim();
+      const pid = String(p?.productId || p?.id || "").trim();
+      const pr = pickPriceField(p);
+
+      const div = document.createElement("div");
+      div.className = "hl-search-item";
+      div.tabIndex = 0;
+
+      const left = document.createElement("div");
+      left.innerHTML = `<div class="hl-search-name">${escapeHtml(name || pid)}</div>
+                        <div class="hl-search-meta">${escapeHtml(pid || "")}</div>`;
+
+      const right = document.createElement("div");
+      right.className = "hl-search-meta";
+      right.textContent = pr !== "" ? `${euro(pr)} €` : "";
+
+      div.appendChild(left);
+      div.appendChild(right);
+
+      div.addEventListener("click", () => {
+        addProductToQuickAdd(p);
+        hideResults();
+        input.value = "";
+        setStatus("");
+      });
+
+      div.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          div.click();
+        }
+      });
+
+      results.appendChild(div);
+    });
+
+    showResults();
+  };
+
+  const search = async () => {
+    const q = String(input.value || "").trim();
+    lastQuery = q;
+
+    if (q.length < 2) {
+      hideResults();
+      setStatus("");
+      return;
+    }
+
+    setStatus("Suche …");
+
+    try {
+      if (abortCtrl) abortCtrl.abort();
+      abortCtrl = new AbortController();
+
+      // Prefer backend: source filter + q filter
+      let url = `/api/products?source=flexofit&q=${encodeURIComponent(q)}&limit=20`;
+      let res = await fetch(url, { signal: abortCtrl.signal });
+
+      // Fallback: older backend might not support source param
+      if (!res.ok) {
+        url = `/api/products?q=${encodeURIComponent(q)}`;
+        res = await fetch(url, { signal: abortCtrl.signal });
+      }
+
+      const data = res.ok ? await res.json().catch(() => []) : [];
+      const list = Array.isArray(data) ? data : [];
+
+      // Client-side ensure correct source if backend fallback used
+      const filtered = list.filter((p) => String(p?.source || "").toLowerCase() === "flexofit");
+
+      // Ignore stale responses
+      if (String(input.value || "").trim() !== q) return;
+
+      render(filtered);
+      setStatus(filtered.length ? `${filtered.length} Treffer` : "Keine Treffer");
+    } catch (e) {
+      if (e?.name === "AbortError") return;
+      console.warn("[HL search] failed:", e);
+      setStatus("Suche fehlgeschlagen.");
+      hideResults();
+    }
+  };
+
+  input.addEventListener("input", () => {
+    clearTimeout(t);
+    t = setTimeout(search, 220);
+  });
+
+  input.addEventListener("focus", () => {
+    const q = String(input.value || "").trim();
+    if (q.length >= 2 && results.innerHTML.trim()) showResults();
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!results.contains(e.target) && e.target !== input) {
+      hideResults();
+    }
+  });
+}
+
+
+// =================================================================
+// HL: Quick-Add repeater (add/remove rows)
+// =================================================================
+function wireHlQuickAddRow(rowEl) {
+  if (!rowEl || rowEl.__wired) return;
+  rowEl.__wired = true;
+
+  const removeBtn = rowEl.querySelector(".da-remove");
+  removeBtn?.addEventListener("click", () => {
+    const wrap = document.getElementById("hlQuickAddItems");
+    if (!wrap) return;
+
+    const rows = Array.from(wrap.querySelectorAll(".da-item"));
+    if (rows.length <= 1) {
+      // last row -> clear
+      rowEl.querySelectorAll("input").forEach((inp) => (inp.value = ""));
+      return;
+    }
+    rowEl.remove();
+  });
+}
+
+function initHlQuickAddRepeater() {
+  const wrap = document.getElementById("hlQuickAddItems");
+  const addBtn = document.getElementById("hlQuickAddAdd");
+  const tpl = document.getElementById("tpl-hl-quickadd-row");
+
+  if (!wrap || !addBtn) return;
+
+  // wire existing first row
+  wrap.querySelectorAll(".da-item").forEach(wireHlQuickAddRow);
+
+  const rowIsValid = (rowEl) => {
+    const label = String(rowEl.querySelector(".da-name")?.value || "").trim();
+    const pid = String(rowEl.querySelector(".da-id")?.value || "").trim();
+    const price = String(rowEl.querySelector(".da-price")?.value || "").trim();
+    return !!(label && pid && price);
+  };
+
+  addBtn.addEventListener("click", () => {
+    const rows = Array.from(wrap.querySelectorAll(".da-item"));
+    const last = rows[rows.length - 1];
+
+    // Only allow adding when last row is complete (like other quick-add sections)
+    if (last && !rowIsValid(last)) {
+      showToast("Bitte erst Bezeichnung, Preis und Artikel-ID ausfüllen.", "warning");
+      return;
+    }
+
+    let node = null;
+    if (tpl?.content?.firstElementChild) {
+      node = tpl.content.firstElementChild.cloneNode(true);
+    } else if (last) {
+      node = last.cloneNode(true);
+      node.querySelectorAll("input").forEach((inp) => (inp.value = ""));
+    }
+
+    if (!node) return;
+    wrap.appendChild(node);
+    wireHlQuickAddRow(node);
+    node.querySelector(".da-name")?.focus?.();
+  });
+}
+
+// init on load
+document.addEventListener("DOMContentLoaded", () => {
+  initHlFlexofitSearch();
+  initHlQuickAddRepeater();
+});
