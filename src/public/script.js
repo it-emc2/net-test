@@ -2648,7 +2648,7 @@ try {
     rows.push({
       kind: "hl-logistik",
       group: "Logistik",
-      label: labelRaw || "Speditionskosten",
+      label: labelRaw || "zzgl. Speditionskosten lange Rohre",
       productId: "HL_LOGISTIK",
       qty: 1,
       price,
@@ -9729,6 +9729,10 @@ function restoreHl(hl) {
 
   const form = document.getElementById("form-hl");
   if (!form) return;
+
+  // Restore HL notes (saved in drafts + offer payload)
+  const noteEl = form.querySelector("#hlNote");
+  if (noteEl) noteEl.value = String(hl.hlNote || "");
 
   // Restore Logistik inputs (preferred)
   const log = hl.logistik || null;

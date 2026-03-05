@@ -4918,6 +4918,14 @@
             </div>
           </template>
 
+          <!-- HL: Notizen (wie bei BU/BWT) -->
+          <div class="field full" style="margin-top:16px">
+            <label for="hlNote">
+              Notizen / Anmerkungen (werden im Entwurf + Angebot gespeichert)
+            </label>
+            <textarea id="hlNote" name="hlNote" rows="20"
+              placeholder="z. B. Besonderheiten, Kundenwünsche, Hinweise zur Montage …"></textarea>
+          </div>
 
 <!-- Wannenform -->
           <div class="full field">
@@ -5636,17 +5644,20 @@
 
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
               <div class="field">
-                <label for="hlSpeditionskosten">Speditionskosten</label>
+                <label for="hlSpeditionskosten">zzgl. Speditionskosten lange Rohre</label>
                 <input id="hlSpeditionskosten" name="hlSpeditionskosten" type="text"
+                  value="zzgl. Speditionskosten lange Rohre"
                   placeholder="z.B. 120 € / nach Aufwand" />
               </div>
 
               <div class="field">
                 <label for="hlPreis">Preis</label>
-                <input id="hlPreis" name="hlPreis" type="number" step="0.01" placeholder="0,00" />
+                <input id="hlPreis" name="hlPreis" type="number" step="0.01" value="95" placeholder="0,00" />
               </div>
             </div>
           </div>
+
+          
 
           <div class="actions full" style="margin-top:16px">
             <button type="button" data-nav="prev" class="secondary">Zurück</button>
