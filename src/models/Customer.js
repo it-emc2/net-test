@@ -1,36 +1,98 @@
 import mongoose from "mongoose";
 
-const customerSchema = new mongoose.Schema(
+const CustomerSchema = new mongoose.Schema(
   {
-    customerNumber: { type: String, index: true },
-    firstName: String,
-    lastName: String,
-    company: String,
-    email: String,
-    phone: String,
-    street: String,
-    city: String,
-    postalCode: String,
-    state: String,
-    country: String,
-
-    // any other fields you actually have in the Kundendaten form:
-    // e.g. differentSite, isExisting, etc.
+    customerNumber: {
+      type: String,
+      trim: true,
+      index: true,
+      sparse: true,
+      unique: true,
+    },
+    bitrixContactId: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    salutation: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    firstName: {
+      type: String,
+      trim: true,
+      default: "",
+      index: true,
+    },
+    lastName: {
+      type: String,
+      trim: true,
+      default: "",
+      index: true,
+    },
+    company: {
+      type: String,
+      trim: true,
+      default: "",
+      index: true,
+    },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: "",
+      index: true,
+    },
+    phone: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    street: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    city: {
+      type: String,
+      trim: true,
+      default: "",
+      index: true,
+    },
+    postalCode: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    state: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    country: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    kundendaten: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    sourceOfferType: {
+      type: String,
+      trim: true,
+      default: "",
+      index: true,
+    },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+    collection: "Kundendaten",
+  },
 );
 
-customerSchema.index(
-  {
-    firstName: "text",
-    lastName: "text",
-    company: "text",
-    email: "text",
-  },
-  { default_language: "none" },
-);
+CustomerSchema.index({ lastName: 1, firstName: 1, company: 1 });
+CustomerSchema.index({ updatedAt: -1 });
 
-const Customer =
-  mongoose.models.Customer || mongoose.model("Customer", customerSchema);
-
-export default Customer;
+export default mongoose.models.Customer || mongoose.model("Customer", CustomerSchema);

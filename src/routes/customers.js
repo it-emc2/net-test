@@ -1,70 +1,173 @@
-import express from "express";
+import { Router } from "express";
 import Customer from "../models/Customer.js";
 
-const router = express.Router();
+const router = Router();
 
-// Create or update customer
+function escRegex(value = "") {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeString(value) {
+  return String(value ?? "").trim();
+}
+
+function pickSearchableKundendaten(snapshot = {}) {
+  return {
+    salutation: normalizeString(snapshot.salutation),
+    customerNumber: normalizeString(snapshot.customerNumber || snapshot.bitrixContactId),
+    bitrixContactId: normalizeString(snapshot.bitrixContactId || snapshot.customerNumber),
+    firstName: normalizeString(snapshot.firstName),
+    lastName: normalizeString(snapshot.lastName),
+    company: normalizeString(snapshot.company),
+    email: normalizeString(snapshot.email).toLowerCase(),
+    phone: normalizeString(snapshot.phone),
+    street: normalizeString(snapshot.street),
+    city: normalizeString(snapshot.city),
+    postalCode: normalizeString(snapshot.postalCode),
+    state: normalizeString(snapshot.state),
+    country: normalizeString(snapshot.country),
+    emc2_contact: normalizeString(snapshot.emc2_contact),
+    payer: normalizeString(snapshot.payer),
+    customerType: normalizeString(snapshot.customerType),
+    deployment: normalizeString(snapshot.deployment),
+    kassenkundeName: normalizeString(snapshot.kassenkundeName),
+    cp_name: normalizeString(snapshot.cp_name),
+    cp_phone: normalizeString(snapshot.cp_phone),
+    cp_city: normalizeString(snapshot.cp_city),
+  };
+}
+
+function normalizeCustomerPayload(body = {}) {
+  const kundendaten = body?.kundendaten && typeof body.kundendaten === "object"
+    ? body.kundendaten
+    : body;
+
+  const core = pickSearchableKundendaten(kundendaten);
+
+  return {
+    ...core,
+    kundendaten,
+    sourceOfferType: normalizeString(body.sourceOfferType || body.offerType || ""),
+  };
+}
+
+function buildSearchFilter(q) {
+  const safe = escRegex(q.trim());
+  const rx = new RegExp(safe, "i");
+  return {
+    $or: [
+      { customerNumber: rx },
+      { bitrixContactId: rx },
+      { firstName: rx },
+      { lastName: rx },
+      { company: rx },
+      { email: rx },
+      { phone: rx },
+      { city: rx },
+      { street: rx },
+      { cp_name: rx },
+      { emc2_contact: rx },
+      { kassenkundeName: rx },
+      {
+        $expr: {
+          $regexMatch: {
+            input: {
+              $trim: {
+                input: {
+                  $concat: [
+                    { $ifNull: ["$firstName", ""] },
+                    " ",
+                    { $ifNull: ["$lastName", ""] },
+                  ],
+                },
+              },
+            },
+            regex: safe,
+            options: "i",
+          },
+        },
+      },
+    ],
+  };
+}
+
 router.post("/", async (req, res) => {
   try {
-    const data = req.body || {};
+    const data = normalizeCustomerPayload(req.body || {});
 
-    if (!data.lastName && !data.company) {
-      return res.status(400).json({ error: "Name oder Firma erforderlich" });
-    }
-
-    let customer;
-    if (data._id) {
-      customer = await Customer.findByIdAndUpdate(data._id, data, {
-        new: true,
+    if (!data.firstName && !data.lastName && !data.company && !data.cp_name) {
+      return res.status(400).json({
+        error: "Bitte mindestens Vorname/Nachname, Firma oder Ansprechpartner angeben.",
       });
-    } else {
-      customer = await Customer.create(data);
     }
 
-    res.json(customer);
+    const filter = data.customerNumber
+      ? { customerNumber: data.customerNumber }
+      : {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          company: data.company,
+          email: data.email,
+        };
+
+    const customer = await Customer.findOneAndUpdate(
+      filter,
+      {
+        $set: {
+          ...data,
+          updatedAt: new Date(),
+        },
+        $setOnInsert: {
+          createdAt: new Date(),
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+        runValidators: true,
+        setDefaultsOnInsert: true,
+      },
+    ).lean();
+
+    return res.json({ ok: true, customer });
   } catch (err) {
-    console.error("POST /api/customers error:", err);
-    res.status(500).json({ error: "Fehler beim Speichern des Kunden" });
+    console.error("[customers] POST error:", err);
+    return res.status(500).json({ error: err.message || "Fehler beim Speichern." });
   }
 });
 
-// Search customers
 router.get("/search", async (req, res) => {
   try {
-    const q = (req.query.q || "").trim();
-    if (!q) return res.json([]);
+    const q = String(req.query.q || "").trim();
+    const limit = Math.min(Math.max(parseInt(req.query.limit || "10", 10) || 10, 1), 50);
 
-    const regex = new RegExp(q, "i");
+    if (!q) return res.json({ ok: true, items: [] });
 
-    const customers = await Customer.find({
-      $or: [
-        { customerNumber: regex },
-        { firstName: regex },
-        { lastName: regex },
-        { company: regex },
-        { email: regex },
-      ],
-    })
-      .limit(20)
+    const items = await Customer.find(buildSearchFilter(q))
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .limit(limit)
+      .select(
+        "customerNumber bitrixContactId salutation firstName lastName company email phone street city postalCode state country emc2_contact payer customerType deployment kassenkundeName cp_name cp_phone cp_city kundendaten sourceOfferType updatedAt createdAt",
+      )
       .lean();
 
-    res.json(customers);
+    return res.json({ ok: true, items });
   } catch (err) {
-    console.error("GET /api/customers/search error:", err);
-    res.status(500).json({ error: "Fehler bei der Kundensuche" });
+    console.error("[customers] SEARCH error:", err);
+    return res.status(500).json({ error: err.message || "Fehler bei der Suche." });
   }
 });
 
-// Get by id
 router.get("/:id", async (req, res) => {
   try {
     const customer = await Customer.findById(req.params.id).lean();
-    if (!customer)
-      return res.status(404).json({ error: "Kunde nicht gefunden" });
-    res.json(customer);
+    if (!customer) {
+      return res.status(404).json({ error: "Kundendaten nicht gefunden." });
+    }
+    return res.json({ ok: true, customer });
   } catch (err) {
-    console.error("GET /api/customers/:id error:", err);
-    res.status(500).json({ error: "Fehler beim Laden des Kunden" });
+    console.error("[customers] GET error:", err);
+    return res.status(500).json({ error: err.message || "Fehler beim Laden." });
   }
 });
 

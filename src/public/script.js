@@ -5678,49 +5678,152 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ------- Customer helpers -------
 
-// map form fields you already have
-function getCustomerFormData() {
+// save / load the whole Kundendaten page state so it can be reused across offer types
+function getKundendatenPageData() {
+  const form = document.getElementById("form-Kundendaten");
+  const data = form ? formToObject(form) : {};
+
+  const q = (sel) => form?.querySelector(sel) || document.querySelector(sel);
+  const checkedValue = (name) => q(`input[name="${name}"]:checked`)?.value || "";
+  const checked = (name) => !!q(`input[name="${name}"]:checked`);
+
+  const budgetMaxEl = q('input[name="budgetMax"]');
+  const budgetCopayEl =
+    document.getElementById("budgetCopay") || q('input[name="budgetCopay"]');
+  const twoPersonsEl = q('input[name="twoPersons"]');
+  const premiumEl = q('input[name="premium"]');
+  const copayAmountEl = document.getElementById("copayAmount");
+  const wohnumfeldAmountEl = document.getElementById("wohnumfeldAmount");
+
+  let budgetOptionsPanel = "";
+  if (budgetMaxEl?.checked) {
+    budgetOptionsPanel = budgetMaxEl.value || "4.180€ MAXIMAL";
+  } else if (twoPersonsEl?.checked) {
+    budgetOptionsPanel = twoPersonsEl.value || "2 PERSONEN MIT PFLEGEGRAD";
+  } else if (premiumEl?.checked) {
+    budgetOptionsPanel = premiumEl.value || "PREMIUM";
+  }
+
+  if (!data.customerNumber) data.customerNumber = data.bitrixContactId || "";
+  if (!data.bitrixContactId) data.bitrixContactId = data.customerNumber || "";
+
   return {
-    customerNumber: document.getElementById("bitrixContactId")?.value || "",
-    firstName: document.getElementById("firstName")?.value || "",
-    lastName: document.getElementById("lastName")?.value || "",
-    company: document.getElementById("company")?.value || "",
-    email: document.getElementById("email")?.value || "",
-    phone: document.getElementById("phone")?.value || "",
-    street: document.getElementById("street")?.value || "",
-    city: document.getElementById("city")?.value || "",
-    postalCode: document.getElementById("postalCode")?.value || "",
-    state: document.getElementById("state")?.value || "",
-    country: document.getElementById("country")?.value || "",
+    ...data,
+
+    // normalize radio-backed fields explicitly so restore can use draft-like semantics
+    salutation: data.salutation || checkedValue("salutation"),
+    hasContactPerson: data.hasContactPerson || checkedValue("hasContactPerson"),
+    payer: data.payer || checkedValue("payer"),
+    aufschlag: data.aufschlag || checkedValue("aufschlag"),
+    hasPflegegrad: data.hasPflegegrad || checkedValue("hasPflegegrad"),
+    pflegegrad: data.pflegegrad || checkedValue("pflegegrad"),
+    wohnumfeldDone: data.wohnumfeldDone || checkedValue("wohnumfeldDone"),
+    wohnumfeldApplication:
+      data.wohnumfeldApplication || checkedValue("wohnumfeldApplication"),
+
+    // draft-style canonical budget payload
+    budgetOptionsPanel: data.budgetOptionsPanel || budgetOptionsPanel,
+    budgetMax:
+      data.budgetMax !== undefined ? data.budgetMax : checked("budgetMax"),
+    budgetCopay:
+      data.budgetCopay !== undefined
+        ? data.budgetCopay
+        : !!budgetCopayEl?.checked,
+    twoPersons:
+      data.twoPersons !== undefined ? data.twoPersons : checked("twoPersons"),
+    premium: data.premium !== undefined ? data.premium : checked("premium"),
+    copayAmount: copayAmountEl?.value || data.copayAmount || "",
+    wohnumfeldAmount: wohnumfeldAmountEl?.value || data.wohnumfeldAmount || "",
+  };
+}
+
+function getCustomerFormData() {
+  const kundendaten = getKundendatenPageData();
+  return {
+    ...kundendaten,
+    kundendaten,
+    sourceOfferType: currentOfferKey || "",
   };
 }
 
 function fillCustomerForm(data) {
-  const set = (id, value) => {
-    const el = document.getElementById(id);
-    if (el && value != null) el.value = value;
-  };
+  const kundendaten =
+    data?.kundendaten && typeof data.kundendaten === "object"
+      ? data.kundendaten
+      : data;
 
-  if (data.salutation) {
-    setRadio("salutation", data.salutation);
+  if (!kundendaten || typeof kundendaten !== "object") return;
+
+  if (typeof restoreKundendaten === "function") {
+    restoreKundendaten(kundendaten, currentOfferKey);
+  } else {
+    const set = (id, value) => {
+      const el = document.getElementById(id);
+      if (!el || value == null) return;
+      el.value = value;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+
+    if (kundendaten.salutation && typeof setRadio === "function") {
+      setRadio("salutation", kundendaten.salutation);
+      document
+        .querySelectorAll('input[name="salutation"]')
+        .forEach((el) => el.dispatchEvent(new Event("change", { bubbles: true })));
+    }
+
+    set("bitrixContactId", kundendaten.bitrixContactId ?? kundendaten.customerNumber ?? "");
+    set("firstName", kundendaten.firstName);
+    set("lastName", kundendaten.lastName);
+    set("company", kundendaten.company);
+    set("email", kundendaten.email);
+    set("phone", kundendaten.phone);
+    set("street", kundendaten.street);
+    set("city", kundendaten.city);
+    set("postalCode", kundendaten.postalCode);
+    set("state", kundendaten.state);
+    set("country", kundendaten.country);
   }
-  set("bitrixContactId", data.bitrixContactId ?? data.customerNumber ?? "");
-  set("firstName", data.firstName);
-  set("lastName", data.lastName);
-  set("company", data.company);
-  set("email", data.email);
-  set("phone", data.phone);
-  set("street", data.street);
-  set("city", data.city);
-  set("postalCode", data.postalCode);
-  set("state", data.state);
-  set("country", data.country);
+
+  const form = document.getElementById("form-Kundendaten");
+  if (form) {
+    form.dispatchEvent(new Event("input", { bubbles: true }));
+    form.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  if (typeof window.updateSummaryWidgetName === "function") {
+    try {
+      window.updateSummaryWidgetName();
+    } catch {}
+  }
+
+  if (typeof window.updateSummaryWidgetSubsidyVisibility === "function") {
+    try {
+      window.updateSummaryWidgetSubsidyVisibility();
+    } catch {}
+  }
+}
+
+function validateCustomerData(data) {
+  const hasName = Boolean(data.firstName || data.lastName || data.company);
+  if (!hasName) {
+    throw new Error("Bitte mindestens Vorname/Nachname oder Firma eingeben.");
+  }
 }
 
 // simple toast or alert helper
 function showCustomerMessage(msg, type = "info") {
+  if (window.toast && typeof window.toast[type] === "function") {
+    window.toast[type](type === "error" ? "Kundendaten" : "Kunde", msg);
+    return;
+  }
+
+  if (typeof showToast === "function") {
+    showToast(msg, type);
+    return;
+  }
+
   console.log(type.toUpperCase(), msg);
-  // optionally integrate with your existing toast system
 }
 
 // ------- Wiring -------
@@ -5729,30 +5832,94 @@ const saveCustomerBtn = document.getElementById("saveCustomerBtn");
 const customerSearchInput = document.getElementById("customerSearch");
 const customerSearchResults = document.getElementById("customerSearchResults");
 
+function setSaveCustomerBtnState(text) {
+  if (!saveCustomerBtn) return;
+  if (!saveCustomerBtn.dataset.originalText) {
+    saveCustomerBtn.dataset.originalText = saveCustomerBtn.textContent.trim();
+  }
+  saveCustomerBtn.textContent = text;
+}
+
+function resetSaveCustomerBtnState(delay = 2000) {
+  if (!saveCustomerBtn) return;
+  const original = saveCustomerBtn.dataset.originalText || "Kunde speichern";
+  setTimeout(() => {
+    saveCustomerBtn.textContent = original;
+  }, delay);
+}
+
 if (saveCustomerBtn) {
   saveCustomerBtn.addEventListener("click", async () => {
     const data = getCustomerFormData();
 
+// make customer save use the same canonical budget shape as drafts
+const elMax = document.querySelector('input[name="budgetMax"]');
+const elTwo = document.querySelector('input[name="twoPersons"]');
+const elPremium = document.querySelector('input[name="premium"]');
+const copayEl = document.getElementById("copayAmount");
+const wohDoneYes = document.querySelector('input[name="wohnumfeldDone"][value="Ja"]');
+const wohAmountEl = document.getElementById("wohnumfeldAmount");
+
+let selectedMain = "";
+if (elMax?.checked) selectedMain = elMax.value;
+else if (elTwo?.checked) selectedMain = elTwo.value;
+else if (elPremium?.checked) selectedMain = elPremium.value;
+
+data.budgetOptionsPanel = selectedMain
+  ? selectedMain.toUpperCase().replace(/_/g, " ").replace(/\s+/g, " ").trim()
+  : "";
+
+data.copayAmount = copayEl?.value || "";
+data.wohnumfeldDone = wohDoneYes?.checked ? "Ja" : "Nein";
+data.wohnumfeldAmount = wohAmountEl?.value || "";
+
     try {
+      validateCustomerData(data);
+
+      setSaveCustomerBtnState("Speichere Kunde...");
+      saveCustomerBtn.disabled = true;
+
       const res = await fetch("/api/customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Fehler beim Speichern");
+      const payload = await res.json().catch(() => ({}));
+
+      // defensive "already exists" detection
+      const alreadyExists =
+        res.status === 409 ||
+        payload === true ||
+        payload === "true" ||
+        payload?.exists === true ||
+        payload?.alreadyExists === true;
+
+      if (!res.ok && !alreadyExists) {
+        throw new Error(payload?.error || "Fehler beim Speichern");
       }
 
-      const saved = await res.json();
-      fillCustomerForm(saved); // make sure any generated customerNumber is shown
-      showCustomerMessage("Kunde gespeichert", "success");
+      if (alreadyExists) {
+        fillCustomerForm(payload?.customer || data);
+        setSaveCustomerBtnState("Kunde existiert bereits");
+        showCustomerMessage("Kunde existiert bereits", "info");
+        resetSaveCustomerBtnState();
+        return;
+      }
+
+      fillCustomerForm(payload?.customer || payload || data);
+      setSaveCustomerBtnState("Kunde gespeichert!");
+      showCustomerMessage("Kundendaten-Seite gespeichert", "success");
+      resetSaveCustomerBtnState();
     } catch (e) {
+      setSaveCustomerBtnState("Fehler beim Speichern");
       showCustomerMessage(
         e.message || "Fehler beim Speichern des Kunden",
         "error",
       );
+      resetSaveCustomerBtnState();
+    } finally {
+      saveCustomerBtn.disabled = false;
     }
   });
 }
@@ -5779,14 +5946,15 @@ if (customerSearchInput && customerSearchResults) {
         if (!res.ok) throw new Error("Suche fehlgeschlagen");
 
         const results = await res.json();
-        renderCustomerSearchResults(results);
+        renderCustomerSearchResults(
+          results?.items || results?.customers || results || [],
+        );
       } catch (e) {
         console.error(e);
       }
-    }, 250); // small debounce
+    }, 250);
   });
 
-  // hide results on outside click
   document.addEventListener("click", (e) => {
     if (
       !customerSearchResults.contains(e.target) &&
@@ -5827,13 +5995,28 @@ function renderCustomerSearchResults(list) {
     item.appendChild(main);
     item.appendChild(meta);
 
-    item.addEventListener("click", () => {
+    item.addEventListener("click", async () => {
       customerSearchResults.classList.remove("visible");
       customerSearchResults.innerHTML = "";
       customerSearchInput.value = "";
 
-      fillCustomerForm(c);
-      showCustomerMessage("Kunde übernommen", "info");
+      try {
+        if (c?._id) {
+          const res = await fetch(`/api/customers/${encodeURIComponent(c._id)}`);
+          if (!res.ok) {
+            throw new Error("Kundendaten konnten nicht geladen werden");
+          }
+          const payload = await res.json();
+          fillCustomerForm(payload?.customer || c);
+        } else {
+          fillCustomerForm(c);
+        }
+        showCustomerMessage("Kundendaten-Seite geladen", "info");
+      } catch (err) {
+        console.error(err);
+        fillCustomerForm(c);
+        showCustomerMessage("Kundendaten geladen", "info");
+      }
     });
 
     customerSearchResults.appendChild(item);
@@ -8904,11 +9087,12 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("cp_state", k.cp_state);
   setByNameOrId("cp_postalCode", k.cp_postalCode);
 
-  // internals (+ budget)
+  // internals
   setByNameOrId("emc2_contact", k.emc2_contact);
   setByNameOrId("bitrixContactId", k.bitrixContactId || k.customerNumber);
   setRadio("payer", k.payer);
   setByNameOrId("kassenkundeName", k.kassenkundeName);
+
   const kassenkundeWrap = document
     .getElementById("kassenkundeName")
     ?.closest(".field");
@@ -8918,16 +9102,22 @@ function restoreKundendaten(k, offer) {
     const input = document.getElementById("kassenkundeName");
     if (input) input.disabled = !show;
   }
-  if (typeof restoreBudgetPanel === "function") restoreBudgetPanel(k);
+
   setRadio("aufschlag", k.aufschlag);
 
-  // Pflegegrad + Wohnumfeld
+  // IMPORTANT:
+  // restore Pflegegrad flow first so dependent budget controls become visible/active
   setRadio("hasPflegegrad", k.hasPflegegrad);
   if (k.pflegegrad) setRadio("pflegegrad", String(k.pflegegrad));
+
   if (typeof restorePflegegradAndWohnumfeld === "function") {
     restorePflegegradAndWohnumfeld(k);
   }
 
+  // THEN restore budget/coplay state in the same semantics drafts use
+  if (typeof restoreBudgetPanel === "function") restoreBudgetPanel(k);
+
+  // restore numeric field last, after budgetCopay had a chance to re-open the field
   setNumber("copayAmount", k.copayAmount);
 }
 
@@ -15297,3 +15487,25 @@ function initDaDuschabtrennungDbSearch() {
 document.addEventListener("DOMContentLoaded", () => {
   initDaDuschabtrennungDbSearch();
 });
+
+function setSaveCustomerStatus(btn, text, type = "info") {
+  if (!btn) return;
+
+  const original = btn.dataset.originalText || btn.textContent;
+  btn.dataset.originalText = original;
+
+  btn.textContent = text;
+
+  btn.classList.remove("status-success", "status-error", "status-loading");
+
+  if (type === "success") btn.classList.add("status-success");
+  if (type === "error") btn.classList.add("status-error");
+  if (type === "loading") btn.classList.add("status-loading");
+
+  if (type !== "loading") {
+    setTimeout(() => {
+      btn.textContent = original;
+      btn.classList.remove("status-success", "status-error");
+    }, 2000);
+  }
+}

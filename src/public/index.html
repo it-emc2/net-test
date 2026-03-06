@@ -1150,6 +1150,18 @@
           </div>
         </div>
 
+        <div class="form-field">
+            <label for="customerSearch">Kunde suchen</label>
+            <div class="customer-search-wrapper">
+              <input type="text" id="customerSearch" placeholder="Name / Kundennummer" autocomplete="off" />
+              <div id="customerSearchResults" class="customer-search-results"></div>
+            </div>
+          </div>
+
+          <div>
+            <p></p>
+          </div>
+
         <div class="section-header">Kontaktdaten des Kunden</div>
         <form id="form-Kundendaten" novalidate>
           <!-- Bitrix contact search by ID -->
@@ -1283,21 +1295,9 @@
 
 
 
-          <!-- Customer actions: save + search -->
-          <div class="form-field">
-            <label class="invisible-label">&nbsp;</label>
-            <button type="button" id="saveCustomerBtn" class="btn-secondary">
-              Kunde speichern
-            </button>
-          </div>
+        
 
-          <div class="form-field">
-            <label for="customerSearch">Kunde suchen</label>
-            <div class="customer-search-wrapper">
-              <input type="text" id="customerSearch" placeholder="Name / Kundennummer" autocomplete="off" />
-              <div id="customerSearchResults" class="customer-search-results"></div>
-            </div>
-          </div>
+          
 
 
           <div id="offerRequiredDetails" class="full" style="margin-top: 16px">
@@ -1507,11 +1507,21 @@
             </details>
           </div>
 
+  <!-- Customer actions: save + search -->
+          <div class="form-field">
+            <label class="invisible-label">&nbsp;</label>
+            <button type="button" id="saveCustomerBtn" class="btn-secondary">
+              Kunde speichern
+            </button>
+          </div>
+
           <div class="actions full">
             <button type="button" class="secondary" data-nav="next">
               Weiter
             </button>
           </div>
+
+
         </form>
       </section>
 

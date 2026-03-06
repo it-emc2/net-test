@@ -2563,3 +2563,17 @@ label.image-check.is-checked .caption {
   opacity: 0.8;
   font-size: 13px;
 }
+
+.status-loading {
+  opacity: 0.7;
+}
+
+.status-success {
+  background: #2e7d32;
+  color: white;
+}
+
+.status-error {
+  background: #c62828;
+  color: white;
+}
