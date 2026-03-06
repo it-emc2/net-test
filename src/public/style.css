@@ -885,6 +885,24 @@ a.btn {
   border-radius: 2px;
 }
 
+/* ---------- Make ONLY the Fußboden toggle bigger ---------- */
+.check-pill:has(#addFlooring) {
+  padding: 14px 18px;
+  gap: 14px;
+  font-size: 1.02rem;
+  border-radius: 14px;
+}
+
+.check-pill:has(#addFlooring) .box {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+}
+
+.check-pill:has(#addFlooring) input:checked + .box::after {
+  inset: 5px;
+}
+
 /* ---------- A11y ---------- */
 .sr-only {
   position: absolute;
