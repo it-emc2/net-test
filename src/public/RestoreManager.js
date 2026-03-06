@@ -47,7 +47,7 @@ export function initRestoreManager({
 
   function pagesToRestoreFor(offerType) {
     const basePages = ["Kundendaten", "Arbeitszeit"];
-    const offerPages = (OFFERS?.[offerType]?.pages) || [];
+    const offerPages = OFFERS?.[offerType]?.pages || [];
     return Array.from(new Set([...basePages, ...offerPages]));
   }
 
@@ -72,14 +72,41 @@ export function initRestoreManager({
       .forEach((el) => dispatchChange(el));
 
     // refresh smart pickers if present
-    document.getElementById("chosenBathtubProductId")
+    document
+      .getElementById("chosenBathtubProductId")
       ?.dispatchEvent(new Event("change", { bubbles: true }));
-    document.getElementById("chosenScreenProductId")
+    document
+      .getElementById("chosenScreenProductId")
       ?.dispatchEvent(new Event("change", { bubbles: true }));
 
     window.__smartTray?.fetchAndRender?.();
     window.__smartBathtub?.fetchAndRender?.();
     window.__smartScreenPicker?.refresh?.();
+
+    // Wandverkleidung dependencies
+    fire('input[name="wvKind"]:checked');
+
+    // Optional parents
+    [
+      "#cat_SHOWER",
+      "#cat_THERMO",
+      "#cat_GRAB",
+      "#cat_FOLD",
+      "#cat_SEAT",
+      "#cat_BASIN",
+      "#cat_BASIN_TAP",
+      "#cat_METER",
+      "#cat_RAMPE",
+      "#cat_REHA",
+      "#cat_SONDER",
+    ].forEach((id) => dispatchChange(document.querySelector(id)));
+
+    // Optional child tiles
+    document
+      .querySelectorAll(
+        '#form-optional input[type="checkbox"][id^="opt_"]:checked',
+      )
+      .forEach((el) => dispatchChange(el));
 
     // pricing & panels
     if (typeof updatePricing === "function") {
@@ -110,7 +137,10 @@ export function initRestoreManager({
       }
 
       // keep "Rabatt must restore" behavior
-      if (!pages.includes("Rabatt") && typeof restoreHandlers?.Rabatt === "function") {
+      if (
+        !pages.includes("Rabatt") &&
+        typeof restoreHandlers?.Rabatt === "function"
+      ) {
         restoreHandlers.Rabatt(payload, ctx);
       }
 
