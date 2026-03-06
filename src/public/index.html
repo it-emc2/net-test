@@ -1979,12 +1979,65 @@
           </div>
 
           <div id="flooringPanel" class="field" aria-hidden="true" hidden>
-            <h3 style="margin: 0 0 8px">Fußboden</h3>
+            <div class="flooring-panel-head">
+              <h3 style="margin: 0">Fußboden</h3>
+              <button type="button" id="floorCalcToggle" class="secondary flooring-calc-toggle" aria-expanded="false"
+                aria-controls="floorCalcPanel">
+                Flächenrechner öffnen
+              </button>
+            </div>
 
-            <!-- Area input: its own field, full width -->
-            <div class="field">
-              <label for="floorArea" class="req">gewünschte Fläche m²</label>
-              <input id="floorArea" name="floorArea" inputmode="decimal" placeholder="z. B. 12,5" />
+            <div class="flooring-top-grid">
+              <div class="field flooring-area-field" style="margin:0;">
+                <label for="floorArea" class="req">gewünschte Fläche m²</label>
+                <input id="floorArea" name="floorArea" inputmode="decimal" placeholder="z. B. 12,5" />
+                <small class="muted flooring-area-help">Sie können die Fläche direkt eingeben oder den Flächenrechner verwenden.</small>
+              </div>
+
+              <aside id="floorCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
+                <div class="floor-calc-card__title-row">
+                  <div>
+                    <div class="floor-calc-card__title">Flächenrechner</div>
+                    <div class="floor-calc-card__hint">Mehrere Flächen addieren oder Aussparungen abziehen.</div>
+                  </div>
+                </div>
+
+                <div id="floorCalcRows" class="floor-calc-rows" aria-live="polite"></div>
+
+                <template id="floorCalcRowTemplate">
+                  <div class="floor-calc-row">
+                    <button type="button" class="floor-calc-sign" data-sign="add" aria-label="Zeile wird addiert">+</button>
+
+                    <label class="field floor-calc-field" style="margin:0;">
+                      <span>Länge</span>
+                      <input class="floor-calc-length" type="number" min="0" step="0.1" inputmode="decimal" placeholder="z. B. 200" />
+                    </label>
+
+                    <span class="floor-calc-times" aria-hidden="true">×</span>
+
+                    <label class="field floor-calc-field" style="margin:0;">
+                      <span>Breite</span>
+                      <input class="floor-calc-width" type="number" min="0" step="0.1" inputmode="decimal" placeholder="z. B. 120" />
+                    </label>
+
+                    <div class="floor-calc-row-area">
+                      <div class="floor-calc-row-area__label">Fläche</div>
+                      <div class="floor-calc-row-result">0,00 m²</div>
+                    </div>
+
+                    <button type="button" class="floor-calc-add-row" aria-label="Weitere Zeile hinzufügen">+</button>
+                    <button type="button" class="floor-calc-remove-row" aria-label="Zeile entfernen">−</button>
+                  </div>
+                </template>
+
+                <div class="floor-calc-result-row">
+                  <div>
+                    <div class="floor-calc-result-label">Gesamtfläche</div>
+                    <div id="floorCalcResult" class="floor-calc-result-value">0,00 m²</div>
+                  </div>
+                  <button type="button" id="floorCalcApply" class="floor-calc-apply">In Fläche übernehmen</button>
+                </div>
+              </aside>
             </div>
 
             <!-- Label + the five tiles directly after it -->

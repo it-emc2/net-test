@@ -2577,3 +2577,222 @@ label.image-check.is-checked .caption {
   background: #c62828;
   color: white;
 }
+
+/* ---------- Flooring mini calculator ---------- */
+.flooring-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 10px;
+  flex-wrap: wrap;
+}
+
+.flooring-calc-toggle {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.flooring-top-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 520px);
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+
+.flooring-area-field {
+  min-width: 0;
+}
+
+.flooring-area-help {
+  display: block;
+  margin-top: 8px;
+}
+
+.floor-calc-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  padding: 14px;
+  min-width: 0;
+}
+
+.floor-calc-card__title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.floor-calc-card__title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.floor-calc-card__hint {
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.floor-calc-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.floor-calc-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 22px minmax(0, 1fr) minmax(120px, auto) 44px 44px;
+  gap: 10px;
+  align-items: end;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(122, 63, 232, 0.04);
+}
+
+.floor-calc-sign,
+.floor-calc-add-row,
+.floor-calc-remove-row {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--accent);
+  background: #fff;
+  color: var(--accent-strong);
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.floor-calc-sign[data-sign="subtract"] {
+  background: var(--accent-weak);
+}
+
+.floor-calc-times {
+  align-self: center;
+  justify-self: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.floor-calc-field {
+  min-width: 0;
+}
+
+.floor-calc-row-area {
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px dashed var(--border);
+}
+
+.floor-calc-row-area__label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.floor-calc-row-result {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.floor-calc-result-row {
+  margin-top: 12px;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.floor-calc-result-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.floor-calc-result-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.floor-calc-apply {
+  border: 1px solid var(--accent);
+  background: var(--accent-weak);
+  color: var(--accent-strong);
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.floor-calc-apply:hover,
+.floor-calc-apply:focus-visible,
+.floor-calc-sign:hover,
+.floor-calc-sign:focus-visible,
+.floor-calc-add-row:hover,
+.floor-calc-add-row:focus-visible,
+.floor-calc-remove-row:hover,
+.floor-calc-remove-row:focus-visible {
+  background: var(--accent);
+  color: #fff;
+}
+
+@media (max-width: 1100px) {
+  .flooring-top-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .floor-calc-row {
+    grid-template-columns: 44px minmax(0, 1fr) 22px minmax(0, 1fr) 44px 44px;
+  }
+
+  .floor-calc-row-area {
+    grid-column: 2 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .flooring-panel-head {
+    align-items: stretch;
+  }
+
+  .flooring-calc-toggle {
+    width: 100%;
+  }
+
+  .floor-calc-row {
+    grid-template-columns: 44px 1fr 22px 1fr;
+  }
+
+  .floor-calc-add-row,
+  .floor-calc-remove-row {
+    width: 100%;
+  }
+
+  .floor-calc-add-row {
+    grid-column: 2 / 3;
+  }
+
+  .floor-calc-remove-row {
+    grid-column: 4 / 5;
+  }
+
+  .floor-calc-row-area {
+    grid-column: 1 / -1;
+  }
+}

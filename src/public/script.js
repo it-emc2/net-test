@@ -6072,6 +6072,12 @@ async function getProduct(id) {
   const toggle = document.getElementById("addFlooring");
   const panel = document.getElementById("flooringPanel");
   const area = document.getElementById("floorArea");
+  const calcToggle = document.getElementById("floorCalcToggle");
+  const calcPanel = document.getElementById("floorCalcPanel");
+  const calcRows = document.getElementById("floorCalcRows");
+  const calcRowTemplate = document.getElementById("floorCalcRowTemplate");
+  const calcResult = document.getElementById("floorCalcResult");
+  const calcApply = document.getElementById("floorCalcApply");
 
   const tileAdh = document.getElementById("tile_R_4260602");
   const tileSeal = document.getElementById("tile_TRBDSET7");
@@ -6138,6 +6144,89 @@ async function getProduct(id) {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
+
+  function setCalcOpen(on) {
+    show(calcPanel, on);
+    if (calcToggle) {
+      calcToggle.setAttribute("aria-expanded", on ? "true" : "false");
+      calcToggle.textContent = on
+        ? "Flächenrechner schließen"
+        : "Flächenrechner öffnen";
+    }
+  }
+  function parseCalcNumber(value) {
+    const raw = String(value || "").trim().replace(",", ".");
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+  function formatAreaValue(n) {
+    return (Number(n) || 0).toLocaleString("de-DE", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+  function getCalcRows() {
+    return Array.from(calcRows?.querySelectorAll(".floor-calc-row") || []);
+  }
+  function updateCalcRowButtons() {
+    const rows = getCalcRows();
+    rows.forEach((row, index) => {
+      const addBtn = row.querySelector(".floor-calc-add-row");
+      const removeBtn = row.querySelector(".floor-calc-remove-row");
+      if (addBtn) addBtn.hidden = index !== rows.length - 1;
+      if (removeBtn) removeBtn.hidden = rows.length <= 1;
+    });
+  }
+  function createCalcRow(sign = "add") {
+    if (!calcRows || !calcRowTemplate) return null;
+    const fragment = calcRowTemplate.content.cloneNode(true);
+    const signBtn = fragment.querySelector(".floor-calc-sign");
+    if (signBtn) {
+      signBtn.dataset.sign = sign === "subtract" ? "subtract" : "add";
+      signBtn.textContent = sign === "subtract" ? "−" : "+";
+      signBtn.setAttribute(
+        "aria-label",
+        sign === "subtract" ? "Zeile wird abgezogen" : "Zeile wird addiert",
+      );
+    }
+    calcRows.appendChild(fragment);
+    updateCalcRowButtons();
+    return calcRows.lastElementChild;
+  }
+  function computeFloorCalcArea() {
+    let total = 0;
+    getCalcRows().forEach((row) => {
+      const lengthInput = row.querySelector(".floor-calc-length");
+      const widthInput = row.querySelector(".floor-calc-width");
+      const signBtn = row.querySelector(".floor-calc-sign");
+      const rowResult = row.querySelector(".floor-calc-row-result");
+      const lengthCm = parseCalcNumber(lengthInput?.value);
+      const widthCm = parseCalcNumber(widthInput?.value);
+      const areaM2 = (lengthCm * widthCm) / 10000;
+      const isSubtract = signBtn?.dataset.sign === "subtract";
+
+      if (rowResult) {
+        rowResult.textContent = `${isSubtract ? "− " : ""}${formatAreaValue(areaM2)} m²`;
+      }
+      total += isSubtract ? -areaM2 : areaM2;
+    });
+
+    total = Math.max(0, total);
+    if (calcResult) calcResult.textContent = `${formatAreaValue(total)} m²`;
+    if (calcApply) calcApply.disabled = !(total > 0);
+    return total;
+  }
+  function ensureCalcRows() {
+    if (!calcRows) return;
+    if (!getCalcRows().length) createCalcRow("add");
+    updateCalcRowButtons();
+    computeFloorCalcArea();
+  }
+  function clearCalcRows() {
+    if (calcRows) calcRows.innerHTML = "";
+    createCalcRow("add");
+    computeFloorCalcArea();
+  }
 
   // function updateIndividPrice() {
   // if (!individPriceEl) return;
@@ -6307,6 +6396,7 @@ function updateFlooringPanelsPriceFromPricing() {
       init(); // keep
     } else {
       if (area) area.value = "";
+      clearCalcRows();
       try {
         localStorage.removeItem(AREA_KEY);
       } catch {}
@@ -6383,6 +6473,63 @@ document.addEventListener("change", (e) => {
   window.updatePricing?.();
 });
   toggle?.addEventListener("change", apply);
+
+  calcToggle?.addEventListener("click", () => {
+    const next = !!calcPanel?.hidden;
+    setCalcOpen(next);
+    if (next) {
+      ensureCalcRows();
+      calcRows?.querySelector(".floor-calc-length")?.focus();
+    }
+  });
+
+  calcRows?.addEventListener("input", (e) => {
+    const target = e.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (
+      !target.classList.contains("floor-calc-length") &&
+      !target.classList.contains("floor-calc-width")
+    ) {
+      return;
+    }
+    computeFloorCalcArea();
+  });
+
+  calcRows?.addEventListener("click", (e) => {
+    const btn = e.target instanceof Element ? e.target.closest("button") : null;
+    if (!btn) return;
+
+    if (btn.classList.contains("floor-calc-sign")) {
+      const nextSign = btn.dataset.sign === "subtract" ? "add" : "subtract";
+      btn.dataset.sign = nextSign;
+      btn.textContent = nextSign === "subtract" ? "−" : "+";
+      btn.setAttribute(
+        "aria-label",
+        nextSign === "subtract" ? "Zeile wird abgezogen" : "Zeile wird addiert",
+      );
+      computeFloorCalcArea();
+      return;
+    }
+
+    if (btn.classList.contains("floor-calc-add-row")) {
+      const row = createCalcRow("add");
+      computeFloorCalcArea();
+      row?.querySelector(".floor-calc-length")?.focus();
+      return;
+    }
+
+    if (btn.classList.contains("floor-calc-remove-row")) {
+      btn.closest(".floor-calc-row")?.remove();
+      ensureCalcRows();
+    }
+  });
+
+  calcApply?.addEventListener("click", () => {
+    const areaM2 = computeFloorCalcArea();
+    if (!area || areaM2 <= 0) return;
+    area.value = formatAreaValue(areaM2);
+    area.dispatchEvent(new Event("input", { bubbles: true }));
+  });
 
   area?.addEventListener("input", () => {
     try {
