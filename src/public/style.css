@@ -3186,83 +3186,947 @@ img[alt="Variodoor"] {
   display: block;
 }
 
-
-/* ===== Apple-style Türanschlag selector ===== */
-
-.door-select {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(200px, 260px));
-  gap: 16px;
-  margin-top: 10px;
+/* ===== BWT facelift patch ===== */
+#page-bwt.bwt-page-modern {
+  padding: 22px;
 }
 
-.door-card {
+#page-bwt.bwt-page-modern #form-bwt {
+  display: block;
+}
+
+#page-bwt .bwt-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+#page-bwt .bwt-page-subtitle {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+#page-bwt .bwt-panel {
+  margin-bottom: 22px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.7), rgba(255,255,255,0.96));
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+}
+
+:root[data-mode="dark"] #page-bwt .bwt-panel {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.55), rgba(15, 23, 42, 0.78));
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.22);
+}
+
+#page-bwt .bwt-panel--hero {
+  padding-bottom: 20px;
+}
+
+#page-bwt .bwt-panel__header {
+  margin-bottom: 14px;
+}
+
+#page-bwt .bwt-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--accent-weak);
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+#page-bwt .bwt-panel__title {
+  margin: 0;
+  font-size: 1.12rem;
+  line-height: 1.25;
+}
+
+#page-bwt .bwt-panel__subtitle {
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+#page-bwt .bwt-shape-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  gap: 14px;
+}
+
+#page-bwt .bwt-shape-grid .image-check,
+#page-bwt .bwt-shape-grid label.image-check {
+  min-width: 0 !important;
+  height: 100%;
+}
+
+#page-bwt .bwt-shape-grid .img-wrap {
+  aspect-ratio: 4 / 3;
+  height: auto;
+}
+
+#page-bwt .bwt-shape-grid .caption {
+  font-weight: 600;
+}
+
+#page-bwt .bwt-info-grid {
+  display: grid;
+  grid-template-columns: 1.25fr .9fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+#page-bwt .bwt-info-box {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+}
+
+#page-bwt .bwt-mini-title {
+  margin-bottom: 10px;
+  font-weight: 700;
+  color: var(--accent-strong);
+}
+
+#page-bwt .task-cards {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+#page-bwt .bwt-config-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 390px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+#page-bwt .bwt-config-card {
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+#page-bwt .bwt-inline-label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+#page-bwt .bwt-note-box {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent-weak) 70%, white 30%);
+  color: var(--muted-foreground);
+  line-height: 1.45;
+}
+
+:root[data-mode="dark"] #page-bwt .bwt-note-box {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+#page-bwt .door-select.bwt-door-side-select {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  gap: 12px;
+  max-width: none;
+  margin-top: 0;
+}
+
+#page-bwt .door-card {
   cursor: pointer;
   position: relative;
 }
 
-.door-card input {
+#page-bwt .door-card input {
   display: none;
 }
 
-.door-image {
+#page-bwt .door-image {
   position: relative;
-  border-radius: 14px;
+  border-radius: 16px;
   overflow: hidden;
-  border: 2px solid var(--border);
-  transition: all 0.25s ease;
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
 }
 
-.door-image img {
+#page-bwt .door-image img {
   width: 100%;
-  height: 200px;
+  height: 180px;
   object-fit: cover;
   display: block;
-  transition: transform .25s ease;
+  transition: transform .26s ease;
 }
 
-.door-card:hover img {
-  transform: scale(1.05);
+#page-bwt .door-card:hover .door-image {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
 }
 
-.door-overlay {
+#page-bwt .door-card:hover .door-image img {
+  transform: scale(1.04);
+}
+
+#page-bwt .door-overlay {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 10px;
-  background: linear-gradient(to top, rgba(0,0,0,0.55), transparent);
+  inset: auto 0 0 0;
+  padding: 12px 12px 10px;
+  background: linear-gradient(to top, rgba(0,0,0,0.68), rgba(0,0,0,0.04));
 }
 
-.door-label {
-  color: white;
-  font-weight: 600;
+#page-bwt .door-label {
+  color: #fff;
   font-size: 0.9rem;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
 }
 
-.door-check {
+#page-bwt .door-check {
   position: absolute;
   top: 10px;
   right: 10px;
-  background: var(--accent);
-  color: white;
-  font-weight: bold;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
   display: grid;
   place-items: center;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
   opacity: 0;
-  transform: scale(.6);
-  transition: all .2s ease;
+  transform: scale(.72);
+  transition: opacity .2s ease, transform .2s ease;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.18);
 }
 
-.door-card:has(input:checked) .door-image {
+#page-bwt .door-card:has(input:checked) .door-image {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring), 0 12px 28px rgba(15, 23, 42, 0.12);
+}
+
+#page-bwt .door-card:has(input:checked) .door-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+#page-bwt .color-swatch-group {
+  justify-content: flex-start;
+}
+
+#page-bwt .color-swatch {
+  min-width: 150px;
+}
+
+#page-bwt .color-swatch__preview {
+  width: 96px;
+  height: 96px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+#page-bwt .bwt-accordion {
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+#page-bwt .bwt-accordion summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 16px 18px;
+  font-weight: 700;
+  color: var(--accent-strong);
+  background: var(--section-bg);
+}
+
+#page-bwt .bwt-accordion summary::-webkit-details-marker {
+  display: none;
+}
+
+#page-bwt .bwt-accordion__body {
+  padding: 18px;
+  display: grid;
+  gap: 16px;
+}
+
+#page-bwt textarea {
+  background: color-mix(in srgb, var(--card) 85%, var(--section-bg) 15%);
+}
+
+#page-bwt .actions.full {
+  margin-top: 22px !important;
+}
+
+@media (max-width: 980px) {
+  #page-bwt .bwt-info-grid,
+  #page-bwt .bwt-config-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  #page-bwt.bwt-page-modern {
+    padding: 16px;
+  }
+
+  #page-bwt .bwt-panel {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  #page-bwt .door-select.bwt-door-side-select {
+    grid-template-columns: 1fr;
+  }
+
+  #page-bwt .door-image img {
+    height: 210px;
+  }
+}
+
+/* ===== BWT Konfiguration layout (horizontal rows instead of columns) ===== */
+
+.bwt-config-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 22px;
+}
+
+/* Row 1 — Türanschlag */
+.bwt-config-grid .bwt-config-anschlag {
+  grid-column: 1 / -1;
+}
+
+/* Row 2 — Farben */
+.bwt-config-grid .bwt-config-colors {
+  grid-column: 1 / -1;
+}
+
+/* Row 3 — Hinweis */
+.bwt-config-grid .bwt-config-note {
+  grid-column: 1 / -1;
+}
+
+/* Türanschlag cards layout */
+.door-select {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(200px, 260px));
+  gap: 16px;
+}
+
+/* color cards layout */
+.color-swatch-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 180px));
+  gap: 16px;
+}
+
+/* nicer spacing inside config cards */
+.bwt-config-grid .card,
+.bwt-config-grid .config-card {
+  padding: 18px;
+  border-radius: 14px;
+}
+
+
+/* ===== BWT config layout fix: stack Türanschlag -> Farben -> Hinweis ===== */
+/* Added by patch */
+
+#page-bwt .bwt-config-grid {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 18px !important;
+  align-items: start !important;
+}
+
+#page-bwt .bwt-config-card {
+  width: 100%;
+  max-width: 100%;
+}
+
+#page-bwt .bwt-config-grid > .bwt-config-card:first-child {
+  grid-column: 1 / -1;
+}
+
+#page-bwt .bwt-config-grid > .bwt-config-card:last-child {
+  grid-column: 1 / -1;
+}
+
+#page-bwt .door-select.bwt-door-side-select {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(150px, 190px)) !important;
+  gap: 12px !important;
+  justify-content: start !important;
+  max-width: none !important;
+}
+
+#page-bwt .color-swatch-group {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 185px)) !important;
+  gap: 14px !important;
+  justify-content: start !important;
+}
+
+#page-bwt .bwt-note-box {
+  margin-top: 16px !important;
+  max-width: 760px;
+}
+
+@media (max-width: 700px) {
+  #page-bwt .door-select.bwt-door-side-select {
+    grid-template-columns: 1fr !important;
+  }
+
+  #page-bwt .color-swatch-group {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+/* make each color card bigger */
+#page-bwt .color-swatch{
+  width:100%;
+  max-width:220px;
+  padding:16px 14px;
+  border-radius:14px;
+}
+
+/* center inner content */
+#page-bwt .color-swatch__info{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  margin-top:10px;
+}
+
+/* make color preview bigger */
+#page-bwt .color-swatch__preview{
+  width:120px !important;
+  height:120px !important;
+  margin:auto;
+  border-radius:14px;
+}
+
+/* improve label alignment */
+#page-bwt .color-swatch__label{
+  font-weight:600;
+}
+
+#page-bwt .color-swatch__code{
+  font-size:0.8rem;
+  opacity:.7;
+}
+
+/* ===== BWT Wannenform only: slightly bigger cards ===== */
+
+/* only target the first Wannenform selection row */
+#page-bwt input[name="bwtShape"] {
+  /* no visual rule here, just keeps selector context readable */
+}
+
+#page-bwt label.image-check:has(input[name="bwtShape"]) {
+  min-width: 260px;
+  padding: 12px;
+  border-radius: 14px;
+}
+
+#page-bwt label.image-check:has(input[name="bwtShape"]) .img-wrap {
+  height: 180px;
+}
+
+#page-bwt label.image-check:has(input[name="bwtShape"]) img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+#page-bwt label.image-check:has(input[name="bwtShape"]) .caption {
+  font-size: 0.95rem;
+  margin-top: 10px;
+}
+
+/* ===== BWT color swatches: more premium / less plain ===== */
+
+#page-bwt .color-swatch-group {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 220px)) !important;
+  gap: 18px !important;
+  justify-content: center !important;
+}
+
+#page-bwt .color-swatch {
+  width: 100%;
+  max-width: 220px;
+  min-height: 228px;
+  padding: 30px 14px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+#page-bwt .color-swatch:hover {
+  transform: translateY(-3px);
+  border-color: rgba(124, 58, 237, 0.18);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.10);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+#page-bwt .color-swatch__preview {
+  width: 118px !important;
+  height: 118px !important;
+  margin: 0 auto 14px !important;
+  border-radius: 18px !important;
+  border: 1px solid rgba(148, 163, 184, 0.28) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.7),
+    0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+#page-bwt .color-swatch__info {
+  display: grid !important;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: auto !important;
+}
+
+#page-bwt .color-swatch__radio {
+  width: 20px;
+  height: 20px;
+}
+
+#page-bwt .color-swatch__radio-inner {
+  width: 10px;
+  height: 10px;
+}
+
+#page-bwt .color-swatch__label {
+  font-weight: 700 !important;
+  color: #1f2937;
+}
+
+#page-bwt .color-swatch__code {
+  font-size: 0.8rem;
+  opacity: 0.72;
+  letter-spacing: 0.01em;
+}
+
+#page-bwt .color-swatch:has(input[type="radio"]:checked) {
+  border-color: var(--accent) !important;
+  background: linear-gradient(180deg, #f8f5ff 0%, #eef4ff 100%) !important;
+  box-shadow:
+    0 0 0 3px var(--ring),
+    0 16px 32px rgba(124, 58, 237, 0.14) !important;
+}
+
+#page-bwt .color-swatch:has(input[type="radio"]:checked) .color-swatch__preview {
+  transform: scale(1.03);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.7),
+    0 12px 24px rgba(124, 58, 237, 0.14);
+}
+
+#page-bwt .color-swatch:has(input[type="radio"]:checked) .color-swatch__label {
+  color: var(--accent-strong) !important;
+}
+
+@media (max-width: 700px) {
+  #page-bwt .color-swatch-group {
+    grid-template-columns: 1fr 1fr !important;
+    justify-content: stretch !important;
+  }
+
+  #page-bwt .color-swatch {
+    max-width: none;
+  }
+}
+
+@media (max-width: 480px) {
+  #page-bwt .color-swatch-group {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ===== Gloss effect for color swatches ===== */
+
+#page-bwt .color-swatch__preview{
+  position: relative;
+  overflow: hidden;
+}
+
+/* glossy reflection */
+#page-bwt .color-swatch__preview::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255,255,255,0.65) 0%,
+      rgba(255,255,255,0.25) 18%,
+      rgba(255,255,255,0.05) 40%,
+      rgba(255,255,255,0) 60%
+    );
+
+  pointer-events:none;
+}
+
+/* subtle depth */
+#page-bwt .color-swatch__preview{
+  box-shadow:
+    inset 0 2px 4px rgba(0,0,0,0.06),
+    inset 0 -2px 6px rgba(0,0,0,0.08),
+    0 8px 18px rgba(0,0,0,0.08);
+}
+
+#page-bwt .color-swatch:hover .color-swatch__preview::after{
+  opacity:0.85;
+  transition:opacity .15s ease;
+}
+
+/* ===== Extra glossy enamel effect ===== */
+
+#page-bwt .color-swatch__preview{
+  position: relative;
+  overflow: hidden;
+
+  box-shadow:
+    inset 0 2px 3px rgba(255,255,255,0.9),
+    inset 0 -6px 10px rgba(0,0,0,0.15),
+    0 10px 20px rgba(0,0,0,0.15);
+}
+
+/* main gloss streak */
+#page-bwt .color-swatch__preview::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+
+  background:
+    linear-gradient(
+      150deg,
+      rgba(255,255,255,0.9) 0%,
+      rgba(255,255,255,0.55) 10%,
+      rgba(255,255,255,0.15) 25%,
+      rgba(255,255,255,0) 40%
+    );
+
+  pointer-events:none;
+}
+
+/* curved glossy reflection */
+#page-bwt .color-swatch__preview::before{
+  content:"";
+  position:absolute;
+  left:-30%;
+  top:-40%;
+  width:160%;
+  height:120%;
+  border-radius:50%;
+
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(255,255,255,0.55) 0%,
+      rgba(255,255,255,0.18) 30%,
+      rgba(255,255,255,0) 60%
+    );
+
+  pointer-events:none;
+}
+
+/* ===== Theme-aware selected color swatch ===== */
+
+#page-bwt .color-swatch:has(input[type="radio"]:checked) {
+  border-color: var(--accent) !important;
+  background: linear-gradient(180deg, #ffffff 0%, var(--accent-weak) 100%) !important;
+  box-shadow:
+    0 0 0 3px var(--ring),
+    0 16px 32px rgba(15, 23, 42, 0.10) !important;
+}
+
+#page-bwt .color-swatch:has(input[type="radio"]:checked) .color-swatch__preview {
+  transform: scale(1.03);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.7),
+    0 12px 24px rgba(15, 23, 42, 0.10);
+}
+
+#page-bwt .color-swatch:has(input[type="radio"]:checked) .color-swatch__label {
+  color: var(--accent-strong) !important;
+}
+
+#page-bwt .color-swatch__radio {
+  border-color: var(--border);
+}
+
+#page-bwt .color-swatch:has(input[type="radio"]:checked) .color-swatch__radio {
+  border-color: var(--accent) !important;
   box-shadow: 0 0 0 3px var(--ring);
 }
 
-.door-card:has(input:checked) .door-check {
-  opacity: 1;
-  transform: scale(1);
+#page-bwt .color-swatch:has(input[type="radio"]:checked) .color-swatch__radio-inner {
+  background: var(--accent) !important;
+}
+
+
+/* ===== BWT Türanschlag centering fix ===== */
+/* Added at bottom so it overrides earlier left-aligned rules */
+
+#page-bwt .bwt-config-anschlag {
+  width: 100%;
+}
+
+#page-bwt .bwt-config-anschlag .door-select.bwt-door-side-select {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(180px, 190px)) !important;
+  gap: 12px !important;
+  justify-content: center !important;
+  align-content: start !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 auto !important;
+}
+
+#page-bwt .bwt-config-anschlag .door-card {
+  width: 100%;
+}
+
+@media (max-width: 700px) {
+  #page-bwt .bwt-config-anschlag .door-select.bwt-door-side-select {
+    grid-template-columns: 1fr !important;
+    max-width: 260px !important;
+    justify-content: center !important;
+  }
+}
+
+
+
+/* ===== BWT Türanschlag HARD center fix (override any earlier rules) ===== */
+#page-bwt #bwtAnschlagGroup{
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(200px, 240px)) !important;
+  gap: 18px !important;
+  justify-content: center !important;
+  align-content: start !important;
+  margin: 0 auto !important;
+  width: 100% !important;
+}
+
+#page-bwt #bwtAnschlagGroup .door-card{
+  width: 100%;
+}
+
+/* Mobile */
+@media (max-width:700px){
+  #page-bwt #bwtAnschlagGroup{
+    grid-template-columns: 1fr !important;
+    max-width: 260px;
+  }
+}
+
+/* ===== BWT premium polish patch ===== */
+
+/* Better hierarchy + spacing */
+#page-bwt .bwt-panel{
+  border-radius: 20px;
+  padding: 22px;
+  box-shadow:
+    0 10px 30px rgba(15, 23, 42, 0.06),
+    0 1px 0 rgba(255,255,255,0.7) inset;
+}
+
+#page-bwt .bwt-panel__header{
+  margin-bottom: 18px;
+}
+
+#page-bwt .bwt-kicker{
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--accent-weak);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.82rem;
+  margin-bottom: 10px;
+}
+
+#page-bwt .bwt-panel__title{
+  margin: 0 0 6px;
+  letter-spacing: -0.02em;
+}
+
+#page-bwt .bwt-panel__subtitle{
+  color: var(--muted);
+  max-width: 70ch;
+}
+
+/* Türanschlag premium feel */
+#page-bwt .door-card,
+#page-bwt .door-image,
+#page-bwt .color-swatch{
+  transition:
+    transform .22s ease,
+    box-shadow .22s ease,
+    border-color .22s ease,
+    background-color .22s ease;
+}
+
+#page-bwt .door-card:hover .door-image{
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.14);
+}
+
+#page-bwt .door-card:has(input:checked) .door-image img{
+  transform: scale(1.03);
+}
+
+/* Color cards: more premium + glossy */
+#page-bwt .color-swatch{
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(248,250,252,0.96) 100%);
+  box-shadow:
+    0 8px 24px rgba(15, 23, 42, 0.05),
+    0 1px 0 rgba(255,255,255,0.9) inset;
+}
+
+#page-bwt .color-swatch::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.10) 32%, rgba(255,255,255,0) 60%);
+  pointer-events: none;
+}
+
+#page-bwt .color-swatch:hover{
+  transform: translateY(-2px);
+  box-shadow:
+    0 16px 34px rgba(15, 23, 42, 0.10),
+    0 1px 0 rgba(255,255,255,0.9) inset;
+}
+
+#page-bwt .color-swatch__preview{
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.8),
+    0 10px 22px rgba(15, 23, 42, 0.10);
+}
+
+/* Note box cleaner */
+#page-bwt .bwt-note-box{
+  border-radius: 16px;
+  padding: 16px 18px;
+  background: linear-gradient(180deg, var(--accent-weak) 0%, color-mix(in srgb, var(--accent-weak) 70%, white 30%) 100%);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border) 82%);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+}
+
+/* Mobile spacing */
+@media (max-width: 700px){
+  #page-bwt .bwt-panel{
+    padding: 16px;
+    border-radius: 18px;
+  }
+}
+
+
+
+/* --- BWT Haltegriffe: make all 4 fit in one row --- */
+/* HTML uses inline styles like min-width:220px; flex:0 0 220px, so override them explicitly */
+#page-bwt .bwt-panel .full.field > div[style*="display:flex"][style*="flex-wrap:wrap"] {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 10px !important;
+  align-items: flex-start;
+}
+
+#page-bwt .bwt-panel .full.field > div[style*="display:flex"][style*="flex-wrap:wrap"] > .field {
+  min-width: 0 !important;
+  width: calc((100% - 30px) / 4) !important;
+  flex: 0 0 calc((100% - 30px) / 4) !important;
+  max-width: calc((100% - 30px) / 4) !important;
+  margin: 0 !important;
+}
+
+#page-bwt .bwt-panel .full.field > div[style*="display:flex"][style*="flex-wrap:wrap"] > .field > .image-check {
+  width: 100% !important;
+  padding: 10px !important;
+}
+
+#page-bwt .bwt-panel .full.field > div[style*="display:flex"][style*="flex-wrap:wrap"] > .field > .image-check .img-wrap {
+  aspect-ratio: 4 / 3 !important;
+}
+
+#page-bwt .bwt-panel .full.field > div[style*="display:flex"][style*="flex-wrap:wrap"] > .field > .field {
+  max-width: 100% !important;
+}
+
+#page-bwt .bwt-panel .full.field > div[style*="display:flex"][style*="flex-wrap:wrap"] > .field > .image-check:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.08);
+}
+
+@media (max-width: 900px) {
+  #page-bwt .bwt-panel .full.field > div[style*="display:flex"][style*="flex-wrap:wrap"] {
+    flex-wrap: wrap !important;
+  }
+
+  #page-bwt .bwt-panel .full.field > div[style*="display:flex"][style*="flex-wrap:wrap"] > .field {
+    width: calc((100% - 10px) / 2) !important;
+    flex: 0 0 calc((100% - 10px) / 2) !important;
+    max-width: calc((100% - 10px) / 2) !important;
+  }
+}
+
+@media (max-width: 560px) {
+  #page-bwt .bwt-panel .full.field > div[style*="display:flex"][style*="flex-wrap:wrap"] > .field {
+    width: 100% !important;
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* BWT Haltegriffe: make cards a bit longer */
+#page-bwt .bwt-panel .full.field > div[style*="display:flex"][style*="flex-wrap:wrap"] > .field > .image-check .img-wrap {
+  aspect-ratio: 1 / 1 !important;
+  height: auto !important;
+}
+
+/* keep the product image stretched nicely inside */
+#page-bwt .bwt-panel .full.field > div[style*="display:flex"][style*="flex-wrap:wrap"] > .field > .image-check .img-wrap img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
 }

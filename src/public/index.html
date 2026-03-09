@@ -4447,567 +4447,562 @@ button.dm-btn-danger:focus-visible {
       </section>
 
       <!-- bwt -->
-      <section class="card page" id="page-bwt" hidden>
-        <h2 style="margin: 0 0 12px">Badewanne — Bestandsaufnahme</h2>
+      <section class="card page bwt-page-modern" id="page-bwt" hidden>
+        <div class="bwt-page-head">
+          <div>
+            <h2 style="margin: 0">Badewanne — Bestandsaufnahme</h2>
+            <p class="bwt-page-subtitle">Alle wichtigen Entscheidungen für die Badewannentür</p>
+          </div>
+        </div>
+
         <form id="form-bwt">
-          <!-- Wannenform -->
-
-          <div class="full field">
-
-            <label class="req">Wählen Sie Ihre bestehende Wannenform</label>
-
-
-            <div style="display:flex; gap:14px; flex-wrap:wrap">
-              <!-- Normal rechteckig -->
-              <label class="image-check" style="min-width:220px">
-                <input type="radio" name="bwtShape" value="Normal, rechteckig" required />
-                <span class="img-wrap">
-                  <img src="./assets/Normal, rechteckig.png" alt="Normal, rechteckig" />
-                </span>
-                <span class="caption">Normal, rechteckig</span>
-              </label>
-
-              <!-- abgerundete Eckbadewanne -->
-              <label class="image-check" style="min-width:220px">
-                <input type="radio" name="bwtShape" value="abgerundete Eckbadewanne" required />
-                <span class="img-wrap">
-                  <img src="./assets/abgerundete Eckbadewanne.png" alt="abgerundete Eckbadewanne" />
-                </span>
-                <span class="caption">abgerundete Eckbadewanne</span>
-              </label>
-
-              <!-- eckige Eckbadewanne -->
-              <label class="image-check" style="min-width:220px">
-                <input type="radio" name="bwtShape" value="eckige Eckbadewanne" required />
-                <span class="img-wrap">
-                  <img src="./assets/eckige Eckbadewanne.png" alt="eckige Eckbadewanne" />
-                </span>
-                <span class="caption">eckige Eckbadewanne</span>
-              </label>
-
-              <!-- spezielle Form -->
-              <label class="image-check" style="min-width:220px">
-                <input type="radio" name="bwtShape" value="spezielle Form" required />
-                <span class="img-wrap">
-                  <img src="./assets/spezielle Form.png" alt="spezielle Form" />
-                </span>
-                <span class="caption">spezielle Form</span>
-              </label>
+          <section class="bwt-panel bwt-panel--hero">
+            <div class="bwt-panel__header">
+              <div>
+                <div class="bwt-kicker">1. Bestand aufnehmen</div>
+                <h3 class="bwt-panel__title">Wannenform & Grundvoraussetzungen</h3>
+                <p class="bwt-panel__subtitle">Wählen Sie zunächst die bestehende Wannenform und bestätigen Sie die wichtigsten Voraussetzungen.</p>
+              </div>
             </div>
-          </div>
-          <!-- BWT Umbau Info -->
-          <div class="task-cards">
-            <label class="task-card">
-              <input type="checkbox" name="bwt[bwtinfoTasks][]" value="flat_surface" checked />
-              <span class="task-card__body">
-                <span class="task-card__title">Fläche ist gerade und eben im Bereich der BWT</span>
-              </span>
-            </label>
-            <label class="task-card">
-              <input type="checkbox" name="bwt[bwtinfoTasks][]" value="fixture_free" checked />
-              <span class="task-card__body">
-                <span class="task-card__title">Fläche ist frei von Armaturen</span>
-              </span>
-            </label>
-            <label class="task-card">
-              <input type="checkbox" name="bwt[bwtinfoTasks][]" value="not_whirlpool" checked />
-              <span class="task-card__body">
-                <span class="task-card__title">Ist kein Whirlpool</span>
-              </span>
-            </label>
-          </div>
 
-          <!-- Material -->
-          <div class="full field" style="margin-top: 8px">
-            <label>Wählen Sie das Material, aus dem Ihre Wanne besteht</label>
-            <div class="radio-group vertical" role="radiogroup" aria-label="Material der Wanne" id="bwtMaterialGroup">
-              <label class="radio-pill">
-                <input type="radio" name="bwtMaterial" value="Acryl" />
-                <span class="circle"></span>
-                <span>Acryl</span>
-              </label>
-
-              <label class="radio-pill">
-                <input type="radio" name="bwtMaterial" value="Stahl emailliert" />
-                <span class="circle"></span>
-                <span>Stahl emailliert</span>
-              </label>
-
-              <label class="radio-pill">
-                <input type="radio" name="bwtMaterial" value="Gusseisen" />
-                <span class="circle"></span>
-                <span>Gusseisen</span>
-              </label>
-
-              <label class="radio-pill">
-                <input type="radio" name="bwtMaterial" value="Weiß ich nicht" />
-                <span class="circle"></span>
-                <span>Nicht bekannt</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Hinweis 
-<p class="muted" style="margin: 14px 0 6px">
-  Hinweis: Die Farbe von Tür und Rahmen kann individuell angepasst werden. Jede Farbe wird gleich berechnet.
-</p>-->
-
-
-
-          <!-- Tür-Typ: Standard Tür – Wien with Menge etc. -->
-          <div class="full field">
-            <label class="req">Wählen Sie Ihren gewünschten Tür-Typen</label>
-
-            <!-- GRID container -->
-            <div id="bwtDoors" class="bwt-door-grid bwt-door-grid--premium" style="
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 14px;
-      align-items: flex-start;
-    ">
-
-              <!-- Universal / Standard Tür -->
-              <div class="field bwt-door-card-wrap">
-                <label class="image-check bwt-door-card">
-                  <input type="checkbox" id="bwtDoorStd" name="bwtDoorType" value="Universal / Standard Tür"
-                    data-product-id="1226" checked />
+            <div class="full field">
+              <label class="req">Wählen Sie Ihre bestehende Wannenform</label>
+              <div class="bwt-shape-grid">
+                <label class="image-check" style="min-width:220px">
+                  <input type="radio" name="bwtShape" value="Normal, rechteckig" required />
                   <span class="img-wrap">
-                    <img src="./assets/tur.jpg" alt="Universal / Standard Tür" />
+                    <img src="./assets/Normal, rechteckig.png" alt="Normal, rechteckig" />
                   </span>
-                  <span class="caption">Universal / Standard Tür</span>
-                  <span class="caption-sub">
-                    • Höhen
-                    <input id="bwtDoorStdHeight" name="bwtDoorStdHeight" class="bwt-door-height-inline" type="number"
-                      min="33" max="40" step="1" value="39" inputmode="numeric" aria-label="Höhe in cm" />
-                    cm abschneidbar<br />
+                  <span class="caption">Normal, rechteckig</span>
+                </label>
 
-                    • Fix Bereite 40,5 cm<br />
-                    • Tiefe O 25cm U 25cm
+                <label class="image-check" style="min-width:220px">
+                  <input type="radio" name="bwtShape" value="abgerundete Eckbadewanne" required />
+                  <span class="img-wrap">
+                    <img src="./assets/abgerundete Eckbadewanne.png" alt="abgerundete Eckbadewanne" />
                   </span>
+                  <span class="caption">abgerundete Eckbadewanne</span>
+                </label>
 
-                  <div id="bwtDoorStdQtyWrap" class="field bwt-door-extra" aria-hidden="false" data-expand-in-card="true">
-                    <label for="bwtDoorStdQty" class="req">Menge Universal / Standard Tür</label>
-                    <input id="bwtDoorStdQty" name="bwtDoorStdQty" type="number" min="1" step="1" placeholder="1"
-                      inputmode="numeric" value="1" />
+                <label class="image-check" style="min-width:220px">
+                  <input type="radio" name="bwtShape" value="eckige Eckbadewanne" required />
+                  <span class="img-wrap">
+                    <img src="./assets/eckige Eckbadewanne.png" alt="eckige Eckbadewanne" />
+                  </span>
+                  <span class="caption">eckige Eckbadewanne</span>
+                </label>
 
-                    <label for="bwtDoorStdColor" class="req">Farbe Universal / Standard Tür</label>
-                    <select id="bwtDoorStdColor" name="bwtDoorStdColor">
-                      <option value="weiß" selected>weiß</option>
-                      <option value="Beige">Beige</option>
-                      <option value="Manhattan">Manhattan</option>
-                    </select>
-                  </div>
+                <label class="image-check" style="min-width:220px">
+                  <input type="radio" name="bwtShape" value="spezielle Form" required />
+                  <span class="img-wrap">
+                    <img src="./assets/spezielle Form.png" alt="spezielle Form" />
+                  </span>
+                  <span class="caption">spezielle Form</span>
                 </label>
               </div>
+            </div>
 
-              <!-- Individual Tür - Wien -->
-              <div class="field bwt-door-card-wrap">
-                <label class="image-check bwt-door-card">
-                  <input type="checkbox" id="bwtDoorIndWien" name="bwtDoorType" value="Individual Tür - Wien"
-                    data-product-id="1227" />
-                  <span class="img-wrap">
-                    <img src="./assets/wien.jpg" alt="Individual Tür - Wien" />
-                  </span>
-                  <span class="caption">Individual Tür - Wien</span>
-                  <span class="caption-sub">
-                    • Höhe
-                    <input id="bwtDoorIndWienHeight" name="bwtDoorIndWienHeight" class="bwt-door-height-inline" type="number" min="20" max="50" step="0.5"
-                      inputmode="decimal" placeholder="20-50" aria-label="Höhe Individual Tür - Wien" />
-                    cm<br />
-                    • Breite
-                    <input id="bwtDoorIndWienWidth" name="bwtDoorIndWienWidth" class="bwt-door-height-inline" type="number" min="30" max="50" step="0.5"
-                      inputmode="decimal" placeholder="30-50" aria-label="Breite Individual Tür - Wien" />
-                    cm<br />
-                    • Standardbreiten
-                    <select id="bwtDoorIndWienStdWidth" name="bwtDoorIndWienStdWidth" class="bwt-door-height-inline" aria-label="Standardbreite Individual Tür - Wien">
-                      <option value="">–</option>
-                      <option value="30,5 cm">30,5</option>
-                      <option value="45,5 cm">45,5</option>
-                    </select>
-                    cm<br />
-                    • Tiefe O
-                    <input id="bwtDoorIndWienDepthTop" name="bwtDoorIndWienDepthTop" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
-                      inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe O Individual Tür - Wien" />
-                    cm<br />
-                    • Tiefe U
-                    <input id="bwtDoorIndWienDepthBottom" name="bwtDoorIndWienDepthBottom" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
-                      inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe U Individual Tür - Wien" />
-                    cm
-                  </span>
-
-                  <div id="bwtDoorIndWienQtyWrap" class="field bwt-door-extra" aria-hidden="true" data-expand-in-card="true">
-                    <label for="bwtDoorIndWienQty" class="req">Menge Individual Tür - Wien</label>
-                    <input id="bwtDoorIndWienQty" name="bwtDoorIndWienQty" type="number" min="1" step="1" placeholder="1"
-                      inputmode="numeric" value="1" />
-                  
-                    <label for="bwtDoorIndWienColor" class="req">Farbe Individual Tür - Wien</label>
-                    <select id="bwtDoorIndWienColor" name="bwtDoorIndWienColor">
-                      <option value="weiß">weiß</option>
-                      <option value="silber">silber</option>
-                    </select>
-                  </div>
-                </label>
+            <div class="bwt-info-grid">
+              <div class="bwt-info-box">
+                <div class="bwt-mini-title">Umbau-Check</div>
+                <div class="task-cards">
+                  <label class="task-card">
+                    <input type="checkbox" name="bwt[bwtinfoTasks][]" value="flat_surface" checked />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Fläche ist gerade und eben im Bereich der BWT</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="bwt[bwtinfoTasks][]" value="fixture_free" checked />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Fläche ist frei von Armaturen</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="bwt[bwtinfoTasks][]" value="not_whirlpool" checked />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Ist kein Whirlpool</span>
+                    </span>
+                  </label>
+                </div>
               </div>
 
-              <!-- Individual Tür - Wien Glas -->
-              <div class="field bwt-door-card-wrap">
-                <label class="image-check bwt-door-card">
-                  <input type="checkbox" id="bwtDoorIndWienGlas" name="bwtDoorType" value="Individual Tür - Wien Glas"
-                    data-product-id="1228" />
-                  <span class="img-wrap">
-                    <img src="./assets/wienglas1.jpg" alt="Individual Tür - Wien Glas" />
-                  </span>
-                  <span class="caption">Individual Tür - Wien Glas</span>
-                  <span class="caption-sub">
-                    • Höhe
-                    <input id="bwtDoorIndWienGlasHeight" name="bwtDoorIndWienGlasHeight" class="bwt-door-height-inline" type="number" min="20" max="50" step="0.5"
-                      inputmode="decimal" placeholder="20-50" aria-label="Höhe Individual Tür - Wien Glas" />
-                    cm<br />
-                    • Breite
-                    <input id="bwtDoorIndWienGlasWidth" name="bwtDoorIndWienGlasWidth" class="bwt-door-height-inline" type="number" min="30" max="50" step="0.5"
-                      inputmode="decimal" placeholder="30-50" aria-label="Breite Individual Tür - Wien Glas" />
-                    cm<br />
-                    • Standardbreiten
-                    <select id="bwtDoorIndWienGlasStdWidth" name="bwtDoorIndWienGlasStdWidth" class="bwt-door-height-inline" aria-label="Standardbreite Individual Tür - Wien Glas">
-                      <option value="">–</option>
-                      <option value="30,5 cm">30,5</option>
-                      <option value="45,5 cm">45,5</option>
-                    </select>
-                    cm<br />
-                    • Tiefe O
-                    <input id="bwtDoorIndWienGlasDepthTop" name="bwtDoorIndWienGlasDepthTop" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
-                      inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe O Individual Tür - Wien Glas" />
-                    cm<br />
-                    • Tiefe U
-                    <input id="bwtDoorIndWienGlasDepthBottom" name="bwtDoorIndWienGlasDepthBottom" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
-                      inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe U Individual Tür - Wien Glas" />
-                    cm
-                  </span>
+              <div class="bwt-info-box">
+                <div class="full field">
+                  <label>Wählen Sie das Material, aus dem Ihre Wanne besteht</label>
+                  <div class="radio-group vertical" role="radiogroup" aria-label="Material der Wanne" id="bwtMaterialGroup">
+                    <label class="radio-pill">
+                      <input type="radio" name="bwtMaterial" value="Acryl" />
+                      <span class="circle"></span>
+                      <span>Acryl</span>
+                    </label>
 
-                  <div id="bwtDoorIndWienGlasQtyWrap" class="field bwt-door-extra" aria-hidden="true" data-expand-in-card="true">
-                    <label for="bwtDoorIndWienGlasQty" class="req">Menge Individual Tür - Wien Glas</label>
-                    <input id="bwtDoorIndWienGlasQty" name="bwtDoorIndWienGlasQty" type="number" min="1" step="1"
+                    <label class="radio-pill">
+                      <input type="radio" name="bwtMaterial" value="Stahl emailliert" />
+                      <span class="circle"></span>
+                      <span>Stahl emailliert</span>
+                    </label>
+
+                    <label class="radio-pill">
+                      <input type="radio" name="bwtMaterial" value="Gusseisen" />
+                      <span class="circle"></span>
+                      <span>Gusseisen</span>
+                    </label>
+
+                    <label class="radio-pill">
+                      <input type="radio" name="bwtMaterial" value="Weiß ich nicht" />
+                      <span class="circle"></span>
+                      <span>Nicht bekannt</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="bwt-panel">
+            <div class="bwt-panel__header">
+              <div>
+                <div class="bwt-kicker">2. Tür-Modell</div>
+                <h3 class="bwt-panel__title">Wählen Sie den gewünschten Tür-Typ</h3>
+                <p class="bwt-panel__subtitle">Die wichtigsten Modelle stehen prominent im Fokus. Mengen und Farben bleiben wie bisher direkt im jeweiligen Produkt hinterlegt.</p>
+              </div>
+            </div>
+
+            <div class="full field">
+              <label class="req">Wählen Sie Ihren gewünschten Tür-Typen</label>
+              <div id="bwtDoors" class="bwt-door-grid bwt-door-grid--premium" style="
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+                gap: 14px;
+                align-items: flex-start;
+              ">
+
+                <div class="field bwt-door-card-wrap">
+                  <label class="image-check bwt-door-card">
+                    <input type="checkbox" id="bwtDoorStd" name="bwtDoorType" value="Universal / Standard Tür"
+                      data-product-id="1226" checked />
+                    <span class="img-wrap">
+                      <img src="./assets/tur.jpg" alt="Universal / Standard Tür" />
+                    </span>
+                    <span class="caption">Universal / Standard Tür</span>
+                    <span class="caption-sub">
+                      • Höhen
+                      <input id="bwtDoorStdHeight" name="bwtDoorStdHeight" class="bwt-door-height-inline" type="number"
+                        min="33" max="40" step="1" value="39" inputmode="numeric" aria-label="Höhe in cm" />
+                      cm abschneidbar<br />
+                      • Fix Bereite 40,5 cm<br />
+                      • Tiefe O 25cm U 25cm
+                    </span>
+
+                    <div id="bwtDoorStdQtyWrap" class="field bwt-door-extra" aria-hidden="false" data-expand-in-card="true">
+                      <label for="bwtDoorStdQty" class="req">Menge Universal / Standard Tür</label>
+                      <input id="bwtDoorStdQty" name="bwtDoorStdQty" type="number" min="1" step="1" placeholder="1"
+                        inputmode="numeric" value="1" />
+
+                      <label for="bwtDoorStdColor" class="req">Farbe Universal / Standard Tür</label>
+                      <select id="bwtDoorStdColor" name="bwtDoorStdColor">
+                        <option value="weiß" selected>weiß</option>
+                        <option value="Beige">Beige</option>
+                        <option value="Manhattan">Manhattan</option>
+                      </select>
+                    </div>
+                  </label>
+                </div>
+
+                <div class="field bwt-door-card-wrap">
+                  <label class="image-check bwt-door-card">
+                    <input type="checkbox" id="bwtDoorIndWien" name="bwtDoorType" value="Individual Tür - Wien"
+                      data-product-id="1227" />
+                    <span class="img-wrap">
+                      <img src="./assets/wien.jpg" alt="Individual Tür - Wien" />
+                    </span>
+                    <span class="caption">Individual Tür - Wien</span>
+                    <span class="caption-sub">
+                      • Höhe
+                      <input id="bwtDoorIndWienHeight" name="bwtDoorIndWienHeight" class="bwt-door-height-inline" type="number" min="20" max="50" step="0.5"
+                        inputmode="decimal" placeholder="20-50" aria-label="Höhe Individual Tür - Wien" />
+                      cm<br />
+                      • Breite
+                      <input id="bwtDoorIndWienWidth" name="bwtDoorIndWienWidth" class="bwt-door-height-inline" type="number" min="30" max="50" step="0.5"
+                        inputmode="decimal" placeholder="30-50" aria-label="Breite Individual Tür - Wien" />
+                      cm<br />
+                      • Standardbreiten
+                      <select id="bwtDoorIndWienStdWidth" name="bwtDoorIndWienStdWidth" class="bwt-door-height-inline" aria-label="Standardbreite Individual Tür - Wien">
+                        <option value="">–</option>
+                        <option value="30,5 cm">30,5</option>
+                        <option value="45,5 cm">45,5</option>
+                      </select>
+                      cm<br />
+                      • Tiefe O
+                      <input id="bwtDoorIndWienDepthTop" name="bwtDoorIndWienDepthTop" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
+                        inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe O Individual Tür - Wien" />
+                      cm<br />
+                      • Tiefe U
+                      <input id="bwtDoorIndWienDepthBottom" name="bwtDoorIndWienDepthBottom" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
+                        inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe U Individual Tür - Wien" />
+                      cm
+                    </span>
+
+                    <div id="bwtDoorIndWienQtyWrap" class="field bwt-door-extra" aria-hidden="true" data-expand-in-card="true">
+                      <label for="bwtDoorIndWienQty" class="req">Menge Individual Tür - Wien</label>
+                      <input id="bwtDoorIndWienQty" name="bwtDoorIndWienQty" type="number" min="1" step="1" placeholder="1"
+                        inputmode="numeric" value="1" />
+
+                      <label for="bwtDoorIndWienColor" class="req">Farbe Individual Tür - Wien</label>
+                      <select id="bwtDoorIndWienColor" name="bwtDoorIndWienColor">
+                        <option value="weiß">weiß</option>
+                        <option value="silber">silber</option>
+                      </select>
+                    </div>
+                  </label>
+                </div>
+
+                <div class="field bwt-door-card-wrap">
+                  <label class="image-check bwt-door-card">
+                    <input type="checkbox" id="bwtDoorIndWienGlas" name="bwtDoorType" value="Individual Tür - Wien Glas"
+                      data-product-id="1228" />
+                    <span class="img-wrap">
+                      <img src="./assets/wienglas1.jpg" alt="Individual Tür - Wien Glas" />
+                    </span>
+                    <span class="caption">Individual Tür - Wien Glas</span>
+                    <span class="caption-sub">
+                      • Höhe
+                      <input id="bwtDoorIndWienGlasHeight" name="bwtDoorIndWienGlasHeight" class="bwt-door-height-inline" type="number" min="20" max="50" step="0.5"
+                        inputmode="decimal" placeholder="20-50" aria-label="Höhe Individual Tür - Wien Glas" />
+                      cm<br />
+                      • Breite
+                      <input id="bwtDoorIndWienGlasWidth" name="bwtDoorIndWienGlasWidth" class="bwt-door-height-inline" type="number" min="30" max="50" step="0.5"
+                        inputmode="decimal" placeholder="30-50" aria-label="Breite Individual Tür - Wien Glas" />
+                      cm<br />
+                      • Standardbreiten
+                      <select id="bwtDoorIndWienGlasStdWidth" name="bwtDoorIndWienGlasStdWidth" class="bwt-door-height-inline" aria-label="Standardbreite Individual Tür - Wien Glas">
+                        <option value="">–</option>
+                        <option value="30,5 cm">30,5</option>
+                        <option value="45,5 cm">45,5</option>
+                      </select>
+                      cm<br />
+                      • Tiefe O
+                      <input id="bwtDoorIndWienGlasDepthTop" name="bwtDoorIndWienGlasDepthTop" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
+                        inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe O Individual Tür - Wien Glas" />
+                      cm<br />
+                      • Tiefe U
+                      <input id="bwtDoorIndWienGlasDepthBottom" name="bwtDoorIndWienGlasDepthBottom" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
+                        inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe U Individual Tür - Wien Glas" />
+                      cm
+                    </span>
+
+                    <div id="bwtDoorIndWienGlasQtyWrap" class="field bwt-door-extra" aria-hidden="true" data-expand-in-card="true">
+                      <label for="bwtDoorIndWienGlasQty" class="req">Menge Individual Tür - Wien Glas</label>
+                      <input id="bwtDoorIndWienGlasQty" name="bwtDoorIndWienGlasQty" type="number" min="1" step="1"
+                        placeholder="1" inputmode="numeric" value="1" />
+
+                      <label for="bwtDoorIndWienGlasFrameColor" class="req">Rahmen-Farbe</label>
+                      <input id="bwtDoorIndWienGlasFrameColor" name="bwtDoorIndWienGlasFrameColor" type="text"
+                        value="weiß" placeholder="weiß" aria-label="Rahmen-Farbe Individual Tür - Wien Glas" />
+                    </div>
+                  </label>
+                </div>
+
+                <div class="field bwt-door-card-wrap">
+                  <label class="image-check bwt-door-card">
+                    <input type="checkbox" id="bwtDoorBudget" name="bwtDoorType" value="Budget Tür - Verona"
+                      data-product-id="1225" />
+                    <span class="img-wrap">
+                      <img src="./assets/verona.png" alt="Budget Tür - Verona" />
+                    </span>
+                    <span class="caption">Budget Tür - Verona</span>
+                    <span class="caption-sub">
+                      • Höhen 34,36,38,40 cm<br />
+                      • Fix Bereite 40,5 cm<br />
+                      • Tiefe O13 cm U20 cm
+                    </span>
+
+                    <div id="bwtDoorBudgetQtyWrap" class="field bwt-door-extra" aria-hidden="true" data-expand-in-card="true">
+                      <label for="bwtDoorBudgetQty" class="req">Menge Budget Tür - Verona</label>
+                      <input id="bwtDoorBudgetQty" name="bwtDoorBudgetQty" type="number" min="1" step="1"
+                        placeholder="1" inputmode="numeric" value="1" />
+
+                      <label for="bwtDoorBudgetColor" class="req">Farbe Budget Tür - Verona</label>
+                      <select id="bwtDoorBudgetColor" name="bwtDoorBudgetColor">
+                        <option value="weiß" selected>weiß</option>
+                        <option value="Beige">Beige</option>
+                        <option value="Manhattan">Manhattan</option>
+                      </select>
+                    </div>
+                  </label>
+                </div>
+
+                <div class="field bwt-door-card-wrap">
+                  <label class="image-check bwt-door-card">
+                    <input type="checkbox" id="bwtDoorVariodoor" name="bwtDoorType" value="Variodoor"
+                      data-product-id="1320" />
+                    <span class="img-wrap">
+                      <img src="./assets/variodoor.jpg" alt="Variodoor" />
+                    </span>
+                    <span class="caption">Variodoor</span>
+                    <span class="caption-sub caption-sub--empty" aria-hidden="true">&nbsp;</span>
+
+                    <div id="bwtDoorVariodoorQtyWrap" class="field bwt-door-extra" aria-hidden="true" data-expand-in-card="true">
+                      <label for="bwtDoorVariodoorQty" class="req">Menge Variodoor</label>
+                      <input id="bwtDoorVariodoorQty" name="bwtDoorVariodoorQty" type="number" min="1" step="1"
+                        placeholder="1" inputmode="numeric" value="1" />
+
+                      <label for="bwtDoorVariodoorColor" class="req">Farbe Variodoor</label>
+                      <select id="bwtDoorVariodoorColor" name="bwtDoorVariodoorColor">
+                        <option value="weiß" selected>weiß</option>
+                        <option value="Beige">Beige</option>
+                        <option value="Manhattan">Manhattan</option>
+                      </select>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="bwt-panel">
+            <div class="bwt-panel__header">
+              <div>
+                <div class="bwt-kicker">3. Konfiguration</div>
+                <h3 class="bwt-panel__title">Türanschlag, Farbe & Hinweise</h3>
+                <p class="bwt-panel__subtitle">Die wichtigsten Design- und Einbaueinstellungen kompakt an einem Ort.</p>
+              </div>
+            </div>
+
+            <div class="bwt-config-grid">
+              <div class="bwt-config-card">
+                <label class="bwt-inline-label">Wählen Sie den Türanschlag</label>
+                <div class="door-select bwt-door-side-select" id="bwtAnschlagGroup" role="radiogroup" aria-label="Anschlag der Tür">
+                  <label class="door-card">
+                    <input type="radio" name="bwtAnschlag" value="Links" />
+                    <div class="door-image">
+                      <img src="./assets/links.png" alt="Tür-Anschlag links" />
+                      <div class="door-overlay">
+                        <span class="door-label">Tür-Anschlag links</span>
+                      </div>
+                      <div class="door-check">✓</div>
+                    </div>
+                  </label>
+
+                  <label class="door-card">
+                    <input type="radio" name="bwtAnschlag" value="Rechts" />
+                    <div class="door-image">
+                      <img src="./assets/rechts.jpeg" alt="Tür-Anschlag rechts" />
+                      <div class="door-overlay">
+                        <span class="door-label">Tür-Anschlag rechts</span>
+                      </div>
+                      <div class="door-check">✓</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div class="bwt-config-card">
+                <div class="section-title">Farbe der Tür</div>
+                <p class="section-subtitle">Bitte wählen Sie eine Wunschfarbe aus.</p>
+
+                <div class="color-swatch-group">
+                  <label class="color-swatch">
+                    <input type="radio" name="tray_color" value="Weiß" aria-label="Weiß (#fffdfa)" />
+                    <div class="color-swatch__preview" style="background-color: #fffdfa;"></div>
+                    <div class="color-swatch__info">
+                      <div class="color-swatch__radio">
+                        <div class="color-swatch__radio-inner"></div>
+                      </div>
+                      <span class="color-swatch__label">Weiß</span>
+                      <span class="color-swatch__code">#fffdfa</span>
+                    </div>
+                  </label>
+
+                  <label class="color-swatch">
+                    <input type="radio" name="tray_color" value="manhattan" aria-label="Manhattan (#D1D0CC)" />
+                    <div class="color-swatch__preview" style="background-color: #D1D0CC;"></div>
+                    <div class="color-swatch__info">
+                      <div class="color-swatch__radio">
+                        <div class="color-swatch__radio-inner"></div>
+                      </div>
+                      <span class="color-swatch__label">Manhattan</span>
+                      <span class="color-swatch__code">#D1D0CC</span>
+                    </div>
+                  </label>
+
+                  <label class="color-swatch">
+                    <input type="radio" name="tray_color" value="bahama_beige" aria-label="Bahama Beige (#FDF5EA)" />
+                    <div class="color-swatch__preview" style="background-color: #FDF5EA;"></div>
+                    <div class="color-swatch__info">
+                      <div class="color-swatch__radio">
+                        <div class="color-swatch__radio-inner"></div>
+                      </div>
+                      <span class="color-swatch__label">Bahama Beige</span>
+                      <span class="color-swatch__code">#FDF5EA</span>
+                    </div>
+                  </label>
+                </div>
+
+                <div class="bwt-note-box">
+                  <strong>Hinweis:</strong><br>
+                  - Zusätzlicher Verschluss 49€ EK-Preis grundsätzlich wird automatisch mitkalkuliert.<br>
+                  - Die Farbe von Tür und Rahmen kann individuell angepasst werden. Jede Farbe wird gleich berechnet.
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="bwt-panel">
+            <div class="bwt-panel__header">
+              <div>
+                <div class="bwt-kicker">4. Zubehör</div>
+                <h3 class="bwt-panel__title">Optionale Haltegriffe</h3>
+                <p class="bwt-panel__subtitle">Optionales Zubehör im gleichen Kartenstil wie die restliche Konfiguration.</p>
+              </div>
+            </div>
+
+            <div class="full field">
+              <div style="display:flex; gap:14px; flex-wrap:wrap">
+                <div class="field" style="min-width:220px; flex:0 0 220px">
+                  <label class="image-check">
+                    <input type="checkbox" id="bwtAidsHaltegriff30" name="bwtAids[]" value="Haltegriff30" />
+                    <span class="img-wrap">
+                      <img src="./assets/5b817c33100c0121ede70f11e341601c.jpg" alt="Haltegriff 30 cm" />
+                    </span>
+                    <span class="caption">Haltegriff 30 cm</span>
+                  </label>
+
+                  <div id="bwtAidsHaltegriff30QtyWrap" class="field" aria-hidden="false" style="max-width:260px; margin-top:10px">
+                    <label for="bwtAidsHaltegriff30Qty" class="req">Menge Haltegriff 30 cm</label>
+                    <input id="bwtAidsHaltegriff30Qty" name="bwtAidsHaltegriff30Qty" type="number" min="1" step="1"
                       placeholder="1" inputmode="numeric" value="1" />
-
-                    <label for="bwtDoorIndWienGlasFrameColor" class="req">Rahmen-Farbe</label>
-                    <input id="bwtDoorIndWienGlasFrameColor" name="bwtDoorIndWienGlasFrameColor" type="text"
-                      value="weiß" placeholder="weiß" aria-label="Rahmen-Farbe Individual Tür - Wien Glas" />
                   </div>
-                </label>
-              </div>
-
-              <!-- Budget Tür - Verona -->
-              <div class="field bwt-door-card-wrap">
-                <label class="image-check bwt-door-card">
-                  <input type="checkbox" id="bwtDoorBudget" name="bwtDoorType" value="Budget Tür - Verona"
-                    data-product-id="1225" />
-                  <span class="img-wrap">
-                    <img src="./assets/verona.jpg" alt="Budget Tür - Verona" />
-                  </span>
-                  <span class="caption">Budget Tür - Verona</span>
-                  <span class="caption-sub">
-                    • Höhen 34,36,38,40 cm<br />
-                    • Fix Bereite 40,5 cm<br />
-                    • Tiefe O13 cm U20 cm
-                  </span>
-
-                  <div id="bwtDoorBudgetQtyWrap" class="field bwt-door-extra" aria-hidden="true" data-expand-in-card="true">
-
-  <label for="bwtDoorBudgetQty" class="req">Menge Budget Tür - Verona</label>
-  <input id="bwtDoorBudgetQty" name="bwtDoorBudgetQty" type="number" min="1" step="1"
-    placeholder="1" inputmode="numeric" value="1" />
-
-  <label for="bwtDoorBudgetColor" class="req">Farbe Budget Tür - Verona</label>
-  <select id="bwtDoorBudgetColor" name="bwtDoorBudgetColor">
-    <option value="weiß" selected>weiß</option>
-    <option value="Beige">Beige</option>
-    <option value="Manhattan">Manhattan</option>
-  </select>
-
-</div>
-                </label>
-              </div>
-
-              <!-- Variodoor -->
-              <div class="field bwt-door-card-wrap">
-                <label class="image-check bwt-door-card">
-                  <input type="checkbox" id="bwtDoorVariodoor" name="bwtDoorType" value="Variodoor"
-                    data-product-id="1320" />
-                  <span class="img-wrap">
-                    <img src="./assets/variodoor.jpg" alt="Variodoor" />
-                  </span>
-                  <span class="caption">Variodoor</span>
-                  <span class="caption-sub caption-sub--empty" aria-hidden="true">&nbsp;</span>
-
-                 <div id="bwtDoorVariodoorQtyWrap" class="field bwt-door-extra" aria-hidden="true" data-expand-in-card="true">
-
-  <label for="bwtDoorVariodoorQty" class="req">Menge Variodoor</label>
-  <input id="bwtDoorVariodoorQty" name="bwtDoorVariodoorQty" type="number" min="1" step="1"
-    placeholder="1" inputmode="numeric" value="1" />
-
-  <label for="bwtDoorVariodoorColor" class="req">Farbe Variodoor</label>
-  <select id="bwtDoorVariodoorColor" name="bwtDoorVariodoorColor">
-    <option value="weiß" selected>weiß</option>
-    <option value="Beige">Beige</option>
-    <option value="Manhattan">Manhattan</option>
-  </select>
-
-</div>
-                </label>
-              </div>
-
-            </div>
-
-
-          <!-- Türanschlag -->
-
-          <div class="full field" style="margin-top: 8px">
-            <label>Wählen Sie den Türanschlag</label>
-
-            <div class="door-select" id="bwtAnschlagGroup">
-
-              <label class="door-card">
-                <input type="radio" name="bwtAnschlag" value="Links" required>
-                <div class="door-image">
-                  <img src="./assets/links.png" alt="Türanschlag links">
-                  <div class="door-overlay">
-                    <span class="door-label">Tür-Anschlag links</span>
-                  </div>
-                  <div class="door-check">✓</div>
                 </div>
-              </label>
 
-              <label class="door-card">
-                <input type="radio" name="bwtAnschlag" value="Rechts">
-                <div class="door-image">
-                  <img src="./assets/rechts.jpeg" alt="Türanschlag rechts">
-                  <div class="door-overlay">
-                    <span class="door-label">Tür-Anschlag rechts</span>
-                  </div>
-                  <div class="door-check">✓</div>
-                </div>
-              </label>
-
-            </div>
-          </div>
-
-          <!-- Hinweis -->
-          <p class="muted" style="margin: 14px 0 6px">
-            Hinweis:<br>- Zusätzlicher Verschluss 49€ EK-Preis
-            grundsätzlich wird automatisch mitkalkuliert.<br>
-            - Die Farbe von Tür und Rahmen kann individuell angepasst werden. Jede Farbe wird gleich berechnet.
-          </p>
-
-          <div class="field full">
-            <div class="section-title">Farbe der Tür</div>
-            <p class="section-subtitle">Bitte wählen Sie eine Wunschfarbe aus.</p>
-
-            <div class="color-swatch-group">
-
-              <!-- Weiß -->
-              <label class="color-swatch">
-                <input type="radio" name="tray_color" value="Weiß" aria-label="Weiß (#fffdfa)" />
-                <div class="color-swatch__preview" style="background-color: #fffdfa;"></div>
-                <div class="color-swatch__info">
-                  <div class="color-swatch__radio">
-                    <div class="color-swatch__radio-inner"></div>
-                  </div>
-                  <span class="color-swatch__label">Weiß</span>
-                  <span class="color-swatch__code">#fffdfa</span>
-                </div>
-              </label>
-
-              <!-- Manhattan -->
-              <label class="color-swatch">
-                <input type="radio" name="tray_color" value="manhattan" aria-label="Manhattan (#D1D0CC)" />
-                <div class="color-swatch__preview" style="background-color: #D1D0CC;"></div>
-                <div class="color-swatch__info">
-                  <div class="color-swatch__radio">
-                    <div class="color-swatch__radio-inner"></div>
-                  </div>
-                  <span class="color-swatch__label">Manhattan</span>
-                  <span class="color-swatch__code">#D1D0CC</span>
-                </div>
-              </label>
-
-              <!-- Bahama Beige -->
-              <label class="color-swatch">
-                <input type="radio" name="tray_color" value="bahama_beige" aria-label="Bahama Beige (#FDF5EA)" />
-                <div class="color-swatch__preview" style="background-color: #FDF5EA;"></div>
-                <div class="color-swatch__info">
-                  <div class="color-swatch__radio">
-                    <div class="color-swatch__radio-inner"></div>
-                  </div>
-                  <span class="color-swatch__label">Bahama Beige</span>
-                  <span class="color-swatch__code">#FDF5EA</span>
-                </div>
-              </label>
-
-
-            </div>
-          </div>
-
-          <!-- Einstiegshilfen: only Haltegriff -->
-          <div class="full field">
-            <label class="req">Wählen Sie Ihre zusätzlichen Einstiegshilfen</label>
-
-            <div style="display:flex; gap:14px; flex-wrap:nowrap; overflow-x:auto">
-
-              <!-- Haltegriff 30 cm -->
-              <div class="field" style="min-width:220px; flex:0 0 220px">
-                <label class="image-check">
-                  <input type="checkbox" id="bwtAidsHaltegriff30" name="bwtAids[]" value="Haltegriff30" />
-                  <span class="img-wrap">
-                    <img src="./assets/5b817c33100c0121ede70f11e341601c.jpg" alt="Haltegriff 30 cm" />
-                  </span>
-                  <span class="caption">Haltegriff 30 cm</span>
-                </label>
-
-                <div id="bwtAidsHaltegriff30QtyWrap" class="field" aria-hidden="false"
-                  style="max-width:260px; margin-top:10px">
-                  <label for="bwtAidsHaltegriff30Qty" class="req">Menge Haltegriff 30 cm</label>
-                  <input id="bwtAidsHaltegriff30Qty" name="bwtAidsHaltegriff30Qty" type="number" min="1" step="1"
-                    placeholder="1" inputmode="numeric" value="1" />
-                </div>
-              </div>
-
-              <!-- Haltegriff 40 cm -->
-              <div class="field" style="min-width:220px; flex:0 0 220px">
-                <label class="image-check">
-                  <input type="checkbox" id="bwtAidsHaltegriff40" name="bwtAids[]" value="Haltegriff40" />
-                  <span class="img-wrap">
-                    <img src="./assets/5b817c33100c0121ede70f11e341601c.jpg" alt="Haltegriff 40 cm" />
-                  </span>
-                  <span class="caption">Haltegriff 40 cm</span>
-                </label>
-
-                <div id="bwtAidsHaltegriff40QtyWrap" class="field" aria-hidden="false"
-                  style="max-width:260px; margin-top:10px">
-                  <label for="bwtAidsHaltegriff40Qty" class="req">Menge Haltegriff 40 cm</label>
-                  <input id="bwtAidsHaltegriff40Qty" name="bwtAidsHaltegriff40Qty" type="number" min="1" step="1"
-                    placeholder="1" inputmode="numeric" value="1" />
-                </div>
-              </div>
-
-              <!-- Haltegriff 60 cm -->
-              <div class="field" style="min-width:220px; flex:0 0 220px">
-                <label class="image-check">
-                  <input type="checkbox" id="bwtAidsHaltegriff60" name="bwtAids[]" value="Haltegriff60" />
-                  <span class="img-wrap">
-                    <img src="./assets/5b817c33100c0121ede70f11e341601c.jpg" alt="Haltegriff 60 cm" />
-                  </span>
-                  <span class="caption">Haltegriff 60 cm</span>
-                </label>
-
-                <div id="bwtAidsHaltegriff60QtyWrap" class="field" aria-hidden="false"
-                  style="max-width:260px; margin-top:10px">
-                  <label for="bwtAidsHaltegriff60Qty" class="req">Menge Haltegriff 60 cm</label>
-                  <input id="bwtAidsHaltegriff60Qty" name="bwtAidsHaltegriff60Qty" type="number" min="1" step="1"
-                    placeholder="1" inputmode="numeric" value="1" />
-                </div>
-              </div>
-
-              <!-- Haltegriff 80 cm -->
-              <div class="field" style="min-width:220px; flex:0 0 220px">
-                <label class="image-check">
-                  <input type="checkbox" id="bwtAidsHaltegriff80" name="bwtAids[]" value="Haltegriff80" />
-                  <span class="img-wrap">
-                    <img src="./assets/5b817c33100c0121ede70f11e341601c.jpg" alt="Haltegriff 80 cm" />
-                  </span>
-                  <span class="caption">Haltegriff 80 cm</span>
-                </label>
-
-                <div id="bwtAidsHaltegriff80QtyWrap" class="field" aria-hidden="false"
-                  style="max-width:260px; margin-top:10px">
-                  <label for="bwtAidsHaltegriff80Qty" class="req">Menge Haltegriff 80 cm</label>
-                  <input id="bwtAidsHaltegriff80Qty" name="bwtAidsHaltegriff80Qty" type="number" min="1" step="1"
-                    placeholder="1" inputmode="numeric" value="1" />
-                </div>
-              </div>
-            </div>
-
-
-          </div>
-
-          <fieldset class="da-row" id="bwt-extras" data-kind="bwt-extra" data-template="da-item-template-custom"
-            aria-describedby="bwt-extras-help">
-            <legend class="da-legend">
-              Freier Posten (BWT)
-              <button type="button" class="da-add" aria-label="Weitere Position hinzufügen">+</button>
-            </legend>
-
-            <div class="da-items">
-              <div class="da-item" data-kind="bwt-extra">
-                <div class="da-grid-4">
-                  <label class="da-label">
-                    Bezeichnung
-                    <input class="da-name" type="text" placeholder="z. B. Sonderanfertigung Glas" />
+                <div class="field" style="min-width:220px; flex:0 0 220px">
+                  <label class="image-check">
+                    <input type="checkbox" id="bwtAidsHaltegriff40" name="bwtAids[]" value="Haltegriff40" />
+                    <span class="img-wrap">
+                      <img src="./assets/5b817c33100c0121ede70f11e341601c.jpg" alt="Haltegriff 40 cm" />
+                    </span>
+                    <span class="caption">Haltegriff 40 cm</span>
                   </label>
-                  <label class="da-label">
-                    Preis
-                    <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 799,00" />
-                  </label>
-                  <label class="da-label">
-                    Menge
-                    <input class="da-qty" type="number" inputmode="numeric" min="1" step="1" />
-                  </label>
-                  <label class="da-label">
-                    ID
-                    <input class="da-id" type="text" placeholder="z. B. BWT-CUS-001" />
-                  </label>
+
+                  <div id="bwtAidsHaltegriff40QtyWrap" class="field" aria-hidden="false" style="max-width:260px; margin-top:10px">
+                    <label for="bwtAidsHaltegriff40Qty" class="req">Menge Haltegriff 40 cm</label>
+                    <input id="bwtAidsHaltegriff40Qty" name="bwtAidsHaltegriff40Qty" type="number" min="1" step="1"
+                      placeholder="1" inputmode="numeric" value="1" />
+                  </div>
                 </div>
-                <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+
+                <div class="field" style="min-width:220px; flex:0 0 220px">
+                  <label class="image-check">
+                    <input type="checkbox" id="bwtAidsHaltegriff60" name="bwtAids[]" value="Haltegriff60" />
+                    <span class="img-wrap">
+                      <img src="./assets/5b817c33100c0121ede70f11e341601c.jpg" alt="Haltegriff 60 cm" />
+                    </span>
+                    <span class="caption">Haltegriff 60 cm</span>
+                  </label>
+
+                  <div id="bwtAidsHaltegriff60QtyWrap" class="field" aria-hidden="false" style="max-width:260px; margin-top:10px">
+                    <label for="bwtAidsHaltegriff60Qty" class="req">Menge Haltegriff 60 cm</label>
+                    <input id="bwtAidsHaltegriff60Qty" name="bwtAidsHaltegriff60Qty" type="number" min="1" step="1"
+                      placeholder="1" inputmode="numeric" value="1" />
+                  </div>
+                </div>
+
+                <div class="field" style="min-width:220px; flex:0 0 220px">
+                  <label class="image-check">
+                    <input type="checkbox" id="bwtAidsHaltegriff80" name="bwtAids[]" value="Haltegriff80" />
+                    <span class="img-wrap">
+                      <img src="./assets/5b817c33100c0121ede70f11e341601c.jpg" alt="Haltegriff 80 cm" />
+                    </span>
+                    <span class="caption">Haltegriff 80 cm</span>
+                  </label>
+
+                  <div id="bwtAidsHaltegriff80QtyWrap" class="field" aria-hidden="false" style="max-width:260px; margin-top:10px">
+                    <label for="bwtAidsHaltegriff80Qty" class="req">Menge Haltegriff 80 cm</label>
+                    <input id="bwtAidsHaltegriff80Qty" name="bwtAidsHaltegriff80Qty" type="number" min="1" step="1"
+                      placeholder="1" inputmode="numeric" value="1" />
+                  </div>
+                </div>
               </div>
             </div>
+          </section>
 
-            <small id="bwt-extras-help" class="da-help">
-              Freier Posten mit eigener Bezeichnung. Preis kann Komma oder Punkt als Dezimaltrenner enthalten.
-            </small>
-          </fieldset>
+          <details class="bwt-accordion" open>
+            <summary>5. Freier Posten & Hinweise</summary>
+            <div class="bwt-accordion__body">
+              <fieldset class="da-row" id="bwt-extras" data-kind="bwt-extra" data-template="da-item-template-custom"
+                aria-describedby="bwt-extras-help">
+                <legend class="da-legend">
+                  Freier Posten (BWT)
+                  <button type="button" class="da-add" aria-label="Weitere Position hinzufügen">+</button>
+                </legend>
 
+                <div class="da-items">
+                  <div class="da-item" data-kind="bwt-extra">
+                    <div class="da-grid-4">
+                      <label class="da-label">
+                        Bezeichnung
+                        <input class="da-name" type="text" placeholder="z. B. Sonderanfertigung Glas" />
+                      </label>
+                      <label class="da-label">
+                        Preis
+                        <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 799,00" />
+                      </label>
+                      <label class="da-label">
+                        Menge
+                        <input class="da-qty" type="number" inputmode="numeric" min="1" step="1" />
+                      </label>
+                      <label class="da-label">
+                        ID
+                        <input class="da-id" type="text" placeholder="z. B. BWT-CUS-001" />
+                      </label>
+                    </div>
+                    <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+                  </div>
+                </div>
 
-          <div class="field full">
-            <label for="bwtNote">
-              Zusätzliche Hinweise zur Badewannentür (für das Angebot)
-            </label>
-            <textarea id="bwtNote" name="bwtNote" rows="3"
-              placeholder="Hier können Sie besondere Wünsche, Hinweise oder Sonderbedingungen zur Badewannentür eintragen."></textarea>
-          </div>
+                <small id="bwt-extras-help" class="da-help">
+                  Freier Posten mit eigener Bezeichnung. Preis kann Komma oder Punkt als Dezimaltrenner enthalten.
+                </small>
+              </fieldset>
 
-          <!-- 1) Stahl emailliert Hinweis -->
-          <div class="field full">
-            <label class="check-pill">
-              <input type="checkbox" id="bwtSteelNoteEnabled" name="bwtSteelNoteEnabled" value="on" />
-              <span class="box"></span>
-              <span>Stahl‑emaillierte Badewanne – Hinweis in Angebot übernehmen</span>
-            </label>
+              <div class="field full">
+                <label for="bwtNote">
+                  Zusätzliche Hinweise zur Badewannentür (für das Angebot)
+                </label>
+                <textarea id="bwtNote" name="bwtNote" rows="20"
+                  placeholder="Hier können Sie besondere Wünsche, Hinweise oder Sonderbedingungen zur Badewannentür eintragen."></textarea>
+              </div>
 
-            <textarea id="bwtSteelNoteText" name="bwtSteelNoteText" rows="4"
-              style="margin-top:8px;">Bitte beachten Sie, dass bei der Montage einer Badewannentür an der Schnittkante die Emaillierung abplatzen kann. Diese Stelle wird selbstverständlich fachgerecht und wasserdicht verschlossen, jedoch ist eine Ausführung im Originalfarbton der Badewanne nicht möglich.</textarea>
-          </div>
+              <div class="field full">
+                <label class="check-pill">
+                  <input type="checkbox" id="bwtSteelNoteEnabled" name="bwtSteelNoteEnabled" value="on" />
+                  <span class="box"></span>
+                  <span>Stahl‑emaillierte Badewanne – Hinweis in Angebot übernehmen</span>
+                </label>
 
-          <!-- 2) Stellvertretung Hinweis -->
-          <div class="field full">
-            <label class="check-pill">
-              <input type="checkbox" id="bwtProxyNoteEnabled" name="bwtProxyNoteEnabled" value="on" />
-              <span class="box"></span>
-              <span>Stellvertretung – Hinweis in Angebot übernehmen</span>
-            </label>
+                <textarea id="bwtSteelNoteText" name="bwtSteelNoteText" rows="4"
+                  style="margin-top:8px;">Bitte beachten Sie, dass bei der Montage einer Badewannentür an der Schnittkante die Emaillierung abplatzen kann. Diese Stelle wird selbstverständlich fachgerecht und wasserdicht verschlossen, jedoch ist eine Ausführung im Originalfarbton der Badewanne nicht möglich.</textarea>
+              </div>
 
-            <textarea id="bwtProxyNoteText" name="bwtProxyNoteText" rows="3"
-              style="margin-top:8px;">Gemäß Ihren Angaben soll für Ihre Mutter ein Angebot erstellt werden. Da uns der Name Ihrer Mutter zum Zeitpunkt der Erstellung noch nicht vorlag, erhalten zunächst Sie dieses Angebot stellvertretend.</textarea>
-          </div>
+              <div class="field full">
+                <label class="check-pill">
+                  <input type="checkbox" id="bwtProxyNoteEnabled" name="bwtProxyNoteEnabled" value="on" />
+                  <span class="box"></span>
+                  <span>Stellvertretung – Hinweis in Angebot übernehmen</span>
+                </label>
 
+                <textarea id="bwtProxyNoteText" name="bwtProxyNoteText" rows="3"
+                  style="margin-top:8px;">Gemäß Ihren Angaben soll für Ihre Mutter ein Angebot erstellt werden. Da uns der Name Ihrer Mutter zum Zeitpunkt der Erstellung noch nicht vorlag, erhalten zunächst Sie dieses Angebot stellvertretend.</textarea>
+              </div>
+            </div>
+          </details>
 
           <div class="actions full" style="margin-top:16px">
             <button type="button" data-nav="prev" class="secondary">Zurück</button>
             <button type="button" data-nav="next">Weiter</button>
           </div>
-
-
-
         </form>
-
       </section>
 
       <!-- hl -->
