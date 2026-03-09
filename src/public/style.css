@@ -2866,3 +2866,403 @@ button:active,
   transform: translateY(1px);
 }
 /* ---------- ------------------ ---------- */
+
+
+/* ===== BWT Tür cards: premium layout ===== */
+#bwtDoors.bwt-door-grid--premium {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
+  gap: 18px !important;
+  align-items: stretch !important;
+}
+
+#bwtDoors .bwt-door-card-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+#bwtDoors .bwt-door-card {
+  width: 100%;
+  min-height: 100%;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+#bwtDoors .bwt-door-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12);
+  border-color: rgba(124, 58, 237, 0.18);
+}
+
+#bwtDoors .bwt-door-card .img-wrap {
+  width: 100%;
+  height: 285px;
+  aspect-ratio: auto;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid #eef2f7;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+#bwtDoors .bwt-door-card img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.28s ease;
+}
+
+#bwtDoors .bwt-door-card:hover img {
+  transform: scale(1.035);
+}
+
+#bwtDoors .bwt-door-card .caption {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+#bwtDoors .bwt-door-card .caption-sub {
+  margin-top: 2px;
+  line-height: 1.55;
+  color: #667085;
+}
+
+#bwtDoors .bwt-door-card .bwt-door-height-inline {
+  border-radius: 10px;
+  border: 1px solid #dbe2ea;
+  background: #fff;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+#bwtDoors label.image-check:has(input:checked),
+#bwtDoors label.image-check.is-checked {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring), 0 16px 34px rgba(15, 23, 42, 0.10);
+  background: linear-gradient(180deg, #ffffff 0%, #f7f3ff 100%);
+}
+
+#bwtDoors label.image-check:has(input:checked) .caption,
+#bwtDoors label.image-check.is-checked .caption {
+  color: var(--accent-strong);
+}
+
+@media (max-width: 900px) {
+  #bwtDoors.bwt-door-grid--premium {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+  }
+
+  #bwtDoors .bwt-door-card .img-wrap {
+    height: 250px;
+  }
+}
+
+
+/* Fix BWT door helpers */
+#bwtDoors .bwt-door-card-wrap,
+#bwtDoors > .field {
+  min-width: 0;
+}
+
+.bwt-door-std-color-field {
+  clear: both;
+}
+
+#bwtDoorVariodoor + .img-wrap img,
+img[alt="Variodoor"] {
+  transform: scale(1.42);
+  transform-origin: center center;
+  object-position: center center;
+}
+
+#bwtDoors .image-check:hover img[alt="Variodoor"],
+#bwtDoors .bwt-door-card:hover img[alt="Variodoor"] {
+  transform: scale(1.48);
+}
+
+/* ===== BWT premium mobile overlap fix ===== */
+#bwtDoors.bwt-door-grid--premium {
+  align-items: start !important;
+  grid-auto-rows: max-content !important;
+}
+
+#bwtDoors .bwt-door-card-wrap {
+  align-self: start;
+  height: auto;
+}
+
+#bwtDoors .bwt-door-card-wrap > .field {
+  position: relative;
+  z-index: 2;
+  margin-top: 12px;
+  margin-bottom: 8px;
+}
+
+#bwtDoors .bwt-door-card-wrap > .field input,
+#bwtDoors .bwt-door-card-wrap > .field select {
+  position: relative;
+  z-index: 3;
+}
+
+@media (max-width: 700px) {
+  #bwtDoors.bwt-door-grid--premium {
+    gap: 28px !important;
+  }
+
+  #bwtDoors .bwt-door-card {
+    margin-bottom: 0;
+  }
+
+  #bwtDoors .bwt-door-card-wrap > .field {
+    margin-top: 14px;
+    margin-bottom: 2px;
+  }
+}
+
+
+/* ===== BWT door card standardized heights ===== */
+#bwtDoors.bwt-door-grid--premium {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
+  align-items: stretch !important;
+}
+
+#bwtDoors .bwt-door-card-wrap {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  height: 100%;
+  min-width: 0;
+}
+
+#bwtDoors .bwt-door-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+#bwtDoors .bwt-door-card .img-wrap {
+  flex: 0 0 285px;
+  height: 285px;
+}
+
+#bwtDoors .bwt-door-card .caption {
+  display: flex;
+  align-items: flex-start;
+  min-height: 3.2rem;
+  margin-top: 14px;
+  margin-bottom: 4px;
+  line-height: 1.25;
+}
+
+#bwtDoors .bwt-door-card .caption-sub {
+  display: block;
+  flex: 1 1 auto;
+  min-height: 9.5rem;
+}
+
+#bwtDoors .bwt-door-card .caption-sub--empty {
+  visibility: hidden;
+}
+
+#bwtDoors .bwt-door-card .caption-sub br {
+  line-height: 1.55;
+}
+
+#bwtDoors .bwt-door-card-wrap > .field {
+  max-width: none !important;
+}
+
+#bwtDoors .bwt-door-card-wrap > .field input,
+#bwtDoors .bwt-door-card-wrap > .field select {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  #bwtDoors .bwt-door-card .img-wrap {
+    flex-basis: 250px;
+    height: 250px;
+  }
+
+  #bwtDoors .bwt-door-card .caption-sub {
+    min-height: 10.5rem;
+  }
+}
+
+@media (max-width: 700px) {
+  #bwtDoors.bwt-door-grid--premium {
+    gap: 28px !important;
+  }
+
+  #bwtDoors .bwt-door-card {
+    height: auto;
+  }
+
+  #bwtDoors .bwt-door-card .caption,
+  #bwtDoors .bwt-door-card .caption-sub {
+    min-height: 0;
+  }
+}
+
+
+/* ===== BWT in-card expanding extras ===== */
+#bwtDoors .bwt-door-card {
+  overflow: hidden;
+}
+
+#bwtDoors .bwt-door-extra {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 0;
+  border-top: 1px solid transparent;
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transform: translateY(-8px);
+  pointer-events: none;
+  transition:
+    max-height 0.28s ease,
+    opacity 0.22s ease,
+    transform 0.22s ease,
+    padding-top 0.22s ease,
+    border-color 0.22s ease;
+}
+
+#bwtDoors .bwt-door-card.is-expanded .bwt-door-extra,
+#bwtDoors .bwt-door-card:has(input:checked) .bwt-door-extra {
+  opacity: 1;
+  max-height: 260px;
+  padding-top: 14px;
+  border-top-color: rgba(124, 58, 237, 0.14);
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+#bwtDoors .bwt-door-extra label {
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+#bwtDoors .bwt-door-extra input,
+#bwtDoors .bwt-door-extra select {
+  width: 100%;
+}
+
+#bwtDoors .bwt-door-card .caption-sub--empty {
+  min-height: 9.5rem;
+}
+
+@media (max-width: 700px) {
+  #bwtDoors .bwt-door-card.is-expanded .bwt-door-extra,
+  #bwtDoors .bwt-door-card:has(input:checked) .bwt-door-extra {
+    max-height: 320px;
+  }
+}
+
+
+/* Fix: inputs inside expanded BWT card extras must stay visible
+   (global .image-check input rule hides them otherwise) */
+#bwtDoors .bwt-door-extra input,
+#bwtDoors .bwt-door-extra select,
+#bwtDoors .bwt-door-extra textarea {
+  position: static !important;
+  inset: auto !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  display: block;
+}
+
+#bwtDoors .bwt-door-extra label {
+  display: block;
+}
+
+
+/* ===== Apple-style Türanschlag selector ===== */
+
+.door-select {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(200px, 260px));
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.door-card {
+  cursor: pointer;
+  position: relative;
+}
+
+.door-card input {
+  display: none;
+}
+
+.door-image {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid var(--border);
+  transition: all 0.25s ease;
+}
+
+.door-image img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+  transition: transform .25s ease;
+}
+
+.door-card:hover img {
+  transform: scale(1.05);
+}
+
+.door-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 10px;
+  background: linear-gradient(to top, rgba(0,0,0,0.55), transparent);
+}
+
+.door-label {
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.door-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: var(--accent);
+  color: white;
+  font-weight: bold;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transform: scale(.6);
+  transition: all .2s ease;
+}
+
+.door-card:has(input:checked) .door-image {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.door-card:has(input:checked) .door-check {
+  opacity: 1;
+  transform: scale(1);
+}

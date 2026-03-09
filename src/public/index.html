@@ -1950,7 +1950,7 @@ button.dm-btn-danger:focus-visible {
             <div class="subheader">Farbe: weiß</div>
           </div>
           <div class="card-option">
-            <label class="image-check"><input type="checkbox" name="trayColor" value="weiß" checked /><span
+            <label class="image-check bwt-door-card"><input type="checkbox" name="trayColor" value="weiß" checked /><span
                 class="img-wrap"><img src="./assets/duschwanne.jpeg" alt="Duschwanne Farbe weiß" /></span><span
                 class="caption">weiß</span></label>
           </div>
@@ -4559,7 +4559,7 @@ button.dm-btn-danger:focus-visible {
             <label class="req">Wählen Sie Ihren gewünschten Tür-Typen</label>
 
             <!-- GRID container -->
-            <div id="bwtDoors" style="
+            <div id="bwtDoors" class="bwt-door-grid bwt-door-grid--premium" style="
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
       gap: 14px;
@@ -4567,8 +4567,8 @@ button.dm-btn-danger:focus-visible {
     ">
 
               <!-- Universal / Standard Tür -->
-              <div class="field">
-                <label class="image-check">
+              <div class="field bwt-door-card-wrap">
+                <label class="image-check bwt-door-card">
                   <input type="checkbox" id="bwtDoorStd" name="bwtDoorType" value="Universal / Standard Tür"
                     data-product-id="1226" checked />
                   <span class="img-wrap">
@@ -4584,31 +4584,25 @@ button.dm-btn-danger:focus-visible {
                     • Fix Bereite 40,5 cm<br />
                     • Tiefe O 25cm U 25cm
                   </span>
+
+                  <div id="bwtDoorStdQtyWrap" class="field bwt-door-extra" aria-hidden="false" data-expand-in-card="true">
+                    <label for="bwtDoorStdQty" class="req">Menge Universal / Standard Tür</label>
+                    <input id="bwtDoorStdQty" name="bwtDoorStdQty" type="number" min="1" step="1" placeholder="1"
+                      inputmode="numeric" value="1" />
+
+                    <label for="bwtDoorStdColor" class="req">Farbe Universal / Standard Tür</label>
+                    <select id="bwtDoorStdColor" name="bwtDoorStdColor">
+                      <option value="weiß" selected>weiß</option>
+                      <option value="Beige">Beige</option>
+                      <option value="Manhattan">Manhattan</option>
+                    </select>
+                  </div>
                 </label>
-
-                <div id="bwtDoorStdQtyWrap" class="field" aria-hidden="false"
-                  style="max-width: 260px; margin-top: 10px">
-                  <label for="bwtDoorStdQty" class="req">
-                    Menge Universal / Standard Tür
-                  </label>
-                  <input id="bwtDoorStdQty" name="bwtDoorStdQty" type="number" min="1" step="1" placeholder="1"
-                    inputmode="numeric" value="1" />
-                </div>
-                <div class="field" style="margin-top: 8px; max-width: 260px">
-                  <label for="bwtDoorStdColor" class="req">Farbe Universal / Standard Tür</label>
-                  <select id="bwtDoorStdColor" name="bwtDoorStdColor">
-                    <option value="weiß" selected>weiß</option>
-                    <option value="Beige">Beige</option>
-                    <option value="Manhattan">Manhattan</option>
-                  </select>
-                </div>
-
-
               </div>
 
               <!-- Individual Tür - Wien -->
-              <div class="field">
-                <label class="image-check">
+              <div class="field bwt-door-card-wrap">
+                <label class="image-check bwt-door-card">
                   <input type="checkbox" id="bwtDoorIndWien" name="bwtDoorType" value="Individual Tür - Wien"
                     data-product-id="1227" />
                   <span class="img-wrap">
@@ -4640,21 +4634,24 @@ button.dm-btn-danger:focus-visible {
                       inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe U Individual Tür - Wien" />
                     cm
                   </span>
-                </label>
 
-                <div id="bwtDoorIndWienQtyWrap" class="field" aria-hidden="true"
-                  style="max-width: 260px; margin-top: 10px">
-                  <label for="bwtDoorIndWienQty" class="req">
-                    Menge Individual Tür - Wien
-                  </label>
-                  <input id="bwtDoorIndWienQty" name="bwtDoorIndWienQty" type="number" min="1" step="1" placeholder="1"
-                    inputmode="numeric" value="1" />
-                </div>
+                  <div id="bwtDoorIndWienQtyWrap" class="field bwt-door-extra" aria-hidden="true" data-expand-in-card="true">
+                    <label for="bwtDoorIndWienQty" class="req">Menge Individual Tür - Wien</label>
+                    <input id="bwtDoorIndWienQty" name="bwtDoorIndWienQty" type="number" min="1" step="1" placeholder="1"
+                      inputmode="numeric" value="1" />
+                  
+                    <label for="bwtDoorIndWienColor" class="req">Farbe Individual Tür - Wien</label>
+                    <select id="bwtDoorIndWienColor" name="bwtDoorIndWienColor">
+                      <option value="weiß">weiß</option>
+                      <option value="silber">silber</option>
+                    </select>
+                  </div>
+                </label>
               </div>
 
               <!-- Individual Tür - Wien Glas -->
-              <div class="field">
-                <label class="image-check">
+              <div class="field bwt-door-card-wrap">
+                <label class="image-check bwt-door-card">
                   <input type="checkbox" id="bwtDoorIndWienGlas" name="bwtDoorType" value="Individual Tür - Wien Glas"
                     data-product-id="1228" />
                   <span class="img-wrap">
@@ -4684,26 +4681,24 @@ button.dm-btn-danger:focus-visible {
                     • Tiefe U
                     <input id="bwtDoorIndWienGlasDepthBottom" name="bwtDoorIndWienGlasDepthBottom" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
                       inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe U Individual Tür - Wien Glas" />
-                    cm<br />
-                    • Rahmen-Farbe
-                    <input id="bwtDoorIndWienGlasFrameColor" name="bwtDoorIndWienGlasFrameColor" class="bwt-door-height-inline" type="text"
-                      value="weiß" placeholder="weiß" aria-label="Rahmen-Farbe Individual Tür - Wien Glas" />
+                    cm
                   </span>
-                </label>
 
-                <div id="bwtDoorIndWienGlasQtyWrap" class="field" aria-hidden="true"
-                  style="max-width: 260px; margin-top: 10px">
-                  <label for="bwtDoorIndWienGlasQty" class="req">
-                    Menge Individual Tür - Wien Glas
-                  </label>
-                  <input id="bwtDoorIndWienGlasQty" name="bwtDoorIndWienGlasQty" type="number" min="1" step="1"
-                    placeholder="1" inputmode="numeric" value="1" />
-                </div>
+                  <div id="bwtDoorIndWienGlasQtyWrap" class="field bwt-door-extra" aria-hidden="true" data-expand-in-card="true">
+                    <label for="bwtDoorIndWienGlasQty" class="req">Menge Individual Tür - Wien Glas</label>
+                    <input id="bwtDoorIndWienGlasQty" name="bwtDoorIndWienGlasQty" type="number" min="1" step="1"
+                      placeholder="1" inputmode="numeric" value="1" />
+
+                    <label for="bwtDoorIndWienGlasFrameColor" class="req">Rahmen-Farbe</label>
+                    <input id="bwtDoorIndWienGlasFrameColor" name="bwtDoorIndWienGlasFrameColor" type="text"
+                      value="weiß" placeholder="weiß" aria-label="Rahmen-Farbe Individual Tür - Wien Glas" />
+                  </div>
+                </label>
               </div>
 
               <!-- Budget Tür - Verona -->
-              <div class="field">
-                <label class="image-check">
+              <div class="field bwt-door-card-wrap">
+                <label class="image-check bwt-door-card">
                   <input type="checkbox" id="bwtDoorBudget" name="bwtDoorType" value="Budget Tür - Verona"
                     data-product-id="1225" />
                   <span class="img-wrap">
@@ -4715,59 +4710,84 @@ button.dm-btn-danger:focus-visible {
                     • Fix Bereite 40,5 cm<br />
                     • Tiefe O13 cm U20 cm
                   </span>
-                </label>
 
-                <div id="bwtDoorBudgetQtyWrap" class="field" aria-hidden="true"
-                  style="max-width: 260px; margin-top: 10px">
-                  <label for="bwtDoorBudgetQty" class="req">
-                    Menge Budget Tür - Verona
-                  </label>
-                  <input id="bwtDoorBudgetQty" name="bwtDoorBudgetQty" type="number" min="1" step="1" placeholder="1"
-                    inputmode="numeric" value="1" />
-                </div>
+                  <div id="bwtDoorBudgetQtyWrap" class="field bwt-door-extra" aria-hidden="true" data-expand-in-card="true">
+
+  <label for="bwtDoorBudgetQty" class="req">Menge Budget Tür - Verona</label>
+  <input id="bwtDoorBudgetQty" name="bwtDoorBudgetQty" type="number" min="1" step="1"
+    placeholder="1" inputmode="numeric" value="1" />
+
+  <label for="bwtDoorBudgetColor" class="req">Farbe Budget Tür - Verona</label>
+  <select id="bwtDoorBudgetColor" name="bwtDoorBudgetColor">
+    <option value="weiß" selected>weiß</option>
+    <option value="Beige">Beige</option>
+    <option value="Manhattan">Manhattan</option>
+  </select>
+
+</div>
+                </label>
               </div>
 
               <!-- Variodoor -->
-              <div class="field">
-                <label class="image-check">
+              <div class="field bwt-door-card-wrap">
+                <label class="image-check bwt-door-card">
                   <input type="checkbox" id="bwtDoorVariodoor" name="bwtDoorType" value="Variodoor"
                     data-product-id="1320" />
                   <span class="img-wrap">
                     <img src="./assets/variodoor.jpg" alt="Variodoor" />
                   </span>
                   <span class="caption">Variodoor</span>
-                </label>
+                  <span class="caption-sub caption-sub--empty" aria-hidden="true">&nbsp;</span>
 
-                <div id="bwtDoorVariodoorQtyWrap" class="field" aria-hidden="true"
-                  style="max-width: 260px; margin-top: 10px">
-                  <label for="bwtDoorVariodoorQty" class="req">
-                    Menge Variodoor
-                  </label>
-                  <input id="bwtDoorVariodoorQty" name="bwtDoorVariodoorQty" type="number" min="1" step="1"
-                    placeholder="1" inputmode="numeric" value="1" />
-                </div>
+                 <div id="bwtDoorVariodoorQtyWrap" class="field bwt-door-extra" aria-hidden="true" data-expand-in-card="true">
+
+  <label for="bwtDoorVariodoorQty" class="req">Menge Variodoor</label>
+  <input id="bwtDoorVariodoorQty" name="bwtDoorVariodoorQty" type="number" min="1" step="1"
+    placeholder="1" inputmode="numeric" value="1" />
+
+  <label for="bwtDoorVariodoorColor" class="req">Farbe Variodoor</label>
+  <select id="bwtDoorVariodoorColor" name="bwtDoorVariodoorColor">
+    <option value="weiß" selected>weiß</option>
+    <option value="Beige">Beige</option>
+    <option value="Manhattan">Manhattan</option>
+  </select>
+
+</div>
+                </label>
               </div>
 
             </div>
-          </div>
 
 
           <!-- Türanschlag -->
 
           <div class="full field" style="margin-top: 8px">
             <label>Wählen Sie den Türanschlag</label>
-            <div class="radio-group vertical" role="radiogroup" aria-label="Anschlag der Tür" id="bwtAnschlagGroup">
-              <label class="radio-pill">
-                <input type="radio" name="bwtAnschlag" value="Links" />
-                <span class="circle"></span>
-                <span>Tür-Anschlag links</span>
+
+            <div class="door-select" id="bwtAnschlagGroup">
+
+              <label class="door-card">
+                <input type="radio" name="bwtAnschlag" value="Links" required>
+                <div class="door-image">
+                  <img src="./assets/links.png" alt="Türanschlag links">
+                  <div class="door-overlay">
+                    <span class="door-label">Tür-Anschlag links</span>
+                  </div>
+                  <div class="door-check">✓</div>
+                </div>
               </label>
 
-              <label class="radio-pill">
-                <input type="radio" name="bwtAnschlag" value="Rechts" />
-                <span class="circle"></span>
-                <span>Tür-Anschlag rechts</span>
+              <label class="door-card">
+                <input type="radio" name="bwtAnschlag" value="Rechts">
+                <div class="door-image">
+                  <img src="./assets/rechts.jpeg" alt="Türanschlag rechts">
+                  <div class="door-overlay">
+                    <span class="door-label">Tür-Anschlag rechts</span>
+                  </div>
+                  <div class="door-check">✓</div>
+                </div>
               </label>
+
             </div>
           </div>
 

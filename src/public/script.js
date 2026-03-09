@@ -3199,11 +3199,13 @@ function buildPayload() {
           const sw = String(document.getElementById("bwtDoorIndWienStdWidth")?.value || "").trim();
           const to = String(document.getElementById("bwtDoorIndWienDepthTop")?.value || "").trim();
           const tu = String(document.getElementById("bwtDoorIndWienDepthBottom")?.value || "").trim();
+          const fc = String(document.getElementById("bwtDoorIndWienColor")?.value || "").trim();
           if (h) lines.push(`Höhe: ${h} cm`);
           if (w) lines.push(`Breite: ${w} cm`);
           if (sw) lines.push(`Standardbreite: ${sw}`);
           if (to) lines.push(`Tiefe O: ${to} cm`);
           if (tu) lines.push(`Tiefe U: ${tu} cm`);
+          if (fc) lines.push(`Farbe: ${fc}`);
         }
         if (pid === "1228") {
           lines = Array.isArray(lines) ? [...lines] : [];
@@ -9190,6 +9192,9 @@ function restoreBwt(bwt) {
   if (bwt.bwtDoorIndWienQty != null) {
     setByNameOrId("bwtDoorIndWienQty", bwt.bwtDoorIndWienQty);
   }
+  if (bwt.bwtDoorIndWienColor != null) {
+    setByNameOrId("bwtDoorIndWienColor", bwt.bwtDoorIndWienColor);
+  }
   if (bwt.bwtDoorIndWienHeight != null) {
     setByNameOrId("bwtDoorIndWienHeight", bwt.bwtDoorIndWienHeight);
   }
@@ -12329,16 +12334,25 @@ cat_SHOWER: "menu_SHOWER",
     if (!cb || !wrap) return;
 
     const qty = wrap.querySelector('input[type="number"]');
+    const card = cb.closest("label.image-check");
+    const inCardExpand = wrap.dataset.expandInCard === "true" || wrap.classList.contains("bwt-door-extra");
+
     const apply = () => {
       const on = !!cb.checked;
-      wrap.hidden = !on;
+      if (inCardExpand) {
+        wrap.hidden = false;
+        wrap.classList.toggle("is-open", on);
+        if (card) card.classList.toggle("is-expanded", on);
+      } else {
+        wrap.hidden = !on;
+      }
       wrap.setAttribute("aria-hidden", String(!on));
       if (on) {
-        if (!qty.value || parseInt(qty.value, 10) <= 0) qty.value = "1";
-        qty.setAttribute("required", "required");
+        if (qty && (!qty.value || parseInt(qty.value, 10) <= 0)) qty.value = "1";
+        qty?.setAttribute("required", "required");
       } else {
-        qty.removeAttribute("required");
-        qty.value = "0";
+        qty?.removeAttribute("required");
+        if (qty) qty.value = "0";
       }
     };
     cb.addEventListener("change", apply);
@@ -12686,7 +12700,14 @@ wireTileQty("hlWallAngledBall35", "qty_hlWallAngledBall35_wrap");
                   qtyInput.value = "0";
                   qtyInput.removeAttribute("required");
                 }
-                qtyWrap.hidden = true;
+                if (qtyWrap.dataset.expandInCard === "true" || qtyWrap.classList.contains("bwt-door-extra")) {
+                  qtyWrap.hidden = false;
+                  qtyWrap.classList.remove("is-open");
+                  const card = other.closest("label.image-check");
+                  if (card) card.classList.remove("is-expanded");
+                } else {
+                  qtyWrap.hidden = true;
+                }
                 qtyWrap.setAttribute("aria-hidden", "true");
               }
             }
