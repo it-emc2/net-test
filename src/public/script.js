@@ -3192,6 +3192,34 @@ function buildPayload() {
             lines.push(`Höhe: ${h} cm`);
           }
         }
+        if (pid === "1227") {
+          lines = Array.isArray(lines) ? [...lines] : [];
+          const h = String(document.getElementById("bwtDoorIndWienHeight")?.value || "").trim();
+          const w = String(document.getElementById("bwtDoorIndWienWidth")?.value || "").trim();
+          const sw = String(document.getElementById("bwtDoorIndWienStdWidth")?.value || "").trim();
+          const to = String(document.getElementById("bwtDoorIndWienDepthTop")?.value || "").trim();
+          const tu = String(document.getElementById("bwtDoorIndWienDepthBottom")?.value || "").trim();
+          if (h) lines.push(`Höhe: ${h} cm`);
+          if (w) lines.push(`Breite: ${w} cm`);
+          if (sw) lines.push(`Standardbreite: ${sw}`);
+          if (to) lines.push(`Tiefe O: ${to} cm`);
+          if (tu) lines.push(`Tiefe U: ${tu} cm`);
+        }
+        if (pid === "1228") {
+          lines = Array.isArray(lines) ? [...lines] : [];
+          const h = String(document.getElementById("bwtDoorIndWienGlasHeight")?.value || "").trim();
+          const w = String(document.getElementById("bwtDoorIndWienGlasWidth")?.value || "").trim();
+          const sw = String(document.getElementById("bwtDoorIndWienGlasStdWidth")?.value || "").trim();
+          const to = String(document.getElementById("bwtDoorIndWienGlasDepthTop")?.value || "").trim();
+          const tu = String(document.getElementById("bwtDoorIndWienGlasDepthBottom")?.value || "").trim();
+          const fc = String(document.getElementById("bwtDoorIndWienGlasFrameColor")?.value || "").trim();
+          if (h) lines.push(`Höhe: ${h} cm`);
+          if (w) lines.push(`Breite: ${w} cm`);
+          if (sw) lines.push(`Standardbreite: ${sw}`);
+          if (to) lines.push(`Tiefe O: ${to} cm`);
+          if (tu) lines.push(`Tiefe U: ${tu} cm`);
+          if (fc) lines.push(`Rahmen-Farbe: ${fc}`);
+        }
         if (lines.length) bwt.doorInfoById[pid] = lines;
       });
 
@@ -9161,6 +9189,39 @@ function restoreBwt(bwt) {
   }
   if (bwt.bwtDoorIndWienQty != null) {
     setByNameOrId("bwtDoorIndWienQty", bwt.bwtDoorIndWienQty);
+  }
+  if (bwt.bwtDoorIndWienHeight != null) {
+    setByNameOrId("bwtDoorIndWienHeight", bwt.bwtDoorIndWienHeight);
+  }
+  if (bwt.bwtDoorIndWienWidth != null) {
+    setByNameOrId("bwtDoorIndWienWidth", bwt.bwtDoorIndWienWidth);
+  }
+  if (bwt.bwtDoorIndWienStdWidth != null) {
+    setByNameOrId("bwtDoorIndWienStdWidth", bwt.bwtDoorIndWienStdWidth);
+  }
+  if (bwt.bwtDoorIndWienDepthTop != null) {
+    setByNameOrId("bwtDoorIndWienDepthTop", bwt.bwtDoorIndWienDepthTop);
+  }
+  if (bwt.bwtDoorIndWienDepthBottom != null) {
+    setByNameOrId("bwtDoorIndWienDepthBottom", bwt.bwtDoorIndWienDepthBottom);
+  }
+  if (bwt.bwtDoorIndWienGlasHeight != null) {
+    setByNameOrId("bwtDoorIndWienGlasHeight", bwt.bwtDoorIndWienGlasHeight);
+  }
+  if (bwt.bwtDoorIndWienGlasWidth != null) {
+    setByNameOrId("bwtDoorIndWienGlasWidth", bwt.bwtDoorIndWienGlasWidth);
+  }
+  if (bwt.bwtDoorIndWienGlasStdWidth != null) {
+    setByNameOrId("bwtDoorIndWienGlasStdWidth", bwt.bwtDoorIndWienGlasStdWidth);
+  }
+  if (bwt.bwtDoorIndWienGlasDepthTop != null) {
+    setByNameOrId("bwtDoorIndWienGlasDepthTop", bwt.bwtDoorIndWienGlasDepthTop);
+  }
+  if (bwt.bwtDoorIndWienGlasDepthBottom != null) {
+    setByNameOrId("bwtDoorIndWienGlasDepthBottom", bwt.bwtDoorIndWienGlasDepthBottom);
+  }
+  if (bwt.bwtDoorIndWienGlasFrameColor != null) {
+    setByNameOrId("bwtDoorIndWienGlasFrameColor", bwt.bwtDoorIndWienGlasFrameColor);
   }
 if (bwt.bwtDoorStdHeight != null) {
   setByNameOrId("bwtDoorStdHeight", bwt.bwtDoorStdHeight);
