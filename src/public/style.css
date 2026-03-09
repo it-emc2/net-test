@@ -2814,3 +2814,55 @@ label.image-check.is-checked .caption {
     grid-column: 1 / -1;
   }
 }
+
+/* Draft buttons in summary widget stacked vertically */
+.sw-actions--drafts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.sw-actions--drafts button {
+  width: 100%;
+  justify-content: center;
+}
+
+
+
+/* ---------- Global button hover polish ---------- */
+button,
+.btn,
+.sw-save-btn,
+.dm-btn,
+.da-add {
+  transition: 
+    box-shadow 0.18s ease,
+    transform 0.12s ease,
+    background 0.18s ease,
+    border-color 0.18s ease;
+}
+
+/* hover / focus glow */
+button:hover,
+.btn:hover,
+.sw-save-btn:hover,
+.dm-btn:hover,
+.da-add:hover,
+button:focus-visible,
+.btn:focus-visible,
+.sw-save-btn:focus-visible,
+.dm-btn:focus-visible,
+.da-add:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring), 0 6px 16px rgba(0,0,0,0.08);
+}
+
+/* subtle press effect */
+button:active,
+.btn:active,
+.sw-save-btn:active,
+.dm-btn:active,
+.da-add:active {
+  transform: translateY(1px);
+}
+/* ---------- ------------------ ---------- */

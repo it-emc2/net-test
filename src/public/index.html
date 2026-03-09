@@ -147,16 +147,21 @@
       top: 16px;
       right: 16px;
       z-index: 60;
-      /* above sidebar (z=50), below toaster (9999) */
       background: var(--panel);
       color: var(--text);
-      border-radius: 999px;
-      padding: 13px 22px;
+      border-radius: 24px;
+      padding: 18px 20px;
       box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
       border: 1px solid var(--border);
+
       display: flex;
       flex-direction: column;
-      gap: 5px;
+      gap: 10px;
+
+      width: 320px;
+      max-width: calc(100vw - 32px);
+      box-sizing: border-box;
+
       font-size: 0.95rem;
     }
 
@@ -195,18 +200,23 @@
 
 
     .summary-widget .sw-actions {
-      margin-top: 6px;
+      margin-top: 8px;
       display: flex;
-      justify-content: flex-end;
+      flex-direction: column;
+      gap: 8px;
     }
 
     .summary-widget .sw-save-btn {
+      width: 100%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       border: 1px solid var(--border);
       background: var(--accent-weak);
       color: var(--accent-strong);
-      font-size: 0.8rem;
-      padding: 4px 10px;
-      border-radius: 999px;
+      font-size: 0.9rem;
+      padding: 10px 14px;
+      border-radius: 12px;
       cursor: pointer;
     }
 
@@ -1039,6 +1049,29 @@
         grid-template-columns: 1fr;
       }
     }
+      /* Nicht speichern button → danger style (strong override) */
+#dmDiscardBtn,
+button#dmDiscardBtn,
+.dm-btn-danger,
+button.dm-btn-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+  color: #fff !important;
+  border: 1px solid #dc2626 !important;
+}
+
+#dmDiscardBtn:hover,
+#dmDiscardBtn:focus-visible,
+button#dmDiscardBtn:hover,
+button#dmDiscardBtn:focus-visible,
+.dm-btn-danger:hover,
+.dm-btn-danger:focus-visible,
+button.dm-btn-danger:hover,
+button.dm-btn-danger:focus-visible {
+  background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+  border-color: #b91c1c !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25) !important;
+}
   </style>
 </head>
 
