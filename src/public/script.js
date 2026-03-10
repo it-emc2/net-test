@@ -4310,7 +4310,17 @@ function validateBereich() {
     .map((id) => document.getElementById(id))
     .find((el) => !el?.value);
   if (!bad) {
-    const radios = ["salutation", "hasContactPerson", "customerType", "payer"];
+    const radios = [
+      "salutation",
+      "hasContactPerson",
+      "customerType",
+      "payer",
+      "pflegekasseAntrag",
+      "wohnsituation",
+      "wohnungszugang",
+      "stockwerkBad",
+      "parkenMoeglich",
+    ];
     for (const n of radios) {
       if (!form.querySelector(`input[name="${n}"]:checked`)) {
         bad = form.querySelector(`input[name="${n}"]`)?.closest("label");
@@ -4318,6 +4328,24 @@ function validateBereich() {
       }
     }
   }
+
+  if (!bad && form.querySelector('input[name="pflegekasseAntrag"][value="Nein"]:checked')) {
+    if (!form.querySelector('input[name="pflegekasseEmc2Antrag"]:checked')) {
+      bad = form.querySelector('input[name="pflegekasseEmc2Antrag"]')?.closest("label");
+    }
+  }
+
+  if (!bad && form.querySelector('input[name="wohnsituation"][value="Miete"]:checked')) {
+    if (!form.querySelector('input[name="vermieterGenehmigung"]:checked')) {
+      bad = form.querySelector('input[name="vermieterGenehmigung"]')?.closest("label");
+    }
+  }
+
+  if (!bad && form.querySelector('input[name="stockwerkBad"][value="Sonstiges"]:checked')) {
+    const otherFloor = document.getElementById("stockwerkBadSonst");
+    if (!otherFloor?.value?.trim()) bad = otherFloor;
+  }
+
   if (bad) {
     flashInvalid(bad.tagName === "INPUT" ? bad : bad.querySelector("input"));
     return false;
@@ -5724,6 +5752,63 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ------- Customer helpers -------
 
+(function initKundendatenExtraFields() {
+  const form = document.getElementById("form-Kundendaten");
+  if (!form) return;
+
+  const q = (sel) => form.querySelector(sel);
+  const emc2Row = document.getElementById("pflegekasseEmc2Row");
+  const vermieterRow = document.getElementById("vermieterGenehmigungRow");
+  const stockwerkRow = document.getElementById("stockwerkBadSonstRow");
+  const emc2Inputs = () => Array.from(form.querySelectorAll('input[name="pflegekasseEmc2Antrag"]'));
+  const vermieterInputs = () => Array.from(form.querySelectorAll('input[name="vermieterGenehmigung"]'));
+  const stockwerkInput = document.getElementById("stockwerkBadSonst");
+
+  function sync() {
+    const pflegekasseAntrag = q('input[name="pflegekasseAntrag"]:checked')?.value || "";
+    const wohnsituation = q('input[name="wohnsituation"]:checked')?.value || "";
+    const badStockwerk = q('input[name="badStockwerk"]:checked')?.value || "";
+
+    const showEmc2 = pflegekasseAntrag === "Nein";
+    if (emc2Row) {
+      emc2Row.hidden = !showEmc2;
+      emc2Row.setAttribute("aria-hidden", showEmc2 ? "false" : "true");
+    }
+    emc2Inputs().forEach((el) => {
+      el.disabled = !showEmc2;
+      if (!showEmc2) el.checked = false;
+    });
+
+    const showVermieter = wohnsituation === "Miete";
+    if (vermieterRow) {
+      vermieterRow.hidden = !showVermieter;
+      vermieterRow.setAttribute("aria-hidden", showVermieter ? "false" : "true");
+    }
+    vermieterInputs().forEach((el) => {
+      el.disabled = !showVermieter;
+      if (!showVermieter) el.checked = false;
+    });
+
+    const showStockwerkSonst = badStockwerk === "Anderes OG";
+    if (stockwerkRow) {
+      stockwerkRow.hidden = !showStockwerkSonst;
+      stockwerkRow.setAttribute("aria-hidden", showStockwerkSonst ? "false" : "true");
+    }
+    if (stockwerkInput) {
+      stockwerkInput.disabled = !showStockwerkSonst;
+      if (!showStockwerkSonst) stockwerkInput.value = "";
+    }
+  }
+
+  form.addEventListener("change", (e) => {
+    const name = e.target?.name || "";
+    if (["pflegekasseAntrag", "wohnsituation", "badStockwerk"].includes(name)) sync();
+  });
+
+  sync();
+  window.syncKundendatenExtraFields = sync;
+})();
+
 // save / load the whole Kundendaten page state so it can be reused across offer types
 function getKundendatenPageData() {
   const form = document.getElementById("form-Kundendaten");
@@ -5766,6 +5851,20 @@ function getKundendatenPageData() {
     wohnumfeldDone: data.wohnumfeldDone || checkedValue("wohnumfeldDone"),
     wohnumfeldApplication:
       data.wohnumfeldApplication || checkedValue("wohnumfeldApplication"),
+    pflegekasseAntrag: data.pflegekasseAntrag || checkedValue("pflegekasseAntrag"),
+    pflegekasseEmc2Antrag:
+      data.pflegekasseEmc2Antrag || checkedValue("pflegekasseEmc2Antrag"),
+    wohnsituation: data.wohnsituation || checkedValue("wohnsituation"),
+    vermieterGenehmigung:
+      data.vermieterGenehmigung || checkedValue("vermieterGenehmigung"),
+    zugangWohnung: data.zugangWohnung || checkedValue("zugangWohnung"),
+    badStockwerk:
+      (checkedValue("badStockwerk") === "Anderes OG"
+        ? (q('#stockwerkBadSonst')?.value || "Anderes OG")
+        : checkedValue("badStockwerk")) || data.badStockwerk || "",
+    parkenMoeglich: data.parkenMoeglich || checkedValue("parkenMoeglich"),
+    stockwerkBadSonst: q('#stockwerkBadSonst')?.value || data.stockwerkBadSonst || "",
+    parkDetails: data.parkDetails || q('#parkDetails')?.value || "",
 
     // draft-style canonical budget payload
     budgetOptionsPanel: data.budgetOptionsPanel || budgetOptionsPanel,
@@ -9330,6 +9429,20 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("state", k.state);
   setByNameOrId("postalCode", k.postalCode);
   setByNameOrId("deployment", k.deployment);
+  setRadio("pflegekasseAntrag", k.pflegekasseAntrag);
+  setRadio("pflegekasseEmc2Antrag", k.pflegekasseEmc2Antrag);
+  setRadio("wohnsituation", k.wohnsituation);
+  setRadio("vermieterGenehmigung", k.vermieterGenehmigung);
+  setRadio("zugangWohnung", k.zugangWohnung || k.wohnungszugang);
+  const stockwerkValue = String(k.badStockwerk || k.stockwerkBad || "");
+  const isOtherStockwerk = !!stockwerkValue && !["UG", "EG", "1. OG", "2. OG"].includes(stockwerkValue);
+  setRadio("badStockwerk", isOtherStockwerk ? "Anderes OG" : stockwerkValue);
+  setByNameOrId("stockwerkBadSonst", k.stockwerkBadSonst || (isOtherStockwerk ? stockwerkValue : ""));
+  setRadio("parkenMoeglich", k.parkenMoeglich);
+  setByNameOrId("parkDetails", k.parkDetails || k.parksituationHinweis);
+  if (typeof window.syncKundendatenExtraFields === "function") {
+    window.syncKundendatenExtraFields();
+  }
   setSelect("customerType", k.customerType);
 
   // contact person

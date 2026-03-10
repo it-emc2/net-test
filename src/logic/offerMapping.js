@@ -610,6 +610,17 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
             ? "Sehr geehrter Familie"
             : "Guten Tag",
     Angebotsnummer: body.offerNumber || `ANG-${Date.now()}`,
+    PflegekasseAntrag: b.pflegekasseAntrag || "",
+    PflegekasseEmc2Antrag: b.pflegekasseEmc2Antrag || "",
+    Wohnsituation: b.wohnsituation || "",
+    VermieterGenehmigung: b.vermieterGenehmigung || "",
+    Wohnungszugang: b.wohnungszugang || "",
+    StockwerkBad:
+      b.stockwerkBad === "Sonstiges"
+        ? (b.stockwerkBadSonst || "")
+        : (b.stockwerkBad || ""),
+    ParkenMoeglich: b.parkenMoeglich || "",
+    ParksituationHinweis: b.parksituationHinweis || "",
 
     // Legacy/optional price fields
     Arbeit: fmtCurrency(services?.sum ?? 0),
