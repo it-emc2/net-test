@@ -1118,12 +1118,38 @@ function mapData(body = {}, computed = {}) {
       doorVariantText = doorLabelParts.join(", ");
     }
 
- let bullet1Text = "Liefern und Montieren einer Badewannentür";
+/*  let bullet1Text = "Liefern und Montieren einer Badewannentür";
 if (doorVariantText) {
   bullet1Text = `Liefern und Montieren einer Badewannentür (${doorVariantText})`;
 }
 const doorColor = (bwt?.bwtDoorStdColor || "").trim();
-if (doorColor) bullet1Text += ` — Farbe: ${doorColor}`;
+if (doorColor) bullet1Text += ` — Farbe: ${doorColor}`; */
+
+let bullet1Text = "Liefern und Montieren einer Badewannentür";
+
+// Türtyp
+if (doorVariantText) {
+  bullet1Text = `Liefern und Montieren einer Badewannentür (${doorVariantText})`;
+}
+
+// Türanschlag
+const doorAnschlag = (bwt?.bwtAnschlag || "").trim();
+if (doorAnschlag) {
+  bullet1Text += ` - Türanschlag: ${doorAnschlag}`;
+}
+
+// Farbe (derive from whichever door type is selected)
+const doorColor =
+  (bwt?.bwtDoorStdColor ||
+    bwt?.bwtDoorBudgetColor ||
+    bwt?.bwtDoorVariodoorColor ||
+    bwt?.bwtDoorIndWienColor ||
+    bwt?.bwtDoorIndWienGlasColor ||
+    "").trim();
+
+if (doorColor) {
+  bullet1Text += ` - Farbe: ${doorColor}`;
+}
 
 
 // ✅ append door info lines (only when exactly 1 door pid is selected)
