@@ -565,6 +565,28 @@ app.use(
   }),
 );
 
+// ---------------- Static: Font Awesome from npm ----------------
+app.use(
+  "/vendor/fontawesome",
+  express.static(path.join(__dirname, "..", "node_modules", "@fortawesome", "fontawesome-free"), {
+    fallthrough: false,
+    setHeaders(res, filePath) {
+      if (filePath.endsWith(".css")) {
+        res.setHeader("Content-Type", "text/css; charset=utf-8");
+      }
+      if (filePath.endsWith(".woff2")) {
+        res.setHeader("Content-Type", "font/woff2");
+      }
+      if (filePath.endsWith(".woff")) {
+        res.setHeader("Content-Type", "font/woff");
+      }
+      if (filePath.endsWith(".ttf")) {
+        res.setHeader("Content-Type", "font/ttf");
+      }
+    },
+  }),
+);
+
 // ---------------- Static ----------------
 app.use(express.static(path.join(__dirname, "public")));
 

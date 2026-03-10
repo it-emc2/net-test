@@ -2813,6 +2813,8 @@ function buildPayload() {
     collectHlExtras(payload);
   }
 
+  attachProjectSketchesToPayload(payload);
+
   /* ===========================
      OPTIONAL: ensure REHA checkboxes are represented as opt_* keys
      =========================== */
@@ -3305,6 +3307,58 @@ if (anschlag) {
 window.buildPayload = buildPayload;
 
 window.buildPayload = buildPayload;
+
+function getSketchDataFor(key) {
+  const json = document.getElementById(`${key}SketchJson`)?.value?.trim() || "";
+  const dataUrl = document.getElementById(`${key}SketchDataUrl`)?.value?.trim() || "";
+  return { json, dataUrl };
+}
+
+function attachProjectSketchesToPayload(payload) {
+  try {
+    const daNoteEl = document.getElementById("daNote");
+    const bwtNoteEl = document.getElementById("bwtNote");
+    const hlNoteEl = document.getElementById("hlNote");
+
+    payload.duschabtrennung = payload.duschabtrennung || {};
+    payload.bwt = payload.bwt || {};
+    payload.hl = payload.hl || {};
+
+    if (daNoteEl) payload.duschabtrennung.daNote = daNoteEl.value || "";
+    if (bwtNoteEl) payload.bwt.bwtNote = bwtNoteEl.value || "";
+    if (hlNoteEl) payload.hl.hlNote = hlNoteEl.value || "";
+
+    const daSketch = getSketchDataFor("da");
+    const bwtSketch = getSketchDataFor("bwt");
+    const hlSketch = getSketchDataFor("hl");
+
+    payload.duschabtrennung.sketch = { json: daSketch.json, dataUrl: daSketch.dataUrl };
+    payload.bwt.sketch = { json: bwtSketch.json, dataUrl: bwtSketch.dataUrl };
+    payload.hl.sketch = { json: hlSketch.json, dataUrl: hlSketch.dataUrl };
+  } catch (e) {
+    console.warn("[buildPayload] attachProjectSketchesToPayload failed:", e);
+  }
+}
+
+function restoreSketchFor(key, section) {
+  try {
+    const mgr = window.__drawingPads?.[key];
+    if (!mgr) return;
+
+    const sketch = section?.sketch || null;
+    if (!sketch) {
+      mgr.clear?.();
+      return;
+    }
+
+    const json = typeof sketch === "string" ? sketch : (sketch.json || "");
+    const dataUrl = typeof sketch === "string" ? sketch : (sketch.dataUrl || "");
+    mgr.setFromSaved?.({ json, dataUrl });
+  } catch (e) {
+    console.warn(`[restore] sketch restore failed for ${key}:`, e);
+  }
+}
+
 function stripEmptySectionsForPreview(payload) {
   const copy = {};
 
@@ -9285,6 +9339,9 @@ function restoreRabatt(r) {
 function restoreBwt(bwt) {
   if (!bwt) return;
 
+  const bwtNoteEl = document.getElementById("bwtNote");
+  if (bwtNoteEl) bwtNoteEl.value = bwt.bwtNote || "";
+
   const form = document.getElementById("form-bwt");
   if (!form) return;
 
@@ -10090,6 +10147,28 @@ const RESTORE_HANDLERS = {
     }
   })();
 
+
+  // Drawing pad manager(s)
+  window.__drawingReady = window.__drawingReady || (async () => {
+    try {
+      await domReady();
+      const { initDrawingPadManager } = await import("./DrawingPadManager.js");
+      const pads = {};
+      document.querySelectorAll(".project-sketch[data-sketch-key]").forEach((root) => {
+        const key = root.dataset.sketchKey;
+        if (!key) return;
+        pads[key] = initDrawingPadManager({ root });
+      });
+      window.__drawingPads = pads;
+      window.__drawingPadManagers = pads;
+      window.__managers.drawingPads = pads;
+      return pads;
+    } catch (e) {
+      console.warn("[DrawingPadManager] init failed:", e);
+      return null;
+    }
+  })();
+
   // Signature pad manager
   window.__signatureReady = window.__signatureReady || (async () => {
     try {
@@ -10188,6 +10267,11 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     } catch (e) {
       console.warn("[restore] signature restore failed:", e);
     }
+
+    await window.__drawingReady;
+    restoreSketchFor("da", p?.duschabtrennung);
+    restoreSketchFor("bwt", p?.bwt);
+    restoreSketchFor("hl", p?.hl);
   } finally {
     window.__restoring = false;
     window.__RESTORING__ = false;
@@ -10335,6 +10419,9 @@ function restoreHl(hl) {
 
   const form = document.getElementById("form-hl");
   if (!form) return;
+
+  const noteEl = document.getElementById("hlNote");
+  if (noteEl) noteEl.value = hl.hlNote || "";
 
   // Restore Logistik inputs (preferred)
   const log = hl.logistik || null;
