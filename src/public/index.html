@@ -1236,6 +1236,9 @@ button.dm-btn-danger:focus-visible {
           <div>
             <label for="lastName" class="req">Nachname</label><input id="lastName" name="lastName" required />
           </div>
+
+       
+
           <div class="full">
             <label for="phone">Telefonnummer</label><input id="phone" name="phone" type="tel" placeholder="+49 ..." />
           </div>
@@ -1383,7 +1386,7 @@ button.dm-btn-danger:focus-visible {
                     </label>
                   </div>
                   <div class="field full">
-                    <label for="kassenkundeName">Name der Krankenkasse</label>
+                    <label for="kassenkundeName">Name der Krankenkasse Kunde</label>
                     <input id="kassenkundeName" name="kassenkundeName" type="text" placeholder="z. B. AOK Nord" />
                   </div>
                 </div>
@@ -1537,6 +1540,36 @@ button.dm-btn-danger:focus-visible {
                   </div>
                 </div> -->
               </div>
+
+                 <div id="ehepaarPartnerPanel" class="full aufschlag-panel" hidden aria-hidden="true" style="margin-top: 8px">
+            <div class="section-header" style="margin-bottom: 12px">Partner / Ehepartner</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+              <div>
+                <label for="partnerFirstName" class="req">Vorname Partner</label>
+                <input id="partnerFirstName" name="partnerFirstName" />
+              </div>
+              <div>
+                <label for="partnerLastName" class="req">Nachname Partner</label>
+                <input id="partnerLastName" name="partnerLastName" />
+              </div>
+            </div>
+
+            <div class="full" style="margin-top: 12px">
+              <label class="req">Pflegegrad Partner</label>
+              <div class="zones-grid" id="partnerPflegegradGrid" style="grid-template-columns: repeat(5, 1fr)">
+                <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="1" /><span class="dot"></span><span>1</span></label>
+                <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="2" /><span class="dot"></span><span>2</span></label>
+                <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="3" /><span class="dot"></span><span>3</span></label>
+                <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="4" /><span class="dot"></span><span>4</span></label>
+                <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="5" /><span class="dot"></span><span>5</span></label>
+              </div>
+            </div>
+
+            <div class="full" style="margin-top: 12px">
+              <label for="partnerKassenkundeName">Name der Krankenkasse Partner</label>
+              <input id="partnerKassenkundeName" name="partnerKassenkundeName" type="text" placeholder="z. B. AOK Nord" />
+            </div>
+          </div>
             </details>
           </div>
 

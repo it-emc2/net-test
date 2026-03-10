@@ -5760,14 +5760,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const emc2Row = document.getElementById("pflegekasseEmc2Row");
   const vermieterRow = document.getElementById("vermieterGenehmigungRow");
   const stockwerkRow = document.getElementById("stockwerkBadSonstRow");
+  const partnerPanel = document.getElementById("ehepaarPartnerPanel");
   const emc2Inputs = () => Array.from(form.querySelectorAll('input[name="pflegekasseEmc2Antrag"]'));
   const vermieterInputs = () => Array.from(form.querySelectorAll('input[name="vermieterGenehmigung"]'));
   const stockwerkInput = document.getElementById("stockwerkBadSonst");
+  const partnerInputs = () => Array.from(form.querySelectorAll('#ehepaarPartnerPanel input'));
 
   function sync() {
     const pflegekasseAntrag = q('input[name="pflegekasseAntrag"]:checked')?.value || "";
     const wohnsituation = q('input[name="wohnsituation"]:checked')?.value || "";
     const badStockwerk = q('input[name="badStockwerk"]:checked')?.value || "";
+    const showPartner = !!q('input[name="twoPersons"]:checked');
 
     const showEmc2 = pflegekasseAntrag === "Nein";
     if (emc2Row) {
@@ -5798,11 +5801,19 @@ document.addEventListener("DOMContentLoaded", () => {
       stockwerkInput.disabled = !showStockwerkSonst;
       if (!showStockwerkSonst) stockwerkInput.value = "";
     }
+
+    if (partnerPanel) {
+      partnerPanel.hidden = !showPartner;
+      partnerPanel.setAttribute("aria-hidden", showPartner ? "false" : "true");
+    }
+    partnerInputs().forEach((el) => {
+      el.disabled = !showPartner;
+    });
   }
 
   form.addEventListener("change", (e) => {
     const name = e.target?.name || "";
-    if (["pflegekasseAntrag", "wohnsituation", "badStockwerk"].includes(name)) sync();
+    if (["pflegekasseAntrag", "wohnsituation", "badStockwerk", "twoPersons"].includes(name)) sync();
   });
 
   sync();
@@ -5848,6 +5859,11 @@ function getKundendatenPageData() {
     aufschlag: data.aufschlag || checkedValue("aufschlag"),
     hasPflegegrad: data.hasPflegegrad || checkedValue("hasPflegegrad"),
     pflegegrad: data.pflegegrad || checkedValue("pflegegrad"),
+    partnerFirstName: data.partnerFirstName || q('#partnerFirstName')?.value || "",
+    partnerLastName: data.partnerLastName || q('#partnerLastName')?.value || "",
+    partnerPflegegrad: data.partnerPflegegrad || checkedValue("partnerPflegegrad"),
+    partnerKassenkundeName:
+      data.partnerKassenkundeName || q('#partnerKassenkundeName')?.value || "",
     wohnumfeldDone: data.wohnumfeldDone || checkedValue("wohnumfeldDone"),
     wohnumfeldApplication:
       data.wohnumfeldApplication || checkedValue("wohnumfeldApplication"),
@@ -5953,6 +5969,15 @@ function validateCustomerData(data) {
   const hasName = Boolean(data.firstName || data.lastName || data.company);
   if (!hasName) {
     throw new Error("Bitte mindestens Vorname/Nachname oder Firma eingeben.");
+  }
+
+  if (data.twoPersons) {
+    if (!String(data.partnerFirstName || "").trim() || !String(data.partnerLastName || "").trim()) {
+      throw new Error("Bitte Vorname und Nachname des Partners eingeben.");
+    }
+    if (!String(data.partnerPflegegrad || "").trim()) {
+      throw new Error("Bitte den Pflegegrad des Partners auswählen.");
+    }
   }
 }
 
@@ -9479,6 +9504,10 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("bitrixContactId", k.bitrixContactId || k.customerNumber);
   setRadio("payer", k.payer);
   setByNameOrId("kassenkundeName", k.kassenkundeName);
+  setByNameOrId("partnerFirstName", k.partnerFirstName);
+  setByNameOrId("partnerLastName", k.partnerLastName);
+  if (k.partnerPflegegrad) setRadio("partnerPflegegrad", String(k.partnerPflegegrad));
+  setByNameOrId("partnerKassenkundeName", k.partnerKassenkundeName);
 
   const kassenkundeWrap = document
     .getElementById("kassenkundeName")
