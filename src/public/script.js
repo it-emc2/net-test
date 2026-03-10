@@ -6881,7 +6881,21 @@ function initSmartTraySearch() {
       savedPid = saved?.productId || null;
     } catch {}
 
-    const top = list.slice(0, 3);
+    const budgetEl = document.getElementById("budgetToggle");
+    const wantBudget = !!budgetEl?.checked;
+
+    // Hide budget trays unless Low Budget mode is explicitly enabled
+    const filtered = wantBudget
+      ? list
+      : list.filter((p) => !p.isBudget);
+
+    if (filtered.length === 0) {
+      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
+      applySelectedStyles();
+      return;
+    }
+
+    const top = filtered.slice(0, 3);
     const savedIndex =
       allowAutoCheck && savedPid ? top.findIndex((p) => p.productId === savedPid) : -1;
 
@@ -7046,6 +7060,12 @@ function initSmartTraySearch() {
       clearChosen();
       request();
     });
+  });
+
+  const budgetEl = document.getElementById("budgetToggle");
+  budgetEl?.addEventListener("change", () => {
+    clearChosen();
+    request();
   });
 
   // Initial kick (will early-return with empty inputs)
