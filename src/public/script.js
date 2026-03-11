@@ -16108,7 +16108,7 @@ async function fetchTodaysCustomers(){
     renderTodaysCustomers();
 
     if(meta){
-      meta.textContent = `${todaysCustomers.length} Kunden gefunden`;
+      meta.textContent = `${todaysCustomers.length} Kunden gefunden in der Phase [VI] Vor-Ort-Erstberatung`;
     }
 
   }catch(e){
