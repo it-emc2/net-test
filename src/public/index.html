@@ -1134,30 +1134,58 @@ button.dm-btn-danger:focus-visible {
         </div>
         <p class="muted" style="margin: 0 0 16px">Wählen Sie einen Bereich, um zu starten.</p>
 
-        <div class="home-tiles">
-          <a class="tile-btn" data-step="BU-Badumbau" href="#Kundendaten">
-            <span class="tile-title">BU · Badumbau</span>
-          </a>
 
-          <a class="tile-btn" data-step="BWT-Badewannentür" href="#BWT-Badewannentür">
-            <span class="tile-title">BWT · Badewannentür</span>
-          </a>
+        <div class="home-stack">
+          <section class="home-offer-types" aria-labelledby="homeOfferTypesTitle">
+            <div class="home-section-head">
+              <h3 id="homeOfferTypesTitle">Angebotsarten</h3>
+              <p>Wählen Sie zuerst den Bereich oder springen Sie direkt aus den heutigen Leads hinein.</p>
+            </div>
 
-          <a class="tile-btn" data-step="HL-Handlauf" href="#HL-Handlauf">
-            <span class="tile-title">HL · Handlauf</span>
-          </a>
+            <div class="home-tiles">
+              <a class="tile-btn" data-step="BU-Badumbau" href="#Kundendaten">
+                <span class="tile-title">BU · Badumbau</span>
+              </a>
 
-          <a class="tile-btn" data-step="AH-Alltagshilfe" href="#AH-Alltagshilfe">
-            <span class="tile-title">AH · Alltagshilfe</span>
-          </a>
+              <a class="tile-btn" data-step="BWT-Badewannentür" href="#BWT-Badewannentür">
+                <span class="tile-title">BWT · Badewannentür</span>
+              </a>
 
-          <a class="tile-btn" data-step="HMS-Hausmeister-Service" href="#HMS-Hausmeister-Service">
-            <span class="tile-title">HMS · Hausmeister-Service</span>
-          </a>
+              <a class="tile-btn" data-step="HL-Handlauf" href="#HL-Handlauf">
+                <span class="tile-title">HL · Handlauf</span>
+              </a>
 
-          <a class="tile-btn" data-step="WD-Winterdienst" href="#WD-Winterdienst">
-            <span class="tile-title">WD · Winterdienst</span>
-          </a>
+              <a class="tile-btn" data-step="AH-Alltagshilfe" href="#AH-Alltagshilfe">
+                <span class="tile-title">AH · Alltagshilfe</span>
+              </a>
+
+              <a class="tile-btn" data-step="HMS-Hausmeister-Service" href="#HMS-Hausmeister-Service">
+                <span class="tile-title">HMS · Hausmeister-Service</span>
+              </a>
+
+              <a class="tile-btn" data-step="WD-Winterdienst" href="#WD-Winterdienst">
+                <span class="tile-title">WD · Winterdienst</span>
+              </a>
+            </div>
+          </section>
+
+          <section class="today-customers-panel" id="todayCustomersPanel" aria-labelledby="todayCustomersTitle">
+            <div class="today-customers-head">
+              <div>
+                <h3 id="todayCustomersTitle">Heutige Kunden</h3>
+                <p id="todayCustomersMeta">Lade Kunden…</p>
+              </div>
+
+              <div class="today-customers-actions">
+                <input type="text" id="todayCustomersSearch" placeholder="Name, Ort, Telefon…" autocomplete="off" />
+                <button type="button" id="refreshTodayCustomers" class="secondary">Aktualisieren</button>
+              </div>
+            </div>
+
+            <div id="todayCustomersList" class="today-customers-list">
+              <div class="today-customers-empty">Noch keine Kundendaten geladen.</div>
+            </div>
+          </section>
         </div>
 
       </section>

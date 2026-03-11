@@ -16028,3 +16028,342 @@ function setSaveCustomerStatus(btn, text, type = "info") {
     }, 2000);
   }
 }
+
+// =================================================================
+// Today's Customers Panel (Bitrix → n8n → configurator)
+// =================================================================
+
+(function(){
+
+let todaysCustomers = [];
+let todaysCustomersFiltered = [];
+let activeLeadId = null;
+
+const OFFER_DETECTION_RULES = [
+  {
+    offerKey: "bwt",
+    label: "BWT",
+    title: "Badewannentür",
+    keywords: [
+      "badewannentür",
+      "badewannentuer",
+      "wannentür",
+      "wannentuer",
+      "wannentuere",
+      "badewannen tür",
+      "badewannentuere",
+      "variodoor",
+      "verona",
+      "twinline",
+    ],
+  },
+  {
+    offerKey: "bu",
+    label: "BU",
+    title: "Badumbau",
+    keywords: [
+      "badewanne zur dusche",
+      "wanne zur dusche",
+      "badumbau",
+      "duschumbau",
+      "dusche statt badewanne",
+      "badewanne raus",
+      "duschwanne",
+      "duschabtrennung",
+      "wandverkleidung",
+      "teilbadsanierung",
+    ],
+  },
+  {
+    offerKey: "hl",
+    label: "HL",
+    title: "Haltegriffe",
+    keywords: [
+      "haltegriff",
+      "haltegriffe",
+      "handlauf",
+      "stützgriff",
+      "stuetzgriff",
+      "griffsystem",
+      "badgriff",
+    ],
+  },
+];
+
+async function fetchTodaysCustomers(){
+
+  const meta = document.getElementById("todayCustomersMeta");
+  const list = document.getElementById("todayCustomersList");
+
+  if(meta) meta.textContent = "Lade Kunden…";
+
+  try{
+
+    const r = await fetch("/api/bitrix/kundendaten");
+    const data = await r.json();
+
+    todaysCustomers = Array.isArray(data) ? data : (data?.items || []);
+    todaysCustomersFiltered = todaysCustomers;
+
+    renderTodaysCustomers();
+
+    if(meta){
+      meta.textContent = `${todaysCustomers.length} Kunden gefunden`;
+    }
+
+  }catch(e){
+
+    console.error("today customers failed", e);
+
+    if(list){
+      list.innerHTML =
+        `<div class="today-customers-empty">Fehler beim Laden der Kundendaten</div>`;
+    }
+
+  }
+
+}
+
+function normalizeText(value){
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/ß/g, "ss");
+}
+
+function getLeadSearchBlob(c){
+  const k = c?.Kundendaten || {};
+
+  return [
+    c?.dealTitle,
+    c?.rawImportText,
+    c?.Anfragedetails,
+    c?.anfragedetails,
+    c?.requestDetails,
+    c?.beschreibung,
+    c?.description,
+    c?.title,
+    k?.firstName,
+    k?.lastName,
+    k?.phone,
+    k?.email,
+    k?.city,
+    k?.postalCode,
+  ]
+    .filter(Boolean)
+.join(" ");
+}
+
+function detectOfferTypeFromLead(c){
+  const haystack = normalizeText(getLeadSearchBlob(c));
+
+  for(const rule of OFFER_DETECTION_RULES){
+    const matchedKeyword = rule.keywords.find(keyword => haystack.includes(normalizeText(keyword)));
+    if(matchedKeyword){
+      return {
+        offerKey: rule.offerKey,
+        label: rule.label,
+        title: rule.title,
+        matchedKeyword,
+      };
+    }
+  }
+
+  return {
+    offerKey: null,
+    label: "Manuell",
+    title: "Nicht erkannt",
+    matchedKeyword: null,
+  };
+}
+
+function renderTodaysCustomers(){
+
+  const list = document.getElementById("todayCustomersList");
+  if(!list) return;
+
+  if(!todaysCustomersFiltered.length){
+
+    list.innerHTML =
+      `<div class="today-customers-empty">Keine Kunden gefunden</div>`;
+    return;
+
+  }
+
+  list.innerHTML = todaysCustomersFiltered.map(c=>{
+
+    const k = c.Kundendaten || {};
+    const detected = detectOfferTypeFromLead(c);
+
+    const name =
+      `${k.firstName || ""} ${k.lastName || ""}`.trim() || "Unbekannt";
+
+    const location =
+      `${k.postalCode || ""} ${k.city || ""}`.trim();
+
+    const preview =
+      c.Anfragedetails || c.anfragedetails || c.rawImportText || c.dealTitle || "";
+
+    return `
+
+      <div class="today-customer-card ${String(activeLeadId) === String(c.dealId) ? "is-active" : ""}" data-id="${c.dealId}">
+
+        <div class="today-customer-topline">
+          <div class="today-customer-name">${escapeHtml(name)}</div>
+          <span class="today-customer-badge ${detected.offerKey ? "" : "is-unknown"}">${escapeHtml(detected.label)}</span>
+        </div>
+
+        <div class="today-customer-meta">
+          ${escapeHtml(location || "Ort unbekannt")} • Pflegegrad ${escapeHtml(k.pflegegrad || "-")}
+        </div>
+
+        <div class="today-customer-meta">
+          ${escapeHtml(c.dealTitle || "Ohne Deal-Titel")}
+        </div>
+
+        <div class="today-customer-preview">
+          ${escapeHtml(preview)}
+        </div>
+
+      </div>
+
+    `;
+
+  }).join("");
+
+  list.querySelectorAll(".today-customer-card")
+    .forEach(card=>{
+
+      card.onclick = ()=>{
+
+        const id = card.dataset.id;
+
+        const c = todaysCustomers.find(x => String(x.dealId) === id);
+
+        if(!c) return;
+
+        activeLeadId = id;
+        renderTodaysCustomers();
+        applyCustomerToForm(c);
+
+      };
+
+    });
+
+}
+
+function applyCustomerToForm(c){
+
+  const k = c.Kundendaten || {};
+  const detected = detectOfferTypeFromLead(c);
+
+  console.log("Loading customer:", c, "detected offer:", detected);
+
+  if(detected.offerKey && typeof startOfferFlow === "function"){
+    startOfferFlow(detected.offerKey);
+  } else if(typeof startOfferFlow === "function"){
+    startOfferFlow("bu");
+  }
+
+  setValue("#firstName", k.firstName);
+  setValue("#lastName", k.lastName);
+  setValue("#phone", k.phone);
+  setValue("#email", k.email);
+  setValue("#street", k.street);
+  setValue("#postalCode", k.postalCode);
+  setValue("#city", k.city);
+  setValue("#bitrixContactId", k.bitrixContactId || k.customerNumber || c.contactId || c.dealId || "");
+  setValue("#company", k.company);
+  setValue("#country", k.country);
+  setValue("#state", k.state);
+
+  if(k.salutation && typeof setRadio === "function"){
+    setRadio("salutation", k.salutation);
+  }
+
+  try {
+    if (typeof updateSummaryWidgetName === "function") {
+      updateSummaryWidgetName();
+    }
+    if (typeof updateSidebarForOffer === "function") {
+      updateSidebarForOffer();
+    }
+  } catch (e) {
+    console.warn("today customers sidebar refresh failed", e);
+  }
+}
+
+function setValue(selector,val){
+
+  const el = document.querySelector(selector);
+
+  if(!el) return;
+
+  el.value = val || "";
+
+  el.dispatchEvent(new Event("input",{bubbles:true}));
+  el.dispatchEvent(new Event("change",{bubbles:true}));
+
+}
+
+function escapeHtml(value){
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function filterCustomers(q){
+
+  if(!q){
+    todaysCustomersFiltered = todaysCustomers;
+  }else{
+
+    const s = normalizeText(q);
+
+    todaysCustomersFiltered = todaysCustomers.filter(c=>{
+      const searchable = normalizeText(getLeadSearchBlob(c));
+      const detected = detectOfferTypeFromLead(c);
+
+      return [
+        searchable,
+        detected.label,
+        detected.title,
+      ]
+      .filter(Boolean)
+      .join(" ")
+      .includes(s);
+
+    });
+
+  }
+
+  renderTodaysCustomers();
+
+}
+
+function initTodayCustomersPanel(){
+
+  const search = document.getElementById("todayCustomersSearch");
+  const refresh = document.getElementById("refreshTodayCustomers");
+
+  if(search){
+    search.addEventListener("input", e=>{
+      filterCustomers(e.target.value);
+    });
+  }
+
+  if(refresh){
+    refresh.addEventListener("click", fetchTodaysCustomers);
+  }
+
+  fetchTodaysCustomers();
+
+}
+
+document.addEventListener("DOMContentLoaded", initTodayCustomersPanel);
+
+})();
