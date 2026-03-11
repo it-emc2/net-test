@@ -64,6 +64,7 @@ app.use(
           "'self'",
           "https://gconlineplus.de",
           "https://*.gconlineplus.de",
+          "https://emczwei.bitrix24.de"
         ],
 
         // IMPORTANT:
@@ -73,6 +74,7 @@ app.use(
           "'self'",
           "https://gconlineplus.de",
           "https://*.gconlineplus.de",
+          "https://emczwei.bitrix24.de"
         ],
 
         // Allow PDF.js from unpkg + allow the inline <script> in your srcdoc (hash-based).
@@ -80,6 +82,7 @@ app.use(
         scriptSrc: [
           "'self'",
           "https://unpkg.com",
+          "https://emczwei.bitrix24.de",
 
           // your existing allowed inline hashes
           "'sha256-/N6XS1N1HWcS1jcxJkTULItDFffd/I1mw8tPD5FTS3o='",
@@ -94,6 +97,7 @@ app.use(
         scriptSrcElem: [
           "'self'",
           "https://unpkg.com",
+          "https://emczwei.bitrix24.de",
 
           "'sha256-/N6XS1N1HWcS1jcxJkTULItDFffd/I1mw8tPD5FTS3o='",
           "'sha256-5RmoD/+nJXNc4AM8oTu6YJEmH8lgRnYL9t8PcLUZxcY='",
@@ -120,6 +124,7 @@ app.use(
         connectSrc: [
           "'self'",
           "https://fly-n8n-1.fly.dev",
+          "https://emczwei.bitrix24.de",
           // if your viewer fetches PDFs or assets from unpkg via fetch/XHR:
           "https://unpkg.com",
         ],
@@ -145,6 +150,7 @@ const allowedExact = new Set([
   "http://127.0.0.1:3000",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
+  "https://emczwei.bitrix24.de",
 ]);
 
 function isAllowedOrigin(origin) {
