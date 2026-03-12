@@ -16104,6 +16104,7 @@ async function fetchTodaysCustomers(){
 
     todaysCustomers = Array.isArray(data) ? data : (data?.items || []);
     todaysCustomersFiltered = todaysCustomers;
+    buildTodaysCustomersIndex(todaysCustomers);
 
     renderTodaysCustomers();
 
@@ -16131,6 +16132,90 @@ function normalizeText(value){
     .replace(/[̀-ͯ]/g, "")
     .replace(/ß/g, "ss");
 }
+
+let todaysCustomersByContactId = new Map();
+
+function buildTodaysCustomersIndex(customers){
+  const byContactId = new Map();
+  const byEmail = new Map();
+  const byPhone = new Map();
+  const byName = new Map();
+
+  (Array.isArray(customers) ? customers : []).forEach(customer => {
+    const k = customer?.Kundendaten || {};
+    const contactId = String(customer?.contactId || k?.bitrixContactId || k?.customerNumber || "").trim();
+    const email = normalizeText(k?.email || customer?.email || "");
+    const phone = String(k?.phone || customer?.phone || "").replace(/\D+/g, "");
+    const nameKey = [normalizeText(k?.firstName || customer?.firstName || ""), normalizeText(k?.lastName || customer?.lastName || "")].filter(Boolean).join("|");
+
+    if(contactId) byContactId.set(contactId, customer);
+    if(email) byEmail.set(email, customer);
+    if(phone) byPhone.set(phone, customer);
+    if(nameKey) byName.set(nameKey, customer);
+  });
+
+  todaysCustomersByContactId = byContactId;
+  window.todaysCustomersByContactId = byContactId;
+  window.todaysCustomersByEmail = byEmail;
+  window.todaysCustomersByPhone = byPhone;
+  window.todaysCustomersByName = byName;
+}
+
+function findTodayCustomerByContactId(rawContactId){
+  const contactId = String(rawContactId || "").trim();
+  if(!contactId) return null;
+  return (window.todaysCustomersByContactId instanceof Map ? window.todaysCustomersByContactId : todaysCustomersByContactId).get(contactId) || null;
+}
+
+function findTodayCustomerByEmail(rawEmail){
+  const email = normalizeText(rawEmail || "");
+  if(!email) return null;
+  return (window.todaysCustomersByEmail instanceof Map ? window.todaysCustomersByEmail : new Map()).get(email) || null;
+}
+
+function findTodayCustomerByPhone(rawPhone){
+  const phone = String(rawPhone || "").replace(/\D+/g, "");
+  if(!phone) return null;
+  return (window.todaysCustomersByPhone instanceof Map ? window.todaysCustomersByPhone : new Map()).get(phone) || null;
+}
+
+function findTodayCustomerByName(rawFirstName, rawLastName){
+  const key = [normalizeText(rawFirstName || ""), normalizeText(rawLastName || "")].filter(Boolean).join("|");
+  if(!key) return null;
+  return (window.todaysCustomersByName instanceof Map ? window.todaysCustomersByName : new Map()).get(key) || null;
+}
+
+function syncSummaryLeadIds(rawLeadId){
+  const leadId = String(rawLeadId || "").trim();
+  const auftragId = document.querySelector("#auftragId");
+  const mailAuftragId = document.querySelector("#mailAuftragId");
+  if(auftragId){
+    auftragId.value = leadId;
+    auftragId.dispatchEvent(new Event("input", { bubbles: true }));
+    auftragId.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  if(mailAuftragId){
+    mailAuftragId.value = leadId;
+    mailAuftragId.dispatchEvent(new Event("input", { bubbles: true }));
+    mailAuftragId.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+}
+
+function syncSummaryRecipientEmail(rawEmail){
+  const email = String(rawEmail || "").trim();
+  if(!email) return;
+  const mailTo = document.querySelector("#mailTo");
+  if(mailTo){
+    mailTo.value = email;
+    mailTo.dispatchEvent(new Event("input", { bubbles: true }));
+    mailTo.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+}
+
+window.findTodayCustomerByContactId = findTodayCustomerByContactId;
+window.findTodayCustomerByEmail = findTodayCustomerByEmail;
+window.findTodayCustomerByPhone = findTodayCustomerByPhone;
+window.findTodayCustomerByName = findTodayCustomerByName;
 
 function getLeadSearchBlob(c){
   const k = c?.Kundendaten || {};
@@ -16253,25 +16338,10 @@ function renderTodaysCustomers(){
 
 }
 
-function syncSummaryLeadIds(rawLeadId) {
-  const leadId = String(rawLeadId || "").trim();
-  if (!leadId) return;
-
-  setValue("#auftragId", leadId);
-  setValue("#mailAuftragId", leadId);
-}
-
-function syncSummaryRecipientEmail(rawEmail) {
-  const email = String(rawEmail || "").trim();
-  if (!email) return;
-  setValue("#mailTo", email);
-}
-
 function applyCustomerToForm(c){
 
   const k = c.Kundendaten || {};
   const detected = detectOfferTypeFromLead(c);
-  const resolvedLeadId = c.dealId || c.ID || c.id || "";
 
   console.log("Loading customer:", c, "detected offer:", detected);
 
@@ -16288,13 +16358,12 @@ function applyCustomerToForm(c){
   setValue("#street", k.street);
   setValue("#postalCode", k.postalCode);
   setValue("#city", k.city);
-  setValue("#bitrixContactId", k.bitrixContactId || k.customerNumber || c.contactId || resolvedLeadId || "");
+  setValue("#bitrixContactId", k.bitrixContactId || k.customerNumber || c.contactId || c.dealId || "");
   setValue("#company", k.company);
+  syncSummaryLeadIds(c.dealId || "");
+  syncSummaryRecipientEmail(k.email || "");
   setValue("#country", k.country);
   setValue("#state", k.state);
-
-  syncSummaryLeadIds(resolvedLeadId);
-  syncSummaryRecipientEmail(k.email);
 
   if(k.salutation && typeof setRadio === "function"){
     setRadio("salutation", k.salutation);
@@ -16375,10 +16444,12 @@ function initTodayCustomersPanel(){
   }
 
   if(refresh){
-    refresh.addEventListener("click", fetchTodaysCustomers);
+    refresh.addEventListener("click", () => {
+      window.__todayCustomersPromise = fetchTodaysCustomers();
+    });
   }
 
-  fetchTodaysCustomers();
+  window.__todayCustomersPromise = fetchTodaysCustomers();
 
 }
 
@@ -16683,6 +16754,21 @@ async function fetchCalendarPayload(){
 }
 
 async function fetchTodayCalendarEvents(){
+  if(window.__todayCustomersPromise){
+    try {
+      await window.__todayCustomersPromise;
+      console.info("[today-calendar] todays customers ready before loading calendar events", {
+        count: Array.isArray(todaysCustomers) ? todaysCustomers.length : 0,
+        contactMapSize: window.todaysCustomersByContactId instanceof Map ? window.todaysCustomersByContactId.size : 0,
+        emailMapSize: window.todaysCustomersByEmail instanceof Map ? window.todaysCustomersByEmail.size : 0,
+        phoneMapSize: window.todaysCustomersByPhone instanceof Map ? window.todaysCustomersByPhone.size : 0,
+        nameMapSize: window.todaysCustomersByName instanceof Map ? window.todaysCustomersByName.size : 0,
+      });
+    } catch (error) {
+      console.warn("[today-calendar] waiting for todays customers failed", error);
+    }
+  }
+
   const meta = document.getElementById("todayCalendarMeta");
   const list = document.getElementById("todayCalendarList");
   const search = document.getElementById("todayCalendarSearch");
@@ -16829,26 +16915,92 @@ function filterTodayCalendarEvents(query){
   renderTodayCalendarEvents();
 }
 
-function applyCalendarEventToForm(event){
+function hydrateCalendarEventFromTodayCustomer(event, parsed){
+  const name = parseNameParts(guessCalendarEventName(event));
+  const contactId = parsed?.contactId || event?.OWNER_ID || "";
+  const email = parsed?.email || "";
+  const phone = parsed?.phone || "";
+
+  const matchedCustomer =
+    findTodayCustomerByEmail(email)
+    || findTodayCustomerByContactId(contactId)
+    || findTodayCustomerByPhone(phone)
+    || findTodayCustomerByName(name.firstName, name.lastName)
+    || null;
+
+  if(!matchedCustomer){
+    console.info("[today-calendar] no deal found for customer", {
+      eventId: event?.ID || "",
+      contactId,
+      email,
+      phone,
+      firstName: name.firstName || "",
+      lastName: name.lastName || "",
+      title: event?.NAME || event?.TITLE || "",
+    });
+    return null;
+  }
+
+  const k = matchedCustomer.Kundendaten || {};
+  const resolvedDealId = String(matchedCustomer.dealId || matchedCustomer.ID || matchedCustomer.id || "").trim();
+  if(resolvedDealId){
+    console.info("[today-calendar] matched deal id", { eventId: event?.ID || "", dealId: resolvedDealId, email, phone, contactId });
+  } else {
+    console.info("[today-calendar] matched customer has no deal id", { eventId: event?.ID || "", matchedCustomer });
+  }
+
+  return {
+    dealId: resolvedDealId,
+    firstName: k.firstName || name.firstName || "",
+    lastName: k.lastName || name.lastName || "",
+    phone: k.phone || parsed?.phone || "",
+    email: k.email || parsed?.email || "",
+    street: k.street || parsed?.street || "",
+    postalCode: k.postalCode || parsed?.postalCode || "",
+    city: k.city || parsed?.city || "",
+    bitrixContactId: k.bitrixContactId || matchedCustomer.contactId || parsed?.contactId || event?.OWNER_ID || "",
+    company: k.company || "",
+    country: k.country || "",
+    state: k.state || "",
+    salutation: k.salutation || "",
+  };
+}
+
+ async function applyCalendarEventToForm(event){
+  if(window.__todayCustomersPromise){
+    try {
+      await window.__todayCustomersPromise;
+    } catch (error) {
+      console.warn("[today-calendar] waiting for todays customers failed", error);
+    }
+  }
+
   const parsed = parseCalendarDescription(event?.DESCRIPTION);
   const name = parseNameParts(guessCalendarEventName(event));
   const detected = detectOfferTypeFromCalendarEvent(event);
   const locationFromTitle = getCalendarTitleLocation(event?.NAME || event?.TITLE || "");
+  const hydrated = hydrateCalendarEventFromTodayCustomer(event, parsed);
 
-  console.log("Loading calendar event:", event, "detected offer:", detected);
+  console.log("Loading calendar event:", event, "detected offer:", detected, "hydrated:", hydrated);
 
   if(detected.offerKey && typeof startOfferFlow === "function"){
     startOfferFlow(detected.offerKey);
   }
 
-  setCalendarValue("#firstName", name.firstName || "");
-  setCalendarValue("#lastName", name.lastName || "");
-  setCalendarValue("#phone", parsed.phone || "");
-  setCalendarValue("#email", parsed.email || "");
-  setCalendarValue("#street", parsed.street || "");
-  setCalendarValue("#postalCode", parsed.postalCode || locationFromTitle.postalCode || "");
-  setCalendarValue("#city", parsed.city || locationFromTitle.city || "");
-  setCalendarValue("#bitrixContactId", parsed.contactId || event?.OWNER_ID || event?.ID || "");
+  setCalendarValue("#firstName", hydrated?.firstName || name.firstName || "");
+  setCalendarValue("#lastName", hydrated?.lastName || name.lastName || "");
+  setCalendarValue("#phone", hydrated?.phone || parsed.phone || "");
+  setCalendarValue("#email", hydrated?.email || parsed.email || "");
+  setCalendarValue("#street", hydrated?.street || parsed.street || "");
+  setCalendarValue("#postalCode", hydrated?.postalCode || parsed.postalCode || locationFromTitle.postalCode || "");
+  setCalendarValue("#city", hydrated?.city || parsed.city || locationFromTitle.city || "");
+  setCalendarValue("#bitrixContactId", hydrated?.bitrixContactId || parsed.contactId || event?.OWNER_ID || event?.ID || "");
+  setCalendarValue("#company", hydrated?.company || "");
+  setCalendarValue("#country", hydrated?.country || "");
+  setCalendarValue("#state", hydrated?.state || "");
+
+  syncSummaryLeadIds(hydrated?.dealId || "");
+  syncSummaryRecipientEmail(hydrated?.email || parsed.email || "");
 
   const normalizedTitle = normalizeCalendarText(event?.NAME || event?.TITLE || "");
   if(normalizedTitle.includes("frau ")) setCalendarRadio("salutation", "Frau");
@@ -16889,42 +17041,3 @@ function initTodayCalendarPanel(){
 document.addEventListener("DOMContentLoaded", initTodayCalendarPanel);
 
 })();
-
-
-// Keep summary lead ID fields in sync (Bitrix + Email)
-document.addEventListener("DOMContentLoaded", () => {
-  const bitrixLeadInput = document.getElementById("auftragId");
-  const mailLeadInput = document.getElementById("mailAuftragId");
-  const customerEmailInput = document.getElementById("email");
-  const mailToInput = document.getElementById("mailTo");
-  let syncingLeadInputs = false;
-
-  function mirrorValue(source, target) {
-    if (!source || !target) return;
-    target.value = source.value || "";
-    target.dispatchEvent(new Event("change", { bubbles: true }));
-  }
-
-  if (bitrixLeadInput && mailLeadInput) {
-    bitrixLeadInput.addEventListener("input", () => {
-      if (syncingLeadInputs) return;
-      syncingLeadInputs = true;
-      mirrorValue(bitrixLeadInput, mailLeadInput);
-      syncingLeadInputs = false;
-    });
-
-    mailLeadInput.addEventListener("input", () => {
-      if (syncingLeadInputs) return;
-      syncingLeadInputs = true;
-      mirrorValue(mailLeadInput, bitrixLeadInput);
-      syncingLeadInputs = false;
-    });
-  }
-
-  if (customerEmailInput && mailToInput) {
-    customerEmailInput.addEventListener("input", () => {
-      if ((mailToInput.value || "").trim()) return;
-      mirrorValue(customerEmailInput, mailToInput);
-    });
-  }
-});
