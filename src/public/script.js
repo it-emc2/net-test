@@ -16253,10 +16253,25 @@ function renderTodaysCustomers(){
 
 }
 
+function syncSummaryLeadIds(rawLeadId) {
+  const leadId = String(rawLeadId || "").trim();
+  if (!leadId) return;
+
+  setValue("#auftragId", leadId);
+  setValue("#mailAuftragId", leadId);
+}
+
+function syncSummaryRecipientEmail(rawEmail) {
+  const email = String(rawEmail || "").trim();
+  if (!email) return;
+  setValue("#mailTo", email);
+}
+
 function applyCustomerToForm(c){
 
   const k = c.Kundendaten || {};
   const detected = detectOfferTypeFromLead(c);
+  const resolvedLeadId = c.dealId || c.ID || c.id || "";
 
   console.log("Loading customer:", c, "detected offer:", detected);
 
@@ -16273,10 +16288,13 @@ function applyCustomerToForm(c){
   setValue("#street", k.street);
   setValue("#postalCode", k.postalCode);
   setValue("#city", k.city);
-  setValue("#bitrixContactId", k.bitrixContactId || k.customerNumber || c.contactId || c.dealId || "");
+  setValue("#bitrixContactId", k.bitrixContactId || k.customerNumber || c.contactId || resolvedLeadId || "");
   setValue("#company", k.company);
   setValue("#country", k.country);
   setValue("#state", k.state);
+
+  syncSummaryLeadIds(resolvedLeadId);
+  syncSummaryRecipientEmail(k.email);
 
   if(k.salutation && typeof setRadio === "function"){
     setRadio("salutation", k.salutation);
@@ -16871,3 +16889,42 @@ function initTodayCalendarPanel(){
 document.addEventListener("DOMContentLoaded", initTodayCalendarPanel);
 
 })();
+
+
+// Keep summary lead ID fields in sync (Bitrix + Email)
+document.addEventListener("DOMContentLoaded", () => {
+  const bitrixLeadInput = document.getElementById("auftragId");
+  const mailLeadInput = document.getElementById("mailAuftragId");
+  const customerEmailInput = document.getElementById("email");
+  const mailToInput = document.getElementById("mailTo");
+  let syncingLeadInputs = false;
+
+  function mirrorValue(source, target) {
+    if (!source || !target) return;
+    target.value = source.value || "";
+    target.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  if (bitrixLeadInput && mailLeadInput) {
+    bitrixLeadInput.addEventListener("input", () => {
+      if (syncingLeadInputs) return;
+      syncingLeadInputs = true;
+      mirrorValue(bitrixLeadInput, mailLeadInput);
+      syncingLeadInputs = false;
+    });
+
+    mailLeadInput.addEventListener("input", () => {
+      if (syncingLeadInputs) return;
+      syncingLeadInputs = true;
+      mirrorValue(mailLeadInput, bitrixLeadInput);
+      syncingLeadInputs = false;
+    });
+  }
+
+  if (customerEmailInput && mailToInput) {
+    customerEmailInput.addEventListener("input", () => {
+      if ((mailToInput.value || "").trim()) return;
+      mirrorValue(customerEmailInput, mailToInput);
+    });
+  }
+});
