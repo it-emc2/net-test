@@ -814,6 +814,11 @@ function setRadio(name, value) {
   if (r) {
     r.checked = true;
     safeDispatch(r, "change");
+    return;
+  }
+
+  if (name === "aufschlag" && typeof window.__setCustomAufschlag === "function") {
+    window.__setCustomAufschlag(value);
   }
 }
 
@@ -1442,6 +1447,248 @@ function hoursToHHMM(n) {
 document.addEventListener("DOMContentLoaded", () => {
   wireDurationAutoFormat("laborHours");
   wireDurationAutoFormat("travelTime");
+});
+
+function parseDurationMinutes(value) {
+  const raw = String(value || "").trim();
+  const match = raw.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return 0;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function formatDurationHHMM(totalMinutes) {
+  const safeMinutes = Math.max(0, Number(totalMinutes) || 0);
+  const hours = Math.floor(safeMinutes / 60);
+  const minutes = safeMinutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function populateTimeSelectOptions(root) {
+  if (!root) return;
+  const hourSelect = root.querySelector(".time-hour-select");
+  const minuteSelect = root.querySelector(".time-minute-select");
+  if (hourSelect && !hourSelect.options.length) {
+    for (let h = 0; h <= 23; h += 1) {
+      const value = String(h).padStart(2, "0");
+      hourSelect.add(new Option(value, value));
+    }
+  }
+  if (minuteSelect && !minuteSelect.options.length) {
+    for (let m = 0; m < 60; m += 5) {
+      const value = String(m).padStart(2, "0");
+      minuteSelect.add(new Option(value, value));
+    }
+  }
+}
+
+function bindCompactTimeHelper(inputId, helperId) {
+  const input = document.getElementById(inputId);
+  const helperRoot = document.getElementById(helperId);
+  if (!input || !helperRoot) return;
+
+  populateTimeSelectOptions(helperRoot);
+
+  const hourSelect = helperRoot.querySelector(".time-hour-select");
+  const minuteSelect = helperRoot.querySelector(".time-minute-select");
+  const deltaButtons = helperRoot.querySelectorAll("[data-delta]");
+
+  function syncFromInput() {
+    const current = /^\d{1,2}:\d{2}$/.test(String(input.value || "").trim())
+      ? String(input.value).trim()
+      : "00:00";
+    const [hh, mm] = current.split(":");
+    if (hourSelect) hourSelect.value = hh.padStart(2, "0");
+    if (minuteSelect) {
+      const snappedMinute = String(Math.min(55, Math.floor(Number(mm || 0) / 5) * 5)).padStart(2, "0");
+      minuteSelect.value = snappedMinute;
+    }
+  }
+
+  function emitInputEvents() {
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function syncToInput() {
+    const hh = hourSelect?.value || "00";
+    const mm = minuteSelect?.value || "00";
+    input.value = `${hh}:${mm}`;
+    emitInputEvents();
+  }
+
+  deltaButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const delta = Number(button.dataset.delta || 0);
+      input.value = formatDurationHHMM(parseDurationMinutes(input.value) + delta);
+      syncFromInput();
+      emitInputEvents();
+    });
+  });
+
+  hourSelect?.addEventListener("change", syncToInput);
+  minuteSelect?.addEventListener("change", syncToInput);
+  input.addEventListener("input", syncFromInput);
+  input.addEventListener("change", syncFromInput);
+
+  syncFromInput();
+}
+
+
+document.addEventListener("DOMContentLoaded", () => {
+  bindCompactTimeHelper("laborHours", "laborHoursHelper");
+  bindCompactTimeHelper("travelTime", "travelTimeHelper");
+});
+
+document.addEventListener("change", () => {
+  if (typeof computeArbeitszeitSuggestion === "function") {
+    computeArbeitszeitSuggestion();
+  }
+  if (typeof renderArbeitszeitSuggestion === "function") {
+    renderArbeitszeitSuggestion();
+  }
+});
+
+const ARBEITSZEIT_RULES = {
+  remove_tub: { label: "Badewanne entfernen", minutes: 45 },
+  remove_showertub: { label: "Duschwanne entfernen", minutes: 30 },
+  remove_enclosure: { label: "Duschabtrennung entfernen", minutes: 25 },
+  install_tray: { label: "Duschwanne installieren", minutes: 75 },
+  install_enclosure: { label: "Duschabtrennung montieren", minutes: 60 },
+  install_bathtub_screen: { label: "Wannenaufsatz montieren", minutes: 60 },
+  replace_shower_system: { label: "Duschsystem auswechseln", minutes: 20 },
+  relocate_faucet: { label: "Armatur versetzen", minutes: 90 },
+  close_valve: { label: "Armatur stilllegen", minutes: 45 },
+  relocate_drain: { label: "Abfluss verlegen", minutes: 30 },
+  remove_toilet: { label: "Toilette entfernen", minutes: 50 },
+  remove_sink: { label: "Waschbecken entfernen", minutes: 30 },
+  install_toilet: { label: "Toilette montieren", minutes: 20 },
+};
+
+function getArbeitszeitQty(inputId, qtyId) {
+  const checked = !!document.getElementById(inputId)?.checked;
+  if (!checked) return 0;
+  const qtyRaw = Number(document.getElementById(qtyId)?.value || 0);
+  return Math.max(1, Number.isFinite(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1);
+}
+
+function pushArbeitszeitRow(rows, key, label, minutes, qty = 1) {
+  if (!minutes || qty <= 0) return;
+  rows.push({ key, label, minutes, qty });
+}
+
+function computeArbeitszeitSuggestion() {
+  const rows = [];
+
+  document
+    .querySelectorAll('input[name="duschwanne[workTasks][]"]:checked')
+    .forEach((el) => {
+      const rule = ARBEITSZEIT_RULES[el.value];
+      if (!rule) return;
+      pushArbeitszeitRow(rows, el.value, rule.label, rule.minutes, 1);
+    });
+
+  if (document.getElementById("wv997")?.checked) {
+    pushArbeitszeitRow(rows, "wv997", "Wandverkleidung 997×2550", 30, 1);
+  }
+  if (document.getElementById("wv1497")?.checked) {
+    pushArbeitszeitRow(rows, "wv1497", "Wandverkleidung 1497×2550", 40, 1);
+  }
+  if (document.getElementById("wvSilikonSelected")?.checked) {
+    pushArbeitszeitRow(rows, "silikon", "Silikon", 10, 1);
+  }
+  if (document.getElementById("addFlooring")?.checked) {
+    pushArbeitszeitRow(rows, "flooring", "Fußboden individuell", 25, 1);
+  }
+
+  const grabConfigs = [
+    ["opt_CLPESG30", "qty_CLPESG30", "Haltegriff CLPESG30"],
+    ["opt_CLPESG40", "qty_CLPESG40", "Haltegriff CLPESG40"],
+    ["opt_CLPESG60", "qty_CLPESG60", "Haltegriff CLPESG60"],
+    ["opt_CLPESG80", "qty_CLPESG80", "Haltegriff CLPESG80"],
+  ];
+  grabConfigs.forEach(([optId, qtyId, label]) => {
+    const qty = getArbeitszeitQty(optId, qtyId);
+    if (qty > 0) pushArbeitszeitRow(rows, optId, label, 30, qty);
+  });
+
+  const totalMinutes = rows.reduce((sum, row) => sum + row.minutes * row.qty, 0);
+  const suggestion = {
+    rows,
+    totalMinutes,
+    totalHoursHHMM: formatDurationHHMM(totalMinutes),
+    totalHoursNumeric: Math.round((totalMinutes / 60) * 100) / 100,
+  };
+  window.__arbeitszeitSuggestion = suggestion;
+  return suggestion;
+}
+
+function renderArbeitszeitSuggestion() {
+  const suggestion = window.__arbeitszeitSuggestion || computeArbeitszeitSuggestion();
+  const body = document.getElementById("arbeitszeitSuggestionBody");
+  const total = document.getElementById("arbeitszeitSuggestionTotal");
+  const empty = document.getElementById("arbeitszeitSuggestionEmpty");
+  const wrap = document.getElementById("arbeitszeitSuggestionTableWrap");
+  const hint = document.getElementById("laborSuggestion");
+
+  if (!body || !total || !empty || !wrap) return suggestion;
+
+  body.innerHTML = "";
+  if (!suggestion.rows.length) {
+    empty.hidden = false;
+    wrap.hidden = true;
+    total.textContent = "00:00";
+    if (hint) hint.textContent = "";
+    return suggestion;
+  }
+
+  empty.hidden = true;
+  wrap.hidden = false;
+
+  suggestion.rows.forEach((row) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${row.label}</td>
+      <td>${row.qty}</td>
+      <td>${formatDurationHHMM(row.minutes * row.qty)}</td>
+    `;
+    body.appendChild(tr);
+  });
+
+  total.textContent = suggestion.totalHoursHHMM;
+  if (hint) {
+    hint.textContent = `Automatischer Vorschlag: ${suggestion.totalHoursHHMM}`;
+  }
+  return suggestion;
+}
+
+function applyArbeitszeitSuggestion() {
+  const suggestion = window.__arbeitszeitSuggestion || computeArbeitszeitSuggestion();
+  const laborInput = document.getElementById("laborHours");
+  if (!laborInput || !suggestion.rows.length) return;
+  window.__settingLaborHoursFromSuggestion = true;
+  laborInput.value = suggestion.totalHoursHHMM;
+  laborInput.dispatchEvent(new Event("input", { bubbles: true }));
+  laborInput.dispatchEvent(new Event("change", { bubbles: true }));
+  setTimeout(() => {
+    window.__settingLaborHoursFromSuggestion = false;
+  }, 0);
+  window.labor_hours_source = "auto";
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("applyArbeitszeitSuggestion")?.addEventListener("click", applyArbeitszeitSuggestion);
+
+  const laborInput = document.getElementById("laborHours");
+  if (laborInput) {
+    laborInput.addEventListener("input", () => {
+      if (!window.__settingLaborHoursFromSuggestion) {
+        window.labor_hours_source = "manual";
+      }
+    });
+  }
+
+  computeArbeitszeitSuggestion();
+  renderArbeitszeitSuggestion();
 });
 
 // Replace your current DOMContentLoaded block that defines updateTotalHours with this:
@@ -2725,6 +2972,9 @@ function buildPayload() {
     wd: formToObject(document.getElementById("form-wd")),
   };
 
+  const effectiveAufschlag = window.getEffectiveAufschlagValue?.();
+  if (effectiveAufschlag) payload.Kundendaten.aufschlag = effectiveAufschlag;
+
   /* ===========================
      HL: pair steel length + quality rows into structured array
      =========================== */
@@ -3083,6 +3333,10 @@ function buildPayload() {
 
     const distanceKm = (document.getElementById("distanceKm")?.value || "").toString().trim();
 
+    const autoSuggestion =
+      window.__arbeitszeitSuggestion ||
+      (typeof computeArbeitszeitSuggestion === "function" ? computeArbeitszeitSuggestion() : null);
+
     const arbeitsBlock = {
       totalHoursHHMM: totalHHMM,
       totalHoursNumeric: totalNumeric,
@@ -3094,6 +3348,17 @@ function buildPayload() {
       laborHoursHHMM: laborHHMM,
       travelTimeHHMM: travelHHMM,
       distanceKm,
+      laborHoursSource: window.labor_hours_source || "manual",
+      autoSuggestedHoursHHMM: autoSuggestion?.totalHoursHHMM || "",
+      autoSuggestedHoursNumeric: Number(autoSuggestion?.totalHoursNumeric || 0),
+      autoSuggestedTasks: Array.isArray(autoSuggestion?.rows)
+        ? autoSuggestion.rows.map((row) => ({
+            key: row.key,
+            label: row.label,
+            minutes: row.minutes,
+            qty: row.qty,
+          }))
+        : [],
     };
 
     (function computeExtraArbeitszeit() {
@@ -5360,6 +5625,34 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.target?.name === "hasContactPerson") show(e.target.value === "Ja");
   });
 })();
+window.parseAufschlagPercent = function parseAufschlagPercent(raw) {
+  const m = String(raw || "")
+    .trim()
+    .match(/(\d+(?:[.,]\d+)?)/);
+  if (!m) return NaN;
+  return Number(String(m[1]).replace(",", "."));
+};
+
+window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
+  const customWrap = document.getElementById("sonderaufschlagWrap");
+  const customInput = document.getElementById("sonderaufschlagValue");
+  const customActive = !!(
+    customWrap &&
+    !customWrap.hidden &&
+    customWrap.getAttribute("aria-hidden") !== "true"
+  );
+
+  if (customActive && customInput) {
+    const pct = window.parseAufschlagPercent(customInput.value);
+    if (Number.isFinite(pct) && pct >= 35 && pct <= 150) {
+      return `${pct}%`;
+    }
+    return "";
+  }
+
+  return document.querySelector('input[name="aufschlag"]:checked')?.value || "";
+};
+
 (function initAufschlag() {
   const payerRadios = Array.from(
     document.querySelectorAll('input[name="payer"]'),
@@ -5377,6 +5670,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const labelEl = document.getElementById("aufschlagLabel");
   const bodyEl = document.getElementById("aufschlagBody");
   const toggleBt = document.getElementById("toggleAufschlag");
+  const customToggleBt = document.getElementById("toggleSonderaufschlag");
+  const customWrap = document.getElementById("sonderaufschlagWrap");
+  const customInput = document.getElementById("sonderaufschlagValue");
+  const customError = document.getElementById("sonderaufschlagError");
 
   function setDisabled(el, disabled) {
     if (!el) return;
@@ -5389,17 +5686,81 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function anySelected() {
-    return aufschlagRadios.some((r) => r.checked);
-  }
-
-  function currentSelection() {
-    return (
-      document.querySelector('input[name="aufschlag"]:checked')?.value || ""
+  function isCustomMode() {
+    return !!(
+      customWrap &&
+      !customWrap.hidden &&
+      customWrap.getAttribute("aria-hidden") !== "true"
     );
   }
 
-  // Show/hide label + radios, and toggle button text
+  function anySelected() {
+    return !!window.getEffectiveAufschlagValue?.();
+  }
+
+  function setCustomError(message) {
+    if (!customInput) return false;
+    customInput.setCustomValidity(message || "");
+    customInput.setAttribute("aria-invalid", message ? "true" : "false");
+    if (customError) {
+      customError.hidden = !message;
+      customError.textContent = message || "";
+    }
+    return !message;
+  }
+
+  function validateCustomInput() {
+    if (!customInput) return true;
+    if (!isCustomMode()) {
+      customInput.required = false;
+      return setCustomError("");
+    }
+
+    customInput.required = true;
+    const raw = String(customInput.value || "").trim();
+    const pct = window.parseAufschlagPercent(raw);
+
+    if (!raw) return setCustomError("Bitte geben Sie einen Sonderaufschlag ein.");
+    if (!Number.isFinite(pct)) return setCustomError("Bitte geben Sie eine gültige Zahl ein.");
+    if (pct < 35 || pct > 150) {
+      return setCustomError("Der Sonderaufschlag muss zwischen 35% und 150% liegen.");
+    }
+    return setCustomError("");
+  }
+
+  function openCustomMode(prefill = "") {
+    if (!customWrap) return;
+    customWrap.hidden = false;
+    customWrap.setAttribute("aria-hidden", "false");
+    if (customToggleBt) customToggleBt.classList.add("is-active");
+    aufschlagRadios.forEach((r) => {
+      r.checked = false;
+    });
+    if (customInput) {
+      if (prefill !== undefined && prefill !== null && prefill !== "") {
+        customInput.value = String(prefill).replace(/%/g, "");
+      }
+      customInput.required = true;
+      validateCustomInput();
+    }
+  }
+
+  function closeCustomMode({ clear = true } = {}) {
+    if (!customWrap) return;
+    customWrap.hidden = true;
+    customWrap.setAttribute("aria-hidden", "true");
+    if (customToggleBt) customToggleBt.classList.remove("is-active");
+    if (customInput) {
+      customInput.required = false;
+      if (clear) customInput.value = "";
+    }
+    setCustomError("");
+  }
+
+  function currentSelection() {
+    return window.getEffectiveAufschlagValue?.() || "";
+  }
+
   function setAufschlagVisible(visible) {
     if (labelEl) labelEl.style.display = visible ? "" : "none";
     if (bodyEl) bodyEl.style.display = visible ? "" : "none";
@@ -5414,30 +5775,84 @@ document.addEventListener("DOMContentLoaded", () => {
     setAufschlagVisible(!currentlyVisible);
   }
 
-  // Original Aufschlag rules per payer
   function applyAufschlagRules() {
     const payer = document.querySelector('input[name="payer"]:checked')?.value;
 
-    // For now: all these payers allow all percentages
     [r35, r40, r45, r50, r60].forEach((r) => setDisabled(r, false));
 
-    // Only set a default if *nothing* is selected yet
-    // (e.g. brand new offer). Do NOT override an existing selection.
     if (
       !anySelected() &&
       (payer === "Kassenkunde" || payer === "Selbstzahler")
     ) {
-      if (r50) r50.checked = true; // keep your current default at 50%
+      if (r50) r50.checked = true;
     }
   }
 
-  // Events
   payerRadios.forEach((r) => r.addEventListener("change", applyAufschlagRules));
+  aufschlagRadios.forEach((r) =>
+    r.addEventListener("change", () => {
+      if (r.checked) closeCustomMode();
+    }),
+  );
+
   if (toggleBt) toggleBt.addEventListener("click", toggleAufschlag);
 
-  // Initial state: visible with rules applied
+  customToggleBt?.addEventListener("click", () => {
+    if (isCustomMode()) {
+      closeCustomMode();
+      applyAufschlagRules();
+      window.updatePricing?.();
+      return;
+    }
+    const currentPct = window.parseAufschlagPercent(currentSelection());
+    openCustomMode(Number.isFinite(currentPct) ? String(currentPct) : "");
+    customInput?.focus();
+  });
+
+  customInput?.addEventListener("input", () => {
+    validateCustomInput();
+    if (!customInput.validationMessage) window.updatePricing?.();
+  });
+  customInput?.addEventListener("change", () => {
+    validateCustomInput();
+    if (!customInput.validationMessage) window.updatePricing?.();
+  });
+
   setAufschlagVisible(true);
+  if (customInput?.value) {
+    openCustomMode(customInput.value);
+  } else {
+    closeCustomMode();
+  }
   applyAufschlagRules();
+
+  window.__setCustomAufschlag = function __setCustomAufschlag(value) {
+    const pct = window.parseAufschlagPercent(value);
+    if (!Number.isFinite(pct)) {
+      closeCustomMode();
+      applyAufschlagRules();
+      return;
+    }
+
+    if ([35, 40, 45, 50, 60].includes(pct)) {
+      closeCustomMode();
+      const radio = document.querySelector(
+        `input[name="aufschlag"][value="${pct}%"]`,
+      );
+      if (radio) {
+        radio.checked = true;
+        radio.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      return;
+    }
+
+    openCustomMode(String(pct));
+    if (customInput) {
+      customInput.value = String(pct);
+      validateCustomInput();
+      customInput.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  };
 })();
 
 (function initPflegegrad() {
@@ -5910,7 +6325,7 @@ function getKundendatenPageData() {
     salutation: data.salutation || checkedValue("salutation"),
     hasContactPerson: data.hasContactPerson || checkedValue("hasContactPerson"),
     payer: data.payer || checkedValue("payer"),
-    aufschlag: data.aufschlag || checkedValue("aufschlag"),
+    aufschlag: data.aufschlag || window.getEffectiveAufschlagValue?.() || checkedValue("aufschlag"),
     hasPflegegrad: data.hasPflegegrad || checkedValue("hasPflegegrad"),
     pflegegrad: data.pflegegrad || checkedValue("pflegegrad"),
     partnerFirstName: data.partnerFirstName || q('#partnerFirstName')?.value || "",
@@ -7839,6 +8254,9 @@ document
   .forEach((el) =>
     el.addEventListener("change", () => window.updatePricing?.()),
   );
+document
+  .getElementById("sonderaufschlagValue")
+  ?.addEventListener("change", () => window.updatePricing?.());
 
 /* ========== Kosten Duschabtrennung========== */
 
@@ -9601,6 +10019,14 @@ function restoreArbeitszeit(aw) {
   setNumber("uebernachten", aw.uebernachten);
   setByNameOrId("travelTime", aw.travelTimeHHMM);
   setByNameOrId("laborHours", aw.laborHoursHHMM);
+  window.labor_hours_source = aw.laborHoursSource || "manual";
+
+  if (typeof computeArbeitszeitSuggestion === "function") {
+    computeArbeitszeitSuggestion();
+  }
+  if (typeof renderArbeitszeitSuggestion === "function") {
+    renderArbeitszeitSuggestion();
+  }
 
   // BWT: Extra Arbeitszeit rows (if present in payload)
   if (typeof window.restoreBwtExtraArbeitszeitFromPayload === "function") {
@@ -11650,8 +12076,7 @@ window.setPricingData = function setPricingData(data) {
     // Aufschlag label
     let mp = data?.markupPct;
     if (!Number.isFinite(mp)) {
-      const raw =
-        document.querySelector('input[name="aufschlag"]:checked')?.value || "";
+      const raw = window.getEffectiveAufschlagValue?.() || "";
       const m = String(raw).match(/[\d.]+/);
       mp = m
         ? raw.includes("%")
@@ -11779,9 +12204,7 @@ window.setPricingData = function setPricingData(data) {
     return v === "kassenkunde" || v === "kk";
   };
   const isAufschlagAtLeast50 = () => {
-    const raw = (
-      document.querySelector('input[name="aufschlag"]:checked')?.value || ""
-    ).trim(); // z.B. "35%", "50%", "60%"
+    const raw = (window.getEffectiveAufschlagValue?.() || "").trim(); // z.B. "35%", "50%", "60%", "85%"
 
     const m = raw.match(/(\d+)\s*%?/); // Zahl vor dem %
     if (!m) return false;

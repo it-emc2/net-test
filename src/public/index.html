@@ -1461,6 +1461,23 @@ button.dm-btn-danger:focus-visible {
                       <label class="radio-pill"><input type="radio" name="aufschlag" value="60%" /><span
                           class="circle"></span><span>60%</span></label>
                     </div>
+
+                    <div class="aufschlag-custom-row">
+                      <button type="button" id="toggleSonderaufschlag" class="btn-secondary">
+                        Sonderaufschlag
+                      </button>
+                    </div>
+
+                    <div id="sonderaufschlagWrap" class="sonderaufschlag-wrap" hidden aria-hidden="true">
+                      <label for="sonderaufschlagValue" class="req">Sonderaufschlag in %</label>
+                      <div class="sonderaufschlag-input-row">
+                        <input id="sonderaufschlagValue" name="sonderaufschlagValue" type="number" inputmode="numeric"
+                          min="35" max="150" step="1" placeholder="35 bis 150" />
+                        <span class="sonderaufschlag-unit">%</span>
+                      </div>
+                      <div class="sonderaufschlag-hint">Erlaubt sind Werte von 35% bis 150%.</div>
+                      <div id="sonderaufschlagError" class="sonderaufschlag-error" hidden aria-live="polite"></div>
+                    </div>
                   </div>
                 </div>
 
@@ -1630,7 +1647,7 @@ button.dm-btn-danger:focus-visible {
 
               <div style="display: grid; grid-template-columns: 1fr; gap: 14px; padding: 8px 0">
                 <div class="full">
-                  <label class="req">Antrag auf Zuschuss bei Pflegekasse gestellt?</label>
+                  <label >Antrag auf Zuschuss bei Pflegekasse gestellt?</label>
                   <div class="radio-group" role="radiogroup" aria-label="Antrag auf Zuschuss bei Pflegekasse gestellt?">
                     <label class="radio-pill"><input type="radio" name="pflegekasseAntrag" value="Ja" /><span class="circle"></span><span>Ja</span></label>
                     <label class="radio-pill"><input type="radio" name="pflegekasseAntrag" value="Nein" /><span class="circle"></span><span>Nein</span></label>
@@ -1638,7 +1655,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
 
                 <div id="pflegekasseEmc2Row" class="full" hidden aria-hidden="true">
-                  <label class="req">Darf EmC2 für Sie diesen Antrag stellen?</label>
+                  <label >Darf EmC2 für Sie diesen Antrag stellen?</label>
                   <div class="radio-group" role="radiogroup" aria-label="Darf EmC2 für Sie diesen Antrag stellen?">
                     <label class="radio-pill"><input type="radio" name="pflegekasseEmc2Antrag" value="Ja" /><span class="circle"></span><span>Ja</span></label>
                     <label class="radio-pill"><input type="radio" name="pflegekasseEmc2Antrag" value="Nein" /><span class="circle"></span><span>Nein</span></label>
@@ -1646,7 +1663,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
 
                 <div class="full">
-                  <label class="req">Angabe zur Wohnsituation</label>
+                  <label >Angabe zur Wohnsituation</label>
                   <div class="radio-group" role="radiogroup" aria-label="Angabe zur Wohnsituation">
                     <label class="radio-pill"><input type="radio" name="wohnsituation" value="Eigentum" /><span class="circle"></span><span>Eigentum</span></label>
                     <label class="radio-pill"><input type="radio" name="wohnsituation" value="Miete" /><span class="circle"></span><span>Miete</span></label>
@@ -1654,7 +1671,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
 
                 <div id="vermieterGenehmigungRow" class="full" hidden aria-hidden="true">
-                  <label class="req">Genehmigung des Vermieters liegt vor?</label>
+                  <label >Genehmigung des Vermieters liegt vor?</label>
                   <div class="radio-group" role="radiogroup" aria-label="Genehmigung des Vermieters liegt vor?">
                     <label class="radio-pill"><input type="radio" name="vermieterGenehmigung" value="Ja" /><span class="circle"></span><span>Ja</span></label>
                     <label class="radio-pill"><input type="radio" name="vermieterGenehmigung" value="Nein" /><span class="circle"></span><span>Nein</span></label>
@@ -1663,7 +1680,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
 
                 <div class="full">
-                  <label class="req">Zugang zur Wohnung</label>
+                  <label >Zugang zur Wohnung</label>
                   <div class="radio-group" role="radiogroup" aria-label="Zugang zur Wohnung">
                     <label class="radio-pill"><input type="radio" name="zugangWohnung" value="Aufzug vorhanden" /><span class="circle"></span><span>Aufzug vorhanden</span></label>
                     <label class="radio-pill"><input type="radio" name="zugangWohnung" value="Nur Treppe" /><span class="circle"></span><span>Nur Treppe</span></label>
@@ -1671,7 +1688,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
 
                 <div class="full">
-                  <label class="req">In welchem Stockwerk befindet sich das Bad?</label>
+                  <label >In welchem Stockwerk befindet sich das Bad?</label>
                   <div class="radio-group" role="radiogroup" aria-label="Stockwerk des Bads">
                     <label class="radio-pill"><input type="radio" name="badStockwerk" value="UG" /><span class="circle"></span><span>UG</span></label>
                     <label class="radio-pill"><input type="radio" name="badStockwerk" value="EG" /><span class="circle"></span><span>EG</span></label>
@@ -1687,7 +1704,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
 
                 <div class="full">
-                  <label class="req">Parken vor dem Objekt möglich?</label>
+                  <label >Parken vor dem Objekt möglich?</label>
                   <div class="radio-group" role="radiogroup" aria-label="Parken vor dem Objekt möglich?">
                     <label class="radio-pill"><input type="radio" name="parkenMoeglich" value="Ja" /><span class="circle"></span><span>Ja</span></label>
                     <label class="radio-pill"><input type="radio" name="parkenMoeglich" value="Nein" /><span class="circle"></span><span>Nein</span></label>
@@ -1778,17 +1795,59 @@ button.dm-btn-danger:focus-visible {
                         <span>Arbeitszeit (Dauer, HH:MM)</span>
                         <input id="laborHours" name="laborHours" type="text" inputmode="numeric" value="07:00"
                           autocomplete="off" placeholder="HH:MM" required>
+                        <div id="laborHoursHelper" class="time-helper compact" aria-label="Arbeitszeit Schnellwahl">
+                          <button type="button" data-delta="-15">−15m</button>
+                          <button type="button" data-delta="-5">−5m</button>
+                          <select class="time-hour-select" aria-label="Arbeitszeit Stunden"></select>
+                          <select class="time-minute-select" aria-label="Arbeitszeit Minuten"></select>
+                          <button type="button" data-delta="5">+5m</button>
+                          <button type="button" data-delta="15">+15m</button>
+                        </div>
                       </label>
 
                       <label class="field" style="flex:1;">
                         <span>Reisezeit (Dauer, HH:MM), nur Hin-Fahrt eintragen</span>
                         <input id="travelTime" name="travelTime" type="text" inputmode="numeric" placeholder="HH:MM">
+                        <div id="travelTimeHelper" class="time-helper compact" aria-label="Reisezeit Schnellwahl">
+                          <button type="button" data-delta="-15">−15m</button>
+                          <button type="button" data-delta="-5">−5m</button>
+                          <select class="time-hour-select" aria-label="Reisezeit Stunden"></select>
+                          <select class="time-minute-select" aria-label="Reisezeit Minuten"></select>
+                          <button type="button" data-delta="5">+5m</button>
+                          <button type="button" data-delta="15">+15m</button>
+                        </div>
                       </label>
                     </div>
 
                     <!-- Optional dynamic suggestion from distance -->
                     <div id="laborSuggestion" class="muted" style="margin-top: 6px"></div>
                     <div id="totalHoursHHMM" class="muted" style="margin-top:4px;"></div>
+                    <div id="arbeitszeitSuggestionCard" class="az-suggestion-card">
+                      <div class="az-suggestion-head">
+                        <strong>Automatischer Arbeitszeit-Vorschlag</strong>
+                        <button type="button" id="applyArbeitszeitSuggestion" class="secondary">Vorschlag übernehmen</button>
+                      </div>
+                      <div id="arbeitszeitSuggestionEmpty" class="muted">Noch kein Vorschlag verfügbar.</div>
+                      <div id="arbeitszeitSuggestionTableWrap" hidden>
+                        <table class="az-suggestion-table">
+                          <thead>
+                            <tr>
+                              <th>Arbeit</th>
+                              <th>Menge</th>
+                              <th>Dauer</th>
+                            </tr>
+                          </thead>
+                          <tbody id="arbeitszeitSuggestionBody"></tbody>
+                          <tfoot>
+                            <tr>
+                              <td><strong>Summe</strong></td>
+                              <td></td>
+                              <td><strong id="arbeitszeitSuggestionTotal">00:00</strong></td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
                   </div>
 
                   <!-- keep zones placeholders below -->

@@ -845,6 +845,58 @@ a.btn {
 .aufschlag-panel[aria-hidden="true"] {
   opacity: 0.6;
 }
+.aufschlag-header-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.aufschlag-custom-row {
+  margin-top: 12px;
+}
+
+.sonderaufschlag-wrap {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px dashed var(--input-border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.sonderaufschlag-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sonderaufschlag-input-row input {
+  max-width: 180px;
+}
+
+.sonderaufschlag-unit {
+  font-weight: 700;
+  color: var(--accent-strong);
+}
+
+.sonderaufschlag-hint {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: var(--muted-foreground);
+}
+
+.sonderaufschlag-error {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: var(--danger);
+  font-weight: 600;
+}
+
+#toggleSonderaufschlag.is-active {
+  background: var(--accent-weak) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent-strong) !important;
+}
 
 /* ---------- Checkbox pill ---------- */
 .check-pill {
@@ -4827,4 +4879,174 @@ button.pad-clear {
 .input-auftrag.input-error {
   border-color: #ef4444 !important;
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14) !important;
+}
+
+
+/* === Compact time helper layout (inline controls) === */
+.time-helper.compact{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-top:8px;
+  flex-wrap:nowrap;
+}
+
+.time-helper.compact button,
+.time-helper.compact select{
+  height:40px;
+  border-radius:10px;
+  border:1px solid #d8d2e6;
+  background:#fff;
+  font:inherit;
+}
+
+.time-helper.compact button{
+  padding:0 12px;
+  font-weight:600;
+  cursor:pointer;
+  min-width:64px;
+}
+
+.time-helper.compact select{
+  padding:0 10px;
+  width:80px;
+}
+
+.time-helper.compact .time-hour-select{
+  width:72px;
+}
+
+.time-helper.compact .time-minute-select{
+  width:72px;
+}
+
+.time-helper.compact button:hover{
+  background:#f3f0fb;
+}
+
+/* Fix time helper button text color */
+.time-helper.compact button {
+  color: #2b2b2b;
+}
+
+/* Optional: nicer hover that matches your UI */
+.time-helper.compact button:hover {
+  background: #f3f0fb;
+}
+
+/* ===== Better Arbeitszeit suggestion card ===== */
+.az-suggestion-card {
+  margin-top: 16px;
+  padding: 18px 20px;
+  border: 1px solid rgba(124, 58, 237, 0.14);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.75));
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+}
+
+.az-suggestion-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.az-suggestion-head strong {
+  font-size: 1.05rem;
+  line-height: 1.2;
+  color: #1f2937;
+}
+
+.az-suggestion-head .secondary,
+.az-suggestion-head .btn,
+.az-suggestion-head button {
+  white-space: nowrap;
+}
+
+.az-suggestion-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.az-suggestion-table thead th {
+  padding: 0 4px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b7280;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+}
+
+.az-suggestion-table th:first-child,
+.az-suggestion-table td:first-child {
+  width: auto;
+  text-align: left;
+}
+
+.az-suggestion-table th:nth-child(2),
+.az-suggestion-table td:nth-child(2) {
+  width: 88px;
+  text-align: center;
+}
+
+.az-suggestion-table th:last-child,
+.az-suggestion-table td:last-child {
+  width: 110px;
+  text-align: right;
+}
+
+.az-suggestion-table tbody td {
+  padding: 9px 4px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  vertical-align: top;
+  color: #1f2937;
+}
+
+.az-suggestion-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.az-suggestion-table tbody td:first-child {
+  padding-right: 18px;
+  word-break: break-word;
+}
+
+.az-suggestion-table tfoot td {
+  padding: 14px 4px 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.24);
+  font-size: 1rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.az-suggestion-table tfoot td:last-child {
+  color: var(--accent-strong);
+}
+
+#arbeitszeitSuggestionEmpty {
+  padding-top: 4px;
+}
+
+@media (max-width: 760px) {
+  .az-suggestion-card {
+    padding: 16px;
+  }
+
+  .az-suggestion-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .az-suggestion-table th:nth-child(2),
+  .az-suggestion-table td:nth-child(2) {
+    width: 62px;
+  }
+
+  .az-suggestion-table th:last-child,
+  .az-suggestion-table td:last-child {
+    width: 88px;
+  }
 }
