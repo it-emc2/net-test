@@ -10,6 +10,7 @@ export function initEmailManager(options = {}) {
       to: "#mailTo",
       subject: "#mailSubject",
       body: "#mailBody",
+      leadId: "#mailAuftragId",
       files: "#mailAttachments",
       list: "#mailAttachmentList",
       status: "#mailStatus",
@@ -50,12 +51,13 @@ export function initEmailManager(options = {}) {
   const $to = document.querySelector(cfg.els.to);
   const $subject = document.querySelector(cfg.els.subject);
   const $body = document.querySelector(cfg.els.body);
+  const $leadId = document.querySelector(cfg.els.leadId);
   const $files = document.querySelector(cfg.els.files);
   const $list = document.querySelector(cfg.els.list);
   const $status = document.querySelector(cfg.els.status);
   const $offerNumber = document.querySelector(cfg.els.offerNumber);
 
-  if (!$btn || !$to || !$subject || !$body || !$files || !$list || !$status) {
+  if (!$btn || !$to || !$subject || !$body || !$leadId || !$files || !$list || !$status) {
     console.warn("[EmailManager] missing DOM nodes, skipping init");
     return { send: async () => false };
   }
@@ -71,6 +73,43 @@ export function initEmailManager(options = {}) {
     $status.textContent = msg || "";
     $status.dataset.type = type;
   };
+
+  const $mainAuftragId = document.querySelector(cfg.bitrix.dealIdSelector);
+
+  function markInvalid(el, invalid = true) {
+    if (!el) return;
+    el.classList.toggle("input-error", !!invalid);
+    if (invalid) el.setAttribute("aria-invalid", "true");
+    else el.removeAttribute("aria-invalid");
+  }
+
+  function syncLeadIdFields(source = null) {
+    const sourceVal = String(source?.value || "").trim();
+
+    if (source === $leadId && $mainAuftragId && $mainAuftragId.value !== sourceVal) {
+      $mainAuftragId.value = sourceVal;
+      $mainAuftragId.dispatchEvent(new Event("input", { bubbles: true }));
+      $mainAuftragId.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    if (source === $mainAuftragId && $leadId && $leadId.value !== sourceVal) {
+      $leadId.value = sourceVal;
+    }
+
+    const effective = String($leadId?.value || $mainAuftragId?.value || "").trim();
+    markInvalid($leadId, false);
+    markInvalid($mainAuftragId, false);
+    return effective;
+  }
+
+  if ($mainAuftragId && !$leadId.value.trim()) {
+    $leadId.value = String($mainAuftragId.value || "").trim();
+  }
+
+  $leadId.addEventListener("input", () => syncLeadIdFields($leadId));
+  $leadId.addEventListener("change", () => syncLeadIdFields($leadId));
+  $mainAuftragId?.addEventListener("input", () => syncLeadIdFields($mainAuftragId));
+  $mainAuftragId?.addEventListener("change", () => syncLeadIdFields($mainAuftragId));
 
   const getOfferNumber = () => {
     const v = ($offerNumber?.value || "").trim();
@@ -369,6 +408,15 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     try {
       if (cfg.hooks.requireBereichValid && !cfg.hooks.requireBereichValid()) {
         location.hash = "Kundendaten";
+        return false;
+      }
+
+      const leadId = syncLeadIdFields($leadId);
+      if (!leadId) {
+        markInvalid($leadId, true);
+        markInvalid($mainAuftragId, true);
+        setStatus("Please fill in the Lead ID / Auftrag ID before sending the email.", "error");
+        $leadId.focus();
         return false;
       }
 

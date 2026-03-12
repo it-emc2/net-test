@@ -1186,6 +1186,24 @@ button.dm-btn-danger:focus-visible {
               <div class="today-customers-empty">Noch keine Kundendaten geladen.</div>
             </div>
           </section>
+
+          <section class="today-customers-panel today-calendar-panel" id="todayCalendarPanel" aria-labelledby="todayCalendarTitle">
+            <div class="today-customers-head">
+              <div>
+                <h3 id="todayCalendarTitle">Heutige Termine</h3>
+                <p id="todayCalendarMeta">Lade Termine…</p>
+              </div>
+
+              <div class="today-customers-actions">
+                <input type="text" id="todayCalendarSearch" placeholder="Name, Ort, Telefon, E-Mail…" autocomplete="off" />
+                <button type="button" id="refreshTodayCalendar" class="secondary">Aktualisieren</button>
+              </div>
+            </div>
+
+            <div id="todayCalendarList" class="today-customers-list">
+              <div class="today-customers-empty">Noch keine Termine geladen.</div>
+            </div>
+          </section>
         </div>
 
       </section>
@@ -4543,6 +4561,9 @@ button.dm-btn-danger:focus-visible {
   <h2 class="section-title">✉️ Send offer by email</h2>
 
   <div class="mail-card">
+    <label for="mailAuftragId">Lead ID / Auftrag ID</label>
+    <input id="mailAuftragId" type="text" placeholder="z.B. 12345" />
+
     <label for="mailTo">Recipient email</label>
     <input id="mailTo" type="email" placeholder="customer@example.com" />
 

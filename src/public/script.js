@@ -16367,3 +16367,507 @@ function initTodayCustomersPanel(){
 document.addEventListener("DOMContentLoaded", initTodayCustomersPanel);
 
 })();
+
+(function(){
+
+const TODAY_CALENDAR_ENDPOINTS = [
+  "/api/calendar/today",
+  "https://fly-n8n-1.fly.dev/webhook/5f53f921-c711-46f9-ba3c-08b9225a74c6",
+];
+
+const CALENDAR_TYPE_RULES = [
+  {
+    offerKey: "bu",
+    label: "BU",
+    title: "Badumbau",
+    icon: "fa-shower",
+    badgeClass: "is-bu",
+    keywords: [
+      "wzd",
+      "dzd",
+      "badewanne zur dusche",
+      "badewanne zu dusche",
+      "wanne zur dusche",
+      "dusche statt badewanne",
+    ],
+  },
+  {
+    offerKey: "bwt",
+    label: "BWT",
+    title: "Badewannentür",
+    icon: "fa-bath",
+    badgeClass: "is-bwt",
+    keywords: [
+      "bwt",
+      "badewannentür",
+      "badewannentuer",
+      "badewannentuere",
+      "badewannentur",
+      "badewanne mit türe",
+      "badewanne mit tuere",
+    ],
+  },
+  {
+    offerKey: "hl",
+    label: "HL",
+    title: "Handlauf",
+    icon: "fa-grip-lines-vertical",
+    badgeClass: "is-hl",
+    keywords: ["hl", "haltegriff", "haltegriffe", "handlauf"],
+  },
+  {
+    offerKey: "ah",
+    label: "AH",
+    title: "Alltagshilfe",
+    icon: "fa-hands-helping",
+    badgeClass: "is-ah",
+    keywords: ["ah", "alltagshilfe"],
+  },
+  {
+    offerKey: "wd",
+    label: "WD",
+    title: "Winterdienst",
+    icon: "fa-snowflake",
+    badgeClass: "is-wd",
+    keywords: ["wd", "winterdienst"],
+  },
+  {
+    offerKey: "hms",
+    label: "HMS",
+    title: "Hausmeister-Service",
+    icon: "fa-toolbox",
+    badgeClass: "is-hms",
+    keywords: ["hausmeister", "hausmeisterservice", "hms"],
+  },
+];
+
+let todayCalendarEvents = [];
+let todayCalendarEventsFiltered = [];
+let activeCalendarEventId = null;
+
+function normalizeCalendarText(value){
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ß/g, "ss");
+}
+
+function escapeCalendarHtml(value){
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function setCalendarValue(selector, value){
+  const el = document.querySelector(selector);
+  if(!el) return;
+  el.value = value || "";
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function setCalendarRadio(name, value){
+  if(!value) return;
+  const radios = document.querySelectorAll(`input[name="${name}"]`);
+  radios.forEach(radio => {
+    if(String(radio.value).toLowerCase() === String(value).toLowerCase()){
+      radio.checked = true;
+      radio.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  });
+}
+
+function stripBitrixMarkup(text){
+  return String(text || "")
+    .replace(/\[URL=[^\]]*\]([^\[]*)\[\/URL\]/gi, "$1")
+    .replace(/<br\s*\/?\s*>/gi, "\n")
+    .replace(/\[\/?.*?\]/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .trim();
+}
+
+function parseBitrixCalendarDate(value){
+  if(!value) return null;
+  if(value instanceof Date) return value;
+
+  const match = String(value).match(/^(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+  if(match){
+    const [, dd, mm, yyyy, hh = "00", min = "00", ss = "00"] = match;
+    return new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(min), Number(ss));
+  }
+
+  const fallback = new Date(value);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
+}
+
+function isSameLocalDay(a, b){
+  if(!(a instanceof Date) || Number.isNaN(a.getTime())) return false;
+  if(!(b instanceof Date) || Number.isNaN(b.getTime())) return false;
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function formatEventTimeRange(startValue, endValue){
+  const start = parseBitrixCalendarDate(startValue);
+  const end = parseBitrixCalendarDate(endValue);
+  const two = (n) => String(n).padStart(2, "0");
+  if(!start) return "Ohne Uhrzeit";
+  const startText = `${two(start.getHours())}:${two(start.getMinutes())}`;
+  if(!end) return startText;
+  return `${startText} – ${two(end.getHours())}:${two(end.getMinutes())}`;
+}
+
+function parseNameParts(fullName){
+  const cleaned = String(fullName || "").replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+  if(!cleaned) return { firstName: "", lastName: "" };
+  const parts = cleaned.split(" ").filter(Boolean);
+  if(parts.length === 1) return { firstName: parts[0], lastName: "" };
+  return {
+    firstName: parts.slice(0, -1).join(" "),
+    lastName: parts.slice(-1).join(" "),
+  };
+}
+
+function parseCalendarDescription(description){
+  const clean = stripBitrixMarkup(description);
+  const lines = clean.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const joined = lines.join("\n");
+
+  const emailMatch = joined.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  const phoneMatch = joined.match(/(?:\+49|0)[0-9\s\/-]{6,}/);
+  const streetMatch = joined.match(/Adresse\s*:\s*(.+)/i);
+  const cityPostalLine = lines.find(line => /\b\d{5}\b/.test(line));
+  const contactIdMatch = String(description || "").match(/contact\/details\/(\d+)/i);
+
+  let postalCode = "";
+  let city = "";
+  if(cityPostalLine){
+    const m = cityPostalLine.match(/(\d{5})\s+(.+)/);
+    if(m){
+      postalCode = m[1] || "";
+      city = m[2] || "";
+    }
+  }
+
+  return {
+    clean,
+    lines,
+    phone: phoneMatch ? phoneMatch[0].replace(/\s+/g, " ").trim() : "",
+    email: emailMatch ? emailMatch[0].trim() : "",
+    street: streetMatch ? streetMatch[1].trim() : "",
+    postalCode,
+    city,
+    contactId: contactIdMatch ? contactIdMatch[1] : "",
+  };
+}
+
+function guessCalendarEventName(event){
+  const parsed = parseCalendarDescription(event?.DESCRIPTION);
+  const title = String(event?.NAME || event?.TITLE || event?.title || "").trim();
+  const fromDescription = parsed.lines.find(line => /[A-Za-zÄÖÜäöüß]/.test(line) && !/@/.test(line) && !/^Adresse\s*:/i.test(line) && !/^(\+49|0)\d/.test(line));
+
+  const raw = title || fromDescription || "";
+  const pieces = raw.split(/[;,]/).map(part => part.trim()).filter(Boolean);
+  if(pieces.length){
+    const last = pieces[pieces.length - 1];
+    if(last && !/^(wzd|dzd|bwt|hl|ah|wd|hms)$/i.test(last)) return last;
+  }
+  return raw;
+}
+
+function getCalendarTitleLocation(title){
+  const raw = String(title || "").replace(/^AD\d+\s+/i, "").trim();
+  const pieces = raw.split(/[;,]/).map(part => part.trim()).filter(Boolean);
+  const first = pieces[0] || "";
+  const m = first.match(/^(\d{5})\s+(.+)$/);
+  if(m){
+    return { postalCode: m[1], city: m[2].trim() };
+  }
+  return { postalCode: "", city: first };
+}
+
+function getCalendarEventSearchBlob(event){
+  const parsed = parseCalendarDescription(event?.DESCRIPTION);
+  return [
+    event?.NAME,
+    event?.TITLE,
+    event?.DESCRIPTION,
+    parsed.phone,
+    parsed.email,
+    parsed.street,
+    parsed.postalCode,
+    parsed.city,
+    guessCalendarEventName(event),
+  ].filter(Boolean).join(" ");
+}
+
+function detectOfferTypeFromCalendarEvent(event){
+  const haystack = normalizeCalendarText(getCalendarEventSearchBlob(event));
+  for(const rule of CALENDAR_TYPE_RULES){
+    const matchedKeyword = rule.keywords.find(keyword => {
+      const normalizedKeyword = normalizeCalendarText(keyword);
+      const escaped = normalizedKeyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i").test(haystack);
+    });
+    if(matchedKeyword){
+      return { ...rule, matchedKeyword };
+    }
+  }
+  return {
+    offerKey: null,
+    label: "Manuell",
+    title: "Nicht erkannt",
+    icon: "fa-calendar-day",
+    badgeClass: "is-manual",
+    matchedKeyword: null,
+  };
+}
+
+function unwrapCalendarWebhookResult(raw){
+  if(Array.isArray(raw)){
+    return raw.flatMap(item => unwrapCalendarWebhookResult(item));
+  }
+  if(Array.isArray(raw?.result)){
+    return raw.result;
+  }
+  if(Array.isArray(raw?.data)){
+    return raw.data;
+  }
+  return [];
+}
+
+async function fetchCalendarPayload(){
+  let lastError = null;
+  for(const url of TODAY_CALENDAR_ENDPOINTS){
+    try{
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: "konfigurator", scope: "today-calendar" }),
+      });
+      if(!response.ok){
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return await response.json();
+    }catch(error){
+      lastError = error;
+      console.warn("today calendar endpoint failed", url, error);
+    }
+  }
+  throw lastError || new Error("Kalenderdaten konnten nicht geladen werden.");
+}
+
+async function fetchTodayCalendarEvents(){
+  const meta = document.getElementById("todayCalendarMeta");
+  const list = document.getElementById("todayCalendarList");
+  const search = document.getElementById("todayCalendarSearch");
+  if(!list) return;
+
+  list.innerHTML = `<div class="today-customers-empty">Lade Termine…</div>`;
+
+  try{
+    const data = await fetchCalendarPayload();
+    const events = unwrapCalendarWebhookResult(data);
+    const now = new Date();
+    const currentSearch = search?.value?.trim() || "";
+
+    todayCalendarEvents = events
+      .filter(event => isSameLocalDay(parseBitrixCalendarDate(event?.DATE_FROM), now))
+      .sort((a, b) => {
+        const aTime = parseBitrixCalendarDate(a?.DATE_FROM)?.getTime() || 0;
+        const bTime = parseBitrixCalendarDate(b?.DATE_FROM)?.getTime() || 0;
+        return aTime - bTime;
+      });
+
+    todayCalendarEventsFiltered = currentSearch
+      ? todayCalendarEvents.filter(event => {
+          const detected = detectOfferTypeFromCalendarEvent(event);
+          return normalizeCalendarText([
+            getCalendarEventSearchBlob(event),
+            detected.label,
+            detected.title,
+          ].filter(Boolean).join(" ")).includes(normalizeCalendarText(currentSearch));
+        })
+      : todayCalendarEvents;
+
+    renderTodayCalendarEvents();
+
+    if(meta){
+      const todayLabel = new Intl.DateTimeFormat("de-DE", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(now);
+      meta.textContent = `${todayCalendarEvents.length} Termin(e) für ${todayLabel}`;
+    }
+  }catch(e){
+    console.error("today calendar failed", e);
+    if(list){
+      list.innerHTML = `<div class="today-customers-empty">Fehler beim Laden der Termine</div>`;
+    }
+    if(meta) meta.textContent = "Kalender konnte nicht geladen werden";
+  }
+}
+
+function buildCalendarAddress(parsed, event){
+  const locationFromTitle = getCalendarTitleLocation(event?.NAME || event?.TITLE || "");
+  const postalCode = parsed.postalCode || locationFromTitle.postalCode || "";
+  const city = parsed.city || locationFromTitle.city || "";
+  return [parsed.street, [postalCode, city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+}
+
+function renderTodayCalendarEvents(){
+  const list = document.getElementById("todayCalendarList");
+  if(!list) return;
+
+  if(!todayCalendarEventsFiltered.length){
+    list.innerHTML = `<div class="today-customers-empty">Keine Termine für heute gefunden</div>`;
+    return;
+  }
+
+  list.innerHTML = todayCalendarEventsFiltered.map(event => {
+    const parsed = parseCalendarDescription(event?.DESCRIPTION);
+    const displayName = guessCalendarEventName(event) || "Unbekannt";
+    const detected = detectOfferTypeFromCalendarEvent(event);
+    const address = buildCalendarAddress(parsed, event) || "Ort unbekannt";
+    const preview = parsed.clean || event?.DESCRIPTION || event?.NAME || "";
+    const subtitle = detected.offerKey ? `${detected.title}` : "Angebot manuell wählen";
+
+    return `
+      <div class="today-customer-card today-calendar-card ${String(activeCalendarEventId) === String(event?.ID) ? "is-active" : ""}" data-id="${escapeCalendarHtml(event?.ID || "")}">
+        <div class="today-calendar-topline">
+          <div class="today-calendar-title-wrap">
+            <span class="today-calendar-icon"><i class="fa-solid ${escapeCalendarHtml(detected.icon)}"></i></span>
+            <div class="today-calendar-title-block">
+              <div class="today-calendar-title">${escapeCalendarHtml(displayName)}</div>
+              <div class="today-calendar-subtitle">${escapeCalendarHtml(subtitle)}</div>
+            </div>
+          </div>
+
+          <div class="today-calendar-right">
+            <span class="today-calendar-time"><i class="fa-regular fa-clock"></i> ${escapeCalendarHtml(formatEventTimeRange(event?.DATE_FROM, event?.DATE_TO))}</span>
+            <span class="today-calendar-badge ${escapeCalendarHtml(detected.badgeClass)}">${escapeCalendarHtml(detected.label)}</span>
+          </div>
+        </div>
+
+        <div class="today-calendar-grid">
+          <div class="today-calendar-meta"><i class="fa-solid fa-location-dot"></i><span>${escapeCalendarHtml(address)}</span></div>
+          <div class="today-calendar-meta"><i class="fa-solid fa-envelope"></i><span>${escapeCalendarHtml(parsed.email || "Keine E-Mail")}</span></div>
+          <div class="today-calendar-meta"><i class="fa-solid fa-phone"></i><span>${escapeCalendarHtml(parsed.phone || "Keine Telefonnummer")}</span></div>
+          <div class="today-calendar-meta"><i class="fa-solid fa-calendar-days"></i><span>${escapeCalendarHtml(event?.NAME || "Ohne Terminname")}</span></div>
+        </div>
+
+        <div class="today-calendar-preview">${escapeCalendarHtml(preview)}</div>
+
+        <div class="today-calendar-actions">
+          <button type="button" class="today-calendar-open"><i class="fa-solid fa-arrow-right"></i> In Konfigurator öffnen</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  list.querySelectorAll(".today-calendar-card").forEach(card => {
+    const openButton = card.querySelector(".today-calendar-open");
+    const onOpen = () => {
+      const id = card.dataset.id;
+      const event = todayCalendarEvents.find(item => String(item?.ID) === String(id));
+      if(!event) return;
+      activeCalendarEventId = id;
+      renderTodayCalendarEvents();
+      applyCalendarEventToForm(event);
+    };
+
+    card.addEventListener("click", onOpen);
+    openButton?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      onOpen();
+    });
+  });
+}
+
+function filterTodayCalendarEvents(query){
+  if(!query){
+    todayCalendarEventsFiltered = todayCalendarEvents;
+  }else{
+    const needle = normalizeCalendarText(query);
+    todayCalendarEventsFiltered = todayCalendarEvents.filter(event => {
+      const detected = detectOfferTypeFromCalendarEvent(event);
+      const searchable = normalizeCalendarText([
+        getCalendarEventSearchBlob(event),
+        detected.label,
+        detected.title,
+      ].filter(Boolean).join(" "));
+      return searchable.includes(needle);
+    });
+  }
+  renderTodayCalendarEvents();
+}
+
+function applyCalendarEventToForm(event){
+  const parsed = parseCalendarDescription(event?.DESCRIPTION);
+  const name = parseNameParts(guessCalendarEventName(event));
+  const detected = detectOfferTypeFromCalendarEvent(event);
+  const locationFromTitle = getCalendarTitleLocation(event?.NAME || event?.TITLE || "");
+
+  console.log("Loading calendar event:", event, "detected offer:", detected);
+
+  if(detected.offerKey && typeof startOfferFlow === "function"){
+    startOfferFlow(detected.offerKey);
+  }
+
+  setCalendarValue("#firstName", name.firstName || "");
+  setCalendarValue("#lastName", name.lastName || "");
+  setCalendarValue("#phone", parsed.phone || "");
+  setCalendarValue("#email", parsed.email || "");
+  setCalendarValue("#street", parsed.street || "");
+  setCalendarValue("#postalCode", parsed.postalCode || locationFromTitle.postalCode || "");
+  setCalendarValue("#city", parsed.city || locationFromTitle.city || "");
+  setCalendarValue("#bitrixContactId", parsed.contactId || event?.OWNER_ID || event?.ID || "");
+
+  const normalizedTitle = normalizeCalendarText(event?.NAME || event?.TITLE || "");
+  if(normalizedTitle.includes("frau ")) setCalendarRadio("salutation", "Frau");
+  if(normalizedTitle.includes("herr ")) setCalendarRadio("salutation", "Herr");
+
+  try {
+    if (typeof updateSummaryWidgetName === "function") {
+      updateSummaryWidgetName();
+    }
+    if (typeof updateSidebarForOffer === "function") {
+      updateSidebarForOffer();
+    }
+  } catch (e) {
+    console.warn("today calendar sidebar refresh failed", e);
+  }
+}
+
+function initTodayCalendarPanel(){
+  const panel = document.getElementById("todayCalendarPanel");
+  if(!panel) return;
+
+  const search = document.getElementById("todayCalendarSearch");
+  const refresh = document.getElementById("refreshTodayCalendar");
+
+  if(search){
+    search.addEventListener("input", (e) => {
+      filterTodayCalendarEvents(e.target.value);
+    });
+  }
+
+  if(refresh){
+    refresh.addEventListener("click", fetchTodayCalendarEvents);
+  }
+
+  fetchTodayCalendarEvents();
+}
+
+document.addEventListener("DOMContentLoaded", initTodayCalendarPanel);
+
+})();
