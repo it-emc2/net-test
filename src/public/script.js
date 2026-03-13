@@ -9433,17 +9433,17 @@ async function loadDraftById(id) {
     });
     if (!res.ok) {
       alert("Entwurf konnte nicht geladen werden.");
-      return;
+      return false;
     }
     const doc = await res.json();
 
     // If we have a central restore helper, use it with the full document.
     // restoreConfiguratorFromOffer already knows how to handle doc.offer or doc.payload.
     if (typeof window.restoreConfiguratorFromOffer === "function") {
-      window.restoreConfiguratorFromOffer(doc);
+      await window.restoreConfiguratorFromOffer(doc);
     } else if (typeof window.restoreConfiguratorFromSnapshot === "function") {
       const payload = doc.payload || doc;
-      window.restoreConfiguratorFromSnapshot({ payload });
+      await window.restoreConfiguratorFromSnapshot({ payload });
     } else {
       // fallback: just reset and rebuild forms manually if needed
       console.warn(
@@ -9451,7 +9451,7 @@ async function loadDraftById(id) {
       );
 
       alert("Wiederherstellen ist noch nicht implementiert.");
-      return;
+      return false;
     }
 
     // after restore, recompute pricing → widget + panels up to date
@@ -9460,10 +9460,204 @@ async function loadDraftById(id) {
     }
 
     showToast(`Entwurf "${doc.name}" geladen.`, "info");
+    return true;
   } catch (e) {
     console.error("loadDraftById error:", e);
     alert("Fehler beim Laden des Entwurfs.");
+    return false;
   }
+}
+
+async function loadOfferByNumber(offerNumber) {
+  const n = String(offerNumber || "").trim();
+  if (!n) {
+    alert("Bitte Angebotsnummer eingeben.");
+    return false;
+  }
+
+  try {
+    const res = await fetch(`/api/offers/${encodeURIComponent(n)}`, {
+      method: "GET",
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      alert("Angebot wurde nicht gefunden.");
+      return false;
+    }
+
+    const data = await res.json();
+    const doc = data.offer || data;
+    const offer = doc.offer || doc;
+    const payload = offer.payload || {};
+
+    const rawOfferType =
+      offer.offerType || payload.activeOffer || payload.offerType || "bu";
+
+    const offerType = String(rawOfferType).trim().toLowerCase();
+
+    let pages = [];
+    if (typeof getPagesForOfferType === "function") {
+      pages = getPagesForOfferType(offerType);
+    } else if (typeof getFlowSteps === "function") {
+      pages = getFlowSteps();
+    } else {
+      pages = steps || [];
+    }
+
+    const targetStep = (pages && pages[0]) || "home";
+
+    if (typeof window.applyWizardState === "function") {
+      window.applyWizardState({
+        offerType,
+        step: targetStep,
+      });
+    } else {
+      const state =
+        (typeof loadWizardState === "function" ? loadWizardState() : {}) || {};
+      state.offerType = offerType;
+      state.step = targetStep;
+      if (typeof saveWizardState === "function") saveWizardState(state);
+      setStep(targetStep);
+    }
+
+    if (typeof window.restoreConfiguratorFromOffer === "function") {
+      await window.restoreConfiguratorFromOffer(doc);
+    }
+
+    return true;
+  } catch (err) {
+    console.error("Failed to load offer:", err);
+    alert("Fehler beim Laden des Angebots.");
+    return false;
+  }
+}
+
+function renderGlobalOfferSearchResults(list, state = {}) {
+  const container = document.getElementById("globalOfferSearchResults");
+  if (!container) return;
+
+  const items = Array.isArray(list) ? list : [];
+  const activeIndex = Number.isInteger(state.activeIndex) ? state.activeIndex : -1;
+  const loading = !!state.loading;
+  const query = String(state.query || "").trim();
+
+  if (loading) {
+    container.hidden = false;
+    container.innerHTML = '<div class="home-search-status">Suche läuft…</div>';
+    return;
+  }
+
+  if (!query) {
+    container.hidden = true;
+    container.innerHTML = "";
+    return;
+  }
+
+  if (!items.length) {
+    container.hidden = false;
+    container.innerHTML = '<div class="home-search-empty">Keine Treffer in Entwürfen oder Angeboten.</div>';
+    return;
+  }
+
+  const safe = (value) => {
+    const s = String(value ?? "");
+    return s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  };
+
+  container.innerHTML = items
+    .map((item, index) => {
+      const source = String(item.source || item.collection || item.kind || "").toLowerCase();
+      const isDraft = source.includes("draft");
+      const title =
+        item.customerName ||
+        item.name ||
+        item.offerNumber ||
+        item.angNumber ||
+        item.title ||
+        "Ohne Titel";
+      const offerNumber = item.offerNumber || item.angNumber || item.number || "";
+      const offerType = item.offerType || item.activeOffer || item.type || "";
+      const updatedAt = item.updatedAt || item.createdAt || item.date || "";
+      const snippet = item.snippet || item.summary || item.preview || "";
+      const dateText = updatedAt
+        ? new Date(updatedAt).toLocaleString("de-DE")
+        : "";
+
+      return `
+        <button
+          type="button"
+          class="home-search-result${index === activeIndex ? " is-active" : ""}"
+          data-index="${index}"
+        >
+          <div class="home-search-result__top">
+            <div class="home-search-result__title">${safe(title)}</div>
+            <div class="home-search-result__badges">
+              <span class="home-search-badge ${isDraft ? "home-search-badge--draft" : "home-search-badge--offer"}">${isDraft ? "Entwurf" : "Angebot"}</span>
+              ${offerType ? `<span class="home-search-badge">${safe(String(offerType).toUpperCase())}</span>` : ""}
+            </div>
+          </div>
+          <div class="home-search-result__meta">
+            ${offerNumber ? `<strong>${safe(offerNumber)}</strong>` : ""}
+            ${dateText ? `${offerNumber ? " · " : ""}${safe(dateText)}` : ""}
+          </div>
+          ${snippet ? `<div class="home-search-result__snippet">${safe(snippet)}</div>` : ""}
+        </button>
+      `;
+    })
+    .join("");
+  container.hidden = false;
+}
+
+async function searchOffersAndDraftsGlobal(query, limit = 20) {
+  const q = String(query || "").trim();
+  if (!q) return [];
+
+  const params = new URLSearchParams();
+  params.set("q", q);
+  params.set("limit", String(limit));
+
+  const res = await fetch(`/api/offers/search-all?${params.toString()}`, {
+    method: "GET",
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || "Global search request failed");
+  }
+
+  const data = await res.json();
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.results)) return data.results;
+  if (Array.isArray(data.items)) return data.items;
+  return [];
+}
+
+async function loadGlobalOfferSearchResult(item) {
+  if (!item || typeof item !== "object") return false;
+
+  const source = String(item.source || item.collection || item.kind || "").toLowerCase();
+  if (source.includes("draft")) {
+    const id = item._id || item.id;
+    if (!id) {
+      alert("Dieser Entwurf hat keine ID.");
+      return false;
+    }
+    return loadDraftById(id);
+  }
+
+  const offerNumber = item.offerNumber || item.angNumber || item.number || item.offerId;
+  if (!offerNumber) {
+    alert("Dieses Angebot hat keine Angebotsnummer.");
+    return false;
+  }
+  return loadOfferByNumber(offerNumber);
 }
 
 /* ========== End Live search + load functions ========== */
@@ -11118,69 +11312,7 @@ function setCurrentOfferType(offerType) {
 
 document.getElementById("btnLoadOffer")?.addEventListener("click", async () => {
   const input = document.getElementById("loadOfferNumber");
-  const n = input?.value?.trim();
-  if (!n) {
-    alert("Bitte Angebotsnummer eingeben.");
-    return;
-  }
-
-  try {
-    const res = await fetch(`/api/offers/${encodeURIComponent(n)}`, {
-      method: "GET",
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      alert("Angebot wurde nicht gefunden.");
-      return;
-    }
-
-    const data = await res.json();
-    const doc = data.offer || data;
-    const offer = doc.offer || doc;
-    const payload = offer.payload || {};
-
-    const rawOfferType =
-      offer.offerType || payload.activeOffer || payload.offerType || "bu";
-
-    const offerType = String(rawOfferType).trim().toLowerCase();
-
-    // 🔹 Decide which step to open for this offer
-    let pages = [];
-    if (typeof getPagesForOfferType === "function") {
-      pages = getPagesForOfferType(offerType);
-    } else if (typeof getFlowSteps === "function") {
-      pages = getFlowSteps();
-    } else {
-      pages = steps || [];
-    }
-
-    const targetStep = (pages && pages[0]) || "home"; // [1] = first real page in your logic
-
-    // 🔹 Set wizard state + navigate using the same core function used by boot/hashchange
-    if (typeof window.applyWizardState === "function") {
-      window.applyWizardState({
-        offerType,
-        step: targetStep,
-      });
-    } else {
-      // fallback if applyWizardState does not exist
-      const state =
-        (typeof loadWizardState === "function" ? loadWizardState() : {}) || {};
-      state.offerType = offerType;
-      state.step = targetStep;
-      if (typeof saveWizardState === "function") saveWizardState(state);
-      setStep(targetStep);
-    }
-
-    // 🔹 Restore all form fields from the offer
-    if (typeof window.restoreConfiguratorFromOffer === "function") {
-      await window.restoreConfiguratorFromOffer(doc);
-    }
-  } catch (err) {
-    console.error("Failed to load offer:", err);
-    alert("Fehler beim Laden des Angebots.");
-  }
+  await loadOfferByNumber(input?.value?.trim());
 });
 
 // Collect rows from Optional → Sonderprodukte into payload.optional.quickAdd
@@ -14119,6 +14251,112 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   } */
+
+  // --- Global offer search on home ---
+  (function initGlobalOfferSearchUI() {
+    const input = document.getElementById("globalOfferSearchInput");
+    const results = document.getElementById("globalOfferSearchResults");
+    if (!input || !results) return;
+
+    let debounceTimer = null;
+    let items = [];
+    let activeIndex = -1;
+
+    const rerender = (opts = {}) => {
+      renderGlobalOfferSearchResults(items, {
+        query: input.value,
+        activeIndex,
+        loading: opts.loading === true,
+      });
+    };
+
+    const runSearch = async () => {
+      const q = input.value.trim();
+      if (!q) {
+        items = [];
+        activeIndex = -1;
+        rerender();
+        return;
+      }
+
+      rerender({ loading: true });
+      try {
+        items = await searchOffersAndDraftsGlobal(q, 20);
+        activeIndex = items.length ? 0 : -1;
+        rerender();
+      } catch (err) {
+        console.error("global offer search failed:", err);
+        items = [];
+        activeIndex = -1;
+        results.hidden = false;
+        results.innerHTML = '<div class="home-search-empty">Suche fehlgeschlagen. Prüfen Sie /api/offers/search-all.</div>';
+      }
+    };
+
+    input.addEventListener("input", () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(runSearch, 220);
+    });
+
+    input.addEventListener("keydown", async (ev) => {
+      if (!items.length) {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          await runSearch();
+        }
+        return;
+      }
+
+      if (ev.key === "ArrowDown") {
+        ev.preventDefault();
+        activeIndex = Math.min(activeIndex + 1, items.length - 1);
+        rerender();
+        return;
+      }
+
+      if (ev.key === "ArrowUp") {
+        ev.preventDefault();
+        activeIndex = Math.max(activeIndex - 1, 0);
+        rerender();
+        return;
+      }
+
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        const item = items[Math.max(activeIndex, 0)];
+        if (item) {
+          await loadGlobalOfferSearchResult(item);
+          results.hidden = true;
+        }
+      }
+
+      if (ev.key === "Escape") {
+        results.hidden = true;
+      }
+    });
+
+    results.addEventListener("click", async (ev) => {
+      const btn = ev.target.closest(".home-search-result");
+      if (!btn) return;
+      const index = Number(btn.dataset.index);
+      const item = items[index];
+      if (!item) return;
+      activeIndex = index;
+      rerender();
+      await loadGlobalOfferSearchResult(item);
+      results.hidden = true;
+    });
+
+    document.addEventListener("click", (ev) => {
+      if (!results.contains(ev.target) && ev.target !== input) {
+        results.hidden = true;
+      }
+    });
+
+    input.addEventListener("focus", () => {
+      if (items.length) rerender();
+    });
+  })();
 
   // --- Draft search / load on Kundendaten ---
   (function initDraftSearchUI() {

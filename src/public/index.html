@@ -1128,11 +1128,26 @@ button.dm-btn-danger:focus-visible {
       <!-- Auswahl der Leistung (new landing page) -->
       <section class="card page" id="page-home">
         <h2 style="margin: 0 0 12px"> Auswahl der Leistung </h2>
-        <div class="field" style="display:flex; gap:8px; max-width:380px;">
-          <input id="loadOfferNumber" type="text" placeholder="ANG2025-1008-092040" />
-          <button type="button" id="btnLoadOffer" class="secondary">Angebot laden</button>
+        <div class="home-load-panel">
+          <div class="field home-load-row">
+            <input id="loadOfferNumber" type="text" placeholder="ANG2025-1008-092040" />
+            <button type="button" id="btnLoadOffer" class="secondary">Angebot laden</button>
+          </div>
+
+          <div class="field home-global-search-field">
+            <label for="globalOfferSearchInput" class="muted home-global-search-label">Schnellsuche in Entwürfen + Angeboten</label>
+            <div class="home-global-search-wrap">
+              <input
+                id="globalOfferSearchInput"
+                type="text"
+                placeholder="Name, Datum, ANG-Nummer, Ort, Telefonnummer, Stichwort …"
+                autocomplete="off"
+              />
+              <div id="globalOfferSearchResults" class="home-global-search-results" hidden></div>
+            </div>
+          </div>
         </div>
-        <p class="muted" style="margin: 0 0 16px">Wählen Sie einen Bereich, um zu starten.</p>
+        <p class="muted home-load-hint" style="margin: 0 0 16px">Wählen Sie einen Bereich, um zu starten.</p>
 
 
         <div class="home-stack">
@@ -2480,17 +2495,18 @@ button.dm-btn-danger:focus-visible {
                   <select id="wvColor_997" name="wvColor_997" class="wv-color-per-row" data-wv-id="wv997">
                     <option value="">Wie unten gewählt</option>
                     <option value="Weiß">Weiß</option>
+                                        <option value="Marmor weiß">Marmor weiß</option>
+                    <option value="Struktur weiß">Struktur weiß</option>
+
                     <option value="Aragon grau">Aragon grau</option>
                     <option value="Aragon anthrazit">Aragon anthrazit</option>
                     <option value="Beton grau metallic">Beton grau metallic</option>
                     <option value="Beton grau">Beton grau</option>
-                    <option value="Marmor weiß">Marmor weiß</option>
                     <option value="Metall oxydant">Metall oxydant</option>
                     <option value="Schiefer grau">Schiefer grau</option>
                     <option value="Stein anthrazit">Stein anthrazit</option>
                     <option value="Stein beige">Stein beige</option>
                     <option value="Stein grau">Stein grau</option>
-                    <option value="Struktur weiß">Struktur weiß</option>
                     <option value="Schwarzwaldeiche Hell">Schwarzwaldeiche Hell</option>
                   </select>
                 </div>
@@ -2515,17 +2531,18 @@ button.dm-btn-danger:focus-visible {
                   <select id="wvColor_1497" name="wvColor_1497" class="wv-color-per-row" data-wv-id="wv1497">
                     <option value="">Wie unten gewählt</option>
                     <option value="Weiß">Weiß</option>
+                                        <option value="Marmor weiß">Marmor weiß</option>
+                    <option value="Struktur weiß">Struktur weiß</option>
+
                     <option value="Aragon grau">Aragon grau</option>
                     <option value="Aragon anthrazit">Aragon anthrazit</option>
                     <option value="Beton grau metallic">Beton grau metallic</option>
                     <option value="Beton grau">Beton grau</option>
-                    <option value="Marmor weiß">Marmor weiß</option>
                     <option value="Metall oxydant">Metall oxydant</option>
                     <option value="Schiefer grau">Schiefer grau</option>
                     <option value="Stein anthrazit">Stein anthrazit</option>
                     <option value="Stein beige">Stein beige</option>
                     <option value="Stein grau">Stein grau</option>
-                    <option value="Struktur weiß">Struktur weiß</option>
                   </select>
                 </div>
                
@@ -2541,17 +2558,42 @@ button.dm-btn-danger:focus-visible {
                     <span class="caption">Weiß</span>
                   </label>
 
+                     <label class="image-check">
+                    <input type="radio" name="wvColor" value="Marmor weiß" checked />
+                    <span class="img-wrap"><img src="./assets/Marmor weiß.jpeg" alt="Marmor weiß" /></span>
+                    <span class="caption">Marmor weiß</span>
+                  </label>
+
+                   <label class="image-check">
+                    <input type="radio" name="wvColor" value="Struktur weiß" />
+                    <span class="img-wrap"><img src="./assets/Struktur weiß.jpeg" alt="Struktur weiß" /></span>
+                    <span class="caption">Struktur weiß</span>
+                  </label>
+
+                  
+                  <label class="image-check">
+                    <input type="radio" name="wvColor" value="Stein beige" />
+                    <span class="img-wrap"><img src="./assets/Stein beige.jpeg" alt="Stein beige" /></span>
+                    <span class="caption">Stein beige</span>
+                  </label>
+
                   <label class="image-check">
                     <input type="radio" name="wvColor" value="Aragon grau" />
                     <span class="img-wrap"><img src="./assets/Aragon grau.jpeg" alt="Aragon grau" /></span>
                     <span class="caption">Aragon grau</span>
                   </label>
-
-                  <label class="image-check">
-                    <input type="radio" name="wvColor" value="Aragon anthrazit" />
-                    <span class="img-wrap"><img src="./assets/Aragon_anthrazit.jpg" alt="Aragon anthrazit" /></span>
-                    <span class="caption">Aragon anthrazit</span>
+  <label class="image-check">
+                    <input type="radio" name="wvColor" value="Stein grau" />
+                    <span class="img-wrap"><img src="./assets/stein grau .jpeg" alt="Stein grau" /></span>
+                    <span class="caption">Stein grau</span>
                   </label>
+                 
+                    <label class="image-check">
+                    <input type="radio" name="wvColor" value="Beton grau" />
+                    <span class="img-wrap"><img src="./assets/Beton grau.jpeg" alt="Beton grau" /></span>
+                    <span class="caption">Beton grau</span>
+                  </label>
+
 
                   <label class="image-check">
                     <input type="radio" name="wvColor" value="Beton grau metallic" />
@@ -2560,23 +2602,16 @@ button.dm-btn-danger:focus-visible {
                     <span class="caption">Beton grau metallic</span>
                   </label>
 
-                  <label class="image-check">
-                    <input type="radio" name="wvColor" value="Beton grau" />
-                    <span class="img-wrap"><img src="./assets/Beton grau.jpeg" alt="Beton grau" /></span>
-                    <span class="caption">Beton grau</span>
+                
+                   
+ <label class="image-check">
+                    <input type="radio" name="wvColor" value="Aragon anthrazit" />
+                    <span class="img-wrap"><img src="./assets/Aragon_anthrazit.jpg" alt="Aragon anthrazit" /></span>
+                    <span class="caption">Aragon anthrazit</span>
                   </label>
+               
 
-                  <label class="image-check">
-                    <input type="radio" name="wvColor" value="Marmor weiß" checked />
-                    <span class="img-wrap"><img src="./assets/Marmor weiß.jpeg" alt="Marmor weiß" /></span>
-                    <span class="caption">Marmor weiß</span>
-                  </label>
-
-                  <label class="image-check">
-                    <input type="radio" name="wvColor" value="Metall oxydant" />
-                    <span class="img-wrap"><img src="./assets/Metall oxydant.jpeg" alt="Metall oxydant" /></span>
-                    <span class="caption">Metall oxydant</span>
-                  </label>
+              
 
                   <label class="image-check">
                     <input type="radio" name="wvColor" value="Schiefer grau" />
@@ -2584,29 +2619,12 @@ button.dm-btn-danger:focus-visible {
                     <span class="caption">Schiefer grau</span>
                   </label>
 
-                  <label class="image-check">
-                    <input type="radio" name="wvColor" value="Stein anthrazit" />
-                    <span class="img-wrap"><img src="./assets/Stein anthrazit.jpeg" alt="Stein anthrazit" /></span>
-                    <span class="caption">Stein anthrazit</span>
-                  </label>
+                
 
-                  <label class="image-check">
-                    <input type="radio" name="wvColor" value="Stein beige" />
-                    <span class="img-wrap"><img src="./assets/Stein beige.jpeg" alt="Stein beige" /></span>
-                    <span class="caption">Stein beige</span>
-                  </label>
 
-                  <label class="image-check">
-                    <input type="radio" name="wvColor" value="Stein grau" />
-                    <span class="img-wrap"><img src="./assets/stein grau .jpeg" alt="Stein grau" /></span>
-                    <span class="caption">Stein grau</span>
-                  </label>
+               
 
-                  <label class="image-check">
-                    <input type="radio" name="wvColor" value="Struktur weiß" />
-                    <span class="img-wrap"><img src="./assets/Struktur weiß.jpeg" alt="Struktur weiß" /></span>
-                    <span class="caption">Struktur weiß</span>
-                  </label>
+                 
 
 
                   <label class="image-check">
@@ -2614,6 +2632,18 @@ button.dm-btn-danger:focus-visible {
                     <span class="img-wrap"><img src="./assets/Schwarzwaldeiche Hell.jpg"
                         alt="Schwarzwaldeiche Hell" /></span>
                     <span class="caption">Schwarzwaldeiche Hell</span>
+                  </label>
+
+                    <label class="image-check">
+                    <input type="radio" name="wvColor" value="Stein anthrazit" />
+                    <span class="img-wrap"><img src="./assets/Stein anthrazit.jpeg" alt="Stein anthrazit" /></span>
+                    <span class="caption">Stein anthrazit</span>
+                  </label>
+
+                      <label class="image-check">
+                    <input type="radio" name="wvColor" value="Metall oxydant" />
+                    <span class="img-wrap"><img src="./assets/Metall oxydant.jpeg" alt="Metall oxydant" /></span>
+                    <span class="caption">Metall oxydant</span>
                   </label>
 
                 </div>
