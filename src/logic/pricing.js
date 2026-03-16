@@ -1519,22 +1519,53 @@ try {
 
       // DOCX rules (presentation only)
       if (bonusHG && grabCounts.total > 0) {
-        if (ONLY_ONE_GRAB) {
-          // Single grab bar → hide it completely in DOCX materials
-          const idx = docxMaterials.findIndex(
-            (l) => (l.productId || l.id) === freeId,
-          );
-          if (idx >= 0) docxMaterials.splice(idx, 1);
+        const showFreeGrabInMaterial =
+          payload?.rabatt?.showFreeGrabInMaterial === true;
 
-          // Remove the worknote line from DOCX services
-          const GRAB_NOTE = "Anbringen zusätzlicher Haltegriffe";
-          const dn = docxServices.findIndex((s) =>
-            (s.label || "").includes(GRAB_NOTE),
-          );
-          if (dn >= 0) docxServices.splice(dn, 1);
+        if (ONLY_ONE_GRAB) {
+          if (showFreeGrabInMaterial) {
+            // Keep the single free grab visible in DOCX material lines.
+            // Be defensive: if a previous step removed it or it is missing here,
+            // reinsert it from the authoritative material lines.
+            let row = docxMaterials.find((l) => (l.productId || l.id) === freeId);
+            if (!row) {
+              const originalRow = allMatLines.find(
+                (l) => !l.docxHide && (l.productId || l.id) === freeId,
+              );
+              if (originalRow) {
+                docxMaterials.push({ ...originalRow });
+                row = docxMaterials.find((l) => (l.productId || l.id) === freeId);
+              }
+            }
+
+            // Force a visible material label for the single free grab.
+            if (row) {
+              const baseName = (row.name || row.label || row.productId || "")
+                .replace(/^\s*-\s*\d+\s*Stk\s*/i, "")
+                .replace(/\s*\(hidden\)\s*$/i, "")
+                .trim();
+              row.label = `- 1 Stk ${baseName}`;
+            }
+          } else {
+            // Single grab bar → hide it completely in DOCX materials
+            const idx = docxMaterials.findIndex(
+              (l) => (l.productId || l.id) === freeId,
+            );
+            if (idx >= 0) docxMaterials.splice(idx, 1);
+
+            // Remove the worknote line from DOCX services
+            const GRAB_NOTE = "Anbringen zusätzlicher Haltegriffe";
+            const dn = docxServices.findIndex((s) =>
+              (s.label || "").includes(GRAB_NOTE),
+            );
+            if (dn >= 0) docxServices.splice(dn, 1);
+          }
         } else {
-          // Multiple → decrement one from DOCX (hide when becomes 0)
-          setGrabLabelToBillable(docxMaterials, freeId, { hideWhenZero: true });
+          // Multiple → decrement one from DOCX (hide when becomes 0),
+          // unless the user explicitly wants the free grab still shown.
+          setGrabLabelToBillable(docxMaterials, freeId, {
+            hideWhenZero: !showFreeGrabInMaterial,
+          });
         }
       }
 

@@ -1161,6 +1161,26 @@ function wireDAQtyAutoFill() {
 }
 
 // Refresh when a panel becomes visible (by hash or tab click)
+
+function syncShowFreeGrabRowVisibility() {
+  const row = document.getElementById("rb-show-free-grab-row");
+  const bonusGrab = document.getElementById("rb-bonus-grab");
+  const showFree = document.getElementById("rb-show-free-grab");
+  if (!row) return;
+
+  const pricing = window.__pricing || null;
+  const total = Number(pricing?.grabCounts?.total || 0);
+  const shouldShow = !!bonusGrab?.checked && total > 0;
+
+  row.style.display = shouldShow ? "" : "none";
+  row.hidden = !shouldShow;
+  row.setAttribute("aria-hidden", String(!shouldShow));
+
+  if (!shouldShow && showFree) {
+    showFree.checked = false;
+  }
+}
+
 function autoRefreshOnEnter() {
   // 1) Hash-based navigation (#rabatt, #kosten-details, #debug …)
   window.addEventListener("hashchange", () => {
@@ -1186,6 +1206,10 @@ function autoRefreshOnEnter() {
 
   // 3) Bonus checkbox itself should also re-render on change
   document.getElementById("rb-bonus-grab")?.addEventListener("change", () => {
+    syncShowFreeGrabRowVisibility();
+    refetchAndRender();
+  });
+  document.getElementById("rb-show-free-grab")?.addEventListener("change", () => {
     refetchAndRender();
   });
 }
@@ -3304,6 +3328,7 @@ function buildPayload() {
     materialDiscountPct: isFinite(pct) ? pct / 100 : 0,
     bonus300: !!document.getElementById("rb-bonus-300")?.checked,
     bonusGrab: !!document.getElementById("rb-bonus-grab")?.checked,
+    showFreeGrabInMaterial: !!document.getElementById("rb-show-free-grab")?.checked,
   };
 
   payload.offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
@@ -9020,6 +9045,8 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     payload.rabatt.materialDiscountPct = pct / 100;
     payload.rabatt.bonus300 = !!bonus300.checked;
     payload.rabatt.bonusGrab = !!bonusGrab.checked;
+    payload.rabatt.showFreeGrabInMaterial =
+      !!document.getElementById("rb-show-free-grab")?.checked;
 
     // inject products into optional as quantity keys (so collectSelections picks them up)
     // We’ll map productId -> qty into optional fields: opt_<PID> + qty_<PID>
@@ -9201,6 +9228,11 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     if (bgr) {
       bgr.checked = !!payload.rabatt?.bonusGrab;
       bgr.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    const bgrShow = document.getElementById("rb-show-free-grab");
+    if (bgrShow) {
+      bgrShow.checked = !!payload.rabatt?.showFreeGrabInMaterial;
+      bgrShow.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
     window.updatePricing?.();
@@ -9976,6 +10008,8 @@ function restoreRabatt(r) {
   }
   setCheckboxById("rb-bonus-300", !!r.bonus300);
   setCheckboxById("rb-bonus-grab", !!r.bonusGrab);
+  setCheckboxById("rb-show-free-grab", !!r.showFreeGrabInMaterial);
+  syncShowFreeGrabRowVisibility();
 }
 
 function restoreBwt(bwt) {
@@ -12217,6 +12251,13 @@ async function __recalcRabattNow() {
   }
 }
 
+
+document
+  .getElementById("rb-show-free-grab")
+  ?.addEventListener("change", async () => {
+    await __recalcRabattNow();
+  });
+
 document
   .getElementById("rb-bonus-300")
   ?.addEventListener("change", async () => {
@@ -12393,6 +12434,20 @@ window.setPricingData = function setPricingData(data) {
       //cb.checked = false;
       cb.dispatchEvent(new Event("change", { bubbles: true }));
     }
+
+    const showFreeRow = document.getElementById("rb-show-free-grab-row");
+    const showFreeCb = document.getElementById("rb-show-free-grab");
+    const allowShowFree = allow && !!cb?.checked;
+
+    if (showFreeRow) {
+      showFreeRow.style.display = allowShowFree ? "" : "none";
+      showFreeRow.hidden = !allowShowFree;
+      showFreeRow.setAttribute("aria-hidden", String(!allowShowFree));
+    }
+    if (!allowShowFree && showFreeCb?.checked) {
+      showFreeCb.checked = false;
+    }
+    syncShowFreeGrabRowVisibility();
   })();
 };
 
