@@ -10393,6 +10393,14 @@ function restoreOptionalPage(opt) {
   // existing granular restore
   restoreOptional(opt);
 
+  // WC
+  if (opt.wcMontage != null) {
+    setRadio("wcMontage", opt.wcMontage);
+  }
+  if (opt.wcSeatHeight != null) {
+    setRadio("wcSeatHeight", opt.wcSeatHeight);
+  }
+
   // Sonderprodukte (quickAdd)
   if (Array.isArray(opt.quickAdd)) {
     const panel =
@@ -10475,6 +10483,7 @@ function restoreOptionalPage(opt) {
       cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH"],
       cat_METER: ["opt_TECEADS"],
       cat_RAMPE: ["opt_RAMPE35"],
+      cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_DERWWCOSVP", "opt_0601010003"],
       cat_REHA : ["opt_24081000","opt_24081100","opt_24081500","opt_24081600","opt_24081005",
         "opt_24081105", "opt_24081505", "opt_24081605", "opt_25670000", "opt_24081800",
         "opt_24096000", "opt_24097000", "opt_24096240", "opt_19034422", "opt_35035200",
@@ -10498,6 +10507,13 @@ function restoreOptionalPage(opt) {
       }
     });
 
+    if (innerOpt.wcMontage || innerOpt.wcSeatHeight) {
+      const wc = document.getElementById("cat_WC");
+      if (wc && !wc.checked) {
+        wc.checked = true;
+      }
+    }
+
     if (Array.isArray(innerOpt.quickAdd) && innerOpt.quickAdd.length > 0) {
       const sonder = document.getElementById("cat_SONDER");
       if (sonder && !sonder.checked) {
@@ -10505,6 +10521,25 @@ function restoreOptionalPage(opt) {
       }
     }
   })(opt);
+
+  document.getElementById("cat_WC")?.dispatchEvent(new Event("change", { bubbles: true }));
+  document.querySelector('#form-optional input[name="wcMontage"]:checked')?.dispatchEvent(new Event("change", { bubbles: true }));
+
+  const wcProductIds = ["CVIS3WCT112", "SCHALL", "V1DON", "DERSIAS", "DERWWCOSVP", "0601010003"];
+  requestAnimationFrame(() => {
+    wcProductIds.forEach((pid) => {
+      const cb = document.getElementById(`opt_${pid}`);
+      const qty = document.getElementById(`qty_${pid}`);
+      const savedQty = opt[`qty_${pid}`];
+      if (qty != null && savedQty != null) {
+        qty.value = String(savedQty);
+      }
+      if (cb && savedQty != null) {
+        cb.checked = (parseInt(String(savedQty), 10) || 0) > 0;
+        cb.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+  });
 }
 
 // Duschabtrennung quick-add (you already have logic inside restoreConfiguratorFromOffer;
@@ -13142,6 +13177,7 @@ cat_SHOWER: "menu_SHOWER",
     // Add more categories here if needed
     cat_METER: "menu_METER",
     cat_RAMPE: "menu_RAMPE",
+    cat_WC: "menu_WC",
     cat_SONDER: "menu_SONDER",
   };
 
@@ -13186,6 +13222,13 @@ cat_SHOWER: "menu_SHOWER",
     try {
       localStorage.removeItem("basin_required_state");
     } catch {}
+
+    // WC-only: hide Sitzhöhe when panel is reset
+    const wcSeatWrap = panel.querySelector("#wcSeatHeightWrap");
+    if (wcSeatWrap) {
+      wcSeatWrap.hidden = true;
+      wcSeatWrap.setAttribute("aria-hidden", "true");
+    }
 
     // Keep totals in sync
     window.updatePricing?.();
@@ -13278,6 +13321,212 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
   // ---- RAMPE ----
   wireTileQty("opt_RAMPE35", "qty_RAMPE35_wrap");
+
+  // ---- WC ----
+  (function wireWcMenu() {
+    const catWc = document.getElementById("cat_WC");
+    const menuWc = document.getElementById("menu_WC");
+    const seatWrap = document.getElementById("wcSeatHeightWrap");
+    const wallProductsWrap = document.getElementById("wcWallProductsWrap");
+    const wallProductsGrid = document.getElementById("wcWallProductsGrid");
+    const montageInputs = document.querySelectorAll('#form-optional input[name="wcMontage"]');
+    const seatInputs = document.querySelectorAll('#form-optional input[name="wcSeatHeight"]');
+
+    if (!catWc || !menuWc) return;
+
+    const WC_WALL_PRODUCTS = [
+      {
+        productId: "CVIS3WCT112",
+        image: "./assets/CVIS3WCT112.jpg",
+        fallbackName: "VIS WC-Element E3 für Trockenbau",
+      },
+      {
+        productId: "SCHALL",
+        image: "./assets/SCHALL.jpg",
+        fallbackName: "Montageset für Wand-WC / WD-Bidet",
+      },
+      {
+        productId: "V1DON",
+        image: "./assets/V1DON.jpg",
+        fallbackName: "Betätigungsplatte V1 DON weiß",
+      },
+      {
+        productId: "DERSIAS",
+        image: "./assets/DERSIAS.jpg",
+        fallbackName: "WC-Sitz derby rund",
+      },
+      {
+        productId: "DERWWCOSVP",
+        image: "./assets/DERWWCOSVP.jpg",
+        fallbackName: "Wand-Tiefspül-WC derby rund",
+      },
+      {
+        productId: "0601010003",
+        image: "./assets/Gipskarton.jpg",
+        fallbackName: "Knauf Gipskarton-Bauplatte GKBI imprägniert",
+      },
+    ];
+
+    function formatEuroInline(value) {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return "";
+      return new Intl.NumberFormat("de-DE", {
+        style: "currency",
+        currency: "EUR",
+      }).format(num);
+    }
+
+    function applyGeneratedTileQty(cb, wrap) {
+      if (!cb || !wrap) return;
+      const qty = wrap.querySelector('input[type="number"]');
+      const on = !!cb.checked;
+      wrap.hidden = !on;
+      wrap.setAttribute("aria-hidden", String(!on));
+      if (on) {
+        if (qty && (!qty.value || parseInt(qty.value, 10) <= 0)) qty.value = "1";
+        qty?.setAttribute("required", "required");
+      } else {
+        qty?.removeAttribute("required");
+        if (qty) qty.value = "0";
+      }
+    }
+
+    async function ensureWallProductsRendered() {
+      if (!wallProductsGrid || wallProductsGrid.childElementCount) return;
+
+      const frag = document.createDocumentFragment();
+
+      for (const item of WC_WALL_PRODUCTS) {
+        const optId = `opt_${item.productId}`;
+        const qtyId = `qty_${item.productId}`;
+        const wrapId = `${qtyId}_wrap`;
+
+        const card = document.createElement("div");
+        card.className = "opt-item";
+        card.innerHTML = `
+          <label class="image-check">
+            <input type="checkbox" id="${optId}" name="optWcWall[]" value="${item.fallbackName}" data-product-id="${item.productId}" />
+            <span class="img-wrap"><img src="${item.image}" alt="${item.fallbackName}" /></span>
+            <span class="caption">${item.fallbackName}</span>
+          </label>
+          <div id="${wrapId}" class="field" hidden aria-hidden="true" style="max-width: 220px">
+            <label for="${qtyId}" class="req">Menge</label>
+            <input id="${qtyId}" name="${qtyId}" type="number" min="0" step="1" placeholder="0" value="0" />
+          </div>
+        `;
+        frag.appendChild(card);
+      }
+
+      wallProductsGrid.appendChild(frag);
+
+      await Promise.all(
+        WC_WALL_PRODUCTS.map(async (item) => {
+          const cb = document.getElementById(`opt_${item.productId}`);
+          const wrap = document.getElementById(`qty_${item.productId}_wrap`);
+          if (!cb || !wrap) return;
+
+          cb.addEventListener("change", () => applyGeneratedTileQty(cb, wrap));
+          applyGeneratedTileQty(cb, wrap);
+
+          try {
+            const product = await getProduct(item.productId);
+            if (!product) return;
+
+            const label = cb.closest("label.image-check");
+            const caption = label?.querySelector(".caption");
+            if (caption && product.name) {
+              caption.textContent = String(product.name).trim();
+              cb.value = String(product.name).trim();
+            }
+
+            let meta = label?.querySelector(".wc-db-meta");
+            if (!meta && label) {
+              meta = document.createElement("span");
+              meta.className = "wc-db-meta";
+              label.querySelector(".caption")?.appendChild(meta);
+            }
+            if (meta) {
+              meta.textContent = item.productId;
+            }
+
+            const price = Number(product.price ?? product.netPrice ?? product.priceNet);
+            if (Number.isFinite(price) && label) {
+              let priceEl = label.querySelector(".wc-db-price");
+              if (!priceEl) {
+                priceEl = document.createElement("span");
+                priceEl.className = "wc-db-price";
+                label.querySelector(".caption")?.appendChild(priceEl);
+              }
+              priceEl.textContent = formatEuroInline(price);
+            }
+          } catch (err) {
+            console.warn("WC product lookup failed", item.productId, err);
+          }
+        }),
+      );
+    }
+
+    function setWallProductsChecked(on) {
+      WC_WALL_PRODUCTS.forEach((item) => {
+        const cb = document.getElementById(`opt_${item.productId}`);
+        const wrap = document.getElementById(`qty_${item.productId}_wrap`);
+        if (!cb || !wrap) return;
+        cb.checked = !!on;
+        applyGeneratedTileQty(cb, wrap);
+      });
+    }
+
+    function setWcGroupVisibility(el, show) {
+      if (!el) return;
+      el.hidden = !show;
+      el.setAttribute("aria-hidden", String(!show));
+      el.style.display = show ? "" : "none";
+    }
+
+    function applySeatVisibility() {
+      const selectedMontage = document.querySelector('#form-optional input[name="wcMontage"]:checked')?.value || "";
+      const showSeat = catWc.checked && selectedMontage === "Wandmontage";
+
+      setWcGroupVisibility(seatWrap, showSeat);
+      setWcGroupVisibility(wallProductsWrap, showSeat);
+
+      if (!showSeat) {
+        seatInputs.forEach((input) => {
+          input.checked = false;
+        });
+        setWallProductsChecked(false);
+        return;
+      }
+
+      ensureWallProductsRendered().then(() => {
+        setWcGroupVisibility(wallProductsWrap, true);
+        setWallProductsChecked(true);
+      });
+    }
+
+    function applyMenuState() {
+      const isOpen = catWc.checked;
+      menuWc.hidden = !isOpen;
+      menuWc.setAttribute("aria-hidden", String(!isOpen));
+
+      if (!isOpen) {
+        montageInputs.forEach((input) => {
+          input.checked = false;
+        });
+        seatInputs.forEach((input) => {
+          input.checked = false;
+        });
+        setWallProductsChecked(false);
+      }
+
+      applySeatVisibility();
+    }
+
+    catWc.addEventListener("change", applyMenuState);
+    montageInputs.forEach((input) => input.addEventListener("change", applySeatVisibility));
+
+    applyMenuState();
+  })();
   // ---- cat_REHA ----
 wireTileQty("opt_24081000", "qty_24081000_wrap");
 wireTileQty("opt_24081100", "qty_24081100_wrap");
@@ -13336,6 +13585,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
     cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH"],
     cat_METER: ["opt_TECEADS"],
     cat_RAMPE: ["opt_RAMPE35"],
+    cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_DERWWCOSVP", "opt_0601010003"],
     cat_REHA: [
       "opt_24081000", "opt_24081100", "opt_24081500", "opt_24081600",
       "opt_24081005", "opt_24081105", "opt_24081505", "opt_24081605",

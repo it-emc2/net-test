@@ -5258,3 +5258,110 @@ button.pad-clear {
 .our-signature-select-wrap select {
   width: 100%;
 }
+
+
+/* ===== Optional WC ===== */
+#page-Optional .wc-menu {
+  display: grid;
+  gap: 14px;
+}
+
+#page-Optional .wc-option-group {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+}
+
+#page-Optional #menu_WC[hidden],
+#page-Optional #wcSeatHeightWrap[hidden],
+#page-Optional #wcWallProductsWrap[hidden] {
+  display: none !important;
+}
+
+
+/* ===== Optional WC products ===== */
+.wc-menu {
+  display: grid;
+  gap: 14px;
+}
+
+.wc-option-group {
+  display: grid;
+  gap: 10px;
+}
+
+.wc-products-subheader {
+  margin-bottom: 0;
+}
+
+#wcWallProductsGrid {
+  align-items: start;
+}
+
+#wcWallProductsGrid .opt-item {
+  min-width: 0;
+}
+
+#wcWallProductsGrid .image-check .img-wrap {
+  aspect-ratio: 1 / 1;
+}
+
+.wc-db-meta {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.78rem;
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+.wc-db-price {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent-strong);
+}
+
+/* Hide WC auto-product prices inside Optional cards */
+#page-Optional .wc-db-price,
+#page-Optional #wcWallProductsGrid .wc-db-price,
+#page-Optional #wcWallProductsGrid .caption-price,
+#page-Optional #wcWallProductsGrid .product-price,
+#page-Optional #wcWallProductsGrid .price {
+  display: none !important;
+}
+
+
+.wc-montage-grid{
+  display:flex;
+  gap:14px;
+  flex-wrap:wrap;
+}
+
+.wc-montage-card{
+  width:240px;
+}
+
+.wc-montage-card .img-wrap{
+  display:block;
+  width:100%;
+  aspect-ratio:4/3;
+  overflow:hidden;
+  border-radius:14px;
+}
+
+.wc-montage-card .img-wrap img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+/* highlight when selected */
+.wc-montage-card:has(input:checked){
+  border-color:var(--accent) !important;
+  box-shadow:0 0 0 3px var(--ring) !important;
+}

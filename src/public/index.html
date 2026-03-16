@@ -3485,6 +3485,13 @@ button.dm-btn-danger:focus-visible {
                 </span>
                 <span class="caption">Rampe</span>
               </label>
+              <label class="image-check">
+                <input type="checkbox" id="cat_WC" name="cat_WC" />
+                <span class="img-wrap">
+                  <img src="./assets/DERWWCOSVP.jpg" alt="WC" />
+                </span>
+                <span class="caption">WC</span>
+              </label>
               <!-- NEW parent: Sonderprodukte -->
               <label class="image-check">
                 <input type="checkbox" id="cat_SONDER" />
@@ -4293,6 +4300,55 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
           <!-- NEW children for “Sonderprodukte” -->
+          <div id="menu_WC" class="full field wc-menu" hidden aria-hidden="true">
+            <div class="subheader">WC</div>
+
+           <div class="wc-option-group">
+  <label class="req">Montageart</label>
+
+  <div class="wc-montage-grid">
+
+    <label class="image-radio wc-montage-card large">
+      <input type="radio" name="wcMontage" value="Wandmontage" />
+      <span class="img-wrap">
+        <img src="./assets/Wandmontage.jpg" alt="Wandmontage WC" />
+      </span>
+      <span class="caption">Wandmontage</span>
+    </label>
+
+    <label class="image-radio wc-montage-card large">
+      <input type="radio" name="wcMontage" value="Bodenmontage" />
+      <span class="img-wrap">
+        <img src="./assets/Bodenmontage.jpg" alt="Bodenmontage WC" />
+      </span>
+      <span class="caption">Bodenmontage</span>
+    </label>
+
+  </div>
+</div>
+
+            <div id="wcSeatHeightWrap" class="wc-option-group" hidden aria-hidden="true">
+              <label class="req">Sitzhöhe</label>
+              <div class="radio-group" role="radiogroup" aria-label="WC Sitzhöhe">
+                <label class="radio-pill">
+                  <input type="radio" name="wcSeatHeight" value="erhoeht" />
+                  <span class="circle"></span>
+                  <span>Erhöht</span>
+                </label>
+                <label class="radio-pill">
+                  <input type="radio" name="wcSeatHeight" value="normal" />
+                  <span class="circle"></span>
+                  <span>Normal</span>
+                </label>
+              </div>
+            </div>
+
+            <div id="wcWallProductsWrap" class="wc-option-group" hidden aria-hidden="true">
+              <div class="subheader wc-products-subheader">Produkte für Wandmontage</div>
+              <div id="wcWallProductsGrid" class="opt-grid"></div>
+            </div>
+          </div>
+
           <div id="menu_SONDER" class="full field" hidden aria-hidden="true">
             <div class="subheader">Sonderprodukte (Freie Zusatzpositionen)</div>
 
