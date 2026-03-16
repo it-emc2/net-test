@@ -3553,7 +3553,7 @@ if (anschlag) {
   payload.activeOffer = currentOfferKey || null;
 
   
-  // ✅ Signature (add this near the end)
+  // ✅ Signature (customer-drawn signature)
   const sig = document.getElementById("signatureDataUrl")?.value?.trim();
   if (sig) {
     payload.signature = {
@@ -3561,6 +3561,11 @@ if (anschlag) {
       signedAt: new Date().toISOString(),
     };
   }
+
+  // ✅ Internal EmC2 signature for DOCX template ({%OurSignatureImage})
+  payload.includeOurSignature = !!document.getElementById("includeOurSignature")?.checked;
+  payload.ourSignatureUser =
+    document.getElementById("ourSignatureUser")?.value?.trim() || "t.raithel";
 
   return filterPayloadByOffer(payload);
 
@@ -3572,6 +3577,31 @@ if (anschlag) {
 window.buildPayload = buildPayload;
 
 window.buildPayload = buildPayload;
+
+(function initOurSignatureControls() {
+  const bind = () => {
+    const includeEl = document.getElementById("includeOurSignature");
+    const userEl = document.getElementById("ourSignatureUser");
+    if (!includeEl || !userEl) return false;
+
+    const sync = () => {
+      userEl.disabled = !includeEl.checked;
+    };
+
+    if (!includeEl.dataset.boundOurSignature) {
+      includeEl.addEventListener("change", sync);
+      includeEl.dataset.boundOurSignature = "1";
+    }
+
+    sync();
+    if (!userEl.value) userEl.value = "t.raithel";
+    return true;
+  };
+
+  if (!bind()) {
+    document.addEventListener("DOMContentLoaded", bind, { once: true });
+  }
+})();
 
 function getSketchDataFor(key) {
   const json = document.getElementById(`${key}SketchJson`)?.value?.trim() || "";
@@ -10886,6 +10916,20 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       }
     } catch (e) {
       console.warn("[restore] signature restore failed:", e);
+    }
+
+    try {
+      const includeOurSignature = !!p?.includeOurSignature;
+      const includeOurSignatureEl = document.getElementById("includeOurSignature");
+      const ourSignatureUserEl = document.getElementById("ourSignatureUser");
+
+      if (includeOurSignatureEl) includeOurSignatureEl.checked = includeOurSignature;
+      if (ourSignatureUserEl) {
+        ourSignatureUserEl.value = p?.ourSignatureUser || "t.raithel";
+        ourSignatureUserEl.disabled = !includeOurSignature;
+      }
+    } catch (e) {
+      console.warn("[restore] internal signature restore failed:", e);
     }
 
     await window.__drawingReady;

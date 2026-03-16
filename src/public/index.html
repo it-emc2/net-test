@@ -4503,6 +4503,20 @@ button.dm-btn-danger:focus-visible {
         <button type="button" id="sigClear" class="btn-export secondary">Löschen</button>
       </div>
 
+      <div class="our-signature-panel">
+        <label class="our-signature-toggle" for="includeOurSignature">
+          <input type="checkbox" id="includeOurSignature" checked />
+          <span>EmC2-Unterschrift ins Dokument einbetten</span>
+        </label>
+
+        <div class="our-signature-select-wrap">
+          <label for="ourSignatureUser">Unterschrift auswählen</label>
+          <select id="ourSignatureUser">
+            <option value="t.raithel" selected>T.Raithel</option>
+          </select>
+        </div>
+      </div>
+
       <!-- Optional: hidden preview/debug -->
       <input type="hidden" id="signatureDataUrl" />
     </div>

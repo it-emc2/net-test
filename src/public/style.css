@@ -428,7 +428,9 @@ label {
   font-weight: 600;
 }
 
-input,
+
+/* Apply full-width styling only to text-like inputs (NOT checkboxes/radios) */
+input:not([type="checkbox"]):not([type="radio"]),
 select,
 textarea {
   width: 100%;
@@ -440,6 +442,18 @@ textarea {
   outline: none;
   transition: border 0.12s, box-shadow 0.12s;
 }
+
+/* Prevent checkboxes/radios from inheriting text-input styling */
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  flex: 0 0 auto;
+}
+
 
 input:focus,
 select:focus,
@@ -5199,4 +5213,48 @@ button.pad-clear {
   .home-global-search-wrap {
     max-width: none;
   }
+}
+
+
+/* Embedded internal signature controls */
+.our-signature-panel {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel, rgba(255,255,255,0.03));
+  text-align: left;
+}
+
+.our-signature-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-start;
+  margin: 0 0 12px 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.our-signature-toggle input {
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.our-signature-toggle span {
+  line-height: 1.35;
+}
+
+.our-signature-select-wrap {
+  display: grid;
+  gap: 6px;
+}
+
+.our-signature-select-wrap label {
+  margin: 0;
+  text-align: left;
+}
+
+.our-signature-select-wrap select {
+  width: 100%;
 }

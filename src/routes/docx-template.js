@@ -16,6 +16,17 @@ import ImageModule from "docxtemplater-image-module-free";
 import ProductModel from "../models/Product.js";
 import pricingFactory from "../logic/pricing.js";
 
+
+// ============================
+// INTERNAL SIGNATURE MAPPING
+// ============================
+
+const INTERNAL_SIGNATURES = {
+  "t.raithel": "Unterschrift1.png",
+  "m.mustermann": "Unterschrift2.png",
+  "a.beispiel": "Unterschrift3.png",
+};
+
 export const router = express.Router();
 
 
@@ -189,6 +200,54 @@ function parseDataUrlImage(tagValue) {
   } catch {
     return null;
   }
+}
+
+async function imageFileToDataUrl(fileName) {
+  const rawName = String(fileName || '').trim();
+  if (!rawName) return null;
+
+  const normalizedName = rawName.replace(/\+/g, '/');
+  const safeName = path.basename(normalizedName);
+
+  const candidates = [
+    // direct path support in case a relative path is configured
+    path.resolve(process.cwd(), normalizedName),
+    path.resolve(process.cwd(), rawName),
+
+    // common signature locations
+    path.join(process.cwd(), 'src', 'templates', safeName),
+    path.join(process.cwd(), 'src', 'templates', 'signatures', safeName),
+    path.join(process.cwd(), 'src', 'assets', safeName),
+    path.join(process.cwd(), 'src', 'public', 'assets', safeName),
+    path.join(process.cwd(), 'public', safeName),
+    path.join(process.cwd(), 'public', 'assets', safeName),
+    path.join(process.cwd(), safeName),
+  ];
+
+  for (const fullPath of [...new Set(candidates)]) {
+    try {
+      const buf = await fs.readFile(fullPath);
+      const ext = path.extname(fullPath).toLowerCase();
+      const mime =
+        ext === '.png'
+          ? 'image/png'
+          : ext === '.jpg' || ext === '.jpeg'
+            ? 'image/jpeg'
+            : ext === '.webp'
+              ? 'image/webp'
+              : null;
+
+      if (!mime) continue;
+
+      console.log('[DOCX] internal signature found:', fullPath);
+      return `data:${mime};base64,${buf.toString('base64')}`;
+    } catch {
+      // keep searching
+    }
+  }
+
+  console.warn('[DOCX] internal signature file not found:', safeName, candidates);
+  return null;
 }
 
 function getImageSizeFromBuffer(buf) {
@@ -728,7 +787,7 @@ function shouldSuppressDocxLine(line, blocklist) {
 /* ===========================
    Angebot mapping
    =========================== */
-function mapData(body = {}, computed = {}) {
+async function mapData(body = {}, computed = {}) {
   const b = body.Kundendaten || {};
   const tb = body.textbausteine || {};
   //BWT STUFF
@@ -766,6 +825,26 @@ function mapData(body = {}, computed = {}) {
   console.log("[DOCX] signature detected?", hasSignature, {
     hasDataUrl: !!sig?.dataUrl,
     signedAt: sig?.signedAt || null,
+  });
+
+  const includeOurSignature =
+    body?.includeOurSignature === true || body?.includeOurSignature === "true";
+  const ourSignatureUser = String(body?.ourSignatureUser || "t.raithel")
+    .trim()
+    .toLowerCase();
+  const ourSignatureFile =
+    INTERNAL_SIGNATURES[ourSignatureUser] || INTERNAL_SIGNATURES["t.raithel"];
+
+  let ourSignatureDataUrl = null;
+  if (includeOurSignature) {
+    ourSignatureDataUrl = await imageFileToDataUrl(ourSignatureFile);
+  }
+
+  console.log("[DOCX] internal signature selected", {
+    includeOurSignature,
+    ourSignatureUser,
+    ourSignatureFile,
+    found: !!ourSignatureDataUrl,
   });
 
   // Normalize to an array of { Text } for DOCX bullets (only the text, no time)
@@ -1470,8 +1549,9 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     PLZ: b.postalCode || "",
     Datum: fmtDateDE(b.date),
     ValidityDate: ValidityDateFormatted, 
-    // Signature fields for DOCX image template tag {%SignatureImage}
+    // Signature fields for DOCX image template tags
     SignatureImage: hasSignature ? sig.dataUrl : null,
+    OurSignatureImage: ourSignatureDataUrl,
     SignaturePresentText: hasSignature ? "" : "Unterschrift fehlt",
     SignatureDate: signatureDateFmt,
     Ansprechpartner: (b.emc2_contact || "").trim(),
@@ -1622,7 +1702,7 @@ router.post("/", async (req, res) => {
       userInput: computed?.subsidyInput,
     });
 
-    const dataRaw = mapData(req.body || {}, computed);
+    const dataRaw = await mapData(req.body || {}, computed);
     const data = deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST);
 
     if (STATIC_DOCX_WORD_BLOCKLIST.length) {
@@ -1770,7 +1850,7 @@ router.post("/pdf", async (req, res) => {
     console.log("[pdf] Template exists?", fsSync.existsSync(templatePath));
 
     const computed = await pricing.computePrices(req.body || {});
-    const dataRaw = mapData(req.body || {}, computed);
+    const dataRaw = await mapData(req.body || {}, computed);
     const data = deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST);
 
     console.log("[pdf] SignatureImage present?", !!data.SignatureImage);
