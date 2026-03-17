@@ -1026,7 +1026,9 @@ color: metaColor || null,
     const laborRateKK = 69.5;
     const laborRateSZ = 59.5;
     const kmRate = 0.35;
-    const sitz_reise_Rate = 25;
+    const travelSecondWorkerRateRaw =
+      Number(arbeits.travelSecondWorkerRate ?? b.travelSecondWorkerRate ?? 25) || 25;
+    const sitz_reise_Rate = travelSecondWorkerRateRaw === 35 ? 35 : 25;
 
     const fahrzeugbereitstellung = 80.0;
     const werkzeug = 7.5;
@@ -1075,9 +1077,10 @@ color: metaColor || null,
     if (total_hours_numeric > 0 && laborRate > 0) {
       lines.push({
         key: "facharbeiter",
-        label: `- ${total_hours_HH_mm} (${total_hours_numeric}) Std × ${handwerkerCount} Facharbeiter × ${laborRate.toFixed(
+        /* label: `- ${total_hours_HH_mm} (${total_hours_numeric}) Std × ${handwerkerCount} Facharbeiter × ${laborRate.toFixed(
           2,
-        )} €`,
+        )} €`, */
+        label: `- ${total_hours_HH_mm} (${Number(total_hours_numeric).toFixed(2).replace(".", ",")}) Std × ${handwerkerCount} Facharbeiter × ${laborRate.toFixed(2).replace(".", ",")} €`,
         amount: facharbeiter,
         docxHide: true,
       });
@@ -1121,6 +1124,7 @@ color: metaColor || null,
       laborHours,
       laborRate,
       extraAufgabeAmount,
+      travelSecondWorkerRate: sitz_reise_Rate,
     };
   }
 

@@ -1715,6 +1715,76 @@ document.addEventListener("DOMContentLoaded", () => {
   renderArbeitszeitSuggestion();
 });
 
+function getTravelSecondWorkerRateValue() {
+  const el = document.getElementById("travelSecondWorkerRate");
+  const raw = Number(el?.value || 25);
+  return raw === 35 ? 35 : 25;
+}
+
+function renderTravelCostDebug() {
+  const box = document.getElementById("travelCostDebugText");
+  const badge = document.getElementById("travelCostDebugBadge");
+  if (!box) return;
+
+  const offer =
+    (typeof window.getCurrentOfferType === "function" && window.getCurrentOfferType()) ||
+    window.currentOfferKey ||
+    "bu";
+
+  if (badge) badge.textContent = String(offer || "bu").toUpperCase();
+
+  const payer =
+    document.querySelector('input[name="payer"]:checked')?.value ||
+    document.querySelector('input[name="zahlweise"]:checked')?.value ||
+    "";
+
+  const laborRate =
+    payer === "Kassenkunde" ? 69.5 : payer === "Selbstzahler" ? 59.5 : 0;
+
+  const laborHours = Number(window.arbeit_hours_numeric ?? 0) || 0;
+  const travelHours = Number(window.reise_hours_numeric ?? 0) || 0;
+  const totalHours = Number(window.total_hours_numeric ?? 0) || 0;
+  const secondWorkerRate = getTravelSecondWorkerRateValue();
+
+  const euro = (n) => `${Number(n || 0).toFixed(2).replace(".", ",")} €`;
+  const hours = (n) => Number(n || 0).toFixed(2).replace(".", ",");
+
+  if (!laborHours && !travelHours && !totalHours) {
+    box.innerHTML = "Noch keine Arbeitszeitdaten vorhanden.";
+    return;
+  }
+
+  if (!laborRate) {
+    box.innerHTML =
+      `Bitte zuerst <strong>Kassenkunde</strong> oder <strong>Selbstzahler</strong> auswählen, damit der volle Stundensatz für den Fahrer berechnet werden kann.`;
+    return;
+  }
+
+  const workCost = laborHours * 2 * laborRate;
+  const travelDriverCost = travelHours * laborRate;
+  const travelSecondWorkerCost = travelHours * secondWorkerRate;
+  const totalCost = workCost + travelDriverCost + travelSecondWorkerCost;
+
+  const extraHint =
+    offer === "bu"
+      ? `<div class="az-travel-debug-note">BU aktiv: Reisezeit wird hier separat mit Fahrer + 2. Mitarbeiter visualisiert.</div>`
+      : `<div class="az-travel-debug-note">Aktives Angebot: ${String(offer).toUpperCase()}. Standard für Alt-Angebote ohne gespeicherten Wert bleibt 25 €/h.</div>`;
+
+  box.innerHTML = `
+    <div class="az-travel-debug-grid">
+      <div><span>Arbeitszeit</span><strong>${hours(laborHours)} h</strong></div>
+      <div><span>Reisezeit gesamt</span><strong>${hours(travelHours)} h</strong></div>
+      <div><span>Voller Satz / Fahrer</span><strong>${euro(laborRate)}/h</strong></div>
+      <div><span>2. Mitarbeiter Reisezeit</span><strong>${euro(secondWorkerRate)}/h</strong></div>
+      <div><span>Arbeitskosten (2 Mitarbeiter)</span><strong>${euro(workCost)}</strong></div>
+      <div><span>Reisezeit Fahrer</span><strong>${euro(travelDriverCost)}</strong></div>
+      <div><span>Reisezeit 2. Mitarbeiter</span><strong>${euro(travelSecondWorkerCost)}</strong></div>
+      <div><span>Gesamtkosten aus Zeiten</span><strong>${euro(totalCost)}</strong></div>
+    </div>
+    ${extraHint}
+  `;
+}
+
 // Replace your current DOMContentLoaded block that defines updateTotalHours with this:
 document.addEventListener("DOMContentLoaded", () => {
   const laborEl = document.getElementById("laborHours"); // Arbeitszeit (HH:MM)
@@ -1782,6 +1852,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (typeof window.updateTravelPreview === "function") {
       window.updateTravelPreview();
     }
+    renderTravelCostDebug();
   }
   // --- wiring specifically for Arbeitszeit page ---
   function wireArbeitszeitInputs() {
@@ -1820,8 +1891,17 @@ document.addEventListener("DOMContentLoaded", () => {
   travelEl?.addEventListener("input", updateTotalHours);
   travelEl?.addEventListener("blur", updateTotalHours);
 
+  document
+    .getElementById("travelSecondWorkerRate")
+    ?.addEventListener("change", renderTravelCostDebug);
+
+  document
+    .querySelectorAll('input[name="payer"]')
+    .forEach((el) => el.addEventListener("change", renderTravelCostDebug));
+
   // Initial paint
   updateTotalHours();
+  renderTravelCostDebug();
 });
 
 // --- Offer number (ANG-YYYY-MM-DD-HH-mm-ss) + auto-stamp on export clicks ---
@@ -3357,6 +3437,7 @@ function buildPayload() {
     );
 
     const distanceKm = (document.getElementById("distanceKm")?.value || "").toString().trim();
+    const travelSecondWorkerRate = getTravelSecondWorkerRateValue();
 
     const autoSuggestion =
       window.__arbeitszeitSuggestion ||
@@ -3373,6 +3454,7 @@ function buildPayload() {
       laborHoursHHMM: laborHHMM,
       travelTimeHHMM: travelHHMM,
       distanceKm,
+      travelSecondWorkerRate,
       laborHoursSource: window.labor_hours_source || "manual",
       autoSuggestedHoursHHMM: autoSuggestion?.totalHoursHHMM || "",
       autoSuggestedHoursNumeric: Number(autoSuggestion?.totalHoursNumeric || 0),
@@ -3384,7 +3466,36 @@ function buildPayload() {
             qty: row.qty,
           }))
         : [],
+      travelCostDebug: {
+        laborRate:
+          (document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde")
+            ? 69.5
+            : (document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler")
+              ? 59.5
+              : 0,
+        secondWorkerRate: travelSecondWorkerRate,
+        workCost:
+          (Number(window.arbeit_hours_numeric ?? _L ?? 0) || 0) * 2 *
+          ((document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde")
+            ? 69.5
+            : (document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler")
+              ? 59.5
+              : 0),
+        travelDriverCost:
+          (Number(window.reise_hours_numeric ?? 2 * _T1 ?? 0) || 0) *
+          ((document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde")
+            ? 69.5
+            : (document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler")
+              ? 59.5
+              : 0),
+        travelSecondWorkerCost:
+          (Number(window.reise_hours_numeric ?? 2 * _T1 ?? 0) || 0) * travelSecondWorkerRate,
+      },
     };
+    arbeitsBlock.travelCostDebug.totalCost =
+      Number(arbeitsBlock.travelCostDebug.workCost || 0) +
+      Number(arbeitsBlock.travelCostDebug.travelDriverCost || 0) +
+      Number(arbeitsBlock.travelCostDebug.travelSecondWorkerCost || 0);
 
     (function computeExtraArbeitszeit() {
       const fs = document.getElementById("bwtAzExtraFieldset");
@@ -10277,6 +10388,7 @@ function restoreArbeitszeit(aw) {
   setNumber("uebernachten", aw.uebernachten);
   setByNameOrId("travelTime", aw.travelTimeHHMM);
   setByNameOrId("laborHours", aw.laborHoursHHMM);
+  setByNameOrId("travelSecondWorkerRate", aw.travelSecondWorkerRate ?? 25);
   window.labor_hours_source = aw.laborHoursSource || "manual";
 
   if (typeof computeArbeitszeitSuggestion === "function") {
@@ -10285,6 +10397,10 @@ function restoreArbeitszeit(aw) {
   if (typeof renderArbeitszeitSuggestion === "function") {
     renderArbeitszeitSuggestion();
   }
+  if (typeof window.updateTotalHours === "function") {
+    window.updateTotalHours();
+  }
+  renderTravelCostDebug();
 
   // BWT: Extra Arbeitszeit rows (if present in payload)
   if (typeof window.restoreBwtExtraArbeitszeitFromPayload === "function") {

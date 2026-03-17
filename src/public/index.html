@@ -1834,6 +1834,32 @@ button.dm-btn-danger:focus-visible {
                       </label>
                     </div>
 
+                    <div class="az-travel-rate-grid">
+                      <div class="az-inline-note" id="buTravelInfoNote">
+                        <strong>Hinweis für BU:</strong> Reisezeit wird separat gerechnet:
+                        Fahrer = voller Stundensatz, 2. Mitarbeiter = auswählbar 25 €/h oder 35 €/h.
+                        Für alte Angebote bleibt ohne gespeicherten Wert automatisch 25 €/h als Standard.
+                      </div>
+
+                      <label class="field">
+                        <span>2. Mitarbeiter bei Reisezeit</span>
+                        <select id="travelSecondWorkerRate" name="travelSecondWorkerRate">
+                          <option value="25" selected>25 €/h (alt / Standard)</option>
+                          <option value="35">35 €/h</option>
+                        </select>
+                      </label>
+                    </div>
+
+                    <div id="travelCostDebugCard" class="az-travel-debug" aria-live="polite">
+                      <div class="az-travel-debug-head">
+                        <strong>Reisezeit-Kosten Debug</strong>
+                        <span id="travelCostDebugBadge" class="az-travel-debug-badge">BU</span>
+                      </div>
+                      <div id="travelCostDebugText" class="muted">
+                        Noch keine Arbeitszeitdaten vorhanden.
+                      </div>
+                    </div>
+
                     <!-- Optional dynamic suggestion from distance -->
                     <div id="laborSuggestion" class="muted" style="margin-top: 6px"></div>
                     <div id="totalHoursHHMM" class="muted" style="margin-top:4px;"></div>
