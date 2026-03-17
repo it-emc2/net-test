@@ -20,6 +20,10 @@ export const OFFERS = {
     name: "Haltegriffe/Lifter",
     pages: ["Kundendaten", "hl"],
   },
+  bl: {
+    name: "Badelift",
+    pages: ["Kundendaten", "bl"],
+  },
   ah: {
     name: "Alltagshilfen",
     pages: ["Kundendaten", "ah"],

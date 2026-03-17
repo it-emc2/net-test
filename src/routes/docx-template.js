@@ -105,6 +105,9 @@ function getAngebotTemplatePath(body) {
     case 'hl':
      file = 'Angebot-HL.docx';
       break;
+    case "bl":
+      file = "Angebot-BL.docx";
+      break;
     case "bu":
       console.log("under bu ");
     // eslint-disable-next-line no-fallthrough

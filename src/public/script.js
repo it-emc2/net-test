@@ -183,6 +183,10 @@ const OFFERS = {
     name: "HL · Handlauf",
     pages: ["Kundendaten", "Arbeitszeit", "hl", "Kosten", "Zusammenfassung"],
   },
+  bl: {
+    name: "BL · Badelift",
+    pages: ["Kundendaten", "Arbeitszeit", "bl", "Kosten", "Zusammenfassung"],
+  },
   ah: {
     name: "AH · Alltagshilfe",
     pages: ["Kundendaten", "Arbeitszeit", "ah", "Kosten", "Zusammenfassung"],
@@ -1396,6 +1400,7 @@ function hoursToHHMM(n) {
     bwt: "gesundheit",
     ah: "pflege",
     hl: "pflege",
+    bl: "pflege",
     kfz: "kfz",
   };
 
@@ -2004,6 +2009,7 @@ function resetAllForms() {
     "form-rabatt",
     "form-bwt",
     "form-hl",
+    "form-bl",
     "form-admin",
     "form-as",
     "form-ah",
@@ -2316,6 +2322,7 @@ function updateSidebarForOffer() {
   const specialLabels = {
     bwt: "BWT",
     hl: "HL",
+    bl: "BL",
   };
 
   normalPages.forEach((pageId) => {
@@ -2846,6 +2853,7 @@ function filterPayloadByOffer(payload) {
     Rabatt: "rabatt",
     bwt: "bwt",
     hl: "hl",
+    bl: "bl",
     ah: "ah",
         hms: "hms",
             wd: "wd",
@@ -3059,6 +3067,77 @@ try {
 }
 
 
+
+function collectBlExtras(payload) {
+  const formBl = document.getElementById("form-bl");
+  if (!formBl) return;
+
+  const rows = [];
+
+  const checked = formBl.querySelectorAll('input[type="checkbox"][data-product-id]:checked');
+  checked.forEach((cb) => {
+    const pid = String(cb.dataset?.productId || "").trim();
+    if (!pid) return;
+
+    const qtyEl = formBl.querySelector(`#qty_${CSS.escape(cb.id)}`);
+    const qty = Math.max(1, Number(qtyEl?.value || 1) || 1);
+    const label = String(cb.value || cb.dataset?.label || pid).trim();
+
+    rows.push({
+      kind: "bl-item",
+      group: "Badelift",
+      label,
+      productId: pid,
+      qty,
+    });
+  });
+
+  try {
+    const wrap = document.getElementById("blQuickAddItems");
+    if (wrap) {
+      const items = Array.from(wrap.querySelectorAll(".da-item"));
+      items.forEach((rowEl) => {
+        const nameEl = rowEl.querySelector(".da-name");
+        const idEl = rowEl.querySelector(".da-id");
+        const qtyEl = rowEl.querySelector(".da-qty");
+        const priceEl = rowEl.querySelector(".da-price");
+
+        const label = String(nameEl?.value || "").trim();
+        const productId = String(idEl?.value || "").trim();
+        const qtyRaw = String(qtyEl?.value || "").trim();
+        const priceRaw = String(priceEl?.value || "").trim();
+
+        if (!label && !productId && !qtyRaw && !priceRaw) return;
+        if (!label || !productId || !priceRaw) return;
+
+        const qty = Math.max(1, Number(qtyRaw || 1) || 1);
+        const price = window.parseMoneyEuro ? window.parseMoneyEuro(priceRaw) : priceRaw;
+
+        rows.push({
+          kind: "bl-custom",
+          group: "QuickAdd",
+          label,
+          productId,
+          qty,
+          price,
+        });
+      });
+    }
+  } catch (e) {
+    console.warn("[collectBlExtras] bl quick-add collection failed:", e);
+  }
+
+  const bl = payload.bl || (payload.bl = {});
+  if (rows.length) {
+    bl.quickAdd = rows;
+  } else {
+    delete bl.quickAdd;
+  }
+
+  const noteEl = document.getElementById("blNote");
+  if (noteEl) bl.blNote = noteEl.value || "";
+}
+
 function buildPayload() {
   const payload = {
     Kundendaten: formToObject(document.getElementById("form-Kundendaten")),
@@ -3072,6 +3151,7 @@ function buildPayload() {
     rabatt: formToObject(document.getElementById("form-rabatt")),
     bwt: formToObject(document.getElementById("form-bwt")),
     hl: formToObject(document.getElementById("form-hl")),
+    bl: formToObject(document.getElementById("form-bl")),
     ah: formToObject(document.getElementById("form-ah")),
     hms: formToObject(document.getElementById("form-hms")),
     wd: formToObject(document.getElementById("form-wd")),
@@ -3166,6 +3246,10 @@ function buildPayload() {
 
   if (String(currentOfferKey || "").toLowerCase() === "hl") {
     collectHlExtras(payload);
+  }
+
+  if (String(currentOfferKey || "").toLowerCase() === "bl") {
+    collectBlExtras(payload);
   }
 
   attachProjectSketchesToPayload(payload);
@@ -4915,6 +4999,7 @@ const TILE_TO_OFFER = {
   "BU-Badumbau": "bu",
   "BWT-Badewannentür": "bwt",
   "HL-Handlauf": "hl",
+  "BL-Badelift": "bl",
   "AH-Alltagshilfe": "ah",
    "HMS-Hausmeister-Service": "hms",
    "WD-Winterdienst": "wd",
@@ -9777,18 +9862,27 @@ function renderGlobalOfferSearchResults(list, state = {}) {
   container.innerHTML = items
     .map((item, index) => {
       const source = String(item.source || item.collection || item.kind || "").toLowerCase();
-      const isDraft = source.includes("draft");
+      const draftId = item._id || item.id || item.draftId || "";
+      const offerNumber = item.offerNumber || item.angNumber || item.number || item.angebotNummer || "";
+      const isDraft =
+        source.includes("draft") ||
+        source.includes("entwurf") ||
+        item.isDraft === true ||
+        item.type === "draft" ||
+        item.kind === "draft" ||
+        item.collection === "drafts" ||
+        (!!draftId && !offerNumber);
       const title =
         item.customerName ||
         item.name ||
+        item.title ||
         item.offerNumber ||
         item.angNumber ||
-        item.title ||
-        "Ohne Titel";
-      const offerNumber = item.offerNumber || item.angNumber || item.number || "";
+        (isDraft ? "Entwurf ohne Titel" : "Ohne Titel");
       const offerType = item.offerType || item.activeOffer || item.type || "";
       const updatedAt = item.updatedAt || item.createdAt || item.date || "";
       const snippet = item.snippet || item.summary || item.preview || "";
+      const refText = offerNumber || draftId || "";
       const dateText = updatedAt
         ? new Date(updatedAt).toLocaleString("de-DE")
         : "";
@@ -9807,8 +9901,8 @@ function renderGlobalOfferSearchResults(list, state = {}) {
             </div>
           </div>
           <div class="home-search-result__meta">
-            ${offerNumber ? `<strong>${safe(offerNumber)}</strong>` : ""}
-            ${dateText ? `${offerNumber ? " · " : ""}${safe(dateText)}` : ""}
+            ${refText ? `<strong>${safe(refText)}</strong>` : ""}
+            ${dateText ? `${refText ? " · " : ""}${safe(dateText)}` : ""}
           </div>
           ${snippet ? `<div class="home-search-result__snippet">${safe(snippet)}</div>` : ""}
         </button>
@@ -9847,21 +9941,36 @@ async function loadGlobalOfferSearchResult(item) {
   if (!item || typeof item !== "object") return false;
 
   const source = String(item.source || item.collection || item.kind || "").toLowerCase();
-  if (source.includes("draft")) {
-    const id = item._id || item.id;
-    if (!id) {
+  const draftId = item._id || item.id || item.draftId || "";
+  const offerNumber = item.offerNumber || item.angNumber || item.number || item.angebotNummer || "";
+
+  const isDraft =
+    source.includes("draft") ||
+    source.includes("entwurf") ||
+    item.isDraft === true ||
+    item.type === "draft" ||
+    item.kind === "draft" ||
+    item.collection === "drafts" ||
+    (!!draftId && !offerNumber);
+
+  if (isDraft) {
+    if (!draftId) {
       alert("Dieser Entwurf hat keine ID.");
       return false;
     }
-    return loadDraftById(id);
+    return loadDraftById(draftId);
   }
 
-  const offerNumber = item.offerNumber || item.angNumber || item.number || item.offerId;
-  if (!offerNumber) {
-    alert("Dieses Angebot hat keine Angebotsnummer.");
-    return false;
+  if (offerNumber) {
+    return loadOfferByNumber(offerNumber);
   }
-  return loadOfferByNumber(offerNumber);
+
+  if (draftId) {
+    return loadDraftById(draftId);
+  }
+
+  alert("Der Treffer konnte weder als Entwurf noch als Angebot erkannt werden.");
+  return false;
 }
 
 /* ========== End Live search + load functions ========== */
@@ -10826,6 +10935,7 @@ const RESTORE_HANDLERS = {
   bwt: (p, ctx) => typeof restoreBwt === "function" && restoreBwt(p?.bwt),
 
   hl: (p, ctx) => typeof restoreHl === "function" && restoreHl(p?.hl),
+  bl: (p, ctx) => typeof restoreBl === "function" && restoreBl(p?.bl),
 
   ah: (p, ctx) => typeof restoreAh === "function" && restoreAh(p?.ah),
     hms: (p, ctx) => typeof restoreHms === "function" && restoreHms(p?.hms),
@@ -11349,6 +11459,90 @@ function restoreHl(hl) {
     if (!window.__RESTORING__) {
       cb.dispatchEvent(new Event("change", { bubbles: true }));
     }
+  }
+}
+
+
+function restoreBl(bl) {
+  if (!bl) return;
+
+  const form = document.getElementById("form-bl");
+  if (!form) return;
+
+  const noteEl = document.getElementById("blNote");
+  if (noteEl) noteEl.value = bl.blNote || "";
+
+  const qa = Array.isArray(bl.quickAdd) ? bl.quickAdd : [];
+
+  for (const row of qa) {
+    if (!row || row.kind !== "bl-item") continue;
+
+    const pid = String(row.productId || "").trim();
+    if (!pid) continue;
+
+    const cb = form.querySelector(
+      `input[type="checkbox"][data-product-id="${CSS.escape(pid)}"]`,
+    );
+    if (!cb) continue;
+
+    cb.checked = true;
+
+    const qty = Number(row.qty ?? 1) || 1;
+    const qtyEl = cb.id ? form.querySelector(`#qty_${CSS.escape(cb.id)}`) : null;
+    if (qtyEl) qtyEl.value = String(qty);
+
+    if (!window.__RESTORING__) {
+      cb.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+
+  try {
+    const wrap = document.getElementById("blQuickAddItems");
+    const tpl = document.getElementById("tpl-bl-quickadd-row");
+    if (wrap) {
+      const customRows = qa.filter((row) => row && row.kind === "bl-custom");
+      const existing = Array.from(wrap.querySelectorAll(".da-item"));
+
+      while (existing.length > 1) {
+        const row = existing.pop();
+        row?.remove();
+      }
+
+      const fillRow = (rowEl, row) => {
+        if (!rowEl || !row) return;
+        const nameEl = rowEl.querySelector(".da-name");
+        const idEl = rowEl.querySelector(".da-id");
+        const qtyEl = rowEl.querySelector(".da-qty");
+        const priceEl = rowEl.querySelector(".da-price");
+
+        if (nameEl) nameEl.value = row.label || row.name || "";
+        if (idEl) idEl.value = row.productId || "";
+        if (qtyEl) qtyEl.value = row.qty != null ? String(row.qty) : "";
+        if (priceEl) {
+          const p = row?.price;
+          priceEl.value = typeof p === "number" ? String(p).replace(".", ",") : String(p ?? "");
+        }
+      };
+
+      if (customRows.length) {
+        fillRow(existing[0], customRows[0]);
+
+        for (let i = 1; i < customRows.length; i++) {
+          let node = tpl?.content?.firstElementChild?.cloneNode(true);
+          if (!node) {
+            node = existing[0].cloneNode(true);
+            node.querySelectorAll("input").forEach((inp) => (inp.value = ""));
+          }
+          wrap.appendChild(node);
+          wireBlQuickAddRow(node);
+          fillRow(node, customRows[i]);
+        }
+      } else if (existing[0]) {
+        existing[0].querySelectorAll("input").forEach((inp) => (inp.value = ""));
+      }
+    }
+  } catch (e) {
+    console.warn("[restoreBl] quick-add restore failed:", e);
   }
 }
 
@@ -16954,6 +17148,80 @@ function initHlQuickAddRepeater() {
   });
 }
 
+function wireBlQuickAddRow(rowEl) {
+  if (!rowEl || rowEl.__wired) return;
+  rowEl.__wired = true;
+
+  const removeBtn = rowEl.querySelector(".da-remove");
+  removeBtn?.addEventListener("click", () => {
+    const wrap = document.getElementById("blQuickAddItems");
+    if (!wrap) return;
+
+    const rows = Array.from(wrap.querySelectorAll(".da-item"));
+    if (rows.length <= 1) {
+      rowEl.querySelectorAll("input").forEach((inp) => (inp.value = ""));
+      return;
+    }
+    rowEl.remove();
+  });
+}
+
+function initBlQuickAddRepeater() {
+  const wrap = document.getElementById("blQuickAddItems");
+  const addBtn = document.getElementById("blQuickAddAdd");
+  const tpl = document.getElementById("tpl-bl-quickadd-row");
+
+  if (!wrap || !addBtn) return;
+
+  wrap.querySelectorAll(".da-item").forEach(wireBlQuickAddRow);
+
+  const rowIsValid = (rowEl) => {
+    const label = String(rowEl.querySelector(".da-name")?.value || "").trim();
+    const pid = String(rowEl.querySelector(".da-id")?.value || "").trim();
+    const price = String(rowEl.querySelector(".da-price")?.value || "").trim();
+    return !!(label && pid && price);
+  };
+
+  addBtn.addEventListener("click", () => {
+    const rows = Array.from(wrap.querySelectorAll(".da-item"));
+    const last = rows[rows.length - 1];
+    if (last && !rowIsValid(last)) {
+      showToast("Bitte zuerst Bezeichnung, Preis und Artikel-ID ausfüllen.", "warn");
+      return;
+    }
+
+    let node = tpl?.content?.firstElementChild?.cloneNode(true);
+    if (!node && last) {
+      node = last.cloneNode(true);
+      node.querySelectorAll("input").forEach((inp) => (inp.value = ""));
+    }
+    if (!node) return;
+
+    wrap.appendChild(node);
+    wireBlQuickAddRow(node);
+  });
+}
+
+function initBlProductCards() {
+  const form = document.getElementById("form-bl");
+  if (!form) return;
+
+  const sync = (cb) => {
+    if (!cb) return;
+    const qtyEl = cb.id ? form.querySelector(`#qty_${CSS.escape(cb.id)}`) : null;
+    if (!qtyEl) return;
+    qtyEl.disabled = !cb.checked;
+    if (!cb.checked && !qtyEl.value) qtyEl.value = "1";
+  };
+
+  form.querySelectorAll('input[type="checkbox"][data-product-id]').forEach((cb) => {
+    sync(cb);
+    cb.addEventListener("change", () => sync(cb));
+  });
+}
+
+
+
 // init on load
 document.addEventListener("DOMContentLoaded", () => {
   initHlFlexofitSearch();
@@ -18211,3 +18479,9 @@ document.addEventListener("DOMContentLoaded", () => {
   toggleSlateTrayColorVisibility();
 });
 
+
+
+__runWhenReady(() => {
+  try { initBlQuickAddRepeater(); } catch (e) { console.warn("[BL] quick-add init failed:", e); }
+  try { initBlProductCards(); } catch (e) { console.warn("[BL] product cards init failed:", e); }
+});

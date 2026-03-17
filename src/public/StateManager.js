@@ -17,11 +17,12 @@ class StateManager {
         rabatt: {},
         bwt: {},
         hl: {},
+        bl: {},
         ah: {},
          hms: {},
           wd: {},
       },
-      sketches: {},
+       sketches: {},
       pricing: null,
       ui: {
         isRestoring: false,

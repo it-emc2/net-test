@@ -54,7 +54,7 @@ export default (ProductModel) => {
   function getActiveOffer(payload) {
     // default to 'bu' for backward compatibility
     const k = payload?.activeOffer;
-    if (k === "bu" || k === "bwt" || k === "hl") {
+    if (k === "bu" || k === "bwt" || k === "hl" || k === "bl") {
       console.log("current offer type is ", k);
       return k;
     }
@@ -68,6 +68,8 @@ export default (ProductModel) => {
         return "Material für Badewannentür";
       case "hl":
         return "Material für Handlauf";
+      case "bl":
+        return "Material für Badelift";
       case "bu":
       default:
         return "Material für Badumbau";
@@ -743,6 +745,41 @@ if (offer === "hl") {
       }
     } catch (e) {
       console.warn("[pricing] hl quick-add failed:", e?.message || e);
+    }
+
+    // ------- BL · Badelift materials -------
+    try {
+      const qa = payload?.bl?.quickAdd || [];
+      if (Array.isArray(qa) && qa.length) {
+        for (const row of qa) {
+          if (!row) continue;
+
+          const qty = Number(row?.qty ?? 0) || 0;
+          if (qty <= 0) continue;
+
+          const rawLabel = String(row?.label ?? row?.name ?? "").trim();
+          const rawPid = String(row?.productId ?? "").trim();
+          if (!rawPid) continue;
+
+          if (row.kind === "bl-custom") {
+            const unitPrice = parseMoneyStrict(row?.price);
+            if (!Number.isFinite(unitPrice) || unitPrice <= 0) continue;
+
+            const base = rawLabel ? `${rawLabel} [${rawPid}]` : rawPid;
+            const label = `- ${Number.isInteger(qty) ? qty : String(qty)} Stk ${base}`;
+            add(rawPid, qty, label, unitPrice, "bl_quickadd_custom");
+            continue;
+          }
+
+          const label = rawLabel
+            ? `- ${Number.isInteger(qty) ? qty : String(qty)} Stk ${rawLabel}`
+            : null;
+
+          add(rawPid, qty, label, null, "bl_quickadd");
+        }
+      }
+    } catch (e) {
+      console.warn("[pricing] bl quick-add failed:", e?.message || e);
     }
 
     // ------- OPTIONALS as material lines (tagged so UI can filter them out of Material/Debug)

@@ -21,6 +21,7 @@ class StateManager {
          hms: {},
           wd: {},
       },
+      sketches: {},
       pricing: null,
       ui: {
         isRestoring: false,

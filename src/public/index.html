@@ -1170,6 +1170,10 @@ button.dm-btn-danger:focus-visible {
                 <span class="tile-title">HL · Handlauf</span>
               </a>
 
+              <a class="tile-btn" data-step="BL-Badelift" href="#BL-Badelift">
+                <span class="tile-title">BL · Badelift</span>
+              </a>
+
               <a class="tile-btn" data-step="AH-Alltagshilfe" href="#AH-Alltagshilfe">
                 <span class="tile-title">AH · Alltagshilfe</span>
               </a>
@@ -1181,6 +1185,24 @@ button.dm-btn-danger:focus-visible {
               <a class="tile-btn" data-step="WD-Winterdienst" href="#WD-Winterdienst">
                 <span class="tile-title">WD · Winterdienst</span>
               </a>
+            </div>
+          </section>
+
+            <section class="today-customers-panel today-calendar-panel" id="todayCalendarPanel" aria-labelledby="todayCalendarTitle">
+            <div class="today-customers-head">
+              <div>
+                <h3 id="todayCalendarTitle">Heutige Termine</h3>
+                <p id="todayCalendarMeta">Lade Termine…</p>
+              </div>
+
+              <div class="today-customers-actions">
+                <input type="text" id="todayCalendarSearch" placeholder="Name, Ort, Telefon, E-Mail…" autocomplete="off" />
+                <button type="button" id="refreshTodayCalendar" class="secondary">Aktualisieren</button>
+              </div>
+            </div>
+
+            <div id="todayCalendarList" class="today-customers-list">
+              <div class="today-customers-empty">Noch keine Termine geladen.</div>
             </div>
           </section>
 
@@ -1202,23 +1224,7 @@ button.dm-btn-danger:focus-visible {
             </div>
           </section>
 
-          <section class="today-customers-panel today-calendar-panel" id="todayCalendarPanel" aria-labelledby="todayCalendarTitle">
-            <div class="today-customers-head">
-              <div>
-                <h3 id="todayCalendarTitle">Heutige Termine</h3>
-                <p id="todayCalendarMeta">Lade Termine…</p>
-              </div>
-
-              <div class="today-customers-actions">
-                <input type="text" id="todayCalendarSearch" placeholder="Name, Ort, Telefon, E-Mail…" autocomplete="off" />
-                <button type="button" id="refreshTodayCalendar" class="secondary">Aktualisieren</button>
-              </div>
-            </div>
-
-            <div id="todayCalendarList" class="today-customers-list">
-              <div class="today-customers-empty">Noch keine Termine geladen.</div>
-            </div>
-          </section>
+        
         </div>
 
       </section>
