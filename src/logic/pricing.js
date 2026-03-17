@@ -1435,7 +1435,10 @@ try {
               const unit = Number(p.price || 0);
               const qty = 1; // ← add this
               const isSlateTray = String(p.productId || "").startsWith("SLA");
-              const colorSuffix = isSlateTray ? " — Farbe: weiß" : "";
+              // dynamic color (backward compatible)
+              const trayColorRaw = String(payload?.duschwanne?.trayColor || "").trim();
+              const trayColor = trayColorRaw || "Weiss";
+              const colorSuffix = isSlateTray ? ` — Farbe: ${trayColor}` : "";
 
               const line = {
                 productId: p.productId,

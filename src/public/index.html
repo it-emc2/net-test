@@ -2209,13 +2209,53 @@ button.dm-btn-danger:focus-visible {
   <input type="hidden" id="chosenScreenProductId" name="chosenScreenProductId" />
 </div>
 
-          <div class="field">
-            <div class="subheader">Farbe: weiß</div>
-          </div>
-          <div class="card-option">
-            <label class="image-check bwt-door-card"><input type="checkbox" name="trayColor" value="weiß" checked /><span
-                class="img-wrap"><img src="./assets/duschwanne.jpeg" alt="Duschwanne Farbe weiß" /></span><span
-                class="caption">weiß</span></label>
+          <div class="field" id="slateTrayColorSection" hidden aria-hidden="true">
+            <label class="req">Farbe der Duschwanne Slate</label>
+            <div style="display:flex; gap:14px; flex-wrap:wrap;">
+
+              <label class="image-check">
+                <input type="radio" name="trayColor" value="Weiss" checked />
+                <span class="img-wrap"><img src="./assets/slate-color-weiss.jpg" alt="Weiss" /></span>
+                <span class="caption">Weiß</span>
+              </label>
+
+               <label class="image-check">
+                <input type="radio" name="trayColor" value="Elfenbein" />
+                <span class="img-wrap"><img src="./assets/slate-color-elfenbein.jpg" alt="Elfenbein" /></span>
+                <span class="caption">Elfenbein</span>
+              </label>
+
+                <label class="image-check">
+                <input type="radio" name="trayColor" value="Steingrau" />
+                <span class="img-wrap"><img src="./assets/slate-color-steingrau.jpg" alt="Steingrau" /></span>
+                <span class="caption">Steingrau</span>
+              </label>
+              
+              <label class="image-check">
+                <input type="radio" name="trayColor" value="Beton" />
+                <span class="img-wrap"><img src="./assets/slate-color-beton.jpg" alt="Beton" /></span>
+                <span class="caption">Beton</span>
+              </label>
+
+             
+
+              <label class="image-check">
+                <input type="radio" name="trayColor" value="Anthrazit" checked />
+                <span class="img-wrap"><img src="./assets/slate-color-anthrazit.jpg" alt="Anthrazit" /></span>
+                <span class="caption">Anthrazit</span>
+              </label>
+
+
+             
+
+              <label class="image-check">
+                <input type="radio" name="trayColor" value="Schwarz" />
+                <span class="img-wrap"><img src="./assets/slate-color-schwarz.jpg" alt="Schwarz" /></span>
+                <span class="caption">Schwarz</span>
+              </label>
+
+             
+            </div>
           </div>
 
           <div class="field">

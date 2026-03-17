@@ -2238,6 +2238,7 @@ function resetAllRepeaterDOMs() {
   if (chosenTrayPid) chosenTrayPid.value = "";
   const traySize = document.getElementById("traySize");
   if (traySize) traySize.value = "";
+  if (typeof toggleSlateTrayColorVisibility === "function") toggleSlateTrayColorVisibility();
 
   // --- Floor Area ---
   const floorArea = document.getElementById("floorArea");
@@ -7497,6 +7498,7 @@ function initSmartTraySearch() {
     if (hiddenId) hiddenId.value = pid;
     hiddenId?.dispatchEvent(new Event("change", { bubbles: true }));
     if (hiddenSize) hiddenSize.value = label;
+    toggleSlateTrayColorVisibility();
 
     persistSelection(pid, label);
     applySelectedStyles();
@@ -7516,6 +7518,7 @@ function initSmartTraySearch() {
       hiddenId.value = "";
       hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
     }
+    toggleSlateTrayColorVisibility();
   };
 
   // Optional: make them mutually exclusive (comment out if you want both possible)
@@ -8324,6 +8327,32 @@ function initTraySizeAutoLabel() {
   // expose in case you want to call it from elsewhere
   window.updateTraySizeFromInputs = updateTraySizeFromInputs;
 }
+function getTrayColorValue() {
+  return (
+    document.querySelector('input[name="trayColor"]:checked')?.value ||
+    "Weiss"
+  );
+}
+
+function isSlateTrayProductId(pid) {
+  return /^SLA/i.test(String(pid || "").trim());
+}
+
+function toggleSlateTrayColorVisibility() {
+  const section = document.getElementById("slateTrayColorSection");
+  const pid = document.getElementById("chosenTrayProductId")?.value || "";
+  if (!section) return;
+
+  const show = isSlateTrayProductId(pid);
+  section.hidden = !show;
+  section.setAttribute("aria-hidden", show ? "false" : "true");
+
+  if (!show) {
+    const fallback = document.querySelector('input[name="trayColor"][value="Weiss"]');
+    if (fallback) fallback.checked = true;
+  }
+}
+
 function attachDuschwanneToPayload(payload) {
   // tray (existing)
   const pid = document.getElementById("chosenTrayProductId")?.value || null;
@@ -8340,6 +8369,7 @@ function attachDuschwanneToPayload(payload) {
   payload.duschwanne = payload.duschwanne || {};
   payload.duschwanne.chosenTrayProductId = pid;
   payload.duschwanne.traySize = size;
+  payload.duschwanne.trayColor = getTrayColorValue();
 
   payload.duschwanne.chosenBathtubProductId = bPid.trim() ? bPid.trim() : null;
   payload.duschwanne.bathtubSize = bSize;
@@ -9429,6 +9459,7 @@ function restoreTraySelection(dw) {
 
   // hidden fields ONLY — do NOT address [name="traySize"] radios here
   setHiddenById("chosenTrayProductId", dw.chosenTrayProductId);
+  toggleSlateTrayColorVisibility();
   // ===== PATCH: restore bathtub + wannenaufsatz =====
 
 // restore bathtub size inputs if present in payload (optional)
@@ -10429,7 +10460,7 @@ function restoreDuschwanne(dw) {
   setHiddenById("traySize", dw.traySize);
 
   // color etc.
-  setByNameOrId("trayColor", dw.trayColor);
+  setByNameOrId("trayColor", dw.trayColor || "Weiss");
 
   // toggles
   setCheckbox("ebenerdigeToggle", !!dw.ebenerdigeMontage);
@@ -10439,6 +10470,7 @@ function restoreDuschwanne(dw) {
   setCheckbox("stelzlager", !!dw.stelzlager);
 
   setHiddenById("chosenTrayProductId", dw.chosenTrayProductId);
+  toggleSlateTrayColorVisibility();
   setNumber("floorArea", dw.floorArea);
 
   // work tasks
@@ -11367,7 +11399,7 @@ function restoreDuschwanne(dw) {
   setHiddenById("traySize", dw.traySize);
 
   // color etc.
-  setByNameOrId("trayColor", dw.trayColor);
+  setByNameOrId("trayColor", dw.trayColor || "Weiss");
 
   // toggles
   setCheckbox("ebenerdigeToggle", !!dw.ebenerdigeMontage);
@@ -11377,6 +11409,7 @@ function restoreDuschwanne(dw) {
   setCheckbox("stelzlager", !!dw.stelzlager);
 
   setHiddenById("chosenTrayProductId", dw.chosenTrayProductId);
+  toggleSlateTrayColorVisibility();
   setNumber("floorArea", dw.floorArea);
 
   // ===== NEW: restore bathtub + wannenaufsatz =====
@@ -18167,3 +18200,14 @@ function initTodayCalendarPanel(){
 document.addEventListener("DOMContentLoaded", initTodayCalendarPanel);
 
 })();
+
+
+document.addEventListener("DOMContentLoaded", () => {
+  const chosenTrayPidEl = document.getElementById("chosenTrayProductId");
+  chosenTrayPidEl?.addEventListener("change", toggleSlateTrayColorVisibility);
+  document
+    .querySelectorAll('input[name="trayColor"]')
+    .forEach((el) => el.addEventListener("change", () => window.updatePricing?.()));
+  toggleSlateTrayColorVisibility();
+});
+
