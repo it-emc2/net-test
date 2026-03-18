@@ -224,7 +224,7 @@ router.post("/hassmann-cart", async (req, res) => {
     );
 
     const lines = [
-      ";Artikelnummer;Menge",
+      //";Artikelnummer;Menge",
       ...filtered.map((r) => {
         const qty = Math.round(Number(r.quantity || 0));
         return `ART;${r.materialNumber};${qty}`;

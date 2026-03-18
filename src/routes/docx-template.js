@@ -672,7 +672,7 @@ async function aggregateMaterialsForOverview(body = {}, computed = {}) {
     }
   }
 
-  // 3) computed.items (optional products as materials lines, if desired)
+  /* // 3) computed.items (optional products as materials lines, if desired)
   if (Array.isArray(computed?.items)) {
     for (const it of computed.items) {
       src.push(
@@ -684,7 +684,7 @@ async function aggregateMaterialsForOverview(body = {}, computed = {}) {
         }),
       );
     }
-  }
+  } */
 
   let lines = src.filter(Boolean).filter((l) => l.quantity > 0);
 
