@@ -47,6 +47,45 @@ export function initDrawingPadManager(options = {}) {
     redraw();
   }
 
+  function waitForCanvasReady() {
+    return new Promise((resolve) => {
+      const check = () => {
+        resizeCanvas();
+        const rect = canvas.getBoundingClientRect();
+        if (rect.width > 50 && rect.height > 50) {
+          resolve(rect);
+        } else {
+          requestAnimationFrame(check);
+        }
+      };
+      check();
+    });
+  }
+
+  function drawImageOp(op) {
+    return new Promise((resolve) => {
+      if (!op?.dataUrl) {
+        resolve();
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        const rect = canvas.getBoundingClientRect();
+        const cw = Math.max(1, rect.width || canvas.width);
+        const ch = Math.max(1, rect.height || canvas.height);
+        const scale = Math.min(cw / img.width, ch / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        const x = (cw - w) / 2;
+        const y = (ch - h) / 2;
+        ctx.drawImage(img, x, y, w, h);
+        resolve();
+      };
+      img.onerror = () => resolve();
+      img.src = op.dataUrl;
+    });
+  }
+
   function getPos(e) {
     const rect = canvas.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -109,7 +148,25 @@ export function initDrawingPadManager(options = {}) {
 
   function redraw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ops.forEach(drawOp);
+
+    const imageOps = ops.filter((op) => op?.type === "image");
+    const vectorOps = ops.filter((op) => op?.type !== "image");
+
+    if (imageOps.length) {
+      imageOps.reduce((p, op) => p.then(() => drawImageOp(op)), Promise.resolve()).then(() => {
+        vectorOps.forEach(drawOp);
+        if (preview) {
+          ctx.save();
+          ctx.globalAlpha = 0.65;
+          drawOp(preview);
+          ctx.restore();
+        }
+        syncHidden();
+      });
+      return;
+    }
+
+    vectorOps.forEach(drawOp);
     if (preview) {
       ctx.save();
       ctx.globalAlpha = 0.65;
@@ -214,18 +271,24 @@ export function initDrawingPadManager(options = {}) {
     redraw();
   }
 
-  function setFromSaved(saved = {}) {
+  async function setFromSaved(saved = {}) {
     const json = saved?.json || "";
     const dataUrl = saved?.dataUrl || "";
+
+    await waitForCanvasReady();
 
     if (json) {
       try {
         const parsed = JSON.parse(json);
-        ops = Array.isArray(parsed?.ops) ? parsed.ops : [];
-        preview = null;
-        currentOp = null;
-        redraw();
-        return;
+        const parsedOps = Array.isArray(parsed?.ops) ? parsed.ops : [];
+        if (parsedOps.length) {
+          ops = parsedOps;
+          preview = null;
+          currentOp = null;
+          pointerDown = false;
+          redraw();
+          return;
+        }
       } catch (e) {
         console.warn("[DrawingPadManager] invalid sketch json, falling back to image:", e);
       }
@@ -236,25 +299,11 @@ export function initDrawingPadManager(options = {}) {
       return;
     }
 
-    const img = new Image();
-    img.onload = () => {
-      ops = [];
-      preview = null;
-      currentOp = null;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const rect = canvas.getBoundingClientRect();
-      const cw = Math.max(1, rect.width);
-      const ch = Math.max(1, rect.height);
-      const scale = Math.min(cw / img.width, ch / img.height);
-      const w = img.width * scale;
-      const h = img.height * scale;
-      const x = (cw - w) / 2;
-      const y = (ch - h) / 2;
-      ctx.drawImage(img, x, y, w, h);
-      if (hiddenDataUrl) hiddenDataUrl.value = dataUrl;
-      if (hiddenJson) hiddenJson.value = "";
-    };
-    img.src = dataUrl;
+    ops = [{ type: "image", dataUrl }];
+    preview = null;
+    currentOp = null;
+    pointerDown = false;
+    redraw();
   }
 
   toolButtons.forEach((btn) => btn.addEventListener("click", () => setTool(btn.dataset.tool || "pen")));

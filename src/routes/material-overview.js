@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 import express from "express";
 import fs from "fs/promises";
 import fsSync from "fs";
@@ -15,6 +16,18 @@ import {
 
 export const router = express.Router();
 const pricing = pricingFactory(ProductModel);
+
+function isHassmannProduct(id) {
+  const s = String(id || "").trim();
+  if (!s) return false;
+
+  if (/^HASS_/i.test(s)) return false;
+  if (s === "OPT_CUSTOM") return false;
+  if (s === "REHA_DELIVERY") return false;
+
+  return true;
+}
+
 
 // ✅ UPDATED: Modern docxtemplater API usage
 async function renderDocx(templatePath, data) {
@@ -183,6 +196,53 @@ router.post("/", async (req, res) => {
     console.error("Materialübersicht generation failed:", e);
     res.status(500).json({
       error: "Materialübersicht generation failed",
+      detail: e.message || String(e),
+    });
+  }
+});
+
+
+router.post("/hassmann-cart", async (req, res) => {
+  try {
+    const body = req.body || {};
+
+    const computed = await pricing.computePrices(body);
+    const offerKey =
+      body.activeOffer ||
+      body.currentOfferKey ||
+      body.offerType ||
+      computed?.activeOffer ||
+      "bu";
+
+    const bodyForOverview = { ...body, activeOffer: offerKey };
+    delete bodyForOverview.materials;
+
+    const rows = await aggregateMaterialsForOverview(bodyForOverview, computed);
+
+    const filtered = rows.filter(
+      (r) => isHassmannProduct(r.materialNumber) && Number(r.quantity || 0) > 0,
+    );
+
+    const lines = [
+      ";Artikelnummer;Menge",
+      ...filtered.map((r) => {
+        const qty = Math.round(Number(r.quantity || 0));
+        return `ART;${r.materialNumber};${qty}`;
+      }),
+    ];
+
+    const csv = "\ufeff" + lines.join("\r\n");
+    const angebotNummer = (body.offerNumber || "").trim() || "ANG-0001";
+    const safeOffer = angebotNummer.replace(/[^A-Za-z0-9_\-]+/g, "_");
+    const filename = `Hassmann_Warenkorb_${safeOffer}.csv`;
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(csv);
+  } catch (e) {
+    console.error("Hassmann cart generation failed:", e);
+    res.status(500).json({
+      error: "Hassmann cart generation failed",
       detail: e.message || String(e),
     });
   }

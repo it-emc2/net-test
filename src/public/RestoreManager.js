@@ -124,11 +124,25 @@ export function initRestoreManager({
   async function restoreConfiguratorFromOffer(doc) {
     window.__restoring = true;
     window.__RESTORING__ = true;
-    try {
-      const n = normalizeOfferDoc(doc);
-      const { offerType, offer, payload } = n;
 
-      const ctx = { offerType, offer, doc: n.doc };
+    let normalized = null;
+    try {
+      normalized = normalizeOfferDoc(doc);
+      const { offerType, offer, payload } = normalized;
+
+      window.__lastRestoredDoc = normalized.doc;
+      window.__lastRestoredPayload = payload;
+      window.__lastOfferPayload = payload;
+
+      console.log("[SKETCH][payload-stored]", {
+        payloadKeys: Object.keys(payload || {}),
+        hlKeys: payload?.hl ? Object.keys(payload.hl) : [],
+        hasHLJson: !!payload?.hl?.hlSketchJson,
+        hasHLDataUrl: !!payload?.hl?.hlSketchDataUrl,
+        hasModernSketch: !!payload?.hl?.sketch,
+      });
+
+      const ctx = { offerType, offer, doc: normalized.doc };
 
       const pages = pagesToRestoreFor(offerType);
       for (const page of pages) {
@@ -136,11 +150,7 @@ export function initRestoreManager({
         if (typeof handler === "function") handler(payload, ctx);
       }
 
-      // keep "Rabatt must restore" behavior
-      if (
-        !pages.includes("Rabatt") &&
-        typeof restoreHandlers?.Rabatt === "function"
-      ) {
+      if (!pages.includes("Rabatt") && typeof restoreHandlers?.Rabatt === "function") {
         restoreHandlers.Rabatt(payload, ctx);
       }
 
@@ -153,9 +163,41 @@ export function initRestoreManager({
       window.__RESTORING__ = false;
     }
 
-    // run nudges after flags are cleared (mirrors your current flow)
-    const { payload } = normalizeOfferDoc(doc);
+    const payload = normalized?.payload || normalizeOfferDoc(doc).payload;
     await postRestoreNudges(payload);
+
+    try {
+      await window.__drawingReady;
+      console.log("[SKETCH][restore-call-site]", {
+        drawingPads: window.__drawingPads ? Object.keys(window.__drawingPads) : [],
+        hasHl: !!payload?.hl,
+      });
+
+      const restoreOne = (key, section) => {
+        window.restoreSketchFor?.(key, section);
+
+        let dataUrl = section?.sketch?.dataUrl || section?.dataUrl || "";
+        if (!dataUrl) {
+          if (key === "hl") dataUrl = section?.hlSketchDataUrl || "";
+          if (key === "bwt") dataUrl = section?.bwtSketchDataUrl || "";
+          if (key === "da") dataUrl = section?.daSketchDataUrl || "";
+        }
+        window.renderStaticSketchPreview?.(key, dataUrl);
+      };
+
+      restoreOne("da", payload?.duschabtrennung || {});
+      restoreOne("bwt", payload?.bwt || {});
+      restoreOne("hl", payload?.hl || {});
+
+      setTimeout(() => {
+        console.log("[SKETCH][late-retry]");
+        restoreOne("da", payload?.duschabtrennung || {});
+        restoreOne("bwt", payload?.bwt || {});
+        restoreOne("hl", payload?.hl || {});
+      }, 350);
+    } catch (e) {
+      console.warn("[SKETCH][restore-call-site] failed:", e);
+    }
   }
 
   function restoreConfiguratorFromSnapshot({ payload }) {

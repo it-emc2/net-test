@@ -1073,6 +1073,40 @@ button.dm-btn-danger:focus-visible {
   color: #fff !important;
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25) !important;
 }
+  
+    .project-sketch__debug {
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      background: rgba(109, 40, 217, 0.04);
+      display: grid;
+      gap: 10px;
+    }
+
+    .project-sketch__debug-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .project-sketch__debug-empty {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .project-sketch__debug-image {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #fff;
+    }
+
   </style>
 </head>
 
@@ -4712,6 +4746,17 @@ button.dm-btn-danger:focus-visible {
                 </button>
               </div>
 
+              <!-- Hassmann Cart Card -->
+              <div class="export-card">
+                <div class="card-icon">🛒</div>
+                <h3>Hassmann Warenkorb</h3>
+                <p>CSV für Hassmann aus der Materialliste exportieren</p>
+                <button type="button" id="downloadHassmannCart" class="btn-export btn-material">
+                  <span class="btn-icon">⬇️</span>
+                  CSV herunterladen
+                </button>
+              </div>
+
               <!-- Arbeitsbericht Card -->
               <div class="export-card">
                 <div class="card-icon">🧾</div>
@@ -5640,6 +5685,16 @@ button.dm-btn-danger:focus-visible {
             </div>
           
             <div class="project-sketch__hint">Die Skizze wird zusammen mit dem Entwurf, dem Angebot und beim Draft-Restore gespeichert.</div>
+
+            <div id="hlSketchDebugWrap" class="project-sketch__debug" hidden>
+              <div class="project-sketch__debug-head">
+                <strong>Debug: gespeichertes PNG aus hlSketchDataUrl</strong>
+                <a id="hlSketchDebugDownload" class="btn-secondary" href="#" download="hl-sketch-debug.png" hidden>PNG herunterladen</a>
+              </div>
+              <div id="hlSketchDebugEmpty" class="project-sketch__debug-empty">Noch kein gespeichertes PNG gefunden.</div>
+              <img id="hlSketchDebugImage" class="project-sketch__debug-image" alt="Gespeicherte HL-Skizze aus hlSketchDataUrl" hidden />
+            </div>
+
             <input type="hidden" id="hlSketchDataUrl" name="hlSketchDataUrl" value="" />
             <input type="hidden" id="hlSketchJson" name="hlSketchJson" value="" />
           </div>

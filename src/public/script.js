@@ -3151,7 +3151,8 @@ function buildPayload() {
     rabatt: formToObject(document.getElementById("form-rabatt")),
     bwt: formToObject(document.getElementById("form-bwt")),
     hl: formToObject(document.getElementById("form-hl")),
-    bl: formToObject(document.getElementById("form-bl")),
+    //CRITICAL reenable only when ready
+    //bl: formToObject(document.getElementById("form-bl")),
     ah: formToObject(document.getElementById("form-ah")),
     hms: formToObject(document.getElementById("form-hms")),
     wd: formToObject(document.getElementById("form-wd")),
@@ -3851,6 +3852,16 @@ function attachProjectSketchesToPayload(payload) {
     payload.duschabtrennung.sketch = { json: daSketch.json, dataUrl: daSketch.dataUrl };
     payload.bwt.sketch = { json: bwtSketch.json, dataUrl: bwtSketch.dataUrl };
     payload.hl.sketch = { json: hlSketch.json, dataUrl: hlSketch.dataUrl };
+
+    // backward-compatible legacy flat keys
+    payload.duschabtrennung.daSketchJson = daSketch.json;
+    payload.duschabtrennung.daSketchDataUrl = daSketch.dataUrl;
+
+    payload.bwt.bwtSketchJson = bwtSketch.json;
+    payload.bwt.bwtSketchDataUrl = bwtSketch.dataUrl;
+
+    payload.hl.hlSketchJson = hlSketch.json;
+    payload.hl.hlSketchDataUrl = hlSketch.dataUrl;
   } catch (e) {
     console.warn("[buildPayload] attachProjectSketchesToPayload failed:", e);
   }
@@ -3861,14 +3872,32 @@ function restoreSketchFor(key, section) {
     const mgr = window.__drawingPads?.[key];
     if (!mgr) return;
 
-    const sketch = section?.sketch || null;
-    if (!sketch) {
+    const sketch =
+      section?.sketch ||
+      (section?.json || section?.dataUrl ? section : null);
+
+    let json = typeof sketch === "string" ? sketch : (sketch?.json || "");
+    let dataUrl = typeof sketch === "string" ? sketch : (sketch?.dataUrl || "");
+
+    // legacy per-section flat keys from DB/payload
+    if ((!json || !dataUrl) && section) {
+      if (key === "hl") {
+        json = json || section?.hlSketchJson || "";
+        dataUrl = dataUrl || section?.hlSketchDataUrl || "";
+      } else if (key === "bwt") {
+        json = json || section?.bwtSketchJson || "";
+        dataUrl = dataUrl || section?.bwtSketchDataUrl || "";
+      } else if (key === "da") {
+        json = json || section?.daSketchJson || "";
+        dataUrl = dataUrl || section?.daSketchDataUrl || "";
+      }
+    }
+
+    if (!json && !dataUrl) {
       mgr.clear?.();
       return;
     }
 
-    const json = typeof sketch === "string" ? sketch : (sketch.json || "");
-    const dataUrl = typeof sketch === "string" ? sketch : (sketch.dataUrl || "");
     mgr.setFromSaved?.({ json, dataUrl });
   } catch (e) {
     console.warn(`[restore] sketch restore failed for ${key}:`, e);
@@ -18485,3 +18514,61 @@ __runWhenReady(() => {
   try { initBlQuickAddRepeater(); } catch (e) { console.warn("[BL] quick-add init failed:", e); }
   try { initBlProductCards(); } catch (e) { console.warn("[BL] product cards init failed:", e); }
 });
+
+
+// Hassmann Warenkorb CSV
+document
+  .getElementById("downloadHassmannCart")
+  ?.addEventListener("click", async () => {
+    if (!requireBereichValid()) {
+      location.hash = "Kundendaten";
+      return;
+    }
+    try {
+      const payload = buildPayload();
+
+      if (!payload.activeOffer) {
+        payload.activeOffer =
+          (typeof getCurrentOfferType === "function" && getCurrentOfferType()) ||
+          payload.offerType ||
+          payload.currentOfferKey ||
+          "bu";
+      }
+
+      const res = await fetch("/material-overview/hassmann-cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        let detail = "";
+        try {
+          const err = await res.json();
+          detail = err?.detail || err?.error || "";
+        } catch {}
+        throw new Error(detail || "CSV generation failed");
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+
+      const offerNo =
+        payload.offerNumber ||
+        payload.angNumber ||
+        payload.number ||
+        "Hassmann_Warenkorb";
+      a.download = `Hassmann_Warenkorb_${String(offerNo).replace(/[^A-Za-z0-9_\-]+/g, "_")}.csv`;
+
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      show?.({ error: String(e) }, false);
+      alert("Hassmann Warenkorb konnte nicht erstellt werden.");
+    }
+  });
