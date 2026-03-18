@@ -5687,10 +5687,29 @@ button.dm-btn-danger:focus-visible {
             <div class="project-sketch__hint">Die Skizze wird zusammen mit dem Entwurf, dem Angebot und beim Draft-Restore gespeichert.</div>
 
             <div id="hlSketchDebugWrap" class="project-sketch__debug" hidden>
-              <div class="project-sketch__debug-head">
-                <strong>Debug: gespeichertes PNG aus hlSketchDataUrl</strong>
-                <a id="hlSketchDebugDownload" class="btn-secondary" href="#" download="hl-sketch-debug.png" hidden>PNG herunterladen</a>
-              </div>
+             <div class="project-sketch__debug-head">
+  <strong>Debug: gespeichertes PNG aus hlSketchDataUrl</strong>
+
+  <div class="sketch-download-buttons">
+    <button
+      type="button"
+      id="hlSketchDebugDownload"
+      class="btn-secondary"
+      hidden
+    >
+      PNG herunterladen
+    </button>
+
+    <button
+      type="button"
+      id="hlSketchDebugDownloadJpg"
+      class="btn-secondary"
+      hidden
+    >
+      JPG herunterladen
+    </button>
+  </div>
+</div>
               <div id="hlSketchDebugEmpty" class="project-sketch__debug-empty">Noch kein gespeichertes PNG gefunden.</div>
               <img id="hlSketchDebugImage" class="project-sketch__debug-image" alt="Gespeicherte HL-Skizze aus hlSketchDataUrl" hidden />
             </div>

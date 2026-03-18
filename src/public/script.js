@@ -3852,16 +3852,6 @@ function attachProjectSketchesToPayload(payload) {
     payload.duschabtrennung.sketch = { json: daSketch.json, dataUrl: daSketch.dataUrl };
     payload.bwt.sketch = { json: bwtSketch.json, dataUrl: bwtSketch.dataUrl };
     payload.hl.sketch = { json: hlSketch.json, dataUrl: hlSketch.dataUrl };
-
-    // backward-compatible legacy flat keys
-    payload.duschabtrennung.daSketchJson = daSketch.json;
-    payload.duschabtrennung.daSketchDataUrl = daSketch.dataUrl;
-
-    payload.bwt.bwtSketchJson = bwtSketch.json;
-    payload.bwt.bwtSketchDataUrl = bwtSketch.dataUrl;
-
-    payload.hl.hlSketchJson = hlSketch.json;
-    payload.hl.hlSketchDataUrl = hlSketch.dataUrl;
   } catch (e) {
     console.warn("[buildPayload] attachProjectSketchesToPayload failed:", e);
   }
@@ -3872,32 +3862,14 @@ function restoreSketchFor(key, section) {
     const mgr = window.__drawingPads?.[key];
     if (!mgr) return;
 
-    const sketch =
-      section?.sketch ||
-      (section?.json || section?.dataUrl ? section : null);
-
-    let json = typeof sketch === "string" ? sketch : (sketch?.json || "");
-    let dataUrl = typeof sketch === "string" ? sketch : (sketch?.dataUrl || "");
-
-    // legacy per-section flat keys from DB/payload
-    if ((!json || !dataUrl) && section) {
-      if (key === "hl") {
-        json = json || section?.hlSketchJson || "";
-        dataUrl = dataUrl || section?.hlSketchDataUrl || "";
-      } else if (key === "bwt") {
-        json = json || section?.bwtSketchJson || "";
-        dataUrl = dataUrl || section?.bwtSketchDataUrl || "";
-      } else if (key === "da") {
-        json = json || section?.daSketchJson || "";
-        dataUrl = dataUrl || section?.daSketchDataUrl || "";
-      }
-    }
-
-    if (!json && !dataUrl) {
+    const sketch = section?.sketch || null;
+    if (!sketch) {
       mgr.clear?.();
       return;
     }
 
+    const json = typeof sketch === "string" ? sketch : (sketch.json || "");
+    const dataUrl = typeof sketch === "string" ? sketch : (sketch.dataUrl || "");
     mgr.setFromSaved?.({ json, dataUrl });
   } catch (e) {
     console.warn(`[restore] sketch restore failed for ${key}:`, e);
@@ -18572,3 +18544,133 @@ document
       alert("Hassmann Warenkorb konnte nicht erstellt werden.");
     }
   });
+
+// =================================================================
+// #region HL Sketch Download Helper
+// =================================================================
+(function initHlSketchDownloadButtons() {
+  function getCurrentHlSketchPng() {
+    const hidden = document.getElementById("hlSketchDataUrl");
+    if (hidden?.value) return hidden.value;
+
+    const mgr = window.__drawingPads?.hl;
+    const canvas =
+      mgr?.root?.querySelector?.(".project-sketch__canvas") ||
+      document.querySelector(
+        '[data-sketch-key="hl"] .project-sketch__canvas, #page-hl .project-sketch__canvas'
+      );
+
+    try {
+      if (canvas && typeof canvas.toDataURL === "function") {
+        return canvas.toDataURL("image/png");
+      }
+    } catch (e) {
+      console.warn("[HL sketch download] canvas export failed:", e);
+    }
+
+    return "";
+  }
+
+  function triggerDataUrlDownload(dataUrl, filename) {
+    if (!dataUrl) return false;
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = filename || "hl-skizze.png";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    return true;
+  }
+
+  function pngToJpgWithWhiteBackground(pngDataUrl, quality = 0.92) {
+    return new Promise((resolve, reject) => {
+      if (!pngDataUrl) {
+        reject(new Error("missing pngDataUrl"));
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth || img.width || 1;
+          canvas.height = img.naturalHeight || img.height || 1;
+
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.onerror = reject;
+      img.src = pngDataUrl;
+    });
+  }
+
+  async function handlePngDownload(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const dataUrl = getCurrentHlSketchPng();
+    if (!dataUrl) {
+      console.warn("[HL sketch download] no PNG data available");
+      window.showToast?.("Keine Skizze zum Herunterladen gefunden.", "error");
+      return;
+    }
+
+    const ok = triggerDataUrlDownload(dataUrl, "hl-skizze.png");
+    if (!ok) {
+      window.showToast?.("PNG konnte nicht heruntergeladen werden.", "error");
+    }
+  }
+
+  async function handleJpgDownload(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const pngDataUrl = getCurrentHlSketchPng();
+    if (!pngDataUrl) {
+      console.warn("[HL sketch download] no PNG data available for JPG conversion");
+      window.showToast?.("Keine Skizze zum Herunterladen gefunden.", "error");
+      return;
+    }
+
+    try {
+      const jpgDataUrl = await pngToJpgWithWhiteBackground(pngDataUrl, 0.92);
+      const ok = triggerDataUrlDownload(jpgDataUrl, "hl-skizze.jpg");
+      if (!ok) {
+        window.showToast?.("JPG konnte nicht heruntergeladen werden.", "error");
+      }
+    } catch (e) {
+      console.warn("[HL sketch download] JPG conversion failed:", e);
+      window.showToast?.("JPG konnte nicht erstellt werden.", "error");
+    }
+  }
+
+  function wire() {
+    const pngBtn = document.getElementById("hlSketchDebugDownload");
+    if (pngBtn && pngBtn.dataset.boundDownload !== "1") {
+      pngBtn.dataset.boundDownload = "1";
+      pngBtn.addEventListener("click", handlePngDownload);
+    }
+
+    const jpgBtn = document.getElementById("hlSketchDebugDownloadJpg");
+    if (jpgBtn && jpgBtn.dataset.boundDownload !== "1") {
+      jpgBtn.dataset.boundDownload = "1";
+      jpgBtn.addEventListener("click", handleJpgDownload);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", wire, { once: true });
+  } else {
+    wire();
+  }
+
+  window.addEventListener("hashchange", wire);
+})();
+// #endregion
