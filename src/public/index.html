@@ -4705,6 +4705,217 @@ button.dm-btn-danger:focus-visible {
       </section>
 
 
+      
+      <!-- bl -->
+      <section class="card page bl-page-modern" id="page-bl" hidden>
+        <div class="bl-page-head">
+          <div>
+            <h2 style="margin: 0">Badelift — Bestandsaufnahme</h2>
+            <p class="bl-page-subtitle"></p>
+          </div>
+        </div>
+
+        <form id="form-bl">
+          <div class="bl-layout full">
+
+            <section class="bl-section">
+              <div class="section-header">1. Hauptprodukt</div>
+              <div class="bl-card-grid bl-card-grid-main">
+                <label class="image-check large bl-product-card is-selected">
+                  <input
+                    type="checkbox"
+                    id="bl_brs_912"
+                    value="Juwel Tuchlift Premium"
+                    data-product-id="BRS-912"
+                    checked
+                  />
+                  <div class="img-wrap">
+                    <img src="./assets/BRS-912.jpg" alt="Juwel Tuchlift Premium" onerror="this.closest('.img-wrap')?.classList.add('is-missing'); this.style.display='none';" />
+                  
+                  </div>
+                  <span class="caption">
+                    <strong>Juwel Tuchlift Premium</strong>
+                    <span class="caption-sub">BRS-912 · Hauptprodukt</span>
+                  </span>
+                  <div class="bl-qty-row">
+                    <label for="qty_bl_brs_912">Menge</label>
+                    <input id="qty_bl_brs_912" type="number" min="1" step="1" value="1" />
+                  </div>
+                </label>
+              </div>
+            </section>
+
+            <section class="bl-section">
+              <div class="section-header">2. Optionales Zubehör</div>
+              <div class="bl-card-grid">
+                <label class="image-check large bl-product-card">
+                  <input
+                    type="checkbox"
+                    id="bl_brs_909"
+                    value="Gleittuch"
+                    data-product-id="BRS-909"
+                  />
+                  <div class="img-wrap">
+                    <img src="./assets/BRS-909.jpg" alt="Gleittuch" onerror="this.closest('.img-wrap')?.classList.add('is-missing'); this.style.display='none';" />
+                    
+                  </div>
+                  <span class="caption">
+                    <strong>Gleittuch</strong>
+                    <span class="caption-sub">BRS-909</span>
+                  </span>
+                  <div class="bl-qty-row">
+                    <label for="qty_bl_brs_909">Menge</label>
+                    <input id="qty_bl_brs_909" type="number" min="1" step="1" value="1" />
+                  </div>
+                </label>
+
+                <label class="image-check large bl-product-card">
+                  <input
+                    type="checkbox"
+                    id="bl_bht_914"
+                    value="Halterung ohne zu bohren"
+                    data-product-id="BHT-914"
+                  />
+                  <div class="img-wrap">
+                    <img src="./assets/BHT-914.jpg" alt="Halterung ohne zu bohren" onerror="this.closest('.img-wrap')?.classList.add('is-missing'); this.style.display='none';" />
+                    
+                  </div>
+                  <span class="caption">
+                    <strong>Halterung ohne zu bohren</strong>
+                    <span class="caption-sub">BHT-914</span>
+                  </span>
+                  <div class="bl-qty-row">
+                    <label for="qty_bl_bht_914">Menge</label>
+                    <input id="qty_bl_bht_914" type="number" min="1" step="1" value="1" />
+                  </div>
+                </label>
+
+                <label class="image-check large bl-product-card">
+                  <input
+                    type="checkbox"
+                    id="bl_bht_2013"
+                    value="Ladegerät für Juwel Tuchlift (Ersatzteil)"
+                    data-product-id="BHT-2013"
+                  />
+                  <div class="img-wrap">
+                    <img src="./assets/BHT-2013.jpg" alt="Ladegerät für Juwel Tuchlift (Ersatzteil)" onerror="this.closest('.img-wrap')?.classList.add('is-missing'); this.style.display='none';" />
+               
+                  </div>
+                  <span class="caption">
+                    <strong>Ladegerät für Juwel Tuchlift</strong>
+                    <span class="caption-sub">BHT-2013 · Ersatzteil</span>
+                  </span>
+                  <div class="bl-qty-row">
+                    <label for="qty_bl_bht_2013">Menge</label>
+                    <input id="qty_bl_bht_2013" type="number" min="1" step="1" value="1" />
+                  </div>
+                </label>
+
+                <label class="image-check large bl-product-card">
+                  <input
+                    type="checkbox"
+                    id="bl_brs_802"
+                    value="Akkupack für Juwel Tuchlift (Ersatzteil)"
+                    data-product-id="BRS-802"
+                  />
+                  <div class="img-wrap">
+                    <img src="./assets/BRS-802.jpg" alt="Akkupack für Juwel Tuchlift (Ersatzteil)" onerror="this.closest('.img-wrap')?.classList.add('is-missing'); this.style.display='none';" />
+                
+                  </div>
+                  <span class="caption">
+                    <strong>Akkupack für Juwel Tuchlift</strong>
+                    <span class="caption-sub">BRS-802 · Ersatzteil</span>
+                  </span>
+                  <div class="bl-qty-row">
+                    <label for="qty_bl_brs_802">Menge</label>
+                    <input id="qty_bl_brs_802" type="number" min="1" step="1" value="1" />
+                  </div>
+                </label>
+              </div>
+            </section>
+
+            <fieldset class="da-row full" id="blQuickAddPanel" data-kind="custom" aria-describedby="bl-quickadd-help">
+              <legend class="da-legend">
+                Freier Posten (Quick Add)
+                <button type="button" id="blQuickAddAdd" class="da-add" aria-label="Weitere Position hinzufügen">+</button>
+              </legend>
+
+              <div class="da-items" id="blQuickAddItems">
+                <div class="da-item" data-kind="custom">
+                  <div class="da-grid-4">
+                    <label class="da-label">
+                      Bezeichnung
+                      <input class="da-name" type="text" placeholder="z. B. Sonderzubehör" />
+                    </label>
+
+                    <label class="da-label">
+                      Preis (netto)
+                      <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 199,00" />
+                    </label>
+
+                    <label class="da-label">
+                      Menge
+                      <input class="da-qty" type="number" min="1" step="1" placeholder="1" />
+                    </label>
+
+                    <label class="da-label">
+                      Artikel-ID
+                      <input class="da-id" type="text" placeholder="z. B. BL-123" />
+                    </label>
+                  </div>
+
+                  <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+                </div>
+              </div>
+
+              <small id="bl-quickadd-help" class="da-help">
+                Neue Zeile ist nur möglich, wenn <em>Bezeichnung</em>, <em>Preis</em> und <em>Artikel-ID</em> gefüllt sind.
+                Letzte Zeile: Löschen leert alle 4 Felder.
+              </small>
+            </fieldset>
+
+            <template id="tpl-bl-quickadd-row">
+              <div class="da-item" data-kind="custom">
+                <div class="da-grid-4">
+                  <label class="da-label">
+                    Bezeichnung
+                    <input class="da-name" type="text" placeholder="z. B. Sonderzubehör" />
+                  </label>
+
+                  <label class="da-label">
+                    Preis (netto)
+                    <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 199,00" />
+                  </label>
+
+                  <label class="da-label">
+                    Menge
+                    <input class="da-qty" type="number" min="1" step="1" placeholder="1" />
+                  </label>
+
+                  <label class="da-label">
+                    Artikel-ID
+                    <input class="da-id" type="text" placeholder="z. B. BL-123" />
+                  </label>
+                </div>
+
+                <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+              </div>
+            </template>
+
+            <div class="full field">
+              <label for="blNote">Hinweise / Notizen</label>
+              <textarea id="blNote" rows="4" placeholder="Zusätzliche Hinweise zum Badelift oder Zubehör"></textarea>
+            </div>
+
+            <div class="actions full" style="margin-top: 8px;">
+              <button type="button" data-nav="prev" class="secondary">Zurück</button>
+              <button type="button" data-nav="next">Weiter</button>
+            </div>
+          </div>
+        </form>
+      </section>
+
+
       <!-- Zusammenfassung -->
 
       <!-- Replace the existing page-Zusammenfassung content with this -->
