@@ -18750,8 +18750,8 @@ document
 
     const fields = {
       auftragId: document.getElementById("postAuftragId"),
-      name: document.getElementById("postRecipientName"),
-      company: document.getElementById("postRecipientCompany"),
+      firstName: document.getElementById("postFirstName"),
+      lastName: document.getElementById("postLastName"),
       street: document.getElementById("postStreet"),
       zipCode: document.getElementById("postZip"),
       city: document.getElementById("postCity"),
@@ -18848,16 +18848,18 @@ document
     }
 
     function computeRecipientName() {
-      const company = String(document.getElementById("company")?.value || "").trim();
       const firstName = String(document.getElementById("firstName")?.value || "").trim();
       const lastName = String(document.getElementById("lastName")?.value || "").trim();
-      const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
-      return fullName || company || "";
+      return [firstName, lastName].filter(Boolean).join(" ").trim();
     }
 
     function fillPostalDefaults() {
-      if (!String(fields.name?.value || "").trim()) fields.name.value = computeRecipientName();
-      if (!String(fields.company?.value || "").trim()) fields.company.value = String(document.getElementById("company")?.value || "").trim();
+      if (!String(fields.firstName?.value || "").trim()) {
+        fields.firstName.value = String(document.getElementById("firstName")?.value || "").trim();
+      }
+      if (!String(fields.lastName?.value || "").trim()) {
+        fields.lastName.value = String(document.getElementById("lastName")?.value || "").trim();
+      }
       if (!String(fields.street?.value || "").trim()) fields.street.value = String(document.getElementById("street")?.value || "").trim();
       if (!String(fields.zipCode?.value || "").trim()) fields.zipCode.value = String(document.getElementById("postalCode")?.value || "").trim();
       if (!String(fields.city?.value || "").trim()) fields.city.value = String(document.getElementById("city")?.value || "").trim();
@@ -18925,17 +18927,6 @@ document
       renderAttachmentList();
     });
 
-    attachmentList.addEventListener("keydown", (event) => {
-      const btn = event.target.closest("[data-post-remove]");
-      if (!btn) return;
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      const id = String(btn.dataset.postRemove || "").trim();
-      if (!id) return;
-      postalAttachments = postalAttachments.filter((item) => item.id !== id);
-      renderAttachmentList();
-    });
-
     uploadInput.addEventListener("change", () => {
       const files = Array.from(uploadInput.files || []);
       const newUploads = files
@@ -18969,7 +18960,8 @@ document
       });
       src.addEventListener("input", () => {
         if (
-          document.activeElement !== fields.name &&
+          document.activeElement !== fields.firstName &&
+          document.activeElement !== fields.lastName &&
           document.activeElement !== fields.street &&
           document.activeElement !== fields.zipCode &&
           document.activeElement !== fields.city
@@ -19006,7 +18998,7 @@ document
 
     function validate() {
       let firstInvalid = null;
-      [fields.name, fields.street, fields.zipCode, fields.city, fields.country].forEach((el) => {
+      [fields.firstName, fields.lastName, fields.street, fields.zipCode, fields.city, fields.country].forEach((el) => {
         clearInputError(el);
         if (!String(el?.value || "").trim()) {
           markInputError(el);
@@ -19056,8 +19048,7 @@ document
           body: JSON.stringify({
             auftragId: String(fields.auftragId?.value || "").trim(),
             recipient: {
-              name: String(fields.name?.value || "").trim(),
-              company: String(fields.company?.value || "").trim(),
+              name: `${String(fields.firstName?.value || "").trim()} ${String(fields.lastName?.value || "").trim()}`.trim(),
               street: String(fields.street?.value || "").trim(),
               zipCode: String(fields.zipCode?.value || "").trim(),
               city: String(fields.city?.value || "").trim(),

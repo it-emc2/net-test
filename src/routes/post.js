@@ -38,6 +38,61 @@ const STATIC_POSTAL_ATTACHMENTS = {
   // Future-ready: add more predefined postal attachments here if needed.
 };
 
+
+function maskBase64(value) {
+  const s = String(value || "");
+  if (!s) return "(empty)";
+  return `${s.slice(0, 24)}... [len=${s.length}]`;
+}
+
+function summarizeForLog(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => summarizeForLog(item));
+  }
+
+  if (!value || typeof value !== "object") return value;
+
+  const clone = { ...value };
+
+  if (clone.base64) clone.base64 = maskBase64(clone.base64);
+  if (clone.content && typeof clone.content === "object") {
+    clone.content = {
+      ...clone.content,
+      content: maskBase64(clone.content.content),
+    };
+  }
+  if (clone.document && typeof clone.document === "object") {
+    clone.document = {
+      ...clone.document,
+      base64: maskBase64(clone.document.base64 || clone.document.content),
+      content: undefined,
+    };
+  }
+  if (clone.attachments && Array.isArray(clone.attachments)) {
+    clone.attachments = clone.attachments.map((att) => ({
+      ...att,
+      base64: att?.base64 ? maskBase64(att.base64) : undefined,
+      content: att?.content ? maskBase64(att.content) : undefined,
+    }));
+  }
+  return clone;
+}
+
+function logPost(label, data) {
+  if (data === undefined) {
+    console.log(`[post] ${label}`);
+    return;
+  }
+  console.log(`[post] ${label}`, summarizeForLog(data));
+}
+
+function withStage(error, stage, extra = {}) {
+  if (!error) error = new Error("Unknown postal error");
+  error.stage = stage;
+  error.debug = { ...(error.debug || {}), ...extra };
+  return error;
+}
+
 function getConfig() {
   const baseUrl = String(process.env.BINECT_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, "");
   const username = process.env.BINECT_USERNAME || process.env.BINNECT_USERNAME || "";
@@ -84,6 +139,7 @@ function buildQS(paramsObj) {
 
 async function binectFetch(apiPath, { method = "GET", body } = {}) {
   const { baseUrl, username, password } = getConfig();
+  const url = `${baseUrl}${apiPath}`;
   const headers = {
     Authorization: authHeader(username, password),
     Accept: "application/json",
@@ -91,27 +147,40 @@ async function binectFetch(apiPath, { method = "GET", body } = {}) {
 
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
-  const res = await fetch(`${baseUrl}${apiPath}`, {
+  logPost(`Binect request -> ${method} ${apiPath}`, body);
+
+  const startedAt = Date.now();
+  const res = await fetch(url, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
+  const durationMs = Date.now() - startedAt;
   const contentType = res.headers.get("content-type") || "";
   const isJson = contentType.includes("application/json");
   const payload = isJson
     ? await res.json().catch(() => null)
     : await res.text().catch(() => "");
 
+  logPost(`Binect response <- ${method} ${apiPath}`, {
+    status: res.status,
+    ok: res.ok,
+    durationMs,
+    payload,
+  });
+
   if (!res.ok) {
     const message =
       typeof payload === "string"
         ? payload
-        : payload?.error?.text || payload?.text || payload?.message || `Binect error ${res.status}`;
+        : payload?.error?.text || payload?.error || payload?.text || payload?.message || `Binect error ${res.status}`;
 
     const err = new Error(message || `Binect error ${res.status}`);
     err.status = res.status;
     err.payload = payload;
+    err.apiPath = apiPath;
+    err.method = method;
     throw err;
   }
 
@@ -257,6 +326,8 @@ async function normalizeRequestedAttachments(rawAttachments) {
 
 router.post("/send", async (req, res) => {
   try {
+    logPost("incoming /api/post/send payload", req.body);
+
     const {
       recipient,
       auftragId,
@@ -271,18 +342,53 @@ router.post("/send", async (req, res) => {
       bitrixEntityType,
     } = req.body || {};
 
+    logPost("parsed request fields", {
+      auftragId,
+      subject,
+      letterBodyPreview: String(letterBody || "").slice(0, 160),
+      recipient,
+      meta,
+      dealId,
+      bitrixEntityType,
+      document: {
+        filename: document?.filename,
+        base64: document?.base64 || document?.content || "",
+      },
+      attachments,
+    });
+
     const mainFilename = String(document?.filename || "").trim() || "Angebot.pdf";
     const mainBase64 = String(document?.base64 || document?.content || "").trim();
 
     if (!mainBase64) {
+      logPost("validation failed: missing main document base64");
       return res.status(400).json({ error: "Main document base64 is required." });
     }
 
-    const receivingAddress = normalizeRecipientAddress(recipient || {});
+    let receivingAddress;
+    try {
+      receivingAddress = normalizeRecipientAddress(recipient || {});
+      logPost("normalized recipient address", receivingAddress);
+    } catch (err) {
+      throw withStage(err, "normalize_recipient", { recipient });
+    }
+
     const offerNumber =
       String(meta?.offerNumber || req.body?.offerNumber || "").trim() || mainFilename.replace(/\.pdf$/i, "");
+    logPost("resolved offer number", { offerNumber, mainFilename });
 
-    const requestedAttachments = await normalizeRequestedAttachments(attachments);
+    let requestedAttachments;
+    try {
+      requestedAttachments = await normalizeRequestedAttachments(attachments);
+      logPost("normalized requested attachments", requestedAttachments.map((item) => ({
+        type: item.type,
+        id: item.id,
+        filename: item.filename,
+        base64: item.base64,
+      })));
+    } catch (err) {
+      throw withStage(err, "normalize_attachments", { attachments });
+    }
 
     const uploadPayload = {
       content: {
@@ -299,65 +405,117 @@ router.post("/send", async (req, res) => {
         ...(offerNumber ? [{ key: "offerNumber", value: String(offerNumber) }] : []),
       ],
     };
+    logPost("document upload payload prepared", uploadPayload);
 
-    const uploadedDocument = await binectFetch("/documents", {
-      method: "POST",
-      body: uploadPayload,
-    });
+    let uploadedDocument;
+    try {
+      uploadedDocument = await binectFetch("/documents", {
+        method: "POST",
+        body: uploadPayload,
+      });
+      logPost("document upload result", uploadedDocument);
+    } catch (err) {
+      throw withStage(err, "upload_document", { mainFilename, offerNumber });
+    }
 
     const documentId = uploadedDocument?.id;
     if (!documentId) {
-      throw new Error("Binect did not return a document id.");
+      throw withStage(new Error("Binect did not return a document id."), "upload_document_result", {
+        uploadedDocument,
+      });
     }
 
     const uploadedStatusCode = Number(uploadedDocument?.status?.code || 0);
     if (uploadedStatusCode === 7) {
-      throw new Error(
-        uploadedDocument?.status?.text || "The uploaded PDF was rejected by Binect validation.",
+      throw withStage(
+        new Error(uploadedDocument?.status?.text || "The uploaded PDF was rejected by Binect validation."),
+        "document_validation",
+        { uploadedDocument },
       );
     }
 
     if (String(subject || "").trim() || String(letterBody || "").trim()) {
-      await binectFetch(`/documents/${documentId}/coverpage`, {
-        method: "PUT",
-        body: {
-          receivingAddress,
-          coverText: {
-            subject: String(subject || "").trim(),
-            text: String(letterBody || "").trim() || "Anbei erhalten Sie Ihr Angebot.",
-            date: new Date().toISOString().slice(0, 10),
-          },
+      const coverpagePayload = {
+        receivingAddress,
+        coverText: {
+          subject: String(subject || "").trim(),
+          text: String(letterBody || "").trim() || "Anbei erhalten Sie Ihr Angebot.",
+          date: new Date().toISOString().slice(0, 10),
         },
-      });
+      };
+
+      try {
+        logPost("coverpage payload", coverpagePayload);
+        const coverpageResult = await binectFetch(`/documents/${documentId}/coverpage`, {
+          method: "PUT",
+          body: coverpagePayload,
+        });
+        logPost("coverpage result", coverpageResult);
+      } catch (err) {
+        throw withStage(err, "coverpage", { documentId, subject, hasBody: !!String(letterBody || "").trim() });
+      }
+    } else {
+      logPost("coverpage skipped");
     }
 
     const uploadedAttachmentIds = [];
     for (const attachment of requestedAttachments) {
-      const createdAttachment = await binectFetch("/attachments", {
-        method: "POST",
-        body: {
-          content: {
-            filename: attachment.filename,
-            content: attachment.base64,
-          },
-          newSheet: true,
-          remarks: attachment.type === "upload" ? "Upload Post-Anhang" : "Automatischer Post-Anhang",
-        },
-      });
+      try {
+        logPost("creating attachment", {
+          type: attachment.type,
+          id: attachment.id,
+          filename: attachment.filename,
+          base64: attachment.base64,
+        });
 
-      if (createdAttachment?.id) uploadedAttachmentIds.push(createdAttachment.id);
+        const createdAttachment = await binectFetch("/attachments", {
+          method: "POST",
+          body: {
+            content: {
+              filename: attachment.filename,
+              content: attachment.base64,
+            },
+            newSheet: true,
+            remarks: attachment.type === "upload" ? "Upload Post-Anhang" : "Automatischer Post-Anhang",
+          },
+        });
+
+        logPost("attachment created", createdAttachment);
+
+        if (createdAttachment?.id) uploadedAttachmentIds.push(createdAttachment.id);
+      } catch (err) {
+        throw withStage(err, attachment.type === "upload" ? "upload_user_attachment" : "upload_static_attachment", {
+          filename: attachment.filename,
+          attachmentType: attachment.type,
+        });
+      }
     }
 
     if (uploadedAttachmentIds.length) {
-      await binectFetch(`/documents/${documentId}/attachments`, {
-        method: "PATCH",
-        body: uploadedAttachmentIds,
-      });
+      try {
+        logPost("linking attachments", { documentId, uploadedAttachmentIds });
+        const linkResult = await binectFetch(`/documents/${documentId}/attachments`, {
+          method: "PATCH",
+          body: uploadedAttachmentIds,
+        });
+        logPost("attachments linked", linkResult);
+      } catch (err) {
+        throw withStage(err, "link_attachments", { documentId, uploadedAttachmentIds });
+      }
+    } else {
+      logPost("no attachments to link");
     }
 
-    const sendingDocument = await binectFetch(`/sendings/${documentId}`, {
-      method: "POST",
-    });
+    let sendingDocument;
+    try {
+      logPost("sending document", { documentId });
+      sendingDocument = await binectFetch(`/sendings/${documentId}`, {
+        method: "POST",
+      });
+      logPost("sending result", sendingDocument);
+    } catch (err) {
+      throw withStage(err, "send_document", { documentId });
+    }
 
     const attachmentNames = [mainFilename, ...requestedAttachments.map((item) => item.filename)];
 
@@ -369,19 +527,32 @@ router.post("/send", async (req, res) => {
 
     let bitrixResult = null;
     try {
+      const comment = buildBitrixPostalComment({
+        recipient,
+        offerNumber,
+        documentId,
+        sendingStatus: sendingDocument?.status,
+        attachmentNames,
+      });
+
+      logPost("bitrix comment prepared", {
+        entityType: String(bitrixEntityType || meta?.bitrixEntityType || "deal").trim() || "deal",
+        entityId: timelineEntityId,
+        comment,
+      });
+
       bitrixResult = await notifyBitrixTimelineComment({
         entityType: String(bitrixEntityType || meta?.bitrixEntityType || "deal").trim() || "deal",
         entityId: timelineEntityId,
-        comment: buildBitrixPostalComment({
-          recipient,
-          offerNumber,
-          documentId,
-          sendingStatus: sendingDocument?.status,
-          attachmentNames,
-        }),
+        comment,
       });
+
+      logPost("bitrix result", bitrixResult);
     } catch (bitrixError) {
-      console.warn("[post] Bitrix timeline comment failed:", bitrixError?.message || bitrixError);
+      console.warn("[post] Bitrix timeline comment failed:", {
+        message: bitrixError?.message || null,
+        stack: bitrixError?.stack || null,
+      });
       bitrixResult = {
         ok: false,
         error: bitrixError?.message || "Bitrix timeline comment failed",
@@ -400,11 +571,23 @@ router.post("/send", async (req, res) => {
       document: sendingDocument,
     });
   } catch (error) {
-    console.error("[post] send failed:", error?.payload || error);
+    console.error("[post] send failed:", {
+      message: error?.message || null,
+      stage: error?.stage || null,
+      status: error?.status || null,
+      apiPath: error?.apiPath || null,
+      method: error?.method || null,
+      payload: error?.payload || null,
+      debug: error?.debug || null,
+      stack: error?.stack || null,
+    });
+
     return res.status(error?.status || 500).json({
       ok: false,
       error: error?.message || "Postversand fehlgeschlagen.",
       details: error?.payload || null,
+      stage: error?.stage || null,
+      debug: error?.debug || null,
     });
   }
 });
