@@ -17665,6 +17665,7 @@ function syncSummaryLeadIds(rawLeadId){
   const leadId = String(rawLeadId || "").trim();
   const auftragId = document.querySelector("#auftragId");
   const mailAuftragId = document.querySelector("#mailAuftragId");
+  const postAuftragId = document.querySelector("#postAuftragId");
   if(auftragId){
     auftragId.value = leadId;
     auftragId.dispatchEvent(new Event("input", { bubbles: true }));
@@ -17674,6 +17675,11 @@ function syncSummaryLeadIds(rawLeadId){
     mailAuftragId.value = leadId;
     mailAuftragId.dispatchEvent(new Event("input", { bubbles: true }));
     mailAuftragId.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  if(postAuftragId){
+    postAuftragId.value = leadId;
+    postAuftragId.dispatchEvent(new Event("input", { bubbles: true }));
+    postAuftragId.dispatchEvent(new Event("change", { bubbles: true }));
   }
 }
 
@@ -18722,3 +18728,379 @@ document
   window.addEventListener("hashchange", wire);
 })();
 // #endregion
+
+
+
+(function initPostalSending() {
+  function ready(fn) {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", fn, { once: true });
+    } else {
+      fn();
+    }
+  }
+
+  ready(() => {
+    const sendBtn = document.getElementById("sendOfferPost");
+    const statusBox = document.getElementById("postStatus");
+    const attachmentList = document.getElementById("postAttachmentList");
+    const uploadInput = document.getElementById("postAttachments");
+
+    if (!sendBtn || !statusBox || !attachmentList || !uploadInput) return;
+
+    const fields = {
+      auftragId: document.getElementById("postAuftragId"),
+      name: document.getElementById("postRecipientName"),
+      company: document.getElementById("postRecipientCompany"),
+      street: document.getElementById("postStreet"),
+      zipCode: document.getElementById("postZip"),
+      city: document.getElementById("postCity"),
+      country: document.getElementById("postCountry"),
+      subject: document.getElementById("postSubject"),
+      body: document.getElementById("postBody"),
+    };
+
+    const DEFAULT_POSTAL_ATTACHMENTS = [
+      { id: "abtretung", type: "static", filename: "Abtretungserklärung.pdf", label: "Default" },
+      { id: "barrierefrei", type: "static", filename: "emc2_Barrierefreies_Wohnen.pdf", label: "Default" },
+      { id: "vollmacht", type: "static", filename: "Vollmacht.pdf", label: "Default" },
+      // Future-ready: add more predefined postal attachments here if needed.
+    ];
+
+    let postalAttachments = DEFAULT_POSTAL_ATTACHMENTS.map((item) => ({ ...item }));
+
+    function escapeHtmlLocal(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function setStatus(msg, type = "info") {
+      statusBox.hidden = false;
+      statusBox.dataset.type = type;
+      statusBox.textContent = msg;
+    }
+
+    function clearInputError(el) {
+      if (!el) return;
+      el.classList.remove("input-error");
+    }
+
+    function markInputError(el) {
+      if (!el) return;
+      el.classList.add("input-error");
+    }
+
+    function fmtFileSize(bytes) {
+      const n = Number(bytes || 0);
+      if (!Number.isFinite(n) || n <= 0) return "Default";
+      if (n < 1024 * 1024) return `${Math.max(1, Math.round(n / 1024))} KB`;
+      return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+    }
+
+    function getActiveOfferForPostal() {
+      return (
+        (typeof getActiveOfferType === "function" ? getActiveOfferType() : "") ||
+        window.activeOffer ||
+        document.body?.dataset?.activeOffer ||
+        ""
+      );
+    }
+
+    function getResolvedOfferNumberForPostal() {
+      const offerInput = document.getElementById("offerNumber");
+      const activeOffer = getActiveOfferForPostal();
+
+      window.__bitrixSendState = window.__bitrixSendState || {
+        lastOfferType: null,
+        lastOfferNumber: null,
+        lastSentAt: 0,
+      };
+
+      let offerNumber = String(offerInput?.value || "").trim();
+
+      const looksReusedFromPreviousSend =
+        !!offerNumber &&
+        window.__bitrixSendState.lastOfferType === activeOffer &&
+        window.__bitrixSendState.lastOfferNumber === offerNumber;
+
+      if (!offerNumber || looksReusedFromPreviousSend) {
+        offerNumber =
+          typeof genOfferNumber === "function" ? genOfferNumber() : `ANG-${Date.now()}`;
+
+        if (offerInput) offerInput.value = offerNumber;
+
+        if (typeof updateSummaryWidgetName === "function") {
+          try {
+            updateSummaryWidgetName();
+          } catch {}
+        }
+      }
+
+      return offerNumber;
+    }
+
+    function getOfferPdfTileName() {
+      return `${getResolvedOfferNumberForPostal()}.pdf`;
+    }
+
+    function computeRecipientName() {
+      const company = String(document.getElementById("company")?.value || "").trim();
+      const firstName = String(document.getElementById("firstName")?.value || "").trim();
+      const lastName = String(document.getElementById("lastName")?.value || "").trim();
+      const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+      return fullName || company || "";
+    }
+
+    function fillPostalDefaults() {
+      if (!String(fields.name?.value || "").trim()) fields.name.value = computeRecipientName();
+      if (!String(fields.company?.value || "").trim()) fields.company.value = String(document.getElementById("company")?.value || "").trim();
+      if (!String(fields.street?.value || "").trim()) fields.street.value = String(document.getElementById("street")?.value || "").trim();
+      if (!String(fields.zipCode?.value || "").trim()) fields.zipCode.value = String(document.getElementById("postalCode")?.value || "").trim();
+      if (!String(fields.city?.value || "").trim()) fields.city.value = String(document.getElementById("city")?.value || "").trim();
+      if (!String(fields.country?.value || "").trim()) fields.country.value = String(document.getElementById("country")?.value || "DE").trim() || "DE";
+
+      const offerNumber = getResolvedOfferNumberForPostal();
+      if (!String(fields.subject?.value || "").trim()) {
+        fields.subject.value = offerNumber ? `Angebot ${offerNumber}` : "Ihr Angebot";
+      }
+      if (!String(fields.body?.value || "").trim()) {
+        fields.body.value = "Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie Ihr Angebot.\n\nMit freundlichen Grüßen\nEmC2";
+      }
+    }
+
+    function renderAttachmentList() {
+      const tiles = [
+        {
+          id: "offer-main",
+          type: "main",
+          filename: getOfferPdfTileName(),
+          label: "Offer PDF",
+          deletable: false,
+          size: 0,
+        },
+        ...postalAttachments.map((item) => ({
+          ...item,
+          deletable: true,
+        })),
+      ];
+
+      attachmentList.innerHTML = tiles
+        .map((item) => {
+          const removeBtn = item.deletable
+            ? `<div class="mail-attach-x" data-post-remove="${escapeHtmlLocal(item.id)}" aria-label="Anhang entfernen" role="button" tabindex="0">✕</div>`
+            : "";
+
+          return `
+            <div class="mail-attach-tile">
+              ${removeBtn}
+              <div class="mail-attach-name">${escapeHtmlLocal(item.filename || "Datei")}</div>
+              <div class="mail-attach-meta">${escapeHtmlLocal(item.label || "Anhang")} ${item.type === "upload" ? "· " + escapeHtmlLocal(fmtFileSize(item.size || 0)) : ""}</div>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    attachmentList.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-post-remove]");
+      if (!btn) return;
+      const id = String(btn.dataset.postRemove || "").trim();
+      if (!id) return;
+      postalAttachments = postalAttachments.filter((item) => item.id !== id);
+      renderAttachmentList();
+    });
+
+    attachmentList.addEventListener("keydown", (event) => {
+      const btn = event.target.closest("[data-post-remove]");
+      if (!btn) return;
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      const id = String(btn.dataset.postRemove || "").trim();
+      if (!id) return;
+      postalAttachments = postalAttachments.filter((item) => item.id !== id);
+      renderAttachmentList();
+    });
+
+    attachmentList.addEventListener("keydown", (event) => {
+      const btn = event.target.closest("[data-post-remove]");
+      if (!btn) return;
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      const id = String(btn.dataset.postRemove || "").trim();
+      if (!id) return;
+      postalAttachments = postalAttachments.filter((item) => item.id !== id);
+      renderAttachmentList();
+    });
+
+    uploadInput.addEventListener("change", () => {
+      const files = Array.from(uploadInput.files || []);
+      const newUploads = files
+        .filter((file) => {
+          const isPdf = /\.pdf$/i.test(file.name || "") || file.type === "application/pdf";
+          if (!isPdf) {
+            setStatus(`"${file.name}" wurde ignoriert – nur PDF-Anhänge sind erlaubt.`, "warn");
+          }
+          return isPdf;
+        })
+        .map((file) => ({
+          id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          type: "upload",
+          filename: file.name,
+          label: "Upload",
+          size: file.size,
+          file,
+        }));
+
+      postalAttachments = [...postalAttachments, ...newUploads];
+      uploadInput.value = "";
+      renderAttachmentList();
+    });
+
+    ["firstName", "lastName", "company", "street", "postalCode", "city", "country", "offerNumber"].forEach((id) => {
+      const src = document.getElementById(id);
+      if (!src) return;
+      src.addEventListener("change", () => {
+        fillPostalDefaults();
+        renderAttachmentList();
+      });
+      src.addEventListener("input", () => {
+        if (
+          document.activeElement !== fields.name &&
+          document.activeElement !== fields.street &&
+          document.activeElement !== fields.zipCode &&
+          document.activeElement !== fields.city
+        ) {
+          fillPostalDefaults();
+          renderAttachmentList();
+        }
+      });
+    });
+
+    async function blobToBase64Local(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error("Datei konnte nicht gelesen werden."));
+        reader.onload = () => {
+          const dataUrl = String(reader.result || "");
+          resolve(dataUrl.split(",")[1] || "");
+        };
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function fetchOfferPdfBlobLocal() {
+      if (typeof buildPayload !== "function") throw new Error("buildPayload ist nicht verfügbar.");
+      const payload = buildPayload();
+      const resp = await fetch("/docx-template/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!resp.ok) throw new Error(`PDF-Generierung fehlgeschlagen (${resp.status}).`);
+      return { blob: await resp.blob(), filename: getOfferPdfTileName() };
+    }
+
+    function validate() {
+      let firstInvalid = null;
+      [fields.name, fields.street, fields.zipCode, fields.city, fields.country].forEach((el) => {
+        clearInputError(el);
+        if (!String(el?.value || "").trim()) {
+          markInputError(el);
+          if (!firstInvalid) firstInvalid = el;
+        }
+      });
+
+      if (firstInvalid) {
+        firstInvalid.focus();
+        throw new Error("Bitte zuerst die vollständige Postadresse ausfüllen.");
+      }
+    }
+
+    sendBtn.addEventListener("click", async () => {
+      try {
+        fillPostalDefaults();
+        validate();
+
+        const offerNumber = getResolvedOfferNumberForPostal();
+
+        sendBtn.disabled = true;
+        setStatus("Erzeuge Angebots-PDF …", "info");
+        const { blob: pdfBlob, filename: pdfFilename } = await fetchOfferPdfBlobLocal();
+        const pdfBase64 = await blobToBase64Local(pdfBlob);
+
+        const attachmentPayload = [];
+        for (const item of postalAttachments) {
+          if (item.type === "static") {
+            attachmentPayload.push({
+              type: "static",
+              id: item.id,
+              filename: item.filename,
+            });
+          } else if (item.type === "upload" && item.file) {
+            attachmentPayload.push({
+              type: "upload",
+              filename: item.filename,
+              base64: await blobToBase64Local(item.file),
+            });
+          }
+        }
+
+        setStatus("Sende Brief an Binect …", "info");
+        const response = await fetch("/api/post/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            auftragId: String(fields.auftragId?.value || "").trim(),
+            recipient: {
+              name: String(fields.name?.value || "").trim(),
+              company: String(fields.company?.value || "").trim(),
+              street: String(fields.street?.value || "").trim(),
+              zipCode: String(fields.zipCode?.value || "").trim(),
+              city: String(fields.city?.value || "").trim(),
+              country: String(fields.country?.value || "DE").trim() || "DE",
+            },
+            subject: String(fields.subject?.value || "").trim(),
+            body: String(fields.body?.value || "").trim(),
+            document: {
+              filename: pdfFilename || getOfferPdfTileName(),
+              base64: pdfBase64,
+            },
+            attachments: attachmentPayload,
+            meta: {
+              offerNumber: offerNumber,
+              dealId: String(fields.auftragId?.value || "").trim(),
+            },
+          }),
+        });
+
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result?.ok === false) {
+          throw new Error(result?.error || `Postversand fehlgeschlagen (${response.status}).`);
+        }
+
+        setStatus(
+          `Postversand erfolgreich gestartet. Dokument-ID: ${result.documentId || "-"} · Anhänge: ${result.attachmentCount || 0}`,
+          "success",
+        );
+
+        window.__bitrixSendState = {
+          lastOfferType: getActiveOfferForPostal() || null,
+          lastOfferNumber: offerNumber,
+          lastSentAt: Date.now(),
+        };
+      } catch (error) {
+        console.error("[post] send error", error);
+        setStatus(error?.message || "Postversand fehlgeschlagen.", "error");
+      } finally {
+        sendBtn.disabled = false;
+      }
+    });
+
+    fillPostalDefaults();
+    renderAttachmentList();
+  });
+})();

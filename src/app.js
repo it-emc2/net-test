@@ -14,6 +14,7 @@ import magicRouter from "./routes/magic.js";
 import customersRouter from "./routes/customers.js";
 import bitrixRouter from "./routes/bitrix.js";
 import routingRouter from "./routes/routing.js";
+import postRouter from "./routes/post.js";
 //import pdfPreviewRouter from "./routes/pdf-preview.js";
 import pdfPreviewRouter from "./routes/pdf-preview.js";
 // PDF/DOCX routes
@@ -197,7 +198,7 @@ app.options(
 app.use(compression());
 app.use(morgan("dev"));
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "25mb" }));
 
 // ---------------- Mongo ----------------
 mongoose.set("strictQuery", true);
@@ -228,6 +229,7 @@ app.use("/api/adobe-pdf", adobePdfRouter);
 app.use("/arbeitsbericht", arbeitsberichtRouter);
 app.use("/kalkulation", kalkulationRouter);
 app.use("/api/email", emailRouter);
+app.use("/api/post", postRouter);
 app.use("/api/bathtubs", bathtubsRouter);
 app.use('/api', todaysCustomersRouter);
 

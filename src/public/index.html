@@ -4937,6 +4937,63 @@ button.dm-btn-danger:focus-visible {
 
     <div id="mailStatus" class="adobe-status" hidden></div>
   </div>
+
+<section class="mail-section post-section">
+  <h2 class="section-title">📮 Send offer by post</h2>
+
+  <div class="mail-card post-card">
+    <label for="postAuftragId">Lead ID / Auftrag ID</label>
+    <input id="postAuftragId" type="text" placeholder="z.B. 12345" />
+
+    <div class="post-grid">
+      <div>
+        <label for="postRecipientName">Recipient name</label>
+        <input id="postRecipientName" type="text" placeholder="Max Mustermann" />
+      </div>
+      <div>
+        <label for="postRecipientCompany">Company (optional)</label>
+        <input id="postRecipientCompany" type="text" placeholder="Muster GmbH" />
+      </div>
+      <div class="post-grid-span-2">
+        <label for="postStreet">Street</label>
+        <input id="postStreet" type="text" placeholder="Musterstraße 1" />
+      </div>
+      <div>
+        <label for="postZip">ZIP code</label>
+        <input id="postZip" type="text" placeholder="95032" />
+      </div>
+      <div>
+        <label for="postCity">City</label>
+        <input id="postCity" type="text" placeholder="Hof" />
+      </div>
+      <div>
+        <label for="postCountry">Country</label>
+        <input id="postCountry" type="text" placeholder="DE" value="DE" />
+      </div>
+    </div>
+
+    <label for="postSubject">Letter subject</label>
+    <input id="postSubject" type="text" placeholder="ANG-..." />
+
+    <label for="postBody">Letter body</label>
+    <textarea id="postBody" rows="8" placeholder="Hello ..."></textarea>
+
+    <label for="postAttachments">Additional attachments (optional, PDF)</label>
+    <input id="postAttachments" type="file" accept="application/pdf,.pdf" multiple />
+
+    <div class="mail-attach-box">
+      <div class="mail-attach-title">Included in postal send</div>
+      <div id="postAttachmentList" class="mail-attach-grid"></div>
+      <div class="mail-attach-hint">Offer PDF is the main postal document. Click “✕” to remove default or uploaded attachments before sending.</div>
+    </div>
+
+    <button type="button" id="sendOfferPost" class="btn-export btn-pdf">
+      <span class="btn-icon">📮</span>
+      Send by post
+    </button>
+
+    <div id="postStatus" class="adobe-status" hidden></div>
+  </div>
 </section>
 
           <!-- Developer Tools (Hidden by Default) -->
