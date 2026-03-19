@@ -10775,7 +10775,7 @@ function restoreOptionalPage(opt) {
       cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH"],
       cat_METER: ["opt_TECEADS"],
       cat_RAMPE: ["opt_RAMPE35"],
-      cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_DERWWCOSVP", "opt_0601010003"],
+      cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_0601010003"],
       cat_REHA : ["opt_24081000","opt_24081100","opt_24081500","opt_24081600","opt_24081005",
         "opt_24081105", "opt_24081505", "opt_24081605", "opt_25670000", "opt_24081800",
         "opt_24096000", "opt_24097000", "opt_24096240", "opt_19034422", "opt_35035200",
@@ -10817,7 +10817,7 @@ function restoreOptionalPage(opt) {
   document.getElementById("cat_WC")?.dispatchEvent(new Event("change", { bubbles: true }));
   document.querySelector('#form-optional input[name="wcMontage"]:checked')?.dispatchEvent(new Event("change", { bubbles: true }));
 
-  const wcProductIds = ["CVIS3WCT112", "SCHALL", "V1DON", "DERSIAS", "DERWWCOSVP", "0601010003"];
+  const wcProductIds = ["CVIS3WCT112", "SCHALL", "V1DON", "DERSIAS", "DERWWCOSVP", "DEDWWC", "0601010003"];
   requestAnimationFrame(() => {
     wcProductIds.forEach((pid) => {
       const cb = document.getElementById(`opt_${pid}`);
@@ -13738,31 +13738,43 @@ cat_SHOWER: "menu_SHOWER",
         productId: "CVIS3WCT112",
         image: "./assets/CVIS3WCT112.jpg",
         fallbackName: "VIS WC-Element E3 für Trockenbau",
+        category: "accessory",
       },
       {
         productId: "SCHALL",
         image: "./assets/SCHALL.jpg",
         fallbackName: "Montageset für Wand-WC / WD-Bidet",
+        category: "accessory",
       },
       {
         productId: "V1DON",
         image: "./assets/V1DON.jpg",
         fallbackName: "Betätigungsplatte V1 DON weiß",
+        category: "accessory",
       },
       {
         productId: "DERSIAS",
         image: "./assets/DERSIAS.jpg",
         fallbackName: "WC-Sitz derby rund",
+        category: "accessory",
       },
       {
         productId: "DERWWCOSVP",
         image: "./assets/DERWWCOSVP.jpg",
         fallbackName: "Wand-Tiefspül-WC derby rund",
+        category: "wc",
+      },
+      {
+        productId: "DEDWWC",
+        image: "./assets/DEDWWC.jpg",
+        fallbackName: "derby V3 AQUAWASH Dusch-Wand-WC",
+        category: "wc",
       },
       {
         productId: "0601010003",
         image: "./assets/Gipskarton.jpg",
         fallbackName: "Knauf Gipskarton-Bauplatte GKBI imprägniert",
+        category: "accessory",
       },
     ];
 
@@ -13793,30 +13805,59 @@ cat_SHOWER: "menu_SHOWER",
     async function ensureWallProductsRendered() {
       if (!wallProductsGrid || wallProductsGrid.childElementCount) return;
 
-      const frag = document.createDocumentFragment();
+      wallProductsGrid.style.display = "flex";
+      wallProductsGrid.style.flexDirection = "column";
+      wallProductsGrid.style.gap = "16px";
 
-      for (const item of WC_WALL_PRODUCTS) {
-        const optId = `opt_${item.productId}`;
-        const qtyId = `qty_${item.productId}`;
-        const wrapId = `${qtyId}_wrap`;
+      const accessories = WC_WALL_PRODUCTS.filter((item) => item.category !== "wc");
+      const wcs = WC_WALL_PRODUCTS.filter((item) => item.category === "wc");
 
-        const card = document.createElement("div");
-        card.className = "opt-item";
-        card.innerHTML = `
-          <label class="image-check">
-            <input type="checkbox" id="${optId}" name="optWcWall[]" value="${item.fallbackName}" data-product-id="${item.productId}" />
-            <span class="img-wrap"><img src="${item.image}" alt="${item.fallbackName}" /></span>
-            <span class="caption">${item.fallbackName}</span>
-          </label>
-          <div id="${wrapId}" class="field" hidden aria-hidden="true" style="max-width: 220px">
-            <label for="${qtyId}" class="req">Menge</label>
-            <input id="${qtyId}" name="${qtyId}" type="number" min="0" step="1" placeholder="0" value="0" />
-          </div>
-        `;
-        frag.appendChild(card);
-      }
+      const renderGroup = (title, items) => {
+        if (!items.length) return null;
 
-      wallProductsGrid.appendChild(frag);
+        const group = document.createElement("div");
+        group.className = "wc-generated-group";
+        group.style.width = "100%";
+
+        const header = document.createElement("div");
+        header.className = "subheader wc-products-subheader";
+        header.textContent = title;
+        group.appendChild(header);
+
+        const grid = document.createElement("div");
+        grid.className = "opt-grid";
+        grid.style.width = "100%";
+
+        for (const item of items) {
+          const optId = `opt_${item.productId}`;
+          const qtyId = `qty_${item.productId}`;
+          const wrapId = `${qtyId}_wrap`;
+
+          const card = document.createElement("div");
+          card.className = "opt-item";
+          card.innerHTML = `
+            <label class="image-check">
+              <input type="checkbox" id="${optId}" name="optWcWall[]" value="${item.fallbackName}" data-product-id="${item.productId}" />
+              <span class="img-wrap"><img src="${item.image}" alt="${item.fallbackName}" /></span>
+              <span class="caption">${item.fallbackName}</span>
+            </label>
+            <div id="${wrapId}" class="field" hidden aria-hidden="true" style="max-width: 220px">
+              <label for="${qtyId}" class="req">Menge</label>
+              <input id="${qtyId}" name="${qtyId}" type="number" min="0" step="1" placeholder="0" value="0" />
+            </div>
+          `;
+          grid.appendChild(card);
+        }
+
+        group.appendChild(grid);
+        return group;
+      };
+
+      const accessoriesGroup = renderGroup("Produkte für Wandmontage", accessories);
+      const wcGroup = renderGroup("WCs für Wandmontage", wcs);
+
+      if (accessoriesGroup) wallProductsGrid.appendChild(accessoriesGroup);
+      if (wcGroup) wallProductsGrid.appendChild(wcGroup);
 
       await Promise.all(
         WC_WALL_PRODUCTS.map(async (item) => {
@@ -13824,6 +13865,7 @@ cat_SHOWER: "menu_SHOWER",
           const wrap = document.getElementById(`qty_${item.productId}_wrap`);
           if (!cb || !wrap) return;
 
+          cb.checked = item.category !== "wc";
           cb.addEventListener("change", () => applyGeneratedTileQty(cb, wrap));
           applyGeneratedTileQty(cb, wrap);
 
@@ -13870,7 +13912,13 @@ cat_SHOWER: "menu_SHOWER",
         const cb = document.getElementById(`opt_${item.productId}`);
         const wrap = document.getElementById(`qty_${item.productId}_wrap`);
         if (!cb || !wrap) return;
-        cb.checked = !!on;
+
+        if (on) {
+          cb.checked = item.category !== "wc";
+        } else {
+          cb.checked = false;
+        }
+
         applyGeneratedTileQty(cb, wrap);
       });
     }
@@ -13984,7 +14032,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
     cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH"],
     cat_METER: ["opt_TECEADS"],
     cat_RAMPE: ["opt_RAMPE35"],
-    cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_DERWWCOSVP", "opt_0601010003"],
+    cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_0601010003"],
     cat_REHA: [
       "opt_24081000", "opt_24081100", "opt_24081500", "opt_24081600",
       "opt_24081005", "opt_24081105", "opt_24081505", "opt_24081605",
