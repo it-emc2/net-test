@@ -21,7 +21,7 @@ if (!ORS_API_KEY) {
  */
 function buildAddressVariants({ street, postalCode, city, state, country }) {
   const variants = [];
-  
+
   // Clean up inputs
   const cleanStreet = (street || "").trim();
   const cleanPostal = (postalCode || "").trim();
@@ -49,11 +49,7 @@ function buildAddressVariants({ street, postalCode, city, state, country }) {
 
   // Variant 3: Street + postal code + country (no city name)
   if (cleanStreet && cleanPostal) {
-    variants.push(
-      [cleanStreet, cleanPostal, cleanCountry]
-        .filter(Boolean)
-        .join(", ")
-    );
+    variants.push([cleanStreet, cleanPostal, cleanCountry].filter(Boolean).join(", "));
   }
 
   // Variant 4: Just street and city
@@ -88,6 +84,33 @@ function buildCustomerAddress({ street, postalCode, city, state, country }) {
   return parts.join(", ");
 }
 
+function normalizeGeoText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ß/g, "ss")
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function geocodeResultMatchesInput(result, addressParts = {}) {
+  const hay = normalizeGeoText(result?.displayName || "");
+  const wantPostal = String(addressParts.postalCode || "").trim();
+  const wantCity = normalizeGeoText(addressParts.city || "");
+
+  if (wantPostal && !hay.includes(wantPostal)) {
+    return false;
+  }
+
+  if (wantCity && !hay.includes(wantCity)) {
+    return false;
+  }
+
+  return true;
+}
+
 // ============================================================
 // GEOCODING PROVIDERS (with fallbacks)
 // ============================================================
@@ -118,7 +141,7 @@ async function geocodeWithNominatim(address) {
     lat: parseFloat(data[0].lat),
     lng: parseFloat(data[0].lon),
     displayName: data[0].display_name,
-    provider: 'nominatim',
+    provider: "nominatim",
   };
 }
 
@@ -127,13 +150,13 @@ async function geocodeWithNominatim(address) {
  * No strict rate limit
  */
 async function geocodeWithPhoton(address) {
-  const url = new URL('https://photon.komoot.io/api/');
-  url.searchParams.set('q', address);
-  url.searchParams.set('limit', '1');
-  url.searchParams.set('lang', 'de');
+  const url = new URL("https://photon.komoot.io/api/");
+  url.searchParams.set("q", address);
+  url.searchParams.set("limit", "1");
+  url.searchParams.set("lang", "de");
 
   const res = await fetch(url.toString(), {
-    headers: { 'Accept': 'application/json' },
+    headers: { Accept: "application/json" },
   });
 
   if (!res.ok) {
@@ -144,20 +167,27 @@ async function geocodeWithPhoton(address) {
   const feature = data?.features?.[0];
 
   if (!feature?.geometry?.coordinates) {
-    throw new Error('Photon: Address not found');
+    throw new Error("Photon: Address not found");
   }
 
   const [lng, lat] = feature.geometry.coordinates;
   const props = feature.properties || {};
-  const displayName = [props.name, props.street, props.housenumber, props.postcode, props.city, props.country]
+  const displayName = [
+    props.name,
+    props.street,
+    props.housenumber,
+    props.postcode,
+    props.city,
+    props.country,
+  ]
     .filter(Boolean)
-    .join(', ');
+    .join(", ");
 
   return {
     lat,
     lng,
     displayName: displayName || address,
-    provider: 'photon',
+    provider: "photon",
   };
 }
 
@@ -166,21 +196,21 @@ async function geocodeWithPhoton(address) {
  */
 async function geocodeWithORS(address) {
   if (!ORS_API_KEY) {
-    throw new Error('ORS API key not configured');
+    throw new Error("ORS API key not configured");
   }
 
-  const url = new URL('https://api.openrouteservice.org/geocode/search');
-  url.searchParams.set('api_key', ORS_API_KEY);
-  url.searchParams.set('text', address);
-  url.searchParams.set('boundary.country', 'DE');
-  url.searchParams.set('size', '1');
+  const url = new URL("https://api.openrouteservice.org/geocode/search");
+  url.searchParams.set("api_key", ORS_API_KEY);
+  url.searchParams.set("text", address);
+  url.searchParams.set("boundary.country", "DE");
+  url.searchParams.set("size", "1");
 
   const res = await fetch(url.toString(), {
-    headers: { 'Accept': 'application/json' },
+    headers: { Accept: "application/json" },
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
+    const text = await res.text().catch(() => "");
     throw new Error(`ORS geocode error: HTTP ${res.status} - ${text.slice(0, 100)}`);
   }
 
@@ -188,7 +218,7 @@ async function geocodeWithORS(address) {
   const feature = data?.features?.[0];
 
   if (!feature?.geometry?.coordinates) {
-    throw new Error('ORS: Address not found');
+    throw new Error("ORS: Address not found");
   }
 
   const [lng, lat] = feature.geometry.coordinates;
@@ -197,7 +227,7 @@ async function geocodeWithORS(address) {
     lat,
     lng,
     displayName: feature.properties?.label || address,
-    provider: 'ors',
+    provider: "ors",
   };
 }
 
@@ -228,14 +258,14 @@ async function geocodeSingleAddress(address) {
   // 3. Try Nominatim as last resort (strict rate limit)
   try {
     // Small delay to respect rate limit
-    await new Promise(resolve => setTimeout(resolve, 1100));
+    await new Promise((resolve) => setTimeout(resolve, 1100));
     const result = await geocodeWithNominatim(address);
     return result;
   } catch (err) {
     errors.push(`Nominatim: ${err.message}`);
   }
 
-  throw new Error(`All geocoders failed for "${address}": ${errors.join('; ')}`);
+  throw new Error(`All geocoders failed for "${address}": ${errors.join("; ")}`);
 }
 
 /**
@@ -244,21 +274,30 @@ async function geocodeSingleAddress(address) {
  */
 async function geocodeWithVariants(addressParts) {
   const variants = buildAddressVariants(addressParts);
-  
+
   if (variants.length === 0) {
-    throw new Error('Could not build any valid address from the provided fields');
+    throw new Error("Could not build any valid address from the provided fields");
   }
 
   console.log(`[routing] Will try ${variants.length} address variant(s)`);
-  
+
   const allErrors = [];
 
   for (let i = 0; i < variants.length; i++) {
     const variant = variants[i];
     console.log(`[routing] Trying variant ${i + 1}/${variants.length}: "${variant}"`);
-    
+
     try {
       const result = await geocodeSingleAddress(variant);
+
+      if (!geocodeResultMatchesInput(result, addressParts)) {
+        const mismatchMsg =
+          `Geocode mismatch for "${variant}" -> "${result?.displayName || "unknown result"}"`;
+        console.warn(`[routing] ${mismatchMsg}`);
+        allErrors.push(mismatchMsg);
+        continue;
+      }
+
       console.log(`[routing] Success with variant: "${variant}"`);
       return {
         ...result,
@@ -271,7 +310,7 @@ async function geocodeWithVariants(addressParts) {
     }
   }
 
-  throw new Error(`All address variants failed: ${allErrors.join('; ')}`);
+  throw new Error(`All address variants failed: ${allErrors.join("; ")}`);
 }
 
 /**
@@ -288,12 +327,12 @@ async function geocode(address) {
 async function getCompanyCoords() {
   // Use pre-configured coordinates if available
   if (COMPANY_LAT && COMPANY_LNG) {
-    console.log('[routing] Using pre-configured company coordinates');
+    console.log("[routing] Using pre-configured company coordinates");
     return {
       lat: COMPANY_LAT,
       lng: COMPANY_LNG,
       displayName: COMPANY_ADDRESS,
-      provider: 'env',
+      provider: "env",
     };
   }
 
@@ -333,7 +372,7 @@ async function osrmDistanceAndDuration(a, b) {
     throw new Error("OSRM returned invalid duration data");
   }
 
-  return { km: meters / 1000, seconds, provider: 'osrm' };
+  return { km: meters / 1000, seconds, provider: "osrm" };
 }
 
 async function orsDistanceAndDuration(a, b) {
@@ -351,7 +390,7 @@ async function orsDistanceAndDuration(a, b) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": ORS_API_KEY,
+      Authorization: ORS_API_KEY,
     },
     body,
   });
@@ -374,7 +413,7 @@ async function orsDistanceAndDuration(a, b) {
     throw new Error("ORS returned invalid duration data");
   }
 
-  return { km: meters / 1000, seconds, provider: 'ors' };
+  return { km: meters / 1000, seconds, provider: "ors" };
 }
 
 async function getRoadDistanceAndDuration(a, b) {
@@ -404,7 +443,7 @@ async function getRoadDistanceAndDuration(a, b) {
     console.warn("[routing] OSRM failed:", err.message);
   }
 
-  throw new Error(`All routers failed: ${errors.join('; ')}`);
+  throw new Error(`All routers failed: ${errors.join("; ")}`);
 }
 
 // ============================================================
@@ -425,9 +464,7 @@ router.post("/suggest-distance", async (req, res) => {
     const country = k.country || k.Land || "Deutschland";
 
     if (!street && !city && !postalCode) {
-      return res
-        .status(400)
-        .json({ error: "Missing address fields in Kundendaten." });
+      return res.status(400).json({ error: "Missing address fields in Kundendaten." });
     }
 
     // Build the canonical display address (with state)
@@ -440,15 +477,11 @@ router.post("/suggest-distance", async (req, res) => {
     });
 
     if (!customerAddress.trim()) {
-      return res
-        .status(400)
-        .json({ error: "Customer address could not be built." });
+      return res.status(400).json({ error: "Customer address could not be built." });
     }
 
     if (!COMPANY_ADDRESS) {
-      return res
-        .status(500)
-        .json({ error: "COMPANY_ADDRESS missing on server." });
+      return res.status(500).json({ error: "COMPANY_ADDRESS missing on server." });
     }
 
     // 1) Get coordinates for company
@@ -487,7 +520,7 @@ router.post("/suggest-distance", async (req, res) => {
       to: {
         address: customerAddress,
         geocoded: dest.displayName,
-        usedVariant: dest.usedAddress, // Which address variant worked
+        usedVariant: dest.usedAddress,
         lat: dest.lat,
         lng: dest.lng,
       },

@@ -1106,6 +1106,7 @@ async function refetchAndRender() {
     body: JSON.stringify(payload),
   });
   const data = await res.json();
+  console.log("[routing debug] backend response:", data);
   // Re-render Kosten-Details
   if (typeof renderFromData === "function") renderFromData(data);
   // If you have a dedicated Rabatt renderer, call it here too:
