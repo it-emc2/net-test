@@ -11352,8 +11352,15 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     "#cat_BASIN_TAP",
     "#cat_METER",
     "#cat_RAMPE",
+    "#cat_WC",
     "#cat_SONDER",
   ].forEach((id) => dispatchChange(document.querySelector(id)));
+
+  dispatchChange(document.querySelector('#form-optional input[name="wcMontage"]:checked'));
+  dispatchChange(document.querySelector('#form-optional input[name="wcSeatHeight"]:checked'));
+  if (typeof window.syncOptionalWcMenu === "function") {
+    window.syncOptionalWcMenu();
+  }
 
   // Optional child tiles
   document
@@ -13772,6 +13779,13 @@ cat_SHOWER: "menu_SHOWER",
         category: "wc",
       },
       {
+        productId: "CLPWWCOS5",
+        image: "./assets/CLPWWCOS5.jpg",
+        fallbackName: "WC-Erhöhung CLPWWCOS5",
+        category: "wc",
+        requiredSeatHeight: "erhoeht",
+      },
+      {
         productId: "0601010003",
         image: "./assets/Gipskarton.jpg",
         fallbackName: "Knauf Gipskarton-Bauplatte GKBI imprägniert",
@@ -13867,7 +13881,20 @@ cat_SHOWER: "menu_SHOWER",
           if (!cb || !wrap) return;
 
           cb.checked = item.category !== "wc";
-          cb.addEventListener("change", () => applyGeneratedTileQty(cb, wrap));
+          cb.addEventListener("change", () => {
+            if (item.category === "wc" && cb.checked) {
+              WC_WALL_PRODUCTS
+                .filter((p) => p.category === "wc" && p.productId !== item.productId)
+                .forEach((other) => {
+                  const otherCb = document.getElementById(`opt_${other.productId}`);
+                  const otherWrap = document.getElementById(`qty_${other.productId}_wrap`);
+                  if (otherCb) otherCb.checked = false;
+                  applyGeneratedTileQty(otherCb, otherWrap);
+                });
+            }
+            applyGeneratedTileQty(cb, wrap);
+            syncExclusiveWcSelection();
+          });
           applyGeneratedTileQty(cb, wrap);
 
           try {
@@ -13908,6 +13935,82 @@ cat_SHOWER: "menu_SHOWER",
       );
     }
 
+    function getSelectedWcSeatHeight() {
+      return document.querySelector('#form-optional input[name="wcSeatHeight"]:checked')?.value || "";
+    }
+
+    function syncSeatHeightDependentProducts() {
+      const selectedSeatHeight = getSelectedWcSeatHeight();
+
+      WC_WALL_PRODUCTS.forEach((item) => {
+        const card = document.getElementById(`opt_${item.productId}`)?.closest(".opt-item");
+        const cb = document.getElementById(`opt_${item.productId}`);
+        const wrap = document.getElementById(`qty_${item.productId}_wrap`);
+        if (!cb || !wrap) return;
+
+        const shouldShow = !item.requiredSeatHeight || item.requiredSeatHeight === selectedSeatHeight;
+
+        if (card) {
+          card.hidden = !shouldShow;
+          card.setAttribute("aria-hidden", String(!shouldShow));
+          card.style.display = shouldShow ? "" : "none";
+        }
+
+        if (!shouldShow) {
+          cb.checked = false;
+          applyGeneratedTileQty(cb, wrap);
+        }
+      });
+    }
+    function syncExclusiveWcSelection() {
+      const wcIds = WC_WALL_PRODUCTS
+        .filter((item) => item.category === "wc")
+        .map((item) => `opt_${item.productId}`);
+
+      const wcBoxes = wcIds
+        .map((id) => document.getElementById(id))
+        .filter(Boolean);
+
+      if (!wcBoxes.length) return;
+
+      const checked = wcBoxes.find((cb) => cb.checked) || null;
+
+      wcBoxes.forEach((cb) => {
+        const productId = cb.id.replace(/^opt_/, "");
+        const wrap = document.getElementById(`qty_${productId}_wrap`);
+        const label = cb.closest("label.image-check");
+
+        if (checked && cb !== checked) {
+          cb.disabled = true;
+          if (label) {
+            label.style.opacity = "0.45";
+            label.style.pointerEvents = "none";
+            label.style.filter = "grayscale(0.35)";
+            label.setAttribute("aria-disabled", "true");
+          }
+          if (wrap) {
+            wrap.hidden = true;
+            wrap.setAttribute("aria-hidden", "true");
+          }
+        } else {
+          cb.disabled = false;
+          if (label) {
+            label.style.opacity = "";
+            label.style.pointerEvents = "";
+            label.style.filter = "";
+            label.setAttribute("aria-disabled", "false");
+          }
+        }
+
+        if (!cb.checked) {
+          const qty = wrap?.querySelector('input[type="number"]');
+          if (qty) qty.value = "0";
+        }
+
+        applyGeneratedTileQty(cb, wrap);
+      });
+    }
+
     function setWallProductsChecked(on) {
       WC_WALL_PRODUCTS.forEach((item) => {
         const cb = document.getElementById(`opt_${item.productId}`);
@@ -13922,6 +14025,9 @@ cat_SHOWER: "menu_SHOWER",
 
         applyGeneratedTileQty(cb, wrap);
       });
+
+      syncSeatHeightDependentProducts();
+      syncExclusiveWcSelection();
     }
 
     function setWcGroupVisibility(el, show) {
@@ -13948,7 +14054,8 @@ cat_SHOWER: "menu_SHOWER",
 
       ensureWallProductsRendered().then(() => {
         setWcGroupVisibility(wallProductsWrap, true);
-        setWallProductsChecked(true);
+        syncSeatHeightDependentProducts();
+        syncExclusiveWcSelection();
       });
     }
 
@@ -13968,10 +14075,14 @@ cat_SHOWER: "menu_SHOWER",
       }
 
       applySeatVisibility();
+      syncExclusiveWcSelection();
     }
 
     catWc.addEventListener("change", applyMenuState);
     montageInputs.forEach((input) => input.addEventListener("change", applySeatVisibility));
+    seatInputs.forEach((input) => input.addEventListener("change", applySeatVisibility));
+
+    window.syncOptionalWcMenu = applyMenuState;
 
     applyMenuState();
   })();
