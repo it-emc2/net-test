@@ -471,12 +471,21 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
 
     const color997 = String(cfg997.color || wvColor).trim();
     const color1497 = String(cfg1497.color || wvColor).trim();
+    const sonderConfigNr = String(wv?.wvSonderConfigNr || "").trim();
+    const formatWvColor = (rawColor) => {
+      const raw = String(rawColor || "").trim();
+      if (!raw) return "";
+      if (/^Sonder\s*Dekor$/i.test(raw) || /^Sonderdekor$/i.test(raw)) {
+        return sonderConfigNr ? `Sonderdekor ${sonderConfigNr}` : "Sonderdekor";
+      }
+      return raw;
+    };
 
   if (qty997 > 0) {
   const raw = String(color997 || "").trim();
   const hasPid = raw.includes("|");
   const pid = hasPid ? raw.split("|", 1)[0].trim() : "";
-  const display = hasPid ? raw.split("|").slice(1).join("|").trim() : raw;
+  const display = formatWvColor(hasPid ? raw.split("|").slice(1).join("|").trim() : raw);
 
   const base = `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`;
   const label = display ? `${base} — Farbe: ${display}` : base;
@@ -487,7 +496,7 @@ if (qty1497 > 0) {
   const raw = String(color1497 || "").trim();
   const hasPid = raw.includes("|");
   const pid = hasPid ? raw.split("|", 1)[0].trim() : "";
-  const display = hasPid ? raw.split("|").slice(1).join("|").trim() : raw;
+  const display = formatWvColor(hasPid ? raw.split("|").slice(1).join("|").trim() : raw);
 
   const base = `- ${qty1497} Stk Wandverkleidung 3.0 Alu 1497×2550 mm`;
   const label = display ? `${base} — Farbe: ${display}` : base;

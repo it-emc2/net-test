@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 // src/events/EventBus.js
 export const Events = {
   // Wizard flow

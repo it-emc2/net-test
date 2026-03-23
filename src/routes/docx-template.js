@@ -23,7 +23,7 @@ import pricingFactory from "../logic/pricing.js";
 
 const INTERNAL_SIGNATURES = {
   "t.raithel": "Unterschrift1.png",
-  "m.mustermann": "Unterschrift2.png",
+  "s.wolfrum": "Unterschrift2.png",
   "a.beispiel": "Unterschrift3.png",
 };
 

@@ -1062,8 +1062,13 @@ function restorePflegegradAndWohnumfeld(b) {
 
   // Wohnumfeld object is the source of truth
   const we = b.wohnumfeld || {};
-  const done = !!we.done || b.wohnumfeldDone === "Ja";
-  setRadio("wohnumfeldDone", done ? "Ja" : "Nein");
+  const status = String(we.status || b.wohnumfeldDone || "").trim();
+  if (status === "Ja" || status === "Nein" || status === "Unbekannt") {
+    setRadio("wohnumfeldDone", status);
+  } else {
+    const done = !!we.done || b.wohnumfeldDone === "Ja";
+    setRadio("wohnumfeldDone", done ? "Ja" : "Nein");
+  }
 
   if (we.application) {
     // e.g. 'Kunde', 'Sanitaer', 'Angehörige' – whatever your values are
@@ -1723,7 +1728,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function getTravelSecondWorkerRateValue() {
   const el = document.getElementById("travelSecondWorkerRate");
-  const raw = Number(el?.value || 25);
+  const raw = Number(el?.value || 35);
   return raw === 35 ? 35 : 25;
 }
 
@@ -2705,6 +2710,12 @@ function collectBwtMaterials(doc) {
 // Collects all rows from the 5 quick-add fieldsets and writes payload.duschabtrennung.quickAdd
 function collectDuschabtrennungQuickAdd(doc) {
   const root = document.querySelector("section.da-quickadd");
+  const installationSituation =
+    document.querySelector('input[name="daInstallationSituation"]:checked')?.value || "";
+
+  doc.duschabtrennung = doc.duschabtrennung || {};
+  doc.duschabtrennung.installationSituation = installationSituation;
+
   if (!root) return;
 
   // Canonical label per kind (used for every row — no DOM-derived labels)
@@ -2758,8 +2769,6 @@ function collectDuschabtrennungQuickAdd(doc) {
       }
     });
   });
-
-  doc.duschabtrennung = doc.duschabtrennung || {};
   doc.duschabtrennung.quickAdd = qa;
 }
 
@@ -3369,6 +3378,8 @@ function buildPayload() {
       const qty1497 = Number(document.getElementById("wvQty1497")?.value || 0) || 0;
 
       const wv = (payload.wandverkleidung ||= {});
+      wv.wvColor = globalColor;
+      wv.wvSonderConfigNr = (fdWV.get("wvSonderConfigNr") || "").toString().trim();
 
       // Explicit selection flags (so drafts restore even if default checked changes)
       wv.wvSealingSelected = !!document.getElementById("wvSealingSelected")?.checked;
@@ -5247,6 +5258,21 @@ function setupWandverkleidungPage() {
   if (!page || page.dataset._wired === "true") return;
   page.dataset._wired = "true";
 
+  const sonderDetails = document.getElementById("wvSonderDecorDetails");
+  const sonderInput = document.getElementById("wvSonderConfigNr");
+  const syncSonderDecorUi = () => {
+    const selected = page.querySelector('input[type="radio"][name="wvColor"]:checked');
+    const show = selected?.value === "Sonderdekor" || selected?.value === "Sonder Dekor";
+    if (sonderDetails) {
+      sonderDetails.hidden = !show;
+      sonderDetails.setAttribute("aria-hidden", show ? "false" : "true");
+    }
+    if (sonderInput) {
+      sonderInput.required = !!show;
+    }
+  };
+  page.__syncWvSonderDecorUi = syncSonderDecorUi;
+
   // ---- keep legacy default behavior (only if nothing restored) ----
   const defaultColor = page.querySelector(
     'input[type="radio"][name="wvColor"][value="Marmor weiß"]',
@@ -5257,6 +5283,11 @@ function setupWandverkleidungPage() {
   if (defaultColor && !anyColorChecked && !page.dataset.wvColorRestored) {
     defaultColor.checked = true;
   }
+
+  page
+    .querySelectorAll('input[type="radio"][name="wvColor"]')
+    .forEach((radio) => radio.addEventListener("change", syncSonderDecorUi));
+  syncSonderDecorUi();
 
   // ---- NEW: "Zusätzliche Farben" UI (additive, backward compatible) ----
   function ensureExtrasUI(fromSelectId, listId, btnId, titleText) {
@@ -5453,6 +5484,7 @@ window.addEventListener("hashchange", () => {
 document.addEventListener("DOMContentLoaded", () => {
   if (location.hash === "#Wandverkleidung") setupWandverkleidungPage();
 });
+document.addEventListener("DOMContentLoaded", initEmc2ContactPrefill);
 
 // === Duschabtrennung QuickAdd Repeater (multi-row per kind) ===
 (function initDARepeater() {
@@ -6214,10 +6246,9 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
       setReq(weAmount, false);
       if (weAmount) weAmount.value = "";
     } else {
-      const doneYes = form?.querySelector(
-        'input[name="wohnumfeldDone"][value="Ja"]:checked',
-      );
-      const showAmt = !!doneYes;
+      const doneValue =
+        form?.querySelector('input[name="wohnumfeldDone"]:checked')?.value || "";
+      const showAmt = doneValue === "Ja";
       show(weAmountRow, showAmt);
       setReq(weAmount, showAmt);
       if (!showAmt && weAmount) weAmount.value = "";
@@ -6750,7 +6781,7 @@ const elMax = document.querySelector('input[name="budgetMax"]');
 const elTwo = document.querySelector('input[name="twoPersons"]');
 const elPremium = document.querySelector('input[name="premium"]');
 const copayEl = document.getElementById("copayAmount");
-const wohDoneYes = document.querySelector('input[name="wohnumfeldDone"][value="Ja"]');
+const wohDoneChecked = document.querySelector('input[name="wohnumfeldDone"]:checked');
 const wohAmountEl = document.getElementById("wohnumfeldAmount");
 
 let selectedMain = "";
@@ -6763,7 +6794,7 @@ data.budgetOptionsPanel = selectedMain
   : "";
 
 data.copayAmount = copayEl?.value || "";
-data.wohnumfeldDone = wohDoneYes?.checked ? "Ja" : "Nein";
+data.wohnumfeldDone = wohDoneChecked?.value || "";
 data.wohnumfeldAmount = wohAmountEl?.value || "";
 
     try {
@@ -9262,8 +9293,10 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     payload.Kundendaten.copayAmount = Number(copayAmount.value || 0) || 0;
 
     // wohnumfeld
+    const weStatus = weDoneCB?.value || "";
     payload.Kundendaten.wohnumfeld = {
-      done: !!weDoneCB.checked,
+      status: weStatus,
+      done: weStatus === "Ja",
       amount: Number(weAmount.value || 0) || 0,
     };
 
@@ -9428,12 +9461,23 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     const weN = document.querySelector(
       'input[name="wohnumfeldDone"][value="Nein"]',
     );
-    if (payload.Kundendaten?.wohnumfeld?.done) {
+    const weStatus = String(
+      payload.Kundendaten?.wohnumfeld?.status ||
+        (payload.Kundendaten?.wohnumfeld?.done ? "Ja" : "Nein"),
+    );
+    const weU = document.querySelector(
+      'input[name="wohnumfeldDone"][value="Unbekannt"]',
+    );
+    if (weStatus === "Ja") {
       weY &&
         ((weY.checked = true),
         weY.dispatchEvent(new Event("change", { bubbles: true })));
       const amt = document.getElementById("wohnumfeldAmount");
       if (amt) amt.value = String(payload.Kundendaten?.wohnumfeld?.amount || 0);
+    } else if (weStatus === "Unbekannt") {
+      weU &&
+        ((weU.checked = true),
+        weU.dispatchEvent(new Event("change", { bubbles: true })));
     } else {
       weN &&
         ((weN.checked = true),
@@ -10039,9 +10083,11 @@ function restoreWV(wv) {
 
   if (document.getElementById("wvColor_997")) setSelect("wvColor_997", sel997);
   if (document.getElementById("wvColor_1497")) setSelect("wvColor_1497", sel1497);
+  setInputByNameOrId("wvSonderConfigNr", wv.wvSonderConfigNr || "");
 
   const pageWV = document.getElementById("page-Wandverkleidung");
   if (pageWV && wv.wvColor) pageWV.dataset.wvColorRestored = "1";
+  if (pageWV?.__syncWvSonderDecorUi) pageWV.__syncWvSonderDecorUi();
 
 
   // Quantities (keep zeros)
@@ -10839,6 +10885,10 @@ function restoreOptionalPage(opt) {
 // wrap it into a function so we can call it from the router)
 function restoreDuschabtrennung(da) {
   if (!da) return;
+
+  if (da.installationSituation) {
+    setRadio("daInstallationSituation", da.installationSituation);
+  }
 
   // ✅ Restore notes (even if there are no quickAdd rows)
   const noteEl = document.getElementById("daNote");
@@ -14477,6 +14527,33 @@ function initLivePricingSync() {
 
   // Initial run
   repriceNow();
+}
+
+function initEmc2ContactPrefill() {
+  const selectEl = document.getElementById("emc2_contact_select");
+  const inputEl = document.getElementById("emc2_contact");
+  if (!selectEl || !inputEl || selectEl.dataset.wired === "true") return;
+  selectEl.dataset.wired = "true";
+
+  const syncSelectFromInput = () => {
+    const value = String(inputEl.value || "").trim();
+    const match = Array.from(selectEl.options).find((opt) => opt.value === value);
+    selectEl.value = match ? match.value : "";
+  };
+
+  selectEl.addEventListener("change", () => {
+    const selected = String(selectEl.value || "").trim();
+    if (!selected) return;
+    inputEl.value = selected;
+    inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+    inputEl.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+
+  if (!String(inputEl.value || "").trim() && String(selectEl.value || "").trim()) {
+    inputEl.value = String(selectEl.value || "").trim();
+  }
+  inputEl.addEventListener("input", syncSelectFromInput);
+  syncSelectFromInput();
 }
 
 
@@ -18874,7 +18951,6 @@ document
 
     const DEFAULT_POSTAL_ATTACHMENTS = [
       { id: "abtretung", type: "static", filename: "Abtretungserklärung.pdf", label: "Default" },
-      { id: "barrierefrei", type: "static", filename: "emc2_Barrierefreies_Wohnen.pdf", label: "Default" },
       { id: "vollmacht", type: "static", filename: "Vollmacht.pdf", label: "Default" },
       // Future-ready: add more predefined postal attachments here if needed.
     ];
@@ -18959,6 +19035,20 @@ document
       return `${getResolvedOfferNumberForPostal()}.pdf`;
     }
 
+    function getOfferSubjectSuffix() {
+      const activeOffer = String(getActiveOfferForPostal() || "").trim().toLowerCase();
+      const suffixByOffer = {
+        bu: "zum Badumbau",
+        bwt: "zur Badewannentür",
+        hl: "zum Handlauf",
+        bl: "zum Badelift",
+        ah: "zur Alltagshilfe",
+        hms: "zum Hausmeisterservice",
+        wd: "zum Winterdienst",
+      };
+      return suffixByOffer[activeOffer] || "";
+    }
+
     function computeRecipientName() {
       const firstName = String(document.getElementById("firstName")?.value || "").trim();
       const lastName = String(document.getElementById("lastName")?.value || "").trim();
@@ -18979,7 +19069,11 @@ document
 
       const offerNumber = getResolvedOfferNumberForPostal();
       if (!String(fields.subject?.value || "").trim()) {
-        fields.subject.value = offerNumber ? `Angebot ${offerNumber}` : "Ihr Angebot";
+        const suffix = getOfferSubjectSuffix();
+        const base = offerNumber
+          ? `emc2 | Ihr Angebot ${offerNumber}`
+          : "emc2 | Ihr Angebot";
+        fields.subject.value = suffix ? `${base} ${suffix}` : base;
       }
       if (!String(fields.body?.value || "").trim()) {
         fields.body.value = "Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie Ihr Angebot.\n\nMit freundlichen Grüßen\nEmC2";

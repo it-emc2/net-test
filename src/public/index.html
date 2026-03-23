@@ -627,17 +627,140 @@
       /* ⬅️ and this, so it’s not centered in a narrow box */
     }
 
+    .da-install-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .da-install-grid .image-check {
+      flex: 1 1 calc((100% - (3 * 14px)) / 4);
+      max-width: calc((100% - (3 * 14px)) / 4);
+      min-width: 220px;
+    }
+
+    .da-install-grid .img-wrap {
+      display: block;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+      border-radius: 8px;
+    }
+
+    .da-install-grid .img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      background: #fff;
+    }
+
+    @media (max-width: 1100px) {
+      .da-install-grid .image-check {
+        flex-basis: calc((100% - 14px) / 2);
+        max-width: calc((100% - 14px) / 2);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .da-install-grid .image-check {
+        flex-basis: 100%;
+        max-width: 100%;
+        min-width: 0;
+      }
+    }
+
     .da-quickadd {
       display: grid;
-      gap: 18px 22px;
-      grid-template-columns: repeat(2, minmax(320px, 1fr));
+      gap: 16px;
+      grid-template-columns: 1fr;
       align-items: start;
     }
 
-    @media (max-width: 900px) {
-      .da-quickadd {
-        grid-template-columns: 1fr;
-      }
+    .da-quickadd > .field,
+    .da-quickadd > .da-row,
+    .da-quickadd > details.form-accordion {
+      width: 100%;
+      max-width: none;
+    }
+
+    #da-db-search,
+    #hass-custom-templates {
+      padding: 16px 18px;
+      border: 1px solid #e3e8ef;
+      border-radius: 16px;
+      background: linear-gradient(180deg, #fcfdff 0%, #f8fafc 100%);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+    }
+
+    #da-db-search .section-title,
+    #hass-custom-templates .subheader {
+      margin: 0 0 6px;
+      font-size: 1.05rem;
+      line-height: 1.3;
+    }
+
+    #da-db-search .section-subtitle,
+    #hass-custom-templates .muted {
+      margin: 0;
+      line-height: 1.45;
+    }
+
+    #hass-custom-templates .row {
+      margin-top: 12px;
+    }
+
+    #hass-custom-templates .btn {
+      min-width: 280px;
+    }
+
+    .da-search-wrapper {
+      position: relative;
+      margin-top: 12px;
+      max-width: 780px;
+    }
+
+    .da-search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      pointer-events: none;
+      font-size: 0.95rem;
+      line-height: 1;
+    }
+
+    #daProductSearch {
+      padding-left: 42px;
+    }
+
+    #daProductSearchStatus {
+      min-height: 20px;
+      margin-top: 8px;
+    }
+
+    #hass-custom {
+      padding: 18px;
+      border-radius: 16px;
+      border-color: #dde5ef;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+    }
+
+    #hass-custom .da-items {
+      gap: 14px;
+    }
+
+    #hass-custom .da-item {
+      padding: 14px;
+      border: 1px solid #e6ebf1;
+      border-radius: 14px;
+      background: #fbfdff;
+    }
+
+    #hass-custom .da-help {
+      margin-top: 12px;
     }
 
     /* Treat each fieldset as a card container */
@@ -1375,10 +1498,10 @@ button.dm-btn-danger:focus-visible {
           <div>
             <label class="req">Neukunde oder Bestandskunde?</label>
             <div class="radio-group" role="radiogroup" aria-label="Kundenstatus">
-              <label class="radio-pill"><input type="radio" name="customerType" value="Neu" required /><span
+              <label class="radio-pill"><input type="radio" name="customerType" value="Neu" required checked /><span
                   class="circle"></span><span>Neu</span></label>
               <label class="radio-pill"><input type="radio" name="customerType" value="Bestandskunde" required
-                  checked /><span class="circle"></span><span>Bestandskunde</span></label>
+                   /><span class="circle"></span><span>Bestandskunde</span></label>
             </div>
           </div>
 
@@ -1451,6 +1574,14 @@ button.dm-btn-danger:focus-visible {
                 ">
                 <div>
                   <label for="emc2_contact" class="req">Name des Ansprechpartners von emc2</label>
+                  <div style="margin: 0 0 8px;">
+                    <label for="emc2_contact_select" class="muted" style="font-size: 0.9rem;">Ansprechpartner auswählen</label>
+                    <select id="emc2_contact_select">
+                      <option value="">Bitte auswählen</option>
+                      <option value="Thomas Raithel" selected>T.Raithel</option>
+                      <option value="Stefan Wolfrum">S.Wolfrum</option>
+                    </select>
+                  </div>
                   <input id="emc2_contact" name="emc2_contact" placeholder="z. B. Max Mustermann" required />
                 </div>
                 <div>
@@ -1624,6 +1755,8 @@ button.dm-btn-danger:focus-visible {
                       class="circle"></span><span>Ja</span></label>
                   <label class="radio-pill"><input type="radio" name="wohnumfeldDone" value="Nein" /><span
                       class="circle"></span><span>Nein</span></label>
+                  <label class="radio-pill"><input type="radio" name="wohnumfeldDone" value="Unbekannt" /><span
+                      class="circle"></span><span>Unbekannt</span></label>
                 </div>
 
                 <div id="wohnumfeldAmountRow" class="full" hidden aria-hidden="true" style="margin-top: 8px">
@@ -1878,14 +2011,14 @@ button.dm-btn-danger:focus-visible {
                       <div class="az-inline-note" id="buTravelInfoNote">
                         <strong>Hinweis für BU:</strong> Reisezeit wird separat gerechnet:
                         Fahrer = voller Stundensatz, 2. Mitarbeiter = auswählbar 25 €/h oder 35 €/h.
-                        Für alte Angebote bleibt ohne gespeicherten Wert automatisch 25 €/h als Standard.
+                        Für neue Angebote ist 35 €/h der Standard. Für alte Angebote bleibt ohne gespeicherten Wert automatisch 25 €/h erhalten.
                       </div>
 
                       <label class="field">
                         <span>2. Mitarbeiter bei Reisezeit</span>
                         <select id="travelSecondWorkerRate" name="travelSecondWorkerRate">
-                          <option value="25" selected>25 €/h (alt / Standard)</option>
-                          <option value="35">35 €/h</option>
+                          <option value="25">25 €/h (alt)</option>
+                          <option value="35" selected>35 €/h (neu / Standard)</option>
                         </select>
                       </label>
                     </div>
@@ -2439,7 +2572,16 @@ button.dm-btn-danger:focus-visible {
                   <span class="caption">Fußboden Schiefer_Beige</span>
                 </label>
 
-                <!-- 3) Speckstein-Schwarz -->
+                <!-- 3) Loft-Grau -->
+                <label class="image-check" data-product-id="V5FB02">
+                  <input type="checkbox" name="flooringProduct[]" value="V5FB02|Loft-Grau" data-product-id="V5FB02"
+                    data-color="Loft-Grau" />
+                  <span class="img-wrap"><img src="./assets/V5_loft_grau.jpg"
+                      alt="Fußboden V5FB02 — Loft-Grau" /></span>
+                  <span class="caption">Fußboden loft_Grau</span>
+                </label>
+
+                <!-- 4) Speckstein-Schwarz -->
                 <label class="image-check" data-product-id="V5FB02">
                   <input type="checkbox" name="flooringProduct[]" value="V5FB02|Speckstein-Schwarz"
                     data-product-id="V5FB02" data-color="Speckstein-Schwarz" />
@@ -2448,22 +2590,13 @@ button.dm-btn-danger:focus-visible {
                   <span class="caption">Fußboden Speckstein_Schwarz</span>
                 </label>
 
-                <!-- 4) Eiche-Natur -->
+                <!-- 5) Eiche-Natur -->
                 <label class="image-check" data-product-id="V5FB02">
                   <input type="checkbox" name="flooringProduct[]" value="V5FB02|Eiche-Natur" data-product-id="V5FB02"
                     data-color="Eiche-Natur" />
                   <span class="img-wrap"><img src="./assets/V5_Eiche_natur.jpg"
                       alt="Fußboden V5FB02 — Eiche-Natur" /></span>
                   <span class="caption">Fußboden Eiche_Natur</span>
-                </label>
-
-                <!-- 5) Loft-Grau -->
-                <label class="image-check" data-product-id="V5FB02">
-                  <input type="checkbox" name="flooringProduct[]" value="V5FB02|Loft-Grau" data-product-id="V5FB02"
-                    data-color="Loft-Grau" />
-                  <span class="img-wrap"><img src="./assets/V5_loft_grau.jpg"
-                      alt="Fußboden V5FB02 — Loft-Grau" /></span>
-                  <span class="caption">Fußboden loft_Grau</span>
                 </label>
               </div>
             </div>
@@ -2746,12 +2879,35 @@ button.dm-btn-danger:focus-visible {
                     <span class="caption">Stein anthrazit</span>
                   </label>
 
-                      <label class="image-check">
+                  <label class="image-check">
                     <input type="radio" name="wvColor" value="Metall oxydant" />
                     <span class="img-wrap"><img src="./assets/Metall oxydant.jpeg" alt="Metall oxydant" /></span>
                     <span class="caption">Metall oxydant</span>
                   </label>
 
+                  <label class="image-check">
+                    <input type="radio" name="wvColor" value="Sonderdekor" />
+                    <span class="img-wrap"><img src="./assets/sonder.jpg" alt="Sonderdekor" /></span>
+                    <span class="caption">Sonderdekor</span>
+                  </label>
+
+                </div>
+
+                <div id="wvSonderDecorDetails" class="field full" hidden aria-hidden="true" style="margin-top: 14px">
+                  <label for="wvSonderConfigNr" class="req">Konfigurations-Nr.</label>
+                  <input
+                    id="wvSonderConfigNr"
+                    name="wvSonderConfigNr"
+                    type="text"
+                    placeholder="z. B. WC-123456"
+                    autocomplete="off"
+                  />
+                  <p class="muted" style="margin: 8px 0 0;">
+                    Sonderdekor im Vigour Wall Configurator auswählen:
+                    <a href="https://vigour.wallconfigurator.com/" target="_blank" rel="noopener noreferrer">
+                      https://vigour.wallconfigurator.com/
+                    </a>
+                  </p>
                 </div>
                 <!-- Budget alternatives (Badolux) — shown only in Low Budget mode -->
 <div id="wvBudgetColorSection" class="full field" hidden aria-hidden="true">
@@ -2894,36 +3050,52 @@ button.dm-btn-danger:focus-visible {
     </div>
   </div>
 
-  <!-- 1) Live Konfigurator -->
-  <details class="form-accordion" open>
-    <summary>Hassmann Konfigurator (Live)</summary>
-    <div class="form-accordion__body">
+  <div class="field full">
+    <div class="section-title">Einbausituation der Duschabtrennung</div>
+    <p class="section-subtitle">Optional für neue Angebote. Ältere Angebote ohne Auswahl bleiben weiterhin ladbar.</p>
 
-      <section class="card" id="hassmann-embed">
-        <div class="embed-header"
-          style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
-          <div class="title" style="font-weight:600;">Hassmann Duschsysteme (Live)</div>
-          <button id="refreshHassmann" type="button" class="btn small secondary" title="Neu laden">⟲ Aktualisieren</button>
-        </div>
+    <div class="da-install-grid" id="daInstallationSituationGrid">
+      <label class="image-check">
+        <input type="radio" name="daInstallationSituation" value="eckloesung" />
+        <span class="img-wrap"><img src="./assets/Eckloesung1.jpg" alt="Ecklösung" /></span>
+        <span class="caption">Ecklösung</span>
+      </label>
 
-        <iframe id="hassmannFrame" src="https://gconlineplus.de"
-          style="width:100%;height:80vh;border:1px solid var(--border);border-radius:8px;background:#fff;"></iframe>
-      </section>
+      <label class="image-check">
+        <input type="radio" name="daInstallationSituation" value="walkin" />
+        <span class="img-wrap"><img src="./assets/Loesung_WalkIn1.jpg" alt="Walk-In Lösung" /></span>
+        <span class="caption">Walk-In Lösung</span>
+      </label>
 
-      <p style="margin-top:12px;">
-        Die Duschabtrennungen werden über den Konfigurator über GC-Online konfiguriert.
-        Nachfolgender Link:
-      </p>
-      <p class="external-link" style="margin-top:6px;">
-        <a href="https://www.gconlineplus.de/#SearchConfigurator" target="_blank" rel="noopener noreferrer">
-          https://www.gconlineplus.de/#SearchConfigurator
-        </a>
-      </p>
+      <label class="image-check">
+        <input type="radio" name="daInstallationSituation" value="nischenloesung" />
+        <span class="img-wrap"><img src="./assets/Loesung_Nische1.jpg" alt="Nischenlösung" /></span>
+        <span class="caption">Nischenlösung</span>
+      </label>
 
+      <label class="image-check">
+        <input type="radio" name="daInstallationSituation" value="raumloesung" />
+        <span class="img-wrap"><img src="./assets/Loesung_Raum1.jpg" alt="Raumlösung" /></span>
+        <span class="caption">Raumlösung</span>
+      </label>
+
+      <!--
+      <label class="image-check">
+        <input type="radio" name="daInstallationSituation" value="badewannenloesung" />
+        <span class="img-wrap"><img src="./assets/Loesung_Wanne1.jpg" alt="Badewannenlösung" /></span>
+        <span class="caption">Badewannenlösung</span>
+      </label>
+
+      <label class="image-check">
+        <input type="radio" name="daInstallationSituation" value="viertelkreis" />
+        <span class="img-wrap"><img src="./assets/Loesung_Viertelkreis1.jpg" alt="Viertelkreis" /></span>
+        <span class="caption">Viertelkreis</span>
+      </label>
+      -->
     </div>
-  </details>
+  </div>
 
-  <!-- 2) Schnell hinzufügen -->
+  <!-- 1) Schnell hinzufügen -->
   <h3 id="da-quickadd-title" class="visually-hidden">Duschabtrennung & Türen – Schnell hinzufügen</h3>
 
   <details class="form-accordion" open>
@@ -2934,9 +3106,23 @@ button.dm-btn-danger:focus-visible {
         <!-- QUICK-ADD: Duschabtrennung (Hassmann) -->
         <section aria-labelledby="da-quickadd-title" class="da-quickadd">
 
+          <!-- DA: Produkte aus Datenbank hinzufügen (Search → Freier Posten) -->
+            <div class="full field" id="da-db-search">
+              <div class="section-title">Produkt aus Datenbank hinzufügen</div>
+              <p class="section-subtitle">Suche nach Produktname und füge per Klick automatisch zu <b>Freier Posten</b> hinzu.</p>
+
+              <div class="da-search-wrapper">
+                <span class="da-search-icon" aria-hidden="true"><i class="fa-solid fa-magnifying-glass"></i></span>
+                <input type="text" id="daProductSearch" placeholder="z. B. glas, rohr, halter …" autocomplete="off" />
+                <div id="daProductSearchResults" class="da-search-results" hidden></div>
+              </div>
+
+              <div class="muted" id="daProductSearchStatus" style="margin-top:6px;" aria-live="polite"></div>
+            </div>
+
           <!-- Freier Posten Vorlagen -->
 <div class="field" id="hass-custom-templates">
-  <div class="subheader" style="margin: 0 0 8px;">Vorlagen für Freier Posten</div>
+  <div class="subheader">Vorlage für Freier Posten</div>
 
   <div class="row" style="gap:10px; flex-wrap:wrap;">
     <button type="button" class="btn small secondary" data-fp-template="duschvorhang">
@@ -2947,24 +3133,7 @@ button.dm-btn-danger:focus-visible {
     <button type="button" class="btn small secondary" data-fp-template="xyz">+ XYZ</button>
     -->
   </div>
-
-  <p class="muted" style="margin: 6px 0 0;">
-    Klick auf eine Vorlage fügt mehrere Positionen automatisch hinzu.
-  </p>
 </div>
- <!-- Freier Posten -->
-            <!-- DA: Produkte aus Datenbank hinzufügen (Search → Freier Posten) -->
-            <div class="full field" id="da-db-search">
-              <div class="section-title">Produkt aus Datenbank hinzufügen</div>
-              <p class="section-subtitle">Suche nach Produktname und füge per Klick automatisch zu <b>Freier Posten</b> hinzu.</p>
-
-              <div class="da-search-wrapper">
-                <input type="text" id="daProductSearch" placeholder="z. B. glas, rohr, halter …" autocomplete="off" />
-                <div id="daProductSearchResults" class="da-search-results" hidden></div>
-              </div>
-
-              <div class="muted" id="daProductSearchStatus" style="margin-top:6px;" aria-live="polite"></div>
-            </div>
 
           <fieldset class="da-row" id="hass-custom" data-kind="custom" data-template="da-item-template-custom"
             aria-describedby="custom-help">
@@ -3210,6 +3379,35 @@ button.dm-btn-danger:focus-visible {
 
         </section>
       </form>
+
+    </div>
+  </details>
+
+  <!-- 2) Live Konfigurator -->
+  <details class="form-accordion" open>
+    <summary>Hassmann Konfigurator (Live)</summary>
+    <div class="form-accordion__body">
+
+      <section class="card" id="hassmann-embed">
+        <div class="embed-header"
+          style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
+          <div class="title" style="font-weight:600;">Hassmann Duschsysteme (Live)</div>
+          <button id="refreshHassmann" type="button" class="btn small secondary" title="Neu laden">⟲ Aktualisieren</button>
+        </div>
+
+        <iframe id="hassmannFrame" src="https://gconlineplus.de"
+          style="width:100%;height:80vh;border:1px solid var(--border);border-radius:8px;background:#fff;"></iframe>
+      </section>
+
+      <p style="margin-top:12px;">
+        Die Duschabtrennungen werden über den Konfigurator über GC-Online konfiguriert.
+        Nachfolgender Link:
+      </p>
+      <p class="external-link" style="margin-top:6px;">
+        <a href="https://www.gconlineplus.de/#SearchConfigurator" target="_blank" rel="noopener noreferrer">
+          https://www.gconlineplus.de/#SearchConfigurator
+        </a>
+      </p>
 
     </div>
   </details>
@@ -4957,6 +5155,7 @@ button.dm-btn-danger:focus-visible {
           <label for="ourSignatureUser">Unterschrift auswählen</label>
           <select id="ourSignatureUser">
             <option value="t.raithel" selected>T.Raithel</option>
+            <option value="s.wolfrum">S.Wolfrum</option>
           </select>
         </div>
       </div>
@@ -5129,7 +5328,7 @@ button.dm-btn-danger:focus-visible {
     <input id="mailSubject" type="text" placeholder="ANG-..." />
 
     <label for="mailBody">Email body</label>
-    <textarea id="mailBody" rows="6" placeholder="Hello ..."></textarea>
+    <textarea id="mailBody" rows="16" placeholder="Hello ..."></textarea>
 
     <label for="mailAttachments">Additional attachments (optional)</label>
     <input id="mailAttachments" type="file" multiple />
