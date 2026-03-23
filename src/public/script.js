@@ -343,6 +343,7 @@ function goHomeWithoutOffer() {
     console.log("[goHomeWithoutOffer] suppressed during offer load");
     return;
   }
+  resetAllForms();
   clearWizardState();
   currentOfferKey = null;
 
@@ -2062,7 +2063,11 @@ function resetAllForms() {
   });
 
   // 3) Clear sessionStorage keys
-  const sessionStorageKeysToClear = ["dw_tray_touched"];
+  const sessionStorageKeysToClear = [
+    "dw_tray_touched",
+    "dw_bathtub_touched",
+    "dw_screen_touched",
+  ];
 
   sessionStorageKeysToClear.forEach((key) => {
     try {
@@ -2072,6 +2077,79 @@ function resetAllForms() {
 
   // 4) Explicitly reset all repeater DOMs (form.reset() doesn't remove dynamic rows)
   resetAllRepeaterDOMs();
+
+  // 4b) Clear transient UI state that is kept outside normal forms
+  try {
+    window.__emailManager?.reset?.();
+  } catch (e) {
+    console.warn("[resetAllForms] email manager reset failed:", e);
+  }
+  try {
+    window.__postalManager?.reset?.();
+  } catch (e) {
+    console.warn("[resetAllForms] postal manager reset failed:", e);
+  }
+  try {
+    Object.values(window.__drawingPads || {}).forEach((pad) => pad?.clear?.());
+  } catch (e) {
+    console.warn("[resetAllForms] drawing pad reset failed:", e);
+  }
+
+  [
+    "offerNumber",
+    "mailTo",
+    "mailSubject",
+    "mailBody",
+    "mailAuftragId",
+    "postAuftragId",
+    "postFirstName",
+    "postLastName",
+    "postStreet",
+    "postZip",
+    "postCity",
+    "postCountry",
+    "postSubject",
+    "postBody",
+  ].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+
+  document
+    .querySelectorAll('input[id$="SketchDataUrl"], input[id$="SketchJson"]')
+    .forEach((el) => {
+      el.value = "";
+    });
+  document.querySelectorAll(".project-sketch__debug-image").forEach((img) => {
+    img.setAttribute("hidden", "");
+    img.removeAttribute("src");
+  });
+  ["mailStatus", "postStatus"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = "";
+    el.dataset.type = "";
+    el.hidden = true;
+  });
+  ["mailAttachmentList", "postAttachmentList"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = "";
+  });
+  ["mailAttachments", "postAttachments"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+
+  window.__bitrixSendState = {
+    lastOfferType: null,
+    lastOfferNumber: null,
+    lastSentAt: 0,
+  };
+  window.__bitrixLastPdfSendState = {
+    lastOfferType: null,
+    lastOfferNumber: null,
+    lastSentAt: 0,
+  };
 
   // 5) Re-apply selection/quantity logic for ALL toggles
   try {
@@ -2110,6 +2188,7 @@ function resetAllForms() {
 
   // Re-apply default date after form.reset() clears date inputs
   ensureKundendatenDate(true);
+  syncDerivedPrefills("resetAllForms");
 }
 
 // ============================================================
@@ -2395,6 +2474,35 @@ function updateSidebarForOffer() {
   // exactly as before.
 }
 // Start a flow for a given offer and jump to its first page
+function syncDerivedPrefills(reason = "") {
+  try {
+    window.syncKundendatenExtraFields?.();
+  } catch (e) {
+    console.warn("[syncDerivedPrefills] kundendaten extra fields sync failed:", { reason, error: e });
+  }
+  try {
+    refreshEmc2ContactPrefill();
+  } catch (e) {
+    console.warn("[syncDerivedPrefills] emc2 contact prefill failed:", { reason, error: e });
+  }
+  try {
+    window.__emailManager?.refreshPrefills?.();
+  } catch (e) {
+    console.warn("[syncDerivedPrefills] email prefill failed:", { reason, error: e });
+  }
+  try {
+    window.__postalManager?.refreshPrefills?.();
+  } catch (e) {
+    console.warn("[syncDerivedPrefills] postal prefill failed:", { reason, error: e });
+  }
+  try {
+    updateSummaryWidgetName?.();
+  } catch (e) {
+    console.warn("[syncDerivedPrefills] summary widget sync failed:", { reason, error: e });
+  }
+}
+window.syncDerivedPrefills = syncDerivedPrefills;
+
 function startOfferFlow(offerKey) {
   if (!OFFERS[offerKey]) return;
 
@@ -2410,6 +2518,21 @@ function startOfferFlow(offerKey) {
     offerType: offerKey,
     step: first,
   });
+
+  try {
+    window.dispatchEvent(
+      new CustomEvent("offerflow:changed", {
+        detail: { offerType: offerKey, step: first },
+      }),
+    );
+  } catch (e) {
+    console.warn("[startOfferFlow] offerflow:changed dispatch failed:", e);
+  }
+
+  requestAnimationFrame(() => {
+    syncDerivedPrefills("startOfferFlow:raf");
+  });
+  window.setTimeout(() => syncDerivedPrefills("startOfferFlow:timeout"), 60);
 }
 function getCurrentStep() {
   const h = location.hash.replace("#", "");
@@ -2467,6 +2590,7 @@ function setStep(step) {
   // Ensure Kundendaten date is visible immediately when entering the step
   if (step === "Kundendaten") {
     ensureKundendatenDate(true);
+    window.setTimeout(() => syncDerivedPrefills("setStep:Kundendaten"), 0);
   }
 
   updateSummary();
@@ -5484,8 +5608,6 @@ window.addEventListener("hashchange", () => {
 document.addEventListener("DOMContentLoaded", () => {
   if (location.hash === "#Wandverkleidung") setupWandverkleidungPage();
 });
-document.addEventListener("DOMContentLoaded", initEmc2ContactPrefill);
-
 // === Duschabtrennung QuickAdd Repeater (multi-row per kind) ===
 (function initDARepeater() {
   const section = document.querySelector("section.da-quickadd");
@@ -11449,10 +11571,7 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       ?.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
-  // ⬅️ NEW: after restore + pricing, sync the widget name from Kundendaten
-  if (typeof updateSummaryWidgetName === "function") {
-    updateSummaryWidgetName();
-  }
+  syncDerivedPrefills("restoreConfiguratorFromOffer");
 }
 
 function restoreConfiguratorFromSnapshot({ payload }) {
@@ -14556,6 +14675,41 @@ function initEmc2ContactPrefill() {
   syncSelectFromInput();
 }
 
+function refreshEmc2ContactPrefill() {
+  const selectEl = document.getElementById("emc2_contact_select");
+  const inputEl = document.getElementById("emc2_contact");
+  if (!selectEl || !inputEl) return;
+
+  initEmc2ContactPrefill();
+
+  const inputValue = String(inputEl.value || "").trim();
+  const selectValue = String(selectEl.value || "").trim();
+
+  if (!inputValue && selectValue) {
+    inputEl.value = selectValue;
+    inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+    inputEl.dispatchEvent(new Event("change", { bubbles: true }));
+    return;
+  }
+
+  if (inputValue) {
+    const match = Array.from(selectEl.options).find((opt) => opt.value === inputValue);
+    selectEl.value = match ? match.value : "";
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => {
+    syncDerivedPrefills("DOMContentLoaded");
+  }, { once: true });
+} else {
+  syncDerivedPrefills("immediate");
+}
+
+window.addEventListener("offerflow:changed", () => {
+  syncDerivedPrefills("offerflow:changed");
+});
+
 
 // Add this to script.js or create a new zusammenfassung-init.js
 
@@ -15912,7 +16066,7 @@ async function sendPdfToAuftrag() {
   // --- Offer number handling (patched) ---
   const offerInput = document.getElementById("offerNumber");
   const activeOffer =
-    (typeof getActiveOfferType === "function" ? getActiveOfferType() : "") ||
+    (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
     window.activeOffer ||
     document.body?.dataset?.activeOffer ||
     "";
@@ -18991,7 +19145,7 @@ document
 
     function getActiveOfferForPostal() {
       return (
-        (typeof getActiveOfferType === "function" ? getActiveOfferType() : "") ||
+        (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
         window.activeOffer ||
         document.body?.dataset?.activeOffer ||
         ""
@@ -19049,11 +19203,69 @@ document
       return suffixByOffer[activeOffer] || "";
     }
 
+    function buildPostalSubjectDefault() {
+      const offerNumber = getResolvedOfferNumberForPostal();
+      const suffix = getOfferSubjectSuffix();
+      const base = offerNumber
+        ? `emc2 | Ihr Angebot ${offerNumber}`
+        : "emc2 | Ihr Angebot";
+      return suffix ? `${base} ${suffix}` : base;
+    }
+
     function computeRecipientName() {
       const firstName = String(document.getElementById("firstName")?.value || "").trim();
       const lastName = String(document.getElementById("lastName")?.value || "").trim();
       return [firstName, lastName].filter(Boolean).join(" ").trim();
     }
+
+    function getPreferredPostalBodyTemplate() {
+      const mailBodyEl = document.getElementById("mailBody");
+      const mailBody = String(mailBodyEl?.value || "").trim();
+      if (mailBody) return mailBody;
+      return "";
+    }
+
+    function syncPostalBodyWithMailTemplate() {
+      const preferred = getPreferredPostalBodyTemplate();
+      if (!preferred || !fields.body) return;
+
+      const current = String(fields.body.value || "").trim();
+      const legacy =
+        "Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie Ihr Angebot.\n\nMit freundlichen Grüßen\nEmC2";
+
+      if (!current || current === legacy) {
+        fields.body.value = preferred;
+      }
+    }
+
+    let postalSubjectTouched = false;
+    fields.subject?.addEventListener("input", () => {
+      postalSubjectTouched = true;
+    });
+
+    function resetPostalPanel() {
+      postalAttachments = DEFAULT_POSTAL_ATTACHMENTS.map((item) => ({ ...item }));
+      postalSubjectTouched = false;
+
+      Object.values(fields).forEach((field) => {
+        if (field) field.value = "";
+      });
+      uploadInput.value = "";
+      statusBox.textContent = "";
+      statusBox.dataset.type = "";
+      statusBox.hidden = true;
+
+      renderAttachmentList();
+    }
+
+    function refreshPostalPrefills() {
+      fillPostalDefaults();
+      renderAttachmentList();
+    }
+
+    window.addEventListener("offerflow:changed", () => {
+      refreshPostalPrefills();
+    });
 
     function fillPostalDefaults() {
       if (!String(fields.firstName?.value || "").trim()) {
@@ -19065,20 +19277,20 @@ document
       if (!String(fields.street?.value || "").trim()) fields.street.value = String(document.getElementById("street")?.value || "").trim();
       if (!String(fields.zipCode?.value || "").trim()) fields.zipCode.value = String(document.getElementById("postalCode")?.value || "").trim();
       if (!String(fields.city?.value || "").trim()) fields.city.value = String(document.getElementById("city")?.value || "").trim();
-      if (!String(fields.country?.value || "").trim()) fields.country.value = String(document.getElementById("country")?.value || "DE").trim() || "DE";
+      if (!String(fields.country?.value || "").trim()) fields.country.value = String(document.getElementById("country")?.value || "Deutschland").trim() || "Deutschland";
 
-      const offerNumber = getResolvedOfferNumberForPostal();
-      if (!String(fields.subject?.value || "").trim()) {
-        const suffix = getOfferSubjectSuffix();
-        const base = offerNumber
-          ? `emc2 | Ihr Angebot ${offerNumber}`
-          : "emc2 | Ihr Angebot";
-        fields.subject.value = suffix ? `${base} ${suffix}` : base;
+      if (fields.subject && !postalSubjectTouched) {
+        fields.subject.value = buildPostalSubjectDefault();
       }
       if (!String(fields.body?.value || "").trim()) {
-        fields.body.value = "Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie Ihr Angebot.\n\nMit freundlichen Grüßen\nEmC2";
+        syncPostalBodyWithMailTemplate();
       }
     }
+
+    syncPostalBodyWithMailTemplate();
+    document.getElementById("mailBody")?.addEventListener("input", () => {
+      syncPostalBodyWithMailTemplate();
+    });
 
     function renderAttachmentList() {
       const tiles = [
@@ -19258,7 +19470,7 @@ document
               street: String(fields.street?.value || "").trim(),
               zipCode: String(fields.zipCode?.value || "").trim(),
               city: String(fields.city?.value || "").trim(),
-              country: String(fields.country?.value || "DE").trim() || "DE",
+              country: String(fields.country?.value || "Deutschland").trim() || "Deutschland",
             },
             subject: String(fields.subject?.value || "").trim(),
             body: String(fields.body?.value || "").trim(),
@@ -19296,6 +19508,12 @@ document
         sendBtn.disabled = false;
       }
     });
+
+    window.__postalManager = {
+      reset: resetPostalPanel,
+      render: renderAttachmentList,
+      refreshPrefills: refreshPostalPrefills,
+    };
 
     fillPostalDefaults();
     renderAttachmentList();

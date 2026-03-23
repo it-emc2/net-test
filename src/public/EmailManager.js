@@ -122,6 +122,36 @@ export function initEmailManager(options = {}) {
     }
   };
 
+  const getOfferType = () => {
+    try {
+      return String(cfg.hooks.getCurrentOfferType?.() || "bu").trim().toLowerCase();
+    } catch {
+      return "bu";
+    }
+  };
+
+  const getOfferSubjectSuffix = () => {
+    const suffixByOffer = {
+      bu: "zum Badumbau",
+      bwt: "zur Badewannentür",
+      ah: "zur Alltagshilfe",
+      hl: "zum Handlauf",
+      bl: "zum Badelift",
+      hms: "zum Hausmeisterservice",
+      wd: "zum Winterdienst",
+    };
+    return suffixByOffer[getOfferType()] || "";
+  };
+
+  const buildDefaultSubject = () => {
+    const offerNumber = getOfferNumber();
+    const suffix = getOfferSubjectSuffix();
+    const base = offerNumber
+      ? `emc2 | Ihr Angebot ${offerNumber}`
+      : "emc2 | Ihr Angebot";
+    return suffix ? `${base} ${suffix}` : base;
+  };
+
   // -----------------------------
   // Bitrix comment helpers
   // -----------------------------
@@ -203,8 +233,7 @@ export function initEmailManager(options = {}) {
 
   const updateSubjectDefault = () => {
     if (subjectTouched) return;
-    const offerNumber = getOfferNumber();
-    if (offerNumber) $subject.value = `Ihr Angebot ${offerNumber}`;
+    $subject.value = buildDefaultSubject();
   };
 
   $offerNumber?.addEventListener("input", updateSubjectDefault);
@@ -404,6 +433,39 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
 
   renderList();
 
+  function reset() {
+    excludedPreset.clear();
+    userFiles = [];
+    subjectTouched = false;
+    toTouched = false;
+    bodyTouched = false;
+
+    $to.value = "";
+    $subject.value = "";
+    $body.value = "";
+    $files.value = "";
+
+    syncFileInput();
+    renderList();
+
+    $status.textContent = "";
+    $status.dataset.type = "";
+    $status.hidden = true;
+
+    markInvalid($leadId, false);
+    markInvalid($mainAuftragId, false);
+  }
+
+  function refreshPrefills() {
+    updateSubjectDefault();
+    updateMailPrefills();
+    renderList();
+  }
+
+  window.addEventListener("offerflow:changed", () => {
+    refreshPrefills();
+  });
+
   async function send() {
     try {
       if (cfg.hooks.requireBereichValid && !cfg.hooks.requireBereichValid()) {
@@ -502,6 +564,5 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     send();
   });
 
-  return { send, render: renderList, excludedPreset };
+  return { send, render: renderList, excludedPreset, reset, refreshPrefills };
 }
-

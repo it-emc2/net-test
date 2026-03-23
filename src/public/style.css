@@ -5090,13 +5090,69 @@ button.pad-clear {
 
 .home-global-search-label {
   display: block;
-  margin-bottom: 6px;
-  font-size: 0.85rem;
+  margin-bottom: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
 }
 
 .home-global-search-wrap {
   position: relative;
-  max-width: 760px;
+  width: 100%;
+  max-width: 980px;
+}
+
+.home-global-search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  color: color-mix(in srgb, var(--accent-strong) 70%, var(--text));
+  pointer-events: none;
+  z-index: 1;
+}
+
+.home-global-search-icon svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+}
+
+#globalOfferSearchInput {
+  width: 100%;
+  min-height: 52px;
+  padding-left: 48px;
+  padding-right: 18px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  background: var(--input-bg);
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 color-mix(in srgb, white 75%, transparent);
+  font-size: 1rem;
+  color: var(--text);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+#globalOfferSearchInput::placeholder {
+  color: color-mix(in srgb, var(--muted) 88%, var(--text) 12%);
+}
+
+#globalOfferSearchInput:hover {
+  border-color: color-mix(in srgb, var(--accent) 44%, var(--border));
+}
+
+#globalOfferSearchInput:focus {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent),
+    0 14px 30px rgba(15, 23, 42, 0.1),
+    inset 0 1px 0 color-mix(in srgb, white 75%, transparent);
+  transform: translateY(-1px);
 }
 
 .home-global-search-results {

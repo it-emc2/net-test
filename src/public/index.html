@@ -1294,6 +1294,11 @@ button.dm-btn-danger:focus-visible {
           <div class="field home-global-search-field">
             <label for="globalOfferSearchInput" class="muted home-global-search-label">Schnellsuche in Entwürfen + Angeboten</label>
             <div class="home-global-search-wrap">
+              <span class="home-global-search-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path d="M10.5 4a6.5 6.5 0 1 0 4.03 11.6l4.43 4.43 1.41-1.41-4.43-4.43A6.5 6.5 0 0 0 10.5 4Zm0 2a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z" />
+                </svg>
+              </span>
               <input
                 id="globalOfferSearchInput"
                 type="text"
@@ -5386,7 +5391,7 @@ button.dm-btn-danger:focus-visible {
     <input id="postSubject" type="text" placeholder="ANG-..." />
 
     <label for="postBody">Letter body</label>
-    <textarea id="postBody" rows="8" placeholder="Hello ..."></textarea>
+    <textarea id="postBody" rows="16" placeholder="Hello ..."></textarea>
 
     <label for="postAttachments">Additional attachments (optional, PDF)</label>
     <input id="postAttachments" type="file" accept="application/pdf,.pdf" multiple />
