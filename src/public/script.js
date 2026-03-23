@@ -2476,14 +2476,29 @@ function updateSidebarForOffer() {
 // Start a flow for a given offer and jump to its first page
 function syncDerivedPrefills(reason = "") {
   try {
+    ensureKundendatenDate?.(true);
+  } catch (e) {
+    console.warn("[syncDerivedPrefills] kundendaten date sync failed:", { reason, error: e });
+  }
+  try {
     window.syncKundendatenExtraFields?.();
   } catch (e) {
     console.warn("[syncDerivedPrefills] kundendaten extra fields sync failed:", { reason, error: e });
   }
   try {
+    window.syncContactPersonSection?.();
+  } catch (e) {
+    console.warn("[syncDerivedPrefills] contact person section sync failed:", { reason, error: e });
+  }
+  try {
     refreshEmc2ContactPrefill();
   } catch (e) {
     console.warn("[syncDerivedPrefills] emc2 contact prefill failed:", { reason, error: e });
+  }
+  try {
+    window.syncOurSignatureControls?.();
+  } catch (e) {
+    console.warn("[syncDerivedPrefills] our signature controls sync failed:", { reason, error: e });
   }
   try {
     window.__emailManager?.refreshPrefills?.();
@@ -3937,6 +3952,7 @@ window.buildPayload = buildPayload;
 window.buildPayload = buildPayload;
 
 (function initOurSignatureControls() {
+  let syncRef = null;
   const bind = () => {
     const includeEl = document.getElementById("includeOurSignature");
     const userEl = document.getElementById("ourSignatureUser");
@@ -3944,7 +3960,9 @@ window.buildPayload = buildPayload;
 
     const sync = () => {
       userEl.disabled = !includeEl.checked;
+      if (!userEl.value) userEl.value = "t.raithel";
     };
+    syncRef = sync;
 
     if (!includeEl.dataset.boundOurSignature) {
       includeEl.addEventListener("change", sync);
@@ -3952,13 +3970,19 @@ window.buildPayload = buildPayload;
     }
 
     sync();
-    if (!userEl.value) userEl.value = "t.raithel";
     return true;
   };
 
   if (!bind()) {
     document.addEventListener("DOMContentLoaded", bind, { once: true });
   }
+  window.syncOurSignatureControls = () => {
+    if (syncRef) {
+      syncRef();
+      return;
+    }
+    bind();
+  };
 })();
 
 function getSketchDataFor(key) {
@@ -6032,6 +6056,7 @@ document.addEventListener("DOMContentLoaded", () => {
   form?.addEventListener("change", (e) => {
     if (e.target?.name === "hasContactPerson") show(e.target.value === "Ja");
   });
+  window.syncContactPersonSection = () => show(isYes());
 })();
 window.parseAufschlagPercent = function parseAufschlagPercent(raw) {
   const m = String(raw || "")
