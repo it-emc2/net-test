@@ -10,6 +10,7 @@ export function initEmailManager(options = {}) {
       to: "#mailTo",
       subject: "#mailSubject",
       body: "#mailBody",
+      preview: "#mailHtmlPreview",
       leadId: "#mailAuftragId",
       files: "#mailAttachments",
       list: "#mailAttachmentList",
@@ -51,6 +52,7 @@ export function initEmailManager(options = {}) {
   const $to = document.querySelector(cfg.els.to);
   const $subject = document.querySelector(cfg.els.subject);
   const $body = document.querySelector(cfg.els.body);
+  const $preview = document.querySelector(cfg.els.preview);
   const $leadId = document.querySelector(cfg.els.leadId);
   const $files = document.querySelector(cfg.els.files);
   const $list = document.querySelector(cfg.els.list);
@@ -297,6 +299,146 @@ Sobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiter
 Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
   }
 
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function formatInlineHtml(text) {
+    const escaped = escapeHtml(text);
+    const withEmails = escaped.replace(
+      /([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/gi,
+      '<a href="mailto:$1" style="color:#00a86b;text-decoration:none;">$1</a>',
+    );
+
+    return withEmails.replace(/\b((?:https?:\/\/|www\.)[^\s<]+)\b/gi, (match) => {
+      const href = /^https?:\/\//i.test(match) ? match : `https://${match}`;
+      return `<a href="${escapeHtml(href)}" style="color:#00a86b;text-decoration:none;">${match}</a>`;
+    });
+  }
+
+  function renderBodyHtmlFromText(body) {
+    const lines = String(body || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+    const parts = [];
+    let paragraphBuffer = [];
+    let bulletBuffer = [];
+    let orderedBuffer = [];
+
+    function flushParagraph() {
+      if (!paragraphBuffer.length) return;
+      const text = paragraphBuffer.join(" ").trim();
+      if (text) {
+        parts.push(
+          `<p style="margin:0 0 18px 0;line-height:1.55;color:#364047;font-size:16px;">${formatInlineHtml(text)}</p>`,
+        );
+      }
+      paragraphBuffer = [];
+    }
+
+    function flushBullets() {
+      if (!bulletBuffer.length) return;
+      parts.push(
+        `<ul style="margin:0 0 24px 22px;padding:0;color:#364047;">${bulletBuffer
+          .map(
+            (item) =>
+              `<li style="margin:0 0 10px 0;line-height:1.5;font-size:16px;"><strong>${formatInlineHtml(item)}</strong></li>`,
+          )
+          .join("")}</ul>`,
+      );
+      bulletBuffer = [];
+    }
+
+    function flushOrdered() {
+      if (!orderedBuffer.length) return;
+      parts.push(
+        `<ol style="margin:0 0 24px 28px;padding:0;color:#364047;">${orderedBuffer
+          .map(
+            (item) =>
+              `<li style="margin:0 0 10px 0;line-height:1.5;font-size:16px;"><strong>${formatInlineHtml(item)}</strong></li>`,
+          )
+          .join("")}</ol>`,
+      );
+      orderedBuffer = [];
+    }
+
+    function flushAll() {
+      flushParagraph();
+      flushBullets();
+      flushOrdered();
+    }
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) {
+        flushAll();
+        continue;
+      }
+
+      const bulletMatch = line.match(/^[•*-]\s+(.*)$/);
+      if (bulletMatch) {
+        flushParagraph();
+        flushOrdered();
+        bulletBuffer.push(bulletMatch[1].trim());
+        continue;
+      }
+
+      const orderedMatch = line.match(/^\d+\.\s+(.*)$/);
+      if (orderedMatch) {
+        flushParagraph();
+        flushBullets();
+        orderedBuffer.push(orderedMatch[1].trim());
+        continue;
+      }
+
+      flushBullets();
+      flushOrdered();
+      paragraphBuffer.push(line);
+    }
+
+    flushAll();
+    return parts.join("");
+  }
+
+  function buildPreviewHtml(body) {
+    const signatureSrc = new URL("./assets/signaturepicture.png", window.location.href).href;
+    return `<!DOCTYPE html>
+<html lang="de">
+  <body style="margin:0;padding:24px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#364047;">
+    <div style="max-width:980px;margin:0 auto;">
+      ${renderBodyHtmlFromText(body)}
+      <p style="margin:0 0 8px 0;line-height:1.55;color:#364047;font-size:16px;">--</p>
+      <p style="margin:0 0 24px 0;line-height:1.55;color:#364047;font-size:16px;">Freundliche Grüße</p>
+      <div style="margin:22px 0 14px 0;"><img src="${signatureSrc}" alt="Signatur emc2" style="display:block;max-width:220px;width:220px;height:auto;border:0;" /></div>
+      <p style="margin:0 0 6px 0;line-height:1.5;color:#364047;font-size:16px;">Stefan Wolfrum</p>
+      <p style="margin:0 0 28px 0;line-height:1.5;color:#364047;font-size:16px;">Ihr Team von emc2</p>
+      <p style="margin:0 0 18px 0;line-height:1.5;color:#364047;font-size:16px;">______________________________</p>
+      <p style="margin:0;line-height:1.5;color:#364047;font-size:16px;">EmC2 Attila Landgrafe</p>
+      <p style="margin:0 0 22px 0;line-height:1.5;color:#364047;font-size:16px;">Waldstr. 5 / 95032 Hof</p>
+      <p style="margin:0;line-height:1.5;color:#364047;font-size:16px;">Tel.: +49 9281 5915900</p>
+      <p style="margin:0;line-height:1.5;color:#364047;font-size:16px;">Fax: +49 9281 5915909</p>
+      <p style="margin:0;line-height:1.5;color:#364047;font-size:16px;">Mail: <a href="mailto:service@e-m-c-2.de" style="color:#00a86b;text-decoration:none;">service@e-m-c-2.de</a></p>
+      <p style="margin:0 0 24px 0;line-height:1.5;color:#364047;font-size:16px;">Web: <a href="https://www.emczwei.de" style="color:#00a86b;text-decoration:none;">www.emczwei.de</a></p>
+      <p style="margin:0;line-height:1.7;color:#364047;font-size:12px;">
+        Diese E-Mail enthält vertrauliche und/oder rechtlich geschützte Informationen. Der Inhalt dieser E-Mail ist ausschließlich für den bezeichneten Adressaten bestimmt. Bitte beachten Sie in diesem Fall, dass jede Form der Kenntnisnahme, Veröffentlichung, Vervielfältigung oder Weitergabe des Inhalts dieser E-Mail unzulässig ist. Wenn Sie nicht der richtige Adressat bzw. sein Vertreter sind oder diese E-Mail irrtümlich erhalten haben, informieren Sie bitte sofort den Absender und vernichten Sie diese E-Mail. Vielen Dank.
+      </p>
+    </div>
+  </body>
+</html>`;
+  }
+
+  function updatePreview() {
+    if (!$preview) return;
+    const doc = $preview.contentWindow?.document;
+    if (!doc) return;
+    doc.open();
+    doc.write(buildPreviewHtml($body.value || ""));
+    doc.close();
+  }
+
   function updateRecipientDefault() {
     if (toTouched) return;
     const v = ($customerEmail?.value || "").trim();
@@ -306,11 +448,13 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
   function updateBodyDefault() {
     if (bodyTouched) return;
     $body.value = buildDefaultMailBody();
+    updatePreview();
   }
 
   function updateMailPrefills() {
     updateRecipientDefault();
     updateBodyDefault();
+    updatePreview();
   }
 
   // Listen to Kundendaten changes
@@ -327,6 +471,9 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
   // Rebuild body when offer number changes (only if body wasn't manually edited)
   $offerNumber?.addEventListener("input", updateBodyDefault);
   $offerNumber?.addEventListener("change", updateBodyDefault);
+
+  $body.addEventListener("input", updatePreview);
+  $body.addEventListener("change", updatePreview);
 
   // Initial prefill on load
   updateMailPrefills();
@@ -447,6 +594,7 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
 
     syncFileInput();
     renderList();
+    updatePreview();
 
     $status.textContent = "";
     $status.dataset.type = "";
@@ -460,6 +608,7 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     updateSubjectDefault();
     updateMailPrefills();
     renderList();
+    updatePreview();
   }
 
   window.addEventListener("offerflow:changed", () => {

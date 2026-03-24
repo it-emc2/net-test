@@ -1230,6 +1230,146 @@ button.dm-btn-danger:focus-visible {
       background: #fff;
     }
 
+    .bl-main-product-layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 320px) minmax(320px, 1fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .bl-product-preview {
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      padding: 0;
+      box-shadow: none;
+      min-height: 100%;
+    }
+
+    .bl-product-preview__frame {
+      border-radius: 18px;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    .bl-product-preview__frame img {
+      display: block;
+      width: 50%;
+      height: auto;
+      max-height: 270px;
+      object-fit: contain;
+      background: transparent;
+    }
+
+    .bl-product-preview__caption {
+      display: block;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+
+    .customer-contact-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    .customer-contact-row .customer-email-field {
+      min-width: 0;
+    }
+
+    .customer-contact-row .customer-email-field input {
+      max-width: 620px;
+      width: 100%;
+    }
+
+    .customer-contact-row .customer-post-toggle {
+      min-width: 180px;
+      height: 48px;
+      align-self: end;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: var(--input-bg);
+      border: 1.5px solid var(--input-border);
+      cursor: pointer;
+      user-select: none;
+      color: inherit;
+      font-weight: 400;
+    }
+
+    .customer-contact-row .customer-post-toggle:hover,
+    .customer-contact-row .customer-post-toggle:focus-visible,
+    .customer-contact-row .customer-post-toggle:active {
+      background: var(--input-bg);
+      color: inherit;
+      border-color: var(--input-border);
+      box-shadow: none;
+      transform: none;
+    }
+
+    .customer-contact-row .customer-post-toggle.is-active {
+      border-color: var(--accent);
+    }
+
+    .customer-contact-row .customer-post-toggle .circle {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid var(--input-border);
+      display: grid;
+      place-items: center;
+      background: transparent;
+      transition: border 0.15s;
+      flex: 0 0 auto;
+    }
+
+    .customer-contact-row .customer-post-toggle .circle::after {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: transparent;
+    }
+
+    .customer-contact-row .customer-post-toggle.is-active .circle {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--ring);
+    }
+
+    .customer-contact-row .customer-post-toggle.is-active .circle::after {
+      background: var(--accent);
+    }
+
+    @media (max-width: 760px) {
+      .customer-contact-row {
+        grid-template-columns: 1fr;
+      }
+
+      .customer-contact-row .customer-email-field input,
+      .customer-contact-row .customer-post-toggle {
+        max-width: 100%;
+        width: 100%;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .bl-main-product-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .bl-product-preview__frame img {
+        width: 50%;
+        max-height: 210px;
+      }
+    }
+
   </style>
 </head>
 
@@ -1472,9 +1612,15 @@ button.dm-btn-danger:focus-visible {
           <div class="full">
             <label for="phone">Telefonnummer</label><input id="phone" name="phone" type="tel" placeholder="+49 ..." />
           </div>
-          <div class="full">
-            <label for="email">Email</label><input id="email" name="email" type="email"
-              placeholder="name@example.com" />
+          <div class="full customer-contact-row">
+            <div class="customer-email-field">
+              <label for="email">Email</label><input id="email" name="email" type="email"
+                placeholder="name@example.com" />
+            </div>
+            <button type="button" id="togglePostalSectionBtn" class="customer-post-toggle" aria-controls="postalSummarySection" aria-expanded="false">
+              <span class="circle" aria-hidden="true"></span>
+              <span>Versand per Post</span>
+            </button>
           </div>
 
           <div class="full">
@@ -4923,28 +5069,35 @@ button.dm-btn-danger:focus-visible {
 
             <section class="bl-section">
               <div class="section-header">1. Hauptprodukt</div>
-              <div class="bl-card-grid bl-card-grid-main">
-                <label class="image-check large bl-product-card is-selected">
-                  <input
-                    type="checkbox"
-                    id="bl_brs_912"
-                    value="Juwel Tuchlift Premium"
-                    data-product-id="BRS-912"
-                    checked
-                  />
-                  <div class="img-wrap">
-                    <img src="./assets/BRS-912.jpg" alt="Juwel Tuchlift Premium" onerror="this.closest('.img-wrap')?.classList.add('is-missing'); this.style.display='none';" />
-                  
+              <div class="bl-main-product-layout">
+                <div class="bl-card-grid bl-card-grid-main">
+                  <label class="image-check large bl-product-card is-selected">
+                    <input
+                      type="checkbox"
+                      id="bl_brs_912"
+                      value="Juwel Tuchlift Premium"
+                      data-product-id="BRS-912"
+                      checked
+                    />
+                    <div class="img-wrap">
+                      <img src="./assets/tuchlift.png" alt="Juwel Tuchlift Premium" onerror="this.closest('.img-wrap')?.classList.add('is-missing'); this.style.display='none';" />
+                    </div>
+                    <span class="caption">
+                      <strong>Juwel Tuchlift Premium</strong>
+                      <span class="caption-sub">BRS-912 · Hauptprodukt</span>
+                    </span>
+                    <div class="bl-qty-row">
+                      <label for="qty_bl_brs_912">Menge</label>
+                      <input id="qty_bl_brs_912" type="number" min="1" step="1" value="1" />
+                    </div>
+                  </label>
+                </div>
+
+                <aside class="bl-product-preview" aria-label="Großansicht Hauptprodukt">
+                  <div class="bl-product-preview__frame">
+                    <img src="./assets/tuchliftnobg.png" alt="Juwel Tuchlift Premium Gesamtansicht" />
                   </div>
-                  <span class="caption">
-                    <strong>Juwel Tuchlift Premium</strong>
-                    <span class="caption-sub">BRS-912 · Hauptprodukt</span>
-                  </span>
-                  <div class="bl-qty-row">
-                    <label for="qty_bl_brs_912">Menge</label>
-                    <input id="qty_bl_brs_912" type="number" min="1" step="1" value="1" />
-                  </div>
-                </label>
+                </aside>
               </div>
             </section>
 
@@ -5320,41 +5473,46 @@ button.dm-btn-danger:focus-visible {
 
           <!-- Email Versand (unter PDF Vorschau) -->
 <section class="mail-section">
-  <h2 class="section-title">✉️ Send offer by email</h2>
+  <h2 class="section-title">✉️ Angebot per E-Mail senden</h2>
 
   <div class="mail-card">
     <label for="mailAuftragId">Lead ID / Auftrag ID</label>
     <input id="mailAuftragId" type="text" placeholder="z.B. 12345" />
 
-    <label for="mailTo">Recipient email</label>
+    <label for="mailTo">Empfänger E-Mail</label>
     <input id="mailTo" type="email" placeholder="customer@example.com" />
 
-    <label for="mailSubject">Subject</label>
+    <label for="mailSubject">Betreff</label>
     <input id="mailSubject" type="text" placeholder="ANG-..." />
 
-    <label for="mailBody">Email body</label>
+    <label for="mailBody">E-Mail-Text</label>
     <textarea id="mailBody" rows="16" placeholder="Hello ..."></textarea>
 
-    <label for="mailAttachments">Additional attachments (optional)</label>
+    <div class="mail-preview-box">
+      <div class="mail-attach-title">Live-Vorschau</div>
+      <iframe id="mailHtmlPreview" class="mail-html-preview" title="E-Mail Vorschau"></iframe>
+    </div>
+
+    <label for="mailAttachments">Zusätzliche Anhänge (optional)</label>
     <input id="mailAttachments" type="file" multiple />
 
     <!-- Visible attachments list -->
     <div class="mail-attach-box">
-      <div class="mail-attach-title">Attachments</div>
+      <div class="mail-attach-title">Anhänge</div>
   <div id="mailAttachmentList" class="mail-attach-grid"></div>
-        <div class="mail-attach-hint">Click “✕” to remove an attachment.</div>
+        <div class="mail-attach-hint">Mit „✕“ kann ein Anhang entfernt werden.</div>
     </div>
 
     <button type="button" id="sendOfferMail" class="btn-export btn-pdf">
       <span class="btn-icon">📨</span>
-      Send
+      Senden
     </button>
 
     <div id="mailStatus" class="adobe-status" hidden></div>
   </div>
 
-<section class="mail-section post-section">
-  <h2 class="section-title">📮 Send offer by post</h2>
+<section class="mail-section post-section" id="postalSummarySection" hidden>
+  <h2 class="section-title">📮 Angebot per Post senden</h2>
 
   <div class="mail-card post-card">
     <label for="postAuftragId">Lead ID / Auftrag ID</label>
@@ -5370,41 +5528,41 @@ button.dm-btn-danger:focus-visible {
         <input id="postLastName" type="text" placeholder="Mustermann" />
       </div>
       <div class="post-grid-span-2">
-        <label for="postStreet">Street</label>
+        <label for="postStreet">Straße</label>
         <input id="postStreet" type="text" placeholder="Musterstraße 1" />
       </div>
       <div>
-        <label for="postZip">ZIP code</label>
+        <label for="postZip">PLZ</label>
         <input id="postZip" type="text" placeholder="95032" />
       </div>
       <div>
-        <label for="postCity">City</label>
+        <label for="postCity">Ort</label>
         <input id="postCity" type="text" placeholder="Hof" />
       </div>
       <div>
-        <label for="postCountry">Country</label>
+        <label for="postCountry">Land</label>
         <input id="postCountry" type="text" placeholder="DE" value="DE" />
       </div>
     </div>
 
-    <label for="postSubject">Letter subject</label>
+    <label for="postSubject">Briefbetreff</label>
     <input id="postSubject" type="text" placeholder="ANG-..." />
 
-    <label for="postBody">Letter body</label>
+    <label for="postBody">Brieftext</label>
     <textarea id="postBody" rows="16" placeholder="Hello ..."></textarea>
 
-    <label for="postAttachments">Additional attachments (optional, PDF)</label>
+    <label for="postAttachments">Zusätzliche Anhänge (optional, PDF)</label>
     <input id="postAttachments" type="file" accept="application/pdf,.pdf" multiple />
 
     <div class="mail-attach-box">
-      <div class="mail-attach-title">Included in postal send</div>
+      <div class="mail-attach-title">Im Postversand enthalten</div>
       <div id="postAttachmentList" class="mail-attach-grid"></div>
-      <div class="mail-attach-hint">Offer PDF is the main postal document. Click “✕” to remove default or uploaded attachments before sending.</div>
+      <div class="mail-attach-hint">Die Angebots-PDF ist das Hauptdokument für den Postversand. Mit „✕“ können Standard- oder hochgeladene Anhänge vor dem Versand entfernt werden.</div>
     </div>
 
     <button type="button" id="sendOfferPost" class="btn-export btn-pdf">
       <span class="btn-icon">📮</span>
-      Send by post
+      Per Post senden
     </button>
 
     <div id="postStatus" class="adobe-status" hidden></div>

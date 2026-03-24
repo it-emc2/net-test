@@ -2257,6 +2257,22 @@ label.image-check.is-checked .caption {
   background: rgba(255,255,255,0.05);
 }
 
+.mail-preview-box {
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.05);
+}
+
+.mail-html-preview {
+  width: 100%;
+  min-height: 620px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  background: #fff;
+}
+
 .mail-attach-title {
   font-size: 0.9rem;
   font-weight: 600;

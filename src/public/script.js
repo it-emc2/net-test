@@ -19100,6 +19100,35 @@ document
 
 
 (function initPostalSending() {
+  function syncPostalSectionVisibility(forceState = null) {
+    const toggleBtn = document.getElementById("togglePostalSectionBtn");
+    const postalSection = document.getElementById("postalSummarySection");
+    if (!toggleBtn || !postalSection) return;
+
+    if (typeof forceState === "boolean") {
+      window.__postalSectionEnabled = forceState;
+    }
+
+    const isVisible = !!window.__postalSectionEnabled;
+    postalSection.hidden = !isVisible;
+    toggleBtn.setAttribute("aria-expanded", String(isVisible));
+    toggleBtn.classList.toggle("is-active", isVisible);
+  }
+
+  function initPostalSectionToggle() {
+    const toggleBtn = document.getElementById("togglePostalSectionBtn");
+    const postalSection = document.getElementById("postalSummarySection");
+    if (!toggleBtn || !postalSection || toggleBtn.dataset.bound === "1") return;
+
+    toggleBtn.dataset.bound = "1";
+    window.__postalSectionEnabled = !!window.__postalSectionEnabled;
+    syncPostalSectionVisibility();
+
+    toggleBtn.addEventListener("click", () => {
+      syncPostalSectionVisibility(!window.__postalSectionEnabled);
+    });
+  }
+
   function ready(fn) {
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", fn, { once: true });
@@ -19109,6 +19138,8 @@ document
   }
 
   ready(() => {
+    initPostalSectionToggle();
+
     const sendBtn = document.getElementById("sendOfferPost");
     const statusBox = document.getElementById("postStatus");
     const attachmentList = document.getElementById("postAttachmentList");
@@ -19243,6 +19274,9 @@ document
       return [firstName, lastName].filter(Boolean).join(" ").trim();
     }
 
+    let postalBodyTouched = false;
+    let lastAutoPostalBody = "";
+
     function getPreferredPostalBodyTemplate() {
       const mailBodyEl = document.getElementById("mailBody");
       const mailBody = String(mailBodyEl?.value || "").trim();
@@ -19250,7 +19284,7 @@ document
       return "";
     }
 
-    function syncPostalBodyWithMailTemplate() {
+    function syncPostalBodyWithMailTemplate(force = false) {
       const preferred = getPreferredPostalBodyTemplate();
       if (!preferred || !fields.body) return;
 
@@ -19258,8 +19292,17 @@ document
       const legacy =
         "Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie Ihr Angebot.\n\nMit freundlichen Grüßen\nEmC2";
 
-      if (!current || current === legacy) {
+      const shouldSync =
+        force ||
+        !postalBodyTouched ||
+        !current ||
+        current === legacy ||
+        current === lastAutoPostalBody;
+
+      if (shouldSync) {
         fields.body.value = preferred;
+        lastAutoPostalBody = preferred;
+        postalBodyTouched = false;
       }
     }
 
@@ -19267,10 +19310,15 @@ document
     fields.subject?.addEventListener("input", () => {
       postalSubjectTouched = true;
     });
+    fields.body?.addEventListener("input", () => {
+      postalBodyTouched = String(fields.body?.value || "").trim() !== lastAutoPostalBody;
+    });
 
     function resetPostalPanel() {
       postalAttachments = DEFAULT_POSTAL_ATTACHMENTS.map((item) => ({ ...item }));
       postalSubjectTouched = false;
+      postalBodyTouched = false;
+      lastAutoPostalBody = "";
 
       Object.values(fields).forEach((field) => {
         if (field) field.value = "";
@@ -19307,14 +19355,20 @@ document
       if (fields.subject && !postalSubjectTouched) {
         fields.subject.value = buildPostalSubjectDefault();
       }
-      if (!String(fields.body?.value || "").trim()) {
-        syncPostalBodyWithMailTemplate();
-      }
+      syncPostalBodyWithMailTemplate();
     }
 
     syncPostalBodyWithMailTemplate();
     document.getElementById("mailBody")?.addEventListener("input", () => {
       syncPostalBodyWithMailTemplate();
+    });
+    document.getElementById("mailBody")?.addEventListener("change", () => {
+      syncPostalBodyWithMailTemplate();
+    });
+    document.querySelectorAll('input[name="salutation"]').forEach((el) => {
+      el.addEventListener("change", () => {
+        syncPostalBodyWithMailTemplate();
+      });
     });
 
     function renderAttachmentList() {
