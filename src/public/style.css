@@ -3020,6 +3020,8 @@ button:active,
 }
 
 #bwtDoors .bwt-door-card .bwt-door-height-inline {
+  width: 82px !important;
+  min-width: 82px !important;
   border-radius: 10px;
   border: 1px solid #dbe2ea;
   background: #fff;

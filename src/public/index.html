@@ -1101,8 +1101,8 @@
     /* tiny inline height selector inside caption-sub */
     .bwt-door-height-inline {
       display: inline-block;
-      width: 72px;
-      min-width: 72px;
+      width: 64px;
+      min-width: 64px;
       padding: 2px 6px;
       height: 22px;
       line-height: 22px;
@@ -5263,6 +5263,50 @@ button.dm-btn-danger:focus-visible {
               <textarea id="blNote" rows="4" placeholder="Zusätzliche Hinweise zum Badelift oder Zubehör"></textarea>
             </div>
 
+            <div class="project-sketch full" data-sketch-key="bl">
+              <div class="project-sketch__head">
+                <div>
+                  <div class="project-sketch__title">Projekt-Skizze</div>
+                  <div class="project-sketch__subtitle">Für kurze Handskizzen direkt im Gespräch mit dem Kunden.</div>
+                </div>
+
+                <div class="project-sketch__controls">
+                  <div class="project-sketch__tools" role="toolbar" aria-label="Skizzenwerkzeuge">
+                    <button type="button" class="pad-tool active" data-tool="pen" title="Stift" aria-label="Stift"><i class="fa-solid fa-pen"></i></button>
+                    <button type="button" class="pad-tool" data-tool="eraser" title="Radierer" aria-label="Radierer"><i class="fa-solid fa-eraser"></i></button>
+                    <button type="button" class="pad-tool" data-tool="line" title="Linie" aria-label="Linie"><i class="fa-solid fa-slash"></i></button>
+                    <button type="button" class="pad-tool" data-tool="ruler" title="Lineal" aria-label="Lineal"><i class="fa-solid fa-ruler"></i></button>
+                    <button type="button" class="pad-undo" data-action="undo" title="Rückgängig" aria-label="Rückgängig"><i class="fa-solid fa-rotate-left"></i></button>
+                  </div>
+
+                  <div class="project-sketch__sizes" role="group" aria-label="Strichstärke">
+                    <button type="button" class="pad-size" data-size="2" title="Klein">S</button>
+                    <button type="button" class="pad-size active" data-size="4" title="Mittel">M</button>
+                    <button type="button" class="pad-size" data-size="7" title="Groß">L</button>
+                  </div>
+
+                  <div class="project-sketch__colors" role="group" aria-label="Farben">
+                    <button type="button" class="pad-color active" data-color="#0f172a" style="--swatch:#0f172a" title="Dunkel"></button>
+                    <button type="button" class="pad-color" data-color="#dc2626" style="--swatch:#dc2626" title="Rot"></button>
+                    <button type="button" class="pad-color" data-color="#2563eb" style="--swatch:#2563eb" title="Blau"></button>
+                    <button type="button" class="pad-color" data-color="#16a34a" style="--swatch:#16a34a" title="Grün"></button>
+                    <button type="button" class="pad-color" data-color="#d97706" style="--swatch:#d97706" title="Orange"></button>
+                    <button type="button" class="pad-color" data-color="#7c3aed" style="--swatch:#7c3aed" title="Lila"></button>
+                  </div>
+
+                  <button type="button" class="pad-clear btn-secondary">Skizze löschen</button>
+                </div>
+              </div>
+
+              <div class="project-sketch__canvas-wrap">
+                <canvas class="project-sketch__canvas" width="1200" height="420"></canvas>
+              </div>
+
+              <div class="project-sketch__hint">Die Skizze wird zusammen mit dem Entwurf, dem Angebot und beim Draft-Restore gespeichert.</div>
+              <input type="hidden" id="blSketchDataUrl" name="blSketchDataUrl" value="" />
+              <input type="hidden" id="blSketchJson" name="blSketchJson" value="" />
+            </div>
+
             <div class="actions full" style="margin-top: 8px;">
               <button type="button" data-nav="prev" class="secondary">Zurück</button>
               <button type="button" data-nav="next">Weiter</button>
@@ -7286,6 +7330,49 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
 
+          <div class="field full" style="margin-top:16px">
+            <label for="ahNote">Notizen / Anmerkungen</label>
+            <textarea id="ahNote" name="ahNote" rows="8" placeholder="z. B. Besonderheiten, Kundenwünsche oder Hinweise zur Alltagshilfe …"></textarea>
+          </div>
+
+          <div class="project-sketch full" data-sketch-key="ah">
+            <div class="project-sketch__head">
+              <div>
+                <div class="project-sketch__title">Projekt-Skizze</div>
+                <div class="project-sketch__subtitle">Für kurze Handskizzen direkt im Gespräch mit dem Kunden.</div>
+              </div>
+              <div class="project-sketch__controls">
+                <div class="project-sketch__tools" role="toolbar" aria-label="Skizzenwerkzeuge">
+                  <button type="button" class="pad-tool active" data-tool="pen" title="Stift" aria-label="Stift"><i class="fa-solid fa-pen"></i></button>
+                  <button type="button" class="pad-tool" data-tool="eraser" title="Radierer" aria-label="Radierer"><i class="fa-solid fa-eraser"></i></button>
+                  <button type="button" class="pad-tool" data-tool="line" title="Linie" aria-label="Linie"><i class="fa-solid fa-slash"></i></button>
+                  <button type="button" class="pad-tool" data-tool="ruler" title="Lineal" aria-label="Lineal"><i class="fa-solid fa-ruler"></i></button>
+                  <button type="button" class="pad-undo" data-action="undo" title="Rückgängig" aria-label="Rückgängig"><i class="fa-solid fa-rotate-left"></i></button>
+                </div>
+                <div class="project-sketch__sizes" role="group" aria-label="Strichstärke">
+                  <button type="button" class="pad-size" data-size="2" title="Klein">S</button>
+                  <button type="button" class="pad-size active" data-size="4" title="Mittel">M</button>
+                  <button type="button" class="pad-size" data-size="7" title="Groß">L</button>
+                </div>
+                <div class="project-sketch__colors" role="group" aria-label="Farben">
+                  <button type="button" class="pad-color active" data-color="#0f172a" style="--swatch:#0f172a" title="Dunkel"></button>
+                  <button type="button" class="pad-color" data-color="#dc2626" style="--swatch:#dc2626" title="Rot"></button>
+                  <button type="button" class="pad-color" data-color="#2563eb" style="--swatch:#2563eb" title="Blau"></button>
+                  <button type="button" class="pad-color" data-color="#16a34a" style="--swatch:#16a34a" title="Grün"></button>
+                  <button type="button" class="pad-color" data-color="#d97706" style="--swatch:#d97706" title="Orange"></button>
+                  <button type="button" class="pad-color" data-color="#7c3aed" style="--swatch:#7c3aed" title="Lila"></button>
+                </div>
+                <button type="button" class="pad-clear btn-secondary">Skizze löschen</button>
+              </div>
+            </div>
+            <div class="project-sketch__canvas-wrap">
+              <canvas class="project-sketch__canvas" width="1200" height="420"></canvas>
+            </div>
+            <div class="project-sketch__hint">Die Skizze wird zusammen mit dem Entwurf, dem Angebot und beim Draft-Restore gespeichert.</div>
+            <input type="hidden" id="ahSketchDataUrl" name="ahSketchDataUrl" value="" />
+            <input type="hidden" id="ahSketchJson" name="ahSketchJson" value="" />
+          </div>
+
           <!-- Navigation -->
           <div class="actions full" style="margin-top:16px">
             <button type="button" data-nav="prev" class="secondary">Zurück</button>
@@ -7429,6 +7516,49 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
 
+          <div class="field full" style="margin-top:16px">
+            <label for="hmsNote">Notizen / Anmerkungen</label>
+            <textarea id="hmsNote" name="hmsNote" rows="8" placeholder="z. B. Besonderheiten, Kundenwünsche oder Hinweise zum Hausmeisterservice …"></textarea>
+          </div>
+
+          <div class="project-sketch full" data-sketch-key="hms">
+            <div class="project-sketch__head">
+              <div>
+                <div class="project-sketch__title">Projekt-Skizze</div>
+                <div class="project-sketch__subtitle">Für kurze Handskizzen direkt im Gespräch mit dem Kunden.</div>
+              </div>
+              <div class="project-sketch__controls">
+                <div class="project-sketch__tools" role="toolbar" aria-label="Skizzenwerkzeuge">
+                  <button type="button" class="pad-tool active" data-tool="pen" title="Stift" aria-label="Stift"><i class="fa-solid fa-pen"></i></button>
+                  <button type="button" class="pad-tool" data-tool="eraser" title="Radierer" aria-label="Radierer"><i class="fa-solid fa-eraser"></i></button>
+                  <button type="button" class="pad-tool" data-tool="line" title="Linie" aria-label="Linie"><i class="fa-solid fa-slash"></i></button>
+                  <button type="button" class="pad-tool" data-tool="ruler" title="Lineal" aria-label="Lineal"><i class="fa-solid fa-ruler"></i></button>
+                  <button type="button" class="pad-undo" data-action="undo" title="Rückgängig" aria-label="Rückgängig"><i class="fa-solid fa-rotate-left"></i></button>
+                </div>
+                <div class="project-sketch__sizes" role="group" aria-label="Strichstärke">
+                  <button type="button" class="pad-size" data-size="2" title="Klein">S</button>
+                  <button type="button" class="pad-size active" data-size="4" title="Mittel">M</button>
+                  <button type="button" class="pad-size" data-size="7" title="Groß">L</button>
+                </div>
+                <div class="project-sketch__colors" role="group" aria-label="Farben">
+                  <button type="button" class="pad-color active" data-color="#0f172a" style="--swatch:#0f172a" title="Dunkel"></button>
+                  <button type="button" class="pad-color" data-color="#dc2626" style="--swatch:#dc2626" title="Rot"></button>
+                  <button type="button" class="pad-color" data-color="#2563eb" style="--swatch:#2563eb" title="Blau"></button>
+                  <button type="button" class="pad-color" data-color="#16a34a" style="--swatch:#16a34a" title="Grün"></button>
+                  <button type="button" class="pad-color" data-color="#d97706" style="--swatch:#d97706" title="Orange"></button>
+                  <button type="button" class="pad-color" data-color="#7c3aed" style="--swatch:#7c3aed" title="Lila"></button>
+                </div>
+                <button type="button" class="pad-clear btn-secondary">Skizze löschen</button>
+              </div>
+            </div>
+            <div class="project-sketch__canvas-wrap">
+              <canvas class="project-sketch__canvas" width="1200" height="420"></canvas>
+            </div>
+            <div class="project-sketch__hint">Die Skizze wird zusammen mit dem Entwurf, dem Angebot und beim Draft-Restore gespeichert.</div>
+            <input type="hidden" id="hmsSketchDataUrl" name="hmsSketchDataUrl" value="" />
+            <input type="hidden" id="hmsSketchJson" name="hmsSketchJson" value="" />
+          </div>
+
           <!-- Navigation -->
           <div class="actions full" style="margin-top:16px">
             <button type="button" data-nav="prev" class="secondary">Zurück</button>
@@ -7570,6 +7700,49 @@ button.dm-btn-danger:focus-visible {
                 </label>
               </div>
             </div>
+          </div>
+
+          <div class="field full" style="margin-top:16px">
+            <label for="wdNote">Notizen / Anmerkungen</label>
+            <textarea id="wdNote" name="wdNote" rows="8" placeholder="z. B. Besonderheiten, Kundenwünsche oder Hinweise zum Winterdienst …"></textarea>
+          </div>
+
+          <div class="project-sketch full" data-sketch-key="wd">
+            <div class="project-sketch__head">
+              <div>
+                <div class="project-sketch__title">Projekt-Skizze</div>
+                <div class="project-sketch__subtitle">Für kurze Handskizzen direkt im Gespräch mit dem Kunden.</div>
+              </div>
+              <div class="project-sketch__controls">
+                <div class="project-sketch__tools" role="toolbar" aria-label="Skizzenwerkzeuge">
+                  <button type="button" class="pad-tool active" data-tool="pen" title="Stift" aria-label="Stift"><i class="fa-solid fa-pen"></i></button>
+                  <button type="button" class="pad-tool" data-tool="eraser" title="Radierer" aria-label="Radierer"><i class="fa-solid fa-eraser"></i></button>
+                  <button type="button" class="pad-tool" data-tool="line" title="Linie" aria-label="Linie"><i class="fa-solid fa-slash"></i></button>
+                  <button type="button" class="pad-tool" data-tool="ruler" title="Lineal" aria-label="Lineal"><i class="fa-solid fa-ruler"></i></button>
+                  <button type="button" class="pad-undo" data-action="undo" title="Rückgängig" aria-label="Rückgängig"><i class="fa-solid fa-rotate-left"></i></button>
+                </div>
+                <div class="project-sketch__sizes" role="group" aria-label="Strichstärke">
+                  <button type="button" class="pad-size" data-size="2" title="Klein">S</button>
+                  <button type="button" class="pad-size active" data-size="4" title="Mittel">M</button>
+                  <button type="button" class="pad-size" data-size="7" title="Groß">L</button>
+                </div>
+                <div class="project-sketch__colors" role="group" aria-label="Farben">
+                  <button type="button" class="pad-color active" data-color="#0f172a" style="--swatch:#0f172a" title="Dunkel"></button>
+                  <button type="button" class="pad-color" data-color="#dc2626" style="--swatch:#dc2626" title="Rot"></button>
+                  <button type="button" class="pad-color" data-color="#2563eb" style="--swatch:#2563eb" title="Blau"></button>
+                  <button type="button" class="pad-color" data-color="#16a34a" style="--swatch:#16a34a" title="Grün"></button>
+                  <button type="button" class="pad-color" data-color="#d97706" style="--swatch:#d97706" title="Orange"></button>
+                  <button type="button" class="pad-color" data-color="#7c3aed" style="--swatch:#7c3aed" title="Lila"></button>
+                </div>
+                <button type="button" class="pad-clear btn-secondary">Skizze löschen</button>
+              </div>
+            </div>
+            <div class="project-sketch__canvas-wrap">
+              <canvas class="project-sketch__canvas" width="1200" height="420"></canvas>
+            </div>
+            <div class="project-sketch__hint">Die Skizze wird zusammen mit dem Entwurf, dem Angebot und beim Draft-Restore gespeichert.</div>
+            <input type="hidden" id="wdSketchDataUrl" name="wdSketchDataUrl" value="" />
+            <input type="hidden" id="wdSketchJson" name="wdSketchJson" value="" />
           </div>
 
           <!-- Navigation -->

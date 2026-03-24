@@ -2097,6 +2097,7 @@ function resetAllForms() {
 
   [
     "offerNumber",
+    "auftragId",
     "mailTo",
     "mailSubject",
     "mailBody",
@@ -2138,6 +2139,14 @@ function resetAllForms() {
   ["mailAttachments", "postAttachments"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.value = "";
+  });
+
+  ["auftragId", "mailAuftragId", "postAuftragId"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = "";
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
   });
 
   window.__bitrixSendState = {
@@ -3996,22 +4005,42 @@ function attachProjectSketchesToPayload(payload) {
     const daNoteEl = document.getElementById("daNote");
     const bwtNoteEl = document.getElementById("bwtNote");
     const hlNoteEl = document.getElementById("hlNote");
+    const blNoteEl = document.getElementById("blNote");
+    const ahNoteEl = document.getElementById("ahNote");
+    const hmsNoteEl = document.getElementById("hmsNote");
+    const wdNoteEl = document.getElementById("wdNote");
 
     payload.duschabtrennung = payload.duschabtrennung || {};
     payload.bwt = payload.bwt || {};
     payload.hl = payload.hl || {};
+    payload.bl = payload.bl || {};
+    payload.ah = payload.ah || {};
+    payload.hms = payload.hms || {};
+    payload.wd = payload.wd || {};
 
     if (daNoteEl) payload.duschabtrennung.daNote = daNoteEl.value || "";
     if (bwtNoteEl) payload.bwt.bwtNote = bwtNoteEl.value || "";
     if (hlNoteEl) payload.hl.hlNote = hlNoteEl.value || "";
+    if (blNoteEl) payload.bl.blNote = blNoteEl.value || "";
+    if (ahNoteEl) payload.ah.ahNote = ahNoteEl.value || "";
+    if (hmsNoteEl) payload.hms.hmsNote = hmsNoteEl.value || "";
+    if (wdNoteEl) payload.wd.wdNote = wdNoteEl.value || "";
 
     const daSketch = getSketchDataFor("da");
     const bwtSketch = getSketchDataFor("bwt");
     const hlSketch = getSketchDataFor("hl");
+    const blSketch = getSketchDataFor("bl");
+    const ahSketch = getSketchDataFor("ah");
+    const hmsSketch = getSketchDataFor("hms");
+    const wdSketch = getSketchDataFor("wd");
 
     payload.duschabtrennung.sketch = { json: daSketch.json, dataUrl: daSketch.dataUrl };
     payload.bwt.sketch = { json: bwtSketch.json, dataUrl: bwtSketch.dataUrl };
     payload.hl.sketch = { json: hlSketch.json, dataUrl: hlSketch.dataUrl };
+    payload.bl.sketch = { json: blSketch.json, dataUrl: blSketch.dataUrl };
+    payload.ah.sketch = { json: ahSketch.json, dataUrl: ahSketch.dataUrl };
+    payload.hms.sketch = { json: hmsSketch.json, dataUrl: hmsSketch.dataUrl };
+    payload.wd.sketch = { json: wdSketch.json, dataUrl: wdSketch.dataUrl };
   } catch (e) {
     console.warn("[buildPayload] attachProjectSketchesToPayload failed:", e);
   }
@@ -11462,6 +11491,10 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     restoreSketchFor("da", p?.duschabtrennung);
     restoreSketchFor("bwt", p?.bwt);
     restoreSketchFor("hl", p?.hl);
+    restoreSketchFor("bl", p?.bl);
+    restoreSketchFor("ah", p?.ah);
+    restoreSketchFor("hms", p?.hms);
+    restoreSketchFor("wd", p?.wd);
   } finally {
     window.__restoring = false;
     window.__RESTORING__ = false;
@@ -14721,6 +14754,24 @@ function refreshEmc2ContactPrefill() {
     const match = Array.from(selectEl.options).find((opt) => opt.value === inputValue);
     selectEl.value = match ? match.value : "";
   }
+}
+
+function restoreAh(ah) {
+  if (!ah) return;
+  const noteEl = document.getElementById("ahNote");
+  if (noteEl) noteEl.value = ah.ahNote || "";
+}
+
+function restoreHms(hms) {
+  if (!hms) return;
+  const noteEl = document.getElementById("hmsNote");
+  if (noteEl) noteEl.value = hms.hmsNote || "";
+}
+
+function restoreWd(wd) {
+  if (!wd) return;
+  const noteEl = document.getElementById("wdNote");
+  if (noteEl) noteEl.value = wd.wdNote || "";
 }
 
 if (document.readyState === "loading") {
