@@ -4585,6 +4585,16 @@ button.pad-clear {
   transform: translateY(-1px);
 }
 
+.today-customer-card.is-cancelled {
+  cursor: not-allowed;
+}
+
+.today-customer-card.is-cancelled:hover {
+  border-color: var(--border);
+  box-shadow: none;
+  transform: none;
+}
+
 .today-customer-card.is-active {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--ring);
@@ -4693,6 +4703,32 @@ button.pad-clear {
 .today-calendar-card > * {
   position: relative;
   z-index: 1;
+}
+
+.today-calendar-card.is-cancelled {
+  opacity: .72;
+}
+
+.today-calendar-card.is-cancelled::after {
+  background: linear-gradient(135deg, rgba(239, 68, 68, .16), transparent 46%);
+  opacity: 1;
+}
+
+.today-calendar-card.is-cancelled .today-calendar-icon {
+  border-color: rgba(239, 68, 68, .28);
+  background: rgba(239, 68, 68, .08);
+  color: #b91c1c;
+}
+
+.today-calendar-card.is-cancelled .today-calendar-time,
+.today-calendar-card.is-cancelled .today-calendar-meta,
+.today-calendar-card.is-cancelled .today-calendar-preview,
+.today-calendar-card.is-cancelled .today-calendar-subtitle {
+  color: color-mix(in srgb, var(--muted) 88%, #6b7280);
+}
+
+.today-calendar-card.is-cancelled .today-calendar-meta i {
+  color: #dc2626;
 }
 
 .today-calendar-topline {
@@ -4813,6 +4849,12 @@ button.pad-clear {
   color: var(--muted);
 }
 
+.today-calendar-badge.is-cancelled {
+  background: rgba(239, 68, 68, .1);
+  border-color: rgba(239, 68, 68, .24);
+  color: #b91c1c;
+}
+
 .today-calendar-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4876,6 +4918,16 @@ button.pad-clear {
   box-shadow: 0 0 0 3px var(--ring);
   background: var(--accent);
   color: #fff;
+}
+
+.today-calendar-open:disabled,
+.today-calendar-open[aria-disabled="true"] {
+  cursor: not-allowed;
+  border-color: rgba(239, 68, 68, .18);
+  background: rgba(239, 68, 68, .08);
+  color: #b91c1c;
+  box-shadow: none;
+  transform: none;
 }
 
 @media (max-width: 720px) {

@@ -26,6 +26,7 @@ import adobePdfRouter from "./routes/adobe-pdf.js";
 import arbeitsberichtRouter from "./routes/arbeitsbericht.js";
 import kalkulationRouter from "./routes/kalkulation.js";
 import bathtubsRouter from "./routes/bathtubs.js";
+import planningRouter from "./routes/planning.js";
 
 // Models (ESM default exports)
 import Product from "./models/Product.js";
@@ -126,6 +127,7 @@ app.use(
           "'self'",
           "https://fly-n8n-1.fly.dev",
           "https://emczwei.bitrix24.de",
+          "https://route-plannung.fly.dev",
           // if your viewer fetches PDFs or assets from unpkg via fetch/XHR:
           "https://unpkg.com",
         ],
@@ -231,6 +233,7 @@ app.use("/kalkulation", kalkulationRouter);
 app.use("/api/email", emailRouter);
 app.use("/api/post", postRouter);
 app.use("/api/bathtubs", bathtubsRouter);
+app.use("/api", planningRouter);
 app.use('/api', todaysCustomersRouter);
 
 //app.use("/pdf-preview", pdfPreviewRouter);

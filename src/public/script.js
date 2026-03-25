@@ -18943,6 +18943,478 @@ document.addEventListener("DOMContentLoaded", initTodayCalendarPanel);
 
 })();
 
+(function(){
+
+const TODAY_PLANNING_BASE_URL = "https://route-plannung.fly.dev";
+const TODAY_PLANNING_SNAPSHOT_ENDPOINT = `${TODAY_PLANNING_BASE_URL}/api/planning/current`;
+const TODAY_PLANNING_STREAM_ENDPOINT = `${TODAY_PLANNING_BASE_URL}/api/planning/stream`;
+
+let todayPlanningAppointments = [];
+let todayPlanningAppointmentsFiltered = [];
+let activePlanningAppointmentId = null;
+let todayPlanningEventSource = null;
+
+function normalizePlanningText(value){
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ß/g, "ss");
+}
+
+function escapePlanningHtml(value){
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function setPlanningValue(selector, value){
+  const el = document.querySelector(selector);
+  if(!el) return;
+  el.value = value || "";
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function parsePlanningDate(value){
+  if(!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function isSamePlanningDay(a, b){
+  if(!(a instanceof Date) || Number.isNaN(a.getTime())) return false;
+  if(!(b instanceof Date) || Number.isNaN(b.getTime())) return false;
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function parsePlanningName(fullName){
+  const cleaned = String(fullName || "").replace(/\s+/g, " ").trim();
+  if(!cleaned) return { firstName: "", lastName: "" };
+  const parts = cleaned.split(" ");
+  if(parts.length === 1) return { firstName: parts[0], lastName: "" };
+  return {
+    firstName: parts.slice(0, -1).join(" "),
+    lastName: parts.slice(-1).join(" "),
+  };
+}
+
+function parsePlanningAddress(address){
+  const raw = String(address || "").trim();
+  if(!raw) {
+    return { street: "", postalCode: "", city: "", full: "" };
+  }
+
+  const parts = raw.split(",").map(part => part.trim()).filter(Boolean);
+  let street = "";
+  let postalCode = "";
+  let city = "";
+
+  for(const part of parts){
+    const match = part.match(/(\d{5})\s+(.+)/);
+    if(match){
+      postalCode = match[1] || "";
+      city = match[2] || "";
+      break;
+    }
+  }
+
+  if(parts.length && !parts[0].match(/\d{5}\s+/)){
+    street = parts[0];
+  }
+
+  if(!street && parts.length > 1 && !parts[0].match(/\d{5}\s+/)){
+    street = parts[0];
+  }
+
+  return {
+    street,
+    postalCode,
+    city,
+    full: raw,
+  };
+}
+
+function getPlanningPriorityLabel(priority){
+  const norm = String(priority || "").trim().toLowerCase();
+  if(norm === "high") return "Priorität Hoch";
+  if(norm === "medium") return "Priorität Mittel";
+  if(norm === "low") return "Priorität Niedrig";
+  return "Geplanter Termin";
+}
+
+function getPlanningSearchBlob(entry){
+  return [
+    entry?.name,
+    entry?.address,
+    entry?.phone,
+    entry?.email,
+    entry?.priority,
+    entry?.prefDay,
+    entry?.companyAddress,
+    entry?.dateLabel,
+  ].filter(Boolean).join(" ");
+}
+
+function pickTodayPlanningDay(planning){
+  const days = Array.isArray(planning?.days) ? planning.days : [];
+  const now = new Date();
+  return days.find(day => isSamePlanningDay(parsePlanningDate(day?.date), now)) || null;
+}
+
+function buildPlanningEntries(payload){
+  const planning = payload?.planning || {};
+  const day = pickTodayPlanningDay(planning);
+  const customers = Array.isArray(day?.customers) ? day.customers : [];
+
+  return {
+    planning,
+    day,
+    entries: customers
+      .map((customer, index) => ({
+        ...customer,
+        __entryId: String(customer?.id || `${day?.date || "day"}-${index}`),
+        dateLabel: day?.dateLabel || "",
+        dayLabel: day?.label || "",
+        shortLabel: day?.shortLabel || "",
+        dayLocked: !!day?.locked,
+      }))
+      .sort((a, b) => {
+        const aSlot = Number.isFinite(Number(a?.lockedSlot)) ? Number(a.lockedSlot) : Number.MAX_SAFE_INTEGER;
+        const bSlot = Number.isFinite(Number(b?.lockedSlot)) ? Number(b.lockedSlot) : Number.MAX_SAFE_INTEGER;
+        return aSlot - bSlot || String(a?.name || "").localeCompare(String(b?.name || ""), "de");
+      }),
+  };
+}
+
+function formatPlanningDuration(entry){
+  const minutes = Number(entry?.duration);
+  if(!(minutes > 0)) return "Dauer offen";
+  return `${minutes} Min`;
+}
+
+function isPlanningEntryCancelled(entry){
+  const value = entry?.cancelled;
+  return value === true || value === "true" || value === 1 || value === "1";
+}
+
+function formatPlanningBadge(entry){
+  if(isPlanningEntryCancelled(entry)) return "Abgesagt";
+  if(entry?.locked && Number.isFinite(Number(entry?.lockedSlot))){
+    return `Fixer Slot ${Number(entry.lockedSlot) + 1}`;
+  }
+  if(entry?.locked) return "Fixiert";
+  return getPlanningPriorityLabel(entry?.priority);
+}
+
+function renderTodayPlanningAppointments(){
+  const list = document.getElementById("todayPlanningList");
+  if(!list) return;
+
+  if(!todayPlanningAppointmentsFiltered.length){
+    list.innerHTML = `<div class="today-customers-empty">Keine Planungstermine für heute gefunden</div>`;
+    return;
+  }
+
+  list.innerHTML = todayPlanningAppointmentsFiltered.map(entry => {
+    const isCancelled = isPlanningEntryCancelled(entry);
+    const address = entry?.address || "Ort unbekannt";
+    const email = entry?.email || "Keine E-Mail";
+    const phone = entry?.phone || "Keine Telefonnummer";
+    const subtitle = isCancelled
+      ? "Termin abgesagt"
+      : (entry?.dayLocked ? "Tag gesperrt" : (entry?.locked ? "Termin fixiert" : "Planungstermin"));
+    const preview = [
+      entry?.name,
+      entry?.address,
+      entry?.phone,
+      entry?.email,
+    ].filter(Boolean).join(" ");
+    const badgeClass = isCancelled
+      ? "is-cancelled"
+      : (entry?.locked ? "is-bu" : "is-manual");
+
+    return `
+      <div class="today-customer-card today-calendar-card ${String(activePlanningAppointmentId) === String(entry.__entryId) ? "is-active" : ""} ${isCancelled ? "is-cancelled" : ""}" data-id="${escapePlanningHtml(entry.__entryId)}" ${isCancelled ? 'aria-disabled="true"' : ""}>
+        <div class="today-calendar-topline">
+          <div class="today-calendar-title-wrap">
+            <span class="today-calendar-icon"><i class="fa-solid fa-route"></i></span>
+            <div class="today-calendar-title-block">
+              <div class="today-calendar-title">${escapePlanningHtml(entry?.name || "Unbekannt")}</div>
+              <div class="today-calendar-subtitle">${escapePlanningHtml(subtitle)}</div>
+            </div>
+          </div>
+
+          <div class="today-calendar-right">
+            <span class="today-calendar-time"><i class="fa-regular fa-clock"></i> ${escapePlanningHtml(formatPlanningDuration(entry))}</span>
+            <span class="today-calendar-badge ${badgeClass}">${escapePlanningHtml(formatPlanningBadge(entry))}</span>
+          </div>
+        </div>
+
+        <div class="today-calendar-grid">
+          <div class="today-calendar-meta"><i class="fa-solid fa-location-dot"></i><span>${escapePlanningHtml(address)}</span></div>
+          <div class="today-calendar-meta"><i class="fa-solid fa-envelope"></i><span>${escapePlanningHtml(email)}</span></div>
+          <div class="today-calendar-meta"><i class="fa-solid fa-phone"></i><span>${escapePlanningHtml(phone)}</span></div>
+          <div class="today-calendar-meta"><i class="fa-solid fa-calendar-days"></i><span>${escapePlanningHtml(entry?.dateLabel || "Ohne Datum")}</span></div>
+        </div>
+
+        <div class="today-calendar-preview">${escapePlanningHtml(preview || "Keine weiteren Details")}</div>
+
+        <div class="today-calendar-actions">
+          <button type="button" class="today-calendar-open" ${isCancelled ? 'disabled aria-disabled="true"' : ""}><i class="fa-solid ${isCancelled ? "fa-ban" : "fa-arrow-right"}"></i> ${isCancelled ? "Nicht verfuegbar" : "In Konfigurator öffnen"}</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  list.querySelectorAll(".today-calendar-card").forEach(card => {
+    const openButton = card.querySelector(".today-calendar-open");
+    const onOpen = () => {
+      const id = card.dataset.id;
+      const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
+      if(!entry || isPlanningEntryCancelled(entry)) return;
+      activePlanningAppointmentId = id;
+      renderTodayPlanningAppointments();
+      applyPlanningAppointmentToForm(entry);
+    };
+
+    card.addEventListener("click", onOpen);
+    openButton?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      onOpen();
+    });
+  });
+}
+
+function filterTodayPlanningAppointments(query){
+  if(!query){
+    todayPlanningAppointmentsFiltered = todayPlanningAppointments;
+  }else{
+    const needle = normalizePlanningText(query);
+    todayPlanningAppointmentsFiltered = todayPlanningAppointments.filter(entry =>
+      normalizePlanningText(getPlanningSearchBlob(entry)).includes(needle)
+    );
+  }
+
+  renderTodayPlanningAppointments();
+}
+
+function updateTodayPlanningMeta(day){
+  const meta = document.getElementById("todayPlanningMeta");
+  if(!meta) return;
+
+  const label = day?.dateLabel || new Intl.DateTimeFormat("de-DE", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
+
+  meta.textContent = `${todayPlanningAppointments.length} Termin(e) für ${label}`;
+}
+
+function applyPlanningPayload(payload){
+  const list = document.getElementById("todayPlanningList");
+  const { day, entries } = buildPlanningEntries(payload || {});
+
+  todayPlanningAppointments = entries;
+  const activeStillVisible = entries.some(entry =>
+    String(entry.__entryId) === String(activePlanningAppointmentId) && !isPlanningEntryCancelled(entry)
+  );
+  if(!activeStillVisible) activePlanningAppointmentId = null;
+
+  const currentSearch = document.getElementById("todayPlanningSearch")?.value?.trim() || "";
+  todayPlanningAppointmentsFiltered = currentSearch
+    ? entries.filter(entry => normalizePlanningText(getPlanningSearchBlob(entry)).includes(normalizePlanningText(currentSearch)))
+    : entries;
+
+  renderTodayPlanningAppointments();
+  updateTodayPlanningMeta(day);
+
+  if(list && !entries.length){
+    list.innerHTML = `<div class="today-customers-empty">Keine Planungstermine für heute gefunden</div>`;
+  }
+}
+
+async function fetchTodayPlanningSnapshot(){
+  const list = document.getElementById("todayPlanningList");
+  const meta = document.getElementById("todayPlanningMeta");
+  if(list){
+    list.innerHTML = `<div class="today-customers-empty">Lade Termine…</div>`;
+  }
+
+  try{
+    const response = await fetch(TODAY_PLANNING_SNAPSHOT_ENDPOINT, {
+      headers: { Accept: "application/json" },
+    });
+
+    if(!response.ok){
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const payload = await response.json();
+    applyTodayPlanningPayload(payload);
+  }catch(error){
+    console.error("today planning failed", error);
+    if(list){
+      list.innerHTML = `<div class="today-customers-empty">Fehler beim Laden der Planungstermine</div>`;
+    }
+    if(meta){
+      meta.textContent = "Planungsdaten konnten nicht geladen werden";
+    }
+  }
+}
+
+function applyTodayPlanningPayload(payload){
+  if(!payload?.planning){
+    throw new Error("Planning payload missing");
+  }
+  applyPlanningPayload(payload);
+}
+
+function connectTodayPlanningStream(){
+  if(typeof EventSource !== "function") return;
+
+  try {
+    todayPlanningEventSource?.close?.();
+  } catch {}
+
+  todayPlanningEventSource = new EventSource(TODAY_PLANNING_STREAM_ENDPOINT);
+
+  const handlePayload = (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      if(payload?.planning){
+        applyTodayPlanningPayload(payload);
+      }
+    } catch (error) {
+      console.warn("planning stream payload parse failed", error);
+    }
+  };
+
+  todayPlanningEventSource.addEventListener("planning", handlePayload);
+  todayPlanningEventSource.addEventListener("message", handlePayload);
+  todayPlanningEventSource.onerror = (error) => {
+    console.warn("planning stream error", error);
+  };
+}
+
+function applyPlanningAppointmentToForm(entry){
+  const name = parsePlanningName(entry?.name || "");
+  const address = parsePlanningAddress(entry?.address || "");
+
+  if(typeof startOfferFlow === "function"){
+    startOfferFlow("bu");
+  }
+
+  setPlanningValue("#firstName", name.firstName || "");
+  setPlanningValue("#lastName", name.lastName || "");
+  setPlanningValue("#phone", entry?.phone || "");
+  setPlanningValue("#email", entry?.email || "");
+  setPlanningValue("#street", address.street || "");
+  setPlanningValue("#postalCode", address.postalCode || "");
+  setPlanningValue("#city", address.city || "");
+  setPlanningValue("#bitrixContactId", entry?.id || "");
+  setPlanningValue("#company", "");
+  setPlanningValue("#country", "");
+  setPlanningValue("#state", "");
+
+  if(typeof syncSummaryLeadIds === "function"){
+    syncSummaryLeadIds(entry?.id || "");
+  }
+  if(typeof syncSummaryRecipientEmail === "function"){
+    syncSummaryRecipientEmail(entry?.email || "");
+  }
+
+  try {
+    if (typeof updateSummaryWidgetName === "function") {
+      updateSummaryWidgetName();
+    }
+    if (typeof updateSidebarForOffer === "function") {
+      updateSidebarForOffer();
+    }
+  } catch (error) {
+    console.warn("today planning sidebar refresh failed", error);
+  }
+}
+
+function initTodayPlanningPanel(){
+  const panel = document.getElementById("todayPlanningPanel");
+  if(!panel) return;
+
+  const search = document.getElementById("todayPlanningSearch");
+  const refresh = document.getElementById("refreshTodayPlanning");
+
+  if(search){
+    search.addEventListener("input", (event) => {
+      filterTodayPlanningAppointments(event.target.value);
+    });
+  }
+
+  if(refresh){
+    refresh.addEventListener("click", fetchTodayPlanningSnapshot);
+  }
+
+  fetchTodayPlanningSnapshot();
+  connectTodayPlanningStream();
+
+  window.addEventListener("beforeunload", () => {
+    try {
+      todayPlanningEventSource?.close?.();
+    } catch {}
+  }, { once: true });
+}
+
+document.addEventListener("DOMContentLoaded", initTodayPlanningPanel);
+
+})();
+
+function normalizePhoneHref(value){
+  const raw = String(value || "").trim();
+  if(!raw) return "";
+  return raw.replace(/[^+\d]/g, "");
+}
+
+function updatePhoneCallButton(){
+  const phoneInput = document.getElementById("phone");
+  const callButton = document.getElementById("phoneCallBtn");
+  if(!phoneInput || !callButton) return;
+
+  const normalized = normalizePhoneHref(phoneInput.value);
+  if(!normalized){
+    callButton.setAttribute("href", "#");
+    callButton.setAttribute("aria-disabled", "true");
+    return;
+  }
+
+  callButton.setAttribute("href", `tel:${normalized}`);
+  callButton.setAttribute("aria-disabled", "false");
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const phoneInput = document.getElementById("phone");
+  const callButton = document.getElementById("phoneCallBtn");
+  if(!phoneInput || !callButton) return;
+
+  phoneInput.addEventListener("input", updatePhoneCallButton);
+  phoneInput.addEventListener("change", updatePhoneCallButton);
+  callButton.addEventListener("click", (event) => {
+    if(callButton.getAttribute("aria-disabled") === "true"){
+      event.preventDefault();
+    }
+  });
+
+  updatePhoneCallButton();
+});
+
 
 document.addEventListener("DOMContentLoaded", () => {
   const chosenTrayPidEl = document.getElementById("chosenTrayProductId");
