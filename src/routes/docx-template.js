@@ -567,6 +567,37 @@ async function convertDocxToPdf(docxBuffer) {
   }
 }
 
+async function generateOfferPdfBuffer(body) {
+  const templatePath = getAngebotTemplatePath(body);
+  console.log("[pdf] Using template path:", templatePath);
+  console.log("[pdf] Template exists?", fsSync.existsSync(templatePath));
+
+  const computed = await pricing.computePrices(body || {});
+  const dataRaw = await mapData(body || {}, computed);
+  const data = deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST);
+
+  console.log("[pdf] SignatureImage present?", !!data.SignatureImage);
+
+  const docxBuffer = await renderDocx(templatePath, data);
+
+  try {
+    const verifyOut = path.join(process.cwd(), "out-Angebot.docx");
+    fsSync.writeFileSync(verifyOut, docxBuffer);
+    console.log(
+      "[docx-template/pdf] wrote generated DOCX for conversion:",
+      verifyOut,
+    );
+  } catch (e) {
+    console.warn(
+      "[docx-template/pdf] could not write verify docx:",
+      e?.message || e,
+    );
+  }
+
+  const pdfBuffer = await convertDocxToPdf(docxBuffer);
+  return { pdfBuffer, data, computed };
+}
+
 /* ===========================
    Material Overview Aggregation
    =========================== */
@@ -1848,34 +1879,7 @@ router.post("/material-overview", async (req, res) => {
 // ✅ IMPROVED: PDF route with much more robust LibreOffice handling
 router.post("/pdf", async (req, res) => {
   try {
-    const templatePath = getAngebotTemplatePath(req.body);
-    console.log("[pdf] Using template path:", templatePath);
-    console.log("[pdf] Template exists?", fsSync.existsSync(templatePath));
-
-    const computed = await pricing.computePrices(req.body || {});
-    const dataRaw = await mapData(req.body || {}, computed);
-    const data = deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST);
-
-    console.log("[pdf] SignatureImage present?", !!data.SignatureImage);
-
-    // ✅ render DOCX first with image module, then convert to PDF
-    const docxBuffer = await renderDocx(templatePath, data);
-
-    try {
-      const verifyOut = path.join(process.cwd(), "out-Angebot.docx");
-      fsSync.writeFileSync(verifyOut, docxBuffer);
-      console.log(
-        "[docx-template/pdf] wrote generated DOCX for conversion:",
-        verifyOut,
-      );
-    } catch (e) {
-      console.warn(
-        "[docx-template/pdf] could not write verify docx:",
-        e?.message || e,
-      );
-    }
-
-    const pdfBuffer = await convertDocxToPdf(docxBuffer);
+    const { pdfBuffer, data } = await generateOfferPdfBuffer(req.body || {});
 
     const baseName = safeFileNameFromOffer(data.Angebotsnummer, "Angebot");
     const fname = `${baseName}.pdf`;
@@ -1893,4 +1897,10 @@ router.post("/pdf", async (req, res) => {
 });
 
 export default router;
-export { renderDocx, convertDocxToPdf, mapData, getAngebotTemplatePath };
+export {
+  renderDocx,
+  convertDocxToPdf,
+  mapData,
+  getAngebotTemplatePath,
+  generateOfferPdfBuffer,
+};

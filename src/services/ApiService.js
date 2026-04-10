@@ -148,6 +148,26 @@ class ApiService {
     return { blob, filename };
   }
 
+  async downloadArbeitsberichtPdf(
+    payload,
+    endpoint = "/api/arbeitsbericht/pdf",
+  ) {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Arbeitsbericht PDF generation failed: ${response.status}`);
+    }
+
+    const filename = this._extractFilename(response, "Arbeitsbericht.pdf");
+    const blob = await response.blob();
+    return { blob, filename };
+  }
+
   _extractFilename(response, fallback) {
     const cd = response.headers.get("content-disposition") || "";
     const match = cd.match(/filename="?(.*?)"?$/i);

@@ -15,19 +15,29 @@ function isEmpty(v) {
 
 function buildQS(paramsObj) {
   const sp = new URLSearchParams();
-  const add = (k, v) => {
-    if (v !== undefined && v !== null) sp.append(k, String(v));
-  };
 
-  for (const [k, v] of Object.entries(paramsObj || {})) {
-    if (Array.isArray(v)) {
-      for (const item of v) add(`${k}[]`, item);
-    } else if (typeof v === "object" && v !== null) {
-      for (const [kk, vv] of Object.entries(v)) add(`${k}[${kk}]`, vv);
-    } else {
-      add(k, v);
+  function appendValue(prefix, value) {
+    if (value === undefined || value === null) return;
+
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => appendValue(`${prefix}[${index}]`, item));
+      return;
     }
+
+    if (typeof value === "object") {
+      Object.entries(value).forEach(([key, nested]) => {
+        appendValue(`${prefix}[${key}]`, nested);
+      });
+      return;
+    }
+
+    sp.append(prefix, String(value));
   }
+
+  Object.entries(paramsObj || {}).forEach(([key, value]) => {
+    appendValue(key, value);
+  });
+
   return sp.toString();
 }
 
@@ -54,6 +64,67 @@ async function bxGet(method, paramsObj = {}) {
   if (data.error) throw new Error(data.error_description || data.error);
 
   return data;
+}
+
+async function bxPost(method, paramsObj = {}) {
+  if (!BITRIX_WEBHOOK_BASE) {
+    throw new Error(
+      "BITRIX_WEBHOOK_BASE is not configured (set it in env).",
+    );
+  }
+
+  const url = `${BITRIX_WEBHOOK_BASE}/${method}.json`;
+  const body = buildQS(paramsObj);
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+    },
+    body,
+  });
+  const data = await res.json().catch(() => null);
+
+  if (!data) throw new Error("Invalid JSON response from Bitrix");
+  if (data.error) throw new Error(data.error_description || data.error);
+
+  return data;
+}
+
+async function addTimelineComment({
+  entityType,
+  entityId,
+  comment,
+  attachments = [],
+}) {
+  const numericId = Number(entityId);
+  if (!entityType) throw new Error("entityType is required");
+  if (!Number.isFinite(numericId) || numericId <= 0) {
+    throw new Error("entityId must be a positive number");
+  }
+  if (!comment || !String(comment).trim()) {
+    throw new Error("comment is required");
+  }
+
+  const files = (Array.isArray(attachments) ? attachments : [])
+    .map((item) => ({
+      filename: String(item?.filename || "").trim(),
+      base64: String(item?.base64 || item?.content || "").trim(),
+    }))
+    .filter((item) => item.filename && item.base64)
+    .map((item) => [item.filename, item.base64]);
+
+  const fields = {
+    ENTITY_ID: numericId,
+    ENTITY_TYPE: entityType,
+    COMMENT: String(comment).trim(),
+  };
+
+  if (files.length) {
+    fields.FILES = files;
+  }
+
+  return bxPost("crm.timeline.comment.add", { fields });
 }
 
 async function getRequisiteIdForContact(contactId) {
@@ -147,18 +218,12 @@ router.post("/timeline/comment", express.json({ limit: "1mb" }), async (req, res
       return res.status(400).json({ error: "entityId is required" });
     }
     if (!comment) return res.status(400).json({ error: "comment is required" });
-
-    const entityId = Number(entityIdRaw);
-    if (!Number.isFinite(entityId) || entityId <= 0) {
-      return res.status(400).json({ error: "entityId must be a positive number" });
-    }
-
-    const data = await bxGet("crm.timeline.comment.add", {
-      fields: {
-        ENTITY_ID: entityId,
-        ENTITY_TYPE: entityType,
-        COMMENT: comment,
-      },
+    const attachments = Array.isArray(req.body?.attachments) ? req.body.attachments : [];
+    const data = await addTimelineComment({
+      entityType,
+      entityId: entityIdRaw,
+      comment,
+      attachments,
     });
 
     return res.json(data);
@@ -169,3 +234,4 @@ router.post("/timeline/comment", express.json({ limit: "1mb" }), async (req, res
 });
 
 export default router;
+export { addTimelineComment };

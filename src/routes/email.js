@@ -10,17 +10,12 @@ import net from "net";
 import dns from "dns";
 
 import EmailLog from "../models/EmailLog.js";
+import { addTimelineComment } from "./bitrix.js";
 
 // Offer PDF generation (your existing utilities)
 import {
-  renderDocx,
-  convertDocxToPdf,
-  mapData,
-  getAngebotTemplatePath,
+  generateOfferPdfBuffer,
 } from "./docx-template.js";
-
-import ProductModel from "../models/Product.js";
-import pricingFactory from "../logic/pricing.js";
 
 const router = express.Router();
 
@@ -55,8 +50,6 @@ router.get("/smtp-test", async (req, res) => {
 
 const upload = multer({ dest: os.tmpdir() });
 
-const pricing = pricingFactory(ProductModel);
-
 function requireEnv(name) {
   const v = process.env[name];
   if (!v) throw new Error(`Missing env var ${name}`);
@@ -81,6 +74,59 @@ function buildTransport() {
   greetingTimeout: 8000,
   socketTimeout: 12000,
 });
+}
+
+function getBitrixTargetFromPayload(payload = {}) {
+  const kundendaten = payload?.Kundendaten || {};
+  const dealId = String(
+    payload?.bitrixDealId ||
+      payload?.Zusammenfassung?.dealId ||
+      payload?.dealId ||
+      kundendaten?.dealId ||
+      "",
+  ).trim();
+  const contactId = String(
+    payload?.bitrixContactId ||
+      kundendaten?.bitrixContactId ||
+      kundendaten?.customerNumber ||
+      "",
+  ).trim();
+
+  if (dealId) return { entityType: "deal", entityId: dealId };
+  if (contactId) return { entityType: "contact", entityId: contactId };
+  return null;
+}
+
+function buildBitrixEmailComment({ offerNumber, to, subject, body, attachmentNames }) {
+  const when = new Date();
+  const dt = when.toLocaleString("de-DE", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  const safe = (v) => String(v ?? "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const rawBody = safe(body || "").trim();
+  const maxLen = 1400;
+  const bodyOut =
+    rawBody.length > maxLen ? `${rawBody.slice(0, maxLen)}\n…(gekürzt)…` : rawBody;
+
+  return [
+    "📧 Email automatisch von OC gesendet",
+    offerNumber ? `Angebot: ${safe(offerNumber).trim()}` : null,
+    `Datum/Zeit: ${dt}`,
+    `Empfänger: ${safe(to).trim() || "-"}`,
+    `Betreff: ${safe(subject).trim() || "-"}`,
+    `Anhänge: ${Array.isArray(attachmentNames) && attachmentNames.length ? attachmentNames.join(", ") : "-"}`,
+    "",
+    "Inhalt:",
+    bodyOut || "-",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function safeOfferFilename(raw) {
@@ -328,6 +374,11 @@ router.post("/send-offer", upload.array("attachments", 10), async (req, res) => 
       return res.status(400).json({ error: "Invalid payload JSON" });
     }
 
+    const dealId = String(req.body.dealId || "").trim();
+    const contactId = String(req.body.contactId || "").trim();
+    if (dealId) payload.bitrixDealId = dealId;
+    if (contactId) payload.bitrixContactId = contactId;
+
     // Parse excludePreset
     const excludePreset = new Set();
     try {
@@ -337,13 +388,8 @@ router.post("/send-offer", upload.array("attachments", 10), async (req, res) => 
       // ignore invalid json
     }
 
-    // ---- Generate offer PDF (Buffer) ----
-    const templatePath = getAngebotTemplatePath(payload);
-    const computed = await pricing.computePrices(payload || {});
-    const data = mapData(payload || {}, computed);
-
-    const docxBuf = await renderDocx(templatePath, data);
-    const pdfBuf = await convertDocxToPdf(docxBuf);
+    // ---- Generate offer PDF (same path as /docx-template/pdf) ----
+    const { pdfBuffer: pdfBuf } = await generateOfferPdfBuffer(payload || {});
 
     const angebotFilename = safeOfferFilename(payload?.offerNumber || offerNumber);
     const signatureCid = "emc2-signature-picture";
@@ -385,6 +431,29 @@ router.post("/send-offer", upload.array("attachments", 10), async (req, res) => 
       ...presetAttachments.map((a) => a.filename),
       ...uploadAttachments.map((a) => a.filename),
     ];
+
+    const bitrixAttachments = [
+      {
+        filename: angebotFilename,
+        base64: pdfBuf.toString("base64"),
+      },
+      ...(
+        await Promise.all(
+          presetAttachments.map(async (item) => ({
+            filename: item.filename,
+            base64: (await fs.readFile(item.path)).toString("base64"),
+          })),
+        )
+      ),
+      ...(
+        await Promise.all(
+          uploadAttachments.map(async (item) => ({
+            filename: item.filename,
+            base64: (await fs.readFile(item.path)).toString("base64"),
+          })),
+        )
+      ),
+    ];
     const textBody = buildEmailTextBody(body);
     const htmlBody = buildEmailHtml(body, {
       signatureCid: inlineAttachments.length ? signatureCid : null,
@@ -423,7 +492,31 @@ router.post("/send-offer", upload.array("attachments", 10), async (req, res) => 
       offerType: payload?.activeOffer || offerType,
     });
 
-    res.json({ ok: true, messageId: info.messageId, attachmentNames });
+    let bitrixComment = { skipped: true, reason: "no target" };
+    try {
+      const target = getBitrixTargetFromPayload(payload);
+      if (target) {
+        bitrixComment = await addTimelineComment({
+          ...target,
+          comment: buildBitrixEmailComment({
+            offerNumber: payload?.offerNumber || offerNumber,
+            to,
+            subject,
+            body,
+            attachmentNames,
+          }),
+          attachments: bitrixAttachments,
+        });
+      }
+    } catch (bitrixErr) {
+      console.warn("[email] Bitrix timeline comment failed:", bitrixErr);
+      bitrixComment = {
+        ok: false,
+        error: bitrixErr?.message || String(bitrixErr),
+      };
+    }
+
+    res.json({ ok: true, messageId: info.messageId, attachmentNames, bitrixComment });
   } catch (e) {
     console.error("[email] send-offer failed:", e);
     res.status(500).json({ error: "Send failed", detail: e?.message || String(e) });

@@ -64,6 +64,7 @@ app.use(
         // Allow embedding external pages in iframes on *your* site
         frameSrc: [
           "'self'",
+          "blob:",
           "https://gconlineplus.de",
           "https://*.gconlineplus.de",
           "https://emczwei.bitrix24.de"
@@ -76,7 +77,8 @@ app.use(
           "'self'",
           "https://gconlineplus.de",
           "https://*.gconlineplus.de",
-          "https://emczwei.bitrix24.de"
+          "https://emczwei.bitrix24.de",
+          "https://bau-formular.fly.dev",
         ],
 
         // Allow PDF.js from unpkg + allow the inline <script> in your srcdoc (hash-based).
@@ -128,6 +130,7 @@ app.use(
           "https://fly-n8n-1.fly.dev",
           "https://emczwei.bitrix24.de",
           "https://route-plannung.fly.dev",
+          "https://bau-formular.fly.dev",
           // if your viewer fetches PDFs or assets from unpkg via fetch/XHR:
           "https://unpkg.com",
         ],
@@ -137,6 +140,7 @@ app.use(
         upgradeInsecureRequests: null,
       },
     },
+    crossOriginResourcePolicy: { policy: "cross-origin" },
     crossOriginEmbedderPolicy: false,
     crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
   }),
@@ -148,7 +152,8 @@ app.set("trust proxy", 1);
 // ---------------- CORS ----------------
 const allowedExact = new Set([
   "https://angebotskonfiguratoremc2.fly.dev",
-    "https://angebotskonfigurator-emc2-v2.fly.dev",
+  "https://angebotskonfigurator-emc2-v2.fly.dev",
+  "https://bau-formular.fly.dev",
   "http://localhost:3000",
   "http://127.0.0.1:3000",
   "http://localhost:5173",
@@ -181,6 +186,7 @@ app.use(
       return cb(new Error("Not allowed by CORS"));
     },
     credentials: true,
+    exposedHeaders: ["Content-Disposition"],
   }),
 );
 
@@ -193,6 +199,7 @@ app.options(
       return cb(new Error("Not allowed by CORS"));
     },
     credentials: true,
+    exposedHeaders: ["Content-Disposition"],
   }),
 );
 
@@ -228,6 +235,7 @@ app.use("/api/bitrix", bitrixRouter);
 app.use("/api/routing", routingRouter); // <--- NEW
 app.use("/api/docx", pdfPreviewRouter);
 app.use("/api/adobe-pdf", adobePdfRouter);
+app.use("/api/arbeitsbericht", arbeitsberichtRouter);
 app.use("/arbeitsbericht", arbeitsberichtRouter);
 app.use("/kalkulation", kalkulationRouter);
 app.use("/api/email", emailRouter);

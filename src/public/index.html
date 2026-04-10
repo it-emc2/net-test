@@ -1126,39 +1126,172 @@
       overflow: hidden;
     }
 
-    /* Zusammenfassung: make export cards smaller/denser */
+    /* Zusammenfassung: document workspace */
     #page-Zusammenfassung .export-cards {
       display: grid;
-      grid-template-columns: repeat(3, minmax(200px, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(3, minmax(240px, 1fr));
+      gap: 16px;
     }
 
     #page-Zusammenfassung .export-card {
-      padding: 12px 14px;
-      border-radius: 12px;
+      position: relative;
+      padding: 18px 18px 16px;
+      border-radius: 18px;
+      text-align: left;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.98), rgba(249,247,243,0.92));
+      border: 1px solid rgba(194, 153, 111, 0.18);
+      box-shadow: 0 14px 32px rgba(61, 42, 24, 0.08);
+      overflow: hidden;
+    }
+
+    #page-Zusammenfassung .export-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 4px;
+      background: linear-gradient(90deg, rgba(198, 106, 41, 0.95), rgba(242, 188, 120, 0.95));
+      opacity: 0.9;
+    }
+
+    #page-Zusammenfassung .document-card__meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    #page-Zusammenfassung .document-card__badge,
+    #page-Zusammenfassung .document-card__format {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    #page-Zusammenfassung .document-card__badge {
+      background: rgba(198, 106, 41, 0.1);
+      color: #9a4d16;
+    }
+
+    #page-Zusammenfassung .document-card__format {
+      background: rgba(34, 56, 83, 0.08);
+      color: #314255;
     }
 
     #page-Zusammenfassung .export-card .card-icon {
-      font-size: 22px;
+      font-size: 1.55rem;
       line-height: 1;
-      margin-bottom: 6px;
+      margin-bottom: 10px;
     }
 
     #page-Zusammenfassung .export-card h3 {
-      margin: 0 0 4px;
-      font-size: 0.95rem;
+      margin: 0 0 6px;
+      font-size: 1.04rem;
     }
 
     #page-Zusammenfassung .export-card p {
-      margin: 0 0 10px;
-      font-size: 0.82rem;
-      line-height: 1.25;
+      margin: 0 0 14px;
+      font-size: 0.88rem;
+      line-height: 1.35;
+      color: #6b7280;
     }
 
     #page-Zusammenfassung .btn-export {
-      padding: 8px 10px;
-      font-size: 0.85rem;
-      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 0.88rem;
+      border-radius: 12px;
+      min-height: 44px;
+    }
+
+    #page-Zusammenfassung .document-card__actions {
+      display: grid;
+      gap: 8px;
+    }
+
+    #page-Zusammenfassung .document-card__actions--split {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #page-Zusammenfassung .document-card__actions--split .document-card__preview {
+      grid-column: 1 / -1;
+    }
+
+    #page-Zusammenfassung .document-card__preview,
+    #page-Zusammenfassung .document-preview-actions .btn-export,
+    #page-Zusammenfassung .document-preview-switcher button {
+      border: 1px solid rgba(44, 91, 67, 0.26);
+      background: #fff;
+      color: #2f6a4d;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.6);
+    }
+
+    #page-Zusammenfassung .document-card__preview:hover,
+    #page-Zusammenfassung .document-preview-actions .btn-export:hover,
+    #page-Zusammenfassung .document-preview-switcher button:hover {
+      border-color: rgba(44, 91, 67, 0.45);
+      background: #f6fbf8;
+      color: #1f5339;
+    }
+
+    #page-Zusammenfassung .document-preview-shell {
+      border: 1px solid rgba(194, 153, 111, 0.18);
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(249,247,243,0.95));
+      box-shadow: 0 16px 34px rgba(61, 42, 24, 0.08);
+      padding: 18px;
+    }
+
+    #page-Zusammenfassung .document-preview-switcher {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 14px 0 16px;
+    }
+
+    #page-Zusammenfassung .document-preview-switcher button {
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 0.83rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    #page-Zusammenfassung .document-preview-switcher button.is-active {
+      background: linear-gradient(135deg, #cf7331, #e99e5e);
+      border-color: transparent;
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(198, 106, 41, 0.22);
+    }
+
+    #page-Zusammenfassung .document-text-preview {
+      display: none;
+      min-height: 420px;
+      margin-top: 16px;
+      border: 1px solid rgba(194, 153, 111, 0.18);
+      border-radius: 14px;
+      background: #fffdfa;
+      overflow: auto;
+    }
+
+    #page-Zusammenfassung .document-text-preview.is-visible {
+      display: block;
+    }
+
+    #page-Zusammenfassung .document-text-preview pre {
+      margin: 0;
+      padding: 18px;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #334155;
     }
 
     /* responsive: 2 columns then 1 */
@@ -1170,6 +1303,10 @@
 
     @media (max-width: 520px) {
       #page-Zusammenfassung .export-cards {
+        grid-template-columns: 1fr;
+      }
+
+      #page-Zusammenfassung .document-card__actions--split {
         grid-template-columns: 1fr;
       }
     }
@@ -5465,90 +5602,139 @@ button.dm-btn-danger:focus-visible {
           </section>
           <!-- Main Export Actions -->
           <section class="export-section">
-            <h2 class="section-title">📄 Dokumente erstellen (alternative)</h2>
+            <h2 class="section-title">📄 Dokumentenstudio</h2>
+            <p class="section-subtitle">Erstellen, prüfen und vergleichen Sie alle Ausgabedokumente an einem Ort.</p>
 
             <div class="export-cards">
               <!-- DOCX Card -->
               <div class="export-card">
+                <div class="document-card__meta">
+                  <span class="document-card__badge">Angebot</span>
+                  <span class="document-card__format">DOCX</span>
+                </div>
                 <div class="card-icon">📄</div>
                 <h3>Word-Dokument</h3>
                 <p>Angebot als bearbeitbare DOCX-Datei herunterladen</p>
-                <button type="button" id="downloadDocx" class="btn-export btn-docx">
-                  <span class="btn-icon">⬇️</span>
-                  DOCX herunterladen
-                </button>
+                <div class="document-card__actions">
+                  <button type="button" id="downloadDocx" class="btn-export btn-docx">
+                    <span class="btn-icon">⬇️</span>
+                    DOCX herunterladen
+                  </button>
+                  <button type="button" id="previewOfferDocx" class="btn-export document-card__preview">
+                    <span class="btn-icon">👁️</span>
+                    Vorschau anzeigen
+                  </button>
+                </div>
               </div>
 
               <!-- PDF Card -->
               <div class="export-card">
+                <div class="document-card__meta">
+                  <span class="document-card__badge">Angebot</span>
+                  <span class="document-card__format">PDF</span>
+                </div>
                 <div class="card-icon">📑</div>
                 <h3>PDF-Dokument</h3>
-                <p>Angebot als PDF-Datei erstellen und herunterladen</p>
-                <button type="button" id="downloadDocxAsPdf" class="btn-export btn-pdf">
-                  <span class="btn-icon">⬇️</span>
-                  PDF herunterladen
-                </button>
+                <p>Kundenfähige PDF-Version des Angebots erstellen und prüfen</p>
+                <div class="document-card__actions">
+                  <button type="button" id="downloadDocxAsPdf" class="btn-export btn-pdf">
+                    <span class="btn-icon">⬇️</span>
+                    PDF herunterladen
+                  </button>
+                  <button type="button" id="previewOfferPdf" class="btn-export document-card__preview">
+                    <span class="btn-icon">👁️</span>
+                    Vorschau anzeigen
+                  </button>
+                </div>
               </div>
 
               <!-- Material Overview Card -->
               <div class="export-card">
+                <div class="document-card__meta">
+                  <span class="document-card__badge">Intern</span>
+                  <span class="document-card__format">DOCX + PDF</span>
+                </div>
                 <div class="card-icon">📋</div>
                 <h3>Materialübersicht</h3>
                 <p>Detaillierte Liste aller benötigten Materialien</p>
-                <button type="button" id="downloadMaterialOverview" class="btn-export btn-material">
-                  <span class="btn-icon">⬇️</span>
-                  Übersicht herunterladen
-                </button>
+                <div class="document-card__actions">
+                  <button type="button" id="downloadMaterialOverview" class="btn-export btn-material">
+                    <span class="btn-icon">⬇️</span>
+                    Übersicht herunterladen
+                  </button>
+                  <button type="button" id="previewMaterialOverviewPdf" class="btn-export document-card__preview">
+                    <span class="btn-icon">👁️</span>
+                    Vorschau anzeigen
+                  </button>
+                </div>
               </div>
 
               <!-- Hassmann Cart Card -->
               <div class="export-card">
+                <div class="document-card__meta">
+                  <span class="document-card__badge">Export</span>
+                  <span class="document-card__format">CSV</span>
+                </div>
                 <div class="card-icon">🛒</div>
                 <h3>Hassmann Warenkorb</h3>
                 <p>CSV für Hassmann aus der Materialliste exportieren</p>
-                <button type="button" id="downloadHassmannCart" class="btn-export btn-material">
-                  <span class="btn-icon">⬇️</span>
-                  CSV herunterladen
-                </button>
+                <div class="document-card__actions">
+                  <button type="button" id="downloadHassmannCart" class="btn-export btn-material">
+                    <span class="btn-icon">⬇️</span>
+                    CSV herunterladen
+                  </button>
+                  <button type="button" id="previewHassmannCart" class="btn-export document-card__preview">
+                    <span class="btn-icon">👁️</span>
+                    Vorschau anzeigen
+                  </button>
+                </div>
               </div>
 
               <!-- Arbeitsbericht Card -->
               <div class="export-card">
+                <div class="document-card__meta">
+                  <span class="document-card__badge">Intern</span>
+                  <span class="document-card__format">PDF</span>
+                </div>
                 <div class="card-icon">🧾</div>
                 <h3>Arbeitsbericht</h3>
                 <p>Interner Lieferschein / Arbeitsbericht als PDF</p>
-                <button type="button" id="downloadArbeitsbericht" class="btn-export btn-pdf">
-                  <span class="btn-icon">⬇️</span>
-                  Arbeitsbericht herunterladen
-                </button>
-              </div>
-              <!-- Kalkulations Card -->
-              <div class="export-card">
-                <div class="card-icon">🧾</div>
-                <h3>Kalkulation</h3>
-                <p>Kalkulation als PDF</p>
-                <button type="button" id="downloadKalkulationDocx" class="btn-export btn-docx">
-                  <span class="btn-icon">⬇️</span>
-                  Kalkulation (DOCX)
-                </button>
+                <div class="document-card__actions">
+                  <button type="button" id="downloadArbeitsbericht" class="btn-export btn-pdf">
+                    <span class="btn-icon">⬇️</span>
+                    Arbeitsbericht herunterladen
+                  </button>
+                  <button type="button" id="previewArbeitsberichtPdf" class="btn-export document-card__preview">
+                    <span class="btn-icon">👁️</span>
+                    Vorschau anzeigen
+                  </button>
+                </div>
               </div>
 
               <!-- Kalkulation Card -->
               <div class="export-card">
+                <div class="document-card__meta">
+                  <span class="document-card__badge">Intern</span>
+                  <span class="document-card__format">DOCX + PDF</span>
+                </div>
                 <div class="card-icon">🧾</div>
                 <h3>Kalkulation</h3>
-                <p>Kalkulation als PDF</p>
+                <p>Interne Kalkulation als bearbeitbare Datei oder als PDF anzeigen</p>
 
-                <button type="button" id="downloadKalkulation" class="btn-export btn-pdf">
-                  <span class="btn-icon">⬇️</span>
-                  Kalkulation (PDF)
-                </button>
-
-                <!-- optional: preview HTML in new tab -->
-                <button type="button" id="previewKalkulation" class="btn-export btn-docx">
-                  <span class="btn-icon">👁️</span>
-                  Kalkulation (Preview)
-                </button>
+                <div class="document-card__actions document-card__actions--split">
+                  <button type="button" id="downloadKalkulationDocx" class="btn-export btn-docx">
+                    <span class="btn-icon">⬇️</span>
+                    DOCX
+                  </button>
+                  <button type="button" id="downloadKalkulation" class="btn-export btn-pdf">
+                    <span class="btn-icon">⬇️</span>
+                    PDF
+                  </button>
+                  <button type="button" id="previewKalkulation" class="btn-export document-card__preview">
+                    <span class="btn-icon">👁️</span>
+                    Vorschau anzeigen
+                  </button>
+                </div>
               </div>
             </div>
           </section>
@@ -5583,16 +5769,42 @@ button.dm-btn-danger:focus-visible {
 
 
 
-          <!-- PDF Preview Section -->
-          <!-- <section class="preview-section">
-            <button type="button" id="previewPdfBtn" class="btn-preview">
-              <span class="btn-icon">👁️</span>
-              PDF-Vorschau anzeigen
-            </button>
-            <div id="pdfPreviewContainer" class="pdf-preview-container" style="display: none;">
-              <iframe id="pdfPreviewFrame" class="pdf-preview-frame"></iframe>
+          <section id="documentPreviewSection" class="preview-section" hidden>
+            <div class="document-preview-shell">
+              <div class="document-preview-header">
+                <div>
+                  <h2 id="documentPreviewTitle" class="section-title">Dokumentenvorschau</h2>
+                  <p id="documentPreviewStatus" class="muted" style="margin:0;">Wählen Sie ein Dokument für die Vorschau.</p>
+                </div>
+                <div class="document-preview-actions">
+                  <a id="documentPreviewOpen" class="btn-export" href="#" target="_blank" rel="noopener noreferrer" aria-disabled="true">
+                    Im neuen Tab öffnen
+                  </a>
+                  <a id="documentPreviewDownload" class="btn-export" href="#" aria-disabled="true">
+                    Herunterladen
+                  </a>
+                  <button type="button" id="documentPreviewClose" class="btn-export">
+                    Schließen
+                  </button>
+                </div>
+              </div>
+
+              <div class="document-preview-switcher" role="tablist" aria-label="Dokumentvorschau wechseln">
+                <button type="button" data-preview-key="offer">Angebot</button>
+                <button type="button" data-preview-key="material">Materialübersicht</button>
+                <button type="button" data-preview-key="arbeitsbericht">Arbeitsbericht</button>
+                <button type="button" data-preview-key="kalkulation">Kalkulation</button>
+                <button type="button" data-preview-key="hassmann">Hassmann CSV</button>
+              </div>
+
+              <div id="pdfPreviewContainer" class="pdf-preview-container" style="display: none;">
+                <iframe id="pdfPreviewFrame" class="pdf-preview-frame" title="Dokumentenvorschau"></iframe>
+              </div>
+              <div id="documentTextPreview" class="document-text-preview" hidden>
+                <pre id="documentTextPreviewContent"></pre>
+              </div>
             </div>
-          </section> -->
+          </section>
 
 
           <!-- Email Versand (unter PDF Vorschau) -->
@@ -5718,6 +5930,7 @@ button.dm-btn-danger:focus-visible {
                     onclick="fetch('/health').then(r=>r.json()).then(d=>alert(JSON.stringify(d,null,2))).catch(e=>alert('Error: '+e))">
                     /health prüfen
                   </button>
+                  <button type="button" id="prefillMusterData" class="btn-dev">Musterdaten einfüllen</button>
                   <button type="button" id="showPayload" class="btn-dev">Payload anzeigen</button>
                   <button type="button" id="copyPayload" class="btn-dev">Payload kopieren</button>
                 </div>
@@ -8136,6 +8349,35 @@ button.dm-btn-danger:focus-visible {
         </table>
 
         <div id="as_status" class="status-line">Bereit.</div>
+      </section>
+
+      <section class="card page crm-emc2-page" id="page-crm-emc2" hidden>
+        <div class="container crm-emc2-shell">
+          <div class="crm-emc2-hero">
+            <div>
+              <h2>CRM · Pflegekassenantrag per emc2</h2>
+              <p class="section-subtitle crm-emc2-subtitle">
+                Alle Angebote, bei denen emc2 den Antrag auf die Pflegekasse erstellen kann.
+              </p>
+            </div>
+
+            <div class="crm-emc2-toolbar">
+              <button type="button" id="crm-emc2-refresh">Aktualisieren</button>
+              <button type="button" class="secondary" id="crm-emc2-export-csv">
+                CSV exportieren
+              </button>
+              <button type="button" class="secondary" id="crm-emc2-debug-toggle" aria-pressed="false">
+                Debug-Modus anzeigen
+              </button>
+            </div>
+          </div>
+
+          <div class="crm-emc2-summary">
+            <div id="crm-emc2-status" class="status-line">Bereit.</div>
+          </div>
+
+          <div id="crm-emc2-results" class="crm-emc2-results"></div>
+        </div>
       </section>
     </div>
   </div> <!-- closes .container -->

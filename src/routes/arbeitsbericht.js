@@ -6,6 +6,8 @@ import { randomBytes } from "crypto";
 import mongoose from "mongoose";
 
 import ProductModel from "../models/Product.js";
+import Offer from "../models/Offer.js";
+import Draft from "../models/Draft.js";
 import pricingFactory from "../logic/pricing.js";
 
 // Reuse the exact same helpers you already have (Docxtemplater + LibreOffice)
@@ -246,6 +248,71 @@ async function mapArbeitsberichtData(body = {}, computed = {}) {
   };
 }
 
+async function renderArbeitsberichtPdfBuffer(body = {}) {
+  const computed = await pricing.computePrices(body);
+
+  const templatePath = path.join(
+    process.cwd(),
+    "src",
+    "templates",
+    "Arbeitsbericht.docx",
+  );
+
+  const data = await mapArbeitsberichtData(body, computed);
+  const docxBuffer = await renderDocx(templatePath, data);
+  const pdfBuffer = await convertDocxToPdf(docxBuffer);
+  const fileName = `${safeFileName(
+    data.Dokumentennummer,
+    "Arbeitsbericht",
+  )}.pdf`;
+
+  return { pdfBuffer, fileName };
+}
+
+async function resolveExternalArbeitsberichtPayload(selector = {}) {
+  const kind = String(selector.kind || "").trim().toLowerCase();
+
+  if (kind === "draft") {
+    const id = String(selector.id || "").trim();
+    if (!id) {
+      const err = new Error("draft id is required");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const draft = await Draft.findById(id).lean();
+    if (!draft) {
+      const err = new Error("Entwurf nicht gefunden");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    return draft.payload || {};
+  }
+
+  if (kind === "offer") {
+    const offerNumber = String(selector.offerNumber || "").trim();
+    if (!offerNumber) {
+      const err = new Error("offerNumber is required");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const offer = await Offer.findOne({ offerNumber }).lean();
+    if (!offer) {
+      const err = new Error("Angebot nicht gefunden");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    return offer.payload || {};
+  }
+
+  const err = new Error('kind must be "draft" or "offer"');
+  err.statusCode = 400;
+  throw err;
+}
+
 /* ===========================
    Routes
    =========================== */
@@ -289,30 +356,33 @@ router.post("/docx", async (req, res) => {
 router.post("/pdf", async (req, res) => {
   try {
     const body = req.body || {};
-    const computed = await pricing.computePrices(body);
-
-    const templatePath = path.join(
-      process.cwd(),
-      "src",
-      "templates",
-      "Arbeitsbericht.docx",
-    );
-
-    const data = await mapArbeitsberichtData(body, computed);
-    const docxBuffer = await renderDocx(templatePath, data);
-    const pdfBuffer = await convertDocxToPdf(docxBuffer);
-
-    const fname = `${safeFileName(
-      data.Dokumentennummer,
-      "Arbeitsbericht",
-    )}.pdf`;
+    const { pdfBuffer, fileName } = await renderArbeitsberichtPdfBuffer(body);
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${fname}"`);
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
     res.send(pdfBuffer);
   } catch (e) {
     console.error("[arbeitsbericht/pdf] generation failed:", e);
     res.status(500).json({
       error: "Arbeitsbericht PDF generation failed",
+      detail: e?.message || String(e),
+    });
+  }
+});
+
+// Generate PDF Arbeitsbericht from external search selection
+router.post("/external/pdf", async (req, res) => {
+  try {
+    const payload = await resolveExternalArbeitsberichtPayload(req.body || {});
+    const { pdfBuffer, fileName } = await renderArbeitsberichtPdfBuffer(payload);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    res.send(pdfBuffer);
+  } catch (e) {
+    const statusCode = Number(e?.statusCode) || 500;
+    console.error("[arbeitsbericht/external/pdf] generation failed:", e);
+    res.status(statusCode).json({
+      error: "Arbeitsbericht external PDF generation failed",
       detail: e?.message || String(e),
     });
   }

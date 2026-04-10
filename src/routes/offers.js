@@ -132,6 +132,35 @@ function mapSearchResult(doc, type, query) {
   return mapped;
 }
 
+function buildExternalSearchResult(doc) {
+  const kind = doc._type === 'draft' ? 'draft' : 'offer';
+  const title =
+    [doc.firstName, doc.lastName].filter(Boolean).join(' ').trim() ||
+    doc.name ||
+    doc.offerNumber ||
+    doc.angNumber ||
+    '';
+
+  return {
+    kind,
+    id: doc.id || doc._id || '',
+    title,
+    offerType: doc.offerType || '',
+    offerNumber: doc.offerNumber || '',
+    angNumber: doc.angNumber || '',
+    customerNumber: doc.customerNumber || '',
+    dealId: doc.dealId || '',
+    firstName: doc.firstName || '',
+    lastName: doc.lastName || '',
+    email: doc.email || '',
+    city: doc.city || '',
+    postalCode: doc.postalCode || '',
+    phone: doc.phone || '',
+    createdAt: doc.createdAt || null,
+    updatedAt: doc.updatedAt || null
+  };
+}
+
 // ===========================
 // GLOBAL SEARCH across Drafts + Offers
 // Must be above '/:offerNumber'
@@ -207,6 +236,168 @@ router.get('/search-all', async (req, res) => {
   } catch (err) {
     console.error('[offers] SEARCH-ALL error:', err);
     res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+// ===========================
+// EXTERNAL SEARCH API
+// Additive endpoints on top of the existing internal API
+// ===========================
+router.get('/external/search', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
+
+    if (!q) {
+      return res.json({ results: [], query: q, limit });
+    }
+
+    const safeRegex = new RegExp(escapeRegex(q), 'i');
+
+    const searchFields = [
+      'offerNumber',
+      'angNumber',
+      'customerNumber',
+      'dealId',
+      'firstName',
+      'lastName',
+      'email',
+      'city',
+      'postalCode',
+      'street',
+      'company',
+      'phone',
+      'payload.Kundendaten.firstName',
+      'payload.Kundendaten.lastName',
+      'payload.Kundendaten.email',
+      'payload.Kundendaten.city',
+      'payload.Kundendaten.postalCode',
+      'payload.Kundendaten.street',
+      'payload.Kundendaten.company',
+      'payload.Kundendaten.phone',
+      'payload.Zusammenfassung.angebotNummer',
+      'payload.Zusammenfassung.dealId',
+      'payload.Anfragedetails.rawImportText',
+      'payload.Anfragedetails.dealTitle',
+      'payload.Anfragedetails.Anfragedetails',
+      'kundendaten.firstName',
+      'kundendaten.lastName',
+      'kundendaten.email',
+      'kundendaten.city',
+      'kundendaten.postalCode',
+      'kundendaten.street',
+      'kundendaten.company',
+      'kundendaten.phone'
+    ];
+
+    const orQuery = searchFields.map((field) => ({ [field]: safeRegex }));
+    const mongoQuery = { $or: orQuery };
+
+    const [drafts, offers] = await Promise.all([
+      Draft.find(mongoQuery).sort({ updatedAt: -1, createdAt: -1 }).limit(limit * 2).lean(),
+      Offer.find(mongoQuery).sort({ updatedAt: -1, createdAt: -1 }).limit(limit * 2).lean()
+    ]);
+
+    const results = [
+      ...drafts.map((doc) => mapSearchResult(doc, 'draft', q)),
+      ...offers.map((doc) => mapSearchResult(doc, 'offer', q))
+    ];
+
+    results.sort((a, b) => {
+      if (b._score !== a._score) return b._score - a._score;
+      const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return bDate - aDate;
+    });
+
+    res.json({
+      results: results.slice(0, limit).map(buildExternalSearchResult),
+      query: q,
+      limit
+    });
+  } catch (err) {
+    console.error('[offers] EXTERNAL SEARCH error:', err);
+    res.status(500).json({ error: 'External search failed' });
+  }
+});
+
+router.get('/external/drafts/:id', async (req, res) => {
+  try {
+    const draft = await Draft.findById(req.params.id).lean();
+
+    if (!draft) {
+      return res.status(404).json({ error: 'Entwurf nicht gefunden' });
+    }
+
+    const kundendaten = draft.payload?.Kundendaten || {};
+
+    res.json({
+      kind: 'draft',
+      id: draft._id,
+      name: draft.name || '',
+      title:
+        [kundendaten.firstName, kundendaten.lastName].filter(Boolean).join(' ').trim() ||
+        draft.name ||
+        '',
+      offerType: draft.offerType || '',
+      firstName: kundendaten.firstName || '',
+      lastName: kundendaten.lastName || '',
+      email: kundendaten.email || '',
+      city: kundendaten.city || '',
+      postalCode: kundendaten.postalCode || '',
+      phone: kundendaten.phone || '',
+      createdAt: draft.createdAt || null,
+      updatedAt: draft.updatedAt || null,
+      payload: draft.payload || {}
+    });
+  } catch (err) {
+    console.error('[offers] EXTERNAL DRAFT GET error:', err);
+    res.status(500).json({ error: 'External draft lookup failed' });
+  }
+});
+
+router.get('/external/offers/:offerNumber', async (req, res) => {
+  try {
+    const offer = await Offer.findOne({ offerNumber: req.params.offerNumber }).lean();
+
+    if (!offer) {
+      return res.status(404).json({
+        error: 'Angebot nicht gefunden',
+        offerNumber: req.params.offerNumber
+      });
+    }
+
+    const kundendaten = offer.payload?.Kundendaten || offer.kundendaten || {};
+
+    res.json({
+      kind: 'offer',
+      id: offer._id,
+      title:
+        [kundendaten.firstName || offer.firstName, kundendaten.lastName || offer.lastName]
+          .filter(Boolean)
+          .join(' ')
+          .trim() ||
+        offer.offerNumber ||
+        '',
+      offerNumber: offer.offerNumber || '',
+      offerType: offer.offerType || '',
+      customerNumber: offer.customerNumber || '',
+      dealId: offer.dealId || kundendaten.dealId || offer.payload?.dealId || '',
+      firstName: kundendaten.firstName || offer.firstName || '',
+      lastName: kundendaten.lastName || offer.lastName || '',
+      email: kundendaten.email || offer.email || '',
+      city: kundendaten.city || offer.city || '',
+      postalCode: kundendaten.postalCode || offer.postalCode || '',
+      phone: kundendaten.phone || offer.phone || '',
+      createdAt: offer.createdAt || null,
+      updatedAt: offer.updatedAt || null,
+      payload: offer.payload || {},
+      pricing: offer.pricing || null,
+      status: offer.status || ''
+    });
+  } catch (err) {
+    console.error('[offers] EXTERNAL OFFER GET error:', err);
+    res.status(500).json({ error: 'External offer lookup failed' });
   }
 });
 
@@ -293,7 +484,7 @@ router.post('/', async (req, res) => {
 // GET /api/offers - List all offers (with optional search)
 router.get('/', async (req, res) => {
   try {
-    const { q, offerType, limit = 50 } = req.query;
+    const { q, offerType, limit = 50, pflegekasseEmc2Antrag } = req.query;
     
     const filter = {};
     
@@ -309,10 +500,16 @@ router.get('/', async (req, res) => {
       filter.offerType = offerType;
     }
 
+    if (pflegekasseEmc2Antrag) {
+      filter['payload.Kundendaten.pflegekasseEmc2Antrag'] = pflegekasseEmc2Antrag;
+    }
+
     const offers = await Offer.find(filter)
       .sort({ updatedAt: -1 })
       .limit(parseInt(limit, 10))
-      .select('offerNumber offerType status createdAt updatedAt payload.Kundendaten.firstName payload.Kundendaten.lastName')
+      .select(
+        'offerNumber offerType status createdAt updatedAt payload pricing customer',
+      )
       .lean();
 
     res.json(offers);

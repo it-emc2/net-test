@@ -649,6 +649,10 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
       }
 
       const offerNumber = getOfferNumber();
+      const dealId = String($leadId?.value || $mainAuftragId?.value || "").trim();
+      const contactId = String(
+        document.querySelector(cfg.bitrix.contactIdSelector)?.value || "",
+      ).trim();
 
       $btn.disabled = true;
       setStatus("Generating offer PDF + sending email…", "info");
@@ -664,6 +668,8 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
       fd.append("offerType", payload.activeOffer || "");
       fd.append("payload", JSON.stringify(payload));
       fd.append("excludePreset", JSON.stringify(Array.from(excludedPreset)));
+      fd.append("dealId", dealId);
+      fd.append("contactId", contactId);
 
       for (const f of userFiles) fd.append("attachments", f, f.name);
 
@@ -680,18 +686,19 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
         "success",
       );
 
-      // Best-effort Bitrix timeline comment
-      try {
-        const comment = buildBitrixEmailComment({
-          offerNumber,
-          to,
-          subject,
-          body,
-          attachmentNames: data.attachmentNames || [],
-        });
-        await postBitrixEmailComment({ comment });
-      } catch (e) {
-        console.warn("[EmailManager] Bitrix timeline comment failed:", e);
+      if (!data?.bitrixComment) {
+        try {
+          const comment = buildBitrixEmailComment({
+            offerNumber,
+            to,
+            subject,
+            body,
+            attachmentNames: data.attachmentNames || [],
+          });
+          await postBitrixEmailComment({ comment });
+        } catch (e) {
+          console.warn("[EmailManager] Bitrix timeline comment failed:", e);
+        }
       }
 
       try {

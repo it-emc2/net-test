@@ -166,6 +166,7 @@ const OFFERS = {
       "Zusammenfassung",
       "admin",
       "services",
+      "crm-emc2",
     ],
   },
   bwt: {
@@ -2408,9 +2409,9 @@ function updateSidebarForOffer() {
   // --- Render only the pages that belong to the active offer ---
   const pages = getPagesForOfferType(activeOffer);
 
+  const groupedPages = new Set(["admin", "services", "crm-emc2"]);
   const normalPages = pages.filter(
-    (pageId) =>
-      pageId !== "home" && pageId !== "admin" && pageId !== "services",
+    (pageId) => pageId !== "home" && !groupedPages.has(pageId),
   );
 
   const specialLabels = {
@@ -2430,10 +2431,9 @@ function updateSidebarForOffer() {
     sideMenu.appendChild(makeLink(pageId, label));
   });
 
-  const adminPages = pages.filter(
-    (pageId) => pageId === "admin" || pageId === "services",
-  );
-  if (adminPages.length) {
+  function appendAccordionGroup(title, pageIds, labelOverrides = {}) {
+    if (!pageIds.length) return;
+
     const group = document.createElement("div");
     group.className = "accordion-group";
 
@@ -2443,7 +2443,7 @@ function updateSidebarForOffer() {
     header.setAttribute("aria-expanded", "false");
 
     const titleSpan = document.createElement("span");
-    titleSpan.textContent = "Developer";
+    titleSpan.textContent = title;
 
     const chevron = document.createElement("span");
     chevron.className = "accordion-chevron";
@@ -2455,9 +2455,9 @@ function updateSidebarForOffer() {
     const body = document.createElement("div");
     body.className = "accordion-body";
 
-    adminPages.forEach((pageId) => {
+    pageIds.forEach((pageId) => {
       const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
-      const label = navLink ? navLink.textContent.trim() : pageId;
+      const label = labelOverrides[pageId] || (navLink ? navLink.textContent.trim() : pageId);
       body.appendChild(makeLink(pageId, label));
     });
 
@@ -2466,7 +2466,7 @@ function updateSidebarForOffer() {
       header.setAttribute("aria-expanded", isOpen ? "true" : "false");
     });
 
-    if (adminPages.includes(activeStep)) {
+    if (pageIds.includes(activeStep)) {
       body.classList.add("open");
       header.setAttribute("aria-expanded", "true");
     }
@@ -2475,6 +2475,16 @@ function updateSidebarForOffer() {
     group.appendChild(body);
     sideMenu.appendChild(group);
   }
+
+  appendAccordionGroup(
+    "Developer",
+    pages.filter((pageId) => pageId === "admin" || pageId === "services"),
+  );
+  appendAccordionGroup(
+    "CRM",
+    pages.filter((pageId) => pageId === "crm-emc2"),
+    { "crm-emc2": "Pflegekassenanträge per emc2" },
+  );
 
   // NOTE:
   // We do NOT set "active" / "done" classes here.
@@ -4412,169 +4422,246 @@ async function downloadPDFWithProgress(endpoint, payload) {
 
 
 // ===============================
-// PDF Preview (Embedded PDF.js) - CSP safe
+// Inline PDF Preview
 // ===============================
-(function initPdfPreview() {
-  const btn = document.getElementById("previewPdfBtn");
+(function initInlineDocumentPreview() {
+  const section = document.getElementById("documentPreviewSection");
   const container = document.getElementById("pdfPreviewContainer");
   const iframe = document.getElementById("pdfPreviewFrame");
+  const title = document.getElementById("documentPreviewTitle");
+  const status = document.getElementById("documentPreviewStatus");
+  const openLink = document.getElementById("documentPreviewOpen");
+  const downloadLink = document.getElementById("documentPreviewDownload");
+  const closeButton = document.getElementById("documentPreviewClose");
 
-  if (!btn || !container || !iframe) return;
+  if (!section || !container || !iframe) return;
 
-  // Minimal embedded viewer HTML (NO inline scripts!)
-  const PDF_VIEWER_SRCDOC = `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PDF Preview</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;height:100vh;display:flex;flex-direction:column;background:#525659;overflow:hidden}
-    #toolbar{background:#323639;color:#fff;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px}
-    #toolbar button{background:#4a5056;color:#fff;border:0;padding:7px 12px;border-radius:6px;cursor:pointer}
-    #toolbar button:disabled{opacity:.5;cursor:not-allowed}
-    #viewport-container{flex:1;overflow:auto;padding:14px}
-    #viewport{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:14px;align-items:center}
-    .page-container{background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.35)}
-    canvas{display:block;max-width:100%;height:auto}
-    #loading{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.25)}
-    #loading.active{display:grid}
-    #loading .box{background:#fff;padding:14px 18px;border-radius:10px}
-    #error{position:fixed;top:12px;left:50%;transform:translateX(-50%);display:none;background:#dc3545;color:#fff;padding:10px 14px;border-radius:8px;max-width:min(90vw,680px)}
-    #error.active{display:block}
-    #page-info,#zoom-level{white-space:nowrap}
-  </style>
-</head>
-<body>
-  <div id="toolbar" role="toolbar">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <button id="prev-page">◀</button>
-      <span id="page-info">Page <span id="current-page">-</span> of <span id="total-pages">-</span></span>
-      <button id="next-page">▶</button>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <button id="zoom-out">−</button>
-      <span id="zoom-level">100%</span>
-      <button id="zoom-in">+</button>
-      <button id="zoom-fit">Fit</button>
-    </div>
-  </div>
+  let previewUrl = null;
+  let downloadUrl = null;
+  let activePreviewConfig = null;
+  let autoRefreshTimer = null;
+  let refreshSequence = 0;
+  let latestAppliedSequence = 0;
+  let previewInFlight = false;
 
-  <div id="error"></div>
-  <div id="loading"><div class="box">Loading PDF…</div></div>
+  function cleanupPdfUrls() {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      previewUrl = null;
+    }
+    if (downloadUrl) {
+      URL.revokeObjectURL(downloadUrl);
+      downloadUrl = null;
+    }
+  }
 
-  <div id="viewport-container">
-    <div id="viewport"></div>
-  </div>
-
-  <script type="module" src="/pdfjs/viewer.mjs"><\\/script>
-</body>
-</html>`;
-
-function ensureViewerLoaded() {
-  const token = crypto.randomUUID();
-  iframe.dataset.viewerToken = token;
-
-  const srcWithToken = `/pdfjs/viewer.mjs?token=${encodeURIComponent(token)}`;
-
-  // Replace the module script tag's src attribute
-  iframe.srcdoc = PDF_VIEWER_SRCDOC.replace(
-    /<script type="module" src="\/pdfjs\/viewer\.mjs"><\\\/script>/,
-    `<script type="module" src="${srcWithToken}"><\\/script>`
-  );
-}
-
- function waitForViewerReady(timeoutMs = 5000) {
-  const expected = iframe.dataset.viewerToken;
-
-  return new Promise((resolve, reject) => {
-    let done = false;
-
-    const t = setTimeout(() => {
-      if (!done) {
-        window.removeEventListener("message", onMsg);
-        reject(new Error("PDF viewer not ready (timeout)."));
-      }
-    }, timeoutMs);
-
-    function onMsg(ev) {
-      const d = ev?.data || {};
-      if (d.type !== "VIEWER_READY") return;
-      if (d.token !== expected) return; // ensure it’s the current iframe instance
-
-      done = true;
-      clearTimeout(t);
-      window.removeEventListener("message", onMsg);
-      resolve();
+  function setPreviewLinks({ openHref = "#", downloadHref = "#", filename = "" } = {}) {
+    if (openLink) {
+      openLink.href = openHref;
+      openLink.setAttribute("aria-disabled", openHref === "#" ? "true" : "false");
     }
 
-    window.addEventListener("message", onMsg);
-  });
-}
+    if (downloadLink) {
+      downloadLink.href = downloadHref;
+      downloadLink.download = filename || "";
+      downloadLink.setAttribute("aria-disabled", downloadHref === "#" ? "true" : "false");
+    }
+  }
 
-  async function fetchPdfBlobForPreview() {
+  function ensurePreviewPayload(config) {
     if (typeof window.buildPayload !== "function") {
       throw new Error("buildPayload() is missing.");
     }
 
     const payload = window.buildPayload();
+    if (!payload || typeof payload !== "object") {
+      throw new Error("Payload konnte nicht erstellt werden.");
+    }
 
-    const res = await fetch("/api/docx/pdf-preview", {
+    if (config.ensureActiveOffer) {
+      payload.activeOffer =
+        payload.activeOffer ||
+        (typeof getCurrentOfferType === "function" && getCurrentOfferType()) ||
+        payload.offerType ||
+        payload.currentOfferKey ||
+        "bu";
+    }
+
+    return payload;
+  }
+
+  async function fetchPreviewBlob(config) {
+    const payload = ensurePreviewPayload(config);
+    const response = await fetch(config.endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/pdf",
+      },
       body: JSON.stringify(payload),
+      credentials: "include",
     });
 
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`Preview PDF failed (${res.status}): ${txt}`);
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new Error(text || `Preview request failed (${response.status})`);
     }
-    return await res.blob();
+
+    const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+    if (!contentType.includes("application/pdf")) {
+      const text = await response.text().catch(() => "");
+      throw new Error(
+        `Preview returned ${contentType || "unknown content-type"} instead of PDF: ${text.slice(0, 200)}`,
+      );
+    }
+
+    const contentDisposition = response.headers.get("content-disposition") || "";
+    const filenameMatch =
+      contentDisposition.match(/filename\*=UTF-8''([^;]+)/i) ||
+      contentDisposition.match(/filename="?([^"]+)"?/i);
+    const filename = filenameMatch?.[1]
+      ? decodeURIComponent(filenameMatch[1])
+      : config.fallbackFilename;
+
+    return {
+      blob: await response.blob(),
+      filename: filename || config.fallbackFilename,
+    };
   }
 
- btn.addEventListener("click", async () => {
-  try {
-    btn.disabled = true;
-    btn.textContent = "Generating preview…";
+  async function openInlineDocumentPreview(config) {
+    if (typeof requireBereichValid === "function" && !requireBereichValid()) {
+      location.hash = "Kundendaten";
+      return;
+    }
+
+    activePreviewConfig = config;
+    const sequence = ++refreshSequence;
+    previewInFlight = true;
+    cleanupPdfUrls();
+    section.hidden = false;
     container.style.display = "block";
+    iframe.removeAttribute("src");
+    iframe.src = "about:blank";
+    if (title) title.textContent = config.title;
+    if (status) status.textContent = `${config.title} wird erstellt…`;
+    setPreviewLinks();
 
-    // Start waiting first (listener attached),
-    // then load viewer (which triggers VIEWER_READY)
-    const readyPromise = waitForViewerReady(5000);
-    ensureViewerLoaded();
-    await readyPromise;
+    try {
+      const { blob, filename } = await fetchPreviewBlob(config);
+      if (sequence < latestAppliedSequence) return;
+      latestAppliedSequence = sequence;
+      previewUrl = URL.createObjectURL(blob);
+      downloadUrl = URL.createObjectURL(blob);
 
-    const pdfBlob = await fetchPdfBlobForPreview();
-    const buf = await pdfBlob.arrayBuffer();
+      iframe.src = previewUrl;
+      setPreviewLinks({
+        openHref: previewUrl,
+        downloadHref: downloadUrl,
+        filename,
+      });
 
-    iframe.contentWindow.postMessage(
-  { type: "LOAD_PDF_ARRAYBUFFER", buffer: buf, token: iframe.dataset.viewerToken },
-  "*",
-  [buf]
-);
-  } catch (e) {
-    console.error("[pdf-preview] failed:", e);
-    alert("PDF preview failed:\n" + (e?.message || String(e)));
-    container.style.display = "none";
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "PDF Preview";
+      if (status) status.textContent = `${config.title} bereit.`;
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (error) {
+      console.error("[inline-pdf-preview] failed:", error);
+      if (sequence >= latestAppliedSequence) {
+        iframe.src = "about:blank";
+        setPreviewLinks();
+      }
+      if (status) status.textContent = error.message || "Vorschau konnte nicht erstellt werden.";
+      throw error;
+    } finally {
+      if (sequence === refreshSequence) {
+        previewInFlight = false;
+      }
+    }
   }
-});
-})();
 
-window.addEventListener("message", (ev) => {
-  console.log("[parent] message", {
-    origin: ev.origin,
-    data: ev.data,
-    fromIframe: ev.source === document.getElementById("pdfPreviewFrame")?.contentWindow,
+  function isZusammenfassungActive() {
+    return typeof getCurrentStep === "function" && getCurrentStep() === "Zusammenfassung";
+  }
+
+  function schedulePreviewRefresh(reason = "Änderungen erkannt") {
+    if (!activePreviewConfig || section.hidden || container.style.display === "none") return;
+    if (!isZusammenfassungActive()) return;
+
+    clearTimeout(autoRefreshTimer);
+    autoRefreshTimer = setTimeout(async () => {
+      if (!activePreviewConfig || previewInFlight) return;
+      try {
+        if (status) status.textContent = `${activePreviewConfig.title} wird aktualisiert…`;
+        await openInlineDocumentPreview(activePreviewConfig);
+        if (status) status.textContent = `${activePreviewConfig.title} automatisch aktualisiert.`;
+      } catch (error) {
+        console.warn("[inline-pdf-preview] auto refresh failed:", reason, error);
+      }
+    }, 700);
+  }
+
+  function bindPreviewButton(id, config) {
+    const button = document.getElementById(id);
+    if (!button) return;
+
+    button.addEventListener("click", async () => {
+      const originalHtml = button.innerHTML;
+      button.disabled = true;
+      try {
+        button.innerHTML = '<span class="btn-icon">⏳</span> Vorschau lädt…';
+        await openInlineDocumentPreview(config);
+      } catch (error) {
+        alert(error.message || "Vorschau konnte nicht erstellt werden.");
+      } finally {
+        button.disabled = false;
+        button.innerHTML = originalHtml;
+      }
+    });
+  }
+
+  bindPreviewButton("previewOfferPdf", {
+    title: "Angebot Vorschau",
+    endpoint: "/api/docx/pdf-preview",
+    fallbackFilename: "Angebot.pdf",
+    ensureActiveOffer: false,
   });
-});
 
-document.getElementById("pdfPreviewFrame")?.addEventListener("load", () => {
-  console.log("[parent] iframe load fired");
-});
+  bindPreviewButton("previewMaterialOverviewPdf", {
+    title: "Materialübersicht Vorschau",
+    endpoint: "/material-overview/pdf",
+    fallbackFilename: "Materialuebersicht.pdf",
+    ensureActiveOffer: true,
+  });
+
+  bindPreviewButton("previewArbeitsberichtPdf", {
+    title: "Arbeitsbericht Vorschau",
+    endpoint: "/api/arbeitsbericht/pdf",
+    fallbackFilename: "Arbeitsbericht.pdf",
+    ensureActiveOffer: true,
+  });
+
+  closeButton?.addEventListener("click", () => {
+    activePreviewConfig = null;
+    clearTimeout(autoRefreshTimer);
+    cleanupPdfUrls();
+    iframe.src = "about:blank";
+    container.style.display = "none";
+    section.hidden = true;
+    setPreviewLinks();
+  });
+
+  const summaryPage = document.getElementById("page-Zusammenfassung");
+  summaryPage?.addEventListener("input", () => schedulePreviewRefresh("input"), true);
+  summaryPage?.addEventListener("change", () => schedulePreviewRefresh("change"), true);
+  window.addEventListener("pricing:updated", () => schedulePreviewRefresh("pricing"));
+  window.addEventListener("hashchange", () => {
+    if (isZusammenfassungActive()) {
+      schedulePreviewRefresh("navigation");
+    }
+  });
+
+  window.addEventListener("beforeunload", cleanupPdfUrls);
+  window.openInlineDocumentPreview = openInlineDocumentPreview;
+})();
 
 // === FIX: area <-> color coupling (self-contained) ===
 function syncColorWithAreaDW() {
@@ -12728,36 +12815,18 @@ document.getElementById("downloadKalkulation")?.addEventListener("click", async 
 });
 
 document.getElementById("previewKalkulation")?.addEventListener("click", async () => {
-  if (!requireBereichValid()) {
-    location.hash = "Kundendaten";
-    return;
-  }
+  if (typeof window.openInlineDocumentPreview !== "function") return;
 
   try {
-    const payload = buildPayload();
-
-    if (!payload.activeOffer) {
-      payload.activeOffer =
-        (typeof getCurrentOfferType === "function" && getCurrentOfferType()) ||
-        payload.offerType ||
-        payload.currentOfferKey ||
-        "bu";
-    }
-
-    const r = await fetch("/kalkulation/preview?debug=1", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+    await window.openInlineDocumentPreview({
+      title: "Kalkulation Vorschau",
+      endpoint: "/kalkulation/pdf",
+      fallbackFilename: "Kalkulation.pdf",
+      ensureActiveOffer: true,
     });
-
-    const html = await r.text();
-    const w = window.open("", "_blank");
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
   } catch (e) {
     console.error(e);
-    alert("Preview konnte nicht erstellt werden.");
+    alert(e?.message || "Preview konnte nicht erstellt werden.");
   }
 });
 
@@ -14795,6 +14864,171 @@ window.addEventListener("offerflow:changed", () => {
   const toggleDevTools = document.getElementById('toggleDevTools');
   const devToolsPanel = document.getElementById('devToolsPanel');
   const showPayloadBtn = document.getElementById('showPayload');
+  const prefillMusterDataBtn = document.getElementById('prefillMusterData');
+
+  function getCurrentOfferTypeForMusterdata() {
+    return (
+      (typeof window.getCurrentOfferType === "function" && window.getCurrentOfferType()) ||
+      window.currentOfferKey ||
+      "bu"
+    ).toString().trim().toLowerCase();
+  }
+
+  function buildMusterPayload(offerType) {
+    const today = new Date().toISOString().slice(0, 10);
+    const customer = {
+      salutation: "Herr",
+      date: today,
+      firstName: "Max",
+      lastName: "Mustermann",
+      phone: "0171 2345678",
+      email: "max.mustermann@example.com",
+      bitrixContactId: "MT-10001",
+      customerNumber: "MT-10001",
+      street: "Musterstraße 12",
+      city: "Musterstadt",
+      state: "Bayern",
+      postalCode: "95028",
+      deployment: "Vor-Ort-Termin mit Musterdaten",
+      customerType: "Neukunde",
+      hasContactPerson: "Nein",
+      emc2_contact: "Stefan Wolfrum",
+      payer: "Kassenkunde",
+      aufschlag: "50%",
+      hasPflegegrad: "Ja",
+      pflegegrad: "2",
+      pflegekasseAntrag: "Ja",
+      pflegekasseEmc2Antrag: "Ja",
+      wohnsituation: "Eigentum",
+      vermieterGenehmigung: "Nicht nötig",
+      zugangWohnung: "Problemlos",
+      badStockwerk: "EG",
+      parkenMoeglich: "Ja",
+      parkDetails: "Direkt vor dem Haus",
+      budgetOptionsPanel: "4180 MAXIMAL",
+      copayAmount: 0,
+      wohnumfeld: {
+        status: "Nein",
+        done: false,
+        amount: 0,
+      },
+    };
+
+    const payload = {
+      activeOffer: offerType,
+      offerType,
+      currentOfferKey: offerType,
+      offerNumber: `ANG-MUSTER-${today.replace(/-/g, "")}`,
+      Kundendaten: customer,
+      Arbeitszeit: {
+        distanceKm: "24",
+        uebernachten: 0,
+        travelTimeHHMM: "00:40",
+        laborHoursHHMM: "06:30",
+        travelSecondWorkerRate: 35,
+        laborHoursSource: "manual",
+      },
+      duschwanne: {},
+      wandverkleidung: {},
+      duschabtrennung: {},
+      optional: {},
+      rabatt: {
+        materialDiscountPct: 0.03,
+        bonus300: true,
+        bonusGrab: false,
+        showFreeGrabInMaterial: false,
+      },
+      bwt: {},
+      hl: {},
+      ah: {},
+      hms: {},
+      wd: {},
+    };
+
+    if (offerType === "bu") {
+      payload.duschwanne = {
+        tray_w_cm: "120",
+        tray_l_cm: "90",
+        tray_h_cm: "3",
+        chosenTrayProductId: "SLA12090",
+        traySize: "120 x 90 x 3 cm",
+        trayColor: "weiß",
+        ebenerdigeMontage: true,
+        floorArea: "4.5",
+        addFlooring: true,
+        flooringProduct: ["V5_Lava_Beige"],
+        workTasks: ["remove_tub", "remove_enclosure", "install_tray"],
+        extraTasks: ["Rohrkasten anpassen"],
+      };
+      payload.wandverkleidung = {
+        wvKind: "Deckenhoch",
+        wvColor: "Stein beige",
+        wvQty1497: "3",
+        wvColor_1497: "",
+        wvEndProfileQty: "2",
+        wvSilikonQty: "3",
+        wvFlachenQty: "6",
+        wvV3VQty: "2",
+        wvCornersCount: "0",
+        wvSealingSelected: true,
+        wvFlachenSelected: true,
+        wvEndProfileSelected: true,
+        wvSilikonSelected: true,
+        wvV3VSelected: true,
+        panelConfigs: {
+          "997x2550": { enabled: false, qty: 0, overrideColor: "", color: "Stein beige" },
+          "1497x2550": { enabled: true, qty: 3, overrideColor: "", color: "Stein beige" },
+        },
+      };
+      payload.duschabtrennung = {
+        daNote: "Musterposition für Testzwecke.",
+        quickAdd: [
+          { kind: "custom", label: "Walk-In Glas", qty: 1, price: 799, productId: "MT-WALKIN-01" },
+        ],
+      };
+      payload.optional = {
+        qty_CLTB: "1",
+        qty_CLPESG30: "1",
+        qty_78090000: "1",
+        qty_CL60: "1",
+      };
+    } else if (offerType === "bwt") {
+      payload.bwt = {
+        bwtShape: "Rechteckig",
+        bwtMaterial: "Stahl emailliert",
+        bwtDoorType: "1226",
+        bwtDoorStdQty: "1",
+        bwtDoorStdColor: "weiß",
+        bwtDoorStdHeight: "52",
+        bwtAnschlag: "DIN rechts",
+        tray_color: "weiß",
+        bwtAids: ["Haltegriff30"],
+        bwtAidsHaltegriff30Qty: "1",
+        bwtNote: "Musterdaten für Badewannentür.",
+      };
+    } else if (offerType === "hl") {
+      payload.hl = {
+        hlNote: "Musterdaten für Handlauf-Angebot.",
+      };
+      payload.optional = {
+        qty_CLPESG60: "1",
+      };
+    } else if (offerType === "ah") {
+      payload.ah = {
+        ahNote: "Musterdaten für Alltagshilfe.",
+      };
+    } else if (offerType === "hms") {
+      payload.hms = {
+        hmsNote: "Musterdaten für haushaltsnahe Dienstleistungen.",
+      };
+    } else if (offerType === "wd") {
+      payload.wd = {
+        wdNote: "Musterdaten für Wohnungsdetails.",
+      };
+    }
+
+    return payload;
+  }
 
   // ========== DEVELOPER TOOLS TOGGLE ==========
   
@@ -14837,6 +15071,47 @@ window.addEventListener("offerflow:changed", () => {
           alert('Payload (siehe Konsole für vollständige Daten):\n\n' + payloadStr.substring(0, 500) + '...');
         });
         console.log('[Payload]', payload);
+      }
+    });
+  }
+
+  if (prefillMusterDataBtn) {
+    prefillMusterDataBtn.addEventListener('click', async () => {
+      const offerType = getCurrentOfferTypeForMusterdata();
+      const payload = buildMusterPayload(offerType);
+
+      const originalLabel = prefillMusterDataBtn.textContent;
+      prefillMusterDataBtn.disabled = true;
+      prefillMusterDataBtn.textContent = 'Musterdaten werden geladen…';
+
+      try {
+        if (typeof window.restoreConfiguratorFromSnapshot === 'function') {
+          await window.restoreConfiguratorFromSnapshot({ payload });
+        } else if (typeof window.restoreConfiguratorFromOffer === 'function') {
+          await window.restoreConfiguratorFromOffer({ payload });
+        } else {
+          throw new Error('Restore-Funktion ist nicht verfügbar.');
+        }
+
+        if (typeof window.updatePricing === 'function') {
+          await window.updatePricing();
+        }
+        if (typeof window.refreshAllPanels === 'function') {
+          await window.refreshAllPanels();
+        }
+        if (typeof window.updateSummaryWidgetName === 'function') {
+          window.updateSummaryWidgetName();
+        }
+
+        const msg = `Musterdaten für ${offerType.toUpperCase()} wurden eingetragen.`;
+        if (typeof showToast === 'function') showToast(msg, 'success');
+        else alert(msg);
+      } catch (error) {
+        console.error('[Musterdata] prefill failed:', error);
+        alert(error?.message || 'Musterdaten konnten nicht geladen werden.');
+      } finally {
+        prefillMusterDataBtn.disabled = false;
+        prefillMusterDataBtn.textContent = originalLabel;
       }
     });
   }
@@ -15343,6 +15618,294 @@ window.addEventListener("offerflow:changed", () => {
       loadServices(search?.value.trim() || "");
     }
   });
+})();
+
+(function initCrmEmc2Page() {
+  const page = document.getElementById("page-crm-emc2");
+  if (!page) return;
+
+  const refreshBtn = document.getElementById("crm-emc2-refresh");
+  const exportCsvBtn = document.getElementById("crm-emc2-export-csv");
+  const debugToggleBtn = document.getElementById("crm-emc2-debug-toggle");
+  const status = document.getElementById("crm-emc2-status");
+  const results = document.getElementById("crm-emc2-results");
+  let debugMode = false;
+  let currentOffers = [];
+
+  if (!status || !results) return;
+
+  function setStatus(msg, ok = true) {
+    status.className = "status-line" + (ok ? "" : " err");
+    status.textContent = msg;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function fmtDate(value) {
+    if (!value) return "Unbekannt";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "Unbekannt";
+    return d.toLocaleString("de-DE");
+  }
+
+  function csvValue(value) {
+    const normalized = String(value ?? "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    return `"${normalized.replace(/"/g, '""')}"`;
+  }
+
+  function downloadCsv(offers) {
+    if (!Array.isArray(offers) || !offers.length) {
+      setStatus("Keine Daten zum Exportieren vorhanden.", false);
+      return;
+    }
+
+    const rows = [
+      [
+        "Angebotsnummer",
+        "Angebotsart",
+        "Vorname",
+        "Nachname",
+        "Kundennummer",
+        "Bitrix Kontakt ID",
+        "EMC2 Kontakt",
+        "Telefon",
+        "E-Mail",
+        "Strasse",
+        "PLZ",
+        "Ort",
+        "Pflegekasse EMC2 Antrag",
+        "Pflegekasse Antrag",
+        "Pflegegrad",
+        "Krankenkasse",
+        "Auftrag ID",
+        "Aktualisiert am",
+        "Erstellt am",
+      ],
+    ];
+
+    offers.forEach((offer) => {
+      const k = offer?.payload?.Kundendaten || offer?.customer || {};
+      rows.push([
+        offer.offerNumber || "",
+        offer.offerType || "",
+        k.firstName || "",
+        k.lastName || "",
+        k.customerNumber || "",
+        k.bitrixContactId || "",
+        k.emc2_contact || "",
+        k.phone || "",
+        k.email || "",
+        k.street || "",
+        k.postalCode || "",
+        k.city || "",
+        k.pflegekasseEmc2Antrag || "",
+        k.pflegekasseAntrag || "",
+        k.pflegegrad || "",
+        k.kassenkundeName || "",
+        offer?.payload?.bitrixDealId || offer?.payload?.dealId || k.dealId || "",
+        fmtDate(offer.updatedAt || ""),
+        fmtDate(offer.createdAt || ""),
+      ]);
+    });
+
+    const csv = `\uFEFF${rows.map((row) => row.map(csvValue).join(";")).join("\n")}`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const today = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `pflegekassenantraege-emc2-${today}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    setStatus(`${offers.length} Angebot(e) als CSV exportiert.`, true);
+  }
+
+  function getCustomerInfo(offer) {
+    const k = offer?.payload?.Kundendaten || offer?.customer || {};
+    const firstName = k.firstName || "";
+    const lastName = k.lastName || "";
+    return {
+      fullName: `${firstName} ${lastName}`.trim() || "Ohne Name",
+      customerNumber: k.customerNumber || k.bitrixContactId || "",
+      phone: k.phone || "",
+      email: k.email || "",
+      city: k.city || "",
+      postalCode: k.postalCode || "",
+      street: k.street || "",
+      emc2Contact: k.emc2_contact || "",
+    };
+  }
+
+  function renderOfferCard(offer) {
+    const customer = getCustomerInfo(offer);
+    const payloadJson = escapeHtml(JSON.stringify(offer.payload || {}, null, 2));
+    const pricingJson = escapeHtml(JSON.stringify(offer.pricing || {}, null, 2));
+    const offerTypeLabel = escapeHtml((offer.offerType || "").toUpperCase() || "Unbekannt");
+    const addressText = escapeHtml(
+      [customer.street, customer.postalCode, customer.city].filter(Boolean).join(", ") || "-",
+    );
+    const debugMarkup = debugMode
+      ? `
+        <details class="crm-emc2-debug">
+          <summary>Debug-Daten einblenden</summary>
+          <div class="crm-emc2-debug-panels">
+            <div>
+              <div class="subheader">Payload</div>
+              <pre class="status">${payloadJson}</pre>
+            </div>
+            <div>
+              <div class="subheader">Pricing</div>
+              <pre class="status">${pricingJson}</pre>
+            </div>
+          </div>
+        </details>
+      `
+      : "";
+
+    return `
+      <article class="crm-emc2-offer">
+        <div class="crm-emc2-offer-top">
+          <div>
+            <h3 class="crm-emc2-offer-title">
+              ${escapeHtml(offer.offerNumber || "Ohne Angebotsnummer")}
+            </h3>
+            <div class="crm-emc2-person">
+              <span>${escapeHtml(customer.fullName)}</span>
+              <span class="crm-emc2-type-badge">${offerTypeLabel}</span>
+            </div>
+          </div>
+          <div class="actions" style="margin-top: 0;">
+            <button type="button" class="secondary crm-emc2-open" data-offer-number="${escapeHtml(offer.offerNumber || "")}">
+              Angebot öffnen
+            </button>
+          </div>
+        </div>
+
+        <div class="crm-emc2-meta">
+          <div class="crm-emc2-meta-item">
+            <span class="crm-emc2-meta-label">Kundennummer</span>
+            <span class="crm-emc2-meta-value">${escapeHtml(customer.customerNumber || "-")}</span>
+          </div>
+          <div class="crm-emc2-meta-item">
+            <span class="crm-emc2-meta-label">EMC2 Kontakt</span>
+            <span class="crm-emc2-meta-value">${escapeHtml(customer.emc2Contact || "-")}</span>
+          </div>
+          <div class="crm-emc2-meta-item">
+            <span class="crm-emc2-meta-label">Telefon</span>
+            <span class="crm-emc2-meta-value">${escapeHtml(customer.phone || "-")}</span>
+          </div>
+          <div class="crm-emc2-meta-item">
+            <span class="crm-emc2-meta-label">E-Mail</span>
+            <span class="crm-emc2-meta-value">${escapeHtml(customer.email || "-")}</span>
+          </div>
+          <div class="crm-emc2-meta-item">
+            <span class="crm-emc2-meta-label">Adresse</span>
+            <span class="crm-emc2-meta-value">${addressText}</span>
+          </div>
+          <div class="crm-emc2-meta-item">
+            <span class="crm-emc2-meta-label">Zuletzt aktualisiert</span>
+            <span class="crm-emc2-meta-value">${escapeHtml(fmtDate(offer.updatedAt || offer.createdAt))}</span>
+          </div>
+        </div>
+
+        ${debugMarkup}
+      </article>
+    `;
+  }
+
+  function renderOffers(offers) {
+    if (!Array.isArray(offers) || !offers.length) {
+      results.innerHTML = '<div class="card crm-emc2-empty">Keine Angebote gefunden.</div>';
+      return;
+    }
+
+    results.innerHTML = offers.map(renderOfferCard).join("");
+  }
+
+  async function loadEmc2Offers() {
+    try {
+      setStatus("Lade Angebote …", true);
+      results.innerHTML = "";
+
+      const res = await fetch("/api/offers?pflegekasseEmc2Antrag=Ja&limit=200", {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const offers = await res.json();
+      if (!Array.isArray(offers) || !offers.length) {
+        currentOffers = [];
+        results.innerHTML = '<div class="card crm-emc2-empty">Keine Angebote gefunden, fuer die emc2 den Antrag auf die Pflegekasse erstellen kann.</div>';
+        setStatus('Keine passenden Angebote gefunden.', true);
+        return;
+      }
+
+      currentOffers = offers;
+      renderOffers(offers);
+      setStatus(`${offers.length} Angebot(e) geladen.`, true);
+    } catch (err) {
+      console.error("[crm-emc2] load failed:", err);
+      currentOffers = [];
+      results.innerHTML = '<div class="card crm-emc2-empty">Fehler beim Laden der Angebote.</div>';
+      setStatus(`Fehler beim Laden: ${err.message}`, false);
+    }
+  }
+
+  results.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".crm-emc2-open");
+    if (!btn) return;
+
+    const offerNumber = btn.dataset.offerNumber || "";
+    if (!offerNumber) return;
+
+    try {
+      setStatus(`Lade Angebot ${offerNumber} …`, true);
+      const res = await fetch(`/api/offers/${encodeURIComponent(offerNumber)}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      if (!data?.offer) throw new Error("Kein Angebot gefunden");
+
+      await window.restoreConfiguratorFromOffer?.(data.offer);
+      setStatus(`Angebot ${offerNumber} geladen.`, true);
+    } catch (err) {
+      console.error("[crm-emc2] open failed:", err);
+      setStatus(`Fehler beim Oeffnen: ${err.message}`, false);
+    }
+  });
+
+  refreshBtn?.addEventListener("click", loadEmc2Offers);
+  exportCsvBtn?.addEventListener("click", () => downloadCsv(currentOffers));
+  debugToggleBtn?.addEventListener("click", async () => {
+    debugMode = !debugMode;
+    debugToggleBtn.setAttribute("aria-pressed", debugMode ? "true" : "false");
+    debugToggleBtn.textContent = debugMode
+      ? "Debug-Modus ausblenden"
+      : "Debug-Modus anzeigen";
+    await loadEmc2Offers();
+  });
+
+  window.addEventListener("hashchange", () => {
+    if (typeof getCurrentStep === "function" && getCurrentStep() === "crm-emc2") {
+      loadEmc2Offers();
+    }
+  });
+
+  if (typeof getCurrentStep === "function" && getCurrentStep() === "crm-emc2") {
+    loadEmc2Offers();
+  }
 })();
 // #endregion
 // =================================================================

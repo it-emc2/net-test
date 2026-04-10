@@ -405,3 +405,4 @@ router.post("/batch", async (req, res) => {
 });
 
 export default router;
+export { convertDocxToPdfAdobe };
