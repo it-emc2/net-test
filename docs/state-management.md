@@ -71,7 +71,8 @@ Main pieces
 - `src/views/pages/KundendatenView.js`
   - Newer page-level view for `Kundendaten`.
   - Contains some state/event-oriented behavior, but note:
-    - the corresponding module init script is commented out in `src/public/index.html`
+    - the corresponding module init script is not wired into `src/public/index.html`
+    - `src/public/js/pages/kundendaten-init.js` exists in the repo but is currently dormant on the live page
     - so this path is not the primary runtime on the legacy page today
 
 - `src/public/script.js`
@@ -84,8 +85,8 @@ Current runtime truth
 - The live page currently loads:
   - `ThemeManager.js`
   - `script.js`
-- The module bootstrap scripts in `src/public/index.html` are commented out.
 - Result:
+  - there is no active module bootstrap entrypoint wired into `src/public/index.html`
   - the full module-based `StateManager` / `KundendatenView` stack is not guaranteed to exist on the live page
   - but `script.js` still needs state-like behavior for pricing and UI consistency
 

@@ -20,8 +20,8 @@ Details
 - `src/public/index.html` loads:
   - `ThemeManager.js`
   - `script.js`
-- Module init scripts are commented out.
 - Result:
+  - there is no active module bootstrap entrypoint wired into `src/public/index.html`
   - the page does not reliably boot the module `StateManager` / `KundendatenView` stack
   - `script.js` remains the primary runtime
 
