@@ -1180,7 +1180,7 @@ function syncShowFreeGrabRowVisibility() {
   const showFree = document.getElementById("rb-show-free-grab");
   if (!row) return;
 
-  const pricing = window.__pricing || null;
+  const pricing = window.getCanonicalPricingData?.() || null;
   const total = Number(pricing?.grabCounts?.total || 0);
   const shouldShow = !!bonusGrab?.checked && total > 0;
 
@@ -1613,6 +1613,12 @@ function pushArbeitszeitRow(rows, key, label, minutes, qty = 1) {
   rows.push({ key, label, minutes, qty });
 }
 
+function parseArbeitszeitNumber(value) {
+  const normalized = String(value ?? "").trim().replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
 function computeArbeitszeitSuggestion() {
   const rows = [];
 
@@ -1625,16 +1631,35 @@ function computeArbeitszeitSuggestion() {
     });
 
   if (document.getElementById("wv997")?.checked) {
-    pushArbeitszeitRow(rows, "wv997", "Wandverkleidung 997×2550", 30, 1);
+    const qty997 = Math.max(
+      1,
+      Math.round(parseArbeitszeitNumber(document.getElementById("wvQty997")?.value || 0)),
+    );
+    pushArbeitszeitRow(rows, "wv997", "Wandverkleidung 997×2550", 30, qty997);
   }
   if (document.getElementById("wv1497")?.checked) {
-    pushArbeitszeitRow(rows, "wv1497", "Wandverkleidung 1497×2550", 40, 1);
+    const qty1497 = Math.max(
+      1,
+      Math.round(parseArbeitszeitNumber(document.getElementById("wvQty1497")?.value || 0)),
+    );
+    pushArbeitszeitRow(rows, "wv1497", "Wandverkleidung 1497×2550", 40, qty1497);
   }
   if (document.getElementById("wvSilikonSelected")?.checked) {
     pushArbeitszeitRow(rows, "silikon", "Silikon", 10, 1);
   }
   if (document.getElementById("addFlooring")?.checked) {
-    pushArbeitszeitRow(rows, "flooring", "Fußboden individuell", 25, 1);
+    const floorArea = parseArbeitszeitNumber(document.getElementById("floorArea")?.value || 0);
+    if (floorArea > 0) {
+      pushArbeitszeitRow(
+        rows,
+        "flooring",
+        "Fußboden individuell",
+        8,
+        Math.round(floorArea * 10) / 10,
+      );
+    } else {
+      pushArbeitszeitRow(rows, "flooring", "Fußboden individuell", 25, 1);
+    }
   }
 
   const grabConfigs = [
@@ -1683,9 +1708,16 @@ function renderArbeitszeitSuggestion() {
 
   suggestion.rows.forEach((row) => {
     const tr = document.createElement("tr");
+    const qtyText =
+      typeof row.qty === "number" && !Number.isInteger(row.qty)
+        ? row.qty.toLocaleString("de-DE", {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+          })
+        : String(row.qty);
     tr.innerHTML = `
       <td>${row.label}</td>
-      <td>${row.qty}</td>
+      <td>${qtyText}</td>
       <td>${formatDurationHHMM(row.minutes * row.qty)}</td>
     `;
     body.appendChild(tr);
@@ -4422,19 +4454,73 @@ async function downloadPDFWithProgress(endpoint, payload) {
 
 
 // ===============================
-// Inline PDF Preview
+// Document Preview Hub
 // ===============================
 (function initInlineDocumentPreview() {
   const section = document.getElementById("documentPreviewSection");
   const container = document.getElementById("pdfPreviewContainer");
   const iframe = document.getElementById("pdfPreviewFrame");
+  const textPreview = document.getElementById("documentTextPreview");
+  const textPreviewContent = document.getElementById("documentTextPreviewContent");
   const title = document.getElementById("documentPreviewTitle");
   const status = document.getElementById("documentPreviewStatus");
   const openLink = document.getElementById("documentPreviewOpen");
   const downloadLink = document.getElementById("documentPreviewDownload");
   const closeButton = document.getElementById("documentPreviewClose");
+  const switcherButtons = Array.from(
+    document.querySelectorAll(".document-preview-switcher [data-preview-key]"),
+  );
 
-  if (!section || !container || !iframe) return;
+  if (!section || !container || !iframe || !textPreview || !textPreviewContent) return;
+
+  const PREVIEW_CONFIGS = {
+    offer: {
+      key: "offer",
+      title: "Angebot Vorschau",
+      endpoint: "/api/docx/pdf-preview",
+      fallbackFilename: "Angebot.pdf",
+      ensureActiveOffer: false,
+      mode: "pdf",
+      accept: "application/pdf",
+    },
+    material: {
+      key: "material",
+      title: "Materialübersicht Vorschau",
+      endpoint: "/material-overview/pdf",
+      fallbackFilename: "Materialuebersicht.pdf",
+      ensureActiveOffer: true,
+      mode: "pdf",
+      accept: "application/pdf",
+    },
+    arbeitsbericht: {
+      key: "arbeitsbericht",
+      title: "Arbeitsbericht Vorschau",
+      endpoint: "/api/arbeitsbericht/pdf",
+      fallbackFilename: "Arbeitsbericht.pdf",
+      ensureActiveOffer: true,
+      mode: "pdf",
+      accept: "application/pdf",
+    },
+    kalkulation: {
+      key: "kalkulation",
+      title: "Kalkulation Vorschau",
+      endpoint: "/kalkulation/pdf",
+      fallbackFilename: "Kalkulation.pdf",
+      ensureActiveOffer: true,
+      mode: "pdf",
+      accept: "application/pdf",
+    },
+    hassmann: {
+      key: "hassmann",
+      title: "Hassmann Warenkorb Vorschau",
+      endpoint: "/material-overview/hassmann-cart",
+      fallbackFilename: "Hassmann_Warenkorb.csv",
+      ensureActiveOffer: true,
+      mode: "text",
+      accept: "text/csv, text/plain",
+      emptyMessage: "Keine CSV-Daten verfügbar.",
+    },
+  };
 
   let previewUrl = null;
   let downloadUrl = null;
@@ -4444,7 +4530,7 @@ async function downloadPDFWithProgress(endpoint, payload) {
   let latestAppliedSequence = 0;
   let previewInFlight = false;
 
-  function cleanupPdfUrls() {
+  function cleanupPreviewUrls() {
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
       previewUrl = null;
@@ -4460,11 +4546,32 @@ async function downloadPDFWithProgress(endpoint, payload) {
       openLink.href = openHref;
       openLink.setAttribute("aria-disabled", openHref === "#" ? "true" : "false");
     }
-
     if (downloadLink) {
       downloadLink.href = downloadHref;
       downloadLink.download = filename || "";
       downloadLink.setAttribute("aria-disabled", downloadHref === "#" ? "true" : "false");
+    }
+  }
+
+  function setActiveSwitcher(key) {
+    switcherButtons.forEach((button) => {
+      button.classList.toggle("is-active", button.dataset.previewKey === key);
+      button.setAttribute(
+        "aria-selected",
+        button.dataset.previewKey === key ? "true" : "false",
+      );
+    });
+  }
+
+  function showPreviewMode(mode) {
+    const isPdf = mode === "pdf";
+    container.style.display = isPdf ? "block" : "none";
+    textPreview.hidden = isPdf;
+    textPreview.classList.toggle("is-visible", !isPdf);
+    if (isPdf) {
+      textPreviewContent.textContent = "";
+    } else {
+      iframe.src = "about:blank";
     }
   }
 
@@ -4490,13 +4597,23 @@ async function downloadPDFWithProgress(endpoint, payload) {
     return payload;
   }
 
-  async function fetchPreviewBlob(config) {
+  function parseResponseFilename(response, fallbackFilename) {
+    const contentDisposition = response.headers.get("content-disposition") || "";
+    const filenameMatch =
+      contentDisposition.match(/filename\*=UTF-8''([^;]+)/i) ||
+      contentDisposition.match(/filename="?([^"]+)"?/i);
+    return filenameMatch?.[1]
+      ? decodeURIComponent(filenameMatch[1])
+      : fallbackFilename;
+  }
+
+  async function fetchPreviewResource(config) {
     const payload = ensurePreviewPayload(config);
     const response = await fetch(config.endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Accept: "application/pdf",
+        Accept: config.accept || "*/*",
       },
       body: JSON.stringify(payload),
       credentials: "include",
@@ -4508,6 +4625,18 @@ async function downloadPDFWithProgress(endpoint, payload) {
     }
 
     const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+    const filename = parseResponseFilename(response, config.fallbackFilename) || config.fallbackFilename;
+
+    if (config.mode === "text") {
+      const blob = await response.blob();
+      return {
+        mode: "text",
+        blob,
+        filename,
+        content: await blob.text(),
+      };
+    }
+
     if (!contentType.includes("application/pdf")) {
       const text = await response.text().catch(() => "");
       throw new Error(
@@ -4515,21 +4644,21 @@ async function downloadPDFWithProgress(endpoint, payload) {
       );
     }
 
-    const contentDisposition = response.headers.get("content-disposition") || "";
-    const filenameMatch =
-      contentDisposition.match(/filename\*=UTF-8''([^;]+)/i) ||
-      contentDisposition.match(/filename="?([^"]+)"?/i);
-    const filename = filenameMatch?.[1]
-      ? decodeURIComponent(filenameMatch[1])
-      : config.fallbackFilename;
-
     return {
+      mode: "pdf",
       blob: await response.blob(),
-      filename: filename || config.fallbackFilename,
+      filename,
     };
   }
 
-  async function openInlineDocumentPreview(config) {
+  async function openInlineDocumentPreview(input) {
+    const config =
+      typeof input === "string" ? PREVIEW_CONFIGS[input] : input;
+
+    if (!config) {
+      throw new Error("Unbekannte Vorschau-Konfiguration.");
+    }
+
     if (typeof requireBereichValid === "function" && !requireBereichValid()) {
       location.hash = "Kundendaten";
       return;
@@ -4538,35 +4667,46 @@ async function downloadPDFWithProgress(endpoint, payload) {
     activePreviewConfig = config;
     const sequence = ++refreshSequence;
     previewInFlight = true;
-    cleanupPdfUrls();
+    cleanupPreviewUrls();
     section.hidden = false;
-    container.style.display = "block";
+    showPreviewMode(config.mode);
     iframe.removeAttribute("src");
     iframe.src = "about:blank";
+    textPreviewContent.textContent = "";
     if (title) title.textContent = config.title;
     if (status) status.textContent = `${config.title} wird erstellt…`;
     setPreviewLinks();
+    setActiveSwitcher(config.key);
 
     try {
-      const { blob, filename } = await fetchPreviewBlob(config);
+      const resource = await fetchPreviewResource(config);
       if (sequence < latestAppliedSequence) return;
       latestAppliedSequence = sequence;
-      previewUrl = URL.createObjectURL(blob);
-      downloadUrl = URL.createObjectURL(blob);
 
-      iframe.src = previewUrl;
+      previewUrl = URL.createObjectURL(resource.blob);
+      downloadUrl = URL.createObjectURL(resource.blob);
+
       setPreviewLinks({
         openHref: previewUrl,
         downloadHref: downloadUrl,
-        filename,
+        filename: resource.filename,
       });
+
+      if (resource.mode === "text") {
+        showPreviewMode("text");
+        textPreviewContent.textContent = resource.content || config.emptyMessage || "";
+      } else {
+        showPreviewMode("pdf");
+        iframe.src = previewUrl;
+      }
 
       if (status) status.textContent = `${config.title} bereit.`;
       section.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error) {
-      console.error("[inline-pdf-preview] failed:", error);
+      console.error("[document-preview] failed:", error);
       if (sequence >= latestAppliedSequence) {
         iframe.src = "about:blank";
+        textPreviewContent.textContent = "";
         setPreviewLinks();
       }
       if (status) status.textContent = error.message || "Vorschau konnte nicht erstellt werden.";
@@ -4583,7 +4723,7 @@ async function downloadPDFWithProgress(endpoint, payload) {
   }
 
   function schedulePreviewRefresh(reason = "Änderungen erkannt") {
-    if (!activePreviewConfig || section.hidden || container.style.display === "none") return;
+    if (!activePreviewConfig || section.hidden) return;
     if (!isZusammenfassungActive()) return;
 
     clearTimeout(autoRefreshTimer);
@@ -4594,12 +4734,12 @@ async function downloadPDFWithProgress(endpoint, payload) {
         await openInlineDocumentPreview(activePreviewConfig);
         if (status) status.textContent = `${activePreviewConfig.title} automatisch aktualisiert.`;
       } catch (error) {
-        console.warn("[inline-pdf-preview] auto refresh failed:", reason, error);
+        console.warn("[document-preview] auto refresh failed:", reason, error);
       }
     }, 700);
   }
 
-  function bindPreviewButton(id, config) {
+  function bindPreviewButton(id, previewKey) {
     const button = document.getElementById(id);
     if (!button) return;
 
@@ -4608,7 +4748,7 @@ async function downloadPDFWithProgress(endpoint, payload) {
       button.disabled = true;
       try {
         button.innerHTML = '<span class="btn-icon">⏳</span> Vorschau lädt…';
-        await openInlineDocumentPreview(config);
+        await openInlineDocumentPreview(previewKey);
       } catch (error) {
         alert(error.message || "Vorschau konnte nicht erstellt werden.");
       } finally {
@@ -4618,35 +4758,36 @@ async function downloadPDFWithProgress(endpoint, payload) {
     });
   }
 
-  bindPreviewButton("previewOfferPdf", {
-    title: "Angebot Vorschau",
-    endpoint: "/api/docx/pdf-preview",
-    fallbackFilename: "Angebot.pdf",
-    ensureActiveOffer: false,
-  });
+  bindPreviewButton("previewOfferDocx", "offer");
+  bindPreviewButton("previewOfferPdf", "offer");
+  bindPreviewButton("previewMaterialOverviewPdf", "material");
+  bindPreviewButton("previewArbeitsberichtPdf", "arbeitsbericht");
+  bindPreviewButton("previewKalkulation", "kalkulation");
+  bindPreviewButton("previewHassmannCart", "hassmann");
 
-  bindPreviewButton("previewMaterialOverviewPdf", {
-    title: "Materialübersicht Vorschau",
-    endpoint: "/material-overview/pdf",
-    fallbackFilename: "Materialuebersicht.pdf",
-    ensureActiveOffer: true,
-  });
-
-  bindPreviewButton("previewArbeitsberichtPdf", {
-    title: "Arbeitsbericht Vorschau",
-    endpoint: "/api/arbeitsbericht/pdf",
-    fallbackFilename: "Arbeitsbericht.pdf",
-    ensureActiveOffer: true,
+  switcherButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const key = button.dataset.previewKey;
+      try {
+        await openInlineDocumentPreview(key);
+      } catch (error) {
+        alert(error.message || "Vorschau konnte nicht erstellt werden.");
+      }
+    });
   });
 
   closeButton?.addEventListener("click", () => {
     activePreviewConfig = null;
     clearTimeout(autoRefreshTimer);
-    cleanupPdfUrls();
+    cleanupPreviewUrls();
     iframe.src = "about:blank";
-    container.style.display = "none";
+    textPreviewContent.textContent = "";
     section.hidden = true;
+    container.style.display = "none";
+    textPreview.hidden = true;
+    textPreview.classList.remove("is-visible");
     setPreviewLinks();
+    setActiveSwitcher("");
   });
 
   const summaryPage = document.getElementById("page-Zusammenfassung");
@@ -4654,12 +4795,10 @@ async function downloadPDFWithProgress(endpoint, payload) {
   summaryPage?.addEventListener("change", () => schedulePreviewRefresh("change"), true);
   window.addEventListener("pricing:updated", () => schedulePreviewRefresh("pricing"));
   window.addEventListener("hashchange", () => {
-    if (isZusammenfassungActive()) {
-      schedulePreviewRefresh("navigation");
-    }
+    if (isZusammenfassungActive()) schedulePreviewRefresh("navigation");
   });
 
-  window.addEventListener("beforeunload", cleanupPdfUrls);
+  window.addEventListener("beforeunload", cleanupPreviewUrls);
   window.openInlineDocumentPreview = openInlineDocumentPreview;
 })();
 
@@ -5162,11 +5301,6 @@ function validateBereich() {
       "hasContactPerson",
       "customerType",
       "payer",
-      "pflegekasseAntrag",
-      "wohnsituation",
-      "wohnungszugang",
-      "stockwerkBad",
-      "parkenMoeglich",
     ];
     for (const n of radios) {
       if (!form.querySelector(`input[name="${n}"]:checked`)) {
@@ -5174,23 +5308,6 @@ function validateBereich() {
         break;
       }
     }
-  }
-
-  if (!bad && form.querySelector('input[name="pflegekasseAntrag"][value="Nein"]:checked')) {
-    if (!form.querySelector('input[name="pflegekasseEmc2Antrag"]:checked')) {
-      bad = form.querySelector('input[name="pflegekasseEmc2Antrag"]')?.closest("label");
-    }
-  }
-
-  if (!bad && form.querySelector('input[name="wohnsituation"][value="Miete"]:checked')) {
-    if (!form.querySelector('input[name="vermieterGenehmigung"]:checked')) {
-      bad = form.querySelector('input[name="vermieterGenehmigung"]')?.closest("label");
-    }
-  }
-
-  if (!bad && form.querySelector('input[name="stockwerkBad"][value="Sonstiges"]:checked')) {
-    const otherFloor = document.getElementById("stockwerkBadSonst");
-    if (!otherFloor?.value?.trim()) bad = otherFloor;
   }
 
   if (bad) {
@@ -5209,6 +5326,8 @@ function validateDuschwanne() {
   if (add?.checked) {
     const area = f.querySelector("#floorArea");
     if (!area?.value && !bad) bad = area;
+    if (!f.querySelector('input[name="floorKind"]:checked') && !bad)
+      bad = f.querySelector('input[name="floorKind"]')?.closest("label");
     if (!f.querySelector('input[name="flooringProduct[]"]:checked') && !bad)
       bad = f
         .querySelector('input[name="flooringProduct[]"]')
@@ -5256,6 +5375,10 @@ function focusFirstBereichConditionalError() {
 }
 function requireBereichValid() {
   const form = document.getElementById("form-Kundendaten");
+  if (typeof window.validateAufschlagSelection === "function") {
+    const aufschlagOk = window.validateAufschlagSelection({ report: true });
+    if (!aufschlagOk) return false;
+  }
   if (!form.reportValidity()) {
     focusFirstBereichConditionalError();
     return false;
@@ -6277,6 +6400,30 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
     return setCustomError("");
   }
 
+  function validateAufschlagSelection({ report = false } = {}) {
+    const customMode = isCustomMode();
+    const selectedRadio = aufschlagRadios.find((r) => r.checked) || null;
+
+    aufschlagRadios.forEach((r) => r.setCustomValidity(""));
+
+    if (customMode) {
+      const ok = validateCustomInput();
+      if (!ok && report) customInput?.reportValidity();
+      return ok;
+    }
+
+    const ok = !!selectedRadio;
+    if (!ok) {
+      const message =
+        "Bitte wählen Sie einen Aufschlag oder geben Sie einen Sonderaufschlag ein.";
+      aufschlagRadios.forEach((r) => r.setCustomValidity(message));
+      if (report) (aufschlagRadios[0] || customInput)?.reportValidity?.();
+      return false;
+    }
+
+    return true;
+  }
+
   function openCustomMode(prefill = "") {
     if (!customWrap) return;
     customWrap.hidden = false;
@@ -6341,6 +6488,7 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
   aufschlagRadios.forEach((r) =>
     r.addEventListener("change", () => {
       if (r.checked) closeCustomMode();
+      validateAufschlagSelection();
     }),
   );
 
@@ -6360,10 +6508,12 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
 
   customInput?.addEventListener("input", () => {
     validateCustomInput();
+    validateAufschlagSelection();
     if (!customInput.validationMessage) window.updatePricing?.();
   });
   customInput?.addEventListener("change", () => {
     validateCustomInput();
+    validateAufschlagSelection();
     if (!customInput.validationMessage) window.updatePricing?.();
   });
 
@@ -6374,6 +6524,9 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
     closeCustomMode();
   }
   applyAufschlagRules();
+  validateAufschlagSelection();
+
+  window.validateAufschlagSelection = validateAufschlagSelection;
 
   window.__setCustomAufschlag = function __setCustomAufschlag(value) {
     const pct = window.parseAufschlagPercent(value);
@@ -6774,10 +6927,12 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
   if (!form) return;
 
   const q = (sel) => form.querySelector(sel);
+  const genehmigungRow = document.getElementById("pflegekasseGenehmigungRow");
   const emc2Row = document.getElementById("pflegekasseEmc2Row");
   const vermieterRow = document.getElementById("vermieterGenehmigungRow");
   const stockwerkRow = document.getElementById("stockwerkBadSonstRow");
   const partnerPanel = document.getElementById("ehepaarPartnerPanel");
+  const genehmigungInputs = () => Array.from(form.querySelectorAll('input[name="pflegekasseGenehmigung"]'));
   const emc2Inputs = () => Array.from(form.querySelectorAll('input[name="pflegekasseEmc2Antrag"]'));
   const vermieterInputs = () => Array.from(form.querySelectorAll('input[name="vermieterGenehmigung"]'));
   const stockwerkInput = document.getElementById("stockwerkBadSonst");
@@ -6788,6 +6943,16 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
     const wohnsituation = q('input[name="wohnsituation"]:checked')?.value || "";
     const badStockwerk = q('input[name="badStockwerk"]:checked')?.value || "";
     const showPartner = !!q('input[name="twoPersons"]:checked');
+
+    const showGenehmigung = pflegekasseAntrag === "Ja";
+    if (genehmigungRow) {
+      genehmigungRow.hidden = !showGenehmigung;
+      genehmigungRow.setAttribute("aria-hidden", showGenehmigung ? "false" : "true");
+    }
+    genehmigungInputs().forEach((el) => {
+      el.disabled = !showGenehmigung;
+      if (!showGenehmigung) el.checked = false;
+    });
 
     const showEmc2 = pflegekasseAntrag === "Nein";
     if (emc2Row) {
@@ -6876,6 +7041,7 @@ function getKundendatenPageData() {
     aufschlag: data.aufschlag || window.getEffectiveAufschlagValue?.() || checkedValue("aufschlag"),
     hasPflegegrad: data.hasPflegegrad || checkedValue("hasPflegegrad"),
     pflegegrad: data.pflegegrad || checkedValue("pflegegrad"),
+    partnerSalutation: data.partnerSalutation || q('#partnerSalutation')?.value || "",
     partnerFirstName: data.partnerFirstName || q('#partnerFirstName')?.value || "",
     partnerLastName: data.partnerLastName || q('#partnerLastName')?.value || "",
     partnerPflegegrad: data.partnerPflegegrad || checkedValue("partnerPflegegrad"),
@@ -6885,6 +7051,8 @@ function getKundendatenPageData() {
     wohnumfeldApplication:
       data.wohnumfeldApplication || checkedValue("wohnumfeldApplication"),
     pflegekasseAntrag: data.pflegekasseAntrag || checkedValue("pflegekasseAntrag"),
+    pflegekasseGenehmigung:
+      data.pflegekasseGenehmigung || checkedValue("pflegekasseGenehmigung"),
     pflegekasseEmc2Antrag:
       data.pflegekasseEmc2Antrag || checkedValue("pflegekasseEmc2Antrag"),
     wohnsituation: data.wohnsituation || checkedValue("wohnsituation"),
@@ -7265,6 +7433,7 @@ async function getProduct(id) {
   const calcTotalEl = document.getElementById("floorCalcResult");
   const calcRowTemplate = document.getElementById("floorCalcRowTemplate");
   const calcApplyBtn = document.getElementById("floorCalcApply");
+  const floorKindInputs = Array.from(f.querySelectorAll('input[name="floorKind"]'));
 
   const tileAdh = document.getElementById("tile_R_4260602");
   const tileSeal = document.getElementById("tile_TRBDSET7");
@@ -7430,7 +7599,8 @@ async function getProduct(id) {
 
 // Mirrors SERVER truth for panels (quantity, unit, total) — set it ONLY here
 function updateFlooringPanelsPriceFromPricing() {
-  if (!window.__pricing || !Array.isArray(window.__pricing?.materials?.lines)) {
+  const pricing = window.getCanonicalPricingData?.();
+  if (!pricing || !Array.isArray(pricing?.materials?.lines)) {
     if (panelsPriceEl) panelsPriceEl.textContent = "0";
     if (panelsQtyEl) panelsQtyEl.textContent = "0";
     if (panelsUnitEl) panelsUnitEl.textContent = "0";
@@ -7440,7 +7610,7 @@ function updateFlooringPanelsPriceFromPricing() {
   const pid = getSelectedFloorPid();
 
   // Prefer the “Paneele” line for the selected pid.
-  let line = window.__pricing.materials.lines.find((l) => {
+  let line = pricing.materials.lines.find((l) => {
     const id = (l.productId || l.id);
     const label = String(l.label || "");
     return id === pid && label.includes("Fußboden-Paneele");
@@ -7448,7 +7618,7 @@ function updateFlooringPanelsPriceFromPricing() {
 
   // Fallback: same pid but not “individ.” (covers older label variants)
   if (!line) {
-    line = window.__pricing.materials.lines.find((l) => {
+    line = pricing.materials.lines.find((l) => {
       const id = (l.productId || l.id);
       const label = String(l.label || "");
       return id === pid && !label.includes("individ.");
@@ -7640,6 +7810,10 @@ function updateFlooringPanelsPriceFromPricing() {
     const on = !!toggle?.checked;
     show(panel, on);
     setReq(area, on);
+    floorKindInputs.forEach((input) => {
+      input.disabled = !on;
+      if (!on) input.checked = false;
+    });
 
     if (on) {
       setCalcOpen(false);
@@ -8774,6 +8948,49 @@ function attachDuschwanneToPayload(payload) {
   }
 
   window.__pricing = null;
+  let pricingRequestSeq = 0;
+  let latestAppliedPricingSeq = 0;
+  let pricingRefreshTimer = null;
+  window.__pricingDebug = window.__pricingDebug || { enabled: false };
+
+  window.setPricingDebug = function setPricingDebug(enabled = true) {
+    window.__pricingDebug.enabled = !!enabled;
+    return window.__pricingDebug.enabled;
+  };
+  window.__lastPricingRefreshMeta = window.__lastPricingRefreshMeta || {
+    reason: "",
+    at: 0,
+  };
+
+  window.getCanonicalPricingData = function getCanonicalPricingData() {
+    return window.__EMC2_STATE__?.pricing || window.__pricing || null;
+  };
+
+  window.logPricingRefresh = function logPricingRefresh(reason, extra = {}) {
+    if (!window.__pricingDebug?.enabled) return;
+    console.log("[pricing-refresh]", {
+      reason: reason || "unspecified",
+      ...extra,
+    });
+  };
+
+  window.describePricingTarget = function describePricingTarget(target) {
+    if (!(target instanceof HTMLElement)) return { tag: "unknown" };
+    return {
+      tag: target.tagName.toLowerCase(),
+      id: target.id || "",
+      name: target.getAttribute("name") || "",
+      type: target instanceof HTMLInputElement ? target.type : "",
+      value:
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLSelectElement ||
+        target instanceof HTMLTextAreaElement
+          ? target.value
+          : "",
+      checked: target instanceof HTMLInputElement ? !!target.checked : undefined,
+      formId: target.closest("form")?.id || "",
+    };
+  };
 
   window.updatePricing = async function updatePricing(payload) {
     const pl =
@@ -8786,8 +9003,21 @@ function attachDuschwanneToPayload(payload) {
       return null;
     }
 
+    const requestSeq = ++pricingRequestSeq;
+    window.logPricingRefresh?.("updatePricing:start", { requestSeq });
     const data = await fetchPrice(pl);
+
+    if (requestSeq < latestAppliedPricingSeq) {
+      window.logPricingRefresh?.("updatePricing:stale-ignored", {
+        requestSeq,
+        latestAppliedPricingSeq,
+      });
+      return window.__pricing;
+    }
+    latestAppliedPricingSeq = requestSeq;
+
     window.__pricing = data;
+    window.__EMC2_STATE__?.setPricing?.(data);
 
     // Update Rabatt panel immediately
     window.setPricingData?.(data);
@@ -8803,7 +9033,34 @@ function attachDuschwanneToPayload(payload) {
       updateSummaryWidgetSelfPay(data.selfPayAmount);
     }
 
+    window.logPricingRefresh?.("updatePricing:applied", {
+      requestSeq,
+      total: data?.total,
+      selfPayAmount: data?.selfPayAmount,
+    });
+
     return data;
+  };
+
+  window.requestPricingRefresh = function requestPricingRefresh({
+    delay = 120,
+    payload = null,
+    reason = "",
+  } = {}) {
+    clearTimeout(pricingRefreshTimer);
+    window.__lastPricingRefreshMeta = {
+      reason: reason || "",
+      at: Date.now(),
+    };
+    window.logPricingRefresh?.("requestPricingRefresh", { delay, reason });
+    pricingRefreshTimer = setTimeout(() => {
+      Promise.resolve(window.updatePricing?.(payload)).catch((err) => {
+        console.warn(
+          `[pricing] refresh failed${reason ? ` (${reason})` : ""}:`,
+          err,
+        );
+      });
+    }, Math.max(0, Number(delay) || 0));
   };
 
   // Compute once on load so Rabatt has values and spans have data
@@ -9312,11 +9569,12 @@ if (offerKey === "bwt" && isExtraAufgabe) {
 
   async function openKosten() {
     container.innerHTML = '<div class="muted">Berechne …</div>';
-    if (window.__pricing) {
-      await renderFromData(window.__pricing); // await async renderer
+    const pricing = window.getCanonicalPricingData?.();
+    if (pricing) {
+      await renderFromData(pricing); // await async renderer
     } else {
       await window.updatePricing?.();
-      await renderFromData(window.__pricing);
+      await renderFromData(window.getCanonicalPricingData?.());
     }
   }
 
@@ -9327,7 +9585,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
 
   window.addEventListener("pricing:updated", async (ev) => {
     if (getCurrentStep() === "Kosten") {
-      await renderFromData(ev.detail || window.__pricing);
+      await renderFromData(ev.detail || window.getCanonicalPricingData?.());
     }
   });
 })();
@@ -10770,6 +11028,7 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("postalCode", k.postalCode);
   setByNameOrId("deployment", k.deployment);
   setRadio("pflegekasseAntrag", k.pflegekasseAntrag);
+  setRadio("pflegekasseGenehmigung", k.pflegekasseGenehmigung);
   setRadio("pflegekasseEmc2Antrag", k.pflegekasseEmc2Antrag);
   setRadio("wohnsituation", k.wohnsituation);
   setRadio("vermieterGenehmigung", k.vermieterGenehmigung);
@@ -10799,6 +11058,7 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("bitrixContactId", k.bitrixContactId || k.customerNumber);
   setRadio("payer", k.payer);
   setByNameOrId("kassenkundeName", k.kassenkundeName);
+  setByNameOrId("partnerSalutation", k.partnerSalutation);
   setByNameOrId("partnerFirstName", k.partnerFirstName);
   setByNameOrId("partnerLastName", k.partnerLastName);
   if (k.partnerPflegegrad) setRadio("partnerPflegegrad", String(k.partnerPflegegrad));
@@ -10892,6 +11152,7 @@ function restoreDuschwanne(dw) {
   setHiddenById("chosenTrayProductId", dw.chosenTrayProductId);
   toggleSlateTrayColorVisibility();
   setNumber("floorArea", dw.floorArea);
+  setRadio("floorKind", dw.floorKind);
 
   // work tasks
   if (typeof restoreWorkTasks === "function") {
@@ -11928,6 +12189,7 @@ function restoreDuschwanne(dw) {
   setHiddenById("chosenTrayProductId", dw.chosenTrayProductId);
   toggleSlateTrayColorVisibility();
   setNumber("floorArea", dw.floorArea);
+  setRadio("floorKind", dw.floorKind);
 
   // ===== NEW: restore bathtub + wannenaufsatz =====
   setByNameOrId("bathtub_w_cm", dw.bathtub_w_cm);
@@ -12811,22 +13073,6 @@ document.getElementById("downloadKalkulation")?.addEventListener("click", async 
   } catch (e) {
     console.error(e);
     showPDFProgress(`Kalkulation-Erstellung fehlgeschlagen: ${e?.message || e}`, "error");
-  }
-});
-
-document.getElementById("previewKalkulation")?.addEventListener("click", async () => {
-  if (typeof window.openInlineDocumentPreview !== "function") return;
-
-  try {
-    await window.openInlineDocumentPreview({
-      title: "Kalkulation Vorschau",
-      endpoint: "/kalkulation/pdf",
-      fallbackFilename: "Kalkulation.pdf",
-      ensureActiveOffer: true,
-    });
-  } catch (e) {
-    console.error(e);
-    alert(e?.message || "Preview konnte nicht erstellt werden.");
   }
 });
 
@@ -14743,21 +14989,64 @@ document.addEventListener("DOMContentLoaded", initTECEADSPairsLabel);
 function initLivePricingSync() {
   // WATCH EVERYTHING (best: your main form; fallback: document.body)
   const watchRoot = document.body;
-
-  let t = null;
-  const debounce = (fn, ms = 250) => {
-    clearTimeout(t);
-    t = setTimeout(fn, ms);
-  };
-
-  async function repriceNow() {
-    await window.updatePricing?.();
-  }
+  const kundendatenPrioritySelector = [
+    'input[name="hasPflegegrad"]',
+    'input[name="pflegegrad"]',
+    'input[name="budgetMax"]',
+    'input[name="twoPersons"]',
+    'input[name="premium"]',
+    'input[name="budgetCopay"]',
+    'input[name="wohnumfeldDone"]',
+    'input[name="wohnumfeldApplication"]',
+    '#wohnumfeldAmount',
+    '#sonderaufschlagValue',
+  ].join(", ");
 
   // Single delegated listener covers ALL inputs/checkboxes/selects in the app
-  const handler = () => {
+  const handler = (event) => {
     if (window.__restoring) return; // ← don’t spam while restoring
-    debounce(repriceNow, 180);
+    const target = event?.target;
+    const isKundendatenPriorityTarget =
+      target instanceof HTMLElement &&
+      target.closest?.("#form-Kundendaten") &&
+      target.matches(kundendatenPrioritySelector);
+
+    if (
+      isKundendatenPriorityTarget
+    ) {
+      const lastMeta = window.__lastPricingRefreshMeta || {};
+      const recentlyHandledByState =
+        lastMeta.reason &&
+        /^state-/.test(String(lastMeta.reason)) &&
+        Date.now() - Number(lastMeta.at || 0) < 250;
+
+      if (recentlyHandledByState) {
+        window.logPricingRefresh?.("live-dom-fallback:skipped", {
+          because: "recent-state-refresh",
+          lastReason: lastMeta.reason,
+          target: window.describePricingTarget?.(target),
+        });
+        return;
+      }
+
+      window.requestPricingRefresh?.({
+        delay: 80,
+        reason: "kundendaten-priority-fallback",
+      });
+      window.logPricingRefresh?.("live-dom-fallback:target", {
+        path: "kundendaten-priority-fallback",
+        target: window.describePricingTarget?.(target),
+      });
+      return;
+    }
+    window.requestPricingRefresh?.({
+      delay: 180,
+      reason: "live-dom-fallback",
+    });
+    window.logPricingRefresh?.("live-dom-fallback:target", {
+      path: "live-dom-fallback",
+      target: window.describePricingTarget?.(target),
+    });
   };
   watchRoot.addEventListener("input", handler, true);
   watchRoot.addEventListener("change", handler, true);
@@ -14772,7 +15061,208 @@ function initLivePricingSync() {
   });
 
   // Initial run
-  repriceNow();
+  window.requestPricingRefresh?.({ delay: 0, reason: "live-sync-init" });
+}
+
+function ensureLegacyStateFacade() {
+  if (window.__EMC2_STATE__?.setField && window.__EMC2_STATE__?.setPricing) {
+    return window.__EMC2_STATE__;
+  }
+
+  const forms =
+    window.__EMC2_STATE__?.state?.forms || {
+      Kundendaten: {},
+      Arbeitszeit: {},
+      duschwanne: {},
+      wandverkleidung: {},
+      duschabtrennung: {},
+      optional: {},
+      rabatt: {},
+      bwt: {},
+      hl: {},
+      ah: {},
+      hms: {},
+      wd: {},
+    };
+
+  const facade = {
+    state: {
+      forms,
+      pricing: window.__pricing || null,
+      ui: {},
+    },
+    get pricing() {
+      return this.state.pricing;
+    },
+    setPricing(pricingData) {
+      this.state.pricing = pricingData;
+    },
+    setField(formKey, field, value) {
+      if (!this.state.forms[formKey]) this.state.forms[formKey] = {};
+      this.state.forms[formKey][field] = value;
+    },
+    getField(formKey, field) {
+      return this.state.forms[formKey]?.[field];
+    },
+    getFormData(formKey) {
+      return this.state.forms[formKey] || {};
+    },
+    setFormData(formKey, data) {
+      if (!this.state.forms[formKey]) this.state.forms[formKey] = {};
+      this.state.forms[formKey] = {
+        ...this.state.forms[formKey],
+        ...(data || {}),
+      };
+    },
+    get isRestoring() {
+      return !!(window.__restoring || window.__RESTORING__);
+    },
+    setRestoring(value) {
+      window.__restoring = !!value;
+      window.__RESTORING__ = !!value;
+    },
+  };
+
+  window.__EMC2_STATE__ = facade;
+  window.logPricingRefresh?.("state-facade:created", {
+    source: "legacy-script",
+  });
+  return facade;
+}
+
+function initStateDrivenPricingSync() {
+  const form = document.getElementById("form-Kundendaten");
+  if (!form) return;
+  const stateManager = ensureLegacyStateFacade();
+  window.logPricingRefresh?.("state-bridge:init", {
+    hasForm: !!form,
+    hasStateManager: !!stateManager,
+    hasEventBus: !!window.__EMC2_EVENTS__,
+  });
+
+  const pricingFields = new Set([
+    "payer",
+    "aufschlag",
+    "hasPflegegrad",
+    "pflegegrad",
+    "budgetMax",
+    "twoPersons",
+    "premium",
+    "budgetCopay",
+    "wohnumfeldDone",
+    "wohnumfeldApplication",
+    "wohnumfeldAmount",
+  ]);
+
+  const readTargetValue = (target) => {
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) {
+      return null;
+    }
+
+    if (target.id === "sonderaufschlagValue") {
+      return {
+        field: "aufschlag",
+        value: window.getEffectiveAufschlagValue?.() || "",
+      };
+    }
+
+    const field = target.name || target.id || "";
+    if (!field || !pricingFields.has(field)) return null;
+
+    if (target instanceof HTMLInputElement && target.type === "radio") {
+      if (!target.checked) return null;
+      return { field, value: target.value };
+    }
+
+    if (target instanceof HTMLInputElement && target.type === "checkbox") {
+      return { field, value: !!target.checked };
+    }
+
+    return { field, value: target.value };
+  };
+
+  const syncTargetToState = (target) => {
+    const stateManager = ensureLegacyStateFacade();
+    const entry = readTargetValue(target);
+    window.logPricingRefresh?.("state-bridge:inspect-target", {
+      hasStateManager: !!stateManager,
+      target: window.describePricingTarget?.(target),
+      mappedField: entry?.field || "",
+      mappedValue: entry?.value,
+    });
+    if (!stateManager?.setField || !entry) return false;
+    stateManager.setField("Kundendaten", entry.field, entry.value);
+    return pricingFields.has(entry.field);
+  };
+
+  const forwardChange = (event) => {
+    if (window.__restoring || ensureLegacyStateFacade()?.isRestoring) return;
+    const shouldReprice = syncTargetToState(event.target);
+    if (shouldReprice) {
+      window.logPricingRefresh?.("state-bridge-dom:field", {
+        field:
+          (event?.target instanceof HTMLElement &&
+            (event.target.getAttribute("name") || event.target.id)) ||
+          "",
+        target: window.describePricingTarget?.(event?.target),
+      });
+      window.requestPricingRefresh?.({
+        delay: 0,
+        reason: "state-bridge-dom",
+      });
+    }
+  };
+
+  form.addEventListener("change", forwardChange, true);
+  form.addEventListener("input", forwardChange, true);
+
+  const tryWireEventBus = () => {
+    const bus = window.__EMC2_EVENTS__;
+    window.logPricingRefresh?.("state-bridge:wire-attempt", {
+      hasBus: !!bus,
+      alreadyWired: !!bus?.__pricingSyncBridgeWired,
+    });
+    if (!bus?.on || bus.__pricingSyncBridgeWired) return !!bus?.__pricingSyncBridgeWired;
+
+    bus.__pricingSyncBridgeWired = true;
+    bus.on("pricing:requested", () => {
+      window.requestPricingRefresh?.({
+        delay: 0,
+        reason: "state-pricing-requested",
+      });
+    });
+    bus.on("form:changed", (payload) => {
+      if (payload?.formKey !== "Kundendaten") return;
+      const changedFields = payload?.field
+        ? [payload.field]
+        : Object.keys(payload?.data || {});
+      window.logPricingRefresh?.("state-form-changed:seen", {
+        changedFields,
+      });
+      if (changedFields.some((field) => pricingFields.has(field))) {
+        window.requestPricingRefresh?.({
+          delay: 0,
+          reason: "state-form-changed",
+        });
+      }
+    });
+    bus.on("state:restored", () => {
+      window.requestPricingRefresh?.({
+        delay: 0,
+        reason: "state-restored",
+      });
+    });
+
+    return true;
+  };
+
+  if (!tryWireEventBus()) {
+    let attempts = 0;
+    const timer = setInterval(() => {
+      attempts += 1;
+      if (tryWireEventBus() || attempts >= 20) clearInterval(timer);
+    }, 250);
+  }
 }
 
 function initEmc2ContactPrefill() {
@@ -14907,6 +15397,11 @@ window.addEventListener("offerflow:changed", () => {
       parkDetails: "Direkt vor dem Haus",
       budgetOptionsPanel: "4180 MAXIMAL",
       copayAmount: 0,
+      partnerSalutation: "Frau",
+      partnerFirstName: "Erika",
+      partnerLastName: "Mustermann",
+      partnerPflegegrad: "2",
+      partnerKassenkundeName: "AOK Nord",
       wohnumfeld: {
         status: "Nein",
         done: false,
@@ -15940,6 +16435,7 @@ document.addEventListener("DOMContentLoaded", () => {
   safeInit("initSmartBathtubSearch", initSmartBathtubSearch);
   safeInit("initSmartScreenPickerBucket", initSmartScreenPickerBucket);
 
+  safeInit("initStateDrivenPricingSync", initStateDrivenPricingSync);
   safeInit("initLivePricingSync", initLivePricingSync);
 
   window.addEventListener("hashchange", () => {

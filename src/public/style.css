@@ -1797,6 +1797,7 @@ label.image-check.is-checked .caption {
   padding: 12px 20px;
   font-size: 0.95rem;
   font-weight: 600;
+  text-decoration: none;
   border: none;
   border-radius: 10px;
   cursor: pointer;

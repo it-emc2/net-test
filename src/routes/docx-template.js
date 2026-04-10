@@ -1572,6 +1572,7 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     Anrede: b.salutation || "",
     Vorname: b.firstName || "",
     Nachname: b.lastName || "",
+    PartnerAnrede: b.partnerSalutation || "",
     PartnerVorname: b.partnerFirstName || "",
     PartnerNachname: b.partnerLastName || "",
     PflegegradKunde: b.pflegegrad || "",
@@ -1600,6 +1601,7 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
             : "Guten Tag",
     Angebotsnummer: body.offerNumber || `ANG-${Date.now()}`,
     PflegekasseAntrag: b.pflegekasseAntrag || "",
+    PflegekasseGenehmigung: b.pflegekasseGenehmigung || "",
     PflegekasseEmc2Antrag: b.pflegekasseEmc2Antrag || "",
     Wohnsituation: b.wohnsituation || "",
     VermieterGenehmigung: b.vermieterGenehmigung || "",
@@ -1903,4 +1905,6 @@ export {
   mapData,
   getAngebotTemplatePath,
   generateOfferPdfBuffer,
+  deepSanitizeDocxPayload,
+  STATIC_DOCX_WORD_BLOCKLIST,
 };

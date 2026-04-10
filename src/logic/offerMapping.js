@@ -617,6 +617,7 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
             : "Guten Tag",
     Angebotsnummer: body.offerNumber || `ANG-${Date.now()}`,
     PflegekasseAntrag: b.pflegekasseAntrag || "",
+    PflegekasseGenehmigung: b.pflegekasseGenehmigung || "",
     PflegekasseEmc2Antrag: b.pflegekasseEmc2Antrag || "",
     Wohnsituation: b.wohnsituation || "",
     VermieterGenehmigung: b.vermieterGenehmigung || "",

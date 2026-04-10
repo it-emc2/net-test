@@ -184,6 +184,8 @@ function grossToNet(gross, taxRate) {
     const opt = payload?.optional || {};
     const kind = payload?.wandverkleidung?.wvKind || "";
     const dusch = payload?.duschwanne || {};
+    const floorKind = dusch?.floorKind || "";
+    const hasFlooring = !!dusch?.addFlooring;
 
     const picked = new Set();
 
@@ -192,12 +194,20 @@ function grossToNet(gross, taxRate) {
     if (kind === "Deckenhoch")
       picked.add("Verkleidung Deckenhoch im Dusch/ Wannenbereich");
     if (kind === "Duschabtrennung")
-      picked.add("Herstellung des Fliesenspiegels");
+      picked.add("Verkleidung bis zur Höhe des Fliesenspiegels im Dusch-/Wannenbereich");
     if (kind === "Fliesenspiegel")
-      picked.add("Herstellung des Fliesenspiegels");
+      picked.add("Verkleidung bis zur Höhe des Fliesenspiegels im Dusch-/Wannenbereich");
     if (kind === "Innenraum-der-Kabine")
       picked.add("Verkleidung im Innenraum der Kabine");
-    if (kind === "alle-Bad-Wände") picked.add("Verkleidung aller Bad-Wände");
+    if (kind === "alle-Bad-Wände") picked.add("Verkleidung Deckenhoch aller Bad-Wände");
+
+    // Fußboden
+    if (hasFlooring && floorKind === "Fehlstellen") {
+      picked.add("Schließen der Fehlstellen im Fußbodenbereich");
+    }
+    if (hasFlooring && floorKind === "Gesamtes-Bad") {
+      picked.add("Fußbodenverkleidung im gesamten Badbereich");
+    }
 
     // Generic detector: true if non-empty array/string, or qty > 0
     const chosen = (flag, qty) => {

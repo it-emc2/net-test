@@ -2165,6 +2165,15 @@ button.dm-btn-danger:focus-visible {
             <div class="section-header" style="margin-bottom: 12px">Partner / Ehepartner</div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
               <div>
+                <label for="partnerSalutation">Anrede Partner</label>
+                <select id="partnerSalutation" name="partnerSalutation">
+                  <option value="">Bitte wählen</option>
+                  <option value="Herr">Herr</option>
+                  <option value="Frau">Frau</option>
+                </select>
+              </div>
+              <div></div>
+              <div>
                 <label for="partnerFirstName" class="req">Vorname Partner</label>
                 <input id="partnerFirstName" name="partnerFirstName" />
               </div>
@@ -2207,6 +2216,14 @@ button.dm-btn-danger:focus-visible {
                   <div class="radio-group" role="radiogroup" aria-label="Antrag auf Zuschuss bei Pflegekasse gestellt?">
                     <label class="radio-pill"><input type="radio" name="pflegekasseAntrag" value="Ja" /><span class="circle"></span><span>Ja</span></label>
                     <label class="radio-pill"><input type="radio" name="pflegekasseAntrag" value="Nein" /><span class="circle"></span><span>Nein</span></label>
+                  </div>
+                </div>
+
+                <div id="pflegekasseGenehmigungRow" class="full" hidden aria-hidden="true">
+                  <label>Genehmigung von Pflegekasse ist vorhanden?</label>
+                  <div class="radio-group" role="radiogroup" aria-label="Genehmigung von Pflegekasse ist vorhanden?">
+                    <label class="radio-pill"><input type="radio" name="pflegekasseGenehmigung" value="Ja" /><span class="circle"></span><span>Ja</span></label>
+                    <label class="radio-pill"><input type="radio" name="pflegekasseGenehmigung" value="Nein" /><span class="circle"></span><span>Nein</span></label>
                   </div>
                 </div>
 
@@ -2869,6 +2886,16 @@ button.dm-btn-danger:focus-visible {
                 <label for="floorArea" class="req">gewünschte Fläche m²</label>
                 <input id="floorArea" name="floorArea" inputmode="decimal" placeholder="z. B. 12,5" />
                 <small class="muted flooring-area-help">Sie können die Fläche direkt eingeben oder den Flächenrechner verwenden.</small>
+
+                <div class="field" style="margin-top: 14px;">
+                  <label class="req">Welche Art der Fußbodenverkleidung wird benötigt?</label>
+                  <div class="radio-group vertical" role="radiogroup" aria-label="Art der Fußbodenverkleidung">
+                    <label class="radio-pill"><input type="radio" name="floorKind" value="Fehlstellen" /><span
+                        class="circle"></span><span>Nur schließende Fehlstellen</span></label>
+                    <label class="radio-pill"><input type="radio" name="floorKind" value="Gesamtes-Bad" /><span
+                        class="circle"></span><span>Gesamter Badboden</span></label>
+                  </div>
+                </div>
               </div>
 
               <aside id="floorCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
@@ -8435,12 +8462,7 @@ button.dm-btn-danger:focus-visible {
     </div>
   </div>
 
-
-  <!-- Global StateManager init (if not already loaded) -->
-  <!-- <script type="module" src="/app-init.js"></script> -->
-  <!-- Page-specific initialization -->
-  <!--  <script type="module" src="/js/pages/kundendaten-init.js"></script> -->
-    <script src="./ThemeManager.js"></script>
+  <script src="./ThemeManager.js"></script>
   <script src="./script.js"></script>
 
 </body>
