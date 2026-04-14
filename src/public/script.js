@@ -11930,6 +11930,7 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     "#cat_BASIN_TAP",
     "#cat_METER",
     "#cat_RAMPE",
+    "#cat_WANNE",
     "#cat_WC",
     "#cat_SONDER",
   ].forEach((id) => dispatchChange(document.querySelector(id)));
@@ -14126,6 +14127,7 @@ cat_SHOWER: "menu_SHOWER",
     // Add more categories here if needed
     cat_METER: "menu_METER",
     cat_RAMPE: "menu_RAMPE",
+    cat_WANNE: "menu_WANNE",
     cat_WC: "menu_WC",
     cat_SONDER: "menu_SONDER",
   };
