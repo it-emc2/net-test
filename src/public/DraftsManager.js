@@ -1,5 +1,23 @@
 // DraftsManager.js
 export function initDraftsManager(options = {}) {
+  const callToast = (toastImpl, msg, type = "info") => {
+    if (!toastImpl) return false;
+    if (typeof toastImpl === "function") {
+      toastImpl(msg, type);
+      return true;
+    }
+    const method = String(type || "info").toLowerCase();
+    if (typeof toastImpl[method] === "function") {
+      toastImpl[method](method === "error" ? "Fehler" : "Entwurf", msg);
+      return true;
+    }
+    if (typeof toastImpl.info === "function") {
+      toastImpl.info("Entwurf", msg);
+      return true;
+    }
+    return false;
+  };
+
   const cfg = {
     els: {
       input: "#draftSearchInput",
@@ -29,7 +47,10 @@ export function initDraftsManager(options = {}) {
     restoreSnapshot: (payload) =>
       window.restoreConfiguratorFromSnapshot?.({ payload }),
     buildPayload: () => window.buildPayload?.(),
-    toast: (msg, type) => window.showToast?.(msg, type) || console.log(type ? `[${type}] ${msg}` : msg),
+    toast: (msg, type) => {
+      if (callToast(window.toast || window.showToast, msg, type)) return;
+      console.log(type ? `[${type}] ${msg}` : msg);
+    },
 
     ...options,
   };

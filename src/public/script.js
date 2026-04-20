@@ -178,6 +178,7 @@ const OFFERS = {
       "Rabatt",
       "Kosten",
       "Zusammenfassung",
+      "admin",
     ],
   },
   hl: {
@@ -554,6 +555,8 @@ const toast = {
   warn: (t, m, opts) => ntToast("warn", t, m, opts),
 };
 
+window.toast = window.toast || toast;
+
 // top-level (once)
 window.__restoring = false;
 window.__RESTORING__ = false;
@@ -597,14 +600,19 @@ function updateOfferSpecificSections() {
   });
 }
 function showToast(message, type = "info") {
-  // If you have a proper toaster utility, call it here.
-  // For now, simple fallback:
+  const kind = String(type || "info").toLowerCase();
+  if (window.toast && typeof window.toast[kind] === "function") {
+    window.toast[kind](kind === "error" ? "Fehler" : "Hinweis", message);
+    return;
+  }
   if (window.showNiceToast) {
     window.showNiceToast(message, type);
-  } else {
-    console.log(`[${type}] ${message}`);
+    return;
   }
+  console.log(`[${type}] ${message}`);
 }
+
+window.showToast = window.showToast || showToast;
 // #endregion
 // =================================================================
 // #region 4. RESTORE LOGIC (Helpers for restoring form state)
@@ -10944,7 +10952,9 @@ function restoreBwt(bwt) {
 if (bwt.bwtDoorStdHeight != null) {
   setByNameOrId("bwtDoorStdHeight", bwt.bwtDoorStdHeight);
 }
-syncBwtDoorStdHeightCaption();
+if (typeof syncBwtDoorStdHeightCaption === "function") {
+  syncBwtDoorStdHeightCaption();
+}
 
   // --- Anschlag (bwtAnschlag: radio) ---
   if (bwt.bwtAnschlag) {
@@ -11627,7 +11637,7 @@ const RESTORE_HANDLERS = {
       window.__draftsManager = initDraftsManager({
         restoreDoc: (doc) => window.restoreConfiguratorFromOffer?.(doc),
         restoreSnapshot: (payload) => window.restoreConfiguratorFromSnapshot?.({ payload }),
-        toast: (msg, type) => (window.showToast?.(msg, type) || window.toast?.(msg, type)),
+        toast: (msg, type) => showToast(msg, type),
       });
       window.__managers.drafts = window.__draftsManager;
       __startupLog("[DraftsManager] initialized");
@@ -15493,12 +15503,15 @@ window.addEventListener("offerflow:changed", () => {
       payload.bwt = {
         bwtShape: "Rechteckig",
         bwtMaterial: "Stahl emailliert",
-        bwtDoorType: "1226",
+        // bwtDoorType must match the HTML checkbox value exactly
+        bwtDoorType: "Universal / Standard Tür",
         bwtDoorStdQty: "1",
         bwtDoorStdColor: "weiß",
-        bwtDoorStdHeight: "52",
-        bwtAnschlag: "DIN rechts",
-        tray_color: "weiß",
+        bwtDoorStdHeight: "36", // valid range: 33–40
+        // bwtAnschlag must match the HTML radio value exactly ("Links" or "Rechts")
+        bwtAnschlag: "Rechts",
+        // tray_color must match HTML radio value exactly ("Weiß", "manhattan", "bahama_beige")
+        tray_color: "Weiß",
         bwtAids: ["Haltegriff30"],
         bwtAidsHaltegriff30Qty: "1",
         bwtNote: "Musterdaten für Badewannentür.",
@@ -15654,6 +15667,307 @@ window.addEventListener("offerflow:changed", () => {
     onEnterZusammenfassung();
   }
 
+})();
+
+// ─── BWT Developer / Debug Panel ────────────────────────────────────────────
+(function initBwtDebugPanel() {
+  const toggleBtn  = document.getElementById("bwtToggleDevTools");
+  const panel      = document.getElementById("bwtDevPanel");
+  const prefillBtn = document.getElementById("bwtPrefillMuster");
+  const resetBtn   = document.getElementById("bwtResetForm");
+  const showBtn    = document.getElementById("bwtShowPayload");
+  const copyBtn    = document.getElementById("bwtCopyPayload");
+  const showBwtBtn = document.getElementById("bwtShowBwtSection");
+
+  if (!toggleBtn || !panel) return; // BWT page not in DOM
+
+  // ── Toggle ───────────────────────────────────────────────────────────────
+  toggleBtn.addEventListener("click", () => {
+    const opening = panel.hidden;
+    panel.hidden = !opening;
+    toggleBtn.classList.toggle("active", opening);
+    const txt = toggleBtn.querySelector(".toggle-text");
+    if (txt) txt.textContent = opening ? "Entwickler-Tools ausblenden" : "Entwickler-Tools anzeigen";
+  });
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function getBwtPayload() {
+    const full = typeof buildPayload === "function" ? buildPayload() : {};
+    return full?.bwt ?? full;
+  }
+
+  function toast(msg, type = "info") {
+    if (typeof showToast === "function") showToast(msg, type);
+    else console.log(`[${type}] ${msg}`);
+  }
+
+  // ── Musterdaten einfüllen ────────────────────────────────────────────────
+  if (prefillBtn) {
+    prefillBtn.addEventListener("click", async () => {
+      const label = prefillBtn.textContent;
+      prefillBtn.disabled = true;
+      prefillBtn.textContent = "Wird geladen…";
+      try {
+        // buildMusterPayload is defined inside initZusammenfassungPage – expose it
+        // via the same restore path used everywhere else.
+        const payload = typeof window.__buildBwtMusterPayload === "function"
+          ? window.__buildBwtMusterPayload()
+          : (() => {
+              // Inline fallback that matches the corrected fixture:
+              const today = new Date().toISOString().slice(0, 10);
+              return {
+                activeOffer: "bwt",
+                offerType: "bwt",
+                offerNumber: `ANG-MUSTER-BWT-${today.replace(/-/g, "")}`,
+                Kundendaten: {
+                  salutation: "Herr",
+                  date: today,
+                  firstName: "Max",
+                  lastName: "Mustermann",
+                  phone: "0171 2345678",
+                  email: "max.mustermann@example.com",
+                  street: "Musterstraße 12",
+                  city: "Musterstadt",
+                  postalCode: "95028",
+                  payer: "Kassenkunde",
+                  aufschlag: "50%",
+                  hasPflegegrad: "Ja",
+                  pflegegrad: "2",
+                },
+                Arbeitszeit: {
+                  distanceKm: "18",
+                  travelTimeHHMM: "00:30",
+                  laborHoursHHMM: "03:00",
+                },
+                bwt: {
+                  bwtShape: "Rechteckig",
+                  bwtMaterial: "Stahl emailliert",
+                  bwtDoorType: "Universal / Standard Tür",
+                  bwtDoorStdQty: "1",
+                  bwtDoorStdColor: "weiß",
+                  bwtDoorStdHeight: "36",
+                  bwtAnschlag: "Rechts",
+                  tray_color: "Weiß",
+                  bwtAids: ["Haltegriff30"],
+                  bwtAidsHaltegriff30Qty: "1",
+                  bwtNote: "Musterdaten · Badewannentür",
+                },
+                rabatt: { materialDiscountPct: 0, bonus300: false, bonusGrab: false },
+              };
+            })();
+
+        if (typeof window.restoreConfiguratorFromSnapshot === "function") {
+          await window.restoreConfiguratorFromSnapshot({ payload });
+        } else if (typeof window.restoreConfiguratorFromOffer === "function") {
+          await window.restoreConfiguratorFromOffer({ payload });
+        } else {
+          throw new Error("Restore-Funktion nicht verfügbar.");
+        }
+
+        if (typeof window.updatePricing === "function") await window.updatePricing();
+        if (typeof window.refreshAllPanels === "function") await window.refreshAllPanels();
+        toast("BWT Musterdaten eingetragen.", "success");
+      } catch (err) {
+        console.error("[BWT Debug] Musterdaten fehler:", err);
+        toast(err?.message || "Fehler beim Einfüllen.", "error");
+      } finally {
+        prefillBtn.disabled = false;
+        prefillBtn.textContent = label;
+      }
+    });
+  }
+
+  // ── Formular zurücksetzen ────────────────────────────────────────────────
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => {
+      const form = document.getElementById("form-bwt");
+      if (form) form.reset();
+      // Re-apply wireTileQty initial states by dispatching change on all door checkboxes
+      form?.querySelectorAll('input[name="bwtDoorType"]').forEach((cb) =>
+        cb.dispatchEvent(new Event("change", { bubbles: true }))
+      );
+      toast("BWT-Formular zurückgesetzt.", "info");
+    });
+  }
+
+  // ── Payload anzeigen (full) ──────────────────────────────────────────────
+  if (showBtn) {
+    showBtn.addEventListener("click", () => {
+      const payload = typeof buildPayload === "function" ? buildPayload() : {};
+      const str = JSON.stringify(payload, null, 2);
+      if (typeof ntToast === "function") {
+        ntToast("info", "Aktueller Payload",
+          `<pre style="max-height:400px;overflow:auto;font-size:11px;text-align:left;">${
+            str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+          }</pre>`,
+          { duration: 0 }
+        );
+      } else {
+        console.log("[BWT Payload]", payload);
+        alert("Payload in Konsole ausgegeben.\n\nErste 800 Zeichen:\n" + str.slice(0, 800));
+      }
+    });
+  }
+
+  // ── Payload kopieren ─────────────────────────────────────────────────────
+  if (copyBtn) {
+    copyBtn.addEventListener("click", () => {
+      const payload = typeof buildPayload === "function" ? buildPayload() : {};
+      const str = JSON.stringify(payload, null, 2);
+      navigator.clipboard?.writeText(str).then(() => {
+        toast("Payload in Zwischenablage kopiert.", "success");
+      }).catch(() => {
+        console.log("[BWT Payload]", payload);
+        toast("Clipboard nicht verfügbar – Payload in Konsole.", "warn");
+      });
+    });
+  }
+
+  // ── BWT-Sektion anzeigen ─────────────────────────────────────────────────
+  if (showBwtBtn) {
+    showBwtBtn.addEventListener("click", () => {
+      const bwt = getBwtPayload();
+      const str = JSON.stringify(bwt, null, 2);
+      if (typeof ntToast === "function") {
+        ntToast("info", "BWT-Sektion des Payloads",
+          `<pre style="max-height:400px;overflow:auto;font-size:11px;text-align:left;">${
+            str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+          }</pre>`,
+          { duration: 0 }
+        );
+      } else {
+        console.log("[BWT Section]", bwt);
+        alert("BWT-Sektion in Konsole.\n\nErste 800 Zeichen:\n" + str.slice(0, 800));
+      }
+    });
+  }
+})();
+
+// ─── Home Debug Panel ────────────────────────────────────────────────────────
+(function initHomeDebugPanel() {
+  const toggle  = document.getElementById("homeDebugToggle");
+  const panel   = document.getElementById("homeDebugPanel");
+  if (!toggle || !panel) return;
+
+  // ── Toggle ───────────────────────────────────────────────────────────────
+  let isOpen = false;
+
+  toggle.addEventListener("click", () => {
+    isOpen = !isOpen;
+    panel.hidden = !isOpen;
+    toggle.setAttribute("aria-pressed", String(isOpen));
+    if (isOpen) updateStats();
+  });
+
+  // ── Stat helpers ─────────────────────────────────────────────────────────
+  function setText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+
+  function updateStats() {
+    // Calendar
+    const calEvents = window.__debug_getCalendarEvents?.() ?? [];
+    setText("dbgCalendarStat", `${calEvents.length} Termine geladen`);
+    const endpoints = window.__debug_calendarEndpoints ?? [];
+    setText("dbgCalendarEndpoints", endpoints.join(" → "));
+
+    // Planning
+    const planningItems = window.__debug_getPlanningAppointments?.() ?? [];
+    setText("dbgPlanningStat", `${planningItems.length} Termine geladen`);
+    setText("dbgPlanningEndpoint", window.__debug_planningEndpoint ?? "—");
+
+    // Customers
+    const customers = window.__debug_getCustomers?.() ?? [];
+    setText("dbgCustomersStat", `${customers.length} Kunden geladen`);
+  }
+
+  // ── Wrappers that show busy state on the button ───────────────────────────
+  async function runReload(btnId, fn) {
+    const btn = document.getElementById(btnId);
+    if (!btn || !fn) return;
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "⏳ Lädt…";
+    try { await fn(); } catch (e) { console.error("[debug reload]", e); }
+    finally {
+      btn.disabled = false;
+      btn.textContent = orig;
+      updateStats();
+    }
+  }
+
+  // ── Reload buttons ───────────────────────────────────────────────────────
+  document.getElementById("dbgReloadCalendar")
+    ?.addEventListener("click", () => runReload("dbgReloadCalendar", window.__debug_reloadCalendar));
+
+  document.getElementById("dbgReloadPlanning")
+    ?.addEventListener("click", () => runReload("dbgReloadPlanning", window.__debug_reloadPlanning));
+
+  document.getElementById("dbgReloadCustomers")
+    ?.addEventListener("click", () => runReload("dbgReloadCustomers", window.__debug_reloadCustomers));
+
+  document.getElementById("dbgReloadAll")
+    ?.addEventListener("click", async () => {
+      const btn = document.getElementById("dbgReloadAll");
+      if (btn) { btn.disabled = true; btn.textContent = "⏳ Lädt…"; }
+      try {
+        await Promise.allSettled([
+          window.__debug_reloadCalendar?.(),
+          window.__debug_reloadPlanning?.(),
+          window.__debug_reloadCustomers?.(),
+        ]);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = "🔄 Alle 3 Panels neu laden"; }
+        updateStats();
+      }
+    });
+
+  // ── Log buttons ──────────────────────────────────────────────────────────
+  document.getElementById("dbgLogCalendar")
+    ?.addEventListener("click", () => {
+      const data = window.__debug_getCalendarEvents?.() ?? [];
+      console.group("[Debug] Heutige Termine (Kalender)");
+      console.log("Anzahl:", data.length);
+      console.table(data.slice(0, 20));
+      if (data.length > 20) console.log(`…und ${data.length - 20} weitere`);
+      console.groupEnd();
+    });
+
+  document.getElementById("dbgLogPlanning")
+    ?.addEventListener("click", () => {
+      const data = window.__debug_getPlanningAppointments?.() ?? [];
+      console.group("[Debug] Heutige Planung");
+      console.log("Anzahl:", data.length);
+      console.table(data.slice(0, 20));
+      if (data.length > 20) console.log(`…und ${data.length - 20} weitere`);
+      console.groupEnd();
+    });
+
+  document.getElementById("dbgLogCustomers")
+    ?.addEventListener("click", () => {
+      const data = window.__debug_getCustomers?.() ?? [];
+      console.group("[Debug] Heutige Kunden");
+      console.log("Anzahl:", data.length);
+      console.table(data.slice(0, 20));
+      if (data.length > 20) console.log(`…und ${data.length - 20} weitere`);
+      console.groupEnd();
+    });
+
+  document.getElementById("dbgLogAll")
+    ?.addEventListener("click", () => {
+      console.group("[Debug] Alle Heutige-Daten");
+      console.group("Termine (Kalender)");
+      console.log(window.__debug_getCalendarEvents?.() ?? []);
+      console.groupEnd();
+      console.group("Planung");
+      console.log(window.__debug_getPlanningAppointments?.() ?? []);
+      console.groupEnd();
+      console.group("Kunden");
+      console.log(window.__debug_getCustomers?.() ?? []);
+      console.groupEnd();
+      console.groupEnd();
+    });
 })();
 
 
@@ -19417,6 +19731,12 @@ function initTodayCustomersPanel(){
 
 document.addEventListener("DOMContentLoaded", initTodayCustomersPanel);
 
+// Expose for home debug panel
+window.__debug_getCustomers = () => todaysCustomers;
+window.__debug_reloadCustomers = () => {
+  window.__todayCustomersPromise = fetchTodaysCustomers();
+};
+
 })();
 
 (function(){
@@ -20002,6 +20322,11 @@ function initTodayCalendarPanel(){
 
 document.addEventListener("DOMContentLoaded", initTodayCalendarPanel);
 
+// Expose for home debug panel
+window.__debug_getCalendarEvents = () => todayCalendarEvents;
+window.__debug_reloadCalendar = fetchTodayCalendarEvents;
+window.__debug_calendarEndpoints = TODAY_CALENDAR_ENDPOINTS;
+
 })();
 
 (function(){
@@ -20435,6 +20760,11 @@ function initTodayPlanningPanel(){
 }
 
 document.addEventListener("DOMContentLoaded", initTodayPlanningPanel);
+
+// Expose for home debug panel
+window.__debug_getPlanningAppointments = () => todayPlanningAppointments;
+window.__debug_reloadPlanning = fetchTodayPlanningSnapshot;
+window.__debug_planningEndpoint = TODAY_PLANNING_SNAPSHOT_ENDPOINT;
 
 })();
 

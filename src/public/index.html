@@ -1489,13 +1489,13 @@ button.dm-btn-danger:focus-visible {
     }
 
     .customer-phone-field {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      display: flex;
+      align-items: flex-end;
       gap: 10px;
-      align-items: end;
     }
 
     .customer-phone-field input {
+      flex: 1;
       min-width: 0;
     }
 
@@ -1541,10 +1541,6 @@ button.dm-btn-danger:focus-visible {
         grid-template-columns: 1fr;
       }
 
-      .customer-phone-field {
-        grid-template-columns: 1fr auto;
-      }
-
       .customer-contact-row .customer-email-field input,
       .customer-contact-row .customer-post-toggle {
         max-width: 100%;
@@ -1561,6 +1557,94 @@ button.dm-btn-danger:focus-visible {
         width: 50%;
         max-height: 210px;
       }
+    }
+
+    /* ── Dark mode overrides for inline-styled components ── */
+    [data-mode="dark"] #da-db-search,
+    [data-mode="dark"] #hass-custom-templates {
+      background: var(--card);
+      border-color: var(--border);
+      box-shadow: none;
+    }
+
+    [data-mode="dark"] #hass-custom {
+      background: var(--card);
+      border-color: var(--border);
+      box-shadow: none;
+    }
+
+    [data-mode="dark"] #hass-custom .da-item {
+      background: var(--card-hover);
+      border-color: var(--border);
+    }
+
+    [data-mode="dark"] .da-row {
+      background: var(--card);
+      border-color: var(--border);
+    }
+
+    [data-mode="dark"] .da-add {
+      color: var(--accent-strong);
+      border-color: var(--border);
+    }
+
+    [data-mode="dark"] .da-add:hover,
+    [data-mode="dark"] .da-add:focus-visible {
+      background: color-mix(in srgb, var(--accent) 15%, transparent);
+    }
+
+    [data-mode="dark"] .da-remove {
+      color: var(--danger);
+      border-color: var(--border);
+    }
+
+    [data-mode="dark"] .da-remove:hover,
+    [data-mode="dark"] .da-remove:focus-visible {
+      background: rgba(248, 113, 113, 0.12);
+    }
+
+    [data-mode="dark"] .muted {
+      color: var(--muted);
+    }
+
+    [data-mode="dark"] .da-help {
+      color: var(--muted);
+    }
+
+    [data-mode="dark"] .da-label {
+      color: var(--text);
+    }
+
+    [data-mode="dark"] .da-legend {
+      color: var(--text);
+    }
+
+    [data-mode="dark"] #form-duschabtrennung .da-add {
+      color: var(--accent-strong) !important;
+      border-color: var(--border) !important;
+    }
+
+    [data-mode="dark"] #form-duschabtrennung .da-remove {
+      color: var(--danger) !important;
+      border-color: var(--border) !important;
+    }
+
+    [data-mode="dark"] #page-optional #menu_SONDER .da-add {
+      color: var(--accent-strong) !important;
+      border-color: var(--border) !important;
+    }
+
+    [data-mode="dark"] #page-optional #menu_SONDER .da-remove {
+      color: var(--danger) !important;
+      border-color: var(--border) !important;
+    }
+
+    [data-mode="dark"] .da-search-icon {
+      color: var(--muted);
+    }
+
+    [data-mode="dark"] .subheader {
+      color: var(--text);
     }
 
   </style>
@@ -1737,7 +1821,51 @@ button.dm-btn-danger:focus-visible {
             </div>
           </section>
 
-        
+          <!-- ── Home Debug Panel ─────────────────────────────────────────── -->
+          <div class="home-debug-wrap" id="homeDebugWrap">
+            <button type="button" id="homeDebugToggle" class="home-debug-toggle" aria-pressed="false">
+              <span class="home-debug-toggle-icon">🐛</span>
+              <span class="home-debug-toggle-label">Debug</span>
+            </button>
+
+            <div id="homeDebugPanel" class="dev-tools-panel home-debug-panel" hidden>
+              <div class="dev-tools-grid">
+
+                <div class="dev-tool-group">
+                  <h4>🗓 Heutige Termine</h4>
+                  <div class="home-debug-stat" id="dbgCalendarStat">—</div>
+                  <code class="home-debug-code" id="dbgCalendarEndpoints">—</code>
+                  <button type="button" id="dbgReloadCalendar" class="btn-dev">🔄 Neu laden</button>
+                  <button type="button" id="dbgLogCalendar" class="btn-dev">🖥 Rohdaten → Konsole</button>
+                </div>
+
+                <div class="dev-tool-group">
+                  <h4>📋 Heutige Planung</h4>
+                  <div class="home-debug-stat" id="dbgPlanningStat">—</div>
+                  <code class="home-debug-code" id="dbgPlanningEndpoint">—</code>
+                  <button type="button" id="dbgReloadPlanning" class="btn-dev">🔄 Neu laden</button>
+                  <button type="button" id="dbgLogPlanning" class="btn-dev">🖥 Rohdaten → Konsole</button>
+                </div>
+
+                <div class="dev-tool-group">
+                  <h4>👥 Heutige Kunden</h4>
+                  <div class="home-debug-stat" id="dbgCustomersStat">—</div>
+                  <code class="home-debug-code" id="dbgCustomersEndpoint">/api/bitrix/kundendaten</code>
+                  <button type="button" id="dbgReloadCustomers" class="btn-dev">🔄 Neu laden</button>
+                  <button type="button" id="dbgLogCustomers" class="btn-dev">🖥 Rohdaten → Konsole</button>
+                </div>
+
+                <div class="dev-tool-group">
+                  <h4>⚡ Aktionen</h4>
+                  <button type="button" id="dbgReloadAll" class="btn-dev">🔄 Alle 3 Panels neu laden</button>
+                  <button type="button" id="dbgLogAll" class="btn-dev">🖥 Alle Daten → Konsole</button>
+                  <button type="button" class="btn-dev" onclick="fetch('/health').then(r=>r.json()).then(d=>console.table(d)).catch(e=>console.error(e))">🏥 /health → Konsole</button>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
         </div>
 
       </section>
@@ -1791,8 +1919,8 @@ button.dm-btn-danger:focus-visible {
               </div>
             </div>
           </div>
-          <div class="full" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
-            <div>
+          <div class="full customer-salutation-date-row">
+            <div class="customer-salutation-field">
               <label class="req">Anrede</label>
               <div class="radio-group" role="radiogroup" aria-label="Anrede">
                 <label class="radio-pill"><input type="radio" name="salutation" value="Frau" required checked /><span
@@ -1807,7 +1935,7 @@ button.dm-btn-danger:focus-visible {
 
               </div>
             </div>
-            <div>
+            <div class="customer-date-field">
               <label for="date" class="req">Datum</label><input id="date" name="date" type="date" required />
             </div>
           </div>
@@ -3490,83 +3618,79 @@ button.dm-btn-danger:focus-visible {
     </div>
   </div>
 
-  <!-- 1) Schnell hinzufügen -->
+  <!-- 1) Freier Posten + Schnell hinzufügen -->
   <h3 id="da-quickadd-title" class="visually-hidden">Duschabtrennung & Türen – Schnell hinzufügen</h3>
 
-  <details class="form-accordion" open>
-    <summary>Schnell hinzufügen (Positionen)</summary>
-    <div class="form-accordion__body">
+  <form id="form-duschabtrennung" autocomplete="on">
+    <section aria-labelledby="da-quickadd-title" class="da-quickadd">
 
-      <form id="form-duschabtrennung" autocomplete="on">
-        <!-- QUICK-ADD: Duschabtrennung (Hassmann) -->
-        <section aria-labelledby="da-quickadd-title" class="da-quickadd">
+      <!-- Freier Posten: always visible, directly under Einbausituation -->
+      <fieldset class="da-row" id="hass-custom" data-kind="custom" data-template="da-item-template-custom"
+        aria-describedby="custom-help">
+        <legend class="da-legend">
+          Freier Posten
+          <button type="button" class="da-add" aria-label="Weitere Position hinzufügen">+</button>
+        </legend>
+
+        <div class="da-items">
+          <div class="da-item" data-kind="custom">
+            <div class="da-grid-4">
+              <label class="da-label">
+                Bezeichnung
+                <input class="da-name" type="text" placeholder="z. B. Sonderanfertigung Glas" />
+              </label>
+              <label class="da-label">
+                Preis
+                <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 799,00" />
+              </label>
+              <label class="da-label">
+                Menge
+                <input class="da-qty" type="number" inputmode="numeric" min="1" step="1" />
+              </label>
+              <label class="da-label">
+                ID
+                <input class="da-id" type="text" placeholder="z. B. HASS-CUS-001" />
+              </label>
+            </div>
+            <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+          </div>
+        </div>
+
+        <small id="custom-help" class="da-help">
+          Freier Posten mit eigener Bezeichnung. Preis kann Komma oder Punkt als Dezimaltrenner enthalten.
+        </small>
+      </fieldset>
+
+      <!-- Produktsuche + Vorlagen + Tür-Typen: behind accordion -->
+      <details class="form-accordion" open>
+        <summary>Schnell hinzufügen (Positionen)</summary>
+        <div class="form-accordion__body">
 
           <!-- DA: Produkte aus Datenbank hinzufügen (Search → Freier Posten) -->
-            <div class="full field" id="da-db-search">
-              <div class="section-title">Produkt aus Datenbank hinzufügen</div>
-              <p class="section-subtitle">Suche nach Produktname und füge per Klick automatisch zu <b>Freier Posten</b> hinzu.</p>
+          <div class="full field" id="da-db-search">
+            <div class="section-title">Produkt aus Datenbank hinzufügen</div>
+            <p class="section-subtitle">Suche nach Produktname und füge per Klick automatisch zu <b>Freier Posten</b> hinzu.</p>
 
-              <div class="da-search-wrapper">
-                <span class="da-search-icon" aria-hidden="true"><i class="fa-solid fa-magnifying-glass"></i></span>
-                <input type="text" id="daProductSearch" placeholder="z. B. glas, rohr, halter …" autocomplete="off" />
-                <div id="daProductSearchResults" class="da-search-results" hidden></div>
-              </div>
-
-              <div class="muted" id="daProductSearchStatus" style="margin-top:6px;" aria-live="polite"></div>
+            <div class="da-search-wrapper">
+              <span class="da-search-icon" aria-hidden="true"><i class="fa-solid fa-magnifying-glass"></i></span>
+              <input type="text" id="daProductSearch" placeholder="z. B. glas, rohr, halter …" autocomplete="off" />
+              <div id="daProductSearchResults" class="da-search-results" hidden></div>
             </div>
+
+            <div class="muted" id="daProductSearchStatus" style="margin-top:6px;" aria-live="polite"></div>
+          </div>
 
           <!-- Freier Posten Vorlagen -->
-<div class="field" id="hass-custom-templates">
-  <div class="subheader">Vorlage für Freier Posten</div>
-
-  <div class="row" style="gap:10px; flex-wrap:wrap;">
-    <button type="button" class="btn small secondary" data-fp-template="duschvorhang">
-      + Duschvorhang-Set (HEWI/VIGOUR)
-    </button>
-
-    <!-- Add more later:
-    <button type="button" class="btn small secondary" data-fp-template="xyz">+ XYZ</button>
-    -->
-  </div>
-</div>
-
-          <fieldset class="da-row" id="hass-custom" data-kind="custom" data-template="da-item-template-custom"
-            aria-describedby="custom-help">
-            <legend class="da-legend">
-              Freier Posten
-              <button type="button" class="da-add" aria-label="Weitere Position hinzufügen">+</button>
-            </legend>
-
-            <div class="da-items">
-              <div class="da-item" data-kind="custom">
-                <div class="da-grid-4">
-                  <label class="da-label">
-                    Bezeichnung
-                    <input class="da-name" type="text" placeholder="z. B. Sonderanfertigung Glas" />
-                  </label>
-                  <label class="da-label">
-                    Preis
-                    <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 799,00" />
-                  </label>
-                  <label class="da-label">
-                    Menge
-                    <input class="da-qty" type="number" inputmode="numeric" min="1" step="1" />
-                  </label>
-                  <label class="da-label">
-                    ID
-                    <input class="da-id" type="text" placeholder="z. B. HASS-CUS-001" />
-                  </label>
-                </div>
-                <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
-              </div>
+          <div class="field" id="hass-custom-templates">
+            <div class="subheader">Vorlage für Freier Posten</div>
+            <div class="row" style="gap:10px; flex-wrap:wrap;">
+              <button type="button" class="btn small secondary" data-fp-template="duschvorhang">
+                + Duschvorhang-Set (HEWI/VIGOUR)
+              </button>
             </div>
+          </div>
 
-            <small id="custom-help" class="da-help">
-              Freier Posten mit eigener Bezeichnung. Preis kann Komma oder Punkt als Dezimaltrenner enthalten.
-            </small>
-          </fieldset>
-
-          <details class="form-accordion" >
+          <details class="form-accordion">
   <summary>Tür-Typen auswählen</summary>
   <div class="form-accordion__body">
           <!-- Pendeltür -->
@@ -3772,11 +3896,11 @@ button.dm-btn-danger:focus-visible {
             </div>
           </template>
 
-        </section>
-      </form>
+        </div>
+      </details><!-- /Schnell hinzufügen -->
 
-    </div>
-  </details>
+    </section>
+  </form>
 
   <!-- 2) Live Konfigurator -->
   <details class="form-accordion" open>
@@ -5204,7 +5328,6 @@ button.dm-btn-danger:focus-visible {
       </section>
 
 
-      <!-- Rabatt -->
       <section class="card page" id="page-Rabatt" hidden>
         <h2 style="margin:0 0 12px;">Rabatt</h2>
 
@@ -6612,6 +6735,45 @@ button.dm-btn-danger:focus-visible {
             <button type="button" data-nav="prev" class="secondary">Zurück</button>
             <button type="button" data-nav="next">Weiter</button>
           </div>
+
+          <!-- BWT Developer / Debug Panel -->
+          <section class="developer-section" style="margin-top:24px">
+            <button type="button" id="bwtToggleDevTools" class="btn-dev-toggle">
+              <span class="toggle-icon">🔧</span>
+              <span class="toggle-text">Entwickler-Tools anzeigen</span>
+              <span class="toggle-arrow">▼</span>
+            </button>
+
+            <div id="bwtDevPanel" class="dev-tools-panel" hidden>
+              <div class="dev-tools-grid">
+
+                <div class="dev-tool-group">
+                  <h4>BWT · Testdaten</h4>
+                  <button type="button" id="bwtPrefillMuster" class="btn-dev">
+                    ✏️ BWT Musterdaten einfüllen
+                  </button>
+                  <button type="button" id="bwtResetForm" class="btn-dev">
+                    🗑️ BWT-Formular zurücksetzen
+                  </button>
+                </div>
+
+                <div class="dev-tool-group">
+                  <h4>BWT · Payload & Debug</h4>
+                  <button type="button" id="bwtShowPayload" class="btn-dev">
+                    🔍 Payload anzeigen
+                  </button>
+                  <button type="button" id="bwtCopyPayload" class="btn-dev">
+                    📋 Payload kopieren
+                  </button>
+                  <button type="button" id="bwtShowBwtSection" class="btn-dev">
+                    🔍 BWT-Sektion anzeigen
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          </section>
+
         </form>
       </section>
 

@@ -131,22 +131,26 @@
 
 /* Dark mode — switches neutrals; accent remains per domain. */
 :root[data-mode="dark"] {
-    --bg: linear-gradient(180deg, #0b1220, #0d1422);
-  --panel: rgba(17, 24, 39, 0.7);
-  --text: #e5e7eb;
-  --muted: #94a3b8;
-  --border: #1f2937;
-  --input-bg: #0b1220;
-  --input-border: #334155;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  --section-bg: rgba(148, 163, 184, 0.13);
-   --card: #0f172a;
-  --card-hover: #111827;
-  --card-selected: #0b1220;
-  --card-foreground: #e5e7eb;
+  --bg:               linear-gradient(180deg, #0b1220, #0d1422);
+  --panel:            rgba(17, 24, 39, 0.85);
+  --text:             #e5e7eb;
+  --muted:            #94a3b8;
+  --border:           #1e2d3d;
+  --input-bg:         #0b1220;
+  --input-border:     #334155;
+  --shadow:           0 10px 30px rgba(0, 0, 0, 0.35);
+  --section-bg:       rgba(255, 255, 255, 0.04);
+  --card:             #0f172a;
+  --card-hover:       #131f30;
+  --card-selected:    rgba(124, 58, 237, 0.12);
+  --card-foreground:  #e5e7eb;
   --muted-foreground: #9ca3af;
-   --success: #22c55e;
-  --danger: #f87171;
+  --success:          #22c55e;
+  --danger:           #f87171;
+  /* accent-weak/strong overridden per-theme in the DARK MODE PASS block below */
+  --accent-weak:      rgba(124, 58, 237, 0.18);
+  --accent-strong:    #a78bfa;
+  --ring:             rgba(167, 139, 250, 0.28);
 }
 
 /* ---------- Reset / basics ---------- */
@@ -415,6 +419,16 @@ form {
   grid-column: 1 / -1;
 }
 
+.customer-salutation-date-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.customer-salutation-date-row > * {
+  min-width: 0;
+}
+
 label {
   display: block;
   font-size: 0.9rem;
@@ -434,6 +448,9 @@ input:not([type="checkbox"]):not([type="radio"]),
 select,
 textarea {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 12px;
   border-radius: 10px;
   border: 1px solid var(--input-border);
@@ -479,6 +496,7 @@ textarea:focus {
 .radio-group {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .radio-pill {
@@ -493,6 +511,12 @@ textarea:focus {
   user-select: none;
   min-width: 90px;
   justify-content: space-between;
+}
+
+.customer-date-field input[type="date"] {
+  min-height: 46px;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .radio-pill input {
@@ -675,11 +699,11 @@ a.btn {
 
 @media (max-width: 800px) {
   form {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .radio-group {
-    flex-wrap: wrap;
+  .customer-salutation-date-row {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -2347,6 +2371,65 @@ label.image-check.is-checked .caption {
 
 .btn-dev:hover {
   background: var(--border);
+}
+
+/* ── Home Debug Toggle & Panel ───────────────────────────────────────────── */
+.home-debug-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.home-debug-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  user-select: none;
+}
+
+.home-debug-toggle:hover {
+  color: var(--text);
+  border-color: var(--muted);
+  background: var(--background);
+}
+
+.home-debug-toggle[aria-pressed="true"] {
+  color: #f59e0b;
+  border-color: #f59e0b;
+  border-style: solid;
+  background: color-mix(in srgb, #f59e0b 8%, transparent);
+}
+
+.home-debug-panel {
+  width: 100%;
+  margin-top: 0;
+}
+
+.home-debug-stat {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.home-debug-code {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: var(--muted);
+  word-break: break-all;
+  background: var(--background);
+  border-radius: 6px;
+  padding: 4px 8px;
 }
 
 .dev-description {
@@ -5880,4 +5963,537 @@ button.pad-clear {
 /* selected → use theme color */
 #page-bl .bl-product-card.is-selected .caption strong {
   color: var(--accent-strong);
+}
+
+
+/* ============================================================
+   COMPREHENSIVE DARK MODE PASS
+   Covers every component added after the initial dark-mode
+   token definitions.  All rules scoped to [data-mode="dark"]
+   so light mode is completely unaffected.
+   ============================================================ */
+
+/* ── 1. Dark-mode accent-weak override (per domain) ─────────── */
+/* The light-mode pastels (#ede9fe, #e6f5ee etc.) are invisible
+   on dark panels.  Replace with transparent accent tints. */
+[data-mode="dark"],
+[data-mode="dark"][data-theme="base"] {
+  --accent-weak:   rgba(124, 58, 237, 0.18);
+  --accent-strong: #a78bfa;
+  --ring:          rgba(167, 139, 250, 0.28);
+}
+[data-mode="dark"][data-theme="wohnen"] {
+  --accent-weak:   rgba(117, 193, 159, 0.18);
+  --accent-strong: #75c19f;
+}
+[data-mode="dark"][data-theme="pflege"] {
+  --accent-weak:   rgba(172, 132, 188, 0.18);
+  --accent-strong: #c9a6d7;
+}
+[data-mode="dark"][data-theme="gesundheit"] {
+  --accent-weak:   rgba(0, 198, 246, 0.18);
+  --accent-strong: #7ae5ff;
+}
+[data-mode="dark"][data-theme="kfz"] {
+  --accent-weak:   rgba(223, 160, 41, 0.18);
+  --accent-strong: #f2c56e;
+}
+
+/* ── 2. Image card thumbnails ────────────────────────────────── */
+[data-mode="dark"] .image-radio .img-wrap,
+[data-mode="dark"] .image-check .img-wrap {
+  background: #0f172a;
+  border-color: var(--border);
+}
+
+[data-mode="dark"] #page-bl .bl-product-card .img-wrap {
+  background: #0f172a;
+}
+
+/* ── 3. Status banners (save success / error / loading) ──────── */
+[data-mode="dark"] .save-status-banner.success {
+  background: rgba(22, 163, 74, 0.15);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.25);
+}
+[data-mode="dark"] .save-status-banner.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.25);
+}
+[data-mode="dark"] .save-status-banner.loading {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border-color: rgba(147, 197, 253, 0.25);
+}
+
+/* ── 4. .status (monospace log box) ─────────────────────────── */
+[data-mode="dark"] .status {
+  background: rgba(0, 0, 0, 0.35);
+}
+[data-mode="dark"] .status.err {
+  color: var(--danger);
+}
+
+/* ── 5. Time-helper compact controls ────────────────────────── */
+[data-mode="dark"] .time-helper.compact button,
+[data-mode="dark"] .time-helper.compact select {
+  background: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--text);
+}
+[data-mode="dark"] .time-helper.compact button:hover {
+  background: #1e293b;
+}
+
+/* ── 6. Arbeitszeit suggestion card ─────────────────────────── */
+[data-mode="dark"] .az-suggestion-card {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(124, 58, 237, 0.22);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
+[data-mode="dark"] .az-suggestion-head strong {
+  color: var(--text);
+}
+[data-mode="dark"] .az-suggestion-table thead th {
+  color: var(--muted);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+[data-mode="dark"] .az-suggestion-table tbody td {
+  color: var(--text);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+[data-mode="dark"] .az-suggestion-table tfoot td {
+  color: var(--text);
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ── 7. AZ inline note ──────────────────────────────────────── */
+[data-mode="dark"] .az-inline-note {
+  background: rgba(124, 58, 237, 0.08);
+  border-color: rgba(124, 58, 237, 0.22);
+  color: var(--muted);
+}
+
+/* ── 8. AZ travel debug panel ───────────────────────────────── */
+[data-mode="dark"] .az-travel-debug {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(124, 58, 237, 0.18);
+  box-shadow: none;
+}
+[data-mode="dark"] .az-travel-debug-grid > div {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.07);
+}
+[data-mode="dark"] .az-travel-debug-grid strong {
+  color: var(--text);
+}
+[data-mode="dark"] .az-travel-debug-note {
+  color: var(--muted);
+}
+
+/* ── 9. Project sketch pad ───────────────────────────────────── */
+[data-mode="dark"] .project-sketch {
+  background: rgba(15, 23, 42, 0.7);
+  border-color: var(--border);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.25);
+}
+[data-mode="dark"] .project-sketch__title {
+  color: var(--text);
+}
+[data-mode="dark"] .project-sketch__subtitle,
+[data-mode="dark"] .project-sketch__hint {
+  color: var(--muted);
+}
+[data-mode="dark"] .pad-tool,
+[data-mode="dark"] .pad-undo,
+[data-mode="dark"] .pad-size {
+  background: #0f172a;
+  border-color: var(--border);
+  color: var(--text);
+}
+[data-mode="dark"] .pad-tool.active,
+[data-mode="dark"] .pad-undo.active,
+[data-mode="dark"] .pad-size.active {
+  background: color-mix(in srgb, var(--accent) 15%, #0f172a);
+  border-color: var(--accent);
+}
+[data-mode="dark"] .pad-clear {
+  background: #0f172a;
+  border-color: var(--border);
+  color: var(--muted);
+}
+[data-mode="dark"] .project-sketch__canvas-wrap {
+  background: #060d1a;
+  border-color: var(--border);
+}
+[data-mode="dark"] .project-sketch__canvas {
+  background:
+    linear-gradient(#060d1a, #060d1a) padding-box,
+    repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(255,255,255,.04) 24px),
+    repeating-linear-gradient(90deg, transparent, transparent 23px, rgba(255,255,255,.04) 24px);
+}
+[data-mode="dark"] .pad-color {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ── 10. Calendar event type badges ─────────────────────────── */
+[data-mode="dark"] .today-calendar-badge.is-bu {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
+}
+[data-mode="dark"] .today-calendar-badge.is-bwt {
+  background: rgba(124, 58, 237, 0.18);
+  border-color: rgba(124, 58, 237, 0.35);
+  color: #c4b5fd;
+}
+[data-mode="dark"] .today-calendar-badge.is-hl {
+  background: rgba(22, 163, 74, 0.18);
+  border-color: rgba(22, 163, 74, 0.35);
+  color: #86efac;
+}
+[data-mode="dark"] .today-calendar-badge.is-ah {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fcd34d;
+}
+[data-mode="dark"] .today-calendar-badge.is-wd,
+[data-mode="dark"] .today-calendar-badge.is-hms {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--muted);
+}
+[data-mode="dark"] .today-calendar-badge.is-cancelled {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.32);
+  color: #fca5a5;
+}
+
+/* ── 11. Calendar card disabled / error state ────────────────── */
+[data-mode="dark"] .today-calendar-open:disabled,
+[data-mode="dark"] .today-calendar-open[aria-disabled="true"] {
+  border-color: rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+}
+
+/* ── 12. Color swatch preview border ─────────────────────────── */
+[data-mode="dark"] .color-swatch__preview {
+  border-color: var(--border);
+}
+
+/* ── 13. DM Save-as dialog ───────────────────────────────────── */
+[data-mode="dark"] .dm-overlay {
+  background: rgba(0, 0, 0, 0.6);
+}
+[data-mode="dark"] .dm-dialog {
+  background: #0f172a;
+  border: 1px solid var(--border);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+[data-mode="dark"] .dm-title {
+  color: var(--text);
+}
+[data-mode="dark"] .dm-input {
+  background: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--text);
+}
+[data-mode="dark"] .dm-help,
+[data-mode="dark"] .dm-subtitle {
+  color: var(--muted);
+}
+[data-mode="dark"] .dm-suggestions-title {
+  color: var(--text);
+}
+[data-mode="dark"] .dm-suggestions-sub {
+  color: var(--muted);
+}
+[data-mode="dark"] .dm-suggestions-list {
+  background: var(--card);
+  border-color: var(--border);
+}
+[data-mode="dark"] .dm-empty {
+  color: var(--muted);
+}
+[data-mode="dark"] .dm-confirm-card {
+  border-color: rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.08);
+}
+[data-mode="dark"] .dm-confirm-title {
+  color: var(--text);
+}
+[data-mode="dark"] .dm-confirm-copy {
+  color: var(--muted);
+}
+[data-mode="dark"] .dm-close {
+  color: var(--muted);
+}
+[data-mode="dark"] .dm-close:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ── 14. Global search inset highlight ──────────────────────── */
+[data-mode="dark"] #globalOfferSearchInput {
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+[data-mode="dark"] #globalOfferSearchInput:focus {
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent),
+    0 14px 30px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* ── 15. CRM / hero section ──────────────────────────────────── */
+[data-mode="dark"] .crm-emc2-hero {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, #0b1220) 0%, #0f172a 55%),
+    #0f172a;
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+}
+
+/* ── 16. NT Toast notifications ─────────────────────────────── */
+[data-mode="dark"] .nt-toast {
+  background: #0f172a !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45) !important;
+}
+[data-mode="dark"] .nt-toast__title {
+  color: var(--text) !important;
+}
+[data-mode="dark"] .nt-toast__msg {
+  color: var(--muted) !important;
+}
+
+/* ── 17. Developer / debug panels ────────────────────────────── */
+[data-mode="dark"] .dev-tools-panel {
+  background: #0f172a;
+  border-color: var(--border);
+}
+[data-mode="dark"] .dev-tool-group h4 {
+  color: var(--muted);
+}
+[data-mode="dark"] .btn-dev {
+  background: #1e293b;
+  border-color: var(--border);
+  color: var(--text);
+}
+[data-mode="dark"] .btn-dev:hover {
+  background: #334155;
+}
+[data-mode="dark"] .btn-dev-toggle {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--muted);
+}
+[data-mode="dark"] .btn-dev-toggle:hover {
+  background: var(--card-hover);
+  color: var(--text);
+}
+
+/* ── 18. Home debug panel specifics ─────────────────────────── */
+[data-mode="dark"] .home-debug-code {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+}
+
+/* ── 19. Offer tile buttons ──────────────────────────────────── */
+[data-mode="dark"] .tile-btn {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--text);
+}
+[data-mode="dark"] .tile-btn:hover {
+  background: var(--card-hover);
+  border-color: var(--accent);
+}
+
+/* ── 20. Summary widget ──────────────────────────────────────── */
+[data-mode="dark"] .summary-widget {
+  background: #0f172a;
+  border-color: var(--border);
+}
+[data-mode="dark"] .sw-save-btn {
+  background: #1e293b;
+  border-color: var(--border);
+  color: var(--text);
+}
+[data-mode="dark"] .sw-save-btn:hover {
+  background: #334155;
+}
+
+/* ── 21. Today panels ────────────────────────────────────────── */
+[data-mode="dark"] .today-customers-panel {
+  background: var(--card);
+  border-color: var(--border);
+}
+[data-mode="dark"] .today-customers-head {
+  border-bottom-color: var(--border);
+}
+
+/* ── 22. Offer / tile section headers ────────────────────────── */
+[data-mode="dark"] .home-section-head h3,
+[data-mode="dark"] .home-offer-types h3 {
+  color: var(--text);
+}
+[data-mode="dark"] .home-section-head p,
+[data-mode="dark"] .home-offer-types p {
+  color: var(--muted);
+}
+
+/* ── 23. Image-check cards — selected state ──────────────────── */
+[data-mode="dark"] label.image-radio:has(input:checked),
+[data-mode="dark"] label.image-check:has(input:checked) {
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+}
+
+/* ── 24. Check-pill checkboxes ───────────────────────────────── */
+[data-mode="dark"] .check-pill .box {
+  background: var(--input-bg);
+  border-color: var(--input-border);
+}
+[data-mode="dark"] .check-pill input:checked + .box {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ── 25. Cost / pricing breakdown tables ─────────────────────── */
+[data-mode="dark"] .cost-table,
+[data-mode="dark"] .costs-debug {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--border);
+  color: var(--text);
+}
+[data-mode="dark"] .cost-table th {
+  color: var(--muted);
+  border-bottom-color: var(--border);
+}
+[data-mode="dark"] .cost-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+/* ── 26. Section-bg panels / accordion details ───────────────── */
+[data-mode="dark"] details > summary {
+  color: var(--text);
+}
+[data-mode="dark"] details[open] {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* ── 27. Tray suggestion chips ───────────────────────────────── */
+[data-mode="dark"] .tray-suggestion {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--text);
+}
+[data-mode="dark"] .tray-suggestion.is-selected {
+  outline-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--card));
+}
+
+/* ── 28. Radio-pill / image-check label text ─────────────────── */
+[data-mode="dark"] .image-radio .caption,
+[data-mode="dark"] .image-check .caption {
+  color: var(--muted);
+}
+[data-mode="dark"] label.image-radio:has(input:checked) .caption,
+[data-mode="dark"] label.image-check:has(input:checked) .caption {
+  color: var(--accent-strong);
+}
+
+/* ── 29. Tray smart-picker / suggestion cards ────────────────── */
+[data-mode="dark"] .suggestion-card,
+[data-mode="dark"] .tray-suggestion-card {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* ── 30. Adobe section (already dark-bg, just fix subtext) ───── */
+[data-mode="dark"] .adobe-status {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+/* ── 31. Input error highlight ───────────────────────────────── */
+[data-mode="dark"] .mail-card input.input-error,
+[data-mode="dark"] .mail-card textarea.input-error,
+[data-mode="dark"] .bitrix-input-group input.input-error,
+[data-mode="dark"] .input-auftrag.input-error {
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.18) !important;
+}
+
+/* ── 32. Zone pills ──────────────────────────────────────────── */
+[data-mode="dark"] .zone-pill {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--text);
+}
+[data-mode="dark"] .zone-pill:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+}
+
+/* ── 33. Drop-down / select native ──────────────────────────── */
+[data-mode="dark"] select {
+  color-scheme: dark;
+}
+
+/* ── 34. Scrollbar (Webkit) ──────────────────────────────────── */
+[data-mode="dark"] ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+[data-mode="dark"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-mode="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+[data-mode="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* ── 35. body background (bg token is a gradient string) ─────── */
+[data-mode="dark"] body {
+  background: linear-gradient(180deg, #0b1220, #0d1422);
+  min-height: 100vh;
+}
+
+/* ── 36. Card / page sections ────────────────────────────────── */
+[data-mode="dark"] .card {
+  background: var(--card);
+  border-color: var(--border);
+}
+
+/* ── 37. Payer / radio-pill cards ────────────────────────────── */
+[data-mode="dark"] .payer-card,
+[data-mode="dark"] .radio-pill {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--text);
+}
+[data-mode="dark"] .payer-card:has(input:checked),
+[data-mode="dark"] .radio-pill:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+}
+
+/* ── 38. Section header / sidebar ────────────────────────────── */
+[data-mode="dark"] .section-header {
+  color: var(--muted);
+  border-bottom-color: var(--border);
+}
+[data-mode="dark"] nav.step-nav {
+  background: var(--card);
+  border-color: var(--border);
 }
