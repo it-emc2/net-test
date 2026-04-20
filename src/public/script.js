@@ -14321,6 +14321,12 @@ cat_SHOWER: "menu_SHOWER",
         category: "accessory",
       },
       {
+        productId: "CLSIAS",
+        image: "./assets/CLSIAS.jpg",
+        fallbackName: "WC-Sitz",
+        category: "accessory",
+      },
+      {
         productId: "DERWWCOSVP",
         image: "./assets/DERWWCOSVP.jpg",
         fallbackName: "Wand-Tiefspül-WC derby rund",
