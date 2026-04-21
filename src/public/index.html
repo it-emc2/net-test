@@ -1098,6 +1098,64 @@
       /* wider Bezeichnung */
     }
 
+    /* HL tile pickers: image fills the existing img-wrap (no white space) */
+    #page-hl .image-check img {
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      max-height: none;
+      object-fit: cover;
+    }
+
+    /* HL Quick-Add: per-row action cluster */
+    .hl-quickadd-panel .da-row-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+      align-items: center;
+    }
+
+    .hl-quickadd-panel .da-action {
+      border: 1px solid var(--border, #e4e4e7);
+      background: #fff;
+      border-radius: 8px;
+      padding: 6px 10px;
+      cursor: pointer;
+      color: #475569;
+      font-size: 0.9rem;
+      line-height: 1;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .hl-quickadd-panel .da-action:hover,
+    .hl-quickadd-panel .da-action:focus-visible {
+      background: rgba(99, 102, 241, 0.08);
+      border-color: #c7d2fe;
+      color: #4338ca;
+    }
+
+    .hl-quickadd-panel .da-action.da-copy.is-flash,
+    .hl-quickadd-panel .da-action.da-paste.is-flash {
+      background: rgba(34, 197, 94, 0.18);
+      border-color: #86efac;
+      color: #166534;
+    }
+
+    .hl-quickadd-panel .hl-quickadd-footer {
+      margin-top: 12px;
+      display: flex;
+      justify-content: flex-start;
+    }
+
+    .hl-quickadd-panel .hl-quickadd-footer .da-add {
+      font-weight: 600;
+      padding: 8px 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
     /* HL Quick-Add: span full row and roomy card rows */
     .hl-quickadd-panel {
       grid-column: 1 / -1;
@@ -6883,8 +6941,20 @@ button.dm-btn-danger:focus-visible {
                   </label>
                 </div>
 
-                <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+                <div class="da-row-actions">
+                  <button type="button" class="da-action da-move-up" title="Nach oben" aria-label="Nach oben"><i class="fa-solid fa-arrow-up"></i></button>
+                  <button type="button" class="da-action da-move-down" title="Nach unten" aria-label="Nach unten"><i class="fa-solid fa-arrow-down"></i></button>
+                  <button type="button" class="da-action da-dup" title="Zeile duplizieren" aria-label="Zeile duplizieren"><i class="fa-solid fa-clone"></i></button>
+                  <button type="button" class="da-action da-copy" title="Inhalt kopieren" aria-label="Inhalt kopieren"><i class="fa-solid fa-copy"></i></button>
+                  <button type="button" class="da-action da-paste" title="Aus Zwischenablage einfügen" aria-label="Einfügen"><i class="fa-solid fa-paste"></i></button>
+                  <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+                </div>
               </div>
+            </div>
+
+            <div class="hl-quickadd-footer">
+              <button type="button" class="da-add hl-quickadd-add" data-hl-quickadd-add="hausecke"
+                aria-label="Weitere Position am Ende hinzufügen"><i class="fa-solid fa-plus"></i> Weitere Position</button>
             </div>
           </fieldset>
 
@@ -6922,8 +6992,20 @@ button.dm-btn-danger:focus-visible {
                   </label>
                 </div>
 
-                <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+                <div class="da-row-actions">
+                  <button type="button" class="da-action da-move-up" title="Nach oben" aria-label="Nach oben"><i class="fa-solid fa-arrow-up"></i></button>
+                  <button type="button" class="da-action da-move-down" title="Nach unten" aria-label="Nach unten"><i class="fa-solid fa-arrow-down"></i></button>
+                  <button type="button" class="da-action da-dup" title="Zeile duplizieren" aria-label="Zeile duplizieren"><i class="fa-solid fa-clone"></i></button>
+                  <button type="button" class="da-action da-copy" title="Inhalt kopieren" aria-label="Inhalt kopieren"><i class="fa-solid fa-copy"></i></button>
+                  <button type="button" class="da-action da-paste" title="Aus Zwischenablage einfügen" aria-label="Einfügen"><i class="fa-solid fa-paste"></i></button>
+                  <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+                </div>
               </div>
+            </div>
+
+            <div class="hl-quickadd-footer">
+              <button type="button" class="da-add hl-quickadd-add" data-hl-quickadd-add="haustuer"
+                aria-label="Weitere Position am Ende hinzufügen"><i class="fa-solid fa-plus"></i> Weitere Position</button>
             </div>
           </fieldset>
 
@@ -6956,7 +7038,14 @@ button.dm-btn-danger:focus-visible {
                 </label>
               </div>
 
-              <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+              <div class="da-row-actions">
+                <button type="button" class="da-action da-move-up" title="Nach oben" aria-label="Nach oben"><i class="fa-solid fa-arrow-up"></i></button>
+                <button type="button" class="da-action da-move-down" title="Nach unten" aria-label="Nach unten"><i class="fa-solid fa-arrow-down"></i></button>
+                <button type="button" class="da-action da-dup" title="Zeile duplizieren" aria-label="Zeile duplizieren"><i class="fa-solid fa-clone"></i></button>
+                <button type="button" class="da-action da-copy" title="Inhalt kopieren" aria-label="Inhalt kopieren"><i class="fa-solid fa-copy"></i></button>
+                <button type="button" class="da-action da-paste" title="Aus Zwischenablage einfügen" aria-label="Einfügen"><i class="fa-solid fa-paste"></i></button>
+                <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+              </div>
             </div>
           </template>
 
@@ -7087,7 +7176,7 @@ button.dm-btn-danger:focus-visible {
           <div class="full field">
             <label class="req">Mounting type</label>
 
-            <div id="hlMountTypeWrap" style="display:flex; gap:14px; flex-wrap:wrap;">
+            <div id="hlMountTypeWrap" style="display:grid; gap:14px; grid-template-columns:repeat(2, minmax(0, 220px)); justify-content:start;">
               <div class="hl-item">
                 <label class="image-check">
                   <input type="checkbox" id="hlMountTypeBoden" name="hlMountType" value="boden-befestigung" required />

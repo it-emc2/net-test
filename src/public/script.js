@@ -18962,6 +18962,45 @@ function initHlFlexofitSearch() {
 // =================================================================
 // HL: Quick-Add repeater (add/remove rows)
 // =================================================================
+let __hlRowClipboard = null;
+
+function __hlGetRowData(rowEl) {
+  return {
+    name: rowEl.querySelector(".da-name")?.value || "",
+    price: rowEl.querySelector(".da-price")?.value || "",
+    qty: rowEl.querySelector(".da-qty")?.value || "",
+    id: rowEl.querySelector(".da-id")?.value || "",
+  };
+}
+
+function __hlSetRowData(rowEl, data) {
+  if (!data) return;
+  const n = rowEl.querySelector(".da-name");
+  const p = rowEl.querySelector(".da-price");
+  const q = rowEl.querySelector(".da-qty");
+  const i = rowEl.querySelector(".da-id");
+  if (n) n.value = data.name || "";
+  if (p) p.value = data.price || "";
+  if (q) q.value = data.qty || "";
+  if (i) i.value = data.id || "";
+}
+
+function __hlCloneRowAfter(rowEl, data) {
+  const tpl = document.getElementById("tpl-hl-quickadd-row");
+  const node = tpl?.content?.firstElementChild?.cloneNode(true);
+  if (!node) return null;
+  if (data) __hlSetRowData(node, data);
+  rowEl.insertAdjacentElement("afterend", node);
+  wireHlQuickAddRow(node);
+  return node;
+}
+
+function __hlFlash(btn) {
+  if (!btn) return;
+  btn.classList.add("is-flash");
+  setTimeout(() => btn.classList.remove("is-flash"), 450);
+}
+
 function wireHlQuickAddRow(rowEl) {
   if (!rowEl || rowEl.__wired) return;
   rowEl.__wired = true;
@@ -18977,6 +19016,57 @@ function wireHlQuickAddRow(rowEl) {
       return;
     }
     rowEl.remove();
+  });
+
+  rowEl.querySelector(".da-move-up")?.addEventListener("click", () => {
+    const prev = rowEl.previousElementSibling;
+    if (prev && prev.classList.contains("da-item")) {
+      rowEl.parentNode.insertBefore(rowEl, prev);
+    }
+  });
+
+  rowEl.querySelector(".da-move-down")?.addEventListener("click", () => {
+    const next = rowEl.nextElementSibling;
+    if (next && next.classList.contains("da-item")) {
+      rowEl.parentNode.insertBefore(next, rowEl);
+    }
+  });
+
+  rowEl.querySelector(".da-dup")?.addEventListener("click", () => {
+    const data = __hlGetRowData(rowEl);
+    const node = __hlCloneRowAfter(rowEl, data);
+    node?.querySelector(".da-name")?.focus?.();
+  });
+
+  rowEl.querySelector(".da-copy")?.addEventListener("click", async (e) => {
+    const data = __hlGetRowData(rowEl);
+    __hlRowClipboard = data;
+    try {
+      await navigator.clipboard?.writeText?.(
+        JSON.stringify({ __hlRow: true, ...data }),
+      );
+    } catch {}
+    __hlFlash(e.currentTarget);
+    if (typeof showToast === "function") showToast("Zeile kopiert", "success");
+  });
+
+  rowEl.querySelector(".da-paste")?.addEventListener("click", async (e) => {
+    let data = __hlRowClipboard;
+    if (!data) {
+      try {
+        const text = await navigator.clipboard?.readText?.();
+        const parsed = JSON.parse(text);
+        if (parsed?.__hlRow) data = parsed;
+      } catch {}
+    }
+    if (!data) {
+      if (typeof showToast === "function")
+        showToast("Keine kopierte Zeile vorhanden.", "warning");
+      return;
+    }
+    __hlSetRowData(rowEl, data);
+    __hlFlash(e.currentTarget);
+    if (typeof showToast === "function") showToast("Zeile eingefügt", "success");
   });
 }
 
@@ -18994,32 +19084,35 @@ function initHlQuickAddRepeater() {
 
   panels.forEach((panel) => {
     const wrap = panel.querySelector(".hl-quickadd-items");
-    const addBtn = panel.querySelector(".hl-quickadd-add");
-    if (!wrap || !addBtn) return;
+    const addBtns = panel.querySelectorAll(".hl-quickadd-add");
+    if (!wrap || !addBtns.length) return;
 
     wrap.querySelectorAll(".da-item").forEach(wireHlQuickAddRow);
 
-    addBtn.addEventListener("click", () => {
-      const rows = Array.from(wrap.querySelectorAll(".da-item"));
-      const last = rows[rows.length - 1];
+    addBtns.forEach((addBtn) => {
+      addBtn.addEventListener("click", () => {
+        const rows = Array.from(wrap.querySelectorAll(".da-item"));
+        const last = rows[rows.length - 1];
 
-      if (last && !rowIsValid(last)) {
-        showToast("Bitte erst Bezeichnung, Preis und Artikel-ID ausfüllen.", "warning");
-        return;
-      }
+        if (last && !rowIsValid(last)) {
+          showToast("Bitte erst Bezeichnung, Preis und Artikel-ID ausfüllen.", "warning");
+          return;
+        }
 
-      let node = null;
-      if (tpl?.content?.firstElementChild) {
-        node = tpl.content.firstElementChild.cloneNode(true);
-      } else if (last) {
-        node = last.cloneNode(true);
-        node.querySelectorAll("input").forEach((inp) => (inp.value = ""));
-      }
+        let node = null;
+        if (tpl?.content?.firstElementChild) {
+          node = tpl.content.firstElementChild.cloneNode(true);
+        } else if (last) {
+          node = last.cloneNode(true);
+          node.querySelectorAll("input").forEach((inp) => (inp.value = ""));
+        }
 
-      if (!node) return;
-      wrap.appendChild(node);
-      wireHlQuickAddRow(node);
-      node.querySelector(".da-name")?.focus?.();
+        if (!node) return;
+        wrap.appendChild(node);
+        wireHlQuickAddRow(node);
+        node.querySelector(".da-name")?.focus?.();
+        node.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
     });
   });
 }
