@@ -1502,7 +1502,7 @@ function parseDurationMinutes(value) {
 }
 
 function formatDurationHHMM(totalMinutes) {
-  const safeMinutes = Math.max(0, Number(totalMinutes) || 0);
+  const safeMinutes = Math.round(Math.max(0, Number(totalMinutes) || 0));
   const hours = Math.floor(safeMinutes / 60);
   const minutes = safeMinutes % 60;
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
@@ -3228,10 +3228,12 @@ try {
 
   // --- HL Quick-Add (Freier Posten) rows from UI ---
   try {
-    const wrap = document.getElementById("hlQuickAddItems");
-    if (wrap) {
-      const items = Array.from(wrap.querySelectorAll(".da-item"));
-      items.forEach((rowEl) => {
+    const panels = document.querySelectorAll("[data-hl-quickadd]");
+    panels.forEach((panel) => {
+      const group = panel.getAttribute("data-hl-group") || "QuickAdd";
+      const wrap = panel.querySelector(".hl-quickadd-items");
+      if (!wrap) return;
+      Array.from(wrap.querySelectorAll(".da-item")).forEach((rowEl) => {
         const nameEl = rowEl.querySelector(".da-name");
         const idEl = rowEl.querySelector(".da-id");
         const qtyEl = rowEl.querySelector(".da-qty");
@@ -3242,10 +3244,7 @@ try {
         const qtyRaw = String(qtyEl?.value || "").trim();
         const priceRaw = String(priceEl?.value || "").trim();
 
-        // Only include filled rows
         if (!label && !productId && !qtyRaw && !priceRaw) return;
-
-        // Require the important fields
         if (!label || !productId || !priceRaw) return;
 
         const qty = Math.max(1, Number(qtyRaw || 1) || 1);
@@ -3253,14 +3252,14 @@ try {
 
         rows.push({
           kind: "hl-custom",
-          group: "QuickAdd",
+          group,
           label,
           productId,
           qty,
           price,
         });
       });
-    }
+    });
   } catch (e) {
     console.warn("[collectHlExtras] hl quick-add collection failed:", e);
   }
@@ -3376,10 +3375,12 @@ function buildPayload() {
   
   // --- HL Quick-Add (Freier Posten) rows from UI ---
   try {
-    const wrap = document.getElementById("hlQuickAddItems");
-    if (wrap) {
-      const items = Array.from(wrap.querySelectorAll(".da-item"));
-      items.forEach((rowEl) => {
+    const panels = document.querySelectorAll("[data-hl-quickadd]");
+    panels.forEach((panel) => {
+      const group = panel.getAttribute("data-hl-group") || "QuickAdd";
+      const wrap = panel.querySelector(".hl-quickadd-items");
+      if (!wrap) return;
+      Array.from(wrap.querySelectorAll(".da-item")).forEach((rowEl) => {
         const nameEl = rowEl.querySelector(".da-name");
         const idEl = rowEl.querySelector(".da-id");
         const qtyEl = rowEl.querySelector(".da-qty");
@@ -3390,10 +3391,7 @@ function buildPayload() {
         const qtyRaw = String(qtyEl?.value || "").trim();
         const priceRaw = String(priceEl?.value || "").trim();
 
-        // Only include filled rows
         if (!label && !productId && !qtyRaw && !priceRaw) return;
-
-        // Require the important fields
         if (!label || !productId || !priceRaw) return;
 
         const qty = Math.max(1, Number(qtyRaw || 1) || 1);
@@ -3401,14 +3399,14 @@ function buildPayload() {
 
         rows.push({
           kind: "hl-custom",
-          group: "QuickAdd",
+          group,
           label,
           productId,
           qty,
           price,
         });
       });
-    }
+    });
   } catch (e) {
     console.warn("[collectHlExtras] hl quick-add collection failed:", e);
   }
@@ -5904,7 +5902,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const saveState = () => {
     const state = {};
-    for (const fs of document.querySelectorAll("fieldset.da-row[data-kind]")) {
+    for (const fs of section.querySelectorAll("fieldset.da-row[data-kind]")) {
       const kind = fs.dataset.kind;
       const rows = [];
       fs.querySelectorAll(".da-item").forEach((item) => {
@@ -5938,7 +5936,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const migrated = {};
 
-    for (const fs of document.querySelectorAll("fieldset.da-row[data-kind]")) {
+    for (const fs of section.querySelectorAll("fieldset.da-row[data-kind]")) {
       const kind = fs.dataset.kind;
       const wrap = fs.querySelector(".da-items");
       if (!wrap) continue;
@@ -6153,7 +6151,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Wire existing first rows + add buttons + trash
-  document.querySelectorAll("fieldset.da-row[data-kind]").forEach((fs) => {
+  section.querySelectorAll("fieldset.da-row[data-kind]").forEach((fs) => {
     const addBtn = fs.querySelector(".da-add");
     const wrap = fs.querySelector(".da-items");
 
@@ -18315,6 +18313,29 @@ document.addEventListener("DOMContentLoaded", () => {
       el.value = "";
     });
   });
+
+  // Massivholz is only available for Innenbereich
+  const inside = document.getElementById("hlAreaInside");
+  const woodBlock = document.getElementById("hlPipeWoodBlock");
+  const woodCb = document.getElementById("hlPipeWood");
+  const woodQtyWrap = document.getElementById("qty_hlPipeWood_wrap");
+
+  const syncWoodVisibility = () => {
+    if (!woodBlock) return;
+    const show = !!inside?.checked;
+    woodBlock.hidden = !show;
+    if (!show && woodCb?.checked) {
+      woodCb.checked = false;
+      if (woodQtyWrap) {
+        woodQtyWrap.hidden = true;
+        woodQtyWrap.setAttribute("aria-hidden", "true");
+      }
+      woodCb.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  };
+
+  inside?.addEventListener("change", syncWoodVisibility);
+  syncWoodVisibility();
 });
 ;
 // #endregion
@@ -18766,7 +18787,12 @@ function initHlFlexofitSearch() {
   };
 
   const addProductToQuickAdd = (p) => {
-    const wrap = document.getElementById("hlQuickAddItems");
+    const target =
+      document.querySelector('input[name="hlQuickAddTarget"]:checked')?.value ||
+      "hausecke";
+    const wrap =
+      document.getElementById(`hlQuickAddItems_${target}`) ||
+      document.querySelector(".hl-quickadd-items");
     const tpl = document.getElementById("tpl-hl-quickadd-row");
     if (!wrap) return;
 
@@ -18942,12 +18968,11 @@ function wireHlQuickAddRow(rowEl) {
 
   const removeBtn = rowEl.querySelector(".da-remove");
   removeBtn?.addEventListener("click", () => {
-    const wrap = document.getElementById("hlQuickAddItems");
+    const wrap = rowEl.closest(".hl-quickadd-items");
     if (!wrap) return;
 
     const rows = Array.from(wrap.querySelectorAll(".da-item"));
     if (rows.length <= 1) {
-      // last row -> clear
       rowEl.querySelectorAll("input").forEach((inp) => (inp.value = ""));
       return;
     }
@@ -18956,14 +18981,9 @@ function wireHlQuickAddRow(rowEl) {
 }
 
 function initHlQuickAddRepeater() {
-  const wrap = document.getElementById("hlQuickAddItems");
-  const addBtn = document.getElementById("hlQuickAddAdd");
   const tpl = document.getElementById("tpl-hl-quickadd-row");
-
-  if (!wrap || !addBtn) return;
-
-  // wire existing first row
-  wrap.querySelectorAll(".da-item").forEach(wireHlQuickAddRow);
+  const panels = Array.from(document.querySelectorAll("[data-hl-quickadd]"));
+  if (!panels.length) return;
 
   const rowIsValid = (rowEl) => {
     const label = String(rowEl.querySelector(".da-name")?.value || "").trim();
@@ -18972,28 +18992,35 @@ function initHlQuickAddRepeater() {
     return !!(label && pid && price);
   };
 
-  addBtn.addEventListener("click", () => {
-    const rows = Array.from(wrap.querySelectorAll(".da-item"));
-    const last = rows[rows.length - 1];
+  panels.forEach((panel) => {
+    const wrap = panel.querySelector(".hl-quickadd-items");
+    const addBtn = panel.querySelector(".hl-quickadd-add");
+    if (!wrap || !addBtn) return;
 
-    // Only allow adding when last row is complete (like other quick-add sections)
-    if (last && !rowIsValid(last)) {
-      showToast("Bitte erst Bezeichnung, Preis und Artikel-ID ausfüllen.", "warning");
-      return;
-    }
+    wrap.querySelectorAll(".da-item").forEach(wireHlQuickAddRow);
 
-    let node = null;
-    if (tpl?.content?.firstElementChild) {
-      node = tpl.content.firstElementChild.cloneNode(true);
-    } else if (last) {
-      node = last.cloneNode(true);
-      node.querySelectorAll("input").forEach((inp) => (inp.value = ""));
-    }
+    addBtn.addEventListener("click", () => {
+      const rows = Array.from(wrap.querySelectorAll(".da-item"));
+      const last = rows[rows.length - 1];
 
-    if (!node) return;
-    wrap.appendChild(node);
-    wireHlQuickAddRow(node);
-    node.querySelector(".da-name")?.focus?.();
+      if (last && !rowIsValid(last)) {
+        showToast("Bitte erst Bezeichnung, Preis und Artikel-ID ausfüllen.", "warning");
+        return;
+      }
+
+      let node = null;
+      if (tpl?.content?.firstElementChild) {
+        node = tpl.content.firstElementChild.cloneNode(true);
+      } else if (last) {
+        node = last.cloneNode(true);
+        node.querySelectorAll("input").forEach((inp) => (inp.value = ""));
+      }
+
+      if (!node) return;
+      wrap.appendChild(node);
+      wireHlQuickAddRow(node);
+      node.querySelector(".da-name")?.focus?.();
+    });
   });
 }
 

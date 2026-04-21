@@ -1098,6 +1098,44 @@
       /* wider Bezeichnung */
     }
 
+    /* HL Quick-Add: span full row and roomy card rows */
+    .hl-quickadd-panel {
+      grid-column: 1 / -1;
+    }
+
+    .hl-quickadd-panel .da-items {
+      gap: 14px;
+    }
+
+    .hl-quickadd-panel .da-item {
+      padding: 14px 16px;
+      border: 1px solid #e6ebf1;
+      border-radius: 14px;
+      background: #fbfdff;
+    }
+
+    .hl-quickadd-panel .da-grid-4 {
+      grid-template-columns: 2.4fr 1fr 0.7fr 1.2fr;
+      gap: 12px 16px;
+    }
+
+    .hl-quickadd-panel .da-label input {
+      padding: 10px 12px;
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 780px) {
+      .hl-quickadd-panel .da-grid-4 {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .hl-quickadd-panel .da-grid-4 {
+        grid-template-columns: 1fr;
+      }
+    }
+
     /* tiny inline height selector inside caption-sub */
     .bwt-door-height-inline {
       display: inline-block;
@@ -6789,29 +6827,44 @@ button.dm-btn-danger:focus-visible {
           <!-- HL: Produkte hinzufügen (DB · Flexofit) -->
           <div class="full field" id="hl-db-search">
             <div class="section-title">Produkte hinzufügen (DB · Flexofit)</div>
-            <p class="section-subtitle">Suche nach Produktname (Quelle: <b>flexofit</b>) und füge per Klick in den Quick-Add ein.</p>
+            <p class="section-subtitle">Suche nach Produktname (Quelle: <b>flexofit</b>) und füge per Klick in den ausgewählten Quick-Add ein.</p>
 
             <div class="hl-search-wrapper">
               <input type="text" id="hlProductSearch" placeholder="z. B. rohr, bogen, flexo …" autocomplete="off" />
               <div id="hlProductSearchResults" class="hl-search-results" hidden></div>
             </div>
 
+            <div class="hl-search-target" role="radiogroup" aria-label="Ziel für Produktauswahl" style="margin-top:8px;display:flex;gap:16px;flex-wrap:wrap;align-items:center;">
+              <span class="muted" style="font-weight:600;">Ziel:</span>
+              <label style="display:inline-flex;gap:6px;align-items:center;cursor:pointer;">
+                <input type="radio" name="hlQuickAddTarget" value="hausecke" checked />
+                Handlauf Hausecke Außenbereich
+              </label>
+              <label style="display:inline-flex;gap:6px;align-items:center;cursor:pointer;">
+                <input type="radio" name="hlQuickAddTarget" value="haustuer" />
+                Handlauf Haustür Außenbereich
+              </label>
+            </div>
+
             <div id="hlProductSearchStatus" class="muted" style="margin-top:6px;" aria-live="polite"></div>
           </div>
 
-          <!-- HL: Freier Posten / Quick Add -->
-          <fieldset class="da-row" id="hlQuickAddPanel" data-kind="custom" aria-describedby="hl-quickadd-help">
+          <!-- HL: Freier Posten / Quick Add — Handlauf Hausecke Außenbereich -->
+          <fieldset class="da-row hl-quickadd-panel" id="hlQuickAddPanel_hausecke" data-kind="custom"
+            data-hl-quickadd="hausecke" data-hl-group="Handlauf Hausecke Außenbereich"
+            aria-describedby="hl-quickadd-help">
             <legend class="da-legend">
-              Freier Posten (Quick Add)
-              <button type="button" id="hlQuickAddAdd" class="da-add" aria-label="Weitere Position hinzufügen">+</button>
+              Freier Posten — Handlauf Hausecke Außenbereich
+              <button type="button" class="da-add hl-quickadd-add" data-hl-quickadd-add="hausecke"
+                aria-label="Weitere Position hinzufügen">+</button>
             </legend>
 
-            <div class="da-items" id="hlQuickAddItems">
+            <div class="da-items hl-quickadd-items" id="hlQuickAddItems_hausecke">
               <div class="da-item" data-kind="custom">
                 <div class="da-grid-4">
                   <label class="da-label">
                     Bezeichnung
-                    <input class="da-name" type="text" placeholder="z. B. Sonderzubehör" />
+                    <input class="da-name" type="text" placeholder="z. B. Edelstahl-Rohr" />
                   </label>
 
                   <label class="da-label">
@@ -6833,12 +6886,51 @@ button.dm-btn-danger:focus-visible {
                 <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
               </div>
             </div>
-
-            <small id="hl-quickadd-help" class="da-help">
-              Neue Zeile ist nur möglich, wenn <em>Bezeichnung</em>, <em>Preis</em> und <em>Artikel-ID</em> gefüllt sind.
-              Letzte Zeile: Löschen leert alle 4 Felder.
-            </small>
           </fieldset>
+
+          <!-- HL: Freier Posten / Quick Add — Handlauf Haustür Außenbereich -->
+          <fieldset class="da-row hl-quickadd-panel" id="hlQuickAddPanel_haustuer" data-kind="custom"
+            data-hl-quickadd="haustuer" data-hl-group="Handlauf Haustür Außenbereich"
+            aria-describedby="hl-quickadd-help">
+            <legend class="da-legend">
+              Freier Posten — Handlauf Haustür Außenbereich
+              <button type="button" class="da-add hl-quickadd-add" data-hl-quickadd-add="haustuer"
+                aria-label="Weitere Position hinzufügen">+</button>
+            </legend>
+
+            <div class="da-items hl-quickadd-items" id="hlQuickAddItems_haustuer">
+              <div class="da-item" data-kind="custom">
+                <div class="da-grid-4">
+                  <label class="da-label">
+                    Bezeichnung
+                    <input class="da-name" type="text" placeholder="z. B. Edelstahl-Rohr" />
+                  </label>
+
+                  <label class="da-label">
+                    Preis (netto)
+                    <input class="da-price" type="text" inputmode="decimal" placeholder="z. B. 199,00" />
+                  </label>
+
+                  <label class="da-label">
+                    Menge
+                    <input class="da-qty" type="number" min="1" step="1" placeholder="1" />
+                  </label>
+
+                  <label class="da-label">
+                    Artikel-ID
+                    <input class="da-id" type="text" placeholder="z. B. HL-123" />
+                  </label>
+                </div>
+
+                <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+              </div>
+            </div>
+          </fieldset>
+
+          <small id="hl-quickadd-help" class="da-help" style="display:block;margin-top:-4px;">
+            Neue Zeile ist nur möglich, wenn <em>Bezeichnung</em>, <em>Preis</em> und <em>Artikel-ID</em> gefüllt sind.
+            Letzte Zeile: Löschen leert alle 4 Felder.
+          </small>
 
           <template id="tpl-hl-quickadd-row">
             <div class="da-item" data-kind="custom">
@@ -6955,10 +7047,10 @@ button.dm-btn-danger:focus-visible {
           <div class="full field">
             <label class="req">Brauchen Sie Handläufe für den Innenbereich oder für den Außenbereich?</label>
 
-            <div style="display:flex; gap:14px; flex-wrap:wrap">
+            <div style="display:grid; gap:14px; grid-template-columns:repeat(2, minmax(0, 220px)); justify-content:start;">
               <!-- inside -->
               <div class="hl-item">
-                <label class="image-check" style="min-width:220px">
+                <label class="image-check">
                   <input type="checkbox" id="hlAreaInside" name="hl_area" value="inside" required />
                   <span class="img-wrap">
                     <img src="./assets/Innenbereich.png" alt="Innenbereich" />
@@ -6966,7 +7058,7 @@ button.dm-btn-danger:focus-visible {
                   <span class="caption">Innenbereich</span>
                 </label>
 
-                <div id="qty_hlAreaInside_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
+                <div id="qty_hlAreaInside_wrap" class="field" hidden aria-hidden="true">
                   <label for="qty_hlAreaInside" class="req">Menge</label>
                   <input id="qty_hlAreaInside" name="qty_hlAreaInside" type="number" min="0" step="1" placeholder="0" />
                 </div>
@@ -6974,7 +7066,7 @@ button.dm-btn-danger:focus-visible {
 
               <!-- outside -->
               <div class="hl-item">
-                <label class="image-check" style="min-width:220px">
+                <label class="image-check">
                   <input type="checkbox" id="hlAreaOutside" name="hl_area" value="outside" required />
                   <span class="img-wrap">
                     <img src="./assets/Außenbereich.png" alt="Außenbereich" />
@@ -6982,7 +7074,7 @@ button.dm-btn-danger:focus-visible {
                   <span class="caption">Außenbereich</span>
                 </label>
 
-                <div id="qty_hlAreaOutside_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
+                <div id="qty_hlAreaOutside_wrap" class="field" hidden aria-hidden="true">
                   <label for="qty_hlAreaOutside" class="req">Menge</label>
                   <input id="qty_hlAreaOutside" name="qty_hlAreaOutside" type="number" min="0" step="1"
                     placeholder="0" />
@@ -7031,23 +7123,44 @@ button.dm-btn-danger:focus-visible {
             <h3 style="margin: 0 0 12px"> Material: Edelstahl-Rohr ⌀35mm</h3>
             <label class="req">Wählen Sie Ihren gewünschten Rohr-Typen</label>
 
-            <div style="display:flex; gap:14px; flex-wrap:wrap">
-              <div class="hl-item" style="min-width:220px">
+            <!-- Pipe-type picker: side-by-side -->
+            <div style="display:grid; gap:14px; grid-template-columns:repeat(2, minmax(0, 220px)); justify-content:start;">
+              <div class="hl-item">
                 <label class="image-check">
                   <input type="checkbox" id="hlPipeSteel" name="hl_pipe_type" value="Stahlrohr"
                     data-product-id="Hl-PIPE-STEEL" />
                   <span class="img-wrap">
                     <img src="./assets/Stahlrohr.png" alt="Stahlrohr" />
                   </span>
-                  <span class="caption">EdelstahlStahlrohr</span>
+                  <span class="caption">Stahlrohr</span>
                 </label>
 
                 <div id="qty_hlPipeSteel_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
                   <label for="qty_hlPipeSteel" class="req">Menge</label>
                   <input id="qty_hlPipeSteel" name="qty_hlPipeSteel" type="number" min="0" step="1" placeholder="0" />
                 </div>
+              </div>
 
-                <div class="field" id="hl-steel-length-quality">
+              <div id="hlPipeWoodBlock" class="hl-item" data-requires-area="inside" hidden>
+                <label class="image-check">
+                  <input type="checkbox" id="hlPipeWood" name="hl_pipe_type" value="Massivholz"
+                    data-product-id="HL-PIPE-WOOD" />
+                  <span class="img-wrap">
+                    <img src="./assets/Massivholz.png" alt="Massivholz" />
+                  </span>
+                  <span class="caption">Massivholz</span>
+                </label>
+
+                <div id="qty_hlPipeWood_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
+                  <label for="qty_hlPipeWood" class="req">Menge</label>
+                  <input id="qty_hlPipeWood" name="qty_hlPipeWood" type="number" min="0" step="1" placeholder="0" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Stahl-specific detail panels -->
+            <div>
+              <div class="field" id="hl-steel-length-quality">
                   <div class="section-title">Länge und Qualität</div>
                   <div class="hl-steel-items">
                     <div class="hl-steel-row">
@@ -7278,36 +7391,20 @@ button.dm-btn-danger:focus-visible {
                   </div>
                 </div>
 
-                <!-- hidden options (kept) -->
-                <label class="image-check" style="display:none">
-                  <input type="checkbox" id="hlPipeAlu" name="hl_pipe_type" value="Aluminiumrohr"
-                    data-product-id="BWT-PIPE-ALU" />
-                  <span class="img-wrap">
-                    <img src="./assets/Aluminiumrohr.png" alt="Aluminiumrohr" />
-                  </span>
-                  <span class="caption">Aluminiumrohr</span>
-                </label>
+              <!-- hidden Aluminium option (kept for data model) -->
+              <label class="image-check" style="display:none">
+                <input type="checkbox" id="hlPipeAlu" name="hl_pipe_type" value="Aluminiumrohr"
+                  data-product-id="HL-PIPE-ALU" />
+                <span class="img-wrap">
+                  <img src="./assets/Aluminiumrohr.png" alt="Aluminiumrohr" />
+                </span>
+                <span class="caption">Aluminiumrohr</span>
+              </label>
 
-                <div id="qty_hlPipeAlu_wrap" class="field" hidden aria-hidden="true"
-                  style="max-width: 220px; display:none">
-                  <label for="qty_hlPipeAlu" class="req">Menge</label>
-                  <input id="qty_hlPipeAlu" name="qty_hlPipeAlu" type="number" min="0" step="1" placeholder="0" />
-                </div>
-
-                <label class="image-check" style="display:none">
-                  <input type="checkbox" id="hlPipeWood" name="hl_pipe_type" value="Massivholz"
-                    data-product-id="BWT-PIPE-WOOD" />
-                  <span class="img-wrap">
-                    <img src="./assets/Massivholz.png" alt="Massivholz" />
-                  </span>
-                  <span class="caption">Massivholz</span>
-                </label>
-
-                <div id="qty_hlPipeWood_wrap" class="field" hidden aria-hidden="true"
-                  style="max-width: 220px; display:none">
-                  <label for="qty_hlPipeWood" class="req">Menge</label>
-                  <input id="qty_hlPipeWood" name="qty_hlPipeWood" type="number" min="0" step="1" placeholder="0" />
-                </div>
+              <div id="qty_hlPipeAlu_wrap" class="field" hidden aria-hidden="true"
+                style="max-width: 220px; display:none">
+                <label for="qty_hlPipeAlu" class="req">Menge</label>
+                <input id="qty_hlPipeAlu" name="qty_hlPipeAlu" type="number" min="0" step="1" placeholder="0" />
               </div>
             </div>
           </div>
