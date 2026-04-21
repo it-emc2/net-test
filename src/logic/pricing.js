@@ -700,22 +700,29 @@ if (offer === "hl") {
 
     //const title = `Edelstahl-Rohr ${diameter}${pipeType ? ` (${pipeType})` : ""}`;
     const title = `Edelstahl-Rohr ${diameter}${quality ? ` (${quality})` : ""}${color ? ` (${color})` : ""}`;
+
+    // HL pipes are sold per meter → qty represents meters, not Stück
+    const meters = lengthCm > 0 ? lengthCm / 100 : qty;
+    const metersLabel = Number.isInteger(meters)
+      ? String(meters)
+      : String(meters).replace(".", ",");
+
     const info = [];
     //if (pipeType) info.push(`Rohr-Typ: ${pipeType}`);
-    if (lengthCm > 0) {
-  const meters = lengthCm / 100;
-  const metersLabel =
-    Number.isInteger(meters) ? String(meters) : String(meters).replace(".", ",");
-  info.push(`Länge: ${metersLabel} m`);
-}
     //if (quality) info.push(`Qualität: ${quality}`);
     //if (color) info.push(`Farbe: ${color}`);
 
     const label =
-      `- ${qty} Stk ${title}` +
+      `- ${metersLabel} m ${title}` +
       (info.length ? `\n${info.map((t) => "   • " + t).join("\n")}` : "");
 
-    add(pid, qty, label, null, "hl_pipe", { color, lengthCm, quality });
+    add(pid, qty, label, null, "hl_pipe", {
+      color,
+      lengthCm,
+      quality,
+      unit: "m",
+      meters,
+    });
   }
 
   // --------------------------------------------------
@@ -739,7 +746,14 @@ if (offer === "hl") {
     try {
       const qa = payload?.hl?.quickAdd || [];
       if (Array.isArray(qa) && qa.length) {
-        for (const row of qa) {
+        // Keep normal rows first, logistik (Speditionskosten) always last
+        const sorted = [...qa].sort((a, b) => {
+          const aLog = String(a?.productId || "") === "HL_LOGISTIK" ? 1 : 0;
+          const bLog = String(b?.productId || "") === "HL_LOGISTIK" ? 1 : 0;
+          return aLog - bLog;
+        });
+
+        for (const row of sorted) {
           if (!row) continue;
 
           const qty = Number(row?.qty ?? 0) || 0;
@@ -752,14 +766,21 @@ if (offer === "hl") {
           const rawPid = String(row?.productId ?? "").trim();
 
           const pid = rawPid || "HL_CUSTOM";
-          const base =
-            rawPid && rawLabel ? `${rawLabel} [${rawPid}]` : rawLabel || pid;
+          // No product ID in Angebot label — UI can still decorate with [pid] for internal view
+          const base = rawLabel || pid;
 
-          const label = `- ${
-            Number.isInteger(qty) ? qty : String(qty)
-          } Stk ${base}`;
+          // Decimal qty → treat as meters (pipes), integer → Stück
+          const isMeters = !Number.isInteger(qty);
+          const unitLabel = isMeters ? "m" : "Stk";
+          const qtyStr = Number.isInteger(qty)
+            ? String(qty)
+            : String(qty).replace(".", ",");
 
-          add(pid, qty, label, unitPrice, "hl_quickadd");
+          const label = `- ${qtyStr} ${unitLabel} ${base}`;
+
+          add(pid, qty, label, unitPrice, "hl_quickadd", {
+            unit: isMeters ? "m" : null,
+          });
         }
       }
     } catch (e) {
@@ -1001,11 +1022,19 @@ if (infoLines.length) {
         lineTotal = round2(unit * l.qty);
       }
 
+      // For HL pipes: display qty = meters (line total already €/lfm * meters)
+      const isHlPipe = l.source === "hl_pipe";
+      const displayQty = isHlPipe
+        ? Number(l?.meta?.meters ?? (l?.meta?.lengthCm ?? 0) / 100) || l.qty
+        : l.qty;
+      const displayUnit = l?.meta?.unit || null;
+
       return {
   productId: l.id,
   name: displayName,
 color: metaColor || null,
-  qty: l.qty,
+  qty: displayQty,
+  unit: displayUnit,
   unitPrice: unit,
   lineTotal,
   label: finalLabel,                 // still available everywhere

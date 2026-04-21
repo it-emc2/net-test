@@ -9182,9 +9182,15 @@ function escapeHtml(s) {
         if (l.__subtitle) {
           return `<div style="grid-column:1 / -1; font-weight:700; margin:8px 0 2px;">${l.label}</div>`;
         }
+        const qtyNum = Number(l.qty ?? 1);
+        const qtyIsInt = Number.isInteger(qtyNum);
+        const qtyText = qtyIsInt
+          ? String(qtyNum)
+          : qtyNum.toFixed(2).replace(/\.?0+$/, "").replace(".", ",");
+        const unitText = l.unit ? ` ${l.unit}` : "";
         return `
       <div style="white-space:pre-line">${escapeHtml(decorateDALabel(l))}</div>
-      <div style="text-align:right">${l.qty ?? 1}</div>
+      <div style="text-align:right">${qtyText}${unitText}</div>
       <div style="text-align:right">${euroC(l.unitPrice ?? 0)}</div>
       <div style="text-align:right; font-weight:600">${euroC(l.lineTotal ?? 0)}</div>
     `;
@@ -12052,6 +12058,90 @@ function restoreHl(hl) {
     if (!window.__RESTORING__) {
       cb.dispatchEvent(new Event("change", { bubbles: true }));
     }
+  }
+
+  // Restore Freier-Posten rows (kind: hl-custom) into the two panels.
+  // Routing precedence:
+  //   1. row.group matching a known panel ("Handlauf Hausecke Außenbereich" / "Handlauf Haustür Außenbereich")
+  //   2. Legacy payloads with group="QuickAdd": walk the list and use
+  //      separator rows (label starting with "Handlauf …bereich") to flip target.
+  try {
+    const customRows = qa.filter((r) => r && r.kind === "hl-custom");
+    const buckets = { hausecke: [], haustuer: [] };
+
+    let currentTarget = "hausecke";
+    const SECTION_RE = /^handlauf\s+.+?(?:innen|außen|aussen)bereich/i;
+
+    for (const row of customRows) {
+      const group = String(row?.group || "");
+      const label = String(row?.label || "");
+
+      if (/hausecke/i.test(group)) {
+        currentTarget = "hausecke";
+        buckets.hausecke.push(row);
+        continue;
+      }
+      if (/haust(ü|u|ue)r/i.test(group)) {
+        currentTarget = "haustuer";
+        buckets.haustuer.push(row);
+        continue;
+      }
+
+      // Legacy payload (group === "QuickAdd"): use label separators
+      if (SECTION_RE.test(label)) {
+        currentTarget = /haust(ü|u|ue)r/i.test(label) ? "haustuer" : "hausecke";
+      }
+      buckets[currentTarget].push(row);
+    }
+
+    const fillRow = (rowEl, row) => {
+      if (!rowEl || !row) return;
+      const nameEl = rowEl.querySelector(".da-name");
+      const idEl = rowEl.querySelector(".da-id");
+      const qtyEl = rowEl.querySelector(".da-qty");
+      const priceEl = rowEl.querySelector(".da-price");
+      if (nameEl) nameEl.value = row.label || row.name || "";
+      if (idEl) idEl.value = row.productId || "";
+      if (qtyEl) qtyEl.value = row.qty != null ? String(row.qty) : "";
+      if (priceEl) {
+        const p = row?.price;
+        priceEl.value =
+          typeof p === "number" ? String(p).replace(".", ",") : String(p ?? "");
+      }
+    };
+
+    const tpl = document.getElementById("tpl-hl-quickadd-row");
+    for (const key of ["hausecke", "haustuer"]) {
+      const wrap = document.getElementById(`hlQuickAddItems_${key}`);
+      if (!wrap) continue;
+
+      const rows = buckets[key];
+      const existing = Array.from(wrap.querySelectorAll(".da-item"));
+
+      // Collapse down to one row before filling
+      while (existing.length > 1) existing.pop().remove();
+
+      if (!rows.length) {
+        // No rows for this panel: clear the remaining (single) row
+        existing[0]?.querySelectorAll("input").forEach((inp) => (inp.value = ""));
+        continue;
+      }
+
+      fillRow(existing[0], rows[0]);
+      for (let i = 1; i < rows.length; i++) {
+        let node = tpl?.content?.firstElementChild?.cloneNode(true);
+        if (!node) {
+          node = existing[0].cloneNode(true);
+          node.querySelectorAll("input").forEach((inp) => (inp.value = ""));
+          node.__wired = false;
+        }
+        wrap.appendChild(node);
+        wireHlQuickAddRow(node);
+        fillRow(node, rows[i]);
+      }
+    }
+  } catch (e) {
+    console.warn("[restoreHl] quick-add restore failed:", e);
   }
 }
 
@@ -19117,6 +19207,253 @@ function initHlQuickAddRepeater() {
   });
 }
 
+// =================================================================
+// HL: Flexofit-Angebot PDF import → prefill Freier-Posten panels
+// =================================================================
+function initHlFlexofitImporter() {
+  const btn = document.getElementById("hlImportBtn");
+  const fileInput = document.getElementById("hlImportFile");
+  const status = document.getElementById("hlImportStatus");
+  const modal = document.getElementById("hlImportModal");
+  const body = document.getElementById("hlImportBody");
+  const summary = document.getElementById("hlImportSummary");
+  const confirm = document.getElementById("hlImportConfirm");
+
+  if (!btn || !fileInput || !modal) return;
+
+  let __parsed = null;
+
+  const fmtEuro = (n) =>
+    new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n || 0));
+  const fmtQty = (n) => {
+    const num = Number(n || 0);
+    if (Number.isInteger(num)) return String(num);
+    return num.toFixed(2).replace(/\.?0+$/, "").replace(".", ",");
+  };
+
+  const openModal = () => {
+    modal.hidden = false;
+    modal.setAttribute("aria-hidden", "false");
+  };
+  const closeModal = () => {
+    modal.hidden = true;
+    modal.setAttribute("aria-hidden", "true");
+  };
+
+  modal.querySelectorAll("[data-hl-import-close]").forEach((el) =>
+    el.addEventListener("click", closeModal),
+  );
+
+  const targetPanelFor = (groupName) => {
+    const g = String(groupName || "").toLowerCase();
+    if (/hausecke/.test(g)) return "hausecke";
+    if (/haustür|haustuer/.test(g)) return "haustuer";
+    return (
+      document.querySelector('input[name="hlQuickAddTarget"]:checked')?.value ||
+      "hausecke"
+    );
+  };
+
+  const renderPreview = (data) => {
+    __parsed = data;
+    const { sections = [], summary: sum = {} } = data || {};
+    summary.textContent =
+      `${sum.rows || 0} Positionen in ${sum.sections || 0} Abschnitten erkannt` +
+      (sum.unmatched ? ` — ${sum.unmatched} ohne DB-Treffer (⚠)` : "");
+
+    body.innerHTML = "";
+
+    sections.forEach((sec, secIdx) => {
+      const wrap = document.createElement("div");
+      wrap.className = "hl-import-section";
+      wrap.dataset.sectionIdx = String(secIdx);
+
+      const head = document.createElement("div");
+      head.className = "hl-import-section__head";
+      const label = document.createElement("span");
+      label.textContent = sec.group;
+
+      const targetSelect = document.createElement("select");
+      targetSelect.className = "hl-import-section__target";
+      [
+        ["hausecke", "→ Handlauf Hausecke Außenbereich"],
+        ["haustuer", "→ Handlauf Haustür Außenbereich"],
+        ["skip", "Überspringen"],
+      ].forEach(([v, t]) => {
+        const opt = document.createElement("option");
+        opt.value = v;
+        opt.textContent = t;
+        targetSelect.appendChild(opt);
+      });
+      targetSelect.value = targetPanelFor(sec.group);
+
+      head.appendChild(label);
+      head.appendChild(targetSelect);
+      wrap.appendChild(head);
+
+      const table = document.createElement("table");
+      table.className = "hl-import-table";
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th>Pos</th>
+            <th>Bezeichnung</th>
+            <th>Artikel-ID</th>
+            <th class="num">Menge</th>
+            <th class="num">Einzelpreis</th>
+            <th class="num">Gesamt</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      `;
+      const tbody = table.querySelector("tbody");
+      sec.rows.forEach((r, rIdx) => {
+        const tr = document.createElement("tr");
+        tr.dataset.rowIdx = String(rIdx);
+        if (!r.dbMatched) tr.classList.add("hl-import-row--unmatched");
+        tr.innerHTML = `
+          <td>${r.pos ?? ""}</td>
+          <td>${escapeHtmlSafe(r.name || "")}</td>
+          <td>${escapeHtmlSafe(r.productId || "")}</td>
+          <td class="num">${fmtQty(r.qty)} ${escapeHtmlSafe(r.unit || "")}</td>
+          <td class="num">${fmtEuro(r.unitPrice)}</td>
+          <td class="num">${fmtEuro(r.lineTotal)}</td>
+          <td>${r.dbMatched ? "✓ DB-Treffer" : "⚠ Kein DB-Treffer"}</td>
+          <td><label style="display:inline-flex;gap:4px;align-items:center;cursor:pointer;"><input type="checkbox" class="hl-import-row__include" checked /> übernehmen</label></td>
+        `;
+        tr.querySelector(".hl-import-row__include")?.addEventListener("change", (e) => {
+          tr.classList.toggle("hl-import-row--skip", !e.currentTarget.checked);
+        });
+        tbody.appendChild(tr);
+      });
+      wrap.appendChild(table);
+      body.appendChild(wrap);
+    });
+  };
+
+  function escapeHtmlSafe(s) {
+    return String(s ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  const applyRows = () => {
+    if (!__parsed) return;
+    const sections = __parsed.sections || [];
+    let inserted = 0;
+    let skipped = 0;
+
+    sections.forEach((sec, secIdx) => {
+      const secEl = body.querySelector(`[data-section-idx="${secIdx}"]`);
+      if (!secEl) return;
+      const target = secEl.querySelector(".hl-import-section__target")?.value;
+      if (!target || target === "skip") {
+        skipped += sec.rows.length;
+        return;
+      }
+      const wrap = document.getElementById(`hlQuickAddItems_${target}`);
+      if (!wrap) return;
+      const tpl = document.getElementById("tpl-hl-quickadd-row");
+
+      sec.rows.forEach((r, rIdx) => {
+        const rowEl = secEl.querySelector(`tr[data-row-idx="${rIdx}"]`);
+        const include = rowEl?.querySelector(".hl-import-row__include")?.checked;
+        if (!include) {
+          skipped += 1;
+          return;
+        }
+
+        // Find an empty row first, otherwise clone template
+        const existing = Array.from(wrap.querySelectorAll(".da-item"));
+        const empty = existing.find((el) => {
+          const nm = el.querySelector(".da-name")?.value.trim() || "";
+          const pid = el.querySelector(".da-id")?.value.trim() || "";
+          const pr = el.querySelector(".da-price")?.value.trim() || "";
+          return !nm && !pid && !pr;
+        });
+
+        let node;
+        if (empty) {
+          node = empty;
+        } else if (tpl?.content?.firstElementChild) {
+          node = tpl.content.firstElementChild.cloneNode(true);
+          wrap.appendChild(node);
+          wireHlQuickAddRow(node);
+        } else {
+          return;
+        }
+
+        const setVal = (sel, val) => {
+          const el = node.querySelector(sel);
+          if (!el) return;
+          el.value = val;
+        };
+
+        // Format price with German decimal
+        const priceStr =
+          Number.isFinite(r.unitPrice) && r.unitPrice > 0
+            ? r.unitPrice.toFixed(2).replace(".", ",")
+            : "";
+
+        setVal(".da-name", r.name || "");
+        setVal(".da-price", priceStr);
+        setVal(".da-qty", String(r.qty || 1));
+        setVal(".da-id", r.productId || "");
+
+        inserted += 1;
+      });
+    });
+
+    closeModal();
+    const msg = `${inserted} Position(en) übernommen${skipped ? `, ${skipped} übersprungen` : ""}.`;
+    status.textContent = msg;
+    if (typeof showToast === "function") showToast(msg, "success");
+  };
+
+  confirm?.addEventListener("click", applyRows);
+
+  btn.addEventListener("click", () => fileInput.click());
+
+  fileInput.addEventListener("change", async () => {
+    const f = fileInput.files?.[0];
+    if (!f) return;
+    status.textContent = "Parse PDF …";
+    try {
+      const fd = new FormData();
+      fd.append("file", f);
+      const res = await fetch("/api/hl/parse-flexofit-offer", {
+        method: "POST",
+        body: fd,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      if (!data.sections?.length) {
+        status.textContent = "Keine Positionen erkannt.";
+        if (typeof showToast === "function")
+          showToast("Keine Positionen im PDF erkannt.", "warning");
+        return;
+      }
+      status.textContent = `${data.summary?.rows || 0} Positionen erkannt.`;
+      renderPreview(data);
+      openModal();
+    } catch (err) {
+      console.error("[HL import] failed:", err);
+      status.textContent = "Fehler: " + (err?.message || err);
+      if (typeof showToast === "function")
+        showToast("Import fehlgeschlagen: " + (err?.message || err), "error");
+    } finally {
+      fileInput.value = "";
+    }
+  });
+}
+
 function wireBlQuickAddRow(rowEl) {
   if (!rowEl || rowEl.__wired) return;
   rowEl.__wired = true;
@@ -19195,6 +19532,7 @@ function initBlProductCards() {
 document.addEventListener("DOMContentLoaded", () => {
   initHlFlexofitSearch();
   initHlQuickAddRepeater();
+  initHlFlexofitImporter();
 });
 
 

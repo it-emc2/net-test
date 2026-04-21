@@ -3,6 +3,7 @@ import fs from "fs/promises";
 import fsSync from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { addTimelineComment } from "./bitrix.js";
 
 const router = express.Router();
 
@@ -535,17 +536,36 @@ router.post("/send", async (req, res) => {
         attachmentNames,
       });
 
+      // Bundle the same documents we handed to Binect (main + requested attachments)
+      // as base64 files for the Bitrix timeline entry — matches the email flow
+      // so every offer type (bu, hl, bwt, bl, ah, hms, wd) gets a full document bundle.
+      const bitrixAttachments = [
+        { filename: mainFilename, base64: mainBase64 },
+        ...requestedAttachments
+          .filter((a) => a?.filename && a?.base64)
+          .map((a) => ({ filename: a.filename, base64: a.base64 })),
+      ];
+
+      const resolvedEntityType =
+        String(bitrixEntityType || meta?.bitrixEntityType || "deal").trim() || "deal";
+
       logPost("bitrix comment prepared", {
-        entityType: String(bitrixEntityType || meta?.bitrixEntityType || "deal").trim() || "deal",
+        entityType: resolvedEntityType,
         entityId: timelineEntityId,
         comment,
+        attachmentCount: bitrixAttachments.length,
       });
 
-      bitrixResult = await notifyBitrixTimelineComment({
-        entityType: String(bitrixEntityType || meta?.bitrixEntityType || "deal").trim() || "deal",
-        entityId: timelineEntityId,
-        comment,
-      });
+      if (timelineEntityId) {
+        bitrixResult = await addTimelineComment({
+          entityType: resolvedEntityType,
+          entityId: timelineEntityId,
+          comment,
+          attachments: bitrixAttachments,
+        });
+      } else {
+        bitrixResult = { skipped: true, reason: "missing entityId" };
+      }
 
       logPost("bitrix result", bitrixResult);
     } catch (bitrixError) {

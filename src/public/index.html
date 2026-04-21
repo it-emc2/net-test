@@ -1107,6 +1107,78 @@
       object-fit: cover;
     }
 
+    /* HL Import modal */
+    .hl-import-modal[hidden] { display: none !important; }
+    .hl-import-modal {
+      position: fixed; inset: 0;
+      z-index: 10000;
+      display: grid; place-items: center;
+    }
+    .hl-import-modal__backdrop {
+      position: absolute; inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(2px);
+    }
+    .hl-import-modal__dialog {
+      position: relative;
+      width: min(820px, 94vw);
+      max-height: 86vh;
+      display: flex; flex-direction: column;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 30px 60px -20px rgba(15, 23, 42, 0.45);
+      overflow: hidden;
+    }
+    .hl-import-modal__head {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 20px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+    }
+    .hl-import-modal__close {
+      background: none; border: none; font-size: 24px; line-height: 1; cursor: pointer;
+      color: #64748b;
+    }
+    .hl-import-modal__body {
+      overflow: auto;
+      padding: 14px 20px;
+      display: flex; flex-direction: column; gap: 18px;
+    }
+    .hl-import-modal__foot {
+      display: flex; justify-content: flex-end; gap: 10px;
+      padding: 12px 20px;
+      border-top: 1px solid rgba(148, 163, 184, 0.25);
+      background: #f8fafc;
+    }
+    .hl-import-section {
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .hl-import-section__head {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 12px; padding: 10px 14px;
+      background: #f1f5f9; font-weight: 700;
+    }
+    .hl-import-section__head select {
+      padding: 4px 8px; border-radius: 8px; border: 1px solid #cbd5e1;
+    }
+    .hl-import-table {
+      width: 100%; border-collapse: collapse; font-size: 0.92rem;
+    }
+    .hl-import-table th, .hl-import-table td {
+      padding: 6px 10px; border-top: 1px solid rgba(148, 163, 184, 0.2); text-align: left; vertical-align: top;
+    }
+    .hl-import-table th { background: #fbfdff; font-weight: 600; color: #475569; }
+    .hl-import-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .hl-import-row--unmatched td:first-child::before {
+      content: "⚠ ";
+      color: #d97706;
+    }
+    .hl-import-row--skip td {
+      opacity: 0.45;
+      text-decoration: line-through;
+    }
+
     /* HL Quick-Add: per-row action cluster */
     .hl-quickadd-panel .da-row-actions {
       display: flex;
@@ -6904,6 +6976,32 @@ button.dm-btn-danger:focus-visible {
               </label>
             </div>
 
+            <div id="hlImportRow" style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+              <button type="button" id="hlImportBtn" class="secondary">
+                <i class="fa-solid fa-file-import"></i>
+                Flexofit-Angebot importieren (PDF)
+              </button>
+              <input type="file" id="hlImportFile" accept="application/pdf,.pdf" hidden />
+              <span id="hlImportStatus" class="muted" aria-live="polite"></span>
+            </div>
+
+            <!-- Preview modal -->
+            <div id="hlImportModal" class="hl-import-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="hlImportModalTitle">
+              <div class="hl-import-modal__backdrop" data-hl-import-close></div>
+              <div class="hl-import-modal__dialog" role="document">
+                <header class="hl-import-modal__head">
+                  <h3 id="hlImportModalTitle" style="margin:0">Flexofit-Angebot — Vorschau</h3>
+                  <button type="button" class="hl-import-modal__close" data-hl-import-close aria-label="Schließen">&times;</button>
+                </header>
+                <div id="hlImportSummary" class="muted" style="padding:6px 20px 0"></div>
+                <div id="hlImportBody" class="hl-import-modal__body"></div>
+                <footer class="hl-import-modal__foot">
+                  <button type="button" class="secondary" data-hl-import-close>Abbrechen</button>
+                  <button type="button" id="hlImportConfirm">Übernehmen</button>
+                </footer>
+              </div>
+            </div>
+
             <div id="hlProductSearchStatus" class="muted" style="margin-top:6px;" aria-live="polite"></div>
           </div>
 
@@ -7225,8 +7323,8 @@ button.dm-btn-danger:focus-visible {
                 </label>
 
                 <div id="qty_hlPipeSteel_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
-                  <label for="qty_hlPipeSteel" class="req">Menge</label>
-                  <input id="qty_hlPipeSteel" name="qty_hlPipeSteel" type="number" min="0" step="1" placeholder="0" />
+                  <label for="qty_hlPipeSteel" class="req">Meter</label>
+                  <input id="qty_hlPipeSteel" name="qty_hlPipeSteel" type="number" min="0" step="0.01" inputmode="decimal" placeholder="z. B. 1,50" />
                 </div>
               </div>
 
@@ -7241,8 +7339,8 @@ button.dm-btn-danger:focus-visible {
                 </label>
 
                 <div id="qty_hlPipeWood_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
-                  <label for="qty_hlPipeWood" class="req">Menge</label>
-                  <input id="qty_hlPipeWood" name="qty_hlPipeWood" type="number" min="0" step="1" placeholder="0" />
+                  <label for="qty_hlPipeWood" class="req">Meter</label>
+                  <input id="qty_hlPipeWood" name="qty_hlPipeWood" type="number" min="0" step="0.01" inputmode="decimal" placeholder="z. B. 1,50" />
                 </div>
               </div>
             </div>
@@ -7492,8 +7590,8 @@ button.dm-btn-danger:focus-visible {
 
               <div id="qty_hlPipeAlu_wrap" class="field" hidden aria-hidden="true"
                 style="max-width: 220px; display:none">
-                <label for="qty_hlPipeAlu" class="req">Menge</label>
-                <input id="qty_hlPipeAlu" name="qty_hlPipeAlu" type="number" min="0" step="1" placeholder="0" />
+                <label for="qty_hlPipeAlu" class="req">Meter</label>
+                <input id="qty_hlPipeAlu" name="qty_hlPipeAlu" type="number" min="0" step="0.01" inputmode="decimal" placeholder="z. B. 1,50" />
               </div>
             </div>
           </div>
