@@ -738,10 +738,15 @@ async function aggregateMaterialsForOverview(body = {}, computed = {}) {
     }
 
     const unit = l.unit || "Stck.";
-    // Hide material number for floor panels by using a neutral grouping key
+    // Hide material number for floor panels by using a neutral grouping key.
+    // WV panels: include the line name in the key so different colors of the
+    // same panel size stay as separate rows in the Angebot (otherwise the
+    // main color and any extras would collapse into one merged line).
     const key = isFloorPanelLine(l)
       ? `FLOOR_PANELS||${unit}`
-      : `${l.materialNumber}||${unit}`;
+      : isWVPanelLine(l)
+        ? `${l.materialNumber}||${unit}||${(l.name || "").trim()}`
+        : `${l.materialNumber}||${unit}`;
 
     const prev = map.get(key) || {
       materialNumber: isFloorPanelLine(l) ? "" : l.materialNumber, // empty for V5FB02

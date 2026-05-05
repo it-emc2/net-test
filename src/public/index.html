@@ -2321,11 +2321,11 @@ button.dm-btn-danger:focus-visible {
                     <div id="sonderaufschlagWrap" class="sonderaufschlag-wrap" hidden aria-hidden="true">
                       <label for="sonderaufschlagValue" class="req">Sonderaufschlag in %</label>
                       <div class="sonderaufschlag-input-row">
-                        <input id="sonderaufschlagValue" name="sonderaufschlagValue" type="number" inputmode="numeric"
-                          min="35" max="150" step="1" placeholder="35 bis 150" />
+                        <input id="sonderaufschlagValue" name="sonderaufschlagValue" type="text" inputmode="decimal"
+                          autocomplete="off" pattern="^\s*\d{1,3}([.,]\d{1,2})?\s*$" placeholder="z. B. 37,5" />
                         <span class="sonderaufschlag-unit">%</span>
                       </div>
-                      <div class="sonderaufschlag-hint">Erlaubt sind Werte von 35% bis 150%.</div>
+                      <div class="sonderaufschlag-hint">Erlaubt sind Werte von 35% bis 150% (Komma-Werte zulässig, z. B. 37,5).</div>
                       <div id="sonderaufschlagError" class="sonderaufschlag-error" hidden aria-live="polite"></div>
                     </div>
                   </div>

@@ -171,9 +171,9 @@ function grossToNet(gross, taxRate) {
     if (!a) return 0.35; // safe default
     const m = String(a)
       .trim()
-      .match(/^(\d+)\%$/);
+      .match(/^(\d+(?:[.,]\d+)?)\%$/);
     if (m) {
-      const n = Number(m[1]);
+      const n = Number(m[1].replace(",", "."));
       if (Number.isFinite(n)) return n / 100;
     }
     return 0.35;
@@ -467,9 +467,9 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
     }
 
     // ------- Wandverkleidung
+    // Main panel quantity (user picks one color + qty here)
     const qty997 = Number(wv?.wvQty997 || 0) || 0;
     const qty1497 = Number(wv?.wvQty1497 || 0) || 0;
-    const totalPanels = qty997 + qty1497;
 
     // OLD global color (fallback)
     const wvColor = String(wv?.wvColor || "").trim();
@@ -490,6 +490,32 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
       }
       return raw;
     };
+
+    // Extras = additional panels of the same size in different colors. They
+    // are read first because they count toward the totals used by every
+    // derived calculation below (Flächenkleber, Verbindungsprofile, …).
+    const readExtras = (panelKey) => {
+      const fromTop = Array.isArray(wv?.extraColors?.[panelKey])
+        ? wv.extraColors[panelKey]
+        : null;
+      if (fromTop && fromTop.length) return fromTop;
+      const fromCfg = Array.isArray(panelCfg?.[panelKey]?.extras)
+        ? panelCfg[panelKey].extras
+        : null;
+      return fromCfg || [];
+    };
+
+    const extras997 = readExtras("997x2550");
+    const extras1497 = readExtras("1497x2550");
+    const sumQty = (rows) =>
+      rows.reduce((acc, r) => acc + (Number(r?.qty) || 0), 0);
+    const extrasQty997 = sumQty(extras997);
+    const extrasQty1497 = sumQty(extras1497);
+
+    // Effective totals = main + extras. Used for every derived qty below.
+    const effectiveQty997 = qty997 + extrasQty997;
+    const effectiveQty1497 = qty1497 + extrasQty1497;
+    const totalPanels = effectiveQty997 + effectiveQty1497;
 
   if (qty997 > 0) {
   const raw = String(color997 || "").trim();
@@ -514,10 +540,31 @@ if (qty1497 > 0) {
   add(pid || "V3WV09", qty1497, label, null, null, { color: display });
 }
 
+// Each extra-color row gets its own materials line at its own qty so the
+// Angebot/DOCX lists every color the user added.
+const addExtras = (rows, panelLabel, defaultPid) => {
+  for (const row of rows) {
+    const q = Number(row?.qty) || 0;
+    if (q <= 0) continue;
+    const raw = String(row?.color || "").trim();
+    if (!raw) continue;
+    const hasPid = raw.includes("|");
+    const pid = hasPid ? raw.split("|", 1)[0].trim() : "";
+    const display = formatWvColor(
+      hasPid ? raw.split("|").slice(1).join("|").trim() : raw,
+    );
+    const base = `- ${q} Stk Wandverkleidung 3.0 Alu ${panelLabel}`;
+    const label = display ? `${base} — Farbe: ${display}` : base;
+    add(pid || defaultPid, q, label, null, null, { color: display });
+  }
+};
+addExtras(extras997, "997×2550 mm", "V3WVK09");
+addExtras(extras1497, "1497×2550 mm", "V3WV09");
+
     if (wv?.wvSealing) add("TRWDSET5", 1);
     if (wv?.flechenkleber) {
       const userQtyAdh = Number(wv?.wvFlachenQty);
-      const fallbackAdh = 2 * qty997 + 2 * qty1497;
+      const fallbackAdh = 2 * effectiveQty997 + 2 * effectiveQty1497;
       const qAdh =
         Number.isFinite(userQtyAdh) && userQtyAdh > 0
           ? userQtyAdh

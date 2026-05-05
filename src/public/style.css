@@ -5742,6 +5742,31 @@ button.pad-clear {
   aspect-ratio: 1 / 1;
 }
 
+/* WC + seat pair: each pair gets its own row so groups stack vertically.
+   Inside a pair, the WC sits next to its seat. */
+.wc-pairs-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wc-pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: stretch;
+  padding: 8px;
+  border: 1px dashed var(--border, #e5e7eb);
+  border-radius: 10px;
+  background: var(--section-bg, transparent);
+}
+
+.wc-pair > .opt-item {
+  flex: 1 1 220px;
+  max-width: 360px;
+  min-width: 0;
+}
+
 .wc-db-meta {
   display: block;
   margin-top: 4px;

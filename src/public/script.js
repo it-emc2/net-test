@@ -1638,17 +1638,33 @@ function computeArbeitszeitSuggestion() {
       pushArbeitszeitRow(rows, el.value, rule.label, rule.minutes, 1);
     });
 
+  // Extras = additional panels of the same size, so they add to the work-time
+  // estimate too (each panel costs the same install minutes).
+  const sumWvExtraQtys = (listId) => {
+    const list = document.getElementById(listId);
+    if (!list) return 0;
+    return [...list.querySelectorAll(".wv-extra-row .wv-extra-qty")].reduce(
+      (acc, el) => acc + (parseInt(el.value || "0", 10) || 0),
+      0,
+    );
+  };
   if (document.getElementById("wv997")?.checked) {
+    const main997 = parseArbeitszeitNumber(
+      document.getElementById("wvQty997")?.value || 0,
+    );
     const qty997 = Math.max(
       1,
-      Math.round(parseArbeitszeitNumber(document.getElementById("wvQty997")?.value || 0)),
+      Math.round(main997 + sumWvExtraQtys("wvExtraList997")),
     );
     pushArbeitszeitRow(rows, "wv997", "Wandverkleidung 997×2550", 30, qty997);
   }
   if (document.getElementById("wv1497")?.checked) {
+    const main1497 = parseArbeitszeitNumber(
+      document.getElementById("wvQty1497")?.value || 0,
+    );
     const qty1497 = Math.max(
       1,
-      Math.round(parseArbeitszeitNumber(document.getElementById("wvQty1497")?.value || 0)),
+      Math.round(main1497 + sumWvExtraQtys("wvExtraList1497")),
     );
     pushArbeitszeitRow(rows, "wv1497", "Wandverkleidung 1497×2550", 40, qty1497);
   }
@@ -5238,11 +5254,8 @@ function updateSummaryWidgetSelfPay(selfPayAmount) {
   const outEl = document.getElementById("swSelfPayValue");
   if (!outEl) return;
 
-  const n = Number(selfPayAmount || 0);
-  if (!Number.isFinite(n) || n <= 0) {
-    outEl.textContent = "–";
-    return;
-  }
+  const raw = Number(selfPayAmount);
+  const n = Number.isFinite(raw) ? Math.max(0, raw) : 0;
 
   // Prefer your existing euroC formatter if present
   if (typeof euroC === "function") {
@@ -5272,16 +5285,9 @@ function updateSummaryWidgetTotal(totalAmount) {
 function updateSummaryWidgetSubsidyVisibility() {
   const row = document.getElementById("swSelfPayRow");
   if (!row) return;
-
-  const budgetMaxChecked = !!document.querySelector(
-    'input[name="budgetMax"]:checked',
-  );
-  const twoPersonsChecked = !!document.querySelector(
-    'input[name="twoPersons"]:checked',
-  );
-
-  const show = budgetMaxChecked || twoPersonsChecked;
-  row.style.display = show ? "" : "none";
+  // Eigenanteil row is always visible — it reflects current pricing live,
+  // including 0 € when no subsidy applies.
+  row.style.display = "";
 }
 
 /* ========== End HELPERS  for the floating widget ========== */
@@ -5608,18 +5614,24 @@ function createWvExtraRow({ qty = 1, color = "" } = {}, fromSelectId) {
   removeBtn.type = "button";
   removeBtn.className = "btn small";
   removeBtn.textContent = "Entfernen";
+  // Extras count as additional panels — keep the auto-filled Flächenkleber
+  // qty and V3V hint in sync whenever the user changes an extra row.
+  const refreshDerived = () => {
+    if (typeof recomputeWVFlachenQty === "function") recomputeWVFlachenQty();
+    window.updatePricing?.();
+  };
+
   removeBtn.addEventListener("click", () => {
     row.remove();
-    window.updatePricing?.();
+    refreshDerived();
   });
 
   row.appendChild(qtyInput);
   row.appendChild(colorSelect);
   row.appendChild(removeBtn);
 
-  // any change => recalc
-  qtyInput.addEventListener("input", () => window.updatePricing?.());
-  colorSelect.addEventListener("change", () => window.updatePricing?.());
+  qtyInput.addEventListener("input", refreshDerived);
+  colorSelect.addEventListener("change", refreshDerived);
 
   return row;
 }
@@ -5724,6 +5736,7 @@ function setupWandverkleidungPage() {
       const listEl = document.getElementById(listId);
       if (!listEl) return;
       listEl.appendChild(createWvExtraRow({ amount: 1, color: "" }, fromSelectId));
+      if (typeof recomputeWVFlachenQty === "function") recomputeWVFlachenQty();
       if (typeof updateKostenDetails === "function") updateKostenDetails();
     });
   }
@@ -5787,7 +5800,19 @@ function recomputeWVFlachenQty() {
   const out = document.getElementById("wvFlachenQty");
   if (!out) return;
 
-  const v = 2 * n("wvQty997") + 2 * n("wvQty1497");
+  // Extras count as additional panels of the same size — include them so the
+  // Flächenkleber suggestion stays accurate when the user adds extra colors.
+  const sumExtras = (listId) => {
+    const list = document.getElementById(listId);
+    if (!list) return 0;
+    return [...list.querySelectorAll(".wv-extra-row .wv-extra-qty")].reduce(
+      (acc, el) => acc + (parseInt(el.value || "0", 10) || 0),
+      0,
+    );
+  };
+  const total997 = n("wvQty997") + sumExtras("wvExtraList997");
+  const total1497 = n("wvQty1497") + sumExtras("wvExtraList1497");
+  const v = 2 * total997 + 2 * total1497;
   // Write only if changed (prevents noisy loops)
   if ((parseInt(out.value || "0", 10) || 0) !== v) {
     out.value = String(v);
@@ -5816,8 +5841,20 @@ function initWVConnectorsUI() {
   function recommendedVCount() {
     const use997 = !!cb997?.checked;
     const use1497 = !!cb1497?.checked;
-    const q997 = use997 ? n(q997El?.value) : 0;
-    const q1497 = use1497 ? n(q1497El?.value) : 0;
+    const sumExtras = (listId) => {
+      const list = document.getElementById(listId);
+      if (!list) return 0;
+      return [...list.querySelectorAll(".wv-extra-row .wv-extra-qty")].reduce(
+        (acc, el) => acc + (parseInt(el.value || "0", 10) || 0),
+        0,
+      );
+    };
+    const q997 = use997
+      ? n(q997El?.value) + sumExtras("wvExtraList997")
+      : 0;
+    const q1497 = use1497
+      ? n(q1497El?.value) + sumExtras("wvExtraList1497")
+      : 0;
 
     const totalPanels = q997 + q1497;
     let rec = Math.max(0, totalPanels - 1); // joints between panels in a run
@@ -6250,22 +6287,28 @@ document.addEventListener("DOMContentLoaded", () => {
     saveState();
   });
 
-  // Expose payload-based restore for global restore pipeline
+  // Expose payload-based restore for global restore pipeline.
+  // Re-query the wrap on every call so a stale closure reference (e.g. if
+  // the fieldset is re-rendered) can't silently drop rows.
   window.restoreDWExtraTasksFromPayload = function (dw) {
-    // Handle null/undefined dw or missing extraTasks - clear to one empty row
+    const liveWrap =
+      document.querySelector("#dw-extra-tasks .da-items") || wrap;
+    if (!liveWrap) return;
+
     if (!dw || !Array.isArray(dw.extraTasks)) {
-      wrap.innerHTML = "";
-      wrap.appendChild(makeItem(""));
+      liveWrap.innerHTML = "";
+      liveWrap.appendChild(makeItem(""));
       saveState();
       return;
     }
 
-    // Reset to exactly what's in payload
-    wrap.innerHTML = "";
+    liveWrap.innerHTML = "";
     if (dw.extraTasks.length === 0) {
-      wrap.appendChild(makeItem(""));
+      liveWrap.appendChild(makeItem(""));
     } else {
-      dw.extraTasks.forEach((t) => wrap.appendChild(makeItem(String(t || ""))));
+      dw.extraTasks.forEach((t) =>
+        liveWrap.appendChild(makeItem(String(t || ""))),
+      );
     }
     saveState();
   };
@@ -6554,9 +6597,10 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
       return;
     }
 
-    openCustomMode(String(pct));
+    const display = String(pct).replace(".", ",");
+    openCustomMode(display);
     if (customInput) {
-      customInput.value = String(pct);
+      customInput.value = display;
       validateCustomInput();
       customInput.dispatchEvent(new Event("input", { bubbles: true }));
     }
@@ -9502,7 +9546,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
       <div>Produkte + Material: <b>${euroC(data.material_afterRabatt_and_aufschlag || 0)}</b></div>
       <div>Leistungen: <b>${euroC(data.services?.sum || 0)}</b></div>
-      <div>Aufschlag (${Math.round((data.markupPct || 0) * 100)}%): <b>${euroC(data.markup || 0)}</b></div>
+      <div>Aufschlag (${(() => { const p = (data.markupPct || 0) * 100; return Number.isInteger(p) ? String(p) : p.toFixed(2).replace(/\.?0+$/, "").replace(".", ","); })()}%): <b>${euroC(data.markup || 0)}</b></div>
       <div style="font-size:1.05rem;">Zwischensumme (Netto): <b>${euroC(data.netAfterRabatt_and_Bonus || 0)}</b></div>
       <div style="font-size:1.2rem;">Gesamt: <b>${euroC(data.total || 0)}</b></div>
     </div>
@@ -11278,66 +11322,50 @@ function restoreOptionalPage(opt) {
     setRadio("wcSeatHeight", opt.wcSeatHeight);
   }
 
-  // Sonderprodukte (quickAdd)
+  // Sonderprodukte (quickAdd) — delegate to the rebuilder exposed by
+  // initOptionalSonderprodukte so each row is created via createRow() and
+  // gets the proper input listeners. Falls back to a minimal inline rebuild
+  // if init hasn't run yet (e.g., DOM order edge case).
   if (Array.isArray(opt.quickAdd)) {
-    const panel =
-      document.getElementById("optSonderPanel") ||
-      document.getElementById("opt-sonder");
-
-    if (panel) {
-      const rowsContainer = panel.querySelector(".da-items") || panel;
-      let rows = Array.from(rowsContainer.querySelectorAll(".da-item"));
-
-      if (!rows.length) {
+    if (typeof window.restoreOptionalSonderprodukteFromPayload === "function") {
+      window.restoreOptionalSonderprodukteFromPayload(opt.quickAdd);
+    } else {
+      const panel =
+        document.getElementById("optSonderPanel") ||
+        document.getElementById("opt-sonder");
+      if (panel) {
+        const rowsContainer = panel.querySelector(".da-items") || panel;
         const tpl = document.getElementById("opt-item-template");
-        if (tpl && tpl.content && tpl.content.firstElementChild) {
-          const node = tpl.content.firstElementChild.cloneNode(true);
-          node.classList.add("da-item");
-          rowsContainer.appendChild(node);
-          rows = [node];
-        }
-      }
-
-      if (rows.length) {
-        const tplRow = rows[0];
-        const items = opt.quickAdd;
-
-        while (rows.length > items.length && rows.length > 1) {
-          const last = rows.pop();
-          if (last) last.remove();
-        }
-
-        while (rows.length < items.length) {
-          const clone = tplRow.cloneNode(true);
-          rowsContainer.appendChild(clone);
-          rows.push(clone);
-        }
-
-        rows.forEach((row, index) => {
-          const data = items[index] || {};
-          const nameEl = row.querySelector(".opt-name");
-          const idEl = row.querySelector(".opt-id");
-          const qtyEl = row.querySelector(".opt-qty");
-          const priceEl = row.querySelector(".opt-price");
-
-          const label = data.label ?? "";
-          const pid = data.productId ?? "";
-          const qty = data.qty ?? "";
-          let price = data.price ?? "";
-
+        rowsContainer
+          .querySelectorAll(".da-item")
+          .forEach((el) => el.remove());
+        const items = opt.quickAdd.length ? opt.quickAdd : [{}];
+        for (const data of items) {
+          let node = null;
+          if (tpl?.content?.firstElementChild) {
+            node = tpl.content.firstElementChild.cloneNode(true);
+            node.classList.add("da-item");
+          }
+          if (!node) continue;
+          const label = data?.label ?? "";
+          const pid = data?.productId ?? "";
+          const qty = data?.qty ?? "";
+          let price = data?.price ?? "";
           if (typeof price === "number") {
             price = String(price).replace(".", ",");
           } else if (price !== "") {
             price = String(price);
-          } else {
-            price = "";
           }
-
+          const nameEl = node.querySelector(".opt-name");
+          const idEl = node.querySelector(".opt-id");
+          const qtyEl = node.querySelector(".opt-qty");
+          const priceEl = node.querySelector(".opt-price");
           if (nameEl) nameEl.value = label;
           if (idEl) idEl.value = pid;
           if (qtyEl) qtyEl.value = qty !== "" ? String(qty) : "";
-          if (priceEl) priceEl.value = price;
-        });
+          if (priceEl) priceEl.value = price || "";
+          rowsContainer.appendChild(node);
+        }
       }
     }
   }
@@ -11360,7 +11388,7 @@ function restoreOptionalPage(opt) {
       cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH"],
       cat_METER: ["opt_TECEADS"],
       cat_RAMPE: ["opt_RAMPE35"],
-      cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_0601010003"],
+      cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003"],
       cat_REHA : ["opt_24081000","opt_24081100","opt_24081500","opt_24081600","opt_24081005",
         "opt_24081105", "opt_24081505", "opt_24081605", "opt_25670000", "opt_24081800",
         "opt_24096000", "opt_24097000", "opt_24096240", "opt_19034422", "opt_35035200",
@@ -11402,7 +11430,7 @@ function restoreOptionalPage(opt) {
   document.getElementById("cat_WC")?.dispatchEvent(new Event("change", { bubbles: true }));
   document.querySelector('#form-optional input[name="wcMontage"]:checked')?.dispatchEvent(new Event("change", { bubbles: true }));
 
-  const wcProductIds = ["CVIS3WCT112", "SCHALL", "V1DON", "DERSIAS", "DERWWCOSVP", "DEDWWC", "0601010003"];
+  const wcProductIds = ["CVIS3WCT112", "SCHALL", "V1DON", "DERSIAS", "CLSIAS", "DERWWCOSVP", "DEDWWC", "CLPWWCOS5", "0601010003"];
   requestAnimationFrame(() => {
     wcProductIds.forEach((pid) => {
       const cb = document.getElementById(`opt_${pid}`);
@@ -12762,6 +12790,35 @@ function initOptionalSonderprodukte() {
     ensureAtLeastOneRow();
   }
 
+  // Expose payload-based restore so the offer-restore pipeline rebuilds rows
+  // through createRow (which wires input listeners + qty/price behavior).
+  // The previous inline cloneNode-based restore in restoreOptionalPage produced
+  // rows that lacked these listeners, which led to occasional row loss when
+  // localStorage saved during subsequent input events.
+  window.restoreOptionalSonderprodukteFromPayload = function (items) {
+    const list = Array.isArray(items) ? items : [];
+    removeAllDomRows();
+    if (!list.length) {
+      ensureAtLeastOneRow();
+    } else {
+      list.forEach((data) => {
+        const prefill = {
+          label: data?.label ?? "",
+          productId: data?.productId ?? "",
+          qty: data?.qty ?? "",
+          price: (() => {
+            const p = data?.price;
+            if (typeof p === "number") return String(p).replace(".", ",");
+            if (p === undefined || p === null || p === "") return "";
+            return String(p);
+          })(),
+        };
+        rowsContainer.appendChild(createRow(prefill));
+      });
+    }
+    saveAll();
+  };
+
   // Wire "+" add button
   const addBtn = panel.querySelector(".da-add");
   if (addBtn)
@@ -13322,16 +13379,19 @@ window.setPricingData = function setPricingData(data) {
     let mp = data?.markupPct;
     if (!Number.isFinite(mp)) {
       const raw = window.getEffectiveAufschlagValue?.() || "";
-      const m = String(raw).match(/[\d.]+/);
-      mp = m
-        ? raw.includes("%")
-          ? parseFloat(m[0]) / 100
-          : parseFloat(m[0])
-        : 0;
+      const parsed = window.parseAufschlagPercent?.(raw);
+      if (Number.isFinite(parsed)) {
+        mp = String(raw).includes("%") ? parsed / 100 : parsed;
+      } else {
+        mp = 0;
+      }
     }
-    const pctInt = Math.round(mp <= 1 ? mp * 100 : mp);
+    const pctNum = mp <= 1 ? mp * 100 : mp;
+    const pctLabel = Number.isInteger(pctNum)
+      ? String(pctNum)
+      : pctNum.toFixed(2).replace(/\.?0+$/, "").replace(".", ",");
     byId("rb-auf-label")?.replaceChildren(
-      document.createTextNode(`Aufschlag ${pctInt}%`),
+      document.createTextNode(`Aufschlag ${pctLabel}%`),
     );
 
     // Show/hide 300€ bonus based on threshold (after rab.)
@@ -13465,9 +13525,9 @@ window.setPricingData = function setPricingData(data) {
   const isAufschlagAtLeast50 = () => {
     const raw = (window.getEffectiveAufschlagValue?.() || "").trim(); // z.B. "35%", "50%", "60%", "85%"
 
-    const m = raw.match(/(\d+)\s*%?/); // Zahl vor dem %
+    const m = raw.match(/(\d+(?:[.,]\d+)?)\s*%?/); // Zahl vor dem %
     if (!m) return false;
-    const pct = parseInt(m[1], 10);
+    const pct = Number(String(m[1]).replace(",", "."));
     if (!Number.isFinite(pct)) return false;
 
     return pct >= 50; // alles ab 50% → Rabatt erlaubt
@@ -14403,28 +14463,36 @@ cat_SHOWER: "menu_SHOWER",
         category: "accessory",
       },
       {
+        productId: "0601010003",
+        image: "./assets/Gipskarton.jpg",
+        fallbackName: "Knauf Gipskarton-Bauplatte GKBI imprägniert",
+        category: "accessory",
+      },
+      {
         productId: "DERSIAS",
         image: "./assets/DERSIAS.jpg",
         fallbackName: "WC-Sitz derby rund",
-        category: "accessory",
+        category: "seat",
       },
       {
         productId: "CLSIAS",
         image: "./assets/CLSIAS.jpg",
-        fallbackName: "WC-Sitz",
-        category: "accessory",
+        fallbackName: "WC-Sitz clivia",
+        category: "seat",
       },
       {
         productId: "DERWWCOSVP",
         image: "./assets/DERWWCOSVP.jpg",
         fallbackName: "Wand-Tiefspül-WC derby rund",
         category: "wc",
+        seatId: "DERSIAS",
       },
       {
         productId: "DEDWWC",
         image: "./assets/DEDWWC.jpg",
         fallbackName: "derby V3 AQUAWASH Dusch-Wand-WC",
         category: "wc",
+        seatId: "DERSIAS",
       },
       {
         productId: "CLPWWCOS5",
@@ -14432,12 +14500,7 @@ cat_SHOWER: "menu_SHOWER",
         fallbackName: "WC-Erhöhung CLPWWCOS5",
         category: "wc",
         requiredSeatHeight: "erhoeht",
-      },
-      {
-        productId: "0601010003",
-        image: "./assets/Gipskarton.jpg",
-        fallbackName: "Knauf Gipskarton-Bauplatte GKBI imprägniert",
-        category: "accessory",
+        seatId: "CLSIAS",
       },
     ];
 
@@ -14472,55 +14535,100 @@ cat_SHOWER: "menu_SHOWER",
       wallProductsGrid.style.flexDirection = "column";
       wallProductsGrid.style.gap = "16px";
 
-      const accessories = WC_WALL_PRODUCTS.filter((item) => item.category !== "wc");
+      const accessories = WC_WALL_PRODUCTS.filter((item) => item.category === "accessory");
       const wcs = WC_WALL_PRODUCTS.filter((item) => item.category === "wc");
+      const seatById = Object.fromEntries(
+        WC_WALL_PRODUCTS
+          .filter((item) => item.category === "seat")
+          .map((item) => [item.productId, item]),
+      );
 
-      const renderGroup = (title, items) => {
-        if (!items.length) return null;
+      // `idSuffix` lets us render alias seat tiles (visual duplicates of a
+      // shared seat) with unique DOM ids that won't collide with the canonical
+      // tile. Alias tiles also use a non-canonical qty name so the server's
+      // collectSelections (which iterates qty_<productId>) ignores them — the
+      // canonical qty_<seatId> input is the single source of truth for pricing.
+      const buildTile = (item, opts = {}) => {
+        const { idSuffix = "" } = opts;
+        const isAlias = !!idSuffix;
+        const optId = `opt_${item.productId}${idSuffix}`;
+        const qtyId = `qty_${item.productId}${idSuffix}`;
+        const wrapId = `${qtyId}_wrap`;
+        const qtyName = isAlias ? `qty_alias_${item.productId}${idSuffix}` : `qty_${item.productId}`;
+        const cbName = isAlias ? `optWcWall_alias[]` : `optWcWall[]`;
+        const card = document.createElement("div");
+        card.className = "opt-item";
+        card.dataset.productId = item.productId;
+        card.dataset.category = item.category;
+        if (isAlias) card.dataset.alias = "true";
+        card.innerHTML = `
+          <label class="image-check">
+            <input type="checkbox" id="${optId}" name="${cbName}" value="${item.fallbackName}" data-product-id="${item.productId}" />
+            <span class="img-wrap"><img src="${item.image}" alt="${item.fallbackName}" /></span>
+            <span class="caption">${item.fallbackName}</span>
+          </label>
+          <div id="${wrapId}" class="field" hidden aria-hidden="true" style="max-width: 220px">
+            <label for="${qtyId}" class="req">Menge</label>
+            <input id="${qtyId}" name="${qtyName}" type="number" min="0" step="1" placeholder="0" value="0" />
+          </div>
+        `;
+        return card;
+      };
 
+      // Accessories group (no seats here anymore)
+      if (accessories.length) {
         const group = document.createElement("div");
         group.className = "wc-generated-group";
         group.style.width = "100%";
-
         const header = document.createElement("div");
         header.className = "subheader wc-products-subheader";
-        header.textContent = title;
+        header.textContent = "Produkte für Wandmontage";
         group.appendChild(header);
-
         const grid = document.createElement("div");
         grid.className = "opt-grid";
         grid.style.width = "100%";
-
-        for (const item of items) {
-          const optId = `opt_${item.productId}`;
-          const qtyId = `qty_${item.productId}`;
-          const wrapId = `${qtyId}_wrap`;
-
-          const card = document.createElement("div");
-          card.className = "opt-item";
-          card.innerHTML = `
-            <label class="image-check">
-              <input type="checkbox" id="${optId}" name="optWcWall[]" value="${item.fallbackName}" data-product-id="${item.productId}" />
-              <span class="img-wrap"><img src="${item.image}" alt="${item.fallbackName}" /></span>
-              <span class="caption">${item.fallbackName}</span>
-            </label>
-            <div id="${wrapId}" class="field" hidden aria-hidden="true" style="max-width: 220px">
-              <label for="${qtyId}" class="req">Menge</label>
-              <input id="${qtyId}" name="${qtyId}" type="number" min="0" step="1" placeholder="0" value="0" />
-            </div>
-          `;
-          grid.appendChild(card);
-        }
-
+        for (const item of accessories) grid.appendChild(buildTile(item));
         group.appendChild(grid);
-        return group;
-      };
+        wallProductsGrid.appendChild(group);
+      }
 
-      const accessoriesGroup = renderGroup("Produkte für Wandmontage", accessories);
-      const wcGroup = renderGroup("WCs für Wandmontage", wcs);
-
-      if (accessoriesGroup) wallProductsGrid.appendChild(accessoriesGroup);
-      if (wcGroup) wallProductsGrid.appendChild(wcGroup);
+      // WCs group: each WC paired with its corresponding seat tile, every
+      // pair on its own row. Shared seats (e.g. DERSIAS for both DERWWCOSVP
+      // and DEDWWC) are rendered in every pair — the first occurrence keeps
+      // the canonical opt_/qty_ ids; subsequent occurrences are alias tiles.
+      if (wcs.length) {
+        const group = document.createElement("div");
+        group.className = "wc-generated-group";
+        group.style.width = "100%";
+        const header = document.createElement("div");
+        header.className = "subheader wc-products-subheader";
+        header.textContent = "WCs für Wandmontage";
+        group.appendChild(header);
+        const grid = document.createElement("div");
+        grid.className = "opt-grid wc-pairs-grid";
+        grid.style.width = "100%";
+        const renderedSeats = new Set();
+        for (const wc of wcs) {
+          const pair = document.createElement("div");
+          pair.className = "wc-pair";
+          pair.dataset.wcProductId = wc.productId;
+          pair.appendChild(buildTile(wc));
+          const seat = wc.seatId && seatById[wc.seatId];
+          if (seat) {
+            if (!renderedSeats.has(seat.productId)) {
+              pair.appendChild(buildTile(seat));
+              renderedSeats.add(seat.productId);
+            } else {
+              pair.appendChild(
+                buildTile(seat, { idSuffix: `__pair_${wc.productId}` }),
+              );
+            }
+          }
+          grid.appendChild(pair);
+        }
+        group.appendChild(grid);
+        wallProductsGrid.appendChild(group);
+      }
 
       await Promise.all(
         WC_WALL_PRODUCTS.map(async (item) => {
@@ -14528,17 +14636,23 @@ cat_SHOWER: "menu_SHOWER",
           const wrap = document.getElementById(`qty_${item.productId}_wrap`);
           if (!cb || !wrap) return;
 
-          cb.checked = item.category !== "wc";
+          // Defaults: only pure accessories start checked. WCs and seats
+          // are user-driven (seat auto-selected based on WC).
+          cb.checked = item.category === "accessory";
           cb.addEventListener("change", () => {
-            if (item.category === "wc" && cb.checked) {
-              WC_WALL_PRODUCTS
-                .filter((p) => p.category === "wc" && p.productId !== item.productId)
-                .forEach((other) => {
-                  const otherCb = document.getElementById(`opt_${other.productId}`);
-                  const otherWrap = document.getElementById(`qty_${other.productId}_wrap`);
-                  if (otherCb) otherCb.checked = false;
-                  applyGeneratedTileQty(otherCb, otherWrap);
-                });
+            if (item.category === "wc") {
+              if (cb.checked) {
+                // Other WCs become unchecked
+                WC_WALL_PRODUCTS
+                  .filter((p) => p.category === "wc" && p.productId !== item.productId)
+                  .forEach((other) => {
+                    const otherCb = document.getElementById(`opt_${other.productId}`);
+                    const otherWrap = document.getElementById(`qty_${other.productId}_wrap`);
+                    if (otherCb) otherCb.checked = false;
+                    applyGeneratedTileQty(otherCb, otherWrap);
+                  });
+              }
+              syncSeatSelectionForWc();
             }
             applyGeneratedTileQty(cb, wrap);
             syncExclusiveWcSelection();
@@ -14549,38 +14663,124 @@ cat_SHOWER: "menu_SHOWER",
             const product = await getProduct(item.productId);
             if (!product) return;
 
-            const label = cb.closest("label.image-check");
-            const caption = label?.querySelector(".caption");
-            if (caption && product.name) {
-              caption.textContent = String(product.name).trim();
-              cb.value = String(product.name).trim();
-            }
-
-            let meta = label?.querySelector(".wc-db-meta");
-            if (!meta && label) {
-              meta = document.createElement("span");
-              meta.className = "wc-db-meta";
-              label.querySelector(".caption")?.appendChild(meta);
-            }
-            if (meta) {
-              meta.textContent = item.productId;
-            }
-
+            // Update canonical and any alias tiles that share this productId
+            const allCheckboxesForProduct = wallProductsGrid.querySelectorAll(
+              `.opt-item input[type="checkbox"][data-product-id="${item.productId}"]`,
+            );
             const price = Number(product.price ?? product.netPrice ?? product.priceNet);
-            if (Number.isFinite(price) && label) {
-              let priceEl = label.querySelector(".wc-db-price");
-              if (!priceEl) {
-                priceEl = document.createElement("span");
-                priceEl.className = "wc-db-price";
-                label.querySelector(".caption")?.appendChild(priceEl);
+
+            allCheckboxesForProduct.forEach((tileCb) => {
+              const label = tileCb.closest("label.image-check");
+              const caption = label?.querySelector(".caption");
+              if (caption && product.name) {
+                caption.textContent = String(product.name).trim();
+                tileCb.value = String(product.name).trim();
               }
-              priceEl.textContent = formatEuroInline(price);
-            }
+
+              let meta = label?.querySelector(".wc-db-meta");
+              if (!meta && label) {
+                meta = document.createElement("span");
+                meta.className = "wc-db-meta";
+                label.querySelector(".caption")?.appendChild(meta);
+              }
+              if (meta) meta.textContent = item.productId;
+
+              if (Number.isFinite(price) && label) {
+                let priceEl = label.querySelector(".wc-db-price");
+                if (!priceEl) {
+                  priceEl = document.createElement("span");
+                  priceEl.className = "wc-db-price";
+                  label.querySelector(".caption")?.appendChild(priceEl);
+                }
+                priceEl.textContent = formatEuroInline(price);
+              }
+            });
           } catch (err) {
             console.warn("WC product lookup failed", item.productId, err);
           }
         }),
       );
+
+      // Wire alias seat tiles so clicking one selects its pair's WC (which
+      // then drives the seat sync). Without this, alias tiles are pure visual
+      // mirrors with no listeners — clicks would leave the form in an
+      // inconsistent state until the next sync runs.
+      wallProductsGrid
+        .querySelectorAll('.opt-item[data-alias="true"] input[type="checkbox"]')
+        .forEach((aliasCb) => {
+          aliasCb.addEventListener("change", () => {
+            const pair = aliasCb.closest(".wc-pair");
+            const wcId = pair?.dataset.wcProductId;
+            if (!wcId) {
+              syncSeatSelectionForWc();
+              return;
+            }
+            const wcCb = document.getElementById(`opt_${wcId}`);
+            if (wcCb && !wcCb.checked) {
+              wcCb.checked = true;
+              wcCb.dispatchEvent(new Event("change", { bubbles: true }));
+            } else {
+              // Already selected, just re-sync (handles unchecking case)
+              syncSeatSelectionForWc();
+            }
+          });
+        });
+    }
+
+    // Pick the seat tile that lives inside the currently-selected WC's pair;
+    // uncheck every other seat tile (canonical + aliases). Then make sure the
+    // canonical qty_<seatId> input reflects whether that seat productId is
+    // active so the server-side pricing picks it up correctly — the canonical
+    // input is the single source of truth even when the visible "active" tile
+    // is an alias inside a different pair.
+    function syncSeatSelectionForWc() {
+      const wcs = WC_WALL_PRODUCTS.filter((p) => p.category === "wc");
+      const seats = WC_WALL_PRODUCTS.filter((p) => p.category === "seat");
+      const seatIds = new Set(seats.map((s) => s.productId));
+      const checkedWc = wcs.find(
+        (wc) => document.getElementById(`opt_${wc.productId}`)?.checked,
+      );
+      const targetSeatId = checkedWc?.seatId || null;
+
+      // Reset every seat tile (canonical + aliases) to unchecked
+      document
+        .querySelectorAll(
+          '.wc-pair input[type="checkbox"][data-product-id]',
+        )
+        .forEach((cb) => {
+          if (!seatIds.has(cb.dataset.productId)) return; // only seat tiles
+          cb.checked = false;
+          const wrap = cb
+            .closest(".opt-item")
+            ?.querySelector('[id$="_wrap"]');
+          if (wrap) applyGeneratedTileQty(cb, wrap);
+        });
+
+      // Check the seat tile inside the active WC's pair (if any)
+      if (checkedWc?.seatId) {
+        const pair = document.querySelector(
+          `.wc-pair[data-wc-product-id="${checkedWc.productId}"]`,
+        );
+        const seatCb = pair?.querySelector(
+          `input[type="checkbox"][data-product-id="${checkedWc.seatId}"]`,
+        );
+        if (seatCb) {
+          seatCb.checked = true;
+          const wrap = seatCb
+            .closest(".opt-item")
+            ?.querySelector('[id$="_wrap"]');
+          if (wrap) applyGeneratedTileQty(seatCb, wrap);
+        }
+      }
+
+      // Drive the canonical qty_<seatId> input so the server picks up the
+      // selection regardless of which pair-instance is the visually-active one.
+      seats.forEach((seat) => {
+        const canonicalQty = document.getElementById(`qty_${seat.productId}`);
+        if (!canonicalQty) return;
+        const isActive = seat.productId === targetSeatId;
+        canonicalQty.value = isActive ? "1" : "0";
+      });
     }
 
     function getSelectedWcSeatHeight() {
@@ -14609,6 +14809,32 @@ cat_SHOWER: "menu_SHOWER",
           applyGeneratedTileQty(cb, wrap);
         }
       });
+
+      // Hide each pair container when its WC is hidden — keeps the paired seat
+      // tile from sticking around as a lone tile in the grid.
+      document.querySelectorAll(".wc-pair").forEach((pair) => {
+        const wcId = pair.dataset.wcProductId;
+        if (!wcId) return;
+        const wc = WC_WALL_PRODUCTS.find((p) => p.productId === wcId);
+        const visible = !wc?.requiredSeatHeight || wc.requiredSeatHeight === selectedSeatHeight;
+        pair.hidden = !visible;
+        pair.setAttribute("aria-hidden", String(!visible));
+        pair.style.display = visible ? "" : "none";
+
+        // If this pair owns the only instance of a seat tile and we're hiding
+        // the pair, also drop the seat checkbox state.
+        if (!visible && wc?.seatId) {
+          const seatCb = document.getElementById(`opt_${wc.seatId}`);
+          const seatWrapEl = document.getElementById(`qty_${wc.seatId}_wrap`);
+          // Only clear the seat if it was rendered inside this hidden pair.
+          if (seatCb && pair.contains(seatCb)) {
+            seatCb.checked = false;
+            applyGeneratedTileQty(seatCb, seatWrapEl);
+          }
+        }
+      });
+
+      syncSeatSelectionForWc();
     }
     function syncExclusiveWcSelection() {
       const wcIds = WC_WALL_PRODUCTS
@@ -14666,7 +14892,9 @@ cat_SHOWER: "menu_SHOWER",
         if (!cb || !wrap) return;
 
         if (on) {
-          cb.checked = item.category !== "wc";
+          // Default-checked items are pure accessories; WCs and seats are
+          // user-driven (seat is set by the WC selection).
+          cb.checked = item.category === "accessory";
         } else {
           cb.checked = false;
         }
@@ -14675,6 +14903,7 @@ cat_SHOWER: "menu_SHOWER",
       });
 
       syncSeatHeightDependentProducts();
+      syncSeatSelectionForWc();
       syncExclusiveWcSelection();
     }
 
@@ -14792,7 +15021,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
     cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH"],
     cat_METER: ["opt_TECEADS"],
     cat_RAMPE: ["opt_RAMPE35"],
-    cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_0601010003"],
+    cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003"],
     cat_REHA: [
       "opt_24081000", "opt_24081100", "opt_24081500", "opt_24081600",
       "opt_24081005", "opt_24081105", "opt_24081505", "opt_24081605",
