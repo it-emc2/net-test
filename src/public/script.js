@@ -17660,8 +17660,7 @@ function initHassmannBestFinder() {
 
   if (!sendBtn || !auftragInput || !statusBox) return;
 
-  const WEBHOOK_URL =
-    "https://fly-n8n-1.fly.dev/webhook/c1aa786a-9cc4-4f7d-aba7-b4ac9c978f69";
+  const BITRIX_TIMELINE_URL = "/api/bitrix/timeline/comment";
 
   function setStatus(msg, type = "info") {
     if (!statusBox) return;
@@ -17926,7 +17925,7 @@ async function sendPdfToAuftrag() {
     setStatus("Konvertiere Materialübersicht nach Base64 …", "info");
     const materialBase64 = await blobToBase64(materialBlob);
 
-    setStatus("Sende 3 Dateien an Auftrag-Webhook …", "info");
+    setStatus("Sende 3 Dateien an Bitrix …", "info");
 
     // Always derive outbound pdfName from the current offer number used above
     const pdfName = `${offerNumber}.pdf`;
@@ -17934,19 +17933,23 @@ async function sendPdfToAuftrag() {
     const materialName = materialFilename || `Materialuebersicht_${offerNumber}.docx`;
 
     const body = {
-      auftragId,
-      // Offer PDF
-      pdfBase64,
-      pdfName,
-      // Offer DOCX
-      docxBase64,
-      docxName,
-      // Materialübersicht DOCX
-      materialBase64,
-      materialName,
+      entityType: "deal",
+      entityId: auftragId,
+      comment: [
+        `Angebotsunterlagen ${offerNumber} wurden aus dem Konfigurator hochgeladen.`,
+        "",
+        `- ${pdfName}`,
+        `- ${docxName}`,
+        `- ${materialName}`,
+      ].join("\n"),
+      attachments: [
+        { filename: pdfName, base64: pdfBase64 },
+        { filename: docxName, base64: docxBase64 },
+        { filename: materialName, base64: materialBase64 },
+      ],
     };
 
-    console.log("[BITRIX DEBUG] webhook payload meta", {
+    console.log("[BITRIX DEBUG] timeline payload meta", {
       auftragId,
       pdfName,
       docxName,
@@ -17956,22 +17959,22 @@ async function sendPdfToAuftrag() {
       materialBase64Length: typeof materialBase64 === "string" ? materialBase64.length : null,
     });
 
-    const res = await fetch(WEBHOOK_URL, {
+    const res = await fetch(BITRIX_TIMELINE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
 
+    const responseText = await res.text().catch(() => "");
     if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`Webhook-Fehler (${res.status}): ${txt}`);
+      throw new Error(`Bitrix-Fehler (${res.status}): ${responseText}`);
     }
 
     setStatus("Angebots-PDF erfolgreich an Auftrag gesendet.", "success");
 
     try {
-      const json = await res.json();
-      console.log("[Auftrag-Webhook] Antwort:", json);
+      const json = JSON.parse(responseText || "{}");
+      console.log("[Bitrix Timeline] Antwort:", json);
     } catch {
       // no JSON returned — ignore
     }

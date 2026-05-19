@@ -207,7 +207,7 @@ router.get("/contact/:id", async (req, res) => {
 
 // POST /api/bitrix/timeline/comment
 // Body: { entityType: 'deal'|'contact'|'company'|'lead'|..., entityId: number|string, comment: string }
-router.post("/timeline/comment", express.json({ limit: "1mb" }), async (req, res) => {
+router.post("/timeline/comment", express.json({ limit: "25mb" }), async (req, res) => {
   try {
     const entityType = String(req.body?.entityType || "").trim();
     const entityIdRaw = req.body?.entityId;

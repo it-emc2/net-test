@@ -117,7 +117,14 @@ function getAngebotTemplatePath(body) {
       break;
   }
 
-  return path.join(process.cwd(), "src", "templates", file);
+  const selectedPath = path.join(process.cwd(), "src", "templates", file);
+  if (fsSync.existsSync(selectedPath)) return selectedPath;
+
+  const fallbackPath = path.join(process.cwd(), "src", "templates", "Angebot.docx");
+  console.warn(
+    `[docx-template] template "${file}" for offer "${offer}" not found; falling back to Angebot.docx`,
+  );
+  return fallbackPath;
 }
 
 const pricing = pricingFactory(ProductModel);
