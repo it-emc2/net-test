@@ -3055,6 +3055,32 @@ function readWVConsumablesStrict() {
   return Array.from(new Set(picked));
 }
 
+function readPostalStateForPayload() {
+  const get = (id) => String(document.getElementById(id)?.value || "").trim();
+  const managerState =
+    typeof window.__postalManager?.getState === "function"
+      ? window.__postalManager.getState()
+      : null;
+
+  return {
+    enabled: !!window.__postalSectionEnabled,
+    auftragId: get("postAuftragId"),
+    recipient: {
+      firstName: get("postFirstName"),
+      lastName: get("postLastName"),
+      street: get("postStreet"),
+      zipCode: get("postZip"),
+      city: get("postCity"),
+      country: get("postCountry"),
+    },
+    subject: get("postSubject"),
+    body: String(document.getElementById("postBody")?.value || ""),
+    attachments: Array.isArray(managerState?.attachments)
+      ? managerState.attachments
+      : undefined,
+  };
+}
+
 // Remove or empty sections that do not belong to the currently active offer
 function filterPayloadByOffer(payload) {
   if (!currentOfferKey || !OFFERS[currentOfferKey]) {
@@ -4012,6 +4038,7 @@ if (anschlag) {
   payload.includeOurSignature = !!document.getElementById("includeOurSignature")?.checked;
   payload.ourSignatureUser =
     document.getElementById("ourSignatureUser")?.value?.trim() || "t.raithel";
+  payload.postal = readPostalStateForPayload();
 
   return filterPayloadByOffer(payload);
 
@@ -11875,6 +11902,16 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       }
     } catch (e) {
       console.warn("[restore] internal signature restore failed:", e);
+    }
+
+    try {
+      if (window.__postalManager?.restoreFromPayload) {
+        window.__postalManager.restoreFromPayload(p?.postal || {});
+      } else {
+        window.__pendingPostalRestore = p?.postal || {};
+      }
+    } catch (e) {
+      console.warn("[restore] postal restore failed:", e);
     }
 
     await window.__drawingReady;
@@ -22003,6 +22040,70 @@ document
       renderAttachmentList();
     }
 
+    function serializePostalState() {
+      return {
+        enabled: !!window.__postalSectionEnabled,
+        auftragId: String(fields.auftragId?.value || "").trim(),
+        recipient: {
+          firstName: String(fields.firstName?.value || "").trim(),
+          lastName: String(fields.lastName?.value || "").trim(),
+          street: String(fields.street?.value || "").trim(),
+          zipCode: String(fields.zipCode?.value || "").trim(),
+          city: String(fields.city?.value || "").trim(),
+          country: String(fields.country?.value || "").trim(),
+        },
+        subject: String(fields.subject?.value || "").trim(),
+        body: String(fields.body?.value || ""),
+        attachments: postalAttachments.map((item) => ({
+          id: item.id,
+          type: item.type,
+          filename: item.filename,
+          label: item.label,
+          size: item.size || 0,
+        })),
+      };
+    }
+
+    function restorePostalState(state = {}) {
+      syncPostalSectionVisibility(!!state.enabled);
+
+      const recipient = state.recipient || {};
+      if (fields.auftragId) fields.auftragId.value = state.auftragId || "";
+      if (fields.firstName) fields.firstName.value = recipient.firstName || "";
+      if (fields.lastName) fields.lastName.value = recipient.lastName || "";
+      if (fields.street) fields.street.value = recipient.street || "";
+      if (fields.zipCode) fields.zipCode.value = recipient.zipCode || "";
+      if (fields.city) fields.city.value = recipient.city || "";
+      if (fields.country) fields.country.value = recipient.country || "DE";
+      if (fields.subject) fields.subject.value = state.subject || "";
+      if (fields.body) fields.body.value = state.body || "";
+
+      const restoredAttachments = Array.isArray(state.attachments)
+        ? state.attachments
+            .filter((item) => item && item.id && item.type !== "main")
+            .map((item) => ({
+              id: String(item.id),
+              type: String(item.type || "static"),
+              filename: String(item.filename || ""),
+              label: String(item.label || (item.type === "upload" ? "Upload" : "Default")),
+              size: Number(item.size || 0) || 0,
+            }))
+        : null;
+
+      if (restoredAttachments) {
+        postalAttachments = restoredAttachments;
+      }
+
+      postalSubjectTouched = !!String(fields.subject?.value || "").trim();
+      postalBodyTouched = !!String(fields.body?.value || "").trim();
+      lastAutoPostalBody = String(fields.body?.value || "");
+      uploadInput.value = "";
+      statusBox.textContent = "";
+      statusBox.dataset.type = "";
+      statusBox.hidden = true;
+      renderAttachmentList();
+    }
+
     function refreshPostalPrefills() {
       fillPostalDefaults();
       renderAttachmentList();
@@ -22262,11 +22363,17 @@ document
 
     window.__postalManager = {
       reset: resetPostalPanel,
+      getState: serializePostalState,
+      restoreFromPayload: restorePostalState,
       render: renderAttachmentList,
       refreshPrefills: refreshPostalPrefills,
     };
 
     fillPostalDefaults();
+    if (window.__pendingPostalRestore) {
+      restorePostalState(window.__pendingPostalRestore);
+      window.__pendingPostalRestore = null;
+    }
     renderAttachmentList();
   });
 })();
