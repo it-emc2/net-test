@@ -7605,6 +7605,36 @@ button.dm-btn-danger:focus-visible {
             <div class="img-check-grid">
               <div class="opt-list">
 
+
+                 <!-- Handlaufhalter -->
+                <div class="opt-item hl-item">
+                  <label class="image-check">
+                    <input type="checkbox" id="hlHandlaufhalter" name="hl_outdoor_components[]"
+                      value="Handlaufhalter 7,5 cm bis Handlaufmitte" />
+                    <span class="img-wrap">
+                      <img src="./assets/Handlaufhalter 7,5 cm.png" alt="Handlaufhalter" />
+                    </span>
+                    <span class="caption">
+                      Handlaufhalter
+                      <span>
+                        <select id="hlHandlaufhalterSize" name="hlHandlaufhalterSize" class="bwt-door-height-inline"
+                          aria-label="Handlaufhalter Abstand">
+                          <option value="7,5">7,5</option>
+                          <option value="10">10</option>
+                          <option value="12,5">12,5</option>
+                          <option value="15">15</option>
+                        </select>
+                        cm bis Handlaufmitte
+                      </span>
+                    </span>
+                  </label>
+
+                  <div id="qty_hlHandlaufhalter_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
+                    <label for="qty_hlHandlaufhalter" class="req">Menge Handlaufhalter</label>
+                    <input id="qty_hlHandlaufhalter" name="qty_hlHandlaufhalter" type="number" min="0" step="1"
+                      placeholder="0" />
+                  </div>
+                </div>
                 <!-- Edelstahlstütze betonieren -->
                 <div class="hl-item">
                   <label class="image-check">
@@ -7727,35 +7757,7 @@ button.dm-btn-danger:focus-visible {
 
 
 
-                <!-- Handlaufhalter -->
-                <div class="opt-item hl-item">
-                  <label class="image-check">
-                    <input type="checkbox" id="hlHandlaufhalter" name="hl_outdoor_components[]"
-                      value="Handlaufhalter 7,5 cm bis Handlaufmitte" />
-                    <span class="img-wrap">
-                      <img src="./assets/Handlaufhalter 7,5 cm.png" alt="Handlaufhalter" />
-                    </span>
-                    <span class="caption">
-                      Handlaufhalter
-                      <span>
-                        <select id="hlHandlaufhalterSize" name="hlHandlaufhalterSize" class="bwt-door-height-inline"
-                          aria-label="Handlaufhalter Abstand">
-                          <option value="7,5">7,5</option>
-                          <option value="10">10</option>
-                          <option value="12,5">12,5</option>
-                          <option value="15">15</option>
-                        </select>
-                        cm bis Handlaufmitte
-                      </span>
-                    </span>
-                  </label>
-
-                  <div id="qty_hlHandlaufhalter_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
-                    <label for="qty_hlHandlaufhalter" class="req">Menge Handlaufhalter</label>
-                    <input id="qty_hlHandlaufhalter" name="qty_hlHandlaufhalter" type="number" min="0" step="1"
-                      placeholder="0" />
-                  </div>
-                </div>
+               
 
                 <!-- Abschlusskappe flach Außen -->
                 <div class="opt-item hl-item">
@@ -7812,24 +7814,7 @@ button.dm-btn-danger:focus-visible {
                   </div>
                 </div>
 
-                <!-- Wandanschluss schräg Kugel -->
-                <div class="opt-item hl-item">
-                  <label class="image-check">
-                    <input type="checkbox" id="hlWallAngledBall35" name="hl_outdoor_components[]"
-                      value="Wandanschluss schräg für 35 mm Rohr mit Kugelverbindung" />
-                    <span class="img-wrap">
-                      <img src="./assets/Wandanschluss schräg.png" alt="" />
-                    </span>
-                    <span class="caption">Wandanschluss schräg für 35 mm Rohr mit Kugelverbindung</span>
-                  </label>
-
-                  <div id="qty_hlWallAngledBall35_wrap" class="field" hidden aria-hidden="true"
-                    style="max-width: 220px">
-                    <label for="qty_hlWallAngledBall35" class="req">Menge</label>
-                    <input id="qty_hlWallAngledBall35" name="qty_hlWallAngledBall35" type="number" min="0" step="1"
-                      placeholder="0" />
-                  </div>
-                </div>
+              
 
               </div>
             </div>
