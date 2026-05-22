@@ -12467,17 +12467,6 @@ function setCurrentOfferType(offerType) {
   console.log("[setCurrentOfferType] navigating to step", state.step);
   setStep(state.step);
 }
-// hide aufschlag for bwt offers
-(function enforceAufschlagVisibilityByOffer() {
-  const offer = (window.getCurrentOfferType && window.getCurrentOfferType()) || "";
-  const sec = document.getElementById("aufschlagSection");
-  if (!sec) return;
-
-  const isBwt = String(offer).toLowerCase() === "bwt";
-  sec.hidden = isBwt;
-  sec.setAttribute("aria-hidden", isBwt ? "true" : "false");
-})();
-
 document.getElementById("btnLoadOffer")?.addEventListener("click", async () => {
   const input = document.getElementById("loadOfferNumber");
   await loadOfferByNumber(input?.value?.trim());

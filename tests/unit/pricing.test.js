@@ -44,7 +44,7 @@ test('Example A — BU materials + optional grab bar compute correctly', async (
   expect(res.total).toBeCloseTo(208.85, 2);
 });
 
-test('Example B — BWT door + grab bar applies BWT grab markup and zeroes global markup', async () => {
+test('Example B — BWT door + grab bar applies global markup', async () => {
   const products = [
     { productId: '1226', price: 500.0, name: 'Standard Tür 1226' },
     { productId: 'CLPESG30', price: 30.0, name: 'Haltegriff CLPESG30' },
@@ -63,12 +63,13 @@ test('Example B — BWT door + grab bar applies BWT grab markup and zeroes globa
 
   const res = await computePrices(payload);
 
-  // materials: door 500 + grab bar 30 * (1 + 0.2) = 36 → sum 536
+  // materials: door 500 + global optional grab bar 30 → sum 530
+  // Aufschlag applies to BWT the same as BU: 20% of 530 = 106.
   const mat = res.materials;
-  expect(mat.sum).toBeCloseTo(536.0, 2);
-  expect(res.markupPct).toBeCloseTo(0, 6); // BWT forces markup to 0
-  expect(res.markup).toBeCloseTo(0, 2);
-  expect(res.Nettobetrag).toBeCloseTo(536.0, 2);
-  expect(res.vatOnNet).toBeCloseTo(101.84, 2);
-  expect(res.total).toBeCloseTo(637.84, 2);
+  expect(mat.sum).toBeCloseTo(530.0, 2);
+  expect(res.markupPct).toBeCloseTo(0.2, 6);
+  expect(res.markup).toBeCloseTo(106.0, 2);
+  expect(res.Nettobetrag).toBeCloseTo(646.0, 2);
+  expect(res.vatOnNet).toBeCloseTo(122.74, 2);
+  expect(res.total).toBeCloseTo(768.74, 2);
 });

@@ -1739,32 +1739,22 @@ try {
       const lines = Array.isArray(materials?.lines) ? materials.lines : [];
       let markupBase = 0;
 
-      if (offer !== "bwt") {
-        // Normal BU/HL-Markup-Logik
-        for (const row of lines) {
-          const id = String(row?.productId || row?.id || "").trim();
-          const qty = Number(row?.qty ?? row?.quantity ?? 0) || 0;
-          const unitPrice = Number(row?.unitPrice ?? 0) || 0;
+      for (const row of lines) {
+        const id = String(row?.productId || row?.id || "").trim();
+        const qty = Number(row?.qty ?? row?.quantity ?? 0) || 0;
+        const unitPrice = Number(row?.unitPrice ?? 0) || 0;
 
-          if (!qty || !unitPrice) continue;
+        if (!qty || !unitPrice) continue;
 
-          // 1) skip Kleinmaterial (added as KM02 when the checkbox is on)
-          if (id === "KM02") continue;
+        // 1) skip Kleinmaterial (added as KM02 when the checkbox is on)
+        if (id === "KM02") continue;
 
-        
-
-          // default: count full qty
-          markupBase += qty * unitPrice;
-        }
-      } else {
-        // BWT: kein Aufschlag
-        markupPct = 0;
-        markupBase = 0;
+        // default: count full qty
+        markupBase += qty * unitPrice;
       }
 
       // Final markup using the existing percentage
-      const markup =
-        offer === "bwt" ? 0 : round2(markupBase * (markupPct || 0));
+      const markup = round2(markupBase * (markupPct || 0));
 
       // Nettobetrag
       const baseSubtotal = round2(

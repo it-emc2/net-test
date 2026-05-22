@@ -125,11 +125,11 @@ describe('Pricing Module', () => {
         expect(result.materials.title).toBe('Material für Handlauf');
       });
 
-      test('bwt has zero markup', async () => {
+      test('bwt uses global markup like other offer types', async () => {
         const payload = createBasePayload({ activeOffer: 'bwt' });
         const result = await pricing.computePrices(payload);
         
-        expect(result.markupPct).toBe(0);
+        expect(result.markupPct).toBe(0.35);
         expect(result.markup).toBe(0);
       });
     });
