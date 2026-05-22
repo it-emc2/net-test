@@ -18658,6 +18658,79 @@ document.addEventListener("DOMContentLoaded", () => {
 
   inside?.addEventListener("change", syncWoodVisibility);
   syncWoodVisibility();
+
+  const outside = document.getElementById("hlAreaOutside");
+  const materialSection = document.getElementById("hl-outdoor-section");
+  const materialItems = Array.from(
+    document.querySelectorAll("#hl-outdoor-section [data-hl-area]"),
+  );
+  const hlMaterialAreaByInputId = {
+    hlHandlaufhalter: "inside",
+    hlEdelstahlstuetzeBetonieren: "outside",
+    hlEdelstahlstuetzeBoden: "outside",
+    hlEdelstahlstuetzeSeitl: "outside",
+    hlAbdeckrosetteHalbrund: "inside",
+    hlAuflageWaagrechtFestLang: "inside",
+    hlAuflageFlexibelLang: "inside",
+    hlCapFlatOuter35: "outside",
+    hlCapFlatInner35: "inside",
+    hlWallStraightOuter35: "outside",
+  };
+
+  const resetHiddenMaterialItem = (item) => {
+    item.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach((input) => {
+      if (!input.checked) return;
+      input.checked = false;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    item.querySelectorAll('input[type="number"]').forEach((input) => {
+      input.value = "0";
+      input.removeAttribute("required");
+    });
+
+    item.querySelectorAll('[id^="qty_"][id$="_wrap"]').forEach((wrap) => {
+      wrap.hidden = true;
+      wrap.setAttribute("aria-hidden", "true");
+    });
+  };
+
+  const syncHlMaterialAreaVisibility = () => {
+    const showInside = !!inside?.checked;
+    const showOutside = !!outside?.checked;
+    let visibleCount = 0;
+
+    materialItems.forEach((item) => {
+      const inputId = item.querySelector('input[type="checkbox"]')?.id;
+      const area = hlMaterialAreaByInputId[inputId] || item.dataset.hlArea;
+      const show =
+        (area === "inside" && showInside) ||
+        (area === "outside" && showOutside);
+
+      item.hidden = !show;
+      item.style.display = show ? "" : "none";
+      item.setAttribute("aria-hidden", String(!show));
+      item.querySelectorAll("input, select, textarea, button").forEach((el) => {
+        el.disabled = !show;
+      });
+
+      if (show) {
+        visibleCount += 1;
+      } else {
+        resetHiddenMaterialItem(item);
+      }
+    });
+
+    if (materialSection) {
+      materialSection.hidden = visibleCount === 0;
+      materialSection.style.display = visibleCount === 0 ? "none" : "";
+      materialSection.setAttribute("aria-hidden", String(visibleCount === 0));
+    }
+  };
+
+  inside?.addEventListener("change", syncHlMaterialAreaVisibility);
+  outside?.addEventListener("change", syncHlMaterialAreaVisibility);
+  syncHlMaterialAreaVisibility();
 });
 ;
 // #endregion

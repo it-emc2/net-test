@@ -7598,8 +7598,8 @@ button.dm-btn-danger:focus-visible {
 
           <!-- Material in Edelstahl -->
           <div id="hl-outdoor-section" class="full field">
-            <h3 style="margin: 0 0 12px"> Materialauswahl für Außenbereich</h3>
-            <p>Material in Edelstahl, vor allem im Außenbereich; inkl. Standardschrauben + Dübel</p>
+            <h3 style="margin: 0 0 12px"> Materialauswahl</h3>
+            <p>Material in Edelstahl; inkl. Standardschrauben + Dübel</p>
             <p class="hint">Sie benötigen IMMER Stütze + Abdeckrosette (bei Stütze Bodenbefestigung)</p>
             <!-- opt-list items -->
             <div class="img-check-grid">
@@ -7607,7 +7607,7 @@ button.dm-btn-danger:focus-visible {
 
 
                  <!-- Handlaufhalter -->
-                <div class="opt-item hl-item">
+                <div class="opt-item hl-item" data-hl-area="inside">
                   <label class="image-check">
                     <input type="checkbox" id="hlHandlaufhalter" name="hl_outdoor_components[]"
                       value="Handlaufhalter 7,5 cm bis Handlaufmitte" />
@@ -7636,7 +7636,7 @@ button.dm-btn-danger:focus-visible {
                   </div>
                 </div>
                 <!-- Edelstahlstütze betonieren -->
-                <div class="hl-item">
+                <div class="hl-item" data-hl-area="outside">
                   <label class="image-check">
                     <input type="checkbox" id="hlEdelstahlstuetzeBetonieren" name="hl_outdoor_components[]"
                       value="Edelstahlstütze, betonieren (120 cm), mit Gewindebohrung" />
@@ -7662,7 +7662,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
 
                 <!-- Edelstahlstütze Bodenbefestigung -->
-                <div class="hl-item">
+                <div class="hl-item" data-hl-area="outside">
                   <label class="image-check">
                     <input type="checkbox" id="hlEdelstahlstuetzeBoden" name="hl_outdoor_components[]"
                       value="Edelstahlstütze, Bodenbefestigung mit Schrauben" />
@@ -7679,7 +7679,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
 
                 <!-- Edelstahlstütze seitl. -->
-                <div class="hl-item">
+                <div class="hl-item" data-hl-area="outside">
                   <label class="image-check">
                     <input type="checkbox" id="hlEdelstahlstuetzeSeitl" name="hl_outdoor_components[]"
                       value="Edelstahlstütze, seitl. Befestigung (20 mm)" />
@@ -7705,7 +7705,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
 
                 <!-- Abdeckrosette -->
-                <div class="hl-item">
+                <div class="hl-item" data-hl-area="inside">
                   <label class="image-check">
                     <input type="checkbox" id="hlAbdeckrosetteHalbrund" name="hl_outdoor_components[]"
                       value="Abdeckrosette (halbrund)" />
@@ -7722,7 +7722,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
 
                 <!-- Auflage waagrecht fest lang -->
-                <div class="hl-item">
+                <div class="hl-item" data-hl-area="inside">
                   <label class="image-check">
                     <input type="checkbox" id="hlAuflageWaagrechtFestLang" name="hl_outdoor_components[]"
                       value="Auflage für Edelstahlstütze, waagrecht (fest), lang" />
@@ -7739,7 +7739,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
 
                 <!-- Auflage flexibel lang -->
-                <div class="hl-item">
+                <div class="hl-item" data-hl-area="inside">
                   <label class="image-check">
                     <input type="checkbox" id="hlAuflageFlexibelLang" name="hl_outdoor_components[]"
                       value="Auflage für Edelstahlstütze: flexibel, lang" />
@@ -7760,7 +7760,7 @@ button.dm-btn-danger:focus-visible {
                
 
                 <!-- Abschlusskappe flach Außen -->
-                <div class="opt-item hl-item">
+                <div class="opt-item hl-item" data-hl-area="outside">
                   <label class="image-check">
                     <input type="checkbox" id="hlCapFlatOuter35" name="hl_outdoor_components[]"
                       value="Abschlusskappe flach, Außenbefestigung, 35 mm" />
@@ -7778,7 +7778,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
 
                 <!-- Abschlusskappe flach Innen -->
-                <div class="opt-item hl-item">
+                <div class="opt-item hl-item" data-hl-area="inside">
                   <label class="image-check">
                     <input type="checkbox" id="hlCapFlatInner35" name="hl_outdoor_components[]"
                       value="Abschlusskappe flach, Innenbefestigung, 35 mm" />
@@ -7796,7 +7796,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
 
                 <!-- Wandanschluss gerade Außen -->
-                <div class="opt-item hl-item">
+                <div class="opt-item hl-item" data-hl-area="outside">
                   <label class="image-check">
                     <input type="checkbox" id="hlWallStraightOuter35" name="hl_outdoor_components[]"
                       value="Wandanschluss gerade für Außenbefestigung 35 mm" />
