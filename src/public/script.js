@@ -3453,31 +3453,8 @@ function buildPayload() {
     console.warn("[collectHlExtras] hl quick-add collection failed:", e);
   }
 
-  const hl = payload.hl || (payload.hl = {});
-    const lengthsRaw = hl["hl_steel_length[]"];
-    const qualityRaw = hl["hl_steel_quality[]"];
-    const lengths = Array.isArray(lengthsRaw)
-      ? lengthsRaw
-      : lengthsRaw != null
-        ? [lengthsRaw]
-        : [];
-    const qualities = Array.isArray(qualityRaw)
-      ? qualityRaw
-      : qualityRaw != null
-        ? [qualityRaw]
-        : [];
-
-    const steelLines = lengths
-      .map((len, idx) => ({
-        length: String(len || "").trim(),
-        quality: String(qualities[idx] || "").trim(),
-      }))
-      .filter((row) => row.length || row.quality);
-
-    if (steelLines.length) hl.steelLines = steelLines;
-    else delete hl.steelLines;
   } catch (e) {
-    console.warn("[buildPayload] hl steel lines build failed:", e);
+    console.warn("[collectHlExtras] hl quick-add collection failed:", e);
   }
 
   payload.Kundendaten = payload.Kundendaten || {};
@@ -4217,48 +4194,6 @@ function collectHL() {
   // -------------------------
   // Helpers
   // -------------------------
-  const STEEL_COLOR_TO_PID = {
-    "Buche hell": "FF_01",
-    "Kirsche mittel": "FF_02",
-    "Nussbaum": "FF_03",
-    "Wurzelholz": "FF_04",
-    "Eiche hell": "FF_05",
-    "Eiche mittel": "FF_06",
-    "Eiche dunkel": "FF_07",
-    "Messing Längsstruktur": "FF_08",
-    "Schwarz mit Silberstreifen": "FF_09",
-    "Silber matt": "FF_10",
-    "Weiß": "FF_12",
-    "Rot": "FF_13",
-    "Golden Rust": "FF_14",
-    "Eiche gekalkt": "FF_15",
-    "Anthrazitgrau mit Silberstreif": "FF_18",
-    "Birnbaum dunkel mit Struktur": "FF_22",
-    "Esche weiß": "FF_90",
-    "Eiche Creme": "FF_91",
-    "Eiche hellbraun": "FF_92",
-    "Grau Holzstruktur": "FF_93",
-    "Eiche Sand": "FF_94",
-  };
-
-  function parseLengthToCm(raw) {
-    const s = String(raw || "").trim().toLowerCase();
-    if (!s) return 0;
-
-    // normalize decimal comma
-    const n = parseFloat(s.replace(",", "."));
-
-   // If user writes "12" (no unit), treat as meters
-    if (!/[a-z]/i.test(s) && Number.isFinite(n)) return Math.round(n * 100);
-
-    if (s.includes("mm") && Number.isFinite(n)) return Math.round(n / 10);
-    if (s.includes("cm") && Number.isFinite(n)) return Math.round(n);
-    if (s.includes("m") && Number.isFinite(n)) return Math.round(n * 100);
-
-    // fallback: attempt to parse a number and assume cm
-    return Number.isFinite(n) ? Math.round(n) : 0;
-  }
-
   function getCheckedValues(name) {
     return Array.from(form.querySelectorAll(`input[name="${name}"]:checked`)).map(
       (x) => x.value,
@@ -4270,42 +4205,6 @@ function collectHL() {
   // -------------------------
   const area = getCheckedValues("hl_area"); // ["inside","outside"]
   const mountType = getCheckedValues("hlMountType"); // ["boden-befestigung","wand-befestigung"]
-
-  // -------------------------
-  // Pipe selection (hlPipeSteel = Stahlrohr with decor colors)
-  // -------------------------
-  const pipeRows = [];
-
-  const pipeSteelSelected = !!form.querySelector("#hlPipeSteel")?.checked;
-
-  const steelColor = (
-    form.querySelector('input[name="hl_steel_color"]:checked')?.value || ""
-  ).trim();
-
-  const steelPid = STEEL_COLOR_TO_PID[steelColor] || ""; // MUST match DB
-
-  if (pipeSteelSelected) {
-    const rows = form.querySelectorAll("#hl-steel-length-quality .hl-steel-row");
-
-    rows.forEach((row) => {
-      const lengthText = (row.querySelector(".hl-steel-length")?.value || "").trim();
-      const quality = (row.querySelector(".hl-steel-quality")?.value || "").trim();
-      if (!lengthText && !quality) return;
-
-      const lengthCm = parseLengthToCm(lengthText);
-
-      pipeRows.push({
-        productId: steelPid || "FF_01", // fallback so it never breaks (better: require a color)
-        type: "Stahlrohr",
-        diameter: "⌀35mm",
-        lengthText,
-        lengthCm, // ✅ DB field name / what pricing.js can read
-        quality,
-        color: steelColor, // keep for label
-        qty: 1, // each row is one pipe “line”
-      });
-    });
-  }
 
   // -------------------------
   // Extras (DB productIds)
@@ -4383,7 +4282,6 @@ function collectHL() {
   addExtra("hlBefHandlaufhalter", "qty_hlBefHandlaufhalter", "FF_H04"); // Handlaufhalter (Innen) Chrom matt
 
   return {
-    pipes: pipeRows,
     extras,
     area,
     mountType,
@@ -18078,67 +17976,6 @@ document.addEventListener("DOMContentLoaded", () => {
 // =================================================================
 // # HL 
 // =================================================================
-// Toggle Stahlrohr colors section by hlPipeSteel
-document.addEventListener("DOMContentLoaded", () => {
-  const steelCheckbox = document.getElementById("hlPipeSteel");
-  const steelColorSection = document.getElementById("hl-steel-color-section");
-  const steelLinesSection = document.getElementById("hl-steel-length-quality");
-  if (!steelCheckbox || !steelColorSection) return;
-
-  const setSteelColorsVisibility = () => {
-    const show = !!steelCheckbox.checked;
-    steelColorSection.style.display = show ? "" : "none";
-    if (steelLinesSection) {
-      steelLinesSection.style.display = show ? "" : "none";
-    }
-  };
-
-  steelCheckbox.addEventListener("change", setSteelColorsVisibility);
-  setSteelColorsVisibility();
-});
-
-// HL steel length/quality rows
-document.addEventListener("DOMContentLoaded", () => {
-  const host = document.getElementById("hl-steel-length-quality");
-  const tpl = document.getElementById("tpl-hl-steel-row");
-  if (!host || !tpl || !tpl.content) return;
-
-  const rowsWrap = host.querySelector(".hl-steel-items");
-  if (!rowsWrap) return;
-
-  const addRow = () => {
-    const node = tpl.content.firstElementChild?.cloneNode(true);
-    if (!node) return;
-    rowsWrap.appendChild(node);
-    node.querySelector(".hl-steel-length")?.focus();
-  };
-
-  const removeRow = (btn) => {
-    const row = btn.closest(".hl-steel-row");
-    if (!row) return;
-    const rows = rowsWrap.querySelectorAll(".hl-steel-row");
-    if (rows.length <= 1) {
-      row.querySelectorAll("input").forEach((input) => {
-        input.value = "";
-      });
-      return;
-    }
-    row.remove();
-  };
-
-  rowsWrap.addEventListener("click", (e) => {
-    const addBtn = e.target.closest(".hl-steel-add");
-    if (addBtn) {
-      addRow();
-      return;
-    }
-    const removeBtn = e.target.closest(".hl-steel-remove");
-    if (removeBtn) {
-      removeRow(removeBtn);
-    }
-  });
-});
-
 // Kundendaten: auto-fill date with today's date (local) if empty
 function ensureKundendatenDate(defaultIfEmpty = true) {
   const dateInput = document.getElementById("date");
@@ -18616,7 +18453,6 @@ const HL_NO_QTY = new Set([
   "hlAreaOutside",
   "hlMountTypeBoden",
   "hlMountTypeWand",
-  "hlPipeSteel",
 ]);
 document.addEventListener("change", (e) => {
   const cb = e.target;
@@ -18662,29 +18498,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Massivholz is only available for Innenbereich
   const inside = document.getElementById("hlAreaInside");
-  const woodBlock = document.getElementById("hlPipeWoodBlock");
-  const woodCb = document.getElementById("hlPipeWood");
-  const woodQtyWrap = document.getElementById("qty_hlPipeWood_wrap");
-
-  const syncWoodVisibility = () => {
-    if (!woodBlock) return;
-    const show = !!inside?.checked;
-    woodBlock.hidden = !show;
-    if (!show && woodCb?.checked) {
-      woodCb.checked = false;
-      if (woodQtyWrap) {
-        woodQtyWrap.hidden = true;
-        woodQtyWrap.setAttribute("aria-hidden", "true");
-      }
-      woodCb.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-  };
-
-  inside?.addEventListener("change", syncWoodVisibility);
-  syncWoodVisibility();
-
   const outside = document.getElementById("hlAreaOutside");
   const materialSection = document.getElementById("hl-outdoor-section");
   const materialItems = Array.from(
@@ -19268,6 +19082,8 @@ function initHlFlexofitSearch() {
     showToast(`Hinzugefügt: ${label || productId}`, "success");
   };
 
+  window.hlAddProductToQuickAdd = addProductToQuickAdd;
+
   const render = (items) => {
     results.innerHTML = "";
 
@@ -19377,6 +19193,349 @@ function initHlFlexofitSearch() {
       hideResults();
     }
   });
+}
+
+function initHlFlexofitCatalog() {
+  const root = document.getElementById("hlFlexofitCatalog");
+  const tabs = document.getElementById("hlFlexofitFamilyTabs");
+  const grid = document.getElementById("hlFlexofitCatalogGrid");
+  const status = document.getElementById("hlFlexofitCatalogStatus");
+  const details = document.getElementById("hlFlexofitPipeDetails");
+  const reload = document.getElementById("hlFlexofitCatalogReload");
+  const inside = document.getElementById("hlAreaInside");
+  const outside = document.getElementById("hlAreaOutside");
+
+  if (!root || !tabs || !grid) return;
+
+  let products = [];
+  let entries = [];
+  let activeFamily = "";
+
+  const money = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return "";
+    return `${n.toFixed(2).replace(".", ",")} EUR`;
+  };
+
+  const setStatus = (msg) => {
+    if (status) status.textContent = msg || "";
+  };
+
+  const getSelectedAreas = () => {
+    const out = [];
+    if (inside?.checked) out.push("inside");
+    if (outside?.checked) out.push("outside");
+    return out;
+  };
+
+  const hasArea = (entry, areas) => {
+    if (!areas.length) return false;
+    return entry.areas.some((area) => areas.includes(area));
+  };
+
+  const selectedTarget = () =>
+    document.querySelector('input[name="hlQuickAddTarget"]:checked')?.value ||
+    "hausecke";
+
+  const catalogKey = (entry) =>
+    [
+      entry.family,
+      entry.product?.productId || "",
+      entry.label || productVariant(entry.product),
+    ].join("::");
+
+  const getSelectedRows = () =>
+    Array.from(document.querySelectorAll(".hl-quickadd-items .da-item[data-hl-catalog-key]"));
+
+  const selectedKeys = () => {
+    return new Set(
+      getSelectedRows().map((row) => row.dataset.hlCatalogKey).filter(Boolean),
+    );
+  };
+
+  const triggerPricingRefresh = () => {
+    if (typeof window.updatePricing === "function") window.updatePricing();
+    else if (typeof updatePricing === "function") updatePricing();
+    if (typeof updateSummary === "function") updateSummary();
+  };
+
+  const enforceSelectedParentAreas = () => {
+    getSelectedRows().forEach((row) => {
+      const areas = String(row.dataset.hlCatalogAreas || "")
+        .split(",")
+        .map((area) => area.trim())
+        .filter(Boolean);
+      if (!areas.length) return;
+
+      const hasSelectedParent =
+        (areas.includes("inside") && inside?.checked) ||
+        (areas.includes("outside") && outside?.checked);
+
+      if (hasSelectedParent) return;
+
+      const preferred = areas.includes("inside") ? inside : outside;
+      if (preferred) {
+        preferred.checked = true;
+        preferred.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+  };
+
+  const productVariant = (p) => {
+    const name = String(p?.name || "");
+    const id = String(p?.productId || "");
+
+    if (/^FF_\d{2}[a-z]?$/i.test(id) && /Stahlrohr/i.test(name)) {
+      return name
+        .replace(/^Stahlrohr\s+35mm\s+Dekor\s+/i, "")
+        .replace(/\s+\(Innen\).*/i, "")
+        .trim();
+    }
+    if (/^FF_\d{2}$/i.test(id) && /Aluminiumrohr/i.test(name)) {
+      return name
+        .replace(/^Aluminiumrohr\s+35mm\s+/i, "")
+        .replace(/\s+\(Innen\/Außen\).*/i, "")
+        .trim();
+    }
+    if (/^FF_69$/i.test(id)) return "Edelstahl-Rohr / Deco-Rohr";
+    if (/^FF_20$/i.test(id)) return "Plexiglas 3,0 m";
+    if (/^FF_3/i.test(id)) {
+      return name
+        .replace(/^Massivholz\s+Handlauf\s+Ø35mm\s+/i, "")
+        .replace(/\s+\(Innen\).*/i, "")
+        .trim();
+    }
+    return name
+      .replace(/\s*\((?:Innen|Innen\/Außen)\)/gi, "")
+      .replace(/,\s*Preis pro lfm.*$/i, "")
+      .trim();
+  };
+
+  const imageFor = (entry) => {
+    const id = String(entry.product?.productId || "");
+    const variant = productVariant(entry.product);
+    const family = entry.family;
+
+    if (family === "Stahlrohr 35mm") return `assets/Stahl/${variant}.png`;
+    if (family === "Aluminiumrohr 35mm") return `assets/Aluminiumrohr/${variant}.png`;
+    if (family === "Plexiglas") return "assets/Stahlrohr.png";
+    if (family === "Massivholz") return "assets/Massivholz.png";
+    if (family === "Handlaufhalter innen") return "assets/SonstigeInnen/Handlaufhalter.png";
+    if (family === "Wandabschlussbogen innen") return "assets/SonstigeInnen/Wandabschlussbogen.png";
+    if (family === "Flexo-Gelenk innen") return "assets/SonstigeInnen/Flexo-Gelenk.png";
+    if (family === "90-Grad-Bogen innen") return "assets/SonstigeInnen/90 Bogen.png";
+    if (family === "Sonderabschluss innen") return "assets/SonstigeInnen/Sonderabschluss.png";
+    if (family === "T-Bogen innen") return "assets/SonstigeInnen/90 Bogen.png";
+    if (family === "Decken-/Wand-/Bodenplatte innen") return "assets/SonstigeInnen/Chrom matt.png";
+    if (id === "FF_E08") return "assets/Abdeckrosette .png";
+    if (/^FF_E0[125]$|^FF_E1[12]$/i.test(id)) return "assets/Edelstahlstütze.png";
+    if (/^FF_E22c$/i.test(id)) return "assets/Auflage für Edelstahlstütze.png";
+    if (/^FF_E22d$/i.test(id)) return "assets/Auflage für Edel lang.png";
+    if (/^FF_KFS|^FF_A06$/i.test(id)) return "assets/Wandanschluss gerade.png";
+    if (/^FF_S0001$/i.test(id)) return "assets/Wandanschluss schräg.png";
+    return "assets/Stahlrohr.png";
+  };
+
+  const familyEntriesFor = (p) => {
+    const id = String(p?.productId || "");
+    const name = String(p?.name || "");
+    const out = [];
+    const add = (family, areas, label) => out.push({ product: p, family, areas, label: label || productVariant(p) });
+
+    if (id === "FF_SL01") {
+      add("Stahlrohr 35mm", ["inside"], "Zuschnitt Stahlrohr");
+      add("Aluminiumrohr 35mm", ["inside", "outside"], "Zuschnitt Aluminiumrohr");
+      return out;
+    }
+
+    if (/^FF_(?:0[1-9]|10|12|13|14|15|18|22|9[0-5])$/i.test(id)) add("Stahlrohr 35mm", ["inside"]);
+    else if (id === "FF_20") add("Plexiglas", ["inside"]);
+    else if (/^FF_3/i.test(id)) add("Massivholz", ["inside"]);
+    else if (/^FF_(?:5[0-9]|6[0-6]|7[1-7]|8[2-5])$/i.test(id)) add("Aluminiumrohr 35mm", ["inside", "outside"]);
+    else if (id === "FF_69") add("Aluminiumrohr 35mm", ["inside", "outside"]);
+    else if (/^FF_H07$|^FF_W07$|^FF_F07$|^FF_D07$|^FF_B07$|^FF_S07$/i.test(id)) add("Beschläge Edelstahl außen", ["outside"]);
+    else if (/^FF_E|^FF_KE|^FF_KFS|^FF_A06$|^FF_S0001$/i.test(id)) add("Material Edelstahl außen", ["outside"]);
+    else if (/^FF_H/i.test(id)) add("Handlaufhalter innen", ["inside"]);
+    else if (/^FF_W/i.test(id)) add("Wandabschlussbogen innen", ["inside"]);
+    else if (/^FF_F/i.test(id)) add("Flexo-Gelenk innen", ["inside"]);
+    else if (/^FF_D/i.test(id)) add("Decken-/Wand-/Bodenplatte innen", ["inside"]);
+    else if (/^FF_T/i.test(id)) add("T-Bogen innen", ["inside"]);
+    else if (/^FF_B/i.test(id)) add("90-Grad-Bogen innen", ["inside"]);
+    else if (/^FF_S/i.test(id)) add("Sonderabschluss innen", ["inside"]);
+    else add(name.includes("Außen") ? "Weitere Produkte außen" : "Weitere Produkte innen", name.includes("Außen") ? ["outside"] : ["inside"]);
+
+    return out;
+  };
+
+  const render = () => {
+    const selectedAreas = getSelectedAreas();
+    const chosen = selectedKeys();
+    tabs.innerHTML = "";
+    grid.innerHTML = "";
+
+    if (!selectedAreas.length) {
+      setStatus("Bitte Innenbereich oder Außenbereich auswählen.");
+      return;
+    }
+
+    const visible = entries.filter((entry) => hasArea(entry, selectedAreas));
+    const families = [...new Set(visible.map((entry) => entry.family))];
+
+    if (!families.length) {
+      setStatus("Keine Flexofit-Produkte für diese Auswahl gefunden.");
+      return;
+    }
+
+    if (!families.includes(activeFamily)) activeFamily = families[0];
+    setStatus(`${visible.length} Produkte in ${families.length} Familien · ${chosen.size} ausgewählt`);
+
+    families.forEach((family) => {
+      const selectedInFamily = visible.filter((entry) => {
+        return entry.family === family && chosen.has(catalogKey(entry));
+      }).length;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = [
+        "hl-flex-catalog__tab",
+        family === activeFamily ? "is-active" : "",
+        selectedInFamily ? "is-selected" : "",
+      ].filter(Boolean).join(" ");
+      btn.textContent = selectedInFamily ? `${family} (${selectedInFamily})` : family;
+      btn.addEventListener("click", () => {
+        activeFamily = family;
+        render();
+      });
+      tabs.appendChild(btn);
+    });
+
+    visible
+      .filter((entry) => entry.family === activeFamily)
+      .forEach((entry) => {
+        const p = entry.product;
+        const key = catalogKey(entry);
+        const isSelected = chosen.has(key);
+        const card = document.createElement("button");
+        card.type = "button";
+        card.className = `hl-flex-product${isSelected ? " is-selected" : ""}`;
+        card.setAttribute("aria-pressed", String(isSelected));
+        card.innerHTML = `
+          <span class="hl-flex-product__image">
+            <img src="${imageFor(entry)}" alt="" loading="lazy" />
+          </span>
+          <span class="hl-flex-product__body">
+            <span class="hl-flex-product__name">${escapeHtml(entry.label || productVariant(p))}</span>
+            <span class="hl-flex-product__meta">${escapeHtml(p.productId || "")} · ${money(p.price)}</span>
+          </span>
+          <span class="hl-flex-product__check" aria-hidden="true">
+            <i class="fa-solid ${isSelected ? "fa-check" : "fa-plus"}"></i>
+          </span>
+        `;
+        card.querySelector("img")?.addEventListener("error", (e) => {
+          e.currentTarget.remove();
+        });
+        card.addEventListener("click", () => {
+          toggleEntry(entry);
+        });
+        grid.appendChild(card);
+      });
+  };
+
+  const makeRowForEntry = (entry) => {
+    const target = selectedTarget();
+    const wrap =
+      document.getElementById(`hlQuickAddItems_${target}`) ||
+      document.querySelector(".hl-quickadd-items");
+    const tpl = document.getElementById("tpl-hl-quickadd-row");
+    if (!wrap) return null;
+
+    const rows = Array.from(wrap.querySelectorAll(".da-item"));
+    let row = rows.find((r) => {
+      const n = String(r.querySelector(".da-name")?.value || "").trim();
+      const i = String(r.querySelector(".da-id")?.value || "").trim();
+      const pr = String(r.querySelector(".da-price")?.value || "").trim();
+      return !n && !i && !pr;
+    });
+
+    if (!row && tpl?.content?.firstElementChild) {
+      row = tpl.content.firstElementChild.cloneNode(true);
+      wrap.appendChild(row);
+      wireHlQuickAddRow(row);
+    }
+    if (!row) return null;
+
+    const p = entry.product;
+    row.dataset.hlCatalogKey = catalogKey(entry);
+    row.dataset.hlCatalogFamily = entry.family;
+    row.dataset.hlCatalogAreas = entry.areas.join(",");
+
+    const setVal = (sel, value) => {
+      const el = row.querySelector(sel);
+      if (!el) return;
+      el.value = value;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+
+    setVal(".da-name", entry.label || p.name || p.productId || "");
+    setVal(".da-id", p.productId || "");
+    setVal(".da-qty", "1");
+    setVal(".da-price", money(p.price).replace(" EUR", ""));
+
+    return row;
+  };
+
+  const toggleEntry = (entry) => {
+    const key = catalogKey(entry);
+    const matching = getSelectedRows().filter((row) => row.dataset.hlCatalogKey === key);
+
+    if (matching.length) {
+      matching.forEach((row) => row.remove());
+      triggerPricingRefresh();
+      render();
+      return;
+    }
+
+    const row = makeRowForEntry(entry);
+    if (!row) return;
+
+    triggerPricingRefresh();
+    render();
+  };
+
+  const load = async () => {
+    setStatus("Lade Flexofit-Produkte ...");
+    try {
+      const res = await fetch("/api/products?source=flexofit&limit=500");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      products = await res.json();
+      entries = products.flatMap(familyEntriesFor);
+      render();
+    } catch (err) {
+      console.warn("[HL Flexofit catalog] failed:", err);
+      setStatus("Flexofit-Katalog konnte nicht geladen werden.");
+    }
+  };
+
+  inside?.addEventListener("change", () => {
+    enforceSelectedParentAreas();
+    render();
+  });
+  outside?.addEventListener("change", () => {
+    enforceSelectedParentAreas();
+    render();
+  });
+  document.querySelectorAll('input[name="hlQuickAddTarget"]').forEach((input) => {
+    input.addEventListener("change", render);
+  });
+  document.querySelectorAll(".hl-quickadd-items").forEach((wrap) => {
+    wrap.addEventListener("input", render);
+    wrap.addEventListener("change", render);
+    wrap.addEventListener("click", (e) => {
+      if (e.target.closest(".da-remove")) setTimeout(render, 0);
+    });
+  });
+  reload?.addEventListener("click", load);
+  load();
 }
 
 
@@ -19862,6 +20021,7 @@ function initBlProductCards() {
 // init on load
 document.addEventListener("DOMContentLoaded", () => {
   initHlFlexofitSearch();
+  initHlFlexofitCatalog();
   initHlQuickAddRepeater();
   initHlFlexofitImporter();
 });
@@ -20538,7 +20698,6 @@ window.__debug_reloadCustomers = () => {
 
 const TODAY_CALENDAR_ENDPOINTS = [
   "/api/calendar/today",
-  "https://fly-n8n-1.fly.dev/webhook/5f53f921-c711-46f9-ba3c-08b9225a74c6",
 ];
 
 const CALENDAR_TYPE_RULES = [
@@ -20834,15 +20993,8 @@ async function fetchTodayCalendarEvents(){
   if(window.__todayCustomersPromise){
     try {
       await window.__todayCustomersPromise;
-      console.info("[today-calendar] todays customers ready before loading calendar events", {
-        count: Array.isArray(todaysCustomers) ? todaysCustomers.length : 0,
-        contactMapSize: window.todaysCustomersByContactId instanceof Map ? window.todaysCustomersByContactId.size : 0,
-        emailMapSize: window.todaysCustomersByEmail instanceof Map ? window.todaysCustomersByEmail.size : 0,
-        phoneMapSize: window.todaysCustomersByPhone instanceof Map ? window.todaysCustomersByPhone.size : 0,
-        nameMapSize: window.todaysCustomersByName instanceof Map ? window.todaysCustomersByName.size : 0,
-      });
     } catch (error) {
-      console.warn("[today-calendar] waiting for todays customers failed", error);
+      // customers unavailable, proceed without
     }
   }
 
@@ -21006,25 +21158,11 @@ function hydrateCalendarEventFromTodayCustomer(event, parsed){
     || null;
 
   if(!matchedCustomer){
-    console.info("[today-calendar] no deal found for customer", {
-      eventId: event?.ID || "",
-      contactId,
-      email,
-      phone,
-      firstName: name.firstName || "",
-      lastName: name.lastName || "",
-      title: event?.NAME || event?.TITLE || "",
-    });
     return null;
   }
 
   const k = matchedCustomer.Kundendaten || {};
   const resolvedDealId = String(matchedCustomer.dealId || matchedCustomer.ID || matchedCustomer.id || "").trim();
-  if(resolvedDealId){
-    console.info("[today-calendar] matched deal id", { eventId: event?.ID || "", dealId: resolvedDealId, email, phone, contactId });
-  } else {
-    console.info("[today-calendar] matched customer has no deal id", { eventId: event?.ID || "", matchedCustomer });
-  }
 
   return {
     dealId: resolvedDealId,
@@ -21043,12 +21181,12 @@ function hydrateCalendarEventFromTodayCustomer(event, parsed){
   };
 }
 
- async function applyCalendarEventToForm(event){
+async function applyCalendarEventToForm(event){
   if(window.__todayCustomersPromise){
     try {
       await window.__todayCustomersPromise;
     } catch (error) {
-      console.warn("[today-calendar] waiting for todays customers failed", error);
+      // ignore
     }
   }
 
@@ -21057,8 +21195,6 @@ function hydrateCalendarEventFromTodayCustomer(event, parsed){
   const detected = detectOfferTypeFromCalendarEvent(event);
   const locationFromTitle = getCalendarTitleLocation(event?.NAME || event?.TITLE || "");
   const hydrated = hydrateCalendarEventFromTodayCustomer(event, parsed);
-
-  console.log("Loading calendar event:", event, "detected offer:", detected, "hydrated:", hydrated);
 
   if(detected.offerKey && typeof startOfferFlow === "function"){
     startOfferFlow(detected.offerKey);

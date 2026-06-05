@@ -580,4 +580,20 @@ router.get("/bitrix/kundendaten", async (req, res) => {
   }
 });
 
+router.post("/calendar/today", async (req, res) => {
+  try {
+    const data = await bxPost("calendar.event.get", {
+      type: "group",
+      ownerId: "152",
+    });
+    return res.json(data);
+  } catch (err) {
+    console.error("POST /api/calendar/today failed:", err);
+    return res.status(500).json({
+      ok: false,
+      error: err?.message || String(err),
+    });
+  }
+});
+
 export default router;

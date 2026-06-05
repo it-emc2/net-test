@@ -23,12 +23,8 @@ const products = [
   { productId: 'FF_12', name: 'Stahlrohr 35mm Dekor Weiß (Innen), Preis pro lfm, Rohrlänge 5m', price: 21.0, widthCm: 3.5, heightCm: null, lengthCm: 500 },
   { productId: 'FF_13', name: 'Stahlrohr 35mm Dekor Rot (Innen), Preis pro lfm, Rohrlänge 5m', price: 21.0, widthCm: 3.5, heightCm: null, lengthCm: 500 },
   { productId: 'FF_14', name: 'Stahlrohr 35mm Dekor Golden Rust (Innen), Preis pro lfm, Rohrlänge 5m', price: 21.0, widthCm: 3.5, heightCm: null, lengthCm: 500 },
-
-  // NOTE: FF_15 "Eiche gekalkt" is NOT present in the new list you pasted (Stand 15.07.2025),
-  // so price is left as-is.
   { productId: 'FF_15', name: 'Stahlrohr 35mm Dekor Eiche gekalkt (Innen), Preis pro lfm, Rohrlänge 5m', price: 21.5, widthCm: 3.5, heightCm: null, lengthCm: 500 },
 
-  // In new list:
   { productId: 'FF_18', name: 'Stahlrohr 35mm Dekor Anthrazitgrau mit Silberstreif (Innen), Preis pro lfm, Rohrlänge 5m', price: 23.5, widthCm: 3.5, heightCm: null, lengthCm: 500 },
   { productId: 'FF_22', name: 'Stahlrohr 35mm Dekor Birnbaum dunkel mit Struktur (Innen), Preis pro lfm, Rohrlänge 5m', price: 23.0, widthCm: 3.5, heightCm: null, lengthCm: 500 },
   { productId: 'FF_90', name: 'Stahlrohr 35mm Dekor Esche weiß (Innen), Preis pro lfm, Rohrlänge 5m', price: 23.0, widthCm: 3.5, heightCm: null, lengthCm: 500 },
@@ -36,6 +32,7 @@ const products = [
   { productId: 'FF_92', name: 'Stahlrohr 35mm Dekor Eiche hellbraun (Innen), Preis pro lfm, Rohrlänge 5m', price: 23.0, widthCm: 3.5, heightCm: null, lengthCm: 500 },
   { productId: 'FF_93', name: 'Stahlrohr 35mm Dekor Grau Holzstruktur (Innen), Preis pro lfm, Rohrlänge 5m', price: 23.0, widthCm: 3.5, heightCm: null, lengthCm: 500 },
   { productId: 'FF_94', name: 'Stahlrohr 35mm Dekor Eiche Sand (Innen), Preis pro lfm, Rohrlänge 5m', price: 23.0, widthCm: 3.5, heightCm: null, lengthCm: 500 },
+  { productId: 'FF_95', name: 'Stahlrohr 35mm Dekor Teak Holzstruktur (Innen), Preis pro lfm, Rohrlänge 5m', price: 23.0, widthCm: 3.5, heightCm: null, lengthCm: 500 },
 
   { productId: 'FF_SL01', name: 'Zuschnitt (nur auf volle 10 cm)', price: 8.0, widthCm: null, heightCm: null, lengthCm: null },
 
@@ -58,7 +55,7 @@ const products = [
   { productId: 'FF_H06', name: 'Handlaufhalter (Innen) Weiß', price: 13.0, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_H09', name: 'Handlaufhalter (Innen) Messing hochglanz', price: 15.0, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_H10', name: 'Handlaufhalter (Innen) Anthrazit', price: 13.0, widthCm: null, heightCm: null, lengthCm: null },
-
+  { productId: 'FF_H11', name: 'Handlaufhalter (Innen) Nickel gebürstet', price: 15.0, widthCm: null, heightCm: null, lengthCm: null },
   // Wandabschlussbogen (Innen)
   { productId: 'FF_W02', name: 'Wandabschlussbogen (Innen) Schwarz', price: 20.0, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_W03', name: 'Wandabschlussbogen (Innen) Chrom glanz', price: 20.0, widthCm: null, heightCm: null, lengthCm: null },
@@ -67,7 +64,7 @@ const products = [
   { productId: 'FF_W06', name: 'Wandabschlussbogen (Innen) Weiß', price: 20.0, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_W09', name: 'Wandabschlussbogen (Innen) Messing hochglanz', price: 23.0, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_W10', name: 'Wandabschlussbogen (Innen) Anthrazit', price: 20.0, widthCm: null, heightCm: null, lengthCm: null },
-
+  { productId: 'FF_W11', name: 'Wandabschlussbogen (Innen) Nickel gebürstet', price: 23.0, widthCm: null, heightCm: null, lengthCm: null },
   // Flexo-Gelenk (Innen)
   { productId: 'FF_F02', name: 'Flexo-Gelenk (Innen) Schwarz', price: 25.5, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_F03', name: 'Flexo-Gelenk (Innen) Chrom glanz', price: 25.5, widthCm: null, heightCm: null, lengthCm: null },
@@ -76,7 +73,7 @@ const products = [
   { productId: 'FF_F06', name: 'Flexo-Gelenk (Innen) Weiß', price: 25.5, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_F09', name: 'Flexo-Gelenk (Innen) Messing hochglanz', price: 27.0, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_F10', name: 'Flexo-Gelenk (Innen) Anthrazit', price: 25.5, widthCm: null, heightCm: null, lengthCm: null },
-
+  { productId: 'FF_F11', name: 'Flexo-Gelenk (Innen) Nickel gebürstet', price: 27.0, widthCm: null, heightCm: null, lengthCm: null },
   // Decken-/Wand-/Bodenplatte (Innen)
   { productId: 'FF_D02', name: 'Decken-/Wand-/Bodenplatte (Innen) Schwarz', price: 13.0, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_D03', name: 'Decken-/Wand-/Bodenplatte (Innen) Chrom glanz', price: 13.0, widthCm: null, heightCm: null, lengthCm: null },
@@ -85,7 +82,7 @@ const products = [
   { productId: 'FF_D06', name: 'Decken-/Wand-/Bodenplatte (Innen) Weiß', price: 13.0, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_D09', name: 'Decken-/Wand-/Bodenplatte (Innen) Messing hochglanz', price: 14.0, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_D10', name: 'Decken-/Wand-/Bodenplatte (Innen) Anthrazit', price: 13.0, widthCm: null, heightCm: null, lengthCm: null },
-
+  { productId: 'FF_D11', name: 'Decken-/Wand-/Bodenplatte (Innen) Nickel gebürstet', price: 14.0, widthCm: null, heightCm: null, lengthCm: null },
   // T-Bogen (Innen)
   { productId: 'FF_T02', name: 'T-Bogen (Innen) Schwarz', price: 24.0, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_T03', name: 'T-Bogen (Innen) Chrom glanz', price: 24.0, widthCm: null, heightCm: null, lengthCm: null },
@@ -94,7 +91,7 @@ const products = [
   { productId: 'FF_T06', name: 'T-Bogen (Innen) Weiß', price: 24.0, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_T09', name: 'T-Bogen (Innen) Messing hochglanz', price: 25.0, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_T10', name: 'T-Bogen (Innen) Anthrazit', price: 24.0, widthCm: null, heightCm: null, lengthCm: null },
-
+  { productId: 'FF_T11', name: 'T-Bogen (Innen) Nickel gebürstet', price: 25.0, widthCm: null, heightCm: null, lengthCm: null },
   // 90-Grad-Bogen (Innen)
   { productId: 'FF_B02', name: '90-Grad-Bogen (Innen) Schwarz', price: 14.0, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_B03', name: '90-Grad-Bogen (Innen) Chrom glanz', price: 14.0, widthCm: null, heightCm: null, lengthCm: null },
@@ -103,7 +100,7 @@ const products = [
   { productId: 'FF_B06', name: '90-Grad-Bogen (Innen) Weiß', price: 14.0, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_B09', name: '90-Grad-Bogen (Innen) Messing hochglanz', price: 16.0, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_B10', name: '90-Grad-Bogen (Innen) Anthrazit', price: 14.0, widthCm: null, heightCm: null, lengthCm: null },
-
+  { productId: 'FF_B11', name: '90-Grad-Bogen (Innen) Nickel gebürstet', price: 16.0, widthCm: null, heightCm: null, lengthCm: null },
   // Sonderabschluss (Innen)
   { productId: 'FF_S02', name: 'Sonderabschluss (Innen) Schwarz', price: 12.0, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_S03', name: 'Sonderabschluss (Innen) Chrom glanz', price: 12.0, widthCm: null, heightCm: null, lengthCm: null },
@@ -112,7 +109,7 @@ const products = [
   { productId: 'FF_S06', name: 'Sonderabschluss (Innen) Weiß', price: 12.0, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_S09', name: 'Sonderabschluss (Innen) Messing hochglanz', price: 14.0, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'FF_S10', name: 'Sonderabschluss (Innen) Anthrazit', price: 12.0, widthCm: null, heightCm: null, lengthCm: null },
-
+  { productId: 'FF_S11', name: 'Sonderabschluss (Innen) Nickel gebürstet', price: 14.0, widthCm: null, heightCm: null, lengthCm: null },
   // Aluminiumrohr 35mm (Innen/Außen) — Rohrlänge = 6m, Preis pro lfm
   { productId: 'FF_50', name: 'Aluminiumrohr 35mm Weiß (Innen/Außen), Preis pro lfm, Rohrlänge 6m', price: 31.25, widthCm: 3.5, heightCm: null, lengthCm: 600 },
   { productId: 'FF_51', name: 'Aluminiumrohr 35mm Schwarz (Innen/Außen), Preis pro lfm, Rohrlänge 6m', price: 29.5, widthCm: 3.5, heightCm: null, lengthCm: 600 },

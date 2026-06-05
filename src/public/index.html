@@ -7003,6 +7003,7 @@ button.dm-btn-danger:focus-visible {
             </div>
 
             <div id="hlProductSearchStatus" class="muted" style="margin-top:6px;" aria-live="polite"></div>
+
           </div>
 
           <!-- HL: Freier Posten / Quick Add — Handlauf Hausecke Außenbereich -->
@@ -7270,8 +7271,25 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
 
+          <div id="hlFlexofitCatalog" class="hl-flex-catalog full field" aria-live="polite">
+            <div class="hl-flex-catalog__head">
+              <div>
+                <div class="section-title">Flexofit Katalog</div>
+                <p class="section-subtitle">Produkte nach Bereich, Familie und Variante.</p>
+              </div>
+              <button type="button" id="hlFlexofitCatalogReload" class="secondary">
+                <i class="fa-solid fa-rotate-right"></i>
+                Aktualisieren
+              </button>
+            </div>
+            <div id="hlFlexofitCatalogStatus" class="muted"></div>
+            <div id="hlFlexofitFamilyTabs" class="hl-flex-catalog__tabs" role="tablist" aria-label="Flexofit Produktfamilien"></div>
+            <div id="hlFlexofitCatalogGrid" class="hl-flex-catalog__grid"></div>
+            <div id="hlFlexofitPipeDetails" class="hl-flex-catalog__details" hidden></div>
+          </div>
+
           <!-- Mounting type -->
-          <div class="full field">
+          <div class="full field" id="hlLegacyPipeSection" hidden aria-hidden="true">
             <label class="req">Mounting type</label>
 
             <div id="hlMountTypeWrap" style="display:grid; gap:14px; grid-template-columns:repeat(2, minmax(0, 220px)); justify-content:start;">
@@ -7301,299 +7319,6 @@ button.dm-btn-danger:focus-visible {
                   <input id="qty_hlMountTypeWand" name="qty_hlMountTypeWand" type="number" min="0" step="1"
                     placeholder="0" />
                 </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Rohr-Typ -->
-          <div class="full field">
-            <h3 style="margin: 0 0 12px"> Material: Edelstahl-Rohr ⌀35mm</h3>
-            <label class="req">Wählen Sie Ihren gewünschten Rohr-Typen</label>
-
-            <!-- Pipe-type picker: side-by-side -->
-            <div style="display:grid; gap:14px; grid-template-columns:repeat(2, minmax(0, 220px)); justify-content:start;">
-              <div class="hl-item">
-                <label class="image-check">
-                  <input type="checkbox" id="hlPipeSteel" name="hl_pipe_type" value="Stahlrohr"
-                    data-product-id="Hl-PIPE-STEEL" />
-                  <span class="img-wrap">
-                    <img src="./assets/Stahlrohr.png" alt="Stahlrohr" />
-                  </span>
-                  <span class="caption">Stahlrohr</span>
-                </label>
-
-                <div id="qty_hlPipeSteel_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
-                  <label for="qty_hlPipeSteel" class="req">Meter</label>
-                  <input id="qty_hlPipeSteel" name="qty_hlPipeSteel" type="number" min="0" step="0.01" inputmode="decimal" placeholder="z. B. 1,50" />
-                </div>
-              </div>
-
-              <div id="hlPipeWoodBlock" class="hl-item" data-requires-area="inside" hidden>
-                <label class="image-check">
-                  <input type="checkbox" id="hlPipeWood" name="hl_pipe_type" value="Massivholz"
-                    data-product-id="HL-PIPE-WOOD" />
-                  <span class="img-wrap">
-                    <img src="./assets/Massivholz.png" alt="Massivholz" />
-                  </span>
-                  <span class="caption">Massivholz</span>
-                </label>
-
-                <div id="qty_hlPipeWood_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
-                  <label for="qty_hlPipeWood" class="req">Meter</label>
-                  <input id="qty_hlPipeWood" name="qty_hlPipeWood" type="number" min="0" step="0.01" inputmode="decimal" placeholder="z. B. 1,50" />
-                </div>
-              </div>
-            </div>
-
-            <!-- Stahl-specific detail panels -->
-            <div>
-              <div class="field" id="hl-steel-length-quality">
-                  <div class="section-title">Länge und Qualität</div>
-                  <div class="hl-steel-items">
-                    <div class="hl-steel-row">
-                      <label class="hl-steel-label">
-                        Länge
-                        <input class="hl-steel-length" name="hl_steel_length[]" type="text"
-                          placeholder="z. B. 1,20 m" />
-                      </label>
-                      <label class="hl-steel-label">
-                        Qualität
-                        <input class="hl-steel-quality" name="hl_steel_quality[]" type="text" placeholder="z. B. V2A" />
-                      </label>
-                      <button type="button" class="hl-steel-add da-add" aria-label="Zeile hinzufuegen">+</button>
-                      <button type="button" class="hl-steel-remove da-remove" aria-label="Zeile entfernen">-</button>
-                    </div>
-                  </div>
-                </div>
-
-                <template id="tpl-hl-steel-row">
-                  <div class="hl-steel-row">
-                    <label class="hl-steel-label">
-                      Laenge
-                      <input class="hl-steel-length" name="hl_steel_length[]" type="text" placeholder="z. B. 1,20 m" />
-                    </label>
-                    <label class="hl-steel-label">
-                      Qualitaet
-                      <input class="hl-steel-quality" name="hl_steel_quality[]" type="text" placeholder="z. B. V2A" />
-                    </label>
-                    <button type="button" class="hl-steel-add da-add" aria-label="Zeile hinzufuegen">+</button>
-                    <button type="button" class="hl-steel-remove da-remove" aria-label="Zeile entfernen">-</button>
-                  </div>
-                </template>
-
-                <!-- Farbauswahl Stahlrohr -->
-                <div id="hl-steel-color-section" class="field full">
-                  <div class="section-title">Farbauswahl Stahlrohr</div>
-                  <p class="section-subtitle">Bitte wählen Sie eine Wunschfarbe aus.</p>
-                  <div class="color-swatch-group color-swatch-group--stacked"> 
-                    <!-- Silber matt --> <label class="color-swatch"> <input type="radio" name="hl_steel_color"
-                        value="Silber matt" aria-label="Silber matt" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Silber matt.png" alt="Silber matt" />
-                      </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Silber matt</span>
-                      </div>
-                    </label> 
-                    <!-- Anthrazitgrau mit Silberstreif -->
-                    <label class="color-swatch"> <input type="radio" name="hl_steel_color"
-                        value="Anthrazitgrau mit Silberstreif" aria-label="Anthrazitgrau mit Silberstreif" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Anthrazitgrau mit Silberstreif.jpg"
-                          alt="Anthrazitgrau mit Silberstreif" /> </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Anthrazitgrau mit Silberstreif</span>
-                      </div>
-                    </label> <!-- Birnbaum dunkel mit Struktur --> <label class="color-swatch"> <input type="radio"
-                        name="hl_steel_color" value="Birnbaum dunkel mit Struktur"
-                        aria-label="Birnbaum dunkel mit Struktur" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Birnbaum dunkel mit Struktur.jpg"
-                          alt="Birnbaum dunkel mit Struktur" /> </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Birnbaum dunkel mit Struktur</span>
-                      </div>
-                    </label> <!-- Eiche Sand --> <label class="color-swatch"> <input type="radio" name="hl_steel_color"
-                        value="Eiche Sand" aria-label="Eiche Sand" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Eiche Sand.png" alt="Eiche Sand" />
-                      </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Eiche Sand</span>
-                      </div>
-                    </label> <!-- Grau Holzstruktur --> <label class="color-swatch"> <input type="radio"
-                        name="hl_steel_color" value="Grau Holzstruktur" aria-label="Grau Holzstruktur" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Grau Holzstruktur.png"
-                          alt="Grau Holzstruktur" /> </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Grau Holzstruktur</span>
-                      </div>
-                    </label> <!-- Eiche hellbraun --> <label class="color-swatch"> <input type="radio"
-                        name="hl_steel_color" value="Eiche hellbraun" aria-label="Eiche hellbraun" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Eiche hellbraun.png"
-                          alt="Eiche hellbraun" /> </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Eiche hellbraun</span>
-                      </div>
-                    </label> <!-- Eiche Creme --> <label class="color-swatch"> <input type="radio" name="hl_steel_color"
-                        value="Eiche Creme" aria-label="Eiche Creme" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Eiche Creme.png" alt="Eiche Creme" />
-                      </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Eiche Creme</span>
-                      </div>
-                    </label> <!-- Esche weiß --> <label class="color-swatch"> <input type="radio" name="hl_steel_color"
-                        value="Esche weiß" aria-label="Esche weiß" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Esche weiß.png" alt="Esche weiß" />
-                      </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Esche weiß</span>
-                      </div>
-                    </label> <!-- Eiche gekalkt --> <label class="color-swatch"> <input type="radio"
-                        name="hl_steel_color" value="Eiche gekalkt" aria-label="Eiche gekalkt" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Eiche gekalkt.png"
-                          alt="Eiche gekalkt" /> </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Eiche gekalkt</span>
-                      </div>
-                    </label> <!-- Golden Rust --> <label class="color-swatch"> <input type="radio" name="hl_steel_color"
-                        value="Golden Rust" aria-label="Golden Rust" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Golden Rust.png" alt="Golden Rust" />
-                      </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Golden Rust</span>
-                      </div>
-                    </label> <!-- Rot --> <label class="color-swatch"> <input type="radio" name="hl_steel_color"
-                        value="Rot" aria-label="Rot" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Rot.png" alt="Rot" /> </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Rot</span>
-                      </div>
-                    </label> <!-- Weiß --> <label class="color-swatch"> <input type="radio" name="hl_steel_color"
-                        value="Weiß" aria-label="Weiß" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Weiß.png" alt="Weiß" /> </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Weiß</span>
-                      </div>
-                    </label> <!-- Schwarz mit Silberstreifen --> <label class="color-swatch"> <input type="radio"
-                        name="hl_steel_color" value="Schwarz mit Silberstreifen"
-                        aria-label="Schwarz mit Silberstreifen" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Schwarz mit Silberstreifen.png"
-                          alt="Schwarz mit Silberstreifen" /> </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Schwarz mit Silberstreifen</span>
-                      </div>
-                    </label> <!-- Messing Längsstruktur --> <label class="color-swatch"> <input type="radio"
-                        name="hl_steel_color" value="Messing Längsstruktur" aria-label="Messing Längsstruktur" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Messing Längsstruktur.png"
-                          alt="Messing Längsstruktur" /> </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Messing Längsstruktur</span>
-                      </div>
-                    </label> <!-- Eiche dunkel --> <label class="color-swatch"> <input type="radio"
-                        name="hl_steel_color" value="Eiche dunkel" aria-label="Eiche dunkel" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Eiche dunkel.png" alt="Eiche dunkel" />
-                      </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Eiche dunkel</span>
-                      </div>
-                    </label> <!-- Eiche mittel --> <label class="color-swatch"> <input type="radio"
-                        name="hl_steel_color" value="Eiche mittel" aria-label="Eiche mittel" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Eiche mittel.png" alt="Eiche mittel" />
-                      </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Eiche mittel</span>
-                      </div>
-                    </label> <!-- Eiche hell --> <label class="color-swatch"> <input type="radio" name="hl_steel_color"
-                        value="Eiche hell" aria-label="Eiche hell" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Eiche hell.png" alt="Eiche hell" />
-                      </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Eiche hell</span>
-                      </div>
-                    </label> <!-- Wurzelholz --> <label class="color-swatch"> <input type="radio" name="hl_steel_color"
-                        value="Wurzelholz" aria-label="Wurzelholz" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Wurzelholz.png" alt="Wurzelholz" />
-                      </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Wurzelholz</span>
-                      </div>
-                    </label> <!-- Nussbaum --> <label class="color-swatch"> <input type="radio" name="hl_steel_color"
-                        value="Nussbaum" aria-label="Nussbaum" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Nussbaum.png" alt="Nussbaum" /> </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Nussbaum</span>
-                      </div>
-                    </label> <!-- Kirsche mittel --> <label class="color-swatch"> <input type="radio"
-                        name="hl_steel_color" value="Kirsche mittel" aria-label="Kirsche mittel" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Kirsche mittel.png"
-                          alt="Kirsche mittel" /> </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Kirsche mittel</span>
-                      </div>
-                    </label> <!-- Buche hell --> <label class="color-swatch"> <input type="radio" name="hl_steel_color"
-                        value="Buche hell" aria-label="Buche hell" />
-                      <div class="color-swatch__preview"> <img src="assets/Stahl/Buche hell.png" alt="Buche hell" />
-                      </div>
-                      <div class="color-swatch__info">
-                        <div class="color-swatch__radio">
-                          <div class="color-swatch__radio-inner"></div>
-                        </div> <span class="color-swatch__label">Buche hell</span>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-              <!-- hidden Aluminium option (kept for data model) -->
-              <label class="image-check" style="display:none">
-                <input type="checkbox" id="hlPipeAlu" name="hl_pipe_type" value="Aluminiumrohr"
-                  data-product-id="HL-PIPE-ALU" />
-                <span class="img-wrap">
-                  <img src="./assets/Aluminiumrohr.png" alt="Aluminiumrohr" />
-                </span>
-                <span class="caption">Aluminiumrohr</span>
-              </label>
-
-              <div id="qty_hlPipeAlu_wrap" class="field" hidden aria-hidden="true"
-                style="max-width: 220px; display:none">
-                <label for="qty_hlPipeAlu" class="req">Meter</label>
-                <input id="qty_hlPipeAlu" name="qty_hlPipeAlu" type="number" min="0" step="0.01" inputmode="decimal" placeholder="z. B. 1,50" />
               </div>
             </div>
           </div>
