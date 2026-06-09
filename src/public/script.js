@@ -1594,19 +1594,42 @@ document.addEventListener("change", () => {
 });
 
 const ARBEITSZEIT_RULES = {
+  // Badewanne
   remove_tub: { label: "Badewanne entfernen", minutes: 45 },
+  install_bathtub: { label: "Badewanne einbauen", minutes: 90 },
+  install_bathtub_screen: { label: "Wannenaufsatz montieren", minutes: 60 },
+  // Duschwanne
   remove_showertub: { label: "Duschwanne entfernen", minutes: 30 },
   remove_enclosure: { label: "Duschabtrennung entfernen", minutes: 25 },
   install_tray: { label: "Duschwanne installieren", minutes: 75 },
+  install_sitzbath: { label: "Sitzbadewanne einbauen", minutes: 120 },
+  // Duschabtrennung
+  remove_shower_curtain: { label: "Duschvorhang entfernen", minutes: 15 },
+  install_shower_curtain: { label: "Duschvorhang montieren", minutes: 15 },
   install_enclosure: { label: "Duschabtrennung montieren", minutes: 60 },
-  install_bathtub_screen: { label: "Wannenaufsatz montieren", minutes: 60 },
-  replace_shower_system: { label: "Duschsystem auswechseln", minutes: 20 },
-  relocate_faucet: { label: "Armatur versetzen", minutes: 90 },
+  install_box_enclosure: { label: "Kasten verkleiden", minutes: 60 },
+  install_distance_profile: { label: "Abstandprofil montieren", minutes: 20 },
+  // Thermostat / Duschsystem
   close_valve: { label: "Armatur stilllegen", minutes: 45 },
+  relocate_faucet: { label: "Armatur versetzen", minutes: 90 },
   relocate_drain: { label: "Abfluss verlegen", minutes: 30 },
-  remove_toilet: { label: "Toilette entfernen", minutes: 50 },
+  convert_faucet: { label: "Armatur umbauen", minutes: 90 },
+  replace_thermostat: { label: "Thermostat auswechseln", minutes: 30 },
+  replace_shower_no_thermo: { label: "Duschsystem auswechseln", minutes: 30 },
+  replace_shower_with_thermo: { label: "Duschsystem + Thermostat auswechseln", minutes: 45 },
+  replace_shower_system: { label: "Duschsystem auswechseln", minutes: 20 }, // legacy
+  install_shower_basket: { label: "Duschkorb montieren", minutes: 15 },
+  // Waschbecken
   remove_sink: { label: "Waschbecken entfernen", minutes: 30 },
+  install_sink: { label: "Waschbecken einbauen", minutes: 45 },
+  replace_sink_faucet: { label: "Waschbecken-Armatur auswechseln", minutes: 30 },
+  // Bademöbel
+  remove_furniture: { label: "Bademöbel entfernen", minutes: 20 },
+  install_furniture: { label: "Bademöbel einbauen", minutes: 30 },
+  // Toilette
+  remove_toilet: { label: "Toilette entfernen", minutes: 50 },
   install_toilet: { label: "Toilette montieren", minutes: 20 },
+  install_shower_wc: { label: "Dusch-WC einbauen", minutes: 60 },
 };
 
 function getArbeitszeitQty(inputId, qtyId) {
@@ -8313,9 +8336,11 @@ function initBathtubSearch() {
     }
   };
 
-  // initial state + toggle on checkbox
-  showPanel(!!task.checked);
-  task.addEventListener("change", () => showPanel(!!task.checked));
+  // initial state + toggle on any install_bathtub checkbox (may appear in multiple groups)
+  const allBathtubTasks = document.querySelectorAll('input[name="duschwanne[workTasks][]"][value="install_bathtub"]');
+  const anyBathtubChecked = () => Array.from(allBathtubTasks).some(t => t.checked);
+  showPanel(anyBathtubChecked());
+  allBathtubTasks.forEach(t => t.addEventListener("change", () => showPanel(anyBathtubChecked())));
 
   function renderSuggestions(list) {
     if (!Array.isArray(list) || list.length === 0) {
@@ -8448,8 +8473,11 @@ function initSmartBathtubSearch() {
     }
   };
 
-  showPanel(!!task.checked);
-  task.addEventListener("change", () => showPanel(!!task.checked));
+  // initial state + toggle on any install_bathtub checkbox (may appear in multiple groups)
+  const allBathtubTasks2 = document.querySelectorAll('input[name="duschwanne[workTasks][]"][value="install_bathtub"]');
+  const anyBathtubChecked2 = () => Array.from(allBathtubTasks2).some(t => t.checked);
+  showPanel(anyBathtubChecked2());
+  allBathtubTasks2.forEach(t => t.addEventListener("change", () => showPanel(anyBathtubChecked2())));
 
   const parseNum = (v) => {
     if (v == null) return null;

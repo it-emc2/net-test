@@ -872,6 +872,63 @@ a.btn {
   line-height: 1.3;
 }
 
+/* ---------- Work-tasks accordion ---------- */
+.wt-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.wt-group {
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.wt-group__header {
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--card);
+  color: var(--card-foreground);
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.wt-group__header::-webkit-details-marker { display: none; }
+.wt-group__header::marker { display: none; }
+
+.wt-group__header::after {
+  content: '›';
+  font-size: 1.25rem;
+  line-height: 1;
+  transform: rotate(90deg);
+  transition: transform 0.2s ease;
+  color: var(--muted-foreground);
+}
+
+.wt-group[open] > .wt-group__header::after {
+  transform: rotate(270deg);
+}
+
+.wt-group__header:hover {
+  background: var(--card-hover);
+}
+
+.wt-group[open] > .wt-group__header {
+  border-bottom: 1px solid var(--border);
+}
+
+.wt-group__body {
+  padding: 0.85rem;
+  background: var(--card);
+}
+
 /* ---------- Aufschlag panel ---------- */
 .aufschlag-panel {
   background: var(--section-bg);

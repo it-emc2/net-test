@@ -2983,134 +2983,261 @@ button.dm-btn-danger:focus-visible {
             <p class="section-subtitle">Wählen Sie die Arbeiten aus, die im Zuge des Einbaus ausgeführt werden sollen.
             </p>
 
-            <div class="task-cards">
-              <!-- Entfernen & Entsorgen Badewanne -->
-              <label class="task-card">
-                <input type="checkbox" name="duschwanne[workTasks][]" value="remove_tub" />
-                <span class="task-card__body">
-                  <span class="task-card__title">Entfernen und Entsorgen der Badewanne inkl. Befliesung</span>
-                  <span class="task-card__hint">Demontage, Abtransport & fachgerechte Entsorgung</span>
-                </span>
-              </label>
+            <div class="wt-groups">
 
-              <!-- Entfernen & Entsorgen Duschwanne -->
-              <label class="task-card">
-                <input type="checkbox" name="duschwanne[workTasks][]" value="remove_showertub" />
-                <span class="task-card__body">
-                  <span class="task-card__title">Entfernen und Entsorgen der Duschwanne inkl. Befliesung</span>
-                  <span class="task-card__hint">Demontage, Abtransport & fachgerechte Entsorgung</span>
-                </span>
-              </label>
+              <!-- 1. Badewanne -->
+              <details class="wt-group">
+                <summary class="wt-group__header">1. Badewanne</summary>
+                <div class="wt-group__body task-cards">
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="remove_tub" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Entfernen und Entsorgen der Badewanne inkl. Befliesung</span>
+                      <span class="task-card__hint">Demontage, Abtransport & fachgerechte Entsorgung</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="install_bathtub" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Einbau der Badewanne</span>
+                      <span class="task-card__hint">Montage, Ausrichtung & Anschluss</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="install_bathtub_screen" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Einbau des Wannenaufsatzes</span>
+                      <span class="task-card__hint">Montage & Abdichtung gemäß Herstellerangaben</span>
+                    </span>
+                  </label>
+                </div>
+              </details>
 
-              <!-- Entfernen & Entsorgen Duschabtrennung -->
-              <label class="task-card">
-                <input type="checkbox" name="duschwanne[workTasks][]" value="remove_enclosure" />
-                <span class="task-card__body">
-                  <span class="task-card__title">Entfernen und Entsorgen der Duschabtrennung</span>
-                  <span class="task-card__hint">Demontage vorhandener Abtrennung inkl. Entsorgung</span>
-                </span>
-              </label>
+              <!-- 2. Duschwanne -->
+              <details class="wt-group">
+                <summary class="wt-group__header">2. Duschwanne</summary>
+                <div class="wt-group__body task-cards">
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="remove_showertub" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Entfernen und Entsorgen der Duschwanne inkl. Befliesung</span>
+                      <span class="task-card__hint">Demontage, Abtransport & fachgerechte Entsorgung</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="remove_enclosure" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Entfernen und Entsorgen der Duschabtrennung</span>
+                      <span class="task-card__hint">Demontage vorhandener Abtrennung inkl. Entsorgung</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="install_tray" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Einbau der Duschwanne</span>
+                      <span class="task-card__hint">Montage, Ausrichtung & Anschluss</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="install_bathtub" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Einbau einer Badewanne</span>
+                      <span class="task-card__hint">Montage, Ausrichtung & Anschluss</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="install_sitzbath" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Einbau einer Sitzbadewanne inkl. Tür</span>
+                      <span class="task-card__hint">Montage, Abdichtung & Türanschluss</span>
+                    </span>
+                  </label>
+                </div>
+              </details>
 
-              <!-- Einbau Duschwanne -->
-              <label class="task-card">
-                <input type="checkbox" name="duschwanne[workTasks][]" value="install_tray" />
-                <span class="task-card__body">
-                  <span class="task-card__title">Einbau der Duschwanne</span>
-                  <span class="task-card__hint">Montage, Ausrichtung & Anschluss</span>
-                </span>
-              </label>
+              <!-- 3. Duschabtrennung -->
+              <details class="wt-group">
+                <summary class="wt-group__header">3. Duschabtrennung</summary>
+                <div class="wt-group__body task-cards">
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="remove_shower_curtain" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Entfernen und Entsorgen des Duschvorhangs</span>
+                      <span class="task-card__hint">Demontage, Abtransport & fachgerechte Entsorgung</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="install_shower_curtain" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Einbau eines Duschvorhangs</span>
+                      <span class="task-card__hint">Montage & Befestigung</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="install_enclosure" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Einbau der Duschabtrennung</span>
+                      <span class="task-card__hint">Montage & Abdichtung gemäß Herstellerangaben</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="install_box_enclosure" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Einbau, Verkleiden eines Kastens im Duschbereich</span>
+                      <span class="task-card__hint">Montage & Verkleidung</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="install_distance_profile" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Einbau eines Abstandprofil</span>
+                      <span class="task-card__hint">Montage & Befestigung</span>
+                    </span>
+                  </label>
+                </div>
+              </details>
 
-              <!-- Einbau Duschabtrennung -->
-              <label class="task-card">
-                <input type="checkbox" name="duschwanne[workTasks][]" value="install_enclosure" />
-                <span class="task-card__body">
-                  <span class="task-card__title">Einbau der Duschabtrennung</span>
-                  <span class="task-card__hint">Montage & Abdichtung gemäß Herstellerangaben</span>
-                </span>
-              </label>
+              <!-- 4. Thermostat / Duschsystem -->
+              <details class="wt-group">
+                <summary class="wt-group__header">4. Thermostat / Duschsystem</summary>
+                <div class="wt-group__body task-cards">
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="close_valve" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Stilllegen der Armatur</span>
+                      <span class="task-card__hint">Armatur vorübergehend stilllegen</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="relocate_faucet" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Versetzen, verlegen einer Armatur</span>
+                      <span class="task-card__hint">Versetzen/Anpassen der Armaturenposition</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="relocate_drain" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Versetzen, verlegen eines Abflusses</span>
+                      <span class="task-card__hint">Versetzen/Anpassen der Abflussposition</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="convert_faucet" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Umbau einer Unterputz-Armatur in eine Aufputz-Armatur</span>
+                      <span class="task-card__hint">Umbau & Anschluss</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="replace_thermostat" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Auswechseln eines Aufputz Thermostates</span>
+                      <span class="task-card__hint">Demontage Altteil + Montage/Anschluss neues Thermostat</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="replace_shower_no_thermo" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Auswechseln des Duschsystems ohne Thermostat</span>
+                      <span class="task-card__hint">Demontage Altteil + Montage/Anschluss neues Duschsystem</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="replace_shower_with_thermo" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Auswechseln des Duschsystems inkl. Aufputz-Thermostat</span>
+                      <span class="task-card__hint">Demontage Altteil + Montage/Anschluss Duschsystem & Thermostat</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="install_shower_basket" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Einbau eines Duschkorbes</span>
+                      <span class="task-card__hint">Montage & Befestigung</span>
+                    </span>
+                  </label>
+                </div>
+              </details>
 
-              <!-- Einbau Badewanne -->
-<label class="task-card">
-  <input type="checkbox" name="duschwanne[workTasks][]" value="install_bathtub" />
-  <span class="task-card__body">
-    <span class="task-card__title">Einbau der Badewanne</span>
-    <span class="task-card__hint">Montage, Ausrichtung & Anschluss</span>
-  </span>
-</label>
+              <!-- 5. Waschbecken -->
+              <details class="wt-group">
+                <summary class="wt-group__header">5. Waschbecken</summary>
+                <div class="wt-group__body task-cards">
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="remove_sink" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Entfernen und Entsorgen eines Waschbeckens</span>
+                      <span class="task-card__hint">Demontage, Abtransport & fachgerechte Entsorgung</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="install_sink" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Einbau eines Waschbeckens</span>
+                      <span class="task-card__hint">Montage, Ausrichtung & Anschluss</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="replace_sink_faucet" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Auswechseln einer Waschbecken-Armatur</span>
+                      <span class="task-card__hint">Demontage Altteil + Montage/Anschluss neue Armatur</span>
+                    </span>
+                  </label>
+                </div>
+              </details>
 
-<!-- Einbau Wannenaufsatz -->
-<label class="task-card">
-  <input type="checkbox" name="duschwanne[workTasks][]" value="install_bathtub_screen" />
-  <span class="task-card__body">
-    <span class="task-card__title">Einbau des Wannenaufsatzes</span>
-    <span class="task-card__hint">Montage & Abdichtung gemäß Herstellerangaben</span>
-  </span>
-</label>
+              <!-- 6. Bademöbel -->
+              <details class="wt-group">
+                <summary class="wt-group__header">6. Bademöbel</summary>
+                <div class="wt-group__body task-cards">
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="remove_furniture" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Entfernen und Entsorgen von Bademöbel</span>
+                      <span class="task-card__hint">Demontage, Abtransport & fachgerechte Entsorgung</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="install_furniture" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Einbau von Bademöbel</span>
+                      <span class="task-card__hint">Montage & Ausrichtung</span>
+                    </span>
+                  </label>
+                </div>
+              </details>
+
+              <!-- 7. Toilette -->
+              <details class="wt-group">
+                <summary class="wt-group__header">7. Toilette</summary>
+                <div class="wt-group__body task-cards">
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="remove_toilet" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Entfernen und Entsorgen einer Toilette</span>
+                      <span class="task-card__hint">Demontage, Abtransport & fachgerechte Entsorgung</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="install_toilet" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Einbau einer Toilette</span>
+                      <span class="task-card__hint">Montage, Ausrichtung & Anschluss</span>
+                    </span>
+                  </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="install_shower_wc" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Einbau eines Dusch-WCs</span>
+                      <span class="task-card__hint">Montage, Ausrichtung & elektrischer Anschluss</span>
+                    </span>
+                  </label>
+                </div>
+              </details>
+
             </div>
-            <!-- Auswechseln des Duschsystems -->
-            <label class="task-card">
-              <input type="checkbox" name="duschwanne[workTasks][]" value="replace_shower_system" />
-              <span class="task-card__body">
-                <span class="task-card__title">Auswechseln des Duschsystems</span>
-                <span class="task-card__hint">Demontage Altteil + Montage/Anschluss neues Duschsystem</span>
-              </span>
-            </label>
-
-            <!-- Armatur verlegen -->
-            <label class="task-card">
-              <input type="checkbox" name="duschwanne[workTasks][]" value="relocate_faucet" />
-              <span class="task-card__body">
-                <span class="task-card__title">Armatur verlegen</span>
-                <span class="task-card__hint">Versetzen/Anpassen der Armaturenposition</span>
-              </span>
-            </label>
-
-            <!-- Abfluss verlegen -->
-            <label class="task-card">
-              <input type="checkbox" name="duschwanne[workTasks][]" value="relocate_drain" />
-              <span class="task-card__body">
-                <span class="task-card__title">Abfluss verlegen</span>
-                <span class="task-card__hint">Versetzen/Anpassen der Abflussposition</span>
-              </span>
-            </label>
-
-            <!-- Stilllegen der Armatur -->
-            <label class="task-card">
-              <input type="checkbox" name="duschwanne[workTasks][]" value="close_valve" />
-              <span class="task-card__body">
-                <span class="task-card__title">Stilllegen der Armatur</span>
-                <span class="task-card__hint">Armatur vorübergehend stilllegen</span>
-              </span>
-            </label>
-
-            <!-- Entfernen und Entsorgen einer Toilette -->
-            <label class="task-card">
-              <input type="checkbox" name="duschwanne[workTasks][]" value="remove_toilet" />
-              <span class="task-card__body">
-                <span class="task-card__title">Entfernen und Entsorgen einer Toilette</span>
-                <span class="task-card__hint">Demontage, Abtransport & fachgerechte Entsorgung</span>
-              </span>
-            </label>
-
-            <!-- Entfernen und Entsorgen eines Waschbeckens -->
-            <label class="task-card">
-              <input type="checkbox" name="duschwanne[workTasks][]" value="remove_sink" />
-              <span class="task-card__body">
-                <span class="task-card__title">Entfernen und Entsorgen eines Waschbeckens</span>
-                <span class="task-card__hint">Demontage, Abtransport & fachgerechte Entsorgung</span>
-              </span>
-            </label>
-
-            <!-- Einbau einer Toilette -->
-            <label class="task-card">
-              <input type="checkbox" name="duschwanne[workTasks][]" value="install_toilet" />
-              <span class="task-card__body">
-                <span class="task-card__title">Einbau einer Toilette</span>
-                <span class="task-card__hint">Montage, Ausrichtung & Anschluss</span>
-              </span>
-            </label>
-
-
           </fieldset>
 
 

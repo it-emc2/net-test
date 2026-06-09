@@ -311,23 +311,42 @@ function grossToNet(gross, taxRate) {
     }
 
     const MAP_DW = {
+      // Badewanne
       remove_tub: "Entfernen und Entsorgen der Badewanne inkl. Befliesung",
-      remove_showertub:
-        "Entfernen und Entsorgen der Duschwanne inkl. Befliesung",
+      install_bathtub: "Einbau der Badewanne",
+      install_bathtub_screen: "Einbau des Wannenaufsatzes",
+      // Duschwanne
+      remove_showertub: "Entfernen und Entsorgen der Duschwanne inkl. Befliesung",
       remove_enclosure: "Entfernen und Entsorgen der Duschabtrennung",
       install_tray: "Einbau der Duschwanne",
+      install_sitzbath: "Einbau einer Sitzbadewanne inkl. Tür",
+      // Duschabtrennung
+      remove_shower_curtain: "Entfernen und Entsorgen des Duschvorhangs",
+      install_shower_curtain: "Einbau eines Duschvorhangs",
       install_enclosure: "Einbau der Duschabtrennung",
-      relocate_faucet: "Armatur verlegen",
-      relocate_drain: "Abfluss verlegen",
+      install_box_enclosure: "Einbau, Verkleiden eines Kastens im Duschbereich",
+      install_distance_profile: "Einbau eines Abstandprofil",
+      // Thermostat / Duschsystem
       close_valve: "Stilllegen der Armatur",
-      replace_shower_system: "Auswechseln des Duschsystems",
-      install_bathtub: "Einbau der Badewanne",
-install_bathtub_screen: "Einbau des Wannenaufsatzes",
-remove_toilet: "Entfernen und Entsorgen der Toilette",
-install_toilet: "Einbau der Toilette",
-remove_sink: "Entfernen und Entsorgen eines Waschbeckens",
-install_sink: "Einbau eines Waschbeckens",
-
+      relocate_faucet: "Versetzen, verlegen einer Armatur",
+      relocate_drain: "Versetzen, verlegen eines Abflusses",
+      convert_faucet: "Umbau einer Unterputz-Armatur in eine Aufputz-Armatur",
+      replace_thermostat: "Auswechseln eines Aufputz Thermostates",
+      replace_shower_no_thermo: "Auswechseln des Duschsystems ohne Thermostat",
+      replace_shower_with_thermo: "Auswechseln des Duschsystems inkl. Aufputz-Thermostat",
+      replace_shower_system: "Auswechseln des Duschsystems", // legacy fallback
+      install_shower_basket: "Einbau eines Duschkorbes",
+      // Waschbecken
+      remove_sink: "Entfernen und Entsorgen eines Waschbeckens",
+      install_sink: "Einbau eines Waschbeckens",
+      replace_sink_faucet: "Auswechseln einer Waschbecken-Armatur",
+      // Bademöbel
+      remove_furniture: "Entfernen und Entsorgen von Bademöbel",
+      install_furniture: "Einbau von Bademöbel",
+      // Toilette
+      remove_toilet: "Entfernen und Entsorgen einer Toilette",
+      install_toilet: "Einbau einer Toilette",
+      install_shower_wc: "Einbau eines Dusch-WCs",
     };
 
     const dwTasks = normalizeDWTasks(payload);
