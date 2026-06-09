@@ -6290,7 +6290,7 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
 
   if (customActive && customInput) {
     const pct = window.parseAufschlagPercent(customInput.value);
-    if (Number.isFinite(pct) && pct >= 35 && pct <= 150) {
+    if (Number.isFinite(pct) && pct >= 35) {
       return `${pct}%`;
     }
     return "";
