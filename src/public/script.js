@@ -14413,7 +14413,12 @@ cat_SHOWER: "menu_SHOWER",
       },
       {
         productId: "DEDWWC",
-        image: "./assets/DEDWWC.jpg",
+        images: [
+          "./assets/DEDWWC.jpg",
+          "./assets/DEDWWC1.png",
+          "./assets/DEDWWC2.png",
+          "./assets/DEDWWC3.png",
+        ],
         fallbackName: "derby V3 AQUAWASH Dusch-Wand-WC",
         category: "wc",
         seatId: "DERSIAS",
@@ -14485,10 +14490,34 @@ cat_SHOWER: "menu_SHOWER",
         card.dataset.productId = item.productId;
         card.dataset.category = item.category;
         if (isAlias) card.dataset.alias = "true";
+        const imgHtml = (() => {
+          if (item.images && item.images.length > 1) {
+            const slides = item.images.map((src, i) =>
+              `<span class="img-carousel__slide"><img src="${src}" alt="${item.fallbackName} – Bild ${i + 1}" /></span>`
+            ).join("");
+            const dots = item.images.map((_, i) =>
+              `<button type="button" class="img-carousel__dot${i === 0 ? " is-active" : ""}" data-index="${i}" aria-label="Bild ${i + 1}"></button>`
+            ).join("");
+            return `
+              <span class="img-carousel" data-carousel>
+                <span class="img-carousel__track">${slides}</span>
+                <button type="button" class="img-carousel__btn img-carousel__btn--prev" aria-label="Vorheriges Bild">
+                  <svg viewBox="0 0 14 14"><polyline points="9,2 4,7 9,12"/></svg>
+                </button>
+                <button type="button" class="img-carousel__btn img-carousel__btn--next" aria-label="Nächstes Bild">
+                  <svg viewBox="0 0 14 14"><polyline points="5,2 10,7 5,12"/></svg>
+                </button>
+                <span class="img-carousel__dots">${dots}</span>
+              </span>`;
+          }
+          const src = item.image || (item.images && item.images[0]) || "";
+          return `<span class="img-wrap"><img src="${src}" alt="${item.fallbackName}" /></span>`;
+        })();
+
         card.innerHTML = `
           <label class="image-check">
             <input type="checkbox" id="${optId}" name="${cbName}" value="${item.fallbackName}" data-product-id="${item.productId}" />
-            <span class="img-wrap"><img src="${item.image}" alt="${item.fallbackName}" /></span>
+            ${imgHtml}
             <span class="caption">${item.fallbackName}</span>
           </label>
           <div id="${wrapId}" class="field" hidden aria-hidden="true" style="max-width: 220px">
@@ -14496,6 +14525,40 @@ cat_SHOWER: "menu_SHOWER",
             <input id="${qtyId}" name="${qtyName}" type="number" min="0" step="1" placeholder="0" value="0" />
           </div>
         `;
+
+        // Wire up carousel controls if this tile has one
+        const carousel = card.querySelector("[data-carousel]");
+        if (carousel) {
+          const track = carousel.querySelector(".img-carousel__track");
+          const dots = carousel.querySelectorAll(".img-carousel__dot");
+          const total = item.images.length;
+          let current = 0;
+
+          const goTo = (idx) => {
+            current = (idx + total) % total;
+            track.style.transform = `translateX(-${current * 100}%)`;
+            dots.forEach((d, i) => d.classList.toggle("is-active", i === current));
+          };
+
+          carousel.querySelector(".img-carousel__btn--prev").addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            goTo(current - 1);
+          });
+          carousel.querySelector(".img-carousel__btn--next").addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            goTo(current + 1);
+          });
+          dots.forEach((dot) => {
+            dot.addEventListener("click", (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              goTo(parseInt(dot.dataset.index, 10));
+            });
+          });
+        }
+
         return card;
       };
 
