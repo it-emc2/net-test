@@ -1749,9 +1749,6 @@ try {
         // 1) skip Kleinmaterial (added as KM02 when the checkbox is on)
         if (id === "KM02") continue;
 
-        // 2) skip BWT door products — their price already includes aufschlag
-        if (id === "1225" || id === "1226" || id === "1227" || id === "1228" || id === "1320") continue;
-
         // default: count full qty
         markupBase += qty * unitPrice;
       }
