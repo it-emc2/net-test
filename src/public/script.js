@@ -6368,8 +6368,8 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
 
     if (!raw) return setCustomError("Bitte geben Sie einen Sonderaufschlag ein.");
     if (!Number.isFinite(pct)) return setCustomError("Bitte geben Sie eine gültige Zahl ein.");
-    if (pct < 35 || pct > 150) {
-      return setCustomError("Der Sonderaufschlag muss zwischen 35% und 150% liegen.");
+    if (pct < 35) {
+      return setCustomError("Der Sonderaufschlag muss mindestens 35% betragen.");
     }
     return setCustomError("");
   }
