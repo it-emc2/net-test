@@ -38,11 +38,26 @@ export const router = express.Router();
 const STATIC_DOCX_WORD_BLOCKLIST = [
   // 'foo',
   // 'bar phrase',
-  'TRINNITY',
   'Plattenlager',
   'für Terrassenplatten',
   'Ramsauer',
 ];
+
+// Brand names to strip from product names in document exports.
+// Add/remove brand names here to control what appears in PDFs and DOCX files.
+const BRAND_NAMES_STRIP = [
+  'Vigour',
+  'TRINNITY',
+];
+
+function stripBrandNames(text) {
+  let result = String(text || '');
+  for (const brand of BRAND_NAMES_STRIP) {
+    const escaped = escapeRegExpDocx(brand);
+    result = result.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), '');
+  }
+  return result.replace(/\s{2,}/g, ' ').trim();
+}
 
 function escapeRegExpDocx(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -1154,8 +1169,10 @@ async function mapData(body = {}, computed = {}) {
       const qtyStr = Number(l.qty || 0)
         .toFixed(2)
         .replace(/\.00$/, "");
-      const nameOrId = l.name || l.productId || "";
-      const rendered = l.label ? l.label : `- ${qtyStr} Stk ${nameOrId}`;
+      const nameOrId = stripBrandNames(l.name || l.productId || "");
+      const rendered = l.label
+        ? stripBrandNames(l.label)
+        : `- ${qtyStr} Stk ${nameOrId}`;
       return { MaterialLine: rendered, _raw: l };
     })
     .filter((row) => {
@@ -1811,7 +1828,7 @@ router.post("/material-overview", async (req, res) => {
     const materials = rows.map((m, i) => ({
       pos: i + 1,
       materialNumber: m.materialNumber || "", // blank for V5FB02 (floor panels)
-      name: m.name || "",
+      name: stripBrandNames(m.name || ""),
       quantity: formatQtyForOverview(m.quantity, m.unit || "Stck."),
       unit: m.unit || "Stck.",
       remarks: m.remarks || "",
