@@ -7426,6 +7426,33 @@ function renderCustomerSearchResults(list) {
   });
 })();
 
+/* ========== STELZLAGER QTY STEPPER ========== */
+(function initStelzlagerQtyStepper() {
+  const cb = document.querySelector('input[name="stelzlager"]');
+  const row = document.getElementById("stelzlagerQtyRow");
+  const input = document.getElementById("stelzlagerQtyInput");
+  const btnMinus = document.getElementById("stelzlagerQtyMinus");
+  const btnPlus = document.getElementById("stelzlagerQtyPlus");
+  if (!cb || !row || !input) return;
+
+  function syncRowVisibility() {
+    if (cb.checked) row.removeAttribute("hidden");
+    else row.setAttribute("hidden", "");
+  }
+
+  cb.addEventListener("change", syncRowVisibility);
+  syncRowVisibility();
+
+  btnMinus?.addEventListener("click", () => {
+    const v = parseInt(input.value, 10) || 8;
+    if (v > 1) input.value = v - 1;
+  });
+  btnPlus?.addEventListener("click", () => {
+    const v = parseInt(input.value, 10) || 8;
+    if (v < 99) input.value = v + 1;
+  });
+})();
+
 /* ========== PRICE FETCH (single endpoint) ========== */
 const productCache = new Map();
 async function getProduct(id) {
@@ -11186,6 +11213,15 @@ function restoreDuschwanne(dw) {
   setCheckbox("drainSet", !!dw.drainSet);
   setCheckbox("smallMaterial", !!dw.smallMaterial);
   setCheckbox("stelzlager", !!dw.stelzlager);
+  if (dw.stelzlagerQty != null) {
+    const qtyInput = document.getElementById("stelzlagerQtyInput");
+    if (qtyInput) qtyInput.value = Math.max(1, parseInt(dw.stelzlagerQty, 10) || 8);
+    const row = document.getElementById("stelzlagerQtyRow");
+    if (row) {
+      if (!!dw.stelzlager) row.removeAttribute("hidden");
+      else row.setAttribute("hidden", "");
+    }
+  }
 
   setHiddenById("chosenTrayProductId", dw.chosenTrayProductId);
   toggleSlateTrayColorVisibility();
@@ -12302,6 +12338,15 @@ function restoreDuschwanne(dw) {
   setCheckbox("drainSet", !!dw.drainSet);
   setCheckbox("smallMaterial", !!dw.smallMaterial);
   setCheckbox("stelzlager", !!dw.stelzlager);
+  if (dw.stelzlagerQty != null) {
+    const qtyInput = document.getElementById("stelzlagerQtyInput");
+    if (qtyInput) qtyInput.value = Math.max(1, parseInt(dw.stelzlagerQty, 10) || 8);
+    const row = document.getElementById("stelzlagerQtyRow");
+    if (row) {
+      if (!!dw.stelzlager) row.removeAttribute("hidden");
+      else row.setAttribute("hidden", "");
+    }
+  }
 
   setHiddenById("chosenTrayProductId", dw.chosenTrayProductId);
   toggleSlateTrayColorVisibility();

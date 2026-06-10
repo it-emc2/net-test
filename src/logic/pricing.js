@@ -430,7 +430,10 @@ if (dusch.drainSet) add(isBudgetMode ? "AGB001" : "AGD9060", 1);
 
 
 if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
-    if (dusch.stelzlager) add("PLA5282", 1);
+    if (dusch.stelzlager) {
+      const stelzQty = Math.max(1, parseInt(dusch.stelzlagerQty, 10) || 8);
+      add("PLA5282", stelzQty);
+    }
 
     // ------- Fußboden
     const addFlooring = !!dusch.addFlooring;
@@ -1037,6 +1040,8 @@ if (l.source === "hl_pipe") {
       const displayName =
         metaColor && (l.id === "V3WVK09" || l.id === "V3WV09")
           ? `${displayNameBase} — Farbe: ${metaColor}`
+          : l.id === "PLA5282"
+          ? `${displayNameBase} Set`
           : displayNameBase;
 
       const builtLabel = `- ${l.qty} Stk ${displayName}`;

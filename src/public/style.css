@@ -6703,3 +6703,47 @@ button.pad-clear {
   background: var(--card);
   border-color: var(--border);
 }
+
+/* ── Stelzlager Set qty stepper ─────────────────────────────── */
+.stelzlager-qty-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.stelzlager-qty-row[hidden] { display: none; }
+.stelzlager-qty-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.stelzlager-qty-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+.stelzlager-qty-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+#stelzlagerQtyInput {
+  width: 52px;
+  text-align: center;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.9rem;
+}
