@@ -1825,13 +1825,16 @@ function renderTravelCostDebug() {
 
   if (badge) badge.textContent = String(offer || "bu").toUpperCase();
 
+  const isBwt = offer === "bwt";
+
   const payer =
     document.querySelector('input[name="payer"]:checked')?.value ||
     document.querySelector('input[name="zahlweise"]:checked')?.value ||
     "";
 
-  const laborRate =
-    payer === "Kassenkunde" ? 69.5 : payer === "Selbstzahler" ? 59.5 : 0;
+  const laborRate = isBwt
+    ? 79.5
+    : payer === "Kassenkunde" ? 69.5 : payer === "Selbstzahler" ? 59.5 : 0;
 
   const laborHours = Number(window.arbeit_hours_numeric ?? 0) || 0;
   const travelHours = Number(window.reise_hours_numeric ?? 0) || 0;
@@ -1846,9 +1849,27 @@ function renderTravelCostDebug() {
     return;
   }
 
-  if (!laborRate) {
+  if (!laborRate && !isBwt) {
     box.innerHTML =
       `Bitte zuerst <strong>Kassenkunde</strong> oder <strong>Selbstzahler</strong> auswählen, damit der volle Stundensatz für den Fahrer berechnet werden kann.`;
+    return;
+  }
+
+  if (isBwt) {
+    const workCost = laborHours * 79.5;
+    const travelCost = travelHours * 79.5;
+    const totalCost = workCost + travelCost;
+    box.innerHTML = `
+      <div class="az-travel-debug-grid">
+        <div><span>Arbeitszeit</span><strong>${hours(laborHours)} h</strong></div>
+        <div><span>Reisezeit gesamt</span><strong>${hours(travelHours)} h</strong></div>
+        <div><span>Stundensatz (1 Facharbeiter)</span><strong>${euro(79.5)}/h</strong></div>
+        <div><span>Arbeitskosten</span><strong>${euro(workCost)}</strong></div>
+        <div><span>Reisezeit Fahrer</span><strong>${euro(travelCost)}</strong></div>
+        <div><span>Gesamtkosten aus Zeiten</span><strong>${euro(totalCost)}</strong></div>
+      </div>
+      <div class="az-travel-debug-note">BWT aktiv: 1 Facharbeiter, 79,50 €/h für Arbeitszeit und Reisezeit.</div>
+    `;
     return;
   }
 
@@ -2621,6 +2642,12 @@ function startOfferFlow(offerKey) {
 
   // Fresh start for this offer: clear all forms back to their HTML defaults
   resetAllForms();
+
+  // BWT: override Arbeitszeit default to 05:00 (1 worker, shorter job)
+  if (offerKey === "bwt") {
+    const laborEl = document.getElementById("laborHours");
+    if (laborEl) laborEl.value = "05:00";
+  }
 
   const pages = getPagesForOfferType(offerKey);
   if (!pages.length) return;

@@ -1173,9 +1173,11 @@ color: metaColor || null,
 
     const laborHours = Arbeitszeit_hours_numeric;
 
-    const handwerkerCount = 2;
+    const isBwt = offer === "bwt";
+    const handwerkerCount = isBwt ? 1 : 2;
     const laborRateKK = 69.5;
     const laborRateSZ = 59.5;
+    const bwtLaborRate = 79.5;
     const kmRate = 0.35;
     const travelSecondWorkerRateRaw =
       Number(arbeits.travelSecondWorkerRate ?? b.travelSecondWorkerRate ?? 25) || 25;
@@ -1185,12 +1187,14 @@ color: metaColor || null,
     const werkzeug = 7.5;
     const beraeumung = 4.5;
     const kilometerpauschale = round2(roundTripKm * kmRate);
-    const laborRate =
-      payer === "KK" ? laborRateKK : payer === "SZ" ? laborRateSZ : 0;
+    const laborRate = isBwt
+      ? bwtLaborRate
+      : payer === "KK" ? laborRateKK : payer === "SZ" ? laborRateSZ : 0;
 
-    const facharbeiter =
-      Arbeitszeit_hours_numeric * handwerkerCount * laborRate +
-      reise_hours_numeric * (laborRate + sitz_reise_Rate);
+    const facharbeiter = isBwt
+      ? round2((Arbeitszeit_hours_numeric + reise_hours_numeric) * bwtLaborRate)
+      : Arbeitszeit_hours_numeric * handwerkerCount * laborRate +
+        reise_hours_numeric * (laborRate + sitz_reise_Rate);
 
     const formatQty = (n) => Number(n || 0).toFixed(2).replace(".", ",");
 
@@ -1300,9 +1304,9 @@ color: metaColor || null,
 
     const reise_hours_numeric = Number(b.ReiseHoursNumeric ?? 0) || 0;
 
-    // Reisezeit for bwt
-    const bwt_reise_Rate = 35;
-    const bwt_handwerkerCount = 2;
+    // Reisezeit for bwt — 1 worker at 79.50/h
+    const bwt_reise_Rate = 79.5;
+    const bwt_handwerkerCount = 1;
     const billed_reise_zeit = Math.max(0, reise_hours_numeric - 2);
     const reise_ampunt_zeit = round2(
       billed_reise_zeit * bwt_reise_Rate * bwt_handwerkerCount,
