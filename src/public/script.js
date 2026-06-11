@@ -4032,7 +4032,6 @@ if (anschlag) {
     payload.hl = payload.hl || {};
     const hlX = collectHL();
     payload.hl.pipes = hlX.pipes || [];
-    payload.hl.extras = hlX.extras || {};
     payload.hl.area = hlX.area || [];
     payload.hl.mountType = hlX.mountType || [];
   } catch (e) {
@@ -4256,83 +4255,7 @@ function collectHL() {
   const area = getCheckedValues("hl_area"); // ["inside","outside"]
   const mountType = getCheckedValues("hlMountType"); // ["boden-befestigung","wand-befestigung"]
 
-  // -------------------------
-  // Extras (DB productIds)
-  // -------------------------
-  const extras = {};
-
-  const addExtra = (checkboxId, qtyInputId, resolvePid) => {
-    const cb = document.getElementById(checkboxId);
-    const qtyEl = document.getElementById(qtyInputId);
-    if (!cb || !cb.checked) return;
-
-    const q = Number(qtyEl?.value || 0) || 0;
-    if (q <= 0) return;
-
-    const pid = typeof resolvePid === "function" ? resolvePid() : resolvePid;
-    if (!pid) return;
-
-    extras[pid] = (extras[pid] || 0) + q;
-  };
-
-  // Edelstahlstütze betonieren (size 120/150)
-  addExtra(
-    "hlEdelstahlstuetzeBetonieren",
-    "qty_hlEdelstahlstuetzeBetonieren",
-    () => {
-      const size = String(
-        document.getElementById("hlEdelstahlstuetzeBetonierenSize")?.value || "120",
-      );
-      return size === "150" ? "FF_E02" : "FF_E01";
-    },
-  );
-
-  // Bodenstütze
-  addExtra("hlEdelstahlstuetzeBoden", "qty_hlEdelstahlstuetzeBoden", "FF_E05");
-
-  // Seitl. Stütze (20/40)
-  addExtra("hlEdelstahlstuetzeSeitl", "qty_hlEdelstahlstuetzeSeitl", () => {
-    const size = String(document.getElementById("hlEdelstahlstuetzeSeitlSize")?.value || "20");
-    return size === "40" ? "FF_E12" : "FF_E11";
-  });
-
-  // Abdeckrosette
-  addExtra("hlAbdeckrosetteHalbrund", "qty_hlAbdeckrosetteHalbrund", "FF_E08");
-
-  // Auflagen
-  addExtra("hlAuflageWaagrechtFestLang", "qty_hlAuflageWaagrechtFestLang", "FF_E22c");
-  addExtra("hlAuflageFlexibelLang", "qty_hlAuflageFlexibelLang", "FF_E22d");
-
-  // Handlaufhalter outdoor (7.5/10/12.5/15)
-  addExtra("hlHandlaufhalter", "qty_hlHandlaufhalter", () => {
-    const v = String(
-      document.getElementById("hlHandlaufhalterSize")?.value || "7,5",
-    ).replace(",", ".");
-    if (v === "10") return "FF_E28";
-    if (v === "12.5") return "FF_E29";
-    if (v === "15") return "FF_E30";
-    return "FF_E27"; // 7.5
-  });
-
-  // Caps + wall connectors
-  addExtra("hlCapFlatOuter35", "qty_hlCapFlatOuter35", "FF_KFS12");
-  addExtra("hlCapFlatInner35", "qty_hlCapFlatInner35", "FF_KFS13");
-  addExtra("hlWallStraightOuter35", "qty_hlWallStraightOuter35", "FF_A06");
-  addExtra("hlWallAngledBall35", "qty_hlWallAngledBall35", "FF_S0001");
-
-  // -------------------------
-  // Indoor “Befestigung” section
-  // ✅ HARD DEFAULT: Chrom matt
-  // TODO: Implement Oberfläche -> variant mapping later (Schwarz/Weiß/Messing/etc.)
-  // -------------------------
-  addExtra("hlBefFlexoGelenk", "qty_hlBefFlexoGelenk", "FF_F04"); // Flexo-Gelenk (Innen) Chrom matt
-  addExtra("hlBef90Bogen", "qty_hlBef90Bogen", "FF_B04"); // 90-Grad-Bogen (Innen) Chrom matt
-  addExtra("hlBefSonderabschluss", "qty_hlBefSonderabschluss", "FF_S04"); // Sonderabschluss (Innen) Chrom matt
-  addExtra("hlBefWandabschlussbogen", "qty_hlBefWandabschlussbogen", "FF_W04"); // Wandabschlussbogen (Innen) Chrom matt
-  addExtra("hlBefHandlaufhalter", "qty_hlBefHandlaufhalter", "FF_H04"); // Handlaufhalter (Innen) Chrom matt
-
   return {
-    extras,
     area,
     mountType,
   };
