@@ -895,7 +895,7 @@ function ensureTrinitySealingSelectedFromPayload(dw) {
       if (typeof highlightTileForInput === "function") {
         highlightTileForInput(input, true);
       }
-      // persist “on” so future loads keep it checked
+      // persist "on" so future loads keep it checked
       try {
         localStorage.setItem("dw_floor_sealing", "1");
       } catch {}
@@ -3275,7 +3275,7 @@ function collectHlExtras(payload) {
     // 2) checkbox id
     const productId = (cb.dataset?.productId || id || "").trim();
 
-    // Ignore “empty” (shouldn’t happen, but safe)
+    // Ignore "empty" (shouldn’t happen, but safe)
     if (!label && !productId) return;
 
     // If qty input exists but user left it 0, you can decide:
@@ -3459,6 +3459,11 @@ function buildPayload() {
 
   const effectiveAufschlag = window.getEffectiveAufschlagValue?.();
   if (effectiveAufschlag) payload.Kundendaten.aufschlag = effectiveAufschlag;
+
+  // Parse AH service lines from JSON hidden field
+  if (payload.ah && payload.ah.ahServicesJson) {
+    try { payload.ah.services = JSON.parse(payload.ah.ahServicesJson); } catch (e) { payload.ah.services = []; }
+  }
 
   /* ===========================
      HL: pair steel length + quality rows into structured array
@@ -5368,104 +5373,145 @@ document.body.addEventListener("click", (e) => {
     setStep(flow[nextIdx]);
   }
 });
-// Alltagshilfe: abhängige Leistungsart + ausgegraute, nicht verfügbare Option
-(function initAlltagshilfePage() {
+// AH: dynamic multi-service card list
+(function initAhServicesPage() {
   const form = document.getElementById("form-ah");
   if (!form) return;
 
-  const artAlltag = document.getElementById("ahArtAlltagsbegleitung");
-  const artHaushalt = document.getElementById("ahArtHaushalt");
+  const list = document.getElementById("ahServicesList");
+  const addBtn = document.getElementById("ahAddServiceBtn");
+  const jsonInput = document.getElementById("ahServicesJson");
+  if (!list || !addBtn || !jsonInput) return;
 
-  const wrap = document.getElementById("ahLeistungsTypWrap");
-  const blockAlltag = document.getElementById(
-    "ahLeistungsTypAlltagsbegleitung",
-  );
-  const blockHaushalt = document.getElementById("ahLeistungsTypHaushalt");
+  let counter = 0;
 
-  const inputFahrten = document.getElementById("ahLeistungsTypFahrten");
-  const inputPausch = document.getElementById(
-    "ahLeistungsTypReinigungsPauschale",
-  );
+  const REGELMAESSIGKEIT = [
+    "Einmalig", "Wöchentlich", "14-tägig", "alle drei Wochen",
+    "Monatlich", "Vierteljährlich", "Halbjährlich", "Jährlich", "Bei Bedarf",
+  ];
 
-  // Labels separat greifen, damit wir sie „grau“ stylen können
-  const labelFahrten = inputFahrten?.closest("label.radio-pill");
-  const labelPausch = inputPausch?.closest("label.radio-pill");
-
-  if (!wrap || !blockAlltag || !blockHaushalt || !inputFahrten || !inputPausch)
-    return;
-
-  function show(el, on) {
-    if (!el) return;
-    el.hidden = !on;
-    el.setAttribute("aria-hidden", on ? "false" : "true");
+  function serialize() {
+    const services = [];
+    list.querySelectorAll(".ah-service-card").forEach(function (card) {
+      const typeEl = card.querySelector('input[type="radio"]:checked');
+      const einsatzEl = card.querySelector('input[data-field="einsatz"]');
+      const monatEl = card.querySelector('input[data-field="monat"]');
+      const regelEl = card.querySelector('input[data-field="regel"]:checked');
+      services.push({
+        type: typeEl ? typeEl.value : "",
+        einsatzUmfang: einsatzEl ? einsatzEl.value : "",
+        monatUmfang: monatEl ? monatEl.value : "",
+        regelmaessigkeit: regelEl ? regelEl.value : "",
+      });
+    });
+    jsonInput.value = JSON.stringify(services);
   }
 
-  // exakt derselbe „Grau‑Look“ wie beim Aufschlag:
-  // disabled + geringere Opacity + keine Klicks
-  function setDisabled(labelEl, inputEl, disabled) {
-    if (!labelEl || !inputEl) return;
-    inputEl.disabled = disabled;
-    labelEl.setAttribute("aria-disabled", disabled ? "true" : "false");
-    labelEl.style.opacity = disabled ? "0.45" : "";
-    labelEl.style.pointerEvents = disabled ? "none" : "";
-    labelEl.style.filter = disabled ? "grayscale(0.3)" : "";
+  function updateTitlesAndButtons() {
+    const cards = list.querySelectorAll(".ah-service-card");
+    cards.forEach(function (card, i) {
+      const titleEl = card.querySelector(".ah-sc-title");
+      if (titleEl) titleEl.textContent = "Leistung " + (i + 1);
+      const removeBtn = card.querySelector(".ah-sc-remove");
+      if (removeBtn) removeBtn.hidden = cards.length <= 1;
+    });
   }
 
-  function applySelection(kind) {
-    // Block sichtbar, sobald eine Haupt‑Art gewählt wurde
-    show(wrap, true);
+  function createCard(data) {
+    data = data || {};
+    var idx = counter++;
+    var card = document.createElement("div");
+    card.className = "ah-service-card";
+    card.style.cssText = "padding:12px 16px; border:1px solid var(--border); border-radius:8px; display:grid; gap:10px;";
 
-    // Beide Detail‑Zeilen sollen immer sichtbar bleiben
-    show(blockAlltag, true);
-    show(blockHaushalt, true);
+    // Header
+    var header = document.createElement("div");
+    header.style.cssText = "display:flex; justify-content:space-between; align-items:center;";
+    var titleSpan = document.createElement("span");
+    titleSpan.className = "ah-sc-title";
+    titleSpan.style.cssText = "font-weight:600; font-size:0.9rem;";
+    titleSpan.textContent = "Leistung";
+    var removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "btn-secondary ah-sc-remove";
+    removeBtn.style.cssText = "padding:2px 9px; font-size:0.78rem;";
+    removeBtn.textContent = "Entfernen";
+    removeBtn.addEventListener("click", function () {
+      card.remove();
+      updateTitlesAndButtons();
+      serialize();
+    });
+    header.appendChild(titleSpan);
+    header.appendChild(removeBtn);
+    card.appendChild(header);
 
-    if (kind === "Alltagsbegleitung") {
-      // Fahrten aktiv, Pauschale grau/disabled
-      setDisabled(labelFahrten, inputFahrten, false);
-      setDisabled(labelPausch, inputPausch, true);
+    // Top row: service type (left) + hours (right)
+    var topRow = document.createElement("div");
+    topRow.style.cssText = "display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start;";
 
-      // Fahrten vorwählen
-      inputFahrten.checked = true;
-      inputPausch.checked = false;
-      inputFahrten.dispatchEvent(new Event("change", { bubbles: true }));
-    } else if (kind === "Haushaltsnahedienstleistungen") {
-      // Pauschale aktiv, Fahrten grau/disabled
-      setDisabled(labelFahrten, inputFahrten, true);
-      setDisabled(labelPausch, inputPausch, false);
+    var typeDiv = document.createElement("div");
+    typeDiv.innerHTML =
+      '<label style="font-size:0.82rem; font-weight:500; display:block; margin-bottom:5px;">Art der Leistung</label>' +
+      '<div class="radio-group" role="radiogroup" style="flex-wrap:wrap; gap:5px;">' +
+        '<label class="radio-pill"><input type="radio" name="ahServiceType_' + idx + '" value="Alltagsbegleitung"' + (data.type === "Alltagsbegleitung" ? " checked" : "") + ' /><span class="circle"></span><span>Alltagsbegleitung</span></label>' +
+        '<label class="radio-pill"><input type="radio" name="ahServiceType_' + idx + '" value="Haushaltsnahedienstleistungen"' + (data.type === "Haushaltsnahedienstleistungen" ? " checked" : "") + ' /><span class="circle"></span><span>Haushaltsnahe DL</span></label>' +
+      '</div>';
 
-      inputPausch.checked = true;
-      inputFahrten.checked = false;
-      inputPausch.dispatchEvent(new Event("change", { bubbles: true }));
-    } else {
-      // Nichts gewählt → alles zurücksetzen und ausblenden
-      show(wrap, false);
-      show(blockAlltag, false);
-      show(blockHaushalt, false);
+    var hoursDiv = document.createElement("div");
+    hoursDiv.style.cssText = "display:grid; grid-template-columns:1fr 1fr; gap:8px;";
+    hoursDiv.innerHTML =
+      '<div>' +
+        '<label style="font-size:0.82rem; font-weight:500; display:block; margin-bottom:4px;">Std./Einsatz (h)</label>' +
+        '<input type="number" data-field="einsatz" min="0" step="0.5" value="' + (data.einsatzUmfang || "") + '" placeholder="z. B. 2" inputmode="decimal" />' +
+      '</div>' +
+      '<div>' +
+        '<label style="font-size:0.82rem; font-weight:500; display:block; margin-bottom:4px;">Std./Monat (h)</label>' +
+        '<input type="number" data-field="monat" min="0" step="0.5" value="' + (data.monatUmfang || "") + '" placeholder="z. B. 8" inputmode="decimal" />' +
+      '</div>';
 
-      setDisabled(labelFahrten, inputFahrten, false);
-      setDisabled(labelPausch, inputPausch, false);
-      inputFahrten.checked = false;
-      inputPausch.checked = false;
-    }
+    topRow.appendChild(typeDiv);
+    topRow.appendChild(hoursDiv);
+    card.appendChild(topRow);
+
+    // Regularity — wrapped pills (no vertical stack)
+    var regelDiv = document.createElement("div");
+    var regelHtml =
+      '<label style="font-size:0.82rem; font-weight:500; display:block; margin-bottom:5px;">Regelmäßigkeit</label>' +
+      '<div class="radio-group" role="radiogroup" style="flex-wrap:wrap; gap:5px;">';
+    REGELMAESSIGKEIT.forEach(function (opt) {
+      regelHtml +=
+        '<label class="radio-pill"><input type="radio" data-field="regel" name="ahServiceRegel_' + idx + '" value="' + opt + '"' +
+        (data.regelmaessigkeit === opt ? " checked" : "") + ' /><span class="circle"></span><span>' + opt + '</span></label>';
+    });
+    regelHtml += '</div>';
+    regelDiv.innerHTML = regelHtml;
+    card.appendChild(regelDiv);
+
+    card.addEventListener("change", serialize);
+    card.addEventListener("input", serialize);
+    return card;
   }
 
-  // Listener für die zwei Haupt‑Radiobuttons
-  artAlltag?.addEventListener("change", () => {
-    if (artAlltag.checked) applySelection("Alltagsbegleitung");
+  addBtn.addEventListener("click", function () {
+    list.appendChild(createCard());
+    updateTitlesAndButtons();
+    serialize();
   });
-  artHaushalt?.addEventListener("change", () => {
-    if (artHaushalt.checked) applySelection("Haushaltsnahedienstleistungen");
-  });
 
-  // Initialzustand beim Laden (z.B. beim Bearbeiten eines Entwurfs)
-  const current = form.querySelector('input[name="ahArt"]:checked');
-  if (current) {
-    applySelection(current.value);
-  } else {
-    show(wrap, false);
-    show(blockAlltag, false);
-    show(blockHaushalt, false);
-  }
+  // Initial card on page load
+  list.appendChild(createCard());
+  updateTitlesAndButtons();
+  serialize();
+
+  // Exposed for draft restore
+  window.restoreAhServices = function (services) {
+    list.innerHTML = "";
+    counter = 0;
+    var arr = (Array.isArray(services) && services.length) ? services : [{}];
+    arr.forEach(function (s) { list.appendChild(createCard(s)); });
+    updateTitlesAndButtons();
+    serialize();
+  };
 })();
 // =================================================================
 // #region 10. PAGE SPECIFIC LOGIC (Wandverkleidung, Duschwanne, etc)
@@ -7584,14 +7630,14 @@ function updateFlooringPanelsPriceFromPricing() {
 
   const pid = getSelectedFloorPid();
 
-  // Prefer the “Paneele” line for the selected pid.
+  // Prefer the "Paneele" line for the selected pid.
   let line = pricing.materials.lines.find((l) => {
     const id = (l.productId || l.id);
     const label = String(l.label || "");
     return id === pid && label.includes("Fußboden-Paneele");
   });
 
-  // Fallback: same pid but not “individ.” (covers older label variants)
+  // Fallback: same pid but not "individ." (covers older label variants)
   if (!line) {
     line = pricing.materials.lines.find((l) => {
       const id = (l.productId || l.id);
@@ -9102,8 +9148,8 @@ document
   // UI-only: if a Duschabtrennung (Hassmann) quick-add has a user ID,
   // show it in the Kosten-Details label. Do NOT affect server, DOCX, or PDF.
   // UI-only: append [ID] to Kosten-Details labels.
-  // - Already handled: “... Hassmann ...” lines (e.g., Pendeltür Hassmann).
-  // - NEW: also handle both “Freier Posten” variants (Hassmann + Optional/Sonderprodukte),
+  // - Already handled: "... Hassmann ..." lines (e.g., Pendeltür Hassmann).
+  // - NEW: also handle both "Freier Posten" variants (Hassmann + Optional/Sonderprodukte),
   //        whose labels typically look like "- 1 Stk <text>" without the word "Hassmann".
   function decorateDALabel(line) {
     const pid = String(line.productId || line.id || "").trim();
@@ -9120,7 +9166,7 @@ document
       return `${base} [${pid}]`;
     }
 
-    // 2) NEW rule: “Freier Posten” rows (both Hassmann and Optional) often look like "- 1 Stk …"
+    // 2) NEW rule: "Freier Posten" rows (both Hassmann and Optional) often look like "- 1 Stk …"
     //    Add [ID] for any line that looks like a free-text item (qty label form), even if it doesn’t say "Hassmann".
     //    This safely covers Freier Posten without affecting unrelated lines.
     const looksLikeQtyLabel = /^\s*-\s*\d+\s*Stk\b/i.test(base);
@@ -12728,7 +12774,7 @@ function initOptionalSonderprodukte() {
   };
 
   if (restored.length) {
-    // Remove any pre-rendered rows (e.g., initial “Freier Posten”) to avoid duplicates
+    // Remove any pre-rendered rows (e.g., initial "Freier Posten") to avoid duplicates
     removeAllDomRows();
     restored.forEach((r) => rowsContainer.appendChild(createRow(r)));
   } else {
@@ -15111,7 +15157,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
     wireTileQty("opt_EV", "qty_EV_wrap");
   })();
 
-  // ---- Independent “Zubehör zum Waschtisch” (loose accessories) ----
+  // ---- Independent "Zubehör zum Waschtisch" (loose accessories) ----
   wireTileQty("opt_WTBF__loose", "qty_WTBF__loose_wrap");
   wireTileQty("opt_RSL__loose", "qty_RSL__loose_wrap");
   wireTileQty("opt_EV__loose", "qty_EV__loose_wrap");
@@ -15664,6 +15710,23 @@ function restoreAh(ah) {
   if (!ah) return;
   const noteEl = document.getElementById("ahNote");
   if (noteEl) noteEl.value = ah.ahNote || "";
+
+  if (typeof window.restoreAhServices === "function") {
+    let services = null;
+    if (ah.ahServicesJson) {
+      try { services = JSON.parse(ah.ahServicesJson); } catch (e) { /* ignore */ }
+    }
+    // Legacy: single-service payload from old ahArt fields
+    if (!Array.isArray(services) && ah.ahArt) {
+      services = [{
+        type: ah.ahArt || "",
+        einsatzUmfang: ah.ahEinsatzUmfang || "",
+        monatUmfang: ah.ahMonatUmfang || "",
+        regelmaessigkeit: ah.ahRegelmaessigkeit || "",
+      }];
+    }
+    window.restoreAhServices(services || []);
+  }
 }
 
 function restoreHms(hms) {

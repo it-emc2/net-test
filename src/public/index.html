@@ -7719,136 +7719,14 @@ button.dm-btn-danger:focus-visible {
       <section class="card page" id="page-ah" hidden>
         <h2 style="margin: 0 0 12px"> AH · Alltagshilfe</h2>
         <form id="form-ah">
-          <!-- 1. Angebotsart: Alltagsbegleitung vs. Haushaltsnahe DL -->
-          <div class="full field">
-            <label class="req">Angebot zur Unterstützung im Alltag</label>
-            <div class="radio-group vertical" role="radiogroup" aria-label="Art der Unterstützung">
-              <label class="radio-pill">
-                <input type="radio" name="ahArt" value="Alltagsbegleitung" id="ahArtAlltagsbegleitung" required />
-                <span class="circle"></span>
-                <span>Alltagsbegleitung</span>
-              </label>
-
-              <label class="radio-pill">
-                <input type="radio" name="ahArt" value="Haushaltsnahedienstleistungen" id="ahArtHaushalt" required />
-                <span class="circle"></span>
-                <span>Haushaltsnahedienstleistungen</span>
-              </label>
-            </div>
+          <!-- Dynamic service lines -->
+          <div id="ahServicesList" class="full" style="display:flex; flex-direction:column; gap:12px;"></div>
+          <div class="full" style="margin-top:4px;">
+            <button type="button" id="ahAddServiceBtn" class="btn-secondary">
+              <i class="fa-solid fa-plus"></i> Leistung hinzufügen
+            </button>
           </div>
-
-          <!-- 2. Automatisch abhängiger Einzelleistungs-Typ -->
-          <!-- Wird je nach Auswahl von ahArt befüllt/angezeigt -->
-          <div class="full field" id="ahLeistungsTypWrap" hidden aria-hidden="true">
-            <label class="req">Leistungsart im Detail</label>
-
-            <!-- Variante für Alltagsbegleitung -->
-            <div id="ahLeistungsTypAlltagsbegleitung" class="radio-group vertical" role="radiogroup"
-              aria-label="Leistungsart Alltagsbegleitung" hidden aria-hidden="true">
-              <label class="radio-pill">
-                <input type="radio" name="ahLeistungsTyp" value="Fahrten im Rahmen der Alltagsbegleitung"
-                  id="ahLeistungsTypFahrten" required />
-                <span class="circle"></span>
-                <span>Fahrten im Rahmen der Alltagsbegleitung</span>
-              </label>
-            </div>
-
-            <!-- Variante für Haushaltsnahe Dienstleistungen -->
-            <div id="ahLeistungsTypHaushalt" class="radio-group vertical" role="radiogroup"
-              aria-label="Leistungsart Haushaltsnahe Dienstleistungen" hidden aria-hidden="true">
-              <label class="radio-pill">
-                <input type="radio" name="ahLeistungsTyp" value="Servicepauschale Reinigungsutensilien für HnD"
-                  id="ahLeistungsTypReinigungsPauschale" required />
-                <span class="circle"></span>
-                <span>Servicepauschale Reinigungsutensilien für HnD</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- 3. Konditionen -->
-          <div class="section-block full">
-            <div class="section-title">Konditionen</div>
-            <p class="section-subtitle">
-              Bitte geben Sie den gewünschten Stundenumfang sowie die Regelmäßigkeit an.
-            </p>
-            <!-- Gewünschter Stundenumfang pro Einsatz + Monatlicher Stundenumfang nebeneinander -->
-            <div class="full" style="display:flex; grid-template-columns:1fr 1fr; gap:12px;">
-              <!-- Gewünschter Stundenumfang pro Einsatz -->
-              <div class="field full">
-                <label for="ahEinsatzUmfang">Gewünschter Stundenumfang pro Einsatz (h)</label>
-                <input id="ahEinsatzUmfang" name="ahEinsatzUmfang" type="number" min="0" step="0.5"
-                  placeholder="z.&nbsp;B. 2" inputmode="decimal" />
-              </div>
-
-              <!-- Monatlicher Stundenumfang -->
-              <div class="field full">
-                <label for="ahMonatUmfang">Monatlicher Stundenumfang (h)</label>
-                <input id="ahMonatUmfang" name="ahMonatUmfang" type="number" min="0" step="0.5"
-                  placeholder="z.&nbsp;B. 8" inputmode="decimal" />
-              </div>
-            </div>
-            <!-- Regelmäßigkeit -->
-            <div class="field full">
-              <label class="req">Regelmäßigkeit</label>
-              <div class="radio-group vertical" role="radiogroup" aria-label="Regelmäßigkeit"
-                id="ahRegelmaessigkeitGroup">
-                <label class="radio-pill">
-                  <input type="radio" name="ahRegelmaessigkeit" value="Einmalig" required />
-                  <span class="circle"></span>
-                  <span>Einmalig</span>
-                </label>
-
-                <label class="radio-pill">
-                  <input type="radio" name="ahRegelmaessigkeit" value="Wöchentlich" required />
-                  <span class="circle"></span>
-                  <span>Wöchentlich</span>
-                </label>
-
-                <label class="radio-pill">
-                  <input type="radio" name="ahRegelmaessigkeit" value="14-tägig" required />
-                  <span class="circle"></span>
-                  <span>14-tägig</span>
-                </label>
-
-                <label class="radio-pill">
-                  <input type="radio" name="ahRegelmaessigkeit" value="alle drei Wochen" required />
-                  <span class="circle"></span>
-                  <span>alle drei Wochen</span>
-                </label>
-
-                <label class="radio-pill">
-                  <input type="radio" name="ahRegelmaessigkeit" value="Monatlich" required />
-                  <span class="circle"></span>
-                  <span>Monatlich</span>
-                </label>
-
-                <label class="radio-pill">
-                  <input type="radio" name="ahRegelmaessigkeit" value="Vierteljährlich" required />
-                  <span class="circle"></span>
-                  <span>Vierteljährlich</span>
-                </label>
-
-                <label class="radio-pill">
-                  <input type="radio" name="ahRegelmaessigkeit" value="Halbjährlich" required />
-                  <span class="circle"></span>
-                  <span>Halbjährlich</span>
-                </label>
-
-                <label class="radio-pill">
-                  <input type="radio" name="ahRegelmaessigkeit" value="Jährlich" required />
-                  <span class="circle"></span>
-                  <span>Jährlich</span>
-                </label>
-
-                <label class="radio-pill">
-                  <input type="radio" name="ahRegelmaessigkeit" value="Bei Bedarf" required />
-                  <span class="circle"></span>
-                  <span>Bei Bedarf</span>
-                </label>
-              </div>
-            </div>
-          </div>
-
+          <input type="hidden" id="ahServicesJson" name="ahServicesJson" value="[]" />
           <div class="field full" style="margin-top:16px">
             <label for="ahNote">Notizen / Anmerkungen</label>
             <textarea id="ahNote" name="ahNote" rows="8" placeholder="z. B. Besonderheiten, Kundenwünsche oder Hinweise zur Alltagshilfe …"></textarea>
