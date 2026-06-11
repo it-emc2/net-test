@@ -2163,6 +2163,46 @@ button.dm-btn-danger:focus-visible {
 
         <div class="section-header">Kontaktdaten des Kunden</div>
         <form id="form-Kundendaten" novalidate>
+
+          <!-- AH only: Vorbereitung vor dem Termin -->
+          <div class="full" data-offer="ah" style="margin-bottom: 20px">
+            <details>
+              <summary class="section-header" style="cursor: pointer">
+                Vorbereitung vor dem Termin
+              </summary>
+              <div style="display: grid; grid-template-columns: 1fr; gap: 10px; padding: 10px 0">
+                <label class="check-pill">
+                  <input type="checkbox" name="prep_terminBestaetigt" value="Ja" />
+                  <span class="box"></span>
+                  <span>Termin bestätigt (telefonisch oder per SMS/WhatsApp)</span>
+                </label>
+                <label class="check-pill">
+                  <input type="checkbox" name="prep_erstberatungsbogen" value="Ja" />
+                  <span class="box"></span>
+                  <span>Erstberatungsbogen (dieses Dokument) ausgedruckt</span>
+                </label>
+                <label class="check-pill">
+                  <input type="checkbox" name="prep_visitenkarten" value="Ja" />
+                  <span class="box"></span>
+                  <span>Visitenkarten und Flyer eingepackt (Alltagshilfe + Badumbau)</span>
+                </label>
+                <label class="check-pill">
+                  <input type="checkbox" name="prep_leistungsuebersicht" value="Ja" />
+                  <span class="box"></span>
+                  <span>Leistungsübersicht / Preisliste dabei</span>
+                </label>
+                <label class="check-pill">
+                  <input type="checkbox" name="prep_mustervertrag" value="Ja" />
+                  <span class="box"></span>
+                  <span>Muster-Vertrag / Kostenvoranschlag dabei</span>
+                </label>
+              </div>
+              <div style="margin-top: 8px; padding: 10px 14px; background: #fff7ed; border-left: 4px solid #f97316; border-radius: 6px; font-size: 0.9rem; line-height: 1.5">
+                <strong>★ Tipp:</strong> Vor dem Termin kurz googeln: Gibt es Besonderheiten zur Wohnsituation (Altbau, Hochhaus, ländlich)? Wer hat angerufen – die betroffene Person selbst oder ein Angehöriger?
+              </div>
+            </details>
+          </div>
+
           <!-- Bitrix contact search by ID -->
           <div class="form-row bitrix-actions-row">
             <div class="form-field">
@@ -2314,6 +2354,37 @@ button.dm-btn-danger:focus-visible {
           
 
 
+          <!-- AH only: Besondere Hinweise -->
+          <div class="full" data-offer="ah" style="margin-top: 16px">
+            <details open>
+              <summary class="section-header" style="cursor: pointer">
+                Besondere Hinweise
+              </summary>
+              <div style="display: grid; grid-template-columns: 1fr; gap: 14px; padding: 8px 0">
+                <div class="full">
+                  <label for="ah_mobilitaet">Mobilitätseinschränkungen</label>
+                  <input id="ah_mobilitaet" name="ah_mobilitaet" type="text" />
+                </div>
+                <div class="full">
+                  <label for="ah_allergien">Allergien / Unverträglichkeiten</label>
+                  <input id="ah_allergien" name="ah_allergien" type="text" />
+                </div>
+                <div class="full">
+                  <label for="ah_demenz">Demenz / kognitive Einschränkungen</label>
+                  <input id="ah_demenz" name="ah_demenz" type="text" />
+                </div>
+                <div class="full">
+                  <label for="ah_sprache">Sprachliche Besonderheiten</label>
+                  <input id="ah_sprache" name="ah_sprache" type="text" />
+                </div>
+                <div class="full">
+                  <label for="ah_sonstiges">Sonstiges (Wünsche, Abneigungen, Gewohnheiten)</label>
+                  <input id="ah_sonstiges" name="ah_sonstiges" type="text" />
+                </div>
+              </div>
+            </details>
+          </div>
+
           <div id="offerRequiredDetails" class="full" style="margin-top: 16px">
             <details open>
               <summary class="section-header" style="cursor: pointer">
@@ -2377,7 +2448,7 @@ button.dm-btn-danger:focus-visible {
                   </div>
                 </div>
 
-                <div id="aufschlagSection" class="aufschlag-panel" data-offer="bu,bwt,hl,bl,ah,hms,wd">
+                <div id="aufschlagSection" class="aufschlag-panel" data-offer="bu,bwt,hl,bl,hms,wd">
 
                   <div class="aufschlag-header-row">
                     <label class="req" id="aufschlagLabel">Wählen Sie den Aufschlag?</label>
