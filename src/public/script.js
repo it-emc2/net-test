@@ -5375,56 +5375,245 @@ document.body.addEventListener("click", (e) => {
 });
 // AH: dynamic multi-service card list
 (function initAhServicesPage() {
-  const form = document.getElementById("form-ah");
+  var form = document.getElementById("form-ah");
   if (!form) return;
 
-  const list = document.getElementById("ahServicesList");
-  const addBtn = document.getElementById("ahAddServiceBtn");
-  const jsonInput = document.getElementById("ahServicesJson");
+  var list = document.getElementById("ahServicesList");
+  var addBtn = document.getElementById("ahAddServiceBtn");
+  var jsonInput = document.getElementById("ahServicesJson");
   if (!list || !addBtn || !jsonInput) return;
 
-  let counter = 0;
+  var counter = 0;
 
-  const REGELMAESSIGKEIT = [
+  var REGELMAESSIGKEIT = [
     "Einmalig", "Wöchentlich", "14-tägig", "alle drei Wochen",
     "Monatlich", "Vierteljährlich", "Halbjährlich", "Jährlich", "Bei Bedarf",
   ];
 
+  var ALLTAGSTASKS = [
+    { id: "wohnungsreinigung",  label: "Wohnungsreinigung (Staubsaugen, Wischen, Bad, Küche)" },
+    { id: "fensterputzen",      label: "Fenster putzen" },
+    { id: "waeschewaschen",     label: "Wäsche waschen, aufhängen, bügeln" },
+    { id: "einkaufen",          label: "Einkaufen (Lebensmittel, Drogerie, Apotheke)" },
+    { id: "kochen",             label: "Kochen / Mahlzeiten zubereiten" },
+    { id: "geschirrspuelen",    label: "Geschirr spülen / Küche aufräumen" },
+    { id: "muell",              label: "Müll rausbringen / Mülltrennung" },
+    { id: "waeschereinigung",   label: "Wäsche zum Reinigungsdienst bringen/abholen" },
+    { id: "post",               label: "Post holen und sortieren" },
+    { id: "haustiere",          label: "Haustierversorgung (Füttern, Gassi gehen)" },
+  ];
+
+  // ── Serialisation ──────────────────────────────────────────────────
   function serialize() {
-    const services = [];
+    var services = [];
     list.querySelectorAll(".ah-service-card").forEach(function (card) {
-      const typeEl = card.querySelector('input[type="radio"]:checked');
-      const einsatzEl = card.querySelector('input[data-field="einsatz"]');
-      const monatEl = card.querySelector('input[data-field="monat"]');
-      const regelEl = card.querySelector('input[data-field="regel"]:checked');
-      services.push({
-        type: typeEl ? typeEl.value : "",
-        einsatzUmfang: einsatzEl ? einsatzEl.value : "",
-        monatUmfang: monatEl ? monatEl.value : "",
-        regelmaessigkeit: regelEl ? regelEl.value : "",
-      });
+      var typeEl = card.querySelector("input[data-role=type]:checked");
+      var type   = typeEl ? typeEl.value : "";
+      var svc    = { type: type };
+
+      if (type === "Alltagsbegleitung") {
+        svc.tasks = [];
+        ALLTAGSTASKS.forEach(function (def) {
+          var cb = card.querySelector("input[data-task-id=" + def.id + "]");
+          if (!cb || !cb.checked) return;
+          var dauerEl    = card.querySelector("input[data-task-field=dauer][data-task-id=" + def.id + "]");
+          var regelEl    = card.querySelector("select[data-task-field=regelmaessigkeit][data-task-id=" + def.id + "]");
+          var tageEl     = card.querySelector("input[data-task-field=bevorzugteTage][data-task-id=" + def.id + "]");
+          var uhrzeitEl  = card.querySelector("input[data-task-field=bevorzugteUhrzeit][data-task-id=" + def.id + "]");
+          var stundenEl  = card.querySelector("input[data-task-field=geschaetzteStunden][data-task-id=" + def.id + "]");
+          svc.tasks.push({
+            id:                def.id,
+            label:             def.label,
+            dauer:             dauerEl   ? dauerEl.value   : "",
+            regelmaessigkeit:  regelEl   ? regelEl.value   : "",
+            bevorzugteTage:    tageEl    ? tageEl.value    : "",
+            bevorzugteUhrzeit: uhrzeitEl ? uhrzeitEl.value : "",
+            geschaetzteStunden: stundenEl ? stundenEl.value : "",
+          });
+        });
+      } else {
+        var einsatzEl = card.querySelector("input[data-field=einsatz]");
+        var monatEl   = card.querySelector("input[data-field=monat]");
+        var regelEl   = card.querySelector("input[data-field=regel]:checked");
+        svc.einsatzUmfang    = einsatzEl ? einsatzEl.value : "";
+        svc.monatUmfang      = monatEl   ? monatEl.value   : "";
+        svc.regelmaessigkeit = regelEl   ? regelEl.value   : "";
+      }
+      services.push(svc);
     });
     jsonInput.value = JSON.stringify(services);
   }
 
+  // ── Title / remove-button upkeep ───────────────────────────────────
   function updateTitlesAndButtons() {
-    const cards = list.querySelectorAll(".ah-service-card");
+    var cards = list.querySelectorAll(".ah-service-card");
     cards.forEach(function (card, i) {
-      const titleEl = card.querySelector(".ah-sc-title");
-      if (titleEl) titleEl.textContent = "Leistung " + (i + 1);
-      const removeBtn = card.querySelector(".ah-sc-remove");
-      if (removeBtn) removeBtn.hidden = cards.length <= 1;
+      var t = card.querySelector(".ah-sc-title");
+      if (t) t.textContent = "Leistung " + (i + 1);
+      var r = card.querySelector(".ah-sc-remove");
+      if (r) r.hidden = cards.length <= 1;
     });
   }
 
+  // ── Task-list section (Alltagsbegleitung) ──────────────────────────
+  function buildTaskSection(cardIdx, savedTasks) {
+    var savedMap = {};
+    if (Array.isArray(savedTasks)) {
+      savedTasks.forEach(function (t) { savedMap[t.id] = t; });
+    }
+
+    var wrap = document.createElement("div");
+    wrap.style.cssText = "border:1px solid var(--border); border-radius:6px; overflow:hidden;";
+
+    ALLTAGSTASKS.forEach(function (def, i) {
+      var saved     = savedMap[def.id] || {};
+      var isChecked = !!saved.dauer || !!saved.haeufigkeit || !!saved.regelmaessigkeit;
+      var isLast    = i === ALLTAGSTASKS.length - 1;
+
+      var row = document.createElement("div");
+      row.style.borderBottom = isLast ? "none" : "1px solid var(--border)";
+
+      // — checkbox label row —
+      var checkRow = document.createElement("label");
+      checkRow.style.cssText =
+        "display:flex; align-items:center; gap:8px; padding:7px 12px; cursor:pointer; user-select:none;" +
+        (isChecked ? " background:var(--accent-light,#eff6ff);" : "");
+
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.setAttribute("data-task-id", def.id);
+      cb.checked = isChecked;
+      cb.style.cssText = "width:15px; height:15px; flex-shrink:0; cursor:pointer;";
+
+      var nameSpan = document.createElement("span");
+      nameSpan.style.fontSize = "0.88rem";
+      nameSpan.textContent = def.label;
+
+      checkRow.appendChild(cb);
+      checkRow.appendChild(nameSpan);
+
+      // — detail row (shown when checked) —
+      var detail = document.createElement("div");
+      detail.style.cssText =
+        "padding:8px 12px 10px 35px; background:var(--bg-alt,#f8fafc);" +
+        "display:" + (isChecked ? "grid" : "none") + ";" +
+        "grid-template-columns:repeat(5,1fr); gap:8px; align-items:end;";
+
+      // Dauer
+      var daurWrap = document.createElement("div");
+      daurWrap.innerHTML =
+        "<label style='font-size:0.78rem; font-weight:500; display:block; margin-bottom:3px;'>Dauer (min)</label>" +
+        "<input type='number' data-task-field='dauer' data-task-id='" + def.id + "'" +
+        " min='5' step='5' value='" + (saved.dauer || "") + "' placeholder='min' />";
+
+      // Regelmäßigkeit
+      var regelWrap = document.createElement("div");
+      var sel = document.createElement("select");
+      sel.setAttribute("data-task-field", "regelmaessigkeit");
+      sel.setAttribute("data-task-id", def.id);
+      sel.style.fontSize = "0.8rem";
+      var opt0 = document.createElement("option");
+      opt0.value = "";
+      opt0.textContent = "Regelmäßigkeit …";
+      sel.appendChild(opt0);
+      REGELMAESSIGKEIT.forEach(function (r) {
+        var opt = document.createElement("option");
+        opt.value = r;
+        opt.textContent = r;
+        if (saved.regelmaessigkeit === r) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      var regelLabel = document.createElement("label");
+      regelLabel.style.cssText = "font-size:0.78rem; font-weight:500; display:block; margin-bottom:3px;";
+      regelLabel.textContent = "Regelmäßigkeit";
+      regelWrap.appendChild(regelLabel);
+      regelWrap.appendChild(sel);
+
+      // Bevorzugte Tage
+      var tageWrap = document.createElement("div");
+      tageWrap.innerHTML =
+        "<label style='font-size:0.78rem; font-weight:500; display:block; margin-bottom:3px;'>Bevorzugte Tage</label>" +
+        "<input type='text' data-task-field='bevorzugteTage' data-task-id='" + def.id + "'" +
+        " value='" + (saved.bevorzugteTage || "") + "' placeholder='Mo, Mi, Fr' />";
+
+      // Bevorzugte Uhrzeit
+      var uhrzeitWrap = document.createElement("div");
+      uhrzeitWrap.innerHTML =
+        "<label style='font-size:0.78rem; font-weight:500; display:block; margin-bottom:3px;'>Bevorzugte Uhrzeit</label>" +
+        "<input type='text' data-task-field='bevorzugteUhrzeit' data-task-id='" + def.id + "'" +
+        " value='" + (saved.bevorzugteUhrzeit || "") + "' placeholder='09:00' />";
+
+      // Geschätzte Stunden/Einsatz
+      var stundenWrap = document.createElement("div");
+      stundenWrap.innerHTML =
+        "<label style='font-size:0.78rem; font-weight:500; display:block; margin-bottom:3px;'>Std./Einsatz</label>" +
+        "<input type='number' data-task-field='geschaetzteStunden' data-task-id='" + def.id + "'" +
+        " min='0' step='0.5' value='" + (saved.geschaetzteStunden || "") + "' placeholder='h' inputmode='decimal' />";
+
+      detail.appendChild(daurWrap);
+      detail.appendChild(regelWrap);
+      detail.appendChild(tageWrap);
+      detail.appendChild(uhrzeitWrap);
+      detail.appendChild(stundenWrap);
+
+      // toggle on checkbox change
+      cb.addEventListener("change", function () {
+        detail.style.display = this.checked ? "grid" : "none";
+        checkRow.style.background = this.checked ? "var(--accent-light,#eff6ff)" : "";
+        serialize();
+      });
+
+      row.appendChild(checkRow);
+      row.appendChild(detail);
+      wrap.appendChild(row);
+    });
+
+    return wrap;
+  }
+
+  // ── Haushaltsnahe-DL section ───────────────────────────────────────
+  function buildHaushaltSection(idx, data) {
+    var sec = document.createElement("div");
+    sec.style.cssText = "display:grid; gap:10px;";
+
+    var hoursDiv = document.createElement("div");
+    hoursDiv.style.cssText = "display:grid; grid-template-columns:1fr 1fr; gap:8px;";
+    hoursDiv.innerHTML =
+      "<div>" +
+        "<label style='font-size:0.82rem; font-weight:500; display:block; margin-bottom:4px;'>Std./Einsatz (h)</label>" +
+        "<input type='number' data-field='einsatz' min='0' step='0.5' value='" + (data.einsatzUmfang || "") + "' placeholder='z. B. 2' inputmode='decimal' />" +
+      "</div>" +
+      "<div>" +
+        "<label style='font-size:0.82rem; font-weight:500; display:block; margin-bottom:4px;'>Std./Monat (h)</label>" +
+        "<input type='number' data-field='monat' min='0' step='0.5' value='" + (data.monatUmfang || "") + "' placeholder='z. B. 8' inputmode='decimal' />" +
+      "</div>";
+
+    var regelDiv = document.createElement("div");
+    var rHtml =
+      "<label style='font-size:0.82rem; font-weight:500; display:block; margin-bottom:5px;'>Regelmäßigkeit</label>" +
+      "<div class='radio-group' role='radiogroup' style='flex-wrap:wrap; gap:5px;'>";
+    REGELMAESSIGKEIT.forEach(function (opt) {
+      rHtml +=
+        "<label class='radio-pill'><input type='radio' data-field='regel' name='ahServiceRegel_" + idx + "' value='" + opt + "'" +
+        (data.regelmaessigkeit === opt ? " checked" : "") + " /><span class='circle'></span><span>" + opt + "</span></label>";
+    });
+    rHtml += "</div>";
+    regelDiv.innerHTML = rHtml;
+
+    sec.appendChild(hoursDiv);
+    sec.appendChild(regelDiv);
+    return sec;
+  }
+
+  // ── Card factory ───────────────────────────────────────────────────
   function createCard(data) {
     data = data || {};
-    var idx = counter++;
+    var idx  = counter++;
     var card = document.createElement("div");
     card.className = "ah-service-card";
     card.style.cssText = "padding:12px 16px; border:1px solid var(--border); border-radius:8px; display:grid; gap:10px;";
 
-    // Header
+    // header
     var header = document.createElement("div");
     header.style.cssText = "display:flex; justify-content:space-between; align-items:center;";
     var titleSpan = document.createElement("span");
@@ -5437,73 +5626,66 @@ document.body.addEventListener("click", (e) => {
     removeBtn.style.cssText = "padding:2px 9px; font-size:0.78rem;";
     removeBtn.textContent = "Entfernen";
     removeBtn.addEventListener("click", function () {
-      card.remove();
-      updateTitlesAndButtons();
-      serialize();
+      card.remove(); updateTitlesAndButtons(); serialize();
     });
     header.appendChild(titleSpan);
     header.appendChild(removeBtn);
     card.appendChild(header);
 
-    // Top row: service type (left) + hours (right)
-    var topRow = document.createElement("div");
-    topRow.style.cssText = "display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start;";
-
+    // service type selector
     var typeDiv = document.createElement("div");
     typeDiv.innerHTML =
-      '<label style="font-size:0.82rem; font-weight:500; display:block; margin-bottom:5px;">Art der Leistung</label>' +
-      '<div class="radio-group" role="radiogroup" style="flex-wrap:wrap; gap:5px;">' +
-        '<label class="radio-pill"><input type="radio" name="ahServiceType_' + idx + '" value="Alltagsbegleitung"' + (data.type === "Alltagsbegleitung" ? " checked" : "") + ' /><span class="circle"></span><span>Alltagsbegleitung</span></label>' +
-        '<label class="radio-pill"><input type="radio" name="ahServiceType_' + idx + '" value="Haushaltsnahedienstleistungen"' + (data.type === "Haushaltsnahedienstleistungen" ? " checked" : "") + ' /><span class="circle"></span><span>Haushaltsnahe DL</span></label>' +
-      '</div>';
+      "<label style='font-size:0.82rem; font-weight:500; display:block; margin-bottom:5px;'>Art der Leistung</label>" +
+      "<div class='radio-group' role='radiogroup' style='flex-wrap:wrap; gap:5px;'>" +
+        "<label class='radio-pill'><input type='radio' data-role='type' name='ahServiceType_" + idx + "' value='Alltagsbegleitung'" +
+          (data.type === "Alltagsbegleitung" ? " checked" : "") + " /><span class='circle'></span><span>Alltagsbegleitung</span></label>" +
+        "<label class='radio-pill'><input type='radio' data-role='type' name='ahServiceType_" + idx + "' value='Haushaltsnahedienstleistungen'" +
+          (data.type === "Haushaltsnahedienstleistungen" ? " checked" : "") + " /><span class='circle'></span><span>Haushaltsnahe DL</span></label>" +
+      "</div>";
+    card.appendChild(typeDiv);
 
-    var hoursDiv = document.createElement("div");
-    hoursDiv.style.cssText = "display:grid; grid-template-columns:1fr 1fr; gap:8px;";
-    hoursDiv.innerHTML =
-      '<div>' +
-        '<label style="font-size:0.82rem; font-weight:500; display:block; margin-bottom:4px;">Std./Einsatz (h)</label>' +
-        '<input type="number" data-field="einsatz" min="0" step="0.5" value="' + (data.einsatzUmfang || "") + '" placeholder="z. B. 2" inputmode="decimal" />' +
-      '</div>' +
-      '<div>' +
-        '<label style="font-size:0.82rem; font-weight:500; display:block; margin-bottom:4px;">Std./Monat (h)</label>' +
-        '<input type="number" data-field="monat" min="0" step="0.5" value="' + (data.monatUmfang || "") + '" placeholder="z. B. 8" inputmode="decimal" />' +
-      '</div>';
+    // type-specific sections
+    var alltagsSec = document.createElement("div");
+    alltagsSec.style.display = "none";
+    alltagsSec.appendChild(buildTaskSection(idx, data.tasks || []));
 
-    topRow.appendChild(typeDiv);
-    topRow.appendChild(hoursDiv);
-    card.appendChild(topRow);
+    var haushaltSec = buildHaushaltSection(idx, data);
+    haushaltSec.style.display = "none";
 
-    // Regularity — wrapped pills (no vertical stack)
-    var regelDiv = document.createElement("div");
-    var regelHtml =
-      '<label style="font-size:0.82rem; font-weight:500; display:block; margin-bottom:5px;">Regelmäßigkeit</label>' +
-      '<div class="radio-group" role="radiogroup" style="flex-wrap:wrap; gap:5px;">';
-    REGELMAESSIGKEIT.forEach(function (opt) {
-      regelHtml +=
-        '<label class="radio-pill"><input type="radio" data-field="regel" name="ahServiceRegel_' + idx + '" value="' + opt + '"' +
-        (data.regelmaessigkeit === opt ? " checked" : "") + ' /><span class="circle"></span><span>' + opt + '</span></label>';
+    card.appendChild(alltagsSec);
+    card.appendChild(haushaltSec);
+
+    function applyType(type) {
+      alltagsSec.style.display  = type === "Alltagsbegleitung"             ? "" : "none";
+      haushaltSec.style.display = type === "Haushaltsnahedienstleistungen" ? "" : "none";
+    }
+
+    // listen for type change
+    typeDiv.addEventListener("change", function (e) {
+      if (e.target.getAttribute("data-role") === "type") { applyType(e.target.value); serialize(); }
     });
-    regelHtml += '</div>';
-    regelDiv.innerHTML = regelHtml;
-    card.appendChild(regelDiv);
+
+    // restore initial visibility
+    if (data.type) applyType(data.type);
 
     card.addEventListener("change", serialize);
-    card.addEventListener("input", serialize);
+    card.addEventListener("input",  serialize);
     return card;
   }
 
+  // ── Wire up add button ─────────────────────────────────────────────
   addBtn.addEventListener("click", function () {
     list.appendChild(createCard());
     updateTitlesAndButtons();
     serialize();
   });
 
-  // Initial card on page load
+  // initial card
   list.appendChild(createCard());
   updateTitlesAndButtons();
   serialize();
 
-  // Exposed for draft restore
+  // draft restore
   window.restoreAhServices = function (services) {
     list.innerHTML = "";
     counter = 0;
