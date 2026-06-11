@@ -1040,11 +1040,11 @@ if (l.source === "hl_pipe") {
       const displayName =
         metaColor && (l.id === "V3WVK09" || l.id === "V3WV09")
           ? `${displayNameBase} — Farbe: ${metaColor}`
-          : l.id === "PLA5282"
-          ? `${displayNameBase} Set`
           : displayNameBase;
 
-      const builtLabel = `- ${l.qty} Stk ${displayName}`;
+      const builtLabel = l.id === "PLA5282"
+        ? `- 1 Set ${displayNameBase}`
+        : `- ${l.qty} Stk ${displayName}`;
       const label = l.label || builtLabel;
 
       let finalLabel = label;
