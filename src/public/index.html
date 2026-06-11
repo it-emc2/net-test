@@ -2242,6 +2242,10 @@ button.dm-btn-danger:focus-visible {
           <div>
             <label for="lastName" class="req">Nachname</label><input id="lastName" name="lastName" required />
           </div>
+          <div data-offer="ah">
+            <label for="ah_geburtsdatum">Geburtsdatum</label>
+            <input id="ah_geburtsdatum" name="ah_geburtsdatum" type="date" />
+          </div>
 
        
 
@@ -2446,6 +2450,10 @@ button.dm-btn-danger:focus-visible {
                     <label for="kassenkundeName">Name der Krankenkasse Kunde</label>
                     <input id="kassenkundeName" name="kassenkundeName" type="text" placeholder="z. B. AOK Nord" />
                   </div>
+                  <div class="field full" data-offer="ah">
+                    <label for="ah_versichertenr">Versichertenr.</label>
+                    <input id="ah_versichertenr" name="ah_versichertenr" type="text" placeholder="z. B. A123456789" />
+                  </div>
                 </div>
 
                 <div id="aufschlagSection" class="aufschlag-panel" data-offer="bu,bwt,hl,bl,hms,wd">
@@ -2529,6 +2537,7 @@ button.dm-btn-danger:focus-visible {
                       class="dot"></span><span>4</span></label>
                   <label class="zone-pill"><input type="radio" name="pflegegrad" value="5" /><span
                       class="dot"></span><span>5</span></label>
+                  <label class="zone-pill" data-offer="ah"><input type="radio" name="pflegegrad" value="beantragt" /><span class="dot"></span><span>beantragt</span></label>
                 </div>
               </div>
 
@@ -2696,6 +2705,8 @@ button.dm-btn-danger:focus-visible {
                   <div class="radio-group" role="radiogroup" aria-label="Angabe zur Wohnsituation">
                     <label class="radio-pill"><input type="radio" name="wohnsituation" value="Eigentum" /><span class="circle"></span><span>Eigentum</span></label>
                     <label class="radio-pill"><input type="radio" name="wohnsituation" value="Miete" /><span class="circle"></span><span>Miete</span></label>
+                    <label class="radio-pill" data-offer="ah"><input type="radio" name="wohnsituation" value="betreut" /><span class="circle"></span><span>betreut</span></label>
+                    <label class="radio-pill" data-offer="ah"><input type="radio" name="wohnsituation" value="bei Angehörigen" /><span class="circle"></span><span>bei Angehörigen</span></label>
                   </div>
                 </div>
 
@@ -2748,6 +2759,48 @@ button.dm-btn-danger:focus-visible {
             </details>
           </div>
 
+
+          <!-- AH only: Lebenssituation -->
+          <div class="full" data-offer="ah" style="margin-top: 16px">
+            <details open>
+              <summary class="section-header" style="cursor: pointer">
+                Lebenssituation
+              </summary>
+              <div style="display: grid; grid-template-columns: 1fr; gap: 14px; padding: 8px 0">
+                <div class="full">
+                  <label>Allein lebend</label>
+                  <div class="radio-group" role="radiogroup" aria-label="Allein lebend">
+                    <label class="radio-pill"><input type="radio" name="ah_alleinLebend" value="Ja" /><span class="circle"></span><span>Ja</span></label>
+                    <label class="radio-pill"><input type="radio" name="ah_alleinLebend" value="Nein" /><span class="circle"></span><span>Nein</span></label>
+                  </div>
+                </div>
+                <div class="full">
+                  <label>Haustiere</label>
+                  <div class="radio-group" role="radiogroup" aria-label="Haustiere">
+                    <label class="radio-pill"><input type="radio" name="ah_haustiere" value="Ja" /><span class="circle"></span><span>Ja</span></label>
+                    <label class="radio-pill"><input type="radio" name="ah_haustiere" value="Nein" /><span class="circle"></span><span>Nein</span></label>
+                  </div>
+                </div>
+                <div class="full">
+                  <label>Schlüssel hinterlegt</label>
+                  <div class="radio-group" role="radiogroup" aria-label="Schlüssel hinterlegt">
+                    <label class="radio-pill"><input type="radio" name="ah_schluessel" value="Ja" /><span class="circle"></span><span>Ja</span></label>
+                    <label class="radio-pill"><input type="radio" name="ah_schluessel" value="Nein" /><span class="circle"></span><span>Nein</span></label>
+                    <label class="radio-pill"><input type="radio" name="ah_schluessel" value="Schlüsselübergabe klären" /><span class="circle"></span><span>Schlüsselübergabe klären</span></label>
+                  </div>
+                </div>
+                <div class="full">
+                  <label>Bestehende Hilfe</label>
+                  <div class="radio-group" role="radiogroup" aria-label="Bestehende Hilfe" style="flex-wrap: wrap">
+                    <label class="radio-pill"><input type="radio" name="ah_bestehendeHilfe" value="Pflegedienst" /><span class="circle"></span><span>Pflegedienst</span></label>
+                    <label class="radio-pill"><input type="radio" name="ah_bestehendeHilfe" value="Angehörige" /><span class="circle"></span><span>Angehörige</span></label>
+                    <label class="radio-pill"><input type="radio" name="ah_bestehendeHilfe" value="Nachbarn" /><span class="circle"></span><span>Nachbarn</span></label>
+                    <label class="radio-pill"><input type="radio" name="ah_bestehendeHilfe" value="keine" /><span class="circle"></span><span>keine</span></label>
+                  </div>
+                </div>
+              </div>
+            </details>
+          </div>
 
   <!-- Customer actions: save + search -->
           <div class="form-field">
