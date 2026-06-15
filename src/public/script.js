@@ -5405,6 +5405,20 @@ document.body.addEventListener("click", (e) => {
     { id: "haustiere",          label: "Haustierversorgung (Füttern, Gassi gehen)" },
   ];
 
+  var BEGLEITUNG_TASKS = [
+    { id: "arzttermine",        label: "Begleitung zu Arztterminen" },
+    { id: "behoerdengaenge",    label: "Begleitung zu Behördengängen" },
+    { id: "einkaufen_begl",     label: "Begleitung zum Einkaufen (gemeinsam)" },
+    { id: "spaziergaenge",      label: "Spaziergänge / Bewegung an der frischen Luft" },
+    { id: "gesellschaft",       label: "Gesellschaft leisten / Gespräche führen" },
+    { id: "vorlesen",           label: "Vorlesen (Zeitung, Bücher)" },
+    { id: "aktivitaeten",       label: "Gemeinsame Aktivitäten (Spiele, Basteln, Kochen)" },
+    { id: "gedaechtnis",        label: "Gedächtnistraining / kognitive Aktivierung" },
+    { id: "korrespondenz",      label: "Unterstützung bei Korrespondenz (Briefe, Formulare)" },
+    { id: "fahrdienste",        label: "Fahrdienste (zum Friedhof, Friseur, Veranstaltungen)" },
+    { id: "entlastung",         label: "Entlastung pflegender Angehöriger (stundenweise Betreuung)" },
+  ];
+
   // ── Serialisation ──────────────────────────────────────────────────
   function serialize() {
     var services = [];
@@ -5413,9 +5427,10 @@ document.body.addEventListener("click", (e) => {
         var type = card.getAttribute("data-type") || "";
         var svc  = { type: type };
 
-        if (type === "Alltagsbegleitung") {
+        if (type === "Haushaltsnahedienstleistungen" || type === "Alltagsbegleitung") {
+          var tList = type === "Haushaltsnahedienstleistungen" ? ALLTAGSTASKS : BEGLEITUNG_TASKS;
           svc.tasks = [];
-          ALLTAGSTASKS.forEach(function (def) {
+          tList.forEach(function (def) {
             var cb = card.querySelector("input[data-task-id=" + def.id + "]");
             if (!cb || !cb.checked) return;
             var dauerEl    = card.querySelector("input[data-task-field=dauer][data-task-id=" + def.id + "]");
@@ -5463,7 +5478,7 @@ document.body.addEventListener("click", (e) => {
   // ── Task-list section (Alltagsbegleitung) ──────────────────────────
   // All inputs are always visible. Unchecked rows are greyed + disabled.
   // This prevents the card from changing size when a task is checked.
-  function buildTaskSection(cardIdx, savedTasks) {
+  function buildTaskSection(cardIdx, savedTasks, taskList) {
     var savedMap = {};
     if (Array.isArray(savedTasks)) {
       savedTasks.forEach(function (t) { savedMap[t.id] = t; });
@@ -5485,10 +5500,10 @@ document.body.addEventListener("click", (e) => {
       "<span>Regelmäßigkeit</span><span>Bev. Tage</span><span>Bev. Uhrzeit</span><span>Std./Einsatz</span>";
     wrap.appendChild(hdr);
 
-    ALLTAGSTASKS.forEach(function (def, i) {
+    taskList.forEach(function (def, i) {
       var saved     = savedMap[def.id] || {};
       var isChecked = !!savedMap[def.id];
-      var isLast    = i === ALLTAGSTASKS.length - 1;
+      var isLast    = i === taskList.length - 1;
 
       var row = document.createElement("div");
       row.style.cssText =
@@ -5638,10 +5653,10 @@ document.body.addEventListener("click", (e) => {
     card.appendChild(header);
 
     // type-specific content
-    if (type === "Alltagsbegleitung") {
-      card.appendChild(buildTaskSection(idx, data.tasks || []));
+    if (type === "Haushaltsnahedienstleistungen") {
+      card.appendChild(buildTaskSection(idx, data.tasks || [], ALLTAGSTASKS));
     } else {
-      card.appendChild(buildHaushaltSection(idx, data));
+      card.appendChild(buildTaskSection(idx, data.tasks || [], BEGLEITUNG_TASKS));
     }
 
     card.addEventListener("change", serialize);
