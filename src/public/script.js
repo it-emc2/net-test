@@ -5378,10 +5378,12 @@ document.body.addEventListener("click", (e) => {
   var form = document.getElementById("form-ah");
   if (!form) return;
 
-  var list = document.getElementById("ahServicesList");
-  var addBtn = document.getElementById("ahAddServiceBtn");
+  var alltagsList  = document.getElementById("ahListAlltagsbegleitung");
+  var haushaltList = document.getElementById("ahListHaushalt");
+  var addAlltagsBtn  = document.getElementById("ahAddAlltagsBtn");
+  var addHaushaltBtn = document.getElementById("ahAddHaushaltBtn");
   var jsonInput = document.getElementById("ahServicesJson");
-  if (!list || !addBtn || !jsonInput) return;
+  if (!alltagsList || !haushaltList || !addAlltagsBtn || !addHaushaltBtn || !jsonInput) return;
 
   var counter = 0;
 
@@ -5406,165 +5408,167 @@ document.body.addEventListener("click", (e) => {
   // ── Serialisation ──────────────────────────────────────────────────
   function serialize() {
     var services = [];
-    list.querySelectorAll(".ah-service-card").forEach(function (card) {
-      var typeEl = card.querySelector("input[data-role=type]:checked");
-      var type   = typeEl ? typeEl.value : "";
-      var svc    = { type: type };
+    [alltagsList, haushaltList].forEach(function (sectionList) {
+      sectionList.querySelectorAll(".ah-service-card").forEach(function (card) {
+        var type = card.getAttribute("data-type") || "";
+        var svc  = { type: type };
 
-      if (type === "Alltagsbegleitung") {
-        svc.tasks = [];
-        ALLTAGSTASKS.forEach(function (def) {
-          var cb = card.querySelector("input[data-task-id=" + def.id + "]");
-          if (!cb || !cb.checked) return;
-          var dauerEl    = card.querySelector("input[data-task-field=dauer][data-task-id=" + def.id + "]");
-          var regelEl    = card.querySelector("select[data-task-field=regelmaessigkeit][data-task-id=" + def.id + "]");
-          var tageEl     = card.querySelector("input[data-task-field=bevorzugteTage][data-task-id=" + def.id + "]");
-          var uhrzeitEl  = card.querySelector("input[data-task-field=bevorzugteUhrzeit][data-task-id=" + def.id + "]");
-          var stundenEl  = card.querySelector("input[data-task-field=geschaetzteStunden][data-task-id=" + def.id + "]");
-          svc.tasks.push({
-            id:                def.id,
-            label:             def.label,
-            dauer:             dauerEl   ? dauerEl.value   : "",
-            regelmaessigkeit:  regelEl   ? regelEl.value   : "",
-            bevorzugteTage:    tageEl    ? tageEl.value    : "",
-            bevorzugteUhrzeit: uhrzeitEl ? uhrzeitEl.value : "",
-            geschaetzteStunden: stundenEl ? stundenEl.value : "",
+        if (type === "Alltagsbegleitung") {
+          svc.tasks = [];
+          ALLTAGSTASKS.forEach(function (def) {
+            var cb = card.querySelector("input[data-task-id=" + def.id + "]");
+            if (!cb || !cb.checked) return;
+            var dauerEl    = card.querySelector("input[data-task-field=dauer][data-task-id=" + def.id + "]");
+            var regelEl    = card.querySelector("select[data-task-field=regelmaessigkeit][data-task-id=" + def.id + "]");
+            var tageEl     = card.querySelector("input[data-task-field=bevorzugteTage][data-task-id=" + def.id + "]");
+            var uhrzeitEl  = card.querySelector("input[data-task-field=bevorzugteUhrzeit][data-task-id=" + def.id + "]");
+            var stundenEl  = card.querySelector("input[data-task-field=geschaetzteStunden][data-task-id=" + def.id + "]");
+            svc.tasks.push({
+              id:                def.id,
+              label:             def.label,
+              dauer:             dauerEl   ? dauerEl.value   : "",
+              regelmaessigkeit:  regelEl   ? regelEl.value   : "",
+              bevorzugteTage:    tageEl    ? tageEl.value    : "",
+              bevorzugteUhrzeit: uhrzeitEl ? uhrzeitEl.value : "",
+              geschaetzteStunden: stundenEl ? stundenEl.value : "",
+            });
           });
-        });
-      } else {
-        var einsatzEl = card.querySelector("input[data-field=einsatz]");
-        var monatEl   = card.querySelector("input[data-field=monat]");
-        var regelEl   = card.querySelector("input[data-field=regel]:checked");
-        svc.einsatzUmfang    = einsatzEl ? einsatzEl.value : "";
-        svc.monatUmfang      = monatEl   ? monatEl.value   : "";
-        svc.regelmaessigkeit = regelEl   ? regelEl.value   : "";
-      }
-      services.push(svc);
+        } else {
+          var einsatzEl = card.querySelector("input[data-field=einsatz]");
+          var monatEl   = card.querySelector("input[data-field=monat]");
+          var regelEl   = card.querySelector("input[data-field=regel]:checked");
+          svc.einsatzUmfang    = einsatzEl ? einsatzEl.value : "";
+          svc.monatUmfang      = monatEl   ? monatEl.value   : "";
+          svc.regelmaessigkeit = regelEl   ? regelEl.value   : "";
+        }
+        services.push(svc);
+      });
     });
     jsonInput.value = JSON.stringify(services);
   }
 
-  // ── Title / remove-button upkeep ───────────────────────────────────
+  // ── Title / remove-button / empty-hint upkeep ─────────────────────
   function updateTitlesAndButtons() {
-    var cards = list.querySelectorAll(".ah-service-card");
-    cards.forEach(function (card, i) {
-      var t = card.querySelector(".ah-sc-title");
-      if (t) t.textContent = "Leistung " + (i + 1);
-      var r = card.querySelector(".ah-sc-remove");
-      if (r) r.hidden = cards.length <= 1;
+    [alltagsList, haushaltList].forEach(function (sectionList) {
+      var cards = sectionList.querySelectorAll(".ah-service-card");
+      cards.forEach(function (card, i) {
+        var t = card.querySelector(".ah-sc-title");
+        if (t) t.textContent = "Leistung " + (i + 1);
+      });
+      var hint = sectionList.querySelector(".ah-empty-hint");
+      if (hint) hint.style.display = cards.length === 0 ? "" : "none";
     });
   }
 
   // ── Task-list section (Alltagsbegleitung) ──────────────────────────
+  // All inputs are always visible. Unchecked rows are greyed + disabled.
+  // This prevents the card from changing size when a task is checked.
   function buildTaskSection(cardIdx, savedTasks) {
     var savedMap = {};
     if (Array.isArray(savedTasks)) {
       savedTasks.forEach(function (t) { savedMap[t.id] = t; });
     }
 
+    var COL = "20px 1fr 76px 130px 88px 80px 70px";
+
     var wrap = document.createElement("div");
-    wrap.style.cssText = "border:1px solid var(--border); border-radius:6px; overflow:hidden;";
+    wrap.style.cssText = "width:100%; box-sizing:border-box; border:1px solid var(--border); border-radius:6px; overflow:hidden;";
+
+    // — column header —
+    var hdr = document.createElement("div");
+    hdr.style.cssText =
+      "display:grid; grid-template-columns:" + COL + "; gap:6px; align-items:center;" +
+      "padding:5px 12px 4px; background:var(--bg-alt,#f8fafc); border-bottom:1px solid var(--border);" +
+      "font-size:0.7rem; font-weight:600; color:var(--muted); user-select:none;";
+    hdr.innerHTML =
+      "<span></span><span>Aufgabe</span><span>Dauer (min)</span>" +
+      "<span>Regelmäßigkeit</span><span>Bev. Tage</span><span>Bev. Uhrzeit</span><span>Std./Einsatz</span>";
+    wrap.appendChild(hdr);
 
     ALLTAGSTASKS.forEach(function (def, i) {
       var saved     = savedMap[def.id] || {};
-      var isChecked = !!saved.dauer || !!saved.haeufigkeit || !!saved.regelmaessigkeit;
+      var isChecked = !!savedMap[def.id];
       var isLast    = i === ALLTAGSTASKS.length - 1;
 
       var row = document.createElement("div");
-      row.style.borderBottom = isLast ? "none" : "1px solid var(--border)";
+      row.style.cssText =
+        "display:grid; grid-template-columns:" + COL + "; gap:6px; align-items:center;" +
+        "padding:7px 12px;" +
+        "border-bottom:" + (isLast ? "none" : "1px solid var(--border)") + ";" +
+        (isChecked ? "background:var(--accent-light,#eff6ff);" : "");
 
-      // — checkbox label row —
-      var checkRow = document.createElement("label");
-      checkRow.style.cssText =
-        "display:flex; align-items:center; gap:8px; padding:7px 12px; cursor:pointer; user-select:none;" +
-        (isChecked ? " background:var(--accent-light,#eff6ff);" : "");
-
+      // checkbox
       var cb = document.createElement("input");
       cb.type = "checkbox";
       cb.setAttribute("data-task-id", def.id);
       cb.checked = isChecked;
-      cb.style.cssText = "width:15px; height:15px; flex-shrink:0; cursor:pointer;";
+      cb.style.cssText = "width:15px; height:15px; cursor:pointer; margin:0;";
 
-      var nameSpan = document.createElement("span");
-      nameSpan.style.fontSize = "0.88rem";
-      nameSpan.textContent = def.label;
+      // task name
+      var nameEl = document.createElement("span");
+      nameEl.textContent = def.label;
+      nameEl.style.cssText =
+        "font-size:0.82rem; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer;";
+      nameEl.addEventListener("click", function () { cb.checked = !cb.checked; cb.dispatchEvent(new Event("change")); });
 
-      checkRow.appendChild(cb);
-      checkRow.appendChild(nameSpan);
+      function mkNum(field, val, ph, min, step) {
+        var inp = document.createElement("input");
+        inp.type = "number";
+        inp.setAttribute("data-task-field", field);
+        inp.setAttribute("data-task-id", def.id);
+        inp.min = min; inp.step = step;
+        inp.value = val || ""; inp.placeholder = ph;
+        inp.disabled = !isChecked;
+        inp.style.cssText = "font-size:0.78rem; opacity:" + (isChecked ? "1" : "0.35") + ";";
+        return inp;
+      }
+      function mkText(field, val, ph) {
+        var inp = document.createElement("input");
+        inp.type = "text";
+        inp.setAttribute("data-task-field", field);
+        inp.setAttribute("data-task-id", def.id);
+        inp.value = val || ""; inp.placeholder = ph;
+        inp.disabled = !isChecked;
+        inp.style.cssText = "font-size:0.78rem; opacity:" + (isChecked ? "1" : "0.35") + ";";
+        return inp;
+      }
+      function mkSel(field, val) {
+        var sel = document.createElement("select");
+        sel.setAttribute("data-task-field", field);
+        sel.setAttribute("data-task-id", def.id);
+        sel.style.cssText = "font-size:0.78rem; opacity:" + (isChecked ? "1" : "0.35") + ";";
+        sel.disabled = !isChecked;
+        var o0 = document.createElement("option"); o0.value = ""; o0.textContent = "Regelm. …"; sel.appendChild(o0);
+        REGELMAESSIGKEIT.forEach(function (r) {
+          var o = document.createElement("option"); o.value = r; o.textContent = r;
+          if (val === r) o.selected = true;
+          sel.appendChild(o);
+        });
+        return sel;
+      }
 
-      // — detail row (shown when checked) —
-      var detail = document.createElement("div");
-      detail.style.cssText =
-        "padding:8px 12px 10px 35px; background:var(--bg-alt,#f8fafc);" +
-        "display:" + (isChecked ? "grid" : "none") + ";" +
-        "grid-template-columns:repeat(5,1fr); gap:8px; align-items:end;";
+      var dauerInp   = mkNum("dauer",              saved.dauer,              "min",    "5",  "5");
+      var regelSel   = mkSel("regelmaessigkeit",   saved.regelmaessigkeit);
+      var tageInp    = mkText("bevorzugteTage",    saved.bevorzugteTage,    "Mo, Mi…");
+      var uhrzeitInp = mkText("bevorzugteUhrzeit", saved.bevorzugteUhrzeit, "09:00");
+      var stundenInp = mkNum("geschaetzteStunden", saved.geschaetzteStunden, "h",      "0",  "0.5");
 
-      // Dauer
-      var daurWrap = document.createElement("div");
-      daurWrap.innerHTML =
-        "<label style='font-size:0.78rem; font-weight:500; display:block; margin-bottom:3px;'>Dauer (min)</label>" +
-        "<input type='number' data-task-field='dauer' data-task-id='" + def.id + "'" +
-        " min='5' step='5' value='" + (saved.dauer || "") + "' placeholder='min' />";
+      var allInputs = [dauerInp, regelSel, tageInp, uhrzeitInp, stundenInp];
 
-      // Regelmäßigkeit
-      var regelWrap = document.createElement("div");
-      var sel = document.createElement("select");
-      sel.setAttribute("data-task-field", "regelmaessigkeit");
-      sel.setAttribute("data-task-id", def.id);
-      sel.style.fontSize = "0.8rem";
-      var opt0 = document.createElement("option");
-      opt0.value = "";
-      opt0.textContent = "Regelmäßigkeit …";
-      sel.appendChild(opt0);
-      REGELMAESSIGKEIT.forEach(function (r) {
-        var opt = document.createElement("option");
-        opt.value = r;
-        opt.textContent = r;
-        if (saved.regelmaessigkeit === r) opt.selected = true;
-        sel.appendChild(opt);
-      });
-      var regelLabel = document.createElement("label");
-      regelLabel.style.cssText = "font-size:0.78rem; font-weight:500; display:block; margin-bottom:3px;";
-      regelLabel.textContent = "Regelmäßigkeit";
-      regelWrap.appendChild(regelLabel);
-      regelWrap.appendChild(sel);
-
-      // Bevorzugte Tage
-      var tageWrap = document.createElement("div");
-      tageWrap.innerHTML =
-        "<label style='font-size:0.78rem; font-weight:500; display:block; margin-bottom:3px;'>Bevorzugte Tage</label>" +
-        "<input type='text' data-task-field='bevorzugteTage' data-task-id='" + def.id + "'" +
-        " value='" + (saved.bevorzugteTage || "") + "' placeholder='Mo, Mi, Fr' />";
-
-      // Bevorzugte Uhrzeit
-      var uhrzeitWrap = document.createElement("div");
-      uhrzeitWrap.innerHTML =
-        "<label style='font-size:0.78rem; font-weight:500; display:block; margin-bottom:3px;'>Bevorzugte Uhrzeit</label>" +
-        "<input type='text' data-task-field='bevorzugteUhrzeit' data-task-id='" + def.id + "'" +
-        " value='" + (saved.bevorzugteUhrzeit || "") + "' placeholder='09:00' />";
-
-      // Geschätzte Stunden/Einsatz
-      var stundenWrap = document.createElement("div");
-      stundenWrap.innerHTML =
-        "<label style='font-size:0.78rem; font-weight:500; display:block; margin-bottom:3px;'>Std./Einsatz</label>" +
-        "<input type='number' data-task-field='geschaetzteStunden' data-task-id='" + def.id + "'" +
-        " min='0' step='0.5' value='" + (saved.geschaetzteStunden || "") + "' placeholder='h' inputmode='decimal' />";
-
-      detail.appendChild(daurWrap);
-      detail.appendChild(regelWrap);
-      detail.appendChild(tageWrap);
-      detail.appendChild(uhrzeitWrap);
-      detail.appendChild(stundenWrap);
-
-      // toggle on checkbox change
       cb.addEventListener("change", function () {
-        detail.style.display = this.checked ? "grid" : "none";
-        checkRow.style.background = this.checked ? "var(--accent-light,#eff6ff)" : "";
+        var c = this.checked;
+        allInputs.forEach(function (el) { el.disabled = !c; el.style.opacity = c ? "1" : "0.35"; });
+        row.style.background = c ? "var(--accent-light,#eff6ff)" : "";
         serialize();
       });
 
-      row.appendChild(checkRow);
-      row.appendChild(detail);
+      row.appendChild(cb);
+      row.appendChild(nameEl);
+      row.appendChild(dauerInp);
+      row.appendChild(regelSel);
+      row.appendChild(tageInp);
+      row.appendChild(uhrzeitInp);
+      row.appendChild(stundenInp);
       wrap.appendChild(row);
     });
 
@@ -5574,7 +5578,7 @@ document.body.addEventListener("click", (e) => {
   // ── Haushaltsnahe-DL section ───────────────────────────────────────
   function buildHaushaltSection(idx, data) {
     var sec = document.createElement("div");
-    sec.style.cssText = "display:grid; gap:10px;";
+    sec.style.cssText = "width:100%; box-sizing:border-box; display:grid; gap:10px;";
 
     var hoursDiv = document.createElement("div");
     hoursDiv.style.cssText = "display:grid; grid-template-columns:1fr 1fr; gap:8px;";
@@ -5606,12 +5610,13 @@ document.body.addEventListener("click", (e) => {
   }
 
   // ── Card factory ───────────────────────────────────────────────────
-  function createCard(data) {
+  function createCard(type, data) {
     data = data || {};
     var idx  = counter++;
     var card = document.createElement("div");
     card.className = "ah-service-card";
-    card.style.cssText = "padding:12px 16px; border:1px solid var(--border); border-radius:8px; display:grid; gap:10px;";
+    card.setAttribute("data-type", type);
+    card.style.cssText = "width:100%; box-sizing:border-box; padding:12px 16px; border:1px solid var(--border); border-radius:8px; display:grid; gap:10px;";
 
     // header
     var header = document.createElement("div");
@@ -5632,65 +5637,45 @@ document.body.addEventListener("click", (e) => {
     header.appendChild(removeBtn);
     card.appendChild(header);
 
-    // service type selector
-    var typeDiv = document.createElement("div");
-    typeDiv.innerHTML =
-      "<label style='font-size:0.82rem; font-weight:500; display:block; margin-bottom:5px;'>Art der Leistung</label>" +
-      "<div class='radio-group' role='radiogroup' style='flex-wrap:wrap; gap:5px;'>" +
-        "<label class='radio-pill'><input type='radio' data-role='type' name='ahServiceType_" + idx + "' value='Alltagsbegleitung'" +
-          (data.type === "Alltagsbegleitung" ? " checked" : "") + " /><span class='circle'></span><span>Alltagsbegleitung</span></label>" +
-        "<label class='radio-pill'><input type='radio' data-role='type' name='ahServiceType_" + idx + "' value='Haushaltsnahedienstleistungen'" +
-          (data.type === "Haushaltsnahedienstleistungen" ? " checked" : "") + " /><span class='circle'></span><span>Haushaltsnahe DL</span></label>" +
-      "</div>";
-    card.appendChild(typeDiv);
-
-    // type-specific sections
-    var alltagsSec = document.createElement("div");
-    alltagsSec.style.display = "none";
-    alltagsSec.appendChild(buildTaskSection(idx, data.tasks || []));
-
-    var haushaltSec = buildHaushaltSection(idx, data);
-    haushaltSec.style.display = "none";
-
-    card.appendChild(alltagsSec);
-    card.appendChild(haushaltSec);
-
-    function applyType(type) {
-      alltagsSec.style.display  = type === "Alltagsbegleitung"             ? "" : "none";
-      haushaltSec.style.display = type === "Haushaltsnahedienstleistungen" ? "" : "none";
+    // type-specific content
+    if (type === "Alltagsbegleitung") {
+      card.appendChild(buildTaskSection(idx, data.tasks || []));
+    } else {
+      card.appendChild(buildHaushaltSection(idx, data));
     }
-
-    // listen for type change
-    typeDiv.addEventListener("change", function (e) {
-      if (e.target.getAttribute("data-role") === "type") { applyType(e.target.value); serialize(); }
-    });
-
-    // restore initial visibility
-    if (data.type) applyType(data.type);
 
     card.addEventListener("change", serialize);
     card.addEventListener("input",  serialize);
     return card;
   }
 
-  // ── Wire up add button ─────────────────────────────────────────────
-  addBtn.addEventListener("click", function () {
-    list.appendChild(createCard());
+  // ── Wire up add buttons ────────────────────────────────────────────
+  addAlltagsBtn.addEventListener("click", function () {
+    alltagsList.appendChild(createCard("Alltagsbegleitung"));
     updateTitlesAndButtons();
     serialize();
   });
 
-  // initial card
-  list.appendChild(createCard());
-  updateTitlesAndButtons();
-  serialize();
+  addHaushaltBtn.addEventListener("click", function () {
+    haushaltList.appendChild(createCard("Haushaltsnahedienstleistungen"));
+    updateTitlesAndButtons();
+    serialize();
+  });
+
+  // sections start empty
 
   // draft restore
   window.restoreAhServices = function (services) {
-    list.innerHTML = "";
+    alltagsList.innerHTML = "";
+    haushaltList.innerHTML = "";
     counter = 0;
-    var arr = (Array.isArray(services) && services.length) ? services : [{}];
-    arr.forEach(function (s) { list.appendChild(createCard(s)); });
+    if (Array.isArray(services)) {
+      services.forEach(function (s) {
+        var type = s.type || "Alltagsbegleitung";
+        var target = type === "Haushaltsnahedienstleistungen" ? haushaltList : alltagsList;
+        target.appendChild(createCard(type, s));
+      });
+    }
     updateTitlesAndButtons();
     serialize();
   };
@@ -11545,7 +11530,7 @@ function restoreOptionalPage(opt) {
         "opt_V22WS1R",
         "opt_TEMPDSU250",
         "opt_V22BG903R",
-        "opt_DEDS2503E",
+        "opt_V22DS250E",
       ],
       cat_THERMO: ["opt_CLTB", "opt_DEPTB", "opt_CLB"],
       cat_GRAB: ["opt_CLPESG30","opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
@@ -14571,7 +14556,7 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_V22WS1R", "qty_V22WS1R_wrap");
   wireTileQty("opt_TEMPDSU250", "qty_TEMPDSU250_wrap");
   wireTileQty("opt_V22BG903R", "qty_V22BG903R_wrap");
-  wireTileQty("opt_DEDS2503E", "qty_DEDS2503E_wrap");
+  wireTileQty("opt_V22DS250E", "qty_V22DS250E_wrap");
 
   // ---- THERMO ----
   wireTileQty("opt_CLTB", "qty_CLTB_wrap");
@@ -15249,7 +15234,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
       "opt_V22WS1R",
       "opt_TEMPDSU250",
       "opt_V22BG903R",
-      "opt_DEDS2503E",
+      "opt_V22DS250E",
     ],
     cat_THERMO: ["opt_CLTB", "opt_DEPTB", "opt_CLB"],
     cat_GRAB: ["opt_CLPESG30", "opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
@@ -15402,7 +15387,7 @@ wireTileQty("hlWallAngledBall35", "qty_hlWallAngledBall35_wrap");
         "opt_V22WS1R", // Wannenset individual 2.2
         "opt_TEMPDSU250", // Duschsystem Tempesta Flex
         "opt_V22BG903R", // Brausegarnitur individ.2.2
-        "opt_DEDS2503E", // Duschsystem derby Thermostat
+        "opt_V22DS250E", // Duschsystem V2 Thermostat
       ],
     },
     {
