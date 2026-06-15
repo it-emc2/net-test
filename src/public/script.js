@@ -5427,35 +5427,28 @@ document.body.addEventListener("click", (e) => {
         var type = card.getAttribute("data-type") || "";
         var svc  = { type: type };
 
-        if (type === "Haushaltsnahedienstleistungen" || type === "Alltagsbegleitung") {
-          var tList = type === "Haushaltsnahedienstleistungen" ? ALLTAGSTASKS : BEGLEITUNG_TASKS;
-          svc.tasks = [];
-          tList.forEach(function (def) {
-            var cb = card.querySelector("input[data-task-id=" + def.id + "]");
-            if (!cb || !cb.checked) return;
-            var dauerEl    = card.querySelector("input[data-task-field=dauer][data-task-id=" + def.id + "]");
-            var regelEl    = card.querySelector("select[data-task-field=regelmaessigkeit][data-task-id=" + def.id + "]");
-            var tageEl     = card.querySelector("input[data-task-field=bevorzugteTage][data-task-id=" + def.id + "]");
-            var uhrzeitEl  = card.querySelector("input[data-task-field=bevorzugteUhrzeit][data-task-id=" + def.id + "]");
-            var stundenEl  = card.querySelector("input[data-task-field=geschaetzteStunden][data-task-id=" + def.id + "]");
-            svc.tasks.push({
-              id:                def.id,
-              label:             def.label,
-              dauer:             dauerEl   ? dauerEl.value   : "",
-              regelmaessigkeit:  regelEl   ? regelEl.value   : "",
-              bevorzugteTage:    tageEl    ? tageEl.value    : "",
-              bevorzugteUhrzeit: uhrzeitEl ? uhrzeitEl.value : "",
-              geschaetzteStunden: stundenEl ? stundenEl.value : "",
+        var tList = type === "Haushaltsnahedienstleistungen" ? ALLTAGSTASKS : BEGLEITUNG_TASKS;
+        svc.tasks = [];
+        tList.forEach(function (def) {
+          var cb = card.querySelector("input[type=checkbox][data-task-id=" + def.id + "]");
+          if (!cb || !cb.checked) return;
+          var schedRows = card.querySelectorAll(".ah-sched-row");
+          var taskSchedules = [];
+          schedRows.forEach(function (row) {
+            if (!row.querySelector("[data-task-id=" + def.id + "]")) return;
+            var d = row.querySelector("[data-sched-field=dauer][data-task-id="             + def.id + "]");
+            var r = row.querySelector("[data-sched-field=regelmaessigkeit][data-task-id="  + def.id + "]");
+            var t = row.querySelector("[data-sched-field=bevorzugteTage][data-task-id="    + def.id + "]");
+            var u = row.querySelector("[data-sched-field=bevorzugteUhrzeit][data-task-id=" + def.id + "]");
+            taskSchedules.push({
+              dauer:             d ? d.value : "",
+              regelmaessigkeit:  r ? r.value : "",
+              bevorzugteTage:    t ? t.value : "",
+              bevorzugteUhrzeit: u ? u.value : "",
             });
           });
-        } else {
-          var einsatzEl = card.querySelector("input[data-field=einsatz]");
-          var monatEl   = card.querySelector("input[data-field=monat]");
-          var regelEl   = card.querySelector("input[data-field=regel]:checked");
-          svc.einsatzUmfang    = einsatzEl ? einsatzEl.value : "";
-          svc.monatUmfang      = monatEl   ? monatEl.value   : "";
-          svc.regelmaessigkeit = regelEl   ? regelEl.value   : "";
-        }
+          svc.tasks.push({ id: def.id, label: def.label, schedules: taskSchedules });
+        });
         services.push(svc);
       });
     });
@@ -5475,116 +5468,175 @@ document.body.addEventListener("click", (e) => {
     });
   }
 
-  // ── Task-list section (Alltagsbegleitung) ──────────────────────────
-  // All inputs are always visible. Unchecked rows are greyed + disabled.
-  // This prevents the card from changing size when a task is checked.
+  // ── Task-list section ─────────────────────────────────────────────
+  // Each task has a header row (checkbox + name + + button).
+  // When checked, a schedule sub-section appears below with repeatable
+  // rows of 4 fields. Each schedule row can be removed with ×.
   function buildTaskSection(cardIdx, savedTasks, taskList) {
     var savedMap = {};
     if (Array.isArray(savedTasks)) {
       savedTasks.forEach(function (t) { savedMap[t.id] = t; });
     }
 
-    var COL = "20px 1fr 76px 130px 88px 80px 70px";
+    var SCHED_COL = "72px 1fr 100px 88px 28px";
 
     var wrap = document.createElement("div");
     wrap.style.cssText = "width:100%; box-sizing:border-box; border:1px solid var(--border); border-radius:6px; overflow:hidden;";
 
-    // — column header —
-    var hdr = document.createElement("div");
-    hdr.style.cssText =
-      "display:grid; grid-template-columns:" + COL + "; gap:6px; align-items:center;" +
-      "padding:5px 12px 4px; background:var(--bg-alt,#f8fafc); border-bottom:1px solid var(--border);" +
-      "font-size:0.7rem; font-weight:600; color:var(--muted); user-select:none;";
-    hdr.innerHTML =
-      "<span></span><span>Aufgabe</span><span>Dauer (min)</span>" +
-      "<span>Regelmäßigkeit</span><span>Bev. Tage</span><span>Bev. Uhrzeit</span><span>Std./Einsatz</span>";
-    wrap.appendChild(hdr);
-
     taskList.forEach(function (def, i) {
-      var saved     = savedMap[def.id] || {};
-      var isChecked = !!savedMap[def.id];
-      var isLast    = i === taskList.length - 1;
+      var saved          = savedMap[def.id] || {};
+      var savedSchedules = Array.isArray(saved.schedules) ? saved.schedules : [];
+      var isChecked      = savedSchedules.length > 0;
+      var isLast         = i === taskList.length - 1;
 
-      var row = document.createElement("div");
-      row.style.cssText =
-        "display:grid; grid-template-columns:" + COL + "; gap:6px; align-items:center;" +
-        "padding:7px 12px;" +
-        "border-bottom:" + (isLast ? "none" : "1px solid var(--border)") + ";" +
+      var taskBlock = document.createElement("div");
+      taskBlock.style.borderBottom = isLast ? "none" : "1px solid var(--border)";
+
+      // — header row —
+      var headerRow = document.createElement("div");
+      headerRow.style.cssText =
+        "display:flex; align-items:center; gap:8px; padding:8px 12px;" +
         (isChecked ? "background:var(--accent-light,#eff6ff);" : "");
 
-      // checkbox
       var cb = document.createElement("input");
       cb.type = "checkbox";
       cb.setAttribute("data-task-id", def.id);
       cb.checked = isChecked;
-      cb.style.cssText = "width:15px; height:15px; cursor:pointer; margin:0;";
+      cb.style.cssText = "width:15px; height:15px; cursor:pointer; flex-shrink:0; margin:0;";
 
-      // task name
       var nameEl = document.createElement("span");
       nameEl.textContent = def.label;
-      nameEl.style.cssText =
-        "font-size:0.82rem; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer;";
-      nameEl.addEventListener("click", function () { cb.checked = !cb.checked; cb.dispatchEvent(new Event("change")); });
+      nameEl.style.cssText = "flex:1; font-size:0.85rem; cursor:pointer; min-width:0;";
+      nameEl.addEventListener("click", function () {
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event("change"));
+      });
 
-      function mkNum(field, val, ph, min, step) {
-        var inp = document.createElement("input");
-        inp.type = "number";
-        inp.setAttribute("data-task-field", field);
-        inp.setAttribute("data-task-id", def.id);
-        inp.min = min; inp.step = step;
-        inp.value = val || ""; inp.placeholder = ph;
-        inp.disabled = !isChecked;
-        inp.style.cssText = "font-size:0.78rem; opacity:" + (isChecked ? "1" : "0.35") + ";";
-        return inp;
-      }
-      function mkText(field, val, ph) {
-        var inp = document.createElement("input");
-        inp.type = "text";
-        inp.setAttribute("data-task-field", field);
-        inp.setAttribute("data-task-id", def.id);
-        inp.value = val || ""; inp.placeholder = ph;
-        inp.disabled = !isChecked;
-        inp.style.cssText = "font-size:0.78rem; opacity:" + (isChecked ? "1" : "0.35") + ";";
-        return inp;
-      }
-      function mkSel(field, val) {
-        var sel = document.createElement("select");
-        sel.setAttribute("data-task-field", field);
-        sel.setAttribute("data-task-id", def.id);
-        sel.style.cssText = "font-size:0.78rem; opacity:" + (isChecked ? "1" : "0.35") + ";";
-        sel.disabled = !isChecked;
-        var o0 = document.createElement("option"); o0.value = ""; o0.textContent = "Regelm. …"; sel.appendChild(o0);
+      var addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.textContent = "+";
+      addBtn.title = "Termin hinzufügen";
+      addBtn.className = "btn-secondary";
+      addBtn.style.cssText =
+        "display:" + (isChecked ? "inline-flex" : "none") + ";" +
+        "align-items:center; justify-content:center; flex-shrink:0;" +
+        "width:22px; height:22px; border-radius:50%; font-size:1rem; line-height:1; padding:0;";
+
+      headerRow.appendChild(cb);
+      headerRow.appendChild(nameEl);
+      headerRow.appendChild(addBtn);
+
+      // — schedules area —
+      var schedArea = document.createElement("div");
+      schedArea.style.cssText =
+        "display:" + (isChecked ? "block" : "none") + ";" +
+        "background:var(--bg-alt,#f8fafc); border-top:1px solid var(--border);";
+
+      // column header inside schedules area
+      var schedHdr = document.createElement("div");
+      schedHdr.style.cssText =
+        "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center;" +
+        "padding:4px 12px 3px; font-size:0.7rem; font-weight:600; color:var(--muted); user-select:none;";
+      schedHdr.innerHTML =
+        "<span>Dauer</span><span>Regelmäßigkeit</span><span>Bev. Tage</span><span>Bev. Uhrzeit</span><span></span>";
+      schedArea.appendChild(schedHdr);
+
+      // — schedule row factory —
+      function createSchedRow(sched) {
+        sched = sched || {};
+        var row = document.createElement("div");
+        row.className = "ah-sched-row";
+        row.style.cssText =
+          "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center;" +
+          "padding:5px 12px; border-top:1px solid var(--border);";
+
+        var dauerInp = document.createElement("input");
+        dauerInp.type = "text";
+        dauerInp.setAttribute("data-sched-field", "dauer");
+        dauerInp.setAttribute("data-task-id", def.id);
+        dauerInp.value = sched.dauer || "";
+        dauerInp.placeholder = "1:10";
+        dauerInp.style.cssText = "font-size:0.8rem; font-family:monospace;";
+
+        var regelSel = document.createElement("select");
+        regelSel.setAttribute("data-sched-field", "regelmaessigkeit");
+        regelSel.setAttribute("data-task-id", def.id);
+        regelSel.style.fontSize = "0.8rem";
+        var o0 = document.createElement("option"); o0.value = ""; o0.textContent = "Regelm. …"; regelSel.appendChild(o0);
         REGELMAESSIGKEIT.forEach(function (r) {
           var o = document.createElement("option"); o.value = r; o.textContent = r;
-          if (val === r) o.selected = true;
-          sel.appendChild(o);
+          if (sched.regelmaessigkeit === r) o.selected = true;
+          regelSel.appendChild(o);
         });
-        return sel;
+
+        var tageInp = document.createElement("input");
+        tageInp.type = "text";
+        tageInp.setAttribute("data-sched-field", "bevorzugteTage");
+        tageInp.setAttribute("data-task-id", def.id);
+        tageInp.value = sched.bevorzugteTage || "";
+        tageInp.placeholder = "Mo, Mi…";
+        tageInp.style.fontSize = "0.8rem";
+
+        var uhrzeitInp = document.createElement("input");
+        uhrzeitInp.type = "text";
+        uhrzeitInp.setAttribute("data-sched-field", "bevorzugteUhrzeit");
+        uhrzeitInp.setAttribute("data-task-id", def.id);
+        uhrzeitInp.value = sched.bevorzugteUhrzeit || "";
+        uhrzeitInp.placeholder = "09:00";
+        uhrzeitInp.style.fontSize = "0.8rem";
+
+        var removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.textContent = "×";
+        removeBtn.className = "btn-secondary";
+        removeBtn.style.cssText =
+          "width:22px; height:22px; border-radius:50%; font-size:1rem; line-height:1; padding:0;" +
+          "display:flex; align-items:center; justify-content:center;";
+        removeBtn.addEventListener("click", function () {
+          row.remove();
+          if (schedArea.querySelectorAll(".ah-sched-row").length === 0) {
+            cb.checked = false;
+            schedArea.style.display = "none";
+            addBtn.style.display = "none";
+            headerRow.style.background = "";
+          }
+          serialize();
+        });
+
+        row.appendChild(dauerInp);
+        row.appendChild(regelSel);
+        row.appendChild(tageInp);
+        row.appendChild(uhrzeitInp);
+        row.appendChild(removeBtn);
+        row.addEventListener("change", serialize);
+        row.addEventListener("input",  serialize);
+        return row;
       }
 
-      var dauerInp   = mkNum("dauer",              saved.dauer,              "min",    "5",  "5");
-      var regelSel   = mkSel("regelmaessigkeit",   saved.regelmaessigkeit);
-      var tageInp    = mkText("bevorzugteTage",    saved.bevorzugteTage,    "Mo, Mi…");
-      var uhrzeitInp = mkText("bevorzugteUhrzeit", saved.bevorzugteUhrzeit, "09:00");
-      var stundenInp = mkNum("geschaetzteStunden", saved.geschaetzteStunden, "h",      "0",  "0.5");
+      // restore saved schedules (or one empty row when newly checked)
+      savedSchedules.forEach(function (s) { schedArea.appendChild(createSchedRow(s)); });
 
-      var allInputs = [dauerInp, regelSel, tageInp, uhrzeitInp, stundenInp];
-
-      cb.addEventListener("change", function () {
-        var c = this.checked;
-        allInputs.forEach(function (el) { el.disabled = !c; el.style.opacity = c ? "1" : "0.35"; });
-        row.style.background = c ? "var(--accent-light,#eff6ff)" : "";
+      // + button wires up
+      addBtn.addEventListener("click", function () {
+        schedArea.appendChild(createSchedRow({}));
         serialize();
       });
 
-      row.appendChild(cb);
-      row.appendChild(nameEl);
-      row.appendChild(dauerInp);
-      row.appendChild(regelSel);
-      row.appendChild(tageInp);
-      row.appendChild(uhrzeitInp);
-      row.appendChild(stundenInp);
-      wrap.appendChild(row);
+      // checkbox toggle
+      cb.addEventListener("change", function () {
+        var c = this.checked;
+        schedArea.style.display  = c ? "block" : "none";
+        addBtn.style.display     = c ? "inline-flex" : "none";
+        headerRow.style.background = c ? "var(--accent-light,#eff6ff)" : "";
+        if (c && schedArea.querySelectorAll(".ah-sched-row").length === 0) {
+          schedArea.appendChild(createSchedRow({}));
+        }
+        serialize();
+      });
+
+      taskBlock.appendChild(headerRow);
+      taskBlock.appendChild(schedArea);
+      wrap.appendChild(taskBlock);
     });
 
     return wrap;
