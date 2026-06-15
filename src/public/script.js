@@ -5478,7 +5478,8 @@ document.body.addEventListener("click", (e) => {
       savedTasks.forEach(function (t) { savedMap[t.id] = t; });
     }
 
-    var SCHED_COL = "72px 1fr 100px 88px 28px";
+    var WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+    var SCHED_COL  = "72px 1fr 210px 88px 28px";
 
     var wrap = document.createElement("div");
     wrap.style.cssText = "width:100%; box-sizing:border-box; border:1px solid var(--border); border-radius:6px; overflow:hidden;";
@@ -5569,13 +5570,48 @@ document.body.addEventListener("click", (e) => {
           regelSel.appendChild(o);
         });
 
-        var tageInp = document.createElement("input");
-        tageInp.type = "text";
-        tageInp.setAttribute("data-sched-field", "bevorzugteTage");
-        tageInp.setAttribute("data-task-id", def.id);
-        tageInp.value = sched.bevorzugteTage || "";
-        tageInp.placeholder = "Mo, Mi…";
-        tageInp.style.fontSize = "0.8rem";
+        // — day-of-week picker —
+        var savedDays = new Set(
+          (sched.bevorzugteTage || "").split(",").map(function(d) { return d.trim(); }).filter(Boolean)
+        );
+        var tageHidden = document.createElement("input");
+        tageHidden.type = "hidden";
+        tageHidden.setAttribute("data-sched-field", "bevorzugteTage");
+        tageHidden.setAttribute("data-task-id", def.id);
+        tageHidden.value = sched.bevorzugteTage || "";
+
+        var tagePicker = document.createElement("div");
+        tagePicker.style.cssText = "display:flex; flex-wrap:wrap; gap:3px; align-items:center;";
+        WOCHENTAGE.forEach(function (day) {
+          var on = savedDays.has(day);
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = day;
+          btn.setAttribute("data-day", day);
+          btn.setAttribute("data-on", on ? "1" : "0");
+          btn.style.cssText =
+            "font-size:0.7rem; padding:2px 5px; border-radius:4px; cursor:pointer; border:1px solid var(--border); line-height:1.4;" +
+            (on ? "background:var(--accent,#0ea5e9); color:#fff; border-color:var(--accent,#0ea5e9);"
+                : "background:var(--bg-alt,#f1f5f9); color:var(--text,#1e293b);");
+          btn.addEventListener("click", function () {
+            var nowOn = this.getAttribute("data-on") === "1";
+            nowOn = !nowOn;
+            this.setAttribute("data-on", nowOn ? "1" : "0");
+            this.style.background    = nowOn ? "var(--accent,#0ea5e9)"    : "var(--bg-alt,#f1f5f9)";
+            this.style.color         = nowOn ? "#fff"                     : "var(--text,#1e293b)";
+            this.style.borderColor   = nowOn ? "var(--accent,#0ea5e9)"    : "var(--border)";
+            var selected = [];
+            tagePicker.querySelectorAll("button[data-on='1']").forEach(function (b) { selected.push(b.getAttribute("data-day")); });
+            tageHidden.value = selected.join(",");
+            serialize();
+          });
+          tagePicker.appendChild(btn);
+        });
+
+        var tageWrap = document.createElement("div");
+        tageWrap.style.cssText = "display:flex; flex-direction:column; gap:0;";
+        tageWrap.appendChild(tagePicker);
+        tageWrap.appendChild(tageHidden);
 
         var uhrzeitInp = document.createElement("input");
         uhrzeitInp.type = "text";
@@ -5605,7 +5641,7 @@ document.body.addEventListener("click", (e) => {
 
         row.appendChild(dauerInp);
         row.appendChild(regelSel);
-        row.appendChild(tageInp);
+        row.appendChild(tageWrap);
         row.appendChild(uhrzeitInp);
         row.appendChild(removeBtn);
         row.addEventListener("change", serialize);
