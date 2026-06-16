@@ -2858,7 +2858,7 @@ button.dm-btn-danger:focus-visible {
                       <div id="travelDaysPreview" style="margin-top: 4px;"></div>
                     </div>
 
-                    <div class="field-row" style="display:flex; gap:12px; align-items:flex-end; margin-top: 10px;">
+                    <div class="field-row" data-offer="bu,bwt,hl,bl,hms,wd" style="display:flex; gap:12px; align-items:flex-end; margin-top: 10px;">
                       <label class="field" style="flex:1;">
                         <span>Uebernachten (Tage ohne Rueckfahrt)</span>
                         <input id="uebernachten" name="uebernachten" type="number" min="0" step="1" value="0"
@@ -2874,7 +2874,7 @@ button.dm-btn-danger:focus-visible {
                   <!-- NEW: Arbeitszeit selection -->
                   <div class="full" style="margin: 8px 0 12px 0">
                     <div class="field-row" style="display:flex; gap:12px; align-items:flex-end;">
-                      <label class="field" style="flex:1;">
+                      <label class="field" data-offer="bu,bwt,hl,bl,hms,wd" style="flex:1;">
                         <span>Arbeitszeit (Dauer, HH:MM)</span>
                         <input id="laborHours" name="laborHours" type="text" inputmode="numeric" value="07:00"
                           autocomplete="off" placeholder="HH:MM" required>
@@ -2902,7 +2902,7 @@ button.dm-btn-danger:focus-visible {
                       </label>
                     </div>
 
-                    <div class="az-travel-rate-grid">
+                    <div class="az-travel-rate-grid" data-offer="bu,bwt,hl,bl,hms,wd">
                       <div class="az-inline-note" id="buTravelInfoNote">
                         <strong>Hinweis für BU:</strong> Reisezeit wird separat gerechnet:
                         Fahrer = voller Stundensatz, 2. Mitarbeiter = auswählbar 25 €/h oder 35 €/h.
@@ -2918,7 +2918,7 @@ button.dm-btn-danger:focus-visible {
                       </label>
                     </div>
 
-                    <div id="travelCostDebugCard" class="az-travel-debug" aria-live="polite">
+                    <div id="travelCostDebugCard" class="az-travel-debug" data-offer="bu,bwt,hl,bl,hms,wd" aria-live="polite">
                       <div class="az-travel-debug-head">
                         <strong>Reisezeit-Kosten Debug</strong>
                         <span id="travelCostDebugBadge" class="az-travel-debug-badge">BU</span>
@@ -2929,9 +2929,9 @@ button.dm-btn-danger:focus-visible {
                     </div>
 
                     <!-- Optional dynamic suggestion from distance -->
-                    <div id="laborSuggestion" class="muted" style="margin-top: 6px"></div>
-                    <div id="totalHoursHHMM" class="muted" style="margin-top:4px;"></div>
-                    <div id="arbeitszeitSuggestionCard" class="az-suggestion-card">
+                    <div id="laborSuggestion" class="muted" data-offer="bu,bwt,hl,bl,hms,wd" style="margin-top: 6px"></div>
+                    <div id="totalHoursHHMM" class="muted" data-offer="bu,bwt,hl,bl,hms,wd" style="margin-top:4px;"></div>
+                    <div id="arbeitszeitSuggestionCard" class="az-suggestion-card" data-offer="bu,bwt,hl,bl,hms,wd">
                       <div class="az-suggestion-head">
                         <strong>Automatischer Arbeitszeit-Vorschlag</strong>
                         <button type="button" id="applyArbeitszeitSuggestion" class="secondary">Vorschlag übernehmen</button>
