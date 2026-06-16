@@ -5441,22 +5441,26 @@ document.body.addEventListener("click", (e) => {
     [alltagsList, haushaltList].forEach(function (sectionList) {
       sectionList.querySelectorAll(".ah-service-card").forEach(function (card) {
         var type = card.getAttribute("data-type") || "";
-        var dEl  = card.querySelector("[data-card-field=dauer]");
-        var rEl  = card.querySelector("[data-card-field=regelmaessigkeit]");
-        var tEl  = card.querySelector("[data-card-field=bevorzugteTage]");
-        var uEl  = card.querySelector("[data-card-field=bevorzugteUhrzeit]");
+        var schedules = [];
+        card.querySelectorAll(".ah-sched-row").forEach(function (row) {
+          var dEl = row.querySelector("[data-card-field=dauer]");
+          var rEl = row.querySelector("[data-card-field=regelmaessigkeit]");
+          var tEl = row.querySelector("[data-card-field=bevorzugteTage]");
+          var uEl = row.querySelector("[data-card-field=bevorzugteUhrzeit]");
+          schedules.push({
+            dauer:             dEl ? dEl.value : "",
+            regelmaessigkeit:  rEl ? rEl.value : "",
+            bevorzugteTage:    tEl ? tEl.value : "",
+            bevorzugteUhrzeit: uEl ? uEl.value : "",
+          });
+        });
         var taskIds = [];
         card.querySelectorAll("input[type=checkbox][data-task-id]:checked").forEach(function (cb) {
           taskIds.push(cb.getAttribute("data-task-id"));
         });
         services.push({
           type: type,
-          schedule: {
-            dauer:             dEl ? dEl.value : "",
-            regelmaessigkeit:  rEl ? rEl.value : "",
-            bevorzugteTage:    tEl ? tEl.value : "",
-            bevorzugteUhrzeit: uEl ? uEl.value : "",
-          },
+          schedules: schedules,
           tasks: taskIds,
         });
       });
@@ -5614,9 +5618,9 @@ document.body.addEventListener("click", (e) => {
     card.appendChild(header);
     card.appendChild(infoPanel);
 
-    // — card-level schedule row —
+    // — card-level schedule section (multi-row) —
     var WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
-    var SCHED_COL  = "72px 1fr 210px 88px";
+    var SCHED_COL  = "72px 1fr 210px 88px 24px";
 
     var schedSection = document.createElement("div");
     schedSection.style.cssText = "border:1px solid var(--border); border-radius:6px; overflow:hidden;";
@@ -5626,85 +5630,147 @@ document.body.addEventListener("click", (e) => {
       "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center;" +
       "padding:4px 12px 3px; font-size:0.7rem; font-weight:600; color:var(--muted); user-select:none;" +
       "background:var(--bg-alt,#f8fafc); border-bottom:1px solid var(--border);";
-    schedHdr.innerHTML = "<span>Dauer</span><span>Regelmäßigkeit</span><span>Bev. Tage</span><span>Bev. Uhrzeit</span>";
+    schedHdr.innerHTML = "<span>Dauer</span><span>Regelmäßigkeit</span><span>Bev. Tage</span><span>Bev. Uhrzeit</span><span></span>";
 
-    var schedRow = document.createElement("div");
-    schedRow.style.cssText =
-      "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center; padding:8px 12px;";
+    var schedRowsContainer = document.createElement("div");
+    schedRowsContainer.className = "ah-sched-rows";
 
-    var dauerInp = document.createElement("input");
-    dauerInp.type = "text";
-    dauerInp.setAttribute("data-card-field", "dauer");
-    dauerInp.value = sched.dauer || "";
-    dauerInp.placeholder = "1:10";
-    dauerInp.style.cssText = "font-size:0.8rem; font-family:monospace;";
-    if (typeof wireDurationAutoFormat === "function") wireDurationAutoFormat(dauerInp);
+    function createScheduleRow(rowSched) {
+      rowSched = rowSched || {};
+      var row = document.createElement("div");
+      row.className = "ah-sched-row";
+      row.style.cssText =
+        "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center;" +
+        "padding:8px 12px; border-top:1px solid var(--border);";
 
-    var regelSel = document.createElement("select");
-    regelSel.setAttribute("data-card-field", "regelmaessigkeit");
-    regelSel.style.fontSize = "0.8rem";
-    var o0 = document.createElement("option"); o0.value = ""; o0.textContent = "Regelm. …"; regelSel.appendChild(o0);
-    REGELMAESSIGKEIT.forEach(function (r) {
-      var o = document.createElement("option"); o.value = r; o.textContent = r;
-      if (sched.regelmaessigkeit === r) o.selected = true;
-      regelSel.appendChild(o);
-    });
+      var rDauerInp = document.createElement("input");
+      rDauerInp.type = "text";
+      rDauerInp.setAttribute("data-card-field", "dauer");
+      rDauerInp.value = rowSched.dauer || "";
+      rDauerInp.placeholder = "1:10";
+      rDauerInp.style.cssText = "font-size:0.8rem; font-family:monospace;";
+      if (typeof wireDurationAutoFormat === "function") wireDurationAutoFormat(rDauerInp);
 
-    var savedDays = new Set(
-      (sched.bevorzugteTage || "").split(",").map(function (d) { return d.trim(); }).filter(Boolean)
-    );
-    var tageHidden = document.createElement("input");
-    tageHidden.type = "hidden";
-    tageHidden.setAttribute("data-card-field", "bevorzugteTage");
-    tageHidden.value = sched.bevorzugteTage || "";
+      var rRegelSel = document.createElement("select");
+      rRegelSel.setAttribute("data-card-field", "regelmaessigkeit");
+      rRegelSel.style.fontSize = "0.8rem";
+      var rO0 = document.createElement("option"); rO0.value = ""; rO0.textContent = "Regelm. …"; rRegelSel.appendChild(rO0);
+      REGELMAESSIGKEIT.forEach(function (r) {
+        var o = document.createElement("option"); o.value = r; o.textContent = r;
+        if (rowSched.regelmaessigkeit === r) o.selected = true;
+        rRegelSel.appendChild(o);
+      });
 
-    var tagePicker = document.createElement("div");
-    tagePicker.style.cssText = "display:flex; flex-wrap:wrap; gap:3px; align-items:center;";
-    WOCHENTAGE.forEach(function (day) {
-      var on = savedDays.has(day);
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.textContent = day;
-      btn.setAttribute("data-day", day);
-      btn.setAttribute("data-on", on ? "1" : "0");
-      btn.style.cssText =
-        "font-size:0.7rem; padding:2px 5px; border-radius:4px; cursor:pointer; border:1px solid var(--border); line-height:1.4;" +
-        (on ? "background:var(--accent,#0ea5e9); color:#fff; border-color:var(--accent,#0ea5e9);"
-            : "background:var(--bg-alt,#f1f5f9); color:var(--text,#1e293b);");
-      btn.addEventListener("click", function () {
-        var nowOn = this.getAttribute("data-on") === "1";
-        nowOn = !nowOn;
-        this.setAttribute("data-on", nowOn ? "1" : "0");
-        this.style.background  = nowOn ? "var(--accent,#0ea5e9)"  : "var(--bg-alt,#f1f5f9)";
-        this.style.color       = nowOn ? "#fff"                   : "var(--text,#1e293b)";
-        this.style.borderColor = nowOn ? "var(--accent,#0ea5e9)"  : "var(--border)";
-        var selected = [];
-        tagePicker.querySelectorAll("button[data-on='1']").forEach(function (b) { selected.push(b.getAttribute("data-day")); });
-        tageHidden.value = selected.join(",");
+      var rSavedDays = new Set(
+        (rowSched.bevorzugteTage || "").split(",").map(function (d) { return d.trim(); }).filter(Boolean)
+      );
+      var rTageHidden = document.createElement("input");
+      rTageHidden.type = "hidden";
+      rTageHidden.setAttribute("data-card-field", "bevorzugteTage");
+      rTageHidden.value = rowSched.bevorzugteTage || "";
+
+      var rTagePicker = document.createElement("div");
+      rTagePicker.style.cssText = "display:flex; flex-wrap:wrap; gap:3px; align-items:center;";
+      WOCHENTAGE.forEach(function (day) {
+        var on = rSavedDays.has(day);
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = day;
+        btn.setAttribute("data-day", day);
+        btn.setAttribute("data-on", on ? "1" : "0");
+        btn.style.cssText =
+          "font-size:0.7rem; padding:2px 5px; border-radius:4px; cursor:pointer; border:1px solid var(--border); line-height:1.4;" +
+          (on ? "background:var(--accent,#0ea5e9); color:#fff; border-color:var(--accent,#0ea5e9);"
+              : "background:var(--bg-alt,#f1f5f9); color:var(--text,#1e293b);");
+        btn.addEventListener("click", function () {
+          var nowOn = this.getAttribute("data-on") === "1";
+          nowOn = !nowOn;
+          this.setAttribute("data-on", nowOn ? "1" : "0");
+          this.style.background  = nowOn ? "var(--accent,#0ea5e9)"  : "var(--bg-alt,#f1f5f9)";
+          this.style.color       = nowOn ? "#fff"                   : "var(--text,#1e293b)";
+          this.style.borderColor = nowOn ? "var(--accent,#0ea5e9)"  : "var(--border)";
+          var selected = [];
+          rTagePicker.querySelectorAll("button[data-on='1']").forEach(function (b) { selected.push(b.getAttribute("data-day")); });
+          rTageHidden.value = selected.join(",");
+          serialize();
+          doUpdateTotals();
+        });
+        rTagePicker.appendChild(btn);
+      });
+
+      var rTageWrap = document.createElement("div");
+      rTageWrap.appendChild(rTagePicker);
+      rTageWrap.appendChild(rTageHidden);
+
+      var rUhrzeitInp = document.createElement("input");
+      rUhrzeitInp.type = "text";
+      rUhrzeitInp.setAttribute("data-card-field", "bevorzugteUhrzeit");
+      rUhrzeitInp.value = rowSched.bevorzugteUhrzeit || "";
+      rUhrzeitInp.placeholder = "09:00";
+      rUhrzeitInp.style.cssText = "font-size:0.8rem; font-family:monospace;";
+      if (typeof wireDurationAutoFormat === "function") wireDurationAutoFormat(rUhrzeitInp);
+
+      var rRemoveBtn = document.createElement("button");
+      rRemoveBtn.type = "button";
+      rRemoveBtn.title = "Zeile entfernen";
+      rRemoveBtn.textContent = "×";
+      rRemoveBtn.style.cssText =
+        "background:none; border:1px solid var(--border); border-radius:4px;" +
+        "font-size:0.9rem; line-height:1; cursor:pointer; color:var(--text-muted,#94a3b8);" +
+        "width:22px; height:22px; display:flex; align-items:center; justify-content:center; padding:0;";
+      rRemoveBtn.addEventListener("click", function () {
+        if (schedRowsContainer.querySelectorAll(".ah-sched-row").length <= 1) return;
+        row.remove();
+        updateFirstRowBorder();
         serialize();
         doUpdateTotals();
       });
-      tagePicker.appendChild(btn);
+
+      row.appendChild(rDauerInp);
+      row.appendChild(rRegelSel);
+      row.appendChild(rTageWrap);
+      row.appendChild(rUhrzeitInp);
+      row.appendChild(rRemoveBtn);
+      return row;
+    }
+
+    function updateFirstRowBorder() {
+      schedRowsContainer.querySelectorAll(".ah-sched-row").forEach(function (r, i) {
+        r.style.borderTop = i === 0 ? "none" : "1px solid var(--border)";
+      });
+    }
+
+    // Build initial rows — support old single-schedule and new multi-schedule format
+    var initialSchedules;
+    if (data.schedules && Array.isArray(data.schedules) && data.schedules.length) {
+      initialSchedules = data.schedules;
+    } else if (sched && (sched.dauer || sched.regelmaessigkeit)) {
+      initialSchedules = [sched];
+    } else {
+      initialSchedules = [{}];
+    }
+    initialSchedules.forEach(function (rowSched) {
+      schedRowsContainer.appendChild(createScheduleRow(rowSched));
+    });
+    updateFirstRowBorder();
+
+    var addSchedRowBtn = document.createElement("button");
+    addSchedRowBtn.type = "button";
+    addSchedRowBtn.textContent = "+ Zeitzeile hinzufügen";
+    addSchedRowBtn.style.cssText =
+      "display:block; margin:6px 12px 8px; font-size:0.75rem; background:none;" +
+      "border:1px dashed var(--border); border-radius:4px; cursor:pointer;" +
+      "color:var(--muted); padding:3px 10px;";
+    addSchedRowBtn.addEventListener("click", function () {
+      schedRowsContainer.appendChild(createScheduleRow({}));
+      updateFirstRowBorder();
+      serialize();
+      doUpdateTotals();
     });
 
-    var tageWrap = document.createElement("div");
-    tageWrap.appendChild(tagePicker);
-    tageWrap.appendChild(tageHidden);
-
-    var uhrzeitInp = document.createElement("input");
-    uhrzeitInp.type = "text";
-    uhrzeitInp.setAttribute("data-card-field", "bevorzugteUhrzeit");
-    uhrzeitInp.value = sched.bevorzugteUhrzeit || "";
-    uhrzeitInp.placeholder = "09:00";
-    uhrzeitInp.style.cssText = "font-size:0.8rem; font-family:monospace;";
-    if (typeof wireDurationAutoFormat === "function") wireDurationAutoFormat(uhrzeitInp);
-
-    schedRow.appendChild(dauerInp);
-    schedRow.appendChild(regelSel);
-    schedRow.appendChild(tageWrap);
-    schedRow.appendChild(uhrzeitInp);
     schedSection.appendChild(schedHdr);
-    schedSection.appendChild(schedRow);
+    schedSection.appendChild(schedRowsContainer);
+    schedSection.appendChild(addSchedRowBtn);
     card.appendChild(schedSection);
 
     // — task checklist —
@@ -5718,33 +5784,36 @@ document.body.addEventListener("click", (e) => {
       "color:var(--accent,#0ea5e9); border-top:1px solid var(--border); display:none;";
     card.appendChild(cardTotalDiv);
 
-    // — totals calculation —
+    // — totals: sum across all schedule rows —
     function doUpdateTotals() {
       var periodMonths = Number(periodSel.value) || 1;
       var periodLabel  = periodMonths === 12 ? "/ Jahr" : "/ Monat";
+      var totalMins = 0;
+      var hasValid  = false;
 
-      var mins = parseDurationMinutes(dauerInp.value);
-      var freq = FREQ_PER_MONTH[regelSel.value];
-      var days = tageHidden.value.split(",").filter(Boolean);
+      schedRowsContainer.querySelectorAll(".ah-sched-row").forEach(function (row) {
+        var dEl  = row.querySelector("[data-card-field=dauer]");
+        var rEl  = row.querySelector("[data-card-field=regelmaessigkeit]");
+        var tEl  = row.querySelector("[data-card-field=bevorzugteTage]");
+        var mins = dEl ? parseDurationMinutes(dEl.value) : 0;
+        var freq = rEl ? FREQ_PER_MONTH[rEl.value] : undefined;
+        var days = tEl ? tEl.value.split(",").filter(Boolean) : [];
+        if (!mins || !days.length) return;
+        if (rEl && rEl.value === "Einmalig") {
+          totalMins += mins * days.length;
+          hasValid = true;
+        } else {
+          if (typeof freq !== "number") return;
+          totalMins += mins * freq * periodMonths * days.length;
+          hasValid = true;
+        }
+      });
 
-      if (!mins || !days.length) {
+      if (!hasValid) {
         cardTotalDiv.textContent   = "";
         cardTotalDiv.style.display = "none";
         return;
       }
-
-      var totalMins;
-      if (regelSel.value === "Einmalig") {
-        totalMins = mins * days.length;
-      } else {
-        if (typeof freq !== "number") {
-          cardTotalDiv.textContent   = "";
-          cardTotalDiv.style.display = "none";
-          return;
-        }
-        totalMins = mins * freq * periodMonths * days.length;
-      }
-
       totalMins = Math.round(totalMins);
       cardTotalDiv.textContent   = "Gesamt: " + formatDurationHHMM(totalMins) + " " + periodLabel;
       cardTotalDiv.style.display = "";
