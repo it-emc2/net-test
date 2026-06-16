@@ -895,7 +895,7 @@ function ensureTrinitySealingSelectedFromPayload(dw) {
       if (typeof highlightTileForInput === "function") {
         highlightTileForInput(input, true);
       }
-      // persist “on” so future loads keep it checked
+      // persist "on" so future loads keep it checked
       try {
         localStorage.setItem("dw_floor_sealing", "1");
       } catch {}
@@ -3275,7 +3275,7 @@ function collectHlExtras(payload) {
     // 2) checkbox id
     const productId = (cb.dataset?.productId || id || "").trim();
 
-    // Ignore “empty” (shouldn’t happen, but safe)
+    // Ignore "empty" (shouldn’t happen, but safe)
     if (!label && !productId) return;
 
     // If qty input exists but user left it 0, you can decide:
@@ -3459,6 +3459,11 @@ function buildPayload() {
 
   const effectiveAufschlag = window.getEffectiveAufschlagValue?.();
   if (effectiveAufschlag) payload.Kundendaten.aufschlag = effectiveAufschlag;
+
+  // Parse AH service lines from JSON hidden field
+  if (payload.ah && payload.ah.ahServicesJson) {
+    try { payload.ah.services = JSON.parse(payload.ah.ahServicesJson); } catch (e) { payload.ah.services = []; }
+  }
 
   /* ===========================
      HL: pair steel length + quality rows into structured array
@@ -4032,7 +4037,6 @@ if (anschlag) {
     payload.hl = payload.hl || {};
     const hlX = collectHL();
     payload.hl.pipes = hlX.pipes || [];
-    payload.hl.extras = hlX.extras || {};
     payload.hl.area = hlX.area || [];
     payload.hl.mountType = hlX.mountType || [];
   } catch (e) {
@@ -4256,83 +4260,7 @@ function collectHL() {
   const area = getCheckedValues("hl_area"); // ["inside","outside"]
   const mountType = getCheckedValues("hlMountType"); // ["boden-befestigung","wand-befestigung"]
 
-  // -------------------------
-  // Extras (DB productIds)
-  // -------------------------
-  const extras = {};
-
-  const addExtra = (checkboxId, qtyInputId, resolvePid) => {
-    const cb = document.getElementById(checkboxId);
-    const qtyEl = document.getElementById(qtyInputId);
-    if (!cb || !cb.checked) return;
-
-    const q = Number(qtyEl?.value || 0) || 0;
-    if (q <= 0) return;
-
-    const pid = typeof resolvePid === "function" ? resolvePid() : resolvePid;
-    if (!pid) return;
-
-    extras[pid] = (extras[pid] || 0) + q;
-  };
-
-  // Edelstahlstütze betonieren (size 120/150)
-  addExtra(
-    "hlEdelstahlstuetzeBetonieren",
-    "qty_hlEdelstahlstuetzeBetonieren",
-    () => {
-      const size = String(
-        document.getElementById("hlEdelstahlstuetzeBetonierenSize")?.value || "120",
-      );
-      return size === "150" ? "FF_E02" : "FF_E01";
-    },
-  );
-
-  // Bodenstütze
-  addExtra("hlEdelstahlstuetzeBoden", "qty_hlEdelstahlstuetzeBoden", "FF_E05");
-
-  // Seitl. Stütze (20/40)
-  addExtra("hlEdelstahlstuetzeSeitl", "qty_hlEdelstahlstuetzeSeitl", () => {
-    const size = String(document.getElementById("hlEdelstahlstuetzeSeitlSize")?.value || "20");
-    return size === "40" ? "FF_E12" : "FF_E11";
-  });
-
-  // Abdeckrosette
-  addExtra("hlAbdeckrosetteHalbrund", "qty_hlAbdeckrosetteHalbrund", "FF_E08");
-
-  // Auflagen
-  addExtra("hlAuflageWaagrechtFestLang", "qty_hlAuflageWaagrechtFestLang", "FF_E22c");
-  addExtra("hlAuflageFlexibelLang", "qty_hlAuflageFlexibelLang", "FF_E22d");
-
-  // Handlaufhalter outdoor (7.5/10/12.5/15)
-  addExtra("hlHandlaufhalter", "qty_hlHandlaufhalter", () => {
-    const v = String(
-      document.getElementById("hlHandlaufhalterSize")?.value || "7,5",
-    ).replace(",", ".");
-    if (v === "10") return "FF_E28";
-    if (v === "12.5") return "FF_E29";
-    if (v === "15") return "FF_E30";
-    return "FF_E27"; // 7.5
-  });
-
-  // Caps + wall connectors
-  addExtra("hlCapFlatOuter35", "qty_hlCapFlatOuter35", "FF_KFS12");
-  addExtra("hlCapFlatInner35", "qty_hlCapFlatInner35", "FF_KFS13");
-  addExtra("hlWallStraightOuter35", "qty_hlWallStraightOuter35", "FF_A06");
-  addExtra("hlWallAngledBall35", "qty_hlWallAngledBall35", "FF_S0001");
-
-  // -------------------------
-  // Indoor “Befestigung” section
-  // ✅ HARD DEFAULT: Chrom matt
-  // TODO: Implement Oberfläche -> variant mapping later (Schwarz/Weiß/Messing/etc.)
-  // -------------------------
-  addExtra("hlBefFlexoGelenk", "qty_hlBefFlexoGelenk", "FF_F04"); // Flexo-Gelenk (Innen) Chrom matt
-  addExtra("hlBef90Bogen", "qty_hlBef90Bogen", "FF_B04"); // 90-Grad-Bogen (Innen) Chrom matt
-  addExtra("hlBefSonderabschluss", "qty_hlBefSonderabschluss", "FF_S04"); // Sonderabschluss (Innen) Chrom matt
-  addExtra("hlBefWandabschlussbogen", "qty_hlBefWandabschlussbogen", "FF_W04"); // Wandabschlussbogen (Innen) Chrom matt
-  addExtra("hlBefHandlaufhalter", "qty_hlBefHandlaufhalter", "FF_H04"); // Handlaufhalter (Innen) Chrom matt
-
   return {
-    extras,
     area,
     mountType,
   };
@@ -5445,104 +5373,415 @@ document.body.addEventListener("click", (e) => {
     setStep(flow[nextIdx]);
   }
 });
-// Alltagshilfe: abhängige Leistungsart + ausgegraute, nicht verfügbare Option
-(function initAlltagshilfePage() {
-  const form = document.getElementById("form-ah");
+// AH: dynamic multi-service card list
+(function initAhServicesPage() {
+  var form = document.getElementById("form-ah");
   if (!form) return;
 
-  const artAlltag = document.getElementById("ahArtAlltagsbegleitung");
-  const artHaushalt = document.getElementById("ahArtHaushalt");
+  var alltagsList  = document.getElementById("ahListAlltagsbegleitung");
+  var haushaltList = document.getElementById("ahListHaushalt");
+  var addAlltagsBtn  = document.getElementById("ahAddAlltagsBtn");
+  var addHaushaltBtn = document.getElementById("ahAddHaushaltBtn");
+  var jsonInput = document.getElementById("ahServicesJson");
+  if (!alltagsList || !haushaltList || !addAlltagsBtn || !addHaushaltBtn || !jsonInput) return;
 
-  const wrap = document.getElementById("ahLeistungsTypWrap");
-  const blockAlltag = document.getElementById(
-    "ahLeistungsTypAlltagsbegleitung",
-  );
-  const blockHaushalt = document.getElementById("ahLeistungsTypHaushalt");
+  var counter = 0;
 
-  const inputFahrten = document.getElementById("ahLeistungsTypFahrten");
-  const inputPausch = document.getElementById(
-    "ahLeistungsTypReinigungsPauschale",
-  );
+  var REGELMAESSIGKEIT = [
+    "Einmalig", "Wöchentlich", "14-tägig", "alle drei Wochen",
+    "Monatlich", "Vierteljährlich", "Halbjährlich", "Jährlich", "Bei Bedarf",
+  ];
 
-  // Labels separat greifen, damit wir sie „grau“ stylen können
-  const labelFahrten = inputFahrten?.closest("label.radio-pill");
-  const labelPausch = inputPausch?.closest("label.radio-pill");
+  var ALLTAGSTASKS = [
+    { id: "wohnungsreinigung",  label: "Wohnungsreinigung (Staubsaugen, Wischen, Bad, Küche)" },
+    { id: "fensterputzen",      label: "Fenster putzen" },
+    { id: "waeschewaschen",     label: "Wäsche waschen, aufhängen, bügeln" },
+    { id: "einkaufen",          label: "Einkaufen (Lebensmittel, Drogerie, Apotheke)" },
+    { id: "kochen",             label: "Kochen / Mahlzeiten zubereiten" },
+    { id: "geschirrspuelen",    label: "Geschirr spülen / Küche aufräumen" },
+    { id: "muell",              label: "Müll rausbringen / Mülltrennung" },
+    { id: "waeschereinigung",   label: "Wäsche zum Reinigungsdienst bringen/abholen" },
+    { id: "post",               label: "Post holen und sortieren" },
+    { id: "haustiere",          label: "Haustierversorgung (Füttern, Gassi gehen)" },
+  ];
 
-  if (!wrap || !blockAlltag || !blockHaushalt || !inputFahrten || !inputPausch)
-    return;
+  var BEGLEITUNG_TASKS = [
+    { id: "arzttermine",        label: "Begleitung zu Arztterminen" },
+    { id: "behoerdengaenge",    label: "Begleitung zu Behördengängen" },
+    { id: "einkaufen_begl",     label: "Begleitung zum Einkaufen (gemeinsam)" },
+    { id: "spaziergaenge",      label: "Spaziergänge / Bewegung an der frischen Luft" },
+    { id: "gesellschaft",       label: "Gesellschaft leisten / Gespräche führen" },
+    { id: "vorlesen",           label: "Vorlesen (Zeitung, Bücher)" },
+    { id: "aktivitaeten",       label: "Gemeinsame Aktivitäten (Spiele, Basteln, Kochen)" },
+    { id: "gedaechtnis",        label: "Gedächtnistraining / kognitive Aktivierung" },
+    { id: "korrespondenz",      label: "Unterstützung bei Korrespondenz (Briefe, Formulare)" },
+    { id: "fahrdienste",        label: "Fahrdienste (zum Friedhof, Friseur, Veranstaltungen)" },
+    { id: "entlastung",         label: "Entlastung pflegender Angehöriger (stundenweise Betreuung)" },
+  ];
 
-  function show(el, on) {
-    if (!el) return;
-    el.hidden = !on;
-    el.setAttribute("aria-hidden", on ? "false" : "true");
+  // ── Serialisation ──────────────────────────────────────────────────
+  function serialize() {
+    var services = [];
+    [alltagsList, haushaltList].forEach(function (sectionList) {
+      sectionList.querySelectorAll(".ah-service-card").forEach(function (card) {
+        var type = card.getAttribute("data-type") || "";
+        var svc  = { type: type };
+
+        var tList = type === "Haushaltsnahedienstleistungen" ? ALLTAGSTASKS : BEGLEITUNG_TASKS;
+        svc.tasks = [];
+        tList.forEach(function (def) {
+          var cb = card.querySelector("input[type=checkbox][data-task-id=" + def.id + "]");
+          if (!cb || !cb.checked) return;
+          var schedRows = card.querySelectorAll(".ah-sched-row");
+          var taskSchedules = [];
+          schedRows.forEach(function (row) {
+            if (!row.querySelector("[data-task-id=" + def.id + "]")) return;
+            var d = row.querySelector("[data-sched-field=dauer][data-task-id="             + def.id + "]");
+            var r = row.querySelector("[data-sched-field=regelmaessigkeit][data-task-id="  + def.id + "]");
+            var t = row.querySelector("[data-sched-field=bevorzugteTage][data-task-id="    + def.id + "]");
+            var u = row.querySelector("[data-sched-field=bevorzugteUhrzeit][data-task-id=" + def.id + "]");
+            taskSchedules.push({
+              dauer:             d ? d.value : "",
+              regelmaessigkeit:  r ? r.value : "",
+              bevorzugteTage:    t ? t.value : "",
+              bevorzugteUhrzeit: u ? u.value : "",
+            });
+          });
+          svc.tasks.push({ id: def.id, label: def.label, schedules: taskSchedules });
+        });
+        services.push(svc);
+      });
+    });
+    jsonInput.value = JSON.stringify(services);
   }
 
-  // exakt derselbe „Grau‑Look“ wie beim Aufschlag:
-  // disabled + geringere Opacity + keine Klicks
-  function setDisabled(labelEl, inputEl, disabled) {
-    if (!labelEl || !inputEl) return;
-    inputEl.disabled = disabled;
-    labelEl.setAttribute("aria-disabled", disabled ? "true" : "false");
-    labelEl.style.opacity = disabled ? "0.45" : "";
-    labelEl.style.pointerEvents = disabled ? "none" : "";
-    labelEl.style.filter = disabled ? "grayscale(0.3)" : "";
+  // ── Title / remove-button / empty-hint upkeep ─────────────────────
+  function updateTitlesAndButtons() {
+    [alltagsList, haushaltList].forEach(function (sectionList) {
+      var cards = sectionList.querySelectorAll(".ah-service-card");
+      cards.forEach(function (card, i) {
+        var t = card.querySelector(".ah-sc-title");
+        if (t) t.textContent = "Leistung " + (i + 1);
+      });
+      var hint = sectionList.querySelector(".ah-empty-hint");
+      if (hint) hint.style.display = cards.length === 0 ? "" : "none";
+    });
   }
 
-  function applySelection(kind) {
-    // Block sichtbar, sobald eine Haupt‑Art gewählt wurde
-    show(wrap, true);
-
-    // Beide Detail‑Zeilen sollen immer sichtbar bleiben
-    show(blockAlltag, true);
-    show(blockHaushalt, true);
-
-    if (kind === "Alltagsbegleitung") {
-      // Fahrten aktiv, Pauschale grau/disabled
-      setDisabled(labelFahrten, inputFahrten, false);
-      setDisabled(labelPausch, inputPausch, true);
-
-      // Fahrten vorwählen
-      inputFahrten.checked = true;
-      inputPausch.checked = false;
-      inputFahrten.dispatchEvent(new Event("change", { bubbles: true }));
-    } else if (kind === "Haushaltsnahedienstleistungen") {
-      // Pauschale aktiv, Fahrten grau/disabled
-      setDisabled(labelFahrten, inputFahrten, true);
-      setDisabled(labelPausch, inputPausch, false);
-
-      inputPausch.checked = true;
-      inputFahrten.checked = false;
-      inputPausch.dispatchEvent(new Event("change", { bubbles: true }));
-    } else {
-      // Nichts gewählt → alles zurücksetzen und ausblenden
-      show(wrap, false);
-      show(blockAlltag, false);
-      show(blockHaushalt, false);
-
-      setDisabled(labelFahrten, inputFahrten, false);
-      setDisabled(labelPausch, inputPausch, false);
-      inputFahrten.checked = false;
-      inputPausch.checked = false;
+  // ── Task-list section ─────────────────────────────────────────────
+  // Each task has a header row (checkbox + name + + button).
+  // When checked, a schedule sub-section appears below with repeatable
+  // rows of 4 fields. Each schedule row can be removed with ×.
+  function buildTaskSection(cardIdx, savedTasks, taskList) {
+    var savedMap = {};
+    if (Array.isArray(savedTasks)) {
+      savedTasks.forEach(function (t) { savedMap[t.id] = t; });
     }
+
+    var WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+    var SCHED_COL  = "72px 1fr 210px 88px 28px";
+
+    var wrap = document.createElement("div");
+    wrap.style.cssText = "width:100%; box-sizing:border-box; border:1px solid var(--border); border-radius:6px; overflow:hidden;";
+
+    taskList.forEach(function (def, i) {
+      var saved          = savedMap[def.id] || {};
+      var savedSchedules = Array.isArray(saved.schedules) ? saved.schedules : [];
+      var isChecked      = savedSchedules.length > 0;
+      var isLast         = i === taskList.length - 1;
+
+      var taskBlock = document.createElement("div");
+      taskBlock.style.borderBottom = isLast ? "none" : "1px solid var(--border)";
+
+      // — header row —
+      var headerRow = document.createElement("div");
+      headerRow.style.cssText =
+        "display:flex; align-items:center; gap:8px; padding:8px 12px;" +
+        (isChecked ? "background:var(--accent-light,#eff6ff);" : "");
+
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.setAttribute("data-task-id", def.id);
+      cb.checked = isChecked;
+      cb.style.cssText = "width:15px; height:15px; cursor:pointer; flex-shrink:0; margin:0;";
+
+      var nameEl = document.createElement("span");
+      nameEl.textContent = def.label;
+      nameEl.style.cssText = "flex:1; font-size:0.85rem; cursor:pointer; min-width:0;";
+      nameEl.addEventListener("click", function () {
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event("change"));
+      });
+
+      var addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.textContent = "+";
+      addBtn.title = "Termin hinzufügen";
+      addBtn.className = "btn-secondary";
+      addBtn.style.cssText =
+        "display:" + (isChecked ? "inline-flex" : "none") + ";" +
+        "align-items:center; justify-content:center; flex-shrink:0;" +
+        "width:22px; height:22px; border-radius:50%; font-size:1rem; line-height:1; padding:0;";
+
+      headerRow.appendChild(cb);
+      headerRow.appendChild(nameEl);
+      headerRow.appendChild(addBtn);
+
+      // — schedules area —
+      var schedArea = document.createElement("div");
+      schedArea.style.cssText =
+        "display:" + (isChecked ? "block" : "none") + ";" +
+        "background:var(--bg-alt,#f8fafc); border-top:1px solid var(--border);";
+
+      // column header inside schedules area
+      var schedHdr = document.createElement("div");
+      schedHdr.style.cssText =
+        "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center;" +
+        "padding:4px 12px 3px; font-size:0.7rem; font-weight:600; color:var(--muted); user-select:none;";
+      schedHdr.innerHTML =
+        "<span>Dauer</span><span>Regelmäßigkeit</span><span>Bev. Tage</span><span>Bev. Uhrzeit</span><span></span>";
+      schedArea.appendChild(schedHdr);
+
+      // — schedule row factory —
+      function createSchedRow(sched) {
+        sched = sched || {};
+        var row = document.createElement("div");
+        row.className = "ah-sched-row";
+        row.style.cssText =
+          "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center;" +
+          "padding:5px 12px; border-top:1px solid var(--border);";
+
+        var dauerInp = document.createElement("input");
+        dauerInp.type = "text";
+        dauerInp.setAttribute("data-sched-field", "dauer");
+        dauerInp.setAttribute("data-task-id", def.id);
+        dauerInp.value = sched.dauer || "";
+        dauerInp.placeholder = "1:10";
+        dauerInp.style.cssText = "font-size:0.8rem; font-family:monospace;";
+
+        var regelSel = document.createElement("select");
+        regelSel.setAttribute("data-sched-field", "regelmaessigkeit");
+        regelSel.setAttribute("data-task-id", def.id);
+        regelSel.style.fontSize = "0.8rem";
+        var o0 = document.createElement("option"); o0.value = ""; o0.textContent = "Regelm. …"; regelSel.appendChild(o0);
+        REGELMAESSIGKEIT.forEach(function (r) {
+          var o = document.createElement("option"); o.value = r; o.textContent = r;
+          if (sched.regelmaessigkeit === r) o.selected = true;
+          regelSel.appendChild(o);
+        });
+
+        // — day-of-week picker —
+        var savedDays = new Set(
+          (sched.bevorzugteTage || "").split(",").map(function(d) { return d.trim(); }).filter(Boolean)
+        );
+        var tageHidden = document.createElement("input");
+        tageHidden.type = "hidden";
+        tageHidden.setAttribute("data-sched-field", "bevorzugteTage");
+        tageHidden.setAttribute("data-task-id", def.id);
+        tageHidden.value = sched.bevorzugteTage || "";
+
+        var tagePicker = document.createElement("div");
+        tagePicker.style.cssText = "display:flex; flex-wrap:wrap; gap:3px; align-items:center;";
+        WOCHENTAGE.forEach(function (day) {
+          var on = savedDays.has(day);
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = day;
+          btn.setAttribute("data-day", day);
+          btn.setAttribute("data-on", on ? "1" : "0");
+          btn.style.cssText =
+            "font-size:0.7rem; padding:2px 5px; border-radius:4px; cursor:pointer; border:1px solid var(--border); line-height:1.4;" +
+            (on ? "background:var(--accent,#0ea5e9); color:#fff; border-color:var(--accent,#0ea5e9);"
+                : "background:var(--bg-alt,#f1f5f9); color:var(--text,#1e293b);");
+          btn.addEventListener("click", function () {
+            var nowOn = this.getAttribute("data-on") === "1";
+            nowOn = !nowOn;
+            this.setAttribute("data-on", nowOn ? "1" : "0");
+            this.style.background    = nowOn ? "var(--accent,#0ea5e9)"    : "var(--bg-alt,#f1f5f9)";
+            this.style.color         = nowOn ? "#fff"                     : "var(--text,#1e293b)";
+            this.style.borderColor   = nowOn ? "var(--accent,#0ea5e9)"    : "var(--border)";
+            var selected = [];
+            tagePicker.querySelectorAll("button[data-on='1']").forEach(function (b) { selected.push(b.getAttribute("data-day")); });
+            tageHidden.value = selected.join(",");
+            serialize();
+          });
+          tagePicker.appendChild(btn);
+        });
+
+        var tageWrap = document.createElement("div");
+        tageWrap.style.cssText = "display:flex; flex-direction:column; gap:0;";
+        tageWrap.appendChild(tagePicker);
+        tageWrap.appendChild(tageHidden);
+
+        var uhrzeitInp = document.createElement("input");
+        uhrzeitInp.type = "text";
+        uhrzeitInp.setAttribute("data-sched-field", "bevorzugteUhrzeit");
+        uhrzeitInp.setAttribute("data-task-id", def.id);
+        uhrzeitInp.value = sched.bevorzugteUhrzeit || "";
+        uhrzeitInp.placeholder = "09:00";
+        uhrzeitInp.style.fontSize = "0.8rem";
+
+        var removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.textContent = "×";
+        removeBtn.className = "btn-secondary";
+        removeBtn.style.cssText =
+          "width:22px; height:22px; border-radius:50%; font-size:1rem; line-height:1; padding:0;" +
+          "display:flex; align-items:center; justify-content:center;";
+        removeBtn.addEventListener("click", function () {
+          row.remove();
+          if (schedArea.querySelectorAll(".ah-sched-row").length === 0) {
+            cb.checked = false;
+            schedArea.style.display = "none";
+            addBtn.style.display = "none";
+            headerRow.style.background = "";
+          }
+          serialize();
+        });
+
+        row.appendChild(dauerInp);
+        row.appendChild(regelSel);
+        row.appendChild(tageWrap);
+        row.appendChild(uhrzeitInp);
+        row.appendChild(removeBtn);
+        row.addEventListener("change", serialize);
+        row.addEventListener("input",  serialize);
+        return row;
+      }
+
+      // restore saved schedules (or one empty row when newly checked)
+      savedSchedules.forEach(function (s) { schedArea.appendChild(createSchedRow(s)); });
+
+      // + button wires up
+      addBtn.addEventListener("click", function () {
+        schedArea.appendChild(createSchedRow({}));
+        serialize();
+      });
+
+      // checkbox toggle
+      cb.addEventListener("change", function () {
+        var c = this.checked;
+        schedArea.style.display  = c ? "block" : "none";
+        addBtn.style.display     = c ? "inline-flex" : "none";
+        headerRow.style.background = c ? "var(--accent-light,#eff6ff)" : "";
+        if (c && schedArea.querySelectorAll(".ah-sched-row").length === 0) {
+          schedArea.appendChild(createSchedRow({}));
+        }
+        serialize();
+      });
+
+      taskBlock.appendChild(headerRow);
+      taskBlock.appendChild(schedArea);
+      wrap.appendChild(taskBlock);
+    });
+
+    return wrap;
   }
 
-  // Listener für die zwei Haupt‑Radiobuttons
-  artAlltag?.addEventListener("change", () => {
-    if (artAlltag.checked) applySelection("Alltagsbegleitung");
-  });
-  artHaushalt?.addEventListener("change", () => {
-    if (artHaushalt.checked) applySelection("Haushaltsnahedienstleistungen");
+  // ── Haushaltsnahe-DL section ───────────────────────────────────────
+  function buildHaushaltSection(idx, data) {
+    var sec = document.createElement("div");
+    sec.style.cssText = "width:100%; box-sizing:border-box; display:grid; gap:10px;";
+
+    var hoursDiv = document.createElement("div");
+    hoursDiv.style.cssText = "display:grid; grid-template-columns:1fr 1fr; gap:8px;";
+    hoursDiv.innerHTML =
+      "<div>" +
+        "<label style='font-size:0.82rem; font-weight:500; display:block; margin-bottom:4px;'>Std./Einsatz (h)</label>" +
+        "<input type='number' data-field='einsatz' min='0' step='0.5' value='" + (data.einsatzUmfang || "") + "' placeholder='z. B. 2' inputmode='decimal' />" +
+      "</div>" +
+      "<div>" +
+        "<label style='font-size:0.82rem; font-weight:500; display:block; margin-bottom:4px;'>Std./Monat (h)</label>" +
+        "<input type='number' data-field='monat' min='0' step='0.5' value='" + (data.monatUmfang || "") + "' placeholder='z. B. 8' inputmode='decimal' />" +
+      "</div>";
+
+    var regelDiv = document.createElement("div");
+    var rHtml =
+      "<label style='font-size:0.82rem; font-weight:500; display:block; margin-bottom:5px;'>Regelmäßigkeit</label>" +
+      "<div class='radio-group' role='radiogroup' style='flex-wrap:wrap; gap:5px;'>";
+    REGELMAESSIGKEIT.forEach(function (opt) {
+      rHtml +=
+        "<label class='radio-pill'><input type='radio' data-field='regel' name='ahServiceRegel_" + idx + "' value='" + opt + "'" +
+        (data.regelmaessigkeit === opt ? " checked" : "") + " /><span class='circle'></span><span>" + opt + "</span></label>";
+    });
+    rHtml += "</div>";
+    regelDiv.innerHTML = rHtml;
+
+    sec.appendChild(hoursDiv);
+    sec.appendChild(regelDiv);
+    return sec;
+  }
+
+  // ── Card factory ───────────────────────────────────────────────────
+  function createCard(type, data) {
+    data = data || {};
+    var idx  = counter++;
+    var card = document.createElement("div");
+    card.className = "ah-service-card";
+    card.setAttribute("data-type", type);
+    card.style.cssText = "width:100%; box-sizing:border-box; padding:12px 16px; border:1px solid var(--border); border-radius:8px; display:grid; gap:10px;";
+
+    // header
+    var header = document.createElement("div");
+    header.style.cssText = "display:flex; justify-content:space-between; align-items:center;";
+    var titleSpan = document.createElement("span");
+    titleSpan.className = "ah-sc-title";
+    titleSpan.style.cssText = "font-weight:600; font-size:0.9rem;";
+    titleSpan.textContent = "Leistung";
+    var removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "btn-secondary ah-sc-remove";
+    removeBtn.style.cssText = "padding:2px 9px; font-size:0.78rem;";
+    removeBtn.textContent = "Entfernen";
+    removeBtn.addEventListener("click", function () {
+      card.remove(); updateTitlesAndButtons(); serialize();
+    });
+    header.appendChild(titleSpan);
+    header.appendChild(removeBtn);
+    card.appendChild(header);
+
+    // type-specific content
+    if (type === "Haushaltsnahedienstleistungen") {
+      card.appendChild(buildTaskSection(idx, data.tasks || [], ALLTAGSTASKS));
+    } else {
+      card.appendChild(buildTaskSection(idx, data.tasks || [], BEGLEITUNG_TASKS));
+    }
+
+    card.addEventListener("change", serialize);
+    card.addEventListener("input",  serialize);
+    return card;
+  }
+
+  // ── Wire up add buttons ────────────────────────────────────────────
+  addAlltagsBtn.addEventListener("click", function () {
+    alltagsList.appendChild(createCard("Alltagsbegleitung"));
+    updateTitlesAndButtons();
+    serialize();
   });
 
-  // Initialzustand beim Laden (z.B. beim Bearbeiten eines Entwurfs)
-  const current = form.querySelector('input[name="ahArt"]:checked');
-  if (current) {
-    applySelection(current.value);
-  } else {
-    show(wrap, false);
-    show(blockAlltag, false);
-    show(blockHaushalt, false);
-  }
+  addHaushaltBtn.addEventListener("click", function () {
+    haushaltList.appendChild(createCard("Haushaltsnahedienstleistungen"));
+    updateTitlesAndButtons();
+    serialize();
+  });
+
+  // sections start empty
+
+  // draft restore
+  window.restoreAhServices = function (services) {
+    alltagsList.innerHTML = "";
+    haushaltList.innerHTML = "";
+    counter = 0;
+    if (Array.isArray(services)) {
+      services.forEach(function (s) {
+        var type = s.type || "Alltagsbegleitung";
+        var target = type === "Haushaltsnahedienstleistungen" ? haushaltList : alltagsList;
+        target.appendChild(createCard(type, s));
+      });
+    }
+    updateTitlesAndButtons();
+    serialize();
+  };
 })();
 // =================================================================
 // #region 10. PAGE SPECIFIC LOGIC (Wandverkleidung, Duschwanne, etc)
@@ -7661,14 +7900,14 @@ function updateFlooringPanelsPriceFromPricing() {
 
   const pid = getSelectedFloorPid();
 
-  // Prefer the “Paneele” line for the selected pid.
+  // Prefer the "Paneele" line for the selected pid.
   let line = pricing.materials.lines.find((l) => {
     const id = (l.productId || l.id);
     const label = String(l.label || "");
     return id === pid && label.includes("Fußboden-Paneele");
   });
 
-  // Fallback: same pid but not “individ.” (covers older label variants)
+  // Fallback: same pid but not "individ." (covers older label variants)
   if (!line) {
     line = pricing.materials.lines.find((l) => {
       const id = (l.productId || l.id);
@@ -9179,8 +9418,8 @@ document
   // UI-only: if a Duschabtrennung (Hassmann) quick-add has a user ID,
   // show it in the Kosten-Details label. Do NOT affect server, DOCX, or PDF.
   // UI-only: append [ID] to Kosten-Details labels.
-  // - Already handled: “... Hassmann ...” lines (e.g., Pendeltür Hassmann).
-  // - NEW: also handle both “Freier Posten” variants (Hassmann + Optional/Sonderprodukte),
+  // - Already handled: "... Hassmann ..." lines (e.g., Pendeltür Hassmann).
+  // - NEW: also handle both "Freier Posten" variants (Hassmann + Optional/Sonderprodukte),
   //        whose labels typically look like "- 1 Stk <text>" without the word "Hassmann".
   function decorateDALabel(line) {
     const pid = String(line.productId || line.id || "").trim();
@@ -9197,7 +9436,7 @@ document
       return `${base} [${pid}]`;
     }
 
-    // 2) NEW rule: “Freier Posten” rows (both Hassmann and Optional) often look like "- 1 Stk …"
+    // 2) NEW rule: "Freier Posten" rows (both Hassmann and Optional) often look like "- 1 Stk …"
     //    Add [ID] for any line that looks like a free-text item (qty label form), even if it doesn’t say "Hassmann".
     //    This safely covers Freier Posten without affecting unrelated lines.
     const looksLikeQtyLabel = /^\s*-\s*\d+\s*Stk\b/i.test(base);
@@ -11394,7 +11633,7 @@ function restoreOptionalPage(opt) {
         "opt_V22WS1R",
         "opt_TEMPDSU250",
         "opt_V22BG903R",
-        "opt_DEDS2503E",
+        "opt_V22DS250E",
       ],
       cat_THERMO: ["opt_CLTB", "opt_DEPTB", "opt_CLB"],
       cat_GRAB: ["opt_CLPESG30","opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
@@ -12805,7 +13044,7 @@ function initOptionalSonderprodukte() {
   };
 
   if (restored.length) {
-    // Remove any pre-rendered rows (e.g., initial “Freier Posten”) to avoid duplicates
+    // Remove any pre-rendered rows (e.g., initial "Freier Posten") to avoid duplicates
     removeAllDomRows();
     restored.forEach((r) => rowsContainer.appendChild(createRow(r)));
   } else {
@@ -14420,7 +14659,7 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_V22WS1R", "qty_V22WS1R_wrap");
   wireTileQty("opt_TEMPDSU250", "qty_TEMPDSU250_wrap");
   wireTileQty("opt_V22BG903R", "qty_V22BG903R_wrap");
-  wireTileQty("opt_DEDS2503E", "qty_DEDS2503E_wrap");
+  wireTileQty("opt_V22DS250E", "qty_V22DS250E_wrap");
 
   // ---- THERMO ----
   wireTileQty("opt_CLTB", "qty_CLTB_wrap");
@@ -15098,7 +15337,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
       "opt_V22WS1R",
       "opt_TEMPDSU250",
       "opt_V22BG903R",
-      "opt_DEDS2503E",
+      "opt_V22DS250E",
     ],
     cat_THERMO: ["opt_CLTB", "opt_DEPTB", "opt_CLB"],
     cat_GRAB: ["opt_CLPESG30", "opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
@@ -15188,7 +15427,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
     wireTileQty("opt_EV", "qty_EV_wrap");
   })();
 
-  // ---- Independent “Zubehör zum Waschtisch” (loose accessories) ----
+  // ---- Independent "Zubehör zum Waschtisch" (loose accessories) ----
   wireTileQty("opt_WTBF__loose", "qty_WTBF__loose_wrap");
   wireTileQty("opt_RSL__loose", "qty_RSL__loose_wrap");
   wireTileQty("opt_EV__loose", "qty_EV__loose_wrap");
@@ -15251,7 +15490,7 @@ wireTileQty("hlWallAngledBall35", "qty_hlWallAngledBall35_wrap");
         "opt_V22WS1R", // Wannenset individual 2.2
         "opt_TEMPDSU250", // Duschsystem Tempesta Flex
         "opt_V22BG903R", // Brausegarnitur individ.2.2
-        "opt_DEDS2503E", // Duschsystem derby Thermostat
+        "opt_V22DS250E", // Duschsystem V2 Thermostat
       ],
     },
     {
@@ -15741,6 +15980,23 @@ function restoreAh(ah) {
   if (!ah) return;
   const noteEl = document.getElementById("ahNote");
   if (noteEl) noteEl.value = ah.ahNote || "";
+
+  if (typeof window.restoreAhServices === "function") {
+    let services = null;
+    if (ah.ahServicesJson) {
+      try { services = JSON.parse(ah.ahServicesJson); } catch (e) { /* ignore */ }
+    }
+    // Legacy: single-service payload from old ahArt fields
+    if (!Array.isArray(services) && ah.ahArt) {
+      services = [{
+        type: ah.ahArt || "",
+        einsatzUmfang: ah.ahEinsatzUmfang || "",
+        monatUmfang: ah.ahMonatUmfang || "",
+        regelmaessigkeit: ah.ahRegelmaessigkeit || "",
+      }];
+    }
+    window.restoreAhServices(services || []);
+  }
 }
 
 function restoreHms(hms) {

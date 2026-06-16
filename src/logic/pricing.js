@@ -219,7 +219,7 @@ function grossToNet(gross, taxRate) {
     };
 
     // IMPORTANT: your keys include [] in their names
-    // const shower = chosen( opt["optShower[]"], opt.qty_V22WS1R ||  opt.qty_TEMPDSU250 || opt.qty_V22BG903R ||opt.qty_DEDS2503E,);
+    // const shower = chosen( opt["optShower[]"], opt.qty_V22WS1R ||  opt.qty_TEMPDSU250 || opt.qty_V22BG903R ||opt.qty_V22DS250E,);
 
     const grab = chosen(
       opt["optGrab[]"],
