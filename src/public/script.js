@@ -21574,10 +21574,27 @@ function buildPlanningEntries(payload){
   };
 }
 
+function formatPlanningStartTime(entry){
+  const start = Number(entry?.manualStartMinutes);
+  if(!Number.isFinite(start) || start < 0) return null;
+  const h = Math.floor(start / 60);
+  const m = start % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 function formatPlanningDuration(entry){
   const minutes = Number(entry?.duration);
   if(!(minutes > 0)) return "Dauer offen";
   return `${minutes} Min`;
+}
+
+function formatPlanningTimeDisplay(entry){
+  const startTime = formatPlanningStartTime(entry);
+  const duration = Number(entry?.duration) > 0 ? `${Number(entry.duration)} Min` : null;
+  if(startTime && duration) return `${startTime} · ${duration}`;
+  if(startTime) return startTime;
+  if(duration) return duration;
+  return "Dauer offen";
 }
 
 function isPlanningEntryCancelled(entry){
@@ -21633,7 +21650,7 @@ function renderTodayPlanningAppointments(){
           </div>
 
           <div class="today-calendar-right">
-            <span class="today-calendar-time"><i class="fa-regular fa-clock"></i> ${escapePlanningHtml(formatPlanningDuration(entry))}</span>
+            <span class="today-calendar-time"><i class="fa-regular fa-clock"></i> ${escapePlanningHtml(formatPlanningTimeDisplay(entry))}</span>
             <span class="today-calendar-badge ${badgeClass}">${escapePlanningHtml(formatPlanningBadge(entry))}</span>
           </div>
         </div>
