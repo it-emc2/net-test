@@ -2522,6 +2522,7 @@ function updateSidebarForOffer() {
     bwt: "BWT",
     hl: "HL",
     bl: "BL",
+    ah: "AH",
   };
 
   normalPages.forEach((pageId) => {
@@ -5440,31 +5441,24 @@ document.body.addEventListener("click", (e) => {
     [alltagsList, haushaltList].forEach(function (sectionList) {
       sectionList.querySelectorAll(".ah-service-card").forEach(function (card) {
         var type = card.getAttribute("data-type") || "";
-        var svc  = { type: type };
-
-        var tList = type === "Haushaltsnahedienstleistungen" ? ALLTAGSTASKS : BEGLEITUNG_TASKS;
-        svc.tasks = [];
-        tList.forEach(function (def) {
-          var cb = card.querySelector("input[type=checkbox][data-task-id=" + def.id + "]");
-          if (!cb || !cb.checked) return;
-          var schedRows = card.querySelectorAll(".ah-sched-row");
-          var taskSchedules = [];
-          schedRows.forEach(function (row) {
-            if (!row.querySelector("[data-task-id=" + def.id + "]")) return;
-            var d = row.querySelector("[data-sched-field=dauer][data-task-id="             + def.id + "]");
-            var r = row.querySelector("[data-sched-field=regelmaessigkeit][data-task-id="  + def.id + "]");
-            var t = row.querySelector("[data-sched-field=bevorzugteTage][data-task-id="    + def.id + "]");
-            var u = row.querySelector("[data-sched-field=bevorzugteUhrzeit][data-task-id=" + def.id + "]");
-            taskSchedules.push({
-              dauer:             d ? d.value : "",
-              regelmaessigkeit:  r ? r.value : "",
-              bevorzugteTage:    t ? t.value : "",
-              bevorzugteUhrzeit: u ? u.value : "",
-            });
-          });
-          svc.tasks.push({ id: def.id, label: def.label, schedules: taskSchedules });
+        var dEl  = card.querySelector("[data-card-field=dauer]");
+        var rEl  = card.querySelector("[data-card-field=regelmaessigkeit]");
+        var tEl  = card.querySelector("[data-card-field=bevorzugteTage]");
+        var uEl  = card.querySelector("[data-card-field=bevorzugteUhrzeit]");
+        var taskIds = [];
+        card.querySelectorAll("input[type=checkbox][data-task-id]:checked").forEach(function (cb) {
+          taskIds.push(cb.getAttribute("data-task-id"));
         });
-        services.push(svc);
+        services.push({
+          type: type,
+          schedule: {
+            dauer:             dEl ? dEl.value : "",
+            regelmaessigkeit:  rEl ? rEl.value : "",
+            bevorzugteTage:    tEl ? tEl.value : "",
+            bevorzugteUhrzeit: uEl ? uEl.value : "",
+          },
+          tasks: taskIds,
+        });
       });
     });
     jsonInput.value = JSON.stringify(services);
@@ -5488,36 +5482,21 @@ document.body.addEventListener("click", (e) => {
     });
   }
 
-  // ── Task-list section ─────────────────────────────────────────────
-  // Each task has a header row (checkbox + name + + button).
-  // When checked, a schedule sub-section appears below with repeatable
-  // rows of 4 fields. Each schedule row can be removed with ×.
-  function buildTaskSection(cardIdx, savedTasks, taskList) {
-    var savedMap = {};
-    if (Array.isArray(savedTasks)) {
-      savedTasks.forEach(function (t) { savedMap[t.id] = t; });
-    }
-
-    var WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
-    var SCHED_COL  = "72px 1fr 210px 88px 28px";
+  // ── Task checklist (checkboxes only, no per-task scheduling) ────────
+  function buildTaskChecklist(savedTaskIds, taskList) {
+    var checkedSet = new Set(Array.isArray(savedTaskIds) ? savedTaskIds : []);
 
     var wrap = document.createElement("div");
     wrap.style.cssText = "width:100%; box-sizing:border-box; border:1px solid var(--border); border-radius:6px; overflow:hidden;";
 
     taskList.forEach(function (def, i) {
-      var saved          = savedMap[def.id] || {};
-      var savedSchedules = Array.isArray(saved.schedules) ? saved.schedules : [];
-      var isChecked      = savedSchedules.length > 0;
-      var isLast         = i === taskList.length - 1;
+      var isChecked = checkedSet.has(def.id);
+      var isLast    = i === taskList.length - 1;
 
-      var taskBlock = document.createElement("div");
-      taskBlock.className = "ah-task-block";
-      taskBlock.style.borderBottom = isLast ? "none" : "1px solid var(--border)";
-
-      // — header row —
-      var headerRow = document.createElement("div");
-      headerRow.style.cssText =
+      var row = document.createElement("div");
+      row.style.cssText =
         "display:flex; align-items:center; gap:8px; padding:8px 12px;" +
+        (isLast ? "" : "border-bottom:1px solid var(--border);") +
         (isChecked ? "background:var(--accent-light,#eff6ff);" : "");
 
       var cb = document.createElement("input");
@@ -5531,227 +5510,19 @@ document.body.addEventListener("click", (e) => {
       nameEl.style.cssText = "flex:1; font-size:0.85rem; cursor:pointer; min-width:0;";
       nameEl.addEventListener("click", function () {
         cb.checked = !cb.checked;
-        cb.dispatchEvent(new Event("change"));
+        cb.dispatchEvent(new Event("change", { bubbles: true }));
       });
 
-      var addBtn = document.createElement("button");
-      addBtn.type = "button";
-      addBtn.textContent = "+";
-      addBtn.title = "Termin hinzufügen";
-      addBtn.className = "btn-secondary";
-      addBtn.style.cssText =
-        "display:" + (isChecked ? "inline-flex" : "none") + ";" +
-        "align-items:center; justify-content:center; flex-shrink:0;" +
-        "width:22px; height:22px; border-radius:50%; font-size:1rem; line-height:1; padding:0;";
-
-      var taskTotalSpan = document.createElement("span");
-      taskTotalSpan.className = "ah-task-total";
-      taskTotalSpan.setAttribute("data-task-id", def.id);
-      taskTotalSpan.style.cssText =
-        "font-size:0.72rem; color:var(--accent,#0ea5e9); white-space:nowrap; margin-right:4px; font-weight:500; flex-shrink:0;";
-
-      headerRow.appendChild(cb);
-      headerRow.appendChild(nameEl);
-      headerRow.appendChild(taskTotalSpan);
-      headerRow.appendChild(addBtn);
-
-      // — schedules area —
-      var schedArea = document.createElement("div");
-      schedArea.style.cssText =
-        "display:" + (isChecked ? "block" : "none") + ";" +
-        "background:var(--bg-alt,#f8fafc); border-top:1px solid var(--border);";
-
-      // column header inside schedules area
-      var schedHdr = document.createElement("div");
-      schedHdr.style.cssText =
-        "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center;" +
-        "padding:4px 12px 3px; font-size:0.7rem; font-weight:600; color:var(--muted); user-select:none;";
-      schedHdr.innerHTML =
-        "<span>Dauer</span><span>Regelmäßigkeit</span><span>Bev. Tage</span><span>Bev. Uhrzeit</span><span></span>";
-      schedArea.appendChild(schedHdr);
-
-      // — schedule row factory —
-      function createSchedRow(sched) {
-        sched = sched || {};
-        var row = document.createElement("div");
-        row.className = "ah-sched-row";
-        row.style.cssText =
-          "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center;" +
-          "padding:5px 12px; border-top:1px solid var(--border);";
-
-        var dauerInp = document.createElement("input");
-        dauerInp.type = "text";
-        dauerInp.setAttribute("data-sched-field", "dauer");
-        dauerInp.setAttribute("data-task-id", def.id);
-        dauerInp.value = sched.dauer || "";
-        dauerInp.placeholder = "1:10";
-        dauerInp.style.cssText = "font-size:0.8rem; font-family:monospace;";
-        if (typeof wireDurationAutoFormat === "function") wireDurationAutoFormat(dauerInp);
-
-        var regelSel = document.createElement("select");
-        regelSel.setAttribute("data-sched-field", "regelmaessigkeit");
-        regelSel.setAttribute("data-task-id", def.id);
-        regelSel.style.fontSize = "0.8rem";
-        var o0 = document.createElement("option"); o0.value = ""; o0.textContent = "Regelm. …"; regelSel.appendChild(o0);
-        REGELMAESSIGKEIT.forEach(function (r) {
-          var o = document.createElement("option"); o.value = r; o.textContent = r;
-          if (sched.regelmaessigkeit === r) o.selected = true;
-          regelSel.appendChild(o);
-        });
-
-        // — day-of-week picker —
-        var savedDays = new Set(
-          (sched.bevorzugteTage || "").split(",").map(function(d) { return d.trim(); }).filter(Boolean)
-        );
-        var tageHidden = document.createElement("input");
-        tageHidden.type = "hidden";
-        tageHidden.setAttribute("data-sched-field", "bevorzugteTage");
-        tageHidden.setAttribute("data-task-id", def.id);
-        tageHidden.value = sched.bevorzugteTage || "";
-
-        var tagePicker = document.createElement("div");
-        tagePicker.style.cssText = "display:flex; flex-wrap:wrap; gap:3px; align-items:center;";
-        WOCHENTAGE.forEach(function (day) {
-          var on = savedDays.has(day);
-          var btn = document.createElement("button");
-          btn.type = "button";
-          btn.textContent = day;
-          btn.setAttribute("data-day", day);
-          btn.setAttribute("data-on", on ? "1" : "0");
-          btn.style.cssText =
-            "font-size:0.7rem; padding:2px 5px; border-radius:4px; cursor:pointer; border:1px solid var(--border); line-height:1.4;" +
-            (on ? "background:var(--accent,#0ea5e9); color:#fff; border-color:var(--accent,#0ea5e9);"
-                : "background:var(--bg-alt,#f1f5f9); color:var(--text,#1e293b);");
-          btn.addEventListener("click", function () {
-            var nowOn = this.getAttribute("data-on") === "1";
-            nowOn = !nowOn;
-            this.setAttribute("data-on", nowOn ? "1" : "0");
-            this.style.background    = nowOn ? "var(--accent,#0ea5e9)"    : "var(--bg-alt,#f1f5f9)";
-            this.style.color         = nowOn ? "#fff"                     : "var(--text,#1e293b)";
-            this.style.borderColor   = nowOn ? "var(--accent,#0ea5e9)"    : "var(--border)";
-            var selected = [];
-            tagePicker.querySelectorAll("button[data-on='1']").forEach(function (b) { selected.push(b.getAttribute("data-day")); });
-            tageHidden.value = selected.join(",");
-            serialize();
-            var parentCard = btn.closest(".ah-service-card");
-            if (parentCard && parentCard._updateTotals) parentCard._updateTotals();
-          });
-          tagePicker.appendChild(btn);
-        });
-
-        var tageWrap = document.createElement("div");
-        tageWrap.style.cssText = "display:flex; flex-direction:column; gap:0;";
-        tageWrap.appendChild(tagePicker);
-        tageWrap.appendChild(tageHidden);
-
-        var uhrzeitInp = document.createElement("input");
-        uhrzeitInp.type = "text";
-        uhrzeitInp.setAttribute("data-sched-field", "bevorzugteUhrzeit");
-        uhrzeitInp.setAttribute("data-task-id", def.id);
-        uhrzeitInp.value = sched.bevorzugteUhrzeit || "";
-        uhrzeitInp.placeholder = "09:00";
-        uhrzeitInp.style.cssText = "font-size:0.8rem; font-family:monospace;";
-        if (typeof wireDurationAutoFormat === "function") wireDurationAutoFormat(uhrzeitInp);
-
-        var removeBtn = document.createElement("button");
-        removeBtn.type = "button";
-        removeBtn.textContent = "×";
-        removeBtn.className = "btn-secondary";
-        removeBtn.style.cssText =
-          "width:22px; height:22px; border-radius:50%; font-size:1rem; line-height:1; padding:0;" +
-          "display:flex; align-items:center; justify-content:center;";
-        removeBtn.addEventListener("click", function () {
-          row.remove();
-          if (schedArea.querySelectorAll(".ah-sched-row").length === 0) {
-            cb.checked = false;
-            schedArea.style.display = "none";
-            addBtn.style.display = "none";
-            headerRow.style.background = "";
-          }
-          serialize();
-          var parentCard = removeBtn.closest(".ah-service-card");
-          if (parentCard && parentCard._updateTotals) parentCard._updateTotals();
-        });
-
-        function callTotals() {
-          var parentCard = row.closest(".ah-service-card");
-          if (parentCard && parentCard._updateTotals) parentCard._updateTotals();
-        }
-        row.appendChild(dauerInp);
-        row.appendChild(regelSel);
-        row.appendChild(tageWrap);
-        row.appendChild(uhrzeitInp);
-        row.appendChild(removeBtn);
-        row.addEventListener("change", function () { serialize(); callTotals(); });
-        row.addEventListener("input",  function () { serialize(); callTotals(); });
-        return row;
-      }
-
-      // restore saved schedules (or one empty row when newly checked)
-      savedSchedules.forEach(function (s) { schedArea.appendChild(createSchedRow(s)); });
-
-      // + button wires up
-      addBtn.addEventListener("click", function () {
-        schedArea.appendChild(createSchedRow({}));
-        serialize();
-        var parentCard = addBtn.closest(".ah-service-card");
-        if (parentCard && parentCard._updateTotals) parentCard._updateTotals();
-      });
-
-      // checkbox toggle
       cb.addEventListener("change", function () {
-        var c = this.checked;
-        schedArea.style.display  = c ? "block" : "none";
-        addBtn.style.display     = c ? "inline-flex" : "none";
-        headerRow.style.background = c ? "var(--accent-light,#eff6ff)" : "";
-        if (c && schedArea.querySelectorAll(".ah-sched-row").length === 0) {
-          schedArea.appendChild(createSchedRow({}));
-        }
-        serialize();
-        var parentCard = cb.closest(".ah-service-card");
-        if (parentCard && parentCard._updateTotals) parentCard._updateTotals();
+        row.style.background = cb.checked ? "var(--accent-light,#eff6ff)" : "";
       });
 
-      taskBlock.appendChild(headerRow);
-      taskBlock.appendChild(schedArea);
-      wrap.appendChild(taskBlock);
+      row.appendChild(cb);
+      row.appendChild(nameEl);
+      wrap.appendChild(row);
     });
 
     return wrap;
-  }
-
-  // ── Haushaltsnahe-DL section ───────────────────────────────────────
-  function buildHaushaltSection(idx, data) {
-    var sec = document.createElement("div");
-    sec.style.cssText = "width:100%; box-sizing:border-box; display:grid; gap:10px;";
-
-    var hoursDiv = document.createElement("div");
-    hoursDiv.style.cssText = "display:grid; grid-template-columns:1fr 1fr; gap:8px;";
-    hoursDiv.innerHTML =
-      "<div>" +
-        "<label style='font-size:0.82rem; font-weight:500; display:block; margin-bottom:4px;'>Std./Einsatz (h)</label>" +
-        "<input type='number' data-field='einsatz' min='0' step='0.5' value='" + (data.einsatzUmfang || "") + "' placeholder='z. B. 2' inputmode='decimal' />" +
-      "</div>" +
-      "<div>" +
-        "<label style='font-size:0.82rem; font-weight:500; display:block; margin-bottom:4px;'>Std./Monat (h)</label>" +
-        "<input type='number' data-field='monat' min='0' step='0.5' value='" + (data.monatUmfang || "") + "' placeholder='z. B. 8' inputmode='decimal' />" +
-      "</div>";
-
-    var regelDiv = document.createElement("div");
-    var rHtml =
-      "<label style='font-size:0.82rem; font-weight:500; display:block; margin-bottom:5px;'>Regelmäßigkeit</label>" +
-      "<div class='radio-group' role='radiogroup' style='flex-wrap:wrap; gap:5px;'>";
-    REGELMAESSIGKEIT.forEach(function (opt) {
-      rHtml +=
-        "<label class='radio-pill'><input type='radio' data-field='regel' name='ahServiceRegel_" + idx + "' value='" + opt + "'" +
-        (data.regelmaessigkeit === opt ? " checked" : "") + " /><span class='circle'></span><span>" + opt + "</span></label>";
-    });
-    rHtml += "</div>";
-    regelDiv.innerHTML = rHtml;
-
-    sec.appendChild(hoursDiv);
-    sec.appendChild(regelDiv);
-    return sec;
   }
 
   // ── Card factory ───────────────────────────────────────────────────
@@ -5759,6 +5530,7 @@ document.body.addEventListener("click", (e) => {
     data = data || {};
     var idx   = counter++;
     var tList = type === "Haushaltsnahedienstleistungen" ? ALLTAGSTASKS : BEGLEITUNG_TASKS;
+    var sched = data.schedule || {};
     var card  = document.createElement("div");
     card.className = "ah-service-card";
     card.setAttribute("data-type", type);
@@ -5842,8 +5614,101 @@ document.body.addEventListener("click", (e) => {
     card.appendChild(header);
     card.appendChild(infoPanel);
 
-    // — task section —
-    card.appendChild(buildTaskSection(idx, data.tasks || [], tList));
+    // — card-level schedule row —
+    var WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+    var SCHED_COL  = "72px 1fr 210px 88px";
+
+    var schedSection = document.createElement("div");
+    schedSection.style.cssText = "border:1px solid var(--border); border-radius:6px; overflow:hidden;";
+
+    var schedHdr = document.createElement("div");
+    schedHdr.style.cssText =
+      "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center;" +
+      "padding:4px 12px 3px; font-size:0.7rem; font-weight:600; color:var(--muted); user-select:none;" +
+      "background:var(--bg-alt,#f8fafc); border-bottom:1px solid var(--border);";
+    schedHdr.innerHTML = "<span>Dauer</span><span>Regelmäßigkeit</span><span>Bev. Tage</span><span>Bev. Uhrzeit</span>";
+
+    var schedRow = document.createElement("div");
+    schedRow.style.cssText =
+      "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center; padding:8px 12px;";
+
+    var dauerInp = document.createElement("input");
+    dauerInp.type = "text";
+    dauerInp.setAttribute("data-card-field", "dauer");
+    dauerInp.value = sched.dauer || "";
+    dauerInp.placeholder = "1:10";
+    dauerInp.style.cssText = "font-size:0.8rem; font-family:monospace;";
+    if (typeof wireDurationAutoFormat === "function") wireDurationAutoFormat(dauerInp);
+
+    var regelSel = document.createElement("select");
+    regelSel.setAttribute("data-card-field", "regelmaessigkeit");
+    regelSel.style.fontSize = "0.8rem";
+    var o0 = document.createElement("option"); o0.value = ""; o0.textContent = "Regelm. …"; regelSel.appendChild(o0);
+    REGELMAESSIGKEIT.forEach(function (r) {
+      var o = document.createElement("option"); o.value = r; o.textContent = r;
+      if (sched.regelmaessigkeit === r) o.selected = true;
+      regelSel.appendChild(o);
+    });
+
+    var savedDays = new Set(
+      (sched.bevorzugteTage || "").split(",").map(function (d) { return d.trim(); }).filter(Boolean)
+    );
+    var tageHidden = document.createElement("input");
+    tageHidden.type = "hidden";
+    tageHidden.setAttribute("data-card-field", "bevorzugteTage");
+    tageHidden.value = sched.bevorzugteTage || "";
+
+    var tagePicker = document.createElement("div");
+    tagePicker.style.cssText = "display:flex; flex-wrap:wrap; gap:3px; align-items:center;";
+    WOCHENTAGE.forEach(function (day) {
+      var on = savedDays.has(day);
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = day;
+      btn.setAttribute("data-day", day);
+      btn.setAttribute("data-on", on ? "1" : "0");
+      btn.style.cssText =
+        "font-size:0.7rem; padding:2px 5px; border-radius:4px; cursor:pointer; border:1px solid var(--border); line-height:1.4;" +
+        (on ? "background:var(--accent,#0ea5e9); color:#fff; border-color:var(--accent,#0ea5e9);"
+            : "background:var(--bg-alt,#f1f5f9); color:var(--text,#1e293b);");
+      btn.addEventListener("click", function () {
+        var nowOn = this.getAttribute("data-on") === "1";
+        nowOn = !nowOn;
+        this.setAttribute("data-on", nowOn ? "1" : "0");
+        this.style.background  = nowOn ? "var(--accent,#0ea5e9)"  : "var(--bg-alt,#f1f5f9)";
+        this.style.color       = nowOn ? "#fff"                   : "var(--text,#1e293b)";
+        this.style.borderColor = nowOn ? "var(--accent,#0ea5e9)"  : "var(--border)";
+        var selected = [];
+        tagePicker.querySelectorAll("button[data-on='1']").forEach(function (b) { selected.push(b.getAttribute("data-day")); });
+        tageHidden.value = selected.join(",");
+        serialize();
+        doUpdateTotals();
+      });
+      tagePicker.appendChild(btn);
+    });
+
+    var tageWrap = document.createElement("div");
+    tageWrap.appendChild(tagePicker);
+    tageWrap.appendChild(tageHidden);
+
+    var uhrzeitInp = document.createElement("input");
+    uhrzeitInp.type = "text";
+    uhrzeitInp.setAttribute("data-card-field", "bevorzugteUhrzeit");
+    uhrzeitInp.value = sched.bevorzugteUhrzeit || "";
+    uhrzeitInp.placeholder = "09:00";
+    uhrzeitInp.style.cssText = "font-size:0.8rem; font-family:monospace;";
+    if (typeof wireDurationAutoFormat === "function") wireDurationAutoFormat(uhrzeitInp);
+
+    schedRow.appendChild(dauerInp);
+    schedRow.appendChild(regelSel);
+    schedRow.appendChild(tageWrap);
+    schedRow.appendChild(uhrzeitInp);
+    schedSection.appendChild(schedHdr);
+    schedSection.appendChild(schedRow);
+    card.appendChild(schedSection);
+
+    // — task checklist —
+    card.appendChild(buildTaskChecklist(data.tasks || [], tList));
 
     // — card total footer —
     var cardTotalDiv = document.createElement("div");
@@ -5854,61 +5719,35 @@ document.body.addEventListener("click", (e) => {
     card.appendChild(cardTotalDiv);
 
     // — totals calculation —
-    // Walks .ah-task-block → .ah-sched-row directly (no complex attribute selectors).
-    // A schedule row only contributes when dauer + regelmaessigkeit + days are all set.
     function doUpdateTotals() {
-      var periodMonths  = Number(periodSel.value) || 1;
-      var periodLabel   = periodMonths === 12 ? "/ Jahr" : "/ Monat";
-      var cardTotalMins = 0;
+      var periodMonths = Number(periodSel.value) || 1;
+      var periodLabel  = periodMonths === 12 ? "/ Jahr" : "/ Monat";
 
-      card.querySelectorAll(".ah-task-block").forEach(function (taskBlock) {
-        var cb        = taskBlock.querySelector("input[type=checkbox]");
-        var totalSpan = taskBlock.querySelector(".ah-task-total");
+      var mins = parseDurationMinutes(dauerInp.value);
+      var freq = FREQ_PER_MONTH[regelSel.value];
+      var days = tageHidden.value.split(",").filter(Boolean);
 
-        if (!cb || !cb.checked) {
-          if (totalSpan) totalSpan.textContent = "";
-          return;
-        }
-
-        var taskMins = 0;
-        taskBlock.querySelectorAll(".ah-sched-row").forEach(function (schedRow) {
-          var dEl = schedRow.querySelector("[data-sched-field=dauer]");
-          var rEl = schedRow.querySelector("[data-sched-field=regelmaessigkeit]");
-          var tEl = schedRow.querySelector("[data-sched-field=bevorzugteTage]");
-          if (!dEl || !rEl || !tEl) return;
-
-          var mins = parseDurationMinutes(dEl.value);
-          var freq = FREQ_PER_MONTH[rEl.value];
-          var days = tEl.value.split(",").filter(Boolean);
-
-          if (!mins || !days.length) return;
-
-          if (rEl.value === "Einmalig") {
-            taskMins += mins * days.length;
-            return;
-          }
-
-          if (typeof freq !== "number") return;
-
-          taskMins += mins * freq * periodMonths * days.length;
-        });
-
-        taskMins = Math.round(taskMins);
-        cardTotalMins += taskMins;
-        if (totalSpan) {
-          totalSpan.textContent = taskMins > 0
-            ? formatDurationHHMM(taskMins) + " " + periodLabel
-            : "";
-        }
-      });
-
-      if (cardTotalMins > 0) {
-        cardTotalDiv.textContent   = "Gesamt: " + formatDurationHHMM(cardTotalMins) + " " + periodLabel;
-        cardTotalDiv.style.display = "";
-      } else {
+      if (!mins || !days.length) {
         cardTotalDiv.textContent   = "";
         cardTotalDiv.style.display = "none";
+        return;
       }
+
+      var totalMins;
+      if (regelSel.value === "Einmalig") {
+        totalMins = mins * days.length;
+      } else {
+        if (typeof freq !== "number") {
+          cardTotalDiv.textContent   = "";
+          cardTotalDiv.style.display = "none";
+          return;
+        }
+        totalMins = mins * freq * periodMonths * days.length;
+      }
+
+      totalMins = Math.round(totalMins);
+      cardTotalDiv.textContent   = "Gesamt: " + formatDurationHHMM(totalMins) + " " + periodLabel;
+      cardTotalDiv.style.display = "";
     }
 
     card._updateTotals = doUpdateTotals;
