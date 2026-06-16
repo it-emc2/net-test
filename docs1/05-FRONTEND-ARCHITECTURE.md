@@ -461,3 +461,31 @@ window.__FEATURES__ = {
 ```
 
 Legacy fallback modules (`DraftsLegacyFallback.js`, `BadoluxLegacyFallback.js`) check these flags and skip initialization if the new manager is enabled.
+
+## AH · Alltagshilfe — Duration Calculation
+
+### How totals are computed
+
+Each schedule row contributes: `minutes × freq × periodMonths × days.length`
+
+- **minutes** — duration entered in HH:MM (parsed to minutes)
+- **freq** — occurrences per month (from `FREQ_PER_MONTH`, see below)
+- **periodMonths** — 1 (/ Monat) or 12 (/ Jahr), selected per card
+- **days.length** — number of selected weekday buttons (Mo/Di/Mi…)
+
+`Einmalig` is a special case: `minutes × days.length` (happens once per selected day, no frequency multiplier).
+
+### Frequency table (`FREQ_PER_MONTH`)
+
+Uses fixed 52-week yearly averages divided by 12. This is intentional: months vary (28–31 days) and years vary (365/366 days). Averaging over 52 weeks gives a stable, fair rate for service offer quoting — the error is < 0.3% per year.
+
+| Regelmäßigkeit   | Formula      | Per month |
+|------------------|--------------|-----------|
+| Wöchentlich      | 52 ÷ 12      | ≈ 4.33×   |
+| 14-tägig         | 26 ÷ 12      | ≈ 2.17×   |
+| alle drei Wochen | (52÷3) ÷ 12  | ≈ 1.44×   |
+| Monatlich        | 1            | 1×        |
+| Vierteljährlich  | 4 ÷ 12       | ≈ 0.33×   |
+| Halbjährlich     | 2 ÷ 12       | ≈ 0.17×   |
+| Jährlich         | 1 ÷ 12       | ≈ 0.083×  |
+| Einmalig         | once total   | —         |

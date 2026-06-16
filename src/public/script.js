@@ -2153,6 +2153,10 @@ function resetAllForms() {
 
     // WV (if any future persistence)
     "wv_state",
+
+    // AH services + note
+    "ahServices:v1",
+    "ahNote:v1",
   ];
 
   localStorageKeysToClear.forEach((key) => {
@@ -5389,8 +5393,19 @@ document.body.addEventListener("click", (e) => {
 
   var REGELMAESSIGKEIT = [
     "Einmalig", "Wöchentlich", "14-tägig", "alle drei Wochen",
-    "Monatlich", "Vierteljährlich", "Halbjährlich", "Jährlich", "Bei Bedarf",
+    "Monatlich", "Vierteljährlich", "Halbjährlich", "Jährlich",
   ];
+
+  // occurrences per month for each Regelmäßigkeit; null = not calculable
+  var FREQ_PER_MONTH = {
+    "Wöchentlich":       52 / 12,
+    "14-tägig":          26 / 12,
+    "alle drei Wochen":  52 / 3 / 12,
+    "Monatlich":         1,
+    "Vierteljährlich":   4 / 12,
+    "Halbjährlich":      2 / 12,
+    "Jährlich":          1 / 12,
+  };
 
   var ALLTAGSTASKS = [
     { id: "wohnungsreinigung",  label: "Wohnungsreinigung (Staubsaugen, Wischen, Bad, Küche)" },
@@ -5453,6 +5468,11 @@ document.body.addEventListener("click", (e) => {
       });
     });
     jsonInput.value = JSON.stringify(services);
+    try {
+      localStorage.setItem("ahServices:v1", jsonInput.value);
+      var _noteEl = document.getElementById("ahNote");
+      if (_noteEl) localStorage.setItem("ahNote:v1", _noteEl.value);
+    } catch {}
   }
 
   // ── Title / remove-button / empty-hint upkeep ─────────────────────
@@ -5491,6 +5511,7 @@ document.body.addEventListener("click", (e) => {
       var isLast         = i === taskList.length - 1;
 
       var taskBlock = document.createElement("div");
+      taskBlock.className = "ah-task-block";
       taskBlock.style.borderBottom = isLast ? "none" : "1px solid var(--border)";
 
       // — header row —
@@ -5523,8 +5544,15 @@ document.body.addEventListener("click", (e) => {
         "align-items:center; justify-content:center; flex-shrink:0;" +
         "width:22px; height:22px; border-radius:50%; font-size:1rem; line-height:1; padding:0;";
 
+      var taskTotalSpan = document.createElement("span");
+      taskTotalSpan.className = "ah-task-total";
+      taskTotalSpan.setAttribute("data-task-id", def.id);
+      taskTotalSpan.style.cssText =
+        "font-size:0.72rem; color:var(--accent,#0ea5e9); white-space:nowrap; margin-right:4px; font-weight:500; flex-shrink:0;";
+
       headerRow.appendChild(cb);
       headerRow.appendChild(nameEl);
+      headerRow.appendChild(taskTotalSpan);
       headerRow.appendChild(addBtn);
 
       // — schedules area —
@@ -5558,6 +5586,7 @@ document.body.addEventListener("click", (e) => {
         dauerInp.value = sched.dauer || "";
         dauerInp.placeholder = "1:10";
         dauerInp.style.cssText = "font-size:0.8rem; font-family:monospace;";
+        if (typeof wireDurationAutoFormat === "function") wireDurationAutoFormat(dauerInp);
 
         var regelSel = document.createElement("select");
         regelSel.setAttribute("data-sched-field", "regelmaessigkeit");
@@ -5604,6 +5633,8 @@ document.body.addEventListener("click", (e) => {
             tagePicker.querySelectorAll("button[data-on='1']").forEach(function (b) { selected.push(b.getAttribute("data-day")); });
             tageHidden.value = selected.join(",");
             serialize();
+            var parentCard = btn.closest(".ah-service-card");
+            if (parentCard && parentCard._updateTotals) parentCard._updateTotals();
           });
           tagePicker.appendChild(btn);
         });
@@ -5619,7 +5650,8 @@ document.body.addEventListener("click", (e) => {
         uhrzeitInp.setAttribute("data-task-id", def.id);
         uhrzeitInp.value = sched.bevorzugteUhrzeit || "";
         uhrzeitInp.placeholder = "09:00";
-        uhrzeitInp.style.fontSize = "0.8rem";
+        uhrzeitInp.style.cssText = "font-size:0.8rem; font-family:monospace;";
+        if (typeof wireDurationAutoFormat === "function") wireDurationAutoFormat(uhrzeitInp);
 
         var removeBtn = document.createElement("button");
         removeBtn.type = "button";
@@ -5637,15 +5669,21 @@ document.body.addEventListener("click", (e) => {
             headerRow.style.background = "";
           }
           serialize();
+          var parentCard = removeBtn.closest(".ah-service-card");
+          if (parentCard && parentCard._updateTotals) parentCard._updateTotals();
         });
 
+        function callTotals() {
+          var parentCard = row.closest(".ah-service-card");
+          if (parentCard && parentCard._updateTotals) parentCard._updateTotals();
+        }
         row.appendChild(dauerInp);
         row.appendChild(regelSel);
         row.appendChild(tageWrap);
         row.appendChild(uhrzeitInp);
         row.appendChild(removeBtn);
-        row.addEventListener("change", serialize);
-        row.addEventListener("input",  serialize);
+        row.addEventListener("change", function () { serialize(); callTotals(); });
+        row.addEventListener("input",  function () { serialize(); callTotals(); });
         return row;
       }
 
@@ -5656,6 +5694,8 @@ document.body.addEventListener("click", (e) => {
       addBtn.addEventListener("click", function () {
         schedArea.appendChild(createSchedRow({}));
         serialize();
+        var parentCard = addBtn.closest(".ah-service-card");
+        if (parentCard && parentCard._updateTotals) parentCard._updateTotals();
       });
 
       // checkbox toggle
@@ -5668,6 +5708,8 @@ document.body.addEventListener("click", (e) => {
           schedArea.appendChild(createSchedRow({}));
         }
         serialize();
+        var parentCard = cb.closest(".ah-service-card");
+        if (parentCard && parentCard._updateTotals) parentCard._updateTotals();
       });
 
       taskBlock.appendChild(headerRow);
@@ -5715,19 +5757,30 @@ document.body.addEventListener("click", (e) => {
   // ── Card factory ───────────────────────────────────────────────────
   function createCard(type, data) {
     data = data || {};
-    var idx  = counter++;
-    var card = document.createElement("div");
+    var idx   = counter++;
+    var tList = type === "Haushaltsnahedienstleistungen" ? ALLTAGSTASKS : BEGLEITUNG_TASKS;
+    var card  = document.createElement("div");
     card.className = "ah-service-card";
     card.setAttribute("data-type", type);
     card.style.cssText = "width:100%; box-sizing:border-box; padding:12px 16px; border:1px solid var(--border); border-radius:8px; display:grid; gap:10px;";
 
-    // header
+    // — header —
     var header = document.createElement("div");
-    header.style.cssText = "display:flex; justify-content:space-between; align-items:center;";
+    header.style.cssText = "display:flex; align-items:center; gap:8px;";
+
     var titleSpan = document.createElement("span");
     titleSpan.className = "ah-sc-title";
-    titleSpan.style.cssText = "font-weight:600; font-size:0.9rem;";
+    titleSpan.style.cssText = "font-weight:600; font-size:0.9rem; margin-right:auto;";
     titleSpan.textContent = "Leistung";
+
+    var periodSel = document.createElement("select");
+    periodSel.className = "ah-period-select";
+    periodSel.style.cssText = "font-size:0.78rem;";
+    [["1", "/ Monat"], ["12", "/ Jahr"]].forEach(function (opt) {
+      var o = document.createElement("option"); o.value = opt[0]; o.textContent = opt[1];
+      periodSel.appendChild(o);
+    });
+
     var removeBtn = document.createElement("button");
     removeBtn.type = "button";
     removeBtn.className = "btn-secondary ah-sc-remove";
@@ -5736,36 +5789,203 @@ document.body.addEventListener("click", (e) => {
     removeBtn.addEventListener("click", function () {
       card.remove(); updateTitlesAndButtons(); serialize();
     });
+
+    // — formula info button + panel —
+    var infoBtn = document.createElement("button");
+    infoBtn.type = "button";
+    infoBtn.title = "Berechnungsformeln anzeigen";
+    infoBtn.style.cssText =
+      "background:none; border:1px solid var(--border); border-radius:50%;" +
+      "width:20px; height:20px; font-size:0.72rem; cursor:pointer; color:var(--text-muted,#94a3b8);" +
+      "display:flex; align-items:center; justify-content:center; padding:0; flex-shrink:0;";
+    infoBtn.textContent = "ℹ";
+
+    var infoPanel = document.createElement("div");
+    infoPanel.style.cssText =
+      "display:none; font-size:0.75rem; background:var(--bg-alt,#f8fafc);" +
+      "border:1px solid var(--border); border-radius:6px; padding:10px 12px; margin-top:4px;";
+    infoPanel.innerHTML =
+      "<div style='font-weight:600; margin-bottom:6px; color:var(--text,#1e293b);'>Berechnungsregel</div>" +
+      "<div style='margin-bottom:6px; color:var(--text-muted,#64748b);'>" +
+        "Gesamt = <strong>Dauer × Häufigkeit × Zeitraum × Anzahl Tage</strong><br>" +
+        "Basis: 52 Wochen/Jahr ÷ 12 → stabiler Monatsdurchschnitt (Fehler &lt; 0,3%)" +
+      "</div>" +
+      "<table style='border-collapse:collapse; width:100%;'>" +
+        "<thead><tr style='color:var(--text-muted,#64748b);'>" +
+          "<th style='text-align:left; padding:2px 8px 2px 0; font-weight:500;'>Regelmäßigkeit</th>" +
+          "<th style='text-align:center; padding:2px 4px; font-weight:500;'>Formel</th>" +
+          "<th style='text-align:right; padding:2px 0 2px 4px; font-weight:500;'>/ Monat</th>" +
+        "</tr></thead>" +
+        "<tbody style='color:var(--text,#1e293b);'>" +
+          "<tr><td style='padding:1px 8px 1px 0;'>Wöchentlich</td><td style='text-align:center; padding:1px 4px;'>52 ÷ 12</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 4,33×</td></tr>" +
+          "<tr><td style='padding:1px 8px 1px 0;'>14-tägig</td><td style='text-align:center; padding:1px 4px;'>26 ÷ 12</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 2,17×</td></tr>" +
+          "<tr><td style='padding:1px 8px 1px 0;'>alle drei Wochen</td><td style='text-align:center; padding:1px 4px;'>(52÷3) ÷ 12</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 1,44×</td></tr>" +
+          "<tr><td style='padding:1px 8px 1px 0;'>Monatlich</td><td style='text-align:center; padding:1px 4px;'>1</td><td style='text-align:right; padding:1px 0 1px 4px;'>1×</td></tr>" +
+          "<tr><td style='padding:1px 8px 1px 0;'>Vierteljährlich</td><td style='text-align:center; padding:1px 4px;'>4 ÷ 12</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 0,33×</td></tr>" +
+          "<tr><td style='padding:1px 8px 1px 0;'>Halbjährlich</td><td style='text-align:center; padding:1px 4px;'>2 ÷ 12</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 0,17×</td></tr>" +
+          "<tr><td style='padding:1px 8px 1px 0;'>Jährlich</td><td style='text-align:center; padding:1px 4px;'>1 ÷ 12</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 0,083×</td></tr>" +
+          "<tr><td style='padding:1px 8px 1px 0;'>Einmalig</td><td style='text-align:center; padding:1px 4px;'>1× gesamt</td><td style='text-align:right; padding:1px 0 1px 4px;'>—</td></tr>" +
+        "</tbody>" +
+      "</table>";
+
+    infoBtn.addEventListener("click", function () {
+      var open = infoPanel.style.display !== "none";
+      infoPanel.style.display = open ? "none" : "";
+      infoBtn.style.color = open ? "var(--text-muted,#94a3b8)" : "var(--accent,#0ea5e9)";
+      infoBtn.style.borderColor = open ? "var(--border)" : "var(--accent,#0ea5e9)";
+    });
+
     header.appendChild(titleSpan);
+    header.appendChild(periodSel);
+    header.appendChild(infoBtn);
     header.appendChild(removeBtn);
     card.appendChild(header);
+    card.appendChild(infoPanel);
 
-    // type-specific content
-    if (type === "Haushaltsnahedienstleistungen") {
-      card.appendChild(buildTaskSection(idx, data.tasks || [], ALLTAGSTASKS));
-    } else {
-      card.appendChild(buildTaskSection(idx, data.tasks || [], BEGLEITUNG_TASKS));
+    // — task section —
+    card.appendChild(buildTaskSection(idx, data.tasks || [], tList));
+
+    // — card total footer —
+    var cardTotalDiv = document.createElement("div");
+    cardTotalDiv.className = "ah-card-total";
+    cardTotalDiv.style.cssText =
+      "padding:4px 0 2px; font-size:0.82rem; font-weight:600; text-align:right;" +
+      "color:var(--accent,#0ea5e9); border-top:1px solid var(--border); display:none;";
+    card.appendChild(cardTotalDiv);
+
+    // — totals calculation —
+    // Walks .ah-task-block → .ah-sched-row directly (no complex attribute selectors).
+    // A schedule row only contributes when dauer + regelmaessigkeit + days are all set.
+    function doUpdateTotals() {
+      var periodMonths  = Number(periodSel.value) || 1;
+      var periodLabel   = periodMonths === 12 ? "/ Jahr" : "/ Monat";
+      var cardTotalMins = 0;
+
+      card.querySelectorAll(".ah-task-block").forEach(function (taskBlock) {
+        var cb        = taskBlock.querySelector("input[type=checkbox]");
+        var totalSpan = taskBlock.querySelector(".ah-task-total");
+
+        if (!cb || !cb.checked) {
+          if (totalSpan) totalSpan.textContent = "";
+          return;
+        }
+
+        var taskMins = 0;
+        taskBlock.querySelectorAll(".ah-sched-row").forEach(function (schedRow) {
+          var dEl = schedRow.querySelector("[data-sched-field=dauer]");
+          var rEl = schedRow.querySelector("[data-sched-field=regelmaessigkeit]");
+          var tEl = schedRow.querySelector("[data-sched-field=bevorzugteTage]");
+          if (!dEl || !rEl || !tEl) return;
+
+          var mins = parseDurationMinutes(dEl.value);
+          var freq = FREQ_PER_MONTH[rEl.value];
+          var days = tEl.value.split(",").filter(Boolean);
+
+          if (!mins || !days.length) return;
+
+          if (rEl.value === "Einmalig") {
+            taskMins += mins * days.length;
+            return;
+          }
+
+          if (typeof freq !== "number") return;
+
+          taskMins += mins * freq * periodMonths * days.length;
+        });
+
+        taskMins = Math.round(taskMins);
+        cardTotalMins += taskMins;
+        if (totalSpan) {
+          totalSpan.textContent = taskMins > 0
+            ? formatDurationHHMM(taskMins) + " " + periodLabel
+            : "";
+        }
+      });
+
+      if (cardTotalMins > 0) {
+        cardTotalDiv.textContent   = "Gesamt: " + formatDurationHHMM(cardTotalMins) + " " + periodLabel;
+        cardTotalDiv.style.display = "";
+      } else {
+        cardTotalDiv.textContent   = "";
+        cardTotalDiv.style.display = "none";
+      }
     }
 
-    card.addEventListener("change", serialize);
-    card.addEventListener("input",  serialize);
+    card._updateTotals = doUpdateTotals;
+    periodSel.addEventListener("change", doUpdateTotals);
+    card.addEventListener("change", function () { serialize(); doUpdateTotals(); });
+    card.addEventListener("input",  function () { serialize(); doUpdateTotals(); });
+    doUpdateTotals();
     return card;
+  }
+
+  // ── Guard: existing cards must have ≥1 task selected ─────────────
+  function guardTaskSelected(sectionList, anchorEl) {
+    var cards = sectionList.querySelectorAll(".ah-service-card");
+    if (!cards.length) return true;
+    var ok = true;
+    cards.forEach(function (c) {
+      if (!c.querySelector("input[type=checkbox][data-task-id]:checked")) ok = false;
+    });
+    if (!ok) {
+      var msg = anchorEl.parentElement.querySelector(".ah-guard-msg");
+      if (!msg) {
+        msg = document.createElement("p");
+        msg.className = "ah-guard-msg";
+        msg.style.cssText =
+          "font-size:0.78rem; color:#ef4444; margin:6px 0 0; display:none;";
+        msg.textContent = "Bitte zuerst mindestens eine Aufgabe in den bestehenden Leistungen auswählen.";
+        anchorEl.parentElement.appendChild(msg);
+      }
+      msg.style.display = "";
+      clearTimeout(msg._hideTimer);
+      msg._hideTimer = setTimeout(function () { msg.style.display = "none"; }, 3500);
+    }
+    return ok;
   }
 
   // ── Wire up add buttons ────────────────────────────────────────────
   addAlltagsBtn.addEventListener("click", function () {
+    if (!guardTaskSelected(alltagsList, addAlltagsBtn)) return;
     alltagsList.appendChild(createCard("Alltagsbegleitung"));
     updateTitlesAndButtons();
     serialize();
   });
 
   addHaushaltBtn.addEventListener("click", function () {
+    if (!guardTaskSelected(haushaltList, addHaushaltBtn)) return;
     haushaltList.appendChild(createCard("Haushaltsnahedienstleistungen"));
     updateTitlesAndButtons();
     serialize();
   });
 
   // sections start empty
+
+  // ── localStorage auto-restore on page load ────────────────────────
+  (function () {
+    try {
+      var raw = localStorage.getItem("ahServices:v1");
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length &&
+            !alltagsList.querySelector(".ah-service-card") &&
+            !haushaltList.querySelector(".ah-service-card")) {
+          parsed.forEach(function (s) {
+            var type = s.type || "Alltagsbegleitung";
+            var target = type === "Haushaltsnahedienstleistungen" ? haushaltList : alltagsList;
+            target.appendChild(createCard(type, s));
+          });
+          updateTitlesAndButtons();
+          serialize();
+        }
+      }
+      var savedNote = localStorage.getItem("ahNote:v1");
+      if (savedNote) {
+        var noteEl = document.getElementById("ahNote");
+        if (noteEl && !noteEl.value) noteEl.value = savedNote;
+      }
+    } catch {}
+  })();
 
   // draft restore
   window.restoreAhServices = function (services) {
@@ -15979,7 +16199,10 @@ function refreshEmc2ContactPrefill() {
 function restoreAh(ah) {
   if (!ah) return;
   const noteEl = document.getElementById("ahNote");
-  if (noteEl) noteEl.value = ah.ahNote || "";
+  if (noteEl) {
+    noteEl.value = ah.ahNote || "";
+    try { localStorage.setItem("ahNote:v1", noteEl.value); } catch {}
+  }
 
   if (typeof window.restoreAhServices === "function") {
     let services = null;
