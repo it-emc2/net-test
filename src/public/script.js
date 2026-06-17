@@ -5469,6 +5469,11 @@ document.body.addEventListener("click", (e) => {
       var _noteEl = document.getElementById("ahNote");
       if (_noteEl) localStorage.setItem("ahNote:v1", _noteEl.value);
     } catch {}
+    // Live-refresh Kosten page if the user is already on it
+    if (typeof getCurrentStep === "function" && getCurrentStep() === "Kosten" &&
+        typeof window.renderFromData === "function") {
+      window.renderFromData({});
+    }
   }
 
   // ── Title / remove-button / empty-hint upkeep ─────────────────────
@@ -10079,9 +10084,14 @@ if (offerKey === "bwt" && isExtraAufgabe) {
 
   async function openKosten() {
     container.innerHTML = '<div class="muted">Berechne …</div>';
+    // AH computes everything client-side — skip the server call
+    if (String(window.getCurrentOfferType?.() || "").toLowerCase() === "ah") {
+      await renderFromData({});
+      return;
+    }
     const pricing = window.getCanonicalPricingData?.();
     if (pricing) {
-      await renderFromData(pricing); // await async renderer
+      await renderFromData(pricing);
     } else {
       await window.updatePricing?.();
       await renderFromData(window.getCanonicalPricingData?.());
@@ -10095,7 +10105,11 @@ if (offerKey === "bwt" && isExtraAufgabe) {
 
   window.addEventListener("pricing:updated", async (ev) => {
     if (getCurrentStep() === "Kosten") {
-      await renderFromData(ev.detail || window.getCanonicalPricingData?.());
+      if (String(window.getCurrentOfferType?.() || "").toLowerCase() === "ah") {
+        await renderFromData({});
+      } else {
+        await renderFromData(ev.detail || window.getCanonicalPricingData?.());
+      }
     }
   });
 })();
