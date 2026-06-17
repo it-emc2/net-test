@@ -5683,17 +5683,16 @@ document.body.addEventListener("click", (e) => {
 
       function updateRowTotal() {
         var mins         = parseDurationMinutes(rDauerInp.value);
-        var reiseMins    = parseDurationMinutes(document.getElementById("travelTime")?.value || "");
         var freq         = FREQ_PER_MONTH[rRegelSel.value];
         var periodMonths = Number(periodSel.value) || 1;
         var periodLabel  = periodMonths === 12 ? "/ Jahr" : "/ Mon.";
         if (!mins) { rRowTotal.textContent = "—"; return; }
         var rowMins;
         if (rRegelSel.value === "Einmalig") {
-          rowMins = mins + reiseMins;
+          rowMins = mins;
         } else {
           if (typeof freq !== "number") { rRowTotal.textContent = "—"; return; }
-          rowMins = (mins + reiseMins) * freq * periodMonths;
+          rowMins = mins * freq * periodMonths;
         }
         rRowTotal.textContent = formatDurationHHMM(Math.round(rowMins)) + " " + periodLabel;
       }
@@ -5778,13 +5777,10 @@ document.body.addEventListener("click", (e) => {
       "color:var(--accent,#0ea5e9); border-top:1px solid var(--border); display:none;";
     card.appendChild(cardTotalDiv);
 
-    // — totals: sum across all schedule rows (incl. one-way Reisezeit per visit) —
+    // — totals: service time only (Reisezeit is added in Kosten, not here) —
     function doUpdateTotals() {
-      var periodMonths  = Number(periodSel.value) || 1;
-      var periodLabel   = periodMonths === 12 ? "/ Jahr" : "/ Monat";
-      var reisezeitMins = parseDurationMinutes(
-        document.getElementById("travelTime")?.value || ""
-      );
+      var periodMonths = Number(periodSel.value) || 1;
+      var periodLabel  = periodMonths === 12 ? "/ Jahr" : "/ Monat";
       var totalMins = 0;
       var hasValid  = false;
 
@@ -5795,11 +5791,11 @@ document.body.addEventListener("click", (e) => {
         var freq = rEl ? FREQ_PER_MONTH[rEl.value] : undefined;
         if (!mins) return;
         if (rEl && rEl.value === "Einmalig") {
-          totalMins += mins + reisezeitMins;
+          totalMins += mins;
           hasValid = true;
         } else {
           if (typeof freq !== "number") return;
-          totalMins += (mins + reisezeitMins) * freq * periodMonths;
+          totalMins += mins * freq * periodMonths;
           hasValid = true;
         }
       });
@@ -9561,7 +9557,7 @@ window.computeAHGesamt = function computeAHGesamt() {
     var freq   = AH_FREQ[sched.regelmaessigkeit] || 0;
     if (!dauerH || !freq) return;
     totalEinsaetze  += freq;
-    totalMonatlichH += (dauerH + reisezeitH) * freq;
+    totalMonatlichH += (dauerH + 2 * reisezeitH) * freq;
   });
 
   var anfahrtTotal    = r2(totalEinsaetze * ANFAHRT_PER_EINSATZ);
