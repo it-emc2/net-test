@@ -5446,12 +5446,10 @@ document.body.addEventListener("click", (e) => {
         card.querySelectorAll(".ah-sched-row").forEach(function (row) {
           var dEl = row.querySelector("[data-card-field=dauer]");
           var rEl = row.querySelector("[data-card-field=regelmaessigkeit]");
-          var tEl = row.querySelector("[data-card-field=bevorzugteTage]");
           var uEl = row.querySelector("[data-card-field=bevorzugteUhrzeit]");
           schedules.push({
             dauer:             dEl ? dEl.value : "",
             regelmaessigkeit:  rEl ? rEl.value : "",
-            bevorzugteTage:    tEl ? tEl.value : "",
             bevorzugteUhrzeit: uEl ? uEl.value : "",
           });
         });
@@ -5476,7 +5474,8 @@ document.body.addEventListener("click", (e) => {
 
   // ── Title / remove-button / empty-hint upkeep ─────────────────────
   function updateTitlesAndButtons() {
-    [alltagsList, haushaltList].forEach(function (sectionList) {
+    [[alltagsList, addAlltagsBtn], [haushaltList, addHaushaltBtn]].forEach(function (pair) {
+      var sectionList = pair[0], addBtn = pair[1];
       var cards = sectionList.querySelectorAll(".ah-service-card");
       cards.forEach(function (card, i) {
         var t = card.querySelector(".ah-sc-title");
@@ -5484,6 +5483,7 @@ document.body.addEventListener("click", (e) => {
       });
       var hint = sectionList.querySelector(".ah-empty-hint");
       if (hint) hint.style.display = cards.length === 0 ? "" : "none";
+      if (addBtn) addBtn.style.display = cards.length >= 1 ? "none" : "";
     });
   }
 
@@ -5584,7 +5584,7 @@ document.body.addEventListener("click", (e) => {
     infoPanel.innerHTML =
       "<div style='font-weight:600; margin-bottom:6px; color:var(--text,#1e293b);'>Berechnungsregel</div>" +
       "<div style='margin-bottom:6px; color:var(--text-muted,#64748b);'>" +
-        "Gesamt = <strong>Dauer × Häufigkeit × Zeitraum × Anzahl Tage</strong><br>" +
+        "Gesamt = <strong>Dauer × Häufigkeit × Zeitraum</strong><br>" +
         "Wöchentlich &amp; 14-tägig verwenden gerundete Werte (4× / 2×) für einfachere Abrechnung." +
       "</div>" +
       "<table style='border-collapse:collapse; width:100%;'>" +
@@ -5621,8 +5621,7 @@ document.body.addEventListener("click", (e) => {
     card.appendChild(infoPanel);
 
     // — card-level schedule section (multi-row) —
-    var WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
-    var SCHED_COL  = "72px 1fr 210px 88px 24px";
+    var SCHED_COL  = "72px 1fr 88px 24px";
 
     var schedSection = document.createElement("div");
     schedSection.style.cssText = "border:1px solid var(--border); border-radius:6px; overflow:hidden;";
@@ -5632,7 +5631,7 @@ document.body.addEventListener("click", (e) => {
       "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center;" +
       "padding:4px 12px 3px; font-size:0.7rem; font-weight:600; color:var(--muted); user-select:none;" +
       "background:var(--bg-alt,#f8fafc); border-bottom:1px solid var(--border);";
-    schedHdr.innerHTML = "<span>Dauer</span><span>Regelmäßigkeit</span><span>Bev. Tage</span><span>Bev. Uhrzeit</span><span></span>";
+    schedHdr.innerHTML = "<span>Dauer</span><span>Regelmäßigkeit</span><span>Bev. Uhrzeit</span><span></span>";
 
     var schedRowsContainer = document.createElement("div");
     schedRowsContainer.className = "ah-sched-rows";
@@ -5663,47 +5662,6 @@ document.body.addEventListener("click", (e) => {
         rRegelSel.appendChild(o);
       });
 
-      var rSavedDays = new Set(
-        (rowSched.bevorzugteTage || "").split(",").map(function (d) { return d.trim(); }).filter(Boolean)
-      );
-      var rTageHidden = document.createElement("input");
-      rTageHidden.type = "hidden";
-      rTageHidden.setAttribute("data-card-field", "bevorzugteTage");
-      rTageHidden.value = rowSched.bevorzugteTage || "";
-
-      var rTagePicker = document.createElement("div");
-      rTagePicker.style.cssText = "display:flex; flex-wrap:wrap; gap:3px; align-items:center;";
-      WOCHENTAGE.forEach(function (day) {
-        var on = rSavedDays.has(day);
-        var btn = document.createElement("button");
-        btn.type = "button";
-        btn.textContent = day;
-        btn.setAttribute("data-day", day);
-        btn.setAttribute("data-on", on ? "1" : "0");
-        btn.style.cssText =
-          "font-size:0.7rem; padding:2px 5px; border-radius:4px; cursor:pointer; border:1px solid var(--border); line-height:1.4;" +
-          (on ? "background:var(--accent,#0ea5e9); color:#fff; border-color:var(--accent,#0ea5e9);"
-              : "background:var(--bg-alt,#f1f5f9); color:var(--text,#1e293b);");
-        btn.addEventListener("click", function () {
-          var nowOn = this.getAttribute("data-on") === "1";
-          nowOn = !nowOn;
-          this.setAttribute("data-on", nowOn ? "1" : "0");
-          this.style.background  = nowOn ? "var(--accent,#0ea5e9)"  : "var(--bg-alt,#f1f5f9)";
-          this.style.color       = nowOn ? "#fff"                   : "var(--text,#1e293b)";
-          this.style.borderColor = nowOn ? "var(--accent,#0ea5e9)"  : "var(--border)";
-          var selected = [];
-          rTagePicker.querySelectorAll("button[data-on='1']").forEach(function (b) { selected.push(b.getAttribute("data-day")); });
-          rTageHidden.value = selected.join(",");
-          serialize();
-          doUpdateTotals();
-        });
-        rTagePicker.appendChild(btn);
-      });
-
-      var rTageWrap = document.createElement("div");
-      rTageWrap.appendChild(rTagePicker);
-      rTageWrap.appendChild(rTageHidden);
-
       var rUhrzeitInp = document.createElement("input");
       rUhrzeitInp.type = "text";
       rUhrzeitInp.setAttribute("data-card-field", "bevorzugteUhrzeit");
@@ -5730,7 +5688,6 @@ document.body.addEventListener("click", (e) => {
 
       row.appendChild(rDauerInp);
       row.appendChild(rRegelSel);
-      row.appendChild(rTageWrap);
       row.appendChild(rUhrzeitInp);
       row.appendChild(rRemoveBtn);
       return row;
@@ -5796,17 +5753,15 @@ document.body.addEventListener("click", (e) => {
       schedRowsContainer.querySelectorAll(".ah-sched-row").forEach(function (row) {
         var dEl  = row.querySelector("[data-card-field=dauer]");
         var rEl  = row.querySelector("[data-card-field=regelmaessigkeit]");
-        var tEl  = row.querySelector("[data-card-field=bevorzugteTage]");
         var mins = dEl ? parseDurationMinutes(dEl.value) : 0;
         var freq = rEl ? FREQ_PER_MONTH[rEl.value] : undefined;
-        var days = tEl ? tEl.value.split(",").filter(Boolean) : [];
-        if (!mins || !days.length) return;
+        if (!mins) return;
         if (rEl && rEl.value === "Einmalig") {
-          totalMins += mins * days.length;
+          totalMins += mins;
           hasValid = true;
         } else {
           if (typeof freq !== "number") return;
-          totalMins += mins * freq * periodMonths * days.length;
+          totalMins += mins * freq * periodMonths;
           hasValid = true;
         }
       });
@@ -5856,6 +5811,7 @@ document.body.addEventListener("click", (e) => {
 
   // ── Wire up add buttons ────────────────────────────────────────────
   addAlltagsBtn.addEventListener("click", function () {
+    if (alltagsList.querySelectorAll(".ah-service-card").length >= 1) return;
     if (!guardTaskSelected(alltagsList, addAlltagsBtn)) return;
     alltagsList.appendChild(createCard("Alltagsbegleitung"));
     updateTitlesAndButtons();
@@ -5863,6 +5819,7 @@ document.body.addEventListener("click", (e) => {
   });
 
   addHaushaltBtn.addEventListener("click", function () {
+    if (haushaltList.querySelectorAll(".ah-service-card").length >= 1) return;
     if (!guardTaskSelected(haushaltList, addHaushaltBtn)) return;
     haushaltList.appendChild(createCard("Haushaltsnahedienstleistungen"));
     updateTitlesAndButtons();
