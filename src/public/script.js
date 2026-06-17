@@ -5682,17 +5682,18 @@ document.body.addEventListener("click", (e) => {
       rRowTotal.textContent = "—";
 
       function updateRowTotal() {
-        var mins = parseDurationMinutes(rDauerInp.value);
-        var freq = FREQ_PER_MONTH[rRegelSel.value];
+        var mins         = parseDurationMinutes(rDauerInp.value);
+        var reiseMins    = parseDurationMinutes(document.getElementById("travelTime")?.value || "");
+        var freq         = FREQ_PER_MONTH[rRegelSel.value];
         var periodMonths = Number(periodSel.value) || 1;
         var periodLabel  = periodMonths === 12 ? "/ Jahr" : "/ Mon.";
         if (!mins) { rRowTotal.textContent = "—"; return; }
         var rowMins;
         if (rRegelSel.value === "Einmalig") {
-          rowMins = mins;
+          rowMins = mins + reiseMins;
         } else {
           if (typeof freq !== "number") { rRowTotal.textContent = "—"; return; }
-          rowMins = mins * freq * periodMonths;
+          rowMins = (mins + reiseMins) * freq * periodMonths;
         }
         rRowTotal.textContent = formatDurationHHMM(Math.round(rowMins)) + " " + periodLabel;
       }
@@ -5777,10 +5778,13 @@ document.body.addEventListener("click", (e) => {
       "color:var(--accent,#0ea5e9); border-top:1px solid var(--border); display:none;";
     card.appendChild(cardTotalDiv);
 
-    // — totals: sum across all schedule rows —
+    // — totals: sum across all schedule rows (incl. one-way Reisezeit per visit) —
     function doUpdateTotals() {
-      var periodMonths = Number(periodSel.value) || 1;
-      var periodLabel  = periodMonths === 12 ? "/ Jahr" : "/ Monat";
+      var periodMonths  = Number(periodSel.value) || 1;
+      var periodLabel   = periodMonths === 12 ? "/ Jahr" : "/ Monat";
+      var reisezeitMins = parseDurationMinutes(
+        document.getElementById("travelTime")?.value || ""
+      );
       var totalMins = 0;
       var hasValid  = false;
 
@@ -5791,11 +5795,11 @@ document.body.addEventListener("click", (e) => {
         var freq = rEl ? FREQ_PER_MONTH[rEl.value] : undefined;
         if (!mins) return;
         if (rEl && rEl.value === "Einmalig") {
-          totalMins += mins;
+          totalMins += mins + reisezeitMins;
           hasValid = true;
         } else {
           if (typeof freq !== "number") return;
-          totalMins += mins * freq * periodMonths;
+          totalMins += (mins + reisezeitMins) * freq * periodMonths;
           hasValid = true;
         }
       });
