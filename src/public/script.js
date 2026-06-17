@@ -21912,7 +21912,26 @@ function pickTodayPlanningDay(planning){
 
 function buildPlanningEntries(payload){
   const planning = payload?.planning || {};
-  const day = pickTodayPlanningDay(planning);
+  let day = pickTodayPlanningDay(planning);
+
+  if(!day){
+    const todayKey = new Date().toLocaleDateString("sv-SE");
+    const todayFromFuture = (Array.isArray(planning?.futurePlanned) ? planning.futurePlanned : [])
+      .filter(c => c?.plannedDate === todayKey);
+    if(todayFromFuture.length){
+      const now = new Date();
+      day = {
+        date: todayKey,
+        customers: todayFromFuture,
+        locked: !!todayFromFuture[0]?.dayLocked,
+        dayIndex: todayFromFuture[0]?.dayIndex ?? 0,
+        label: now.toLocaleDateString("de-DE", { weekday: "long" }),
+        shortLabel: now.toLocaleDateString("de-DE", { weekday: "short" }).slice(0, 2),
+        dateLabel: now.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+      };
+    }
+  }
+
   const customers = Array.isArray(day?.customers) ? day.customers : [];
 
   return {
