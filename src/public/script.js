@@ -5398,10 +5398,9 @@ document.body.addEventListener("click", (e) => {
   ];
 
   // occurrences per month for each Regelmäßigkeit; null = not calculable
-  // Wöchentlich and 14-tägig use rounded values (4 and 2) for simpler billing
   var FREQ_PER_MONTH = {
-    "Wöchentlich":       4,
-    "14-tägig":          2,
+    "Wöchentlich":       52 / 12,
+    "14-tägig":          26 / 12,
     "alle drei Wochen":  52 / 3 / 12,
     "Monatlich":         1,
     "Vierteljährlich":   4 / 12,
@@ -5585,7 +5584,7 @@ document.body.addEventListener("click", (e) => {
       "<div style='font-weight:600; margin-bottom:6px; color:var(--text,#1e293b);'>Berechnungsregel</div>" +
       "<div style='margin-bottom:6px; color:var(--text-muted,#64748b);'>" +
         "Gesamt = <strong>Dauer × Häufigkeit × Zeitraum</strong><br>" +
-        "Wöchentlich &amp; 14-tägig verwenden gerundete Werte (4× / 2×) für einfachere Abrechnung." +
+        "Basis: 52 Wochen/Jahr ÷ 12 → stabiler Monatsdurchschnitt." +
       "</div>" +
       "<table style='border-collapse:collapse; width:100%;'>" +
         "<thead><tr style='color:var(--text-muted,#64748b);'>" +
@@ -5595,8 +5594,8 @@ document.body.addEventListener("click", (e) => {
           "<th style='text-align:right; padding:2px 0 2px 4px; font-weight:500; color:var(--accent,#0ea5e9);'>Verwendet</th>" +
         "</tr></thead>" +
         "<tbody style='color:var(--text,#1e293b);'>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Wöchentlich</td><td style='text-align:center; padding:1px 4px;'>52 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 4,33×</td><td style='text-align:right; padding:1px 0 1px 4px; font-weight:600; color:var(--accent,#0ea5e9);'>4×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>14-tägig</td><td style='text-align:center; padding:1px 4px;'>26 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 2,17×</td><td style='text-align:right; padding:1px 0 1px 4px; font-weight:600; color:var(--accent,#0ea5e9);'>2×</td></tr>" +
+          "<tr><td style='padding:1px 8px 1px 0;'>Wöchentlich</td><td style='text-align:center; padding:1px 4px;'>52 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 4,33×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 4,33×</td></tr>" +
+          "<tr><td style='padding:1px 8px 1px 0;'>14-tägig</td><td style='text-align:center; padding:1px 4px;'>26 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 2,17×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 2,17×</td></tr>" +
           "<tr><td style='padding:1px 8px 1px 0;'>alle drei Wochen</td><td style='text-align:center; padding:1px 4px;'>(52÷3) ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 1,44×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 1,44×</td></tr>" +
           "<tr><td style='padding:1px 8px 1px 0;'>Monatlich</td><td style='text-align:center; padding:1px 4px;'>1</td><td style='text-align:right; padding:1px 4px;'>1×</td><td style='text-align:right; padding:1px 0 1px 4px;'>1×</td></tr>" +
           "<tr><td style='padding:1px 8px 1px 0;'>Vierteljährlich</td><td style='text-align:center; padding:1px 4px;'>4 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 0,33×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 0,33×</td></tr>" +
