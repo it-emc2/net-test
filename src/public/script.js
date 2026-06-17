@@ -9911,6 +9911,22 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       }
     })();
 
+    // ── AH: completely separate rendering path ───────────────────────
+    const currentOfferForKosten = String(window.getCurrentOfferType?.() || "").toLowerCase();
+    if (currentOfferForKosten === "ah") {
+      const ahLeistungenCard = card(
+        "AH-Leistungen",
+        '<div class="muted">Noch keine Berechnungslogik — wird in Kürze ergänzt.</div>',
+      );
+      const ahTotals = `
+        <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+          <div style="font-size:1.2rem;">Gesamt: <b>${euroC(data.total || 0)}</b></div>
+        </div>
+      `;
+      container.innerHTML = [ahLeistungenCard, card("Summen", ahTotals)].join("");
+      return;
+    }
+
     container.innerHTML = [matCard, optCard, svcCard, totalsCard].join("");
   };
 
