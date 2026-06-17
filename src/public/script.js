@@ -5625,7 +5625,7 @@ document.body.addEventListener("click", (e) => {
     card.appendChild(infoPanel);
 
     // — card-level schedule section (multi-row) —
-    var SCHED_COL  = "72px 1fr 88px 24px";
+    var SCHED_COL  = "72px 1fr 88px 90px 24px";
 
     var schedSection = document.createElement("div");
     schedSection.style.cssText = "border:1px solid var(--border); border-radius:6px; overflow:hidden;";
@@ -5635,7 +5635,7 @@ document.body.addEventListener("click", (e) => {
       "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center;" +
       "padding:4px 12px 3px; font-size:0.7rem; font-weight:600; color:var(--muted); user-select:none;" +
       "background:var(--bg-alt,#f8fafc); border-bottom:1px solid var(--border);";
-    schedHdr.innerHTML = "<span>Dauer</span><span>Regelmäßigkeit</span><span>Bev. Uhrzeit</span><span></span>";
+    schedHdr.innerHTML = "<span>Dauer</span><span>Regelmäßigkeit</span><span>Bev. Uhrzeit</span><span style='text-align:right; color:var(--accent,#0ea5e9);'>/ Monat</span><span></span>";
 
     var schedRowsContainer = document.createElement("div");
     schedRowsContainer.className = "ah-sched-rows";
@@ -5674,6 +5674,35 @@ document.body.addEventListener("click", (e) => {
       rUhrzeitInp.style.cssText = "font-size:0.8rem; font-family:monospace;";
       if (typeof wireDurationAutoFormat === "function") wireDurationAutoFormat(rUhrzeitInp);
 
+      // Per-row duration display
+      var rRowTotal = document.createElement("div");
+      rRowTotal.style.cssText =
+        "font-size:0.78rem; font-weight:600; text-align:right; white-space:nowrap;" +
+        "color:var(--accent,#0ea5e9); padding-right:2px;";
+      rRowTotal.textContent = "—";
+
+      function updateRowTotal() {
+        var mins = parseDurationMinutes(rDauerInp.value);
+        var freq = FREQ_PER_MONTH[rRegelSel.value];
+        var periodMonths = Number(periodSel.value) || 1;
+        var periodLabel  = periodMonths === 12 ? "/ Jahr" : "/ Mon.";
+        if (!mins) { rRowTotal.textContent = "—"; return; }
+        var rowMins;
+        if (rRegelSel.value === "Einmalig") {
+          rowMins = mins;
+        } else {
+          if (typeof freq !== "number") { rRowTotal.textContent = "—"; return; }
+          rowMins = mins * freq * periodMonths;
+        }
+        rRowTotal.textContent = formatDurationHHMM(Math.round(rowMins)) + " " + periodLabel;
+      }
+
+      rDauerInp.addEventListener("input", updateRowTotal);
+      rDauerInp.addEventListener("change", updateRowTotal);
+      rRegelSel.addEventListener("change", updateRowTotal);
+      periodSel.addEventListener("change", updateRowTotal);
+      updateRowTotal();
+
       var rRemoveBtn = document.createElement("button");
       rRemoveBtn.type = "button";
       rRemoveBtn.title = "Zeile entfernen";
@@ -5693,6 +5722,7 @@ document.body.addEventListener("click", (e) => {
       row.appendChild(rDauerInp);
       row.appendChild(rRegelSel);
       row.appendChild(rUhrzeitInp);
+      row.appendChild(rRowTotal);
       row.appendChild(rRemoveBtn);
       return row;
     }
