@@ -3061,7 +3061,7 @@ button.dm-btn-danger:focus-visible {
 </div>
   <!-- <label>Maße (B × L × H in cm)</label> -->
             <label>Maße (B × L in cm)</label>
-            <div class="row" style="gap:8px;">
+            <div class="d-flex gap-2" style="display:flex; gap:12px;">
               <input type="number" min="20" step="1" placeholder="Breite" name="tray_w_cm">
               <input type="number" min="2" step="1" placeholder="Länge" name="tray_l_cm">
               <input type="hidden" name="tray_h_cm" value="">
@@ -3069,10 +3069,11 @@ button.dm-btn-danger:focus-visible {
             </div>
             <!--<div id="traySuggestions" style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;"></div> -->
 
-            <div id="tray-suggestions" class="space-y-2"></div>
+            <div id="tray-suggestions" class="space-y-2" style="margin-top:12px;"></div>
             <input type="hidden" id="chosenTrayProductId" name="chosenTrayProductId">
             <input type="hidden" id="traySize" name="traySize">
             <!-- Extra worker tasks (free text) -->
+             <div style="margin-top: 16px;">
             <fieldset class="da-row" id="dw-extra-tasks" data-kind="extra" aria-describedby="dw-extra-help">
               <legend class="da-legend">
                 Weitere auszuführende Arbeiten (optional)
@@ -3098,6 +3099,7 @@ button.dm-btn-danger:focus-visible {
                 Fügen Sie beliebige Tätigkeiten hinzu. Diese erscheinen unter „Auszuführende Arbeiten“.
               </small>
             </fieldset>
+            </div>
 
 
           </div>

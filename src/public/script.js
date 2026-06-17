@@ -8523,7 +8523,7 @@ function initSmartTraySearch() {
       .join("");
 
     out.innerHTML = `
-      <div class="suggestion-heading">Vorschläge${top[0]?.isBudget ? " (Budget-Variante)" : ""}</div>
+      <div class="suggestion-heading" style="margin: 12px;">Vorschläge${top[0]?.isBudget ? " (Budget-Variante)" : ""}</div>
       <div class="suggestion-list">${radios}</div>
     `;
 
@@ -8749,7 +8749,7 @@ function initBathtubSearch() {
       .join("");
 
     out.innerHTML = `
-      <div class="suggestion-heading">Vorschläge</div>
+      <div class="suggestion-heading" style="margin-top: 12px;">Vorschläge</div>
       <div class="suggestion-list">${radios}</div>
     `;
 
@@ -8933,7 +8933,7 @@ window.updatePricing?.();
       .join("");
 
     out.innerHTML = `
-      <div class="suggestion-heading">Vorschläge</div>
+      <div class="suggestion-heading" style="margin-top: 12px;">Vorschläge</div>
       <div class="suggestion-list">${radios}</div>
     `;
 
@@ -9086,7 +9086,7 @@ function initSmartScreenPickerBucket() {
     const current = (chosen.value || "").trim();
 
     out.innerHTML = `
-      <div class="suggestion-heading">Vorschläge</div>
+      <div class="suggestion-heading" style="margin-top: 12px;">Vorschläge</div>
       ${top
         .map((p, i) => {
           const id = `screen-suggest-${i}`;

@@ -1268,6 +1268,7 @@ label.image-check.is-checked .caption {
   width: 100%;
   max-width: 100%;
   grid-column: 1 / -1;
+  margin-top: 12px;
 }
 
 @media (max-width: 1024px) {
