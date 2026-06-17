@@ -9380,6 +9380,17 @@ function attachDuschwanneToPayload(payload) {
   };
 
   window.updatePricing = async function updatePricing(payload) {
+    // AH: all pricing is client-side — never call the server
+    if (String(window.getCurrentOfferType?.() || "").toLowerCase() === "ah") {
+      const ah = window.computeAHGesamt?.() || { gesamt: 0 };
+      const ahData = { total: ah.gesamt, selfPayAmount: ah.gesamt, _isAH: true };
+      window.__pricing = ahData;
+      window.dispatchEvent(new CustomEvent("pricing:updated", { detail: ahData }));
+      if (typeof updateSummaryWidgetTotal === "function") updateSummaryWidgetTotal(ah.gesamt);
+      if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(ah.gesamt);
+      return ahData;
+    }
+
     const pl =
       payload ??
       (typeof window.buildPayload === "function"
@@ -9478,6 +9489,53 @@ document
 document
   .getElementById("sonderaufschlagValue")
   ?.addEventListener("change", () => window.updatePricing?.());
+
+/* ========== AH: shared client-side pricing computation ========== */
+window.computeAHGesamt = function computeAHGesamt() {
+  var AH_FREQ = {
+    "Wöchentlich":       52 / 12,
+    "14-tägig":          26 / 12,
+    "alle drei Wochen":  52 / 3 / 12,
+    "Monatlich":         1,
+    "Vierteljährlich":   4 / 12,
+    "Halbjährlich":      2 / 12,
+    "Jährlich":          1 / 12,
+  };
+  var ANFAHRT_PER_EINSATZ = 7.96;
+  var STUNDENSATZ_HND     = 40.56;
+  var r2 = function(n) { return Math.round((Number(n) + Number.EPSILON) * 100) / 100; };
+
+  var ahServices = [];
+  try {
+    var _j = document.getElementById("ahServicesJson");
+    if (_j) ahServices = JSON.parse(_j.value || "[]");
+  } catch {}
+
+  var reisezeitH = (typeof parseDurationMinutes === "function"
+    ? parseDurationMinutes(document.getElementById("travelTime")?.value || "")
+    : 0) / 60;
+
+  var hndSvc = ahServices.find(function(s) { return s.type === "Haushaltsnahedienstleistungen"; });
+  if (!hndSvc) return { gesamt: 0, anfahrtTotal: 0, leistungenTotal: 0, totalEinsaetze: 0, totalMonatlichH: 0, tasks: [] };
+
+  var scheds = hndSvc.schedules || (hndSvc.schedule ? [hndSvc.schedule] : []);
+  var totalEinsaetze = 0;
+  var totalMonatlichH = 0;
+
+  scheds.forEach(function(sched) {
+    var dauerH = (typeof parseDurationMinutes === "function" ? parseDurationMinutes(sched.dauer || "") : 0) / 60;
+    var freq   = AH_FREQ[sched.regelmaessigkeit] || 0;
+    if (!dauerH || !freq) return;
+    totalEinsaetze  += freq;
+    totalMonatlichH += (dauerH + reisezeitH) * freq;
+  });
+
+  var anfahrtTotal    = r2(totalEinsaetze * ANFAHRT_PER_EINSATZ);
+  var leistungenTotal = r2(totalMonatlichH * STUNDENSATZ_HND);
+  var gesamt          = r2(anfahrtTotal + leistungenTotal);
+  return { gesamt: gesamt, anfahrtTotal: anfahrtTotal, leistungenTotal: leistungenTotal,
+           totalEinsaetze: totalEinsaetze, totalMonatlichH: totalMonatlichH, tasks: hndSvc.tasks || [] };
+};
 
 /* ========== Kosten Duschabtrennung========== */
 
@@ -9919,20 +9977,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     // ── AH: completely separate rendering path ───────────────────────
     const currentOfferForKosten = String(window.getCurrentOfferType?.() || "").toLowerCase();
     if (currentOfferForKosten === "ah") {
-      // --- Constants ---
-      const AH_FREQ = {
-        "Wöchentlich":       52 / 12,
-        "14-tägig":          26 / 12,
-        "alle drei Wochen":  52 / 3 / 12,
-        "Monatlich":         1,
-        "Vierteljährlich":   4 / 12,
-        "Halbjährlich":      2 / 12,
-        "Jährlich":          1 / 12,
-      };
-      const ANFAHRT_PER_EINSATZ = 7.96;
-      const STUNDENSATZ_HND     = 40.56;
-      const SERVICEPAUSCHALE    = 1.20;
-      const r2  = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+      const SERVICEPAUSCHALE = 1.20;
       const fmtH = (h) => (Math.round(h * 100) / 100).toFixed(2).replace(".", ",");
 
       const HND_TASK_LABELS = {
@@ -9948,68 +9993,47 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         "haustiere":         "Haustierversorgung (Füttern, Gassi gehen)",
       };
 
-      // --- Form data ---
-      let ahServices = [];
-      try {
-        const j = document.getElementById("ahServicesJson");
-        if (j) ahServices = JSON.parse(j.value || "[]");
-      } catch {}
-      const reisezeitH = parseDurationMinutes(document.getElementById("travelTime")?.value || "") / 60;
+      // Use the shared computation helper
+      const ah = window.computeAHGesamt?.() || { gesamt: 0, anfahrtTotal: 0, leistungenTotal: 0, totalEinsaetze: 0, totalMonatlichH: 0, tasks: [] };
+      const { gesamt, anfahrtTotal, leistungenTotal, totalEinsaetze, totalMonatlichH, tasks } = ah;
 
-      // --- HnD calculation ---
-      const hndSvc = ahServices.find(s => s.type === "Haushaltsnahedienstleistungen");
+      // Keep widget in sync
+      if (typeof updateSummaryWidgetTotal === "function") updateSummaryWidgetTotal(gesamt);
+      if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(gesamt);
+
       const renderedCards = [];
-      let gesamt = 0;
 
-      if (hndSvc) {
-        const scheds = hndSvc.schedules || (hndSvc.schedule ? [hndSvc.schedule] : []);
-        let totalEinsaetze = 0;
-        let totalMonatlichH = 0;
+      if (totalMonatlichH > 0) {
+        const taskBullets = (tasks || [])
+          .map(id => HND_TASK_LABELS[id]).filter(Boolean)
+          .map(t => `<li style="margin:1px 0; color:var(--muted);">${escapeHtml(t)}</li>`)
+          .join("");
 
-        scheds.forEach(function(sched) {
-          const dauerH = parseDurationMinutes(sched.dauer || "") / 60;
-          const freq   = AH_FREQ[sched.regelmaessigkeit] || 0;
-          if (!dauerH || !freq) return;
-          totalEinsaetze  += freq;
-          totalMonatlichH += (dauerH + reisezeitH) * freq;
-        });
+        const row1 = `
+          <div style="display:grid; grid-template-columns:1fr auto auto auto; gap:4px 12px; align-items:center; font-size:0.9rem;">
+            <div>Anfahrtspauschale Alltagshilfe</div>
+            <div style="text-align:right; color:var(--muted);">${fmtH(totalEinsaetze)} ×</div>
+            <div style="text-align:right; color:var(--muted);">${euroC(7.96)}</div>
+            <div style="text-align:right; font-weight:600;">${euroC(anfahrtTotal)}</div>
+          </div>`;
 
-        if (totalMonatlichH > 0) {
-          const anfahrtTotal    = r2(totalEinsaetze * ANFAHRT_PER_EINSATZ);
-          const leistungenTotal = r2(totalMonatlichH * STUNDENSATZ_HND);
-          gesamt = anfahrtTotal + leistungenTotal;
+        const row2 = `
+          <div style="display:grid; grid-template-columns:1fr auto auto auto; gap:4px 12px; align-items:start; font-size:0.9rem; margin-top:8px; padding-top:8px; border-top:1px solid var(--border);">
+            <div>
+              <div>Angebot zur Unterstützung im Haushalt</div>
+              <div style="font-size:0.85em; font-weight:600; color:var(--muted);">Haushaltsnahe Dienstleistung</div>
+              ${taskBullets ? `<ul style="margin:4px 0 0 10px; padding:0; font-size:0.85em;">${taskBullets}</ul>` : ""}
+            </div>
+            <div style="text-align:right; color:var(--muted);">${fmtH(totalMonatlichH)} h ×</div>
+            <div style="text-align:right; color:var(--muted);">${euroC(40.56)}</div>
+            <div style="text-align:right; font-weight:600;">${euroC(leistungenTotal)}</div>
+          </div>`;
 
-          const taskBullets = (hndSvc.tasks || [])
-            .map(id => HND_TASK_LABELS[id]).filter(Boolean)
-            .map(t => `<li style="margin:1px 0; color:var(--muted);">${escapeHtml(t)}</li>`)
-            .join("");
-
-          const row1 = `
-            <div style="display:grid; grid-template-columns:1fr auto auto auto; gap:4px 12px; align-items:center; font-size:0.9rem;">
-              <div>Anfahrtspauschale Alltagshilfe</div>
-              <div style="text-align:right; color:var(--muted);">${fmtH(totalEinsaetze)} ×</div>
-              <div style="text-align:right; color:var(--muted);">${euroC(ANFAHRT_PER_EINSATZ)}</div>
-              <div style="text-align:right; font-weight:600;">${euroC(anfahrtTotal)}</div>
-            </div>`;
-
-          const row2 = `
-            <div style="display:grid; grid-template-columns:1fr auto auto auto; gap:4px 12px; align-items:start; font-size:0.9rem; margin-top:8px; padding-top:8px; border-top:1px solid var(--border);">
-              <div>
-                <div>Angebot zur Unterstützung im Haushalt</div>
-                <div style="font-size:0.85em; font-weight:600; color:var(--muted);">Haushaltsnahe Dienstleistung</div>
-                ${taskBullets ? `<ul style="margin:4px 0 0 10px; padding:0; font-size:0.85em;">${taskBullets}</ul>` : ""}
-              </div>
-              <div style="text-align:right; color:var(--muted);">${fmtH(totalMonatlichH)} h ×</div>
-              <div style="text-align:right; color:var(--muted);">${euroC(STUNDENSATZ_HND)}</div>
-              <div style="text-align:right; font-weight:600;">${euroC(leistungenTotal)}</div>
-            </div>`;
-
-          renderedCards.push(card(
-            "HnD-Leistungen",
-            row1 + row2,
-            `<div style="text-align:right;"><b>Zwischensumme:</b> ${euroC(gesamt)}</div>`
-          ));
-        }
+        renderedCards.push(card(
+          "HnD-Leistungen",
+          row1 + row2,
+          `<div style="text-align:right;"><b>Zwischensumme:</b> ${euroC(gesamt)}</div>`
+        ));
       }
 
       if (!renderedCards.length) {

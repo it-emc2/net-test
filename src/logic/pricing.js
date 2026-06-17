@@ -1421,6 +1421,19 @@ color: metaColor || null,
 
   return {
     computePrices: async (payload) => {
+      // AH, HMS, WD compute pricing client-side — return empty shell to avoid BU fallback
+      const _offerKey = String(
+        payload?.activeOffer || payload?.currentOfferKey || payload?.offerType || ""
+      ).toLowerCase();
+      if (_offerKey === "ah" || _offerKey === "hms" || _offerKey === "wd") {
+        return {
+          total: 0, selfPayAmount: 0, markup: 0, markupPct: 0,
+          netAfterRabatt_and_Bonus: 0, material_afterRabatt_and_aufschlag: 0,
+          materials: { title: "", lines: [], sum: 0 },
+          services: { title: "", lines: [], sum: 0 },
+          items: [], _clientSideOffer: true,
+        };
+      }
       const selections = collectSelections(payload);
       const ids = [...new Set(selections.map((s) => s.productId))];
       const productMap = await getProductsByIds(ids);
