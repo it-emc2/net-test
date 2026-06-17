@@ -9914,16 +9914,122 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     // ── AH: completely separate rendering path ───────────────────────
     const currentOfferForKosten = String(window.getCurrentOfferType?.() || "").toLowerCase();
     if (currentOfferForKosten === "ah") {
-      const ahLeistungenCard = card(
-        "AH-Leistungen",
-        '<div class="muted">Noch keine Berechnungslogik — wird in Kürze ergänzt.</div>',
-      );
-      const ahTotals = `
+      // --- Constants ---
+      const AH_FREQ = {
+        "Wöchentlich":       52 / 12,
+        "14-tägig":          26 / 12,
+        "alle drei Wochen":  52 / 3 / 12,
+        "Monatlich":         1,
+        "Vierteljährlich":   4 / 12,
+        "Halbjährlich":      2 / 12,
+        "Jährlich":          1 / 12,
+      };
+      const ANFAHRT_PER_EINSATZ = 7.96;
+      const STUNDENSATZ_HND     = 40.56;
+      const SERVICEPAUSCHALE    = 1.20;
+      const r2  = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+      const fmtH = (h) => (Math.round(h * 100) / 100).toFixed(2).replace(".", ",");
+
+      const HND_TASK_LABELS = {
+        "wohnungsreinigung": "Wohnungsreinigung (Staubsaugen, Wischen, Bad, Küche)",
+        "fensterputzen":     "Fenster putzen",
+        "waeschewaschen":    "Wäsche waschen, aufhängen, bügeln",
+        "einkaufen":         "Einkaufen (Lebensmittel, Drogerie, Apotheke)",
+        "kochen":            "Kochen / Mahlzeiten zubereiten",
+        "geschirrspuelen":   "Geschirr spülen / Küche aufräumen",
+        "muell":             "Müll rausbringen / Mülltrennung",
+        "waeschereinigung":  "Wäsche zum Reinigungsdienst bringen/abholen",
+        "post":              "Post holen und sortieren",
+        "haustiere":         "Haustierversorgung (Füttern, Gassi gehen)",
+      };
+
+      // --- Form data ---
+      let ahServices = [];
+      try {
+        const j = document.getElementById("ahServicesJson");
+        if (j) ahServices = JSON.parse(j.value || "[]");
+      } catch {}
+      const reisezeitH = parseDurationMinutes(document.getElementById("travelTime")?.value || "") / 60;
+
+      // --- HnD calculation ---
+      const hndSvc = ahServices.find(s => s.type === "Haushaltsnahedienstleistungen");
+      const renderedCards = [];
+      let gesamt = 0;
+
+      if (hndSvc) {
+        const scheds = hndSvc.schedules || (hndSvc.schedule ? [hndSvc.schedule] : []);
+        let totalEinsaetze = 0;
+        let totalMonatlichH = 0;
+
+        scheds.forEach(function(sched) {
+          const dauerH = parseDurationMinutes(sched.dauer || "") / 60;
+          const freq   = AH_FREQ[sched.regelmaessigkeit] || 0;
+          if (!dauerH || !freq) return;
+          totalEinsaetze  += freq;
+          totalMonatlichH += (dauerH + reisezeitH) * freq;
+        });
+
+        if (totalMonatlichH > 0) {
+          const anfahrtTotal    = r2(totalEinsaetze * ANFAHRT_PER_EINSATZ);
+          const leistungenTotal = r2(totalMonatlichH * STUNDENSATZ_HND);
+          gesamt = anfahrtTotal + leistungenTotal;
+
+          const taskBullets = (hndSvc.tasks || [])
+            .map(id => HND_TASK_LABELS[id]).filter(Boolean)
+            .map(t => `<li style="margin:1px 0; color:var(--muted);">${escapeHtml(t)}</li>`)
+            .join("");
+
+          const row1 = `
+            <div style="display:grid; grid-template-columns:1fr auto auto auto; gap:4px 12px; align-items:center; font-size:0.9rem;">
+              <div>Anfahrtspauschale Alltagshilfe</div>
+              <div style="text-align:right; color:var(--muted);">${fmtH(totalEinsaetze)} ×</div>
+              <div style="text-align:right; color:var(--muted);">${euroC(ANFAHRT_PER_EINSATZ)}</div>
+              <div style="text-align:right; font-weight:600;">${euroC(anfahrtTotal)}</div>
+            </div>`;
+
+          const row2 = `
+            <div style="display:grid; grid-template-columns:1fr auto auto auto; gap:4px 12px; align-items:start; font-size:0.9rem; margin-top:8px; padding-top:8px; border-top:1px solid var(--border);">
+              <div>
+                <div>Angebot zur Unterstützung im Haushalt</div>
+                <div style="font-size:0.85em; font-weight:600; color:var(--muted);">Haushaltsnahe Dienstleistung</div>
+                ${taskBullets ? `<ul style="margin:4px 0 0 10px; padding:0; font-size:0.85em;">${taskBullets}</ul>` : ""}
+              </div>
+              <div style="text-align:right; color:var(--muted);">${fmtH(totalMonatlichH)} h ×</div>
+              <div style="text-align:right; color:var(--muted);">${euroC(STUNDENSATZ_HND)}</div>
+              <div style="text-align:right; font-weight:600;">${euroC(leistungenTotal)}</div>
+            </div>`;
+
+          renderedCards.push(card(
+            "HnD-Leistungen",
+            row1 + row2,
+            `<div style="text-align:right;"><b>Zwischensumme:</b> ${euroC(gesamt)}</div>`
+          ));
+        }
+      }
+
+      if (!renderedCards.length) {
+        renderedCards.push(card("HnD-Leistungen", '<div class="muted">Noch keine HnD-Leistung konfiguriert.</div>'));
+      }
+
+      const servicepauschaleNote = `
+        <div style="margin-top:12px; padding:10px 12px; border:1px dashed var(--border); border-radius:8px; font-size:0.85rem;">
+          <div style="font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-bottom:6px;">* Separate Direktrechnung — nicht im Gesamtbetrag</div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+            <div>
+              <b>Servicepauschale Reinigungsutensilien für HnD</b>
+              <div style="font-size:0.8rem; color:var(--muted); margin-top:2px;">Inkl. MwSt. Jährliche Abrechnung nach tatsächlichen Monaten. Wird direkt mit dem Kunden abgerechnet.</div>
+            </div>
+            <div style="font-weight:600; white-space:nowrap;">${euroC(SERVICEPAUSCHALE)} / Monat</div>
+          </div>
+        </div>`;
+
+      const summenBody = `
         <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
-          <div style="font-size:1.2rem;">Gesamt: <b>${euroC(data.total || 0)}</b></div>
+          <div style="font-size:1.2rem;">Gesamtbetrag: <b>${euroC(gesamt)}</b></div>
         </div>
-      `;
-      container.innerHTML = [ahLeistungenCard, card("Summen", ahTotals)].join("");
+        ${servicepauschaleNote}`;
+
+      container.innerHTML = [...renderedCards, card("Summen", summenBody)].join("");
       return;
     }
 
