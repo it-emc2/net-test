@@ -2,6 +2,8 @@
 /* eslint-disable no-empty */
 /* eslint-disable no-unused-vars */
 // src/logic/pricing.js
+import cfg from '../services/configService.js';
+
 export default (ProductModel) => {
   // Minimal helper: adjust only the visible label to billable qty (selected - 1)
   // - Does NOT change qty, unitPrice, or lineTotal (so totals remain untouched).
@@ -48,7 +50,7 @@ export default (ProductModel) => {
   const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
   const ceilSafe = (n) => Math.ceil((Number(n) || 0) - 1e-12);
 
-  const TAX_RATE = 0.19;
+  const TAX_RATE = cfg.get('TAX_RATE', 0.19);
 
   // --- active offer / Bereich helpers ---
   function getActiveOffer(payload) {
@@ -1180,17 +1182,17 @@ color: metaColor || null,
 
     const isBwt = offer === "bwt";
     const handwerkerCount = isBwt ? 1 : 2;
-    const laborRateKK = 69.5;
-    const laborRateSZ = 59.5;
-    const bwtLaborRate = 79.5;
-    const kmRate = 0.35;
+    const laborRateKK = cfg.get('LABOR_RATE_KK', 69.5);
+    const laborRateSZ = cfg.get('LABOR_RATE_SZ', 59.5);
+    const bwtLaborRate = cfg.get('LABOR_RATE_BWT', 79.5);
+    const kmRate = cfg.get('KM_RATE', 0.35);
     const travelSecondWorkerRateRaw =
       Number(arbeits.travelSecondWorkerRate ?? b.travelSecondWorkerRate ?? 25) || 25;
     const sitz_reise_Rate = travelSecondWorkerRateRaw === 35 ? 35 : 25;
 
-    const fahrzeugbereitstellung = 80.0;
-    const werkzeug = 7.5;
-    const beraeumung = 4.5;
+    const fahrzeugbereitstellung = cfg.get('FAHRZEUGBEREITSTELLUNG', 80.0);
+    const werkzeug = cfg.get('WERKZEUG', 7.5);
+    const beraeumung = cfg.get('BERAEUMUNG', 4.5);
     const kilometerpauschale = round2(roundTripKm * kmRate);
     const laborRate = isBwt
       ? bwtLaborRate
@@ -1303,16 +1305,16 @@ color: metaColor || null,
       : 1;
     const oneWayKm = Number(b.distanceKm || 0) || 0;
     const roundTripKm = Math.max(0, oneWayKm * 2 * travelDays);
-    const billedKm = Math.max(0, roundTripKm - 200); // only km > 200 are billed
-    const kmRate = 0.35;
+    const billedKm = Math.max(0, roundTripKm - cfg.get('BWT_KM_FREE_THRESHOLD', 200));
+    const kmRate = cfg.get('KM_RATE', 0.35);
     const kmAmount = round2(billedKm * kmRate);
 
     const reise_hours_numeric = Number(b.ReiseHoursNumeric ?? 0) || 0;
 
-    // Reisezeit for bwt — 1 worker at 79.50/h
-    const bwt_reise_Rate = 79.5;
-    const bwt_handwerkerCount = 1;
-    const billed_reise_zeit = Math.max(0, reise_hours_numeric - 2);
+    // Reisezeit for bwt
+    const bwt_reise_Rate = cfg.get('LABOR_RATE_BWT', 79.5);
+    const bwt_handwerkerCount = cfg.get('BWT_WORKER_COUNT', 1);
+    const billed_reise_zeit = Math.max(0, reise_hours_numeric - cfg.get('BWT_TRAVEL_TIME_FREE_HOURS', 2));
     const reise_ampunt_zeit = round2(
       billed_reise_zeit * bwt_reise_Rate * bwt_handwerkerCount,
     );
@@ -1819,8 +1821,9 @@ try {
       let bonusGross = 0;
       let bonus_neu = 0;
       if (flags.bonus_neu) {
-        bonusGross += 252.1;
-        bonus_neu += 252.1;
+        const bonusVal = cfg.get('BONUS_NEW_CUSTOMER_GROSS', 252.1);
+        bonusGross += bonusVal;
+        bonus_neu += bonusVal;
       }
       if (flags.bonus_Haltegriff) {
         const freeId = materials?.grabCounts?.freeId;
@@ -1873,22 +1876,21 @@ try {
         case "MAX_4180":
         case "4180_MAXIMAL":
         case "MAXIMAL_4180":
-          subsidyAmount = 4180;
+          subsidyAmount = cfg.get('SUBSIDY_AMOUNT_4180', 4180);
           break;
 
         case "4180 MIT ZUZAHLUNG":
         case "KUNDE_MIT_ZUZAHLUNG":
         case "4180_KUNDE_MIT_ZUZAHLUNG":
         case "ZUSZAHLUNG_CA":
-          //  subsidyAmount = 4180 - Math.max(0, zuzahlungRaw);
-          subsidyAmount = 4180;
+          subsidyAmount = cfg.get('SUBSIDY_AMOUNT_4180', 4180);
           break;
 
         case "ZWEI PERSONEN MIT PFLEGEGRAD":
         case "ZWEI_PERSONEN_8360":
         case "2_PERSONEN_MIT_PFLEGEGRAD":
         case "8360_ZWEI_PERSONEN":
-          subsidyAmount = 8360;
+          subsidyAmount = cfg.get('SUBSIDY_AMOUNT_8360', 8360);
           break;
 
         default:

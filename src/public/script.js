@@ -9575,12 +9575,24 @@ window.computeAHGesamt = function computeAHGesamt() {
   var totalEinsaetze = 0;
   var totalMonatlichH = 0;
 
+  var schedRows = [];
   scheds.forEach(function(sched) {
     var dauerH = (typeof parseDurationMinutes === "function" ? parseDurationMinutes(sched.dauer || "") : 0) / 60;
     var freq   = AH_FREQ[sched.regelmaessigkeit] || 0;
     if (!dauerH || !freq) return;
+    var perVisitH  = dauerH + 2 * reisezeitH;
+    var monthlyH   = perVisitH * freq;
     totalEinsaetze  += freq;
-    totalMonatlichH += (dauerH + 2 * reisezeitH) * freq;
+    totalMonatlichH += monthlyH;
+    schedRows.push({
+      dauer:           sched.dauer || "",
+      regelmaessigkeit: sched.regelmaessigkeit || "",
+      dauerMin:        Math.round(dauerH * 60),
+      reiseRoundMin:   Math.round(2 * reisezeitH * 60),
+      perVisitMin:     Math.round(perVisitH * 60),
+      freq:            freq,
+      monthlyH:        monthlyH,
+    });
   });
 
   var SERVICEPAUSCHALE    = 1.20;
@@ -9593,7 +9605,8 @@ window.computeAHGesamt = function computeAHGesamt() {
            anfahrtTotal: anfahrtTotal, leistungenTotal: leistungenTotal,
            totalEinsaetze: totalEinsaetze, totalMonatlichH: totalMonatlichH,
            tasks: hndSvc.tasks || [], isSelbstzahler: isSelbstzahler,
-           servicepauschale: SERVICEPAUSCHALE, zoneData: zoneData };
+           servicepauschale: SERVICEPAUSCHALE, zoneData: zoneData,
+           schedRows: schedRows };
 };
 
 /* ========== Kosten Duschabtrennung========== */
@@ -10053,8 +10066,8 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       };
 
       // Use the shared computation helper
-      const ah = window.computeAHGesamt?.() || { gesamt: 0, gesamtBase: 0, anfahrtTotal: 0, leistungenTotal: 0, totalEinsaetze: 0, totalMonatlichH: 0, tasks: [], isSelbstzahler: false, servicepauschale: 1.20, zoneData: null };
-      const { gesamt, gesamtBase, anfahrtTotal, leistungenTotal, totalEinsaetze, totalMonatlichH, tasks, isSelbstzahler, servicepauschale, zoneData } = ah;
+      const ah = window.computeAHGesamt?.() || { gesamt: 0, gesamtBase: 0, anfahrtTotal: 0, leistungenTotal: 0, totalEinsaetze: 0, totalMonatlichH: 0, tasks: [], isSelbstzahler: false, servicepauschale: 1.20, zoneData: null, schedRows: [] };
+      const { gesamt, gesamtBase, anfahrtTotal, leistungenTotal, totalEinsaetze, totalMonatlichH, tasks, isSelbstzahler, servicepauschale, zoneData, schedRows } = ah;
 
       // Keep widget in sync
       if (typeof updateSummaryWidgetTotal === "function") updateSummaryWidgetTotal(gesamt);
@@ -10087,12 +10100,44 @@ if (offerKey === "bwt" && isExtraAufgabe) {
             <div style="text-align:right; font-weight:600;">${euroC(anfahrtTotal)}</div>
           </div>`;
 
+        // Time breakdown table (one row per Zeitzeile)
+        const COL = "1fr 90px 90px 70px 80px";
+        const thStyle = "text-align:right; font-size:0.7rem; font-weight:600; color:var(--muted); padding-bottom:3px;";
+        const tdStyle = "text-align:right; font-size:0.82rem; color:var(--muted);";
+        const tdAccent = "text-align:right; font-size:0.82rem; font-weight:600; color:var(--accent,#0ea5e9);";
+
+        const breakdownRows = (schedRows || []).map(function(r) {
+          return `<div style="grid-column:1/-1; display:grid; grid-template-columns:${COL}; gap:2px 8px; align-items:center; padding:3px 0; border-top:1px solid var(--border);">
+            <div style="font-size:0.82rem; color:var(--muted);">${escapeHtml(r.regelmaessigkeit)}</div>
+            <div style="${tdStyle}">${r.dauerMin} min</div>
+            <div style="${tdStyle}">+ ${r.reiseRoundMin} min</div>
+            <div style="${tdStyle}">= ${r.perVisitMin} min</div>
+            <div style="${tdAccent}">× ${(Math.round(r.freq * 100) / 100).toFixed(2).replace(".", ",")} = ${formatDurationHHMM(Math.round(r.monthlyH * 60))}</div>
+          </div>`;
+        }).join("");
+
+        const breakdown = schedRows && schedRows.length ? `
+          <div style="margin-top:6px; padding:6px 8px; background:var(--bg-alt,#f8fafc); border-radius:6px; border:1px solid var(--border);">
+            <div style="display:grid; grid-template-columns:${COL}; gap:2px 8px; align-items:center; padding-bottom:3px;">
+              <div style="${thStyle} text-align:left;">Zeitzeile</div>
+              <div style="${thStyle}">Einsatz</div>
+              <div style="${thStyle}">+ H&amp;R Reise</div>
+              <div style="${thStyle}">= /Einsatz</div>
+              <div style="${thStyle}">× Freq = /Mon.</div>
+            </div>
+            ${breakdownRows}
+            <div style="text-align:right; font-size:0.82rem; font-weight:700; color:var(--accent,#0ea5e9); padding-top:4px; border-top:1px solid var(--border); margin-top:3px;">
+              Gesamt: ${formatDurationHHMM(Math.round(totalMonatlichH * 60))} / Monat
+            </div>
+          </div>` : "";
+
         const row2 = `
           <div style="display:grid; grid-template-columns:1fr auto auto auto; gap:4px 12px; align-items:start; font-size:0.9rem; margin-top:8px; padding-top:8px; border-top:1px solid var(--border);">
             <div>
               <div>Angebot zur Unterstützung im Haushalt</div>
               <div style="font-size:0.85em; font-weight:600; color:var(--muted);">Haushaltsnahe Dienstleistung</div>
-              ${taskBullets ? `<ul style="margin:4px 0 0 10px; padding:0; font-size:0.85em;">${taskBullets}</ul>` : ""}
+              ${breakdown}
+              ${taskBullets ? `<ul style="margin:6px 0 0 10px; padding:0; font-size:0.85em;">${taskBullets}</ul>` : ""}
             </div>
             <div style="text-align:right; color:var(--muted);">${fmtH(totalMonatlichH)} h ×</div>
             <div style="text-align:right; color:var(--muted);">${euroC(40.56)}</div>
