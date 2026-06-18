@@ -9533,12 +9533,32 @@ window.computeAHZoneFromMinutes = function(oneWayMinutes) {
 };
 
 window.getAHZoneData = function() {
+  // 1. In-memory (set by routing result)
   if (window.__ahZoneData) return window.__ahZoneData;
-  var el      = document.getElementById("ahTravelZone");
+
+  // 2. Hidden field (persists during page session)
+  var el = document.getElementById("ahTravelZone");
   var zoneNum = parseInt(el?.value || "0") || 0;
-  if (!zoneNum) return null;
-  var billMin = (zoneNum - 1) * 5 + 10;
-  return { zone: zoneNum, billMin: billMin };
+  if (zoneNum) {
+    var billMin = (zoneNum - 1) * 5 + 10;
+    return { zone: zoneNum, billMin: billMin };
+  }
+
+  // 3. Fallback: compute from travelTime field (already filled by routing)
+  //    Handles the case where routing ran before the offer type was "ah"
+  var ttEl = document.getElementById("travelTime");
+  if (ttEl && ttEl.value && typeof parseDurationMinutes === "function") {
+    var oneWayMins = parseDurationMinutes(ttEl.value);
+    if (oneWayMins > 0 && typeof window.computeAHZoneFromMinutes === "function") {
+      var computed = window.computeAHZoneFromMinutes(oneWayMins);
+      // Cache it so next call is instant
+      window.__ahZoneData = computed;
+      if (el) el.value = computed.zone;
+      return computed;
+    }
+  }
+
+  return null;
 };
 
 /* ========== AH: shared client-side pricing computation ========== */
