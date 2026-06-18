@@ -9589,7 +9589,8 @@ window.computeAHGesamt = function computeAHGesamt() {
   var hndSvc = ahServices.find(function(s) { return s.type === "Haushaltsnahedienstleistungen"; });
   if (!hndSvc) return { gesamt: 0, gesamtBase: 0, anfahrtTotal: 0, leistungenTotal: 0,
                         totalEinsaetze: 0, totalMonatlichH: 0, tasks: [],
-                        isSelbstzahler: false, servicepauschale: 1.20, zoneData: null };
+                        isSelbstzahler: false, servicepauschale: 1.20,
+                        zoneData: zoneData, schedRows: [] };
 
   var scheds = hndSvc.schedules || (hndSvc.schedule ? [hndSvc.schedule] : []);
   var totalEinsaetze = 0;
