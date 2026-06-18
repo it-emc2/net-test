@@ -7320,17 +7320,6 @@ button.dm-btn-danger:focus-visible {
               <div id="hlProductSearchResults" class="hl-search-results" hidden></div>
             </div>
 
-            <div class="hl-search-target" role="radiogroup" aria-label="Ziel für Produktauswahl" style="margin-top:8px;display:flex;gap:16px;flex-wrap:wrap;align-items:center;">
-              <span class="muted" style="font-weight:600;">Ziel:</span>
-              <label style="display:inline-flex;gap:6px;align-items:center;cursor:pointer;">
-                <input type="radio" name="hlQuickAddTarget" value="hausecke" checked />
-                Handlauf Hausecke Außenbereich
-              </label>
-              <label style="display:inline-flex;gap:6px;align-items:center;cursor:pointer;">
-                <input type="radio" name="hlQuickAddTarget" value="haustuer" />
-                Handlauf Haustür Außenbereich
-              </label>
-            </div>
 
             <div id="hlImportRow" style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
               <button type="button" id="hlImportBtn" class="secondary">
@@ -7361,6 +7350,130 @@ button.dm-btn-danger:focus-visible {
             <div id="hlProductSearchStatus" class="muted" style="margin-top:6px;" aria-live="polite"></div>
 
           </div>
+
+
+<!-- Wannenform -->
+          <div class="full field">
+            <label class="req">Brauchen Sie Handläufe für den Innenbereich oder für den Außenbereich?</label>
+
+            <div style="display:grid; gap:14px; grid-template-columns:repeat(2, minmax(0, 220px)); justify-content:start;">
+              <!-- inside -->
+              <div class="hl-item">
+                <label class="image-check">
+                  <input type="checkbox" id="hlAreaInside" name="hl_area" value="inside" required />
+                  <span class="img-wrap">
+                    <img src="./assets/Innenbereich.png" alt="Innenbereich" />
+                  </span>
+                  <span class="caption">Innenbereich</span>
+                </label>
+
+                <div id="qty_hlAreaInside_wrap" class="field" hidden aria-hidden="true">
+                  <label for="qty_hlAreaInside" class="req">Menge</label>
+                  <input id="qty_hlAreaInside" name="qty_hlAreaInside" type="number" min="0" step="1" placeholder="0" />
+                </div>
+              </div>
+
+              <!-- outside -->
+              <div class="hl-item">
+                <label class="image-check">
+                  <input type="checkbox" id="hlAreaOutside" name="hl_area" value="outside" required />
+                  <span class="img-wrap">
+                    <img src="./assets/Außenbereich.png" alt="Außenbereich" />
+                  </span>
+                  <span class="caption">Außenbereich</span>
+                </label>
+
+                <div id="qty_hlAreaOutside_wrap" class="field" hidden aria-hidden="true">
+                  <label for="qty_hlAreaOutside" class="req">Menge</label>
+                  <input id="qty_hlAreaOutside" name="qty_hlAreaOutside" type="number" min="0" step="1"
+                    placeholder="0" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="hlFlexofitCatalog" class="hl-flex-catalog full field" aria-live="polite">
+            <div class="hl-flex-catalog__head">
+              <div>
+                <div class="section-title">Flexofit Katalog</div>
+                <p class="section-subtitle">Produkte nach Bereich, Familie und Variante.</p>
+              </div>
+              <button type="button" id="hlFlexofitCatalogReload" class="secondary">
+                <i class="fa-solid fa-rotate-right"></i>
+                Aktualisieren
+              </button>
+            </div>
+            <div id="hlFlexofitCatalogStatus" class="muted"></div>
+            <div id="hlFlexofitFamilyTabs" class="hl-flex-catalog__tabs" role="tablist" aria-label="Flexofit Produktfamilien"></div>
+            <div id="hlFlexofitCatalogGrid" class="hl-flex-catalog__grid"></div>
+            <div id="hlFlexofitPipeDetails" class="hl-flex-catalog__details" hidden></div>
+          </div>
+
+          <!-- Mounting type -->
+          <div class="full field" id="hlLegacyPipeSection" hidden aria-hidden="true">
+            <label class="req">Mounting type</label>
+
+            <div id="hlMountTypeWrap" style="display:grid; gap:14px; grid-template-columns:repeat(2, minmax(0, 220px)); justify-content:start;">
+              <div class="hl-item">
+                <label class="image-check">
+                  <input type="checkbox" id="hlMountTypeBoden" name="hlMountType" value="boden-befestigung" required />
+                  <span class="img-wrap"><img src="./assets/boden-handlauf.jpg" alt="boden-befestigung" /></span>
+                  <span class="caption">Boden-Befestigung</span>
+                </label>
+
+                <div id="qty_hlMountTypeBoden_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
+                  <label for="qty_hlMountTypeBoden" class="req">Menge</label>
+                  <input id="qty_hlMountTypeBoden" name="qty_hlMountTypeBoden" type="number" min="0" step="1"
+                    placeholder="0" />
+                </div>
+              </div>
+
+              <div class="hl-item">
+                <label class="image-check">
+                  <input type="checkbox" id="hlMountTypeWand" name="hlMountType" value="wand-befestigung" />
+                  <span class="img-wrap"><img src="./assets/wandhandlauf.jpg" alt="wand-befestigung" /></span>
+                  <span class="caption">Wand-Befestigung</span>
+                </label>
+
+                <div id="qty_hlMountTypeWand_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
+                  <label for="qty_hlMountTypeWand" class="req">Menge</label>
+                  <input id="qty_hlMountTypeWand" name="qty_hlMountTypeWand" type="number" min="0" step="1"
+                    placeholder="0" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+          <!-- Hinweis -->
+          <p class="muted" style="margin: 14px 0 6px">
+            Hinweis: Zusätzlicher Verschluss 49€ EK-Preis
+            grundsätzlich wird automatisch mitkalkuliert
+          </p>
+          <p class="muted" style="margin: 14px 0 6px">
+            Hinweis: Innen-Befestigung wird aktuell preislich als <b>Chrom matt</b> kalkuliert.
+          </p>
+
+          <!-- Logistik -->
+          <div class="full" style="margin-top:18px">
+            <div class="section-header">Logistik</div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+              <div class="field">
+                <label for="hlSpeditionskosten">zzgl. Speditionskosten lange Rohre</label>
+                <input id="hlSpeditionskosten" name="hlSpeditionskosten" type="text"
+                  value="zzgl. Speditionskosten lange Rohre"
+                  placeholder="z.B. 120 € / nach Aufwand" />
+              </div>
+
+              <div class="field">
+                <label for="hlPreis">Preis</label>
+                <input id="hlPreis" name="hlPreis" type="number" step="0.01" value="95" placeholder="0,00" />
+              </div>
+            </div>
+          </div>
+
+          
 
           <!-- HL: Freier Posten / Quick Add — Handlauf Hausecke Außenbereich -->
           <fieldset class="da-row hl-quickadd-panel" id="hlQuickAddPanel_hausecke" data-kind="custom"
@@ -7586,130 +7699,6 @@ button.dm-btn-danger:focus-visible {
             <input type="hidden" id="hlSketchJson" name="hlSketchJson" value="" />
           </div>
                     </div>
-
-<!-- Wannenform -->
-          <div class="full field">
-            <label class="req">Brauchen Sie Handläufe für den Innenbereich oder für den Außenbereich?</label>
-
-            <div style="display:grid; gap:14px; grid-template-columns:repeat(2, minmax(0, 220px)); justify-content:start;">
-              <!-- inside -->
-              <div class="hl-item">
-                <label class="image-check">
-                  <input type="checkbox" id="hlAreaInside" name="hl_area" value="inside" required />
-                  <span class="img-wrap">
-                    <img src="./assets/Innenbereich.png" alt="Innenbereich" />
-                  </span>
-                  <span class="caption">Innenbereich</span>
-                </label>
-
-                <div id="qty_hlAreaInside_wrap" class="field" hidden aria-hidden="true">
-                  <label for="qty_hlAreaInside" class="req">Menge</label>
-                  <input id="qty_hlAreaInside" name="qty_hlAreaInside" type="number" min="0" step="1" placeholder="0" />
-                </div>
-              </div>
-
-              <!-- outside -->
-              <div class="hl-item">
-                <label class="image-check">
-                  <input type="checkbox" id="hlAreaOutside" name="hl_area" value="outside" required />
-                  <span class="img-wrap">
-                    <img src="./assets/Außenbereich.png" alt="Außenbereich" />
-                  </span>
-                  <span class="caption">Außenbereich</span>
-                </label>
-
-                <div id="qty_hlAreaOutside_wrap" class="field" hidden aria-hidden="true">
-                  <label for="qty_hlAreaOutside" class="req">Menge</label>
-                  <input id="qty_hlAreaOutside" name="qty_hlAreaOutside" type="number" min="0" step="1"
-                    placeholder="0" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div id="hlFlexofitCatalog" class="hl-flex-catalog full field" aria-live="polite">
-            <div class="hl-flex-catalog__head">
-              <div>
-                <div class="section-title">Flexofit Katalog</div>
-                <p class="section-subtitle">Produkte nach Bereich, Familie und Variante.</p>
-              </div>
-              <button type="button" id="hlFlexofitCatalogReload" class="secondary">
-                <i class="fa-solid fa-rotate-right"></i>
-                Aktualisieren
-              </button>
-            </div>
-            <div id="hlFlexofitCatalogStatus" class="muted"></div>
-            <div id="hlFlexofitFamilyTabs" class="hl-flex-catalog__tabs" role="tablist" aria-label="Flexofit Produktfamilien"></div>
-            <div id="hlFlexofitCatalogGrid" class="hl-flex-catalog__grid"></div>
-            <div id="hlFlexofitPipeDetails" class="hl-flex-catalog__details" hidden></div>
-          </div>
-
-          <!-- Mounting type -->
-          <div class="full field" id="hlLegacyPipeSection" hidden aria-hidden="true">
-            <label class="req">Mounting type</label>
-
-            <div id="hlMountTypeWrap" style="display:grid; gap:14px; grid-template-columns:repeat(2, minmax(0, 220px)); justify-content:start;">
-              <div class="hl-item">
-                <label class="image-check">
-                  <input type="checkbox" id="hlMountTypeBoden" name="hlMountType" value="boden-befestigung" required />
-                  <span class="img-wrap"><img src="./assets/boden-handlauf.jpg" alt="boden-befestigung" /></span>
-                  <span class="caption">Boden-Befestigung</span>
-                </label>
-
-                <div id="qty_hlMountTypeBoden_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
-                  <label for="qty_hlMountTypeBoden" class="req">Menge</label>
-                  <input id="qty_hlMountTypeBoden" name="qty_hlMountTypeBoden" type="number" min="0" step="1"
-                    placeholder="0" />
-                </div>
-              </div>
-
-              <div class="hl-item">
-                <label class="image-check">
-                  <input type="checkbox" id="hlMountTypeWand" name="hlMountType" value="wand-befestigung" />
-                  <span class="img-wrap"><img src="./assets/wandhandlauf.jpg" alt="wand-befestigung" /></span>
-                  <span class="caption">Wand-Befestigung</span>
-                </label>
-
-                <div id="qty_hlMountTypeWand_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
-                  <label for="qty_hlMountTypeWand" class="req">Menge</label>
-                  <input id="qty_hlMountTypeWand" name="qty_hlMountTypeWand" type="number" min="0" step="1"
-                    placeholder="0" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-
-          <!-- Hinweis -->
-          <p class="muted" style="margin: 14px 0 6px">
-            Hinweis: Zusätzlicher Verschluss 49€ EK-Preis
-            grundsätzlich wird automatisch mitkalkuliert
-          </p>
-          <p class="muted" style="margin: 14px 0 6px">
-            Hinweis: Innen-Befestigung wird aktuell preislich als <b>Chrom matt</b> kalkuliert.
-          </p>
-
-          <!-- Logistik -->
-          <div class="full" style="margin-top:18px">
-            <div class="section-header">Logistik</div>
-
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-              <div class="field">
-                <label for="hlSpeditionskosten">zzgl. Speditionskosten lange Rohre</label>
-                <input id="hlSpeditionskosten" name="hlSpeditionskosten" type="text"
-                  value="zzgl. Speditionskosten lange Rohre"
-                  placeholder="z.B. 120 € / nach Aufwand" />
-              </div>
-
-              <div class="field">
-                <label for="hlPreis">Preis</label>
-                <input id="hlPreis" name="hlPreis" type="number" step="0.01" value="95" placeholder="0,00" />
-              </div>
-            </div>
-          </div>
-
-          
-
           <div class="actions full" style="margin-top:16px">
             <button type="button" data-nav="prev" class="secondary">Zurück</button>
             <button type="button" data-nav="next">Weiter</button>

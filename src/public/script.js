@@ -19732,9 +19732,7 @@ function initHlFlexofitSearch() {
   };
 
   const addProductToQuickAdd = (p) => {
-    const target =
-      document.querySelector('input[name="hlQuickAddTarget"]:checked')?.value ||
-      "hausecke";
+    const target = "hausecke";
     const wrap =
       document.getElementById(`hlQuickAddItems_${target}`) ||
       document.querySelector(".hl-quickadd-items");
@@ -19943,9 +19941,7 @@ function initHlFlexofitCatalog() {
     return entry.areas.some((area) => areas.includes(area));
   };
 
-  const selectedTarget = () =>
-    document.querySelector('input[name="hlQuickAddTarget"]:checked')?.value ||
-    "hausecke";
+  const selectedTarget = () => "hausecke";
 
   const catalogKey = (entry) =>
     [
@@ -20234,9 +20230,7 @@ function initHlFlexofitCatalog() {
     enforceSelectedParentAreas();
     render();
   });
-  document.querySelectorAll('input[name="hlQuickAddTarget"]').forEach((input) => {
-    input.addEventListener("change", render);
-  });
+
   document.querySelectorAll(".hl-quickadd-items").forEach((wrap) => {
     wrap.addEventListener("input", render);
     wrap.addEventListener("change", render);
@@ -20448,10 +20442,7 @@ function initHlFlexofitImporter() {
     const g = String(groupName || "").toLowerCase();
     if (/hausecke/.test(g)) return "hausecke";
     if (/haustür|haustuer/.test(g)) return "haustuer";
-    return (
-      document.querySelector('input[name="hlQuickAddTarget"]:checked')?.value ||
-      "hausecke"
-    );
+    return "hausecke";
   };
 
   const renderPreview = (data) => {
