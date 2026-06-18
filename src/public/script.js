@@ -14890,6 +14890,25 @@ document.addEventListener("DOMContentLoaded", () => {
   if (hasAddress && !hasKm) {
     setTimeout(() => suggestDistanceFromAddress(), 250);
   }
+
+  // AH: whenever travelTime changes, recompute zone and refresh Kosten
+  const travelTimeEl = document.getElementById("travelTime");
+  if (travelTimeEl && !travelTimeEl.dataset.ahZoneBound) {
+    travelTimeEl.dataset.ahZoneBound = "1";
+    const recomputeAHZone = () => {
+      if (String(window.getCurrentOfferType?.() || "").toLowerCase() !== "ah") return;
+      const mins = typeof parseDurationMinutes === "function"
+        ? parseDurationMinutes(travelTimeEl.value) : 0;
+      if (!mins) return;
+      const zoneDef = window.computeAHZoneFromMinutes?.(mins) || { zone: 1, billMin: 10 };
+      window.__ahZoneData = { zone: zoneDef.zone, billMin: zoneDef.billMin, oneWayMins: mins };
+      const zoneEl = document.getElementById("ahTravelZone");
+      if (zoneEl) zoneEl.value = zoneDef.zone;
+      window.updatePricing?.();
+    };
+    travelTimeEl.addEventListener("change", recomputeAHZone);
+    travelTimeEl.addEventListener("input",  recomputeAHZone);
+  }
 });
 
 document.addEventListener("DOMContentLoaded", () => {
