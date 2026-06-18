@@ -9560,11 +9560,16 @@ window.computeAHGesamt = function computeAHGesamt() {
     totalMonatlichH += (dauerH + 2 * reisezeitH) * freq;
   });
 
-  var anfahrtTotal    = r2(totalEinsaetze * ANFAHRT_PER_EINSATZ);
-  var leistungenTotal = r2(totalMonatlichH * STUNDENSATZ_HND);
-  var gesamt          = r2(anfahrtTotal + leistungenTotal);
-  return { gesamt: gesamt, anfahrtTotal: anfahrtTotal, leistungenTotal: leistungenTotal,
-           totalEinsaetze: totalEinsaetze, totalMonatlichH: totalMonatlichH, tasks: hndSvc.tasks || [] };
+  var SERVICEPAUSCHALE    = 1.20;
+  var isSelbstzahler      = (document.querySelector('input[name="payer"]:checked')?.value || "") === "Selbstzahler";
+  var anfahrtTotal        = r2(totalEinsaetze * ANFAHRT_PER_EINSATZ);
+  var leistungenTotal     = r2(totalMonatlichH * STUNDENSATZ_HND);
+  var gesamtBase          = r2(anfahrtTotal + leistungenTotal);
+  var gesamt              = r2(gesamtBase + (isSelbstzahler ? SERVICEPAUSCHALE : 0));
+  return { gesamt: gesamt, gesamtBase: gesamtBase,
+           anfahrtTotal: anfahrtTotal, leistungenTotal: leistungenTotal,
+           totalEinsaetze: totalEinsaetze, totalMonatlichH: totalMonatlichH,
+           tasks: hndSvc.tasks || [], isSelbstzahler: isSelbstzahler, servicepauschale: SERVICEPAUSCHALE };
 };
 
 /* ========== Kosten Duschabtrennung========== */
@@ -10024,8 +10029,8 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       };
 
       // Use the shared computation helper
-      const ah = window.computeAHGesamt?.() || { gesamt: 0, anfahrtTotal: 0, leistungenTotal: 0, totalEinsaetze: 0, totalMonatlichH: 0, tasks: [] };
-      const { gesamt, anfahrtTotal, leistungenTotal, totalEinsaetze, totalMonatlichH, tasks } = ah;
+      const ah = window.computeAHGesamt?.() || { gesamt: 0, gesamtBase: 0, anfahrtTotal: 0, leistungenTotal: 0, totalEinsaetze: 0, totalMonatlichH: 0, tasks: [], isSelbstzahler: false, servicepauschale: 1.20 };
+      const { gesamt, gesamtBase, anfahrtTotal, leistungenTotal, totalEinsaetze, totalMonatlichH, tasks, isSelbstzahler, servicepauschale } = ah;
 
       // Keep widget in sync
       if (typeof updateSummaryWidgetTotal === "function") updateSummaryWidgetTotal(gesamt);
@@ -10062,7 +10067,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         renderedCards.push(card(
           "HnD-Leistungen",
           row1 + row2,
-          `<div style="text-align:right;"><b>Zwischensumme:</b> ${euroC(gesamt)}</div>`
+          `<div style="text-align:right;"><b>Zwischensumme:</b> ${euroC(gesamtBase)}</div>`
         ));
       }
 
@@ -10070,23 +10075,30 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         renderedCards.push(card("HnD-Leistungen", '<div class="muted">Noch keine HnD-Leistung konfiguriert.</div>'));
       }
 
-      const servicepauschaleNote = `
-        <div style="margin-top:12px; padding:10px 12px; border:1px dashed var(--border); border-radius:8px; font-size:0.85rem;">
-          <div style="font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-bottom:6px;">* Separate Direktrechnung — nicht im Gesamtbetrag</div>
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-            <div>
-              <b>Servicepauschale Reinigungsutensilien für HnD</b>
-              <div style="font-size:0.8rem; color:var(--muted); margin-top:2px;">Inkl. MwSt. Jährliche Abrechnung nach tatsächlichen Monaten. Wird direkt mit dem Kunden abgerechnet.</div>
+      // Servicepauschale: added to total for Selbstzahler, shown as note for Kassenkunde
+      const servicepauschaleBlock = isSelbstzahler
+        ? `<div style="margin-top:8px; display:flex; justify-content:space-between; align-items:center; font-size:0.9rem;">
+            <div>Servicepauschale Reinigungsutensilien für HnD <span style="font-size:0.78rem; color:var(--muted);">(inkl. MwSt.)</span></div>
+            <div style="font-weight:600;">${euroC(servicepauschale)} / Monat</div>
+           </div>`
+        : `<div style="margin-top:12px; padding:10px 12px; border:1px dashed var(--border); border-radius:8px; font-size:0.85rem;">
+            <div style="font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-bottom:6px;">* Separate Direktrechnung — nicht im Gesamtbetrag</div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+              <div>
+                <b>Servicepauschale Reinigungsutensilien für HnD</b>
+                <div style="font-size:0.8rem; color:var(--muted); margin-top:2px;">Inkl. MwSt. Jährliche Abrechnung nach tatsächlichen Monaten. Wird direkt mit dem Kunden abgerechnet.</div>
+              </div>
+              <div style="font-weight:600; white-space:nowrap;">${euroC(servicepauschale)} / Monat</div>
             </div>
-            <div style="font-weight:600; white-space:nowrap;">${euroC(SERVICEPAUSCHALE)} / Monat</div>
-          </div>
-        </div>`;
+           </div>`;
 
       const summenBody = `
         <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+          ${isSelbstzahler ? `<div style="color:var(--muted); font-size:0.85rem;">Zwischensumme: ${euroC(gesamtBase)}</div>` : ""}
+          ${isSelbstzahler ? servicepauschaleBlock : ""}
           <div style="font-size:1.2rem;">Gesamtbetrag: <b>${euroC(gesamt)}</b></div>
         </div>
-        ${servicepauschaleNote}`;
+        ${!isSelbstzahler ? servicepauschaleBlock : ""}`;
 
       container.innerHTML = [...renderedCards, card("Summen", summenBody)].join("");
       return;
