@@ -9521,28 +9521,24 @@ document
   ?.addEventListener("change", () => window.updatePricing?.());
 
 /* ========== AH: zone definitions ========== */
-// Zone is determined from routing one-way minutes and used in AH billing only.
-// Arbeitszeit travelTime field is NOT used for AH cost calculation.
-var AH_ZONES = [
-  { zone: 1, maxMin: 10,       billMin: 10 },
-  { zone: 2, maxMin: 20,       billMin: 20 },
-  { zone: 3, maxMin: 30,       billMin: 30 },
-  { zone: 4, maxMin: Infinity, billMin: 40 },
-];
+// Ceiling to next 5-min step, minimum 10 min.
+// Zone 1 = 10 min, Zone 2 = 15 min, Zone 3 = 20 min, Zone 4 = 25 min …
+// Formula: billMin = max(10, ceil(oneWayMinutes / 5) × 5)
+//          zone    = (billMin - 10) / 5 + 1
 
 window.computeAHZoneFromMinutes = function(oneWayMinutes) {
-  for (var i = 0; i < AH_ZONES.length; i++) {
-    if (oneWayMinutes <= AH_ZONES[i].maxMin) return AH_ZONES[i];
-  }
-  return AH_ZONES[AH_ZONES.length - 1];
+  var billMin = Math.max(10, Math.ceil(oneWayMinutes / 5) * 5);
+  var zone    = (billMin - 10) / 5 + 1;
+  return { zone: zone, billMin: billMin };
 };
 
 window.getAHZoneData = function() {
   if (window.__ahZoneData) return window.__ahZoneData;
-  var el = document.getElementById("ahTravelZone");
-  var num = parseInt(el?.value || "0") || 0;
-  var def = AH_ZONES.find(function(z) { return z.zone === num; });
-  return def ? { zone: def.zone, billMin: def.billMin } : null;
+  var el      = document.getElementById("ahTravelZone");
+  var zoneNum = parseInt(el?.value || "0") || 0;
+  if (!zoneNum) return null;
+  var billMin = (zoneNum - 1) * 5 + 10;
+  return { zone: zoneNum, billMin: billMin };
 };
 
 /* ========== AH: shared client-side pricing computation ========== */
