@@ -123,6 +123,9 @@ function getAngebotTemplatePath(body) {
     case "bl":
       file = "Angebot-BL.docx";
       break;
+    case "ah":
+      file = "Angebot-AH.docx";
+      break;
     case "bu":
       console.log("under bu ");
     // eslint-disable-next-line no-fallthrough
@@ -1743,6 +1746,208 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
         : "",
     BwtProxyNoteEnabled:
       bwt.bwtProxyNoteEnabled === true || bwt.bwtProxyNoteEnabled === "on",
+
+    // ── AH (Alltagshilfe) data ──────────────────────────────────────────
+    ...buildAhData(body),
+  };
+}
+
+// ── AH task label lookup (mirrors script.js ALLTAGSTASKS + BEGLEITUNG_TASKS) ──
+const AH_TASK_LABELS = {
+  // Haushaltsnahedienstleistungen
+  wohnungsreinigung: "Wohnungsreinigung (Staubsaugen, Wischen, Bad, Küche)",
+  fensterputzen: "Fenster putzen",
+  waeschewaschen: "Wäsche waschen, aufhängen, bügeln",
+  einkaufen: "Einkaufen (Lebensmittel, Drogerie, Apotheke)",
+  kochen: "Kochen / Mahlzeiten zubereiten",
+  geschirrspuelen: "Geschirr spülen / Küche aufräumen",
+  muell: "Müll rausbringen / Mülltrennung",
+  waeschereinigung: "Wäsche zum Reinigungsdienst bringen/abholen",
+  post: "Post holen und sortieren",
+  haustiere: "Haustierversorgung (Füttern, Gassi gehen)",
+  // Alltagsbegleitung
+  arzttermine: "Begleitung zu Arztterminen",
+  behoerdengaenge: "Begleitung zu Behördengängen",
+  einkaufen_begl: "Begleitung zum Einkaufen (gemeinsam)",
+  spaziergaenge: "Spaziergänge / Bewegung an der frischen Luft",
+  gesellschaft: "Gesellschaft leisten / Gespräche führen",
+  vorlesen: "Vorlesen (Zeitung, Bücher)",
+  aktivitaeten: "Gemeinsame Aktivitäten (Spiele, Basteln, Kochen)",
+  gedaechtnis: "Gedächtnistraining / kognitive Aktivierung",
+  korrespondenz: "Unterstützung bei Korrespondenz (Briefe, Formulare)",
+  fahrdienste: "Fahrdienste (zum Friedhof, Friseur, Veranstaltungen)",
+  entlastung: "Entlastung pflegender Angehöriger (stundenweise Betreuung)",
+};
+
+// ── AH pricing constants (mirrors script.js computeAHGesamt) ──────────────
+const AH_FREQ = {
+  "Wöchentlich":      52 / 12,
+  "14-tägig":         26 / 12,
+  "alle drei Wochen": 52 / 3 / 12,
+  "Monatlich":        1,
+  "Vierteljährlich":  4 / 12,
+  "Halbjährlich":     2 / 12,
+  "Jährlich":         1 / 12,
+};
+const AH_ANFAHRT_PER_EINSATZ = 7.96;
+const AH_STUNDENSATZ_HND     = 40.56;
+
+function r2(n) { return Math.round((Number(n) + Number.EPSILON) * 100) / 100; }
+
+// Parse "HH:MM" or decimal string → decimal hours
+function parseHHMM(str) {
+  if (!str) return 0;
+  const s = String(str).trim();
+  const colonIdx = s.indexOf(":");
+  if (colonIdx !== -1) {
+    const h = parseInt(s.slice(0, colonIdx), 10) || 0;
+    const m = parseInt(s.slice(colonIdx + 1), 10) || 0;
+    return h + m / 60;
+  }
+  return parseFloat(s) || 0;
+}
+
+// Format decimal hours as "H:MM h"
+function fmtHHMM(hours) {
+  if (!hours || !Number.isFinite(hours) || hours <= 0) return "";
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  return `${h}:${String(m).padStart(2, "0")} h`;
+}
+
+// Format a count as German decimal (e.g. 4.33 → "4,33")
+function fmtCount(n) {
+  if (!n || !Number.isFinite(n)) return "";
+  return n.toFixed(2).replace(".", ",");
+}
+
+function buildAhData(body) {
+  const ah = body?.ah || {};
+  const rawServices = Array.isArray(ah.services) ? ah.services : [];
+  const ahNote = (ah.ahNote || "").trim();
+
+  // One-way travel time from the Arbeitszeit page
+  const travelTimeH = parseHHMM(body?.Arbeitszeit?.travelTimeHHMM || "");
+
+  // ── Compute AH pricing (same logic as computeAHGesamt on frontend) ──────
+  const hndSvc = rawServices.find((s) => s.type === "Haushaltsnahedienstleistungen");
+  let totalEinsaetze  = 0;
+  let totalMonatlichH = 0;
+
+  if (hndSvc) {
+    const scheds = Array.isArray(hndSvc.schedules) ? hndSvc.schedules : [];
+    scheds.forEach((sched) => {
+      const dauerH = parseHHMM(sched.dauer);
+      const freq   = AH_FREQ[sched.regelmaessigkeit] || 0;
+      if (!dauerH || !freq) return;
+      totalEinsaetze  += freq;
+      totalMonatlichH += (dauerH + travelTimeH) * freq;
+    });
+  }
+
+  const anfahrtTotal    = r2(totalEinsaetze * AH_ANFAHRT_PER_EINSATZ);
+  const leistungenTotal = r2(totalMonatlichH * AH_STUNDENSATZ_HND);
+  const gesamt          = r2(anfahrtTotal + leistungenTotal);
+
+  // ── Build per-service rows ──────────────────────────────────────────────
+  const AhServices = rawServices.map((svc, idx) => {
+    const isHaushalt   = svc.type === "Haushaltsnahedienstleistungen";
+    const isBegleitung = svc.type === "Alltagsbegleitung";
+
+    const title    = isHaushalt   ? "Angebot zur Unterstützung im Haushalt"
+                   : isBegleitung ? "Alltagsbegleitung"
+                   : svc.type || "Dienstleistung";
+    const subtitle = isHaushalt   ? "– Haushaltsnahe Dienstleistung*" : "";
+
+    // Task labels
+    const AhServiceTasks = (Array.isArray(svc.tasks) ? svc.tasks : [])
+      .map((id) => ({ AhTaskLabel: AH_TASK_LABELS[id] || id }))
+      .filter((t) => t.AhTaskLabel);
+
+    // Pricing per service: HnD uses the computed monthly figures
+    let menge = "", einzelpreis = "", serviceGesamt = "";
+    if (isHaushalt && totalMonatlichH > 0) {
+      menge         = fmtHHMM(totalMonatlichH);
+      einzelpreis   = `${AH_STUNDENSATZ_HND.toFixed(2).replace(".", ",")} €`;
+      serviceGesamt = fmtCurrency(leistungenTotal);
+    } else {
+      // Alltagsbegleitung or unknown: show dauer from first schedule, no price yet
+      const sched0 = (Array.isArray(svc.schedules) ? svc.schedules : [])[0] || {};
+      menge = sched0.dauer ? `${sched0.dauer} h` : "";
+    }
+
+    return {
+      AhServicePos:         `${idx + 2}.`,
+      AhServiceTitle:       title,
+      AhServiceSubtitle:    subtitle,
+      AhServiceTasks,
+      AhServiceMenge:       menge,
+      AhServiceEinzelpreis: einzelpreis,
+      AhServiceGesamt:      serviceGesamt,
+    };
+  });
+
+  // ── Determine if HnD is among services (shows Servicepauschale) ────────
+  const hasHnD = rawServices.some((s) => s.type === "Haushaltsnahedienstleistungen");
+
+  // ── Konditionen rows ────────────────────────────────────────────────────
+  const AhKondRows = [];
+  const firstSched = rawServices.flatMap((s) => s.schedules || []).find((s) => s.dauer);
+
+  if (firstSched?.dauer) {
+    AhKondRows.push({
+      AhKondLabel: "Gewünschter Stundenumfang pro Einsatz:",
+      AhKondValue: `${firstSched.dauer} h`,
+    });
+  }
+  if (travelTimeH > 0 && firstSched) {
+    const dauerH        = parseHHMM(firstSched.dauer);
+    const inkAnfahrt    = dauerH + travelTimeH;
+    const zoneLabel     = body?.Arbeitszeit?.distanceKm
+      ? `Zone / ${body.Arbeitszeit.distanceKm} km`
+      : "Zone";
+    AhKondRows.push({
+      AhKondLabel: `Stundenumfang pro Einsatz inkl. Anfahrt (${zoneLabel}):`,
+      AhKondValue: fmtHHMM(inkAnfahrt),
+    });
+  }
+  if (totalMonatlichH > 0) {
+    AhKondRows.push({
+      AhKondLabel: "Monatlicher Stundenumfang:",
+      AhKondValue: fmtHHMM(totalMonatlichH),
+    });
+  }
+  if (firstSched?.regelmaessigkeit) {
+    AhKondRows.push({
+      AhKondLabel: "Regelmäßigkeit:",
+      AhKondValue: firstSched.regelmaessigkeit,
+    });
+  }
+  if (firstSched?.bevorzugteTage) {
+    AhKondRows.push({ AhKondLabel: "Bevorzugte Tage:",   AhKondValue: firstSched.bevorzugteTage });
+  }
+  if (firstSched?.bevorzugteUhrzeit) {
+    AhKondRows.push({ AhKondLabel: "Bevorzugte Uhrzeit:", AhKondValue: firstSched.bevorzugteUhrzeit });
+  }
+  if (AhKondRows.length === 0) {
+    AhKondRows.push({ AhKondLabel: "", AhKondValue: "" });
+  }
+
+  // ── Anfahrt Menge: number of monthly trips formatted as "X,XX Stück" ───
+  const anfahrtMengeStr = totalEinsaetze > 0
+    ? `${fmtCount(totalEinsaetze)} Stück`
+    : "";
+
+  return {
+    AhNote: ahNote,
+    AhAnfahrtMenge:       anfahrtMengeStr,
+    AhAnfahrtEinzelpreis: totalEinsaetze > 0 ? `${AH_ANFAHRT_PER_EINSATZ.toFixed(2).replace(".", ",")} €` : "",
+    AhAnfahrtGesamt:      anfahrtTotal > 0 ? fmtCurrency(anfahrtTotal) : "",
+    AhServices,
+    AhHasServicepauschale: hasHnD,
+    AhServicepausEinzelpreis: "1,20 €",
+    AhGesamtbetrag: gesamt > 0 ? fmtCurrency(gesamt) : "",
+    AhKondRows,
   };
 }
 
