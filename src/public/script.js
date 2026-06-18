@@ -9520,6 +9520,31 @@ document
   .getElementById("sonderaufschlagValue")
   ?.addEventListener("change", () => window.updatePricing?.());
 
+/* ========== AH: zone definitions ========== */
+// Zone is determined from routing one-way minutes and used in AH billing only.
+// Arbeitszeit travelTime field is NOT used for AH cost calculation.
+var AH_ZONES = [
+  { zone: 1, maxMin: 10,       billMin: 10 },
+  { zone: 2, maxMin: 20,       billMin: 20 },
+  { zone: 3, maxMin: 30,       billMin: 30 },
+  { zone: 4, maxMin: Infinity, billMin: 40 },
+];
+
+window.computeAHZoneFromMinutes = function(oneWayMinutes) {
+  for (var i = 0; i < AH_ZONES.length; i++) {
+    if (oneWayMinutes <= AH_ZONES[i].maxMin) return AH_ZONES[i];
+  }
+  return AH_ZONES[AH_ZONES.length - 1];
+};
+
+window.getAHZoneData = function() {
+  if (window.__ahZoneData) return window.__ahZoneData;
+  var el = document.getElementById("ahTravelZone");
+  var num = parseInt(el?.value || "0") || 0;
+  var def = AH_ZONES.find(function(z) { return z.zone === num; });
+  return def ? { zone: def.zone, billMin: def.billMin } : null;
+};
+
 /* ========== AH: shared client-side pricing computation ========== */
 window.computeAHGesamt = function computeAHGesamt() {
   var AH_FREQ = {
@@ -9541,12 +9566,14 @@ window.computeAHGesamt = function computeAHGesamt() {
     if (_j) ahServices = JSON.parse(_j.value || "[]");
   } catch {}
 
-  var reisezeitH = (typeof parseDurationMinutes === "function"
-    ? parseDurationMinutes(document.getElementById("travelTime")?.value || "")
-    : 0) / 60;
+  // Zone-based travel time (AH only) — Arbeitszeit travelTime field not used here
+  var zoneData    = window.getAHZoneData?.() || null;
+  var reisezeitH  = zoneData ? zoneData.billMin / 60 : 0;
 
   var hndSvc = ahServices.find(function(s) { return s.type === "Haushaltsnahedienstleistungen"; });
-  if (!hndSvc) return { gesamt: 0, anfahrtTotal: 0, leistungenTotal: 0, totalEinsaetze: 0, totalMonatlichH: 0, tasks: [] };
+  if (!hndSvc) return { gesamt: 0, gesamtBase: 0, anfahrtTotal: 0, leistungenTotal: 0,
+                        totalEinsaetze: 0, totalMonatlichH: 0, tasks: [],
+                        isSelbstzahler: false, servicepauschale: 1.20, zoneData: null };
 
   var scheds = hndSvc.schedules || (hndSvc.schedule ? [hndSvc.schedule] : []);
   var totalEinsaetze = 0;
@@ -9569,7 +9596,8 @@ window.computeAHGesamt = function computeAHGesamt() {
   return { gesamt: gesamt, gesamtBase: gesamtBase,
            anfahrtTotal: anfahrtTotal, leistungenTotal: leistungenTotal,
            totalEinsaetze: totalEinsaetze, totalMonatlichH: totalMonatlichH,
-           tasks: hndSvc.tasks || [], isSelbstzahler: isSelbstzahler, servicepauschale: SERVICEPAUSCHALE };
+           tasks: hndSvc.tasks || [], isSelbstzahler: isSelbstzahler,
+           servicepauschale: SERVICEPAUSCHALE, zoneData: zoneData };
 };
 
 /* ========== Kosten Duschabtrennung========== */
@@ -10029,14 +10057,25 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       };
 
       // Use the shared computation helper
-      const ah = window.computeAHGesamt?.() || { gesamt: 0, gesamtBase: 0, anfahrtTotal: 0, leistungenTotal: 0, totalEinsaetze: 0, totalMonatlichH: 0, tasks: [], isSelbstzahler: false, servicepauschale: 1.20 };
-      const { gesamt, gesamtBase, anfahrtTotal, leistungenTotal, totalEinsaetze, totalMonatlichH, tasks, isSelbstzahler, servicepauschale } = ah;
+      const ah = window.computeAHGesamt?.() || { gesamt: 0, gesamtBase: 0, anfahrtTotal: 0, leistungenTotal: 0, totalEinsaetze: 0, totalMonatlichH: 0, tasks: [], isSelbstzahler: false, servicepauschale: 1.20, zoneData: null };
+      const { gesamt, gesamtBase, anfahrtTotal, leistungenTotal, totalEinsaetze, totalMonatlichH, tasks, isSelbstzahler, servicepauschale, zoneData } = ah;
 
       // Keep widget in sync
       if (typeof updateSummaryWidgetTotal === "function") updateSummaryWidgetTotal(gesamt);
       if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(gesamt);
 
       const renderedCards = [];
+
+      // Zone info banner
+      const zoneBanner = zoneData
+        ? `<div style="margin-bottom:10px; padding:6px 10px; background:var(--accent-weak,#e0f2fe); border-radius:6px; font-size:0.82rem; display:flex; gap:16px; flex-wrap:wrap;">
+            <span><b>Zone ${zoneData.zone}</b></span>
+            <span>Hin-Fahrt: <b>${zoneData.billMin} min</b></span>
+            <span>Hin- &amp; Rückfahrt: <b>${2 * zoneData.billMin} min</b> (in Stundenumfang enthalten)</span>
+           </div>`
+        : `<div style="margin-bottom:10px; padding:6px 10px; background:#fef9c3; border-radius:6px; font-size:0.82rem; color:#854d0e;">
+            ⚠ Keine Zone bestimmt — bitte Adresse eingeben und Routing ausführen.
+           </div>`;
 
       if (totalMonatlichH > 0) {
         const taskBullets = (tasks || [])
@@ -10066,13 +10105,13 @@ if (offerKey === "bwt" && isExtraAufgabe) {
 
         renderedCards.push(card(
           "HnD-Leistungen",
-          row1 + row2,
+          zoneBanner + row1 + row2,
           `<div style="text-align:right;"><b>Zwischensumme:</b> ${euroC(gesamtBase)}</div>`
         ));
       }
 
       if (!renderedCards.length) {
-        renderedCards.push(card("HnD-Leistungen", '<div class="muted">Noch keine HnD-Leistung konfiguriert.</div>'));
+        renderedCards.push(card("HnD-Leistungen", zoneBanner + '<div class="muted">Noch keine HnD-Leistung konfiguriert.</div>'));
       }
 
       // Servicepauschale: added to total for Selbstzahler, shown as note for Kassenkunde
@@ -14730,6 +14769,16 @@ async function suggestDistanceFromAddress(opts = {}) {
       travelTimeEl.value = hhmm;
       travelTimeEl.dispatchEvent(new Event("input", { bubbles: true }));
       travelTimeEl.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    // AH only: compute zone from routing result and store it
+    if (String(window.getCurrentOfferType?.() || "").toLowerCase() === "ah") {
+      const oneWayMins = Math.round((data.oneWaySeconds || 0) / 60);
+      const zoneDef = window.computeAHZoneFromMinutes?.(oneWayMins) || { zone: 1, billMin: 10 };
+      window.__ahZoneData = { zone: zoneDef.zone, billMin: zoneDef.billMin, oneWayMins };
+      const zoneEl = document.getElementById("ahTravelZone");
+      if (zoneEl) zoneEl.value = zoneDef.zone;
+      window.updatePricing?.();
     }
 
     // Auto-apply decimal KM (backward-compatible + editable)
