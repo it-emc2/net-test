@@ -10,7 +10,7 @@ This project is a German-language application for bathroom renovation and access
 | Badewannentuer (BWT) | Bathtub Door | `bwt` | Retrofit a door into an existing bathtub wall |
 | Haltegriffe | Grab Bars | `hl` | Install support handles for accessibility |
 | Lifter / Badelift | Bath Lift | `bl` | Powered lift for bathtub entry/exit |
-| Alltagshilfen | Everyday Aids | `ah` | General daily living accessibility aids |
+| Alltagshilfen | Everyday Aids | `ah` | Everyday care services (Alltagsbegleitung + Haushaltsnahe Dienstleistungen). Client-side pricing, zone-based travel time. |
 
 ## Product Categories
 
@@ -154,3 +154,20 @@ This project is a German-language application for bathroom renovation and access
 | Photon | Geocoding | Address-to-coordinates (Komoot) |
 | Nominatim | Geocoding | OpenStreetMap geocoding (fallback) |
 | OSRM | Routing | Open Source Routing Machine (fallback) |
+
+## AH (Alltagshilfe) Specific Terms
+
+| Term | English / Explanation |
+|------|-----------------------|
+| Alltagsbegleitung | Companionship / daily escort services (doctor visits, walks, grocery shopping together) |
+| Haushaltsnahedienstleistungen (HnD) | Household assistance services (cleaning, laundry, cooking, errands) |
+| Zone | Travel time bucket (Zone 1=10 min, Zone 2=15 min, Zone 3=20 min…) determined by routing, 5-min ceiling steps |
+| Reisezeit | One-way travel time to customer. Doubled (H&R = Hin & Rückfahrt) for billing in HnD hours |
+| Anfahrtspauschale | Flat travel fee per visit (7.96 € for AH), covers vehicle costs for round trip |
+| Stundensatz HnD | Hourly rate for Haushaltsnahedienstleistungen (40.56 €/h) |
+| Servicepauschale Reinigungsutensilien | Monthly cleaning utensils flat fee (1.20 €/Monat), added to total for Selbstzahler only, shown as separate note for Kassenkunde |
+| Regelmäßigkeit | Visit frequency (Wöchentlich=weekly, 14-tägig=bi-weekly, Monatlich=monthly, etc.) |
+| FREQ_PER_MONTH | Monthly occurrence multiplier (Wöchentlich=52/12≈4.33, 14-tägig=26/12≈2.17, etc.) |
+| Monatlicher Stundenumfang | Total billed hours per month = (Dauer + 2×Reisezeit) × FREQ_PER_MONTH |
+| Zeitzeile | A single schedule row within one Leistung card (supports multiple per card) |
+| Einsatz | One visit/appointment at the customer's home |

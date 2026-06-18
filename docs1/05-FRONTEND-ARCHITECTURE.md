@@ -42,7 +42,7 @@ OFFERS = {
   bwt: { pages: ['Kundendaten', 'bwt'] },
   hl:  { pages: ['Kundendaten', 'hl'] },
   bl:  { pages: ['Kundendaten', 'bl'] },
-  ah:  { pages: ['Kundendaten', 'ah'] },
+  ah:  { pages: ['Kundendaten', 'Arbeitszeit', 'ah', 'Kosten', 'Zusammenfassung'] },
   hms: { pages: ['Kundendaten', 'hms'] },
   wd:  { pages: ['Kundendaten', 'wd'] }
 }
@@ -489,3 +489,50 @@ Uses fixed 52-week yearly averages divided by 12. This is intentional: months va
 | Halbjährlich     | 2 ÷ 12       | ≈ 0.17×   |
 | Jährlich         | 1 ÷ 12       | ≈ 0.083×  |
 | Einmalig         | once total   | —         |
+
+## AH Offer — Frontend Architecture
+
+### Wizard Flow
+
+5 steps: Kundendaten → Arbeitszeit → AH → Kosten → Zusammenfassung
+
+### Arbeitszeit Page (AH-specific)
+
+- Only shows: distanceKm field (with routing suggestion button) + Reisezeit field
+- Hides: Arbeitszeit/laborHours, Uebernachten, BU travel rate note, suggestion card, totals
+- Controlled via `data-offer="bu,bwt,hl,bl,hms,wd"` on those elements
+- travelTime is filled automatically by routing API (OpenRouteService via `/api/routing/suggest-distance`)
+
+### AH Page (`src/public/index.html #page-ah`)
+
+- Two service sections: Haushaltsnahedienstleistungen (first) and Alltagsbegleitung
+- Max 1 Leistung card per section (add button hides when card exists)
+- Each card supports multiple Zeitzeilen (schedule rows) with + Zeitzeile hinzufügen
+- Per-row display: Dauer | Regelmäßigkeit | Bev. Uhrzeit | /Monat (service time only)
+- Card total (Gesamt) shows service time only (not including travel)
+- Data serialized to hidden `#ahServicesJson` field + localStorage key `ahServices:v1`
+
+### Zone System
+
+- Travel time bucketed into 5-min ceiling zones: Zone 1=10min, Zone 2=15min, Zone 3=20min…
+- Formula: `billMin = max(10, ceil(oneWayMinutes/5)×5)`, `zone = (billMin-10)/5+1`
+- Zone determined from routing API result (oneWaySeconds) when offer type is AH
+- Fallback chain: `window.__ahZoneData` → `#ahTravelZone` hidden field → computed from `#travelTime`
+- travelTime change listener: any change to travelTime recomputes zone and refreshes Kosten
+- Key functions: `window.computeAHZoneFromMinutes(mins)`, `window.getAHZoneData()`
+
+### Kosten Page (AH)
+
+- Completely separate render path in `renderFromData()` — skips server pricing
+- Uses `window.computeAHGesamt()` which reads ahServicesJson + zone data
+- Shows: Zone banner, Anfahrtspauschale row, HnD-Leistung row with time breakdown table
+- Time breakdown per Zeitzeile: Einsatz + H&R Reise = /Einsatz × Freq = /Mon.
+- Servicepauschale: added to Gesamtbetrag for Selbstzahler, shown as separate note for Kassenkunde
+- Kosten page re-renders when: navigating to it, travelTime changes, AH services change
+
+### Key Global Functions (AH)
+
+- `window.computeAHGesamt()` — main pricing computation, returns all line items + totals
+- `window.computeAHZoneFromMinutes(oneWayMinutes)` — zone bucketing formula
+- `window.getAHZoneData()` — reads zone with 3-level fallback
+- `window.updatePricing()` — bypasses server for AH, calls computeAHGesamt directly

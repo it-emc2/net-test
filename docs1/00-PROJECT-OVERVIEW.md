@@ -46,7 +46,7 @@ The system generates professional quotes (Angebote) with dynamic pricing, materi
 | `bwt` | Badewannentuer | Bathtub Door | Retrofit door into existing bathtub (2 steps) |
 | `hl` | Haltegriffe/Lifter | Grab Bars/Lifter | Accessibility grab bars and support handles (2 steps) |
 | `bl` | Badelift | Bath Lift | Powered bath lift installation (2 steps) |
-| `ah` | Alltagshilfen | Everyday Aids | General everyday accessibility aids (2 steps) |
+| `ah` | Alltagshilfen | Everyday Aids | Everyday care services — Alltagsbegleitung + Haushaltsnahe Dienstleistungen (HnD). Client-side pricing with zone-based travel time. (5 steps) |
 | `hms` | HMS | HMS | Additional aid category (2 steps) |
 | `wd` | WD | WD | Additional aid category (2 steps) |
 
@@ -86,6 +86,7 @@ net-test/
 |   |   +-- EmailLog.js         # Email send log (Mongoose)
 |   |   +-- Submission.js       # Legacy submissions (Mongoose)
 |   |   +-- StateManager.js     # Frontend state management (client-side)
+|   |   +-- AppConfig.js          # Key/value config store (Mongoose)
 |   +-- routes/                 # 20+ Express route files
 |   |   +-- offers.js           # Offer CRUD + search
 |   |   +-- customers.js        # Customer management
@@ -106,6 +107,7 @@ net-test/
 |   |   +-- magick.js           # External API proxy (Hassmann)
 |   |   +-- bitrix.js           # Bitrix24 CRM integration
 |   |   +-- routing.js          # Geolocation + distance calculation
+|   |   +-- admin.js              # Admin config management API
 |   |   +-- planning.js         # Planning API (SSE streaming)
 |   |   +-- todayscustomers.js  # Today's customer list
 |   |   +-- post.js             # Postal delivery (Binect)
@@ -114,6 +116,7 @@ net-test/
 |   |   +-- ApiService.js       # Frontend HTTP client
 |   |   +-- bitrixClient.js     # Bitrix24 API client
 |   |   +-- todaysCustomersService.js
+|   |   +-- configService.js      # Single source of truth for business constants
 |   +-- templates/              # DOCX/LaTeX document templates
 |   +-- utils/
 |   |   +-- formatters.js       # Number/date formatting
@@ -141,6 +144,7 @@ net-test/
 |       +-- TodaysCustomers.js  # Customer quick list
 |       +-- assets/             # 187 image/icon files
 |       +-- pdfjs/              # PDF.js viewer
+|   +-- admin/index.html          # Admin panel UI for managing config values
 +-- tests/
 |   +-- setup.js                # Jest test configuration
 |   +-- unit/                   # Unit tests

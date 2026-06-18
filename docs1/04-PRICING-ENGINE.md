@@ -330,3 +330,102 @@ The pricing engine is tested in:
 Example test scenarios:
 - **Example A**: BU offer with optional grab bar -> verifies 35% markup applied
 - **Example B**: BWT offer with door + grab bar -> verifies zero markup + BWT grab bar handling
+
+---
+
+## AH (Alltagshilfe) Pricing — Client-Side Only
+
+### Architecture
+
+AH pricing is **100% client-side**. When the server renders an AH offer, it returns an empty shell — no BU/BWT pricing logic runs on the server. All cost computation happens in `script.js` in the browser.
+
+### Main Entry Point
+
+```javascript
+window.computeAHGesamt()   // recomputes and renders the full AH Kosten block
+```
+
+### Currently Implemented Service Type
+
+**HnD (Haushaltsnahedienstleistungen)** — domestic household services billed in hourly blocks with a zone-based travel surcharge.
+
+### Zone System
+
+Travel time (one-way, in minutes) from the routing result is bucketed into 5-minute ceiling steps to determine the billing zone:
+
+```
+billMin = max(10, ceil(oneWayMinutes / 5) × 5)
+zone    = (billMin - 10) / 5 + 1
+```
+
+| oneWayMinutes | billMin | zone |
+|---------------|---------|------|
+| 0 – 10        | 10      | 1    |
+| 11 – 15       | 15      | 2    |
+| 16 – 20       | 20      | 3    |
+| …             | …       | …    |
+
+### Constants
+
+```javascript
+const ANFAHRT_PER_EINSATZ   =  7.96;   // EUR flat fee per visit
+const STUNDENSATZ_HND       = 40.56;   // EUR/h for HnD labour
+const SERVICEPAUSCHALE_HND  =  1.20;   // EUR/month admin fee
+```
+
+### HnD Billing Formula
+
+For each schedule row:
+
+```
+reisezeitH = zone one-way travel time in hours (from zone lookup table)
+monthlyH   = (dauer + 2 × reisezeitH) × freq
+```
+
+`freq` comes from `FREQ_PER_MONTH`:
+
+| Schedule cadence | freq        |
+|------------------|-------------|
+| Weekly           | 52 / 12     |
+| Bi-weekly        | 26 / 12     |
+| Monthly          | 1           |
+
+The factor `2 × reisezeitH` bills the round trip; `dauer` is the service duration in hours.
+
+### Line Items in Kosten
+
+| Line item         | Formula                                 | Payer condition         |
+|-------------------|-----------------------------------------|-------------------------|
+| Anfahrtspauschale | `totalEinsaetze × 7.96 €`              | always shown            |
+| HnD-Leistung      | `totalMonatlichH × 40.56 €`            | always shown            |
+| Servicepauschale  | `1.20 €/Monat`                         | added to **Gesamt** for Selbstzahler; shown as informational note for Kassenkunde |
+
+### Payer Distinction
+
+```javascript
+const isSelbstzahler = document.querySelector('input[name="payer"]:checked')?.value === 'SZ';
+```
+
+The `Servicepauschale` of 1.20 €/month is included in the running **Gesamt** total only when `isSelbstzahler` is `true`. For Kassenkunde it is displayed as a note but not added to the total.
+
+### Key Functions
+
+| Function | Purpose |
+|---|---|
+| `window.computeAHGesamt()` | Full recompute + DOM render of the AH Kosten block |
+| `window.computeAHZoneFromMinutes(mins)` | Converts raw one-way minutes → `{ zone, billMin, reisezeitH }` |
+| `window.getAHZoneData()` | Returns the currently active zone data object |
+
+### Zone Fallback Chain
+
+`getAHZoneData()` resolves the active zone through the following priority chain:
+
+```
+1. window.__ahZoneData           (set by the last routing result)
+2. #ahTravelZone hidden field    (serialised into the form)
+3. computed from #travelTime     (plain minutes field, fallback)
+```
+
+### Travel Time Listener
+
+Whenever the `#travelTime` input changes while the AH offer type is active, the zone is automatically recomputed and `window.__ahZoneData` is updated, triggering a fresh `computeAHGesamt()` call. No manual refresh is required.
