@@ -50,8 +50,6 @@ export default (ProductModel) => {
   const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
   const ceilSafe = (n) => Math.ceil((Number(n) || 0) - 1e-12);
 
-  const TAX_RATE = cfg.get('TAX_RATE', 0.19);
-
   // --- active offer / Bereich helpers ---
   function getActiveOffer(payload) {
     // default to 'bu' for backward compatibility
@@ -433,7 +431,7 @@ if (dusch.drainSet) add(isBudgetMode ? "AGB001" : "AGD9060", 1);
 
 if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
     if (dusch.stelzlager) {
-      const stelzQty = Math.max(1, parseInt(dusch.stelzlagerQty, 10) || 8);
+      const stelzQty = Math.max(1, parseInt(dusch.stelzlagerQty, 10) || cfg.get('BU_STELZLAGER_DEFAULT_QTY', 8));
       add("PLA5282", stelzQty);
     }
 
@@ -443,8 +441,10 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
       Number(String(dusch.floorArea ?? "").replace(",", ".")) || 0;
 
     if (addFlooring && floorArea > 0) {
-      // Paneele inkl. 15% Verschnitt
-      const panels = ceilSafe((floorArea * 1.15) / 0.3);
+      const floorWaste = cfg.get('BU_FLOOR_WASTE_FACTOR', 1.15);
+      const floorPanelSize = cfg.get('BU_FLOOR_PANEL_SIZE_M2', 0.3);
+      // Paneele inkl. Verschnitt
+      const panels = ceilSafe((floorArea * floorWaste) / floorPanelSize);
 
       // minimal inline color extraction from the first selected item
       const fp = Array.isArray(dusch.flooringProduct)
@@ -455,28 +455,29 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
       add(
         (fp && fp.includes("|") ? fp.split("|", 2)[0].trim() : "V5FB02"),
         panels,
-        `- ${panels} Stk Fußboden-Paneele (1 Paneele = 0.3 m²)${color ? " — Farbe: " + color : ""}`,
+        `- ${panels} Stk Fußboden-Paneele (1 Paneele = ${floorPanelSize} m²)${color ? " — Farbe: " + color : ""}`,
       );
 
-      // Flächenkleber (0,60 m²/Pack)
-      const packs = ceilSafe(floorArea / 0.6);
+      // Flächenkleber
+      const adhesiveCoverage = cfg.get('BU_FLOOR_ADHESIVE_COVERAGE', 0.6);
+      const packs = ceilSafe(floorArea / adhesiveCoverage);
       if (packs > 0)
         add(
           "R_4260602",
           packs,
-          `- ${packs} Pkg Flächenkleber (1 Pkg je 0,60 m²)`,
+          `- ${packs} Pkg Flächenkleber (1 Pkg je ${adhesiveCoverage} m²)`,
         );
 
-      // Bodenabdichtung pro m² (Checkbox name can be floorSealing or floorSealing[])
+      // Bodenabdichtung pro m²
       const floorSealingOn = !!(dusch.floorSealing || dusch["floorSealing[]"]);
       if (floorSealingOn) {
-        const effM2 = round2(floorArea * 1.15);
+        const effM2 = round2(floorArea * floorWaste);
         if (effM2 > 0) {
           idsNeeded.add("TRBDSET7");
           lines.push({
             id: "TRBDSET7",
             qty: effM2,
-            label: `- ${effM2} m² Trinnity Bodenabdichtung (inkl. 15% Verschnitt)`,
+            label: `- ${effM2} m² Trinnity Bodenabdichtung (inkl. ${Math.round((floorWaste - 1) * 100)}% Verschnitt)`,
             perM2Base: 7, // derive €/m² = price(TRBDSET7)/7
             source: null,
           });
@@ -1032,7 +1033,7 @@ if (l.source === "hl_pipe") {
         unit = round2(unit / 8);
       }
       if (l.source === "optional_reha") {
-      unit = round2(grossToNet(unit, TAX_RATE));
+      unit = round2(grossToNet(unit, cfg.get('TAX_RATE', 0.19)));
     }
 
 
@@ -1803,6 +1804,7 @@ try {
       const baseSubtotal = round2(
         productsSubtotal + (services?.sum ?? 0) + markup,
       );
+      const TAX_RATE = cfg.get('TAX_RATE', 0.19);
       const baseVat = round2(baseSubtotal * TAX_RATE);
       const base_total = round2(baseSubtotal + baseVat);
       // --- Rabatt on MATERIAL only (percent from payload.rabatt.materialDiscountPct) ---

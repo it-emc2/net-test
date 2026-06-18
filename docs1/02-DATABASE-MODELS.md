@@ -337,6 +337,31 @@ The `payload` field in Offers and Drafts contains the complete wizard state:
 }
 ```
 
+---
+
+### AppConfig (`src/models/AppConfig.js`)
+
+**Collection**: `AppConfigs`
+
+Stores runtime overrides for business constants managed via the Admin Panel. Only keys whose values differ from the hardcoded defaults need a DB entry — `configService` falls back to defaults for any missing key.
+
+```javascript
+{
+  key:       String,  // Unique config key (e.g. "TAX_RATE", "LABOR_RATE_KK")
+  value:     Mixed,   // Current value (Number in practice)
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+**Indexes**: `key` (unique)
+
+**Usage**: Read via `configService.get(key, fallback)` throughout pricing.js and offerMapping.js. Written via `POST /admin/api/config/reset` or `PUT /admin/api/config`.
+
+See `src/services/configService.js` → `CONFIG_SCHEMA` for the full list of configurable keys with defaults, labels, and units.
+
+---
+
 ## Data Seeding
 
 Seed scripts populate the product and service catalogs:

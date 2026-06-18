@@ -31,7 +31,17 @@ This document maps every significant file in the codebase with its purpose, key 
 | `Customer.js` | Kundendaten | customerNumber, contact fields, kundendaten |
 | `EmailLog.js` | EmailLogs | to, subject, body, attachmentNames |
 | `Submission.js` | Submissions | payload, computed (legacy) |
+| `AppConfig.js` | AppConfigs | key (unique), value (Mixed) — runtime business constants |
 | `StateManager.js` | (client-side) | Form state, EventBus integration, sessionStorage |
+
+## Services (`src/services/`)
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `configService.js` | Singleton for all configurable business constants. Loads DB overrides on startup; provides sync `get(key, fallback)` and async `set(key, value)` / `setMany(map)`. Falls back to hardcoded defaults if no DB value. | `default` (ConfigService instance), `CONFIG_SCHEMA` (metadata array) |
+| `ApiService.js` | HTTP client wrapper | `apiService` instance |
+| `bitrixClient.js` | Bitrix24 API client | `bitrixClient` instance |
+| `todaysCustomersService.js` | Today's customer list | `getTodaysCustomers()` |
 
 ## Business Logic (`src/logic/`)
 
@@ -63,6 +73,7 @@ This document maps every significant file in the codebase with its purpose, key 
 | `todayscustomers.js` | `/api/todayscustomers` | - | Today's customer list |
 | `post.js` | `/api/post` | - | Postal delivery (Binect) |
 | `material-overview.js` | `/material-overview` | - | Material list PDF |
+| `admin.js` | `/admin` | - | Admin panel auth + config CRUD (password-protected) |
 
 **Note**: Some routes (products, services, price, drafts) are defined inline in `app.js` rather than in separate files.
 
@@ -135,6 +146,16 @@ This document maps every significant file in the codebase with its purpose, key 
 |------|---------|
 | `BadoluxLegacyFallback.js` | Fallback if `__FEATURES__.badoluxManager` is false |
 | `DraftsLegacyFallback.js` | Fallback if `__FEATURES__.draftsManager` is false |
+
+### Admin Panel (`src/public/admin/`)
+
+| File | Purpose |
+|------|---------|
+| `index.html` | Standalone admin panel page (also embedded as an iframe modal in the main SPA) |
+| `admin.css` | Admin panel styles (dark sidebar, config cards, login screen) |
+| `admin.js` | Admin panel frontend logic — token auth, config fetch/render/save |
+
+`src/public/admin-modal.js` — loaded by the main SPA; opens the admin panel in an iframe modal overlay when the ⚙ Admin button is clicked.
 
 ### Assets
 

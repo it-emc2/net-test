@@ -196,7 +196,7 @@ Deducted from net total before VAT
 ## VAT Calculation
 
 ```
-TAX_RATE = 0.19 (19% German VAT)
+TAX_RATE = cfg.get('TAX_RATE', 0.19)   ← runtime-configurable via Admin Panel
 vatOnNet = (netAfterRabatt - bonusGross) * TAX_RATE
 total = netAfterRabatt + vatOnNet
 ```
@@ -301,25 +301,35 @@ The pricing engine generates multiple display formats:
 }
 ```
 
-## Key Constants
+## Key Constants (Runtime-Configurable)
 
-```javascript
-const TAX_RATE = 0.19;           // 19% VAT
-const DEFAULT_MARKUP = 0.35;      // 35% default markup
-const KK_LABOR_RATE = 69.50;      // EUR/hr for insurance customers
-const SZ_LABOR_RATE = 59.50;      // EUR/hr for self-pay customers
-const VEHICLE_RATE = 80.00;       // EUR/day
-const TOOLS_RATE = 7.50;          // EUR/day
-const CLEARANCE_RATE = 4.50;      // EUR/day
-const MILEAGE_RATE = 0.35;        // EUR/km
-const TRAVEL_SUPPLEMENT = 25.00;   // EUR/hr added to labor rate for travel
-const BWT_TRAVEL_SUPPLEMENT = 35.00; // EUR/hr for BWT travel
-const BONUS_NEU_AMOUNT = 252.10;   // EUR fixed bonus
-const SUBSIDY_SINGLE = 4180.00;    // EUR max single-person subsidy
-const SUBSIDY_DOUBLE = 8360.00;    // EUR max two-person subsidy
-const FLOORING_WASTE_FACTOR = 1.15; // 15% waste for flooring
-const FLOORING_PANEL_AREA = 0.3;   // m2 per panel
-```
+All business constants are read at request-time from `src/services/configService.js` via `cfg.get(key, fallback)`. Values are persisted in MongoDB (`AppConfigs` collection) and can be changed without a code deploy through the **⚙ Admin Panel** at `/admin/`.
+
+| Config Key | Default | Unit | Description |
+|-----------|---------|------|-------------|
+| `TAX_RATE` | `0.19` | — | German VAT (19 %) |
+| `LABOR_RATE_KK` | `69.50` | €/h | Labor rate for Kassenkunde |
+| `LABOR_RATE_SZ` | `59.50` | €/h | Labor rate for Selbstzahler |
+| `LABOR_RATE_BWT` | `79.50` | €/h | Labor rate for BWT |
+| `KM_RATE` | `0.35` | €/km | Mileage rate |
+| `FAHRZEUGBEREITSTELLUNG` | `80.00` | €/day | Vehicle provision |
+| `WERKZEUG` | `7.50` | €/day | Tools & machinery |
+| `BERAEUMUNG` | `4.50` | €/day | Site clearance |
+| `MAX_MATERIAL_DISCOUNT` | `0.09` | — | Max material discount (9 %) |
+| `OFFER_VALIDITY_WEEKS` | `8` | weeks | Offer validity period |
+| `KK_PAYMENT_THRESHOLD` | `2000` | € | Threshold for alternate KK payment terms |
+| `BWT_KM_FREE_THRESHOLD` | `200` | km | Free km for BWT (round-trip) |
+| `BWT_TRAVEL_TIME_FREE_HOURS` | `2` | h | Free travel time for BWT |
+| `BWT_WORKER_COUNT` | `1` | — | Workers per BWT job |
+| `BU_FLOOR_PANEL_SIZE_M2` | `0.3` | m² | Floor panel area |
+| `BU_FLOOR_WASTE_FACTOR` | `1.15` | — | Floor cutting waste (+15 %) |
+| `BU_FLOOR_ADHESIVE_COVERAGE` | `0.6` | m²/pack | Adhesive coverage per pack |
+| `BU_STELZLAGER_DEFAULT_QTY` | `8` | pcs | Default pedestal feet quantity |
+| `SUBSIDY_AMOUNT_4180` | `4180` | € | KK subsidy — single person |
+| `SUBSIDY_AMOUNT_8360` | `8360` | € | KK subsidy — two persons |
+| `BONUS_NEW_CUSTOMER_GROSS` | `252.10` | € | New-customer bonus (gross) |
+
+`DEFAULT_MARKUP` (35 %) is still hard-coded in pricing.js as it is offer-payload-driven.
 
 ## Testing
 

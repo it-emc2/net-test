@@ -79,17 +79,6 @@ export const CONFIG_SCHEMA = [
     label: 'Stelzlager Standardmenge', unit: 'Stk', type: 'integer', section: 'bu', order: 4,
     description: 'Standard-Anzahl Stelzlager (PLA5282) bei Duschwanne',
   },
-  {
-    key: 'BU_WALL_PANEL_WIDTH_SMALL', value: 997,
-    label: 'Wandpaneel Breite (schmal)', unit: 'mm', type: 'integer', section: 'bu', order: 5,
-    description: 'Breite des schmalen Wandpaneels – V3WVK09',
-  },
-  {
-    key: 'BU_WALL_PANEL_WIDTH_LARGE', value: 1497,
-    label: 'Wandpaneel Breite (breit)', unit: 'mm', type: 'integer', section: 'bu', order: 6,
-    description: 'Breite des breiten Wandpaneels – V3WV09',
-  },
-
   // ── BWT – BADEWANNENTÜR ──────────────────────────────────────────────────
   {
     key: 'LABOR_RATE_BWT', value: 79.5,

@@ -1958,7 +1958,13 @@ button.dm-btn-danger:focus-visible {
     <div class="container">
       <!-- Auswahl der Leistung (new landing page) -->
       <section class="card page" id="page-home">
-        <h2 style="margin: 0 0 12px"> Auswahl der Leistung </h2>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 12px;">
+          <h2 style="margin:0"> Auswahl der Leistung </h2>
+          <button type="button" id="openAdminPanel" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-weight:600;color:#6b7280;cursor:pointer;background:#f9fafb;font-family:inherit;" onmouseover="this.style.background='#f3f4f6';this.style.color='#374151'" onmouseout="this.style.background='#f9fafb';this.style.color='#6b7280'">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+            Admin
+          </button>
+        </div>
         <div class="home-load-panel">
           <div class="field home-load-row">
             <input id="loadOfferNumber" type="text" placeholder="ANG2025-1008-092040" />
@@ -8506,8 +8512,20 @@ button.dm-btn-danger:focus-visible {
     </div>
   </div>
 
+  <!-- Admin Panel Modal — starts hidden via display:none (not the `hidden` attr, which loses to inline display:flex) -->
+  <div id="adminModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center;backdrop-filter:blur(3px);">
+    <div style="background:#0f172a;border-radius:12px;width:min(1060px,96vw);height:min(88vh,820px);display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,.45);overflow:hidden;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;background:#0f172a;">
+        <span style="font-size:13px;font-weight:700;color:#f8fafc;letter-spacing:.2px;">⚙ EMC² Admin</span>
+        <button id="closeAdminModal" type="button" title="Schließen (Esc)" style="width:28px;height:28px;border:none;background:transparent;cursor:pointer;border-radius:6px;font-size:18px;color:#94a3b8;display:flex;align-items:center;justify-content:center;line-height:1;" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background='transparent'">✕</button>
+      </div>
+      <iframe id="adminIframe" src="about:blank" style="flex:1;border:none;width:100%;" title="Admin Panel"></iframe>
+    </div>
+  </div>
+
   <script src="./ThemeManager.js"></script>
   <script src="./script.js"></script>
+  <script src="/admin-modal.js"></script>
 
 </body>
 

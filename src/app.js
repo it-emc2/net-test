@@ -42,6 +42,8 @@ import pricingFactory from "./logic/pricing.js";
 
 // app.txt (top imports)
 import latexTemplateRouter from "./routes/latex-template.js";
+import adminRouter from "./routes/admin.js";
+import configService from "./services/configService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -220,6 +222,9 @@ if (!MONGODB_URI) {
 await mongoose.connect(MONGODB_URI, { dbName: MONGODB_DB });
 console.log("MongoDB connected ->", MONGODB_DB);
 
+// ---------------- Config service ----------------
+await configService.init();
+
 // ---------------- Business logic ----------------
 const pricing = pricingFactory(Product);
 
@@ -245,6 +250,7 @@ app.use("/api/bathtubs", bathtubsRouter);
 app.use("/api", planningRouter);
 app.use("/api/hl", hlParseRouter);
 app.use('/api', todaysCustomersRouter);
+app.use('/admin', adminRouter);
 
 //app.use("/pdf-preview", pdfPreviewRouter);
 //app.use('/api/docx/pdf-preview', pdfPreviewRouter); // ADD THIS

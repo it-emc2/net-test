@@ -534,6 +534,76 @@ Stream planning updates via Server-Sent Events.
 
 ---
 
+---
+
+## Admin Panel
+
+All admin endpoints require a `Bearer` token in the `Authorization` header. Obtain the token via `POST /admin/api/login`.
+
+The admin panel UI is served as a static page at `GET /admin/` and also embedded as an iframe modal in the main SPA via the ⚙ Admin button on the home screen.
+
+### `POST /admin/api/login`
+Authenticate with the admin password.
+
+**Body**:
+```json
+{ "password": "your-admin-password" }
+```
+
+**Response** (200):
+```json
+{ "token": "1750000000000.abc123..." }
+```
+Token is a HMAC-SHA256 signed string, valid for 24 hours. Set `ADMIN_PASSWORD` in `.env`.
+
+---
+
+### `GET /admin/api/config`
+Return all configurable business constants with current values and metadata.
+
+**Headers**: `Authorization: Bearer <token>`
+
+**Response**: Array of config items:
+```json
+[
+  {
+    "key": "LABOR_RATE_KK",
+    "label": "Stundensatz Kassenkunde",
+    "description": "Stundensatz für Kassenpatienten (KK)",
+    "unit": "€/h",
+    "type": "euro",
+    "section": "shared",
+    "order": 2,
+    "defaultValue": 69.5,
+    "value": 69.5
+  }
+]
+```
+
+---
+
+### `PUT /admin/api/config`
+Bulk-update config values. Only keys defined in `CONFIG_SCHEMA` are accepted.
+
+**Headers**: `Authorization: Bearer <token>`
+
+**Body**: `{ "LABOR_RATE_KK": 72.0, "KM_RATE": 0.40 }`
+
+**Response**: `{ "ok": true, "updated": 2 }`
+
+---
+
+### `POST /admin/api/config/reset`
+Reset a single key to its hardcoded default.
+
+**Headers**: `Authorization: Bearer <token>`
+
+**Body**: `{ "key": "LABOR_RATE_KK" }`
+
+**Response**: `{ "ok": true, "key": "LABOR_RATE_KK", "value": 69.5 }`
+
+---
+
 ## Submissions (Legacy)
 
 ### `POST /api/submissions`

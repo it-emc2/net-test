@@ -1,5 +1,6 @@
 // src/logic/offerMapping.js
 import dayjs from "dayjs";
+import cfg from '../services/configService.js';
 
 // ---------------- Helpers (copied from docx-template.js) ----------------
 
@@ -66,7 +67,7 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
   const arbeits = body.Arbeitszeit || {};
 
   const offerDate = b.date ? dayjs(b.date) : dayjs();
-  const validityDate = offerDate.add(8, 'week');
+  const validityDate = offerDate.add(cfg.get('OFFER_VALIDITY_WEEKS', 8), 'week');
   const ValidityDateFormatted = validityDate.isValid() 
     ? validityDate.format('DD.MM.YYYY') 
     : '';
@@ -485,7 +486,7 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
 
   if (isKK && selfPayAmountNum > 0) {
     const src =
-      selfPayAmountNum >= 2000
+      selfPayAmountNum >= cfg.get('KK_PAYMENT_THRESHOLD', 2000)
         ? PARA_kk_uber2000_LINES
         : PARA_kk_unter2000_LINES;
 
@@ -496,8 +497,8 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
   }
 
   let regieRateNum;
-  if (isKK) regieRateNum = 69.5;
-  else if (isSZ) regieRateNum = 59.5;
+  if (isKK) regieRateNum = cfg.get('LABOR_RATE_KK', 69.5);
+  else if (isSZ) regieRateNum = cfg.get('LABOR_RATE_SZ', 59.5);
   else regieRateNum = Number(services?.laborRate) || 0;
 
   const RegieRateFmt = regieRateNum
@@ -540,8 +541,8 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
       BonusMenge: "1 Stk",
       BonusLabel: "Bestandkundenbonus:",
       BonusDetail: "-- Rabatt von 300 € ab einem Gesamtwert von 3.000",
-      preis: "-252,10 €",
-      gesamt: "-252,10 €",
+      preis: `-${cfg.get('BONUS_NEW_CUSTOMER_GROSS', 252.1).toFixed(2).replace('.', ',')} €`,
+      gesamt: `-${cfg.get('BONUS_NEW_CUSTOMER_GROSS', 252.1).toFixed(2).replace('.', ',')} €`,
     });
   }
 
