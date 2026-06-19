@@ -3442,6 +3442,79 @@ function collectBlExtras(payload) {
   if (noteEl) bl.blNote = noteEl.value || "";
 }
 
+function createWohnumfeldEntryRow(amount, fuerWas) {
+  const row = document.createElement("div");
+  row.className = "wohnumfeld-entry-row";
+  row.style.cssText = "display:flex; gap:8px; align-items:center;";
+
+  const amtInput = document.createElement("input");
+  amtInput.type = "number";
+  amtInput.className = "wohnumfeld-entry-amount";
+  amtInput.min = "0";
+  amtInput.step = "1";
+  amtInput.placeholder = "EUR";
+  amtInput.style.cssText = "width:110px; flex-shrink:0;";
+  if (amount != null && amount !== "" && amount !== 0) amtInput.value = String(amount);
+
+  const textInput = document.createElement("input");
+  textInput.type = "text";
+  textInput.className = "wohnumfeld-entry-fuerWas";
+  textInput.placeholder = "Für was";
+  textInput.style.cssText = "flex:1;";
+  if (fuerWas) textInput.value = String(fuerWas);
+
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "wohnumfeld-remove-btn btn-secondary";
+  removeBtn.textContent = "×";
+  removeBtn.style.cssText = "padding:4px 10px; flex-shrink:0; font-size:1.1rem; line-height:1;";
+  removeBtn.addEventListener("click", function () {
+    const list = document.getElementById("wohnumfeldEntriesList");
+    if (list && list.querySelectorAll(".wohnumfeld-entry-row").length > 1) {
+      row.remove();
+    }
+  });
+
+  row.appendChild(amtInput);
+  row.appendChild(textInput);
+  row.appendChild(removeBtn);
+  return row;
+}
+
+function initWohnumfeldEntries(entries) {
+  const list = document.getElementById("wohnumfeldEntriesList");
+  if (!list) return;
+  list.innerHTML = "";
+  if (entries && entries.length > 0) {
+    entries.forEach((e) => list.appendChild(createWohnumfeldEntryRow(e.amount, e.fuerWas)));
+  } else {
+    list.appendChild(createWohnumfeldEntryRow());
+  }
+}
+
+function readWohnumfeld() {
+  const wohDoneRadios = document.querySelectorAll('input[name="wohnumfeldDone"]');
+  const isJa = Array.from(wohDoneRadios).some((r) => r.checked && r.value === "Ja");
+  if (!isJa) return { done: false, amount: 0, entries: [] };
+
+  const rows = document.querySelectorAll("#wohnumfeldEntriesList .wohnumfeld-entry-row");
+  const entries = [];
+  let totalAmount = 0;
+
+  rows.forEach((row) => {
+    const amtEl = row.querySelector(".wohnumfeld-entry-amount");
+    const fwEl = row.querySelector(".wohnumfeld-entry-fuerWas");
+    const raw = (amtEl?.value || "").toString().replace(",", ".");
+    const parsed = parseFloat(raw);
+    const amount = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    const fuerWas = (fwEl?.value || "").trim();
+    entries.push({ amount, fuerWas });
+    totalAmount += amount;
+  });
+
+  return { done: true, amount: totalAmount, entries };
+}
+
 function buildPayload() {
   const payload = {
     Kundendaten: formToObject(document.getElementById("form-Kundendaten")),
@@ -3736,25 +3809,6 @@ function buildPayload() {
   const elPremium = document.querySelector('input[name="premium"]');
   const copayEl = document.getElementById("copayAmount");
 
-  const wohDoneRadios = document.querySelectorAll('input[name="wohnumfeldDone"]');
-  const wohAmountInput = document.getElementById("wohnumfeldAmount");
-  const wohFuerWasInput = document.getElementById("wohnumfeldFuerWas");
-
-  function readWohnumfeld() {
-    const isJa = Array.from(wohDoneRadios).some((r) => r.checked && r.value === "Ja");
-    let amount = 0;
-    let fuerWas = "";
-    if (isJa && wohAmountInput) {
-      const raw = (wohAmountInput.value || "").toString().replace(",", ".");
-      const parsed = parseFloat(raw);
-      amount = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
-    }
-    if (isJa && wohFuerWasInput) {
-      fuerWas = (wohFuerWasInput.value || "").trim();
-    }
-    return { done: isJa, amount, fuerWas };
-  }
-
   function parseEuroToNumber(v) {
     const s = String(v ?? "")
       .trim()
@@ -3777,8 +3831,23 @@ function buildPayload() {
     : "";
 
   payload.Kundendaten = payload.Kundendaten || {};
-  payload.Kundendaten.budgetOptionsPanel = canonicalMain || selectedMain || "";
-  payload.Kundendaten.copayAmount = copayEl ? parseEuroToNumber(copayEl.value) : 0;
+  const _isSZ =
+    (payload.Kundendaten.payer ||
+      document.querySelector('input[name="payer"]:checked')?.value) === "Selbstzahler";
+  payload.Kundendaten.budgetOptionsPanel = _isSZ ? "" : (canonicalMain || selectedMain || "");
+  payload.Kundendaten.copayAmount = _isSZ ? 0 : (copayEl ? parseEuroToNumber(copayEl.value) : 0);
+
+  if (_isSZ) {
+    payload.Kundendaten.hasPflegegrad = "";
+    payload.Kundendaten.pflegegrad = "";
+    payload.Kundendaten.budgetMax = false;
+    payload.Kundendaten.budgetCopay = false;
+    payload.Kundendaten.twoPersons = false;
+    payload.Kundendaten.premium = false;
+    payload.Kundendaten.pflegekasseAntrag = "";
+    payload.Kundendaten.pflegekasseGenehmigung = "";
+    payload.Kundendaten.pflegekasseEmc2Antrag = "";
+  }
 
   const pct = parseFloat(document.getElementById("rb-material-discount")?.value || "0");
   payload.rabatt = {
@@ -3917,7 +3986,7 @@ function buildPayload() {
   const isKK =
     (payload.Kundendaten?.payer || document.querySelector('input[name="payer"]:checked')?.value) ===
     "Kassenkunde";
-  payload.Kundendaten.wohnumfeld = isKK ? woh : { done: false, amount: 0, fuerWas: "" };
+  payload.Kundendaten.wohnumfeld = isKK ? woh : { done: false, amount: 0, entries: [] };
 
   // --- Attach Duschwanne selection from DOM (if present) ---
   {
@@ -6961,10 +7030,7 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
   const twoPersonsCheckbox = form?.querySelector('input[name="twoPersons"]');
   const wePanel = document.getElementById("wohnumfeldPanel");
   const weDoneGroup = document.getElementById("wohnumfeldDoneGroup");
-  const weAmountRow = document.getElementById("wohnumfeldAmountRow");
-  const weAmount = document.getElementById("wohnumfeldAmount");
-  const weFuerWasRow = document.getElementById("wohnumfeldFuerWasRow");
-  const weFuerWas = document.getElementById("wohnumfeldFuerWas");
+  const weEntriesContainer = document.getElementById("wohnumfeldEntriesContainer");
   const weAppGroup = document.getElementById("wohnumfeldApplicationGroup");
 
   function show(el, on) {
@@ -7050,24 +7116,27 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
     if (!kk) {
       weDoneRadios.forEach((r) => (r.checked = false));
       weAppRadios.forEach((r) => (r.checked = false));
-      show(weAmountRow, false);
-      setReq(weAmount, false);
-      if (weAmount) weAmount.value = "";
-      show(weFuerWasRow, false);
-      if (weFuerWas) weFuerWas.value = "";
+      show(weEntriesContainer, false);
     } else {
       const doneValue =
         form?.querySelector('input[name="wohnumfeldDone"]:checked')?.value || "";
-      const showAmt = doneValue === "Ja";
-      show(weAmountRow, showAmt);
-      setReq(weAmount, showAmt);
-      if (!showAmt && weAmount) weAmount.value = "";
-      show(weFuerWasRow, showAmt);
-      if (!showAmt && weFuerWas) weFuerWas.value = "";
+      const showEntries = doneValue === "Ja";
+      show(weEntriesContainer, showEntries);
+      if (showEntries) {
+        const list = document.getElementById("wohnumfeldEntriesList");
+        if (list && !list.querySelector(".wohnumfeld-entry-row")) {
+          initWohnumfeldEntries([]);
+        }
+      }
     }
   }
+  initWohnumfeldEntries([]);
   apply();
   applyCopay();
+  document.getElementById("wohnumfeldAddEntryBtn")?.addEventListener("click", () => {
+    const list = document.getElementById("wohnumfeldEntriesList");
+    if (list) list.appendChild(createWohnumfeldEntryRow());
+  });
   form?.addEventListener("change", (e) => {
     const t = e.target;
     if (!t) return;
@@ -7219,12 +7288,10 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
   const wePanel = document.getElementById("wohnumfeldPanel");
   const weDoneGroup = document.getElementById("wohnumfeldDoneGroup");
   const weAppGroup = document.getElementById("wohnumfeldApplicationGroup");
-  const weAmountRow = document.getElementById("wohnumfeldAmountRow");
 
   const hintPG = ensureHint(pgLevelRow, "hint_pg_level");
   const hintWE = ensureHint(weDoneGroup, "hint_we_done");
   const hintApp = ensureHint(weAppGroup, "hint_we_app");
-  const hintAmt = ensureHint(weAmountRow, "hint_we_amount");
 
   const isKK = () =>
     form.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde";
@@ -7236,13 +7303,6 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
     !!form.querySelector('input[name="wohnumfeldDone"]:checked');
   const weAppSelected = () =>
     !!form.querySelector('input[name="wohnumfeldApplication"]:checked');
-  const weDoneYes = () =>
-    !!form.querySelector('input[name="wohnumfeldDone"][value="Ja"]:checked');
-  const amtVal = () => {
-    const el = document.getElementById("wohnumfeldAmount");
-    if (!el || el.closest("[hidden]")) return "";
-    return el.value?.trim() || "";
-  };
 
   function validateHints() {
     if (!pgLevelRow?.hidden && hasPG() && !pgSelected()) {
@@ -7271,16 +7331,6 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
       showHint(hintApp, "");
     }
 
-    if (!weAmountRow?.hidden && isKK() && weDoneYes()) {
-      const v = amtVal();
-      if (!v) {
-        showHint(hintAmt, "Bitte geben Sie den Betrag an.");
-      } else {
-        showHint(hintAmt, "");
-      }
-    } else {
-      showHint(hintAmt, "");
-    }
   }
 
   validateHints();
@@ -7298,12 +7348,6 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
       weDoneGroup?.scrollIntoView({ behavior: "smooth", block: "center" });
       const first = weDoneGroup?.querySelector('input[type="radio"]');
       first?.focus();
-      return true;
-    }
-    if (isKK() && weDoneYes() && !amtVal()) {
-      const amt = document.getElementById("wohnumfeldAmount");
-      amt?.scrollIntoView({ behavior: "smooth", block: "center" });
-      amt?.focus();
       return true;
     }
     if (isKK() && !weAppSelected()) {
@@ -7413,7 +7457,18 @@ function getKundendatenPageData() {
   const twoPersonsEl = q('input[name="twoPersons"]');
   const premiumEl = q('input[name="premium"]');
   const copayAmountEl = document.getElementById("copayAmount");
-  const wohnumfeldAmountEl = document.getElementById("wohnumfeldAmount");
+  const weEntryRows = Array.from(document.querySelectorAll("#wohnumfeldEntriesList .wohnumfeld-entry-row"));
+  const weEntriesData = weEntryRows.map((row) => {
+    const amtEl = row.querySelector(".wohnumfeld-entry-amount");
+    const fwEl = row.querySelector(".wohnumfeld-entry-fuerWas");
+    const raw = (amtEl?.value || "").toString().replace(",", ".");
+    const parsed = parseFloat(raw);
+    return {
+      amount: Number.isFinite(parsed) && parsed > 0 ? parsed : 0,
+      fuerWas: (fwEl?.value || "").trim(),
+    };
+  });
+  const weTotalAmount = weEntriesData.reduce((s, e) => s + e.amount, 0);
 
   let budgetOptionsPanel = "";
   if (budgetMaxEl?.checked) {
@@ -7427,7 +7482,7 @@ function getKundendatenPageData() {
   if (!data.customerNumber) data.customerNumber = data.bitrixContactId || "";
   if (!data.bitrixContactId) data.bitrixContactId = data.customerNumber || "";
 
-  return {
+  const result = {
     ...data,
 
     // normalize radio-backed fields explicitly so restore can use draft-like semantics
@@ -7475,10 +7530,28 @@ function getKundendatenPageData() {
       data.twoPersons !== undefined ? data.twoPersons : checked("twoPersons"),
     premium: data.premium !== undefined ? data.premium : checked("premium"),
     copayAmount: copayAmountEl?.value || data.copayAmount || "",
-    wohnumfeldAmount: wohnumfeldAmountEl?.value || data.wohnumfeldAmount || "",
-    wohnumfeldFuerWas:
-      document.getElementById("wohnumfeldFuerWas")?.value || data.wohnumfeldFuerWas || "",
+    wohnumfeldAmount: weTotalAmount || data.wohnumfeldAmount || "",
+    wohnumfeldEntries: weEntriesData.length > 0 ? weEntriesData : data.wohnumfeldEntries || [],
   };
+
+  // Selbstzahler has no Pflegegrad budget or Pflegekasse fields — always save as blank
+  if (result.payer === "Selbstzahler") {
+    result.hasPflegegrad = "";
+    result.pflegegrad = "";
+    result.budgetOptionsPanel = "";
+    result.budgetMax = false;
+    result.budgetCopay = false;
+    result.twoPersons = false;
+    result.premium = false;
+    result.copayAmount = "";
+    result.wohnumfeldAmount = "";
+    result.wohnumfeldEntries = [];
+    result.pflegekasseAntrag = "";
+    result.pflegekasseGenehmigung = "";
+    result.pflegekasseEmc2Antrag = "";
+  }
+
+  return result;
 }
 
 function getCustomerFormData() {
@@ -7611,7 +7684,6 @@ const elTwo = document.querySelector('input[name="twoPersons"]');
 const elPremium = document.querySelector('input[name="premium"]');
 const copayEl = document.getElementById("copayAmount");
 const wohDoneChecked = document.querySelector('input[name="wohnumfeldDone"]:checked');
-const wohAmountEl = document.getElementById("wohnumfeldAmount");
 
 let selectedMain = "";
 if (elMax?.checked) selectedMain = elMax.value;
@@ -7624,8 +7696,21 @@ data.budgetOptionsPanel = selectedMain
 
 data.copayAmount = copayEl?.value || "";
 data.wohnumfeldDone = wohDoneChecked?.value || "";
-data.wohnumfeldAmount = wohAmountEl?.value || "";
-data.wohnumfeldFuerWas = document.getElementById("wohnumfeldFuerWas")?.value || "";
+{
+  const saveEntryRows = Array.from(document.querySelectorAll("#wohnumfeldEntriesList .wohnumfeld-entry-row"));
+  const saveEntries = saveEntryRows.map((row) => {
+    const amtEl = row.querySelector(".wohnumfeld-entry-amount");
+    const fwEl = row.querySelector(".wohnumfeld-entry-fuerWas");
+    const raw = (amtEl?.value || "").toString().replace(",", ".");
+    const parsed = parseFloat(raw);
+    return {
+      amount: Number.isFinite(parsed) && parsed > 0 ? parsed : 0,
+      fuerWas: (fwEl?.value || "").trim(),
+    };
+  });
+  data.wohnumfeldEntries = saveEntries;
+  data.wohnumfeldAmount = saveEntries.reduce((s, e) => s + e.amount, 0) || "";
+}
 
     try {
       validateCustomerData(data);
@@ -10698,10 +10783,12 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       weY &&
         ((weY.checked = true),
         weY.dispatchEvent(new Event("change", { bubbles: true })));
-      const amt = document.getElementById("wohnumfeldAmount");
-      if (amt) amt.value = String(payload.Kundendaten?.wohnumfeld?.amount || 0);
-      const fw = document.getElementById("wohnumfeldFuerWas");
-      if (fw) fw.value = payload.Kundendaten?.wohnumfeld?.fuerWas || "";
+      const we = payload.Kundendaten?.wohnumfeld || {};
+      if (we.entries && we.entries.length > 0) {
+        initWohnumfeldEntries(we.entries);
+      } else if (we.amount || we.fuerWas) {
+        initWohnumfeldEntries([{ amount: we.amount || 0, fuerWas: we.fuerWas || "" }]);
+      }
     } else if (weStatus === "Unbekannt") {
       weU &&
         ((weU.checked = true),
@@ -16095,7 +16182,6 @@ function initLivePricingSync() {
     'input[name="budgetCopay"]',
     'input[name="wohnumfeldDone"]',
     'input[name="wohnumfeldApplication"]',
-    '#wohnumfeldAmount',
     '#sonderaufschlagValue',
   ].join(", ");
 
@@ -16248,7 +16334,6 @@ function initStateDrivenPricingSync() {
     "budgetCopay",
     "wohnumfeldDone",
     "wohnumfeldApplication",
-    "wohnumfeldAmount",
   ]);
 
   const readTargetValue = (target) => {

@@ -2599,15 +2599,9 @@ button.dm-btn-danger:focus-visible {
                       class="circle"></span><span>Unbekannt</span></label>
                 </div>
 
-                <div id="wohnumfeldAmountRow" class="full" hidden aria-hidden="true" style="margin-top: 8px">
-                  <label for="wohnumfeldAmount" class="req">Wenn ja, in welcher Höhe?</label>
-                  <input id="wohnumfeldAmount" name="wohnumfeldAmount" type="number" min="0" step="1"
-                    placeholder="EUR" />
-                </div>
-
-                <div id="wohnumfeldFuerWasRow" class="full" hidden aria-hidden="true" style="margin-top: 8px">
-                  <label for="wohnumfeldFuerWas">Für was</label>
-                  <input id="wohnumfeldFuerWas" name="wohnumfeldFuerWas" type="text" />
+                <div id="wohnumfeldEntriesContainer" class="full" hidden aria-hidden="true" style="margin-top: 8px">
+                  <div id="wohnumfeldEntriesList" style="display:flex; flex-direction:column; gap:6px;"></div>
+                  <button type="button" id="wohnumfeldAddEntryBtn" class="btn-secondary" style="margin-top:8px; padding:5px 14px; font-size:0.85rem;">+ Weiterer Eintrag</button>
                 </div>
 
                 <!--  <div class="full" style="margin-top: 8px">
