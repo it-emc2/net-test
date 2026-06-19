@@ -2067,21 +2067,21 @@ button.dm-btn-danger:focus-visible {
             </div>
           </section>
 
-          <section class="today-customers-panel" id="todayCustomersPanel" aria-labelledby="todayCustomersTitle" hidden>
-            <div class="today-customers-head">
-              <div>
-                <h3 id="todayCustomersTitle">Heutige Kunden (hidden)</h3>
-                <p id="todayCustomersMeta">Lade Kunden…</p>
+          <section class="today-customers-panel" id="todayCustomersPanel" aria-labelledby="todayCustomersTitle">
+            <h3 id="todayCustomersTitle" style="opacity:0.4; font-style:italic;">Heutige Kunden (hidden)</h3>
+            <div hidden>
+              <div class="today-customers-head">
+                <div>
+                  <p id="todayCustomersMeta">Lade Kunden…</p>
+                </div>
+                <div class="today-customers-actions">
+                  <input type="text" id="todayCustomersSearch" placeholder="Name, Ort, Telefon…" autocomplete="off" />
+                  <button type="button" id="refreshTodayCustomers" class="secondary">Aktualisieren</button>
+                </div>
               </div>
-
-              <div class="today-customers-actions">
-                <input type="text" id="todayCustomersSearch" placeholder="Name, Ort, Telefon…" autocomplete="off" />
-                <button type="button" id="refreshTodayCustomers" class="secondary">Aktualisieren</button>
+              <div id="todayCustomersList" class="today-customers-list">
+                <div class="today-customers-empty">Noch keine Kundendaten geladen.</div>
               </div>
-            </div>
-
-            <div id="todayCustomersList" class="today-customers-list">
-              <div class="today-customers-empty">Noch keine Kundendaten geladen.</div>
             </div>
           </section>
 
