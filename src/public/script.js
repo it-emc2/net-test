@@ -22392,6 +22392,12 @@ async function fetchTodayPlanningSnapshot(){
     if(meta){
       meta.textContent = "Planungsdaten konnten nicht geladen werden";
     }
+    const weekGrid = document.getElementById("weekCalendarGrid");
+    const weekMeta = document.getElementById("weekCalendarMeta");
+    if(weekGrid){
+      weekGrid.innerHTML = `<div class="week-cal-empty"><i class="fa-solid fa-triangle-exclamation"></i> Planungsdaten konnten nicht geladen werden</div>`;
+    }
+    if(weekMeta) weekMeta.textContent = "Verbindung fehlgeschlagen";
   }
 }
 
