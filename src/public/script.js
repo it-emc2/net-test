@@ -22098,6 +22098,134 @@ function formatPlanningBadge(entry){
   return getPlanningPriorityLabel(entry?.priority);
 }
 
+// ─── Week Calendar ────────────────────────────────────────────────────────────
+
+let __lastPlanningRawPayload = null;
+
+function getPlanningWeekNumber(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+function renderWeekCalendar(payload) {
+  const grid = document.getElementById("weekCalendarGrid");
+  const meta = document.getElementById("weekCalendarMeta");
+  if (!grid) return;
+
+  const planning = payload?.planning || {};
+  const days = Array.isArray(planning.days) ? planning.days : [];
+
+  // Sort days chronologically
+  const sorted = [...days].sort((a, b) => {
+    const da = parsePlanningDate(a?.date);
+    const db = parsePlanningDate(b?.date);
+    if (!da) return 1;
+    if (!db) return -1;
+    return da - db;
+  });
+
+  const now = new Date();
+  const totalEntries = sorted.reduce(
+    (sum, d) => sum + (Array.isArray(d?.customers) ? d.customers.length : 0), 0
+  );
+  const weekNum = getPlanningWeekNumber(now);
+
+  if (meta) {
+    meta.textContent = `${totalEntries} Termin${totalEntries !== 1 ? "e" : ""} diese Woche · KW ${weekNum}`;
+  }
+
+  if (!sorted.length) {
+    grid.innerHTML = `<div class="week-cal-empty"><i class="fa-regular fa-calendar-xmark"></i> Keine Planungstermine für diese Woche gefunden</div>`;
+    return;
+  }
+
+  grid.innerHTML = sorted.map(day => {
+    const dayDate = parsePlanningDate(day?.date);
+    const isToday = dayDate ? isSamePlanningDay(dayDate, now) : false;
+    const customers = Array.isArray(day?.customers) ? day.customers : [];
+
+    // Sort: locked slots first by slot index, then by start time, then by name
+    const entries = [...customers].sort((a, b) => {
+      const aSlot = Number.isFinite(Number(a?.lockedSlot)) ? Number(a.lockedSlot) : 999;
+      const bSlot = Number.isFinite(Number(b?.lockedSlot)) ? Number(b.lockedSlot) : 999;
+      const aTime = Number.isFinite(Number(a?.manualStartMinutes)) ? Number(a.manualStartMinutes) : 9999;
+      const bTime = Number.isFinite(Number(b?.manualStartMinutes)) ? Number(b.manualStartMinutes) : 9999;
+      return aSlot - bSlot || aTime - bTime || String(a?.name || "").localeCompare(String(b?.name || ""), "de");
+    });
+
+    const dateNum = dayDate ? dayDate.getDate() : "–";
+    const monthName = dayDate ? dayDate.toLocaleDateString("de-DE", { month: "short" }) : "";
+    const shortDay = day?.shortLabel ||
+      (dayDate ? dayDate.toLocaleDateString("de-DE", { weekday: "short" }).replace(".", "") : "?");
+
+    const cancelledCount = entries.filter(e => isPlanningEntryCancelled(e)).length;
+    const activeCount = entries.length - cancelledCount;
+
+    const lockedBadge = day?.locked
+      ? `<i class="fa-solid fa-lock week-cal-day-lock-icon" title="Tag gesperrt"></i>`
+      : "";
+
+    const entriesHtml = entries.length
+      ? entries.map(entry => {
+          const isCancelled = isPlanningEntryCancelled(entry);
+          const startTime = formatPlanningStartTime(entry);
+          const badgeClass = isCancelled ? "is-cancelled" : (entry?.locked ? "is-bu" : "is-manual");
+          const entryId = String(entry?.id || `${day?.date || ""}-${entry?.name || ""}`);
+          return `<div class="week-cal-entry${isCancelled ? " is-cancelled" : ""}" data-wce-id="${escapePlanningHtml(entryId)}" data-wce-day="${escapePlanningHtml(day?.date || "")}">
+            <span class="week-cal-entry-time">${escapePlanningHtml(startTime || "–")}</span>
+            <span class="week-cal-entry-name">${escapePlanningHtml(entry?.name || "Unbekannt")}</span>
+            <span class="week-cal-entry-badge ${badgeClass}">${escapePlanningHtml(formatPlanningBadge(entry))}</span>
+          </div>`;
+        }).join("")
+      : `<div class="week-cal-empty-day"><i class="fa-regular fa-calendar-xmark"></i><span>Keine Termine</span></div>`;
+
+    return `<div class="week-cal-day${isToday ? " week-cal-day--today" : ""}${day?.locked ? " week-cal-day--locked" : ""}">
+      <div class="week-cal-day-head">
+        <div class="week-cal-day-nameline">
+          <span class="week-cal-day-name">${escapePlanningHtml(shortDay)}</span>
+          ${isToday ? `<span class="week-cal-heute-badge">Heute</span>` : ""}
+          ${lockedBadge}
+        </div>
+        <div class="week-cal-day-date">${escapePlanningHtml(String(dateNum))}</div>
+        <div class="week-cal-day-month">${escapePlanningHtml(monthName)}</div>
+        <div class="week-cal-count">${activeCount} Termin${activeCount !== 1 ? "e" : ""}${cancelledCount ? `<span class="week-cal-cancelled-hint"> · ${cancelledCount} abg.</span>` : ""}</div>
+      </div>
+      <div class="week-cal-entries">${entriesHtml}</div>
+    </div>`;
+  }).join("");
+
+  // Attach click handlers — clicking an entry loads it into the configurator
+  grid.querySelectorAll(".week-cal-entry:not(.is-cancelled)").forEach(el => {
+    el.addEventListener("click", () => {
+      const entryId = el.dataset.wceId;
+      const dayDate = el.dataset.wceDay;
+      if (!__lastPlanningRawPayload) return;
+      const planningData = __lastPlanningRawPayload?.planning || {};
+      const day = (Array.isArray(planningData.days) ? planningData.days : [])
+        .find(d => d?.date === dayDate);
+      if (!day) return;
+      const customer = (Array.isArray(day.customers) ? day.customers : [])
+        .find(c => String(c?.id) === entryId);
+      if (!customer) return;
+
+      const enriched = {
+        ...customer,
+        __entryId: entryId,
+        dateLabel: day?.dateLabel || "",
+        dayLabel: day?.label || "",
+        shortLabel: day?.shortLabel || "",
+        dayLocked: !!day?.locked,
+      };
+      activePlanningAppointmentId = entryId;
+      applyPlanningAppointmentToForm(enriched);
+    });
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function renderTodayPlanningAppointments(){
   const list = document.getElementById("todayPlanningList");
   if(!list) return;
@@ -22206,6 +22334,9 @@ function updateTodayPlanningMeta(day){
 }
 
 function applyPlanningPayload(payload){
+  __lastPlanningRawPayload = payload;
+  renderWeekCalendar(payload);
+
   const list = document.getElementById("todayPlanningList");
   const { day, entries } = buildPlanningEntries(payload || {});
 

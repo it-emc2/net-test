@@ -5471,6 +5471,281 @@ button.pad-clear {
 }
 
 
+/* ===== Wochenkalender Vertrieb ========================================== */
+
+.week-cal-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 20px 20px 16px;
+  margin-top: 16px;
+}
+
+.week-cal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.week-cal-head h3 {
+  margin: 0 0 3px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.week-cal-head p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.week-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.week-cal-empty,
+.week-cal-loading {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--muted);
+  padding: 28px 16px;
+  font-size: 0.86rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* ── Day column ── */
+.week-cal-day {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 11px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 130px;
+  transition: border-color 0.14s;
+}
+
+.week-cal-day--today {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 5%, var(--card));
+  box-shadow: 0 0 0 2px var(--ring), 0 6px 18px rgba(0, 0, 0, 0.07);
+}
+
+.week-cal-day--locked {
+  opacity: 0.68;
+}
+
+/* ── Day header ── */
+.week-cal-day-head {
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.week-cal-day--today .week-cal-day-head {
+  border-bottom-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+}
+
+.week-cal-day-nameline {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 3px;
+}
+
+.week-cal-day-name {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.week-cal-day--today .week-cal-day-name {
+  color: var(--accent-strong);
+}
+
+.week-cal-heute-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.week-cal-day-lock-icon {
+  font-size: 0.62rem;
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.week-cal-day-date {
+  font-size: 1.7rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text);
+  margin-bottom: 1px;
+}
+
+.week-cal-day--today .week-cal-day-date {
+  color: var(--accent-strong);
+}
+
+.week-cal-day-month {
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+
+.week-cal-count {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.week-cal-cancelled-hint {
+  font-weight: 400;
+  opacity: 0.75;
+}
+
+/* ── Appointment entries list ── */
+.week-cal-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+
+.week-cal-empty-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex: 1;
+  min-height: 52px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  opacity: 0.55;
+  text-align: center;
+}
+
+/* ── Single appointment row ── */
+.week-cal-entry {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 7px;
+  border-radius: 7px;
+  background: var(--section-bg);
+  cursor: pointer;
+  transition: background 0.12s, box-shadow 0.12s;
+  min-width: 0;
+}
+
+.week-cal-entry:not(.is-cancelled):hover {
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+  box-shadow: 0 0 0 1.5px var(--accent);
+}
+
+.week-cal-entry.is-cancelled {
+  opacity: 0.52;
+  cursor: default;
+}
+
+.week-cal-entry-time {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent-strong);
+  flex-shrink: 0;
+  min-width: 32px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.week-cal-entry.is-cancelled .week-cal-entry-time {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.week-cal-entry-name {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.week-cal-entry.is-cancelled .week-cal-entry-name {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.week-cal-entry-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+.week-cal-entry-badge.is-bu {
+  background: rgba(59, 130, 246, 0.13);
+  color: #1d4ed8;
+}
+
+.week-cal-entry-badge.is-manual {
+  background: rgba(107, 114, 128, 0.11);
+  color: var(--muted);
+}
+
+.week-cal-entry-badge.is-cancelled {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+
+[data-mode="dark"] .week-cal-entry-badge.is-bu {
+  background: rgba(59, 130, 246, 0.22);
+  color: #93c5fd;
+}
+
+[data-mode="dark"] .week-cal-entry-badge.is-manual {
+  background: rgba(107, 114, 128, 0.2);
+  color: #9ca3af;
+}
+
+[data-mode="dark"] .week-cal-entry-badge.is-cancelled {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+@media (max-width: 600px) {
+  .week-cal-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  }
+}
+
+/* ======================================================================== */
+
 .mail-card input.input-error,
 .mail-card textarea.input-error,
 .bitrix-input-group input.input-error,
