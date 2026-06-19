@@ -12137,6 +12137,7 @@ function restoreOptionalPage(opt) {
       cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH"],
       cat_METER: ["opt_TECEADS"],
       cat_RAMPE: ["opt_RAMPE35"],
+      cat_WESGH: ["opt_WESGH"],
       cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003"],
       cat_REHA : ["opt_24081000","opt_24081100","opt_24081500","opt_24081600","opt_24081005",
         "opt_24081105", "opt_24081505", "opt_24081605", "opt_25670000", "opt_24081800",
@@ -12731,6 +12732,7 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     "#cat_BASIN_TAP",
     "#cat_METER",
     "#cat_RAMPE",
+    "#cat_WESGH",
     "#cat_WANNE",
     "#cat_WC",
     "#cat_SONDER",
@@ -15071,6 +15073,7 @@ cat_SHOWER: "menu_SHOWER",
     // Add more categories here if needed
     cat_METER: "menu_METER",
     cat_RAMPE: "menu_RAMPE",
+    cat_WESGH: "menu_WESGH",
     cat_WANNE: "menu_WANNE",
     cat_WC: "menu_WC",
     cat_SONDER: "menu_SONDER",
@@ -15216,6 +15219,8 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
   // ---- RAMPE ----
   wireTileQty("opt_RAMPE35", "qty_RAMPE35_wrap");
+  // ---- WESGH ----
+  wireTileQty("opt_WESGH", "qty_WESGH_wrap");
 
   // ---- WC ----
   (function wireWcMenu() {
@@ -15870,6 +15875,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
     cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH"],
     cat_METER: ["opt_TECEADS"],
     cat_RAMPE: ["opt_RAMPE35"],
+    cat_WESGH: ["opt_WESGH"],
     cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003"],
     cat_REHA: [
       "opt_24081000", "opt_24081100", "opt_24081500", "opt_24081600",
