@@ -22009,9 +22009,11 @@ function getPlanningSearchBlob(entry){
   ].filter(Boolean).join(" ");
 }
 
+const DEBUG_PLANNING_DATE = new Date("2026-06-22"); // TODO: remove — debug only
+
 function pickTodayPlanningDay(planning){
   const days = Array.isArray(planning?.days) ? planning.days : [];
-  const now = new Date();
+  const now = DEBUG_PLANNING_DATE;
   return days.find(day => isSamePlanningDay(parsePlanningDate(day?.date), now)) || null;
 }
 
@@ -22020,11 +22022,11 @@ function buildPlanningEntries(payload){
   let day = pickTodayPlanningDay(planning);
 
   if(!day){
-    const todayKey = new Date().toLocaleDateString("sv-SE");
+    const todayKey = DEBUG_PLANNING_DATE.toLocaleDateString("sv-SE");
     const todayFromFuture = (Array.isArray(planning?.futurePlanned) ? planning.futurePlanned : [])
       .filter(c => c?.plannedDate === todayKey);
     if(todayFromFuture.length){
-      const now = new Date();
+      const now = DEBUG_PLANNING_DATE;
       day = {
         date: todayKey,
         customers: todayFromFuture,
