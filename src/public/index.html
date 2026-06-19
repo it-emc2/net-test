@@ -2605,6 +2605,11 @@ button.dm-btn-danger:focus-visible {
                     placeholder="EUR" />
                 </div>
 
+                <div id="wohnumfeldFuerWasRow" class="full" hidden aria-hidden="true" style="margin-top: 8px">
+                  <label for="wohnumfeldFuerWas">Für was</label>
+                  <input id="wohnumfeldFuerWas" name="wohnumfeldFuerWas" type="text" />
+                </div>
+
                 <!--  <div class="full" style="margin-top: 8px">
                   <label class="req"
                     >Antrag auf Wohnumfeld verbessernde Maßnahmen</label
@@ -2683,7 +2688,7 @@ button.dm-btn-danger:focus-visible {
               </summary>
 
               <div style="display: grid; grid-template-columns: 1fr; gap: 14px; padding: 8px 0">
-                <div class="full" data-offer="bu,bwt,hl,bl,hms,wd">
+                <div id="pflegekasseAntragRow" class="full" data-offer="bu,bwt,hl,bl,hms,wd">
                   <label >Antrag auf Zuschuss bei Pflegekasse gestellt?</label>
                   <div class="radio-group" role="radiogroup" aria-label="Antrag auf Zuschuss bei Pflegekasse gestellt?">
                     <label class="radio-pill"><input type="radio" name="pflegekasseAntrag" value="Ja" /><span class="circle"></span><span>Ja</span></label>

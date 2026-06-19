@@ -3738,16 +3738,21 @@ function buildPayload() {
 
   const wohDoneRadios = document.querySelectorAll('input[name="wohnumfeldDone"]');
   const wohAmountInput = document.getElementById("wohnumfeldAmount");
+  const wohFuerWasInput = document.getElementById("wohnumfeldFuerWas");
 
   function readWohnumfeld() {
     const isJa = Array.from(wohDoneRadios).some((r) => r.checked && r.value === "Ja");
     let amount = 0;
+    let fuerWas = "";
     if (isJa && wohAmountInput) {
       const raw = (wohAmountInput.value || "").toString().replace(",", ".");
       const parsed = parseFloat(raw);
       amount = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
     }
-    return { done: isJa, amount };
+    if (isJa && wohFuerWasInput) {
+      fuerWas = (wohFuerWasInput.value || "").trim();
+    }
+    return { done: isJa, amount, fuerWas };
   }
 
   function parseEuroToNumber(v) {
@@ -3912,7 +3917,7 @@ function buildPayload() {
   const isKK =
     (payload.Kundendaten?.payer || document.querySelector('input[name="payer"]:checked')?.value) ===
     "Kassenkunde";
-  payload.Kundendaten.wohnumfeld = isKK ? woh : { done: false, amount: 0 };
+  payload.Kundendaten.wohnumfeld = isKK ? woh : { done: false, amount: 0, fuerWas: "" };
 
   // --- Attach Duschwanne selection from DOM (if present) ---
   {
@@ -6958,6 +6963,8 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
   const weDoneGroup = document.getElementById("wohnumfeldDoneGroup");
   const weAmountRow = document.getElementById("wohnumfeldAmountRow");
   const weAmount = document.getElementById("wohnumfeldAmount");
+  const weFuerWasRow = document.getElementById("wohnumfeldFuerWasRow");
+  const weFuerWas = document.getElementById("wohnumfeldFuerWas");
   const weAppGroup = document.getElementById("wohnumfeldApplicationGroup");
 
   function show(el, on) {
@@ -7046,6 +7053,8 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
       show(weAmountRow, false);
       setReq(weAmount, false);
       if (weAmount) weAmount.value = "";
+      show(weFuerWasRow, false);
+      if (weFuerWas) weFuerWas.value = "";
     } else {
       const doneValue =
         form?.querySelector('input[name="wohnumfeldDone"]:checked')?.value || "";
@@ -7053,6 +7062,8 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
       show(weAmountRow, showAmt);
       setReq(weAmount, showAmt);
       if (!showAmt && weAmount) weAmount.value = "";
+      show(weFuerWasRow, showAmt);
+      if (!showAmt && weFuerWas) weFuerWas.value = "";
     }
   }
   apply();
@@ -7465,6 +7476,8 @@ function getKundendatenPageData() {
     premium: data.premium !== undefined ? data.premium : checked("premium"),
     copayAmount: copayAmountEl?.value || data.copayAmount || "",
     wohnumfeldAmount: wohnumfeldAmountEl?.value || data.wohnumfeldAmount || "",
+    wohnumfeldFuerWas:
+      document.getElementById("wohnumfeldFuerWas")?.value || data.wohnumfeldFuerWas || "",
   };
 }
 
@@ -7612,6 +7625,7 @@ data.budgetOptionsPanel = selectedMain
 data.copayAmount = copayEl?.value || "";
 data.wohnumfeldDone = wohDoneChecked?.value || "";
 data.wohnumfeldAmount = wohAmountEl?.value || "";
+data.wohnumfeldFuerWas = document.getElementById("wohnumfeldFuerWas")?.value || "";
 
     try {
       validateCustomerData(data);
@@ -10686,6 +10700,8 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         weY.dispatchEvent(new Event("change", { bubbles: true })));
       const amt = document.getElementById("wohnumfeldAmount");
       if (amt) amt.value = String(payload.Kundendaten?.wohnumfeld?.amount || 0);
+      const fw = document.getElementById("wohnumfeldFuerWas");
+      if (fw) fw.value = payload.Kundendaten?.wohnumfeld?.fuerWas || "";
     } else if (weStatus === "Unbekannt") {
       weU &&
         ((weU.checked = true),
@@ -11766,6 +11782,8 @@ function restoreKundendaten(k, offer) {
     const input = document.getElementById("kassenkundeName");
     if (input) input.disabled = !show;
   }
+
+  applySelbstzahlerVisibility();
 
   setRadio("aufschlag", k.aufschlag);
 
@@ -18813,8 +18831,34 @@ document.addEventListener("DOMContentLoaded", () => {
   radios.forEach((r) => r.addEventListener("change", update));
   update();
 });
+// Hide Pflegegrad + Pflegekasse fields when customer is Selbstzahler
+function applySelbstzahlerVisibility() {
+  const isSelbstzahler =
+    document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler";
+
+  const pflegegradSection = document.getElementById("pflegegradSection");
+  if (pflegegradSection) pflegegradSection.style.display = isSelbstzahler ? "none" : "";
+
+  const antragRow = document.getElementById("pflegekasseAntragRow");
+  if (antragRow) antragRow.style.display = isSelbstzahler ? "none" : "";
+
+  if (isSelbstzahler) {
+    ["pflegekasseGenehmigungRow", "pflegekasseEmc2Row"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) { el.hidden = true; el.setAttribute("aria-hidden", "true"); }
+    });
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll('input[name="payer"]').forEach((r) =>
+    r.addEventListener("change", applySelbstzahlerVisibility)
+  );
+  applySelbstzahlerVisibility();
+});
+
 // =================================================================
-// # HL 
+// # HL
 // =================================================================
 // Kundendaten: auto-fill date with today's date (local) if empty
 function ensureKundendatenDate(defaultIfEmpty = true) {
