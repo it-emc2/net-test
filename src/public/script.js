@@ -17067,9 +17067,6 @@ window.addEventListener("offerflow:changed", () => {
     setText("dbgPlanningStat", `${planningItems.length} Termine geladen`);
     setText("dbgPlanningEndpoint", window.__debug_planningEndpoint ?? "—");
 
-    // Customers
-    const customers = window.__debug_getCustomers?.() ?? [];
-    setText("dbgCustomersStat", `${customers.length} Kunden geladen`);
   }
 
   // ── Wrappers that show busy state on the button ───────────────────────────
@@ -17094,9 +17091,6 @@ window.addEventListener("offerflow:changed", () => {
   document.getElementById("dbgReloadPlanning")
     ?.addEventListener("click", () => runReload("dbgReloadPlanning", window.__debug_reloadPlanning));
 
-  document.getElementById("dbgReloadCustomers")
-    ?.addEventListener("click", () => runReload("dbgReloadCustomers", window.__debug_reloadCustomers));
-
   document.getElementById("dbgReloadAll")
     ?.addEventListener("click", async () => {
       const btn = document.getElementById("dbgReloadAll");
@@ -17105,10 +17099,9 @@ window.addEventListener("offerflow:changed", () => {
         await Promise.allSettled([
           window.__debug_reloadCalendar?.(),
           window.__debug_reloadPlanning?.(),
-          window.__debug_reloadCustomers?.(),
         ]);
       } finally {
-        if (btn) { btn.disabled = false; btn.textContent = "🔄 Alle 3 Panels neu laden"; }
+        if (btn) { btn.disabled = false; btn.textContent = "🔄 Alle 2 Panels neu laden"; }
         updateStats();
       }
     });
@@ -17134,16 +17127,6 @@ window.addEventListener("offerflow:changed", () => {
       console.groupEnd();
     });
 
-  document.getElementById("dbgLogCustomers")
-    ?.addEventListener("click", () => {
-      const data = window.__debug_getCustomers?.() ?? [];
-      console.group("[Debug] Heutige Kunden");
-      console.log("Anzahl:", data.length);
-      console.table(data.slice(0, 20));
-      if (data.length > 20) console.log(`…und ${data.length - 20} weitere`);
-      console.groupEnd();
-    });
-
   document.getElementById("dbgLogAll")
     ?.addEventListener("click", () => {
       console.group("[Debug] Alle Heutige-Daten");
@@ -17152,9 +17135,6 @@ window.addEventListener("offerflow:changed", () => {
       console.groupEnd();
       console.group("Planung");
       console.log(window.__debug_getPlanningAppointments?.() ?? []);
-      console.groupEnd();
-      console.group("Kunden");
-      console.log(window.__debug_getCustomers?.() ?? []);
       console.groupEnd();
       console.groupEnd();
     });
@@ -21221,66 +21201,7 @@ function setSaveCustomerStatus(btn, text, type = "info") {
 (function(){
 
 let todaysCustomers = [];
-let todaysCustomersFiltered = [];
-let activeLeadId = null;
-
-const OFFER_DETECTION_RULES = [
-  {
-    offerKey: "bwt",
-    label: "BWT",
-    title: "Badewannentür",
-    keywords: [
-      "badewannentür",
-      "badewannentuer",
-      "wannentür",
-      "wannentuer",
-      "wannentuere",
-      "badewannen tür",
-      "badewannentuere",
-      "variodoor",
-      "verona",
-      "twinline",
-    ],
-  },
-  {
-    offerKey: "bu",
-    label: "BU",
-    title: "Badumbau",
-    keywords: [
-      "badewanne zur dusche",
-      "wanne zur dusche",
-      "badumbau",
-      "duschumbau",
-      "dusche statt badewanne",
-      "badewanne raus",
-      "duschwanne",
-      "duschabtrennung",
-      "wandverkleidung",
-      "teilbadsanierung",
-    ],
-  },
-  {
-    offerKey: "hl",
-    label: "HL",
-    title: "Haltegriffe",
-    keywords: [
-      "haltegriff",
-      "haltegriffe",
-      "handlauf",
-      "stützgriff",
-      "stuetzgriff",
-      "griffsystem",
-      "badgriff",
-    ],
-  },
-];
-
 async function fetchTodaysCustomers(){
-
-  const meta = document.getElementById("todayCustomersMeta");
-  const list = document.getElementById("todayCustomersList");
-
-  if(meta) meta.textContent = "Lade Kunden…";
 
   try{
 
@@ -21288,23 +21209,11 @@ async function fetchTodaysCustomers(){
     const data = await r.json();
 
     todaysCustomers = Array.isArray(data) ? data : (data?.items || []);
-    todaysCustomersFiltered = todaysCustomers;
     buildTodaysCustomersIndex(todaysCustomers);
-
-    renderTodaysCustomers();
-
-    if(meta){
-      meta.textContent = `${todaysCustomers.length} Kunden gefunden in der Phase [VI] Vor-Ort-Erstberatung`;
-    }
 
   }catch(e){
 
     console.error("today customers failed", e);
-
-    if(list){
-      list.innerHTML =
-        `<div class="today-customers-empty">Fehler beim Laden der Kundendaten</div>`;
-    }
 
   }
 
@@ -21408,249 +21317,9 @@ window.findTodayCustomerByEmail = findTodayCustomerByEmail;
 window.findTodayCustomerByPhone = findTodayCustomerByPhone;
 window.findTodayCustomerByName = findTodayCustomerByName;
 
-function getLeadSearchBlob(c){
-  const k = c?.Kundendaten || {};
-
-  return [
-    c?.dealTitle,
-    c?.rawImportText,
-    c?.Anfragedetails,
-    c?.anfragedetails,
-    c?.requestDetails,
-    c?.beschreibung,
-    c?.description,
-    c?.title,
-    k?.firstName,
-    k?.lastName,
-    k?.phone,
-    k?.email,
-    k?.city,
-    k?.postalCode,
-  ]
-    .filter(Boolean)
-.join(" ");
-}
-
-function detectOfferTypeFromLead(c){
-  const haystack = normalizeText(getLeadSearchBlob(c));
-
-  for(const rule of OFFER_DETECTION_RULES){
-    const matchedKeyword = rule.keywords.find(keyword => haystack.includes(normalizeText(keyword)));
-    if(matchedKeyword){
-      return {
-        offerKey: rule.offerKey,
-        label: rule.label,
-        title: rule.title,
-        matchedKeyword,
-      };
-    }
-  }
-
-  return {
-    offerKey: null,
-    label: "Manuell",
-    title: "Nicht erkannt",
-    matchedKeyword: null,
-  };
-}
-
-function renderTodaysCustomers(){
-
-  const list = document.getElementById("todayCustomersList");
-  if(!list) return;
-
-  if(!todaysCustomersFiltered.length){
-
-    list.innerHTML =
-      `<div class="today-customers-empty">Keine Kunden gefunden</div>`;
-    return;
-
-  }
-
-  list.innerHTML = todaysCustomersFiltered.map(c=>{
-
-    const k = c.Kundendaten || {};
-    const detected = detectOfferTypeFromLead(c);
-
-    const name =
-      `${k.firstName || ""} ${k.lastName || ""}`.trim() || "Unbekannt";
-
-    const location =
-      `${k.postalCode || ""} ${k.city || ""}`.trim();
-
-    const preview =
-      c.Anfragedetails || c.anfragedetails || c.rawImportText || c.dealTitle || "";
-
-    return `
-
-      <div class="today-customer-card ${String(activeLeadId) === String(c.dealId) ? "is-active" : ""}" data-id="${c.dealId}">
-
-        <div class="today-customer-topline">
-          <div class="today-customer-name">${escapeHtml(name)}</div>
-          <span class="today-customer-badge ${detected.offerKey ? "" : "is-unknown"}">${escapeHtml(detected.label)}</span>
-        </div>
-
-        <div class="today-customer-meta">
-          ${escapeHtml(location || "Ort unbekannt")} • Pflegegrad ${escapeHtml(k.pflegegrad || "-")}
-        </div>
-
-        <div class="today-customer-meta">
-          ${escapeHtml(c.dealTitle || "Ohne Deal-Titel")}
-        </div>
-
-        <div class="today-customer-preview">
-          ${escapeHtml(preview)}
-        </div>
-
-      </div>
-
-    `;
-
-  }).join("");
-
-  list.querySelectorAll(".today-customer-card")
-    .forEach(card=>{
-
-      card.onclick = ()=>{
-
-        const id = card.dataset.id;
-
-        const c = todaysCustomers.find(x => String(x.dealId) === id);
-
-        if(!c) return;
-
-        activeLeadId = id;
-        renderTodaysCustomers();
-        applyCustomerToForm(c);
-
-      };
-
-    });
-
-}
-
-function applyCustomerToForm(c){
-
-  const k = c.Kundendaten || {};
-  const detected = detectOfferTypeFromLead(c);
-
-  console.log("Loading customer:", c, "detected offer:", detected);
-
-  if(detected.offerKey && typeof startOfferFlow === "function"){
-    startOfferFlow(detected.offerKey);
-  } else if(typeof startOfferFlow === "function"){
-    startOfferFlow("bu");
-  }
-
-  setValue("#firstName", k.firstName);
-  setValue("#lastName", k.lastName);
-  setValue("#phone", k.phone);
-  setValue("#email", k.email);
-  setValue("#street", k.street);
-  setValue("#postalCode", k.postalCode);
-  setValue("#city", k.city);
-  setValue("#bitrixContactId", k.bitrixContactId || k.customerNumber || c.contactId || c.dealId || "");
-  setValue("#company", k.company);
-  syncSummaryLeadIds(c.dealId || "");
-  syncSummaryRecipientEmail(k.email || "");
-  setValue("#country", k.country);
-  setValue("#state", k.state);
-
-  if(k.salutation && typeof setRadio === "function"){
-    setRadio("salutation", k.salutation);
-  }
-
-  try {
-    if (typeof updateSummaryWidgetName === "function") {
-      updateSummaryWidgetName();
-    }
-    if (typeof updateSidebarForOffer === "function") {
-      updateSidebarForOffer();
-    }
-  } catch (e) {
-    console.warn("today customers sidebar refresh failed", e);
-  }
-}
-
-function setValue(selector,val){
-
-  const el = document.querySelector(selector);
-
-  if(!el) return;
-
-  el.value = val || "";
-
-  el.dispatchEvent(new Event("input",{bubbles:true}));
-  el.dispatchEvent(new Event("change",{bubbles:true}));
-
-}
-
-function escapeHtml(value){
-  return String(value || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function filterCustomers(q){
-
-  if(!q){
-    todaysCustomersFiltered = todaysCustomers;
-  }else{
-
-    const s = normalizeText(q);
-
-    todaysCustomersFiltered = todaysCustomers.filter(c=>{
-      const searchable = normalizeText(getLeadSearchBlob(c));
-      const detected = detectOfferTypeFromLead(c);
-
-      return [
-        searchable,
-        detected.label,
-        detected.title,
-      ]
-      .filter(Boolean)
-      .join(" ")
-      .includes(s);
-
-    });
-
-  }
-
-  renderTodaysCustomers();
-
-}
-
-function initTodayCustomersPanel(){
-
-  const search = document.getElementById("todayCustomersSearch");
-  const refresh = document.getElementById("refreshTodayCustomers");
-
-  if(search){
-    search.addEventListener("input", e=>{
-      filterCustomers(e.target.value);
-    });
-  }
-
-  if(refresh){
-    refresh.addEventListener("click", () => {
-      window.__todayCustomersPromise = fetchTodaysCustomers();
-    });
-  }
-
+document.addEventListener("DOMContentLoaded", () => {
   window.__todayCustomersPromise = fetchTodaysCustomers();
-
-}
-
-document.addEventListener("DOMContentLoaded", initTodayCustomersPanel);
-
-// Expose for home debug panel
-window.__debug_getCustomers = () => todaysCustomers;
-window.__debug_reloadCustomers = () => {
-  window.__todayCustomersPromise = fetchTodaysCustomers();
-};
+});
 
 })();
 
