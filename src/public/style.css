@@ -3515,6 +3515,7 @@ button:active,
   border-radius: 10px;
   border: 1px solid #dbe2ea;
   background: #fff;
+  color: #0f172a;
   box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
@@ -3754,6 +3755,29 @@ img[alt="Variodoor"] {
   opacity: 1 !important;
   pointer-events: auto !important;
   display: block;
+}
+
+/* ===== BWT door cards — dark mode contrast fix =====
+   Card background is always white — keep all text and inputs dark-coloured. */
+[data-mode="dark"] #bwtDoors .bwt-door-card .caption {
+  color: #334155;
+}
+[data-mode="dark"] #bwtDoors .bwt-door-card .caption-sub {
+  color: #667085;
+}
+[data-mode="dark"] #bwtDoors .bwt-door-card.is-checked .caption,
+[data-mode="dark"] #bwtDoors label.image-check:has(input:checked) .caption {
+  color: var(--accent-strong);
+}
+[data-mode="dark"] #bwtDoors .bwt-door-extra input,
+[data-mode="dark"] #bwtDoors .bwt-door-extra select,
+[data-mode="dark"] #bwtDoors .bwt-door-extra textarea {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+[data-mode="dark"] #bwtDoors .bwt-door-extra label {
+  color: #475569;
 }
 
 #bwtDoors .bwt-door-extra label {
