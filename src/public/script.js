@@ -22019,6 +22019,13 @@ function pickTodayPlanningDay(planning){
 
 function buildPlanningEntries(payload){
   const planning = payload?.planning || {};
+
+  // DEBUG — remove before prod
+  console.group("[DEBUG] buildPlanningEntries — looking for", DEBUG_PLANNING_DATE.toLocaleDateString("sv-SE"));
+  console.log("planning.days:", planning.days?.map(d => d.date) ?? "none");
+  console.log("planning.futurePlanned dates:", [...new Set((planning.futurePlanned || []).map(c => c?.plannedDate))]);
+  console.groupEnd();
+
   let day = pickTodayPlanningDay(planning);
 
   if(!day){
