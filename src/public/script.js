@@ -22008,31 +22008,23 @@ function getPlanningSearchBlob(entry){
   ].filter(Boolean).join(" ");
 }
 
-const DEBUG_PLANNING_DATE = new Date("2026-06-22"); // TODO: remove — debug only
-
 function pickTodayPlanningDay(planning){
   const days = Array.isArray(planning?.days) ? planning.days : [];
-  const now = DEBUG_PLANNING_DATE;
+  const now = new Date();
   return days.find(day => isSamePlanningDay(parsePlanningDate(day?.date), now)) || null;
 }
 
 function buildPlanningEntries(payload){
   const planning = payload?.planning || {};
 
-  // DEBUG — remove before prod
-  console.group("[DEBUG] buildPlanningEntries — looking for", DEBUG_PLANNING_DATE.toLocaleDateString("sv-SE"));
-  console.log("planning.days:", planning.days?.map(d => d.date) ?? "none");
-  console.log("planning.futurePlanned dates:", [...new Set((planning.futurePlanned || []).map(c => c?.plannedDate))]);
-  console.groupEnd();
-
   let day = pickTodayPlanningDay(planning);
 
   if(!day){
-    const todayKey = DEBUG_PLANNING_DATE.toLocaleDateString("sv-SE");
+    const todayKey = new Date().toLocaleDateString("sv-SE");
     const todayFromFuture = (Array.isArray(planning?.futurePlanned) ? planning.futurePlanned : [])
       .filter(c => c?.plannedDate === todayKey);
     if(todayFromFuture.length){
-      const now = DEBUG_PLANNING_DATE;
+      const now = new Date();
       day = {
         date: todayKey,
         customers: todayFromFuture,
