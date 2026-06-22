@@ -166,6 +166,19 @@ export function initRestoreManager({
     const payload = normalized?.payload || normalizeOfferDoc(doc).payload;
     await postRestoreNudges(payload);
 
+    // Populate Auftrag ID fields from whichever key old/new drafts used
+    const resolvedAuftragId = String(
+      payload?.postal?.auftragId ||
+      payload?.dealId ||
+      normalized?.doc?.dealId ||
+      payload?.Kundendaten?.dealId ||
+      payload?.Zusammenfassung?.dealId ||
+      ""
+    ).trim();
+    if (resolvedAuftragId && typeof syncSummaryLeadIds === "function") {
+      syncSummaryLeadIds(resolvedAuftragId);
+    }
+
     try {
       await window.__drawingReady;
       console.log("[SKETCH][restore-call-site]", {
