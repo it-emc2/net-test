@@ -2299,6 +2299,8 @@ function resetAllForms() {
   if (typeof updateSummaryWidgetSubsidyVisibility === "function") {
     updateSummaryWidgetSubsidyVisibility();
   }
+  const _swDealRow = document.getElementById("swDealRow");
+  if (_swDealRow) _swDealRow.style.display = "none";
 
   // Re-apply default date after form.reset() clears date inputs
   ensureKundendatenDate(true);
@@ -5274,6 +5276,61 @@ function updateSummaryWidgetSubsidyVisibility() {
   row.style.display = "";
 }
 
+window.fetchAndSetDeal = async function fetchAndSetDeal(contactId) {
+  const row   = document.getElementById("swDealRow");
+  const value = document.getElementById("swDealValue");
+  if (!row || !value) return;
+
+  const id = String(contactId || "").trim();
+  if (!id) { row.style.display = "none"; return; }
+
+  try {
+    const res  = await fetch(`/api/bitrix/contact/${encodeURIComponent(id)}/deals`);
+    const data = await res.json();
+    const deals = Array.isArray(data.deals) ? data.deals : [];
+
+    if (deals.length === 0) {
+      row.style.display = "none";
+      return;
+    }
+
+    row.style.display = "";
+
+    if (deals.length === 1) {
+      // Auto-select the only deal
+      if (typeof syncSummaryLeadIds === "function") syncSummaryLeadIds(deals[0].id);
+      value.textContent = deals[0].id;
+      return;
+    }
+
+    // Multiple deals — scrollable pick list
+    const list = document.createElement("div");
+    list.style.cssText =
+      "max-height:80px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; width:100%; margin-top:2px;";
+
+    deals.forEach(function(deal) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = deal.id;
+      btn.style.cssText =
+        "text-align:left; background:none; border:1px solid var(--border); border-radius:4px;" +
+        "padding:2px 6px; font-size:0.75rem; cursor:pointer; color:var(--text); white-space:nowrap;";
+      btn.addEventListener("click", function() {
+        if (typeof syncSummaryLeadIds === "function") syncSummaryLeadIds(deal.id);
+        value.textContent = deal.id;
+        list.remove();
+      });
+      list.appendChild(btn);
+    });
+
+    value.textContent = "";
+    value.appendChild(list);
+  } catch (e) {
+    console.warn("[fetchAndSetDeal] error:", e);
+    row.style.display = "none";
+  }
+};
+
 /* ========== End HELPERS  for the floating widget ========== */
 // #endregion
 // =================================================================
@@ -5664,29 +5721,32 @@ document.body.addEventListener("click", (e) => {
       "display:none; font-size:0.75rem; background:var(--bg-alt,#f8fafc);" +
       "border:1px solid var(--border); border-radius:6px; padding:10px 12px; margin-top:4px;";
     infoPanel.innerHTML =
-      "<div style='font-weight:600; margin-bottom:6px; color:var(--text,#1e293b);'>Berechnungsregel</div>" +
-      "<div style='margin-bottom:6px; color:var(--text-muted,#64748b);'>" +
-        "Gesamt = <strong>Dauer × Häufigkeit × Zeitraum</strong><br>" +
-        "Basis: 52 Wochen/Jahr ÷ 12 → stabiler Monatsdurchschnitt." +
-      "</div>" +
-      "<table style='border-collapse:collapse; width:100%;'>" +
-        "<thead><tr style='color:var(--text-muted,#64748b);'>" +
-          "<th style='text-align:left; padding:2px 8px 2px 0; font-weight:500;'>Regelmäßigkeit</th>" +
-          "<th style='text-align:center; padding:2px 4px; font-weight:500;'>Formel</th>" +
-          "<th style='text-align:right; padding:2px 4px; font-weight:500;'>/ Monat</th>" +
-          "<th style='text-align:right; padding:2px 0 2px 4px; font-weight:500; color:var(--accent,#0ea5e9);'>Verwendet</th>" +
-        "</tr></thead>" +
-        "<tbody style='color:var(--text,#1e293b);'>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Wöchentlich</td><td style='text-align:center; padding:1px 4px;'>52 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 4,33×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 4,33×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>14-tägig</td><td style='text-align:center; padding:1px 4px;'>26 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 2,17×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 2,17×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>alle drei Wochen</td><td style='text-align:center; padding:1px 4px;'>(52÷3) ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 1,44×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 1,44×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Monatlich</td><td style='text-align:center; padding:1px 4px;'>1</td><td style='text-align:right; padding:1px 4px;'>1×</td><td style='text-align:right; padding:1px 0 1px 4px;'>1×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Vierteljährlich</td><td style='text-align:center; padding:1px 4px;'>4 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 0,33×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 0,33×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Halbjährlich</td><td style='text-align:center; padding:1px 4px;'>2 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 0,17×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 0,17×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Jährlich</td><td style='text-align:center; padding:1px 4px;'>1 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 0,083×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 0,083×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Einmalig</td><td style='text-align:center; padding:1px 4px;'>1× gesamt</td><td style='text-align:right; padding:1px 4px;'>—</td><td style='text-align:right; padding:1px 0 1px 4px;'>—</td></tr>" +
+      "<div style='font-weight:700; margin-bottom:8px; color:var(--text,#1e293b); font-size:0.78rem; letter-spacing:0.01em;'>Berechnungsregel</div>" +
+      "<p style='margin:0 0 10px; font-size:0.73rem; color:var(--text-muted,#64748b); line-height:1.5;'>" +
+        "Gesamt = <strong style='color:var(--text,#1e293b);'>Dauer × Häufigkeit × Zeitraum</strong><br>" +
+        "Basis: 52 Wochen/Jahr ÷ 12 = stabiler Monatsdurchschnitt" +
+      "</p>" +
+      "<div style='border:1px solid var(--border); border-radius:6px; overflow:hidden;'>" +
+      "<table style='border-collapse:collapse; width:100%; font-size:0.74rem;'>" +
+        "<thead>" +
+          "<tr style='background:rgba(14,165,233,0.07);'>" +
+            "<th style='text-align:left; padding:7px 14px; font-weight:600; color:var(--text-muted,#64748b); border-bottom:1px solid var(--border);'>Regelmäßigkeit</th>" +
+            "<th style='text-align:center; padding:7px 14px; font-weight:600; color:var(--text-muted,#64748b); border-bottom:1px solid var(--border);'>Formel</th>" +
+            "<th style='text-align:right; padding:7px 14px; font-weight:600; color:var(--accent,#0ea5e9); border-bottom:1px solid var(--border);'>× / Monat</th>" +
+          "</tr>" +
+        "</thead>" +
+        "<tbody>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Wöchentlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>52 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>4,33×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>14-tägig</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>26 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>2,17×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>alle drei Wochen</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>(52÷3) ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>1,44×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Monatlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>1</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>1,00×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Vierteljährlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>4 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>0,33×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Halbjährlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>2 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>0,17×</td></tr>" +
+          "<tr style='border-bottom:1px dashed var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Jährlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>1 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>0,083×</td></tr>" +
+          "<tr style='background:rgba(0,0,0,0.03);'><td style='padding:8px 14px; color:var(--text-muted,#94a3b8); font-style:italic;'>Einmalig</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#94a3b8);'>1× gesamt</td><td style='padding:8px 14px; text-align:right; font-weight:600; color:var(--text-muted,#94a3b8);'>—</td></tr>" +
         "</tbody>" +
-      "</table>";
+      "</table>" +
+      "</div>";
 
     infoBtn.addEventListener("click", function () {
       var open = infoPanel.style.display !== "none";
@@ -9842,29 +9902,32 @@ window.renderAHKostenPreview = function renderAHKostenPreview() {
       "display:none; font-size:0.75rem; background:var(--bg-alt,#f8fafc);" +
       "border:1px solid var(--border); border-radius:6px; padding:10px 12px; margin-bottom:12px;";
     kostenInfoPanel.innerHTML =
-      "<div style='font-weight:600; margin-bottom:6px; color:var(--text,#1e293b);'>Berechnungsregel</div>" +
-      "<div style='margin-bottom:6px; color:var(--text-muted,#64748b);'>" +
-        "Gesamt = <strong>Dauer × Häufigkeit × Zeitraum</strong><br>" +
-        "Basis: 52 Wochen/Jahr ÷ 12 → stabiler Monatsdurchschnitt." +
-      "</div>" +
-      "<table style='border-collapse:collapse; width:100%;'>" +
-        "<thead><tr style='color:var(--text-muted,#64748b);'>" +
-          "<th style='text-align:left; padding:2px 8px 2px 0; font-weight:500;'>Regelmäßigkeit</th>" +
-          "<th style='text-align:center; padding:2px 4px; font-weight:500;'>Formel</th>" +
-          "<th style='text-align:right; padding:2px 4px; font-weight:500;'>/ Monat</th>" +
-          "<th style='text-align:right; padding:2px 0 2px 4px; font-weight:500; color:var(--accent,#0ea5e9);'>Verwendet</th>" +
-        "</tr></thead>" +
-        "<tbody style='color:var(--text,#1e293b);'>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Wöchentlich</td><td style='text-align:center; padding:1px 4px;'>52 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 4,33×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 4,33×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>14-tägig</td><td style='text-align:center; padding:1px 4px;'>26 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 2,17×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 2,17×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>alle drei Wochen</td><td style='text-align:center; padding:1px 4px;'>(52÷3) ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 1,44×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 1,44×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Monatlich</td><td style='text-align:center; padding:1px 4px;'>1</td><td style='text-align:right; padding:1px 4px;'>1×</td><td style='text-align:right; padding:1px 0 1px 4px;'>1×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Vierteljährlich</td><td style='text-align:center; padding:1px 4px;'>4 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 0,33×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 0,33×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Halbjährlich</td><td style='text-align:center; padding:1px 4px;'>2 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 0,17×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 0,17×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Jährlich</td><td style='text-align:center; padding:1px 4px;'>1 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 0,083×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 0,083×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Einmalig</td><td style='text-align:center; padding:1px 4px;'>1× gesamt</td><td style='text-align:right; padding:1px 4px;'>—</td><td style='text-align:right; padding:1px 0 1px 4px;'>—</td></tr>" +
+      "<div style='font-weight:700; margin-bottom:8px; color:var(--text,#1e293b); font-size:0.78rem; letter-spacing:0.01em;'>Berechnungsregel</div>" +
+      "<p style='margin:0 0 10px; font-size:0.73rem; color:var(--text-muted,#64748b); line-height:1.5;'>" +
+        "Gesamt = <strong style='color:var(--text,#1e293b);'>Dauer × Häufigkeit × Zeitraum</strong><br>" +
+        "Basis: 52 Wochen/Jahr ÷ 12 = stabiler Monatsdurchschnitt" +
+      "</p>" +
+      "<div style='border:1px solid var(--border); border-radius:6px; overflow:hidden;'>" +
+      "<table style='border-collapse:collapse; width:100%; font-size:0.74rem;'>" +
+        "<thead>" +
+          "<tr style='background:rgba(14,165,233,0.07);'>" +
+            "<th style='text-align:left; padding:7px 14px; font-weight:600; color:var(--text-muted,#64748b); border-bottom:1px solid var(--border);'>Regelmäßigkeit</th>" +
+            "<th style='text-align:center; padding:7px 14px; font-weight:600; color:var(--text-muted,#64748b); border-bottom:1px solid var(--border);'>Formel</th>" +
+            "<th style='text-align:right; padding:7px 14px; font-weight:600; color:var(--accent,#0ea5e9); border-bottom:1px solid var(--border);'>× / Monat</th>" +
+          "</tr>" +
+        "</thead>" +
+        "<tbody>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Wöchentlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>52 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>4,33×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>14-tägig</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>26 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>2,17×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>alle drei Wochen</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>(52÷3) ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>1,44×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Monatlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>1</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>1,00×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Vierteljährlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>4 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>0,33×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Halbjährlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>2 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>0,17×</td></tr>" +
+          "<tr style='border-bottom:1px dashed var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Jährlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>1 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>0,083×</td></tr>" +
+          "<tr style='background:rgba(0,0,0,0.03);'><td style='padding:8px 14px; color:var(--text-muted,#94a3b8); font-style:italic;'>Einmalig</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#94a3b8);'>1× gesamt</td><td style='padding:8px 14px; text-align:right; font-weight:600; color:var(--text-muted,#94a3b8);'>—</td></tr>" +
         "</tbody>" +
-      "</table>";
+      "</table>" +
+      "</div>";
     container.parentNode.insertBefore(kostenInfoPanel, container);
 
     kostenToggle.addEventListener("click", function () {
@@ -18454,6 +18517,8 @@ customerNumber: contact.ID,
       }
 
       showCustomerMessage("Kontakt aus Bitrix übernommen", "success");
+      // Auto-fetch deals for this contact and show in summary widget
+      window.fetchAndSetDeal?.(contact.ID);
     } catch (e) {
       console.error(e);
       showCustomerMessage(
@@ -22097,6 +22162,9 @@ async function applyCalendarEventToForm(event){
 
   syncSummaryLeadIds(hydrated?.dealId || "");
   syncSummaryRecipientEmail(hydrated?.email || parsed.email || "");
+  // Auto-fetch deals for this contact
+  const _contactIdForDeals = hydrated?.bitrixContactId || parsed.contactId || "";
+  if (_contactIdForDeals) window.fetchAndSetDeal?.(_contactIdForDeals);
 
   const normalizedTitle = normalizeCalendarText(event?.NAME || event?.TITLE || "");
   if(normalizedTitle.includes("frau ")) setCalendarRadio("salutation", "Frau");

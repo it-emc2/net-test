@@ -205,6 +205,26 @@ router.get("/contact/:id", async (req, res) => {
 });
 
 
+// GET /api/bitrix/contact/:id/deals — returns deal IDs linked to a contact
+router.get("/contact/:id/deals", async (req, res) => {
+  const contactId = String(req.params.id || "").trim();
+  if (!contactId) return res.status(400).json({ error: "Missing contact id" });
+  try {
+    const data = await bxGet("crm.deal.list", {
+      filter: { CONTACT_ID: contactId },
+      select: ["ID", "TITLE"],
+    });
+    const deals = (data?.result || []).map((d) => ({
+      id:    String(d.ID),
+      title: String(d.TITLE || "").trim(),
+    }));
+    return res.json({ deals });
+  } catch (err) {
+    console.error("GET /api/bitrix/contact/:id/deals error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
 // POST /api/bitrix/timeline/comment
 // Body: { entityType: 'deal'|'contact'|'company'|'lead'|..., entityId: number|string, comment: string }
 router.post("/timeline/comment", express.json({ limit: "25mb" }), async (req, res) => {

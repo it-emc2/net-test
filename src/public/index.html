@@ -6657,8 +6657,8 @@ button.dm-btn-danger:focus-visible {
         <div style="display:flex; align-items:center; gap:8px; margin: 0 0 8px;">
           <h2 style="margin:0; flex:1;">Kosten-Details</h2>
           <span id="kostenHeaderTotal" style="font-size:0.9rem; font-weight:600; color:var(--muted); display:none; white-space:nowrap;"></span>
-          <button type="button" id="kostenDetailsToggle" title="Details ein-/ausklappen"
-            style="background:none; border:1px solid var(--accent,#0ea5e9); border-radius:50%; width:22px; height:22px; font-size:0.72rem; cursor:pointer; color:var(--accent,#0ea5e9); display:flex; align-items:center; justify-content:center; padding:0; flex-shrink:0;">ℹ</button>
+          <button type="button" id="kostenDetailsToggle" title="Berechnungsformeln anzeigen"
+            style="background:none; border:1px solid var(--border); border-radius:50%; width:22px; height:22px; font-size:0.72rem; cursor:pointer; color:var(--text-muted,#94a3b8); display:flex; align-items:center; justify-content:center; padding:0; flex-shrink:0;">ℹ</button>
         </div>
 
         <p class="muted" id="kostenDetailsDesc" style="margin: 0 0 14px">
@@ -8496,6 +8496,10 @@ button.dm-btn-danger:focus-visible {
     <div class="sw-line sw-name">
       <span class="sw-label">Kunde:</span>
       <span id="swNameValue" class="sw-value">–</span>
+    </div>
+    <div class="sw-line sw-deal" id="swDealRow" style="display:none; flex-direction:column; align-items:flex-start; gap:2px;">
+      <span class="sw-label">Deal:</span>
+      <span id="swDealValue" class="sw-value" style="width:100%;"></span>
     </div>
     <div class="sw-line sw-total">
       <span class="sw-label">Gesamt:</span>
