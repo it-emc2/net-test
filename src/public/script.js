@@ -23274,6 +23274,10 @@ document
 
       const recipient = state.recipient || {};
       if (fields.auftragId) fields.auftragId.value = state.auftragId || "";
+      // Sync to all three Auftrag ID fields (auftragId, mailAuftragId, postAuftragId)
+      if (state.auftragId && typeof syncSummaryLeadIds === "function") {
+        syncSummaryLeadIds(state.auftragId);
+      }
       if (fields.firstName) fields.firstName.value = recipient.firstName || "";
       if (fields.lastName) fields.lastName.value = recipient.lastName || "";
       if (fields.street) fields.street.value = recipient.street || "";
