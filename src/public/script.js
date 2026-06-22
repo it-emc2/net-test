@@ -22131,24 +22131,25 @@ function pickTodayPlanningDay(planning){
 function buildPlanningEntries(payload){
   const planning = payload?.planning || {};
 
-  let day = pickTodayPlanningDay(planning);
+  // Always prefer futurePlanned for today — travelMinutesAfter is only set there.
+  const todayKey = new Date().toLocaleDateString("sv-SE");
+  const todayFromFuture = (Array.isArray(planning?.futurePlanned) ? planning.futurePlanned : [])
+    .filter(c => c?.plannedDate === todayKey);
 
-  if(!day){
-    const todayKey = new Date().toLocaleDateString("sv-SE");
-    const todayFromFuture = (Array.isArray(planning?.futurePlanned) ? planning.futurePlanned : [])
-      .filter(c => c?.plannedDate === todayKey);
-    if(todayFromFuture.length){
-      const now = new Date();
-      day = {
-        date: todayKey,
-        customers: todayFromFuture,
-        locked: !!todayFromFuture[0]?.dayLocked,
-        dayIndex: todayFromFuture[0]?.dayIndex ?? 0,
-        label: now.toLocaleDateString("de-DE", { weekday: "long" }),
-        shortLabel: now.toLocaleDateString("de-DE", { weekday: "short" }).slice(0, 2),
-        dateLabel: now.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
-      };
-    }
+  let day = null;
+  if(todayFromFuture.length){
+    const now = new Date();
+    day = {
+      date: todayKey,
+      customers: todayFromFuture,
+      locked: !!todayFromFuture[0]?.dayLocked,
+      dayIndex: todayFromFuture[0]?.dayIndex ?? 0,
+      label: now.toLocaleDateString("de-DE", { weekday: "long" }),
+      shortLabel: now.toLocaleDateString("de-DE", { weekday: "short" }).slice(0, 2),
+      dateLabel: now.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+    };
+  } else {
+    day = pickTodayPlanningDay(planning);
   }
 
   const customers = Array.isArray(day?.customers) ? day.customers : [];
@@ -22365,6 +22366,11 @@ function renderTodayPlanningAppointments(){
       ? "is-cancelled"
       : (entry?.locked ? "is-bu" : "is-manual");
 
+    const travel = Number(entry?.travelMinutesAfter);
+    const travelHtml = travel > 0
+      ? `<div class="planning-travel-connector"><i class="fa-solid fa-car-side"></i> ${travel} Min Fahrt / Puffer</div>`
+      : "";
+
     return `
       <div class="today-customer-card today-calendar-card ${String(activePlanningAppointmentId) === String(entry.__entryId) ? "is-active" : ""} ${isCancelled ? "is-cancelled" : ""}" data-id="${escapePlanningHtml(entry.__entryId)}" ${isCancelled ? 'aria-disabled="true"' : ""}>
         <div class="today-calendar-topline">
@@ -22395,6 +22401,7 @@ function renderTodayPlanningAppointments(){
           <button type="button" class="today-calendar-open" ${isCancelled ? 'disabled aria-disabled="true"' : ""}><i class="fa-solid ${isCancelled ? "fa-ban" : "fa-arrow-right"}"></i> ${isCancelled ? "Nicht verfuegbar" : "In Konfigurator öffnen"}</button>
         </div>
       </div>
+      ${travelHtml}
     `;
   }).join("");
 
@@ -22575,16 +22582,16 @@ function applyPlanningAppointmentToForm(entry){
   setPlanningValue("#lastName", name.lastName || "");
   setPlanningValue("#phone", entry?.phone || "");
   setPlanningValue("#email", entry?.email || "");
-  setPlanningValue("#street", address.street || "");
-  setPlanningValue("#postalCode", address.postalCode || "");
-  setPlanningValue("#city", address.city || "");
-  setPlanningValue("#bitrixContactId", entry?.id || "");
+  setPlanningValue("#street", entry?.street || address.street || "");
+  setPlanningValue("#postalCode", entry?.postalCode || address.postalCode || "");
+  setPlanningValue("#city", entry?.city || address.city || "");
+  setPlanningValue("#bitrixContactId", entry?.contactId || "");
   setPlanningValue("#company", "");
   setPlanningValue("#country", "");
   setPlanningValue("#state", "");
 
   if(typeof syncSummaryLeadIds === "function"){
-    syncSummaryLeadIds(entry?.id || "");
+    syncSummaryLeadIds(entry?.contactId || entry?.id || "");
   }
   if(typeof syncSummaryRecipientEmail === "function"){
     syncSummaryRecipientEmail(entry?.email || "");

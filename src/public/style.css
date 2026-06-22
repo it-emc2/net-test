@@ -5471,6 +5471,22 @@ button.pad-clear {
 }
 
 
+/* ===== Planning travel connector ======================================== */
+
+.planning-travel-connector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.planning-travel-connector i {
+  font-size: 0.72rem;
+}
+
 /* ===== Wochenkalender Vertrieb ========================================== */
 
 .week-cal-panel {
