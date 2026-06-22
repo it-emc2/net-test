@@ -1,13 +1,13 @@
 // routes/trays.js
-import { Router } from 'express';
-import Product from '../models/Product.js';
+import { Router } from "express";
+import Product from "../models/Product.js";
 
 const r = Router();
 
 // Parse numbers; accepts "101", "101.0", "101,0"
 function parseDim(v) {
   if (v == null) return null;
-  const s = String(v).trim().replace(/\./g, '').replace(',', '.'); // "1.200,5" -> "1200.5"
+  const s = String(v).trim().replace(/\./g, "").replace(",", "."); // "1.200,5" -> "1200.5"
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
@@ -22,49 +22,104 @@ function readQueryDims(q) {
   return { w, l, h };
 }
 
-r.get('/suggest', async (req, res) => {
+function normSource(v) {
+  return String(v || "").trim().toLowerCase();
+}
+
+r.get("/suggest", async (req, res) => {
   try {
     const { w, l, h } = readQueryDims(req.query);
+    const wantBudget = String(req.query.budget || "").trim() === "1";
+
+    // Optional additive explicit series filter: ?series=SLA or ?series=DW
+    const series = String(req.query.series || "").trim().toUpperCase();
 
     // nothing provided?
     if (w === null && l === null && h === null) {
-      return res.status(400).json({ error: 'Provide at least one of w, l, h' });
+      return res.status(400).json({ error: "Provide at least one of w, l, h" });
     }
 
     // Build strict axis filters ONLY for provided axes.
     // => User may start with any axis and add others in any order.
-    const filter = { productId: /^SLA/i };
+    const filter = {};
     const axesForScore = [];
-    if (w !== null) { filter.widthCm  = { $gte: w }; axesForScore.push(['widthCm', w]); }
-    if (l !== null) { filter.lengthCm = { $gte: l }; axesForScore.push(['lengthCm', l]); }
-    if (h !== null) { filter.heightCm = { $gte: h }; axesForScore.push(['heightCm', h]); }
 
-    // Strict match: if no product satisfies all provided axes, return [] (no fallback).
+    // Always restrict duschwanne trays to SLA or DW (as requested)
+    if (series === "SLA") filter.productId = /^SLA/i;
+    else if (series === "DW") filter.productId = /^DW/i;
+    else filter.productId = /^(SLA|DW)/i;
+
+    if (w !== null) {
+      filter.widthCm = { $gte: w };
+      axesForScore.push(["widthCm", w]);
+    }
+    if (l !== null) {
+      filter.lengthCm = { $gte: l };
+      axesForScore.push(["lengthCm", l]);
+    }
+    if (h !== null) {
+      filter.heightCm = { $gte: h };
+      axesForScore.push(["heightCm", h]);
+    }
+
     const docs = await Product.find(
       filter,
-      { productId: 1, name: 1, price: 1, widthCm: 1, lengthCm: 1, heightCm: 1 }
+      {
+        productId: 1,
+        name: 1,
+        price: 1,
+        widthCm: 1,
+        lengthCm: 1,
+        heightCm: 1,
+        source: 1,
+      },
     ).lean();
 
     // Rank by closeness using ONLY provided axes.
     const score = (p) => {
       let sum = 0;
       for (const [key, want] of axesForScore) {
-        const have = Number(p[key]) || 0;      // we already know have >= want from filter
-        const d = have - want;                 // non-negative
+        const have = Number(p[key]) || 0; // we already know have >= want from filter
+        const d = have - want; // non-negative
         sum += d * d;
       }
       return Math.sqrt(sum);
     };
 
-    const results = docs
-      .map(p => ({ ...p, score: score(p) }))
-      .sort((a, b) => (a.score - b.score) || ((a.price ?? Infinity) - (b.price ?? Infinity)))
-      .slice(0, 3);
+    const mapped = docs.map((p) => {
+      const pid = String(p.productId || "");
+      const isDW = /^DW/i.test(pid);
+      const isSLA = /^SLA/i.test(pid);
+      const isBudget = normSource(p.source) === "badolux";
+      return { ...p, score: score(p), isDW, isSLA, isBudget };
+    });
+
+    const results = mapped
+      .sort((a, b) => {
+        if (wantBudget) {
+          // Budget mode: prioritize Badolux DW first, then other DW, then SLA
+          const aRank =
+            a.isDW && a.isBudget ? 0 : a.isDW ? 1 : a.isSLA ? 2 : 3;
+          const bRank =
+            b.isDW && b.isBudget ? 0 : b.isDW ? 1 : b.isSLA ? 2 : 3;
+
+          return (
+            aRank - bRank ||
+            a.score - b.score ||
+            (a.price ?? Infinity) - (b.price ?? Infinity)
+          );
+        }
+
+        // Default behavior: closeness then price
+        return a.score - b.score || (a.price ?? Infinity) - (b.price ?? Infinity);
+      })
+      .slice(0, 3)
+      .map(({ isDW, isSLA, ...p }) => p); // keep payload clean; keep isBudget for frontend
 
     res.json({ input: { w, l, h }, results });
   } catch (e) {
-    console.error('trays/suggest error:', e);
-    res.status(500).json({ error: 'Server error' });
+    console.error("trays/suggest error:", e);
+    res.status(500).json({ error: "Server error" });
   }
 });
 

@@ -1,45 +1,58 @@
 # syntax = docker/dockerfile:1
 
-# Adjust NODE_VERSION as desired
 ARG NODE_VERSION=23.11.0
+
 FROM node:${NODE_VERSION}-slim AS base
-
-LABEL fly_launch_runtime="Node.js"
-
-# Node.js app lives here
 WORKDIR /app
+ENV NODE_ENV=production
 
-# Set production environment
-ENV NODE_ENV="production"
-
-
-# Throw-away build stage to reduce size of final image
 FROM base AS build
-
-# Install packages needed to build node modules
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3 && \
+    apt-get install --no-install-recommends -y \
+      build-essential node-gyp pkg-config python-is-python3 && \
     rm -rf /var/lib/apt/lists/*
-
-# Install node modules
 COPY package-lock.json package.json ./
 RUN npm ci
-
-# Copy application code
 COPY . .
 
+FROM base AS runtime
 
-# Final stage for app image
-FROM base
+ARG LO_VERSION=25.8.6
+ARG LO_TARBALL_URL="https://download.documentfoundation.org/libreoffice/stable/${LO_VERSION}/deb/x86_64/LibreOffice_${LO_VERSION}_Linux_x86-64_deb.tar.gz"
 
-# INSTALL: LibreOffice for DOCX -> PDF conversion (plus minimal fonts)
-RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y libreoffice-writer fonts-dejavu-core && \
-    rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+  apt-get update -qq; \
+  apt-get install --no-install-recommends -y \
+    ca-certificates wget xz-utils \
+    libdbus-1-3 \
+    libcups2 \
+    libx11-xcb1 \
+    fonts-dejavu-core fontconfig \
+    libxinerama1 libxrandr2 libxrender1 libxi6 libxt6 libsm6 libice6 \
+    libfreetype6 libfontconfig1 libglib2.0-0 libcairo2 libnss3 \
+    texlive-latex-base \
+    texlive-latex-extra \
+    texlive-fonts-recommended \
+    texlive-lang-german; \
+  rm -rf /var/lib/apt/lists/*
 
-# Copy built application
+RUN set -eux; \
+  ARCH="$(dpkg --print-architecture)"; \
+  case "$ARCH" in amd64) : ;; *) echo "Unsupported arch: $ARCH"; exit 1 ;; esac; \
+  mkdir -p /tmp/lo && cd /tmp/lo; \
+  wget -S -O lo.tgz "${LO_TARBALL_URL}"; \
+  tar -xzf lo.tgz; \
+  dpkg -i LibreOffice_*_Linux_*_deb/DEBS/*.deb || true; \
+  apt-get update -qq; \
+  apt-get install -y -f --no-install-recommends; \
+  ln -sf /opt/libreoffice*/program/soffice /usr/local/bin/soffice; \
+  ln -sf /opt/libreoffice*/program/soffice /usr/local/bin/libreoffice; \
+  apt-get clean; \
+  rm -rf /var/lib/apt/lists/* /tmp/lo
+
+RUN /opt/libreoffice*/program/soffice --version
+
 COPY --from=build /app /app
 
-# Start the server by default, this can be overwritten at runtime
 EXPOSE 3000
-CMD [ "npm", "run", "start" ]
+CMD ["npm", "run", "start"]

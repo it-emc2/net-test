@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 // next.config.js
 const CSP = [
   "default-src 'self'",

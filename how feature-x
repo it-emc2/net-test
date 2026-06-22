@@ -1,0 +1,41 @@
+* [33mad304aa[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32malternative[m[33m, [m[1;32mtest[m[33m)[m commit
+[31m|[m *   [33mc7cd6e7[m[33m ([m[1;31morigin/test[m[33m)[m Merge branch 'test' of https://github.com/it-emc2/net-test into test
+[31m|[m [32m|[m[31m\[m  
+[31m|[m [32m|[m[31m/[m  
+[31m|[m[31m/[m[32m|[m   
+* [32m|[m   [33md956100[m Merge remote-tracking branch 'origin/test' into test
+[34m|[m[35m\[m [32m\[m  
+* [35m|[m [32m|[m [33m9e6da4f[m material plus aufshlag amount in the value
+[35m|[m [35m|[m * [33mb691d5e[m Glasabzieher
+[35m|[m [35m|[m[35m/[m  
+[35m|[m * [33m7cade1f[m Update index.html
+[35m|[m *   [33m1312d91[m Merge branch 'test' of https://github.com/it-emc2/net-test into test
+[35m|[m [36m|[m[35m\[m  
+[35m|[m [36m|[m[35m/[m  
+[35m|[m[35m/[m[36m|[m   
+* [36m|[m [33m2b36277[m fixing duschabtrennung style
+* [36m|[m   [33mae13411[m Merge remote-tracking branch 'origin/test' into test
+[1;32m|[m[1;33m\[m [36m\[m  
+* [1;33m|[m [36m|[m [33m5ddb38a[m fixing + buttons colors
+[1;33m|[m [1;33m|[m * [33mf9d225a[m freitext
+[1;33m|[m [1;33m|[m[1;33m/[m  
+[1;33m|[m * [33m88f3b54[m Bedenkanzeige
+[1;33m|[m[1;33m/[m  
+* [33m4d7b6a1[m setting the load angebote feature
+* [33m052c2fd[m fixing Produkte + Materia value in kosten-details
+* [33m7438ab9[m hide angebot laden menu page
+* [33m8cbc251[m not substracting aufshlag of haltigriffe if there is haltgriff rabatt
+* [33m58886df[m adding cl55 and cl65 in optional
+* [33m45166ab[m update template for bu
+* [33m2e1eeb4[m update template for bu
+* [33m90e0efc[m update template for bu
+* [33m3901e5f[m update template for bwt
+* [33m8e96fbc[m update template for bwt
+* [33m41141fe[m update material cost for bwt offer only for the file generated
+* [33mc0c2bf0[m update travel costs for bwt offers
+* [33m8bcd5f4[m update bwt bullet 7 in generated file
+* [33mdea35e1[m update bwt kosten details
+* [33md02971b[m update summe material shown in the angebote
+* [33m80468b9[m refactoring function restoreConfiguratorFromOffer(doc)
+* [33m806685e[m kundendaten small update
+* [33mbdddfa6[m bwt can be loaded and saved

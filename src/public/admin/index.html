@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EMC² Admin</title>
+  <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css">
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body style="background:#0f172a;margin:0;">
+
+  <!-- ── LOGIN ──────────────────────────────────────────────── -->
+  <div id="login-overlay" class="login-overlay">
+    <div class="login-card">
+      <div class="login-logo">EMC²</div>
+      <p class="login-subtitle">Admin Panel</p>
+      <form id="login-form" autocomplete="off">
+        <div class="login-field">
+          <label for="password">Passwort</label>
+          <div class="input-wrap">
+            <i class="fas fa-lock input-icon"></i>
+            <input type="password" id="password" placeholder="Passwort eingeben" autofocus>
+          </div>
+        </div>
+        <button type="submit" class="btn-primary btn-full" id="login-btn">
+          <span>Anmelden</span>
+          <i class="fas fa-arrow-right"></i>
+        </button>
+        <div id="login-error" class="login-error hidden"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── MAIN APP ────────────────────────────────────────────── -->
+  <div id="app" class="app hidden">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-logo">EMC²</span>
+        <span class="sidebar-title">Admin</span>
+      </div>
+
+      <nav id="sidebar-nav" class="sidebar-nav"></nav>
+
+      <div class="sidebar-footer">
+        <button id="logout-btn" class="logout-btn">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Abmelden</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main-content">
+
+      <!-- Topbar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 id="section-title" class="section-title">Allgemein</h1>
+          <span id="change-count" class="change-count hidden">0 Änderungen</span>
+        </div>
+        <div class="topbar-right">
+          <div id="save-status" class="save-status hidden"></div>
+          <button id="save-btn" class="btn-primary" disabled>
+            <i class="fas fa-save"></i>
+            <span id="save-label">Speichern</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Config cards -->
+      <div id="config-grid" class="config-grid">
+        <div class="loading-state">
+          <i class="fas fa-circle-notch fa-spin"></i>
+          <span>Lade Konfiguration…</span>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="/admin/admin.js"></script>
+</body>
+</html>
