@@ -5546,6 +5546,10 @@ document.body.addEventListener("click", (e) => {
         typeof window.renderFromData === "function") {
       window.renderFromData({});
     }
+    // Live-refresh AH Kosten-Vorschau bar
+    if (typeof window.renderAHKostenPreview === "function") {
+      window.renderAHKostenPreview();
+    }
   }
 
   // ── Title / remove-button / empty-hint upkeep ─────────────────────
@@ -5966,6 +5970,23 @@ document.body.addEventListener("click", (e) => {
     updateTitlesAndButtons();
     serialize();
   };
+
+  // ── Kosten-Vorschau toggle ────────────────────────────────────────────
+  (function () {
+    var toggleBtn  = document.getElementById("ahPreviewToggle");
+    var detailsEl  = document.getElementById("ahPreviewDetails");
+    if (!toggleBtn || !detailsEl) return;
+    toggleBtn.addEventListener("click", function () {
+      var isOpen = detailsEl.style.display !== "none";
+      detailsEl.style.display = isOpen ? "none" : "flex";
+      toggleBtn.style.color       = isOpen ? "var(--text-muted,#94a3b8)" : "var(--accent,#0ea5e9)";
+      toggleBtn.style.borderColor = isOpen ? "var(--border)"              : "var(--accent,#0ea5e9)";
+      if (!isOpen && typeof window.renderAHKostenPreview === "function") {
+        window.renderAHKostenPreview();
+      }
+    });
+    if (typeof window.renderAHKostenPreview === "function") window.renderAHKostenPreview();
+  })();
 })();
 // =================================================================
 // #region 10. PAGE SPECIFIC LOGIC (Wandverkleidung, Duschwanne, etc)
@@ -9742,12 +9763,88 @@ window.computeAHGesamt = function computeAHGesamt() {
   };
 };
 
+/* ========== AH: Kosten-Vorschau (live preview on AH page) ========== */
+window.renderAHKostenPreview = function renderAHKostenPreview() {
+  var gesamtEl  = document.getElementById("ahPreviewGesamt");
+  var detailsEl = document.getElementById("ahPreviewDetails");
+  if (!gesamtEl) return;
+
+  var fmtEuro = function(n) {
+    return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n) || 0);
+  };
+  var fmtH = function(h) { return (Math.round(h * 100) / 100).toFixed(2).replace(".", ","); };
+
+  var ah = window.computeAHGesamt?.() || {};
+  var gesamt          = ah.gesamt          || 0;
+  var gesamtBase      = ah.gesamtBase      || 0;
+  var anfahrtTotal    = ah.anfahrtTotal    || 0;
+  var leistungenTotal = ah.leistungenTotal || 0;
+  var totalMonatlichH = ah.totalMonatlichH || 0;
+  var hasAb           = !!ah.hasAb;
+  var abAnfahrtTotal    = ah.abAnfahrtTotal    || 0;
+  var abLeistungenTotal = ah.abLeistungenTotal || 0;
+  var abGesamtBase      = ah.abGesamtBase      || 0;
+  var abTotalMonatlichH = ah.abTotalMonatlichH || 0;
+  var hasHnd = totalMonatlichH > 0;
+
+  gesamtEl.textContent = gesamt > 0 ? fmtEuro(gesamt) + " / Mon." : "—";
+
+  if (!detailsEl || detailsEl.style.display === "none") return;
+
+  if (!hasHnd && !hasAb) {
+    detailsEl.innerHTML = '<div style="font-size:0.85rem; color:var(--muted); padding:4px 0;">Noch keine Leistung konfiguriert.</div>';
+    return;
+  }
+
+  function svcBlock(title, anfahrt, leistungen, h, rate, base) {
+    return '<div style="font-size:0.82rem; border:1px solid var(--border); border-radius:6px; overflow:hidden;">' +
+      '<div style="font-weight:600; padding:5px 10px; background:var(--bg-alt,#f8fafc); border-bottom:1px solid var(--border);">' + title + '</div>' +
+      '<div style="padding:6px 10px; display:flex; flex-direction:column; gap:3px;">' +
+        '<div style="display:flex; justify-content:space-between; color:var(--muted);">' +
+          '<span>Anfahrtspauschale</span><span>' + fmtEuro(anfahrt) + '</span>' +
+        '</div>' +
+        '<div style="display:flex; justify-content:space-between; color:var(--muted);">' +
+          '<span>' + fmtH(h) + ' h &times; ' + fmtEuro(rate) + '</span><span>' + fmtEuro(leistungen) + '</span>' +
+        '</div>' +
+        '<div style="display:flex; justify-content:space-between; font-weight:600; border-top:1px solid var(--border); padding-top:3px; margin-top:2px;">' +
+          '<span>Zwischensumme</span><span>' + fmtEuro(base) + '</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  var html = "";
+  if (hasHnd) html += svcBlock("HnD-Leistungen",    anfahrtTotal,   leistungenTotal,   totalMonatlichH,   40.56, gesamtBase);
+  if (hasAb)  html += svcBlock("Alltagsbegleitung",  abAnfahrtTotal, abLeistungenTotal, abTotalMonatlichH, 53.04, abGesamtBase);
+  if (hasHnd && hasAb) {
+    html += '<div style="display:flex; justify-content:space-between; font-size:0.95rem; font-weight:700; padding-top:6px; border-top:2px solid var(--border); margin-top:2px;">' +
+      '<span>Gesamt / Monat</span><span>' + fmtEuro(gesamt) + '</span></div>';
+  }
+
+  detailsEl.innerHTML = html;
+};
+
 /* ========== Kosten Duschabtrennung========== */
 
 /* ========== KOSTEN-DETAILS (render from __pricing only) ========== */
 (function initKostenDetails() {
   const container = document.getElementById("costsSummary");
   if (!container) return;
+
+  // ── Kosten toggle button ──────────────────────────────────────────────────
+  const kostenToggle      = document.getElementById("kostenDetailsToggle");
+  const kostenHeaderTotal = document.getElementById("kostenHeaderTotal");
+  const kostenDetailsDesc = document.getElementById("kostenDetailsDesc");
+  if (kostenToggle) {
+    kostenToggle.addEventListener("click", function () {
+      const isOpen = container.style.display !== "none";
+      container.style.display = isOpen ? "none" : "";
+      if (kostenDetailsDesc) kostenDetailsDesc.style.display = isOpen ? "none" : "";
+      if (kostenHeaderTotal) kostenHeaderTotal.style.display = isOpen ? "" : "none";
+      kostenToggle.style.color       = isOpen ? "var(--text-muted,#94a3b8)" : "var(--accent,#0ea5e9)";
+      kostenToggle.style.borderColor = isOpen ? "var(--border)"              : "var(--accent,#0ea5e9)";
+    });
+  }
 
   function euroC(n) {
     return new Intl.NumberFormat("de-DE", {
@@ -10397,6 +10494,9 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         ${!isSelbstzahler && hasHnd ? servicepauschaleBlock : ""}`;
 
       container.innerHTML = [...renderedCards, card("Summen", summenBody)].join("");
+      if (kostenHeaderTotal && gesamt > 0) {
+        kostenHeaderTotal.textContent = euroC(gesamt) + " / Mon.";
+      }
       return;
     }
 

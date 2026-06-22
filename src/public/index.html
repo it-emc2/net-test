@@ -6654,10 +6654,14 @@ button.dm-btn-danger:focus-visible {
 
       <!-- Kosten-Details -->
       <section class="card page" id="page-Kosten" hidden>
-        <h2 style="margin: 0 0 12px">Kosten-Details (Debug)</h2>
+        <div style="display:flex; align-items:center; gap:8px; margin: 0 0 8px;">
+          <h2 style="margin:0; flex:1;">Kosten-Details</h2>
+          <span id="kostenHeaderTotal" style="font-size:0.9rem; font-weight:600; color:var(--muted); display:none; white-space:nowrap;"></span>
+          <button type="button" id="kostenDetailsToggle" title="Details ein-/ausklappen"
+            style="background:none; border:1px solid var(--accent,#0ea5e9); border-radius:50%; width:22px; height:22px; font-size:0.72rem; cursor:pointer; color:var(--accent,#0ea5e9); display:flex; align-items:center; justify-content:center; padding:0; flex-shrink:0;">ℹ</button>
+        </div>
 
-
-        <p class="muted" style="margin: 0 0 14px">
+        <p class="muted" id="kostenDetailsDesc" style="margin: 0 0 14px">
           Interne Übersicht aller gewählten Positionen mit Mengen, Einzel- und
           Gesamtpreisen. Dient zum Prüfen der Abrechnung.
         </p>
@@ -7759,6 +7763,19 @@ button.dm-btn-danger:focus-visible {
             <textarea id="ahNote" name="ahNote" rows="8" placeholder="z. B. Besonderheiten, Kundenwünsche oder Hinweise zur Alltagshilfe …"></textarea>
           </div>
 
+
+          <!-- Kosten-Vorschau (live preview) -->
+          <div class="full" id="ahKostenPreviewWrap" style="margin-top:8px; border-top:1px solid var(--border); padding-top:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--muted);">Kosten-Vorschau</span>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span id="ahPreviewGesamt" style="font-size:0.95rem; font-weight:700;">—</span>
+                <button type="button" id="ahPreviewToggle" title="Berechnungsdetails ein-/ausklappen"
+                  style="background:none; border:1px solid var(--border); border-radius:50%; width:20px; height:20px; font-size:0.72rem; cursor:pointer; color:var(--text-muted,#94a3b8); display:flex; align-items:center; justify-content:center; padding:0; flex-shrink:0;">ℹ</button>
+              </div>
+            </div>
+            <div id="ahPreviewDetails" style="display:none; flex-direction:column; gap:8px; margin-top:10px;"></div>
+          </div>
 
           <!-- Navigation -->
           <div class="actions full" style="margin-top:16px">
