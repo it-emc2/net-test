@@ -9834,15 +9834,28 @@ window.renderAHKostenPreview = function renderAHKostenPreview() {
   // ── Kosten toggle button ──────────────────────────────────────────────────
   const kostenToggle      = document.getElementById("kostenDetailsToggle");
   const kostenHeaderTotal = document.getElementById("kostenHeaderTotal");
-  const kostenDetailsDesc = document.getElementById("kostenDetailsDesc");
   if (kostenToggle) {
     kostenToggle.addEventListener("click", function () {
-      const isOpen = container.style.display !== "none";
-      container.style.display = isOpen ? "none" : "";
-      if (kostenDetailsDesc) kostenDetailsDesc.style.display = isOpen ? "none" : "";
-      if (kostenHeaderTotal) kostenHeaderTotal.style.display = isOpen ? "" : "none";
-      kostenToggle.style.color       = isOpen ? "var(--text-muted,#94a3b8)" : "var(--accent,#0ea5e9)";
-      kostenToggle.style.borderColor = isOpen ? "var(--border)"              : "var(--accent,#0ea5e9)";
+      const isCollapsed = kostenToggle.dataset.collapsed === "1";
+      if (isCollapsed) {
+        // Expand: re-render full breakdown
+        delete kostenToggle.dataset.collapsed;
+        window.renderFromData?.({});
+        kostenToggle.style.color       = "var(--accent,#0ea5e9)";
+        kostenToggle.style.borderColor = "var(--accent,#0ea5e9)";
+        if (kostenHeaderTotal) kostenHeaderTotal.style.display = "none";
+      } else {
+        // Collapse: replace content with compact total line
+        kostenToggle.dataset.collapsed = "1";
+        const totalText = kostenHeaderTotal?.textContent || "";
+        container.style.display = "flex";
+        container.innerHTML = `<div style="text-align:right; padding:8px 0; font-size:1.05rem; color:var(--muted);">
+          Gesamtbetrag: <b style="color:var(--text);">${totalText}</b>
+        </div>`;
+        if (kostenHeaderTotal) kostenHeaderTotal.style.display = "";
+        kostenToggle.style.color       = "var(--text-muted,#94a3b8)";
+        kostenToggle.style.borderColor = "var(--border)";
+      }
     });
   }
 
@@ -10493,9 +10506,17 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         </div>
         ${!isSelbstzahler && hasHnd ? servicepauschaleBlock : ""}`;
 
+      container.style.display = "flex";
       container.innerHTML = [...renderedCards, card("Summen", summenBody)].join("");
       if (kostenHeaderTotal && gesamt > 0) {
         kostenHeaderTotal.textContent = euroC(gesamt) + " / Mon.";
+      }
+      // Reset toggle state whenever the breakdown re-renders
+      if (kostenToggle) {
+        delete kostenToggle.dataset.collapsed;
+        kostenToggle.style.color       = "var(--accent,#0ea5e9)";
+        kostenToggle.style.borderColor = "var(--accent,#0ea5e9)";
+        if (kostenHeaderTotal) kostenHeaderTotal.style.display = "none";
       }
       return;
     }
