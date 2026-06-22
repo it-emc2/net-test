@@ -4148,6 +4148,8 @@ if (anschlag) {
   payload.includeOurSignature = !!document.getElementById("includeOurSignature")?.checked;
   payload.ourSignatureUser =
     document.getElementById("ourSignatureUser")?.value?.trim() || "t.raithel";
+  // Persist auftragId at top level so it survives regardless of postal section usage
+  payload.auftragId = (document.getElementById("auftragId")?.value || "").trim() || undefined;
   payload.postal = readPostalStateForPayload();
 
   return filterPayloadByOffer(payload);
@@ -9831,31 +9833,45 @@ window.renderAHKostenPreview = function renderAHKostenPreview() {
   const container = document.getElementById("costsSummary");
   if (!container) return;
 
-  // ── Kosten toggle button ──────────────────────────────────────────────────
+  // ── Kosten info button ──────────────────────────────────────────────────
   const kostenToggle      = document.getElementById("kostenDetailsToggle");
   const kostenHeaderTotal = document.getElementById("kostenHeaderTotal");
   if (kostenToggle) {
+    const kostenInfoPanel = document.createElement("div");
+    kostenInfoPanel.style.cssText =
+      "display:none; font-size:0.75rem; background:var(--bg-alt,#f8fafc);" +
+      "border:1px solid var(--border); border-radius:6px; padding:10px 12px; margin-bottom:12px;";
+    kostenInfoPanel.innerHTML =
+      "<div style='font-weight:600; margin-bottom:6px; color:var(--text,#1e293b);'>Berechnungsregel</div>" +
+      "<div style='margin-bottom:6px; color:var(--text-muted,#64748b);'>" +
+        "Gesamt = <strong>Dauer × Häufigkeit × Zeitraum</strong><br>" +
+        "Basis: 52 Wochen/Jahr ÷ 12 → stabiler Monatsdurchschnitt." +
+      "</div>" +
+      "<table style='border-collapse:collapse; width:100%;'>" +
+        "<thead><tr style='color:var(--text-muted,#64748b);'>" +
+          "<th style='text-align:left; padding:2px 8px 2px 0; font-weight:500;'>Regelmäßigkeit</th>" +
+          "<th style='text-align:center; padding:2px 4px; font-weight:500;'>Formel</th>" +
+          "<th style='text-align:right; padding:2px 4px; font-weight:500;'>/ Monat</th>" +
+          "<th style='text-align:right; padding:2px 0 2px 4px; font-weight:500; color:var(--accent,#0ea5e9);'>Verwendet</th>" +
+        "</tr></thead>" +
+        "<tbody style='color:var(--text,#1e293b);'>" +
+          "<tr><td style='padding:1px 8px 1px 0;'>Wöchentlich</td><td style='text-align:center; padding:1px 4px;'>52 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 4,33×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 4,33×</td></tr>" +
+          "<tr><td style='padding:1px 8px 1px 0;'>14-tägig</td><td style='text-align:center; padding:1px 4px;'>26 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 2,17×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 2,17×</td></tr>" +
+          "<tr><td style='padding:1px 8px 1px 0;'>alle drei Wochen</td><td style='text-align:center; padding:1px 4px;'>(52÷3) ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 1,44×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 1,44×</td></tr>" +
+          "<tr><td style='padding:1px 8px 1px 0;'>Monatlich</td><td style='text-align:center; padding:1px 4px;'>1</td><td style='text-align:right; padding:1px 4px;'>1×</td><td style='text-align:right; padding:1px 0 1px 4px;'>1×</td></tr>" +
+          "<tr><td style='padding:1px 8px 1px 0;'>Vierteljährlich</td><td style='text-align:center; padding:1px 4px;'>4 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 0,33×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 0,33×</td></tr>" +
+          "<tr><td style='padding:1px 8px 1px 0;'>Halbjährlich</td><td style='text-align:center; padding:1px 4px;'>2 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 0,17×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 0,17×</td></tr>" +
+          "<tr><td style='padding:1px 8px 1px 0;'>Jährlich</td><td style='text-align:center; padding:1px 4px;'>1 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 0,083×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 0,083×</td></tr>" +
+          "<tr><td style='padding:1px 8px 1px 0;'>Einmalig</td><td style='text-align:center; padding:1px 4px;'>1× gesamt</td><td style='text-align:right; padding:1px 4px;'>—</td><td style='text-align:right; padding:1px 0 1px 4px;'>—</td></tr>" +
+        "</tbody>" +
+      "</table>";
+    container.parentNode.insertBefore(kostenInfoPanel, container);
+
     kostenToggle.addEventListener("click", function () {
-      const isCollapsed = kostenToggle.dataset.collapsed === "1";
-      if (isCollapsed) {
-        // Expand: re-render full breakdown
-        delete kostenToggle.dataset.collapsed;
-        window.renderFromData?.({});
-        kostenToggle.style.color       = "var(--accent,#0ea5e9)";
-        kostenToggle.style.borderColor = "var(--accent,#0ea5e9)";
-        if (kostenHeaderTotal) kostenHeaderTotal.style.display = "none";
-      } else {
-        // Collapse: replace content with compact total line
-        kostenToggle.dataset.collapsed = "1";
-        const totalText = kostenHeaderTotal?.textContent || "";
-        container.style.display = "flex";
-        container.innerHTML = `<div style="text-align:right; padding:8px 0; font-size:1.05rem; color:var(--muted);">
-          Gesamtbetrag: <b style="color:var(--text);">${totalText}</b>
-        </div>`;
-        if (kostenHeaderTotal) kostenHeaderTotal.style.display = "";
-        kostenToggle.style.color       = "var(--text-muted,#94a3b8)";
-        kostenToggle.style.borderColor = "var(--border)";
-      }
+      const open = kostenInfoPanel.style.display !== "none";
+      kostenInfoPanel.style.display  = open ? "none" : "";
+      kostenToggle.style.color       = open ? "var(--text-muted,#94a3b8)" : "var(--accent,#0ea5e9)";
+      kostenToggle.style.borderColor = open ? "var(--border)" : "var(--accent,#0ea5e9)";
     });
   }
 
@@ -10513,9 +10529,6 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       }
       // Reset toggle state whenever the breakdown re-renders
       if (kostenToggle) {
-        delete kostenToggle.dataset.collapsed;
-        kostenToggle.style.color       = "var(--accent,#0ea5e9)";
-        kostenToggle.style.borderColor = "var(--accent,#0ea5e9)";
         if (kostenHeaderTotal) kostenHeaderTotal.style.display = "none";
       }
       return;
@@ -12852,6 +12865,12 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       }
     } catch (e) {
       console.warn("[restore] postal restore failed:", e);
+    }
+
+    // Restore auftragId — top-level field takes priority, fallback to postal section
+    const restoredAuftragId = p?.auftragId || p?.postal?.auftragId || "";
+    if (restoredAuftragId && typeof syncSummaryLeadIds === "function") {
+      syncSummaryLeadIds(restoredAuftragId);
     }
 
     await window.__drawingReady;
