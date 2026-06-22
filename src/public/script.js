@@ -9662,6 +9662,7 @@ window.computeAHGesamt = function computeAHGesamt() {
   };
   var ANFAHRT_PER_EINSATZ = 7.96;
   var STUNDENSATZ_HND     = 40.56;
+  var STUNDENSATZ_AB      = 53.04;
   var r2 = function(n) { return Math.round((Number(n) + Number.EPSILON) * 100) / 100; };
 
   var ahServices = [];
@@ -9670,52 +9671,75 @@ window.computeAHGesamt = function computeAHGesamt() {
     if (_j) ahServices = JSON.parse(_j.value || "[]");
   } catch {}
 
-  // Zone-based travel time (AH only) — Arbeitszeit travelTime field not used here
-  var zoneData    = window.getAHZoneData?.() || null;
-  var reisezeitH  = zoneData ? zoneData.billMin / 60 : 0;
+  var zoneData   = window.getAHZoneData?.() || null;
+  var reisezeitH = zoneData ? zoneData.billMin / 60 : 0;
+
+  function computeSvc(svc) {
+    var scheds = svc ? (svc.schedules || (svc.schedule ? [svc.schedule] : [])) : [];
+    var totalEinsaetze = 0, totalMonatlichH = 0, schedRows = [];
+    scheds.forEach(function(sched) {
+      var dauerH = (typeof parseDurationMinutes === "function" ? parseDurationMinutes(sched.dauer || "") : 0) / 60;
+      var freq   = AH_FREQ[sched.regelmaessigkeit] || 0;
+      if (!dauerH || !freq) return;
+      var perVisitH = dauerH + 2 * reisezeitH;
+      var monthlyH  = perVisitH * freq;
+      totalEinsaetze  += freq;
+      totalMonatlichH += monthlyH;
+      schedRows.push({
+        dauer:            sched.dauer || "",
+        regelmaessigkeit: sched.regelmaessigkeit || "",
+        dauerMin:         Math.round(dauerH * 60),
+        reiseRoundMin:    Math.round(2 * reisezeitH * 60),
+        perVisitMin:      Math.round(perVisitH * 60),
+        freq:             freq,
+        monthlyH:         monthlyH,
+      });
+    });
+    return { totalEinsaetze: totalEinsaetze, totalMonatlichH: totalMonatlichH, schedRows: schedRows };
+  }
 
   var hndSvc = ahServices.find(function(s) { return s.type === "Haushaltsnahedienstleistungen"; });
-  if (!hndSvc) return { gesamt: 0, gesamtBase: 0, anfahrtTotal: 0, leistungenTotal: 0,
-                        totalEinsaetze: 0, totalMonatlichH: 0, tasks: [],
-                        isSelbstzahler: false, servicepauschale: 1.20,
-                        zoneData: zoneData, schedRows: [] };
+  var abSvc  = ahServices.find(function(s) { return s.type === "Alltagsbegleitung"; });
 
-  var scheds = hndSvc.schedules || (hndSvc.schedule ? [hndSvc.schedule] : []);
-  var totalEinsaetze = 0;
-  var totalMonatlichH = 0;
+  var hnd = computeSvc(hndSvc);
+  var ab  = computeSvc(abSvc);
 
-  var schedRows = [];
-  scheds.forEach(function(sched) {
-    var dauerH = (typeof parseDurationMinutes === "function" ? parseDurationMinutes(sched.dauer || "") : 0) / 60;
-    var freq   = AH_FREQ[sched.regelmaessigkeit] || 0;
-    if (!dauerH || !freq) return;
-    var perVisitH  = dauerH + 2 * reisezeitH;
-    var monthlyH   = perVisitH * freq;
-    totalEinsaetze  += freq;
-    totalMonatlichH += monthlyH;
-    schedRows.push({
-      dauer:           sched.dauer || "",
-      regelmaessigkeit: sched.regelmaessigkeit || "",
-      dauerMin:        Math.round(dauerH * 60),
-      reiseRoundMin:   Math.round(2 * reisezeitH * 60),
-      perVisitMin:     Math.round(perVisitH * 60),
-      freq:            freq,
-      monthlyH:        monthlyH,
-    });
-  });
+  var SERVICEPAUSCHALE = 1.20;
+  var isSelbstzahler   = (document.querySelector('input[name="payer"]:checked')?.value || "") === "Selbstzahler";
 
-  var SERVICEPAUSCHALE    = 1.20;
-  var isSelbstzahler      = (document.querySelector('input[name="payer"]:checked')?.value || "") === "Selbstzahler";
-  var anfahrtTotal        = r2(totalEinsaetze * ANFAHRT_PER_EINSATZ);
-  var leistungenTotal     = r2(totalMonatlichH * STUNDENSATZ_HND);
-  var gesamtBase          = r2(anfahrtTotal + leistungenTotal);
-  var gesamt              = r2(gesamtBase + (isSelbstzahler ? SERVICEPAUSCHALE : 0));
-  return { gesamt: gesamt, gesamtBase: gesamtBase,
-           anfahrtTotal: anfahrtTotal, leistungenTotal: leistungenTotal,
-           totalEinsaetze: totalEinsaetze, totalMonatlichH: totalMonatlichH,
-           tasks: hndSvc.tasks || [], isSelbstzahler: isSelbstzahler,
-           servicepauschale: SERVICEPAUSCHALE, zoneData: zoneData,
-           schedRows: schedRows };
+  var anfahrtTotal    = r2(hnd.totalEinsaetze * ANFAHRT_PER_EINSATZ);
+  var leistungenTotal = r2(hnd.totalMonatlichH * STUNDENSATZ_HND);
+  var gesamtBase      = r2(anfahrtTotal + leistungenTotal);
+
+  var abAnfahrtTotal    = r2(ab.totalEinsaetze * ANFAHRT_PER_EINSATZ);
+  var abLeistungenTotal = r2(ab.totalMonatlichH * STUNDENSATZ_AB);
+  var abGesamtBase      = r2(abAnfahrtTotal + abLeistungenTotal);
+
+  var allBase = r2(gesamtBase + abGesamtBase);
+  var gesamt  = r2(allBase + (isSelbstzahler && hnd.totalMonatlichH > 0 ? SERVICEPAUSCHALE : 0));
+
+  return {
+    gesamt:            gesamt,
+    gesamtBase:        gesamtBase,
+    anfahrtTotal:      anfahrtTotal,
+    leistungenTotal:   leistungenTotal,
+    totalEinsaetze:    hnd.totalEinsaetze,
+    totalMonatlichH:   hnd.totalMonatlichH,
+    tasks:             hndSvc ? (hndSvc.tasks || []) : [],
+    isSelbstzahler:    isSelbstzahler,
+    servicepauschale:  SERVICEPAUSCHALE,
+    zoneData:          zoneData,
+    schedRows:         hnd.schedRows,
+    hasAb:             ab.totalMonatlichH > 0,
+    abTotalEinsaetze:  ab.totalEinsaetze,
+    abTotalMonatlichH: ab.totalMonatlichH,
+    abAnfahrtTotal:    abAnfahrtTotal,
+    abLeistungenTotal: abLeistungenTotal,
+    abGesamtBase:      abGesamtBase,
+    abTasks:           abSvc ? (abSvc.tasks || []) : [],
+    abSchedRows:       ab.schedRows,
+    allBase:           allBase,
+  };
 };
 
 /* ========== Kosten Duschabtrennung========== */
@@ -10158,7 +10182,6 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     // ── AH: completely separate rendering path ───────────────────────
     const currentOfferForKosten = String(window.getCurrentOfferType?.() || "").toLowerCase();
     if (currentOfferForKosten === "ah") {
-      const SERVICEPAUSCHALE = 1.20;
       const fmtH = (h) => (Math.round(h * 100) / 100).toFixed(2).replace(".", ",");
 
       const HND_TASK_LABELS = {
@@ -10173,10 +10196,35 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         "post":              "Post holen und sortieren",
         "haustiere":         "Haustierversorgung (Füttern, Gassi gehen)",
       };
+      const AB_TASK_LABELS = {
+        "arzttermine":    "Begleitung zu Arztterminen",
+        "behoerdengaenge":"Begleitung zu Behördengängen",
+        "einkaufen_begl": "Begleitung zum Einkaufen (gemeinsam)",
+        "spaziergaenge":  "Spaziergänge / Bewegung an der frischen Luft",
+        "gesellschaft":   "Gesellschaft leisten / Gespräche führen",
+        "vorlesen":       "Vorlesen (Zeitung, Bücher)",
+        "aktivitaeten":   "Gemeinsame Aktivitäten (Spiele, Basteln, Kochen)",
+        "gedaechtnis":    "Gedächtnistraining / kognitive Aktivierung",
+        "korrespondenz":  "Unterstützung bei Korrespondenz (Briefe, Formulare)",
+        "fahrdienste":    "Fahrdienste (zum Friedhof, Friseur, Veranstaltungen)",
+        "entlastung":     "Entlastung pflegender Angehöriger (stundenweise Betreuung)",
+      };
 
       // Use the shared computation helper
-      const ah = window.computeAHGesamt?.() || { gesamt: 0, gesamtBase: 0, anfahrtTotal: 0, leistungenTotal: 0, totalEinsaetze: 0, totalMonatlichH: 0, tasks: [], isSelbstzahler: false, servicepauschale: 1.20, zoneData: null, schedRows: [] };
-      const { gesamt, gesamtBase, anfahrtTotal, leistungenTotal, totalEinsaetze, totalMonatlichH, tasks, isSelbstzahler, servicepauschale, zoneData, schedRows } = ah;
+      const ah = window.computeAHGesamt?.() || {
+        gesamt: 0, gesamtBase: 0, anfahrtTotal: 0, leistungenTotal: 0,
+        totalEinsaetze: 0, totalMonatlichH: 0, tasks: [],
+        isSelbstzahler: false, servicepauschale: 1.20, zoneData: null, schedRows: [],
+        hasAb: false, abTotalEinsaetze: 0, abTotalMonatlichH: 0,
+        abAnfahrtTotal: 0, abLeistungenTotal: 0, abGesamtBase: 0,
+        abTasks: [], abSchedRows: [], allBase: 0,
+      };
+      const {
+        gesamt, gesamtBase, anfahrtTotal, leistungenTotal,
+        totalEinsaetze, totalMonatlichH, tasks, isSelbstzahler, servicepauschale, zoneData, schedRows,
+        hasAb, abTotalEinsaetze, abTotalMonatlichH,
+        abAnfahrtTotal, abLeistungenTotal, abGesamtBase, abTasks, abSchedRows, allBase,
+      } = ah;
 
       // Keep widget in sync
       if (typeof updateSummaryWidgetTotal === "function") updateSummaryWidgetTotal(gesamt);
@@ -10184,7 +10232,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
 
       const renderedCards = [];
 
-      // Zone info banner
+      // Zone info banner (shared across both service cards)
       const zoneBanner = zoneData
         ? `<div style="margin-bottom:10px; padding:6px 10px; background:var(--accent-weak,#e0f2fe); border-radius:6px; font-size:0.82rem; display:flex; gap:16px; flex-wrap:wrap;">
             <span><b>Zone ${zoneData.zone}</b></span>
@@ -10195,31 +10243,32 @@ if (offerKey === "bwt" && isExtraAufgabe) {
             ⚠ Keine Zone bestimmt — bitte Adresse eingeben und Routing ausführen.
            </div>`;
 
-      if (totalMonatlichH > 0) {
-        const taskBullets = (tasks || [])
-          .map(id => HND_TASK_LABELS[id]).filter(Boolean)
+      // ── Shared card builder ───────────────────────────────────────────────
+      const COL = "1fr 90px 90px 70px 80px";
+      const thStyle = "text-align:right; font-size:0.7rem; font-weight:600; color:var(--muted); padding-bottom:3px;";
+      const tdStyle = "text-align:right; font-size:0.82rem; color:var(--muted);";
+      const tdAccent = "text-align:right; font-size:0.82rem; font-weight:600; color:var(--accent,#0ea5e9);";
+
+      function buildSvcCard(cfg) {
+        const taskBullets = (cfg.tasks || [])
+          .map(id => cfg.taskLabels[id]).filter(Boolean)
           .map(t => `<li style="margin:1px 0; color:var(--muted);">${escapeHtml(t)}</li>`)
           .join("");
 
-        const einsatzQty = schedRows.length > 1
-          ? `<div style="font-size:0.78em; color:var(--muted);">${schedRows.map(r => (Math.round(r.freq * 100) / 100).toFixed(2).replace(".", ",")).join(" + ")}</div>
-             <div>= ${fmtH(totalEinsaetze)} ×</div>`
-          : `<div>${fmtH(totalEinsaetze)} ×</div>`;
+        const einsatzQty = cfg.schedRows.length > 1
+          ? `<div style="font-size:0.78em; color:var(--muted);">${cfg.schedRows.map(r => (Math.round(r.freq * 100) / 100).toFixed(2).replace(".", ",")).join(" + ")}</div>
+             <div>= ${fmtH(cfg.totalEinsaetze)} ×</div>`
+          : `<div>${fmtH(cfg.totalEinsaetze)} ×</div>`;
+
         const row1 = `
           <div style="display:grid; grid-template-columns:1fr auto auto auto; gap:4px 12px; align-items:end; font-size:0.9rem;">
             <div>Anfahrtspauschale Alltagshilfe</div>
             <div style="text-align:right; color:var(--muted);">${einsatzQty}</div>
             <div style="text-align:right; color:var(--muted);">${euroC(7.96)}</div>
-            <div style="text-align:right; font-weight:600;">${euroC(anfahrtTotal)}</div>
+            <div style="text-align:right; font-weight:600;">${euroC(cfg.anfahrtTotal)}</div>
           </div>`;
 
-        // Time breakdown table (one row per Zeitzeile)
-        const COL = "1fr 90px 90px 70px 80px";
-        const thStyle = "text-align:right; font-size:0.7rem; font-weight:600; color:var(--muted); padding-bottom:3px;";
-        const tdStyle = "text-align:right; font-size:0.82rem; color:var(--muted);";
-        const tdAccent = "text-align:right; font-size:0.82rem; font-weight:600; color:var(--accent,#0ea5e9);";
-
-        const breakdownRows = (schedRows || []).map(function(r) {
+        const breakdownRows = cfg.schedRows.map(function(r) {
           return `<div style="grid-column:1/-1; display:grid; grid-template-columns:${COL}; gap:2px 8px; align-items:center; padding:3px 0; border-top:1px solid var(--border);">
             <div style="font-size:0.82rem; color:var(--muted);">${escapeHtml(r.regelmaessigkeit)}</div>
             <div style="${tdStyle}">${r.dauerMin} min</div>
@@ -10229,7 +10278,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
           </div>`;
         }).join("");
 
-        const breakdown = schedRows && schedRows.length ? `
+        const breakdown = cfg.schedRows.length ? `
           <div style="margin-top:6px; padding:6px 8px; background:var(--bg-alt,#f8fafc); border-radius:6px; border:1px solid var(--border);">
             <div style="display:grid; grid-template-columns:${COL}; gap:2px 8px; align-items:center; padding-bottom:3px;">
               <div style="${thStyle} text-align:left;">Zeitzeile</div>
@@ -10240,36 +10289,73 @@ if (offerKey === "bwt" && isExtraAufgabe) {
             </div>
             ${breakdownRows}
             <div style="text-align:right; font-size:0.82rem; font-weight:700; color:var(--accent,#0ea5e9); padding-top:4px; border-top:1px solid var(--border); margin-top:3px;">
-              Gesamt: ${formatDurationHHMM(Math.round(totalMonatlichH * 60))} / Monat
-              <span style="font-size:0.85em; font-weight:400; color:var(--muted);">(= ${fmtH(totalMonatlichH)} h)</span>
+              Gesamt: ${formatDurationHHMM(Math.round(cfg.totalMonatlichH * 60))} / Monat
+              <span style="font-size:0.85em; font-weight:400; color:var(--muted);">(= ${fmtH(cfg.totalMonatlichH)} h)</span>
             </div>
           </div>` : "";
 
         const row2 = `
           <div style="display:grid; grid-template-columns:1fr auto auto auto; gap:4px 12px; align-items:start; font-size:0.9rem; margin-top:8px; padding-top:8px; border-top:1px solid var(--border);">
             <div>
-              <div>Angebot zur Unterstützung im Haushalt</div>
-              <div style="font-size:0.85em; font-weight:600; color:var(--muted);">Haushaltsnahe Dienstleistung</div>
+              <div>${cfg.row2Title}</div>
+              ${cfg.row2Subtitle ? `<div style="font-size:0.85em; font-weight:600; color:var(--muted);">${cfg.row2Subtitle}</div>` : ""}
               ${breakdown}
               ${taskBullets ? `<ul style="margin:6px 0 0 10px; padding:0; font-size:0.85em;">${taskBullets}</ul>` : ""}
             </div>
-            <div style="text-align:right; color:var(--muted);">${fmtH(totalMonatlichH)} h ×</div>
-            <div style="text-align:right; color:var(--muted);">${euroC(40.56)}</div>
-            <div style="text-align:right; font-weight:600;">${euroC(leistungenTotal)}</div>
+            <div style="text-align:right; color:var(--muted);">${fmtH(cfg.totalMonatlichH)} h ×</div>
+            <div style="text-align:right; color:var(--muted);">${euroC(cfg.stundensatz)}</div>
+            <div style="text-align:right; font-weight:600;">${euroC(cfg.leistungenTotal)}</div>
           </div>`;
 
-        renderedCards.push(card(
-          "HnD-Leistungen",
+        return card(
+          cfg.cardTitle,
           zoneBanner + row1 + row2,
-          `<div style="text-align:right;"><b>Zwischensumme:</b> ${euroC(gesamtBase)}</div>`
-        ));
+          `<div style="text-align:right;"><b>Zwischensumme:</b> ${euroC(cfg.gesamtBase)}</div>`
+        );
+      }
+
+      // ── HnD card ──────────────────────────────────────────────────────────
+      if (totalMonatlichH > 0) {
+        renderedCards.push(buildSvcCard({
+          cardTitle:       "HnD-Leistungen",
+          row2Title:       "Angebot zur Unterstützung im Haushalt",
+          row2Subtitle:    "Haushaltsnahe Dienstleistung",
+          stundensatz:     40.56,
+          totalEinsaetze:  totalEinsaetze,
+          totalMonatlichH: totalMonatlichH,
+          anfahrtTotal:    anfahrtTotal,
+          leistungenTotal: leistungenTotal,
+          gesamtBase:      gesamtBase,
+          tasks:           tasks,
+          taskLabels:      HND_TASK_LABELS,
+          schedRows:       schedRows,
+        }));
+      }
+
+      // ── Alltagsbegleitung card ────────────────────────────────────────────
+      if (hasAb) {
+        renderedCards.push(buildSvcCard({
+          cardTitle:       "Alltagsbegleitung",
+          row2Title:       "Alltagsbegleitung",
+          row2Subtitle:    "",
+          stundensatz:     53.04,
+          totalEinsaetze:  abTotalEinsaetze,
+          totalMonatlichH: abTotalMonatlichH,
+          anfahrtTotal:    abAnfahrtTotal,
+          leistungenTotal: abLeistungenTotal,
+          gesamtBase:      abGesamtBase,
+          tasks:           abTasks,
+          taskLabels:      AB_TASK_LABELS,
+          schedRows:       abSchedRows,
+        }));
       }
 
       if (!renderedCards.length) {
-        renderedCards.push(card("HnD-Leistungen", zoneBanner + '<div class="muted">Noch keine HnD-Leistung konfiguriert.</div>'));
+        renderedCards.push(card("Leistungen", zoneBanner + '<div class="muted">Noch keine Leistung konfiguriert.</div>'));
       }
 
-      // Servicepauschale: added to total for Selbstzahler, shown as note for Kassenkunde
+      // ── Servicepauschale (HnD only) ───────────────────────────────────────
+      const hasHnd = totalMonatlichH > 0;
       const servicepauschaleBlock = isSelbstzahler
         ? `<div style="margin-top:8px; display:flex; justify-content:space-between; align-items:center; font-size:0.9rem;">
             <div>Servicepauschale Reinigungsutensilien für HnD <span style="font-size:0.78rem; color:var(--muted);">(inkl. MwSt.)</span></div>
@@ -10286,13 +10372,29 @@ if (offerKey === "bwt" && isExtraAufgabe) {
             </div>
            </div>`;
 
+      // ── Summen card ───────────────────────────────────────────────────────
+      const subtotalLines = hasHnd && hasAb
+        ? `<div style="display:flex; justify-content:space-between; width:100%; color:var(--muted); font-size:0.85rem;">
+             <span>HnD-Leistungen</span><span>${euroC(gesamtBase)}</span>
+           </div>
+           <div style="display:flex; justify-content:space-between; width:100%; color:var(--muted); font-size:0.85rem;">
+             <span>Alltagsbegleitung</span><span>${euroC(abGesamtBase)}</span>
+           </div>`
+        : (isSelbstzahler && hasHnd
+            ? `<div style="color:var(--muted); font-size:0.85rem; align-self:flex-end;">Zwischensumme: ${euroC(allBase)}</div>`
+            : "");
+
+      const totalDivider = hasHnd && hasAb
+        ? "padding-top:8px; border-top:1px solid var(--border); width:100%; text-align:right;"
+        : "";
+
       const summenBody = `
         <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
-          ${isSelbstzahler ? `<div style="color:var(--muted); font-size:0.85rem;">Zwischensumme: ${euroC(gesamtBase)}</div>` : ""}
-          ${isSelbstzahler ? servicepauschaleBlock : ""}
-          <div style="font-size:1.2rem;">Gesamtbetrag: <b>${euroC(gesamt)}</b></div>
+          ${subtotalLines}
+          ${isSelbstzahler && hasHnd ? servicepauschaleBlock : ""}
+          <div style="font-size:1.2rem; ${totalDivider}">Gesamtbetrag: <b>${euroC(gesamt)}</b></div>
         </div>
-        ${!isSelbstzahler ? servicepauschaleBlock : ""}`;
+        ${!isSelbstzahler && hasHnd ? servicepauschaleBlock : ""}`;
 
       container.innerHTML = [...renderedCards, card("Summen", summenBody)].join("");
       return;
@@ -16819,6 +16921,18 @@ window.addEventListener("offerflow:changed", () => {
   // ========== AUTO-REFRESH ON PAGE ENTER ==========
   
   function onEnterZusammenfassung() {
+  // Populate Auftrag ID field from any synced sibling that already has a value
+  const auftragIdEl = document.getElementById("auftragId");
+  if (auftragIdEl && !auftragIdEl.value.trim()) {
+    const sibling =
+      document.getElementById("postAuftragId") ||
+      document.getElementById("mailAuftragId");
+    const siblingVal = (sibling?.value || "").trim();
+    if (siblingVal && typeof syncSummaryLeadIds === "function") {
+      syncSummaryLeadIds(siblingVal);
+    }
+  }
+
   // Refresh pricing to ensure everything is up to date
   if (typeof window.updatePricing === 'function') {
     window.updatePricing().catch(err => {

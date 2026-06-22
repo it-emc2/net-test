@@ -1791,6 +1791,7 @@ const AH_FREQ = {
 };
 const AH_ANFAHRT_PER_EINSATZ = 7.96;
 const AH_STUNDENSATZ_HND     = 40.56;
+const AH_STUNDENSATZ_AB      = 53.04;
 
 function r2(n) { return Math.round((Number(n) + Number.EPSILON) * 100) / 100; }
 
@@ -1830,12 +1831,10 @@ function buildAhData(body) {
   const travelTimeH = parseHHMM(body?.Arbeitszeit?.travelTimeHHMM || "");
 
   // ── Compute AH pricing (same logic as computeAHGesamt on frontend) ──────
-  const hndSvc = rawServices.find((s) => s.type === "Haushaltsnahedienstleistungen");
-  let totalEinsaetze  = 0;
-  let totalMonatlichH = 0;
-
-  if (hndSvc) {
-    const scheds = Array.isArray(hndSvc.schedules) ? hndSvc.schedules : [];
+  function computeAhSvc(svc) {
+    let totalEinsaetze = 0, totalMonatlichH = 0;
+    if (!svc) return { totalEinsaetze, totalMonatlichH };
+    const scheds = Array.isArray(svc.schedules) ? svc.schedules : [];
     scheds.forEach((sched) => {
       const dauerH = parseHHMM(sched.dauer);
       const freq   = AH_FREQ[sched.regelmaessigkeit] || 0;
@@ -1843,11 +1842,20 @@ function buildAhData(body) {
       totalEinsaetze  += freq;
       totalMonatlichH += (dauerH + travelTimeH) * freq;
     });
+    return { totalEinsaetze, totalMonatlichH };
   }
 
-  const anfahrtTotal    = r2(totalEinsaetze * AH_ANFAHRT_PER_EINSATZ);
-  const leistungenTotal = r2(totalMonatlichH * AH_STUNDENSATZ_HND);
-  const gesamt          = r2(anfahrtTotal + leistungenTotal);
+  const hndSvc = rawServices.find((s) => s.type === "Haushaltsnahedienstleistungen");
+  const abSvc  = rawServices.find((s) => s.type === "Alltagsbegleitung");
+
+  const hnd = computeAhSvc(hndSvc);
+  const ab  = computeAhSvc(abSvc);
+
+  const anfahrtTotal    = r2(hnd.totalEinsaetze * AH_ANFAHRT_PER_EINSATZ);
+  const leistungenTotal = r2(hnd.totalMonatlichH * AH_STUNDENSATZ_HND);
+  const abAnfahrtTotal    = r2(ab.totalEinsaetze * AH_ANFAHRT_PER_EINSATZ);
+  const abLeistungenTotal = r2(ab.totalMonatlichH * AH_STUNDENSATZ_AB);
+  const gesamt = r2(anfahrtTotal + leistungenTotal + abAnfahrtTotal + abLeistungenTotal);
 
   // ── Build per-service rows ──────────────────────────────────────────────
   const AhServices = rawServices.map((svc, idx) => {
@@ -1864,14 +1872,17 @@ function buildAhData(body) {
       .map((id) => ({ AhTaskLabel: AH_TASK_LABELS[id] || id }))
       .filter((t) => t.AhTaskLabel);
 
-    // Pricing per service: HnD uses the computed monthly figures
+    // Pricing per service
     let menge = "", einzelpreis = "", serviceGesamt = "";
-    if (isHaushalt && totalMonatlichH > 0) {
-      menge         = fmtHHMM(totalMonatlichH);
+    if (isHaushalt && hnd.totalMonatlichH > 0) {
+      menge         = fmtHHMM(hnd.totalMonatlichH);
       einzelpreis   = `${AH_STUNDENSATZ_HND.toFixed(2).replace(".", ",")} €`;
       serviceGesamt = fmtCurrency(leistungenTotal);
+    } else if (isBegleitung && ab.totalMonatlichH > 0) {
+      menge         = fmtHHMM(ab.totalMonatlichH);
+      einzelpreis   = `${AH_STUNDENSATZ_AB.toFixed(2).replace(".", ",")} €`;
+      serviceGesamt = fmtCurrency(abLeistungenTotal);
     } else {
-      // Alltagsbegleitung or unknown: show dauer from first schedule, no price yet
       const sched0 = (Array.isArray(svc.schedules) ? svc.schedules : [])[0] || {};
       menge = sched0.dauer ? `${sched0.dauer} h` : "";
     }
