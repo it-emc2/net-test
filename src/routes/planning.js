@@ -6,8 +6,14 @@ const PLANNING_API_BASE_URL = (
   process.env.PLANNING_API_BASE_URL || "https://route-plannung.fly.dev"
 ).replace(/\/+$/, "");
 
+const PLANNING_API_KEY = process.env.PLANNING_API_KEY || "";
+
 function buildPlanningUrl(pathname) {
   return `${PLANNING_API_BASE_URL}${pathname}`;
+}
+
+function apiKeyHeader() {
+  return PLANNING_API_KEY ? { "X-Api-Key": PLANNING_API_KEY } : {};
 }
 
 async function readUpstreamBody(upstream) {
@@ -26,6 +32,7 @@ router.get("/planning/current", async (_req, res) => {
     const upstream = await fetch(buildPlanningUrl("/api/planning/current"), {
       headers: {
         Accept: "application/json",
+        ...apiKeyHeader(),
       },
     });
 
@@ -52,6 +59,7 @@ router.get("/planning/stream", async (req, res) => {
       headers: {
         Accept: "text/event-stream",
         "Cache-Control": "no-cache",
+        ...apiKeyHeader(),
       },
       signal: controller.signal,
     });

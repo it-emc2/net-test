@@ -21897,9 +21897,8 @@ window.__debug_calendarEndpoints = TODAY_CALENDAR_ENDPOINTS;
 
 (function(){
 
-const TODAY_PLANNING_BASE_URL = "https://route-plannung.fly.dev";
-const TODAY_PLANNING_SNAPSHOT_ENDPOINT = `${TODAY_PLANNING_BASE_URL}/api/planning/current`;
-const TODAY_PLANNING_STREAM_ENDPOINT = `${TODAY_PLANNING_BASE_URL}/api/planning/stream`;
+const TODAY_PLANNING_SNAPSHOT_ENDPOINT = `/api/planning/current`;
+const TODAY_PLANNING_STREAM_ENDPOINT = `/api/planning/stream`;
 
 let todayPlanningAppointments = [];
 let todayPlanningAppointmentsFiltered = [];
