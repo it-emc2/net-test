@@ -233,5 +233,119 @@ router.post("/timeline/comment", express.json({ limit: "25mb" }), async (req, re
   }
 });
 
+// GET /api/bitrix/calendar/week
+// Returns the current week's CRM activities (meetings + calls) grouped by day
+// in the same { planning: { days: [...] } } shape the week calendar renderer expects.
+router.get("/calendar/week", async (_req, res) => {
+  try {
+    // Monday–Sunday of the current week
+    const now = new Date();
+    const dow = now.getDay(); // 0=Sun
+    const toMonday = dow === 0 ? -6 : 1 - dow;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + toMonday);
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    // Bitrix expects ISO or "dd.mm.yyyy hh:mm:ss" — ISO works fine
+    const fromISO = monday.toISOString();
+    const toISO   = sunday.toISOString();
+
+    // Fetch meetings (TYPE_ID 3) and calls (TYPE_ID 1) for the week
+    const [meetingsData, callsData] = await Promise.all([
+      bxGet("crm.activity.list", {
+        filter: { ">=START_TIME": fromISO, "<=START_TIME": toISO, TYPE_ID: 3 },
+        select: ["ID", "SUBJECT", "START_TIME", "END_TIME", "STATUS", "RESPONSIBLE_ID", "COMMUNICATIONS", "DESCRIPTION"],
+        order:  { START_TIME: "ASC" },
+      }).catch(() => ({ result: [] })),
+      bxGet("crm.activity.list", {
+        filter: { ">=START_TIME": fromISO, "<=START_TIME": toISO, TYPE_ID: 1 },
+        select: ["ID", "SUBJECT", "START_TIME", "END_TIME", "STATUS", "RESPONSIBLE_ID", "COMMUNICATIONS"],
+        order:  { START_TIME: "ASC" },
+      }).catch(() => ({ result: [] })),
+    ]);
+
+    const activities = [
+      ...(meetingsData.result || []),
+      ...(callsData.result  || []),
+    ].sort((a, b) => new Date(a.START_TIME) - new Date(b.START_TIME));
+
+    // Group activities into a day map
+    const dayMap = new Map();
+
+    for (const act of activities) {
+      const start   = new Date(act.START_TIME);
+      if (isNaN(start.getTime())) continue;
+
+      const dateKey = start.toLocaleDateString("sv-SE"); // "YYYY-MM-DD"
+
+      if (!dayMap.has(dateKey)) {
+        dayMap.set(dateKey, {
+          date:      dateKey,
+          label:     start.toLocaleDateString("de-DE", { weekday: "long" }),
+          shortLabel: start.toLocaleDateString("de-DE", { weekday: "short" }).replace(".", "").slice(0, 2),
+          dateLabel: start.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+          locked:    false,
+          customers: [],
+        });
+      }
+
+      const day  = dayMap.get(dateKey);
+      const end  = act.END_TIME ? new Date(act.END_TIME) : null;
+      const dur  = end && !isNaN(end.getTime()) ? Math.max(0, Math.round((end - start) / 60000)) : 0;
+      const mins = start.getHours() * 60 + start.getMinutes();
+
+      // Pull phone/email from COMMUNICATIONS if present
+      const comms  = Array.isArray(act.COMMUNICATIONS) ? act.COMMUNICATIONS : [];
+      const phone  = comms.map(c => c.VALUE || c.PHONE || "").find(Boolean) || "";
+      const email  = comms.map(c => c.EMAIL || "").find(Boolean) || "";
+
+      // STATUS: "0"=planned, "1"=completed, "2"=failed/cancelled
+      const cancelled = String(act.STATUS) === "2";
+      const completed = String(act.STATUS) === "1";
+
+      day.customers.push({
+        id:                  String(act.ID),
+        name:                act.SUBJECT || "Termin",
+        address:             act.DESCRIPTION || "",
+        email,
+        phone,
+        locked:              !cancelled && !completed, // planned = time is set
+        lockedSlot:          null,
+        cancelled,
+        duration:            dur,
+        manualStartMinutes:  mins,
+        priority:            "medium",
+        _type:               Number(act.TYPE_ID) === 1 ? "call" : "meeting",
+      });
+    }
+
+    // Always emit all 5 weekdays Mon–Fri, even if empty
+    const days = [];
+    const cursor = new Date(monday);
+    for (let i = 0; i < 5; i++) {
+      const dk = cursor.toLocaleDateString("sv-SE");
+      days.push(
+        dayMap.get(dk) ?? {
+          date:      dk,
+          label:     cursor.toLocaleDateString("de-DE", { weekday: "long" }),
+          shortLabel: cursor.toLocaleDateString("de-DE", { weekday: "short" }).replace(".", "").slice(0, 2),
+          dateLabel: cursor.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+          locked:    false,
+          customers: [],
+        }
+      );
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return res.json({ planning: { days } });
+  } catch (err) {
+    console.error("GET /api/bitrix/calendar/week error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
 export default router;
 export { addTimelineComment };

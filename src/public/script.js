@@ -22339,7 +22339,6 @@ function updateTodayPlanningMeta(day){
 
 function applyPlanningPayload(payload){
   __lastPlanningRawPayload = payload;
-  renderWeekCalendar(payload);
 
   const list = document.getElementById("todayPlanningList");
   const { day, entries } = buildPlanningEntries(payload || {});
@@ -22500,10 +22499,40 @@ function initTodayPlanningPanel(){
 
 document.addEventListener("DOMContentLoaded", initTodayPlanningPanel);
 
+// ── Week Calendar — fetches directly from Bitrix, independent of the planning service ──
+
+async function fetchWeekCalendar() {
+  const grid = document.getElementById("weekCalendarGrid");
+  const meta = document.getElementById("weekCalendarMeta");
+  if (grid) grid.innerHTML = `<div class="week-cal-loading">Lade Wochenplanung…</div>`;
+  if (meta) meta.textContent = "Lade Kalender…";
+
+  try {
+    const res = await fetch("/api/bitrix/calendar/week", { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const payload = await res.json();
+    if (payload.error) throw new Error(payload.error);
+    __lastPlanningRawPayload = payload;
+    renderWeekCalendar(payload);
+  } catch (err) {
+    console.error("week calendar fetch failed", err);
+    const grid2 = document.getElementById("weekCalendarGrid");
+    const meta2 = document.getElementById("weekCalendarMeta");
+    if (grid2) grid2.innerHTML = `<div class="week-cal-empty"><i class="fa-solid fa-triangle-exclamation"></i> ${escapePlanningHtml(String(err.message || err))}</div>`;
+    if (meta2) meta2.textContent = "Kalender konnte nicht geladen werden";
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  if (!document.getElementById("weekCalendarPanel")) return;
+  fetchWeekCalendar();
+});
+
 // Expose for home debug panel
 window.__debug_getPlanningAppointments = () => todayPlanningAppointments;
 window.__debug_reloadPlanning = fetchTodayPlanningSnapshot;
 window.__debug_planningEndpoint = TODAY_PLANNING_SNAPSHOT_ENDPOINT;
+window.__debug_reloadWeekCalendar = fetchWeekCalendar;
 
 })();
 
