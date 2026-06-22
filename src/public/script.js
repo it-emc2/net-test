@@ -5284,6 +5284,17 @@ window.fetchAndSetDeal = async function fetchAndSetDeal(contactId) {
   const id = String(contactId || "").trim();
   if (!id) { row.style.display = "none"; return; }
 
+  function applyDealId(dealId) {
+    ["auftragId", "mailAuftragId", "postAuftragId"].forEach(function(fieldId) {
+      var el = document.getElementById(fieldId);
+      if (el) {
+        el.value = dealId;
+        el.dispatchEvent(new Event("input",  { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+  }
+
   try {
     const res  = await fetch(`/api/bitrix/contact/${encodeURIComponent(id)}/deals`);
     const data = await res.json();
@@ -5297,8 +5308,7 @@ window.fetchAndSetDeal = async function fetchAndSetDeal(contactId) {
     row.style.display = "";
 
     if (deals.length === 1) {
-      // Auto-select the only deal
-      if (typeof syncSummaryLeadIds === "function") syncSummaryLeadIds(deals[0].id);
+      applyDealId(deals[0].id);
       value.textContent = deals[0].id;
       return;
     }
@@ -5316,7 +5326,7 @@ window.fetchAndSetDeal = async function fetchAndSetDeal(contactId) {
         "text-align:left; background:none; border:1px solid var(--border); border-radius:4px;" +
         "padding:2px 6px; font-size:0.75rem; cursor:pointer; color:var(--text); white-space:nowrap;";
       btn.addEventListener("click", function() {
-        if (typeof syncSummaryLeadIds === "function") syncSummaryLeadIds(deal.id);
+        applyDealId(deal.id);
         value.textContent = deal.id;
         list.remove();
       });
@@ -9788,6 +9798,7 @@ window.computeAHGesamt = function computeAHGesamt() {
   var ab  = computeSvc(abSvc);
 
   var SERVICEPAUSCHALE = 1.20;
+  var AB_KM_RATE       = 0.35;
   var isSelbstzahler   = (document.querySelector('input[name="payer"]:checked')?.value || "") === "Selbstzahler";
 
   var anfahrtTotal    = r2(hnd.totalEinsaetze * ANFAHRT_PER_EINSATZ);
@@ -9821,6 +9832,7 @@ window.computeAHGesamt = function computeAHGesamt() {
     abGesamtBase:      abGesamtBase,
     abTasks:           abSvc ? (abSvc.tasks || []) : [],
     abSchedRows:       ab.schedRows,
+    abKmRate:          AB_KM_RATE,
     allBase:           allBase,
   };
 };
@@ -10406,13 +10418,13 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         isSelbstzahler: false, servicepauschale: 1.20, zoneData: null, schedRows: [],
         hasAb: false, abTotalEinsaetze: 0, abTotalMonatlichH: 0,
         abAnfahrtTotal: 0, abLeistungenTotal: 0, abGesamtBase: 0,
-        abTasks: [], abSchedRows: [], allBase: 0,
+        abTasks: [], abSchedRows: [], abKmRate: 0.35, allBase: 0,
       };
       const {
         gesamt, gesamtBase, anfahrtTotal, leistungenTotal,
         totalEinsaetze, totalMonatlichH, tasks, isSelbstzahler, servicepauschale, zoneData, schedRows,
         hasAb, abTotalEinsaetze, abTotalMonatlichH,
-        abAnfahrtTotal, abLeistungenTotal, abGesamtBase, abTasks, abSchedRows, allBase,
+        abAnfahrtTotal, abLeistungenTotal, abGesamtBase, abTasks, abSchedRows, abKmRate, allBase,
       } = ah;
 
       // Keep widget in sync
@@ -10499,12 +10511,40 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         return card(
           cfg.cardTitle,
           zoneBanner + row1 + row2,
-          `<div style="text-align:right;"><b>Zwischensumme:</b> ${euroC(cfg.gesamtBase)}</div>`
+          cfg.footerHTML !== undefined
+            ? cfg.footerHTML
+            : `<div style="text-align:right;"><b>Zwischensumme:</b> ${euroC(cfg.gesamtBase)}</div>`
         );
       }
 
       // ── HnD card ──────────────────────────────────────────────────────────
-      if (totalMonatlichH > 0) {
+      const hasHnd = totalMonatlichH > 0;
+      if (hasHnd) {
+        const hndTotal = Math.round((gesamtBase + (isSelbstzahler ? servicepauschale : 0)) * 100) / 100;
+        const hndFooterHTML = isSelbstzahler
+          ? `<div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.88rem; color:var(--muted);">
+               <span>Zwischensumme</span><span>${euroC(gesamtBase)}</span>
+             </div>
+             <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.88rem; color:var(--muted);">
+               <span>Servicepauschale Reinigungsutensilien <span style="font-size:0.78rem;">(inkl. MwSt.)</span></span>
+               <span>${euroC(servicepauschale)} / Monat</span>
+             </div>
+             <div style="display:flex; justify-content:space-between; font-size:1.05rem; font-weight:700; border-top:1px solid var(--border); padding-top:6px;">
+               <span>Gesamt HnD-Leistungen</span><span>${euroC(hndTotal)}</span>
+             </div>`
+          : `<div style="display:flex; justify-content:space-between; font-size:1.05rem; font-weight:700;">
+               <span>Gesamt HnD-Leistungen</span><span>${euroC(gesamtBase)}</span>
+             </div>
+             <div style="margin-top:10px; padding:10px 12px; border:1px dashed var(--border); border-radius:8px; font-size:0.85rem;">
+               <div style="font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-bottom:6px;">* Separate Direktrechnung — nicht im Gesamtbetrag</div>
+               <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+                 <div>
+                   <b>Servicepauschale Reinigungsutensilien für HnD</b>
+                   <div style="font-size:0.8rem; color:var(--muted); margin-top:2px;">Inkl. MwSt. Jährliche Abrechnung nach tatsächlichen Monaten. Wird direkt mit dem Kunden abgerechnet.</div>
+                 </div>
+                 <div style="font-weight:600; white-space:nowrap;">${euroC(servicepauschale)} / Monat</div>
+               </div>
+             </div>`;
         renderedCards.push(buildSvcCard({
           cardTitle:       "HnD-Leistungen",
           row2Title:       "Angebot zur Unterstützung im Haushalt",
@@ -10518,6 +10558,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
           tasks:           tasks,
           taskLabels:      HND_TASK_LABELS,
           schedRows:       schedRows,
+          footerHTML:      hndFooterHTML,
         }));
       }
 
@@ -10536,6 +10577,19 @@ if (offerKey === "bwt" && isExtraAufgabe) {
           tasks:           abTasks,
           taskLabels:      AB_TASK_LABELS,
           schedRows:       abSchedRows,
+          footerHTML:      `<div style="display:flex; justify-content:space-between; font-size:1.05rem; font-weight:700;">
+            <span>Gesamt Alltagsbegleitung</span><span>${euroC(abGesamtBase)}</span>
+          </div>
+          <div style="margin-top:10px; padding:10px 12px; border:1px dashed var(--border); border-radius:8px; font-size:0.85rem;">
+            <div style="font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-bottom:6px;">* Separate Direktrechnung — nicht im Gesamtbetrag</div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+              <div>
+                <b>Fahrten im Rahmen der Alltagsbegleitung</b>
+                <div style="font-size:0.8rem; color:var(--muted); margin-top:2px;">Inkl. MwSt. Wird, wenn benötigt / wie mit Ihnen vereinbart, direkt abgerechnet.</div>
+              </div>
+              <div style="font-weight:600; white-space:nowrap;">${euroC(abKmRate)} / km</div>
+            </div>
+          </div>`,
         }));
       }
 
@@ -10543,50 +10597,8 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         renderedCards.push(card("Leistungen", zoneBanner + '<div class="muted">Noch keine Leistung konfiguriert.</div>'));
       }
 
-      // ── Servicepauschale (HnD only) ───────────────────────────────────────
-      const hasHnd = totalMonatlichH > 0;
-      const servicepauschaleBlock = isSelbstzahler
-        ? `<div style="margin-top:8px; display:flex; justify-content:space-between; align-items:center; font-size:0.9rem;">
-            <div>Servicepauschale Reinigungsutensilien für HnD <span style="font-size:0.78rem; color:var(--muted);">(inkl. MwSt.)</span></div>
-            <div style="font-weight:600;">${euroC(servicepauschale)} / Monat</div>
-           </div>`
-        : `<div style="margin-top:12px; padding:10px 12px; border:1px dashed var(--border); border-radius:8px; font-size:0.85rem;">
-            <div style="font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-bottom:6px;">* Separate Direktrechnung — nicht im Gesamtbetrag</div>
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-              <div>
-                <b>Servicepauschale Reinigungsutensilien für HnD</b>
-                <div style="font-size:0.8rem; color:var(--muted); margin-top:2px;">Inkl. MwSt. Jährliche Abrechnung nach tatsächlichen Monaten. Wird direkt mit dem Kunden abgerechnet.</div>
-              </div>
-              <div style="font-weight:600; white-space:nowrap;">${euroC(servicepauschale)} / Monat</div>
-            </div>
-           </div>`;
-
-      // ── Summen card ───────────────────────────────────────────────────────
-      const subtotalLines = hasHnd && hasAb
-        ? `<div style="display:flex; justify-content:space-between; width:100%; color:var(--muted); font-size:0.85rem;">
-             <span>HnD-Leistungen</span><span>${euroC(gesamtBase)}</span>
-           </div>
-           <div style="display:flex; justify-content:space-between; width:100%; color:var(--muted); font-size:0.85rem;">
-             <span>Alltagsbegleitung</span><span>${euroC(abGesamtBase)}</span>
-           </div>`
-        : (isSelbstzahler && hasHnd
-            ? `<div style="color:var(--muted); font-size:0.85rem; align-self:flex-end;">Zwischensumme: ${euroC(allBase)}</div>`
-            : "");
-
-      const totalDivider = hasHnd && hasAb
-        ? "padding-top:8px; border-top:1px solid var(--border); width:100%; text-align:right;"
-        : "";
-
-      const summenBody = `
-        <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
-          ${subtotalLines}
-          ${isSelbstzahler && hasHnd ? servicepauschaleBlock : ""}
-          <div style="font-size:1.2rem; ${totalDivider}">Gesamtbetrag: <b>${euroC(gesamt)}</b></div>
-        </div>
-        ${!isSelbstzahler && hasHnd ? servicepauschaleBlock : ""}`;
-
       container.style.display = "flex";
-      container.innerHTML = [...renderedCards, card("Summen", summenBody)].join("");
+      container.innerHTML = renderedCards.join("");
       if (kostenHeaderTotal && gesamt > 0) {
         kostenHeaderTotal.textContent = euroC(gesamt) + " / Mon.";
       }
