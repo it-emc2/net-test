@@ -233,6 +233,52 @@ router.post("/timeline/comment", express.json({ limit: "25mb" }), async (req, re
   }
 });
 
+// GET /api/bitrix/activities/today
+// Returns today's CRM activities indexed by OWNER_ID (deal ID) with start/end times.
+// Used to enrich planning entries with exact Bitrix-confirmed appointment times.
+router.get("/activities/today", async (_req, res) => {
+  try {
+    const now = new Date();
+    const from = new Date(now); from.setHours(0, 0, 0, 0);
+    const to   = new Date(now); to.setHours(23, 59, 59, 999);
+
+    const [meetingsData, callsData] = await Promise.all([
+      bxGet("crm.activity.list", {
+        filter: { ">=START_TIME": from.toISOString(), "<=START_TIME": to.toISOString(), TYPE_ID: 3 },
+        select: ["ID", "SUBJECT", "START_TIME", "END_TIME", "OWNER_ID", "OWNER_TYPE_ID", "STATUS"],
+        order:  { START_TIME: "ASC" },
+      }).catch(() => ({ result: [] })),
+      bxGet("crm.activity.list", {
+        filter: { ">=START_TIME": from.toISOString(), "<=START_TIME": to.toISOString(), TYPE_ID: 1 },
+        select: ["ID", "SUBJECT", "START_TIME", "END_TIME", "OWNER_ID", "OWNER_TYPE_ID", "STATUS"],
+        order:  { START_TIME: "ASC" },
+      }).catch(() => ({ result: [] })),
+    ]);
+
+    const activities = [...(meetingsData.result || []), ...(callsData.result || [])];
+
+    // Index by OWNER_ID so the frontend can look up by importDealId
+    const byDealId = {};
+    for (const act of activities) {
+      const ownerId = String(act.OWNER_ID || "");
+      if (!ownerId) continue;
+      const start = new Date(act.START_TIME);
+      const end   = act.END_TIME ? new Date(act.END_TIME) : null;
+      byDealId[ownerId] = {
+        startMinutes: isNaN(start.getTime()) ? null : start.getHours() * 60 + start.getMinutes(),
+        endMinutes:   end && !isNaN(end.getTime()) ? end.getHours() * 60 + end.getMinutes() : null,
+        startISO:     isNaN(start.getTime()) ? null : start.toISOString(),
+        endISO:       end && !isNaN(end.getTime()) ? end.toISOString() : null,
+      };
+    }
+
+    return res.json({ byDealId });
+  } catch (err) {
+    console.error("GET /api/bitrix/activities/today error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
 // GET /api/bitrix/calendar/week
 // Returns the current week's CRM activities (meetings + calls) grouped by day
 // in the same { planning: { days: [...] } } shape the week calendar renderer expects.

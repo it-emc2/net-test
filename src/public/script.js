@@ -22357,6 +22357,25 @@ function applyPlanningPayload(payload){
   }
 }
 
+function enrichPlanningEntriesWithBitrixTimes(payload, byDealId){
+  if(!byDealId || typeof byDealId !== "object") return;
+  const sources = [
+    ...(Array.isArray(payload?.planning?.futurePlanned) ? payload.planning.futurePlanned : []),
+    ...(Array.isArray(payload?.planning?.days) ? payload.planning.days.flatMap(d => d.customers || []) : []),
+  ];
+  for(const customer of sources){
+    const dealId = String(customer?.importDealId || "");
+    if(!dealId || !byDealId[dealId]) continue;
+    const { startMinutes, endMinutes } = byDealId[dealId];
+    if(startMinutes !== null && startMinutes !== undefined){
+      customer.manualStartMinutes = startMinutes;
+    }
+    if(endMinutes !== null && endMinutes !== undefined && startMinutes !== null){
+      customer.duration = Math.max(0, endMinutes - startMinutes);
+    }
+  }
+}
+
 async function fetchTodayPlanningSnapshot(){
   const list = document.getElementById("todayPlanningList");
   const meta = document.getElementById("todayPlanningMeta");
@@ -22374,6 +22393,10 @@ async function fetchTodayPlanningSnapshot(){
     }
 
     const payload = await response.json();
+    const bitrixTimes = await fetch("/api/bitrix/activities/today", { headers: { Accept: "application/json" } })
+      .then(r => r.ok ? r.json() : null)
+      .catch(() => null);
+    enrichPlanningEntriesWithBitrixTimes(payload, bitrixTimes?.byDealId || {});
     applyTodayPlanningPayload(payload);
   }catch(error){
     console.error("today planning failed", error);
