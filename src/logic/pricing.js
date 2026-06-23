@@ -54,7 +54,7 @@ export default (ProductModel) => {
   function getActiveOffer(payload) {
     // default to 'bu' for backward compatibility
     const k = payload?.activeOffer;
-    if (k === "bu" || k === "bwt" || k === "hl" || k === "bl") {
+    if (k === "bu" || k === "bwt" || k === "hl" || k === "bl" || k === "ah" || k === "hms" || k === "wd") {
       console.log("current offer type is ", k);
       return k;
     }
