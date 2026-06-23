@@ -534,114 +534,103 @@ function buildDocument() {
 }
 
 // ── AH-specific header XML ─────────────────────────────────────────────────
-// Replaces the HL logo-only header with: "EmC2 Alltagshilfe" title (left) +
-// blue separator line + emc² logo (right) — matching the original AH design.
+// Two-row table with vertical merge on the logo cell:
+//   Row 1 (725 dxa): title text (bottom-aligned) | top half of logo (vMerge start)
+//   Row 2 (725 dxa): blue line as TOP border     | bottom half of logo (vMerge cont.)
+// → blue line crosses exactly through the middle of the logo image.
 function buildAhHeader(logoRid = "rId1") {
-  // The logo drawing XML (same image reference as HL, size 4.4 × 2.6 cm)
+  // Logo: 1585595 × 920750 EMU → 2496 × 1450 dxa. Half-height = 725 dxa.
+  const LOGO_HALF = 725; // dxa — splits logo into two equal rows
+  const LOGO_CX   = 1585595;
+  const LOGO_CY   = 920750;
+  const COL_TITLE = 7200; // dxa left column
+  const COL_LOGO  = 2160; // dxa right column
+
+  const none = (s) => `<${s} w:val="none" w:sz="0" w:space="0" w:color="auto"/>`;
+  const allNone = `<w:tcBorders>${none("w:top")}${none("w:left")}${none("w:bottom")}${none("w:right")}</w:tcBorders>`;
+  const noMar   = `<w:tcMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tcMar>`;
+  const emptyP  = `<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>`;
+
+  // ── Logo drawing (inline, full logo height spans both merged rows) ────────
   const logoDrawing =
     `<w:drawing>` +
     `<wp:inline distT="0" distB="0" distL="0" distR="0" ` +
     `xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">` +
-    `<wp:extent cx="1585595" cy="920750"/>` +
+    `<wp:extent cx="${LOGO_CX}" cy="${LOGO_CY}"/>` +
     `<wp:effectExtent l="0" t="0" r="0" b="0"/>` +
     `<wp:docPr id="2" name="emc2-logo.jpg"/>` +
     `<wp:cNvGraphicFramePr/>` +
     `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
     `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
     `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
-    `<pic:nvPicPr>` +
-    `<pic:cNvPr id="0" name=""/>` +
+    `<pic:nvPicPr><pic:cNvPr id="0" name=""/>` +
     `<pic:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></pic:cNvPicPr>` +
     `</pic:nvPicPr>` +
-    `<pic:blipFill>` +
-    `<a:blip r:embed="${logoRid}"/>` +
-    `<a:stretch><a:fillRect/></a:stretch>` +
-    `</pic:blipFill>` +
+    `<pic:blipFill><a:blip r:embed="${logoRid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
     `<pic:spPr bwMode="auto">` +
-    `<a:xfrm><a:off x="0" y="0"/><a:ext cx="1585595" cy="920750"/></a:xfrm>` +
+    `<a:xfrm><a:off x="0" y="0"/><a:ext cx="${LOGO_CX}" cy="${LOGO_CY}"/></a:xfrm>` +
     `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>` +
     `</pic:spPr>` +
-    `</pic:pic>` +
-    `</a:graphicData></a:graphic>` +
+    `</pic:pic></a:graphicData></a:graphic>` +
     `</wp:inline></w:drawing>`;
 
-  // Blue separator line: used as bottom border on both cells → continuous blue line
-  const blueBorder =
-    `<w:bottom w:val="single" w:sz="12" w:space="0" w:color="2E74B5"/>`;
-  const noBorder = (side) => `<${side} w:val="none"/>`;
+  // ── Title run (bold, letter-spaced) ──────────────────────────────────────
+  const titleRPrContent =
+    `<w:rFonts w:ascii="${OS}" w:eastAsia="${OS}" w:hAnsi="${OS}" w:cs="${OS}"/>` +
+    `<w:b/><w:bCs/>` +
+    `<w:color w:val="1F2D3D"/>` +
+    `<w:sz w:val="28"/><w:szCs w:val="28"/>` +
+    `<w:spacing w:val="100"/>`;
+  const titleRPr = `<w:rPr>${titleRPrContent}</w:rPr>`;
 
-  // Title cell: blue bottom border only
-  const titleCellBorderXml =
-    `<w:tcBorders>` +
-    noBorder("w:top") + noBorder("w:left") +
-    blueBorder +
-    noBorder("w:right") +
-    `</w:tcBorders>`;
-
-  // Logo cell: no borders at all — logo sits ON the blue line visually
-  const logoCellBorderXml =
-    `<w:tcBorders>` +
-    noBorder("w:top") + noBorder("w:left") +
-    noBorder("w:bottom") +
-    noBorder("w:right") +
-    `</w:tcBorders>`;
-
-  // Title cell (left) — 7200 dxa (~12.7 cm)
-  const titleCell =
-    `<w:tc>` +
-    `<w:tcPr>` +
-    `<w:tcW w:w="7200" w:type="dxa"/>` +
-    titleCellBorderXml +
-    `<w:tcMar>` +
-    `<w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/>` +
-    `<w:bottom w:w="60" w:type="dxa"/><w:right w:w="0" w:type="dxa"/>` +
-    `</w:tcMar>` +
+  // ── ROW 1: title (left, vAlign bottom) | logo top-half (right, vMerge start) ──
+  const row1TitleCell =
+    `<w:tc><w:tcPr>` +
+    `<w:tcW w:w="${COL_TITLE}" w:type="dxa"/>` +
+    allNone + noMar +
     `<w:vAlign w:val="bottom"/>` +
     `</w:tcPr>` +
-    // Title paragraph
-    `<w:p>` +
-    `<w:pPr>` +
-    `<w:spacing w:before="0" w:after="80"/>` +
-    `<w:rPr>` +
-    `<w:rFonts w:ascii="${OS}" w:eastAsia="${OS}" w:hAnsi="${OS}" w:cs="${OS}"/>` +
-    `<w:b/><w:bCs/>` +
-    `<w:color w:val="1F2D3D"/>` +
-    `<w:sz w:val="28"/><w:szCs w:val="28"/>` +
-    `<w:spacing w:val="100"/>` +
-    `</w:rPr>` +
-    `</w:pPr>` +
-    `<w:r>` +
-    `<w:rPr>` +
-    `<w:rFonts w:ascii="${OS}" w:eastAsia="${OS}" w:hAnsi="${OS}" w:cs="${OS}"/>` +
-    `<w:b/><w:bCs/>` +
-    `<w:color w:val="1F2D3D"/>` +
-    `<w:sz w:val="28"/><w:szCs w:val="28"/>` +
-    `<w:spacing w:val="100"/>` +
-    `</w:rPr>` +
-    `<w:t xml:space="preserve">EmC2  Alltagshilfe</w:t>` +
-    `</w:r>` +
-    `</w:p>` +
-    `</w:tc>`;
+    `<w:p><w:pPr><w:spacing w:before="0" w:after="60"/><w:rPr>${titleRPrContent}</w:rPr></w:pPr>` +
+    `<w:r>${titleRPr}<w:t xml:space="preserve">EmC2  Alltagshilfe</w:t></w:r>` +
+    `</w:p></w:tc>`;
 
-  // Logo cell (right) — 2160 dxa (~3.8 cm) — no border, top-aligned so logo overlaps the line
-  const logoCell =
-    `<w:tc>` +
-    `<w:tcPr>` +
-    `<w:tcW w:w="2160" w:type="dxa"/>` +
-    logoCellBorderXml +
-    `<w:tcMar>` +
-    `<w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/>` +
-    `<w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/>` +
-    `</w:tcMar>` +
+  const row1LogoCell =
+    `<w:tc><w:tcPr>` +
+    `<w:tcW w:w="${COL_LOGO}" w:type="dxa"/>` +
+    `<w:vMerge w:val="restart"/>` +
+    allNone + noMar +
     `<w:vAlign w:val="top"/>` +
     `</w:tcPr>` +
-    `<w:p>` +
-    `<w:pPr><w:jc w:val="right"/><w:spacing w:before="0" w:after="0"/></w:pPr>` +
+    `<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="0" w:after="0"/></w:pPr>` +
     `<w:r><w:rPr><w:noProof/></w:rPr>${logoDrawing}</w:r>` +
-    `</w:p>` +
+    `</w:p></w:tc>`;
+
+  // ── ROW 2: blue line as TOP border of left cell | logo bottom-half (vMerge cont.) ──
+  const blueLine =
+    `<w:top w:val="single" w:sz="18" w:space="0" w:color="2E74B5"/>`;
+
+  const row2LineCell =
+    `<w:tc><w:tcPr>` +
+    `<w:tcW w:w="${COL_TITLE}" w:type="dxa"/>` +
+    `<w:tcBorders>${blueLine}${none("w:left")}${none("w:bottom")}${none("w:right")}</w:tcBorders>` +
+    noMar +
+    `</w:tcPr>` +
+    emptyP +
     `</w:tc>`;
 
-  // Header table: title left | logo right
+  const row2LogoCell =
+    `<w:tc><w:tcPr>` +
+    `<w:tcW w:w="${COL_LOGO}" w:type="dxa"/>` +
+    `<w:vMerge/>` +
+    allNone + noMar +
+    `</w:tcPr>` +
+    emptyP +
+    `</w:tc>`;
+
+  // Header table: 2 rows, logo spans both via vMerge → blue line crosses logo middle
+  const trPr1 = `<w:trPr><w:trHeight w:val="${LOGO_HALF}" w:hRule="exact"/></w:trPr>`;
+  const trPr2 = `<w:trPr><w:trHeight w:val="${LOGO_HALF}" w:hRule="exact"/></w:trPr>`;
+
   const headerTable =
     `<w:tbl>` +
     `<w:tblPr>` +
@@ -649,12 +638,11 @@ function buildAhHeader(logoRid = "rId1") {
     `<w:tblW w:w="9360" w:type="dxa"/>` +
     `<w:tblInd w:w="0" w:type="dxa"/>` +
     `<w:tblLayout w:type="fixed"/>` +
-    `<w:tblCellMar>` +
-    `<w:left w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/>` +
-    `</w:tblCellMar>` +
+    `<w:tblCellMar><w:left w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar>` +
     `</w:tblPr>` +
-    `<w:tblGrid><w:gridCol w:w="7200"/><w:gridCol w:w="2160"/></w:tblGrid>` +
-    `<w:tr><w:trPr/>${titleCell}${logoCell}</w:tr>` +
+    `<w:tblGrid><w:gridCol w:w="${COL_TITLE}"/><w:gridCol w:w="${COL_LOGO}"/></w:tblGrid>` +
+    `<w:tr>${trPr1}${row1TitleCell}${row1LogoCell}</w:tr>` +
+    `<w:tr>${trPr2}${row2LineCell}${row2LogoCell}</w:tr>` +
     `</w:tbl>`;
 
   // Namespace declarations for the hdr element
