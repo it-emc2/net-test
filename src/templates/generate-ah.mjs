@@ -570,12 +570,19 @@ function buildAhHeader(logoRid = "rId1") {
     `<w:bottom w:val="single" w:sz="12" w:space="0" w:color="2E74B5"/>`;
   const noBorder = (side) => `<${side} w:val="none"/>`;
 
-  // Cell borders helper: only bottom is blue, rest invisible
-  const cellBorderXml = (extraTop = false) =>
+  // Title cell: blue bottom border only
+  const titleCellBorderXml =
     `<w:tcBorders>` +
-    `${extraTop ? `<w:top w:val="none"/>` : noBorder("w:top")}` +
-    noBorder("w:left") +
+    noBorder("w:top") + noBorder("w:left") +
     blueBorder +
+    noBorder("w:right") +
+    `</w:tcBorders>`;
+
+  // Logo cell: no borders at all — logo sits ON the blue line visually
+  const logoCellBorderXml =
+    `<w:tcBorders>` +
+    noBorder("w:top") + noBorder("w:left") +
+    noBorder("w:bottom") +
     noBorder("w:right") +
     `</w:tcBorders>`;
 
@@ -584,7 +591,7 @@ function buildAhHeader(logoRid = "rId1") {
     `<w:tc>` +
     `<w:tcPr>` +
     `<w:tcW w:w="7200" w:type="dxa"/>` +
-    cellBorderXml() +
+    titleCellBorderXml +
     `<w:tcMar>` +
     `<w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/>` +
     `<w:bottom w:w="60" w:type="dxa"/><w:right w:w="0" w:type="dxa"/>` +
@@ -616,17 +623,17 @@ function buildAhHeader(logoRid = "rId1") {
     `</w:p>` +
     `</w:tc>`;
 
-  // Logo cell (right) — 2160 dxa (~3.8 cm)
+  // Logo cell (right) — 2160 dxa (~3.8 cm) — no border, top-aligned so logo overlaps the line
   const logoCell =
     `<w:tc>` +
     `<w:tcPr>` +
     `<w:tcW w:w="2160" w:type="dxa"/>` +
-    cellBorderXml() +
+    logoCellBorderXml +
     `<w:tcMar>` +
     `<w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/>` +
     `<w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/>` +
     `</w:tcMar>` +
-    `<w:vAlign w:val="bottom"/>` +
+    `<w:vAlign w:val="top"/>` +
     `</w:tcPr>` +
     `<w:p>` +
     `<w:pPr><w:jc w:val="right"/><w:spacing w:before="0" w:after="0"/></w:pPr>` +
