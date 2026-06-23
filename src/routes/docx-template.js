@@ -1827,8 +1827,12 @@ function buildAhData(body) {
   const rawServices = Array.isArray(ah.services) ? ah.services : [];
   const ahNote = (ah.ahNote || "").trim();
 
-  // One-way travel time from the Arbeitszeit page
-  const travelTimeH = parseHHMM(body?.Arbeitszeit?.travelTimeHHMM || "");
+  // Round-trip travel time per visit — use zone billing minutes (ahTravelZone → billMin = (zone-1)*5+10)
+  // if zone is set; otherwise fall back to 2× raw routing time. Always round-trip (×2).
+  const zoneNum = parseInt(body?.Arbeitszeit?.ahTravelZone || "0") || 0;
+  const travelTimeH = zoneNum > 0
+    ? 2 * ((zoneNum - 1) * 5 + 10) / 60
+    : 2 * parseHHMM(body?.Arbeitszeit?.travelTimeHHMM || "");
 
   // ── Compute AH pricing (same logic as computeAHGesamt on frontend) ──────
   function computeAhSvc(svc) {
