@@ -1851,6 +1851,9 @@ function buildAhData(body) {
   const hnd = computeAhSvc(hndSvc);
   const ab  = computeAhSvc(abSvc);
 
+  const totalMonatlichH = (hnd.totalMonatlichH || 0) + (ab.totalMonatlichH || 0);
+  const totalEinsaetze  = (hnd.totalEinsaetze  || 0) + (ab.totalEinsaetze  || 0);
+
   const anfahrtTotal    = r2(hnd.totalEinsaetze * AH_ANFAHRT_PER_EINSATZ);
   const leistungenTotal = r2(hnd.totalMonatlichH * AH_STUNDENSATZ_HND);
   const abAnfahrtTotal    = r2(ab.totalEinsaetze * AH_ANFAHRT_PER_EINSATZ);
