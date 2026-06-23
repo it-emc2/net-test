@@ -533,6 +533,154 @@ function buildDocument() {
   );
 }
 
+// ── AH-specific header XML ─────────────────────────────────────────────────
+// Replaces the HL logo-only header with: "EmC2 Alltagshilfe" title (left) +
+// blue separator line + emc² logo (right) — matching the original AH design.
+function buildAhHeader(logoRid = "rId1") {
+  // The logo drawing XML (same image reference as HL, size 4.4 × 2.6 cm)
+  const logoDrawing =
+    `<w:drawing>` +
+    `<wp:inline distT="0" distB="0" distL="0" distR="0" ` +
+    `xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">` +
+    `<wp:extent cx="1585595" cy="920750"/>` +
+    `<wp:effectExtent l="0" t="0" r="0" b="0"/>` +
+    `<wp:docPr id="2" name="emc2-logo.jpg"/>` +
+    `<wp:cNvGraphicFramePr/>` +
+    `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
+    `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
+    `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
+    `<pic:nvPicPr>` +
+    `<pic:cNvPr id="0" name=""/>` +
+    `<pic:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></pic:cNvPicPr>` +
+    `</pic:nvPicPr>` +
+    `<pic:blipFill>` +
+    `<a:blip r:embed="${logoRid}"/>` +
+    `<a:stretch><a:fillRect/></a:stretch>` +
+    `</pic:blipFill>` +
+    `<pic:spPr bwMode="auto">` +
+    `<a:xfrm><a:off x="0" y="0"/><a:ext cx="1585595" cy="920750"/></a:xfrm>` +
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>` +
+    `</pic:spPr>` +
+    `</pic:pic>` +
+    `</a:graphicData></a:graphic>` +
+    `</wp:inline></w:drawing>`;
+
+  // Blue separator line: used as bottom border on both cells → continuous blue line
+  const blueBorder =
+    `<w:bottom w:val="single" w:sz="12" w:space="0" w:color="2E74B5"/>`;
+  const noBorder = (side) => `<${side} w:val="none"/>`;
+
+  // Cell borders helper: only bottom is blue, rest invisible
+  const cellBorderXml = (extraTop = false) =>
+    `<w:tcBorders>` +
+    `${extraTop ? `<w:top w:val="none"/>` : noBorder("w:top")}` +
+    noBorder("w:left") +
+    blueBorder +
+    noBorder("w:right") +
+    `</w:tcBorders>`;
+
+  // Title cell (left) — 7200 dxa (~12.7 cm)
+  const titleCell =
+    `<w:tc>` +
+    `<w:tcPr>` +
+    `<w:tcW w:w="7200" w:type="dxa"/>` +
+    cellBorderXml() +
+    `<w:tcMar>` +
+    `<w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/>` +
+    `<w:bottom w:w="60" w:type="dxa"/><w:right w:w="0" w:type="dxa"/>` +
+    `</w:tcMar>` +
+    `<w:vAlign w:val="bottom"/>` +
+    `</w:tcPr>` +
+    // Title paragraph
+    `<w:p>` +
+    `<w:pPr>` +
+    `<w:spacing w:before="0" w:after="80"/>` +
+    `<w:rPr>` +
+    `<w:rFonts w:ascii="${OS}" w:eastAsia="${OS}" w:hAnsi="${OS}" w:cs="${OS}"/>` +
+    `<w:b/><w:bCs/>` +
+    `<w:color w:val="1F2D3D"/>` +
+    `<w:sz w:val="28"/><w:szCs w:val="28"/>` +
+    `<w:spacing w:val="100"/>` +
+    `</w:rPr>` +
+    `</w:pPr>` +
+    `<w:r>` +
+    `<w:rPr>` +
+    `<w:rFonts w:ascii="${OS}" w:eastAsia="${OS}" w:hAnsi="${OS}" w:cs="${OS}"/>` +
+    `<w:b/><w:bCs/>` +
+    `<w:color w:val="1F2D3D"/>` +
+    `<w:sz w:val="28"/><w:szCs w:val="28"/>` +
+    `<w:spacing w:val="100"/>` +
+    `</w:rPr>` +
+    `<w:t xml:space="preserve">EmC2  Alltagshilfe</w:t>` +
+    `</w:r>` +
+    `</w:p>` +
+    `</w:tc>`;
+
+  // Logo cell (right) — 2160 dxa (~3.8 cm)
+  const logoCell =
+    `<w:tc>` +
+    `<w:tcPr>` +
+    `<w:tcW w:w="2160" w:type="dxa"/>` +
+    cellBorderXml() +
+    `<w:tcMar>` +
+    `<w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/>` +
+    `<w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/>` +
+    `</w:tcMar>` +
+    `<w:vAlign w:val="bottom"/>` +
+    `</w:tcPr>` +
+    `<w:p>` +
+    `<w:pPr><w:jc w:val="right"/><w:spacing w:before="0" w:after="0"/></w:pPr>` +
+    `<w:r><w:rPr><w:noProof/></w:rPr>${logoDrawing}</w:r>` +
+    `</w:p>` +
+    `</w:tc>`;
+
+  // Header table: title left | logo right
+  const headerTable =
+    `<w:tbl>` +
+    `<w:tblPr>` +
+    `<w:tblStyle w:val="NormalTable0"/>` +
+    `<w:tblW w:w="9360" w:type="dxa"/>` +
+    `<w:tblInd w:w="0" w:type="dxa"/>` +
+    `<w:tblLayout w:type="fixed"/>` +
+    `<w:tblCellMar>` +
+    `<w:left w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/>` +
+    `</w:tblCellMar>` +
+    `</w:tblPr>` +
+    `<w:tblGrid><w:gridCol w:w="7200"/><w:gridCol w:w="2160"/></w:tblGrid>` +
+    `<w:tr><w:trPr/>${titleCell}${logoCell}</w:tr>` +
+    `</w:tbl>`;
+
+  // Namespace declarations for the hdr element
+  const hdrNS =
+    'xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" ' +
+    'xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" ' +
+    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ' +
+    'xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" ' +
+    'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" ' +
+    'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" ' +
+    'xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" ' +
+    'xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml" ' +
+    'xmlns:w16cex="http://schemas.microsoft.com/office/word/2018/wordml/cex" ' +
+    'xmlns:w16cid="http://schemas.microsoft.com/office/word/2016/wordml/cid" ' +
+    'xmlns:w16="http://schemas.microsoft.com/office/word/2018/wordml" ' +
+    'xmlns:w16du="http://schemas.microsoft.com/office/word/2023/wordml/word16du" ' +
+    'xmlns:w16sdtdh="http://schemas.microsoft.com/office/word/2020/wordml/sdtdatahash" ' +
+    'xmlns:w16se="http://schemas.microsoft.com/office/word/2015/wordml/symex" ' +
+    'xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" ' +
+    'xmlns:wpi="http://schemas.microsoft.com/office/word/2010/wordprocessingInk" ' +
+    'xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml" ' +
+    'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" ' +
+    'mc:Ignorable="w14 w15 w16se w16cid w16 w16cex w16sdtdh w16du"';
+
+  return (
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<w:hdr ${hdrNS}>` +
+    `<w:p><w:pPr><w:pStyle w:val="normal1"/></w:pPr></w:p>` +
+    headerTable +
+    `</w:hdr>`
+  );
+}
+
 // ── Pack and write ─────────────────────────────────────────────────────────
 
 const hlBytes = readFileSync(join(tplDir, "Angebot-HL.docx"));
@@ -540,6 +688,12 @@ const zip = new PizZip(hlBytes);
 
 const docXml = buildDocument();
 zip.file("word/document.xml", docXml);
+
+// Replace header2 (all pages) and header3 (first page) with AH-specific header
+// Both reference the same logo via rId1 in the header's relationship file
+const ahHeader = buildAhHeader("rId1");
+zip.file("word/header2.xml", ahHeader);
+zip.file("word/header3.xml", ahHeader);
 
 const output = zip.generate({
   type: "nodebuffer",
