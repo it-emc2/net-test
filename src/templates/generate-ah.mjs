@@ -622,7 +622,8 @@ function buildAhHeader(logoRid = "rId1") {
     `<w:tc><w:tcPr>` +
     `<w:tcW w:w="${COL_LOGO}" w:type="dxa"/>` +
     `<w:vMerge/>` +
-    allNone + noMar +
+    `<w:tcBorders>${blueLine}${none("w:left")}${none("w:bottom")}${none("w:right")}</w:tcBorders>` +
+    noMar +
     `</w:tcPr>` +
     emptyP +
     `</w:tc>`;
