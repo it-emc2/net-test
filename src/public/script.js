@@ -19165,19 +19165,16 @@ async function sendPdfToAuftrag() {
     };
 
     console.log("[BITRIX DEBUG] send success; updated lastSendState", window.__bitrixSendState);
-
-    if (typeof saveFinalOfferSnapshot === "function") {
-      try {
-        await saveFinalOfferSnapshot();
-      } catch (e) {
-        console.warn("[sendPdfToAuftrag] saveFinalOfferSnapshot fehlgeschlagen:", e);
-      }
-    }
   } catch (err) {
     console.error("sendPdfToAuftrag error:", err);
     setStatus(err.message || "Fehler beim Senden des Angebots-PDF.", "error");
   } finally {
     sendBtn.disabled = false;
+    if (typeof saveFinalOfferSnapshot === "function") {
+      saveFinalOfferSnapshot().catch(e =>
+        console.warn("[sendPdfToAuftrag] saveFinalOfferSnapshot fehlgeschlagen:", e)
+      );
+    }
   }
 }
 
@@ -22810,9 +22807,24 @@ function applyPlanningAppointmentToForm(entry){
   setPlanningValue("#country", "");
   setPlanningValue("#state", "");
 
-  if(typeof syncSummaryLeadIds === "function"){
-    syncSummaryLeadIds(entry?.contactId || entry?.id || "");
-  }
+  // Delay past startOfferFlow's 60 ms syncDerivedPrefills timeout — that
+  // callback resets #auftragId via the postal manager, so we must win the race.
+  const _planningDealId = entry?.importDealId || entry?.contactId || entry?.id || "";
+  setTimeout(() => {
+    // syncSummaryLeadIds is not in scope here (different IIFE), so set fields directly
+    ["auftragId", "mailAuftragId", "postAuftragId"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.value = String(_planningDealId);
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+    const _planningContactId = entry?.contactId || "";
+    if (!entry?.importDealId && _planningContactId && typeof window.fetchAndSetDeal === "function") {
+      window.fetchAndSetDeal(_planningContactId);
+    }
+  }, 120);
   if(typeof syncSummaryRecipientEmail === "function"){
     syncSummaryRecipientEmail(entry?.email || "");
   }
