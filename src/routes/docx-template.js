@@ -1859,8 +1859,6 @@ function buildAhData(body) {
   const abAnfahrtTotal    = r2(ab.totalEinsaetze * AH_ANFAHRT_PER_EINSATZ);
   const abLeistungenTotal = r2(ab.totalMonatlichH * AH_STUNDENSATZ_AB);
   const gesamt = r2(anfahrtTotal + leistungenTotal + abAnfahrtTotal + abLeistungenTotal);
-  const totalMonatlichH = hnd.totalMonatlichH + ab.totalMonatlichH;
-  const totalEinsaetze  = hnd.totalEinsaetze;
 
   // ── Build per-service rows ──────────────────────────────────────────────
   const AhServices = rawServices.map((svc, idx) => {
