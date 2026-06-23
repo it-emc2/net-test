@@ -3886,6 +3886,7 @@ function buildPayload() {
     );
 
     const distanceKm = (document.getElementById("distanceKm")?.value || "").toString().trim();
+    const ahTravelZone = parseInt(document.getElementById("ahTravelZone")?.value || "0") || 0;
     const travelSecondWorkerRate = getTravelSecondWorkerRateValue();
 
     const autoSuggestion =
@@ -3903,6 +3904,7 @@ function buildPayload() {
       laborHoursHHMM: laborHHMM,
       travelTimeHHMM: travelHHMM,
       distanceKm,
+      ahTravelZone,
       travelSecondWorkerRate,
       laborHoursSource: window.labor_hours_source || "manual",
       autoSuggestedHoursHHMM: autoSuggestion?.totalHoursHHMM || "",
