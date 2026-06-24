@@ -598,22 +598,55 @@ function buildAhHeader(logoRid = "rId1") {
     `<w:sz w:val="28"/><w:szCs w:val="28"/>` +
     `<w:spacing w:val="100"/>`;
 
-  // ── Title paragraph: text + blue bottom border + floating logo ────────────
+  // ── Title paragraph: text + floating logo ────────────────────────────────
   const titlePara =
     `<w:p>` +
     `<w:pPr>` +
-    `<w:spacing w:before="0" w:after="80"/>` +
-    `<w:pBdr>` +
-    // Blue line spans the FULL paragraph width (= full header width)
-    `<w:bottom w:val="single" w:sz="18" w:space="0" w:color="2E74B5"/>` +
-    `</w:pBdr>` +
+    `<w:spacing w:before="0" w:after="0"/>` +
     `<w:rPr>${titleRPrContent}</w:rPr>` +
     `</w:pPr>` +
-    // Title text (left-aligned, default)
     `<w:r><w:rPr>${titleRPrContent}</w:rPr>` +
     `<w:t xml:space="preserve">EmC2  Alltagshilfe</w:t></w:r>` +
-    // Floating logo run (position is absolute — text content irrelevant)
     `<w:r><w:rPr><w:noProof/></w:rPr>${logoAnchor}</w:r>` +
+    `</w:p>`;
+
+  // ── Blue line: inline DrawingML rectangle ─────────────────────────────────
+  // Works reliably in LibreOffice unlike table-cell borders.
+  // LINE_W in twips (635 EMU per twip). LINE_H matches original border sz="18"
+  // (18 eighth-points = 2.25 pt = 28 575 EMU). Adjust LINE_W to taste.
+  const LINE_W = 6750;
+  const LINE_W_EMU = LINE_W * 635;
+  const LINE_H_EMU = 28575;
+
+  const lineRect =
+    `<w:p>` +
+    `<w:pPr><w:spacing w:before="0" w:after="80"/></w:pPr>` +
+    `<w:r><w:rPr><w:noProof/></w:rPr>` +
+    `<w:drawing>` +
+    `<wp:inline distT="0" distB="0" distL="0" distR="0">` +
+    `<wp:extent cx="${LINE_W_EMU}" cy="${LINE_H_EMU}"/>` +
+    `<wp:effectExtent l="0" t="0" r="0" b="0"/>` +
+    `<wp:docPr id="3" name="blue-line"/>` +
+    `<wp:cNvGraphicFramePr>` +
+    `<a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>` +
+    `</wp:cNvGraphicFramePr>` +
+    `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
+    `<a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">` +
+    `<wps:wsp xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">` +
+    `<wps:cNvSpPr><a:spLocks noChangeArrowheads="1"/></wps:cNvSpPr>` +
+    `<wps:spPr>` +
+    `<a:xfrm><a:off x="0" y="0"/><a:ext cx="${LINE_W_EMU}" cy="${LINE_H_EMU}"/></a:xfrm>` +
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>` +
+    `<a:solidFill><a:srgbClr val="2E74B5"/></a:solidFill>` +
+    `<a:ln><a:noFill/></a:ln>` +
+    `</wps:spPr>` +
+    `<wps:bodyPr lIns="0" rIns="0" tIns="0" bIns="0" anchor="t"/>` +
+    `</wps:wsp>` +
+    `</a:graphicData>` +
+    `</a:graphic>` +
+    `</wp:inline>` +
+    `</w:drawing>` +
+    `</w:r>` +
     `</w:p>`;
 
   // ── Namespace declarations ─────────────────────────────────────────────────
@@ -643,6 +676,7 @@ function buildAhHeader(logoRid = "rId1") {
     `<w:hdr ${hdrNS}>` +
     `<w:p><w:pPr><w:pStyle w:val="normal1"/></w:pPr></w:p>` +
     titlePara +
+    lineRect +
     `</w:hdr>`
   );
 }
