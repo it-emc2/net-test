@@ -56,6 +56,8 @@ const MONGODB_DB = process.env.MONGODB_DB || "KonfiguratorDB";
 
 process.env.PDFJS_DISABLE_WORKER = "true";
 
+const APP_BUILD_ID = Date.now().toString();
+
 // ---------------- Helmet / CSP ----------------
 app.use(
   helmet({
@@ -615,6 +617,11 @@ app.use(
     },
   }),
 );
+
+// ---------------- Version endpoint (used by frontend update-checker) ----------------
+app.get("/api/version", (req, res) => {
+  res.json({ buildId: APP_BUILD_ID });
+});
 
 // ---------------- Static ----------------
 app.use(express.static(path.join(__dirname, "public")));

@@ -557,6 +557,59 @@ const toast = {
 
 window.toast = window.toast || toast;
 
+// Update-checker: polls /api/version every 5 min; shows a refresh toast on new deploy
+(function startUpdateChecker() {
+  let knownBuildId = null;
+  let poller = null;
+
+  function showUpdateToast() {
+    const host = document.getElementById("nt-toaster");
+    if (!host) return;
+    // Only show once
+    if (host.querySelector(".nt-update-toast")) return;
+
+    const el = document.createElement("div");
+    el.className = "nt-toast info nt-update-toast";
+    el.innerHTML = `
+      <div class="nt-title">Update verfügbar 🔄</div>
+      <button class="nt-close" aria-label="Schließen">×</button>
+      <div class="nt-msg" style="display:flex;flex-direction:column;gap:10px;">
+        <span>Eine neue Version der App ist verfügbar.</span>
+        <button
+          onclick="location.reload()"
+          style="align-self:flex-start;padding:7px 16px;border-radius:8px;border:0;background:var(--nt-accent,#3b82f6);color:#fff;font-size:13px;font-weight:600;cursor:pointer;line-height:1.4;"
+        >Jetzt neu laden</button>
+      </div>
+    `;
+    host.appendChild(el);
+    requestAnimationFrame(() => el.classList.add("show"));
+
+    el.querySelector(".nt-close")?.addEventListener("click", () => {
+      el.classList.remove("show");
+      setTimeout(() => el.remove(), 180);
+    });
+  }
+
+  async function checkVersion() {
+    try {
+      const r = await fetch("/api/version", { cache: "no-store" });
+      if (!r.ok) return;
+      const { buildId } = await r.json();
+      if (knownBuildId === null) {
+        knownBuildId = buildId;
+        return;
+      }
+      if (buildId !== knownBuildId) {
+        showUpdateToast();
+        clearInterval(poller);
+      }
+    } catch (_) {}
+  }
+
+  checkVersion();
+  poller = setInterval(checkVersion, 5 * 60 * 1000);
+})();
+
 // top-level (once)
 window.__restoring = false;
 window.__RESTORING__ = false;
