@@ -34,6 +34,9 @@ r.get("/suggest", async (req, res) => {
     // Optional additive explicit series filter: ?series=SLA or ?series=DW
     const series = String(req.query.series || "").trim().toUpperCase();
 
+    // Optional source filter: ?source=badolux restricts to that manufacturer
+    const wantSource = normSource(req.query.source);
+
     // nothing provided?
     if (w === null && l === null && h === null) {
       return res.status(400).json({ error: "Provide at least one of w, l, h" });
@@ -48,6 +51,8 @@ r.get("/suggest", async (req, res) => {
     if (series === "SLA") filter.productId = /^SLA/i;
     else if (series === "DW") filter.productId = /^DW/i;
     else filter.productId = /^(SLA|DW)/i;
+
+    if (wantSource) filter.source = wantSource;
 
     if (w !== null) {
       filter.widthCm = { $gte: w };

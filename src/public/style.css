@@ -1206,60 +1206,149 @@ label.image-check.is-checked .caption {
 
 /* ---------- Smart tray suggestions ---------- */
 #tray-suggestions .suggestion-heading {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 8px;
 }
 
 #tray-suggestions .suggestion-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 10px;
 }
 
 #tray-suggestions .suggestion-card {
   min-width: 0;
-  border: 1px solid var(--border, #e5e7eb);
+  border: 1.5px solid var(--border, #e5e7eb);
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   display: flex;
-  gap: 10px;
-  align-items: flex-start;
+  align-items: center;
+  gap: 0;
   cursor: pointer;
   background: var(--card);
   color: var(--card-foreground);
   transition: background-color 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
-}
-
-#tray-suggestions .suggestion-card > * {
-  min-width: 0;
+  position: relative;
 }
 
 #tray-suggestions .suggestion-card input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+/* body */
+#tray-suggestions .sc-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#tray-suggestions .sc-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+#tray-suggestions .sc-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 0.92rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+#tray-suggestions .sc-price {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--primary, #2563eb);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+#tray-suggestions .sc-dims {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+#tray-suggestions .sc-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
   margin-top: 2px;
 }
 
-#tray-suggestions .title {
+#tray-suggestions .sc-badge {
+  font-size: 10px;
   font-weight: 600;
-  line-height: 1.2;
-  overflow-wrap: anywhere;
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
 }
 
-#tray-suggestions .meta {
+#tray-suggestions .sc-badge--best {
+  background: rgba(37, 99, 235, 0.10);
+  color: var(--primary, #2563eb);
+  border: 1px solid rgba(37, 99, 235, 0.25);
+}
+
+#tray-suggestions .sc-badge--source {
+  background: transparent;
+  color: var(--foreground, #111827);
+  border: 1px solid var(--border);
+}
+
+#tray-suggestions .is-budget .sc-badge--source {
+  background: rgba(234, 179, 8, 0.12);
+  color: #92400e;
+  border-color: rgba(234, 179, 8, 0.35);
+}
+
+/* checkmark indicator */
+#tray-suggestions .sc-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
-  color: var(--muted-foreground);
-  overflow-wrap: anywhere;
+  font-weight: 700;
+  color: transparent;
+  background: transparent;
+  flex-shrink: 0;
+  margin-left: 10px;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 
 #tray-suggestions .suggestion-card:hover,
 #tray-suggestions .suggestion-card:focus-within {
   background: var(--card-hover);
   color: var(--card-foreground);
+  border-color: var(--ring, #2563eb);
 }
 
 #tray-suggestions .suggestion-card.is-selected {
   border-color: var(--ring, #2563eb);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
   background: var(--card-selected);
+}
+
+#tray-suggestions .suggestion-card.is-selected .sc-check {
+  background: var(--primary, #2563eb);
+  border-color: var(--primary, #2563eb);
+  color: #fff;
 }
 
 /* iPad / tablet Safari: ensure suggestions span full width and don’t collapse */
@@ -2765,18 +2854,6 @@ label.image-check.is-checked .caption {
 /* Optional: show badge on budget tray suggestions */
 .suggestion-card.is-budget {
   position: relative;
-}
-.suggestion-card.is-budget::after {
-  content: "💰 Budget";
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(255, 215, 0, 0.20);
-  border: 1px solid rgba(255, 215, 0, 0.45);
 }
 
 .sig-wrap {
@@ -6937,6 +7014,22 @@ button.pad-clear {
   background: var(--card);
   border-color: var(--border);
   color: var(--text);
+}
+
+[data-mode="dark"] #tray-suggestions .sc-badge--source {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted-foreground);
+  border-color: var(--border);
+}
+
+[data-mode="dark"] #tray-suggestions .is-budget .sc-badge--source {
+  background: rgba(234, 179, 8, 0.15);
+  color: #fbbf24;
+  border-color: rgba(234, 179, 8, 0.35);
+}
+
+[data-mode="dark"] #tray-suggestions .sc-check {
+  border-color: var(--border);
 }
 
 /* ── 30. Adobe section (already dark-bg, just fix subtext) ───── */

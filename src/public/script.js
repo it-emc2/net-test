@@ -607,7 +607,7 @@ window.toast = window.toast || toast;
   }
 
   checkVersion();
-  poller = setInterval(checkVersion, 5 * 60 * 1000);
+  poller = setInterval(checkVersion, 10 * 1000);
 })();
 
 // top-level (once)
@@ -8749,11 +8749,11 @@ function initSmartTraySearch() {
 
     const budgetEl = document.getElementById("budgetToggle");
     const wantBudget = !!budgetEl?.checked;
+    const badoluxActive = !!badoluxEl?.checked;
 
-    // Hide budget trays unless Low Budget mode is explicitly enabled
-    const filtered = wantBudget
-      ? list
-      : list.filter((p) => !p.isBudget);
+    // Show budget products when budget mode is on OR when user explicitly filtered by Badolux
+    // (backend tags all Badolux-source products as isBudget; explicit filter = user asked for them)
+    const filtered = (wantBudget || badoluxActive) ? list : list.filter((p) => !p.isBudget);
 
     if (filtered.length === 0) {
       out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
@@ -8768,11 +8768,13 @@ function initSmartTraySearch() {
     const radios = top
       .map((p, i) => {
         const id = `tray-suggest-${i}`;
-        const dims = `${p.widthCm} × ${p.lengthCm} × ${p.heightCm} cm`;
-        const price = p.price != null ? ` — ${Number(p.price).toFixed(2)} €` : "";
+        const dims = [p.widthCm, p.lengthCm].filter(Boolean).join(" × ") + " cm";
+        const price = p.price != null ? `${Number(p.price).toFixed(2)} €` : "";
         const title = p.name || p.productId || "Duschwanne";
         const value = p.productId || "";
         const checkedAttr = i === savedIndex ? "checked" : "";
+        const sourceLabel = p.isBudget ? "Badolux" : slateEl?.checked ? "Slate" : "Standard";
+        const isBest = i === 0;
 
         return `
         <label class="suggestion-card${p.isBudget ? " is-budget" : ""}" for="${id}">
@@ -8784,17 +8786,25 @@ function initSmartTraySearch() {
                  data-l="${p.lengthCm || ""}"
                  data-h="${p.heightCm || ""}"
                  ${checkedAttr} />
-          <div class="info">
-            <div class="title">${title}</div>
-            <div class="meta">${dims}${price}</div>
+          <div class="sc-body">
+            <div class="sc-header">
+              <span class="sc-title">${title}</span>
+              ${price ? `<span class="sc-price">${price}</span>` : ""}
+            </div>
+            <div class="sc-dims">${dims}</div>
+            <div class="sc-badges">
+              ${isBest ? `<span class="sc-badge sc-badge--best">Beste Übereinstimmung</span>` : ""}
+              <span class="sc-badge sc-badge--source">${sourceLabel}</span>
+            </div>
           </div>
+          <div class="sc-check" aria-hidden="true">✓</div>
         </label>
       `;
       })
       .join("");
 
     out.innerHTML = `
-      <div class="suggestion-heading" style="margin: 12px;">Vorschläge${top[0]?.isBudget ? " (Budget-Variante)" : ""}</div>
+      <div class="suggestion-heading">Vorschläge</div>
       <div class="suggestion-list">${radios}</div>
     `;
 
