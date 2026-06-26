@@ -22704,7 +22704,7 @@ function renderTodayPlanningAppointments(){
 
           <div class="today-calendar-right">
             <span class="today-calendar-time"><i class="fa-regular fa-clock"></i> ${escapePlanningHtml(formatPlanningTimeDisplay(entry))}</span>
-            ${entry?.type ? `<span class="today-calendar-badge ${formatPlanningTypeClass(entry.type)}">${escapePlanningHtml(String(entry.type).toUpperCase())}</span>` : ""}
+            ${entry?.taetigkeitenBadge ? `<span class="today-calendar-badge ${formatPlanningTypeClass(entry.taetigkeitenBadge)}">${escapePlanningHtml(String(entry.taetigkeitenBadge).toUpperCase())}</span>` : ""}
             <span class="today-calendar-badge ${badgeClass}">${escapePlanningHtml(formatPlanningBadge(entry))}</span>
           </div>
         </div>
