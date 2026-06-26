@@ -1029,7 +1029,7 @@ if (l.source === "hl_pipe") {
 }
 
       // 👇 special rule for Fußboden-Paneele
-      if (l.id === "V5FB02") {
+      if (l.id === "V5FB02" || l.id === "AVP-W") {
         unit = round2(unit / 8);
       }
       if (l.source === "optional_reha") {

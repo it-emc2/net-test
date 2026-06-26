@@ -52,6 +52,7 @@ const products = [
   { productId: 'KM02', name: 'Kleinmaterial groß', price: 150.00, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'STELZ', name: 'Stelzlager höhenverstellar Set', price: 20.00, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'V5FB02', name: 'Fußboden individ.5.0 1500x200mm Lava beige (8 Paneele=2,4m/2) VIGOUR', price: 159.84, widthCm: 20, heightCm: null, lengthCm: 150 },
+  { productId: 'AVP-W', name: 'Aluverbundplatte weiß 1500x200mm (8 Paneele=2,4m/2)', price: 126.00, widthCm: 20, heightCm: null, lengthCm: 150 },
   { productId: 'V4FK600', name: 'Flächenkleber 3.0/4.0/5.0 Fußboden und Wandverkleidungspaneele 600ml', price: 16.56, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'TRBDSET7', name: 'TRINNITY Bodenabdichtung BASIS-Set 7 qm Dichtb., Sockelb., Außen- + Innenecke', price: 278.38, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'V4FK600', name: 'Flächenkleber 3.0/4.0/5.0 Fußboden und Wandverkleidungspaneele 600ml VIGOUR', price: 16.56, widthCm: null, heightCm: null, lengthCm: null },

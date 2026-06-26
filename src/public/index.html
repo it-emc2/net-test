@@ -576,13 +576,9 @@
     }
 
     @media (min-width: 1024px) {
-      #flooringColors {
-        flex-wrap: nowrap;
-      }
-
       #flooringPanel .image-check {
         max-width: none;
-        flex: 0 0 calc((100% - (4 * 14px)) / 5);
+        flex: 0 0 calc((100% - (2 * 14px)) / 3);
       }
 
       #flooringPanel .img-wrap {
@@ -3596,7 +3592,16 @@ button.dm-btn-danger:focus-visible {
               <label class="req">Fußboden individ.5.0 V5FB02 für Fehlstellen-Ausgleich</label>
 
               <div id="flooringColors">
-                <!-- 1) Lava-Beige (default if area > 0 and none selected) -->
+                <!-- 1) Aluverbundplatte weiß -->
+                <label class="image-check" data-product-id="AVP-W">
+                  <input type="checkbox" name="flooringProduct[]" value="AVP-W|Weiß" data-product-id="AVP-W"
+                    data-color="Weiß" />
+                  <span class="img-wrap"><img src="./assets/585c6146589e2f4c59e026c2b5373966.jpg"
+                      alt="Aluverbundplatte weiß" /></span>
+                  <span class="caption">Aluverbundplatte weiß</span>
+                </label>
+
+                <!-- 2) Lava-Beige -->
                 <label class="image-check" data-product-id="V5FB02">
                   <input type="checkbox" name="flooringProduct[]" value="V5FB02|Lava-Beige" data-product-id="V5FB02"
                     data-color="Lava-Beige" />
@@ -3605,7 +3610,7 @@ button.dm-btn-danger:focus-visible {
                   <span class="caption">Fußboden Lava_Beige</span>
                 </label>
 
-                <!-- 2) Schiefer-Beige -->
+                <!-- 3) Schiefer-Beige -->
                 <label class="image-check" data-product-id="V5FB02">
                   <input type="checkbox" name="flooringProduct[]" value="V5FB02|Schiefer-Beige" data-product-id="V5FB02"
                     data-color="Schiefer-Beige" />
