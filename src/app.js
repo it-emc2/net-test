@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { execSync } from "child_process";
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
@@ -56,7 +57,13 @@ const MONGODB_DB = process.env.MONGODB_DB || "KonfiguratorDB";
 
 process.env.PDFJS_DISABLE_WORKER = "true";
 
-const APP_BUILD_ID = Date.now().toString();
+let APP_BUILD_ID;
+try {
+  APP_BUILD_ID = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
+} catch {
+  // git not available (e.g. Docker without git) — fall back to startup timestamp
+  APP_BUILD_ID = Date.now().toString();
+}
 
 // ---------------- Helmet / CSP ----------------
 app.use(
