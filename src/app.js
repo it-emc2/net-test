@@ -58,11 +58,16 @@ const MONGODB_DB = process.env.MONGODB_DB || "KonfiguratorDB";
 process.env.PDFJS_DISABLE_WORKER = "true";
 
 let APP_BUILD_ID;
-try {
-  APP_BUILD_ID = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
-} catch {
-  // git not available (e.g. Docker without git) — fall back to startup timestamp
-  APP_BUILD_ID = Date.now().toString();
+if (process.env.FLY_IMAGE_REF) {
+  // Fly.io: same value across all instances of a deploy, changes on new deploy
+  APP_BUILD_ID = process.env.FLY_IMAGE_REF;
+} else {
+  try {
+    // Local dev: git hash is stable across nodemon restarts, changes on commit
+    APP_BUILD_ID = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
+  } catch {
+    APP_BUILD_ID = Date.now().toString();
+  }
 }
 
 // ---------------- Helmet / CSP ----------------
