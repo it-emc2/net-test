@@ -563,30 +563,57 @@ window.toast = window.toast || toast;
   let poller = null;
 
   function showUpdateToast() {
-    const host = document.getElementById("nt-toaster");
-    if (!host) return;
-    // Only show once
-    if (host.querySelector(".nt-update-toast")) return;
+    if (document.getElementById("nt-update-banner")) return;
 
     const el = document.createElement("div");
-    el.className = "nt-toast info nt-update-toast";
+    el.id = "nt-update-banner";
+    Object.assign(el.style, {
+      position: "fixed",
+      bottom: "24px",
+      left: "50%",
+      transform: "translateX(-50%) translateY(16px)",
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      padding: "9px 10px 9px 14px",
+      borderRadius: "12px",
+      background: "#0f172a",
+      color: "#f1f5f9",
+      fontSize: "13px",
+      fontWeight: "500",
+      boxShadow: "0 4px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.07)",
+      zIndex: "99999",
+      opacity: "0",
+      transition: "transform 0.22s ease, opacity 0.22s ease",
+      whiteSpace: "nowrap",
+      fontFamily: "inherit",
+      maxWidth: "calc(100vw - 32px)",
+    });
     el.innerHTML = `
-      <div class="nt-title">Update verfügbar 🔄</div>
-      <button class="nt-close" aria-label="Schließen">×</button>
-      <div class="nt-msg" style="display:flex;flex-direction:column;gap:10px;">
-        <span>Eine neue Version der App ist verfügbar.</span>
-        <button
-          onclick="location.reload()"
-          style="align-self:flex-start;padding:7px 16px;border-radius:8px;border:0;background:var(--nt-accent,#3b82f6);color:#fff;font-size:13px;font-weight:600;cursor:pointer;line-height:1.4;"
-        >Jetzt neu laden</button>
-      </div>
+      <span style="font-size:14px">🔄</span>
+      <span>Neue Version verfügbar</span>
+      <button
+        data-reload
+        style="padding:5px 12px;border-radius:7px;border:0;background:#3b82f6;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;line-height:1.5;"
+      >Neu laden</button>
+      <button
+        data-close
+        aria-label="Schließen"
+        style="padding:0 4px;border:0;background:transparent;color:#64748b;font-size:17px;cursor:pointer;font-family:inherit;line-height:1;"
+      >×</button>
     `;
-    host.appendChild(el);
-    requestAnimationFrame(() => el.classList.add("show"));
+    document.body.appendChild(el);
+    requestAnimationFrame(() => {
+      el.style.transform = "translateX(-50%) translateY(0)";
+      el.style.opacity = "1";
+    });
 
-    el.querySelector(".nt-close")?.addEventListener("click", () => {
-      el.classList.remove("show");
-      setTimeout(() => el.remove(), 180);
+    el.querySelector("[data-reload]").addEventListener("click", () => location.reload());
+
+    el.querySelector("[data-close]").addEventListener("click", () => {
+      el.style.transform = "translateX(-50%) translateY(16px)";
+      el.style.opacity = "0";
+      setTimeout(() => el.remove(), 220);
     });
   }
 
@@ -22493,6 +22520,17 @@ function formatPlanningBadge(entry){
   return getPlanningPriorityLabel(entry?.priority);
 }
 
+function formatPlanningTypeClass(type){
+  switch((type || "").toUpperCase()){
+    case "BU":  return "is-bu";
+    case "BWT": return "is-bwt";
+    case "HMS": case "WD": return "is-hms";
+    case "HL":  return "is-hl";
+    case "AH":  return "is-ah";
+    default:    return "is-manual";
+  }
+}
+
 // ─── Week Calendar ────────────────────────────────────────────────────────────
 
 let __lastPlanningRawPayload = null;
@@ -22666,6 +22704,7 @@ function renderTodayPlanningAppointments(){
 
           <div class="today-calendar-right">
             <span class="today-calendar-time"><i class="fa-regular fa-clock"></i> ${escapePlanningHtml(formatPlanningTimeDisplay(entry))}</span>
+            ${entry?.type ? `<span class="today-calendar-badge ${formatPlanningTypeClass(entry.type)}">${escapePlanningHtml(String(entry.type).toUpperCase())}</span>` : ""}
             <span class="today-calendar-badge ${badgeClass}">${escapePlanningHtml(formatPlanningBadge(entry))}</span>
           </div>
         </div>
