@@ -533,23 +533,29 @@ function buildDocument() {
   );
 }
 
-// ── AH-specific header XML ─────────────────────────────────────────────────
-// Approach: floating <wp:anchor> logo + paragraph border for the blue line.
-// - Blue line = <w:pBdr><w:bottom/> on the title paragraph → spans FULL header width
-// - Logo = <wp:anchor> floating in-front-of-text, right-aligned, vertically
-//   positioned so its centre aligns with the paragraph's bottom border.
+// ── AH-specific header XML ───────────────────────────────────────────
+// Layout:
+//   Para 1 — "EmC2  Alltagshilfe" bold text (no logo, no border)
+//   Para 2 — full-width blue inline rect + floating logo anchor
 //
-// positionV calculation (Open Sans 14pt, after=80twips):
-//   line_h  ≈ 14pt × 1.15 × 12700 = 204 470 EMU
-//   after   = 80 × 635             =  50 800 EMU
-//   para_h  ≈ 255 270 EMU          (= blue border Y from para top)
-//   logo_h  = 920 750 EMU, half = 460 375
-//   logo_top = 255 270 - 460 375   = -205 105 EMU  → use -205000
+// The logo (scaled to 50%) floats in front of the blue rect, centered on it:
+//   rect center from line-para top = LINE_H_EMU/2 =  14 287 EMU
+//   logo half-height               = LOGO_CY/2    = 230 187 EMU
+//   posOffset (rel. to line para)  = 14 287 - 230 187 = -215 900 EMU
+//
+// Result: ──────────────────── [logo straddles line] ──
+//   (logo white background hides the line segment behind it)
 function buildAhHeader(logoRid = "rId1") {
-  const LOGO_CX = 1585595;
-  const LOGO_CY = 920750;
+  // 50% of original dimensions — fits within the ~1-inch header height
+  const LOGO_CX = 792797;  // ≈ 0.87 inch wide
+  const LOGO_CY = 460375;  // ≈ 0.50 inch tall
 
-  // ── Shared graphic XML ────────────────────────────────────────────────────
+  // Full content-width blue line (12240 - 1440*2 page margins = 9360 twips)
+  const LINE_W     = 9360;
+  const LINE_W_EMU = LINE_W * 635;  // 5 943 600
+  const LINE_H_EMU = 28575;         // 2.25 pt (sz=18 eighth-points)
+
+  // ── Shared graphic XML ────────────────────────────────────────────
   const graphicXml =
     `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
     `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
@@ -568,18 +574,17 @@ function buildAhHeader(logoRid = "rId1") {
     `</pic:spPr>` +
     `</pic:pic></a:graphicData></a:graphic>`;
 
-  // ── Floating anchor (in-front-of-text, right-aligned, straddles border) ──
+  // ── Floating anchor: right-aligned, centered on the blue rect ────────────────────────
+  // distR=114300 (≈ 180 twips) leaves a small visible tail of the line to the right.
+  // posOffset = LINE_H_EMU/2 - LOGO_CY/2 = 14287 - 230187 = -215900 EMU
   const logoAnchor =
     `<w:drawing>` +
     `<wp:anchor distT="0" distB="0" distL="114300" distR="114300" ` +
     `simplePos="0" relativeHeight="251658240" behindDoc="0" ` +
     `locked="0" layoutInCell="0" allowOverlap="1">` +
     `<wp:simplePos x="0" y="0"/>` +
-    // Horizontal: right edge of content margin
     `<wp:positionH relativeFrom="margin"><wp:align>right</wp:align></wp:positionH>` +
-    // Vertical: logo top is -205000 EMU above the title paragraph top
-    // → centres the logo on the paragraph's blue bottom border
-    `<wp:positionV relativeFrom="paragraph"><wp:posOffset>-205000</wp:posOffset></wp:positionV>` +
+    `<wp:positionV relativeFrom="paragraph"><wp:posOffset>-215900</wp:posOffset></wp:positionV>` +
     `<wp:extent cx="${LOGO_CX}" cy="${LOGO_CY}"/>` +
     `<wp:effectExtent l="0" t="0" r="0" b="0"/>` +
     `<wp:wrapNone/>` +
@@ -590,7 +595,7 @@ function buildAhHeader(logoRid = "rId1") {
     graphicXml +
     `</wp:anchor></w:drawing>`;
 
-  // ── Title run styles ──────────────────────────────────────────────────────
+  // ── Title paragraph (text only) ───────────────────────────────────────────────
   const titleRPrContent =
     `<w:rFonts w:ascii="${OS}" w:eastAsia="${OS}" w:hAnsi="${OS}" w:cs="${OS}"/>` +
     `<w:b/><w:bCs/>` +
@@ -598,7 +603,6 @@ function buildAhHeader(logoRid = "rId1") {
     `<w:sz w:val="28"/><w:szCs w:val="28"/>` +
     `<w:spacing w:val="100"/>`;
 
-  // ── Title paragraph: text + floating logo ────────────────────────────────
   const titlePara =
     `<w:p>` +
     `<w:pPr>` +
@@ -607,26 +611,19 @@ function buildAhHeader(logoRid = "rId1") {
     `</w:pPr>` +
     `<w:r><w:rPr>${titleRPrContent}</w:rPr>` +
     `<w:t xml:space="preserve">EmC2  Alltagshilfe</w:t></w:r>` +
-    `<w:r><w:rPr><w:noProof/></w:rPr>${logoAnchor}</w:r>` +
     `</w:p>`;
 
-  // ── Blue line: inline DrawingML rectangle ─────────────────────────────────
-  // Works reliably in LibreOffice unlike table-cell borders.
-  // LINE_W in twips (635 EMU per twip). LINE_H matches original border sz="18"
-  // (18 eighth-points = 2.25 pt = 28 575 EMU). Adjust LINE_W to taste.
-  const LINE_W = 6750;
-  const LINE_W_EMU = LINE_W * 635;
-  const LINE_H_EMU = 28575;
-
+  // ── Blue line paragraph: full-width rect + floating logo ────────────────────────────
   const lineRect =
     `<w:p>` +
-    `<w:pPr><w:spacing w:before="0" w:after="80"/></w:pPr>` +
+    `<w:pPr><w:spacing w:before="0" w:after="800"/></w:pPr>` +
     `<w:r><w:rPr><w:noProof/></w:rPr>` +
     `<w:drawing>` +
     `<wp:inline distT="0" distB="0" distL="0" distR="0">` +
     `<wp:extent cx="${LINE_W_EMU}" cy="${LINE_H_EMU}"/>` +
     `<wp:effectExtent l="0" t="0" r="0" b="0"/>` +
     `<wp:docPr id="3" name="blue-line"/>` +
+    
     `<wp:cNvGraphicFramePr>` +
     `<a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>` +
     `</wp:cNvGraphicFramePr>` +
@@ -647,9 +644,10 @@ function buildAhHeader(logoRid = "rId1") {
     `</wp:inline>` +
     `</w:drawing>` +
     `</w:r>` +
+    `<w:r><w:rPr><w:noProof/></w:rPr>${logoAnchor}</w:r>` +
     `</w:p>`;
 
-  // ── Namespace declarations ─────────────────────────────────────────────────
+  // ── Namespace declarations ────────────────────────────────────────────────────────────────────────────
   const hdrNS =
     'xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" ' +
     'xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" ' +
