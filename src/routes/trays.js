@@ -45,7 +45,6 @@ r.get("/suggest", async (req, res) => {
     // Build strict axis filters ONLY for provided axes.
     // => User may start with any axis and add others in any order.
     const filter = {};
-    const axesForScore = [];
 
     // Always restrict duschwanne trays to SLA or DW (as requested)
     if (series === "SLA") filter.productId = /^SLA/i;
@@ -54,18 +53,28 @@ r.get("/suggest", async (req, res) => {
 
     if (wantSource) filter.source = wantSource;
 
-    if (w !== null) {
-      filter.widthCm = { $gte: w };
-      axesForScore.push(["widthCm", w]);
+    // Width + length: match the footprint orientation-independently. Tray
+    // categories disagree on which side is "width" (Hassmann/SLA stores
+    // width >= length, Badolux/DW stores width <= length), so an axis-locked
+    // widthCm>=w AND lengthCm>=l filter starves whichever category is rotated.
+    // A rectangular tray fits if its larger side covers the larger requested
+    // side and its smaller side covers the smaller one.
+    if (w !== null && l !== null) {
+      const needMax = Math.max(w, l);
+      const needMin = Math.min(w, l);
+      filter.$expr = {
+        $and: [
+          { $gte: [{ $max: ["$widthCm", "$lengthCm"] }, needMax] },
+          { $gte: [{ $min: ["$widthCm", "$lengthCm"] }, needMin] },
+        ],
+      };
+    } else {
+      // Single axis (e.g. user still typing) — unchanged behavior.
+      if (w !== null) filter.widthCm = { $gte: w };
+      if (l !== null) filter.lengthCm = { $gte: l };
     }
-    if (l !== null) {
-      filter.lengthCm = { $gte: l };
-      axesForScore.push(["lengthCm", l]);
-    }
-    if (h !== null) {
-      filter.heightCm = { $gte: h };
-      axesForScore.push(["heightCm", h]);
-    }
+
+    if (h !== null) filter.heightCm = { $gte: h };
 
     const docs = await Product.find(
       filter,
@@ -80,14 +89,19 @@ r.get("/suggest", async (req, res) => {
       },
     ).lean();
 
-    // Rank by closeness using ONLY provided axes.
+    // Rank by closeness using ONLY provided axes. Width/length are compared
+    // orientation-independently (sorted side-by-side) to match the filter.
     const score = (p) => {
       let sum = 0;
-      for (const [key, want] of axesForScore) {
-        const have = Number(p[key]) || 0; // we already know have >= want from filter
-        const d = have - want; // non-negative
-        sum += d * d;
+      if (w !== null && l !== null) {
+        const td = [Number(p.widthCm) || 0, Number(p.lengthCm) || 0].sort((a, b) => a - b);
+        const qd = [Math.min(w, l), Math.max(w, l)];
+        sum += (td[0] - qd[0]) ** 2 + (td[1] - qd[1]) ** 2;
+      } else {
+        if (w !== null) { const d = (Number(p.widthCm) || 0) - w; sum += d * d; }
+        if (l !== null) { const d = (Number(p.lengthCm) || 0) - l; sum += d * d; }
       }
+      if (h !== null) { const d = (Number(p.heightCm) || 0) - h; sum += d * d; }
       return Math.sqrt(sum);
     };
 

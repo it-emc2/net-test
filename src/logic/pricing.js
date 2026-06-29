@@ -1608,7 +1608,20 @@ try {
           if (!already) {
             const p = await ProductModel.findOne({ productId: pid }).lean();
             if (p) {
-              const unit = Number(p.price || 0);
+              let unit = Number(p.price || 0);
+
+              // Badolux trays are shown at a configurable discount off the list
+              // price (default 20 %). DB price is left untouched; the discounted
+              // unit flows into unitPrice/lineTotal/selectedTray below, so both
+              // the Kosten tab and the PDF reflect it.
+              const isBadolux =
+                String(p.source || "").toLowerCase() === "badolux" ||
+                /^DW/i.test(String(p.productId || ""));
+              if (isBadolux) {
+                const badoluxDiscount = cfg.get("BU_BADOLUX_DISCOUNT", 0.20);
+                unit = round2(unit * (1 - badoluxDiscount));
+              }
+
               const qty = 1; // ← add this
               const isSlateTray = String(p.productId || "").startsWith("SLA");
               // dynamic color (backward compatible)

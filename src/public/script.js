@@ -8672,10 +8672,6 @@ function initSmartTraySearch() {
   const hiddenId = document.getElementById("chosenTrayProductId");
   const hiddenSize = document.getElementById("traySize");
 
-  // NEW: checkbox filters
-  const badoluxEl = document.getElementById("trayFilterBadolux");
-  const slateEl = document.getElementById("trayFilterSlate");
-
   if (!out || (!elB && !elL && !elH)) {
     console.warn("initSmartTraySearch: missing inputs or #tray-suggestions");
     return;
@@ -8751,68 +8747,26 @@ function initSmartTraySearch() {
     toggleSlateTrayColorVisibility();
   };
 
-  // Optional: make them mutually exclusive (comment out if you want both possible)
-  const enforceExclusiveFilters = (changed) => {
-    if (!changed) return;
-    if (changed === badoluxEl && badoluxEl?.checked && slateEl) slateEl.checked = false;
-    if (changed === slateEl && slateEl?.checked && badoluxEl) badoluxEl.checked = false;
-  };
-
   // ----- render -----
-  function renderSuggestions(list) {
-    if (!Array.isArray(list) || list.length === 0) {
-      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
-      applySelectedStyles();
-      return;
-    }
+  // Build the HTML for a single suggestion card.
+  // All cards share name="traySuggestion" so selection is single across rows.
+  const buildCard = (p, domId, sourceLabel, isBest, checked) => {
+    const dims = [p.widthCm, p.lengthCm].filter(Boolean).join(" × ") + " cm";
+    const price = p.price != null ? `${Number(p.price).toFixed(2)} €` : "";
+    const title = p.name || p.productId || "Duschwanne";
+    const value = p.productId || "";
+    const isBudget = sourceLabel === "Badolux";
 
-    // Only restore a saved PID if the user actually chose in THIS session
-    const allowAutoCheck = sessionStorage.getItem("dw_tray_touched") === "1";
-    let savedPid = null;
-    try {
-      const saved = JSON.parse(localStorage.getItem("dw_tray_selection") || "null");
-      savedPid = saved?.productId || null;
-    } catch {}
-
-    const budgetEl = document.getElementById("budgetToggle");
-    const wantBudget = !!budgetEl?.checked;
-    const badoluxActive = !!badoluxEl?.checked;
-
-    // Show budget products when budget mode is on OR when user explicitly filtered by Badolux
-    // (backend tags all Badolux-source products as isBudget; explicit filter = user asked for them)
-    const filtered = (wantBudget || badoluxActive) ? list : list.filter((p) => !p.isBudget);
-
-    if (filtered.length === 0) {
-      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
-      applySelectedStyles();
-      return;
-    }
-
-    const top = filtered.slice(0, 3);
-    const savedIndex =
-      allowAutoCheck && savedPid ? top.findIndex((p) => p.productId === savedPid) : -1;
-
-    const radios = top
-      .map((p, i) => {
-        const id = `tray-suggest-${i}`;
-        const dims = [p.widthCm, p.lengthCm].filter(Boolean).join(" × ") + " cm";
-        const price = p.price != null ? `${Number(p.price).toFixed(2)} €` : "";
-        const title = p.name || p.productId || "Duschwanne";
-        const value = p.productId || "";
-        const checkedAttr = i === savedIndex ? "checked" : "";
-        const sourceLabel = p.isBudget ? "Badolux" : slateEl?.checked ? "Slate" : "Standard";
-        const isBest = i === 0;
-
-        return `
-        <label class="suggestion-card${p.isBudget ? " is-budget" : ""}" for="${id}">
+    return `
+        <label class="suggestion-card${isBudget ? " is-budget" : ""}" for="${domId}">
           <input type="radio"
-                 id="${id}"
+                 id="${domId}"
                  name="traySuggestion"
                  value="${value}"
                  data-w="${p.widthCm || ""}"
                  data-l="${p.lengthCm || ""}"
                  data-h="${p.heightCm || ""}"
-                 ${checkedAttr} />
+                 ${checked ? "checked" : ""} />
           <div class="sc-body">
             <div class="sc-header">
               <span class="sc-title">${title}</span>
@@ -8827,25 +8781,55 @@ function initSmartTraySearch() {
           <div class="sc-check" aria-hidden="true">✓</div>
         </label>
       `;
-      })
-      .join("");
+  };
 
-    out.innerHTML = `
-      <div class="suggestion-heading">Vorschläge</div>
-      <div class="suggestion-list">${radios}</div>
+  // Build one labeled row: heading + up to 3 cards, or a "no matches" note.
+  const buildRow = (heading, list, keyPrefix, sourceLabel, savedPid) => {
+    const top = Array.isArray(list) ? list.slice(0, 3) : [];
+    const body =
+      top.length === 0
+        ? `<div class="meta">Keine passenden Vorschläge gefunden.</div>`
+        : `<div class="suggestion-list">${top
+            .map((p, i) =>
+              buildCard(
+                p,
+                `tray-suggest-${keyPrefix}-${i}`,
+                sourceLabel,
+                i === 0,
+                savedPid && p.productId === savedPid,
+              ),
+            )
+            .join("")}</div>`;
+
+    return `
+      <div class="suggestion-heading">${heading}</div>
+      ${body}
     `;
+  };
 
-    if (savedIndex >= 0) {
-      const restored = out.querySelectorAll('input[name="traySuggestion"]')[savedIndex];
-      applySelection(restored);
+  // Render both category rows: Hassmann (SLA*) and Badolux (source=badolux).
+  function renderTwoRows(hassmannList, badoluxList) {
+    // Only restore a saved PID if the user actually chose in THIS session
+    const allowAutoCheck = sessionStorage.getItem("dw_tray_touched") === "1";
+    let savedPid = null;
+    if (allowAutoCheck) {
+      try {
+        const saved = JSON.parse(localStorage.getItem("dw_tray_selection") || "null");
+        savedPid = saved?.productId || null;
+      } catch {}
     }
 
-    // (Re)bind change once per render (idempotent behavior)
-    out.addEventListener("change", (e) => {
-      if (e.target && e.target.name === "traySuggestion") {
-        applySelection(e.target);
-      }
-    });
+    out.innerHTML = `
+      ${buildRow("Hassmann", hassmannList, "hassmann", "Hassmann", savedPid)}
+      ${buildRow("Badolux", badoluxList, "badolux", "Badolux", savedPid)}
+    `;
+
+    if (savedPid) {
+      const restored = out.querySelector(
+        `input[name="traySuggestion"][value="${CSS.escape(savedPid)}"]`,
+      );
+      if (restored) applySelection(restored);
+    }
 
     applySelectedStyles();
   }
@@ -8875,23 +8859,20 @@ function initSmartTraySearch() {
       return;
     }
 
-    const qs = new URLSearchParams();
-    if (b !== null) qs.set("w", String(b));
-    if (l !== null) qs.set("l", String(l));
-    if (h !== null) qs.set("h", String(h));
+    // Base dimension query, shared by both category requests.
+    const baseQs = new URLSearchParams();
+    if (b !== null) baseQs.set("w", String(b));
+    if (l !== null) baseQs.set("l", String(l));
+    if (h !== null) baseQs.set("h", String(h));
 
-    // Additive: budget mode hint (frontend-first safe; backend may ignore)
-    const budgetEl = document.getElementById("budgetToggle");
-    const wantBudget = !!budgetEl?.checked;
-    if (wantBudget) qs.set("budget", "1");
+    // Hassmann row = slate series (SLA*); Badolux row = source=badolux.
+    const hassmannQs = new URLSearchParams(baseQs);
+    hassmannQs.set("series", "SLA");
+    const badoluxQs = new URLSearchParams(baseQs);
+    badoluxQs.set("source", "badolux");
 
-    // NEW: tray filters
-    // Badolux => source=badolux
-    if (badoluxEl?.checked) qs.set("source", "badolux");
-    // Slate => series=SLA (ID starts with SLA)
-    if (slateEl?.checked) qs.set("series", "SLA");
-
-    let url = `/api/trays/suggest?${qs.toString()}`;
+    const hassmannUrl = `/api/trays/suggest?${hassmannQs.toString()}`;
+    const badoluxUrl = `/api/trays/suggest?${badoluxQs.toString()}`;
 
     try {
       inflight?.abort?.();
@@ -8899,47 +8880,49 @@ function initSmartTraySearch() {
     inflight = new AbortController();
     const mySeq = ++reqSeq;
 
-    out.innerHTML = `<div class="meta">Suche… <code>${url}</code></div>`;
+    out.innerHTML = `<div class="meta">Suche…</div>`;
 
-    try {
-      let r = await fetch(url, {
-        signal: inflight.signal,
-        credentials: "include",
-      });
-      let text = await r.text();
+    const fetchList = async (url) => {
+      const r = await fetch(url, { signal: inflight.signal, credentials: "include" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      return Array.isArray(data?.results) ? data.results : [];
+    };
 
-      // Frontend-first safety: if backend rejects unknown params, retry once without budget
-      if (!r.ok && wantBudget) {
-        try {
-          const qs2 = new URLSearchParams(qs);
-          qs2.delete("budget");
-          url = `/api/trays/suggest?${qs2.toString()}`;
-          r = await fetch(url, { signal: inflight.signal, credentials: "include" });
-          text = await r.text();
-        } catch {}
-      }
+    // Run both category requests in parallel. allSettled so a failure in one
+    // category still lets the other row render.
+    const [hRes, bRes] = await Promise.allSettled([
+      fetchList(hassmannUrl),
+      fetchList(badoluxUrl),
+    ]);
 
-      if (mySeq !== reqSeq) return; // stale response, ignore
-      if (!r.ok) {
-        out.innerHTML = `<div class="text-sm text-destructive">Fehler ${r.status}</div><pre class="text-xs">${text}</pre>`;
-        return;
-      }
+    if (mySeq !== reqSeq) return; // stale/aborted response, ignore
 
-      const data = JSON.parse(text);
-      const list = Array.isArray(data?.results) ? data.results : [];
-      renderSuggestions(list);
-    } catch (err) {
-      if (err.name === "AbortError") return;
-      console.error("Smart tray search failed:", err);
-      if (mySeq !== reqSeq) return;
-      out.innerHTML = `<div class="text-sm text-destructive">Netzwerkfehler</div><pre class="text-xs">${String(err)}</pre>`;
+    const hassmannList = hRes.status === "fulfilled" ? hRes.value : [];
+    const badoluxList = bRes.status === "fulfilled" ? bRes.value : [];
+
+    if (hRes.status === "rejected" && hRes.reason?.name !== "AbortError") {
+      console.error("Hassmann tray search failed:", hRes.reason);
     }
+    if (bRes.status === "rejected" && bRes.reason?.name !== "AbortError") {
+      console.error("Badolux tray search failed:", bRes.reason);
+    }
+
+    renderTwoRows(hassmannList, badoluxList);
   }
 
   const request = () => {
     clearTimeout(debounceT);
     debounceT = setTimeout(fetchAndRender, 160);
   };
+
+  // Suggestion selection: bound once on the container (radios share a name,
+  // so picking any card in either row deselects the rest).
+  out.addEventListener("change", (e) => {
+    if (e.target && e.target.name === "traySuggestion") {
+      applySelection(e.target);
+    }
+  });
 
   // inputs -> clear chosen, update label, request
   [elB, elL, elH].forEach((el) => {
@@ -8950,16 +8933,6 @@ function initSmartTraySearch() {
       request();
     });
     el.addEventListener("change", () => {
-      clearChosen();
-      request();
-    });
-  });
-
-  // NEW: checkbox changes -> clear chosen + request (and optional exclusivity)
-  [badoluxEl, slateEl].forEach((el) => {
-    if (!el) return;
-    el.addEventListener("change", () => {
-      enforceExclusiveFilters(el); // comment this line out if you want both checked possible
       clearChosen();
       request();
     });
