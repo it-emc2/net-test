@@ -157,6 +157,7 @@ const OFFERS = {
     pages: [
       "Kundendaten",
       "Arbeitszeit",
+      "Arbeiten",
       "Duschwanne",
       "Wandverkleidung",
       "Duschabtrennung",
@@ -2190,6 +2191,7 @@ function resetAllForms() {
   const formIds = [
     "form-Kundendaten",
     "form-Arbeitszeit",
+    "form-Arbeiten",
     "form-duschwanne",
     "form-wandverkleidung",
     "form-duschabtrennung",
@@ -3729,7 +3731,7 @@ function buildPayload() {
      DUSCHWANNE: reliably collect workTasks array
      =========================== */
   try {
-    const formDW = document.getElementById("form-duschwanne");
+    const formDW = document.getElementById("form-Arbeiten") || document.getElementById("form-duschwanne");
     if (formDW) {
       const fdDW = new FormData(formDW);
       const dwTasks = fdDW.getAll("duschwanne[workTasks][]");
@@ -12658,6 +12660,8 @@ const RESTORE_HANDLERS = {
   Kundendaten: (p, ctx) => restoreKundendaten(p?.Kundendaten, ctx.offer),
   Arbeitszeit: (p, ctx) => restoreArbeitszeit(p?.Arbeitszeit),
 
+  Arbeiten: (p, ctx) => restoreWorkTasks(p?.duschwanne),
+
   Duschwanne: (p, ctx) => restoreDuschwanne(p?.duschwanne),
 
   Wandverkleidung: (p, ctx) =>
@@ -13063,7 +13067,7 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
   // Duschwanne dependencies
   fire("#addFlooring");
   document
-    .querySelectorAll('#form-duschwanne input[name*="workTasks"]')
+    .querySelectorAll('#form-Arbeiten input[name*="workTasks"], #form-duschwanne input[name*="workTasks"]')
     .forEach((el) => dispatchChange(el));
 
   // ✅ NEW: nudge bathtub + screen hidden fields so their listeners refresh UIs

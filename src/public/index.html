@@ -3005,83 +3005,10 @@ button.dm-btn-danger:focus-visible {
 
 
 
-      <!-- Duschwanne -->
-      <section class="card page" id="page-Duschwanne" hidden>
-        <div style="margin:0 0 12px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
-          <h2 style="margin:0">Duschwanne</h2>
-
-          <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; justify-content:flex-end;">
-
-          <!-- Toggle: ebenerdige Montage (default OFF) -->
-          <label for="ebenerdigeToggle"
-            style="display:flex; align-items:center; gap:8px; font-weight:500; cursor:pointer;">
-            <input id="ebenerdigeToggle" type="checkbox" name="ebenerdigeMontage" checked
-              style="transform:scale(1.2); cursor:pointer;" />
-            <span>Hinweis zu möglichen Zusatzkosten einblenden</span>
-          </label>
-
-          <!-- Checkbox: Low Budget Variante priorisieren (additive) -->
-          <label for="budgetToggle"
-            style="display:flex; align-items:center; gap:8px; font-weight:500; cursor:pointer;">
-            <input id="budgetToggle" type="checkbox" name="budgetMode" value="1"
-              style="transform:scale(1.2); cursor:pointer;" />
-            <span>Low Budget Variante priorisieren</span>
-          </label>
-
-          </div>
-        </div>
-
-        <form id="form-duschwanne" autocomplete="on">
-
-          <!-- Put this above the radio group -->
-          <div id="traySmartSearch" class="field">
-
-  <!-- <label>Maße (B × L × H in cm)</label> -->
-            <label>Maße (B × L in cm)</label>
-            <div class="d-flex gap-2" style="display:flex; gap:12px;">
-              <input type="number" min="20" step="1" placeholder="Breite" name="tray_w_cm">
-              <input type="number" min="2" step="1" placeholder="Länge" name="tray_l_cm">
-              <input type="hidden" name="tray_h_cm" value="">
-              <!--  <input type="number" min="1"  step="1" placeholder="Höhe"   name="tray_h_cm"> -->
-            </div>
-            <!--<div id="traySuggestions" style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;"></div> -->
-
-            <div id="tray-suggestions" class="space-y-2" style="margin-top:12px;"></div>
-            <input type="hidden" id="chosenTrayProductId" name="chosenTrayProductId">
-            <input type="hidden" id="traySize" name="traySize">
-            <!-- Extra worker tasks (free text) -->
-             <div style="margin-top: 16px;">
-            <fieldset class="da-row" id="dw-extra-tasks" data-kind="extra" aria-describedby="dw-extra-help">
-              <legend class="da-legend">
-                Weitere auszuführende Arbeiten (optional)
-              </legend>
-              <div class="da-legend-actions">
-                <button type="button" class="da-add" aria-label="Weitere Aufgabe hinzufügen">+</button>
-              </div>
-
-              <div class="da-items">
-                <div class="da-item" data-kind="extra">
-                  <div class="da-grid">
-                    <label class="da-label" style="grid-column: 1 / -1;">
-                      Aufgabe
-                      <input class="dw-extra" type="text" name="duschwanne[extraTasks][]"
-                        placeholder="z. B. Estrich ausgleichen, Silikonfugen erneuern" />
-                    </label>
-                  </div>
-                  <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
-                </div>
-              </div>
-
-              <small id="dw-extra-help" class="da-help">
-                Fügen Sie beliebige Tätigkeiten hinzu. Diese erscheinen unter „Auszuführende Arbeiten“.
-              </small>
-            </fieldset>
-            </div>
-
-
-          </div>
-
-          <!-- Auszuführende Arbeiten (Duschwanne) -->
+      <!-- Auszuführende Arbeiten -->
+      <section class="card page" id="page-Arbeiten" hidden>
+        <h2 style="margin: 0 0 12px">Auszuführende Arbeiten</h2>
+        <form id="form-Arbeiten" autocomplete="on">
           <fieldset class="section-block" id="dw-worktasks">
             <legend class="section-title">Auszuführende Arbeiten</legend>
             <p class="section-subtitle">Wählen Sie die Arbeiten aus, die im Zuge des Einbaus ausgeführt werden sollen.
@@ -3351,7 +3278,92 @@ button.dm-btn-danger:focus-visible {
             </div>
           </fieldset>
 
+          <div class="actions full">
+            <button type="button" data-nav="prev" class="secondary">
+              Zurück
+            </button>
+            <button type="button" data-nav="next">Weiter</button>
+          </div>
+        </form>
+      </section>
 
+
+
+      <!-- Duschwanne -->
+      <section class="card page" id="page-Duschwanne" hidden>
+        <div style="margin:0 0 12px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+          <h2 style="margin:0">Duschwanne</h2>
+
+          <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; justify-content:flex-end;">
+
+          <!-- Toggle: ebenerdige Montage (default OFF) -->
+          <label for="ebenerdigeToggle"
+            style="display:flex; align-items:center; gap:8px; font-weight:500; cursor:pointer;">
+            <input id="ebenerdigeToggle" type="checkbox" name="ebenerdigeMontage" checked
+              style="transform:scale(1.2); cursor:pointer;" />
+            <span>Hinweis zu möglichen Zusatzkosten einblenden</span>
+          </label>
+
+          <!-- Checkbox: Low Budget Variante priorisieren (additive) -->
+          <label for="budgetToggle"
+            style="display:flex; align-items:center; gap:8px; font-weight:500; cursor:pointer;">
+            <input id="budgetToggle" type="checkbox" name="budgetMode" value="1"
+              style="transform:scale(1.2); cursor:pointer;" />
+            <span>Low Budget Variante priorisieren</span>
+          </label>
+
+          </div>
+        </div>
+
+        <form id="form-duschwanne" autocomplete="on">
+
+          <!-- Put this above the radio group -->
+          <div id="traySmartSearch" class="field">
+
+  <!-- <label>Maße (B × L × H in cm)</label> -->
+            <label>Maße (B × L in cm)</label>
+            <div class="d-flex gap-2" style="display:flex; gap:12px;">
+              <input type="number" min="20" step="1" placeholder="Breite" name="tray_w_cm">
+              <input type="number" min="2" step="1" placeholder="Länge" name="tray_l_cm">
+              <input type="hidden" name="tray_h_cm" value="">
+              <!--  <input type="number" min="1"  step="1" placeholder="Höhe"   name="tray_h_cm"> -->
+            </div>
+            <!--<div id="traySuggestions" style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;"></div> -->
+
+            <div id="tray-suggestions" class="space-y-2" style="margin-top:12px;"></div>
+            <input type="hidden" id="chosenTrayProductId" name="chosenTrayProductId">
+            <input type="hidden" id="traySize" name="traySize">
+            <!-- Extra worker tasks (free text) -->
+             <div style="margin-top: 16px;">
+            <fieldset class="da-row" id="dw-extra-tasks" data-kind="extra" aria-describedby="dw-extra-help">
+              <legend class="da-legend">
+                Weitere auszuführende Arbeiten (optional)
+              </legend>
+              <div class="da-legend-actions">
+                <button type="button" class="da-add" aria-label="Weitere Aufgabe hinzufügen">+</button>
+              </div>
+
+              <div class="da-items">
+                <div class="da-item" data-kind="extra">
+                  <div class="da-grid">
+                    <label class="da-label" style="grid-column: 1 / -1;">
+                      Aufgabe
+                      <input class="dw-extra" type="text" name="duschwanne[extraTasks][]"
+                        placeholder="z. B. Estrich ausgleichen, Silikonfugen erneuern" />
+                    </label>
+                  </div>
+                  <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+                </div>
+              </div>
+
+              <small id="dw-extra-help" class="da-help">
+                Fügen Sie beliebige Tätigkeiten hinzu. Diese erscheinen unter „Auszuführende Arbeiten“.
+              </small>
+            </fieldset>
+            </div>
+
+
+          </div>
 
 
           <div><img src="./assets/duschwanne.jpeg" alt="Duschwanne" /></div>
