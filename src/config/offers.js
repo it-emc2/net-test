@@ -5,6 +5,7 @@ export const OFFERS = {
     pages: [
       "Kundendaten",
       "Arbeitszeit",
+      "Arbeiten",
       "Duschwanne",
       "Wandverkleidung",
       "Duschabtrennung",

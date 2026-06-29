@@ -966,8 +966,35 @@ a.btn {
   gap: 10px;
 }
 
-.sonderaufschlag-input-row input {
-  max-width: 180px;
+.sonderaufschlag-slider {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  height: 6px;
+}
+
+.sonderaufschlag-input-row input[type="text"] {
+  max-width: 100px;
+}
+
+.sonderaufschlag-auto-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.sonderaufschlag-target {
+  width: 100px;
+  min-width: 80px;
+}
+
+.sonderaufschlag-preset {
+  white-space: nowrap;
+  font-size: 0.85rem;
+  padding: 4px 10px;
 }
 
 .sonderaufschlag-unit {
