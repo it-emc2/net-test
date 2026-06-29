@@ -2478,11 +2478,26 @@ button.dm-btn-danger:focus-visible {
 
                     <div id="sonderaufschlagWrap" class="sonderaufschlag-wrap" hidden aria-hidden="true">
                       <label for="sonderaufschlagValue" class="req">Sonderaufschlag in %</label>
+
+                      <!-- Slider + percent input -->
                       <div class="sonderaufschlag-input-row">
+                        <input id="sonderaufschlagSlider" type="range" min="0" max="100" step="0.5" value="35"
+                          class="sonderaufschlag-slider" aria-label="Aufschlag Schieberegler" />
                         <input id="sonderaufschlagValue" name="sonderaufschlagValue" type="text" inputmode="decimal"
                           autocomplete="off" pattern="^\s*\d{1,3}([.,]\d{1,2})?\s*$" placeholder="z. B. 37,5" />
                         <span class="sonderaufschlag-unit">%</span>
                       </div>
+
+                      <!-- Preset targets + free input + Automatisch -->
+                      <div class="sonderaufschlag-auto-row">
+                        <button type="button" class="sonderaufschlag-preset btn-secondary" data-target="4180">4.180 €</button>
+                        <button type="button" class="sonderaufschlag-preset btn-secondary" data-target="8360">4.180×2 €</button>
+                        <input id="sonderaufschlagTarget" type="text" inputmode="decimal" autocomplete="off"
+                          placeholder="Zielpreis" class="sonderaufschlag-target" />
+                        <span class="sonderaufschlag-unit">€</span>
+                        <button type="button" id="btnSonderaufschlagAuto" class="btn-secondary">Automatisch</button>
+                      </div>
+
                       <div class="sonderaufschlag-hint">Erlaubt sind Werte von 35% (Komma-Werte zulässig, z. B. 37,5).</div>
                       <div id="sonderaufschlagError" class="sonderaufschlag-error" hidden aria-live="polite"></div>
                     </div>

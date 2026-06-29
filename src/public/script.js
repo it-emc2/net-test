@@ -6970,6 +6970,9 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
   const customWrap = document.getElementById("sonderaufschlagWrap");
   const customInput = document.getElementById("sonderaufschlagValue");
   const customError = document.getElementById("sonderaufschlagError");
+  const slider = document.getElementById("sonderaufschlagSlider");
+  const targetInput = document.getElementById("sonderaufschlagTarget");
+  const autoBtn = document.getElementById("btnSonderaufschlagAuto");
 
   function setDisabled(el, disabled) {
     if (!el) return;
@@ -7134,8 +7137,24 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
     validateCustomInput();
     validateAufschlagSelection();
     if (!customInput.validationMessage) window.updatePricing?.();
+    syncSliderFromText();
   });
   customInput?.addEventListener("change", () => {
+    validateCustomInput();
+    validateAufschlagSelection();
+    if (!customInput.validationMessage) window.updatePricing?.();
+    syncSliderFromText();
+  });
+
+  function syncSliderFromText() {
+    if (!slider || !customInput) return;
+    const pct = window.parseAufschlagPercent(customInput.value);
+    if (Number.isFinite(pct) && pct >= 0 && pct <= 100) slider.value = pct;
+  }
+
+  slider?.addEventListener("input", () => {
+    if (!customInput) return;
+    customInput.value = String(slider.value).replace(".", ",");
     validateCustomInput();
     validateAufschlagSelection();
     if (!customInput.validationMessage) window.updatePricing?.();
@@ -7151,6 +7170,44 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
   validateAufschlagSelection();
 
   window.validateAufschlagSelection = validateAufschlagSelection;
+
+  function applyAutomatisch(rawEur) {
+    const pricing = window.__pricing;
+    if (!pricing) {
+      alert("Bitte zuerst einen Preis berechnen (Preisvorschau laden).");
+      return;
+    }
+    const { total: currentTotal, markup: currentMarkup, markupPct: currentPct, vatOnNet } = pricing;
+    if (!currentMarkup || currentMarkup <= 0) {
+      alert("Kein Aufschlag-Betrag vorhanden – Automatisch nicht möglich.");
+      return;
+    }
+    const targetTotal = parseFloat(String(rawEur).replace(/\s/g, "").replace(",", "."));
+    if (!Number.isFinite(targetTotal) || targetTotal <= 0) {
+      alert("Bitte einen gültigen Zielpreis eingeben.");
+      return;
+    }
+    // Factor = 1 + TAX_RATE, derived from actual server response to avoid hardcoding
+    const netAmount = currentTotal - (vatOnNet || 0);
+    const factor = netAmount > 0 ? currentTotal / netAmount : 1.19;
+    const newPct = currentPct + currentPct * (targetTotal - currentTotal) / (factor * currentMarkup);
+    const rounded = Math.round(newPct * 10000) / 100; // two decimal places, e.g. 29.73
+    if (!Number.isFinite(rounded) || rounded < 0) {
+      alert("Der berechnete Aufschlag wäre negativ – der Zielpreis liegt unter den Selbstkosten.");
+      return;
+    }
+    window.__setCustomAufschlag(String(rounded));
+  }
+
+  document.querySelectorAll(".sonderaufschlag-preset").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const target = btn.dataset.target;
+      if (targetInput) targetInput.value = target;
+      applyAutomatisch(target);
+    });
+  });
+
+  autoBtn?.addEventListener("click", () => applyAutomatisch(targetInput?.value || ""));
 
   window.__setCustomAufschlag = function __setCustomAufschlag(value) {
     const pct = window.parseAufschlagPercent(value);
