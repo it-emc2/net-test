@@ -60,6 +60,51 @@ export function mountConfigurator(el, model, options = {}) {
     render();
   }
 
+  // Step back to the nearest previously-answered step that re-opens as a real choice
+  // (skips auto-applied single-option steps). Clears component sizes. No-op at the start.
+  function goBack() {
+    const order = model.params.map((p) => p.id);
+    const answered = answeredSteps();
+    for (let i = answered.length - 1; i >= 0; i--) {
+      const target = answered[i];
+      const idx = order.indexOf(target);
+      const selections = {};
+      for (const id of order.slice(0, idx))
+        if (state.selections[id] != null) selections[id] = state.selections[id];
+      const settled = w.settle(model, { selections, sizes: {} });
+      const cs = w.currentStep(model, settled);
+      if (
+        (cs.phase === "structure" || cs.phase === "finish") &&
+        cs.paramId === target
+      ) {
+        state = settled;
+        pending = { width: null, height: null };
+        emit("onChange", state);
+        render();
+        return;
+      }
+    }
+  }
+
+  function canGoBack() {
+    const order = model.params.map((p) => p.id);
+    const answered = answeredSteps();
+    for (let i = answered.length - 1; i >= 0; i--) {
+      const target = answered[i];
+      const idx = order.indexOf(target);
+      const selections = {};
+      for (const id of order.slice(0, idx))
+        if (state.selections[id] != null) selections[id] = state.selections[id];
+      const cs = w.currentStep(model, w.settle(model, { selections, sizes: {} }));
+      if (
+        (cs.phase === "structure" || cs.phase === "finish") &&
+        cs.paramId === target
+      )
+        return true;
+    }
+    return false;
+  }
+
   function renderBreadcrumb(container) {
     const ids = answeredSteps();
     if (ids.length === 0) return;
@@ -130,100 +175,131 @@ export function mountConfigurator(el, model, options = {}) {
       return;
     }
 
-    if (step.phase === "component") {
-      const c = step.component;
-      heading(c.label);
-      const singleH = c.hoehe.length === 1 ? c.hoehe[0] : null;
-      const finishAndRender = () => {
-        const done = w.resolveConfiguration(model, state);
-        if (done) emit("onComplete", done);
-        emit("onChange", state);
-        render();
-      };
-      const commitStd = (width, height) => {
-        state = w.setComponentSize(state, c.key, width, height);
-        pending = { width: null, height: null };
-        finishAndRender();
-      };
+    // Structure + finish complete → leaf resolved. Render ALL components at once,
+    // each with its current selection highlighted and freely changeable (nothing
+    // disappears after picking — the user can revise Tür/Seitenwand like any selection).
+    const leaf = w.resolvedLeaf(model, state);
+    if (!leaf) {
+      heading("Konfiguration");
+      return;
+    }
 
-      // auto-commit when exactly one standard size and no Sondermaß choice
+    const finishAndRender = () => {
+      const done = w.resolveConfiguration(model, state);
+      if (done) emit("onComplete", done);
+      emit("onChange", state);
+      render();
+    };
+
+    // auto-size components that have exactly one possible size (no real choice to make)
+    let autoChanged = false;
+    for (const c of leaf.components) {
       if (
+        !state.sizes[c.key] &&
         c.sondermass.length === 0 &&
         c.breite.length === 1 &&
         c.hoehe.length === 1
       ) {
-        commitStd(c.breite[0], c.hoehe[0]);
-        return;
+        state = w.setComponentSize(state, c.key, c.breite[0], c.hoehe[0]);
+        autoChanged = true;
       }
+    }
+    if (autoChanged) {
+      const done = w.resolveConfiguration(model, state);
+      if (done) emit("onComplete", done);
+      emit("onChange", state);
+    }
+
+    heading("Maße festlegen");
+
+    const sizePill = (label, selected, onClick, isSonder = false) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "dac-opt dac-size" + (isSonder ? " dac-sondermass" : "");
+      if (selected) b.dataset.selected = "true";
+      b.textContent = label;
+      b.addEventListener("click", onClick);
+      return b;
+    };
+
+    for (const c of leaf.components) {
+      const cur = state.sizes[c.key] || {};
+      const singleH = c.hoehe.length === 1 ? c.hoehe[0] : null;
+
+      const group = document.createElement("div");
+      group.className = "dac-component";
+      const ct = document.createElement("h4");
+      ct.className = "dac-comp-title";
+      ct.textContent = c.label;
+      group.appendChild(ct);
 
       const blbl = document.createElement("div");
       blbl.className = "dac-sizelabel";
       blbl.textContent = "Breite (mm)";
-      main.appendChild(blbl);
+      group.appendChild(blbl);
       const bwrap = document.createElement("div");
       bwrap.className = "dac-grid dac-grid-sizes";
       for (const n of c.breite) {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.className = "dac-opt dac-size";
-        if (pending.width === n) b.dataset.selected = "true";
-        b.textContent = String(n);
-        b.addEventListener("click", () => {
-          if (singleH != null) commitStd(n, singleH);
-          else {
-            pending = { ...pending, width: n };
-            render();
-          }
-        });
-        bwrap.appendChild(b);
+        const selected = !cur.sondermass && cur.width === n;
+        bwrap.appendChild(
+          sizePill(String(n), selected, () => {
+            const height =
+              singleH != null ? singleH : cur.sondermass ? null : cur.height ?? null;
+            state = w.setComponentSize(state, c.key, n, height);
+            finishAndRender();
+          }),
+        );
       }
       for (const sm of c.sondermass) {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.className = "dac-opt dac-size dac-sondermass";
-        b.textContent = sm;
-        b.addEventListener("click", () => {
-          state = w.setComponentSondermass(state, c.key, sm);
-          pending = { width: null, height: null };
-          finishAndRender();
-        });
-        bwrap.appendChild(b);
+        bwrap.appendChild(
+          sizePill(
+            sm,
+            cur.sondermass === sm,
+            () => {
+              state = w.setComponentSondermass(state, c.key, sm);
+              finishAndRender();
+            },
+            true,
+          ),
+        );
       }
-      main.appendChild(bwrap);
+      group.appendChild(bwrap);
 
-      if (pending.width != null && singleH == null) {
+      // Höhe only when there is a real height choice (multi-height, non-Sondermaß)
+      if (singleH == null && !cur.sondermass) {
         const hlbl = document.createElement("div");
         hlbl.className = "dac-sizelabel";
         hlbl.textContent = "Höhe (mm)";
-        main.appendChild(hlbl);
+        group.appendChild(hlbl);
         const hwrap = document.createElement("div");
         hwrap.className = "dac-grid dac-grid-sizes";
-        for (const h of c.hoehe) {
-          const b = document.createElement("button");
-          b.type = "button";
-          b.className = "dac-opt dac-size";
-          b.textContent = String(h);
-          b.addEventListener("click", () => commitStd(pending.width, h));
-          hwrap.appendChild(b);
+        for (const hh of c.hoehe) {
+          hwrap.appendChild(
+            sizePill(String(hh), cur.height === hh, () => {
+              state = w.setComponentSize(state, c.key, cur.width ?? null, hh);
+              finishAndRender();
+            }),
+          );
         }
-        main.appendChild(hwrap);
+        group.appendChild(hwrap);
       }
-      return;
+
+      main.appendChild(group);
     }
 
-    // done
-    heading("Konfiguration vollständig");
-    const done = document.createElement("p");
-    done.className = "dac-done-hint";
-    done.textContent =
-      "Die Konfiguration ist abgeschlossen und wurde dem Angebot hinzugefügt.";
-    main.appendChild(done);
-    const again = document.createElement("button");
-    again.type = "button";
-    again.className = "dac-reset";
-    again.textContent = "Neue Konfiguration";
-    again.addEventListener("click", reset);
-    main.appendChild(again);
+    if (step.phase === "done") {
+      const done = document.createElement("p");
+      done.className = "dac-done-hint";
+      done.textContent =
+        "Die Konfiguration ist abgeschlossen und wurde dem Angebot hinzugefügt. Sie können die Maße oben jederzeit ändern.";
+      main.appendChild(done);
+      const again = document.createElement("button");
+      again.type = "button";
+      again.className = "dac-reset";
+      again.textContent = "Neue Konfiguration";
+      again.addEventListener("click", reset);
+      main.appendChild(again);
+    }
   }
 
   function renderSummary(aside) {
@@ -257,11 +333,25 @@ export function mountConfigurator(el, model, options = {}) {
     }
   }
 
+  function renderBackBar(main) {
+    if (!canGoBack()) return;
+    const bar = document.createElement("div");
+    bar.className = "dac-backbar";
+    const back = document.createElement("button");
+    back.type = "button";
+    back.className = "dac-back";
+    back.innerHTML = "&#8592; Zurück";
+    back.addEventListener("click", goBack);
+    bar.appendChild(back);
+    main.appendChild(bar);
+  }
+
   function render() {
     el.innerHTML = "";
     el.classList.add("dac-wizard");
     const main = document.createElement("div");
     main.className = "dac-main";
+    renderBackBar(main);
     renderBreadcrumb(main);
     renderStep(main);
     el.appendChild(main);
