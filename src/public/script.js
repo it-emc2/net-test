@@ -22354,6 +22354,52 @@ const TODAY_PLANNING_STREAM_ENDPOINT = `/api/planning/stream`;
 let todayPlanningAppointments = [];
 let todayPlanningAppointmentsFiltered = [];
 let activePlanningAppointmentId = null;
+let _pendingPlanningEntry = null;
+
+const PLANNING_OFFER_TYPES = [
+  { offerKey: "bu",  icon: "fa-shower",            title: "Badumbau" },
+  { offerKey: "bwt", icon: "fa-bath",               title: "Badewannentür" },
+  { offerKey: "hl",  icon: "fa-grip-lines-vertical", title: "Handlauf" },
+  { offerKey: "ah",  icon: "fa-hands-helping",       title: "Alltagshilfe" },
+  { offerKey: "wd",  icon: "fa-snowflake",           title: "Winterdienst" },
+  { offerKey: "hms", icon: "fa-toolbox",             title: "Hausmeister-Service" },
+];
+
+function openPlanningOfferPicker(entry) {
+  _pendingPlanningEntry = entry;
+  const modal = document.getElementById("planningOfferPickerModal");
+  const container = document.getElementById("planningOfferPickerCards");
+  if (!modal || !container) return;
+
+  container.innerHTML = PLANNING_OFFER_TYPES.map(rule =>
+    `<button type="button" class="planning-offer-card" data-offer-key="${rule.offerKey}">
+      <i class="fa-solid ${rule.icon}"></i>
+      <span>${rule.title}</span>
+    </button>`
+  ).join("");
+
+  container.querySelectorAll(".planning-offer-card").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const offerKey = btn.dataset.offerKey;
+      const entry = _pendingPlanningEntry;
+      closePlanningOfferPicker();
+      if (entry) {
+        applyPlanningAppointmentToForm(entry, offerKey);
+      }
+    });
+  });
+
+  modal.hidden = false;
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function closePlanningOfferPicker() {
+  const modal = document.getElementById("planningOfferPickerModal");
+  if (!modal) return;
+  modal.hidden = true;
+  modal.setAttribute("aria-hidden", "true");
+  _pendingPlanningEntry = null;
+}
 let todayPlanningEventSource = null;
 
 function normalizePlanningText(value){
@@ -22768,7 +22814,7 @@ function renderTodayPlanningAppointments(){
       if(!entry || isPlanningEntryCancelled(entry)) return;
       activePlanningAppointmentId = id;
       renderTodayPlanningAppointments();
-      applyPlanningAppointmentToForm(entry);
+      openPlanningOfferPicker(entry);
     };
 
     card.addEventListener("click", onOpen);
@@ -22925,12 +22971,12 @@ function connectTodayPlanningStream(){
   };
 }
 
-function applyPlanningAppointmentToForm(entry){
+function applyPlanningAppointmentToForm(entry, offerKey){
   const name = parsePlanningName(entry?.name || "");
   const address = parsePlanningAddress(entry?.address || "");
 
   if(typeof startOfferFlow === "function"){
-    startOfferFlow("bu");
+    startOfferFlow(offerKey || "bu");
   }
 
   setPlanningValue("#firstName", name.firstName || "");
@@ -22982,6 +23028,12 @@ function applyPlanningAppointmentToForm(entry){
 function initTodayPlanningPanel(){
   const panel = document.getElementById("todayPlanningPanel");
   if(!panel) return;
+
+  document.getElementById("planningOfferPickerClose")?.addEventListener("click", closePlanningOfferPicker);
+  document.getElementById("planningOfferPickerBackdrop")?.addEventListener("click", closePlanningOfferPicker);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closePlanningOfferPicker();
+  });
 
   const search = document.getElementById("todayPlanningSearch");
   const refresh = document.getElementById("refreshTodayPlanning");

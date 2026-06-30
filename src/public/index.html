@@ -8558,6 +8558,20 @@ button.dm-btn-danger:focus-visible {
     </div>
   </div>
 
+  <!-- Angebotsart picker — shown when opening a planning appointment in Konfigurator -->
+  <div id="planningOfferPickerModal" class="hl-import-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="planningOfferPickerTitle">
+    <div class="hl-import-modal__backdrop" id="planningOfferPickerBackdrop"></div>
+    <div class="hl-import-modal__dialog" role="document" style="width:min(560px,94vw)">
+      <header class="hl-import-modal__head">
+        <h3 id="planningOfferPickerTitle" style="margin:0">Welche Angebotsart möchten Sie öffnen?</h3>
+        <button type="button" class="hl-import-modal__close" id="planningOfferPickerClose" aria-label="Schließen">&times;</button>
+      </header>
+      <div class="hl-import-modal__body">
+        <div id="planningOfferPickerCards" class="planning-offer-picker-cards"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Admin Panel Modal — starts hidden via display:none (not the `hidden` attr, which loses to inline display:flex) -->
   <div id="adminModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center;backdrop-filter:blur(3px);">
     <div style="background:#0f172a;border-radius:12px;width:min(1060px,96vw);height:min(88vh,820px);display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,.45);overflow:hidden;">
