@@ -158,6 +158,16 @@ export function initRestoreManager({
         const el = document.querySelector("#offerNumber");
         if (el) el.value = offer.offerNumber;
       }
+
+      // Rehydrate the "Duschabtrennung (neu)" configurator from its saved engine state
+      try {
+        const cfgState = payload?.duschabtrennung?.configurator?.state || null;
+        if (cfgState && typeof window.__daConfigurator?.restore === "function") {
+          window.__daConfigurator.restore(cfgState);
+        }
+      } catch (e) {
+        console.warn("[daConfigurator] restore failed:", e?.message || e);
+      }
     } finally {
       window.__restoring = false;
       window.__RESTORING__ = false;

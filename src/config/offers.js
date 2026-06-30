@@ -8,6 +8,7 @@ export const OFFERS = {
       "Arbeiten",
       "Duschwanne",
       "Wandverkleidung",
+      "DuschabtrennungNeu",
       "Duschabtrennung",
       "Optional",
       "Rabatt",

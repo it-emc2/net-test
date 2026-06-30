@@ -160,6 +160,7 @@ const OFFERS = {
       "Arbeiten",
       "Duschwanne",
       "Wandverkleidung",
+      "DuschabtrennungNeu",
       "Duschabtrennung",
       "Optional",
       "Rabatt",
@@ -2607,6 +2608,7 @@ function updateSidebarForOffer() {
     hl: "HL",
     bl: "BL",
     ah: "AH",
+    DuschabtrennungNeu: "Duschabtrennung (neu)",
   };
 
   normalPages.forEach((pageId) => {
@@ -3123,6 +3125,54 @@ function collectDuschabtrennungQuickAdd(doc) {
     });
   });
   doc.duschabtrennung.quickAdd = qa;
+}
+
+// --- Duschabtrennung (neu) Konfigurator collector ---
+// The ported GC/Hassmann configurator exposes its resolved net line items via
+// window.__daConfigurator.getLines(). We APPEND them to payload.duschabtrennung.quickAdd
+// (must run AFTER collectDuschabtrennungQuickAdd, which overwrites that array) so the
+// existing pricing path (logic/pricing.js: payload.duschabtrennung.quickAdd) prices them.
+// We also persist the raw config state under payload.duschabtrennung.configurator for restore.
+function collectDuschabtrennungConfigurator(doc) {
+  doc.duschabtrennung = doc.duschabtrennung || {};
+  const api = window.__daConfigurator;
+  if (!api || typeof api.getLines !== "function") return;
+
+  let lines = [];
+  try {
+    lines = api.getLines() || [];
+  } catch (e) {
+    console.warn("[daConfigurator] getLines failed:", e?.message || e);
+    return;
+  }
+  if (!Array.isArray(lines) || !lines.length) return;
+
+  const qa = Array.isArray(doc.duschabtrennung.quickAdd)
+    ? doc.duschabtrennung.quickAdd
+    : [];
+
+  for (const ln of lines) {
+    const price = Number(ln?.net) || 0;
+    if (price <= 0) continue;
+    qa.push({
+      kind: "config",
+      label: ln.label || "Duschabtrennung (Konfigurator)",
+      qty: 1,
+      // pass a numeric net price: pricing.js parseMoneyStrict returns numbers as-is,
+      // avoiding the German-format ambiguity where "411.6" would parse to 4116.
+      price: price,
+      productId: ln.articleNumber || "",
+    });
+  }
+  doc.duschabtrennung.quickAdd = qa;
+
+  // persist for restore
+  try {
+    const state = typeof api.getState === "function" ? api.getState() : null;
+    doc.duschabtrennung.configurator = { state, lines };
+  } catch {
+    /* non-fatal */
+  }
 }
 
 // helper: collect "Freier Posten / Sonderprodukte" rows from a container
@@ -3681,6 +3731,7 @@ function buildPayload() {
 
   collectWandverkleidungMaterials(payload);
   collectDuschabtrennungQuickAdd(payload);
+  collectDuschabtrennungConfigurator(payload);
 
   if (String(currentOfferKey || "").toLowerCase() === "bwt") {
     collectBwtMaterials(payload);
