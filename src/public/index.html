@@ -2446,6 +2446,9 @@ button.dm-btn-danger:focus-visible {
                   </div>
                 </div>
 
+                <!-- Home anchor: for non-Badumbau offers the Aufschlag section stays here.
+                     For Badumbau it is relocated to the Rabatt page by updateOfferSpecificSections(). -->
+                <div id="aufschlagHome"></div>
                 <div id="aufschlagSection" class="aufschlag-panel" data-offer="bu,bwt,hl,bl,hms,wd">
 
                   <div class="aufschlag-header-row">
@@ -6030,7 +6033,7 @@ button.dm-btn-danger:focus-visible {
 
 
       <section class="card page" id="page-Rabatt" hidden>
-        <h2 style="margin:0 0 12px;">Rabatt</h2>
+        <h2 style="margin:0 0 12px;">Rabatt / Aufschlag</h2>
 
         <form id="form-rabatt" autocomplete="on">
           <!-- Top 5 values (auto-filled from JS) -->
@@ -6058,6 +6061,9 @@ button.dm-btn-danger:focus-visible {
           <div id="rb-empty-note" class="muted" style="display:none; margin-top:8px;">
             Keine Rabatte oder Boni anwendbar.
           </div>
+
+          <!-- Aufschlag selection is relocated here for Badumbau (see updateOfferSpecificSections). -->
+          <div id="aufschlagRabattMount" class="full" style="margin-top:16px;"></div>
 
           <!-- Width sizer: takes zero height but preserves the same width as the slider row -->
           <div id="rb-width-sizer" aria-hidden="true"

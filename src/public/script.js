@@ -665,6 +665,22 @@ function updateOfferSpecificSections() {
     .trim()
     .toLowerCase();
 
+  // Relocate the Aufschlag section: for Badumbau it lives on the Rabatt page,
+  // for every other offer it stays in its Kundendaten home. A single element is
+  // moved (not duplicated) so its IDs and serialization into
+  // payload.Kundendaten.aufschlag remain unchanged.
+  (function relocateAufschlag() {
+    var sec = document.getElementById("aufschlagSection");
+    if (!sec) return;
+    if (offer === "bu") {
+      var mount = document.getElementById("aufschlagRabattMount");
+      if (mount && sec.parentElement !== mount) mount.appendChild(sec);
+    } else {
+      var home = document.getElementById("aufschlagHome");
+      if (home && sec.previousElementSibling !== home) home.after(sec);
+    }
+  })();
+
   document.querySelectorAll("[data-offer]").forEach(function (el) {
     var attr = (el.getAttribute("data-offer") || "").trim();
     if (!attr) return; // nothing to filter
@@ -2609,6 +2625,8 @@ function updateSidebarForOffer() {
     bl: "BL",
     ah: "AH",
     DuschabtrennungNeu: "Duschabtrennung (neu)",
+    // Rabatt page only exists in the Badumbau flow, so this rename is bu-only.
+    Rabatt: "Rabatt / Aufschlag",
   };
 
   normalPages.forEach((pageId) => {
