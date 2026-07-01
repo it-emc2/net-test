@@ -106,3 +106,11 @@ test("Alltagsbegleitung shows Fahrten/km footnote", async ({ page }) => {
   expect(html).toContain("Fahrten im Rahmen der Alltagsbegleitung");
   expect(html).toContain("0,35"); // €/km
 });
+
+test("Menge (Einsätze count) is rounded to 2 decimals, not raw", async ({ page }) => {
+  // 52/12 = 4.33333... must render as "4,33", never the raw long decimal.
+  const html = await build(page, { ...HND_ONLY, totalEinsaetze: 52 / 12 });
+  expect(html).toContain("4,33&times;");
+  expect(html).not.toContain("4,33333");
+  expect(html).not.toContain("4.3333");
+});

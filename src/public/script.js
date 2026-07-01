@@ -10364,6 +10364,9 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
   var fmtH = function (h) {
     return (Math.round((Number(h) || 0) * 100) / 100).toFixed(2).replace(".", ",");
   };
+  var fmtNum = function (n) {
+    return new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(Number(n) || 0);
+  };
   var esc = function (s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
@@ -10421,7 +10424,7 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
     var anfahrtRow =
       '<div style="' + rowStyle + '">' +
         "<span>Anfahrtspauschale</span>" +
-        '<span style="text-align:right; color:var(--muted);">' + (opts.einsaetze || 0) + "&times;</span>" +
+        '<span style="text-align:right; color:var(--muted);">' + fmtNum(opts.einsaetze) + "&times;</span>" +
         '<span style="text-align:right; color:var(--muted);">' + euro(ANFAHRT) + "</span>" +
         '<span style="text-align:right; font-weight:600;">' + euro(opts.anfahrtTotal) + "</span>" +
       "</div>";
