@@ -10370,9 +10370,18 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
     });
   };
 
+  var hhmm = function (min) {
+    var m = Math.round(Number(min) || 0);
+    var h = Math.floor(m / 60), r = m % 60;
+    return h + ":" + String(r).padStart(2, "0") + " h";
+  };
+
+  var toggleSeq = 0; // unique id per service details block
+
   // Renders one service as an Angebot line-item table.
   // opts: { title, subtitle, taskLabels, hours, rate, leistungenTotal,
-  //         einsaetze, anfahrtTotal, gesamtLabel, gesamtValue, extraRowsHTML, footnoteHTML }
+  //         einsaetze, anfahrtTotal, gesamtLabel, gesamtValue, extraRowsHTML, footnoteHTML,
+  //         schedRows, zoneData }
   function serviceTable(opts) {
     var tasks = (opts.taskLabels || []).filter(Boolean);
     var tasksLine = tasks.length
@@ -10417,6 +10426,49 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
         "<span>" + euro(opts.gesamtValue) + "</span>" +
       "</div>";
 
+    var detId = "ahDet" + (toggleSeq++);
+    var zoneHTML = opts.zoneData
+      ? '<div style="margin-bottom:8px; font-size:0.82rem; color:var(--muted);">' +
+          "<b>Zone " + esc(opts.zoneData.zone) + "</b> · Hin-Fahrt " + esc(opts.zoneData.billMin) +
+          " min · Hin &amp; Rück " + (2 * (Number(opts.zoneData.billMin) || 0)) + " min (im Stundenumfang enthalten)" +
+        "</div>"
+      : '<div style="margin-bottom:8px; font-size:0.82rem; color:#854d0e;">⚠ Keine Zone bestimmt.</div>';
+
+    var brkRows = (opts.schedRows || []).map(function (r) {
+      return '<tr style="border-top:1px solid var(--border);">' +
+        '<td style="padding:5px 8px; color:var(--muted);">' + esc(r.regelmaessigkeit) + "</td>" +
+        '<td style="padding:5px 8px; text-align:right;">' + r.dauerMin + " min</td>" +
+        '<td style="padding:5px 8px; text-align:right;">+ ' + r.reiseRoundMin + " min</td>" +
+        '<td style="padding:5px 8px; text-align:right;">= ' + r.perVisitMin + " min</td>" +
+        '<td style="padding:5px 8px; text-align:right; color:var(--accent,#0ea5e9); font-weight:600;">&times; ' +
+          (Math.round((Number(r.freq) || 0) * 100) / 100).toFixed(2).replace(".", ",") + " = " + hhmm(r.monthlyH * 60) + "</td>" +
+      "</tr>";
+    }).join("");
+
+    var breakdownTable = (opts.schedRows && opts.schedRows.length)
+      ? '<table style="border-collapse:collapse; width:100%; font-size:0.78rem; margin-top:4px;">' +
+          '<thead><tr style="color:var(--muted); font-weight:600;">' +
+            '<th style="padding:5px 8px; text-align:left;">Regelmäßigkeit</th>' +
+            '<th style="padding:5px 8px; text-align:right;">Einsatz</th>' +
+            '<th style="padding:5px 8px; text-align:right;">+ H&amp;R</th>' +
+            '<th style="padding:5px 8px; text-align:right;">= /Einsatz</th>' +
+            '<th style="padding:5px 8px; text-align:right;">&times; Freq = /Mon.</th>' +
+          "</tr></thead><tbody>" + brkRows + "</tbody></table>"
+      : "";
+
+    var detailsToggle =
+      '<button type="button" data-ah-details-toggle="' + detId + '" ' +
+        'style="background:none; border:1px solid var(--border); border-radius:6px; ' +
+        'padding:3px 10px; font-size:0.78rem; cursor:pointer; color:var(--muted); margin-top:10px;">' +
+        "ℹ Details</button>";
+
+    var detailsPanel =
+      '<div data-ah-details="' + detId + '" hidden ' +
+        'style="margin-top:10px; padding:10px 12px; background:var(--bg-alt,#f8fafc); ' +
+        'border:1px solid var(--border); border-radius:6px;">' +
+        zoneHTML + breakdownTable +
+      "</div>";
+
     return (
       '<section style="margin-bottom:24px;">' +
         '<h3 style="margin:0 0 2px; font-size:1.05rem;">' + esc(opts.title) + "</h3>" +
@@ -10428,6 +10480,8 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
         (opts.extraRowsHTML || "") +
         totalRow +
         (opts.footnoteHTML || "") +
+        detailsToggle +
+        detailsPanel +
       "</section>"
     );
   }
@@ -10445,6 +10499,7 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
       anfahrtTotal: vm.anfahrtTotal,
       gesamtLabel: "Gesamt / Monat",
       gesamtValue: vm.gesamtBase,
+      schedRows: vm.schedRows, zoneData: vm.zoneData,
     });
   }
   if (vm.hasAb) {
@@ -10459,6 +10514,7 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
       anfahrtTotal: vm.abAnfahrtTotal,
       gesamtLabel: "Gesamt / Monat",
       gesamtValue: vm.abGesamtBase,
+      schedRows: vm.abSchedRows, zoneData: vm.zoneData,
     });
   }
   if (vm.hasHnd && vm.hasAb) {

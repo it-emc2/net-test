@@ -71,3 +71,14 @@ test("empty state shown when nothing configured", async ({ page }) => {
   const html = await build(page, EMPTY);
   expect(html).toContain("Noch keine Leistung konfiguriert");
 });
+
+test("details block is present but hidden by default, with breakdown + zone", async ({ page }) => {
+  const html = await build(page, HND_ONLY);
+  expect(html).toContain("data-ah-details");
+  expect(html).toContain("hidden");                 // collapsed by default
+  expect(html).toContain("data-ah-details-toggle"); // toggle button
+  expect(html).toContain("Details");                // button label
+  // breakdown content
+  expect(html).toContain("Wöchentlich");
+  expect(html).toContain("Zone 2");                 // zone banner inside details
+});
