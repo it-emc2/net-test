@@ -1964,7 +1964,7 @@ function buildAhData(body) {
     AhNote: ahNote,
     AhAnfahrtMenge:       anfahrtMengeStr,
     AhAnfahrtEinzelpreis: totalEinsaetze > 0 ? `${AH_ANFAHRT_PER_EINSATZ.toFixed(2).replace(".", ",")} €` : "",
-    AhAnfahrtGesamt:      anfahrtTotal > 0 ? fmtCurrency(anfahrtTotal) : "",
+    AhAnfahrtGesamt:      totalEinsaetze > 0 ? fmtCurrency(r2(anfahrtTotal + abAnfahrtTotal)) : "",
     AhServices,
     AhHasServicepauschale: hasHnD,
     AhServicepausEinzelpreis: "1,20 €",
@@ -2163,4 +2163,5 @@ export {
   generateOfferPdfBuffer,
   deepSanitizeDocxPayload,
   STATIC_DOCX_WORD_BLOCKLIST,
+  buildAhData,
 };
