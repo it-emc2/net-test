@@ -392,46 +392,6 @@ function buildDocument() {
     {}
   );
 
-  // ── Servicepauschale section (conditional) ───────────────────────────
-  // {#AhHasServicepauschale} opens in first cell of separator row
-  // {/AhHasServicepauschale} closes in last cell of the pauschale row
-  const pauschaleNoticeRow = tr(
-    // Merged notice — we span by giving all width to one cell and making others 1px
-    tc(
-      CONTENT_W,
-      p(
-        run(
-          "{#AhHasServicepauschale}Folgende Pauschale wird nicht von der Krankenkasse übernommen und versteht sich inkl. MwSt. Diese rechnen wir, wenn benötigt / wie mit Ihnen vereinbart direkt mit Ihnen ab:",
-          { bold: true, sz: "16" }
-        ),
-        { after: 40, before: 40 }
-      ),
-      { borders: "dark", mar: 60, bgColor: "F5F5F5" }
-    ),
-    {}
-  );
-
-  const pauschaleRow = tr(
-    tc(SVC_COLS[0], p(run("*", { sz: "17" }), { after: 40 }), { borders: "dark", mar: 60 }) +
-      tc(
-        SVC_COLS[1],
-        p(run("Servicepauschale Reinigungsutensilien für HnD", { bold: true, sz: "17" }), { after: 20 }) +
-          p(
-            run(
-              "1,20 € / Monat für Bereitstellung der Reinigungsutensilien – jährliche Abrechnung nach tatsächlichen Monaten, in denen Sie unsere Haushaltsnahen Dienstleistungen (HnD) in Anspruch genommen haben.",
-              { sz: "16", color: "444444" }
-            ),
-            { after: 40 }
-          ),
-        { borders: "dark", mar: 60 }
-      ) +
-      tc(SVC_COLS[2], p(run("Pro Monat", { sz: "17" }), { after: 40 }), { borders: "dark", mar: 60 }) +
-      tc(SVC_COLS[3], p(run("{AhServicepausEinzelpreis}", { sz: "17" }), { after: 40 }), { borders: "dark", mar: 60 }) +
-      // closing tag
-      tc(SVC_COLS[4], p(run("{/AhHasServicepauschale}", { sz: "17" }), { after: 40 }), { borders: "dark", mar: 60 }),
-    {}
-  );
-
   // ── Gesamtbetrag row ─────────────────────────────────────────────────
   const gesamtRow = tr(
     tc(SVC_COLS[0] + SVC_COLS[1] + SVC_COLS[2] + SVC_COLS[3], p("", { after: 60 }), {
@@ -464,7 +424,7 @@ function buildDocument() {
   parts.push(
     tbl(
       SVC_COLS,
-      svcHeaderRow + anfahrtRow + svcLoopRow + pauschaleNoticeRow + pauschaleRow + gesamtLabelRow,
+      svcHeaderRow + anfahrtRow + svcLoopRow + gesamtLabelRow,
       CONTENT_W
     )
   );
@@ -508,12 +468,18 @@ function buildDocument() {
       run(
         "Bitte unterschreiben Sie bei Annahme dieses Angebots und schicken Sie es uns zurück – gerne auch per E-Mail an service@e-m-c-2.de. Die Unterschrift gilt für uns als Auftragsbestätigung.",
         { sz: "17" }
-      ),
+      ) + `<w:r>${rPr({ sz: "17" })}<w:br/><w:br/></w:r>`,
       { after: 80 }
     )
   );
 
-  parts.push(p(run("Angebot akzeptiert / Auftrag bestätigt:", { sz: "17" }), { after: 240 }));
+  parts.push(
+    p(
+      run("Angebot akzeptiert / Auftrag bestätigt:", { sz: "17" }) +
+        `<w:r>${rPr({ sz: "17" })}<w:br/><w:br/></w:r>`,
+      { after: 240 }
+    )
+  );
 
   // ── Signature line table ───────────────────────────────────────────────
   const sigLineRow = tr(
@@ -539,7 +505,13 @@ function buildDocument() {
       after: 120,
     })
   );
-  parts.push(p(run("Mit freundlichen Grüßen,", { sz: "17" }), { after: 20 }));
+  parts.push(
+    p(
+      run("Mit freundlichen Grüßen,", { sz: "17" }) +
+        `<w:r>${rPr({ sz: "17" })}<w:br/></w:r>`,
+      { after: 20 }
+    )
+  );
   parts.push(p(run("Ihr Team von der EmC2", { sz: "17" }), { after: 20 }));
 
   // ── Our signature (image placeholder) ─────────────────────────────────
