@@ -24,7 +24,10 @@
     "format:check": "prettier --check \"src/**/*.{js,mjs,json}\"",
     "scenarios": "node ./scripts/run-scenarios.mjs",
     "validate": "npm run lint && npm run test:unit",
-    "test:address": "node scripts/test-routing.mjs"
+    "test:address": "node scripts/test-routing.mjs",
+    "gen:ah": "node src/templates/generate-ah.mjs",
+    "gen:ah-alt": "node src/templates/generate-ah-alt.mjs",
+    "gen:templates": "npm run gen:ah && npm run gen:ah-alt"
   },
   "keywords": [
     "express",
