@@ -10378,6 +10378,13 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
 
   var toggleSeq = 0; // unique id per service details block
 
+  var footnote = function (title, body) {
+    return '<div style="margin-top:12px; padding:8px 0 0; border-top:1px dashed var(--border); font-size:0.8rem; color:var(--muted);">' +
+      '<span style="font-weight:600;">* Separate Direktrechnung — nicht im Gesamtbetrag.</span> ' +
+      "<b>" + esc(title) + "</b> " + body +
+    "</div>";
+  };
+
   // Renders one service as an Angebot line-item table.
   // opts: { title, subtitle, taskLabels, hours, rate, leistungenTotal,
   //         einsaetze, anfahrtTotal, gesamtLabel, gesamtValue, extraRowsHTML, footnoteHTML,
@@ -10488,17 +10495,33 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
 
   var html = "";
   if (vm.hasHnd) {
+    var hndExtraRows = "";
+    var hndFootnote = "";
+    var hndTotal = vm.gesamtBase;
+    if (vm.isSelbstzahler) {
+      hndTotal = Math.round((vm.gesamtBase + (vm.servicepauschale || 0)) * 100) / 100;
+      hndExtraRows =
+        '<div style="display:grid; grid-template-columns:1fr 90px 100px 110px; gap:6px 12px; ' +
+          'align-items:center; padding:9px 0; border-bottom:1px solid var(--border); font-size:0.9rem;">' +
+          "<span>Servicepauschale Reinigungsutensilien <span style=\"font-size:0.78rem; color:var(--muted);\">(inkl. MwSt.)</span></span>" +
+          '<span style="text-align:right; color:var(--muted);">1&times;</span>' +
+          '<span style="text-align:right; color:var(--muted);">' + euro(vm.servicepauschale) + "</span>" +
+          '<span style="text-align:right; font-weight:600;">' + euro(vm.servicepauschale) + "</span>" +
+        "</div>";
+    } else {
+      hndFootnote = footnote(
+        "Servicepauschale Reinigungsutensilien für HnD:",
+        euro(vm.servicepauschale) + " / Monat · inkl. MwSt. Jährliche Abrechnung, direkt mit dem Kunden."
+      );
+    }
     html += serviceTable({
       title: "Haushaltsnahe Dienstleistungen",
       subtitle: "Angebot zur Unterstützung im Haushalt",
       taskLabels: vm.hndTaskLabels,
-      hours: vm.totalMonatlichH,
-      rate: HND_RATE,
-      leistungenTotal: vm.leistungenTotal,
-      einsaetze: vm.totalEinsaetze,
-      anfahrtTotal: vm.anfahrtTotal,
-      gesamtLabel: "Gesamt / Monat",
-      gesamtValue: vm.gesamtBase,
+      hours: vm.totalMonatlichH, rate: HND_RATE,
+      leistungenTotal: vm.leistungenTotal, einsaetze: vm.totalEinsaetze, anfahrtTotal: vm.anfahrtTotal,
+      gesamtLabel: "Gesamt HnD-Leistungen", gesamtValue: hndTotal,
+      extraRowsHTML: hndExtraRows, footnoteHTML: hndFootnote,
       schedRows: vm.schedRows, zoneData: vm.zoneData,
     });
   }
@@ -10514,6 +10537,10 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
       anfahrtTotal: vm.abAnfahrtTotal,
       gesamtLabel: "Gesamt / Monat",
       gesamtValue: vm.abGesamtBase,
+      footnoteHTML: footnote(
+        "Fahrten im Rahmen der Alltagsbegleitung:",
+        euro(vm.abKmRate) + " / km · inkl. MwSt. Wird bei Bedarf direkt abgerechnet."
+      ),
       schedRows: vm.abSchedRows, zoneData: vm.zoneData,
     });
   }

@@ -33,8 +33,8 @@ test("HnD table shows Angebot line items with correct values", async ({ page }) 
   expect(html).toContain("Anfahrtspauschale");
   expect(html).toContain("7,96");
   expect(html).toContain("31,84");
-  // Gesamt / Monat
-  expect(html).toContain("Gesamt / Monat");
+  // Gesamt HnD-Leistungen
+  expect(html).toContain("Gesamt HnD-Leistungen");
   expect(html).toContain("538,84");
 });
 
@@ -81,4 +81,28 @@ test("details block is present but hidden by default, with breakdown + zone", as
   // breakdown content
   expect(html).toContain("Wöchentlich");
   expect(html).toContain("Zone 2");                 // zone banner inside details
+});
+
+const HND_SELBSTZAHLER = { ...HND_ONLY, isSelbstzahler: true, gesamt: 540.04 };
+
+test("Selbstzahler: Servicepauschale is a table line folded into the total", async ({ page }) => {
+  const html = await build(page, HND_SELBSTZAHLER);
+  expect(html).toContain("Servicepauschale");
+  expect(html).toContain("1,20");
+  // total for the HnD service = gesamtBase + servicepauschale = 540,04
+  expect(html).toContain("540,04");
+});
+
+test("Kassenkunde: Servicepauschale is a footnote, not in the total", async ({ page }) => {
+  const html = await build(page, HND_ONLY);
+  expect(html).toContain("Separate Direktrechnung");
+  expect(html).toContain("Servicepauschale");
+  // HnD total stays at gesamtBase
+  expect(html).toContain("538,84");
+});
+
+test("Alltagsbegleitung shows Fahrten/km footnote", async ({ page }) => {
+  const html = await build(page, BOTH);
+  expect(html).toContain("Fahrten im Rahmen der Alltagsbegleitung");
+  expect(html).toContain("0,35"); // €/km
 });
