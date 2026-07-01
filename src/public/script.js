@@ -10447,6 +10447,33 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
       gesamtValue: vm.gesamtBase,
     });
   }
+  if (vm.hasAb) {
+    html += serviceTable({
+      title: "Alltagsbegleitung",
+      subtitle: "",
+      taskLabels: vm.abTaskLabels,
+      hours: vm.abTotalMonatlichH,
+      rate: AB_RATE,
+      leistungenTotal: vm.abLeistungenTotal,
+      einsaetze: vm.abTotalEinsaetze,
+      anfahrtTotal: vm.abAnfahrtTotal,
+      gesamtLabel: "Gesamt / Monat",
+      gesamtValue: vm.abGesamtBase,
+    });
+  }
+  if (vm.hasHnd && vm.hasAb) {
+    html +=
+      '<div style="display:flex; justify-content:space-between; align-items:baseline; ' +
+        'padding-top:14px; border-top:2px solid var(--border); font-size:1.15rem; font-weight:800;">' +
+        "<span>Gesamt / Monat</span><span>" + euro(vm.gesamt) + "</span>" +
+      "</div>";
+  }
+  if (!vm.hasHnd && !vm.hasAb) {
+    html =
+      '<div style="font-size:0.9rem; color:var(--muted); padding:8px 0;">' +
+      "Noch keine Leistung konfiguriert." +
+      "</div>";
+  }
   return html;
 };
 

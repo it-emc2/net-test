@@ -37,3 +37,37 @@ test("HnD table shows Angebot line items with correct values", async ({ page }) 
   expect(html).toContain("Gesamt / Monat");
   expect(html).toContain("538,84");
 });
+
+const BOTH = {
+  ...HND_ONLY,
+  hasAb: true,
+  abTotalMonatlichH: 6.0, abTotalEinsaetze: 2, abAnfahrtTotal: 15.92,
+  abLeistungenTotal: 318.24, abGesamtBase: 334.16, abKmRate: 0.35,
+  abTaskLabels: ["Begleitung zu Terminen"], abSchedRows: [],
+  gesamt: 873.0,
+};
+
+const EMPTY = { ...HND_ONLY, hasHnd: false, hasAb: false, gesamt: 0 };
+
+test("Alltagsbegleitung table renders with its rate", async ({ page }) => {
+  const html = await build(page, BOTH);
+  expect(html).toContain("Alltagsbegleitung");
+  expect(html).toContain("53,04");
+  expect(html).toContain("318,24");
+  expect(html).toContain("334,16");
+});
+
+test("combined grand total appears only when both services exist", async ({ page }) => {
+  const both = await build(page, BOTH);
+  expect(both).toContain("873,00");
+  // The combined grand-total block is the only element rendered at font-weight:800.
+  expect(both).toContain("font-weight:800");
+  const hnd = await build(page, HND_ONLY);
+  // HnD-only: no combined grand-total block.
+  expect(hnd).not.toContain("font-weight:800");
+});
+
+test("empty state shown when nothing configured", async ({ page }) => {
+  const html = await build(page, EMPTY);
+  expect(html).toContain("Noch keine Leistung konfiguriert");
+});
