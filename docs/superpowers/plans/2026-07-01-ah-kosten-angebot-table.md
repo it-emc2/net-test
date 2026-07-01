@@ -264,9 +264,11 @@ test("Alltagsbegleitung table renders with its rate", async ({ page }) => {
 test("combined grand total appears only when both services exist", async ({ page }) => {
   const both = await build(page, BOTH);
   expect(both).toContain("873,00");
+  // The combined grand-total block is the only element rendered at font-weight:800.
+  expect(both).toContain("font-weight:800");
   const hnd = await build(page, HND_ONLY);
-  // HnD-only: no separate grand-total block beyond the service's own total
-  expect((hnd.match(/Gesamt \/ Monat/g) || []).length).toBe(1);
+  // HnD-only: no combined grand-total block.
+  expect(hnd).not.toContain("font-weight:800");
 });
 
 test("empty state shown when nothing configured", async ({ page }) => {
