@@ -10353,6 +10353,103 @@ function hasOptionalPageForCurrentOffer() {
     return out;
   }
 
+// ── AH Kosten: pure Angebot-style table builder (testable in isolation) ─────
+window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
+  vm = vm || {};
+  var HND_RATE = 40.56, AB_RATE = 53.04, ANFAHRT = 7.96;
+
+  var euro = function (n) {
+    return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n) || 0);
+  };
+  var fmtH = function (h) {
+    return (Math.round((Number(h) || 0) * 100) / 100).toFixed(2).replace(".", ",");
+  };
+  var esc = function (s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  };
+
+  // Renders one service as an Angebot line-item table.
+  // opts: { title, subtitle, taskLabels, hours, rate, leistungenTotal,
+  //         einsaetze, anfahrtTotal, gesamtLabel, gesamtValue, extraRowsHTML, footnoteHTML }
+  function serviceTable(opts) {
+    var tasks = (opts.taskLabels || []).filter(Boolean);
+    var tasksLine = tasks.length
+      ? '<div style="font-size:0.82rem; color:var(--muted); margin:2px 0 12px;">' +
+          '<span style="font-weight:600;">Enthaltene Leistungen:</span> ' +
+          tasks.map(esc).join(" · ") + "</div>"
+      : '<div style="margin-bottom:8px;"></div>';
+
+    var head =
+      '<div style="display:grid; grid-template-columns:1fr 90px 100px 110px; gap:6px 12px; ' +
+        'font-size:0.72rem; font-weight:600; color:var(--muted); text-transform:uppercase; ' +
+        'letter-spacing:0.04em; padding-bottom:6px; border-bottom:1px solid var(--border);">' +
+        "<span>Position</span>" +
+        '<span style="text-align:right;">Menge</span>' +
+        '<span style="text-align:right;">Einzelpreis</span>' +
+        '<span style="text-align:right;">Gesamt</span>' +
+      "</div>";
+
+    var rowStyle = 'display:grid; grid-template-columns:1fr 90px 100px 110px; gap:6px 12px; ' +
+      "align-items:center; padding:9px 0; border-bottom:1px solid var(--border); font-size:0.9rem;";
+
+    var leistungRow =
+      '<div style="' + rowStyle + '">' +
+        "<span>Leistungen</span>" +
+        '<span style="text-align:right; color:var(--muted);">' + fmtH(opts.hours) + " h</span>" +
+        '<span style="text-align:right; color:var(--muted);">' + euro(opts.rate) + "</span>" +
+        '<span style="text-align:right; font-weight:600;">' + euro(opts.leistungenTotal) + "</span>" +
+      "</div>";
+
+    var anfahrtRow =
+      '<div style="' + rowStyle + '">' +
+        "<span>Anfahrtspauschale</span>" +
+        '<span style="text-align:right; color:var(--muted);">' + (opts.einsaetze || 0) + "&times;</span>" +
+        '<span style="text-align:right; color:var(--muted);">' + euro(ANFAHRT) + "</span>" +
+        '<span style="text-align:right; font-weight:600;">' + euro(opts.anfahrtTotal) + "</span>" +
+      "</div>";
+
+    var totalRow =
+      '<div style="display:flex; justify-content:space-between; align-items:baseline; ' +
+        'padding-top:12px; font-size:1.05rem; font-weight:700;">' +
+        "<span>" + esc(opts.gesamtLabel || "Gesamt / Monat") + "</span>" +
+        "<span>" + euro(opts.gesamtValue) + "</span>" +
+      "</div>";
+
+    return (
+      '<section style="margin-bottom:24px;">' +
+        '<h3 style="margin:0 0 2px; font-size:1.05rem;">' + esc(opts.title) + "</h3>" +
+        (opts.subtitle ? '<div style="font-size:0.85rem; color:var(--muted); margin-bottom:6px;">' + esc(opts.subtitle) + "</div>" : "") +
+        tasksLine +
+        head +
+        leistungRow +
+        anfahrtRow +
+        (opts.extraRowsHTML || "") +
+        totalRow +
+        (opts.footnoteHTML || "") +
+      "</section>"
+    );
+  }
+
+  var html = "";
+  if (vm.hasHnd) {
+    html += serviceTable({
+      title: "Haushaltsnahe Dienstleistungen",
+      subtitle: "Angebot zur Unterstützung im Haushalt",
+      taskLabels: vm.hndTaskLabels,
+      hours: vm.totalMonatlichH,
+      rate: HND_RATE,
+      leistungenTotal: vm.leistungenTotal,
+      einsaetze: vm.totalEinsaetze,
+      anfahrtTotal: vm.anfahrtTotal,
+      gesamtLabel: "Gesamt / Monat",
+      gesamtValue: vm.gesamtBase,
+    });
+  }
+  return html;
+};
+
   // Make this async so we can await name lookups for optional items
   window.renderFromData = async function renderFromData(data) {
     if (!data) {
@@ -22370,9 +22467,13 @@ async function applyCalendarEventToForm(event){
   const _contactIdForDeals = hydrated?.bitrixContactId || parsed.contactId || "";
   if (_contactIdForDeals) window.fetchAndSetDeal?.(_contactIdForDeals);
 
-  const normalizedTitle = normalizeCalendarText(event?.NAME || event?.TITLE || "");
-  if(normalizedTitle.includes("frau ")) setCalendarRadio("salutation", "Frau");
-  if(normalizedTitle.includes("herr ")) setCalendarRadio("salutation", "Herr");
+  if(hydrated?.salutation){
+    setCalendarRadio("salutation", hydrated.salutation);
+  } else {
+    const normalizedTitle = normalizeCalendarText(event?.NAME || event?.TITLE || "");
+    if(normalizedTitle.includes("frau ")) setCalendarRadio("salutation", "Frau");
+    if(normalizedTitle.includes("herr ")) setCalendarRadio("salutation", "Herr");
+  }
 
   try {
     if (typeof updateSummaryWidgetName === "function") {
