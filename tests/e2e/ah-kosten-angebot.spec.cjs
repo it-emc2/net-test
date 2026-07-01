@@ -107,6 +107,42 @@ test("Alltagsbegleitung shows Fahrten/km footnote", async ({ page }) => {
   expect(html).toContain("0,35"); // €/km
 });
 
+test("Dauer entry uses separate hour + minute inputs that serialize to H:MM", async ({ page }) => {
+  await page.goto(BASE_URL, { waitUntil: "domcontentloaded" });
+  const r = await page.evaluate(() => {
+    const pageAh = document.getElementById("page-ah");
+    if (pageAh) pageAh.hidden = false;
+    document.getElementById("ahAddHaushaltBtn").click();
+    const cards = document.querySelectorAll("#ahListHaushalt .ah-service-card");
+    const card = cards[cards.length - 1];
+    const row = card.querySelector(".ah-sched-row");
+    const h = row.querySelector(".ah-dauer-h");
+    const m = row.querySelector(".ah-dauer-m");
+    const hidden = row.querySelector("[data-card-field=dauer]");
+    const reg = row.querySelector("[data-card-field=regelmaessigkeit]");
+    reg.value = "Wöchentlich"; reg.dispatchEvent(new Event("change", { bubbles: true }));
+    h.value = "1"; h.dispatchEvent(new Event("input", { bubbles: true }));
+    m.value = "30"; m.dispatchEvent(new Event("input", { bubbles: true }));
+    const out = {
+      twoInputs: !!h && !!m,
+      hiddenIsHidden: hidden.type === "hidden",
+      visibleNotTaggedDauer: !h.matches("[data-card-field=dauer]") && !m.matches("[data-card-field=dauer]"),
+      hiddenValue: hidden.value,
+      serialized: document.getElementById("ahServicesJson").value.includes('"dauer":"1:30"'),
+    };
+    m.value = "90"; m.dispatchEvent(new Event("input", { bubbles: true }));
+    out.clamp = m.value === "59" && hidden.value === "1:59";
+    card.remove();
+    return out;
+  });
+  expect(r.twoInputs).toBe(true);
+  expect(r.hiddenIsHidden).toBe(true);
+  expect(r.visibleNotTaggedDauer).toBe(true);
+  expect(r.hiddenValue).toBe("1:30");
+  expect(r.serialized).toBe(true);
+  expect(r.clamp).toBe(true);
+});
+
 test("Menge (Einsätze count) is rounded to 2 decimals, not raw", async ({ page }) => {
   // 52/12 = 4.33333... must render as "4,33", never the raw long decimal.
   const html = await build(page, { ...HND_ONLY, totalEinsaetze: 52 / 12 });
