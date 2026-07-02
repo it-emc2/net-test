@@ -1,0 +1,172 @@
+{
+  "source": "badolux-all.pdf",
+  "supplier": "BADOLUX",
+  "currency": "EUR",
+  "note": "Prices are net (Netto). Duschwannen intentionally excluded. Discounts (Nachlässe) are subtracted from the net prices.",
+  "discounts": {
+    "Bodenbelag": "20%",
+    "Wandpaneele": "10%",
+    "Duschwannen": "25%",
+    "Glaeser": "20%"
+  },
+  "categories": {
+    "Duschabtrennungen (Gläser)": {
+      "discount": "20%",
+      "products": [
+        {
+          "name": "Walk in - Wien",
+          "spec": "Sicherheitsglas mit Nano Beschichtung 195 cm, Glasstärke 0,8 cm, inkl. Stabi und U-Profil",
+          "note": "Sondermaße auf Anfrage",
+          "prices": [
+            { "masse_cm": "60", "preis": 202.48 },
+            { "masse_cm": "70", "preis": 225.23 },
+            { "masse_cm": "80", "preis": 241.15 },
+            { "masse_cm": "90", "preis": 259.35 },
+            { "masse_cm": "100", "preis": 270.73 },
+            { "masse_cm": "120", "preis": 302.58 }
+          ]
+        },
+        {
+          "name": "Pendel - Wien",
+          "spec": "Sicherheitsglas mit Nano Beschichtung 195 x 40 x 0,8 cm, Spritzschutzverlängerung 90° einstellbar",
+          "prices": [
+            { "masse_cm": "40", "preis": 127.40 }
+          ]
+        },
+        {
+          "name": "Falttür - Lissabon",
+          "spec": "Sicherheitsglas mit Nano Beschichtung 195 x 80 / 90 / 100 / 120 x 0,8 cm",
+          "prices": [
+            { "masse_cm": "80", "preis": 286.65 },
+            { "masse_cm": "90", "preis": 302.58 },
+            { "masse_cm": "100", "preis": 318.50 },
+            { "masse_cm": "120", "preis": 357.10 }
+          ]
+        },
+        {
+          "name": "Faltür mit Festteil - Rom",
+          "spec": "Gesamtlänge 140 cm, Faltwand 2 x 50 cm und 40 cm fest, Glasstärke 0,8 cm",
+          "prices": [
+            { "masse_cm": "140 (40er fest, 100er Falt)", "preis": 423.15 }
+          ]
+        },
+        {
+          "name": "Schiebetür - Madrid (Wand-Wand, oben geführt)",
+          "spec": "Schiebetür, 160 x 195 x 0,6 cm, Wand zu Wand Montage, oben geführt",
+          "prices": [
+            { "masse_cm": "160", "preis": 516.43 }
+          ]
+        },
+        {
+          "name": "Schiebetür - Madrid (Wand-offen, unten geführt)",
+          "spec": "Schiebetür, 140 / 160 / 180 x 195 x 0,6 cm, unten geführt",
+          "prices": [
+            { "masse_cm": "140", "preis": 486.85 },
+            { "masse_cm": "160", "preis": 502.78 },
+            { "masse_cm": "180", "preis": 559.43 }
+          ]
+        },
+        {
+          "name": "Faltür mit Festteil - Stockholm",
+          "spec": "Gesamtlänge 180 cm, Faltwand 2 x 50 cm und 80 cm fest, Glasstärke 0,6 cm",
+          "prices": [
+            { "masse_cm": "180 (80er fest, 100er Falt)", "preis": 368.55 }
+          ]
+        }
+      ]
+    },
+    "Wandpaneele": {
+      "discount": "10%",
+      "spec": "Keramico-Simple Wall Vollkunststoff Paneel zur Verwendung in Nasszellen, 2600 x 95 mm",
+      "note": "Wandpaneele nach Kundenwunsch zzgl. Grafikkosten 39,00 €/Std.",
+      "products": [
+        {
+          "name": "Standard-Dekor",
+          "einheit": "Stück",
+          "preis": 129.00,
+          "farben": [
+            { "farbe": "Marmor weiß", "artikelnummer": "DN3287-3" },
+            { "farbe": "steingrau", "artikelnummer": "DN9031-004" },
+            { "farbe": "grau", "artikelnummer": "DN8604-009" },
+            { "farbe": "creme", "artikelnummer": "DN3403-6" },
+            { "farbe": "Sahara", "artikelnummer": "DN4595-5" },
+            { "farbe": "Cafe", "artikelnummer": "DN8604-003" }
+          ]
+        },
+        {
+          "name": "Sonder-Dekor",
+          "einheit": "Stück",
+          "preis": 169.00
+        }
+      ]
+    },
+    "Boden (Bodenbelag)": {
+      "discount": "20%",
+      "spec": "Wasserfeste Hydroträgerplatte mit Nanoversiegelung, 1,49 m² pro Paket",
+      "products": [
+        {
+          "name": "Bodenplatte Paket",
+          "einheit": "Paket (1,49 m²)",
+          "preis": 35.16,
+          "farben": [
+            { "farbe": "steingrau", "artikelnummer": "DN9031-004" },
+            { "farbe": "grau", "artikelnummer": "DN8604-009" },
+            { "farbe": "creme", "artikelnummer": "DN3403-6" },
+            { "farbe": "Sahara", "artikelnummer": "DN4595-5" },
+            { "farbe": "Cafe", "artikelnummer": "DN8604-003" }
+          ]
+        }
+      ]
+    },
+    "Zubehör / Montage": {
+      "products": [
+        {
+          "name": "Stelzlager Dusche",
+          "prices": [
+            { "stueck": "kleine 35 - 50 mm", "preis": 2.57 },
+            { "stueck": "mittlere 50 - 80 mm", "preis": 2.74 },
+            { "stueck": "große 80 - 140 mm", "preis": 3.47 }
+          ]
+        },
+        {
+          "name": "1K PU-Kleber",
+          "spec": "Dauerelastischer Polyurethankleber, 1 VE = 20 Stück",
+          "prices": [
+            { "menge": "1", "preis": 7.59 }
+          ]
+        }
+      ]
+    },
+    "Abdichtung": {
+      "products": [
+        { "name": "Dichtband 10 m", "einheit": "lfm", "preis": 166.00 },
+        { "name": "Dichtband 1 m", "einheit": "lfm", "preis": 5.81 },
+        { "name": "Dichtbahn Rolle 30 x 0,6 m", "preis": 247.25 },
+        { "name": "Dichtbahn 1 m", "einheit": "lfm", "preis": 8.24 },
+        { "name": "Wandmanschette", "preis": 4.97 }
+      ]
+    },
+    "Winkelleisten": {
+      "products": [
+        {
+          "name": "Winkelleisten Kunststoff",
+          "spec": "10 x 10 mm, 250 cm Länge",
+          "prices": [
+            { "farbe": "grau", "preis_pro_stk": 2.17 },
+            { "farbe": "weiß", "preis_pro_stk": 2.17 }
+          ]
+        },
+        {
+          "name": "Winkelleisten Alu",
+          "spec": "Wahlweise in hellgrau, taupe und Anthrazit, Länge 260 cm",
+          "note": "Sonderpreis: 5 Euro pro Stück - Auslaufartikel",
+          "prices": [
+            { "profil": "Winkelprofil", "preis_pro_stk": 15.96 },
+            { "profil": "Nutprofil", "preis_pro_stk": 12.48 },
+            { "profil": "Abschlussprofil", "preis_pro_stk": 12.48 }
+          ]
+        }
+      ]
+    }
+  }
+}
