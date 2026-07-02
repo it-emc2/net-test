@@ -19573,7 +19573,8 @@ function applySelbstzahlerVisibility() {
     document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler";
 
   const pflegegradSection = document.getElementById("pflegegradSection");
-  if (pflegegradSection) pflegegradSection.style.display = isSelbstzahler ? "none" : "";
+  const isAH = (typeof window.getCurrentOfferType === "function" ? window.getCurrentOfferType() : "") === "ah";
+  if (pflegegradSection) pflegegradSection.style.display = (isSelbstzahler || isAH) ? "none" : "";
 
   const antragRow = document.getElementById("pflegekasseAntragRow");
   if (antragRow) antragRow.style.display = isSelbstzahler ? "none" : "";
