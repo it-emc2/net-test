@@ -1546,20 +1546,21 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
   const BASE_SELF_PAY_SENTENCE =
     "Dieser wird bei Auftragsbestätigung vorab fällig.";
 
-  // KK: Kassenkunde-Zahlungsbedingungen (20/30/40 % Anzahlung)
+  // KK: Kassenkunde-Zahlungsbedingungen für den Selbstkostenanteil (50/50 oder 100 % Skonto)
   const PARA_kk_LINES = [
+    "Wählen Sie aus folgenden Zahlungsbedingungen für den Selbstkostenanteil (bitte ankreuzen):",
+    "O 50 % sofort und 50 % nach Fertigstellung, ohne Abzug oder",
+    "O 100 % sofort abzüglich 2 % Skonto",
+    "Für den Selbstkostenanteil wird eine separate Rechnung erstellt. Die Zahlung bitte erst nach Erhalt dieser Rechnung unter Angabe der Rechnungsnummer im Verwendungszweck durchführen.",
+  ];
+
+  // SZ: Selbstzahler-Zahlungsbedingungen (20/30/40 % Anzahlung)
+  const PARA_sz_LINES = [
     "Wählen Sie aus folgenden Zahlungsbedingungen (bitte ankreuzen):",
     "O 20 % Anzahlung - ohne Abzug oder",
     "O 30 % Anzahlung abzüglich 1 % Skonto vom Anzahlungsbetrag oder",
     "O 40 % Anzahlung abzüglich 2 % Skonto vom Anzahlungsbetrag",
-    "Für die Anzahlung wird eine Anzahlungsrechnung erstellt. Die Überweisung darf erst nach Erhalt dieser Rechnung erfolgen.",
-  ];
-
-  // SZ: Selbstzahler-Zahlungsbedingungen (100 % Skonto oder 50/50)
-  const PARA_sz_LINES = [
-    "Zahlungsbedingungen für den Selbstkostenanteil:",
-    "O 100 % sofort abzüglich 2 % Skonto oder",
-    "O 50 % sofort und 50 % nach Fertigstellung, ohne Abzug",
+    "Für die Anzahlung wird eine separate Rechnung erstellt. Die Zahlung bitte erst nach Erhalt dieser Rechnung unter Angabe der Rechnungsnummer im Verwendungszweck durchführen.",
   ];
 
   // Default: nichts anzeigen
