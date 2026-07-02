@@ -6968,6 +6968,7 @@ document.addEventListener("DOMContentLoaded", () => {
   addBtn?.addEventListener("click", () => {
     wrap.appendChild(makeItem(""));
     saveState();
+    window.updatePricing?.();
   });
 
   // Expose payload-based restore for global restore pipeline.
@@ -6979,12 +6980,23 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!liveWrap) return;
 
     if (!dw || !Array.isArray(dw.extraTasks)) {
+      // extraTasks absent from payload (old offer format) — preserve LS,
+      // rebuild DOM from it so manually entered tasks survive offer loads.
+      let lsVals = null;
+      try {
+        lsVals = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+      } catch {}
       liveWrap.innerHTML = "";
-      liveWrap.appendChild(makeItem(""));
-      saveState();
+      if (Array.isArray(lsVals) && lsVals.length) {
+        lsVals.forEach((v) => liveWrap.appendChild(makeItem(v)));
+      } else {
+        liveWrap.appendChild(makeItem(""));
+      }
+      // No saveState() — LS is already authoritative here
       return;
     }
 
+    // extraTasks explicitly set (including [] for reset) — DOM and LS both update
     liveWrap.innerHTML = "";
     if (dw.extraTasks.length === 0) {
       liveWrap.appendChild(makeItem(""));
