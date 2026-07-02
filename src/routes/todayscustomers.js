@@ -116,6 +116,17 @@ function clean(value) {
   return String(value ?? "").trim().replace(/^=+/, "").trim();
 }
 
+const HONORIFIC_MAP = {
+  HNR_DE_1: "Frau",
+  HNR_DE_2: "Herr",
+  "1": "Familie",
+};
+
+function mapHonorific(value) {
+  const id = clean(value);
+  return HONORIFIC_MAP[id] || "";
+}
+
 function getField(label, text) {
   const lines = String(text || "")
     .replace(/\r/g, "")
@@ -334,7 +345,7 @@ function mapContactToNormalized(contact, contactId = "") {
     contactId: clean(c.ID || contactId),
     contact: {
       bitrixContactId: clean(c.ID || contactId),
-      salutation: clean(c.HONORIFIC?.STATUS_ID || c.HONORIFIC || c.HONORIFIC_ID),
+      salutation: mapHonorific(c.HONORIFIC?.STATUS_ID || c.HONORIFIC || c.HONORIFIC_ID),
       firstName: clean(c.NAME),
       lastName: clean(c.LAST_NAME),
       company: clean(c.COMPANY_TITLE),
