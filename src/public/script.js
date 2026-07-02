@@ -12485,6 +12485,27 @@ function restoreKundendaten(k, offer) {
   if (k.partnerPflegegrad) setRadio("partnerPflegegrad", String(k.partnerPflegegrad));
   setByNameOrId("partnerKassenkundeName", k.partnerKassenkundeName);
 
+  // Preparation checklist (all offers)
+  setCheckboxByName("prep_terminBestaetigt", k.prep_terminBestaetigt === "Ja");
+  setCheckboxByName("prep_erstberatungsbogen", k.prep_erstberatungsbogen === "Ja");
+  setCheckboxByName("prep_visitenkarten", k.prep_visitenkarten === "Ja");
+  setCheckboxByName("prep_leistungsuebersicht", k.prep_leistungsuebersicht === "Ja");
+  setCheckboxByName("prep_mustervertrag", k.prep_mustervertrag === "Ja");
+
+  // AH-specific Kundendaten fields (data-offer="ah"): captured on save via
+  // FormData but need explicit restore here since this handler is an allow-list.
+  setByNameOrId("ah_versichertenr", k.ah_versichertenr);
+  setByNameOrId("ah_geburtsdatum", k.ah_geburtsdatum);
+  setByNameOrId("ah_mobilitaet", k.ah_mobilitaet);
+  setByNameOrId("ah_allergien", k.ah_allergien);
+  setByNameOrId("ah_demenz", k.ah_demenz);
+  setByNameOrId("ah_sprache", k.ah_sprache);
+  setByNameOrId("ah_sonstiges", k.ah_sonstiges);
+  setRadio("ah_alleinLebend", k.ah_alleinLebend);
+  setRadio("ah_haustiere", k.ah_haustiere);
+  setRadio("ah_schluessel", k.ah_schluessel);
+  setRadio("ah_bestehendeHilfe", k.ah_bestehendeHilfe);
+
   const kassenkundeWrap = document
     .getElementById("kassenkundeName")
     ?.closest(".field");
