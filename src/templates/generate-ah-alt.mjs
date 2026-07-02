@@ -501,14 +501,16 @@ function buildDocument() {
     p(run("Bei Rückfragen stehen wir Ihnen jederzeit gerne zur Verfügung.", { sz: "17" }), { after: 40 })
   );
   parts.push(
-    p(run("Wir bedanken uns für Ihr Vertrauen und freuen uns von Ihnen zu hören!", { sz: "17" }), {
-      after: 120,
-    })
+    p(
+      run("Wir bedanken uns für Ihr Vertrauen und freuen uns von Ihnen zu hören!", { sz: "17" }) +
+        `<w:r>${rPr({ sz: "17" })}<w:br/></w:r>`,
+      { after: 120 }
+    )
   );
   parts.push(
     p(
       run("Mit freundlichen Grüßen,", { sz: "17" }) +
-        `<w:r>${rPr({ sz: "17" })}<w:br/></w:r>`,
+        `<w:r>${rPr({ sz: "17" })}<w:br/><w:br/></w:r>`,
       { after: 20 }
     )
   );
