@@ -1,4 +1,4 @@
-import { buildTrayDimFilter, scoreTray } from '../../src/routes/trays.js';
+import { buildTrayDimFilter, scoreTray, isBadoluxTray, trayDisplayPrice } from '../../src/routes/trays.js';
 
 // Tray categories disagree on which physical side is "width": Hassmann/SLA
 // stores width >= length, Badolux/DW stores width <= length. A 120-footprint
@@ -30,4 +30,19 @@ test('two-axis matching keeps the max/min footprint form', () => {
 test('height filter is preserved', () => {
   const f = buildTrayDimFilter({ w: 120, l: null, h: 3 });
   expect(f.heightCm).toEqual({ $gte: 3 });
+});
+
+test('Badolux is detected by source or DW* productId', () => {
+  expect(isBadoluxTray({ productId: 'DW021', source: 'badolux' })).toBe(true);
+  expect(isBadoluxTray({ productId: 'DW021', source: '' })).toBe(true);
+  expect(isBadoluxTray({ productId: 'SLA12070', source: 'hassmann' })).toBe(false);
+});
+
+test('display price applies the Badolux discount so it matches the Kosten tab', () => {
+  // DW021 list price 310,80 € → Kosten shows 310.80 × (1 − 0.20) = 248,64 €.
+  expect(trayDisplayPrice({ productId: 'DW021', source: 'badolux', price: 310.8 }, 0.20)).toBe(248.64);
+});
+
+test('display price leaves Hassmann/SLA trays unchanged', () => {
+  expect(trayDisplayPrice({ productId: 'SLA12070', source: 'hassmann', price: 341.46 }, 0.20)).toBe(341.46);
 });

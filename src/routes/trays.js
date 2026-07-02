@@ -1,6 +1,7 @@
 // routes/trays.js
 import { Router } from "express";
 import Product from "../models/Product.js";
+import cfg from "../services/configService.js";
 
 const r = Router();
 
@@ -71,6 +72,23 @@ export function scoreTray(p, { w, l, h }) {
   return Math.sqrt(sum);
 }
 
+// Same rule as pricing.js: Badolux by source, or DW* productId.
+export function isBadoluxTray(p) {
+  return (
+    String(p.source || "").toLowerCase() === "badolux" ||
+    /^DW/i.test(String(p.productId || ""))
+  );
+}
+
+// Price to display in the suggestion cards — must match the Kosten tab, which
+// shows the tray line's unitPrice (net after the Badolux discount). Hassmann/SLA
+// trays are shown at list price; Badolux trays at list × (1 − discount).
+export function trayDisplayPrice(p, badoluxDiscount = 0.20) {
+  const base = Number(p.price) || 0;
+  if (!isBadoluxTray(p)) return base;
+  return Math.round(base * (1 - badoluxDiscount) * 100) / 100;
+}
+
 r.get("/suggest", async (req, res) => {
   try {
     const { w, l, h } = readQueryDims(req.query);
@@ -114,12 +132,14 @@ r.get("/suggest", async (req, res) => {
       },
     ).lean();
 
+    const badoluxDiscount = cfg.get("BU_BADOLUX_DISCOUNT", 0.20);
     const mapped = docs.map((p) => {
       const pid = String(p.productId || "");
       const isDW = /^DW/i.test(pid);
       const isSLA = /^SLA/i.test(pid);
       const isBudget = normSource(p.source) === "badolux";
-      return { ...p, score: scoreTray(p, { w, l, h }), isDW, isSLA, isBudget };
+      // Show the same price as the Kosten tab (net after Badolux discount).
+      return { ...p, price: trayDisplayPrice(p, badoluxDiscount), score: scoreTray(p, { w, l, h }), isDW, isSLA, isBudget };
     });
 
     const results = mapped
