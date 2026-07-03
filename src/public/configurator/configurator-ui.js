@@ -315,10 +315,29 @@ export function mountConfigurator(el, model, options = {}) {
       for (const line of cfg.lines) {
         const row = document.createElement("div");
         row.className = "dac-line";
-        row.innerHTML =
-          `<span class="dac-line-name">${line.component}</span>` +
-          `<span class="dac-line-art">${line.article.articleNumber}</span>` +
-          `<span class="dac-line-price">${euro(line.article.net)}</span>`;
+
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "dac-line-name";
+        nameSpan.textContent = line.article.displayName || line.component;
+        row.appendChild(nameSpan);
+
+        const artSpan = document.createElement("span");
+        artSpan.className = "dac-line-art";
+        artSpan.textContent = line.article.articleNumber;
+        row.appendChild(artSpan);
+
+        if (line.article.finishText) {
+          const finishSpan = document.createElement("span");
+          finishSpan.className = "dac-line-finish";
+          finishSpan.textContent = line.article.finishText;
+          row.appendChild(finishSpan);
+        }
+
+        const priceSpan = document.createElement("span");
+        priceSpan.className = "dac-line-price";
+        priceSpan.textContent = euro(line.article.net);
+        row.appendChild(priceSpan);
+
         list.appendChild(row);
       }
       const total = document.createElement("div");

@@ -3180,6 +3180,7 @@ function collectDuschabtrennungConfigurator(doc) {
       // avoiding the German-format ambiguity where "411.6" would parse to 4116.
       price: price,
       productId: ln.articleNumber || "",
+      finish: ln.finish || null,
     });
   }
   doc.duschabtrennung.quickAdd = qa;
@@ -10166,6 +10167,11 @@ window.renderAHKostenPreview = function renderAHKostenPreview() {
     // Avoid double-appending when label already includes the same [ID]
     if (base.includes(`[${pid}]`)) return base;
 
+    // Duschabtrennung (neu) configurator lines (Vigour/Badolux) show only the product
+    // name in Kosten — no article code. The code still travels with the line for
+    // pricing/restore/CSV export, it's just not rendered here.
+    if (line.source === "vigour_config") return base;
+
     // 1) Original rule: show ID for Hassmann quick-add (kept as-is)
     if (!/^HASS_/i.test(pid) && /Hassmann/i.test(base)) {
       return `${base} [${pid}]`;
@@ -10194,6 +10200,10 @@ function escapeHtml(s) {
   const HIDDEN_BRANDS_RE = /\b(VIGOUR|TRINNITY|BADOLUX)\b\s*/gi;
   function stripBrand(s) { return String(s).replace(HIDDEN_BRANDS_RE, "").trim(); }
 
+  // Kosten-Details: finish (Ausführung/Oberfläche) is collected on every Duschabtrennung
+  // (neu) line but not shown yet — flip this to true to display it once desired.
+  const SHOW_FINISH_IN_KOSTEN = false;
+
   function listLines(lines) {
     if (!Array.isArray(lines) || !lines.length)
       return '<div class="muted">Keine Positionen</div>';
@@ -10216,8 +10226,12 @@ function escapeHtml(s) {
           ? String(qtyNum)
           : qtyNum.toFixed(2).replace(/\.?0+$/, "").replace(".", ",");
         const unitText = l.unit ? ` ${l.unit}` : "";
+        const finishHTML =
+          SHOW_FINISH_IN_KOSTEN && l.finish
+            ? `<div style="font-size:11px;color:var(--muted)">${escapeHtml(l.finish)}</div>`
+            : "";
         return `
-      <div style="white-space:pre-line">${escapeHtml(stripBrand(decorateDALabel(l)))}</div>
+      <div style="white-space:pre-line">${escapeHtml(stripBrand(decorateDALabel(l)))}${finishHTML}</div>
       <div style="text-align:right">${qtyText}${unitText}</div>
       <div style="text-align:right">${euroC(l.unitPrice ?? 0)}</div>
       <div style="text-align:right; font-weight:600">${euroC(l.lineTotal ?? 0)}</div>
@@ -10614,6 +10628,8 @@ if (supportsOptional) {
         unitPrice: l.unitPrice,
         lineTotal: l.lineTotal,
         label: l.label,
+        source: l.source,
+        finish: l.finish,
       })),
     );
     const mat = data.materialsDisplayUI?.lines || data.materials?.lines || [];

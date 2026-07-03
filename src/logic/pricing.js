@@ -973,8 +973,12 @@ console.log("[REHA DEBUG] selections =", selections);
             KIND_TO_LABEL[kindUp] ||
             "Duschabtrennung (Hassmann)";
           const label = `- ${qty} Stk ${base}`;
+          // "config" = Duschabtrennung (neu) configurator lines (Vigour/Badolux):
+          // tagged with their own source so the Kosten UI can skip appending [articleNumber]
+          // to these (unlike Hassmann free-text rows, which keep it).
+          const isConfig = kindUp === "CONFIG";
 
-          add(pid, qty, label, price, null);
+          add(pid, qty, label, price, isConfig ? "vigour_config" : null, isConfig ? { finish: x.finish || null } : null);
         }
       }
     } catch (e) {
@@ -1114,6 +1118,7 @@ color: metaColor || null,
   label: finalLabel,                 // still available everywhere
   labelLines: [label, ...infoLines],  // ✅ NEW: UI can render true multiline easily
   source: l.source || null,
+  finish: l?.meta?.finish || null,
   docxHide: !!l.docxHide,
 };
 
