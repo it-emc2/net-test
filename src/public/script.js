@@ -1913,6 +1913,19 @@ function renderTravelCostDebug() {
     </div>
   `;
 
+  const employeeSection = (title, rows, subtotal) => `
+    <div class="az-debug-section">
+      <div class="az-debug-section-title">${title}</div>
+      <div class="az-travel-debug-grid">
+        ${rows.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("")}
+      </div>
+      <div class="az-debug-subtotal">
+        <span>Zwischensumme</span>
+        <strong>${subtotal}</strong>
+      </div>
+    </div>
+  `;
+
   if (isBwt) {
     const workCost = laborHours * 79.5;
     const travelCost = travelHours * 79.5;
@@ -1936,10 +1949,15 @@ function renderTravelCostDebug() {
     return;
   }
 
-  const workCost = laborHours * 2 * laborRate;
-  const travelDriverCost = travelHours * laborRate;
-  const travelSecondWorkerCost = travelHours * secondWorkerRate;
-  const totalCost = workCost + travelDriverCost + travelSecondWorkerCost;
+  const employee1Work = laborHours * laborRate;
+  const employee1Travel = travelHours * laborRate;
+  const employee1Total = employee1Work + employee1Travel;
+
+  const employee2Work = laborHours * laborRate;
+  const employee2Travel = travelHours * secondWorkerRate;
+  const employee2Total = employee2Work + employee2Travel;
+
+  const totalCost = employee1Total + employee2Total;
 
   const extraHint =
     offer === "bu"
@@ -1955,11 +1973,22 @@ function renderTravelCostDebug() {
       ["Voller Satz / Fahrer", `${euro(laborRate)}/h`],
       ["2. Mitarbeiter Reisezeit", `${euro(secondWorkerRate)}/h`],
     ])}
-    ${section("Kosten", [
-      ["Arbeitskosten (2 Mitarbeiter)", euro(workCost)],
-      ["Reisezeit Fahrer", euro(travelDriverCost)],
-      ["Reisezeit 2. Mitarbeiter", euro(travelSecondWorkerCost)],
-    ])}
+    ${employeeSection(
+      "Mitarbeiter 1 (Fahrer)",
+      [
+        ["Arbeitszeit", euro(employee1Work)],
+        ["Reisezeit", euro(employee1Travel)],
+      ],
+      euro(employee1Total),
+    )}
+    ${employeeSection(
+      "Mitarbeiter 2",
+      [
+        ["Arbeitszeit", euro(employee2Work)],
+        ["Reisezeit", euro(employee2Travel)],
+      ],
+      euro(employee2Total),
+    )}
     <div class="az-debug-total">
       <span>Gesamtkosten aus Zeiten</span>
       <strong>${euro(totalCost)}</strong>

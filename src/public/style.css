@@ -6447,6 +6447,25 @@ details.az-group[open] > summary.az-group-title::before {
   font-size: 1.05rem;
 }
 
+.az-debug-subtotal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  font-weight: 700;
+}
+
+.az-debug-subtotal span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.az-debug-subtotal strong {
+  color: var(--text);
+}
+
 @media (max-width: 760px) {
   .az-groups {
     grid-template-columns: 1fr;
