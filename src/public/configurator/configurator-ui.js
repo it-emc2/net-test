@@ -316,8 +316,11 @@ export function mountConfigurator(el, model, options = {}) {
         const row = document.createElement("div");
         row.className = "dac-line";
         row.innerHTML =
-          `<span class="dac-line-name">${line.component}</span>` +
+          `<span class="dac-line-name">${line.article.displayName || line.component}</span>` +
           `<span class="dac-line-art">${line.article.articleNumber}</span>` +
+          (line.article.finishText
+            ? `<span class="dac-line-finish">${line.article.finishText}</span>`
+            : "") +
           `<span class="dac-line-price">${euro(line.article.net)}</span>`;
         list.appendChild(row);
       }

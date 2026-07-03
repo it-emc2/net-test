@@ -72,9 +72,10 @@ if (mountEl) {
     getLines() {
       if (!resolved) return [];
       return resolved.lines.map((l) => ({
-        label: `${l.component} (${l.article.articleNumber})`,
+        label: l.article.displayName || l.component,
         articleNumber: l.article.articleNumber,
         net: l.article.net,
+        finish: l.article.finishText || null,
       }));
     },
     getState() {
