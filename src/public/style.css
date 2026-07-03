@@ -790,6 +790,8 @@ a.btn {
 
 .section-block {
   margin-top: 1.25rem;
+  border: none;
+  padding: 0;
 }
 
 .section-title {
@@ -928,6 +930,137 @@ a.btn {
 .wt-group__body {
   padding: 0.85rem;
   background: var(--card);
+}
+
+/* ---------- Work-task group headers: title + selection-count badge ---------- */
+.wt-extra-header,
+.wt-group-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wt-extra-count[hidden],
+.wt-group-count[hidden] {
+  display: none;
+}
+
+.wt-extra-count,
+.wt-group-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+#dw-extra-tasks.wt-extra-fieldset {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+#dw-extra-tasks .wt-extra-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+#dw-extra-tasks .wt-extra-item.da-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--card);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#dw-extra-tasks .wt-extra-item:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+#dw-extra-tasks .wt-extra-item input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--card-foreground);
+  font: inherit;
+  padding: 0.2rem 0;
+}
+
+#dw-extra-tasks .wt-extra-item input[type="text"]:focus {
+  outline: none;
+}
+
+#dw-extra-tasks .wt-extra-remove.da-remove {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+#dw-extra-tasks .wt-extra-remove.da-remove:hover,
+#dw-extra-tasks .wt-extra-remove.da-remove:focus-visible {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+#dw-extra-tasks .wt-extra-add.da-add {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.85rem;
+  border: 1px dashed var(--border);
+  border-radius: 0.65rem;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+#dw-extra-tasks .wt-extra-add.da-add:hover,
+#dw-extra-tasks .wt-extra-add.da-add:focus-visible {
+  background: var(--card-hover);
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+#dw-extra-tasks .da-help {
+  display: block;
+  margin-top: 0.6rem;
+}
+
+.wt-extra-empty {
+  color: var(--muted-foreground);
+  font-size: 0.85rem;
+  font-style: italic;
+  margin: 0 0 0.6rem;
 }
 
 /* ---------- Aufschlag panel ---------- */
