@@ -1148,10 +1148,89 @@ a.btn {
   font-weight: 600;
 }
 
-#toggleSonderaufschlag.is-active {
+#toggleSonderaufschlag.is-active,
+#toggleZielpreis.is-active {
   background: var(--accent-weak) !important;
   border-color: var(--accent) !important;
   color: var(--accent-strong) !important;
+}
+
+/* ---------- Aufschlag: unified single-value control ---------- */
+.aufschlag-value-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.aufschlag-value-box input[type="text"] {
+  width: 72px;
+  text-align: right;
+  font-weight: 600;
+}
+
+.aufschlag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.aufschlag-chip {
+  font-size: 0.9rem;
+  padding: 7px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--input-border);
+  background: var(--panel);
+  color: var(--foreground);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.aufschlag-chip:hover {
+  border-color: var(--accent);
+}
+
+.aufschlag-chip.active {
+  border-color: var(--accent);
+  background: var(--accent-weak);
+  color: var(--accent-strong);
+}
+
+#aufschlagBody > .sonderaufschlag-slider {
+  width: 100%;
+  margin: 2px 0 4px;
+}
+
+.aufschlag-warn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: rgba(234, 179, 8, 0.12);
+  color: #92400e;
+  border: 1px solid rgba(234, 179, 8, 0.35);
+}
+.aufschlag-warn[hidden] {
+  display: none;
+}
+
+.aufschlag-zielpreis {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* The .sonderaufschlag-auto-row display:flex would otherwise beat [hidden]. */
+#zielpreisWrap {
+  margin-top: 12px;
+}
+#zielpreisWrap[hidden] {
+  display: none;
 }
 
 /* ---------- Checkbox pill ---------- */
