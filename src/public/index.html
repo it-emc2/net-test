@@ -6034,13 +6034,12 @@ button.dm-btn-danger:focus-visible {
 
 
       <section class="card page" id="page-Rabatt" hidden>
-        <h2 style="margin:0 0 12px;">Rabatt / Aufschlag</h2>
+        <h2 style="margin:0 0 12px;">Übersicht</h2>
 
         <form id="form-rabatt" autocomplete="on">
-          <!-- Top 5 values (auto-filled from JS) -->
+          <!-- Übersicht: totals summary (auto-filled from JS) -->
           <div class="full">
-            <div class="subheader">Summen</div>
-            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;">
+            <div style="display:grid;grid-template-columns:1fr auto;row-gap:14px;column-gap:16px;align-items:center;font-size:1.05rem;">
               <div>Material</div>
               <div id="rb-material">0,00 €</div>
               <div>Arbeit</div>
@@ -6059,14 +6058,10 @@ button.dm-btn-danger:focus-visible {
               <div id="rb-total">0,00 €</div>
             </div>
           </div>
-          <div id="rb-empty-note" class="muted" style="display:none; margin-top:8px;">
-            Keine Rabatte oder Boni anwendbar.
-          </div>
-
           <!-- Aufschlag selection is relocated here for Badumbau only (see updateOfferSpecificSections).
                data-offer="bu" hides the heading+mount for other offers (e.g. BWT) where the
                Aufschlag section stays in Kundendaten and this mount would be empty. -->
-          <div class="full subheader" data-offer="bu" style="margin-top:16px;">Aufschlag</div>
+          <h3 class="full" data-offer="bu" style="margin:20px 0 8px;">Aufschlag</h3>
           <div id="aufschlagRabattMount" data-offer="bu" class="full" style="margin-top:8px;"></div>
 
           <!-- Width sizer: takes zero height but preserves the same width as the slider row -->
@@ -6079,9 +6074,24 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
 
-          <!-- Rabatt block: styled as its own panel, matching the Aufschlag panel above -->
-          <div class="full subheader" style="margin-top:16px;">Rabatt</div>
-          <div class="full aufschlag-panel" style="margin-top:8px;">
+          <!-- Rabatt block: plain (no tinted panel) -->
+          <h3 id="rb-rabatt-heading" class="full" style="margin:20px 0 8px;">Rabatt</h3>
+
+          <!-- Opt-in: add a discount or not. Default = Kein Rabatt. -->
+          <div class="full field">
+            <div class="radio-group" style="display:flex; gap:12px; flex-wrap:wrap;">
+              <label class="radio-pill"><input type="radio" name="rb-add-rabatt" value="nein" checked /><span
+                  class="circle"></span><span>Kein Rabatt</span></label>
+              <label class="radio-pill"><input type="radio" name="rb-add-rabatt" value="ja" /><span
+                  class="circle"></span><span>Rabatt hinzufügen</span></label>
+            </div>
+          </div>
+
+          <div class="full" id="rb-rabatt-controls" hidden aria-hidden="true" style="display:none;">
+
+            <div id="rb-empty-note" class="muted" style="display:none; margin-top:8px;">
+              Keine Rabatte oder Boni anwendbar.
+            </div>
 
             <!-- Rabatt auf Materialkosten (slider/progress) -->
             <div class="full field">
