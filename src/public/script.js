@@ -18577,6 +18577,285 @@ window.addEventListener("offerflow:changed", () => {
 })();
 // #endregion
 // =================================================================
+// =================================================================
+// Optional-UX: category cards open a shared modal dialog (instead of
+// revealing panels inline down the page), in-panel search for large
+// product lists, sticky selection summary with removable chips.
+// Purely additive UI layer on top of initOptionalMenus — it never
+// touches pricing/reset logic. Each menu_* panel is physically moved
+// into the modal body once at init; all existing lookups elsewhere
+// use getElementById/querySelector scoped to the panel itself, so
+// they keep working regardless of where the panel lives in the DOM.
+// The modal stays INSIDE #form-optional so formToObject()/
+// '#form-optional input' queries still see the reparented panels.
+// =================================================================
+function initOptionalUX() {
+  const form = document.getElementById("form-optional");
+  if (!form || form.dataset.uxInit === "1") return;
+  form.dataset.uxInit = "1";
+
+  const CAT_MENU = {
+    cat_SHOWER: "menu_SHOWER",
+    cat_GRAB: "menu_GRAB",
+    cat_FOLD: "menu_FOLD",
+    cat_BASIN: "menu_BASIN",
+    cat_BASIN_TAP: "menu_BASIN_TAP",
+    cat_THERMO: "menu_THERMO",
+    cat_SEAT: "menu_SEAT",
+    cat_METER: "menu_METER",
+    cat_REHA: "menu_REHA",
+    cat_RAMPE: "menu_RAMPE",
+    cat_WANNE: "menu_WANNE",
+    cat_WC: "menu_WC",
+    cat_WESGH: "menu_WESGH",
+    cat_SONDER: "menu_SONDER",
+  };
+  const SEARCH_MIN_ITEMS = 8;
+
+  const catName = (catId) => {
+    const cb = document.getElementById(catId);
+    const cap = cb?.closest("label.image-check")?.querySelector(".caption");
+    return (cap?.textContent || catId).trim();
+  };
+
+  const isActive = (catId) => !!document.getElementById(catId)?.checked;
+
+  const menuCount = (menuId) => {
+    const menu = document.getElementById(menuId);
+    if (!menu) return 0;
+    if (menuId === "menu_SONDER") {
+      return Array.from(menu.querySelectorAll(".da-item")).filter(
+        (row) => (row.querySelector(".opt-name")?.value || "").trim()
+      ).length;
+    }
+    return menu.querySelectorAll('input[type="checkbox"]:checked').length;
+  };
+
+  // ---- modal: one shared dialog, panels reparented into its body ----
+  const modal = document.getElementById("optCategoryModal");
+  const modalBody = document.getElementById("optModalBody");
+  const modalTitle = document.getElementById("optModalTitle");
+  const modalDialog = modal?.querySelector(".opt-modal-dialog");
+  const modalClose = modal?.querySelector(".opt-modal-close");
+  const modalDone = modal?.querySelector(".opt-modal-done");
+  const modalBackdrop = modal?.querySelector(".opt-modal-backdrop");
+  const badges = {};
+  let currentCatId = null;
+  let lastFocused = null; // card that opened the modal, to restore focus on close
+
+  function openModalFor(catId) {
+    const menu = document.getElementById(CAT_MENU[catId]);
+    if (!modal || !modalBody || !menu) return;
+    lastFocused = document.activeElement;
+    modalBody
+      .querySelectorAll(".opt-modal-panel.is-current")
+      .forEach((el) => el.classList.remove("is-current"));
+    menu.classList.add("is-current");
+    if (modalTitle) modalTitle.textContent = catName(catId);
+    currentCatId = catId;
+    modal.hidden = false;
+    // Move keyboard focus into the dialog (announces title to screen readers).
+    modalDialog?.focus();
+  }
+
+  function closeModal() {
+    if (!modal || modal.hidden) return;
+    const catId = currentCatId;
+    modal.hidden = true;
+    if (catId) {
+      document.getElementById(CAT_MENU[catId])?.classList.remove("is-current");
+    }
+    currentCatId = null;
+    // Leaving the dialog with nothing picked clears the phantom selection
+    // instead of leaving the category checked-but-empty.
+    if (catId) {
+      const cat = document.getElementById(catId);
+      if (cat?.checked && menuCount(CAT_MENU[catId]) === 0) {
+        cat.checked = false;
+        cat.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }
+    scheduleRefresh();
+    // Return focus to the card that opened the modal.
+    if (lastFocused && typeof lastFocused.focus === "function") {
+      lastFocused.focus();
+    }
+    lastFocused = null;
+  }
+
+  modalClose?.addEventListener("click", closeModal);
+  modalDone?.addEventListener("click", closeModal);
+  modalBackdrop?.addEventListener("click", closeModal);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal && !modal.hidden) closeModal();
+  });
+
+  function refreshBadge(catId) {
+    const badge = badges[catId];
+    if (!badge) return;
+    const active = isActive(catId);
+    const n = active ? menuCount(CAT_MENU[catId]) : 0;
+    badge.textContent = `✓ ${n}`;
+    badge.classList.toggle("has-sel", n > 0);
+  }
+
+  function refreshAllBadges() {
+    Object.keys(badges).forEach(refreshBadge);
+  }
+
+  Object.entries(CAT_MENU).forEach(([catId, menuId]) => {
+    const cat = document.getElementById(catId);
+    const menu = document.getElementById(menuId);
+    if (!cat || !menu || !modalBody) return;
+
+    // Move the whole panel into the modal — same node, same listeners,
+    // just a different parent. IDs stay globally unique/lookup-able.
+    menu.classList.add("opt-modal-panel");
+    modalBody.appendChild(menu);
+
+    const label = cat.closest("label.image-check");
+    if (!label) return;
+
+    const badge = document.createElement("span");
+    badge.className = "opt-cat-badge";
+    label.appendChild(badge);
+    badges[catId] = badge;
+
+    // Intercept the native label→checkbox toggle: clicking a card should
+    // open its options in the modal, not just flip the box inline.
+    label.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (!cat.checked) {
+        cat.checked = true;
+        cat.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      openModalFor(catId); // re-clicking an already-configured card edits it
+    });
+
+    cat.addEventListener("change", () => {
+      if (!cat.checked && currentCatId === catId) closeModal();
+      refreshBadge(catId);
+    });
+  });
+
+  // ---- in-panel search for large product lists ----
+  Object.values(CAT_MENU).forEach((menuId) => {
+    const menu = document.getElementById(menuId);
+    const grid = menu?.querySelector(".opt-grid");
+    if (!grid) return;
+    const items = grid.querySelectorAll(".opt-item");
+    if (items.length < SEARCH_MIN_ITEMS) return;
+
+    const input = document.createElement("input");
+    input.type = "search";
+    input.className = "opt-panel-search";
+    input.placeholder = `Suchen… (${items.length} Produkte)`;
+    input.setAttribute("aria-label", "Produkte filtern");
+    grid.parentNode.insertBefore(input, grid);
+
+    const empty = document.createElement("div");
+    empty.className = "opt-search-empty";
+    empty.hidden = true;
+    empty.textContent = "Keine Produkte gefunden.";
+    grid.parentNode.insertBefore(empty, grid.nextSibling);
+
+    input.addEventListener("input", () => {
+      const q = input.value.trim().toLowerCase();
+      let visible = 0;
+      items.forEach((item) => {
+        const hit = !q || (item.textContent || "").toLowerCase().includes(q);
+        item.classList.toggle("opt-search-hidden", !hit);
+        if (hit) visible++;
+      });
+      empty.hidden = visible > 0;
+    });
+  });
+
+  // ---- sticky selection summary with removable chips ----
+  const bar = document.getElementById("optSelectionBar");
+  const chipsWrap = document.getElementById("optSelectionChips");
+
+  function makeChip(label, group, onRemove) {
+    const chip = document.createElement("span");
+    chip.className = "opt-chip";
+    chip.title = `${group}: ${label}`;
+    const txt = document.createElement("span");
+    txt.className = "opt-chip-label";
+    txt.textContent = label;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.setAttribute("aria-label", `${label} entfernen`);
+    btn.textContent = "×";
+    btn.addEventListener("click", () => {
+      onRemove();
+      scheduleRefresh();
+    });
+    chip.append(txt, btn);
+    return chip;
+  }
+
+  function renderSelectionBar() {
+    if (!bar || !chipsWrap) return;
+    chipsWrap.textContent = "";
+    let total = 0;
+    Object.entries(CAT_MENU).forEach(([catId, menuId]) => {
+      const menu = document.getElementById(menuId);
+      if (!menu || !isActive(catId)) return;
+      const group = catName(catId);
+      if (menuId === "menu_SONDER") {
+        menu.querySelectorAll(".da-item").forEach((row) => {
+          const name = (row.querySelector(".opt-name")?.value || "").trim();
+          if (!name) return;
+          total++;
+          chipsWrap.appendChild(
+            makeChip(name, group, () =>
+              row.querySelector(".da-remove")?.click()
+            )
+          );
+        });
+        return;
+      }
+      menu
+        .querySelectorAll('input[type="checkbox"]:checked')
+        .forEach((cb) => {
+          const cap = cb
+            .closest("label.image-check")
+            ?.querySelector(".caption");
+          const name = (cap?.textContent || cb.value || cb.id).trim();
+          if (!name) return;
+          total++;
+          chipsWrap.appendChild(
+            makeChip(name, group, () => {
+              cb.checked = false;
+              cb.dispatchEvent(new Event("change", { bubbles: true }));
+            })
+          );
+        });
+    });
+    bar.hidden = total === 0;
+    const head = bar.querySelector(".opt-selbar-head");
+    if (head) head.textContent = `Ausgewählte Optionen (${total})`;
+  }
+
+  // ---- shared refresh on any interaction in the Optional form ----
+  let refreshTimer = null;
+  function scheduleRefresh() {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
+      refreshAllBadges();
+      renderSelectionBar();
+    }, 60);
+  }
+  form.addEventListener("change", scheduleRefresh);
+  form.addEventListener("input", scheduleRefresh);
+  form.addEventListener("click", (e) => {
+    if (e.target.closest(".da-add, .da-remove")) scheduleRefresh();
+  });
+
+  refreshAllBadges();
+  renderSelectionBar();
+}
+
 // #region 13. GLOBAL EVENT LISTENERS (The Footer)
 // =================================================================
 
@@ -18602,6 +18881,7 @@ document.addEventListener("DOMContentLoaded", () => {
   safeInit("initBasinAutoAccessories", typeof initBasinAutoAccessories !== "undefined" ? initBasinAutoAccessories : null);
   safeInit("wireDAQtyAutoFill", wireDAQtyAutoFill);
   safeInit("initOptionalSonderprodukte", initOptionalSonderprodukte);
+  safeInit("initOptionalUX", typeof initOptionalUX !== "undefined" ? initOptionalUX : null);
 
   // ✅ these two control what you're missing in the screenshot
   safeInit("initBathtubSearch", initBathtubSearch);

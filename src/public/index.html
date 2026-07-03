@@ -1070,6 +1070,209 @@
       gap: 8px;
     }
 
+    /* ── Optional-UX: Kategorie-Modal, Karten-Badge, Panel-Suche, Auswahl-Übersicht ── */
+    .opt-cat-badge {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 2;
+      display: none;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: var(--accent-strong);
+      color: #fff;
+      font-size: 0.78em;
+      font-weight: 600;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      pointer-events: none;
+    }
+
+    .opt-cat-badge.has-sel {
+      display: inline-flex;
+    }
+
+    label.image-check {
+      position: relative;
+    }
+
+    .opt-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .opt-modal[hidden] {
+      display: none !important;
+    }
+
+    .opt-modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.55);
+    }
+
+    .opt-modal-dialog {
+      position: relative;
+      z-index: 1;
+      width: min(920px, 100%);
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .opt-modal-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      flex: 0 0 auto;
+    }
+
+    .opt-modal-title {
+      font-weight: 700;
+      font-size: 1.05em;
+    }
+
+    .opt-modal-close {
+      margin-left: auto;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: 1.4em;
+      line-height: 1;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 8px;
+    }
+
+    .opt-modal-close:hover,
+    .opt-modal-close:focus-visible {
+      background: var(--accent-weak);
+      color: var(--accent-strong);
+    }
+
+    .opt-modal-body {
+      padding: 16px 20px 20px;
+      overflow-y: auto;
+      flex: 1 1 auto;
+    }
+
+    .opt-modal-foot {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      flex: 0 0 auto;
+    }
+
+    .opt-modal-panel {
+      display: none;
+    }
+
+    .opt-modal-panel.is-current {
+      display: block;
+    }
+
+    .opt-panel-search {
+      display: block;
+      width: 100%;
+      max-width: 340px;
+      margin: 0 0 12px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font: inherit;
+      background: var(--panel);
+      color: var(--text);
+    }
+
+    .opt-panel-search:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--ring);
+    }
+
+    .opt-search-hidden {
+      display: none !important;
+    }
+
+    .opt-search-empty {
+      color: var(--muted);
+      font-size: 0.9em;
+      padding: 6px 2px;
+    }
+
+    #optSelectionBar {
+      position: sticky;
+      top: 8px;
+      z-index: 30;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    #optSelectionBar .opt-selbar-head {
+      font-size: 0.85em;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .opt-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .opt-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 260px;
+      padding: 4px 6px 4px 10px;
+      border-radius: 999px;
+      background: var(--accent-weak);
+      color: var(--accent-strong);
+      font-size: 0.85em;
+    }
+
+    .opt-chip .opt-chip-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .opt-chip button {
+      border: none;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font-size: 1em;
+      line-height: 1;
+      padding: 2px 5px;
+      border-radius: 50%;
+    }
+
+    .opt-chip button:hover {
+      background: rgba(0, 0, 0, 0.1);
+    }
+
     /* ── Multi-image carousel inside an opt-item tile ── */
     .img-carousel {
       position: relative;
@@ -4930,9 +5133,31 @@ button.dm-btn-danger:focus-visible {
       <section class="card page" id="page-Optional" hidden>
         <h2 style="margin: 0 0 12px">Optional</h2>
 
+        <div id="optSelectionBar" hidden>
+          <div class="opt-selbar-head">Ausgewählte Optionen</div>
+          <div class="opt-chips" id="optSelectionChips"></div>
+        </div>
+
         <form id="form-optional">
+          <!-- Lives inside the form (not before it) so every #form-optional
+               input/formToObject() query still sees the reparented menu_*
+               panels once they're moved into #optModalBody. -->
+          <div id="optCategoryModal" class="opt-modal" hidden>
+            <div class="opt-modal-backdrop"></div>
+            <div class="opt-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="optModalTitle" tabindex="-1">
+              <div class="opt-modal-head">
+                <span class="opt-modal-title" id="optModalTitle"></span>
+                <button type="button" class="opt-modal-close" aria-label="Schließen">×</button>
+              </div>
+              <div class="opt-modal-body" id="optModalBody"></div>
+              <div class="opt-modal-foot">
+                <button type="button" class="opt-modal-done">Fertig</button>
+              </div>
+            </div>
+          </div>
+
           <div class="full field">
-            <div class="subheader">
+            <div class="section-title">
               Auszuführende Arbeiten (Mehrfachauswahl)
             </div>
             <div id="optCategories" style="display: flex; gap: 14px; flex-wrap: wrap">
@@ -4974,7 +5199,7 @@ button.dm-btn-danger:focus-visible {
               </label>
               <label class="image-check">
                 <input type="checkbox" id="cat_SEAT" />
-                <span class="img-wrap"><img src="./assets/CLPESDH.jpg" alt="Einbau einer Duschhocker " /></span>
+                <span class="img-wrap"><img src="./assets/78090000.jpg" alt="Duschhocker mit Soft-Drehsitz und Ablage" /></span>
                 <span class="caption">Duschhocker </span>
               </label>
               <label class="image-check">
