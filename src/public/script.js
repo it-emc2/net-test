@@ -10255,6 +10255,9 @@ function escapeHtml(s) {
     .replace(/'/g, "&#39;");
 }
 
+  const HIDDEN_BRANDS_RE = /\b(VIGOUR|TRINNITY|BADOLUX)\b\s*/gi;
+  function stripBrand(s) { return String(s).replace(HIDDEN_BRANDS_RE, "").trim(); }
+
   function listLines(lines) {
     if (!Array.isArray(lines) || !lines.length)
       return '<div class="muted">Keine Positionen</div>';
@@ -10278,7 +10281,7 @@ function escapeHtml(s) {
           : qtyNum.toFixed(2).replace(/\.?0+$/, "").replace(".", ",");
         const unitText = l.unit ? ` ${l.unit}` : "";
         return `
-      <div style="white-space:pre-line">${escapeHtml(decorateDALabel(l))}</div>
+      <div style="white-space:pre-line">${escapeHtml(stripBrand(decorateDALabel(l)))}</div>
       <div style="text-align:right">${qtyText}${unitText}</div>
       <div style="text-align:right">${euroC(l.unitPrice ?? 0)}</div>
       <div style="text-align:right; font-weight:600">${euroC(l.lineTotal ?? 0)}</div>
