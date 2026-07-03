@@ -4222,13 +4222,26 @@ button.dm-btn-danger:focus-visible {
       max-width: calc((100% - 14px) / 2);
     }
   }
+  .dac-supplier label { margin: 0; padding: 6px 22px; text-align: center; transition: background .12s, color .12s; color: var(--muted,#667085); }
+  .dac-supplier input:checked + span { color: #fff; }
+  .dac-supplier label:has(input:checked) { background: var(--accent,#2563eb); }
 </style>
 <section class="card page" id="page-DuschabtrennungNeu" hidden>
-  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px;">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; flex-wrap:wrap;">
     <h2 style="margin:0;">Duschabtrennung (neu)</h2>
+    <div class="dac-supplier" role="radiogroup" aria-label="Hersteller" style="display:inline-flex; align-items:center; border:1px solid var(--border,#d0d5dd); border-radius:8px; overflow:hidden;">
+      <label style="cursor:pointer; font-size:14px;">
+        <input type="radio" name="dac-supplier" value="vigour" checked style="position:absolute; opacity:0; pointer-events:none;">
+        <span>VIGOUR</span>
+      </label>
+      <label style="cursor:pointer; font-size:14px; border-left:1px solid var(--border,#d0d5dd);">
+        <input type="radio" name="dac-supplier" value="badolux" style="position:absolute; opacity:0; pointer-events:none;">
+        <span>BADOLUX</span>
+      </label>
+    </div>
   </div>
   <p class="section-subtitle" style="margin:0 0 18px;">
-    VIGOUR Duschabtrennung konfigurieren. Die abgeschlossene Konfiguration wird mit
+    Duschabtrennung konfigurieren. Die abgeschlossene Konfiguration wird mit
     Netto-Preisen automatisch dem Angebot hinzugefügt.
   </p>
 

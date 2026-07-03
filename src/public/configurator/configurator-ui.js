@@ -235,7 +235,8 @@ export function mountConfigurator(el, model, options = {}) {
 
       const blbl = document.createElement("div");
       blbl.className = "dac-sizelabel";
-      blbl.textContent = "Breite (mm)";
+      // Vigour: "Breite (mm)"; badolux overrides via model.sizeAxisLabel ("Maß (cm)").
+      blbl.textContent = model.sizeAxisLabel || "Breite (mm)";
       group.appendChild(blbl);
       const bwrap = document.createElement("div");
       bwrap.className = "dac-grid dac-grid-sizes";
