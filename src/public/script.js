@@ -2598,7 +2598,7 @@ function updateSidebarForOffer() {
     ah: "AH",
     DuschabtrennungNeu: "Duschabtrennung (neu)",
     // Rabatt page only exists in the Badumbau flow, so this rename is bu-only.
-    Rabatt: "Rabatt / Aufschlag",
+    Rabatt: "Übersicht",
   };
 
   normalPages.forEach((pageId) => {
@@ -3981,13 +3981,18 @@ function buildPayload() {
     payload.Kundendaten.pflegekasseEmc2Antrag = "";
   }
 
+  const rabattEnabled =
+    document.querySelector('input[name="rb-add-rabatt"]:checked')?.value === "ja";
   const pct = parseFloat(document.getElementById("rb-material-discount")?.value || "0");
   payload.rabatt = {
     ...payload.rabatt,
-    materialDiscountPct: isFinite(pct) ? pct / 100 : 0,
-    bonus300: !!document.getElementById("rb-bonus-300")?.checked,
-    bonusGrab: !!document.getElementById("rb-bonus-grab")?.checked,
-    showFreeGrabInMaterial: !!document.getElementById("rb-show-free-grab")?.checked,
+    rabattEnabled,
+    // When "Kein Rabatt" is selected, force everything to zero regardless of stale DOM.
+    materialDiscountPct: rabattEnabled && isFinite(pct) ? pct / 100 : 0,
+    bonus300: rabattEnabled && !!document.getElementById("rb-bonus-300")?.checked,
+    bonusGrab: rabattEnabled && !!document.getElementById("rb-bonus-grab")?.checked,
+    showFreeGrabInMaterial:
+      rabattEnabled && !!document.getElementById("rb-show-free-grab")?.checked,
   };
 
   payload.offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
@@ -12182,6 +12187,19 @@ function restoreRabatt(r) {
   setCheckboxById("rb-bonus-grab", !!r.bonusGrab);
   setCheckboxById("rb-show-free-grab", !!r.showFreeGrabInMaterial);
   syncShowFreeGrabRowVisibility();
+
+  // "Rabatt hinzufügen?" toggle: enabled if the offer had any discount/bonus,
+  // or an explicit rabattEnabled flag was saved.
+  const enabled =
+    !!r.rabattEnabled ||
+    (Number(r.materialDiscountPct) || 0) > 0 ||
+    !!r.bonus300 ||
+    !!r.bonusGrab;
+  const rr = document.querySelector(
+    `input[name="rb-add-rabatt"][value="${enabled ? "ja" : "nein"}"]`,
+  );
+  if (rr) rr.checked = true;
+  window.__applyRabattToggle?.();
 }
 
 function restoreBwt(bwt) {
@@ -14711,9 +14729,9 @@ window.setPricingData = function setPricingData(data) {
         : key === "kk" || key === "kassenkunde"
           ? "kassenkunde"
           : "";
-    const h2 = document.querySelector("#page-rabatt h2");
-    if (h2) {
-      h2.textContent =
+    const rabattHeading = document.getElementById("rb-rabatt-heading");
+    if (rabattHeading) {
+      rabattHeading.textContent =
         norm === "selbstzahler"
           ? "Rabatt für Selbstzahler"
           : norm === "kassenkunde"
@@ -14851,6 +14869,60 @@ window.setPricingData = function setPricingData(data) {
 };
 
 // Show discount slider only for: KK + Aufschlag 50%
+// "Rabatt hinzufügen? Kein Rabatt / Rabatt hinzufügen" opt-in toggle.
+// Layered on top of the automatic KK + Aufschlag>=50% gate for the slider:
+// "Kein Rabatt" hides all discount controls and zeroes their values.
+(function initRabattToggle() {
+  const controls = document.getElementById("rb-rabatt-controls");
+  const radios = Array.from(
+    document.querySelectorAll('input[name="rb-add-rabatt"]'),
+  );
+  if (!controls || !radios.length) return;
+
+  const isEnabled = () =>
+    document.querySelector('input[name="rb-add-rabatt"]:checked')?.value === "ja";
+
+  function showControls(on) {
+    controls.hidden = !on;
+    controls.setAttribute("aria-hidden", String(!on));
+    controls.style.display = on ? "" : "none";
+  }
+
+  function resetRabattValues() {
+    const slider = document.getElementById("rb-material-discount");
+    if (slider && parseFloat(slider.value || "0") !== 0) {
+      slider.value = "0";
+      slider.dispatchEvent(new Event("input", { bubbles: true }));
+      slider.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    ["rb-bonus-300", "rb-bonus-grab", "rb-show-free-grab"].forEach((id) => {
+      const cb = document.getElementById(id);
+      if (cb && cb.checked) {
+        cb.checked = false;
+        cb.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+  }
+
+  function apply({ reset = true } = {}) {
+    const on = isEnabled();
+    showControls(on);
+    if (!on && reset && !window.__restoring) resetRabattValues();
+  }
+
+  radios.forEach((r) =>
+    r.addEventListener("change", () => {
+      apply();
+      window.updatePricing?.();
+    }),
+  );
+
+  // Exposed so restore can re-apply visibility without wiping restored values.
+  window.__applyRabattToggle = () => apply({ reset: false });
+
+  apply({ reset: false });
+})();
+
 (function initMaterialDiscountVisibility() {
   const sec =
     document.getElementById("rb-material-discount-section") ||
