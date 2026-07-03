@@ -1606,74 +1606,25 @@ function formatDurationHHMM(totalMinutes) {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
-function populateTimeSelectOptions(root) {
-  if (!root) return;
-  const hourSelect = root.querySelector(".time-hour-select");
-  const minuteSelect = root.querySelector(".time-minute-select");
-  if (hourSelect && !hourSelect.options.length) {
-    for (let h = 0; h <= 23; h += 1) {
-      const value = String(h).padStart(2, "0");
-      hourSelect.add(new Option(value, value));
-    }
-  }
-  if (minuteSelect && !minuteSelect.options.length) {
-    for (let m = 0; m < 60; m += 5) {
-      const value = String(m).padStart(2, "0");
-      minuteSelect.add(new Option(value, value));
-    }
-  }
-}
-
 function bindCompactTimeHelper(inputId, helperId) {
   const input = document.getElementById(inputId);
   const helperRoot = document.getElementById(helperId);
   if (!input || !helperRoot) return;
 
-  populateTimeSelectOptions(helperRoot);
-
-  const hourSelect = helperRoot.querySelector(".time-hour-select");
-  const minuteSelect = helperRoot.querySelector(".time-minute-select");
   const deltaButtons = helperRoot.querySelectorAll("[data-delta]");
-
-  function syncFromInput() {
-    const current = /^\d{1,2}:\d{2}$/.test(String(input.value || "").trim())
-      ? String(input.value).trim()
-      : "00:00";
-    const [hh, mm] = current.split(":");
-    if (hourSelect) hourSelect.value = hh.padStart(2, "0");
-    if (minuteSelect) {
-      const snappedMinute = String(Math.min(55, Math.floor(Number(mm || 0) / 5) * 5)).padStart(2, "0");
-      minuteSelect.value = snappedMinute;
-    }
-  }
 
   function emitInputEvents() {
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
-  function syncToInput() {
-    const hh = hourSelect?.value || "00";
-    const mm = minuteSelect?.value || "00";
-    input.value = `${hh}:${mm}`;
-    emitInputEvents();
-  }
-
   deltaButtons.forEach((button) => {
     button.addEventListener("click", () => {
       const delta = Number(button.dataset.delta || 0);
       input.value = formatDurationHHMM(parseDurationMinutes(input.value) + delta);
-      syncFromInput();
       emitInputEvents();
     });
   });
-
-  hourSelect?.addEventListener("change", syncToInput);
-  minuteSelect?.addEventListener("change", syncToInput);
-  input.addEventListener("input", syncFromInput);
-  input.addEventListener("change", syncFromInput);
-
-  syncFromInput();
 }
 
 
@@ -1953,18 +1904,32 @@ function renderTravelCostDebug() {
     return;
   }
 
+  const section = (title, rows) => `
+    <div class="az-debug-section">
+      <div class="az-debug-section-title">${title}</div>
+      <div class="az-travel-debug-grid">
+        ${rows.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("")}
+      </div>
+    </div>
+  `;
+
   if (isBwt) {
     const workCost = laborHours * 79.5;
     const travelCost = travelHours * 79.5;
     const totalCost = workCost + travelCost;
     box.innerHTML = `
-      <div class="az-travel-debug-grid">
-        <div><span>Arbeitszeit</span><strong>${hours(laborHours)} h</strong></div>
-        <div><span>Reisezeit gesamt</span><strong>${hours(travelHours)} h</strong></div>
-        <div><span>Stundensatz (1 Facharbeiter)</span><strong>${euro(79.5)}/h</strong></div>
-        <div><span>Arbeitskosten</span><strong>${euro(workCost)}</strong></div>
-        <div><span>Reisezeit Fahrer</span><strong>${euro(travelCost)}</strong></div>
-        <div><span>Gesamtkosten aus Zeiten</span><strong>${euro(totalCost)}</strong></div>
+      ${section("Zeiten", [
+        ["Arbeitszeit", `${hours(laborHours)} h`],
+        ["Reisezeit gesamt", `${hours(travelHours)} h`],
+      ])}
+      ${section("Stundensatz", [["1 Facharbeiter", `${euro(79.5)}/h`]])}
+      ${section("Kosten", [
+        ["Arbeitskosten", euro(workCost)],
+        ["Reisezeit Fahrer", euro(travelCost)],
+      ])}
+      <div class="az-debug-total">
+        <span>Gesamtkosten aus Zeiten</span>
+        <strong>${euro(totalCost)}</strong>
       </div>
       <div class="az-travel-debug-note">BWT aktiv: 1 Facharbeiter, 79,50 €/h für Arbeitszeit und Reisezeit.</div>
     `;
@@ -1982,15 +1947,22 @@ function renderTravelCostDebug() {
       : `<div class="az-travel-debug-note">Aktives Angebot: ${String(offer).toUpperCase()}. Standard für Alt-Angebote ohne gespeicherten Wert bleibt 25 €/h.</div>`;
 
   box.innerHTML = `
-    <div class="az-travel-debug-grid">
-      <div><span>Arbeitszeit</span><strong>${hours(laborHours)} h</strong></div>
-      <div><span>Reisezeit gesamt</span><strong>${hours(travelHours)} h</strong></div>
-      <div><span>Voller Satz / Fahrer</span><strong>${euro(laborRate)}/h</strong></div>
-      <div><span>2. Mitarbeiter Reisezeit</span><strong>${euro(secondWorkerRate)}/h</strong></div>
-      <div><span>Arbeitskosten (2 Mitarbeiter)</span><strong>${euro(workCost)}</strong></div>
-      <div><span>Reisezeit Fahrer</span><strong>${euro(travelDriverCost)}</strong></div>
-      <div><span>Reisezeit 2. Mitarbeiter</span><strong>${euro(travelSecondWorkerCost)}</strong></div>
-      <div><span>Gesamtkosten aus Zeiten</span><strong>${euro(totalCost)}</strong></div>
+    ${section("Zeiten", [
+      ["Arbeitszeit", `${hours(laborHours)} h`],
+      ["Reisezeit gesamt", `${hours(travelHours)} h`],
+    ])}
+    ${section("Stundensätze", [
+      ["Voller Satz / Fahrer", `${euro(laborRate)}/h`],
+      ["2. Mitarbeiter Reisezeit", `${euro(secondWorkerRate)}/h`],
+    ])}
+    ${section("Kosten", [
+      ["Arbeitskosten (2 Mitarbeiter)", euro(workCost)],
+      ["Reisezeit Fahrer", euro(travelDriverCost)],
+      ["Reisezeit 2. Mitarbeiter", euro(travelSecondWorkerCost)],
+    ])}
+    <div class="az-debug-total">
+      <span>Gesamtkosten aus Zeiten</span>
+      <strong>${euro(totalCost)}</strong>
     </div>
     ${extraHint}
   `;
