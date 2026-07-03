@@ -7050,162 +7050,99 @@ window.parseAufschlagPercent = function parseAufschlagPercent(raw) {
 };
 
 window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
-  const customWrap = document.getElementById("sonderaufschlagWrap");
-  const customInput = document.getElementById("sonderaufschlagValue");
-  const customActive = !!(
-    customWrap &&
-    !customWrap.hidden &&
-    customWrap.getAttribute("aria-hidden") !== "true"
-  );
-
-  if (customActive && customInput) {
-    const pct = window.parseAufschlagPercent(customInput.value);
-    if (Number.isFinite(pct) && pct >= 35) {
-      return `${pct}%`;
-    }
-    return "";
-  }
-
-  return document.querySelector('input[name="aufschlag"]:checked')?.value || "";
+  // Single source of truth: the Aufschlag value field. Sub-35% values are
+  // allowed (a warning is shown), so no minimum gate here — empty/invalid → "".
+  const input = document.getElementById("sonderaufschlagValue");
+  if (!input) return "";
+  const pct = window.parseAufschlagPercent(input.value);
+  if (!Number.isFinite(pct)) return "";
+  return `${pct}%`;
 };
 
 (function initAufschlag() {
+  const AUFSCHLAG_MIN = 35;
+
   const payerRadios = Array.from(
     document.querySelectorAll('input[name="payer"]'),
   );
-  const aufschlagRadios = Array.from(
-    document.querySelectorAll('input[name="aufschlag"]'),
-  );
 
-  const r35 = document.querySelector('input[name="aufschlag"][value="35%"]');
-  const r40 = document.querySelector('input[name="aufschlag"][value="40%"]');
-  const r45 = document.querySelector('input[name="aufschlag"][value="45%"]');
-  const r50 = document.querySelector('input[name="aufschlag"][value="50%"]');
-  const r60 = document.querySelector('input[name="aufschlag"][value="60%"]');
-
-  const labelEl = document.getElementById("aufschlagLabel");
+  const input = document.getElementById("sonderaufschlagValue");
+  const slider = document.getElementById("sonderaufschlagSlider");
+  const chips = Array.from(document.querySelectorAll(".aufschlag-chip"));
+  const warnEl = document.getElementById("aufschlagWarn");
+  const errorEl = document.getElementById("sonderaufschlagError");
   const bodyEl = document.getElementById("aufschlagBody");
   const toggleBt = document.getElementById("toggleAufschlag");
-  const customToggleBt = document.getElementById("toggleSonderaufschlag");
-  const customWrap = document.getElementById("sonderaufschlagWrap");
-  const customInput = document.getElementById("sonderaufschlagValue");
-  const customError = document.getElementById("sonderaufschlagError");
-  const slider = document.getElementById("sonderaufschlagSlider");
+  const zielToggle = document.getElementById("toggleZielpreis");
+  const zielWrap = document.getElementById("zielpreisWrap");
   const targetInput = document.getElementById("sonderaufschlagTarget");
   const autoBtn = document.getElementById("btnSonderaufschlagAuto");
 
-  function setDisabled(el, disabled) {
-    if (!el) return;
-    el.disabled = disabled;
-    const pill = el.closest("label.radio-pill");
-    if (pill) {
-      pill.style.opacity = disabled ? "0.6" : "";
-      pill.style.pointerEvents = disabled ? "none" : "";
-      pill.setAttribute("aria-disabled", disabled ? "true" : "false");
-    }
+  function currentPct() {
+    return window.parseAufschlagPercent(input?.value);
   }
 
-  function isCustomMode() {
-    return !!(
-      customWrap &&
-      !customWrap.hidden &&
-      customWrap.getAttribute("aria-hidden") !== "true"
-    );
-  }
-
-  function anySelected() {
-    return !!window.getEffectiveAufschlagValue?.();
-  }
-
-  function setCustomError(message) {
-    if (!customInput) return false;
-    customInput.setCustomValidity(message || "");
-    customInput.setAttribute("aria-invalid", message ? "true" : "false");
-    if (customError) {
-      customError.hidden = !message;
-      customError.textContent = message || "";
+  // Sets HTML5 validity (for form submit) and optionally the visible error text.
+  function setError(message, { silent = false } = {}) {
+    if (!input) return !message;
+    input.setCustomValidity(message || "");
+    input.setAttribute("aria-invalid", message ? "true" : "false");
+    if (errorEl) {
+      const show = !!message && !silent;
+      errorEl.hidden = !show;
+      errorEl.textContent = show ? message : "";
     }
     return !message;
   }
 
-  function validateCustomInput() {
-    if (!customInput) return true;
-    if (!isCustomMode()) {
-      customInput.required = false;
-      return setCustomError("");
-    }
-
-    customInput.required = true;
-    const raw = String(customInput.value || "").trim();
-    const pct = window.parseAufschlagPercent(raw);
-
-    if (!raw) return setCustomError("Bitte geben Sie einen Sonderaufschlag ein.");
-    if (!Number.isFinite(pct)) return setCustomError("Bitte geben Sie eine gültige Zahl ein.");
-    if (pct < 35) {
-      return setCustomError("Der Sonderaufschlag muss mindestens 35% betragen.");
-    }
-    return setCustomError("");
+  // Reflect the current value into the slider, chip highlight, and sub-35% warning.
+  function render() {
+    const pct = currentPct();
+    const has = Number.isFinite(pct);
+    if (has && slider && pct >= 0 && pct <= 100) slider.value = pct;
+    chips.forEach((c) =>
+      c.classList.toggle("active", has && Number(c.dataset.value) === pct),
+    );
+    if (warnEl) warnEl.hidden = !(has && pct < AUFSCHLAG_MIN);
   }
 
   function validateAufschlagSelection({ report = false } = {}) {
-    const customMode = isCustomMode();
-    const selectedRadio = aufschlagRadios.find((r) => r.checked) || null;
+    if (!input) return true;
+    input.required = true;
+    const raw = String(input.value || "").trim();
+    const pct = window.parseAufschlagPercent(raw);
 
-    aufschlagRadios.forEach((r) => r.setCustomValidity(""));
-
-    if (customMode) {
-      const ok = validateCustomInput();
-      if (!ok && report) customInput?.reportValidity();
-      return ok;
-    }
-
-    const ok = !!selectedRadio;
-    if (!ok) {
-      const message =
-        "Bitte wählen Sie einen Aufschlag oder geben Sie einen Sonderaufschlag ein.";
-      aufschlagRadios.forEach((r) => r.setCustomValidity(message));
-      if (report) (aufschlagRadios[0] || customInput)?.reportValidity?.();
+    if (!raw) {
+      setError("Bitte geben Sie einen Aufschlag ein.", { silent: !report });
+      if (report) input.reportValidity?.();
       return false;
     }
-
+    if (!Number.isFinite(pct)) {
+      setError("Bitte geben Sie eine gültige Zahl ein.");
+      if (report) input.reportValidity?.();
+      return false;
+    }
+    // Sub-35% is allowed (warning only) — never blocks submission.
+    setError("");
     return true;
   }
 
-  function openCustomMode(prefill = "") {
-    if (!customWrap) return;
-    customWrap.hidden = false;
-    customWrap.setAttribute("aria-hidden", "false");
-    if (customToggleBt) customToggleBt.classList.add("is-active");
-    aufschlagRadios.forEach((r) => {
-      r.checked = false;
-    });
-    if (customInput) {
-      if (prefill !== undefined && prefill !== null && prefill !== "") {
-        customInput.value = String(prefill).replace(/%/g, "");
-      }
-      customInput.required = true;
-      validateCustomInput();
+  // Single entry point for setting the value from any source (chip, slider,
+  // restore, auto-calc). When pricing=true it dispatches a real input event so
+  // all downstream listeners (state bridge, Rabatt visibility) stay in sync.
+  function setAufschlag(value, { pricing = true } = {}) {
+    if (!input) return;
+    const pct = window.parseAufschlagPercent(value);
+    input.value = Number.isFinite(pct) ? String(pct).replace(".", ",") : "";
+    if (pricing) {
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    } else {
+      render();
+      validateAufschlagSelection();
     }
-  }
-
-  function closeCustomMode({ clear = true } = {}) {
-    if (!customWrap) return;
-    customWrap.hidden = true;
-    customWrap.setAttribute("aria-hidden", "true");
-    if (customToggleBt) customToggleBt.classList.remove("is-active");
-    if (customInput) {
-      customInput.required = false;
-      if (clear) customInput.value = "";
-    }
-    setCustomError("");
-  }
-
-  function currentSelection() {
-    return window.getEffectiveAufschlagValue?.() || "";
   }
 
   function setAufschlagVisible(visible) {
-    if (labelEl) labelEl.style.display = visible ? "" : "none";
     if (bodyEl) bodyEl.style.display = visible ? "" : "none";
     if (toggleBt) {
       toggleBt.textContent = visible ? "Ausblenden" : "Anzeigen";
@@ -7213,83 +7150,44 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
     }
   }
 
-  function toggleAufschlag() {
-    const currentlyVisible = !bodyEl || bodyEl.style.display !== "none";
-    setAufschlagVisible(!currentlyVisible);
-  }
-
   function applyAufschlagRules() {
     const payer = document.querySelector('input[name="payer"]:checked')?.value;
-
-    [r35, r40, r45, r50, r60].forEach((r) => setDisabled(r, false));
-
-    if (
-      !anySelected() &&
-      (payer === "Kassenkunde" || payer === "Selbstzahler")
-    ) {
-      if (r50) r50.checked = true;
+    const empty = !String(input?.value || "").trim();
+    if (empty && (payer === "Kassenkunde" || payer === "Selbstzahler")) {
+      setAufschlag(50, { pricing: false });
     }
   }
 
-  payerRadios.forEach((r) => r.addEventListener("change", applyAufschlagRules));
-  aufschlagRadios.forEach((r) =>
-    r.addEventListener("change", () => {
-      if (r.checked) closeCustomMode();
-      validateAufschlagSelection();
-    }),
+  function onFieldChanged() {
+    render();
+    validateAufschlagSelection();
+    if (!input.validationMessage) window.updatePricing?.();
+  }
+
+  chips.forEach((c) =>
+    c.addEventListener("click", () => setAufschlag(c.dataset.value)),
   );
 
-  if (toggleBt) toggleBt.addEventListener("click", toggleAufschlag);
+  input?.addEventListener("input", onFieldChanged);
+  input?.addEventListener("change", onFieldChanged);
 
-  customToggleBt?.addEventListener("click", () => {
-    if (isCustomMode()) {
-      closeCustomMode();
-      applyAufschlagRules();
-      window.updatePricing?.();
-      return;
-    }
-    const currentPct = window.parseAufschlagPercent(currentSelection());
-    openCustomMode(Number.isFinite(currentPct) ? String(currentPct) : "");
-    customInput?.focus();
+  slider?.addEventListener("input", () => setAufschlag(slider.value));
+
+  if (toggleBt)
+    toggleBt.addEventListener("click", () => {
+      const visible = !bodyEl || bodyEl.style.display !== "none";
+      setAufschlagVisible(!visible);
+    });
+
+  zielToggle?.addEventListener("click", () => {
+    if (!zielWrap) return;
+    const open = zielWrap.hidden;
+    zielWrap.hidden = !open;
+    zielWrap.setAttribute("aria-hidden", open ? "false" : "true");
+    zielToggle.classList.toggle("is-active", open);
   });
 
-  customInput?.addEventListener("input", () => {
-    validateCustomInput();
-    validateAufschlagSelection();
-    if (!customInput.validationMessage) window.updatePricing?.();
-    syncSliderFromText();
-  });
-  customInput?.addEventListener("change", () => {
-    validateCustomInput();
-    validateAufschlagSelection();
-    if (!customInput.validationMessage) window.updatePricing?.();
-    syncSliderFromText();
-  });
-
-  function syncSliderFromText() {
-    if (!slider || !customInput) return;
-    const pct = window.parseAufschlagPercent(customInput.value);
-    if (Number.isFinite(pct) && pct >= 0 && pct <= 100) slider.value = pct;
-  }
-
-  slider?.addEventListener("input", () => {
-    if (!customInput) return;
-    customInput.value = String(slider.value).replace(".", ",");
-    validateCustomInput();
-    validateAufschlagSelection();
-    if (!customInput.validationMessage) window.updatePricing?.();
-  });
-
-  setAufschlagVisible(true);
-  if (customInput?.value) {
-    openCustomMode(customInput.value);
-  } else {
-    closeCustomMode();
-  }
-  applyAufschlagRules();
-  validateAufschlagSelection();
-
-  window.validateAufschlagSelection = validateAufschlagSelection;
+  payerRadios.forEach((r) => r.addEventListener("change", applyAufschlagRules));
 
   function applyAutomatisch(rawEur) {
     const pricing = window.__pricing;
@@ -7297,7 +7195,7 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
       alert("Bitte zuerst einen Preis berechnen (Preisvorschau laden).");
       return;
     }
-    const { total: currentTotal, markup: currentMarkup, markupPct: currentPct, vatOnNet } = pricing;
+    const { total: currentTotal, markup: currentMarkup, markupPct: currentPctVal, vatOnNet } = pricing;
     if (!currentMarkup || currentMarkup <= 0) {
       alert("Kein Aufschlag-Betrag vorhanden – Automatisch nicht möglich.");
       return;
@@ -7310,13 +7208,13 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
     // Factor = 1 + TAX_RATE, derived from actual server response to avoid hardcoding
     const netAmount = currentTotal - (vatOnNet || 0);
     const factor = netAmount > 0 ? currentTotal / netAmount : 1.19;
-    const newPct = currentPct + currentPct * (targetTotal - currentTotal) / (factor * currentMarkup);
+    const newPct = currentPctVal + currentPctVal * (targetTotal - currentTotal) / (factor * currentMarkup);
     const rounded = Math.round(newPct * 10000) / 100; // two decimal places, e.g. 29.73
     if (!Number.isFinite(rounded) || rounded < 0) {
       alert("Der berechnete Aufschlag wäre negativ – der Zielpreis liegt unter den Selbstkosten.");
       return;
     }
-    window.__setCustomAufschlag(String(rounded));
+    setAufschlag(String(rounded));
   }
 
   document.querySelectorAll(".sonderaufschlag-preset").forEach((btn) => {
@@ -7329,34 +7227,17 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
 
   autoBtn?.addEventListener("click", () => applyAutomatisch(targetInput?.value || ""));
 
+  // Preserved contract: restore + auto-calc route values through here.
   window.__setCustomAufschlag = function __setCustomAufschlag(value) {
-    const pct = window.parseAufschlagPercent(value);
-    if (!Number.isFinite(pct)) {
-      closeCustomMode();
-      applyAufschlagRules();
-      return;
-    }
-
-    if ([35, 40, 45, 50, 60].includes(pct)) {
-      closeCustomMode();
-      const radio = document.querySelector(
-        `input[name="aufschlag"][value="${pct}%"]`,
-      );
-      if (radio) {
-        radio.checked = true;
-        radio.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      return;
-    }
-
-    const display = String(pct).replace(".", ",");
-    openCustomMode(display);
-    if (customInput) {
-      customInput.value = display;
-      validateCustomInput();
-      customInput.dispatchEvent(new Event("input", { bubbles: true }));
-    }
+    setAufschlag(value, { pricing: false });
   };
+  window.validateAufschlagSelection = validateAufschlagSelection;
+
+  // Init
+  setAufschlagVisible(true);
+  applyAufschlagRules();
+  render();
+  validateAufschlagSelection();
 })();
 
 (function initPflegegrad() {
@@ -11356,15 +11237,9 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         r.dispatchEvent(new Event("change", { bubbles: true }));
       }
     }
-    // aufschlag
+    // aufschlag (single value field; presets no longer exist as radios)
     if (payload.Kundendaten?.aufschlag) {
-      const r = document.querySelector(
-        `input[name="aufschlag"][value="${payload.Kundendaten.aufschlag}"]`,
-      );
-      if (r) {
-        r.checked = true;
-        r.dispatchEvent(new Event("change", { bubbles: true }));
-      }
+      window.__setCustomAufschlag?.(payload.Kundendaten.aufschlag);
     }
     // pflegegrad (just show/hide panels; exact mapping to Kundendaten panel already handled by initPflegegrad)
     if (payload.Kundendaten?.hasPflegegrad === "Ja") {
@@ -13324,7 +13199,7 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
 
   // Kundendaten dependencies
   fire('input[name="payer"]:checked');
-  fire('input[name="aufschlag"]:checked');
+  fire("#sonderaufschlagValue");
   fire('input[name="hasPflegegrad"]:checked');
   fire('input[name="pflegegrad"]:checked');
   fire('input[name="wohnumfeldDone"]:checked');
@@ -14982,9 +14857,10 @@ window.setPricingData = function setPricingData(data) {
   document
     .querySelectorAll('input[name="payer"]')
     .forEach((r) => r.addEventListener("change", apply));
-  document
-    .querySelectorAll('input[name="aufschlag"]')
-    .forEach((r) => r.addEventListener("change", apply));
+  // Aufschlag is now a single value field (no radios) — react to its changes.
+  const aufField = document.getElementById("sonderaufschlagValue");
+  aufField?.addEventListener("input", apply);
+  aufField?.addEventListener("change", apply);
   window.addEventListener("hashchange", () => {
     if (typeof getCurrentStep === "function" && getCurrentStep() === "rabatt")
       apply();
