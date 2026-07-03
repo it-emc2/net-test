@@ -6052,7 +6052,7 @@ button.dm-btn-danger:focus-visible {
               <div id="rb-arbeit">0,00 €</div>
               <!-- after the row that shows Arbeit (id="rb-arbeit") -->
               <div id="rb-auf-row" style="display:contents;">
-                <div id="rb-auf-label">Aufschlag</div>
+                <div id="rb-auf-label">Aufschlag (ohne Kleinmaterial)</div>
                 <div id="rb-auf-value">0,00 €</div>
               </div>
 
@@ -6069,7 +6069,8 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <!-- Aufschlag selection is relocated here for Badumbau (see updateOfferSpecificSections). -->
-          <div id="aufschlagRabattMount" class="full" style="margin-top:16px;"></div>
+          <div class="full subheader" style="margin-top:16px;">Aufschlag</div>
+          <div id="aufschlagRabattMount" class="full" style="margin-top:8px;"></div>
 
           <!-- Width sizer: takes zero height but preserves the same width as the slider row -->
           <div id="rb-width-sizer" aria-hidden="true"
@@ -6081,60 +6082,65 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
 
-          <!-- Rabatt auf Materialkosten (slider/progress) -->
-          <div class="full field" style="margin-top:16px;">
-            <label class="req" for="rb-material-discount">Rabatt auf Materialkosten</label>
-            <div style="display:flex;align-items:center;gap:12px;">
-              <span style="min-width:28px;text-align:right;">0%</span>
-              <input type="range" id="rb-material-discount" min="0" max="9" step="0.1" value="0"
-                style="flex:1;accent-color:var(--accent);" aria-label="Rabatt in Prozent (0–9%)" />
-              <span style="min-width:28px;">9%</span>
-              <span id="rb-material-discount-val" style="min-width:56px;text-align:right;">0,0%</span>
+          <!-- Rabatt block: styled as its own panel, matching the Aufschlag panel above -->
+          <div class="full subheader" style="margin-top:16px;">Rabatt</div>
+          <div class="full aufschlag-panel" style="margin-top:8px;">
+
+            <!-- Rabatt auf Materialkosten (slider/progress) -->
+            <div class="full field">
+              <label class="req" for="rb-material-discount">Rabatt auf Materialkosten</label>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span style="min-width:28px;text-align:right;">0%</span>
+                <input type="range" id="rb-material-discount" min="0" max="9" step="0.1" value="0"
+                  style="flex:1;accent-color:var(--accent);" aria-label="Rabatt in Prozent (0–9%)" />
+                <span style="min-width:28px;">9%</span>
+                <span id="rb-material-discount-val" style="min-width:56px;text-align:right;">0,0%</span>
+              </div>
             </div>
-          </div>
 
-          <!-- Outputs that react to the slider -->
-          <div class="full" style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;">
-            <div id="rb-rabatt-row" hidden aria-hidden="true" style="display:contents;">
-              <div>Rabatt</div>
-              <div id="rb-rabatt">0,00 €</div>
+            <!-- Outputs that react to the slider -->
+            <div class="full" style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;">
+              <div id="rb-rabatt-row" hidden aria-hidden="true" style="display:contents;">
+                <div>Rabatt</div>
+                <div id="rb-rabatt">0,00 €</div>
+              </div>
+              <div id="rb-total-after-row" hidden aria-hidden="true" style="display:contents;">
+                <div>Gesamtbetrag nach Materialrabatt</div>
+                <div id="rb-total-after">0,00 €</div>
+              </div>
             </div>
-            <div id="rb-total-after-row" hidden aria-hidden="true" style="display:contents;">
-              <div>Gesamtbetrag nach Materialrabatt</div>
-              <div id="rb-total-after">0,00 €</div>
+
+            <!-- Bonuses / checkboxes -->
+            <div class="full field" style="margin-top:16px;">
+              <label class="check-pill">
+                <input type="checkbox" id="rb-bonus-300" />
+                <span class="box"></span>
+                <span>Möchten Sie den Neu- oder Bestandskundenbonus in Höhe von 252,10 € hinzufügen?
+                  (Rabatt von 300 € ab einem Gesamtwert von 3.000 €)</span>
+              </label>
             </div>
-          </div>
 
-          <!-- Bonuses / checkboxes -->
-          <div class="full field" style="margin-top:16px;">
-            <label class="check-pill">
-              <input type="checkbox" id="rb-bonus-300" />
-              <span class="box"></span>
-              <span>Möchten Sie den Neu- oder Bestandskundenbonus in Höhe von 252,10 € hinzufügen?
-                (Rabatt von 300 € ab einem Gesamtwert von 3.000 €)</span>
-            </label>
-          </div>
+            <div class="full field">
+              <label class="check-pill">
+                <input type="checkbox" id="rb-bonus-grab" />
+                <span class="box"></span>
+                <span>Aktion: Haltegriff GRATIS: 1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage.</span>
+              </label>
+            </div>
 
-          <div class="full field">
-            <label class="check-pill">
-              <input type="checkbox" id="rb-bonus-grab" />
-              <span class="box"></span>
-              <span>Aktion: Haltegriff GRATIS: 1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage.</span>
-            </label>
-          </div>
+            <div class="full field" id="rb-show-free-grab-row" hidden aria-hidden="true" style="display:none; padding-left:28px; margin-top:-6px;">
+              <label class="check-pill" style="border-style:dashed;">
+                <input type="checkbox" id="rb-show-free-grab" />
+                <span class="box"></span>
+                <span>Möchten Sie die Haltegriffe im Angebot zeigen?</span>
+              </label>
+            </div>
 
-          <div class="full field" id="rb-show-free-grab-row" hidden aria-hidden="true" style="display:none; padding-left:28px; margin-top:-6px;">
-            <label class="check-pill" style="border-style:dashed;">
-              <input type="checkbox" id="rb-show-free-grab" />
-              <span class="box"></span>
-              <span>Möchten Sie die Haltegriffe im Angebot zeigen?</span>
-            </label>
-          </div>
-
-          <div class="full" style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;">
-            <div id="rb-bonus-total-row" hidden aria-hidden="true" style="display:contents;">
-              <div>Gesamtbetrag nach bonus</div>
-              <div id="rb-bonus-total">0,00 €</div>
+            <div class="full" style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;">
+              <div id="rb-bonus-total-row" hidden aria-hidden="true" style="display:contents;">
+                <div>Gesamtbetrag nach bonus</div>
+                <div id="rb-bonus-total">0,00 €</div>
+              </div>
             </div>
           </div>
 

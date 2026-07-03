@@ -14819,7 +14819,7 @@ window.setPricingData = function setPricingData(data) {
       ? String(pctNum)
       : pctNum.toFixed(2).replace(/\.?0+$/, "").replace(".", ",");
     byId("rb-auf-label")?.replaceChildren(
-      document.createTextNode(`Aufschlag ${pctLabel}%`),
+      document.createTextNode(`Aufschlag ${pctLabel}% (ohne Kleinmaterial)`),
     );
 
     // Show/hide 300€ bonus based on threshold (after rab.)
