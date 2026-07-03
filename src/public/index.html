@@ -6063,9 +6063,11 @@ button.dm-btn-danger:focus-visible {
             Keine Rabatte oder Boni anwendbar.
           </div>
 
-          <!-- Aufschlag selection is relocated here for Badumbau (see updateOfferSpecificSections). -->
-          <div class="full subheader" style="margin-top:16px;">Aufschlag</div>
-          <div id="aufschlagRabattMount" class="full" style="margin-top:8px;"></div>
+          <!-- Aufschlag selection is relocated here for Badumbau only (see updateOfferSpecificSections).
+               data-offer="bu" hides the heading+mount for other offers (e.g. BWT) where the
+               Aufschlag section stays in Kundendaten and this mount would be empty. -->
+          <div class="full subheader" data-offer="bu" style="margin-top:16px;">Aufschlag</div>
+          <div id="aufschlagRabattMount" data-offer="bu" class="full" style="margin-top:8px;"></div>
 
           <!-- Width sizer: takes zero height but preserves the same width as the slider row -->
           <div id="rb-width-sizer" aria-hidden="true"
@@ -6133,7 +6135,7 @@ button.dm-btn-danger:focus-visible {
 
             <div class="full" style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;">
               <div id="rb-bonus-total-row" hidden aria-hidden="true" style="display:contents;">
-                <div>Gesamtbetrag nach bonus</div>
+                <div>Gesamtbetrag nach Bonus</div>
                 <div id="rb-bonus-total">0,00 €</div>
               </div>
             </div>
