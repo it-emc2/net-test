@@ -3029,156 +3029,164 @@ button.dm-btn-danger:focus-visible {
       <section class="card page" id="page-Arbeitszeit" hidden>
         <div class="section-header">Arbeitszeit</div>
         <form id="form-Arbeitszeit" novalidate>
-          <div class="full" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
-            <div id="travelSection" class="full" style="margin-top: 16px">
-              <details open>
-                <summary class="section-header" style="cursor: pointer">
-                  Anfahrzeit zum Kunde
-                </summary>
-                <div class="card" style="
-              background: var(--section-bg);
-              border: 1px solid var(--border);
-              border-radius: 10px;
-              padding: 12px;
-            ">
-                  <!-- Distance input -->
-                  <div class="full" style="margin-bottom: 12px">
-                    <!-- Optional button: explicit trigger -->
-                    <button type="button" id="btnRoutingSuggest" class="btn-secondary" style="margin-top:4px;">
-                      Strecke aus Adresse vorschlagen
-                    </button>
-                    <!-- NEW: routing suggestion hint -->
-                    <div id="routingSuggestion" class="muted" style="margin-top:4px; font-size:0.85rem;"></div>
-                    <label for="distanceKm" class="req">
-                      Wie viele Kilometer ist der Kunde von uns entfernt?
-                      (Kilometerpauschale. Hin- und Rückfahrt wird automatisch kalkuliert)
-                    </label>
-                    <input id="distanceKm" name="distanceKm" type="number" min="0" step="0.1" inputmode="decimal" placeholder="z. B. 25 oder 25,5"
-                      required />
-                    <div class="muted" style="margin-top: 6px;">
-                      Bitte nur die einfache Strecke (Hin-Fahrt) eintragen.
-                      Rückfahrt wird automatisch mit berechnet:
-                      <b><span id="roundTripPreview">= 0 km (Hin- & Rückfahrt)</span></b>
-                      <div id="travelDaysPreview" style="margin-top: 4px;"></div>
-                    </div>
+          <div class="full az-groups">
 
-                    <div class="field-row" data-offer="bu,bwt,hl,bl,hms,wd" style="display:flex; gap:12px; align-items:flex-end; margin-top: 10px;">
-                      <label class="field" style="flex:1;">
-                        <span>Uebernachten (Tage ohne Rueckfahrt)</span>
-                        <input id="uebernachten" name="uebernachten" type="number" min="0" step="1" value="0"
-                          inputmode="numeric">
-                      </label>
-                    </div>
+            <!-- Anfahrt -->
+            <div id="travelSection" class="az-group az-group--full">
+              <div class="az-group-title">Anfahrt</div>
+              <div class="az-group-body">
+                <button type="button" id="btnRoutingSuggest" class="btn-secondary az-routing-btn">
+                  Strecke aus Adresse vorschlagen
+                </button>
+                <div id="routingSuggestion" class="muted az-routing-hint"></div>
 
+                <label class="field" for="distanceKm">
+                  <span class="req">Wie viele Kilometer ist der Kunde von uns entfernt?</span>
+                  <input id="distanceKm" name="distanceKm" type="number" min="0" step="0.1" inputmode="decimal"
+                    placeholder="z. B. 25 oder 25,5" required />
+                  <span class="az-field-hint">
+                    Kilometerpauschale, Hin- und Rückfahrt wird automatisch kalkuliert.
+                    Bitte nur die einfache Strecke (Hin-Fahrt) eintragen:
+                    <b><span id="roundTripPreview">= 0 km (Hin- & Rückfahrt)</span></b>
+                  </span>
+                  <div id="travelDaysPreview" class="az-field-hint"></div>
+                </label>
 
-                  </div>
-
-
-
-                  <!-- NEW: Arbeitszeit selection -->
-                  <div class="full" style="margin: 8px 0 12px 0">
-                    <div class="field-row" style="display:flex; gap:12px; align-items:flex-end;">
-                      <label class="field" data-offer="bu,bwt,hl,bl,hms,wd" style="flex:1;">
-                        <span>Arbeitszeit (Dauer, HH:MM)</span>
-                        <input id="laborHours" name="laborHours" type="text" inputmode="numeric" value="07:00"
-                          autocomplete="off" placeholder="HH:MM" required>
-                        <div id="laborHoursHelper" class="time-helper compact" aria-label="Arbeitszeit Schnellwahl">
-                          <button type="button" data-delta="-15">−15m</button>
-                          <button type="button" data-delta="-5">−5m</button>
-                          <select class="time-hour-select" aria-label="Arbeitszeit Stunden"></select>
-                          <select class="time-minute-select" aria-label="Arbeitszeit Minuten"></select>
-                          <button type="button" data-delta="5">+5m</button>
-                          <button type="button" data-delta="15">+15m</button>
-                        </div>
-                      </label>
-
-                      <label class="field" style="flex:1;">
-                        <span>Reisezeit (Dauer, HH:MM), nur Hin-Fahrt eintragen</span>
-                        <input id="travelTime" name="travelTime" type="text" inputmode="numeric" placeholder="HH:MM">
-                        <div id="travelTimeHelper" class="time-helper compact" aria-label="Reisezeit Schnellwahl">
-                          <button type="button" data-delta="-15">−15m</button>
-                          <button type="button" data-delta="-5">−5m</button>
-                          <select class="time-hour-select" aria-label="Reisezeit Stunden"></select>
-                          <select class="time-minute-select" aria-label="Reisezeit Minuten"></select>
-                          <button type="button" data-delta="5">+5m</button>
-                          <button type="button" data-delta="15">+15m</button>
-                        </div>
-                      </label>
-                    </div>
-
-                    <div class="az-travel-rate-grid" data-offer="bu,bwt,hl,bl,hms,wd">
-                      <div class="az-inline-note" id="buTravelInfoNote">
-                        <strong>Hinweis für BU:</strong> Reisezeit wird separat gerechnet:
-                        Fahrer = voller Stundensatz, 2. Mitarbeiter = auswählbar 25 €/h oder 35 €/h.
-                        Für neue Angebote ist 35 €/h der Standard. Für alte Angebote bleibt ohne gespeicherten Wert automatisch 25 €/h erhalten.
-                      </div>
-
-                      <label class="field">
-                        <span>2. Mitarbeiter bei Reisezeit</span>
-                        <select id="travelSecondWorkerRate" name="travelSecondWorkerRate">
-                          <option value="25">25 €/h (alt)</option>
-                          <option value="35" selected>35 €/h (neu / Standard)</option>
-                        </select>
-                      </label>
-                    </div>
-
-                    <div id="travelCostDebugCard" class="az-travel-debug" data-offer="bu,bwt,hl,bl,hms,wd" aria-live="polite">
-                      <div class="az-travel-debug-head">
-                        <strong>Reisezeit-Kosten Debug</strong>
-                        <span id="travelCostDebugBadge" class="az-travel-debug-badge">BU</span>
-                      </div>
-                      <div id="travelCostDebugText" class="muted">
-                        Noch keine Arbeitszeitdaten vorhanden.
-                      </div>
-                    </div>
-
-                    <!-- Optional dynamic suggestion from distance -->
-                    <div id="laborSuggestion" class="muted" data-offer="bu,bwt,hl,bl,hms,wd" style="margin-top: 6px"></div>
-                    <div id="totalHoursHHMM" class="muted" data-offer="bu,bwt,hl,bl,hms,wd" style="margin-top:4px;"></div>
-                    <div id="arbeitszeitSuggestionCard" class="az-suggestion-card" data-offer="bu,bwt,hl,bl,hms,wd">
-                      <div class="az-suggestion-head">
-                        <strong>Automatischer Arbeitszeit-Vorschlag</strong>
-                        <button type="button" id="applyArbeitszeitSuggestion" class="secondary">Vorschlag übernehmen</button>
-                      </div>
-                      <div id="arbeitszeitSuggestionEmpty" class="muted">Noch kein Vorschlag verfügbar.</div>
-                      <div id="arbeitszeitSuggestionTableWrap" hidden>
-                        <table class="az-suggestion-table">
-                          <thead>
-                            <tr>
-                              <th>Arbeit</th>
-                              <th>Menge</th>
-                              <th>Dauer</th>
-                            </tr>
-                          </thead>
-                          <tbody id="arbeitszeitSuggestionBody"></tbody>
-                          <tfoot>
-                            <tr>
-                              <td><strong>Summe</strong></td>
-                              <td></td>
-                              <td><strong id="arbeitszeitSuggestionTotal">00:00</strong></td>
-                            </tr>
-                          </tfoot>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- keep zones placeholders below -->
-                  <div id="zonesKK" hidden aria-hidden="true"></div>
-                  <div id="zonesSZ" hidden aria-hidden="true"></div>
+                <div class="az-field-row" data-offer="bu,bwt,hl,bl,hms,wd">
+                  <label class="field">
+                    <span>Übernachten (Tage ohne Rückfahrt)</span>
+                    <input id="uebernachten" name="uebernachten" type="number" min="0" step="1" value="0"
+                      inputmode="numeric">
+                  </label>
                 </div>
-              </details>
+              </div>
             </div>
+
+            <!-- Arbeitszeit -->
+            <div class="az-group" data-offer="bu,bwt,hl,bl,hms,wd">
+              <div class="az-group-title">Arbeitszeit</div>
+              <div class="az-group-body">
+                <label class="field">
+                  <span>Dauer vor Ort (HH:MM)</span>
+                  <div class="az-time-control">
+                    <input id="laborHours" name="laborHours" type="text" inputmode="numeric" value="07:00"
+                      autocomplete="off" placeholder="HH:MM" required>
+                    <div id="laborHoursHelper" class="time-helper compact" aria-label="Arbeitszeit Schnellwahl">
+                      <button type="button" data-delta="-15">−15m</button>
+                      <button type="button" data-delta="-5">−5m</button>
+                      <button type="button" data-delta="5">+5m</button>
+                      <button type="button" data-delta="15">+15m</button>
+                    </div>
+                  </div>
+                </label>
+
+                <div id="laborSuggestion" class="muted"></div>
+              </div>
+            </div>
+
+            <!-- Reisezeit -->
+            <div class="az-group" data-offer="bu,bwt,hl,bl,hms,wd">
+              <div class="az-group-title">Reisezeit</div>
+              <div class="az-group-body">
+                <div class="az-field-row">
+                  <label class="field">
+                    <span>Reisezeit, nur Hin-Fahrt (HH:MM)</span>
+                    <div class="az-time-control">
+                      <input id="travelTime" name="travelTime" type="text" inputmode="numeric" placeholder="HH:MM">
+                      <div id="travelTimeHelper" class="time-helper compact" aria-label="Reisezeit Schnellwahl">
+                        <button type="button" data-delta="-15">−15m</button>
+                        <button type="button" data-delta="-5">−5m</button>
+                        <button type="button" data-delta="5">+5m</button>
+                        <button type="button" data-delta="15">+15m</button>
+                      </div>
+                    </div>
+                  </label>
+
+                  <label class="field">
+                    <span>2. Mitarbeiter bei Reisezeit</span>
+                    <select id="travelSecondWorkerRate" name="travelSecondWorkerRate">
+                      <option value="25">25 €/h (alt)</option>
+                      <option value="35" selected>35 €/h (neu / Standard)</option>
+                    </select>
+                  </label>
+                </div>
+
+                <details class="az-hint-toggle" id="buTravelInfoNote">
+                  <summary>Hinweis anzeigen</summary>
+                  <div class="az-inline-note">
+                    <strong>Hinweis für BU:</strong> Reisezeit wird separat gerechnet:
+                    Fahrer = voller Stundensatz, 2. Mitarbeiter = auswählbar 25 €/h oder 35 €/h.
+                    Für neue Angebote ist 35 €/h der Standard. Für alte Angebote bleibt ohne gespeicherten Wert automatisch 25 €/h erhalten.
+                  </div>
+                </details>
+
+                <div id="totalHoursHHMM" class="muted"></div>
+              </div>
+            </div>
+
+            <!-- Kostenübersicht (Details) -->
+            <details class="az-group az-group--full" data-offer="bu,bwt,hl,bl,hms,wd">
+              <summary class="az-group-title">Kostenübersicht</summary>
+              <div class="az-group-body">
+                <div id="travelCostDebugCard" class="az-travel-debug" aria-live="polite">
+                  <div class="az-travel-debug-head">
+                    <strong>Reisezeit Kosten</strong>
+                    <span id="travelCostDebugBadge" class="az-travel-debug-badge">BU</span>
+                  </div>
+                  <div id="travelCostDebugText" class="muted">
+                    Noch keine Arbeitszeitdaten vorhanden.
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            <!-- Automatischer Vorschlag -->
+            <div class="az-group az-group--full" data-offer="bu,bwt,hl,bl,hms,wd">
+              <div class="az-group-title">Automatischer Vorschlag</div>
+              <div class="az-group-body">
+                <div id="arbeitszeitSuggestionCard" class="az-suggestion-card">
+                  <div class="az-suggestion-head">
+                    <strong>Automatischer Arbeitszeit-Vorschlag</strong>
+                    <button type="button" id="applyArbeitszeitSuggestion" class="secondary">Vorschlag übernehmen</button>
+                  </div>
+                  <div id="arbeitszeitSuggestionEmpty" class="muted">Noch kein Vorschlag verfügbar.</div>
+                  <div id="arbeitszeitSuggestionTableWrap" hidden>
+                    <table class="az-suggestion-table">
+                      <thead>
+                        <tr>
+                          <th>Arbeit</th>
+                          <th>Menge</th>
+                          <th>Dauer</th>
+                        </tr>
+                      </thead>
+                      <tbody id="arbeitszeitSuggestionBody"></tbody>
+                      <tfoot>
+                        <tr>
+                          <td><strong>Summe</strong></td>
+                          <td></td>
+                          <td><strong id="arbeitszeitSuggestionTotal">00:00</strong></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- keep zones placeholders below -->
+            <div id="zonesKK" hidden aria-hidden="true"></div>
+            <div id="zonesSZ" hidden aria-hidden="true"></div>
+
             <!-- Extra Arbeitszeit – only for BWT -->
-            <fieldset id="bwtAzExtraFieldset" class="field az-bwt-only" data-offer="bwt">
-              <legend class="da-legend" style="display:flex; align-items:center; gap:8px;">
+            <fieldset id="bwtAzExtraFieldset" class="az-group az-group--full az-bwt-only" data-offer="bwt">
+              <legend class="az-group-title az-legend-with-action">
                 Extra Arbeitszeit
                 <button type="button" class="bwt-az-add" aria-label="Weitere Extra-Arbeitszeit hinzufügen">
                   +
                 </button>
               </legend>
 
-              <div class="bwt-az-items">
+              <div class="az-group-body bwt-az-items">
                 <!-- we start with no rows; user adds them with "+" -->
               </div>
 
@@ -3190,22 +3198,20 @@ button.dm-btn-danger:focus-visible {
                       <input type="text" class="bwt-az-duration" inputmode="numeric" placeholder="z. B. 01:30" />
                     </label>
 
-
                     <label class="da-label">
                       Aufgabe / Tätigkeit
                       <input type="text" class="bwt-az-task" placeholder="z. B. Zusätzliche Anpassungsarbeiten" />
                     </label>
                   </div>
 
-                  <button type="button" class="bwt-az-remove" aria-label="Diese Extra-Arbeitszeit entfernen"
-                    style="margin-top:4px">
+                  <button type="button" class="bwt-az-remove" aria-label="Diese Extra-Arbeitszeit entfernen">
                     🗑
                   </button>
                 </div>
               </template>
             </fieldset>
 
-          </div> <!-- ✅ closes the grid .full wrapper -->
+          </div>
 
           <!-- AH: zone computed from routing, used in AH billing (not Arbeitszeit total) -->
           <input type="hidden" id="ahTravelZone" name="ahTravelZone" value="" />
