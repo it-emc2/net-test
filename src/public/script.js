@@ -3825,17 +3825,23 @@ function buildPayload() {
      =========================== */
   try {
     const formDW = document.getElementById("form-duschwanne");
-    if (formDW) {
-      const fdDW = new FormData(formDW);
-      const getAllVals = (name) => fdDW.getAll(name).map((v) => String(v));
+    const formExtraTasks =
+      document.getElementById("form-Arbeiten") || formDW;
+    if (formDW || formExtraTasks) {
+      const fdDW = formDW ? new FormData(formDW) : null;
+      const fdExtra = formExtraTasks ? new FormData(formExtraTasks) : null;
+      const getAllVals = (name) =>
+        (fdDW ? fdDW.getAll(name) : []).map((v) => String(v));
+      const getAllExtraVals = (name) =>
+        (fdExtra ? fdExtra.getAll(name) : []).map((v) => String(v));
 
       const flooringProduct = getAllVals("flooringProduct[]");
       const floorAdhesive = getAllVals("floorAdhesive[]");
       const floorSealing = getAllVals("floorSealing[]");
 
       let extraTasks = [
-        ...getAllVals("duschwanne[extraTasks][]"),
-        ...getAllVals("extraTasks[]"),
+        ...getAllExtraVals("duschwanne[extraTasks][]"),
+        ...getAllExtraVals("extraTasks[]"),
       ]
         .map((s) => s.trim())
         .filter(Boolean);
@@ -6899,20 +6905,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const wrap = fs.querySelector(".da-items");
   const addBtn = fs.querySelector(".da-add");
+  const countBadge = document.getElementById("dw-extra-count");
+  const emptyHint = document.getElementById("dw-extra-empty");
   const LS_KEY = "dwExtraTasks:v1";
 
   function makeItem(value = "") {
     const item = document.createElement("div");
-    item.className = "da-item";
+    item.className = "da-item wt-extra-item";
     item.setAttribute("data-kind", "extra");
     item.innerHTML = `
-      <div class="da-grid">
-        <label class="da-label" style="grid-column: 1 / -1;">
-          Aufgabe
-          <input class="dw-extra" type="text" name="duschwanne[extraTasks][]" value="${escapeHtml(value)}" />
-        </label>
-      </div>
-      <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+      <input class="dw-extra" type="text" name="duschwanne[extraTasks][]"
+        aria-label="Zusätzliche Aufgabe" value="${escapeHtml(value)}" />
+      <button type="button" class="da-remove wt-extra-remove" aria-label="Diese Zeile entfernen">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+          <path d="M10 11v6"></path>
+          <path d="M14 11v6"></path>
+          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+        </svg>
+      </button>
     `;
     wireItem(item);
     return item;
@@ -6935,6 +6947,17 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function updateSummary() {
+    const filled = Array.from(wrap.querySelectorAll(".dw-extra")).filter(
+      (i) => String(i.value || "").trim(),
+    );
+    if (countBadge) {
+      countBadge.textContent = String(filled.length);
+      countBadge.hidden = filled.length === 0;
+    }
+    if (emptyHint) emptyHint.hidden = filled.length > 0;
+  }
+
   function saveState() {
     const vals = Array.from(wrap.querySelectorAll(".dw-extra"))
       .map((i) => String(i.value || "").trim())
@@ -6942,6 +6965,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       localStorage.setItem(LS_KEY, JSON.stringify(vals));
     } catch {}
+    updateSummary();
   }
 
   function restoreFromLocalStorage() {
@@ -6993,6 +7017,7 @@ document.addEventListener("DOMContentLoaded", () => {
         liveWrap.appendChild(makeItem(""));
       }
       // No saveState() — LS is already authoritative here
+      updateSummary();
       return;
     }
 
@@ -7010,6 +7035,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
   ensureOneRow();
   restoreFromLocalStorage();
+  updateSummary();
+})();
+
+/* Selection-count badges on the checkbox groups (1–7) of the Arbeiten accordion. */
+(function initWorkTaskGroupCounts() {
+  const root = document.getElementById("dw-worktasks");
+  if (!root) return;
+
+  function updateGroup(group) {
+    const badge = group.querySelector(".wt-group-count");
+    if (!badge) return; // group 8 (Weitere Arbeiten) manages its own badge
+    const checked = group.querySelectorAll(
+      'input[type="checkbox"]:checked',
+    ).length;
+    badge.textContent = String(checked);
+    badge.hidden = checked === 0;
+  }
+
+  function updateAll() {
+    root.querySelectorAll(".wt-group").forEach(updateGroup);
+  }
+
+  root.addEventListener("change", (e) => {
+    if (e.target.matches('input[type="checkbox"]')) {
+      const group = e.target.closest(".wt-group");
+      if (group) updateGroup(group);
+    }
+  });
+
+  updateAll();
 })();
 
 /* ========== Kundendaten UI (contact, aufschlag/pflegegrad, etc.) ========== */

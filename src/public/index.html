@@ -3027,8 +3027,8 @@ button.dm-btn-danger:focus-visible {
       <section class="card page" id="page-Arbeiten" hidden>
         <h2 style="margin: 0 0 12px">Auszuführende Arbeiten</h2>
         <form id="form-Arbeiten" autocomplete="on">
-          <fieldset class="section-block" id="dw-worktasks">
-            <legend class="section-title">Auszuführende Arbeiten</legend>
+          <fieldset class="section-block full" id="dw-worktasks">
+            <legend class="sr-only">Auszuführende Arbeiten</legend>
             <p class="section-subtitle">Wählen Sie die Arbeiten aus, die im Zuge des Einbaus ausgeführt werden sollen.
             </p>
 
@@ -3036,7 +3036,9 @@ button.dm-btn-danger:focus-visible {
 
               <!-- 1. Badewanne -->
               <details class="wt-group">
-                <summary class="wt-group__header">1. Badewanne</summary>
+                <summary class="wt-group__header">
+                  <span class="wt-group-title-row">1. Badewanne <span class="wt-group-count" id="wt-count-badewanne" hidden>0</span></span>
+                </summary>
                 <div class="wt-group__body task-cards">
                   <label class="task-card">
                     <input type="checkbox" name="duschwanne[workTasks][]" value="remove_tub" />
@@ -3064,7 +3066,9 @@ button.dm-btn-danger:focus-visible {
 
               <!-- 2. Duschwanne -->
               <details class="wt-group">
-                <summary class="wt-group__header">2. Duschwanne</summary>
+                <summary class="wt-group__header">
+                  <span class="wt-group-title-row">2. Duschwanne <span class="wt-group-count" id="wt-count-duschwanne" hidden>0</span></span>
+                </summary>
                 <div class="wt-group__body task-cards">
                   <label class="task-card">
                     <input type="checkbox" name="duschwanne[workTasks][]" value="remove_showertub" />
@@ -3099,7 +3103,9 @@ button.dm-btn-danger:focus-visible {
 
               <!-- 3. Duschabtrennung -->
               <details class="wt-group">
-                <summary class="wt-group__header">3. Duschabtrennung</summary>
+                <summary class="wt-group__header">
+                  <span class="wt-group-title-row">3. Duschabtrennung <span class="wt-group-count" id="wt-count-duschabtrennung" hidden>0</span></span>
+                </summary>
                 <div class="wt-group__body task-cards">
                   <label class="task-card">
                     <input type="checkbox" name="duschwanne[workTasks][]" value="remove_shower_curtain" />
@@ -3141,7 +3147,9 @@ button.dm-btn-danger:focus-visible {
 
               <!-- 4. Thermostat / Duschsystem -->
               <details class="wt-group">
-                <summary class="wt-group__header">4. Thermostat / Duschsystem</summary>
+                <summary class="wt-group__header">
+                  <span class="wt-group-title-row">4. Thermostat / Duschsystem <span class="wt-group-count" id="wt-count-thermostat" hidden>0</span></span>
+                </summary>
                 <div class="wt-group__body task-cards">
                   <label class="task-card">
                     <input type="checkbox" name="duschwanne[workTasks][]" value="close_valve" />
@@ -3204,7 +3212,9 @@ button.dm-btn-danger:focus-visible {
 
               <!-- 5. Waschbecken -->
               <details class="wt-group">
-                <summary class="wt-group__header">5. Waschbecken</summary>
+                <summary class="wt-group__header">
+                  <span class="wt-group-title-row">5. Waschbecken <span class="wt-group-count" id="wt-count-waschbecken" hidden>0</span></span>
+                </summary>
                 <div class="wt-group__body task-cards">
                   <label class="task-card">
                     <input type="checkbox" name="duschwanne[workTasks][]" value="remove_sink" />
@@ -3232,7 +3242,9 @@ button.dm-btn-danger:focus-visible {
 
               <!-- 6. Bademöbel -->
               <details class="wt-group">
-                <summary class="wt-group__header">6. Bademöbel</summary>
+                <summary class="wt-group__header">
+                  <span class="wt-group-title-row">6. Bademöbel <span class="wt-group-count" id="wt-count-bademoebel" hidden>0</span></span>
+                </summary>
                 <div class="wt-group__body task-cards">
                   <label class="task-card">
                     <input type="checkbox" name="duschwanne[workTasks][]" value="remove_furniture" />
@@ -3253,7 +3265,9 @@ button.dm-btn-danger:focus-visible {
 
               <!-- 7. Toilette -->
               <details class="wt-group">
-                <summary class="wt-group__header">7. Toilette</summary>
+                <summary class="wt-group__header">
+                  <span class="wt-group-title-row">7. Toilette <span class="wt-group-count" id="wt-count-toilette" hidden>0</span></span>
+                </summary>
                 <div class="wt-group__body task-cards">
                   <label class="task-card">
                     <input type="checkbox" name="duschwanne[workTasks][]" value="remove_toilet" />
@@ -3283,6 +3297,48 @@ button.dm-btn-danger:focus-visible {
                       <span class="task-card__hint">Montage & Verkleidung</span>
                     </span>
                   </label>
+                </div>
+              </details>
+
+              <!-- 8. Weitere Arbeiten (free text) -->
+              <details class="wt-group">
+                <summary class="wt-group__header">
+                  <span class="wt-extra-header">
+                    8. Weitere Arbeiten (optional)
+                    <span class="wt-extra-count" id="dw-extra-count" hidden>0</span>
+                  </span>
+                </summary>
+                <div class="wt-group__body">
+                  <fieldset class="wt-extra-fieldset" id="dw-extra-tasks" data-kind="extra" aria-describedby="dw-extra-help">
+                    <legend class="sr-only">Weitere auszuführende Arbeiten</legend>
+
+                    <div class="da-items wt-extra-items">
+                      <div class="da-item wt-extra-item" data-kind="extra">
+                        <input class="dw-extra" type="text" name="duschwanne[extraTasks][]"
+                          aria-label="Zusätzliche Aufgabe"
+                          placeholder="z. B. Estrich ausgleichen, Silikonfugen erneuern" />
+                        <button type="button" class="da-remove wt-extra-remove" aria-label="Diese Zeile entfernen">
+                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                            <path d="M10 11v6"></path>
+                            <path d="M14 11v6"></path>
+                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    <p class="wt-extra-empty" id="dw-extra-empty" hidden>Noch keine zusätzliche Aufgabe erfasst.</p>
+
+                    <button type="button" class="da-add wt-extra-add" aria-label="Weitere Aufgabe hinzufügen">
+                      <span aria-hidden="true">+</span> Aufgabe hinzufügen
+                    </button>
+
+                    <small id="dw-extra-help" class="da-help">
+                      Ergänzen Sie hier freie Text-Aufgaben, die nicht in der Checkliste oben enthalten sind.
+                    </small>
+                  </fieldset>
                 </div>
               </details>
 
@@ -3344,36 +3400,6 @@ button.dm-btn-danger:focus-visible {
             <div id="tray-suggestions" class="space-y-2" style="margin-top:12px;"></div>
             <input type="hidden" id="chosenTrayProductId" name="chosenTrayProductId">
             <input type="hidden" id="traySize" name="traySize">
-            <!-- Extra worker tasks (free text) -->
-             <div style="margin-top: 16px;">
-            <fieldset class="da-row" id="dw-extra-tasks" data-kind="extra" aria-describedby="dw-extra-help">
-              <legend class="da-legend">
-                Weitere auszuführende Arbeiten (optional)
-              </legend>
-              <div class="da-legend-actions">
-                <button type="button" class="da-add" aria-label="Weitere Aufgabe hinzufügen">+</button>
-              </div>
-
-              <div class="da-items">
-                <div class="da-item" data-kind="extra">
-                  <div class="da-grid">
-                    <label class="da-label" style="grid-column: 1 / -1;">
-                      Aufgabe
-                      <input class="dw-extra" type="text" name="duschwanne[extraTasks][]"
-                        placeholder="z. B. Estrich ausgleichen, Silikonfugen erneuern" />
-                    </label>
-                  </div>
-                  <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
-                </div>
-              </div>
-
-              <small id="dw-extra-help" class="da-help">
-                Fügen Sie beliebige Tätigkeiten hinzu. Diese erscheinen unter „Auszuführende Arbeiten“.
-              </small>
-            </fieldset>
-            </div>
-
-
           </div>
 
 
