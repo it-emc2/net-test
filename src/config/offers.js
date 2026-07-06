@@ -7,6 +7,7 @@ export const OFFERS = {
       "Arbeitszeit",
       "Arbeiten",
       "Duschwanne",
+      "Fussboden",
       "Wandverkleidung",
       "DuschabtrennungNeu",
       "Duschabtrennung",

@@ -16,6 +16,8 @@ export function bootBadoluxLegacyFallback() {
   function applyBudgetModeUI(on) {
     const form = document.getElementById("form-duschwanne");
     if (form) form.classList.toggle("budget-mode", !!on);
+    const fussbodenForm = document.getElementById("form-fussboden");
+    if (fussbodenForm) fussbodenForm.classList.toggle("budget-mode", !!on);
   }
 
   function swapAccessoryImages(on) {
