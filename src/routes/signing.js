@@ -201,9 +201,9 @@ router.post("/", express.json({ limit: "25mb" }), async (req, res) => {
       Date.now() + DEFAULT_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
     );
 
-    const documents = (DOCS_BY_TYPE[customerType] || DOCS_BY_TYPE.SZ)
-      .filter((key) => key === "angebot") // Phase 1: only angebot is buildable
-      .map((key) => ({ key, status: "pending" }));
+    const documents = (DOCS_BY_TYPE[customerType] || DOCS_BY_TYPE.SZ).map(
+      (key) => ({ key, status: "pending" }),
+    );
 
     const sr = await SigningRequest.create({
       token,
@@ -491,7 +491,12 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
 // GET /sign/:token — serve the customer-facing signing page.
 // Mounted directly on the app before the SPA fallback.
 export function signingPageHandler(req, res) {
-  res.sendFile(path.join(__dirname, "..", "public", "signpage", "index.html"));
+  // dotfiles:'allow' so this works even when the app runs from a path that
+  // contains a dot-folder (e.g. a .claude worktree during testing).
+  res.sendFile(
+    path.join(__dirname, "..", "public", "signpage", "index.html"),
+    { dotfiles: "allow" },
+  );
 }
 
 export default router;

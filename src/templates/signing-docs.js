@@ -14,12 +14,23 @@ function esc(v) {
     .replace(/"/g, "&quot;");
 }
 
-// The three Selbstzahler payment options, indexed to selectedPaymentTermIdx.
+// Payment options, indexed to selectedPaymentTermIdx. Must mirror the "O …"
+// lines in docx-template.js (PARA_sz_LINES / PARA_kk_LINES).
 export const SZ_PAYMENT_OPTIONS = [
   "20 % Anzahlung – ohne Abzug",
   "30 % Anzahlung abzüglich 1 % Skonto vom Anzahlungsbetrag",
   "40 % Anzahlung abzüglich 2 % Skonto vom Anzahlungsbetrag",
 ];
+
+// Kassenkunde: Zahlungsbedingungen für den Selbstkostenanteil.
+export const KK_PAYMENT_OPTIONS = [
+  "50 % sofort und 50 % nach Fertigstellung, ohne Abzug",
+  "100 % sofort abzüglich 2 % Skonto",
+];
+
+export function paymentOptionsFor(customerType) {
+  return customerType === "KASSE" ? KK_PAYMENT_OPTIONS : SZ_PAYMENT_OPTIONS;
+}
 
 const BASE_CSS = `
   * { box-sizing: border-box; }
@@ -35,6 +46,11 @@ const BASE_CSS = `
   .sig-line { border-top: 1px solid #333; width: 320px; margin-top: 4px; padding-top: 4px; font-size: 10pt; color: #667; }
   .audit { margin-top: 26px; font-size: 8.5pt; color: #889; border-top: 1px solid #e2e7ea; padding-top: 8px; }
 `;
+
+// Effective contact fields: prefill overlaid with any customer corrections.
+function effectivePrefill(sr, doc) {
+  return Object.assign({}, sr.prefill || {}, doc?.editedFields || {});
+}
 
 function wrap(title, inner) {
   return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8">
@@ -63,14 +79,13 @@ function signatureBlock(doc, prefill) {
 
 // Appended to the Angebot PDF: carries the chosen payment terms + signature.
 export function buildSignatureSheetHtml(sr, doc) {
-  const p = sr.prefill || {};
+  const p = effectivePrefill(sr, doc);
+  const OPTIONS = paymentOptionsFor(sr.customerType);
   const idx = Number(doc.extraFields?.paymentTermIdx);
   const chosen =
-    Number.isFinite(idx) && SZ_PAYMENT_OPTIONS[idx]
-      ? SZ_PAYMENT_OPTIONS[idx]
-      : null;
+    Number.isFinite(idx) && OPTIONS[idx] ? OPTIONS[idx] : null;
 
-  const opts = SZ_PAYMENT_OPTIONS.map(
+  const opts = OPTIONS.map(
     (t, i) => `<div class="opt">${i === idx ? "☒" : "☐"} ${esc(t)}</div>`,
   ).join("");
 
@@ -94,7 +109,7 @@ export function buildSignatureSheetHtml(sr, doc) {
 // ---- Phase 2 (Kassenkunde) — ready to wire ----
 
 export function buildVollmachtHtml(sr, doc) {
-  const p = sr.prefill || {};
+  const p = effectivePrefill(sr, doc);
   const k = sr.payloadSnapshot?.Kundendaten || {};
   const entlastung = !!doc.extraFields?.entlastungsguthaben;
   const inner = `
@@ -124,7 +139,7 @@ export function buildVollmachtHtml(sr, doc) {
 }
 
 export function buildAbtretungHtml(sr, doc) {
-  const p = sr.prefill || {};
+  const p = effectivePrefill(sr, doc);
   const k = sr.payloadSnapshot?.Kundendaten || {};
   const pflegegrad = String(k.pflegegrad || "");
   const grades = ["1", "2", "3", "4", "5"]
