@@ -31,10 +31,19 @@ async function main() {
     .toArray();
   await mongoose.disconnect();
 
+  // The scraper's natural key is {materialNumber, configHash}, not articleNumber —
+  // the same articleNumber can be reached via multiple config paths, each saved as
+  // its own document. Enrichment (name/finish) is only as good as whichever path's
+  // scrape captured it, so merge duplicates and keep the first populated value
+  // instead of letting a later, blank duplicate overwrite a good one.
   const byArticle = new Map();
   for (const d of docs) {
     if (!d.articleNumber) continue;
-    byArticle.set(d.articleNumber, { name: d.name || "", finish: d.finish || "" });
+    const existing = byArticle.get(d.articleNumber);
+    byArticle.set(d.articleNumber, {
+      name: existing?.name || d.name || "",
+      finish: existing?.finish || d.finish || "",
+    });
   }
   console.log(`[syncVigourNames] loaded ${byArticle.size} products from vigor.products`);
 
