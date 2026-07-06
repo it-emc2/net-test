@@ -400,6 +400,13 @@ function grossToNet(gross, taxRate) {
       return Number.isFinite(n) ? n : 0;
     };
 
+    // Material category for the Angebot PDF grouping (Kleinmaterial, Fußboden,
+    // Wandverkleidung, Zubehör, Duschwanne, Duschabtrennung). Set via setCat()
+    // before each block below; lines pushed without a category fall back to
+    // "Weiteres" at render time.
+    let _cat = null;
+    const setCat = (c) => { _cat = c; };
+
     // helper to push unresolved lines; we resolve names/prices at the end
    const add = (id, qty, labelOverride, unitOverride, source, meta) => {
   const q = Number(qty) || 0;
@@ -413,6 +420,7 @@ function grossToNet(gross, taxRate) {
     source: source || null,
     meta: meta || null,          // ✅ add this
     docxHide: !!meta?.docxHide,  // optional convenience
+    category: _cat,
   });
 };
 
@@ -422,6 +430,7 @@ function grossToNet(gross, taxRate) {
   dusch?.budgetMode === 1 ||
   dusch?.budgetMode === true;
     // ------- Duschwanne ancillary
+    setCat("Kleinmaterial");
     if (dusch.abdichtSet) add("TRWDB", 1);
  
 
@@ -436,6 +445,7 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
     }
 
     // ------- Fußboden
+    setCat("Fußboden");
     const addFlooring = !!dusch.addFlooring;
     const floorArea =
       Number(String(dusch.floorArea ?? "").replace(",", ".")) || 0;
@@ -480,6 +490,7 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
             label: `- ${effM2} m² Trinnity Bodenabdichtung (inkl. ${Math.round((floorWaste - 1) * 100)}% Verschnitt)`,
             perM2Base: 7, // derive €/m² = price(TRBDSET7)/7
             source: null,
+            category: _cat,
           });
         }
       }
@@ -492,6 +503,7 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
     }
 
     // ------- Wandverkleidung
+    setCat("Wandverkleidung");
     // Main panel quantity (user picks one color + qty here)
     const qty997 = Number(wv?.wvQty997 || 0) || 0;
     const qty1497 = Number(wv?.wvQty1497 || 0) || 0;
@@ -639,6 +651,7 @@ addExtras(extras1497, "1497×2550 mm", "V3WV09");
       }
       if (qSilikon > 0) add("2000302", qSilikon);
     }
+    setCat(null);
     // ------- BWT · Badewannentür materials -------
     if (offer === "bwt") {
       // Example: standard door quantity
@@ -949,6 +962,7 @@ console.log("[REHA DEBUG] selections =", selections);
 
     // ------- Sonderduschabtrennung Hassmann (user-entered net price)
     // ------- Duschabtrennung Quick-Add (Hassmann) rows (Pendeltür, Gleittür, Falt-Pendeltür, Walk-In)
+    setCat("Duschabtrennung");
     try {
       const KIND_TO_LABEL = {
         PANDELTUER: "Pendeltür Hassmann",
@@ -987,6 +1001,7 @@ console.log("[REHA DEBUG] selections =", selections);
         e?.message || e,
       );
     }
+    setCat(null);
     // OPTIONAL → Sonderprodukte quick-add
     try {
       const oq = payload?.optional?.quickAdd || [];
@@ -1120,6 +1135,7 @@ color: metaColor || null,
   source: l.source || null,
   finish: l?.meta?.finish || null,
   docxHide: !!l.docxHide,
+  category: l.category || null,
 };
 
     });
@@ -1643,7 +1659,7 @@ try {
                 label: sizeLabel
                 ? `- ${qty} Stk Duschwanne ${sizeLabel}${colorSuffix}`
                 : `- ${qty} Stk Duschwanne${colorSuffix}`,
-
+                category: "Duschwanne",
               };
               materials.lines.push(line);
               materials.sum = round2((materials.sum || 0) + line.lineTotal);
