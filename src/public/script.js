@@ -159,6 +159,7 @@ const OFFERS = {
       "Arbeitszeit",
       "Arbeiten",
       "Duschwanne",
+      "Fussboden",
       "Wandverkleidung",
       "DuschabtrennungNeu",
       "Duschabtrennung",
@@ -1014,7 +1015,7 @@ function restoreTrinnityFloorSealing(dw) {
   const hasTRBD = chosen.some((s) => String(s || "").includes("TRBDSET7"));
   if (!hasTRBD) return;
 
-  const form = document.getElementById("form-duschwanne");
+  const form = document.getElementById("form-fussboden");
   const toggle = document.getElementById("addFlooring");
   const tile = document.getElementById("tile_TRBDSET7");
   const input = tile?.querySelector(
@@ -1042,7 +1043,7 @@ function restoreTrinnityFloorSealing(dw) {
 
 function restoreFlooringSelections(dw) {
   if (!dw) return;
-  const f = document.getElementById("form-duschwanne");
+  const f = document.getElementById("form-fussboden");
   if (!f) return;
 
   // Normalize a stored entry like "TRINNITY Bodenabdichtung TRBDSET7" → "TRBDSET7"
@@ -2211,6 +2212,7 @@ function resetAllForms() {
     "form-Arbeitszeit",
     "form-Arbeiten",
     "form-duschwanne",
+    "form-fussboden",
     "form-wandverkleidung",
     "form-duschabtrennung",
     "form-optional",
@@ -2626,6 +2628,7 @@ function updateSidebarForOffer() {
     bl: "BL",
     ah: "AH",
     DuschabtrennungNeu: "Duschabtrennung (neu)",
+    Fussboden: "Fußboden",
     // Rabatt page only exists in the Badumbau flow, so this rename is bu-only.
     Rabatt: "Übersicht",
   };
@@ -3674,6 +3677,7 @@ function buildPayload() {
     Kundendaten: formToObject(document.getElementById("form-Kundendaten")),
     duschwanne: {
       ...formToObject(document.getElementById("form-duschwanne")),
+      ...formToObject(document.getElementById("form-fussboden")),
       computed: window.__DW_COMPUTED__ || {},
     },
     wandverkleidung: formToObject(document.getElementById("form-wandverkleidung")),
@@ -3826,9 +3830,10 @@ function buildPayload() {
      DUSCHWANNE: ensure multi-select arrays are captured
      =========================== */
   try {
-    const formDW = document.getElementById("form-duschwanne");
+    const formDW = document.getElementById("form-fussboden");
     const formExtraTasks =
-      document.getElementById("form-Arbeiten") || formDW;
+      document.getElementById("form-Arbeiten") ||
+      document.getElementById("form-duschwanne");
     if (formDW || formExtraTasks) {
       const fdDW = formDW ? new FormData(formDW) : null;
       const fdExtra = formExtraTasks ? new FormData(formExtraTasks) : null;
@@ -4978,7 +4983,7 @@ async function downloadPDFWithProgress(endpoint, payload) {
 
 // === FIX: area <-> color coupling (self-contained) ===
 function syncColorWithAreaDW() {
-  const form = document.getElementById("form-duschwanne");
+  const form = document.getElementById("form-fussboden");
   if (!form) return;
 
   const areaEl = form.querySelector("#floorArea");
@@ -5551,6 +5556,17 @@ function validateDuschwanne() {
   let bad = f.querySelector('input[name="traySize"]:checked')
     ? null
     : f.querySelector('input[name="traySize"]')?.closest("label");
+  if (bad) {
+    flashInvalid(bad.tagName === "INPUT" ? bad : bad.querySelector("input"));
+    alert('Bitte füllen Sie alle Pflichtfelder in „Duschwanne" aus.');
+    return false;
+  }
+  return true;
+}
+function validateFussboden() {
+  const f = document.getElementById("form-fussboden");
+  if (!f) return true;
+  let bad = null;
   const add = f.querySelector("#addFlooring");
   if (add?.checked) {
     const area = f.querySelector("#floorArea");
@@ -5566,7 +5582,7 @@ function validateDuschwanne() {
   }
   if (bad) {
     flashInvalid(bad.tagName === "INPUT" ? bad : bad.querySelector("input"));
-    alert('Bitte füllen Sie alle Pflichtfelder in „Duschwanne" aus.');
+    alert('Bitte füllen Sie alle Pflichtfelder in „Fußboden" aus.');
     return false;
   }
   return true;
@@ -5671,7 +5687,9 @@ document.body.addEventListener("click", (e) => {
           ? validateArbeitszeit()
           : step === "duschwanne"
             ? validateDuschwanne()
-            : step === "wandverkleidung"
+            : step === "Fussboden"
+              ? validateFussboden()
+              : step === "wandverkleidung"
               ? validateWandverkleidung()
               : step === "duschabtrennung"
                 ? validateDuschabtrennung()
@@ -8219,7 +8237,7 @@ async function getProduct(id) {
 /* ========== FLOORING: LIVE PREVIEW + DB PRICES (adhesive/sealing) ==========
    NOTE: panels price now mirrors SERVER pricing; no client re-calculation. */
 (function initFlooringSection() {
-  const f = document.getElementById("form-duschwanne");
+  const f = document.getElementById("form-fussboden");
   if (!f) return;
   const toggle = document.getElementById("addFlooring");
   const panel = document.getElementById("flooringPanel");
@@ -8765,11 +8783,11 @@ document.addEventListener("change", (e) => {
   // run once so a pre-checked toggle shows its panel
   apply();
 
-  // When coming back to Duschwanne, re-apply and refresh from server pricing
+  // When coming back to Fußboden, re-apply and refresh from server pricing
   window.addEventListener("hashchange", () => {
     if (
       typeof getCurrentStep === "function" &&
-      getCurrentStep() === "duschwanne"
+      getCurrentStep() === "Fussboden"
     ) {
       apply();
       if (toggle?.checked) ensureUnits().then(updateUI);
@@ -12603,7 +12621,7 @@ function restoreDuschwanne(dw) {
   // flooring color from payload
   (function restoreFloorColorFromPayload(innerDw) {
     if (!innerDw) return;
-    const form = document.getElementById("form-duschwanne");
+    const form = document.getElementById("form-fussboden");
     if (!form) return;
 
     let vals = [];
@@ -13753,7 +13771,7 @@ function restoreDuschwanne(dw) {
   // flooring color from payload
   (function restoreFloorColorFromPayload(innerDw) {
     if (!innerDw) return;
-    const form = document.getElementById("form-duschwanne");
+    const form = document.getElementById("form-fussboden");
     if (!form) return;
 
     let vals = [];

@@ -10,6 +10,7 @@ export function initBadoluxManager(options = {}) {
     els: {
       toggle: "#budgetToggle",
       duschwanneForm: "#form-duschwanne",
+      fussbodenForm: "#form-fussboden",
       flooringBudgetGroup: "#flooringBudgetGroup",
       flooringBudgetOptions: "#flooringBudgetOptions",
       flooringBudgetEmpty: "#flooringBudgetEmpty",
@@ -32,6 +33,8 @@ export function initBadoluxManager(options = {}) {
   function applyBudgetModeUI(on) {
     const form = $(cfg.els.duschwanneForm);
     if (form) form.classList.toggle("budget-mode", !!on);
+    const fussbodenForm = $(cfg.els.fussbodenForm);
+    if (fussbodenForm) fussbodenForm.classList.toggle("budget-mode", !!on);
   }
 
   function swapAccessoryImages(on) {

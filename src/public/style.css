@@ -3051,11 +3051,13 @@ label.image-check.is-checked .caption {
 }
 
 /* ===== Additive: Badolux Low Budget mode UI helpers ===== */
-#form-duschwanne.budget-mode {
+#form-duschwanne.budget-mode,
+#form-fussboden.budget-mode {
   position: relative;
 }
 
-#form-duschwanne.budget-mode::before {
+#form-duschwanne.budget-mode::before,
+#form-fussboden.budget-mode::before {
   content: "💰 Low Budget Modus aktiv";
   display: block;
   margin: 10px 0 14px;
