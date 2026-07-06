@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Dokumente unterschreiben – EmC2</title>
+  <style>
+    :root { --green:#00a86b; --ink:#233; --muted:#667; --line:#dfe4e8; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: #f4f6f8; color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif; font-size: 18px; line-height: 1.5;
+    }
+    header {
+      background: #fff; border-bottom: 1px solid var(--line);
+      padding: 16px 20px; text-align: center;
+    }
+    header img { height: 40px; }
+    header .brand { font-size: 22px; font-weight: bold; color: var(--green); }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 20px 16px 60px; }
+    .card {
+      background: #fff; border: 1px solid var(--line); border-radius: 12px;
+      padding: 22px; margin: 0 0 20px;
+    }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 22px; margin: 0 0 14px; }
+    p.lead { color: var(--muted); margin: 0 0 18px; }
+    .progress { font-size: 16px; color: var(--muted); margin: 0 0 6px; }
+    .field { margin: 0 0 14px; }
+    .field label { display: block; font-size: 15px; color: var(--muted); margin: 0 0 4px; }
+    .field input {
+      width: 100%; padding: 12px 14px; font-size: 18px;
+      border: 1px solid var(--line); border-radius: 8px;
+    }
+    .row2 { display: flex; gap: 12px; }
+    .row2 .field { flex: 1; }
+    iframe.doc {
+      width: 100%; height: 60vh; border: 1px solid var(--line);
+      border-radius: 8px; background: #fff;
+    }
+    .sigbox { border: 2px dashed var(--line); border-radius: 10px; background: #fff; }
+    canvas.sig { width: 100%; height: 200px; display: block; touch-action: none; border-radius: 10px; }
+    .btnrow { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+    button {
+      font-size: 18px; padding: 14px 22px; border-radius: 10px; border: 0;
+      cursor: pointer; font-weight: bold;
+    }
+    .btn-primary { background: var(--green); color: #fff; }
+    .btn-primary:disabled { background: #9ccbb6; cursor: default; }
+    .btn-ghost { background: #eef1f3; color: var(--ink); }
+    .toggle { font-size: 15px; color: var(--green); background: none; padding: 6px 0; font-weight: normal; text-decoration: underline; }
+    .hidden { display: none !important; }
+    .notice { padding: 16px; border-radius: 10px; background: #eafaf3; color: #0a5; margin: 0 0 16px; }
+    .error { padding: 16px; border-radius: 10px; background: #fdecec; color: #b00; margin: 0 0 16px; }
+    .stepdots { display: flex; gap: 8px; margin: 0 0 16px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--line); }
+    .dot.active { background: var(--green); }
+    .dot.done { background: var(--green); opacity: .5; }
+  </style>
+</head>
+<body>
+  <header><span class="brand">EmC2</span></header>
+  <div class="wrap">
+    <div id="loading" class="card"><p>Dokumente werden geladen …</p></div>
+    <div id="fatal" class="card error hidden"></div>
+
+    <div id="app" class="hidden">
+      <div class="card">
+        <h1>Ihre Unterlagen zur Unterschrift</h1>
+        <p class="lead" id="introText">
+          Bitte prüfen Sie die Angaben, korrigieren Sie diese bei Bedarf und
+          unterschreiben Sie anschließend.
+        </p>
+        <div class="stepdots" id="stepdots"></div>
+        <div class="progress" id="progress"></div>
+      </div>
+
+      <div id="docCard" class="card">
+        <h2 id="docTitle"></h2>
+
+        <div id="fieldsWrap"></div>
+
+        <p class="lead">Dokument-Vorschau:</p>
+        <iframe class="doc" id="docFrame" title="Dokument"></iframe>
+
+        <h2 style="margin-top:22px;">Ihre Unterschrift</h2>
+        <p class="lead">Bitte unterschreiben Sie mit dem Finger oder der Maus im Feld.</p>
+        <div class="sigbox"><canvas class="sig" id="sigCanvas"></canvas></div>
+        <div class="btnrow">
+          <button type="button" class="btn-ghost" id="clearSig">Löschen</button>
+          <button type="button" class="toggle" id="toggleType">Namen tippen statt zeichnen</button>
+        </div>
+        <div class="field hidden" id="typeWrap" style="margin-top:12px;">
+          <label for="typeName">Ihr vollständiger Name</label>
+          <input type="text" id="typeName" placeholder="Vor- und Nachname" />
+        </div>
+
+        <div class="btnrow" style="margin-top:22px;">
+          <button type="button" class="btn-primary" id="submitBtn">Unterschreiben &amp; weiter</button>
+        </div>
+        <div id="docError" class="error hidden" style="margin-top:14px;"></div>
+      </div>
+
+      <div id="doneCard" class="card notice hidden">
+        <h2>Vielen Dank!</h2>
+        <p>Alle Dokumente wurden unterschrieben und an uns übermittelt. Sie
+        erhalten in Kürze eine Kopie per E-Mail.</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="/signpage/app.js"></script>
+</body>
+</html>
