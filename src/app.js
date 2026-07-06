@@ -37,6 +37,7 @@ import Offer from "./models/Offer.js"; // (ESM import)
 import Draft from "./models/Draft.js";
 import emailRouter from "./routes/email.js";
 import todaysCustomersRouter from "./routes/todayscustomers.js"; // <‑‑ NEW
+import signingRouter, { signingPageHandler } from "./routes/signing.js";
 
 // Pricing logic (factory(Product))
 import pricingFactory from "./logic/pricing.js";
@@ -267,6 +268,9 @@ app.use("/api", planningRouter);
 app.use("/api/hl", hlParseRouter);
 app.use('/api', todaysCustomersRouter);
 app.use('/admin', adminRouter);
+app.use('/api/signing', signingRouter);
+// Public signing page (must be before the SPA fallback so /sign/:token works).
+app.get('/sign/:token', signingPageHandler);
 
 //app.use("/pdf-preview", pdfPreviewRouter);
 //app.use('/api/docx/pdf-preview', pdfPreviewRouter); // ADD THIS

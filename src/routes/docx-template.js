@@ -1171,7 +1171,11 @@ async function mapData(body = {}, computed = {}) {
     console.log('[docx] hidden word filter active:', docxBlockedWords);
   }
 
-  const MaterialsLines = matForDoc
+  // -------- BWT-specific Angebotspositionen --------
+  const offerKey =
+    body.activeOffer || body.currentOfferKey || computed.activeOffer || "";
+
+  const renderedMaterialRows = matForDoc
     .map((l) => {
       const qtyStr = Number(l.qty || 0)
         .toFixed(2)
@@ -1188,13 +1192,46 @@ async function mapData(body = {}, computed = {}) {
         console.log('[docx] filtered material line:', row.MaterialLine);
       }
       return !hide;
-    })
-    .map(({ MaterialLine }) => ({ MaterialLine }));
-  const PayerKind = services?.payer || b.payer || "";
+    });
 
-  // -------- BWT-specific Angebotspositionen --------
-  const offerKey =
-    body.activeOffer || body.currentOfferKey || computed.activeOffer || "";
+  // Group "Material für Badumbau" into fixed categories (BU offer only).
+  // Kleinmaterial → Fußboden → Wandverkleidung → Zubehör → Duschwanne →
+  // Duschabtrennung → Weiteres (fallback bucket, keeps nothing silently dropped).
+  const isBuOffer = !offerKey || offerKey === "bu";
+  const CATEGORY_ORDER = [
+    "Kleinmaterial",
+    "Fußboden",
+    "Wandverkleidung",
+    "Zubehör",
+    "Duschwanne",
+    "Duschabtrennung",
+    "Weiteres",
+  ];
+  const resolveMaterialCategory = (raw) => {
+    if (raw?.category) return raw.category;
+    if (raw?.source === "optional" || raw?.source === "optional_reha") return "Zubehör";
+    return "Weiteres";
+  };
+
+  let MaterialsLines;
+  if (isBuOffer) {
+    const grouped = new Map();
+    for (const row of renderedMaterialRows) {
+      const cat = resolveMaterialCategory(row._raw);
+      if (!grouped.has(cat)) grouped.set(cat, []);
+      grouped.get(cat).push(row);
+    }
+    MaterialsLines = [];
+    for (const cat of CATEGORY_ORDER) {
+      const rows = grouped.get(cat);
+      if (!rows || !rows.length) continue;
+      MaterialsLines.push({ MaterialLine: cat.toUpperCase() });
+      for (const row of rows) MaterialsLines.push({ MaterialLine: row.MaterialLine });
+    }
+  } else {
+    MaterialsLines = renderedMaterialRows.map(({ MaterialLine }) => ({ MaterialLine }));
+  }
+  const PayerKind = services?.payer || b.payer || "";
 
   let BwtRows = []; // Tür rows (usually 0 or 1)
   // let BwtGrabRows = [];   // Haltegriff rows (0 or 1)
