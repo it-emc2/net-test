@@ -2435,12 +2435,7 @@ button.dm-btn-danger:focus-visible {
           <div>
             <label for="lastName" class="req">Nachname</label><input id="lastName" name="lastName" required />
           </div>
-          <div data-offer="ah">
-            <label for="ah_geburtsdatum">Geburtsdatum</label>
-            <input id="ah_geburtsdatum" name="ah_geburtsdatum" type="date" />
-          </div>
 
-       
 
           <div class="full customer-phone-row">
             <label for="phone">Telefonnummer</label>
@@ -2639,13 +2634,29 @@ button.dm-btn-danger:focus-visible {
                       </div>
                     </label>
                   </div>
-                  <div class="field full">
-                    <label for="kassenkundeName">Name der Krankenkasse Kunde</label>
-                    <input id="kassenkundeName" name="kassenkundeName" type="text" placeholder="z. B. AOK Nord" />
-                  </div>
-                  <div class="field full" data-offer="ah">
-                    <label for="ah_versichertenr">Versichertenr.</label>
-                    <input id="ah_versichertenr" name="ah_versichertenr" type="text" placeholder="z. B. A123456789" />
+                  <div id="kassenkundeDetails" class="full" hidden aria-hidden="true"
+                    style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:8px;">
+                    <div class="field">
+                      <label for="kk_geburtsdatum">Geburtsdatum</label>
+                      <input id="kk_geburtsdatum" name="kk_geburtsdatum" type="date" />
+                    </div>
+                    <div class="field">
+                      <label for="kk_versichertennr">Versicherungsnummer</label>
+                      <input id="kk_versichertennr" name="kk_versichertennr" type="text" placeholder="z. B. A123456789" />
+                    </div>
+                    <div class="field">
+                      <label for="kassenkundeName">Name der Krankenkasse</label>
+                      <input id="kassenkundeName" name="kassenkundeName" type="text" placeholder="z. B. AOK Nord" />
+                    </div>
+                    <div class="field">
+                      <label for="kk_krankenkasseAdresse">Adresse der Krankenkasse</label>
+                      <input id="kk_krankenkasseAdresse" name="kk_krankenkasseAdresse" type="text"
+                        placeholder="Straße, PLZ Ort" />
+                    </div>
+                    <div class="field full">
+                      <label for="kk_pflegegradSeit">Pflegegrad seit</label>
+                      <input id="kk_pflegegradSeit" name="kk_pflegegradSeit" type="month" />
+                    </div>
                   </div>
                 </div>
 
