@@ -12459,6 +12459,10 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("bitrixContactId", k.bitrixContactId || k.customerNumber);
   setRadio("payer", k.payer);
   setByNameOrId("kassenkundeName", k.kassenkundeName);
+  setByNameOrId("kk_geburtsdatum", k.kk_geburtsdatum ?? k.ah_geburtsdatum);
+  setByNameOrId("kk_versichertennr", k.kk_versichertennr ?? k.ah_versichertenr);
+  setByNameOrId("kk_krankenkasseAdresse", k.kk_krankenkasseAdresse);
+  setByNameOrId("kk_pflegegradSeit", k.kk_pflegegradSeit);
   setByNameOrId("partnerSalutation", k.partnerSalutation);
   setByNameOrId("partnerFirstName", k.partnerFirstName);
   setByNameOrId("partnerLastName", k.partnerLastName);
@@ -12474,8 +12478,8 @@ function restoreKundendaten(k, offer) {
 
   // AH-specific Kundendaten fields (data-offer="ah"): captured on save via
   // FormData but need explicit restore here since this handler is an allow-list.
-  setByNameOrId("ah_versichertenr", k.ah_versichertenr);
-  setByNameOrId("ah_geburtsdatum", k.ah_geburtsdatum);
+  // (ah_versichertenr / ah_geburtsdatum were superseded by the shared
+  // kk_versichertennr / kk_geburtsdatum fields above, restored with fallback.)
   setByNameOrId("ah_mobilitaet", k.ah_mobilitaet);
   setByNameOrId("ah_allergien", k.ah_allergien);
   setByNameOrId("ah_demenz", k.ah_demenz);
@@ -12486,14 +12490,8 @@ function restoreKundendaten(k, offer) {
   setRadio("ah_schluessel", k.ah_schluessel);
   setRadio("ah_bestehendeHilfe", k.ah_bestehendeHilfe);
 
-  const kassenkundeWrap = document
-    .getElementById("kassenkundeName")
-    ?.closest(".field");
-  if (kassenkundeWrap) {
-    const show = String(k.payer || "") === "Kassenkunde";
-    kassenkundeWrap.style.display = show ? "" : "none";
-    const input = document.getElementById("kassenkundeName");
-    if (input) input.disabled = !show;
+  if (typeof updateKassenkundeDetailsVisibility === "function") {
+    updateKassenkundeDetailsVisibility();
   }
 
   applySelbstzahlerVisibility();
@@ -19860,27 +19858,29 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// Show "Kassenkunde Name" only when payer is Kassenkunde
+// Show the Kassenkunde-only detail fields (Geburtsdatum, Versicherungsnummer,
+// Name/Adresse der Krankenkasse, Pflegegrad seit) only when payer is Kassenkunde.
+function updateKassenkundeDetailsVisibility() {
+  const wrap = document.getElementById("kassenkundeDetails");
+  if (!wrap) return;
+
+  const isKassenkunde =
+    document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde";
+
+  wrap.hidden = !isKassenkunde;
+  wrap.setAttribute("aria-hidden", isKassenkunde ? "false" : "true");
+
+  wrap.querySelectorAll("input, select, textarea").forEach((el) => {
+    el.disabled = !isKassenkunde;
+  });
+}
+window.updateKassenkundeDetailsVisibility = updateKassenkundeDetailsVisibility;
+
 document.addEventListener("DOMContentLoaded", () => {
-  const fieldWrap = document.getElementById("kassenkundeName")?.closest(".field");
-  if (!fieldWrap) return;
-
-  const radios = document.querySelectorAll('input[name="payer"]');
-  const nameInput = document.getElementById("kassenkundeName");
-
-  const update = () => {
-    const isKassenkunde = Array.from(radios).some(
-      (r) => r.checked && r.value === "Kassenkunde",
-    );
-    fieldWrap.style.display = isKassenkunde ? "" : "none";
-    if (nameInput) {
-      nameInput.disabled = !isKassenkunde;
-      if (!isKassenkunde) nameInput.value = "";
-    }
-  };
-
-  radios.forEach((r) => r.addEventListener("change", update));
-  update();
+  document
+    .querySelectorAll('input[name="payer"]')
+    .forEach((r) => r.addEventListener("change", updateKassenkundeDetailsVisibility));
+  updateKassenkundeDetailsVisibility();
 });
 // Hide Pflegegrad + Pflegekasse fields when customer is Selbstzahler
 function applySelbstzahlerVisibility() {
