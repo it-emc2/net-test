@@ -17,11 +17,17 @@ import crypto from "crypto";
 import path from "path";
 import { fileURLToPath } from "url";
 import nodemailer from "nodemailer";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument } from "pdf-lib";
 
 import SigningRequest from "../models/SigningRequest.js";
 import { addTimelineComment } from "./bitrix.js";
 import { generateOfferPdfBuffer } from "./docx-template.js";
+import { htmlToPdfBuffer } from "../utils/htmlToPdf.js";
+import {
+  buildSignatureSheetHtml,
+  buildVollmachtHtml,
+  buildAbtretungHtml,
+} from "../templates/signing-docs.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -125,67 +131,51 @@ const SIGN_LINK_INTRO =
   "einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu " +
   "unterschreiben und direkt an uns zurückzuschicken:";
 
-// Build the unsigned PDF for a given document key.
+// Merge several PDF buffers into one.
+async function mergePdfs(buffers) {
+  const merged = await PDFDocument.create();
+  for (const buf of buffers) {
+    const src = await PDFDocument.load(buf);
+    const pages = await merged.copyPages(src, src.getPageIndices());
+    pages.forEach((p) => merged.addPage(p));
+  }
+  return Buffer.from(await merged.save());
+}
+
+// A payload copy with the customer's chosen payment term applied, so the
+// existing Angebot template ticks the correct box.
+function payloadWithPaymentChoice(sr, doc) {
+  const payload = JSON.parse(JSON.stringify(sr.payloadSnapshot || {}));
+  const idx = Number(doc?.extraFields?.paymentTermIdx);
+  if (Number.isFinite(idx) && idx >= 0) {
+    payload.Kundendaten = payload.Kundendaten || {};
+    payload.Kundendaten.selectedPaymentTermIdx = idx;
+  }
+  return payload;
+}
+
+// Build the UNSIGNED PDF of a document for on-screen viewing.
 async function buildDocumentPdf(sr, key) {
+  const doc = (sr.documents || []).find((d) => d.key === key);
   if (key === "angebot") {
-    const { pdfBuffer } = await generateOfferPdfBuffer(sr.payloadSnapshot || {});
+    const { pdfBuffer } = await generateOfferPdfBuffer(payloadWithPaymentChoice(sr, doc));
     return pdfBuffer;
   }
-  // Phase 2: vollmacht / abtretung generated from templates + prefill.
+  if (key === "vollmacht") return htmlToPdfBuffer(buildVollmachtHtml(sr, doc || {}));
+  if (key === "abtretung") return htmlToPdfBuffer(buildAbtretungHtml(sr, doc || {}));
   throw new Error(`Dokumenttyp "${key}" wird noch nicht unterstützt`);
 }
 
-// Stamp the signature image + audit trail onto the last page of a PDF.
-async function stampSignature(pdfBuffer, doc) {
-  const pdf = await PDFDocument.load(pdfBuffer);
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
-  const page = pdf.addPage();
-  const { width, height } = page.getSize();
-  const margin = 50;
-  let y = height - margin;
-
-  page.drawText("Elektronische Unterschrift", {
-    x: margin,
-    y,
-    size: 16,
-    font,
-    color: rgb(0, 0, 0),
-  });
-  y -= 40;
-
-  const dataUrl = String(doc.signatureImage || "");
-  const m = dataUrl.match(/^data:image\/png;base64,(.+)$/);
-  if (m) {
-    try {
-      const png = await pdf.embedPng(Buffer.from(m[1], "base64"));
-      const maxW = 300;
-      const scale = Math.min(1, maxW / png.width);
-      page.drawImage(png, {
-        x: margin,
-        y: y - png.height * scale,
-        width: png.width * scale,
-        height: png.height * scale,
-      });
-      y -= png.height * scale + 20;
-    } catch {
-      // ignore bad image; audit text below still records the signing
-    }
+// Build the FINAL SIGNED PDF for a document (used on completion).
+async function buildSignedPdf(sr, doc) {
+  if (doc.key === "angebot") {
+    const { pdfBuffer } = await generateOfferPdfBuffer(payloadWithPaymentChoice(sr, doc));
+    const sheet = await htmlToPdfBuffer(buildSignatureSheetHtml(sr, doc));
+    return mergePdfs([pdfBuffer, sheet]);
   }
-
-  const signedAt = doc.signedAt ? new Date(doc.signedAt) : new Date();
-  const lines = [
-    `Unterzeichner: ${doc.editedFields?.firstName || ""} ${doc.editedFields?.lastName || ""}`.trim(),
-    `Ort: ${doc.place || "-"}`,
-    `Datum/Zeit: ${signedAt.toLocaleString("de-DE")}`,
-    `IP-Adresse: ${doc.signedIp || "-"}`,
-    "Elektronisch signiert über den Online-Signatur-Link der EmC2 Attila Landgrafe.",
-  ];
-  for (const line of lines) {
-    page.drawText(line, { x: margin, y, size: 10, font, color: rgb(0.2, 0.2, 0.2) });
-    y -= 16;
-  }
-
-  return Buffer.from(await pdf.save());
+  if (doc.key === "vollmacht") return htmlToPdfBuffer(buildVollmachtHtml(sr, doc));
+  if (doc.key === "abtretung") return htmlToPdfBuffer(buildAbtretungHtml(sr, doc));
+  throw new Error(`Dokumenttyp "${doc.key}" wird noch nicht unterstützt`);
 }
 
 // ---------- internal routes ----------
@@ -401,9 +391,20 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
       return res.status(400).json({ error: "Unterschrift fehlt" });
     }
 
+    // For the Angebot the payment term is mandatory.
+    const extraFields = req.body?.extraFields || {};
+    if (key === "angebot") {
+      const idx = Number(extraFields.paymentTermIdx);
+      if (!Number.isFinite(idx) || idx < 0) {
+        return res
+          .status(400)
+          .json({ error: "Bitte wählen Sie eine Zahlungsbedingung aus" });
+      }
+    }
+
     doc.signatureImage = sig;
     doc.editedFields = req.body?.editedFields || {};
-    doc.extraFields = req.body?.extraFields || {};
+    doc.extraFields = extraFields;
     doc.place = String(req.body?.place || sr.prefill?.city || "").trim();
     doc.signedAt = new Date();
     doc.signedIp = clientIp(req);
@@ -425,11 +426,10 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
     if (sr.status === "completed" && prevStatus !== "completed") {
       const signedPdfs = [];
       for (const d of sr.documents) {
-        const base = await buildDocumentPdf(sr, d.key);
-        const stamped = await stampSignature(base, d);
+        const buffer = await buildSignedPdf(sr, d);
         signedPdfs.push({
           filename: `${d.key}_${sr.offerNumber || "signiert"}.pdf`,
-          buffer: stamped,
+          buffer,
         });
       }
 

@@ -23,6 +23,13 @@
     { key: "email", label: "E-Mail" },
   ];
 
+  // Selbstzahler payment options — must mirror SZ_PAYMENT_OPTIONS on the server.
+  var PAYMENT_OPTIONS = [
+    "20 % Anzahlung – ohne Abzug",
+    "30 % Anzahlung abzüglich 1 % Skonto vom Anzahlungsbetrag",
+    "40 % Anzahlung abzüglich 2 % Skonto vom Anzahlungsbetrag",
+  ];
+
   var state = { data: null, docs: [], index: 0, prefill: {} };
 
   function showFatal(msg) {
@@ -91,6 +98,28 @@
     });
   }
 
+  function renderPaymentTerms(doc) {
+    var wrap = el("paymentTerms");
+    var box = el("paymentOptions");
+    if (doc.key !== "angebot") { wrap.classList.add("hidden"); box.innerHTML = ""; return; }
+    wrap.classList.remove("hidden");
+    box.innerHTML = "";
+    PAYMENT_OPTIONS.forEach(function (t, i) {
+      var div = document.createElement("div");
+      div.className = "field";
+      div.innerHTML =
+        '<label style="cursor:pointer;font-size:17px;color:var(--ink);">' +
+        '<input type="radio" name="paymentTerm" value="' + i + '" style="width:auto;margin-right:10px;">' +
+        t + "</label>";
+      box.appendChild(div);
+    });
+  }
+
+  function selectedPaymentIdx() {
+    var checked = el("paymentOptions").querySelector('input[name="paymentTerm"]:checked');
+    return checked ? Number(checked.value) : -1;
+  }
+
   function collectFields() {
     var out = {};
     var inputs = el("fieldsWrap").querySelectorAll("input[data-key]");
@@ -108,6 +137,7 @@
     el("docTitle").textContent = doc.label;
     renderDots();
     renderFields();
+    renderPaymentTerms(doc);
     el("docFrame").src = "/api/signing/" + token + "/documents/" + doc.key + "/pdf";
     el("docError").classList.add("hidden");
     resetSignature();
@@ -197,6 +227,17 @@
     var errBox = el("docError");
     errBox.classList.add("hidden");
 
+    var extraFields = {};
+    if (doc.key === "angebot") {
+      var payIdx = selectedPaymentIdx();
+      if (payIdx < 0) {
+        errBox.textContent = "Bitte wählen Sie eine Zahlungsbedingung aus.";
+        errBox.classList.remove("hidden");
+        return;
+      }
+      extraFields.paymentTermIdx = payIdx;
+    }
+
     var signatureImage = null;
     var typing = !el("typeWrap").classList.contains("hidden");
     if (typing) {
@@ -215,7 +256,7 @@
     api(token + "/documents/" + doc.key, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ signatureImage: signatureImage, editedFields: fields, place: fields.city }),
+      body: JSON.stringify({ signatureImage: signatureImage, editedFields: fields, extraFields: extraFields, place: fields.city }),
     })
       .then(function (res) {
         doc.status = "signed";

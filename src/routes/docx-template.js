@@ -1566,19 +1566,33 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
   // Default: nichts anzeigen
   let SelfPayLines = [];
 
+  // Optional: vom Kunden gewählte Zahlungsbedingung (0-basiert über die "O"-Zeilen).
+  // Wird beim Online-Signieren gesetzt; leer => alle Optionen bleiben "O".
+  const selectedPayIdx = Number.isFinite(Number(b.selectedPaymentTermIdx))
+    ? Number(b.selectedPaymentTermIdx)
+    : -1;
+
+  // Map the payment lines, ticking the chosen "O" line (option index is 0-based
+  // over the "O …" lines, i.e. the title line at idx 0 is skipped).
+  const mapPayLines = (lines) => {
+    let optionIdx = -1;
+    return lines.map((text, idx) => {
+      let out = text;
+      if (idx > 0 && /^O\s/.test(text)) {
+        optionIdx += 1;
+        if (optionIdx === selectedPayIdx) out = text.replace(/^O\s/, "☒ ");
+      }
+      return { Text: out, IsTitle: idx === 0 };
+    });
+  };
+
   // Kassenkunde (KK): immer den KK-Block anzeigen
   if (isKK) {
-    SelfPayLines = PARA_kk_LINES.map((text, idx) => ({
-      Text: text,
-      IsTitle: idx === 0,
-    }));
+    SelfPayLines = mapPayLines(PARA_kk_LINES);
   }
   // Selbstzahler (SZ): immer den SZ-Block anzeigen
   else if (isSZ) {
-    SelfPayLines = PARA_sz_LINES.map((text, idx) => ({
-      Text: text,
-      IsTitle: idx === 0,
-    }));
+    SelfPayLines = mapPayLines(PARA_sz_LINES);
   }
 
   // Prefer explicit rates per payer; fallback to computed laborRate if neither was selected yet

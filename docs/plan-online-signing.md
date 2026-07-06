@@ -267,6 +267,39 @@ Nutzer.
 
 ---
 
+## 7c. Rendering-Architektur: HTML-first, Ausgabe als PDF (Entscheidung)
+
+Vorbild: das Schwesterprojekt **laufzettel** (reines HTML-Formular + `signature_pad`,
+Unterschrift als base64-PNG). Vorteil für uns:
+- **Checkboxen** (Zahlungsbedingungen, Pflegegrad, Entlastungsguthaben) = native
+  HTML-Radios/Checkboxen — trivial.
+- **Unterschrift-Platzierung** driftet nicht: die Signatur ist ein Feld *im Layout*,
+  unabhängig vom Angebotsinhalt. Löst das „Signatur verschiebt sich"-Problem.
+
+Unterschied zu laufzettel: **wir brauchen am Ende PDFs** (Krankenkasse, Mail,
+Bitrix). Werkzeug ist vorhanden: **puppeteer** (Chromium print-to-PDF) ist bereits
+Dependency; die Angebots-PDF entsteht heute via docx→LibreOffice (`soffice`).
+
+**Beschlossene Architektur (Interaktion = HTML, Ausgabe = PDF):**
+- **Vollmacht & Abtretung:** als **HTML-Templates** neu aufgebaut (Prefill,
+  Checkboxen, Inline-Signatur). Bei Abschluss rendert puppeteer die HTML-Seite
+  (Signatur als `<img>`) → finale PDF. Kein Drift, native Checkboxen.
+- **Angebot:** der bepreiste Angebots-Body bleibt die bestehende docx→PDF. Die
+  **Zahlungsbedingungen-Auswahl** wird auf der Signatur-Seite (HTML) getroffen und
+  als Daten in den Angebots-Payload injiziert, sodass das Template die richtige Box
+  ankreuzt (datengetrieben). Die **Unterschrift** kommt auf ein HTML-
+  „Unterschriftenblatt" (Angebotsnr. + gewählte Bedingung + Signatur), das per
+  puppeteer zu PDF gerendert und an die Angebots-PDF **angehängt** wird.
+- **pdf-lib** nur noch zum **Zusammenfügen** von PDFs (nicht mehr zum
+  koordinatenbasierten Stempeln → entfällt der Drift).
+
+**Auswirkung auf bereits Gebautes:** Model/Routen/Token/Timeline/Mail bleiben.
+`stampSignature` (Koordinaten-Stempel) wird durch „HTML→PDF rendern + zusammenfügen"
+ersetzt; die Signatur-Seite rendert pro Dokument HTML statt eines nackten
+PDF-iframes.
+
+---
+
 ## 8. Risiken & Gegenmaßnahmen
 
 | Risiko | Gegenmaßnahme |
