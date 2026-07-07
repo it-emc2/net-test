@@ -162,6 +162,7 @@ const OFFERS = {
       "Fussboden",
       "Wandverkleidung",
       "DuschabtrennungNeu",
+      "Duschvorhang",
       "Duschabtrennung",
       "Optional",
       "Rabatt",
@@ -2628,6 +2629,7 @@ function updateSidebarForOffer() {
     bl: "BL",
     ah: "AH",
     DuschabtrennungNeu: "Duschabtrennung (neu)",
+    Duschvorhang: "Duschvorhang",
     Fussboden: "Fußboden",
     // Rabatt page only exists in the Badumbau flow, so this rename is bu-only.
     Rabatt: "Aufschlag / Rabatt",
@@ -3198,6 +3200,54 @@ function collectDuschabtrennungConfigurator(doc) {
   }
 }
 
+// --- Duschvorhang Konfigurator collector ---
+// Same pattern as collectDuschabtrennungConfigurator: the Duschvorhang tab exposes
+// its selected net lines via window.__vorhangConfigurator.getLines(). We APPEND them
+// to payload.duschabtrennung.quickAdd (must run AFTER the two collectors above that
+// overwrite that array) so the existing pricing path prices them, and persist the
+// raw state under payload.duschvorhang.configurator for restore.
+function collectDuschvorhangConfigurator(doc) {
+  doc.duschabtrennung = doc.duschabtrennung || {};
+  const api = window.__vorhangConfigurator;
+  if (!api || typeof api.getLines !== "function") return;
+
+  let lines = [];
+  try {
+    lines = api.getLines() || [];
+  } catch (e) {
+    console.warn("[vorhang] getLines failed:", e?.message || e);
+    return;
+  }
+  if (!Array.isArray(lines) || !lines.length) return;
+
+  const qa = Array.isArray(doc.duschabtrennung.quickAdd)
+    ? doc.duschabtrennung.quickAdd
+    : [];
+
+  for (const ln of lines) {
+    const price = Number(ln?.net) || 0;
+    if (price <= 0) continue;
+    qa.push({
+      kind: "config",
+      label: ln.label || "Duschvorhang (Konfigurator)",
+      qty: Number(ln.qty) > 0 ? Number(ln.qty) : 1,
+      price: price,
+      productId: ln.articleNumber || "",
+      finish: ln.finish || null,
+    });
+  }
+  doc.duschabtrennung.quickAdd = qa;
+
+  // persist for restore
+  try {
+    doc.duschvorhang = doc.duschvorhang || {};
+    const state = typeof api.getState === "function" ? api.getState() : null;
+    doc.duschvorhang.configurator = { state, lines };
+  } catch {
+    /* non-fatal */
+  }
+}
+
 // helper: collect "Freier Posten / Sonderprodukte" rows from a container
 function collectCustomRows(root) {
   if (!root) return [];
@@ -3756,6 +3806,7 @@ function buildPayload() {
   collectWandverkleidungMaterials(payload);
   collectDuschabtrennungQuickAdd(payload);
   collectDuschabtrennungConfigurator(payload);
+  collectDuschvorhangConfigurator(payload);
 
   if (String(currentOfferKey || "").toLowerCase() === "bwt") {
     collectBwtMaterials(payload);
@@ -10224,7 +10275,7 @@ function escapeHtml(s) {
     .replace(/'/g, "&#39;");
 }
 
-  const HIDDEN_BRANDS_RE = /\b(VIGOUR|TRINNITY|BADOLUX|RAMSAUER|CLIVIA\s+PLUS)\b\s*/gi;
+  const HIDDEN_BRANDS_RE = /\b(VIGOUR|TRINNITY|BADOLUX|RAMSAUER|CLIVIA\s+PLUS|DERBY\s+V3\s+PLUS|HEWI)\b\s*/gi;
   function stripBrand(s) { return String(s).replace(HIDDEN_BRANDS_RE, "").trim(); }
 
   // Kosten-Details: finish (Ausführung/Oberfläche) is collected on every Duschabtrennung
