@@ -128,3 +128,31 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# ---- Not needed in the Docker image (keeps the Fly build context small) ----
+# Version control (runtime build id comes from FLY_IMAGE_REF, not git)
+.git
+.gitignore
+.gitattributes
+.github
+
+# Claude Code working data: worktrees, task outputs, caches (multiple GB)
+.claude
+.superpowers
+.tmp-claude
+.playwright-mcp
+
+# Editor / CI / test artifacts
+.vscode
+.vscode-test
+test-results
+playwright-report
+verify-bu-app.png
+
+# Generated debug dumps (written at runtime, never read)
+out-Angebot.docx
+out-Materialuebersicht.docx
+
+# Docs (not used at runtime)
+docs
+docs1
