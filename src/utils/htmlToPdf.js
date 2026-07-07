@@ -12,8 +12,12 @@ let browserPromise = null;
 
 async function getBrowser() {
   if (!browserPromise) {
+    // In production (Docker/Fly) point at the system Chromium via
+    // PUPPETEER_EXECUTABLE_PATH; locally puppeteer uses its bundled download.
+    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
     browserPromise = puppeteer.launch({
       headless: true,
+      executablePath,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
   }

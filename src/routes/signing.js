@@ -110,16 +110,23 @@ async function postTimeline(sr, comment, attachments = []) {
   }
 }
 
+// The authenticated sender address. Supports both SMTP_EMAIL (used elsewhere)
+// and SMTP_USER (used in some env files).
+function smtpFrom() {
+  return process.env.SMTP_EMAIL || process.env.SMTP_USER || "";
+}
+
 function buildTransport() {
   const host = process.env.SMTP_HOST;
-  if (!host) return null; // email is optional; signing still works without it
+  const user = smtpFrom();
+  if (!host || !user) return null; // email is optional; signing still works without it
   return nodemailer.createTransport({
     host,
     port: Number(process.env.SMTP_PORT || 587),
     secure: String(process.env.SMTP_SECURE || "false") === "true",
     requireTLS: true,
     family: 4,
-    auth: { user: process.env.SMTP_EMAIL, pass: process.env.SMTP_PASS },
+    auth: { user, pass: process.env.SMTP_PASS },
     connectionTimeout: 8000,
     greetingTimeout: 8000,
     socketTimeout: 12000,
@@ -234,8 +241,8 @@ router.post("/", express.json({ limit: "25mb" }), async (req, res) => {
         const text = `${SIGN_LINK_INTRO}\n\n${link}`;
         try {
           const info = await transporter.sendMail({
-            from: process.env.SMTP_EMAIL,
-            replyTo: process.env.SMTP_REPLY_TO || process.env.SMTP_EMAIL,
+            from: smtpFrom(),
+            replyTo: process.env.SMTP_REPLY_TO || smtpFrom(),
             to: prefill.email,
             subject: `Ihre Unterlagen zur Unterschrift – ${sr.offerNumber || "Angebot"}`,
             text,
@@ -435,7 +442,7 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
 
       // Email a copy to customer + office.
       const transporter = buildTransport();
-      const office = process.env.SIGNING_OFFICE_EMAIL || process.env.SMTP_EMAIL;
+      const office = process.env.SIGNING_OFFICE_EMAIL || smtpFrom();
       if (transporter) {
         const recipients = [sr.customerEmail, office].filter(Boolean);
         const attachments = signedPdfs.map((p) => ({
@@ -445,8 +452,8 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
         }));
         try {
           await transporter.sendMail({
-            from: process.env.SMTP_EMAIL,
-            replyTo: process.env.SMTP_REPLY_TO || process.env.SMTP_EMAIL,
+            from: smtpFrom(),
+            replyTo: process.env.SMTP_REPLY_TO || smtpFrom(),
             to: recipients.join(","),
             subject: `Unterschriebene Unterlagen – ${sr.offerNumber || "Angebot"}`,
             text:
