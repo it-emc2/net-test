@@ -63,11 +63,71 @@ const BASE_CSS = `
   .sig-img { max-width: 320px; max-height: 140px; display: block; margin: 6px 0; }
   .sig-line { border-top: 1px solid #000; width: 320px; margin-top: 4px; padding-top: 4px; font-size: 10pt; color: #333; }
   .audit { margin-top: 26px; font-size: 8.5pt; color: #555; border-top: 1px solid #000; padding-top: 8px; }
+  .dochead { text-align: right; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px; }
+  .dochead img { height: 88px; width: auto; }
 `;
+
+// Logo header for the Vollmacht/Abtretung documents.
+function docHeader() {
+  return logoDataUri()
+    ? `<div class="dochead"><img src="${logoDataUri()}" alt="EmC2"></div>`
+    : "";
+}
 
 // Effective contact fields: prefill overlaid with any customer corrections.
 function effectivePrefill(sr, doc) {
   return Object.assign({}, sr.prefill || {}, doc?.editedFields || {});
+}
+
+// Resolve all Vollmacht/Abtretung fields: customer edits (doc.editedFields)
+// override the snapshot (prefill for contact data, Kundendaten for Kasse data).
+function resolveFields(sr, doc) {
+  const p = sr.prefill || {};
+  const k = sr.payloadSnapshot?.Kundendaten || {};
+  const e = doc?.editedFields || {};
+  const pick = (key, dflt) => (e[key] !== undefined ? e[key] : dflt);
+  return {
+    firstName: pick("firstName", p.firstName || ""),
+    lastName: pick("lastName", p.lastName || ""),
+    street: pick("street", p.street || ""),
+    postalCode: pick("postalCode", p.postalCode || ""),
+    city: pick("city", p.city || ""),
+    phone: pick("phone", p.phone || ""),
+    email: pick("email", p.email || ""),
+    geburtsdatum: pick("geburtsdatum", p.geburtsdatum || ""),
+    kassenkundeName: pick("kassenkundeName", k.kassenkundeName || ""),
+    kk_versichertennr: pick("kk_versichertennr", k.kk_versichertennr || ""),
+    pflegegrad: pick("pflegegrad", String(k.pflegegrad || "")),
+    kk_pflegegradSeit: pick("kk_pflegegradSeit", k.kk_pflegegradSeit || ""),
+    kk_krankenkasseAdresse: pick("kk_krankenkasseAdresse", k.kk_krankenkasseAdresse || ""),
+  };
+}
+
+// A labelled field. display mode = disabled input (unlocked by the section's
+// edit button); pdf mode = plain text.
+function fld(label, key, value, mode) {
+  if (mode === "pdf") {
+    return `<div class="row"><span class="label">${label}</span><span>${esc(value)}</span></div>`;
+  }
+  return `<div class="fld"><span class="fld-label">${label}</span><input type="text" data-edit-field="${key}" value="${esc(value)}" disabled></div>`;
+}
+
+function pflegegradField(value, mode) {
+  const grades = ["1", "2", "3", "4", "5"];
+  if (mode === "pdf") {
+    const marks = grades.map((g) => `${g === String(value) ? "☒" : "☐"} ${g}`).join(" &nbsp; ");
+    return `<div class="row"><span class="label">Pflegegrad:</span><span>${marks}</span></div>`;
+  }
+  return `<div class="fld"><span class="fld-label">Pflegegrad:</span><span class="pg-opts">${grades
+    .map(
+      (g) =>
+        `<label><input type="radio" name="pflegegrad" value="${g}"${g === String(value) ? " checked" : ""} disabled> ${g}</label>`,
+    )
+    .join("")}</span></div>`;
+}
+
+function editButton() {
+  return `<button type="button" class="edit-toggle" data-editing="0">✎ Bearbeiten</button>`;
 }
 
 function wrap(title, inner) {
@@ -112,6 +172,16 @@ const INTERACTIVE_CSS = `
 #typeName { border:none; border-bottom:1px solid #000; padding:5px 2px; font-size:15px; background:transparent; width:100%; max-width:340px; }
 .si-err { margin-top:12px; padding:10px 12px; border:1px solid #b71c1c; background:#fdecea; color:#7f1d1d; }
 .hidden { display:none !important; }
+.editsec h2 { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.edit-toggle { font-size:12px; padding:3px 12px; border:1px solid #000; background:#fff; cursor:pointer; font-weight:normal; }
+.edit-toggle:hover { background:#f2f2f2; }
+.fld { display:flex; gap:10px; margin:9px 0; align-items:baseline; }
+.fld-label { min-width:160px; flex-shrink:0; color:#333; font-size:11pt; }
+.fld input[type=text] { flex:1; border:none; border-bottom:1px solid transparent; padding:3px 2px; font-size:12pt; background:transparent; color:#111; }
+.fld input[type=text]:not(:disabled) { border-bottom-color:#000; background:#fffdf0; }
+.fld input:disabled { color:#111; -webkit-text-fill-color:#111; opacity:1; cursor:default; }
+.pg-opts { display:flex; gap:16px; flex-wrap:wrap; }
+.pg-opts label { display:flex; gap:5px; align-items:center; }
 `;
 
 // Scoped document CSS for Vollmacht/Abtretung display fragments.
@@ -120,10 +190,13 @@ const DOC_CSS = `
 .signdoc h1 { font-size:18pt; margin:0 0 6px; }
 .signdoc h2 { font-size:13pt; margin:18px 0 8px; background:#ddd; border:1px solid #000; padding:5px 8px; }
 .signdoc .muted { color:#333; }
-.signdoc .row { margin:4px 0; }
-.signdoc .label { color:#333; font-size:10pt; }
-.signdoc .box { border:1px solid #000; padding:12px 14px; margin:10px 0; }
-.signdoc .opt { margin:6px 0; }
+.signdoc .row { display:flex; gap:10px; margin:9px 0; align-items:baseline; }
+.signdoc .row .label { min-width:160px; flex-shrink:0; }
+.signdoc .label { color:#333; font-size:11pt; }
+.signdoc .box { border:1px solid #000; padding:16px 18px; margin:12px 0; }
+.signdoc .opt { margin:8px 0; }
+.signdoc .dochead { text-align:right; border-bottom:2px solid #000; padding-bottom:8px; margin-bottom:12px; }
+.signdoc .dochead img { height:88px; width:auto; }
 `;
 
 // Interactive signature area (canvas + clear + type-name fallback).
@@ -189,8 +262,8 @@ const ANGEBOT_CSS = `
 .ang h1 { font-size:20pt; margin:0; }
 .ang h2 { font-size:13pt; margin:18px 0 8px; background:#ddd; border:1px solid #000; padding:5px 8px; }
 .ang .head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; border-bottom:2px solid #000; padding-bottom:10px; }
-.ang .head img { height:60px; }
-.ang .meta { text-align:right; font-size:10.5pt; color:#333; }
+.ang .head img { height:88px; }
+.ang .meta { text-align:left; font-size:10.5pt; color:#333; }
 .ang .cust { margin:16px 0; }
 .ang .muted { color:#333; }
 .ang ul { margin:6px 0 0 0; padding:0 0 0 18px; }
@@ -279,14 +352,14 @@ export function buildAngebotHtml(data, opts = {}) {
     <div class="ang">
       <style>${ANGEBOT_CSS}${mode === "pdf" ? "" : INTERACTIVE_CSS}</style>
       <div class="head">
-        <div>
-          ${logoDataUri() ? `<img src="${logoDataUri()}" alt="EmC2">` : '<h1>EmC2</h1>'}
-        </div>
         <div class="meta">
           <div><strong>Angebot</strong></div>
           <div>Nr.: ${esc(d.Angebotsnummer || "")}</div>
           <div>Datum: ${esc(d.Datum || "")}</div>
           ${d.ValidityDate ? `<div>Gültig bis: ${esc(d.ValidityDate)}</div>` : ""}
+        </div>
+        <div>
+          ${logoDataUri() ? `<img src="${logoDataUri()}" alt="EmC2">` : '<h1>EmC2</h1>'}
         </div>
       </div>
 
@@ -332,70 +405,86 @@ function displayFragment(inner) {
 }
 
 export function buildVollmachtHtml(sr, doc, mode = "pdf") {
-  const p = effectivePrefill(sr, doc);
-  const k = sr.payloadSnapshot?.Kundendaten || {};
+  const f = resolveFields(sr, doc);
   const entlastung = !!doc.extraFields?.entlastungsguthaben;
+  const budgetWuM = doc.extraFields?.budgetWuM !== false; // default on
+  const editBtn = mode === "pdf" ? "" : " " + editButton();
 
   const guthaben =
     mode === "pdf"
       ? `<div class="box">
            <div class="opt">${entlastung ? "☒" : "☐"} aktuelles Entlastungsguthaben</div>
-           <div class="opt">☒ Budget für Wohnumfeldverbessernde Maßnahmen</div>
+           <div class="opt">${budgetWuM ? "☒" : "☐"} Budget für Wohnumfeldverbessernde Maßnahmen</div>
          </div>`
       : `<div class="box">
            <label class="opt-label"><input type="checkbox" id="entlastungCheckbox"><span>aktuelles Entlastungsguthaben (§45b SGB XI)</span></label>
-           <div class="opt">☒ Budget für Wohnumfeldverbessernde Maßnahmen (wird immer abgefragt)</div>
+           <label class="opt-label"><input type="checkbox" id="budgetWuMCheckbox" checked><span>Budget für Wohnumfeldverbessernde Maßnahmen</span></label>
          </div>`;
 
   const body = `
+    ${docHeader()}
     <h1>Vollmacht für die Krankenkasse</h1>
     <p class="muted">Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI
     und Abfrage des Entlastungsbudgets nach §45b SGB XI.</p>
     <div class="box">
-      <div class="row"><span class="label">Bevollmächtigter:</span> EmC2 Attila Landgrafe / EmC2 Soziale Dienste UG (haftungsbeschränkt), Waldstraße 5, 95032 Hof</div>
+      <div class="row"><span class="label">Bevollmächtigter:</span> <span>EmC2 Attila Landgrafe / EmC2 Soziale Dienste UG (haftungsbeschränkt), Waldstraße 5, 95032 Hof</span></div>
     </div>
-    <h2>Vollmachtgeber/in</h2>
-    <div class="box">
-      <div class="row"><span class="label">Name, Vorname:</span> ${esc(`${p.lastName || ""}, ${p.firstName || ""}`)}</div>
-      <div class="row"><span class="label">Adresse:</span> ${esc(`${p.street || ""}, ${p.postalCode || ""} ${p.city || ""}`)}</div>
-      <div class="row"><span class="label">Telefon:</span> ${esc(p.phone || "")} &nbsp; <span class="label">Geburtsdatum:</span> ${esc(p.geburtsdatum || "")}</div>
-      <div class="row"><span class="label">Krankenkasse:</span> ${esc(k.kassenkundeName || "")} &nbsp; <span class="label">KVNR:</span> ${esc(k.kk_versichertennr || "")}</div>
+    <div class="editsec">
+      <h2>Vollmachtgeber/in${editBtn}</h2>
+      <div class="box">
+        ${fld("Nachname:", "lastName", f.lastName, mode)}
+        ${fld("Vorname:", "firstName", f.firstName, mode)}
+        ${fld("Straße:", "street", f.street, mode)}
+        ${fld("PLZ:", "postalCode", f.postalCode, mode)}
+        ${fld("Ort:", "city", f.city, mode)}
+        ${fld("Telefon:", "phone", f.phone, mode)}
+        ${fld("Geburtsdatum:", "geburtsdatum", f.geburtsdatum, mode)}
+        ${fld("Krankenkasse:", "kassenkundeName", f.kassenkundeName, mode)}
+        ${fld("KVNR:", "kk_versichertennr", f.kk_versichertennr, mode)}
+      </div>
     </div>
     <h2>Abzufragende Guthaben</h2>
     ${guthaben}
     <p class="muted">Diese Vollmacht gilt bis auf Widerruf oder bis das Vertragsverhältnis
     aufgehoben wird und kann jederzeit schriftlich widerrufen werden.</p>`;
 
-  if (mode === "pdf") return wrap("Vollmacht für die Krankenkasse", body + signatureBlock(doc, p));
+  if (mode === "pdf") return wrap("Vollmacht für die Krankenkasse", body + signatureBlock(doc, f));
   return displayFragment(body + interactiveSignatureBlock() + submitBar("Unterschreiben & weiter"));
 }
 
 export function buildAbtretungHtml(sr, doc, mode = "pdf") {
-  const p = effectivePrefill(sr, doc);
-  const k = sr.payloadSnapshot?.Kundendaten || {};
-  const pflegegrad = String(k.pflegegrad || "");
-  const grades = ["1", "2", "3", "4", "5"]
-    .map((g) => `${g === pflegegrad ? "☒" : "☐"} ${g}`)
-    .join(" &nbsp; ");
+  const f = resolveFields(sr, doc);
+  const editBtn = mode === "pdf" ? "" : " " + editButton();
   const body = `
+    ${docHeader()}
     <h1>Abtretungserklärung für wohnumfeldverbessernde Maßnahmen (§40 SGB XI)</h1>
-    <h2>Kontaktdaten Auftraggeber</h2>
-    <div class="box">
-      <div class="row"><span class="label">Name:</span> ${esc(`${p.lastName || ""}, ${p.firstName || ""}`)}</div>
-      <div class="row"><span class="label">Geburtstag:</span> ${esc(p.geburtsdatum || "")} &nbsp; <span class="label">Vers.-Nr.:</span> ${esc(k.kk_versichertennr || "")}</div>
-      <div class="row"><span class="label">Adresse:</span> ${esc(`${p.street || ""}, ${p.postalCode || ""} ${p.city || ""}`)}</div>
-      <div class="row"><span class="label">Telefon:</span> ${esc(p.phone || "")} &nbsp; <span class="label">E-Mail:</span> ${esc(p.email || "")}</div>
-      <div class="row"><span class="label">Pflegegrad:</span> ${grades} &nbsp; <span class="label">seit:</span> ${esc(k.kk_pflegegradSeit || "")}</div>
+    <div class="editsec">
+      <h2>Kontaktdaten Auftraggeber${editBtn}</h2>
+      <div class="box">
+        ${fld("Nachname:", "lastName", f.lastName, mode)}
+        ${fld("Vorname:", "firstName", f.firstName, mode)}
+        ${fld("Geburtstag:", "geburtsdatum", f.geburtsdatum, mode)}
+        ${fld("Vers.-Nr.:", "kk_versichertennr", f.kk_versichertennr, mode)}
+        ${fld("Straße:", "street", f.street, mode)}
+        ${fld("PLZ:", "postalCode", f.postalCode, mode)}
+        ${fld("Ort:", "city", f.city, mode)}
+        ${fld("Telefon:", "phone", f.phone, mode)}
+        ${fld("E-Mail:", "email", f.email, mode)}
+        ${pflegegradField(f.pflegegrad, mode)}
+        ${fld("Pflegegrad seit:", "kk_pflegegradSeit", f.kk_pflegegradSeit, mode)}
+      </div>
     </div>
-    <h2>Kontaktdaten Pflegekasse</h2>
-    <div class="box">
-      <div class="row"><span class="label">Name:</span> ${esc(k.kassenkundeName || "")}</div>
-      <div class="row"><span class="label">Adresse:</span> ${esc(k.kk_krankenkasseAdresse || "")}</div>
+    <div class="editsec">
+      <h2>Kontaktdaten Pflegekasse${editBtn}</h2>
+      <div class="box">
+        ${fld("Name:", "kassenkundeName", f.kassenkundeName, mode)}
+        ${fld("Adresse:", "kk_krankenkasseAdresse", f.kk_krankenkasseAdresse, mode)}
+      </div>
     </div>
     <p class="muted">Hiermit erteile ich meine Abtretungserklärung und mein Einverständnis,
     dass der Anbieter EmC2 Attila Landgrafe, Waldstraße 5, 95032 Hof, die Leistungen nach
     §40 SGB XI direkt mit der Pflegekasse abrechnen darf.</p>`;
 
-  if (mode === "pdf") return wrap("Abtretungserklärung", body + signatureBlock(doc, p));
+  if (mode === "pdf") return wrap("Abtretungserklärung", body + signatureBlock(doc, f));
   return displayFragment(body + interactiveSignatureBlock() + submitBar("Unterschreiben & absenden"));
 }

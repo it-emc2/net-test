@@ -144,6 +144,18 @@
       this.textContent = hidden ? "Namen tippen statt zeichnen" : "Doch lieber zeichnen";
     });
 
+    // Per-section edit toggle: unlock/lock that section's fields.
+    container.querySelectorAll(".edit-toggle").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var sec = btn.closest(".editsec") || container;
+        var inputs = sec.querySelectorAll('[data-edit-field], input[name="pflegegrad"]');
+        var editing = btn.getAttribute("data-editing") !== "1";
+        inputs.forEach(function (i) { i.disabled = !editing; });
+        btn.setAttribute("data-editing", editing ? "1" : "0");
+        btn.textContent = editing ? "✓ Fertig" : "✎ Bearbeiten";
+      });
+    });
+
     var submit = el("submitBtn");
     if (submit) submit.addEventListener("click", submitCurrent);
   }
@@ -171,6 +183,16 @@
     }
     var entl = el("entlastungCheckbox");
     if (entl) extraFields.entlastungsguthaben = entl.checked;
+    var budgetWuM = el("budgetWuMCheckbox");
+    if (budgetWuM) extraFields.budgetWuM = budgetWuM.checked;
+
+    // Collect any customer-corrected fields (editable-on-button sections).
+    var editedFields = {};
+    container.querySelectorAll("[data-edit-field]").forEach(function (inp) {
+      editedFields[inp.getAttribute("data-edit-field")] = (inp.value || "").trim();
+    });
+    var pg = container.querySelector('input[name="pflegegrad"]:checked');
+    if (pg) editedFields.pflegegrad = pg.value;
 
     var signatureImage = null;
     var tw = el("typeWrap");
@@ -190,7 +212,7 @@
     api(token + "/documents/" + doc.key, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ signatureImage: signatureImage, extraFields: extraFields }),
+      body: JSON.stringify({ signatureImage: signatureImage, extraFields: extraFields, editedFields: editedFields }),
     })
       .then(function (res) {
         doc.status = "signed";
