@@ -296,6 +296,10 @@ ${attachmentList}
 
 Bitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.
 
+Keine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:
+
+{{SIGN_LINK}}
+
 Sobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.
 
 Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
@@ -438,8 +442,13 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     if (!$preview) return;
     const doc = $preview.contentWindow?.document;
     if (!doc) return;
+    // The {{SIGN_LINK}} marker is replaced with the real link on send; show a
+    // friendly note in the preview instead of the raw marker.
+    const previewBody = (($body.value || "")).split("{{SIGN_LINK}}").join(
+      "(Ihr persönlicher Link wird beim Versand automatisch eingefügt)",
+    );
     doc.open();
-    doc.write(buildPreviewHtml($body.value || ""));
+    doc.write(buildPreviewHtml(previewBody));
     doc.close();
   }
 
@@ -470,6 +479,16 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
 
   document.querySelectorAll('input[name="salutation"]').forEach((el) => {
     el.addEventListener("change", updateBodyDefault);
+  });
+
+  // Selbstzahler/Kassenkunde toggle: rebuild body (doc list) AND the attachment
+  // tiles (2 vs 4), then refresh the preview.
+  document.querySelectorAll('input[name="payer"]').forEach((el) => {
+    el.addEventListener("change", () => {
+      updateBodyDefault();
+      renderList();
+      updatePreview();
+    });
   });
 
   // Rebuild body when offer number changes (only if body wasn't manually edited)
@@ -532,8 +551,12 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     const offerPdfName = `${offerNumber || "Angebot"}.pdf`;
     $list.appendChild(makeTile({ name: offerPdfName, meta: "Offer PDF", removable: false }));
 
-    // Presets
+    // Presets (Selbstzahler: no Abtretung/Vollmacht -> 2 attachments total)
+    const isSZ =
+      document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler";
+    const payerHidden = isSZ ? new Set(["abtretung", "vollmacht"]) : new Set();
     for (const p of cfg.presetAttachments) {
+      if (payerHidden.has(p.id)) continue;
       if (excludedPreset.has(p.id)) continue;
       $list.appendChild(
         makeTile({
