@@ -19,31 +19,38 @@
       "values": [
         {
           "value": "001_Walk_in_Wien",
-          "label": "Walk in - Wien"
+          "label": "Walk in - Wien",
+          "imageId": "001_Walk_in_Wien"
         },
         {
           "value": "002_Pendel_Wien",
-          "label": "Pendel - Wien"
+          "label": "Pendel - Wien",
+          "imageId": "002_Pendel_Wien"
         },
         {
           "value": "003_Falttur_Lissabon",
-          "label": "Falttür - Lissabon"
+          "label": "Falttür - Lissabon",
+          "imageId": "003_Falttur_Lissabon"
         },
         {
           "value": "004_Faltur_mit_Festteil_Rom",
-          "label": "Faltür mit Festteil - Rom"
+          "label": "Faltür mit Festteil - Rom",
+          "imageId": "004_Faltur_mit_Festteil_Rom"
         },
         {
           "value": "005_Schiebetur_Madrid_Wand_Wand_oben_gefuhrt",
-          "label": "Schiebetür - Madrid (Wand-Wand, oben geführt)"
+          "label": "Schiebetür - Madrid (Wand-Wand, oben geführt)",
+          "imageId": "005_Schiebetur_Madrid_Wand_Wand_oben_gefuhrt"
         },
         {
           "value": "006_Schiebetur_Madrid_Wand_offen_unten_gefuhrt",
-          "label": "Schiebetür - Madrid (Wand-offen, unten geführt)"
+          "label": "Schiebetür - Madrid (Wand-offen, unten geführt)",
+          "imageId": "006_Schiebetur_Madrid_Wand_offen_unten_gefuhrt"
         },
         {
           "value": "007_Faltur_mit_Festteil_Stockholm",
-          "label": "Faltür mit Festteil - Stockholm"
+          "label": "Faltür mit Festteil - Stockholm",
+          "imageId": "007_Faltur_mit_Festteil_Stockholm"
         }
       ]
     }
@@ -446,5 +453,13 @@
     }
   ],
   "sondermass": {},
-  "images": {}
+  "images": {
+    "001_Walk_in_Wien": "/assets/badolux/walk-in-wien.png",
+    "002_Pendel_Wien": "/assets/badolux/pendel-wien.png",
+    "003_Falttur_Lissabon": "/assets/badolux/flattuer-lissabon.png",
+    "004_Faltur_mit_Festteil_Rom": "/assets/badolux/faltuer-mit-festteil-rom.png",
+    "005_Schiebetur_Madrid_Wand_Wand_oben_gefuhrt": "/assets/badolux/schiebetuer-madrid.png",
+    "006_Schiebetur_Madrid_Wand_offen_unten_gefuhrt": "/assets/badolux/schiebetuer-unten-gefuehrt.png",
+    "007_Faltur_mit_Festteil_Stockholm": "/assets/badolux/faltuer-mit-festteil-stockholm.png"
+  }
 }
