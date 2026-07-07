@@ -19983,7 +19983,7 @@ function updateKassenkundeDetailsVisibility() {
   const isKassenkunde =
     document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde";
 
-  wrap.hidden = !isKassenkunde;
+  wrap.style.display = isKassenkunde ? "grid" : "none";
   wrap.setAttribute("aria-hidden", isKassenkunde ? "false" : "true");
 
   wrap.querySelectorAll("input, select, textarea").forEach((el) => {
