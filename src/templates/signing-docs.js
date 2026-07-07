@@ -314,8 +314,11 @@ function posLines(arr, key) {
   return items ? `<ul class="pos-lines">${items}</ul>` : "";
 }
 
-// Material block: bold ALL-CAPS subcategory headers, plain item lines, and the
-// merged product items (as their own PRODUKTE subcategory).
+// Material block: bold ALL-CAPS subcategory headers, plain item lines.
+// NOTE: selected products (Items / "Produkte") are already contained in
+// MaterialsLines (they're added to the materials/Zubehör bucket and priced
+// there once). We do NOT render Items separately — that would show the same
+// product twice. Pricing is unaffected (single count in materials).
 function materialBlock(d) {
   const out = [];
   for (const row of d.MaterialsLines || []) {
@@ -323,15 +326,6 @@ function materialBlock(d) {
     if (!line) continue;
     if (!line.startsWith("-")) out.push(`<div class="matsub">${esc(line)}</div>`);
     else out.push(`<div class="matline">${esc(line)}</div>`);
-  }
-  const items = Array.isArray(d.Items) ? d.Items : [];
-  if (items.length) {
-    out.push('<div class="matsub">PRODUKTE</div>');
-    for (const it of items) {
-      out.push(
-        `<div class="matline">- ${esc(it.Menge ?? "")} Stk ${esc(it.ProduktId || "")}</div>`,
-      );
-    }
   }
   return out.join("");
 }
@@ -422,7 +416,7 @@ export function buildAngebotHtml(data, opts = {}) {
             <td class="num">${esc(d.ServiceTotal || "")}</td>
           </tr>
           ${
-            (d.MaterialsLines || []).length || (d.Items || []).length
+            (d.MaterialsLines || []).length
               ? `<tr>
                    <td>002</td>
                    <td>1 Stk</td>
@@ -435,6 +429,22 @@ export function buildAngebotHtml(data, opts = {}) {
                  </tr>`
               : ""
           }
+          ${(d.BonusRows || [])
+            .filter((b) => b && b.BonusLabel)
+            .map(
+              (b) =>
+                `<tr>
+                   <td>${esc(b.Bonus || "")}</td>
+                   <td>${esc(b.BonusMenge || "1 Stk")}</td>
+                   <td>
+                     <strong>${esc(b.BonusLabel)}</strong>
+                     ${b.BonusDetail ? `<div class="pos-lines"><div>${esc(b.BonusDetail)}</div></div>` : ""}
+                   </td>
+                   <td class="num">${esc(b.preis || "")}</td>
+                   <td class="num">${esc(b.gesamt || "")}</td>
+                 </tr>`,
+            )
+            .join("")}
         </tbody>
       </table>
 
