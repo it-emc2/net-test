@@ -2630,7 +2630,7 @@ function updateSidebarForOffer() {
     DuschabtrennungNeu: "Duschabtrennung (neu)",
     Fussboden: "Fußboden",
     // Rabatt page only exists in the Badumbau flow, so this rename is bu-only.
-    Rabatt: "Übersicht",
+    Rabatt: "Aufschlag / Rabatt",
   };
 
   normalPages.forEach((pageId) => {
