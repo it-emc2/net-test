@@ -271,6 +271,11 @@ export function initEmailManager(options = {}) {
 
   function buildDefaultMailBody() {
     const offerNumber = getOfferNumber() || "ANG-2025-_____";
+    const isSelbstzahler =
+      document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler";
+    const attachmentList = isSelbstzahler
+      ? `1. Ihr Angebot ${offerNumber}\n2. Unseren aktuellen Flyer "Barrierefreies Wohnen"`
+      : `1. Ihr Angebot ${offerNumber}\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3, 4, 5 SGB XI\n4. Unseren aktuellen Flyer "Barrierefreies Wohnen"`;
 
     return `${buildGreetingLine()}
 
@@ -287,10 +292,7 @@ Unser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.
 
 Im Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:
 
-1. Ihr Angebot ${offerNumber}
-2. Abtretungserklärung zur Abrechnung mit der Krankenkasse
-3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3, 4, 5 SGB XI
-4. Unseren aktuellen Flyer "Barrierefreies Wohnen"
+${attachmentList}
 
 Bitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.
 
@@ -405,6 +407,8 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
 
   function buildPreviewHtml(body) {
     const signatureSrc = new URL("./assets/signaturepicture.png", window.location.href).href;
+    const contactName =
+      (document.getElementById("emc2_contact")?.value || "").trim() || "Stefan Wolfrum";
     return `<!DOCTYPE html>
 <html lang="de">
   <body style="margin:0;padding:24px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#364047;">
@@ -412,8 +416,7 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
       ${renderBodyHtmlFromText(body)}
       <p style="margin:0 0 8px 0;line-height:1.55;color:#364047;font-size:16px;">--</p>
       <p style="margin:0 0 24px 0;line-height:1.55;color:#364047;font-size:16px;">Freundliche Grüße</p>
-      <div style="margin:22px 0 14px 0;"><img src="${signatureSrc}" alt="Signatur emc2" style="display:block;max-width:220px;width:220px;height:auto;border:0;" /></div>
-      <p style="margin:0 0 6px 0;line-height:1.5;color:#364047;font-size:16px;">Stefan Wolfrum</p>
+      <p style="margin:0 0 6px 0;line-height:1.5;color:#364047;font-size:16px;">${escapeHtml(contactName)}</p>
       <p style="margin:0 0 28px 0;line-height:1.5;color:#364047;font-size:16px;">Ihr Team von emc2</p>
       <p style="margin:0 0 18px 0;line-height:1.5;color:#364047;font-size:16px;">______________________________</p>
       <p style="margin:0;line-height:1.5;color:#364047;font-size:16px;">EmC2 Attila Landgrafe</p>
@@ -422,6 +425,7 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
       <p style="margin:0;line-height:1.5;color:#364047;font-size:16px;">Fax: +49 9281 5915909</p>
       <p style="margin:0;line-height:1.5;color:#364047;font-size:16px;">Mail: <a href="mailto:service@e-m-c-2.de" style="color:#00a86b;text-decoration:none;">service@e-m-c-2.de</a></p>
       <p style="margin:0 0 24px 0;line-height:1.5;color:#364047;font-size:16px;">Web: <a href="https://www.emczwei.de" style="color:#00a86b;text-decoration:none;">www.emczwei.de</a></p>
+      <div style="margin:0 0 24px 0;"><img src="${signatureSrc}" alt="Signatur emc2" style="display:block;max-width:220px;width:220px;height:auto;border:0;" /></div>
       <p style="margin:0;line-height:1.7;color:#364047;font-size:12px;">
         Diese E-Mail enthält vertrauliche und/oder rechtlich geschützte Informationen. Der Inhalt dieser E-Mail ist ausschließlich für den bezeichneten Adressaten bestimmt. Bitte beachten Sie in diesem Fall, dass jede Form der Kenntnisnahme, Veröffentlichung, Vervielfältigung oder Weitergabe des Inhalts dieser E-Mail unzulässig ist. Wenn Sie nicht der richtige Adressat bzw. sein Vertreter sind oder diese E-Mail irrtümlich erhalten haben, informieren Sie bitte sofort den Absender und vernichten Sie diese E-Mail. Vielen Dank.
       </p>
