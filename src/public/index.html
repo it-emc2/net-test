@@ -3074,7 +3074,7 @@ button.dm-btn-danger:focus-visible {
             </div>
 
             <!-- Arbeitszeit -->
-            <div class="az-group" data-offer="bu,bwt,hl,bl,hms,wd">
+            <div class="az-group az-group--full" data-offer="bu,bwt,hl,bl,hms,wd">
               <div class="az-group-title">Arbeitszeit</div>
               <div class="az-group-body">
                 <label class="field">
@@ -3092,12 +3092,14 @@ button.dm-btn-danger:focus-visible {
                 </label>
 
                 <div id="laborSuggestion" class="muted"></div>
+
+                <div id="totalHoursHHMM" class="muted"></div>
               </div>
             </div>
 
             <!-- Reisezeit -->
-            <div class="az-group" data-offer="bu,bwt,hl,bl,hms,wd">
-              <div class="az-group-title">Reisezeit</div>
+            <details class="az-group az-group--full" data-offer="bu,bwt,hl,bl,hms,wd">
+              <summary class="az-group-title">Reisezeit</summary>
               <div class="az-group-body">
                 <div class="az-field-row">
                   <label class="field">
@@ -3130,10 +3132,8 @@ button.dm-btn-danger:focus-visible {
                     Für neue Angebote ist 35 €/h der Standard. Für alte Angebote bleibt ohne gespeicherten Wert automatisch 25 €/h erhalten.
                   </div>
                 </details>
-
-                <div id="totalHoursHHMM" class="muted"></div>
               </div>
-            </div>
+            </details>
 
             <!-- Kostenübersicht (Details) -->
             <details class="az-group az-group--full" data-offer="bu,bwt,hl,bl,hms,wd">
