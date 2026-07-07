@@ -258,24 +258,31 @@ function interactivePaymentBlock(data) {
 // ---- Angebot as HTML (same content as the docx offer, clean layout) ----
 
 const ANGEBOT_CSS = `
-.ang { font-family: Arial, Helvetica, sans-serif; color:#111; font-size:12pt; line-height:1.5; }
-.ang h1 { font-size:20pt; margin:0; }
-.ang h2 { font-size:13pt; margin:18px 0 8px; background:#ddd; border:1px solid #000; padding:5px 8px; }
-.ang .head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; border-bottom:2px solid #000; padding-bottom:10px; }
-.ang .head img { height:88px; }
-.ang .meta { text-align:left; font-size:10.5pt; color:#333; }
-.ang .cust { margin:16px 0; }
+.ang { font-family: Arial, Helvetica, sans-serif; color:#111; font-size:11pt; line-height:1.45; }
+.ang h2 { font-size:12pt; margin:20px 0 8px; background:#e6e6e6; padding:6px 10px; }
+.ang .topbar { display:flex; justify-content:flex-end; }
+.ang .topbar img { height:96px; }
+.ang .sender { font-size:8.5pt; color:#333; border-bottom:1px solid #999; padding-bottom:2px; margin:6px 0 14px; }
+.ang .addr-row { display:flex; justify-content:space-between; gap:24px; }
+.ang .cust div { margin:1px 0; }
+.ang .meta { min-width:300px; }
+.ang .mrow { display:flex; justify-content:space-between; gap:16px; margin:1px 0; }
+.ang .mrow .mlabel { color:#333; }
+.ang .mrow .mval { text-align:right; }
+.ang .b { font-weight:bold; }
+.ang .angtitle { background:none; padding:0; font-size:13pt; font-weight:bold; margin:26px 0 12px; }
 .ang .muted { color:#333; }
-.ang ul { margin:6px 0 0 0; padding:0 0 0 18px; }
-.ang ul li { margin:2px 0; }
-.ang .lines { list-style:none; padding:0; margin:6px 0; }
-.ang .lines li { margin:2px 0; }
-.ang table { width:100%; border-collapse:collapse; margin:8px 0; font-size:11pt; }
-.ang th, .ang td { text-align:left; padding:6px 8px; border:1px solid #000; }
-.ang th { background:#ddd; }
-.ang td.num, .ang th.num { text-align:right; white-space:nowrap; }
-.ang .totals { width:auto; margin-left:auto; min-width:280px; }
-.ang .totals td { border:0; padding:4px 8px; }
+.ang table.pos { width:100%; border-collapse:collapse; margin:10px 0; font-size:10.5pt; }
+.ang table.pos th { background:#e6e6e6; text-align:left; padding:6px 8px; border-bottom:1px solid #999; }
+.ang table.pos td { padding:8px; border-bottom:1px solid #ccc; vertical-align:top; }
+.ang table.pos th.num, .ang table.pos td.num { text-align:right; white-space:nowrap; }
+.ang .pos-lines { list-style:none; padding:0; margin:6px 0 0; }
+.ang .pos-lines li { margin:2px 0; }
+.ang .matsub { font-weight:bold; margin:12px 0 4px; }
+.ang .matline { margin:2px 0; padding-left:2px; }
+.ang .totals { width:auto; margin-left:auto; min-width:300px; border-collapse:collapse; }
+.ang .totals td { padding:5px 8px; }
+.ang .totals td.num { text-align:right; white-space:nowrap; }
 .ang .totals tr.alt td { font-weight:bold; border-top:1px solid #000; }
 .ang .pay .opt { margin:5px 0; }
 .ang .sig-img { max-width:300px; max-height:130px; display:block; margin:6px 0; }
@@ -283,38 +290,55 @@ const ANGEBOT_CSS = `
 .ang .audit { margin-top:22px; font-size:8.5pt; color:#555; border-top:1px solid #000; padding-top:8px; }
 `;
 
-function linesList(arr, key) {
-  const items = (arr || [])
-    .map((r) => String(r?.[key] ?? "").trim())
-    .filter(Boolean)
-    .map((t) => `<li>${esc(t)}</li>`)
-    .join("");
-  return items ? `<ul class="lines">${items}</ul>` : "";
-}
-
 /**
  * @param {object} data  result of getOfferRenderData().data (mapData output)
  * @param {object} opts  { mode: 'display'|'pdf', sr, doc }
  * The offer body is read-only. In 'pdf' mode the chosen payment term (already
  * ticked in data.SelfPayLines) and the signature block are included.
  */
+// Fixed EmC2 contact details shown in the offer header (as in the docx offer).
+const EMC2_SENDER = "EmC2 Attila Landgrafe, Waldstraße 5, 95032 Hof";
+const EMC2_PHONE = "09281 5915900";
+const EMC2_EMAIL = "service@e-m-c-2.de";
+const OFFER_INTRO =
+  "vielen Dank für Ihre Anfrage und Ihr damit verbundenes Interesse. " +
+  "Wir freuen uns, Ihnen folgendes Angebot unterbreiten zu können.";
+
+// Position bullet list (service lines) shown inside the Bezeichnung cell.
+function posLines(arr, key) {
+  const items = (arr || [])
+    .map((r) => String(r?.[key] ?? "").trim())
+    .filter(Boolean)
+    .map((t) => `<li>${esc(t.replace(/^-\s*/, ""))}</li>`)
+    .join("");
+  return items ? `<ul class="pos-lines">${items}</ul>` : "";
+}
+
+// Material block: bold ALL-CAPS subcategory headers, plain item lines, and the
+// merged product items (as their own PRODUKTE subcategory).
+function materialBlock(d) {
+  const out = [];
+  for (const row of d.MaterialsLines || []) {
+    const line = String(row?.MaterialLine ?? "").trim();
+    if (!line) continue;
+    if (!line.startsWith("-")) out.push(`<div class="matsub">${esc(line)}</div>`);
+    else out.push(`<div class="matline">${esc(line)}</div>`);
+  }
+  const items = Array.isArray(d.Items) ? d.Items : [];
+  if (items.length) {
+    out.push('<div class="matsub">PRODUKTE</div>');
+    for (const it of items) {
+      out.push(
+        `<div class="matline">- ${esc(it.Menge ?? "")} Stk ${esc(it.ProduktId || "")}</div>`,
+      );
+    }
+  }
+  return out.join("");
+}
+
 export function buildAngebotHtml(data, opts = {}) {
   const mode = opts.mode || "display";
   const d = data || {};
-
-  const items = Array.isArray(d.Items) ? d.Items : [];
-  const itemsTable = items.length
-    ? `<table>
-        <thead><tr><th>Produkt</th><th class="num">Menge</th><th class="num">Einzelpreis</th><th class="num">Zwischensumme</th></tr></thead>
-        <tbody>${items
-          .map(
-            (it) =>
-              `<tr><td>${esc(it.ProduktId || "")}</td><td class="num">${esc(it.Menge ?? "")}</td><td class="num">${esc(it.Einzelpreis || "")}</td><td class="num">${esc(it.Zwischensumme || "")}</td></tr>`,
-          )
-          .join("")}</tbody>
-       </table>
-       <div class="muted" style="text-align:right;">Produkte Zwischensumme: <strong>${esc(d.ProdukteZwischensumme || "")}</strong></div>`
-    : "";
 
   const totals = Array.isArray(d.Totals) ? d.Totals : [];
   const totalsTable = totals.length
@@ -348,45 +372,71 @@ export function buildAngebotHtml(data, opts = {}) {
       submitBar("Unterschreiben & weiter");
   }
 
+  const metaRow = (label, val, bold) =>
+    `<div class="mrow"><span class="mlabel${bold ? " b" : ""}">${label}</span><span class="mval">${esc(val)}</span></div>`;
+
   const inner = `
     <div class="ang">
       <style>${ANGEBOT_CSS}${mode === "pdf" ? "" : INTERACTIVE_CSS}</style>
-      <div class="head">
+      <div class="topbar">
+        ${logoDataUri() ? `<img src="${logoDataUri()}" alt="EmC2">` : "<strong>EmC2</strong>"}
+      </div>
+      <div class="sender">${esc(EMC2_SENDER)}</div>
+
+      <div class="addr-row">
+        <div class="cust">
+          ${d.Anrede ? `<div>${esc(d.Anrede)}</div>` : ""}
+          <div>${esc([d.Vorname, d.Nachname].filter(Boolean).join(" "))}</div>
+          <div>${esc(d.Adresse || "")}</div>
+          <div>${esc([d.PLZ, d.Stadt].filter(Boolean).join(" "))}</div>
+        </div>
         <div class="meta">
-          <div><strong>Angebot</strong></div>
-          <div>Nr.: ${esc(d.Angebotsnummer || "")}</div>
-          <div>Datum: ${esc(d.Datum || "")}</div>
-          ${d.ValidityDate ? `<div>Gültig bis: ${esc(d.ValidityDate)}</div>` : ""}
-        </div>
-        <div>
-          ${logoDataUri() ? `<img src="${logoDataUri()}" alt="EmC2">` : '<h1>EmC2</h1>'}
+          ${metaRow("Angebotsnummer", d.Angebotsnummer || "")}
+          ${metaRow("Datum", d.Datum || "")}
+          ${d.Ansprechpartner ? metaRow("Ansprechpartner", d.Ansprechpartner) : ""}
+          ${metaRow("Telefon", EMC2_PHONE)}
+          ${metaRow("E-Mail", EMC2_EMAIL)}
+          ${d.Kundennummer ? metaRow("Referenz", d.Kundennummer, true) : ""}
         </div>
       </div>
 
-      <div class="cust">
-        <div>${esc([d.Anrede, d.Vorname, d.Nachname].filter(Boolean).join(" "))}</div>
-        <div>${esc(d.Adresse || "")}</div>
-        <div>${esc([d.PLZ, d.Stadt].filter(Boolean).join(" "))}</div>
-      </div>
+      <div class="angtitle">Ihr Angebot ${esc(d.Angebotsnummer || "")}</div>
+      <p>${esc(d.Greeting || "Sehr geehrte Damen und Herren")},</p>
+      <p>${esc(OFFER_INTRO)}</p>
 
-      ${d.Greeting ? `<p>${esc(d.Greeting)},</p>` : ""}
-
-      <h2>${esc(d.ServicePosTitle || "Auszuführende Arbeiten")}</h2>
-      ${linesList(d.PrimaryServiceLines, "ServiceLine")}
-
-      ${
-        (d.IncludedServiceLines || []).length
-          ? `<h2>Im Preis enthaltene Leistungen</h2>${linesList(d.IncludedServiceLines, "ServiceLine")}`
-          : ""
-      }
-
-      ${itemsTable ? `<h2>Produkte</h2>${itemsTable}` : ""}
-
-      ${
-        (d.MaterialsLines || []).length
-          ? `<h2>${esc(d.MaterialsPosTitle || "Material")}</h2>${linesList(d.MaterialsLines, "MaterialLine")}`
-          : ""
-      }
+      <table class="pos">
+        <thead><tr>
+          <th>Pos</th><th>Menge</th><th>Bezeichnung</th>
+          <th class="num">Einheitspreis</th><th class="num">Gesamt</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td>001</td>
+            <td>1 Stk</td>
+            <td>
+              <strong>${esc(d.ServicePosTitle || "Auszuführende Arbeiten")}</strong>
+              ${posLines(d.PrimaryServiceLines, "ServiceLine")}
+              ${(d.IncludedServiceLines || []).length ? `<div class="muted" style="margin-top:8px;"><em>Im Preis enthalten:</em></div>${posLines(d.IncludedServiceLines, "ServiceLine")}` : ""}
+            </td>
+            <td class="num">${esc(d.ServiceUnitPrice || d.ServiceTotal || "")}</td>
+            <td class="num">${esc(d.ServiceTotal || "")}</td>
+          </tr>
+          ${
+            (d.MaterialsLines || []).length || (d.Items || []).length
+              ? `<tr>
+                   <td>002</td>
+                   <td>1 Stk</td>
+                   <td>
+                     <strong>${esc(d.MaterialsPosTitle || "Material für Badumbau")}</strong>
+                     <div style="margin-top:6px;">${materialBlock(d)}</div>
+                   </td>
+                   <td class="num">${esc(d.MaterialsUnitPrice || d.MaterialsTotal || "")}</td>
+                   <td class="num">${esc(d.MaterialsTotal || "")}</td>
+                 </tr>`
+              : ""
+          }
+        </tbody>
+      </table>
 
       <h2>Zusammenstellung</h2>
       ${totalsTable}
