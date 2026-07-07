@@ -7,6 +7,10 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 FROM base AS build
+# Puppeteer: don't download its bundled Chromium — the runtime stage installs
+# the system Chromium package instead (the bundled cache wouldn't be copied
+# into the runtime image anyway).
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
       build-essential node-gyp pkg-config python-is-python3 && \
@@ -33,8 +37,13 @@ RUN set -eux; \
     texlive-latex-base \
     texlive-latex-extra \
     texlive-fonts-recommended \
-    texlive-lang-german; \
+    texlive-lang-german \
+    chromium fonts-liberation; \
   rm -rf /var/lib/apt/lists/*
+
+# Puppeteer uses the system Chromium (installed above) instead of a bundled one.
+ENV PUPPETEER_SKIP_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 RUN set -eux; \
   ARCH="$(dpkg --print-architecture)"; \
@@ -51,6 +60,7 @@ RUN set -eux; \
   rm -rf /var/lib/apt/lists/* /tmp/lo
 
 RUN /opt/libreoffice*/program/soffice --version
+RUN chromium --no-sandbox --version
 
 COPY --from=build /app /app
 

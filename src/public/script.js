@@ -19861,6 +19861,104 @@ async function sendPdfToAuftrag() {
   });
 })();
 
+// ===== Online-Signatur: Signatur-Link erzeugen (POST /api/signing) =====
+(function initCreateSigningLink() {
+  const btn = document.getElementById("createSigningLink");
+  const resultBox = document.getElementById("signingLinkResult");
+  const statusBox = document.getElementById("signingLinkStatus");
+  const sendEmailChk = document.getElementById("signingSendEmail");
+  const auftragInput = document.getElementById("auftragId");
+  if (!btn || !resultBox || !statusBox) return;
+
+  function setStatus(msg, type = "info") {
+    const ts = new Date().toLocaleTimeString();
+    const prefix = type === "success" ? "✅" : type === "error" ? "❌" : "ℹ️";
+    statusBox.className = "status " + (type === "error" ? "err" : "ok");
+    statusBox.textContent = `${prefix} [${ts}] ${msg}`;
+  }
+
+  async function createLink() {
+    if (typeof buildPayload !== "function") {
+      setStatus("buildPayload ist nicht verfügbar.", "error");
+      return;
+    }
+    const payload = buildPayload();
+
+    const offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
+    const activeOffer =
+      (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
+      window.activeOffer ||
+      "";
+    const dealId = (auftragInput?.value || "").trim();
+
+    try {
+      btn.disabled = true;
+      resultBox.innerHTML = "";
+      setStatus("Erzeuge Signatur-Link …", "info");
+
+      const res = await fetch("/api/signing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payload,
+          offerNumber,
+          offerType: activeOffer,
+          dealId,
+          sendEmail: !!sendEmailChk?.checked,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || `Fehler (${res.status})`);
+
+      const link = data.link;
+      const emailNote =
+        data.emailResult && data.emailResult.ok
+          ? " · E-Mail an Kunde gesendet"
+          : sendEmailChk?.checked
+            ? " · E-Mail konnte nicht gesendet werden"
+            : "";
+      setStatus(
+        `Signatur-Link erstellt (${data.customerType}, ${data.documents.length} Dokument(e))${emailNote}.`,
+        "success",
+      );
+
+      resultBox.innerHTML =
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+        '<input type="text" id="signingLinkField" readonly value="' +
+        String(link).replace(/"/g, "&quot;") +
+        '" style="flex:1;min-width:260px;padding:8px;border:1px solid #cfd6da;border-radius:6px;">' +
+        '<button type="button" id="copySigningLink" class="btn-bitrix">Kopieren</button>' +
+        "</div>";
+
+      const copyBtn = document.getElementById("copySigningLink");
+      const field = document.getElementById("signingLinkField");
+      copyBtn?.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(field.value);
+          copyBtn.textContent = "Kopiert ✓";
+          setTimeout(() => (copyBtn.textContent = "Kopieren"), 1500);
+        } catch {
+          field.select();
+          document.execCommand("copy");
+        }
+      });
+    } catch (err) {
+      console.error("createSigningLink error:", err);
+      setStatus(err.message || "Fehler beim Erstellen des Links.", "error");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  btn.addEventListener("click", () => {
+    if (typeof requireBereichValid === "function" && !requireBereichValid()) {
+      location.hash = "Kundendaten";
+      return;
+    }
+    createLink();
+  });
+})();
+
 // im DOMContentLoaded-Block aufrufen:
 document.addEventListener("DOMContentLoaded", () => {
   // ... dein bisheriger Code ...

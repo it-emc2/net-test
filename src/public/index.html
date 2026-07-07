@@ -6822,6 +6822,27 @@ button.dm-btn-danger:focus-visible {
               <div id="auftragPdfStatus" class="bitrix-status"></div>
             </div>
           </section>
+
+          <!-- Online-Signatur (Unterschrift per Link) -->
+          <section class="bitrix-section">
+            <h2 class="section-title">🔗 Online-Unterschrift</h2>
+            <div class="bitrix-card">
+              <p class="section-subtitle">
+                Erzeugt einen persönlichen Link, mit dem der Kunde die Unterlagen
+                online ausfüllen und unterschreiben kann (nutzt die Auftrag ID oben).
+              </p>
+              <label style="display:flex;align-items:center;gap:8px;margin:8px 0;cursor:pointer;">
+                <input type="checkbox" id="signingSendEmail" style="width:auto;">
+                Link direkt per E-Mail an den Kunden senden
+              </label>
+              <button type="button" id="createSigningLink" class="btn-bitrix">
+                <span class="btn-icon">🔗</span>
+                Signatur-Link erstellen
+              </button>
+              <div id="signingLinkResult" style="margin-top:10px;"></div>
+              <div id="signingLinkStatus" class="bitrix-status"></div>
+            </div>
+          </section>
           <!-- Main Export Actions -->
           <section class="export-section">
             <h2 class="section-title">📄 Dokumentenstudio</h2>

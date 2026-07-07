@@ -23,7 +23,21 @@
     { key: "email", label: "E-Mail" },
   ];
 
-  var state = { data: null, docs: [], index: 0, prefill: {} };
+  // Payment options — must mirror SZ_/KK_PAYMENT_OPTIONS on the server.
+  var SZ_PAYMENT_OPTIONS = [
+    "20 % Anzahlung – ohne Abzug",
+    "30 % Anzahlung abzüglich 1 % Skonto vom Anzahlungsbetrag",
+    "40 % Anzahlung abzüglich 2 % Skonto vom Anzahlungsbetrag",
+  ];
+  var KK_PAYMENT_OPTIONS = [
+    "50 % sofort und 50 % nach Fertigstellung, ohne Abzug",
+    "100 % sofort abzüglich 2 % Skonto",
+  ];
+  function paymentOptions() {
+    return state.customerType === "KASSE" ? KK_PAYMENT_OPTIONS : SZ_PAYMENT_OPTIONS;
+  }
+
+  var state = { data: null, docs: [], index: 0, prefill: {}, customerType: "SZ" };
 
   function showFatal(msg) {
     loading.classList.add("hidden");
@@ -47,6 +61,7 @@
       .then(function (data) {
         state.data = data;
         state.prefill = data.prefill || {};
+        state.customerType = data.customerType || "SZ";
         state.docs = (data.documents || []).slice();
         loading.classList.add("hidden");
         app.classList.remove("hidden");
@@ -91,6 +106,28 @@
     });
   }
 
+  function renderPaymentTerms(doc) {
+    var wrap = el("paymentTerms");
+    var box = el("paymentOptions");
+    if (doc.key !== "angebot") { wrap.classList.add("hidden"); box.innerHTML = ""; return; }
+    wrap.classList.remove("hidden");
+    box.innerHTML = "";
+    paymentOptions().forEach(function (t, i) {
+      var div = document.createElement("div");
+      div.className = "field";
+      div.innerHTML =
+        '<label style="cursor:pointer;font-size:17px;color:var(--ink);">' +
+        '<input type="radio" name="paymentTerm" value="' + i + '" style="width:auto;margin-right:10px;">' +
+        t + "</label>";
+      box.appendChild(div);
+    });
+  }
+
+  function selectedPaymentIdx() {
+    var checked = el("paymentOptions").querySelector('input[name="paymentTerm"]:checked');
+    return checked ? Number(checked.value) : -1;
+  }
+
   function collectFields() {
     var out = {};
     var inputs = el("fieldsWrap").querySelectorAll("input[data-key]");
@@ -108,9 +145,17 @@
     el("docTitle").textContent = doc.label;
     renderDots();
     renderFields();
+    renderPaymentTerms(doc);
+    // Vollmacht-only: optional Entlastungsguthaben checkbox.
+    var vExtra = el("vollmachtExtra");
+    if (doc.key === "vollmacht") { vExtra.classList.remove("hidden"); el("entlastungCheckbox").checked = false; }
+    else { vExtra.classList.add("hidden"); }
     el("docFrame").src = "/api/signing/" + token + "/documents/" + doc.key + "/pdf";
     el("docError").classList.add("hidden");
     resetSignature();
+    // Canvas is now visible — measure it so drawing coordinates are correct
+    // (it renders 0x0 while #app is hidden, which breaks desktop drawing).
+    if (sig) requestAnimationFrame(function () { sig.refit(); });
   }
 
   // ---- signature canvas ----
@@ -169,6 +214,11 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         dirty = false;
       },
+      // Re-measure once the canvas is actually visible (it renders 0x0 while
+      // #app is hidden). Called from renderStep.
+      refit: function () {
+        if (!dirty) { resize(); }
+      },
       isDirty: function () { return dirty; },
       toPng: function () { return canvas.toDataURL("image/png"); },
     };
@@ -197,6 +247,20 @@
     var errBox = el("docError");
     errBox.classList.add("hidden");
 
+    var extraFields = {};
+    if (doc.key === "angebot") {
+      var payIdx = selectedPaymentIdx();
+      if (payIdx < 0) {
+        errBox.textContent = "Bitte wählen Sie eine Zahlungsbedingung aus.";
+        errBox.classList.remove("hidden");
+        return;
+      }
+      extraFields.paymentTermIdx = payIdx;
+    }
+    if (doc.key === "vollmacht") {
+      extraFields.entlastungsguthaben = el("entlastungCheckbox").checked;
+    }
+
     var signatureImage = null;
     var typing = !el("typeWrap").classList.contains("hidden");
     if (typing) {
@@ -215,7 +279,7 @@
     api(token + "/documents/" + doc.key, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ signatureImage: signatureImage, editedFields: fields, place: fields.city }),
+      body: JSON.stringify({ signatureImage: signatureImage, editedFields: fields, extraFields: extraFields, place: fields.city }),
     })
       .then(function (res) {
         doc.status = "signed";
