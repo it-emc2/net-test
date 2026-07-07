@@ -10224,7 +10224,7 @@ function escapeHtml(s) {
     .replace(/'/g, "&#39;");
 }
 
-  const HIDDEN_BRANDS_RE = /\b(VIGOUR|TRINNITY|BADOLUX|RAMSAUER)\b\s*/gi;
+  const HIDDEN_BRANDS_RE = /\b(VIGOUR|TRINNITY|BADOLUX|RAMSAUER|CLIVIA\s+PLUS)\b\s*/gi;
   function stripBrand(s) { return String(s).replace(HIDDEN_BRANDS_RE, "").trim(); }
 
   // Kosten-Details: finish (Ausführung/Oberfläche) is collected on every Duschabtrennung
