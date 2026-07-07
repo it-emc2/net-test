@@ -59,11 +59,15 @@ if (mountEl) {
   const getLines = () => {
     if (!catalog) return [];
     const out = [];
-    const push = (item, qty) => {
+    const push = (item, qty, label) => {
       if (!item || (Number(item.net) || 0) <= 0) return;
-      out.push({ label: item.name, articleNumber: item.articleNumber, net: item.net, finish: item.finish || null, qty: qty || 1 });
+      out.push({ label: label || item.name, articleNumber: item.articleNumber, net: item.net, finish: item.finish || null, qty: qty || 1 });
     };
-    if (curtainSel) push(byArticle(catalog.curtains, curtainSel), 1);
+    if (curtainSel) {
+      // curtain names are identical across widths, so append the width for the offer line
+      const c = byArticle(catalog.curtains, curtainSel);
+      push(c, 1, c && c.sizeCm != null ? `${c.name} ${c.sizeCm} cm` : c?.name);
+    }
     if (rodSel) push(byArticle(catalog.rods, rodSel), 1);
     for (const m of catalog.mandatory || []) {
       const q = mandatoryQty[m.articleNumber] || 0;
