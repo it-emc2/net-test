@@ -172,6 +172,58 @@ async function buildSignedPdf(sr, doc) {
   throw new Error(`Dokumenttyp "${doc.key}" wird noch nicht unterstützt`);
 }
 
+// ---------- core: create a signing request (reused by the route and email.js) ----------
+
+// Returns { sr, link }. Also posts the "🔗 versendet" Bitrix timeline comment.
+export async function createSigningRequest({
+  payload,
+  offerNumber,
+  offerType,
+  dealId,
+  contactId,
+  baseUrl,
+}) {
+  const customerType = deriveCustomerType(payload);
+  const prefill = extractPrefill(payload);
+  const { bitrixEntityType, bitrixEntityId } = deriveBitrixTarget({ dealId, contactId });
+
+  const token = crypto.randomBytes(24).toString("hex");
+  const expiresAt = new Date(Date.now() + DEFAULT_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+
+  const documents = (DOCS_BY_TYPE[customerType] || DOCS_BY_TYPE.SZ).map((key) => ({
+    key,
+    status: "pending",
+  }));
+
+  const sr = await SigningRequest.create({
+    token,
+    offerNumber: String(offerNumber || payload?.offerNumber || ""),
+    offerType: String(offerType || payload?.activeOffer || ""),
+    customerType,
+    bitrixEntityType,
+    bitrixEntityId,
+    customerEmail: prefill.email || "",
+    customerName: `${prefill.firstName} ${prefill.lastName}`.trim(),
+    payloadSnapshot: payload,
+    prefill,
+    documents,
+    status: "sent",
+    expiresAt,
+  });
+
+  const base = String(baseUrl || "").replace(/\/+$/, "");
+  const link = `${base}/sign/${token}`;
+
+  await postTimeline(
+    sr,
+    `🔗 Signatur-Link an Kunde versendet` +
+      (sr.offerNumber ? ` (${sr.offerNumber})` : "") +
+      `\nGültig bis: ${expiresAt.toLocaleDateString("de-DE")}\nLink: ${link}`,
+  );
+
+  return { sr, link, token, customerType };
+}
+
 // ---------- internal routes ----------
 
 // POST /api/signing
@@ -183,39 +235,15 @@ router.post("/", express.json({ limit: "25mb" }), async (req, res) => {
       return res.status(400).json({ error: "payload ist erforderlich" });
     }
 
-    const customerType = deriveCustomerType(payload);
-    const prefill = extractPrefill(payload);
-    const { bitrixEntityType, bitrixEntityId } = deriveBitrixTarget({
+    const { sr, link, token, customerType } = await createSigningRequest({
+      payload,
+      offerNumber: req.body?.offerNumber,
+      offerType: req.body?.offerType,
       dealId: req.body?.dealId,
       contactId: req.body?.contactId,
+      baseUrl: publicBaseUrl(req),
     });
-
-    const token = crypto.randomBytes(24).toString("hex"); // 48 hex chars
-    const expiresAt = new Date(
-      Date.now() + DEFAULT_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
-    );
-
-    const documents = (DOCS_BY_TYPE[customerType] || DOCS_BY_TYPE.SZ).map(
-      (key) => ({ key, status: "pending" }),
-    );
-
-    const sr = await SigningRequest.create({
-      token,
-      offerNumber: String(req.body?.offerNumber || payload?.offerNumber || ""),
-      offerType: String(req.body?.offerType || payload?.activeOffer || ""),
-      customerType,
-      bitrixEntityType,
-      bitrixEntityId,
-      customerEmail: prefill.email || "",
-      customerName: `${prefill.firstName} ${prefill.lastName}`.trim(),
-      payloadSnapshot: payload,
-      prefill,
-      documents,
-      status: "sent",
-      expiresAt,
-    });
-
-    const link = `${publicBaseUrl(req)}/sign/${token}`;
+    const prefill = sr.prefill || {};
 
     // Optional: email the link to the customer right away.
     let emailResult = { skipped: true };
@@ -241,13 +269,6 @@ router.post("/", express.json({ limit: "25mb" }), async (req, res) => {
         }
       }
     }
-
-    await postTimeline(
-      sr,
-      `🔗 Signatur-Link an Kunde versendet` +
-        (sr.offerNumber ? ` (${sr.offerNumber})` : "") +
-        `\nGültig bis: ${expiresAt.toLocaleDateString("de-DE")}\nLink: ${link}`,
-    );
 
     return res.status(201).json({
       id: sr._id,

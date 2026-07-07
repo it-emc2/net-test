@@ -11,6 +11,7 @@ import dns from "dns";
 
 import EmailLog from "../models/EmailLog.js";
 import { addTimelineComment } from "./bitrix.js";
+import { createSigningRequest } from "./signing.js";
 
 // Offer PDF generation (your existing utilities)
 import {
@@ -56,10 +57,15 @@ function requireEnv(name) {
   return v;
 }
 
+// Authenticated sender address — supports SMTP_EMAIL or SMTP_USER.
+function smtpFrom() {
+  return process.env.SMTP_EMAIL || process.env.SMTP_USER || "";
+}
+
 function buildTransport() {
   const host = requireEnv("SMTP_HOST");
-  const port = Number(requireEnv("SMTP_PORT"));
-  const secure = String(process.env.SMTP_SECURE || "false") === "true";
+  const user = smtpFrom();
+  if (!user) throw new Error("Missing env var SMTP_EMAIL or SMTP_USER");
 
   return nodemailer.createTransport({
   host,
@@ -67,7 +73,7 @@ function buildTransport() {
   secure: false,
   requireTLS: true,
   family: 4,
-  auth: { user: requireEnv("SMTP_EMAIL"), pass: requireEnv("SMTP_PASS") },
+  auth: { user, pass: requireEnv("SMTP_PASS") },
     //logger: true,
   //debug: true,
   connectionTimeout: 8000,
@@ -302,7 +308,12 @@ function buildEmailHtml(body, { signatureCid = null, contactName = "Stefan Wolfr
  * Preset attachments that should always be attached (unless excluded by user).
  * Visible in UI, removable via "x" -> frontend sends excludePreset JSON array.
  */
-function getPresetAttachments(excludePresetSet) {
+function getPresetAttachments(excludePresetSet, isSelbstzahler) {
+  // Selbstzahler get only the Angebot (added elsewhere) + the flyer — no
+  // Abtretung/Vollmacht. Kassenkunde get all four.
+  const payerExcluded = isSelbstzahler
+    ? new Set(["abtretung", "vollmacht"])
+    : new Set();
   const preset = [
     {
       id: "abtretung",
@@ -344,6 +355,7 @@ function getPresetAttachments(excludePresetSet) {
 
   return preset
     .filter((p) => !excludePresetSet.has(p.id))
+    .filter((p) => !payerExcluded.has(p.id))
     .filter((p) => fsSync.existsSync(p.absPath))
     .map((p) => ({
       filename: p.filename,
@@ -360,7 +372,7 @@ router.post("/send-offer", upload.array("attachments", 10), async (req, res) => 
   try {
     const to = String(req.body.to || "").trim();
     const subject = String(req.body.subject || "").trim() || "Angebot";
-    const body = String(req.body.body || "");
+    let body = String(req.body.body || "");
     const offerNumber = String(req.body.offerNumber || "");
     const offerType = String(req.body.offerType || "");
 
@@ -388,6 +400,33 @@ router.post("/send-offer", upload.array("attachments", 10), async (req, res) => 
       // ignore invalid json
     }
 
+    const isSelbstzahler = String(payload?.Kundendaten?.payer || "")
+      .toLowerCase()
+      .includes("selbstzahler");
+
+    // ---- Online-signing link: create a signing request and inject the link ----
+    // The body may contain a {{SIGN_LINK}} placeholder (from the compose UI).
+    try {
+      const baseUrl =
+        String(process.env.PUBLIC_BASE_URL || "").trim() ||
+        `${req.protocol}://${req.get("host")}`;
+      const { link } = await createSigningRequest({
+        payload,
+        offerNumber,
+        offerType,
+        dealId,
+        contactId,
+        baseUrl,
+      });
+      body = body.includes("{{SIGN_LINK}}")
+        ? body.split("{{SIGN_LINK}}").join(link)
+        : body;
+    } catch (signErr) {
+      console.warn("[email] signing link creation failed:", signErr?.message || signErr);
+      // Remove the placeholder so it never shows raw in the email.
+      body = body.split("{{SIGN_LINK}}").join("");
+    }
+
     // ---- Generate offer PDF (same path as /docx-template/pdf) ----
     const { pdfBuffer: pdfBuf } = await generateOfferPdfBuffer(payload || {});
 
@@ -402,7 +441,7 @@ router.post("/send-offer", upload.array("attachments", 10), async (req, res) => 
     );
 
     // ---- Attachments ----
-    const presetAttachments = getPresetAttachments(excludePreset);
+    const presetAttachments = getPresetAttachments(excludePreset, isSelbstzahler);
 
     const uploadAttachments = uploaded.map((f) => ({
       filename: f.originalname || f.filename,
@@ -470,7 +509,7 @@ router.post("/send-offer", upload.array("attachments", 10), async (req, res) => 
     // await transporter.verify();
 
     // IMPORTANT: safest "from" is the authenticated account
-    const from = process.env.SMTP_EMAIL;
+    const from = smtpFrom();
 
     // Optional reply-to: set SMTP_REPLY_TO if you want replies elsewhere
     const replyTo = process.env.SMTP_REPLY_TO || from;
