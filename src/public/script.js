@@ -8891,7 +8891,10 @@ function initSmartTraySearch() {
   // Build the HTML for a single suggestion card.
   // All cards share name="traySuggestion" so selection is single across rows.
   const buildCard = (p, domId, sourceLabel, isBest, checked) => {
-    const dims = [p.widthCm, p.lengthCm].filter(Boolean).join(" × ") + " cm";
+    let dims = [p.widthCm, p.lengthCm].filter(Boolean).join(" × ") + " cm";
+    if (sourceLabel === "Badolux" && p.heightCm) {
+      dims += ` · H ${String(p.heightCm).replace(".", ",")} cm`;
+    }
     const price = p.price != null ? `${Number(p.price).toFixed(2)} €` : "";
     const title = p.name || p.productId || "Duschwanne";
     const value = p.productId || "";

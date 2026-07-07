@@ -115,9 +115,16 @@ for (const p of cats['Winkelleisten'].products) {
 }
 
 // --- Duschwannen — 25% ---
+const trayHeight = (() => {
+  const m = String(trays.spec).match(/Höhe\s*([\d.,]+)\s*cm/i);
+  return m ? Number(m[1].replace(',', '.')) : 2.6;
+})();
 trays.prices.forEach((row) => {
   const m = String(row.masse_cm);
-  push(`BDX-DW-${slug(m)}`, `Duschwanne ${m} cm (${trays.spec})`, net(row.preis, disc.tray), { ...dims(m) });
+  push(`BDX-DW-${slug(m)}`, `Duschwanne ${m} cm (${trays.spec})`, net(row.preis, disc.tray), {
+    ...dims(m),
+    heightCm: trayHeight,
+  });
 });
 
 // --- Manual extras not present in the price lists ---
