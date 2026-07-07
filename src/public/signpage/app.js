@@ -1,4 +1,7 @@
-/* Signing page client — served at /sign/<token>, assets under /signpage/. */
+/* Signing page controller. Served at /sign/<token>, assets under /signpage/.
+   Each document is fetched as a self-contained interactive HTML fragment
+   (checkboxes + signature pad + submit are INSIDE the document) and injected
+   into #docContainer. This controller only wires those inline controls. */
 (function () {
   "use strict";
 
@@ -6,38 +9,14 @@
     (window.location.pathname.split("/sign/")[1] || "").replace(/\/+$/, ""),
   );
 
-  var el = function (id) { return document.getElementById(id); };
+  function el(id) { return document.getElementById(id); }
   var loading = el("loading");
   var fatal = el("fatal");
   var app = el("app");
+  var container = el("docContainer");
 
-  // Editable key fields shown per document (customer may correct them).
-  var EDITABLE = [
-    { key: "salutation", label: "Anrede" },
-    { key: "firstName", label: "Vorname" },
-    { key: "lastName", label: "Nachname" },
-    { key: "street", label: "Straße & Nr." },
-    { key: "postalCode", label: "PLZ" },
-    { key: "city", label: "Ort" },
-    { key: "phone", label: "Telefon" },
-    { key: "email", label: "E-Mail" },
-  ];
-
-  // Payment options — must mirror SZ_/KK_PAYMENT_OPTIONS on the server.
-  var SZ_PAYMENT_OPTIONS = [
-    "20 % Anzahlung – ohne Abzug",
-    "30 % Anzahlung abzüglich 1 % Skonto vom Anzahlungsbetrag",
-    "40 % Anzahlung abzüglich 2 % Skonto vom Anzahlungsbetrag",
-  ];
-  var KK_PAYMENT_OPTIONS = [
-    "50 % sofort und 50 % nach Fertigstellung, ohne Abzug",
-    "100 % sofort abzüglich 2 % Skonto",
-  ];
-  function paymentOptions() {
-    return state.customerType === "KASSE" ? KK_PAYMENT_OPTIONS : SZ_PAYMENT_OPTIONS;
-  }
-
-  var state = { data: null, docs: [], index: 0, prefill: {}, customerType: "SZ" };
+  var state = { docs: [], index: 0 };
+  var sig = null; // current signature pad controller
 
   function showFatal(msg) {
     loading.classList.add("hidden");
@@ -59,132 +38,52 @@
     if (!token) return showFatal("Ungültiger Link.");
     api(token)
       .then(function (data) {
-        state.data = data;
-        state.prefill = data.prefill || {};
-        state.customerType = data.customerType || "SZ";
         state.docs = (data.documents || []).slice();
         loading.classList.add("hidden");
         app.classList.remove("hidden");
         if (data.completed) return showDone();
-        // resume at first unsigned document
         state.index = 0;
-        while (
-          state.index < state.docs.length &&
-          state.docs[state.index].status === "signed"
-        ) {
-          state.index++;
-        }
+        while (state.index < state.docs.length && state.docs[state.index].status === "signed") state.index++;
         if (state.index >= state.docs.length) return showDone();
         renderStep();
       })
       .catch(function (e) { showFatal(e.message || "Der Link ist ungültig oder abgelaufen."); });
   }
 
-  function renderDots() {
-    var box = el("stepdots");
-    box.innerHTML = "";
-    state.docs.forEach(function (d, i) {
-      var dot = document.createElement("span");
-      dot.className =
-        "dot" + (i === state.index ? " active" : i < state.index ? " done" : "");
-      box.appendChild(dot);
-    });
-  }
-
-  function renderFields() {
-    var wrap = el("fieldsWrap");
-    wrap.innerHTML = "";
-    EDITABLE.forEach(function (f) {
-      var div = document.createElement("div");
-      div.className = "field";
-      var val = state.prefill[f.key] || "";
-      div.innerHTML =
-        '<label>' + f.label + "</label>" +
-        '<input type="text" data-key="' + f.key + '" value="' +
-        String(val).replace(/"/g, "&quot;") + '">';
-      wrap.appendChild(div);
-    });
-  }
-
-  function renderPaymentTerms(doc) {
-    var wrap = el("paymentTerms");
-    var box = el("paymentOptions");
-    if (doc.key !== "angebot") { wrap.classList.add("hidden"); box.innerHTML = ""; return; }
-    wrap.classList.remove("hidden");
-    box.innerHTML = "";
-    paymentOptions().forEach(function (t, i) {
-      var div = document.createElement("div");
-      div.className = "field";
-      div.innerHTML =
-        '<label style="cursor:pointer;font-size:17px;color:var(--ink);">' +
-        '<input type="radio" name="paymentTerm" value="' + i + '" style="width:auto;margin-right:10px;">' +
-        t + "</label>";
-      box.appendChild(div);
-    });
-  }
-
-  function selectedPaymentIdx() {
-    var checked = el("paymentOptions").querySelector('input[name="paymentTerm"]:checked');
-    return checked ? Number(checked.value) : -1;
-  }
-
-  function collectFields() {
-    var out = {};
-    var inputs = el("fieldsWrap").querySelectorAll("input[data-key]");
-    Array.prototype.forEach.call(inputs, function (inp) {
-      out[inp.getAttribute("data-key")] = inp.value.trim();
-    });
-    return out;
-  }
-
-  var sig = null;
   function renderStep() {
     var doc = state.docs[state.index];
-    el("progress").textContent =
-      "Dokument " + (state.index + 1) + " von " + state.docs.length;
-    el("docTitle").textContent = doc.label;
-    renderDots();
-    renderFields();
-    renderPaymentTerms(doc);
-    // Vollmacht-only: optional Entlastungsguthaben checkbox.
-    var vExtra = el("vollmachtExtra");
-    if (doc.key === "vollmacht") { vExtra.classList.remove("hidden"); el("entlastungCheckbox").checked = false; }
-    else { vExtra.classList.add("hidden"); }
-    el("docFrame").src = "/api/signing/" + token + "/documents/" + doc.key + "/pdf";
-    el("docError").classList.add("hidden");
-    resetSignature();
-    // Canvas is now visible — measure it so drawing coordinates are correct
-    // (it renders 0x0 while #app is hidden, which breaks desktop drawing).
-    if (sig) requestAnimationFrame(function () { sig.refit(); });
+    el("progress").textContent = "Dokument " + (state.index + 1) + " von " + state.docs.length;
+    container.innerHTML = "<p>Dokument wird geladen …</p>";
+    fetch("/api/signing/" + token + "/documents/" + doc.key + "/html")
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        container.innerHTML = html;
+        wireControls();
+        window.scrollTo(0, 0);
+      })
+      .catch(function () { container.innerHTML = "<p>Dokument konnte nicht geladen werden.</p>"; });
   }
 
-  // ---- signature canvas ----
-  function setupCanvas() {
-    var canvas = el("sigCanvas");
+  // ---- signature canvas (built on the injected #sigCanvas) ----
+  function setupCanvas(canvas) {
     var ctx = canvas.getContext("2d");
     var drawing = false, dirty = false, last = null;
 
     function resize() {
       var ratio = window.devicePixelRatio || 1;
       var rect = canvas.getBoundingClientRect();
+      if (!rect.width) return;
+      var data = dirty ? canvas.toDataURL() : null;
       canvas.width = rect.width * ratio;
       canvas.height = rect.height * ratio;
       ctx.scale(ratio, ratio);
-      ctx.lineWidth = 2.5;
-      ctx.lineCap = "round";
-      ctx.strokeStyle = "#122";
-    }
-    resize();
-    window.addEventListener("resize", function () {
-      var data = dirty ? canvas.toDataURL() : null;
-      resize();
+      ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.strokeStyle = "#111";
       if (data) {
         var img = new Image();
-        img.onload = function () { ctx.drawImage(img, 0, 0, canvas.getBoundingClientRect().width, canvas.getBoundingClientRect().height); };
+        img.onload = function () { ctx.drawImage(img, 0, 0, rect.width, rect.height); };
         img.src = data;
       }
-    });
-
+    }
     function pos(e) {
       var rect = canvas.getBoundingClientRect();
       var t = e.touches ? e.touches[0] : e;
@@ -194,10 +93,7 @@
     function move(e) {
       if (!drawing) return;
       var p = pos(e);
-      ctx.beginPath();
-      ctx.moveTo(last.x, last.y);
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
       last = p; dirty = true; e.preventDefault();
     }
     function up() { drawing = false; }
@@ -208,78 +104,115 @@
     canvas.addEventListener("touchstart", down, { passive: false });
     canvas.addEventListener("touchmove", move, { passive: false });
     canvas.addEventListener("touchend", up);
+    resize();
 
     return {
-      clear: function () {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        dirty = false;
-      },
-      // Re-measure once the canvas is actually visible (it renders 0x0 while
-      // #app is hidden). Called from renderStep.
-      refit: function () {
-        if (!dirty) { resize(); }
-      },
+      clear: function () { ctx.clearRect(0, 0, canvas.width, canvas.height); dirty = false; },
+      refit: function () { if (!dirty) resize(); },
       isDirty: function () { return dirty; },
       toPng: function () { return canvas.toDataURL("image/png"); },
     };
   }
 
-  function resetSignature() {
-    if (sig) sig.clear();
-    el("typeWrap").classList.add("hidden");
-    el("typeName").value = "";
-  }
-
-  // Build a PNG from a typed name (fallback for users who can't draw).
   function typedNameToPng(name) {
     var c = document.createElement("canvas");
     c.width = 600; c.height = 160;
     var ctx = c.getContext("2d");
-    ctx.fillStyle = "#122";
+    ctx.fillStyle = "#111";
     ctx.font = "48px 'Segoe Script', 'Comic Sans MS', cursive";
     ctx.textBaseline = "middle";
     ctx.fillText(name, 20, 80);
     return c.toDataURL("image/png");
   }
 
+  function wireControls() {
+    var canvas = el("sigCanvas");
+    sig = canvas ? setupCanvas(canvas) : null;
+    if (sig) requestAnimationFrame(function () { sig.refit(); });
+
+    var clearBtn = el("clearSig");
+    if (clearBtn) clearBtn.addEventListener("click", function () {
+      var tw = el("typeWrap");
+      if (tw && !tw.classList.contains("hidden")) { el("typeName").value = ""; }
+      else if (sig) sig.clear();
+    });
+
+    var toggle = el("toggleType");
+    if (toggle) toggle.addEventListener("click", function () {
+      var w = el("typeWrap");
+      var hidden = w.classList.toggle("hidden");
+      this.textContent = hidden ? "Namen tippen statt zeichnen" : "Doch lieber zeichnen";
+    });
+
+    // Per-section edit toggle: unlock/lock that section's fields.
+    container.querySelectorAll(".edit-toggle").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var sec = btn.closest(".editsec") || container;
+        var inputs = sec.querySelectorAll('[data-edit-field], input[name="pflegegrad"]');
+        var editing = btn.getAttribute("data-editing") !== "1";
+        inputs.forEach(function (i) { i.disabled = !editing; });
+        btn.setAttribute("data-editing", editing ? "1" : "0");
+        btn.textContent = editing ? "✓ Fertig" : "✎ Bearbeiten";
+      });
+    });
+
+    var submit = el("submitBtn");
+    if (submit) submit.addEventListener("click", submitCurrent);
+  }
+
+  function selectedPaymentIdx() {
+    var checked = container.querySelector('input[name="paymentTerm"]:checked');
+    return checked ? Number(checked.value) : -1;
+  }
+
+  function showDocError(msg) {
+    var box = el("docError");
+    if (box) { box.textContent = msg; box.classList.remove("hidden"); }
+  }
+
   function submitCurrent() {
     var doc = state.docs[state.index];
-    var errBox = el("docError");
-    errBox.classList.add("hidden");
+    var box = el("docError");
+    if (box) box.classList.add("hidden");
 
     var extraFields = {};
-    if (doc.key === "angebot") {
+    if (container.querySelector('input[name="paymentTerm"]')) {
       var payIdx = selectedPaymentIdx();
-      if (payIdx < 0) {
-        errBox.textContent = "Bitte wählen Sie eine Zahlungsbedingung aus.";
-        errBox.classList.remove("hidden");
-        return;
-      }
+      if (payIdx < 0) return showDocError("Bitte wählen Sie eine Zahlungsbedingung aus.");
       extraFields.paymentTermIdx = payIdx;
     }
-    if (doc.key === "vollmacht") {
-      extraFields.entlastungsguthaben = el("entlastungCheckbox").checked;
-    }
+    var entl = el("entlastungCheckbox");
+    if (entl) extraFields.entlastungsguthaben = entl.checked;
+    var budgetWuM = el("budgetWuMCheckbox");
+    if (budgetWuM) extraFields.budgetWuM = budgetWuM.checked;
+
+    // Collect any customer-corrected fields (editable-on-button sections).
+    var editedFields = {};
+    container.querySelectorAll("[data-edit-field]").forEach(function (inp) {
+      editedFields[inp.getAttribute("data-edit-field")] = (inp.value || "").trim();
+    });
+    var pg = container.querySelector('input[name="pflegegrad"]:checked');
+    if (pg) editedFields.pflegegrad = pg.value;
 
     var signatureImage = null;
-    var typing = !el("typeWrap").classList.contains("hidden");
+    var tw = el("typeWrap");
+    var typing = tw && !tw.classList.contains("hidden");
     if (typing) {
-      var name = el("typeName").value.trim();
-      if (!name) { errBox.textContent = "Bitte geben Sie Ihren Namen ein."; errBox.classList.remove("hidden"); return; }
+      var name = (el("typeName").value || "").trim();
+      if (!name) return showDocError("Bitte geben Sie Ihren Namen ein.");
       signatureImage = typedNameToPng(name);
     } else {
-      if (!sig || !sig.isDirty()) { errBox.textContent = "Bitte unterschreiben Sie im Feld."; errBox.classList.remove("hidden"); return; }
+      if (!sig || !sig.isDirty()) return showDocError("Bitte unterschreiben Sie im Feld.");
       signatureImage = sig.toPng();
     }
 
-    var fields = collectFields();
-    var btn = el("submitBtn");
-    btn.disabled = true; btn.textContent = "Wird übermittelt …";
+    var submit = el("submitBtn");
+    if (submit) { submit.disabled = true; submit.textContent = "Wird übermittelt …"; }
 
     api(token + "/documents/" + doc.key, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ signatureImage: signatureImage, editedFields: fields, extraFields: extraFields, place: fields.city }),
+      body: JSON.stringify({ signatureImage: signatureImage, extraFields: extraFields, editedFields: editedFields }),
     })
       .then(function (res) {
         doc.status = "signed";
@@ -288,35 +221,19 @@
         while (state.index < state.docs.length && state.docs[state.index].status === "signed") state.index++;
         if (state.index >= state.docs.length) return showDone();
         renderStep();
-        window.scrollTo(0, 0);
       })
       .catch(function (e) {
-        errBox.textContent = e.message || "Übermittlung fehlgeschlagen.";
-        errBox.classList.remove("hidden");
-      })
-      .then(function () { btn.disabled = false; btn.textContent = "Unterschreiben & weiter"; });
+        showDocError(e.message || "Übermittlung fehlgeschlagen.");
+        if (submit) { submit.disabled = false; submit.textContent = "Unterschreiben & weiter"; }
+      });
   }
 
   function showDone() {
-    el("docCard").classList.add("hidden");
+    container.innerHTML = "";
+    el("progress").textContent = "";
     el("doneCard").classList.remove("hidden");
     window.scrollTo(0, 0);
   }
 
-  function wire() {
-    sig = setupCanvas();
-    el("clearSig").addEventListener("click", function () {
-      if (!el("typeWrap").classList.contains("hidden")) { el("typeName").value = ""; }
-      else if (sig) sig.clear();
-    });
-    el("toggleType").addEventListener("click", function () {
-      var w = el("typeWrap");
-      var hidden = w.classList.toggle("hidden");
-      this.textContent = hidden ? "Namen tippen statt zeichnen" : "Doch lieber zeichnen";
-    });
-    el("submitBtn").addEventListener("click", submitCurrent);
-  }
-
-  wire();
   start();
 })();

@@ -596,14 +596,21 @@ async function convertDocxToPdf(docxBuffer) {
   }
 }
 
+// Data-only: pricing + mapData + sanitize, WITHOUT rendering docx/LibreOffice.
+// Used by the online-signing HTML renderer.
+async function getOfferRenderData(body) {
+  const computed = await pricing.computePrices(body || {});
+  const dataRaw = await mapData(body || {}, computed);
+  const data = deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST);
+  return { data, computed };
+}
+
 async function generateOfferPdfBuffer(body) {
   const templatePath = getAngebotTemplatePath(body);
   console.log("[pdf] Using template path:", templatePath);
   console.log("[pdf] Template exists?", fsSync.existsSync(templatePath));
 
-  const computed = await pricing.computePrices(body || {});
-  const dataRaw = await mapData(body || {}, computed);
-  const data = deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST);
+  const { data, computed } = await getOfferRenderData(body);
 
   console.log("[pdf] SignatureImage present?", !!data.SignatureImage);
 
@@ -2201,6 +2208,7 @@ export {
   mapData,
   getAngebotTemplatePath,
   generateOfferPdfBuffer,
+  getOfferRenderData,
   deepSanitizeDocxPayload,
   STATIC_DOCX_WORD_BLOCKLIST,
   buildAhData,

@@ -17,14 +17,13 @@ import crypto from "crypto";
 import path from "path";
 import { fileURLToPath } from "url";
 import nodemailer from "nodemailer";
-import { PDFDocument } from "pdf-lib";
 
 import SigningRequest from "../models/SigningRequest.js";
 import { addTimelineComment } from "./bitrix.js";
-import { generateOfferPdfBuffer } from "./docx-template.js";
+import { generateOfferPdfBuffer, getOfferRenderData } from "./docx-template.js";
 import { htmlToPdfBuffer } from "../utils/htmlToPdf.js";
 import {
-  buildSignatureSheetHtml,
+  buildAngebotHtml,
   buildVollmachtHtml,
   buildAbtretungHtml,
 } from "../templates/signing-docs.js";
@@ -138,17 +137,6 @@ const SIGN_LINK_INTRO =
   "einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu " +
   "unterschreiben und direkt an uns zurückzuschicken:";
 
-// Merge several PDF buffers into one.
-async function mergePdfs(buffers) {
-  const merged = await PDFDocument.create();
-  for (const buf of buffers) {
-    const src = await PDFDocument.load(buf);
-    const pages = await merged.copyPages(src, src.getPageIndices());
-    pages.forEach((p) => merged.addPage(p));
-  }
-  return Buffer.from(await merged.save());
-}
-
 // A payload copy with the customer's chosen payment term applied, so the
 // existing Angebot template ticks the correct box.
 function payloadWithPaymentChoice(sr, doc) {
@@ -176,9 +164,8 @@ async function buildDocumentPdf(sr, key) {
 // Build the FINAL SIGNED PDF for a document (used on completion).
 async function buildSignedPdf(sr, doc) {
   if (doc.key === "angebot") {
-    const { pdfBuffer } = await generateOfferPdfBuffer(payloadWithPaymentChoice(sr, doc));
-    const sheet = await htmlToPdfBuffer(buildSignatureSheetHtml(sr, doc));
-    return mergePdfs([pdfBuffer, sheet]);
+    const { data } = await getOfferRenderData(payloadWithPaymentChoice(sr, doc));
+    return htmlToPdfBuffer(buildAngebotHtml(data, { mode: "pdf", sr, doc }));
   }
   if (doc.key === "vollmacht") return htmlToPdfBuffer(buildVollmachtHtml(sr, doc));
   if (doc.key === "abtretung") return htmlToPdfBuffer(buildAbtretungHtml(sr, doc));
@@ -356,6 +343,36 @@ router.get("/:token", async (req, res) => {
     });
   } catch (err) {
     console.error("GET /api/signing/:token failed:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// GET /api/signing/:token/documents/:key/html — read-only HTML fragment for
+// on-screen display (currently the Angebot). Returns HTML, not a full page.
+router.get("/:token/documents/:key/html", async (req, res) => {
+  try {
+    const sr = await loadByToken(req, res);
+    if (!sr) return;
+    const key = String(req.params.key || "");
+    if (!(sr.documents || []).some((d) => d.key === key)) {
+      return res.status(404).json({ error: "Dokument nicht gefunden" });
+    }
+    const doc = (sr.documents || []).find((x) => x.key === key) || { key };
+    let html;
+    if (key === "angebot") {
+      const { data } = await getOfferRenderData(sr.payloadSnapshot || {});
+      html = buildAngebotHtml(data, { mode: "display", sr, doc });
+    } else if (key === "vollmacht") {
+      html = buildVollmachtHtml(sr, doc, "display");
+    } else if (key === "abtretung") {
+      html = buildAbtretungHtml(sr, doc, "display");
+    } else {
+      return res.status(404).json({ error: "Keine HTML-Ansicht für dieses Dokument" });
+    }
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.send(html);
+  } catch (err) {
+    console.error("GET signing document html failed:", err);
     return res.status(500).json({ error: err?.message || String(err) });
   }
 });
