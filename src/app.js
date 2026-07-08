@@ -173,6 +173,7 @@ app.set("trust proxy", 1);
 
 // ---------------- CORS ----------------
 const allowedExact = new Set([
+  "https://oc.emc2.de",
   "https://angebotskonfiguratoremc2.fly.dev",
   "https://angebotskonfigurator-emc2-v2.fly.dev",
   "https://bau-formular.fly.dev",
