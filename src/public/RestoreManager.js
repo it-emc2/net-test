@@ -168,6 +168,16 @@ export function initRestoreManager({
       } catch (e) {
         console.warn("[daConfigurator] restore failed:", e?.message || e);
       }
+
+      // Rehydrate the "Duschvorhang" configurator from its saved state
+      try {
+        const vhState = payload?.duschvorhang?.configurator?.state || null;
+        if (vhState && typeof window.__vorhangConfigurator?.restore === "function") {
+          window.__vorhangConfigurator.restore(vhState);
+        }
+      } catch (e) {
+        console.warn("[vorhang] restore failed:", e?.message || e);
+      }
     } finally {
       window.__restoring = false;
       window.__RESTORING__ = false;

@@ -162,6 +162,7 @@ const OFFERS = {
       "Fussboden",
       "Wandverkleidung",
       "DuschabtrennungNeu",
+      "Duschvorhang",
       "Duschabtrennung",
       "Optional",
       "Rabatt",
@@ -2628,6 +2629,7 @@ function updateSidebarForOffer() {
     bl: "BL",
     ah: "AH",
     DuschabtrennungNeu: "Duschabtrennung (neu)",
+    Duschvorhang: "Duschvorhang",
     Fussboden: "Fußboden",
     // Rabatt page only exists in the Badumbau flow, so this rename is bu-only.
     Rabatt: "Aufschlag / Rabatt",
@@ -3198,6 +3200,54 @@ function collectDuschabtrennungConfigurator(doc) {
   }
 }
 
+// --- Duschvorhang Konfigurator collector ---
+// Same pattern as collectDuschabtrennungConfigurator: the Duschvorhang tab exposes
+// its selected net lines via window.__vorhangConfigurator.getLines(). We APPEND them
+// to payload.duschabtrennung.quickAdd (must run AFTER the two collectors above that
+// overwrite that array) so the existing pricing path prices them, and persist the
+// raw state under payload.duschvorhang.configurator for restore.
+function collectDuschvorhangConfigurator(doc) {
+  doc.duschabtrennung = doc.duschabtrennung || {};
+  const api = window.__vorhangConfigurator;
+  if (!api || typeof api.getLines !== "function") return;
+
+  let lines = [];
+  try {
+    lines = api.getLines() || [];
+  } catch (e) {
+    console.warn("[vorhang] getLines failed:", e?.message || e);
+    return;
+  }
+  if (!Array.isArray(lines) || !lines.length) return;
+
+  const qa = Array.isArray(doc.duschabtrennung.quickAdd)
+    ? doc.duschabtrennung.quickAdd
+    : [];
+
+  for (const ln of lines) {
+    const price = Number(ln?.net) || 0;
+    if (price <= 0) continue;
+    qa.push({
+      kind: "config",
+      label: ln.label || "Duschvorhang (Konfigurator)",
+      qty: Number(ln.qty) > 0 ? Number(ln.qty) : 1,
+      price: price,
+      productId: ln.articleNumber || "",
+      finish: ln.finish || null,
+    });
+  }
+  doc.duschabtrennung.quickAdd = qa;
+
+  // persist for restore
+  try {
+    doc.duschvorhang = doc.duschvorhang || {};
+    const state = typeof api.getState === "function" ? api.getState() : null;
+    doc.duschvorhang.configurator = { state, lines };
+  } catch {
+    /* non-fatal */
+  }
+}
+
 // helper: collect "Freier Posten / Sonderprodukte" rows from a container
 function collectCustomRows(root) {
   if (!root) return [];
@@ -3756,6 +3806,7 @@ function buildPayload() {
   collectWandverkleidungMaterials(payload);
   collectDuschabtrennungQuickAdd(payload);
   collectDuschabtrennungConfigurator(payload);
+  collectDuschvorhangConfigurator(payload);
 
   if (String(currentOfferKey || "").toLowerCase() === "bwt") {
     collectBwtMaterials(payload);
@@ -10224,7 +10275,7 @@ function escapeHtml(s) {
     .replace(/'/g, "&#39;");
 }
 
-  const HIDDEN_BRANDS_RE = /\b(VIGOUR|TRINNITY|BADOLUX|RAMSAUER|CLIVIA\s+PLUS)\b\s*/gi;
+  const HIDDEN_BRANDS_RE = /\b(VIGOUR|TRINNITY|BADOLUX|RAMSAUER|CLIVIA\s+PLUS|DERBY\s+V3\s+PLUS|HEWI)\b\s*/gi;
   function stripBrand(s) { return String(s).replace(HIDDEN_BRANDS_RE, "").trim(); }
 
   // Kosten-Details: finish (Ausführung/Oberfläche) is collected on every Duschabtrennung
@@ -23276,6 +23327,175 @@ function formatPlanningTypeClass(type){
 
 let __lastPlanningRawPayload = null;
 
+// Which week is currently shown, relative to the planning "current" week.
+// 0 = current week, -1 = previous, +1 = next. Driven by the ◀ / ▶ nav buttons.
+let __weekViewOffset = 0;
+// The day objects for the week currently on screen — used by the entry click
+// handler so clicking works on any navigated week, not just the current one.
+let __weekViewDays = [];
+
+const WEEK_DAY_SHORT = ["Mo", "Di", "Mi", "Do", "Fr"];
+const WEEK_DAY_LONG = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"];
+
+function toLocalDateKey(date){
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+// Monday of the week containing `date` (local time).
+function mondayOf(date){
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dow = d.getDay(); // 0=Sun..6=Sat
+  const toMonday = dow === 0 ? -6 : 1 - dow;
+  d.setDate(d.getDate() + toMonday);
+  return d;
+}
+
+// The Monday the planning backend considers "current" — prefer the value it
+// sends (planning.currentWeekStart), else derive from today.
+function planningCurrentMonday(payload){
+  const raw = payload?.planning?.currentWeekStart;
+  const parsed = raw ? parsePlanningDate(raw) : null;
+  return parsed ? mondayOf(parsed) : mondayOf(new Date());
+}
+
+// All dates present in the payload's rawWpByDate map (spans every planned week
+// the backend knows about). Used to bound how far ◀ / ▶ can navigate.
+function planningDataRange(payload){
+  const map = payload?.planning?.rawWpByDate;
+  if(!map || typeof map !== "object") return null;
+  const keys = Object.keys(map).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort();
+  if(!keys.length) return null;
+  return { minMonday: mondayOf(parsePlanningDate(keys[0])), maxMonday: mondayOf(parsePlanningDate(keys[keys.length - 1])) };
+}
+
+// Min / max offsets (relative to the current week) reachable with the data we
+// already have. Returns { min, max }; both 0 when there is no range info.
+function weekOffsetBounds(payload){
+  const range = planningDataRange(payload);
+  if(!range) return { min: 0, max: 0 };
+  const cur = planningCurrentMonday(payload).getTime();
+  const week = 7 * 86400000;
+  const min = Math.round((range.minMonday.getTime() - cur) / week);
+  const max = Math.round((range.maxMonday.getTime() - cur) / week);
+  // Always allow the current week even if it sits outside the data range.
+  return { min: Math.min(min, 0), max: Math.max(max, 0) };
+}
+
+// Build the 5 weekday objects for the week at `offset`. Offset 0 reuses the
+// backend's richer planning.days (it carries computed slot locks); other weeks
+// are assembled from rawWpByDate, which holds every planned week.
+function buildWeekDays(payload, offset){
+  const planning = payload?.planning || {};
+  if(offset === 0 && Array.isArray(planning.days) && planning.days.length){
+    return planning.days;
+  }
+  const monday = new Date(planningCurrentMonday(payload));
+  monday.setDate(monday.getDate() + offset * 7);
+  const byDate = (planning.rawWpByDate && typeof planning.rawWpByDate === "object") ? planning.rawWpByDate : {};
+  const lockedDays = (planning.board && typeof planning.board.lockedDays === "object") ? planning.board.lockedDays : {};
+
+  return Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const dateKey = toLocalDateKey(d);
+    const customers = Array.isArray(byDate[dateKey]) ? byDate[dateKey] : [];
+    return {
+      dayIndex: i,
+      date: dateKey,
+      shortLabel: WEEK_DAY_SHORT[i],
+      label: WEEK_DAY_LONG[i],
+      dateLabel: d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+      locked: Boolean(lockedDays[dateKey]),
+      customers,
+    };
+  });
+}
+
+// ── Zone detection ──────────────────────────────────────────────────────────
+// Maps the first two digits of a German PLZ (Leitregion) to a nearby major
+// city / region label. Offline lookup — no network calls. Falls back to the
+// single leading digit, then to the parsed city name.
+const PLZ_ZONES = {
+  "01": "Dresden",    "02": "Görlitz",     "03": "Cottbus",     "04": "Leipzig",
+  "06": "Halle",      "07": "Gera/Jena",   "08": "Zwickau",     "09": "Chemnitz",
+  "10": "Berlin",     "12": "Berlin",      "13": "Berlin",      "14": "Potsdam",
+  "15": "Frankfurt (Oder)", "16": "Brandenburg", "17": "Neubrandenburg",
+  "18": "Rostock",    "19": "Schwerin",
+  "20": "Hamburg",    "21": "Hamburg",     "22": "Hamburg",     "23": "Lübeck",
+  "24": "Kiel",       "25": "Husum",       "26": "Oldenburg",   "27": "Bremerhaven",
+  "28": "Bremen",     "29": "Lüneburg",
+  "30": "Hannover",   "31": "Hildesheim",  "32": "Herford",     "33": "Paderborn",
+  "34": "Kassel",     "35": "Marburg",     "36": "Fulda",       "37": "Göttingen",
+  "38": "Braunschweig", "39": "Magdeburg",
+  "40": "Düsseldorf", "41": "Mönchengladbach", "42": "Wuppertal", "44": "Dortmund",
+  "45": "Essen",      "46": "Oberhausen",  "47": "Duisburg",    "48": "Münster",
+  "49": "Osnabrück",
+  "50": "Köln",       "51": "Köln",        "52": "Aachen",      "53": "Bonn",
+  "54": "Trier",      "55": "Mainz",       "56": "Koblenz",     "57": "Siegen",
+  "58": "Hagen",      "59": "Hamm",
+  "60": "Frankfurt",  "61": "Bad Homburg", "63": "Offenbach",   "64": "Darmstadt",
+  "65": "Wiesbaden",  "66": "Saarbrücken", "67": "Ludwigshafen", "68": "Mannheim",
+  "69": "Heidelberg",
+  "70": "Stuttgart",  "71": "Stuttgart",   "72": "Tübingen",    "73": "Göppingen",
+  "74": "Heilbronn",  "75": "Pforzheim",   "76": "Karlsruhe",   "77": "Offenburg",
+  "78": "Villingen",  "79": "Freiburg",
+  "80": "München",    "81": "München",     "82": "Starnberg",   "83": "Rosenheim",
+  "84": "Landshut",   "85": "Ingolstadt",  "86": "Augsburg",    "87": "Kempten",
+  "88": "Ravensburg", "89": "Ulm",
+  "90": "Nürnberg",   "91": "Nürnberg",    "92": "Amberg",      "93": "Regensburg",
+  "94": "Passau",     "95": "Bayreuth",    "96": "Bamberg",     "97": "Würzburg",
+  "98": "Suhl",       "99": "Erfurt",
+};
+const PLZ_ZONES_1 = {
+  "0": "Sachsen/Ost", "1": "Berlin/Nord-Ost", "2": "Hamburg/Nord", "3": "Hannover/Mitte",
+  "4": "Ruhrgebiet",  "5": "Köln/West",       "6": "Rhein-Main",   "7": "Stuttgart/Süd-West",
+  "8": "München/Süd", "9": "Nürnberg/Franken",
+};
+
+function detectEntryZone(entry){
+  const parsed = parsePlanningAddress(entry?.address || "");
+  const plz = String(entry?.postalCode || parsed.postalCode || "").trim();
+  if(/^\d{5}$/.test(plz)){
+    return PLZ_ZONES[plz.slice(0, 2)] || PLZ_ZONES_1[plz.slice(0, 1)] || null;
+  }
+  const city = String(entry?.city || parsed.city || "").trim();
+  return city || null;
+}
+
+// Returns the dominant (most frequent) zone among a day's active entries,
+// plus the ordered list of distinct zones for that day.
+function computeDayZones(entries){
+  const counts = new Map();
+  const order = [];
+  for(const entry of entries){
+    if(isPlanningEntryCancelled(entry)) continue;
+    const zone = detectEntryZone(entry);
+    if(!zone) continue;
+    if(!counts.has(zone)) order.push(zone);
+    counts.set(zone, (counts.get(zone) || 0) + 1);
+  }
+  if(!order.length) return { dominant: null, zones: [] };
+  const dominant = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  return { dominant, zones: order };
+}
+
+// Compact badge label for the tight week-calendar columns.
+function formatPlanningBadgeCompact(entry){
+  if(isPlanningEntryCancelled(entry)) return "Abgesagt";
+  if(entry?.locked && Number.isFinite(Number(entry?.lockedSlot))){
+    return `Slot ${Number(entry.lockedSlot) + 1}`;
+  }
+  if(entry?.locked) return "Fixiert";
+  const norm = String(entry?.priority || "").trim().toLowerCase();
+  if(norm === "high") return "Hoch";
+  if(norm === "medium") return "Mittel";
+  if(norm === "low") return "Niedrig";
+  return "Termin";
+}
+
 function getPlanningWeekNumber(date) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
@@ -23288,8 +23508,13 @@ function renderWeekCalendar(payload) {
   const meta = document.getElementById("weekCalendarMeta");
   if (!grid) return;
 
-  const planning = payload?.planning || {};
-  const days = Array.isArray(planning.days) ? planning.days : [];
+  // Clamp the requested offset to what the available data actually covers.
+  const bounds = weekOffsetBounds(payload);
+  __weekViewOffset = Math.min(Math.max(__weekViewOffset, bounds.min), bounds.max);
+
+  const days = buildWeekDays(payload, __weekViewOffset);
+  __weekViewDays = days;
+  updateWeekNavButtons(bounds);
 
   // Sort days chronologically
   const sorted = [...days].sort((a, b) => {
@@ -23304,14 +23529,38 @@ function renderWeekCalendar(payload) {
   const totalEntries = sorted.reduce(
     (sum, d) => sum + (Array.isArray(d?.customers) ? d.customers.length : 0), 0
   );
-  const weekNum = getPlanningWeekNumber(now);
+  // KW / date range reflect the week on screen, not always today.
+  const firstDate = sorted.length ? parsePlanningDate(sorted[0]?.date) : null;
+  const lastDate = sorted.length ? parsePlanningDate(sorted[sorted.length - 1]?.date) : null;
+  const weekNum = getPlanningWeekNumber(firstDate || now);
+  const rangeLabel = (firstDate && lastDate)
+    ? `${firstDate.toLocaleDateString("de-DE", { day: "numeric", month: "short" })} – ${lastDate.toLocaleDateString("de-DE", { day: "numeric", month: "short" })}`
+    : "";
+  const weekWord = __weekViewOffset === 0 ? "diese Woche"
+    : __weekViewOffset === -1 ? "letzte Woche"
+    : __weekViewOffset === 1 ? "nächste Woche"
+    : `${Math.abs(__weekViewOffset)} Wochen ${__weekViewOffset < 0 ? "zurück" : "voraus"}`;
+
+  // Collect the distinct zones visited across the whole week (in day order).
+  const weekZones = [];
+  for (const d of sorted) {
+    const list = Array.isArray(d?.customers) ? d.customers : [];
+    for (const z of computeDayZones(list).zones) {
+      if (!weekZones.includes(z)) weekZones.push(z);
+    }
+  }
 
   if (meta) {
-    meta.textContent = `${totalEntries} Termin${totalEntries !== 1 ? "e" : ""} diese Woche · KW ${weekNum}`;
+    const parts = [
+      `${totalEntries} Termin${totalEntries !== 1 ? "e" : ""} · ${weekWord}`,
+      `KW ${weekNum}${rangeLabel ? ` (${rangeLabel})` : ""}`,
+    ];
+    if (weekZones.length) parts.push(weekZones.join(", "));
+    meta.textContent = parts.join(" · ");
   }
 
   if (!sorted.length) {
-    grid.innerHTML = `<div class="week-cal-empty"><i class="fa-regular fa-calendar-xmark"></i> Keine Planungstermine für diese Woche gefunden</div>`;
+    grid.innerHTML = `<div class="week-cal-empty"><i class="fa-regular fa-calendar-xmark"></i> Keine Planungstermine in dieser Woche</div>`;
     return;
   }
 
@@ -23341,6 +23590,11 @@ function renderWeekCalendar(payload) {
       ? `<i class="fa-solid fa-lock week-cal-day-lock-icon" title="Tag gesperrt"></i>`
       : "";
 
+    const dayZone = computeDayZones(entries).dominant;
+    const zoneChip = dayZone
+      ? `<div class="week-cal-zone" title="Schwerpunkt-Region an diesem Tag"><i class="fa-solid fa-location-dot"></i><span>${escapePlanningHtml(dayZone)}</span></div>`
+      : "";
+
     const entriesHtml = entries.length
       ? entries.map(entry => {
           const isCancelled = isPlanningEntryCancelled(entry);
@@ -23348,9 +23602,11 @@ function renderWeekCalendar(payload) {
           const badgeClass = isCancelled ? "is-cancelled" : (entry?.locked ? "is-bu" : "is-manual");
           const entryId = String(entry?.id || `${day?.date || ""}-${entry?.name || ""}`);
           return `<div class="week-cal-entry${isCancelled ? " is-cancelled" : ""}" data-wce-id="${escapePlanningHtml(entryId)}" data-wce-day="${escapePlanningHtml(day?.date || "")}">
-            <span class="week-cal-entry-time">${escapePlanningHtml(startTime || "–")}</span>
+            <div class="week-cal-entry-top">
+              <span class="week-cal-entry-time">${escapePlanningHtml(startTime || "–")}</span>
+              <span class="week-cal-entry-badge ${badgeClass}">${escapePlanningHtml(formatPlanningBadgeCompact(entry))}</span>
+            </div>
             <span class="week-cal-entry-name">${escapePlanningHtml(entry?.name || "Unbekannt")}</span>
-            <span class="week-cal-entry-badge ${badgeClass}">${escapePlanningHtml(formatPlanningBadge(entry))}</span>
           </div>`;
         }).join("")
       : `<div class="week-cal-empty-day"><i class="fa-regular fa-calendar-xmark"></i><span>Keine Termine</span></div>`;
@@ -23365,6 +23621,7 @@ function renderWeekCalendar(payload) {
         <div class="week-cal-day-date">${escapePlanningHtml(String(dateNum))}</div>
         <div class="week-cal-day-month">${escapePlanningHtml(monthName)}</div>
         <div class="week-cal-count">${activeCount} Termin${activeCount !== 1 ? "e" : ""}${cancelledCount ? `<span class="week-cal-cancelled-hint"> · ${cancelledCount} abg.</span>` : ""}</div>
+        ${zoneChip}
       </div>
       <div class="week-cal-entries">${entriesHtml}</div>
     </div>`;
@@ -23376,8 +23633,7 @@ function renderWeekCalendar(payload) {
       const entryId = el.dataset.wceId;
       const dayDate = el.dataset.wceDay;
       if (!__lastPlanningRawPayload) return;
-      const planningData = __lastPlanningRawPayload?.planning || {};
-      const day = (Array.isArray(planningData.days) ? planningData.days : [])
+      const day = (Array.isArray(__weekViewDays) ? __weekViewDays : [])
         .find(d => d?.date === dayDate);
       if (!day) return;
       const customer = (Array.isArray(day.customers) ? day.customers : [])
@@ -23396,6 +23652,39 @@ function renderWeekCalendar(payload) {
       applyPlanningAppointmentToForm(enriched);
     });
   });
+}
+
+// Enable/disable ◀ / ▶ and highlight "Diese Woche" based on where we are.
+function updateWeekNavButtons(bounds){
+  const prev = document.getElementById("weekCalPrev");
+  const next = document.getElementById("weekCalNext");
+  const today = document.getElementById("weekCalToday");
+  if(prev) prev.disabled = __weekViewOffset <= bounds.min;
+  if(next) next.disabled = __weekViewOffset >= bounds.max;
+  if(today){
+    const atCurrent = __weekViewOffset === 0;
+    today.disabled = atCurrent;
+    today.classList.toggle("is-active", atCurrent);
+  }
+}
+
+// Wire the week-navigation buttons once. Re-renders from the last payload we
+// received, so no new network/DB call is needed to change weeks.
+let __weekNavWired = false;
+function initWeekCalendarNav(){
+  if(__weekNavWired) return;
+  const prev = document.getElementById("weekCalPrev");
+  const next = document.getElementById("weekCalNext");
+  const today = document.getElementById("weekCalToday");
+  if(!prev && !next && !today) return;
+  __weekNavWired = true;
+
+  const rerender = () => {
+    if(__lastPlanningRawPayload) renderWeekCalendar(__lastPlanningRawPayload);
+  };
+  prev?.addEventListener("click", () => { __weekViewOffset -= 1; rerender(); });
+  next?.addEventListener("click", () => { __weekViewOffset += 1; rerender(); });
+  today?.addEventListener("click", () => { __weekViewOffset = 0; rerender(); });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -23516,6 +23805,7 @@ function updateTodayPlanningMeta(day){
 
 function applyPlanningPayload(payload){
   __lastPlanningRawPayload = payload;
+  initWeekCalendarNav();
   renderWeekCalendar(payload);
 
   const list = document.getElementById("todayPlanningList");

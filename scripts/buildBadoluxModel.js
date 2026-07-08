@@ -24,6 +24,21 @@ const SRC = join(__dirname, "../src/templates/test/badolux-prices.json");
 const OUT = join(__dirname, "../src/public/configurator/badolux-model.json");
 const CATEGORY = "Duschabtrennungen (Gläser)";
 
+// Product image files live under src/public/assets/badolux/ (served at /assets/badolux/).
+// Keyed by the generated product `value` (see `slug` below). Each entry becomes an
+// entry in model.images and an `imageId` on the matching "Produkt" value, which the
+// engine UI renders next to the option (see configurator-ui.js optionButton).
+const PRODUCT_IMAGES = {
+  "001_Walk_in_Wien": "walk-in-wien.png",
+  "002_Pendel_Wien": "pendel-wien.png",
+  "003_Falttur_Lissabon": "flattuer-lissabon.png",
+  "004_Faltur_mit_Festteil_Rom": "faltuer-mit-festteil-rom.png",
+  "005_Schiebetur_Madrid_Wand_Wand_oben_gefuhrt": "schiebetuer-madrid.png",
+  "006_Schiebetur_Madrid_Wand_offen_unten_gefuhrt": "schiebetuer-unten-gefuehrt.png",
+  "007_Faltur_mit_Festteil_Stockholm": "faltuer-mit-festteil-stockholm.png",
+};
+const IMAGE_BASE = "/assets/badolux";
+
 // "20%" -> 0.20
 const parseDiscount = (s) => {
   const n = Number(String(s ?? "").replace("%", "").replace(",", ".").trim());
@@ -47,10 +62,17 @@ const discount = parseDiscount(cat.discount ?? src.discounts?.Glaeser ?? "0%");
 
 const values = [];
 const leaves = [];
+const images = {};
 
 cat.products.forEach((p, idx) => {
   const value = `${String(idx + 1).padStart(3, "0")}_${slug(p.name)}`;
-  values.push({ value, label: p.name });
+  const file = PRODUCT_IMAGES[value];
+  if (file) {
+    images[value] = `${IMAGE_BASE}/${file}`;
+    values.push({ value, label: p.name, imageId: value });
+  } else {
+    values.push({ value, label: p.name });
+  }
 
   const breite = [];
   const articles = [];
@@ -113,7 +135,7 @@ const model = {
   ],
   leaves,
   sondermass: {},
-  images: {},
+  images,
 };
 
 writeFileSync(OUT, JSON.stringify(model, null, 2) + "\n", "utf8");
