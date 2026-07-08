@@ -2189,10 +2189,13 @@ label.image-check.is-checked .caption {
 
 /* ========== ZUSAMMENFASSUNG PAGE STYLES ========== */
 
+/* Passthrough: the page already sits in a .card (with its own padding), so this
+   inner wrapper adds nothing — keeps the Zusammenfassung consistent with the
+   other tabs (single card, no extra container/padding). */
 .zusammenfassung-container {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 24px;
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 
 /* Header */
@@ -3025,9 +3028,9 @@ label.image-check.is-checked .caption {
 /* Responsive */
 @media (max-width: 768px) {
   .zusammenfassung-container {
-    padding: 16px;
+    padding: 0;
   }
-  
+
   .zusammenfassung-header {
     flex-direction: column;
     align-items: stretch;
