@@ -23322,6 +23322,93 @@ function formatPlanningTypeClass(type){
 
 let __lastPlanningRawPayload = null;
 
+// Which week is currently shown, relative to the planning "current" week.
+// 0 = current week, -1 = previous, +1 = next. Driven by the ◀ / ▶ nav buttons.
+let __weekViewOffset = 0;
+// The day objects for the week currently on screen — used by the entry click
+// handler so clicking works on any navigated week, not just the current one.
+let __weekViewDays = [];
+
+const WEEK_DAY_SHORT = ["Mo", "Di", "Mi", "Do", "Fr"];
+const WEEK_DAY_LONG = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"];
+
+function toLocalDateKey(date){
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+// Monday of the week containing `date` (local time).
+function mondayOf(date){
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dow = d.getDay(); // 0=Sun..6=Sat
+  const toMonday = dow === 0 ? -6 : 1 - dow;
+  d.setDate(d.getDate() + toMonday);
+  return d;
+}
+
+// The Monday the planning backend considers "current" — prefer the value it
+// sends (planning.currentWeekStart), else derive from today.
+function planningCurrentMonday(payload){
+  const raw = payload?.planning?.currentWeekStart;
+  const parsed = raw ? parsePlanningDate(raw) : null;
+  return parsed ? mondayOf(parsed) : mondayOf(new Date());
+}
+
+// All dates present in the payload's rawWpByDate map (spans every planned week
+// the backend knows about). Used to bound how far ◀ / ▶ can navigate.
+function planningDataRange(payload){
+  const map = payload?.planning?.rawWpByDate;
+  if(!map || typeof map !== "object") return null;
+  const keys = Object.keys(map).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort();
+  if(!keys.length) return null;
+  return { minMonday: mondayOf(parsePlanningDate(keys[0])), maxMonday: mondayOf(parsePlanningDate(keys[keys.length - 1])) };
+}
+
+// Min / max offsets (relative to the current week) reachable with the data we
+// already have. Returns { min, max }; both 0 when there is no range info.
+function weekOffsetBounds(payload){
+  const range = planningDataRange(payload);
+  if(!range) return { min: 0, max: 0 };
+  const cur = planningCurrentMonday(payload).getTime();
+  const week = 7 * 86400000;
+  const min = Math.round((range.minMonday.getTime() - cur) / week);
+  const max = Math.round((range.maxMonday.getTime() - cur) / week);
+  // Always allow the current week even if it sits outside the data range.
+  return { min: Math.min(min, 0), max: Math.max(max, 0) };
+}
+
+// Build the 5 weekday objects for the week at `offset`. Offset 0 reuses the
+// backend's richer planning.days (it carries computed slot locks); other weeks
+// are assembled from rawWpByDate, which holds every planned week.
+function buildWeekDays(payload, offset){
+  const planning = payload?.planning || {};
+  if(offset === 0 && Array.isArray(planning.days) && planning.days.length){
+    return planning.days;
+  }
+  const monday = new Date(planningCurrentMonday(payload));
+  monday.setDate(monday.getDate() + offset * 7);
+  const byDate = (planning.rawWpByDate && typeof planning.rawWpByDate === "object") ? planning.rawWpByDate : {};
+  const lockedDays = (planning.board && typeof planning.board.lockedDays === "object") ? planning.board.lockedDays : {};
+
+  return Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const dateKey = toLocalDateKey(d);
+    const customers = Array.isArray(byDate[dateKey]) ? byDate[dateKey] : [];
+    return {
+      dayIndex: i,
+      date: dateKey,
+      shortLabel: WEEK_DAY_SHORT[i],
+      label: WEEK_DAY_LONG[i],
+      dateLabel: d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+      locked: Boolean(lockedDays[dateKey]),
+      customers,
+    };
+  });
+}
+
 // ── Zone detection ──────────────────────────────────────────────────────────
 // Maps the first two digits of a German PLZ (Leitregion) to a nearby major
 // city / region label. Offline lookup — no network calls. Falls back to the
@@ -23416,8 +23503,13 @@ function renderWeekCalendar(payload) {
   const meta = document.getElementById("weekCalendarMeta");
   if (!grid) return;
 
-  const planning = payload?.planning || {};
-  const days = Array.isArray(planning.days) ? planning.days : [];
+  // Clamp the requested offset to what the available data actually covers.
+  const bounds = weekOffsetBounds(payload);
+  __weekViewOffset = Math.min(Math.max(__weekViewOffset, bounds.min), bounds.max);
+
+  const days = buildWeekDays(payload, __weekViewOffset);
+  __weekViewDays = days;
+  updateWeekNavButtons(bounds);
 
   // Sort days chronologically
   const sorted = [...days].sort((a, b) => {
@@ -23432,7 +23524,17 @@ function renderWeekCalendar(payload) {
   const totalEntries = sorted.reduce(
     (sum, d) => sum + (Array.isArray(d?.customers) ? d.customers.length : 0), 0
   );
-  const weekNum = getPlanningWeekNumber(now);
+  // KW / date range reflect the week on screen, not always today.
+  const firstDate = sorted.length ? parsePlanningDate(sorted[0]?.date) : null;
+  const lastDate = sorted.length ? parsePlanningDate(sorted[sorted.length - 1]?.date) : null;
+  const weekNum = getPlanningWeekNumber(firstDate || now);
+  const rangeLabel = (firstDate && lastDate)
+    ? `${firstDate.toLocaleDateString("de-DE", { day: "numeric", month: "short" })} – ${lastDate.toLocaleDateString("de-DE", { day: "numeric", month: "short" })}`
+    : "";
+  const weekWord = __weekViewOffset === 0 ? "diese Woche"
+    : __weekViewOffset === -1 ? "letzte Woche"
+    : __weekViewOffset === 1 ? "nächste Woche"
+    : `${Math.abs(__weekViewOffset)} Wochen ${__weekViewOffset < 0 ? "zurück" : "voraus"}`;
 
   // Collect the distinct zones visited across the whole week (in day order).
   const weekZones = [];
@@ -23444,14 +23546,16 @@ function renderWeekCalendar(payload) {
   }
 
   if (meta) {
-    const base = `${totalEntries} Termin${totalEntries !== 1 ? "e" : ""} diese Woche · KW ${weekNum}`;
-    meta.textContent = weekZones.length
-      ? `${base} · ${weekZones.join(", ")}`
-      : base;
+    const parts = [
+      `${totalEntries} Termin${totalEntries !== 1 ? "e" : ""} · ${weekWord}`,
+      `KW ${weekNum}${rangeLabel ? ` (${rangeLabel})` : ""}`,
+    ];
+    if (weekZones.length) parts.push(weekZones.join(", "));
+    meta.textContent = parts.join(" · ");
   }
 
   if (!sorted.length) {
-    grid.innerHTML = `<div class="week-cal-empty"><i class="fa-regular fa-calendar-xmark"></i> Keine Planungstermine für diese Woche gefunden</div>`;
+    grid.innerHTML = `<div class="week-cal-empty"><i class="fa-regular fa-calendar-xmark"></i> Keine Planungstermine in dieser Woche</div>`;
     return;
   }
 
@@ -23524,8 +23628,7 @@ function renderWeekCalendar(payload) {
       const entryId = el.dataset.wceId;
       const dayDate = el.dataset.wceDay;
       if (!__lastPlanningRawPayload) return;
-      const planningData = __lastPlanningRawPayload?.planning || {};
-      const day = (Array.isArray(planningData.days) ? planningData.days : [])
+      const day = (Array.isArray(__weekViewDays) ? __weekViewDays : [])
         .find(d => d?.date === dayDate);
       if (!day) return;
       const customer = (Array.isArray(day.customers) ? day.customers : [])
@@ -23544,6 +23647,39 @@ function renderWeekCalendar(payload) {
       applyPlanningAppointmentToForm(enriched);
     });
   });
+}
+
+// Enable/disable ◀ / ▶ and highlight "Diese Woche" based on where we are.
+function updateWeekNavButtons(bounds){
+  const prev = document.getElementById("weekCalPrev");
+  const next = document.getElementById("weekCalNext");
+  const today = document.getElementById("weekCalToday");
+  if(prev) prev.disabled = __weekViewOffset <= bounds.min;
+  if(next) next.disabled = __weekViewOffset >= bounds.max;
+  if(today){
+    const atCurrent = __weekViewOffset === 0;
+    today.disabled = atCurrent;
+    today.classList.toggle("is-active", atCurrent);
+  }
+}
+
+// Wire the week-navigation buttons once. Re-renders from the last payload we
+// received, so no new network/DB call is needed to change weeks.
+let __weekNavWired = false;
+function initWeekCalendarNav(){
+  if(__weekNavWired) return;
+  const prev = document.getElementById("weekCalPrev");
+  const next = document.getElementById("weekCalNext");
+  const today = document.getElementById("weekCalToday");
+  if(!prev && !next && !today) return;
+  __weekNavWired = true;
+
+  const rerender = () => {
+    if(__lastPlanningRawPayload) renderWeekCalendar(__lastPlanningRawPayload);
+  };
+  prev?.addEventListener("click", () => { __weekViewOffset -= 1; rerender(); });
+  next?.addEventListener("click", () => { __weekViewOffset += 1; rerender(); });
+  today?.addEventListener("click", () => { __weekViewOffset = 0; rerender(); });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -23664,6 +23800,7 @@ function updateTodayPlanningMeta(day){
 
 function applyPlanningPayload(payload){
   __lastPlanningRawPayload = payload;
+  initWeekCalendarNav();
   renderWeekCalendar(payload);
 
   const list = document.getElementById("todayPlanningList");

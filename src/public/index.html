@@ -2273,6 +2273,15 @@ button.dm-btn-danger:focus-visible {
                 <h3 id="weekCalendarTitle">Wochenkalender Vertrieb</h3>
                 <p id="weekCalendarMeta">Lade Kalender…</p>
               </div>
+              <div class="week-cal-nav" role="group" aria-label="Woche wechseln">
+                <button type="button" id="weekCalPrev" class="week-cal-nav-btn" aria-label="Vorherige Woche" title="Vorherige Woche">
+                  <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <button type="button" id="weekCalToday" class="week-cal-nav-btn week-cal-nav-today" title="Zur aktuellen Woche">Diese Woche</button>
+                <button type="button" id="weekCalNext" class="week-cal-nav-btn" aria-label="Nächste Woche" title="Nächste Woche">
+                  <i class="fa-solid fa-chevron-right"></i>
+                </button>
+              </div>
             </div>
             <div id="weekCalendarGrid" class="week-cal-grid">
               <div class="week-cal-loading">Lade Wochenplanung…</div>
