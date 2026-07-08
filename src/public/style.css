@@ -2197,13 +2197,15 @@ label.image-check.is-checked .caption {
 .zusammenfassung-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px;
-  margin-bottom: 32px;
-  padding-bottom: 24px;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
 }
+.zusammenfassung-header .section-title { margin: 0; }
+.zusammenfassung-header .zf-ap-field { margin-left: 0; }
 
 .zusammenfassung-header h1 {
   font-size: 2rem;
@@ -6671,19 +6673,19 @@ details.az-group[open] > summary.az-group-title::before {
   margin: 0 0 18px;
   flex-wrap: wrap;
 }
-.home-ap-field {
+.home-ap-field, .zf-ap-field {
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.home-ap-field label {
+.home-ap-field label, .zf-ap-field label {
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--muted);
   white-space: nowrap;
 }
-.home-ap-field select {
+.home-ap-field select, .zf-ap-field select {
   height: 38px;
   min-width: 190px;
   border: 1px solid var(--border);

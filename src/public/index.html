@@ -2601,17 +2601,11 @@ button.dm-btn-danger:focus-visible {
                   gap: 14px;
                   padding: 8px 0;
                 ">
-                <div>
-                  <label for="emc2_contact" class="req">Name des Ansprechpartners von emc2</label>
-                  <div style="margin: 0 0 8px;">
-                    <label for="emc2_contact_select" class="muted" style="font-size: 0.9rem;">Ansprechpartner auswählen</label>
-                    <select id="emc2_contact_select">
-                      <option value="">Bitte auswählen</option>
-                      <option value="Thomas Raithel" selected>T.Raithel</option>
-                      <option value="Stefan Wolfrum">S.Wolfrum</option>
-                    </select>
-                  </div>
-                  <input id="emc2_contact" name="emc2_contact" placeholder="z. B. Max Mustermann" required />
+                <!-- Ansprechpartner is chosen via the header dropdown; kept here
+                     as hidden fields so saved offers + the offer/email pipeline
+                     keep working. -->
+                <div style="display:none">
+                  <input id="emc2_contact" name="emc2_contact" />
                   <input type="hidden" id="ansprechpartnerEmail" name="ansprechpartner" />
                 </div>
                 <div>
@@ -6775,51 +6769,20 @@ button.dm-btn-danger:focus-visible {
       <section id="page-Zusammenfassung" class="page" hidden>
         <div class="zusammenfassung-container">
 
-          <!-- Header with Save Action -->
+          <!-- Section header (matches other section titles) + Ansprechpartner -->
           <header class="zusammenfassung-header">
-            <div class="header-content">
-              <h1>Zusammenfassung</h1>
-              <p class="subtitle">Prüfen Sie Ihre Eingaben und erstellen Sie Ihr Angebot</p>
+            <h2 class="section-title">📋 Zusammenfassung</h2>
+            <div class="zf-ap-field">
+              <label for="zfAnsprechpartner">Ansprechpartner</label>
+              <select id="zfAnsprechpartner" aria-label="Ansprechpartner wählen"></select>
             </div>
-
           </header>
 
-          <!-- Unterschrift -->
-<section class="export-section">
-  <h2 class="section-title">✍️ Unterschrift</h2>
-
-  <div class="export-cards">
-    <div class="export-card" style="grid-column: 1 / -1;">
-      <p style="margin:0 0 8px 0;">Bitte hier unterschreiben (Finger / Stift / Maus)</p>
-
-      <div class="sig-wrap">
-        <canvas id="signaturePad" class="sig-canvas"></canvas>
-      </div>
-
-      <div class="sig-actions">
-        <button type="button" id="sigClear" class="btn-export secondary">Löschen</button>
-      </div>
-
-      <div class="our-signature-panel">
-        <label class="our-signature-toggle" for="includeOurSignature">
-          <input type="checkbox" id="includeOurSignature" checked />
-          <span>EmC2-Unterschrift ins Dokument einbetten</span>
-        </label>
-
-        <div class="our-signature-select-wrap">
-          <label for="ourSignatureUser">Unterschrift auswählen</label>
-          <select id="ourSignatureUser">
-            <option value="t.raithel" selected>T.Raithel</option>
-            <option value="s.wolfrum">S.Wolfrum</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Optional: hidden preview/debug -->
-      <input type="hidden" id="signatureDataUrl" />
-    </div>
-  </div>
-</section>
+          <!-- Unterschrift section removed: the document signature is the
+               selected Ansprechpartner's signature (assigned in admin). These
+               hidden fields keep the offer/save pipeline working. -->
+          <input type="checkbox" id="includeOurSignature" checked hidden />
+          <input type="hidden" id="signatureDataUrl" />
 
           <!-- Bitrix Integration Section -->
           <section class="bitrix-section">
