@@ -14,6 +14,7 @@ import Docxtemplater from "docxtemplater";
 import ImageModule from "docxtemplater-image-module-free";
 
 import ProductModel from "../models/Product.js";
+import User from "../models/User.js";
 import pricingFactory from "../logic/pricing.js";
 
 
@@ -912,7 +913,20 @@ async function mapData(body = {}, computed = {}) {
 
   let ourSignatureDataUrl = null;
   if (includeOurSignature) {
-    ourSignatureDataUrl = await imageFileToDataUrl(ourSignatureFile);
+    // Prefer the Ansprechpartner user's own signature (assigned in admin);
+    // fall back to the legacy fixed signature file.
+    const apEmail = String(b?.ansprechpartner || "").trim().toLowerCase();
+    if (apEmail) {
+      try {
+        const apUser = await User.findOne({ email: apEmail }).lean();
+        if (apUser?.signatureDataUrl) ourSignatureDataUrl = apUser.signatureDataUrl;
+      } catch (e) {
+        console.warn("[DOCX] Ansprechpartner signature lookup failed:", e?.message || e);
+      }
+    }
+    if (!ourSignatureDataUrl) {
+      ourSignatureDataUrl = await imageFileToDataUrl(ourSignatureFile);
+    }
   }
 
   console.log("[DOCX] internal signature selected", {

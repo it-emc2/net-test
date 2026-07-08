@@ -12528,6 +12528,11 @@ function restoreKundendaten(k, offer) {
 
   // internals
   setByNameOrId("emc2_contact", k.emc2_contact);
+  setByNameOrId("ansprechpartner", k.ansprechpartner);
+  // re-select the Ansprechpartner dropdown from the loaded offer
+  if (typeof window.syncAnsprechpartner === "function") {
+    try { window.syncAnsprechpartner(); } catch { /* ignore */ }
+  }
   setByNameOrId("bitrixContactId", k.bitrixContactId || k.customerNumber);
   setRadio("payer", k.payer);
   setByNameOrId("kassenkundeName", k.kassenkundeName);
