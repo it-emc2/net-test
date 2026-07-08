@@ -23322,6 +23322,88 @@ function formatPlanningTypeClass(type){
 
 let __lastPlanningRawPayload = null;
 
+// ── Zone detection ──────────────────────────────────────────────────────────
+// Maps the first two digits of a German PLZ (Leitregion) to a nearby major
+// city / region label. Offline lookup — no network calls. Falls back to the
+// single leading digit, then to the parsed city name.
+const PLZ_ZONES = {
+  "01": "Dresden",    "02": "Görlitz",     "03": "Cottbus",     "04": "Leipzig",
+  "06": "Halle",      "07": "Gera/Jena",   "08": "Zwickau",     "09": "Chemnitz",
+  "10": "Berlin",     "12": "Berlin",      "13": "Berlin",      "14": "Potsdam",
+  "15": "Frankfurt (Oder)", "16": "Brandenburg", "17": "Neubrandenburg",
+  "18": "Rostock",    "19": "Schwerin",
+  "20": "Hamburg",    "21": "Hamburg",     "22": "Hamburg",     "23": "Lübeck",
+  "24": "Kiel",       "25": "Husum",       "26": "Oldenburg",   "27": "Bremerhaven",
+  "28": "Bremen",     "29": "Lüneburg",
+  "30": "Hannover",   "31": "Hildesheim",  "32": "Herford",     "33": "Paderborn",
+  "34": "Kassel",     "35": "Marburg",     "36": "Fulda",       "37": "Göttingen",
+  "38": "Braunschweig", "39": "Magdeburg",
+  "40": "Düsseldorf", "41": "Mönchengladbach", "42": "Wuppertal", "44": "Dortmund",
+  "45": "Essen",      "46": "Oberhausen",  "47": "Duisburg",    "48": "Münster",
+  "49": "Osnabrück",
+  "50": "Köln",       "51": "Köln",        "52": "Aachen",      "53": "Bonn",
+  "54": "Trier",      "55": "Mainz",       "56": "Koblenz",     "57": "Siegen",
+  "58": "Hagen",      "59": "Hamm",
+  "60": "Frankfurt",  "61": "Bad Homburg", "63": "Offenbach",   "64": "Darmstadt",
+  "65": "Wiesbaden",  "66": "Saarbrücken", "67": "Ludwigshafen", "68": "Mannheim",
+  "69": "Heidelberg",
+  "70": "Stuttgart",  "71": "Stuttgart",   "72": "Tübingen",    "73": "Göppingen",
+  "74": "Heilbronn",  "75": "Pforzheim",   "76": "Karlsruhe",   "77": "Offenburg",
+  "78": "Villingen",  "79": "Freiburg",
+  "80": "München",    "81": "München",     "82": "Starnberg",   "83": "Rosenheim",
+  "84": "Landshut",   "85": "Ingolstadt",  "86": "Augsburg",    "87": "Kempten",
+  "88": "Ravensburg", "89": "Ulm",
+  "90": "Nürnberg",   "91": "Nürnberg",    "92": "Amberg",      "93": "Regensburg",
+  "94": "Passau",     "95": "Bayreuth",    "96": "Bamberg",     "97": "Würzburg",
+  "98": "Suhl",       "99": "Erfurt",
+};
+const PLZ_ZONES_1 = {
+  "0": "Sachsen/Ost", "1": "Berlin/Nord-Ost", "2": "Hamburg/Nord", "3": "Hannover/Mitte",
+  "4": "Ruhrgebiet",  "5": "Köln/West",       "6": "Rhein-Main",   "7": "Stuttgart/Süd-West",
+  "8": "München/Süd", "9": "Nürnberg/Franken",
+};
+
+function detectEntryZone(entry){
+  const parsed = parsePlanningAddress(entry?.address || "");
+  const plz = String(entry?.postalCode || parsed.postalCode || "").trim();
+  if(/^\d{5}$/.test(plz)){
+    return PLZ_ZONES[plz.slice(0, 2)] || PLZ_ZONES_1[plz.slice(0, 1)] || null;
+  }
+  const city = String(entry?.city || parsed.city || "").trim();
+  return city || null;
+}
+
+// Returns the dominant (most frequent) zone among a day's active entries,
+// plus the ordered list of distinct zones for that day.
+function computeDayZones(entries){
+  const counts = new Map();
+  const order = [];
+  for(const entry of entries){
+    if(isPlanningEntryCancelled(entry)) continue;
+    const zone = detectEntryZone(entry);
+    if(!zone) continue;
+    if(!counts.has(zone)) order.push(zone);
+    counts.set(zone, (counts.get(zone) || 0) + 1);
+  }
+  if(!order.length) return { dominant: null, zones: [] };
+  const dominant = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  return { dominant, zones: order };
+}
+
+// Compact badge label for the tight week-calendar columns.
+function formatPlanningBadgeCompact(entry){
+  if(isPlanningEntryCancelled(entry)) return "Abgesagt";
+  if(entry?.locked && Number.isFinite(Number(entry?.lockedSlot))){
+    return `Slot ${Number(entry.lockedSlot) + 1}`;
+  }
+  if(entry?.locked) return "Fixiert";
+  const norm = String(entry?.priority || "").trim().toLowerCase();
+  if(norm === "high") return "Hoch";
+  if(norm === "medium") return "Mittel";
+  if(norm === "low") return "Niedrig";
+  return "Termin";
+}
+
 function getPlanningWeekNumber(date) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
@@ -23352,8 +23434,20 @@ function renderWeekCalendar(payload) {
   );
   const weekNum = getPlanningWeekNumber(now);
 
+  // Collect the distinct zones visited across the whole week (in day order).
+  const weekZones = [];
+  for (const d of sorted) {
+    const list = Array.isArray(d?.customers) ? d.customers : [];
+    for (const z of computeDayZones(list).zones) {
+      if (!weekZones.includes(z)) weekZones.push(z);
+    }
+  }
+
   if (meta) {
-    meta.textContent = `${totalEntries} Termin${totalEntries !== 1 ? "e" : ""} diese Woche · KW ${weekNum}`;
+    const base = `${totalEntries} Termin${totalEntries !== 1 ? "e" : ""} diese Woche · KW ${weekNum}`;
+    meta.textContent = weekZones.length
+      ? `${base} · ${weekZones.join(", ")}`
+      : base;
   }
 
   if (!sorted.length) {
@@ -23387,6 +23481,11 @@ function renderWeekCalendar(payload) {
       ? `<i class="fa-solid fa-lock week-cal-day-lock-icon" title="Tag gesperrt"></i>`
       : "";
 
+    const dayZone = computeDayZones(entries).dominant;
+    const zoneChip = dayZone
+      ? `<div class="week-cal-zone" title="Schwerpunkt-Region an diesem Tag"><i class="fa-solid fa-location-dot"></i><span>${escapePlanningHtml(dayZone)}</span></div>`
+      : "";
+
     const entriesHtml = entries.length
       ? entries.map(entry => {
           const isCancelled = isPlanningEntryCancelled(entry);
@@ -23394,9 +23493,11 @@ function renderWeekCalendar(payload) {
           const badgeClass = isCancelled ? "is-cancelled" : (entry?.locked ? "is-bu" : "is-manual");
           const entryId = String(entry?.id || `${day?.date || ""}-${entry?.name || ""}`);
           return `<div class="week-cal-entry${isCancelled ? " is-cancelled" : ""}" data-wce-id="${escapePlanningHtml(entryId)}" data-wce-day="${escapePlanningHtml(day?.date || "")}">
-            <span class="week-cal-entry-time">${escapePlanningHtml(startTime || "–")}</span>
+            <div class="week-cal-entry-top">
+              <span class="week-cal-entry-time">${escapePlanningHtml(startTime || "–")}</span>
+              <span class="week-cal-entry-badge ${badgeClass}">${escapePlanningHtml(formatPlanningBadgeCompact(entry))}</span>
+            </div>
             <span class="week-cal-entry-name">${escapePlanningHtml(entry?.name || "Unbekannt")}</span>
-            <span class="week-cal-entry-badge ${badgeClass}">${escapePlanningHtml(formatPlanningBadge(entry))}</span>
           </div>`;
         }).join("")
       : `<div class="week-cal-empty-day"><i class="fa-regular fa-calendar-xmark"></i><span>Keine Termine</span></div>`;
@@ -23411,6 +23512,7 @@ function renderWeekCalendar(payload) {
         <div class="week-cal-day-date">${escapePlanningHtml(String(dateNum))}</div>
         <div class="week-cal-day-month">${escapePlanningHtml(monthName)}</div>
         <div class="week-cal-count">${activeCount} Termin${activeCount !== 1 ? "e" : ""}${cancelledCount ? `<span class="week-cal-cancelled-hint"> · ${cancelledCount} abg.</span>` : ""}</div>
+        ${zoneChip}
       </div>
       <div class="week-cal-entries">${entriesHtml}</div>
     </div>`;
