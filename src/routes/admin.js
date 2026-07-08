@@ -1,54 +1,66 @@
 import express from 'express';
-import crypto from 'crypto';
 import configService, { CONFIG_SCHEMA } from '../services/configService.js';
 import AppConfig from '../models/AppConfig.js';
 import SigningRequest from '../models/SigningRequest.js';
+import User from '../models/User.js';
+import {
+  verifyPassword,
+  createToken,
+  verifyToken,
+  tokenFromReq,
+  SESSION_COOKIE,
+} from '../services/authService.js';
 
 const router = express.Router();
 
-function getSecret() {
-  return process.env.ADMIN_SECRET || process.env.ADMIN_PASSWORD || 'fallback-insecure';
-}
-
-function createToken() {
-  const expiry = Date.now() + 24 * 60 * 60 * 1000;
-  const sig = crypto.createHmac('sha256', getSecret()).update(String(expiry)).digest('hex');
-  return `${expiry}.${sig}`;
-}
-
-function verifyToken(token) {
-  if (!token) return false;
-  const dot = token.indexOf('.');
-  if (dot < 1) return false;
-  const expiry = token.slice(0, dot);
-  const sig = token.slice(dot + 1);
-  if (Date.now() > Number(expiry)) return false;
-  const expected = crypto.createHmac('sha256', getSecret()).update(expiry).digest('hex');
+// Admin access = a named user (from the users collection) with role 'admin'.
+async function requireAdmin(req, res, next) {
   try {
-    return crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expected, 'hex'));
-  } catch {
-    return false;
+    const t = verifyToken(tokenFromReq(req));
+    if (!t) return res.status(401).json({ error: 'Unauthorized' });
+    const user = await User.findOne({ email: t.email, active: true }).lean();
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    if (user.role !== 'admin') return res.status(403).json({ error: 'Admin-Zugriff erforderlich' });
+    req.user = user;
+    next();
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
   }
 }
 
-function requireAuth(req, res, next) {
-  const auth = req.headers.authorization || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  if (!verifyToken(token)) return res.status(401).json({ error: 'Unauthorized' });
-  next();
-}
+// POST /admin/api/login  { email, password } — only admin-role users may enter.
+router.post('/api/login', async (req, res) => {
+  try {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const password = String(req.body?.password || '');
+    if (!email || !password) return res.status(400).json({ error: 'E-Mail und Passwort erforderlich' });
 
-// POST /admin/api/login
-router.post('/api/login', (req, res) => {
-  const { password } = req.body || {};
-  const expected = process.env.ADMIN_PASSWORD;
-  if (!expected) return res.status(500).json({ error: 'ADMIN_PASSWORD ist nicht konfiguriert' });
-  if (!password || password !== expected) return res.status(401).json({ error: 'Falsches Passwort' });
-  res.json({ token: createToken() });
+    const user = await User.findOne({ email, active: true });
+    if (!user || !verifyPassword(password, user.passwordHash)) {
+      return res.status(401).json({ error: 'E-Mail oder Passwort falsch' });
+    }
+    if (user.role !== 'admin') return res.status(403).json({ error: 'Kein Admin-Zugriff für dieses Konto' });
+
+    const token = createToken(email);
+    res.cookie(SESSION_COOKIE, token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 12 * 60 * 60 * 1000,
+      path: '/',
+    });
+    user.lastLoginAt = new Date();
+    await user.save();
+
+    res.json({ token, user: { email: user.email, name: user.name, role: user.role } });
+  } catch (err) {
+    console.error('POST /admin/api/login failed:', err);
+    res.status(500).json({ error: String(err) });
+  }
 });
 
 // GET /admin/api/config — all config items with metadata + current values
-router.get('/api/config', requireAuth, async (req, res) => {
+router.get('/api/config', requireAdmin, async (req, res) => {
   try {
     const docs = await AppConfig.find({}).lean();
     const docsMap = new Map(docs.map(d => [d.key, d.value]));
@@ -73,7 +85,7 @@ router.get('/api/config', requireAuth, async (req, res) => {
 });
 
 // PUT /admin/api/config — bulk update
-router.put('/api/config', requireAuth, async (req, res) => {
+router.put('/api/config', requireAdmin, async (req, res) => {
   try {
     const updates = req.body;
     if (!updates || typeof updates !== 'object' || Array.isArray(updates)) {
@@ -91,7 +103,7 @@ router.put('/api/config', requireAuth, async (req, res) => {
 });
 
 // POST /admin/api/config/reset — reset one key to default
-router.post('/api/config/reset', requireAuth, async (req, res) => {
+router.post('/api/config/reset', requireAdmin, async (req, res) => {
   try {
     const { key } = req.body || {};
     const def = CONFIG_SCHEMA.find(d => d.key === key);
@@ -108,7 +120,7 @@ router.post('/api/config/reset', requireAuth, async (req, res) => {
 // GET /admin/api/signing?status=&q=
 // Lists all signing requests with a status rollup. Lazily flips overdue
 // (not-yet-completed) requests to "expired" before returning.
-router.get('/api/signing', requireAuth, async (req, res) => {
+router.get('/api/signing', requireAdmin, async (req, res) => {
   try {
     // lazy-expire overdue, not-yet-completed requests
     await SigningRequest.updateMany(

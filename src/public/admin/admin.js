@@ -356,8 +356,8 @@ function renderSigningData(data) {
 }
 
 // ── Login ─────────────────────────────────────────────────────────────────
-async function doLogin(password) {
-  const data = await api('POST', '/admin/api/login', { password });
+async function doLogin(email, password) {
+  const data = await api('POST', '/admin/api/login', { email, password });
   saveToken(data.token);
 }
 
@@ -394,11 +394,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loginForm.addEventListener('submit', async e => {
     e.preventDefault();
+    const email = $('email') ? $('email').value : '';
     const pw = $('password').value;
     hide(loginError);
     $('login-btn').disabled = true;
     try {
-      await doLogin(pw);
+      await doLogin(email, pw);
       showApp();
       await loadConfig();
     } catch (err) {
