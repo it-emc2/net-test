@@ -39,6 +39,7 @@ import emailRouter from "./routes/email.js";
 import todaysCustomersRouter from "./routes/todayscustomers.js"; // <‑‑ NEW
 import signingRouter, { signingPageHandler } from "./routes/signing.js";
 import authRouter from "./routes/auth.js";
+import usersRouter from "./routes/users.js";
 import { authGate } from "./middleware/authGate.js";
 
 // Pricing logic (factory(Product))
@@ -280,6 +281,7 @@ app.use("/api", planningRouter);
 app.use("/api/hl", hlParseRouter);
 app.use('/api', todaysCustomersRouter);
 app.use('/admin', adminRouter);
+app.use('/api/users', usersRouter);
 app.use('/api/signing', signingRouter);
 // Public signing page (must be before the SPA fallback so /sign/:token works).
 app.get('/sign/:token', signingPageHandler);

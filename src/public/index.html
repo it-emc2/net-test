@@ -2166,9 +2166,13 @@ button.dm-btn-danger:focus-visible {
     <div class="container">
       <!-- Auswahl der Leistung (new landing page) -->
       <section class="card page" id="page-home">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 12px;">
+        <div class="home-head">
           <h2 style="margin:0"> Auswahl der Leistung </h2>
-          <button type="button" id="openAdminPanel" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-weight:600;color:#6b7280;cursor:pointer;background:#f9fafb;font-family:inherit;" onmouseover="this.style.background='#f3f4f6';this.style.color='#374151'" onmouseout="this.style.background='#f9fafb';this.style.color='#6b7280'">
+          <div class="home-ap-field">
+            <label for="homeAnsprechpartner">Ansprechpartner</label>
+            <select id="homeAnsprechpartner" aria-label="Ansprechpartner wählen"></select>
+          </div>
+          <button type="button" id="openAdminPanel" class="home-admin-btn" title="Admin">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
             Admin
           </button>
@@ -2180,7 +2184,7 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div class="field home-global-search-field">
-            <label for="globalOfferSearchInput" class="muted home-global-search-label">Schnellsuche in Entwürfen + Angeboten</label>
+            <h3 class="home-search-heading">Schnellsuche in Entwürfen + Angeboten</h3>
             <div class="home-global-search-wrap">
               <span class="home-global-search-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" focusable="false">
@@ -2197,9 +2201,6 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
         </div>
-        <p class="muted home-load-hint" style="margin: 0 0 16px">Wählen Sie einen Bereich, um zu starten.</p>
-
-
         <div class="home-stack">
           <section class="home-offer-types" aria-labelledby="homeOfferTypesTitle">
             <div class="home-section-head">
@@ -2608,6 +2609,7 @@ button.dm-btn-danger:focus-visible {
                     </select>
                   </div>
                   <input id="emc2_contact" name="emc2_contact" placeholder="z. B. Max Mustermann" required />
+                  <input type="hidden" id="ansprechpartnerEmail" name="ansprechpartner" />
                 </div>
                 <div>
                   <label class="req">Ist der Kunde Selbstzahler oder Kassenkunde?</label>
@@ -9118,6 +9120,7 @@ button.dm-btn-danger:focus-visible {
   <script src="./script.js"></script>
   <script src="/admin-modal.js"></script>
   <script src="/header-auth.js"></script>
+  <script src="/ansprechpartner.js"></script>
 
 </body>
 

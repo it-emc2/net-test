@@ -38,7 +38,16 @@ router.post("/login", async (req, res) => {
     user.lastLoginAt = new Date();
     await user.save();
 
-    return res.json({ token, user: { email: user.email, name: user.name, role: user.role } });
+    return res.json({
+      token,
+      user: {
+        email: user.email,
+        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+      },
+    });
   } catch (err) {
     console.error("POST /api/auth/login failed:", err);
     return res.status(500).json({ error: String(err) });
@@ -57,7 +66,15 @@ router.get("/me", async (req, res) => {
   if (!t) return res.status(401).json({ error: "Unauthorized" });
   const user = await User.findOne({ email: t.email, active: true }).lean();
   if (!user) return res.status(401).json({ error: "Unauthorized" });
-  res.json({ user: { email: user.email, name: user.name, role: user.role } });
+  res.json({
+    user: {
+      email: user.email,
+      name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+    },
+  });
 });
 
 export default router;
