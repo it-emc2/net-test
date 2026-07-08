@@ -2108,38 +2108,47 @@ button.dm-btn-danger:focus-visible {
 
 <body>
   <header>
-    <button id="openSidebar" class="sidebar-toggle" type="button" aria-label="Menü öffnen">
-      ☰ Menu
-    </button>
-
-    <input id="offerNumber" name="offerNumber" placeholder="Angebotsnummer" hidden />
-
-    <div class="brand">
-      <div class="dot"></div>
-      <div>
-        <h1>Angebotskonfigurator-emc2</h1>
-        <p class="lead">
-          Bereich-spezifische Themes • Light/Dark • PDF-Export • ngrok-ready
-        </p>
+    <div class="header-left">
+      <button id="openSidebar" class="sidebar-toggle" type="button" aria-label="Menü öffnen">
+        <span aria-hidden="true">☰</span>
+      </button>
+      <input id="offerNumber" name="offerNumber" placeholder="Angebotsnummer" hidden />
+      <div class="brand">
+        <img src="/assets/logo.png" alt="EmC2" class="brand-logo" />
+        <h1>Angebotskonfigurator</h1>
       </div>
     </div>
 
     <div class="theme-controls">
-      <!-- Domain / Bereich selector -->
-      <select id="themeSelect" aria-label="Farbthema wählen">
-        <option value="base">Standard</option>
-        <option value="wohnen">Wohnen</option>
-        <option value="pflege">Pflege</option>
-        <option value="gesundheit">Gesundheit</option>
-        <option value="kfz">KFZ</option>
-      </select>
+      <!-- Grouped theme + light/dark -->
+      <div class="ctl-group">
+        <select id="themeSelect" class="hdr-select" aria-label="Farbthema wählen">
+          <option value="base">Standard</option>
+          <option value="wohnen">Wohnen</option>
+          <option value="pflege">Pflege</option>
+          <option value="gesundheit">Gesundheit</option>
+          <option value="kfz">KFZ</option>
+        </select>
+        <span class="ctl-divider" aria-hidden="true"></span>
+        <label class="mode-switch" title="Light/Dark umschalten">
+          <input id="modeToggle" type="checkbox" />
+          <span class="mode-track">
+            <span class="mode-ico mode-sun" aria-hidden="true">☀</span>
+            <span class="mode-ico mode-moon" aria-hidden="true">☾</span>
+            <span class="mode-knob"></span>
+          </span>
+          <span id="themeLabel" class="sr-only">Light</span>
+        </label>
+      </div>
 
-      <!-- Light / Dark toggle (reusing your existing markup) -->
-      <label class="toggle" title="Light/Dark umschalten">
-        <input id="modeToggle" type="checkbox" />
-        <div class="thumb"></div>
-        <span id="themeLabel">Light</span>
-      </label>
+      <!-- Logged-in user + logout -->
+      <div class="user-box" id="userBox" hidden>
+        <span class="avatar" id="userAvatar"></span>
+        <span class="user-name" id="userName"></span>
+        <button type="button" id="logoutBtn" title="Abmelden" aria-label="Abmelden">
+          <span aria-hidden="true">⏻</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -9108,6 +9117,7 @@ button.dm-btn-danger:focus-visible {
   <script src="./ThemeManager.js"></script>
   <script src="./script.js"></script>
   <script src="/admin-modal.js"></script>
+  <script src="/header-auth.js"></script>
 
 </body>
 

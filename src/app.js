@@ -38,6 +38,8 @@ import Draft from "./models/Draft.js";
 import emailRouter from "./routes/email.js";
 import todaysCustomersRouter from "./routes/todayscustomers.js"; // <‑‑ NEW
 import signingRouter, { signingPageHandler } from "./routes/signing.js";
+import authRouter from "./routes/auth.js";
+import { authGate } from "./middleware/authGate.js";
 
 // Pricing logic (factory(Product))
 import pricingFactory from "./logic/pricing.js";
@@ -228,6 +230,16 @@ app.use(compression());
 app.use(morgan("dev"));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: "25mb" }));
+
+// ---------------- Auth ----------------
+// Public login page (must be reachable without a session).
+app.get("/login", (req, res) =>
+  res.sendFile(path.join(__dirname, "public", "login.html"), { dotfiles: "allow" }),
+);
+app.use("/api/auth", authRouter);
+// Gate everything else (customer signing + assets + health stay public; see
+// middleware/authGate.js). Runs before the routers below.
+app.use(authGate);
 
 // ---------------- Mongo ----------------
 mongoose.set("strictQuery", true);
