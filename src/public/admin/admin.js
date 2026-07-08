@@ -8,6 +8,7 @@ const SECTIONS = [
   { id: 'bu',       label: 'BU – Badumbau',        icon: 'fa-bath' },
   { id: 'bwt',      label: 'BWT – Badewannentür',  icon: 'fa-door-open' },
   { id: 'zuschuss', label: 'Zuschüsse & Boni',     icon: 'fa-euro-sign' },
+  { id: 'signing',  label: 'Signatur-Links',       icon: 'fa-file-signature', view: 'signing' },
 ];
 
 // ── Token helpers ─────────────────────────────────────────────────────────
@@ -88,7 +89,13 @@ function switchSection(id) {
   const sec = SECTIONS.find(s => s.id === id);
   $('section-title').textContent = sec ? sec.label : id;
   renderNav();
-  renderSection();
+
+  // The signing view has no "save"; hide the config topbar controls for it.
+  const isSigning = sec && sec.view === 'signing';
+  const saveBtn = $('save-btn');
+  if (saveBtn) saveBtn.classList.toggle('hidden', isSigning);
+  if (isSigning) { hide($('change-count')); renderSigning(); }
+  else renderSection();
 }
 
 // ── Render config cards ───────────────────────────────────────────────────
@@ -239,6 +246,113 @@ function showStatus(msg, type) {
   show(el);
   clearTimeout(statusTimer);
   statusTimer = setTimeout(() => hide(el), 3500);
+}
+
+// ── Signatur-Links view ────────────────────────────────────────────────────
+const SIGN_STATUS = {
+  sent: 'Gesendet', opened: 'Geöffnet', partially_signed: 'Teilw. unterschrieben',
+  completed: 'Vollständig', expired: 'Abgelaufen',
+};
+const SIGN_STAT_ORDER = ['sent', 'opened', 'partially_signed', 'completed', 'expired'];
+let signFilter = { q: '', status: '' };
+
+function esc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"]/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+function fmtTs(d) {
+  if (!d) return '<span class="ts none">–</span>';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return '<span class="ts none">–</span>';
+  return '<span class="ts">' + dt.toLocaleString('de-DE', {
+    day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit',
+  }) + '</span>';
+}
+
+function renderSigning() {
+  const grid = $('config-grid');
+  grid.innerHTML = `<div class="signing-view">
+    <div class="counts" id="sign-counts"></div>
+    <div class="toolbar">
+      <div class="search"><i class="fas fa-search"></i>
+        <input type="text" id="sign-q" placeholder="Suche: Angebot, Name, E-Mail" value="${esc(signFilter.q)}"></div>
+      <select id="sign-status">
+        <option value="">Alle Status</option>
+        ${SIGN_STAT_ORDER.map(s => `<option value="${s}"${signFilter.status === s ? ' selected' : ''}>${SIGN_STATUS[s]}</option>`).join('')}
+      </select>
+      <button class="btn-ghost" id="sign-refresh"><i class="fas fa-rotate"></i> Aktualisieren</button>
+    </div>
+    <div id="sign-err" class="sign-err hidden"></div>
+    <div class="table-wrap">
+      <table class="sign-table">
+        <thead><tr>
+          <th>Angebot</th><th>Kunde</th><th>Typ</th><th>Status</th><th>Dok.</th>
+          <th>Gesendet</th><th>Geöffnet</th><th>Unterschrieben</th><th>Gültig bis</th><th></th>
+        </tr></thead>
+        <tbody id="sign-rows"><tr><td colspan="10"><div class="empty-state"><i class="fas fa-circle-notch fa-spin"></i> Lade…</div></td></tr></tbody>
+      </table>
+    </div>
+  </div>`;
+
+  const q = $('sign-q');
+  q.addEventListener('input', () => { clearTimeout(window.__signq); window.__signq = setTimeout(() => { signFilter.q = q.value.trim(); loadSigning(); }, 300); });
+  $('sign-status').addEventListener('change', e => { signFilter.status = e.target.value; loadSigning(); });
+  $('sign-refresh').addEventListener('click', loadSigning);
+
+  loadSigning();
+}
+
+async function loadSigning() {
+  const err = $('sign-err');
+  if (err) hide(err);
+  try {
+    const params = new URLSearchParams();
+    if (signFilter.q) params.set('q', signFilter.q);
+    if (signFilter.status) params.set('status', signFilter.status);
+    const data = await api('GET', '/admin/api/signing?' + params.toString());
+    renderSigningData(data);
+  } catch (e) {
+    if (err) { err.textContent = e.message || 'Fehler beim Laden.'; show(err); }
+  }
+}
+
+function renderSigningData(data) {
+  const counts = data.counts || {};
+  const cEl = $('sign-counts');
+  if (cEl) cEl.innerHTML = SIGN_STAT_ORDER.map(s =>
+    `<div class="stat"><div class="n">${counts[s] || 0}</div><div class="l">${SIGN_STATUS[s]}</div></div>`).join('');
+
+  const origin = window.location.origin;
+  const rows = $('sign-rows');
+  if (!rows) return;
+  if (!(data.items || []).length) {
+    rows.innerHTML = '<tr><td colspan="10"><div class="empty-state">Keine Signatur-Links gefunden.</div></td></tr>';
+    return;
+  }
+  rows.innerHTML = data.items.map(it => {
+    const link = origin + '/sign/' + it.token;
+    return `<tr>
+      <td><strong>${esc(it.offerNumber || '–')}</strong></td>
+      <td><div class="cust-name">${esc(it.customerName || '–')}</div><div class="cust-mail">${esc(it.customerEmail || '')}</div></td>
+      <td><span class="type-badge">${it.customerType === 'KASSE' ? 'Kasse' : 'SZ'}</span></td>
+      <td><span class="badge b-${it.status}">${SIGN_STATUS[it.status] || it.status}</span></td>
+      <td class="prog">${it.signedCount}/${it.docCount}</td>
+      <td>${fmtTs(it.createdAt)}</td>
+      <td>${fmtTs(it.openedAt)}</td>
+      <td>${fmtTs(it.completedAt)}</td>
+      <td>${fmtTs(it.expiresAt)}</td>
+      <td><button class="btn-ghost" data-link="${esc(link)}"><i class="fas fa-copy"></i> Kopieren</button></td>
+    </tr>`;
+  }).join('');
+
+  rows.querySelectorAll('button[data-link]').forEach(b => {
+    b.addEventListener('click', () => {
+      const l = b.getAttribute('data-link');
+      (navigator.clipboard ? navigator.clipboard.writeText(l) : Promise.reject())
+        .then(() => { b.innerHTML = '<i class="fas fa-check"></i> Kopiert'; setTimeout(() => { b.innerHTML = '<i class="fas fa-copy"></i> Kopieren'; }, 1500); })
+        .catch(() => window.prompt('Link kopieren:', l));
+    });
+  });
 }
 
 // ── Login ─────────────────────────────────────────────────────────────────

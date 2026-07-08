@@ -2,6 +2,7 @@ import express from 'express';
 import crypto from 'crypto';
 import configService, { CONFIG_SCHEMA } from '../services/configService.js';
 import AppConfig from '../models/AppConfig.js';
+import SigningRequest from '../models/SigningRequest.js';
 
 const router = express.Router();
 
@@ -98,6 +99,62 @@ router.post('/api/config/reset', requireAuth, async (req, res) => {
     await configService.set(key, def.value);
     res.json({ ok: true, key, value: def.value });
   } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ---------------- Online-signing dashboard ----------------
+
+// GET /admin/api/signing?status=&q=
+// Lists all signing requests with a status rollup. Lazily flips overdue
+// (not-yet-completed) requests to "expired" before returning.
+router.get('/api/signing', requireAuth, async (req, res) => {
+  try {
+    // lazy-expire overdue, not-yet-completed requests
+    await SigningRequest.updateMany(
+      {
+        status: { $in: ['sent', 'opened', 'partially_signed'] },
+        expiresAt: { $lt: new Date() },
+      },
+      { $set: { status: 'expired' } },
+    );
+
+    const status = String(req.query.status || '').trim();
+    const q = String(req.query.q || '').trim();
+    const filter = {};
+    if (status) filter.status = status;
+    if (q) {
+      const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [{ offerNumber: re }, { customerName: re }, { customerEmail: re }];
+    }
+
+    const docs = await SigningRequest.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .lean();
+
+    const items = docs.map((sr) => ({
+      token: sr.token,
+      offerNumber: sr.offerNumber,
+      customerType: sr.customerType,
+      customerName: sr.customerName,
+      customerEmail: sr.customerEmail,
+      status: sr.status,
+      signedCount: (sr.documents || []).filter((d) => d.status === 'signed').length,
+      docCount: (sr.documents || []).length,
+      createdAt: sr.createdAt,
+      openedAt: sr.openedAt,
+      completedAt: sr.completedAt,
+      expiresAt: sr.expiresAt,
+      bitrixEntityId: sr.bitrixEntityId,
+    }));
+
+    const counts = {};
+    for (const it of items) counts[it.status] = (counts[it.status] || 0) + 1;
+
+    res.json({ items, counts, total: items.length });
+  } catch (err) {
+    console.error('GET /admin/api/signing failed:', err);
     res.status(500).json({ error: String(err) });
   }
 });

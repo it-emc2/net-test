@@ -51,7 +51,7 @@ body {
 /* ── Login ────────────────────────────────────────────────────────────── */
 .login-overlay {
   position: fixed; inset: 0;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0f172a 100%);
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 60%, #f1f5f9 100%);
   display: flex; align-items: center; justify-content: center;
   z-index: 1000;
 }
@@ -523,3 +523,36 @@ body {
 .config-grid::-webkit-scrollbar-thumb { background: var(--c-border); border-radius: 3px; }
 .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
 .sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 3px; }
+
+/* ── Signatur-Links view ──────────────────────────────────────────────── */
+.signing-view { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 16px; }
+.signing-view .counts { display: flex; gap: 10px; flex-wrap: wrap; }
+.signing-view .stat { background: var(--c-surface); border: 1.5px solid var(--c-border); border-radius: var(--radius); padding: 10px 16px; box-shadow: var(--shadow-sm); min-width: 120px; }
+.signing-view .stat .n { font-size: 22px; font-weight: 800; color: var(--c-text); line-height: 1; }
+.signing-view .stat .l { font-size: 11px; color: var(--c-muted); text-transform: uppercase; letter-spacing: .4px; margin-top: 4px; }
+.signing-view .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.signing-view .search { position: relative; flex: 1; min-width: 220px; max-width: 360px; }
+.signing-view .search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--c-subtle); font-size: 13px; }
+.signing-view .search input { width: 100%; padding: 9px 12px 9px 34px; border: 1.5px solid var(--c-border); border-radius: var(--radius-sm); font-size: 14px; background: #fff; outline: none; }
+.signing-view .search input:focus { border-color: var(--c-primary); box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+.signing-view select { padding: 9px 12px; border: 1.5px solid var(--c-border); border-radius: var(--radius-sm); font-size: 14px; background: #fff; }
+.signing-view #sign-refresh { padding: 9px 14px; font-size: 14px; }
+.signing-view .table-wrap { background: var(--c-surface); border: 1.5px solid var(--c-border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow-x: auto; }
+.signing-view table.sign-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.signing-view .sign-table th, .signing-view .sign-table td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--c-border); vertical-align: middle; }
+.signing-view .sign-table th { background: #f8fafc; color: var(--c-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; font-weight: 700; white-space: nowrap; }
+.signing-view .sign-table tbody tr:hover { background: #f8fafc; }
+.signing-view .sign-table tbody tr:last-child td { border-bottom: none; }
+.signing-view .cust-name { font-weight: 600; }
+.signing-view .cust-mail { color: var(--c-muted); font-size: 12px; }
+.signing-view .type-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; background: #f1f5f9; color: var(--c-muted); border: 1px solid var(--c-border); }
+.signing-view .badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+.signing-view .b-sent { background: #dbeafe; color: #1d4ed8; }
+.signing-view .b-opened { background: #fef3c7; color: #b45309; }
+.signing-view .b-partially_signed { background: #fde68a; color: #92400e; }
+.signing-view .b-completed { background: #dcfce7; color: #15803d; }
+.signing-view .b-expired { background: #f1f5f9; color: #94a3b8; }
+.signing-view .prog { font-variant-numeric: tabular-nums; color: var(--c-muted); }
+.signing-view .ts { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.signing-view .ts.none { color: var(--c-subtle); }
+.signing-view .sign-err { padding: 10px 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius-sm); color: var(--c-error); font-size: 13px; }
