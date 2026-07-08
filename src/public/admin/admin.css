@@ -556,3 +556,10 @@ body {
 .signing-view .ts { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .signing-view .ts.none { color: var(--c-subtle); }
 .signing-view .sign-err { padding: 10px 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius-sm); color: var(--c-error); font-size: 13px; }
+
+/* ── Benutzer view ────────────────────────────────────────────────────── */
+.user-add { background: var(--c-surface); border: 1.5px solid var(--c-border); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow-sm); }
+.user-add h3 { font-size: 14px; margin: 0 0 12px; }
+.user-add-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.user-add-row input, .user-add-row select { height: 38px; border: 1.5px solid var(--c-border); border-radius: var(--radius-sm); padding: 0 10px; font-size: 13px; background: #fff; font-family: var(--font); }
+.user-add-row input { flex: 1 1 140px; min-width: 120px; }

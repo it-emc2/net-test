@@ -9,6 +9,7 @@ const SECTIONS = [
   { id: 'bwt',      label: 'BWT – Badewannentür',  icon: 'fa-door-open' },
   { id: 'zuschuss', label: 'Zuschüsse & Boni',     icon: 'fa-euro-sign' },
   { id: 'signing',  label: 'Signatur-Links',       icon: 'fa-file-signature', view: 'signing' },
+  { id: 'users',    label: 'Benutzer',             icon: 'fa-users', view: 'users' },
 ];
 
 // ── Token helpers ─────────────────────────────────────────────────────────
@@ -90,11 +91,13 @@ function switchSection(id) {
   $('section-title').textContent = sec ? sec.label : id;
   renderNav();
 
-  // The signing view has no "save"; hide the config topbar controls for it.
-  const isSigning = sec && sec.view === 'signing';
+  // The signing/users views have no "save"; hide the config topbar controls.
+  const view = sec && sec.view;
   const saveBtn = $('save-btn');
-  if (saveBtn) saveBtn.classList.toggle('hidden', isSigning);
-  if (isSigning) { hide($('change-count')); renderSigning(); }
+  if (saveBtn) saveBtn.classList.toggle('hidden', !!view);
+  if (view) hide($('change-count'));
+  if (view === 'signing') renderSigning();
+  else if (view === 'users') renderUsers();
   else renderSection();
 }
 
@@ -353,6 +356,90 @@ function renderSigningData(data) {
         .catch(() => window.prompt('Link kopieren:', l));
     });
   });
+}
+
+// ── Benutzer view ───────────────────────────────────────────────────────────
+function renderUsers() {
+  const grid = $('config-grid');
+  grid.innerHTML = `<div class="signing-view">
+    <div class="user-add">
+      <h3>Benutzer hinzufügen / bearbeiten</h3>
+      <div class="user-add-row">
+        <input type="text" id="u-first" placeholder="Vorname">
+        <input type="text" id="u-last" placeholder="Nachname">
+        <input type="email" id="u-email" placeholder="E-Mail">
+        <input type="password" id="u-pass" placeholder="Passwort (neu/ändern)">
+        <select id="u-role"><option value="user">Benutzer</option><option value="admin">Admin</option></select>
+        <button class="btn-primary" id="u-save"><i class="fas fa-plus"></i> Speichern</button>
+      </div>
+      <div id="u-msg" class="sign-err hidden"></div>
+    </div>
+    <div class="table-wrap">
+      <table class="sign-table">
+        <thead><tr><th>Name</th><th>E-Mail</th><th>Rolle</th><th>Aktiv</th><th>Unterschrift</th></tr></thead>
+        <tbody id="u-rows"><tr><td colspan="5"><div class="empty-state"><i class="fas fa-circle-notch fa-spin"></i> Lade…</div></td></tr></tbody>
+      </table>
+    </div>
+  </div>`;
+
+  $('u-save').addEventListener('click', saveUser);
+  loadUsers();
+}
+
+async function loadUsers() {
+  try {
+    const users = await api('GET', '/admin/api/users');
+    const rows = $('u-rows');
+    if (!users.length) { rows.innerHTML = '<tr><td colspan="5"><div class="empty-state">Keine Benutzer.</div></td></tr>'; return; }
+    rows.innerHTML = users.map(u => `<tr>
+      <td><strong>${u.name || '–'}</strong></td>
+      <td>${u.email}</td>
+      <td><span class="type-badge">${u.role === 'admin' ? 'Admin' : 'Benutzer'}</span></td>
+      <td>${u.active ? 'Ja' : 'Nein'}</td>
+      <td>
+        <span class="badge ${u.hasSignature ? 'b-completed' : 'b-expired'}">${u.hasSignature ? 'vorhanden' : 'keine'}</span>
+        <label class="btn-ghost" style="cursor:pointer;margin-left:8px;">
+          <i class="fas fa-upload"></i> Hochladen
+          <input type="file" accept="image/png,image/jpeg" data-email="${u.email}" style="display:none;">
+        </label>
+      </td>
+    </tr>`).join('');
+    rows.querySelectorAll('input[type="file"][data-email]').forEach(inp => {
+      inp.addEventListener('change', () => uploadSignature(inp.dataset.email, inp.files[0]));
+    });
+  } catch (e) {
+    $('u-rows').innerHTML = `<tr><td colspan="5"><div class="empty-state">${e.message}</div></td></tr>`;
+  }
+}
+
+async function saveUser() {
+  const msg = $('u-msg');
+  hide(msg);
+  const body = {
+    firstName: $('u-first').value.trim(),
+    lastName: $('u-last').value.trim(),
+    email: $('u-email').value.trim(),
+    password: $('u-pass').value,
+    role: $('u-role').value,
+  };
+  if (!body.email) { msg.textContent = 'E-Mail erforderlich'; show(msg); return; }
+  try {
+    await api('POST', '/admin/api/users', body);
+    $('u-first').value = ''; $('u-last').value = ''; $('u-email').value = ''; $('u-pass').value = '';
+    loadUsers();
+  } catch (e) { msg.textContent = e.message; show(msg); }
+}
+
+function uploadSignature(email, file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      await api('POST', `/admin/api/users/${encodeURIComponent(email)}/signature`, { dataUrl: reader.result });
+      loadUsers();
+    } catch (e) { alert('Upload fehlgeschlagen: ' + e.message); }
+  };
+  reader.readAsDataURL(file);
 }
 
 // ── Login ─────────────────────────────────────────────────────────────────

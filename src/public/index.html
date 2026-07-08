@@ -145,9 +145,9 @@
 
     .summary-widget {
       position: fixed;
-      top: 16px;
+      top: 76px; /* below the sticky header so it never covers theme/logout */
       right: 16px;
-      z-index: 60;
+      z-index: 40; /* under the header (z-index 50) */
       background: var(--panel);
       color: var(--text);
       border-radius: 24px;
@@ -189,16 +189,6 @@
     .summary-widget .sw-selfpay .sw-value {
       color: var(--accent-strong);
     }
-
-    @media (max-width: 900px) {
-      .summary-widget {
-        top: 10px;
-        right: 10px;
-        font-size: 0.8rem;
-        padding: 6px 10px;
-      }
-    }
-
 
     .summary-widget .sw-actions {
       margin-top: 8px;
@@ -996,32 +986,45 @@
     /* (no change here – use whatever you already have) */
 
 
-    /* --- tablet & smaller: make it a full-width bar, not floating --- */
+    /* --- tablet & smaller: dock as a FIXED bottom bar (never over header/content) --- */
     @media (max-width: 1024px) {
       #summaryWidget {
-        position: static !important;
-        /* stop overlaying header */
-        width: 100%;
-        max-width: 100%;
-        margin: 0 0 12px 0;
+        position: fixed !important;
+        top: auto !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
         box-sizing: border-box;
+        border-radius: 16px 16px 0 0;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 18px;
+        padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+        font-size: 0.85rem;
+        box-shadow: 0 -6px 22px rgba(15, 23, 42, 0.18);
       }
 
-      /* align lines nicely in a compact bar */
+      /* compact inline lines in the bar */
       #summaryWidget .sw-line {
         display: flex;
-        justify-content: space-between;
-        gap: 0.5rem;
+        align-items: baseline;
+        gap: 0.4rem;
       }
 
-      #summaryWidget .sw-actions {
-        margin-top: 6px;
-      }
+      /* push the toggle + save button to the right end of the bar */
+      #summaryWidget .sw-header { order: 8; margin-left: auto; }
+      #summaryWidget .sw-actions { order: 9; margin-top: 0; }
+      #summaryWidget .sw-save-btn { width: auto; white-space: nowrap; }
 
-      /* show the toggle button only on small screens */
-      #swToggleSummary {
-        display: inline-flex;
-      }
+      /* keep content clear of the fixed bar */
+      .container { padding-bottom: 96px; }
+
+      /* show the collapse toggle only on small screens */
+      #swToggleSummary { display: inline-flex; }
     }
 
     .sw-toggle-btn {

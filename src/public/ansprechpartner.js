@@ -32,13 +32,35 @@
         .map(function (u) { return '<option value="' + u.email + '">' + (u.name || u.email) + "</option>"; })
         .join("");
 
-      var defaultEmail = me && me.email ? me.email : (users[0] && users[0].email);
-      if (defaultEmail) {
-        sel.value = defaultEmail;
-        apply(defaultEmail);
+      // If an offer is already loaded (name filled), sync to it; else default
+      // to the logged-in user without overwriting a loaded value.
+      var nameEl = document.getElementById("emc2_contact");
+      if (nameEl && nameEl.value.trim()) {
+        syncFromOffer();
+      } else {
+        var defaultEmail = me && me.email ? me.email : (users[0] && users[0].email);
+        if (defaultEmail) { sel.value = defaultEmail; apply(defaultEmail); }
       }
     })
     .catch(function () { /* not logged in / no users */ });
+
+  // Re-select the dropdown from a loaded offer (called after restore).
+  function syncFromOffer() {
+    var emailEl = document.getElementById("ansprechpartnerEmail");
+    var email = emailEl && emailEl.value ? emailEl.value : "";
+    if (!email) {
+      // legacy offers store only the name in emc2_contact
+      var nm = ((document.getElementById("emc2_contact") || {}).value || "").trim();
+      var byName = users.find(function (x) { return x.name === nm; });
+      if (byName) email = byName.email;
+    }
+    if (email && users.find(function (x) { return x.email === email; })) {
+      sel.value = email;
+      var emailEl2 = document.getElementById("ansprechpartnerEmail");
+      if (emailEl2) emailEl2.value = email;
+    }
+  }
+  window.syncAnsprechpartner = syncFromOffer;
 
   sel.addEventListener("change", function () { apply(sel.value); });
 })();
