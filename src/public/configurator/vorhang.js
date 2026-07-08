@@ -10,6 +10,7 @@ const mountEl = document.getElementById("vorhang-mount");
 if (mountEl) {
   let catalog = null; // { curtains, rods, mandatory, optional }
   // state
+  let enabled = false; // master opt-in — new offers start with nothing added
   let widthCm = null;
   let curtainSel = null; // articleNumber | null
   let rodSel = null; // articleNumber | null
@@ -57,13 +58,17 @@ if (mountEl) {
 
   // ---- lines (consumed by the offer) --------------------------------------
   const getLines = () => {
-    if (!catalog) return [];
+    if (!catalog || !enabled) return [];
     const out = [];
-    const push = (item, qty) => {
+    const push = (item, qty, label) => {
       if (!item || (Number(item.net) || 0) <= 0) return;
-      out.push({ label: item.name, articleNumber: item.articleNumber, net: item.net, finish: item.finish || null, qty: qty || 1 });
+      out.push({ label: label || item.name, articleNumber: item.articleNumber, net: item.net, finish: item.finish || null, qty: qty || 1 });
     };
-    if (curtainSel) push(byArticle(catalog.curtains, curtainSel), 1);
+    if (curtainSel) {
+      // curtain names are identical across widths, so append the width for the offer line
+      const c = byArticle(catalog.curtains, curtainSel);
+      push(c, 1, c && c.sizeCm != null ? `${c.name} ${c.sizeCm} cm` : c?.name);
+    }
     if (rodSel) push(byArticle(catalog.rods, rodSel), 1);
     for (const m of catalog.mandatory || []) {
       const q = mandatoryQty[m.articleNumber] || 0;
@@ -78,10 +83,11 @@ if (mountEl) {
   window.__vorhangConfigurator = {
     getLines,
     getState() {
-      return { widthCm, curtainSel, rodSel, mandatoryQty: { ...mandatoryQty }, optionalQty: { ...optionalQty } };
+      return { enabled, widthCm, curtainSel, rodSel, mandatoryQty: { ...mandatoryQty }, optionalQty: { ...optionalQty } };
     },
     restore(saved) {
       if (!saved || typeof saved !== "object") return;
+      enabled = saved.enabled === true;
       widthCm = saved.widthCm ?? null;
       curtainSel = saved.curtainSel ?? null;
       rodSel = saved.rodSel ?? null;
@@ -161,6 +167,11 @@ if (mountEl) {
       .join("");
 
     mountEl.innerHTML = `
+      <label class="vh-enable">
+        <input type="checkbox" id="vh-enable" ${enabled ? "checked" : ""}>
+        <span>Duschvorhang zum Angebot hinzufügen</span>
+      </label>
+      <div class="vh-body${enabled ? "" : " is-disabled"}" aria-disabled="${enabled ? "false" : "true"}">
       <div class="vh-widthbar">
         <label class="vh-width-label" for="vh-width">Breite der Dusche / Nische (cm)</label>
         <input type="number" id="vh-width" class="vh-width-input" min="1" step="1" value="${widthCm ?? ""}" placeholder="z. B. 120">
@@ -185,11 +196,18 @@ if (mountEl) {
       <div class="vh-section">
         <div class="vh-step-title">Optionales Zubehör</div>
         <div class="vh-grid vh-acc-grid">${optTiles || '<span class="dac-hint">—</span>'}</div>
+      </div>
       </div>`;
     wire();
   };
 
   const wire = () => {
+    mountEl.querySelector("#vh-enable")?.addEventListener("change", (e) => {
+      enabled = e.target.checked;
+      render();
+      refreshOffer();
+    });
+
     const widthInput = mountEl.querySelector("#vh-width");
     widthInput?.addEventListener("change", (e) => applyWidth(Number(e.target.value)));
 
