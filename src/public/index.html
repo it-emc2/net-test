@@ -145,9 +145,9 @@
 
     .summary-widget {
       position: fixed;
-      top: 16px;
+      top: 76px; /* below the sticky header so it never covers theme/logout */
       right: 16px;
-      z-index: 60;
+      z-index: 40; /* under the header (z-index 50) */
       background: var(--panel);
       color: var(--text);
       border-radius: 24px;
@@ -189,16 +189,6 @@
     .summary-widget .sw-selfpay .sw-value {
       color: var(--accent-strong);
     }
-
-    @media (max-width: 900px) {
-      .summary-widget {
-        top: 10px;
-        right: 10px;
-        font-size: 0.8rem;
-        padding: 6px 10px;
-      }
-    }
-
 
     .summary-widget .sw-actions {
       margin-top: 8px;
@@ -996,32 +986,45 @@
     /* (no change here – use whatever you already have) */
 
 
-    /* --- tablet & smaller: make it a full-width bar, not floating --- */
+    /* --- tablet & smaller: dock as a FIXED bottom bar (never over header/content) --- */
     @media (max-width: 1024px) {
       #summaryWidget {
-        position: static !important;
-        /* stop overlaying header */
-        width: 100%;
-        max-width: 100%;
-        margin: 0 0 12px 0;
+        position: fixed !important;
+        top: auto !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
         box-sizing: border-box;
+        border-radius: 16px 16px 0 0;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 18px;
+        padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+        font-size: 0.85rem;
+        box-shadow: 0 -6px 22px rgba(15, 23, 42, 0.18);
       }
 
-      /* align lines nicely in a compact bar */
+      /* compact inline lines in the bar */
       #summaryWidget .sw-line {
         display: flex;
-        justify-content: space-between;
-        gap: 0.5rem;
+        align-items: baseline;
+        gap: 0.4rem;
       }
 
-      #summaryWidget .sw-actions {
-        margin-top: 6px;
-      }
+      /* push the toggle + save button to the right end of the bar */
+      #summaryWidget .sw-header { order: 8; margin-left: auto; }
+      #summaryWidget .sw-actions { order: 9; margin-top: 0; }
+      #summaryWidget .sw-save-btn { width: auto; white-space: nowrap; }
 
-      /* show the toggle button only on small screens */
-      #swToggleSummary {
-        display: inline-flex;
-      }
+      /* keep content clear of the fixed bar */
+      .container { padding-bottom: 96px; }
+
+      /* show the collapse toggle only on small screens */
+      #swToggleSummary { display: inline-flex; }
     }
 
     .sw-toggle-btn {
@@ -2108,38 +2111,47 @@ button.dm-btn-danger:focus-visible {
 
 <body>
   <header>
-    <button id="openSidebar" class="sidebar-toggle" type="button" aria-label="Menü öffnen">
-      ☰ Menu
-    </button>
-
-    <input id="offerNumber" name="offerNumber" placeholder="Angebotsnummer" hidden />
-
-    <div class="brand">
-      <div class="dot"></div>
-      <div>
-        <h1>Angebotskonfigurator-emc2</h1>
-        <p class="lead">
-          Bereich-spezifische Themes • Light/Dark • PDF-Export • ngrok-ready
-        </p>
+    <div class="header-left">
+      <button id="openSidebar" class="sidebar-toggle" type="button" aria-label="Menü öffnen">
+        <span aria-hidden="true">☰</span>
+      </button>
+      <input id="offerNumber" name="offerNumber" placeholder="Angebotsnummer" hidden />
+      <div class="brand">
+        <img src="/assets/logo.png" alt="EmC2" class="brand-logo" />
+        <h1>Angebotskonfigurator</h1>
       </div>
     </div>
 
     <div class="theme-controls">
-      <!-- Domain / Bereich selector -->
-      <select id="themeSelect" aria-label="Farbthema wählen">
-        <option value="base">Standard</option>
-        <option value="wohnen">Wohnen</option>
-        <option value="pflege">Pflege</option>
-        <option value="gesundheit">Gesundheit</option>
-        <option value="kfz">KFZ</option>
-      </select>
+      <!-- Grouped theme + light/dark -->
+      <div class="ctl-group">
+        <select id="themeSelect" class="hdr-select" aria-label="Farbthema wählen">
+          <option value="base">Standard</option>
+          <option value="wohnen">Wohnen</option>
+          <option value="pflege">Pflege</option>
+          <option value="gesundheit">Gesundheit</option>
+          <option value="kfz">KFZ</option>
+        </select>
+        <span class="ctl-divider" aria-hidden="true"></span>
+        <label class="mode-switch" title="Light/Dark umschalten">
+          <input id="modeToggle" type="checkbox" />
+          <span class="mode-track">
+            <span class="mode-ico mode-sun" aria-hidden="true">☀</span>
+            <span class="mode-ico mode-moon" aria-hidden="true">☾</span>
+            <span class="mode-knob"></span>
+          </span>
+          <span id="themeLabel" class="sr-only">Light</span>
+        </label>
+      </div>
 
-      <!-- Light / Dark toggle (reusing your existing markup) -->
-      <label class="toggle" title="Light/Dark umschalten">
-        <input id="modeToggle" type="checkbox" />
-        <div class="thumb"></div>
-        <span id="themeLabel">Light</span>
-      </label>
+      <!-- Logged-in user + logout -->
+      <div class="user-box" id="userBox" hidden>
+        <span class="avatar" id="userAvatar"></span>
+        <span class="user-name" id="userName"></span>
+        <button type="button" id="logoutBtn" title="Abmelden" aria-label="Abmelden">
+          <span aria-hidden="true">⏻</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -2157,9 +2169,13 @@ button.dm-btn-danger:focus-visible {
     <div class="container">
       <!-- Auswahl der Leistung (new landing page) -->
       <section class="card page" id="page-home">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 12px;">
+        <div class="home-head">
           <h2 style="margin:0"> Auswahl der Leistung </h2>
-          <button type="button" id="openAdminPanel" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-weight:600;color:#6b7280;cursor:pointer;background:#f9fafb;font-family:inherit;" onmouseover="this.style.background='#f3f4f6';this.style.color='#374151'" onmouseout="this.style.background='#f9fafb';this.style.color='#6b7280'">
+          <div class="home-ap-field">
+            <label for="homeAnsprechpartner">Ansprechpartner</label>
+            <select id="homeAnsprechpartner" aria-label="Ansprechpartner wählen"></select>
+          </div>
+          <button type="button" id="openAdminPanel" class="home-admin-btn" title="Admin">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
             Admin
           </button>
@@ -2171,7 +2187,7 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div class="field home-global-search-field">
-            <label for="globalOfferSearchInput" class="muted home-global-search-label">Schnellsuche in Entwürfen + Angeboten</label>
+            <h3 class="home-search-heading">Schnellsuche in Entwürfen + Angeboten</h3>
             <div class="home-global-search-wrap">
               <span class="home-global-search-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" focusable="false">
@@ -2188,9 +2204,6 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
         </div>
-        <p class="muted home-load-hint" style="margin: 0 0 16px">Wählen Sie einen Bereich, um zu starten.</p>
-
-
         <div class="home-stack">
           <section class="home-offer-types" aria-labelledby="homeOfferTypesTitle">
             <div class="home-section-head">
@@ -2597,17 +2610,12 @@ button.dm-btn-danger:focus-visible {
                   gap: 14px;
                   padding: 8px 0;
                 ">
-                <div>
-                  <label for="emc2_contact" class="req">Name des Ansprechpartners von emc2</label>
-                  <div style="margin: 0 0 8px;">
-                    <label for="emc2_contact_select" class="muted" style="font-size: 0.9rem;">Ansprechpartner auswählen</label>
-                    <select id="emc2_contact_select">
-                      <option value="">Bitte auswählen</option>
-                      <option value="Thomas Raithel" selected>T.Raithel</option>
-                      <option value="Stefan Wolfrum">S.Wolfrum</option>
-                    </select>
-                  </div>
-                  <input id="emc2_contact" name="emc2_contact" placeholder="z. B. Max Mustermann" required />
+                <!-- Ansprechpartner is chosen via the header dropdown; kept here
+                     as hidden fields so saved offers + the offer/email pipeline
+                     keep working. -->
+                <div style="display:none">
+                  <input id="emc2_contact" name="emc2_contact" />
+                  <input type="hidden" id="ansprechpartnerEmail" name="ansprechpartner" />
                 </div>
                 <div>
                   <label class="req">Ist der Kunde Selbstzahler oder Kassenkunde?</label>
@@ -6837,54 +6845,24 @@ button.dm-btn-danger:focus-visible {
       <!-- Zusammenfassung -->
 
       <!-- Replace the existing page-Zusammenfassung content with this -->
-      <section id="page-Zusammenfassung" class="page" hidden>
+      <section id="page-Zusammenfassung" class="card page" hidden>
         <div class="zusammenfassung-container">
 
-          <!-- Header with Save Action -->
-          <header class="zusammenfassung-header">
-            <div class="header-content">
-              <h1>Zusammenfassung</h1>
-              <p class="subtitle">Prüfen Sie Ihre Eingaben und erstellen Sie Ihr Angebot</p>
+          <!-- Heading styled like the other tabs (e.g. Kosten) + Ansprechpartner.
+               A <div> (not <header>) so the global sticky header rule doesn't apply. -->
+          <div style="display:flex; align-items:center; gap:12px; margin: 0 0 8px;">
+            <h2 style="margin:0; flex:1;">Zusammenfassung</h2>
+            <div class="zf-ap-field">
+              <label for="zfAnsprechpartner">Ansprechpartner</label>
+              <select id="zfAnsprechpartner" aria-label="Ansprechpartner wählen"></select>
             </div>
+          </div>
 
-          </header>
-
-          <!-- Unterschrift -->
-<section class="export-section">
-  <h2 class="section-title">✍️ Unterschrift</h2>
-
-  <div class="export-cards">
-    <div class="export-card" style="grid-column: 1 / -1;">
-      <p style="margin:0 0 8px 0;">Bitte hier unterschreiben (Finger / Stift / Maus)</p>
-
-      <div class="sig-wrap">
-        <canvas id="signaturePad" class="sig-canvas"></canvas>
-      </div>
-
-      <div class="sig-actions">
-        <button type="button" id="sigClear" class="btn-export secondary">Löschen</button>
-      </div>
-
-      <div class="our-signature-panel">
-        <label class="our-signature-toggle" for="includeOurSignature">
-          <input type="checkbox" id="includeOurSignature" checked />
-          <span>EmC2-Unterschrift ins Dokument einbetten</span>
-        </label>
-
-        <div class="our-signature-select-wrap">
-          <label for="ourSignatureUser">Unterschrift auswählen</label>
-          <select id="ourSignatureUser">
-            <option value="t.raithel" selected>T.Raithel</option>
-            <option value="s.wolfrum">S.Wolfrum</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Optional: hidden preview/debug -->
-      <input type="hidden" id="signatureDataUrl" />
-    </div>
-  </div>
-</section>
+          <!-- Unterschrift section removed: the document signature is the
+               selected Ansprechpartner's signature (assigned in admin). These
+               hidden fields keep the offer/save pipeline working. -->
+          <input type="checkbox" id="includeOurSignature" checked hidden />
+          <input type="hidden" id="signatureDataUrl" />
 
           <!-- Bitrix Integration Section -->
           <section class="bitrix-section">
@@ -9187,6 +9165,8 @@ button.dm-btn-danger:focus-visible {
   <script src="./ThemeManager.js"></script>
   <script src="./script.js"></script>
   <script src="/admin-modal.js"></script>
+  <script src="/header-auth.js"></script>
+  <script src="/ansprechpartner.js"></script>
 
 </body>
 
