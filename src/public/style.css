@@ -5858,6 +5858,46 @@ button.pad-clear {
   color: var(--muted);
 }
 
+/* ── Week navigation (prev / today / next) ── */
+.week-cal-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.week-cal-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, opacity 0.12s;
+}
+
+.week-cal-nav-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+  border-color: var(--accent);
+}
+
+.week-cal-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.week-cal-nav-today.is-active {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
 .week-cal-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(184px, 1fr));
