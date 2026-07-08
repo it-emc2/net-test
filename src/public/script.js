@@ -19198,7 +19198,7 @@ if (bitrixIdInput && loadBitrixBtn) {
       const data = await res.json();
       console.log("[Bitrix frontend] raw data from backend:", data);
 
-      // n8n‑Antwort hat Form: { result: { ID, NAME, LAST_NAME, PHONE, EMAIL, ... }, time: {...} }
+      // Bitrix‑Antwort hat Form: { result: { ID, NAME, LAST_NAME, PHONE, EMAIL, ... }, time: {...} }
       const contact = data.result;
       if (!contact || !contact.ID) {
         throw new Error("Kontakt nicht gefunden");
@@ -19558,7 +19558,7 @@ function initHassmannBestFinder() {
   });
 }
 
-// ===== Angebot als PDF erzeugen und an Auftrag (n8n) senden =====
+// ===== Angebot als PDF erzeugen und an Auftrag (Bitrix) senden =====
 (function initSendOfferPdfToAuftrag() {
   const auftragInput = document.getElementById("auftragId");
   const sendBtn = document.getElementById("sendPdfToAuftrag");
@@ -22352,7 +22352,7 @@ function setSaveCustomerStatus(btn, text, type = "info") {
 }
 
 // =================================================================
-// Today's Customers Panel (Bitrix → n8n → configurator)
+// Today's Customers Panel (Bitrix → configurator)
 // =================================================================
 
 (function(){

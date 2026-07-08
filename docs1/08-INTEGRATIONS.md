@@ -41,7 +41,7 @@ POST /api/bitrix/timeline/comment
 #### Today's Customers
 ```
 GET /api/bitrix/kundendaten?stageId=C72:UC_YOESDE
--> Proxies to: n8n webhook (N8N_TODAYS_CUSTOMERS_URL)
+-> Queries Bitrix24 CRM REST API directly
 -> Returns: Customer list from Bitrix pipeline stage
 ```
 
@@ -268,20 +268,17 @@ GET  /api/adobe-pdf/status        -> Check configuration
 
 ---
 
-## n8n - Workflow Automation
+## n8n - Workflow Automation (historical)
 
 ### Overview
-n8n webhook integration for fetching today's customer list.
+The "Today's Customers" list was originally fetched via an n8n webhook. The
+application no longer calls n8n directly — `/api/bitrix/kundendaten` now queries
+the Bitrix24 CRM REST API directly (see [Today's Customers](#todays-customers)).
 
-### Configuration
-- **Webhook URL**: `N8N_TODAYS_CUSTOMERS_URL`
-
-### Usage
-```
-GET /api/bitrix/kundendaten?stageId=C72:UC_YOESDE
--> Proxies to n8n webhook
--> Returns: Customer list filtered by Bitrix pipeline stage
-```
+n8n workflows may still run **inside Bitrix** (outside this repo) to enrich the
+CRM custom fields the app reads (address, care level, budget, …), but there is no
+code path in this application that talks to n8n. The `N8N_TODAYS_CUSTOMERS_URL`
+secret is no longer referenced by any code.
 
 ---
 

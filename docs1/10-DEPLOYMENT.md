@@ -109,7 +109,6 @@ fly secrets set BINECT_USERNAME="***"
 fly secrets set BINECT_PASSWORD="***"
 
 # Workflow
-fly secrets set N8N_TODAYS_CUSTOMERS_URL="***"
 fly secrets set PLANNING_API_BASE_URL="https://route-plannung.fly.dev"
 ```
 

@@ -146,7 +146,6 @@ app.use(
 
         connectSrc: [
           "'self'",
-          "https://fly-n8n-1.fly.dev",
           "https://emczwei.bitrix24.de",
           "https://route-plannung.fly.dev",
           "https://bau-formular.fly.dev",
