@@ -11,6 +11,11 @@ const productSchema = new mongoose.Schema(
     heightCm: { type: Number, min: 0, default: null },
     lengthCm: { type: Number, min: 0, default: null },
     source: { type: String, default: null },
+
+    // Manufacturer / supplier of the article. Used to decide which items may
+    // appear in the Hassmann Warenkorb CSV: anything explicitly marked as a
+    // non-Hassmann manufacturer is excluded from the export.
+    manufacturer: { type: String, default: null },
   },
   { timestamps: true, collection: "Products" },
 );

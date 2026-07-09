@@ -705,6 +705,9 @@ function normalizeSourceLine(raw) {
     name: name, // now the human label/Bezeichnung
     unit,
     quantity: qty,
+    // Export-only article number (e.g. color-specific Wandverkleidung code for
+    // the Hassmann CSV). Falls back to materialNumber when absent.
+    hassmannArticle: raw.hassmannArticle || null,
   };
 }
 
@@ -728,6 +731,7 @@ async function aggregateMaterialsForOverview(body = {}, computed = {}) {
           qty: l.qty,
           unit: l.unit || "Stck.",
           label: l.label || "",
+          hassmannArticle: l.hassmannArticle || null,
         }),
       );
     }
@@ -791,7 +795,11 @@ async function aggregateMaterialsForOverview(body = {}, computed = {}) {
       unit,
       quantity: 0,
       remarks: "",
+      hassmannArticle: l.hassmannArticle || null,
     };
+    // Preserve the export-only article number when merging lines.
+    if (!prev.hassmannArticle && l.hassmannArticle)
+      prev.hassmannArticle = l.hassmannArticle;
 
     // Prefer the longer/more descriptive name when merging
     if (l.name && (!prev.name || l.name.length > prev.name.length))
@@ -2115,7 +2123,9 @@ router.post("/material-overview", async (req, res) => {
 
     const materials = rows.map((m, i) => ({
       pos: i + 1,
-      materialNumber: m.materialNumber || "", // blank for V5FB02 (floor panels)
+      // Prefer the color-specific article number (e.g. Wandverkleidung) so the
+      // Materialübersicht matches the Hassmann CSV; blank stays blank for V5FB02.
+      materialNumber: m.hassmannArticle || m.materialNumber || "", // blank for V5FB02 (floor panels)
       name: stripBrandNames(m.name || ""),
       quantity: formatQtyForOverview(m.quantity, m.unit || "Stck."),
       unit: m.unit || "Stck.",
