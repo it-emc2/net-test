@@ -13340,6 +13340,15 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       console.warn("[restore] internal signature restore failed:", e);
     }
 
+    // Restore the "Versand per Post" toggle state independently of the postal
+    // manager — this is just one boolean + a visibility sync and must not depend
+    // on manager readiness or on the field-restore path below succeeding.
+    try {
+      window.__setPostalSectionEnabled?.(!!p?.postal?.enabled);
+    } catch (e) {
+      console.warn("[restore] postal toggle restore failed:", e);
+    }
+
     try {
       if (window.__postalManager?.restoreFromPayload) {
         window.__postalManager.restoreFromPayload(p?.postal || {});
@@ -24315,6 +24324,12 @@ document
 
   ready(() => {
     initPostalSectionToggle();
+
+    // Restore-safe: expose a tiny setter for just the enabled/visibility state.
+    // Defined BEFORE the early-return guard below so draft restore can reliably
+    // toggle the "Versand per Post" section even if the optional send-form
+    // nodes are missing or the postal manager never initializes.
+    window.__setPostalSectionEnabled = (on) => syncPostalSectionVisibility(!!on);
 
     const sendBtn = document.getElementById("sendOfferPost");
     const statusBox = document.getElementById("postStatus");
