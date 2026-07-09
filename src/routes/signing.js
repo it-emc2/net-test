@@ -14,6 +14,7 @@
 
 import express from "express";
 import crypto from "crypto";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import nodemailer from "nodemailer";
@@ -27,6 +28,7 @@ import {
   buildVollmachtHtml,
   buildAbtretungHtml,
 } from "../templates/signing-docs.js";
+import { buildEmailHtml } from "../lib/emailTemplate.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,6 +63,17 @@ function clientIp(req) {
     req.ip ||
     ""
   );
+}
+
+// Build the German salutation line from a prefill snapshot, mirroring the
+// logic used in the Zusammenfassung email composer (EmailManager.js).
+function buildGreetingLine(prefill = {}) {
+  const salutation = String(prefill.salutation || "").trim();
+  const lastName = String(prefill.lastName || "").trim();
+  if (salutation === "Herr" && lastName) return `Sehr geehrter Herr ${lastName},`;
+  if (salutation === "Frau" && lastName) return `Sehr geehrte Frau ${lastName},`;
+  if (salutation === "Familie" && lastName) return `Sehr geehrte Familie ${lastName},`;
+  return "Sehr geehrte Damen und Herren,";
 }
 
 // Pull the editable customer fields out of the offer payload snapshot.
@@ -488,15 +501,50 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
           content: p.buffer,
           contentType: "application/pdf",
         }));
+
+        // Branded confirmation body (same styled template as the
+        // Zusammenfassung offer mail). Signed as generic "Ihr Team von emc2".
+        const greeting = buildGreetingLine(sr.prefill);
+        const confirmationBody = [
+          greeting,
+          "",
+          "Ihre Unterlagen haben uns erreicht - vielen Dank!",
+          "Anbei erhalten Sie jeweils eine Kopie im Anhang.",
+          "",
+          "Nach erfolgreicher Überprüfung der Unterlagen melden wir uns " +
+            "bzgl. des nächsten Schrittes umgehend bei Ihnen zurück.",
+          "",
+          "Für Rückfragen stehen wir Ihnen jederzeit gerne zur Verfügung!",
+        ].join("\n");
+
+        // Inline logo/signature image (referenced via cid in the template).
+        const signatureCid = "emc2-signature-picture";
+        const signatureImagePath = path.join(
+          process.cwd(),
+          "src",
+          "public",
+          "assets",
+          "signaturepicture.png",
+        );
+        if (fs.existsSync(signatureImagePath)) {
+          attachments.push({
+            filename: "signaturepicture.png",
+            path: signatureImagePath,
+            cid: signatureCid,
+          });
+        }
+
         try {
           await transporter.sendMail({
             from: smtpFrom(),
             replyTo: process.env.SMTP_REPLY_TO || smtpFrom(),
             to: recipients.join(","),
             subject: `Unterschriebene Unterlagen – ${sr.offerNumber || "Angebot"}`,
-            text:
-              "Vielen Dank! Anbei die von Ihnen elektronisch unterschriebenen " +
-              "Unterlagen als PDF.",
+            text: confirmationBody,
+            html: buildEmailHtml(confirmationBody, {
+              signatureCid: fs.existsSync(signatureImagePath) ? signatureCid : null,
+              contactName: "",
+            }),
             attachments,
           });
         } catch (err) {
