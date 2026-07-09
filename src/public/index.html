@@ -6880,26 +6880,6 @@ button.dm-btn-danger:focus-visible {
             </div>
           </section>
 
-          <!-- Online-Signatur (Unterschrift per Link) -->
-          <section class="bitrix-section">
-            <h2 class="section-title">🔗 Online-Unterschrift</h2>
-            <div class="bitrix-card">
-              <p class="section-subtitle">
-                Erzeugt einen persönlichen Link, mit dem der Kunde die Unterlagen
-                online ausfüllen und unterschreiben kann (nutzt die Auftrag ID oben).
-              </p>
-              <label style="display:flex;align-items:center;gap:8px;margin:8px 0;cursor:pointer;">
-                <input type="checkbox" id="signingSendEmail" style="width:auto;">
-                Link direkt per E-Mail an den Kunden senden
-              </label>
-              <button type="button" id="createSigningLink" class="btn-bitrix">
-                <span class="btn-icon">🔗</span>
-                Signatur-Link erstellen
-              </button>
-              <div id="signingLinkResult" style="margin-top:10px;"></div>
-              <div id="signingLinkStatus" class="bitrix-status"></div>
-            </div>
-          </section>
           <!-- Main Export Actions -->
           <section class="export-section">
             <h2 class="section-title">📄 Dokumentenstudio</h2>
@@ -7233,6 +7213,21 @@ button.dm-btn-danger:focus-visible {
                   <button type="button" id="prefillMusterData" class="btn-dev">Musterdaten einfüllen</button>
                   <button type="button" id="showPayload" class="btn-dev">Payload anzeigen</button>
                   <button type="button" id="copyPayload" class="btn-dev">Payload kopieren</button>
+                </div>
+
+                <div class="dev-tool-group">
+                  <h4>Online-Unterschrift (manueller Link)</h4>
+                  <p class="muted" style="font-size:0.82rem;margin:0 0 6px;">
+                    Der Signatur-Link wird beim E-Mail-Versand automatisch erzeugt.
+                    Hier nur bei Bedarf einen Link separat erstellen (z. B. zum Kopieren).
+                  </p>
+                  <label style="display:flex;align-items:center;gap:8px;margin:4px 0;cursor:pointer;font-size:0.85rem;">
+                    <input type="checkbox" id="signingSendEmail" style="width:auto;">
+                    Link direkt per E-Mail an den Kunden senden
+                  </label>
+                  <button type="button" id="createSigningLink" class="btn-dev">🔗 Signatur-Link erstellen</button>
+                  <div id="signingLinkResult" style="margin-top:8px;"></div>
+                  <div id="signingLinkStatus" class="bitrix-status"></div>
                 </div>
               </div>
             </div>
