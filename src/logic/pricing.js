@@ -4,6 +4,60 @@
 // src/logic/pricing.js
 import cfg from '../services/configService.js';
 
+// ---------------------------------------------------------------------------
+// Wandverkleidung 3.0 — color → Hassmann article-number mapping.
+//
+// The configurator's color pickers only carry the color *name* (e.g. "Beton
+// grau"), so without this table every color falls back to the default article
+// (V3WVK09 = Marmor weiß) and the Hassmann CSV orders the wrong color.
+//
+// Fill in the real Hassmann article number for each color and panel size.
+// Keys are the color name exactly as shown in the UI, lower-cased (see
+// normalizeWvColorKey). Leave an entry out / null to keep the default fallback.
+//
+// Example once the supplier list is available:
+//   "beton grau": { "997x2550": "V3WVK11", "1497x2550": "V3WV11" },
+// ---------------------------------------------------------------------------
+// 997x2550 and 1497x2550 Hassmann/VIGOUR article numbers for every color the
+// configurator offers. Keys are the UI color name, lower-cased (see
+// normalizeWvColorKey).
+const WV_COLOR_ARTICLE = {
+  "weiß": { "997x2550": "V3WVK07", "1497x2550": "V3WV07" }, // weiss RAL 9016
+  "marmor weiß": { "997x2550": "V3WVK09", "1497x2550": "V3WV09" },
+  "struktur weiß": { "997x2550": "V3WVK06", "1497x2550": "V3WV06" },
+  "stein beige": { "997x2550": "V3WVK01", "1497x2550": "V3WV01" },
+  "aragon grau": { "997x2550": "V3WVK22", "1497x2550": "V3WV22" },
+  "stein grau": { "997x2550": "V3WVK02", "1497x2550": "V3WV02" },
+  "beton grau": { "997x2550": "V3WVK31", "1497x2550": "V3WV31" },
+  "beton grau metallic": { "997x2550": "V3WVK30", "1497x2550": "V3WV30" }, // Beton grau-metallic
+  "aragon anthrazit": { "997x2550": "V3WVK21", "1497x2550": "V3WV21" },
+  "schiefer grau": { "997x2550": "V3WVK08", "1497x2550": "V3WV08" },
+  "schwarzwaldeiche hell": { "997x2550": "V3WVK23", "1497x2550": "V3WV23" },
+  "stein anthrazit": { "997x2550": "V3WVK03", "1497x2550": "V3WV03" },
+  "metall oxydant": { "997x2550": "V3WVK10", "1497x2550": "V3WV10" },
+  "sonderdekor": { "997x2550": "V3WVK999", "1497x2550": "V3WV999" }, // Wunschdekor nach Vorlage
+};
+
+function normalizeWvColorKey(color) {
+  return String(color || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+// Resolve the article number for a WV panel color.
+// Priority: explicit pid embedded in the value ("pid|color") > mapped article
+// number for (color, size) > provided fallback (the size default).
+function resolveWvArticle(size, colorDisplay, explicitPid, fallbackPid) {
+  if (explicitPid) return explicitPid;
+  let key = normalizeWvColorKey(colorDisplay);
+  // "Sonderdekor 12345" / "sonderdekor <nr>" all map to the Sonderdekor entry.
+  if (key.startsWith("sonderdekor")) key = "sonderdekor";
+  const entry = WV_COLOR_ARTICLE[key];
+  const mapped = entry && entry[size];
+  return mapped || fallbackPid;
+}
+
 export default (ProductModel) => {
   // Minimal helper: adjust only the visible label to billable qty (selected - 1)
   // - Does NOT change qty, unitPrice, or lineTotal (so totals remain untouched).
@@ -563,7 +617,13 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
   const base = `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`;
   const label = display ? `${base} — Farbe: ${display}` : base;
 
-  add(pid || "V3WVK09", qty997, label, null, null, { color: display });
+  // Pricing stays on the size default (only V3WVK09 exists in the DB); the
+  // color-specific article number is carried for the Hassmann CSV only.
+  const article997 = resolveWvArticle("997x2550", display, pid, "V3WVK09");
+  add(pid || "V3WVK09", qty997, label, null, null, {
+    color: display,
+    hassmannArticle: article997,
+  });
 }
 if (qty1497 > 0) {
   const raw = String(color1497 || "").trim();
@@ -574,12 +634,16 @@ if (qty1497 > 0) {
   const base = `- ${qty1497} Stk Wandverkleidung 3.0 Alu 1497×2550 mm`;
   const label = display ? `${base} — Farbe: ${display}` : base;
 
-  add(pid || "V3WV09", qty1497, label, null, null, { color: display });
+  const article1497 = resolveWvArticle("1497x2550", display, pid, "V3WV09");
+  add(pid || "V3WV09", qty1497, label, null, null, {
+    color: display,
+    hassmannArticle: article1497,
+  });
 }
 
 // Each extra-color row gets its own materials line at its own qty so the
 // Angebot/DOCX lists every color the user added.
-const addExtras = (rows, panelLabel, defaultPid) => {
+const addExtras = (rows, panelLabel, size, defaultPid) => {
   for (const row of rows) {
     const q = Number(row?.qty) || 0;
     if (q <= 0) continue;
@@ -592,11 +656,15 @@ const addExtras = (rows, panelLabel, defaultPid) => {
     );
     const base = `- ${q} Stk Wandverkleidung 3.0 Alu ${panelLabel}`;
     const label = display ? `${base} — Farbe: ${display}` : base;
-    add(pid || defaultPid, q, label, null, null, { color: display });
+    const article = resolveWvArticle(size, display, pid, defaultPid);
+    add(pid || defaultPid, q, label, null, null, {
+      color: display,
+      hassmannArticle: article,
+    });
   }
 };
-addExtras(extras997, "997×2550 mm", "V3WVK09");
-addExtras(extras1497, "1497×2550 mm", "V3WV09");
+addExtras(extras997, "997×2550 mm", "997x2550", "V3WVK09");
+addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
 
     if (wv?.wvSealing) add("TRWDSET5", 1);
     if (wv?.flechenkleber) {
@@ -1134,6 +1202,7 @@ color: metaColor || null,
   labelLines: [label, ...infoLines],  // ✅ NEW: UI can render true multiline easily
   source: l.source || null,
   finish: l?.meta?.finish || null,
+  hassmannArticle: l?.meta?.hassmannArticle || null,
   docxHide: !!l.docxHide,
   category: l.category || null,
 };

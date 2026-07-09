@@ -36,6 +36,7 @@ export function initAdminManager(options = {}) {
     const lEl = document.getElementById("ap_length");
     const hEl = document.getElementById("ap_height");
     const sourceEl = document.getElementById("ap_source");
+    const manufacturerEl = document.getElementById("ap_manufacturer");
     const resetBtn = document.getElementById("ap_reset");
 
     if (!form || !status || !tblBody || !idEl || !nameEl || !priceEl) return null;
@@ -65,7 +66,7 @@ export function initAdminManager(options = {}) {
 
         if (!Array.isArray(list) || !list.length) {
           tblBody.innerHTML =
-            `<tr><td colspan="5" style="padding:4px;">Keine Produkte gefunden.</td></tr>`;
+            `<tr><td colspan="6" style="padding:4px;">Keine Produkte gefunden.</td></tr>`;
           setStatus("Keine Produkte gefunden.", true);
           return;
         }
@@ -82,6 +83,7 @@ export function initAdminManager(options = {}) {
 
             const priceStr = euroFmt(p.price ?? 0);
             const sourceStr = (p.source || "").toString();
+            const manufacturerStr = (p.manufacturer || "").toString();
             return `
               <tr data-id="${p.productId}">
                 <td style="padding:4px;">${p.productId}</td>
@@ -89,6 +91,7 @@ export function initAdminManager(options = {}) {
                 <td style="padding:4px; text-align:right;">${priceStr}</td>
                 <td style="padding:4px; text-align:center;">${dim}</td>
                 <td style="padding:4px;">${sourceStr}</td>
+                <td style="padding:4px;">${manufacturerStr}</td>
                 <td style="padding:4px; text-align:right;">
                   <button type="button" class="secondary ap-edit-btn">Bearbeiten</button>
                 </td>
@@ -101,7 +104,7 @@ export function initAdminManager(options = {}) {
       } catch (err) {
         console.error(err);
         tblBody.innerHTML =
-          `<tr><td colspan="5" style="padding:4px;">Fehler beim Laden.</td></tr>`;
+          `<tr><td colspan="6" style="padding:4px;">Fehler beim Laden.</td></tr>`;
         setStatus(`Fehler beim Laden: ${err.message}`, false);
       }
     }
@@ -130,6 +133,7 @@ export function initAdminManager(options = {}) {
       const priceStr = tds[2]?.textContent?.trim() || "";
       const dimsStr = tds[3]?.textContent?.trim() || "";
       const srcStr = tds[4]?.textContent?.trim() || "";
+      const manufacturerStr = tds[5]?.textContent?.trim() || "";
 
       idEl.value = pid;
       nameEl.value = name;
@@ -146,6 +150,7 @@ export function initAdminManager(options = {}) {
       if (lEl) lEl.value = parts[1] || "";
       if (hEl) hEl.value = parts[2] || "";
       if (sourceEl) sourceEl.value = srcStr;
+      if (manufacturerEl) manufacturerEl.value = manufacturerStr;
 
       setStatus(`Produkt ${pid} im Formular geladen.`, true);
       idEl.focus();
@@ -158,6 +163,7 @@ export function initAdminManager(options = {}) {
       const name = nameEl.value.trim();
       const priceRaw = priceEl.value.trim();
       const source = sourceEl?.value.trim() || "";
+      const manufacturer = manufacturerEl?.value.trim() || "";
 
       if (!productId || !name || !priceRaw) {
         setStatus("Bitte mindestens Produkt-ID, Name und Preis ausfüllen.", false);
@@ -187,6 +193,7 @@ export function initAdminManager(options = {}) {
           ...(lengthCm != null && !isNaN(lengthCm) ? { lengthCm } : {}),
           ...(heightCm != null && !isNaN(heightCm) ? { heightCm } : {}),
           ...(source ? { source } : {}),
+          manufacturer: manufacturer || null,
         },
       ];
 

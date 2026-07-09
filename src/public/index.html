@@ -8936,6 +8936,12 @@ button.dm-btn-danger:focus-visible {
                 <label for="ap_source">Quelle / source (optional)</label>
                 <input id="ap_source" name="source" type="text" placeholder="z.B. hassmann, optional, seed" />
               </div>
+              <!-- NEW: Hersteller / manufacturer -->
+              <div class="field">
+                <label for="ap_manufacturer">Hersteller (optional)</label>
+                <input id="ap_manufacturer" name="manufacturer" type="text" placeholder="z.B. Hassmann, Vigour, EMC2/Intern" />
+                <small class="muted">Nur Artikel mit Hersteller „Hassmann“ (oder ohne Angabe) erscheinen im Hassmann-Warenkorb-CSV. Andere Hersteller werden ausgeschlossen.</small>
+              </div>
               <div class="actions">
                 <button type="submit">Speichern / Aktualisieren</button>
                 <button type="button" class="secondary" id="ap_reset">Zurücksetzen</button>
@@ -8961,6 +8967,7 @@ button.dm-btn-danger:focus-visible {
                     <th style="text-align:center; padding:4px;">B/L/H (cm)</th>
                     <!-- NEW -->
                     <th style="text-align:left; padding:4px;">Quelle</th>
+                    <th style="text-align:left; padding:4px;">Hersteller</th>
                     <th style="text-align:right; padding:4px;">Aktion</th>
                   </tr>
                 </thead>

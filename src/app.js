@@ -321,6 +321,7 @@ app.post("/api/products/bulk", async (req, res) => {
             lengthCm: p.lengthCm ?? null,
             heightCm: p.heightCm ?? null,
             source: p.source ?? null, // <‑‑ allow setting source
+            manufacturer: p.manufacturer ?? null, // <‑‑ allow setting manufacturer
           },
         },
         upsert: true,
