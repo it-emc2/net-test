@@ -1289,11 +1289,6 @@ color: metaColor || null,
       ? bwtLaborRate
       : payer === "KK" ? laborRateKK : payer === "SZ" ? laborRateSZ : 0;
 
-    const facharbeiter = isBwt
-      ? round2((Arbeitszeit_hours_numeric + reise_hours_numeric) * bwtLaborRate)
-      : Arbeitszeit_hours_numeric * handwerkerCount * laborRate +
-        reise_hours_numeric * (laborRate + sitz_reise_Rate);
-
     const formatQty = (n) => Number(n || 0).toFixed(2).replace(".", ",");
 
     const lines = [];
@@ -1328,15 +1323,32 @@ color: metaColor || null,
       });
     }
     if (total_hours_numeric > 0 && laborRate > 0) {
-      lines.push({
-        key: "facharbeiter",
-        /* label: `- ${total_hours_HH_mm} (${total_hours_numeric}) Std × ${handwerkerCount} Facharbeiter × ${laborRate.toFixed(
-          2,
-        )} €`, */
-        label: `- ${total_hours_HH_mm} (${Number(total_hours_numeric).toFixed(2).replace(".", ",")}) Std × ${handwerkerCount} Facharbeiter × ${laborRate.toFixed(2).replace(".", ",")} €`,
-        amount: facharbeiter,
-        docxHide: true,
-      });
+      // Split into two transparent lines so each line's shown math reconciles
+      // with its amount. Work hours are billed at handwerkerCount × laborRate;
+      // travel hours differ (BWT: same rate, 1 worker; sonst: driver at
+      // laborRate + second worker at the reduced sitz_reise_Rate).
+      if (Arbeitszeit_hours_numeric > 0) {
+        lines.push({
+          key: "facharbeiter",
+          label: `- ${formatQty(Arbeitszeit_hours_numeric)} Std Arbeitszeit × ${handwerkerCount} Facharbeiter × ${formatQty(laborRate)} €`,
+          amount: round2(Arbeitszeit_hours_numeric * handwerkerCount * laborRate),
+          docxHide: true,
+        });
+      }
+      if (reise_hours_numeric > 0) {
+        const reiseLabel = isBwt
+          ? `- ${formatQty(reise_hours_numeric)} Std Anfahrt × ${handwerkerCount} Facharbeiter × ${formatQty(bwtLaborRate)} €`
+          : `- ${formatQty(reise_hours_numeric)} Std Anfahrt × (${formatQty(laborRate)} € + ${formatQty(sitz_reise_Rate)} €)`;
+        const reiseAmount = isBwt
+          ? round2(reise_hours_numeric * bwtLaborRate)
+          : round2(reise_hours_numeric * (laborRate + sitz_reise_Rate));
+        lines.push({
+          key: "reisezeit",
+          label: reiseLabel,
+          amount: reiseAmount,
+          docxHide: true,
+        });
+      }
     }
     let extraAufgabeAmount = 0;
 
