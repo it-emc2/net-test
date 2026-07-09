@@ -85,6 +85,20 @@ if (mountEl) {
     getState() {
       return { enabled, widthCm, curtainSel, rodSel, mandatoryQty: { ...mandatoryQty }, optionalQty: { ...optionalQty } };
     },
+    // Clears back to the fresh boot state (nothing added, mandatory preselected).
+    // Called by resetAllForms() when starting a NEW offer so the previous offer's
+    // selection does not leak in. Drafts use restore() instead.
+    reset() {
+      enabled = false;
+      widthCm = null;
+      curtainSel = null;
+      rodSel = null;
+      Object.keys(mandatoryQty).forEach((k) => delete mandatoryQty[k]);
+      Object.keys(optionalQty).forEach((k) => delete optionalQty[k]);
+      initMandatory();
+      render();
+      refreshOffer();
+    },
     restore(saved) {
       if (!saved || typeof saved !== "object") return;
       enabled = saved.enabled === true;
