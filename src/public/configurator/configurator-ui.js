@@ -333,6 +333,18 @@ export function mountConfigurator(el, model, options = {}) {
           row.appendChild(finishSpan);
         }
 
+        // Einbaumaß — display-only, present for a minority of articles (~43%).
+        // Each entry's `label` is a ready-to-show string; join multiple with " · ".
+        if (Array.isArray(line.article.einbaumass) && line.article.einbaumass.length) {
+          const einbauSpan = document.createElement("span");
+          einbauSpan.className = "dac-line-einbau";
+          einbauSpan.textContent = line.article.einbaumass
+            .map((e) => e.label)
+            .filter(Boolean)
+            .join(" · ");
+          row.appendChild(einbauSpan);
+        }
+
         const priceSpan = document.createElement("span");
         priceSpan.className = "dac-line-price";
         priceSpan.textContent = euro(line.article.net);
