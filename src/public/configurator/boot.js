@@ -150,6 +150,17 @@ if (configsEl && template && addBtn) {
         })
         .filter(Boolean);
     },
+    // Clears all cards back to one fresh empty card (initial page-load state).
+    // Called by resetAllForms() when starting a NEW offer so the previous
+    // offer's configuration does not leak in. Drafts use restore() instead.
+    async reset() {
+      for (const entry of [...entries]) {
+        try { entry.instance?.destroy(); } catch {}
+        entry.cardEl.remove();
+      }
+      entries.length = 0;
+      await createConfig();
+    },
     async restore(saved) {
       if (!saved) return;
       // back-compat: legacy saved offers stored a single state object, not an array

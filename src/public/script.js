@@ -2302,6 +2302,16 @@ function resetAllForms() {
   } catch (e) {
     console.warn("[resetAllForms] drawing pad reset failed:", e);
   }
+  try {
+    window.__daConfigurator?.reset?.();
+  } catch (e) {
+    console.warn("[resetAllForms] Duschabtrennung configurator reset failed:", e);
+  }
+  try {
+    window.__vorhangConfigurator?.reset?.();
+  } catch (e) {
+    console.warn("[resetAllForms] Duschvorhang configurator reset failed:", e);
+  }
 
   [
     "offerNumber",
