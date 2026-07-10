@@ -5973,7 +5973,7 @@ document.body.addEventListener("click", (e) => {
 
     var infoPanel = document.createElement("div");
     infoPanel.style.cssText =
-      "display:none; font-size:0.75rem; background:var(--bg-alt,#f8fafc);" +
+      "display:none; font-size:0.75rem; background:var(--panel);" +
       "border:1px solid var(--border); border-radius:6px; padding:10px 12px; margin-top:4px;";
     infoPanel.innerHTML =
       "<div style='font-weight:700; margin-bottom:8px; color:var(--text,#1e293b); font-size:0.78rem; letter-spacing:0.01em;'>Berechnungsregel</div>" +
@@ -6027,7 +6027,7 @@ document.body.addEventListener("click", (e) => {
     schedHdr.style.cssText =
       "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center;" +
       "padding:4px 12px 3px; font-size:0.7rem; font-weight:600; color:var(--muted); user-select:none;" +
-      "background:var(--bg-alt,#f8fafc); border-bottom:1px solid var(--border);";
+      "background:var(--panel); border-bottom:1px solid var(--border);";
     schedHdr.innerHTML = "<span>Dauer (Std:Min)</span><span>Regelmäßigkeit</span><span style='text-align:right; color:var(--accent,#0ea5e9);'>/ Monat</span><span></span>";
 
     var schedRowsContainer = document.createElement("div");
@@ -10132,6 +10132,12 @@ window.renderAHKostenPreview = function renderAHKostenPreview() {
 
   gesamtEl.textContent = gesamt > 0 ? fmtEuro(gesamt) + " / Mon." : "—";
 
+  // Per-section live totals in each section header
+  var hdrHnd = document.getElementById("ahHeaderTotalHnd");
+  var hdrAb  = document.getElementById("ahHeaderTotalAb");
+  if (hdrHnd) hdrHnd.textContent = hasHnd ? fmtEuro(gesamtBase)   + " / Mon." : "—";
+  if (hdrAb)  hdrAb.textContent  = hasAb  ? fmtEuro(abGesamtBase) + " / Mon." : "—";
+
   if (!detailsEl || detailsEl.style.display === "none") return;
 
   if (!hasHnd && !hasAb) {
@@ -10141,7 +10147,7 @@ window.renderAHKostenPreview = function renderAHKostenPreview() {
 
   function svcBlock(title, anfahrt, leistungen, h, rate, base) {
     return '<div style="font-size:0.82rem; border:1px solid var(--border); border-radius:6px; overflow:hidden;">' +
-      '<div style="font-weight:600; padding:5px 10px; background:var(--bg-alt,#f8fafc); border-bottom:1px solid var(--border);">' + title + '</div>' +
+      '<div style="font-weight:600; padding:5px 10px; background:var(--panel); color:var(--text); border-bottom:1px solid var(--border);">' + title + '</div>' +
       '<div style="padding:6px 10px; display:flex; flex-direction:column; gap:3px;">' +
         '<div style="display:flex; justify-content:space-between; color:var(--muted);">' +
           '<span>Anfahrtspauschale</span><span>' + fmtEuro(anfahrt) + '</span>' +
