@@ -457,6 +457,112 @@ export function buildAngebotHtml(data, opts = {}) {
   return mode === "pdf" ? wrap("Angebot", inner) : inner;
 }
 
+// ---- AH (Alltagshilfe) Angebot — mirrors the AH offer PDF; no payment terms ----
+export function buildAhAngebotHtml(data, opts = {}) {
+  const mode = opts.mode || "display";
+  const d = data || {};
+  const services = Array.isArray(d.AhServices) ? d.AhServices : [];
+
+  const anfahrtRow = `
+    <tr>
+      <td>1.</td>
+      <td>
+        <strong>Anfahrtspauschale Alltagshilfe</strong>
+        <div class="muted" style="font-size:10pt;">Die Anfahrtspauschale enthält die Kosten für das Rüsten vor der Anfahrt sowie die KFZ-Kosten.</div>
+      </td>
+      <td class="num">${esc(d.AhAnfahrtMenge || "")}</td>
+      <td class="num">${esc(d.AhAnfahrtEinzelpreis || "")}</td>
+      <td class="num">${esc(d.AhAnfahrtGesamt || "")}</td>
+    </tr>`;
+
+  const serviceRows = services
+    .map((s) => {
+      const tasks = (s.AhServiceTasks || [])
+        .map((t) => `<li>${esc(t.AhTaskLabel || "")}</li>`)
+        .join("");
+      return `<tr>
+        <td>${esc(s.AhServicePos || "")}</td>
+        <td>
+          <strong>${esc(s.AhServiceTitle || "")}</strong>
+          ${s.AhServiceSubtitle ? `<div class="muted">${esc(s.AhServiceSubtitle)}</div>` : ""}
+          ${tasks ? `<ul class="pos-lines">${tasks}</ul>` : ""}
+        </td>
+        <td class="num">${esc(s.AhServiceMenge || "")}</td>
+        <td class="num">${esc(s.AhServiceEinzelpreis || "")}</td>
+        <td class="num">${esc(s.AhServiceGesamt || "")}</td>
+      </tr>`;
+    })
+    .join("");
+
+  const kond = (d.AhKondRows || [])
+    .filter((r) => r && r.AhKondLabel)
+    .map(
+      (r) =>
+        `<div class="row"><span class="label" style="min-width:340px;">${esc(r.AhKondLabel)}</span><span>${esc(r.AhKondValue || "")}</span></div>`,
+    )
+    .join("");
+
+  // Signature: interactive on screen; baked in the final PDF. No payment terms.
+  let sig = "";
+  if (mode === "pdf") {
+    const p = effectivePrefill(opts.sr || {}, opts.doc || {});
+    sig = signatureBlock(opts.doc || {}, p);
+  } else {
+    sig = interactiveSignatureBlock() + submitBar("Unterschreiben & absenden");
+  }
+
+  const metaRow = (label, val) =>
+    `<div class="mrow"><span class="mlabel">${label}</span><span class="mval">${esc(val)}</span></div>`;
+
+  const inner = `
+    <div class="ang">
+      <style>${ANGEBOT_CSS}${mode === "pdf" ? "" : INTERACTIVE_CSS}</style>
+      <div class="topbar">
+        ${logoDataUri() ? `<img src="${logoDataUri()}" alt="EmC2">` : "<strong>EmC2 Alltagshilfe</strong>"}
+      </div>
+      <div class="sender">EmC2 Soziale Dienste UG (haftungsbeschränkt) · Waldstraße 5 · 95032 Hof</div>
+
+      <div class="addr-row">
+        <div class="cust">
+          ${d.Anrede ? `<div>${esc(d.Anrede)}</div>` : ""}
+          <div>${esc([d.Vorname, d.Nachname].filter(Boolean).join(" "))}</div>
+          <div>${esc(d.Adresse || "")}</div>
+          <div>${esc([d.PLZ, d.Stadt].filter(Boolean).join(" "))}</div>
+        </div>
+        <div class="meta">
+          ${metaRow("Angebot-Nr.", d.Angebotsnummer || "")}
+          ${metaRow("Datum", d.Datum || "")}
+          ${d.ValidityDate ? metaRow("Gültig bis", d.ValidityDate) : ""}
+          ${d.Ansprechpartner ? metaRow("Ansprechpartner", d.Ansprechpartner) : ""}
+        </div>
+      </div>
+
+      <div class="angtitle">Ihr Angebot für Hilfe im Haushalt</div>
+      <p>${esc(d.Greeting || "Sehr geehrte Damen und Herren")} ${esc(d.Nachname || "")},</p>
+      <p>${esc(OFFER_INTRO)}</p>
+
+      <table class="pos">
+        <thead><tr>
+          <th>Pos.</th><th>Beschreibung</th>
+          <th class="num">Menge</th><th class="num">Einzelpreis</th><th class="num">Gesamtpreis</th>
+        </tr></thead>
+        <tbody>${anfahrtRow}${serviceRows}</tbody>
+      </table>
+
+      <table class="totals"><tbody>
+        <tr class="alt"><td>Gesamtbetrag</td><td class="num">${esc(d.AhGesamtbetrag || "")}</td></tr>
+      </tbody></table>
+
+      ${d.AhNote ? `<p class="muted">${esc(d.AhNote)}</p>` : ""}
+
+      ${kond ? `<h2>Konditionen</h2>${kond}` : ""}
+
+      ${sig}
+    </div>`;
+
+  return mode === "pdf" ? wrap("Angebot – Alltagshilfe", inner) : inner;
+}
+
 // ---- Phase 2 (Kassenkunde) — ready to wire ----
 
 // Wrap a Vollmacht/Abtretung body for on-screen display (scoped, interactive).

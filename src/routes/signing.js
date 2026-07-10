@@ -25,6 +25,7 @@ import { generateOfferPdfBuffer, getOfferRenderData } from "./docx-template.js";
 import { htmlToPdfBuffer } from "../utils/htmlToPdf.js";
 import {
   buildAngebotHtml,
+  buildAhAngebotHtml,
   buildVollmachtHtml,
   buildAbtretungHtml,
 } from "../templates/signing-docs.js";
@@ -42,6 +43,18 @@ const DOCS_BY_TYPE = {
   SZ: ["angebot"],
   KASSE: ["angebot", "vollmacht", "abtretung"], // Phase 2 wires vollmacht/abtretung
 };
+
+// AH (Alltagshilfe) offers: only the Angebot for now (no payment terms, no
+// Vollmacht/Abtretung yet). Detected by offer type.
+function isAhOffer(sr) {
+  const t = String(sr?.offerType || "").toLowerCase();
+  return t === "ah" || t === "ah-alt";
+}
+
+// Build the Angebot HTML for the right offer type (BU vs AH).
+function buildAngebotForOffer(data, opts) {
+  return isAhOffer(opts.sr) ? buildAhAngebotHtml(data, opts) : buildAngebotHtml(data, opts);
+}
 
 const DOC_LABELS = {
   angebot: "Angebot",
@@ -178,7 +191,7 @@ async function buildDocumentPdf(sr, key) {
 async function buildSignedPdf(sr, doc) {
   if (doc.key === "angebot") {
     const { data } = await getOfferRenderData(payloadWithPaymentChoice(sr, doc));
-    return htmlToPdfBuffer(buildAngebotHtml(data, { mode: "pdf", sr, doc }));
+    return htmlToPdfBuffer(buildAngebotForOffer(data, { mode: "pdf", sr, doc }));
   }
   if (doc.key === "vollmacht") return htmlToPdfBuffer(buildVollmachtHtml(sr, doc));
   if (doc.key === "abtretung") return htmlToPdfBuffer(buildAbtretungHtml(sr, doc));
@@ -203,7 +216,11 @@ export async function createSigningRequest({
   const token = crypto.randomBytes(24).toString("hex");
   const expiresAt = new Date(Date.now() + DEFAULT_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 
-  const documents = (DOCS_BY_TYPE[customerType] || DOCS_BY_TYPE.SZ).map((key) => ({
+  // AH: only the Angebot for now. Otherwise the payer-based BU document set.
+  const offerTypeNorm = String(offerType || payload?.activeOffer || "").toLowerCase();
+  const isAh = offerTypeNorm === "ah" || offerTypeNorm === "ah-alt";
+  const docKeys = isAh ? ["angebot"] : DOCS_BY_TYPE[customerType] || DOCS_BY_TYPE.SZ;
+  const documents = docKeys.map((key) => ({
     key,
     status: "pending",
   }));
@@ -395,7 +412,7 @@ router.get("/:token/documents/:key/html", async (req, res) => {
     let html;
     if (key === "angebot") {
       const { data } = await getOfferRenderData(sr.payloadSnapshot || {});
-      html = buildAngebotHtml(data, { mode: "display", sr, doc });
+      html = buildAngebotForOffer(data, { mode: "display", sr, doc });
     } else if (key === "vollmacht") {
       html = buildVollmachtHtml(sr, doc, "display");
     } else if (key === "abtretung") {
@@ -449,9 +466,9 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
       return res.status(400).json({ error: "Unterschrift fehlt" });
     }
 
-    // For the Angebot the payment term is mandatory.
+    // For the BU Angebot the payment term is mandatory. AH has no payment terms.
     const extraFields = req.body?.extraFields || {};
-    if (key === "angebot") {
+    if (key === "angebot" && !isAhOffer(sr)) {
       const idx = Number(extraFields.paymentTermIdx);
       if (!Number.isFinite(idx) || idx < 0) {
         return res
