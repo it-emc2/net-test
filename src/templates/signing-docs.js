@@ -278,7 +278,7 @@ const ANGEBOT_CSS = `
 .ang table.pos th.num, .ang table.pos td.num { text-align:right; white-space:nowrap; }
 .ang .pos-lines { list-style:none; padding:0; margin:6px 0 0; }
 .ang .pos-lines li { margin:2px 0; padding-left:14px; position:relative; }
-.ang .pos-lines li::before { content:"–"; position:absolute; left:0; }
+.ang .pos-lines li::before { content:"-"; position:absolute; left:0; }
 .ang .matsub { font-weight:bold; margin:12px 0 4px; }
 .ang .matline { margin:2px 0; padding-left:2px; }
 .ang .totals { width:auto; margin-left:auto; min-width:300px; border-collapse:collapse; }
@@ -360,7 +360,7 @@ function festpreisBlock(d) {
   ];
   if (hasDuschwanne) {
     out.push(
-      `<p><strong>ACHTUNG:</strong> Ob eine ebenerdige Montage der Duschwanne möglich ist, kann erst nach dem Ausbau der bestehenden Wanne beurteilt werden. Sollten dabei zusätzliche oder weitere Leistungen erforderlich oder von Ihnen gewünscht sein, können zusätzliche Kosten entstehen. Diese werden vorab mit Ihnen besprochen, bedürfen Ihrer Zustimmung und werden auf Regiebasis nach tatsächlichem Aufwand abgerechnet.${rate ? ` (Stundensatz-Facharbeiter: ${esc(rate)} netto)` : ""}</p>`,
+      `<p><strong>ACHTUNG:</strong> Ob eine ebenerdige Montage der Duschwanne möglich ist, kann erst nach dem Ausbau der bestehenden Wanne beurteilt werden. Sollten dabei zusätzliche oder weitere Leistungen erforderlich oder von Ihnen gewünscht sein, können zusätzliche Kosten entstehen.<p/><p> Diese werden vorab mit Ihnen besprochen, bedürfen Ihrer Zustimmung und werden auf Regiebasis nach tatsächlichem Aufwand abgerechnet.${rate ? ` (Stundensatz-Facharbeiter: ${esc(rate)} netto)` : ""}</p>`,
     );
   }
   if (isKK && d.hasSubsidyLine) {
