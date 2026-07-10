@@ -2050,6 +2050,8 @@ function buildAhData(body) {
     // Hinweis zur zusätzlichen Alltagsbegleitung – nur zeigen, wenn ein Angebot
     // besteht und Alltagsbegleitung noch nicht gebucht ist.
     AhShowAbHinweis: gesamt > 0 && !hasAb,
+    // Umgekehrter Hinweis: Alltagsbegleitung gebucht, aber keine HnD-Leistung.
+    AhShowHndHinweis: gesamt > 0 && hasAb && !hasHnD,
   };
 }
 
