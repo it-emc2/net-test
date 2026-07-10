@@ -10,7 +10,12 @@ import net from "net";
 import dns from "dns";
 
 import EmailLog from "../models/EmailLog.js";
-import { addTimelineComment } from "./bitrix.js";
+import { addTimelineComment, updateDealStage } from "./bitrix.js";
+
+// Deal pipeline stage the offer email should advance the deal to.
+// "[VI] ANG verschickt" lives in deal category 38 (STATUS_ID C38:UC_2ZDNEZ).
+const ANG_VERSCHICKT_STAGE_ID = "C38:UC_2ZDNEZ";
+const ANG_VERSCHICKT_CATEGORY_ID = 38;
 import { createSigningRequest } from "./signing.js";
 
 import { buildEmailHtml } from "../lib/emailTemplate.js";
@@ -418,7 +423,25 @@ router.post("/send-offer", upload.array("attachments", 10), async (req, res) => 
       };
     }
 
-    res.json({ ok: true, messageId: info.messageId, attachmentNames, bitrixComment });
+    // ---- Advance the deal to "[VI] ANG verschickt" ----
+    let bitrixStage = { skipped: true, reason: "no deal" };
+    try {
+      const target = getBitrixTargetFromPayload(payload);
+      const stageDealId =
+        (target?.entityType === "deal" ? target.entityId : "") || dealId;
+      if (stageDealId) {
+        bitrixStage = await updateDealStage({
+          dealId: stageDealId,
+          stageId: ANG_VERSCHICKT_STAGE_ID,
+          categoryId: ANG_VERSCHICKT_CATEGORY_ID,
+        });
+      }
+    } catch (stageErr) {
+      console.warn("[email] Bitrix deal stage update failed:", stageErr);
+      bitrixStage = { ok: false, error: stageErr?.message || String(stageErr) };
+    }
+
+    res.json({ ok: true, messageId: info.messageId, attachmentNames, bitrixComment, bitrixStage });
   } catch (e) {
     console.error("[email] send-offer failed:", e);
     res.status(500).json({ error: "Send failed", detail: e?.message || String(e) });

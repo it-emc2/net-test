@@ -127,6 +127,27 @@ async function addTimelineComment({
   return bxPost("crm.timeline.comment.add", { fields });
 }
 
+// Move a deal to a specific pipeline stage. STAGE_IDs are category-specific
+// (prefixed with C<categoryId>:), so when the target stage belongs to a
+// non-default pipeline the deal's CATEGORY_ID must be set too, otherwise
+// Bitrix rejects/ignores the stage change.
+async function updateDealStage({ dealId, stageId, categoryId }) {
+  const numericId = Number(dealId);
+  if (!Number.isFinite(numericId) || numericId <= 0) {
+    throw new Error("dealId must be a positive number");
+  }
+  if (!stageId || !String(stageId).trim()) {
+    throw new Error("stageId is required");
+  }
+
+  const fields = { STAGE_ID: String(stageId).trim() };
+  if (categoryId !== undefined && categoryId !== null && String(categoryId) !== "") {
+    fields.CATEGORY_ID = Number(categoryId);
+  }
+
+  return bxPost("crm.deal.update", { id: numericId, fields });
+}
+
 async function getRequisiteIdForContact(contactId) {
   const data = await bxGet("crm.requisite.list", {
     filter: { ENTITY_TYPE_ID: OWNER_TYPE.contact, ENTITY_ID: Number(contactId) },
@@ -414,4 +435,4 @@ router.get("/calendar/week", async (_req, res) => {
 });
 
 export default router;
-export { addTimelineComment };
+export { addTimelineComment, updateDealStage };
