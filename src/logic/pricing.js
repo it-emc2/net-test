@@ -1327,25 +1327,36 @@ color: metaColor || null,
       // with its amount. Work hours are billed at handwerkerCount × laborRate;
       // travel hours differ (BWT: same rate, 1 worker; sonst: driver at
       // laborRate + second worker at the reduced sitz_reise_Rate).
+      // Each line carries qty (Std) and unitPrice (€/Std) so the Kosten table
+      // reconciles: Menge × Einzelpreis = Gesamt. For work hours the unit price
+      // is the crew rate (handwerkerCount × laborRate); for travel it's the
+      // per-hour travel rate (BWT: bwtLaborRate; sonst: driver + reduced 2nd worker).
       if (Arbeitszeit_hours_numeric > 0) {
+        const arbeitUnit = round2(handwerkerCount * laborRate);
         lines.push({
           key: "facharbeiter",
           label: `- ${formatQty(Arbeitszeit_hours_numeric)} Std Arbeitszeit × ${handwerkerCount} Facharbeiter × ${formatQty(laborRate)} €`,
-          amount: round2(Arbeitszeit_hours_numeric * handwerkerCount * laborRate),
+          qty: Arbeitszeit_hours_numeric,
+          unit: "Std",
+          unitPrice: arbeitUnit,
+          amount: round2(Arbeitszeit_hours_numeric * arbeitUnit),
           docxHide: true,
         });
       }
       if (reise_hours_numeric > 0) {
+        const reiseUnit = isBwt
+          ? round2(bwtLaborRate)
+          : round2(laborRate + sitz_reise_Rate);
         const reiseLabel = isBwt
           ? `- ${formatQty(reise_hours_numeric)} Std Anfahrt × ${handwerkerCount} Facharbeiter × ${formatQty(bwtLaborRate)} €`
           : `- ${formatQty(reise_hours_numeric)} Std Anfahrt × (${formatQty(laborRate)} € + ${formatQty(sitz_reise_Rate)} €)`;
-        const reiseAmount = isBwt
-          ? round2(reise_hours_numeric * bwtLaborRate)
-          : round2(reise_hours_numeric * (laborRate + sitz_reise_Rate));
         lines.push({
           key: "reisezeit",
           label: reiseLabel,
-          amount: reiseAmount,
+          qty: reise_hours_numeric,
+          unit: "Std",
+          unitPrice: reiseUnit,
+          amount: round2(reise_hours_numeric * reiseUnit),
           docxHide: true,
         });
       }

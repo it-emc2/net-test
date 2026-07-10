@@ -10781,18 +10781,27 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         /bereitstellung.*werkzeug/i.test(plain) ||
         /ber.?umung der baustelle/i.test(plain) ||
         /kilometerpauschale/i.test(plain) ||
-        /facharbeiter/i.test(plain);
+        /facharbeiter/i.test(plain) ||
+        /anfahrt/i.test(plain);
 
       const laborRate = Number(data?.services?.laborRate || 0);
 
       // when building the Facharbeiter row:
       const isFacharbeiter =
         s.key === "facharbeiter" || /facharbeiter/i.test(s.label || "");
+      // Prefer the line's own unitPrice (labor lines now carry a crew/travel
+      // rate so Menge × Einzelpreis reconciles); fall back to the hourly rate.
+      const rowUnitPrice = Number.isFinite(Number(s.unitPrice))
+        ? Number(s.unitPrice)
+        : isFacharbeiter && laborRate
+          ? laborRate
+          : Number(s.amount ?? 0);
       const row = {
         productId: s.key || s.productId,
         label: label || s.name || s.productId || "-",
         qty: s.qty ?? 1,
-        unitPrice: isFacharbeiter && laborRate ? laborRate : (s.unitPrice ?? s.amount ?? 0),
+        unit: s.unit || "",
+        unitPrice: rowUnitPrice,
         lineTotal: s.amount,
       };
 
