@@ -345,6 +345,22 @@ export function mountConfigurator(el, model, options = {}) {
           row.appendChild(einbauSpan);
         }
 
+        // Stock badge — display-only. In stock when stockQuantity > 0; otherwise
+        // treated as "auf Bestellung". Shown only when the article carries stock data.
+        const hasStock =
+          line.article.stockQuantity != null || line.article.stockText != null;
+        if (hasStock) {
+          const inStock = Number(line.article.stockQuantity) > 0;
+          const stockSpan = document.createElement("span");
+          stockSpan.className =
+            "dac-line-stock " + (inStock ? "dac-stock-in" : "dac-stock-out");
+          stockSpan.textContent = inStock
+            ? `Auf Lager (${line.article.stockQuantity})`
+            : "Auf Bestellung";
+          if (line.article.stockText) stockSpan.title = line.article.stockText;
+          row.appendChild(stockSpan);
+        }
+
         const priceSpan = document.createElement("span");
         priceSpan.className = "dac-line-price";
         priceSpan.textContent = euro(line.article.net);
