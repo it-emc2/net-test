@@ -171,6 +171,7 @@ const OFFERS = {
       "admin",
       "services",
       "crm-emc2",
+      "DaConfigDev",
     ],
   },
   bwt: {
@@ -2703,7 +2704,11 @@ function updateSidebarForOffer() {
 
   appendAccordionGroup(
     "Developer",
-    pages.filter((pageId) => pageId === "admin" || pageId === "services"),
+    pages.filter(
+      (pageId) =>
+        pageId === "admin" || pageId === "services" || pageId === "DaConfigDev",
+    ),
+    { DaConfigDev: "Duschabtrennung (DB-Test)" },
   );
   appendAccordionGroup(
     "CRM",
