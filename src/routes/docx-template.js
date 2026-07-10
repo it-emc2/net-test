@@ -1254,11 +1254,18 @@ async function mapData(body = {}, computed = {}) {
     for (const cat of CATEGORY_ORDER) {
       const rows = grouped.get(cat);
       if (!rows || !rows.length) continue;
-      MaterialsLines.push({ MaterialLine: cat.toUpperCase() });
-      for (const row of rows) MaterialsLines.push({ MaterialLine: row.MaterialLine });
+      // IsSub marks a bold, spaced subcategory header (e.g. KLEINMATERIAL);
+      // item lines are IsSub:false. Consumed by the {#IsSub}/{^IsSub}
+      // condition in the Angebot.docx MaterialsLines loop.
+      MaterialsLines.push({ MaterialLine: cat.toUpperCase(), IsSub: true });
+      for (const row of rows)
+        MaterialsLines.push({ MaterialLine: row.MaterialLine, IsSub: false });
     }
   } else {
-    MaterialsLines = renderedMaterialRows.map(({ MaterialLine }) => ({ MaterialLine }));
+    MaterialsLines = renderedMaterialRows.map(({ MaterialLine }) => ({
+      MaterialLine,
+      IsSub: false,
+    }));
   }
   const PayerKind = services?.payer || b.payer || "";
 
