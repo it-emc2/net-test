@@ -1020,8 +1020,8 @@
       #summaryWidget .sw-actions { order: 9; margin-top: 0; }
       #summaryWidget .sw-save-btn { width: auto; white-space: nowrap; }
 
-      /* keep content clear of the fixed bar */
-      .container { padding-bottom: 96px; }
+      /* keep content clear of the fixed bar (bar can wrap to 2 rows on tablet) */
+      .container { padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
 
       /* show the collapse toggle only on small screens */
       #swToggleSummary { display: inline-flex; }
