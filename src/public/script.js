@@ -10044,7 +10044,7 @@ window.computeAHGesamt = function computeAHGesamt() {
       var dauerH = (typeof parseDurationMinutes === "function" ? parseDurationMinutes(sched.dauer || "") : 0) / 60;
       var freq   = AH_FREQ[sched.regelmaessigkeit] || 0;
       if (!dauerH || !freq) return;
-      var perVisitH = dauerH + 2 * reisezeitH;
+      var perVisitH = dauerH + reisezeitH;
       var monthlyH  = perVisitH * freq;
       totalEinsaetze  += freq;
       totalMonatlichH += monthlyH;
@@ -10052,7 +10052,7 @@ window.computeAHGesamt = function computeAHGesamt() {
         dauer:            sched.dauer || "",
         regelmaessigkeit: sched.regelmaessigkeit || "",
         dauerMin:         Math.round(dauerH * 60),
-        reiseRoundMin:    Math.round(2 * reisezeitH * 60),
+        reiseRoundMin:    Math.round(reisezeitH * 60),
         perVisitMin:      Math.round(perVisitH * 60),
         freq:             freq,
         monthlyH:         monthlyH,
@@ -10539,7 +10539,7 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
     var zoneHTML = opts.zoneData
       ? '<div style="margin-bottom:8px; font-size:0.82rem; color:var(--muted);">' +
           "<b>Zone " + esc(opts.zoneData.zone) + "</b> · Hin-Fahrt " + esc(opts.zoneData.billMin) +
-          " min · Hin &amp; Rück " + (2 * (Number(opts.zoneData.billMin) || 0)) + " min (im Stundenumfang enthalten)" +
+          " min (im Stundenumfang enthalten)" +
         "</div>"
       : '<div style="margin-bottom:8px; font-size:0.82rem; color:#854d0e;">⚠ Keine Zone bestimmt.</div>';
 
