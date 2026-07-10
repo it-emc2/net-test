@@ -199,6 +199,28 @@ export function initRestoreManager({
       syncSummaryLeadIds(resolvedAuftragId);
     }
 
+    // Restore the E-Mail-Versand fields (Lead ID / Auftrag ID, recipient,
+    // subject and body). These live outside any form-* element, so they are
+    // restored explicitly here. The body carries the dynamic Ansprechpartner
+    // name embedded in its saved text.
+    try {
+      const mail = payload?.mail || {};
+      const setMailField = (id, value) => {
+        if (value == null || value === "") return;
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.value = value;
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+      setMailField("mailAuftragId", mail.auftragId || resolvedAuftragId);
+      setMailField("mailTo", mail.to);
+      setMailField("mailSubject", mail.subject);
+      setMailField("mailBody", mail.body);
+    } catch (e) {
+      console.warn("[restore] mail fields restore failed:", e?.message || e);
+    }
+
     try {
       await window.__drawingReady;
       console.log("[SKETCH][restore-call-site]", {

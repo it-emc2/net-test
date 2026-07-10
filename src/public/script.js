@@ -4391,6 +4391,17 @@ if (anschlag) {
   payload.auftragId = (document.getElementById("auftragId")?.value || "").trim() || undefined;
   payload.postal = readPostalStateForPayload();
 
+  // ✅ E-Mail-Versand fields (mail card lives outside any form-* element, so it
+  // is not picked up by formToObject above). Persist so drafts can restore the
+  // recipient, subject and body — the body also carries the dynamic
+  // Ansprechpartner name embedded in its text.
+  payload.mail = {
+    auftragId: (document.getElementById("mailAuftragId")?.value || "").trim(),
+    to: (document.getElementById("mailTo")?.value || "").trim(),
+    subject: (document.getElementById("mailSubject")?.value || "").trim(),
+    body: document.getElementById("mailBody")?.value || "",
+  };
+
   return filterPayloadByOffer(payload);
 
 
