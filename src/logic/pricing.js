@@ -1464,6 +1464,21 @@ color: metaColor || null,
       });
     }
 
+    // 1b) Arbeitszeit (Facharbeiter) – same math as computeServiceCosts()
+    const arbeit_hours_numeric = Number(b.ArbeitHoursNumeric ?? 0) || 0;
+    if (arbeit_hours_numeric > 0 && bwt_reise_Rate > 0) {
+      const arbeitUnit = round2(bwt_handwerkerCount * bwt_reise_Rate);
+      const arbeitQtyStr = arbeit_hours_numeric.toFixed(2).replace(".", ",");
+      out.push({
+        key: "facharbeiter",
+        label: `- ${arbeitQtyStr} Std Arbeitszeit × ${bwt_handwerkerCount} Facharbeiter × ${String(bwt_reise_Rate).replace(".", ",")} €`,
+        qty: arbeit_hours_numeric,
+        unit: "Std",
+        unitPrice: arbeitUnit,
+        lineTotal: round2(arbeit_hours_numeric * arbeitUnit),
+      });
+    }
+
     // If no door selected (qty 0 or no type), skip Lieferkosten / Tür / Kleinmaterial
     if (!hasDoor) {
       return out;
@@ -1475,7 +1490,11 @@ color: metaColor || null,
     const ids = ["140322", "KM02"];
     const map = await getProductsByIds(ids);
 
-    const lieferPrice = Number(map.get("140322")?.price || 0);
+    // Lieferkosten Badewannentür: admin-editable via config (falls back to the
+    // product DB price for 140322, then to the schema default 59,00 €).
+    const lieferPrice = Number(
+      cfg.get('BWT_LIEFERKOSTEN', Number(map.get("140322")?.price || 0)),
+    );
     const kleinPrice = Number(map.get("KM02")?.price || 0);
 
     // 2) Lieferkosten Badewannentür (real price from DB)

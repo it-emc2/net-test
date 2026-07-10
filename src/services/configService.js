@@ -105,6 +105,11 @@ export const CONFIG_SCHEMA = [
     label: 'Mitarbeiter BWT', unit: 'Pers.', type: 'integer', section: 'bwt', order: 4,
     description: 'Anzahl Monteure bei einem BWT-Einsatz',
   },
+  {
+    key: 'BWT_LIEFERKOSTEN', value: 59.0,
+    label: 'Lieferkosten Badewannentür', unit: '€', type: 'euro', section: 'bwt', order: 5,
+    description: 'Lieferkosten je Badewannentür (Position 140322)',
+  },
 
   // ── ZUSCHÜSSE & BONI ─────────────────────────────────────────────────────
   {

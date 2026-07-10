@@ -668,14 +668,14 @@ function updateOfferSpecificSections() {
     .trim()
     .toLowerCase();
 
-  // Relocate the Aufschlag section: for Badumbau it lives on the Rabatt page,
-  // for every other offer it stays in its Kundendaten home. A single element is
-  // moved (not duplicated) so its IDs and serialization into
-  // payload.Kundendaten.aufschlag remain unchanged.
+  // Relocate the Aufschlag section: for Badumbau (BU) and Badewannentür (BWT)
+  // it lives on the Rabatt page, for every other offer it stays in its
+  // Kundendaten home. A single element is moved (not duplicated) so its IDs and
+  // serialization into payload.Kundendaten.aufschlag remain unchanged.
   (function relocateAufschlag() {
     var sec = document.getElementById("aufschlagSection");
     if (!sec) return;
-    if (offer === "bu") {
+    if (offer === "bu" || offer === "bwt") {
       var mount = document.getElementById("aufschlagRabattMount");
       if (mount && sec.parentElement !== mount) mount.appendChild(sec);
     } else {
@@ -7247,7 +7247,7 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
   function render() {
     const pct = currentPct();
     const has = Number.isFinite(pct);
-    if (has && slider && pct >= 0 && pct <= 100) slider.value = pct;
+    if (has && slider && pct >= 0 && pct <= 200) slider.value = pct;
     chips.forEach((c) =>
       c.classList.toggle("active", has && Number(c.dataset.value) === pct),
     );
@@ -10563,6 +10563,24 @@ function hasOptionalPageForCurrentOffer() {
         qty: 1, // per unit
         unitPrice: Number(kmRow.amount || 0),
         lineTotal: Number(kmRow.amount || 0),
+      });
+    }
+
+    // 1b) Arbeitszeit (Facharbeiter) from services – was previously dropped for BWT
+    const arbeitRow = svcSrc.find(
+      (s) =>
+        s.key === "facharbeiter" ||
+        /facharbeiter|arbeitszeit/i.test(String(s.label || s.name || "")),
+    );
+    if (arbeitRow && Number(arbeitRow.amount) > 0) {
+      out.push({
+        productId: arbeitRow.key || arbeitRow.productId || "facharbeiter",
+        label: String(arbeitRow.label || arbeitRow.name || "-"),
+        qty: Number(arbeitRow.qty ?? 1) || 1,
+        unitPrice: Number(
+          arbeitRow.unitPrice ?? arbeitRow.amount ?? 0,
+        ),
+        lineTotal: Number(arbeitRow.amount || 0),
       });
     }
 
