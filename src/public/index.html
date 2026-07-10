@@ -3080,6 +3080,17 @@ button.dm-btn-danger:focus-visible {
                   <div id="travelDaysPreview" class="az-field-hint"></div>
                 </label>
 
+                <div id="ahZoneDisplay" data-offer="ah"
+                  style="display:none; margin-top:10px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--panel); color:var(--text); font-size:0.88rem;">
+                  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span style="color:var(--muted);">Reisezone (AH):</span>
+                    <strong id="ahZoneDisplayValue">Noch nicht bestimmt</strong>
+                  </div>
+                  <div id="ahZoneDisplayHint" style="margin-top:4px; font-size:0.8rem; color:var(--muted);">
+                    Wird aus der Reisezeit (Hinfahrt) berechnet und fließt in die AH-Kosten ein. Rückfahrt wird nicht berechnet.
+                  </div>
+                </div>
+
                 <div class="az-field-row" data-offer="bu,bwt,hl,bl,hms,wd">
                   <label class="field">
                     <span>Übernachten (Tage ohne Rückfahrt)</span>

@@ -2869,6 +2869,10 @@ function setStep(step) {
     setTimeout(() => window.updatePricing?.(), 0);
     setTimeout(() => window.refreshAllPanels?.(), 0);
   }
+
+  if (step === "Arbeitszeit") {
+    setTimeout(() => window.updateAHZoneDisplay?.(), 0);
+  }
 }
 
 // --- CENTRAL WIZARD STATE WIRING (offer type + step) ---
@@ -10028,6 +10032,18 @@ window.getAHZoneData = function() {
   return null;
 };
 
+/* ========== AH: show selected Reisezone on the Arbeitszeit tab ========== */
+window.updateAHZoneDisplay = function updateAHZoneDisplay() {
+  var valEl = document.getElementById("ahZoneDisplayValue");
+  if (!valEl) return;
+  var zd = window.getAHZoneData?.() || null;
+  if (zd && zd.zone) {
+    valEl.textContent = "Zone " + zd.zone + " · Hinfahrt " + zd.billMin + " min pro Einsatz";
+  } else {
+    valEl.textContent = "Noch nicht bestimmt";
+  }
+};
+
 /* ========== AH: shared client-side pricing computation ========== */
 window.computeAHGesamt = function computeAHGesamt() {
   var AH_FREQ = {
@@ -15785,6 +15801,7 @@ async function suggestDistanceFromAddress(opts = {}) {
       window.__ahZoneData = { zone: zoneDef.zone, billMin: zoneDef.billMin, oneWayMins };
       const zoneEl = document.getElementById("ahTravelZone");
       if (zoneEl) zoneEl.value = zoneDef.zone;
+      window.updateAHZoneDisplay?.();
       window.updatePricing?.();
     }
 
@@ -15850,6 +15867,7 @@ document.addEventListener("DOMContentLoaded", () => {
       window.__ahZoneData = { zone: zoneDef.zone, billMin: zoneDef.billMin, oneWayMins: mins };
       const zoneEl = document.getElementById("ahTravelZone");
       if (zoneEl) zoneEl.value = zoneDef.zone;
+      window.updateAHZoneDisplay?.();
       window.updatePricing?.();
     };
     travelTimeEl.addEventListener("change", recomputeAHZone);
