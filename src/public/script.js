@@ -6348,22 +6348,8 @@ document.body.addEventListener("click", (e) => {
     serialize();
   };
 
-  // ── Kosten-Vorschau toggle ────────────────────────────────────────────
-  (function () {
-    var toggleBtn  = document.getElementById("ahPreviewToggle");
-    var detailsEl  = document.getElementById("ahPreviewDetails");
-    if (!toggleBtn || !detailsEl) return;
-    toggleBtn.addEventListener("click", function () {
-      var isOpen = detailsEl.style.display !== "none";
-      detailsEl.style.display = isOpen ? "none" : "flex";
-      toggleBtn.style.color       = isOpen ? "var(--text-muted,#94a3b8)" : "var(--accent,#0ea5e9)";
-      toggleBtn.style.borderColor = isOpen ? "var(--border)"              : "var(--accent,#0ea5e9)";
-      if (!isOpen && typeof window.renderAHKostenPreview === "function") {
-        window.renderAHKostenPreview();
-      }
-    });
-    if (typeof window.renderAHKostenPreview === "function") window.renderAHKostenPreview();
-  })();
+  // ── Initial render of the AH Kosten-Übersicht ─────────────────────────
+  if (typeof window.renderAHKostenPreview === "function") window.renderAHKostenPreview();
 })();
 // =================================================================
 // #region 10. PAGE SPECIFIC LOGIC (Wandverkleidung, Duschwanne, etc)
@@ -10141,95 +10127,22 @@ window.computeAHGesamt = function computeAHGesamt() {
 
 /* ========== AH: Kosten-Vorschau (live preview on AH page) ========== */
 window.renderAHKostenPreview = function renderAHKostenPreview() {
-  var gesamtEl  = document.getElementById("ahPreviewGesamt");
-  var detailsEl = document.getElementById("ahPreviewDetails");
-  if (!gesamtEl) return;
-
   var fmtEuro = function(n) {
     return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n) || 0);
   };
-  var fmtH = function(h) { return (Math.round(h * 100) / 100).toFixed(2).replace(".", ","); };
 
   var ah = window.computeAHGesamt?.() || {};
-  var gesamt          = ah.gesamt          || 0;
-  var gesamtBase      = ah.gesamtBase      || 0;
-  var anfahrtTotal    = ah.anfahrtTotal    || 0;
-  var leistungenTotal = ah.leistungenTotal || 0;
-  var totalMonatlichH = ah.totalMonatlichH || 0;
-  var hasAb           = !!ah.hasAb;
-  var abAnfahrtTotal    = ah.abAnfahrtTotal    || 0;
-  var abLeistungenTotal = ah.abLeistungenTotal || 0;
-  var abGesamtBase      = ah.abGesamtBase      || 0;
-  var abTotalMonatlichH = ah.abTotalMonatlichH || 0;
-  var hasHnd = totalMonatlichH > 0;
-
-  gesamtEl.textContent = gesamt > 0 ? fmtEuro(gesamt) + " / Mon." : "—";
+  var hasHnd = (ah.totalMonatlichH || 0) > 0;
+  var hasAb  = !!ah.hasAb;
 
   // Per-section live totals in each section header
   var hdrHnd = document.getElementById("ahHeaderTotalHnd");
   var hdrAb  = document.getElementById("ahHeaderTotalAb");
-  if (hdrHnd) hdrHnd.textContent = hasHnd ? fmtEuro(gesamtBase)   + " / Mon." : "—";
-  if (hdrAb)  hdrAb.textContent  = hasAb  ? fmtEuro(abGesamtBase) + " / Mon." : "—";
+  if (hdrHnd) hdrHnd.textContent = hasHnd ? fmtEuro(ah.gesamtBase   || 0) + " / Mon." : "—";
+  if (hdrAb)  hdrAb.textContent  = hasAb  ? fmtEuro(ah.abGesamtBase || 0) + " / Mon." : "—";
 
-  // Rich visual overview (always rendered, independent of the legacy details toggle)
+  // Rich visual overview (single source of truth for the AH cost display)
   if (typeof window.renderAHKostenOverview === "function") window.renderAHKostenOverview(ah);
-
-  if (!detailsEl || detailsEl.style.display === "none") return;
-
-  if (!hasHnd && !hasAb) {
-    detailsEl.innerHTML = '<div style="font-size:0.85rem; color:var(--muted); padding:4px 0;">Noch keine Leistung konfiguriert.</div>';
-    return;
-  }
-
-  var ANFAHRT = 7.96;
-  var zoneData = ah.zoneData || null;
-
-  // service-only vs travel-only monthly hours, derived from the schedule rows
-  function splitHours(schedRows) {
-    var svcH = 0, travH = 0;
-    (schedRows || []).forEach(function (r) {
-      var f = Number(r.freq) || 0;
-      svcH  += (Number(r.dauerMin)      || 0) / 60 * f;
-      travH += (Number(r.reiseRoundMin) || 0) / 60 * f;
-    });
-    return { svcH: svcH, travH: travH };
-  }
-
-  function lineRow(label, value, opts) {
-    opts = opts || {};
-    var style = 'display:flex; justify-content:space-between; gap:8px;' +
-      (opts.muted ? ' color:var(--muted);' : '') +
-      (opts.strong ? ' font-weight:600;' : '') +
-      (opts.top ? ' border-top:1px solid var(--border); padding-top:3px; margin-top:2px;' : '');
-    return '<div style="' + style + '"><span>' + label + '</span><span>' + value + '</span></div>';
-  }
-
-  function svcBlock(title, anfahrt, leistungen, billedH, rate, base, einsaetze, schedRows) {
-    var sp = splitHours(schedRows);
-    var fahrtHint = zoneData
-      ? ' <span style="color:var(--muted); font-weight:400;">(Zone ' + zoneData.zone + ' · ' + zoneData.billMin + ' min Hinfahrt / Einsatz)</span>'
-      : '';
-    return '<div style="font-size:0.82rem; border:1px solid var(--border); border-radius:6px; overflow:hidden;">' +
-      '<div style="font-weight:600; padding:5px 10px; background:var(--panel); color:var(--text); border-bottom:1px solid var(--border);">' + title + '</div>' +
-      '<div style="padding:6px 10px; display:flex; flex-direction:column; gap:3px;">' +
-        lineRow('Leistungszeit', fmtH(sp.svcH) + ' h', { muted: true }) +
-        lineRow('Fahrtzeit' + fahrtHint, fmtH(sp.travH) + ' h', { muted: true }) +
-        lineRow('Abgerechnete Std. ' + fmtH(billedH) + ' h &times; ' + fmtEuro(rate), fmtEuro(leistungen), { strong: true, top: true }) +
-        lineRow('Anfahrtspauschale ' + fmtH(einsaetze) + ' &times; ' + fmtEuro(ANFAHRT), fmtEuro(anfahrt), { muted: true }) +
-        lineRow('Zwischensumme', fmtEuro(base), { strong: true, top: true }) +
-      '</div>' +
-    '</div>';
-  }
-
-  var html = "";
-  if (hasHnd) html += svcBlock("HnD-Leistungen",    anfahrtTotal,   leistungenTotal,   totalMonatlichH,   40.56, gesamtBase,   ah.totalEinsaetze,   ah.schedRows);
-  if (hasAb)  html += svcBlock("Alltagsbegleitung",  abAnfahrtTotal, abLeistungenTotal, abTotalMonatlichH, 53.04, abGesamtBase, ah.abTotalEinsaetze, ah.abSchedRows);
-  if (hasHnd && hasAb) {
-    html += '<div style="display:flex; justify-content:space-between; font-size:0.95rem; font-weight:700; padding-top:6px; border-top:2px solid var(--border); margin-top:2px;">' +
-      '<span>Gesamt / Monat</span><span>' + fmtEuro(gesamt) + '</span></div>';
-  }
-
-  detailsEl.innerHTML = html;
 };
 
 /* ========== AH: rich visual Kosten-Übersicht (below the live preview) ========== */
