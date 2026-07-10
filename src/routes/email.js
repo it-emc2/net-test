@@ -293,7 +293,8 @@ router.post("/send-offer", upload.array("attachments", 10), async (req, res) => 
     }
 
     // ---- Generate offer PDF (same path as /docx-template/pdf) ----
-    const { pdfBuffer: pdfBuf } = await generateOfferPdfBuffer(payload || {});
+    const { pdfBuffer: pdfBuf, computed: offerComputed } =
+      await generateOfferPdfBuffer(payload || {});
 
     const angebotFilename = safeOfferFilename(payload?.offerNumber || offerNumber);
     const signatureCid = "emc2-signature-picture";
@@ -434,6 +435,10 @@ router.post("/send-offer", upload.array("attachments", 10), async (req, res) => 
           dealId: stageDealId,
           stageId: ANG_VERSCHICKT_STAGE_ID,
           categoryId: ANG_VERSCHICKT_CATEGORY_ID,
+          // "Betrag und Währung" is required on this stage — fill it from the
+          // offer's final gross total (Gesamtsumme/Brutto).
+          opportunity: Number(offerComputed?.total) || 0,
+          currencyId: "EUR",
         });
       }
     } catch (stageErr) {

@@ -131,7 +131,13 @@ async function addTimelineComment({
 // (prefixed with C<categoryId>:), so when the target stage belongs to a
 // non-default pipeline the deal's CATEGORY_ID must be set too, otherwise
 // Bitrix rejects/ignores the stage change.
-async function updateDealStage({ dealId, stageId, categoryId }) {
+async function updateDealStage({
+  dealId,
+  stageId,
+  categoryId,
+  opportunity,
+  currencyId,
+}) {
   const numericId = Number(dealId);
   if (!Number.isFinite(numericId) || numericId <= 0) {
     throw new Error("dealId must be a positive number");
@@ -143,6 +149,16 @@ async function updateDealStage({ dealId, stageId, categoryId }) {
   const fields = { STAGE_ID: String(stageId).trim() };
   if (categoryId !== undefined && categoryId !== null && String(categoryId) !== "") {
     fields.CATEGORY_ID = Number(categoryId);
+  }
+
+  // "Betrag und Währung" — required on this stage. Fill it from the offer total.
+  const amount = Number(opportunity);
+  if (Number.isFinite(amount) && amount > 0) {
+    fields.OPPORTUNITY = amount;
+    // Keep the amount fixed instead of letting Bitrix recompute it from the
+    // (empty) product rows, which would reset it to 0.
+    fields.IS_MANUAL_OPPORTUNITY = "Y";
+    fields.CURRENCY_ID = String(currencyId || "EUR").trim() || "EUR";
   }
 
   return bxPost("crm.deal.update", { id: numericId, fields });
