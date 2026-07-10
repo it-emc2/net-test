@@ -5896,7 +5896,7 @@ document.body.addEventListener("click", (e) => {
       row.style.cssText =
         "display:flex; align-items:center; gap:8px; padding:8px 12px;" +
         (isLast ? "" : "border-bottom:1px solid var(--border);") +
-        (isChecked ? "background:var(--accent-light,#eff6ff);" : "");
+        (isChecked ? "background:var(--accent-weak); color:var(--accent-strong);" : "");
 
       var cb = document.createElement("input");
       cb.type = "checkbox";
@@ -5913,7 +5913,8 @@ document.body.addEventListener("click", (e) => {
       });
 
       cb.addEventListener("change", function () {
-        row.style.background = cb.checked ? "var(--accent-light,#eff6ff)" : "";
+        row.style.background = cb.checked ? "var(--accent-weak)" : "";
+        row.style.color      = cb.checked ? "var(--accent-strong)" : "";
       });
 
       row.appendChild(cb);
