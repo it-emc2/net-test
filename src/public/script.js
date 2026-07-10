@@ -10162,26 +10162,49 @@ window.renderAHKostenPreview = function renderAHKostenPreview() {
     return;
   }
 
-  function svcBlock(title, anfahrt, leistungen, h, rate, base) {
+  var ANFAHRT = 7.96;
+  var zoneData = ah.zoneData || null;
+
+  // service-only vs travel-only monthly hours, derived from the schedule rows
+  function splitHours(schedRows) {
+    var svcH = 0, travH = 0;
+    (schedRows || []).forEach(function (r) {
+      var f = Number(r.freq) || 0;
+      svcH  += (Number(r.dauerMin)      || 0) / 60 * f;
+      travH += (Number(r.reiseRoundMin) || 0) / 60 * f;
+    });
+    return { svcH: svcH, travH: travH };
+  }
+
+  function lineRow(label, value, opts) {
+    opts = opts || {};
+    var style = 'display:flex; justify-content:space-between; gap:8px;' +
+      (opts.muted ? ' color:var(--muted);' : '') +
+      (opts.strong ? ' font-weight:600;' : '') +
+      (opts.top ? ' border-top:1px solid var(--border); padding-top:3px; margin-top:2px;' : '');
+    return '<div style="' + style + '"><span>' + label + '</span><span>' + value + '</span></div>';
+  }
+
+  function svcBlock(title, anfahrt, leistungen, billedH, rate, base, einsaetze, schedRows) {
+    var sp = splitHours(schedRows);
+    var fahrtHint = zoneData
+      ? ' <span style="color:var(--muted); font-weight:400;">(Zone ' + zoneData.zone + ' · ' + zoneData.billMin + ' min Hinfahrt / Einsatz)</span>'
+      : '';
     return '<div style="font-size:0.82rem; border:1px solid var(--border); border-radius:6px; overflow:hidden;">' +
       '<div style="font-weight:600; padding:5px 10px; background:var(--panel); color:var(--text); border-bottom:1px solid var(--border);">' + title + '</div>' +
       '<div style="padding:6px 10px; display:flex; flex-direction:column; gap:3px;">' +
-        '<div style="display:flex; justify-content:space-between; color:var(--muted);">' +
-          '<span>Anfahrtspauschale</span><span>' + fmtEuro(anfahrt) + '</span>' +
-        '</div>' +
-        '<div style="display:flex; justify-content:space-between; color:var(--muted);">' +
-          '<span>' + fmtH(h) + ' h &times; ' + fmtEuro(rate) + '</span><span>' + fmtEuro(leistungen) + '</span>' +
-        '</div>' +
-        '<div style="display:flex; justify-content:space-between; font-weight:600; border-top:1px solid var(--border); padding-top:3px; margin-top:2px;">' +
-          '<span>Zwischensumme</span><span>' + fmtEuro(base) + '</span>' +
-        '</div>' +
+        lineRow('Leistungszeit', fmtH(sp.svcH) + ' h', { muted: true }) +
+        lineRow('Fahrtzeit' + fahrtHint, fmtH(sp.travH) + ' h', { muted: true }) +
+        lineRow('Abgerechnete Std. ' + fmtH(billedH) + ' h &times; ' + fmtEuro(rate), fmtEuro(leistungen), { strong: true, top: true }) +
+        lineRow('Anfahrtspauschale ' + fmtH(einsaetze) + ' &times; ' + fmtEuro(ANFAHRT), fmtEuro(anfahrt), { muted: true }) +
+        lineRow('Zwischensumme', fmtEuro(base), { strong: true, top: true }) +
       '</div>' +
     '</div>';
   }
 
   var html = "";
-  if (hasHnd) html += svcBlock("HnD-Leistungen",    anfahrtTotal,   leistungenTotal,   totalMonatlichH,   40.56, gesamtBase);
-  if (hasAb)  html += svcBlock("Alltagsbegleitung",  abAnfahrtTotal, abLeistungenTotal, abTotalMonatlichH, 53.04, abGesamtBase);
+  if (hasHnd) html += svcBlock("HnD-Leistungen",    anfahrtTotal,   leistungenTotal,   totalMonatlichH,   40.56, gesamtBase,   ah.totalEinsaetze,   ah.schedRows);
+  if (hasAb)  html += svcBlock("Alltagsbegleitung",  abAnfahrtTotal, abLeistungenTotal, abTotalMonatlichH, 53.04, abGesamtBase, ah.abTotalEinsaetze, ah.abSchedRows);
   if (hasHnd && hasAb) {
     html += '<div style="display:flex; justify-content:space-between; font-size:0.95rem; font-weight:700; padding-top:6px; border-top:2px solid var(--border); margin-top:2px;">' +
       '<span>Gesamt / Monat</span><span>' + fmtEuro(gesamt) + '</span></div>';
@@ -10530,7 +10553,7 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
 
     var leistungRow =
       '<div style="' + rowStyle + '">' +
-        "<span>Leistungen</span>" +
+        '<span>Leistungen <span style="font-size:0.78rem; color:var(--muted);">(inkl. Fahrtzeit Hinfahrt)</span></span>' +
         '<span style="text-align:right; color:var(--muted);">' + fmtH(opts.hours) + " h</span>" +
         '<span style="text-align:right; color:var(--muted);">' + euro(opts.rate) + "</span>" +
         '<span style="text-align:right; font-weight:600;">' + euro(opts.leistungenTotal) + "</span>" +
@@ -10554,8 +10577,8 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
     var detId = "ahDet" + (toggleSeq++);
     var zoneHTML = opts.zoneData
       ? '<div style="margin-bottom:8px; font-size:0.82rem; color:var(--muted);">' +
-          "<b>Zone " + esc(opts.zoneData.zone) + "</b> · Hin-Fahrt " + esc(opts.zoneData.billMin) +
-          " min (im Stundenumfang enthalten)" +
+          "<b>Zone " + esc(opts.zoneData.zone) + "</b> · Hinfahrt " + esc(opts.zoneData.billMin) +
+          " min pro Einsatz (im Stundensatz enthalten · Rückfahrt wird nicht berechnet)" +
         "</div>"
       : '<div style="margin-bottom:8px; font-size:0.82rem; color:#854d0e;">⚠ Keine Zone bestimmt.</div>';
 
@@ -10574,8 +10597,8 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
       ? '<table style="border-collapse:collapse; width:100%; font-size:0.78rem; margin-top:4px;">' +
           '<thead><tr style="color:var(--muted); font-weight:600;">' +
             '<th style="padding:5px 8px; text-align:left;">Regelmäßigkeit</th>' +
-            '<th style="padding:5px 8px; text-align:right;">Einsatz</th>' +
-            '<th style="padding:5px 8px; text-align:right;">+ H&amp;R</th>' +
+            '<th style="padding:5px 8px; text-align:right;">Leistung</th>' +
+            '<th style="padding:5px 8px; text-align:right;">+ Hinfahrt</th>' +
             '<th style="padding:5px 8px; text-align:right;">= /Einsatz</th>' +
             '<th style="padding:5px 8px; text-align:right;">&times; Freq = /Mon.</th>' +
           "</tr></thead><tbody>" + brkRows + "</tbody></table>"
@@ -10589,7 +10612,7 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
 
     var detailsPanel =
       '<div data-ah-details="' + detId + '" hidden ' +
-        'style="margin-top:10px; padding:10px 12px; background:var(--bg-alt,#f8fafc); ' +
+        'style="margin-top:10px; padding:10px 12px; background:var(--panel); ' +
         'border:1px solid var(--border); border-radius:6px;">' +
         zoneHTML + breakdownTable +
       "</div>";
