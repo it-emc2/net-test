@@ -338,8 +338,11 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
       if (!paragraphBuffer.length) return;
       const text = paragraphBuffer.join(" ").trim();
       if (text) {
+        // The sign-link intro sentence is emphasised in bold.
+        const bold = /^Keine Möglichkeit, die Dokumente auszudrucken\?/.test(text);
+        const weight = bold ? "font-weight:bold;" : "";
         parts.push(
-          `<p style="margin:0 0 18px 0;line-height:1.55;color:#364047;font-size:16px;">${formatInlineHtml(text)}</p>`,
+          `<p style="margin:0 0 18px 0;line-height:1.55;color:#364047;font-size:16px;${weight}">${formatInlineHtml(text)}</p>`,
         );
       }
       paragraphBuffer = [];
