@@ -6200,8 +6200,8 @@ button.dm-btn-danger:focus-visible {
           <!-- Waschtisch ohne Unterschrank (+ Pflicht-Zubehör) -->
           <div id="menu_BASIN" class="full field" hidden aria-hidden="true">
             <div class="subheader">Waschtisch ohne Unterschrank</div>
-            <div style="display: flex; gap: 14px; flex-wrap: nowrap">
-              <div class="field" style="min-width: 220px">
+            <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px">
+              <div class="field" style="min-width: 0">
                 <label class="image-check"><input type="checkbox" id="opt_CL60" name="optBasin[]"
                     value="Waschtisch clivia 60x48 cm weiß VIGOUR CL60" /><span class="img-wrap"><img
                       src="./assets/CL60.jpg" alt="CL60" /></span><span class="caption">Waschtisch clivia 60x48 cm weiß
@@ -6213,7 +6213,7 @@ button.dm-btn-danger:focus-visible {
               </div>
 
               <!-- CL65 -->
-              <div class="field" style="min-width: 220px">
+              <div class="field" style="min-width: 0">
                 <label class="image-check">
                   <input type="checkbox" id="opt_CL65" name="optBasin[]"
                     value="Waschtisch clivia 65x48 cm weiß VIGOUR CL65" />
@@ -6231,7 +6231,7 @@ button.dm-btn-danger:focus-visible {
               </div>
 
               <!-- CL55 -->
-              <div class="field" style="min-width: 220px">
+              <div class="field" style="min-width: 0">
                 <label class="image-check">
                   <input type="checkbox" id="opt_CL55" name="optBasin[]"
                     value="Waschtisch clivia 55x48 cm weiß VIGOUR CL55" />
@@ -6249,7 +6249,7 @@ button.dm-btn-danger:focus-visible {
               </div>
 
               <!-- ON35 -->
-              <div class="field" style="min-width: 220px">
+              <div class="field" style="min-width: 0">
                 <label class="image-check">
                   <input type="checkbox" id="opt_ON35" name="optBasin[]"
                     value="Handwaschbecken one V1 35 x 28cm weiß VIGOUR ON35" />
