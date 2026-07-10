@@ -304,6 +304,13 @@ const OFFER_INTRO =
   "vielen Dank für Ihre Anfrage und Ihr damit verbundenes Interesse. " +
   "Wir freuen uns, Ihnen folgendes Angebot unterbreiten zu können.";
 
+// "Sehr geehrter Herr Mustermann," — appends the last name to the salutation.
+function greetLine(d) {
+  const g = d.Greeting || "Sehr geehrte Damen und Herren";
+  const n = String(d.Nachname || "").trim();
+  return `<p>${esc(g)}${n ? " " + esc(n) : ""},</p>`;
+}
+
 // Position bullet list (service lines) shown inside the Bezeichnung cell.
 function posLines(arr, key) {
   const items = (arr || [])
@@ -395,7 +402,7 @@ export function buildAngebotHtml(data, opts = {}) {
       </div>
 
       <div class="angtitle">Ihr Angebot ${esc(d.Angebotsnummer || "")}</div>
-      <p>${esc(d.Greeting || "Sehr geehrte Damen und Herren")},</p>
+      ${greetLine(d)}
       <p>${esc(OFFER_INTRO)}</p>
 
       <table class="pos">
@@ -538,7 +545,7 @@ export function buildAhAngebotHtml(data, opts = {}) {
       </div>
 
       <div class="angtitle">Ihr Angebot für Hilfe im Haushalt</div>
-      <p>${esc(d.Greeting || "Sehr geehrte Damen und Herren")} ${esc(d.Nachname || "")},</p>
+      ${greetLine(d)}
       <p>${esc(OFFER_INTRO)}</p>
 
       <table class="pos">
