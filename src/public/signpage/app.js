@@ -17,6 +17,7 @@
 
   var state = { docs: [], index: 0 };
   var sig = null; // current signature pad controller
+  var uploadedSig = null; // PNG data URL of an uploaded signature image, if any
 
   function showFatal(msg) {
     loading.classList.add("hidden");
@@ -125,15 +126,56 @@
     return c.toDataURL("image/png");
   }
 
+  // Convert an uploaded image file into a normalized PNG data URL. Large phone
+  // photos are downscaled (max 800px wide) so the request stays well under the
+  // 10mb server limit. Calls cb(dataUrl) on success or cb(null, errorMsg).
+  function fileToSignaturePng(file, cb) {
+    if (!file || !/^image\//.test(file.type)) {
+      return cb(null, "Bitte wählen Sie eine Bilddatei (JPG oder PNG).");
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      return cb(null, "Die Datei ist zu groß (max. 10 MB).");
+    }
+    var reader = new FileReader();
+    reader.onerror = function () { cb(null, "Die Datei konnte nicht gelesen werden."); };
+    reader.onload = function () {
+      var img = new Image();
+      img.onerror = function () { cb(null, "Das Bild konnte nicht geladen werden."); };
+      img.onload = function () {
+        var maxW = 800;
+        var scale = img.width > maxW ? maxW / img.width : 1;
+        var c = document.createElement("canvas");
+        c.width = Math.round(img.width * scale);
+        c.height = Math.round(img.height * scale);
+        var ctx = c.getContext("2d");
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        cb(c.toDataURL("image/png"));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
   function wireControls() {
+    uploadedSig = null;
     var canvas = el("sigCanvas");
     sig = canvas ? setupCanvas(canvas) : null;
     if (sig) requestAnimationFrame(function () { sig.refit(); });
 
+    function resetUpload() {
+      uploadedSig = null;
+      var up = el("sigUpload");
+      if (up) up.value = "";
+      var pv = el("sigPreview");
+      if (pv) { pv.removeAttribute("src"); pv.classList.add("hidden"); }
+    }
+
     var clearBtn = el("clearSig");
     if (clearBtn) clearBtn.addEventListener("click", function () {
       var tw = el("typeWrap");
-      if (tw && !tw.classList.contains("hidden")) { el("typeName").value = ""; }
+      var uw = el("uploadWrap");
+      if (uw && !uw.classList.contains("hidden")) { resetUpload(); }
+      else if (tw && !tw.classList.contains("hidden")) { el("typeName").value = ""; }
       else if (sig) sig.clear();
     });
 
@@ -142,6 +184,41 @@
       var w = el("typeWrap");
       var hidden = w.classList.toggle("hidden");
       this.textContent = hidden ? "Namen tippen statt zeichnen" : "Doch lieber zeichnen";
+      // Typing and uploading are mutually exclusive.
+      if (!hidden) {
+        var uw = el("uploadWrap");
+        if (uw) uw.classList.add("hidden");
+        var ub = el("toggleUpload");
+        if (ub) ub.textContent = "Bild hochladen";
+      }
+    });
+
+    var uploadToggle = el("toggleUpload");
+    if (uploadToggle) uploadToggle.addEventListener("click", function () {
+      var uw = el("uploadWrap");
+      var hidden = uw.classList.toggle("hidden");
+      this.textContent = hidden ? "Bild hochladen" : "Doch lieber zeichnen";
+      // Uploading and typing are mutually exclusive.
+      if (!hidden) {
+        var tw = el("typeWrap");
+        if (tw) tw.classList.add("hidden");
+        var tb = el("toggleType");
+        if (tb) tb.textContent = "Namen tippen statt zeichnen";
+      }
+    });
+
+    var uploadInput = el("sigUpload");
+    if (uploadInput) uploadInput.addEventListener("change", function () {
+      var box = el("docError");
+      if (box) box.classList.add("hidden");
+      var file = this.files && this.files[0];
+      if (!file) { resetUpload(); return; }
+      fileToSignaturePng(file, function (dataUrl, err) {
+        if (err) { resetUpload(); return showDocError(err); }
+        uploadedSig = dataUrl;
+        var pv = el("sigPreview");
+        if (pv) { pv.src = dataUrl; pv.classList.remove("hidden"); }
+      });
     });
 
     // Per-section edit toggle: unlock/lock that section's fields.
@@ -196,8 +273,13 @@
 
     var signatureImage = null;
     var tw = el("typeWrap");
+    var uw = el("uploadWrap");
     var typing = tw && !tw.classList.contains("hidden");
-    if (typing) {
+    var uploading = uw && !uw.classList.contains("hidden");
+    if (uploading) {
+      if (!uploadedSig) return showDocError("Bitte laden Sie ein Bild Ihrer Unterschrift hoch.");
+      signatureImage = uploadedSig;
+    } else if (typing) {
       var name = (el("typeName").value || "").trim();
       if (!name) return showDocError("Bitte geben Sie Ihren Namen ein.");
       signatureImage = typedNameToPng(name);
