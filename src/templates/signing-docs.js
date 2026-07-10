@@ -277,7 +277,8 @@ const ANGEBOT_CSS = `
 .ang table.pos td { padding:8px; border-bottom:1px solid #ccc; vertical-align:top; }
 .ang table.pos th.num, .ang table.pos td.num { text-align:right; white-space:nowrap; }
 .ang .pos-lines { list-style:none; padding:0; margin:6px 0 0; }
-.ang .pos-lines li { margin:2px 0; }
+.ang .pos-lines li { margin:2px 0; padding-left:14px; position:relative; }
+.ang .pos-lines li::before { content:"–"; position:absolute; left:0; }
 .ang .matsub { font-weight:bold; margin:12px 0 4px; }
 .ang .matline { margin:2px 0; padding-left:2px; }
 .ang .totals { width:auto; margin-left:auto; min-width:300px; border-collapse:collapse; }
@@ -286,6 +287,11 @@ const ANGEBOT_CSS = `
 .ang .totals tr.alt td { font-weight:bold; border-top:1px solid #000; }
 .ang .pay .opt { margin:5px 0; }
 .ang .sig-img { max-width:300px; max-height:130px; display:block; margin:6px 0; }
+.ang .hinweise { margin:16px 0; }
+.ang .hinweise p { margin:8px 0; }
+.ang .closing { margin-top:22px; }
+.ang .our-sig-img { max-width:220px; max-height:80px; display:block; margin:8px 0 2px; }
+.ang .accept-line { font-weight:bold; margin:22px 0 6px; }
 .ang .sig-line { border-top:1px solid #000; width:300px; margin-top:4px; padding-top:4px; font-size:10pt; color:#333; }
 .ang .audit { margin-top:22px; font-size:8.5pt; color:#555; border-top:1px solid #000; padding-top:8px; }
 `;
@@ -337,6 +343,57 @@ function materialBlock(d) {
   return out.join("");
 }
 
+// Festpreis-/Hinweisblock nach der Gesamtsumme (BU-Angebot).
+// Der Festpreis-Satz wird immer gezeigt; der ACHTUNG-/Regie-Absatz nur wenn
+// eine Duschwanne montiert wird; die Selbstkosten-/Zuschusszeile nur für
+// Kassenkunden mit gewährtem Zuschuss. Der Stundensatz kommt aus RegieRateFmt
+// (59,50€ SZ / 69,50€ KK).
+function festpreisBlock(d) {
+  const payer = String(d.PayerKind || "").toUpperCase();
+  const isKK = payer === "KK" || payer === "KASSENKUNDE";
+  const hasDuschwanne = (d.PrimaryServiceLines || []).some((r) =>
+    /duschwanne/i.test(String(r?.ServiceLine || "")),
+  );
+  const rate = String(d.RegieRateFmt || "").trim();
+  const out = [
+    `<p>Es handelt sich hierbei um ein Festpreisangebot für die oben definierten Leistungen. Für eine Teilbeauftragung wäre ein neues Angebot erforderlich.</p>`,
+  ];
+  if (hasDuschwanne) {
+    out.push(
+      `<p><strong>ACHTUNG:</strong> Ob eine ebenerdige Montage der Duschwanne möglich ist, kann erst nach dem Ausbau der bestehenden Wanne beurteilt werden. Sollten dabei zusätzliche oder weitere Leistungen erforderlich oder von Ihnen gewünscht sein, können zusätzliche Kosten entstehen. Diese werden vorab mit Ihnen besprochen, bedürfen Ihrer Zustimmung und werden auf Regiebasis nach tatsächlichem Aufwand abgerechnet.${rate ? ` (Stundensatz-Facharbeiter: ${esc(rate)} netto)` : ""}</p>`,
+    );
+  }
+  if (isKK && d.hasSubsidyLine) {
+    out.push(
+      `<p>Der Selbstkostenanteil beträgt ${esc(d.SelbstkostenanteilFmt || "")} unter Berücksichtigung eines gewährten Zuschusses durch die Pflegekasse i.H.v. ${esc(d.Zuschusskrankenkasse || "")}.</p>`,
+    );
+  }
+  return `<div class="hinweise">${out.join("")}</div>`;
+}
+
+// Abschlussblock: Grußformel + Gültigkeit + Unterschrift des zuständigen
+// EmC2-Mitarbeiters (aus OurSignatureImage) + "Ihr Team von EmC2".
+// Gilt für BU und AH.
+function closingBlock(d) {
+  const validity = d.ValidityDate
+    ? ` Dieses Angebot ist gültig bis ${esc(d.ValidityDate)}.`
+    : "";
+  const sigImg = d.OurSignatureImage
+    ? `<img class="our-sig-img" src="${d.OurSignatureImage}" alt="Unterschrift EmC2">`
+    : "";
+  return `
+    <div class="closing">
+      <p>Für Rückfragen stehen wir Ihnen gerne zur Verfügung. Wir bedanken uns für Ihr Vertrauen und freuen uns, von Ihnen zu hören.${validity} Mit freundlichen Grüßen.</p>
+      ${sigImg}
+      <p class="b">Ihr Team von EmC2</p>
+    </div>`;
+}
+
+// Kleiner Zustimmungs-Hinweis direkt über dem Unterschriftsfeld.
+function acceptHeading() {
+  return `<div class="accept-line">Angebot akzeptiert / Auftrag bestätigt:</div>`;
+}
+
 export function buildAngebotHtml(data, opts = {}) {
   const mode = opts.mode || "display";
   const d = data || {};
@@ -353,10 +410,13 @@ export function buildAngebotHtml(data, opts = {}) {
 
   // Payment + signature live INSIDE the document. In 'display' mode they are
   // interactive (radios + signature pad); in 'pdf' mode they are baked in.
-  let paySig = "";
+  // The closing block (Grußformel + EmC2-Unterschrift) is rendered between the
+  // payment terms and the customer's signature area.
+  let payHtml = "";
+  let sigHtml = "";
   if (mode === "pdf") {
     const payLines = Array.isArray(d.SelfPayLines) ? d.SelfPayLines : [];
-    const pay = payLines.length
+    payHtml = payLines.length
       ? `<h2>Zahlungsbedingungen</h2><div class="pay">${payLines
           .map(
             (l) =>
@@ -365,12 +425,10 @@ export function buildAngebotHtml(data, opts = {}) {
           .join("")}</div>`
       : "";
     const p = effectivePrefill(opts.sr || {}, opts.doc || {});
-    paySig = pay + signatureBlock(opts.doc || {}, p);
+    sigHtml = signatureBlock(opts.doc || {}, p);
   } else {
-    paySig =
-      interactivePaymentBlock(d) +
-      interactiveSignatureBlock() +
-      submitBar("Unterschreiben & weiter");
+    payHtml = interactivePaymentBlock(d);
+    sigHtml = interactiveSignatureBlock() + submitBar("Unterschreiben & weiter");
   }
 
   const metaRow = (label, val, bold) =>
@@ -458,7 +516,14 @@ export function buildAngebotHtml(data, opts = {}) {
       <h2>Zusammenstellung</h2>
       ${totalsTable}
 
-      ${paySig}
+      ${festpreisBlock(d)}
+
+      ${payHtml}
+
+      ${closingBlock(d)}
+
+      ${acceptHeading()}
+      ${sigHtml}
     </div>`;
 
   return mode === "pdf" ? wrap("Angebot", inner) : inner;
@@ -564,6 +629,9 @@ export function buildAhAngebotHtml(data, opts = {}) {
 
       ${kond ? `<h2>Konditionen</h2>${kond}` : ""}
 
+      ${closingBlock(d)}
+
+      ${acceptHeading()}
       ${sig}
     </div>`;
 
