@@ -10280,9 +10280,10 @@ window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
       legend(segs) +
       // math
       '<div style="margin-top:14px; font-size:0.9rem;">' +
-        mathRow('Leistungszeit', '', h2(cfg.sp.s)) +
-        mathRow('Fahrtzeit', fahrtSub, h2(cfg.sp.t)) +
-        mathRow('Abgerechnete Stunden', '× ' + eur(cfg.rate), eur(cfg.leistungen), { top: true, strong: false }) +
+        mathRow('Zeit vor Ort, pro Monat', '', h2(cfg.sp.s)) +
+        mathRow('Fahrtzeit, pro Monat', fahrtSub, h2(cfg.sp.t)) +
+        mathRow('Gesamtzeit pro Monat', '', h2(cfg.sp.s + cfg.sp.t), { top: true, strong: true }) +
+        mathRow('Gesamtzeit', '(' + h2(cfg.sp.s + cfg.sp.t) + ') × ' + eur(cfg.rate), eur(cfg.leistungen), { top: true, strong: false }) +
         mathRow('Anfahrtspauschale', fac(cfg.einsaetze) + ' Einsätze × ' + eur(ANFAHRT), eur(cfg.anfahrt)) +
         (cfg.servicepauschale ? mathRow('Servicepauschale', '(inkl. MwSt.)', eur(cfg.servicepauschale)) : '') +
         mathRow('Zwischensumme', '', eur(sectionTotal), { top: true, strong: true }) +
