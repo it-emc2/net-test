@@ -6200,7 +6200,7 @@ button.dm-btn-danger:focus-visible {
           <!-- Waschtisch ohne Unterschrank (+ Pflicht-Zubehör) -->
           <div id="menu_BASIN" class="full field" hidden aria-hidden="true">
             <div class="subheader">Waschtisch ohne Unterschrank</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <div style="display: flex; gap: 14px; flex-wrap: nowrap">
               <div class="field" style="min-width: 220px">
                 <label class="image-check"><input type="checkbox" id="opt_CL60" name="optBasin[]"
                     value="Waschtisch clivia 60x48 cm weiß VIGOUR CL60" /><span class="img-wrap"><img
@@ -6245,6 +6245,24 @@ button.dm-btn-danger:focus-visible {
                 <div id="qty_CL55_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
                   <label for="qty_CL55" class="req">Menge CL55</label>
                   <input id="qty_CL55" name="qty_CL55" type="number" min="0" step="1" placeholder="0" />
+                </div>
+              </div>
+
+              <!-- ON35 -->
+              <div class="field" style="min-width: 220px">
+                <label class="image-check">
+                  <input type="checkbox" id="opt_ON35" name="optBasin[]"
+                    value="Handwaschbecken one V1 35 x 28cm weiß VIGOUR ON35" />
+                  <span class="img-wrap">
+                    <img src="./assets/ON35.jpg" alt="ON35" />
+                  </span>
+                  <span class="caption">
+                    Handwaschbecken one V1 35 x 28cm weiß ON35
+                  </span>
+                </label>
+                <div id="qty_ON35_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
+                  <label for="qty_ON35" class="req">Menge ON35</label>
+                  <input id="qty_ON35" name="qty_ON35" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
             </div>

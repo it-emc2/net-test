@@ -13040,7 +13040,7 @@ function restoreOptionalPage(opt) {
       cat_GRAB: ["opt_CLPESG30","opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
       cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
       cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
-      cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55"],
+      cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35"],
       cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH"],
       cat_METER: ["opt_TECEADS"],
       cat_RAMPE: ["opt_RAMPE35"],
@@ -15318,6 +15318,9 @@ function initBasinAutoAccessories() {
   const cl55 = document.getElementById("opt_CL55");
   const qCL55 = document.getElementById("qty_CL55");
 
+  const on35 = document.getElementById("opt_ON35");
+  const qON35 = document.getElementById("qty_ON35");
+
   // Required accessories
   const wtbf = document.getElementById("opt_WTBF");
   const qWT = document.getElementById("qty_WTBF");
@@ -15345,6 +15348,7 @@ function initBasinAutoAccessories() {
     { key: "cl60", cb: cl60, qtyInput: qCL60 },
     { key: "cl65", cb: cl65, qtyInput: qCL65 },
     { key: "cl55", cb: cl55, qtyInput: qCL55 },
+    { key: "on35", cb: on35, qtyInput: qON35 },
   ].filter((b) => b.cb && b.qtyInput);
 
   // ---------- helpers ----------
@@ -15398,6 +15402,10 @@ function initBasinAutoAccessories() {
         cl55 && qCL55
           ? { checked: !!cl55.checked, qty: num(qCL55.value, 0) }
           : undefined,
+      on35:
+        on35 && qON35
+          ? { checked: !!on35.checked, qty: num(qON35.value, 0) }
+          : undefined,
       wtbf: { checked: !!wtbf.checked, qty: num(qWT.value, 0) },
       rsl: { checked: !!rsl.checked, qty: num(qRSL.value, 0) },
       ev: { checked: !!ev.checked, qty: num(qEV.value, 0) },
@@ -15429,6 +15437,14 @@ function initBasinAutoAccessories() {
       if (Number.isFinite(s.cl55.qty)) {
         qCL55.value = String(s.cl55.qty);
         dispatch(qCL55);
+      }
+    }
+    if (s.on35 && on35 && qON35) {
+      on35.checked = !!s.on35.checked;
+      dispatch(on35);
+      if (Number.isFinite(s.on35.qty)) {
+        qON35.value = String(s.on35.qty);
+        dispatch(qON35);
       }
     }
     if (s.wtbf) {
@@ -16196,6 +16212,7 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_CL60", "qty_CL60_wrap");
   wireTileQty("opt_CL65", "qty_CL65_wrap");
   wireTileQty("opt_CL55", "qty_CL55_wrap");
+  wireTileQty("opt_ON35", "qty_ON35_wrap");
   // ---- METER ----
   wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
   // ---- RAMPE ----
@@ -16852,7 +16869,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
     cat_GRAB: ["opt_CLPESG30", "opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
     cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
     cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
-    cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55"],
+    cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35"],
     cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH"],
     cat_METER: ["opt_TECEADS"],
     cat_RAMPE: ["opt_RAMPE35"],
