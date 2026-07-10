@@ -10155,6 +10155,9 @@ window.renderAHKostenPreview = function renderAHKostenPreview() {
   if (hdrHnd) hdrHnd.textContent = hasHnd ? fmtEuro(gesamtBase)   + " / Mon." : "—";
   if (hdrAb)  hdrAb.textContent  = hasAb  ? fmtEuro(abGesamtBase) + " / Mon." : "—";
 
+  // Rich visual overview (always rendered, independent of the legacy details toggle)
+  if (typeof window.renderAHKostenOverview === "function") window.renderAHKostenOverview(ah);
+
   if (!detailsEl || detailsEl.style.display === "none") return;
 
   if (!hasHnd && !hasAb) {
@@ -10211,6 +10214,196 @@ window.renderAHKostenPreview = function renderAHKostenPreview() {
   }
 
   detailsEl.innerHTML = html;
+};
+
+/* ========== AH: rich visual Kosten-Übersicht (below the live preview) ========== */
+window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
+  var wrap = document.getElementById("ahKostenOverview");
+  if (!wrap) return;
+  ah = ah || window.computeAHGesamt?.() || {};
+
+  var eur = function (n) { return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n) || 0); };
+  var h2  = function (h) { return (Math.round((Number(h) || 0) * 100) / 100).toFixed(2).replace(".", ",") + " h"; };
+  var fac = function (n) {
+    n = Number(n) || 0;
+    var r = Math.round(n * 100) / 100;
+    var approx = (Math.abs(n - r) > 1e-9) ? "≈ " : "";
+    return approx + r.toFixed(2).replace(".", ",");
+  };
+  var esc = function (s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  };
+
+  var RATE_HND = 40.56, RATE_AB = 53.04, ANFAHRT = 7.96;
+  var COL = { svc: "#7c3aed", trav: "#f59e0b", anf: "#0ea5e9", pausch: "#10b981" };
+
+  function splitH(rows) {
+    var s = 0, t = 0;
+    (rows || []).forEach(function (r) {
+      var f = Number(r.freq) || 0;
+      s += (Number(r.dauerMin) || 0) / 60 * f;
+      t += (Number(r.reiseRoundMin) || 0) / 60 * f;
+    });
+    return { s: s, t: t };
+  }
+
+  var hasHnd = (ah.totalMonatlichH || 0) > 0;
+  var hasAb  = !!ah.hasAb;
+
+  // ── Empty state ──────────────────────────────────────────────────────────
+  if (!hasHnd && !hasAb) {
+    wrap.innerHTML =
+      '<div style="border:1px dashed var(--border); border-radius:14px; padding:28px 20px; text-align:center; background:var(--panel);">' +
+        '<div style="font-size:1.6rem; margin-bottom:6px;">🧮</div>' +
+        '<div style="font-weight:700; color:var(--text); margin-bottom:2px;">Noch keine Kosten berechnet</div>' +
+        '<div style="font-size:0.85rem; color:var(--muted);">Füge oben eine Leistung hinzu, um die Kostenübersicht zu sehen.</div>' +
+      '</div>';
+    return;
+  }
+
+  var sections = [];
+  if (hasHnd) sections.push({
+    title: "Haushaltsnahe Dienstleistungen", short: "HnD", rate: RATE_HND,
+    sp: splitH(ah.schedRows), billedH: ah.totalMonatlichH, leistungen: ah.leistungenTotal,
+    einsaetze: ah.totalEinsaetze, anfahrt: ah.anfahrtTotal,
+    servicepauschale: (ah.isSelbstzahler ? (ah.servicepauschale || 0) : 0),
+    base: ah.gesamtBase, sched: ah.schedRows,
+  });
+  if (hasAb) sections.push({
+    title: "Alltagsbegleitung", short: "AB", rate: RATE_AB,
+    sp: splitH(ah.abSchedRows), billedH: ah.abTotalMonatlichH, leistungen: ah.abLeistungenTotal,
+    einsaetze: ah.abTotalEinsaetze, anfahrt: ah.abAnfahrtTotal,
+    servicepauschale: 0, base: ah.abGesamtBase, sched: ah.abSchedRows,
+  });
+
+  var zd = ah.zoneData || null;
+  var zoneChip = zd
+    ? '<span style="display:inline-flex; align-items:center; gap:5px; font-size:0.72rem; font-weight:600; background:rgba(255,255,255,0.18); color:#fff; padding:3px 9px; border-radius:999px;">📍 Zone ' + esc(zd.zone) + ' · ' + esc(zd.billMin) + ' min Hinfahrt</span>'
+    : '<span style="display:inline-flex; align-items:center; gap:5px; font-size:0.72rem; font-weight:600; background:rgba(255,255,255,0.18); color:#fff; padding:3px 9px; border-radius:999px;">⚠ Keine Zone</span>';
+
+  var gesamt = ah.gesamt || 0;
+  var yearly = gesamt * 12;
+
+  // ── Segment bar + legend ──────────────────────────────────────────────────
+  function segBar(segs) {
+    var total = segs.reduce(function (a, s) { return a + s.v; }, 0) || 1;
+    var bars = segs.filter(function (s) { return s.v > 0; }).map(function (s) {
+      return '<div title="' + s.l + ': ' + eur(s.v) + '" style="width:' + (s.v / total * 100) + '%; background:' + s.c + ';"></div>';
+    }).join("");
+    return '<div style="display:flex; height:14px; border-radius:7px; overflow:hidden; background:var(--border);">' + bars + '</div>';
+  }
+  function legend(segs) {
+    return '<div style="display:flex; flex-wrap:wrap; gap:8px 16px; margin-top:9px; font-size:0.75rem; color:var(--muted);">' +
+      segs.filter(function (s) { return s.v > 0; }).map(function (s) {
+        return '<span style="display:inline-flex; align-items:center; gap:6px;">' +
+          '<span style="width:10px; height:10px; border-radius:3px; background:' + s.c + '; display:inline-block; flex-shrink:0;"></span>' +
+          '<span style="color:var(--text);">' + s.l + '</span> ' + eur(s.v) + '</span>';
+      }).join("") + '</div>';
+  }
+
+  function mathRow(label, sub, value, opts) {
+    opts = opts || {};
+    return '<div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:7px 0;' +
+      (opts.top ? ' border-top:1px solid var(--border); margin-top:2px;' : '') + '">' +
+      '<span style="' + (opts.strong ? 'font-weight:700; color:var(--text);' : 'color:var(--muted);') + '">' + label +
+        (sub ? ' <span style="font-size:0.76rem; color:var(--muted); font-weight:400;">' + sub + '</span>' : '') + '</span>' +
+      '<span style="' + (opts.strong ? 'font-weight:700; font-size:1.02rem; color:var(--text);' : 'color:var(--text);') + ' white-space:nowrap;">' + value + '</span>' +
+    '</div>';
+  }
+
+  function schedTable(sched) {
+    if (!sched || !sched.length) return "";
+    var rows = sched.map(function (r) {
+      return '<tr style="border-top:1px solid var(--border);">' +
+        '<td style="padding:6px 8px; color:var(--muted);">' + esc(r.regelmaessigkeit || "—") + '</td>' +
+        '<td style="padding:6px 8px; text-align:right;">' + (r.dauerMin || 0) + ' min</td>' +
+        '<td style="padding:6px 8px; text-align:right; color:' + COL.trav + ';">+ ' + (r.reiseRoundMin || 0) + ' min</td>' +
+        '<td style="padding:6px 8px; text-align:right; font-weight:600;">= ' + (r.perVisitMin || 0) + ' min</td>' +
+        '<td style="padding:6px 8px; text-align:right; color:' + COL.svc + '; font-weight:600;">&times; ' + fac(r.freq) + '</td>' +
+      '</tr>';
+    }).join("");
+    return '<details style="margin-top:12px;">' +
+      '<summary style="cursor:pointer; font-size:0.78rem; color:var(--muted); user-select:none;">Rechenweg pro Einsatz anzeigen</summary>' +
+      '<table style="border-collapse:collapse; width:100%; font-size:0.78rem; margin-top:8px;">' +
+        '<thead><tr style="color:var(--muted); text-align:left;">' +
+          '<th style="padding:6px 8px; font-weight:600;">Rhythmus</th>' +
+          '<th style="padding:6px 8px; text-align:right; font-weight:600;">Leistung</th>' +
+          '<th style="padding:6px 8px; text-align:right; font-weight:600;">Hinfahrt</th>' +
+          '<th style="padding:6px 8px; text-align:right; font-weight:600;">/ Einsatz</th>' +
+          '<th style="padding:6px 8px; text-align:right; font-weight:600;">× / Monat</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table>' +
+    '</details>';
+  }
+
+  function panel(cfg, isLast) {
+    var serviceCost = cfg.sp.s * cfg.rate;
+    var travelCost  = cfg.sp.t * cfg.rate;
+    var segs = [
+      { v: serviceCost,  c: COL.svc,    l: "Leistungszeit" },
+      { v: travelCost,   c: COL.trav,   l: "Fahrtzeit" },
+      { v: cfg.anfahrt,  c: COL.anf,    l: "Anfahrt" },
+    ];
+    if (cfg.servicepauschale) segs.push({ v: cfg.servicepauschale, c: COL.pausch, l: "Servicepauschale" });
+    var sectionTotal = cfg.base + (cfg.servicepauschale || 0);
+
+    var fahrtSub = zd ? '(Zone ' + esc(zd.zone) + ' · ' + esc(zd.billMin) + ' min / Einsatz)' : '';
+
+    return '<div style="padding:18px 20px;' + (isLast ? '' : ' border-bottom:1px solid var(--border);') + '">' +
+      // header
+      '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:14px;">' +
+        '<div style="display:flex; align-items:center; gap:9px;">' +
+          '<span style="width:11px; height:11px; border-radius:3px; background:' + COL.svc + '; display:inline-block;"></span>' +
+          '<span style="font-weight:700; font-size:1.02rem; color:var(--text);">' + esc(cfg.title) + '</span>' +
+          '<span style="font-size:0.72rem; font-weight:600; color:var(--muted); border:1px solid var(--border); border-radius:999px; padding:2px 8px;">' + eur(cfg.rate) + ' / Std.</span>' +
+        '</div>' +
+        '<div style="text-align:right;">' +
+          '<div style="font-size:1.35rem; font-weight:800; color:var(--text); line-height:1.1;">' + eur(sectionTotal) + '</div>' +
+          '<div style="font-size:0.72rem; color:var(--muted);">pro Monat</div>' +
+        '</div>' +
+      '</div>' +
+      segBar(segs) +
+      legend(segs) +
+      // math
+      '<div style="margin-top:14px; font-size:0.9rem;">' +
+        mathRow('Leistungszeit', '', h2(cfg.sp.s)) +
+        mathRow('Fahrtzeit', fahrtSub, h2(cfg.sp.t)) +
+        mathRow('Abgerechnete Stunden', '× ' + eur(cfg.rate), eur(cfg.leistungen), { top: true, strong: false }) +
+        mathRow('Anfahrtspauschale', fac(cfg.einsaetze) + ' Einsätze × ' + eur(ANFAHRT), eur(cfg.anfahrt)) +
+        (cfg.servicepauschale ? mathRow('Servicepauschale', '(inkl. MwSt.)', eur(cfg.servicepauschale)) : '') +
+        mathRow('Zwischensumme', '', eur(sectionTotal), { top: true, strong: true }) +
+      '</div>' +
+      schedTable(cfg.sched) +
+    '</div>';
+  }
+
+  var panelsHTML = sections.map(function (s, i) { return panel(s, i === sections.length - 1); }).join("");
+
+  wrap.innerHTML =
+    '<div style="border:1px solid var(--border); border-radius:16px; overflow:hidden; background:var(--panel); box-shadow:var(--shadow);">' +
+      // gradient header with grand total
+      '<div style="background:linear-gradient(135deg, var(--accent), var(--accent-strong)); color:#fff; padding:18px 20px;">' +
+        '<div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap;">' +
+          '<div>' +
+            '<div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; opacity:0.85;">Kosten-Übersicht</div>' +
+            '<div style="margin-top:6px;">' + zoneChip + '</div>' +
+          '</div>' +
+          '<div style="text-align:right;">' +
+            '<div style="font-size:2rem; font-weight:800; line-height:1;">' + eur(gesamt) + '</div>' +
+            '<div style="font-size:0.8rem; opacity:0.9; margin-top:3px;">pro Monat · ≈ ' + eur(yearly) + ' / Jahr</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      panelsHTML +
+      // footnote
+      '<div style="padding:12px 20px; border-top:1px solid var(--border); font-size:0.75rem; color:var(--muted); line-height:1.5; background:var(--bg);">' +
+        '<b>Hinweis zur Berechnung:</b> Monatliche Einsätze werden aus der Jahresfrequenz abgeleitet ' +
+        '(z. B. 14-tägig = 26×/Jahr ÷ 12 = 2,1667×/Monat). Angezeigte Faktoren sind auf 2 Nachkommastellen gerundet – ' +
+        'daher kann eine Handrechnung wie 2,17 × 7,96 € = 17,27 € minimal von der exakten Summe (2,1667 × 7,96 € = 17,25 €) abweichen. ' +
+        'Reisezeit umfasst nur die Hinfahrt; die Rückfahrt wird nicht berechnet.' +
+      '</div>' +
+    '</div>';
 };
 
 /* ========== Kosten Duschabtrennung========== */
