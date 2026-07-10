@@ -1987,6 +1987,7 @@ function buildAhData(body) {
 
   // ── Determine if HnD is among services (shows Servicepauschale) ────────
   const hasHnD = rawServices.some((s) => s.type === "Haushaltsnahedienstleistungen");
+  const hasAb  = rawServices.some((s) => s.type === "Alltagsbegleitung");
 
   // ── Konditionen rows ────────────────────────────────────────────────────
   const AhKondRows = [];
@@ -2046,6 +2047,9 @@ function buildAhData(body) {
     AhServicepausEinzelpreis: "1,20 €",
     AhGesamtbetrag: gesamt > 0 ? fmtCurrency(gesamt) : "",
     AhKondRows,
+    // Hinweis zur zusätzlichen Alltagsbegleitung – nur zeigen, wenn ein Angebot
+    // besteht und Alltagsbegleitung noch nicht gebucht ist.
+    AhShowAbHinweis: gesamt > 0 && !hasAb,
   };
 }
 
