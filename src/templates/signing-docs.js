@@ -170,6 +170,9 @@ const INTERACTIVE_CSS = `
 .si-linkbtn { border:none; background:transparent; color:#0066cc; text-decoration:underline; cursor:pointer; }
 #typeWrap { margin-top:10px; }
 #typeName { border:none; border-bottom:1px solid #000; padding:5px 2px; font-size:15px; background:transparent; width:100%; max-width:340px; }
+#uploadWrap { margin-top:10px; }
+#sigUpload { font-size:14px; margin-top:4px; }
+.sig-preview { display:block; margin-top:10px; max-width:320px; max-height:140px; border:1px solid #aaa; background:#fff; padding:4px; }
 .si-err { margin-top:12px; padding:10px 12px; border:1px solid #b71c1c; background:#fdecea; color:#7f1d1d; }
 .hidden { display:none !important; }
 .editsec h2 { display:flex; justify-content:space-between; align-items:center; gap:10px; }
@@ -199,7 +202,7 @@ const DOC_CSS = `
 .signdoc .dochead img { height:88px; width:auto; }
 `;
 
-// Interactive signature area (canvas + clear + type-name fallback).
+// Interactive signature area (canvas + clear + type-name fallback + upload).
 function interactiveSignatureBlock() {
   return `
     <h2>Ihre Unterschrift</h2>
@@ -208,10 +211,16 @@ function interactiveSignatureBlock() {
     <div class="si-btnrow">
       <button type="button" id="clearSig">Löschen</button>
       <button type="button" class="si-linkbtn" id="toggleType">Namen tippen statt zeichnen</button>
+      <button type="button" class="si-linkbtn" id="toggleUpload">Bild hochladen</button>
     </div>
     <div class="hidden" id="typeWrap">
       <div class="label">Ihr vollständiger Name</div>
       <input type="text" id="typeName" placeholder="Vor- und Nachname">
+    </div>
+    <div class="hidden" id="uploadWrap">
+      <div class="label">Bild Ihrer Unterschrift (JPG oder PNG)</div>
+      <input type="file" id="sigUpload" accept="image/*">
+      <img id="sigPreview" class="sig-preview hidden" alt="Vorschau der hochgeladenen Unterschrift">
     </div>`;
 }
 
