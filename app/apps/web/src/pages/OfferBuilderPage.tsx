@@ -4,6 +4,7 @@ import { OfferProvider, useOffer } from "@/features/offer/OfferContext";
 import { PricingSidebar } from "@/features/offer/PricingSidebar";
 import { useLivePricing } from "@/features/offer/pricing";
 import { KundendatenStep, StepHeader } from "@/features/offer/steps/KundendatenStep";
+import { ArbeitszeitStep } from "@/features/offer/steps/ArbeitszeitStep";
 import { Button } from "@/components/ui/button";
 import { formatEUR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -27,7 +28,7 @@ function Placeholder({ title, note }: { title: string; note: string }) {
 
 const STEPS: Step[] = [
   { key: "kundendaten", label: "Kundendaten", el: <KundendatenStep /> },
-  { key: "arbeitszeit", label: "Arbeitszeit", el: <Placeholder title="Arbeitszeit" note="Auto-Berechnung (Fahrstrecke & Stunden) folgt als nächster Schritt." /> },
+  { key: "arbeitszeit", label: "Arbeitszeit", el: <ArbeitszeitStep /> },
   { key: "arbeiten", label: "Arbeiten", el: <Placeholder title="Auszuführende Arbeiten" note="Folgt." /> },
   { key: "duschwanne", label: "Duschwanne", el: <Placeholder title="Duschwanne" note="Folgt." /> },
   { key: "fussboden", label: "Fußboden", el: <Placeholder title="Fußboden" note="Folgt." /> },

@@ -33,14 +33,19 @@ export interface Kundendaten {
 }
 
 export interface Arbeitszeit {
-  workDays: string;
-  travelDays: string;
+  // inputs
   distanceKm: string; // one-way km
-  ArbeitHoursNumeric: string;
-  ReiseHoursNumeric: string;
-  totalHoursNumeric: string;
-  totalHoursHHMM: string;
+  travelTimeHHMM: string; // one-way travel time "H:MM"
+  laborHoursHHMM: string; // work hours "H:MM"
+  uebernachten: string; // overnights
   travelSecondWorkerRate: number; // 25 | 35
+  // derived (feed the pricing engine)
+  workDays: number;
+  travelDays: number;
+  ArbeitHoursNumeric: number;
+  ReiseHoursNumeric: number;
+  totalHoursNumeric: number;
+  totalHoursHHMM: string;
 }
 
 export interface OfferPayload {
@@ -92,14 +97,17 @@ export function defaultPayload(): OfferPayload {
       wohnumfeld: { amount: "", done: false },
     },
     Arbeitszeit: {
-      workDays: "",
-      travelDays: "",
       distanceKm: "",
-      ArbeitHoursNumeric: "",
-      ReiseHoursNumeric: "",
-      totalHoursNumeric: "",
-      totalHoursHHMM: "",
+      travelTimeHHMM: "",
+      laborHoursHHMM: "",
+      uebernachten: "",
       travelSecondWorkerRate: 25,
+      workDays: 0,
+      travelDays: 0,
+      ArbeitHoursNumeric: 0,
+      ReiseHoursNumeric: 0,
+      totalHoursNumeric: 0,
+      totalHoursHHMM: "",
     },
     duschwanne: {},
     wandverkleidung: {},
