@@ -5891,6 +5891,34 @@ button.pad-clear {
   margin-top: 12px;
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.today-calendar-done {
+  border: 1px solid color-mix(in srgb, #16a34a 30%, var(--border));
+  background: color-mix(in srgb, #16a34a 12%, var(--panel));
+  color: #15803d;
+  border-radius: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 700;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease, color .16s ease;
+}
+
+.today-calendar-done:hover,
+.today-calendar-done:focus-visible {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #16a34a 30%, transparent);
+}
+
+.today-calendar-done:disabled {
+  cursor: default;
+  opacity: .75;
+  box-shadow: none;
 }
 
 .today-calendar-open {

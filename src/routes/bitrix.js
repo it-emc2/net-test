@@ -17,6 +17,11 @@ const ANG_VERSCHICKT_CATEGORY_ID = 38;
 // "Betrag und Währung" = OPPORTUNITY + CURRENCY_ID.
 const ANG_VERSCHICKT_REQUIRED_FIELDS = ["OPPORTUNITY", "CURRENCY_ID"];
 
+// Stage a completed appointment ("Heutige Termine Planung") is moved to.
+// "Zuteilen HD/ AH/ DH" lives in deal category 72 (STATUS_ID C72:PREPARATION).
+const ZUTEILEN_STAGE_ID = "C72:PREPARATION";
+const ZUTEILEN_CATEGORY_ID = 72;
+
 // ---------- helpers ----------
 function isEmpty(v) {
   return v === null || v === undefined || String(v).trim() === "";
@@ -397,6 +402,26 @@ router.post("/deal/:id/move-ang-verschickt", express.json(), async (req, res) =>
     return res.json({ ok: true, dealId: Number(dealId), result: data?.result ?? data });
   } catch (err) {
     console.error("POST /api/bitrix/deal/:id/move-ang-verschickt error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// POST /api/bitrix/deal/:id/move-zuteilen
+// Marks a completed appointment: moves the deal to "Zuteilen HD/ AH/ DH".
+router.post("/deal/:id/move-zuteilen", express.json(), async (req, res) => {
+  try {
+    const dealId = String(req.params.id || "").trim();
+    if (!dealId) return res.status(400).json({ error: "id is required" });
+
+    const data = await updateDealStage({
+      dealId,
+      stageId: ZUTEILEN_STAGE_ID,
+      categoryId: ZUTEILEN_CATEGORY_ID,
+    });
+
+    return res.json({ ok: true, dealId: Number(dealId), result: data?.result ?? data });
+  } catch (err) {
+    console.error("POST /api/bitrix/deal/:id/move-zuteilen error:", err);
     return res.status(500).json({ error: err?.message || String(err) });
   }
 });
