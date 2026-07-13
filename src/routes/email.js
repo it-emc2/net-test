@@ -288,7 +288,8 @@ router.post("/send-offer", upload.array("attachments", 10), async (req, res) => 
     }
 
     // ---- Generate offer PDF (same path as /docx-template/pdf) ----
-    const { pdfBuffer: pdfBuf } = await generateOfferPdfBuffer(payload || {});
+    const { pdfBuffer: pdfBuf, computed: offerComputed } =
+      await generateOfferPdfBuffer(payload || {});
 
     const angebotFilename = safeOfferFilename(payload?.offerNumber || offerNumber);
     const signatureCid = "emc2-signature-picture";
@@ -418,7 +419,17 @@ router.post("/send-offer", upload.array("attachments", 10), async (req, res) => 
       };
     }
 
-    res.json({ ok: true, messageId: info.messageId, attachmentNames, bitrixComment });
+    // The offer's final gross total (Gesamtsumme/Brutto). Returned so the
+    // "Deal auf 'ANG verschickt' verschieben" dialog can prefill "Betrag".
+    const offerTotal = Number(offerComputed?.total) || 0;
+
+    res.json({
+      ok: true,
+      messageId: info.messageId,
+      attachmentNames,
+      bitrixComment,
+      offerTotal,
+    });
   } catch (e) {
     console.error("[email] send-offer failed:", e);
     res.status(500).json({ error: "Send failed", detail: e?.message || String(e) });

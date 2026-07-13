@@ -23984,6 +23984,7 @@ function renderTodayPlanningAppointments(){
 
         <div class="today-calendar-actions">
           <button type="button" class="today-calendar-open" ${isCancelled ? 'disabled aria-disabled="true"' : ""}><i class="fa-solid ${isCancelled ? "fa-ban" : "fa-arrow-right"}"></i> ${isCancelled ? "Nicht verfuegbar" : "In Konfigurator öffnen"}</button>
+          ${!isCancelled && entry?.importDealId ? `<button type="button" class="today-calendar-done"><i class="fa-solid fa-circle-check"></i> Erfolgreich abgeschlossen</button>` : ""}
         </div>
       </div>
       ${travelHtml}
@@ -24006,6 +24007,40 @@ function renderTodayPlanningAppointments(){
       ev.preventDefault();
       ev.stopPropagation();
       onOpen();
+    });
+
+    // "Erfolgreich abgeschlossen" -> move the deal to "Zuteilen HD/ AH/ DH".
+    const doneButton = card.querySelector(".today-calendar-done");
+    doneButton?.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const id = card.dataset.id;
+      const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
+      const dealId = String(entry?.importDealId || "").trim();
+      if(!dealId) return;
+      if(!window.confirm("Termin als erfolgreich abgeschlossen markieren und Deal auf „Zuteilen HD/ AH/ DH“ verschieben?")) return;
+
+      doneButton.disabled = true;
+      const original = doneButton.innerHTML;
+      doneButton.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Verschiebe…`;
+      try {
+        const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}/move-zuteilen`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        });
+        const data = await res.json().catch(() => ({}));
+        if(!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+        doneButton.innerHTML = `<i class="fa-solid fa-circle-check"></i> Verschoben`;
+        (typeof showToast === "function") && showToast("Deal auf „Zuteilen HD/ AH/ DH“ verschoben.", "success");
+      } catch (e) {
+        console.error("[planning] move-zuteilen failed:", e);
+        doneButton.disabled = false;
+        doneButton.innerHTML = original;
+        (typeof showToast === "function")
+          ? showToast(`Fehler: ${e.message || e}`, "error")
+          : alert(`Fehler beim Verschieben: ${e.message || e}`);
+      }
     });
   });
 }

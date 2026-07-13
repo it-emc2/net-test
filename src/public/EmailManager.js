@@ -76,6 +76,32 @@ export function initEmailManager(options = {}) {
     $status.dataset.type = type;
   };
 
+  // One-time styles for the "ANG verschickt" success/stage-move dialog.
+  if (!document.getElementById("angStageStyles")) {
+    const style = document.createElement("style");
+    style.id = "angStageStyles";
+    style.textContent = `
+      .ang-stage-overlay{position:fixed;inset:0;background:rgba(15,23,32,.55);
+        display:flex;align-items:center;justify-content:center;z-index:10000;padding:16px;}
+      .ang-stage-modal{background:#fff;border-radius:14px;max-width:440px;width:100%;
+        padding:24px;box-shadow:0 18px 60px rgba(0,0,0,.28);font-family:Arial,Helvetica,sans-serif;color:#243038;}
+      .ang-stage-title{margin:0 0 8px;font-size:19px;}
+      .ang-stage-text{margin:0 0 14px;font-size:14px;line-height:1.5;color:#4a575f;}
+      .ang-stage-fields{display:flex;flex-direction:column;gap:12px;margin:0 0 14px;}
+      .ang-stage-field{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:#334049;}
+      .ang-stage-field input,.ang-stage-field select{padding:9px 10px;border:1px solid #cdd6dc;
+        border-radius:8px;font-size:14px;font-weight:400;}
+      .ang-stage-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;}
+      .ang-stage-btn{padding:9px 16px;border-radius:8px;border:1px solid #cdd6dc;background:#f2f5f7;
+        cursor:pointer;font-size:14px;color:#243038;}
+      .ang-stage-btn--primary{background:#00a86b;border-color:#00a86b;color:#fff;font-weight:600;}
+      .ang-stage-btn:disabled{opacity:.6;cursor:default;}
+      .ang-stage-status{margin:10px 0 0;font-size:13px;color:#4a575f;}
+      .ang-stage-error{color:#c0392b;}
+    `;
+    document.head.appendChild(style);
+  }
+
   const $mainAuftragId = document.querySelector(cfg.bitrix.dealIdSelector);
 
   function markInvalid(el, invalid = true) {
@@ -225,6 +251,160 @@ export function initEmailManager(options = {}) {
     }
 
     return res.json().catch(() => ({}));
+  }
+
+  // -----------------------------
+  // "Deal auf 'ANG verschickt' verschieben" dialog
+  // -----------------------------
+  function fmtEuro(n) {
+    const num = Number(n) || 0;
+    return num.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function closeStageModal() {
+    document.getElementById("angStageOverlay")?.remove();
+  }
+
+  // Success dialog shown after the email was sent. Offers the stage move.
+  function showSentDialog({ dealId, offerTotal, attachmentNames }) {
+    closeStageModal();
+    const overlay = document.createElement("div");
+    overlay.id = "angStageOverlay";
+    overlay.className = "ang-stage-overlay";
+    const atts = Array.isArray(attachmentNames) && attachmentNames.length
+      ? attachmentNames.join(", ")
+      : "-";
+    overlay.innerHTML = `
+      <div class="ang-stage-modal" role="dialog" aria-modal="true" aria-labelledby="angStageTitle">
+        <h3 id="angStageTitle" class="ang-stage-title">✅ E-Mail gesendet</h3>
+        <p class="ang-stage-text">Anhänge: ${atts}</p>
+        <div class="ang-stage-body"></div>
+        <div class="ang-stage-actions">
+          ${dealId ? `<button type="button" class="ang-stage-btn ang-stage-btn--primary" id="angStageMoveBtn">Deal auf „ANG verschickt" verschieben</button>` : ""}
+          <button type="button" class="ang-stage-btn" id="angStageCloseBtn">Schließen</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeStageModal();
+    });
+    overlay.querySelector("#angStageCloseBtn")?.addEventListener("click", closeStageModal);
+    // Use .onclick (not addEventListener) so openStageForm can replace this
+    // handler with the confirm-submit one — otherwise both fire and the form
+    // re-opens on every click.
+    const moveBtn = overlay.querySelector("#angStageMoveBtn");
+    if (moveBtn) moveBtn.onclick = () => openStageForm({ dealId, offerTotal });
+  }
+
+  // Fetches the empty required fields for the deal and renders inputs for them.
+  async function openStageForm({ dealId, offerTotal }) {
+    const body = document.querySelector("#angStageOverlay .ang-stage-body");
+    const moveBtn = document.getElementById("angStageMoveBtn");
+    if (!body) return;
+    body.innerHTML = `<p class="ang-stage-text">Lade Felder…</p>`;
+    if (moveBtn) moveBtn.disabled = true;
+
+    let info;
+    try {
+      const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}/ang-verschickt-fields`);
+      info = await res.json();
+      if (!res.ok) throw new Error(info?.error || `HTTP ${res.status}`);
+    } catch (e) {
+      body.innerHTML = `<p class="ang-stage-error">Fehler beim Laden: ${e.message || e}</p>`;
+      if (moveBtn) moveBtn.disabled = false;
+      return;
+    }
+
+    const empties = (info.fields || []).filter((f) => f.isEmpty);
+    const byName = Object.fromEntries((info.fields || []).map((f) => [f.name, f]));
+
+    // Prefill Betrag with the offer total when the deal has none yet.
+    // Währung is always EUR, so it is not shown/asked.
+    const amountField = byName.OPPORTUNITY;
+    const prefillAmount =
+      amountField && amountField.isEmpty && Number(offerTotal) > 0
+        ? fmtEuro(offerTotal)
+        : fmtEuro(amountField?.currentValue || offerTotal || 0);
+
+    if (!empties.length) {
+      body.innerHTML = `<p class="ang-stage-text">Alle Pflichtfelder sind gefüllt. Der Deal kann verschoben werden.</p>`;
+    } else {
+      const rows = [];
+      if (amountField) {
+        rows.push(`
+          <label class="ang-stage-field">
+            <span>Betrag (€)</span>
+            <input type="text" id="angFieldAmount" value="${prefillAmount}" inputmode="decimal" />
+          </label>`);
+      }
+      body.innerHTML = `
+        <p class="ang-stage-text">Bitte fehlende Felder ausfüllen:</p>
+        <div class="ang-stage-fields">${rows.join("")}</div>
+        <p class="ang-stage-status" id="angStageStatus" hidden></p>`;
+    }
+
+    if (moveBtn) {
+      moveBtn.disabled = false;
+      moveBtn.textContent = "Verschieben bestätigen";
+      moveBtn.onclick = () => submitStageMove({ dealId, offerTotal });
+    }
+  }
+
+  function parseEuroInput(v) {
+    // "1.234,56 €" -> 1234.56
+    const s = String(v || "")
+      .replace(/[^\d.,-]/g, "")
+      .replace(/\./g, "")
+      .replace(",", ".");
+    return Number(s);
+  }
+
+  async function submitStageMove({ dealId }) {
+    const moveBtn = document.getElementById("angStageMoveBtn");
+    const statusEl = document.getElementById("angStageStatus");
+    const amountEl = document.getElementById("angFieldAmount");
+
+    const setModalStatus = (msg, isErr = false) => {
+      if (!statusEl) return;
+      statusEl.hidden = false;
+      statusEl.textContent = msg;
+      statusEl.classList.toggle("ang-stage-error", !!isErr);
+    };
+
+    // Währung is always EUR (defaulted server-side); only Betrag is asked.
+    const payload = {};
+    if (amountEl) {
+      const amount = parseEuroInput(amountEl.value);
+      if (!(amount > 0)) {
+        setModalStatus("Bitte einen gültigen Betrag eingeben.", true);
+        return;
+      }
+      payload.opportunity = amount;
+    }
+
+    if (moveBtn) moveBtn.disabled = true;
+    setModalStatus("Verschiebe Deal…");
+    try {
+      const res = await fetch(
+        `/api/bitrix/deal/${encodeURIComponent(dealId)}/move-ang-verschickt`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+      const body = document.querySelector("#angStageOverlay .ang-stage-body");
+      if (body) {
+        body.innerHTML = `<p class="ang-stage-text">✅ Deal wurde auf „ANG verschickt" verschoben.</p>`;
+      }
+      if (moveBtn) moveBtn.remove();
+    } catch (e) {
+      setModalStatus(`Fehler: ${e.message || e}`, true);
+      if (moveBtn) moveBtn.disabled = false;
+    }
   }
 
   // -----------------------------
@@ -715,6 +895,18 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
         `Email sent ✅ Attachments: ${data.attachmentNames?.join(", ") || "-"}`,
         "success",
       );
+
+      // Success dialog with the optional "move deal to ANG verschickt" action.
+      try {
+        const tgt = getBitrixTarget();
+        showSentDialog({
+          dealId: tgt?.entityType === "deal" ? tgt.entityId : "",
+          offerTotal: Number(data?.offerTotal) || 0,
+          attachmentNames: data.attachmentNames || [],
+        });
+      } catch (e) {
+        console.warn("[EmailManager] sent dialog failed:", e);
+      }
 
       if (!data?.bitrixComment) {
         try {
