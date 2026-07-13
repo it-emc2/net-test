@@ -1282,6 +1282,34 @@ a.btn {
   color: #ef4444;
 }
 
+#dw-extra-tasks .wt-extra-move {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+#dw-extra-tasks .wt-extra-move:hover:not(:disabled),
+#dw-extra-tasks .wt-extra-move:focus-visible:not(:disabled) {
+  background: var(--muted);
+  border-color: var(--accent);
+  color: var(--card-foreground);
+}
+
+#dw-extra-tasks .wt-extra-move:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 #dw-extra-tasks .wt-extra-add.da-add {
   align-self: flex-start;
   display: inline-flex;
