@@ -290,9 +290,11 @@ export function initEmailManager(options = {}) {
       if (e.target === overlay) closeStageModal();
     });
     overlay.querySelector("#angStageCloseBtn")?.addEventListener("click", closeStageModal);
-    overlay
-      .querySelector("#angStageMoveBtn")
-      ?.addEventListener("click", () => openStageForm({ dealId, offerTotal }));
+    // Use .onclick (not addEventListener) so openStageForm can replace this
+    // handler with the confirm-submit one — otherwise both fire and the form
+    // re-opens on every click.
+    const moveBtn = overlay.querySelector("#angStageMoveBtn");
+    if (moveBtn) moveBtn.onclick = () => openStageForm({ dealId, offerTotal });
   }
 
   // Fetches the empty required fields for the deal and renders inputs for them.
