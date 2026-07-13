@@ -1,0 +1,22 @@
+{
+  "name": "emc2-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EmC2 — TypeScript rebuild (React + Express monorepo)",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "dev:web": "npm run dev --workspace @emc2/web",
+    "dev:api": "npm run dev --workspace @emc2/api",
+    "build": "npm run build --workspace @emc2/shared && npm run build --workspace @emc2/api && npm run build --workspace @emc2/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
