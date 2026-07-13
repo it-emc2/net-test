@@ -515,12 +515,17 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
         ? dusch.flooringProduct[0] || ""
         : "";
       const color = fp.includes("|") ? fp.split("|", 2)[1].trim() : "";
+      const floorPid =
+        fp && fp.includes("|") ? fp.split("|", 2)[0].trim() : "V5FB02";
 
-      add(
-        (fp && fp.includes("|") ? fp.split("|", 2)[0].trim() : "V5FB02"),
-        panels,
-        `- ${panels} Stk Fußboden-Paneele (1 Paneele = ${floorPanelSize} m²)${color ? " — Farbe: " + color : ""}`,
-      );
+      // AVP-W is named after its section caption ("Aluverbundplatte weiß");
+      // the V5FB02 variants keep the generic "Fußboden-Paneele … Farbe: X" form.
+      const floorLabel =
+        floorPid === "AVP-W"
+          ? `- ${panels} Stk Aluverbundplatte weiß (1 Paneele = ${floorPanelSize} m²)`
+          : `- ${panels} Stk Fußboden-Paneele (1 Paneele = ${floorPanelSize} m²)${color ? " — Farbe: " + color : ""}`;
+
+      add(floorPid, panels, floorLabel);
 
       // Flächenkleber
       const adhesiveCoverage = cfg.get('BU_FLOOR_ADHESIVE_COVERAGE', 0.6);
