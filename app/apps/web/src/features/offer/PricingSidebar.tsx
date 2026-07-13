@@ -1,4 +1,5 @@
-import { Loader2 } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { useOffer } from "./OfferContext";
 import { useLivePricing } from "./pricing";
 import { formatEUR } from "@/lib/format";
@@ -7,6 +8,7 @@ import { cn } from "@/lib/utils";
 export function PricingSidebar({ className }: { className?: string }) {
   const { payload } = useOffer();
   const { result, loading, error } = useLivePricing(payload);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const isKK = payload.Kundendaten.payer === "Kassenkunde";
 
   return (
@@ -38,10 +40,78 @@ export function PricingSidebar({ className }: { className?: string }) {
               <Row label="Selbstkostenanteil" value={result?.selfPayAmount} strong big accent />
             </>
           )}
+
+          {/* Collapsible line-item breakdown */}
+          <button
+            type="button"
+            onClick={() => setDetailsOpen((v) => !v)}
+            className="mt-2 flex w-full items-center justify-between border-t pt-3 text-sm font-medium text-muted-foreground hover:text-foreground"
+            aria-expanded={detailsOpen}
+          >
+            Kostenübersicht
+            {detailsOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+          </button>
+          {detailsOpen && result && <Breakdown result={result} />}
         </div>
       )}
     </div>
   );
+}
+
+function Breakdown({ result }: { result: any }) {
+  const matLines: any[] = (result.materials?.lines ?? []).filter((l: any) => Number(l.lineTotal) !== 0);
+  const svcCost: any[] = (result.services?.lines ?? []).filter((l: any) => Number(l.amount) > 0);
+  const svcNotes: any[] = (result.services?.lines ?? []).filter((l: any) => !Number(l.amount) && l.label);
+
+  return (
+    <div className="mt-3 space-y-4 text-xs">
+      {matLines.length > 0 && (
+        <Group title="Material">
+          {matLines.map((l, i) => (
+            <DetailRow key={i} label={clean(l.label || l.name || l.productId)} value={l.lineTotal} />
+          ))}
+        </Group>
+      )}
+
+      <Group title="Leistungen">
+        {svcCost.length === 0 && <p className="text-muted-foreground">Noch keine Leistungen.</p>}
+        {svcCost.map((l, i) => (
+          <DetailRow key={i} label={clean(l.label)} value={l.amount} />
+        ))}
+      </Group>
+
+      {svcNotes.length > 0 && (
+        <Group title="Auszuführende Arbeiten">
+          {svcNotes.map((l, i) => (
+            <p key={i} className="text-muted-foreground">{clean(l.label)}</p>
+          ))}
+        </Group>
+      )}
+    </div>
+  );
+}
+
+function Group({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <p className="font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+      {children}
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="min-w-0 flex-1 text-muted-foreground">{label}</span>
+      <span className="shrink-0 tabular-nums">{formatEUR(Number(value) || 0)}</span>
+    </div>
+  );
+}
+
+/** Strip the leading "- " / bullet the engine prefixes onto line labels. */
+function clean(s: unknown): string {
+  return String(s ?? "").replace(/^[\s•·–—-]+/, "").trim();
 }
 
 function Row({
