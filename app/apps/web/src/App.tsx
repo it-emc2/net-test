@@ -6,6 +6,8 @@ import { HomePage } from "@/pages/HomePage";
 import { AdminPage } from "@/pages/AdminPage";
 import { CustomersPage } from "@/pages/CustomersPage";
 import { CustomerDetailPage } from "@/pages/CustomerDetailPage";
+import { ProductsPage } from "@/pages/ProductsPage";
+import { ProductDetailPage } from "@/pages/ProductDetailPage";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
 
 export default function App() {
@@ -21,6 +23,8 @@ export default function App() {
             <Route path="angebote" element={<PlaceholderPage title="Angebote" />} />
             <Route path="kunden" element={<CustomersPage />} />
             <Route path="kunden/:id" element={<CustomerDetailPage />} />
+            <Route path="produkte" element={<ProductsPage />} />
+            <Route path="produkte/:articleNumber" element={<ProductDetailPage />} />
 
             {/* Admin-only subtree */}
             <Route element={<ProtectedRoute adminOnly />}>

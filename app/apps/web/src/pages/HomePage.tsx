@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { FileText, Users, Shield, ArrowUpRight } from "lucide-react";
+import { FileText, Users, Package, Shield, ArrowUpRight } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -11,6 +11,12 @@ const QUICK_LINKS = [
     icon: FileText,
   },
   { to: "/kunden", title: "Kunden", description: "Kundenstamm durchsuchen", icon: Users },
+  {
+    to: "/produkte",
+    title: "Produkte",
+    description: "Vigor-Katalog mit Bestand",
+    icon: Package,
+  },
 ];
 
 export function HomePage() {

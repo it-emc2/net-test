@@ -112,3 +112,46 @@ export interface CustomersListResponse {
   page: number;
   pageSize: number;
 }
+
+// --- Products (Vigor catalog) ---
+
+/** Core product fields for the catalog list. Prices in EUR. */
+export interface ProductListItem {
+  articleNumber: string;
+  name: string;
+  netPrice: number;
+  grossPrice: number;
+  currency: string;
+  unit: string;
+  finish: string;
+  category: string | null;
+  image: string | null;
+  /** Live stock snapshot from the daily Vigor refresh. */
+  stockQuantity: number | null;
+  stockText: string;
+  inStock: boolean;
+  isSpecialOffer: boolean;
+}
+
+/** Full product detail. */
+export interface ProductDetail extends ProductListItem {
+  materialNumber: string;
+  images: string[];
+  packageUnits: number | null;
+  discountGroup: string;
+  originalPrice: number | null;
+  sourceUrl: string;
+  lastSeenAt: string | null;
+  priceUpdatedAt: string | null;
+}
+
+export interface ProductsListResponse {
+  items: ProductListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface ProductCategoriesResponse {
+  categories: string[];
+}

@@ -12,6 +12,9 @@ function required(name: string): string {
 export const env = {
   mongoUri: required("MONGODB_URI"),
   mongoDb: process.env.MONGODB_DB || "KonfiguratorDB",
+  // Vigor product catalog (separate DB, read-only). Falls back to the main URI
+  // with dbName "vigor" when both live on the same cluster/credentials.
+  vigorUri: process.env.VIGOR_MONGODB_URI || required("MONGODB_URI"),
   authSecret:
     process.env.AUTH_SECRET ||
     process.env.ADMIN_SECRET ||
