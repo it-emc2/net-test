@@ -117,6 +117,8 @@ export function defaultPayload(): OfferPayload {
       traySize: "",
       trayColor: "",
       selectedTrayInfo: null,
+      // user-entered fallback tray (name + qty + price)
+      customTray: { name: "", qty: "1", price: "" },
       // accessories (checked by default, like legacy)
       abdichtSet: true,
       drainSet: true,

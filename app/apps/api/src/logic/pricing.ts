@@ -1556,6 +1556,30 @@ try {
       }
     } catch { /* ignore */ }
 
+    // Custom (user-entered) Duschwanne — used when no catalogue tray fits.
+    // Inert unless duschwanne.customTray has a name + positive price, so it
+    // never affects legacy payloads. Priced like a normal material (markup + VAT).
+    try {
+      const ct = payload?.duschwanne?.customTray;
+      const name = String(ct?.name ?? "").trim();
+      const unit = round2(parseMoneyStrict(ct?.price));
+      if (name && unit > 0) {
+        const qty = Math.max(1, parseInt(String(ct?.qty ?? "1"), 10) || 1);
+        const line = {
+          productId: "CUSTOM_TRAY",
+          name,
+          qty,
+          unitPrice: unit,
+          lineTotal: round2(unit * qty),
+          label: `- ${qty} Stk ${name}`,
+          category: "Duschwanne",
+        };
+        materials.lines.push(line);
+        materials.sum = round2((materials.sum || 0) + line.lineTotal);
+        selectedTray = { productId: "CUSTOM_TRAY", name, sizeLabel: "", unitPrice: unit };
+      }
+    } catch { /* ignore */ }
+
     // ----- UI/DOCX display adjustments for Haltegriff-Bonus (presentation only) -----
     // ---- HALTEGRIFF + DISPLAY PREP ----
     const grabCounts = materials?.grabCounts || { cl30: 0, total: 0 };

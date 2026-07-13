@@ -91,6 +91,8 @@ export function DuschwanneStep() {
         family: t.family,
         color,
       },
+      // a searched tray and a custom tray are mutually exclusive
+      customTray: { name: "", qty: "1", price: "" },
     });
   }
 
@@ -99,6 +101,22 @@ export function DuschwanneStep() {
   }
 
   const sel = d.selectedTrayInfo;
+  const ct = d.customTray ?? { name: "", qty: "1", price: "" };
+  const customActive =
+    !!String(ct.name || "").trim() &&
+    Number(String(ct.price || "").replace(",", ".").replace(/[^\d.]/g, "")) > 0;
+
+  // Editing the custom tray clears any searched selection (mutually exclusive).
+  function setCustom(patch: Record<string, any>) {
+    const next = { ...ct, ...patch };
+    const active =
+      !!String(next.name || "").trim() &&
+      Number(String(next.price || "").replace(",", ".").replace(/[^\d.]/g, "")) > 0;
+    set({
+      customTray: next,
+      ...(active ? { chosenTrayProductId: "", traySize: "", trayColor: "", selectedTrayInfo: null } : {}),
+    });
+  }
 
   return (
     <div className="space-y-8">
@@ -166,6 +184,43 @@ export function DuschwanneStep() {
         {!results && !loading && (
           <p className="text-sm text-muted-foreground">Breite und/oder Länge eingeben, um passende Duschwannen zu finden.</p>
         )}
+      </Section>
+
+      {/* Custom tray fallback — when no catalogue tray fits */}
+      <Section title="Eigene Duschwanne (falls nicht gefunden)">
+        <div
+          className={cn(
+            "flex flex-wrap items-end gap-4 rounded-lg border p-4",
+            customActive && "border-primary/40 bg-primary/[0.03]",
+          )}
+        >
+          <Field label="Bezeichnung" className="min-w-[16rem] flex-1">
+            <Input
+              value={ct.name}
+              onChange={(e) => setCustom({ name: e.target.value })}
+              placeholder="z. B. Sonderduschwanne 130 × 90"
+            />
+          </Field>
+          <Field label="Menge" className="w-24">
+            <Input inputMode="numeric" value={ct.qty} onChange={(e) => setCustom({ qty: e.target.value })} />
+          </Field>
+          <Field label="Preis (€, netto)" className="w-32">
+            <Input inputMode="decimal" value={ct.price} onChange={(e) => setCustom({ price: e.target.value })} />
+          </Field>
+          {customActive && (
+            <button
+              type="button"
+              onClick={() => setCustom({ name: "", qty: "1", price: "" })}
+              className="mb-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-destructive"
+            >
+              <X className="size-3.5" /> entfernen
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Wird verwendet, wenn keine passende Wanne gefunden wird — ersetzt die Auswahl oben und fließt mit
+          Aufschlag &amp; MwSt. in die Kalkulation ein.
+        </p>
       </Section>
 
       {/* Slate colour — only when an SLA tray is chosen */}
