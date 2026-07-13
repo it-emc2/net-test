@@ -22,13 +22,14 @@ const DECORS: Decor[] = [
   { value: "V5FB02|Eiche-Natur", label: "Eiche-Natur", img: "/assets/floor/eiche-natur.jpg" },
 ];
 
-// Badolux budget floors (Bodenplatten, sold per 1,49 m² Paket). Shown only in Budget-Modus.
+// Badolux budget floors (Bodenplatten, sold per 1,49 m² Paket). Shown only in
+// Budget-Modus. Images reuse the current config's BP00x decor photos (same colours).
 const BADOLUX_FLOORS: Decor[] = [
-  { value: "BDX-BO-DN9031_004|Steingrau", label: "Steingrau (Budget)" },
-  { value: "BDX-BO-DN8604_009|Grau", label: "Grau (Budget)" },
-  { value: "BDX-BO-DN3403_6|Creme", label: "Creme (Budget)" },
-  { value: "BDX-BO-DN4595_5|Sahara", label: "Sahara (Budget)" },
-  { value: "BDX-BO-DN8604_003|Cafe", label: "Café (Budget)" },
+  { value: "BDX-BO-DN9031_004|Steingrau", label: "Steingrau (Budget)", img: "/assets/floor/budget/BP001.png" },
+  { value: "BDX-BO-DN8604_009|Grau", label: "Grau (Budget)", img: "/assets/floor/budget/BP002.png" },
+  { value: "BDX-BO-DN3403_6|Creme", label: "Creme (Budget)", img: "/assets/floor/budget/BP003.png" },
+  { value: "BDX-BO-DN4595_5|Sahara", label: "Sahara (Budget)", img: "/assets/floor/budget/BP004.png" },
+  { value: "BDX-BO-DN8604_003|Cafe", label: "Café (Budget)", img: "/assets/floor/budget/BP005.png" },
 ];
 
 const FLOOR_KINDS = [
@@ -83,16 +84,12 @@ export function FussbodenStep() {
             </Field>
           </div>
 
-          <DecorGrid title="Dekor" decors={DECORS} selected={selected} onSelect={(v) => set({ flooringProduct: [v] })} />
-
-          {budget && (
-            <DecorGrid
-              title="Budget-Dekor (Badolux)"
-              decors={BADOLUX_FLOORS}
-              selected={selected}
-              onSelect={(v) => set({ flooringProduct: [v] })}
-            />
-          )}
+          <DecorGrid
+            title={budget ? "Dekor (Badolux Budget)" : "Dekor"}
+            decors={budget ? BADOLUX_FLOORS : DECORS}
+            selected={selected}
+            onSelect={(v) => set({ flooringProduct: [v] })}
+          />
 
           <label className="flex cursor-pointer items-center gap-2 text-sm">
             <input

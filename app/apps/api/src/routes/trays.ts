@@ -106,7 +106,8 @@ router.get("/suggest", async (req: Request, res: Response) => {
         heightCm: h,
         netPrice: net,
         family: "badolux" as const,
-        image: null,
+        // No per-article photo in Vigor/legacy; use the generic Mineral SMC image.
+        image: "/assets/trays/badolux-mineral.jpg",
         inStock: false,
         stockQuantity: null,
         _score: scoreDims(w, l, sw, sl),
