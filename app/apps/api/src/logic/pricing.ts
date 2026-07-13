@@ -3,7 +3,7 @@
 // Ported in verifiable chunks and golden-tested against the legacy engine:
 //   1. materials    (computeMaterials)      — DONE (golden-verified, 6/6 fixtures)
 //   2. services     (computeServiceCosts)   — DONE (golden-verified)
-//   3. aggregation  (computePrices totals + subsidy + display variants) — TODO
+//   3. aggregation  (computePrices totals + subsidy + display variants) — DONE (golden-verified)
 //
 // The price SOURCE is injected (like the legacy pricingFactory(ProductModel)):
 // production wires the Vigor-first resolver from services/catalog; golden tests
@@ -340,6 +340,32 @@ function extractRehaIdsFromOptional(opt: any): Set<string> {
   }
 
   return out;
+}
+
+// Minimal helper: adjust only the visible label to billable qty (selected - 1)
+// - Does NOT change qty, unitPrice, or lineTotal (so totals remain untouched).
+// - If billable becomes 0 and hideWhenZero=true, remove the line from the list (keeps "0 Stk" hidden).
+function setGrabLabelToBillable(list: any[], freeId: any, { hideWhenZero = false }: { hideWhenZero?: boolean } = {}): void {
+  if (!freeId) return;
+  const row = list?.find((l) => (l.productId || l.id) === freeId);
+  if (!row) return;
+
+  const selectedQty = Number(row.qty || 0) || 0;
+  const billableQty = Math.max(0, selectedQty - 1);
+
+  if (billableQty === 0 && hideWhenZero) {
+    const idx = list.indexOf(row);
+    if (idx > -1) list.splice(idx, 1);
+    return;
+  }
+
+  // strip any "(hidden)" that older logic may have appended
+  const baseName = (row.name || row.label || row.productId || "")
+    .replace(/\s*\(hidden\)\s*$/, "")
+    .trim();
+
+  row.label = `- ${billableQty} Stk ${baseName}`;
+  // IMPORTANT: do not touch row.qty / row.unitPrice / row.lineTotal
 }
 
 // --- factory (materials/services/aggregation land next) ---
@@ -1301,8 +1327,557 @@ export function createPricing(resolve: PriceResolver): Pricing {
     };
   }
 
-  async function computePrices(_payload: PricingPayload): Promise<Record<string, any>> {
-    throw new Error("pricing: computePrices not yet ported (materials/services/aggregation pending)");
+  // TODO: BWT-only, not ported (BU pilot). BU never calls this.
+  async function computeBwtIncludedLines(_payload: PricingPayload): Promise<any[]> {
+    return [];
+  }
+
+  async function computePrices(payload: PricingPayload): Promise<Record<string, any>> {
+    // AH, HMS, WD compute pricing client-side — return empty shell to avoid BU fallback
+    const _offerKey = String(
+      payload?.activeOffer || payload?.currentOfferKey || payload?.offerType || ""
+    ).toLowerCase();
+    if (_offerKey === "ah" || _offerKey === "hms" || _offerKey === "wd") {
+      return {
+        total: 0, selfPayAmount: 0, markup: 0, markupPct: 0,
+        netAfterRabatt_and_Bonus: 0, material_afterRabatt_and_aufschlag: 0,
+        materials: { title: "", lines: [], sum: 0 },
+        services: { title: "", lines: [], sum: 0 },
+        items: [], _clientSideOffer: true,
+      };
+    }
+    const selections = collectSelections(payload);
+    const ids = [...new Set(selections.map((s) => s.productId))];
+    const productMap = await resolve(ids);
+
+    const items = selections.map((s) => {
+      const prod: any = productMap.get(s.productId) || { netPrice: 0 };
+      const unit = prod.netPrice;
+      const qty = s.qty || 1;
+      return {
+        productId: s.productId,
+        qty,
+        unitPrice: unit,
+        lineTotal: round2(unit * qty),
+      };
+    });
+
+    let materials: any = { title: "", lines: [], sum: 0 };
+    try {
+      materials = await computeMaterials(payload);
+    } catch { /* ignore */ }
+
+    let services: any = {
+      title: "",
+      lines: [],
+      sum: 0,
+      payer: "",
+      zoneLabel: "",
+      distanceKm: 0,
+      laborHours: 0,
+      laborRate: 0,
+    };
+    try {
+      services = computeServiceCosts(payload) || services;
+    } catch { /* ignore */ }
+    const originalServicesSum = Number(services?.sum || 0);
+    void originalServicesSum;
+    // figure out active offer here
+    const offer =
+      payload?.activeOffer ||
+      payload?.currentOfferKey ||
+      payload?.offerType ||
+      "bu";
+
+    // --- BWT: Enthält-je-Einheit rows with real prices ---
+    let bwtIncludedDisplayUI: any[] = [];
+    if (offer === "bwt") {
+      try {
+        bwtIncludedDisplayUI = await computeBwtIncludedLines(payload);
+      } catch { /* ignore */ }
+    }
+
+    // --- BWT: Summe Leistungen aus den 4 BWT-Zeilen + Extra Arbeitszeit ---
+    let bwtLeistungenSum = 0;
+    if (
+      offer === "bwt" &&
+      Array.isArray(bwtIncludedDisplayUI) &&
+      bwtIncludedDisplayUI.length
+    ) {
+      bwtLeistungenSum = round2(
+        bwtIncludedDisplayUI.reduce(
+          (acc, row) => acc + (Number(row.lineTotal) || 0),
+          0,
+        ),
+      );
+
+      // Extra Arbeitszeit from Arbeitszeit page (computed in computeServiceCosts)
+      const extraAufgabe = Number(services?.extraAufgabeAmount || 0);
+
+      // For BWT: base BWT-Leistungen + Extra Arbeitszeit
+      const bwtServicesTotal = round2(bwtLeistungenSum + extraAufgabe);
+
+      services.sum = bwtServicesTotal;
+    }
+
+    // --- add the selected Duschwanne (from smart search) as a material line ---
+    // --- add selected Badewanne + (optional) Wannenaufsatz as material lines ---
+try {
+  const bathtubPid = payload?.duschwanne?.chosenBathtubProductId;
+
+  // robust workTasks read (your payload has weird keys sometimes)
+  const dw = payload?.duschwanne || {};
+  const workTasksRaw =
+    dw.workTasks ||
+    dw["workTasks[]"] ||
+    dw["duschwanne[workTasks][]"] ||
+    payload?.["duschwanne[workTasks][]"];
+
+  const workTasks = Array.isArray(workTasksRaw)
+    ? workTasksRaw.map((x: any) => String(x))
+    : typeof workTasksRaw === "string" && workTasksRaw.trim()
+      ? [workTasksRaw.trim()]
+      : [];
+
+  if (bathtubPid) {
+    const already = (materials?.lines || []).some(
+      (l: any) => l?.productId === bathtubPid || l?.id === bathtubPid
+    );
+
+    if (!already) {
+      const p = (await resolve([bathtubPid])).get(bathtubPid);
+      if (p) {
+        const unit = Number(p.netPrice || 0);
+        const qty = 1;
+        const line = {
+          productId: p.productId,
+          name: p.name || "",
+          qty,
+          unitPrice: unit,
+          lineTotal: round2(unit * qty),
+          label: `- ${qty} Stk Badewanne`,
+        };
+        materials.lines.push(line);
+        materials.sum = round2((materials.sum || 0) + line.lineTotal);
+      }
+    }
+  }
+
+  // Wannenaufsatz only if its installation is selected
+  const wantsScreen = workTasks.includes("install_bathtub_screen");
+  // ✅ Backwards compatible: accept either new or old field names
+  const screenPid =
+    payload?.duschwanne?.wannenaufsatzProductId ||
+    payload?.duschwanne?.chosenScreenProductId ||
+    payload?.chosenScreenProductId ||
+    null;
+
+  if (wantsScreen && screenPid) {
+    const already = (materials?.lines || []).some(
+      (l: any) => l?.productId === screenPid || l?.id === screenPid
+    );
+
+    if (!already) {
+      const p = (await resolve([screenPid])).get(screenPid);
+      if (p) {
+        const unit = Number(p.netPrice || 0);
+        const qty = 1;
+        const line = {
+          productId: p.productId,
+          name: p.name || "",
+          qty,
+          unitPrice: unit,
+          lineTotal: round2(unit * qty),
+          label: `- ${qty} Stk Wannenaufsatz`,
+        };
+        materials.lines.push(line);
+        materials.sum = round2((materials.sum || 0) + line.lineTotal);
+      }
+    }
+  }
+} catch { /* ignore */ }
+    let selectedTray: any = null;
+
+    try {
+      const pid = payload?.duschwanne?.chosenTrayProductId;
+      const sizeLabel = (payload?.duschwanne?.traySize || "").trim();
+
+      if (pid) {
+        const already = (materials?.lines || []).some(
+          (l: any) => l?.productId === pid || l?.id === pid,
+        );
+
+        if (!already) {
+          const p = (await resolve([pid])).get(pid);
+          if (p) {
+            let unit = Number(p.netPrice || 0);
+
+            // Badolux trays are shown at a configurable discount off the list
+            // price (default 20 %). DB price is left untouched; the discounted
+            // unit flows into unitPrice/lineTotal/selectedTray below, so both
+            // the Kosten tab and the PDF reflect it.
+            const isBadolux =
+              String(p.supplierSource || "").toLowerCase() === "badolux" ||
+              /^DW/i.test(String(p.productId || ""));
+            if (isBadolux) {
+              const badoluxDiscount = config.get("BU_BADOLUX_DISCOUNT", 0.20);
+              unit = round2(unit * (1 - badoluxDiscount));
+            }
+
+            const qty = 1; // ← add this
+            const isSlateTray = String(p.productId || "").startsWith("SLA");
+            // dynamic color (backward compatible)
+            const trayColorRaw = String(payload?.duschwanne?.trayColor || "").trim();
+            const trayColor = trayColorRaw || "Weiss";
+            const colorSuffix = isSlateTray ? ` — Farbe: ${trayColor}` : "";
+
+            const line = {
+              productId: p.productId,
+              name: p.name || "",
+              qty,
+              unitPrice: unit,
+              lineTotal: round2(unit * qty),
+              label: sizeLabel
+              ? `- ${qty} Stk Duschwanne ${sizeLabel}${colorSuffix}`
+              : `- ${qty} Stk Duschwanne${colorSuffix}`,
+              category: "Duschwanne",
+            };
+            materials.lines.push(line);
+            materials.sum = round2((materials.sum || 0) + line.lineTotal);
+
+            selectedTray = {
+              productId: p.productId,
+              name: p.name || "",
+              sizeLabel,
+              unitPrice: unit,
+            };
+          }
+        }
+      }
+    } catch { /* ignore */ }
+
+    // ----- UI/DOCX display adjustments for Haltegriff-Bonus (presentation only) -----
+    // ---- HALTEGRIFF + DISPLAY PREP ----
+    const grabCounts = materials?.grabCounts || { cl30: 0, total: 0 };
+    const bonusHG = !!payload?.rabatt?.bonusGrab;
+
+    // Split materials into non-optional (for UI) and all (for DOCX)
+    const allMatLines = Array.isArray(materials?.lines)
+      ? materials.lines.map((x: any) => ({ ...x }))
+      : [];
+    const isOptionalSource = (src: any) =>
+    src === "optional" || src === "optional_reha";
+
+    const optLines = allMatLines.filter((l: any) => isOptionalSource(l.source));
+    const nonOptLines = allMatLines.filter((l: any) => !isOptionalSource(l.source));
+
+
+    // Sums
+    const optSum = optLines.reduce(
+      (a: number, x: any) => a + (Number(x.lineTotal) || 0),
+      0,
+    );
+    const nonOptSum = (materials?.sum || 0) - optSum;
+
+    // --- UI MATERIALS: show ONLY non-optional under “Material für Badumbau”
+    const uiMaterials = nonOptLines.map((x: any) => ({ ...x }));
+    // --- UI OPTIONALS: show ONLY optional under “Additional gewählte Produkte”
+    const uiOptionals = optLines.map((x: any) => ({ ...x }));
+
+    // --- DOCX MATERIALS: include everything (business rule)
+
+   const docxMaterials = allMatLines
+.filter((l: any) => !l.docxHide)
+.map((x: any) => ({ ...x }));
+
+
+    // --- SERVICES display copies
+    const uiServices = (services?.lines || []).map((x: any) => ({ ...x }));
+    const docxServices = (services?.lines || []).map((x: any) => ({ ...x }));
+
+    // ===== Apply bonus presentation rules =====
+    const freeId = grabCounts?.freeId || null;
+    const ONLY_ONE_GRAB = grabCounts.total === 1;
+
+    // UI rules (presentation only)
+    if (bonusHG && grabCounts.total > 0) {
+      setGrabLabelToBillable(uiOptionals, freeId, { hideWhenZero: false });
+
+      // Single grab bar → hide the worknote in UI (to mirror DOCX behavior)
+      if (ONLY_ONE_GRAB) {
+        const GRAB_NOTE = "Anbringen zusätzlicher Haltegriffe";
+        const uiNoteIdx = uiServices.findIndex((s: any) =>
+          (s.label || "").includes(GRAB_NOTE),
+        );
+        if (uiNoteIdx >= 0) uiServices.splice(uiNoteIdx, 1);
+      }
+    }
+
+    // DOCX rules (presentation only)
+    if (bonusHG && grabCounts.total > 0) {
+      const showFreeGrabInMaterial =
+        payload?.rabatt?.showFreeGrabInMaterial === true;
+
+      if (ONLY_ONE_GRAB) {
+        if (showFreeGrabInMaterial) {
+          // Keep the single free grab visible in DOCX material lines.
+          // Be defensive: if a previous step removed it or it is missing here,
+          // reinsert it from the authoritative material lines.
+          let row = docxMaterials.find((l: any) => (l.productId || l.id) === freeId);
+          if (!row) {
+            const originalRow = allMatLines.find(
+              (l: any) => !l.docxHide && (l.productId || l.id) === freeId,
+            );
+            if (originalRow) {
+              docxMaterials.push({ ...originalRow });
+              row = docxMaterials.find((l: any) => (l.productId || l.id) === freeId);
+            }
+          }
+
+          // Force a visible material label for the single free grab.
+          if (row) {
+            const baseName = (row.name || row.label || row.productId || "")
+              .replace(/^\s*-\s*\d+\s*Stk\s*/i, "")
+              .replace(/\s*\(hidden\)\s*$/i, "")
+              .trim();
+            row.label = `- 1 Stk ${baseName}`;
+          }
+        } else {
+          // Single grab bar → hide it completely in DOCX materials
+          const idx = docxMaterials.findIndex(
+            (l: any) => (l.productId || l.id) === freeId,
+          );
+          if (idx >= 0) docxMaterials.splice(idx, 1);
+
+          // Remove the worknote line from DOCX services
+          const GRAB_NOTE = "Anbringen zusätzlicher Haltegriffe";
+          const dn = docxServices.findIndex((s: any) =>
+            (s.label || "").includes(GRAB_NOTE),
+          );
+          if (dn >= 0) docxServices.splice(dn, 1);
+        }
+      } else {
+        // Multiple → decrement one from DOCX (hide when becomes 0),
+        // unless the user explicitly wants the free grab still shown.
+        setGrabLabelToBillable(docxMaterials, freeId, {
+          hideWhenZero: !showFreeGrabInMaterial,
+        });
+      }
+    }
+
+
+    // Pack adjusted displays (presentation only; totals remain from server truth)
+    const materialsDisplayUI = {
+      title: materials.title,
+      sum: nonOptSum,
+      lines: uiMaterials,
+    };
+    const optionalDisplayUI = { sum: optSum, lines: uiOptionals };
+    const materialsDisplayDocx = {
+      title: materials.title,
+      lines: docxMaterials,
+    };
+    const servicesDisplayUI = { ...services, lines: uiServices };
+    const servicesDisplayDocx = { ...services, lines: docxServices };
+
+    //const productsSubtotal = round2((items || []).reduce((sum, i) => sum + (i?.lineTotal || 0), 0) +(materials?.sum ?? 0));
+    const productsSubtotal = round2(Number(materials?.sum || 0));
+
+    // Extract and enforce markup rules
+    let markupPct = extractMarkupPct(payload);
+    const payer = payload?.Kundendaten?.payer || "";
+    // Bonus checkboxes in Rabatt Menu --
+    const flags = {
+      bonus_neu: !!payload?.rabatt?.bonus300,
+      bonus_Haltegriff: !!payload?.rabatt?.bonusGrab,
+    };
+
+    // NEW: rebuild markup from material lines with the two exceptions
+    const lines = Array.isArray(materials?.lines) ? materials.lines : [];
+    let markupBase = 0;
+
+    for (const row of lines) {
+      const id = String(row?.productId || row?.id || "").trim();
+      const qty = Number(row?.qty ?? row?.quantity ?? 0) || 0;
+      const unitPrice = Number(row?.unitPrice ?? 0) || 0;
+
+      if (!qty || !unitPrice) continue;
+
+      // 1) skip Kleinmaterial (added as KM02 when the checkbox is on)
+      if (id === "KM02") continue;
+
+      // default: count full qty
+      markupBase += qty * unitPrice;
+    }
+
+    // Final markup using the existing percentage
+    const markup = round2(markupBase * (markupPct || 0));
+
+    // Nettobetrag
+    const baseSubtotal = round2(
+      productsSubtotal + (services?.sum ?? 0) + markup,
+    );
+    const TAX_RATE = config.get('TAX_RATE', 0.19);
+    const baseVat = round2(baseSubtotal * TAX_RATE);
+    const base_total = round2(baseSubtotal + baseVat);
+    // --- Rabatt on MATERIAL only (percent from payload.rabatt.materialDiscountPct) ---
+    const materialPct = Number(payload?.rabatt?.materialDiscountPct || 0); // 0..0.09
+    const rabattAmount = round2((productsSubtotal || 0) * materialPct);
+
+    // VAT is applied AFTER discount on net amount:
+    const netAfterRabatt = round2((baseSubtotal || 0) - rabattAmount);
+
+    //  show material + aufschlag in angebote file
+
+    //const Vat_on_net_AfterDiscount = round2(netAfterDiscount * TAX_RATE);
+    const totalAfterRabatt = round2(netAfterRabatt * (1 + TAX_RATE));
+
+    // If you want a threshold for the 300 € (e.g., only if totalAfterRabatt ≥ 3000), add it here:
+    let bonusGross = 0;
+    let bonus_neu = 0;
+    if (flags.bonus_neu) {
+      const bonusVal = config.get('BONUS_NEW_CUSTOMER_GROSS', 252.1);
+      bonusGross += bonusVal;
+      bonus_neu += bonusVal;
+    }
+    if (flags.bonus_Haltegriff) {
+      const freeId = materials?.grabCounts?.freeId;
+      if (freeId) {
+        const freeLine = (materials?.lines || []).find(
+          (l: any) => (l.productId || l.id) === freeId,
+        );
+        const unit = Number(freeLine?.unitPrice) || 0;
+        bonusGross += round2(unit);
+      }
+    }
+
+    const netAfterRabatt_and_Bonus = round2(
+      Math.max(0, netAfterRabatt - bonusGross),
+    );
+    // material and aufschlag but without neu bonus if exist
+    const material_plus_aufschlag =
+      netAfterRabatt_and_Bonus - (services?.sum ?? 0) + bonus_neu;
+    const material_afterRabatt_and_aufschlag =
+      netAfterRabatt_and_Bonus - (services?.sum ?? 0) - markup;
+
+    const vatOnNet = round2((netAfterRabatt_and_Bonus || 0) * TAX_RATE);
+    const total = round2((netAfterRabatt_and_Bonus || 0) + vatOnNet);
+
+    // -------- NEW: Zuschuss/Selbstkostenanteil --------
+    const b = payload?.Kundendaten || {};
+
+    // Accept string or array; pick the first non-empty if it's an array
+    const rawOptionSrc =
+      b?.budgetOption ?? b?.budgetOptionsPanel ?? b?.budgetOptions ?? "";
+    const rawOption = Array.isArray(rawOptionSrc)
+      ? rawOptionSrc.find((v: any) => v != null && String(v).trim() !== "") || ""
+      : rawOptionSrc;
+
+    // Canonicalize: underscores->spaces, collapse whitespace, uppercase
+    const option = String(rawOption)
+      .toUpperCase()
+      .replace(/_/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    // Copay from any field you might use
+    const zuzahlungRaw =
+      Number(b?.zuzahlung ?? b?.copay ?? b?.copayAmount ?? 0) || 0;
+    const prior = Number(b?.wohnumfeld?.amount) || 0;
+    let subsidyAmount = 0;
+    let subsidyAmount_max = 0; // changed if prior different from 0
+    switch (option) {
+      case "4180 MAXIMAL":
+      case "MAX_4180":
+      case "4180_MAXIMAL":
+      case "MAXIMAL_4180":
+        subsidyAmount = config.get('SUBSIDY_AMOUNT_4180', 4180);
+        break;
+
+      case "4180 MIT ZUZAHLUNG":
+      case "KUNDE_MIT_ZUZAHLUNG":
+      case "4180_KUNDE_MIT_ZUZAHLUNG":
+      case "ZUSZAHLUNG_CA":
+        subsidyAmount = config.get('SUBSIDY_AMOUNT_4180', 4180);
+        break;
+
+      case "ZWEI PERSONEN MIT PFLEGEGRAD":
+      case "ZWEI_PERSONEN_8360":
+      case "2_PERSONEN_MIT_PFLEGEGRAD":
+      case "8360_ZWEI_PERSONEN":
+        subsidyAmount = config.get('SUBSIDY_AMOUNT_8360', 8360);
+        break;
+
+      default:
+        subsidyAmount = 0;
+    }
+    subsidyAmount_max = subsidyAmount;
+    // subtract prior Wohnumfeld amount (KK only)
+
+    if (payer === "Kassenkunde" && b?.wohnumfeld?.done) {
+      // prevent negative subsidy
+
+      subsidyAmount_max = Math.max(0, subsidyAmount - Math.max(0, prior)); //   // we substract prior (wohnumfeldAmount ) if exist from money help pfelegebudget
+    }
+
+    const selfPayAmount = round2(
+      Math.max(0, Number(total) - Number(subsidyAmount_max)),
+    );
+
+    return {
+      // before discount:
+      items,
+      materials,
+      productsSubtotal,
+      services,
+      Nettobetrag: baseSubtotal,
+      markupPct,
+      markup,
+      vatOnNet,
+      total,
+      netAfterRabatt_and_Bonus,
+
+      // values after discount
+      netAfterRabatt,
+      materialDiscountPct: materialPct, // for the slider label in UI
+      rabattAmount,
+      totalAfterRabatt,
+      baseVat,
+      base_total,
+
+      // rabatt + bonus:
+      bonusGross,
+      bonusFlags: flags,
+      flags: flags,
+
+      // NEW: Zuschuss/Selbstkostenanteil for UI + DOCX
+      subsidyKind: option,
+      subsidyInput: Math.max(0, zuzahlungRaw),
+      subsidyAmount, // money help pfelegebudget
+      prior, //  wohnumfeldAmount
+      subsidyAmount_max,
+      selfPayAmount,
+      selectedTray,
+
+      // NEW display-only blocks
+      grabCounts,
+
+      // presentation-only copies
+      materialsDisplayUI,
+      optionalDisplayUI,
+      servicesDisplayUI,
+
+      materialsDisplayDocx,
+      servicesDisplayDocx,
+
+      // Produkte + Material in kosten-details
+      material_afterRabatt_and_aufschlag,
+      // BWT-only helper for "Enthält je Einheit"
+      bwtIncludedDisplayUI,
+
+      // BU we show in the angebote this amount instead of pure material
+      material_plus_aufschlag,
+    };
   }
 
   return { computePrices, computeMaterials, computeServiceCosts };

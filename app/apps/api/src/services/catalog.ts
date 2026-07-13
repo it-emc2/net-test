@@ -10,6 +10,9 @@ export interface ResolvedProduct {
   /** Net unit price in EUR. */
   netPrice: number;
   source: "vigor" | "legacy";
+  /** Original supplier (legacy Products.source, e.g. "badolux"/"hassmann"); null from Vigor.
+   *  Pricing uses this for the Badolux tray discount. */
+  supplierSource: string | null;
   /** Live stock (Vigor only); null when unknown/fallback. */
   stockQuantity: number | null;
   inStock: boolean;
@@ -39,6 +42,7 @@ export async function resolvePrices(idsIn: string[]): Promise<Map<string, Resolv
         name: (d.name as string) || (d.displayName as string) || art,
         netPrice: Number(d.netPrice) || 0,
         source: "vigor",
+        supplierSource: null,
         stockQuantity: qty,
         inStock: qty != null ? qty > 0 : false,
       });
@@ -59,6 +63,7 @@ export async function resolvePrices(idsIn: string[]): Promise<Map<string, Resolv
         name: d.name,
         netPrice: Number(d.price) || 0,
         source: "legacy",
+        supplierSource: d.source ?? null,
         stockQuantity: null,
         inStock: false,
       });
