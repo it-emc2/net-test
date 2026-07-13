@@ -109,6 +109,22 @@ export function defaultPayload(): OfferPayload {
       totalHoursNumeric: 0,
       totalHoursHHMM: "",
     },
+    wandverkleidung: {
+      wvKind: "Fliesenspiegel",
+      wvQty997: "",
+      wvQty1497: "",
+      panelConfigs: { "997x2550": { color: "" }, "1497x2550": { color: "" } },
+      wvSonderConfigNr: "",
+      wvSealing: false,
+      flechenkleber: false,
+      wvFlachenQty: "",
+      wvEndProfile: false,
+      wvEndProfileQty: "",
+      wvV3VQty: "",
+      wvCornersCount: "",
+      wvSilikon: false,
+      wvSilikonQty: "",
+    },
     duschwanne: {
       // tray search + selection
       tray_w_cm: "",
@@ -138,7 +154,6 @@ export function defaultPayload(): OfferPayload {
       workTasks: [],
       extraTasks: [],
     },
-    wandverkleidung: {},
     optional: {},
     rabatt: {},
   };
