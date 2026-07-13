@@ -7006,6 +7006,16 @@ document.addEventListener("DOMContentLoaded", () => {
     item.innerHTML = `
       <input class="dw-extra" type="text" name="duschwanne[extraTasks][]"
         aria-label="Zusätzliche Aufgabe" value="${escapeHtml(value)}" />
+      <button type="button" class="wt-extra-move wt-extra-move-up" aria-label="Nach oben verschieben" title="Nach oben">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="18 15 12 9 6 15"></polyline>
+        </svg>
+      </button>
+      <button type="button" class="wt-extra-move wt-extra-move-down" aria-label="Nach unten verschieben" title="Nach unten">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
       <button type="button" class="da-remove wt-extra-remove" aria-label="Diese Zeile entfernen">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <polyline points="3 6 5 6 21 6"></polyline>
@@ -7023,6 +7033,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function wireItem(item) {
     const input = item.querySelector(".dw-extra");
     const removeBtn = item.querySelector(".da-remove");
+    const upBtn = item.querySelector(".wt-extra-move-up");
+    const downBtn = item.querySelector(".wt-extra-move-down");
 
     input?.addEventListener("input", saveState);
     removeBtn?.addEventListener("click", () => {
@@ -7033,7 +7045,40 @@ document.addEventListener("DOMContentLoaded", () => {
         item.remove();
       }
       saveState();
+      updateMoveButtons();
       window.updatePricing?.();
+    });
+
+    upBtn?.addEventListener("click", () => {
+      const prev = item.previousElementSibling;
+      if (prev && prev.classList.contains("da-item")) {
+        wrap.insertBefore(item, prev);
+        saveState();
+        updateMoveButtons();
+        window.updatePricing?.();
+      }
+    });
+
+    downBtn?.addEventListener("click", () => {
+      const next = item.nextElementSibling;
+      if (next && next.classList.contains("da-item")) {
+        wrap.insertBefore(next, item);
+        saveState();
+        updateMoveButtons();
+        window.updatePricing?.();
+      }
+    });
+  }
+
+  // Disable "up" on the first row and "down" on the last row.
+  function updateMoveButtons() {
+    const items = Array.from(wrap.querySelectorAll(".da-item"));
+    const single = items.length <= 1;
+    items.forEach((it, i) => {
+      const up = it.querySelector(".wt-extra-move-up");
+      const down = it.querySelector(".wt-extra-move-down");
+      if (up) up.disabled = single || i === 0;
+      if (down) down.disabled = single || i === items.length - 1;
     });
   }
 
@@ -7046,6 +7091,7 @@ document.addEventListener("DOMContentLoaded", () => {
       countBadge.hidden = filled.length === 0;
     }
     if (emptyHint) emptyHint.hidden = filled.length > 0;
+    updateMoveButtons();
   }
 
   function saveState() {
