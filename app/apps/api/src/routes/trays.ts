@@ -85,11 +85,12 @@ router.get("/suggest", async (req: Request, res: Response) => {
 
   // --- Badolux / DW (legacy Products) ---
   try {
-    // Only Badolux SHOWER TRAYS (Duschwannen) — productId DW* / BDX-DW*.
-    // The broad source:"badolux" also holds wall panels, floor tiles, shower
-    // enclosures (BDX-GL), profiles, etc., which must NOT appear here.
+    // Only the canonical Mineral Duschwanne SMC trays — productId DW### (DW001…
+    // DW025), whose prices match the current supplier price list. The parallel
+    // BDX-DW-* set is an older duplicate import with outdated prices and is
+    // intentionally excluded so each size appears exactly once.
     const docs = await Product.find({
-      productId: { $regex: "^(DW|BDX-DW)", $options: "i" },
+      productId: { $regex: "^DW\\d", $options: "i" },
     }).lean();
     const items = (docs as any[]).map((d) => {
       const w = num(d.widthCm);
