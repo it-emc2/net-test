@@ -1306,8 +1306,18 @@ a.btn {
 }
 
 #dw-extra-tasks .wt-extra-move:disabled {
-  opacity: 0.35;
+  opacity: 0.4;
   cursor: default;
+}
+
+/* Keep the chevron at its intrinsic size — inside the inline-flex button it
+   otherwise collapses to 0px width and the arrow disappears. */
+#dw-extra-tasks .wt-extra-move svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  display: block;
+  stroke: currentColor;
 }
 
 #dw-extra-tasks .wt-extra-add.da-add {
