@@ -10,12 +10,7 @@ import net from "net";
 import dns from "dns";
 
 import EmailLog from "../models/EmailLog.js";
-import { addTimelineComment, updateDealStage } from "./bitrix.js";
-
-// Deal pipeline stage the offer email should advance the deal to.
-// "[VI] ANG verschickt" lives in deal category 38 (STATUS_ID C38:UC_2ZDNEZ).
-const ANG_VERSCHICKT_STAGE_ID = "C38:UC_2ZDNEZ";
-const ANG_VERSCHICKT_CATEGORY_ID = 38;
+import { addTimelineComment } from "./bitrix.js";
 import { createSigningRequest } from "./signing.js";
 
 import { buildEmailHtml } from "../lib/emailTemplate.js";
@@ -424,29 +419,17 @@ router.post("/send-offer", upload.array("attachments", 10), async (req, res) => 
       };
     }
 
-    // ---- Advance the deal to "[VI] ANG verschickt" ----
-    let bitrixStage = { skipped: true, reason: "no deal" };
-    try {
-      const target = getBitrixTargetFromPayload(payload);
-      const stageDealId =
-        (target?.entityType === "deal" ? target.entityId : "") || dealId;
-      if (stageDealId) {
-        bitrixStage = await updateDealStage({
-          dealId: stageDealId,
-          stageId: ANG_VERSCHICKT_STAGE_ID,
-          categoryId: ANG_VERSCHICKT_CATEGORY_ID,
-          // "Betrag und Währung" is required on this stage — fill it from the
-          // offer's final gross total (Gesamtsumme/Brutto).
-          opportunity: Number(offerComputed?.total) || 0,
-          currencyId: "EUR",
-        });
-      }
-    } catch (stageErr) {
-      console.warn("[email] Bitrix deal stage update failed:", stageErr);
-      bitrixStage = { ok: false, error: stageErr?.message || String(stageErr) };
-    }
+    // The offer's final gross total (Gesamtsumme/Brutto). Returned so the
+    // "Deal auf 'ANG verschickt' verschieben" dialog can prefill "Betrag".
+    const offerTotal = Number(offerComputed?.total) || 0;
 
-    res.json({ ok: true, messageId: info.messageId, attachmentNames, bitrixComment, bitrixStage });
+    res.json({
+      ok: true,
+      messageId: info.messageId,
+      attachmentNames,
+      bitrixComment,
+      offerTotal,
+    });
   } catch (e) {
     console.error("[email] send-offer failed:", e);
     res.status(500).json({ error: "Send failed", detail: e?.message || String(e) });

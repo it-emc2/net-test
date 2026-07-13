@@ -8,6 +8,15 @@ const BITRIX_WEBHOOK_BASE = "https://emczwei.bitrix24.de/rest/2594/na0pingesg144
 // Bitrix constants (from your script)
 const OWNER_TYPE = { contact: 3, company: 4 };
 
+// Deal pipeline stage the offer email flow advances the deal to.
+// "[VI] ANG verschickt" lives in deal category 38 (STATUS_ID C38:UC_2ZDNEZ).
+const ANG_VERSCHICKT_STAGE_ID = "C38:UC_2ZDNEZ";
+const ANG_VERSCHICKT_CATEGORY_ID = 38;
+
+// Fields that must be filled before the deal can enter "[VI] ANG verschickt".
+// "Betrag und Währung" = OPPORTUNITY + CURRENCY_ID.
+const ANG_VERSCHICKT_REQUIRED_FIELDS = ["OPPORTUNITY", "CURRENCY_ID"];
+
 // ---------- helpers ----------
 function isEmpty(v) {
   return v === null || v === undefined || String(v).trim() === "";
@@ -286,6 +295,108 @@ router.post("/timeline/comment", express.json({ limit: "25mb" }), async (req, re
     return res.json(data);
   } catch (err) {
     console.error("POST /api/bitrix/timeline/comment error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// GET /api/bitrix/deal/:id/ang-verschickt-fields
+// Reads the deal and reports which "[VI] ANG verschickt" required fields
+// (Betrag/Währung) are still empty, with options for the currency select.
+router.get("/deal/:id/ang-verschickt-fields", async (req, res) => {
+  try {
+    const dealId = String(req.params.id || "").trim();
+    if (!dealId) return res.status(400).json({ error: "id is required" });
+
+    const dealResp = await bxGet("crm.deal.get", { id: dealId });
+    const deal = dealResp?.result;
+    if (!deal) return res.status(404).json({ error: "Deal not found" });
+
+    let currencyOptions = ["EUR"];
+    try {
+      const cur = await bxGet("crm.currency.list", {});
+      const list = (cur?.result || []).map((c) => String(c.CURRENCY)).filter(Boolean);
+      if (list.length) currencyOptions = list;
+    } catch (e) {
+      console.warn("[bitrix] currency.list failed, defaulting to EUR:", e?.message || e);
+    }
+
+    const meta = {
+      OPPORTUNITY: { label: "Betrag", type: "double" },
+      CURRENCY_ID: { label: "Währung", type: "enumeration", options: currencyOptions },
+    };
+
+    const fields = ANG_VERSCHICKT_REQUIRED_FIELDS.map((name) => {
+      const currentValue = deal[name];
+      // OPPORTUNITY of "0"/"0.00" counts as empty (no amount set yet).
+      const empty =
+        name === "OPPORTUNITY"
+          ? isEmpty(currentValue) || Number(currentValue) === 0
+          : isEmpty(currentValue);
+      return {
+        name,
+        label: meta[name]?.label || name,
+        type: meta[name]?.type || "string",
+        options: meta[name]?.options,
+        currentValue: currentValue ?? "",
+        isEmpty: empty,
+      };
+    });
+
+    return res.json({
+      dealId: Number(dealId),
+      title: deal.TITLE || "",
+      stageId: deal.STAGE_ID || "",
+      fields,
+      allFilled: fields.every((f) => !f.isEmpty),
+    });
+  } catch (err) {
+    console.error("GET /api/bitrix/deal/:id/ang-verschickt-fields error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// POST /api/bitrix/deal/:id/move-ang-verschickt
+// Body: { opportunity?: number, currencyId?: string }
+// Fills Betrag/Währung (if provided) and moves the deal to "[VI] ANG verschickt".
+router.post("/deal/:id/move-ang-verschickt", express.json(), async (req, res) => {
+  try {
+    const dealId = String(req.params.id || "").trim();
+    if (!dealId) return res.status(400).json({ error: "id is required" });
+
+    const dealResp = await bxGet("crm.deal.get", { id: dealId });
+    const deal = dealResp?.result;
+    if (!deal) return res.status(404).json({ error: "Deal not found" });
+
+    // Resolve final Betrag/Währung from the request, falling back to whatever
+    // is already on the deal.
+    const providedAmount = Number(req.body?.opportunity);
+    const amount =
+      Number.isFinite(providedAmount) && providedAmount > 0
+        ? providedAmount
+        : Number(deal.OPPORTUNITY) || 0;
+    const currencyId =
+      String(req.body?.currencyId || "").trim() ||
+      String(deal.CURRENCY_ID || "").trim() ||
+      "EUR";
+
+    if (!(amount > 0)) {
+      return res.status(400).json({
+        error: "Betrag (OPPORTUNITY) fehlt",
+        missing: ["OPPORTUNITY"],
+      });
+    }
+
+    const data = await updateDealStage({
+      dealId,
+      stageId: ANG_VERSCHICKT_STAGE_ID,
+      categoryId: ANG_VERSCHICKT_CATEGORY_ID,
+      opportunity: amount,
+      currencyId,
+    });
+
+    return res.json({ ok: true, dealId: Number(dealId), result: data?.result ?? data });
+  } catch (err) {
+    console.error("POST /api/bitrix/deal/:id/move-ang-verschickt error:", err);
     return res.status(500).json({ error: err?.message || String(err) });
   }
 });
