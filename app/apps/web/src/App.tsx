@@ -4,6 +4,8 @@ import { ProtectedRoute } from "@/routes/ProtectedRoute";
 import { LoginPage } from "@/pages/LoginPage";
 import { HomePage } from "@/pages/HomePage";
 import { AdminPage } from "@/pages/AdminPage";
+import { CustomersPage } from "@/pages/CustomersPage";
+import { CustomerDetailPage } from "@/pages/CustomerDetailPage";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
 
 export default function App() {
@@ -17,7 +19,8 @@ export default function App() {
           <Route element={<AppShell />}>
             <Route index element={<HomePage />} />
             <Route path="angebote" element={<PlaceholderPage title="Angebote" />} />
-            <Route path="kunden" element={<PlaceholderPage title="Kunden" />} />
+            <Route path="kunden" element={<CustomersPage />} />
+            <Route path="kunden/:id" element={<CustomerDetailPage />} />
 
             {/* Admin-only subtree */}
             <Route element={<ProtectedRoute adminOnly />}>

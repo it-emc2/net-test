@@ -77,3 +77,38 @@ export interface UpdateUserRequest {
   active?: boolean;
   password?: string;
 }
+
+// --- Customers (Kundendaten) ---
+
+/** Core customer fields for the list/search table. */
+export interface CustomerListItem {
+  id: string;
+  customerNumber: string;
+  salutation: string;
+  firstName: string;
+  lastName: string;
+  company: string;
+  email: string;
+  phone: string;
+  street: string;
+  city: string;
+  postalCode: string;
+  country: string;
+  sourceOfferType: string;
+  updatedAt: string | null;
+  createdAt: string | null;
+}
+
+/** Full customer record, including the free-form kundendaten snapshot. */
+export interface CustomerDetail extends CustomerListItem {
+  state: string;
+  bitrixContactId: string;
+  kundendaten: Record<string, unknown>;
+}
+
+export interface CustomersListResponse {
+  items: CustomerListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}

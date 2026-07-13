@@ -6,6 +6,7 @@ import morgan from "morgan";
 import { env } from "./config/env.js";
 import authRouter from "./routes/auth.js";
 import adminRouter from "./routes/admin.js";
+import customersRouter from "./routes/customers.js";
 
 export function createApp(): Application {
   const app = express();
@@ -28,6 +29,7 @@ export function createApp(): Application {
 
   app.use("/api/auth", authRouter);
   app.use("/api/admin", adminRouter);
+  app.use("/api/customers", customersRouter);
 
   // 404 for unknown API routes.
   app.use("/api", (_req: Request, res: Response) => {
