@@ -825,6 +825,44 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     refreshPrefills();
   });
 
+  // Extra documents attached to the Bitrix timeline comment only (NOT the
+  // customer email): Angebot DOCX, Hassmann CSV, Kalkulation PDF. Best-effort —
+  // a single doc failing must never block the actual email send.
+  async function fetchBitrixExtraDoc(endpoint, payload, fallbackName) {
+    const resp = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) {
+      const txt = await resp.text().catch(() => "");
+      throw new Error(`${endpoint} (${resp.status}): ${txt}`);
+    }
+    const cd = resp.headers.get("content-disposition") || "";
+    let filename = fallbackName;
+    const match = cd.match(/filename="?([^"]+)"?/i);
+    if (match && match[1]) filename = match[1];
+    return { blob: await resp.blob(), filename };
+  }
+
+  async function collectBitrixDocs(payload, offerNumber) {
+    const safeNo = String(offerNumber || "Angebot").replace(/[^A-Za-z0-9_\-]+/g, "_");
+    const jobs = [
+      { endpoint: "/docx-template", name: `${safeNo}.docx` },
+      { endpoint: "/material-overview/hassmann-cart", name: `Hassmann_Warenkorb_${safeNo}.csv` },
+      { endpoint: "/kalkulation/pdf", name: `Kalkulation_${safeNo}.pdf` },
+    ];
+    const docs = [];
+    for (const job of jobs) {
+      try {
+        docs.push(await fetchBitrixExtraDoc(job.endpoint, payload, job.name));
+      } catch (e) {
+        console.warn("[EmailManager] Bitrix-Dokument fehlgeschlagen:", job.endpoint, e);
+      }
+    }
+    return docs;
+  }
+
   async function send() {
     try {
       if (cfg.hooks.requireBereichValid && !cfg.hooks.requireBereichValid()) {
@@ -865,10 +903,20 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
       ).trim();
 
       $btn.disabled = true;
+      setStatus("Erzeuge Dokumente für Bitrix …", "info");
+
+      // Generate the extra Bitrix documents (Angebot DOCX, Hassmann CSV,
+      // Kalkulation PDF) up front so they can be attached to the timeline comment.
+      const bitrixDocs = await collectBitrixDocs(payload, offerNumber);
+
       setStatus("Generating offer PDF + sending email…", "info");
 
       const subject = ($subject.value || offerNumber || "Angebot").trim();
       const body = $body.value || "";
+
+      // Developer option: suppress presets on the Bitrix timeline only
+      // (the customer email keeps them regardless).
+      const excludeBitrixPresets = !!document.getElementById("devExcludeBitrixPresets")?.checked;
 
       const fd = new FormData();
       fd.append("to", to);
@@ -878,10 +926,12 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
       fd.append("offerType", payload.activeOffer || "");
       fd.append("payload", JSON.stringify(payload));
       fd.append("excludePreset", JSON.stringify(Array.from(excludedPreset)));
+      fd.append("excludeBitrixPresets", excludeBitrixPresets ? "1" : "");
       fd.append("dealId", dealId);
       fd.append("contactId", contactId);
 
       for (const f of userFiles) fd.append("attachments", f, f.name);
+      for (const d of bitrixDocs) fd.append("bitrixDocs", d.blob, d.filename);
 
       const res = await fetch(cfg.apiUrl, { method: "POST", body: fd });
       if (!res.ok) {

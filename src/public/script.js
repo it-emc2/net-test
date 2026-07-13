@@ -5018,10 +5018,7 @@ async function downloadPDFWithProgress(endpoint, payload) {
     });
   }
 
-  bindPreviewButton("previewOfferDocx", "offer");
   bindPreviewButton("previewOfferPdf", "offer");
-  bindPreviewButton("previewMaterialOverviewPdf", "material");
-  bindPreviewButton("previewArbeitsberichtPdf", "arbeitsbericht");
   bindPreviewButton("previewKalkulation", "kalkulation");
   bindPreviewButton("previewHassmannCart", "hassmann");
 

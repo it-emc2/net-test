@@ -6967,40 +6967,23 @@ button.dm-btn-danger:focus-visible {
             <p class="section-subtitle">Erstellen, prüfen und vergleichen Sie alle Ausgabedokumente an einem Ort.</p>
 
             <div class="export-cards">
-              <!-- DOCX Card -->
+              <!-- Angebot Card (DOCX + PDF) -->
               <div class="export-card">
                 <div class="document-card__meta">
                   <span class="document-card__badge">Angebot</span>
-                  <span class="document-card__format">DOCX</span>
+                  <span class="document-card__format">DOCX + PDF</span>
                 </div>
                 <div class="card-icon">📄</div>
-                <h3>Word-Dokument</h3>
-                <p>Angebot als bearbeitbare DOCX-Datei herunterladen</p>
-                <div class="document-card__actions">
+                <h3>Angebot</h3>
+                <p>Angebot als bearbeitbare DOCX-Datei oder als kundenfähiges PDF herunterladen</p>
+                <div class="document-card__actions document-card__actions--split">
                   <button type="button" id="downloadDocx" class="btn-export btn-docx">
                     <span class="btn-icon">⬇️</span>
-                    DOCX herunterladen
+                    DOCX
                   </button>
-                  <button type="button" id="previewOfferDocx" class="btn-export document-card__preview">
-                    <span class="btn-icon">👁️</span>
-                    Vorschau anzeigen
-                  </button>
-                </div>
-              </div>
-
-              <!-- PDF Card -->
-              <div class="export-card">
-                <div class="document-card__meta">
-                  <span class="document-card__badge">Angebot</span>
-                  <span class="document-card__format">PDF</span>
-                </div>
-                <div class="card-icon">📑</div>
-                <h3>PDF-Dokument</h3>
-                <p>Kundenfähige PDF-Version des Angebots erstellen und prüfen</p>
-                <div class="document-card__actions">
                   <button type="button" id="downloadDocxAsPdf" class="btn-export btn-pdf">
                     <span class="btn-icon">⬇️</span>
-                    PDF herunterladen
+                    PDF
                   </button>
                   <button type="button" id="previewOfferPdf" class="btn-export document-card__preview">
                     <span class="btn-icon">👁️</span>
@@ -7010,7 +6993,7 @@ button.dm-btn-danger:focus-visible {
               </div>
 
               <!-- Material Overview Card -->
-              <div class="export-card">
+              <div class="export-card" hidden>
                 <div class="document-card__meta">
                   <span class="document-card__badge">Intern</span>
                   <span class="document-card__format">DOCX + PDF</span>
@@ -7052,7 +7035,7 @@ button.dm-btn-danger:focus-visible {
               </div>
 
               <!-- Arbeitsbericht Card -->
-              <div class="export-card">
+              <div class="export-card" hidden>
                 <div class="document-card__meta">
                   <span class="document-card__badge">Intern</span>
                   <span class="document-card__format">PDF</span>
@@ -7152,8 +7135,6 @@ button.dm-btn-danger:focus-visible {
 
               <div class="document-preview-switcher" role="tablist" aria-label="Dokumentvorschau wechseln">
                 <button type="button" data-preview-key="offer">Angebot</button>
-                <button type="button" data-preview-key="material">Materialübersicht</button>
-                <button type="button" data-preview-key="arbeitsbericht">Arbeitsbericht</button>
                 <button type="button" data-preview-key="kalkulation">Kalkulation</button>
                 <button type="button" data-preview-key="hassmann">Hassmann CSV</button>
               </div>
@@ -7294,6 +7275,17 @@ button.dm-btn-danger:focus-visible {
                   <button type="button" id="prefillMusterData" class="btn-dev">Musterdaten einfüllen</button>
                   <button type="button" id="showPayload" class="btn-dev">Payload anzeigen</button>
                   <button type="button" id="copyPayload" class="btn-dev">Payload kopieren</button>
+                </div>
+
+                <div class="dev-tool-group">
+                  <h4>E-Mail / Bitrix</h4>
+                  <label style="display:flex;align-items:center;gap:8px;margin:4px 0;cursor:pointer;font-size:0.85rem;">
+                    <input type="checkbox" id="devExcludeBitrixPresets" style="width:auto;">
+                    Presets (Abtretung/Vollmacht/Flyer) nicht an Bitrix senden
+                  </label>
+                  <p class="muted" style="font-size:0.82rem;margin:6px 0 0;">
+                    Betrifft nur die Bitrix-Timeline. Die Presets bleiben im Kunden-E-Mail-Anhang.
+                  </p>
                 </div>
 
                 <div class="dev-tool-group">
