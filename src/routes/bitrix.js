@@ -142,10 +142,15 @@ async function addTimelineComment({
   return bxPost("crm.timeline.comment.add", { fields });
 }
 
+// entityTypeId for deals in the universal CRM item API.
+const DEAL_ENTITY_TYPE_ID = 2;
+
 // Move a deal to a specific pipeline stage. STAGE_IDs are category-specific
 // (prefixed with C<categoryId>:), so when the target stage belongs to a
-// non-default pipeline the deal's CATEGORY_ID must be set too, otherwise
-// Bitrix rejects/ignores the stage change.
+// different pipeline the deal's category must change too. crm.deal.update
+// silently ignores CATEGORY_ID changes, so use crm.item.update (which does
+// support moving a deal between pipelines). Note crm.item.* uses camelCase
+// field names (stageId/categoryId/opportunity) unlike crm.deal.* (STAGE_ID…).
 async function updateDealStage({
   dealId,
   stageId,
@@ -161,22 +166,29 @@ async function updateDealStage({
     throw new Error("stageId is required");
   }
 
-  const fields = { STAGE_ID: String(stageId).trim() };
+  // categoryId must be sent before/with stageId so the stage is valid for the
+  // target pipeline.
+  const fields = {};
   if (categoryId !== undefined && categoryId !== null && String(categoryId) !== "") {
-    fields.CATEGORY_ID = Number(categoryId);
+    fields.categoryId = Number(categoryId);
   }
+  fields.stageId = String(stageId).trim();
 
-  // "Betrag und Währung" — required on this stage. Fill it from the offer total.
+  // "Betrag und Währung" — required on some stages. Fill it from the offer total.
   const amount = Number(opportunity);
   if (Number.isFinite(amount) && amount > 0) {
-    fields.OPPORTUNITY = amount;
+    fields.opportunity = amount;
     // Keep the amount fixed instead of letting Bitrix recompute it from the
     // (empty) product rows, which would reset it to 0.
-    fields.IS_MANUAL_OPPORTUNITY = "Y";
-    fields.CURRENCY_ID = String(currencyId || "EUR").trim() || "EUR";
+    fields.isManualOpportunity = "Y";
+    fields.currencyId = String(currencyId || "EUR").trim() || "EUR";
   }
 
-  return bxPost("crm.deal.update", { id: numericId, fields });
+  return bxPost("crm.item.update", {
+    entityTypeId: DEAL_ENTITY_TYPE_ID,
+    id: numericId,
+    fields,
+  });
 }
 
 async function getRequisiteIdForContact(contactId) {
