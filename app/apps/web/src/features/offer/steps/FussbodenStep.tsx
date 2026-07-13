@@ -1,19 +1,34 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { Package } from "lucide-react";
 import { useOffer } from "../OfferContext";
 import { StepHeader } from "./KundendatenStep";
-import { productsApi } from "@/features/products/api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-const DECORS = [
-  { value: "AVP-W|Weiß", label: "Weiß", pid: "AVP-W" },
-  { value: "V5FB02|Lava-Beige", label: "Lava-Beige", pid: "V5FB02" },
-  { value: "V5FB02|Schiefer-Beige", label: "Schiefer-Beige", pid: "V5FB02" },
-  { value: "V5FB02|Loft-Grau", label: "Loft-Grau", pid: "V5FB02" },
-  { value: "V5FB02|Speckstein-Schwarz", label: "Speckstein-Schwarz", pid: "V5FB02" },
-  { value: "V5FB02|Eiche-Natur", label: "Eiche-Natur", pid: "V5FB02" },
+interface Decor {
+  value: string;
+  label: string;
+  img?: string;
+}
+
+// Standard V5 / Aluverbund decors (priced via V5FB02 / AVP-W).
+const DECORS: Decor[] = [
+  { value: "AVP-W|Weiß", label: "Aluverbundplatte Weiß", img: "/assets/floor/aluverbund-weiss.jpg" },
+  { value: "V5FB02|Lava-Beige", label: "Lava-Beige", img: "/assets/floor/lava-beige.jpg" },
+  { value: "V5FB02|Schiefer-Beige", label: "Schiefer-Beige", img: "/assets/floor/schiefer-beige.jpg" },
+  { value: "V5FB02|Loft-Grau", label: "Loft-Grau", img: "/assets/floor/loft-grau.jpg" },
+  { value: "V5FB02|Speckstein-Schwarz", label: "Speckstein-Schwarz", img: "/assets/floor/speckstein-schwarz.jpg" },
+  { value: "V5FB02|Eiche-Natur", label: "Eiche-Natur", img: "/assets/floor/eiche-natur.jpg" },
+];
+
+// Badolux budget floors (Bodenplatten, sold per 1,49 m² Paket). Shown only in Budget-Modus.
+const BADOLUX_FLOORS: Decor[] = [
+  { value: "BDX-BO-DN9031_004|Steingrau", label: "Steingrau (Budget)" },
+  { value: "BDX-BO-DN8604_009|Grau", label: "Grau (Budget)" },
+  { value: "BDX-BO-DN3403_6|Creme", label: "Creme (Budget)" },
+  { value: "BDX-BO-DN4595_5|Sahara", label: "Sahara (Budget)" },
+  { value: "BDX-BO-DN8604_003|Cafe", label: "Café (Budget)" },
 ];
 
 const FLOOR_KINDS = [
@@ -26,15 +41,8 @@ export function FussbodenStep() {
   const d = payload.duschwanne;
   const set = (patch: Record<string, any>) => patchSection("duschwanne", patch);
   const on = !!d.addFlooring;
+  const budget = !!d.budgetMode;
   const selected: string = Array.isArray(d.flooringProduct) ? d.flooringProduct[0] ?? "" : "";
-
-  const [img, setImg] = useState<Record<string, string | null>>({});
-  useEffect(() => {
-    productsApi
-      .images(["V5FB02", "AVP-W"])
-      .then((m) => setImg({ V5FB02: m.V5FB02?.image ?? null, "AVP-W": m["AVP-W"]?.image ?? null }))
-      .catch(() => {});
-  }, []);
 
   return (
     <div className="space-y-8">
@@ -75,38 +83,16 @@ export function FussbodenStep() {
             </Field>
           </div>
 
-          <section className="space-y-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dekor</h2>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {DECORS.map((dec) => {
-                const active = selected === dec.value;
-                const image = img[dec.pid];
-                return (
-                  <button
-                    key={dec.value}
-                    type="button"
-                    onClick={() => set({ flooringProduct: [dec.value] })}
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg border p-2.5 text-left transition-colors",
-                      active ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-accent",
-                    )}
-                  >
-                    <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
-                      {image ? (
-                        <img src={image} alt="" className="size-full object-contain p-1" loading="lazy" />
-                      ) : (
-                        <Package className="size-5 text-muted-foreground" />
-                      )}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium">{dec.label}</span>
-                      <span className="block text-xs text-muted-foreground">{dec.pid}</span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
+          <DecorGrid title="Dekor" decors={DECORS} selected={selected} onSelect={(v) => set({ flooringProduct: [v] })} />
+
+          {budget && (
+            <DecorGrid
+              title="Budget-Dekor (Badolux)"
+              decors={BADOLUX_FLOORS}
+              selected={selected}
+              onSelect={(v) => set({ flooringProduct: [v] })}
+            />
+          )}
 
           <label className="flex cursor-pointer items-center gap-2 text-sm">
             <input
@@ -125,6 +111,51 @@ export function FussbodenStep() {
         </>
       )}
     </div>
+  );
+}
+
+function DecorGrid({
+  title,
+  decors,
+  selected,
+  onSelect,
+}: {
+  title: string;
+  decors: Decor[];
+  selected: string;
+  onSelect: (value: string) => void;
+}) {
+  return (
+    <section className="space-y-3">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h2>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {decors.map((dec) => {
+          const active = selected === dec.value;
+          return (
+            <button
+              key={dec.value}
+              type="button"
+              onClick={() => onSelect(dec.value)}
+              className={cn(
+                "overflow-hidden rounded-lg border text-left transition-colors",
+                active ? "border-primary ring-2 ring-primary" : "hover:border-primary/40",
+              )}
+            >
+              <span className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-white">
+                {dec.img ? (
+                  <img src={dec.img} alt={dec.label} className="size-full object-cover" loading="lazy" />
+                ) : (
+                  <Package className="size-8 text-muted-foreground" />
+                )}
+              </span>
+              <span className={cn("block px-3 py-2 text-sm font-medium", active && "text-primary")}>
+                {dec.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

@@ -296,15 +296,13 @@ export function DuschwanneStep() {
       {/* Toggles */}
       <Section title="Optionen">
         <Check
-          label="Budget-Modus (Badolux priorisieren, günstigere Ablauf-/Kleinmaterial-Varianten)"
-          checked={!!d.budgetMode}
-          onChange={(v) => set({ budgetMode: v })}
-        />
-        <Check
           label="Ebenerdige Montage — Hinweis zu möglichen Zusatzkosten einblenden"
           checked={!!d.ebenerdigeMontage}
           onChange={(v) => set({ ebenerdigeMontage: v })}
         />
+        <p className="pl-2 text-xs text-muted-foreground">
+          Budget-Modus ist oben global schaltbar.
+        </p>
       </Section>
     </div>
   );

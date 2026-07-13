@@ -606,12 +606,25 @@ export function createPricing(resolve: PriceResolver): Pricing {
         ? dusch.flooringProduct[0] || ""
         : "";
       const color = fp.includes("|") ? fp.split("|", 2)[1].trim() : "";
+      const floorPid = fp && fp.includes("|") ? fp.split("|", 2)[0].trim() : "V5FB02";
 
-      add(
-        (fp && fp.includes("|") ? fp.split("|", 2)[0].trim() : "V5FB02"),
-        panels,
-        `- ${panels} Stk Fußboden-Paneele (1 Paneele = ${floorPanelSize} m²)${color ? " — Farbe: " + color : ""}`,
-      );
+      // Badolux budget floors (BDX-BO*) are sold per 1,49 m² Paket, not 0,3 m²
+      // panels. Gated on the pid → normal V5/AVP panels are unaffected.
+      if (/^BDX-BO/i.test(floorPid)) {
+        const paketSize = 1.49;
+        const paks = ceilSafe((floorArea * floorWaste) / paketSize);
+        add(
+          floorPid,
+          paks,
+          `- ${paks} Pkt Bodenplatten (1 Paket = ${paketSize} m²)${color ? " — Farbe: " + color : ""}`,
+        );
+      } else {
+        add(
+          floorPid,
+          panels,
+          `- ${panels} Stk Fußboden-Paneele (1 Paneele = ${floorPanelSize} m²)${color ? " — Farbe: " + color : ""}`,
+        );
+      }
 
       // Flächenkleber
       const adhesiveCoverage = config.get('BU_FLOOR_ADHESIVE_COVERAGE', 0.6);

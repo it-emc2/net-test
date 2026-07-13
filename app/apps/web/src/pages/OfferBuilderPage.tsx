@@ -52,14 +52,31 @@ export function OfferBuilderPage() {
 function BuilderInner() {
   const [i, setI] = useState(0);
   const step = STEPS[i];
+  const { payload, patchSection } = useOffer();
+  const budget = !!payload.duschwanne.budgetMode;
 
   return (
     <div className="pb-24 lg:grid lg:grid-cols-[1fr_20rem] lg:gap-8 lg:pb-0">
       <div className="min-w-0">
-        <header className="mb-6">
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
             Neues Angebot · Badumbau
           </p>
+          {/* Global Budget-Modus — affects tray/accessory swaps and budget floors */}
+          <label
+            className={cn(
+              "flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
+              budget ? "border-primary bg-primary/10 text-primary" : "hover:bg-accent",
+            )}
+          >
+            <input
+              type="checkbox"
+              checked={budget}
+              onChange={(e) => patchSection("duschwanne", { budgetMode: e.target.checked })}
+              className="size-4 rounded border-input accent-[hsl(var(--primary))]"
+            />
+            Budget-Modus
+          </label>
         </header>
 
         {/* Step nav — horizontal scroll, works on mobile + desktop */}
