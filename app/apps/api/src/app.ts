@@ -8,6 +8,7 @@ import authRouter from "./routes/auth.js";
 import adminRouter from "./routes/admin.js";
 import customersRouter from "./routes/customers.js";
 import productsRouter from "./routes/products.js";
+import pricingRouter from "./routes/pricing.js";
 
 export function createApp(): Application {
   const app = express();
@@ -32,6 +33,7 @@ export function createApp(): Application {
   app.use("/api/admin", adminRouter);
   app.use("/api/customers", customersRouter);
   app.use("/api/products", productsRouter);
+  app.use("/api/pricing", pricingRouter);
 
   // 404 for unknown API routes.
   app.use("/api", (_req: Request, res: Response) => {
