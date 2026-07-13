@@ -16,13 +16,15 @@ interface AccessoryDef {
   label: string;
   /** Resolve the product id, which may depend on budget mode. */
   id: (budget: boolean) => string;
+  /** Fallback image (from the legacy config) when Vigor has none. */
+  fallback: string;
 }
 
 const ACCESSORIES: AccessoryDef[] = [
-  { key: "abdichtSet", label: "Wannenabdichtband-Set", id: () => "TRWDB" },
-  { key: "drainSet", label: "Ablaufgarnitur", id: (b) => (b ? "AGB001" : "AGD9060") },
-  { key: "smallMaterial", label: "Kleinmaterial", id: (b) => (b ? "AC004" : "KM02") },
-  { key: "stelzlager", label: "Stelzlager (Plattenlager)", id: () => "PLA5282" },
+  { key: "abdichtSet", label: "Wannenabdichtband-Set", id: () => "TRWDB", fallback: "/assets/acc/abdicht.jpg" },
+  { key: "drainSet", label: "Ablaufgarnitur", id: (b) => (b ? "AGB001" : "AGD9060"), fallback: "/assets/acc/drain.jpg" },
+  { key: "smallMaterial", label: "Kleinmaterial", id: (b) => (b ? "AC004" : "KM02"), fallback: "/assets/acc/kleinmaterial.jpg" },
+  { key: "stelzlager", label: "Stelzlager (Plattenlager)", id: () => "PLA5282", fallback: "/assets/acc/stelzlager.jpg" },
 ];
 
 export function DuschwanneStep() {
@@ -192,7 +194,7 @@ export function DuschwanneStep() {
         <div className="grid gap-2 sm:grid-cols-2">
           {ACCESSORIES.map((a) => {
             const pid = a.id(budget);
-            const img = accImages[pid]?.image;
+            const img = accImages[pid]?.image || a.fallback;
             const checked = !!d[a.key];
             return (
               <div
