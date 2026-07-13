@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Loader2, Package } from "lucide-react";
+import { Loader2, Package, X } from "lucide-react";
 import type { TraySuggestItem, TraySuggestResponse } from "@emc2/shared";
 import { useOffer } from "../OfferContext";
 import { StepHeader } from "./KundendatenStep";
@@ -72,18 +72,65 @@ export function DuschwanneStep() {
   }, [w, l]);
 
   function selectTray(t: TraySuggestItem) {
+    const color = t.family === "sla" ? d.trayColor || "Weiss" : "";
     set({
       chosenTrayProductId: t.productId,
       traySize: t.sizeLabel,
       tray_w_cm: t.widthCm ? String(t.widthCm) : w,
       tray_l_cm: t.lengthCm ? String(t.lengthCm) : l,
-      trayColor: t.family === "sla" ? d.trayColor || "Weiss" : "",
+      trayColor: color,
+      // snapshot so the selection stays visible after the search changes
+      selectedTrayInfo: {
+        productId: t.productId,
+        name: t.name,
+        sizeLabel: t.sizeLabel,
+        image: t.image,
+        netPrice: t.netPrice,
+        family: t.family,
+        color,
+      },
     });
   }
+
+  function removeTray() {
+    set({ chosenTrayProductId: "", traySize: "", trayColor: "", selectedTrayInfo: null });
+  }
+
+  const sel = d.selectedTrayInfo;
 
   return (
     <div className="space-y-8">
       <StepHeader title="Duschwanne" hint="Maße eingeben, passende Wanne wählen und Zubehör bestätigen." />
+
+      {/* Selected tray — stays visible even after the search changes */}
+      {d.chosenTrayProductId && sel && (
+        <div className="flex items-center gap-4 rounded-lg border border-primary/40 bg-primary/5 p-4">
+          <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+            {sel.image ? (
+              <img src={sel.image} alt="" className="size-full object-contain" />
+            ) : (
+              <Package className="size-6 text-muted-foreground" />
+            )}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Ausgewählte Duschwanne</p>
+            <p className="truncate font-medium">{sel.name}</p>
+            <p className="text-xs text-muted-foreground">
+              {[sel.sizeLabel, sel.color, sel.productId].filter(Boolean).join(" · ")}
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <span className="font-semibold tabular-nums">{formatEUR(Number(sel.netPrice) || 0)}</span>
+            <button
+              type="button"
+              onClick={removeTray}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-destructive"
+            >
+              <X className="size-3.5" /> entfernen
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <Section title="Wanne suchen">
@@ -127,7 +174,7 @@ export function DuschwanneStep() {
               <button
                 key={c}
                 type="button"
-                onClick={() => set({ trayColor: c })}
+                onClick={() => set({ trayColor: c, selectedTrayInfo: sel ? { ...sel, color: c } : sel })}
                 className={cn(
                   "rounded-md border px-3 py-1.5 text-sm transition-colors",
                   d.trayColor === c ? "border-primary bg-primary/10 text-primary" : "hover:bg-accent",
@@ -155,11 +202,11 @@ export function DuschwanneStep() {
                   checked && "border-primary/40 bg-primary/[0.03]",
                 )}
               >
-                <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+                <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
                   {img ? (
-                    <img src={img} alt="" className="size-full object-contain" loading="lazy" />
+                    <img src={img} alt="" className="size-full object-contain p-1" loading="lazy" />
                   ) : (
-                    <Package className="size-5 text-muted-foreground" />
+                    <Package className="size-6 text-muted-foreground" />
                   )}
                 </span>
                 <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-sm">

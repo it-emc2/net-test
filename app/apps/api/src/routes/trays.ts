@@ -85,8 +85,11 @@ router.get("/suggest", async (req: Request, res: Response) => {
 
   // --- Badolux / DW (legacy Products) ---
   try {
+    // Only Badolux SHOWER TRAYS (Duschwannen) — productId DW* / BDX-DW*.
+    // The broad source:"badolux" also holds wall panels, floor tiles, shower
+    // enclosures (BDX-GL), profiles, etc., which must NOT appear here.
     const docs = await Product.find({
-      $or: [{ source: "badolux" }, { productId: { $regex: "^DW", $options: "i" } }],
+      productId: { $regex: "^(DW|BDX-DW)", $options: "i" },
     }).lean();
     const items = (docs as any[]).map((d) => {
       const w = num(d.widthCm);

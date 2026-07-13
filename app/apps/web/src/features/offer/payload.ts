@@ -116,6 +116,7 @@ export function defaultPayload(): OfferPayload {
       chosenTrayProductId: "",
       traySize: "",
       trayColor: "",
+      selectedTrayInfo: null,
       // accessories (checked by default, like legacy)
       abdichtSet: true,
       drainSet: true,
