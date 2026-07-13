@@ -590,6 +590,81 @@ h1 {
   box-shadow: var(--shadow);
 }
 
+/* ── Kosten-Details: flat, paragraph-style sections (no boxed cards) ──
+   Scoped to #costsSummary so nothing outside the Kosten tab is affected. */
+#costsSummary .kosten-section {
+  margin: 0;
+}
+#costsSummary .kosten-section__title {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent-strong);
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--accent-weak);
+}
+#costsSummary .kosten-col-head {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+#costsSummary .kosten-section__footer {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  text-align: right;
+}
+#costsSummary .kosten-subtotal-label {
+  color: var(--muted);
+  font-weight: 700;
+}
+#costsSummary .kosten-sums {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+}
+#costsSummary .kosten-sums > div {
+  display: flex;
+  gap: 12px;
+}
+#costsSummary .kosten-sums > div > span {
+  color: var(--muted);
+}
+#costsSummary .kosten-sums__subtotal {
+  font-size: 1.05rem;
+}
+#costsSummary .kosten-sums__subtotal > span {
+  color: var(--text);
+}
+#costsSummary .kosten-sums__total {
+  align-self: stretch;
+  justify-content: flex-end;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 2px solid var(--accent-weak);
+  font-size: 1.25rem;
+}
+#costsSummary .kosten-sums__total > span,
+#costsSummary .kosten-sums__total > b {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+/* Dark mode: lift the accent so headings/total stay legible on dark cards. */
+[data-mode="dark"] #costsSummary .kosten-section__title,
+[data-mode="dark"] #costsSummary .kosten-sums__total > span,
+[data-mode="dark"] #costsSummary .kosten-sums__total > b {
+  color: #c4b5fd;
+}
+[data-mode="dark"] #costsSummary .kosten-section__title {
+  border-bottom-color: rgba(167, 139, 250, 0.35);
+}
+[data-mode="dark"] #costsSummary .kosten-sums__total {
+  border-top-color: rgba(167, 139, 250, 0.35);
+}
+
 form {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -10395,17 +10395,20 @@ window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
     }).format(Number(n || 0));
   }
 
+  // Kosten-Details section: flat, paragraph-style block (no boxed card).
+  // Renders an accent-underlined heading, the line grid, and an optional
+  // right-aligned subtotal on a hairline. Styling lives in .kosten-section*.
   function card(title, bodyHTML, footerHTML = "") {
     return `
-      <div class="card" style="padding:12px;">
-        <div style="font-weight:700; margin-bottom:8px;">${title}</div>
-        <div>${bodyHTML}</div>
+      <section class="kosten-section">
+        <h3 class="kosten-section__title">${title}</h3>
+        <div class="kosten-section__body">${bodyHTML}</div>
         ${
           footerHTML
-            ? `<div style="border-top:1px solid var(--border); margin-top:8px; padding-top:8px;">${footerHTML}</div>`
+            ? `<div class="kosten-section__footer">${footerHTML}</div>`
             : ""
         }
-      </div>
+      </section>
     `;
   }
   // UI-only: if a Duschabtrennung (Hassmann) quick-add has a user ID,
@@ -10466,10 +10469,10 @@ function escapeHtml(s) {
       return '<div class="muted">Keine Positionen</div>';
 
     const header = `
-    <div style="font-size:12px;color:var(--muted)">Bezeichnung</div>
-    <div style="font-size:12px;color:var(--muted);text-align:right">Menge</div>
-    <div style="font-size:12px;color:var(--muted);text-align:right">Einzelpreis</div>
-    <div style="font-size:12px;color:var(--muted);text-align:right">Gesamt</div>
+    <div class="kosten-col-head">Bezeichnung</div>
+    <div class="kosten-col-head" style="text-align:right">Menge</div>
+    <div class="kosten-col-head" style="text-align:right">Einzelpreis</div>
+    <div class="kosten-col-head" style="text-align:right">Gesamt</div>
   `;
 
     const rows = lines
@@ -10882,7 +10885,7 @@ if (supportsOptional) {
   optCard = card(
     "Additional gewählte Produkte",
     optBody,
-    `<div style="text-align:right"><b>Summe:</b> ${euroC(optSum)}</div>`,
+    `<span class="kosten-subtotal-label">Summe:</span> ${euroC(optSum)}`,
   );
 }
 
@@ -10919,7 +10922,7 @@ if (supportsOptional) {
     const matCard = card(
       (data.materials && data.materials.title) || "Material für Badumbau",
       matBody,
-      `<div style="text-align:right"><b>Summe Material:</b> ${euroC(matSum)}</div>`,
+      `<span class="kosten-subtotal-label">Summe Material:</span> ${euroC(matSum)}`,
     );
 
     // --- Leistungen (Debug): use servicesDisplayUI if present
@@ -11028,21 +11031,26 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       ? includedSvcSum
       : data.services?.sum || 0;
 
-    const svcCard = `
-  ${card(data.services?.title || "Auszuführende Arbeiten", svcBodyPrimary)}
-  <div style="height:8px"></div>
-  ${card("Enthält je Einheit", svcBodyIncluded, `<div style="text-align:right"><b>Summe Leistungen:</b> ${euroC(sumLeistungenEnth)}</div>`)}
-`;
+    // Two separate sections; rendered Enthält-je-Einheit first, then Arbeiten.
+    const enthaltCard = card(
+      "Enthält je Einheit",
+      svcBodyIncluded,
+      `<span class="kosten-subtotal-label">Summe Leistungen:</span> ${euroC(sumLeistungenEnth)}`,
+    );
+    const arbeitenCard = card(
+      data.services?.title || "Auszuführende Arbeiten",
+      svcBodyPrimary,
+    );
 
     // <div>Produkte + Material: <b>${euroC(data.productsSubtotal || 0)}</b></div>
     // --- Totals (unchanged)
     const sums = `
-    <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
-      <div>Produkte + Material: <b>${euroC(data.material_afterRabatt_and_aufschlag || 0)}</b></div>
-      <div>Leistungen: <b>${euroC(data.services?.sum || 0)}</b></div>
-      <div>Aufschlag (${(() => { const p = (data.markupPct || 0) * 100; return Number.isInteger(p) ? String(p) : p.toFixed(2).replace(/\.?0+$/, "").replace(".", ","); })()}%): <b>${euroC(data.markup || 0)}</b></div>
-      <div style="font-size:1.05rem;">Zwischensumme (Netto): <b>${euroC(data.netAfterRabatt_and_Bonus || 0)}</b></div>
-      <div style="font-size:1.2rem;">Gesamt: <b>${euroC(data.total || 0)}</b></div>
+    <div class="kosten-sums">
+      <div><span>Produkte + Material:</span> <b>${euroC(data.material_afterRabatt_and_aufschlag || 0)}</b></div>
+      <div><span>Leistungen:</span> <b>${euroC(data.services?.sum || 0)}</b></div>
+      <div><span>Aufschlag (${(() => { const p = (data.markupPct || 0) * 100; return Number.isInteger(p) ? String(p) : p.toFixed(2).replace(/\.?0+$/, "").replace(".", ","); })()}%):</span> <b>${euroC(data.markup || 0)}</b></div>
+      <div class="kosten-sums__subtotal"><span>Zwischensumme (Netto):</span> <b>${euroC(data.netAfterRabatt_and_Bonus || 0)}</b></div>
+      <div class="kosten-sums__total"><span>Gesamt:</span> <b>${euroC(data.total || 0)}</b></div>
     </div>
   `;
     const totalsCard = card("Summen", sums);
@@ -11180,7 +11188,13 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       return; // AH branch handled — do not fall through to generic renderer
     }
 
-    container.innerHTML = [matCard, optCard, svcCard, totalsCard].join("");
+    container.innerHTML = [
+      enthaltCard,
+      arbeitenCard,
+      matCard,
+      optCard,
+      totalsCard,
+    ].join("");
   };
 
   window.refreshAllPanels = async function refreshAllPanels() {
