@@ -13,9 +13,10 @@ const OWNER_TYPE = { contact: 3, company: 4 };
 const ANG_VERSCHICKT_STAGE_ID = "C38:UC_2ZDNEZ";
 const ANG_VERSCHICKT_CATEGORY_ID = 38;
 
-// Fields that must be filled before the deal can enter "[VI] ANG verschickt".
-// "Betrag und Währung" = OPPORTUNITY + CURRENCY_ID.
-const ANG_VERSCHICKT_REQUIRED_FIELDS = ["OPPORTUNITY", "CURRENCY_ID"];
+// Fields the user is prompted for before entering "[VI] ANG verschickt".
+// Only Betrag (OPPORTUNITY) is asked — Währung is always EUR and defaulted
+// server-side in updateDealStage().
+const ANG_VERSCHICKT_REQUIRED_FIELDS = ["OPPORTUNITY"];
 
 // Stage a completed appointment ("Heutige Termine Planung") is moved to.
 // "Zuteilen HD/ AH/ DH" lives in deal category 72 (STATUS_ID C72:PREPARATION).
@@ -316,18 +317,9 @@ router.get("/deal/:id/ang-verschickt-fields", async (req, res) => {
     const deal = dealResp?.result;
     if (!deal) return res.status(404).json({ error: "Deal not found" });
 
-    let currencyOptions = ["EUR"];
-    try {
-      const cur = await bxGet("crm.currency.list", {});
-      const list = (cur?.result || []).map((c) => String(c.CURRENCY)).filter(Boolean);
-      if (list.length) currencyOptions = list;
-    } catch (e) {
-      console.warn("[bitrix] currency.list failed, defaulting to EUR:", e?.message || e);
-    }
-
+    // Währung is always EUR, so it is not prompted; only Betrag is asked.
     const meta = {
       OPPORTUNITY: { label: "Betrag", type: "double" },
-      CURRENCY_ID: { label: "Währung", type: "enumeration", options: currencyOptions },
     };
 
     const fields = ANG_VERSCHICKT_REQUIRED_FIELDS.map((name) => {

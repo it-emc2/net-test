@@ -318,15 +318,12 @@ export function initEmailManager(options = {}) {
     const byName = Object.fromEntries((info.fields || []).map((f) => [f.name, f]));
 
     // Prefill Betrag with the offer total when the deal has none yet.
+    // Währung is always EUR, so it is not shown/asked.
     const amountField = byName.OPPORTUNITY;
     const prefillAmount =
       amountField && amountField.isEmpty && Number(offerTotal) > 0
         ? fmtEuro(offerTotal)
         : fmtEuro(amountField?.currentValue || offerTotal || 0);
-    const currencyField = byName.CURRENCY_ID;
-    const currencyOptions = currencyField?.options || ["EUR"];
-    const currentCurrency =
-      String(currencyField?.currentValue || "").trim() || "EUR";
 
     if (!empties.length) {
       body.innerHTML = `<p class="ang-stage-text">Alle Pflichtfelder sind gefüllt. Der Deal kann verschoben werden.</p>`;
@@ -337,17 +334,6 @@ export function initEmailManager(options = {}) {
           <label class="ang-stage-field">
             <span>Betrag (€)</span>
             <input type="text" id="angFieldAmount" value="${prefillAmount}" inputmode="decimal" />
-          </label>`);
-      }
-      if (currencyField) {
-        rows.push(`
-          <label class="ang-stage-field">
-            <span>Währung</span>
-            <select id="angFieldCurrency">
-              ${currencyOptions
-                .map((c) => `<option value="${c}" ${c === currentCurrency ? "selected" : ""}>${c}</option>`)
-                .join("")}
-            </select>
           </label>`);
       }
       body.innerHTML = `
@@ -376,7 +362,6 @@ export function initEmailManager(options = {}) {
     const moveBtn = document.getElementById("angStageMoveBtn");
     const statusEl = document.getElementById("angStageStatus");
     const amountEl = document.getElementById("angFieldAmount");
-    const currencyEl = document.getElementById("angFieldCurrency");
 
     const setModalStatus = (msg, isErr = false) => {
       if (!statusEl) return;
@@ -385,6 +370,7 @@ export function initEmailManager(options = {}) {
       statusEl.classList.toggle("ang-stage-error", !!isErr);
     };
 
+    // Währung is always EUR (defaulted server-side); only Betrag is asked.
     const payload = {};
     if (amountEl) {
       const amount = parseEuroInput(amountEl.value);
@@ -394,7 +380,6 @@ export function initEmailManager(options = {}) {
       }
       payload.opportunity = amount;
     }
-    if (currencyEl) payload.currencyId = currencyEl.value;
 
     if (moveBtn) moveBtn.disabled = true;
     setModalStatus("Verschiebe Deal…");
