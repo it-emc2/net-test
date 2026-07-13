@@ -128,6 +128,12 @@ export function defaultPayload(): OfferPayload {
       // toggles
       budgetMode: false,
       ebenerdigeMontage: true,
+      // Fußboden (own step; stored here to match the engine)
+      addFlooring: false,
+      floorArea: "",
+      floorKind: "",
+      flooringProduct: [] as string[],
+      floorSealing: false,
       // set on the Arbeiten page
       workTasks: [],
       extraTasks: [],
