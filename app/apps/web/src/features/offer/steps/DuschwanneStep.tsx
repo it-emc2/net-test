@@ -4,16 +4,47 @@ import type { TraySuggestItem, TraySuggestResponse } from "@emc2/shared";
 import { useOffer } from "../OfferContext";
 import { StepHeader } from "./KundendatenStep";
 import { suggestTrays, SLATE_COLORS } from "../trays";
+import { productsApi } from "@/features/products/api";
 import { StockBadge } from "@/features/products/StockBadge";
 import { formatEUR } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
+interface AccessoryDef {
+  key: string;
+  label: string;
+  /** Resolve the product id, which may depend on budget mode. */
+  id: (budget: boolean) => string;
+}
+
+const ACCESSORIES: AccessoryDef[] = [
+  { key: "abdichtSet", label: "Wannenabdichtband-Set", id: () => "TRWDB" },
+  { key: "drainSet", label: "Ablaufgarnitur", id: (b) => (b ? "AGB001" : "AGD9060") },
+  { key: "smallMaterial", label: "Kleinmaterial", id: (b) => (b ? "AC004" : "KM02") },
+  { key: "stelzlager", label: "Stelzlager (Plattenlager)", id: () => "PLA5282" },
+];
+
 export function DuschwanneStep() {
   const { payload, patchSection } = useOffer();
   const d = payload.duschwanne;
   const set = (patch: Record<string, any>) => patchSection("duschwanne", patch);
+
+  // Accessory images (Vigor). Ids depend on budget mode.
+  const budget = !!d.budgetMode;
+  const accIds = ACCESSORIES.map((a) => a.id(budget));
+  const [accImages, setAccImages] = useState<Record<string, { image: string | null; name: string }>>({});
+  useEffect(() => {
+    let cancelled = false;
+    productsApi
+      .images(accIds)
+      .then((m) => !cancelled && setAccImages(m))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [budget]);
 
   const [results, setResults] = useState<TraySuggestResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -111,22 +142,50 @@ export function DuschwanneStep() {
 
       {/* Accessories */}
       <Section title="Zubehör">
-        <div className="space-y-1">
-          <Check label="Wannenabdichtband-Set (TRWDB)" checked={!!d.abdichtSet} onChange={(v) => set({ abdichtSet: v })} />
-          <Check label="Ablaufgarnitur" checked={!!d.drainSet} onChange={(v) => set({ drainSet: v })} />
-          <Check label="Kleinmaterial" checked={!!d.smallMaterial} onChange={(v) => set({ smallMaterial: v })} />
-          <Check label="Stelzlager (Plattenlager)" checked={!!d.stelzlager} onChange={(v) => set({ stelzlager: v })} />
-          {d.stelzlager && (
-            <div className="flex items-center gap-2 pl-6 pt-1">
-              <Label className="normal-case">Menge</Label>
-              <Input
-                inputMode="numeric"
-                value={d.stelzlagerQty ?? "8"}
-                onChange={(e) => set({ stelzlagerQty: e.target.value })}
-                className="w-24"
-              />
-            </div>
-          )}
+        <div className="grid gap-2 sm:grid-cols-2">
+          {ACCESSORIES.map((a) => {
+            const pid = a.id(budget);
+            const img = accImages[pid]?.image;
+            const checked = !!d[a.key];
+            return (
+              <div
+                key={a.key}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg border p-2.5 transition-colors",
+                  checked && "border-primary/40 bg-primary/[0.03]",
+                )}
+              >
+                <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+                  {img ? (
+                    <img src={img} alt="" className="size-full object-contain" loading="lazy" />
+                  ) : (
+                    <Package className="size-5 text-muted-foreground" />
+                  )}
+                </span>
+                <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => set({ [a.key]: e.target.checked })}
+                    className="size-4 shrink-0 rounded border-input accent-[hsl(var(--primary))]"
+                  />
+                  <span className="min-w-0">
+                    <span className="block font-medium">{a.label}</span>
+                    <span className="block text-xs text-muted-foreground">{pid}</span>
+                  </span>
+                </label>
+                {a.key === "stelzlager" && checked && (
+                  <Input
+                    inputMode="numeric"
+                    value={d.stelzlagerQty ?? "8"}
+                    onChange={(e) => set({ stelzlagerQty: e.target.value })}
+                    className="w-16 shrink-0"
+                    aria-label="Stelzlager Menge"
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
       </Section>
 
@@ -179,7 +238,13 @@ function TrayList({
             <span className={cn("flex size-4 shrink-0 items-center justify-center rounded-full border", active ? "border-primary" : "border-input")}>
               {active && <span className="size-2 rounded-full bg-primary" />}
             </span>
-            <Package className="size-4 shrink-0 text-muted-foreground" />
+            <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+              {t.image ? (
+                <img src={t.image} alt="" className="size-full object-contain" loading="lazy" />
+              ) : (
+                <Package className="size-5 text-muted-foreground" />
+              )}
+            </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium">{t.name}</span>
               <span className="block text-xs text-muted-foreground">

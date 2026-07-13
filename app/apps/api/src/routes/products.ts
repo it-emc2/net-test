@@ -107,6 +107,35 @@ router.get("/categories", async (_req: Request, res: Response) => {
   }
 });
 
+// GET /api/products/images?ids=a,b,c — batch image/name lookup from Vigor.
+router.get("/images", async (req: Request, res: Response) => {
+  try {
+    const ids = String(req.query.ids || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const images: Record<string, { image: string | null; name: string }> = {};
+    if (ids.length) {
+      const db = await getVigorDb();
+      const docs = await db
+        .collection(COLLECTION)
+        .find({ articleNumber: { $in: ids } }, { projection: { articleNumber: 1, name: 1, images: 1 } })
+        .toArray();
+      for (const d of docs as VigorDoc[]) {
+        images[d.articleNumber as string] = {
+          image: Array.isArray(d.images) && d.images.length ? d.images[0] : null,
+          name: d.name || d.articleNumber || "",
+        };
+      }
+    }
+    res.json({ images });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[products] images error:", err);
+    res.json({ images: {} });
+  }
+});
+
 // GET /api/products?q=&category=&page=1&pageSize=24
 router.get("/", async (req: Request, res: Response) => {
   try {

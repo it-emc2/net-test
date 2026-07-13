@@ -55,7 +55,7 @@ router.get("/suggest", async (req: Request, res: Response) => {
       .collection("products")
       .find(
         { articleNumber: { $regex: "^SLA", $options: "i" } },
-        { projection: { articleNumber: 1, name: 1, netPrice: 1, stockQuantity: 1 } },
+        { projection: { articleNumber: 1, name: 1, netPrice: 1, stockQuantity: 1, images: 1 } },
       )
       .limit(400)
       .toArray();
@@ -71,6 +71,7 @@ router.get("/suggest", async (req: Request, res: Response) => {
         heightCm: dims.h,
         netPrice: Number(d.netPrice) || 0,
         family: "sla",
+        image: Array.isArray(d.images) && d.images.length ? d.images[0] : null,
         inStock: qty != null ? qty > 0 : false,
         stockQuantity: qty,
         _score: scoreDims(dims.w, dims.l, sw, sl),
@@ -101,6 +102,7 @@ router.get("/suggest", async (req: Request, res: Response) => {
         heightCm: h,
         netPrice: net,
         family: "badolux" as const,
+        image: null,
         inStock: false,
         stockQuantity: null,
         _score: scoreDims(w, l, sw, sl),

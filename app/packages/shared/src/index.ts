@@ -167,6 +167,7 @@ export interface TraySuggestItem {
   heightCm: number | null;
   netPrice: number; // Badolux already discounted for display
   family: "sla" | "badolux";
+  image: string | null;
   inStock: boolean;
   stockQuantity: number | null;
 }
@@ -174,4 +175,9 @@ export interface TraySuggestItem {
 export interface TraySuggestResponse {
   sla: TraySuggestItem[];
   badolux: TraySuggestItem[];
+}
+
+/** Batch product image/name lookup (Vigor), keyed by article number. */
+export interface ProductImagesResponse {
+  images: Record<string, { image: string | null; name: string }>;
 }

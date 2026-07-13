@@ -1,6 +1,7 @@
 import type {
   ProductCategoriesResponse,
   ProductDetail,
+  ProductImagesResponse,
   ProductsListResponse,
 } from "@emc2/shared";
 import { api } from "@/lib/api";
@@ -17,6 +18,10 @@ export const productsApi = {
   },
   categories: () =>
     api.get<ProductCategoriesResponse>("/api/products/categories").then((r) => r.categories),
+  images: (ids: string[]) =>
+    api
+      .get<ProductImagesResponse>(`/api/products/images?ids=${encodeURIComponent(ids.join(","))}`)
+      .then((r) => r.images),
   get: (articleNumber: string) =>
     api
       .get<{ product: ProductDetail }>(`/api/products/${encodeURIComponent(articleNumber)}`)
