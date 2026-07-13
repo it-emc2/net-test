@@ -11074,7 +11074,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       ? includedSvcSum
       : data.services?.sum || 0;
 
-    // Two separate sections; rendered Enthält-je-Einheit first, then Arbeiten.
+    // Two separate sections; rendered Arbeiten first, then Enthält-je-Einheit.
     const enthaltCard = card(
       "Enthält je Einheit",
       svcBodyIncluded,
@@ -11232,8 +11232,8 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     }
 
     container.innerHTML = [
-      enthaltCard,
       arbeitenCard,
+      enthaltCard,
       matCard,
       optCard,
       totalsCard,
