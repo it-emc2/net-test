@@ -109,7 +109,26 @@ export function defaultPayload(): OfferPayload {
       totalHoursNumeric: 0,
       totalHoursHHMM: "",
     },
-    duschwanne: {},
+    duschwanne: {
+      // tray search + selection
+      tray_w_cm: "",
+      tray_l_cm: "",
+      chosenTrayProductId: "",
+      traySize: "",
+      trayColor: "",
+      // accessories (checked by default, like legacy)
+      abdichtSet: true,
+      drainSet: true,
+      smallMaterial: true,
+      stelzlager: true,
+      stelzlagerQty: "8",
+      // toggles
+      budgetMode: false,
+      ebenerdigeMontage: true,
+      // set on the Arbeiten page
+      workTasks: [],
+      extraTasks: [],
+    },
     wandverkleidung: {},
     optional: {},
     rabatt: {},

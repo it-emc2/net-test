@@ -155,3 +155,23 @@ export interface ProductsListResponse {
 export interface ProductCategoriesResponse {
   categories: string[];
 }
+
+// --- Shower trays (Duschwanne search) ---
+
+export interface TraySuggestItem {
+  productId: string;
+  name: string;
+  sizeLabel: string; // e.g. "120 x 90 cm"
+  widthCm: number | null;
+  lengthCm: number | null;
+  heightCm: number | null;
+  netPrice: number; // Badolux already discounted for display
+  family: "sla" | "badolux";
+  inStock: boolean;
+  stockQuantity: number | null;
+}
+
+export interface TraySuggestResponse {
+  sla: TraySuggestItem[];
+  badolux: TraySuggestItem[];
+}

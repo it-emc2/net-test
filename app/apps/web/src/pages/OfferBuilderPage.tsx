@@ -6,6 +6,7 @@ import { useLivePricing } from "@/features/offer/pricing";
 import { KundendatenStep, StepHeader } from "@/features/offer/steps/KundendatenStep";
 import { ArbeitszeitStep } from "@/features/offer/steps/ArbeitszeitStep";
 import { ArbeitenStep } from "@/features/offer/steps/ArbeitenStep";
+import { DuschwanneStep } from "@/features/offer/steps/DuschwanneStep";
 import { Button } from "@/components/ui/button";
 import { formatEUR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -31,7 +32,7 @@ const STEPS: Step[] = [
   { key: "kundendaten", label: "Kundendaten", el: <KundendatenStep /> },
   { key: "arbeitszeit", label: "Arbeitszeit", el: <ArbeitszeitStep /> },
   { key: "arbeiten", label: "Arbeiten", el: <ArbeitenStep /> },
-  { key: "duschwanne", label: "Duschwanne", el: <Placeholder title="Duschwanne" note="Folgt." /> },
+  { key: "duschwanne", label: "Duschwanne", el: <DuschwanneStep /> },
   { key: "fussboden", label: "Fußboden", el: <Placeholder title="Fußboden" note="Folgt." /> },
   { key: "wandverkleidung", label: "Wandverkleidung", el: <Placeholder title="Wandverkleidung" note="Folgt." /> },
   { key: "duschabtrennung", label: "Duschabtrennung", el: <Placeholder title="Duschabtrennung" note="Folgt." /> },
