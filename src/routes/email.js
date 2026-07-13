@@ -226,8 +226,16 @@ function getPresetAttachments(excludePresetSet, isSelbstzahler) {
 // multipart/form-data:
 // fields: to, subject, body, offerNumber, offerType, payload (json string), excludePreset (json array string)
 // files: attachments[]
-router.post("/send-offer", upload.array("attachments", 10), async (req, res) => {
-  const uploaded = req.files || [];
+router.post(
+  "/send-offer",
+  upload.fields([
+    { name: "attachments", maxCount: 10 },
+    { name: "bitrixDocs", maxCount: 5 },
+  ]),
+  async (req, res) => {
+  // upload.fields() returns an object keyed by field name.
+  const uploaded = req.files?.attachments || [];
+  const bitrixDocFiles = req.files?.bitrixDocs || [];
 
   try {
     const to = String(req.body.to || "").trim();
@@ -259,6 +267,12 @@ router.post("/send-offer", upload.array("attachments", 10), async (req, res) => 
     } catch {
       // ignore invalid json
     }
+
+    // Developer option: drop the presets (Abtretung/Vollmacht/Flyer) from the
+    // Bitrix timeline comment only. The customer email keeps them regardless.
+    const excludeBitrixPresets = ["1", "true", "on", "yes"].includes(
+      String(req.body.excludeBitrixPresets || "").toLowerCase(),
+    );
 
     const isSelbstzahler = String(payload?.Kundendaten?.payer || "")
       .toLowerCase()
@@ -332,19 +346,30 @@ router.post("/send-offer", upload.array("attachments", 10), async (req, res) => 
       ...uploadAttachments.map((a) => a.filename),
     ];
 
+    // Extra documents forwarded from the client for the Bitrix timeline only
+    // (Angebot DOCX, Hassmann CSV, Kalkulation PDF) — not part of the email.
+    const bitrixExtraDocs = await Promise.all(
+      bitrixDocFiles.map(async (f) => ({
+        filename: f.originalname || f.filename,
+        base64: (await fs.readFile(f.path)).toString("base64"),
+      })),
+    );
+
     const bitrixAttachments = [
       {
         filename: angebotFilename,
         base64: pdfBuf.toString("base64"),
       },
-      ...(
-        await Promise.all(
-          presetAttachments.map(async (item) => ({
-            filename: item.filename,
-            base64: (await fs.readFile(item.path)).toString("base64"),
-          })),
-        )
-      ),
+      ...bitrixExtraDocs,
+      // Presets can be suppressed on the Bitrix timeline via the developer option.
+      ...(excludeBitrixPresets
+        ? []
+        : await Promise.all(
+            presetAttachments.map(async (item) => ({
+              filename: item.filename,
+              base64: (await fs.readFile(item.path)).toString("base64"),
+            })),
+          )),
       ...(
         await Promise.all(
           uploadAttachments.map(async (item) => ({
@@ -434,8 +459,10 @@ router.post("/send-offer", upload.array("attachments", 10), async (req, res) => 
     console.error("[email] send-offer failed:", e);
     res.status(500).json({ error: "Send failed", detail: e?.message || String(e) });
   } finally {
-    // Cleanup temp uploads
-    await Promise.all(uploaded.map((f) => fs.unlink(f.path).catch(() => {})));
+    // Cleanup temp uploads (customer attachments + forwarded Bitrix docs)
+    await Promise.all(
+      [...uploaded, ...bitrixDocFiles].map((f) => fs.unlink(f.path).catch(() => {})),
+    );
   }
 });
 
