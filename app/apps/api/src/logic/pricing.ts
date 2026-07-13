@@ -2,7 +2,7 @@
 //
 // Ported in verifiable chunks and golden-tested against the legacy engine:
 //   1. materials    (computeMaterials)      — DONE (golden-verified, 6/6 fixtures)
-//   2. services     (computeServiceCosts)   — TODO
+//   2. services     (computeServiceCosts)   — DONE (golden-verified)
 //   3. aggregation  (computePrices totals + subsidy + display variants) — TODO
 //
 // The price SOURCE is injected (like the legacy pricingFactory(ProductModel)):
@@ -344,11 +344,143 @@ function extractRehaIdsFromOptional(opt: any): Set<string> {
 
 // --- factory (materials/services/aggregation land next) ---
 
+/** Labor / travel / tools service lines. Ported verbatim from legacy 1241–1405. */
+export function computeServiceCosts(payload: PricingPayload): Record<string, any> {
+  const offer = getActiveOffer(payload);
+  const b = payload?.Kundendaten || {};
+  const arbeits = payload?.Arbeitszeit || {};
+
+  const payer = b.payer === "Kassenkunde" ? "KK" : b.payer === "Selbstzahler" ? "SZ" : "";
+
+  const workDays = Number(arbeits.workDays ?? b.workDays ?? 0) || 0;
+  const travelDaysRaw = Number(arbeits.travelDays ?? b.travelDays);
+  const travelDays = Number.isFinite(travelDaysRaw)
+    ? Math.max(0, travelDaysRaw)
+    : Math.max(0, workDays || 1);
+
+  const oneWayKm = Number(arbeits.distanceKm ?? b.distanceKm ?? 0) || 0;
+  const roundTripKm = Math.max(0, oneWayKm * 2 * travelDays);
+
+  const total_hours_numeric = Number(b.totalHoursNumeric ?? arbeits.totalHoursNumeric ?? 0) || 0;
+  const reise_hours_numeric = Number(arbeits.ReiseHoursNumeric ?? b.ReiseHoursNumeric ?? 0) || 0;
+  const Arbeitszeit_hours_numeric =
+    Number(arbeits.ArbeitHoursNumeric ?? b.ArbeitHoursNumeric ?? 0) || 0;
+  const laborHours = Arbeitszeit_hours_numeric;
+
+  const isBwt = offer === "bwt";
+  const handwerkerCount = isBwt ? 1 : 2;
+  const laborRateKK = config.get("LABOR_RATE_KK", 69.5);
+  const laborRateSZ = config.get("LABOR_RATE_SZ", 59.5);
+  const bwtLaborRate = config.get("LABOR_RATE_BWT", 79.5);
+  const kmRate = config.get("KM_RATE", 0.35);
+  const travelSecondWorkerRateRaw =
+    Number(arbeits.travelSecondWorkerRate ?? b.travelSecondWorkerRate ?? 25) || 25;
+  const sitz_reise_Rate = travelSecondWorkerRateRaw === 35 ? 35 : 25;
+
+  const fahrzeugbereitstellung = config.get("FAHRZEUGBEREITSTELLUNG", 80.0);
+  const werkzeug = config.get("WERKZEUG", 7.5);
+  const beraeumung = config.get("BERAEUMUNG", 4.5);
+  const kilometerpauschale = round2(roundTripKm * kmRate);
+  const laborRate = isBwt ? bwtLaborRate : payer === "KK" ? laborRateKK : payer === "SZ" ? laborRateSZ : 0;
+
+  const formatQty = (n: any) => Number(n || 0).toFixed(2).replace(".", ",");
+
+  const lines: any[] = [];
+  lines.push({
+    key: "fahrzeug",
+    label: `- ${formatQty(workDays)} Stk Fahrzeugbereitstellung`,
+    qty: workDays,
+    unitPrice: round2(fahrzeugbereitstellung),
+    amount: round2(fahrzeugbereitstellung * workDays),
+  });
+  lines.push({
+    key: "werkzeuge",
+    label: `- ${formatQty(workDays)} Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen`,
+    qty: workDays,
+    unitPrice: round2(werkzeug),
+    amount: round2(werkzeug * workDays),
+  });
+  lines.push({
+    key: "beraeumung",
+    label: `- ${formatQty(workDays)} Stk Beräumung der Baustelle`,
+    qty: workDays,
+    unitPrice: round2(beraeumung),
+    amount: round2(beraeumung * workDays),
+  });
+  if (roundTripKm > 0) {
+    lines.push({
+      key: "kilometer",
+      label: `- ${roundTripKm} km Kilometerpauschale `,
+      amount: kilometerpauschale,
+    });
+  }
+  if (total_hours_numeric > 0 && laborRate > 0) {
+    if (Arbeitszeit_hours_numeric > 0) {
+      const arbeitUnit = round2(handwerkerCount * laborRate);
+      lines.push({
+        key: "facharbeiter",
+        label: `- ${formatQty(Arbeitszeit_hours_numeric)} Std Arbeitszeit × ${handwerkerCount} Facharbeiter × ${formatQty(laborRate)} €`,
+        qty: Arbeitszeit_hours_numeric,
+        unit: "Std",
+        unitPrice: arbeitUnit,
+        amount: round2(Arbeitszeit_hours_numeric * arbeitUnit),
+        docxHide: true,
+      });
+    }
+    if (reise_hours_numeric > 0) {
+      const reiseUnit = isBwt ? round2(bwtLaborRate) : round2(laborRate + sitz_reise_Rate);
+      const reiseLabel = isBwt
+        ? `- ${formatQty(reise_hours_numeric)} Std Anfahrt × ${handwerkerCount} Facharbeiter × ${formatQty(bwtLaborRate)} €`
+        : `- ${formatQty(reise_hours_numeric)} Std Anfahrt × (${formatQty(laborRate)} € + ${formatQty(sitz_reise_Rate)} €)`;
+      lines.push({
+        key: "reisezeit",
+        label: reiseLabel,
+        qty: reise_hours_numeric,
+        unit: "Std",
+        unitPrice: reiseUnit,
+        amount: round2(reise_hours_numeric * reiseUnit),
+        docxHide: true,
+      });
+    }
+  }
+  let extraAufgabeAmount = 0;
+  if (offer === "bwt") {
+    const extraHours = Number(arbeits.extraHoursTotal ?? 0) || 0;
+    if (extraHours > 0 && laborRate > 0) {
+      const extraAmount = round2(extraHours * handwerkerCount * laborRate);
+      extraAufgabeAmount = extraAmount;
+      lines.push({ key: "extraAufgabe", label: "- extra Aufgabe", amount: extraAmount });
+    }
+  }
+
+  try {
+    const notes = computeWorkNotes(payload);
+    for (const n of notes) lines.push(n);
+  } catch {
+    /* work notes are best-effort */
+  }
+
+  const sum = round2(lines.reduce((a, x) => a + (x.amount || 0), 0));
+  return {
+    title: "Auszuführende Arbeiten",
+    lines,
+    sum,
+    payer,
+    zoneLabel: "",
+    distanceKm: roundTripKm,
+    laborHours,
+    laborRate,
+    extraAufgabeAmount,
+    travelSecondWorkerRate: sitz_reise_Rate,
+  };
+}
+
 export interface Pricing {
   computePrices: (payload: PricingPayload) => Promise<Record<string, any>>;
   computeMaterials: (
     payload: PricingPayload,
   ) => Promise<{ title: string; lines: any[]; sum: number; grabCounts: any }>;
+  computeServiceCosts: (payload: PricingPayload) => Record<string, any>;
 }
 
 export function createPricing(resolve: PriceResolver): Pricing {
@@ -1173,5 +1305,5 @@ export function createPricing(resolve: PriceResolver): Pricing {
     throw new Error("pricing: computePrices not yet ported (materials/services/aggregation pending)");
   }
 
-  return { computePrices, computeMaterials };
+  return { computePrices, computeMaterials, computeServiceCosts };
 }
