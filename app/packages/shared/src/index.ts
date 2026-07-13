@@ -40,3 +40,40 @@ export interface ApiError {
 /** Theme identifiers mirrored from the legacy CSS-variable system. */
 export type ThemeName = "base" | "wohnen" | "gesundheit" | "pflege" | "kfz";
 export type ColorMode = "light" | "dark";
+
+// --- Admin: user management ---
+
+/** A user record as shown in the admin table (never includes the password hash). */
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  active: boolean;
+  lastLoginAt: string | null;
+  createdAt: string | null;
+}
+
+export interface UsersListResponse {
+  users: AdminUser[];
+}
+
+export interface CreateUserRequest {
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  password: string;
+  active: boolean;
+}
+
+/** All fields optional; password only re-hashed when a non-empty value is sent. */
+export interface UpdateUserRequest {
+  firstName?: string;
+  lastName?: string;
+  role?: UserRole;
+  active?: boolean;
+  password?: string;
+}
