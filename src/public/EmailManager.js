@@ -202,7 +202,9 @@ export function initEmailManager(options = {}) {
     const atts = Array.isArray(attachmentNames) ? attachmentNames.filter(Boolean) : [];
 
     const rawBody = safe(body || "").trim();
-    const maxLen = 1400;
+    // Generous safety cap only — the full offer email (~2k chars) fits easily.
+    // Bitrix timeline comments accept large text; this just guards pathological input.
+    const maxLen = 20000;
     const bodyOut =
       rawBody.length > maxLen ? rawBody.slice(0, maxLen) + "\n…(gekürzt)…" : rawBody;
 
