@@ -24,13 +24,8 @@
   @media print{ body{ background:#fff; } .sheet{ margin:0; box-shadow:none; width:auto; min-height:auto; } }
 
   /* ---- letterhead ---- */
-  .letterhead{ position:absolute; top:9mm; left:20mm; right:20mm; }
-  .lh-top{ display:flex; justify-content:space-between; align-items:flex-start; }
-  .lh-logo{ height:14mm; width:auto; }
-  .lh-page{ font-size:8pt; color:var(--muted); padding-top:1mm; }
-  .lh-cols{ display:flex; gap:8mm; margin-top:2mm; font-size:6.8pt; color:var(--muted); line-height:1.35; }
-  .lh-cols div{ white-space:nowrap; }
-  .lh-rule{ border-bottom:.4mm solid var(--navy); margin-top:2mm; }
+  .letterhead{ position:absolute; top:10mm; left:20mm; right:20mm; }
+  .lh-logo{ height:17mm; width:auto; }
 
   /* ---- DIN 5008 address window (Form B) ---- */
   .absender{ position:absolute; top:45mm; left:20mm; width:85mm; font-size:7pt; color:var(--muted); }
@@ -86,23 +81,17 @@
   .sign .rule{ border-top:.3mm solid var(--ink); margin-top:14mm; padding-top:1mm; font-size:8pt; color:var(--muted); }
   .closing{ margin:8mm 0 0; font-size:9.5pt; }
 
-  .pagefoot{ position:absolute; bottom:9mm; left:20mm; right:20mm; text-align:center; font-size:7pt; color:var(--muted); border-top:.2mm solid var(--line); padding-top:1.5mm; }
+  .pagefoot{ position:absolute; bottom:9mm; left:20mm; right:20mm; }
+  .pf-rule{ border-top:.4mm solid var(--navy); margin-bottom:1.8mm; }
+  .pf-cols{ display:flex; gap:9mm; font-size:6.8pt; color:var(--muted); line-height:1.4; }
+  .pf-cols .pf-page{ margin-left:auto; align-self:flex-end; }
 </style>
 </head>
 <body>
   <div class="sheet">
-    <!-- Letterhead -->
+    <!-- Letterhead: logo only (impressum moved to footer) -->
     <div class="letterhead">
-      <div class="lh-top">
-        <img class="lh-logo" src="/assets/logo.png" alt="emc²" />
-        <div class="lh-page">Seite 1 / 2</div>
-      </div>
-      <div class="lh-cols">
-        <div>emc² Attila Landgrafe<br>Waldstraße 5<br>95032 Hof<br>Deutschland</div>
-        <div>Tel.: 09281 5915900<br>Fax: 09281 5915909<br>E-Mail: kontakt@e-m-c-2.de<br>Web: emczwei.de</div>
-        <div>Hof/Saale<br>Steuer-Nr.: 223/147/40118<br>Geschäftsführer: Attila Landgrafe</div>
-      </div>
-      <div class="lh-rule"></div>
+      <img class="lh-logo" src="/assets/logo.png" alt="emc²" />
     </div>
 
     <!-- DIN 5008 address window -->
@@ -231,7 +220,15 @@
       <p class="closing">Für Rückfragen stehen wir Ihnen gerne zur Verfügung. Wir bedanken uns für Ihr Vertrauen und freuen uns, von Ihnen zu hören.<br><br>Mit freundlichen Grüßen<br>Ihr Team von EmC²</p>
     </div>
 
-    <div class="pagefoot">EmC² Soziale Dienste UG (haftungsbeschränkt) · Waldstraße 5 · 95032 Hof · kontakt@e-m-c-2.de · emczwei.de</div>
+    <div class="pagefoot">
+      <div class="pf-rule"></div>
+      <div class="pf-cols">
+        <div>emc² Attila Landgrafe<br>Waldstraße 5<br>95032 Hof<br>Deutschland</div>
+        <div>Tel.: 09281 5915900<br>Fax: 09281 5915909<br>E-Mail: kontakt@e-m-c-2.de<br>Web: emczwei.de</div>
+        <div>Hof/Saale<br>Steuer-Nr.: 223/147/40118<br>Geschäftsführer: Attila Landgrafe</div>
+        <div class="pf-page">Seite 1 / 2</div>
+      </div>
+    </div>
   </div>
 </body>
 </html>
