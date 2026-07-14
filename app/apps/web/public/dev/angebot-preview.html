@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Angebot – Design-Vorschau</title>
+<style>
+  /* ---- brand (from emc² logo) ---- */
+  :root{
+    --ink:#1a1a1a; --muted:#5b6470; --line:#c9d0da;
+    --navy:#22356c;            /* emc² wordmark navy */
+    --blue:#1a7ec9;            /* emc² spray-bottle blue */
+    --navy-soft:#eef1f8;
+    --font: "Helvetica Neue", Arial, "Segoe UI", sans-serif;
+  }
+  @page { size: A4; margin: 0; }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:#525659; font-family:var(--font); color:var(--ink);
+    font-size:10.5pt; line-height:1.45; -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .sheet{ width:210mm; min-height:297mm; margin:16px auto; background:#fff; position:relative; box-shadow:0 2px 18px rgba(0,0,0,.35); }
+  @media print{ body{ background:#fff; } .sheet{ margin:0; box-shadow:none; width:auto; min-height:auto; } }
+
+  /* ---- letterhead ---- */
+  .letterhead{ position:absolute; top:9mm; left:20mm; right:20mm; }
+  .lh-top{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .lh-logo{ height:14mm; width:auto; }
+  .lh-page{ font-size:8pt; color:var(--muted); padding-top:1mm; }
+  .lh-cols{ display:flex; gap:8mm; margin-top:2mm; font-size:6.8pt; color:var(--muted); line-height:1.35; }
+  .lh-cols div{ white-space:nowrap; }
+  .lh-rule{ border-bottom:.4mm solid var(--navy); margin-top:2mm; }
+
+  /* ---- DIN 5008 address window (Form B) ---- */
+  .absender{ position:absolute; top:45mm; left:20mm; width:85mm; font-size:7pt; color:var(--muted); }
+  .anschrift{ position:absolute; top:50mm; left:20mm; width:85mm; height:33mm; font-size:11pt; line-height:1.5; }
+  .anschrift .name{ font-weight:600; }
+
+  /* ---- body ---- */
+  .content{ padding:92mm 20mm 26mm; }
+
+  /* offer meta (left-aligned, like the old layout) */
+  .meta{ font-size:9.5pt; margin:0 0 6mm; }
+  .meta div{ display:flex; gap:2mm; }
+  .meta .k{ color:var(--muted); min-width:34mm; }
+  .meta .v{ font-weight:600; }
+
+  h1.subject{ font-size:12.5pt; margin:0 0 5mm; color:var(--navy); }
+  .greeting{ margin:0 0 3mm; }
+  .intro{ margin:0 0 6mm; }
+
+  /* ---- items table ---- */
+  table.items{ width:100%; border-collapse:collapse; font-size:9.5pt; }
+  table.items thead th{ background:var(--navy); color:#fff; font-weight:600; text-align:left; padding:2mm 2.5mm; font-size:8.5pt; }
+  table.items thead th.num{ text-align:right; }
+  table.items td{ padding:2mm 2.5mm; vertical-align:top; border-bottom:.2mm solid var(--line); }
+  table.items td.num{ text-align:right; white-space:nowrap; }
+  .pos{ font-weight:700; color:var(--muted); }
+  .rowhead td{ background:#f6f8fb; }
+  .rowhead .title{ font-weight:700; }
+  .lines{ margin:1.5mm 0 0; padding:0; list-style:none; }
+  .lines li{ position:relative; padding-left:4mm; margin:.6mm 0; }
+  .lines li::before{ content:"–"; position:absolute; left:0; color:var(--navy); }
+  .included-h{ font-weight:600; font-size:8.5pt; color:var(--muted); margin:2mm 0 .5mm; }
+  .lines.included li{ color:var(--muted); }
+  .cat{ font-weight:700; color:var(--navy); padding-top:2mm; }
+
+  /* ---- totals ---- */
+  .totals{ margin:6mm 0 0 auto; width:80mm; font-size:10pt; }
+  .totals table{ width:100%; border-collapse:collapse; }
+  .totals td{ padding:1.4mm 0; }
+  .totals td.v{ text-align:right; font-weight:600; white-space:nowrap; }
+  .totals tr.sum td{ border-top:.4mm solid var(--ink); font-size:11.5pt; font-weight:700; padding-top:2mm; }
+
+  .note{ font-size:9pt; color:#333; margin:6mm 0 0; }
+  .note.warn{ background:var(--navy-soft); border-left:2.5mm solid var(--navy); padding:2.5mm 3mm; }
+
+  .pay{ margin:6mm 0 0; font-size:9.5pt; }
+  .pay h3{ font-size:10pt; margin:0 0 1.5mm; color:var(--navy); }
+  .pay .opt{ margin:.8mm 0; }
+  .pay .box{ font-family:monospace; }
+
+  .sign{ margin:10mm 0 0; display:flex; gap:14mm; }
+  .sign .slot{ flex:1; }
+  .sign .rule{ border-top:.3mm solid var(--ink); margin-top:14mm; padding-top:1mm; font-size:8pt; color:var(--muted); }
+  .closing{ margin:8mm 0 0; font-size:9.5pt; }
+
+  .pagefoot{ position:absolute; bottom:9mm; left:20mm; right:20mm; text-align:center; font-size:7pt; color:var(--muted); border-top:.2mm solid var(--line); padding-top:1.5mm; }
+</style>
+</head>
+<body>
+  <div class="sheet">
+    <!-- Letterhead -->
+    <div class="letterhead">
+      <div class="lh-top">
+        <img class="lh-logo" src="/assets/logo.png" alt="emc²" />
+        <div class="lh-page">Seite 1 / 2</div>
+      </div>
+      <div class="lh-cols">
+        <div>emc² Attila Landgrafe<br>Waldstraße 5<br>95032 Hof<br>Deutschland</div>
+        <div>Tel.: 09281 5915900<br>Fax: 09281 5915909<br>E-Mail: kontakt@e-m-c-2.de<br>Web: emczwei.de</div>
+        <div>Hof/Saale<br>Steuer-Nr.: 223/147/40118<br>Geschäftsführer: Attila Landgrafe</div>
+      </div>
+      <div class="lh-rule"></div>
+    </div>
+
+    <!-- DIN 5008 address window -->
+    <div class="absender">EmC² Soziale Dienste UG (haftungsbeschränkt) · Waldstraße 5 · 95032 Hof</div>
+    <div class="anschrift">
+      <div>Herr</div>
+      <div class="name">Max Mustermann</div>
+      <div>Musterstraße 12</div>
+      <div>95032 Hof</div>
+    </div>
+
+    <!-- Body -->
+    <div class="content">
+      <!-- meta (left-aligned, like old layout) -->
+      <div class="meta">
+        <div><span class="k">Angebot-Nr.:</span><span class="v">ANG2026-0713-141038</span></div>
+        <div><span class="k">Datum:</span><span class="v">14.07.2026</span></div>
+        <div><span class="k">Gültig bis:</span><span class="v">08.09.2026</span></div>
+        <div><span class="k">Ansprechpartner:</span><span class="v">S. K.</span></div>
+        <div><span class="k">Kundennummer:</span><span class="v">K-10427</span></div>
+      </div>
+
+      <h1 class="subject">Ihr Angebot ANG2026-0713-141038</h1>
+      <p class="greeting">Sehr geehrter Herr Mustermann,</p>
+      <p class="intro">vielen Dank für Ihre Anfrage und Ihr damit verbundenes Interesse. Wir freuen uns, Ihnen folgendes Angebot unterbreiten zu können.</p>
+
+      <table class="items">
+        <thead>
+          <tr>
+            <th style="width:10mm">Pos.</th>
+            <th style="width:16mm">Menge</th>
+            <th>Bezeichnung</th>
+            <th class="num" style="width:24mm">Einzelpreis</th>
+            <th class="num" style="width:24mm">Gesamt</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="rowhead">
+            <td class="pos">001</td>
+            <td>1 Stk</td>
+            <td class="title">Auszuführende Arbeiten
+              <ul class="lines">
+                <li>Entfernen und Entsorgen der Badewanne inkl. Befliesung</li>
+                <li>Einbau einer bodengleichen Duschwanne 120 × 90 cm</li>
+                <li>Anbringen der Wandverkleidung im Duschbereich</li>
+                <li>Verlegen des Vinyl-Bodenbelags inkl. Abdichtung</li>
+                <li>Montage von zwei Haltegriffen</li>
+              </ul>
+              <div class="included-h">Enthält je Einheit</div>
+              <ul class="lines included">
+                <li>Fahrzeugbereitstellung</li>
+                <li>Bereitstellung von Maschinen und Werkzeug</li>
+                <li>Beräumung der Baustelle</li>
+                <li>Kilometerpauschale (2 × 25 km)</li>
+              </ul>
+            </td>
+            <td class="num">4.812,00 €</td>
+            <td class="num">4.812,00 €</td>
+          </tr>
+
+          <tr class="rowhead">
+            <td class="pos">002</td>
+            <td>1 Stk</td>
+            <td class="title">Material für Badumbau
+              <ul class="lines">
+                <li class="cat">Duschwanne</li>
+                <li>1 Stk Duschwanne Mineralguss 120 × 90 cm, weiß</li>
+                <li>1 Stk Ablaufgarnitur DN 50</li>
+                <li class="cat">Wandverkleidung</li>
+                <li>3 Stk Wandpaneel 997 × 2550 mm – Farbe: Steingrau</li>
+                <li>2 Set Flächenkleber</li>
+                <li class="cat">Fußboden</li>
+                <li>7 m² Vinyl-Designboden inkl. Bodenabdichtung</li>
+                <li class="cat">Zubehör</li>
+                <li>2 Stk Haltegriff clivia V2 plus 600 mm</li>
+              </ul>
+            </td>
+            <td class="num">2.145,60 €</td>
+            <td class="num">2.145,60 €</td>
+          </tr>
+
+          <tr>
+            <td class="pos">003</td>
+            <td>1 Stk</td>
+            <td>Aktion: Haltegriff GRATIS – 1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage</td>
+            <td class="num">0,00 €</td>
+            <td class="num">0,00 €</td>
+          </tr>
+          <tr>
+            <td class="pos">004</td>
+            <td>1 Stk</td>
+            <td>Bestandskundenbonus – Rabatt von 300 € ab einem Gesamtwert von 3.000 €</td>
+            <td class="num">−252,10 €</td>
+            <td class="num">−252,10 €</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="totals">
+        <table>
+          <tr><td>Nettobetrag</td><td class="v">6.957,60 €</td></tr>
+          <tr><td>Rabatt (3 %)</td><td class="v">−64,37 €</td></tr>
+          <tr><td>zzgl. 19 % MwSt.</td><td class="v">1.309,72 €</td></tr>
+          <tr class="sum"><td>Gesamtbetrag</td><td class="v">8.202,95 €</td></tr>
+        </table>
+      </div>
+
+      <p class="note">Es handelt sich hierbei um ein Festpreisangebot für die oben definierten Leistungen. Für eine Teilbeauftragung wäre ein neues Angebot erforderlich.</p>
+
+      <p class="note warn">ACHTUNG: Ob eine ebenerdige Montage der Duschwanne möglich ist, kann erst nach dem Ausbau der bestehenden Wanne beurteilt werden. Sollten dabei zusätzliche Leistungen erforderlich oder von Ihnen gewünscht sein, können zusätzliche Kosten entstehen. Diese werden vorab mit Ihnen besprochen, bedürfen Ihrer Zustimmung und werden auf Regiebasis nach tatsächlichem Aufwand abgerechnet (Stundensatz-Facharbeiter: 59,50 € netto).</p>
+
+      <div class="pay">
+        <h3>Zahlungsbedingungen</h3>
+        <div class="opt"><span class="box">☒</span> 20 % Anzahlung bei Auftragserteilung, Restbetrag nach Fertigstellung</div>
+        <div class="opt"><span class="box">☐</span> 30 % Anzahlung, Restbetrag mit 1 % Skonto bei Zahlung innerhalb 8 Tagen</div>
+        <div class="opt"><span class="box">☐</span> 40 % Anzahlung, Restbetrag mit 2 % Skonto bei Zahlung innerhalb 8 Tagen</div>
+      </div>
+
+      <p class="note">Bitte unterschreiben Sie bei Annahme an entsprechender Stelle und senden uns das Angebot wieder zurück – gerne auch per E-Mail an service@e-m-c-2.de. Die Unterschrift gilt für uns als Auftragsbestätigung.</p>
+
+      <div class="sign">
+        <div class="slot"><div class="rule">Ort, Datum</div></div>
+        <div class="slot"><div class="rule">Unterschrift Auftraggeber</div></div>
+      </div>
+
+      <p class="closing">Für Rückfragen stehen wir Ihnen gerne zur Verfügung. Wir bedanken uns für Ihr Vertrauen und freuen uns, von Ihnen zu hören.<br><br>Mit freundlichen Grüßen<br>Ihr Team von EmC²</p>
+    </div>
+
+    <div class="pagefoot">EmC² Soziale Dienste UG (haftungsbeschränkt) · Waldstraße 5 · 95032 Hof · kontakt@e-m-c-2.de · emczwei.de</div>
+  </div>
+</body>
+</html>
