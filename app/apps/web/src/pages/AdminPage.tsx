@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import type { AdminUser } from "@emc2/shared";
-import { Users, UserCheck, ShieldCheck, Plus, Pencil } from "lucide-react";
+import { Users, UserCheck, ShieldCheck, Plus, Pencil, Package } from "lucide-react";
 import { adminApi } from "@/features/admin/api";
 import { UserDialog } from "@/features/admin/UserDialog";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,9 +56,16 @@ export function AdminPage() {
           <h1 className="mt-1 font-display text-3xl font-bold tracking-tight">Benutzer</h1>
           <p className="mt-2 text-muted-foreground">Benutzerkonten verwalten.</p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus /> Neuer Benutzer
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/admin/optional">
+              <Package /> Optional-Katalog
+            </Link>
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus /> Neuer Benutzer
+          </Button>
+        </div>
       </header>
 
       {error && (

@@ -4,6 +4,7 @@ import { ProtectedRoute } from "@/routes/ProtectedRoute";
 import { LoginPage } from "@/pages/LoginPage";
 import { HomePage } from "@/pages/HomePage";
 import { AdminPage } from "@/pages/AdminPage";
+import { OptionalCatalogPage } from "@/pages/OptionalCatalogPage";
 import { CustomersPage } from "@/pages/CustomersPage";
 import { CustomerDetailPage } from "@/pages/CustomerDetailPage";
 import { ProductsPage } from "@/pages/ProductsPage";
@@ -30,6 +31,7 @@ export default function App() {
             {/* Admin-only subtree */}
             <Route element={<ProtectedRoute adminOnly />}>
               <Route path="admin" element={<AdminPage />} />
+              <Route path="admin/optional" element={<OptionalCatalogPage />} />
             </Route>
           </Route>
         </Route>

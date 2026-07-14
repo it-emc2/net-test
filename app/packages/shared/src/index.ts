@@ -229,3 +229,11 @@ export interface OptionalCategoryView {
 export interface OptionalCatalogResponse {
   categories: OptionalCategoryView[];
 }
+
+/** Admin editor payload: raw definitions + a resolved name/price/image map for display. */
+export interface OptionalCatalogAdminResponse {
+  categories: OptionalCategoryDef[];
+  resolved: Record<string, { name: string; netPrice: number; image: string | null }>;
+  /** true when served from the code seed (DB collection empty). */
+  fromSeed: boolean;
+}
