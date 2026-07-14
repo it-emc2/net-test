@@ -197,6 +197,8 @@ export interface OptionalItemDef {
   productId: string;
   /** For products not in Vigor or the legacy table — carries its own name/price. */
   manual?: { name: string; price: number } | null;
+  /** Extra static image paths appended to the resolved Vigor images (e.g. legacy assets). */
+  extraImages?: string[];
   defaultQty?: number;
   companions?: OptionalCompanion[];
 }

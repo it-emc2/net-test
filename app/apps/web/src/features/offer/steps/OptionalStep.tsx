@@ -179,6 +179,8 @@ function WcPanel({
 }) {
   const base = cat.items.filter((i) => i.companions.length === 0);
   const models = cat.items.filter((i) => i.companions.length > 0);
+  // WC-Sitze are the distinct companions across all models — selected independently.
+  const sitze = [...new Map(models.flatMap((m) => m.companions).map((c) => [c.productId, c])).values()];
   const isSel = (pid: string) => opt["opt_" + pid] === true;
   const montage = opt.wc_montage || (cat.items.some((i) => isSel(i.productId)) ? "wand" : "");
 
@@ -197,21 +199,12 @@ function WcPanel({
     patch(p);
   }
 
-  function selectModel(model: OptionalItemView) {
+  // Single-select toggle within one group (WCs or Sitze); re-click clears.
+  function pickOne(item: { productId: string }, group: { productId: string }[]) {
+    const already = isSel(item.productId);
     const p: Record<string, any> = {};
-    const already = isSel(model.productId);
-    // Single-select: clear all models + their Sitze.
-    for (const m of models) {
-      p["opt_" + m.productId] = false;
-      p["qty_" + m.productId] = 0;
-      for (const c of m.companions) { p["opt_" + c.productId] = false; p["qty_" + c.productId] = 0; }
-    }
-    if (!already) {
-      const q = model.defaultQty || 1;
-      p["opt_" + model.productId] = true;
-      p["qty_" + model.productId] = q;
-      for (const c of model.companions) { p["opt_" + c.productId] = true; p["qty_" + c.productId] = Math.round(c.qtyRatio * q) || 1; }
-    }
+    for (const g of group) { p["opt_" + g.productId] = false; p["qty_" + g.productId] = 0; }
+    if (!already) { p["opt_" + item.productId] = true; p["qty_" + item.productId] = 1; }
     patch(p);
   }
 
@@ -247,8 +240,8 @@ function WcPanel({
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {base.map((b) => (
                   <div key={b.productId} className="flex items-center gap-3 rounded-lg border border-primary bg-primary/5 p-2.5">
-                    <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
-                      {b.image ? <img src={b.image} alt="" className="size-full object-contain p-1" loading="lazy" /> : <Package className="size-6 text-muted-foreground" />}
+                    <span className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+                      {b.image ? <img src={b.image} alt="" className="size-full object-contain p-1.5" loading="lazy" /> : <Package className="size-7 text-muted-foreground" />}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block break-words text-sm font-medium">{b.name}</span>
@@ -270,31 +263,52 @@ function WcPanel({
                   <button
                     key={model.productId}
                     type="button"
-                    onClick={() => selectModel(model)}
+                    onClick={() => pickOne(model, models)}
                     className={cn("rounded-lg border p-3 text-left transition-colors", sel ? "border-primary bg-primary/5" : "hover:bg-accent")}
                   >
                     {strip.length > 0 ? (
                       <div className="flex gap-2 overflow-x-auto pb-1">
                         {strip.map((src, i) => (
-                          <img key={i} src={src} alt="" className="size-28 shrink-0 rounded-md border bg-white object-contain p-1.5" loading="lazy" />
+                          <img key={i} src={src} alt="" className="size-44 shrink-0 rounded-md border bg-white object-contain p-2" loading="lazy" />
                         ))}
                       </div>
                     ) : (
-                      <div className="flex h-28 items-center justify-center rounded-md border bg-white"><Package className="size-8 text-muted-foreground" /></div>
+                      <div className="flex h-44 items-center justify-center rounded-md border bg-white"><Package className="size-10 text-muted-foreground" /></div>
                     )}
                     <p className="mt-2 break-words text-sm font-medium">{model.name}</p>
                     <p className="text-xs text-muted-foreground">{formatEUR(model.netPrice)}</p>
-                    {model.companions.map((c) => (
-                      <p key={c.productId} className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                        {c.image && <img src={c.image} alt="" className="size-8 shrink-0 rounded border bg-white object-contain p-0.5" loading="lazy" />}
-                        <span className="break-words">inkl. {c.name}</span>
-                      </p>
-                    ))}
                   </button>
                 );
               })}
             </div>
           </div>
+
+          {sitze.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">WC-Sitz</p>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {sitze.map((s) => {
+                  const sel = isSel(s.productId);
+                  return (
+                    <button
+                      key={s.productId}
+                      type="button"
+                      onClick={() => pickOne(s, sitze)}
+                      className={cn("flex items-center gap-3 rounded-lg border p-2.5 text-left transition-colors", sel ? "border-primary bg-primary/5" : "hover:bg-accent")}
+                    >
+                      <span className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+                        {s.image ? <img src={s.image} alt="" className="size-full object-contain p-1" loading="lazy" /> : <Package className="size-6 text-muted-foreground" />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block break-words text-sm font-medium">{s.name}</span>
+                        <span className="block text-xs text-muted-foreground">{formatEUR(s.netPrice)}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

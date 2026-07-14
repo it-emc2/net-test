@@ -84,7 +84,12 @@ export const OPTIONAL_CATALOG_SEED: OptionalCategoryDef[] = [
       { productId: "V1DON" },
       { productId: "0601010003" },
       { productId: "DERWWCOSVP", companions: [{ productId: "DERSIAS", qtyRatio: 1 }] },
-      { productId: "DEDWWC", companions: [{ productId: "DERSIAS", qtyRatio: 1 }] },
+      {
+        productId: "DEDWWC",
+        // Derby V3 AQUAWASH: extra product shots from the legacy assets.
+        extraImages: ["/assets/wc/DEDWWC1.png", "/assets/wc/DEDWWC2.png", "/assets/wc/DEDWWC3.png"],
+        companions: [{ productId: "DERSIAS", qtyRatio: 1 }],
+      },
       { productId: "CLPWWCOS5", companions: [{ productId: "CLSIAS", qtyRatio: 1 }] },
     ],
   },
