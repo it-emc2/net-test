@@ -32,7 +32,9 @@ export function RabattStep() {
   const [zielError, setZielError] = useState<string | null>(null);
 
   // Mirror of legacy applyAutomatisch: derive the Aufschlag % from a target gross total.
-  function fromTarget(rawEur: string | number) {
+  // total is linear in the Aufschlag %, so with `below` we floor the % to the next
+  // 0.01 down — guaranteeing the resulting total stays strictly under the target.
+  function fromTarget(rawEur: string | number, below = false) {
     setZielError(null);
     if (!result) return setZielError("Bitte zuerst die Preisvorschau laden.");
     const { total, markup, markupPct, vatOnNet } = result;
@@ -41,8 +43,9 @@ export function RabattStep() {
     if (!Number.isFinite(targetTotal) || targetTotal <= 0) return setZielError("Bitte einen gültigen Zielpreis eingeben.");
     const netAmount = total - (vatOnNet || 0);
     const factor = netAmount > 0 ? total / netAmount : 1.19;
-    const newPct = markupPct + markupPct * (targetTotal - total) / (factor * markup);
-    const rounded = Math.round(newPct * 10000) / 100; // fraction → percent, 2 decimals
+    const exactPct = (markupPct + markupPct * (targetTotal - total) / (factor * markup)) * 100; // → percent
+    // below: step down to the next lower 0.01 (strictly < exact → total strictly < target)
+    const rounded = below ? (Math.ceil(exactPct * 100) - 1) / 100 : Math.round(exactPct * 100) / 100;
     if (!Number.isFinite(rounded) || rounded < 0)
       return setZielError("Der berechnete Aufschlag wäre negativ – der Zielpreis liegt unter den Selbstkosten.");
     setAufschlag(rounded);
@@ -141,7 +144,7 @@ export function RabattStep() {
                   <button
                     key={p.t}
                     type="button"
-                    onClick={() => { setZielInput(String(p.t)); fromTarget(p.t); }}
+                    onClick={() => { setZielInput(String(p.t)); fromTarget(p.t, true); }}
                     className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
                   >
                     {p.label}
