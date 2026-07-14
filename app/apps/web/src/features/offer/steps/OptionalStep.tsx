@@ -47,6 +47,16 @@ export function OptionalStep() {
   const setCompQty = (pid: string, qty: number) => patchSection("optional", { ["qty_" + pid]: Math.max(0, qty || 0) });
   const removeComp = (pid: string) => patchSection("optional", { ["opt_" + pid]: false, ["qty_" + pid]: 0 });
 
+  // REHA products are gross-priced; the pricing engine keys off opt["optReha[]"].
+  // Toggle normally, then rebuild that list from the category's current selection.
+  function toggleReha(cat: OptionalCategoryView, item: OptionalItemView, on: boolean) {
+    const q = on ? item.defaultQty || 1 : 0;
+    const selected = cat.items
+      .map((i) => i.productId)
+      .filter((pid) => (pid === item.productId ? on : isSel(pid)));
+    patchSection("optional", { ["opt_" + item.productId]: on, ["qty_" + item.productId]: q, "optReha[]": selected });
+  }
+
   return (
     <div className="space-y-6">
       <StepHeader title="Optional" hint="Zusatzprodukte je Kategorie wählen. Notwendiges Zubehör wird automatisch ergänzt." />
@@ -81,7 +91,11 @@ export function OptionalStep() {
                   sel={isSel(item.productId)}
                   opt={opt}
                   qtyOf={qtyOf}
-                  onToggle={() => toggleItem(item, !isSel(item.productId))}
+                  onToggle={() =>
+                    cat.special === "reha"
+                      ? toggleReha(cat, item, !isSel(item.productId))
+                      : toggleItem(item, !isSel(item.productId))
+                  }
                   onQty={(v) => setItemQty(item, v)}
                   setCompQty={setCompQty}
                   removeComp={removeComp}

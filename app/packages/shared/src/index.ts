@@ -208,8 +208,8 @@ export interface OptionalCategoryDef {
   label: string;
   order: number;
   selection: "single" | "multi";
-  /** "sonder" = free-text custom-product category; "wc" = WC montage panel. */
-  special?: "sonder" | "wc";
+  /** "sonder" = free-text; "wc" = WC montage panel; "reha" = REHA (gross-priced, feeds optReha[]). */
+  special?: "sonder" | "wc" | "reha";
   items: OptionalItemDef[];
 }
 
@@ -230,7 +230,7 @@ export interface OptionalCategoryView {
   label: string;
   order: number;
   selection: "single" | "multi";
-  special?: "sonder" | "wc";
+  special?: "sonder" | "wc" | "reha";
   items: OptionalItemView[];
 }
 
