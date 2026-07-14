@@ -40,7 +40,7 @@ const STEPS: Step[] = [
   { key: "wandverkleidung", label: "Wandverkleidung", el: <WandverkleidungStep /> },
   { key: "duschabtrennung", label: "Duschabtrennung", el: <Placeholder title="Duschabtrennung" note="Folgt." /> },
   { key: "optional", label: "Optional", el: <OptionalStep /> },
-  { key: "rabatt", label: "Rabatt", el: <Placeholder title="Rabatt & Bonus" note="Folgt." /> },
+  { key: "rabatt", label: "Aufschlag / Rabatt", el: <Placeholder title="Aufschlag / Rabatt" note="Folgt." /> },
 ];
 
 export function OfferBuilderPage() {

@@ -81,7 +81,6 @@ export function KundendatenStep() {
           </div>
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Aufschlag"><Input value={k.aufschlag} onChange={(e) => set({ aufschlag: e.target.value })} placeholder="35%" /></Field>
           <Field label="Ansprechpartner (EmC²)"><Input value={k.emc2_contact} onChange={(e) => set({ emc2_contact: e.target.value })} /></Field>
         </div>
 
