@@ -78,7 +78,7 @@ export function OptionalStep() {
                     className={cn("rounded-lg border p-2.5 transition-colors", sel && "border-primary bg-primary/5")}
                   >
                     <button type="button" onClick={() => toggleItem(item, !sel)} className="flex w-full items-center gap-3 text-left">
-                      <span className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+                      <span className="flex size-28 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
                         {item.image ? (
                           <img src={item.image} alt="" className="size-full object-contain p-1.5" loading="lazy" />
                         ) : (
@@ -86,7 +86,7 @@ export function OptionalStep() {
                         )}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">{item.name}</span>
+                        <span className="block text-sm font-medium">{item.name}</span>
                         <span className="block text-xs text-muted-foreground">{formatEUR(item.netPrice)}</span>
                       </span>
                       <input type="checkbox" readOnly checked={sel} className="size-4 accent-[hsl(var(--primary))]" />
@@ -111,14 +111,14 @@ export function OptionalStep() {
                             {item.companions.map((c) =>
                               opt["opt_" + c.productId] ? (
                                 <div key={c.productId} className="flex items-center gap-2 text-xs">
-                                  <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+                                  <span className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
                                     {c.image ? (
                                       <img src={c.image} alt="" className="size-full object-contain p-0.5" loading="lazy" />
                                     ) : (
-                                      <Package className="size-4 text-muted-foreground" />
+                                      <Package className="size-5 text-muted-foreground" />
                                     )}
                                   </span>
-                                  <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                                  <span className="min-w-0 flex-1">{c.name}</span>
                                   <Input
                                     inputMode="numeric"
                                     value={String(qtyOf(c.productId))}
