@@ -39,6 +39,7 @@ export function initEmailManager(options = {}) {
       getCurrentOfferType: () => "bu",
       genOfferNumber: () => "",
       saveFinalOfferSnapshot: async () => {},
+      onDealStageMoved: () => {},
     },
 
     ...options,
@@ -412,6 +413,11 @@ export function initEmailManager(options = {}) {
         body.innerHTML = `<p class="ang-stage-text">✅ Deal wurde auf „ANG verschickt" verschoben.</p>`;
       }
       if (moveBtn) moveBtn.remove();
+      try {
+        cfg.hooks.onDealStageMoved?.(dealId);
+      } catch (e) {
+        console.warn("[EmailManager] onDealStageMoved hook failed:", e);
+      }
     } catch (e) {
       setModalStatus(`Fehler: ${e.message || e}`, true);
       if (moveBtn) moveBtn.disabled = false;
