@@ -16,8 +16,8 @@ import { OPTIONAL_CATALOG_SEED } from "../data/optionalCatalog.js";
 const router = Router();
 router.use(requireAuth);
 
-async function loadImages(ids: string[]): Promise<Map<string, string | null>> {
-  const map = new Map<string, string | null>();
+async function loadImages(ids: string[]): Promise<Map<string, string[]>> {
+  const map = new Map<string, string[]>();
   if (!ids.length) return map;
   try {
     const db = await getVigorDb();
@@ -26,7 +26,7 @@ async function loadImages(ids: string[]): Promise<Map<string, string | null>> {
       .find({ articleNumber: { $in: ids } }, { projection: { articleNumber: 1, images: 1 } })
       .toArray();
     for (const d of docs) {
-      map.set(d.articleNumber as string, Array.isArray(d.images) && d.images.length ? d.images[0] : null);
+      map.set(d.articleNumber as string, Array.isArray(d.images) ? d.images.filter(Boolean) : []);
     }
   } catch {
     /* Vigor down → no images */
@@ -65,7 +65,8 @@ router.get("/catalog", async (_req: Request, res: Response) => {
           productId: it.productId,
           name: it.manual?.name || r?.name || it.productId,
           netPrice: it.manual?.price ?? r?.netPrice ?? 0,
-          image: images.get(it.productId) ?? null,
+          image: images.get(it.productId)?.[0] ?? null,
+          images: images.get(it.productId) ?? [],
           defaultQty: it.defaultQty ?? 1,
           companions: (it.companions ?? []).map((comp) => {
             const cr = resolved.get(comp.productId);
@@ -74,7 +75,7 @@ router.get("/catalog", async (_req: Request, res: Response) => {
               qtyRatio: comp.qtyRatio,
               name: cr?.name || comp.productId,
               netPrice: cr?.netPrice ?? 0,
-              image: images.get(comp.productId) ?? null,
+              image: images.get(comp.productId)?.[0] ?? null,
             };
           }),
         };

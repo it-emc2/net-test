@@ -206,8 +206,8 @@ export interface OptionalCategoryDef {
   label: string;
   order: number;
   selection: "single" | "multi";
-  /** "sonder" = free-text custom-product category (no fixed items). */
-  special?: "sonder";
+  /** "sonder" = free-text custom-product category; "wc" = WC montage panel. */
+  special?: "sonder" | "wc";
   items: OptionalItemDef[];
 }
 
@@ -217,6 +217,8 @@ export interface OptionalItemView {
   name: string;
   netPrice: number;
   image: string | null;
+  /** All images (for the WC panel's scrollable strip); first entry equals `image`. */
+  images: string[];
   defaultQty: number;
   companions: { productId: string; qtyRatio: number; name: string; netPrice: number; image: string | null }[];
 }
@@ -226,7 +228,7 @@ export interface OptionalCategoryView {
   label: string;
   order: number;
   selection: "single" | "multi";
-  special?: "sonder";
+  special?: "sonder" | "wc";
   items: OptionalItemView[];
 }
 

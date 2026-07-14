@@ -74,16 +74,18 @@ export const OPTIONAL_CATALOG_SEED: OptionalCategoryDef[] = [
     label: "WC",
     order: 8,
     selection: "multi",
+    special: "wc",
+    // WC panel derives its structure from the data:
+    //  - items WITHOUT companions = base "Produkte für Wandmontage" (auto-selected)
+    //  - items WITH a companion (the matching WC-Sitz) = selectable WC models (single-select)
     items: [
       { productId: "CVIS3WCT112" },
       { productId: "SCHALL" },
       { productId: "V1DON" },
-      { productId: "DERSIAS" },
-      { productId: "CLSIAS" },
-      { productId: "DERWWCOSVP" },
-      { productId: "DEDWWC" },
-      { productId: "CLPWWCOS5" },
       { productId: "0601010003" },
+      { productId: "DERWWCOSVP", companions: [{ productId: "DERSIAS", qtyRatio: 1 }] },
+      { productId: "DEDWWC", companions: [{ productId: "DERSIAS", qtyRatio: 1 }] },
+      { productId: "CLPWWCOS5", companions: [{ productId: "CLSIAS", qtyRatio: 1 }] },
     ],
   },
   {
