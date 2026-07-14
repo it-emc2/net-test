@@ -107,6 +107,22 @@ router.get("/categories", async (_req: Request, res: Response) => {
   }
 });
 
+// GET /api/products/brands — distinct configContext.brand values.
+router.get("/brands", async (_req: Request, res: Response) => {
+  try {
+    const db = await getVigorDb();
+    const raw = (await db.collection(COLLECTION).distinct("configContext.brand")) as unknown[];
+    const brands = raw
+      .filter((v): v is string => typeof v === "string" && v.length > 0)
+      .sort((a, b) => a.localeCompare(b, "de"));
+    res.json({ brands });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[products] brands error:", err);
+    res.status(502).json({ error: "Vigor-Katalog nicht erreichbar" });
+  }
+});
+
 // GET /api/products/images?ids=a,b,c — batch image/name lookup from Vigor.
 router.get("/images", async (req: Request, res: Response) => {
   try {
@@ -141,11 +157,13 @@ router.get("/", async (req: Request, res: Response) => {
   try {
     const q = String(req.query.q || "").trim();
     const category = String(req.query.category || "").trim();
+    const brand = String(req.query.brand || "").trim();
     const page = Math.max(parseInt(String(req.query.page || "1"), 10) || 1, 1);
     const pageSize = Math.min(Math.max(parseInt(String(req.query.pageSize || "24"), 10) || 24, 1), 100);
 
     const filter: Record<string, unknown> = {};
     if (category) filter["configContext.category"] = category;
+    if (brand) filter["configContext.brand"] = brand;
     if (q) {
       const rx = new RegExp(escRegex(q), "i");
       filter.$or = [{ articleNumber: rx }, { name: rx }, { finish: rx }, { materialNumber: rx }];

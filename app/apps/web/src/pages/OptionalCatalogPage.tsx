@@ -34,8 +34,34 @@ export function OptionalCatalogPage() {
   }
   useEffect(load, []);
 
+  // Vigor facets for "fill from catalog".
+  const [vCats, setVCats] = useState<string[]>([]);
+  const [vBrands, setVBrands] = useState<string[]>([]);
+  useEffect(() => {
+    productsApi.categories().then(setVCats).catch(() => {});
+    productsApi.brands().then(setVBrands).catch(() => {});
+  }, []);
+
   const nameOf = (it: { productId: string; manual?: { name: string } | null }) =>
     it.manual?.name || resolved[it.productId]?.name || it.productId;
+
+  // Pull all products of a Vigor category (+ optional brand) into a category.
+  async function fillFromCatalog(ci: number, category: string, brand: string): Promise<number> {
+    const r = await productsApi.list({ category, brand: brand || undefined, pageSize: 100 });
+    let added = 0;
+    update((d) => {
+      const items = (d[ci].items = d[ci].items ?? []);
+      const have = new Set(items.map((x) => x.productId));
+      for (const p of r.items) {
+        if (!have.has(p.articleNumber)) {
+          items.push({ productId: p.articleNumber, manual: null, defaultQty: 1, companions: [] });
+          have.add(p.articleNumber);
+          added++;
+        }
+      }
+    });
+    return added;
+  }
 
   // Immutable helpers keyed by category index.
   const update = (fn: (draft: OptionalCategoryDef[]) => void) =>
@@ -170,6 +196,8 @@ export function OptionalCatalogPage() {
                     </div>
                   ))}
 
+                  <FillControl categories={vCats} brands={vBrands} onFill={(cat, brand) => fillFromCatalog(ci, cat, brand)} />
+
                   <AddProduct
                     label="Produkt hinzufügen"
                     allowManual
@@ -300,6 +328,59 @@ function AddProduct({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Pull all products of a Vigor category (+ optional brand) into an Optional category. */
+function FillControl({
+  categories,
+  brands,
+  onFill,
+}: {
+  categories: string[];
+  brands: string[];
+  onFill: (category: string, brand: string) => Promise<number>;
+}) {
+  const [cat, setCat] = useState("");
+  const [brand, setBrand] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const selCls = "h-8 rounded-md border border-input bg-card px-2 text-sm";
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed p-2">
+      <span className="text-xs text-muted-foreground">Aus Katalog füllen:</span>
+      <select value={cat} onChange={(e) => setCat(e.target.value)} className={selCls}>
+        <option value="">Kategorie …</option>
+        {categories.map((c) => (
+          <option key={c} value={c}>{c}</option>
+        ))}
+      </select>
+      <select value={brand} onChange={(e) => setBrand(e.target.value)} className={selCls}>
+        <option value="">Alle Marken</option>
+        {brands.map((b) => (
+          <option key={b} value={b}>{b}</option>
+        ))}
+      </select>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={!cat || busy}
+        onClick={async () => {
+          setBusy(true);
+          setNote(null);
+          try {
+            const n = await onFill(cat, brand);
+            setNote(`${n} hinzugefügt`);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? <Loader2 className="animate-spin" /> : null} Füllen
+      </Button>
+      {note && <span className="text-xs text-muted-foreground">{note}</span>}
     </div>
   );
 }

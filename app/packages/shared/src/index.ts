@@ -156,6 +156,10 @@ export interface ProductCategoriesResponse {
   categories: string[];
 }
 
+export interface ProductBrandsResponse {
+  brands: string[];
+}
+
 // --- Shower trays (Duschwanne search) ---
 
 export interface TraySuggestItem {
