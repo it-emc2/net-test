@@ -113,6 +113,27 @@ export interface CustomersListResponse {
   pageSize: number;
 }
 
+// --- Bitrix (deal-first offer entry) ---
+
+/** Customer fields prefilled from a Bitrix deal's linked contact. */
+export interface DealPrefill {
+  salutation: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  street: string;
+  postalCode: string;
+  city: string;
+}
+
+export interface DealPrefillResponse {
+  dealId: string;
+  title: string;
+  contactId: string;
+  prefill: DealPrefill;
+}
+
 // --- Products (Vigor catalog) ---
 
 /** Core product fields for the catalog list. Prices in EUR. */

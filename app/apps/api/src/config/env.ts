@@ -20,6 +20,8 @@ export const env = {
     process.env.ADMIN_SECRET ||
     process.env.ADMIN_PASSWORD ||
     "insecure-fallback",
+  // Bitrix24 REST webhook base, e.g. https://<portal>/rest/<user>/<token> (no trailing slash).
+  bitrixWebhookBase: (process.env.BITRIX_WEBHOOK_BASE || "").replace(/\/+$/, ""),
   port: Number(process.env.PORT || 4000),
   corsOrigins: (process.env.CORS_ORIGIN || "http://localhost:5173")
     .split(",")

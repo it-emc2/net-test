@@ -1,6 +1,8 @@
-import { useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Check, X, Receipt } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
+import { ChevronLeft, ChevronRight, Check, X, Receipt, Loader2, Link2 } from "lucide-react";
 import { OfferProvider, useOffer } from "@/features/offer/OfferContext";
+import { bitrixApi } from "@/features/offer/bitrix";
 import { PricingSidebar } from "@/features/offer/PricingSidebar";
 import { useLivePricing } from "@/features/offer/pricing";
 import { KundendatenStep, StepHeader } from "@/features/offer/steps/KundendatenStep";
@@ -58,13 +60,55 @@ function BuilderInner() {
   const { payload, patchSection } = useOffer();
   const budget = !!payload.duschwanne.budgetMode;
 
+  // The offer begins from a Bitrix deal: /angebote?dealId=12345 → store the id
+  // and prefill Kundendaten from the deal's linked contact (once per deal id).
+  const [params] = useSearchParams();
+  const urlDealId = (params.get("dealId") || "").trim();
+  const appliedRef = useRef<string>("");
+  const [deal, setDeal] = useState<{ status: "idle" | "loading" | "ok" | "error"; title: string; msg: string }>({
+    status: "idle", title: "", msg: "",
+  });
+
+  useEffect(() => {
+    if (!urlDealId || appliedRef.current === urlDealId) return;
+    appliedRef.current = urlDealId;
+    patchSection("Kundendaten", { dealId: urlDealId });
+    setDeal({ status: "loading", title: "", msg: "" });
+    bitrixApi
+      .dealPrefill(urlDealId)
+      .then((r) => {
+        const p = r.prefill;
+        const patch: Record<string, string> = { bitrixContactId: r.contactId };
+        // Only fill fields the deal actually provides (don't wipe with blanks).
+        (Object.keys(p) as (keyof typeof p)[]).forEach((k) => { if (p[k]) patch[k] = p[k]; });
+        patchSection("Kundendaten", patch);
+        setDeal({ status: "ok", title: r.title, msg: "" });
+      })
+      .catch((e) => setDeal({ status: "error", title: "", msg: e?.message || "Bitrix-Fehler" }));
+  }, [urlDealId, patchSection]);
+
+  const dealId = payload.Kundendaten.dealId;
+
   return (
     <div className="pb-24 lg:grid lg:grid-cols-[1fr_20rem] lg:gap-8 lg:pb-0">
       <div className="min-w-0">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
-            Neues Angebot · Badumbau
-          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
+              Neues Angebot · Badumbau
+            </p>
+            {dealId && (
+              <span
+                className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-3 py-1 text-xs font-semibold text-primary"
+                title={deal.title || undefined}
+              >
+                {deal.status === "loading" ? <Loader2 className="size-3 animate-spin" /> : <Link2 className="size-3" />}
+                Deal #{dealId}
+                {deal.status === "ok" && deal.title ? ` · ${deal.title}` : ""}
+                {deal.status === "error" ? " · nicht geladen" : ""}
+              </span>
+            )}
+          </div>
           {/* Global Budget-Modus — affects tray/accessory swaps and budget floors */}
           <label
             className={cn(
