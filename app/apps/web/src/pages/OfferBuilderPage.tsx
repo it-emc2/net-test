@@ -9,6 +9,7 @@ import { ArbeitenStep } from "@/features/offer/steps/ArbeitenStep";
 import { DuschwanneStep } from "@/features/offer/steps/DuschwanneStep";
 import { FussbodenStep } from "@/features/offer/steps/FussbodenStep";
 import { WandverkleidungStep } from "@/features/offer/steps/WandverkleidungStep";
+import { OptionalStep } from "@/features/offer/steps/OptionalStep";
 import { Button } from "@/components/ui/button";
 import { formatEUR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -38,7 +39,7 @@ const STEPS: Step[] = [
   { key: "fussboden", label: "Fußboden", el: <FussbodenStep /> },
   { key: "wandverkleidung", label: "Wandverkleidung", el: <WandverkleidungStep /> },
   { key: "duschabtrennung", label: "Duschabtrennung", el: <Placeholder title="Duschabtrennung" note="Folgt." /> },
-  { key: "optional", label: "Optional", el: <Placeholder title="Optional" note="Folgt." /> },
+  { key: "optional", label: "Optional", el: <OptionalStep /> },
   { key: "rabatt", label: "Rabatt", el: <Placeholder title="Rabatt & Bonus" note="Folgt." /> },
 ];
 

@@ -181,3 +181,51 @@ export interface TraySuggestResponse {
 export interface ProductImagesResponse {
   images: Record<string, { image: string | null; name: string }>;
 }
+
+// --- Optional catalog (data-driven, admin-managed) ---
+
+export interface OptionalCompanion {
+  productId: string;
+  qtyRatio: number; // companion qty = round(qtyRatio × item qty)
+}
+
+export interface OptionalItemDef {
+  productId: string;
+  /** For products not in Vigor or the legacy table — carries its own name/price. */
+  manual?: { name: string; price: number } | null;
+  defaultQty?: number;
+  companions?: OptionalCompanion[];
+}
+
+export interface OptionalCategoryDef {
+  id: string;
+  label: string;
+  order: number;
+  selection: "single" | "multi";
+  /** "sonder" = free-text custom-product category (no fixed items). */
+  special?: "sonder";
+  items: OptionalItemDef[];
+}
+
+/** Item enriched with resolved name/price/image for the configurator. */
+export interface OptionalItemView {
+  productId: string;
+  name: string;
+  netPrice: number;
+  image: string | null;
+  defaultQty: number;
+  companions: { productId: string; qtyRatio: number; name: string; netPrice: number }[];
+}
+
+export interface OptionalCategoryView {
+  id: string;
+  label: string;
+  order: number;
+  selection: "single" | "multi";
+  special?: "sonder";
+  items: OptionalItemView[];
+}
+
+export interface OptionalCatalogResponse {
+  categories: OptionalCategoryView[];
+}
