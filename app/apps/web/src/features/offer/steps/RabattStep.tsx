@@ -160,7 +160,7 @@ export function RabattStep() {
                 <span className="text-sm text-muted-foreground">€</span>
                 <button
                   type="button"
-                  onClick={() => fromTarget(zielInput)}
+                  onClick={() => fromTarget(zielInput, true)}
                   className="rounded-md border border-primary bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/20"
                 >
                   Berechnen
