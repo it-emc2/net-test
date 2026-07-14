@@ -4438,6 +4438,29 @@ button.dm-btn-danger:focus-visible {
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-step-title {
     margin: 0 0 16px; font-size: 1.15rem; color: var(--text);
   }
+
+  /* leaf preview — the resolved product's image, shown mid-wizard + in the summary */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview {
+    display: flex; align-items: center; gap: 12px;
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 10px 14px; margin-bottom: 16px; background: var(--panel);
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview img {
+    width: 64px; height: 64px; object-fit: contain; border-radius: 8px;
+    background: #fff; flex: 0 0 auto;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview-label {
+    font-size: 0.85rem; color: var(--text); font-weight: 600;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview {
+    margin: 0 0 14px; flex-direction: column; align-items: stretch;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview img {
+    width: 100%; height: 180px;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview-label {
+    text-align: center;
+  }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-sizelabel {
     font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
     color: var(--muted); margin: 16px 0 8px;
