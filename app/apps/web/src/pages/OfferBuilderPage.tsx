@@ -10,6 +10,7 @@ import { DuschwanneStep } from "@/features/offer/steps/DuschwanneStep";
 import { FussbodenStep } from "@/features/offer/steps/FussbodenStep";
 import { WandverkleidungStep } from "@/features/offer/steps/WandverkleidungStep";
 import { OptionalStep } from "@/features/offer/steps/OptionalStep";
+import { RabattStep } from "@/features/offer/steps/RabattStep";
 import { Button } from "@/components/ui/button";
 import { formatEUR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -40,7 +41,7 @@ const STEPS: Step[] = [
   { key: "wandverkleidung", label: "Wandverkleidung", el: <WandverkleidungStep /> },
   { key: "duschabtrennung", label: "Duschabtrennung", el: <Placeholder title="Duschabtrennung" note="Folgt." /> },
   { key: "optional", label: "Optional", el: <OptionalStep /> },
-  { key: "rabatt", label: "Aufschlag / Rabatt", el: <Placeholder title="Aufschlag / Rabatt" note="Folgt." /> },
+  { key: "rabatt", label: "Aufschlag / Rabatt", el: <RabattStep /> },
 ];
 
 export function OfferBuilderPage() {
