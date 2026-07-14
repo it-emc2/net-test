@@ -234,6 +234,10 @@ async function updateDealStage({
     entityTypeId: DEAL_ENTITY_TYPE_ID,
     id: numericId,
     fields,
+    // crm.item.update expects UF_CRM_* keys camelCased (ufCrm_...) unless
+    // told otherwise — without this the custom fields above are silently
+    // dropped and land empty on the deal.
+    useOriginalUfNames: "Y",
   });
 }
 
@@ -477,6 +481,36 @@ router.post("/deal/:id/move-zuteilen", express.json(), async (req, res) => {
     return res.json({ ok: true, dealId: Number(dealId), result: data?.result ?? data });
   } catch (err) {
     console.error("POST /api/bitrix/deal/:id/move-zuteilen error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// GET /api/bitrix/deals/stages?ids=123,456
+// Returns the current STAGE_ID for each deal — used by the today-planning
+// list to hide "Erfolgreich abgeschlossen" for deals already moved past it.
+router.get("/deals/stages", async (req, res) => {
+  try {
+    const ids = String(req.query.ids || "")
+      .split(",")
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isFinite(n) && n > 0);
+
+    if (!ids.length) return res.json({ stages: {} });
+
+    const data = await bxGet("crm.item.list", {
+      entityTypeId: DEAL_ENTITY_TYPE_ID,
+      filter: { id: ids },
+      select: ["id", "stageId"],
+    });
+
+    const stages = {};
+    for (const item of data?.result?.items || []) {
+      stages[String(item.id)] = item.stageId;
+    }
+
+    return res.json({ stages });
+  } catch (err) {
+    console.error("GET /api/bitrix/deals/stages error:", err);
     return res.status(500).json({ error: err?.message || String(err) });
   }
 });

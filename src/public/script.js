@@ -13449,7 +13449,7 @@ const RESTORE_HANDLERS = {
               ? window.saveFinalOfferSnapshot()
               : undefined),
           onDealStageMoved: (dealId) => {
-            window.markDealOfferSent?.(dealId);
+            window.markDealStage?.(dealId, "C38:UC_2ZDNEZ");
             window.renderTodayPlanningAppointments?.();
           },
         },
@@ -23363,29 +23363,36 @@ let todayPlanningAppointmentsFiltered = [];
 let activePlanningAppointmentId = null;
 let _pendingPlanningEntry = null;
 
-// Deal IDs whose offer has already been sent + moved to "ANG verschickt" —
-// hide "Erfolgreich abgeschlossen" for these on the today-planning list.
-const OFFER_SENT_DEAL_IDS_KEY = "emc2_offerSentDealIds";
-function loadOfferSentDealIds() {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(OFFER_SENT_DEAL_IDS_KEY) || "[]"));
-  } catch {
-    return new Set();
-  }
+// Deal stages fetched live from Bitrix — hides "Erfolgreich abgeschlossen"
+// for deals already moved to/past "ANG verschickt" on the today-planning list.
+const DONE_STAGE_IDS = new Set(["C38:UC_2ZDNEZ", "C72:PREPARATION"]);
+const dealStageById = new Map();
+
+function isDealDone(dealId) {
+  const stage = dealStageById.get(String(dealId || "").trim());
+  return !!stage && DONE_STAGE_IDS.has(stage);
 }
-function markDealOfferSent(dealId) {
+
+function markDealStage(dealId, stageId) {
   const id = String(dealId || "").trim();
-  if (!id) return;
-  const set = loadOfferSentDealIds();
-  set.add(id);
-  try {
-    localStorage.setItem(OFFER_SENT_DEAL_IDS_KEY, JSON.stringify([...set]));
-  } catch {
-    // ignore storage failures (e.g. private mode)
-  }
+  if (!id || !stageId) return;
+  dealStageById.set(id, stageId);
 }
-function isDealOfferSent(dealId) {
-  return loadOfferSentDealIds().has(String(dealId || "").trim());
+
+async function fetchDealStages(dealIds) {
+  const ids = [...new Set(dealIds.map((id) => String(id || "").trim()).filter(Boolean))];
+  if (!ids.length) return;
+  try {
+    const res = await fetch(`/api/bitrix/deals/stages?ids=${ids.map(encodeURIComponent).join(",")}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+    for (const [dealId, stageId] of Object.entries(data?.stages || {})) {
+      markDealStage(dealId, stageId);
+    }
+    renderTodayPlanningAppointments();
+  } catch (e) {
+    console.warn("[planning] fetchDealStages failed:", e);
+  }
 }
 
 const PLANNING_OFFER_TYPES = [
@@ -24070,7 +24077,7 @@ function renderTodayPlanningAppointments(){
 
         <div class="today-calendar-actions">
           <button type="button" class="today-calendar-open" ${isCancelled ? 'disabled aria-disabled="true"' : ""}><i class="fa-solid ${isCancelled ? "fa-ban" : "fa-arrow-right"}"></i> ${isCancelled ? "Nicht verfuegbar" : "In Konfigurator öffnen"}</button>
-          ${!isCancelled && entry?.importDealId && !isDealOfferSent(entry.importDealId) ? `<button type="button" class="today-calendar-done"><i class="fa-solid fa-circle-check"></i> Erfolgreich abgeschlossen</button>` : ""}
+          ${!isCancelled && entry?.importDealId && !isDealDone(entry.importDealId) ? `<button type="button" class="today-calendar-done"><i class="fa-solid fa-circle-check"></i> Erfolgreich abgeschlossen</button>` : ""}
         </div>
       </div>
       ${travelHtml}
@@ -24118,6 +24125,7 @@ function renderTodayPlanningAppointments(){
         const data = await res.json().catch(() => ({}));
         if(!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
         doneButton.innerHTML = `<i class="fa-solid fa-circle-check"></i> Verschoben`;
+        markDealStage(dealId, "C72:PREPARATION");
         (typeof showToast === "function") && showToast("Deal auf „Zuteilen HD/ AH/ DH“ verschoben.", "success");
       } catch (e) {
         console.error("[planning] move-zuteilen failed:", e);
@@ -24167,6 +24175,7 @@ function applyPlanningPayload(payload){
   const { day, entries } = buildPlanningEntries(payload || {});
 
   todayPlanningAppointments = entries;
+  fetchDealStages(entries.map(e => e?.importDealId).filter(Boolean));
   const activeStillVisible = entries.some(entry =>
     String(entry.__entryId) === String(activePlanningAppointmentId) && !isPlanningEntryCancelled(entry)
   );
@@ -24373,7 +24382,7 @@ window.__debug_getPlanningAppointments = () => todayPlanningAppointments;
 window.__debug_reloadPlanning = fetchTodayPlanningSnapshot;
 // Exposed for the EmailManager hook (different closure) to mark a deal's
 // offer as sent and refresh the today-planning list in the same tab.
-window.markDealOfferSent = markDealOfferSent;
+window.markDealStage = markDealStage;
 window.renderTodayPlanningAppointments = renderTodayPlanningAppointments;
 window.__debug_planningEndpoint = TODAY_PLANNING_SNAPSHOT_ENDPOINT;
 
