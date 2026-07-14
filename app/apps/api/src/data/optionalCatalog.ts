@@ -83,14 +83,15 @@ export const OPTIONAL_CATALOG_SEED: OptionalCategoryDef[] = [
       { productId: "SCHALL" },
       { productId: "V1DON" },
       { productId: "0601010003" },
-      { productId: "DERWWCOSVP", companions: [{ productId: "DERSIAS", qtyRatio: 1 }] },
+      // WC product shots sourced from the legacy configurator assets.
+      { productId: "DERWWCOSVP", extraImages: ["/assets/wc/DERWWCOSVP.jpg"], companions: [{ productId: "DERSIAS", qtyRatio: 1 }] },
       {
         productId: "DEDWWC",
-        // Derby V3 AQUAWASH: extra product shots from the legacy assets.
-        extraImages: ["/assets/wc/DEDWWC1.png", "/assets/wc/DEDWWC2.png", "/assets/wc/DEDWWC3.png"],
+        // Derby V3 AQUAWASH: all 4 legacy product shots.
+        extraImages: ["/assets/wc/DEDWWC.jpg", "/assets/wc/DEDWWC1.png", "/assets/wc/DEDWWC2.png", "/assets/wc/DEDWWC3.png"],
         companions: [{ productId: "DERSIAS", qtyRatio: 1 }],
       },
-      { productId: "CLPWWCOS5", companions: [{ productId: "CLSIAS", qtyRatio: 1 }] },
+      { productId: "CLPWWCOS5", extraImages: ["/assets/wc/CLPWWCOS5.jpg"], companions: [{ productId: "CLSIAS", qtyRatio: 1 }] },
     ],
   },
   {

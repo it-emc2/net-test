@@ -65,8 +65,8 @@ router.get("/catalog", async (_req: Request, res: Response) => {
           productId: it.productId,
           name: it.manual?.name || r?.name || it.productId,
           netPrice: it.manual?.price ?? r?.netPrice ?? 0,
-          image: (images.get(it.productId) ?? [])[0] ?? it.extraImages?.[0] ?? null,
-          images: [...(images.get(it.productId) ?? []), ...(it.extraImages ?? [])],
+          image: it.extraImages?.[0] ?? (images.get(it.productId) ?? [])[0] ?? null,
+          images: [...(it.extraImages ?? []), ...(images.get(it.productId) ?? [])],
           defaultQty: it.defaultQty ?? 1,
           companions: (it.companions ?? []).map((comp) => {
             const cr = resolved.get(comp.productId);

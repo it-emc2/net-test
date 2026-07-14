@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { ChevronDown, ChevronUp, Package, Plus, Trash2, X } from "lucide-react";
+import { useEffect, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Package, Plus, Trash2, X } from "lucide-react";
 import type { OptionalCategoryView, OptionalItemView } from "@emc2/shared";
 import { useOffer } from "../OfferContext";
 import { StepHeader } from "./KundendatenStep";
@@ -165,6 +165,42 @@ function ItemTile({
   );
 }
 
+// Single-image viewer with prev/next arrows. Arrow clicks don't bubble (so the
+// surrounding card's select handler doesn't fire).
+function Carousel({ images }: { images: string[] }) {
+  const [i, setI] = useState(0);
+  if (!images.length)
+    return (
+      <div className="flex h-52 items-center justify-center rounded-md border bg-white">
+        <Package className="size-10 text-muted-foreground" />
+      </div>
+    );
+  const n = images.length;
+  const idx = i % n;
+  const go = (d: number, e: ReactMouseEvent) => {
+    e.stopPropagation();
+    setI((idx + d + n) % n);
+  };
+  return (
+    <div className="relative">
+      <img src={images[idx]} alt="" className="h-52 w-full rounded-md border bg-white object-contain p-2" loading="lazy" />
+      {n > 1 && (
+        <>
+          <button type="button" onClick={(e) => go(-1, e)} aria-label="Zurück" className="absolute left-1 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border bg-background/90 shadow-sm hover:bg-accent">
+            <ChevronLeft className="size-4" />
+          </button>
+          <button type="button" onClick={(e) => go(1, e)} aria-label="Weiter" className="absolute right-1 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border bg-background/90 shadow-sm hover:bg-accent">
+            <ChevronRight className="size-4" />
+          </button>
+          <span className="absolute bottom-1.5 right-2 rounded bg-background/80 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+            {idx + 1}/{n}
+          </span>
+        </>
+      )}
+    </div>
+  );
+}
+
 // WC panel: pick Montageart, then a WC model. Structure is derived from the data —
 // items without companions are the base "Produkte für Wandmontage" (auto-selected),
 // items with a companion (the matching WC-Sitz) are single-select WC models.
@@ -205,6 +241,16 @@ function WcPanel({
     const p: Record<string, any> = {};
     for (const g of group) { p["opt_" + g.productId] = false; p["qty_" + g.productId] = 0; }
     if (!already) { p["opt_" + item.productId] = true; p["qty_" + item.productId] = 1; }
+    patch(p);
+  }
+
+  // Selecting a WC also clears any Sitz (the Sitz choice lives under the selected WC).
+  function selectWc(model: OptionalItemView) {
+    const already = isSel(model.productId);
+    const p: Record<string, any> = {};
+    for (const m of models) { p["opt_" + m.productId] = false; p["qty_" + m.productId] = 0; }
+    for (const s of sitze) { p["opt_" + s.productId] = false; p["qty_" + s.productId] = 0; }
+    if (!already) { p["opt_" + model.productId] = true; p["qty_" + model.productId] = 1; }
     patch(p);
   }
 
@@ -258,57 +304,47 @@ function WcPanel({
             <div className="grid gap-3 lg:grid-cols-2">
               {models.map((model) => {
                 const sel = isSel(model.productId);
-                const strip = model.images.length ? model.images : model.image ? [model.image] : [];
                 return (
-                  <button
+                  <div
                     key={model.productId}
-                    type="button"
-                    onClick={() => pickOne(model, models)}
-                    className={cn("rounded-lg border p-3 text-left transition-colors", sel ? "border-primary bg-primary/5" : "hover:bg-accent")}
+                    className={cn("rounded-lg border p-3 transition-colors", sel ? "border-primary bg-primary/5" : "hover:bg-accent")}
                   >
-                    {strip.length > 0 ? (
-                      <div className="flex gap-2 overflow-x-auto pb-1">
-                        {strip.map((src, i) => (
-                          <img key={i} src={src} alt="" className="size-44 shrink-0 rounded-md border bg-white object-contain p-2" loading="lazy" />
-                        ))}
+                    <div className="cursor-pointer" onClick={() => selectWc(model)}>
+                      <Carousel images={model.images.length ? model.images : model.image ? [model.image] : []} />
+                      <p className="mt-2 break-words text-sm font-medium">{model.name}</p>
+                      <p className="text-xs text-muted-foreground">{formatEUR(model.netPrice)}</p>
+                    </div>
+
+                    {sel && model.companions.length > 0 && (
+                      <div className="mt-3 space-y-2 border-t pt-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Passender WC-Sitz</p>
+                        {model.companions.map((c) => {
+                          const cSel = isSel(c.productId);
+                          return (
+                            <button
+                              key={c.productId}
+                              type="button"
+                              onClick={() => pickOne(c, sitze)}
+                              className={cn("flex w-full items-center gap-3 rounded-lg border p-2.5 text-left transition-colors", cSel ? "border-primary bg-primary/10" : "hover:bg-background")}
+                            >
+                              <span className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+                                {c.image ? <img src={c.image} alt="" className="size-full object-contain p-1" loading="lazy" /> : <Package className="size-6 text-muted-foreground" />}
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block break-words text-sm font-medium">{c.name}</span>
+                                <span className="block text-xs text-muted-foreground">{formatEUR(c.netPrice)}</span>
+                              </span>
+                              <span className={cn("size-4 shrink-0 rounded-full border", cSel && "border-primary bg-primary")} />
+                            </button>
+                          );
+                        })}
                       </div>
-                    ) : (
-                      <div className="flex h-44 items-center justify-center rounded-md border bg-white"><Package className="size-10 text-muted-foreground" /></div>
                     )}
-                    <p className="mt-2 break-words text-sm font-medium">{model.name}</p>
-                    <p className="text-xs text-muted-foreground">{formatEUR(model.netPrice)}</p>
-                  </button>
+                  </div>
                 );
               })}
             </div>
           </div>
-
-          {sitze.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">WC-Sitz</p>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {sitze.map((s) => {
-                  const sel = isSel(s.productId);
-                  return (
-                    <button
-                      key={s.productId}
-                      type="button"
-                      onClick={() => pickOne(s, sitze)}
-                      className={cn("flex items-center gap-3 rounded-lg border p-2.5 text-left transition-colors", sel ? "border-primary bg-primary/5" : "hover:bg-accent")}
-                    >
-                      <span className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
-                        {s.image ? <img src={s.image} alt="" className="size-full object-contain p-1" loading="lazy" /> : <Package className="size-6 text-muted-foreground" />}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block break-words text-sm font-medium">{s.name}</span>
-                        <span className="block text-xs text-muted-foreground">{formatEUR(s.netPrice)}</span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>
