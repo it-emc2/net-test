@@ -145,18 +145,46 @@ async function addTimelineComment({
 // entityTypeId for deals in the universal CRM item API.
 const DEAL_ENTITY_TYPE_ID = 2;
 
+// UF_CRM_1775019866756 ("Anzahl Umbautage") enumeration option IDs.
+const UMBAUTAGE_ENUM = {
+  NICHT_ZUTREFFEND: "8436",
+  HALF_DAY: "8444", // "0,5 (BWT / Handläufe)"
+  ONE_DAY: "8438",
+  TWO_DAYS: "8440",
+  THREE_DAYS: "8442",
+};
+
+// BWT/Handläufe offers always get the fixed 0,5-day option; BU offers derive
+// the day count from the Arbeitszeit tab (only 1/2/3 map to an enum option).
+function resolveUmbautageEnumId(workDays, offerType) {
+  const type = String(offerType || "").toLowerCase();
+  if (type === "bwt" || type === "hl") return UMBAUTAGE_ENUM.HALF_DAY;
+  switch (Math.round(Number(workDays) || 0)) {
+    case 1: return UMBAUTAGE_ENUM.ONE_DAY;
+    case 2: return UMBAUTAGE_ENUM.TWO_DAYS;
+    case 3: return UMBAUTAGE_ENUM.THREE_DAYS;
+    default: return UMBAUTAGE_ENUM.NICHT_ZUTREFFEND;
+  }
+}
+
 // Move a deal to a specific pipeline stage. STAGE_IDs are category-specific
 // (prefixed with C<categoryId>:), so when the target stage belongs to a
 // different pipeline the deal's category must change too. crm.deal.update
 // silently ignores CATEGORY_ID changes, so use crm.item.update (which does
 // support moving a deal between pipelines). Note crm.item.* uses camelCase
 // field names (stageId/categoryId/opportunity) unlike crm.deal.* (STAGE_ID…).
+// Custom UF_CRM_* fields keep their original field code either way.
 async function updateDealStage({
   dealId,
   stageId,
   categoryId,
   opportunity,
   currencyId,
+  workDays,
+  offerType,
+  offerNumber,
+  finalTotal,
+  selfPayAmount,
 }) {
   const numericId = Number(dealId);
   if (!Number.isFinite(numericId) || numericId <= 0) {
@@ -182,6 +210,24 @@ async function updateDealStage({
     // (empty) product rows, which would reset it to 0.
     fields.isManualOpportunity = "Y";
     fields.currencyId = String(currencyId || "EUR").trim() || "EUR";
+  }
+
+  // Offer fields the sales team wants populated on the deal when the offer
+  // email goes out and the deal is moved to "ANG verschickt".
+  if (workDays !== undefined || offerType !== undefined) {
+    fields.UF_CRM_1775019866756 = resolveUmbautageEnumId(workDays, offerType);
+  }
+  const finalTotalNum = Number(finalTotal);
+  if (Number.isFinite(finalTotalNum) && finalTotalNum > 0) {
+    fields.UF_CRM_1768391021079 = finalTotalNum;
+  }
+  if (offerNumber && String(offerNumber).trim()) {
+    fields.UF_CRM_1776156870205 = String(offerNumber).trim();
+  }
+  // Eigenanteil is only relevant for Kassenkunde; caller omits it otherwise.
+  const selfPayNum = Number(selfPayAmount);
+  if (Number.isFinite(selfPayNum) && selfPayNum > 0) {
+    fields.UF_CRM_1757490052931 = selfPayNum;
   }
 
   return bxPost("crm.item.update", {
@@ -401,6 +447,11 @@ router.post("/deal/:id/move-ang-verschickt", express.json(), async (req, res) =>
       categoryId: ANG_VERSCHICKT_CATEGORY_ID,
       opportunity: amount,
       currencyId,
+      workDays: req.body?.workDays,
+      offerType: req.body?.offerType,
+      offerNumber: req.body?.offerNumber,
+      finalTotal: req.body?.finalTotal ?? amount,
+      selfPayAmount: req.body?.selfPayAmount,
     });
 
     return res.json({ ok: true, dealId: Number(dealId), result: data?.result ?? data });

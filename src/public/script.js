@@ -13448,6 +13448,12 @@ const RESTORE_HANDLERS = {
             (typeof window.saveFinalOfferSnapshot === "function"
               ? window.saveFinalOfferSnapshot()
               : undefined),
+          onDealStageMoved: (dealId) => {
+            markDealOfferSent(dealId);
+            if (typeof renderTodayPlanningAppointments === "function") {
+              renderTodayPlanningAppointments();
+            }
+          },
         },
       });
       window.__managers.email = window.__emailManager;
@@ -23359,6 +23365,31 @@ let todayPlanningAppointmentsFiltered = [];
 let activePlanningAppointmentId = null;
 let _pendingPlanningEntry = null;
 
+// Deal IDs whose offer has already been sent + moved to "ANG verschickt" —
+// hide "Erfolgreich abgeschlossen" for these on the today-planning list.
+const OFFER_SENT_DEAL_IDS_KEY = "emc2_offerSentDealIds";
+function loadOfferSentDealIds() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(OFFER_SENT_DEAL_IDS_KEY) || "[]"));
+  } catch {
+    return new Set();
+  }
+}
+function markDealOfferSent(dealId) {
+  const id = String(dealId || "").trim();
+  if (!id) return;
+  const set = loadOfferSentDealIds();
+  set.add(id);
+  try {
+    localStorage.setItem(OFFER_SENT_DEAL_IDS_KEY, JSON.stringify([...set]));
+  } catch {
+    // ignore storage failures (e.g. private mode)
+  }
+}
+function isDealOfferSent(dealId) {
+  return loadOfferSentDealIds().has(String(dealId || "").trim());
+}
+
 const PLANNING_OFFER_TYPES = [
   { offerKey: "bu",  icon: "fa-shower",            title: "Badumbau" },
   { offerKey: "bwt", icon: "fa-bath",               title: "Badewannentür" },
@@ -24041,7 +24072,7 @@ function renderTodayPlanningAppointments(){
 
         <div class="today-calendar-actions">
           <button type="button" class="today-calendar-open" ${isCancelled ? 'disabled aria-disabled="true"' : ""}><i class="fa-solid ${isCancelled ? "fa-ban" : "fa-arrow-right"}"></i> ${isCancelled ? "Nicht verfuegbar" : "In Konfigurator öffnen"}</button>
-          ${!isCancelled && entry?.importDealId ? `<button type="button" class="today-calendar-done"><i class="fa-solid fa-circle-check"></i> Erfolgreich abgeschlossen</button>` : ""}
+          ${!isCancelled && entry?.importDealId && !isDealOfferSent(entry.importDealId) ? `<button type="button" class="today-calendar-done"><i class="fa-solid fa-circle-check"></i> Erfolgreich abgeschlossen</button>` : ""}
         </div>
       </div>
       ${travelHtml}
