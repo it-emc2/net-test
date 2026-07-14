@@ -13,7 +13,7 @@ import {
 const router = Router();
 router.use(requireAuth);
 
-const MARGIN = { top: "28mm", bottom: "26mm", left: "20mm", right: "20mm" };
+const MARGIN = { top: "31mm", bottom: "30mm", left: "20mm", right: "20mm" };
 
 async function renderPdf(html: string): Promise<Buffer> {
   return htmlToPdf(html, { margin: MARGIN, headerTemplate: headerTemplate(), footerTemplate: footerTemplate() });

@@ -77,22 +77,22 @@ const MUTED = "#5b6470";
 // Repeating page header: the emc² logo (inline styles only; Puppeteer templates
 // ignore the page's <style>). Sits in the reserved top margin on every page.
 export function headerTemplate(): string {
-  return `<div style="width:100%; -webkit-print-color-adjust:exact; padding:8mm 20mm 0;">
-    <img src="${logo()}" style="height:14mm;" />
+  return `<div style="width:100%; -webkit-print-color-adjust:exact; padding:7mm 20mm 0; text-align:right;">
+    <img src="${logo()}" style="height:18mm;" />
   </div>`;
 }
 
 // Repeating footer: impressum (centered, evenly spaced) + "Seite X / Y".
 export function footerTemplate(): string {
   const col = `flex:1; text-align:center; white-space:normal;`;
-  return `<div style="width:100%; font-size:7pt; color:${MUTED}; -webkit-print-color-adjust:exact; padding:0 20mm 6mm;">
-    <div style="border-top:.4mm solid ${NAVY}; margin-bottom:1.6mm;"></div>
-    <div style="display:flex; line-height:1.4;">
+  return `<div style="width:100%; font-size:7pt; color:${MUTED}; -webkit-print-color-adjust:exact; padding:0 20mm 5mm;">
+    <div style="border-top:.4mm solid ${NAVY}; margin-bottom:1.4mm;"></div>
+    <div style="display:flex; line-height:1.3;">
       <div style="${col}">emc² Attila Landgrafe<br/>Waldstraße 5<br/>95032 Hof<br/>Deutschland</div>
       <div style="${col}">Tel.: 09281 5915900<br/>Fax: 09281 5915909<br/>E-Mail: kontakt@e-m-c-2.de<br/>Web: emczwei.de</div>
       <div style="${col}">Hof/Saale<br/>Steuer-Nr.: 223/147/40118<br/>Geschäftsführer: Attila Landgrafe</div>
     </div>
-    <div style="text-align:center; margin-top:1.4mm;">Seite <span class="pageNumber"></span> / <span class="totalPages"></span></div>
+    <div style="text-align:right; margin-top:1.2mm;">Seite <span class="pageNumber"></span> / <span class="totalPages"></span></div>
   </div>`;
 }
 
@@ -136,7 +136,7 @@ export function renderAngebotHtml(d: AngebotData): string {
 
     /* page-1 DIN 5008 address window: top margin is 28mm, so 17mm pushes the
        Absender line to ~45mm from the physical page top (Form B). */
-    .din{ margin-top:17mm; width:85mm; }
+    .din{ margin-top:14mm; width:85mm; }
     .absender{ font-size:7pt; color:var(--muted); }
     .anschrift{ font-size:11pt; line-height:1.5; margin-top:4mm; }
     .anschrift .name{ font-weight:600; }
