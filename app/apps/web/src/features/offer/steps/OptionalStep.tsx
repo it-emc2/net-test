@@ -78,11 +78,11 @@ export function OptionalStep() {
                     className={cn("rounded-lg border p-2.5 transition-colors", sel && "border-primary bg-primary/5")}
                   >
                     <button type="button" onClick={() => toggleItem(item, !sel)} className="flex w-full items-center gap-3 text-left">
-                      <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+                      <span className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
                         {item.image ? (
-                          <img src={item.image} alt="" className="size-full object-contain p-1" loading="lazy" />
+                          <img src={item.image} alt="" className="size-full object-contain p-1.5" loading="lazy" />
                         ) : (
-                          <Package className="size-5 text-muted-foreground" />
+                          <Package className="size-7 text-muted-foreground" />
                         )}
                       </span>
                       <span className="min-w-0 flex-1">
@@ -111,6 +111,13 @@ export function OptionalStep() {
                             {item.companions.map((c) =>
                               opt["opt_" + c.productId] ? (
                                 <div key={c.productId} className="flex items-center gap-2 text-xs">
+                                  <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+                                    {c.image ? (
+                                      <img src={c.image} alt="" className="size-full object-contain p-0.5" loading="lazy" />
+                                    ) : (
+                                      <Package className="size-4 text-muted-foreground" />
+                                    )}
+                                  </span>
                                   <span className="min-w-0 flex-1 truncate">{c.name}</span>
                                   <Input
                                     inputMode="numeric"

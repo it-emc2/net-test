@@ -218,7 +218,7 @@ export interface OptionalItemView {
   netPrice: number;
   image: string | null;
   defaultQty: number;
-  companions: { productId: string; qtyRatio: number; name: string; netPrice: number }[];
+  companions: { productId: string; qtyRatio: number; name: string; netPrice: number; image: string | null }[];
 }
 
 export interface OptionalCategoryView {

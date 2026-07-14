@@ -74,6 +74,7 @@ router.get("/catalog", async (_req: Request, res: Response) => {
               qtyRatio: comp.qtyRatio,
               name: cr?.name || comp.productId,
               netPrice: cr?.netPrice ?? 0,
+              image: images.get(comp.productId) ?? null,
             };
           }),
         };
