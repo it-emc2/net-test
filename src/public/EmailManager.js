@@ -384,12 +384,14 @@ export function initEmailManager(options = {}) {
         return;
       }
       payload.opportunity = amount;
-      payload.finalTotal = amount;
     }
     if (offerExtra) {
       payload.workDays = offerExtra.workDays;
       payload.offerType = offerExtra.offerType;
       payload.offerNumber = offerExtra.offerNumber;
+      if (Number(offerExtra.finalTotal) > 0) {
+        payload.finalTotal = offerExtra.finalTotal;
+      }
       if (offerExtra.isKassenkunde && Number(offerExtra.selfPayAmount) > 0) {
         payload.selfPayAmount = offerExtra.selfPayAmount;
       }
@@ -976,6 +978,7 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
             offerNumber,
             isKassenkunde: payload?.Kundendaten?.payer === "Kassenkunde",
             selfPayAmount: Number(data?.selfPayAmount) || 0,
+            finalTotal: Number(data?.offerTotal) || 0,
           },
         });
       } catch (e) {
