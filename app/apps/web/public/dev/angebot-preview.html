@@ -83,8 +83,9 @@
 
   .pagefoot{ position:absolute; bottom:9mm; left:20mm; right:20mm; }
   .pf-rule{ border-top:.4mm solid var(--navy); margin-bottom:1.8mm; }
-  .pf-cols{ display:flex; gap:9mm; font-size:6.8pt; color:var(--muted); line-height:1.4; }
-  .pf-cols .pf-page{ margin-left:auto; align-self:flex-end; }
+  .pf-cols{ display:flex; font-size:6.8pt; color:var(--muted); line-height:1.4; text-align:center; }
+  .pf-cols > div{ flex:1; }
+  .pf-page{ text-align:center; font-size:6.8pt; color:var(--muted); margin-top:1.6mm; }
 </style>
 </head>
 <body>
@@ -226,8 +227,8 @@
         <div>emc² Attila Landgrafe<br>Waldstraße 5<br>95032 Hof<br>Deutschland</div>
         <div>Tel.: 09281 5915900<br>Fax: 09281 5915909<br>E-Mail: kontakt@e-m-c-2.de<br>Web: emczwei.de</div>
         <div>Hof/Saale<br>Steuer-Nr.: 223/147/40118<br>Geschäftsführer: Attila Landgrafe</div>
-        <div class="pf-page">Seite 1 / 2</div>
       </div>
+      <div class="pf-page">Seite 1 / 2</div>
     </div>
   </div>
 </body>
