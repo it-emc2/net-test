@@ -89,7 +89,6 @@ export function OptionalStep() {
                         <span className="block text-sm font-medium">{item.name}</span>
                         <span className="block text-xs text-muted-foreground">{formatEUR(item.netPrice)}</span>
                       </span>
-                      <input type="checkbox" readOnly checked={sel} className="size-4 accent-[hsl(var(--primary))]" />
                     </button>
 
                     {sel && (
