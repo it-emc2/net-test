@@ -449,6 +449,9 @@ router.post(
     // The offer's final gross total (Gesamtsumme/Brutto). Returned so the
     // "Deal auf 'ANG verschickt' verschieben" dialog can prefill "Betrag".
     const offerTotal = Number(offerComputed?.total) || 0;
+    // Eigenanteil (Kassenkunde self-pay share) — returned so the deal-move
+    // dialog can send it on to Bitrix's "Eigenanteil von Angebot" field.
+    const selfPayAmount = Number(offerComputed?.selfPayAmount) || 0;
 
     res.json({
       ok: true,
@@ -456,6 +459,7 @@ router.post(
       attachmentNames,
       bitrixComment,
       offerTotal,
+      selfPayAmount,
     });
   } catch (e) {
     console.error("[email] send-offer failed:", e);

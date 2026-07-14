@@ -268,7 +268,7 @@ export function initEmailManager(options = {}) {
   }
 
   // Success dialog shown after the email was sent. Offers the stage move.
-  function showSentDialog({ dealId, offerTotal, attachmentNames }) {
+  function showSentDialog({ dealId, offerTotal, attachmentNames, offerExtra }) {
     closeStageModal();
     const overlay = document.createElement("div");
     overlay.id = "angStageOverlay";
@@ -296,11 +296,11 @@ export function initEmailManager(options = {}) {
     // handler with the confirm-submit one — otherwise both fire and the form
     // re-opens on every click.
     const moveBtn = overlay.querySelector("#angStageMoveBtn");
-    if (moveBtn) moveBtn.onclick = () => openStageForm({ dealId, offerTotal });
+    if (moveBtn) moveBtn.onclick = () => openStageForm({ dealId, offerTotal, offerExtra });
   }
 
   // Fetches the empty required fields for the deal and renders inputs for them.
-  async function openStageForm({ dealId, offerTotal }) {
+  async function openStageForm({ dealId, offerTotal, offerExtra }) {
     const body = document.querySelector("#angStageOverlay .ang-stage-body");
     const moveBtn = document.getElementById("angStageMoveBtn");
     if (!body) return;
@@ -349,7 +349,7 @@ export function initEmailManager(options = {}) {
     if (moveBtn) {
       moveBtn.disabled = false;
       moveBtn.textContent = "Verschieben bestätigen";
-      moveBtn.onclick = () => submitStageMove({ dealId, offerTotal });
+      moveBtn.onclick = () => submitStageMove({ dealId, offerTotal, offerExtra });
     }
   }
 
@@ -362,7 +362,7 @@ export function initEmailManager(options = {}) {
     return Number(s);
   }
 
-  async function submitStageMove({ dealId }) {
+  async function submitStageMove({ dealId, offerExtra }) {
     const moveBtn = document.getElementById("angStageMoveBtn");
     const statusEl = document.getElementById("angStageStatus");
     const amountEl = document.getElementById("angFieldAmount");
@@ -383,6 +383,15 @@ export function initEmailManager(options = {}) {
         return;
       }
       payload.opportunity = amount;
+      payload.finalTotal = amount;
+    }
+    if (offerExtra) {
+      payload.workDays = offerExtra.workDays;
+      payload.offerType = offerExtra.offerType;
+      payload.offerNumber = offerExtra.offerNumber;
+      if (offerExtra.isKassenkunde && Number(offerExtra.selfPayAmount) > 0) {
+        payload.selfPayAmount = offerExtra.selfPayAmount;
+      }
     }
 
     if (moveBtn) moveBtn.disabled = true;
@@ -955,6 +964,13 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
           dealId: tgt?.entityType === "deal" ? tgt.entityId : "",
           offerTotal: Number(data?.offerTotal) || 0,
           attachmentNames: data.attachmentNames || [],
+          offerExtra: {
+            workDays: Number(payload?.Arbeitszeit?.workDays) || 0,
+            offerType: payload.activeOffer || "",
+            offerNumber,
+            isKassenkunde: payload?.Kundendaten?.payer === "Kassenkunde",
+            selfPayAmount: Number(data?.selfPayAmount) || 0,
+          },
         });
       } catch (e) {
         console.warn("[EmailManager] sent dialog failed:", e);
