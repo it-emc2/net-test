@@ -86,7 +86,7 @@ export function OptionalStep() {
                         )}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium">{item.name}</span>
+                        <span className="block break-words text-sm font-medium">{item.name}</span>
                         <span className="block text-xs text-muted-foreground">{formatEUR(item.netPrice)}</span>
                       </span>
                     </button>
@@ -117,7 +117,7 @@ export function OptionalStep() {
                                       <Package className="size-5 text-muted-foreground" />
                                     )}
                                   </span>
-                                  <span className="min-w-0 flex-1">{c.name}</span>
+                                  <span className="min-w-0 flex-1 break-words">{c.name}</span>
                                   <Input
                                     inputMode="numeric"
                                     value={String(qtyOf(c.productId))}
