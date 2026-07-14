@@ -13449,8 +13449,10 @@ const RESTORE_HANDLERS = {
               ? window.saveFinalOfferSnapshot()
               : undefined),
           onDealStageMoved: (dealId) => {
-            window.markDealOfferSent?.(dealId);
-            window.renderTodayPlanningAppointments?.();
+            markDealOfferSent(dealId);
+            if (typeof renderTodayPlanningAppointments === "function") {
+              renderTodayPlanningAppointments();
+            }
           },
         },
       });
@@ -24371,10 +24373,6 @@ document.addEventListener("DOMContentLoaded", initTodayPlanningPanel);
 // Expose for home debug panel
 window.__debug_getPlanningAppointments = () => todayPlanningAppointments;
 window.__debug_reloadPlanning = fetchTodayPlanningSnapshot;
-// Exposed for the EmailManager hook (different closure) to mark a deal's
-// offer as sent and refresh the today-planning list in the same tab.
-window.markDealOfferSent = markDealOfferSent;
-window.renderTodayPlanningAppointments = renderTodayPlanningAppointments;
 window.__debug_planningEndpoint = TODAY_PLANNING_SNAPSHOT_ENDPOINT;
 
 })();
