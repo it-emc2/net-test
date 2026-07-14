@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { useOffer } from "../OfferContext";
 import { StepHeader } from "./KundendatenStep";
@@ -25,6 +26,27 @@ export function RabattStep() {
 
   const aufschlag = parsePct(k.aufschlag);
   const setAufschlag = (n: number) => patchSection("Kundendaten", { aufschlag: `${n}%` });
+
+  const [zielOpen, setZielOpen] = useState(false);
+  const [zielInput, setZielInput] = useState("");
+  const [zielError, setZielError] = useState<string | null>(null);
+
+  // Mirror of legacy applyAutomatisch: derive the Aufschlag % from a target gross total.
+  function fromTarget(rawEur: string | number) {
+    setZielError(null);
+    if (!result) return setZielError("Bitte zuerst die Preisvorschau laden.");
+    const { total, markup, markupPct, vatOnNet } = result;
+    if (!markup || markup <= 0) return setZielError("Kein Aufschlag-Betrag vorhanden – Automatisch nicht möglich.");
+    const targetTotal = parseFloat(String(rawEur).replace(/\s/g, "").replace(",", "."));
+    if (!Number.isFinite(targetTotal) || targetTotal <= 0) return setZielError("Bitte einen gültigen Zielpreis eingeben.");
+    const netAmount = total - (vatOnNet || 0);
+    const factor = netAmount > 0 ? total / netAmount : 1.19;
+    const newPct = markupPct + markupPct * (targetTotal - total) / (factor * markup);
+    const rounded = Math.round(newPct * 10000) / 100; // fraction → percent, 2 decimals
+    if (!Number.isFinite(rounded) || rounded < 0)
+      return setZielError("Der berechnete Aufschlag wäre negativ – der Zielpreis liegt unter den Selbstkosten.");
+    setAufschlag(rounded);
+  }
 
   const addRabatt = r.addRabatt === "ja";
   const discountPct = Number(r.materialDiscountPct || 0) * 100; // fraction → percent
@@ -96,6 +118,60 @@ export function RabattStep() {
             <AlertTriangle className="size-4" /> Aufschlag liegt unter 35% – bitte prüfen.
           </p>
         )}
+
+        {/* Aus Zielpreis berechnen */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setZielOpen((v) => !v)}
+            className={cn(
+              "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
+              zielOpen ? "border-primary bg-primary/10 text-primary" : "hover:bg-accent",
+            )}
+          >
+            Aus Zielpreis berechnen
+          </button>
+          {zielOpen && (
+            <div className="mt-2 space-y-2 rounded-lg border p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { t: 4180, label: "4.180 €" },
+                  { t: 8360, label: "4.180×2 €" },
+                ].map((p) => (
+                  <button
+                    key={p.t}
+                    type="button"
+                    onClick={() => { setZielInput(String(p.t)); fromTarget(p.t); }}
+                    className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+                <Input
+                  inputMode="decimal"
+                  value={zielInput}
+                  onChange={(e) => setZielInput(e.target.value)}
+                  placeholder="Zielpreis"
+                  className="w-32"
+                />
+                <span className="text-sm text-muted-foreground">€</span>
+                <button
+                  type="button"
+                  onClick={() => fromTarget(zielInput)}
+                  className="rounded-md border border-primary bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/20"
+                >
+                  Berechnen
+                </button>
+              </div>
+              {zielError && (
+                <p className="flex items-center gap-2 text-sm text-destructive">
+                  <AlertTriangle className="size-4" /> {zielError}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">Gesamtbetrag (brutto) als Ziel; der Aufschlag wird passend gesetzt.</p>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* --- Rabatt --- */}
