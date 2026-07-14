@@ -167,7 +167,7 @@ export function computeWorkNotes(payload: PricingPayload): WorkNote[] {
   const grab = chosen(opt["optGrab[]"], opt.qty_CLPESG30 || opt.qty_CLPESG40 || opt.qty_CLPESG60 || opt.qty_CLPESG80);
   const fold = chosen(opt["optFold[]"], opt.qty_DEPSKG60 || opt.qty_DEPSKG85);
   const basin = chosen(opt["optBasin[]"], opt.qty_CL60);
-  const tap = chosen(opt["optBasinTap[]"], opt.qty_CL_BASIN || opt.qty_DEPOH);
+  const tap = chosen(opt["optBasinTap[]"], opt.qty_CL_BASIN || opt.qty_CL || opt.qty_DEPOH);
   const thermo = chosen(opt["optThermo[]"], opt.qty_CLTB || opt.qty_DEPTB || opt.qty_CLB);
 
   if (grab) picked.add("Anbringen zusätzlicher Haltegriffe");

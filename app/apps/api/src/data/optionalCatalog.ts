@@ -60,7 +60,7 @@ export const OPTIONAL_CATALOG_SEED: OptionalCategoryDef[] = [
     label: "Waschtischarmatur",
     order: 6,
     selection: "multi",
-    items: [{ productId: "CL_BASIN" }, { productId: "DEPOH" }],
+    items: [{ productId: "CL" }, { productId: "DEPOH" }],
   },
   {
     id: "cat_SEAT",
