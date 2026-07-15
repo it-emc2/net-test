@@ -2002,8 +2002,8 @@ function buildAhData(body) {
   if (travelTimeH > 0 && firstSched) {
     const dauerH        = parseHHMM(firstSched.dauer);
     const inkAnfahrt    = dauerH + travelTimeH;
-    const zoneLabel     = body?.Arbeitszeit?.distanceKm
-      ? `Zone / ${body.Arbeitszeit.distanceKm} km`
+    const zoneLabel     = zoneNum > 0
+      ? `Zone ${zoneNum}${body?.Arbeitszeit?.distanceKm ? ` / ${body.Arbeitszeit.distanceKm} km` : ""}`
       : "Zone";
     AhKondRows.push({
       AhKondLabel: `Stundenumfang pro Einsatz inkl. Anfahrt (${zoneLabel}):`,
