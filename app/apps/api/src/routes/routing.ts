@@ -182,10 +182,12 @@ function geocodeResultMatchesInput(result: GeoResult | null, addressParts: Addre
   }
 
   if (wantCity && !hay.includes(wantCity)) {
-    // Compound German city names like "Triebel/Vogtland" normalize to "triebel vogtland".
-    // Geocoders return just "Triebel" — fall back to matching the primary city token only.
-    const primaryCity = wantCity.split(" ")[0];
-    if (!primaryCity || primaryCity.length < 3 || !hay.includes(primaryCity)) {
+    // Compound German place names — "Triebel/Vogtland" (city/region) or
+    // "Ebensfeld-Kleukheim" (Gemeinde-Ortsteil) — where the geocoder returns only
+    // one part (municipality OR district). Accept if ANY part matches; the postal
+    // code above already anchors the location.
+    const parts = wantCity.split(/[\s/-]+/).filter((p) => p.length >= 3);
+    if (!parts.some((p) => hay.includes(p))) {
       return false;
     }
   }
