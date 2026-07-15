@@ -1635,6 +1635,46 @@ a.btn {
   height: 100%;
 }
 
+/* Uniform product-tile cards: header / tile / note / qty-or-price, aligned
+   across the row via subgrid so cards with different optional content
+   (warning text, qty input) still line up instead of drifting to
+   whatever height their own content happens to need. */
+.product-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-rows: auto auto auto auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.product-tile-grid > .field {
+  margin: 0;
+  display: grid;
+  grid-row: span 4;
+  grid-template-rows: subgrid;
+  justify-items: start;
+}
+
+.product-tile-grid > .field .image-check {
+  width: min(220px, 100%);
+}
+
+/* #flooringPanel's >=1024px rule (below) blows product tiles up to a third
+   of the row and crops them; scope back to the standard fixed-size tile so
+   Fußboden and Wandverkleidung product cards match. */
+#flooringPanel .product-tile-grid .image-check {
+  max-width: min(220px, 100%);
+  flex: none;
+}
+
+#flooringPanel .product-tile-grid .img-wrap {
+  aspect-ratio: 4 / 5;
+}
+
+#flooringPanel .product-tile-grid .img-wrap img {
+  object-fit: contain;
+}
+
 .radio-list {
   display: grid;
   gap: 10px;
