@@ -13,6 +13,7 @@ import routingRouter from "./routes/routing.js";
 import traysRouter from "./routes/trays.js";
 import optionalRouter from "./routes/optional.js";
 import bitrixRouter from "./routes/bitrix.js";
+import duschabtrennungRouter from "./routes/duschabtrennung.js";
 import documentsRouter from "./routes/documents.js";
 
 export function createApp(): Application {
@@ -43,6 +44,7 @@ export function createApp(): Application {
   app.use("/api/trays", traysRouter);
   app.use("/api/optional", optionalRouter);
   app.use("/api/bitrix", bitrixRouter);
+  app.use("/api/duschabtrennung", duschabtrennungRouter);
   app.use("/api/documents", documentsRouter);
 
   // 404 for unknown API routes.
