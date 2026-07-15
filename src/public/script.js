@@ -13448,8 +13448,12 @@ const RESTORE_HANDLERS = {
             (typeof window.saveFinalOfferSnapshot === "function"
               ? window.saveFinalOfferSnapshot()
               : undefined),
-          onDealStageMoved: (dealId) => {
-            window.markDealStage?.(dealId, "C38:UC_2ZDNEZ");
+          onDealStageMoved: (dealId, offerType) => {
+            const stageId =
+              String(offerType || "").toLowerCase() === "ah"
+                ? "C52:UC_SNAVG8"
+                : "C38:UC_2ZDNEZ";
+            window.markDealStage?.(dealId, stageId);
             window.renderTodayPlanningAppointments?.();
           },
         },
@@ -23365,7 +23369,7 @@ let _pendingPlanningEntry = null;
 
 // Deal stages fetched live from Bitrix — hides "Erfolgreich abgeschlossen"
 // for deals already moved to/past "ANG verschickt" on the today-planning list.
-const DONE_STAGE_IDS = new Set(["C38:UC_2ZDNEZ", "C72:PREPARATION"]);
+const DONE_STAGE_IDS = new Set(["C38:UC_2ZDNEZ", "C52:UC_SNAVG8", "C72:PREPARATION"]);
 const dealStageById = new Map();
 
 function isDealDone(dealId) {
