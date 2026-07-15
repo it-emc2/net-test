@@ -58,6 +58,7 @@ export interface OfferPayload {
   wandverkleidung: Record<string, any>;
   optional: Record<string, any>;
   rabatt: Record<string, any>;
+  duschabtrennung: Record<string, any>;
   [key: string]: any;
 }
 
@@ -156,5 +157,6 @@ export function defaultPayload(): OfferPayload {
     },
     optional: {},
     rabatt: {},
+    duschabtrennung: { cards: [], quickAdd: [] },
   };
 }

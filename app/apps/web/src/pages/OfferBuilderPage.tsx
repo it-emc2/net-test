@@ -5,7 +5,7 @@ import { OfferProvider, useOffer } from "@/features/offer/OfferContext";
 import { bitrixApi } from "@/features/offer/bitrix";
 import { PricingSidebar } from "@/features/offer/PricingSidebar";
 import { useLivePricing } from "@/features/offer/pricing";
-import { KundendatenStep, StepHeader } from "@/features/offer/steps/KundendatenStep";
+import { KundendatenStep } from "@/features/offer/steps/KundendatenStep";
 import { ArbeitszeitStep } from "@/features/offer/steps/ArbeitszeitStep";
 import { ArbeitenStep } from "@/features/offer/steps/ArbeitenStep";
 import { DuschwanneStep } from "@/features/offer/steps/DuschwanneStep";
@@ -13,6 +13,7 @@ import { FussbodenStep } from "@/features/offer/steps/FussbodenStep";
 import { WandverkleidungStep } from "@/features/offer/steps/WandverkleidungStep";
 import { OptionalStep } from "@/features/offer/steps/OptionalStep";
 import { RabattStep } from "@/features/offer/steps/RabattStep";
+import { DuschabtrennungStep } from "@/features/offer/steps/DuschabtrennungStep";
 import { Button } from "@/components/ui/button";
 import { formatEUR } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -23,17 +24,6 @@ interface Step {
   el: ReactNode;
 }
 
-function Placeholder({ title, note }: { title: string; note: string }) {
-  return (
-    <div className="space-y-6">
-      <StepHeader title={title} />
-      <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-        {note}
-      </div>
-    </div>
-  );
-}
-
 const STEPS: Step[] = [
   { key: "kundendaten", label: "Kundendaten", el: <KundendatenStep /> },
   { key: "arbeitszeit", label: "Arbeitszeit", el: <ArbeitszeitStep /> },
@@ -41,7 +31,7 @@ const STEPS: Step[] = [
   { key: "duschwanne", label: "Duschwanne", el: <DuschwanneStep /> },
   { key: "fussboden", label: "Fußboden", el: <FussbodenStep /> },
   { key: "wandverkleidung", label: "Wandverkleidung", el: <WandverkleidungStep /> },
-  { key: "duschabtrennung", label: "Duschabtrennung", el: <Placeholder title="Duschabtrennung" note="Folgt." /> },
+  { key: "duschabtrennung", label: "Duschabtrennung", el: <DuschabtrennungStep /> },
   { key: "optional", label: "Optional", el: <OptionalStep /> },
   { key: "rabatt", label: "Aufschlag / Rabatt", el: <RabattStep /> },
 ];
