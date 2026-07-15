@@ -319,38 +319,32 @@ export function initEmailManager(options = {}) {
       return;
     }
 
-    const empties = (info.fields || []).filter((f) => f.isEmpty);
     const byName = Object.fromEntries((info.fields || []).map((f) => [f.name, f]));
 
-    // Prefill Betrag with the offer total when the deal has none yet.
-    // Währung is always EUR, so it is not shown/asked.
+    // Betrag und Währung always mirrors the real computed offer total — no
+    // manual override, so it can never drift from "Finaler Auftragswert".
     const amountField = byName.OPPORTUNITY;
-    const prefillAmount =
-      amountField && amountField.isEmpty && Number(offerTotal) > 0
-        ? fmtEuro(offerTotal)
-        : fmtEuro(amountField?.currentValue || offerTotal || 0);
+    const prefillAmount = fmtEuro(
+      Number(offerTotal) > 0 ? offerTotal : (amountField?.currentValue || 0),
+    );
 
-    if (!empties.length) {
-      body.innerHTML = `<p class="ang-stage-text">Alle Pflichtfelder sind gefüllt. Der Deal kann verschoben werden.</p>`;
-    } else {
-      const rows = [];
-      if (amountField) {
-        rows.push(`
-          <label class="ang-stage-field">
-            <span>Betrag (€)</span>
-            <input type="text" id="angFieldAmount" value="${prefillAmount}" inputmode="decimal" />
-          </label>`);
-      }
-      body.innerHTML = `
-        <p class="ang-stage-text">Bitte fehlende Felder ausfüllen:</p>
-        <div class="ang-stage-fields">${rows.join("")}</div>
-        <p class="ang-stage-status" id="angStageStatus" hidden></p>`;
+    const rows = [];
+    if (amountField) {
+      rows.push(`
+        <label class="ang-stage-field">
+          <span>Betrag (€) — automatisch aus dem Angebot</span>
+          <input type="text" id="angFieldAmount" value="${prefillAmount}" readonly />
+        </label>`);
     }
+    body.innerHTML = `
+      <p class="ang-stage-text">Betrag wird automatisch aus dem finalen Angebotsbetrag gesetzt.</p>
+      <div class="ang-stage-fields">${rows.join("")}</div>
+      <p class="ang-stage-status" id="angStageStatus" hidden></p>`;
 
     if (moveBtn) {
       moveBtn.disabled = false;
       moveBtn.textContent = "Verschieben bestätigen";
-      moveBtn.onclick = () => submitStageMove({ dealId, offerTotal, offerExtra });
+      moveBtn.onclick = () => submitStageMove({ dealId, offerExtra });
     }
   }
 
@@ -375,23 +369,21 @@ export function initEmailManager(options = {}) {
       statusEl.classList.toggle("ang-stage-error", !!isErr);
     };
 
-    // Währung is always EUR (defaulted server-side); only Betrag is asked.
-    const payload = {};
-    if (amountEl) {
-      const amount = parseEuroInput(amountEl.value);
-      if (!(amount > 0)) {
-        setModalStatus("Bitte einen gültigen Betrag eingeben.", true);
-        return;
-      }
-      payload.opportunity = amount;
+    // Betrag und Währung mirrors the real offer total — same source of
+    // truth as "Finaler Auftragswert", so the two can never diverge.
+    // Währung itself is always EUR (defaulted server-side).
+    const finalTotal = Number(offerExtra?.finalTotal) || 0;
+    const amount = finalTotal > 0 ? finalTotal : parseEuroInput(amountEl?.value);
+    if (!(amount > 0)) {
+      setModalStatus("Kein gültiger Angebotsbetrag verfügbar.", true);
+      return;
     }
+
+    const payload = { opportunity: amount, finalTotal: amount };
     if (offerExtra) {
       payload.workDays = offerExtra.workDays;
       payload.offerType = offerExtra.offerType;
       payload.offerNumber = offerExtra.offerNumber;
-      if (Number(offerExtra.finalTotal) > 0) {
-        payload.finalTotal = offerExtra.finalTotal;
-      }
       if (offerExtra.isKassenkunde && Number(offerExtra.selfPayAmount) > 0) {
         payload.selfPayAmount = offerExtra.selfPayAmount;
       }
