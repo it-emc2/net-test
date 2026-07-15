@@ -6071,8 +6071,8 @@ document.body.addEventListener("click", (e) => {
       rDauerH.className = "ah-dauer-h";
       rDauerH.setAttribute("aria-label", "Stunden");
       rDauerH.value = _initMins ? String(Math.floor(_initMins / 60)) : "";
-      rDauerH.placeholder = "1";
-      rDauerH.style.cssText = "width:30px; font-size:0.8rem; font-family:monospace; text-align:center; padding:2px;";
+      rDauerH.placeholder = "hh";
+      rDauerH.style.cssText = "box-sizing:border-box; width:34px; font-size:0.8rem; font-family:monospace; text-align:center; padding:4px 2px;";
 
       var rDauerSep = document.createElement("span");
       rDauerSep.textContent = ":";
@@ -6083,8 +6083,8 @@ document.body.addEventListener("click", (e) => {
       rDauerM.className = "ah-dauer-m";
       rDauerM.setAttribute("aria-label", "Minuten");
       rDauerM.value = _initMins ? String(_initMins % 60) : "";
-      rDauerM.placeholder = "30";
-      rDauerM.style.cssText = "width:30px; font-size:0.8rem; font-family:monospace; text-align:center; padding:2px;";
+      rDauerM.placeholder = "mm";
+      rDauerM.style.cssText = "box-sizing:border-box; width:34px; font-size:0.8rem; font-family:monospace; text-align:center; padding:4px 2px;";
 
       var rDauerHidden = document.createElement("input");
       rDauerHidden.type = "hidden";
