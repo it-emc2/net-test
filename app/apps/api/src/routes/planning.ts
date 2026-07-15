@@ -27,9 +27,8 @@ router.get("/current", async (_req: Request, res: Response) => {
 });
 
 // GET /api/planning/stream — SSE passthrough (live updates).
-router.get("/stream", async (req: Request, res: Response) => {
+router.get("/stream", async (_req: Request, res: Response) => {
   const controller = new AbortController();
-  req.on("close", () => controller.abort());
   try {
     const up = await fetch(`${BASE}/api/planning/stream`, {
       headers: { Accept: "text/event-stream", "Cache-Control": "no-cache", ...keyHeader() },
@@ -43,7 +42,12 @@ router.get("/stream", async (req: Request, res: Response) => {
     res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("Connection", "keep-alive");
     (res as unknown as { flushHeaders?: () => void }).flushHeaders?.();
-    Readable.fromWeb(up.body as Parameters<typeof Readable.fromWeb>[0]).pipe(res);
+
+    const stream = Readable.fromWeb(up.body as Parameters<typeof Readable.fromWeb>[0]);
+    // Client disconnect → abort upstream + tear down; swallow the expected abort error.
+    res.on("close", () => { controller.abort(); stream.destroy(); });
+    stream.on("error", () => { if (!res.writableEnded) res.end(); });
+    stream.pipe(res);
   } catch (err) {
     if ((err as { name?: string })?.name === "AbortError") return; // client closed
     // eslint-disable-next-line no-console

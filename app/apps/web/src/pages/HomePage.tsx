@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import { FileText, Users, Package, Shield, ArrowUpRight } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
+import { PlanningPanel } from "@/features/planning/PlanningPanel";
+import { RecentDraftsPanel } from "@/features/offer/RecentDraftsPanel";
 
 const QUICK_LINKS = [
   {
@@ -48,6 +50,11 @@ export function HomePage() {
           Von hier aus verwaltest du Angebote und Kunden. Wähle einen Bereich, um loszulegen.
         </p>
       </header>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <PlanningPanel />
+        <RecentDraftsPanel />
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {links.map(({ to, title, description, icon: Icon }) => (
