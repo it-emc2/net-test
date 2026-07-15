@@ -7004,8 +7004,8 @@ document.addEventListener("DOMContentLoaded", () => {
     item.className = "da-item wt-extra-item";
     item.setAttribute("data-kind", "extra");
     item.innerHTML = `
-      <input class="dw-extra" type="text" name="duschwanne[extraTasks][]"
-        aria-label="Zusätzliche Aufgabe" value="${escapeHtml(value)}" />
+      <textarea class="dw-extra" name="duschwanne[extraTasks][]"
+      aria-label="Zusätzliche Aufgabe" rows="2">${escapeHtml(value)}</textarea>
       <button type="button" class="wt-extra-move wt-extra-move-up" aria-label="Nach oben verschieben" title="Nach oben">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <polyline points="18 15 12 9 6 15"></polyline>

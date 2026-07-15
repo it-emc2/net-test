@@ -1245,15 +1245,21 @@ a.btn {
   box-shadow: 0 0 0 3px var(--ring);
 }
 
-#dw-extra-tasks .wt-extra-item input[type="text"] {
+#dw-extra-tasks .wt-extra-item .dw-extra {
   flex: 1;
   min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
   border: none;
   background: transparent;
   color: var(--card-foreground);
   font: inherit;
+  line-height: 1.35;
   padding: 0.2rem 0;
+  resize: vertical;
+  overflow-wrap: break-word;
 }
+
 
 #dw-extra-tasks .wt-extra-item input[type="text"]:focus {
   outline: none;
