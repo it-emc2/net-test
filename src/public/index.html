@@ -4531,23 +4531,31 @@ button.dm-btn-danger:focus-visible {
     padding: 18px; background: var(--panel); box-shadow: var(--shadow);
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary h3 { margin: 0 0 14px; font-size: 1rem; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line {
-    display: grid; grid-template-columns: 1fr auto; gap: 4px 10px;
-    font-size: 0.8rem; padding: 8px 0; border-bottom: 1px dashed var(--border);
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-lines {
+    display: flex; flex-wrap: wrap; gap: 12px;
   }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-name { font-weight: 600; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    flex: 1 1 220px; min-width: 220px;
+    font-size: 0.8rem; padding: 14px; border: 1px solid var(--border);
+    border-radius: 12px; background: var(--bg, #fff);
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-name { font-weight: 600; font-size: 0.9rem; }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-art { color: var(--muted); font-family: monospace; }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-finish { color: var(--muted); font-size: 0.75rem; }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-einbau {
-    grid-column: 1; font-size: 0.75rem; font-weight: 600; color: var(--accent-strong);
+    font-size: 0.75rem; font-weight: 600; color: var(--accent-strong);
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-stock {
-    grid-column: 1; justify-self: start; font-size: 0.7rem; font-weight: 600;
+    font-size: 0.7rem; font-weight: 600;
     padding: 1px 8px; border-radius: 999px; line-height: 1.5;
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-in { color: #0a7d33; background: #e3f5e9; }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-out { color: var(--muted); background: var(--border); }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-price { text-align: right; grid-column: 2; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-price {
+    margin-top: auto; padding-top: 6px; align-self: stretch;
+    font-size: 0.95rem; font-weight: 700; color: var(--accent-strong);
+  }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-total {
     display: flex; justify-content: space-between; align-items: baseline;
     margin-top: 14px; font-size: 1.15rem; font-weight: 700; color: var(--accent-strong);
