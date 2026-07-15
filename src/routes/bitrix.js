@@ -487,7 +487,7 @@ router.post("/deal/:id/move-zuteilen", express.json(), async (req, res) => {
 
 // GET /api/bitrix/deals/stages?ids=123,456
 // Returns the current STAGE_ID for each deal — used by the today-planning
-// list to hide "Erfolgreich abgeschlossen" for deals already moved past it.
+// list to hide "Hat stattgefunden" for deals already moved past it.
 router.get("/deals/stages", async (req, res) => {
   try {
     const ids = String(req.query.ids || "")

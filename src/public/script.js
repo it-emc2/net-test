@@ -24077,7 +24077,7 @@ function renderTodayPlanningAppointments(){
 
         <div class="today-calendar-actions">
           <button type="button" class="today-calendar-open" ${isCancelled ? 'disabled aria-disabled="true"' : ""}><i class="fa-solid ${isCancelled ? "fa-ban" : "fa-arrow-right"}"></i> ${isCancelled ? "Nicht verfuegbar" : "In Konfigurator öffnen"}</button>
-          ${!isCancelled && entry?.importDealId && !isDealDone(entry.importDealId) ? `<button type="button" class="today-calendar-done"><i class="fa-solid fa-circle-check"></i> Erfolgreich abgeschlossen</button>` : ""}
+          ${!isCancelled && entry?.importDealId && !isDealDone(entry.importDealId) ? `<button type="button" class="today-calendar-done"><i class="fa-solid fa-circle-check"></i> Hat stattgefunden</button>` : ""}
         </div>
       </div>
       ${travelHtml}
@@ -24102,7 +24102,7 @@ function renderTodayPlanningAppointments(){
       onOpen();
     });
 
-    // "Erfolgreich abgeschlossen" -> move the deal to "Zuteilen HD/ AH/ DH".
+    // "Hat stattgefunden" -> move the deal to "Zuteilen HD/ AH/ DH".
     const doneButton = card.querySelector(".today-calendar-done");
     doneButton?.addEventListener("click", async (ev) => {
       ev.preventDefault();
@@ -24111,7 +24111,7 @@ function renderTodayPlanningAppointments(){
       const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
       const dealId = String(entry?.importDealId || "").trim();
       if(!dealId) return;
-      if(!window.confirm("Termin als erfolgreich abgeschlossen markieren und Deal auf „Zuteilen HD/ AH/ DH“ verschieben?")) return;
+      if(!window.confirm("Der Termin hat stattgefunden; Deal auf „HD/AH/DH zuweisen“ verschieben?")) return;
 
       doneButton.disabled = true;
       const original = doneButton.innerHTML;
