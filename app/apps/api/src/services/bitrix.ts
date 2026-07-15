@@ -43,12 +43,34 @@ const first = (v: unknown): string =>
 
 const isEmpty = (v: unknown): boolean => v == null || String(v).trim() === "";
 
-// Bitrix German honorific codes → salutation.
+// Bitrix German honorific codes → salutation (explicit; avoids fuzzy matches).
 function salutationFrom(honorific: unknown): string {
-  const h = String(honorific || "");
-  if (/1|HERR/i.test(h)) return "Herr";
-  if (/2|FRAU/i.test(h)) return "Frau";
+  const h = String(honorific || "").toUpperCase();
+  if (h === "HNR_DE_1") return "Herr";
+  if (h === "HNR_DE_2") return "Frau";
   return "";
+}
+
+// Deal custom fields (portal-specific enum ids) for the emc² pipeline.
+const DEAL_ANREDE_UF = "UF_CRM_1721201238"; // 2578 Herr / 2576 Frau
+const DEAL_PAYER_UF = "UF_CRM_1721204791"; // "Abrechnung über?"
+const DEAL_PFLEGE_UF = "UF_CRM_1721202928"; // "Pflegestufe vorhanden?"
+const PFLEGE_MAP: Record<string, string> = { "2654": "1", "2656": "2", "2658": "3", "2660": "4", "2662": "5" }; // 2652 = keine
+
+function salutationFromDeal(deal: any): string {
+  const v = String(deal?.[DEAL_ANREDE_UF] || "");
+  if (v === "2578") return "Herr";
+  if (v === "2576") return "Frau";
+  return "";
+}
+function payerFromDeal(deal: any): string {
+  const v = String(deal?.[DEAL_PAYER_UF] || "");
+  if (v === "2780") return "Kassenkunde"; // Krankenkasse
+  if (v === "2782" || v === "3074") return "Selbstzahler"; // Selbstzahler / Privat versichert
+  return "";
+}
+function pflegegradFromDeal(deal: any): string {
+  return PFLEGE_MAP[String(deal?.[DEAL_PFLEGE_UF] || "")] || "";
 }
 
 async function addressFromRequisite(contactId: string): Promise<Partial<DealPrefill>> {
@@ -90,9 +112,14 @@ export async function getDealPrefill(dealId: string): Promise<DealPrefillResult>
   if (!deal) throw new Error("Deal not found");
   const contactId = String(deal.CONTACT_ID || "").trim();
 
+  // Deal-level fields (payer / pflegegrad / Anrede) apply even without a contact.
+  const dealPayer = payerFromDeal(deal);
+  const dealPflege = pflegegradFromDeal(deal);
+  const dealAnrede = salutationFromDeal(deal);
+
   const empty: DealPrefill = {
-    salutation: "", firstName: "", lastName: "", email: "", phone: "",
-    street: "", postalCode: "", city: "",
+    salutation: dealAnrede, firstName: "", lastName: "", email: "", phone: "",
+    street: "", postalCode: "", city: "", payer: dealPayer, pflegegrad: dealPflege,
   };
   if (!contactId) {
     return { dealId: String(deal.ID), title: String(deal.TITLE || "").trim(), contactId: "", prefill: empty };
@@ -101,7 +128,8 @@ export async function getDealPrefill(dealId: string): Promise<DealPrefillResult>
   const contactResp = await bxGet("crm.contact.get", { id: contactId });
   const c = contactResp?.result || {};
   const prefill: DealPrefill = {
-    salutation: salutationFrom(c.HONORIFIC),
+    // Prefer the deal's Anrede field, else the contact honorific.
+    salutation: dealAnrede || salutationFrom(c.HONORIFIC),
     firstName: String(c.NAME || "").trim(),
     lastName: String(c.LAST_NAME || "").trim(),
     email: first(c.EMAIL),
@@ -109,6 +137,8 @@ export async function getDealPrefill(dealId: string): Promise<DealPrefillResult>
     street: String(c.ADDRESS || "").trim(),
     postalCode: String(c.ADDRESS_POSTAL_CODE || "").trim(),
     city: String(c.ADDRESS_CITY || "").trim(),
+    payer: dealPayer,
+    pflegegrad: dealPflege,
   };
 
   if (isEmpty(prefill.street) && isEmpty(prefill.postalCode) && isEmpty(prefill.city)) {

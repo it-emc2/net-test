@@ -155,6 +155,10 @@ export interface DealPrefill {
   street: string;
   postalCode: string;
   city: string;
+  /** "Kassenkunde" | "Selbstzahler" | "" — from the deal's billing field. */
+  payer: string;
+  /** "1".."5" | "" — from the deal's Pflegestufe field. */
+  pflegegrad: string;
 }
 
 export interface DealPrefillResponse {
