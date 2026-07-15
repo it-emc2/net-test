@@ -171,7 +171,7 @@ const OFFERS = {
       "admin",
       "services",
       "crm-emc2",
-      "DaConfigDev",
+      // "DaConfigDev",
     ],
   },
   bwt: {
