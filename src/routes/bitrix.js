@@ -1,5 +1,6 @@
 // src/routes/bitrix.js
 import express from "express";
+import { buildAhData } from "./docx-template.js";
 
 const router = express.Router();
 
@@ -13,6 +14,11 @@ const OWNER_TYPE = { contact: 3, company: 4 };
 const ANG_VERSCHICKT_STAGE_ID = "C38:UC_2ZDNEZ";
 const ANG_VERSCHICKT_CATEGORY_ID = 38;
 
+// AH (Alltagshilfe) offers use a separate pipeline: "[VI] ANG versch. / warten"
+// lives in deal category 52 (STATUS_ID C52:UC_SNAVG8).
+const AH_ANG_VERSCHICKT_STAGE_ID = "C52:UC_SNAVG8";
+const AH_ANG_VERSCHICKT_CATEGORY_ID = 52;
+
 // Fields the user is prompted for before entering "[VI] ANG verschickt".
 // Only Betrag (OPPORTUNITY) is asked — Währung is always EUR and defaulted
 // server-side in updateDealStage().
@@ -22,6 +28,91 @@ const ANG_VERSCHICKT_REQUIRED_FIELDS = ["OPPORTUNITY"];
 // "Zuteilen HD/ AH/ DH" lives in deal category 72 (STATUS_ID C72:PREPARATION).
 const ZUTEILEN_STAGE_ID = "C72:PREPARATION";
 const ZUTEILEN_CATEGORY_ID = 72;
+
+// AH-specific deal fields, filled from buildAhData()'s AhBitrix output when an
+// AH deal is moved to "ANG verschickt". Field IDs/enum option IDs per Bitrix
+// crm.deal.fields (checked against real examples, see PR discussion).
+const AH_FIELD = {
+  ANFAHRTSZONE: "UF_CRM_1711019971",           // enum, single
+  STUNDEN_PRO_EINSATZ: "UF_CRM_1711019061",    // double
+  ART_DER_LEISTUNG: "UF_CRM_1711017420",       // enum, multiple
+  ANZAHL_ANFAHRTSPAUSCHALEN: "UF_CRM_1737548607", // double
+  MONATLICHER_STUNDENUMFANG: "UF_CRM_1711092227", // double
+  REGELMAESSIGKEIT: "UF_CRM_1711019214",       // enum, single
+  GESAMTPREIS_AB: "UF_CRM_1737557386",         // double
+  GESAMTPREIS_ANFAHRT: "UF_CRM_1737557868",    // double
+  GESAMTBETRAG_AB: "UF_CRM_1737644914",        // double
+  GESAMTPREIS_HND: "UF_CRM_1738336465",        // double
+  GESAMTBETRAG_HND: "UF_CRM_1738336847",       // double
+  TATSAECHLICHER_STUNDENUMFANG: "UF_CRM_1711092423", // double
+};
+
+// Anfahrtszone enum option IDs. Bitrix only defines Zone 1-5 (+ two Festpreis
+// options the app never produces); zoneNum is uncapped in the app, so clamp.
+const AH_ZONE_ENUM = { 1: "1928", 2: "1930", 3: "1932", 4: "1934", 5: "1936" };
+
+// Art der gewünschten Leistung enum option IDs (multi-select).
+const AH_LEISTUNG_ENUM = { hnd: "1862", ab: "4316" };
+
+// Regelmäßigkeit enum option IDs — keys match the app's raw regelmaessigkeit
+// strings 1:1 (same labels used in AH_FREQ, docx-template.js).
+const AH_REGELMAESSIGKEIT_ENUM = {
+  "Einmalig": "1904",
+  "Wöchentlich": "1906",
+  "14-tägig": "1908",
+  "alle drei Wochen": "4526",
+  "Monatlich": "1910",
+  "Vierteljährlich": "1912",
+  "Halbjährlich": "1914",
+  "Jährlich": "4528",
+  "Bei Bedarf": "4524",
+};
+
+// Builds the AH-specific UF_CRM_* fields object from an offer payload, for
+// merging into the crm.item.update call when moving an AH deal to
+// "ANG verschickt". `currentZoneValue` is the deal's existing Anfahrtszone
+// value (falsy/empty means "not set yet") — the zone is only ever filled in
+// once, never overwritten on a later resend.
+function buildAhBitrixFields(payload, currentZoneValue) {
+  const { AhBitrix } = buildAhData(payload || {});
+  const fields = {};
+
+  if (!currentZoneValue) {
+    const zoneId = AH_ZONE_ENUM[Math.min(5, Math.max(0, Math.round(AhBitrix.zoneNum)))];
+    if (zoneId) fields[AH_FIELD.ANFAHRTSZONE] = zoneId;
+  }
+
+  if (AhBitrix.stundenProEinsatz > 0) {
+    fields[AH_FIELD.STUNDEN_PRO_EINSATZ] = AhBitrix.stundenProEinsatz;
+  }
+
+  const leistungIds = [
+    AhBitrix.hasHnD ? AH_LEISTUNG_ENUM.hnd : null,
+    AhBitrix.hasAb ? AH_LEISTUNG_ENUM.ab : null,
+  ].filter(Boolean);
+  if (leistungIds.length) fields[AH_FIELD.ART_DER_LEISTUNG] = leistungIds;
+
+  if (AhBitrix.anzahlAnfahrtspauschalen > 0) {
+    fields[AH_FIELD.ANZAHL_ANFAHRTSPAUSCHALEN] = AhBitrix.anzahlAnfahrtspauschalen;
+  }
+  if (AhBitrix.monatlicherStundenumfang > 0) {
+    fields[AH_FIELD.MONATLICHER_STUNDENUMFANG] = AhBitrix.monatlicherStundenumfang;
+  }
+
+  const regelId = AH_REGELMAESSIGKEIT_ENUM[AhBitrix.regelmaessigkeit];
+  if (regelId) fields[AH_FIELD.REGELMAESSIGKEIT] = regelId;
+
+  if (AhBitrix.gesamtpreisAB > 0) fields[AH_FIELD.GESAMTPREIS_AB] = AhBitrix.gesamtpreisAB;
+  if (AhBitrix.gesamtpreisHnD > 0) fields[AH_FIELD.GESAMTPREIS_HND] = AhBitrix.gesamtpreisHnD;
+  if (AhBitrix.anfahrtGesamt > 0) fields[AH_FIELD.GESAMTPREIS_ANFAHRT] = AhBitrix.anfahrtGesamt;
+  if (AhBitrix.gesamtbetragAB > 0) fields[AH_FIELD.GESAMTBETRAG_AB] = AhBitrix.gesamtbetragAB;
+  if (AhBitrix.gesamtbetragHnD > 0) fields[AH_FIELD.GESAMTBETRAG_HND] = AhBitrix.gesamtbetragHnD;
+  if (AhBitrix.tatsaechlicherStundenumfang > 0) {
+    fields[AH_FIELD.TATSAECHLICHER_STUNDENUMFANG] = AhBitrix.tatsaechlicherStundenumfang;
+  }
+
+  return fields;
+}
 
 // ---------- helpers ----------
 function isEmpty(v) {
@@ -185,6 +276,7 @@ async function updateDealStage({
   offerNumber,
   finalTotal,
   selfPayAmount,
+  extraFields,
 }) {
   const numericId = Number(dealId);
   if (!Number.isFinite(numericId) || numericId <= 0) {
@@ -202,9 +294,15 @@ async function updateDealStage({
   }
   fields.stageId = String(stageId).trim();
 
+  // AH has its own dedicated field set (see AH_* fields below, filled by the
+  // caller once the corresponding Bitrix field IDs are known) — none of the
+  // generic BU fields (Betrag, Umbautage, finalTotal, offerNumber, Eigenanteil)
+  // apply to it.
+  const isAhOffer = String(offerType || "").toLowerCase() === "ah";
+
   // "Betrag und Währung" — required on some stages. Fill it from the offer total.
   const amount = Number(opportunity);
-  if (Number.isFinite(amount) && amount > 0) {
+  if (!isAhOffer && Number.isFinite(amount) && amount > 0) {
     fields.opportunity = amount;
     // Keep the amount fixed instead of letting Bitrix recompute it from the
     // (empty) product rows, which would reset it to 0.
@@ -214,21 +312,27 @@ async function updateDealStage({
 
   // Offer fields the sales team wants populated on the deal when the offer
   // email goes out and the deal is moved to "ANG verschickt".
-  if (workDays !== undefined || offerType !== undefined) {
+  // AH has no "Umbautage" concept (per-Einsatz service, not a renovation), so
+  // this field is skipped for it.
+  if (!isAhOffer && (workDays !== undefined || offerType !== undefined)) {
     fields.UF_CRM_1775019866756 = resolveUmbautageEnumId(workDays, offerType);
   }
   const finalTotalNum = Number(finalTotal);
-  if (Number.isFinite(finalTotalNum) && finalTotalNum > 0) {
+  if (!isAhOffer && Number.isFinite(finalTotalNum) && finalTotalNum > 0) {
     fields.UF_CRM_1768391021079 = finalTotalNum;
   }
-  if (offerNumber && String(offerNumber).trim()) {
+  if (!isAhOffer && offerNumber && String(offerNumber).trim()) {
     fields.UF_CRM_1776156870205 = String(offerNumber).trim();
   }
   // Eigenanteil is only relevant for Kassenkunde; caller omits it otherwise.
   const selfPayNum = Number(selfPayAmount);
-  if (Number.isFinite(selfPayNum) && selfPayNum > 0) {
+  if (!isAhOffer && Number.isFinite(selfPayNum) && selfPayNum > 0) {
     fields.UF_CRM_1757490052931 = selfPayNum;
   }
+
+  // AH's own field set (Anfahrtszone, Art der Leistung, Gesamtpreise, …),
+  // computed by the caller via buildAhBitrixFields().
+  if (extraFields) Object.assign(fields, extraFields);
 
   return bxPost("crm.item.update", {
     entityTypeId: DEAL_ENTITY_TYPE_ID,
@@ -426,11 +530,15 @@ router.post("/deal/:id/move-ang-verschickt", express.json(), async (req, res) =>
     const deal = dealResp?.result;
     if (!deal) return res.status(404).json({ error: "Deal not found" });
 
+    const isAh = String(req.body?.offerType || "").toLowerCase() === "ah";
+
     // Resolve final Betrag/Währung from the request, falling back to whatever
-    // is already on the deal.
+    // is already on the deal. AH doesn't use Betrag at all (see updateDealStage),
+    // so it's neither required nor read from the deal here.
     const providedAmount = Number(req.body?.opportunity);
-    const amount =
-      Number.isFinite(providedAmount) && providedAmount > 0
+    const amount = isAh
+      ? 0
+      : Number.isFinite(providedAmount) && providedAmount > 0
         ? providedAmount
         : Number(deal.OPPORTUNITY) || 0;
     const currencyId =
@@ -438,17 +546,32 @@ router.post("/deal/:id/move-ang-verschickt", express.json(), async (req, res) =>
       String(deal.CURRENCY_ID || "").trim() ||
       "EUR";
 
-    if (!(amount > 0)) {
+    if (!isAh && !(amount > 0)) {
       return res.status(400).json({
         error: "Betrag (OPPORTUNITY) fehlt",
         missing: ["OPPORTUNITY"],
       });
     }
 
+    // AH: derive its own field set from the offer payload sent by the client.
+    // Anfahrtszone is only filled in once — never overwritten on a resend.
+    let ahExtraFields;
+    if (isAh) {
+      let ahPayload = null;
+      try {
+        ahPayload = req.body?.payload ? JSON.parse(req.body.payload) : null;
+      } catch {
+        // ignore invalid JSON — AH fields just won't be set this time
+      }
+      if (ahPayload) {
+        ahExtraFields = buildAhBitrixFields(ahPayload, deal[AH_FIELD.ANFAHRTSZONE]);
+      }
+    }
+
     const data = await updateDealStage({
       dealId,
-      stageId: ANG_VERSCHICKT_STAGE_ID,
-      categoryId: ANG_VERSCHICKT_CATEGORY_ID,
+      stageId: isAh ? AH_ANG_VERSCHICKT_STAGE_ID : ANG_VERSCHICKT_STAGE_ID,
+      categoryId: isAh ? AH_ANG_VERSCHICKT_CATEGORY_ID : ANG_VERSCHICKT_CATEGORY_ID,
       opportunity: amount,
       currencyId,
       workDays: req.body?.workDays,
@@ -456,6 +579,7 @@ router.post("/deal/:id/move-ang-verschickt", express.json(), async (req, res) =>
       offerNumber: req.body?.offerNumber,
       finalTotal: req.body?.finalTotal ?? amount,
       selfPayAmount: req.body?.selfPayAmount,
+      extraFields: ahExtraFields,
     });
 
     return res.json({ ok: true, dealId: Number(dealId), result: data?.result ?? data });

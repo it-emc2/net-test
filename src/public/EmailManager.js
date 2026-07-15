@@ -404,6 +404,10 @@ export function initEmailManager(options = {}) {
       if (offerExtra.isKassenkunde && Number(offerExtra.selfPayAmount) > 0) {
         payload.selfPayAmount = offerExtra.selfPayAmount;
       }
+      // AH derives its own Bitrix fields server-side from the full offer payload.
+      if (offerExtra.offerType === "ah" && offerExtra.payload) {
+        payload.payload = JSON.stringify(offerExtra.payload);
+      }
     }
 
     if (moveBtn) moveBtn.disabled = true;
@@ -425,7 +429,7 @@ export function initEmailManager(options = {}) {
       }
       if (moveBtn) moveBtn.remove();
       try {
-        cfg.hooks.onDealStageMoved?.(dealId);
+        cfg.hooks.onDealStageMoved?.(dealId, offerExtra?.offerType);
       } catch (e) {
         console.warn("[EmailManager] onDealStageMoved hook failed:", e);
       }
@@ -1021,6 +1025,9 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
             isKassenkunde: payload?.Kundendaten?.payer === "Kassenkunde",
             selfPayAmount: Number(data?.selfPayAmount) || 0,
             finalTotal: Number(data?.offerTotal) || 0,
+            // Full offer payload — only used by the backend for AH, to derive
+            // its own set of Bitrix fields (Anfahrtszone, Art der Leistung, …).
+            payload,
           },
         });
       } catch (e) {

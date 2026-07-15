@@ -2058,11 +2058,13 @@ function buildAhData(body) {
     ? `${fmtCount(totalEinsaetze)} Stück`
     : "";
 
+  const anfahrtGesamtCombined = r2(anfahrtTotal + abAnfahrtTotal);
+
   return {
     AhNote: ahNote,
     AhAnfahrtMenge:       anfahrtMengeStr,
     AhAnfahrtEinzelpreis: totalEinsaetze > 0 ? `${AH_ANFAHRT_PER_EINSATZ.toFixed(2).replace(".", ",")} €` : "",
-    AhAnfahrtGesamt:      totalEinsaetze > 0 ? fmtCurrency(r2(anfahrtTotal + abAnfahrtTotal)) : "",
+    AhAnfahrtGesamt:      totalEinsaetze > 0 ? fmtCurrency(anfahrtGesamtCombined) : "",
     AhServices,
     AhHasServicepauschale: hasHnD,
     AhServicepausEinzelpreis: "1,20 €",
@@ -2073,6 +2075,24 @@ function buildAhData(body) {
     AhShowAbHinweis: gesamt > 0 && !hasAb,
     // Umgekehrter Hinweis: Alltagsbegleitung gebucht, aber keine HnD-Leistung.
     AhShowHndHinweis: gesamt > 0 && hasAb && !hasHnD,
+
+    // Raw numeric data for the Bitrix CRM sync on deal-stage-move — purely
+    // additive, doesn't affect the DOCX template fields above.
+    AhBitrix: {
+      zoneNum,
+      hasHnD,
+      hasAb,
+      stundenProEinsatz: firstSched ? parseHHMM(firstSched.dauer) : 0,
+      tatsaechlicherStundenumfang: firstSched ? r2(parseHHMM(firstSched.dauer) + travelTimeH) : 0,
+      regelmaessigkeit: firstSched?.regelmaessigkeit || "",
+      monatlicherStundenumfang: r2(totalMonatlichH),
+      anzahlAnfahrtspauschalen: r2(totalEinsaetze),
+      anfahrtGesamt: anfahrtGesamtCombined,
+      gesamtpreisAB: abLeistungenTotal,
+      gesamtpreisHnD: leistungenTotal,
+      gesamtbetragAB: r2(abLeistungenTotal + anfahrtGesamtCombined),
+      gesamtbetragHnD: r2(leistungenTotal + anfahrtGesamtCombined),
+    },
   };
 }
 
