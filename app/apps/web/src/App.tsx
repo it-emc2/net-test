@@ -10,6 +10,7 @@ import { CustomerDetailPage } from "@/pages/CustomerDetailPage";
 import { ProductsPage } from "@/pages/ProductsPage";
 import { ProductDetailPage } from "@/pages/ProductDetailPage";
 import { OfferBuilderPage } from "@/pages/OfferBuilderPage";
+import { AngebotEntryPage } from "@/pages/AngebotEntryPage";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
 
 export default function App() {
@@ -22,7 +23,8 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AppShell />}>
             <Route index element={<HomePage />} />
-            <Route path="angebote" element={<OfferBuilderPage />} />
+            <Route path="angebote" element={<AngebotEntryPage />} />
+            <Route path="angebote/bu" element={<OfferBuilderPage />} />
             <Route path="kunden" element={<CustomersPage />} />
             <Route path="kunden/:id" element={<CustomerDetailPage />} />
             <Route path="produkte" element={<ProductsPage />} />

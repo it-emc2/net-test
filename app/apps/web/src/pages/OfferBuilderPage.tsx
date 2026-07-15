@@ -48,20 +48,23 @@ export function OfferBuilderPage() {
 function BuilderInner() {
   const [i, setI] = useState(0);
   const step = STEPS[i];
-  const { payload, patchSection } = useOffer();
+  const { payload, patchSection, replacePayload } = useOffer();
   const budget = !!payload.duschwanne.budgetMode;
 
   // The offer begins from a Bitrix deal: /angebote?dealId=12345 → store the id
   // and prefill Kundendaten from the deal's linked contact (once per deal id).
   const [params] = useSearchParams();
   const urlDealId = (params.get("dealId") || "").trim();
+  const urlDraftId = (params.get("draft") || "").trim();
   const appliedRef = useRef<string>("");
+  const loadedRef = useRef<string>("");
   const [deal, setDeal] = useState<{ status: "idle" | "loading" | "ok" | "error"; title: string; msg: string }>({
     status: "idle", title: "", msg: "",
   });
 
   useEffect(() => {
-    if (!urlDealId || appliedRef.current === urlDealId) return;
+    // Loading a saved draft owns the payload — skip the deal prefill.
+    if (!urlDealId || urlDraftId || appliedRef.current === urlDealId) return;
     appliedRef.current = urlDealId;
     patchSection("Kundendaten", { dealId: urlDealId });
     setDeal({ status: "loading", title: "", msg: "" });
@@ -84,6 +87,22 @@ function BuilderInner() {
   const [draftId, setDraftId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
   const [saveState, setSaveState] = useState<{ status: "idle" | "saving" | "saved" | "error"; msg?: string }>({ status: "idle" });
+
+  // Load a saved draft (?draft=<id>) → replace the whole payload once; track its
+  // id/name so subsequent "Speichern" updates it in place.
+  useEffect(() => {
+    if (!urlDraftId || loadedRef.current === urlDraftId) return;
+    loadedRef.current = urlDraftId;
+    draftsApi
+      .get(urlDraftId)
+      .then((d) => {
+        replacePayload(d.payload as unknown as typeof payload);
+        setDraftId(d.id);
+        setDraftName(d.name);
+      })
+      .catch(() => { /* fall back to a fresh payload */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlDraftId]);
 
   // Clear the saved/error badge as soon as the offer is edited again.
   useEffect(() => {
