@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Check, X, Receipt, Loader2, Link2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, X, Receipt, Loader2, Link2, Save } from "lucide-react";
 import { OfferProvider, useOffer } from "@/features/offer/OfferContext";
 import { bitrixApi } from "@/features/offer/bitrix";
+import { draftsApi, autoDraftName, customerNameFromPayload } from "@/features/offer/drafts";
 import { PricingSidebar } from "@/features/offer/PricingSidebar";
 import { useLivePricing } from "@/features/offer/pricing";
 import { KundendatenStep } from "@/features/offer/steps/KundendatenStep";
@@ -79,6 +80,39 @@ function BuilderInner() {
 
   const dealId = payload.Kundendaten.dealId;
 
+  // Draft save (Phase 2). draftId is tracked so "Speichern" updates in place.
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState("");
+  const [saveState, setSaveState] = useState<{ status: "idle" | "saving" | "saved" | "error"; msg?: string }>({ status: "idle" });
+
+  // Clear the saved/error badge as soon as the offer is edited again.
+  useEffect(() => {
+    setSaveState((s) => (s.status === "saved" || s.status === "error" ? { status: "idle" } : s));
+  }, [payload]);
+
+  async function saveDraft(asNew: boolean) {
+    const name = asNew
+      ? (window.prompt("Name des Entwurfs:", autoDraftName(payload)) || "").trim()
+      : draftName || autoDraftName(payload);
+    if (!name) return;
+    setSaveState({ status: "saving" });
+    try {
+      const saved = await draftsApi.save({
+        id: asNew ? undefined : draftId || undefined,
+        name,
+        offerType: payload.offerType,
+        dealId: payload.Kundendaten.dealId || "",
+        customerName: customerNameFromPayload(payload),
+        payload: payload as unknown as Record<string, unknown>,
+      });
+      setDraftId(saved.id);
+      setDraftName(saved.name);
+      setSaveState({ status: "saved", msg: saved.name });
+    } catch (e: any) {
+      setSaveState({ status: "error", msg: e?.message || "Speichern fehlgeschlagen" });
+    }
+  }
+
   return (
     <div className="pb-24 lg:grid lg:grid-cols-[1fr_20rem] lg:gap-8 lg:pb-0">
       <div className="min-w-0">
@@ -99,21 +133,39 @@ function BuilderInner() {
               </span>
             )}
           </div>
-          {/* Global Budget-Modus — affects tray/accessory swaps and budget floors */}
-          <label
-            className={cn(
-              "flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-              budget ? "border-primary bg-primary/10 text-primary" : "hover:bg-accent",
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Save status */}
+            {saveState.status === "saved" && (
+              <span className="flex items-center gap-1 text-xs text-emerald-600" title={saveState.msg}>
+                <Check className="size-3.5" /> Gespeichert
+              </span>
             )}
-          >
-            <input
-              type="checkbox"
-              checked={budget}
-              onChange={(e) => patchSection("duschwanne", { budgetMode: e.target.checked })}
-              className="size-4 rounded border-input accent-[hsl(var(--primary))]"
-            />
-            Budget-Modus
-          </label>
+            {saveState.status === "error" && (
+              <span className="text-xs text-destructive" title={saveState.msg}>Fehler</span>
+            )}
+            <Button variant="default" size="sm" disabled={saveState.status === "saving"} onClick={() => saveDraft(false)}>
+              {saveState.status === "saving" ? <Loader2 className="animate-spin" /> : <Save />} Speichern
+            </Button>
+            <Button variant="outline" size="sm" disabled={saveState.status === "saving"} onClick={() => saveDraft(true)}>
+              Speichern unter…
+            </Button>
+
+            {/* Global Budget-Modus — affects tray/accessory swaps and budget floors */}
+            <label
+              className={cn(
+                "flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
+                budget ? "border-primary bg-primary/10 text-primary" : "hover:bg-accent",
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={budget}
+                onChange={(e) => patchSection("duschwanne", { budgetMode: e.target.checked })}
+                className="size-4 rounded border-input accent-[hsl(var(--primary))]"
+              />
+              Budget-Modus
+            </label>
+          </div>
         </header>
 
         {/* Step nav — horizontal scroll, works on mobile + desktop */}
