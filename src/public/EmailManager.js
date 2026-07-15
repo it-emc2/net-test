@@ -332,12 +332,12 @@ export function initEmailManager(options = {}) {
     if (amountField) {
       rows.push(`
         <label class="ang-stage-field">
-          <span>Betrag (€) — automatisch aus dem Angebot</span>
-          <input type="text" id="angFieldAmount" value="${prefillAmount}" readonly />
+          <span>Betrag (€)</span>
+          <input type="text" id="angFieldAmount" value="${prefillAmount}" inputmode="decimal" />
         </label>`);
     }
     body.innerHTML = `
-      <p class="ang-stage-text">Betrag wird automatisch aus dem finalen Angebotsbetrag gesetzt.</p>
+      <p class="ang-stage-text">Vorausgefüllt mit dem finalen Angebotsbetrag — bei Bedarf anpassbar.</p>
       <div class="ang-stage-fields">${rows.join("")}</div>
       <p class="ang-stage-status" id="angStageStatus" hidden></p>`;
 
@@ -369,13 +369,14 @@ export function initEmailManager(options = {}) {
       statusEl.classList.toggle("ang-stage-error", !!isErr);
     };
 
-    // Betrag und Währung mirrors the real offer total — same source of
-    // truth as "Finaler Auftragswert", so the two can never diverge.
-    // Währung itself is always EUR (defaulted server-side).
-    const finalTotal = Number(offerExtra?.finalTotal) || 0;
-    const amount = finalTotal > 0 ? finalTotal : parseEuroInput(amountEl?.value);
+    // Betrag is editable, but whatever value is confirmed here is also used
+    // for "Finaler Auftragswert" — the two fields always mirror each other,
+    // sourced from the same confirmed amount. Währung is always EUR.
+    const amount = amountEl
+      ? parseEuroInput(amountEl.value)
+      : Number(offerExtra?.finalTotal) || 0;
     if (!(amount > 0)) {
-      setModalStatus("Kein gültiger Angebotsbetrag verfügbar.", true);
+      setModalStatus("Bitte einen gültigen Betrag eingeben.", true);
       return;
     }
 
