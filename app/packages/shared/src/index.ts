@@ -113,6 +113,36 @@ export interface CustomersListResponse {
   pageSize: number;
 }
 
+// --- Offer drafts (save / load) ---
+
+export interface DraftListItem {
+  id: string;
+  name: string;
+  offerType: string;
+  dealId: string;
+  customerName: string;
+  updatedAt: string | null;
+  createdAt: string | null;
+}
+
+export interface DraftDetail extends DraftListItem {
+  payload: Record<string, unknown>;
+}
+
+export interface DraftsListResponse {
+  drafts: DraftListItem[];
+}
+
+export interface SaveDraftRequest {
+  /** Present → update in place; absent → create. */
+  id?: string;
+  name: string;
+  offerType: string;
+  dealId?: string;
+  customerName?: string;
+  payload: Record<string, unknown>;
+}
+
 // --- Bitrix (deal-first offer entry) ---
 
 /** Customer fields prefilled from a Bitrix deal's linked contact. */
