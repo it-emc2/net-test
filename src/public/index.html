@@ -3990,45 +3990,48 @@ button.dm-btn-danger:focus-visible {
               <span class="floor-price-hidden"><span>=</span> <span id="flooringPanelsPrice">0</span> €</span>
             </div>
 
-            <div class="field">
-              <div class="subheader">+ Klebstoff für Fußboden:</div>
-              <p id="floorAdhesiveHint" class="req" style="margin: 0.4rem 0 8px">
-                Flächenkleber 600 ml -- 1 Pkg je 0,60 m² (automatische
-                Berechnung)
-                <span id="adhesiveLivePreview" style="margin-left: 6px"></span>
-              </p>
-              <label class="image-check" data-product-id="R_4260602" id="tile_R_4260602">
-                <input type="checkbox" name="floorAdhesive[]" value="Flächenkleber R_4260602" />
-                <span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG" alt="Flächenkleber R_4260602" /></span>
-                <span class="caption">Flächenkleber R_4260602</span>
-              </label>
-            </div>
+            <div class="field full product-tile-grid">
 
-            <div class="field floor-price-hidden">
-              <strong>Preis:</strong>
-              <span id="floorAdhesivePrice">0</span>
-              <span class="muted">EUR</span>
-            </div>
+              <div class="field">
+                <div class="subheader">+ Klebstoff für Fußboden:</div>
+                <p id="floorAdhesiveHint" class="req" style="margin: 0.4rem 0 8px">
+                  Flächenkleber 600 ml -- 1 Pkg je 0,60 m² (automatische
+                  Berechnung)
+                  <span id="adhesiveLivePreview" style="margin-left: 6px"></span>
+                </p>
+                <label class="image-check" data-product-id="R_4260602" id="tile_R_4260602">
+                  <input type="checkbox" name="floorAdhesive[]" value="Flächenkleber R_4260602" />
+                  <span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG" alt="Flächenkleber R_4260602" /></span>
+                  <span class="caption">Flächenkleber R_4260602</span>
+                </label>
+                <div></div>
+                <div class="floor-price-hidden">
+                  <strong>Preis:</strong>
+                  <span id="floorAdhesivePrice">0</span>
+                  <span class="muted">EUR</span>
+                </div>
+              </div>
 
+              <div class="field">
+                <label class="req">Bodenabdichtung für Fußboden</label>
+                <p id="floorSealingHint" style="margin: 0.4rem 0 8px">
+                  1 Set pauschal (automatische Berechnung)
+                  <span id="sealingLivePreview" style="margin-left: 6px"></span>
+                </p>
+                <label class="image-check" data-product-id="TRBDSET7" id="tile_TRBDSET7">
+                  <input type="checkbox" name="floorSealing[]" value="TRINNITY Bodenabdichtung TRBDSET7" />
+                  <span class="img-wrap"><img src="./assets/TRBDSET7.jpg"
+                      alt="TRINNITY Bodenabdichtung TRBDSET7" /></span>
+                  <span class="caption">Bodenabdichtung für Fußboden</span>
+                </label>
+                <div></div>
+                <div class="floor-price-hidden">
+                  <strong>Preis:</strong>
+                  <span id="floorSealingPrice">0</span>
+                  <span class="muted">EUR</span>
+                </div>
+              </div>
 
-            <div class="field">
-              <label class="req">Bodenabdichtung für Fußboden</label>
-              <p id="floorSealingHint" style="margin: 0.4rem 0 8px">
-                1 Set pauschal (automatische Berechnung)
-                <span id="sealingLivePreview" style="margin-left: 6px"></span>
-              </p>
-              <label class="image-check" data-product-id="TRBDSET7" id="tile_TRBDSET7">
-                <input type="checkbox" name="floorSealing[]" value="TRINNITY Bodenabdichtung TRBDSET7" />
-                <span class="img-wrap"><img src="./assets/TRBDSET7.jpg"
-                    alt="TRINNITY Bodenabdichtung TRBDSET7" /></span>
-                <span class="caption">Bodenabdichtung für Fußboden</span>
-              </label>
-            </div>
-
-            <div class="field floor-price-hidden">
-              <strong>Preis:</strong>
-              <span id="floorSealingPrice">0</span>
-              <span class="muted">EUR</span>
             </div>
           </div>
 
@@ -4280,111 +4283,119 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
 
-          <div id="wvSealingSection" class="full field">
-            <label class="req">Wandabdichtung BASIS-Set</label>
-            <label class="image-check" data-product-id="TRWDSET5"><input type="checkbox" data-product-id="TRWDSET5" name="wvSealing" id="wvSealingSelected"
-                data-product-id="TRWDSET5" value="TRINNITY Wandabdichtung BASIS TRWDSET5" checked /><span class="img-wrap"><img
-                  src="./assets/d110afd16622742ee292b063792121f1.jpg" alt="TRINNITY Wandabdichtung BASIS" /></span><span
-                class="caption">Wandabdichtung BASIS-Set TRWDSET5</span></label>
-          </div>
+          <div class="full product-tile-grid">
 
-          <div id="flechenSection" class="full field">
-            <label class="req">Flächenkleber</label>
-            <label class="image-check"><input type="checkbox" id="wvFlachenSelected" name="flechenkleber"
-                value="Flächenkleber R_4260602" checked /><span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG"
-                  alt="Flachen" /></span><span class="caption">Flächenkleber R_4260602</span></label>
-            <div class="field" style="max-width: 240px">
-              <label for="wvFlachenQty">Menge Flächenkleber</label>
-              <input id="wvFlachenQty" name="wvFlachenQty" type="number" min="0" step="1" placeholder="0" />
-              <div id="wvAdhesiveSuggestion" style="
-                  margin-top: 6px;
-                  font-size: 0.9rem;
-                  color: var(--muted, #8a8a8a);
-                "></div>
-            </div>
-          </div>
-
-          <div id="wvEndProfileSection" class="full field">
-            <label class="req">Abschlussprofil 3.0 255 cm silber eloxiert</label>
-            <label class="image-check">
-              <input type="checkbox" id="wvEndProfileSelected" name="wvEndProfile" value="Abschlussprofil V3A"
-                checked />
-              <span class="img-wrap">
-                <img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="Abschlussprofil V3A" />
-              </span>
-              <span class="caption">Abschlussprofil V3A</span>
-            </label>
-
-            <div class="muted" style="margin-top: 8px; color: var(--danger); font-weight: 600">
-              ! Bitte die Anzahl der Abschlussleisten prüfen, berechnen und ggf.
-              anpassen !
+            <div id="wvSealingSection" class="field">
+              <label class="req">Wandabdichtung BASIS-Set</label>
+              <label class="image-check" data-product-id="TRWDSET5"><input type="checkbox" data-product-id="TRWDSET5" name="wvSealing" id="wvSealingSelected"
+                  data-product-id="TRWDSET5" value="TRINNITY Wandabdichtung BASIS TRWDSET5" checked /><span class="img-wrap"><img
+                    src="./assets/d110afd16622742ee292b063792121f1.jpg" alt="TRINNITY Wandabdichtung BASIS" /></span><span
+                  class="caption">Wandabdichtung BASIS-Set TRWDSET5</span></label>
+              <div></div>
+              <div></div>
             </div>
 
-            <div class="field" style="max-width: 240px">
-              <label for="wvEndProfileQty" class="req">Menge Abschlussprofil</label>
-              <input id="wvEndProfileQty" name="wvEndProfileQty" type="number" min="0" step="1" placeholder="0" />
+            <div id="flechenSection" class="field">
+              <label class="req">Flächenkleber</label>
+              <label class="image-check"><input type="checkbox" id="wvFlachenSelected" name="flechenkleber"
+                  value="Flächenkleber R_4260602" checked /><span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG"
+                    alt="Flachen" /></span><span class="caption">Flächenkleber R_4260602</span></label>
+              <div></div>
+              <div class="field" style="max-width: 240px">
+                <label for="wvFlachenQty">Menge Flächenkleber</label>
+                <input id="wvFlachenQty" name="wvFlachenQty" type="number" min="0" step="1" placeholder="0" />
+                <div id="wvAdhesiveSuggestion" style="
+                    margin-top: 6px;
+                    font-size: 0.9rem;
+                    color: var(--muted, #8a8a8a);
+                  "></div>
+              </div>
             </div>
+
+            <div id="wvEndProfileSection" class="field">
+              <label class="req">Abschlussprofil 3.0 255 cm silber eloxiert</label>
+              <label class="image-check">
+                <input type="checkbox" id="wvEndProfileSelected" name="wvEndProfile" value="Abschlussprofil V3A"
+                  checked />
+                <span class="img-wrap">
+                  <img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="Abschlussprofil V3A" />
+                </span>
+                <span class="caption">Abschlussprofil V3A</span>
+              </label>
+
+              <div class="muted" style="margin-top: 8px; color: var(--danger); font-weight: 600">
+                ! Bitte die Anzahl der Abschlussleisten prüfen, berechnen und ggf.
+                anpassen !
+              </div>
+
+              <div class="field" style="max-width: 240px">
+                <label for="wvEndProfileQty" class="req">Menge Abschlussprofil</label>
+                <input id="wvEndProfileQty" name="wvEndProfileQty" type="number" min="0" step="1" placeholder="0" />
+              </div>
+            </div>
+
+            <div id="wvProfileAdhesiveSection" class="field">
+              <label class="req">silikon</label>
+              <label class="image-check"><input type="checkbox" id="wvSilikonSelected" name="wvSilikon" value="silikon"
+                  checked /><span class="img-wrap"><img src="./assets/silikon_ransauer.jpg" alt="silikon" /></span><span
+                  class="caption">Silikon</span></label>
+              <div></div>
+              <div class="field" style="max-width: 240px">
+                <label for="wvSilikonQty">Menge Silikon</label>
+                <input id="wvSilikonQty" name="wvSilikonQty" type="number" min="0" step="1" placeholder="0" />
+              </div>
+            </div>
+
           </div>
 
-          <div id="wvProfileAdhesiveSection" class="full field">
-            <label class="req">silikon</label>
-            <label class="image-check"><input type="checkbox" id="wvSilikonSelected" name="wvSilikon" value="silikon"
-                checked /><span class="img-wrap"><img src="./assets/silikon_ransauer.jpg" alt="silikon" /></span><span
-                class="caption">Silikon</span></label>
-            <div class="field" style="max-width: 240px">
-              <label for="wvSilikonQty">Menge Silikon</label>
-              <input id="wvSilikonQty" name="wvSilikonQty" type="number" min="0" step="1" placeholder="0" />
-            </div>
-          </div>
-
-          <!-- Verbindungsprofil V3V (gleicher Stil wie die anderen Kacheln) -->
+          <!-- Verbindungsprofil V3V: structurally distinct (own qty pair + corner logic), kept as its own full-width row instead of forcing it into the uniform product-tile-grid -->
           <div id="wvV3VDiv" class="full field">
-            <label class="req">Verbindungsprofil 3.0 255 cm silber eloxiert (V3V)</label>
-            <div class="muted" style="margin-top: 6px">
-              Wird automatisch aus der Plattenanzahl berechnet. Ecken reduzieren
-              den Bedarf.
-            </div>
-
-            <div style="
-                display: flex;
-                gap: 14px;
-                flex-wrap: wrap;
-                margin-top: 10px;
-              ">
-              <div class="field" style="min-width: 220px">
-                <label class="image-check">
-                  <input type="checkbox" id="wvV3VSelected" name="wvV3VSelected" />
-                  <span class="img-wrap">
-                    <img src="./assets/V3V.jpg" alt="Verbindungsprofil V3V" />
-                  </span>
-                  <span class="caption">Verbindungsprofil V3V</span>
-                </label>
+              <label class="req">Verbindungsprofil 3.0 255 cm silber eloxiert (V3V)</label>
+              <div class="muted" style="margin-top: 6px">
+                Wird automatisch aus der Plattenanzahl berechnet. Ecken reduzieren
+                den Bedarf.
               </div>
 
-              <div class="full" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
-                <div class="field" style="max-width: 240px">
-                  <label for="wvV3VQty" class="req">Menge Verbindungsprofil(e)</label>
-                  <input id="wvV3VQty" name="wvV3VQty" type="number" min="0" step="1" value="0" />
-                  <div id="wvV3VRuleText" class="muted" style="margin-top: 6px"></div>
+              <div style="
+                  display: flex;
+                  gap: 14px;
+                  flex-wrap: wrap;
+                  margin-top: 10px;
+                ">
+                <div class="field" style="min-width: 220px">
+                  <label class="image-check">
+                    <input type="checkbox" id="wvV3VSelected" name="wvV3VSelected" />
+                    <span class="img-wrap">
+                      <img src="./assets/V3V.jpg" alt="Verbindungsprofil V3V" />
+                    </span>
+                    <span class="caption">Verbindungsprofil V3V</span>
+                  </label>
                 </div>
 
-                <div class="field" style="max-width: 240px">
-                  <!-- Wandverkleidung: Ecke(n) vorhanden -->
-                  <div class="field-row" id="wvCornersRow" style="display:flex;align-items:center;gap:10px;">
-                    <label for="wvCornersCount" style="margin:0;">Außenecke(n) vorhanden</label>
-                    <input type="number" name="wvCornersCount" id="wvCornersCount" min="0" step="1" value="0"
-                      style="width:90px;" />
+                <div class="full" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
+                  <div class="field" style="max-width: 240px">
+                    <label for="wvV3VQty" class="req">Menge Verbindungsprofil(e)</label>
+                    <input id="wvV3VQty" name="wvV3VQty" type="number" min="0" step="1" value="0" />
+                    <div id="wvV3VRuleText" class="muted" style="margin-top: 6px"></div>
                   </div>
 
+                  <div class="field" style="max-width: 240px">
+                    <!-- Wandverkleidung: Ecke(n) vorhanden -->
+                    <div class="field-row" id="wvCornersRow" style="display:flex;align-items:center;gap:10px;">
+                      <label for="wvCornersCount" style="margin:0;">Außenecke(n) vorhanden</label>
+                      <input type="number" name="wvCornersCount" id="wvCornersCount" min="0" step="1" value="0"
+                        style="width:90px;" />
+                    </div>
 
-
-                  <div id="wvCornersWrap" hidden aria-hidden="true" style="margin-top: 8px">
-                    <label for="wvCorners" class="muted">Anzahl Ecken ohne Verbindungsprofil</label>
-                    <input id="wvCorners" name="wvCorners" type="number" min="0" step="1" value="0" />
+                    <div id="wvCornersWrap" hidden aria-hidden="true" style="margin-top: 8px">
+                      <label for="wvCorners" class="muted">Anzahl Ecken ohne Verbindungsprofil</label>
+                      <input id="wvCorners" name="wvCorners" type="number" min="0" step="1" value="0" />
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+
           </div>
 
           <div class="actions full">
