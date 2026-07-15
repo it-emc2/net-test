@@ -33,6 +33,22 @@ export function initEmailManager(options = {}) {
       { id: "vollmacht", name: "Vollmacht.pdf" },
     ],
 
+    // AH (Alltagshilfe) uses its own document set (EmC2 Soziale Dienste UG).
+    ahPresetAttachments: [
+      { id: "flyer_ah", name: "Flyer_Alltagshilfe_EmC2 Soziale Dienste.pdf" },
+      { id: "barrierefrei", name: "emc2_Barrierefreies_Wohnen.pdf" },
+      { id: "agb_ah", name: "AGB_Alltagshilfe_EmC2 Soziale Dienste UG.pdf" },
+      {
+        id: "zusatzblatt_ah",
+        name: "Zusatzblatt für Krankenkasse Alltagshilfe_EmC2 Soziale Dienste UG.pdf",
+      },
+      {
+        id: "abtretung_ah",
+        name: "Abtretungserklärung_SGB_45b_EmC2 Soziale Dienste UG.pdf",
+      },
+      { id: "vollmacht", name: "Vollmacht.pdf" },
+    ],
+
     hooks: {
       requireBereichValid: () => true,
       buildPayload: () => null,
@@ -472,6 +488,35 @@ export function initEmailManager(options = {}) {
     const offerNumber = getOfferNumber() || "ANG-2025-_____";
     const isSelbstzahler =
       document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler";
+
+    if (getOfferType() === "ah") {
+      const attachmentList = isSelbstzahler
+        ? `1. Ihr Angebot ${offerNumber}\n2. Zusatzblatt für Wichtige Hinweise zum Angebot / zu Terminen\n3. Unsere allgemeinen Geschäftsbedingungen (AGB)\n4. Unseren aktuellen Flyer "Alltagshilfe"\n5. Unseren aktuellen Flyer "Barrierefreies Wohnen"`
+        : `1. Ihr Angebot ${offerNumber}\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3, 4, 5 SGB XI\n4. Zusatzblatt für Wichtige Hinweise zum Angebot / zu Terminen\n5. Unsere allgemeinen Geschäftsbedingungen (AGB)\n6. Unseren aktuellen Flyer "Alltagshilfe"\n7. Unseren aktuellen Flyer "Barrierefreies Wohnen"`;
+
+      return `${buildGreetingLine()}
+
+vielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet.
+
+Unser Ziel ist es, sie im Alltag zu unterstützen und Ihr Leben leichter, sicherer und komfortabler zu machen.
+
+Im Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:
+
+${attachmentList}
+
+Bitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.
+
+Keine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfach nachfolgenden Link, um die Dokumente online auszufüllen, zu unterschreiben und direkt an uns zurückzuschicken:
+
+{{SIGN_LINK}}
+
+Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.
+
+Überzeugen Sie sich selbst - hier berichten unsere Kunden: https://www.youtube.com/watch?v=Ie0sxagHlFo
+
+Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
+    }
+
     const attachmentList = isSelbstzahler
       ? `1. Ihr Angebot ${offerNumber}\n2. Unseren aktuellen Flyer "Barrierefreies Wohnen"`
       : `1. Ihr Angebot ${offerNumber}\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3, 4, 5 SGB XI\n4. Unseren aktuellen Flyer "Barrierefreies Wohnen"`;
@@ -753,11 +798,15 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     const offerPdfName = `${offerNumber || "Angebot"}.pdf`;
     $list.appendChild(makeTile({ name: offerPdfName, meta: "Offer PDF", removable: false }));
 
-    // Presets (Selbstzahler: no Abtretung/Vollmacht -> 2 attachments total)
+    // Presets (Selbstzahler: no Abtretung/Vollmacht -> fewer attachments)
     const isSZ =
       document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler";
-    const payerHidden = isSZ ? new Set(["abtretung", "vollmacht"]) : new Set();
-    for (const p of cfg.presetAttachments) {
+    const isAh = getOfferType() === "ah";
+    const presetList = isAh ? cfg.ahPresetAttachments : cfg.presetAttachments;
+    const payerHidden = isSZ
+      ? new Set(isAh ? ["abtretung_ah", "vollmacht"] : ["abtretung", "vollmacht"])
+      : new Set();
+    for (const p of presetList) {
       if (payerHidden.has(p.id)) continue;
       if (excludedPreset.has(p.id)) continue;
       $list.appendChild(

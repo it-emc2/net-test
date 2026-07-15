@@ -170,7 +170,60 @@ function buildEmailTextBody(body, contactName = "Stefan Wolfrum") {
  * Preset attachments that should always be attached (unless excluded by user).
  * Visible in UI, removable via "x" -> frontend sends excludePreset JSON array.
  */
-function getPresetAttachments(excludePresetSet, isSelbstzahler) {
+function getPresetAttachments(excludePresetSet, isSelbstzahler, offerType) {
+  const emailDir = (name) =>
+    path.join(process.cwd(), "src", "public", "assets", "Email", name);
+
+  if (String(offerType || "").toLowerCase() === "ah") {
+    // AH (Alltagshilfe) uses its own document set (EmC2 Soziale Dienste UG),
+    // distinct from the generic BU/other-offer-type presets below.
+    const payerExcluded = isSelbstzahler
+      ? new Set(["abtretung_ah", "vollmacht"])
+      : new Set();
+    const preset = [
+      {
+        id: "flyer_ah",
+        filename: "Flyer_Alltagshilfe_EmC2 Soziale Dienste.pdf",
+        absPath: emailDir("Flyer_Alltagshilfe_EmC2 Soziale Dienste.pdf"),
+      },
+      {
+        id: "barrierefrei",
+        filename: "emc2_Barrierefreies_Wohnen.pdf",
+        absPath: emailDir("emc2_Barrierefreies_Wohnen.pdf"),
+      },
+      {
+        id: "agb_ah",
+        filename: "AGB_Alltagshilfe_EmC2 Soziale Dienste UG.pdf",
+        absPath: emailDir("AGB_Alltagshilfe_EmC2 Soziale Dienste UG.pdf"),
+      },
+      {
+        id: "zusatzblatt_ah",
+        filename: "Zusatzblatt für Krankenkasse Alltagshilfe_EmC2 Soziale Dienste UG.pdf",
+        absPath: emailDir(
+          "Zusatzblatt für Krankenkasse Alltagshilfe_EmC2 Soziale Dienste UG.pdf"
+        ),
+      },
+      {
+        id: "abtretung_ah",
+        filename: "Abtretungserklärung_SGB_45b_EmC2 Soziale Dienste UG.pdf",
+        absPath: emailDir(
+          "Abtretungserklärung_SGB_45b_EmC2 Soziale Dienste UG.pdf"
+        ),
+      },
+      {
+        id: "vollmacht",
+        filename: "Vollmacht.pdf",
+        absPath: emailDir("Vollmacht.pdf"),
+      },
+    ];
+
+    return preset
+      .filter((p) => !excludePresetSet.has(p.id))
+      .filter((p) => !payerExcluded.has(p.id))
+      .filter((p) => fsSync.existsSync(p.absPath))
+      .map((p) => ({ filename: p.filename, path: p.absPath }));
+  }
+
   // Selbstzahler get only the Angebot (added elsewhere) + the flyer — no
   // Abtretung/Vollmacht. Kassenkunde get all four.
   const payerExcluded = isSelbstzahler
@@ -180,38 +233,17 @@ function getPresetAttachments(excludePresetSet, isSelbstzahler) {
     {
       id: "abtretung",
       filename: "Abtretungserklärung.pdf",
-      absPath: path.join(
-        process.cwd(),
-        "src",
-        "public",
-        "assets",
-        "Email",
-        "Abtretungserklärung.pdf"
-      ),
+      absPath: emailDir("Abtretungserklärung.pdf"),
     },
     {
       id: "barrierefrei",
       filename: "emc2_Barrierefreies_Wohnen.pdf",
-      absPath: path.join(
-        process.cwd(),
-        "src",
-        "public",
-        "assets",
-        "Email",
-        "emc2_Barrierefreies_Wohnen.pdf"
-      ),
+      absPath: emailDir("emc2_Barrierefreies_Wohnen.pdf"),
     },
     {
       id: "vollmacht",
       filename: "Vollmacht.pdf",
-      absPath: path.join(
-        process.cwd(),
-        "src",
-        "public",
-        "assets",
-        "Email",
-        "Vollmacht.pdf"
-      ),
+      absPath: emailDir("Vollmacht.pdf"),
     },
   ];
 
@@ -318,7 +350,7 @@ router.post(
     );
 
     // ---- Attachments ----
-    const presetAttachments = getPresetAttachments(excludePreset, isSelbstzahler);
+    const presetAttachments = getPresetAttachments(excludePreset, isSelbstzahler, offerType);
 
     const uploadAttachments = uploaded.map((f) => ({
       filename: f.originalname || f.filename,
