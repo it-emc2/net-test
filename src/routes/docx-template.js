@@ -1859,6 +1859,23 @@ const AH_TASK_LABELS = {
   entlastung: "Entlastung pflegender Angehöriger (stundenweise Betreuung)",
 };
 
+// ── Fixed generic task bullet lists shown in the PDF (independent of svc.tasks selection) ──
+const AH_GENERIC_HAUSHALT_TASKS = [
+  "Reinigungsarbeiten",
+  "Fenster putzen",
+  "Böden saugen und wischen",
+  "Wäschepflege",
+  "etc.",
+];
+const AH_GENERIC_BEGLEITUNG_TASKS = [
+  "Begleitung zu Terminen (Arzt, Friseur, o.ä.)",
+  "gemeinsame Freizeitgestaltung",
+  "Begleitung bei der Pflege sozialer Kontakte",
+  "Einkäufe oder Besorgungen",
+  "10-Minuten-Aktivierung",
+  "leichte Gartenarbeiten (nach Absprache)",
+];
+
 // ── AH pricing constants (mirrors script.js computeAHGesamt) ──────────────
 const AH_FREQ = {
   "Wöchentlich":      52 / 12,
@@ -1954,10 +1971,12 @@ function buildAhData(body) {
                    : svc.type || "Dienstleistung";
     const subtitle = isHaushalt   ? "– Haushaltsnahe Dienstleistung*" : "";
 
-    // Task labels
-    const AhServiceTasks = (Array.isArray(svc.tasks) ? svc.tasks : [])
-      .map((id) => ({ AhTaskLabel: AH_TASK_LABELS[id] || id }))
-      .filter((t) => t.AhTaskLabel);
+    // Task labels — fixed generic list per category, independent of which
+    // checkboxes the customer actually selected.
+    const genericTasks = isHaushalt   ? AH_GENERIC_HAUSHALT_TASKS
+                       : isBegleitung ? AH_GENERIC_BEGLEITUNG_TASKS
+                       : [];
+    const AhServiceTasks = genericTasks.map((label) => ({ AhTaskLabel: label }));
 
     // Pricing per service
     let menge = "", einzelpreis = "", serviceGesamt = "";
