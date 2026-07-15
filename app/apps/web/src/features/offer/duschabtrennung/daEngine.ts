@@ -31,6 +31,8 @@ export interface Article {
   finish?: Record<string, string> | null;
   displayName?: string;
   finishText?: string;
+  /** Min/max installation dimensions; each `label` is a ready-to-show string. */
+  einbaumass?: { type?: string; min?: number; max?: number; label?: string }[];
   [k: string]: unknown;
 }
 export interface Component {

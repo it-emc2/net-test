@@ -127,6 +127,9 @@ export function DaWizard({
               <div key={i} className="flex flex-col border-b pb-2 last:border-0">
                 <span className="font-medium">{l.article.displayName || l.component}</span>
                 <span className="text-xs text-muted-foreground">{l.article.articleNumber}{l.article.finishText ? ` · ${l.article.finishText}` : ""}</span>
+                {Array.isArray(l.article.einbaumass) && l.article.einbaumass.length > 0 && (
+                  <span className="text-xs text-primary">{l.article.einbaumass.map((e) => e.label).filter(Boolean).join(" · ")}</span>
+                )}
                 <span className="mt-0.5 self-end tabular-nums">{formatEUR(l.article.net)}</span>
               </div>
             ))}
