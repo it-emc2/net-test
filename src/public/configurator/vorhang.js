@@ -181,10 +181,9 @@ if (mountEl) {
       .join("");
 
     mountEl.innerHTML = `
-      <label class="vh-enable">
-        <input type="checkbox" id="vh-enable" ${enabled ? "checked" : ""}>
-        <span>Duschvorhang zum Angebot hinzufügen</span>
-      </label>
+      <div class="field">
+        <label class="check-pill"><input type="checkbox" id="vh-enable" ${enabled ? "checked" : ""} /><span class="box"></span><span>Duschvorhang zum Angebot hinzufügen</span></label>
+      </div>
       <div class="vh-body${enabled ? "" : " is-disabled"}" aria-disabled="${enabled ? "false" : "true"}">
       <div class="vh-widthbar">
         <label class="vh-width-label" for="vh-width">Breite der Dusche / Nische (cm)</label>
