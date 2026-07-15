@@ -117,3 +117,35 @@ export async function getDealPrefill(dealId: string): Promise<DealPrefillResult>
 
   return { dealId: String(deal.ID), title: String(deal.TITLE || "").trim(), contactId, prefill };
 }
+
+function startMinutesOf(iso: string): number | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d.getHours() * 60 + d.getMinutes();
+}
+
+/** Today's Bitrix activities (meetings + calls) keyed by deal id (OWNER_ID). */
+export async function getActivitiesToday(fromISO: string, toISO: string): Promise<Record<string, { startMinutes: number | null; endMinutes: number | null; startISO: string; endISO: string }>> {
+  const select = ["ID", "SUBJECT", "START_TIME", "END_TIME", "OWNER_ID", "OWNER_TYPE_ID", "STATUS"];
+  const query = (typeId: number) =>
+    bxGet("crm.activity.list", { filter: { ">=START_TIME": fromISO, "<=START_TIME": toISO, TYPE_ID: typeId }, order: { START_TIME: "ASC" }, select });
+  const [meetings, calls] = await Promise.all([query(3), query(1)]);
+  const out: Record<string, { startMinutes: number | null; endMinutes: number | null; startISO: string; endISO: string }> = {};
+  for (const a of [...(meetings?.result || []), ...(calls?.result || [])]) {
+    const dealId = String(a.OWNER_ID || "").trim();
+    if (!dealId) continue;
+    out[dealId] = {
+      startMinutes: startMinutesOf(a.START_TIME),
+      endMinutes: startMinutesOf(a.END_TIME),
+      startISO: a.START_TIME || "",
+      endISO: a.END_TIME || "",
+    };
+  }
+  return out;
+}
+
+/** Deals linked to a contact (for planning rows that carry only a contactId). */
+export async function getContactDeals(contactId: string): Promise<{ id: string; title: string }[]> {
+  const data = await bxGet("crm.deal.list", { filter: { CONTACT_ID: contactId }, select: ["ID", "TITLE"], order: { ID: "DESC" } });
+  return (data?.result || []).map((d: any) => ({ id: String(d.ID), title: String(d.TITLE || "").trim() }));
+}
