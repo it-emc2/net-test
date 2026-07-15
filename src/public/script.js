@@ -24030,6 +24030,10 @@ function renderTodayPlanningAppointments(){
     const address = entry?.address || "Ort unbekannt";
     const email = entry?.email || "Keine E-Mail";
     const phone = entry?.phone || "Keine Telefonnummer";
+    const phoneHref = normalizePhoneHref(entry?.phone);
+    const callHtml = phoneHref
+      ? `<a class="today-calendar-call" href="tel:${escapePlanningHtml(phoneHref)}" aria-label="Kunde anrufen: ${escapePlanningHtml(entry.phone)}"><i class="fa-solid fa-phone"></i> Anrufen</a>`
+      : "";
     const subtitle = isCancelled
       ? "Termin abgesagt"
       : (entry?.dayLocked ? "Tag gesperrt" : (entry?.locked ? "Termin fixiert" : "Planungstermin"));
@@ -24076,6 +24080,7 @@ function renderTodayPlanningAppointments(){
         <div class="today-calendar-preview">${escapePlanningHtml(preview || "Keine weiteren Details")}</div>
 
         <div class="today-calendar-actions">
+          ${callHtml}
           <button type="button" class="today-calendar-open" ${isCancelled ? 'disabled aria-disabled="true"' : ""}><i class="fa-solid ${isCancelled ? "fa-ban" : "fa-arrow-right"}"></i> ${isCancelled ? "Nicht verfuegbar" : "In Konfigurator öffnen"}</button>
           ${!isCancelled && entry?.importDealId && !isDealDone(entry.importDealId) ? `<button type="button" class="today-calendar-done"><i class="fa-solid fa-circle-check"></i> Hat stattgefunden</button>` : ""}
         </div>
@@ -24086,6 +24091,7 @@ function renderTodayPlanningAppointments(){
 
   list.querySelectorAll(".today-calendar-card").forEach(card => {
     const openButton = card.querySelector(".today-calendar-open");
+    const callButton = card.querySelector(".today-calendar-call");
     const onOpen = () => {
       const id = card.dataset.id;
       const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
@@ -24100,6 +24106,9 @@ function renderTodayPlanningAppointments(){
       ev.preventDefault();
       ev.stopPropagation();
       onOpen();
+    });
+    callButton?.addEventListener("click", (ev) => {
+      ev.stopPropagation();
     });
 
     // "Hat stattgefunden" -> move the deal to "Zuteilen HD/ AH/ DH".

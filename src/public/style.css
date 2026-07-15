@@ -6040,6 +6040,32 @@ button.pad-clear {
   box-shadow: none;
 }
 
+.today-calendar-call {
+  border: 1px solid color-mix(in srgb, #16a34a 32%, var(--border));
+  background: color-mix(in srgb, #16a34a 12%, var(--panel));
+  color: #15803d;
+  border-radius: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease, color .16s ease;
+}
+
+.today-calendar-call:hover,
+.today-calendar-call:focus-visible {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #16a34a 30%, transparent);
+}
+
 .today-calendar-open {
   border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
   background: color-mix(in srgb, var(--accent-weak) 42%, var(--panel));
@@ -6091,6 +6117,8 @@ button.pad-clear {
     justify-content: stretch;
   }
 
+  .today-calendar-call,
+  .today-calendar-done,
   .today-calendar-open {
     width: 100%;
   }
