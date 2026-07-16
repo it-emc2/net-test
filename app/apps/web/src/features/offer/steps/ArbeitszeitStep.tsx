@@ -3,6 +3,7 @@ import { MapPin, Loader2, AlertTriangle, Lock, Unlock } from "lucide-react";
 import { useOffer } from "../OfferContext";
 import { StepHeader } from "./KundendatenStep";
 import { computeArbeitszeit, suggestDistance, secondsToHHMM } from "../arbeitszeit";
+import { StepCalc } from "../StepCalc";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -128,6 +129,8 @@ export function ArbeitszeitStep() {
           <Stat label="Gesamtstunden" value={derived.totalHoursHHMM} />
         </div>
       )}
+
+      <StepCalc service filter={(l) => Number(l.amount) > 0} />
     </div>
   );
 }
