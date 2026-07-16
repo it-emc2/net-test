@@ -9,6 +9,7 @@ const SECTIONS = [
   { id: 'bwt',      label: 'BWT – Badewannentür',  icon: 'fa-door-open' },
   { id: 'zuschuss', label: 'Zuschüsse & Boni',     icon: 'fa-euro-sign' },
   { id: 'signing',  label: 'Signatur-Links',       icon: 'fa-file-signature', view: 'signing' },
+  { id: 'bitrixlogs', label: 'Bitrix-Fehler',      icon: 'fa-triangle-exclamation', view: 'bitrixlogs' },
   { id: 'users',    label: 'Benutzer',             icon: 'fa-users', view: 'users' },
 ];
 
@@ -97,6 +98,7 @@ function switchSection(id) {
   if (saveBtn) saveBtn.classList.toggle('hidden', !!view);
   if (view) hide($('change-count'));
   if (view === 'signing') renderSigning();
+  else if (view === 'bitrixlogs') renderBitrixLogs();
   else if (view === 'users') renderUsers();
   else renderSection();
 }
@@ -303,6 +305,47 @@ function renderSigning() {
   $('sign-refresh').addEventListener('click', loadSigning);
 
   loadSigning();
+}
+
+function renderBitrixLogs() {
+  const grid = $('config-grid');
+  grid.innerHTML = `<div class="signing-view">
+    <div class="toolbar">
+      <button class="btn-ghost" id="bxlog-refresh"><i class="fas fa-rotate"></i> Aktualisieren</button>
+    </div>
+    <div id="bxlog-err" class="sign-err hidden"></div>
+    <div class="table-wrap">
+      <table class="sign-table">
+        <thead><tr><th>Zeit</th><th>Bitrix-Methode</th><th>Fehler</th><th>Parameter</th></tr></thead>
+        <tbody id="bxlog-rows"><tr><td colspan="4"><div class="empty-state"><i class="fas fa-circle-notch fa-spin"></i> Lade…</div></td></tr></tbody>
+      </table>
+    </div>
+  </div>`;
+
+  $('bxlog-refresh').addEventListener('click', loadBitrixLogs);
+  loadBitrixLogs();
+}
+
+async function loadBitrixLogs() {
+  const err = $('bxlog-err');
+  if (err) hide(err);
+  try {
+    const data = await api('GET', '/admin/api/bitrix-logs');
+    const rows = $('bxlog-rows');
+    if (!rows) return;
+    if (!(data.items || []).length) {
+      rows.innerHTML = '<tr><td colspan="4"><div class="empty-state">Keine Fehler in den letzten 30 Tagen.</div></td></tr>';
+      return;
+    }
+    rows.innerHTML = data.items.map(it => `<tr>
+      <td>${fmtTs(it.createdAt)}</td>
+      <td>${esc(it.method)}</td>
+      <td>${esc(it.message)}</td>
+      <td><pre class="bxlog-params">${esc(JSON.stringify(it.params || {}, null, 2))}</pre></td>
+    </tr>`).join('');
+  } catch (e) {
+    if (err) { err.textContent = e.message || 'Fehler beim Laden.'; show(err); }
+  }
 }
 
 async function loadSigning() {

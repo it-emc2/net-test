@@ -1,6 +1,7 @@
 // src/routes/bitrix.js
 import express from "express";
 import { buildAhData } from "./docx-template.js";
+import BitrixLog from "../models/BitrixLog.js";
 
 const router = express.Router();
 
@@ -153,48 +154,69 @@ function buildQS(paramsObj) {
  *
  * Many Bitrix methods accept GET query params, so we use GET.
  */
+// All Bitrix calls (every offer type, every route) go through bxGet/bxPost,
+// so logging failures here covers the whole app in one place.
+function logBitrixFailure(method, paramsObj, err) {
+  console.error(`[bitrix] ${method} failed:`, err);
+  BitrixLog.create({
+    method,
+    message: err?.message || String(err),
+    params: paramsObj,
+  }).catch((logErr) => console.error("[bitrix] failed to write BitrixLog:", logErr));
+}
+
 async function bxGet(method, paramsObj = {}) {
-  if (!BITRIX_WEBHOOK_BASE) {
-    throw new Error(
-      "BITRIX_WEBHOOK_BASE is not configured (set it in env).",
-    );
+  try {
+    if (!BITRIX_WEBHOOK_BASE) {
+      throw new Error(
+        "BITRIX_WEBHOOK_BASE is not configured (set it in env).",
+      );
+    }
+
+    const qs = buildQS(paramsObj);
+    const url = `${BITRIX_WEBHOOK_BASE}/${method}.json${qs ? `?${qs}` : ""}`;
+
+    const res = await fetch(url, { method: "GET" });
+    const data = await res.json().catch(() => null);
+
+    if (!data) throw new Error("Invalid JSON response from Bitrix");
+    if (data.error) throw new Error(data.error_description || data.error);
+
+    return data;
+  } catch (err) {
+    logBitrixFailure(method, paramsObj, err);
+    throw err;
   }
-
-  const qs = buildQS(paramsObj);
-  const url = `${BITRIX_WEBHOOK_BASE}/${method}.json${qs ? `?${qs}` : ""}`;
-
-  const res = await fetch(url, { method: "GET" });
-  const data = await res.json().catch(() => null);
-
-  if (!data) throw new Error("Invalid JSON response from Bitrix");
-  if (data.error) throw new Error(data.error_description || data.error);
-
-  return data;
 }
 
 async function bxPost(method, paramsObj = {}) {
-  if (!BITRIX_WEBHOOK_BASE) {
-    throw new Error(
-      "BITRIX_WEBHOOK_BASE is not configured (set it in env).",
-    );
+  try {
+    if (!BITRIX_WEBHOOK_BASE) {
+      throw new Error(
+        "BITRIX_WEBHOOK_BASE is not configured (set it in env).",
+      );
+    }
+
+    const url = `${BITRIX_WEBHOOK_BASE}/${method}.json`;
+    const body = buildQS(paramsObj);
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+      },
+      body,
+    });
+    const data = await res.json().catch(() => null);
+
+    if (!data) throw new Error("Invalid JSON response from Bitrix");
+    if (data.error) throw new Error(data.error_description || data.error);
+
+    return data;
+  } catch (err) {
+    logBitrixFailure(method, paramsObj, err);
+    throw err;
   }
-
-  const url = `${BITRIX_WEBHOOK_BASE}/${method}.json`;
-  const body = buildQS(paramsObj);
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-    },
-    body,
-  });
-  const data = await res.json().catch(() => null);
-
-  if (!data) throw new Error("Invalid JSON response from Bitrix");
-  if (data.error) throw new Error(data.error_description || data.error);
-
-  return data;
 }
 
 async function addTimelineComment({
