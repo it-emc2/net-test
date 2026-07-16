@@ -1,8 +1,10 @@
-import { type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Package } from "lucide-react";
 import { useOffer } from "../OfferContext";
 import { StepHeader } from "./KundendatenStep";
 import { StepCalc } from "../StepCalc";
+import { productsApi } from "@/features/products/api";
+import { StockBadge } from "@/features/products/StockBadge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -45,6 +47,12 @@ export function FussbodenStep() {
   const on = !!d.addFlooring;
   const budget = !!d.budgetMode;
   const selected: string = Array.isArray(d.flooringProduct) ? d.flooringProduct[0] ?? "" : "";
+
+  // Images + stock for the auto-included floor accessories (Vigor).
+  const [imgs, setImgs] = useState<Record<string, { image: string | null; name: string; stockQuantity: number | null; inStock: boolean }>>({});
+  useEffect(() => {
+    productsApi.images(["R_4260602", "TRBDSET7"]).then(setImgs).catch(() => {});
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -92,19 +100,43 @@ export function FussbodenStep() {
             onSelect={(v) => set({ flooringProduct: [v] })}
           />
 
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={!!d.floorSealing}
-              onChange={(e) => set({ floorSealing: e.target.checked })}
-              className="size-4 rounded border-input accent-[hsl(var(--primary))]"
-            />
-            Bodenabdichtung (TRINNITY TRBDSET7, pro m²)
-          </label>
+          <div className="space-y-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Zubehör Fußboden</h3>
+
+            {/* Flächenkleber — always included with flooring (auto qty from area) */}
+            <div className="flex items-center gap-3 rounded-lg border bg-primary/[0.03] p-2.5">
+              <AccImg img={imgs["R_4260602"]?.image || "/assets/floor/flaechenkleber.png"} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium">{imgs["R_4260602"]?.name || "Flächenkleber 600 ml"}</span>
+                <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                  R_4260602 · 1 Pkg je 0,60 m² (automatische Berechnung)
+                  {imgs["R_4260602"] && <StockBadge inStock={imgs["R_4260602"].inStock} quantity={imgs["R_4260602"].stockQuantity} />}
+                </span>
+              </span>
+              <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">automatisch</span>
+            </div>
+
+            {/* Bodenabdichtung — optional (toggle adds TRBDSET7) */}
+            <label className={cn("flex cursor-pointer items-center gap-3 rounded-lg border p-2.5 transition-colors", d.floorSealing && "border-primary/40 bg-primary/[0.03]")}>
+              <AccImg img={imgs["TRBDSET7"]?.image} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium">{imgs["TRBDSET7"]?.name || "TRINNITY Bodenabdichtung"}</span>
+                <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                  TRBDSET7 · 1 Set pauschal (automatische Berechnung)
+                  {imgs["TRBDSET7"] && <StockBadge inStock={imgs["TRBDSET7"].inStock} quantity={imgs["TRBDSET7"].stockQuantity} />}
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={!!d.floorSealing}
+                onChange={(e) => set({ floorSealing: e.target.checked })}
+                className="size-4 shrink-0 rounded border-input accent-[hsl(var(--primary))]"
+              />
+            </label>
+          </div>
 
           <p className="text-xs text-muted-foreground">
-            Paneele und Flächenkleber werden automatisch aus der Fläche berechnet und erscheinen in der
-            Kostenübersicht.
+            Paneele und Flächenkleber werden automatisch aus der Fläche berechnet und erscheinen in der Kostenübersicht.
           </p>
         </>
       )}
@@ -155,6 +187,14 @@ function DecorGrid({
         })}
       </div>
     </section>
+  );
+}
+
+function AccImg({ img }: { img: string | null | undefined }) {
+  return (
+    <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+      {img ? <img src={img} alt="" className="size-full object-contain p-1" loading="lazy" /> : <Package className="size-6 text-muted-foreground" />}
+    </span>
   );
 }
 
