@@ -136,12 +136,14 @@ export function defaultPayload(): OfferPayload {
       selectedTrayInfo: null,
       // user-entered fallback tray (name + qty + price)
       customTray: { name: "", qty: "1", price: "" },
-      // accessories (checked by default, like legacy)
-      abdichtSet: true,
-      drainSet: true,
-      smallMaterial: true,
-      stelzlager: true,
+      // accessories — a fresh offer starts at 0 €; these auto-tick on the first
+      // visit to the Duschwanne step (see defaultsApplied), then the user owns them.
+      abdichtSet: false,
+      drainSet: false,
+      smallMaterial: false,
+      stelzlager: false,
       stelzlagerQty: "8",
+      defaultsApplied: false,
       // toggles
       budgetMode: false,
       ebenerdigeMontage: true,

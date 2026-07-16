@@ -236,9 +236,9 @@ export interface TraySuggestResponse {
   badolux: TraySuggestItem[];
 }
 
-/** Batch product image/name lookup (Vigor), keyed by article number. */
+/** Batch product image/name/stock lookup (Vigor), keyed by article number. */
 export interface ProductImagesResponse {
-  images: Record<string, { image: string | null; name: string }>;
+  images: Record<string, { image: string | null; name: string; stockQuantity: number | null; inStock: boolean }>;
 }
 
 // --- Optional catalog (data-driven, admin-managed) ---

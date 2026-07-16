@@ -130,17 +130,20 @@ router.get("/images", async (req: Request, res: Response) => {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
-    const images: Record<string, { image: string | null; name: string }> = {};
+    const images: Record<string, { image: string | null; name: string; stockQuantity: number | null; inStock: boolean }> = {};
     if (ids.length) {
       const db = await getVigorDb();
       const docs = await db
         .collection(COLLECTION)
-        .find({ articleNumber: { $in: ids } }, { projection: { articleNumber: 1, name: 1, images: 1 } })
+        .find({ articleNumber: { $in: ids } }, { projection: { articleNumber: 1, name: 1, images: 1, stockQuantity: 1 } })
         .toArray();
       for (const d of docs as VigorDoc[]) {
+        const qty = num(d.stockQuantity);
         images[d.articleNumber as string] = {
           image: Array.isArray(d.images) && d.images.length ? d.images[0] : null,
           name: d.name || d.articleNumber || "",
+          stockQuantity: qty,
+          inStock: qty != null ? qty > 0 : false,
         };
       }
     }

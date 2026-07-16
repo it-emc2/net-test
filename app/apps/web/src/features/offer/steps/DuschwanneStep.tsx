@@ -32,10 +32,19 @@ export function DuschwanneStep() {
   const d = payload.duschwanne;
   const set = (patch: Record<string, any>) => patchSection("duschwanne", patch);
 
-  // Accessory images (Vigor). Ids depend on budget mode.
+  // A fresh offer starts at 0 €; apply the standard accessory defaults once, on
+  // the first visit to this step (then the user owns them).
+  useEffect(() => {
+    if (!d.defaultsApplied) {
+      set({ abdichtSet: true, drainSet: true, smallMaterial: true, stelzlager: true, defaultsApplied: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Accessory images + stock (Vigor). Ids depend on budget mode.
   const budget = !!d.budgetMode;
   const accIds = ACCESSORIES.map((a) => a.id(budget));
-  const [accImages, setAccImages] = useState<Record<string, { image: string | null; name: string }>>({});
+  const [accImages, setAccImages] = useState<Record<string, { image: string | null; name: string; stockQuantity: number | null; inStock: boolean }>>({});
   useEffect(() => {
     let cancelled = false;
     productsApi
@@ -276,7 +285,12 @@ export function DuschwanneStep() {
                   />
                   <span className="min-w-0">
                     <span className="block font-medium">{a.label}</span>
-                    <span className="block text-xs text-muted-foreground">{pid}</span>
+                    <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {pid}
+                      {accImages[pid] && (
+                        <StockBadge inStock={accImages[pid].inStock} quantity={accImages[pid].stockQuantity} />
+                      )}
+                    </span>
                   </span>
                 </label>
                 {a.key === "stelzlager" && checked && (
