@@ -451,6 +451,7 @@ h1 {
 .sidebar {
   position: sticky;
   top: 0;
+  z-index: 51;
   align-self: start;
   height: calc(100dvh);
   background: var(--panel);
