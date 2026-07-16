@@ -175,14 +175,7 @@ export function DuschwanneStep() {
         </div>
 
         {results && (
-          budget ? (
-            <TrayList
-              title="Badolux (Budget)"
-              items={results.badolux}
-              selectedId={d.chosenTrayProductId}
-              onSelect={selectTray}
-            />
-          ) : (
+          <div className="space-y-6">
             <TrayList
               title="Slate (VIGOUR)"
               items={results.sla}
@@ -190,7 +183,13 @@ export function DuschwanneStep() {
               onSelect={selectTray}
               showStock
             />
-          )
+            <TrayList
+              title="Badolux (Budget)"
+              items={results.badolux}
+              selectedId={d.chosenTrayProductId}
+              onSelect={selectTray}
+            />
+          </div>
         )}
         {!results && !loading && (
           <p className="text-sm text-muted-foreground">Breite und/oder Länge eingeben, um passende Duschwannen zu finden.</p>
