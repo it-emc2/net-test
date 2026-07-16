@@ -2,6 +2,7 @@ import express from 'express';
 import configService, { CONFIG_SCHEMA } from '../services/configService.js';
 import AppConfig from '../models/AppConfig.js';
 import SigningRequest from '../models/SigningRequest.js';
+import BitrixLog from '../models/BitrixLog.js';
 import User from '../models/User.js';
 import {
   verifyPassword,
@@ -168,6 +169,19 @@ router.get('/api/signing', requireAdmin, async (req, res) => {
     res.json({ items, counts, total: items.length });
   } catch (err) {
     console.error('GET /admin/api/signing failed:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ---------------- Bitrix error logs (admin) ----------------
+
+// GET /admin/api/bitrix-logs — last 500 failed Bitrix calls (auto-expire after 30 days).
+router.get('/api/bitrix-logs', requireAdmin, async (req, res) => {
+  try {
+    const docs = await BitrixLog.find({}).sort({ createdAt: -1 }).limit(500).lean();
+    res.json({ items: docs, total: docs.length });
+  } catch (err) {
+    console.error('GET /admin/api/bitrix-logs failed:', err);
     res.status(500).json({ error: String(err) });
   }
 });
