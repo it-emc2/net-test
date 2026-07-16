@@ -5813,6 +5813,10 @@ document.body.addEventListener("click", (e) => {
     "Jährlich":          1 / 12,
   };
 
+  // HnD-only "optimize Dauer" button: fit under the (2025) monthly Entlastungsbetrag.
+  var STUNDENSATZ_HND = 40.56;
+  var ENTLASTUNGSBETRAG_MONAT = 131.40;
+
   var ALLTAGSTASKS = [
     { id: "wohnungsreinigung",  label: "Wohnungsreinigung (Staubsaugen, Wischen, Bad, Küche)" },
     { id: "fensterputzen",      label: "Fenster putzen" },
@@ -6036,7 +6040,8 @@ document.body.addEventListener("click", (e) => {
     card.appendChild(infoPanel);
 
     // — card-level schedule section (multi-row) —
-    var SCHED_COL  = "84px 1fr 84px 24px";
+    var isHnd = type === "Haushaltsnahedienstleistungen";
+    var SCHED_COL = isHnd ? "84px 1fr 84px 24px 24px" : "84px 1fr 84px 24px";
 
     var schedSection = document.createElement("div");
     schedSection.style.cssText = "border:1px solid var(--border); border-radius:6px; overflow:hidden;";
@@ -6046,7 +6051,7 @@ document.body.addEventListener("click", (e) => {
       "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center;" +
       "padding:4px 12px 3px; font-size:0.7rem; font-weight:600; color:var(--muted); user-select:none;" +
       "background:var(--panel); border-bottom:1px solid var(--border);";
-    schedHdr.innerHTML = "<span>Dauer (Std:Min)</span><span>Regelmäßigkeit</span><span style='text-align:right; color:var(--accent,#0ea5e9);'>/ Monat</span><span></span>";
+    schedHdr.innerHTML = "<span>Dauer (Std:Min)</span><span>Regelmäßigkeit</span><span style='text-align:right; color:var(--accent,#0ea5e9);'>/ Monat</span><span></span>" + (isHnd ? "<span></span>" : "");
 
     var schedRowsContainer = document.createElement("div");
     schedRowsContainer.className = "ah-sched-rows";
@@ -6164,6 +6169,34 @@ document.body.addEventListener("click", (e) => {
       row.appendChild(rDauerCell);
       row.appendChild(rRegelSel);
       row.appendChild(rRowTotal);
+
+      // HnD only: snap Dauer to the largest 5-min multiple whose monthly
+      // service price (excl. Anfahrt) still fits under the Entlastungsbetrag.
+      if (isHnd) {
+        var rOptBtn = document.createElement("button");
+        rOptBtn.type = "button";
+        rOptBtn.title = "Dauer auf Entlastungsbetrag (131,40 €/Monat) optimieren";
+        rOptBtn.textContent = "⚡";
+        rOptBtn.style.cssText =
+          "background:none; border:1px solid var(--border); border-radius:4px;" +
+          "font-size:0.85rem; line-height:1; cursor:pointer; color:var(--accent,#0ea5e9);" +
+          "width:22px; height:22px; display:flex; align-items:center; justify-content:center; padding:0;";
+        rOptBtn.addEventListener("click", function () {
+          var freq = rRegelSel.value === "Einmalig" ? 1 : FREQ_PER_MONTH[rRegelSel.value];
+          if (typeof freq !== "number") return;
+          var bestMins = 0;
+          for (var m = 5; m <= 480; m += 5) {
+            var price = Math.round((m / 60) * freq * STUNDENSATZ_HND * 100) / 100;
+            if (price > ENTLASTUNGSBETRAG_MONAT) break;
+            bestMins = m;
+          }
+          rDauerH.value = bestMins ? String(Math.floor(bestMins / 60)) : "";
+          rDauerM.value = bestMins ? String(bestMins % 60) : "";
+          syncDauer();
+        });
+        row.appendChild(rOptBtn);
+      }
+
       row.appendChild(rRemoveBtn);
       return row;
     }
