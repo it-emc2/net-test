@@ -1,10 +1,19 @@
-import { type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Package } from "lucide-react";
 import { useOffer } from "../OfferContext";
 import { StepHeader } from "./KundendatenStep";
 import { StepCalc } from "../StepCalc";
+import { productsApi } from "@/features/products/api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+
+// Images for the profiles/accessories. Vigor where available; legacy static
+// fallbacks for the two products not in Vigor (Silikon, Flächenkleber).
+const WV_ACC_FALLBACK: Record<string, string> = {
+  "2000302": "/assets/wv/silikon.jpg",
+  R_4260602: "/assets/floor/flaechenkleber.png",
+};
 
 // 14 Wandverkleidung 3.0 colours. Names must match WV_COLOR_ARTICLE keys.
 const WV_COLORS = [
@@ -43,6 +52,13 @@ export function WandverkleidungStep() {
 
   const needsSonder =
     pc["997x2550"]?.color === "Sonderdekor" || pc["1497x2550"]?.color === "Sonderdekor";
+
+  // Vigor images for the profiles/accessories (static fallbacks for the rest).
+  const [imgs, setImgs] = useState<Record<string, { image: string | null }>>({});
+  useEffect(() => {
+    productsApi.images(["TRWDSET5", "V3A", "2000302", "V3V"]).then(setImgs).catch(() => {});
+  }, []);
+  const accImg = (id: string) => imgs[id]?.image || WV_ACC_FALLBACK[id] || null;
 
   return (
     <div className="space-y-8">
@@ -95,10 +111,12 @@ export function WandverkleidungStep() {
 
       {/* Profiles & accessories */}
       <Section title="Profile & Zubehör">
-        <Toggle label="Wandabdichtung (TRWDSET5)" checked={!!wv.wvSealing} onChange={(v) => set({ wvSealing: v })} />
+        <Toggle label="Wandabdichtung (TRWDSET5)" img={accImg("TRWDSET5")} checked={!!wv.wvSealing} onChange={(v) => set({ wvSealing: v })} />
 
         <Toggle
-          label="Flächenkleber (R_4260602) — automatisch aus Plattenzahl"
+          label="Flächenkleber (R_4260602)"
+          hint="automatisch aus Plattenzahl"
+          img={accImg("R_4260602")}
           checked={!!wv.flechenkleber}
           onChange={(v) => set({ flechenkleber: v })}
         />
@@ -106,28 +124,33 @@ export function WandverkleidungStep() {
           <SubQty label="Menge überschreiben (optional)" value={wv.wvFlachenQty ?? ""} onChange={(v) => set({ wvFlachenQty: v })} />
         )}
 
-        <Toggle label="Abschlussprofil (V3A)" checked={!!wv.wvEndProfile} onChange={(v) => set({ wvEndProfile: v })} />
+        <Toggle label="Abschlussprofil (V3A)" img={accImg("V3A")} checked={!!wv.wvEndProfile} onChange={(v) => set({ wvEndProfile: v })} />
         {wv.wvEndProfile && (
           <SubQty label="Anzahl" value={wv.wvEndProfileQty ?? ""} onChange={(v) => set({ wvEndProfileQty: v })} />
         )}
 
-        <Toggle label="Silikon (2000302)" checked={!!wv.wvSilikon} onChange={(v) => set({ wvSilikon: v })} />
+        <Toggle label="Silikon (2000302)" hint="Menge mind. Anzahl Abschlussprofile" img={accImg("2000302")} checked={!!wv.wvSilikon} onChange={(v) => set({ wvSilikon: v })} />
         {wv.wvSilikon && (
           <SubQty label="Menge (mind. Abschlussprofile)" value={wv.wvSilikonQty ?? ""} onChange={(v) => set({ wvSilikonQty: v })} />
         )}
       </Section>
 
       <Section title="Verbindungsprofil (V3V)">
-        <p className="text-xs text-muted-foreground">
-          Automatisch: Plattenanzahl − 1 − Ecken. Menge optional überschreiben (0 = kein Profil).
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Ecken (Außenecken)">
-            <Input inputMode="numeric" value={wv.wvCornersCount ?? ""} onChange={(e) => set({ wvCornersCount: e.target.value })} placeholder="0" />
-          </Field>
-          <Field label="Menge überschreiben (optional)">
-            <Input inputMode="numeric" value={wv.wvV3VQty ?? ""} onChange={(e) => set({ wvV3VQty: e.target.value })} placeholder="auto" />
-          </Field>
+        <div className="flex items-start gap-3 rounded-lg border p-2.5">
+          <AccImg img={accImg("V3V")} />
+          <div className="min-w-0 flex-1 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Automatisch: Plattenanzahl − 1 − Ecken. Menge optional überschreiben (0 = kein Profil).
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Ecken (Außenecken)">
+                <Input inputMode="numeric" value={wv.wvCornersCount ?? ""} onChange={(e) => set({ wvCornersCount: e.target.value })} placeholder="0" />
+              </Field>
+              <Field label="Menge überschreiben (optional)">
+                <Input inputMode="numeric" value={wv.wvV3VQty ?? ""} onChange={(e) => set({ wvV3VQty: e.target.value })} placeholder="auto" />
+              </Field>
+            </div>
+          </div>
         </div>
       </Section>
 
@@ -208,16 +231,28 @@ function Field({ label, children, className }: { label: string; children: ReactN
   );
 }
 
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+function AccImg({ img }: { img: string | null }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 text-sm">
+    <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+      {img ? <img src={img} alt="" className="size-full object-contain p-1" loading="lazy" /> : <Package className="size-6 text-muted-foreground" />}
+    </span>
+  );
+}
+
+function Toggle({ label, hint, img, checked, onChange }: { label: string; hint?: string; img?: string | null; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className={cn("flex cursor-pointer items-center gap-3 rounded-lg border p-2.5 transition-colors", checked && "border-primary/40 bg-primary/[0.03]")}>
+      <AccImg img={img ?? null} />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium">{label}</span>
+        {hint && <span className="block text-xs text-muted-foreground">{hint}</span>}
+      </span>
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="size-4 rounded border-input accent-[hsl(var(--primary))]"
+        className="size-4 shrink-0 rounded border-input accent-[hsl(var(--primary))]"
       />
-      {label}
     </label>
   );
 }
