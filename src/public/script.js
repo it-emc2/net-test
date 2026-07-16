@@ -5815,7 +5815,12 @@ document.body.addEventListener("click", (e) => {
 
   // HnD-only "optimize Dauer" button: fit under the (2025) monthly Entlastungsbetrag.
   var STUNDENSATZ_HND = 40.56;
+  var ANFAHRT_PER_EINSATZ = 7.96;
   var ENTLASTUNGSBETRAG_MONAT = 131.40;
+  // Toggle: also count Anfahrtspauschale + Reisezeit (from getAHZoneData()) toward
+  // the 131,40€ fit, so the *total* invoice price (not just the service time) stays
+  // under budget. Set to false to fit on service price alone.
+  var OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT = true;
 
   var ALLTAGSTASKS = [
     { id: "wohnungsreinigung",  label: "Wohnungsreinigung (Staubsaugen, Wischen, Bad, Küche)" },
@@ -6171,7 +6176,34 @@ document.body.addEventListener("click", (e) => {
       row.appendChild(rRowTotal);
 
       // HnD only: snap Dauer to the largest 5-min multiple whose monthly
-      // service price (excl. Anfahrt) still fits under the Entlastungsbetrag.
+      // price still fits under the Entlastungsbetrag. Anfahrt/Reisezeit are
+      // folded in when OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT is true.
+      function optimizeDauerForEntlastungsbetrag() {
+        var freq = rRegelSel.value === "Einmalig" ? 1 : FREQ_PER_MONTH[rRegelSel.value];
+        if (typeof freq !== "number") return;
+
+        var reisezeitH = 0, anfahrtPerEinsatz = 0;
+        if (OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT) {
+          var zoneData = typeof window.getAHZoneData === "function" ? window.getAHZoneData() : null;
+          reisezeitH = zoneData ? zoneData.billMin / 60 : 0;
+          anfahrtPerEinsatz = ANFAHRT_PER_EINSATZ;
+        }
+
+        var bestMins = 0;
+        for (var m = 5; m <= 480; m += 5) {
+          var price = Math.round(
+            (freq * anfahrtPerEinsatz + (m / 60 + reisezeitH) * freq * STUNDENSATZ_HND) * 100
+          ) / 100;
+          if (price > ENTLASTUNGSBETRAG_MONAT) break;
+          bestMins = m;
+        }
+        rDauerH.value = bestMins ? String(Math.floor(bestMins / 60)) : "";
+        rDauerM.value = bestMins ? String(bestMins % 60) : "";
+        syncDauer();
+        serialize();
+        doUpdateTotals();
+      }
+
       if (isHnd) {
         var rOptBtn = document.createElement("button");
         rOptBtn.type = "button";
@@ -6181,20 +6213,11 @@ document.body.addEventListener("click", (e) => {
           "background:none; border:1px solid var(--border); border-radius:4px;" +
           "font-size:0.85rem; line-height:1; cursor:pointer; color:var(--accent,#0ea5e9);" +
           "width:22px; height:22px; display:flex; align-items:center; justify-content:center; padding:0;";
-        rOptBtn.addEventListener("click", function () {
-          var freq = rRegelSel.value === "Einmalig" ? 1 : FREQ_PER_MONTH[rRegelSel.value];
-          if (typeof freq !== "number") return;
-          var bestMins = 0;
-          for (var m = 5; m <= 480; m += 5) {
-            var price = Math.round((m / 60) * freq * STUNDENSATZ_HND * 100) / 100;
-            if (price > ENTLASTUNGSBETRAG_MONAT) break;
-            bestMins = m;
-          }
-          rDauerH.value = bestMins ? String(Math.floor(bestMins / 60)) : "";
-          rDauerM.value = bestMins ? String(bestMins % 60) : "";
-          syncDauer();
-        });
+        rOptBtn.addEventListener("click", optimizeDauerForEntlastungsbetrag);
         row.appendChild(rOptBtn);
+
+        // Auto-optimize whenever the user picks/changes Regelmäßigkeit.
+        rRegelSel.addEventListener("change", optimizeDauerForEntlastungsbetrag);
       }
 
       row.appendChild(rRemoveBtn);
