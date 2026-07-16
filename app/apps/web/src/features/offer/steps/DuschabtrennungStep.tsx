@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useOffer } from "../OfferContext";
 import { StepHeader } from "./KundendatenStep";
+import { StepCalc } from "../StepCalc";
 import { DaWizard } from "../duschabtrennung/DaWizard";
 import { loadDaModel, type DaSupplier } from "../duschabtrennung/daModel";
 import * as E from "../duschabtrennung/daEngine";
@@ -133,6 +134,8 @@ export function DuschabtrennungStep() {
           </button>
         ))}
       </div>
+
+      <StepCalc filter={(l) => l.category === "Duschabtrennung"} />
     </div>
   );
 }

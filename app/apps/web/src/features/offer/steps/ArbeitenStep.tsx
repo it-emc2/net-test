@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { ChevronDown, ChevronUp, Plus, Trash2, Wand2 } from "lucide-react";
 import { useOffer } from "../OfferContext";
 import { StepHeader } from "./KundendatenStep";
+import { StepCalc } from "../StepCalc";
 import { TASK_GROUPS, TASK_MINUTES } from "../arbeitenTasks";
 import { computeArbeitszeit, hoursToHHMM } from "../arbeitszeit";
 import { Input } from "@/components/ui/input";
@@ -79,6 +80,7 @@ export function ArbeitenStep() {
         items={extraTasks}
         onChange={(next) => setDusch({ extraTasks: next })}
       />
+      <StepCalc service filter={(l) => Number(l.amount) > 0} />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Package, Plus, Trash
 import type { OptionalCategoryView, OptionalItemView } from "@emc2/shared";
 import { useOffer } from "../OfferContext";
 import { StepHeader } from "./KundendatenStep";
+import { StepCalc } from "../StepCalc";
 import { getOptionalCatalog } from "../optional";
 import { formatEUR } from "@/lib/format";
 import { Input } from "@/components/ui/input";
@@ -105,6 +106,7 @@ export function OptionalStep() {
           </Category>
         ),
       )}
+      <StepCalc filter={(l) => String(l.source || "").startsWith("optional")} />
     </div>
   );
 }

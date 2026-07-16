@@ -1,6 +1,7 @@
 import { type ReactNode } from "react";
 import { useOffer } from "../OfferContext";
 import { StepHeader } from "./KundendatenStep";
+import { StepCalc } from "../StepCalc";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -129,6 +130,8 @@ export function WandverkleidungStep() {
           </Field>
         </div>
       </Section>
+
+      <StepCalc filter={(l) => l.category === "Wandverkleidung"} />
     </div>
   );
 }

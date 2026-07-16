@@ -6,6 +6,7 @@ import { StepHeader } from "./KundendatenStep";
 import { suggestTrays, SLATE_COLORS } from "../trays";
 import { productsApi } from "@/features/products/api";
 import { StockBadge } from "@/features/products/StockBadge";
+import { StepCalc } from "../StepCalc";
 import { formatEUR } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -319,6 +320,8 @@ export function DuschwanneStep() {
           Budget-Modus ist oben global schaltbar.
         </p>
       </Section>
+
+      <StepCalc filter={(l) => l.category === "Kleinmaterial" || (!!d.chosenTrayProductId && String(l.productId || l.id) === String(d.chosenTrayProductId))} />
     </div>
   );
 }
