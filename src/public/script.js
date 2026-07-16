@@ -24104,6 +24104,7 @@ function renderTodayPlanningAppointments(){
             <span class="today-calendar-time"><i class="fa-regular fa-clock"></i> ${escapePlanningHtml(formatPlanningTimeDisplay(entry))}</span>
             ${entry?.taetigkeitenBadge ? `<span class="today-calendar-badge ${formatPlanningTypeClass(entry.taetigkeitenBadge)}">${escapePlanningHtml(String(entry.taetigkeitenBadge).toUpperCase())}</span>` : ""}
             <span class="today-calendar-badge ${badgeClass}">${escapePlanningHtml(formatPlanningBadge(entry))}</span>
+            ${entry?.importDealId ? `<span class="today-calendar-badge is-deal">#${escapePlanningHtml(entry.importDealId)}</span>` : ""}
           </div>
         </div>
 
@@ -24137,8 +24138,15 @@ function renderTodayPlanningAppointments(){
       renderTodayPlanningAppointments();
       openPlanningOfferPicker(entry);
     };
+    const onCardClick = () => {
+      const id = card.dataset.id;
+      const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
+      const dealId = String(entry?.importDealId || "").trim();
+      if(!dealId) return;
+      window.open(`https://emczwei.bitrix24.de/crm/deal/details/${encodeURIComponent(dealId)}/`, "_blank", "noopener");
+    };
 
-    card.addEventListener("click", onOpen);
+    card.addEventListener("click", onCardClick);
     openButton?.addEventListener("click", (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
