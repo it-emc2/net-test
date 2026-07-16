@@ -24130,6 +24130,7 @@ function renderTodayPlanningAppointments(){
   list.querySelectorAll(".today-calendar-card").forEach(card => {
     const openButton = card.querySelector(".today-calendar-open");
     const callButton = card.querySelector(".today-calendar-call");
+    const dealBadge = card.querySelector(".today-calendar-badge.is-deal");
     const onOpen = () => {
       const id = card.dataset.id;
       const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
@@ -24138,15 +24139,8 @@ function renderTodayPlanningAppointments(){
       renderTodayPlanningAppointments();
       openPlanningOfferPicker(entry);
     };
-    const onCardClick = () => {
-      const id = card.dataset.id;
-      const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
-      const dealId = String(entry?.importDealId || "").trim();
-      if(!dealId) return;
-      window.open(`https://emczwei.bitrix24.de/crm/deal/details/${encodeURIComponent(dealId)}/`, "_blank", "noopener");
-    };
 
-    card.addEventListener("click", onCardClick);
+    card.addEventListener("click", onOpen);
     openButton?.addEventListener("click", (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
@@ -24154,6 +24148,14 @@ function renderTodayPlanningAppointments(){
     });
     callButton?.addEventListener("click", (ev) => {
       ev.stopPropagation();
+    });
+    dealBadge?.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const id = card.dataset.id;
+      const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
+      const dealId = String(entry?.importDealId || "").trim();
+      if(!dealId) return;
+      window.open(`https://emczwei.bitrix24.de/crm/deal/details/${encodeURIComponent(dealId)}/`, "_blank", "noopener");
     });
 
     // "Hat stattgefunden" -> move the deal to "Zuteilen HD/ AH/ DH".
