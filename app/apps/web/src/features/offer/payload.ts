@@ -35,6 +35,7 @@ export interface Kundendaten {
 export interface Arbeitszeit {
   // inputs
   distanceKm: string; // one-way km
+  distanceLocked: boolean; // freeze the distance so it is not auto-recomputed
   travelTimeHHMM: string; // one-way travel time "H:MM"
   laborHoursHHMM: string; // work hours "H:MM"
   uebernachten: string; // overnights
@@ -99,6 +100,7 @@ export function defaultPayload(): OfferPayload {
     },
     Arbeitszeit: {
       distanceKm: "",
+      distanceLocked: false,
       travelTimeHHMM: "",
       laborHoursHHMM: "",
       uebernachten: "",

@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from "react";
-import { MapPin, Loader2, AlertTriangle } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { MapPin, Loader2, AlertTriangle, Lock, Unlock } from "lucide-react";
 import { useOffer } from "../OfferContext";
 import { StepHeader } from "./KundendatenStep";
 import { computeArbeitszeit, suggestDistance, secondsToHHMM } from "../arbeitszeit";
@@ -41,7 +41,18 @@ export function ArbeitszeitStep() {
   }
 
   const hasAddress = Boolean(payload.Kundendaten.street && payload.Kundendaten.city);
+  const locked = !!az.distanceLocked;
   const derived = computeArbeitszeit(az);
+
+  // Auto-calc the distance the first time the step opens: address present, no
+  // value yet, and not locked. Once computed it persists, so revisits don't refire.
+  const autoRef = useRef(false);
+  useEffect(() => {
+    if (autoRef.current) return;
+    autoRef.current = true;
+    if (hasAddress && !az.distanceKm && !locked) void calcDistance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -56,12 +67,23 @@ export function ArbeitszeitStep() {
           <Field label="Fahrzeit (einfach, Std:Min)" className="w-40">
             <Input value={az.travelTimeHHMM} onChange={(e) => update({ travelTimeHHMM: e.target.value })} placeholder="0:45" />
           </Field>
-          <Button type="button" variant="outline" onClick={calcDistance} disabled={!hasAddress || calcLoading}>
+          <Button type="button" variant="outline" onClick={calcDistance} disabled={!hasAddress || calcLoading || locked}>
             {calcLoading ? <Loader2 className="animate-spin" /> : <MapPin />} Aus Adresse berechnen
+          </Button>
+          <Button
+            type="button"
+            variant={locked ? "default" : "ghost"}
+            onClick={() => patchSection("Arbeitszeit", { distanceLocked: !locked })}
+            title={locked ? "Entfernung entsperren" : "Entfernung sperren (keine Neuberechnung)"}
+          >
+            {locked ? <Lock /> : <Unlock />} {locked ? "Gesperrt" : "Sperren"}
           </Button>
         </div>
         {!hasAddress && (
           <p className="text-xs text-muted-foreground">Straße & Ort auf der Kundendaten-Seite angeben, um die Strecke zu berechnen.</p>
+        )}
+        {locked && (
+          <p className="text-xs text-muted-foreground">Entfernung gesperrt — wird beim erneuten Öffnen nicht neu berechnet.</p>
         )}
         {error && <p className="text-sm text-destructive">{error}</p>}
       </Section>
