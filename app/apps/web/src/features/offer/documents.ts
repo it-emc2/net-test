@@ -22,6 +22,18 @@ async function jsonError(res: Response, fallback: string): Promise<never> {
 }
 
 export const documentsApi = {
+  // Branded email body HTML for the live compose preview.
+  async emailPreview(body: string): Promise<string> {
+    const res = await fetch("/api/documents/email.preview.html", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body }),
+    });
+    if (!res.ok) await jsonError(res, "Vorschau fehlgeschlagen");
+    return res.text();
+  },
+
   // Render the offer PDF and open it in a new tab.
   async openPdf(payload: OfferPayload): Promise<void> {
     const res = await fetch("/api/documents/angebot.pdf", {

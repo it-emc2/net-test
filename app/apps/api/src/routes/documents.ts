@@ -127,6 +127,19 @@ router.post("/angebot.html", async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/documents/email.preview.html — the branded email body as it will
+// render, for the live compose preview. Signature image (cid) is omitted here
+// since the preview can't resolve the attachment.
+router.post("/email.preview.html", async (req: Request, res: Response) => {
+  try {
+    const initials = await currentUserInitials(req);
+    res.type("html").send(buildEmailHtml(String(req.body?.body || ""), { contactName: initials }));
+  } catch (err) {
+    console.error("[documents] email.preview error:", err);
+    res.status(500).json({ error: "Vorschau fehlgeschlagen" });
+  }
+});
+
 // POST /api/documents/angebot.pdf — paged PDF for a real payload.
 router.post("/angebot.pdf", async (req: Request, res: Response) => {
   try {
