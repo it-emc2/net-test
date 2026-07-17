@@ -82,6 +82,13 @@ export function WandverkleidungStep() {
         </div>
       </Section>
 
+      <img
+        src="/assets/wv/beispiel.jpg"
+        alt="Wandverkleidung Beispiel"
+        className="w-full max-w-md rounded-lg border object-cover"
+        loading="lazy"
+      />
+
       <PanelSize
         title="Platten 997 × 2550 mm"
         qty={wv.wvQty997 ?? ""}
