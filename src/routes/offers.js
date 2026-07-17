@@ -240,6 +240,52 @@ router.get('/search-all', async (req, res) => {
 });
 
 // ===========================
+// Lookup drafts/offers already saved for a given Bitrix Deal-ID.
+// Read-only, additive — used by the Hauptmenü "Bitrix Deal laden" dialog to
+// offer "open existing" instead of starting a blank Konfigurator.
+// Must be above '/:offerNumber'.
+// ===========================
+router.get('/by-deal/:dealId', async (req, res) => {
+  try {
+    const dealId = String(req.params.dealId || '').trim();
+    if (!dealId) return res.json([]);
+
+    const mongoQuery = {
+      $or: [
+        { dealId },
+        { 'payload.auftragId': dealId },
+        { 'payload.postal.auftragId': dealId },
+        { 'payload.dealId': dealId },
+        { 'payload.Kundendaten.dealId': dealId },
+        { 'payload.Zusammenfassung.dealId': dealId },
+        { 'payload.bitrixDealId': dealId }
+      ]
+    };
+
+    const [drafts, offers] = await Promise.all([
+      Draft.find(mongoQuery).sort({ updatedAt: -1, createdAt: -1 }).limit(20).lean(),
+      Offer.find(mongoQuery).sort({ updatedAt: -1, createdAt: -1 }).limit(20).lean()
+    ]);
+
+    const results = [
+      ...drafts.map((doc) => mapSearchResult(doc, 'draft', '')),
+      ...offers.map((doc) => mapSearchResult(doc, 'offer', ''))
+    ];
+
+    results.sort((a, b) => {
+      const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return bDate - aDate;
+    });
+
+    res.json(results);
+  } catch (err) {
+    console.error('[offers] BY-DEAL error:', err);
+    res.status(500).json({ error: 'Lookup failed' });
+  }
+});
+
+// ===========================
 // EXTERNAL SEARCH API
 // Additive endpoints on top of the existing internal API
 // ===========================
