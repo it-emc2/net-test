@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Check, X, Receipt, Loader2, Link2, Save } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, X, Receipt, Loader2, Link2, Save, FileText, Mail } from "lucide-react";
 import { OfferProvider, useOffer } from "@/features/offer/OfferContext";
 import { bitrixApi } from "@/features/offer/bitrix";
 import { draftsApi, autoDraftName, customerNameFromPayload } from "@/features/offer/drafts";
+import { documentsApi } from "@/features/offer/documents";
+import { SendOfferDialog } from "@/features/offer/SendOfferDialog";
 import { PricingSidebar } from "@/features/offer/PricingSidebar";
 import { useLivePricing } from "@/features/offer/pricing";
 import { KundendatenStep } from "@/features/offer/steps/KundendatenStep";
@@ -82,6 +84,19 @@ function BuilderInner() {
   }, [urlDealId, patchSection]);
 
   const dealId = payload.Kundendaten.dealId;
+
+  // Angebot actions (PDF preview + email send).
+  const [sendOpen, setSendOpen] = useState(false);
+  const [pdfState, setPdfState] = useState<{ status: "idle" | "loading" | "error"; msg?: string }>({ status: "idle" });
+  async function openPdf() {
+    setPdfState({ status: "loading" });
+    try {
+      await documentsApi.openPdf(payload);
+      setPdfState({ status: "idle" });
+    } catch (e: any) {
+      setPdfState({ status: "error", msg: e?.message || "PDF fehlgeschlagen" });
+    }
+  }
 
   // Draft save (Phase 2). draftId is tracked so "Speichern" updates in place.
   const [draftId, setDraftId] = useState<string | null>(null);
@@ -169,6 +184,14 @@ function BuilderInner() {
               Speichern unter…
             </Button>
 
+            {/* Angebot output: preview PDF + send by email */}
+            <Button variant="outline" size="sm" disabled={pdfState.status === "loading"} onClick={openPdf} title={pdfState.msg}>
+              {pdfState.status === "loading" ? <Loader2 className="animate-spin" /> : <FileText />} PDF
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setSendOpen(true)}>
+              <Mail /> Senden
+            </Button>
+
             {/* Global Budget-Modus — affects tray/accessory swaps and budget floors */}
             <label
               className={cn(
@@ -241,6 +264,8 @@ function BuilderInner() {
 
       {/* Mobile: sticky bottom pricing bar + sheet */}
       <MobilePricing />
+
+      <SendOfferDialog payload={payload} open={sendOpen} onOpenChange={setSendOpen} />
     </div>
   );
 }
