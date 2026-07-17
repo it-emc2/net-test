@@ -1659,8 +1659,8 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     });
   };
 
-  // Kassenkunde (KK): immer den KK-Block anzeigen
-  if (isKK) {
+  // Kassenkunde (KK): KK-Block nur wenn ein Eigenanteil (Selbstkostenanteil) anfällt
+  if (isKK && selfPayAmountNum > 0) {
     SelfPayLines = mapPayLines(PARA_kk_LINES);
   }
   // Selbstzahler (SZ): immer den SZ-Block anzeigen
