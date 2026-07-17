@@ -39,6 +39,7 @@ export interface AngebotTotal {
 export interface AngebotPaymentTerm {
   text: string;
   checked?: boolean;
+  plain?: boolean; // informational line — render without a checkbox
 }
 export interface AngebotData {
   anrede: string;
@@ -121,7 +122,11 @@ export function renderAngebotHtml(d: AngebotData): string {
     .map((t) => `<tr class="${t.strong ? "sum" : ""}"><td>${esc(t.label)}</td><td class="v">${esc(t.value)}</td></tr>`)
     .join("");
   const pay = d.paymentTerms
-    .map((p) => `<div class="opt"><span class="box">${p.checked ? "☒" : "☐"}</span> ${esc(p.text)}</div>`)
+    .map((p) =>
+      p.plain
+        ? `<div class="opt plain">${esc(p.text)}</div>`
+        : `<div class="opt"><span class="box">${p.checked ? "☒" : "☐"}</span> ${esc(p.text)}</div>`,
+    )
     .join("");
   const subsidy = d.hasSubsidy ? ` ${esc(d.subsidyText)}` : "";
   const ebenerdig = d.ebenerdigHinweis
@@ -174,6 +179,7 @@ export function renderAngebotHtml(d: AngebotData): string {
     .note.warn{ background:var(--navy-soft); border-left:2.5mm solid var(--navy); padding:2.5mm 3mm; }
     .pay{ margin:6mm 0 0; font-size:9.5pt; } .pay h3{ font-size:10pt; margin:0 0 1.5mm; color:var(--navy); }
     .pay .opt{ margin:.8mm 0; } .pay .box{ font-family:monospace; }
+    .pay .opt.plain{ color:var(--muted); font-size:9pt; margin-top:1.8mm; }
     .sign{ margin:10mm 0 0; display:flex; gap:14mm; break-inside:avoid; } .sign .slot{ flex:1; }
     .sign .rule{ border-top:.3mm solid var(--ink); margin-top:14mm; padding-top:1mm; font-size:8pt; color:var(--muted); }
     .closing{ margin:8mm 0 0; font-size:9.5pt; }

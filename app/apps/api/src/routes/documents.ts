@@ -9,9 +9,25 @@ import {
   footerTemplate,
   sampleAngebotData,
 } from "../logic/angebotTemplate.js";
+import { buildAngebotData } from "../logic/angebotData.js";
+import { createPricing } from "../logic/pricing.js";
+import { resolvePrices } from "../services/catalog.js";
 
 const router = Router();
 router.use(requireAuth);
+
+const pricing = createPricing(resolvePrices);
+
+// Render the Angebot HTML for a live payload (payload = the configurator body).
+async function angebotHtmlFromPayload(payload: unknown): Promise<string> {
+  const computed = await pricing.computePrices((payload || {}) as Record<string, unknown>);
+  return renderAngebotHtml(buildAngebotData(payload as Record<string, unknown>, computed));
+}
+
+function safeName(offerNumber: unknown): string {
+  const s = String(offerNumber || "Angebot").replace(/[^a-zA-Z0-9_-]/g, "_");
+  return s || "Angebot";
+}
 
 const MARGIN = { top: "31mm", bottom: "30mm", left: "20mm", right: "20mm" };
 
@@ -34,6 +50,33 @@ router.get("/angebot.sample.pdf", async (_req: Request, res: Response) => {
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error("[documents] sample pdf error:", err);
+    res.status(500).json({ error: "PDF-Erstellung fehlgeschlagen" });
+  }
+});
+
+// --- live endpoints (body = configurator payload) ---
+
+// POST /api/documents/angebot.html — body HTML for a real payload (preview).
+router.post("/angebot.html", async (req: Request, res: Response) => {
+  try {
+    res.type("html").send(await angebotHtmlFromPayload(req.body));
+  } catch (err) {
+    console.error("[documents] angebot.html error:", err);
+    res.status(500).json({ error: "Vorschau fehlgeschlagen" });
+  }
+});
+
+// POST /api/documents/angebot.pdf — paged PDF for a real payload.
+router.post("/angebot.pdf", async (req: Request, res: Response) => {
+  try {
+    const pdf = await renderPdf(await angebotHtmlFromPayload(req.body));
+    const fname = `${safeName((req.body || {}).offerNumber)}.pdf`;
+    res
+      .type("application/pdf")
+      .set("Content-Disposition", `inline; filename="${fname}"`)
+      .send(pdf);
+  } catch (err) {
+    console.error("[documents] angebot.pdf error:", err);
     res.status(500).json({ error: "PDF-Erstellung fehlgeschlagen" });
   }
 });
