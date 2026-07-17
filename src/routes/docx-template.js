@@ -1679,8 +1679,55 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     ? `${regieRateNum.toFixed(2).replace(".", ",")}€`
     : "";
 
+  // ---- Address block ({KundenAnschrift}) + letter greeting ({GreetingLine}) ----
+  // The template holds each as a single placeholder (linebreaks:true renders \n).
+  // For one person the composed value is byte-identical to the legacy
+  // {Anrede}\n{Vorname} {Nachname} / {Greeting} {Nachname} layout. For two
+  // persons both names are included. The Zusammenfassung fields (kundenName /
+  // greetingLine) are free-text overrides that win when present.
+  const _sal = b.salutation || "";
+  const _pSal = b.partnerSalutation || "";
+  const _custName = [b.firstName, b.lastName].filter(Boolean).join(" ").trim();
+  const _partnerName = [b.partnerFirstName, b.partnerLastName].filter(Boolean).join(" ").trim();
+  const _isTwo = !!b.twoPersons && !!_partnerName;
+
+  const _nameFrag = (sal, name) => [sal, name].filter(Boolean).join(" ").trim();
+  const _greetOne = (sal) =>
+    sal === "Frau" ? "Sehr geehrte Frau"
+    : sal === "Herr" ? "Sehr geehrter Herr"
+    : sal === "Familie" ? "Sehr geehrte Familie"
+    : "Guten Tag";
+  const _greetFrag = (sal, last) => {
+    const l = (last || "").trim();
+    if (sal === "Frau") return `sehr geehrte Frau ${l}`.trim();
+    if (sal === "Herr") return `sehr geehrter Herr ${l}`.trim();
+    if (sal === "Familie") return `sehr geehrte Familie ${l}`.trim();
+    return "sehr geehrte Damen und Herren";
+  };
+
+  const _kundenNameOverride = String(b.kundenName || "").trim();
+  const _greetingOverride = String(b.greetingLine || "").replace(/,\s*$/, "").trim();
+
+  const KundenAnschrift =
+    _kundenNameOverride ||
+    (_isTwo
+      ? `${_nameFrag(_sal, _custName)} und ${_nameFrag(_pSal, _partnerName)}`.trim()
+      : [_sal, _custName].filter(Boolean).join("\n"));
+
+  let GreetingLine;
+  if (_greetingOverride) {
+    GreetingLine = _greetingOverride;
+  } else if (_isTwo) {
+    const two = `${_greetFrag(_sal, b.lastName)}, ${_greetFrag(_pSal, b.partnerLastName)}`;
+    GreetingLine = two.charAt(0).toUpperCase() + two.slice(1);
+  } else {
+    GreetingLine = [_greetOne(_sal), b.lastName].filter(Boolean).join(" ").trim();
+  }
+
   return {
     // Address / meta
+    KundenAnschrift,
+    GreetingLine,
     Anrede: b.salutation || "",
     Vorname: b.firstName || "",
     Nachname: b.lastName || "",

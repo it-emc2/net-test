@@ -471,14 +471,29 @@ export function initEmailManager(options = {}) {
     return (checked?.value || "").trim(); // Frau | Herr | Familie
   }
 
+  function greetFragment(salutation, lastName) {
+    const l = (lastName || "").trim();
+    if (salutation === "Herr") return `sehr geehrter Herr ${l || "Mustermann"}`;
+    if (salutation === "Frau") return `sehr geehrte Frau ${l || "Mustermann"}`;
+    if (salutation === "Familie") return `sehr geehrte Familie ${l || "Mustermann"}`;
+    return "sehr geehrte Damen und Herren";
+  }
+
   function buildGreetingLine() {
     const salutation = getCustomerSalutation();
     const lastName = ($lastName?.value || "").trim();
 
-    if (salutation === "Herr") return `Sehr geehrter Herr ${lastName || "Mustermann"},`;
-    if (salutation === "Frau") return `Sehr geehrte Frau ${lastName || "Mustermann"},`;
-    if (salutation === "Familie") return `Sehr geehrte Familie ${lastName || "Mustermann"},`;
-    return "Sehr geehrte Damen und Herren,";
+    // Two persons: greet both (customer + partner).
+    const twoPersons = !!document.querySelector('input[name="twoPersons"]:checked');
+    const partnerSalutation = (document.getElementById("partnerSalutation")?.value || "").trim();
+    const partnerLastName = (document.getElementById("partnerLastName")?.value || "").trim();
+    if (twoPersons && (partnerSalutation || partnerLastName)) {
+      const both = `${greetFragment(salutation, lastName)}, ${greetFragment(partnerSalutation, partnerLastName)},`;
+      return both.charAt(0).toUpperCase() + both.slice(1);
+    }
+
+    const one = `${greetFragment(salutation, lastName)},`;
+    return one.charAt(0).toUpperCase() + one.slice(1);
   }
 
   function buildDefaultMailBody() {
@@ -729,6 +744,16 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
 
   document.querySelectorAll('input[name="salutation"]').forEach((el) => {
     el.addEventListener("change", updateBodyDefault);
+  });
+
+  // Two-person offer: rebuild greeting when the checkbox or partner name changes.
+  document.querySelectorAll('input[name="twoPersons"]').forEach((el) => {
+    el.addEventListener("change", updateBodyDefault);
+  });
+  ["partnerSalutation", "partnerLastName"].forEach((id) => {
+    const el = document.getElementById(id);
+    el?.addEventListener("input", updateBodyDefault);
+    el?.addEventListener("change", updateBodyDefault);
   });
 
   // Selbstzahler/Kassenkunde toggle: rebuild body (doc list) AND the attachment
