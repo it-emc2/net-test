@@ -168,7 +168,7 @@
       font-size: 0.95rem;
     }
 
-    /* Hide widget on the Auswahl der Leistung screen, like the sidebar */
+    /* Hide widget on the Hauptmenü screen, like the sidebar */
     body:has(#page-home:not([hidden])) #summaryWidget {
       display: none;
     }
@@ -223,7 +223,7 @@
 
 
 
-    /* ---------------- Auswahl der Leistung confirm modal ---------------- */
+    /* ---------------- Hauptmenü confirm modal ---------------- */
 
     #homeConfirmOverlay {
       position: fixed;
@@ -449,7 +449,7 @@
       }
     }
 
-    /* ---------------- Auswahl der Leistung tiles ---------------- */
+    /* ---------------- Hauptmenü tiles ---------------- */
 
     #page-home .home-tiles {
       display: grid;
@@ -499,7 +499,7 @@
       font-size: .95rem;
     }
 
-    /* Hide sidebar on Auswahl der Leistung */
+    /* Hide sidebar on Hauptmenü */
     body:has(#page-home:not([hidden])) #sidebar,
     body:has(#page-home:not([hidden])) #sidebarBackdrop {
       display: none;
@@ -2155,10 +2155,10 @@ button.dm-btn-danger:focus-visible {
 
 
     <div class="container">
-      <!-- Auswahl der Leistung (new landing page) -->
+      <!-- Hauptmenü (new landing page) -->
       <section class="card page" id="page-home">
         <div class="home-head">
-          <h2 style="margin:0"> Auswahl der Leistung </h2>
+          <h2 style="margin:0"> Hauptmenü </h2>
           <div class="home-ap-field">
             <label for="homeAnsprechpartner">Ansprechpartner</label>
             <select id="homeAnsprechpartner" aria-label="Ansprechpartner wählen"></select>
@@ -9263,7 +9263,7 @@ button.dm-btn-danger:focus-visible {
     <div class="home-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="homeConfirmTitle">
       <h3 id="homeConfirmTitle">Konfiguration zurücksetzen?</h3>
       <p>
-        Wenn Sie zur Auswahl der Leistung zurückkehren, gehen alle aktuell eingegebenen Daten verloren
+        Wenn Sie zur Hauptmenü zurückkehren, gehen alle aktuell eingegebenen Daten verloren
         und Sie müssen die Konfiguration neu beginnen.
       </p>
       <div class="home-confirm-actions">
@@ -9271,7 +9271,7 @@ button.dm-btn-danger:focus-visible {
           Abbrechen
         </button>
         <button type="button" class="primary" id="homeConfirmGo">
-          Zur Auswahl der Leistung
+          Zur Hauptmenü
         </button>
       </div>
     </div>
