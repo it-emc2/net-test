@@ -351,8 +351,28 @@ export function mountConfigurator(el, model, options = {}) {
     const h = document.createElement("h3");
     h.textContent = "Auswahl";
     aside.appendChild(h);
+
+    const body = document.createElement("div");
+    body.className = "dac-summary-body";
+    const productsCol = document.createElement("div");
+    productsCol.className = "dac-summary-products";
+    body.appendChild(productsCol);
+
     const leafPrev = leafPreview();
-    if (leafPrev) aside.appendChild(leafPreviewEl(leafPrev));
+    if (leafPrev) {
+      const imageCol = document.createElement("div");
+      imageCol.className = "dac-summary-image";
+      const previewEl = leafPreviewEl(leafPrev);
+      const img = previewEl.querySelector("img");
+      if (img) {
+        img.addEventListener("click", () =>
+          openLightbox(img.src, leafPrev.label),
+        );
+      }
+      imageCol.appendChild(previewEl);
+      body.appendChild(imageCol);
+    }
+
     const cfg = w.resolveConfiguration(model, state);
     const list = document.createElement("div");
     list.className = "dac-lines";
@@ -413,17 +433,49 @@ export function mountConfigurator(el, model, options = {}) {
 
         list.appendChild(row);
       }
+      productsCol.appendChild(list);
+      aside.appendChild(body);
       const total = document.createElement("div");
       total.className = "dac-total";
       total.innerHTML = `<span>Gesamt (netto)</span><span>${euro(cfg.net)}</span>`;
-      aside.appendChild(list);
       aside.appendChild(total);
     } else {
+      aside.appendChild(body);
       const hint = document.createElement("div");
       hint.className = "dac-hint";
       hint.textContent = "Konfiguration noch nicht vollständig …";
       aside.appendChild(hint);
     }
+  }
+
+  function openLightbox(src, alt) {
+    const overlay = document.createElement("div");
+    overlay.className = "dac-lightbox-overlay";
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = alt || "";
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "dac-lightbox-close";
+    closeBtn.setAttribute("aria-label", "Schließen");
+    closeBtn.textContent = "×";
+    overlay.appendChild(img);
+    overlay.appendChild(closeBtn);
+
+    const close = () => {
+      overlay.remove();
+      document.removeEventListener("keydown", onKey);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") close();
+    };
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close();
+    });
+    closeBtn.addEventListener("click", close);
+    document.addEventListener("keydown", onKey);
+
+    document.body.appendChild(overlay);
   }
 
   function renderBackBar(main) {
