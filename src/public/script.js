@@ -5783,6 +5783,20 @@ document.body.addEventListener("click", (e) => {
     setStep(flow[nextIdx]);
   }
 });
+// AH: Entlastungsbetrag (§ 45b SGB XI) — admin-configurable, defaults to 131€/Monat
+// while /admin/api/config/public is loading.
+window.__entlastungsbetragMonat = 131;
+fetch("/admin/api/config/public")
+  .then(function (r) { return r.ok ? r.json() : null; })
+  .then(function (d) {
+    if (d && typeof d.ENTLASTUNGSBETRAG_MONAT === "number") {
+      window.__entlastungsbetragMonat = d.ENTLASTUNGSBETRAG_MONAT;
+      var labelVal = document.getElementById("ahEntlastungAutoLabelValue");
+      if (labelVal) labelVal.textContent = String(d.ENTLASTUNGSBETRAG_MONAT);
+    }
+  })
+  .catch(function () {});
+
 // AH: dynamic multi-service card list
 (function initAhServicesPage() {
   var form = document.getElementById("form-ah");
@@ -5816,7 +5830,6 @@ document.body.addEventListener("click", (e) => {
   // HnD-only "optimize Dauer" button: fit under the (2025) monthly Entlastungsbetrag.
   var STUNDENSATZ_HND = 40.56;
   var ANFAHRT_PER_EINSATZ = 7.96;
-  var ENTLASTUNGSBETRAG_MONAT = 131.40;
   // Toggle: also count Anfahrtspauschale + Reisezeit (from getAHZoneData()) toward
   // the 131,40€ fit, so the *total* invoice price (not just the service time) stays
   // under budget. Set to false to fit on service price alone.
@@ -6179,6 +6192,9 @@ document.body.addEventListener("click", (e) => {
       // price still fits under the Entlastungsbetrag. Anfahrt/Reisezeit are
       // folded in when OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT is true.
       function optimizeDauerForEntlastungsbetrag() {
+        var toggle = document.getElementById("ahEntlastungAuto");
+        if (!toggle || !toggle.checked) return;
+
         var freq = rRegelSel.value === "Einmalig" ? 1 : FREQ_PER_MONTH[rRegelSel.value];
         if (typeof freq !== "number") return;
 
@@ -6194,7 +6210,7 @@ document.body.addEventListener("click", (e) => {
           var price = Math.round(
             (freq * anfahrtPerEinsatz + (m / 60 + reisezeitH) * freq * STUNDENSATZ_HND) * 100
           ) / 100;
-          if (price > ENTLASTUNGSBETRAG_MONAT) break;
+          if (price > window.__entlastungsbetragMonat) break;
           bestMins = m;
         }
         rDauerH.value = bestMins ? String(Math.floor(bestMins / 60)) : "";
@@ -6207,7 +6223,7 @@ document.body.addEventListener("click", (e) => {
       if (isHnd) {
         var rOptBtn = document.createElement("button");
         rOptBtn.type = "button";
-        rOptBtn.title = "Dauer auf Entlastungsbetrag (131,40 €/Monat) optimieren";
+        rOptBtn.title = "Dauer auf Entlastungsbetrag (" + window.__entlastungsbetragMonat + " €/Monat) optimieren";
         rOptBtn.textContent = "⚡";
         rOptBtn.style.cssText =
           "background:none; border:1px solid var(--border); border-radius:4px;" +
@@ -10199,8 +10215,13 @@ window.computeAHGesamt = function computeAHGesamt() {
   var allBase = r2(gesamtBase + abGesamtBase);
   var gesamt  = r2(allBase + (isSelbstzahler && hnd.totalMonatlichH > 0 ? SERVICEPAUSCHALE : 0));
 
+  // Kassenkunde: covered by the Entlastungsbetrag (§ 45b SGB XI, admin-configurable) —
+  // Eigenanteil is only the amount exceeding that. Selbstzahler pay the full amount themselves.
+  var eigenanteil = isSelbstzahler ? gesamt : r2(Math.max(0, gesamt - window.__entlastungsbetragMonat));
+
   return {
     gesamt:            gesamt,
+    eigenanteil:       eigenanteil,
     gesamtBase:        gesamtBase,
     anfahrtTotal:      anfahrtTotal,
     leistungenTotal:   leistungenTotal,
@@ -10421,6 +10442,9 @@ window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
           '<div style="text-align:right;">' +
             '<div style="font-size:2rem; font-weight:800; line-height:1;">' + eur(gesamt) + '</div>' +
             '<div style="font-size:0.8rem; opacity:0.9; margin-top:3px;">pro Monat · ≈ ' + eur(yearly) + ' / Jahr</div>' +
+            (!ah.isSelbstzahler ?
+              '<div style="font-size:0.8rem; opacity:0.9; margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.3);">Eigenanteil: <b>' + eur(ah.eigenanteil) + '</b> (Rest über Entlastungsbetrag § 45a)</div>'
+              : '') +
           '</div>' +
         '</div>' +
       '</div>' +

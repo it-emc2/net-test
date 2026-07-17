@@ -8438,6 +8438,10 @@ button.dm-btn-danger:focus-visible {
       <section class="card page" id="page-ah" hidden>
         <h2 style="margin: 0 0 12px"> AH · Alltagshilfe</h2>
         <form id="form-ah">
+          <div class="field full" style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+            <input type="checkbox" id="ahEntlastungAuto" name="ahEntlastungAuto" />
+            <label for="ahEntlastungAuto" style="margin:0; font-weight:500;">Dauer automatisch auf Entlastungsbetrag (<span id="ahEntlastungAutoLabelValue">131</span>&nbsp;€/Monat) optimieren</label>
+          </div>
           <!-- Haushaltsnahe Dienstleistungen section -->
           <div class="full" style="border:1px solid var(--border); border-radius:8px; overflow:hidden;">
             <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 16px; background:var(--panel); border-bottom:1px solid var(--border);">

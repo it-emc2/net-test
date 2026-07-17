@@ -61,6 +61,19 @@ router.post('/api/login', async (req, res) => {
   }
 });
 
+// GET /admin/api/config/public — subset of config values needed by the logged-in
+// frontend (not admin-only; still requires a session via the app-wide authGate).
+const PUBLIC_CONFIG_KEYS = ['ENTLASTUNGSBETRAG_MONAT'];
+router.get('/api/config/public', async (req, res) => {
+  try {
+    const result = {};
+    for (const key of PUBLIC_CONFIG_KEYS) result[key] = configService.get(key);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // GET /admin/api/config — all config items with metadata + current values
 router.get('/api/config', requireAdmin, async (req, res) => {
   try {
