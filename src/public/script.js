@@ -2638,7 +2638,7 @@ function updateSidebarForOffer() {
     bwt: "BWT",
     hl: "HL",
     bl: "BL",
-    ah: "AH",
+    ah: "Leistungen",
     DuschabtrennungNeu: "Duschabtrennung (neu)",
     Duschvorhang: "Duschvorhang",
     Fussboden: "Fußboden",
