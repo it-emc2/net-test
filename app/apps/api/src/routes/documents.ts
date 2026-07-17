@@ -14,6 +14,7 @@ import { createPricing } from "../logic/pricing.js";
 import { resolvePrices } from "../services/catalog.js";
 import User from "../models/User.js";
 import EmailLog from "../models/EmailLog.js";
+import { addTimelineComment, bitrixConfigured } from "../services/bitrix.js";
 import { buildEmailHtml } from "../lib/emailTemplate.js";
 import {
   buildTransport,
@@ -59,6 +60,34 @@ async function angebotHtmlFromPayload(payload: unknown, ansprechpartner: string)
 function safeName(offerNumber: unknown): string {
   const s = String(offerNumber || "Angebot").replace(/[^a-zA-Z0-9_-]/g, "_");
   return s || "Angebot";
+}
+
+// Resolve the Bitrix timeline target from the payload (deal wins over contact).
+function bitrixTargetFromPayload(payload: any): { entityType: "deal" | "contact"; entityId: string } | null {
+  const k = payload?.Kundendaten || {};
+  const dealId = String(payload?.bitrixDealId || k?.dealId || "").trim();
+  const contactId = String(payload?.bitrixContactId || k?.bitrixContactId || k?.customerNumber || "").trim();
+  if (dealId) return { entityType: "deal", entityId: dealId };
+  if (contactId) return { entityType: "contact", entityId: contactId };
+  return null;
+}
+
+function buildBitrixComment(o: { offerNumber?: string; to: string; subject: string; body: string; attachmentNames: string[] }): string {
+  const safe = (v: unknown) => String(v ?? "").replace(/\r\n?/g, "\n");
+  const body = safe(o.body).trim();
+  const capped = body.length > 20000 ? `${body.slice(0, 20000)}\n…(gekürzt)…` : body;
+  return [
+    "📧 Email automatisch vom Konfigurator gesendet",
+    o.offerNumber ? `Angebot: ${safe(o.offerNumber).trim()}` : null,
+    `Empfänger: ${safe(o.to).trim() || "-"}`,
+    `Betreff: ${safe(o.subject).trim() || "-"}`,
+    `Anhänge: ${o.attachmentNames.length ? o.attachmentNames.join(", ") : "-"}`,
+    "",
+    "Inhalt:",
+    capped || "-",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 const MARGIN = { top: "31mm", bottom: "30mm", left: "20mm", right: "20mm" };
@@ -207,15 +236,33 @@ router.post("/angebot.send", upload.fields([{ name: "attachments", maxCount: 10 
     // Recompute totals for the caller (deal-move dialog prefill).
     const computed = await pricing.computePrices(payload);
 
-    // TODO (pending subsystems in the new app): Bitrix timeline comment with the
-    // PDF, and the online-signing link. Both need those flows built first.
+    // Bitrix timeline comment with the offer PDF attached (best-effort).
+    let bitrixComment: any = { skipped: true, reason: "no target" };
+    const target = bitrixTargetFromPayload(payload);
+    if (target && bitrixConfigured()) {
+      try {
+        bitrixComment = await addTimelineComment({
+          ...target,
+          comment: buildBitrixComment({ offerNumber: payload?.offerNumber || offerNumber, to, subject, body, attachmentNames }),
+          attachments: [{ filename: angebotFilename, base64: pdfBuf.toString("base64") }],
+        });
+      } catch (bx) {
+        console.warn("[documents] Bitrix timeline comment failed:", (bx as Error)?.message || bx);
+        bitrixComment = { ok: false, error: (bx as Error)?.message || String(bx) };
+      }
+    } else if (target && !bitrixConfigured()) {
+      bitrixComment = { skipped: true, reason: "bitrix not configured" };
+    }
+
+    // TODO: online-signing link ({{SIGN_LINK}}) — needs the signing flow built
+    // in the new app first (public sign page + request model + PDF embedding).
     res.json({
       ok: true,
       messageId: info.messageId,
       attachmentNames,
       offerTotal: Number(computed?.total) || 0,
       selfPayAmount: Number(computed?.selfPayAmount) || 0,
-      bitrixComment: { skipped: true, reason: "not implemented in new app yet" },
+      bitrixComment,
     });
   } catch (err) {
     console.error("[documents] angebot.send error:", err);

@@ -38,6 +38,55 @@ async function bxGet(method: string, params: Record<string, unknown> = {}): Prom
   return data;
 }
 
+async function bxPost(method: string, params: Record<string, unknown> = {}): Promise<any> {
+  if (!env.bitrixWebhookBase) throw new Error("BITRIX_WEBHOOK_BASE is not configured");
+  const res = await fetch(`${env.bitrixWebhookBase}/${method}.json`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  const data: any = await res.json().catch(() => null);
+  if (!data) throw new Error("Invalid JSON response from Bitrix");
+  if (data.error) throw new Error(`Bitrix ${method}: ${data.error_description || data.error}`);
+  return data;
+}
+
+export interface TimelineAttachment {
+  filename: string;
+  base64: string;
+}
+
+/**
+ * Post a comment (optionally with file attachments) to a CRM entity's timeline.
+ * Ported from the legacy bitrix route. entityType is "deal" | "contact"; files
+ * are sent as Bitrix's [[filename, base64], …] FILES structure.
+ */
+export async function addTimelineComment({
+  entityType,
+  entityId,
+  comment,
+  attachments = [],
+}: {
+  entityType: string;
+  entityId: string | number;
+  comment: string;
+  attachments?: TimelineAttachment[];
+}): Promise<any> {
+  const numericId = Number(entityId);
+  if (!entityType) throw new Error("entityType is required");
+  if (!Number.isFinite(numericId) || numericId <= 0) throw new Error("entityId must be a positive number");
+  if (!comment || !String(comment).trim()) throw new Error("comment is required");
+
+  const files = (Array.isArray(attachments) ? attachments : [])
+    .map((it) => ({ filename: String(it?.filename || "").trim(), base64: String(it?.base64 || "").trim() }))
+    .filter((it) => it.filename && it.base64)
+    .map((it) => [it.filename, it.base64]);
+
+  const fields: Record<string, unknown> = { ENTITY_ID: numericId, ENTITY_TYPE: entityType, COMMENT: String(comment).trim() };
+  if (files.length) fields.FILES = files;
+  return bxPost("crm.timeline.comment.add", { fields });
+}
+
 const first = (v: unknown): string =>
   Array.isArray(v) && v.length ? String((v[0] as any)?.VALUE ?? "").trim() : "";
 
