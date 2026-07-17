@@ -16,6 +16,7 @@ import ImageModule from "docxtemplater-image-module-free";
 import ProductModel from "../models/Product.js";
 import User from "../models/User.js";
 import pricingFactory from "../logic/pricing.js";
+import cfg from "../services/configService.js";
 
 
 // ============================
@@ -1619,11 +1620,18 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
   const BASE_SELF_PAY_SENTENCE =
     "Dieser wird bei Auftragsbestätigung vorab fällig.";
 
-  // KK: Kassenkunde-Zahlungsbedingungen für den Selbstkostenanteil (50/50 oder 100 % Skonto)
-  const PARA_kk_LINES = [
+  // KK, Eigenanteil >= Schwelle: Wahlmöglichkeit zwischen 50/50 und 100 % Skonto
+  const PARA_kk_uber2000_LINES = [
     "Wählen Sie aus folgenden Zahlungsbedingungen für den Selbstkostenanteil (bitte ankreuzen):",
     "O 50 % sofort und 50 % nach Fertigstellung, ohne Abzug oder",
     "O 100 % sofort abzüglich 2 % Skonto",
+    "Für den Selbstkostenanteil wird eine separate Rechnung erstellt. Die Zahlung bitte erst nach Erhalt dieser Rechnung unter Angabe der Rechnungsnummer im Verwendungszweck durchführen.",
+  ];
+
+  // KK, Eigenanteil < Schwelle: keine Wahl, nur 100 % Skonto (kein Ankreuzen nötig)
+  const PARA_kk_unter2000_LINES = [
+    "Zahlungsbedingungen für den Selbstkostenanteil:",
+    "100 % sofort abzüglich 2 % Skonto",
     "Für den Selbstkostenanteil wird eine separate Rechnung erstellt. Die Zahlung bitte erst nach Erhalt dieser Rechnung unter Angabe der Rechnungsnummer im Verwendungszweck durchführen.",
   ];
 
@@ -1659,9 +1667,14 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     });
   };
 
-  // Kassenkunde (KK): KK-Block nur wenn ein Eigenanteil (Selbstkostenanteil) anfällt
+  // Kassenkunde (KK): KK-Block nur wenn ein Eigenanteil (Selbstkostenanteil) anfällt;
+  // unter der Schwelle nur die 100%-Zeile ohne Auswahlmöglichkeit.
   if (isKK && selfPayAmountNum > 0) {
-    SelfPayLines = mapPayLines(PARA_kk_LINES);
+    const kkLines =
+      selfPayAmountNum >= cfg.get("KK_PAYMENT_THRESHOLD", 2000)
+        ? PARA_kk_uber2000_LINES
+        : PARA_kk_unter2000_LINES;
+    SelfPayLines = mapPayLines(kkLines);
   }
   // Selbstzahler (SZ): immer den SZ-Block anzeigen
   else if (isSZ) {
