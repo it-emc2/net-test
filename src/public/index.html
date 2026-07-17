@@ -6987,6 +6987,25 @@ button.dm-btn-danger:focus-visible {
           <input type="checkbox" id="includeOurSignature" checked hidden />
           <input type="hidden" id="signatureDataUrl" />
 
+          <!-- Two-person offer: editable name + greeting for the PDF. Shown only
+               when "2 Personen mit Pflegegrad" is checked. Auto-filled from the
+               Kundendaten + Partner fields; the user can override either. These
+               feed {KundenAnschrift} and {GreetingLine} in the offer template. -->
+          <section id="zfTwoPersonCard" class="bitrix-section" hidden aria-hidden="true">
+            <h2 class="section-title">👥 Anrede &amp; Namen (2 Personen)</h2>
+            <p class="section-subtitle">So erscheinen Name und Begrüßung im Angebot. Automatisch befüllt – bei Bedarf anpassbar.</p>
+            <div class="bitrix-card">
+              <div class="bitrix-input-group">
+                <label for="zfKundenName">Anschrift / Namen (oben im Angebot)</label>
+                <textarea id="zfKundenName" rows="2" placeholder="z. B. Herr Max Mustermann und Frau Erika Mustermann"></textarea>
+              </div>
+              <div class="bitrix-input-group">
+                <label for="zfGreetingLine">Begrüßung (Anrede im Anschreiben)</label>
+                <input type="text" id="zfGreetingLine" placeholder="z. B. Sehr geehrter Herr Mustermann, sehr geehrte Frau Mustermann" />
+              </div>
+            </div>
+          </section>
+
           <!-- Bitrix Integration Section -->
           <section class="bitrix-section">
             <h2 class="section-title">📤 Bitrix Integration</h2>

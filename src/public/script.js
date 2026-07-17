@@ -4085,6 +4085,17 @@ function buildPayload() {
     payload.Kundendaten.pflegekasseEmc2Antrag = "";
   }
 
+  // Two-person address/greeting overrides (Zusammenfassung). Only for a real
+  // two-person offer; otherwise leave empty so the PDF composes the single-person
+  // name/greeting itself. Empty string => mapData fallback.
+  const _twoPersonsFinal = !_isSZ && !!payload.Kundendaten.twoPersons;
+  payload.Kundendaten.kundenName = _twoPersonsFinal
+    ? String(document.getElementById("zfKundenName")?.value || "").trim()
+    : "";
+  payload.Kundendaten.greetingLine = _twoPersonsFinal
+    ? String(document.getElementById("zfGreetingLine")?.value || "").trim()
+    : "";
+
   const rabattEnabled =
     document.querySelector('input[name="rb-add-rabatt"]:checked')?.value === "ja";
   const pct = parseFloat(document.getElementById("rb-material-discount")?.value || "0");
@@ -7927,6 +7938,92 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
 
   sync();
   window.syncKundendatenExtraFields = sync;
+})();
+
+// -------------------------------------------------------------------------
+// Two-person offer: editable name + greeting in Zusammenfassung.
+// Auto-composed from Kundendaten + Partner fields (kept in sync with the PDF
+// mapData composition), overridable by the user. Feeds {KundenAnschrift} /
+// {GreetingLine} in the offer template via payload.Kundendaten.
+// -------------------------------------------------------------------------
+(function initTwoPersonSummaryFields() {
+  const card = document.getElementById("zfTwoPersonCard");
+  const nameEl = document.getElementById("zfKundenName");
+  const greetEl = document.getElementById("zfGreetingLine");
+  if (!card || !nameEl || !greetEl) return;
+
+  const val = (id) => String(document.getElementById(id)?.value || "").trim();
+  const salutation = () =>
+    document.querySelector('input[name="salutation"]:checked')?.value || "";
+  const isTwoPersons = () =>
+    !!document.querySelector('input[name="twoPersons"]:checked') &&
+    document.querySelector('input[name="payer"]:checked')?.value !== "Selbstzahler";
+
+  const nameFrag = (sal, name) => [sal, name].filter(Boolean).join(" ").trim();
+  const greetFrag = (sal, last) => {
+    const l = (last || "").trim();
+    if (sal === "Frau") return `sehr geehrte Frau ${l}`.trim();
+    if (sal === "Herr") return `sehr geehrter Herr ${l}`.trim();
+    if (sal === "Familie") return `sehr geehrte Familie ${l}`.trim();
+    return "sehr geehrte Damen und Herren";
+  };
+
+  function composeName() {
+    const cust = [val("firstName"), val("lastName")].filter(Boolean).join(" ").trim();
+    const partner = [val("partnerFirstName"), val("partnerLastName")].filter(Boolean).join(" ").trim();
+    return `${nameFrag(salutation(), cust)} und ${nameFrag(val("partnerSalutation"), partner)}`.trim();
+  }
+  function composeGreeting() {
+    const two = `${greetFrag(salutation(), val("lastName"))}, ${greetFrag(val("partnerSalutation"), val("partnerLastName"))}`;
+    return two.charAt(0).toUpperCase() + two.slice(1);
+  }
+
+  // Auto-fill until the user edits the box (same "touched" pattern as the mail fields).
+  nameEl.addEventListener("input", () => (nameEl.dataset.touched = "1"));
+  greetEl.addEventListener("input", () => (greetEl.dataset.touched = "1"));
+
+  function refresh() {
+    const show = isTwoPersons();
+    card.hidden = !show;
+    card.setAttribute("aria-hidden", show ? "false" : "true");
+    if (!show) return;
+    if (nameEl.dataset.touched !== "1") nameEl.value = composeName();
+    if (greetEl.dataset.touched !== "1") greetEl.value = composeGreeting();
+  }
+
+  // Recompose when any source field changes.
+  const srcIds = [
+    "firstName", "lastName", "partnerFirstName", "partnerLastName", "partnerSalutation",
+  ];
+  srcIds.forEach((id) => {
+    const el = document.getElementById(id);
+    el?.addEventListener("input", refresh);
+    el?.addEventListener("change", refresh);
+  });
+  document.querySelectorAll('input[name="salutation"], input[name="twoPersons"], input[name="payer"]').forEach((el) => {
+    el.addEventListener("change", refresh);
+  });
+  window.addEventListener("offerflow:changed", refresh);
+  // Recompute when the Zusammenfassung tab becomes active (hashchange nav).
+  window.addEventListener("hashchange", refresh);
+
+  refresh();
+  // Restore hook: re-apply saved override values, then refresh visibility.
+  window.applyTwoPersonSummaryFields = function (k = {}) {
+    if (k.kundenName) {
+      nameEl.value = k.kundenName;
+      nameEl.dataset.touched = "1";
+    } else {
+      delete nameEl.dataset.touched;
+    }
+    if (k.greetingLine) {
+      greetEl.value = k.greetingLine;
+      greetEl.dataset.touched = "1";
+    } else {
+      delete greetEl.dataset.touched;
+    }
+    refresh();
+  };
 })();
 
 // save / load the whole Kundendaten page state so it can be reused across offer types
@@ -12888,6 +12985,8 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("partnerLastName", k.partnerLastName);
   if (k.partnerPflegegrad) setRadio("partnerPflegegrad", String(k.partnerPflegegrad));
   setByNameOrId("partnerKassenkundeName", k.partnerKassenkundeName);
+  // Two-person PDF name/greeting overrides (Zusammenfassung).
+  window.applyTwoPersonSummaryFields?.(k);
 
   // Preparation checklist (all offers)
   setCheckboxByName("prep_terminBestaetigt", k.prep_terminBestaetigt === "Ja");
