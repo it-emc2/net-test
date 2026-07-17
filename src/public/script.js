@@ -20403,6 +20403,15 @@ function updateKassenkundeDetailsVisibility() {
   wrap.querySelectorAll("input, select, textarea").forEach((el) => {
     el.disabled = !isKassenkunde;
   });
+
+  // Geburtsdatum + Versicherungsnummer werden nur im BU-Konfigurator nicht benötigt.
+  const isBu = String(window.getCurrentOfferType?.() || "bu").toLowerCase() === "bu";
+  [
+    document.getElementById("kk_geburtsdatum")?.closest(".field"),
+    document.getElementById("kk_versichertennr")?.closest(".field"),
+  ].forEach((field) => {
+    if (field) field.style.display = isBu ? "none" : "";
+  });
 }
 window.updateKassenkundeDetailsVisibility = updateKassenkundeDetailsVisibility;
 
