@@ -5738,6 +5738,32 @@ const TILE_TO_OFFER = {
    "HMS-Hausmeister-Service": "hms",
    "WD-Winterdienst": "wd",
 };
+const OFFER_KEY_LABELS = {
+  bu: "BU · Badumbau",
+  bwt: "BWT · Badewannentür",
+  hl: "HL · Handlauf",
+  bl: "BL · Badelift",
+  ah: "AH · Alltagshilfe",
+  hms: "HMS · Hausmeister-Service",
+  wd: "WD · Winterdienst",
+};
+
+// Applies the Hauptmenü-armed Bitrix deal (contact + dealId) to whichever
+// Konfigurator was just opened. Must run after startOfferFlow()'s
+// resetAllForms(), never before, or the values get wiped immediately.
+function applyArmedDealToForm() {
+  if (!window.armedHomeDeal) return;
+  fillCustomerForm(window.armedHomeDeal.contact);
+  ["auftragId", "mailAuftragId", "postAuftragId"].forEach((fieldId) => {
+    const el = document.getElementById(fieldId);
+    if (!el) return;
+    el.value = window.armedHomeDeal.dealId;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  window.armedHomeDeal = null;
+}
+
 // Hauptmenü tiles → start the corresponding offer flow
 document.addEventListener("click", (event) => {
   const tile = event.target.closest(".tile-btn");
@@ -5749,7 +5775,201 @@ document.addEventListener("click", (event) => {
 
   event.preventDefault();
   startOfferFlow(offerKey);
+  applyArmedDealToForm();
 });
+
+// ---------- Bitrix Deal-ID dialog (Hauptmenü) ----------
+function closeDealActionDialog() {
+  const modal = document.getElementById("dealActionModal");
+  if (!modal) return;
+  modal.hidden = true;
+  modal.setAttribute("aria-hidden", "true");
+}
+
+function openDealActionDialog(identity, existingItems) {
+  const modal = document.getElementById("dealActionModal");
+  const identityEl = document.getElementById("dealActionIdentity");
+  const tilesEl = document.getElementById("dealActionTiles");
+  const existingWrap = document.getElementById("dealActionExistingWrap");
+  const existingList = document.getElementById("dealActionExistingList");
+  if (!modal || !identityEl || !tilesEl || !existingWrap || !existingList) return;
+
+  identityEl.textContent =
+    `Deal #${identity.dealId}` +
+    (identity.dealTitle ? ` — ${identity.dealTitle}` : "") +
+    ` — von ${identity.contactName || "Kontakt geladen"}`;
+
+  tilesEl.innerHTML = "";
+  Object.entries(OFFER_KEY_LABELS).forEach(([offerKey, label]) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "secondary";
+    btn.textContent = label;
+    btn.addEventListener("click", () => {
+      closeDealActionDialog();
+      startOfferFlow(offerKey);
+      applyArmedDealToForm();
+    });
+    tilesEl.appendChild(btn);
+  });
+
+  const items = Array.isArray(existingItems) ? existingItems : [];
+  if (!items.length) {
+    existingWrap.hidden = true;
+    existingList.innerHTML = "";
+  } else {
+    existingWrap.hidden = false;
+    existingList.innerHTML = "";
+    items.forEach((item) => {
+      const isDraft = item._type === "draft";
+      const title =
+        [item.firstName, item.lastName].filter(Boolean).join(" ").trim() ||
+        item.name ||
+        item.offerNumber ||
+        "Ohne Titel";
+      const dateText = item.updatedAt
+        ? new Date(item.updatedAt).toLocaleString("de-DE")
+        : "";
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "home-search-result";
+      btn.innerHTML = `
+        <div class="home-search-result__top">
+          <div class="home-search-result__title"></div>
+          <div class="home-search-result__badges">
+            <span class="home-search-badge ${isDraft ? "home-search-badge--draft" : "home-search-badge--offer"}">${isDraft ? "Entwurf" : "Angebot"}</span>
+            ${item.offerType ? `<span class="home-search-badge"></span>` : ""}
+          </div>
+        </div>
+        <div class="home-search-result__meta">
+          ${item.offerNumber ? "<strong></strong>" : ""}
+        </div>
+      `;
+      btn.querySelector(".home-search-result__title").textContent = title;
+      if (item.offerType) {
+        btn.querySelector(".home-search-badge:last-child").textContent = String(item.offerType).toUpperCase();
+      }
+      if (item.offerNumber) {
+        btn.querySelector(".home-search-result__meta strong").textContent = item.offerNumber;
+      }
+      const metaEl = btn.querySelector(".home-search-result__meta");
+      if (dateText) metaEl.append(`${item.offerNumber ? " · " : ""}${dateText}`);
+
+      btn.addEventListener("click", async () => {
+        closeDealActionDialog();
+        window.armedHomeDeal = null;
+        await loadGlobalOfferSearchResult(item);
+      });
+      existingList.appendChild(btn);
+    });
+  }
+
+  modal.hidden = false;
+  modal.setAttribute("aria-hidden", "false");
+}
+
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-deal-action-close]")) closeDealActionDialog();
+});
+
+// Hauptmenü "Bitrix Deal laden" — loads a deal + its contact by Deal-ID,
+// looks up any existing drafts/offers already saved for it, then opens a
+// dialog to pick a Konfigurator or resume an existing one (no inline status
+// text on the Hauptmenü itself — the dialog carries that information).
+(() => {
+  const input = document.getElementById("homeDealIdInput");
+  const btn = document.getElementById("btnLoadDeal");
+  const statusEl = document.getElementById("homeDealStatus");
+  if (!input || !btn || !statusEl) return;
+
+  const setError = (msg) => {
+    statusEl.hidden = false;
+    statusEl.className = "status err";
+    statusEl.textContent = msg;
+  };
+
+  const loadDeal = async () => {
+    const id = input.value.trim();
+    if (!id) {
+      setError("Bitte eine Bitrix Deal-ID eingeben");
+      return;
+    }
+
+    statusEl.hidden = true;
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Laden…";
+
+    try {
+      const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(id)}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Fehler beim Laden des Deals");
+
+      const { deal, contact } = data;
+      if (!contact) throw new Error("Zu diesem Deal ist kein Kontakt hinterlegt");
+
+      const phone =
+        Array.isArray(contact.PHONE) && contact.PHONE[0] ? contact.PHONE[0].VALUE : "";
+      const email =
+        Array.isArray(contact.EMAIL) && contact.EMAIL[0] ? contact.EMAIL[0].VALUE : "";
+      const honorificId = String(
+        contact?.HONORIFIC?.STATUS_ID ?? contact?.HONORIFIC ?? contact?.HONORIFIC_ID ?? "",
+      ).trim();
+      const salutation = { HNR_DE_1: "Frau", HNR_DE_2: "Herr", "1": "Familie" }[honorificId] || "";
+
+      window.armedHomeDeal = {
+        dealId: deal.id,
+        contact: {
+          bitrixContactId: contact.ID,
+          customerNumber: contact.ID,
+          firstName: contact.NAME || "",
+          lastName: contact.LAST_NAME || "",
+          company: contact.COMPANY_TITLE || "",
+          email,
+          phone,
+          salutation,
+          street: contact.ADDRESS || "",
+          city: contact.ADDRESS_CITY || "",
+          postalCode: contact.ADDRESS_POSTAL_CODE || "",
+          state: contact.ADDRESS_REGION || contact.ADDRESS_PROVINCE || "",
+          country: contact.ADDRESS_COUNTRY || "",
+        },
+      };
+
+      const contactName = [contact.NAME, contact.LAST_NAME].filter(Boolean).join(" ");
+
+      // Best-effort: existing-drafts/offers lookup must never block opening
+      // the dialog if it fails or is slow.
+      let existingItems = [];
+      try {
+        const existingRes = await fetch(`/api/offers/by-deal/${encodeURIComponent(String(deal.id))}`);
+        if (existingRes.ok) existingItems = await existingRes.json();
+      } catch (e) {
+        console.warn("[deal dialog] by-deal lookup failed:", e);
+      }
+
+      openDealActionDialog(
+        { dealId: deal.id, dealTitle: deal.title, contactName: contactName || contact.COMPANY_TITLE || "" },
+        existingItems,
+      );
+    } catch (e) {
+      window.armedHomeDeal = null;
+      setError(e.message || "Fehler beim Laden des Deals");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  };
+
+  btn.addEventListener("click", loadDeal);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      loadDeal();
+    }
+  });
+})();
 /* ========== NAV BUTTONS ========== */
 document.body.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-nav]");

@@ -496,6 +496,49 @@ router.post("/timeline/comment", express.json({ limit: "25mb" }), async (req, re
 // GET /api/bitrix/deal/:id/ang-verschickt-fields
 // Reads the deal and reports which "[VI] ANG verschickt" required fields
 // (Betrag/Währung) are still empty, with options for the currency select.
+// GET /api/bitrix/deal/:id — deal + its linked contact, for the Hauptmenü
+// "Bitrix Deal laden" field (loads a deal directly, without knowing the
+// contact ID first).
+router.get("/deal/:id", async (req, res) => {
+  try {
+    const dealId = String(req.params.id || "").trim();
+    if (!dealId) return res.status(400).json({ error: "id is required" });
+
+    const dealResp = await bxGet("crm.deal.get", { id: dealId });
+    const deal = dealResp?.result;
+    if (!deal) return res.status(404).json({ error: "Deal not found" });
+
+    let contact = null;
+    if (deal.CONTACT_ID) {
+      const contactResp = await bxGet("crm.contact.get", { id: deal.CONTACT_ID });
+      contact = contactResp?.result || null;
+
+      if (contact) {
+        const hasAnyAddress =
+          !isEmpty(contact.ADDRESS) ||
+          !isEmpty(contact.ADDRESS_CITY) ||
+          !isEmpty(contact.ADDRESS_POSTAL_CODE);
+
+        if (!hasAnyAddress) {
+          const reqId = await getRequisiteIdForContact(contact.ID || deal.CONTACT_ID);
+          if (reqId) {
+            const reqAddr = await getAddressForRequisite(reqId);
+            if (reqAddr) patchContactAddressFromReq(contact, reqAddr);
+          }
+        }
+      }
+    }
+
+    return res.json({
+      deal: { id: Number(dealId), title: deal.TITLE || "", stageId: deal.STAGE_ID || "" },
+      contact,
+    });
+  } catch (err) {
+    console.error("GET /api/bitrix/deal/:id error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
 router.get("/deal/:id/ang-verschickt-fields", async (req, res) => {
   try {
     const dealId = String(req.params.id || "").trim();

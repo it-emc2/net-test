@@ -2174,6 +2174,12 @@ button.dm-btn-danger:focus-visible {
             <button type="button" id="btnLoadOffer" class="secondary">Angebot laden</button>
           </div>
 
+          <div class="field home-load-row">
+            <input id="homeDealIdInput" type="text" placeholder="Bitrix Deal-ID, z. B. 48213" />
+            <button type="button" id="btnLoadDeal" class="secondary">Deal laden</button>
+          </div>
+          <div id="homeDealStatus" class="status" hidden></div>
+
           <div class="field home-global-search-field">
             <h3 class="home-search-heading">Schnellsuche in Entwürfen + Angeboten</h3>
             <div class="home-global-search-wrap">
@@ -9294,6 +9300,34 @@ button.dm-btn-danger:focus-visible {
 
   <div id="nt-toast-backdrop" hidden></div>
   <div id="nt-toaster" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Bitrix Deal-ID load dialog (Hauptmenü) -->
+  <div id="dealActionModal" class="hl-import-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="dealActionModalTitle">
+    <div class="hl-import-modal__backdrop" data-deal-action-close></div>
+    <div class="hl-import-modal__dialog" role="document">
+      <header class="hl-import-modal__head">
+        <h3 id="dealActionModalTitle" style="margin:0">Bitrix Deal geladen</h3>
+        <button type="button" class="hl-import-modal__close" data-deal-action-close aria-label="Schließen">&times;</button>
+      </header>
+      <div class="hl-import-modal__body">
+        <div id="dealActionIdentity" style="font-weight:600;"></div>
+
+        <div>
+          <h4 style="margin:0 0 8px;">Angebotsart wählen</h4>
+          <div id="dealActionTiles" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:8px;"></div>
+        </div>
+
+        <div id="dealActionExistingWrap" hidden>
+          <h4 style="margin:0 0 8px;">Vorhandene Entwürfe / Angebote für diesen Deal</h4>
+          <div id="dealActionExistingList" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+      </div>
+      <footer class="hl-import-modal__foot">
+        <button type="button" class="secondary" data-deal-action-close>Abbrechen</button>
+      </footer>
+    </div>
+  </div>
+
   <div id="homeConfirmOverlay" class="home-confirm-overlay" aria-hidden="true">
     <div class="home-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="homeConfirmTitle">
       <h3 id="homeConfirmTitle">Konfiguration zurücksetzen?</h3>
