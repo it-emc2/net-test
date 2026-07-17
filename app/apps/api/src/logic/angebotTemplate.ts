@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { openSansStyle } from "./fonts.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -45,6 +46,11 @@ export interface AngebotData {
   anrede: string;
   vorname: string;
   nachname: string;
+  // Optional second person (two-person offers). When set, both names appear
+  // in the address window and the greeting addresses both.
+  anrede2?: string;
+  vorname2?: string;
+  nachname2?: string;
   adresse: string;
   plz: string;
   stadt: string;
@@ -133,23 +139,26 @@ export function renderAngebotHtml(d: AngebotData): string {
     ? `<p class="note warn">ACHTUNG: Ob eine ebenerdige Montage der Duschwanne möglich ist, kann erst nach dem Ausbau der bestehenden Wanne beurteilt werden. Sollten dabei zusätzliche Leistungen erforderlich oder von Ihnen gewünscht sein, können zusätzliche Kosten entstehen.</p>`
     : "";
 
-  return `<!doctype html><html lang="de"><head><meta charset="utf-8"/><style>
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"/>${openSansStyle()}<style>
     :root{ --ink:#1a1a1a; --muted:${MUTED}; --line:#c9d0da; --navy:${NAVY}; --navy-soft:#eef1f8; }
     *{ box-sizing:border-box; }
     html,body{ margin:0; padding:0; }
-    body{ font-family:"Helvetica Neue",Arial,sans-serif; color:var(--ink); font-size:10.5pt; line-height:1.45; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    body{ font-family:"Open Sans","Helvetica Neue",Arial,sans-serif; color:var(--ink); font-size:10.5pt; line-height:1.45; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 
-    /* page-1 DIN 5008 address window: top margin is 28mm, so 17mm pushes the
-       Absender line to ~45mm from the physical page top (Form B). */
-    .din{ margin-top:14mm; width:85mm; }
+    /* Address window (left) + meta block (right), side by side. Top margin is
+       28mm; 14mm pushes the Absender line to ~42mm from the page top (DIN 5008
+       Form B envelope window). align-items:flex-start keeps the address at the
+       window position regardless of how many meta lines sit beside it. */
+    .head-row{ display:flex; justify-content:space-between; align-items:flex-start; margin-top:14mm; gap:10mm; }
+    .din{ width:85mm; }
     .absender{ font-size:7pt; color:var(--muted); }
     .anschrift{ font-size:11pt; line-height:1.5; margin-top:4mm; }
     .anschrift .name{ font-weight:600; }
 
-    .meta{ font-size:9.5pt; margin:16mm 0 6mm; }
-    .meta div{ display:flex; gap:2mm; }
-    .meta .k{ color:var(--muted); min-width:34mm; }
-    .meta .v{ font-weight:600; }
+    .meta{ font-size:9.5pt; text-align:right; white-space:nowrap; }
+    .meta div{ margin:.4mm 0; }
+    .meta .k{ color:var(--muted); }
+    .meta .v{ font-weight:600; margin-left:1.5mm; }
 
     h1.subject{ font-size:12.5pt; margin:0 0 5mm; color:var(--navy); }
     .greeting{ margin:0 0 3mm; } .intro{ margin:0 0 6mm; }
@@ -184,22 +193,29 @@ export function renderAngebotHtml(d: AngebotData): string {
     .sign .rule{ border-top:.3mm solid var(--ink); margin-top:14mm; padding-top:1mm; font-size:8pt; color:var(--muted); }
     .closing{ margin:8mm 0 0; font-size:9.5pt; }
   </style></head><body>
-    <div class="din">
-      <div class="absender">EmC² Soziale Dienste UG (haftungsbeschränkt) · Waldstraße 5 · 95032 Hof</div>
-      <div class="anschrift">
-        <div>${esc(d.anrede)}</div>
-        <div class="name">${esc(d.vorname)} ${esc(d.nachname)}</div>
-        <div>${esc(d.adresse)}</div>
-        <div>${esc(d.plz)} ${esc(d.stadt)}</div>
+    <div class="head-row">
+      <div class="din">
+        <div class="absender">EmC² Soziale Dienste UG (haftungsbeschränkt) · Waldstraße 5 · 95032 Hof</div>
+        <div class="anschrift">
+          ${
+            d.nachname2
+              ? `<div class="name">${esc([d.anrede, d.vorname, d.nachname].filter(Boolean).join(" "))}</div>
+                 <div class="name">${esc([d.anrede2, d.vorname2, d.nachname2].filter(Boolean).join(" "))}</div>`
+              : `<div>${esc(d.anrede)}</div>
+                 <div class="name">${esc(d.vorname)} ${esc(d.nachname)}</div>`
+          }
+          <div>${esc(d.adresse)}</div>
+          <div>${esc(d.plz)} ${esc(d.stadt)}</div>
+        </div>
       </div>
-    </div>
 
-    <div class="meta">
-      <div><span class="k">Angebot-Nr.:</span><span class="v">${esc(d.angebotsnummer)}</span></div>
-      <div><span class="k">Datum:</span><span class="v">${esc(d.datum)}</span></div>
-      <div><span class="k">Gültig bis:</span><span class="v">${esc(d.gueltigBis)}</span></div>
-      <div><span class="k">Ansprechpartner:</span><span class="v">${esc(d.ansprechpartner)}</span></div>
-      <div><span class="k">Kundennummer:</span><span class="v">${esc(d.kundennummer)}</span></div>
+      <div class="meta">
+        <div><span class="k">Angebot-Nr.:</span><span class="v">${esc(d.angebotsnummer)}</span></div>
+        <div><span class="k">Datum:</span><span class="v">${esc(d.datum)}</span></div>
+        <div><span class="k">Gültig bis:</span><span class="v">${esc(d.gueltigBis)}</span></div>
+        ${d.ansprechpartner ? `<div><span class="k">Ansprechpartner:</span><span class="v">${esc(d.ansprechpartner)}</span></div>` : ""}
+        ${d.kundennummer ? `<div><span class="k">Kundennummer:</span><span class="v">${esc(d.kundennummer)}</span></div>` : ""}
+      </div>
     </div>
 
     <h1 class="subject">Ihr Angebot ${esc(d.angebotsnummer)}</h1>
@@ -231,7 +247,7 @@ export function renderAngebotHtml(d: AngebotData): string {
     <p class="note">Es handelt sich hierbei um ein Festpreisangebot für die oben definierten Leistungen. Für eine Teilbeauftragung wäre ein neues Angebot erforderlich. Diese werden vorab mit Ihnen besprochen, bedürfen Ihrer Zustimmung und werden auf Regiebasis nach tatsächlichem Aufwand abgerechnet (Stundensatz-Facharbeiter: ${esc(d.regieRate)} netto).${subsidy}</p>
     ${ebenerdig}
 
-    <div class="pay"><h3>${esc(d.paymentTitle)}</h3>${pay}</div>
+    ${d.paymentTerms.length ? `<div class="pay"><h3>${esc(d.paymentTitle)}</h3>${pay}</div>` : ""}
 
     <p class="note">Bitte unterschreiben Sie bei Annahme an entsprechender Stelle und senden uns das Angebot wieder zurück – gerne auch per E-Mail an service@e-m-c-2.de. Die Unterschrift gilt für uns als Auftragsbestätigung.</p>
 

@@ -40,13 +40,35 @@ function addWeeks(d: Date, weeks: number): Date {
 }
 const stripBullet = (s: unknown): string => String(s || "").replace(/^\s*-\s*/, "").trim();
 
-// ---- greeting (mirrors legacy _greetOne) --------------------------------
-function greetingLine(salutation: string, lastName: string): string {
+// Payer code from the payload (same mapping computeServiceCosts uses).
+function payerCode(payload: Any): "KK" | "SZ" | "" {
+  const p = String(payload?.Kundendaten?.payer || "");
+  if (p === "Kassenkunde") return "KK";
+  if (p === "Selbstzahler") return "SZ";
+  return "";
+}
+
+// ---- greeting (mirrors legacy _greetOne / two-person composition) -------
+function greetOne(salutation: string, lastName: string): string {
   const l = (lastName || "").trim();
   if (salutation === "Frau") return `Sehr geehrte Frau ${l}`.trim();
   if (salutation === "Herr") return `Sehr geehrter Herr ${l}`.trim();
   if (salutation === "Familie") return `Sehr geehrte Familie ${l}`.trim();
   return "Sehr geehrte Damen und Herren";
+}
+function greetFrag(salutation: string, lastName: string): string {
+  const l = (lastName || "").trim();
+  if (salutation === "Frau") return `sehr geehrte Frau ${l}`.trim();
+  if (salutation === "Herr") return `sehr geehrter Herr ${l}`.trim();
+  if (salutation === "Familie") return `sehr geehrte Familie ${l}`.trim();
+  return "sehr geehrte Damen und Herren";
+}
+function greetingLine(b: Any, isTwo: boolean): string {
+  if (isTwo) {
+    const two = `${greetFrag(b.salutation, b.lastName)}, ${greetFrag(b.partnerSalutation, b.partnerLastName)}`;
+    return two.charAt(0).toUpperCase() + two.slice(1);
+  }
+  return greetOne(b.salutation, b.lastName);
 }
 
 // ---- services split: primary ("Auszuführende Arbeiten") vs "Enthält je Einheit"
@@ -134,51 +156,77 @@ function totalsRows(computed: Any): { totals: AngebotTotal[]; hasSubsidy: boolea
 const SEPARATE_RECHNUNG =
   "Für die (An-)Zahlung wird eine separate Rechnung erstellt. Die Zahlung bitte erst nach Erhalt dieser Rechnung unter Angabe der Rechnungsnummer im Verwendungszweck durchführen.";
 function paymentSection(
+  payer: "KK" | "SZ" | "",
   computed: Any,
   selectedIdx: number,
 ): { title: string; terms: AngebotPaymentTerm[] } {
-  const payer = String(computed?.payer || "").toUpperCase(); // "KK" | "SZ" | ""
   const selfPay = Number(computed?.selfPayAmount) || 0;
   const threshold = config.get("KK_PAYMENT_THRESHOLD", 2000);
   const opt = (text: string, i: number): AngebotPaymentTerm => ({ text, checked: i === selectedIdx });
 
-  // Kassenkunde with a self-pay share.
-  if (payer === "KK" && selfPay > 0) {
+  // Kassenkunde: payment block ONLY when a self-pay share (Eigenanteil) remains.
+  // Eigenanteil = 0 → no payment block at all. ≥ threshold → two options to
+  // tick; < threshold → the single 100 %-Skonto line (no ankreuzen). Mirrors V3.
+  if (payer === "KK") {
+    if (selfPay <= 0) return { title: "", terms: [] };
     const terms: AngebotPaymentTerm[] =
       selfPay >= threshold
         ? [opt("50 % sofort und 50 % nach Fertigstellung, ohne Abzug", 0), opt("100 % sofort abzüglich 2 % Skonto", 1)]
         : [{ text: "100 % sofort abzüglich 2 % Skonto", plain: true }];
     terms.push({ text: SEPARATE_RECHNUNG, plain: true });
-    return { title: "Zahlungsbedingungen für den Selbstkostenanteil (bitte ankreuzen):", terms };
+    return {
+      title:
+        selfPay >= threshold
+          ? "Zahlungsbedingungen für den Selbstkostenanteil (bitte ankreuzen):"
+          : "Zahlungsbedingungen für den Selbstkostenanteil:",
+      terms,
+    };
   }
 
-  // Selbstzahler (and default when payer not yet chosen).
-  // ponytail: default to the SZ block when payer is blank — a BU offer always
-  // needs payment terms; switch to KK once the payer is set.
-  return {
-    title: "Wählen Sie aus folgenden Zahlungsbedingungen (bitte ankreuzen):",
-    terms: [
-      opt("20 % Anzahlung – ohne Abzug", 0),
-      opt("30 % Anzahlung abzüglich 1 % Skonto vom Anzahlungsbetrag", 1),
-      opt("40 % Anzahlung abzüglich 2 % Skonto vom Anzahlungsbetrag", 2),
-      { text: SEPARATE_RECHNUNG, plain: true },
-    ],
-  };
+  // Selbstzahler: 20/30/40 % Anzahlung options.
+  if (payer === "SZ") {
+    return {
+      title: "Wählen Sie aus folgenden Zahlungsbedingungen (bitte ankreuzen):",
+      terms: [
+        opt("20 % Anzahlung – ohne Abzug", 0),
+        opt("30 % Anzahlung abzüglich 1 % Skonto vom Anzahlungsbetrag", 1),
+        opt("40 % Anzahlung abzüglich 2 % Skonto vom Anzahlungsbetrag", 2),
+        { text: SEPARATE_RECHNUNG, plain: true },
+      ],
+    };
+  }
+
+  // Payer not chosen yet → no payment block (matches V3).
+  return { title: "", terms: [] };
+}
+
+// Signature initials for the Ansprechpartner. Org data-protection rule:
+// only Signaturkürzel on documents, never a full personal name. "Sabine Klein"
+// → "S. K."; falls back to the email local part's first letter.
+export function signatureInitials(user: { firstName?: string; lastName?: string; name?: string; email?: string } | null | undefined): string {
+  if (!user) return "";
+  const parts = [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || String(user.name || "").trim();
+  const words = parts.split(/\s+/).filter(Boolean);
+  if (words.length) return words.map((w) => `${w[0]!.toUpperCase()}.`).join(" ");
+  const local = String(user.email || "").split("@")[0] || "";
+  return local ? `${local[0]!.toUpperCase()}.` : "";
 }
 
 // ---- main ---------------------------------------------------------------
-export function buildAngebotData(payload: Any, computed: Any): AngebotData {
+export function buildAngebotData(payload: Any, computed: Any, opts: { ansprechpartner?: string } = {}): AngebotData {
   const b: Any = payload?.Kundendaten || {};
   const date = parseDate(b.date);
   const validity = addWeeks(date, config.get("OFFER_VALIDITY_WEEKS", 8));
   const validityStr = fmtDateDE(validity);
 
+  const payer = payerCode(payload);
+  const partnerName = [b.partnerFirstName, b.partnerLastName].filter(Boolean).join(" ").trim();
+  const isTwo = !!b.twoPersons && !!partnerName;
   const { primary, included } = splitServiceLines(computed);
   const { totals, hasSubsidy } = totalsRows(computed);
   const selectedIdx = Number.isFinite(Number(b.selectedPaymentTermIdx)) ? Number(b.selectedPaymentTermIdx) : -1;
-  const pay = paymentSection(computed, selectedIdx);
+  const pay = paymentSection(payer, computed, selectedIdx);
 
-  const payer = String(computed?.payer || "").toUpperCase();
   const regie = payer === "KK" ? 69.5 : payer === "SZ" ? 59.5 : Number(computed?.services?.laborRate) || 0;
 
   const ebRaw = b?.ebenerdig ?? payload?.duschwanne?.ebenerdigNote ?? payload?.duschwanne?.ebenerdigeMontage;
@@ -188,15 +236,20 @@ export function buildAngebotData(payload: Any, computed: Any): AngebotData {
     anrede: b.salutation || "",
     vorname: b.firstName || "",
     nachname: b.lastName || "",
+    anrede2: isTwo ? b.partnerSalutation || "" : undefined,
+    vorname2: isTwo ? b.partnerFirstName || "" : undefined,
+    nachname2: isTwo ? b.partnerLastName || "" : undefined,
     adresse: b.street || "",
     plz: b.postalCode || "",
     stadt: b.city || "",
     angebotsnummer: payload?.offerNumber || `ANG-${fmtDateDE(date)}`,
     datum: fmtDateDE(date),
     gueltigBis: validityStr,
-    ansprechpartner: (b.emc2_contact || "").trim(),
+    // Logged-in user's signature initials (org rule: no full names on docs).
+    // Falls back to any emc2_contact already in the payload.
+    ansprechpartner: (opts.ansprechpartner || b.emc2_contact || "").trim(),
     kundennummer: b.customerNumber || b.bitrixContactId || "",
-    greeting: greetingLine(b.salutation, b.lastName),
+    greeting: greetingLine(b, isTwo),
 
     serviceUnitPrice: fmtCurrency(computed?.services?.sum),
     serviceTotal: fmtCurrency(computed?.services?.sum),
