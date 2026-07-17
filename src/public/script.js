@@ -9984,12 +9984,12 @@ function attachDuschwanneToPayload(payload) {
   window.updatePricing = async function updatePricing(payload) {
     // AH: all pricing is client-side — never call the server
     if (String(window.getCurrentOfferType?.() || "").toLowerCase() === "ah") {
-      const ah = window.computeAHGesamt?.() || { gesamt: 0 };
-      const ahData = { total: ah.gesamt, selfPayAmount: ah.gesamt, _isAH: true };
+      const ah = window.computeAHGesamt?.() || { gesamt: 0, eigenanteil: 0 };
+      const ahData = { total: ah.gesamt, selfPayAmount: ah.eigenanteil, _isAH: true };
       window.__pricing = ahData;
       window.dispatchEvent(new CustomEvent("pricing:updated", { detail: ahData }));
       if (typeof updateSummaryWidgetTotal === "function") updateSummaryWidgetTotal(ah.gesamt);
-      if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(ah.gesamt);
+      if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(ah.eigenanteil);
       return ahData;
     }
 
