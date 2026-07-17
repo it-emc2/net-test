@@ -5783,6 +5783,20 @@ document.body.addEventListener("click", (e) => {
     setStep(flow[nextIdx]);
   }
 });
+// AH: Entlastungsbetrag (§ 45b SGB XI) — admin-configurable, defaults to 131€/Monat
+// while /admin/api/config/public is loading.
+window.__entlastungsbetragMonat = 131;
+fetch("/admin/api/config/public")
+  .then(function (r) { return r.ok ? r.json() : null; })
+  .then(function (d) {
+    if (d && typeof d.ENTLASTUNGSBETRAG_MONAT === "number") {
+      window.__entlastungsbetragMonat = d.ENTLASTUNGSBETRAG_MONAT;
+      var labelVal = document.getElementById("ahEntlastungAutoLabelValue");
+      if (labelVal) labelVal.textContent = String(d.ENTLASTUNGSBETRAG_MONAT);
+    }
+  })
+  .catch(function () {});
+
 // AH: dynamic multi-service card list
 (function initAhServicesPage() {
   var form = document.getElementById("form-ah");
@@ -5816,7 +5830,6 @@ document.body.addEventListener("click", (e) => {
   // HnD-only "optimize Dauer" button: fit under the (2025) monthly Entlastungsbetrag.
   var STUNDENSATZ_HND = 40.56;
   var ANFAHRT_PER_EINSATZ = 7.96;
-  var ENTLASTUNGSBETRAG_MONAT = 131;
   // Toggle: also count Anfahrtspauschale + Reisezeit (from getAHZoneData()) toward
   // the 131,40€ fit, so the *total* invoice price (not just the service time) stays
   // under budget. Set to false to fit on service price alone.
@@ -6197,7 +6210,7 @@ document.body.addEventListener("click", (e) => {
           var price = Math.round(
             (freq * anfahrtPerEinsatz + (m / 60 + reisezeitH) * freq * STUNDENSATZ_HND) * 100
           ) / 100;
-          if (price > ENTLASTUNGSBETRAG_MONAT) break;
+          if (price > window.__entlastungsbetragMonat) break;
           bestMins = m;
         }
         rDauerH.value = bestMins ? String(Math.floor(bestMins / 60)) : "";
@@ -6210,7 +6223,7 @@ document.body.addEventListener("click", (e) => {
       if (isHnd) {
         var rOptBtn = document.createElement("button");
         rOptBtn.type = "button";
-        rOptBtn.title = "Dauer auf Entlastungsbetrag (131 €/Monat) optimieren";
+        rOptBtn.title = "Dauer auf Entlastungsbetrag (" + window.__entlastungsbetragMonat + " €/Monat) optimieren";
         rOptBtn.textContent = "⚡";
         rOptBtn.style.cssText =
           "background:none; border:1px solid var(--border); border-radius:4px;" +
@@ -10202,10 +10215,9 @@ window.computeAHGesamt = function computeAHGesamt() {
   var allBase = r2(gesamtBase + abGesamtBase);
   var gesamt  = r2(allBase + (isSelbstzahler && hnd.totalMonatlichH > 0 ? SERVICEPAUSCHALE : 0));
 
-  // Kassenkunde: covered by the Entlastungsbetrag (§45a) up to 131€/month —
+  // Kassenkunde: covered by the Entlastungsbetrag (§ 45b SGB XI, admin-configurable) —
   // Eigenanteil is only the amount exceeding that. Selbstzahler pay the full amount themselves.
-  var ENTLASTUNGSBETRAG_MONAT = 131;
-  var eigenanteil = isSelbstzahler ? gesamt : r2(Math.max(0, gesamt - ENTLASTUNGSBETRAG_MONAT));
+  var eigenanteil = isSelbstzahler ? gesamt : r2(Math.max(0, gesamt - window.__entlastungsbetragMonat));
 
   return {
     gesamt:            gesamt,
