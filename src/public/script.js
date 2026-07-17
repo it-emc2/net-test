@@ -6687,6 +6687,8 @@ function recomputeWVFlachenQty() {
 function initWVConnectorsUI() {
   const qtyVEl = document.getElementById("wvV3VQty"); // user-entered connectors
   const outEl = document.getElementById("wvV3VRuleText"); // hint line
+  const footEl = document.getElementById("wvV3VFoot"); // tone-colored footer
+  const iconEl = document.getElementById("wvV3VIcon");
   const cb997 = document.getElementById("wv997");
   const cb1497 = document.getElementById("wv1497");
   const q997El = document.getElementById("wvQty997");
@@ -6719,22 +6721,30 @@ function initWVConnectorsUI() {
       : 0;
 
     const totalPanels = q997 + q1497;
-    let rec = Math.max(0, totalPanels - 1); // joints between panels in a run
     const ecken = Math.max(0, n(corners?.value));
-    rec = Math.max(0, rec - ecken); // add vertical profiles for corners
-    return rec;
+    let rec = Math.max(0, totalPanels - 1); // joints between panels in a run
+    rec = Math.max(0, rec - ecken); // corners consume a joint each
+    return { rec, totalPanels, ecken };
   }
 
   function render() {
-    const rec = recommendedVCount();
+    const { rec, totalPanels, ecken } = recommendedVCount();
     const cur = n(qtyVEl.value);
-    if (rec > 0) {
-      outEl.classList.remove("warn");
-      outEl.textContent = `- Verbindungsprofil(e) empfohlen: ${rec} Stk • aktuell: ${cur} Stk`;
+    const formula = `<div class="formula">${rec} = ${totalPanels} Paneele − 1 Naht-Basis − ${ecken} Ecke(n)</div>`;
+
+    footEl?.classList.remove("tone-info", "tone-amber", "tone-ok");
+    if (rec === 0) {
+      footEl?.classList.add("tone-amber");
+      if (iconEl) iconEl.textContent = "⚠️";
+      outEl.innerHTML = `⚠️ Keine Verbindungsprofile empfohlen. Bitte Paneelanzahl (${totalPanels}) und Außenecke(n) (${ecken}) prüfen.${formula}`;
+    } else if (cur === rec) {
+      footEl?.classList.add("tone-ok");
+      if (iconEl) iconEl.textContent = "✅";
+      outEl.innerHTML = `Empfehlung: ${rec} Stück – passt zur eingetragenen Menge.${formula}`;
     } else {
-      outEl.classList.add("warn");
-      outEl.textContent =
-        "⚠️ Keine Verbindungsprofile empfohlen. Bitte Paneelanzahl und „Ecke(n) vorhanden“ prüfen.";
+      footEl?.classList.add("tone-info");
+      if (iconEl) iconEl.textContent = "ℹ️";
+      outEl.innerHTML = `Empfehlung: ${rec} Stück – aktuell eingetragen: ${cur} Stück.${formula}`;
     }
   }
 
