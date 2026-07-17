@@ -16548,6 +16548,7 @@ cat_SHOWER: "menu_SHOWER",
     cat_WANNE: "menu_WANNE",
     cat_WC: "menu_WC",
     cat_SONDER: "menu_SONDER",
+    cat_DUSCHZUB: "menu_DUSCHZUB",
   };
 
   // ---- helpers ----
@@ -16653,6 +16654,7 @@ cat_SHOWER: "menu_SHOWER",
   });
 
   // ---- SHOWER ----
+  wireTileQty("opt_DUSCHKORB01", "qty_DUSCHKORB01_wrap");
   wireTileQty("opt_V22WS1R", "qty_V22WS1R_wrap");
   wireTileQty("opt_TEMPDSU250", "qty_TEMPDSU250_wrap");
   wireTileQty("opt_V22BG903R", "qty_V22BG903R_wrap");
@@ -17333,6 +17335,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
 
   // ---- LIVE: when any kid is checked, auto-check its parent category ----
   const parentToKids = {
+    cat_DUSCHZUB: ["opt_DUSCHKORB01"],
     cat_SHOWER: [
       "opt_V22WS1R",
       "opt_TEMPDSU250",
@@ -19412,6 +19415,7 @@ function initOptionalUX() {
     cat_WC: "menu_WC",
     cat_WESGH: "menu_WESGH",
     cat_SONDER: "menu_SONDER",
+    cat_DUSCHZUB: "menu_DUSCHZUB",
   };
   const SEARCH_MIN_ITEMS = 8;
 

@@ -5587,6 +5587,14 @@ button.dm-btn-danger:focus-visible {
                 </span>
                 <span class="caption">Sonderprodukte</span>
               </label>
+              <!-- NEW parent: Duschzubehör -->
+              <label class="image-check">
+                <input type="checkbox" id="cat_DUSCHZUB" />
+                <span class="img-wrap">
+                  <img src="./assets/vk-brutto.jpg" alt="Duschzubehör" />
+                </span>
+                <span class="caption">Duschzubehör</span>
+              </label>
 
             </div>
           </div>
@@ -6577,6 +6585,22 @@ button.dm-btn-danger:focus-visible {
                 sind. Letzte Zeile: Löschen leert alle 4 Felder.
               </small>
             </fieldset>
+          </div>
+
+          <div id="menu_DUSCHZUB" class="full field" hidden aria-hidden="true">
+            <div class="subheader">Duschzubehör</div>
+            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+              <div class="field" style="min-width: 220px">
+                <label class="image-check"><input type="checkbox" id="opt_DUSCHKORB01" name="optDuschzub[]"
+                    value="Duschkorb Duschablage ohne Bohren - Shampoohalter zum Kleben aus rostfreiem Edelstahl mit Original 3M-Klebepads, 2 beweglichen Haken, Extra-Rasierhalter (Edelstahl Silber) DUSCHKORB01" /><span
+                    class="img-wrap"><img src="./assets/vk-brutto.jpg" alt="DUSCHKORB01" /></span><span
+                    class="caption">Duschkorb ohne Bohren, Edelstahl Silber DUSCHKORB01</span></label>
+                <div id="qty_DUSCHKORB01_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
+                  <label for="qty_DUSCHKORB01" class="req">Menge DUSCHKORB01</label><input id="qty_DUSCHKORB01"
+                    name="qty_DUSCHKORB01" type="number" min="0" step="1" placeholder="0" />
+                </div>
+              </div>
+            </div>
           </div>
           <!-- Template for extra Sonderprodukt rows -->
           <template id="opt-item-template">
