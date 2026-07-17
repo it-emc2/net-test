@@ -12,13 +12,18 @@
   },
   "dependencies": {
     "@emc2/shared": "*",
+    "@fontsource/open-sans": "^5.2.7",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
+    "imapflow": "^1.4.7",
+    "mailcomposer": "^4.0.2",
     "mongoose": "^8.18.1",
     "morgan": "^1.10.1",
+    "multer": "^2.2.0",
+    "nodemailer": "^9.0.3",
     "puppeteer": "^25.3.0"
   },
   "devDependencies": {
@@ -26,7 +31,9 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/morgan": "^1.9.9",
+    "@types/multer": "^2.2.0",
     "@types/node": "^22.10.0",
+    "@types/nodemailer": "^8.0.1",
     "tsx": "^4.19.2",
     "typescript": "^5.9.3"
   }
