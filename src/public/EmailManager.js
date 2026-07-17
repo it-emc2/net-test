@@ -653,10 +653,16 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     return parts.join("");
   }
 
+  // Fallback name for the signature when no Ansprechpartner is set yet: the
+  // logged-in user (fetched once). ansprechpartner.js normally fills
+  // #emc2_contact with the default/selected user; this only covers the brief
+  // window before that resolves.
+  let loggedInName = "";
+
   function buildPreviewHtml(body) {
     const signatureSrc = new URL("./assets/signaturepicture.png", window.location.href).href;
     const contactName =
-      (document.getElementById("emc2_contact")?.value || "").trim() || "Stefan Wolfrum";
+      (document.getElementById("emc2_contact")?.value || "").trim() || loggedInName;
     return `<!DOCTYPE html>
 <html lang="de">
   <body style="margin:0;padding:24px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#364047;">
@@ -741,6 +747,22 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
 
   $body.addEventListener("input", updatePreview);
   $body.addEventListener("change", updatePreview);
+
+  // Ansprechpartner selection: ansprechpartner.js writes the chosen user's name
+  // into #emc2_contact and fires an "input" event — refresh the preview so the
+  // signature name follows the selection (and the async default on load).
+  const $contact = document.getElementById("emc2_contact");
+  $contact?.addEventListener("input", updatePreview);
+  $contact?.addEventListener("change", updatePreview);
+
+  // Cache the logged-in user as the empty-state fallback name.
+  fetch("/api/auth/me", { credentials: "same-origin" })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((res) => {
+      loggedInName = (res?.user?.name || "").trim();
+      updatePreview();
+    })
+    .catch(() => {});
 
   // Initial prefill on load
   updateMailPrefills();
