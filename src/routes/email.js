@@ -1,6 +1,8 @@
 /* eslint-disable no-useless-escape */
 import express from "express";
 import nodemailer from "nodemailer";
+import MailComposer from "nodemailer/lib/mail-composer/index.js";
+import { ImapFlow } from "imapflow";
 import multer from "multer";
 import os from "os";
 import fs from "fs/promises";
@@ -82,6 +84,49 @@ function buildTransport() {
   greetingTimeout: 8000,
   socketTimeout: 12000,
 });
+}
+
+// SMTP only *sends* the mail; it never puts a copy in the IMAP "Sent" folder,
+// so mails sent from the app don't show up in Apple Mail / Thunderbird. This
+// composes the same message and IMAP-APPENDs it to the account's Sent folder.
+// Best-effort: any failure is logged but never blocks the send.
+async function saveToSentFolder(mailOptions) {
+  const host = process.env.IMAP_HOST || process.env.SMTP_HOST;
+  const user = smtpFrom();
+  const pass = process.env.IMAP_PASS || process.env.SMTP_PASS;
+  if (!host || !user || !pass) return { ok: false, reason: "no imap config" };
+
+  const raw = await new Promise((resolve, reject) => {
+    new MailComposer(mailOptions).compile().build((err, msg) =>
+      err ? reject(err) : resolve(msg),
+    );
+  });
+
+  const client = new ImapFlow({
+    host,
+    port: Number(process.env.IMAP_PORT || 993),
+    secure: true,
+    auth: { user, pass },
+    logger: false,
+  });
+  await client.connect();
+  try {
+    // Prefer the server's special-use \Sent mailbox; fall back to env, then
+    // common German/English names. Folder names vary across hosts.
+    let box = process.env.IMAP_SENT_FOLDER;
+    if (!box) {
+      const boxes = await client.list();
+      const special = boxes.find((b) => b.specialUse === "\\Sent");
+      const byName = boxes.find((b) =>
+        /^(Sent|Gesendet|Sent Items|Gesendete)/i.test(b.name || ""),
+      );
+      box = special?.path || byName?.path || "Sent";
+    }
+    await client.append(box, raw, ["\\Seen"]);
+    return { ok: true, box };
+  } finally {
+    await client.logout().catch(() => {});
+  }
 }
 
 function getBitrixTargetFromPayload(payload = {}) {
@@ -434,7 +479,7 @@ router.post(
     // Optional reply-to: set SMTP_REPLY_TO if you want replies elsewhere
     const replyTo = process.env.SMTP_REPLY_TO || from;
 
-    const info = await transporter.sendMail({
+    const mailOptions = {
       from,
       replyTo,
       to,
@@ -442,7 +487,16 @@ router.post(
       text: textBody,
       html: htmlBody,
       attachments: mailAttachments,
-    });
+    };
+    const info = await transporter.sendMail(mailOptions);
+
+    // Save a copy to the IMAP "Sent" folder so it appears in mail clients.
+    try {
+      const sent = await saveToSentFolder(mailOptions);
+      if (!sent.ok) console.warn("[email] Sent copy skipped:", sent.reason);
+    } catch (imapErr) {
+      console.warn("[email] Saving to Sent folder failed:", imapErr?.message || imapErr);
+    }
 
     // ---- DB log (only names + content) ----
     await EmailLog.create({
