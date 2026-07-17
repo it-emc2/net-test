@@ -5816,7 +5816,7 @@ document.body.addEventListener("click", (e) => {
   // HnD-only "optimize Dauer" button: fit under the (2025) monthly Entlastungsbetrag.
   var STUNDENSATZ_HND = 40.56;
   var ANFAHRT_PER_EINSATZ = 7.96;
-  var ENTLASTUNGSBETRAG_MONAT = 131.40;
+  var ENTLASTUNGSBETRAG_MONAT = 131;
   // Toggle: also count Anfahrtspauschale + Reisezeit (from getAHZoneData()) toward
   // the 131,40€ fit, so the *total* invoice price (not just the service time) stays
   // under budget. Set to false to fit on service price alone.
@@ -6179,6 +6179,9 @@ document.body.addEventListener("click", (e) => {
       // price still fits under the Entlastungsbetrag. Anfahrt/Reisezeit are
       // folded in when OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT is true.
       function optimizeDauerForEntlastungsbetrag() {
+        var toggle = document.getElementById("ahEntlastungAuto");
+        if (!toggle || !toggle.checked) return;
+
         var freq = rRegelSel.value === "Einmalig" ? 1 : FREQ_PER_MONTH[rRegelSel.value];
         if (typeof freq !== "number") return;
 
@@ -6207,7 +6210,7 @@ document.body.addEventListener("click", (e) => {
       if (isHnd) {
         var rOptBtn = document.createElement("button");
         rOptBtn.type = "button";
-        rOptBtn.title = "Dauer auf Entlastungsbetrag (131,40 €/Monat) optimieren";
+        rOptBtn.title = "Dauer auf Entlastungsbetrag (131 €/Monat) optimieren";
         rOptBtn.textContent = "⚡";
         rOptBtn.style.cssText =
           "background:none; border:1px solid var(--border); border-radius:4px;" +
