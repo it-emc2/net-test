@@ -1744,7 +1744,7 @@ function computeArbeitszeitSuggestion() {
     pushArbeitszeitRow(rows, "wv1497", "Wandverkleidung 1497×2550", 40, qty1497);
   }
   if (document.getElementById("wvSilikonSelected")?.checked) {
-    pushArbeitszeitRow(rows, "silikon", "Silikon", 10, 1);
+    pushArbeitszeitRow(rows, "Silikon", "Silikon", 10, 1);
   }
   if (document.getElementById("addFlooring")?.checked) {
     const floorArea = parseArbeitszeitNumber(document.getElementById("floorArea")?.value || 0);
