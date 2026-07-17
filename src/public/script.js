@@ -11251,7 +11251,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
 
       // Keep widget in sync
       if (typeof updateSummaryWidgetTotal === "function") updateSummaryWidgetTotal(gesamt);
-      if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(gesamt);
+      if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(ah.eigenanteil);
 
       // Keep header total in sync (builder emits the card body only)
       if (kostenHeaderTotal && gesamt > 0) {
