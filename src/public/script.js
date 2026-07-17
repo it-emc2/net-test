@@ -2611,16 +2611,16 @@ function updateSidebarForOffer() {
     return a;
   }
 
-  // --- Always render "Auswahl der Leistung" as first item ---
+  // --- Always render "Hauptmenü" as first item ---
   const homeNav = nav?.querySelector(
-    'a.step[data-step="Auswahl der Leistung"]',
+    'a.step[data-step="Hauptmenü"]',
   );
   const homeLabel = homeNav
     ? homeNav.textContent.trim()
-    : "Auswahl der Leistung";
+    : "Hauptmenü";
   sideMenu.appendChild(makeLink("home", homeLabel));
 
-  // If no offer is selected, we stop here → only Auswahl der Leistung is shown.
+  // If no offer is selected, we stop here → only Hauptmenü is shown.
   if (!activeOffer) {
     return;
   }
@@ -5727,7 +5727,7 @@ const TILE_TO_OFFER = {
    "HMS-Hausmeister-Service": "hms",
    "WD-Winterdienst": "wd",
 };
-// Auswahl der Leistung tiles → start the corresponding offer flow
+// Hauptmenü tiles → start the corresponding offer flow
 document.addEventListener("click", (event) => {
   const tile = event.target.closest(".tile-btn");
   if (!tile) return;
@@ -20599,7 +20599,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // =================================================================
 // # end of HL 
 // =================================================================
-// Small helper: confirmation dialog before going back to Auswahl der Leistung from the sidebar
+// Small helper: confirmation dialog before going back to Hauptmenü from the sidebar
 
 function clearOfferNumberForNewOffer(reason = "") {
   const offerInput = document.getElementById("offerNumber");
@@ -20628,7 +20628,7 @@ function clearOfferNumberForNewOffer(reason = "") {
   }
 }
 
-// Small helper: confirmation dialog before going back to Auswahl der Leistung from the sidebar
+// Small helper: confirmation dialog before going back to Hauptmenü from the sidebar
 function askBeforeGoingHome(onConfirm) {
   const overlay = document.getElementById("homeConfirmOverlay");
   const cancelBtn = document.getElementById("homeConfirmCancel");
@@ -20640,7 +20640,7 @@ function askBeforeGoingHome(onConfirm) {
       "Wenn Sie zur Startseite zurückkehren, gehen alle eingegebenen Daten verloren und Sie müssen neu beginnen. Möchten Sie fortfahren?",
     );
     if (ok) {
-      clearOfferNumberForNewOffer("fallback native confirm -> back to Auswahl der Leistung");
+      clearOfferNumberForNewOffer("fallback native confirm -> back to Hauptmenü");
       if (typeof onConfirm === "function") onConfirm();
     }
     return;
