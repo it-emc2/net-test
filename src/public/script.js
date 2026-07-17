@@ -10202,8 +10202,14 @@ window.computeAHGesamt = function computeAHGesamt() {
   var allBase = r2(gesamtBase + abGesamtBase);
   var gesamt  = r2(allBase + (isSelbstzahler && hnd.totalMonatlichH > 0 ? SERVICEPAUSCHALE : 0));
 
+  // Kassenkunde: covered by the Entlastungsbetrag (§45a) up to 131€/month —
+  // Eigenanteil is only the amount exceeding that. Selbstzahler pay the full amount themselves.
+  var ENTLASTUNGSBETRAG_MONAT = 131;
+  var eigenanteil = isSelbstzahler ? gesamt : r2(Math.max(0, gesamt - ENTLASTUNGSBETRAG_MONAT));
+
   return {
     gesamt:            gesamt,
+    eigenanteil:       eigenanteil,
     gesamtBase:        gesamtBase,
     anfahrtTotal:      anfahrtTotal,
     leistungenTotal:   leistungenTotal,
@@ -10424,6 +10430,9 @@ window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
           '<div style="text-align:right;">' +
             '<div style="font-size:2rem; font-weight:800; line-height:1;">' + eur(gesamt) + '</div>' +
             '<div style="font-size:0.8rem; opacity:0.9; margin-top:3px;">pro Monat · ≈ ' + eur(yearly) + ' / Jahr</div>' +
+            (!ah.isSelbstzahler ?
+              '<div style="font-size:0.8rem; opacity:0.9; margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.3);">Eigenanteil: <b>' + eur(ah.eigenanteil) + '</b> (Rest über Entlastungsbetrag § 45a)</div>'
+              : '') +
           '</div>' +
         '</div>' +
       '</div>' +
