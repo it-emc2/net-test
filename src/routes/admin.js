@@ -86,6 +86,22 @@ router.get('/api/config', requireAdmin, async (req, res) => {
   }
 });
 
+// GET /admin/api/info — read-only mail/versand info (env-backed, not in DB)
+router.get('/api/info', requireAdmin, (req, res) => {
+  const senderEmail = process.env.SMTP_EMAIL || process.env.SMTP_USER || '';
+  const imapConfigured = Boolean(
+    (process.env.IMAP_HOST || process.env.SMTP_HOST) &&
+      senderEmail &&
+      (process.env.IMAP_PASS || process.env.SMTP_PASS),
+  );
+  res.json({
+    senderEmail,
+    replyTo: process.env.SMTP_REPLY_TO || senderEmail,
+    sentFolder: (process.env.IMAP_SENT_FOLDER || '').trim() || 'automatisch (Sent)',
+    imapConfigured,
+  });
+});
+
 // PUT /admin/api/config — bulk update
 router.put('/api/config', requireAdmin, async (req, res) => {
   try {

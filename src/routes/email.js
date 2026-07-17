@@ -111,11 +111,21 @@ async function saveToSentFolder(mailOptions) {
   });
   await client.connect();
   try {
-    // Prefer the server's special-use \Sent mailbox; fall back to env, then
-    // common German/English names. Folder names vary across hosts.
-    let box = process.env.IMAP_SENT_FOLDER;
-    if (!box) {
-      const boxes = await client.list();
+    const boxes = await client.list();
+    const want = (process.env.IMAP_SENT_FOLDER || "").trim();
+    let box;
+    if (want) {
+      // Resolve the configured folder against the live mailbox list so a bare
+      // name still hits a nested path (Dovecot uses e.g. "INBOX.Gesendet").
+      const hit = boxes.find(
+        (b) =>
+          (b.path || "").toLowerCase() === want.toLowerCase() ||
+          (b.name || "").toLowerCase() === want.toLowerCase(),
+      );
+      box = hit?.path || want;
+    } else {
+      // Prefer the server's special-use \Sent mailbox; fall back to common
+      // German/English names. Folder names vary across hosts.
       const special = boxes.find((b) => b.specialUse === "\\Sent");
       const byName = boxes.find((b) =>
         /^(Sent|Gesendet|Sent Items|Gesendete)/i.test(b.name || ""),

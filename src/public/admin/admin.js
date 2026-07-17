@@ -8,6 +8,7 @@ const SECTIONS = [
   { id: 'bu',       label: 'BU – Badumbau',        icon: 'fa-bath' },
   { id: 'bwt',      label: 'BWT – Badewannentür',  icon: 'fa-door-open' },
   { id: 'zuschuss', label: 'Zuschüsse & Boni',     icon: 'fa-euro-sign' },
+  { id: 'email',    label: 'E-Mail-Versand',       icon: 'fa-paper-plane', view: 'email' },
   { id: 'signing',  label: 'Signatur-Links',       icon: 'fa-file-signature', view: 'signing' },
   { id: 'bitrixlogs', label: 'Bitrix-Fehler',      icon: 'fa-triangle-exclamation', view: 'bitrixlogs' },
   { id: 'users',    label: 'Benutzer',             icon: 'fa-users', view: 'users' },
@@ -97,7 +98,8 @@ function switchSection(id) {
   const saveBtn = $('save-btn');
   if (saveBtn) saveBtn.classList.toggle('hidden', !!view);
   if (view) hide($('change-count'));
-  if (view === 'signing') renderSigning();
+  if (view === 'email') renderEmailInfo();
+  else if (view === 'signing') renderSigning();
   else if (view === 'bitrixlogs') renderBitrixLogs();
   else if (view === 'users') renderUsers();
   else renderSection();
@@ -305,6 +307,31 @@ function renderSigning() {
   $('sign-refresh').addEventListener('click', loadSigning);
 
   loadSigning();
+}
+
+async function renderEmailInfo() {
+  const grid = $('config-grid');
+  grid.innerHTML = '<div class="empty-state"><i class="fas fa-circle-notch fa-spin"></i> Lade…</div>';
+  try {
+    const d = await api('GET', '/admin/api/info');
+    const rows = [
+      ['Absender-Adresse für Angebote', d.senderEmail || '—'],
+      ['Antwort-Adresse (Reply-To)', d.replyTo || '—'],
+      ['Kopie-Ordner (Gesendet)', d.sentFolder || '—'],
+      ['Kopie im Postfach aktiv', d.imapConfigured ? 'Ja' : 'Nein (IMAP nicht konfiguriert)'],
+    ];
+    grid.innerHTML = `<div class="config-card" style="grid-column:1/-1">
+      <div class="card-header"><div class="card-label">E-Mail-Versand</div></div>
+      <table class="sign-table" style="margin-top:8px">
+        <tbody>${rows.map(([k, v]) =>
+          `<tr><td style="width:40%;color:var(--muted,#6b7280)">${esc(k)}</td><td><strong>${esc(v)}</strong></td></tr>`,
+        ).join('')}</tbody>
+      </table>
+      <div class="card-footer"><p class="card-desc">Nur-Lesen. Diese Werte stammen aus den Server-Umgebungsvariablen (SMTP_/IMAP_), nicht aus der Datenbank.</p></div>
+    </div>`;
+  } catch (e) {
+    grid.innerHTML = `<div class="empty-state">${esc(e.message || 'Fehler beim Laden.')}</div>`;
+  }
 }
 
 function renderBitrixLogs() {
