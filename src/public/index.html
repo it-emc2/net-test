@@ -4451,10 +4451,12 @@ button.dm-btn-danger:focus-visible {
     font-size: 0.85rem; color: var(--text); font-weight: 600;
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview {
-    margin: 0 0 14px; flex-direction: column; align-items: stretch;
+    margin: 0; flex-direction: column; align-items: stretch;
+    border: none; padding: 0; background: none;
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview img {
-    width: 100%; height: 180px;
+    width: 100%; height: 260px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 8px;
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview-label {
     text-align: center;
@@ -4514,14 +4516,30 @@ button.dm-btn-danger:focus-visible {
     padding: 18px; background: var(--panel); box-shadow: var(--shadow);
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary h3 { margin: 0 0 14px; font-size: 1rem; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-body {
+    display: flex; gap: 20px; align-items: flex-start;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-products {
+    flex: 1 1 auto; min-width: 0;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-image {
+    flex: 0 0 300px;
+  }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-lines {
-    display: flex; flex-wrap: wrap; gap: 12px;
+    display: flex; flex-direction: column; gap: 12px;
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line {
     display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
-    flex: 1 1 220px; min-width: 220px;
     font-size: 0.8rem; padding: 14px; border: 1px solid var(--border);
     border-radius: 12px; background: var(--bg, #fff);
+  }
+  @media (max-width: 700px) {
+    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-body {
+      flex-direction: column;
+    }
+    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-image {
+      flex-basis: auto; width: 100%;
+    }
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-name { font-weight: 600; font-size: 0.9rem; }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-art { color: var(--muted); font-family: monospace; }
@@ -4553,6 +4571,23 @@ button.dm-btn-danger:focus-visible {
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-reset:hover { background: var(--accent-strong); }
 
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-loading { color: var(--muted); padding: 24px 0; }
+
+  .dac-lightbox-overlay {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 24px;
+  }
+  .dac-lightbox-overlay img {
+    max-width: 90vw; max-height: 90vh; object-fit: contain;
+    border-radius: 8px; background: #fff;
+  }
+  .dac-lightbox-close {
+    position: absolute; top: 20px; right: 24px;
+    width: 40px; height: 40px; border-radius: 50%; border: none;
+    background: rgba(255, 255, 255, 0.9); color: #111;
+    font-size: 24px; line-height: 1; cursor: pointer;
+  }
+  .dac-lightbox-close:hover { background: #fff; }
 
   @media (max-width: 760px) {
     :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt {
