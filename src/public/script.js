@@ -24841,6 +24841,65 @@ function applyPlanningAppointmentToForm(entry, offerKey){
   } catch (error) {
     console.warn("today planning sidebar refresh failed", error);
   }
+
+  // The route-planning service has no Anrede/HONORIFIC field at all, and
+  // sometimes leaves email/phone/address blank — fetch the linked Bitrix
+  // deal/contact ourselves (we already have the IDs) to fill those in.
+  // Runs in the background so opening the configurator isn't blocked on it.
+  enrichPlanningAppointmentFromBitrix(entry);
+}
+
+async function enrichPlanningAppointmentFromBitrix(entry){
+  const dealId = entry?.importDealId || "";
+  const contactId = entry?.contactId || "";
+  if (!dealId && !contactId) return;
+
+  try {
+    let contact = null;
+    if (dealId) {
+      const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) contact = data?.contact || null;
+    }
+    if (!contact && contactId) {
+      const res = await fetch(`/api/bitrix/contact/${encodeURIComponent(contactId)}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) contact = data?.result || null;
+    }
+    if (!contact) return;
+
+    const honorificId = String(
+      contact?.HONORIFIC?.STATUS_ID ?? contact?.HONORIFIC ?? contact?.HONORIFIC_ID ?? "",
+    ).trim();
+    const salutation = { HNR_DE_1: "Frau", HNR_DE_2: "Herr", "1": "Familie" }[honorificId] || "";
+    if (salutation && typeof setRadio === "function") {
+      setRadio("salutation", salutation);
+      document
+        .querySelectorAll('input[name="salutation"]')
+        .forEach((el) => el.dispatchEvent(new Event("change", { bubbles: true })));
+    }
+
+    const email = Array.isArray(contact.EMAIL) && contact.EMAIL[0] ? contact.EMAIL[0].VALUE : "";
+    const phone = Array.isArray(contact.PHONE) && contact.PHONE[0] ? contact.PHONE[0].VALUE : "";
+    const fillIfEmpty = (id, value) => {
+      const el = document.getElementById(id);
+      if (!el || el.value || !value) return;
+      el.value = value;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    fillIfEmpty("email", email);
+    fillIfEmpty("phone", phone);
+    fillIfEmpty("street", contact.ADDRESS || "");
+    fillIfEmpty("city", contact.ADDRESS_CITY || "");
+    fillIfEmpty("postalCode", contact.ADDRESS_POSTAL_CODE || "");
+
+    if (email && typeof syncSummaryRecipientEmail === "function") {
+      syncSummaryRecipientEmail(email);
+    }
+  } catch (error) {
+    console.warn("planning appointment bitrix enrich failed", error);
+  }
 }
 
 function initTodayPlanningPanel(){
