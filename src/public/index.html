@@ -6671,11 +6671,12 @@ button.dm-btn-danger:focus-visible {
               <div id="rb-total">0,00 €</div>
             </div>
           </div>
-          <!-- Aufschlag selection is relocated here for Badumbau (bu) and Badewannentür (bwt)
-               (see updateOfferSpecificSections). data-offer="bu,bwt" hides the heading+mount for
-               other offers where the Aufschlag section stays in Kundendaten and this mount would be empty. -->
-          <h3 class="full" data-offer="bu,bwt" style="margin:20px 0 8px;">Aufschlag</h3>
-          <div id="aufschlagRabattMount" data-offer="bu,bwt" class="full" style="margin-top:8px;"></div>
+          <!-- Aufschlag selection is relocated here for Badumbau (bu), Badewannentür (bwt)
+               and Handlauf (hl) (see updateOfferSpecificSections). data-offer="bu,bwt,hl" hides
+               the heading+mount for other offers where the Aufschlag section stays in Kundendaten
+               and this mount would be empty. -->
+          <h3 class="full" data-offer="bu,bwt,hl" style="margin:20px 0 8px;">Aufschlag</h3>
+          <div id="aufschlagRabattMount" data-offer="bu,bwt,hl" class="full" style="margin-top:8px;"></div>
 
           <!-- Width sizer: takes zero height but preserves the same width as the slider row -->
           <div id="rb-width-sizer" aria-hidden="true"
