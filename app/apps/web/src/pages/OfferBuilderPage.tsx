@@ -7,6 +7,7 @@ import { draftsApi, autoDraftName, customerNameFromPayload } from "@/features/of
 import { documentsApi } from "@/features/offer/documents";
 import { SendOfferDialog } from "@/features/offer/SendOfferDialog";
 import { PricingSidebar } from "@/features/offer/PricingSidebar";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useLivePricing } from "@/features/offer/pricing";
 import { KundendatenStep } from "@/features/offer/steps/KundendatenStep";
 import { ArbeitszeitStep } from "@/features/offer/steps/ArbeitszeitStep";
@@ -239,7 +240,11 @@ function BuilderInner() {
           ))}
         </nav>
 
-        <div className="animate-fade-in">{step.el}</div>
+        <div className="animate-fade-in">
+          <ErrorBoundary key={step.key} area={step.label}>
+            {step.el}
+          </ErrorBoundary>
+        </div>
 
         {/* Prev / Next */}
         <div className="mt-10 flex items-center justify-between border-t pt-6">
