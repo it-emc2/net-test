@@ -11,6 +11,8 @@
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css" />
   <style>
+    /* Fußboden prices hidden per request — delete/comment this rule to re-enable */
+    .floor-price-hidden { display: none !important; }
     :root {
       --bg: #f6f7fb;
       --panel: #ffffff;
@@ -166,7 +168,7 @@
       font-size: 0.95rem;
     }
 
-    /* Hide widget on the Auswahl der Leistung screen, like the sidebar */
+    /* Hide widget on the Hauptmenü screen, like the sidebar */
     body:has(#page-home:not([hidden])) #summaryWidget {
       display: none;
     }
@@ -221,7 +223,7 @@
 
 
 
-    /* ---------------- Auswahl der Leistung confirm modal ---------------- */
+    /* ---------------- Hauptmenü confirm modal ---------------- */
 
     #homeConfirmOverlay {
       position: fixed;
@@ -272,20 +274,6 @@
       max-width: 1300px;
       margin: 0 auto;
       min-height: calc(100dvh - 80px);
-    }
-
-    .sidebar {
-      position: sticky;
-      top: 0;
-      align-self: start;
-      height: calc(100dvh);
-      background: var(--panel);
-      border-right: 1px solid var(--border);
-      padding: 10px 10px 16px;
-      box-shadow: var(--shadow);
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
     }
 
     .sidebar .logo-row {
@@ -461,7 +449,7 @@
       }
     }
 
-    /* ---------------- Auswahl der Leistung tiles ---------------- */
+    /* ---------------- Hauptmenü tiles ---------------- */
 
     #page-home .home-tiles {
       display: grid;
@@ -511,7 +499,7 @@
       font-size: .95rem;
     }
 
-    /* Hide sidebar on Auswahl der Leistung */
+    /* Hide sidebar on Hauptmenü */
     body:has(#page-home:not([hidden])) #sidebar,
     body:has(#page-home:not([hidden])) #sidebarBackdrop {
       display: none;
@@ -2167,10 +2155,10 @@ button.dm-btn-danger:focus-visible {
 
 
     <div class="container">
-      <!-- Auswahl der Leistung (new landing page) -->
+      <!-- Hauptmenü (new landing page) -->
       <section class="card page" id="page-home">
         <div class="home-head">
-          <h2 style="margin:0"> Auswahl der Leistung </h2>
+          <h2 style="margin:0"> Hauptmenü </h2>
           <div class="home-ap-field">
             <label for="homeAnsprechpartner">Ansprechpartner</label>
             <select id="homeAnsprechpartner" aria-label="Ansprechpartner wählen"></select>
@@ -2185,6 +2173,12 @@ button.dm-btn-danger:focus-visible {
             <input id="loadOfferNumber" type="text" placeholder="ANG2025-1008-092040" />
             <button type="button" id="btnLoadOffer" class="secondary">Angebot laden</button>
           </div>
+
+          <div class="field home-load-row">
+            <input id="homeDealIdInput" type="text" placeholder="Bitrix Deal-ID, z. B. 48213" />
+            <button type="button" id="btnLoadDeal" class="secondary">Deal laden</button>
+          </div>
+          <div id="homeDealStatus" class="status" hidden></div>
 
           <div class="field home-global-search-field">
             <h3 class="home-search-heading">Schnellsuche in Entwürfen + Angeboten</h3>
@@ -2567,38 +2561,6 @@ button.dm-btn-danger:focus-visible {
 
           
 
-
-          <!-- AH only: Besondere Hinweise -->
-          <div class="full" data-offer="ah" style="margin-top: 16px">
-            <details open>
-              <summary class="section-header" style="cursor: pointer">
-                Besondere Hinweise
-              </summary>
-              <div style="display: grid; grid-template-columns: 1fr; gap: 14px; padding: 8px 0">
-                <div class="full">
-                  <label for="ah_mobilitaet">Mobilitätseinschränkungen</label>
-                  <input id="ah_mobilitaet" name="ah_mobilitaet" type="text" />
-                </div>
-                <div class="full">
-                  <label for="ah_allergien">Allergien / Unverträglichkeiten</label>
-                  <input id="ah_allergien" name="ah_allergien" type="text" />
-                </div>
-                <div class="full">
-                  <label for="ah_demenz">Demenz / kognitive Einschränkungen</label>
-                  <input id="ah_demenz" name="ah_demenz" type="text" />
-                </div>
-                <div class="full">
-                  <label for="ah_sprache">Sprachliche Besonderheiten</label>
-                  <input id="ah_sprache" name="ah_sprache" type="text" />
-                </div>
-                <div class="full">
-                  <label for="ah_sonstiges">Sonstiges (Wünsche, Abneigungen, Gewohnheiten)</label>
-                  <input id="ah_sonstiges" name="ah_sonstiges" type="text" />
-                </div>
-              </div>
-            </details>
-          </div>
-
           <div id="offerRequiredDetails" class="full" style="margin-top: 16px">
             <details open>
               <summary class="section-header" style="cursor: pointer">
@@ -2737,6 +2699,39 @@ button.dm-btn-danger:focus-visible {
               </div>
             </details>
           </div>
+          
+          <!-- AH only: Besondere Hinweise -->
+          <div class="full" data-offer="ah" style="margin-top: 16px">
+            <details close>
+              <summary class="section-header" style="cursor: pointer">
+                Besondere Hinweise
+              </summary>
+              <div style="display: grid; grid-template-columns: 1fr; gap: 14px; padding: 8px 0">
+                <div class="full">
+                  <label for="ah_mobilitaet">Mobilitätseinschränkungen</label>
+                  <input id="ah_mobilitaet" name="ah_mobilitaet" type="text" />
+                </div>
+                <div class="full">
+                  <label for="ah_allergien">Allergien / Unverträglichkeiten</label>
+                  <input id="ah_allergien" name="ah_allergien" type="text" />
+                </div>
+                <div class="full">
+                  <label for="ah_demenz">Demenz / kognitive Einschränkungen</label>
+                  <input id="ah_demenz" name="ah_demenz" type="text" />
+                </div>
+                <div class="full">
+                  <label for="ah_sprache">Sprachliche Besonderheiten</label>
+                  <input id="ah_sprache" name="ah_sprache" type="text" />
+                </div>
+                <div class="full">
+                  <label for="ah_sonstiges">Sonstiges (Wünsche, Abneigungen, Gewohnheiten)</label>
+                  <input id="ah_sonstiges" name="ah_sonstiges" type="text" />
+                </div>
+              </div>
+            </details>
+          </div>
+
+          
 
 
 
@@ -2903,7 +2898,7 @@ button.dm-btn-danger:focus-visible {
 
 
           <div id="objektFoerderinfoSection" class="full" style="margin-top: 16px">
-            <details open>
+            <details close>
               <summary class="section-header" style="cursor: pointer">
                 Weitere Objekt- und Förderinformationen
               </summary>
@@ -2952,7 +2947,7 @@ button.dm-btn-danger:focus-visible {
                   </div>
                 </div>
 
-                <div class="full">
+                <div class="full" data-offer="" hidden>
                   <label >Zugang zur Wohnung</label>
                   <div class="radio-group" role="radiogroup" aria-label="Zugang zur Wohnung">
                     <label class="radio-pill"><input type="radio" name="zugangWohnung" value="Aufzug vorhanden" /><span class="circle"></span><span>Aufzug vorhanden</span></label>
@@ -2960,7 +2955,7 @@ button.dm-btn-danger:focus-visible {
                   </div>
                 </div>
 
-                <div class="full">
+                <div class="full" hidden>
                   <label >In welchem Stockwerk befindet sich das Bad?</label>
                   <div class="radio-group" role="radiogroup" aria-label="Stockwerk des Bads">
                     <label class="radio-pill"><input type="radio" name="badStockwerk" value="UG" /><span class="circle"></span><span>UG</span></label>
@@ -2988,6 +2983,11 @@ button.dm-btn-danger:focus-visible {
                   <label for="parkDetails">Weitere Angaben zur Parksituation</label>
                   <input id="parkDetails" name="parkDetails" type="text" placeholder="z. B. Hinterhof, Halteverbot, Fußweg zum Eingang" />
                 </div>
+
+                <div class="field full" style="margin-top:16px">
+                  <label for="notes">Notizen</label>
+                  <textarea id="notes" name="notes" rows="4" placeholder="Freie Notizen …"></textarea>
+                </div>
               </div>
             </details>
           </div>
@@ -2995,7 +2995,7 @@ button.dm-btn-danger:focus-visible {
 
           <!-- AH only: Lebenssituation -->
           <div class="full" data-offer="ah" style="margin-top: 16px">
-            <details open>
+            <details close>
               <summary class="section-header" style="cursor: pointer">
                 Lebenssituation
               </summary>
@@ -3381,7 +3381,7 @@ button.dm-btn-danger:focus-visible {
                   <label class="task-card">
                     <input type="checkbox" name="duschwanne[workTasks][]" value="install_distance_profile" />
                     <span class="task-card__body">
-                      <span class="task-card__title">Einbau eines Abstandprofil</span>
+                      <span class="task-card__title">Einbau eines Abstandsprofils</span>
                       <span class="task-card__hint">Montage & Befestigung</span>
                     </span>
                   </label>
@@ -3425,7 +3425,7 @@ button.dm-btn-danger:focus-visible {
                   <label class="task-card">
                     <input type="checkbox" name="duschwanne[workTasks][]" value="replace_thermostat" />
                     <span class="task-card__body">
-                      <span class="task-card__title">Auswechseln eines Aufputz Thermostates</span>
+                      <span class="task-card__title">Auswechseln eines Aufputz-Thermostats</span>
                       <span class="task-card__hint">Demontage Altteil + Montage/Anschluss neues Thermostat</span>
                     </span>
                   </label>
@@ -3557,9 +3557,20 @@ button.dm-btn-danger:focus-visible {
 
                     <div class="da-items wt-extra-items">
                       <div class="da-item wt-extra-item" data-kind="extra">
-                        <input class="dw-extra" type="text" name="duschwanne[extraTasks][]"
-                          aria-label="Zusätzliche Aufgabe"
-                          placeholder="z. B. Estrich ausgleichen, Silikonfugen erneuern" />
+                        <textarea class="dw-extra" name="duschwanne[extraTasks][]"
+                        aria-label="Zusätzliche Aufgabe"
+                        placeholder="z. B. Estrich ausgleichen, Silikonfugen erneuern"
+                        rows="2"></textarea>
+                        <button type="button" class="wt-extra-move wt-extra-move-up" aria-label="Nach oben verschieben" title="Nach oben">
+                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="18 15 12 9 6 15"></polyline>
+                          </svg>
+                        </button>
+                        <button type="button" class="wt-extra-move wt-extra-move-down" aria-label="Nach unten verschieben" title="Nach unten">
+                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                          </svg>
+                        </button>
                         <button type="button" class="da-remove wt-extra-remove" aria-label="Diese Zeile entfernen">
                           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <polyline points="3 6 5 6 21 6"></polyline>
@@ -3731,6 +3742,8 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
 
+          <div class="field full dw-tray-extras-grid">
+
           <div class="field">
             <label class="req">Wannenabdichtband-Set 3,4 m Nass-/Trockenanbindung
               entspr. DIN 18534</label>
@@ -3759,7 +3772,7 @@ button.dm-btn-danger:focus-visible {
     </span>
     <span class="caption">Ablaufgarnitur TRAGD9060</span>
   </label>
-</div>
+          </div>
 
           <div class="field">
             <label class="req">Kleinmaterial</label>
@@ -3771,8 +3784,6 @@ button.dm-btn-danger:focus-visible {
   <span class="caption">Kleinmaterial</span>
 </label>
           </div>
-
-          <div id="smallMatChoice" class="field muted" aria-hidden="true" hidden></div>
 
           <div class="field">
             <label>Stelzlager höhenverstellbar Set</label>
@@ -3786,6 +3797,8 @@ button.dm-btn-danger:focus-visible {
               <input type="number" id="stelzlagerQtyInput" name="stelzlagerQty" value="8" min="1" max="99" />
               <button type="button" class="stelzlager-qty-btn" id="stelzlagerQtyPlus">+</button>
             </div>
+          </div>
+
           </div>
 
 
@@ -3970,49 +3983,52 @@ button.dm-btn-danger:focus-visible {
             <div class="row" style="gap:8px; align-items:center;">
               <label style="min-width:180px;">Fußboden Paneele:</label>
               <span>Menge:</span> <span id="floorPanelsQty">0</span>
-              <span>× Einheit:</span> <span id="floorPanelsUnit">0</span> €
-              <span>=</span> <span id="flooringPanelsPrice">0</span> €
+              <span class="floor-price-hidden"><span>× Einheit:</span> <span id="floorPanelsUnit">0</span> €</span>
+              <span class="floor-price-hidden"><span>=</span> <span id="flooringPanelsPrice">0</span> €</span>
             </div>
 
-            <div class="field">
-              <div class="subheader">+ Klebstoff für Fußboden:</div>
-              <p id="floorAdhesiveHint" class="req" style="margin: 0.4rem 0 8px">
-                Flächenkleber 600 ml -- 1 Pkg je 0,60 m² (automatische
-                Berechnung)
-                <span id="adhesiveLivePreview" style="margin-left: 6px"></span>
-              </p>
-              <label class="image-check" data-product-id="R_4260602" id="tile_R_4260602">
-                <input type="checkbox" name="floorAdhesive[]" value="Flächenkleber R_4260602" />
-                <span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG" alt="Flächenkleber R_4260602" /></span>
-                <span class="caption">Flächenkleber R_4260602</span>
-              </label>
-            </div>
+            <div class="field full product-tile-grid">
 
-            <div class="field">
-              <strong>Preis:</strong>
-              <span id="floorAdhesivePrice">0</span>
-              <span class="muted">EUR</span>
-            </div>
+              <div class="field">
+                <div class="subheader">+ Klebstoff für Fußboden:</div>
+                <p id="floorAdhesiveHint" class="req" style="margin: 0.4rem 0 8px">
+                  Flächenkleber 600 ml -- 1 Pkg je 0,60 m² (automatische
+                  Berechnung)
+                  <span id="adhesiveLivePreview" style="margin-left: 6px"></span>
+                </p>
+                <label class="image-check" data-product-id="R_4260602" id="tile_R_4260602">
+                  <input type="checkbox" name="floorAdhesive[]" value="Flächenkleber R_4260602" />
+                  <span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG" alt="Flächenkleber R_4260602" /></span>
+                  <span class="caption">Flächenkleber</span>
+                </label>
+                <div></div>
+                <div class="floor-price-hidden">
+                  <strong>Preis:</strong>
+                  <span id="floorAdhesivePrice">0</span>
+                  <span class="muted">EUR</span>
+                </div>
+              </div>
 
+              <div class="field">
+                <label class="req">Bodenabdichtung für Fußboden</label>
+                <p id="floorSealingHint" style="margin: 0.4rem 0 8px">
+                  1 Set pauschal (automatische Berechnung)
+                  <span id="sealingLivePreview" style="margin-left: 6px"></span>
+                </p>
+                <label class="image-check" data-product-id="TRBDSET7" id="tile_TRBDSET7">
+                  <input type="checkbox" name="floorSealing[]" value="TRINNITY Bodenabdichtung TRBDSET7" />
+                  <span class="img-wrap"><img src="./assets/TRBDSET7.jpg"
+                      alt="TRINNITY Bodenabdichtung TRBDSET7" /></span>
+                  <span class="caption">Bodenabdichtung für Fußboden</span>
+                </label>
+                <div></div>
+                <div class="floor-price-hidden">
+                  <strong>Preis:</strong>
+                  <span id="floorSealingPrice">0</span>
+                  <span class="muted">EUR</span>
+                </div>
+              </div>
 
-            <div class="field">
-              <label class="req">Bodenabdichtung für Fußboden</label>
-              <p id="floorSealingHint" style="margin: 0.4rem 0 8px">
-                1 Set pauschal (automatische Berechnung)
-                <span id="sealingLivePreview" style="margin-left: 6px"></span>
-              </p>
-              <label class="image-check" data-product-id="TRBDSET7" id="tile_TRBDSET7">
-                <input type="checkbox" name="floorSealing[]" value="TRINNITY Bodenabdichtung TRBDSET7" />
-                <span class="img-wrap"><img src="./assets/TRBDSET7.jpg"
-                    alt="TRINNITY Bodenabdichtung TRBDSET7" /></span>
-                <span class="caption">Bodenabdichtung für Fußboden</span>
-              </label>
-            </div>
-
-            <div class="field">
-              <strong>Preis:</strong>
-              <span id="floorSealingPrice">0</span>
-              <span class="muted">EUR</span>
             </div>
           </div>
 
@@ -4030,12 +4046,12 @@ button.dm-btn-danger:focus-visible {
         <h2 style="margin: 0 0 12px">Wandverkleidungsplatten</h2>
 
         <form id="form-wandverkleidung">
-          <div class="full">
+          <div style="align-self: center">
             <img src="./assets/c27108714a00d1e9ed265a5b07876a85.jpg" alt="Wandverkleidung Beispiel"
               style="max-width: 100%; border-radius: 12px" />
           </div>
 
-          <div class="full field">
+          <div class="field" style="align-self: center">
             <label class="req">Welche Art der Wandverkleidung wird benötigt?</label>
             <div class="radio-group vertical" id="wvKindGroup" role="radiogroup" aria-label="Art der Wandverkleidung">
               <label class="radio-pill"><input type="radio" name="wvKind" value="Fehlstellen" /><span
@@ -4264,78 +4280,86 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
 
-          <div id="wvSealingSection" class="full field">
-            <label class="req">Wandabdichtung BASIS-Set</label>
-            <label class="image-check" data-product-id="TRWDSET5"><input type="checkbox" data-product-id="TRWDSET5" name="wvSealing" id="wvSealingSelected"
-                data-product-id="TRWDSET5" value="TRINNITY Wandabdichtung BASIS TRWDSET5" checked /><span class="img-wrap"><img
-                  src="./assets/d110afd16622742ee292b063792121f1.jpg" alt="TRINNITY Wandabdichtung BASIS" /></span><span
-                class="caption">Wandabdichtung BASIS-Set TRWDSET5</span></label>
+          <div class="full product-tile-grid">
+
+            <div id="wvSealingSection" class="field">
+              <label class="req">Wandabdichtung BASIS-Set</label>
+              <label class="image-check" data-product-id="TRWDSET5"><input type="checkbox" data-product-id="TRWDSET5" name="wvSealing" id="wvSealingSelected"
+                  data-product-id="TRWDSET5" value="TRINNITY Wandabdichtung BASIS TRWDSET5" checked /><span class="img-wrap"><img
+                    src="./assets/d110afd16622742ee292b063792121f1.jpg" alt="TRINNITY Wandabdichtung BASIS" /></span><span
+                  class="caption">Wandabdichtung BASIS-Set TRWDSET5</span></label>
+              <div></div>
+              <div></div>
+            </div>
+
+            <div id="flechenSection" class="field">
+              <label class="req">Flächenkleber</label>
+              <label class="image-check"><input type="checkbox" id="wvFlachenSelected" name="flechenkleber"
+                  value="Flächenkleber R_4260602" checked /><span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG"
+                    alt="Flachen" /></span><span class="caption">Flächenkleber</span></label>
+              <div></div>
+              <div class="field" style="max-width: 240px">
+                <label for="wvFlachenQty">Menge Flächenkleber</label>
+                <input id="wvFlachenQty" name="wvFlachenQty" type="number" min="0" step="1" placeholder="0" />
+                <div id="wvAdhesiveSuggestion" style="
+                    margin-top: 6px;
+                    font-size: 0.9rem;
+                    color: var(--muted, #8a8a8a);
+                  "></div>
+              </div>
+            </div>
+
+            <div id="wvProfileAdhesiveSection" class="field">
+              <label class="req">Silikon</label>
+              <label class="image-check"><input type="checkbox" id="wvSilikonSelected" name="wvSilikon" value="silikon"
+                  checked /><span class="img-wrap"><img src="./assets/silikon_ransauer.jpg" alt="silikon" /></span><span
+                  class="caption">Silikon</span></label>
+              <div></div>
+              <div class="field" style="max-width: 240px">
+                <label for="wvSilikonQty">Menge Silikon</label>
+                <input id="wvSilikonQty" name="wvSilikonQty" type="number" min="0" step="1" placeholder="0" />
+              </div>
+            </div>
+
           </div>
 
-          <div id="flechenSection" class="full field">
-            <label class="req">Flächenkleber</label>
-            <label class="image-check"><input type="checkbox" id="wvFlachenSelected" name="flechenkleber"
-                value="Flächenkleber R_4260602" checked /><span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG"
-                  alt="Flachen" /></span><span class="caption">Flächenkleber R_4260602</span></label>
-            <div class="field" style="max-width: 240px">
-              <label for="wvFlachenQty">Menge Flächenkleber</label>
-              <input id="wvFlachenQty" name="wvFlachenQty" type="number" min="0" step="1" placeholder="0" />
-              <div id="wvAdhesiveSuggestion" style="
-                  margin-top: 6px;
-                  font-size: 0.9rem;
-                  color: var(--muted, #8a8a8a);
-                "></div>
-            </div>
-          </div>
+          <!-- Abschlussprofil + Verbindungsprofil V3V: same card layout, aligned via subgrid
+               so the image/footer sections line up even though V3V has more fields. -->
+          <div class="full wv-profile-row">
 
-          <div id="wvEndProfileSection" class="full field">
-            <label class="req">Abschlussprofil 3.0 255 cm silber eloxiert</label>
-            <label class="image-check">
-              <input type="checkbox" id="wvEndProfileSelected" name="wvEndProfile" value="Abschlussprofil V3A"
-                checked />
-              <span class="img-wrap">
-                <img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="Abschlussprofil V3A" />
-              </span>
-              <span class="caption">Abschlussprofil V3A</span>
-            </label>
-
-            <div class="muted" style="margin-top: 8px; color: var(--danger); font-weight: 600">
-              ! Bitte die Anzahl der Abschlussleisten prüfen, berechnen und ggf.
-              anpassen !
-            </div>
-
-            <div class="field" style="max-width: 240px">
-              <label for="wvEndProfileQty" class="req">Menge Abschlussprofil</label>
-              <input id="wvEndProfileQty" name="wvEndProfileQty" type="number" min="0" step="1" placeholder="0" />
-            </div>
-          </div>
-
-          <div id="wvProfileAdhesiveSection" class="full field">
-            <label class="req">silikon</label>
-            <label class="image-check"><input type="checkbox" id="wvSilikonSelected" name="wvSilikon" value="silikon"
-                checked /><span class="img-wrap"><img src="./assets/silikon_ransauer.jpg" alt="silikon" /></span><span
-                class="caption">Silikon</span></label>
-            <div class="field" style="max-width: 240px">
-              <label for="wvSilikonQty">Menge Silikon</label>
-              <input id="wvSilikonQty" name="wvSilikonQty" type="number" min="0" step="1" placeholder="0" />
-            </div>
-          </div>
-
-          <!-- Verbindungsprofil V3V (gleicher Stil wie die anderen Kacheln) -->
-          <div id="wvV3VDiv" class="full field">
-            <label class="req">Verbindungsprofil 3.0 255 cm silber eloxiert (V3V)</label>
-            <div class="muted" style="margin-top: 6px">
-              Wird automatisch aus der Plattenanzahl berechnet. Ecken reduzieren
-              den Bedarf.
+            <div id="wvEndProfileSection" class="wv-profile-card">
+              <div class="card-head">
+                <div class="card-title req">Abschlussprofil 3.0 255 cm silber eloxiert</div>
+                <div class="card-sub">Schließt offene, sichtbare Kanten der Wandverkleidung ab (z. B. an Decke, Boden oder freien Enden).</div>
+              </div>
+              <div class="card-body">
+                <label class="image-check">
+                  <input type="checkbox" id="wvEndProfileSelected" name="wvEndProfile" value="Abschlussprofil V3A"
+                    checked />
+                  <span class="img-wrap">
+                    <img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="Abschlussprofil V3A" />
+                  </span>
+                  <span class="caption">Abschlussprofil V3A</span>
+                </label>
+                <div class="qty-area">
+                  <div class="field">
+                    <label for="wvEndProfileQty" class="req">Menge Abschlussprofil</label>
+                    <input id="wvEndProfileQty" name="wvEndProfileQty" type="number" min="0" step="1" placeholder="0" />
+                  </div>
+                </div>
+              </div>
+              <div class="card-foot tone-info">
+                <span class="ic">ℹ️</span>
+                <span>Diese Menge wird <strong>nicht automatisch berechnet</strong>. Bitte die Anzahl der Abschlussleisten prüfen, berechnen und ggf. anpassen.</span>
+              </div>
             </div>
 
-            <div style="
-                display: flex;
-                gap: 14px;
-                flex-wrap: wrap;
-                margin-top: 10px;
-              ">
-              <div class="field" style="min-width: 220px">
+            <div id="wvV3VDiv" class="wv-profile-card">
+              <div class="card-head">
+                <div class="card-title req">Verbindungsprofil 3.0 255 cm silber eloxiert (V3V)</div>
+                <div class="card-sub">Verbindet zwei Wandplatten an einer geraden Stoßkante. An Außenecken wird stattdessen ein Eckstück verwendet – dort braucht es kein V3V.</div>
+              </div>
+              <div class="card-body">
                 <label class="image-check">
                   <input type="checkbox" id="wvV3VSelected" name="wvV3VSelected" />
                   <span class="img-wrap">
@@ -4343,32 +4367,29 @@ button.dm-btn-danger:focus-visible {
                   </span>
                   <span class="caption">Verbindungsprofil V3V</span>
                 </label>
+                <div class="qty-area">
+                  <div class="field">
+                    <label for="wvV3VQty" class="req">Menge Verbindungsprofil(e)</label>
+                    <input id="wvV3VQty" name="wvV3VQty" type="number" min="0" step="1" value="0" />
+                  </div>
+                  <div class="field">
+                    <!-- Wandverkleidung: Ecke(n) vorhanden -->
+                    <label for="wvCornersCount">Außenecke(n) vorhanden</label>
+                    <input type="number" name="wvCornersCount" id="wvCornersCount" min="0" step="1" value="0" />
+                  </div>
+                </div>
+              </div>
+              <div class="card-foot tone-info" id="wvV3VFoot">
+                <span class="ic" id="wvV3VIcon">ℹ️</span>
+                <div id="wvV3VRuleText"></div>
               </div>
 
-              <div class="full" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
-                <div class="field" style="max-width: 240px">
-                  <label for="wvV3VQty" class="req">Menge Verbindungsprofil(e)</label>
-                  <input id="wvV3VQty" name="wvV3VQty" type="number" min="0" step="1" value="0" />
-                  <div id="wvV3VRuleText" class="muted" style="margin-top: 6px"></div>
-                </div>
-
-                <div class="field" style="max-width: 240px">
-                  <!-- Wandverkleidung: Ecke(n) vorhanden -->
-                  <div class="field-row" id="wvCornersRow" style="display:flex;align-items:center;gap:10px;">
-                    <label for="wvCornersCount" style="margin:0;">Außenecke(n) vorhanden</label>
-                    <input type="number" name="wvCornersCount" id="wvCornersCount" min="0" step="1" value="0"
-                      style="width:90px;" />
-                  </div>
-
-
-
-                  <div id="wvCornersWrap" hidden aria-hidden="true" style="margin-top: 8px">
-                    <label for="wvCorners" class="muted">Anzahl Ecken ohne Verbindungsprofil</label>
-                    <input id="wvCorners" name="wvCorners" type="number" min="0" step="1" value="0" />
-                  </div>
-                </div>
+              <div id="wvCornersWrap" hidden aria-hidden="true" style="display:none">
+                <label for="wvCorners" class="muted">Anzahl Ecken ohne Verbindungsprofil</label>
+                <input id="wvCorners" name="wvCorners" type="number" min="0" step="1" value="0" />
               </div>
             </div>
+
           </div>
 
           <div class="actions full">
@@ -4426,6 +4447,31 @@ button.dm-btn-danger:focus-visible {
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-step-title {
     margin: 0 0 16px; font-size: 1.15rem; color: var(--text);
   }
+
+  /* leaf preview — the resolved product's image, shown mid-wizard + in the summary */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview {
+    display: flex; align-items: center; gap: 12px;
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 10px 14px; margin-bottom: 16px; background: var(--panel);
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview img {
+    width: 64px; height: 64px; object-fit: contain; border-radius: 8px;
+    background: #fff; flex: 0 0 auto;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview-label {
+    font-size: 0.85rem; color: var(--text); font-weight: 600;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview {
+    margin: 0; flex-direction: column; align-items: stretch;
+    border: none; padding: 0; background: none;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview img {
+    width: 100%; height: 260px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 8px;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview-label {
+    text-align: center;
+  }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-sizelabel {
     font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
     color: var(--muted); margin: 16px 0 8px;
@@ -4481,23 +4527,47 @@ button.dm-btn-danger:focus-visible {
     padding: 18px; background: var(--panel); box-shadow: var(--shadow);
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary h3 { margin: 0 0 14px; font-size: 1rem; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line {
-    display: grid; grid-template-columns: 1fr auto; gap: 4px 10px;
-    font-size: 0.8rem; padding: 8px 0; border-bottom: 1px dashed var(--border);
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-body {
+    display: flex; gap: 20px; align-items: flex-start;
   }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-name { font-weight: 600; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-products {
+    flex: 1 1 auto; min-width: 0;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-image {
+    flex: 0 0 300px;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-lines {
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    font-size: 0.8rem; padding: 14px; border: 1px solid var(--border);
+    border-radius: 12px; background: var(--bg, #fff);
+  }
+  @media (max-width: 700px) {
+    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-body {
+      flex-direction: column;
+    }
+    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary-image {
+      flex-basis: auto; width: 100%;
+    }
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-name { font-weight: 600; font-size: 0.9rem; }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-art { color: var(--muted); font-family: monospace; }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-finish { color: var(--muted); font-size: 0.75rem; }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-einbau {
-    grid-column: 1; font-size: 0.75rem; font-weight: 600; color: var(--accent-strong);
+    font-size: 0.75rem; font-weight: 600; color: var(--accent-strong);
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-stock {
-    grid-column: 1; justify-self: start; font-size: 0.7rem; font-weight: 600;
+    font-size: 0.7rem; font-weight: 600;
     padding: 1px 8px; border-radius: 999px; line-height: 1.5;
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-in { color: #0a7d33; background: #e3f5e9; }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-out { color: var(--muted); background: var(--border); }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-price { text-align: right; grid-column: 2; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-price {
+    margin-top: auto; padding-top: 6px; align-self: stretch;
+    font-size: 0.95rem; font-weight: 700; color: var(--accent-strong);
+  }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-total {
     display: flex; justify-content: space-between; align-items: baseline;
     margin-top: 14px; font-size: 1.15rem; font-weight: 700; color: var(--accent-strong);
@@ -4512,6 +4582,24 @@ button.dm-btn-danger:focus-visible {
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-reset:hover { background: var(--accent-strong); }
 
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-loading { color: var(--muted); padding: 24px 0; }
+
+  .dac-lightbox-overlay {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 24px;
+  }
+  .dac-lightbox-overlay img {
+    max-width: 90vw; max-height: 90vh; object-fit: contain;
+    border-radius: 8px; background: #fff;
+  }
+  .dac-lightbox-close {
+    position: absolute; top: 20px; right: 24px;
+    width: 40px; height: 40px; border-radius: 50%; border: none;
+    background: rgba(255, 255, 255, 0.9); color: #111;
+    font-size: 24px; line-height: 1; cursor: pointer;
+    padding: 0px;
+  }
+  .dac-lightbox-close:hover { background: #fff; }
 
   @media (max-width: 760px) {
     :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt {
@@ -5504,6 +5592,14 @@ button.dm-btn-danger:focus-visible {
                 </span>
                 <span class="caption">Sonderprodukte</span>
               </label>
+              <!-- NEW parent: Duschzubehör -->
+              <label class="image-check">
+                <input type="checkbox" id="cat_DUSCHZUB" />
+                <span class="img-wrap">
+                  <img src="./assets/vk-brutto.jpg" alt="Duschzubehör" />
+                </span>
+                <span class="caption">Duschzubehör</span>
+              </label>
 
             </div>
           </div>
@@ -6495,6 +6591,22 @@ button.dm-btn-danger:focus-visible {
               </small>
             </fieldset>
           </div>
+
+          <div id="menu_DUSCHZUB" class="full field" hidden aria-hidden="true">
+            <div class="subheader">Duschzubehör</div>
+            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+              <div class="field" style="min-width: 220px">
+                <label class="image-check"><input type="checkbox" id="opt_DUSCHKORB01" name="optDuschzub[]"
+                    value="Duschkorb Duschablage ohne Bohren - Shampoohalter zum Kleben aus rostfreiem Edelstahl mit Original 3M-Klebepads, 2 beweglichen Haken, Extra-Rasierhalter (Edelstahl Silber) DUSCHKORB01" /><span
+                    class="img-wrap"><img src="./assets/vk-brutto.jpg" alt="DUSCHKORB01" /></span><span
+                    class="caption">Duschkorb ohne Bohren, Edelstahl Silber DUSCHKORB01</span></label>
+                <div id="qty_DUSCHKORB01_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
+                  <label for="qty_DUSCHKORB01" class="req">Menge DUSCHKORB01</label><input id="qty_DUSCHKORB01"
+                    name="qty_DUSCHKORB01" type="number" min="0" step="1" placeholder="0" />
+                </div>
+              </div>
+            </div>
+          </div>
           <!-- Template for extra Sonderprodukt rows -->
           <template id="opt-item-template">
             <div class="da-item" data-kind="custom">
@@ -6541,10 +6653,10 @@ button.dm-btn-danger:focus-visible {
           <!-- Übersicht: totals summary (auto-filled from JS) -->
           <div class="full">
             <div style="display:grid;grid-template-columns:1fr auto;row-gap:14px;column-gap:16px;align-items:center;font-size:1.05rem;">
-              <div>Material</div>
-              <div id="rb-material">0,00 €</div>
               <div>Arbeit</div>
               <div id="rb-arbeit">0,00 €</div>
+              <div>Material</div>
+              <div id="rb-material">0,00 €</div>
               <!-- after the row that shows Arbeit (id="rb-arbeit") -->
               <div id="rb-auf-row" style="display:contents;">
                 <div id="rb-auf-label">Aufschlag (ohne Kleinmaterial)</div>
@@ -6945,6 +7057,25 @@ button.dm-btn-danger:focus-visible {
           <input type="checkbox" id="includeOurSignature" checked hidden />
           <input type="hidden" id="signatureDataUrl" />
 
+          <!-- Two-person offer: editable name + greeting for the PDF. Shown only
+               when "2 Personen mit Pflegegrad" is checked. Auto-filled from the
+               Kundendaten + Partner fields; the user can override either. These
+               feed {KundenAnschrift} and {GreetingLine} in the offer template. -->
+          <section id="zfTwoPersonCard" class="bitrix-section" hidden aria-hidden="true">
+            <h2 class="section-title">👥 Anrede &amp; Namen (2 Personen)</h2>
+            <p class="section-subtitle">So erscheinen Name und Begrüßung im Angebot. Automatisch befüllt – bei Bedarf anpassbar.</p>
+            <div class="bitrix-card">
+              <div class="bitrix-input-group">
+                <label for="zfKundenName">Anschrift / Namen (oben im Angebot)</label>
+                <textarea id="zfKundenName" rows="2" placeholder="z. B. Herr Max Mustermann und Frau Erika Mustermann"></textarea>
+              </div>
+              <div class="bitrix-input-group">
+                <label for="zfGreetingLine">Begrüßung (Anrede im Anschreiben)</label>
+                <input type="text" id="zfGreetingLine" placeholder="z. B. Sehr geehrter Herr Mustermann, sehr geehrte Frau Mustermann" />
+              </div>
+            </div>
+          </section>
+
           <!-- Bitrix Integration Section -->
           <section class="bitrix-section">
             <h2 class="section-title">📤 Bitrix Integration</h2>
@@ -6967,40 +7098,23 @@ button.dm-btn-danger:focus-visible {
             <p class="section-subtitle">Erstellen, prüfen und vergleichen Sie alle Ausgabedokumente an einem Ort.</p>
 
             <div class="export-cards">
-              <!-- DOCX Card -->
+              <!-- Angebot Card (DOCX + PDF) -->
               <div class="export-card">
                 <div class="document-card__meta">
                   <span class="document-card__badge">Angebot</span>
-                  <span class="document-card__format">DOCX</span>
+                  <span class="document-card__format">DOCX + PDF</span>
                 </div>
                 <div class="card-icon">📄</div>
-                <h3>Word-Dokument</h3>
-                <p>Angebot als bearbeitbare DOCX-Datei herunterladen</p>
-                <div class="document-card__actions">
+                <h3>Angebot</h3>
+                <p>Angebot als bearbeitbare DOCX-Datei oder als kundenfähiges PDF herunterladen</p>
+                <div class="document-card__actions document-card__actions--split">
                   <button type="button" id="downloadDocx" class="btn-export btn-docx">
                     <span class="btn-icon">⬇️</span>
-                    DOCX herunterladen
+                    DOCX
                   </button>
-                  <button type="button" id="previewOfferDocx" class="btn-export document-card__preview">
-                    <span class="btn-icon">👁️</span>
-                    Vorschau anzeigen
-                  </button>
-                </div>
-              </div>
-
-              <!-- PDF Card -->
-              <div class="export-card">
-                <div class="document-card__meta">
-                  <span class="document-card__badge">Angebot</span>
-                  <span class="document-card__format">PDF</span>
-                </div>
-                <div class="card-icon">📑</div>
-                <h3>PDF-Dokument</h3>
-                <p>Kundenfähige PDF-Version des Angebots erstellen und prüfen</p>
-                <div class="document-card__actions">
                   <button type="button" id="downloadDocxAsPdf" class="btn-export btn-pdf">
                     <span class="btn-icon">⬇️</span>
-                    PDF herunterladen
+                    PDF
                   </button>
                   <button type="button" id="previewOfferPdf" class="btn-export document-card__preview">
                     <span class="btn-icon">👁️</span>
@@ -7010,7 +7124,7 @@ button.dm-btn-danger:focus-visible {
               </div>
 
               <!-- Material Overview Card -->
-              <div class="export-card">
+              <div class="export-card" hidden>
                 <div class="document-card__meta">
                   <span class="document-card__badge">Intern</span>
                   <span class="document-card__format">DOCX + PDF</span>
@@ -7052,7 +7166,7 @@ button.dm-btn-danger:focus-visible {
               </div>
 
               <!-- Arbeitsbericht Card -->
-              <div class="export-card">
+              <div class="export-card" hidden>
                 <div class="document-card__meta">
                   <span class="document-card__badge">Intern</span>
                   <span class="document-card__format">PDF</span>
@@ -7152,8 +7266,6 @@ button.dm-btn-danger:focus-visible {
 
               <div class="document-preview-switcher" role="tablist" aria-label="Dokumentvorschau wechseln">
                 <button type="button" data-preview-key="offer">Angebot</button>
-                <button type="button" data-preview-key="material">Materialübersicht</button>
-                <button type="button" data-preview-key="arbeitsbericht">Arbeitsbericht</button>
                 <button type="button" data-preview-key="kalkulation">Kalkulation</button>
                 <button type="button" data-preview-key="hassmann">Hassmann CSV</button>
               </div>
@@ -7294,6 +7406,17 @@ button.dm-btn-danger:focus-visible {
                   <button type="button" id="prefillMusterData" class="btn-dev">Musterdaten einfüllen</button>
                   <button type="button" id="showPayload" class="btn-dev">Payload anzeigen</button>
                   <button type="button" id="copyPayload" class="btn-dev">Payload kopieren</button>
+                </div>
+
+                <div class="dev-tool-group">
+                  <h4>E-Mail / Bitrix</h4>
+                  <label style="display:flex;align-items:center;gap:8px;margin:4px 0;cursor:pointer;font-size:0.85rem;">
+                    <input type="checkbox" id="devExcludeBitrixPresets" style="width:auto;">
+                    Presets (Abtretung/Vollmacht/Flyer) nicht an Bitrix senden
+                  </label>
+                  <p class="muted" style="font-size:0.82rem;margin:6px 0 0;">
+                    Betrifft nur die Bitrix-Timeline. Die Presets bleiben im Kunden-E-Mail-Anhang.
+                  </p>
                 </div>
 
                 <div class="dev-tool-group">
@@ -8404,6 +8527,10 @@ button.dm-btn-danger:focus-visible {
       <section class="card page" id="page-ah" hidden>
         <h2 style="margin: 0 0 12px"> AH · Alltagshilfe</h2>
         <form id="form-ah">
+          <div class="field full" style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+            <input type="checkbox" id="ahEntlastungAuto" name="ahEntlastungAuto" />
+            <label for="ahEntlastungAuto" style="margin:0; font-weight:500;">Dauer automatisch auf Entlastungsbetrag (<span id="ahEntlastungAutoLabelValue">131</span>&nbsp;€/Monat) optimieren</label>
+          </div>
           <!-- Haushaltsnahe Dienstleistungen section -->
           <div class="full" style="border:1px solid var(--border); border-radius:8px; overflow:hidden;">
             <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 16px; background:var(--panel); border-bottom:1px solid var(--border);">
@@ -9202,11 +9329,39 @@ button.dm-btn-danger:focus-visible {
 
   <div id="nt-toast-backdrop" hidden></div>
   <div id="nt-toaster" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Bitrix Deal-ID load dialog (Hauptmenü) -->
+  <div id="dealActionModal" class="hl-import-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="dealActionModalTitle">
+    <div class="hl-import-modal__backdrop" data-deal-action-close></div>
+    <div class="hl-import-modal__dialog" role="document">
+      <header class="hl-import-modal__head">
+        <h3 id="dealActionModalTitle" style="margin:0">Bitrix Deal geladen</h3>
+        <button type="button" class="hl-import-modal__close" data-deal-action-close aria-label="Schließen">&times;</button>
+      </header>
+      <div class="hl-import-modal__body">
+        <div id="dealActionIdentity" style="font-weight:600;"></div>
+
+        <div>
+          <h4 style="margin:0 0 8px;">Angebotsart wählen</h4>
+          <div id="dealActionTiles" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:8px;"></div>
+        </div>
+
+        <div id="dealActionExistingWrap" hidden>
+          <h4 style="margin:0 0 8px;">Vorhandene Entwürfe / Angebote für diesen Deal</h4>
+          <div id="dealActionExistingList" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+      </div>
+      <footer class="hl-import-modal__foot">
+        <button type="button" class="secondary" data-deal-action-close>Abbrechen</button>
+      </footer>
+    </div>
+  </div>
+
   <div id="homeConfirmOverlay" class="home-confirm-overlay" aria-hidden="true">
     <div class="home-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="homeConfirmTitle">
       <h3 id="homeConfirmTitle">Konfiguration zurücksetzen?</h3>
       <p>
-        Wenn Sie zur Auswahl der Leistung zurückkehren, gehen alle aktuell eingegebenen Daten verloren
+        Wenn Sie zur Hauptmenü zurückkehren, gehen alle aktuell eingegebenen Daten verloren
         und Sie müssen die Konfiguration neu beginnen.
       </p>
       <div class="home-confirm-actions">
@@ -9214,7 +9369,7 @@ button.dm-btn-danger:focus-visible {
           Abbrechen
         </button>
         <button type="button" class="primary" id="homeConfirmGo">
-          Zur Auswahl der Leistung
+          Zur Hauptmenü
         </button>
       </div>
     </div>

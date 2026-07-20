@@ -34,6 +34,35 @@ export function mountConfigurator(el, model, options = {}) {
     return { paramLabel: p?.label ?? paramId, valueLabel: label };
   }
 
+  // The "Duschabtrennung" structure param is the derived leaf identity — it's a
+  // single-option step that settle() auto-applies, so it never appears as a
+  // clickable step. Its value carries the leaf's product image, which we show
+  // as a standing preview once it's set (mid-wizard, and in the summary).
+  function leafPreview() {
+    const p = model.params.find((x) => x.id === "Duschabtrennung");
+    const val = state.selections["Duschabtrennung"];
+    if (!p || val == null) return null;
+    const v = p.values.find((x) => x.value === val);
+    if (!v || !v.imageId || !imageUrl(v.imageId)) return null;
+    return v;
+  }
+
+  function leafPreviewEl(v) {
+    const wrap = document.createElement("div");
+    wrap.className = "dac-leaf-preview";
+    const img = document.createElement("img");
+    img.src = imageUrl(v.imageId);
+    img.alt = v.label;
+    img.loading = "lazy";
+    img.onerror = () => wrap.remove();
+    wrap.appendChild(img);
+    const cap = document.createElement("span");
+    cap.className = "dac-leaf-preview-label";
+    cap.textContent = v.label;
+    wrap.appendChild(cap);
+    return wrap;
+  }
+
   // answered structure+finish steps, in model-param order
   function answeredSteps() {
     return model.params
@@ -122,15 +151,24 @@ export function mountConfigurator(el, model, options = {}) {
     container.appendChild(bc);
   }
 
+  // model.images stores "assets/<uuid>_<ext>" but the files actually live at
+  // /configurator/assets/<uuid>.<ext> — fix up the path once, here.
+  function imageUrl(imageId) {
+    const raw = model.images[imageId];
+    if (!raw) return null;
+    return "/configurator/" + raw.replace(/_(jpe?g|png|webp|gif)$/i, ".$1");
+  }
+
   function optionButton(val, onClick) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "dac-opt";
-    if (val.imageId && model.images[val.imageId]) {
+    const src = val.imageId && imageUrl(val.imageId);
+    if (src) {
       const wrap = document.createElement("span");
       wrap.className = "dac-opt-img";
       const img = document.createElement("img");
-      img.src = model.images[val.imageId];
+      img.src = src;
       img.alt = val.label;
       img.loading = "lazy";
       img.onerror = () => wrap.remove();
@@ -153,6 +191,11 @@ export function mountConfigurator(el, model, options = {}) {
       h.textContent = text;
       main.appendChild(h);
     };
+
+    // Show the leaf's product image as soon as it's pinned down (right after the
+    // last structure question), and keep it visible through finish + sizing.
+    const leafPrev = leafPreview();
+    if (leafPrev) main.appendChild(leafPreviewEl(leafPrev));
 
     if (step.phase === "structure" || step.phase === "finish") {
       const p = paramMeta(step.paramId);
@@ -308,6 +351,28 @@ export function mountConfigurator(el, model, options = {}) {
     const h = document.createElement("h3");
     h.textContent = "Auswahl";
     aside.appendChild(h);
+
+    const body = document.createElement("div");
+    body.className = "dac-summary-body";
+    const productsCol = document.createElement("div");
+    productsCol.className = "dac-summary-products";
+    body.appendChild(productsCol);
+
+    const leafPrev = leafPreview();
+    if (leafPrev) {
+      const imageCol = document.createElement("div");
+      imageCol.className = "dac-summary-image";
+      const previewEl = leafPreviewEl(leafPrev);
+      const img = previewEl.querySelector("img");
+      if (img) {
+        img.addEventListener("click", () =>
+          openLightbox(img.src, leafPrev.label),
+        );
+      }
+      imageCol.appendChild(previewEl);
+      body.appendChild(imageCol);
+    }
+
     const cfg = w.resolveConfiguration(model, state);
     const list = document.createElement("div");
     list.className = "dac-lines";
@@ -368,17 +433,49 @@ export function mountConfigurator(el, model, options = {}) {
 
         list.appendChild(row);
       }
+      productsCol.appendChild(list);
+      aside.appendChild(body);
       const total = document.createElement("div");
       total.className = "dac-total";
       total.innerHTML = `<span>Gesamt (netto)</span><span>${euro(cfg.net)}</span>`;
-      aside.appendChild(list);
       aside.appendChild(total);
     } else {
+      aside.appendChild(body);
       const hint = document.createElement("div");
       hint.className = "dac-hint";
       hint.textContent = "Konfiguration noch nicht vollständig …";
       aside.appendChild(hint);
     }
+  }
+
+  function openLightbox(src, alt) {
+    const overlay = document.createElement("div");
+    overlay.className = "dac-lightbox-overlay";
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = alt || "";
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "dac-lightbox-close";
+    closeBtn.setAttribute("aria-label", "Schließen");
+    closeBtn.textContent = "×";
+    overlay.appendChild(img);
+    overlay.appendChild(closeBtn);
+
+    const close = () => {
+      overlay.remove();
+      document.removeEventListener("keydown", onKey);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") close();
+    };
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close();
+    });
+    closeBtn.addEventListener("click", close);
+    document.addEventListener("keydown", onKey);
+
+    document.body.appendChild(overlay);
   }
 
   function renderBackBar(main) {

@@ -133,3 +133,4 @@ dist
 # Generated at runtime by PDF/material export (debug dumps) — never read
 out-Angebot.docx
 out-Materialuebersicht.docx
+.DS_Store

@@ -95,7 +95,7 @@ function __sanitizeCustomerPayloadFields(body) {
     "Abschlussprofil V3A": "Abschlussprofil V3 255 cm silber",
     "Flächenkleber R_4260602": "Flächenkleber (Wandverkleidung)",
     "flaechenkleber": "Flächenkleber (Wandverkleidung)",
-    "silikon": "Sanitär-Silikon 310ml weiß",
+    "Silikon": "Sanitär-Silikon 310ml weiß",
   };
 
   const keySpecific = {

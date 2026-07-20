@@ -2,6 +2,7 @@ import express from 'express';
 import configService, { CONFIG_SCHEMA } from '../services/configService.js';
 import AppConfig from '../models/AppConfig.js';
 import SigningRequest from '../models/SigningRequest.js';
+import BitrixLog from '../models/BitrixLog.js';
 import User from '../models/User.js';
 import {
   verifyPassword,
@@ -56,6 +57,19 @@ router.post('/api/login', async (req, res) => {
     res.json({ token, user: { email: user.email, name: user.name, role: user.role } });
   } catch (err) {
     console.error('POST /admin/api/login failed:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// GET /admin/api/config/public — subset of config values needed by the logged-in
+// frontend (not admin-only; still requires a session via the app-wide authGate).
+const PUBLIC_CONFIG_KEYS = ['ENTLASTUNGSBETRAG_MONAT'];
+router.get('/api/config/public', async (req, res) => {
+  try {
+    const result = {};
+    for (const key of PUBLIC_CONFIG_KEYS) result[key] = configService.get(key);
+    res.json(result);
+  } catch (err) {
     res.status(500).json({ error: String(err) });
   }
 });
@@ -168,6 +182,19 @@ router.get('/api/signing', requireAdmin, async (req, res) => {
     res.json({ items, counts, total: items.length });
   } catch (err) {
     console.error('GET /admin/api/signing failed:', err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ---------------- Bitrix error logs (admin) ----------------
+
+// GET /admin/api/bitrix-logs — last 500 failed Bitrix calls (auto-expire after 30 days).
+router.get('/api/bitrix-logs', requireAdmin, async (req, res) => {
+  try {
+    const docs = await BitrixLog.find({}).sort({ createdAt: -1 }).limit(500).lean();
+    res.json({ items: docs, total: docs.length });
+  } catch (err) {
+    console.error('GET /admin/api/bitrix-logs failed:', err);
     res.status(500).json({ error: String(err) });
   }
 });

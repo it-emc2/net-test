@@ -451,6 +451,7 @@ h1 {
 .sidebar {
   position: sticky;
   top: 0;
+  z-index: 51;
   align-self: start;
   height: calc(100dvh);
   background: var(--panel);
@@ -588,6 +589,81 @@ h1 {
   border-radius: 16px;
   padding: 16px;
   box-shadow: var(--shadow);
+}
+
+/* ── Kosten-Details: flat, paragraph-style sections (no boxed cards) ──
+   Scoped to #costsSummary so nothing outside the Kosten tab is affected. */
+#costsSummary .kosten-section {
+  margin: 0;
+}
+#costsSummary .kosten-section__title {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent-strong);
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--accent-weak);
+}
+#costsSummary .kosten-col-head {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+#costsSummary .kosten-section__footer {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  text-align: right;
+}
+#costsSummary .kosten-subtotal-label {
+  color: var(--muted);
+  font-weight: 700;
+}
+#costsSummary .kosten-sums {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+}
+#costsSummary .kosten-sums > div {
+  display: flex;
+  gap: 12px;
+}
+#costsSummary .kosten-sums > div > span {
+  color: var(--muted);
+}
+#costsSummary .kosten-sums__subtotal {
+  font-size: 1.05rem;
+}
+#costsSummary .kosten-sums__subtotal > span {
+  color: var(--text);
+}
+#costsSummary .kosten-sums__total {
+  align-self: stretch;
+  justify-content: flex-end;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 2px solid var(--accent-weak);
+  font-size: 1.25rem;
+}
+#costsSummary .kosten-sums__total > span,
+#costsSummary .kosten-sums__total > b {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+/* Dark mode: lift the accent so headings/total stay legible on dark cards. */
+[data-mode="dark"] #costsSummary .kosten-section__title,
+[data-mode="dark"] #costsSummary .kosten-sums__total > span,
+[data-mode="dark"] #costsSummary .kosten-sums__total > b {
+  color: #c4b5fd;
+}
+[data-mode="dark"] #costsSummary .kosten-section__title {
+  border-bottom-color: rgba(167, 139, 250, 0.35);
+}
+[data-mode="dark"] #costsSummary .kosten-sums__total {
+  border-top-color: rgba(167, 139, 250, 0.35);
 }
 
 form {
@@ -1170,15 +1246,21 @@ a.btn {
   box-shadow: 0 0 0 3px var(--ring);
 }
 
-#dw-extra-tasks .wt-extra-item input[type="text"] {
+#dw-extra-tasks .wt-extra-item .dw-extra {
   flex: 1;
   min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
   border: none;
   background: transparent;
   color: var(--card-foreground);
   font: inherit;
+  line-height: 1.35;
   padding: 0.2rem 0;
+  resize: vertical;
+  overflow-wrap: break-word;
 }
+
 
 #dw-extra-tasks .wt-extra-item input[type="text"]:focus {
   outline: none;
@@ -1205,6 +1287,44 @@ a.btn {
   background: rgba(239, 68, 68, 0.12);
   border-color: #ef4444;
   color: #ef4444;
+}
+
+#dw-extra-tasks .wt-extra-move {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+#dw-extra-tasks .wt-extra-move:hover:not(:disabled),
+#dw-extra-tasks .wt-extra-move:focus-visible:not(:disabled) {
+  background: var(--muted);
+  border-color: var(--accent);
+  color: var(--card-foreground);
+}
+
+#dw-extra-tasks .wt-extra-move:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Keep the chevron at its intrinsic size — inside the inline-flex button it
+   otherwise collapses to 0px width and the arrow disappears. */
+#dw-extra-tasks .wt-extra-move svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  display: block;
+  stroke: currentColor;
 }
 
 #dw-extra-tasks .wt-extra-add.da-add {
@@ -1495,6 +1615,186 @@ a.btn {
 /* ---------- Field spacing ---------- */
 .field {
   margin: 16px 0;
+}
+
+.dw-tray-extras-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-rows: auto auto auto;
+  gap: 16px;
+}
+
+.dw-tray-extras-grid > .field {
+  margin: 0;
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+}
+
+.dw-tray-extras-grid > .field .image-check {
+  width: 100%;
+  height: 100%;
+}
+
+/* Uniform product-tile cards: header / tile / note / qty-or-price, aligned
+   across the row via subgrid so cards with different optional content
+   (warning text, qty input) still line up instead of drifting to
+   whatever height their own content happens to need. */
+.product-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-rows: auto auto auto auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.product-tile-grid > .field {
+  margin: 0;
+  display: grid;
+  grid-row: span 4;
+  grid-template-rows: subgrid;
+  justify-items: start;
+}
+
+.product-tile-grid > .field .image-check {
+  width: min(220px, 100%);
+}
+
+/* #flooringPanel's >=1024px rule (below) blows product tiles up to a third
+   of the row and crops them; scope back to the standard fixed-size tile so
+   Fußboden and Wandverkleidung product cards match. */
+#flooringPanel .product-tile-grid .image-check {
+  max-width: min(220px, 100%);
+  flex: none;
+}
+
+#flooringPanel .product-tile-grid .img-wrap {
+  aspect-ratio: 4 / 5;
+}
+
+#flooringPanel .product-tile-grid .img-wrap img {
+  object-fit: contain;
+}
+
+/* ---------- Wandverkleidung: Abschlussprofil / Verbindungsprofil V3V row ----------
+   Subgrid so the head/image/footer sections of both cards line up on shared
+   row tracks even though the V3V card has more fields than the Abschlussprofil card. */
+.wv-profile-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr auto;
+  gap: 20px;
+  align-items: stretch;
+}
+
+@media (max-width: 760px) {
+  .wv-profile-row {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+  }
+}
+
+.wv-profile-card {
+  grid-row: 1 / span 3;
+  display: grid;
+  grid-template-rows: subgrid;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+@media (max-width: 760px) {
+  .wv-profile-card {
+    grid-row: auto;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+.wv-profile-card .card-head {
+  padding: 18px 18px 0;
+}
+
+.wv-profile-card .card-title {
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.wv-profile-card .card-sub {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.wv-profile-card .card-body {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.wv-profile-card .qty-area {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wv-profile-card .qty-area .field {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.wv-profile-card .card-foot {
+  margin: 0 18px 18px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  line-height: 1.35;
+}
+
+.wv-profile-card .card-foot .ic {
+  flex: 0 0 auto;
+}
+
+.wv-profile-card .card-foot .formula {
+  font-size: 0.75rem;
+  opacity: 0.85;
+  margin-top: 2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.wv-profile-card .card-foot.tone-info {
+  background: var(--section-bg);
+  color: var(--text);
+}
+
+.wv-profile-card .card-foot.tone-amber {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.wv-profile-card .card-foot.tone-ok {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+[data-mode="dark"] .wv-profile-card .card-foot.tone-amber {
+  background: #3a2c10;
+  color: #fbbf24;
+}
+
+[data-mode="dark"] .wv-profile-card .card-foot.tone-ok {
+  background: #0f2e1c;
+  color: #4ade80;
 }
 
 .radio-list {
@@ -5848,6 +6148,13 @@ button.pad-clear {
   color: #b91c1c;
 }
 
+.today-calendar-badge.is-deal {
+  background: rgba(37, 99, 235, .1);
+  border-color: rgba(37, 99, 235, .24);
+  color: #1d4ed8;
+  cursor: pointer;
+}
+
 .today-calendar-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5891,6 +6198,60 @@ button.pad-clear {
   margin-top: 12px;
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.today-calendar-done {
+  border: 1px solid color-mix(in srgb, #16a34a 30%, var(--border));
+  background: color-mix(in srgb, #16a34a 12%, var(--panel));
+  color: #15803d;
+  border-radius: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 700;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease, color .16s ease;
+}
+
+.today-calendar-done:hover,
+.today-calendar-done:focus-visible {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #16a34a 30%, transparent);
+}
+
+.today-calendar-done:disabled {
+  cursor: default;
+  opacity: .75;
+  box-shadow: none;
+}
+
+.today-calendar-call {
+  border: 1px solid color-mix(in srgb, #16a34a 32%, var(--border));
+  background: color-mix(in srgb, #16a34a 12%, var(--panel));
+  color: #15803d;
+  border-radius: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease, color .16s ease;
+}
+
+.today-calendar-call:hover,
+.today-calendar-call:focus-visible {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #16a34a 30%, transparent);
 }
 
 .today-calendar-open {
@@ -5944,6 +6305,8 @@ button.pad-clear {
     justify-content: stretch;
   }
 
+  .today-calendar-call,
+  .today-calendar-done,
   .today-calendar-open {
     width: 100%;
   }
@@ -6799,14 +7162,12 @@ details.az-group[open] > summary.az-group-title::before {
   display: grid;
   gap: 14px;
   margin-bottom: 18px;
-  max-width: 980px;
 }
 
 /* Even, equally-sized search inputs */
 .home-load-row {
   display: flex;
   gap: 10px;
-  max-width: 980px;
 }
 
 .home-load-row input {
@@ -6844,7 +7205,6 @@ details.az-group[open] > summary.az-group-title::before {
 .home-global-search-wrap {
   position: relative;
   width: 100%;
-  max-width: 980px;
 }
 
 .home-global-search-icon {

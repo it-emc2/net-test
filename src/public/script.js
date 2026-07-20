@@ -171,7 +171,7 @@ const OFFERS = {
       "admin",
       "services",
       "crm-emc2",
-      "DaConfigDev",
+      // "DaConfigDev",
     ],
   },
   bwt: {
@@ -1744,7 +1744,7 @@ function computeArbeitszeitSuggestion() {
     pushArbeitszeitRow(rows, "wv1497", "Wandverkleidung 1497×2550", 40, qty1497);
   }
   if (document.getElementById("wvSilikonSelected")?.checked) {
-    pushArbeitszeitRow(rows, "silikon", "Silikon", 10, 1);
+    pushArbeitszeitRow(rows, "Silikon", "Silikon", 10, 1);
   }
   if (document.getElementById("addFlooring")?.checked) {
     const floorArea = parseArbeitszeitNumber(document.getElementById("floorArea")?.value || 0);
@@ -2611,16 +2611,16 @@ function updateSidebarForOffer() {
     return a;
   }
 
-  // --- Always render "Auswahl der Leistung" as first item ---
+  // --- Always render "Hauptmenü" as first item ---
   const homeNav = nav?.querySelector(
-    'a.step[data-step="Auswahl der Leistung"]',
+    'a.step[data-step="Hauptmenü"]',
   );
   const homeLabel = homeNav
     ? homeNav.textContent.trim()
-    : "Auswahl der Leistung";
+    : "Hauptmenü";
   sideMenu.appendChild(makeLink("home", homeLabel));
 
-  // If no offer is selected, we stop here → only Auswahl der Leistung is shown.
+  // If no offer is selected, we stop here → only Hauptmenü is shown.
   if (!activeOffer) {
     return;
   }
@@ -2638,7 +2638,7 @@ function updateSidebarForOffer() {
     bwt: "BWT",
     hl: "HL",
     bl: "BL",
-    ah: "AH",
+    ah: "Leistungen",
     DuschabtrennungNeu: "Duschabtrennung (neu)",
     Duschvorhang: "Duschvorhang",
     Fussboden: "Fußboden",
@@ -4085,6 +4085,17 @@ function buildPayload() {
     payload.Kundendaten.pflegekasseEmc2Antrag = "";
   }
 
+  // Two-person address/greeting overrides (Zusammenfassung). Only for a real
+  // two-person offer; otherwise leave empty so the PDF composes the single-person
+  // name/greeting itself. Empty string => mapData fallback.
+  const _twoPersonsFinal = !_isSZ && !!payload.Kundendaten.twoPersons;
+  payload.Kundendaten.kundenName = _twoPersonsFinal
+    ? String(document.getElementById("zfKundenName")?.value || "").trim()
+    : "";
+  payload.Kundendaten.greetingLine = _twoPersonsFinal
+    ? String(document.getElementById("zfGreetingLine")?.value || "").trim()
+    : "";
+
   const rabattEnabled =
     document.querySelector('input[name="rb-add-rabatt"]:checked')?.value === "ja";
   const pct = parseFloat(document.getElementById("rb-material-discount")?.value || "0");
@@ -5018,10 +5029,7 @@ async function downloadPDFWithProgress(endpoint, payload) {
     });
   }
 
-  bindPreviewButton("previewOfferDocx", "offer");
   bindPreviewButton("previewOfferPdf", "offer");
-  bindPreviewButton("previewMaterialOverviewPdf", "material");
-  bindPreviewButton("previewArbeitsberichtPdf", "arbeitsbericht");
   bindPreviewButton("previewKalkulation", "kalkulation");
   bindPreviewButton("previewHassmannCart", "hassmann");
 
@@ -5730,7 +5738,33 @@ const TILE_TO_OFFER = {
    "HMS-Hausmeister-Service": "hms",
    "WD-Winterdienst": "wd",
 };
-// Auswahl der Leistung tiles → start the corresponding offer flow
+const OFFER_KEY_LABELS = {
+  bu: "BU · Badumbau",
+  bwt: "BWT · Badewannentür",
+  hl: "HL · Handlauf",
+  bl: "BL · Badelift",
+  ah: "AH · Alltagshilfe",
+  hms: "HMS · Hausmeister-Service",
+  wd: "WD · Winterdienst",
+};
+
+// Applies the Hauptmenü-armed Bitrix deal (contact + dealId) to whichever
+// Konfigurator was just opened. Must run after startOfferFlow()'s
+// resetAllForms(), never before, or the values get wiped immediately.
+function applyArmedDealToForm() {
+  if (!window.armedHomeDeal) return;
+  fillCustomerForm(window.armedHomeDeal.contact);
+  ["auftragId", "mailAuftragId", "postAuftragId"].forEach((fieldId) => {
+    const el = document.getElementById(fieldId);
+    if (!el) return;
+    el.value = window.armedHomeDeal.dealId;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  window.armedHomeDeal = null;
+}
+
+// Hauptmenü tiles → start the corresponding offer flow
 document.addEventListener("click", (event) => {
   const tile = event.target.closest(".tile-btn");
   if (!tile) return;
@@ -5741,7 +5775,201 @@ document.addEventListener("click", (event) => {
 
   event.preventDefault();
   startOfferFlow(offerKey);
+  applyArmedDealToForm();
 });
+
+// ---------- Bitrix Deal-ID dialog (Hauptmenü) ----------
+function closeDealActionDialog() {
+  const modal = document.getElementById("dealActionModal");
+  if (!modal) return;
+  modal.hidden = true;
+  modal.setAttribute("aria-hidden", "true");
+}
+
+function openDealActionDialog(identity, existingItems) {
+  const modal = document.getElementById("dealActionModal");
+  const identityEl = document.getElementById("dealActionIdentity");
+  const tilesEl = document.getElementById("dealActionTiles");
+  const existingWrap = document.getElementById("dealActionExistingWrap");
+  const existingList = document.getElementById("dealActionExistingList");
+  if (!modal || !identityEl || !tilesEl || !existingWrap || !existingList) return;
+
+  identityEl.textContent =
+    `Deal #${identity.dealId}` +
+    (identity.dealTitle ? ` — ${identity.dealTitle}` : "") +
+    ` — von ${identity.contactName || "Kontakt geladen"}`;
+
+  tilesEl.innerHTML = "";
+  Object.entries(OFFER_KEY_LABELS).forEach(([offerKey, label]) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "secondary";
+    btn.textContent = label;
+    btn.addEventListener("click", () => {
+      closeDealActionDialog();
+      startOfferFlow(offerKey);
+      applyArmedDealToForm();
+    });
+    tilesEl.appendChild(btn);
+  });
+
+  const items = Array.isArray(existingItems) ? existingItems : [];
+  if (!items.length) {
+    existingWrap.hidden = true;
+    existingList.innerHTML = "";
+  } else {
+    existingWrap.hidden = false;
+    existingList.innerHTML = "";
+    items.forEach((item) => {
+      const isDraft = item._type === "draft";
+      const title =
+        [item.firstName, item.lastName].filter(Boolean).join(" ").trim() ||
+        item.name ||
+        item.offerNumber ||
+        "Ohne Titel";
+      const dateText = item.updatedAt
+        ? new Date(item.updatedAt).toLocaleString("de-DE")
+        : "";
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "home-search-result";
+      btn.innerHTML = `
+        <div class="home-search-result__top">
+          <div class="home-search-result__title"></div>
+          <div class="home-search-result__badges">
+            <span class="home-search-badge ${isDraft ? "home-search-badge--draft" : "home-search-badge--offer"}">${isDraft ? "Entwurf" : "Angebot"}</span>
+            ${item.offerType ? `<span class="home-search-badge"></span>` : ""}
+          </div>
+        </div>
+        <div class="home-search-result__meta">
+          ${item.offerNumber ? "<strong></strong>" : ""}
+        </div>
+      `;
+      btn.querySelector(".home-search-result__title").textContent = title;
+      if (item.offerType) {
+        btn.querySelector(".home-search-badge:last-child").textContent = String(item.offerType).toUpperCase();
+      }
+      if (item.offerNumber) {
+        btn.querySelector(".home-search-result__meta strong").textContent = item.offerNumber;
+      }
+      const metaEl = btn.querySelector(".home-search-result__meta");
+      if (dateText) metaEl.append(`${item.offerNumber ? " · " : ""}${dateText}`);
+
+      btn.addEventListener("click", async () => {
+        closeDealActionDialog();
+        window.armedHomeDeal = null;
+        await loadGlobalOfferSearchResult(item);
+      });
+      existingList.appendChild(btn);
+    });
+  }
+
+  modal.hidden = false;
+  modal.setAttribute("aria-hidden", "false");
+}
+
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-deal-action-close]")) closeDealActionDialog();
+});
+
+// Hauptmenü "Bitrix Deal laden" — loads a deal + its contact by Deal-ID,
+// looks up any existing drafts/offers already saved for it, then opens a
+// dialog to pick a Konfigurator or resume an existing one (no inline status
+// text on the Hauptmenü itself — the dialog carries that information).
+(() => {
+  const input = document.getElementById("homeDealIdInput");
+  const btn = document.getElementById("btnLoadDeal");
+  const statusEl = document.getElementById("homeDealStatus");
+  if (!input || !btn || !statusEl) return;
+
+  const setError = (msg) => {
+    statusEl.hidden = false;
+    statusEl.className = "status err";
+    statusEl.textContent = msg;
+  };
+
+  const loadDeal = async () => {
+    const id = input.value.trim();
+    if (!id) {
+      setError("Bitte eine Bitrix Deal-ID eingeben");
+      return;
+    }
+
+    statusEl.hidden = true;
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Laden…";
+
+    try {
+      const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(id)}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Fehler beim Laden des Deals");
+
+      const { deal, contact } = data;
+      if (!contact) throw new Error("Zu diesem Deal ist kein Kontakt hinterlegt");
+
+      const phone =
+        Array.isArray(contact.PHONE) && contact.PHONE[0] ? contact.PHONE[0].VALUE : "";
+      const email =
+        Array.isArray(contact.EMAIL) && contact.EMAIL[0] ? contact.EMAIL[0].VALUE : "";
+      const honorificId = String(
+        contact?.HONORIFIC?.STATUS_ID ?? contact?.HONORIFIC ?? contact?.HONORIFIC_ID ?? "",
+      ).trim();
+      const salutation = { HNR_DE_1: "Frau", HNR_DE_2: "Herr", "1": "Familie" }[honorificId] || "";
+
+      window.armedHomeDeal = {
+        dealId: deal.id,
+        contact: {
+          bitrixContactId: contact.ID,
+          customerNumber: contact.ID,
+          firstName: contact.NAME || "",
+          lastName: contact.LAST_NAME || "",
+          company: contact.COMPANY_TITLE || "",
+          email,
+          phone,
+          salutation,
+          street: contact.ADDRESS || "",
+          city: contact.ADDRESS_CITY || "",
+          postalCode: contact.ADDRESS_POSTAL_CODE || "",
+          state: contact.ADDRESS_REGION || contact.ADDRESS_PROVINCE || "",
+          country: contact.ADDRESS_COUNTRY || "",
+        },
+      };
+
+      const contactName = [contact.NAME, contact.LAST_NAME].filter(Boolean).join(" ");
+
+      // Best-effort: existing-drafts/offers lookup must never block opening
+      // the dialog if it fails or is slow.
+      let existingItems = [];
+      try {
+        const existingRes = await fetch(`/api/offers/by-deal/${encodeURIComponent(String(deal.id))}`);
+        if (existingRes.ok) existingItems = await existingRes.json();
+      } catch (e) {
+        console.warn("[deal dialog] by-deal lookup failed:", e);
+      }
+
+      openDealActionDialog(
+        { dealId: deal.id, dealTitle: deal.title, contactName: contactName || contact.COMPANY_TITLE || "" },
+        existingItems,
+      );
+    } catch (e) {
+      window.armedHomeDeal = null;
+      setError(e.message || "Fehler beim Laden des Deals");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  };
+
+  btn.addEventListener("click", loadDeal);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      loadDeal();
+    }
+  });
+})();
 /* ========== NAV BUTTONS ========== */
 document.body.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-nav]");
@@ -5786,6 +6014,20 @@ document.body.addEventListener("click", (e) => {
     setStep(flow[nextIdx]);
   }
 });
+// AH: Entlastungsbetrag (§ 45b SGB XI) — admin-configurable, defaults to 131€/Monat
+// while /admin/api/config/public is loading.
+window.__entlastungsbetragMonat = 131;
+fetch("/admin/api/config/public")
+  .then(function (r) { return r.ok ? r.json() : null; })
+  .then(function (d) {
+    if (d && typeof d.ENTLASTUNGSBETRAG_MONAT === "number") {
+      window.__entlastungsbetragMonat = d.ENTLASTUNGSBETRAG_MONAT;
+      var labelVal = document.getElementById("ahEntlastungAutoLabelValue");
+      if (labelVal) labelVal.textContent = String(d.ENTLASTUNGSBETRAG_MONAT);
+    }
+  })
+  .catch(function () {});
+
 // AH: dynamic multi-service card list
 (function initAhServicesPage() {
   var form = document.getElementById("form-ah");
@@ -5815,6 +6057,14 @@ document.body.addEventListener("click", (e) => {
     "Halbjährlich":      2 / 12,
     "Jährlich":          1 / 12,
   };
+
+  // HnD-only "optimize Dauer" button: fit under the (2025) monthly Entlastungsbetrag.
+  var STUNDENSATZ_HND = 40.56;
+  var ANFAHRT_PER_EINSATZ = 7.96;
+  // Toggle: also count Anfahrtspauschale + Reisezeit (from getAHZoneData()) toward
+  // the 131,40€ fit, so the *total* invoice price (not just the service time) stays
+  // under budget. Set to false to fit on service price alone.
+  var OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT = true;
 
   var ALLTAGSTASKS = [
     { id: "wohnungsreinigung",  label: "Wohnungsreinigung (Staubsaugen, Wischen, Bad, Küche)" },
@@ -6039,7 +6289,8 @@ document.body.addEventListener("click", (e) => {
     card.appendChild(infoPanel);
 
     // — card-level schedule section (multi-row) —
-    var SCHED_COL  = "84px 1fr 84px 24px";
+    var isHnd = type === "Haushaltsnahedienstleistungen";
+    var SCHED_COL = isHnd ? "84px 1fr 84px 24px 24px" : "84px 1fr 84px 24px";
 
     var schedSection = document.createElement("div");
     schedSection.style.cssText = "border:1px solid var(--border); border-radius:6px; overflow:hidden;";
@@ -6049,7 +6300,7 @@ document.body.addEventListener("click", (e) => {
       "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center;" +
       "padding:4px 12px 3px; font-size:0.7rem; font-weight:600; color:var(--muted); user-select:none;" +
       "background:var(--panel); border-bottom:1px solid var(--border);";
-    schedHdr.innerHTML = "<span>Dauer (Std:Min)</span><span>Regelmäßigkeit</span><span style='text-align:right; color:var(--accent,#0ea5e9);'>/ Monat</span><span></span>";
+    schedHdr.innerHTML = "<span>Dauer (Std:Min)</span><span>Regelmäßigkeit</span><span style='text-align:right; color:var(--accent,#0ea5e9);'>/ Monat</span><span></span>" + (isHnd ? "<span></span>" : "");
 
     var schedRowsContainer = document.createElement("div");
     schedRowsContainer.className = "ah-sched-rows";
@@ -6074,8 +6325,8 @@ document.body.addEventListener("click", (e) => {
       rDauerH.className = "ah-dauer-h";
       rDauerH.setAttribute("aria-label", "Stunden");
       rDauerH.value = _initMins ? String(Math.floor(_initMins / 60)) : "";
-      rDauerH.placeholder = "1";
-      rDauerH.style.cssText = "width:30px; font-size:0.8rem; font-family:monospace; text-align:center; padding:2px;";
+      rDauerH.placeholder = "hh";
+      rDauerH.style.cssText = "box-sizing:border-box; width:34px; font-size:0.8rem; font-family:monospace; text-align:center; padding:4px 2px;";
 
       var rDauerSep = document.createElement("span");
       rDauerSep.textContent = ":";
@@ -6086,8 +6337,8 @@ document.body.addEventListener("click", (e) => {
       rDauerM.className = "ah-dauer-m";
       rDauerM.setAttribute("aria-label", "Minuten");
       rDauerM.value = _initMins ? String(_initMins % 60) : "";
-      rDauerM.placeholder = "30";
-      rDauerM.style.cssText = "width:30px; font-size:0.8rem; font-family:monospace; text-align:center; padding:2px;";
+      rDauerM.placeholder = "mm";
+      rDauerM.style.cssText = "box-sizing:border-box; width:34px; font-size:0.8rem; font-family:monospace; text-align:center; padding:4px 2px;";
 
       var rDauerHidden = document.createElement("input");
       rDauerHidden.type = "hidden";
@@ -6167,6 +6418,55 @@ document.body.addEventListener("click", (e) => {
       row.appendChild(rDauerCell);
       row.appendChild(rRegelSel);
       row.appendChild(rRowTotal);
+
+      // HnD only: snap Dauer to the largest 5-min multiple whose monthly
+      // price still fits under the Entlastungsbetrag. Anfahrt/Reisezeit are
+      // folded in when OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT is true.
+      function optimizeDauerForEntlastungsbetrag() {
+        var toggle = document.getElementById("ahEntlastungAuto");
+        if (!toggle || !toggle.checked) return;
+
+        var freq = rRegelSel.value === "Einmalig" ? 1 : FREQ_PER_MONTH[rRegelSel.value];
+        if (typeof freq !== "number") return;
+
+        var reisezeitH = 0, anfahrtPerEinsatz = 0;
+        if (OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT) {
+          var zoneData = typeof window.getAHZoneData === "function" ? window.getAHZoneData() : null;
+          reisezeitH = zoneData ? zoneData.billMin / 60 : 0;
+          anfahrtPerEinsatz = ANFAHRT_PER_EINSATZ;
+        }
+
+        var bestMins = 0;
+        for (var m = 5; m <= 480; m += 5) {
+          var price = Math.round(
+            (freq * anfahrtPerEinsatz + (m / 60 + reisezeitH) * freq * STUNDENSATZ_HND) * 100
+          ) / 100;
+          if (price > window.__entlastungsbetragMonat) break;
+          bestMins = m;
+        }
+        rDauerH.value = bestMins ? String(Math.floor(bestMins / 60)) : "";
+        rDauerM.value = bestMins ? String(bestMins % 60) : "";
+        syncDauer();
+        serialize();
+        doUpdateTotals();
+      }
+
+      if (isHnd) {
+        var rOptBtn = document.createElement("button");
+        rOptBtn.type = "button";
+        rOptBtn.title = "Dauer auf Entlastungsbetrag (" + window.__entlastungsbetragMonat + " €/Monat) optimieren";
+        rOptBtn.textContent = "⚡";
+        rOptBtn.style.cssText =
+          "background:none; border:1px solid var(--border); border-radius:4px;" +
+          "font-size:0.85rem; line-height:1; cursor:pointer; color:var(--accent,#0ea5e9);" +
+          "width:22px; height:22px; display:flex; align-items:center; justify-content:center; padding:0;";
+        rOptBtn.addEventListener("click", optimizeDauerForEntlastungsbetrag);
+        row.appendChild(rOptBtn);
+
+        // Auto-optimize whenever the user picks/changes Regelmäßigkeit.
+        rRegelSel.addEventListener("change", optimizeDauerForEntlastungsbetrag);
+      }
+
       row.appendChild(rRemoveBtn);
       return row;
     }
@@ -6607,6 +6907,8 @@ function recomputeWVFlachenQty() {
 function initWVConnectorsUI() {
   const qtyVEl = document.getElementById("wvV3VQty"); // user-entered connectors
   const outEl = document.getElementById("wvV3VRuleText"); // hint line
+  const footEl = document.getElementById("wvV3VFoot"); // tone-colored footer
+  const iconEl = document.getElementById("wvV3VIcon");
   const cb997 = document.getElementById("wv997");
   const cb1497 = document.getElementById("wv1497");
   const q997El = document.getElementById("wvQty997");
@@ -6639,22 +6941,30 @@ function initWVConnectorsUI() {
       : 0;
 
     const totalPanels = q997 + q1497;
-    let rec = Math.max(0, totalPanels - 1); // joints between panels in a run
     const ecken = Math.max(0, n(corners?.value));
-    rec = Math.max(0, rec - ecken); // add vertical profiles for corners
-    return rec;
+    let rec = Math.max(0, totalPanels - 1); // joints between panels in a run
+    rec = Math.max(0, rec - ecken); // corners consume a joint each
+    return { rec, totalPanels, ecken };
   }
 
   function render() {
-    const rec = recommendedVCount();
+    const { rec, totalPanels, ecken } = recommendedVCount();
     const cur = n(qtyVEl.value);
-    if (rec > 0) {
-      outEl.classList.remove("warn");
-      outEl.textContent = `- Verbindungsprofil(e) empfohlen: ${rec} Stk • aktuell: ${cur} Stk`;
+    const formula = `<div class="formula">${rec} = ${totalPanels} Paneele − 1 Naht-Basis − ${ecken} Ecke(n)</div>`;
+
+    footEl?.classList.remove("tone-info", "tone-amber", "tone-ok");
+    if (rec === 0) {
+      footEl?.classList.add("tone-amber");
+      if (iconEl) iconEl.textContent = "⚠️";
+      outEl.innerHTML = `⚠️ Keine Verbindungsprofile empfohlen. Bitte Paneelanzahl (${totalPanels}) und Außenecke(n) (${ecken}) prüfen.${formula}`;
+    } else if (cur === rec) {
+      footEl?.classList.add("tone-ok");
+      if (iconEl) iconEl.textContent = "✅";
+      outEl.innerHTML = `Empfehlung: ${rec} Stück – passt zur eingetragenen Menge.${formula}`;
     } else {
-      outEl.classList.add("warn");
-      outEl.textContent =
-        "⚠️ Keine Verbindungsprofile empfohlen. Bitte Paneelanzahl und „Ecke(n) vorhanden“ prüfen.";
+      footEl?.classList.add("tone-info");
+      if (iconEl) iconEl.textContent = "ℹ️";
+      outEl.innerHTML = `Empfehlung: ${rec} Stück – aktuell eingetragen: ${cur} Stück.${formula}`;
     }
   }
 
@@ -7007,8 +7317,18 @@ document.addEventListener("DOMContentLoaded", () => {
     item.className = "da-item wt-extra-item";
     item.setAttribute("data-kind", "extra");
     item.innerHTML = `
-      <input class="dw-extra" type="text" name="duschwanne[extraTasks][]"
-        aria-label="Zusätzliche Aufgabe" value="${escapeHtml(value)}" />
+      <textarea class="dw-extra" name="duschwanne[extraTasks][]"
+      aria-label="Zusätzliche Aufgabe" rows="2">${escapeHtml(value)}</textarea>
+      <button type="button" class="wt-extra-move wt-extra-move-up" aria-label="Nach oben verschieben" title="Nach oben">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="18 15 12 9 6 15"></polyline>
+        </svg>
+      </button>
+      <button type="button" class="wt-extra-move wt-extra-move-down" aria-label="Nach unten verschieben" title="Nach unten">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
       <button type="button" class="da-remove wt-extra-remove" aria-label="Diese Zeile entfernen">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <polyline points="3 6 5 6 21 6"></polyline>
@@ -7026,6 +7346,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function wireItem(item) {
     const input = item.querySelector(".dw-extra");
     const removeBtn = item.querySelector(".da-remove");
+    const upBtn = item.querySelector(".wt-extra-move-up");
+    const downBtn = item.querySelector(".wt-extra-move-down");
 
     input?.addEventListener("input", saveState);
     removeBtn?.addEventListener("click", () => {
@@ -7036,7 +7358,40 @@ document.addEventListener("DOMContentLoaded", () => {
         item.remove();
       }
       saveState();
+      updateMoveButtons();
       window.updatePricing?.();
+    });
+
+    upBtn?.addEventListener("click", () => {
+      const prev = item.previousElementSibling;
+      if (prev && prev.classList.contains("da-item")) {
+        wrap.insertBefore(item, prev);
+        saveState();
+        updateMoveButtons();
+        window.updatePricing?.();
+      }
+    });
+
+    downBtn?.addEventListener("click", () => {
+      const next = item.nextElementSibling;
+      if (next && next.classList.contains("da-item")) {
+        wrap.insertBefore(next, item);
+        saveState();
+        updateMoveButtons();
+        window.updatePricing?.();
+      }
+    });
+  }
+
+  // Disable "up" on the first row and "down" on the last row.
+  function updateMoveButtons() {
+    const items = Array.from(wrap.querySelectorAll(".da-item"));
+    const single = items.length <= 1;
+    items.forEach((it, i) => {
+      const up = it.querySelector(".wt-extra-move-up");
+      const down = it.querySelector(".wt-extra-move-down");
+      if (up) up.disabled = single || i === 0;
+      if (down) down.disabled = single || i === items.length - 1;
     });
   }
 
@@ -7049,6 +7404,7 @@ document.addEventListener("DOMContentLoaded", () => {
       countBadge.hidden = filled.length === 0;
     }
     if (emptyHint) emptyHint.hidden = filled.length > 0;
+    updateMoveButtons();
   }
 
   function saveState() {
@@ -7812,6 +8168,92 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
 
   sync();
   window.syncKundendatenExtraFields = sync;
+})();
+
+// -------------------------------------------------------------------------
+// Two-person offer: editable name + greeting in Zusammenfassung.
+// Auto-composed from Kundendaten + Partner fields (kept in sync with the PDF
+// mapData composition), overridable by the user. Feeds {KundenAnschrift} /
+// {GreetingLine} in the offer template via payload.Kundendaten.
+// -------------------------------------------------------------------------
+(function initTwoPersonSummaryFields() {
+  const card = document.getElementById("zfTwoPersonCard");
+  const nameEl = document.getElementById("zfKundenName");
+  const greetEl = document.getElementById("zfGreetingLine");
+  if (!card || !nameEl || !greetEl) return;
+
+  const val = (id) => String(document.getElementById(id)?.value || "").trim();
+  const salutation = () =>
+    document.querySelector('input[name="salutation"]:checked')?.value || "";
+  const isTwoPersons = () =>
+    !!document.querySelector('input[name="twoPersons"]:checked') &&
+    document.querySelector('input[name="payer"]:checked')?.value !== "Selbstzahler";
+
+  const nameFrag = (sal, name) => [sal, name].filter(Boolean).join(" ").trim();
+  const greetFrag = (sal, last) => {
+    const l = (last || "").trim();
+    if (sal === "Frau") return `sehr geehrte Frau ${l}`.trim();
+    if (sal === "Herr") return `sehr geehrter Herr ${l}`.trim();
+    if (sal === "Familie") return `sehr geehrte Familie ${l}`.trim();
+    return "sehr geehrte Damen und Herren";
+  };
+
+  function composeName() {
+    const cust = [val("firstName"), val("lastName")].filter(Boolean).join(" ").trim();
+    const partner = [val("partnerFirstName"), val("partnerLastName")].filter(Boolean).join(" ").trim();
+    return `${nameFrag(salutation(), cust)} und ${nameFrag(val("partnerSalutation"), partner)}`.trim();
+  }
+  function composeGreeting() {
+    const two = `${greetFrag(salutation(), val("lastName"))}, ${greetFrag(val("partnerSalutation"), val("partnerLastName"))}`;
+    return two.charAt(0).toUpperCase() + two.slice(1);
+  }
+
+  // Auto-fill until the user edits the box (same "touched" pattern as the mail fields).
+  nameEl.addEventListener("input", () => (nameEl.dataset.touched = "1"));
+  greetEl.addEventListener("input", () => (greetEl.dataset.touched = "1"));
+
+  function refresh() {
+    const show = isTwoPersons();
+    card.hidden = !show;
+    card.setAttribute("aria-hidden", show ? "false" : "true");
+    if (!show) return;
+    if (nameEl.dataset.touched !== "1") nameEl.value = composeName();
+    if (greetEl.dataset.touched !== "1") greetEl.value = composeGreeting();
+  }
+
+  // Recompose when any source field changes.
+  const srcIds = [
+    "firstName", "lastName", "partnerFirstName", "partnerLastName", "partnerSalutation",
+  ];
+  srcIds.forEach((id) => {
+    const el = document.getElementById(id);
+    el?.addEventListener("input", refresh);
+    el?.addEventListener("change", refresh);
+  });
+  document.querySelectorAll('input[name="salutation"], input[name="twoPersons"], input[name="payer"]').forEach((el) => {
+    el.addEventListener("change", refresh);
+  });
+  window.addEventListener("offerflow:changed", refresh);
+  // Recompute when the Zusammenfassung tab becomes active (hashchange nav).
+  window.addEventListener("hashchange", refresh);
+
+  refresh();
+  // Restore hook: re-apply saved override values, then refresh visibility.
+  window.applyTwoPersonSummaryFields = function (k = {}) {
+    if (k.kundenName) {
+      nameEl.value = k.kundenName;
+      nameEl.dataset.touched = "1";
+    } else {
+      delete nameEl.dataset.touched;
+    }
+    if (k.greetingLine) {
+      greetEl.value = k.greetingLine;
+      greetEl.dataset.touched = "1";
+    } else {
+      delete greetEl.dataset.touched;
+    }
+    refresh();
+  };
 })();
 
 // save / load the whole Kundendaten page state so it can be reused across offer types
@@ -9869,12 +10311,12 @@ function attachDuschwanneToPayload(payload) {
   window.updatePricing = async function updatePricing(payload) {
     // AH: all pricing is client-side — never call the server
     if (String(window.getCurrentOfferType?.() || "").toLowerCase() === "ah") {
-      const ah = window.computeAHGesamt?.() || { gesamt: 0 };
-      const ahData = { total: ah.gesamt, selfPayAmount: ah.gesamt, _isAH: true };
+      const ah = window.computeAHGesamt?.() || { gesamt: 0, eigenanteil: 0 };
+      const ahData = { total: ah.gesamt, selfPayAmount: ah.eigenanteil, _isAH: true };
       window.__pricing = ahData;
       window.dispatchEvent(new CustomEvent("pricing:updated", { detail: ahData }));
       if (typeof updateSummaryWidgetTotal === "function") updateSummaryWidgetTotal(ah.gesamt);
-      if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(ah.gesamt);
+      if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(ah.eigenanteil);
       return ahData;
     }
 
@@ -10100,8 +10542,13 @@ window.computeAHGesamt = function computeAHGesamt() {
   var allBase = r2(gesamtBase + abGesamtBase);
   var gesamt  = r2(allBase + (isSelbstzahler && hnd.totalMonatlichH > 0 ? SERVICEPAUSCHALE : 0));
 
+  // Kassenkunde: covered by the Entlastungsbetrag (§ 45b SGB XI, admin-configurable) —
+  // Eigenanteil is only the amount exceeding that. Selbstzahler pay the full amount themselves.
+  var eigenanteil = isSelbstzahler ? gesamt : r2(Math.max(0, gesamt - window.__entlastungsbetragMonat));
+
   return {
     gesamt:            gesamt,
+    eigenanteil:       eigenanteil,
     gesamtBase:        gesamtBase,
     anfahrtTotal:      anfahrtTotal,
     leistungenTotal:   leistungenTotal,
@@ -10322,6 +10769,9 @@ window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
           '<div style="text-align:right;">' +
             '<div style="font-size:2rem; font-weight:800; line-height:1;">' + eur(gesamt) + '</div>' +
             '<div style="font-size:0.8rem; opacity:0.9; margin-top:3px;">pro Monat · ≈ ' + eur(yearly) + ' / Jahr</div>' +
+            (!ah.isSelbstzahler ?
+              '<div style="font-size:0.8rem; opacity:0.9; margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.3);">Eigenanteil: <b>' + eur(ah.eigenanteil) + '</b> (Rest über Entlastungsbetrag § 45a)</div>'
+              : '') +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -10395,17 +10845,20 @@ window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
     }).format(Number(n || 0));
   }
 
+  // Kosten-Details section: flat, paragraph-style block (no boxed card).
+  // Renders an accent-underlined heading, the line grid, and an optional
+  // right-aligned subtotal on a hairline. Styling lives in .kosten-section*.
   function card(title, bodyHTML, footerHTML = "") {
     return `
-      <div class="card" style="padding:12px;">
-        <div style="font-weight:700; margin-bottom:8px;">${title}</div>
-        <div>${bodyHTML}</div>
+      <section class="kosten-section">
+        <h3 class="kosten-section__title">${title}</h3>
+        <div class="kosten-section__body">${bodyHTML}</div>
         ${
           footerHTML
-            ? `<div style="border-top:1px solid var(--border); margin-top:8px; padding-top:8px;">${footerHTML}</div>`
+            ? `<div class="kosten-section__footer">${footerHTML}</div>`
             : ""
         }
-      </div>
+      </section>
     `;
   }
   // UI-only: if a Duschabtrennung (Hassmann) quick-add has a user ID,
@@ -10466,10 +10919,10 @@ function escapeHtml(s) {
       return '<div class="muted">Keine Positionen</div>';
 
     const header = `
-    <div style="font-size:12px;color:var(--muted)">Bezeichnung</div>
-    <div style="font-size:12px;color:var(--muted);text-align:right">Menge</div>
-    <div style="font-size:12px;color:var(--muted);text-align:right">Einzelpreis</div>
-    <div style="font-size:12px;color:var(--muted);text-align:right">Gesamt</div>
+    <div class="kosten-col-head">Bezeichnung</div>
+    <div class="kosten-col-head" style="text-align:right">Menge</div>
+    <div class="kosten-col-head" style="text-align:right">Einzelpreis</div>
+    <div class="kosten-col-head" style="text-align:right">Gesamt</div>
   `;
 
     const rows = lines
@@ -10882,7 +11335,7 @@ if (supportsOptional) {
   optCard = card(
     "Additional gewählte Produkte",
     optBody,
-    `<div style="text-align:right"><b>Summe:</b> ${euroC(optSum)}</div>`,
+    `<span class="kosten-subtotal-label">Summe:</span> ${euroC(optSum)}`,
   );
 }
 
@@ -10919,7 +11372,7 @@ if (supportsOptional) {
     const matCard = card(
       (data.materials && data.materials.title) || "Material für Badumbau",
       matBody,
-      `<div style="text-align:right"><b>Summe Material:</b> ${euroC(matSum)}</div>`,
+      `<span class="kosten-subtotal-label">Summe Material:</span> ${euroC(matSum)}`,
     );
 
     // --- Leistungen (Debug): use servicesDisplayUI if present
@@ -11028,21 +11481,26 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       ? includedSvcSum
       : data.services?.sum || 0;
 
-    const svcCard = `
-  ${card(data.services?.title || "Auszuführende Arbeiten", svcBodyPrimary)}
-  <div style="height:8px"></div>
-  ${card("Enthält je Einheit", svcBodyIncluded, `<div style="text-align:right"><b>Summe Leistungen:</b> ${euroC(sumLeistungenEnth)}</div>`)}
-`;
+    // Two separate sections; rendered Arbeiten first, then Enthält-je-Einheit.
+    const enthaltCard = card(
+      "Enthält je Einheit",
+      svcBodyIncluded,
+      `<span class="kosten-subtotal-label">Summe Leistungen:</span> ${euroC(sumLeistungenEnth)}`,
+    );
+    const arbeitenCard = card(
+      data.services?.title || "Auszuführende Arbeiten",
+      svcBodyPrimary,
+    );
 
     // <div>Produkte + Material: <b>${euroC(data.productsSubtotal || 0)}</b></div>
     // --- Totals (unchanged)
     const sums = `
-    <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
-      <div>Produkte + Material: <b>${euroC(data.material_afterRabatt_and_aufschlag || 0)}</b></div>
-      <div>Leistungen: <b>${euroC(data.services?.sum || 0)}</b></div>
-      <div>Aufschlag (${(() => { const p = (data.markupPct || 0) * 100; return Number.isInteger(p) ? String(p) : p.toFixed(2).replace(/\.?0+$/, "").replace(".", ","); })()}%): <b>${euroC(data.markup || 0)}</b></div>
-      <div style="font-size:1.05rem;">Zwischensumme (Netto): <b>${euroC(data.netAfterRabatt_and_Bonus || 0)}</b></div>
-      <div style="font-size:1.2rem;">Gesamt: <b>${euroC(data.total || 0)}</b></div>
+    <div class="kosten-sums">
+      <div><span>Produkte + Material:</span> <b>${euroC(data.material_afterRabatt_and_aufschlag || 0)}</b></div>
+      <div><span>Leistungen:</span> <b>${euroC(data.services?.sum || 0)}</b></div>
+      <div><span>Aufschlag (${(() => { const p = (data.markupPct || 0) * 100; return Number.isInteger(p) ? String(p) : p.toFixed(2).replace(/\.?0+$/, "").replace(".", ","); })()}%):</span> <b>${euroC(data.markup || 0)}</b></div>
+      <div class="kosten-sums__subtotal"><span>Zwischensumme (Netto):</span> <b>${euroC(data.netAfterRabatt_and_Bonus || 0)}</b></div>
+      <div class="kosten-sums__total"><span>Gesamt:</span> <b>${euroC(data.total || 0)}</b></div>
     </div>
   `;
     const totalsCard = card("Summen", sums);
@@ -11120,7 +11578,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
 
       // Keep widget in sync
       if (typeof updateSummaryWidgetTotal === "function") updateSummaryWidgetTotal(gesamt);
-      if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(gesamt);
+      if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(ah.eigenanteil);
 
       // Keep header total in sync (builder emits the card body only)
       if (kostenHeaderTotal && gesamt > 0) {
@@ -11180,7 +11638,13 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       return; // AH branch handled — do not fall through to generic renderer
     }
 
-    container.innerHTML = [matCard, optCard, svcCard, totalsCard].join("");
+    container.innerHTML = [
+      arbeitenCard,
+      enthaltCard,
+      matCard,
+      optCard,
+      totalsCard,
+    ].join("");
   };
 
   window.refreshAllPanels = async function refreshAllPanels() {
@@ -12718,6 +13182,7 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("stockwerkBadSonst", k.stockwerkBadSonst || (isOtherStockwerk ? stockwerkValue : ""));
   setRadio("parkenMoeglich", k.parkenMoeglich);
   setByNameOrId("parkDetails", k.parkDetails || k.parksituationHinweis);
+  setByNameOrId("notes", k.notes);
   if (typeof window.syncKundendatenExtraFields === "function") {
     window.syncKundendatenExtraFields();
   }
@@ -12751,6 +13216,8 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("partnerLastName", k.partnerLastName);
   if (k.partnerPflegegrad) setRadio("partnerPflegegrad", String(k.partnerPflegegrad));
   setByNameOrId("partnerKassenkundeName", k.partnerKassenkundeName);
+  // Two-person PDF name/greeting overrides (Zusammenfassung).
+  window.applyTwoPersonSummaryFields?.(k);
 
   // Preparation checklist (all offers)
   setCheckboxByName("prep_terminBestaetigt", k.prep_terminBestaetigt === "Ja");
@@ -13391,6 +13858,14 @@ const RESTORE_HANDLERS = {
             (typeof window.saveFinalOfferSnapshot === "function"
               ? window.saveFinalOfferSnapshot()
               : undefined),
+          onDealStageMoved: (dealId, offerType) => {
+            const stageId =
+              String(offerType || "").toLowerCase() === "ah"
+                ? "C52:UC_SNAVG8"
+                : "C38:UC_2ZDNEZ";
+            window.markDealStage?.(dealId, stageId);
+            window.renderTodayPlanningAppointments?.();
+          },
         },
       });
       window.__managers.email = window.__emailManager;
@@ -16074,6 +16549,7 @@ cat_SHOWER: "menu_SHOWER",
     cat_WANNE: "menu_WANNE",
     cat_WC: "menu_WC",
     cat_SONDER: "menu_SONDER",
+    cat_DUSCHZUB: "menu_DUSCHZUB",
   };
 
   // ---- helpers ----
@@ -16179,6 +16655,7 @@ cat_SHOWER: "menu_SHOWER",
   });
 
   // ---- SHOWER ----
+  wireTileQty("opt_DUSCHKORB01", "qty_DUSCHKORB01_wrap");
   wireTileQty("opt_V22WS1R", "qty_V22WS1R_wrap");
   wireTileQty("opt_TEMPDSU250", "qty_TEMPDSU250_wrap");
   wireTileQty("opt_V22BG903R", "qty_V22BG903R_wrap");
@@ -16859,6 +17336,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
 
   // ---- LIVE: when any kid is checked, auto-check its parent category ----
   const parentToKids = {
+    cat_DUSCHZUB: ["opt_DUSCHKORB01"],
     cat_SHOWER: [
       "opt_V22WS1R",
       "opt_TEMPDSU250",
@@ -18938,6 +19416,7 @@ function initOptionalUX() {
     cat_WC: "menu_WC",
     cat_WESGH: "menu_WESGH",
     cat_SONDER: "menu_SONDER",
+    cat_DUSCHZUB: "menu_DUSCHZUB",
   };
   const SEARCH_MIN_ITEMS = 8;
 
@@ -20282,6 +20761,15 @@ function updateKassenkundeDetailsVisibility() {
   wrap.querySelectorAll("input, select, textarea").forEach((el) => {
     el.disabled = !isKassenkunde;
   });
+
+  // Geburtsdatum + Versicherungsnummer werden nur im BU-Konfigurator nicht benötigt.
+  const isBu = String(window.getCurrentOfferType?.() || "bu").toLowerCase() === "bu";
+  [
+    document.getElementById("kk_geburtsdatum")?.closest(".field"),
+    document.getElementById("kk_versichertennr")?.closest(".field"),
+  ].forEach((field) => {
+    if (field) field.style.display = isBu ? "none" : "";
+  });
 }
 window.updateKassenkundeDetailsVisibility = updateKassenkundeDetailsVisibility;
 
@@ -20478,7 +20966,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // =================================================================
 // # end of HL 
 // =================================================================
-// Small helper: confirmation dialog before going back to Auswahl der Leistung from the sidebar
+// Small helper: confirmation dialog before going back to Hauptmenü from the sidebar
 
 function clearOfferNumberForNewOffer(reason = "") {
   const offerInput = document.getElementById("offerNumber");
@@ -20507,7 +20995,7 @@ function clearOfferNumberForNewOffer(reason = "") {
   }
 }
 
-// Small helper: confirmation dialog before going back to Auswahl der Leistung from the sidebar
+// Small helper: confirmation dialog before going back to Hauptmenü from the sidebar
 function askBeforeGoingHome(onConfirm) {
   const overlay = document.getElementById("homeConfirmOverlay");
   const cancelBtn = document.getElementById("homeConfirmCancel");
@@ -20519,7 +21007,7 @@ function askBeforeGoingHome(onConfirm) {
       "Wenn Sie zur Startseite zurückkehren, gehen alle eingegebenen Daten verloren und Sie müssen neu beginnen. Möchten Sie fortfahren?",
     );
     if (ok) {
-      clearOfferNumberForNewOffer("fallback native confirm -> back to Auswahl der Leistung");
+      clearOfferNumberForNewOffer("fallback native confirm -> back to Hauptmenü");
       if (typeof onConfirm === "function") onConfirm();
     }
     return;
@@ -23302,6 +23790,38 @@ let todayPlanningAppointmentsFiltered = [];
 let activePlanningAppointmentId = null;
 let _pendingPlanningEntry = null;
 
+// Deal stages fetched live from Bitrix — hides "Erfolgreich abgeschlossen"
+// for deals already moved to/past "ANG verschickt" on the today-planning list.
+const DONE_STAGE_IDS = new Set(["C38:UC_2ZDNEZ", "C52:UC_SNAVG8", "C72:PREPARATION"]);
+const dealStageById = new Map();
+
+function isDealDone(dealId) {
+  const stage = dealStageById.get(String(dealId || "").trim());
+  return !!stage && DONE_STAGE_IDS.has(stage);
+}
+
+function markDealStage(dealId, stageId) {
+  const id = String(dealId || "").trim();
+  if (!id || !stageId) return;
+  dealStageById.set(id, stageId);
+}
+
+async function fetchDealStages(dealIds) {
+  const ids = [...new Set(dealIds.map((id) => String(id || "").trim()).filter(Boolean))];
+  if (!ids.length) return;
+  try {
+    const res = await fetch(`/api/bitrix/deals/stages?ids=${ids.map(encodeURIComponent).join(",")}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+    for (const [dealId, stageId] of Object.entries(data?.stages || {})) {
+      markDealStage(dealId, stageId);
+    }
+    renderTodayPlanningAppointments();
+  } catch (e) {
+    console.warn("[planning] fetchDealStages failed:", e);
+  }
+}
+
 const PLANNING_OFFER_TYPES = [
   { offerKey: "bu",  icon: "fa-shower",            title: "Badumbau" },
   { offerKey: "bwt", icon: "fa-bath",               title: "Badewannentür" },
@@ -23923,6 +24443,62 @@ function initWeekCalendarNav(){
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Travel time from the company base to/from a planning entry's address, via
+// the existing /api/routing/suggest-distance endpoint (same one the BU
+// Arbeitszeit tab uses). Cached per address since it never changes intra-session.
+const __companyTravelMinutesCache = new Map();
+async function fetchCompanyTravelMinutes(entry){
+  const parsed = parsePlanningAddress(entry?.address || "");
+  const street = entry?.street || parsed.street;
+  const postalCode = entry?.postalCode || parsed.postalCode;
+  const city = entry?.city || parsed.city;
+  if(!street && !postalCode && !city) return null;
+
+  const key = `${street}|${postalCode}|${city}`;
+  if(__companyTravelMinutesCache.has(key)) return __companyTravelMinutesCache.get(key);
+
+  let minutes = null;
+  try {
+    const res = await fetch("/api/routing/suggest-distance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ Kundendaten: { street, postalCode, city } }),
+    });
+    const data = await res.json();
+    if(data?.ok && Number.isFinite(Number(data?.oneWaySeconds))){
+      minutes = Math.round(Number(data.oneWaySeconds) / 60);
+    }
+  } catch (e) {
+    console.error("[planning] company travel time lookup failed:", e);
+  }
+  __companyTravelMinutesCache.set(key, minutes);
+  return minutes;
+}
+
+// Adds an "Anfahrt von Firma" connector before the first card and a
+// "Rückfahrt zur Firma" connector after the last card. Fetched async so the
+// list itself renders immediately; the connectors pop in once resolved.
+function attachCompanyTravelConnectors(entries){
+  const list = document.getElementById("todayPlanningList");
+  if(!list || !entries.length) return;
+
+  const addConnector = (entry, position, className, label) => {
+    fetchCompanyTravelMinutes(entry).then(minutes => {
+      if(!(minutes > 0)) return;
+      const card = list.querySelector(`.today-calendar-card[data-id="${CSS.escape(String(entry.__entryId))}"]`);
+      if(!card) return;
+      const sibling = position === "beforebegin" ? card.previousElementSibling : card.nextElementSibling;
+      if(sibling?.classList.contains(className)) return;
+      card.insertAdjacentHTML(position, `<div class="planning-travel-connector ${className}"><i class="fa-solid fa-car-side"></i> ${minutes} Min ${label}</div>`);
+    });
+  };
+
+  const first = entries[0];
+  const last = entries[entries.length - 1];
+  addConnector(first, "beforebegin", "planning-travel-connector--start", "Anfahrt von Firma");
+  if(last !== first) addConnector(last, "afterend", "planning-travel-connector--end", "Rückfahrt zur Firma");
+}
+
 function renderTodayPlanningAppointments(){
   const list = document.getElementById("todayPlanningList");
   if(!list) return;
@@ -23937,6 +24513,10 @@ function renderTodayPlanningAppointments(){
     const address = entry?.address || "Ort unbekannt";
     const email = entry?.email || "Keine E-Mail";
     const phone = entry?.phone || "Keine Telefonnummer";
+    const phoneHref = normalizePhoneHref(entry?.phone);
+    const callHtml = phoneHref
+      ? `<a class="today-calendar-call" href="tel:${escapePlanningHtml(phoneHref)}" aria-label="Kunde anrufen: ${escapePlanningHtml(entry.phone)}"><i class="fa-solid fa-phone"></i> Anrufen</a>`
+      : "";
     const subtitle = isCancelled
       ? "Termin abgesagt"
       : (entry?.dayLocked ? "Tag gesperrt" : (entry?.locked ? "Termin fixiert" : "Planungstermin"));
@@ -23970,6 +24550,7 @@ function renderTodayPlanningAppointments(){
             <span class="today-calendar-time"><i class="fa-regular fa-clock"></i> ${escapePlanningHtml(formatPlanningTimeDisplay(entry))}</span>
             ${entry?.taetigkeitenBadge ? `<span class="today-calendar-badge ${formatPlanningTypeClass(entry.taetigkeitenBadge)}">${escapePlanningHtml(String(entry.taetigkeitenBadge).toUpperCase())}</span>` : ""}
             <span class="today-calendar-badge ${badgeClass}">${escapePlanningHtml(formatPlanningBadge(entry))}</span>
+            ${entry?.importDealId ? `<span class="today-calendar-badge is-deal">#${escapePlanningHtml(entry.importDealId)}</span>` : ""}
           </div>
         </div>
 
@@ -23983,7 +24564,9 @@ function renderTodayPlanningAppointments(){
         <div class="today-calendar-preview">${escapePlanningHtml(preview || "Keine weiteren Details")}</div>
 
         <div class="today-calendar-actions">
+          ${callHtml}
           <button type="button" class="today-calendar-open" ${isCancelled ? 'disabled aria-disabled="true"' : ""}><i class="fa-solid ${isCancelled ? "fa-ban" : "fa-arrow-right"}"></i> ${isCancelled ? "Nicht verfuegbar" : "In Konfigurator öffnen"}</button>
+          ${!isCancelled && entry?.importDealId && !isDealDone(entry.importDealId) ? `<button type="button" class="today-calendar-done"><i class="fa-solid fa-circle-check"></i> Hat stattgefunden</button>` : ""}
         </div>
       </div>
       ${travelHtml}
@@ -23992,6 +24575,8 @@ function renderTodayPlanningAppointments(){
 
   list.querySelectorAll(".today-calendar-card").forEach(card => {
     const openButton = card.querySelector(".today-calendar-open");
+    const callButton = card.querySelector(".today-calendar-call");
+    const dealBadge = card.querySelector(".today-calendar-badge.is-deal");
     const onOpen = () => {
       const id = card.dataset.id;
       const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
@@ -24007,7 +24592,55 @@ function renderTodayPlanningAppointments(){
       ev.stopPropagation();
       onOpen();
     });
+    callButton?.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+    });
+    dealBadge?.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const id = card.dataset.id;
+      const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
+      const dealId = String(entry?.importDealId || "").trim();
+      if(!dealId) return;
+      window.open(`https://emczwei.bitrix24.de/crm/deal/details/${encodeURIComponent(dealId)}/`, "_blank", "noopener");
+    });
+
+    // "Hat stattgefunden" -> move the deal to "Zuteilen HD/ AH/ DH".
+    const doneButton = card.querySelector(".today-calendar-done");
+    doneButton?.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const id = card.dataset.id;
+      const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
+      const dealId = String(entry?.importDealId || "").trim();
+      if(!dealId) return;
+      if(!window.confirm("Der Termin hat stattgefunden; Deal auf „HD/AH/DH zuweisen“ verschieben?")) return;
+
+      doneButton.disabled = true;
+      const original = doneButton.innerHTML;
+      doneButton.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Verschiebe…`;
+      try {
+        const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}/move-zuteilen`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        });
+        const data = await res.json().catch(() => ({}));
+        if(!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+        doneButton.innerHTML = `<i class="fa-solid fa-circle-check"></i> Verschoben`;
+        markDealStage(dealId, "C72:PREPARATION");
+        (typeof showToast === "function") && showToast("Deal auf „Zuteilen HD/ AH/ DH“ verschoben.", "success");
+      } catch (e) {
+        console.error("[planning] move-zuteilen failed:", e);
+        doneButton.disabled = false;
+        doneButton.innerHTML = original;
+        (typeof showToast === "function")
+          ? showToast(`Fehler: ${e.message || e}`, "error")
+          : alert(`Fehler beim Verschieben: ${e.message || e}`);
+      }
+    });
   });
+
+  attachCompanyTravelConnectors(todayPlanningAppointmentsFiltered);
 }
 
 function filterTodayPlanningAppointments(query){
@@ -24046,6 +24679,7 @@ function applyPlanningPayload(payload){
   const { day, entries } = buildPlanningEntries(payload || {});
 
   todayPlanningAppointments = entries;
+  fetchDealStages(entries.map(e => e?.importDealId).filter(Boolean));
   const activeStillVisible = entries.some(entry =>
     String(entry.__entryId) === String(activePlanningAppointmentId) && !isPlanningEntryCancelled(entry)
   );
@@ -24208,6 +24842,65 @@ function applyPlanningAppointmentToForm(entry, offerKey){
   } catch (error) {
     console.warn("today planning sidebar refresh failed", error);
   }
+
+  // The route-planning service has no Anrede/HONORIFIC field at all, and
+  // sometimes leaves email/phone/address blank — fetch the linked Bitrix
+  // deal/contact ourselves (we already have the IDs) to fill those in.
+  // Runs in the background so opening the configurator isn't blocked on it.
+  enrichPlanningAppointmentFromBitrix(entry);
+}
+
+async function enrichPlanningAppointmentFromBitrix(entry){
+  const dealId = entry?.importDealId || "";
+  const contactId = entry?.contactId || "";
+  if (!dealId && !contactId) return;
+
+  try {
+    let contact = null;
+    if (dealId) {
+      const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) contact = data?.contact || null;
+    }
+    if (!contact && contactId) {
+      const res = await fetch(`/api/bitrix/contact/${encodeURIComponent(contactId)}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) contact = data?.result || null;
+    }
+    if (!contact) return;
+
+    const honorificId = String(
+      contact?.HONORIFIC?.STATUS_ID ?? contact?.HONORIFIC ?? contact?.HONORIFIC_ID ?? "",
+    ).trim();
+    const salutation = { HNR_DE_1: "Frau", HNR_DE_2: "Herr", "1": "Familie" }[honorificId] || "";
+    if (salutation && typeof setRadio === "function") {
+      setRadio("salutation", salutation);
+      document
+        .querySelectorAll('input[name="salutation"]')
+        .forEach((el) => el.dispatchEvent(new Event("change", { bubbles: true })));
+    }
+
+    const email = Array.isArray(contact.EMAIL) && contact.EMAIL[0] ? contact.EMAIL[0].VALUE : "";
+    const phone = Array.isArray(contact.PHONE) && contact.PHONE[0] ? contact.PHONE[0].VALUE : "";
+    const fillIfEmpty = (id, value) => {
+      const el = document.getElementById(id);
+      if (!el || el.value || !value) return;
+      el.value = value;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    fillIfEmpty("email", email);
+    fillIfEmpty("phone", phone);
+    fillIfEmpty("street", contact.ADDRESS || "");
+    fillIfEmpty("city", contact.ADDRESS_CITY || "");
+    fillIfEmpty("postalCode", contact.ADDRESS_POSTAL_CODE || "");
+
+    if (email && typeof syncSummaryRecipientEmail === "function") {
+      syncSummaryRecipientEmail(email);
+    }
+  } catch (error) {
+    console.warn("planning appointment bitrix enrich failed", error);
+  }
 }
 
 function initTodayPlanningPanel(){
@@ -24250,6 +24943,10 @@ document.addEventListener("DOMContentLoaded", initTodayPlanningPanel);
 // Expose for home debug panel
 window.__debug_getPlanningAppointments = () => todayPlanningAppointments;
 window.__debug_reloadPlanning = fetchTodayPlanningSnapshot;
+// Exposed for the EmailManager hook (different closure) to mark a deal's
+// offer as sent and refresh the today-planning list in the same tab.
+window.markDealStage = markDealStage;
+window.renderTodayPlanningAppointments = renderTodayPlanningAppointments;
 window.__debug_planningEndpoint = TODAY_PLANNING_SNAPSHOT_ENDPOINT;
 
 })();

@@ -18,7 +18,13 @@ async function getBrowser() {
     browserPromise = puppeteer.launch({
       headless: true,
       executablePath,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--no-zygote",
+      ],
     });
   }
   const browser = await browserPromise;

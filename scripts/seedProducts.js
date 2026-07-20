@@ -9,6 +9,7 @@ const MONGODB_URI = process.env.MONGODB_URI;
 const MONGODB_DB  = process.env.MONGODB_DB || 'KonfiguratorDB';
 
 const products = [
+  { productId: 'DUSCHKORB01', name: 'Duschkorb ohne Bohren, Edelstahl Silber (inkl. 3M-Klebepads, 2 Haken, Rasierhalter)', price: 24.99, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'V22WS1R', name: 'Wannenset individual 2.2 m. Wandhalter Schlauch u. HB 1-str. rund verchr. VIGOUR', price: 39.38, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'TEMPDSU250', name: 'Duschsystem Tempesta Flex verchromt m. Umstellung KB 210mm Brausegarn. Grohe', price: 165.83, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'V22BG903R', name: 'Brausegarnitur individ. 2.2 m. Stange 90cm Schlauch u. HB 3-str. rund verchr. VIGOUR', price: 66.55, widthCm: null, heightCm: null, lengthCm: null },

@@ -247,6 +247,12 @@ function parsePayLines(selfPayLines) {
   return { title, options, footer };
 }
 
+// Whether SelfPayLines actually offers a choice (vs. a single fixed line,
+// e.g. Kassenkunde Selbstkostenanteil under KK_PAYMENT_THRESHOLD).
+export function hasPaymentChoice(selfPayLines) {
+  return parsePayLines(selfPayLines).options.length > 0;
+}
+
 function interactivePaymentBlock(data) {
   const { title, options, footer } = parsePayLines(data.SelfPayLines);
   if (!options.length) return "";

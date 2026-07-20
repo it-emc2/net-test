@@ -28,6 +28,7 @@ import {
   buildAhAngebotHtml,
   buildVollmachtHtml,
   buildAbtretungHtml,
+  hasPaymentChoice,
 } from "../templates/signing-docs.js";
 import { buildEmailHtml } from "../lib/emailTemplate.js";
 
@@ -466,14 +467,20 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
       return res.status(400).json({ error: "Unterschrift fehlt" });
     }
 
-    // For the BU Angebot the payment term is mandatory. AH has no payment terms.
+    // For the BU Angebot the payment term is mandatory, but only when the
+    // offer actually presents a choice (e.g. not for KK Selbstkostenanteil
+    // under KK_PAYMENT_THRESHOLD, which shows a single fixed line). AH has no
+    // payment terms at all.
     const extraFields = req.body?.extraFields || {};
     if (key === "angebot" && !isAhOffer(sr)) {
-      const idx = Number(extraFields.paymentTermIdx);
-      if (!Number.isFinite(idx) || idx < 0) {
-        return res
-          .status(400)
-          .json({ error: "Bitte wählen Sie eine Zahlungsbedingung aus" });
+      const { data } = await getOfferRenderData(sr.payloadSnapshot || {});
+      if (hasPaymentChoice(data.SelfPayLines)) {
+        const idx = Number(extraFields.paymentTermIdx);
+        if (!Number.isFinite(idx) || idx < 0) {
+          return res
+            .status(400)
+            .json({ error: "Bitte wählen Sie eine Zahlungsbedingung aus" });
+        }
       }
     }
 
@@ -508,11 +515,11 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
         });
       }
 
-      // Email a copy to customer + office.
+      // Email the customer directly; notify the office via bcc so the
+      // internal address never appears in the customer-visible headers.
       const transporter = buildTransport();
-      const office = process.env.SIGNING_OFFICE_EMAIL || smtpFrom();
+      const office = process.env.SIGNING_OFFICE_EMAIL;
       if (transporter) {
-        const recipients = [sr.customerEmail, office].filter(Boolean);
         const attachments = signedPdfs.map((p) => ({
           filename: p.filename,
           content: p.buffer,
@@ -555,7 +562,8 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
           await transporter.sendMail({
             from: smtpFrom(),
             replyTo: process.env.SMTP_REPLY_TO || smtpFrom(),
-            to: recipients.join(","),
+            to: sr.customerEmail,
+            bcc: office || undefined,
             subject: `Unterschriebene Unterlagen – ${sr.offerNumber || "Angebot"}`,
             text: confirmationBody,
             html: buildEmailHtml(confirmationBody, {

@@ -100,7 +100,10 @@ export function setComponentSondermass(state, compKey, sondermass) {
   return { ...state, sizes: { ...state.sizes, [compKey]: { sondermass } } };
 }
 
-/** Selected finish categories (glasart/beschichtung/profilfarbe) for the resolved leaf. */
+// Finish dimensions matched between a selection and a decoded article.
+const FINISH_DIMS = ["glasart", "beschichtung", "profilfarbe", "einzugsautomatik"];
+
+/** Selected finish categories for the resolved leaf (only dims whose value carries a cat). */
 function selectedFinish(leaf, state) {
   const want = {};
   for (const fp of (leaf.finish || [])) {
@@ -109,11 +112,15 @@ function selectedFinish(leaf, state) {
     if (fp.id === "Glasart") want.glasart = v.cat;
     else if (/Beschichtung/i.test(fp.id)) want.beschichtung = v.cat;
     else if (fp.id === "Profilfarbe") want.profilfarbe = v.cat;
+    else if (/Einzugsautomatik/i.test(fp.id)) want.einzugsautomatik = v.cat;
   }
   return want;
 }
 
-/** Resolve one article per component of the resolved leaf (by size + selected finish). null until complete. */
+/** Resolve one article per component of the resolved leaf (by size + selected finish). null until complete.
+ *  Never silently substitutes a wrong finish: for each selected dimension the component actually offers,
+ *  it narrows to the exact value; if the component offers that dimension but not the chosen value, the
+ *  configuration is treated as unavailable (returns null) rather than picking a mismatched article. */
 export function resolveConfiguration(model, state) {
   const leaf = resolvedLeaf(model, state);
   if (!leaf) return null;
@@ -122,15 +129,19 @@ export function resolveConfiguration(model, state) {
   for (const c of leaf.components) {
     const size = state.sizes[c.key];
     if (!size) return null;
-    const matches = size.sondermass
+    let cand = size.sondermass
       ? c.articles.filter((x) => x.sizeLabel === size.sondermass)
       : c.articles.filter((x) => x.width === size.width && x.height === size.height);
-    // prefer the article whose decoded finish matches the selection (only the dimensions the leaf
-    // actually offers); fall back to first size-match if none decode/match
-    const a = matches.find((x) => x.finish
-      && (want.glasart == null || x.finish.glasart === want.glasart)
-      && (want.beschichtung == null || x.finish.beschichtung === want.beschichtung)
-      && (want.profilfarbe == null || x.finish.profilfarbe === want.profilfarbe)) ?? matches[0];
+    for (const dim of FINISH_DIMS) {
+      const wantVal = want[dim];
+      if (wantVal == null) continue;                                  // dimension not selected
+      const offersDim = cand.some((x) => x.finish && x.finish[dim] != null);
+      if (!offersDim) continue;                                       // this component doesn't vary on this dim
+      const narrowed = cand.filter((x) => x.finish && x.finish[dim] === wantVal);
+      if (!narrowed.length) return null;                              // offered but chosen value unavailable → don't guess
+      cand = narrowed;
+    }
+    const a = cand[0];
     if (!a) return null;
     lines.push({ component: c.label, key: c.key, article: a });
   }

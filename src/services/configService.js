@@ -111,6 +111,13 @@ export const CONFIG_SCHEMA = [
     description: 'Lieferkosten je Badewannentür (Position 140322)',
   },
 
+  // ── AH – ALLTAGSHILFE ────────────────────────────────────────────────────
+  {
+    key: 'ENTLASTUNGSBETRAG_MONAT', value: 131,
+    label: 'Entlastungsbetrag § 45b SGB XI', unit: '€/Monat', type: 'euro', section: 'ah', order: 1,
+    description: 'Monatlicher Entlastungsbetrag ab Pflegegrad 1, den die Pflegekasse für zweckgebundene Angebote übernimmt',
+  },
+
   // ── ZUSCHÜSSE & BONI ─────────────────────────────────────────────────────
   {
     key: 'SUBSIDY_AMOUNT_4180', value: 4180,

@@ -131,9 +131,23 @@ function geocodeResultMatchesInput(result, addressParts = {}) {
     // Compound German city names like "Triebel/Vogtland" normalize to "triebel vogtland".
     // Geocoders return just "Triebel" — fall back to matching the primary city token only.
     const primaryCity = wantCity.split(" ")[0];
-    if (!primaryCity || primaryCity.length < 3 || !hay.includes(primaryCity)) {
-      return false;
+    if (primaryCity && primaryCity.length >= 3 && hay.includes(primaryCity)) {
+      return true;
     }
+
+    // Merged municipalities sometimes repeat a segment, e.g. query
+    // "Mohlsdorf-Teichwolframsdorf-Mohlsdorf" while the geocoder answers with
+    // just "Mohlsdorf-Teichwolframsdorf". Try progressively shorter
+    // hyphen-joined prefixes (keeping at least 2 segments) before giving up.
+    const citySegments = wantCity.split("-").filter(Boolean);
+    for (let len = citySegments.length - 1; len >= 2; len--) {
+      const candidate = citySegments.slice(0, len).join("-");
+      if (candidate.length >= 3 && hay.includes(candidate)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   return true;

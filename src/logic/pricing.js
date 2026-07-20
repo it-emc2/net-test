@@ -246,14 +246,14 @@ function grossToNet(gross, taxRate) {
     // Wandverkleidung
     if (kind === "Fehlstellen") picked.add("Schließen der Fehlstellen");
     if (kind === "Deckenhoch")
-      picked.add("Verkleidung Deckenhoch im Dusch/ Wannenbereich");
+      picked.add("Verkleidung deckenhoch im Dusch-/Wannenbereich");
     if (kind === "Duschabtrennung")
       picked.add("Verkleidung bis zur Höhe des Fliesenspiegels im Dusch-/Wannenbereich");
     if (kind === "Fliesenspiegel")
       picked.add("Verkleidung bis zur Höhe des Fliesenspiegels im Dusch-/Wannenbereich");
     if (kind === "Innenraum-der-Kabine")
       picked.add("Verkleidung im Innenraum der Kabine");
-    if (kind === "alle-Bad-Wände") picked.add("Verkleidung Deckenhoch aller Bad-Wände");
+    if (kind === "alle-Bad-Wände") picked.add("Verkleidung deckenhoch aller Bad-Wände");
 
     // Fußboden
     if (hasFlooring && floorKind === "Fehlstellen") {
@@ -292,8 +292,8 @@ function grossToNet(gross, taxRate) {
     if (grab) picked.add("Anbringen zusätzlicher Haltegriffe");
     if (fold) picked.add("Anbringen zusätzlicher Stützklappgriffe");
     if (basin) picked.add("Auswechseln eines Waschtisches");
-    if (tap) picked.add("Einbau einer einhand-Waschtischbatterie");
-    if (thermo) picked.add("Austausch eines Thermostates");
+    if (tap) picked.add("Einbau einer Einhand-Waschtischbatterie");
+    if (thermo) picked.add("Austausch eines Thermostats");
     //if (seat)   picked.add('Einbau einer Duschhocker es');
 
     // >>> robust DW workTasks parse (handles odd literal keys like "duschwanne[workTasks][]")
@@ -379,13 +379,13 @@ function grossToNet(gross, taxRate) {
       install_shower_curtain: "Einbau eines Duschvorhangs",
       install_enclosure: "Einbau der Duschabtrennung",
       install_box_enclosure: "Einbau, Verkleiden eines Kastens im Duschbereich",
-      install_distance_profile: "Einbau eines Abstandprofil",
+      install_distance_profile: "Einbau eines Abstandsprofils",
       // Thermostat / Duschsystem
       close_valve: "Stilllegen der Armatur",
       relocate_faucet: "Versetzen, verlegen einer Armatur",
       relocate_drain: "Versetzen, verlegen eines Abflusses",
       convert_faucet: "Umbau einer Unterputz-Armatur in eine Aufputz-Armatur",
-      replace_thermostat: "Auswechseln eines Aufputz Thermostates",
+      replace_thermostat: "Auswechseln eines Aufputz-Thermostats",
       replace_shower_no_thermo: "Auswechseln des Duschsystems ohne Thermostat",
       replace_shower_with_thermo: "Auswechseln des Duschsystems inkl. Aufputz-Thermostat",
       replace_shower_system: "Auswechseln des Duschsystems", // legacy fallback
@@ -515,12 +515,17 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
         ? dusch.flooringProduct[0] || ""
         : "";
       const color = fp.includes("|") ? fp.split("|", 2)[1].trim() : "";
+      const floorPid =
+        fp && fp.includes("|") ? fp.split("|", 2)[0].trim() : "V5FB02";
 
-      add(
-        (fp && fp.includes("|") ? fp.split("|", 2)[0].trim() : "V5FB02"),
-        panels,
-        `- ${panels} Stk Fußboden-Paneele (1 Paneele = ${floorPanelSize} m²)${color ? " — Farbe: " + color : ""}`,
-      );
+      // AVP-W is named after its section caption ("Aluverbundplatte weiß");
+      // the V5FB02 variants keep the generic "Fußboden-Paneele … Farbe: X" form.
+      const floorLabel =
+        floorPid === "AVP-W"
+          ? `- ${panels} Stk Aluverbundplatte weiß (1 Paneele = ${floorPanelSize} m²)`
+          : `- ${panels} Stk Fußboden-Paneele (1 Paneele = ${floorPanelSize} m²)${color ? " — Farbe: " + color : ""}`;
+
+      add(floorPid, panels, floorLabel);
 
       // Flächenkleber
       const adhesiveCoverage = cfg.get('BU_FLOOR_ADHESIVE_COVERAGE', 0.6);
