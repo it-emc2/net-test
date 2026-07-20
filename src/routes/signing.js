@@ -508,11 +508,11 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
         });
       }
 
-      // Email a copy to customer + office.
+      // Email the customer directly; notify the office via bcc so the
+      // internal address never appears in the customer-visible headers.
       const transporter = buildTransport();
-      const office = process.env.SIGNING_OFFICE_EMAIL || smtpFrom();
+      const office = process.env.SIGNING_OFFICE_EMAIL;
       if (transporter) {
-        const recipients = [sr.customerEmail, office].filter(Boolean);
         const attachments = signedPdfs.map((p) => ({
           filename: p.filename,
           content: p.buffer,
@@ -555,7 +555,8 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
           await transporter.sendMail({
             from: smtpFrom(),
             replyTo: process.env.SMTP_REPLY_TO || smtpFrom(),
-            to: recipients.join(","),
+            to: sr.customerEmail,
+            bcc: office || undefined,
             subject: `Unterschriebene Unterlagen – ${sr.offerNumber || "Angebot"}`,
             text: confirmationBody,
             html: buildEmailHtml(confirmationBody, {

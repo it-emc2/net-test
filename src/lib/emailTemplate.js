@@ -132,7 +132,7 @@ export function buildEmailHtml(body, { signatureCid = null, contactName = "Stefa
   return `<!DOCTYPE html>
 <html lang="de">
   <body style="margin:0;padding:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#364047;">
-    <div style="max-width:980px;margin:0;padding:0 0 12px 0;">
+    <div style="max-width:640px;margin:0 auto;padding:24px 20px 12px 20px;">
       ${renderBodyHtmlFromText(body)}
       <p style="margin:0 0 8px 0;line-height:1.55;color:#364047;font-size:16px;">--</p>
       <p style="margin:0 0 24px 0;line-height:1.55;color:#364047;font-size:16px;">Freundliche Grüße</p>
