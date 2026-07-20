@@ -12,7 +12,7 @@ test('hasPaymentChoice is true when SelfPayLines has "O " options (KK >= thresho
 test('hasPaymentChoice is false for a single fixed line (KK Selbstkostenanteil under threshold)', () => {
   const lines = [
     { Text: 'Zahlungsbedingungen für den Selbstkostenanteil:', IsTitle: true },
-    { Text: '100 % sofort abzüglich 2 % Skonto', IsTitle: false },
+    { Text: '100 % sofort, aber ohne Skonto', IsTitle: false },
   ];
   expect(hasPaymentChoice(lines)).toBe(false);
 });
