@@ -13182,6 +13182,7 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("stockwerkBadSonst", k.stockwerkBadSonst || (isOtherStockwerk ? stockwerkValue : ""));
   setRadio("parkenMoeglich", k.parkenMoeglich);
   setByNameOrId("parkDetails", k.parkDetails || k.parksituationHinweis);
+  setByNameOrId("notes", k.notes);
   if (typeof window.syncKundendatenExtraFields === "function") {
     window.syncKundendatenExtraFields();
   }
