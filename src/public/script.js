@@ -6131,10 +6131,12 @@ fetch("/admin/api/config/public")
         card.querySelectorAll("input[type=checkbox][data-task-id]:checked").forEach(function (cb) {
           taskIds.push(cb.getAttribute("data-task-id"));
         });
+        var combinedVisitCb = card.querySelector(".ah-combined-visit");
         services.push({
           type: type,
           schedules: schedules,
           tasks: taskIds,
+          combinedVisit: combinedVisitCb ? combinedVisitCb.checked : false,
         });
       });
     });
@@ -6306,6 +6308,31 @@ fetch("/admin/api/config/public")
     header.appendChild(removeBtn);
     card.appendChild(header);
     card.appendChild(infoPanel);
+
+    // — Alltagsbegleitung-only: "same visit as HnD" toggle, so the
+    // Anfahrtspauschale isn't billed twice for one combined visit —
+    if (type === "Alltagsbegleitung") {
+      var combinedRow = document.createElement("label");
+      combinedRow.className = "ah-combined-visit-row";
+      combinedRow.style.cssText =
+        "display:flex; align-items:flex-start; gap:8px; padding:8px 10px; border-radius:6px;" +
+        "background:var(--accent-soft,rgba(124,58,237,0.08)); font-size:0.82rem; cursor:pointer;";
+
+      var combinedCb = document.createElement("input");
+      combinedCb.type = "checkbox";
+      combinedCb.className = "ah-combined-visit";
+      combinedCb.style.cssText = "margin-top:2px;";
+      combinedCb.checked = !!data.combinedVisit;
+
+      var combinedText = document.createElement("span");
+      combinedText.innerHTML =
+        "<strong>Gleicher Termin wie HnD</strong><br>" +
+        "<span style='color:var(--muted);'>Ein Besuch deckt beide Leistungen ab — Anfahrtspauschale wird nur einmal berechnet.</span>";
+
+      combinedRow.appendChild(combinedCb);
+      combinedRow.appendChild(combinedText);
+      card.appendChild(combinedRow);
+    }
 
     // — card-level schedule section (multi-row) —
     var isHnd = type === "Haushaltsnahedienstleistungen";
@@ -10554,7 +10581,11 @@ window.computeAHGesamt = function computeAHGesamt() {
   var leistungenTotal = r2(hnd.totalMonatlichH * STUNDENSATZ_HND);
   var gesamtBase      = r2(anfahrtTotal + leistungenTotal);
 
-  var abAnfahrtTotal    = r2(ab.totalEinsaetze * ANFAHRT_PER_EINSATZ);
+  // Same visit as HnD: the trip is already paid for by HnD's Anfahrt, so AB
+  // only adds its own Anfahrt for visits beyond what HnD already covers.
+  var abCombinedVisit   = !!(abSvc && abSvc.combinedVisit);
+  var abAnfahrtEinsaetze = abCombinedVisit ? Math.max(0, ab.totalEinsaetze - hnd.totalEinsaetze) : ab.totalEinsaetze;
+  var abAnfahrtTotal    = r2(abAnfahrtEinsaetze * ANFAHRT_PER_EINSATZ);
   var abLeistungenTotal = r2(ab.totalMonatlichH * STUNDENSATZ_AB);
   var abGesamtBase      = r2(abAnfahrtTotal + abLeistungenTotal);
 
@@ -10580,6 +10611,8 @@ window.computeAHGesamt = function computeAHGesamt() {
     schedRows:         hnd.schedRows,
     hasAb:             ab.totalMonatlichH > 0,
     abTotalEinsaetze:  ab.totalEinsaetze,
+    abAnfahrtEinsaetze: abAnfahrtEinsaetze,
+    abCombinedVisit:   abCombinedVisit,
     abTotalMonatlichH: ab.totalMonatlichH,
     abAnfahrtTotal:    abAnfahrtTotal,
     abLeistungenTotal: abLeistungenTotal,
@@ -10669,7 +10702,8 @@ window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
   if (hasAb) sections.push({
     title: "Alltagsbegleitung", short: "AB", rate: RATE_AB,
     sp: splitH(ah.abSchedRows), billedH: ah.abTotalMonatlichH, leistungen: ah.abLeistungenTotal,
-    einsaetze: ah.abTotalEinsaetze, anfahrt: ah.abAnfahrtTotal,
+    einsaetze: ah.abAnfahrtEinsaetze, anfahrt: ah.abAnfahrtTotal,
+    combinedVisit: ah.abCombinedVisit,
     servicepauschale: 0, base: ah.abGesamtBase, sched: ah.abSchedRows,
   });
 
@@ -10766,7 +10800,10 @@ window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
         mathRow('Fahrtzeit, pro Monat', fahrtSub, h2(cfg.sp.t)) +
         mathRow('Gesamtzeit pro Monat', '', h2(cfg.sp.s + cfg.sp.t), { top: true, strong: true }) +
         mathRow('Gesamtzeit', '(' + h2(cfg.sp.s + cfg.sp.t) + ') × ' + eur(cfg.rate), eur(cfg.leistungen), { top: true, strong: false }) +
-        mathRow('Anfahrtspauschale', fac(cfg.einsaetze) + ' Einsätze × ' + eur(ANFAHRT), eur(cfg.anfahrt)) +
+        mathRow(
+          'Anfahrtspauschale' + (cfg.combinedVisit ? ' <span style="font-weight:400; color:' + COL.trav + ';">(kombiniert mit HnD)</span>' : ''),
+          fac(cfg.einsaetze) + ' Einsätze × ' + eur(ANFAHRT), eur(cfg.anfahrt)
+        ) +
         (cfg.servicepauschale ? mathRow('Servicepauschale', '(inkl. MwSt.)', eur(cfg.servicepauschale)) : '') +
         mathRow('Zwischensumme', '', eur(sectionTotal), { top: true, strong: true }) +
       '</div>' +
@@ -11174,7 +11211,9 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
 
     var anfahrtRow =
       '<div style="' + rowStyle + '">' +
-        "<span>Anfahrtspauschale</span>" +
+        "<span>Anfahrtspauschale" +
+        (opts.combinedVisit ? ' <span style="font-size:0.78rem; color:var(--muted);">(kombiniert mit HnD)</span>' : "") +
+        "</span>" +
         '<span style="text-align:right; color:var(--muted);">' + fmtNum(opts.einsaetze) + "&times;</span>" +
         '<span style="text-align:right; color:var(--muted);">' + euro(ANFAHRT) + "</span>" +
         '<span style="text-align:right; font-weight:600;">' + euro(opts.anfahrtTotal) + "</span>" +
@@ -11287,8 +11326,9 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
       hours: vm.abTotalMonatlichH,
       rate: AB_RATE,
       leistungenTotal: vm.abLeistungenTotal,
-      einsaetze: vm.abTotalEinsaetze,
+      einsaetze: vm.abAnfahrtEinsaetze,
       anfahrtTotal: vm.abAnfahrtTotal,
+      combinedVisit: vm.abCombinedVisit,
       gesamtLabel: "Gesamt / Monat",
       gesamtValue: vm.abGesamtBase,
       footnoteHTML: footnote(
@@ -11584,14 +11624,14 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         gesamt: 0, gesamtBase: 0, anfahrtTotal: 0, leistungenTotal: 0,
         totalEinsaetze: 0, totalMonatlichH: 0, tasks: [],
         isSelbstzahler: false, servicepauschale: 1.20, zoneData: null, schedRows: [],
-        hasAb: false, abTotalEinsaetze: 0, abTotalMonatlichH: 0,
+        hasAb: false, abTotalEinsaetze: 0, abAnfahrtEinsaetze: 0, abCombinedVisit: false, abTotalMonatlichH: 0,
         abAnfahrtTotal: 0, abLeistungenTotal: 0, abGesamtBase: 0,
         abTasks: [], abSchedRows: [], abKmRate: 0.35, allBase: 0,
       };
       const {
         gesamt, gesamtBase, anfahrtTotal, leistungenTotal,
         totalEinsaetze, totalMonatlichH, tasks, isSelbstzahler, servicepauschale, zoneData, schedRows,
-        hasAb, abTotalEinsaetze, abTotalMonatlichH,
+        hasAb, abTotalEinsaetze, abAnfahrtEinsaetze, abCombinedVisit, abTotalMonatlichH,
         abAnfahrtTotal, abLeistungenTotal, abGesamtBase, abTasks, abSchedRows, abKmRate, allBase,
       } = ah;
 
@@ -11623,6 +11663,8 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         schedRows: schedRows,
         abTotalMonatlichH: abTotalMonatlichH,
         abTotalEinsaetze: abTotalEinsaetze,
+        abAnfahrtEinsaetze: abAnfahrtEinsaetze,
+        abCombinedVisit: abCombinedVisit,
         abAnfahrtTotal: abAnfahrtTotal,
         abLeistungenTotal: abLeistungenTotal,
         abGesamtBase: abGesamtBase,
