@@ -48,6 +48,34 @@ function todaysEntries(body: PlanningBody, times: ActivityTimes): PlanningEntry[
     });
 }
 
+export interface TravelLeg {
+  ok: boolean;
+  minutes?: number;
+  km?: number;
+  error?: string;
+}
+
+/** Travel legs for a day's route: Firma -> stop 1 -> ... -> stop n -> Firma. */
+export function useTravelChain(addresses: string[]) {
+  const [legs, setLegs] = useState<TravelLeg[] | null>(null);
+  const key = addresses.join("|");
+
+  useEffect(() => {
+    if (!addresses.length) return setLegs(null);
+    let cancelled = false;
+    api
+      .post<{ ok: true; legs: TravelLeg[] }>("/api/routing/chain", { addresses })
+      .then((body) => !cancelled && setLegs(body.legs))
+      .catch(() => !cancelled && setLegs(null));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  return legs;
+}
+
 export function formatSlot(entry: PlanningEntry): string {
   const m = Number(entry.manualStartMinutes);
   if (!Number.isFinite(m) || m < 0) return "";

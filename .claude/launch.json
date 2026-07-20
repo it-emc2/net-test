@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "app/apps/web", "run", "dev"],
       "port": 5173
+    },
+    {
+      "name": "emc2-api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "app/apps/api", "run", "dev"],
+      "port": 4000
     }
   ]
 }
