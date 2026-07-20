@@ -1628,10 +1628,10 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     "Für den Selbstkostenanteil wird eine separate Rechnung erstellt. Die Zahlung bitte erst nach Erhalt dieser Rechnung unter Angabe der Rechnungsnummer im Verwendungszweck durchführen.",
   ];
 
-  // KK, Eigenanteil < Schwelle: keine Wahl, nur 100 % Skonto (kein Ankreuzen nötig)
+  // KK, Eigenanteil < Schwelle: keine Wahl, 100 % sofort ohne Skonto (kein Ankreuzen nötig)
   const PARA_kk_unter2000_LINES = [
     "Zahlungsbedingungen für den Selbstkostenanteil:",
-    "100 % sofort abzüglich 2 % Skonto",
+    "100 % sofort, aber ohne Skonto",
     "Für den Selbstkostenanteil wird eine separate Rechnung erstellt. Die Zahlung bitte erst nach Erhalt dieser Rechnung unter Angabe der Rechnungsnummer im Verwendungszweck durchführen.",
   ];
 
