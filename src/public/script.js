@@ -23057,11 +23057,11 @@ function initHlFlexofitWizard() {
               <span>${imgTag(entry)}</span>
               <span>
                 <span class="hl-wiz__pick-name">${escapeHtml(entry.label || productVariant(p))}</span><br/>
-                <span class="hl-wiz__pick-meta">${escapeHtml(p.productId || "")} · ${money(p.price)}/lfm</span>
+                <span class="hl-wiz__pick-meta">${escapeHtml(p.productId || "")} · ${money(p.price)}/Meter</span>
               </span>
             </div>
             <div class="hl-wiz__qty" ${sel ? "" : "hidden"}>
-              <label>Länge (lfm):</label>
+              <label>Länge (Meter):</label>
               <input type="number" min="0" step="0.1" value="${sel ? sel.meters : 1}" data-tube-meters="${escapeHtml(key)}" />
             </div>
           </div>`;
@@ -23070,7 +23070,7 @@ function initHlFlexofitWizard() {
 
     bodyEl.innerHTML = `
       <div class="hl-wiz__section-title">Rohr &amp; Farbe wählen</div>
-      <p class="hl-wiz__hint">Material wählen, dann Farben markieren (Mehrfachauswahl). Rohre werden pro lfm berechnet — Länge je Farbe angeben.</p>
+      <p class="hl-wiz__hint">Material wählen, dann Farben markieren (Mehrfachauswahl). Rohre werden pro Meter berechnet — Länge je Farbe angeben.</p>
       ${tabs}
       ${picks ? `<div class="hl-wiz__picks">${picks}</div>` : '<div class="hl-wiz__empty">Keine Rohre für diesen Bereich verfügbar.</div>'}`;
 
@@ -23184,7 +23184,7 @@ function initHlFlexofitWizard() {
       const m = Number(String(meters).replace(",", ".")) || 0;
       rows.push({
         name: `${entry.family} · ${entry.label || productVariant(entry.product)}`,
-        detail: `${m} lfm × ${money(entry.product.price)}/lfm`,
+        detail: `${m} Meter × ${money(entry.product.price)}/Meter`,
         total: m * Number(entry.product.price || 0),
       });
     });
