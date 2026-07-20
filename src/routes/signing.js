@@ -28,6 +28,7 @@ import {
   buildAhAngebotHtml,
   buildVollmachtHtml,
   buildAbtretungHtml,
+  hasPaymentChoice,
 } from "../templates/signing-docs.js";
 import { buildEmailHtml } from "../lib/emailTemplate.js";
 
@@ -466,14 +467,20 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
       return res.status(400).json({ error: "Unterschrift fehlt" });
     }
 
-    // For the BU Angebot the payment term is mandatory. AH has no payment terms.
+    // For the BU Angebot the payment term is mandatory, but only when the
+    // offer actually presents a choice (e.g. not for KK Selbstkostenanteil
+    // under KK_PAYMENT_THRESHOLD, which shows a single fixed line). AH has no
+    // payment terms at all.
     const extraFields = req.body?.extraFields || {};
     if (key === "angebot" && !isAhOffer(sr)) {
-      const idx = Number(extraFields.paymentTermIdx);
-      if (!Number.isFinite(idx) || idx < 0) {
-        return res
-          .status(400)
-          .json({ error: "Bitte wählen Sie eine Zahlungsbedingung aus" });
+      const { data } = await getOfferRenderData(sr.payloadSnapshot || {});
+      if (hasPaymentChoice(data.SelfPayLines)) {
+        const idx = Number(extraFields.paymentTermIdx);
+        if (!Number.isFinite(idx) || idx < 0) {
+          return res
+            .status(400)
+            .json({ error: "Bitte wählen Sie eine Zahlungsbedingung aus" });
+        }
       }
     }
 
