@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Loader2, Check, Mail } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -39,11 +40,14 @@ export function SendOfferDialog({
   );
   const [state, setState] = useState<{ status: "idle" | "sending" | "sent" | "error"; msg?: string }>({ status: "idle" });
 
+  // Preview pane can show either the email or the generated offer PDF.
+  const [previewMode, setPreviewMode] = useState<"email" | "offer">("email");
+
   // Live email preview — re-render the branded HTML as the body is edited
   // (debounced so we don't hit the server on every keystroke).
   const [preview, setPreview] = useState("");
   useEffect(() => {
-    if (!open) return;
+    if (!open || previewMode !== "email") return;
     let cancelled = false;
     const t = setTimeout(() => {
       documentsApi
@@ -55,7 +59,40 @@ export function SendOfferDialog({
       cancelled = true;
       clearTimeout(t);
     };
-  }, [body, open]);
+  }, [body, open, previewMode]);
+
+  // Offer-PDF preview — rendered on demand (the true paged document with logo
+  // + footer). Fetched when the Angebot tab is first shown; object URL revoked
+  // on cleanup. Re-fetches each time the dialog opens (payload may have changed).
+  const [offerUrl, setOfferUrl] = useState("");
+  const [offerErr, setOfferErr] = useState(false);
+  useEffect(() => {
+    if (!open || previewMode !== "offer" || offerUrl) return;
+    let url = "";
+    let cancelled = false;
+    setOfferErr(false);
+    documentsApi
+      .offerPdfBlob(payload)
+      .then((blob) => {
+        if (cancelled) return;
+        url = URL.createObjectURL(blob);
+        setOfferUrl(url);
+      })
+      .catch(() => !cancelled && setOfferErr(true));
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [open, previewMode, offerUrl, payload]);
+
+  // Drop the cached offer preview whenever the dialog closes so a re-open
+  // reflects the latest payload.
+  useEffect(() => {
+    if (!open) {
+      setOfferUrl("");
+      setPreviewMode("email");
+    }
+  }, [open]);
 
   async function send() {
     if (!to.trim()) {
@@ -106,20 +143,46 @@ export function SendOfferDialog({
             </div>
           </div>
 
-          {/* Live preview */}
+          {/* Live preview — email or generated offer PDF */}
           <div className="space-y-1.5">
-            <Label>Vorschau</Label>
-            <div className="rounded-md border bg-white">
-              <div className="border-b bg-muted/40 px-3 py-2 text-xs">
-                <div className="truncate"><span className="text-muted-foreground">An:</span> {to || "—"}</div>
-                <div className="truncate"><span className="text-muted-foreground">Betreff:</span> {subject || "—"}</div>
+            <div className="flex items-center justify-between">
+              <Label>Vorschau</Label>
+              <div className="inline-flex rounded-md border p-0.5 text-xs">
+                {(["email", "offer"] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setPreviewMode(m)}
+                    className={cn(
+                      "rounded px-2.5 py-1 font-medium transition-colors",
+                      previewMode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
+                    )}
+                  >
+                    {m === "email" ? "E-Mail" : "Angebot"}
+                  </button>
+                ))}
               </div>
-              <iframe
-                title="E-Mail-Vorschau"
-                srcDoc={preview}
-                className="h-[19rem] w-full"
-                sandbox=""
-              />
+            </div>
+            <div className="rounded-md border bg-white">
+              {previewMode === "email" ? (
+                <>
+                  <div className="border-b bg-muted/40 px-3 py-2 text-xs">
+                    <div className="truncate"><span className="text-muted-foreground">An:</span> {to || "—"}</div>
+                    <div className="truncate"><span className="text-muted-foreground">Betreff:</span> {subject || "—"}</div>
+                  </div>
+                  <iframe title="E-Mail-Vorschau" srcDoc={preview} className="h-[22rem] w-full" sandbox="" />
+                </>
+              ) : offerErr ? (
+                <div className="flex h-[22rem] items-center justify-center px-4 text-center text-sm text-destructive">
+                  Angebots-Vorschau fehlgeschlagen.
+                </div>
+              ) : offerUrl ? (
+                <iframe title="Angebots-Vorschau" src={offerUrl} className="h-[22rem] w-full" />
+              ) : (
+                <div className="flex h-[22rem] items-center justify-center text-sm text-muted-foreground">
+                  <Loader2 className="mr-2 size-4 animate-spin" /> Angebot wird gerendert …
+                </div>
+              )}
             </div>
           </div>
         </div>

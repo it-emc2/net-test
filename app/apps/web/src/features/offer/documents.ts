@@ -34,8 +34,8 @@ export const documentsApi = {
     return res.text();
   },
 
-  // Render the offer PDF and open it in a new tab.
-  async openPdf(payload: OfferPayload): Promise<void> {
+  // Render the offer PDF and return it as a Blob (caller owns the object URL).
+  async offerPdfBlob(payload: OfferPayload): Promise<Blob> {
     const res = await fetch("/api/documents/angebot.pdf", {
       method: "POST",
       credentials: "same-origin",
@@ -43,7 +43,12 @@ export const documentsApi = {
       body: JSON.stringify(payload),
     });
     if (!res.ok) await jsonError(res, "PDF-Erstellung fehlgeschlagen");
-    const url = URL.createObjectURL(await res.blob());
+    return res.blob();
+  },
+
+  // Render the offer PDF and open it in a new tab.
+  async openPdf(payload: OfferPayload): Promise<void> {
+    const url = URL.createObjectURL(await this.offerPdfBlob(payload));
     window.open(url, "_blank", "noopener");
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   },
