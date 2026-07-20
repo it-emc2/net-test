@@ -927,8 +927,8 @@ if (offer === "hl") {
           // No product ID in Angebot label — UI can still decorate with [pid] for internal view
           const base = rawLabel || pid;
 
-          // Decimal qty → treat as meters (pipes), integer → Stück
-          const isMeters = !Number.isInteger(qty);
+          // Explicit unit hint (tubes = "m"), else: decimal qty → meters, integer → Stück
+          const isMeters = String(row?.unit || "").toLowerCase() === "m" || !Number.isInteger(qty);
           const unitLabel = isMeters ? "m" : "Stk";
           const qtyStr = Number.isInteger(qty)
             ? String(qty)

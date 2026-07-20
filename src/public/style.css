@@ -3877,6 +3877,242 @@ label.image-check.is-checked .caption {
   display: none !important;
 }
 
+/* HL: Konfigurator (Wizard) */
+.hl-wiz{
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+.hl-wiz__head{
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+/* Step bar: [Zurück] ← centered steps → [Weiter] */
+.hl-wiz__stepbar{
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 14px 0 4px;
+}
+.hl-wiz__stepbar > button{ flex: 0 0 auto; }
+.hl-wiz__steps{
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+}
+.hl-wiz__steps li{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.6;
+}
+.hl-wiz__steps li .hl-wiz__num{
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--border);
+  font-size: 12px;
+}
+.hl-wiz__steps li.is-active{
+  opacity: 1;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.hl-wiz__steps li.is-done{
+  opacity: 1;
+}
+.hl-wiz__steps li.is-active .hl-wiz__num,
+.hl-wiz__steps li.is-done .hl-wiz__num{
+  background: var(--accent);
+  color: #fff;
+}
+.hl-wiz__status{
+  margin: 8px 0;
+  min-height: 18px;
+}
+.hl-wiz__body{
+  margin: 6px 0 4px;
+}
+.hl-wiz__section-title{
+  font-weight: 700;
+  margin: 4px 0 10px;
+}
+.hl-wiz__hint{
+  font-size: 13px;
+  opacity: 0.8;
+  margin: 0 0 12px;
+}
+.hl-wiz__stepbar button[disabled]{
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Big choice cards (Bereich / Material) */
+.hl-wiz__cards{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.hl-wiz__card{
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: inherit;
+  padding: 20px;
+  cursor: pointer;
+  text-align: center;
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+.hl-wiz__card:hover{ border-color: var(--accent); }
+.hl-wiz__card.is-selected{
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--card));
+}
+.hl-wiz__card img{
+  width: 100%;
+  max-width: 240px;
+  height: 180px;
+  object-fit: contain;
+}
+.hl-wiz__card-title{ font-weight: 700; }
+.hl-wiz__card-sub{ font-size: 12px; opacity: 0.75; }
+
+/* Finish swatches */
+.hl-wiz__finishes{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.hl-wiz__finish{
+  border: 2px solid var(--border);
+  background: var(--card);
+  color: inherit;
+  border-radius: 8px;
+  padding: 12px 18px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+}
+.hl-wiz__finish.is-selected{
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.hl-wiz__finish[disabled]{
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Material group with meter inputs */
+.hl-wiz__group{
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+.hl-wiz__group-title{
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.hl-wiz__picks{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+.hl-wiz__pick{
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+}
+.hl-wiz__pick.is-selected{
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+}
+.hl-wiz__pick img{ width: 96px; height: 96px; object-fit: contain; }
+.hl-wiz__pick-name{ font-weight: 600; line-height: 1.25; font-size: 16px; }
+.hl-wiz__pick-meta{ font-size: 13px; opacity: 0.75; }
+.hl-wiz__qty{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.hl-wiz__qty input{
+  width: 96px;
+  padding: 9px 10px;
+  font-size: 16px; /* ≥16px stops iOS zoom-on-focus */
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg, transparent);
+  color: inherit;
+}
+.hl-wiz__qty label{ font-size: 13px; opacity: 0.8; }
+
+/* Übersicht */
+.hl-wiz__summary{
+  display: grid;
+  gap: 8px;
+}
+.hl-wiz__summary-row{
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  align-items: center;
+}
+.hl-wiz__summary-row .muted{ font-size: 12px; }
+.hl-wiz__empty{ opacity: 0.7; padding: 12px 0; }
+
+/* Commit confirmation banner on the Übersicht */
+.hl-wiz__committed{
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 14%, var(--card));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 15px;
+}
+.hl-wiz__committed.is-empty{
+  border-color: var(--border);
+  background: var(--card);
+  opacity: 0.85;
+}
+.hl-wiz__committed-actions{
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
 
 /* DA: DB search */
 .da-search-wrapper{
