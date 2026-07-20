@@ -621,6 +621,59 @@ router.post("/suggest-distance", async (req: Request, res: Response) => {
   }
 });
 
+interface ChainLeg {
+  ok: boolean;
+  minutes?: number;
+  km?: number;
+  error?: string;
+}
+
+/**
+ * POST /api/routing/chain
+ * Body: { addresses: string[] } — ordered stops for the day (customer addresses only).
+ * Returns one leg per hop: Firma -> stop[0] -> stop[1] -> ... -> stop[n-1] -> Firma.
+ */
+router.post("/chain", async (req: Request, res: Response) => {
+  try {
+    const addresses: string[] = Array.isArray(req.body?.addresses) ? req.body.addresses : [];
+    if (!addresses.length) return res.json({ ok: true, legs: [] });
+
+    const company = await getCompanyCoords();
+    const points: (Coords | null)[] = await Promise.all(
+      addresses.map(async (addr) => {
+        if (!addr?.trim()) return null;
+        try {
+          return await geocodeSingleAddress(addr);
+        } catch {
+          return null;
+        }
+      })
+    );
+    const route = [company, ...points, company];
+
+    const legs: ChainLeg[] = [];
+    for (let i = 0; i < route.length - 1; i++) {
+      const a = route[i];
+      const b = route[i + 1];
+      if (!a || !b) {
+        legs.push({ ok: false, error: "Adresse nicht gefunden" });
+        continue;
+      }
+      try {
+        const { km, seconds } = await getRoadDistanceAndDuration(a, b);
+        legs.push({ ok: true, km: Math.round(km * 10) / 10, minutes: Math.round(seconds / 60) });
+      } catch (err: any) {
+        legs.push({ ok: false, error: err.message || "Routing fehlgeschlagen" });
+      }
+    }
+
+    return res.json({ ok: true, legs });
+  } catch (err: any) {
+    console.error("[routing] chain failed:", err);
+    return res.status(500).json({ error: err.message || "Routing lookup failed" });
+  }
+});
+
 /**
  * GET /api/routing/health
  */
