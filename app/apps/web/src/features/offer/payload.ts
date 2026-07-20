@@ -10,6 +10,14 @@ export interface Wohnumfeld {
   done: boolean;
 }
 
+export interface Partner {
+  salutation: string;
+  firstName: string;
+  lastName: string;
+  krankenkasse: string;
+  pflegegrad: string;
+}
+
 export interface Kundendaten {
   salutation: string;
   firstName: string;
@@ -27,9 +35,13 @@ export interface Kundendaten {
   aufschlag: string; // e.g. "35%"
   // Kassenkunde-only conditional fields
   pflegegrad: string;
+  krankenkasse: string;
   budgetOption: string; // subsidy option (see SUBSIDY_OPTIONS)
+  budgetOptionManuallySet: boolean; // once true, auto-derivation from `partner` stops overwriting it
   zuzahlung: string;
   wohnumfeld: Wohnumfeld;
+  // second person sharing the Pflegegrad budget, e.g. Ehepartner — added on demand mid-consultation
+  partner?: Partner;
 }
 
 export interface Arbeitszeit {
@@ -74,6 +86,22 @@ export const SUBSIDY_OPTIONS: { value: string; label: string }[] = [
 export const SALUTATIONS = ["Herr", "Frau", "Familie", "Divers"];
 export const PFLEGEGRADE = ["", "1", "2", "3", "4", "5"];
 
+export function emptyPartner(): Partner {
+  return { salutation: "", firstName: "", lastName: "", krankenkasse: "", pflegegrad: "" };
+}
+
+/** Default salutation for a newly added partner — opposite of the main contact where that's meaningful. */
+export function oppositeSalutation(s: string): string {
+  if (s === "Herr") return "Frau";
+  if (s === "Frau") return "Herr";
+  return "";
+}
+
+/** Default subsidy tier derived from partner presence — overridden once the user picks manually. */
+export function deriveBudgetOption(k: Kundendaten): string {
+  return k.partner ? "ZWEI PERSONEN MIT PFLEGEGRAD" : "4180 MAXIMAL";
+}
+
 export function defaultPayload(): OfferPayload {
   return {
     activeOffer: "bu",
@@ -94,7 +122,9 @@ export function defaultPayload(): OfferPayload {
       payer: "",
       aufschlag: "35%",
       pflegegrad: "",
+      krankenkasse: "",
       budgetOption: "",
+      budgetOptionManuallySet: false,
       zuzahlung: "",
       wohnumfeld: { amount: "", done: false },
     },

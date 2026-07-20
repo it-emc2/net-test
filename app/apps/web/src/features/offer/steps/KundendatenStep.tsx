@@ -2,7 +2,15 @@ import { type ReactNode } from "react";
 import type { CustomerDetail } from "@emc2/shared";
 import { useOffer } from "../OfferContext";
 import { CustomerSearch } from "../CustomerSearch";
-import { SUBSIDY_OPTIONS, SALUTATIONS, PFLEGEGRADE, type Payer } from "../payload";
+import {
+  SUBSIDY_OPTIONS,
+  SALUTATIONS,
+  PFLEGEGRADE,
+  type Payer,
+  emptyPartner,
+  deriveBudgetOption,
+  oppositeSalutation,
+} from "../payload";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -19,6 +27,27 @@ export function KundendatenStep() {
   const k = payload.Kundendaten;
   const set = (patch: Record<string, any>) => patchSection("Kundendaten", patch);
   const isKK = k.payer === "Kassenkunde";
+
+  function addPartner() {
+    const partner = {
+      ...emptyPartner(),
+      salutation: oppositeSalutation(k.salutation),
+      lastName: k.lastName,
+      krankenkasse: k.krankenkasse,
+      pflegegrad: k.pflegegrad,
+    };
+    set(k.budgetOptionManuallySet ? { partner } : { partner, budgetOption: deriveBudgetOption({ ...k, partner }) });
+  }
+
+  function removePartner() {
+    const next = { ...k, partner: undefined };
+    set(k.budgetOptionManuallySet ? { partner: undefined } : { partner: undefined, budgetOption: deriveBudgetOption(next) });
+  }
+
+  function setPartner(patch: Partial<NonNullable<typeof k.partner>>) {
+    const partner = { ...k.partner!, ...patch };
+    set(k.budgetOptionManuallySet ? { partner } : { partner, budgetOption: deriveBudgetOption({ ...k, partner }) });
+  }
 
   function prefillFromCustomer(c: CustomerDetail) {
     set({
@@ -61,6 +90,50 @@ export function KundendatenStep() {
           <Field label="E-Mail"><Input type="email" value={k.email} onChange={(e) => set({ email: e.target.value })} /></Field>
           <Field label="Telefon"><Input value={k.phone} onChange={(e) => set({ phone: e.target.value })} /></Field>
         </div>
+
+        {isKK && (
+          k.partner ? (
+            <div className="space-y-4 rounded-lg border border-dashed border-primary/40 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Partner / Ehepartner</p>
+                <button type="button" onClick={removePartner} className="text-xs text-muted-foreground hover:text-destructive">
+                  ✕ entfernen
+                </button>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-[8rem_1fr_1fr]">
+                <Field label="Anrede">
+                  <Select value={k.partner.salutation || undefined} onValueChange={(v) => setPartner({ salutation: v })}>
+                    <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      {SALUTATIONS.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Vorname"><Input value={k.partner.firstName} onChange={(e) => setPartner({ firstName: e.target.value })} /></Field>
+                <Field label="Nachname"><Input value={k.partner.lastName} onChange={(e) => setPartner({ lastName: e.target.value })} /></Field>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Krankenkasse"><Input value={k.partner.krankenkasse} onChange={(e) => setPartner({ krankenkasse: e.target.value })} /></Field>
+                <Field label="Pflegegrad">
+                  <Select value={k.partner.pflegegrad || undefined} onValueChange={(v) => setPartner({ pflegegrad: v })}>
+                    <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      {PFLEGEGRADE.filter(Boolean).map((g) => (
+                        <SelectItem key={g} value={g}>Pflegegrad {g}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </div>
+          ) : (
+            <button type="button" onClick={addPartner} className="text-sm font-medium text-primary hover:underline">
+              + Partner/Ehepartner hinzufügen
+            </button>
+          )
+        )}
       </Section>
 
       {/* Address */}
@@ -90,7 +163,10 @@ export function KundendatenStep() {
             <p className="text-xs font-semibold uppercase tracking-wide text-primary">Kassenkunde-Angaben</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Zuschuss-Option">
-                <Select value={k.budgetOption} onValueChange={(v) => set({ budgetOption: v })}>
+                <Select
+                  value={k.budgetOption}
+                  onValueChange={(v) => set({ budgetOption: v, budgetOptionManuallySet: true })}
+                >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {SUBSIDY_OPTIONS.map((o) => (
@@ -109,6 +185,7 @@ export function KundendatenStep() {
                   </SelectContent>
                 </Select>
               </Field>
+              <Field label="Krankenkasse"><Input value={k.krankenkasse} onChange={(e) => set({ krankenkasse: e.target.value })} /></Field>
               <Field label="Zuzahlung (€)"><Input inputMode="decimal" value={k.zuzahlung} onChange={(e) => set({ zuzahlung: e.target.value })} /></Field>
               <Field label="Wohnumfeld-Vorleistung (€)">
                 <Input
