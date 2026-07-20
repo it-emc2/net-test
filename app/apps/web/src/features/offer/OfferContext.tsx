@@ -23,7 +23,20 @@ const AUTOSAVE_KEY = "emc2.offer.autosave.v1";
 // mid-edit) can lack a section like `optional`; steps read those directly, so a
 // missing one white-screens. Normalising here keeps every step safe.
 function normalize(p: Partial<OfferPayload> | null | undefined): OfferPayload {
-  return { ...defaultPayload(), ...(p ?? {}) } as OfferPayload;
+  const d = defaultPayload();
+  const src = (p ?? {}) as Partial<OfferPayload>;
+  const kd = (src.Kundendaten ?? {}) as Record<string, any>;
+  // Deep-merge Kundendaten (and its nested wohnumfeld) so older payloads that
+  // predate newer fields don't leave them undefined and crash a step.
+  return {
+    ...d,
+    ...src,
+    Kundendaten: {
+      ...d.Kundendaten,
+      ...kd,
+      wohnumfeld: { ...d.Kundendaten.wohnumfeld, ...(kd.wohnumfeld ?? {}) },
+    },
+  } as OfferPayload;
 }
 
 // A draft/deal loaded via URL owns the payload — don't restore the autosave over it.

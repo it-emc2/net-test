@@ -72,6 +72,17 @@ export function KundendatenStep() {
 
       {/* Contact */}
       <Section title="Kontakt">
+        <Field label="Neukunde oder Bestandskunde? *">
+          <ChoiceGroup
+            value={k.customerType}
+            onChange={(v) => set({ customerType: v })}
+            options={[
+              { value: "neu", label: "Neu" },
+              { value: "bestand", label: "Bestandskunde" },
+            ]}
+          />
+        </Field>
+
         <div className="grid gap-4 sm:grid-cols-[8rem_1fr_1fr]">
           <Field label="Anrede">
             <Select value={k.salutation || undefined} onValueChange={(v) => set({ salutation: v })}>
@@ -90,6 +101,23 @@ export function KundendatenStep() {
           <Field label="E-Mail"><Input type="email" value={k.email} onChange={(e) => set({ email: e.target.value })} /></Field>
           <Field label="Telefon"><Input value={k.phone} onChange={(e) => set({ phone: e.target.value })} /></Field>
         </div>
+
+        <Field label="Ansprechpartner vorhanden?">
+          <ChoiceGroup
+            value={k.hasContactPerson ? "ja" : "nein"}
+            onChange={(v) => set({ hasContactPerson: v === "ja" })}
+            options={[
+              { value: "ja", label: "Ja" },
+              { value: "nein", label: "Nein" },
+            ]}
+          />
+        </Field>
+        {k.hasContactPerson && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Name Ansprechpartner"><Input value={k.contactPersonName} onChange={(e) => set({ contactPersonName: e.target.value })} /></Field>
+            <Field label="Telefon Ansprechpartner"><Input value={k.contactPersonPhone} onChange={(e) => set({ contactPersonPhone: e.target.value })} /></Field>
+          </div>
+        )}
 
         {isKK && (
           k.partner ? (
@@ -187,25 +215,94 @@ export function KundendatenStep() {
               </Field>
               <Field label="Krankenkasse"><Input value={k.krankenkasse} onChange={(e) => set({ krankenkasse: e.target.value })} /></Field>
               <Field label="Zuzahlung (€)"><Input inputMode="decimal" value={k.zuzahlung} onChange={(e) => set({ zuzahlung: e.target.value })} /></Field>
-              <Field label="Wohnumfeld-Vorleistung (€)">
-                <Input
-                  inputMode="decimal"
-                  value={k.wohnumfeld.amount}
-                  onChange={(e) => setSection("Kundendaten", { ...k, wohnumfeld: { ...k.wohnumfeld, amount: e.target.value } })}
-                />
-              </Field>
             </div>
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={k.wohnumfeld.done}
-                onChange={(e) => setSection("Kundendaten", { ...k, wohnumfeld: { ...k.wohnumfeld, done: e.target.checked } })}
-                className="size-4 rounded border-input accent-[hsl(var(--primary))]"
-              />
-              Wohnumfeld-Zuschuss bereits in Anspruch genommen (reduziert verfügbaren Zuschuss)
-            </label>
           </div>
         )}
+      </Section>
+
+      {/* Objekt- & Förderinformationen */}
+      <Section title="Weitere Objekt- und Förderinformationen">
+        <Field label="Wurden wohnumfeldverbessernde Maßnahmen schon mal durchgeführt?">
+          <ChoiceGroup
+            value={k.wohnumfeld.status}
+            onChange={(v) =>
+              setSection("Kundendaten", { ...k, wohnumfeld: { ...k.wohnumfeld, status: v, done: v === "ja" } })
+            }
+            options={[
+              { value: "ja", label: "Ja" },
+              { value: "nein", label: "Nein" },
+              { value: "unbekannt", label: "Unbekannt" },
+            ]}
+          />
+        </Field>
+        {k.wohnumfeld.status === "ja" && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Wofür?">
+              <Input
+                value={k.wohnumfeld.purpose}
+                onChange={(e) => setSection("Kundendaten", { ...k, wohnumfeld: { ...k.wohnumfeld, purpose: e.target.value } })}
+                placeholder="z. B. Treppenlift, Türverbreiterung"
+              />
+            </Field>
+            <Field label="Betrag (€)">
+              <Input
+                inputMode="decimal"
+                value={k.wohnumfeld.amount}
+                onChange={(e) => setSection("Kundendaten", { ...k, wohnumfeld: { ...k.wohnumfeld, amount: e.target.value } })}
+              />
+            </Field>
+          </div>
+        )}
+
+        <Field label="Antrag auf Zuschuss bei Pflegekasse gestellt?">
+          <ChoiceGroup
+            value={k.pflegekasseAntrag}
+            onChange={(v) => set({ pflegekasseAntrag: v })}
+            options={[
+              { value: "ja", label: "Ja" },
+              { value: "nein", label: "Nein" },
+            ]}
+          />
+        </Field>
+
+        <Field label="Angabe zur Wohnsituation">
+          <ChoiceGroup
+            value={k.wohnsituation}
+            onChange={(v) => set({ wohnsituation: v })}
+            options={[
+              { value: "Eigentum", label: "Eigentum" },
+              { value: "Miete", label: "Miete" },
+            ]}
+          />
+        </Field>
+
+        <Field label="Parken vor dem Objekt möglich?">
+          <ChoiceGroup
+            value={k.parkenMoeglich}
+            onChange={(v) => set({ parkenMoeglich: v })}
+            options={[
+              { value: "ja", label: "Ja" },
+              { value: "nein", label: "Nein" },
+            ]}
+          />
+        </Field>
+        <Field label="Weitere Angaben zur Parksituation">
+          <Input
+            value={k.parkDetails}
+            onChange={(e) => set({ parkDetails: e.target.value })}
+            placeholder="z. B. Hinterhof, Halteverbot, Fußweg zum Eingang"
+          />
+        </Field>
+
+        <Field label="Notizen">
+          <textarea
+            value={k.notes}
+            onChange={(e) => set({ notes: e.target.value })}
+            rows={4}
+            placeholder="Freie Notizen …"
+            className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </Field>
       </Section>
     </div>
   );
@@ -234,6 +331,38 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
     <div className="space-y-1.5">
       <Label>{label}</Label>
       {children}
+    </div>
+  );
+}
+
+function ChoiceGroup({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((o) => {
+        const active = value === o.value;
+        // Re-click clears the choice (so "unanswered" stays possible).
+        return (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onChange(active ? "" : o.value)}
+            className={cn(
+              "rounded-md border px-4 py-2 text-sm font-medium transition-colors",
+              active ? "border-primary bg-primary/10 text-primary" : "hover:bg-accent",
+            )}
+          >
+            {o.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

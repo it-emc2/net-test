@@ -7,7 +7,9 @@ export type Payer = "" | "Kassenkunde" | "Selbstzahler";
 
 export interface Wohnumfeld {
   amount: string;
-  done: boolean;
+  done: boolean; // kept in sync with status === "ja" (pricing reads this)
+  status: string; // "" | "ja" | "nein" | "unbekannt"
+  purpose: string; // "wofür" — only relevant when status === "ja"
 }
 
 export interface Partner {
@@ -31,6 +33,17 @@ export interface Kundendaten {
   bitrixContactId: string;
   dealId: string;
   emc2_contact: string;
+  // Classification + optional (customer-side) contact person
+  customerType: string; // "" | "neu" | "bestand"
+  hasContactPerson: boolean;
+  contactPersonName: string;
+  contactPersonPhone: string;
+  // Objekt- & Förderinformationen
+  pflegekasseAntrag: string; // "" | "ja" | "nein" — Antrag auf Zuschuss gestellt?
+  wohnsituation: string; // "" | "Eigentum" | "Miete"
+  parkenMoeglich: string; // "" | "ja" | "nein"
+  parkDetails: string;
+  notes: string;
   payer: Payer;
   aufschlag: string; // e.g. "35%"
   // Kassenkunde-only conditional fields
@@ -119,6 +132,15 @@ export function defaultPayload(): OfferPayload {
       bitrixContactId: "",
       dealId: "",
       emc2_contact: "",
+      customerType: "",
+      hasContactPerson: false,
+      contactPersonName: "",
+      contactPersonPhone: "",
+      pflegekasseAntrag: "",
+      wohnsituation: "",
+      parkenMoeglich: "",
+      parkDetails: "",
+      notes: "",
       payer: "",
       aufschlag: "35%",
       pflegegrad: "",
@@ -126,7 +148,7 @@ export function defaultPayload(): OfferPayload {
       budgetOption: "",
       budgetOptionManuallySet: false,
       zuzahlung: "",
-      wohnumfeld: { amount: "", done: false },
+      wohnumfeld: { amount: "", done: false, status: "", purpose: "" },
     },
     Arbeitszeit: {
       distanceKm: "",
