@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 export function OptionalStep() {
   const { payload, patchSection } = useOffer();
-  const opt = payload.optional;
+  const opt = payload.optional ?? {};
   const [cats, setCats] = useState<OptionalCategoryView[]>([]);
   const [error, setError] = useState<string | null>(null);
 
