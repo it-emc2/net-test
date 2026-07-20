@@ -188,7 +188,14 @@ const OFFERS = {
   },
   hl: {
     name: "HL · Handlauf",
-    pages: ["Kundendaten", "Arbeitszeit", "hl", "Kosten", "Zusammenfassung"],
+    pages: [
+      "Kundendaten",
+      "Arbeitszeit",
+      "hl",
+      "Rabatt",
+      "Kosten",
+      "Zusammenfassung",
+    ],
   },
   bl: {
     name: "BL · Badelift",
@@ -668,14 +675,14 @@ function updateOfferSpecificSections() {
     .trim()
     .toLowerCase();
 
-  // Relocate the Aufschlag section: for Badumbau (BU) and Badewannentür (BWT)
-  // it lives on the Rabatt page, for every other offer it stays in its
-  // Kundendaten home. A single element is moved (not duplicated) so its IDs and
-  // serialization into payload.Kundendaten.aufschlag remain unchanged.
+  // Relocate the Aufschlag section: for Badumbau (BU), Badewannentür (BWT) and
+  // Handlauf (HL) it lives on the Rabatt page, for every other offer it stays in
+  // its Kundendaten home. A single element is moved (not duplicated) so its IDs
+  // and serialization into payload.Kundendaten.aufschlag remain unchanged.
   (function relocateAufschlag() {
     var sec = document.getElementById("aufschlagSection");
     if (!sec) return;
-    if (offer === "bu" || offer === "bwt") {
+    if (offer === "bu" || offer === "bwt" || offer === "hl") {
       var mount = document.getElementById("aufschlagRabattMount");
       if (mount && sec.parentElement !== mount) mount.appendChild(sec);
     } else {
