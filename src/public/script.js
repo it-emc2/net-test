@@ -24442,6 +24442,62 @@ function initWeekCalendarNav(){
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Travel time from the company base to/from a planning entry's address, via
+// the existing /api/routing/suggest-distance endpoint (same one the BU
+// Arbeitszeit tab uses). Cached per address since it never changes intra-session.
+const __companyTravelMinutesCache = new Map();
+async function fetchCompanyTravelMinutes(entry){
+  const parsed = parsePlanningAddress(entry?.address || "");
+  const street = entry?.street || parsed.street;
+  const postalCode = entry?.postalCode || parsed.postalCode;
+  const city = entry?.city || parsed.city;
+  if(!street && !postalCode && !city) return null;
+
+  const key = `${street}|${postalCode}|${city}`;
+  if(__companyTravelMinutesCache.has(key)) return __companyTravelMinutesCache.get(key);
+
+  let minutes = null;
+  try {
+    const res = await fetch("/api/routing/suggest-distance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ Kundendaten: { street, postalCode, city } }),
+    });
+    const data = await res.json();
+    if(data?.ok && Number.isFinite(Number(data?.oneWaySeconds))){
+      minutes = Math.round(Number(data.oneWaySeconds) / 60);
+    }
+  } catch (e) {
+    console.error("[planning] company travel time lookup failed:", e);
+  }
+  __companyTravelMinutesCache.set(key, minutes);
+  return minutes;
+}
+
+// Adds an "Anfahrt von Firma" connector before the first card and a
+// "Rückfahrt zur Firma" connector after the last card. Fetched async so the
+// list itself renders immediately; the connectors pop in once resolved.
+function attachCompanyTravelConnectors(entries){
+  const list = document.getElementById("todayPlanningList");
+  if(!list || !entries.length) return;
+
+  const addConnector = (entry, position, className, label) => {
+    fetchCompanyTravelMinutes(entry).then(minutes => {
+      if(!(minutes > 0)) return;
+      const card = list.querySelector(`.today-calendar-card[data-id="${CSS.escape(String(entry.__entryId))}"]`);
+      if(!card) return;
+      const sibling = position === "beforebegin" ? card.previousElementSibling : card.nextElementSibling;
+      if(sibling?.classList.contains(className)) return;
+      card.insertAdjacentHTML(position, `<div class="planning-travel-connector ${className}"><i class="fa-solid fa-car-side"></i> ${minutes} Min ${label}</div>`);
+    });
+  };
+
+  const first = entries[0];
+  const last = entries[entries.length - 1];
+  addConnector(first, "beforebegin", "planning-travel-connector--start", "Anfahrt von Firma");
+  if(last !== first) addConnector(last, "afterend", "planning-travel-connector--end", "Rückfahrt zur Firma");
+}
+
 function renderTodayPlanningAppointments(){
   const list = document.getElementById("todayPlanningList");
   if(!list) return;
@@ -24582,6 +24638,8 @@ function renderTodayPlanningAppointments(){
       }
     });
   });
+
+  attachCompanyTravelConnectors(todayPlanningAppointmentsFiltered);
 }
 
 function filterTodayPlanningAppointments(query){
