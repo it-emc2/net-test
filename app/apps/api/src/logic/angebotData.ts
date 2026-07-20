@@ -63,9 +63,20 @@ function greetFrag(salutation: string, lastName: string): string {
   if (salutation === "Familie") return `sehr geehrte Familie ${l}`.trim();
   return "sehr geehrte Damen und Herren";
 }
+// Two-person greeting. When both share the same last name and are Frau + Herr,
+// collapse to "Sehr geehrte Frau und Herr <Nachname>". Otherwise greet each
+// person in full ("Sehr geehrte Frau X, sehr geehrter Herr Y").
 function greetingLine(b: Any, isTwo: boolean): string {
   if (isTwo) {
-    const two = `${greetFrag(b.salutation, b.lastName)}, ${greetFrag(b.partnerSalutation, b.partnerLastName)}`;
+    const p = b.partner || {};
+    const l1 = String(b.lastName || "").trim();
+    const l2 = String(p.lastName || "").trim();
+    const sameLast = !!l1 && l1.toLowerCase() === l2.toLowerCase();
+    const mixed =
+      (b.salutation === "Frau" && p.salutation === "Herr") ||
+      (b.salutation === "Herr" && p.salutation === "Frau");
+    if (sameLast && mixed) return `Sehr geehrte Frau und Herr ${l1}`;
+    const two = `${greetFrag(b.salutation, l1)}, ${greetFrag(p.salutation, l2)}`;
     return two.charAt(0).toUpperCase() + two.slice(1);
   }
   return greetOne(b.salutation, b.lastName);
@@ -220,8 +231,11 @@ export function buildAngebotData(payload: Any, computed: Any, opts: { ansprechpa
   const validityStr = fmtDateDE(validity);
 
   const payer = payerCode(payload);
-  const partnerName = [b.partnerFirstName, b.partnerLastName].filter(Boolean).join(" ").trim();
-  const isTwo = !!b.twoPersons && !!partnerName;
+  // New app stores the second person as Kundendaten.partner (object); its
+  // presence with a name is the two-person indicator.
+  const partner = b.partner || null;
+  const partnerName = [partner?.firstName, partner?.lastName].filter(Boolean).join(" ").trim();
+  const isTwo = !!partner && !!partnerName;
   const { primary, included } = splitServiceLines(computed);
   const { totals, hasSubsidy } = totalsRows(computed);
   const selectedIdx = Number.isFinite(Number(b.selectedPaymentTermIdx)) ? Number(b.selectedPaymentTermIdx) : -1;
@@ -236,9 +250,9 @@ export function buildAngebotData(payload: Any, computed: Any, opts: { ansprechpa
     anrede: b.salutation || "",
     vorname: b.firstName || "",
     nachname: b.lastName || "",
-    anrede2: isTwo ? b.partnerSalutation || "" : undefined,
-    vorname2: isTwo ? b.partnerFirstName || "" : undefined,
-    nachname2: isTwo ? b.partnerLastName || "" : undefined,
+    anrede2: isTwo ? partner.salutation || "" : undefined,
+    vorname2: isTwo ? partner.firstName || "" : undefined,
+    nachname2: isTwo ? partner.lastName || "" : undefined,
     adresse: b.street || "",
     plz: b.postalCode || "",
     stadt: b.city || "",

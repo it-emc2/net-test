@@ -15,12 +15,72 @@ import { Label } from "@/components/ui/label";
 import { documentsApi } from "./documents";
 import type { OfferPayload } from "./payload";
 
+function greetFrag(salutation: string, lastName: string): string {
+  const l = (lastName || "").trim();
+  if (salutation === "Frau") return `sehr geehrte Frau ${l}`.trim();
+  if (salutation === "Herr") return `sehr geehrter Herr ${l}`.trim();
+  if (salutation === "Familie") return `sehr geehrte Familie ${l}`.trim();
+  return "sehr geehrte Damen und Herren";
+}
+
+// Greeting line, incl. two-person handling. Same last name + Frau/Herr →
+// "Sehr geehrte Frau und Herr <Nachname>"; otherwise greet each in full.
+// Kept in sync with the server-side Angebot greeting (logic/angebotData.ts).
 function greetingFor(k: OfferPayload["Kundendaten"]): string {
   const l = (k.lastName || "").trim();
+  const p = k.partner;
+  if (p && (p.firstName || p.lastName)) {
+    const l2 = (p.lastName || "").trim();
+    const sameLast = !!l && l.toLowerCase() === l2.toLowerCase();
+    const mixed =
+      (k.salutation === "Frau" && p.salutation === "Herr") ||
+      (k.salutation === "Herr" && p.salutation === "Frau");
+    if (sameLast && mixed) return `Sehr geehrte Frau und Herr ${l}`;
+    const two = `${greetFrag(k.salutation, l)}, ${greetFrag(p.salutation, l2)}`;
+    return two.charAt(0).toUpperCase() + two.slice(1);
+  }
   if (k.salutation === "Frau") return `Sehr geehrte Frau ${l}`.trim();
   if (k.salutation === "Herr") return `Sehr geehrter Herr ${l}`.trim();
   if (k.salutation === "Familie") return `Sehr geehrte Familie ${l}`.trim();
   return "Sehr geehrte Damen und Herren";
+}
+
+// Default offer email, payer-conditional (ported from the v3 EmailManager).
+// The attachment list differs: Selbstzahler get Angebot + Flyer; Kassenkunde
+// also get Abtretungserklärung + Vollmacht (they claim the Pflegekassen-Zuschuss).
+// ponytail: the v3 online-signing paragraph ({{SIGN_LINK}}) is omitted — the
+// new app has no signing flow yet; add it back once that exists.
+function defaultBody(k: OfferPayload["Kundendaten"], offerNumber: string): string {
+  const nr = offerNumber || "ANG-2025-_____";
+  const isSelbstzahler = k.payer === "Selbstzahler";
+  const attachmentList = isSelbstzahler
+    ? `1. Ihr Angebot ${nr}\n2. Unseren aktuellen Flyer "Barrierefreies Wohnen"`
+    : `1. Ihr Angebot ${nr}\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3, 4, 5 SGB XI\n4. Unseren aktuellen Flyer "Barrierefreies Wohnen"`;
+
+  const closing = isSelbstzahler
+    ? `Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`
+    : `Sobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\nBei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
+
+  return `${greetingFor(k)},
+
+vielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden Sie sich für einen zuverlässigen Partner, der Ihnen höchste Qualität und volle Sicherheit bietet:
+
+• Anerkannter Dienstleister nach SGB – von allen Pflegekassen geprüft und anerkannt.
+• Nur Markenqualität vom Fachhändler – langlebige Produkte, auf die Sie sich verlassen können.
+• 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.
+• Professionelle Antragsstellung – auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.
+• Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.
+• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.
+
+Unser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.
+
+Im Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:
+
+${attachmentList}
+
+Bitte füllen Sie die Dokumente aus und senden Sie uns diese unterschrieben zurück – gerne bequem per E-Mail an service@e-m-c-2.de.
+
+${closing}`;
 }
 
 export function SendOfferDialog({
@@ -35,9 +95,7 @@ export function SendOfferDialog({
   const k = payload.Kundendaten;
   const [to, setTo] = useState(k.email || "");
   const [subject, setSubject] = useState(`Ihr Angebot${payload.offerNumber ? ` ${payload.offerNumber}` : ""}`);
-  const [body, setBody] = useState(
-    `${greetingFor(k)},\n\nvielen Dank für Ihr Interesse. Im Anhang finden Sie Ihr persönliches Angebot.\n\nFür Rückfragen stehen wir Ihnen gerne zur Verfügung.`,
-  );
+  const [body, setBody] = useState(() => defaultBody(k, payload.offerNumber || ""));
   const [state, setState] = useState<{ status: "idle" | "sending" | "sent" | "error"; msg?: string }>({ status: "idle" });
 
   // Preview pane can show either the email or the generated offer PDF.
@@ -111,15 +169,16 @@ export function SendOfferDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-4xl max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Angebot per E-Mail senden</DialogTitle>
           <DialogDescription>
-            Das Angebot-PDF und die Standard-Unterlagen werden automatisch angehängt. Vorschau rechts.
+            Das Angebot-PDF und die Standard-Unterlagen werden automatisch angehängt.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        {/* Stacks on portrait iPad (&lt;lg); two columns on wider/landscape. */}
+        <div className="grid gap-4 lg:grid-cols-2">
           {/* Editor */}
           <div className="space-y-3">
             <div className="space-y-1.5">
