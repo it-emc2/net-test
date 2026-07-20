@@ -16,6 +16,19 @@ const ASSETS_DIR = path.resolve(__dirname, "..", "..", "assets");
 const EMAIL_DIR = path.join(ASSETS_DIR, "email");
 export const SIGNATURE_IMAGE_PATH = path.join(ASSETS_DIR, "signaturepicture.png");
 export const SIGNATURE_CID = "emc2-signature-picture";
+export const LOGO_IMAGE_PATH = path.join(ASSETS_DIR, "logo.png");
+export const LOGO_CID = "emc2-logo";
+
+// Logo as a data: URI (for the email preview, which can't resolve cid:).
+// Read + encoded once, cached.
+let logoDataUriCache = "";
+export function logoDataUri(): string {
+  // Only memoize a successful read, so a logo added after first call is picked up.
+  if (!logoDataUriCache && fs.existsSync(LOGO_IMAGE_PATH)) {
+    logoDataUriCache = `data:image/png;base64,${fs.readFileSync(LOGO_IMAGE_PATH).toString("base64")}`;
+  }
+  return logoDataUriCache;
+}
 
 function requireEnv(name: string): string {
   const v = process.env[name];

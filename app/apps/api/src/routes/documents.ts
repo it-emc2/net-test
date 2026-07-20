@@ -25,6 +25,9 @@ import {
   smtpFrom,
   SIGNATURE_IMAGE_PATH,
   SIGNATURE_CID,
+  LOGO_IMAGE_PATH,
+  LOGO_CID,
+  logoDataUri,
 } from "../services/mailer.js";
 import multer from "multer";
 import os from "node:os";
@@ -133,7 +136,7 @@ router.post("/angebot.html", async (req: Request, res: Response) => {
 router.post("/email.preview.html", async (req: Request, res: Response) => {
   try {
     const initials = await currentUserInitials(req);
-    res.type("html").send(buildEmailHtml(String(req.body?.body || ""), { contactName: initials }));
+    res.type("html").send(buildEmailHtml(String(req.body?.body || ""), { contactName: initials, logoSrc: logoDataUri() || null }));
   } catch (err) {
     console.error("[documents] email.preview error:", err);
     res.status(500).json({ error: "Vorschau fehlgeschlagen" });
@@ -196,9 +199,12 @@ router.post("/angebot.send", upload.fields([{ name: "attachments", maxCount: 10 
     const isSelbstzahler = String(payload?.Kundendaten?.payer || "").toLowerCase().includes("selbstzahler");
     const presetAttachments = getPresetAttachments(excludePreset, isSelbstzahler);
     const uploadAttachments = uploaded.map((f) => ({ filename: f.originalname || f.filename, path: f.path }));
-    const inlineAttachments = fs.existsSync(SIGNATURE_IMAGE_PATH)
-      ? [{ filename: "signaturepicture.png", path: SIGNATURE_IMAGE_PATH, cid: SIGNATURE_CID }]
-      : [];
+    const hasSig = fs.existsSync(SIGNATURE_IMAGE_PATH);
+    const hasLogo = fs.existsSync(LOGO_IMAGE_PATH);
+    const inlineAttachments = [
+      ...(hasSig ? [{ filename: "signaturepicture.png", path: SIGNATURE_IMAGE_PATH, cid: SIGNATURE_CID }] : []),
+      ...(hasLogo ? [{ filename: "logo.png", path: LOGO_IMAGE_PATH, cid: LOGO_CID }] : []),
+    ];
 
     const mailAttachments = [
       { filename: angebotFilename, content: pdfBuf, contentType: "application/pdf" },
@@ -206,6 +212,7 @@ router.post("/angebot.send", upload.fields([{ name: "attachments", maxCount: 10 
       ...uploadAttachments,
       ...inlineAttachments,
     ];
+    // Inline images (signature, logo) are not listed as user-facing attachments.
     const attachmentNames = [
       angebotFilename,
       ...presetAttachments.map((a) => a.filename),
@@ -213,7 +220,11 @@ router.post("/angebot.send", upload.fields([{ name: "attachments", maxCount: 10 
     ];
 
     const textBody = buildEmailTextBody(body, initials);
-    const htmlBody = buildEmailHtml(body, { signatureCid: inlineAttachments.length ? SIGNATURE_CID : null, contactName: initials });
+    const htmlBody = buildEmailHtml(body, {
+      signatureCid: hasSig ? SIGNATURE_CID : null,
+      contactName: initials,
+      logoSrc: hasLogo ? `cid:${LOGO_CID}` : null,
+    });
 
     const from = smtpFrom();
     const mailOptions = {

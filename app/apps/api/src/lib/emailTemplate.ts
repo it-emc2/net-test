@@ -107,10 +107,19 @@ export function renderBodyHtmlFromText(body: unknown): string {
 
 export function buildEmailHtml(
   body: unknown,
-  { signatureCid = null, contactName = "Stefan Wolfrum" }: { signatureCid?: string | null; contactName?: string } = {},
+  {
+    signatureCid = null,
+    contactName = "Stefan Wolfrum",
+    logoSrc = null,
+  }: { signatureCid?: string | null; contactName?: string; logoSrc?: string | null } = {},
 ): string {
   const signatureImageHtml = signatureCid
     ? `<div style="margin:0 0 24px 0;"><img src="cid:${signatureCid}" alt="Signatur emc2" style="display:block;max-width:220px;width:220px;height:auto;border:0;" /></div>`
+    : "";
+
+  // emc² logo below the Web line (cid: for real sends, data: URI for preview).
+  const logoHtml = logoSrc
+    ? `<p style="margin:14px 0 0 0;"><img src="${logoSrc}" alt="emc2" style="display:block;max-width:150px;width:150px;height:auto;border:0;" /></p>`
     : "";
 
   const contactNameHtml = String(contactName || "").trim()
@@ -120,7 +129,7 @@ export function buildEmailHtml(
   return `<!DOCTYPE html>
 <html lang="de">
   <body style="margin:0;padding:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#364047;">
-    <div style="max-width:980px;margin:0;padding:0 0 12px 0;">
+    <div style="max-width:980px;margin:0;padding:16px 24px 16px 28px;">
       ${renderBodyHtmlFromText(body)}
       <p style="margin:0 0 8px 0;line-height:1.55;color:#364047;font-size:16px;">--</p>
       <p style="margin:0 0 24px 0;line-height:1.55;color:#364047;font-size:16px;">Freundliche Grüße</p>
@@ -132,7 +141,8 @@ export function buildEmailHtml(
       <p style="margin:0;line-height:1.5;color:#364047;font-size:16px;">Tel.: +49 9281 5915900</p>
       <p style="margin:0;line-height:1.5;color:#364047;font-size:16px;">Fax: +49 9281 5915909</p>
       <p style="margin:0;line-height:1.5;color:#364047;font-size:16px;">Mail: <a href="mailto:service@e-m-c-2.de" style="color:#00a86b;text-decoration:none;">service@e-m-c-2.de</a></p>
-      <p style="margin:0 0 24px 0;line-height:1.5;color:#364047;font-size:16px;">Web: <a href="https://www.emczwei.de" style="color:#00a86b;text-decoration:none;">www.emczwei.de</a></p>
+      <p style="margin:0 0 4px 0;line-height:1.5;color:#364047;font-size:16px;">Web: <a href="https://www.emczwei.de" style="color:#00a86b;text-decoration:none;">www.emczwei.de</a></p>
+      ${logoHtml}
       ${signatureImageHtml}
       <p style="margin:0;line-height:1.7;color:#364047;font-size:12px;">
         Diese E-Mail enthält vertrauliche und/oder rechtlich geschützte Informationen. Der Inhalt dieser E-Mail ist ausschließlich für den bezeichneten Adressaten bestimmt. Bitte beachten Sie in diesem Fall, dass jede Form der Kenntnisnahme, Veröffentlichung, Vervielfältigung oder Weitergabe des Inhalts dieser E-Mail unzulässig ist. Wenn Sie nicht der richtige Adressat bzw. sein Vertreter sind oder diese E-Mail irrtümlich erhalten haben, informieren Sie bitte sofort den Absender und vernichten Sie diese E-Mail. Vielen Dank.
