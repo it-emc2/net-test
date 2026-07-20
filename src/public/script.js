@@ -192,6 +192,7 @@ const OFFERS = {
       "Kundendaten",
       "Arbeitszeit",
       "hl",
+      "hlk",
       "Rabatt",
       "Kosten",
       "Zusammenfassung",
@@ -2644,6 +2645,7 @@ function updateSidebarForOffer() {
   const specialLabels = {
     bwt: "BWT",
     hl: "HL",
+    hlk: "Konfigurator",
     bl: "BL",
     ah: "Leistungen",
     DuschabtrennungNeu: "Duschabtrennung (neu)",
@@ -3580,6 +3582,10 @@ try {
         const qty = Math.max(1, Number(qtyRaw || 1) || 1);
         const price = window.parseMoneyEuro ? window.parseMoneyEuro(priceRaw) : priceRaw;
 
+        // Tubes are priced per lfm → mark the row as meters so it isn't labelled "Stk".
+        const family = String(rowEl.dataset.hlCatalogFamily || "");
+        const unit = HL_TUBE_FAMILIES.includes(family) ? "m" : undefined;
+
         rows.push({
           kind: "hl-custom",
           group,
@@ -3587,6 +3593,7 @@ try {
           productId,
           qty,
           price,
+          ...(unit ? { unit } : {}),
         });
       });
     });
@@ -3806,6 +3813,10 @@ function buildPayload() {
         const qty = Math.max(1, Number(qtyRaw || 1) || 1);
         const price = window.parseMoneyEuro ? window.parseMoneyEuro(priceRaw) : priceRaw;
 
+        // Tubes are priced per lfm → mark the row as meters so it isn't labelled "Stk".
+        const family = String(rowEl.dataset.hlCatalogFamily || "");
+        const unit = HL_TUBE_FAMILIES.includes(family) ? "m" : undefined;
+
         rows.push({
           kind: "hl-custom",
           group,
@@ -3813,6 +3824,7 @@ function buildPayload() {
           productId,
           qty,
           price,
+          ...(unit ? { unit } : {}),
         });
       });
     });
@@ -22033,6 +22045,136 @@ function initHlFlexofitSearch() {
   });
 }
 
+// =================================================================
+// HL Flexofit: shared pure helpers (used by both Katalog + Konfigurator)
+// =================================================================
+
+// Innen-Beschlag finish by productId suffix (see Preisliste 01.06.24).
+// 07 = the single Edelstahl-gebürstet außen finish.
+const HL_FINISH_BY_SUFFIX = {
+  "02": "Schwarz",
+  "03": "Chrom glanz",
+  "04": "Chrom matt",
+  "05": "Messing brüniert",
+  "06": "Weiß",
+  "07": "Edelstahl gebürstet",
+  "09": "Messing hochglanz",
+  "10": "Anthrazit",
+  "11": "Nickel gebürstet",
+};
+
+// The 8 selectable innen finishes, in display order.
+const HL_INNEN_FINISHES = [
+  "Schwarz", "Chrom glanz", "Chrom matt", "Messing brüniert",
+  "Weiß", "Messing hochglanz", "Anthrazit", "Nickel gebürstet",
+];
+
+// Tube families priced per laufendem Meter (lfm) → quantity means meters, not pieces.
+const HL_TUBE_FAMILIES = ["Aluminiumrohr 35mm", "Stahlrohr 35mm", "Massivholz"];
+
+// Fitting families that carry a finish (vs. tubes / supports which don't).
+const HL_FITTING_FAMILIES = [
+  "Handlaufhalter innen",
+  "Decken-/Wand-/Bodenplatte innen",
+  "Flexo-Gelenk innen",
+  "Sonderabschluss innen",
+  "T-Bogen innen",
+  "Wandabschlussbogen innen",
+  "90-Grad-Bogen innen",
+];
+
+// Finish label for a fitting product, from its FF_<letter><2-digit> suffix.
+function hlFinishOf(p) {
+  const m = String(p?.productId || "").match(/^FF_[A-Za-z]+(\d{2})$/);
+  return m ? HL_FINISH_BY_SUFFIX[m[1]] || "" : "";
+}
+
+function productVariant(p) {
+  const name = String(p?.name || "");
+  const id = String(p?.productId || "");
+
+  if (/^FF_\d{2}[a-z]?$/i.test(id) && /Stahlrohr/i.test(name)) {
+    return name
+      .replace(/^Stahlrohr\s+35mm\s+Dekor\s+/i, "")
+      .replace(/\s+\(Innen\).*/i, "")
+      .trim();
+  }
+  if (/^FF_\d{2}$/i.test(id) && /Aluminiumrohr/i.test(name)) {
+    return name
+      .replace(/^Aluminiumrohr\s+35mm\s+/i, "")
+      .replace(/\s+\(Innen\/Außen\).*/i, "")
+      .trim();
+  }
+  if (/^FF_69$/i.test(id)) return "Edelstahl-Rohr / Deco-Rohr";
+  if (/^FF_20$/i.test(id)) return "Plexiglas 3,0 m";
+  if (/^FF_3/i.test(id)) {
+    return name
+      .replace(/^Massivholz\s+Handlauf\s+Ø35mm\s+/i, "")
+      .replace(/\s+\(Innen\).*/i, "")
+      .trim();
+  }
+  return name
+    .replace(/\s*\((?:Innen|Innen\/Außen)\)/gi, "")
+    .replace(/,\s*Preis pro lfm.*$/i, "")
+    .trim();
+}
+
+function imageFor(entry) {
+  const id = String(entry.product?.productId || "");
+  const variant = productVariant(entry.product);
+  const family = entry.family;
+
+  if (family === "Stahlrohr 35mm") return `assets/Stahl/${variant}.png`;
+  if (family === "Aluminiumrohr 35mm") return `assets/Aluminiumrohr/${variant}.png`;
+  if (family === "Plexiglas") return "assets/Stahlrohr.png";
+  if (family === "Massivholz") return "assets/Massivholz.png";
+  if (family === "Handlaufhalter innen") return "assets/SonstigeInnen/Handlaufhalter.png";
+  if (family === "Wandabschlussbogen innen") return "assets/SonstigeInnen/Wandabschlussbogen.png";
+  if (family === "Flexo-Gelenk innen") return "assets/SonstigeInnen/Flexo-Gelenk.png";
+  if (family === "90-Grad-Bogen innen") return "assets/SonstigeInnen/90 Bogen.png";
+  if (family === "Sonderabschluss innen") return "assets/SonstigeInnen/Sonderabschluss.png";
+  if (family === "T-Bogen innen") return "assets/SonstigeInnen/90 Bogen.png";
+  if (family === "Decken-/Wand-/Bodenplatte innen") return "assets/SonstigeInnen/Chrom matt.png";
+  if (id === "FF_E08") return "assets/Abdeckrosette .png";
+  if (/^FF_E0[125]$|^FF_E1[12]$/i.test(id)) return "assets/Edelstahlstütze.png";
+  if (/^FF_E22c$/i.test(id)) return "assets/Auflage für Edelstahlstütze.png";
+  if (/^FF_E22d$/i.test(id)) return "assets/Auflage für Edel lang.png";
+  if (/^FF_KFS|^FF_A06$/i.test(id)) return "assets/Wandanschluss gerade.png";
+  if (/^FF_S0001$/i.test(id)) return "assets/Wandanschluss schräg.png";
+  return "assets/Stahlrohr.png";
+}
+
+function familyEntriesFor(p) {
+  const id = String(p?.productId || "");
+  const name = String(p?.name || "");
+  const out = [];
+  const add = (family, areas, label) => out.push({ product: p, family, areas, label: label || productVariant(p) });
+
+  if (id === "FF_SL01") {
+    add("Stahlrohr 35mm", ["inside"], "Zuschnitt Stahlrohr");
+    add("Aluminiumrohr 35mm", ["inside", "outside"], "Zuschnitt Aluminiumrohr");
+    return out;
+  }
+
+  if (/^FF_(?:0[1-9]|10|12|13|14|15|18|22|9[0-5])$/i.test(id)) add("Stahlrohr 35mm", ["inside"]);
+  else if (id === "FF_20") add("Plexiglas", ["inside"]);
+  else if (/^FF_3/i.test(id)) add("Massivholz", ["inside"]);
+  else if (/^FF_(?:5[0-9]|6[0-6]|7[1-7]|8[2-5])$/i.test(id)) add("Aluminiumrohr 35mm", ["inside", "outside"]);
+  else if (id === "FF_69") add("Aluminiumrohr 35mm", ["inside", "outside"]);
+  else if (/^FF_H07$|^FF_W07$|^FF_F07$|^FF_D07$|^FF_B07$|^FF_S07$/i.test(id)) add("Beschläge Edelstahl außen", ["outside"]);
+  else if (/^FF_E|^FF_KE|^FF_KFS|^FF_A06$|^FF_S0001$/i.test(id)) add("Material Edelstahl außen", ["outside"]);
+  else if (/^FF_H/i.test(id)) add("Handlaufhalter innen", ["inside"]);
+  else if (/^FF_W/i.test(id)) add("Wandabschlussbogen innen", ["inside"]);
+  else if (/^FF_F/i.test(id)) add("Flexo-Gelenk innen", ["inside"]);
+  else if (/^FF_D/i.test(id)) add("Decken-/Wand-/Bodenplatte innen", ["inside"]);
+  else if (/^FF_T/i.test(id)) add("T-Bogen innen", ["inside"]);
+  else if (/^FF_B/i.test(id)) add("90-Grad-Bogen innen", ["inside"]);
+  else if (/^FF_S/i.test(id)) add("Sonderabschluss innen", ["inside"]);
+  else add(name.includes("Außen") ? "Weitere Produkte außen" : "Weitere Produkte innen", name.includes("Außen") ? ["outside"] : ["inside"]);
+
+  return out;
+}
+
 function initHlFlexofitCatalog() {
   const root = document.getElementById("hlFlexofitCatalog");
   const tabs = document.getElementById("hlFlexofitFamilyTabs");
@@ -22115,92 +22257,6 @@ function initHlFlexofitCatalog() {
         preferred.dispatchEvent(new Event("change", { bubbles: true }));
       }
     });
-  };
-
-  const productVariant = (p) => {
-    const name = String(p?.name || "");
-    const id = String(p?.productId || "");
-
-    if (/^FF_\d{2}[a-z]?$/i.test(id) && /Stahlrohr/i.test(name)) {
-      return name
-        .replace(/^Stahlrohr\s+35mm\s+Dekor\s+/i, "")
-        .replace(/\s+\(Innen\).*/i, "")
-        .trim();
-    }
-    if (/^FF_\d{2}$/i.test(id) && /Aluminiumrohr/i.test(name)) {
-      return name
-        .replace(/^Aluminiumrohr\s+35mm\s+/i, "")
-        .replace(/\s+\(Innen\/Außen\).*/i, "")
-        .trim();
-    }
-    if (/^FF_69$/i.test(id)) return "Edelstahl-Rohr / Deco-Rohr";
-    if (/^FF_20$/i.test(id)) return "Plexiglas 3,0 m";
-    if (/^FF_3/i.test(id)) {
-      return name
-        .replace(/^Massivholz\s+Handlauf\s+Ø35mm\s+/i, "")
-        .replace(/\s+\(Innen\).*/i, "")
-        .trim();
-    }
-    return name
-      .replace(/\s*\((?:Innen|Innen\/Außen)\)/gi, "")
-      .replace(/,\s*Preis pro lfm.*$/i, "")
-      .trim();
-  };
-
-  const imageFor = (entry) => {
-    const id = String(entry.product?.productId || "");
-    const variant = productVariant(entry.product);
-    const family = entry.family;
-
-    if (family === "Stahlrohr 35mm") return `assets/Stahl/${variant}.png`;
-    if (family === "Aluminiumrohr 35mm") return `assets/Aluminiumrohr/${variant}.png`;
-    if (family === "Plexiglas") return "assets/Stahlrohr.png";
-    if (family === "Massivholz") return "assets/Massivholz.png";
-    if (family === "Handlaufhalter innen") return "assets/SonstigeInnen/Handlaufhalter.png";
-    if (family === "Wandabschlussbogen innen") return "assets/SonstigeInnen/Wandabschlussbogen.png";
-    if (family === "Flexo-Gelenk innen") return "assets/SonstigeInnen/Flexo-Gelenk.png";
-    if (family === "90-Grad-Bogen innen") return "assets/SonstigeInnen/90 Bogen.png";
-    if (family === "Sonderabschluss innen") return "assets/SonstigeInnen/Sonderabschluss.png";
-    if (family === "T-Bogen innen") return "assets/SonstigeInnen/90 Bogen.png";
-    if (family === "Decken-/Wand-/Bodenplatte innen") return "assets/SonstigeInnen/Chrom matt.png";
-    if (id === "FF_E08") return "assets/Abdeckrosette .png";
-    if (/^FF_E0[125]$|^FF_E1[12]$/i.test(id)) return "assets/Edelstahlstütze.png";
-    if (/^FF_E22c$/i.test(id)) return "assets/Auflage für Edelstahlstütze.png";
-    if (/^FF_E22d$/i.test(id)) return "assets/Auflage für Edel lang.png";
-    if (/^FF_KFS|^FF_A06$/i.test(id)) return "assets/Wandanschluss gerade.png";
-    if (/^FF_S0001$/i.test(id)) return "assets/Wandanschluss schräg.png";
-    return "assets/Stahlrohr.png";
-  };
-
-  const familyEntriesFor = (p) => {
-    const id = String(p?.productId || "");
-    const name = String(p?.name || "");
-    const out = [];
-    const add = (family, areas, label) => out.push({ product: p, family, areas, label: label || productVariant(p) });
-
-    if (id === "FF_SL01") {
-      add("Stahlrohr 35mm", ["inside"], "Zuschnitt Stahlrohr");
-      add("Aluminiumrohr 35mm", ["inside", "outside"], "Zuschnitt Aluminiumrohr");
-      return out;
-    }
-
-    if (/^FF_(?:0[1-9]|10|12|13|14|15|18|22|9[0-5])$/i.test(id)) add("Stahlrohr 35mm", ["inside"]);
-    else if (id === "FF_20") add("Plexiglas", ["inside"]);
-    else if (/^FF_3/i.test(id)) add("Massivholz", ["inside"]);
-    else if (/^FF_(?:5[0-9]|6[0-6]|7[1-7]|8[2-5])$/i.test(id)) add("Aluminiumrohr 35mm", ["inside", "outside"]);
-    else if (id === "FF_69") add("Aluminiumrohr 35mm", ["inside", "outside"]);
-    else if (/^FF_H07$|^FF_W07$|^FF_F07$|^FF_D07$|^FF_B07$|^FF_S07$/i.test(id)) add("Beschläge Edelstahl außen", ["outside"]);
-    else if (/^FF_E|^FF_KE|^FF_KFS|^FF_A06$|^FF_S0001$/i.test(id)) add("Material Edelstahl außen", ["outside"]);
-    else if (/^FF_H/i.test(id)) add("Handlaufhalter innen", ["inside"]);
-    else if (/^FF_W/i.test(id)) add("Wandabschlussbogen innen", ["inside"]);
-    else if (/^FF_F/i.test(id)) add("Flexo-Gelenk innen", ["inside"]);
-    else if (/^FF_D/i.test(id)) add("Decken-/Wand-/Bodenplatte innen", ["inside"]);
-    else if (/^FF_T/i.test(id)) add("T-Bogen innen", ["inside"]);
-    else if (/^FF_B/i.test(id)) add("90-Grad-Bogen innen", ["inside"]);
-    else if (/^FF_S/i.test(id)) add("Sonderabschluss innen", ["inside"]);
-    else add(name.includes("Außen") ? "Weitere Produkte außen" : "Weitere Produkte innen", name.includes("Außen") ? ["outside"] : ["inside"]);
-
-    return out;
   };
 
   const render = () => {
@@ -22849,12 +22905,487 @@ function initBlProductCards() {
 
 
 
+// =================================================================
+// HL: Flexofit Konfigurator (geführter, schrittweiser Ablauf).
+// Reuses the exact same Quick-Add rows + pricing as the Katalog.
+// =================================================================
+function initHlFlexofitWizard() {
+  const root = document.getElementById("hlFlexofitWizard");
+  if (!root) return;
+
+  const stepsEl = document.getElementById("hlWizSteps");
+  const statusEl = document.getElementById("hlWizStatus");
+  const bodyEl = document.getElementById("hlWizBody");
+  const backBtn = document.getElementById("hlWizBack");
+  const nextBtn = document.getElementById("hlWizNext");
+  const resetBtn = document.getElementById("hlWizReset");
+  const areaInside = document.getElementById("hlAreaInside");
+  const areaOutside = document.getElementById("hlAreaOutside");
+
+  const TUBE_GROUPS = {
+    inside: ["Aluminiumrohr 35mm", "Stahlrohr 35mm", "Massivholz"],
+    outside: ["Aluminiumrohr 35mm"],
+  };
+  const STEP_LABELS = ["Bereich", "Rohr & Farbe", "Beschläge & Oberfläche", "Übersicht"];
+
+  let entries = [];
+  let loaded = false;
+  const state = {
+    step: 0,
+    area: "",          // "inside" | "outside"
+    tubeTab: "",       // active material tab in step 2
+    tubes: {},         // catalogKey -> { entry, meters }
+    finish: "",        // locked innen finish (outside is fixed)
+    fittings: {},      // catalogKey -> { entry, qty }
+  };
+
+  const money = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? `${n.toFixed(2).replace(".", ",")} EUR` : "";
+  };
+  const priceStr = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n.toFixed(2).replace(".", ",") : "";
+  };
+  const hlCatalogKey = (entry) =>
+    [entry.family, entry.product?.productId || "", entry.label || productVariant(entry.product)].join("::");
+
+  const outsideFinish = "Edelstahl gebürstet";
+  const activeFinish = () => (state.area === "outside" ? outsideFinish : state.finish);
+
+  const tubeEntriesFor = (family) =>
+    entries.filter(
+      (e) =>
+        e.family === family &&
+        e.areas.includes(state.area) &&
+        e.product?.productId !== "FF_SL01",
+    );
+
+  // Component families available for the current area/finish, as [{label, entry}].
+  const fittingChoices = () => {
+    if (state.area === "outside") {
+      return entries
+        .filter((e) => e.family === "Beschläge Edelstahl außen")
+        .map((e) => ({ label: productVariant(e.product), entry: e }));
+    }
+    if (!state.finish) return [];
+    return HL_FITTING_FAMILIES.map((fam) => {
+      const entry = entries.find(
+        (e) => e.family === fam && hlFinishOf(e.product) === state.finish,
+      );
+      return entry ? { label: fam.replace(/\s+innen$/, ""), entry } : null;
+    }).filter(Boolean);
+  };
+
+  const availableFinishes = () =>
+    HL_INNEN_FINISHES.filter((f) =>
+      entries.some((e) => HL_FITTING_FAMILIES.includes(e.family) && hlFinishOf(e.product) === f),
+    );
+
+  const imgTag = (entry) =>
+    `<img src="${imageFor(entry)}" alt="" loading="lazy" onerror="this.remove()" />`;
+
+  // ---- rendering -------------------------------------------------
+  const renderSteps = () => {
+    stepsEl.innerHTML = STEP_LABELS.map(
+      (label, i) =>
+        `<li class="${i === state.step ? "is-active" : i < state.step ? "is-done" : ""}">
+           <span class="hl-wiz__num">${i < state.step ? "✓" : i + 1}</span>${escapeHtml(label)}
+         </li>`,
+    ).join("");
+  };
+
+  const renderBereich = () => {
+    const card = (area, title, sub, img) => `
+      <button type="button" class="hl-wiz__card${state.area === area ? " is-selected" : ""}" data-area="${area}">
+        <img src="${img}" alt="" onerror="this.remove()" />
+        <span class="hl-wiz__card-title">${escapeHtml(title)}</span>
+        <span class="hl-wiz__card-sub">${escapeHtml(sub)}</span>
+      </button>`;
+    bodyEl.innerHTML = `
+      <div class="hl-wiz__section-title">Wo werden die Handläufe montiert?</div>
+      <div class="hl-wiz__cards">
+        ${card("inside", "Innenbereich", "Alu, Stahl & Holz · 8 Oberflächen", "./assets/Innenbereich.png")}
+        ${card("outside", "Außenbereich", "Aluminium/Edelstahl · Edelstahl gebürstet", "./assets/Außenbereich.png")}
+      </div>`;
+    bodyEl.querySelectorAll("[data-area]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.area = btn.dataset.area;
+        // Sync legacy area checkboxes so pricing/area logic stays consistent.
+        if (areaInside) areaInside.checked = state.area === "inside";
+        if (areaOutside) areaOutside.checked = state.area === "outside";
+        areaInside?.dispatchEvent(new Event("change", { bubbles: true }));
+        areaOutside?.dispatchEvent(new Event("change", { bubbles: true }));
+        // Area change invalidates downstream picks.
+        state.finish = "";
+        state.tubeTab = "";
+        render();
+      });
+    });
+  };
+
+  const renderTubes = () => {
+    // Only materials that actually have products in this area become tabs.
+    const groups = (TUBE_GROUPS[state.area] || []).filter((f) => tubeEntriesFor(f).length);
+    if (!groups.includes(state.tubeTab)) state.tubeTab = groups[0] || "";
+    const active = state.tubeTab;
+
+    const countIn = (family) =>
+      tubeEntriesFor(family).filter((e) => state.tubes[hlCatalogKey(e)]).length;
+
+    // Material tabs (only when there is more than one material to choose from).
+    const tabs =
+      groups.length > 1
+        ? `<div class="hl-wiz__finishes" role="tablist" aria-label="Material">` +
+          groups
+            .map((family) => {
+              const n = countIn(family);
+              return `<button type="button" class="hl-wiz__finish${family === active ? " is-selected" : ""}" data-tube-tab="${escapeHtml(family)}">${escapeHtml(family)}${n ? ` (${n})` : ""}</button>`;
+            })
+            .join("") +
+          `</div>`
+        : "";
+
+    const picks = (active ? tubeEntriesFor(active) : [])
+      .map((entry) => {
+        const key = hlCatalogKey(entry);
+        const sel = state.tubes[key];
+        const p = entry.product;
+        return `
+          <div>
+            <div class="hl-wiz__pick${sel ? " is-selected" : ""}" data-tube="${escapeHtml(key)}">
+              <span>${imgTag(entry)}</span>
+              <span>
+                <span class="hl-wiz__pick-name">${escapeHtml(entry.label || productVariant(p))}</span><br/>
+                <span class="hl-wiz__pick-meta">${escapeHtml(p.productId || "")} · ${money(p.price)}/Meter</span>
+              </span>
+            </div>
+            <div class="hl-wiz__qty" ${sel ? "" : "hidden"}>
+              <label>Länge (Meter):</label>
+              <input type="number" min="0" step="0.1" value="${sel ? sel.meters : 1}" data-tube-meters="${escapeHtml(key)}" />
+            </div>
+          </div>`;
+      })
+      .join("");
+
+    bodyEl.innerHTML = `
+      <div class="hl-wiz__section-title">Rohr &amp; Farbe wählen</div>
+      <p class="hl-wiz__hint">Material wählen, dann Farben markieren (Mehrfachauswahl). Rohre werden pro Meter berechnet — Länge je Farbe angeben.</p>
+      ${tabs}
+      ${picks ? `<div class="hl-wiz__picks">${picks}</div>` : '<div class="hl-wiz__empty">Keine Rohre für diesen Bereich verfügbar.</div>'}`;
+
+    bodyEl.querySelectorAll("[data-tube-tab]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.tubeTab = btn.dataset.tubeTab;
+        render();
+      });
+    });
+    bodyEl.querySelectorAll("[data-tube]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const key = el.dataset.tube;
+        if (state.tubes[key]) delete state.tubes[key];
+        else state.tubes[key] = { entry: entries.find((e) => hlCatalogKey(e) === key), meters: 1 };
+        render();
+      });
+    });
+    bodyEl.querySelectorAll("[data-tube-meters]").forEach((inp) => {
+      inp.addEventListener("click", (e) => e.stopPropagation());
+      inp.addEventListener("input", () => {
+        const key = inp.dataset.tubeMeters;
+        if (state.tubes[key]) state.tubes[key].meters = inp.value;
+      });
+    });
+  };
+
+  const renderFittings = () => {
+    let head = `<div class="hl-wiz__section-title">Beschläge &amp; Oberfläche</div>`;
+    if (state.area === "outside") {
+      head += `<p class="hl-wiz__hint">Im Außenbereich gibt es Beschläge nur in <b>${escapeHtml(outsideFinish)}</b>.</p>`;
+    } else {
+      const finishes = availableFinishes();
+      const locked = !!state.finish;
+      const swatches = finishes
+        .map(
+          (f) =>
+            `<button type="button" class="hl-wiz__finish${state.finish === f ? " is-selected" : ""}" data-finish="${escapeHtml(f)}">${escapeHtml(f)}</button>`,
+        )
+        .join("");
+      head += `<p class="hl-wiz__hint">Zuerst eine Oberfläche wählen — alle Beschläge werden dann in dieser Oberfläche kalkuliert.</p>
+               <div class="hl-wiz__finishes">${swatches}</div>`;
+      if (!locked) {
+        bodyEl.innerHTML = head + '<div class="hl-wiz__empty">Bitte zuerst eine Oberfläche auswählen.</div>';
+        bindFinishes();
+        return;
+      }
+    }
+
+    const choices = fittingChoices();
+    const cards = choices
+      .map(({ label, entry }) => {
+        const key = hlCatalogKey(entry);
+        const sel = state.fittings[key];
+        const p = entry.product;
+        return `
+          <div>
+            <div class="hl-wiz__pick${sel ? " is-selected" : ""}" data-fit="${escapeHtml(key)}">
+              <span>${imgTag(entry)}</span>
+              <span>
+                <span class="hl-wiz__pick-name">${escapeHtml(label)}</span><br/>
+                <span class="hl-wiz__pick-meta">${escapeHtml(p.productId || "")} · ${money(p.price)}</span>
+              </span>
+            </div>
+            <div class="hl-wiz__qty" ${sel ? "" : "hidden"}>
+              <label>Menge:</label>
+              <input type="number" min="1" step="1" value="${sel ? sel.qty : 1}" data-fit-qty="${escapeHtml(key)}" />
+            </div>
+          </div>`;
+      })
+      .join("");
+    bodyEl.innerHTML =
+      head +
+      `<div class="hl-wiz__picks">${cards || '<div class="hl-wiz__empty">Keine Beschläge verfügbar.</div>'}</div>`;
+
+    bindFinishes();
+    bodyEl.querySelectorAll("[data-fit]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const key = el.dataset.fit;
+        if (state.fittings[key]) delete state.fittings[key];
+        else state.fittings[key] = { entry: entries.find((e) => hlCatalogKey(e) === key), qty: 1 };
+        render();
+      });
+    });
+    bodyEl.querySelectorAll("[data-fit-qty]").forEach((inp) => {
+      inp.addEventListener("click", (e) => e.stopPropagation());
+      inp.addEventListener("input", () => {
+        const key = inp.dataset.fitQty;
+        if (state.fittings[key]) state.fittings[key].qty = inp.value;
+      });
+    });
+
+    function bindFinishes() {
+      bodyEl.querySelectorAll("[data-finish]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const next = btn.dataset.finish;
+          if (state.finish && state.finish !== next) {
+            // Switching finish: drop innen fittings tied to the old finish.
+            state.fittings = {};
+          }
+          state.finish = state.finish === next ? "" : next;
+          render();
+        });
+      });
+    }
+  };
+
+  const renderSummary = () => {
+    const rows = [];
+    Object.values(state.tubes).forEach(({ entry, meters }) => {
+      if (!entry) return;
+      const m = Number(String(meters).replace(",", ".")) || 0;
+      rows.push({
+        name: `${entry.family} · ${entry.label || productVariant(entry.product)}`,
+        detail: `${m} Meter × ${money(entry.product.price)}/Meter`,
+        total: m * Number(entry.product.price || 0),
+      });
+    });
+    Object.values(state.fittings).forEach(({ entry, qty }) => {
+      if (!entry) return;
+      const q = Number(qty) || 0;
+      const fin = hlFinishOf(entry.product) || activeFinish();
+      rows.push({
+        name: `${entry.label || productVariant(entry.product)}${fin ? ` · ${fin}` : ""}`,
+        detail: `${q} × ${money(entry.product.price)}`,
+        total: q * Number(entry.product.price || 0),
+      });
+    });
+    const sum = rows.reduce((a, r) => a + r.total, 0);
+    bodyEl.innerHTML = `
+      <div class="hl-wiz__section-title">Übersicht</div>
+      ${
+        rows.length
+          ? `<div class="hl-wiz__summary">
+               ${rows
+                 .map(
+                   (r) => `<div class="hl-wiz__summary-row">
+                     <span>${escapeHtml(r.name)}</span>
+                     <span class="muted">${escapeHtml(r.detail)}</span>
+                     <span><b>${money(r.total)}</b></span>
+                   </div>`,
+                 )
+                 .join("")}
+               <div class="hl-wiz__summary-row"><span><b>Summe (netto, EK)</b></span><span></span><span><b>${money(sum)}</b></span></div>
+             </div>
+             <p class="hl-wiz__hint" style="margin-top:12px">Mit „In Angebot übernehmen“ werden die Positionen als Freie Posten übernommen und in die Preisberechnung aufgenommen.</p>`
+          : '<div class="hl-wiz__empty">Noch nichts ausgewählt. Bitte in den vorherigen Schritten Rohre oder Beschläge wählen.</div>'
+      }`;
+  };
+
+  const render = () => {
+    renderSteps();
+    if (state.step === 0) renderBereich();
+    else if (state.step === 1) renderTubes();
+    else if (state.step === 2) renderFittings();
+    else renderSummary();
+
+    backBtn.disabled = state.step === 0;
+    const isLast = state.step === STEP_LABELS.length - 1;
+    nextBtn.innerHTML = isLast
+      ? '<i class="fa-solid fa-check"></i> In Angebot übernehmen'
+      : 'Weiter <i class="fa-solid fa-arrow-right"></i>';
+
+    // Gate progression.
+    let ok = true;
+    if (state.step === 0) ok = !!state.area;
+    if (state.step === 2 && state.area !== "outside") ok = !!state.finish || !Object.keys(state.fittings).length;
+    nextBtn.disabled = !ok;
+
+    const nTubes = Object.keys(state.tubes).length;
+    const nFit = Object.keys(state.fittings).length;
+    statusEl.textContent = state.area
+      ? `Bereich: ${state.area === "inside" ? "Innen" : "Außen"} · ${nTubes} Rohr(e) · ${nFit} Beschlag/-läge`
+      : "";
+  };
+
+  // ---- Quick-Add injection (same contract as the Katalog) --------
+  const targetWrap = () =>
+    document.getElementById("hlQuickAddItems_hausecke") ||
+    document.querySelector(".hl-quickadd-items");
+
+  const injectRow = (entry, { qty, price }) => {
+    const wrap = targetWrap();
+    const tpl = document.getElementById("tpl-hl-quickadd-row");
+    if (!wrap) return;
+    const key = hlCatalogKey(entry);
+
+    const rows = Array.from(wrap.querySelectorAll(".da-item"));
+    let row =
+      rows.find((r) => r.dataset.hlCatalogKey === key) ||
+      rows.find((r) => {
+        const empty = (sel) => !String(r.querySelector(sel)?.value || "").trim();
+        return empty(".da-name") && empty(".da-id") && empty(".da-price");
+      });
+
+    if (!row && tpl?.content?.firstElementChild) {
+      row = tpl.content.firstElementChild.cloneNode(true);
+      wrap.appendChild(row);
+      wireHlQuickAddRow(row);
+    }
+    if (!row) return;
+
+    row.dataset.hlCatalogKey = key;
+    row.dataset.hlCatalogFamily = entry.family;
+    row.dataset.hlCatalogAreas = entry.areas.join(",");
+
+    const setVal = (sel, value) => {
+      const el = row.querySelector(sel);
+      if (!el) return;
+      el.value = value;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    setVal(".da-name", entry.label || entry.product.name || entry.product.productId || "");
+    setVal(".da-id", entry.product.productId || "");
+    setVal(".da-qty", String(qty));
+    setVal(".da-price", price);
+  };
+
+  const applyToOffer = () => {
+    let count = 0;
+    Object.values(state.tubes).forEach(({ entry, meters }) => {
+      if (!entry) return;
+      const m = Number(String(meters).replace(",", ".")) || 0;
+      if (m <= 0) return;
+      injectRow(entry, { qty: m, price: priceStr(entry.product.price) });
+      count++;
+    });
+    Object.values(state.fittings).forEach(({ entry, qty }) => {
+      if (!entry) return;
+      const q = Number(qty) || 0;
+      if (q <= 0) return;
+      injectRow(entry, { qty: q, price: priceStr(entry.product.price) });
+      count++;
+    });
+    if (typeof window.updatePricing === "function") window.updatePricing();
+    if (typeof updateSummary === "function") updateSummary();
+    if (typeof showToast === "function") {
+      showToast(count ? `${count} Position(en) ins Angebot übernommen.` : "Nichts zu übernehmen.", count ? "success" : "warning");
+    }
+    showCommitBanner(count);
+  };
+
+  // Persistent confirmation on the Übersicht (toast is too easy to miss).
+  const gotoStep = (stepKey) => {
+    location.hash = `#${stepKey}`;
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+  };
+  const showCommitBanner = (count) => {
+    bodyEl.querySelector(".hl-wiz__committed")?.remove();
+    const div = document.createElement("div");
+    div.className = `hl-wiz__committed${count ? "" : " is-empty"}`;
+    div.innerHTML = count
+      ? `<span><b>✓ ${count} Position(en) übernommen</b> — sichtbar im <b>HL</b>-Tab (Freier Posten) und unter <b>Kosten</b>.</span>
+         <span class="hl-wiz__committed-actions">
+           <button type="button" class="secondary" data-goto="hl">Zum HL-Tab</button>
+           <button type="button" data-goto="Kosten">Zu den Kosten</button>
+         </span>`
+      : `<span>Nichts zu übernehmen — bitte zuerst Rohre oder Beschläge auswählen.</span>`;
+    bodyEl.appendChild(div);
+    div.querySelectorAll("[data-goto]").forEach((b) =>
+      b.addEventListener("click", () => gotoStep(b.dataset.goto)),
+    );
+    div.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
+
+  // ---- navigation ------------------------------------------------
+  backBtn.addEventListener("click", () => {
+    if (state.step > 0) {
+      state.step--;
+      render();
+    }
+  });
+  nextBtn.addEventListener("click", () => {
+    if (state.step < STEP_LABELS.length - 1) {
+      state.step++;
+      render();
+    } else {
+      applyToOffer();
+    }
+  });
+  resetBtn?.addEventListener("click", () => {
+    state.step = 0;
+    state.area = "";
+    state.tubeTab = "";
+    state.tubes = {};
+    state.finish = "";
+    state.fittings = {};
+    render();
+  });
+
+  const load = async () => {
+    if (loaded) return;
+    try {
+      const res = await fetch("/api/products?source=flexofit&limit=500");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const products = await res.json();
+      entries = products.flatMap(familyEntriesFor);
+      loaded = true;
+    } catch (err) {
+      console.warn("[HL Konfigurator] load failed:", err);
+      statusEl.textContent = "Flexofit-Produkte konnten nicht geladen werden.";
+    }
+    render();
+  };
+
+  load();
+}
+
 // init on load
 document.addEventListener("DOMContentLoaded", () => {
   initHlFlexofitSearch();
   initHlFlexofitCatalog();
   initHlQuickAddRepeater();
   initHlFlexofitImporter();
+  initHlFlexofitWizard();
 });
 
 

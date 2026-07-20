@@ -8524,6 +8524,38 @@ button.dm-btn-danger:focus-visible {
         </form>
       </section>
 
+      <!-- hlk: Flexofit Konfigurator (eigener Tab nach HL) -->
+      <section class="card page" id="page-hlk" hidden>
+        <h2 style="margin: 0 0 12px">Flexofit Konfigurator</h2>
+        <p class="muted" style="margin:0 0 16px">
+          Geführte Auswahl. Übernommene Positionen erscheinen als Freie Posten auf der HL-Seite und fließen in die Preisberechnung ein.
+        </p>
+
+        <section id="hlFlexofitWizard" class="hl-wiz full field" aria-live="polite">
+          <div class="hl-wiz__head">
+            <div>
+              <div class="section-title">Flexofit Konfigurator</div>
+              <p class="section-subtitle">Schritt für Schritt: Bereich → Rohr &amp; Farbe → Beschläge &amp; Oberfläche → Übersicht.</p>
+            </div>
+            <button type="button" id="hlWizReset" class="secondary">
+              <i class="fa-solid fa-rotate-left"></i> Neu starten
+            </button>
+          </div>
+          <div class="hl-wiz__stepbar">
+            <button type="button" class="secondary" id="hlWizBack"><i class="fa-solid fa-arrow-left"></i> Zurück</button>
+            <ol class="hl-wiz__steps" id="hlWizSteps"></ol>
+            <button type="button" id="hlWizNext">Weiter <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+          <div class="hl-wiz__status muted" id="hlWizStatus" aria-live="polite"></div>
+          <div class="hl-wiz__body" id="hlWizBody"></div>
+        </section>
+
+        <div class="actions full" style="margin-top:16px">
+          <button type="button" data-nav="prev" class="secondary">Zurück</button>
+          <button type="button" data-nav="next">Weiter</button>
+        </div>
+      </section>
+
       <!-- ah -->
       <section class="card page" id="page-ah" hidden>
         <h2 style="margin: 0 0 12px"> AH · Alltagshilfe</h2>
