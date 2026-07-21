@@ -5,11 +5,15 @@
 
 export type Payer = "" | "Kassenkunde" | "Selbstzahler";
 
+export interface WohnumfeldEntry {
+  purpose: string; // "wofür"
+  amount: string; // "Betrag (€)"
+}
 export interface Wohnumfeld {
-  amount: string;
+  amount: string; // total (sum of entries) — pricing reads this
   done: boolean; // kept in sync with status === "ja" (pricing reads this)
   status: string; // "" | "ja" | "nein" | "unbekannt"
-  purpose: string; // "wofür" — only relevant when status === "ja"
+  entries: WohnumfeldEntry[]; // one or more Wofür/Betrag rows (when status === "ja")
 }
 
 export interface Partner {
@@ -148,7 +152,7 @@ export function defaultPayload(): OfferPayload {
       budgetOption: "",
       budgetOptionManuallySet: false,
       zuzahlung: "",
-      wohnumfeld: { amount: "", done: false, status: "", purpose: "" },
+      wohnumfeld: { amount: "", done: false, status: "", entries: [] },
     },
     Arbeitszeit: {
       distanceKm: "",

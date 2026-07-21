@@ -28,6 +28,30 @@ export function KundendatenStep() {
   const set = (patch: Record<string, any>) => patchSection("Kundendaten", patch);
   const isKK = k.payer === "Kassenkunde";
 
+  // Wohnumfeld: repeatable Wofür/Betrag rows. `amount` (total) and `done` are
+  // kept in sync for the pricing engine (subsidy reduction).
+  const w = k.wohnumfeld;
+  function patchWohnumfeld(patch: Partial<typeof w>) {
+    const next = { ...w, ...patch };
+    const total = (next.entries || []).reduce(
+      (s, e) => s + (parseFloat(String(e.amount).replace(",", ".")) || 0),
+      0,
+    );
+    next.amount = total ? String(total) : "";
+    next.done = next.status === "ja";
+    setSection("Kundendaten", { ...k, wohnumfeld: next });
+  }
+  const setWohnStatus = (status: string) =>
+    patchWohnumfeld({
+      status,
+      entries: status === "ja" && !(w.entries || []).length ? [{ purpose: "", amount: "" }] : w.entries,
+    });
+  const addWohnEntry = () => patchWohnumfeld({ entries: [...(w.entries || []), { purpose: "", amount: "" }] });
+  const updateWohnEntry = (i: number, patch: Partial<{ purpose: string; amount: string }>) =>
+    patchWohnumfeld({ entries: (w.entries || []).map((e, idx) => (idx === i ? { ...e, ...patch } : e)) });
+  const removeWohnEntry = (i: number) =>
+    patchWohnumfeld({ entries: (w.entries || []).filter((_, idx) => idx !== i) });
+
   function addPartner() {
     const partner = {
       ...emptyPartner(),
@@ -216,44 +240,58 @@ export function KundendatenStep() {
               <Field label="Krankenkasse"><Input value={k.krankenkasse} onChange={(e) => set({ krankenkasse: e.target.value })} /></Field>
               <Field label="Zuzahlung (€)"><Input inputMode="decimal" value={k.zuzahlung} onChange={(e) => set({ zuzahlung: e.target.value })} /></Field>
             </div>
+
+            {/* Wohnumfeldverbessernde Maßnahmen — repeatable Wofür/Betrag rows */}
+            <Field label="Wurden wohnumfeldverbessernde Maßnahmen schon mal durchgeführt?">
+              <ChoiceGroup
+                value={w.status}
+                onChange={setWohnStatus}
+                options={[
+                  { value: "ja", label: "Ja" },
+                  { value: "nein", label: "Nein" },
+                  { value: "unbekannt", label: "Unbekannt" },
+                ]}
+              />
+            </Field>
+            {w.status === "ja" && (
+              <div className="space-y-2">
+                {(w.entries || []).map((e, i) => (
+                  <div key={i} className="flex flex-wrap items-end gap-2">
+                    <div className="min-w-[12rem] flex-1 space-y-1.5">
+                      <Label>Wofür?</Label>
+                      <Input
+                        value={e.purpose}
+                        onChange={(ev) => updateWohnEntry(i, { purpose: ev.target.value })}
+                        placeholder="z. B. Treppenlift, Türverbreiterung"
+                      />
+                    </div>
+                    <div className="w-32 space-y-1.5">
+                      <Label>Betrag (€)</Label>
+                      <Input inputMode="decimal" value={e.amount} onChange={(ev) => updateWohnEntry(i, { amount: ev.target.value })} />
+                    </div>
+                    {(w.entries || []).length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeWohnEntry(i)}
+                        aria-label="Entfernen"
+                        className="mb-1.5 flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-destructive"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button type="button" onClick={addWohnEntry} className="text-sm font-medium text-primary hover:underline">
+                  + Weitere Maßnahme hinzufügen
+                </button>
+              </div>
+            )}
           </div>
         )}
       </Section>
 
       {/* Objekt- & Förderinformationen */}
       <Section title="Weitere Objekt- und Förderinformationen">
-        <Field label="Wurden wohnumfeldverbessernde Maßnahmen schon mal durchgeführt?">
-          <ChoiceGroup
-            value={k.wohnumfeld.status}
-            onChange={(v) =>
-              setSection("Kundendaten", { ...k, wohnumfeld: { ...k.wohnumfeld, status: v, done: v === "ja" } })
-            }
-            options={[
-              { value: "ja", label: "Ja" },
-              { value: "nein", label: "Nein" },
-              { value: "unbekannt", label: "Unbekannt" },
-            ]}
-          />
-        </Field>
-        {k.wohnumfeld.status === "ja" && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Wofür?">
-              <Input
-                value={k.wohnumfeld.purpose}
-                onChange={(e) => setSection("Kundendaten", { ...k, wohnumfeld: { ...k.wohnumfeld, purpose: e.target.value } })}
-                placeholder="z. B. Treppenlift, Türverbreiterung"
-              />
-            </Field>
-            <Field label="Betrag (€)">
-              <Input
-                inputMode="decimal"
-                value={k.wohnumfeld.amount}
-                onChange={(e) => setSection("Kundendaten", { ...k, wohnumfeld: { ...k.wohnumfeld, amount: e.target.value } })}
-              />
-            </Field>
-          </div>
-        )}
-
         <Field label="Antrag auf Zuschuss bei Pflegekasse gestellt?">
           <ChoiceGroup
             value={k.pflegekasseAntrag}
