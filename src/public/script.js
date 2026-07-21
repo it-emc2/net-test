@@ -204,7 +204,7 @@ const OFFERS = {
   },
   ah: {
     name: "AH · Alltagshilfe",
-    pages: ["Kundendaten", "Arbeitszeit", "ah", "Kosten", "Zusammenfassung"],
+    pages: ["Kundendaten", "Arbeitszeit", "ah", "Finanzierung", "Kosten", "Zusammenfassung"],
   },
   hms: {
     name: "HMS · Hausmeisterservice",
@@ -2648,6 +2648,7 @@ function updateSidebarForOffer() {
     hlk: "Konfigurator",
     bl: "BL",
     ah: "Leistungen",
+    Finanzierung: "Finanzierung",
     DuschabtrennungNeu: "Duschabtrennung (neu)",
     Duschvorhang: "Duschvorhang",
     Fussboden: "Fußboden",
@@ -3772,6 +3773,7 @@ function buildPayload() {
     //CRITICAL reenable only when ready
     //bl: formToObject(document.getElementById("form-bl")),
     ah: formToObject(document.getElementById("form-ah")),
+    Finanzierung: formToObject(document.getElementById("form-Finanzierung")),
     hms: formToObject(document.getElementById("form-hms")),
     wd: formToObject(document.getElementById("form-wd")),
   };
@@ -6036,14 +6038,31 @@ document.body.addEventListener("click", (e) => {
 // AH: Entlastungsbetrag (§ 45b SGB XI) — admin-configurable, defaults to 131€/Monat
 // while /admin/api/config/public is loading.
 window.__entlastungsbetragMonat = 131;
+// AH: Verhinderungspflege / Pflegesachleistungen-Umwidmung / § 35a — also admin-configurable.
+window.__verhinderungspflegeJahr = 2418;
+window.__steuerabsetzPct = 20;
+window.__steuerabsetzCapJahr = 4000;
 fetch("/admin/api/config/public")
   .then(function (r) { return r.ok ? r.json() : null; })
   .then(function (d) {
-    if (d && typeof d.ENTLASTUNGSBETRAG_MONAT === "number") {
+    if (!d) return;
+    if (typeof d.ENTLASTUNGSBETRAG_MONAT === "number") {
       window.__entlastungsbetragMonat = d.ENTLASTUNGSBETRAG_MONAT;
       var labelVal = document.getElementById("ahEntlastungAutoLabelValue");
       if (labelVal) labelVal.textContent = String(d.ENTLASTUNGSBETRAG_MONAT);
+      var ebLabel = document.getElementById("ebMonatLabel");
+      if (ebLabel) ebLabel.textContent = String(d.ENTLASTUNGSBETRAG_MONAT);
     }
+    if (typeof d.VERHINDERUNGSPFLEGE_JAHR === "number") {
+      window.__verhinderungspflegeJahr = d.VERHINDERUNGSPFLEGE_JAHR;
+      var vpLabel = document.getElementById("vpJahresbudgetLabel");
+      if (vpLabel) vpLabel.textContent = String(d.VERHINDERUNGSPFLEGE_JAHR).replace(".", ",");
+      var vpSlider = document.getElementById("ahVerhinderungspflegeMonat");
+      if (vpSlider) vpSlider.max = String(Math.round((d.VERHINDERUNGSPFLEGE_JAHR / 12) * 100) / 100);
+    }
+    if (typeof d.STEUERABSETZ_PCT === "number") window.__steuerabsetzPct = d.STEUERABSETZ_PCT;
+    if (typeof d.STEUERABSETZ_CAP_JAHR === "number") window.__steuerabsetzCapJahr = d.STEUERABSETZ_CAP_JAHR;
+    if (typeof window.__refreshFinanzierungUI === "function") window.__refreshFinanzierungUI();
   })
   .catch(function () {});
 
@@ -10592,13 +10611,33 @@ window.computeAHGesamt = function computeAHGesamt() {
   var allBase = r2(gesamtBase + abGesamtBase);
   var gesamt  = r2(allBase + (isSelbstzahler && hnd.totalMonatlichH > 0 ? SERVICEPAUSCHALE : 0));
 
-  // Kassenkunde: covered by the Entlastungsbetrag (§ 45b SGB XI, admin-configurable) —
-  // Eigenanteil is only the amount exceeding that. Selbstzahler pay the full amount themselves.
-  var eigenanteil = isSelbstzahler ? gesamt : r2(Math.max(0, gesamt - window.__entlastungsbetragMonat));
+  // Kassenkunde: each financing source only counts once the consultant has explicitly
+  // confirmed it on the Finanzierung step — nothing is assumed, so skipping that step
+  // (or leaving every toggle off) leaves the Eigenanteil equal to the full Gesamt.
+  var entlastungsbetragNutzen  = !!document.getElementById("ahEntlastungsbetragNutzen")?.checked;
+  var entlastungsbetragMonat   = entlastungsbetragNutzen ? window.__entlastungsbetragMonat : 0;
+  var verhinderungspflegeMonat = Number(document.getElementById("ahVerhinderungspflegeMonat")?.value) || 0;
+  var umwidmungBeantragt       = !!document.getElementById("ahUmwidmungBeantragt")?.checked;
+  var umwidmungMonat           = umwidmungBeantragt ? (Number(document.getElementById("ahUmwidmungBetrag")?.value) || 0) : 0;
+  var eigenanteil = isSelbstzahler
+    ? gesamt
+    : r2(Math.max(0, gesamt - entlastungsbetragMonat - verhinderungspflegeMonat - umwidmungMonat));
+
+  // § 35a EStG: informational only, computed on the customer's actual out-of-pocket
+  // Eigenanteil — never fed back into eigenanteil itself.
+  var steuerabsetzJahr = isSelbstzahler ? 0 : r2(Math.min(
+    (window.__steuerabsetzCapJahr || 4000),
+    (eigenanteil * 12) * ((window.__steuerabsetzPct || 20) / 100)
+  ));
 
   return {
     gesamt:            gesamt,
     eigenanteil:       eigenanteil,
+    entlastungsbetragNutzen: entlastungsbetragNutzen,
+    entlastungsbetragMonat: entlastungsbetragMonat,
+    verhinderungspflegeMonat: verhinderungspflegeMonat,
+    umwidmungMonat:    umwidmungMonat,
+    steuerabsetzJahr:  steuerabsetzJahr,
     gesamtBase:        gesamtBase,
     anfahrtTotal:      anfahrtTotal,
     leistungenTotal:   leistungenTotal,
@@ -10715,6 +10754,12 @@ window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
   var gesamt = ah.gesamt || 0;
   var yearly = gesamt * 12;
 
+  var financingParts = [];
+  if (ah.entlastungsbetragNutzen) financingParts.push("Entlastungsbetrag § 45b");
+  if (ah.verhinderungspflegeMonat > 0) financingParts.push("Verhinderungspflege § 39");
+  if (ah.umwidmungMonat > 0) financingParts.push("Umwidmung § 45a Abs. 4");
+  var financingNote = financingParts.length ? (" (Rest über " + financingParts.join(", ") + ")") : "";
+
   // ── Segment bar + legend ──────────────────────────────────────────────────
   function segBar(segs) {
     var total = segs.reduce(function (a, s) { return a + s.v; }, 0) || 1;
@@ -10826,7 +10871,7 @@ window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
             '<div style="font-size:2rem; font-weight:800; line-height:1;">' + eur(gesamt) + '</div>' +
             '<div style="font-size:0.8rem; opacity:0.9; margin-top:3px;">pro Monat · ≈ ' + eur(yearly) + ' / Jahr</div>' +
             (!ah.isSelbstzahler ?
-              '<div style="font-size:0.8rem; opacity:0.9; margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.3);">Eigenanteil: <b>' + eur(ah.eigenanteil) + '</b> (Rest über Entlastungsbetrag § 45a)</div>'
+              '<div style="font-size:0.8rem; opacity:0.9; margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.3);">Eigenanteil: <b>' + eur(ah.eigenanteil) + '</b>' + financingNote + '</div>'
               : '') +
           '</div>' +
         '</div>' +
@@ -13743,6 +13788,7 @@ const RESTORE_HANDLERS = {
   bl: (p, ctx) => typeof restoreBl === "function" && restoreBl(p?.bl),
 
   ah: (p, ctx) => typeof restoreAh === "function" && restoreAh(p?.ah),
+    Finanzierung: (p, ctx) => typeof restoreFinanzierung === "function" && restoreFinanzierung(p?.Finanzierung),
     hms: (p, ctx) => typeof restoreHms === "function" && restoreHms(p?.hms),
 
     wd: (p, ctx) => typeof restoreWd === "function" && restoreWd(p?.wd),
@@ -18065,6 +18111,58 @@ function restoreAh(ah) {
     window.restoreAhServices(services || []);
   }
 }
+
+function restoreFinanzierung(fin) {
+  fin = fin || {};
+  var form = document.getElementById("form-Finanzierung");
+  if (!form) return;
+
+  ["ahEntlastungsbetragNutzen",
+   "clEntlastungAusgeschoepft", "clVerhinderungGenutzt", "clSachleistungPflegedienst",
+   "clKombileistung", "clRueckwirkend", "clSteuerhinweis", "clKostenvoranschlag",
+   "ahUmwidmungBeantragt"].forEach(function (name) {
+    var el = form.querySelector('[name="' + name + '"]');
+    if (el) el.checked = !!fin[name];
+  });
+
+  var vp = document.getElementById("ahVerhinderungspflegeMonat");
+  if (vp) vp.value = fin.ahVerhinderungspflegeMonat || 0;
+
+  var betrag = document.getElementById("ahUmwidmungBetrag");
+  if (betrag) betrag.value = fin.ahUmwidmungBetrag || "";
+
+  if (typeof window.__refreshFinanzierungUI === "function") window.__refreshFinanzierungUI();
+}
+
+(function initFinanzierungPage() {
+  var form = document.getElementById("form-Finanzierung");
+  if (!form) return;
+
+  var vp       = document.getElementById("ahVerhinderungspflegeMonat");
+  var vpOut    = document.getElementById("ahVerhinderungspflegeMonatOut");
+  var umCb     = document.getElementById("ahUmwidmungBeantragt");
+  var umField  = document.getElementById("ahUmwidmungBetragField");
+  var steuerEl = document.getElementById("ahSteuerabsetzBetrag");
+
+  function refresh() {
+    if (vp && vpOut) vpOut.textContent = Math.round(Number(vp.value) || 0) + " €";
+    if (umCb && umField) {
+      umField.hidden = !umCb.checked;
+      umField.setAttribute("aria-hidden", String(!umCb.checked));
+    }
+    if (steuerEl && typeof window.computeAHGesamt === "function") {
+      var ah = window.computeAHGesamt();
+      steuerEl.textContent = ah.steuerabsetzJahr > 0
+        ? "≈ " + new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(ah.steuerabsetzJahr) + " / Jahr Steuererstattung möglich"
+        : "—";
+    }
+  }
+
+  form.addEventListener("input", refresh);
+  form.addEventListener("change", refresh);
+  window.__refreshFinanzierungUI = refresh;
+  refresh();
+})();
 
 function restoreHms(hms) {
   if (!hms) return;
