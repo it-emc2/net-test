@@ -158,15 +158,17 @@ export function defaultPayload(): OfferPayload {
       distanceKm: "",
       distanceLocked: false,
       travelTimeHHMM: "",
-      laborHoursHHMM: "",
+      // BU defaults to 7 h Arbeitszeit; derived values match (no travel yet) so
+      // pricing sees 7 h without needing to open the Arbeitszeit step.
+      laborHoursHHMM: "7:00",
       uebernachten: "",
       travelSecondWorkerRate: 25,
-      workDays: 0,
-      travelDays: 0,
-      ArbeitHoursNumeric: 0,
+      workDays: 1,
+      travelDays: 1,
+      ArbeitHoursNumeric: 7,
       ReiseHoursNumeric: 0,
-      totalHoursNumeric: 0,
-      totalHoursHHMM: "",
+      totalHoursNumeric: 7,
+      totalHoursHHMM: "7:00",
     },
     wandverkleidung: {
       wvKind: "Fliesenspiegel",
