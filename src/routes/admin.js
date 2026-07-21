@@ -63,7 +63,13 @@ router.post('/api/login', async (req, res) => {
 
 // GET /admin/api/config/public — subset of config values needed by the logged-in
 // frontend (not admin-only; still requires a session via the app-wide authGate).
-const PUBLIC_CONFIG_KEYS = ['ENTLASTUNGSBETRAG_MONAT'];
+const PUBLIC_CONFIG_KEYS = [
+  'ENTLASTUNGSBETRAG_MONAT',
+  'VERHINDERUNGSPFLEGE_JAHR',
+  'PFLEGESACHLEISTUNG_UMWIDMUNG_MAX_PCT',
+  'STEUERABSETZ_PCT',
+  'STEUERABSETZ_CAP_JAHR',
+];
 router.get('/api/config/public', async (req, res) => {
   try {
     const result = {};

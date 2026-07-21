@@ -2737,7 +2737,7 @@ button.dm-btn-danger:focus-visible {
 
 
 
-          <div id="pflegegradSection" class="full" data-offer="bu,bwt,hl,bl,hms,wd" style="margin-top: 16px">
+          <div id="pflegegradSection" class="full" data-offer="bu,bwt,hl,bl,hms,wd,ah" style="margin-top: 16px">
             <details open>
               <summary class="section-header" style="cursor: pointer">
                 Informationen über den Pflegegradbudget
@@ -8617,6 +8617,78 @@ button.dm-btn-danger:focus-visible {
           </div>
         </form>
 
+      </section>
+
+      <!-- Finanzierung (AH only) -->
+      <section class="card page" id="page-Finanzierung" hidden>
+        <h2 style="margin: 0 0 4px">Finanzierung &amp; Kostenübernahme</h2>
+        <p style="margin: 0 0 16px; color: var(--text-muted,#94a3b8); font-size: 0.88rem;">
+          Alle Felder sind optional und wirken sich nur aus, wenn sie ausgefüllt werden — der Eigenanteil ändert sich
+          nicht, wenn dieser Schritt übersprungen wird.
+        </p>
+        <form id="form-Finanzierung">
+
+          <!-- Entlastungsbetrag -->
+          <div class="field full">
+            <label class="check-pill"><input type="checkbox" id="ahEntlastungsbetragNutzen" name="ahEntlastungsbetragNutzen" /><span class="box"></span>
+              <span>Entlastungsbetrag § 45b SGB XI anrechnen (<span id="ebMonatLabel">131</span> €/Monat, ab Pflegegrad 1)</span>
+            </label>
+          </div>
+
+          <!-- Beratungs-Checkliste -->
+          <div class="full" style="margin-top:16px; border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+            <div style="padding:12px 16px; background:var(--panel); border-bottom:1px solid var(--border); font-weight:700;">
+              Beratungs-Checkliste
+            </div>
+            <div style="display:flex; flex-direction:column; gap:2px; padding:8px 16px 14px;">
+              <label class="check-pill"><input type="checkbox" name="clEntlastungAusgeschoepft" /><span class="box"></span><span>Entlastungsbetrag bereits ausgeschöpft oder bei anderem Anbieter?</span></label>
+              <label class="check-pill"><input type="checkbox" name="clVerhinderungGenutzt" /><span class="box"></span><span>Verhinderungspflege schon genutzt dieses Jahr?</span></label>
+              <label class="check-pill"><input type="checkbox" name="clSachleistungPflegedienst" /><span class="box"></span><span>Pflegesachleistungen — wird ein ambulanter Pflegedienst genutzt?</span></label>
+              <label class="check-pill"><input type="checkbox" name="clKombileistung" /><span class="box"></span><span>Kombileistung möglich? (Pflegegeld + Sachleistung)</span></label>
+              <label class="check-pill"><input type="checkbox" name="clRueckwirkend" /><span class="box"></span><span>Rückwirkende Ansprüche geprüft (bis zu 4 Jahre Entlastungsbetrag)?</span></label>
+              <label class="check-pill"><input type="checkbox" name="clSteuerhinweis" /><span class="box"></span><span>Kunde auf steuerliche Absetzbarkeit hingewiesen (§ 35a, auch ohne Pflegegrad)?</span></label>
+              <label class="check-pill"><input type="checkbox" name="clKostenvoranschlag" /><span class="box"></span><span>Kostenvoranschlag erstellen lassen?</span></label>
+            </div>
+          </div>
+
+          <!-- Verhinderungspflege -->
+          <div class="field full" style="margin-top:16px">
+            <label for="ahVerhinderungspflegeMonat">
+              Verhinderungspflege § 39 SGB XI — monatlich einsetzen
+              <span style="font-weight:500; color:var(--text-muted,#94a3b8);">(ab Pflegegrad 2, Jahresbudget <span id="vpJahresbudgetLabel">2.418</span> €)</span>
+            </label>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <input type="range" id="ahVerhinderungspflegeMonat" name="ahVerhinderungspflegeMonat"
+                min="0" max="201.5" step="1" value="0" style="flex:1;" />
+              <output id="ahVerhinderungspflegeMonatOut" for="ahVerhinderungspflegeMonat" style="min-width:70px; text-align:right; font-weight:700;">0 €</output>
+            </div>
+          </div>
+
+          <!-- Pflegesachleistungen-Umwidmung -->
+          <div class="field full" style="margin-top:16px">
+            <label class="check-pill"><input type="checkbox" id="ahUmwidmungBeantragt" name="ahUmwidmungBeantragt" /><span class="box"></span>
+              <span>Pflegesachleistungen-Umwidmung (§ 45a Abs. 4) bei der Pflegekasse beantragt/bewilligt</span>
+            </label>
+            <div id="ahUmwidmungBetragField" hidden aria-hidden="true" style="margin-top:8px; max-width:220px;">
+              <label for="ahUmwidmungBetrag" style="font-size:0.82rem;">Bewilligter Zusatzbetrag (€/Monat)</label>
+              <input type="number" id="ahUmwidmungBetrag" name="ahUmwidmungBetrag" min="0" step="1" placeholder="0" />
+            </div>
+          </div>
+
+          <!-- § 35a Steuerliche Absetzbarkeit (informativ) -->
+          <div class="full" id="ahSteuerabsetzInfo" style="margin-top:16px; padding:12px 16px; border:1px dashed var(--border); border-radius:8px; font-size:0.85rem; color:var(--text-muted,#94a3b8);">
+            <strong style="color:var(--text,#1e293b);">Steuerliche Absetzbarkeit § 35a EStG</strong> — 20 % des vom Kunden selbst
+            getragenen Eigenanteils, gedeckelt bei 4.000 €/Jahr, gilt auch ohne Pflegegrad. Wirkt nicht auf diese Rechnung,
+            sondern über die Steuererklärung im Folgejahr. Voraussetzung: Überweisung, keine Barzahlung.
+            <div id="ahSteuerabsetzBetrag" style="margin-top:6px; font-weight:700; color:var(--text,#1e293b);">—</div>
+          </div>
+
+          <!-- Navigation -->
+          <div class="actions full" style="margin-top:16px">
+            <button type="button" data-nav="prev" class="secondary">Zurück</button>
+            <button type="button" data-nav="next">Weiter</button>
+          </div>
+        </form>
       </section>
 
       <!-- hms -->

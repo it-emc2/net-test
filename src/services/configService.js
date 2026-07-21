@@ -117,6 +117,26 @@ export const CONFIG_SCHEMA = [
     label: 'Entlastungsbetrag § 45b SGB XI', unit: '€/Monat', type: 'euro', section: 'ah', order: 1,
     description: 'Monatlicher Entlastungsbetrag ab Pflegegrad 1, den die Pflegekasse für zweckgebundene Angebote übernimmt',
   },
+  {
+    key: 'VERHINDERUNGSPFLEGE_JAHR', value: 2418,
+    label: 'Verhinderungspflege § 39 SGB XI', unit: '€/Jahr', type: 'euro', section: 'ah', order: 2,
+    description: 'Jahresbudget ab Pflegegrad 2 (1.612 € + 806 € aus Kurzzeitpflege), das anteilig auf den Eigenanteil angerechnet werden kann',
+  },
+  {
+    key: 'PFLEGESACHLEISTUNG_UMWIDMUNG_MAX_PCT', value: 40,
+    label: 'Pflegesachleistungen-Umwidmung § 45a Abs. 4', unit: '%', type: 'integer', section: 'ah', order: 3,
+    description: 'Maximaler Anteil ungenutzter Pflegesachleistungen, der dauerhaft in den Entlastungsbetrag umgewidmet werden kann',
+  },
+  {
+    key: 'STEUERABSETZ_PCT', value: 20,
+    label: 'Steuerliche Absetzbarkeit § 35a EStG', unit: '%', type: 'integer', section: 'ah', order: 4,
+    description: 'Anteil der selbst getragenen Kosten, den der Kunde über die Steuererklärung absetzen kann (informativ, keine Auswirkung auf die Rechnung)',
+  },
+  {
+    key: 'STEUERABSETZ_CAP_JAHR', value: 4000,
+    label: 'Steuerabsetzbarkeit Deckel', unit: '€/Jahr', type: 'euro', section: 'ah', order: 5,
+    description: 'Maximale jährliche Steuerermäßigung nach § 35a EStG',
+  },
 
   // ── ZUSCHÜSSE & BONI ─────────────────────────────────────────────────────
   {
