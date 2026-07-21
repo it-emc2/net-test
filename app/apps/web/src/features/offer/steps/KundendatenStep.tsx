@@ -1,4 +1,5 @@
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import type { CustomerDetail } from "@emc2/shared";
 import { useOffer } from "../OfferContext";
 import { CustomerSearch } from "../CustomerSearch";
@@ -205,9 +206,6 @@ export function KundendatenStep() {
             <PayerButton current={k.payer} value="Kassenkunde" label="Kassenkunde" onSelect={(v) => set({ payer: v })} />
           </div>
         </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Ansprechpartner (EmC²)"><Input value={k.emc2_contact} onChange={(e) => set({ emc2_contact: e.target.value })} /></Field>
-        </div>
 
         {/* Kassenkunde-only conditional block */}
         {isKK && (
@@ -288,10 +286,14 @@ export function KundendatenStep() {
             )}
           </div>
         )}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Ansprechpartner (EmC²)"><Input value={k.emc2_contact} onChange={(e) => set({ emc2_contact: e.target.value })} /></Field>
+        </div>
       </Section>
 
       {/* Objekt- & Förderinformationen */}
-      <Section title="Weitere Objekt- und Förderinformationen">
+      <CollapsibleSection title="Weitere Objekt- und Förderinformationen">
         <Field label="Antrag auf Zuschuss bei Pflegekasse gestellt?">
           <ChoiceGroup
             value={k.pflegekasseAntrag}
@@ -341,7 +343,7 @@ export function KundendatenStep() {
             className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
         </Field>
-      </Section>
+      </CollapsibleSection>
     </div>
   );
 }
@@ -352,6 +354,27 @@ export function StepHeader({ title, hint }: { title: string; hint?: string }) {
       <h1 className="font-display text-2xl font-bold tracking-tight">{title}</h1>
       {hint && <p className="mt-1 text-sm text-muted-foreground">{hint}</p>}
     </header>
+  );
+}
+
+function CollapsibleSection({
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className="space-y-4">
+      <button type="button" onClick={() => setOpen((v) => !v)} className="flex w-full items-center justify-between text-left">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h2>
+        {open ? <ChevronUp className="size-4 text-muted-foreground" /> : <ChevronDown className="size-4 text-muted-foreground" />}
+      </button>
+      {open && <div className="space-y-4">{children}</div>}
+    </section>
   );
 }
 
