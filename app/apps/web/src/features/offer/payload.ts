@@ -44,6 +44,9 @@ export interface Kundendaten {
   contactPersonPhone: string;
   // Objekt- & Förderinformationen
   pflegekasseAntrag: string; // "" | "ja" | "nein" — Antrag auf Zuschuss gestellt?
+  pflegekasseGenehmigung: string; // if Antrag "ja": "" | "ja" | "nein"
+  pflegekasseEmc2Antrag: string; // if Antrag "nein": darf EmC² den Antrag stellen? "" | "ja" | "nein"
+  vermieterGenehmigung: string; // "" | "ja" | "nein" | "ausstehend"
   wohnsituation: string; // "" | "Eigentum" | "Miete"
   parkenMoeglich: string; // "" | "ja" | "nein"
   parkDetails: string;
@@ -141,6 +144,9 @@ export function defaultPayload(): OfferPayload {
       contactPersonName: "",
       contactPersonPhone: "",
       pflegekasseAntrag: "",
+      pflegekasseGenehmigung: "",
+      pflegekasseEmc2Antrag: "",
+      vermieterGenehmigung: "",
       wohnsituation: "",
       parkenMoeglich: "",
       parkDetails: "",

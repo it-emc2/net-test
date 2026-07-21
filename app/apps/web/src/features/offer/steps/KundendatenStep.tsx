@@ -304,6 +304,42 @@ export function KundendatenStep() {
             ]}
           />
         </Field>
+        {k.pflegekasseAntrag === "ja" && (
+          <Field label="Genehmigung von Pflegekasse ist vorhanden?">
+            <ChoiceGroup
+              value={k.pflegekasseGenehmigung}
+              onChange={(v) => set({ pflegekasseGenehmigung: v })}
+              options={[
+                { value: "ja", label: "Ja" },
+                { value: "nein", label: "Nein" },
+              ]}
+            />
+          </Field>
+        )}
+        {k.pflegekasseAntrag === "nein" && (
+          <Field label="Darf EmC² für Sie diesen Antrag stellen?">
+            <ChoiceGroup
+              value={k.pflegekasseEmc2Antrag}
+              onChange={(v) => set({ pflegekasseEmc2Antrag: v })}
+              options={[
+                { value: "ja", label: "Ja" },
+                { value: "nein", label: "Nein" },
+              ]}
+            />
+          </Field>
+        )}
+
+        <Field label="Genehmigung des Vermieters liegt vor?">
+          <ChoiceGroup
+            value={k.vermieterGenehmigung}
+            onChange={(v) => set({ vermieterGenehmigung: v })}
+            options={[
+              { value: "ja", label: "Ja" },
+              { value: "nein", label: "Nein" },
+              { value: "ausstehend", label: "Noch ausstehend" },
+            ]}
+          />
+        </Field>
 
         <Field label="Angabe zur Wohnsituation">
           <ChoiceGroup
