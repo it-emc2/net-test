@@ -334,16 +334,18 @@ export function KundendatenStep() {
           />
         </Field>
 
-        <Field label="Notizen">
-          <textarea
-            value={k.notes}
-            onChange={(e) => set({ notes: e.target.value })}
-            rows={4}
-            placeholder="Freie Notizen …"
-            className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-        </Field>
       </CollapsibleSection>
+
+      {/* Notizen — always visible, outside the collapsible section */}
+      <Section title="Notizen">
+        <textarea
+          value={k.notes}
+          onChange={(e) => set({ notes: e.target.value })}
+          rows={4}
+          placeholder="Freie Notizen …"
+          className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        />
+      </Section>
     </div>
   );
 }
