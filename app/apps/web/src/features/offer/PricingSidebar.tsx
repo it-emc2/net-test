@@ -63,15 +63,24 @@ function Breakdown({ result }: { result: any }) {
   const svcCost: any[] = (result.services?.lines ?? []).filter((l: any) => Number(l.amount) > 0);
   const svcNotes: any[] = (result.services?.lines ?? []).filter((l: any) => !Number(l.amount) && l.label);
 
+  // Group material lines by category (first-seen order), with a per-category subtotal.
+  const matCats: { title: string; lines: any[] }[] = [];
+  for (const l of matLines) {
+    const title = l.category || "Material";
+    let g = matCats.find((c) => c.title === title);
+    if (!g) { g = { title, lines: [] }; matCats.push(g); }
+    g.lines.push(l);
+  }
+
   return (
     <div className="mt-3 space-y-4 text-xs">
-      {matLines.length > 0 && (
-        <Group title="Material">
-          {matLines.map((l, i) => (
+      {matCats.map((c) => (
+        <Group key={c.title} title={c.title} total={c.lines.reduce((s, l) => s + (Number(l.lineTotal) || 0), 0)}>
+          {c.lines.map((l, i) => (
             <DetailRow key={i} label={clean(l.label || l.name || l.productId)} value={l.lineTotal} />
           ))}
         </Group>
-      )}
+      ))}
 
       <Group title="Leistungen">
         {svcCost.length === 0 && <p className="text-muted-foreground">Noch keine Leistungen.</p>}
@@ -91,10 +100,13 @@ function Breakdown({ result }: { result: any }) {
   );
 }
 
-function Group({ title, children }: { title: string; children: ReactNode }) {
+function Group({ title, total, children }: { title: string; total?: number; children: ReactNode }) {
   return (
     <div className="space-y-1">
-      <p className="font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+        {total != null && <span className="shrink-0 font-semibold tabular-nums">{formatEUR(total)}</span>}
+      </div>
       {children}
     </div>
   );

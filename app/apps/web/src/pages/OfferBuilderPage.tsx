@@ -280,21 +280,32 @@ function MobilePricing() {
   const { result } = useLivePricing(payload);
   const [open, setOpen] = useState(false);
   const isKK = payload.Kundendaten.payer === "Kassenkunde";
-  const headline = isKK ? result?.selfPayAmount : result?.total;
-  const headlineLabel = isKK ? "Selbstkostenanteil" : "Gesamt";
+  const fmt = (v: number | undefined) => (v == null ? "—" : formatEUR(v));
 
   return (
     <div className="lg:hidden">
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between border-t bg-card/95 px-4 py-3 backdrop-blur"
+        className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between gap-3 border-t bg-card/95 px-4 py-2.5 backdrop-blur"
       >
         <span className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Receipt className="size-4" /> {headlineLabel}
+          <Receipt className="size-4" /> Kalkulation
         </span>
-        <span className="font-display text-lg font-bold tabular-nums text-primary">
-          {headline == null ? "—" : formatEUR(headline)}
+        <span className="flex items-center gap-5">
+          {/* Kassenkunde: show Gesamt AND Eigenanteil side by side */}
+          {isKK && (
+            <span className="flex flex-col items-end leading-tight">
+              <span className="text-[11px] text-muted-foreground">Gesamt</span>
+              <span className="font-display text-sm font-semibold tabular-nums">{fmt(result?.total)}</span>
+            </span>
+          )}
+          <span className="flex flex-col items-end leading-tight">
+            <span className="text-[11px] text-muted-foreground">{isKK ? "Eigenanteil" : "Gesamt"}</span>
+            <span className="font-display text-lg font-bold tabular-nums text-primary">
+              {fmt(isKK ? result?.selfPayAmount : result?.total)}
+            </span>
+          </span>
         </span>
       </button>
 
