@@ -6,6 +6,7 @@ import { StepHeader } from "./KundendatenStep";
 import { suggestTrays, SLATE_COLORS } from "../trays";
 import { productsApi } from "@/features/products/api";
 import { StockBadge } from "@/features/products/StockBadge";
+import { ImageZoom } from "@/components/ImageZoom";
 import { StepCalc } from "../StepCalc";
 import { formatEUR } from "@/lib/format";
 import { Input } from "@/components/ui/input";
@@ -137,7 +138,7 @@ export function DuschwanneStep() {
         <div className="flex items-center gap-4 rounded-lg border border-primary/40 bg-primary/5 p-4">
           <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
             {sel.image ? (
-              <img src={sel.image} alt="" className="size-full object-contain" />
+              <ImageZoom src={sel.image} alt={sel.name} />
             ) : (
               <Package className="size-6 text-muted-foreground" />
             )}
