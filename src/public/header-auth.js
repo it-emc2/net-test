@@ -14,16 +14,21 @@
     return (parts[0][0] + parts[1][0]);
   }
 
+  function redirectToLogin() {
+    var next = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.href = "/login?next=" + next;
+  }
+
   fetch("/api/auth/me", { credentials: "same-origin" })
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (data) {
-      if (!data || !data.user) return;
+      if (!data || !data.user) return redirectToLogin();
       var label = data.user.name || data.user.email || "";
       nameEl.textContent = label;
       if (avatarEl) avatarEl.textContent = initials(label);
       box.hidden = false;
     })
-    .catch(function () { /* not logged in / gate handles redirect */ });
+    .catch(redirectToLogin);
 
   logoutBtn.addEventListener("click", function () {
     fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" })

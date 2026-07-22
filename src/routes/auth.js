@@ -16,7 +16,7 @@ function setSessionCookie(res, token) {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    maxAge: 12 * 60 * 60 * 1000,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
     path: "/",
   });
 }
