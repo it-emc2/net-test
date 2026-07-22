@@ -172,7 +172,10 @@ export function renderAngebotHtml(d: AngebotData): string {
     .lines li{ break-inside:avoid; }
     .pos{ font-weight:700; color:var(--muted); }
     .rowhead td{ background:#f6f8fb; } .rowhead .title{ font-weight:700; }
-    .lines{ margin:1.5mm 0 0; padding:0; list-style:none; }
+    /* Reset to normal weight: the bullet lists sit inside .title (font-weight:700),
+       so without this the service/material lines inherit the bold. .cat overrides
+       back to 700 for the sub-category headers. */
+    .lines{ margin:1.5mm 0 0; padding:0; list-style:none; font-weight:400; }
     .lines li{ position:relative; padding-left:4mm; margin:.6mm 0; }
     .lines li::before{ content:"–"; position:absolute; left:0; color:var(--navy); }
     .included-h{ font-weight:600; font-size:8.5pt; color:var(--muted); margin:2mm 0 .5mm; }

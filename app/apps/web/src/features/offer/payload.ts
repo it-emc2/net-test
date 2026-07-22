@@ -122,10 +122,17 @@ export function deriveBudgetOption(k: Kundendaten): string {
   return k.partner ? "ZWEI PERSONEN MIT PFLEGEGRAD" : "4180 MAXIMAL";
 }
 
+// Offer number, legacy format: ANG<yyyy>-<MMDD>-<HHmmss> (e.g. ANG2026-0720-110630).
+export function genOfferNumber(d: Date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `ANG${d.getFullYear()}-${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+
 export function defaultPayload(): OfferPayload {
   return {
     activeOffer: "bu",
     offerType: "bu",
+    offerNumber: genOfferNumber(),
     Kundendaten: {
       salutation: "",
       firstName: "",
