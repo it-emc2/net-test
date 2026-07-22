@@ -6,6 +6,7 @@ import { StepHeader } from "./KundendatenStep";
 import { StepCalc } from "../StepCalc";
 import { getOptionalCatalog } from "../optional";
 import { formatEUR } from "@/lib/format";
+import { ZoomBadge } from "@/components/ImageZoom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -133,9 +134,12 @@ function ItemTile({
   return (
     <div className={cn("rounded-lg border p-2.5 transition-colors", sel && "border-primary bg-primary/5")}>
       <button type="button" onClick={onToggle} className="flex w-full items-center gap-3 text-left">
-        <span className="flex size-28 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+        <span className="relative flex size-28 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
           {item.image ? (
-            <img src={item.image} alt="" className="size-full object-contain p-1.5" loading="lazy" />
+            <>
+              <img src={item.image} alt="" className="size-full object-contain p-1.5" loading="lazy" />
+              <ZoomBadge src={item.image} />
+            </>
           ) : (
             <Package className="size-7 text-muted-foreground" />
           )}
@@ -159,9 +163,12 @@ function ItemTile({
               {item.companions.map((c) =>
                 opt["opt_" + c.productId] ? (
                   <div key={c.productId} className="flex items-center gap-2 text-xs">
-                    <span className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+                    <span className="relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
                       {c.image ? (
-                        <img src={c.image} alt="" className="size-full object-contain p-0.5" loading="lazy" />
+                        <>
+                          <img src={c.image} alt="" className="size-full object-contain p-0.5" loading="lazy" />
+                          <ZoomBadge src={c.image} />
+                        </>
                       ) : (
                         <Package className="size-5 text-muted-foreground" />
                       )}
@@ -201,6 +208,7 @@ function Carousel({ images }: { images: string[] }) {
   return (
     <div className="relative">
       <img src={images[idx]} alt="" className="h-52 w-full rounded-md border bg-white object-contain p-2" loading="lazy" />
+      <ZoomBadge src={images[idx]} />
       {n > 1 && (
         <>
           <button type="button" onClick={(e) => go(-1, e)} aria-label="Zurück" className="absolute left-1 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border bg-background/90 shadow-sm hover:bg-accent">
@@ -303,8 +311,8 @@ function WcPanel({
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {base.map((b) => (
                   <div key={b.productId} className="flex items-center gap-3 rounded-lg border border-primary bg-primary/5 p-2.5">
-                    <span className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
-                      {b.image ? <img src={b.image} alt="" className="size-full object-contain p-1.5" loading="lazy" /> : <Package className="size-7 text-muted-foreground" />}
+                    <span className="relative flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+                      {b.image ? <><img src={b.image} alt="" className="size-full object-contain p-1.5" loading="lazy" /><ZoomBadge src={b.image} /></> : <Package className="size-7 text-muted-foreground" />}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block break-words text-sm font-medium">{b.name}</span>
@@ -344,8 +352,8 @@ function WcPanel({
                               onClick={() => pickOne(c, sitze)}
                               className={cn("flex w-full items-center gap-3 rounded-lg border p-2.5 text-left transition-colors", cSel ? "border-primary bg-primary/10" : "hover:bg-background")}
                             >
-                              <span className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
-                                {c.image ? <img src={c.image} alt="" className="size-full object-contain p-1" loading="lazy" /> : <Package className="size-6 text-muted-foreground" />}
+                              <span className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+                                {c.image ? <><img src={c.image} alt="" className="size-full object-contain p-1" loading="lazy" /><ZoomBadge src={c.image} /></> : <Package className="size-6 text-muted-foreground" />}
                               </span>
                               <span className="min-w-0 flex-1">
                                 <span className="block break-words text-sm font-medium">{c.name}</span>

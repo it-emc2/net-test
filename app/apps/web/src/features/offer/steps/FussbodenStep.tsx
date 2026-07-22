@@ -5,6 +5,7 @@ import { StepHeader } from "./KundendatenStep";
 import { StepCalc } from "../StepCalc";
 import { productsApi } from "@/features/products/api";
 import { StockBadge } from "@/features/products/StockBadge";
+import { ZoomBadge } from "@/components/ImageZoom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -172,9 +173,12 @@ function DecorGrid({
                 active ? "border-primary ring-2 ring-primary" : "hover:border-primary/40",
               )}
             >
-              <span className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-white">
+              <span className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-white">
                 {dec.img ? (
-                  <img src={dec.img} alt={dec.label} className="size-full object-cover" loading="lazy" />
+                  <>
+                    <img src={dec.img} alt={dec.label} className="size-full object-cover" loading="lazy" />
+                    <ZoomBadge src={dec.img} alt={dec.label} />
+                  </>
                 ) : (
                   <Package className="size-8 text-muted-foreground" />
                 )}
@@ -192,8 +196,8 @@ function DecorGrid({
 
 function AccImg({ img }: { img: string | null | undefined }) {
   return (
-    <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
-      {img ? <img src={img} alt="" className="size-full object-contain p-1" loading="lazy" /> : <Package className="size-6 text-muted-foreground" />}
+    <span className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+      {img ? <><img src={img} alt="" className="size-full object-contain p-1" loading="lazy" /><ZoomBadge src={img} /></> : <Package className="size-6 text-muted-foreground" />}
     </span>
   );
 }

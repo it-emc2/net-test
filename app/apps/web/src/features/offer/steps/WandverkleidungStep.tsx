@@ -4,6 +4,7 @@ import { useOffer } from "../OfferContext";
 import { StepHeader } from "./KundendatenStep";
 import { StepCalc } from "../StepCalc";
 import { productsApi } from "@/features/products/api";
+import { ZoomBadge } from "@/components/ImageZoom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -92,12 +93,15 @@ export function WandverkleidungStep() {
         </div>
       </Section>
 
-      <img
-        src="/assets/wv/beispiel.jpg"
-        alt="Wandverkleidung Beispiel"
-        className="w-full max-w-md rounded-lg border object-cover"
-        loading="lazy"
-      />
+      <span className="relative block w-full max-w-md">
+        <img
+          src="/assets/wv/beispiel.jpg"
+          alt="Wandverkleidung Beispiel"
+          className="w-full rounded-lg border object-cover"
+          loading="lazy"
+        />
+        <ZoomBadge src="/assets/wv/beispiel.jpg" alt="Wandverkleidung Beispiel" />
+      </span>
 
       <PanelSize
         title="Platten 997 × 2550 mm"
@@ -214,8 +218,9 @@ function PanelSize({
                     sel ? "border-primary ring-2 ring-primary" : "hover:border-primary/40",
                   )}
                 >
-                  <span className="block aspect-square overflow-hidden bg-white">
+                  <span className="relative block aspect-square overflow-hidden bg-white">
                     <img src={c.img} alt={c.name} className="size-full object-cover" loading="lazy" />
+                    <ZoomBadge src={c.img} alt={c.name} />
                   </span>
                   <span className={cn("block px-1.5 py-1 text-[11px] leading-tight", sel && "text-primary")}>
                     {c.name}
@@ -250,8 +255,8 @@ function Field({ label, children, className }: { label: string; children: ReactN
 
 function AccImg({ img }: { img: string | null }) {
   return (
-    <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
-      {img ? <img src={img} alt="" className="size-full object-contain p-1" loading="lazy" /> : <Package className="size-6 text-muted-foreground" />}
+    <span className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+      {img ? <><img src={img} alt="" className="size-full object-contain p-1" loading="lazy" /><ZoomBadge src={img} /></> : <Package className="size-6 text-muted-foreground" />}
     </span>
   );
 }
