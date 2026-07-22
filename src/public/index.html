@@ -3656,8 +3656,42 @@ button.dm-btn-danger:focus-visible {
             <input type="hidden" id="traySize" name="traySize">
           </div>
 
-
           <div><img src="./assets/duschwanne.jpeg" alt="Duschwanne" /></div>
+
+          <!-- Freier Posten: Duschwanne nicht in der Suche gefunden (z. B. Sonderform, geschwungen) -->
+          <fieldset class="da-row full" id="dw-custom" aria-describedby="dw-custom-help">
+            <legend class="da-legend">Duschwanne nicht gefunden? Freier Posten</legend>
+            <div class="da-items">
+              <div class="da-item" data-kind="dw-custom">
+                <div class="da-grid-4">
+                  <label class="da-label">
+                    Bezeichnung
+                    <input class="da-name" type="text" id="dwCustomName" name="dwCustomName"
+                      placeholder="z. B. Duschwanne geschwungen 100x100" />
+                  </label>
+                  <label class="da-label">
+                    Preis
+                    <input class="da-price" type="text" id="dwCustomPrice" name="dwCustomPrice"
+                      inputmode="decimal" placeholder="z. B. 799,00" />
+                  </label>
+                  <label class="da-label">
+                    Menge
+                    <input class="da-qty" type="number" id="dwCustomQty" name="dwCustomQty"
+                      inputmode="numeric" min="1" step="1" value="1" />
+                  </label>
+                  <label class="da-label">
+                    ID
+                    <input class="da-id" type="text" id="dwCustomId" name="dwCustomId"
+                      placeholder="z. B. DW-CUS-001" />
+                  </label>
+                </div>
+              </div>
+            </div>
+            <small id="dw-custom-help" class="da-help">
+              Falls die passende Duschwanne oben nicht gefunden wird: hier Bezeichnung und Preis manuell eintragen.
+              Erscheint in Kosten &amp; Angebot unter „Duschwanne".
+            </small>
+          </fieldset>
 
         <!-- Bathtub search (only visible when "Einbau der Badewanne" is selected) -->
 <div id="bathtubSearchPanel" class="field" hidden aria-hidden="true" style="margin-top:12px;">

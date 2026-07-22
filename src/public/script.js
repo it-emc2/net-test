@@ -10314,6 +10314,19 @@ function attachDuschwanneToPayload(payload) {
     ? screenPid.trim()
     : null;
 
+  // Freier Posten: custom tray not found in the DB search
+  const dwCustomName = (document.getElementById("dwCustomName")?.value || "").trim();
+  const dwCustomPrice = (document.getElementById("dwCustomPrice")?.value || "").trim();
+  if (dwCustomName && dwCustomPrice) {
+    const dwCustomQty = Math.max(1, parseInt(document.getElementById("dwCustomQty")?.value, 10) || 1);
+    const dwCustomId = (document.getElementById("dwCustomId")?.value || "").trim();
+    payload.duschwanne.quickAdd = [
+      { label: dwCustomName, price: dwCustomPrice, qty: dwCustomQty, productId: dwCustomId },
+    ];
+  } else {
+    delete payload.duschwanne.quickAdd;
+  }
+
   return payload;
 }
 /* ========== GLOBAL PRICING SERVICE (fetch -> cache -> event) ========== */
@@ -14593,6 +14606,16 @@ function restoreDuschwanne(dw) {
   toggleSlateTrayColorVisibility();
   setNumber("floorArea", dw.floorArea);
   setRadio("floorKind", dw.floorKind);
+
+  // Freier Posten: custom tray not found in the DB search
+  const dwCustom = Array.isArray(dw.quickAdd) ? dw.quickAdd[0] : null;
+  setByNameOrId("dwCustomName", dwCustom?.label || "");
+  setByNameOrId(
+    "dwCustomPrice",
+    dwCustom?.price != null ? String(dwCustom.price).replace(".", ",") : "",
+  );
+  setByNameOrId("dwCustomQty", dwCustom?.qty || 1);
+  setByNameOrId("dwCustomId", dwCustom?.productId || "");
 
   // ===== NEW: restore bathtub + wannenaufsatz =====
   setByNameOrId("bathtub_w_cm", dw.bathtub_w_cm);

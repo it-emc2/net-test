@@ -1096,6 +1096,26 @@ console.log("[REHA DEBUG] selections =", selections);
       console.warn("[pricing] optional quick-add failed:", e);
     }
 
+    // ------- Duschwanne: Freier Posten (custom tray not found in DB search)
+    setCat("Duschwanne");
+    try {
+      const dwQa = payload?.duschwanne?.quickAdd || [];
+      if (Array.isArray(dwQa) && dwQa.length) {
+        for (const x of dwQa) {
+          const qty = Math.max(1, Number(x?.qty) || 0);
+          const price = parseMoneyStrict(x?.price) || 0;
+          const base = String(x?.label || "").trim();
+          if (!base || price <= 0) continue;
+
+          const pid = String(x?.productId || "").trim() || "DW_CUSTOM";
+          add(pid, qty, `- ${qty} Stk ${base}`, price);
+        }
+      }
+    } catch (e) {
+      console.warn("[pricing] Duschwanne quickAdd (Freier Posten) failed:", e?.message || e);
+    }
+    setCat(null);
+
     // ------- Resolve names/prices once
     const productMap = await getProductsByIds([...idsNeeded]);
 
