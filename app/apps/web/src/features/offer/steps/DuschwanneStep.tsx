@@ -6,7 +6,7 @@ import { StepHeader } from "./KundendatenStep";
 import { suggestTrays, SLATE_COLORS } from "../trays";
 import { productsApi } from "@/features/products/api";
 import { StockBadge } from "@/features/products/StockBadge";
-import { ImageZoom } from "@/components/ImageZoom";
+import { ImageZoom, ZoomBadge } from "@/components/ImageZoom";
 import { StepCalc } from "../StepCalc";
 import { formatEUR } from "@/lib/format";
 import { Input } from "@/components/ui/input";
@@ -270,9 +270,12 @@ export function DuschwanneStep() {
                   checked && "border-primary/40 bg-primary/[0.03]",
                 )}
               >
-                <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+                <span className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
                   {img ? (
-                    <img src={img} alt="" className="size-full object-contain p-1" loading="lazy" />
+                    <>
+                      <img src={img} alt="" className="size-full object-contain p-1" loading="lazy" />
+                      <ZoomBadge src={img} />
+                    </>
                   ) : (
                     <Package className="size-6 text-muted-foreground" />
                   )}
@@ -358,9 +361,12 @@ function TrayList({
             <span className={cn("flex size-4 shrink-0 items-center justify-center rounded-full border", active ? "border-primary" : "border-input")}>
               {active && <span className="size-2 rounded-full bg-primary" />}
             </span>
-            <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
+            <span className="relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-white">
               {t.image ? (
-                <img src={t.image} alt="" className="size-full object-contain" loading="lazy" />
+                <>
+                  <img src={t.image} alt="" className="size-full object-contain" loading="lazy" />
+                  <ZoomBadge src={t.image} />
+                </>
               ) : (
                 <Package className="size-5 text-muted-foreground" />
               )}

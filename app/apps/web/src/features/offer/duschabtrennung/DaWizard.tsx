@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { ChevronLeft, Pencil, Package } from "lucide-react";
 import { formatEUR } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ZoomBadge } from "@/components/ImageZoom";
 import * as E from "./daEngine";
 import { daImageUrl } from "./daModel";
 import type { WizardModel, WizardState } from "./daEngine";
@@ -104,7 +105,10 @@ export function DaWizard({
         {/* Leaf product preview */}
         {leafPrevVal && (
           <div className="flex items-center gap-3 rounded-lg border bg-card p-2.5">
-            <img src={daImageUrl(model, leafPrevVal.imageId)!} alt="" className="size-24 shrink-0 rounded-md border bg-white object-contain p-1" loading="lazy" />
+            <span className="relative block size-24 shrink-0">
+              <img src={daImageUrl(model, leafPrevVal.imageId)!} alt="" className="size-full rounded-md border bg-white object-contain p-1" loading="lazy" />
+              <ZoomBadge src={daImageUrl(model, leafPrevVal.imageId)!} />
+            </span>
             <span className="text-sm font-medium">{leafPrevVal.label}</span>
           </div>
         )}
@@ -160,8 +164,8 @@ function StepGrid({
           const img = daImageUrl(model, v.imageId);
           return (
             <button key={v.value} type="button" onClick={() => onPick(v.value)} className="flex flex-col items-center gap-2 rounded-lg border p-3 text-center transition-colors hover:border-primary hover:bg-accent">
-              <span className="flex h-24 w-full items-center justify-center overflow-hidden rounded-md border bg-white">
-                {img ? <img src={img} alt="" className="size-full object-contain p-1" loading="lazy" /> : <Package className="size-7 text-muted-foreground" />}
+              <span className="relative flex h-24 w-full items-center justify-center overflow-hidden rounded-md border bg-white">
+                {img ? <><img src={img} alt="" className="size-full object-contain p-1" loading="lazy" /><ZoomBadge src={img} /></> : <Package className="size-7 text-muted-foreground" />}
               </span>
               <span className="text-sm font-medium">{v.label}</span>
             </button>
