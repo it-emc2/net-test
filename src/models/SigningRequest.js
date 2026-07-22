@@ -14,7 +14,7 @@ const { Schema, model } = mongoose;
 
 const SignedDocumentSchema = new Schema(
   {
-    // 'angebot' | 'vollmacht' | 'abtretung'
+    // 'angebot' | 'vollmacht' | 'abtretung' | 'zusatzblatt' | 'abtretung_ah'
     key: { type: String, required: true, trim: true },
     status: {
       type: String,

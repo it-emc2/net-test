@@ -188,25 +188,37 @@ function safeOfferFilename(raw) {
   return `${String(raw || "Angebot").replace(/[^\w\-]+/g, "_")}.pdf`;
 }
 
-function buildEmailTextBody(body, contactName = "Stefan Wolfrum") {
+// AH (EmC2 Soziale Dienste UG) uses its own contact block, incl.
+// Steuer-Nr./Geschäftsführer; BU keeps the existing footer.
+function buildEmailTextBody(body, contactName = "Stefan Wolfrum", isAh = false) {
   const trimmed = String(body || "").trim();
-  const signature = [
-    "",
-    "--",
-    "Freundliche Grüße",
-    "",
-    contactName,
-    "",
-    "Ihr Team von emc2",
-    "",
-    "EmC2 Attila Landgrafe",
-    "Waldstr. 5 / 95032 Hof",
-    "",
-    "Tel.: +49 9281 5915900",
-    "Fax: +49 9281 5915909",
-    "Mail: service@e-m-c-2.de",
-    "Web: www.emczwei.de",
-  ].join("\n");
+  const footer = isAh
+    ? [
+        "emc2 Attila Landgrafe",
+        "Waldstraße 5",
+        "95032 Hof",
+        "Deutschland",
+        "",
+        "Tel.: 09281 5915900",
+        "Fax.: 09281 5915909",
+        "Email: kontakt@e-m-c-2.de",
+        "Web: emczwei.de",
+        "Hof/Saale",
+        "Steuer-Nr.: 223/147/40118",
+        "Geschäftsführer: Attila Landgrafe",
+      ]
+    : [
+        "EmC2 Attila Landgrafe",
+        "Waldstr. 5 / 95032 Hof",
+        "",
+        "Tel.: +49 9281 5915900",
+        "Fax: +49 9281 5915909",
+        "Mail: service@e-m-c-2.de",
+        "Web: www.emczwei.de",
+      ];
+  const signature = ["", "--", "Freundliche Grüße", "", contactName, "", "Ihr Team von emc2", "", ...footer].join(
+    "\n",
+  );
 
   return `${trimmed}${signature}`;
 }
@@ -460,10 +472,12 @@ router.post(
     ];
     const contactName =
       String(payload?.Kundendaten?.emc2_contact || "").trim() || "Stefan Wolfrum";
-    const textBody = buildEmailTextBody(body, contactName);
+    const isAh = String(offerType || "").toLowerCase() === "ah";
+    const textBody = buildEmailTextBody(body, contactName, isAh);
     const htmlBody = buildEmailHtml(body, {
       signatureCid: inlineAttachments.length ? signatureCid : null,
       contactName,
+      isAh,
     });
 
     // ---- Send via SMTP ----
