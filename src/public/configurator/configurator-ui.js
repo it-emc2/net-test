@@ -431,6 +431,16 @@ export function mountConfigurator(el, model, options = {}) {
         priceSpan.textContent = euro(line.article.net);
         row.appendChild(priceSpan);
 
+        if (line.article.sourceUrl) {
+          const gcLink = document.createElement("a");
+          gcLink.className = "dac-line-gc";
+          gcLink.href = line.article.sourceUrl;
+          gcLink.target = "_blank";
+          gcLink.rel = "noopener noreferrer";
+          gcLink.textContent = "open ↗";
+          row.appendChild(gcLink);
+        }
+
         list.appendChild(row);
       }
       productsCol.appendChild(list);
