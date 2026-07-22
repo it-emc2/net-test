@@ -14,7 +14,7 @@ const OFFER_TYPES: { key: string; label: string; enabled: boolean }[] = [
   { key: "bu", label: "BU · Badumbau", enabled: true },
   { key: "bwt", label: "BWT · Badewannentür", enabled: false },
   { key: "hl", label: "HL · Handlauf", enabled: false },
-  { key: "ah", label: "AH · Alltagshilfe", enabled: false },
+  { key: "ah", label: "AH · Alltagshilfe", enabled: true },
   { key: "bl", label: "BL · Badelift", enabled: false },
   { key: "hms", label: "HMS · Hausmeisterservice", enabled: false },
   { key: "wd", label: "WD · Winterdienst", enabled: false },
