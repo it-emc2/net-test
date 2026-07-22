@@ -16,8 +16,8 @@
   var container = el("docContainer");
 
   var state = { docs: [], index: 0 };
-  var sig = null; // current signature pad controller
-  var uploadedSig = null; // PNG data URL of an uploaded signature image, if any
+  var primarySig = null; // signature pad controller for #sigCanvas
+  var secondarySig = null; // signature pad controller for #sigCanvas2 (Bevollmächtigte/r), if present
 
   function showFatal(msg) {
     loading.classList.add("hidden");
@@ -156,58 +156,64 @@
     reader.readAsDataURL(file);
   }
 
-  function wireControls() {
-    uploadedSig = null;
-    var canvas = el("sigCanvas");
-    sig = canvas ? setupCanvas(canvas) : null;
-    if (sig) requestAnimationFrame(function () { sig.refit(); });
+  // Wires one signature pad (canvas + clear/type/upload controls) identified
+  // by id suffix ("" for the primary pad, "2" for a second, independent pad
+  // e.g. the Bevollmächtigte/r signature on the Zusatzblatt). Returns null if
+  // the document fragment doesn't have a canvas for this suffix.
+  function makeSigBlock(suffix) {
+    var canvas = el("sigCanvas" + suffix);
+    if (!canvas) return null;
+
+    var pad = setupCanvas(canvas);
+    requestAnimationFrame(function () { pad.refit(); });
+    var uploaded = null;
 
     function resetUpload() {
-      uploadedSig = null;
-      var up = el("sigUpload");
+      uploaded = null;
+      var up = el("sigUpload" + suffix);
       if (up) up.value = "";
-      var pv = el("sigPreview");
+      var pv = el("sigPreview" + suffix);
       if (pv) { pv.removeAttribute("src"); pv.classList.add("hidden"); }
     }
 
-    var clearBtn = el("clearSig");
+    var clearBtn = el("clearSig" + suffix);
     if (clearBtn) clearBtn.addEventListener("click", function () {
-      var tw = el("typeWrap");
-      var uw = el("uploadWrap");
+      var tw = el("typeWrap" + suffix);
+      var uw = el("uploadWrap" + suffix);
       if (uw && !uw.classList.contains("hidden")) { resetUpload(); }
-      else if (tw && !tw.classList.contains("hidden")) { el("typeName").value = ""; }
-      else if (sig) sig.clear();
+      else if (tw && !tw.classList.contains("hidden")) { el("typeName" + suffix).value = ""; }
+      else pad.clear();
     });
 
-    var toggle = el("toggleType");
+    var toggle = el("toggleType" + suffix);
     if (toggle) toggle.addEventListener("click", function () {
-      var w = el("typeWrap");
+      var w = el("typeWrap" + suffix);
       var hidden = w.classList.toggle("hidden");
       this.textContent = hidden ? "Namen tippen statt zeichnen" : "Doch lieber zeichnen";
       // Typing and uploading are mutually exclusive.
       if (!hidden) {
-        var uw = el("uploadWrap");
+        var uw = el("uploadWrap" + suffix);
         if (uw) uw.classList.add("hidden");
-        var ub = el("toggleUpload");
+        var ub = el("toggleUpload" + suffix);
         if (ub) ub.textContent = "Bild hochladen";
       }
     });
 
-    var uploadToggle = el("toggleUpload");
+    var uploadToggle = el("toggleUpload" + suffix);
     if (uploadToggle) uploadToggle.addEventListener("click", function () {
-      var uw = el("uploadWrap");
+      var uw = el("uploadWrap" + suffix);
       var hidden = uw.classList.toggle("hidden");
       this.textContent = hidden ? "Bild hochladen" : "Doch lieber zeichnen";
       // Uploading and typing are mutually exclusive.
       if (!hidden) {
-        var tw = el("typeWrap");
+        var tw = el("typeWrap" + suffix);
         if (tw) tw.classList.add("hidden");
-        var tb = el("toggleType");
+        var tb = el("toggleType" + suffix);
         if (tb) tb.textContent = "Namen tippen statt zeichnen";
       }
     });
 
-    var uploadInput = el("sigUpload");
+    var uploadInput = el("sigUpload" + suffix);
     if (uploadInput) uploadInput.addEventListener("change", function () {
       var box = el("docError");
       if (box) box.classList.add("hidden");
@@ -215,11 +221,33 @@
       if (!file) { resetUpload(); return; }
       fileToSignaturePng(file, function (dataUrl, err) {
         if (err) { resetUpload(); return showDocError(err); }
-        uploadedSig = dataUrl;
-        var pv = el("sigPreview");
+        uploaded = dataUrl;
+        var pv = el("sigPreview" + suffix);
         if (pv) { pv.src = dataUrl; pv.classList.remove("hidden"); }
       });
     });
+
+    return {
+      isFilled: function () {
+        var tw = el("typeWrap" + suffix);
+        var uw = el("uploadWrap" + suffix);
+        if (uw && !uw.classList.contains("hidden")) return !!uploaded;
+        if (tw && !tw.classList.contains("hidden")) return !!(el("typeName" + suffix).value || "").trim();
+        return pad.isDirty();
+      },
+      toPng: function () {
+        var tw = el("typeWrap" + suffix);
+        var uw = el("uploadWrap" + suffix);
+        if (uw && !uw.classList.contains("hidden")) return uploaded;
+        if (tw && !tw.classList.contains("hidden")) return typedNameToPng((el("typeName" + suffix).value || "").trim());
+        return pad.toPng();
+      },
+    };
+  }
+
+  function wireControls() {
+    primarySig = makeSigBlock("");
+    secondarySig = makeSigBlock("2");
 
     // Per-section edit toggle: unlock/lock that section's fields.
     container.querySelectorAll(".edit-toggle").forEach(function (btn) {
@@ -262,6 +290,10 @@
     if (entl) extraFields.entlastungsguthaben = entl.checked;
     var budgetWuM = el("budgetWuMCheckbox");
     if (budgetWuM) extraFields.budgetWuM = budgetWuM.checked;
+    var rechnungPost = el("rechnungPostCheckbox");
+    if (rechnungPost) extraFields.rechnungPost = rechnungPost.checked;
+    var rechnungEmail = el("rechnungEmailCheckbox");
+    if (rechnungEmail) extraFields.rechnungEmail = rechnungEmail.checked;
 
     // Collect any customer-corrected fields (editable-on-button sections).
     var editedFields = {};
@@ -271,21 +303,16 @@
     var pg = container.querySelector('input[name="pflegegrad"]:checked');
     if (pg) editedFields.pflegegrad = pg.value;
 
-    var signatureImage = null;
-    var tw = el("typeWrap");
-    var uw = el("uploadWrap");
-    var typing = tw && !tw.classList.contains("hidden");
-    var uploading = uw && !uw.classList.contains("hidden");
-    if (uploading) {
-      if (!uploadedSig) return showDocError("Bitte laden Sie ein Bild Ihrer Unterschrift hoch.");
-      signatureImage = uploadedSig;
-    } else if (typing) {
-      var name = (el("typeName").value || "").trim();
-      if (!name) return showDocError("Bitte geben Sie Ihren Namen ein.");
-      signatureImage = typedNameToPng(name);
-    } else {
-      if (!sig || !sig.isDirty()) return showDocError("Bitte unterschreiben Sie im Feld.");
-      signatureImage = sig.toPng();
+    if (!primarySig || !primarySig.isFilled()) return showDocError("Bitte unterschreiben Sie im Feld.");
+    var signatureImage = primarySig.toPng();
+
+    // Zusatzblatt: the optional Bevollmächtigte/r sub-section needs its own
+    // signature (2nd pad), but only once a name was actually entered there.
+    if (secondarySig && (editedFields.bevollmaechtigterName || "").trim()) {
+      if (!secondarySig.isFilled()) {
+        return showDocError("Bitte lassen Sie den/die Bevollmächtigte/n unterschreiben.");
+      }
+      extraFields.bevollmaechtigterSignature = secondarySig.toPng();
     }
 
     var submit = el("submitBtn");

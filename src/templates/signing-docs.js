@@ -104,12 +104,12 @@ function resolveFields(sr, doc) {
 }
 
 // A labelled field. display mode = disabled input (unlocked by the section's
-// edit button); pdf mode = plain text.
-function fld(label, key, value, mode) {
+// edit button) unless locked=false; pdf mode = plain text.
+function fld(label, key, value, mode, locked = true) {
   if (mode === "pdf") {
     return `<div class="row"><span class="label">${label}</span><span>${esc(value)}</span></div>`;
   }
-  return `<div class="fld"><span class="fld-label">${label}</span><input type="text" data-edit-field="${key}" value="${esc(value)}" disabled></div>`;
+  return `<div class="fld"><span class="fld-label">${label}</span><input type="text" data-edit-field="${key}" value="${esc(value)}"${locked ? " disabled" : ""}></div>`;
 }
 
 function pflegegradField(value, mode) {
@@ -135,24 +135,30 @@ function wrap(title, inner) {
 <title>${esc(title)}</title><style>${BASE_CSS}</style></head><body>${inner}</body></html>`;
 }
 
-function signatureBlock(doc, prefill) {
-  const name = `${doc.editedFields?.firstName || prefill?.firstName || ""} ${
-    doc.editedFields?.lastName || prefill?.lastName || ""
-  }`.trim();
+function signatureBlock(doc, prefill, opts = {}) {
+  const name =
+    opts.name != null
+      ? opts.name
+      : `${doc.editedFields?.firstName || prefill?.firstName || ""} ${
+          doc.editedFields?.lastName || prefill?.lastName || ""
+        }`.trim();
   const signedAt = doc.signedAt ? new Date(doc.signedAt) : new Date();
-  const img = doc.signatureImage
-    ? `<img class="sig-img" src="${doc.signatureImage}" alt="Unterschrift">`
-    : "";
-  return `
-    <h2>Unterschrift</h2>
-    <div class="row">${esc(doc.place || prefill?.city || "")}, ${signedAt.toLocaleDateString("de-DE")}</div>
-    ${img}
-    <div class="sig-line">${esc(name)}</div>
-    <div class="audit">
+  const image = opts.image !== undefined ? opts.image : doc.signatureImage;
+  const img = image ? `<img class="sig-img" src="${image}" alt="Unterschrift">` : "";
+  const audit =
+    opts.showAudit === false
+      ? ""
+      : `<div class="audit">
       Elektronisch signiert am ${signedAt.toLocaleString("de-DE")} ·
       IP: ${esc(doc.signedIp || "-")} ·
       über den Online-Signatur-Link der EmC2 Attila Landgrafe.
     </div>`;
+  return `
+    <h2>${esc(opts.heading || "Unterschrift")}</h2>
+    <div class="row">${esc(doc.place || prefill?.city || "")}, ${signedAt.toLocaleDateString("de-DE")}</div>
+    ${img}
+    <div class="sig-line">${esc(name)}</div>
+    ${audit}`;
 }
 
 // ---- interactive controls (rendered INSIDE the document in display mode) ----
@@ -203,24 +209,31 @@ const DOC_CSS = `
 `;
 
 // Interactive signature area (canvas + clear + type-name fallback + upload).
-function interactiveSignatureBlock() {
+// suffix distinguishes a second, independent signature pad on the same
+// document (e.g. the Bevollmächtigte/r signature on the Zusatzblatt) — the
+// front-end (signpage/app.js) wires up any block whose #sigCanvas<suffix>
+// exists.
+function interactiveSignatureBlock(opts = {}) {
+  const suffix = opts.suffix || "";
+  const heading = opts.heading || "Ihre Unterschrift";
+  const hint = opts.hint || "Bitte unterschreiben Sie mit dem Finger oder der Maus im Feld.";
   return `
-    <h2>Ihre Unterschrift</h2>
-    <p class="muted">Bitte unterschreiben Sie mit dem Finger oder der Maus im Feld.</p>
-    <canvas id="sigCanvas"></canvas>
+    <h2>${esc(heading)}</h2>
+    <p class="muted">${esc(hint)}</p>
+    <canvas id="sigCanvas${suffix}"></canvas>
     <div class="si-btnrow">
-      <button type="button" id="clearSig">Löschen</button>
-      <button type="button" class="si-linkbtn" id="toggleType">Namen tippen statt zeichnen</button>
-      <button type="button" class="si-linkbtn" id="toggleUpload">Bild hochladen</button>
+      <button type="button" id="clearSig${suffix}">Löschen</button>
+      <button type="button" class="si-linkbtn" id="toggleType${suffix}">Namen tippen statt zeichnen</button>
+      <button type="button" class="si-linkbtn" id="toggleUpload${suffix}">Bild hochladen</button>
     </div>
-    <div class="hidden" id="typeWrap">
+    <div class="hidden" id="typeWrap${suffix}">
       <div class="label">Ihr vollständiger Name</div>
-      <input type="text" id="typeName" placeholder="Vor- und Nachname">
+      <input type="text" id="typeName${suffix}" placeholder="Vor- und Nachname">
     </div>
-    <div class="hidden" id="uploadWrap">
+    <div class="hidden" id="uploadWrap${suffix}">
       <div class="label">Bild Ihrer Unterschrift (JPG oder PNG)</div>
-      <input type="file" id="sigUpload" accept="image/*">
-      <img id="sigPreview" class="sig-preview hidden" alt="Vorschau der hochgeladenen Unterschrift">
+      <input type="file" id="sigUpload${suffix}" accept="image/*">
+      <img id="sigPreview${suffix}" class="sig-preview hidden" alt="Vorschau der hochgeladenen Unterschrift">
     </div>`;
 }
 
@@ -742,5 +755,141 @@ export function buildAbtretungHtml(sr, doc, mode = "pdf") {
     §40 SGB XI direkt mit der Pflegekasse abrechnen darf.</p>`;
 
   if (mode === "pdf") return wrap("Abtretungserklärung", body + signatureBlock(doc, f));
+  return displayFragment(body + interactiveSignatureBlock() + submitBar("Unterschreiben & absenden"));
+}
+
+// ---- AH (Alltagshilfe) — Zusatzblatt + Abtretungserklärung §45b SGB XI ----
+
+// Optional Bevollmächtigte/r block: two free-typed contact fields (no
+// pre-filled value to protect, so unlike fld() they start unlocked) plus,
+// only when a name is given, their own signature (captured via the second
+// interactiveSignatureBlock({ suffix: "2" }) pad).
+function bevollmaechtigterBox(doc, mode) {
+  const bevName = doc.editedFields?.bevollmaechtigterName || "";
+  const bevPhone = doc.editedFields?.bevollmaechtigterTelefon || "";
+  return `<div class="box">
+    ${fld("Nachname, Vorname Bevollmächtigte/r / abweichender Ansprechpartner:", "bevollmaechtigterName", bevName, mode, false)}
+    ${fld("Telefon:", "bevollmaechtigterTelefon", bevPhone, mode, false)}
+  </div>`;
+}
+
+function rechnungsversandBox(doc, prefill, mode) {
+  const post = !!doc.extraFields?.rechnungPost;
+  const perEmail = !!doc.extraFields?.rechnungEmail;
+  const emailAdresse = doc.editedFields?.rechnungEmailAdresse || prefill?.email || "";
+  if (mode === "pdf") {
+    return `<div class="box">
+      <div class="opt">${post ? "☒" : "☐"} Ich möchte immer eine Rechnungskopie per Post erhalten. <sup>1)</sup></div>
+      <div class="opt">${perEmail ? "☒" : "☐"} Ich möchte immer eine Rechnungskopie per E-Mail erhalten. <sup>1)</sup></div>
+      <div class="row"><span class="label">E-Mail-Adresse:</span><span>${esc(emailAdresse)}</span></div>
+    </div>`;
+  }
+  return `<div class="box">
+    <label class="opt-label"><input type="checkbox" id="rechnungPostCheckbox"><span>Ich möchte immer eine Rechnungskopie per Post erhalten. <sup>1)</sup></span></label>
+    <label class="opt-label"><input type="checkbox" id="rechnungEmailCheckbox"><span>Ich möchte immer eine Rechnungskopie per E-Mail erhalten. <sup>1)</sup></span></label>
+    ${fld("E-Mail-Adresse:", "rechnungEmailAdresse", emailAdresse, mode, false)}
+  </div>`;
+}
+
+export function buildZusatzblattHtml(sr, doc, mode = "pdf") {
+  const f = resolveFields(sr, doc);
+  const custName = `${f.firstName} ${f.lastName}`.trim();
+  const bevName = doc.editedFields?.bevollmaechtigterName || "";
+
+  // The Bevollmächtigte/r signature only exists (in the PDF) when a name was
+  // actually given — it is an optional sub-section of an optional section.
+  const bevSignatureHtml =
+    mode === "pdf"
+      ? bevName
+        ? signatureBlock(doc, f, {
+            heading: "Unterschrift Bevollmächtigte/r",
+            name: bevName,
+            image: doc.extraFields?.bevollmaechtigterSignature || "",
+            showAudit: false,
+          })
+        : `<div class="row"><span class="label">Unterschrift Bevollmächtigte/r:</span><span>–</span></div>`
+      : interactiveSignatureBlock({
+          suffix: "2",
+          heading: "Unterschrift Bevollmächtigte/r",
+          hint: "Nur ausfüllen, wenn oben ein/e Bevollmächtigte/r bzw. abweichende/r Ansprechpartner/in angegeben wurde.",
+        });
+
+  const body = `
+    ${docHeader()}
+    <h1>Wichtige Hinweise zum Angebot / zu Terminen</h1>
+    <p>Die Termine können aufgrund unvorhersehbarer Ereignisse (z.&nbsp;B. Verkehrslage) hinsichtlich des Start- u. Endzeitpunktes variieren. Wir bitten dafür um Verständnis!</p>
+    <p>Die Leistungen sind nach §4 Nr. 16 (g) UStG von der Umsatzsteuer befreit.</p>
+    <p>Die Abrechnung erfolgt im 5-Minuten-Takt, je angefangene 5 Minuten nach tatsächlichem Aufwand lt. Leistungsnachweis zum Monatsende entweder:</p>
+    <p>I) direkt über Ihre Kranken- bzw. Pflegekasse, wenn Sie gesetzlich versichert sind. Dazu muss uns vor Auftragsbeginn die Abtretungserklärung vollständig ausgefüllt und unterschrieben vorliegen.</p>
+    <p class="muted">oder</p>
+    <p>II) über Sie direkt, wenn Sie privatversichert bzw. beihilfeberechtigt sind. Dazu erhalten Sie von uns eine Rechnung, die von Ihnen bei Ihrer privaten Kranken- bzw. Pflegekasse eingereicht wird.</p>
+    <p>Es gelten unsere Allgemeinen Geschäftsbedingungen sowie unsere Datenschutzerklärung, diese finden Sie im Anhang und jederzeit unter: https://agb.emczwei.de bzw. https://datenschutz.emczwei.de. Mit Ihrer Unterschrift stimmen Sie diesen zu.</p>
+
+    <h2>Vollmacht / Abweichender Ansprechpartner (optionale Angabe)</h2>
+    <p class="muted">Wurde der Auftrag in Vollmacht für den Auftraggeber bestätigt oder erfolgt im Zuge der Auftragsumsetzung die Kommunikation auch mit einem/r vom Auftraggeber Bevollmächtigten, bitten wir um Angabe der Kontaktdaten:</p>
+    ${bevollmaechtigterBox(doc, mode)}
+    <p class="muted">Hiermit bestätige ich, dass ich in Vollmacht für den Auftraggeber agiere und entsprechend befugt bin:</p>
+    ${bevSignatureHtml}
+
+    <h2>Rechnungsversand (optionale Angabe)</h2>
+    ${rechnungsversandBox(doc, f, mode)}
+    <p class="muted" style="font-size:10.5pt;"><sup>1)</sup> Für unseren Mehraufwand, wenn wir Ihnen die Kopie der Kassenrechnung per Post oder E-Mail zusenden, müssen wir je Rechnungsversand eine Gebühr von 3,00&nbsp;€ inkl. MwSt. berechnen.</p>
+
+    <p>Hiermit bestätige ich, <strong>${esc(custName)}</strong>, dass ich das Dokument zur Kenntnis genommen habe:</p>`;
+
+  if (mode === "pdf") {
+    return wrap(
+      "Wichtige Hinweise zum Angebot / zu Terminen",
+      body + signatureBlock(doc, f, { heading: "Datum, Unterschrift" }),
+    );
+  }
+  return displayFragment(
+    body +
+      interactiveSignatureBlock({
+        heading: "Datum, Unterschrift",
+        hint: "Bitte unterschreiben Sie hier, um zu bestätigen, dass Sie das Dokument zur Kenntnis genommen haben.",
+      }) +
+      submitBar("Unterschreiben & absenden"),
+  );
+}
+
+export function buildAbtretungAhHtml(sr, doc, mode = "pdf") {
+  const f = resolveFields(sr, doc);
+  const editBtn = mode === "pdf" ? "" : " " + editButton();
+  const body = `
+    ${docHeader()}
+    <h1>Abtretungserklärung für zusätzliche Betreuungsleistungen § 45b SGB XI</h1>
+    <div class="editsec">
+      <h2>Kontaktdaten Auftraggeber${editBtn}</h2>
+      <div class="box">
+        ${fld("Nachname:", "lastName", f.lastName, mode)}
+        ${fld("Vorname:", "firstName", f.firstName, mode)}
+        ${fld("Geburtstag:", "geburtsdatum", f.geburtsdatum, mode)}
+        ${fld("Vers.-Nr.:", "kk_versichertennr", f.kk_versichertennr, mode)}
+        ${fld("Straße:", "street", f.street, mode)}
+        ${fld("PLZ:", "postalCode", f.postalCode, mode)}
+        ${fld("Ort:", "city", f.city, mode)}
+        ${fld("Telefon:", "phone", f.phone, mode)}
+        ${fld("E-Mail:", "email", f.email, mode)}
+        ${pflegegradField(f.pflegegrad, mode)}
+        ${fld("Pflegegrad seit:", "kk_pflegegradSeit", f.kk_pflegegradSeit, mode)}
+      </div>
+    </div>
+    <div class="editsec">
+      <h2>Kontaktdaten Pflegekasse${editBtn}</h2>
+      <div class="box">
+        ${fld("Name:", "kassenkundeName", f.kassenkundeName, mode)}
+        ${fld("Adresse:", "kk_krankenkasseAdresse", f.kk_krankenkasseAdresse, mode)}
+      </div>
+    </div>
+    <p class="muted">Hiermit erteile ich eine Abtretungserklärung und mein Einverständnis, dass der Anbieter
+    EmC2 Soziale Dienste UG (haftungsbeschränkt), Waldstraße 5, 95032 Hof</p>
+    <ul style="margin:8px 0 8px 22px;padding:0;">
+      <li>die Leistungen nach § 45b SGB XI direkt mit der Pflegekasse abrechnen darf.</li>
+      <li>mein aktuelles Entlastungsguthaben regelmäßig bei der Pflegekasse abfragen darf.</li>
+    </ul>`;
+
+  if (mode === "pdf")
+    return wrap("Abtretungserklärung § 45b SGB XI", body + signatureBlock(doc, f));
   return displayFragment(body + interactiveSignatureBlock() + submitBar("Unterschreiben & absenden"));
 }

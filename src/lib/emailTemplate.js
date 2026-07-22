@@ -118,7 +118,52 @@ export function renderBodyHtmlFromText(body) {
   return parts.join("");
 }
 
-export function buildEmailHtml(body, { signatureCid = null, contactName = "Stefan Wolfrum" } = {}) {
+// BU footer (default) vs AH footer (EmC2 Soziale Dienste UG contact block,
+// incl. Steuer-Nr./Geschäftsführer). Selected via isAh.
+function footerHtml(isAh) {
+  const p = (text, extraMargin) =>
+    `<p style="margin:0${extraMargin ? ` 0 ${extraMargin}px 0` : ""};line-height:1.5;color:#364047;font-size:16px;">${text}</p>`;
+
+  if (isAh) {
+    return [
+      p("emc2 Attila Landgrafe"),
+      p("Waldstraße 5"),
+      p("95032 Hof"),
+      p("Deutschland", 22),
+      p("Tel.: 09281 5915900"),
+      p("Fax.: 09281 5915909"),
+      p(
+        'Email: <a href="mailto:kontakt@e-m-c-2.de" style="color:#00a86b;text-decoration:none;">kontakt@e-m-c-2.de</a>',
+      ),
+      p(
+        'Web: <a href="https://emczwei.de" style="color:#00a86b;text-decoration:none;">emczwei.de</a>',
+        22,
+      ),
+      p("Hof/Saale"),
+      p("Steuer-Nr.: 223/147/40118"),
+      p("Geschäftsführer: Attila Landgrafe", 24),
+    ].join("\n      ");
+  }
+
+  return [
+    p("EmC2 Attila Landgrafe"),
+    p("Waldstr. 5 / 95032 Hof", 22),
+    p("Tel.: +49 9281 5915900"),
+    p("Fax: +49 9281 5915909"),
+    p(
+      'Mail: <a href="mailto:service@e-m-c-2.de" style="color:#00a86b;text-decoration:none;">service@e-m-c-2.de</a>',
+    ),
+    p(
+      'Web: <a href="https://www.emczwei.de" style="color:#00a86b;text-decoration:none;">www.emczwei.de</a>',
+      24,
+    ),
+  ].join("\n      ");
+}
+
+export function buildEmailHtml(
+  body,
+  { signatureCid = null, contactName = "Stefan Wolfrum", isAh = false } = {},
+) {
   const signatureImageHtml = signatureCid
     ? `<div style="margin:0 0 24px 0;"><img src="cid:${signatureCid}" alt="Signatur emc2" style="display:block;max-width:220px;width:220px;height:auto;border:0;" /></div>`
     : "";
@@ -139,12 +184,7 @@ export function buildEmailHtml(body, { signatureCid = null, contactName = "Stefa
       ${contactNameHtml}
       <p style="margin:0 0 28px 0;line-height:1.5;color:#364047;font-size:16px;">Ihr Team von emc2</p>
       <p style="margin:0 0 18px 0;line-height:1.5;color:#364047;font-size:16px;">______________________________</p>
-      <p style="margin:0;line-height:1.5;color:#364047;font-size:16px;">EmC2 Attila Landgrafe</p>
-      <p style="margin:0 0 22px 0;line-height:1.5;color:#364047;font-size:16px;">Waldstr. 5 / 95032 Hof</p>
-      <p style="margin:0;line-height:1.5;color:#364047;font-size:16px;">Tel.: +49 9281 5915900</p>
-      <p style="margin:0;line-height:1.5;color:#364047;font-size:16px;">Fax: +49 9281 5915909</p>
-      <p style="margin:0;line-height:1.5;color:#364047;font-size:16px;">Mail: <a href="mailto:service@e-m-c-2.de" style="color:#00a86b;text-decoration:none;">service@e-m-c-2.de</a></p>
-      <p style="margin:0 0 24px 0;line-height:1.5;color:#364047;font-size:16px;">Web: <a href="https://www.emczwei.de" style="color:#00a86b;text-decoration:none;">www.emczwei.de</a></p>
+      ${footerHtml(isAh)}
       ${signatureImageHtml}
       <p style="margin:0;line-height:1.7;color:#364047;font-size:12px;">
         Diese E-Mail enthält vertrauliche und/oder rechtlich geschützte Informationen. Der Inhalt dieser E-Mail ist ausschließlich für den bezeichneten Adressaten bestimmt. Bitte beachten Sie in diesem Fall, dass jede Form der Kenntnisnahme, Veröffentlichung, Vervielfältigung oder Weitergabe des Inhalts dieser E-Mail unzulässig ist. Wenn Sie nicht der richtige Adressat bzw. sein Vertreter sind oder diese E-Mail irrtümlich erhalten haben, informieren Sie bitte sofort den Absender und vernichten Sie diese E-Mail. Vielen Dank.
