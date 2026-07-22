@@ -95,8 +95,8 @@ const isEmpty = (v: unknown): boolean => v == null || String(v).trim() === "";
 // Bitrix German honorific codes → salutation (explicit; avoids fuzzy matches).
 function salutationFrom(honorific: unknown): string {
   const h = String(honorific || "").toUpperCase();
-  if (h === "HNR_DE_1") return "Herr";
-  if (h === "HNR_DE_2") return "Frau";
+  if (h === "HNR_DE_1") return "Frau";
+  if (h === "HNR_DE_2") return "Herr";
   return "";
 }
 
