@@ -10,6 +10,7 @@ import { CustomerDetailPage } from "@/pages/CustomerDetailPage";
 import { ProductsPage } from "@/pages/ProductsPage";
 import { ProductDetailPage } from "@/pages/ProductDetailPage";
 import { OfferBuilderPage } from "@/pages/OfferBuilderPage";
+import { AhOfferBuilderPage } from "@/pages/AhOfferBuilderPage";
 import { AngebotEntryPage } from "@/pages/AngebotEntryPage";
 import { EntwuerfePage } from "@/pages/EntwuerfePage";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
@@ -26,6 +27,7 @@ export default function App() {
             <Route index element={<HomePage />} />
             <Route path="angebote" element={<AngebotEntryPage />} />
             <Route path="angebote/bu" element={<OfferBuilderPage />} />
+            <Route path="angebote/ah" element={<AhOfferBuilderPage />} />
             <Route path="entwuerfe" element={<EntwuerfePage />} />
             <Route path="kunden" element={<CustomersPage />} />
             <Route path="kunden/:id" element={<CustomerDetailPage />} />

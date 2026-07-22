@@ -395,7 +395,7 @@ export function StepHeader({ title, hint }: { title: string; hint?: string }) {
   );
 }
 
-function CollapsibleSection({
+export function CollapsibleSection({
   title,
   defaultOpen = false,
   children,
@@ -416,7 +416,7 @@ function CollapsibleSection({
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-4">
       <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h2>
@@ -425,7 +425,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
@@ -434,7 +434,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function ChoiceGroup({
+export function ChoiceGroup({
   value,
   onChange,
   options,
@@ -466,7 +466,7 @@ function ChoiceGroup({
   );
 }
 
-function PayerButton({
+export function PayerButton({
   current,
   value,
   label,
