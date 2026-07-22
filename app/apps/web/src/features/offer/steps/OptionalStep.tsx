@@ -148,6 +148,7 @@ function ItemTile({
 
       {sel && (
         <div className="mt-2 space-y-2 border-t pt-2">
+          {item.images.length > 1 && <Carousel images={item.images} />}
           <div className="flex items-center gap-2">
             <Label className="normal-case">Menge</Label>
             <Input inputMode="numeric" value={String(qtyOf(item.productId))} onChange={(e) => onQty(Number(e.target.value))} className="h-8 w-20" />

@@ -60,14 +60,18 @@ export const OPTIONAL_CATALOG_SEED: OptionalCategoryDef[] = [
     label: "Waschtischarmatur",
     order: 6,
     selection: "multi",
-    items: [{ productId: "CL" }, { productId: "DEPOH" }],
+    items: [{ productId: "CL", extraImages: ["/assets/acc/CL.jpg"] }, { productId: "DEPOH" }],
   },
   {
     id: "cat_SEAT",
     label: "Duschsitz / Hocker",
     order: 7,
     selection: "multi",
-    items: [{ productId: "DEPKS" }, { productId: "CLPESDH" }, { productId: "78090000" }],
+    items: [
+      { productId: "DEPKS" },
+      { productId: "CLPESDH" },
+      { productId: "78090000", extraImages: ["/assets/acc/78090000.jpg"] },
+    ],
   },
   {
     id: "cat_WC",
@@ -80,9 +84,9 @@ export const OPTIONAL_CATALOG_SEED: OptionalCategoryDef[] = [
     //  - items WITH a companion (the matching WC-Sitz) = selectable WC models (single-select)
     items: [
       { productId: "CVIS3WCT112" },
-      { productId: "SCHALL" },
+      { productId: "SCHALL", extraImages: ["/assets/wc/SCHALL.jpg"] },
       { productId: "V1DON" },
-      { productId: "0601010003" },
+      { productId: "0601010003", extraImages: ["/assets/wc/Gipskarton.jpg"] },
       // WC product shots sourced from the legacy configurator assets.
       { productId: "DERWWCOSVP", extraImages: ["/assets/wc/DERWWCOSVP.jpg"], companions: [{ productId: "DERSIAS", qtyRatio: 1 }] },
       {
@@ -161,7 +165,7 @@ export const OPTIONAL_CATALOG_SEED: OptionalCategoryDef[] = [
     label: "Rampe",
     order: 10,
     selection: "multi",
-    items: [{ productId: "RAMPE35" }],
+    items: [{ productId: "RAMPE35", extraImages: ["/assets/acc/RAMPE35.jpg"] }],
   },
   {
     id: "cat_WESGH",
@@ -169,6 +173,23 @@ export const OPTIONAL_CATALOG_SEED: OptionalCategoryDef[] = [
     order: 11,
     selection: "multi",
     items: [{ productId: "WESGH" }],
+  },
+  {
+    id: "cat_DUSCHKORB",
+    label: "Duschzubehör",
+    order: 11.5,
+    selection: "multi",
+    items: [
+      {
+        productId: "DUSCHKORB01",
+        extraImages: [
+          "/assets/duschkorb/DUSCHKORB01_1.jpg",
+          "/assets/duschkorb/DUSCHKORB01_2.jpg",
+          "/assets/duschkorb/DUSCHKORB01_3.jpg",
+          "/assets/duschkorb/DUSCHKORB01_4.jpg",
+        ],
+      },
+    ],
   },
   {
     id: "cat_SONDER",
