@@ -102,7 +102,14 @@ export async function trySaveOrQueue({ kind, offerKey, url, body }) {
 
 // Sweeps every queued record. Called on reconnect and on page load.
 export async function retryAll() {
-  const records = await getAllRecords();
+  // getAll() orders by the primary key (a random UUID), not creation time —
+  // sort by createdAt so multiple queued saves for the same offer replay
+  // oldest-first. /api/offers upserts by offerNumber, so replay order is
+  // what determines the final state on the server: out-of-order replay
+  // could let an older snapshot silently overwrite a newer one.
+  const records = (await getAllRecords()).sort((a, b) =>
+    a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0,
+  );
   let syncedCount = 0;
 
   for (const record of records) {
