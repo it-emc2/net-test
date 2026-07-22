@@ -3912,6 +3912,9 @@ function buildPayload() {
       if ("duschwanne[workTasks][]" in payload.duschwanne) {
         delete payload.duschwanne["duschwanne[workTasks][]"];
       }
+
+      const wvHoehe = String(fdDW.get("duschwanne[wandverkleidungHoehe]") || "").trim();
+      if (wvHoehe) dw.wandverkleidungHoehe = wvHoehe;
     }
   } catch (e) {
     console.warn("[buildPayload] workTasks normalization failed:", e);
@@ -12819,6 +12822,11 @@ function restoreWorkTasks(dw) {
       cb.dispatchEvent(new Event("change", { bubbles: true }));
     });
     break; // stop after the group we found
+  }
+
+  const wvInput = document.querySelector('input[name="duschwanne[wandverkleidungHoehe]"]');
+  if (wvInput && dw.wandverkleidungHoehe != null) {
+    wvInput.value = String(dw.wandverkleidungHoehe);
   }
 }
 

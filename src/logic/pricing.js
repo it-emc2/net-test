@@ -406,6 +406,13 @@ function grossToNet(gross, taxRate) {
     const dwTasks = normalizeDWTasks(payload);
     for (const key of dwTasks) {
       const k = String(key).trim();
+      if (k === "wandverkleidung_duschbereich") {
+        const cm = String(payload?.duschwanne?.wandverkleidungHoehe ?? "").trim();
+        picked.add(
+          `Wandverkleidung in Duschbereich${cm ? ` bis in einer Höhe von ${cm} cm` : ""}`,
+        );
+        continue;
+      }
       const mapped = MAP_DW[k];
       picked.add(mapped || k); // <-- keep free-text as-is if no mapping exists
     }

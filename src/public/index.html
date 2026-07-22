@@ -3385,6 +3385,18 @@ button.dm-btn-danger:focus-visible {
                       <span class="task-card__hint">Montage & Befestigung</span>
                     </span>
                   </label>
+                  <label class="task-card">
+                    <input type="checkbox" name="duschwanne[workTasks][]" value="wandverkleidung_duschbereich" />
+                    <span class="task-card__body">
+                      <span class="task-card__title">
+                        Wandverkleidung in Duschbereich bis in einer Höhe von
+                        <input type="number" name="duschwanne[wandverkleidungHoehe]" min="0" step="1"
+                          inputmode="numeric" placeholder="___" style="width:5em"
+                          onclick="event.preventDefault();event.stopPropagation();" /> cm
+                      </span>
+                      <span class="task-card__hint">Montage & Verkleidung im Duschbereich</span>
+                    </span>
+                  </label>
                 </div>
               </details>
 
