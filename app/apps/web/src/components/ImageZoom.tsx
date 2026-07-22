@@ -24,25 +24,33 @@ export function ImageZoom({ src, alt = "", className }: { src: string; alt?: str
   );
 }
 
-// A small magnifier badge to drop inside an existing image frame (which must be
-// `relative`). Enlarges the image without hijacking the frame's own click, so it
-// works even when the image lives inside a selection tile. Place next to the <img>.
+// A transparent overlay that covers an image frame (which must be `relative`) and
+// enlarges the image on click. Clicking the image opens the dialog; the click does
+// not bubble, so a surrounding selection tile still selects when clicked elsewhere.
+// A <span> (not a <button>) so it stays valid HTML inside a selector <button>.
 export function ZoomBadge({ src, alt = "" }: { src: string; alt?: string }) {
   const [open, setOpen] = useState(false);
+  const openZoom = (e: { stopPropagation: () => void; preventDefault: () => void }) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setOpen(true);
+  };
   return (
     <>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          setOpen(true);
-        }}
+      <span
+        role="button"
+        tabIndex={0}
         aria-label="Bild vergrößern"
-        className="absolute right-0.5 top-0.5 z-10 flex size-5 items-center justify-center rounded-full bg-background/85 text-muted-foreground shadow-sm ring-1 ring-border transition-colors hover:text-primary"
+        onClick={openZoom}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") openZoom(e);
+        }}
+        className="group absolute inset-0 z-10 flex cursor-zoom-in items-start justify-end p-0.5"
       >
-        <ZoomIn className="size-3" />
-      </button>
+        <span className="flex size-5 items-center justify-center rounded-full bg-background/85 text-muted-foreground opacity-0 shadow-sm ring-1 ring-border transition-opacity group-hover:opacity-100">
+          <ZoomIn className="size-3" />
+        </span>
+      </span>
       <ZoomDialog src={src} alt={alt} open={open} setOpen={setOpen} />
     </>
   );
