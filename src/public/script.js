@@ -6096,8 +6096,9 @@ fetch("/admin/api/config/public")
     "Jährlich":          1 / 12,
   };
 
-  // HnD-only "optimize Dauer" button: fit under the (2025) monthly Entlastungsbetrag.
+  // "Optimize Dauer" button: fit under the (2025) monthly Entlastungsbetrag.
   var STUNDENSATZ_HND = 40.56;
+  var STUNDENSATZ_AB  = 53.04;
   var ANFAHRT_PER_EINSATZ = 7.96;
   // Toggle: also count Anfahrtspauschale + Reisezeit (from getAHZoneData()) toward
   // the 131,40€ fit, so the *total* invoice price (not just the service time) stays
@@ -6355,7 +6356,7 @@ fetch("/admin/api/config/public")
 
     // — card-level schedule section (multi-row) —
     var isHnd = type === "Haushaltsnahedienstleistungen";
-    var SCHED_COL = isHnd ? "84px 1fr 84px 24px 24px" : "84px 1fr 84px 24px";
+    var SCHED_COL = "84px 1fr 84px 24px 24px";
 
     var schedSection = document.createElement("div");
     schedSection.style.cssText = "border:1px solid var(--border); border-radius:6px; overflow:hidden;";
@@ -6365,7 +6366,7 @@ fetch("/admin/api/config/public")
       "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center;" +
       "padding:4px 12px 3px; font-size:0.7rem; font-weight:600; color:var(--muted); user-select:none;" +
       "background:var(--panel); border-bottom:1px solid var(--border);";
-    schedHdr.innerHTML = "<span>Dauer (Std:Min)</span><span>Regelmäßigkeit</span><span style='text-align:right; color:var(--accent,#0ea5e9);'>/ Monat</span><span></span>" + (isHnd ? "<span></span>" : "");
+    schedHdr.innerHTML = "<span>Dauer (Std:Min)</span><span>Regelmäßigkeit</span><span style='text-align:right; color:var(--accent,#0ea5e9);'>/ Monat</span><span></span><span></span>";
 
     var schedRowsContainer = document.createElement("div");
     schedRowsContainer.className = "ah-sched-rows";
@@ -6484,9 +6485,11 @@ fetch("/admin/api/config/public")
       row.appendChild(rRegelSel);
       row.appendChild(rRowTotal);
 
-      // HnD only: snap Dauer to the largest 5-min multiple whose monthly
-      // price still fits under the Entlastungsbetrag. Anfahrt/Reisezeit are
-      // folded in when OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT is true.
+      // Snap Dauer to the largest 5-min multiple whose monthly price still
+      // fits under the Entlastungsbetrag, using the row's own hourly rate
+      // (HnD vs. Alltagsbegleitung). Anfahrt/Reisezeit are folded in when
+      // OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT is true.
+      var STUNDENSATZ = isHnd ? STUNDENSATZ_HND : STUNDENSATZ_AB;
       function optimizeDauerForEntlastungsbetrag() {
         var toggle = document.getElementById("ahEntlastungAuto");
         if (!toggle || !toggle.checked) return;
@@ -6504,7 +6507,7 @@ fetch("/admin/api/config/public")
         var bestMins = 0;
         for (var m = 5; m <= 480; m += 5) {
           var price = Math.round(
-            (freq * anfahrtPerEinsatz + (m / 60 + reisezeitH) * freq * STUNDENSATZ_HND) * 100
+            (freq * anfahrtPerEinsatz + (m / 60 + reisezeitH) * freq * STUNDENSATZ) * 100
           ) / 100;
           if (price > window.__entlastungsbetragMonat) break;
           bestMins = m;
@@ -6516,21 +6519,19 @@ fetch("/admin/api/config/public")
         doUpdateTotals();
       }
 
-      if (isHnd) {
-        var rOptBtn = document.createElement("button");
-        rOptBtn.type = "button";
-        rOptBtn.title = "Dauer auf Entlastungsbetrag (" + window.__entlastungsbetragMonat + " €/Monat) optimieren";
-        rOptBtn.textContent = "⚡";
-        rOptBtn.style.cssText =
-          "background:none; border:1px solid var(--border); border-radius:4px;" +
-          "font-size:0.85rem; line-height:1; cursor:pointer; color:var(--accent,#0ea5e9);" +
-          "width:22px; height:22px; display:flex; align-items:center; justify-content:center; padding:0;";
-        rOptBtn.addEventListener("click", optimizeDauerForEntlastungsbetrag);
-        row.appendChild(rOptBtn);
+      var rOptBtn = document.createElement("button");
+      rOptBtn.type = "button";
+      rOptBtn.title = "Dauer auf Entlastungsbetrag (" + window.__entlastungsbetragMonat + " €/Monat) optimieren";
+      rOptBtn.textContent = "⚡";
+      rOptBtn.style.cssText =
+        "background:none; border:1px solid var(--border); border-radius:4px;" +
+        "font-size:0.85rem; line-height:1; cursor:pointer; color:var(--accent,#0ea5e9);" +
+        "width:22px; height:22px; display:flex; align-items:center; justify-content:center; padding:0;";
+      rOptBtn.addEventListener("click", optimizeDauerForEntlastungsbetrag);
+      row.appendChild(rOptBtn);
 
-        // Auto-optimize whenever the user picks/changes Regelmäßigkeit.
-        rRegelSel.addEventListener("change", optimizeDauerForEntlastungsbetrag);
-      }
+      // Auto-optimize whenever the user picks/changes Regelmäßigkeit.
+      rRegelSel.addEventListener("change", optimizeDauerForEntlastungsbetrag);
 
       row.appendChild(rRemoveBtn);
       return row;
