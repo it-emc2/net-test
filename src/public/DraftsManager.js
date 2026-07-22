@@ -226,16 +226,24 @@ export function initDraftsManager(options = {}) {
       throw new Error("Keine Daten zum Speichern gefunden.");
     }
 
-    const res = await fetch(cfg.apiBase, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        name: trimmedName,
-        offerType,
-        payload,
-      }),
+    const queue = await import("./OfflineSaveQueue.js");
+    const { queued, res } = await queue.trySaveOrQueue({
+      kind: "draft",
+      offerKey: `draft:${offerType}:${trimmedName}`,
+      url: cfg.apiBase,
+      body: { name: trimmedName, offerType, payload },
     });
+
+    if (queued) {
+      lastLoadedDraftMeta = {
+        id: null,
+        name: trimmedName,
+        offerType: String(offerType || "bu").toLowerCase(),
+        updatedAt: new Date().toISOString(),
+        pending: true,
+      };
+      return { queued: true, name: trimmedName, offerType };
+    }
 
     if (res.status === 409) {
       const body = await res.json().catch(() => ({}));
@@ -256,13 +264,17 @@ export function initDraftsManager(options = {}) {
       updatedAt: new Date().toISOString(),
     };
 
-    return data;
+    return { ...data, queued: false };
   }
 
   async function quickSaveCurrentDraft() {
     const name = buildDraftDefaultName();
-    await saveDraftWithName(name);
-    cfg.toast?.(`Entwurf gespeichert: ${name}`, "success");
+    const result = await saveDraftWithName(name);
+    if (result?.queued) {
+      cfg.toast?.(`Offline gespeichert – wird automatisch synchronisiert: ${name}`, "warn");
+    } else {
+      cfg.toast?.(`Entwurf gespeichert: ${name}`, "success");
+    }
     return name;
   }
 
@@ -512,8 +524,12 @@ export function initDraftsManager(options = {}) {
 
       try {
         btn.disabled = true;
-        await saveDraftWithName(value);
-        cfg.toast?.(`Entwurf gespeichert: ${value}`, "success");
+        const result = await saveDraftWithName(value);
+        if (result?.queued) {
+          cfg.toast?.(`Offline gespeichert – wird automatisch synchronisiert: ${value}`, "warn");
+        } else {
+          cfg.toast?.(`Entwurf gespeichert: ${value}`, "success");
+        }
         closeModalNow();
       } catch (e) {
         console.error(e);

@@ -13913,6 +13913,20 @@ const RESTORE_HANDLERS = {
     }
   })();
 
+  window.__offlineQueueReady = window.__offlineQueueReady || (async () => {
+    try {
+      await __domReady();
+      // Unconditional — no feature flag: offline-safe saving must always be active.
+      const mod = await import("./OfflineSaveQueue.js");
+      window.__managers.offlineSaveQueue = mod;
+      __startupLog("[OfflineSaveQueue] initialized");
+      return mod;
+    } catch (e) {
+      __startupWarn("[OfflineSaveQueue] init failed:", e);
+      return null;
+    }
+  })();
+
   window.__integrationsReady = window.__integrationsReady || (async () => {
     try {
       await __domReady();
@@ -15174,19 +15188,35 @@ async function saveFinalOfferSnapshot() {
 
   // 6) Persist finished offer snapshot
   try {
-    await fetch("/api/offers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        offerNumber,
-        offerType,
-        payload: filteredPayload,
-        pricing,
-      }),
+    const queue = await import("./OfflineSaveQueue.js");
+    const { queued, res } = await queue.trySaveOrQueue({
+      kind: "offer",
+      offerKey: offerNumber,
+      url: "/api/offers",
+      body: { offerNumber, offerType, payload: filteredPayload, pricing },
     });
+
+    if (queued) {
+      window.toast?.warn?.(
+        "Offline",
+        `Angebot ${offerNumber} wird automatisch synchronisiert, sobald wieder online.`,
+      );
+      return;
+    }
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      window.toast?.error?.(
+        "Speichern fehlgeschlagen",
+        body.error || `Angebot ${offerNumber} konnte nicht gespeichert werden.`,
+      );
+      return;
+    }
+
+    window.toast?.success?.("Gespeichert", `Angebot ${offerNumber} wurde gespeichert.`);
   } catch (err) {
     console.error("Failed to save final offer snapshot:", err);
+    window.toast?.error?.("Speichern fehlgeschlagen", `Angebot ${offerNumber}: ${err.message}`);
   }
 }
 
