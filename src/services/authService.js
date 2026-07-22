@@ -3,7 +3,7 @@
 
 import crypto from "crypto";
 
-const TOKEN_TTL_MS = 12 * 60 * 60 * 1000; // 12h
+const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 export const SESSION_COOKIE = "net_session";
 
 function secret() {
