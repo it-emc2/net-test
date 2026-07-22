@@ -87,6 +87,88 @@ export async function addTimelineComment({
   return bxPost("crm.timeline.comment.add", { fields });
 }
 
+// --- Deal stage move (non-AH; AH is disabled in the new app) --------------
+// STAGE_IDs are category-specific (C<categoryId>:…). Use crm.item.update, which
+// (unlike crm.deal.update) can move a deal across pipelines and honours the
+// custom UF_CRM_* fields with useOriginalUfNames:"Y". Ported from legacy
+// updateDealStage(); the AH branch is intentionally omitted.
+const DEAL_ENTITY_TYPE_ID = 2;
+
+// "[VI] ANG verschickt" — advanced to after the offer email goes out.
+export const ANG_VERSCHICKT_STAGE = { stageId: "C38:UC_2ZDNEZ", categoryId: 38 };
+// "[VI] ANG schr. BB & Handwerk" — used by the "An Bitrix senden" (no email) path.
+export const ANG_SCHR_BB_HANDWERK_STAGE = { stageId: "C38:UC_RE1CF8", categoryId: 38 };
+
+// UF_CRM_1775019866756 ("Anzahl Umbautage") enum option ids.
+const UMBAUTAGE_ENUM = {
+  NICHT_ZUTREFFEND: "8436",
+  HALF_DAY: "8444", // "0,5 (BWT / Handläufe)"
+  ONE_DAY: "8438",
+  TWO_DAYS: "8440",
+  THREE_DAYS: "8442",
+};
+
+// BWT/Handläufe always get the fixed 0,5-day option; BU derives from workDays.
+function resolveUmbautageEnumId(workDays: unknown, offerType: unknown): string {
+  const type = String(offerType || "").toLowerCase();
+  if (type === "bwt" || type === "hl") return UMBAUTAGE_ENUM.HALF_DAY;
+  switch (Math.round(Number(workDays) || 0)) {
+    case 1: return UMBAUTAGE_ENUM.ONE_DAY;
+    case 2: return UMBAUTAGE_ENUM.TWO_DAYS;
+    case 3: return UMBAUTAGE_ENUM.THREE_DAYS;
+    default: return UMBAUTAGE_ENUM.NICHT_ZUTREFFEND;
+  }
+}
+
+export interface MoveDealStageInput {
+  dealId: string | number;
+  stageId: string;
+  categoryId: number;
+  opportunity?: number; // Betrag (offer total)
+  currencyId?: string;
+  workDays?: number;
+  offerType?: string;
+  offerNumber?: string;
+  finalTotal?: number;
+  selfPayAmount?: number; // Eigenanteil — Kassenkunde only (caller omits otherwise)
+}
+
+/** Move a deal to a pipeline stage and set the offer UF fields. */
+export async function moveDealStage(input: MoveDealStageInput): Promise<any> {
+  const numericId = Number(input.dealId);
+  if (!Number.isFinite(numericId) || numericId <= 0) throw new Error("dealId must be a positive number");
+  if (!input.stageId || !String(input.stageId).trim()) throw new Error("stageId is required");
+
+  const fields: Record<string, unknown> = {};
+  if (input.categoryId != null && String(input.categoryId) !== "") fields.categoryId = Number(input.categoryId);
+  fields.stageId = String(input.stageId).trim();
+
+  // Betrag und Währung. Keep it fixed (isManualOpportunity) so Bitrix does not
+  // recompute it from the (empty) product rows and reset it to 0.
+  const amount = Number(input.opportunity);
+  if (Number.isFinite(amount) && amount > 0) {
+    fields.opportunity = amount;
+    fields.isManualOpportunity = "Y";
+    fields.currencyId = String(input.currencyId || "EUR").trim() || "EUR";
+  }
+
+  if (input.workDays !== undefined || input.offerType !== undefined) {
+    fields.UF_CRM_1775019866756 = resolveUmbautageEnumId(input.workDays, input.offerType);
+  }
+  const finalTotalNum = Number(input.finalTotal);
+  if (Number.isFinite(finalTotalNum) && finalTotalNum > 0) fields.UF_CRM_1768391021079 = finalTotalNum;
+  if (input.offerNumber && String(input.offerNumber).trim()) fields.UF_CRM_1776156870205 = String(input.offerNumber).trim();
+  const selfPayNum = Number(input.selfPayAmount);
+  if (Number.isFinite(selfPayNum) && selfPayNum > 0) fields.UF_CRM_1757490052931 = selfPayNum;
+
+  return bxPost("crm.item.update", {
+    entityTypeId: DEAL_ENTITY_TYPE_ID,
+    id: numericId,
+    fields,
+    useOriginalUfNames: "Y",
+  });
+}
+
 const first = (v: unknown): string =>
   Array.isArray(v) && v.length ? String((v[0] as any)?.VALUE ?? "").trim() : "";
 

@@ -14,7 +14,15 @@ import { createPricing } from "../logic/pricing.js";
 import { resolvePrices } from "../services/catalog.js";
 import User from "../models/User.js";
 import EmailLog from "../models/EmailLog.js";
-import { addTimelineComment, bitrixConfigured } from "../services/bitrix.js";
+import BitrixLog from "../models/BitrixLog.js";
+import {
+  addTimelineComment,
+  bitrixConfigured,
+  moveDealStage,
+  ANG_VERSCHICKT_STAGE,
+  ANG_SCHR_BB_HANDWERK_STAGE,
+} from "../services/bitrix.js";
+import { buildHassmannCsv } from "../logic/hassmannCart.js";
 import { buildEmailHtml } from "../lib/emailTemplate.js";
 import {
   buildTransport,
@@ -75,15 +83,20 @@ function bitrixTargetFromPayload(payload: any): { entityType: "deal" | "contact"
   return null;
 }
 
-function buildBitrixComment(o: { offerNumber?: string; to: string; subject: string; body: string; attachmentNames: string[] }): string {
+function buildBitrixComment(o: { offerNumber?: string; to: string; subject: string; body: string; attachmentNames: string[]; mode: "email" | "bitrix" }): string {
   const safe = (v: unknown) => String(v ?? "").replace(/\r\n?/g, "\n");
   const body = safe(o.body).trim();
   const capped = body.length > 20000 ? `${body.slice(0, 20000)}\n…(gekürzt)…` : body;
+  const header = o.mode === "bitrix"
+    ? "📄 Angebot an Bitrix übermittelt (ohne E-Mail-Versand)"
+    : "📧 Email automatisch vom Konfigurator gesendet";
+  const emailLines = o.mode === "email"
+    ? [`Empfänger: ${safe(o.to).trim() || "-"}`, `Betreff: ${safe(o.subject).trim() || "-"}`]
+    : [];
   return [
-    "📧 Email automatisch vom Konfigurator gesendet",
+    header,
     o.offerNumber ? `Angebot: ${safe(o.offerNumber).trim()}` : null,
-    `Empfänger: ${safe(o.to).trim() || "-"}`,
-    `Betreff: ${safe(o.subject).trim() || "-"}`,
+    ...emailLines,
     `Anhänge: ${o.attachmentNames.length ? o.attachmentNames.join(", ") : "-"}`,
     "",
     "Inhalt:",
@@ -167,11 +180,17 @@ router.post("/angebot.send", upload.fields([{ name: "attachments", maxCount: 10 
   const files = (req.files as { attachments?: Express.Multer.File[] } | undefined) || {};
   const uploaded = files.attachments || [];
   try {
+    // mode "email" (default): send the customer email, then push to Bitrix and
+    // move the deal to "ANG verschickt". mode "bitrix": no email — only push
+    // the documents to the Bitrix timeline and move the deal to "ANG schr. BB
+    // & Handwerk".
+    const mode: "email" | "bitrix" = String(req.body.mode || "email") === "bitrix" ? "bitrix" : "email";
+
     const to = String(req.body.to || "").trim();
     const subject = String(req.body.subject || "").trim() || "Angebot";
     let body = String(req.body.body || "");
     const offerNumber = String(req.body.offerNumber || "");
-    if (!to) return res.status(400).json({ error: "Empfänger (to) fehlt" });
+    if (mode === "email" && !to) return res.status(400).json({ error: "Empfänger (to) fehlt" });
 
     let payload: Record<string, any> = {};
     try {
@@ -192,6 +211,12 @@ router.post("/angebot.send", upload.fields([{ name: "attachments", maxCount: 10 
     // ponytail: TODO wire once the signing flow exists in the new app.
     body = body.split("{{SIGN_LINK}}").join("");
 
+    // "Bitrix only" needs a Bitrix target + a configured webhook up front.
+    if (mode === "bitrix") {
+      if (!bitrixTargetFromPayload(payload)) return res.status(400).json({ error: "Kein Bitrix-Ziel (Deal/Kontakt) im Angebot" });
+      if (!bitrixConfigured()) return res.status(503).json({ error: "Bitrix ist nicht konfiguriert" });
+    }
+
     const initials = await currentUserInitials(req);
     const pdfBuf = await angebotPdf(payload, initials);
     const angebotFilename = safeOfferFilename(payload?.offerNumber || offerNumber);
@@ -206,87 +231,165 @@ router.post("/angebot.send", upload.fields([{ name: "attachments", maxCount: 10 
       ...(hasLogo ? [{ filename: "logo.png", path: LOGO_IMAGE_PATH, cid: LOGO_CID }] : []),
     ];
 
-    const mailAttachments = [
-      { filename: angebotFilename, content: pdfBuf, contentType: "application/pdf" },
-      ...presetAttachments,
-      ...uploadAttachments,
-      ...inlineAttachments,
-    ];
-    // Inline images (signature, logo) are not listed as user-facing attachments.
-    const attachmentNames = [
-      angebotFilename,
-      ...presetAttachments.map((a) => a.filename),
-      ...uploadAttachments.map((a) => a.filename),
-    ];
+    // Recompute totals (used for the deal-move UF fields + the response).
+    const computed = await pricing.computePrices(payload);
+    const offerTotal = Number(computed?.total) || 0;
+    const selfPayAmount = Number(computed?.selfPayAmount) || 0;
+    const bxOfferNumber = String(payload?.offerNumber || offerNumber || "");
 
-    const textBody = buildEmailTextBody(body, initials);
-    const htmlBody = buildEmailHtml(body, {
-      signatureCid: hasSig ? SIGNATURE_CID : null,
-      contactName: initials,
-      logoSrc: hasLogo ? `cid:${LOGO_CID}` : null,
-    });
-
-    const from = smtpFrom();
-    const mailOptions = {
-      from,
-      replyTo: process.env.SMTP_REPLY_TO || from,
-      to,
-      subject,
-      text: textBody,
-      html: htmlBody,
-      attachments: mailAttachments,
-    };
-
-    const transporter = buildTransport();
-    const info = await transporter.sendMail(mailOptions);
-
-    // File a copy in the IMAP Sent folder (best-effort).
+    // Hassmann Warenkorb CSV — pushed to Bitrix alongside the offer PDF (not
+    // attached to the customer email). Non-fatal if it fails.
+    let hassmann: { filename: string; csv: string; rowCount: number } | null = null;
     try {
-      const sent = await saveToSentFolder(mailOptions);
-      if (!sent.ok) console.warn("[documents] Sent copy skipped:", sent.reason);
-    } catch (imapErr) {
-      console.warn("[documents] Save-to-Sent failed:", (imapErr as Error)?.message || imapErr);
+      hassmann = await buildHassmannCsv(payload, pricing);
+    } catch (csvErr) {
+      console.error("[documents] Hassmann CSV build failed:", (csvErr as Error)?.message || csvErr);
     }
 
-    await EmailLog.create({
-      to,
-      subject,
-      body: textBody,
-      attachmentNames,
-      offerNumber: payload?.offerNumber || offerNumber,
-      offerType: payload?.activeOffer || "",
-    });
+    // Documents pushed to the Bitrix timeline: offer PDF + Hassmann CSV +
+    // presets + uploads (base64). Inline signature/logo images are email-only.
+    const bitrixAttachments: { filename: string; base64: string }[] = [
+      { filename: angebotFilename, base64: pdfBuf.toString("base64") },
+      ...(hassmann && hassmann.rowCount > 0
+        ? [{ filename: hassmann.filename, base64: Buffer.from(hassmann.csv, "utf8").toString("base64") }]
+        : []),
+    ];
+    for (const a of [...presetAttachments, ...uploadAttachments]) {
+      try {
+        bitrixAttachments.push({ filename: a.filename, base64: (await fsp.readFile(a.path)).toString("base64") });
+      } catch (readErr) {
+        console.warn(`[documents] Bitrix attachment read failed (${a.filename}):`, (readErr as Error)?.message || readErr);
+      }
+    }
+    const bitrixAttachmentNames = bitrixAttachments.map((a) => a.filename);
 
-    // Recompute totals for the caller (deal-move dialog prefill).
-    const computed = await pricing.computePrices(payload);
+    // --- Email step (mode "email" only) ---
+    let messageId: string | undefined;
+    let emailAttachmentNames: string[] = [];
+    if (mode === "email") {
+      emailAttachmentNames = [
+        angebotFilename,
+        ...presetAttachments.map((a) => a.filename),
+        ...uploadAttachments.map((a) => a.filename),
+      ];
+      const mailAttachments = [
+        { filename: angebotFilename, content: pdfBuf, contentType: "application/pdf" },
+        ...presetAttachments,
+        ...uploadAttachments,
+        ...inlineAttachments,
+      ];
+      const textBody = buildEmailTextBody(body, initials);
+      const htmlBody = buildEmailHtml(body, {
+        signatureCid: hasSig ? SIGNATURE_CID : null,
+        contactName: initials,
+        logoSrc: hasLogo ? `cid:${LOGO_CID}` : null,
+      });
+      const from = smtpFrom();
+      const mailOptions = {
+        from,
+        replyTo: process.env.SMTP_REPLY_TO || from,
+        to,
+        subject,
+        text: textBody,
+        html: htmlBody,
+        attachments: mailAttachments,
+      };
+      const transporter = buildTransport();
+      const info = await transporter.sendMail(mailOptions);
+      messageId = info.messageId;
 
-    // Bitrix timeline comment with the offer PDF attached (best-effort).
-    let bitrixComment: any = { skipped: true, reason: "no target" };
+      // File a copy in the IMAP Sent folder (best-effort).
+      try {
+        const sent = await saveToSentFolder(mailOptions);
+        if (!sent.ok) console.warn("[documents] Sent copy skipped:", sent.reason);
+      } catch (imapErr) {
+        console.warn("[documents] Save-to-Sent failed:", (imapErr as Error)?.message || imapErr);
+      }
+
+      await EmailLog.create({
+        to,
+        subject,
+        body: textBody,
+        attachmentNames: emailAttachmentNames,
+        offerNumber: bxOfferNumber,
+        offerType: payload?.activeOffer || "",
+      });
+    }
+
+    // --- Bitrix step (both modes) ---
     const target = bitrixTargetFromPayload(payload);
+    const dealId = target?.entityType === "deal" ? target.entityId : "";
+    const offerType = String(payload?.activeOffer || "");
+    // Bitrix failures are never swallowed: each is logged to BitrixLog and
+    // collected here so it surfaces in the response.
+    const bitrixErrors: string[] = [];
+
+    // 1) Timeline comment with all documents.
+    let bitrixComment: any = { skipped: true, reason: "no target" };
     if (target && bitrixConfigured()) {
       try {
         bitrixComment = await addTimelineComment({
           ...target,
-          comment: buildBitrixComment({ offerNumber: payload?.offerNumber || offerNumber, to, subject, body, attachmentNames }),
-          attachments: [{ filename: angebotFilename, base64: pdfBuf.toString("base64") }],
+          comment: buildBitrixComment({ offerNumber: bxOfferNumber, to, subject, body, attachmentNames: bitrixAttachmentNames, mode }),
+          attachments: bitrixAttachments,
         });
+        await BitrixLog.create({ mode, action: "timeline.comment", entityType: target.entityType, entityId: target.entityId, offerNumber: bxOfferNumber, offerType, attachmentNames: bitrixAttachmentNames, ok: true });
       } catch (bx) {
-        console.warn("[documents] Bitrix timeline comment failed:", (bx as Error)?.message || bx);
-        bitrixComment = { ok: false, error: (bx as Error)?.message || String(bx) };
+        const msg = (bx as Error)?.message || String(bx);
+        console.error("[documents] Bitrix timeline comment failed:", msg);
+        bitrixComment = { ok: false, error: msg };
+        bitrixErrors.push(`Timeline-Kommentar: ${msg}`);
+        await BitrixLog.create({ mode, action: "timeline.comment", entityType: target.entityType, entityId: target.entityId, offerNumber: bxOfferNumber, offerType, attachmentNames: bitrixAttachmentNames, ok: false, error: msg }).catch(() => {});
       }
     } else if (target && !bitrixConfigured()) {
       bitrixComment = { skipped: true, reason: "bitrix not configured" };
     }
 
-    // TODO: online-signing link ({{SIGN_LINK}}) — needs the signing flow built
-    // in the new app first (public sign page + request model + PDF embedding).
+    // 2) Deal stage move (needs a deal id). email → "ANG verschickt";
+    //    bitrix → "ANG schr. BB & Handwerk". Eigenanteil only for Kassenkunde.
+    let dealMove: any = { skipped: true, reason: dealId ? "bitrix not configured" : "no deal id" };
+    if (dealId && bitrixConfigured()) {
+      const stage = mode === "bitrix" ? ANG_SCHR_BB_HANDWERK_STAGE : ANG_VERSCHICKT_STAGE;
+      try {
+        dealMove = await moveDealStage({
+          dealId,
+          stageId: stage.stageId,
+          categoryId: stage.categoryId,
+          opportunity: offerTotal,
+          finalTotal: offerTotal,
+          currencyId: "EUR",
+          workDays: Number(payload?.Arbeitszeit?.workDays) || undefined,
+          offerType,
+          offerNumber: bxOfferNumber,
+          selfPayAmount: isSelbstzahler ? undefined : selfPayAmount,
+        });
+        await BitrixLog.create({ mode, action: "deal.stage-move", entityType: "deal", entityId: dealId, stageId: stage.stageId, offerNumber: bxOfferNumber, offerType, ok: true });
+      } catch (mv) {
+        const msg = (mv as Error)?.message || String(mv);
+        console.error("[documents] Bitrix deal stage move failed:", msg);
+        dealMove = { ok: false, error: msg };
+        bitrixErrors.push(`Stufenwechsel: ${msg}`);
+        await BitrixLog.create({ mode, action: "deal.stage-move", entityType: "deal", entityId: dealId, stageId: stage.stageId, offerNumber: bxOfferNumber, offerType, ok: false, error: msg }).catch(() => {});
+      }
+    }
+
+    // In "bitrix" mode the Bitrix push IS the operation — any failure is a hard
+    // error (already logged). In "email" mode the email already went out, so
+    // Bitrix issues are reported (never silent) but don't fail the request.
+    if (mode === "bitrix" && bitrixErrors.length) {
+      return res.status(502).json({ error: "An Bitrix senden fehlgeschlagen", detail: bitrixErrors.join("; "), bitrixComment, dealMove });
+    }
+
     res.json({
       ok: true,
-      messageId: info.messageId,
-      attachmentNames,
-      offerTotal: Number(computed?.total) || 0,
-      selfPayAmount: Number(computed?.selfPayAmount) || 0,
+      mode,
+      messageId,
+      attachmentNames: mode === "email" ? emailAttachmentNames : bitrixAttachmentNames,
+      offerTotal,
+      selfPayAmount,
       bitrixComment,
+      dealMove,
+      bitrixErrors: bitrixErrors.length ? bitrixErrors : undefined,
     });
   } catch (err) {
     console.error("[documents] angebot.send error:", err);
