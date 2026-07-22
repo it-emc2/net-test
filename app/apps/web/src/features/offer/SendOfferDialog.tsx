@@ -98,6 +98,17 @@ export function SendOfferDialog({
   const [body, setBody] = useState(() => defaultBody(k, payload.offerNumber || ""));
   const [state, setState] = useState<{ status: "idle" | "sending" | "sent" | "error"; msg?: string }>({ status: "idle" });
 
+  // The dialog stays mounted for the page's lifetime, so the fields above only
+  // pick up their initial values once (at page load, before Kundendaten is
+  // filled in). Re-sync them from the live payload each time the dialog opens.
+  useEffect(() => {
+    if (!open) return;
+    setTo(k.email || "");
+    setSubject(`Ihr Angebot${payload.offerNumber ? ` ${payload.offerNumber}` : ""}`);
+    setBody(defaultBody(k, payload.offerNumber || ""));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   // Preview pane can show either the email or the generated offer PDF.
   const [previewMode, setPreviewMode] = useState<"email" | "offer">("email");
 
