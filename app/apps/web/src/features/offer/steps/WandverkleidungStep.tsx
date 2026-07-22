@@ -60,6 +60,16 @@ export function WandverkleidungStep() {
   }, []);
   const accImg = (id: string) => imgs[id]?.image || WV_ACC_FALLBACK[id] || null;
 
+  // Auto-computed fallback quantities, mirrored from app/apps/api/src/logic/pricing.ts
+  // (Flächenkleber, V3V), so the input shows what will actually be used when left blank.
+  const qty997 = Number(wv.wvQty997) || 0;
+  const qty1497 = Number(wv.wvQty1497) || 0;
+  const totalPanels = qty997 + qty1497;
+  const autoFlachenQty = 2 * qty997 + 2 * qty1497;
+  const corners = Number(wv.wvCornersCount) || 0;
+  const autoV3VQty = totalPanels >= 2 ? Math.max(0, totalPanels - 1 - corners) : 0;
+  const endProfilesQty = Number(wv.wvEndProfileQty) || 0;
+
   return (
     <div className="space-y-8">
       <StepHeader title="Wandverkleidung" hint="Umfang, Plattenmaße mit Farbe und Profile wählen." />
@@ -128,7 +138,7 @@ export function WandverkleidungStep() {
           onChange={(v) => set({ flechenkleber: v })}
         />
         {wv.flechenkleber && (
-          <SubQty label="Menge überschreiben (optional)" value={wv.wvFlachenQty ?? ""} onChange={(v) => set({ wvFlachenQty: v })} />
+          <SubQty label="Menge überschreiben (optional)" value={wv.wvFlachenQty ?? ""} onChange={(v) => set({ wvFlachenQty: v })} placeholder={autoFlachenQty > 0 ? String(autoFlachenQty) : "auto"} />
         )}
 
         <Toggle label="Abschlussprofil (V3A)" img={accImg("V3A")} checked={!!wv.wvEndProfile} onChange={(v) => set({ wvEndProfile: v })} />
@@ -138,7 +148,7 @@ export function WandverkleidungStep() {
 
         <Toggle label="Silikon (2000302)" hint="Menge mind. Anzahl Abschlussprofile" img={accImg("2000302")} checked={!!wv.wvSilikon} onChange={(v) => set({ wvSilikon: v })} />
         {wv.wvSilikon && (
-          <SubQty label="Menge (mind. Abschlussprofile)" value={wv.wvSilikonQty ?? ""} onChange={(v) => set({ wvSilikonQty: v })} />
+          <SubQty label="Menge (mind. Abschlussprofile)" value={wv.wvSilikonQty ?? ""} onChange={(v) => set({ wvSilikonQty: v })} placeholder={endProfilesQty > 0 ? String(endProfilesQty) : "auto"} />
         )}
       </Section>
 
@@ -154,7 +164,7 @@ export function WandverkleidungStep() {
                 <Input inputMode="numeric" value={wv.wvCornersCount ?? ""} onChange={(e) => set({ wvCornersCount: e.target.value })} placeholder="0" />
               </Field>
               <Field label="Menge überschreiben (optional)">
-                <Input inputMode="numeric" value={wv.wvV3VQty ?? ""} onChange={(e) => set({ wvV3VQty: e.target.value })} placeholder="auto" />
+                <Input inputMode="numeric" value={wv.wvV3VQty ?? ""} onChange={(e) => set({ wvV3VQty: e.target.value })} placeholder={autoV3VQty > 0 ? String(autoV3VQty) : "auto"} />
               </Field>
             </div>
           </div>
@@ -264,11 +274,11 @@ function Toggle({ label, hint, img, checked, onChange }: { label: string; hint?:
   );
 }
 
-function SubQty({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function SubQty({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <div className="flex items-center gap-2 pl-6">
       <Label className="normal-case">{label}</Label>
-      <Input inputMode="numeric" value={value} onChange={(e) => onChange(e.target.value)} className="w-24" />
+      <Input inputMode="numeric" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-24" />
     </div>
   );
 }
