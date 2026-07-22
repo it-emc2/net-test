@@ -4,10 +4,14 @@ import type { OfferPayload } from "./payload";
 
 export interface SendOfferResult {
   ok: true;
-  messageId: string;
+  mode: "email" | "bitrix";
+  messageId?: string;
   attachmentNames: string[];
   offerTotal: number;
   selfPayAmount: number;
+  bitrixComment?: unknown;
+  dealMove?: unknown;
+  bitrixErrors?: string[];
 }
 
 async function jsonError(res: Response, fallback: string): Promise<never> {
@@ -53,12 +57,16 @@ export const documentsApi = {
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   },
 
-  // Send the offer by email (PDF + presets attached server-side).
+  // Send the offer. mode "email" (default): customer email + Bitrix push + deal
+  // move to "ANG verschickt". mode "bitrix": no email — push documents to the
+  // Bitrix timeline + move the deal to "ANG schr. BB & Handwerk".
   async send(
     payload: OfferPayload,
     fields: { to: string; subject: string; body: string; excludePreset?: string[] },
+    mode: "email" | "bitrix" = "email",
   ): Promise<SendOfferResult> {
     const fd = new FormData();
+    fd.set("mode", mode);
     fd.set("to", fields.to);
     fd.set("subject", fields.subject);
     fd.set("body", fields.body);
@@ -70,7 +78,7 @@ export const documentsApi = {
       credentials: "same-origin",
       body: fd,
     });
-    if (!res.ok) await jsonError(res, "Senden fehlgeschlagen");
+    if (!res.ok) await jsonError(res, mode === "bitrix" ? "An Bitrix senden fehlgeschlagen" : "Senden fehlgeschlagen");
     return res.json();
   },
 };

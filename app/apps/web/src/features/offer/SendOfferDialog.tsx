@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Loader2, Check, Mail } from "lucide-react";
+import { Loader2, Check, Mail, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -96,7 +96,7 @@ export function SendOfferDialog({
   const [to, setTo] = useState(k.email || "");
   const [subject, setSubject] = useState(`Ihr Angebot${payload.offerNumber ? ` ${payload.offerNumber}` : ""}`);
   const [body, setBody] = useState(() => defaultBody(k, payload.offerNumber || ""));
-  const [state, setState] = useState<{ status: "idle" | "sending" | "sent" | "error"; msg?: string }>({ status: "idle" });
+  const [state, setState] = useState<{ status: "idle" | "sending" | "sent" | "error"; msg?: string; busyMode?: "email" | "bitrix" }>({ status: "idle" });
 
   // The dialog stays mounted for the page's lifetime, so the fields above only
   // pick up their initial values once (at page load, before Kundendaten is
@@ -163,16 +163,19 @@ export function SendOfferDialog({
     }
   }, [open]);
 
-  async function send() {
-    if (!to.trim()) {
+  async function send(mode: "email" | "bitrix" = "email") {
+    if (mode === "email" && !to.trim()) {
       setState({ status: "error", msg: "Empfänger fehlt" });
       return;
     }
-    setState({ status: "sending" });
+    setState({ status: "sending", busyMode: mode });
     try {
-      const r = await documentsApi.send(payload, { to: to.trim(), subject, body });
-      setState({ status: "sent", msg: r.attachmentNames.join(", ") });
-      setTimeout(() => onOpenChange(false), 1200);
+      const r = await documentsApi.send(payload, { to: to.trim(), subject, body }, mode);
+      // Bitrix issues in email mode are non-fatal but must be surfaced.
+      const warn = r.bitrixErrors?.length ? ` — Bitrix-Hinweis: ${r.bitrixErrors.join("; ")}` : "";
+      const done = mode === "bitrix" ? "An Bitrix übermittelt" : "Gesendet";
+      setState({ status: "sent", msg: `${done}: ${r.attachmentNames.join(", ")}${warn}` });
+      setTimeout(() => onOpenChange(false), warn ? 3000 : 1200);
     } catch (e) {
       setState({ status: "error", msg: e instanceof Error ? e.message : "Senden fehlgeschlagen" });
     }
@@ -261,14 +264,22 @@ export function SendOfferDialog({
           {state.status === "error" && <span className="mr-auto self-center text-sm text-destructive">{state.msg}</span>}
           {state.status === "sent" && (
             <span className="mr-auto flex items-center gap-1 self-center text-sm text-emerald-600">
-              <Check className="size-4" /> Gesendet
+              <Check className="size-4 shrink-0" /> {state.msg || "Gesendet"}
             </span>
           )}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={state.status === "sending"}>
             Abbrechen
           </Button>
-          <Button onClick={send} disabled={state.status === "sending" || state.status === "sent"}>
-            {state.status === "sending" ? <Loader2 className="animate-spin" /> : <Mail />} Senden
+          <Button
+            variant="secondary"
+            onClick={() => send("bitrix")}
+            disabled={state.status === "sending" || state.status === "sent"}
+            title="Nur an Bitrix übermitteln (kein E-Mail-Versand) und Deal auf „ANG schr. BB & Handwerk“ verschieben"
+          >
+            {state.status === "sending" && state.busyMode === "bitrix" ? <Loader2 className="animate-spin" /> : <Send />} An Bitrix senden
+          </Button>
+          <Button onClick={() => send("email")} disabled={state.status === "sending" || state.status === "sent"}>
+            {state.status === "sending" && state.busyMode === "email" ? <Loader2 className="animate-spin" /> : <Mail />} Senden
           </Button>
         </DialogFooter>
       </DialogContent>
