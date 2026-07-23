@@ -2530,6 +2530,21 @@ button.dm-btn-danger:focus-visible {
                 <input id="cp_phone" name="cp_phone" type="tel" placeholder="+49 ..." />
               </div>
             </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
+              <div>
+                <label>Anrede</label>
+                <div class="radio-group" role="radiogroup" aria-label="Anrede Ansprechpartner">
+                  <label class="radio-pill"><input type="radio" name="cp_salutation" value="Frau" /><span
+                      class="circle"></span><span>Frau</span></label>
+                  <label class="radio-pill"><input type="radio" name="cp_salutation" value="Herr" /><span
+                      class="circle"></span><span>Herr</span></label>
+                </div>
+              </div>
+              <div>
+                <label for="cp_email">Email (CC)</label>
+                <input id="cp_email" name="cp_email" type="email" placeholder="name@example.com" />
+              </div>
+            </div>
             <div class="full">
               <label class="req">Adressdaten des Ansprechpartners</label>
             </div>
@@ -7343,6 +7358,9 @@ button.dm-btn-danger:focus-visible {
 
     <label for="mailTo">Empfänger E-Mail</label>
     <input id="mailTo" type="email" placeholder="customer@example.com" />
+
+    <label for="mailCc">CC (z.B. Ansprechpartner)</label>
+    <input id="mailCc" type="email" placeholder="ansprechpartner@example.com" />
 
     <label for="mailSubject">Betreff</label>
     <input id="mailSubject" type="text" placeholder="ANG-..." />

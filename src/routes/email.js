@@ -330,6 +330,7 @@ router.post(
 
   try {
     const to = String(req.body.to || "").trim();
+    const cc = String(req.body.cc || "").trim();
     const subject = String(req.body.subject || "").trim() || "Angebot";
     let body = String(req.body.body || "");
     const offerNumber = String(req.body.offerNumber || "");
@@ -497,6 +498,7 @@ router.post(
       from,
       replyTo,
       to,
+      ...(cc ? { cc } : {}),
       subject,
       text: textBody,
       html: htmlBody,
@@ -515,6 +517,7 @@ router.post(
     // ---- DB log (only names + content) ----
     await EmailLog.create({
       to,
+      ...(cc ? { cc } : {}),
       subject,
       body: textBody,
       attachmentNames,
