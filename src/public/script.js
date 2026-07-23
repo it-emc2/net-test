@@ -25265,6 +25265,9 @@ function renderTodayPlanningAppointments(){
     const callHtml = phoneHref
       ? `<a class="today-calendar-call" href="tel:${escapePlanningHtml(phoneHref)}" aria-label="Kunde anrufen: ${escapePlanningHtml(entry.phone)}"><i class="fa-solid fa-phone"></i> Anrufen</a>`
       : "";
+    const navigateHtml = entry?.address
+      ? `<a class="today-calendar-navigate" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(entry.address)}" target="_blank" rel="noopener" aria-label="Route zu ${escapePlanningHtml(entry.address)}"><i class="fa-solid fa-diamond-turn-right"></i> Route</a>`
+      : "";
     const subtitle = isCancelled
       ? "Termin abgesagt"
       : (entry?.dayLocked ? "Tag gesperrt" : (entry?.locked ? "Termin fixiert" : "Planungstermin"));
@@ -25313,6 +25316,7 @@ function renderTodayPlanningAppointments(){
 
         <div class="today-calendar-actions">
           ${callHtml}
+          ${navigateHtml}
           <button type="button" class="today-calendar-open" ${isCancelled ? 'disabled aria-disabled="true"' : ""}><i class="fa-solid ${isCancelled ? "fa-ban" : "fa-arrow-right"}"></i> ${isCancelled ? "Nicht verfuegbar" : "In Konfigurator öffnen"}</button>
           ${!isCancelled && entry?.importDealId && !isDealDone(entry.importDealId) ? `<button type="button" class="today-calendar-done"><i class="fa-solid fa-circle-check"></i> Hat stattgefunden</button>` : ""}
         </div>
@@ -25324,6 +25328,7 @@ function renderTodayPlanningAppointments(){
   list.querySelectorAll(".today-calendar-card").forEach(card => {
     const openButton = card.querySelector(".today-calendar-open");
     const callButton = card.querySelector(".today-calendar-call");
+    const navigateButton = card.querySelector(".today-calendar-navigate");
     const dealBadge = card.querySelector(".today-calendar-badge.is-deal");
     const onOpen = () => {
       const id = card.dataset.id;
@@ -25341,6 +25346,9 @@ function renderTodayPlanningAppointments(){
       onOpen();
     });
     callButton?.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+    });
+    navigateButton?.addEventListener("click", (ev) => {
       ev.stopPropagation();
     });
     dealBadge?.addEventListener("click", (ev) => {
