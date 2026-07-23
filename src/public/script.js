@@ -13320,6 +13320,8 @@ function restoreKundendaten(k, offer) {
   setRadio("hasContactPerson", k.hasContactPerson);
   setByNameOrId("cp_name", k.cp_name);
   setByNameOrId("cp_phone", k.cp_phone);
+  setRadio("cp_salutation", k.cp_salutation);
+  setByNameOrId("cp_email", k.cp_email);
   setByNameOrId("cp_street", k.cp_street);
   setByNameOrId("cp_city", k.cp_city);
   setByNameOrId("cp_state", k.cp_state);

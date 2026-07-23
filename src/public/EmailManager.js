@@ -8,6 +8,7 @@ export function initEmailManager(options = {}) {
     els: {
       btnSend: "#sendOfferMail",
       to: "#mailTo",
+      cc: "#mailCc",
       subject: "#mailSubject",
       body: "#mailBody",
       preview: "#mailHtmlPreview",
@@ -67,6 +68,7 @@ export function initEmailManager(options = {}) {
 
   const $btn = document.querySelector(cfg.els.btnSend);
   const $to = document.querySelector(cfg.els.to);
+  const $cc = document.querySelector(cfg.els.cc);
   const $subject = document.querySelector(cfg.els.subject);
   const $body = document.querySelector(cfg.els.body);
   const $preview = document.querySelector(cfg.els.preview);
@@ -458,13 +460,17 @@ export function initEmailManager(options = {}) {
   // Recipient + body auto-fill unless user edits
   // -----------------------------
   let toTouched = false;
+  let ccTouched = false;
   let bodyTouched = false;
 
   $to.addEventListener("input", () => (toTouched = true));
+  $cc?.addEventListener("input", () => (ccTouched = true));
   $body.addEventListener("input", () => (bodyTouched = true));
 
   const $customerEmail = document.querySelector("#email");
   const $lastName = document.querySelector("#lastName");
+  const $cpEmail = document.querySelector("#cp_email");
+  const $cpName = document.querySelector("#cp_name");
 
   function getCustomerSalutation() {
     const checked = document.querySelector('input[name="salutation"]:checked');
@@ -489,6 +495,17 @@ export function initEmailManager(options = {}) {
     const partnerLastName = (document.getElementById("partnerLastName")?.value || "").trim();
     if (twoPersons && (partnerSalutation || partnerLastName)) {
       const both = `${greetFragment(salutation, lastName)}, ${greetFragment(partnerSalutation, partnerLastName)},`;
+      return both.charAt(0).toUpperCase() + both.slice(1);
+    }
+
+    const hasContactPerson =
+      document.querySelector('input[name="hasContactPerson"]:checked')?.value === "Ja";
+    const cpSalutation = (
+      document.querySelector('input[name="cp_salutation"]:checked')?.value || ""
+    ).trim();
+    const cpName = ($cpName?.value || "").trim();
+    if (hasContactPerson && cpName) {
+      const both = `${greetFragment(salutation, lastName)}, ${greetFragment(cpSalutation, cpName)},`;
       return both.charAt(0).toUpperCase() + both.slice(1);
     }
 
@@ -754,6 +771,12 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     if (v) $to.value = v;
   }
 
+  function updateCcDefault() {
+    if (ccTouched || !$cc) return;
+    const v = ($cpEmail?.value || "").trim();
+    $cc.value = v;
+  }
+
   function updateBodyDefault() {
     if (bodyTouched) return;
     $body.value = buildDefaultMailBody();
@@ -762,6 +785,7 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
 
   function updateMailPrefills() {
     updateRecipientDefault();
+    updateCcDefault();
     updateBodyDefault();
     updatePreview();
   }
@@ -769,6 +793,21 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
   // Listen to Kundendaten changes
   $customerEmail?.addEventListener("input", updateRecipientDefault);
   $customerEmail?.addEventListener("change", updateRecipientDefault);
+
+  $cpEmail?.addEventListener("input", updateCcDefault);
+  $cpEmail?.addEventListener("change", updateCcDefault);
+
+  document.querySelectorAll('input[name="hasContactPerson"]').forEach((el) => {
+    el.addEventListener("change", () => {
+      updateCcDefault();
+      updateBodyDefault();
+    });
+  });
+  document.querySelectorAll('input[name="cp_salutation"]').forEach((el) => {
+    el.addEventListener("change", updateBodyDefault);
+  });
+  $cpName?.addEventListener("input", updateBodyDefault);
+  $cpName?.addEventListener("change", updateBodyDefault);
 
   $lastName?.addEventListener("input", updateBodyDefault);
   $lastName?.addEventListener("change", updateBodyDefault);
@@ -938,9 +977,11 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     userFiles = [];
     subjectTouched = false;
     toTouched = false;
+    ccTouched = false;
     bodyTouched = false;
 
     $to.value = "";
+    if ($cc) $cc.value = "";
     $subject.value = "";
     $body.value = "";
     $files.value = "";
@@ -1061,8 +1102,11 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
       // (the customer email keeps them regardless).
       const excludeBitrixPresets = !!document.getElementById("devExcludeBitrixPresets")?.checked;
 
+      const cc = ($cc?.value || "").trim();
+
       const fd = new FormData();
       fd.append("to", to);
+      if (cc) fd.append("cc", cc);
       fd.append("subject", subject);
       fd.append("body", body);
       fd.append("offerNumber", offerNumber);
