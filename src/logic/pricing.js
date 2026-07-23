@@ -281,7 +281,7 @@ function grossToNet(gross, taxRate) {
     );
     const fold = chosen(opt["optFold[]"], opt.qty_DEPSKG60 || opt.qty_DEPSKG85);
     const basin = chosen(opt["optBasin[]"], opt.qty_CL60);
-    const tap = chosen(opt["optBasinTap[]"], opt.qty_CL_BASIN || opt.qty_DEPOH);
+    const tap = chosen(opt["optBasinTap[]"], opt.qty_CL_BASIN || opt.qty_DEPOH || opt.qty_ONSHB);
     const thermo = chosen(
       opt["optThermo[]"],
       opt.qty_CLTB || opt.qty_DEPTB || opt.qty_CLB,
