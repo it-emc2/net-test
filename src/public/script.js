@@ -24792,6 +24792,14 @@ function formatPlanningTimeDisplay(entry){
   return "Dauer offen";
 }
 
+function formatTodayPause(planning){
+  const p = planning?.todayPause;
+  if(!p || !(Number(p.durationMinutes) > 0)) return null;
+  return p.start && p.end
+    ? `Pause ${p.start}–${p.end} · ${p.durationMinutes} Min`
+    : `Pause · ${p.durationMinutes} Min`;
+}
+
 function isPlanningEntryCancelled(entry){
   const value = entry?.cancelled;
   return value === true || value === "true" || value === 1 || value === "1";
@@ -25416,7 +25424,16 @@ function applyPlanningPayload(payload){
   renderWeekCalendar(payload);
 
   const list = document.getElementById("todayPlanningList");
-  const { day, entries } = buildPlanningEntries(payload || {});
+  const { day, entries, planning } = buildPlanningEntries(payload || {});
+
+  const pauseChip = document.getElementById("todayPlanningPause");
+  if(pauseChip){
+    const pauseText = formatTodayPause(planning);
+    pauseChip.hidden = !pauseText;
+    pauseChip.innerHTML = pauseText
+      ? `<i class="fa-solid fa-mug-hot"></i> ${escapePlanningHtml(pauseText)}`
+      : "";
+  }
 
   todayPlanningAppointments = entries;
   fetchDealStages(entries.map(e => e?.importDealId).filter(Boolean));

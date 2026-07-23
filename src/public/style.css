@@ -6611,6 +6611,24 @@ button.pad-clear {
   font-size: 0.72rem;
 }
 
+.today-pause-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: rgba(245, 158, 11, .12);
+  border: 1px solid rgba(245, 158, 11, .25);
+  color: #b45309;
+}
+
+.today-pause-chip[hidden] {
+  display: none;
+}
+
 /* ===== Wochenkalender Vertrieb ========================================== */
 
 .week-cal-panel {
