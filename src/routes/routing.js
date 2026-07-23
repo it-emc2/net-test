@@ -138,9 +138,11 @@ function geocodeResultMatchesInput(result, addressParts = {}) {
     // Merged municipalities sometimes repeat a segment, e.g. query
     // "Mohlsdorf-Teichwolframsdorf-Mohlsdorf" while the geocoder answers with
     // just "Mohlsdorf-Teichwolframsdorf". Try progressively shorter
-    // hyphen-joined prefixes (keeping at least 2 segments) before giving up.
+    // hyphen-joined prefixes before giving up. Also covers Ortsteil names
+    // like "Hof-Haidt", where the geocoder correctly answers with just the
+    // parent town "Hof" (len=1).
     const citySegments = wantCity.split("-").filter(Boolean);
-    for (let len = citySegments.length - 1; len >= 2; len--) {
+    for (let len = citySegments.length - 1; len >= 1; len--) {
       const candidate = citySegments.slice(0, len).join("-");
       if (candidate.length >= 3 && hay.includes(candidate)) {
         return true;
