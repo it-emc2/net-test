@@ -13638,7 +13638,7 @@ function restoreOptionalPage(opt) {
       cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
       cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
       cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35"],
-      cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH"],
+      cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH", "opt_ONSHB"],
       cat_METER: ["opt_TECEADS"],
       cat_RAMPE: ["opt_RAMPE35"],
       cat_WESGH: ["opt_WESGH"],
@@ -16702,6 +16702,46 @@ document.addEventListener("DOMContentLoaded", () => {
 
   setupHassmannEmbedFallback();
 });
+// ---- ONSHB -> YNORGH21825 rosette: auto-select required accessory, 1:1 qty ----
+function initOnshbAutoAccessory() {
+  const reqWrap = document.getElementById("tapRequiredWrap");
+  const onshb = document.getElementById("opt_ONSHB");
+  const qOnshb = document.getElementById("qty_ONSHB");
+  const rosette = document.getElementById("opt_YNORGH21825");
+  const qRosette = document.getElementById("qty_YNORGH21825");
+  if (!reqWrap || !onshb || !qOnshb || !rosette || !qRosette) return;
+
+  const dispatch = (el) => {
+    if (!el) return;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  const show = (el, v) => {
+    el.hidden = !v;
+    el.setAttribute("aria-hidden", String(!v));
+  };
+
+  const syncFromOnshb = () => {
+    if (!onshb.checked) return;
+    if (!rosette.checked) {
+      rosette.checked = true;
+      dispatch(rosette);
+    }
+    const qty = Number(qOnshb.value) || 1;
+    qRosette.value = String(qty);
+    dispatch(qRosette);
+  };
+
+  onshb.addEventListener("change", () => {
+    show(reqWrap, onshb.checked);
+    if (onshb.checked) syncFromOnshb();
+  });
+  qOnshb.addEventListener("input", syncFromOnshb);
+
+  // initial state (e.g. after restoring a saved offer)
+  show(reqWrap, onshb.checked);
+}
+
 function initOptionalMenus() {
   // Map main category checkboxes -> their panels
   const map = {
@@ -16764,6 +16804,13 @@ cat_SHOWER: "menu_SHOWER",
     try {
       localStorage.removeItem("basin_required_state");
     } catch {}
+
+    // BASIN_TAP-only: collapse "Erforderliches Zubehör" (ONSHB rosette) within this panel
+    const tapReqWrap = panel.querySelector("#tapRequiredWrap");
+    if (tapReqWrap) {
+      tapReqWrap.hidden = true;
+      tapReqWrap.setAttribute("aria-hidden", "true");
+    }
 
     // WC-only: hide Sitzhöhe when panel is reset
     const wcSeatWrap = panel.querySelector("#wcSeatHeightWrap");
@@ -16855,6 +16902,9 @@ cat_SHOWER: "menu_SHOWER",
   // ---- BASIN TAP ----
   wireTileQty("opt_CL_BASIN", "qty_CL_BASIN_wrap");
   wireTileQty("opt_DEPOH", "qty_DEPOH_wrap");
+  wireTileQty("opt_ONSHB", "qty_ONSHB_wrap");
+  wireTileQty("opt_YNORGH21825", "qty_YNORGH21825_wrap");
+  initOnshbAutoAccessory();
 
   // ---- BASIN (main CL60 tile) ----
   wireTileQty("opt_CL60", "qty_CL60_wrap");
@@ -17519,7 +17569,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
     cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
     cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
     cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35"],
-    cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH"],
+    cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH", "opt_ONSHB"],
     cat_METER: ["opt_TECEADS"],
     cat_RAMPE: ["opt_RAMPE35"],
     cat_WESGH: ["opt_WESGH"],
