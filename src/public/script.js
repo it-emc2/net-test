@@ -2572,6 +2572,11 @@ function resetAllRepeaterDOMs() {
   // --- Floor Area ---
   const floorArea = document.getElementById("floorArea");
   if (floorArea) floorArea.value = "";
+
+  // --- AH Leistungen (Alltagsbegleitung / Haushaltsnahedienstleistungen) ---
+  if (typeof window.restoreAhServices === "function") {
+    window.restoreAhServices([]);
+  }
 }
 
 // Effective list of steps used for prev/next navigation
