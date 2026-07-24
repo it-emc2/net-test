@@ -5761,31 +5761,29 @@ function requireBereichValid() {
       return false;
     }
   }
-  // The form is on the Kundendaten tab, which may currently be `hidden`
-  // (display:none) if the user clicked export from another tab. Switching
-  // there first ensures reportValidity()/focus() actually render, instead
-  // of silently no-oping on a non-displayed form.
+  // Auto-fill today's date if empty (previously done inside validateBereich).
+  const dateEl = document.getElementById("date");
+  if (dateEl && !dateEl.value) dateEl.valueAsDate = new Date();
+
+  // Decide validity WITHOUT navigating. checkValidity() works even while the
+  // Kundendaten tab is hidden, so we must NOT switch tabs first — doing that
+  // unconditionally yanked the user to Kundendaten on every export even when
+  // everything was valid (the PDF then generated anyway from another handler).
+  if (form.checkValidity()) return true;
+
+  // Invalid: now reveal the Kundendaten tab so the highlight/bubble is visible,
+  // then show exactly what's missing.
   if (form.closest(".page")?.hidden && typeof window.setStep === "function") {
     window.setStep("Kundendaten");
   }
-  if (!form.reportValidity()) {
-    flashInvalid(form.querySelector(":invalid"));
-    focusFirstBereichConditionalError();
-    window.toast?.error(
-      "Angaben unvollständig",
-      "Bitte prüfen Sie die rot markierten Pflichtfelder in „Kundendaten“."
-    );
-    return false;
-  }
-  const ok = validateBereich();
-  if (!ok) {
-    focusFirstBereichConditionalError();
-    window.toast?.error(
-      "Angaben unvollständig",
-      "Bitte prüfen Sie die rot markierten Pflichtfelder in „Kundendaten“."
-    );
-  }
-  return ok;
+  form.reportValidity();
+  flashInvalid(form.querySelector(":invalid"));
+  focusFirstBereichConditionalError();
+  window.toast?.error(
+    "Angaben unvollständig",
+    "Bitte prüfen Sie die rot markierten Pflichtfelder in „Kundendaten“."
+  );
+  return false;
 }
 function validateArbeitszeit() {
   const f = document.getElementById("form-Arbeitszeit");
