@@ -1956,7 +1956,12 @@ try {
         bonus_Haltegriff: !!payload?.rabatt?.bonusGrab,
       };
 
-      // NEW: rebuild markup from material lines with the two exceptions
+      // Markup base = material sum. Kleinmaterial (KM02 / AC004) counts toward
+      // the Aufschlag only for offers created under the new pricing rules;
+      // legacy drafts/offers (flag absent) keep it excluded so their totals
+      // don't drift when reopened.
+      const includeKleinInMarkup =
+        payload?.pricingRules?.kleinInAufschlag === true;
       const lines = Array.isArray(materials?.lines) ? materials.lines : [];
       let markupBase = 0;
 
@@ -1964,13 +1969,8 @@ try {
         const id = String(row?.productId || row?.id || "").trim();
         const qty = Number(row?.qty ?? row?.quantity ?? 0) || 0;
         const unitPrice = Number(row?.unitPrice ?? 0) || 0;
-
         if (!qty || !unitPrice) continue;
-
-        // 1) skip Kleinmaterial (added as KM02 when the checkbox is on)
-        if (id === "KM02") continue;
-
-        // default: count full qty
+        if (!includeKleinInMarkup && (id === "KM02" || id === "AC004")) continue;
         markupBase += qty * unitPrice;
       }
 
