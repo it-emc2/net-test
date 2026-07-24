@@ -5335,10 +5335,18 @@ function collectAllFormData() {
 /* ========== HELPERS ========== */
 function flashInvalid(el) {
   if (!el) return;
-  el.style.borderColor = "var(--danger)";
-  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  // Pill-styled radios/checkboxes (.radio-pill, .zone-pill, .payer-card,
+  // .check-pill, …) hide the native input with display:none and style a
+  // wrapper instead — flashing the input itself would be invisible, so walk
+  // up to the nearest rendered ancestor.
+  let target = el;
+  while (target.parentElement && getComputedStyle(target).display === "none") {
+    target = target.parentElement;
+  }
+  target.style.borderColor = "var(--danger)";
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
   el.focus?.({ preventScroll: true });
-  setTimeout(() => (el.style.borderColor = ""), 1200);
+  setTimeout(() => (target.style.borderColor = ""), 1200);
 }
 function euro(n) {
   return new Intl.NumberFormat("de-DE", {
