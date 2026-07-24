@@ -513,7 +513,6 @@ export function initExportManager(options = {}) {
 
   function goToKundendatenIfInvalid() {
     if (!cfg.requireBereichValid?.()) {
-      location.hash = "Kundendaten";
       return false;
     }
     return true;
