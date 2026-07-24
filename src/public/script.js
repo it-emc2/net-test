@@ -16704,6 +16704,27 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", () => suggestDistanceFromAddress({ force: true }));
   }
 
+  // Manual zone override: fill #travelTime (one-way) when address routing doesn't work
+  const zoneBox = document.getElementById("travelZoneButtons");
+  if (zoneBox && zoneBox.dataset.zoneBound !== "1") {
+    zoneBox.dataset.zoneBound = "1";
+    zoneBox.addEventListener("click", (e) => {
+      const zbtn = e.target.closest(".az-zone-btn");
+      if (!zbtn) return;
+      const mins = parseInt(zbtn.dataset.zoneMin, 10) || 0;
+      const travelTimeEl = document.getElementById("travelTime");
+      if (!travelTimeEl) return;
+      travelTimeEl.value =
+        typeof secondsToHHMM === "function" ? secondsToHHMM(mins * 60) : "";
+      travelTimeEl.dispatchEvent(new Event("input", { bubbles: true }));
+      travelTimeEl.dispatchEvent(new Event("change", { bubbles: true }));
+      // visual selection feedback
+      zoneBox.querySelectorAll(".az-zone-btn").forEach((b) =>
+        b.setAttribute("aria-pressed", b === zbtn ? "true" : "false")
+      );
+    });
+  }
+
   // Optional: auto-update hint + auto-fill when address changes (safe mode = no overwrite)
   const addrFields = ["street", "city", "postalCode", "state", "country"]
     .map((id) => document.getElementById(id))

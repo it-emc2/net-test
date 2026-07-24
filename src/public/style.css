@@ -7258,6 +7258,12 @@ button.pad-clear {
   background: none;
 }
 
+.az-zone-btn[aria-pressed="true"] {
+  background: var(--accent-weak);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
 .az-time-control {
   display: flex;
   flex-direction: column;
