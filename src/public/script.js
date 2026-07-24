@@ -7923,7 +7923,22 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
     show(pgLevelRow, has);
     setReq(pgRadios, has);
     if (!has) clearRadios(pgRadios);
-    const showBudget = kk && has && valid1;
+    // Respect the panel's own data-offer: never reveal it outside its allowed
+    // offers (e.g. AH). apply() only toggles .hidden, while data-offer toggles
+    // inline display — without this gate a stale display:"" from another offer
+    // lets apply() flash the panel on in AH. (root cause of random visibility)
+    const panelOffers = (budgetPanel?.getAttribute("data-offer") || "")
+      .toLowerCase()
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const offerNow = String(window.getCurrentOfferType?.() || "").toLowerCase();
+    // Fail open when the offer is unknown: only force-hide when we KNOW the
+    // current offer is one this panel excludes (e.g. AH). Otherwise the
+    // data-offer display toggle in updateOfferSpecificSections still scopes it.
+    const offerAllows =
+      !panelOffers.length || !offerNow || panelOffers.includes(offerNow);
+    const showBudget = kk && has && valid1 && offerAllows;
     show(budgetPanel, showBudget);
 
     if (!showBudget) {
