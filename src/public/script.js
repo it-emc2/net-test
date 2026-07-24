@@ -5036,6 +5036,10 @@ async function downloadPDFWithProgress(endpoint, payload) {
     clearTimeout(autoRefreshTimer);
     autoRefreshTimer = setTimeout(async () => {
       if (!activePreviewConfig || previewInFlight) return;
+      // Re-check: the user may have navigated away during the debounce. An
+      // automatic refresh must not run (nor trigger requireBereichValid's
+      // toast/redirect) when the Zusammenfassung tab is no longer active.
+      if (!isZusammenfassungActive()) return;
       try {
         if (status) status.textContent = `${activePreviewConfig.title} wird aktualisiert…`;
         await openInlineDocumentPreview(activePreviewConfig);
