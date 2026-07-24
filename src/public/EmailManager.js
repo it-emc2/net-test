@@ -90,10 +90,31 @@ export function initEmailManager(options = {}) {
   window.__mailExcludedPreset = excludedPreset;
 
   const setStatus = (msg, type = "info") => {
+    $status.classList.remove("mail-log");
     $status.hidden = false;
     $status.textContent = msg || "";
     $status.dataset.type = type;
   };
+
+  // Step-by-step "what's going on" log during send (mirrors the BU flow):
+  // each awaited step appends an emoji + timestamp line to #mailStatus.
+  const STEP_EMOJI = { info: "🔄", success: "✅", error: "❌", warning: "⚠️" };
+  function startStatusLog() {
+    $status.classList.add("mail-log");
+    $status.textContent = "";
+    $status.dataset.type = "info";
+    $status.hidden = false;
+  }
+  function pushStatus(msg, type = "info") {
+    if (!$status.classList.contains("mail-log")) startStatusLog();
+    $status.hidden = false;
+    const line = document.createElement("div");
+    line.className = "mail-log-line mail-log-line--" + type;
+    line.textContent = `${STEP_EMOJI[type] || "🔄"} [${new Date().toLocaleTimeString()}] ${msg}`;
+    $status.appendChild(line);
+    $status.scrollTop = $status.scrollHeight;
+    $status.dataset.type = type;
+  }
 
   // One-time styles for the "ANG verschickt" success/stage-move dialog.
   if (!document.getElementById("angStageStyles")) {
@@ -990,6 +1011,7 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     renderList();
     updatePreview();
 
+    $status.classList.remove("mail-log");
     $status.textContent = "";
     $status.dataset.type = "";
     $status.hidden = true;
@@ -1010,8 +1032,8 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
   });
 
   // Extra documents attached to the Bitrix timeline comment only (NOT the
-  // customer email): Angebot DOCX, Hassmann CSV, Kalkulation PDF. Best-effort —
-  // a single doc failing must never block the actual email send.
+  // customer email): Angebot DOCX, Hassmann CSV, Kalkulation PDF. If any of
+  // these fails, the whole send aborts — we never email a partial document set.
   async function fetchBitrixExtraDoc(endpoint, payload, fallbackName) {
     const resp = await fetch(endpoint, {
       method: "POST",
@@ -1029,19 +1051,22 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     return { blob: await resp.blob(), filename };
   }
 
-  async function collectBitrixDocs(payload, offerNumber) {
+  async function collectBitrixDocs(payload, offerNumber, onStep) {
     const safeNo = String(offerNumber || "Angebot").replace(/[^A-Za-z0-9_\-]+/g, "_");
     const jobs = [
-      { endpoint: "/docx-template", name: `${safeNo}.docx` },
-      { endpoint: "/material-overview/hassmann-cart", name: `Hassmann_Warenkorb_${safeNo}.csv` },
-      { endpoint: "/kalkulation/pdf", name: `Kalkulation_${safeNo}.pdf` },
+      { endpoint: "/docx-template", name: `${safeNo}.docx`, label: "Angebot-DOCX" },
+      { endpoint: "/material-overview/hassmann-cart", name: `Hassmann_Warenkorb_${safeNo}.csv`, label: "Hassmann-Warenkorb (CSV)" },
+      { endpoint: "/kalkulation/pdf", name: `Kalkulation_${safeNo}.pdf`, label: "Kalkulation-PDF" },
     ];
     const docs = [];
     for (const job of jobs) {
+      onStep?.(`Erzeuge ${job.label} …`);
       try {
         docs.push(await fetchBitrixExtraDoc(job.endpoint, payload, job.name));
       } catch (e) {
-        console.warn("[EmailManager] Bitrix-Dokument fehlgeschlagen:", job.endpoint, e);
+        console.error("[EmailManager] Bitrix-Dokument fehlgeschlagen:", job.endpoint, e);
+        // Abort the whole send: don't email a partial document set.
+        throw new Error(`${job.label} konnte nicht erzeugt werden: ${e.message || e}`);
       }
     }
     return docs;
@@ -1087,13 +1112,14 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
       ).trim();
 
       $btn.disabled = true;
-      setStatus("Erzeuge Dokumente für Bitrix …", "info");
+      startStatusLog();
+      pushStatus("Sende-Vorgang gestartet …");
 
       // Generate the extra Bitrix documents (Angebot DOCX, Hassmann CSV,
       // Kalkulation PDF) up front so they can be attached to the timeline comment.
-      const bitrixDocs = await collectBitrixDocs(payload, offerNumber);
+      const bitrixDocs = await collectBitrixDocs(payload, offerNumber, pushStatus);
 
-      setStatus("Generating offer PDF + sending email…", "info");
+      pushStatus("Erzeuge Angebots-PDF & sende E-Mail …");
 
       const subject = ($subject.value || offerNumber || "Angebot").trim();
       const body = $body.value || "";
@@ -1128,8 +1154,8 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
 
       const data = await res.json().catch(() => ({}));
 
-      setStatus(
-        `Email sent ✅ Attachments: ${data.attachmentNames?.join(", ") || "-"}`,
+      pushStatus(
+        `E-Mail gesendet — Anhänge: ${data.attachmentNames?.join(", ") || "-"}`,
         "success",
       );
 
@@ -1178,7 +1204,7 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
       return true;
     } catch (e) {
       console.error("[EmailManager] send failed:", e);
-      setStatus(`Send failed: ${e.message || e}`, "error");
+      pushStatus(`Senden fehlgeschlagen: ${e.message || e}`, "error");
       return false;
     } finally {
       $btn.disabled = false;

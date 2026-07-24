@@ -3403,6 +3403,24 @@ label.image-check.is-checked .caption {
 }
 #adobePdfStatus[data-type="error"], #mailStatus[data-type="error"], #postStatus[data-type="error"] { color: #ffb3b3; }
 
+/* Step-by-step send log (EmailManager pushStatus) */
+#mailStatus.mail-log {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  max-height: 220px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.03);
+}
+#mailStatus .mail-log-line--success { color: #1a7f4b; }
+#mailStatus .mail-log-line--error { color: #c0392b; }
+[data-mode="dark"] #mailStatus.mail-log { background: rgba(255, 255, 255, 0.05); }
+[data-mode="dark"] #mailStatus .mail-log-line--success { color: #6ee7a8; }
+[data-mode="dark"] #mailStatus .mail-log-line--error { color: #ffb3b3; }
+
 
 .mail-attach-box {
   margin-top: 8px;
