@@ -1979,9 +1979,14 @@ function fmtCount(n) {
   return n.toFixed(2).replace(".", ",");
 }
 
+const AH_SERVICE_ORDER = { Haushaltsnahedienstleistungen: 0, Alltagsbegleitung: 1 };
+
 function buildAhData(body) {
   const ah = body?.ah || {};
-  const rawServices = Array.isArray(ah.services) ? ah.services : [];
+  // HD always prints before AB, regardless of the order they were added in.
+  const rawServices = (Array.isArray(ah.services) ? ah.services : [])
+    .slice()
+    .sort((a, b) => (AH_SERVICE_ORDER[a.type] ?? 99) - (AH_SERVICE_ORDER[b.type] ?? 99));
   const ahNote = (ah.ahNote || "").trim();
 
   // One-way travel time per visit — use zone billing minutes (ahTravelZone → billMin = (zone-1)*5+10)
@@ -2075,45 +2080,54 @@ function buildAhData(body) {
   const hasHnD = rawServices.some((s) => s.type === "Haushaltsnahedienstleistungen");
   const hasAb  = rawServices.some((s) => s.type === "Alltagsbegleitung");
 
-  // ── Konditionen rows ────────────────────────────────────────────────────
-  const AhKondRows = [];
-  const firstSched = rawServices.flatMap((s) => s.schedules || []).find((s) => s.dauer);
+  // ── Konditionen rows — one set per service (HnD / AB), each built from
+  // that service's own schedule so both print in full when both are booked ──
+  function buildKondRows(svc, monatlichH) {
+    const rows = [];
+    const sched = (svc?.schedules || []).find((s) => s.dauer);
+    if (sched?.dauer) {
+      rows.push({
+        AhKondLabel: "Gewünschter Stundenumfang pro Einsatz:",
+        AhKondValue: `${sched.dauer} h`,
+      });
+    }
+    if (travelTimeH > 0 && sched) {
+      const dauerH     = parseHHMM(sched.dauer);
+      const inkAnfahrt = dauerH + travelTimeH;
+      const zoneLabel  = zoneNum > 0
+        ? `Zone ${zoneNum}${body?.Arbeitszeit?.distanceKm ? ` / ${body.Arbeitszeit.distanceKm} km` : ""}`
+        : "Zone";
+      rows.push({
+        AhKondLabel: `Stundenumfang pro Einsatz inkl. Anfahrt (${zoneLabel}):`,
+        AhKondValue: fmtHHMM(inkAnfahrt),
+      });
+    }
+    if (monatlichH > 0) {
+      rows.push({
+        AhKondLabel: "Monatlicher Stundenumfang:",
+        AhKondValue: fmtHHMM(monatlichH),
+      });
+    }
+    if (sched?.regelmaessigkeit) {
+      rows.push({
+        AhKondLabel: "Regelmäßigkeit:",
+        AhKondValue: sched.regelmaessigkeit,
+      });
+    }
+    if (sched?.bevorzugteTage) {
+      rows.push({ AhKondLabel: "Bevorzugte Tage:",   AhKondValue: sched.bevorzugteTage });
+    }
+    if (sched?.bevorzugteUhrzeit) {
+      rows.push({ AhKondLabel: "Bevorzugte Uhrzeit:", AhKondValue: sched.bevorzugteUhrzeit });
+    }
+    return rows;
+  }
 
-  if (firstSched?.dauer) {
-    AhKondRows.push({
-      AhKondLabel: "Gewünschter Stundenumfang pro Einsatz:",
-      AhKondValue: `${firstSched.dauer} h`,
-    });
-  }
-  if (travelTimeH > 0 && firstSched) {
-    const dauerH        = parseHHMM(firstSched.dauer);
-    const inkAnfahrt    = dauerH + travelTimeH;
-    const zoneLabel     = zoneNum > 0
-      ? `Zone ${zoneNum}${body?.Arbeitszeit?.distanceKm ? ` / ${body.Arbeitszeit.distanceKm} km` : ""}`
-      : "Zone";
-    AhKondRows.push({
-      AhKondLabel: `Stundenumfang pro Einsatz inkl. Anfahrt (${zoneLabel}):`,
-      AhKondValue: fmtHHMM(inkAnfahrt),
-    });
-  }
-  if (totalMonatlichH > 0) {
-    AhKondRows.push({
-      AhKondLabel: "Monatlicher Stundenumfang:",
-      AhKondValue: fmtHHMM(totalMonatlichH),
-    });
-  }
-  if (firstSched?.regelmaessigkeit) {
-    AhKondRows.push({
-      AhKondLabel: "Regelmäßigkeit:",
-      AhKondValue: firstSched.regelmaessigkeit,
-    });
-  }
-  if (firstSched?.bevorzugteTage) {
-    AhKondRows.push({ AhKondLabel: "Bevorzugte Tage:",   AhKondValue: firstSched.bevorzugteTage });
-  }
-  if (firstSched?.bevorzugteUhrzeit) {
-    AhKondRows.push({ AhKondLabel: "Bevorzugte Uhrzeit:", AhKondValue: firstSched.bevorzugteUhrzeit });
-  }
+  const AhKondRowsHnD = buildKondRows(hndSvc, hnd.totalMonatlichH);
+  const AhKondRowsAB  = buildKondRows(abSvc, ab.totalMonatlichH);
+
+  // Kept for any template still on the old single-table tag; now HnD-first.
+  const AhKondRows = [...AhKondRowsHnD, ...AhKondRowsAB];
   if (AhKondRows.length === 0) {
     AhKondRows.push({ AhKondLabel: "", AhKondValue: "" });
   }
@@ -2124,6 +2138,8 @@ function buildAhData(body) {
     : "";
 
   const anfahrtGesamtCombined = r2(anfahrtTotal + abAnfahrtTotal);
+  // Kept only for the Bitrix sync fields below (unrelated to the docx Konditionen tables).
+  const firstSched = (hndSvc?.schedules || []).find((s) => s.dauer) || (abSvc?.schedules || []).find((s) => s.dauer);
 
   return {
     AhNote: ahNote,
@@ -2135,6 +2151,10 @@ function buildAhData(body) {
     AhServicepausEinzelpreis: "1,20 €",
     AhGesamtbetrag: gesamt > 0 ? fmtCurrency(gesamt) : "",
     AhKondRows,
+    AhKondRowsHnD,
+    AhKondRowsAB,
+    AhHasHnD: hasHnD,
+    AhHasAb: hasAb,
     // Hinweis zur zusätzlichen Alltagsbegleitung – nur zeigen, wenn ein Angebot
     // besteht und Alltagsbegleitung noch nicht gebucht ist.
     AhShowAbHinweis: gesamt > 0 && !hasAb,
