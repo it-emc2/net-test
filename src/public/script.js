@@ -4955,7 +4955,6 @@ async function downloadPDFWithProgress(endpoint, payload) {
     }
 
     if (typeof requireBereichValid === "function" && !requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
 
@@ -5195,7 +5194,6 @@ function collectAllFormData() {
 
   async function generateWithAdobe(endpoint, fileType) {
     if (typeof requireBereichValid === "function" && !requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
 
@@ -5252,7 +5250,6 @@ function collectAllFormData() {
 
   async function generateBoth() {
     if (typeof requireBereichValid === "function" && !requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
 
@@ -5335,6 +5332,7 @@ function flashInvalid(el) {
   if (!el) return;
   el.style.borderColor = "var(--danger)";
   el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.focus?.({ preventScroll: true });
   setTimeout(() => (el.style.borderColor = ""), 1200);
 }
 function euro(n) {
@@ -5735,14 +5733,45 @@ function requireBereichValid() {
   const form = document.getElementById("form-Kundendaten");
   if (typeof window.validateAufschlagSelection === "function") {
     const aufschlagOk = window.validateAufschlagSelection({ report: true });
-    if (!aufschlagOk) return false;
+    if (!aufschlagOk) {
+      // Aufschlag lives on the Kundendaten page for most offers, but is
+      // relocated onto the Rabatt page for bu/bwt/hl (see relocateAufschlag).
+      // Switch to wherever it actually is, not always "Kundendaten".
+      const sec = document.getElementById("aufschlagSection");
+      const step = sec?.closest(".page")?.id?.replace(/^page-/, "");
+      if (step && typeof window.setStep === "function") window.setStep(step);
+      flashInvalid(document.getElementById("sonderaufschlagValue"));
+      window.toast?.error(
+        "Angaben unvollständig",
+        "Bitte prüfen Sie die rot markierten Pflichtfelder."
+      );
+      return false;
+    }
+  }
+  // The form is on the Kundendaten tab, which may currently be `hidden`
+  // (display:none) if the user clicked export from another tab. Switching
+  // there first ensures reportValidity()/focus() actually render, instead
+  // of silently no-oping on a non-displayed form.
+  if (form.closest(".page")?.hidden && typeof window.setStep === "function") {
+    window.setStep("Kundendaten");
   }
   if (!form.reportValidity()) {
+    flashInvalid(form.querySelector(":invalid"));
     focusFirstBereichConditionalError();
+    window.toast?.error(
+      "Angaben unvollständig",
+      "Bitte prüfen Sie die rot markierten Pflichtfelder in „Kundendaten“."
+    );
     return false;
   }
   const ok = validateBereich();
-  if (!ok) focusFirstBereichConditionalError();
+  if (!ok) {
+    focusFirstBereichConditionalError();
+    window.toast?.error(
+      "Angaben unvollständig",
+      "Bitte prüfen Sie die rot markierten Pflichtfelder in „Kundendaten“."
+    );
+  }
   return ok;
 }
 function validateArbeitszeit() {
@@ -15256,7 +15285,6 @@ async function saveFinalOfferSnapshot() {
 
 document.getElementById("makePdf")?.addEventListener("click", async () => {
   if (!requireBereichValid()) {
-    location.hash = "Kundendaten";
     return;
   }
   try {
@@ -15281,7 +15309,6 @@ document
   .getElementById("makePdfFromTemplate")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
     try {
@@ -15330,7 +15357,6 @@ async function downloadDocx(url, body) {
 
 document.getElementById("downloadDocx")?.addEventListener("click", async () => {
   if (!requireBereichValid()) {
-    location.hash = "Kundendaten";
     return;
   }
   try {
@@ -15343,7 +15369,6 @@ document.getElementById("downloadDocx")?.addEventListener("click", async () => {
 
 document.getElementById("sendForm")?.addEventListener("click", async () => {
   if (!requireBereichValid()) {
-    location.hash = "Kundendaten";
     return;
   }
   try {
@@ -15362,7 +15387,6 @@ document.getElementById("sendForm")?.addEventListener("click", async () => {
 
 document.getElementById("sendJson")?.addEventListener("click", async () => {
   if (!requireBereichValid()) {
-    location.hash = "Kundendaten";
     return;
   }
   try {
@@ -15384,7 +15408,6 @@ document
   .getElementById("downloadMaterialOverview")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
     try {
@@ -15416,7 +15439,6 @@ document
   .getElementById("downloadArbeitsbericht")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
     try {
@@ -15445,7 +15467,6 @@ document
   .getElementById("downloadLatexPdf")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
     try {
@@ -15464,7 +15485,6 @@ document
   .getElementById("downloadDocxAsPdf")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
     try {
@@ -15481,7 +15501,6 @@ document
   .getElementById("downloadKalkulationDocx")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
 
@@ -15509,7 +15528,6 @@ document
   .getElementById("downloadKalkulation")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
     try {
@@ -15537,7 +15555,6 @@ document
   // Kalkulation PDF
 document.getElementById("downloadKalkulation")?.addEventListener("click", async () => {
   if (!requireBereichValid()) {
-    location.hash = "Kundendaten";
     return;
   }
 
@@ -20899,7 +20916,6 @@ async function sendPdfToAuftrag() {
 
   sendBtn.addEventListener("click", () => {
     if (typeof requireBereichValid === "function" && !requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
     sendPdfToAuftrag();
@@ -20997,7 +21013,6 @@ async function sendPdfToAuftrag() {
 
   btn.addEventListener("click", () => {
     if (typeof requireBereichValid === "function" && !requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
     createLink();
@@ -25829,7 +25844,6 @@ document
   .getElementById("downloadHassmannCart")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
     try {
