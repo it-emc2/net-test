@@ -134,6 +134,11 @@ export function initRestoreManager({
       window.__lastRestoredPayload = payload;
       window.__lastOfferPayload = payload;
 
+      // Preserve the offer's original Aufschlag rule: legacy drafts have no
+      // pricingRules flag → keep Kleinmaterial out of the Aufschlag so the
+      // total matches what was originally saved.
+      window.__kleinInAufschlag = payload?.pricingRules?.kleinInAufschlag === true;
+
       console.log("[SKETCH][payload-stored]", {
         payloadKeys: Object.keys(payload || {}),
         hlKeys: payload?.hl ? Object.keys(payload.hl) : [],

@@ -2788,6 +2788,9 @@ function startOfferFlow(offerKey) {
   // Fresh start for this offer: clear all forms back to their HTML defaults
   resetAllForms();
 
+  // Fresh offer → new pricing rules (Kleinmaterial counts toward the Aufschlag).
+  window.__kleinInAufschlag = true;
+
   // BWT: override Arbeitszeit default to 05:00 (1 worker, shorter job)
   if (offerKey === "bwt") {
     const laborEl = document.getElementById("laborHours");
@@ -3785,6 +3788,11 @@ function buildPayload() {
 
   const effectiveAufschlag = window.getEffectiveAufschlagValue?.();
   if (effectiveAufschlag) payload.Kundendaten.aufschlag = effectiveAufschlag;
+
+  // Pricing-rules marker. New offers include Kleinmaterial in the Aufschlag;
+  // legacy drafts restore this as false (set in the restore path) so their
+  // totals don't drift when reopened. Absent → treated as new (default true).
+  payload.pricingRules = { kleinInAufschlag: window.__kleinInAufschlag !== false };
 
   // Parse AH service lines from JSON hidden field
   if (payload.ah && payload.ah.ahServicesJson) {
@@ -11074,6 +11082,29 @@ function escapeHtml(s) {
   // (neu) line but not shown yet — flip this to true to display it once desired.
   const SHOW_FINISH_IN_KOSTEN = false;
 
+  // BU material sections — mirrors CATEGORY_ORDER in routes/docx-template.js so
+  // the Kosten-Detail matches the Angebot. Inserts __subtitle header rows.
+  function groupMaterialRows(rows) {
+    const ORDER = ["Kleinmaterial", "Fußboden", "Wandverkleidung", "Zubehör", "Duschwanne", "Duschabtrennung", "Weiteres"];
+    const catOf = (r) =>
+      r.category ||
+      (r.source === "optional" || r.source === "optional_reha" ? "Zubehör" : "Weiteres");
+    const grouped = new Map();
+    for (const r of rows) {
+      const c = catOf(r);
+      if (!grouped.has(c)) grouped.set(c, []);
+      grouped.get(c).push(r);
+    }
+    const out = [];
+    for (const cat of ORDER) {
+      const g = grouped.get(cat);
+      if (!g || !g.length) continue;
+      out.push({ __subtitle: true, label: cat.toUpperCase() });
+      out.push(...g);
+    }
+    return out;
+  }
+
   function listLines(lines) {
     if (!Array.isArray(lines) || !lines.length)
       return '<div class="muted">Keine Positionen</div>';
@@ -11511,18 +11542,20 @@ if (supportsOptional) {
         : data.materials && Array.isArray(data.materials.lines)
           ? data.materials.lines
           : [];
-    const matBody = listLines(
-      matLines.map((l) => ({
-        productId: l.productId || l.id,
-        name: l.name,
-        qty: l.qty,
-        unitPrice: l.unitPrice,
-        lineTotal: l.lineTotal,
-        label: l.label,
-        source: l.source,
-        finish: l.finish,
-      })),
-    );
+    const matRows = matLines.map((l) => ({
+      productId: l.productId || l.id,
+      name: l.name,
+      qty: l.qty,
+      unitPrice: l.unitPrice,
+      lineTotal: l.lineTotal,
+      label: l.label,
+      source: l.source,
+      finish: l.finish,
+      category: l.category,
+    }));
+    // BU: group into the same sections as the Angebot (docx-template CATEGORY_ORDER).
+    const isBuKosten = String(window.getCurrentOfferType?.() || "").toLowerCase() === "bu";
+    const matBody = isBuKosten ? listLines(groupMaterialRows(matRows)) : listLines(matRows);
     const mat = data.materialsDisplayUI?.lines || data.materials?.lines || [];
     const matSum = data.materialsDisplayUI?.sum ?? data.materials?.sum ?? 0;
 
@@ -11532,8 +11565,9 @@ if (supportsOptional) {
     //const matSum = (data.materialsDisplayUI && typeof data.materialsDisplayUI.sum === 'number')
     //  ? data.materialsDisplayUI.sum
     //  : (data.materials?.sum || 0);
+    const matTitle = (data.materials && data.materials.title) || "Material für Badumbau";
     const matCard = card(
-      (data.materials && data.materials.title) || "Material für Badumbau",
+      matTitle,
       matBody,
       `<span class="kosten-subtotal-label">Summe Material:</span> ${euroC(matSum)}`,
     );
@@ -11655,13 +11689,20 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       svcBodyPrimary,
     );
 
-    // <div>Produkte + Material: <b>${euroC(data.productsSubtotal || 0)}</b></div>
-    // --- Totals (unchanged)
+    // --- Totals: transparent, reconciling order (ordering prices, then Aufschlag/Rabatt/Bonus).
+    //   Arbeiten + Material (+ Additional) + Aufschlag − Rabatt − Bonus = Zwischensumme (Netto).
+    const optSum = Number(data.optionalDisplayUI?.sum || 0);
+    const rabattAmount = Number(data.rabattAmount || 0);
+    const bonusGross = Number(data.bonusGross || 0);
+    const aufPct = (() => { const p = (data.markupPct || 0) * 100; return Number.isInteger(p) ? String(p) : p.toFixed(2).replace(/\.?0+$/, "").replace(".", ","); })();
     const sums = `
     <div class="kosten-sums">
-      <div><span>Produkte + Material:</span> <b>${euroC(data.material_afterRabatt_and_aufschlag || 0)}</b></div>
-      <div><span>Leistungen:</span> <b>${euroC(data.services?.sum || 0)}</b></div>
-      <div><span>Aufschlag (${(() => { const p = (data.markupPct || 0) * 100; return Number.isInteger(p) ? String(p) : p.toFixed(2).replace(/\.?0+$/, "").replace(".", ","); })()}%):</span> <b>${euroC(data.markup || 0)}</b></div>
+      <div><span>Arbeiten:</span> <b>${euroC(data.services?.sum || 0)}</b></div>
+      <div><span>${matTitle}:</span> <b>${euroC(matSum)}</b></div>
+      ${optSum ? `<div><span>Additional gewählte Produkte:</span> <b>${euroC(optSum)}</b></div>` : ""}
+      <div><span>Aufschlag (${aufPct}%):</span> <b>${euroC(data.markup || 0)}</b></div>
+      ${rabattAmount ? `<div><span>Rabatt:</span> <b>− ${euroC(rabattAmount)}</b></div>` : ""}
+      ${bonusGross ? `<div><span>Bonus / Gratis:</span> <b>− ${euroC(bonusGross)}</b></div>` : ""}
       <div class="kosten-sums__subtotal"><span>Zwischensumme (Netto):</span> <b>${euroC(data.netAfterRabatt_and_Bonus || 0)}</b></div>
       <div class="kosten-sums__total"><span>Gesamt:</span> <b>${euroC(data.total || 0)}</b></div>
     </div>
@@ -14122,6 +14163,9 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     p = offer?.payload;
     if (!p) return;
 
+    // Preserve the offer's original Aufschlag rule (legacy drafts → false).
+    window.__kleinInAufschlag = p?.pricingRules?.kleinInAufschlag === true;
+
     // normalize offerType
     const rawOfferType =
       doc?.offerType ||
@@ -15750,7 +15794,7 @@ window.setPricingData = function setPricingData(data) {
       ? String(pctNum)
       : pctNum.toFixed(2).replace(/\.?0+$/, "").replace(".", ",");
     byId("rb-auf-label")?.replaceChildren(
-      document.createTextNode(`Aufschlag ${pctLabel}% (ohne Kleinmaterial)`),
+      document.createTextNode(`Aufschlag ${pctLabel}%`),
     );
 
     // Show/hide 300€ bonus based on threshold (after rab.)

@@ -32,6 +32,7 @@ function createBasePayload(overrides = {}) {
     hl: overrides.hl || {},
     activeOffer: overrides.activeOffer || 'bu',
     pricing: overrides.pricing || {},
+    ...(overrides.pricingRules ? { pricingRules: overrides.pricingRules } : {}),
   };
 
   // Deep merge Kundendaten.wohnumfeld if provided separately
@@ -522,6 +523,40 @@ describe('Pricing Module', () => {
       expect(checkDecimals(result.markup)).toBe(true);
       expect(checkDecimals(result.vatOnNet)).toBe(true);
       expect(checkDecimals(result.total)).toBe(true);
+    });
+  });
+
+  describe('Aufschlag / Kleinmaterial rule is payload-gated', () => {
+    const km02Payload = (extra) =>
+      createBasePayload({
+        activeOffer: 'bu',
+        Kundendaten: { aufschlag: '50%' },
+        duschwanne: { smallMaterial: true },
+        ...extra,
+      });
+
+    beforeEach(() => {
+      mockProductModel.find.mockReturnValue({
+        lean: jest.fn().mockResolvedValue([
+          { productId: 'KM02', price: 100, name: 'Kleinmaterial' },
+        ]),
+      });
+    });
+
+    test('legacy payload (no flag) excludes Kleinmaterial from the markup', async () => {
+      const result = await pricing.computePrices(km02Payload());
+      const km = result.materials.lines.find((l) => l.productId === 'KM02');
+      expect(km).toBeDefined();
+      // KM02 is the only line and it is excluded → markup 0 (unchanged legacy).
+      expect(result.markup).toBe(0);
+    });
+
+    test('new-rules payload includes Kleinmaterial in the 50% markup', async () => {
+      const result = await pricing.computePrices(
+        km02Payload({ pricingRules: { kleinInAufschlag: true } }),
+      );
+      // Kleinmaterial (100) now part of the 50% Aufschlag base → markup 50.
+      expect(result.markup).toBe(50);
     });
   });
 });
