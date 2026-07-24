@@ -7968,16 +7968,27 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
       }
     }
 
-    show(wePanel, kk);
+    // Same offer-scoping as budgetPanel: gate on wePanel's data-offer so it is
+    // both hidden AND not required outside its allowed offers (e.g. AH). Gating
+    // only visibility would leave a hidden required radio blocking validation.
+    const wePanelOffers = (wePanel?.getAttribute("data-offer") || "")
+      .toLowerCase()
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const weAllows =
+      !wePanelOffers.length || !offerNow || wePanelOffers.includes(offerNow);
+    const weOn = kk && weAllows;
+    show(wePanel, weOn);
     const weDoneRadios = Array.from(
       weDoneGroup?.querySelectorAll('input[name="wohnumfeldDone"]') || [],
     );
     const weAppRadios = Array.from(
       weAppGroup?.querySelectorAll('input[name="wohnumfeldApplication"]') || [],
     );
-    setReq(weDoneRadios, kk);
-    setReq(weAppRadios, kk);
-    if (!kk) {
+    setReq(weDoneRadios, weOn);
+    setReq(weAppRadios, weOn);
+    if (!weOn) {
       weDoneRadios.forEach((r) => (r.checked = false));
       weAppRadios.forEach((r) => (r.checked = false));
       show(weEntriesContainer, false);
