@@ -10,12 +10,80 @@ const euro = (n) =>
     Number(n || 0),
   );
 
+// Verbreiterungsprofil — VIGOUR catalog category "verbreiterungsprofil" (10 articles).
+// These are NOT part of the wizard's leaf/component tree, so they can't be resolved by
+// the engine; they are picked by hand after the sizes and appended as ordinary net lines.
+// Prices are the vigor DB netPrice (matt vs. "HL" = silber hochglanz). Sorted by article
+// number. HL variants reuse the matt variant's image (identical profile, other finish).
+// Only VZVP1195 is live for now — uncomment a row to switch the others on.
+const EXTRAS = [
+  { articleNumber: "VZVP1195", name: "Verbreiterung 1 für V2 Gleittür um 26 mm", finishText: "1950 mm silber matt VIGOUR", net: 49.27, gros: 75.8, image: "VZVP1195.jpg" },
+  // { articleNumber: "VZVP1195HL", name: "Verbreiterung 1 für V2 Gleittür um 26 mm", finishText: "1950 mm silber hochglanz VIGOUR", net: 60.84, gros: 93.6, image: "VZVP1195.jpg" },
+  // { articleNumber: "VZVP2195", name: "Verbreiterung V2 Seitenwände um 34 mm", finishText: "H:1950 mm silber matt VIGOUR", net: 48.49, gros: 74.6, image: "VZVP2195.jpg" },
+  // { articleNumber: "VZVP2195HL", name: "Verbreiterung V2 Seitenwände um 34 mm", finishText: "H:1950 mm silber hochglanz VIGOUR", net: 60.06, gros: 92.4, image: "VZVP2195.jpg" },
+  // { articleNumber: "VZVP3195", name: "Verbreiterung 3 für V2 PT/FP um 10 mm", finishText: "1950 mm silber matt VIGOUR", net: 49.27, gros: 75.8, image: "VZVP3195.jpg" },
+  // { articleNumber: "VZVP3195HL", name: "Verbreiterung 3 für V2 PT/FP um 10 mm", finishText: "1950 mm silber hochglanz VIGOUR", net: 60.84, gros: 93.6, image: "VZVP3195.jpg" },
+  // { articleNumber: "VZVP4195", name: "Verbreiterung 4 für V2 PT m. FF um 36 mm", finishText: "1950 mm silber matt VIGOUR", net: 49.27, gros: 75.8, image: "VZVP4195.jpg" },
+  // { articleNumber: "VZVP4195HL", name: "Verbreiterung 4 für V2 PT m. FF um 36 mm", finishText: "1950 mm silber hochglanz VIGOUR", net: 60.84, gros: 93.6, image: "VZVP4195.jpg" },
+  // { articleNumber: "VZVP6195", name: "Verbreiterung 6 Magnetleiste um 19,2 mm", finishText: "1950 mm silber matt VIGOUR", net: 49.27, gros: 75.8, image: "VZVP6195.jpg" },
+  // { articleNumber: "VZVP6195HL", name: "Verbreiterung 6 Magnetleiste um 19,2 mm", finishText: "1950 mm silber hochglanz VIGOUR", net: 60.84, gros: 93.6, image: "VZVP6195.jpg" },
+];
+
 export function mountConfigurator(el, model, options = {}) {
   let state = w.settle(model, options.initialState || w.initialState());
   let pending = { width: null, height: null }; // in-progress component size
+  let extrasOpen = false; // Verbreiterungsprofil section collapsed by default
   const emit = (name, payload) => {
     if (typeof options[name] === "function") options[name](payload);
   };
+
+  // --- Verbreiterungsprofil extras -------------------------------------------
+  // Kept on the engine state (as `extras`) so getState()/initialState() persist and
+  // restore them for free. Vigour-only articles → hidden for the BADOLUX model.
+  const extrasAvailable = () => (model.supplier === "BADOLUX" ? [] : EXTRAS);
+  const pickedExtras = () => {
+    const ids = Array.isArray(state.extras) ? state.extras : [];
+    return extrasAvailable().filter((e) => ids.includes(e.articleNumber));
+  };
+  function toggleExtra(articleNumber) {
+    const ids = Array.isArray(state.extras) ? state.extras : [];
+    state = {
+      ...state,
+      extras: ids.includes(articleNumber)
+        ? ids.filter((x) => x !== articleNumber)
+        : [...ids, articleNumber],
+    };
+    emit("onChange", state);
+    render();
+  }
+
+  /** Engine result plus the hand-picked extras as ordinary lines (totals re-summed). */
+  function resolved() {
+    const cfg = w.resolveConfiguration(model, state);
+    if (!cfg) return null;
+    const picked = pickedExtras();
+    if (!picked.length) return cfg;
+    const lines = cfg.lines.concat(
+      picked.map((e) => ({
+        component: e.name,
+        key: "extra:" + e.articleNumber,
+        article: {
+          articleNumber: e.articleNumber,
+          displayName: e.name,
+          finishText: e.finishText,
+          net: e.net,
+          gros: e.gros,
+          currency: cfg.currency,
+        },
+      })),
+    );
+    return {
+      ...cfg,
+      lines,
+      net: lines.reduce((s, l) => s + l.article.net, 0),
+      gros: lines.reduce((s, l) => s + l.article.gros, 0),
+    };
+  }
 
   // param metadata from structure params OR the resolved leaf's finish params
   function paramMeta(paramId) {
@@ -76,7 +144,7 @@ export function mountConfigurator(el, model, options = {}) {
     const selections = {};
     for (const id of order.slice(0, idx))
       if (state.selections[id] != null) selections[id] = state.selections[id];
-    state = w.settle(model, { selections, sizes: {} });
+    state = { ...w.settle(model, { selections, sizes: {} }), extras: state.extras };
     pending = { width: null, height: null };
     emit("onChange", state);
     render();
@@ -106,7 +174,7 @@ export function mountConfigurator(el, model, options = {}) {
         (cs.phase === "structure" || cs.phase === "finish") &&
         cs.paramId === target
       ) {
-        state = settled;
+        state = { ...settled, extras: state.extras };
         pending = { width: null, height: null };
         emit("onChange", state);
         render();
@@ -205,10 +273,13 @@ export function mountConfigurator(el, model, options = {}) {
       for (const val of w.availableOptions(model, state, step.paramId)) {
         grid.appendChild(
           optionButton(val, () => {
-            state = w.settle(
-              model,
-              w.applySelection(model, state, step.paramId, val.value),
-            );
+            state = {
+              ...w.settle(
+                model,
+                w.applySelection(model, state, step.paramId, val.value),
+              ),
+              extras: state.extras, // applySelection drops unknown keys
+            };
             emit("onChange", state);
             render();
           }),
@@ -228,7 +299,7 @@ export function mountConfigurator(el, model, options = {}) {
     }
 
     const finishAndRender = () => {
-      const done = w.resolveConfiguration(model, state);
+      const done = resolved();
       if (done) emit("onComplete", done);
       emit("onChange", state);
       render();
@@ -248,7 +319,7 @@ export function mountConfigurator(el, model, options = {}) {
       }
     }
     if (autoChanged) {
-      const done = w.resolveConfiguration(model, state);
+      const done = resolved();
       if (done) emit("onComplete", done);
       emit("onChange", state);
     }
@@ -331,6 +402,8 @@ export function mountConfigurator(el, model, options = {}) {
       main.appendChild(group);
     }
 
+    renderExtras(main);
+
     if (step.phase === "done") {
       const done = document.createElement("p");
       done.className = "dac-done-hint";
@@ -344,6 +417,50 @@ export function mountConfigurator(el, model, options = {}) {
       again.addEventListener("click", reset);
       main.appendChild(again);
     }
+  }
+
+  // Optional Verbreiterungsprofil tiles, rendered right after the size selection.
+  // Reuses the option-button look; clicking toggles the article on/off.
+  function renderExtras(main) {
+    const items = extrasAvailable();
+    if (!items.length) return;
+    const ids = Array.isArray(state.extras) ? state.extras : [];
+
+    // native <details> for the collapse; open state survives re-renders via extrasOpen
+    const group = document.createElement("details");
+    group.className = "dac-component dac-extras";
+    group.open = extrasOpen || ids.length > 0;
+    group.addEventListener("toggle", () => { extrasOpen = group.open; });
+    const title = document.createElement("summary");
+    title.className = "dac-comp-title";
+    title.textContent = "Verbreiterungsprofil (optional)";
+    group.appendChild(title);
+
+    const grid = document.createElement("div");
+    grid.className = "dac-grid";
+    for (const e of items) {
+      const btn = optionButton(
+        {
+          label: `${e.name} · ${euro(e.net)}`,
+          imageId: null,
+        },
+        () => toggleExtra(e.articleNumber),
+      );
+      if (ids.includes(e.articleNumber)) btn.dataset.selected = "true";
+      // extras carry a plain asset path, not a model imageId → build the <img> here
+      const wrap = document.createElement("span");
+      wrap.className = "dac-opt-img";
+      const img = document.createElement("img");
+      img.src = "/assets/Verbreiterungsprofil/" + e.image;
+      img.alt = e.name;
+      img.loading = "lazy";
+      img.onerror = () => wrap.remove();
+      wrap.appendChild(img);
+      btn.prepend(wrap);
+      grid.appendChild(btn);
+    }
+    group.appendChild(grid);
+    main.appendChild(group);
   }
 
   function renderSummary(aside) {
@@ -373,7 +490,7 @@ export function mountConfigurator(el, model, options = {}) {
       body.appendChild(imageCol);
     }
 
-    const cfg = w.resolveConfiguration(model, state);
+    const cfg = resolved();
     const list = document.createElement("div");
     list.className = "dac-lines";
     if (cfg) {
@@ -518,7 +635,7 @@ export function mountConfigurator(el, model, options = {}) {
   render();
   return {
     state: () => state,
-    resolved: () => w.resolveConfiguration(model, state),
+    resolved,
     reset,
     destroy: () => {
       el.innerHTML = "";
