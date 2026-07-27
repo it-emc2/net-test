@@ -556,6 +556,70 @@ h1 {
   transform: scale(1);
 }
 
+/* --- Sidebar step groups (Badumbau) ---------------------------------------
+   Deliberately NOT the .accordion-* component used by Developer/CRM: the
+   header is a .side-link so groups read as ordinary main entries. */
+.side-group {
+  display: grid;
+  gap: 6px;
+}
+
+.side-group-header {
+  font: inherit;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.side-group-header .side-group-chevron {
+  width: 18px;
+  flex: none;
+  text-align: center;
+  line-height: 1;
+  transition: transform 0.18s ease;
+}
+
+.side-group-header[aria-expanded="true"] .side-group-chevron {
+  transform: rotate(90deg);
+}
+
+/* Roman numeral badge — the only place with a serif face, scoped to this span
+   so the app font stays untouched. */
+.side-num {
+  flex: none;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--accent-weak);
+  color: var(--accent-strong);
+}
+
+.side-group-body {
+  display: none;
+  gap: 6px;
+  margin-left: 21px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+}
+
+.side-group-body.open {
+  display: grid;
+}
+
+/* Header mirrors the state of its children. */
+.side-group:has(.side-link.done) > .side-group-header {
+  color: var(--step-done);
+}
+
+.side-group:has(.side-link.active) > .side-group-header {
+  background: var(--accent-weak);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
 .main {
   padding: 0 20px 40px;
 }

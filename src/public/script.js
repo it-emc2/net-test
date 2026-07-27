@@ -2405,6 +2405,12 @@ function resetAllForms() {
     window.__RESTORING__ = false;
   } catch (e) {}
 
+  // 5b) The toggle sweep above ran with the restore guard on, so the WV
+  // consumables still carry their HTML `checked` defaults. Re-run the panel
+  // coupling now that the guard is off: a fresh offer has no panels, so they
+  // switch off instead of billing four items nobody selected.
+  recomputeWVFlachenQty();
+
   // 6) One clean pricing refresh after reset
   window.updatePricing?.();
 
@@ -2606,7 +2612,7 @@ function updateSidebarForOffer() {
   sideMenu.innerHTML = "";
 
   // Helper to create a <a class="side-link"> with the same structure as before
-  function makeLink(stepId, label) {
+  function makeLink(stepId, label, numeral) {
     const a = document.createElement("a");
     a.className = "side-link";
     a.href = `#${stepId}`;
@@ -2619,9 +2625,17 @@ function updateSidebarForOffer() {
     span.textContent = label;
 
     a.appendChild(dot);
+    if (numeral) a.appendChild(makeNumeral(numeral));
     a.appendChild(span);
 
     return a;
+  }
+
+  function makeNumeral(numeral) {
+    const el = document.createElement("span");
+    el.className = "side-num";
+    el.textContent = numeral;
+    return el;
   }
 
   // --- Always render "Hauptmenü" as first item ---
@@ -2659,18 +2673,91 @@ function updateSidebarForOffer() {
     Fussboden: "Fußboden",
     // Rabatt page only exists in the Badumbau flow, so this rename is bu-only.
     Rabatt: "Aufschlag / Rabatt",
+    Optional: "Optional Products",
   };
 
-  normalPages.forEach((pageId) => {
-    const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
-    let label = navLink ? navLink.textContent.trim() : pageId;
+  // Badumbau groups its many pages into two collapsible sections; every other
+  // offer keeps the flat list. Purely visual — page ids and flow order are untouched.
+  const isBu = activeOffer === "bu";
+  const SIDEBAR_GROUPS = isBu
+    ? [
+        { title: "Arbeit", num: "I", pages: ["Arbeitszeit", "Arbeiten"] },
+        {
+          title: "Material",
+          num: "II",
+          pages: [
+            "Duschwanne",
+            "Fussboden",
+            "Wandverkleidung",
+            "Duschabtrennung",
+            "DuschabtrennungNeu",
+            "Duschvorhang",
+          ],
+        },
+      ]
+    : [];
+  const groupedByGroups = new Set(SIDEBAR_GROUPS.flatMap((g) => g.pages));
+  const linkNumerals = isBu ? { Optional: "III" } : {};
 
-    if (specialLabels[pageId]) {
-      label = specialLabels[pageId];
+  function labelFor(pageId) {
+    const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
+    return specialLabels[pageId] || (navLink ? navLink.textContent.trim() : pageId);
+  }
+
+  normalPages.forEach((pageId) => {
+    if (groupedByGroups.has(pageId)) {
+      // Render the whole group at the position of its first member.
+      const group = SIDEBAR_GROUPS.find((g) => g.pages[0] === pageId);
+      if (group) {
+        appendSideGroup(group, group.pages.filter((id) => normalPages.includes(id)));
+      }
+      return;
     }
 
-    sideMenu.appendChild(makeLink(pageId, label));
+    sideMenu.appendChild(makeLink(pageId, labelFor(pageId), linkNumerals[pageId]));
   });
+
+  // A group header is a .side-link with a chevron where the dot would be, so
+  // it sits flush with the ordinary entries above and below it.
+  function appendSideGroup(group, pageIds) {
+    if (!pageIds.length) return;
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "side-group";
+
+    const header = document.createElement("button");
+    header.type = "button";
+    header.className = "side-link side-group-header";
+
+    const chevron = document.createElement("span");
+    chevron.className = "side-group-chevron";
+    chevron.textContent = "›";
+    chevron.setAttribute("aria-hidden", "true");
+
+    const title = document.createElement("span");
+    title.textContent = group.title;
+
+    header.appendChild(chevron);
+    if (group.num) header.appendChild(makeNumeral(group.num));
+    header.appendChild(title);
+
+    const body = document.createElement("div");
+    body.className = "side-group-body";
+    pageIds.forEach((pageId) => body.appendChild(makeLink(pageId, labelFor(pageId))));
+
+    const isOpen = pageIds.includes(activeStep);
+    body.classList.toggle("open", isOpen);
+    header.setAttribute("aria-expanded", isOpen ? "true" : "false");
+
+    header.addEventListener("click", () => {
+      const open = body.classList.toggle("open");
+      header.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+
+    wrapper.appendChild(header);
+    wrapper.appendChild(body);
+    sideMenu.appendChild(wrapper);
+  }
 
   function appendAccordionGroup(title, pageIds, labelOverrides = {}) {
     if (!pageIds.length) return;
@@ -2862,7 +2949,8 @@ function setStep(step) {
   });
 
   // 3) Left sidebar
-  const sideLinks = sideMenu?.querySelectorAll(".side-link");
+  // Anchors only — group headers are buttons without a data-step.
+  const sideLinks = sideMenu?.querySelectorAll("a.side-link");
   sideLinks?.forEach((sideLink) => {
     const s = sideLink.dataset.step;
     const isActive = s === step;
@@ -7022,6 +7110,40 @@ function recomputeWVFlachenQty() {
     // notify any listeners (pricing, UI mirrors, etc.)
     out.dispatchEvent(new Event("input", { bubbles: true }));
     out.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  syncWVConsumablesToPanels(total997 + total1497);
+}
+
+// The four consumables belong to a Wandverkleidung job, not to an empty offer:
+// no panels -> all off, first panel -> all on. Only the 0 -> n edge turns them
+// back on, so unticking one deliberately survives later panel edits.
+// var, not let: resetAllForms() runs during top-level script execution and
+// calls this, which would hit the temporal dead zone of a let and kill the
+// whole script at load.
+var lastWvPanelTotal = 0;
+function syncWVConsumablesToPanels(totalPanels) {
+  // Restore writes the saved state verbatim; never second-guess it.
+  if (window.__RESTORING__ || window.__restoring) {
+    lastWvPanelTotal = totalPanels;
+    return;
+  }
+
+  const wanted = totalPanels === 0 ? false : !lastWvPanelTotal ? true : null;
+  lastWvPanelTotal = totalPanels;
+  if (wanted === null) return;
+
+  for (const id of [
+    "wvSealingSelected",
+    "wvFlachenSelected",
+    "wvSilikonSelected",
+    "wvEndProfileSelected",
+  ]) {
+    const cb = document.getElementById(id);
+    if (!cb || cb.checked === wanted) continue;
+    cb.checked = wanted;
+    // Lets the qty-sync IIFE fill 1 / clear to 0 for the paired inputs.
+    cb.dispatchEvent(new Event("change", { bubbles: true }));
   }
 }
 
@@ -16427,7 +16549,14 @@ function initBasinAutoAccessories() {
     // When we are restoring after a full resetAllForms(),
     // do NOT allow a checked item to end up with qty 0.
     // Enforce minimum qty = 1 in that special case.
-    if (window.__restoring && v <= 0 && p.cb && p.cb.checked) {
+    // restoreWV() sets only __RESTORING__, the full restore paths set both —
+    // check both or the guard is inert on a bare restoreWV().
+    if (
+      (window.__restoring || window.__RESTORING__) &&
+      v <= 0 &&
+      p.cb &&
+      p.cb.checked
+    ) {
       v = 1;
       p.qty.value = v;
     }
