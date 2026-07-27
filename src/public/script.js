@@ -11717,22 +11717,36 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       svcBodyPrimary,
     );
 
-    // --- Totals: transparent, reconciling order (ordering prices, then Aufschlag/Rabatt/Bonus).
-    //   Arbeiten + Material (+ Additional) + Aufschlag − Rabatt − Bonus = Zwischensumme (Netto).
+    // --- Totals: transparent, reconciling ladder (ordering prices → Aufschlag →
+    //   Zwischensumme → Rabatt/Bonus → Nettobetrag → MwSt. → Gesamt).
     const optSum = Number(data.optionalDisplayUI?.sum || 0);
     const rabattAmount = Number(data.rabattAmount || 0);
     const bonusGross = Number(data.bonusGross || 0);
-    const aufPct = (() => { const p = (data.markupPct || 0) * 100; return Number.isInteger(p) ? String(p) : p.toFixed(2).replace(/\.?0+$/, "").replace(".", ","); })();
+    // Percent label: "19", "19,5" — never a trailing ",00".
+    const fmtPct = (frac) => {
+      const p = (Number(frac) || 0) * 100;
+      return Number.isInteger(p)
+        ? String(p)
+        : p.toFixed(2).replace(/\.?0+$/, "").replace(".", ",");
+    };
+    const aufPct = fmtPct(data.markupPct);
+    const taxPct = fmtPct(data.taxRate ?? 0.19);
+    // Pre-discount subtotal = Arbeiten + Material (+ Additional) + Aufschlag.
+    // Only shown when something is actually deducted below it, otherwise it
+    // would just repeat the Nettobetrag on the next line.
+    const hasDeduction = !!(rabattAmount || bonusGross);
     const sums = `
     <div class="kosten-sums">
       <div><span>Arbeiten:</span> <b>${euroC(data.services?.sum || 0)}</b></div>
       <div><span>${matTitle}:</span> <b>${euroC(matSum)}</b></div>
       ${optSum ? `<div><span>Additional gewählte Produkte:</span> <b>${euroC(optSum)}</b></div>` : ""}
       <div><span>Aufschlag (${aufPct}%):</span> <b>${euroC(data.markup || 0)}</b></div>
+      ${hasDeduction ? `<div class="kosten-sums__rule"><span>Zwischensumme:</span> <b>${euroC(data.Nettobetrag || 0)}</b></div>` : ""}
       ${rabattAmount ? `<div><span>Rabatt:</span> <b>− ${euroC(rabattAmount)}</b></div>` : ""}
       ${bonusGross ? `<div><span>Bonus / Gratis:</span> <b>− ${euroC(bonusGross)}</b></div>` : ""}
-      <div class="kosten-sums__subtotal"><span>Zwischensumme (Netto):</span> <b>${euroC(data.netAfterRabatt_and_Bonus || 0)}</b></div>
-      <div class="kosten-sums__total"><span>Gesamt:</span> <b>${euroC(data.total || 0)}</b></div>
+      <div class="kosten-sums__rule kosten-sums__subtotal"><span>Nettobetrag:</span> <b>${euroC(data.netAfterRabatt_and_Bonus || 0)}</b></div>
+      <div><span>zzgl. ${taxPct}% MwSt.:</span> <b>${euroC(data.vatOnNet || 0)}</b></div>
+      <div class="kosten-sums__total"><span>Gesamt (brutto):</span> <b>${euroC(data.total || 0)}</b></div>
     </div>
   `;
     const totalsCard = card("Summen", sums);
