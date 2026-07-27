@@ -2659,17 +2659,50 @@ function updateSidebarForOffer() {
     Fussboden: "Fußboden",
     // Rabatt page only exists in the Badumbau flow, so this rename is bu-only.
     Rabatt: "Aufschlag / Rabatt",
+    Optional: "III Optional Products",
   };
 
-  normalPages.forEach((pageId) => {
-    const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
-    let label = navLink ? navLink.textContent.trim() : pageId;
+  // Badumbau groups its many pages into two collapsible sections; every other
+  // offer keeps the flat list. Purely visual — page ids and flow order are untouched.
+  const SIDEBAR_GROUPS =
+    activeOffer === "bu"
+      ? [
+          { title: "I Arbeit", pages: ["Arbeitszeit", "Arbeiten"] },
+          {
+            title: "II Material",
+            pages: [
+              "Duschwanne",
+              "Fussboden",
+              "Wandverkleidung",
+              "Duschabtrennung",
+              "DuschabtrennungNeu",
+              "Duschvorhang",
+            ],
+          },
+        ]
+      : [];
+  const groupedByGroups = new Set(SIDEBAR_GROUPS.flatMap((g) => g.pages));
 
-    if (specialLabels[pageId]) {
-      label = specialLabels[pageId];
+  function labelFor(pageId) {
+    const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
+    return specialLabels[pageId] || (navLink ? navLink.textContent.trim() : pageId);
+  }
+
+  normalPages.forEach((pageId) => {
+    if (groupedByGroups.has(pageId)) {
+      // Render the whole group at the position of its first member.
+      const group = SIDEBAR_GROUPS.find((g) => g.pages[0] === pageId);
+      if (group) {
+        appendAccordionGroup(
+          group.title,
+          group.pages.filter((id) => normalPages.includes(id)),
+          specialLabels,
+        );
+      }
+      return;
     }
 
-    sideMenu.appendChild(makeLink(pageId, label));
+    sideMenu.appendChild(makeLink(pageId, labelFor(pageId)));
   });
 
   function appendAccordionGroup(title, pageIds, labelOverrides = {}) {
