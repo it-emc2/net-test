@@ -145,27 +145,38 @@
 
     /* ---------------- Sticky customer summary widget ---------------- */
 
+    /* Wide desktop (>=1280px): sticky right-rail panel inside the .app grid.
+       Below 1280px a fixed bottom bar takes over (see media block further down). */
     .summary-widget {
-      position: fixed;
-      top: 76px; /* below the sticky header so it never covers theme/logout */
-      right: 16px;
-      z-index: 40; /* under the header (z-index 50) */
+      position: sticky;
+      top: calc(var(--header-h) + 16px);
+      align-self: start;
+      grid-column: 3;
+      margin: 16px 16px 0 0;
       background: var(--panel);
       color: var(--text);
-      border-radius: 24px;
-      padding: 18px 20px;
-      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
+      border-radius: 16px;
+      padding: 0 0 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
       border: 1px solid var(--border);
 
       display: flex;
       flex-direction: column;
       gap: 10px;
 
-      width: 320px;
+      width: 300px;
       max-width: calc(100vw - 32px);
       box-sizing: border-box;
 
       font-size: 0.95rem;
+    }
+
+    .summary-widget .sw-header {
+      background: var(--accent-weak);
+      color: var(--accent-strong);
+      padding: 10px 16px;
+      font-weight: 600;
     }
 
     /* Hide widget on the Hauptmenü screen, like the sidebar */
@@ -176,7 +187,9 @@
     .summary-widget .sw-line {
       display: flex;
       align-items: baseline;
-      gap: 6px;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 0 16px;
     }
 
     .summary-widget .sw-label {
@@ -186,38 +199,84 @@
 
     .summary-widget .sw-value {
       font-weight: 600;
+      text-align: right;
+      overflow-wrap: anywhere;
+    }
+
+    .summary-widget .sw-selfpay {
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+      margin-top: 2px;
+    }
+
+    .summary-widget .sw-selfpay .sw-label {
+      align-self: center;
     }
 
     .summary-widget .sw-selfpay .sw-value {
       color: var(--accent-strong);
+      font-size: 1.3rem;
+      font-weight: 700;
     }
 
-    .summary-widget .sw-actions {
-      margin-top: 8px;
+    /* Offline-queue badge: sits above/before the save buttons, only when it
+       has something to say (JS keeps it hidden while the queue is empty). */
+    #swOfflineBadge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      order: -1;
+    }
+
+    #swOfflineBadge[hidden] {
+      display: none;
+    }
+
+    #summaryWidget .sw-actions {
+      margin-top: 6px;
+      padding: 0 16px;
       display: flex;
       flex-direction: column;
       gap: 8px;
     }
 
-    .summary-widget .sw-save-btn {
+    #summaryWidget .sw-save-btn {
       width: 100%;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      border: 1px solid var(--border);
-      background: var(--accent-weak);
-      color: var(--accent-strong);
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
       font-size: 0.9rem;
+      font-weight: 600;
       padding: 10px 14px;
-      border-radius: 12px;
+      border-radius: 10px;
       cursor: pointer;
     }
 
-    .summary-widget .sw-save-btn:hover,
-    .summary-widget .sw-save-btn:focus-visible {
-      background: var(--accent);
+    #summaryWidget .sw-save-btn:hover,
+    #summaryWidget .sw-save-btn:focus-visible {
+      background: var(--accent-strong);
+      border-color: var(--accent-strong);
       color: #fff;
       box-shadow: 0 0 0 2px var(--ring);
+    }
+
+    #summaryWidget .sw-save-btn--secondary {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    #summaryWidget .sw-save-btn--secondary:hover,
+    #summaryWidget .sw-save-btn--secondary:focus-visible {
+      background: var(--accent-weak);
+      border-color: var(--accent);
+      color: var(--accent-strong);
+      box-shadow: none;
     }
 
 
@@ -268,12 +327,24 @@
 
     /* ---------------- Layout ---------------- */
 
+    :root {
+      --header-h: 64px;
+    }
+
     .app {
       display: grid;
       grid-template-columns: 260px 1fr;
       max-width: 1300px;
       margin: 0 auto;
-      min-height: calc(100dvh - 80px);
+      min-height: calc(100dvh - var(--header-h));
+    }
+
+    /* Wide desktop: third grid column reserved for the summary rail */
+    @media (min-width: 1280px) {
+      .app {
+        grid-template-columns: 260px minmax(0, 1fr) auto;
+        max-width: 1620px;
+      }
     }
 
     .sidebar .logo-row {
@@ -414,9 +485,10 @@
         inset: 0 auto 0 0;
         width: 84%;
         max-width: 320px;
+        height: 100dvh;
         transform: translateX(-105%);
         transition: transform .25s ease;
-        z-index: 50;
+        z-index: 60; /* drawer covers the sticky header (z 50) */
       }
 
       .sidebar.open {
@@ -428,7 +500,7 @@
         inset: 0;
         background: rgba(15, 23, 42, 0.45);
         backdrop-filter: blur(2px);
-        z-index: 40;
+        z-index: 55;
         display: none;
       }
 
@@ -970,49 +1042,88 @@
       font-size: 0.85rem;
     }
 
-    /* --- default / desktop: keep your existing positioning --- */
-    /* (no change here – use whatever you already have) */
-
-
-    /* --- tablet & smaller: dock as a FIXED bottom bar (never over header/content) --- */
-    @media (max-width: 1024px) {
+    /* --- below the rail breakpoint (<1280px): fixed, always-visible bottom bar --- */
+    @media (max-width: 1279px) {
       #summaryWidget {
-        position: fixed !important;
-        top: auto !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 !important;
+        position: fixed;
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
         box-sizing: border-box;
-        border-radius: 16px 16px 0 0;
+        border: 0;
+        border-top: 1px solid var(--border);
+        border-radius: 0;
+        overflow: visible;
+        z-index: 45; /* above content, below the sticky header (z 50) */
         flex-direction: row;
         flex-wrap: wrap;
         align-items: center;
-        gap: 4px 18px;
+        gap: 6px 18px;
         padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
-        font-size: 0.85rem;
-        box-shadow: 0 -6px 22px rgba(15, 23, 42, 0.18);
+        box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.12);
+      }
+
+      #summaryWidget .sw-header {
+        display: none;
       }
 
       /* compact inline lines in the bar */
       #summaryWidget .sw-line {
-        display: flex;
-        align-items: baseline;
-        gap: 0.4rem;
+        padding: 0;
+        justify-content: flex-start;
+        gap: 6px;
       }
 
-      /* push the toggle + save button to the right end of the bar */
-      #summaryWidget .sw-header { order: 8; margin-left: auto; }
-      #summaryWidget .sw-actions { order: 9; margin-top: 0; }
-      #summaryWidget .sw-save-btn { width: auto; white-space: nowrap; }
+      #summaryWidget .sw-selfpay {
+        border-top: 0;
+        padding-top: 0;
+        margin-top: 0;
+      }
 
-      /* keep content clear of the fixed bar (bar can wrap to 2 rows on tablet) */
-      .container { padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
+      #summaryWidget .sw-selfpay .sw-value {
+        font-size: 1.15rem;
+      }
 
-      /* show the collapse toggle only on small screens */
-      #swToggleSummary { display: inline-flex; }
+      #summaryWidget .sw-actions {
+        margin: 0 0 0 auto;
+        padding: 0;
+        flex-direction: row;
+      }
+
+      #summaryWidget .sw-save-btn {
+        width: auto;
+        padding: 8px 14px;
+        white-space: nowrap;
+      }
+
+      /* keep content clear of the fixed bar */
+      .container { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+      body:has(#page-home:not([hidden])) .container { padding-bottom: 16px; }
+    }
+
+    /* --- tablet & phone: bar wraps to two rows, buttons full width --- */
+    @media (max-width: 900px) {
+      #summaryWidget {
+        padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+        font-size: 0.85rem;
+      }
+
+      #summaryWidget .sw-actions {
+        flex: 1 0 100%;
+        margin-left: 0;
+      }
+
+      #summaryWidget .sw-save-btn {
+        flex: 1;
+        width: auto;
+      }
+
+      .container { padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px)); }
+      body:has(#page-home:not([hidden])) .container { padding-bottom: 16px; }
     }
 
     .sw-toggle-btn {
@@ -9519,14 +9630,11 @@ button.dm-btn-danger:focus-visible {
         </div>
       </section>
     </div>
-  </div> <!-- closes .container -->
-  </div> <!-- closes .app -->
-
-  <!-- widget-->
+  <!-- widget: direct grid child of .app so the desktop rail gets its own column -->
   <div id="summaryWidget" class="summary-widget" aria-live="polite">
     <div class="sw-header">
+      <span class="sw-title">Zusammenfassung</span>
       <button type="button" id="swToggleSummary" class="sw-toggle-btn" aria-expanded="true" style="display:none">
-        <!-- style="display:none" will be shown via media query -->
         Details ausblenden
       </button>
     </div>
@@ -9555,6 +9663,7 @@ button.dm-btn-danger:focus-visible {
     </div>
   </div>
   <!-- end widget -->
+  </div> <!-- closes .app -->
 
 
 
