@@ -4631,6 +4631,13 @@ button.dm-btn-danger:focus-visible {
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-comp-title {
     margin: 0; font-size: 1rem; color: var(--text);
   }
+  /* collapsible optional-extras group (Verbreiterungsprofil) */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extras > summary {
+    cursor: pointer; font-weight: 700;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extras[open] > summary {
+    margin-bottom: 16px;
+  }
 
   /* breadcrumb of answered steps */
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-breadcrumb {
