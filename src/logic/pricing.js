@@ -2098,6 +2098,7 @@ try {
         markupPct,
         markup,
         vatOnNet,
+        taxRate: TAX_RATE, // so the UI can label the MwSt. row with the real rate
         total,
         netAfterRabatt_and_Bonus,
 

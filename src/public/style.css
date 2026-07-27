@@ -633,6 +633,16 @@ h1 {
 #costsSummary .kosten-sums > div > span {
   color: var(--muted);
 }
+/* Hairline above a summation step (Zwischensumme / Nettobetrag), so the ladder
+   reads as "everything above adds up to this". Stretches like __total does,
+   otherwise the border would only span the text width. */
+#costsSummary .kosten-sums__rule {
+  align-self: stretch;
+  justify-content: flex-end;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
 #costsSummary .kosten-sums__subtotal {
   font-size: 1.05rem;
 }
