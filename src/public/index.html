@@ -2709,6 +2709,20 @@ button.dm-btn-danger:focus-visible {
                         <button type="button" id="btnSonderaufschlagAuto" class="btn-secondary">Berechnen</button>
                       </div>
                     </div>
+
+                    <!-- Legacy-Angebote: Kleinmaterial war frueher vom Aufschlag
+                         ausgenommen. Diese Zeile erscheint nur bei solchen
+                         Angeboten und erlaubt die Umstellung auf die neue Regel. -->
+                    <div id="kleinAufschlagRow" class="full field" hidden aria-hidden="true"
+                      style="display:none; margin-top:10px;">
+                      <label class="check-pill" style="border-style:dashed;">
+                        <input type="checkbox" id="kleinAufschlagToggle" />
+                        <span class="box"></span>
+                        <span>Kleinmaterial im Aufschlag berücksichtigen (neue Regel).
+                          Dieses Angebot wurde noch nach der alten Regel gespeichert –
+                          Kleinmaterial ist derzeit vom Aufschlag ausgenommen.</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
 

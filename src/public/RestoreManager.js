@@ -138,6 +138,9 @@ export function initRestoreManager({
       // pricingRules flag → keep Kleinmaterial out of the Aufschlag so the
       // total matches what was originally saved.
       window.__kleinInAufschlag = payload?.pricingRules?.kleinInAufschlag === true;
+      // Merken, dass dieses Angebot noch nach der alten Regel gespeichert wurde,
+      // damit die Umstellen-Checkbox sichtbar (und ruecknehmbar) bleibt.
+      window.__kleinAufschlagLegacyOffer = !window.__kleinInAufschlag;
 
       console.log("[SKETCH][payload-stored]", {
         payloadKeys: Object.keys(payload || {}),
