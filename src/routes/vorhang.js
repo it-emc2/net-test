@@ -3,24 +3,13 @@
 // products from the SEPARATE "vigor" MongoDB (collection "products"), classified
 // by configContext.category ∈ { duschvorhang, vorhangstange }.
 //
-// The main app connection points at KonfiguratorDB, so we open a dedicated
-// connection to the vigor DB. Prefer VIGOR_MONGODB_URI; fall back to MONGODB_URI
-// with dbName "vigor" (works when both DBs live on the same cluster/credentials).
+// The main app connection points at KonfiguratorDB, so the dedicated vigor
+// connection comes from external/vigorDb.js.
 import { Router } from "express";
-import mongoose from "mongoose";
+import { getVigorDb } from "../external/vigorDb.js";
 
 const r = Router();
 
-let vigorConnPromise = null;
-function getVigorDb() {
-  if (!vigorConnPromise) {
-    const uri = process.env.VIGOR_MONGODB_URI || process.env.MONGODB_URI;
-    if (!uri) throw new Error("VIGOR_MONGODB_URI / MONGODB_URI missing");
-    const conn = mongoose.createConnection(uri, { dbName: "vigor" });
-    vigorConnPromise = conn.asPromise().then((c) => c.db);
-  }
-  return vigorConnPromise;
-}
 
 // Parse the width/length (in mm) a product covers, from its article code + name.
 // Curtains: HEWIDV<width_cm>200W → width in cm (e.g. HEWIDV140200W = 140 cm).

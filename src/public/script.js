@@ -11309,10 +11309,21 @@ function escapeHtml(s) {
           SHOW_FINISH_IN_KOSTEN && l.finish
             ? `<div style="font-size:11px;color:var(--muted)">${escapeHtml(l.finish)}</div>`
             : "";
+        // Saved offer whose supplier price moved since it was quoted: the quoted
+        // price stays the billed one, today's price is shown next to it so a loss
+        // is visible while the parts are being ordered.
+        const cur = Number(l.currentNet) || 0;
+        const quoted = Number(l.unitPrice) || 0;
+        const driftHTML =
+          cur > 0 && Math.abs(cur - quoted) >= 0.005
+            ? `<div style="font-size:11px;color:${cur > quoted ? "var(--danger, #c0392b)" : "var(--ok, #1e8449)"}">
+                 aktuell ${euroC(cur)} (${cur > quoted ? "+" : "−"}${euroC(Math.abs(cur - quoted))} pro Stk)
+               </div>`
+            : "";
         return `
       <div style="white-space:pre-line">${escapeHtml(stripBrand(decorateDALabel(l)))}${finishHTML}</div>
       <div style="text-align:right">${qtyText}${unitText}</div>
-      <div style="text-align:right">${euroC(l.unitPrice ?? 0)}</div>
+      <div style="text-align:right">${euroC(l.unitPrice ?? 0)}${driftHTML}</div>
       <div style="text-align:right; font-weight:600">${euroC(l.lineTotal ?? 0)}</div>
     `;
       })
@@ -11730,6 +11741,7 @@ if (supportsOptional) {
       source: l.source,
       finish: l.finish,
       category: l.category,
+      currentNet: l.currentNet, // today's vigor price when it differs from the quoted one
     }));
     // BU: group into the same sections as the Angebot (docx-template CATEGORY_ORDER).
     const isBuKosten = String(window.getCurrentOfferType?.() || "").toLowerCase() === "bu";
@@ -11744,10 +11756,23 @@ if (supportsOptional) {
     //  ? data.materialsDisplayUI.sum
     //  : (data.materials?.sum || 0);
     const matTitle = (data.materials && data.materials.title) || "Material für Badumbau";
+    // Quoted vs. current supplier price for a reopened offer: the totals stay as
+    // quoted, this only warns that ordering today costs more (= lost margin).
+    const drift = data.materials?.vigorPriceDrift || null;
+    const driftTotal = Number(drift?.totalDelta) || 0;
+    const driftFooter =
+      drift && Math.abs(driftTotal) >= 0.005
+        ? `<div style="margin-top:6px;font-size:12px;color:${driftTotal > 0 ? "var(--danger, #c0392b)" : "var(--ok, #1e8449)"}">
+             Lieferantenpreis geändert: Material kostet heute
+             ${driftTotal > 0 ? "+" : "−"}${euroC(Math.abs(driftTotal))}
+             gegenüber dem Angebot (${drift.lines.length} Artikel).
+             Angebotspreise bleiben unverändert.
+           </div>`
+        : "";
     const matCard = card(
       matTitle,
       matBody,
-      `<span class="kosten-subtotal-label">Summe Material:</span> ${euroC(matSum)}`,
+      `<span class="kosten-subtotal-label">Summe Material:</span> ${euroC(matSum)}${driftFooter}`,
     );
 
     // --- Leistungen (Debug): use servicesDisplayUI if present
