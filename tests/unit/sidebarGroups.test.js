@@ -59,17 +59,28 @@ const BU_PAGES = [
 function render(state, pages) {
   const sideMenu = document.createElement("nav");
   loadUpdateSidebarForOffer({ sideMenu, state, pages })();
-  return [...sideMenu.children].map((el) =>
-    el.classList.contains("accordion-group")
-      ? {
-          group: el.querySelector(".accordion-header span").textContent,
-          open: el.querySelector(".accordion-body").classList.contains("open"),
-          steps: [...el.querySelectorAll("a.side-link")].map(
-            (a) => a.dataset.step,
-          ),
-        }
-      : { step: el.dataset.step, label: el.textContent.trim() },
-  );
+  return [...sideMenu.children].map((el) => {
+    if (el.classList.contains("side-group")) {
+      const header = el.querySelector(".side-group-header");
+      return {
+        group: header.querySelector("span:last-child").textContent,
+        num: header.querySelector(".side-num")?.textContent,
+        open: el.querySelector(".side-group-body").classList.contains("open"),
+        steps: [...el.querySelectorAll("a.side-link")].map((a) => a.dataset.step),
+      };
+    }
+    if (el.classList.contains("accordion-group")) {
+      return {
+        group: el.querySelector(".accordion-header span").textContent,
+        steps: [...el.querySelectorAll("a.side-link")].map((a) => a.dataset.step),
+      };
+    }
+    return {
+      step: el.dataset.step,
+      num: el.querySelector(".side-num")?.textContent,
+      label: el.querySelector("span:last-child").textContent,
+    };
+  });
 }
 
 test("bu sidebar groups Arbeit and Material, keeps every page reachable", () => {
@@ -78,8 +89,8 @@ test("bu sidebar groups Arbeit and Material, keeps every page reachable", () => 
   expect(out.map((e) => e.step ?? e.group)).toEqual([
     "home",
     "Kundendaten",
-    "I Arbeit",
-    "II Material",
+    "Arbeit",
+    "Material",
     "Optional",
     "Rabatt",
     "Kosten",
@@ -102,8 +113,16 @@ test("bu sidebar groups Arbeit and Material, keeps every page reachable", () => 
   expect(out[3].open).toBe(true);
   expect(out[2].open).toBe(false);
 
+  // roman numerals live in their own badge, not baked into the label text
+  expect(out[2].num).toBe("I");
+  expect(out[3].num).toBe("II");
+
   // "Optional" is only relabelled, its step id is untouched
-  expect(out[4]).toEqual({ step: "Optional", label: "III Optional Products" });
+  expect(out[4]).toEqual({
+    step: "Optional",
+    num: "III",
+    label: "Optional Products",
+  });
 
   // nothing lost: every bu page still has a link somewhere
   const rendered = new Set(

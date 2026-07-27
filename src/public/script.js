@@ -2606,7 +2606,7 @@ function updateSidebarForOffer() {
   sideMenu.innerHTML = "";
 
   // Helper to create a <a class="side-link"> with the same structure as before
-  function makeLink(stepId, label) {
+  function makeLink(stepId, label, numeral) {
     const a = document.createElement("a");
     a.className = "side-link";
     a.href = `#${stepId}`;
@@ -2619,9 +2619,17 @@ function updateSidebarForOffer() {
     span.textContent = label;
 
     a.appendChild(dot);
+    if (numeral) a.appendChild(makeNumeral(numeral));
     a.appendChild(span);
 
     return a;
+  }
+
+  function makeNumeral(numeral) {
+    const el = document.createElement("span");
+    el.className = "side-num";
+    el.textContent = numeral;
+    return el;
   }
 
   // --- Always render "Hauptmenü" as first item ---
@@ -2659,29 +2667,31 @@ function updateSidebarForOffer() {
     Fussboden: "Fußboden",
     // Rabatt page only exists in the Badumbau flow, so this rename is bu-only.
     Rabatt: "Aufschlag / Rabatt",
-    Optional: "III Optional Products",
+    Optional: "Optional Products",
   };
 
   // Badumbau groups its many pages into two collapsible sections; every other
   // offer keeps the flat list. Purely visual — page ids and flow order are untouched.
-  const SIDEBAR_GROUPS =
-    activeOffer === "bu"
-      ? [
-          { title: "I Arbeit", pages: ["Arbeitszeit", "Arbeiten"] },
-          {
-            title: "II Material",
-            pages: [
-              "Duschwanne",
-              "Fussboden",
-              "Wandverkleidung",
-              "Duschabtrennung",
-              "DuschabtrennungNeu",
-              "Duschvorhang",
-            ],
-          },
-        ]
-      : [];
+  const isBu = activeOffer === "bu";
+  const SIDEBAR_GROUPS = isBu
+    ? [
+        { title: "Arbeit", num: "I", pages: ["Arbeitszeit", "Arbeiten"] },
+        {
+          title: "Material",
+          num: "II",
+          pages: [
+            "Duschwanne",
+            "Fussboden",
+            "Wandverkleidung",
+            "Duschabtrennung",
+            "DuschabtrennungNeu",
+            "Duschvorhang",
+          ],
+        },
+      ]
+    : [];
   const groupedByGroups = new Set(SIDEBAR_GROUPS.flatMap((g) => g.pages));
+  const linkNumerals = isBu ? { Optional: "III" } : {};
 
   function labelFor(pageId) {
     const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
@@ -2693,17 +2703,55 @@ function updateSidebarForOffer() {
       // Render the whole group at the position of its first member.
       const group = SIDEBAR_GROUPS.find((g) => g.pages[0] === pageId);
       if (group) {
-        appendAccordionGroup(
-          group.title,
-          group.pages.filter((id) => normalPages.includes(id)),
-          specialLabels,
-        );
+        appendSideGroup(group, group.pages.filter((id) => normalPages.includes(id)));
       }
       return;
     }
 
-    sideMenu.appendChild(makeLink(pageId, labelFor(pageId)));
+    sideMenu.appendChild(makeLink(pageId, labelFor(pageId), linkNumerals[pageId]));
   });
+
+  // A group header is a .side-link with a chevron where the dot would be, so
+  // it sits flush with the ordinary entries above and below it.
+  function appendSideGroup(group, pageIds) {
+    if (!pageIds.length) return;
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "side-group";
+
+    const header = document.createElement("button");
+    header.type = "button";
+    header.className = "side-link side-group-header";
+
+    const chevron = document.createElement("span");
+    chevron.className = "side-group-chevron";
+    chevron.textContent = "›";
+    chevron.setAttribute("aria-hidden", "true");
+
+    const title = document.createElement("span");
+    title.textContent = group.title;
+
+    header.appendChild(chevron);
+    if (group.num) header.appendChild(makeNumeral(group.num));
+    header.appendChild(title);
+
+    const body = document.createElement("div");
+    body.className = "side-group-body";
+    pageIds.forEach((pageId) => body.appendChild(makeLink(pageId, labelFor(pageId))));
+
+    const isOpen = pageIds.includes(activeStep);
+    body.classList.toggle("open", isOpen);
+    header.setAttribute("aria-expanded", isOpen ? "true" : "false");
+
+    header.addEventListener("click", () => {
+      const open = body.classList.toggle("open");
+      header.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+
+    wrapper.appendChild(header);
+    wrapper.appendChild(body);
+    sideMenu.appendChild(wrapper);
+  }
 
   function appendAccordionGroup(title, pageIds, labelOverrides = {}) {
     if (!pageIds.length) return;
@@ -2895,7 +2943,8 @@ function setStep(step) {
   });
 
   // 3) Left sidebar
-  const sideLinks = sideMenu?.querySelectorAll(".side-link");
+  // Anchors only — group headers are buttons without a data-step.
+  const sideLinks = sideMenu?.querySelectorAll("a.side-link");
   sideLinks?.forEach((sideLink) => {
     const s = sideLink.dataset.step;
     const isActive = s === step;
