@@ -85,6 +85,22 @@ export default (ProductModel) => {
     // IMPORTANT: do not touch row.qty / row.unitPrice / row.lineTotal
   }
 
+  // Kosten-Details (internal ordering view) counterpart of the above: the free
+  // grab bar is still ordered and paid for by us, so the quantity must stay
+  // truthful. Only annotate the line; never rewrite its qty.
+  function markGrabFreeInUI(list, freeId) {
+    if (!freeId) return;
+    const row = list?.find((l) => (l.productId || l.id) === freeId);
+    if (!row) return;
+
+    const base = (row.label || row.name || row.productId || "")
+      .replace(/\s*\(hidden\)\s*$/, "")
+      .trim();
+    if (/gratis/i.test(base)) return; // already annotated
+
+    row.label = `${base} · davon 1 gratis (Bonus)`;
+  }
+
   // --- helper: include selected tray as a material line ---
 
   async function getProductsByIds(ids) {
@@ -1865,7 +1881,11 @@ try {
 
       // UI rules (presentation only)
       if (bonusHG && grabCounts.total > 0) {
-        setGrabLabelToBillable(uiOptionals, freeId, { hideWhenZero: false });
+        // NOT setGrabLabelToBillable() here: the Kosten tab is the internal
+        // ordering view, and the free grab bar still has to be BOUGHT. Keep the
+        // real qty/price and just flag which one is free — the money side is
+        // already covered by the "Bonus / Gratis" row in the Summen.
+        markGrabFreeInUI(uiOptionals, freeId);
 
         // Single grab bar → hide the worknote in UI (to mirror DOCX behavior)
         if (ONLY_ONE_GRAB) {
