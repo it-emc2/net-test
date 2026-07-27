@@ -3,6 +3,7 @@
 /* eslint-disable no-unused-vars */
 // src/logic/pricing.js
 import cfg from '../services/configService.js';
+import { fetchVigourNetPrices } from '../external/vigorDb.js';
 
 // ---------------------------------------------------------------------------
 // Wandverkleidung 3.0 — color → Hassmann article-number mapping.
@@ -115,6 +116,37 @@ export default (ProductModel) => {
       });
     }
     return map;
+  }
+
+  // --- helper: live Vigour net prices for Duschabtrennung configurator lines ---
+  // The configurator prices its lines from the build-time snapshot
+  // public/configurator/vigor-model.json (meta.builtAt), so a client-sent price can
+  // be weeks stale. The "vigor" DB is refreshed daily, so we re-read the net price
+  // server-side here — this runs for every consumer of the pricing factory (save,
+  // PDF, DOCX, e-mail, Kalkulation), so no path can quote a stale price.
+  //
+  // Failure is always LOUD, never silent: a DB outage, a missing article or a
+  // non-positive price logs and falls back to the snapshot price, so an offer can
+  // still be produced offline — but the log says which articles were not verified.
+  async function getLiveVigourNetPrices(articleNumbers) {
+    const ids = [
+      ...new Set(
+        (articleNumbers || []).map((a) => String(a || "").trim()).filter(Boolean),
+      ),
+    ];
+    if (!ids.length) return new Map();
+
+    const prices = await fetchVigourNetPrices(ids);
+
+    const missing = ids.filter((id) => !prices.has(id));
+    if (missing.length) {
+      console.error(
+        `[pricing] vigor live price: no usable netPrice for ${missing.length}/${ids.length} ` +
+          `article(s) [${missing.join(", ")}] — keeping configurator snapshot price. ` +
+          `Check that these articles exist in vigor.products with netPrice > 0.`,
+      );
+    }
+    return prices;
   }
 
   const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
@@ -445,6 +477,11 @@ function grossToNet(gross, taxRate) {
   async function computeMaterials(payload) {
     const offer = getActiveOffer(payload); // 'bu' | 'bwt' | 'hl'
     const markupPctForBwt = extractMarkupPct(payload); // 0.35 for "35%", etc.
+
+    // Filled by the Duschabtrennung quick-add block below: for an offer that was
+    // already quoted, the difference between the quoted price and today's vigor
+    // price, so the Kosten page can show the margin before parts are ordered.
+    let vigorPriceDrift = null;
 
     const dusch = payload?.duschwanne || {};
     const wv = payload?.wandverkleidung || {};
@@ -1070,13 +1107,51 @@ console.log("[REHA DEBUG] selections =", selections);
 
       const qa = payload?.duschabtrennung?.quickAdd || [];
       if (Array.isArray(qa) && qa.length) {
+        // Read the configurator rows' current price from the daily-updated vigor DB.
+        // Only `kind: "config"` rows carry a Vigour/Badolux article number; Hassmann
+        // free-text rows keep their entered price.
+        //
+        // What happens with that price depends on whether this offer was already
+        // quoted, i.e. whether an offer number travels with the payload:
+        //   fresh quote (no offerNumber) → use the live price, the DB is the truth;
+        //   saved offer (offerNumber)    → KEEP the quoted price and only report the
+        //                                  difference, because reprints, PDFs and the
+        //                                  Kalkulation must match what the customer
+        //                                  got. Silently repricing would hide exactly
+        //                                  the loss the reopened offer is checked for
+        //                                  (quoted 600, today 620 → -20 margin).
+        const savedOfferNumber = String(payload?.offerNumber || "").trim();
+        const isSavedOffer = !!savedOfferNumber;
+        const driftLines = [];
+        let liveNet = new Map();
+        const configIds = qa
+          .filter((x) => String(x?.kind || "").toUpperCase() === "CONFIG")
+          .map((x) => String(x?.productId || "").trim())
+          .filter(Boolean);
+        if (configIds.length) {
+          try {
+            liveNet = await getLiveVigourNetPrices(configIds);
+            console.info(
+              `[pricing] vigor live price: resolved ${liveNet.size}/${new Set(configIds).size} article(s)`,
+            );
+          } catch (e) {
+            console.error(
+              "[pricing] vigor live price lookup FAILED (vigor DB unreachable?) — " +
+                `pricing ${new Set(configIds).size} configurator article(s) from the ` +
+                "configurator snapshot instead, which may be stale:",
+              e?.message || e,
+            );
+          }
+        }
+
         for (const x of qa) {
           const qty = Number(x?.qty) || 0;
-          const price = parseMoneyStrict(x?.price) || 0; // parses "1.099,00" etc.
+          let price = parseMoneyStrict(x?.price) || 0; // parses "1.099,00" etc.
           if (qty <= 0 || price <= 0) continue;
 
           const kindUp = String(x?.kind || "GEN").toUpperCase();
           const pid = String(x?.productId || "").trim() || `HASS_${kindUp}`;
+
           // For "Freier Posten" we already receive exact label via collector.
           const base =
             String(x?.label || "").trim() ||
@@ -1088,7 +1163,60 @@ console.log("[REHA DEBUG] selections =", selections);
           // to these (unlike Hassmann free-text rows, which keep it).
           const isConfig = kindUp === "CONFIG";
 
-          add(pid, qty, label, price, isConfig ? "vigour_config" : null, isConfig ? { finish: x.finish || null } : null);
+          const live = Number(liveNet.get(pid)) || 0;
+          const changed = live > 0 && Math.abs(live - price) >= 0.005;
+          if (changed && !isSavedOffer) {
+            console.info(
+              `[pricing] vigor live price: ${pid} ${price} → ${live} EUR net ` +
+                "(configurator snapshot was out of date)",
+            );
+            price = live;
+          } else if (changed) {
+            // Quoted price stays. Record the delta for the Kosten page / log.
+            driftLines.push({
+              productId: pid,
+              name: base,
+              qty,
+              quotedNet: price,
+              currentNet: live,
+              deltaTotal: round2((live - price) * qty),
+            });
+          }
+
+          add(
+            pid,
+            qty,
+            label,
+            price,
+            isConfig ? "vigour_config" : null,
+            isConfig
+              ? {
+                  finish: x.finish || null,
+                  // Only set when it differs from the quoted price, so the UI can
+                  // treat "present" as "worth showing".
+                  currentNet: isSavedOffer && changed ? live : null,
+                }
+              : null,
+          );
+        }
+
+        if (driftLines.length) {
+          const totalDelta = round2(
+            driftLines.reduce((a, d) => a + (d.deltaTotal || 0), 0),
+          );
+          vigorPriceDrift = {
+            offerNumber: savedOfferNumber,
+            lines: driftLines,
+            totalDelta,
+          };
+          console.warn(
+            `[pricing] vigor price drift on saved offer ${savedOfferNumber}: ` +
+              `${driftLines.length} article(s), material now ${totalDelta > 0 ? "+" : ""}` +
+              `${totalDelta} EUR vs. quoted — quoted prices kept. ` +
+              driftLines
+                .map((d) => `${d.productId} ${d.quotedNet}→${d.currentNet}`)
+                .join(", "),
+          );
         }
       }
     } catch (e) {
@@ -1250,6 +1378,8 @@ color: metaColor || null,
   labelLines: [label, ...infoLines],  // ✅ NEW: UI can render true multiline easily
   source: l.source || null,
   finish: l?.meta?.finish || null,
+  // Today's vigor net price when it differs from the quoted one (saved offers only).
+  currentNet: l?.meta?.currentNet ?? null,
   hassmannArticle: l?.meta?.hassmannArticle || null,
   docxHide: !!l.docxHide,
   category: l.category || null,
@@ -1274,6 +1404,7 @@ color: metaColor || null,
       title: getMaterialsTitle(offer),
       lines: resolved,
       sum,
+      vigorPriceDrift,
       grabCounts: {
         cl30: grabQtyById.CLPESG30 || 0,
         cl40: grabQtyById.CLPESG40 || 0,

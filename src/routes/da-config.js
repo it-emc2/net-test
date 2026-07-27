@@ -5,27 +5,16 @@
 // doc _id "vigour"). Badolux is not in the vigor DB, so it falls through to the
 // existing static file. The live "Duschabtrennung (neu)" section is untouched.
 //
-// The main app connection points at KonfiguratorDB, so we open a dedicated
-// connection to the vigor DB (prefer VIGOR_MONGODB_URI; fall back to MONGODB_URI
-// with dbName "vigor"). Mirrors the pattern in routes/vorhang.js.
+// The main app connection points at KonfiguratorDB, so the dedicated vigor
+// connection comes from external/vigorDb.js.
 import { Router } from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import mongoose from "mongoose";
+import { getVigorDb } from "../external/vigorDb.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const r = Router();
 
-let vigorConnPromise = null;
-function getVigorDb() {
-  if (!vigorConnPromise) {
-    const uri = process.env.VIGOR_MONGODB_URI || process.env.MONGODB_URI;
-    if (!uri) throw new Error("VIGOR_MONGODB_URI / MONGODB_URI missing");
-    const conn = mongoose.createConnection(uri, { dbName: "vigor" });
-    vigorConnPromise = conn.asPromise().then((c) => c.db);
-  }
-  return vigorConnPromise;
-}
 
 // In-memory cache — the model changes rarely (scraper-refreshed).
 let cache = null;
