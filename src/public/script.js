@@ -2877,6 +2877,7 @@ function startOfferFlow(offerKey) {
 
   // Fresh offer → new pricing rules (Kleinmaterial counts toward the Aufschlag).
   window.__kleinInAufschlag = true;
+  window.__kleinAufschlagLegacyOffer = false;
 
   // BWT: override Arbeitszeit default to 05:00 (1 worker, shorter job)
   if (offerKey === "bwt") {
@@ -7987,6 +7988,33 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
   validateAufschlagSelection();
 })();
 
+// ── Legacy-Angebote auf die neue Aufschlag-Regel umstellen ──────────────────
+// Angebote, die vor der Umstellung gespeichert wurden, tragen kein
+// pricingRules-Flag und rechnen Kleinmaterial weiterhin NICHT in den Aufschlag
+// ein (siehe RestoreManager). Diese Zeile ist der einzige Weg, so ein Angebot
+// bewusst auf die neue Regel zu heben; gespeichert wird die Umstellung erst
+// mit dem naechsten Speichern (buildPayload schreibt das Flag mit).
+function syncKleinAufschlagToggle() {
+  const row = document.getElementById("kleinAufschlagRow");
+  const cb = document.getElementById("kleinAufschlagToggle");
+  if (!row || !cb) return;
+
+  // Sichtbar fuer jedes Angebot, das ALS Legacy geladen wurde - nicht abhaengig
+  // vom aktuellen Haken, sonst wuerde die Zeile beim Anhaken verschwinden und
+  // die Umstellung waere nicht mehr ruecknehmbar.
+  const isLegacyOffer = window.__kleinAufschlagLegacyOffer === true;
+  row.hidden = !isLegacyOffer;
+  row.style.display = isLegacyOffer ? "" : "none";
+  row.setAttribute("aria-hidden", isLegacyOffer ? "false" : "true");
+  cb.checked = window.__kleinInAufschlag !== false;
+}
+window.syncKleinAufschlagToggle = syncKleinAufschlagToggle;
+
+document.getElementById("kleinAufschlagToggle")?.addEventListener("change", (e) => {
+  window.__kleinInAufschlag = !!e.target.checked;
+  window.refreshAllPanels?.();
+});
+
 (function initPflegegrad() {
   const form = document.getElementById("form-Kundendaten");
   const pgLevelRow = document.getElementById("pflegegradLevelRow");
@@ -11862,7 +11890,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       <div><span>Arbeiten:</span> <b>${euroC(data.services?.sum || 0)}</b></div>
       <div><span>${matTitle}:</span> <b>${euroC(matSum)}</b></div>
       ${optSum ? `<div><span>Additional gewählte Produkte:</span> <b>${euroC(optSum)}</b></div>` : ""}
-      <div><span>Aufschlag (${aufPct}%):</span> <b>${euroC(data.markup || 0)}</b></div>
+      <div><span>Aufschlag (${aufPct}%${window.__kleinInAufschlag === false ? " – ohne Kleinmaterial" : ""}):</span> <b>${euroC(data.markup || 0)}</b></div>
       ${hasDeduction ? `<div class="kosten-sums__rule"><span>Zwischensumme:</span> <b>${euroC(data.Nettobetrag || 0)}</b></div>` : ""}
       ${rabattAmount ? `<div><span>Rabatt:</span> <b>− ${euroC(rabattAmount)}</b></div>` : ""}
       ${bonusGross ? `<div><span>Bonus / Gratis:</span> <b>− ${euroC(bonusGross)}</b></div>` : ""}
@@ -14329,6 +14357,7 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
 
     // Preserve the offer's original Aufschlag rule (legacy drafts → false).
     window.__kleinInAufschlag = p?.pricingRules?.kleinInAufschlag === true;
+    window.__kleinAufschlagLegacyOffer = !window.__kleinInAufschlag;
 
     // normalize offerType
     const rawOfferType =
@@ -15957,9 +15986,15 @@ window.setPricingData = function setPricingData(data) {
     const pctLabel = Number.isInteger(pctNum)
       ? String(pctNum)
       : pctNum.toFixed(2).replace(/\.?0+$/, "").replace(".", ",");
+    // Legacy offers keep Kleinmaterial out of the Aufschlag — say so, otherwise
+    // the number can't be reconciled by hand.
+    const kleinExcluded = window.__kleinInAufschlag === false;
     byId("rb-auf-label")?.replaceChildren(
-      document.createTextNode(`Aufschlag ${pctLabel}%`),
+      document.createTextNode(
+        `Aufschlag ${pctLabel}%${kleinExcluded ? " (ohne Kleinmaterial)" : ""}`,
+      ),
     );
+    syncKleinAufschlagToggle();
 
     // Show/hide 300€ bonus based on threshold (after rab.)
     (function gateBonus300() {
