@@ -3085,6 +3085,21 @@ button.dm-btn-danger:focus-visible {
                 </button>
                 <div id="routingSuggestion" class="muted az-routing-hint"></div>
 
+                <!-- Manueller Fallback: Reisezone wählen, wenn Adress-Berechnung nicht funktioniert -->
+                <div id="travelZoneOverride" style="margin-top:10px;">
+                  <div style="font-size:0.82rem; color:var(--muted); margin-bottom:6px;">
+                    Funktioniert nicht? Reisezone manuell wählen (setzt die Reisezeit, Hinfahrt):
+                  </div>
+                  <div id="travelZoneButtons" role="group" aria-label="Reisezone manuell wählen"
+                    style="display:flex; flex-wrap:wrap; gap:8px;">
+                    <button type="button" class="btn-secondary az-zone-btn" data-zone-min="10">Zone 1 · 10 Min</button>
+                    <button type="button" class="btn-secondary az-zone-btn" data-zone-min="20">Zone 2 · 20 Min</button>
+                    <button type="button" class="btn-secondary az-zone-btn" data-zone-min="30">Zone 3 · 30 Min</button>
+                    <button type="button" class="btn-secondary az-zone-btn" data-zone-min="40">Zone 4 · 40 Min</button>
+                    <button type="button" class="btn-secondary az-zone-btn" data-zone-min="50">Zone 5 · 50 Min</button>
+                  </div>
+                </div>
+
                 <label class="field" for="distanceKm">
                   <span class="req">Wie viele Kilometer ist der Kunde von uns entfernt?</span>
                   <input id="distanceKm" name="distanceKm" type="number" min="0" step="0.1" inputmode="decimal"
