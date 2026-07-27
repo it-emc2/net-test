@@ -2405,6 +2405,12 @@ function resetAllForms() {
     window.__RESTORING__ = false;
   } catch (e) {}
 
+  // 5b) The toggle sweep above ran with the restore guard on, so the WV
+  // consumables still carry their HTML `checked` defaults. Re-run the panel
+  // coupling now that the guard is off: a fresh offer has no panels, so they
+  // switch off instead of billing four items nobody selected.
+  recomputeWVFlachenQty();
+
   // 6) One clean pricing refresh after reset
   window.updatePricing?.();
 
@@ -7104,6 +7110,40 @@ function recomputeWVFlachenQty() {
     // notify any listeners (pricing, UI mirrors, etc.)
     out.dispatchEvent(new Event("input", { bubbles: true }));
     out.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  syncWVConsumablesToPanels(total997 + total1497);
+}
+
+// The four consumables belong to a Wandverkleidung job, not to an empty offer:
+// no panels -> all off, first panel -> all on. Only the 0 -> n edge turns them
+// back on, so unticking one deliberately survives later panel edits.
+// var, not let: resetAllForms() runs during top-level script execution and
+// calls this, which would hit the temporal dead zone of a let and kill the
+// whole script at load.
+var lastWvPanelTotal = 0;
+function syncWVConsumablesToPanels(totalPanels) {
+  // Restore writes the saved state verbatim; never second-guess it.
+  if (window.__RESTORING__ || window.__restoring) {
+    lastWvPanelTotal = totalPanels;
+    return;
+  }
+
+  const wanted = totalPanels === 0 ? false : !lastWvPanelTotal ? true : null;
+  lastWvPanelTotal = totalPanels;
+  if (wanted === null) return;
+
+  for (const id of [
+    "wvSealingSelected",
+    "wvFlachenSelected",
+    "wvSilikonSelected",
+    "wvEndProfileSelected",
+  ]) {
+    const cb = document.getElementById(id);
+    if (!cb || cb.checked === wanted) continue;
+    cb.checked = wanted;
+    // Lets the qty-sync IIFE fill 1 / clear to 0 for the paired inputs.
+    cb.dispatchEvent(new Event("change", { bubbles: true }));
   }
 }
 
@@ -16495,7 +16535,14 @@ function initBasinAutoAccessories() {
     // When we are restoring after a full resetAllForms(),
     // do NOT allow a checked item to end up with qty 0.
     // Enforce minimum qty = 1 in that special case.
-    if (window.__restoring && v <= 0 && p.cb && p.cb.checked) {
+    // restoreWV() sets only __RESTORING__, the full restore paths set both —
+    // check both or the guard is inert on a bare restoreWV().
+    if (
+      (window.__restoring || window.__RESTORING__) &&
+      v <= 0 &&
+      p.cb &&
+      p.cb.checked
+    ) {
       v = 1;
       p.qty.value = v;
     }
