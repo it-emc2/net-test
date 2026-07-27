@@ -170,10 +170,13 @@ function ensureBadgeEl() {
   if (!badgeEl) {
     badgeEl = document.createElement("span");
     badgeEl.id = "swOfflineBadge";
+    // No display in the inline styles — an inline display would override the
+    // [hidden] attribute and show an empty pill. Layout lives in index.html CSS.
     badgeEl.style.cssText =
-      "display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;" +
+      "padding:4px 10px;border-radius:999px;" +
       "font-size:.85rem;font-weight:600;background:rgba(217,119,6,.12);color:#b45309;" +
       "border:1px solid rgba(217,119,6,.35);";
+    badgeEl.hidden = true;
     container.appendChild(badgeEl);
   }
   return badgeEl;

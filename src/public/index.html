@@ -209,10 +209,28 @@
       margin-top: 2px;
     }
 
+    .summary-widget .sw-selfpay .sw-label {
+      align-self: center;
+    }
+
     .summary-widget .sw-selfpay .sw-value {
       color: var(--accent-strong);
       font-size: 1.3rem;
       font-weight: 700;
+    }
+
+    /* Offline-queue badge: sits above/before the save buttons, only when it
+       has something to say (JS keeps it hidden while the queue is empty). */
+    #swOfflineBadge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      order: -1;
+    }
+
+    #swOfflineBadge[hidden] {
+      display: none;
     }
 
     #summaryWidget .sw-actions {
