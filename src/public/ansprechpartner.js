@@ -48,18 +48,26 @@
     })
     .catch(function () { /* not logged in / no users */ });
 
-  // Re-select the dropdowns from a loaded offer (called after restore).
+  // Re-select the dropdowns from a loaded offer (called after restore) and
+  // re-fill the name if it is missing. form.reset() (startOfferFlow /
+  // goHomeWithoutOffer) clears #emc2_contact but not the hidden email input —
+  // hidden inputs reset to their attribute value — so without this the printed
+  // Ansprechpartner is empty on every offer started without a page reload.
   function syncFromOffer() {
+    var nameEl = document.getElementById("emc2_contact");
     var emailEl = document.getElementById("ansprechpartnerEmail");
     var email = emailEl && emailEl.value ? emailEl.value : "";
     if (!email) {
-      var nm = ((document.getElementById("emc2_contact") || {}).value || "").trim();
+      var nm = ((nameEl || {}).value || "").trim();
       var byName = users.find(function (x) { return x.name === nm; });
-      if (byName) email = byName.email;
+      email = byName ? byName.email : (sels[0] && sels[0].value) || "";
     }
     if (email && users.find(function (x) { return x.email === email; })) {
-      setAll(email);
-      if (emailEl) emailEl.value = email;
+      if (nameEl && !nameEl.value.trim()) apply(email);
+      else {
+        setAll(email);
+        if (emailEl) emailEl.value = email;
+      }
     }
   }
   window.syncAnsprechpartner = syncFromOffer;

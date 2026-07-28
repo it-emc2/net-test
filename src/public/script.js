@@ -2843,6 +2843,9 @@ function syncDerivedPrefills(reason = "") {
   }
   try {
     refreshEmc2ContactPrefill();
+    // Re-fill #emc2_contact from the Ansprechpartner dropdown; form.reset()
+    // wipes it, and it is what the PDF prints as "Ansprechpartner".
+    window.syncAnsprechpartner?.();
   } catch (e) {
     console.warn("[syncDerivedPrefills] emc2 contact prefill failed:", { reason, error: e });
   }
