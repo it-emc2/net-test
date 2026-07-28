@@ -2061,6 +2061,7 @@ function buildAhData(body) {
       ? Number(cfg.get("ENTLASTUNGSBETRAG_MONAT", 131)) || 0
       : 0;
   const ahEigenanteil = r2(Math.max(0, gesamt - entlastungsbetrag));
+  const hasEigenanteil = gesamt > 0 && entlastungsbetrag > 0;
 
   // ── Build per-service rows ──────────────────────────────────────────────
   const AhServices = rawServices.map((svc, idx) => {
@@ -2182,11 +2183,11 @@ function buildAhData(body) {
     AhServicepausEinzelpreis: "1,20 €",
     AhGesamtbetrag: gesamt > 0 ? fmtCurrency(gesamt) : "",
     // Eigenanteil-Zeile im Template: {#AhHasEigenanteil} … {AhEigenanteil} … {/AhHasEigenanteil}
-    AhHasEigenanteil: gesamt > 0 && entlastungsbetrag > 0,
+    AhHasEigenanteil: hasEigenanteil,
     AhEntlastungsbetrag: fmtCurrency(entlastungsbetrag),
     // leer, wenn keine Eigenanteil-Zeile gilt: so druckt auch ein Template mit
     // falsch platziertem {/AhHasEigenanteil} keinen Betrag ohne Beschriftung
-    AhEigenanteil: entlastungsbetrag > 0 ? fmtCurrency(ahEigenanteil) : "",
+    AhEigenanteil: hasEigenanteil ? fmtCurrency(ahEigenanteil) : "",
     AhKondRows,
     AhKondRowsHnD,
     AhKondRowsAB,

@@ -134,3 +134,6 @@ dist
 out-Angebot.docx
 out-Materialuebersicht.docx
 .DS_Store
+
+# Lokale PDF-Vorschauen (scripts/preview-pdf.mjs)
+preview-pdfs/

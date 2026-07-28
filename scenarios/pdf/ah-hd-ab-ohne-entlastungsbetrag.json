@@ -1,0 +1,63 @@
+{
+  "_note": "AH/Kassenkunde ohne bestätigten Entlastungsbetrag → keine Eigenanteil-Zeile unter dem Gesamtbetrag.",
+  "activeOffer": "ah",
+  "Kundendaten": {
+    "salutation": "Frau",
+    "firstName": "Erika",
+    "lastName": "Musterfrau",
+    "street": "Musterstraße 12",
+    "postalCode": "12345",
+    "city": "Musterstadt",
+    "payer": "Kassenkunde",
+    "date": "2026-07-28",
+    "wohnumfeld": {
+      "done": false,
+      "amount": 0
+    }
+  },
+  "Arbeitszeit": {
+    "ahTravelZone": "2"
+  },
+  "Finanzierung": {},
+  "ah": {
+    "ahNote": "",
+    "services": [
+      {
+        "type": "Haushaltsnahedienstleistungen",
+        "tasks": [
+          "Reinigungsarbeiten",
+          "Fenster putzen",
+          "Wäschepflege"
+        ],
+        "schedules": [
+          {
+            "regelmaessigkeit": "Wöchentlich",
+            "dauer": "2:00"
+          }
+        ]
+      },
+      {
+        "type": "Alltagsbegleitung",
+        "combinedVisit": false,
+        "tasks": [
+          "Begleitung zu Terminen (Arzt, Friseur, o.ä.)",
+          "Einkäufe oder Besorgungen"
+        ],
+        "schedules": [
+          {
+            "regelmaessigkeit": "14-tägig",
+            "dauer": "1:30"
+          }
+        ]
+      }
+    ]
+  },
+  "duschwanne": {},
+  "wandverkleidung": {},
+  "duschabtrennung": {},
+  "optional": {},
+  "rabatt": {},
+  "bwt": {},
+  "hl": {},
+  "pricing": {}
+}
