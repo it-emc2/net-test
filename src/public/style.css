@@ -668,6 +668,26 @@ h1 {
   padding-bottom: 6px;
   border-bottom: 2px solid var(--accent-weak);
 }
+/* Same roman badge as the sidebar groups, inline in a heading / summary label. */
+#costsSummary .kosten-section__title .side-num,
+#form-rabatt .side-num {
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: 2px;
+}
+/* "ohne Aufschlag" marker on a material/optional line. */
+#costsSummary .kosten-tag {
+  font-size: 10px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+#costsSummary .kosten-sums__note {
+  font-size: 11px;
+  color: var(--muted);
+}
 #costsSummary .kosten-col-head {
   font-size: 11px;
   color: var(--muted);

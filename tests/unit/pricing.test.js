@@ -44,6 +44,30 @@ test('Example A — BU materials + optional grab bar compute correctly', async (
   expect(res.total).toBeCloseTo(208.85, 2);
 });
 
+test('Example C — NO_MARKUP_IDS products are billed but carry no Aufschlag', async () => {
+  const products = [
+    { productId: 'CLPESG30', price: 30.0, name: 'Haltegriff CLPESG30' },
+    { productId: 'DUSCHKORB01', price: 20.0, name: 'Duschkorb ohne Bohren' },
+  ];
+
+  const ProductModel = makeFakeProductModel(products);
+  const { computePrices } = pricingFactory(ProductModel);
+
+  const res = await computePrices({
+    activeOffer: 'bu',
+    optional: {
+      opt_CLPESG30: true, qty_CLPESG30: 1,
+      opt_DUSCHKORB01: true, qty_DUSCHKORB01: 1,
+    },
+  });
+
+  // Both products are sold, only the Hassmann one feeds the 35% markup.
+  expect(res.materials.sum).toBeCloseTo(50.0, 2);
+  expect(res.markupBase).toBeCloseTo(30.0, 2);
+  expect(res.markup).toBeCloseTo(10.5, 2);
+  expect(res.markupExemptIds).toContain('DUSCHKORB01');
+});
+
 test('Example B — BWT door + grab bar applies global markup', async () => {
   const products = [
     { productId: '1226', price: 500.0, name: 'Standard Tür 1226' },
