@@ -1603,19 +1603,35 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     ...(hasZuschuss ? [{ label: 'Selbstkostenanteil', value: SelbstkostenanteilFmt }] : []),
   ]; */
 
-  const baseTotals = [
-    { label: "Nettobetrag", value: fmtCurrency(netAfterRabatt_and_Bonus) },
-    { label: "zzgl. 19% MwSt.", value: fmtCurrency(vatOnNet) },
-    { label: "Gesamtsumme", value: fmtCurrency(total) },
-  ];
-
-  // mark every second row (0-based: 1,3,5,...) as "alt"
-  const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
-
   // Pick Regie-Stundensatz based on payer
   const payerNorm = String(PayerKind || "").toUpperCase();
   const isKK = payerNorm === "KK" || payerNorm === "KASSENKUNDE";
   const isSZ = payerNorm === "SZ" || payerNorm === "SELBSTZAHLER";
+
+  // Tatsächlich abgezogener Zuschuss (subsidyAmount abzgl. bereits genutztem
+  // Wohnumfeld-Betrag) – nur damit stimmt Gesamtsumme − Zuschuss = Eigenanteil.
+  const subsidyAppliedNum = toNum(
+    computed?.subsidyAmount_max ?? computed?.subsidyAmount,
+  );
+
+  const baseTotals = [
+    { label: "Nettobetrag", value: fmtCurrency(netAfterRabatt_and_Bonus) },
+    { label: "zzgl. 19% MwSt.", value: fmtCurrency(vatOnNet) },
+    { label: "Gesamtsumme", value: fmtCurrency(total) },
+    // Kassenkunde: Ergebniszeile nach Pflegekassen-Zuschuss
+    ...(isKK && subsidyAppliedNum > 0
+      ? [
+          {
+            // passt einzeilig in die verbreiterte Totals-Spalte des Templates
+            label: "Gesamtsumme nach Zuschuss § 40 SGB XI – Ihr Eigenanteil",
+            value: SelbstkostenanteilFmt,
+          },
+        ]
+      : []),
+  ];
+
+  // mark every second row (0-based: 1,3,5,...) as "alt"
+  const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
 
   const BASE_SELF_PAY_SENTENCE =
     "Dieser wird bei Auftragsbestätigung vorab fällig.";
