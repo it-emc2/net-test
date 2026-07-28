@@ -1,0 +1,51 @@
+{
+  "_note": "AH/Kassenkunde nur Haushaltsnahe Dienstleistung, Entlastungsbetrag bestätigt → nur ein Konditionen-Block auf Seite 2.",
+  "activeOffer": "ah",
+  "Kundendaten": {
+    "salutation": "Frau",
+    "firstName": "Erika",
+    "lastName": "Musterfrau",
+    "street": "Musterstraße 12",
+    "postalCode": "12345",
+    "city": "Musterstadt",
+    "payer": "Kassenkunde",
+    "date": "2026-07-28",
+    "wohnumfeld": {
+      "done": false,
+      "amount": 0
+    }
+  },
+  "Arbeitszeit": {
+    "ahTravelZone": "2"
+  },
+  "Finanzierung": {
+    "ahEntlastungsbetragNutzen": "on"
+  },
+  "ah": {
+    "ahNote": "",
+    "services": [
+      {
+        "type": "Haushaltsnahedienstleistungen",
+        "tasks": [
+          "Reinigungsarbeiten",
+          "Fenster putzen",
+          "Wäschepflege"
+        ],
+        "schedules": [
+          {
+            "regelmaessigkeit": "Wöchentlich",
+            "dauer": "2:00"
+          }
+        ]
+      }
+    ]
+  },
+  "duschwanne": {},
+  "wandverkleidung": {},
+  "duschabtrennung": {},
+  "optional": {},
+  "rabatt": {},
+  "bwt": {},
+  "hl": {},
+  "pricing": {}
+}
