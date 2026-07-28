@@ -59,6 +59,14 @@ function resolveWvArticle(size, colorDisplay, explicitPid, fallbackPid) {
   return mapped || fallbackPid;
 }
 
+// Aufschlag applies only to material we order at Hassmann. Products sourced
+// elsewhere are billed through at cost — list their article number here to
+// exempt them from the markup (and from the Zuschlag column in the Kalkulation).
+export const NO_MARKUP_IDS = new Set([
+  "DUSCHKORB01", // Duschkorb ohne Bohren, Edelstahl Silber
+  "78090000", // Duschhocker mit Soft-Drehsitz und Ablage, max 150 kg
+]);
+
 export default (ProductModel) => {
   // Minimal helper: adjust only the visible label to billable qty (selected - 1)
   // - Does NOT change qty, unitPrice, or lineTotal (so totals remain untouched).
@@ -2115,13 +2123,22 @@ try {
         payload?.pricingRules?.kleinInAufschlag === true;
       const lines = Array.isArray(materials?.lines) ? materials.lines : [];
       let markupBase = 0;
+      // Ids that carry a price but no Aufschlag — the Kosten tab shows them.
+      const markupExemptIds = [];
 
       for (const row of lines) {
         const id = String(row?.productId || row?.id || "").trim();
         const qty = Number(row?.qty ?? row?.quantity ?? 0) || 0;
         const unitPrice = Number(row?.unitPrice ?? 0) || 0;
         if (!qty || !unitPrice) continue;
-        if (!includeKleinInMarkup && (id === "KM02" || id === "AC004")) continue;
+        if (!includeKleinInMarkup && (id === "KM02" || id === "AC004")) {
+          markupExemptIds.push(id);
+          continue;
+        }
+        if (NO_MARKUP_IDS.has(id)) {
+          markupExemptIds.push(id);
+          continue;
+        }
         markupBase += qty * unitPrice;
       }
 
@@ -2248,6 +2265,8 @@ try {
         Nettobetrag: baseSubtotal,
         markupPct,
         markup,
+        markupBase: round2(markupBase),
+        markupExemptIds: [...new Set(markupExemptIds)],
         vatOnNet,
         taxRate: TAX_RATE, // so the UI can label the MwSt. row with the real rate
         total,

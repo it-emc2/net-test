@@ -11194,10 +11194,13 @@ window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
   // Kosten-Details section: flat, paragraph-style block (no boxed card).
   // Renders an accent-underlined heading, the line grid, and an optional
   // right-aligned subtotal on a hairline. Styling lives in .kosten-section*.
-  function card(title, bodyHTML, footerHTML = "") {
+  // numeral: roman badge mirroring the sidebar groups (I Arbeit, II Material,
+  // III Optional) so a Kosten section is traceable to the tab it came from.
+  function card(title, bodyHTML, footerHTML = "", numeral = "") {
+    const num = numeral ? `<span class="side-num">${numeral}</span>` : "";
     return `
       <section class="kosten-section">
-        <h3 class="kosten-section__title">${title}</h3>
+        <h3 class="kosten-section__title">${num}${title}</h3>
         <div class="kosten-section__body">${bodyHTML}</div>
         ${
           footerHTML
@@ -11260,6 +11263,12 @@ function escapeHtml(s) {
   // (neu) line but not shown yet — flip this to true to display it once desired.
   const SHOW_FINISH_IN_KOSTEN = false;
 
+  // Kosten-Details: "ohne Aufschlag" badge on every line the server left out of
+  // the Aufschlag base (NO_MARKUP_IDS in logic/pricing.js, plus Kleinmaterial on
+  // legacy offers). Flip to false to hide the badges — the Aufschlag row keeps
+  // showing the base it was applied to either way.
+  const SHOW_NO_MARKUP_TAG = true;
+
   // BU material sections — mirrors CATEGORY_ORDER in routes/docx-template.js so
   // the Kosten-Detail matches the Angebot. Inserts __subtitle header rows.
   function groupMaterialRows(rows) {
@@ -11282,6 +11291,10 @@ function escapeHtml(s) {
     }
     return out;
   }
+
+  // Ids the server left out of the Aufschlag base (set per render, see
+  // renderFromData) — tagged in the line list so the markup stays explainable.
+  let noMarkupIds = new Set();
 
   function listLines(lines) {
     if (!Array.isArray(lines) || !lines.length)
@@ -11320,8 +11333,13 @@ function escapeHtml(s) {
                  aktuell ${euroC(cur)} (${cur > quoted ? "+" : "−"}${euroC(Math.abs(cur - quoted))} pro Stk)
                </div>`
             : "";
+        const noMarkupTag =
+          SHOW_NO_MARKUP_TAG &&
+          noMarkupIds.has(String(l.productId || l.id || "").trim())
+          ? ` <span class="kosten-tag">ohne Aufschlag</span>`
+          : "";
         return `
-      <div style="white-space:pre-line">${escapeHtml(stripBrand(decorateDALabel(l)))}${finishHTML}</div>
+      <div style="white-space:pre-line">${escapeHtml(stripBrand(decorateDALabel(l)))}${noMarkupTag}${finishHTML}</div>
       <div style="text-align:right">${qtyText}${unitText}</div>
       <div style="text-align:right">${euroC(l.unitPrice ?? 0)}${driftHTML}</div>
       <div style="text-align:right; font-weight:600">${euroC(l.lineTotal ?? 0)}</div>
@@ -11694,6 +11712,12 @@ window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
       updateSummaryWidgetSelfPay(data.selfPayAmount);
     }
 
+    noMarkupIds = new Set(
+      (Array.isArray(data.markupExemptIds) ? data.markupExemptIds : []).map(
+        String,
+      ),
+    );
+
     // --- Optional (Debug): use optionalDisplayUI if present, else fallback to items
 let optCard = "";
 
@@ -11716,9 +11740,10 @@ if (supportsOptional) {
   const optSum = data.optionalDisplayUI?.sum ?? 0;
 
   optCard = card(
-    "Additional gewählte Produkte",
+    "Optional Products",
     optBody,
     `<span class="kosten-subtotal-label">Summe:</span> ${euroC(optSum)}`,
+    offerKey === "bu" ? "III" : "",
   );
 }
 
@@ -11773,6 +11798,7 @@ if (supportsOptional) {
       matTitle,
       matBody,
       `<span class="kosten-subtotal-label">Summe Material:</span> ${euroC(matSum)}${driftFooter}`,
+      isBuKosten ? "II" : "",
     );
 
     // --- Leistungen (Debug): use servicesDisplayUI if present
@@ -11890,6 +11916,8 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     const arbeitenCard = card(
       data.services?.title || "Auszuführende Arbeiten",
       svcBodyPrimary,
+      "",
+      isBuKosten ? "I" : "",
     );
 
     // --- Totals: transparent, reconciling ladder (ordering prices → Aufschlag →
@@ -11910,12 +11938,31 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     // Only shown when something is actually deducted below it, otherwise it
     // would just repeat the Nettobetrag on the next line.
     const hasDeduction = !!(rabattAmount || bonusGross);
+    // Aufschlag transparency: name the base it was applied to and every line
+    // left out of it (non-Hassmann products, Kleinmaterial on legacy offers).
+    const markupBase = Number(data.markupBase || 0);
+    const exemptLabels = [...noMarkupIds]
+      .map((id) => {
+        const line = [...matRows, ...opt].find(
+          (l) => String(l.productId || l.id || "").trim() === id,
+        );
+        const name = line
+          ? stripBrand(decorateDALabel(line)).replace(/^\s*-\s*\d+\s*Stk\s*/i, "")
+          : id;
+        return name.split(/[,\n]/)[0].trim().slice(0, 42) || id;
+      })
+      .filter(Boolean);
+    const markupNote = `${markupBase ? ` auf ${euroC(markupBase)}` : ""}`;
     const sums = `
     <div class="kosten-sums">
       <div><span>Arbeiten:</span> <b>${euroC(data.services?.sum || 0)}</b></div>
       <div><span>${matTitle}:</span> <b>${euroC(matSum)}</b></div>
-      ${optSum ? `<div><span>Additional gewählte Produkte:</span> <b>${euroC(optSum)}</b></div>` : ""}
-      <div><span>Aufschlag (${aufPct}%${window.__kleinInAufschlag === false ? " – ohne Kleinmaterial" : ""}):</span> <b>${euroC(data.markup || 0)}</b></div>
+      ${optSum ? `<div><span>Optional Products:</span> <b>${euroC(optSum)}</b></div>` : ""}
+      <div><span>Aufschlag (${aufPct}%${markupNote}):</span> <b>${euroC(data.markup || 0)}</b></div>
+      <!-- Off for now: the per-line "ohne Aufschlag" tags already say which
+           products are exempt. Re-enable if the summary line is wanted too.
+      \${exemptLabels.length ? \`<div class="kosten-sums__note">ohne Aufschlag: \${escapeHtml(exemptLabels.join(" · "))}</div>\` : ""}
+      -->
       ${hasDeduction ? `<div class="kosten-sums__rule"><span>Zwischensumme:</span> <b>${euroC(data.Nettobetrag || 0)}</b></div>` : ""}
       ${rabattAmount ? `<div><span>Rabatt:</span> <b>− ${euroC(rabattAmount)}</b></div>` : ""}
       ${bonusGross ? `<div><span>Bonus / Gratis:</span> <b>− ${euroC(bonusGross)}</b></div>` : ""}
@@ -15960,7 +16007,12 @@ window.setPricingData = function setPricingData(data) {
         .toLocaleString("de-DE", { style: "currency", currency: "EUR" })
         .replace(/\u00A0/g, " ");
 
-    const mat = Number(data?.productsSubtotal ?? 0);
+    // Optional products are part of productsSubtotal — split them out so the
+    // Übersicht mirrors the Kosten tab (Material / Optional Products).
+    const optSum = Number(data?.optionalDisplayUI?.sum ?? 0);
+    const mat = optSum
+      ? Number(data?.materialsDisplayUI?.sum ?? 0)
+      : Number(data?.productsSubtotal ?? 0);
     const arbe = Number(data?.services?.sum ?? 0);
     const net = Number(data?.Nettobetrag ?? 0);
     const vat = Number(data?.baseVat ?? 0);
@@ -15969,6 +16021,32 @@ window.setPricingData = function setPricingData(data) {
 
     byId("rb-material")?.replaceChildren(document.createTextNode(fmt(mat)));
     byId("rb-arbeit")?.replaceChildren(document.createTextNode(fmt(arbe)));
+
+    // Roman numerals: only bu groups its pages (I Arbeit / II Material /
+    // III Optional Products) in the sidebar, so only bu gets the badges here.
+    const isBuRabatt =
+      String(window.getCurrentOfferType?.() || "").toLowerCase() === "bu";
+    const labelWithNum = (num, text) => {
+      const frag = document.createDocumentFragment();
+      if (isBuRabatt && num) {
+        const badge = document.createElement("span");
+        badge.className = "side-num";
+        badge.textContent = num;
+        frag.appendChild(badge);
+      }
+      frag.appendChild(document.createTextNode(text));
+      return frag;
+    };
+    byId("rb-arbeit-label")?.replaceChildren(labelWithNum("I", "Arbeit"));
+    byId("rb-material-label")?.replaceChildren(labelWithNum("II", "Material"));
+    byId("rb-opt-label")?.replaceChildren(
+      labelWithNum("III", "Optional Products"),
+    );
+    const optRow = byId("rb-opt-row");
+    if (optRow) {
+      optRow.style.display = optSum ? "contents" : "none";
+      byId("rb-opt")?.replaceChildren(document.createTextNode(fmt(optSum)));
+    }
     byId("rb-net")?.replaceChildren(document.createTextNode(fmt(net)));
     byId("rb-vat")?.replaceChildren(document.createTextNode(fmt(vat)));
     byId("rb-total")?.replaceChildren(document.createTextNode(fmt(total)));

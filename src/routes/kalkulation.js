@@ -6,7 +6,7 @@ import { randomBytes } from "crypto";
 import mongoose from "mongoose";
 
 import ProductModel from "../models/Product.js";
-import pricingFactory from "../logic/pricing.js";
+import pricingFactory, { NO_MARKUP_IDS } from "../logic/pricing.js";
 
 // Reuse the same helpers you already have
 import { renderDocx, convertDocxToPdf, mapData } from "./docx-template.js";
@@ -481,7 +481,7 @@ async function mapKalkulationData(body = {}, computed = {}, debugMeta = null) {
   const costLinesRaw = buildCostLinesFromMaterials(matLines);
   const costSumNum = sumTotals(costLinesRaw);
 
-  const excludeIds = new Set(["KM02"]);
+  const excludeIds = new Set(["KM02", ...NO_MARKUP_IDS]);
   const surchargeLines = buildSurchargeLines(costLinesRaw, markupPct, excludeIds);
 
   const posUnitPrice =
