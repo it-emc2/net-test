@@ -161,9 +161,13 @@ const OFFERS = {
       "Duschwanne",
       "Fussboden",
       "Wandverkleidung",
+      // Order matters twice over: it drives Weiter/Zurück AND the done-circles
+      // in the sidebar (isDoneInFlow compares indices in this array). Keep it
+      // in sync with SIDEBAR_GROUPS in updateSidebarForOffer, or the circles
+      // light up out of sequence.
+      "Duschabtrennung",
       "DuschabtrennungNeu",
       "Duschvorhang",
-      "Duschabtrennung",
       "Optional",
       "Rabatt",
       "Kosten",
@@ -2725,34 +2729,31 @@ function updateSidebarForOffer() {
     const wrapper = document.createElement("div");
     wrapper.className = "side-group";
 
-    const header = document.createElement("button");
-    header.type = "button";
+    // A div, not a button: the groups never collapse, so there is nothing to
+    // click. Same dot slot as an ordinary entry, chevron on the far right.
+    const header = document.createElement("div");
     header.className = "side-link side-group-header";
+
+    const dot = document.createElement("div");
+    dot.className = "dot";
+
+    const title = document.createElement("span");
+    title.className = "side-group-title";
+    title.textContent = group.title;
 
     const chevron = document.createElement("span");
     chevron.className = "side-group-chevron";
     chevron.textContent = "›";
     chevron.setAttribute("aria-hidden", "true");
 
-    const title = document.createElement("span");
-    title.textContent = group.title;
-
-    header.appendChild(chevron);
+    header.appendChild(dot);
     if (group.num) header.appendChild(makeNumeral(group.num));
     header.appendChild(title);
+    header.appendChild(chevron);
 
     const body = document.createElement("div");
     body.className = "side-group-body";
     pageIds.forEach((pageId) => body.appendChild(makeLink(pageId, labelFor(pageId))));
-
-    const isOpen = pageIds.includes(activeStep);
-    body.classList.toggle("open", isOpen);
-    header.setAttribute("aria-expanded", isOpen ? "true" : "false");
-
-    header.addEventListener("click", () => {
-      const open = body.classList.toggle("open");
-      header.setAttribute("aria-expanded", open ? "true" : "false");
-    });
 
     wrapper.appendChild(header);
     wrapper.appendChild(body);
