@@ -564,23 +564,23 @@ h1 {
   gap: 6px;
 }
 
+/* Not interactive: the groups never collapse, so the header is a label row.
+   Kill the .side-link hover so it doesn't invite a click. */
 .side-group-header {
-  font: inherit;
-  width: 100%;
-  text-align: left;
+  cursor: default;
+}
+
+.side-group-header:hover {
   background: transparent;
-  cursor: pointer;
 }
 
+/* Pushed to the right edge; purely an "has children below" marker, so it
+   never rotates. */
 .side-group-header .side-group-chevron {
-  width: 18px;
+  margin-left: auto;
   flex: none;
-  text-align: center;
   line-height: 1;
-  transition: transform 0.18s ease;
-}
-
-.side-group-header[aria-expanded="true"] .side-group-chevron {
+  opacity: 0.55;
   transform: rotate(90deg);
 }
 
@@ -598,26 +598,42 @@ h1 {
 }
 
 .side-group-body {
-  display: none;
+  display: grid;
   gap: 6px;
   margin-left: 21px;
   padding-left: 12px;
   border-left: 1px solid var(--border, rgba(0, 0, 0, 0.1));
 }
 
-.side-group-body.open {
-  display: grid;
-}
-
-/* Header mirrors the state of its children. */
+/* Header mirrors the state of its children. setStep only touches a.side-link,
+   so the header's own dot is driven from here. `active` comes after `done`
+   because a group holding the current step also holds done siblings. */
 .side-group:has(.side-link.done) > .side-group-header {
   color: var(--step-done);
+}
+
+.side-group:has(.side-link.done) > .side-group-header .dot {
+  border-color: var(--step-done);
+}
+
+.side-group:has(.side-link.done) > .side-group-header .dot::after {
+  background: var(--step-done);
+  transform: scale(1);
 }
 
 .side-group:has(.side-link.active) > .side-group-header {
   background: var(--accent-weak);
   border-color: var(--accent);
   color: var(--accent-strong);
+}
+
+.side-group:has(.side-link.active) > .side-group-header .dot {
+  border-color: var(--step-active);
+}
+
+.side-group:has(.side-link.active) > .side-group-header .dot::after {
+  background: var(--step-active);
+  transform: scale(1);
 }
 
 .main {
