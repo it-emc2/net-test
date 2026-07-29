@@ -21727,8 +21727,11 @@ function askBeforeGoingHome(onConfirm) {
 
   const toggleSidebar = (open) => {
     if (!sidebar) return;
+    // Never lock scrolling for a drawer that is hidden (e.g. on Hauptmenü)
+    if (open && getComputedStyle(sidebar).display === "none") return;
     sidebar.classList.toggle("open", open);
     backdrop?.classList.toggle("visible", open);
+    openBtn?.setAttribute("aria-expanded", String(!!open));
     if (open) {
       document.body.style.overflow = "hidden";
     } else {
