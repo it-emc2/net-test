@@ -2241,6 +2241,12 @@ function resetAllForms() {
     "form-wd",
   ];
 
+  // 0) Every reset starts a new "form generation". Background fills that were
+  // started for the previous customer (Bitrix enrich, delayed deal-id writes)
+  // compare against this and drop their result instead of writing into the
+  // fresh offer.
+  window.__formGeneration = (Number(window.__formGeneration) || 0) + 1;
+
   // 1) Reset all forms back to their HTML defaults
   formIds.forEach((id) => {
     const form = document.getElementById(id);
@@ -2414,6 +2420,26 @@ function resetAllForms() {
   // coupling now that the guard is off: a fresh offer has no panels, so they
   // switch off instead of billing four items nobody selected.
   recomputeWVFlachenQty();
+
+  // 5c) Everything the Routenvorschlag writes lives OUTSIDE the forms, so
+  // form.reset() cannot clear it: the hint block, the zone button selection,
+  // the AH zone cache and the HH:MM → numeric mirrors. Without this a deal
+  // opened from the Terminplanung leaks its km/Reisezeit into the next offer
+  // (visible in the hint, and billed via reise_hours_numeric below).
+  const _routingHint = document.getElementById("routingSuggestion");
+  if (_routingHint) _routingHint.innerHTML = "";
+  ["distanceKm", "travelTime"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  document
+    .querySelectorAll("#travelZoneButtons .az-zone-btn")
+    .forEach((b) => b.setAttribute("aria-pressed", "false"));
+  delete window.__ahZoneData;
+  window.updateAHZoneDisplay?.();
+  // Recomputes reise/arbeit/tage mirrors and repaints every travel hint
+  // (updateTravelPreview + renderTravelCostDebug) — must run before pricing.
+  window.updateTotalHours?.();
 
   // 6) One clean pricing refresh after reset
   window.updatePricing?.();
@@ -26024,6 +26050,11 @@ function applyPlanningAppointmentToForm(entry, offerKey){
     startOfferFlow(offerKey || "bu");
   }
 
+  // Taken after startOfferFlow()'s reset bumped it: the background fills below
+  // must not write into a different offer if the user goes back to the
+  // Hauptmenü and starts a new one before they land.
+  const _generation = window.__formGeneration;
+
   setPlanningValue("#firstName", name.firstName || "");
   setPlanningValue("#lastName", name.lastName || "");
   setPlanningValue("#phone", entry?.phone || "");
@@ -26040,6 +26071,7 @@ function applyPlanningAppointmentToForm(entry, offerKey){
   // callback resets #auftragId via the postal manager, so we must win the race.
   const _planningDealId = entry?.importDealId || entry?.contactId || entry?.id || "";
   setTimeout(() => {
+    if (window.__formGeneration !== _generation) return;
     // syncSummaryLeadIds is not in scope here (different IIFE), so set fields directly
     ["auftragId", "mailAuftragId", "postAuftragId"].forEach((id) => {
       const el = document.getElementById(id);
@@ -26082,10 +26114,10 @@ function applyPlanningAppointmentToForm(entry, offerKey){
   // sometimes leaves email/phone/address blank — fetch the linked Bitrix
   // deal/contact ourselves (we already have the IDs) to fill those in.
   // Runs in the background so opening the configurator isn't blocked on it.
-  enrichPlanningAppointmentFromBitrix(entry);
+  enrichPlanningAppointmentFromBitrix(entry, _generation);
 }
 
-async function enrichPlanningAppointmentFromBitrix(entry){
+async function enrichPlanningAppointmentFromBitrix(entry, generation){
   const dealId = entry?.importDealId || "";
   const contactId = entry?.contactId || "";
   if (!dealId && !contactId) return;
@@ -26103,6 +26135,8 @@ async function enrichPlanningAppointmentFromBitrix(entry){
       if (res.ok) contact = data?.result || null;
     }
     if (!contact) return;
+    // Reset while we were fetching → this data belongs to a previous offer.
+    if (window.__formGeneration !== generation) return;
 
     const honorificId = String(
       contact?.HONORIFIC?.STATUS_ID ?? contact?.HONORIFIC ?? contact?.HONORIFIC_ID ?? "",
