@@ -2706,7 +2706,7 @@ function updateSidebarForOffer() {
     Fussboden: "Fußboden",
     // Rabatt page only exists in the Badumbau flow, so this rename is bu-only.
     Rabatt: "Aufschlag / Rabatt",
-    Optional: "Optional Products",
+    Optional: "Optionale Produkte",
   };
 
   // Badumbau groups its many pages into two collapsible sections; every other
