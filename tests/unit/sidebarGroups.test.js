@@ -129,7 +129,7 @@ test("bu sidebar groups Arbeit and Material, keeps every page reachable", () => 
   expect(out[4]).toEqual({
     step: "Optional",
     num: "III",
-    label: "Optional Products",
+    label: "Optionale Produkte",
   });
 
   // nothing lost: every bu page still has a link somewhere
