@@ -8702,3 +8702,107 @@ details.az-group[open] > summary.az-group-title::before {
   color: var(--text);
   font-size: 0.9rem;
 }
+
+/* ---------- Interne Liste (Kundendaten, nicht kundensichtbar) ---------- */
+.itodo-section > summary {
+  list-style: none;
+}
+
+.itodo-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.itodo-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(180, 83, 9, 0.1);
+  color: #b45309;
+  border: 1px solid rgba(180, 83, 9, 0.3);
+}
+
+:root[data-mode="dark"] .itodo-badge {
+  background: rgba(255, 176, 32, 0.14);
+  color: #ffb020;
+  border-color: rgba(255, 176, 32, 0.35);
+}
+
+.itodo-count {
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--muted-foreground);
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+.itodo-hint {
+  margin: 2px 0 12px;
+  font-size: 0.82rem;
+  color: var(--muted-foreground);
+}
+
+.itodo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.itodo-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+}
+
+.itodo-item::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.65;
+}
+
+.itodo-item input[type="text"] {
+  width: 100%;
+  padding: 4px 2px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.itodo-remove {
+  padding: 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted-foreground);
+  line-height: 0;
+  cursor: pointer;
+}
+
+.itodo-remove:hover,
+.itodo-remove:focus-visible {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.itodo-empty {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--muted-foreground);
+}

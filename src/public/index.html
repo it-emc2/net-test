@@ -3199,6 +3199,39 @@ button.dm-btn-danger:focus-visible {
             </details>
           </div>
 
+          <!-- Interne Liste: rein intern, wird NICHT in Angebot/PDF/E-Mail/Bitrix ausgegeben.
+               Kein data-offer -> in allen Konfiguratoren sichtbar. -->
+          <div class="full" style="margin-top: 16px">
+            <details class="itodo-section" id="internalTodosSection">
+              <summary class="section-header" style="cursor: pointer">
+                <span style="display:flex; align-items:center; gap:10px">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                  Interne Liste
+                  <span class="itodo-badge">nur intern</span>
+                </span>
+                <span class="itodo-count" id="internalTodosCount" hidden></span>
+              </summary>
+
+              <div style="padding: 4px 0 8px">
+                <p class="itodo-hint">
+                  Nicht sichtbar für den Kunden – erscheint <strong>nicht</strong> im Angebot, PDF,
+                  E-Mail oder Bitrix. Wird mit dem Entwurf und beim Kunden gespeichert.
+                </p>
+
+                <div class="itodo-list" id="internalTodosList"></div>
+
+                <p class="itodo-empty" id="internalTodosEmpty">Noch keine Einträge.</p>
+
+                <button type="button" class="da-add" id="internalTodosAddBtn" style="margin-top:10px">
+                  <span aria-hidden="true">+</span> Eintrag hinzufügen
+                </button>
+              </div>
+            </details>
+          </div>
+
 
           <!-- AH only: Lebenssituation -->
           <div class="full" data-offer="ah" style="margin-top: 16px">

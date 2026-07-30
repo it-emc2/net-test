@@ -2469,6 +2469,9 @@ function resetAllForms() {
 // NEW HELPER: Reset all repeater DOMs to clean state
 // ============================================================
 function resetAllRepeaterDOMs() {
+  // --- Interne Liste (Kundendaten) ---
+  initInternalTodos([]);
+
   // --- DW Extra Tasks ---
   if (typeof window.restoreDWExtraTasksFromPayload === "function") {
     window.restoreDWExtraTasksFromPayload({ extraTasks: [] });
@@ -3808,6 +3811,69 @@ function collectBlExtras(payload) {
 
   const noteEl = document.getElementById("blNote");
   if (noteEl) bl.blNote = noteEl.value || "";
+}
+
+/* ---------- Interne Liste (Kundendaten) ----------
+   Rows carry name="internalTodos[]", so formToObject serialisiert sie automatisch
+   nach Kundendaten["internalTodos[]"] – kein eigener Collector nötig.
+   Ausgabe an den Kunden erfolgt nicht: die DOCX-Tag-Maps in offerMapping.js /
+   docx-template.js sind Allowlists und enthalten diesen Key absichtlich nicht. */
+function createInternalTodoRow(text) {
+  const row = document.createElement("div");
+  row.className = "itodo-item";
+  row.innerHTML =
+    '<input type="text" name="internalTodos[]" placeholder="Interner Eintrag …" />' +
+    '<button type="button" class="itodo-remove" aria-label="Eintrag entfernen" title="Entfernen">' +
+    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<polyline points="3 6 5 6 21 6"></polyline>' +
+    '<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>' +
+    '<path d="M10 11v6"></path><path d="M14 11v6"></path>' +
+    "</svg></button>";
+  if (text) row.querySelector("input").value = String(text);
+  return row;
+}
+
+function syncInternalTodos() {
+  const list = document.getElementById("internalTodosList");
+  if (!list) return;
+  const n = list.querySelectorAll(".itodo-item").length;
+  const count = document.getElementById("internalTodosCount");
+  if (count) {
+    count.textContent = n === 1 ? "1 Eintrag" : `${n} Einträge`;
+    count.hidden = !n;
+  }
+  const empty = document.getElementById("internalTodosEmpty");
+  if (empty) empty.hidden = n > 0;
+}
+
+function initInternalTodos(items) {
+  const list = document.getElementById("internalTodosList");
+  if (!list) return;
+  const values = (Array.isArray(items) ? items : items ? [items] : [])
+    .map((v) => String(v ?? "").trim())
+    .filter(Boolean);
+  list.innerHTML = "";
+  values.forEach((v) => list.appendChild(createInternalTodoRow(v)));
+  // zugeklappt starten, bei vorhandenen Einträgen automatisch öffnen
+  const section = document.getElementById("internalTodosSection");
+  if (section) section.open = values.length > 0;
+  syncInternalTodos();
+}
+
+function wireInternalTodos() {
+  const list = document.getElementById("internalTodosList");
+  if (!list) return;
+  document.getElementById("internalTodosAddBtn")?.addEventListener("click", () => {
+    const row = createInternalTodoRow("");
+    list.appendChild(row);
+    row.querySelector("input").focus();
+    syncInternalTodos();
+  });
+  list.addEventListener("click", (e) => {
+    if (!e.target.closest(".itodo-remove")) return;
+    e.target.closest(".itodo-item")?.remove();
+    syncInternalTodos();
+  });
 }
 
 function createWohnumfeldEntryRow(amount, fuerWas) {
@@ -8186,6 +8252,8 @@ document.getElementById("kleinAufschlagToggle")?.addEventListener("change", (e) 
     }
   }
   initWohnumfeldEntries([]);
+  initInternalTodos([]);
+  wireInternalTodos();
   apply();
   applyCopay();
   document.getElementById("wohnumfeldAddEntryBtn")?.addEventListener("click", () => {
@@ -13688,6 +13756,7 @@ function restoreKundendaten(k, offer) {
   setRadio("parkenMoeglich", k.parkenMoeglich);
   setByNameOrId("parkDetails", k.parkDetails || k.parksituationHinweis);
   setByNameOrId("notes", k.notes);
+  initInternalTodos(k["internalTodos[]"] || k.internalTodos);
   if (typeof window.syncKundendatenExtraFields === "function") {
     window.syncKundendatenExtraFields();
   }
