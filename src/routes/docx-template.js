@@ -1166,6 +1166,16 @@ async function mapData(body = {}, computed = {}) {
     }
   }
 
+  // BWT: Einleitungszeile direkt unter "Auszuführende Arbeiten"
+  const isBwtOffer =
+    (body.activeOffer || body.currentOfferKey || computed.activeOffer || "") ===
+    "bwt";
+  if (isBwtOffer) {
+    primary.unshift(
+      "Liefern und Montieren der nachfolgend aufgeführten Badewannentür",
+    );
+  }
+
   // Arrays exactly as the template expects:
   const PrimaryServiceLines = primary.map((txt) => ({ ServiceLine: txt }));
   const IncludedServiceLines = included.map((txt) => ({ ServiceLine: txt }));
@@ -1539,10 +1549,8 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
   // Assemble up to two rows; first present gets pos "003", second "004"
   const BonusRows = [];
 
+  // 001 = Arbeiten, 002 = Material (beide fest im Template) → Bonus startet bei 003
   let pos = "003";
-  if (offerKey === "bwt"){
-      pos = "002";
-  }
 
   if (hasBonusGrab) {
     BonusRows.push({
@@ -1555,9 +1563,6 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
       gesamt: "0,00 €",
     });
     pos = "004";
-     if (offerKey === "bwt"){
-    pos = "003";
-  }
   }
 
   if (hasBonus300) {
@@ -1618,8 +1623,8 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     { label: "Nettobetrag", value: fmtCurrency(netAfterRabatt_and_Bonus) },
     { label: "zzgl. 19% MwSt.", value: fmtCurrency(vatOnNet) },
     { label: "Gesamtsumme", value: fmtCurrency(total) },
-    // Kassenkunde: Ergebniszeile nach Pflegekassen-Zuschuss
-    ...(isKK && subsidyAppliedNum > 0
+    // Kassenkunde: Ergebniszeile nach Pflegekassen-Zuschuss (bei BWT nicht gewünscht)
+    ...(isKK && subsidyAppliedNum > 0 && offerKey !== "bwt"
       ? [
           {
             // passt einzeilig in die verbreiterte Totals-Spalte des Templates
