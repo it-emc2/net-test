@@ -14560,10 +14560,18 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       RESTORE_HANDLERS.Rabatt(p, ctx);
     }
 
-    // Show loaded offer number if present
-    if (offer?.offerNumber) {
+    // Show loaded offer number if present.
+    // Drafts come in as { offerType, payload, draft } from DraftsManager, so there
+    // is no doc.offer to read the number from — fall back to the payload's own
+    // offerNumber. buildPayload() reads this input back (script.js:4239), and
+    // pricing.js uses payload.offerNumber to decide whether an offer was already
+    // quoted: without this, reopening a sent offer via the Entwurf list looked like
+    // a brand-new quote and its Duschabtrennung lines got repriced to today's
+    // supplier price instead of keeping (and reporting) the quoted one.
+    const restoredOfferNumber = offer?.offerNumber || p?.offerNumber || "";
+    if (restoredOfferNumber) {
       const el = document.querySelector("#offerNumber");
-      if (el) el.value = offer.offerNumber;
+      if (el) el.value = restoredOfferNumber;
     }
 
     // ✅ NEW: restore signature pad from payload (drafts/offers)
