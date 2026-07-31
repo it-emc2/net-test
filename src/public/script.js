@@ -14083,7 +14083,7 @@ function restoreOptionalPage(opt) {
       cat_GRAB: ["opt_CLPESG30","opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
       cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
       cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
-      cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35"],
+      cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40"],
       cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH", "opt_ONSHB"],
       cat_METER: ["opt_TECEADS"],
       cat_RAMPE: ["opt_RAMPE35"],
@@ -16442,6 +16442,9 @@ function initBasinAutoAccessories() {
   const on35 = document.getElementById("opt_ON35");
   const qON35 = document.getElementById("qty_ON35");
 
+  const coair40 = document.getElementById("opt_COAIR40");
+  const qCOAIR40 = document.getElementById("qty_COAIR40");
+
   // Required accessories
   const wtbf = document.getElementById("opt_WTBF");
   const qWT = document.getElementById("qty_WTBF");
@@ -16470,6 +16473,7 @@ function initBasinAutoAccessories() {
     { key: "cl65", cb: cl65, qtyInput: qCL65 },
     { key: "cl55", cb: cl55, qtyInput: qCL55 },
     { key: "on35", cb: on35, qtyInput: qON35 },
+    { key: "coair40", cb: coair40, qtyInput: qCOAIR40 },
   ].filter((b) => b.cb && b.qtyInput);
 
   // ---------- helpers ----------
@@ -16513,61 +16517,28 @@ function initBasinAutoAccessories() {
   };
   const saveState = () => {
     const s = {
-      // each basin gets its own state
-      cl60: { checked: !!cl60.checked, qty: num(qCL60.value, 0) },
-      cl65:
-        cl65 && qCL65
-          ? { checked: !!cl65.checked, qty: num(qCL65.value, 0) }
-          : undefined,
-      cl55:
-        cl55 && qCL55
-          ? { checked: !!cl55.checked, qty: num(qCL55.value, 0) }
-          : undefined,
-      on35:
-        on35 && qON35
-          ? { checked: !!on35.checked, qty: num(qON35.value, 0) }
-          : undefined,
       wtbf: { checked: !!wtbf.checked, qty: num(qWT.value, 0) },
       rsl: { checked: !!rsl.checked, qty: num(qRSL.value, 0) },
       ev: { checked: !!ev.checked, qty: num(qEV.value, 0) },
     };
+    // each basin gets its own state
+    basins.forEach(({ key, cb, qtyInput }) => {
+      s[key] = { checked: !!cb.checked, qty: num(qtyInput.value, 0) };
+    });
     try {
       localStorage.setItem(KEY, JSON.stringify(s));
     } catch {}
   };
   const applyState = (s) => {
-    if (s.cl60) {
-      cl60.checked = !!s.cl60.checked;
-      dispatch(cl60);
-      if (Number.isFinite(s.cl60.qty)) {
-        qCL60.value = String(s.cl60.qty);
-        dispatch(qCL60);
+    basins.forEach(({ key, cb, qtyInput }) => {
+      if (!s[key]) return;
+      cb.checked = !!s[key].checked;
+      dispatch(cb);
+      if (Number.isFinite(s[key].qty)) {
+        qtyInput.value = String(s[key].qty);
+        dispatch(qtyInput);
       }
-    }
-    if (s.cl65 && cl65 && qCL65) {
-      cl65.checked = !!s.cl65.checked;
-      dispatch(cl65);
-      if (Number.isFinite(s.cl65.qty)) {
-        qCL65.value = String(s.cl65.qty);
-        dispatch(qCL65);
-      }
-    }
-    if (s.cl55 && cl55 && qCL55) {
-      cl55.checked = !!s.cl55.checked;
-      dispatch(cl55);
-      if (Number.isFinite(s.cl55.qty)) {
-        qCL55.value = String(s.cl55.qty);
-        dispatch(qCL55);
-      }
-    }
-    if (s.on35 && on35 && qON35) {
-      on35.checked = !!s.on35.checked;
-      dispatch(on35);
-      if (Number.isFinite(s.on35.qty)) {
-        qON35.value = String(s.on35.qty);
-        dispatch(qON35);
-      }
-    }
+    });
     if (s.wtbf) {
       wtbf.checked = !!s.wtbf.checked;
       dispatch(wtbf);
@@ -17414,6 +17385,7 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_CL65", "qty_CL65_wrap");
   wireTileQty("opt_CL55", "qty_CL55_wrap");
   wireTileQty("opt_ON35", "qty_ON35_wrap");
+  wireTileQty("opt_COAIR40", "qty_COAIR40_wrap");
   // ---- METER ----
   wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
   // ---- RAMPE ----
@@ -17497,7 +17469,31 @@ cat_SHOWER: "menu_SHOWER",
         requiredSeatHeight: "erhoeht",
         seatId: "CLSIAS",
       },
+      // Bodenmontage (montage defaults to "Wandmontage" for everything above)
+      {
+        productId: "CLPWCF10",
+        image: "./assets/CLPWCF10.jpg",
+        fallbackName: "Stand-Flachspül-WC clivia V2 plus +10cm Abgang waagerecht weiß",
+        category: "floor",
+        montage: "Bodenmontage",
+      },
+      {
+        productId: "WCBF",
+        image: "./assets/WCBF.jpg",
+        fallbackName: "Befestigungssatz Fischer S 8 RD 80 WCR",
+        category: "floor",
+        montage: "Bodenmontage",
+      },
+      {
+        productId: "CLPSSI",
+        image: "./assets/CLPSSI.jpg",
+        fallbackName: "WC-Sitz clivia V2 plus für Stand-WCs weiß",
+        category: "floor",
+        montage: "Bodenmontage",
+      },
     ];
+
+    const montageOf = (item) => item.montage || "Wandmontage";
 
     function formatEuroInline(value) {
       const num = Number(value);
@@ -17632,6 +17628,7 @@ cat_SHOWER: "menu_SHOWER",
       if (accessories.length) {
         const group = document.createElement("div");
         group.className = "wc-generated-group";
+        group.dataset.montage = "Wandmontage";
         group.style.width = "100%";
         const header = document.createElement("div");
         header.className = "subheader wc-products-subheader";
@@ -17652,6 +17649,7 @@ cat_SHOWER: "menu_SHOWER",
       if (wcs.length) {
         const group = document.createElement("div");
         group.className = "wc-generated-group";
+        group.dataset.montage = "Wandmontage";
         group.style.width = "100%";
         const header = document.createElement("div");
         header.className = "subheader wc-products-subheader";
@@ -17679,6 +17677,27 @@ cat_SHOWER: "menu_SHOWER",
           }
           grid.appendChild(pair);
         }
+        group.appendChild(grid);
+        wallProductsGrid.appendChild(group);
+      }
+
+      // Bodenmontage group
+      const floorProducts = WC_WALL_PRODUCTS.filter(
+        (item) => item.category === "floor",
+      );
+      if (floorProducts.length) {
+        const group = document.createElement("div");
+        group.className = "wc-generated-group";
+        group.dataset.montage = "Bodenmontage";
+        group.style.width = "100%";
+        const header = document.createElement("div");
+        header.className = "subheader wc-products-subheader";
+        header.textContent = "Produkte für Bodenmontage";
+        group.appendChild(header);
+        const grid = document.createElement("div");
+        grid.className = "opt-grid";
+        grid.style.width = "100%";
+        for (const item of floorProducts) grid.appendChild(buildTile(item));
         group.appendChild(grid);
         wallProductsGrid.appendChild(group);
       }
@@ -17967,23 +17986,48 @@ cat_SHOWER: "menu_SHOWER",
       el.style.display = show ? "" : "none";
     }
 
+    // Uncheck every tile of a montage when its group is hidden, so nothing
+    // invisible keeps pricing. on=true only re-applies the qty state, keeping
+    // the user's picks across seat-height changes.
+    function setMontageChecked(montage, on) {
+      WC_WALL_PRODUCTS.filter((item) => montageOf(item) === montage).forEach(
+        (item) => {
+          const cb = document.getElementById(`opt_${item.productId}`);
+          const wrap = document.getElementById(`qty_${item.productId}_wrap`);
+          if (!cb || !wrap) return;
+          if (!on) cb.checked = false;
+          applyGeneratedTileQty(cb, wrap);
+        },
+      );
+    }
+
     function applySeatVisibility() {
       const selectedMontage = document.querySelector('#form-optional input[name="wcMontage"]:checked')?.value || "";
       const showSeat = catWc.checked && selectedMontage === "Wandmontage";
+      const showFloor = catWc.checked && selectedMontage === "Bodenmontage";
 
       setWcGroupVisibility(seatWrap, showSeat);
-      setWcGroupVisibility(wallProductsWrap, showSeat);
+      setWcGroupVisibility(wallProductsWrap, showSeat || showFloor);
 
       if (!showSeat) {
         seatInputs.forEach((input) => {
           input.checked = false;
         });
+      }
+      if (!showSeat && !showFloor) {
         setWallProductsChecked(false);
         return;
       }
 
       ensureWallProductsRendered().then(() => {
         setWcGroupVisibility(wallProductsWrap, true);
+        wallProductsGrid
+          ?.querySelectorAll("[data-montage]")
+          .forEach((group) =>
+            setWcGroupVisibility(group, group.dataset.montage === selectedMontage),
+          );
+        setMontageChecked("Wandmontage", showSeat);
+        setMontageChecked("Bodenmontage", showFloor);
         syncSeatHeightDependentProducts();
         syncExclusiveWcSelection();
       });
@@ -18071,7 +18115,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
     cat_GRAB: ["opt_CLPESG30", "opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
     cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
     cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
-    cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35"],
+    cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40"],
     cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH", "opt_ONSHB"],
     cat_METER: ["opt_TECEADS"],
     cat_RAMPE: ["opt_RAMPE35"],
@@ -18116,12 +18160,15 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
 
   // Show/hide "Erforderliches Zubehör" when CL60 is toggled (no cross-panel effects)
   (function wireBasinRequired() {
-    const wt = document.getElementById("opt_CL60");
+    // any basin keeps the required block open, not just CL60
+    const wts = ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40"]
+      .map((id) => document.getElementById(id))
+      .filter(Boolean);
     const reqWrap = document.getElementById("basinRequiredWrap");
-    if (!wt || !reqWrap) return;
+    if (!wts.length || !reqWrap) return;
 
     const apply = () => {
-      const on = !!wt.checked;
+      const on = wts.some((cb) => cb.checked);
       reqWrap.hidden = !on;
       reqWrap.setAttribute("aria-hidden", String(!on));
       if (!on) {
@@ -18147,7 +18194,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
       }
     };
 
-    wt.addEventListener("change", apply);
+    wts.forEach((cb) => cb.addEventListener("change", apply));
     apply();
 
     // Accessory tiles inside required block

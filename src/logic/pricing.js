@@ -336,7 +336,7 @@ function grossToNet(gross, taxRate) {
       opt.qty_CLPESG30 || opt.qty_CLPESG40 || opt.qty_CLPESG60 || opt.qty_CLPESG80,
     );
     const fold = chosen(opt["optFold[]"], opt.qty_DEPSKG60 || opt.qty_DEPSKG85);
-    const basin = chosen(opt["optBasin[]"], opt.qty_CL60);
+    const basin = chosen(opt["optBasin[]"], opt.qty_CL60 || opt.qty_COAIR40);
     const tap = chosen(opt["optBasinTap[]"], opt.qty_CL_BASIN || opt.qty_DEPOH || opt.qty_ONSHB);
     const thermo = chosen(
       opt["optThermo[]"],
