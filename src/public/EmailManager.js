@@ -14,6 +14,7 @@ export function initEmailManager(options = {}) {
       preview: "#mailHtmlPreview",
       leadId: "#mailAuftragId",
       files: "#mailAttachments",
+      editedDocx: "#mailEditedDocx",
       list: "#mailAttachmentList",
       status: "#mailStatus",
       offerNumber: "#offerNumber",
@@ -74,6 +75,7 @@ export function initEmailManager(options = {}) {
   const $preview = document.querySelector(cfg.els.preview);
   const $leadId = document.querySelector(cfg.els.leadId);
   const $files = document.querySelector(cfg.els.files);
+  const $editedDocx = document.querySelector(cfg.els.editedDocx);
   const $list = document.querySelector(cfg.els.list);
   const $status = document.querySelector(cfg.els.status);
   const $offerNumber = document.querySelector(cfg.els.offerNumber);
@@ -1006,6 +1008,7 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     $subject.value = "";
     $body.value = "";
     $files.value = "";
+    if ($editedDocx) $editedDocx.value = "";
 
     syncFileInput();
     renderList();
@@ -1051,13 +1054,15 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     return { blob: await resp.blob(), filename };
   }
 
-  async function collectBitrixDocs(payload, offerNumber, onStep) {
+  async function collectBitrixDocs(payload, offerNumber, onStep, { skipAngebotDocx = false } = {}) {
     const safeNo = String(offerNumber || "Angebot").replace(/[^A-Za-z0-9_\-]+/g, "_");
     const jobs = [
       { endpoint: "/docx-template", name: `${safeNo}.docx`, label: "Angebot-DOCX" },
       { endpoint: "/material-overview/hassmann-cart", name: `Hassmann_Warenkorb_${safeNo}.csv`, label: "Hassmann-Warenkorb (CSV)" },
       { endpoint: "/kalkulation/pdf", name: `Kalkulation_${safeNo}.pdf`, label: "Kalkulation-PDF" },
-    ];
+      // When a hand-edited DOCX is sent, the backend archives that file on the
+      // Bitrix timeline instead of a freshly rendered (unedited) Angebot-DOCX.
+    ].filter((j) => !(skipAngebotDocx && j.endpoint === "/docx-template"));
     const docs = [];
     for (const job of jobs) {
       onStep?.(`Erzeuge ${job.label} …`);
@@ -1115,11 +1120,26 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
       startStatusLog();
       pushStatus("Sende-Vorgang gestartet …");
 
+      // Optional hand-edited Angebot-DOCX: sent to the backend, which converts
+      // it to PDF instead of rendering a fresh offer.
+      const editedFile = $editedDocx?.files?.[0] || null;
+      if (editedFile && !/\.docx$/i.test(editedFile.name)) {
+        pushStatus("Die geänderte Datei muss eine .docx sein.", "error");
+        return false;
+      }
+      if (editedFile) pushStatus(`Geänderte DOCX wird verwendet: ${editedFile.name}`);
+
       // Generate the extra Bitrix documents (Angebot DOCX, Hassmann CSV,
       // Kalkulation PDF) up front so they can be attached to the timeline comment.
-      const bitrixDocs = await collectBitrixDocs(payload, offerNumber, pushStatus);
+      const bitrixDocs = await collectBitrixDocs(payload, offerNumber, pushStatus, {
+        skipAngebotDocx: !!editedFile,
+      });
 
-      pushStatus("Erzeuge Angebots-PDF & sende E-Mail …");
+      pushStatus(
+        editedFile
+          ? "Konvertiere geänderte DOCX zu PDF & sende E-Mail …"
+          : "Erzeuge Angebots-PDF & sende E-Mail …",
+      );
 
       const subject = ($subject.value || offerNumber || "Angebot").trim();
       const body = $body.value || "";
@@ -1145,6 +1165,7 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
 
       for (const f of userFiles) fd.append("attachments", f, f.name);
       for (const d of bitrixDocs) fd.append("bitrixDocs", d.blob, d.filename);
+      if (editedFile) fd.append("editedDocx", editedFile, editedFile.name);
 
       const res = await fetch(cfg.apiUrl, { method: "POST", body: fd });
       if (!res.ok) {
@@ -1158,6 +1179,9 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
         `E-Mail gesendet — Anhänge: ${data.attachmentNames?.join(", ") || "-"}`,
         "success",
       );
+
+      // Clear the edited-DOCX choice so it can't silently apply to the next send.
+      if ($editedDocx) $editedDocx.value = "";
 
       // Success dialog with the optional "move deal to ANG verschickt" action.
       try {

@@ -20,6 +20,8 @@ import { buildEmailHtml } from "../lib/emailTemplate.js";
 // Offer PDF generation (your existing utilities)
 import {
   generateOfferPdfBuffer,
+  convertDocxToPdf,
+  getOfferRenderData,
 } from "./docx-template.js";
 
 const router = express.Router();
@@ -316,17 +318,19 @@ function getPresetAttachments(excludePresetSet, isSelbstzahler, offerType) {
 
 // multipart/form-data:
 // fields: to, subject, body, offerNumber, offerType, payload (json string), excludePreset (json array string)
-// files: attachments[]
+// files: attachments[], editedDocx (optional: hand-edited Angebot-DOCX used instead of a fresh render)
 router.post(
   "/send-offer",
   upload.fields([
     { name: "attachments", maxCount: 10 },
     { name: "bitrixDocs", maxCount: 5 },
+    { name: "editedDocx", maxCount: 1 },
   ]),
   async (req, res) => {
   // upload.fields() returns an object keyed by field name.
   const uploaded = req.files?.attachments || [];
   const bitrixDocFiles = req.files?.bitrixDocs || [];
+  const editedDocxFile = req.files?.editedDocx?.[0] || null;
 
   try {
     const to = String(req.body.to || "").trim();
@@ -394,8 +398,23 @@ router.post(
     }
 
     // ---- Generate offer PDF (same path as /docx-template/pdf) ----
-    const { pdfBuffer: pdfBuf, computed: offerComputed } =
-      await generateOfferPdfBuffer(payload || {});
+    // If the user uploaded a hand-edited Angebot-DOCX, convert THAT to PDF
+    // instead of rendering a fresh one. Prices/totals for the deal-move
+    // dialog still come from the payload (the DOCX isn't parsed back).
+    let pdfBuf;
+    let offerComputed;
+    let editedDocxBuf = null;
+    if (editedDocxFile) {
+      if (!/\.docx$/i.test(editedDocxFile.originalname || "")) {
+        return res.status(400).json({ error: "editedDocx must be a .docx file" });
+      }
+      editedDocxBuf = await fs.readFile(editedDocxFile.path);
+      pdfBuf = await convertDocxToPdf(editedDocxBuf);
+      ({ computed: offerComputed } = await getOfferRenderData(payload || {}));
+    } else {
+      ({ pdfBuffer: pdfBuf, computed: offerComputed } =
+        await generateOfferPdfBuffer(payload || {}));
+    }
 
     const angebotFilename = safeOfferFilename(payload?.offerNumber || offerNumber);
     const signatureCid = "emc2-signature-picture";
@@ -452,6 +471,16 @@ router.post(
         filename: angebotFilename,
         base64: pdfBuf.toString("base64"),
       },
+      // Archive the hand-edited DOCX on the timeline so Bitrix shows exactly
+      // what was sent (the client skips its fresh Angebot-DOCX in this case).
+      ...(editedDocxBuf
+        ? [
+            {
+              filename: angebotFilename.replace(/\.pdf$/i, ".docx"),
+              base64: editedDocxBuf.toString("base64"),
+            },
+          ]
+        : []),
       ...bitrixExtraDocs,
       // Presets can be suppressed on the Bitrix timeline via the developer option.
       ...(excludeBitrixPresets
@@ -568,9 +597,11 @@ router.post(
     console.error("[email] send-offer failed:", e);
     res.status(500).json({ error: "Send failed", detail: e?.message || String(e) });
   } finally {
-    // Cleanup temp uploads (customer attachments + forwarded Bitrix docs)
+    // Cleanup temp uploads (customer attachments + forwarded Bitrix docs + edited DOCX)
     await Promise.all(
-      [...uploaded, ...bitrixDocFiles].map((f) => fs.unlink(f.path).catch(() => {})),
+      [...uploaded, ...bitrixDocFiles, ...(editedDocxFile ? [editedDocxFile] : [])].map(
+        (f) => fs.unlink(f.path).catch(() => {}),
+      ),
     );
   }
 });
