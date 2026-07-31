@@ -420,6 +420,14 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
 
     const hasAnyGrab = grabLines.length > 0;
 
+    // Free-text "Weitere Arbeiten" from the BWT Arbeiten tab, appended after
+    // the Extra-Arbeitszeit bullets.
+    const BwtArbeitenTasks = (Array.isArray(bwt?.extraTasks) ? bwt.extraTasks : [])
+      .map((t) => String(t || "").trim())
+      .filter(Boolean)
+      .map((t) => ({ Text: t }));
+    const BwtAllExtraTasks = [...ExtraAzTasks, ...BwtArbeitenTasks];
+
     if (hasDoor) {
       const roundTripKm = Number(services?.distanceKm || 0);
       const EnthKmQty = formatPlain(roundTripKm);
@@ -439,8 +447,8 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
         Bullet6: "inkl. Lieferkosten",
         HasBullet7: !!bullet7Text,
         Bullet7: bullet7Text,
-        HasExtraTasks: ExtraAzTasks.length > 0,
-        ExtraTasks: ExtraAzTasks,
+        HasExtraTasks: BwtAllExtraTasks.length > 0,
+        ExtraTasks: BwtAllExtraTasks,
         EnthKmQty,
         EnthDeliverQty: doorQtyPlain,
         EnthDoorQty: doorQtyPlain,

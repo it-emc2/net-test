@@ -183,6 +183,7 @@ const OFFERS = {
     pages: [
       "Kundendaten",
       "Arbeitszeit",
+      "bwtArbeiten",
       "bwt",
       "Rabatt",
       "Kosten",
@@ -2232,6 +2233,7 @@ function resetAllForms() {
     "form-optional",
     "form-rabatt",
     "form-bwt",
+    "form-bwtArbeiten",
     "form-hl",
     "form-bl",
     "form-admin",
@@ -2491,6 +2493,11 @@ function resetAllRepeaterDOMs() {
     }
   }
 
+  // --- BWT Arbeiten tab: Weitere Arbeiten ---
+  if (typeof window.restoreBwtArbeitenExtraTasksFromPayload === "function") {
+    window.restoreBwtArbeitenExtraTasksFromPayload({ extraTasks: [] });
+  }
+
   // --- BWT Extra Arbeitszeit ---
   if (typeof window.restoreBwtExtraArbeitszeitFromPayload === "function") {
     window.restoreBwtExtraArbeitszeitFromPayload({ extraTasks: [] });
@@ -2695,7 +2702,8 @@ function updateSidebarForOffer() {
   );
 
   const specialLabels = {
-    bwt: "BWT",
+    bwt: "Badewannentür",
+    bwtArbeiten: "Arbeiten",
     hl: "HL",
     hlk: "Konfigurator",
     bl: "BL",
@@ -2709,9 +2717,11 @@ function updateSidebarForOffer() {
     Optional: "Optionale Produkte",
   };
 
-  // Badumbau groups its many pages into two collapsible sections; every other
-  // offer keeps the flat list. Purely visual — page ids and flow order are untouched.
+  // Badumbau and Badewannentür group their pages into numbered sections; every
+  // other offer keeps the flat list. Purely visual — page ids and flow order
+  // are untouched.
   const isBu = activeOffer === "bu";
+  const isBwt = activeOffer === "bwt";
   const SIDEBAR_GROUPS = isBu
     ? [
         { title: "Auszuführende Arbeiten", num: "I", pages: ["Arbeitszeit", "Arbeiten"] },
@@ -2728,9 +2738,15 @@ function updateSidebarForOffer() {
           ],
         },
       ]
-    : [];
+    : isBwt
+      ? [
+          { title: "Auszuführende Arbeiten", num: "I", pages: ["Arbeitszeit", "bwtArbeiten"] },
+        ]
+      : [];
   const groupedByGroups = new Set(SIDEBAR_GROUPS.flatMap((g) => g.pages));
-  const linkNumerals = isBu ? { Optional: "III" } : {};
+  // Single-page sections get the numeral directly on the link (a one-child
+  // group would look odd) — BU does the same for Optional/III.
+  const linkNumerals = isBu ? { Optional: "III" } : isBwt ? { bwt: "II" } : {};
 
   function labelFor(pageId) {
     const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
@@ -4585,6 +4601,29 @@ if (anschlag) {
     }
   } catch (e) {
     console.warn("[buildPayload] BWT arrays capture failed:", e);
+  }
+
+  // ---- BWT: Auszuführende-Arbeiten tab (workTasks checkbox + free-text list) ----
+  try {
+    const formBwtArbeiten = document.getElementById("form-bwtArbeiten");
+    if (formBwtArbeiten) {
+      const fd = new FormData(formBwtArbeiten);
+      const bwt = payload.bwt || (payload.bwt = {});
+      // Always set (even []) so unchecking/clearing survives save + reload.
+      bwt.workTasks = fd.getAll("bwt[workTasks][]").map((v) => String(v));
+      bwt.extraTasks = Array.from(
+        new Set(
+          fd
+            .getAll("bwt[extraTasks][]")
+            .map((v) => String(v).trim())
+            .filter(Boolean),
+        ),
+      );
+      if ("bwt[workTasks][]" in bwt) delete bwt["bwt[workTasks][]"];
+      if ("bwt[extraTasks][]" in bwt) delete bwt["bwt[extraTasks][]"];
+    }
+  } catch (e) {
+    console.warn("[buildPayload] BWT Arbeiten capture failed:", e);
   }
 
   // ---- HL: enrich payload.hl with structured pipes + extras ----
@@ -7642,22 +7681,25 @@ document.addEventListener("DOMContentLoaded", () => {
 })();
 
 // ===== DUSCHWANNE: free-text extra tasks (repeater) =====
-(function initDWExtraTasks() {
-  const fs = document.getElementById("dw-extra-tasks");
-  if (!fs) return;
+// Free-text "Weitere Arbeiten" repeater, used by the BU Arbeiten tab
+// (#dw-extra-tasks) and the BWT Arbeiten tab (#bwt-extra-tasks).
+// Returns the payload-based restore function, or null if the fieldset is absent.
+function initExtraTasksRepeater({ fieldsetId, countId, emptyId, lsKey, inputName }) {
+  const fs = document.getElementById(fieldsetId);
+  if (!fs) return null;
 
   const wrap = fs.querySelector(".da-items");
   const addBtn = fs.querySelector(".da-add");
-  const countBadge = document.getElementById("dw-extra-count");
-  const emptyHint = document.getElementById("dw-extra-empty");
-  const LS_KEY = "dwExtraTasks:v1";
+  const countBadge = document.getElementById(countId);
+  const emptyHint = document.getElementById(emptyId);
+  const LS_KEY = lsKey;
 
   function makeItem(value = "") {
     const item = document.createElement("div");
     item.className = "da-item wt-extra-item";
     item.setAttribute("data-kind", "extra");
     item.innerHTML = `
-      <textarea class="dw-extra" name="duschwanne[extraTasks][]"
+      <textarea class="dw-extra" name="${inputName}"
       aria-label="Zusätzliche Aufgabe" rows="2">${escapeHtml(value)}</textarea>
       <button type="button" class="wt-extra-move wt-extra-move-up" aria-label="Nach oben verschieben" title="Nach oben">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -7784,12 +7826,12 @@ document.addEventListener("DOMContentLoaded", () => {
     window.updatePricing?.();
   });
 
-  // Expose payload-based restore for global restore pipeline.
+  // Payload-based restore for the global restore pipeline.
   // Re-query the wrap on every call so a stale closure reference (e.g. if
   // the fieldset is re-rendered) can't silently drop rows.
-  window.restoreDWExtraTasksFromPayload = function (dw) {
+  const restoreFromPayload = function (dw) {
     const liveWrap =
-      document.querySelector("#dw-extra-tasks .da-items") || wrap;
+      document.querySelector(`#${fieldsetId} .da-items`) || wrap;
     if (!liveWrap) return;
 
     if (!dw || !Array.isArray(dw.extraTasks)) {
@@ -7825,11 +7867,33 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureOneRow();
   restoreFromLocalStorage();
   updateSummary();
-})();
 
-/* Selection-count badges on the checkbox groups (1–7) of the Arbeiten accordion. */
+  return restoreFromPayload;
+}
+
+window.restoreDWExtraTasksFromPayload = initExtraTasksRepeater({
+  fieldsetId: "dw-extra-tasks",
+  countId: "dw-extra-count",
+  emptyId: "dw-extra-empty",
+  lsKey: "dwExtraTasks:v1",
+  inputName: "duschwanne[extraTasks][]",
+});
+
+window.restoreBwtArbeitenExtraTasksFromPayload = initExtraTasksRepeater({
+  fieldsetId: "bwt-extra-tasks",
+  countId: "bwt-extra-count",
+  emptyId: "bwt-extra-empty",
+  lsKey: "bwtArbeitenExtraTasks:v1",
+  inputName: "bwt[extraTasks][]",
+});
+
+/* Selection-count badges on the checkbox groups of the Arbeiten accordions
+   (BU: #dw-worktasks, BWT: #bwt-worktasks). */
 (function initWorkTaskGroupCounts() {
-  const root = document.getElementById("dw-worktasks");
+  ["dw-worktasks", "bwt-worktasks"].forEach(initRoot);
+
+  function initRoot(rootId) {
+  const root = document.getElementById(rootId);
   if (!root) return;
 
   function updateGroup(group) {
@@ -7854,6 +7918,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   updateAll();
+  }
 })();
 
 /* ========== Kundendaten UI (contact, aufschlag/pflegegrad, etc.) ========== */
@@ -13275,6 +13340,22 @@ function restoreWorkTasks(dw) {
   }
 }
 
+function restoreBwtArbeiten(bwt) {
+  if (!bwt) return;
+  // Older BWT offers have no workTasks key — leave the HTML default (checked).
+  if (Array.isArray(bwt.workTasks)) {
+    document
+      .querySelectorAll('input[type="checkbox"][name="bwt[workTasks][]"]')
+      .forEach((cb) => {
+        cb.checked = bwt.workTasks.includes(String(cb.value));
+        cb.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+  }
+  if (typeof window.restoreBwtArbeitenExtraTasksFromPayload === "function") {
+    window.restoreBwtArbeitenExtraTasksFromPayload(bwt);
+  }
+}
+
 function restoreWV(wv) {
   if (!wv) return;
   const prev = window.__RESTORING__;
@@ -14253,6 +14334,9 @@ const RESTORE_HANDLERS = {
     typeof restoreRabatt === "function" && restoreRabatt(p?.rabatt),
 
   bwt: (p, ctx) => typeof restoreBwt === "function" && restoreBwt(p?.bwt),
+
+  bwtArbeiten: (p, ctx) =>
+    typeof restoreBwtArbeiten === "function" && restoreBwtArbeiten(p?.bwt),
 
   hl: (p, ctx) => typeof restoreHl === "function" && restoreHl(p?.hl),
   bl: (p, ctx) => typeof restoreBl === "function" && restoreBl(p?.bl),

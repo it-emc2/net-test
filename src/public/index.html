@@ -7866,6 +7866,96 @@ button.dm-btn-danger:focus-visible {
         </div>
       </section>
 
+      <!-- BWT · Auszuführende Arbeiten -->
+      <section class="card page" id="page-bwtArbeiten" hidden>
+        <h2 style="margin: 0 0 12px">Auszuführende Arbeiten</h2>
+        <form id="form-bwtArbeiten" autocomplete="on">
+          <fieldset class="section-block full" id="bwt-worktasks">
+            <legend class="sr-only">Auszuführende Arbeiten</legend>
+            <p class="section-subtitle">Arbeiten, die im Zuge des Einbaus der Badewannentür ausgeführt werden.</p>
+
+            <div class="wt-groups">
+
+              <!-- 1. Badewannentür -->
+              <details class="wt-group" open>
+                <summary class="wt-group__header">
+                  <span class="wt-group-title-row">1. Badewannentür <span class="wt-group-count" id="wt-count-bwt-tuer" hidden>0</span></span>
+                </summary>
+                <div class="wt-group__body task-cards">
+                  <label class="task-card">
+                    <input type="checkbox" name="bwt[workTasks][]" value="deliver_install_bwt_door" checked />
+                    <span class="task-card__body">
+                      <span class="task-card__title">Liefern und Montieren der nachfolgend aufgeführten Badewannentür</span>
+                    </span>
+                  </label>
+                </div>
+              </details>
+
+              <!-- 2. Weitere Arbeiten (free text) -->
+              <details class="wt-group" open>
+                <summary class="wt-group__header">
+                  <span class="wt-extra-header">
+                    2. Weitere Arbeiten (optional)
+                    <span class="wt-extra-count" id="bwt-extra-count" hidden>0</span>
+                  </span>
+                </summary>
+                <div class="wt-group__body">
+                  <fieldset class="wt-extra-fieldset" id="bwt-extra-tasks" data-kind="extra" aria-describedby="bwt-extra-help">
+                    <legend class="sr-only">Weitere auszuführende Arbeiten</legend>
+
+                    <div class="da-items wt-extra-items">
+                      <div class="da-item wt-extra-item" data-kind="extra">
+                        <textarea class="dw-extra" name="bwt[extraTasks][]"
+                        aria-label="Zusätzliche Aufgabe"
+                        placeholder="z. B. Demontage der alten Duschabtrennung"
+                        rows="2"></textarea>
+                        <button type="button" class="wt-extra-move wt-extra-move-up" aria-label="Nach oben verschieben" title="Nach oben">
+                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="18 15 12 9 6 15"></polyline>
+                          </svg>
+                        </button>
+                        <button type="button" class="wt-extra-move wt-extra-move-down" aria-label="Nach unten verschieben" title="Nach unten">
+                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                          </svg>
+                        </button>
+                        <button type="button" class="da-remove wt-extra-remove" aria-label="Diese Zeile entfernen">
+                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                            <path d="M10 11v6"></path>
+                            <path d="M14 11v6"></path>
+                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    <p class="wt-extra-empty" id="bwt-extra-empty" hidden>Noch keine zusätzliche Aufgabe erfasst.</p>
+
+                    <button type="button" class="da-add wt-extra-add" aria-label="Weitere Aufgabe hinzufügen">
+                      <span aria-hidden="true">+</span> Aufgabe hinzufügen
+                    </button>
+
+                    <small id="bwt-extra-help" class="da-help">
+                      Diese Positionen erscheinen als zusätzliche Zeilen im Angebots-PDF.
+                    </small>
+                  </fieldset>
+                </div>
+              </details>
+
+            </div>
+          </fieldset>
+
+          <div class="actions full">
+            <button type="button" data-nav="prev" class="secondary">
+              Zurück
+            </button>
+            <button type="button" data-nav="next">Weiter</button>
+          </div>
+        </form>
+      </section>
+
       <!-- bwt -->
       <section class="card page bwt-page-modern" id="page-bwt" hidden>
         <div class="bwt-page-head">
