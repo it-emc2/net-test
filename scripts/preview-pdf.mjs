@@ -32,7 +32,9 @@ const pricing = pricingFactory(ProductModel);
 const argv = process.argv.slice(2);
 const outIdx = argv.indexOf("--out");
 const outDir = outIdx >= 0 ? argv[outIdx + 1] : path.join(__dirname, "../preview-pdfs");
-const names = argv.filter((a, i) => i !== outIdx && i !== outIdx + 1 && !a.startsWith("--"));
+const names = argv.filter(
+  (a, i) => !a.startsWith("--") && (outIdx < 0 || (i !== outIdx && i !== outIdx + 1)),
+);
 
 async function renderFixture(name) {
   const fixture = JSON.parse(
