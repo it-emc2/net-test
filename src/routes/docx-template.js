@@ -402,8 +402,34 @@ async function renderDocx(templatePath, data) {
   return doc.getZip().generate({ type: "nodebuffer" });
 }
 
+// Persistent LibreOffice profile: creating a fresh profile per conversion
+// (old HOME=tmpDir approach) cost 30-90s each time. One shared profile is
+// created once at boot and reused, so conversions only pay soffice startup.
+const LO_PROFILE_DIR = path.join(os.tmpdir(), "lo-profile");
+const LO_PROFILE_URL = `file://${LO_PROFILE_DIR}`;
+fsSync.mkdirSync(LO_PROFILE_DIR, { recursive: true });
+
+// Warm-up at boot: initialize the profile so the first user request
+// doesn't pay the one-time profile-creation cost. Fire-and-forget.
+spawn(
+  "soffice",
+  ["--headless", `-env:UserInstallation=${LO_PROFILE_URL}`, "--terminate_after_init"],
+  { stdio: "ignore", env: { ...process.env, HOME: LO_PROFILE_DIR } },
+).on("error", () => {});
+
+// A shared profile allows only one soffice instance at a time, so
+// conversions are serialized through this promise chain.
+// ponytail: global queue; switch to unoserver if concurrent load grows
+let loQueue = Promise.resolve();
+
 // ✅ IMPROVED: Much more robust LibreOffice PDF conversion
-async function convertDocxToPdf(docxBuffer) {
+function convertDocxToPdf(docxBuffer) {
+  const run = loQueue.then(() => convertDocxToPdfUnqueued(docxBuffer));
+  loQueue = run.catch(() => {});
+  return run;
+}
+
+async function convertDocxToPdfUnqueued(docxBuffer) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docx2pdf-"));
   const timestamp = Date.now();
   const randomId = randomBytes(4).toString("hex");
@@ -417,6 +443,7 @@ async function convertDocxToPdf(docxBuffer) {
 
     const args = [
       "--headless",
+      `-env:UserInstallation=${LO_PROFILE_URL}`,
       "--convert-to",
       "pdf",
       "--outdir",
@@ -437,10 +464,8 @@ async function convertDocxToPdf(docxBuffer) {
         stdio: ["ignore", "ignore", "ignore"], // Suppress all output to avoid popups
         env: {
           ...process.env,
-          HOME: tmpDir, // Temporary home to avoid config conflicts
+          HOME: LO_PROFILE_DIR, // Stable home so the profile is reused, not rebuilt
           TMPDIR: tmpDir, // Ensure temp files go to our controlled location
-          DISPLAY: ":99", // Fake display to avoid GUI (if X11 is available)
-          LIBREOFFICE_USER_PATH: tmpDir, // Isolate user config
         },
         detached: false,
       });
@@ -468,9 +493,6 @@ async function convertDocxToPdf(docxBuffer) {
         resolve();
       });
     });
-
-    // Wait a bit for file system to sync
-    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Try multiple strategies to find the PDF
     let pdfBuffer = null;
