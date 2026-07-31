@@ -3573,6 +3573,87 @@ label.image-check.is-checked .caption {
   opacity: 0.75;
 }
 
+/* Drop zone for a hand-edited Angebot-DOCX (replaces the fresh render on send) */
+.mail-docx-zone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-top: 6px;
+  border: 1.5px dashed #b9c4cb;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.mail-docx-zone:hover,
+.mail-docx-zone:focus-visible,
+.mail-docx-zone.drag-over {
+  border-color: #00a86b;
+  background: rgba(0,168,107,0.06);
+}
+.mail-docx-zone.has-file {
+  border-style: solid;
+  border-color: #e0a636;
+  background: rgba(239,159,39,0.10);
+}
+.mail-docx-zone-badge {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(0,168,107,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+}
+.mail-docx-zone.has-file .mail-docx-zone-badge { background: rgba(239,159,39,0.18); }
+.mail-docx-zone-text { min-width: 0; flex: 1; }
+.mail-docx-zone-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.mail-docx-zone.has-file .mail-docx-zone-title { color: #854f0b; }
+.mail-docx-zone-sub {
+  font-size: 0.8rem;
+  opacity: 0.8;
+  line-height: 1.45;
+  margin-top: 2px;
+}
+.mail-docx-zone.has-file .mail-docx-zone-sub { color: #854f0b; opacity: 0.9; }
+.mail-docx-remove {
+  flex: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 700;
+  color: #854f0b;
+  padding: 6px 8px;
+}
+#sendOfferMail.btn-edited-docx {
+  background: linear-gradient(135deg, #f0b34e 0%, #d97706 100%);
+}
+#sendOfferMail.btn-edited-docx:hover {
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.25);
+}
+.mail-docx-send-note {
+  font-size: 0.8rem;
+  text-align: center;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+[data-mode="dark"] .mail-docx-zone { border-color: rgba(255,255,255,0.25); }
+[data-mode="dark"] .mail-docx-zone:hover,
+[data-mode="dark"] .mail-docx-zone:focus-visible,
+[data-mode="dark"] .mail-docx-zone.drag-over { border-color: #00a86b; }
+[data-mode="dark"] .mail-docx-zone.has-file { border-color: #e0a636; background: rgba(239,159,39,0.14); }
+[data-mode="dark"] .mail-docx-zone.has-file .mail-docx-zone-title,
+[data-mode="dark"] .mail-docx-zone.has-file .mail-docx-zone-sub,
+[data-mode="dark"] .mail-docx-remove { color: #fac775; }
+
 .mail-attach-grid{
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));

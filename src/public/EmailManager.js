@@ -91,6 +91,93 @@ export function initEmailManager(options = {}) {
   // expose for compatibility (some code may read this)
   window.__mailExcludedPreset = excludedPreset;
 
+  // ---- Edited-DOCX drop zone -------------------------------------------
+  // Visual state around #mailEditedDocx: empty = green dashed invite,
+  // file chosen = amber "override active" card + amber send button.
+  const $docxZone = document.getElementById("mailDocxZone");
+  const $docxZoneBadge = document.getElementById("mailDocxZoneBadge");
+  const $docxZoneTitle = document.getElementById("mailDocxZoneTitle");
+  const $docxZoneSub = document.getElementById("mailDocxZoneSub");
+  const $docxRemove = document.getElementById("mailDocxRemove");
+  const $docxSendNote = document.getElementById("mailDocxSendNote");
+  const btnDefaultHtml = $btn.innerHTML;
+
+  function clearEditedDocx() {
+    if ($editedDocx) $editedDocx.value = "";
+    renderDocxZone();
+  }
+
+  function renderDocxZone() {
+    if (!$docxZone || !$editedDocx) return;
+    const file = $editedDocx.files?.[0] || null;
+    $docxZone.classList.toggle("has-file", !!file);
+    $docxRemove.hidden = !file;
+    if ($docxSendNote) $docxSendNote.hidden = !file;
+    if (file) {
+      $docxZoneBadge.textContent = "✅";
+      $docxZoneTitle.textContent = file.name;
+      $docxZoneSub.textContent =
+        "Diese Datei wird statt des automatisch erzeugten Angebots versendet.";
+      $btn.classList.add("btn-edited-docx");
+      $btn.innerHTML = '<span class="btn-icon">📝</span> Geänderte DOCX senden';
+    } else {
+      $docxZoneBadge.textContent = "📝";
+      $docxZoneTitle.textContent = "Angebot in Word angepasst?";
+      $docxZoneSub.textContent =
+        "Bearbeitete DOCX hier ablegen oder auswählen — sie wird statt des " +
+        "automatisch erzeugten Angebots als PDF versendet.";
+      $btn.classList.remove("btn-edited-docx");
+      $btn.innerHTML = btnDefaultHtml;
+    }
+  }
+
+  function acceptEditedDocx(file) {
+    if (!file) return;
+    if (!/\.docx$/i.test(file.name)) {
+      setStatus("Die geänderte Datei muss eine .docx sein.", "error");
+      return;
+    }
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    $editedDocx.files = dt.files;
+    renderDocxZone();
+  }
+
+  if ($docxZone && $editedDocx) {
+    $docxZone.addEventListener("click", () => $editedDocx.click());
+    $docxZone.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        $editedDocx.click();
+      }
+    });
+    $editedDocx.addEventListener("change", () => {
+      const f = $editedDocx.files?.[0];
+      if (f && !/\.docx$/i.test(f.name)) {
+        setStatus("Die geänderte Datei muss eine .docx sein.", "error");
+        $editedDocx.value = "";
+      }
+      renderDocxZone();
+    });
+    $docxRemove.addEventListener("click", (e) => {
+      e.stopPropagation();
+      clearEditedDocx();
+    });
+    for (const ev of ["dragenter", "dragover"]) {
+      $docxZone.addEventListener(ev, (e) => {
+        e.preventDefault();
+        $docxZone.classList.add("drag-over");
+      });
+    }
+    $docxZone.addEventListener("dragleave", () => $docxZone.classList.remove("drag-over"));
+    $docxZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      $docxZone.classList.remove("drag-over");
+      acceptEditedDocx(e.dataTransfer?.files?.[0]);
+    });
+    renderDocxZone();
+  }
+
   const setStatus = (msg, type = "info") => {
     $status.classList.remove("mail-log");
     $status.hidden = false;
@@ -1008,7 +1095,7 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     $subject.value = "";
     $body.value = "";
     $files.value = "";
-    if ($editedDocx) $editedDocx.value = "";
+    clearEditedDocx();
 
     syncFileInput();
     renderList();
@@ -1181,7 +1268,7 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
       );
 
       // Clear the edited-DOCX choice so it can't silently apply to the next send.
-      if ($editedDocx) $editedDocx.value = "";
+      clearEditedDocx();
 
       // Success dialog with the optional "move deal to ANG verschickt" action.
       try {

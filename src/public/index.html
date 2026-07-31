@@ -7676,11 +7676,19 @@ button.dm-btn-danger:focus-visible {
       <iframe id="mailHtmlPreview" class="mail-html-preview" title="E-Mail Vorschau"></iframe>
     </div>
 
-    <label for="mailEditedDocx">Geänderte Angebots-DOCX (optional)</label>
-    <input id="mailEditedDocx" type="file" accept=".docx" />
-    <div class="mail-attach-hint">
-      Wenn gewählt, wird diese Datei statt des automatisch erzeugten Angebots
-      in PDF umgewandelt und versendet (z.&nbsp;B. nach manuellen Änderungen in Word).
+    <div id="mailDocxZone" class="mail-docx-zone" role="button" tabindex="0"
+         aria-label="Bearbeitete Angebots-DOCX auswählen">
+      <div class="mail-docx-zone-badge" id="mailDocxZoneBadge">📝</div>
+      <div class="mail-docx-zone-text">
+        <div class="mail-docx-zone-title" id="mailDocxZoneTitle">Angebot in Word angepasst?</div>
+        <div class="mail-docx-zone-sub" id="mailDocxZoneSub">
+          Bearbeitete DOCX hier ablegen oder auswählen — sie wird statt des
+          automatisch erzeugten Angebots als PDF versendet.
+        </div>
+      </div>
+      <button type="button" id="mailDocxRemove" class="mail-docx-remove"
+              aria-label="Datei entfernen" hidden>✕</button>
+      <input id="mailEditedDocx" type="file" accept=".docx" hidden />
     </div>
 
     <label for="mailAttachments">Zusätzliche Anhänge (optional)</label>
@@ -7697,6 +7705,9 @@ button.dm-btn-danger:focus-visible {
       <span class="btn-icon">📨</span>
       Senden
     </button>
+    <div id="mailDocxSendNote" class="mail-docx-send-note" hidden>
+      PDF wird aus Ihrer bearbeiteten Datei erzeugt
+    </div>
 
     <div id="mailStatus" class="adobe-status" hidden></div>
   </div>
