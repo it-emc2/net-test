@@ -112,6 +112,14 @@ function getAngebotTemplatePath(body) {
     findOffer(body?.pricePreview) ||
     "bu"; // default for old flows
 
+  // Same payer lookup mapData() uses (services.payer, falling back to
+  // Kundendaten.payer) — needed here to pick the Kassenkunde-specific BU
+  // template before mapData/computed even exist.
+  const payerNorm = String(
+    body?.services?.payer || body?.Kundendaten?.payer || "",
+  ).toUpperCase();
+  const isKK = payerNorm === "KK" || payerNorm === "KASSENKUNDE";
+
   let file;
   switch (offer) {
     case "bwt":
@@ -137,7 +145,10 @@ function getAngebotTemplatePath(body) {
     // eslint-disable-next-line no-fallthrough
     default:
       console.log("under default ");
-      file = "Angebot-10.docx"; // <-- your BU template filename
+      // Kassenkunde BU offers use the template with the blue "Ihr
+      // Eigenanteil" box (§ 40 SGB XI totals row); Selbstzahler never
+      // renders that row, so the plain template is unaffected.
+      file = isKK ? "Angebot-BU-KK-2.docx" : "Angebot-10.docx";
       break;
   }
 
@@ -1635,22 +1646,27 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
   const isKK = payerNorm === "KK" || payerNorm === "KASSENKUNDE";
   const isSZ = payerNorm === "SZ" || payerNorm === "SELBSTZAHLER";
 
-  // Tatsächlich abgezogener Zuschuss (subsidyAmount abzgl. bereits genutztem
-  // Wohnumfeld-Betrag) – nur damit stimmt Gesamtsumme − Zuschuss = Eigenanteil.
-  const subsidyAppliedNum = toNum(
-    computed?.subsidyAmount_max ?? computed?.subsidyAmount,
-  );
-
   const baseTotals = [
     { label: "Nettobetrag", value: fmtCurrency(netAfterRabatt_and_Bonus) },
     { label: "zzgl. 19% MwSt.", value: fmtCurrency(vatOnNet) },
     { label: "Gesamtsumme", value: fmtCurrency(total) },
-    // Kassenkunde: Ergebniszeile nach Pflegekassen-Zuschuss (bei BWT nicht gewünscht)
-    ...(isKK && subsidyAppliedNum > 0 && offerKey !== "bwt"
+    // Kassenkunde: Zuschuss und Eigenanteil als eigene Zeilen, immer sichtbar
+    // (bei BWT nicht gewünscht). Zuschuss zeigt den vollen Anspruch (4180 € /
+    // 8360 €), reduziert um bereits genutzte Wohnumfeld-Beträge
+    // (subsidyAmount_max aus pricing.js) — bewusst NICHT auf die Gesamtsumme
+    // gedeckelt, damit bei "Nein" immer 4180/8360 steht statt der (kleineren)
+    // Gesamtsumme.
+    ...(isKK && offerKey !== "bwt"
       ? [
           {
-            // passt einzeilig in die verbreiterte Totals-Spalte des Templates
-            label: "Gesamtsumme nach Zuschuss § 40 SGB XI – Ihr Eigenanteil",
+            label:
+              "Ihr voraussichtlicher Zuschuss nach §40 SGB XI abzüglich bereits erhaltener Leistung",
+            value: fmtCurrency(
+              toNum(computed?.subsidyAmount_max ?? computed?.subsidyAmount),
+            ),
+          },
+          {
+            label: "Ihr Eigenanteil",
             value: SelbstkostenanteilFmt,
           },
         ]
@@ -1658,7 +1674,26 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
   ];
 
   // mark every second row (0-based: 1,3,5,...) as "alt"
-  const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
+  const Totals = baseTotals.map((r, i) => ({
+    ...r,
+    isAlt: i % 2 === 0,
+    isGesamtsumme: r.label === "Gesamtsumme",
+    // Stable hook for the docx template to give this exact row its own
+    // formatting (blue box), independent of isAlt/row position.
+    isEigenanteil: r.label === "Ihr Eigenanteil",
+    // Groups Zuschuss + Eigenanteil into their own table, apart from the
+    // Nettobetrag/MwSt/Gesamtsumme table (BU-KK offer layout).
+    isSubsidyRow: r.label === "Ihr Eigenanteil" || r.label.startsWith("Ihr voraussichtlicher Zuschuss"),
+  }));
+
+  // Flat placeholders for the BU-KK docx template, which renders Zuschuss/
+  // Eigenanteil as two static rows in their own table (no docxtemplater loop)
+  // rather than looping over Totals — mirrors the already-existing flat
+  // Nettobetrag/MwSt/Gesamtsumme/Selbstkostenanteil placeholders below.
+  const hasSubsidyTotals = isKK;
+  const IhrZuschussFmt = fmtCurrency(
+    toNum(computed?.subsidyAmount_max ?? computed?.subsidyAmount),
+  );
 
   const BASE_SELF_PAY_SENTENCE =
     "Dieser wird bei Auftragsbestätigung vorab fällig.";
@@ -1898,6 +1933,12 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     // eslint-disable-next-line no-dupe-keys
     Zuschusskrankenkasse, // formatted subsidy for template
     hasSubsidyLine: hasZuschuss,
+
+    // BU-KK offer: Zuschuss/Eigenanteil rendered as their own static table,
+    // separate from the Nettobetrag/MwSt/Gesamtsumme table — flat tags so
+    // the docx template doesn't need a loop for these two fixed rows.
+    hasSubsidyTotals,
+    IhrZuschussFmt,
 
     // Textblock zur Fälligkeit des Selbstkostenanteils unter oder nach 2000 fur kk
     SelfPayLines,

@@ -505,6 +505,7 @@ h1 {
 }
 
 .side-link .dot {
+  flex-shrink: 0;
   width: 18px;
   height: 18px;
   border-radius: 50%;
