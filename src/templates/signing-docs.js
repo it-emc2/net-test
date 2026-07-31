@@ -310,9 +310,14 @@ const ANGEBOT_CSS = `
 .ang .matsub { font-weight:bold; margin:12px 0 4px; }
 .ang .matline { margin:2px 0; padding-left:2px; }
 .ang .totals { width:auto; margin-left:auto; min-width:300px; border-collapse:collapse; }
+.ang .totals + .totals { margin-top:14px; }
 .ang .totals td { padding:5px 8px; }
 .ang .totals td.num { text-align:right; white-space:nowrap; }
-.ang .totals tr.alt td { font-weight:bold; border-top:1px solid #000; }
+.ang .totals tr.alt td { border-top:1px solid #000; }
+.ang .totals tr.gesamtsumme td { font-weight:bold; font-size:12pt; }
+.ang .totals tr.eigenanteil td { font-weight:bold; font-size:12pt; background:#e5f0fc; border:2px solid #0066cc; border-top:2px solid #0066cc; }
+.ang .totals tr.eigenanteil td:first-child { border-right:none; }
+.ang .totals tr.eigenanteil td:last-child { border-left:none; }
 .ang .pay .opt { margin:5px 0; }
 .ang .sig-img { max-width:300px; max-height:130px; display:block; margin:6px 0; }
 .ang .hinweise { margin:16px 0; }
@@ -393,7 +398,7 @@ function festpreisBlock(d) {
   }
   if (isKK && d.hasSubsidyLine) {
     out.push(
-      `<p>Der Selbstkostenanteil beträgt ${esc(d.SelbstkostenanteilFmt || "")} unter Berücksichtigung eines gewährten Zuschusses durch die Pflegekasse i.H.v. ${esc(d.Zuschusskrankenkasse || "")}.</p>`,
+      `<p>Der Eigenanteil beträgt ${esc(d.SelbstkostenanteilFmt || "")} unter Berücksichtigung eines gewährten Zuschusses durch die Pflegekasse i.H.v. ${esc(d.Zuschusskrankenkasse || "")}.</p>`,
     );
   }
   return `<div class="hinweise">${out.join("")}</div>`;
@@ -427,14 +432,28 @@ export function buildAngebotHtml(data, opts = {}) {
   const d = data || {};
 
   const totals = Array.isArray(d.Totals) ? d.Totals : [];
-  const totalsTable = totals.length
-    ? `<table class="totals"><tbody>${totals
-        .map(
-          (t) =>
-            `<tr class="${t.isAlt ? "alt" : ""}"><td>${esc(t.label || "")}</td><td class="num">${esc(t.value || "")}</td></tr>`,
-        )
-        .join("")}</tbody></table>`
-    : "";
+  const renderTotalsRows = (rows) =>
+    rows
+      .map((t) => {
+        const rowClass = [
+          t.isAlt ? "alt" : "",
+          t.isGesamtsumme ? "gesamtsumme" : "",
+          t.isEigenanteil ? "eigenanteil" : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+        return `<tr class="${rowClass}"><td>${esc(t.label || "")}</td><td class="num">${esc(t.value || "")}</td></tr>`;
+      })
+      .join("");
+  const renderTotalsTable = (rows) =>
+    rows.length ? `<table class="totals"><tbody>${renderTotalsRows(rows)}</tbody></table>` : "";
+
+  // Nettobetrag/MwSt/Gesamtsumme in one table; Zuschuss/Eigenanteil (KK only)
+  // in a second table below, with a gap between them.
+  const baseTotalsRows = totals.filter((t) => !t.isSubsidyRow);
+  const subsidyTotalsRows = totals.filter((t) => t.isSubsidyRow);
+  const totalsTable =
+    renderTotalsTable(baseTotalsRows) + renderTotalsTable(subsidyTotalsRows);
 
   // Payment + signature live INSIDE the document. In 'display' mode they are
   // interactive (radios + signature pad); in 'pdf' mode they are baked in.

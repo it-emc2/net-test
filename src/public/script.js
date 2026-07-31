@@ -2714,9 +2714,9 @@ function updateSidebarForOffer() {
   const isBu = activeOffer === "bu";
   const SIDEBAR_GROUPS = isBu
     ? [
-        { title: "Arbeit", num: "I", pages: ["Arbeitszeit", "Arbeiten"] },
+        { title: "Auszuführende Arbeiten", num: "I", pages: ["Arbeitszeit", "Arbeiten"] },
         {
-          title: "Material",
+          title: "Material für Badumbau",
           num: "II",
           pages: [
             "Duschwanne",
@@ -11440,7 +11440,7 @@ function escapeHtml(s) {
       <div style="white-space:pre-line">${escapeHtml(stripBrand(decorateDALabel(l)))}${noMarkupTag}${finishHTML}</div>
       <div style="text-align:right">${qtyText}${unitText}</div>
       <div style="text-align:right">${euroC(l.unitPrice ?? 0)}${driftHTML}</div>
-      <div style="text-align:right; font-weight:600">${euroC(l.lineTotal ?? 0)}</div>
+      <div style="text-align:right">${euroC(l.lineTotal ?? 0)}</div>
     `;
       })
       .join("");
@@ -11838,9 +11838,9 @@ if (supportsOptional) {
   const optSum = data.optionalDisplayUI?.sum ?? 0;
 
   optCard = card(
-    "Optional Products",
+    "Optionale Produkte",
     optBody,
-    `<span class="kosten-subtotal-label">Summe:</span> ${euroC(optSum)}`,
+    `<span class="kosten-subtotal-label">Summe:</span> <b>${euroC(optSum)}</b>`,
     offerKey === "bu" ? "III" : "",
   );
 }
@@ -11895,7 +11895,7 @@ if (supportsOptional) {
     const matCard = card(
       matTitle,
       matBody,
-      `<span class="kosten-subtotal-label">Summe Material:</span> ${euroC(matSum)}${driftFooter}`,
+      `<span class="kosten-subtotal-label">Summe Material:</span> <b>${euroC(matSum)}</b>${driftFooter}`,
       isBuKosten ? "II" : "",
     );
 
@@ -12009,7 +12009,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     const enthaltCard = card(
       "Enthält je Einheit",
       svcBodyIncluded,
-      `<span class="kosten-subtotal-label">Summe Leistungen:</span> ${euroC(sumLeistungenEnth)}`,
+      `<span class="kosten-subtotal-label">Summe Leistungen:</span> <b>${euroC(sumLeistungenEnth)}</b>`,
     );
     const arbeitenCard = card(
       data.services?.title || "Auszuführende Arbeiten",
@@ -12053,9 +12053,9 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     const markupNote = `${markupBase ? ` auf ${euroC(markupBase)}` : ""}`;
     const sums = `
     <div class="kosten-sums">
-      <div><span>Arbeiten:</span> <b>${euroC(data.services?.sum || 0)}</b></div>
-      <div><span>${matTitle}:</span> <b>${euroC(matSum)}</b></div>
-      ${optSum ? `<div><span>Optional Products:</span> <b>${euroC(optSum)}</b></div>` : ""}
+      <div><span>${isBuKosten ? '<span class="side-num">I</span>' : ""}Auszuführende Arbeiten:</span> <b>${euroC(data.services?.sum || 0)}</b></div>
+      <div><span>${isBuKosten ? '<span class="side-num">II</span>' : ""}${matTitle}:</span> <b>${euroC(matSum)}</b></div>
+      ${optSum ? `<div><span>${isBuKosten ? '<span class="side-num">III</span>' : ""}Optionale Produkte:</span> <b>${euroC(optSum)}</b></div>` : ""}
       <div><span>Aufschlag (${aufPct}%${markupNote}):</span> <b>${euroC(data.markup || 0)}</b></div>
       <!-- Off for now: the per-line "ohne Aufschlag" tags already say which
            products are exempt. Re-enable if the summary line is wanted too.
@@ -16144,10 +16144,10 @@ window.setPricingData = function setPricingData(data) {
       frag.appendChild(document.createTextNode(text));
       return frag;
     };
-    byId("rb-arbeit-label")?.replaceChildren(labelWithNum("I", "Arbeit"));
-    byId("rb-material-label")?.replaceChildren(labelWithNum("II", "Material"));
+    byId("rb-arbeit-label")?.replaceChildren(labelWithNum("I", "Auszuführende Arbeiten"));
+    byId("rb-material-label")?.replaceChildren(labelWithNum("II", "Material für Badumbau"));
     byId("rb-opt-label")?.replaceChildren(
-      labelWithNum("III", "Optional Products"),
+      labelWithNum("III", "Optionale Produkte"),
     );
     const optRow = byId("rb-opt-row");
     if (optRow) {
