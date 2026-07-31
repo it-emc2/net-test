@@ -1343,6 +1343,13 @@
       display: block;
     }
 
+    /* Id-scoped per-panel rules (e.g. #page-Optional .wc-menu { display: grid })
+       out-specify the .opt-modal-panel hide above and leak the panel into
+       whichever category dialog is open — this stays authoritative. */
+    #page-Optional .opt-modal-panel:not(.is-current) {
+      display: none;
+    }
+
     .opt-panel-search {
       display: block;
       width: 100%;
