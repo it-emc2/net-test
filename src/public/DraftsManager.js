@@ -67,6 +67,7 @@ export function initDraftsManager(options = {}) {
   let lastLoadedDraftMeta = null;
   let modal = null;
   let saveAsBtn = null;
+  let lockBtn = null;
   let duplicateTimer = null;
 
   const setStatus = (txt) => {
@@ -206,6 +207,7 @@ export function initDraftsManager(options = {}) {
       updatedAt: draft?.updatedAt || null,
     };
 
+    updateLockButtonLabel();
     return draft;
   }
 
@@ -220,6 +222,9 @@ export function initDraftsManager(options = {}) {
     }
 
     const offerType = cfg.getOfferType();
+    // Always freeze on save: snapshot a fresh price computation so this
+    // offer's total never drifts if DB rates/prices change later.
+    await window.freezeCurrentPricing?.();
     const payload = cfg.buildPayload();
 
     if (!payload) {
@@ -443,6 +448,53 @@ export function initDraftsManager(options = {}) {
       $summaryActions.appendChild(saveAsBtn);
     } else {
       saveAsBtn = document.getElementById("btnSaveDraftAs");
+    }
+
+    if (!document.getElementById("btnLockOffer")) {
+      lockBtn = document.createElement("button");
+      lockBtn.type = "button";
+      lockBtn.id = "btnLockOffer";
+      lockBtn.className = "sw-save-btn sw-save-btn--secondary";
+      $summaryActions.appendChild(lockBtn);
+    } else {
+      lockBtn = document.getElementById("btnLockOffer");
+    }
+    updateLockButtonLabel();
+  }
+
+  function updateLockButtonLabel() {
+    if (!lockBtn) return;
+    const locked = window.__locked === true;
+    lockBtn.textContent = locked ? "🔓 Entsperren" : "🔒 Sperren";
+    lockBtn.title = locked
+      ? "Angebot wieder bearbeitbar machen"
+      : "Angebot einfrieren und komplett gegen Bearbeitung sperren";
+  }
+
+  async function toggleOfferLock() {
+    if (window.__locked === true) {
+      window.__locked = false;
+      window.applyOfferLockUI?.(false);
+      updateLockButtonLabel();
+      cfg.toast?.("Angebot entsperrt. Zum dauerhaften Speichern erneut sichern.", "info");
+      return;
+    }
+
+    window.__locked = true;
+    window.applyOfferLockUI?.(true);
+    updateLockButtonLabel();
+    const name = buildDraftDefaultName();
+    try {
+      const result = await saveDraftWithName(name);
+      cfg.toast?.(
+        result?.queued
+          ? `Offline gesperrt – wird automatisch synchronisiert: ${name}`
+          : `Angebot gesperrt & gespeichert: ${name}`,
+        "success",
+      );
+    } catch (e) {
+      console.error(e);
+      cfg.toast?.(`Sperren fehlgeschlagen: ${e.message || e}`, "error");
     }
   }
 
@@ -797,6 +849,11 @@ export function initDraftsManager(options = {}) {
   if (saveAsBtn && saveAsBtn.dataset.bound !== "1") {
     saveAsBtn.dataset.bound = "1";
     saveAsBtn.addEventListener("click", openSaveAsModal);
+  }
+
+  if (lockBtn && lockBtn.dataset.bound !== "1") {
+    lockBtn.dataset.bound = "1";
+    lockBtn.addEventListener("click", toggleOfferLock);
   }
 
   // Search as user types (debounced)
