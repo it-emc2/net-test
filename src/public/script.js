@@ -21748,6 +21748,69 @@ async function sendPdfToAuftrag() {
   });
 })();
 
+// ===== Vor Ort unterschreiben: Signatur-Link erzeugen + sofort öffnen =====
+// Reuses the same POST /api/signing flow as the dev-tools link generator
+// above, but skips the email and opens the resulting /sign/:token page
+// directly so the rep can hand the iPad to the customer on the spot.
+(function initSignOnSite() {
+  const btn = document.getElementById("signOnSiteBtn");
+  const statusBox = document.getElementById("signOnSiteStatus");
+  const auftragInput = document.getElementById("auftragId");
+  if (!btn || !statusBox) return;
+
+  function setStatus(msg, type = "info") {
+    statusBox.hidden = false;
+    statusBox.className = "adobe-status " + (type === "error" ? "err" : "ok");
+    statusBox.textContent = msg;
+  }
+
+  btn.addEventListener("click", async () => {
+    if (typeof requireBereichValid === "function" && !requireBereichValid()) return;
+    if (typeof buildPayload !== "function") {
+      setStatus("buildPayload ist nicht verfügbar.", "error");
+      return;
+    }
+
+    const payload = buildPayload();
+    const offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
+    const activeOffer =
+      (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
+      window.activeOffer ||
+      "";
+    const dealId = (auftragInput?.value || "").trim();
+
+    try {
+      btn.disabled = true;
+      setStatus("Öffne Unterschriften-Ansicht …", "info");
+
+      const res = await fetch("/api/signing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payload,
+          offerNumber,
+          offerType: activeOffer,
+          dealId,
+          sendEmail: false,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || `Fehler (${res.status})`);
+
+      window.open(data.link, "_blank");
+      setStatus(
+        `Bereit zum Unterschreiben (${data.customerType}, ${data.documents.length} Dokument(e)). Tablet dem Kunden übergeben.`,
+        "success",
+      );
+    } catch (err) {
+      console.error("signOnSite error:", err);
+      setStatus(err.message || "Fehler beim Öffnen der Unterschriften-Ansicht.", "error");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
+
 // im DOMContentLoaded-Block aufrufen:
 document.addEventListener("DOMContentLoaded", () => {
   // ... dein bisheriger Code ...

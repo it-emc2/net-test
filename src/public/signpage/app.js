@@ -303,6 +303,13 @@
     var pg = container.querySelector('input[name="pflegegrad"]:checked');
     if (pg) editedFields.pflegegrad = pg.value;
 
+    // Vollmacht/Abtretungserklärung need Geburtsdatum + Versicherungsnummer for
+    // the Krankenkasse — required here since the BU-Konfigurator doesn't collect them.
+    if ((doc.key === "vollmacht" || doc.key === "abtretung") &&
+        (!editedFields.geburtsdatum || !editedFields.kk_versichertennr)) {
+      return showDocError("Bitte geben Sie Geburtsdatum und Versicherungsnummer an.");
+    }
+
     if (!primarySig || !primarySig.isFilled()) return showDocError("Bitte unterschreiben Sie im Feld.");
     var signatureImage = primarySig.toPng();
 
