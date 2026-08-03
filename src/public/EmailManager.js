@@ -1201,6 +1201,12 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
           "bu";
       }
 
+      try {
+        await cfg.hooks.saveDraftBeforeSend?.();
+      } catch (e) {
+        console.warn("Auto-Entwurf vor dem Senden fehlgeschlagen:", e);
+      }
+
       const offerNumber = getOfferNumber();
       const dealId = String($leadId?.value || $mainAuftragId?.value || "").trim();
       const contactId = String(

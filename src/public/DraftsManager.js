@@ -272,13 +272,16 @@ export function initDraftsManager(options = {}) {
     return { ...data, queued: false };
   }
 
-  async function quickSaveCurrentDraft() {
+  async function quickSaveCurrentDraft(options = {}) {
+    const { silent = false } = options;
     const name = buildDraftDefaultName();
     const result = await saveDraftWithName(name);
-    if (result?.queued) {
-      cfg.toast?.(`Offline gespeichert – wird automatisch synchronisiert: ${name}`, "warn");
-    } else {
-      cfg.toast?.(`Entwurf gespeichert: ${name}`, "success");
+    if (!silent) {
+      if (result?.queued) {
+        cfg.toast?.(`Offline gespeichert – wird automatisch synchronisiert: ${name}`, "warn");
+      } else {
+        cfg.toast?.(`Entwurf gespeichert: ${name}`, "success");
+      }
     }
     return name;
   }
