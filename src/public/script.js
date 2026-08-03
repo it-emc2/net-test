@@ -4032,6 +4032,15 @@ function buildPayload() {
   payload.pricingRules.bwtKmFreeThreshold = Number(window.__bwtKmFreeThreshold ?? 200);
   payload.pricingRules.bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHours ?? 2);
 
+  // Freeze: once true, server/PDF/DOCX generation must return frozenPricing
+  // verbatim instead of recomputing from live DB values. Set only via
+  // freezeCurrentPricing() (Schnellspeichern/Speichern unter/Sperren); cleared
+  // the moment the user edits a field (see requestPricingRefresh).
+  payload.frozen = window.__frozen === true;
+  payload.frozenPricing = payload.frozen ? (window.__frozenPricing || null) : null;
+  // Locked: full edit-lock, independent of the price freeze above.
+  payload.locked = window.__locked === true;
+
   // Parse AH service lines from JSON hidden field
   if (payload.ah && payload.ah.ahServicesJson) {
     try { payload.ah.services = JSON.parse(payload.ah.ahServicesJson); } catch (e) { payload.ah.services = []; }
@@ -10834,6 +10843,9 @@ function attachDuschwanneToPayload(payload) {
   }
 
   window.__pricing = null;
+  window.__frozen = window.__frozen === true;
+  window.__frozenPricing = window.__frozenPricing || null;
+  window.__locked = window.__locked === true;
   let pricingRequestSeq = 0;
   let latestAppliedPricingSeq = 0;
   let pricingRefreshTimer = null;
@@ -10939,11 +10951,56 @@ function attachDuschwanneToPayload(payload) {
     return data;
   };
 
+  window.applyOfferLockUI = function applyOfferLockUI(locked) {
+    document
+      .querySelectorAll('form[id^="form-"] input, form[id^="form-"] select, form[id^="form-"] textarea')
+      .forEach((el) => { el.disabled = !!locked; });
+
+    let banner = document.getElementById("offerLockedBanner");
+    if (locked) {
+      if (!banner) {
+        banner = document.createElement("div");
+        banner.id = "offerLockedBanner";
+        banner.style.cssText =
+          "position:sticky;top:0;z-index:9999;background:#b91c1c;color:#fff;padding:8px 14px;text-align:center;font-weight:600;";
+        banner.textContent = "🔒 Dieses Angebot ist gesperrt – keine Änderungen möglich.";
+        document.body.prepend(banner);
+      }
+    } else if (banner) {
+      banner.remove();
+    }
+
+    document.getElementById("btnSaveDraft")?.toggleAttribute("disabled", !!locked);
+    document.getElementById("btnSaveDraftAs")?.toggleAttribute("disabled", !!locked);
+  };
+
+  window.freezeCurrentPricing = async function freezeCurrentPricing() {
+    const offerType = String(window.getCurrentOfferType?.() || "").toLowerCase();
+    let snapshot;
+    if (offerType === "ah") {
+      const ah = window.computeAHGesamt?.() || { gesamt: 0, eigenanteil: 0 };
+      snapshot = { total: ah.gesamt, selfPayAmount: ah.eigenanteil, _isAH: true };
+    } else {
+      const pl = typeof window.buildPayload === "function" ? window.buildPayload() : null;
+      snapshot = pl ? await fetchPrice(pl) : window.__pricing;
+    }
+    window.__frozen = true;
+    window.__frozenPricing = snapshot;
+    window.__pricing = snapshot;
+    window.dispatchEvent(new CustomEvent("pricing:updated", { detail: snapshot }));
+    if (typeof updateSummaryWidgetTotal === "function") updateSummaryWidgetTotal(snapshot?.total);
+    if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(snapshot?.selfPayAmount);
+    return snapshot;
+  };
+
   window.requestPricingRefresh = function requestPricingRefresh({
     delay = 120,
     payload = null,
     reason = "",
   } = {}) {
+    // Any live, user-driven field change un-freezes a previously frozen offer
+    // so what's shown reflects the edit; the next explicit save re-freezes it.
+    if (!window.__restoring) window.__frozen = false;
     clearTimeout(pricingRefreshTimer);
     window.__lastPricingRefreshMeta = {
       reason: reason || "",
@@ -14718,6 +14775,12 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     window.__bwtTravelTimeFreeHours = bwtHoursSnap != null ? Number(bwtHoursSnap) : 2;
     window.__bwtFreigrenzenLegacyOffer = bwtKmSnap == null && bwtHoursSnap == null;
 
+    // Freeze/lock: pin this offer's own saved state (see RestoreManager.js).
+    window.__frozen = p?.frozen === true;
+    window.__frozenPricing = p?.frozenPricing || null;
+    window.__locked = p?.locked === true;
+    window.applyOfferLockUI?.(window.__locked);
+
     // normalize offerType
     const rawOfferType =
       doc?.offerType ||
@@ -14942,7 +15005,13 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     .forEach((el) => dispatchChange(el));
 
   // ===== Recompute pricing =====
-  if (typeof window.updatePricing === "function") {
+  if (p?.frozen && p?.frozenPricing) {
+    window.__pricing = p.frozenPricing;
+    window.dispatchEvent(new CustomEvent("pricing:updated", { detail: p.frozenPricing }));
+    window.updateSummaryWidgetTotal?.(p.frozenPricing.total);
+    window.updateSummaryWidgetSelfPay?.(p.frozenPricing.selfPayAmount);
+    await window.refreshAllPanels?.();
+  } else if (typeof window.updatePricing === "function") {
     const pl =
       p || (typeof buildPayload === "function" ? buildPayload() : null);
     await window.updatePricing(pl);

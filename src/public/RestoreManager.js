@@ -108,8 +108,14 @@ export function initRestoreManager({
       )
       .forEach((el) => dispatchChange(el));
 
-    // pricing & panels
-    if (typeof updatePricing === "function") {
+    // pricing & panels — a frozen offer shows its pinned snapshot instead of
+    // recomputing from current DB values.
+    if (payload?.frozen && payload?.frozenPricing) {
+      window.__pricing = payload.frozenPricing;
+      window.dispatchEvent(new CustomEvent("pricing:updated", { detail: payload.frozenPricing }));
+      window.updateSummaryWidgetTotal?.(payload.frozenPricing.total);
+      window.updateSummaryWidgetSelfPay?.(payload.frozenPricing.selfPayAmount);
+    } else if (typeof updatePricing === "function") {
       await updatePricing(payload);
       await updatePricing(payload); // keep your existing double-run behavior if needed
     }
@@ -151,6 +157,12 @@ export function initRestoreManager({
       window.__bwtKmFreeThreshold = bwtKmSnap != null ? Number(bwtKmSnap) : 200;
       window.__bwtTravelTimeFreeHours = bwtHoursSnap != null ? Number(bwtHoursSnap) : 2;
       window.__bwtFreigrenzenLegacyOffer = bwtKmSnap == null && bwtHoursSnap == null;
+
+      // Freeze/lock: pin this offer's own saved state.
+      window.__frozen = payload?.frozen === true;
+      window.__frozenPricing = payload?.frozenPricing || null;
+      window.__locked = payload?.locked === true;
+      window.applyOfferLockUI?.(window.__locked);
 
       console.log("[SKETCH][payload-stored]", {
         payloadKeys: Object.keys(payload || {}),

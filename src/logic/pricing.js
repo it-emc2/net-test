@@ -1789,6 +1789,13 @@ color: metaColor || null,
 
   return {
     computePrices: async (payload) => {
+      // Frozen offer: return the pinned snapshot verbatim, skipping every
+      // live config/product/Vigor-DB lookup below, so a saved offer's price
+      // never drifts when rates/products change later.
+      if (payload?.frozen === true && payload?.frozenPricing) {
+        return JSON.parse(JSON.stringify(payload.frozenPricing));
+      }
+
       // AH, HMS, WD compute pricing client-side — return empty shell to avoid BU fallback
       const _offerKey = String(
         payload?.activeOffer || payload?.currentOfferKey || payload?.offerType || ""
