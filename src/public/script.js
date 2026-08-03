@@ -14630,6 +14630,7 @@ const RESTORE_HANDLERS = {
             (typeof window.saveFinalOfferSnapshot === "function"
               ? window.saveFinalOfferSnapshot()
               : undefined),
+          saveDraftBeforeSend: async () => window.__draftsManager?.quickSaveCurrentDraft?.({ silent: true }),
           onDealStageMoved: (dealId, offerType) => {
             const stageId =
               String(offerType || "").toLowerCase() === "ah"
