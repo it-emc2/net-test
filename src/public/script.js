@@ -1943,24 +1943,45 @@ function renderTravelCostDebug() {
   `;
 
   if (isBwt) {
+    // Same free-Reisezeit threshold the real billing applies (pricing.js
+    // computeBwtIncludedLines) — so this preview matches what actually
+    // ends up in Kosten/PDF instead of showing the full undiscounted hours.
+    const freeHours = Number(window.__bwtTravelTimeFreeHours ?? 2) || 0;
+    const billedTravelHours = Math.max(0, travelHours - freeHours);
     const workCost = laborHours * 79.5;
-    const travelCost = travelHours * 79.5;
-    const totalCost = workCost + travelCost;
+    const travelCost = billedTravelHours * 79.5;
+
+    // Fahrzeugbereitstellung/Werkzeug/Beräumung — same per-Arbeitstag items
+    // BU shows, priced with the same admin-configurable values pricing.js
+    // uses (computeBwtIncludedLines).
+    const workDays = Number(window.arbeitstage_numeric ?? 0) || 0;
+    const fahrzeugRate = Number(window.__fahrzeugbereitstellung ?? 80) || 0;
+    const werkzeugRate = Number(window.__werkzeug ?? 7.5) || 0;
+    const beraeumungRate = Number(window.__beraeumung ?? 4.5) || 0;
+    const fahrzeugCost = workDays * fahrzeugRate;
+    const werkzeugCost = workDays * werkzeugRate;
+    const beraeumungCost = workDays * beraeumungRate;
+
+    const totalCost = workCost + travelCost + fahrzeugCost + werkzeugCost + beraeumungCost;
     box.innerHTML = `
       ${section("Zeiten", [
         ["Arbeitszeit", `${hours(laborHours)} h`],
         ["Reisezeit gesamt", `${hours(travelHours)} h`],
+        [`davon abrechenbar (abzgl. ${hours(freeHours)} h frei)`, `${hours(billedTravelHours)} h`],
       ])}
       ${section("Stundensatz", [["1 Facharbeiter", `${euro(79.5)}/h`]])}
       ${section("Kosten", [
         ["Arbeitskosten", euro(workCost)],
-        ["Reisezeit Fahrer", euro(travelCost)],
+        ["Reisezeit Fahrer (abrechenbar)", euro(travelCost)],
+        [`Fahrzeugbereitstellung (${hours(workDays)} Stk)`, euro(fahrzeugCost)],
+        [`Werkzeug (${hours(workDays)} Stk)`, euro(werkzeugCost)],
+        [`Beräumung der Baustelle (${hours(workDays)} Stk)`, euro(beraeumungCost)],
       ])}
       <div class="az-debug-total">
         <span>Gesamtkosten aus Zeiten</span>
         <strong>${euro(totalCost)}</strong>
       </div>
-      <div class="az-travel-debug-note">BWT aktiv: 1 Facharbeiter, 79,50 €/h für Arbeitszeit und Reisezeit.</div>
+      <div class="az-travel-debug-note">BWT aktiv: 1 Facharbeiter, 79,50 €/h für Arbeitszeit und Reisezeit. Die ersten ${hours(freeHours)} h Reisezeit sind frei.</div>
     `;
     return;
   }
@@ -6321,6 +6342,13 @@ window.__entlastungsbetragMonat = 131;
 window.__verhinderungspflegeJahr = 2418;
 window.__steuerabsetzPct = 20;
 window.__steuerabsetzCapJahr = 4000;
+// BWT: Freigrenzen für Reisezeit/Kilometerpauschale — admin-konfigurierbar,
+// gleiche Defaults wie der Server-Fallback in pricing.js (cfg.get(..., N)).
+window.__bwtTravelTimeFreeHours = 2;
+window.__bwtKmFreeThreshold = 200;
+window.__fahrzeugbereitstellung = 80.0;
+window.__werkzeug = 7.5;
+window.__beraeumung = 4.5;
 fetch("/admin/api/config/public")
   .then(function (r) { return r.ok ? r.json() : null; })
   .then(function (d) {
@@ -6341,7 +6369,13 @@ fetch("/admin/api/config/public")
     }
     if (typeof d.STEUERABSETZ_PCT === "number") window.__steuerabsetzPct = d.STEUERABSETZ_PCT;
     if (typeof d.STEUERABSETZ_CAP_JAHR === "number") window.__steuerabsetzCapJahr = d.STEUERABSETZ_CAP_JAHR;
+    if (typeof d.BWT_TRAVEL_TIME_FREE_HOURS === "number") window.__bwtTravelTimeFreeHours = d.BWT_TRAVEL_TIME_FREE_HOURS;
+    if (typeof d.BWT_KM_FREE_THRESHOLD === "number") window.__bwtKmFreeThreshold = d.BWT_KM_FREE_THRESHOLD;
+    if (typeof d.FAHRZEUGBEREITSTELLUNG === "number") window.__fahrzeugbereitstellung = d.FAHRZEUGBEREITSTELLUNG;
+    if (typeof d.WERKZEUG === "number") window.__werkzeug = d.WERKZEUG;
+    if (typeof d.BERAEUMUNG === "number") window.__beraeumung = d.BERAEUMUNG;
     if (typeof window.__refreshFinanzierungUI === "function") window.__refreshFinanzierungUI();
+    if (typeof renderTravelCostDebug === "function") renderTravelCostDebug();
   })
   .catch(function () {});
 

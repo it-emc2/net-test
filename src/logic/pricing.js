@@ -1621,13 +1621,6 @@ color: metaColor || null,
       billed_reise_zeit * bwt_reise_Rate * bwt_handwerkerCount,
     );
 
-    const bwt_reise_amount = reise_ampunt_zeit + kmAmount;
-
-    console.log("reise_hours_numeric ", reise_hours_numeric);
-    console.log("billed_reise_zeit ", billed_reise_zeit);
-    console.log("reise_ampunt_zeit ", reise_ampunt_zeit);
-    console.log("kmAmount ", kmAmount);
-
     // door quantity: sum of ALL BWT door variants, only real qty > 0
     const rawDoorQty =
       (Number(bwt?.bwtDoorStdQty || 0) || 0) +
@@ -1641,18 +1634,51 @@ color: metaColor || null,
 
     const out = [];
 
-    // 1) Kilometerpauschale (already reduced to >200km)
-    if (bwt_reise_amount > 0) {
+    // Same four lines BU shows (Fahrzeugbereitstellung/Werkzeug/Beräumung
+    // priced per Arbeitstag — same config keys computeServiceCosts() uses),
+    // plus BWT's own Kilometerpauschale/Facharbeiter/Reisezeit math below.
+    const workDays = Number(b.workDays ?? 0) || 0;
+    const formatQty = (n) => Number(n || 0).toFixed(2).replace(".", ",");
+    if (workDays > 0) {
+      const fahrzeugbereitstellung = cfg.get('FAHRZEUGBEREITSTELLUNG', 80.0);
+      const werkzeug = cfg.get('WERKZEUG', 7.5);
+      const beraeumung = cfg.get('BERAEUMUNG', 4.5);
       out.push({
-        key: "bwt_km",
-        label: `- ${roundTripKm} km Kilometerpauschale + Reisezeit`,
-        qty: 1,
-        unitPrice: bwt_reise_amount,
-        lineTotal: bwt_reise_amount,
+        key: "fahrzeug",
+        label: `- ${formatQty(workDays)} Stk Fahrzeugbereitstellung`,
+        qty: workDays,
+        unitPrice: round2(fahrzeugbereitstellung),
+        lineTotal: round2(fahrzeugbereitstellung * workDays),
+      });
+      out.push({
+        key: "werkzeuge",
+        label: `- ${formatQty(workDays)} Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen`,
+        qty: workDays,
+        unitPrice: round2(werkzeug),
+        lineTotal: round2(werkzeug * workDays),
+      });
+      out.push({
+        key: "beraeumung",
+        label: `- ${formatQty(workDays)} Stk Beräumung der Baustelle`,
+        qty: workDays,
+        unitPrice: round2(beraeumung),
+        lineTotal: round2(beraeumung * workDays),
       });
     }
 
-    // 1b) Arbeitszeit (Facharbeiter) – same math as computeServiceCosts()
+    // Kilometerpauschale (already reduced by the free-km threshold) — its own
+    // line, not combined with Reisezeit.
+    if (kmAmount > 0) {
+      out.push({
+        key: "kilometer",
+        label: `- ${roundTripKm} km Kilometerpauschale`,
+        qty: 1,
+        unitPrice: kmAmount,
+        lineTotal: kmAmount,
+      });
+    }
+
+    // Arbeitszeit (Facharbeiter) – same math as computeServiceCosts()
     const arbeit_hours_numeric = Number(b.ArbeitHoursNumeric ?? 0) || 0;
     if (arbeit_hours_numeric > 0 && bwt_reise_Rate > 0) {
       const arbeitUnit = round2(bwt_handwerkerCount * bwt_reise_Rate);
@@ -1664,6 +1690,19 @@ color: metaColor || null,
         unit: "Std",
         unitPrice: arbeitUnit,
         lineTotal: round2(arbeit_hours_numeric * arbeitUnit),
+      });
+    }
+
+    // Reisezeit (already reduced by the free-hours threshold) — its own line.
+    if (billed_reise_zeit > 0) {
+      const reiseQtyStr = billed_reise_zeit.toFixed(2).replace(".", ",");
+      out.push({
+        key: "reisezeit",
+        label: `- ${reiseQtyStr} Std Reisezeit × ${bwt_handwerkerCount} Facharbeiter × ${String(bwt_reise_Rate).replace(".", ",")} €`,
+        qty: billed_reise_zeit,
+        unit: "Std",
+        unitPrice: bwt_reise_Rate,
+        lineTotal: reise_ampunt_zeit,
       });
     }
 
