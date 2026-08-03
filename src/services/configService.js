@@ -91,12 +91,12 @@ export const CONFIG_SCHEMA = [
     description: 'Stundensatz für Badewannentür-Montage',
   },
   {
-    key: 'BWT_KM_FREE_THRESHOLD', value: 200,
+    key: 'BWT_KM_FREE_THRESHOLD', value: 0,
     label: 'Freikilometer BWT', unit: 'km', type: 'integer', section: 'bwt', order: 2,
     description: 'Rundtrip-km-Schwelle – nur km darüber werden berechnet',
   },
   {
-    key: 'BWT_TRAVEL_TIME_FREE_HOURS', value: 2,
+    key: 'BWT_TRAVEL_TIME_FREE_HOURS', value: 0,
     label: 'Freie Reisezeit BWT', unit: 'h', type: 'number', section: 'bwt', order: 3,
     description: 'Reisestunden die nicht berechnet werden (Freigrenze)',
   },
