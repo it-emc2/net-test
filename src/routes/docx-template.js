@@ -1199,7 +1199,9 @@ async function mapData(body = {}, computed = {}) {
     }
   }
 
-  // BWT: Einleitungszeile direkt unter "Auszuführende Arbeiten"
+  // BWT: Einleitungszeile direkt unter "Auszuführende Arbeiten", gefolgt von
+  // der Extra-Arbeitszeit (Arbeitszeit-Seite) und den freien "Weitere
+  // Arbeiten"-Zeilen aus dem Arbeiten-Tab.
   const isBwtOffer =
     (body.activeOffer || body.currentOfferKey || computed.activeOffer || "") ===
     "bwt";
@@ -1207,6 +1209,13 @@ async function mapData(body = {}, computed = {}) {
     primary.unshift(
       "Liefern und Montieren der nachfolgend aufgeführten Badewannentür",
     );
+    // Extra Arbeitszeit (Arbeitszeit-Seite) …
+    ExtraAzTasks.forEach((row) => primary.push(row.Text));
+    // … dann die freien "Weitere Arbeiten"-Zeilen aus dem Arbeiten-Tab.
+    const bwtArbeitenExtra = (Array.isArray(bwt?.extraTasks) ? bwt.extraTasks : [])
+      .map((t) => String(t || "").trim())
+      .filter(Boolean);
+    bwtArbeitenExtra.forEach((t) => primary.push(t));
   }
 
   // Arrays exactly as the template expects:

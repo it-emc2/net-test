@@ -453,9 +453,51 @@ describe('Pricing Module', () => {
       });
 
       const result = await pricing.computePrices(payload);
-      
+
       expect(result.bwtIncludedDisplayUI).toBeDefined();
       expect(Array.isArray(result.bwtIncludedDisplayUI)).toBe(true);
+    });
+
+    // Lieferkosten Badewannentür + Kleinmaterial moved from the "services"
+    // (Auszuführende Arbeiten) bucket into materials (Material für
+    // Badewannentür) so the PDF can show them as their own itemized position —
+    // same total price, different position. Guards against three ways that
+    // reclassification can silently break: still counted twice, still taxed
+    // with Aufschlag, or newly discounted by the material Rabatt %.
+    test('Lieferkosten + Kleinmaterial are materials, not services, and stay markup/rabatt-neutral', async () => {
+      mockProductModel.find.mockReturnValue({
+        lean: jest.fn().mockResolvedValue([
+          { productId: '1226', price: 800, name: 'Standard Tür' },
+          { productId: '140322', price: 59, name: 'Lieferkosten' },
+          { productId: 'KM02', price: 150, name: 'Kleinmaterial' },
+        ]),
+      });
+
+      const payload = createBasePayload({
+        activeOffer: 'bwt',
+        Kundendaten: { aufschlag: '35%' },
+        bwt: { bwtDoorStdQty: 1 },
+        rabatt: { materialDiscountPct: 0.05 },
+      });
+
+      const result = await pricing.computePrices(payload);
+
+      const byId = (id) =>
+        result.materials.lines.find((l) => l.productId === id);
+      expect(byId('140322')).toBeDefined();
+      expect(byId('KM02')).toBeDefined();
+
+      // Not double-counted in the labor/services bucket.
+      const inServices = (id) =>
+        (result.bwtIncludedDisplayUI || []).some((l) => l.productId === id || l.key === id);
+      expect(inServices('140322')).toBe(false);
+      expect(inServices('KM02')).toBe(false);
+
+      // Markup applies only to the door (800), not Lieferkosten/Kleinmaterial.
+      expect(result.markupBase).toBeCloseTo(800, 2);
+
+      // Rabatt (5%) applies only to the door (800), not Lieferkosten/Kleinmaterial.
+      expect(result.rabattAmount).toBeCloseTo(40, 2);
     });
   });
 

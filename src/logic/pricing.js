@@ -65,6 +65,7 @@ function resolveWvArticle(size, colorDisplay, explicitPid, fallbackPid) {
 export const NO_MARKUP_IDS = new Set([
   "DUSCHKORB01", // Duschkorb ohne Bohren, Edelstahl Silber
   "78090000", // Duschhocker mit Soft-Drehsitz und Ablage, max 150 kg
+  "140322", // Lieferkosten Badewannentür — logistics fee, not Hassmann material
 ]);
 
 export default (ProductModel) => {
@@ -1666,14 +1667,33 @@ color: metaColor || null,
       });
     }
 
-    // If no door selected (qty 0 or no type), skip Lieferkosten / Tür / Kleinmaterial
-    if (!hasDoor) {
-      return out;
-    }
+    // Labor only (Kilometerpauschale/Reisezeit, Facharbeiter). Lieferkosten,
+    // Tür and Kleinmaterial are genuine materials — computeBwtMaterialExtras
+    // below builds those as priced material lines instead.
+    return out;
+  }
+
+  // Lieferkosten Badewannentür (140322) + Kleinmaterial (KM02) as priced
+  // material-line objects — same shape computeMaterials produces, so callers
+  // can push them straight into materials.lines / materials.sum.
+  async function computeBwtMaterialExtras(payload) {
+    const offer = getActiveOffer(payload);
+    if (offer !== "bwt") return [];
+
+    const bwt = payload?.bwt || {};
+
+    const rawDoorQty =
+      (Number(bwt?.bwtDoorStdQty || 0) || 0) +
+      (Number(bwt?.bwtDoorBudgetQty || 0) || 0) +
+      (Number(bwt?.bwtDoorIndWienGlasQty || 0) || 0) +
+      (Number(bwt?.bwtDoorVariodoorQty || 0) || 0) +
+      (Number(bwt?.bwtDoorIndWienQty || 0) || 0);
+
+    const doorQty = rawDoorQty > 0 ? rawDoorQty : 0;
+    if (doorQty <= 0) return [];
 
     const qtyStr = doorQty.toFixed(2).replace(/\.00$/, "");
 
-    // fetch unit prices for Lieferkosten + Kleinmaterial
     const ids = ["140322", "KM02"];
     const map = await getProductsByIds(ids);
 
@@ -1684,57 +1704,29 @@ color: metaColor || null,
     );
     const kleinPrice = Number(map.get("KM02")?.price || 0);
 
-    // 2) Lieferkosten Badewannentür (real price from DB)
+    const out = [];
+
     if (lieferPrice > 0) {
       out.push({
-        key: "140322",
-        label: `- ${qtyStr} Stk Lieferkosten Badewannentür`,
+        productId: "140322",
+        name: map.get("140322")?.name || "Lieferkosten Badewannentür",
         qty: doorQty,
         unitPrice: lieferPrice,
         lineTotal: round2(lieferPrice * doorQty),
+        label: `- ${qtyStr} Stk Lieferkosten Badewannentür`,
+        category: "Kleinmaterial",
       });
     }
 
-    // 3) Universal / Standard Tür (price forced to 0 here – already counted in materials)
-    // --- which door variants are selected? ---
-    const DOOR_VARIANTS = [
-      { key: "bwtDoorStdQty", label: "Universal / Standard Tür" },
-      { key: "bwtDoorBudgetQty", label: "Budget Tür" },
-      { key: "bwtDoorIndWienGlasQty", label: "Individuelle Tür Wien Glas" },
-      { key: "bwtDoorVariodoorQty", label: "Variodoor" },
-      { key: "bwtDoorIndWienQty", label: "Individuelle Tür Wien" },
-    ];
-
-    const doorLabelParts = [];
-    for (const v of DOOR_VARIANTS) {
-      const q = Number(bwt?.[v.key] || 0) || 0;
-      if (q > 0) doorLabelParts.push(v.label);
-    }
-
-    let doorLabelText = "Badewannentür";
-    if (doorLabelParts.length === 1) {
-      doorLabelText = doorLabelParts[0];
-    } else if (doorLabelParts.length > 1) {
-      doorLabelText = doorLabelParts.join(", ");
-    }
-
-    // 3) Tür (price forced to 0 here – already counted in materials)
-    out.push({
-      key: "",
-      label: `- ${qtyStr} Stk ${doorLabelText}`,
-      qty: doorQty,
-      unitPrice: 0,
-      lineTotal: 0,
-    });
-
-    // 4) Kleinmaterial (real price from DB)
     if (kleinPrice > 0) {
       out.push({
-        key: "km02",
-        label: `- ${qtyStr} Stk Kleinmaterial`,
+        productId: "KM02",
+        name: map.get("KM02")?.name || "Kleinmaterial",
         qty: doorQty,
         unitPrice: kleinPrice,
         lineTotal: round2(kleinPrice * doorQty),
+        label: `- ${qtyStr} Stk Kleinmaterial`,
+        category: "Kleinmaterial",
       });
     }
 
@@ -1802,17 +1794,36 @@ color: metaColor || null,
         payload?.offerType ||
         "bu";
 
-      // --- BWT: Enthält-je-Einheit rows with real prices ---
+      // --- BWT: Enthält-je-Einheit rows with real prices (labor only — the
+      // "Auszuführende Arbeiten" position) ---
       let bwtIncludedDisplayUI = [];
+      // --- BWT: Lieferkosten + Kleinmaterial as priced material lines (the
+      // "Material für Badewannentür" position) ---
+      let bwtMaterialExtrasTotal = 0;
       if (offer === "bwt") {
         try {
           bwtIncludedDisplayUI = await computeBwtIncludedLines(payload);
         } catch (e) {
           console.error("[pricing] computeBwtIncludedLines failed:", e);
         }
+
+        try {
+          const extras = await computeBwtMaterialExtras(payload);
+          for (const line of extras) {
+            materials.lines.push(line);
+            materials.sum = round2((materials.sum || 0) + line.lineTotal);
+            bwtMaterialExtrasTotal = round2(bwtMaterialExtrasTotal + line.lineTotal);
+          }
+        } catch (e) {
+          console.error("[pricing] computeBwtMaterialExtras failed:", e);
+        }
+
+        // Service lines shown under "Auszuführende Arbeiten" are the BWT labor
+        // rows, not whatever computeServiceCosts produced generically.
+        services.lines = bwtIncludedDisplayUI;
       }
 
-      // --- BWT: Summe Leistungen aus den 4 BWT-Zeilen + Extra Arbeitszeit ---
+      // --- BWT: Summe Leistungen aus den BWT-Leistungszeilen + Extra Arbeitszeit ---
       let bwtLeistungenSum = 0;
       if (
         offer === "bwt" &&
@@ -2154,7 +2165,14 @@ try {
       const base_total = round2(baseSubtotal + baseVat);
       // --- Rabatt on MATERIAL only (percent from payload.rabatt.materialDiscountPct) ---
       const materialPct = Number(payload?.rabatt?.materialDiscountPct || 0); // 0..0.09
-      const rabattAmount = round2((productsSubtotal || 0) * materialPct);
+      // BWT: Lieferkosten + Kleinmaterial live in materials.lines (for PDF/UI
+      // display), but they're a delivery fee/consumable, not discountable
+      // material — same price behavior as before they were reclassified.
+      const rabattBase =
+        offer === "bwt"
+          ? Math.max(0, (productsSubtotal || 0) - bwtMaterialExtrasTotal)
+          : productsSubtotal || 0;
+      const rabattAmount = round2(rabattBase * materialPct);
 
       // VAT is applied AFTER discount on net amount:
       const netAfterRabatt = round2((baseSubtotal || 0) - rabattAmount);
