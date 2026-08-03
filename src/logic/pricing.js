@@ -791,7 +791,10 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
         // if user did not enter a valid value, fall back to Abschlussprofil qty
         qSilikon = qtyAbschlussprofil;
       }
-      if (qSilikon > 0) add("2000302", qSilikon);
+      if (qSilikon > 0) {
+        setCat("Kleinmaterial");
+        add("2000302", qSilikon);
+      }
     }
     setCat(null);
     // ------- BWT · Badewannentür materials -------
