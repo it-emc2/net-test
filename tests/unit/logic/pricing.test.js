@@ -458,6 +458,45 @@ describe('Pricing Module', () => {
       expect(Array.isArray(result.bwtIncludedDisplayUI)).toBe(true);
     });
 
+    // BWT_KM_FREE_THRESHOLD / BWT_TRAVEL_TIME_FREE_HOURS are admin-tunable.
+    // If the admin later tightens them, already-saved offers must keep the
+    // number they were quoted with — buildPayload() snapshots the value into
+    // pricingRules at save time; pricing.js must read that snapshot, not the
+    // live cfg.get(), and must fall back to the historical 200 km / 2 h (not
+    // whatever's live) when a payload predates this mechanism entirely.
+    test('Freigrenzen: snapshot in pricingRules wins over the live config; missing snapshot falls back to 200 km / 2 h', async () => {
+      const arbeitszeit = {
+        distanceKm: 18, // 36 km round trip
+        travelDays: 1,
+        workDays: 1,
+        ArbeitHoursNumeric: 5,
+        ReiseHoursNumeric: 2.5,
+      };
+      const payloadFor = (pricingRulesOverride) =>
+        createBasePayload({
+          activeOffer: 'bwt',
+          Arbeitszeit: arbeitszeit,
+          bwt: {},
+          ...(pricingRulesOverride ? { pricingRules: pricingRulesOverride } : {}),
+        });
+
+      const noSnapshot = await pricing.computePrices(payloadFor(undefined));
+      const explicitLegacy = await pricing.computePrices(
+        payloadFor({ bwtKmFreeThreshold: 200, bwtTravelTimeFreeHours: 2 }),
+      );
+      const explicitNoFreeAllowance = await pricing.computePrices(
+        payloadFor({ bwtKmFreeThreshold: 0, bwtTravelTimeFreeHours: 0 }),
+      );
+
+      // No snapshot at all (offer predates this feature) behaves exactly like
+      // an explicit 200/2 snapshot — both keep the historical free allowance.
+      expect(noSnapshot.services.sum).toBeCloseTo(explicitLegacy.services.sum, 2);
+
+      // An offer that explicitly opted into (or was created under) a 0/0
+      // rule bills strictly more: full Reisezeit + Kilometerpauschale kick in.
+      expect(explicitNoFreeAllowance.services.sum).toBeGreaterThan(noSnapshot.services.sum);
+    });
+
     // Lieferkosten Badewannentür + Kleinmaterial moved from the "services"
     // (Auszuführende Arbeiten) bucket into materials (Material für
     // Badewannentür) so the PDF can show them as their own itemized position —

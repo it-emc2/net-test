@@ -1605,9 +1605,24 @@ color: metaColor || null,
     const travelDays = Number.isFinite(travelDaysRaw)
       ? Math.max(0, travelDaysRaw)
       : 1;
+    // Freigrenzen (km/Reisezeit): buildPayload() snapshots the admin-config
+    // value that was live at save time into pricingRules (see script.js).
+    // If the admin later tightens/removes the free allowance, offers already
+    // saved keep the number they were quoted with instead of silently
+    // repricing on reopen. A payload with no snapshot predates this
+    // mechanism entirely — those keep the historical 200 km / 2 h that has
+    // always applied, NOT whatever the admin has configured right now.
+    const pr = payload?.pricingRules || {};
+    const kmFreeThreshold = pr.bwtKmFreeThreshold != null
+      ? Number(pr.bwtKmFreeThreshold)
+      : 200;
+    const travelFreeHours = pr.bwtTravelTimeFreeHours != null
+      ? Number(pr.bwtTravelTimeFreeHours)
+      : 2;
+
     const oneWayKm = Number(b.distanceKm || 0) || 0;
     const roundTripKm = Math.max(0, oneWayKm * 2 * travelDays);
-    const billedKm = Math.max(0, roundTripKm - cfg.get('BWT_KM_FREE_THRESHOLD', 200));
+    const billedKm = Math.max(0, roundTripKm - kmFreeThreshold);
     const kmRate = cfg.get('KM_RATE', 0.35);
     const kmAmount = round2(billedKm * kmRate);
 
@@ -1616,7 +1631,7 @@ color: metaColor || null,
     // Reisezeit for bwt
     const bwt_reise_Rate = cfg.get('LABOR_RATE_BWT', 79.5);
     const bwt_handwerkerCount = cfg.get('BWT_WORKER_COUNT', 1);
-    const billed_reise_zeit = Math.max(0, reise_hours_numeric - cfg.get('BWT_TRAVEL_TIME_FREE_HOURS', 2));
+    const billed_reise_zeit = Math.max(0, reise_hours_numeric - travelFreeHours);
     const reise_ampunt_zeit = round2(
       billed_reise_zeit * bwt_reise_Rate * bwt_handwerkerCount,
     );

@@ -1983,6 +1983,7 @@ function renderTravelCostDebug() {
       </div>
       <div class="az-travel-debug-note">BWT aktiv: 1 Facharbeiter, 79,50 €/h für Arbeitszeit und Reisezeit. Die ersten ${hours(freeHours)} h Reisezeit sind frei.</div>
     `;
+    syncBwtFreigrenzenToggle();
     return;
   }
 
@@ -2948,6 +2949,12 @@ function startOfferFlow(offerKey) {
   // Fresh offer → new pricing rules (Kleinmaterial counts toward the Aufschlag).
   window.__kleinInAufschlag = true;
   window.__kleinAufschlagLegacyOffer = false;
+
+  // Fresh offer → BWT Freigrenzen follow today's live admin config, not
+  // whatever a previously-restored legacy offer pinned them to.
+  window.__bwtFreigrenzenLegacyOffer = false;
+  window.__bwtKmFreeThreshold = Number(window.__bwtKmFreeThresholdLive ?? 200);
+  window.__bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHoursLive ?? 2);
 
   // BWT: override Arbeitszeit default to 05:00 (1 worker, shorter job)
   if (offerKey === "bwt") {
@@ -4015,6 +4022,15 @@ function buildPayload() {
   // legacy drafts restore this as false (set in the restore path) so their
   // totals don't drift when reopened. Absent → treated as new (default true).
   payload.pricingRules = { kleinInAufschlag: window.__kleinInAufschlag !== false };
+
+  // BWT Freigrenzen (km/Reisezeit): snapshot whatever's currently in effect
+  // so this offer keeps its quoted price even if the admin later changes
+  // BWT_KM_FREE_THRESHOLD / BWT_TRAVEL_TIME_FREE_HOURS. Restored legacy
+  // offers (see restore path) keep these at the historical 200/2 default
+  // instead of the live-fetched value, so reopening one doesn't silently
+  // adopt today's config before the user has chosen to.
+  payload.pricingRules.bwtKmFreeThreshold = Number(window.__bwtKmFreeThreshold ?? 200);
+  payload.pricingRules.bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHours ?? 2);
 
   // Parse AH service lines from JSON hidden field
   if (payload.ah && payload.ah.ahServicesJson) {
@@ -6342,8 +6358,15 @@ window.__entlastungsbetragMonat = 131;
 window.__verhinderungspflegeJahr = 2418;
 window.__steuerabsetzPct = 20;
 window.__steuerabsetzCapJahr = 4000;
-// BWT: Freigrenzen für Reisezeit/Kilometerpauschale — admin-konfigurierbar,
-// gleiche Defaults wie der Server-Fallback in pricing.js (cfg.get(..., N)).
+// BWT: Freigrenzen für Reisezeit/Kilometerpauschale — admin-konfigurierbar.
+// window.__bwt*Live always mirrors the current admin-panel value (refreshed
+// below); window.__bwtKmFreeThreshold/__bwtTravelTimeFreeHours is what
+// buildPayload() actually snapshots into the offer, and gets pinned to a
+// restored offer's own saved value in the restore path — so switching to a
+// legacy offer, then back to a fresh one, doesn't leak the legacy value into
+// the new offer (startOfferFlow resets it back to *Live).
+window.__bwtTravelTimeFreeHoursLive = 2;
+window.__bwtKmFreeThresholdLive = 200;
 window.__bwtTravelTimeFreeHours = 2;
 window.__bwtKmFreeThreshold = 200;
 window.__fahrzeugbereitstellung = 80.0;
@@ -6369,8 +6392,16 @@ fetch("/admin/api/config/public")
     }
     if (typeof d.STEUERABSETZ_PCT === "number") window.__steuerabsetzPct = d.STEUERABSETZ_PCT;
     if (typeof d.STEUERABSETZ_CAP_JAHR === "number") window.__steuerabsetzCapJahr = d.STEUERABSETZ_CAP_JAHR;
-    if (typeof d.BWT_TRAVEL_TIME_FREE_HOURS === "number") window.__bwtTravelTimeFreeHours = d.BWT_TRAVEL_TIME_FREE_HOURS;
-    if (typeof d.BWT_KM_FREE_THRESHOLD === "number") window.__bwtKmFreeThreshold = d.BWT_KM_FREE_THRESHOLD;
+    if (typeof d.BWT_TRAVEL_TIME_FREE_HOURS === "number") {
+      window.__bwtTravelTimeFreeHoursLive = d.BWT_TRAVEL_TIME_FREE_HOURS;
+      // Only adopt it for the active offer if nothing has restored a pinned
+      // value yet (i.e. we're on a fresh, unsaved offer).
+      if (!window.__bwtFreigrenzenLegacyOffer) window.__bwtTravelTimeFreeHours = d.BWT_TRAVEL_TIME_FREE_HOURS;
+    }
+    if (typeof d.BWT_KM_FREE_THRESHOLD === "number") {
+      window.__bwtKmFreeThresholdLive = d.BWT_KM_FREE_THRESHOLD;
+      if (!window.__bwtFreigrenzenLegacyOffer) window.__bwtKmFreeThreshold = d.BWT_KM_FREE_THRESHOLD;
+    }
     if (typeof d.FAHRZEUGBEREITSTELLUNG === "number") window.__fahrzeugbereitstellung = d.FAHRZEUGBEREITSTELLUNG;
     if (typeof d.WERKZEUG === "number") window.__werkzeug = d.WERKZEUG;
     if (typeof d.BERAEUMUNG === "number") window.__beraeumung = d.BERAEUMUNG;
@@ -8207,6 +8238,38 @@ window.syncKleinAufschlagToggle = syncKleinAufschlagToggle;
 
 document.getElementById("kleinAufschlagToggle")?.addEventListener("change", (e) => {
   window.__kleinInAufschlag = !!e.target.checked;
+  window.refreshAllPanels?.();
+});
+
+// ── Legacy BWT-Angebote auf die aktuellen Freigrenzen umstellen ────────────
+// Angebote, die vor der Freigrenzen-Speicherung erstellt wurden, tragen kein
+// pricingRules-Flag und rechnen weiterhin mit den historischen 200 km / 2 h
+// (siehe restore path). Diese Zeile ist der einzige Weg, so ein Angebot
+// bewusst auf die aktuelle Admin-Einstellung zu heben; gespeichert wird die
+// Umstellung erst mit dem naechsten Speichern (buildPayload schreibt das Flag mit).
+function syncBwtFreigrenzenToggle() {
+  const row = document.getElementById("bwtFreigrenzenRow");
+  const cb = document.getElementById("bwtFreigrenzenToggle");
+  if (!row || !cb) return;
+
+  const isLegacyOffer = window.__bwtFreigrenzenLegacyOffer === true;
+  row.hidden = !isLegacyOffer;
+  row.style.display = isLegacyOffer ? "" : "none";
+  row.setAttribute("aria-hidden", isLegacyOffer ? "false" : "true");
+  cb.checked = Number(window.__bwtKmFreeThreshold) === Number(window.__bwtKmFreeThresholdLive)
+    && Number(window.__bwtTravelTimeFreeHours) === Number(window.__bwtTravelTimeFreeHoursLive);
+}
+window.syncBwtFreigrenzenToggle = syncBwtFreigrenzenToggle;
+
+document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) => {
+  if (e.target.checked) {
+    window.__bwtKmFreeThreshold = Number(window.__bwtKmFreeThresholdLive ?? 200);
+    window.__bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHoursLive ?? 2);
+  } else {
+    window.__bwtKmFreeThreshold = 200;
+    window.__bwtTravelTimeFreeHours = 2;
+  }
+  if (typeof renderTravelCostDebug === "function") renderTravelCostDebug();
   window.refreshAllPanels?.();
 });
 
@@ -14647,6 +14710,13 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     // Preserve the offer's original Aufschlag rule (legacy drafts → false).
     window.__kleinInAufschlag = p?.pricingRules?.kleinInAufschlag === true;
     window.__kleinAufschlagLegacyOffer = !window.__kleinInAufschlag;
+
+    // BWT Freigrenzen: pin to this offer's own saved snapshot (see RestoreManager.js).
+    const bwtKmSnap = p?.pricingRules?.bwtKmFreeThreshold;
+    const bwtHoursSnap = p?.pricingRules?.bwtTravelTimeFreeHours;
+    window.__bwtKmFreeThreshold = bwtKmSnap != null ? Number(bwtKmSnap) : 200;
+    window.__bwtTravelTimeFreeHours = bwtHoursSnap != null ? Number(bwtHoursSnap) : 2;
+    window.__bwtFreigrenzenLegacyOffer = bwtKmSnap == null && bwtHoursSnap == null;
 
     // normalize offerType
     const rawOfferType =

@@ -3438,6 +3438,21 @@ button.dm-btn-danger:focus-visible {
                     Noch keine Arbeitszeitdaten vorhanden.
                   </div>
                 </div>
+
+                <!-- Legacy-Angebote: BWT-Freigrenzen (km/Reisezeit) waren zum
+                     Speicherzeitpunkt noch nicht mitgeschrieben. Diese Zeile
+                     erscheint nur bei solchen Angeboten und erlaubt die
+                     Umstellung auf die aktuell im Admin-Panel eingestellten Werte. -->
+                <div id="bwtFreigrenzenRow" class="full field" hidden aria-hidden="true"
+                  style="display:none; margin-top:10px;">
+                  <label class="check-pill" style="border-style:dashed;">
+                    <input type="checkbox" id="bwtFreigrenzenToggle" />
+                    <span class="box"></span>
+                    <span>Aktuelle Freigrenzen übernehmen. Dieses Angebot wurde vor der
+                      Freigrenzen-Speicherung erstellt – es rechnet mit den historischen
+                      200 km / 2 h, unabhängig von der aktuellen Admin-Einstellung.</span>
+                  </label>
+                </div>
               </div>
             </details>
 
