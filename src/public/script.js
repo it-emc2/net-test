@@ -10953,7 +10953,9 @@ function attachDuschwanneToPayload(payload) {
 
   window.applyOfferLockUI = function applyOfferLockUI(locked) {
     document
-      .querySelectorAll('form[id^="form-"] input, form[id^="form-"] select, form[id^="form-"] textarea')
+      .querySelectorAll(
+        'form[id^="form-"] input, form[id^="form-"] select, form[id^="form-"] textarea, form[id^="form-"] button',
+      )
       .forEach((el) => { el.disabled = !!locked; });
 
     let banner = document.getElementById("offerLockedBanner");
