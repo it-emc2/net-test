@@ -706,7 +706,11 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
 
     return withEmails.replace(/\b((?:https?:\/\/|www\.)[^\s<]+)\b/gi, (match) => {
       const href = /^https?:\/\//i.test(match) ? match : `https://${match}`;
-      return `<a href="${escapeHtml(href)}" style="color:#00a86b;text-decoration:none;">${match}</a>`;
+      // The online-signing link gets a descriptive label instead of the raw URL.
+      const linkText = /\/sign\//.test(match)
+        ? "&gt;&gt; Jetzt weitere Angaben erfassen (hier klicken) &lt;&lt;"
+        : match;
+      return `<a href="${escapeHtml(href)}" style="color:#00a86b;text-decoration:none;">${linkText}</a>`;
     });
   }
 
