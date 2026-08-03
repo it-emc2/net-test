@@ -483,12 +483,15 @@ export function initDraftsManager(options = {}) {
       return;
     }
 
+    // Freeze/save first, while the form is still enabled — buildPayload()
+    // reads fields via FormData, which silently drops disabled controls, so
+    // disabling the UI before this snapshot would lose every checked box.
     window.__locked = true;
-    window.applyOfferLockUI?.(true);
-    updateLockButtonLabel();
     const name = buildDraftDefaultName();
     try {
       const result = await saveDraftWithName(name);
+      window.applyOfferLockUI?.(true);
+      updateLockButtonLabel();
       cfg.toast?.(
         result?.queued
           ? `Offline gesperrt – wird automatisch synchronisiert: ${name}`
@@ -496,6 +499,7 @@ export function initDraftsManager(options = {}) {
         "success",
       );
     } catch (e) {
+      window.__locked = false;
       console.error(e);
       cfg.toast?.(`Sperren fehlgeschlagen: ${e.message || e}`, "error");
     }
