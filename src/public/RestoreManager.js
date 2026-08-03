@@ -142,6 +142,16 @@ export function initRestoreManager({
       // damit die Umstellen-Checkbox sichtbar (und ruecknehmbar) bleibt.
       window.__kleinAufschlagLegacyOffer = !window.__kleinInAufschlag;
 
+      // BWT Freigrenzen: pin to this offer's own saved snapshot so reopening
+      // it doesn't silently reprice it to whatever the admin has configured
+      // right now. No snapshot at all → offer predates this mechanism →
+      // historical 200 km / 2 h, same fallback pricing.js uses server-side.
+      const bwtKmSnap = payload?.pricingRules?.bwtKmFreeThreshold;
+      const bwtHoursSnap = payload?.pricingRules?.bwtTravelTimeFreeHours;
+      window.__bwtKmFreeThreshold = bwtKmSnap != null ? Number(bwtKmSnap) : 200;
+      window.__bwtTravelTimeFreeHours = bwtHoursSnap != null ? Number(bwtHoursSnap) : 2;
+      window.__bwtFreigrenzenLegacyOffer = bwtKmSnap == null && bwtHoursSnap == null;
+
       console.log("[SKETCH][payload-stored]", {
         payloadKeys: Object.keys(payload || {}),
         hlKeys: payload?.hl ? Object.keys(payload.hl) : [],

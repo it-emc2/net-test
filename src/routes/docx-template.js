@@ -1199,7 +1199,9 @@ async function mapData(body = {}, computed = {}) {
     }
   }
 
-  // BWT: Einleitungszeile direkt unter "Auszuführende Arbeiten"
+  // BWT: Einleitungszeile direkt unter "Auszuführende Arbeiten", gefolgt von
+  // der Extra-Arbeitszeit (Arbeitszeit-Seite) und den freien "Weitere
+  // Arbeiten"-Zeilen aus dem Arbeiten-Tab.
   const isBwtOffer =
     (body.activeOffer || body.currentOfferKey || computed.activeOffer || "") ===
     "bwt";
@@ -1207,6 +1209,13 @@ async function mapData(body = {}, computed = {}) {
     primary.unshift(
       "Liefern und Montieren der nachfolgend aufgeführten Badewannentür",
     );
+    // Extra Arbeitszeit (Arbeitszeit-Seite) …
+    ExtraAzTasks.forEach((row) => primary.push(row.Text));
+    // … dann die freien "Weitere Arbeiten"-Zeilen aus dem Arbeiten-Tab.
+    const bwtArbeitenExtra = (Array.isArray(bwt?.extraTasks) ? bwt.extraTasks : [])
+      .map((t) => String(t || "").trim())
+      .filter(Boolean);
+    bwtArbeitenExtra.forEach((t) => primary.push(t));
   }
 
   // Arrays exactly as the template expects:
@@ -1503,6 +1512,14 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
 
     const hasAnyGrab = grabLines.length > 0;
 
+    // Free-text "Weitere Arbeiten" from the BWT Arbeiten tab, appended after
+    // the Extra-Arbeitszeit bullets.
+    const BwtArbeitenTasks = (Array.isArray(bwt?.extraTasks) ? bwt.extraTasks : [])
+      .map((t) => String(t || "").trim())
+      .filter(Boolean)
+      .map((t) => ({ Text: t }));
+    const BwtAllExtraTasks = [...ExtraAzTasks, ...BwtArbeitenTasks];
+
     // --- Tür row (Pos 001) ---
     if (hasDoor) {
       const roundTripKm = Number(services?.distanceKm || 0);
@@ -1532,9 +1549,9 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
         HasBullet7: !!bullet7Text,
         Bullet7: bullet7Text,
 
-        // Extra Arbeitszeit bullets (from previous step)
-        HasExtraTasks: ExtraAzTasks.length > 0,
-        ExtraTasks: ExtraAzTasks,
+        // Extra Arbeitszeit bullets + free-text "Weitere Arbeiten" (Arbeiten tab)
+        HasExtraTasks: BwtAllExtraTasks.length > 0,
+        ExtraTasks: BwtAllExtraTasks,
 
         EnthKmQty,
         EnthDeliverQty: doorQtyPlain,

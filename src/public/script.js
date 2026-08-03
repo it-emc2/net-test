@@ -183,6 +183,7 @@ const OFFERS = {
     pages: [
       "Kundendaten",
       "Arbeitszeit",
+      "bwtArbeiten",
       "bwt",
       "Rabatt",
       "Kosten",
@@ -1942,25 +1943,47 @@ function renderTravelCostDebug() {
   `;
 
   if (isBwt) {
+    // Same free-Reisezeit threshold the real billing applies (pricing.js
+    // computeBwtIncludedLines) — so this preview matches what actually
+    // ends up in Kosten/PDF instead of showing the full undiscounted hours.
+    const freeHours = Number(window.__bwtTravelTimeFreeHours ?? 2) || 0;
+    const billedTravelHours = Math.max(0, travelHours - freeHours);
     const workCost = laborHours * 79.5;
-    const travelCost = travelHours * 79.5;
-    const totalCost = workCost + travelCost;
+    const travelCost = billedTravelHours * 79.5;
+
+    // Fahrzeugbereitstellung/Werkzeug/Beräumung — same per-Arbeitstag items
+    // BU shows, priced with the same admin-configurable values pricing.js
+    // uses (computeBwtIncludedLines).
+    const workDays = Number(window.arbeitstage_numeric ?? 0) || 0;
+    const fahrzeugRate = Number(window.__fahrzeugbereitstellung ?? 80) || 0;
+    const werkzeugRate = Number(window.__werkzeug ?? 7.5) || 0;
+    const beraeumungRate = Number(window.__beraeumung ?? 4.5) || 0;
+    const fahrzeugCost = workDays * fahrzeugRate;
+    const werkzeugCost = workDays * werkzeugRate;
+    const beraeumungCost = workDays * beraeumungRate;
+
+    const totalCost = workCost + travelCost + fahrzeugCost + werkzeugCost + beraeumungCost;
     box.innerHTML = `
       ${section("Zeiten", [
         ["Arbeitszeit", `${hours(laborHours)} h`],
         ["Reisezeit gesamt", `${hours(travelHours)} h`],
+        [`davon abrechenbar (abzgl. ${hours(freeHours)} h frei)`, `${hours(billedTravelHours)} h`],
       ])}
       ${section("Stundensatz", [["1 Facharbeiter", `${euro(79.5)}/h`]])}
       ${section("Kosten", [
         ["Arbeitskosten", euro(workCost)],
-        ["Reisezeit Fahrer", euro(travelCost)],
+        ["Reisezeit Fahrer (abrechenbar)", euro(travelCost)],
+        [`Fahrzeugbereitstellung (${hours(workDays)} Stk)`, euro(fahrzeugCost)],
+        [`Werkzeug (${hours(workDays)} Stk)`, euro(werkzeugCost)],
+        [`Beräumung der Baustelle (${hours(workDays)} Stk)`, euro(beraeumungCost)],
       ])}
       <div class="az-debug-total">
         <span>Gesamtkosten aus Zeiten</span>
         <strong>${euro(totalCost)}</strong>
       </div>
-      <div class="az-travel-debug-note">BWT aktiv: 1 Facharbeiter, 79,50 €/h für Arbeitszeit und Reisezeit.</div>
+      <div class="az-travel-debug-note">BWT aktiv: 1 Facharbeiter, 79,50 €/h für Arbeitszeit und Reisezeit. Die ersten ${hours(freeHours)} h Reisezeit sind frei.</div>
     `;
+    syncBwtFreigrenzenToggle();
     return;
   }
 
@@ -2232,6 +2255,7 @@ function resetAllForms() {
     "form-optional",
     "form-rabatt",
     "form-bwt",
+    "form-bwtArbeiten",
     "form-hl",
     "form-bl",
     "form-admin",
@@ -2491,6 +2515,11 @@ function resetAllRepeaterDOMs() {
     }
   }
 
+  // --- BWT Arbeiten tab: Weitere Arbeiten ---
+  if (typeof window.restoreBwtArbeitenExtraTasksFromPayload === "function") {
+    window.restoreBwtArbeitenExtraTasksFromPayload({ extraTasks: [] });
+  }
+
   // --- BWT Extra Arbeitszeit ---
   if (typeof window.restoreBwtExtraArbeitszeitFromPayload === "function") {
     window.restoreBwtExtraArbeitszeitFromPayload({ extraTasks: [] });
@@ -2695,7 +2724,8 @@ function updateSidebarForOffer() {
   );
 
   const specialLabels = {
-    bwt: "BWT",
+    bwt: "Badewannentür",
+    bwtArbeiten: "Arbeiten",
     hl: "HL",
     hlk: "Konfigurator",
     bl: "BL",
@@ -2709,9 +2739,11 @@ function updateSidebarForOffer() {
     Optional: "Optionale Produkte",
   };
 
-  // Badumbau groups its many pages into two collapsible sections; every other
-  // offer keeps the flat list. Purely visual — page ids and flow order are untouched.
+  // Badumbau and Badewannentür group their pages into numbered sections; every
+  // other offer keeps the flat list. Purely visual — page ids and flow order
+  // are untouched.
   const isBu = activeOffer === "bu";
+  const isBwt = activeOffer === "bwt";
   const SIDEBAR_GROUPS = isBu
     ? [
         { title: "Auszuführende Arbeiten", num: "I", pages: ["Arbeitszeit", "Arbeiten"] },
@@ -2728,9 +2760,15 @@ function updateSidebarForOffer() {
           ],
         },
       ]
-    : [];
+    : isBwt
+      ? [
+          { title: "Auszuführende Arbeiten", num: "I", pages: ["Arbeitszeit", "bwtArbeiten"] },
+        ]
+      : [];
   const groupedByGroups = new Set(SIDEBAR_GROUPS.flatMap((g) => g.pages));
-  const linkNumerals = isBu ? { Optional: "III" } : {};
+  // Single-page sections get the numeral directly on the link (a one-child
+  // group would look odd) — BU does the same for Optional/III.
+  const linkNumerals = isBu ? { Optional: "III" } : isBwt ? { bwt: "II" } : {};
 
   function labelFor(pageId) {
     const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
@@ -2911,6 +2949,12 @@ function startOfferFlow(offerKey) {
   // Fresh offer → new pricing rules (Kleinmaterial counts toward the Aufschlag).
   window.__kleinInAufschlag = true;
   window.__kleinAufschlagLegacyOffer = false;
+
+  // Fresh offer → BWT Freigrenzen follow today's live admin config, not
+  // whatever a previously-restored legacy offer pinned them to.
+  window.__bwtFreigrenzenLegacyOffer = false;
+  window.__bwtKmFreeThreshold = Number(window.__bwtKmFreeThresholdLive ?? 200);
+  window.__bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHoursLive ?? 2);
 
   // BWT: override Arbeitszeit default to 05:00 (1 worker, shorter job)
   if (offerKey === "bwt") {
@@ -3979,6 +4023,15 @@ function buildPayload() {
   // totals don't drift when reopened. Absent → treated as new (default true).
   payload.pricingRules = { kleinInAufschlag: window.__kleinInAufschlag !== false };
 
+  // BWT Freigrenzen (km/Reisezeit): snapshot whatever's currently in effect
+  // so this offer keeps its quoted price even if the admin later changes
+  // BWT_KM_FREE_THRESHOLD / BWT_TRAVEL_TIME_FREE_HOURS. Restored legacy
+  // offers (see restore path) keep these at the historical 200/2 default
+  // instead of the live-fetched value, so reopening one doesn't silently
+  // adopt today's config before the user has chosen to.
+  payload.pricingRules.bwtKmFreeThreshold = Number(window.__bwtKmFreeThreshold ?? 200);
+  payload.pricingRules.bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHours ?? 2);
+
   // Parse AH service lines from JSON hidden field
   if (payload.ah && payload.ah.ahServicesJson) {
     try { payload.ah.services = JSON.parse(payload.ah.ahServicesJson); } catch (e) { payload.ah.services = []; }
@@ -4585,6 +4638,29 @@ if (anschlag) {
     }
   } catch (e) {
     console.warn("[buildPayload] BWT arrays capture failed:", e);
+  }
+
+  // ---- BWT: Auszuführende-Arbeiten tab (workTasks checkbox + free-text list) ----
+  try {
+    const formBwtArbeiten = document.getElementById("form-bwtArbeiten");
+    if (formBwtArbeiten) {
+      const fd = new FormData(formBwtArbeiten);
+      const bwt = payload.bwt || (payload.bwt = {});
+      // Always set (even []) so unchecking/clearing survives save + reload.
+      bwt.workTasks = fd.getAll("bwt[workTasks][]").map((v) => String(v));
+      bwt.extraTasks = Array.from(
+        new Set(
+          fd
+            .getAll("bwt[extraTasks][]")
+            .map((v) => String(v).trim())
+            .filter(Boolean),
+        ),
+      );
+      if ("bwt[workTasks][]" in bwt) delete bwt["bwt[workTasks][]"];
+      if ("bwt[extraTasks][]" in bwt) delete bwt["bwt[extraTasks][]"];
+    }
+  } catch (e) {
+    console.warn("[buildPayload] BWT Arbeiten capture failed:", e);
   }
 
   // ---- HL: enrich payload.hl with structured pipes + extras ----
@@ -6282,6 +6358,20 @@ window.__entlastungsbetragMonat = 131;
 window.__verhinderungspflegeJahr = 2418;
 window.__steuerabsetzPct = 20;
 window.__steuerabsetzCapJahr = 4000;
+// BWT: Freigrenzen für Reisezeit/Kilometerpauschale — admin-konfigurierbar.
+// window.__bwt*Live always mirrors the current admin-panel value (refreshed
+// below); window.__bwtKmFreeThreshold/__bwtTravelTimeFreeHours is what
+// buildPayload() actually snapshots into the offer, and gets pinned to a
+// restored offer's own saved value in the restore path — so switching to a
+// legacy offer, then back to a fresh one, doesn't leak the legacy value into
+// the new offer (startOfferFlow resets it back to *Live).
+window.__bwtTravelTimeFreeHoursLive = 2;
+window.__bwtKmFreeThresholdLive = 200;
+window.__bwtTravelTimeFreeHours = 2;
+window.__bwtKmFreeThreshold = 200;
+window.__fahrzeugbereitstellung = 80.0;
+window.__werkzeug = 7.5;
+window.__beraeumung = 4.5;
 fetch("/admin/api/config/public")
   .then(function (r) { return r.ok ? r.json() : null; })
   .then(function (d) {
@@ -6302,7 +6392,21 @@ fetch("/admin/api/config/public")
     }
     if (typeof d.STEUERABSETZ_PCT === "number") window.__steuerabsetzPct = d.STEUERABSETZ_PCT;
     if (typeof d.STEUERABSETZ_CAP_JAHR === "number") window.__steuerabsetzCapJahr = d.STEUERABSETZ_CAP_JAHR;
+    if (typeof d.BWT_TRAVEL_TIME_FREE_HOURS === "number") {
+      window.__bwtTravelTimeFreeHoursLive = d.BWT_TRAVEL_TIME_FREE_HOURS;
+      // Only adopt it for the active offer if nothing has restored a pinned
+      // value yet (i.e. we're on a fresh, unsaved offer).
+      if (!window.__bwtFreigrenzenLegacyOffer) window.__bwtTravelTimeFreeHours = d.BWT_TRAVEL_TIME_FREE_HOURS;
+    }
+    if (typeof d.BWT_KM_FREE_THRESHOLD === "number") {
+      window.__bwtKmFreeThresholdLive = d.BWT_KM_FREE_THRESHOLD;
+      if (!window.__bwtFreigrenzenLegacyOffer) window.__bwtKmFreeThreshold = d.BWT_KM_FREE_THRESHOLD;
+    }
+    if (typeof d.FAHRZEUGBEREITSTELLUNG === "number") window.__fahrzeugbereitstellung = d.FAHRZEUGBEREITSTELLUNG;
+    if (typeof d.WERKZEUG === "number") window.__werkzeug = d.WERKZEUG;
+    if (typeof d.BERAEUMUNG === "number") window.__beraeumung = d.BERAEUMUNG;
     if (typeof window.__refreshFinanzierungUI === "function") window.__refreshFinanzierungUI();
+    if (typeof renderTravelCostDebug === "function") renderTravelCostDebug();
   })
   .catch(function () {});
 
@@ -7642,22 +7746,25 @@ document.addEventListener("DOMContentLoaded", () => {
 })();
 
 // ===== DUSCHWANNE: free-text extra tasks (repeater) =====
-(function initDWExtraTasks() {
-  const fs = document.getElementById("dw-extra-tasks");
-  if (!fs) return;
+// Free-text "Weitere Arbeiten" repeater, used by the BU Arbeiten tab
+// (#dw-extra-tasks) and the BWT Arbeiten tab (#bwt-extra-tasks).
+// Returns the payload-based restore function, or null if the fieldset is absent.
+function initExtraTasksRepeater({ fieldsetId, countId, emptyId, lsKey, inputName }) {
+  const fs = document.getElementById(fieldsetId);
+  if (!fs) return null;
 
   const wrap = fs.querySelector(".da-items");
   const addBtn = fs.querySelector(".da-add");
-  const countBadge = document.getElementById("dw-extra-count");
-  const emptyHint = document.getElementById("dw-extra-empty");
-  const LS_KEY = "dwExtraTasks:v1";
+  const countBadge = document.getElementById(countId);
+  const emptyHint = document.getElementById(emptyId);
+  const LS_KEY = lsKey;
 
   function makeItem(value = "") {
     const item = document.createElement("div");
     item.className = "da-item wt-extra-item";
     item.setAttribute("data-kind", "extra");
     item.innerHTML = `
-      <textarea class="dw-extra" name="duschwanne[extraTasks][]"
+      <textarea class="dw-extra" name="${inputName}"
       aria-label="Zusätzliche Aufgabe" rows="2">${escapeHtml(value)}</textarea>
       <button type="button" class="wt-extra-move wt-extra-move-up" aria-label="Nach oben verschieben" title="Nach oben">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -7784,12 +7891,12 @@ document.addEventListener("DOMContentLoaded", () => {
     window.updatePricing?.();
   });
 
-  // Expose payload-based restore for global restore pipeline.
+  // Payload-based restore for the global restore pipeline.
   // Re-query the wrap on every call so a stale closure reference (e.g. if
   // the fieldset is re-rendered) can't silently drop rows.
-  window.restoreDWExtraTasksFromPayload = function (dw) {
+  const restoreFromPayload = function (dw) {
     const liveWrap =
-      document.querySelector("#dw-extra-tasks .da-items") || wrap;
+      document.querySelector(`#${fieldsetId} .da-items`) || wrap;
     if (!liveWrap) return;
 
     if (!dw || !Array.isArray(dw.extraTasks)) {
@@ -7825,11 +7932,33 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureOneRow();
   restoreFromLocalStorage();
   updateSummary();
-})();
 
-/* Selection-count badges on the checkbox groups (1–7) of the Arbeiten accordion. */
+  return restoreFromPayload;
+}
+
+window.restoreDWExtraTasksFromPayload = initExtraTasksRepeater({
+  fieldsetId: "dw-extra-tasks",
+  countId: "dw-extra-count",
+  emptyId: "dw-extra-empty",
+  lsKey: "dwExtraTasks:v1",
+  inputName: "duschwanne[extraTasks][]",
+});
+
+window.restoreBwtArbeitenExtraTasksFromPayload = initExtraTasksRepeater({
+  fieldsetId: "bwt-extra-tasks",
+  countId: "bwt-extra-count",
+  emptyId: "bwt-extra-empty",
+  lsKey: "bwtArbeitenExtraTasks:v1",
+  inputName: "bwt[extraTasks][]",
+});
+
+/* Selection-count badges on the checkbox groups of the Arbeiten accordions
+   (BU: #dw-worktasks, BWT: #bwt-worktasks). */
 (function initWorkTaskGroupCounts() {
-  const root = document.getElementById("dw-worktasks");
+  ["dw-worktasks", "bwt-worktasks"].forEach(initRoot);
+
+  function initRoot(rootId) {
+  const root = document.getElementById(rootId);
   if (!root) return;
 
   function updateGroup(group) {
@@ -7854,6 +7983,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   updateAll();
+  }
 })();
 
 /* ========== Kundendaten UI (contact, aufschlag/pflegegrad, etc.) ========== */
@@ -8108,6 +8238,38 @@ window.syncKleinAufschlagToggle = syncKleinAufschlagToggle;
 
 document.getElementById("kleinAufschlagToggle")?.addEventListener("change", (e) => {
   window.__kleinInAufschlag = !!e.target.checked;
+  window.refreshAllPanels?.();
+});
+
+// ── Legacy BWT-Angebote auf die aktuellen Freigrenzen umstellen ────────────
+// Angebote, die vor der Freigrenzen-Speicherung erstellt wurden, tragen kein
+// pricingRules-Flag und rechnen weiterhin mit den historischen 200 km / 2 h
+// (siehe restore path). Diese Zeile ist der einzige Weg, so ein Angebot
+// bewusst auf die aktuelle Admin-Einstellung zu heben; gespeichert wird die
+// Umstellung erst mit dem naechsten Speichern (buildPayload schreibt das Flag mit).
+function syncBwtFreigrenzenToggle() {
+  const row = document.getElementById("bwtFreigrenzenRow");
+  const cb = document.getElementById("bwtFreigrenzenToggle");
+  if (!row || !cb) return;
+
+  const isLegacyOffer = window.__bwtFreigrenzenLegacyOffer === true;
+  row.hidden = !isLegacyOffer;
+  row.style.display = isLegacyOffer ? "" : "none";
+  row.setAttribute("aria-hidden", isLegacyOffer ? "false" : "true");
+  cb.checked = Number(window.__bwtKmFreeThreshold) === Number(window.__bwtKmFreeThresholdLive)
+    && Number(window.__bwtTravelTimeFreeHours) === Number(window.__bwtTravelTimeFreeHoursLive);
+}
+window.syncBwtFreigrenzenToggle = syncBwtFreigrenzenToggle;
+
+document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) => {
+  if (e.target.checked) {
+    window.__bwtKmFreeThreshold = Number(window.__bwtKmFreeThresholdLive ?? 200);
+    window.__bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHoursLive ?? 2);
+  } else {
+    window.__bwtKmFreeThreshold = 200;
+    window.__bwtTravelTimeFreeHours = 2;
+  }
+  if (typeof renderTravelCostDebug === "function") renderTravelCostDebug();
   window.refreshAllPanels?.();
 });
 
@@ -13275,6 +13437,22 @@ function restoreWorkTasks(dw) {
   }
 }
 
+function restoreBwtArbeiten(bwt) {
+  if (!bwt) return;
+  // Older BWT offers have no workTasks key — leave the HTML default (checked).
+  if (Array.isArray(bwt.workTasks)) {
+    document
+      .querySelectorAll('input[type="checkbox"][name="bwt[workTasks][]"]')
+      .forEach((cb) => {
+        cb.checked = bwt.workTasks.includes(String(cb.value));
+        cb.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+  }
+  if (typeof window.restoreBwtArbeitenExtraTasksFromPayload === "function") {
+    window.restoreBwtArbeitenExtraTasksFromPayload(bwt);
+  }
+}
+
 function restoreWV(wv) {
   if (!wv) return;
   const prev = window.__RESTORING__;
@@ -14254,6 +14432,9 @@ const RESTORE_HANDLERS = {
 
   bwt: (p, ctx) => typeof restoreBwt === "function" && restoreBwt(p?.bwt),
 
+  bwtArbeiten: (p, ctx) =>
+    typeof restoreBwtArbeiten === "function" && restoreBwtArbeiten(p?.bwt),
+
   hl: (p, ctx) => typeof restoreHl === "function" && restoreHl(p?.hl),
   bl: (p, ctx) => typeof restoreBl === "function" && restoreBl(p?.bl),
 
@@ -14529,6 +14710,13 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     // Preserve the offer's original Aufschlag rule (legacy drafts → false).
     window.__kleinInAufschlag = p?.pricingRules?.kleinInAufschlag === true;
     window.__kleinAufschlagLegacyOffer = !window.__kleinInAufschlag;
+
+    // BWT Freigrenzen: pin to this offer's own saved snapshot (see RestoreManager.js).
+    const bwtKmSnap = p?.pricingRules?.bwtKmFreeThreshold;
+    const bwtHoursSnap = p?.pricingRules?.bwtTravelTimeFreeHours;
+    window.__bwtKmFreeThreshold = bwtKmSnap != null ? Number(bwtKmSnap) : 200;
+    window.__bwtTravelTimeFreeHours = bwtHoursSnap != null ? Number(bwtHoursSnap) : 2;
+    window.__bwtFreigrenzenLegacyOffer = bwtKmSnap == null && bwtHoursSnap == null;
 
     // normalize offerType
     const rawOfferType =

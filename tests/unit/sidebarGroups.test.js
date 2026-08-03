@@ -89,8 +89,8 @@ test("bu sidebar groups Arbeit and Material, keeps every page reachable", () => 
   expect(out.map((e) => e.step ?? e.group)).toEqual([
     "home",
     "Kundendaten",
-    "Arbeit",
-    "Material",
+    "Auszuführende Arbeiten",
+    "Material für Badumbau",
     "Optional",
     "Rabatt",
     "Kosten",
@@ -154,10 +154,11 @@ test("sidebar order matches the flow order", () => {
   expect(shown).toEqual(BU_PAGES.filter((p) => !DEV_AND_CRM.includes(p)));
 });
 
-test("non-bu offers keep the flat list", () => {
+test("bwt sidebar groups Arbeitszeit + Arbeiten under I, numbers the konfigurator II", () => {
   const pages = [
     "Kundendaten",
     "Arbeitszeit",
+    "bwtArbeiten",
     "bwt",
     "Rabatt",
     "Kosten",
@@ -169,8 +170,38 @@ test("non-bu offers keep the flat list", () => {
   expect(out.map((e) => e.step ?? e.group)).toEqual([
     "home",
     "Kundendaten",
-    "Arbeitszeit",
+    "Auszuführende Arbeiten",
     "bwt",
+    "Rabatt",
+    "Kosten",
+    "Zusammenfassung",
+    "Developer",
+  ]);
+
+  expect(out[2].steps).toEqual(["Arbeitszeit", "bwtArbeiten"]);
+  expect(out[2].num).toBe("I");
+
+  // Single konfigurator page carries its numeral on the link itself.
+  expect(out[3]).toEqual({ step: "bwt", num: "II", label: "Badewannentür" });
+});
+
+test("non-bu/bwt offers keep the flat list", () => {
+  const pages = [
+    "Kundendaten",
+    "Arbeitszeit",
+    "hl",
+    "Rabatt",
+    "Kosten",
+    "Zusammenfassung",
+    "admin",
+  ];
+  const out = render({ offerType: "hl", step: "hl" }, pages);
+
+  expect(out.map((e) => e.step ?? e.group)).toEqual([
+    "home",
+    "Kundendaten",
+    "Arbeitszeit",
+    "hl",
     "Rabatt",
     "Kosten",
     "Zusammenfassung",
