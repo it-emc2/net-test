@@ -112,6 +112,14 @@ function getAngebotTemplatePath(body) {
     findOffer(body?.pricePreview) ||
     "bu"; // default for old flows
 
+  // Same payer lookup mapData() uses (services.payer, falling back to
+  // Kundendaten.payer) — needed here to pick the Kassenkunde-specific BU
+  // template before mapData/computed even exist.
+  const payerNorm = String(
+    body?.services?.payer || body?.Kundendaten?.payer || "",
+  ).toUpperCase();
+  const isKK = payerNorm === "KK" || payerNorm === "KASSENKUNDE";
+
   let file;
   switch (offer) {
     case "bwt":
@@ -137,7 +145,10 @@ function getAngebotTemplatePath(body) {
     // eslint-disable-next-line no-fallthrough
     default:
       console.log("under default ");
-      file = "Angebot-10.docx"; // <-- your BU template filename
+      // Kassenkunde BU offers use the template with the blue "Ihr
+      // Eigenanteil" box (§ 40 SGB XI totals row); Selbstzahler never
+      // renders that row, so the plain template is unaffected.
+      file = isKK ? "Angebot-BU-KK-2.docx" : "Angebot-10.docx";
       break;
   }
 
@@ -402,8 +413,34 @@ async function renderDocx(templatePath, data) {
   return doc.getZip().generate({ type: "nodebuffer" });
 }
 
+// Persistent LibreOffice profile: creating a fresh profile per conversion
+// (old HOME=tmpDir approach) cost 30-90s each time. One shared profile is
+// created once at boot and reused, so conversions only pay soffice startup.
+const LO_PROFILE_DIR = path.join(os.tmpdir(), "lo-profile");
+const LO_PROFILE_URL = `file://${LO_PROFILE_DIR}`;
+fsSync.mkdirSync(LO_PROFILE_DIR, { recursive: true });
+
+// Warm-up at boot: initialize the profile so the first user request
+// doesn't pay the one-time profile-creation cost. Fire-and-forget.
+spawn(
+  "soffice",
+  ["--headless", `-env:UserInstallation=${LO_PROFILE_URL}`, "--terminate_after_init"],
+  { stdio: "ignore", env: { ...process.env, HOME: LO_PROFILE_DIR } },
+).on("error", () => {});
+
+// A shared profile allows only one soffice instance at a time, so
+// conversions are serialized through this promise chain.
+// ponytail: global queue; switch to unoserver if concurrent load grows
+let loQueue = Promise.resolve();
+
 // ✅ IMPROVED: Much more robust LibreOffice PDF conversion
-async function convertDocxToPdf(docxBuffer) {
+function convertDocxToPdf(docxBuffer) {
+  const run = loQueue.then(() => convertDocxToPdfUnqueued(docxBuffer));
+  loQueue = run.catch(() => {});
+  return run;
+}
+
+async function convertDocxToPdfUnqueued(docxBuffer) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docx2pdf-"));
   const timestamp = Date.now();
   const randomId = randomBytes(4).toString("hex");
@@ -417,6 +454,7 @@ async function convertDocxToPdf(docxBuffer) {
 
     const args = [
       "--headless",
+      `-env:UserInstallation=${LO_PROFILE_URL}`,
       "--convert-to",
       "pdf",
       "--outdir",
@@ -437,10 +475,8 @@ async function convertDocxToPdf(docxBuffer) {
         stdio: ["ignore", "ignore", "ignore"], // Suppress all output to avoid popups
         env: {
           ...process.env,
-          HOME: tmpDir, // Temporary home to avoid config conflicts
+          HOME: LO_PROFILE_DIR, // Stable home so the profile is reused, not rebuilt
           TMPDIR: tmpDir, // Ensure temp files go to our controlled location
-          DISPLAY: ":99", // Fake display to avoid GUI (if X11 is available)
-          LIBREOFFICE_USER_PATH: tmpDir, // Isolate user config
         },
         detached: false,
       });
@@ -468,9 +504,6 @@ async function convertDocxToPdf(docxBuffer) {
         resolve();
       });
     });
-
-    // Wait a bit for file system to sync
-    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Try multiple strategies to find the PDF
     let pdfBuffer = null;
@@ -1166,6 +1199,25 @@ async function mapData(body = {}, computed = {}) {
     }
   }
 
+  // BWT: Einleitungszeile direkt unter "Auszuführende Arbeiten", gefolgt von
+  // der Extra-Arbeitszeit (Arbeitszeit-Seite) und den freien "Weitere
+  // Arbeiten"-Zeilen aus dem Arbeiten-Tab.
+  const isBwtOffer =
+    (body.activeOffer || body.currentOfferKey || computed.activeOffer || "") ===
+    "bwt";
+  if (isBwtOffer) {
+    primary.unshift(
+      "Liefern und Montieren der nachfolgend aufgeführten Badewannentür",
+    );
+    // Extra Arbeitszeit (Arbeitszeit-Seite) …
+    ExtraAzTasks.forEach((row) => primary.push(row.Text));
+    // … dann die freien "Weitere Arbeiten"-Zeilen aus dem Arbeiten-Tab.
+    const bwtArbeitenExtra = (Array.isArray(bwt?.extraTasks) ? bwt.extraTasks : [])
+      .map((t) => String(t || "").trim())
+      .filter(Boolean);
+    bwtArbeitenExtra.forEach((t) => primary.push(t));
+  }
+
   // Arrays exactly as the template expects:
   const PrimaryServiceLines = primary.map((txt) => ({ ServiceLine: txt }));
   const IncludedServiceLines = included.map((txt) => ({ ServiceLine: txt }));
@@ -1460,6 +1512,14 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
 
     const hasAnyGrab = grabLines.length > 0;
 
+    // Free-text "Weitere Arbeiten" from the BWT Arbeiten tab, appended after
+    // the Extra-Arbeitszeit bullets.
+    const BwtArbeitenTasks = (Array.isArray(bwt?.extraTasks) ? bwt.extraTasks : [])
+      .map((t) => String(t || "").trim())
+      .filter(Boolean)
+      .map((t) => ({ Text: t }));
+    const BwtAllExtraTasks = [...ExtraAzTasks, ...BwtArbeitenTasks];
+
     // --- Tür row (Pos 001) ---
     if (hasDoor) {
       const roundTripKm = Number(services?.distanceKm || 0);
@@ -1489,9 +1549,9 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
         HasBullet7: !!bullet7Text,
         Bullet7: bullet7Text,
 
-        // Extra Arbeitszeit bullets (from previous step)
-        HasExtraTasks: ExtraAzTasks.length > 0,
-        ExtraTasks: ExtraAzTasks,
+        // Extra Arbeitszeit bullets + free-text "Weitere Arbeiten" (Arbeiten tab)
+        HasExtraTasks: BwtAllExtraTasks.length > 0,
+        ExtraTasks: BwtAllExtraTasks,
 
         EnthKmQty,
         EnthDeliverQty: doorQtyPlain,
@@ -1539,10 +1599,8 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
   // Assemble up to two rows; first present gets pos "003", second "004"
   const BonusRows = [];
 
+  // 001 = Arbeiten, 002 = Material (beide fest im Template) → Bonus startet bei 003
   let pos = "003";
-  if (offerKey === "bwt"){
-      pos = "002";
-  }
 
   if (hasBonusGrab) {
     BonusRows.push({
@@ -1555,9 +1613,6 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
       gesamt: "0,00 €",
     });
     pos = "004";
-     if (offerKey === "bwt"){
-    pos = "003";
-  }
   }
 
   if (hasBonus300) {
@@ -1608,22 +1663,27 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
   const isKK = payerNorm === "KK" || payerNorm === "KASSENKUNDE";
   const isSZ = payerNorm === "SZ" || payerNorm === "SELBSTZAHLER";
 
-  // Tatsächlich abgezogener Zuschuss (subsidyAmount abzgl. bereits genutztem
-  // Wohnumfeld-Betrag) – nur damit stimmt Gesamtsumme − Zuschuss = Eigenanteil.
-  const subsidyAppliedNum = toNum(
-    computed?.subsidyAmount_max ?? computed?.subsidyAmount,
-  );
-
   const baseTotals = [
     { label: "Nettobetrag", value: fmtCurrency(netAfterRabatt_and_Bonus) },
     { label: "zzgl. 19% MwSt.", value: fmtCurrency(vatOnNet) },
     { label: "Gesamtsumme", value: fmtCurrency(total) },
-    // Kassenkunde: Ergebniszeile nach Pflegekassen-Zuschuss
-    ...(isKK && subsidyAppliedNum > 0
+    // Kassenkunde: Zuschuss und Eigenanteil als eigene Zeilen, immer sichtbar
+    // (bei BWT nicht gewünscht). Zuschuss zeigt den vollen Anspruch (4180 € /
+    // 8360 €), reduziert um bereits genutzte Wohnumfeld-Beträge
+    // (subsidyAmount_max aus pricing.js) — bewusst NICHT auf die Gesamtsumme
+    // gedeckelt, damit bei "Nein" immer 4180/8360 steht statt der (kleineren)
+    // Gesamtsumme.
+    ...(isKK && offerKey !== "bwt"
       ? [
           {
-            // passt einzeilig in die verbreiterte Totals-Spalte des Templates
-            label: "Gesamtsumme nach Zuschuss § 40 SGB XI – Ihr Eigenanteil",
+            label:
+              "Ihr voraussichtlicher Zuschuss nach §40 SGB XI abzüglich bereits erhaltener Leistung",
+            value: fmtCurrency(
+              toNum(computed?.subsidyAmount_max ?? computed?.subsidyAmount),
+            ),
+          },
+          {
+            label: "Ihr Eigenanteil",
             value: SelbstkostenanteilFmt,
           },
         ]
@@ -1631,7 +1691,26 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
   ];
 
   // mark every second row (0-based: 1,3,5,...) as "alt"
-  const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
+  const Totals = baseTotals.map((r, i) => ({
+    ...r,
+    isAlt: i % 2 === 0,
+    isGesamtsumme: r.label === "Gesamtsumme",
+    // Stable hook for the docx template to give this exact row its own
+    // formatting (blue box), independent of isAlt/row position.
+    isEigenanteil: r.label === "Ihr Eigenanteil",
+    // Groups Zuschuss + Eigenanteil into their own table, apart from the
+    // Nettobetrag/MwSt/Gesamtsumme table (BU-KK offer layout).
+    isSubsidyRow: r.label === "Ihr Eigenanteil" || r.label.startsWith("Ihr voraussichtlicher Zuschuss"),
+  }));
+
+  // Flat placeholders for the BU-KK docx template, which renders Zuschuss/
+  // Eigenanteil as two static rows in their own table (no docxtemplater loop)
+  // rather than looping over Totals — mirrors the already-existing flat
+  // Nettobetrag/MwSt/Gesamtsumme/Selbstkostenanteil placeholders below.
+  const hasSubsidyTotals = isKK;
+  const IhrZuschussFmt = fmtCurrency(
+    toNum(computed?.subsidyAmount_max ?? computed?.subsidyAmount),
+  );
 
   const BASE_SELF_PAY_SENTENCE =
     "Dieser wird bei Auftragsbestätigung vorab fällig.";
@@ -1871,6 +1950,12 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     // eslint-disable-next-line no-dupe-keys
     Zuschusskrankenkasse, // formatted subsidy for template
     hasSubsidyLine: hasZuschuss,
+
+    // BU-KK offer: Zuschuss/Eigenanteil rendered as their own static table,
+    // separate from the Nettobetrag/MwSt/Gesamtsumme table — flat tags so
+    // the docx template doesn't need a loop for these two fixed rows.
+    hasSubsidyTotals,
+    IhrZuschussFmt,
 
     // Textblock zur Fälligkeit des Selbstkostenanteils unter oder nach 2000 fur kk
     SelfPayLines,

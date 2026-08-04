@@ -20,7 +20,7 @@ import { fileURLToPath } from "url";
 import nodemailer from "nodemailer";
 
 import SigningRequest from "../models/SigningRequest.js";
-import { addTimelineComment } from "./bitrix.js";
+import { addTimelineComment, updateDealAfterSigning } from "./bitrix.js";
 import { generateOfferPdfBuffer, getOfferRenderData } from "./docx-template.js";
 import { htmlToPdfBuffer } from "../utils/htmlToPdf.js";
 import {
@@ -31,6 +31,9 @@ import {
   buildZusatzblattHtml,
   buildAbtretungAhHtml,
   hasPaymentChoice,
+  resolveFields,
+  VOLLMACHT_REQUIRED_FIELDS,
+  ABTRETUNG_REQUIRED_FIELDS,
 } from "../templates/signing-docs.js";
 import { buildEmailHtml } from "../lib/emailTemplate.js";
 
@@ -296,7 +299,7 @@ router.post("/", express.json({ limit: "25mb" }), async (req, res) => {
       if (transporter) {
         const html =
           `<p style="font-weight:bold;">${SIGN_LINK_INTRO}</p>` +
-          `<p><a href="${link}">${link}</a></p>`;
+          `<p><a href="${link}">&gt;&gt; Jetzt weitere Angaben erfassen (hier klicken) &lt;&lt;</a></p>`;
         const text = `${SIGN_LINK_INTRO}\n\n${link}`;
         try {
           const info = await transporter.sendMail({
@@ -514,6 +517,24 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
       }
     }
 
+    // Vollmacht/Abtretung: every displayed field is mandatory.
+    const REQUIRED_FIELDS_BY_KEY = {
+      vollmacht: VOLLMACHT_REQUIRED_FIELDS,
+      abtretung: ABTRETUNG_REQUIRED_FIELDS,
+      abtretung_ah: ABTRETUNG_REQUIRED_FIELDS,
+    };
+    if (REQUIRED_FIELDS_BY_KEY[key]) {
+      const fields = resolveFields(sr, { editedFields });
+      const missing = REQUIRED_FIELDS_BY_KEY[key]
+        .filter(([field]) => !String(fields[field] || "").trim())
+        .map(([, label]) => label);
+      if (missing.length) {
+        return res
+          .status(400)
+          .json({ error: `Bitte füllen Sie alle Felder aus: ${missing.join(", ")}` });
+      }
+    }
+
     doc.signatureImage = sig;
     doc.editedFields = editedFields;
     doc.extraFields = extraFields;
@@ -618,6 +639,20 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
           base64: p.buffer.toString("base64"),
         })),
       );
+      // Move the deal to the post-signing stage (BU/BWT only — AH has no
+      // such step). Non-fatal: a Bitrix hiccup shouldn't break the
+      // customer-facing signing confirmation.
+      if (!isAhOffer(sr) && sr.bitrixEntityType === "deal" && sr.bitrixEntityId) {
+        try {
+          await updateDealAfterSigning({
+            dealId: sr.bitrixEntityId,
+            customerType: sr.customerType,
+          });
+        } catch (err) {
+          console.warn("[signing] Bitrix deal stage update failed:", err?.message || err);
+        }
+      }
+
       completion = { completed: true };
     }
 

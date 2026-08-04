@@ -37,24 +37,22 @@ function loadUpdateSidebarForOffer(deps) {
   );
 }
 
-const BU_PAGES = [
-  "Kundendaten",
-  "Arbeitszeit",
-  "Arbeiten",
-  "Duschwanne",
-  "Fussboden",
-  "Wandverkleidung",
-  "DuschabtrennungNeu",
-  "Duschvorhang",
-  "Duschabtrennung",
-  "Optional",
-  "Rabatt",
-  "Kosten",
-  "Zusammenfassung",
-  "admin",
-  "services",
-  "crm-emc2",
-];
+// Read the real flow order out of OFFERS.bu — a hardcoded copy here would go
+// stale and hide exactly the ordering bug the last test in this file guards.
+function buPagesFromSource() {
+  const src = fs.readFileSync(SCRIPT_PATH, "utf8");
+  const start = src.indexOf("  bu: {");
+  const open = src.indexOf("pages: [", start);
+  const close = src.indexOf("]", open);
+  expect(open).toBeGreaterThan(-1);
+  const lines = src
+    .slice(open, close)
+    .split("\n")
+    .filter((l) => !l.trim().startsWith("//")); // e.g. the disabled DaConfigDev
+  return [...lines.join("\n").matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+}
+
+const BU_PAGES = buPagesFromSource();
 
 function render(state, pages) {
   const sideMenu = document.createElement("nav");
@@ -63,9 +61,11 @@ function render(state, pages) {
     if (el.classList.contains("side-group")) {
       const header = el.querySelector(".side-group-header");
       return {
-        group: header.querySelector("span:last-child").textContent,
+        group: header.querySelector(".side-group-title").textContent,
         num: header.querySelector(".side-num")?.textContent,
-        open: el.querySelector(".side-group-body").classList.contains("open"),
+        // dot first, chevron last — order matters for the layout
+        parts: [...header.children].map((c) => c.className),
+        clickable: header.tagName,
         steps: [...el.querySelectorAll("a.side-link")].map((a) => a.dataset.step),
       };
     }
@@ -89,8 +89,8 @@ test("bu sidebar groups Arbeit and Material, keeps every page reachable", () => 
   expect(out.map((e) => e.step ?? e.group)).toEqual([
     "home",
     "Kundendaten",
-    "Arbeit",
-    "Material",
+    "Auszuführende Arbeiten",
+    "Material für Badumbau",
     "Optional",
     "Rabatt",
     "Kosten",
@@ -109,9 +109,17 @@ test("bu sidebar groups Arbeit and Material, keeps every page reachable", () => 
     "Duschvorhang",
   ]);
 
-  // active step sits in Material → that group starts open, the other closed
-  expect(out[3].open).toBe(true);
-  expect(out[2].open).toBe(false);
+  // Groups never collapse and the header is not interactive.
+  expect(out[2].clickable).toBe("DIV");
+  expect(out[3].clickable).toBe("DIV");
+
+  // dot left, numeral, title, chevron right
+  expect(out[3].parts).toEqual([
+    "dot",
+    "side-num",
+    "side-group-title",
+    "side-group-chevron",
+  ]);
 
   // roman numerals live in their own badge, not baked into the label text
   expect(out[2].num).toBe("I");
@@ -121,7 +129,7 @@ test("bu sidebar groups Arbeit and Material, keeps every page reachable", () => 
   expect(out[4]).toEqual({
     step: "Optional",
     num: "III",
-    label: "Optional Products",
+    label: "Optionale Produkte",
   });
 
   // nothing lost: every bu page still has a link somewhere
@@ -131,10 +139,26 @@ test("bu sidebar groups Arbeit and Material, keeps every page reachable", () => 
   for (const page of BU_PAGES) expect(rendered.has(page)).toBe(true);
 });
 
-test("non-bu offers keep the flat list", () => {
+// The done-circles and Weiter/Zurück are driven by the index in OFFERS.bu.pages
+// (isDoneInFlow), NOT by what the sidebar shows. If the two disagree, circles
+// light up out of sequence: clicking Duschabtrennung also filled in
+// Duschabtrennung (neu) and Duschvorhang, which sit below it.
+test("sidebar order matches the flow order", () => {
+  const out = render({ offerType: "bu", step: "Kundendaten" }, BU_PAGES);
+
+  const DEV_AND_CRM = ["admin", "services", "crm-emc2"];
+  const shown = out
+    .flatMap((e) => (e.steps ? e.steps : [e.step]))
+    .filter((s) => s !== "home" && !DEV_AND_CRM.includes(s));
+
+  expect(shown).toEqual(BU_PAGES.filter((p) => !DEV_AND_CRM.includes(p)));
+});
+
+test("bwt sidebar groups Arbeitszeit + Arbeiten under I, numbers the konfigurator II", () => {
   const pages = [
     "Kundendaten",
     "Arbeitszeit",
+    "bwtArbeiten",
     "bwt",
     "Rabatt",
     "Kosten",
@@ -146,8 +170,38 @@ test("non-bu offers keep the flat list", () => {
   expect(out.map((e) => e.step ?? e.group)).toEqual([
     "home",
     "Kundendaten",
-    "Arbeitszeit",
+    "Auszuführende Arbeiten",
     "bwt",
+    "Rabatt",
+    "Kosten",
+    "Zusammenfassung",
+    "Developer",
+  ]);
+
+  expect(out[2].steps).toEqual(["Arbeitszeit", "bwtArbeiten"]);
+  expect(out[2].num).toBe("I");
+
+  // Single konfigurator page carries its numeral on the link itself.
+  expect(out[3]).toEqual({ step: "bwt", num: "II", label: "Badewannentür" });
+});
+
+test("non-bu/bwt offers keep the flat list", () => {
+  const pages = [
+    "Kundendaten",
+    "Arbeitszeit",
+    "hl",
+    "Rabatt",
+    "Kosten",
+    "Zusammenfassung",
+    "admin",
+  ];
+  const out = render({ offerType: "hl", step: "hl" }, pages);
+
+  expect(out.map((e) => e.step ?? e.group)).toEqual([
+    "home",
+    "Kundendaten",
+    "Arbeitszeit",
+    "hl",
     "Rabatt",
     "Kosten",
     "Zusammenfassung",

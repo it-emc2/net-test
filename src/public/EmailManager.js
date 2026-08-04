@@ -14,6 +14,7 @@ export function initEmailManager(options = {}) {
       preview: "#mailHtmlPreview",
       leadId: "#mailAuftragId",
       files: "#mailAttachments",
+      editedDocx: "#mailEditedDocx",
       list: "#mailAttachmentList",
       status: "#mailStatus",
       offerNumber: "#offerNumber",
@@ -74,6 +75,7 @@ export function initEmailManager(options = {}) {
   const $preview = document.querySelector(cfg.els.preview);
   const $leadId = document.querySelector(cfg.els.leadId);
   const $files = document.querySelector(cfg.els.files);
+  const $editedDocx = document.querySelector(cfg.els.editedDocx);
   const $list = document.querySelector(cfg.els.list);
   const $status = document.querySelector(cfg.els.status);
   const $offerNumber = document.querySelector(cfg.els.offerNumber);
@@ -88,6 +90,93 @@ export function initEmailManager(options = {}) {
 
   // expose for compatibility (some code may read this)
   window.__mailExcludedPreset = excludedPreset;
+
+  // ---- Edited-DOCX drop zone -------------------------------------------
+  // Visual state around #mailEditedDocx: empty = green dashed invite,
+  // file chosen = amber "override active" card + amber send button.
+  const $docxZone = document.getElementById("mailDocxZone");
+  const $docxZoneBadge = document.getElementById("mailDocxZoneBadge");
+  const $docxZoneTitle = document.getElementById("mailDocxZoneTitle");
+  const $docxZoneSub = document.getElementById("mailDocxZoneSub");
+  const $docxRemove = document.getElementById("mailDocxRemove");
+  const $docxSendNote = document.getElementById("mailDocxSendNote");
+  const btnDefaultHtml = $btn.innerHTML;
+
+  function clearEditedDocx() {
+    if ($editedDocx) $editedDocx.value = "";
+    renderDocxZone();
+  }
+
+  function renderDocxZone() {
+    if (!$docxZone || !$editedDocx) return;
+    const file = $editedDocx.files?.[0] || null;
+    $docxZone.classList.toggle("has-file", !!file);
+    $docxRemove.hidden = !file;
+    if ($docxSendNote) $docxSendNote.hidden = !file;
+    if (file) {
+      $docxZoneBadge.textContent = "✅";
+      $docxZoneTitle.textContent = file.name;
+      $docxZoneSub.textContent =
+        "Diese Datei wird statt des automatisch erzeugten Angebots versendet.";
+      $btn.classList.add("btn-edited-docx");
+      $btn.innerHTML = '<span class="btn-icon">📝</span> Geänderte DOCX senden';
+    } else {
+      $docxZoneBadge.textContent = "📝";
+      $docxZoneTitle.textContent = "Angebot in Word angepasst?";
+      $docxZoneSub.textContent =
+        "Bearbeitete DOCX hier ablegen oder auswählen — sie wird statt des " +
+        "automatisch erzeugten Angebots als PDF versendet.";
+      $btn.classList.remove("btn-edited-docx");
+      $btn.innerHTML = btnDefaultHtml;
+    }
+  }
+
+  function acceptEditedDocx(file) {
+    if (!file) return;
+    if (!/\.docx$/i.test(file.name)) {
+      setStatus("Die geänderte Datei muss eine .docx sein.", "error");
+      return;
+    }
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    $editedDocx.files = dt.files;
+    renderDocxZone();
+  }
+
+  if ($docxZone && $editedDocx) {
+    $docxZone.addEventListener("click", () => $editedDocx.click());
+    $docxZone.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        $editedDocx.click();
+      }
+    });
+    $editedDocx.addEventListener("change", () => {
+      const f = $editedDocx.files?.[0];
+      if (f && !/\.docx$/i.test(f.name)) {
+        setStatus("Die geänderte Datei muss eine .docx sein.", "error");
+        $editedDocx.value = "";
+      }
+      renderDocxZone();
+    });
+    $docxRemove.addEventListener("click", (e) => {
+      e.stopPropagation();
+      clearEditedDocx();
+    });
+    for (const ev of ["dragenter", "dragover"]) {
+      $docxZone.addEventListener(ev, (e) => {
+        e.preventDefault();
+        $docxZone.classList.add("drag-over");
+      });
+    }
+    $docxZone.addEventListener("dragleave", () => $docxZone.classList.remove("drag-over"));
+    $docxZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      $docxZone.classList.remove("drag-over");
+      acceptEditedDocx(e.dataTransfer?.files?.[0]);
+    });
+    renderDocxZone();
+  }
 
   const setStatus = (msg, type = "info") => {
     $status.classList.remove("mail-log");
@@ -617,7 +706,11 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
 
     return withEmails.replace(/\b((?:https?:\/\/|www\.)[^\s<]+)\b/gi, (match) => {
       const href = /^https?:\/\//i.test(match) ? match : `https://${match}`;
-      return `<a href="${escapeHtml(href)}" style="color:#00a86b;text-decoration:none;">${match}</a>`;
+      // The online-signing link gets a descriptive label instead of the raw URL.
+      const linkText = /\/sign\//.test(match)
+        ? "&gt;&gt; Jetzt weitere Angaben erfassen (hier klicken) &lt;&lt;"
+        : match;
+      return `<a href="${escapeHtml(href)}" style="color:#00a86b;text-decoration:none;">${linkText}</a>`;
     });
   }
 
@@ -1006,6 +1099,7 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     $subject.value = "";
     $body.value = "";
     $files.value = "";
+    clearEditedDocx();
 
     syncFileInput();
     renderList();
@@ -1051,13 +1145,15 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     return { blob: await resp.blob(), filename };
   }
 
-  async function collectBitrixDocs(payload, offerNumber, onStep) {
+  async function collectBitrixDocs(payload, offerNumber, onStep, { skipAngebotDocx = false } = {}) {
     const safeNo = String(offerNumber || "Angebot").replace(/[^A-Za-z0-9_\-]+/g, "_");
     const jobs = [
       { endpoint: "/docx-template", name: `${safeNo}.docx`, label: "Angebot-DOCX" },
       { endpoint: "/material-overview/hassmann-cart", name: `Hassmann_Warenkorb_${safeNo}.csv`, label: "Hassmann-Warenkorb (CSV)" },
       { endpoint: "/kalkulation/pdf", name: `Kalkulation_${safeNo}.pdf`, label: "Kalkulation-PDF" },
-    ];
+      // When a hand-edited DOCX is sent, the backend archives that file on the
+      // Bitrix timeline instead of a freshly rendered (unedited) Angebot-DOCX.
+    ].filter((j) => !(skipAngebotDocx && j.endpoint === "/docx-template"));
     const docs = [];
     for (const job of jobs) {
       onStep?.(`Erzeuge ${job.label} …`);
@@ -1105,6 +1201,12 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
           "bu";
       }
 
+      try {
+        await cfg.hooks.saveDraftBeforeSend?.();
+      } catch (e) {
+        console.warn("Auto-Entwurf vor dem Senden fehlgeschlagen:", e);
+      }
+
       const offerNumber = getOfferNumber();
       const dealId = String($leadId?.value || $mainAuftragId?.value || "").trim();
       const contactId = String(
@@ -1115,11 +1217,26 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
       startStatusLog();
       pushStatus("Sende-Vorgang gestartet …");
 
+      // Optional hand-edited Angebot-DOCX: sent to the backend, which converts
+      // it to PDF instead of rendering a fresh offer.
+      const editedFile = $editedDocx?.files?.[0] || null;
+      if (editedFile && !/\.docx$/i.test(editedFile.name)) {
+        pushStatus("Die geänderte Datei muss eine .docx sein.", "error");
+        return false;
+      }
+      if (editedFile) pushStatus(`Geänderte DOCX wird verwendet: ${editedFile.name}`);
+
       // Generate the extra Bitrix documents (Angebot DOCX, Hassmann CSV,
       // Kalkulation PDF) up front so they can be attached to the timeline comment.
-      const bitrixDocs = await collectBitrixDocs(payload, offerNumber, pushStatus);
+      const bitrixDocs = await collectBitrixDocs(payload, offerNumber, pushStatus, {
+        skipAngebotDocx: !!editedFile,
+      });
 
-      pushStatus("Erzeuge Angebots-PDF & sende E-Mail …");
+      pushStatus(
+        editedFile
+          ? "Konvertiere geänderte DOCX zu PDF & sende E-Mail …"
+          : "Erzeuge Angebots-PDF & sende E-Mail …",
+      );
 
       const subject = ($subject.value || offerNumber || "Angebot").trim();
       const body = $body.value || "";
@@ -1145,6 +1262,7 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
 
       for (const f of userFiles) fd.append("attachments", f, f.name);
       for (const d of bitrixDocs) fd.append("bitrixDocs", d.blob, d.filename);
+      if (editedFile) fd.append("editedDocx", editedFile, editedFile.name);
 
       const res = await fetch(cfg.apiUrl, { method: "POST", body: fd });
       if (!res.ok) {
@@ -1158,6 +1276,9 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
         `E-Mail gesendet — Anhänge: ${data.attachmentNames?.join(", ") || "-"}`,
         "success",
       );
+
+      // Clear the edited-DOCX choice so it can't silently apply to the next send.
+      clearEditedDocx();
 
       // Success dialog with the optional "move deal to ANG verschickt" action.
       try {

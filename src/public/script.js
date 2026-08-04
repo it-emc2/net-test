@@ -161,9 +161,13 @@ const OFFERS = {
       "Duschwanne",
       "Fussboden",
       "Wandverkleidung",
+      // Order matters twice over: it drives Weiter/Zurück AND the done-circles
+      // in the sidebar (isDoneInFlow compares indices in this array). Keep it
+      // in sync with SIDEBAR_GROUPS in updateSidebarForOffer, or the circles
+      // light up out of sequence.
+      "Duschabtrennung",
       "DuschabtrennungNeu",
       "Duschvorhang",
-      "Duschabtrennung",
       "Optional",
       "Rabatt",
       "Kosten",
@@ -179,6 +183,7 @@ const OFFERS = {
     pages: [
       "Kundendaten",
       "Arbeitszeit",
+      "bwtArbeiten",
       "bwt",
       "Rabatt",
       "Kosten",
@@ -1938,25 +1943,47 @@ function renderTravelCostDebug() {
   `;
 
   if (isBwt) {
+    // Same free-Reisezeit threshold the real billing applies (pricing.js
+    // computeBwtIncludedLines) — so this preview matches what actually
+    // ends up in Kosten/PDF instead of showing the full undiscounted hours.
+    const freeHours = Number(window.__bwtTravelTimeFreeHours ?? 2) || 0;
+    const billedTravelHours = Math.max(0, travelHours - freeHours);
     const workCost = laborHours * 79.5;
-    const travelCost = travelHours * 79.5;
-    const totalCost = workCost + travelCost;
+    const travelCost = billedTravelHours * 79.5;
+
+    // Fahrzeugbereitstellung/Werkzeug/Beräumung — same per-Arbeitstag items
+    // BU shows, priced with the same admin-configurable values pricing.js
+    // uses (computeBwtIncludedLines).
+    const workDays = Number(window.arbeitstage_numeric ?? 0) || 0;
+    const fahrzeugRate = Number(window.__fahrzeugbereitstellung ?? 80) || 0;
+    const werkzeugRate = Number(window.__werkzeug ?? 7.5) || 0;
+    const beraeumungRate = Number(window.__beraeumung ?? 4.5) || 0;
+    const fahrzeugCost = workDays * fahrzeugRate;
+    const werkzeugCost = workDays * werkzeugRate;
+    const beraeumungCost = workDays * beraeumungRate;
+
+    const totalCost = workCost + travelCost + fahrzeugCost + werkzeugCost + beraeumungCost;
     box.innerHTML = `
       ${section("Zeiten", [
         ["Arbeitszeit", `${hours(laborHours)} h`],
         ["Reisezeit gesamt", `${hours(travelHours)} h`],
+        [`davon abrechenbar (abzgl. ${hours(freeHours)} h frei)`, `${hours(billedTravelHours)} h`],
       ])}
       ${section("Stundensatz", [["1 Facharbeiter", `${euro(79.5)}/h`]])}
       ${section("Kosten", [
         ["Arbeitskosten", euro(workCost)],
-        ["Reisezeit Fahrer", euro(travelCost)],
+        ["Reisezeit Fahrer (abrechenbar)", euro(travelCost)],
+        [`Fahrzeugbereitstellung (${hours(workDays)} Stk)`, euro(fahrzeugCost)],
+        [`Werkzeug (${hours(workDays)} Stk)`, euro(werkzeugCost)],
+        [`Beräumung der Baustelle (${hours(workDays)} Stk)`, euro(beraeumungCost)],
       ])}
       <div class="az-debug-total">
         <span>Gesamtkosten aus Zeiten</span>
         <strong>${euro(totalCost)}</strong>
       </div>
-      <div class="az-travel-debug-note">BWT aktiv: 1 Facharbeiter, 79,50 €/h für Arbeitszeit und Reisezeit.</div>
+      <div class="az-travel-debug-note">BWT aktiv: 1 Facharbeiter, 79,50 €/h für Arbeitszeit und Reisezeit. Die ersten ${hours(freeHours)} h Reisezeit sind frei.</div>
     `;
+    syncBwtFreigrenzenToggle();
     return;
   }
 
@@ -2228,6 +2255,7 @@ function resetAllForms() {
     "form-optional",
     "form-rabatt",
     "form-bwt",
+    "form-bwtArbeiten",
     "form-hl",
     "form-bl",
     "form-admin",
@@ -2236,6 +2264,12 @@ function resetAllForms() {
     "form-hms",
     "form-wd",
   ];
+
+  // 0) Every reset starts a new "form generation". Background fills that were
+  // started for the previous customer (Bitrix enrich, delayed deal-id writes)
+  // compare against this and drop their result instead of writing into the
+  // fresh offer.
+  window.__formGeneration = (Number(window.__formGeneration) || 0) + 1;
 
   // 1) Reset all forms back to their HTML defaults
   formIds.forEach((id) => {
@@ -2411,6 +2445,26 @@ function resetAllForms() {
   // switch off instead of billing four items nobody selected.
   recomputeWVFlachenQty();
 
+  // 5c) Everything the Routenvorschlag writes lives OUTSIDE the forms, so
+  // form.reset() cannot clear it: the hint block, the zone button selection,
+  // the AH zone cache and the HH:MM → numeric mirrors. Without this a deal
+  // opened from the Terminplanung leaks its km/Reisezeit into the next offer
+  // (visible in the hint, and billed via reise_hours_numeric below).
+  const _routingHint = document.getElementById("routingSuggestion");
+  if (_routingHint) _routingHint.innerHTML = "";
+  ["distanceKm", "travelTime"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  document
+    .querySelectorAll("#travelZoneButtons .az-zone-btn")
+    .forEach((b) => b.setAttribute("aria-pressed", "false"));
+  delete window.__ahZoneData;
+  window.updateAHZoneDisplay?.();
+  // Recomputes reise/arbeit/tage mirrors and repaints every travel hint
+  // (updateTravelPreview + renderTravelCostDebug) — must run before pricing.
+  window.updateTotalHours?.();
+
   // 6) One clean pricing refresh after reset
   window.updatePricing?.();
 
@@ -2439,6 +2493,9 @@ function resetAllForms() {
 // NEW HELPER: Reset all repeater DOMs to clean state
 // ============================================================
 function resetAllRepeaterDOMs() {
+  // --- Interne Liste (Kundendaten) ---
+  initInternalTodos([]);
+
   // --- DW Extra Tasks ---
   if (typeof window.restoreDWExtraTasksFromPayload === "function") {
     window.restoreDWExtraTasksFromPayload({ extraTasks: [] });
@@ -2456,6 +2513,11 @@ function resetAllRepeaterDOMs() {
         }
       });
     }
+  }
+
+  // --- BWT Arbeiten tab: Weitere Arbeiten ---
+  if (typeof window.restoreBwtArbeitenExtraTasksFromPayload === "function") {
+    window.restoreBwtArbeitenExtraTasksFromPayload({ extraTasks: [] });
   }
 
   // --- BWT Extra Arbeitszeit ---
@@ -2662,7 +2724,8 @@ function updateSidebarForOffer() {
   );
 
   const specialLabels = {
-    bwt: "BWT",
+    bwt: "Badewannentür",
+    bwtArbeiten: "Arbeiten",
     hl: "HL",
     hlk: "Konfigurator",
     bl: "BL",
@@ -2673,17 +2736,19 @@ function updateSidebarForOffer() {
     Fussboden: "Fußboden",
     // Rabatt page only exists in the Badumbau flow, so this rename is bu-only.
     Rabatt: "Aufschlag / Rabatt",
-    Optional: "Optional Products",
+    Optional: "Optionale Produkte",
   };
 
-  // Badumbau groups its many pages into two collapsible sections; every other
-  // offer keeps the flat list. Purely visual — page ids and flow order are untouched.
+  // Badumbau and Badewannentür group their pages into numbered sections; every
+  // other offer keeps the flat list. Purely visual — page ids and flow order
+  // are untouched.
   const isBu = activeOffer === "bu";
+  const isBwt = activeOffer === "bwt";
   const SIDEBAR_GROUPS = isBu
     ? [
-        { title: "Arbeit", num: "I", pages: ["Arbeitszeit", "Arbeiten"] },
+        { title: "Auszuführende Arbeiten", num: "I", pages: ["Arbeitszeit", "Arbeiten"] },
         {
-          title: "Material",
+          title: "Material für Badumbau",
           num: "II",
           pages: [
             "Duschwanne",
@@ -2695,9 +2760,15 @@ function updateSidebarForOffer() {
           ],
         },
       ]
-    : [];
+    : isBwt
+      ? [
+          { title: "Auszuführende Arbeiten", num: "I", pages: ["Arbeitszeit", "bwtArbeiten"] },
+        ]
+      : [];
   const groupedByGroups = new Set(SIDEBAR_GROUPS.flatMap((g) => g.pages));
-  const linkNumerals = isBu ? { Optional: "III" } : {};
+  // Single-page sections get the numeral directly on the link (a one-child
+  // group would look odd) — BU does the same for Optional/III.
+  const linkNumerals = isBu ? { Optional: "III" } : isBwt ? { bwt: "II" } : {};
 
   function labelFor(pageId) {
     const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
@@ -2725,34 +2796,31 @@ function updateSidebarForOffer() {
     const wrapper = document.createElement("div");
     wrapper.className = "side-group";
 
-    const header = document.createElement("button");
-    header.type = "button";
+    // A div, not a button: the groups never collapse, so there is nothing to
+    // click. Same dot slot as an ordinary entry, chevron on the far right.
+    const header = document.createElement("div");
     header.className = "side-link side-group-header";
+
+    const dot = document.createElement("div");
+    dot.className = "dot";
+
+    const title = document.createElement("span");
+    title.className = "side-group-title";
+    title.textContent = group.title;
 
     const chevron = document.createElement("span");
     chevron.className = "side-group-chevron";
     chevron.textContent = "›";
     chevron.setAttribute("aria-hidden", "true");
 
-    const title = document.createElement("span");
-    title.textContent = group.title;
-
-    header.appendChild(chevron);
+    header.appendChild(dot);
     if (group.num) header.appendChild(makeNumeral(group.num));
     header.appendChild(title);
+    header.appendChild(chevron);
 
     const body = document.createElement("div");
     body.className = "side-group-body";
     pageIds.forEach((pageId) => body.appendChild(makeLink(pageId, labelFor(pageId))));
-
-    const isOpen = pageIds.includes(activeStep);
-    body.classList.toggle("open", isOpen);
-    header.setAttribute("aria-expanded", isOpen ? "true" : "false");
-
-    header.addEventListener("click", () => {
-      const open = body.classList.toggle("open");
-      header.setAttribute("aria-expanded", open ? "true" : "false");
-    });
 
     wrapper.appendChild(header);
     wrapper.appendChild(body);
@@ -2881,6 +2949,12 @@ function startOfferFlow(offerKey) {
   // Fresh offer → new pricing rules (Kleinmaterial counts toward the Aufschlag).
   window.__kleinInAufschlag = true;
   window.__kleinAufschlagLegacyOffer = false;
+
+  // Fresh offer → BWT Freigrenzen follow today's live admin config, not
+  // whatever a previously-restored legacy offer pinned them to.
+  window.__bwtFreigrenzenLegacyOffer = false;
+  window.__bwtKmFreeThreshold = Number(window.__bwtKmFreeThresholdLive ?? 200);
+  window.__bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHoursLive ?? 2);
 
   // BWT: override Arbeitszeit default to 05:00 (1 worker, shorter job)
   if (offerKey === "bwt") {
@@ -3783,6 +3857,69 @@ function collectBlExtras(payload) {
   if (noteEl) bl.blNote = noteEl.value || "";
 }
 
+/* ---------- Interne Liste (Kundendaten) ----------
+   Rows carry name="internalTodos[]", so formToObject serialisiert sie automatisch
+   nach Kundendaten["internalTodos[]"] – kein eigener Collector nötig.
+   Ausgabe an den Kunden erfolgt nicht: die DOCX-Tag-Maps in offerMapping.js /
+   docx-template.js sind Allowlists und enthalten diesen Key absichtlich nicht. */
+function createInternalTodoRow(text) {
+  const row = document.createElement("div");
+  row.className = "itodo-item";
+  row.innerHTML =
+    '<input type="text" name="internalTodos[]" placeholder="Interner Eintrag …" />' +
+    '<button type="button" class="itodo-remove" aria-label="Eintrag entfernen" title="Entfernen">' +
+    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<polyline points="3 6 5 6 21 6"></polyline>' +
+    '<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>' +
+    '<path d="M10 11v6"></path><path d="M14 11v6"></path>' +
+    "</svg></button>";
+  if (text) row.querySelector("input").value = String(text);
+  return row;
+}
+
+function syncInternalTodos() {
+  const list = document.getElementById("internalTodosList");
+  if (!list) return;
+  const n = list.querySelectorAll(".itodo-item").length;
+  const count = document.getElementById("internalTodosCount");
+  if (count) {
+    count.textContent = n === 1 ? "1 Eintrag" : `${n} Einträge`;
+    count.hidden = !n;
+  }
+  const empty = document.getElementById("internalTodosEmpty");
+  if (empty) empty.hidden = n > 0;
+}
+
+function initInternalTodos(items) {
+  const list = document.getElementById("internalTodosList");
+  if (!list) return;
+  const values = (Array.isArray(items) ? items : items ? [items] : [])
+    .map((v) => String(v ?? "").trim())
+    .filter(Boolean);
+  list.innerHTML = "";
+  values.forEach((v) => list.appendChild(createInternalTodoRow(v)));
+  // zugeklappt starten, bei vorhandenen Einträgen automatisch öffnen
+  const section = document.getElementById("internalTodosSection");
+  if (section) section.open = values.length > 0;
+  syncInternalTodos();
+}
+
+function wireInternalTodos() {
+  const list = document.getElementById("internalTodosList");
+  if (!list) return;
+  document.getElementById("internalTodosAddBtn")?.addEventListener("click", () => {
+    const row = createInternalTodoRow("");
+    list.appendChild(row);
+    row.querySelector("input").focus();
+    syncInternalTodos();
+  });
+  list.addEventListener("click", (e) => {
+    if (!e.target.closest(".itodo-remove")) return;
+    e.target.closest(".itodo-item")?.remove();
+    syncInternalTodos();
+  });
+}
+
 function createWohnumfeldEntryRow(amount, fuerWas) {
   const row = document.createElement("div");
   row.className = "wohnumfeld-entry-row";
@@ -3885,6 +4022,24 @@ function buildPayload() {
   // legacy drafts restore this as false (set in the restore path) so their
   // totals don't drift when reopened. Absent → treated as new (default true).
   payload.pricingRules = { kleinInAufschlag: window.__kleinInAufschlag !== false };
+
+  // BWT Freigrenzen (km/Reisezeit): snapshot whatever's currently in effect
+  // so this offer keeps its quoted price even if the admin later changes
+  // BWT_KM_FREE_THRESHOLD / BWT_TRAVEL_TIME_FREE_HOURS. Restored legacy
+  // offers (see restore path) keep these at the historical 200/2 default
+  // instead of the live-fetched value, so reopening one doesn't silently
+  // adopt today's config before the user has chosen to.
+  payload.pricingRules.bwtKmFreeThreshold = Number(window.__bwtKmFreeThreshold ?? 200);
+  payload.pricingRules.bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHours ?? 2);
+
+  // Freeze: once true, server/PDF/DOCX generation must return frozenPricing
+  // verbatim instead of recomputing from live DB values. Set only via
+  // freezeCurrentPricing() (Schnellspeichern/Speichern unter/Sperren); cleared
+  // the moment the user edits a field (see requestPricingRefresh).
+  payload.frozen = window.__frozen === true;
+  payload.frozenPricing = payload.frozen ? (window.__frozenPricing || null) : null;
+  // Locked: full edit-lock, independent of the price freeze above.
+  payload.locked = window.__locked === true;
 
   // Parse AH service lines from JSON hidden field
   if (payload.ah && payload.ah.ahServicesJson) {
@@ -4492,6 +4647,29 @@ if (anschlag) {
     }
   } catch (e) {
     console.warn("[buildPayload] BWT arrays capture failed:", e);
+  }
+
+  // ---- BWT: Auszuführende-Arbeiten tab (workTasks checkbox + free-text list) ----
+  try {
+    const formBwtArbeiten = document.getElementById("form-bwtArbeiten");
+    if (formBwtArbeiten) {
+      const fd = new FormData(formBwtArbeiten);
+      const bwt = payload.bwt || (payload.bwt = {});
+      // Always set (even []) so unchecking/clearing survives save + reload.
+      bwt.workTasks = fd.getAll("bwt[workTasks][]").map((v) => String(v));
+      bwt.extraTasks = Array.from(
+        new Set(
+          fd
+            .getAll("bwt[extraTasks][]")
+            .map((v) => String(v).trim())
+            .filter(Boolean),
+        ),
+      );
+      if ("bwt[workTasks][]" in bwt) delete bwt["bwt[workTasks][]"];
+      if ("bwt[extraTasks][]" in bwt) delete bwt["bwt[extraTasks][]"];
+    }
+  } catch (e) {
+    console.warn("[buildPayload] BWT Arbeiten capture failed:", e);
   }
 
   // ---- HL: enrich payload.hl with structured pipes + extras ----
@@ -6189,6 +6367,20 @@ window.__entlastungsbetragMonat = 131;
 window.__verhinderungspflegeJahr = 2418;
 window.__steuerabsetzPct = 20;
 window.__steuerabsetzCapJahr = 4000;
+// BWT: Freigrenzen für Reisezeit/Kilometerpauschale — admin-konfigurierbar.
+// window.__bwt*Live always mirrors the current admin-panel value (refreshed
+// below); window.__bwtKmFreeThreshold/__bwtTravelTimeFreeHours is what
+// buildPayload() actually snapshots into the offer, and gets pinned to a
+// restored offer's own saved value in the restore path — so switching to a
+// legacy offer, then back to a fresh one, doesn't leak the legacy value into
+// the new offer (startOfferFlow resets it back to *Live).
+window.__bwtTravelTimeFreeHoursLive = 2;
+window.__bwtKmFreeThresholdLive = 200;
+window.__bwtTravelTimeFreeHours = 2;
+window.__bwtKmFreeThreshold = 200;
+window.__fahrzeugbereitstellung = 80.0;
+window.__werkzeug = 7.5;
+window.__beraeumung = 4.5;
 fetch("/admin/api/config/public")
   .then(function (r) { return r.ok ? r.json() : null; })
   .then(function (d) {
@@ -6209,7 +6401,21 @@ fetch("/admin/api/config/public")
     }
     if (typeof d.STEUERABSETZ_PCT === "number") window.__steuerabsetzPct = d.STEUERABSETZ_PCT;
     if (typeof d.STEUERABSETZ_CAP_JAHR === "number") window.__steuerabsetzCapJahr = d.STEUERABSETZ_CAP_JAHR;
+    if (typeof d.BWT_TRAVEL_TIME_FREE_HOURS === "number") {
+      window.__bwtTravelTimeFreeHoursLive = d.BWT_TRAVEL_TIME_FREE_HOURS;
+      // Only adopt it for the active offer if nothing has restored a pinned
+      // value yet (i.e. we're on a fresh, unsaved offer).
+      if (!window.__bwtFreigrenzenLegacyOffer) window.__bwtTravelTimeFreeHours = d.BWT_TRAVEL_TIME_FREE_HOURS;
+    }
+    if (typeof d.BWT_KM_FREE_THRESHOLD === "number") {
+      window.__bwtKmFreeThresholdLive = d.BWT_KM_FREE_THRESHOLD;
+      if (!window.__bwtFreigrenzenLegacyOffer) window.__bwtKmFreeThreshold = d.BWT_KM_FREE_THRESHOLD;
+    }
+    if (typeof d.FAHRZEUGBEREITSTELLUNG === "number") window.__fahrzeugbereitstellung = d.FAHRZEUGBEREITSTELLUNG;
+    if (typeof d.WERKZEUG === "number") window.__werkzeug = d.WERKZEUG;
+    if (typeof d.BERAEUMUNG === "number") window.__beraeumung = d.BERAEUMUNG;
     if (typeof window.__refreshFinanzierungUI === "function") window.__refreshFinanzierungUI();
+    if (typeof renderTravelCostDebug === "function") renderTravelCostDebug();
   })
   .catch(function () {});
 
@@ -7549,22 +7755,25 @@ document.addEventListener("DOMContentLoaded", () => {
 })();
 
 // ===== DUSCHWANNE: free-text extra tasks (repeater) =====
-(function initDWExtraTasks() {
-  const fs = document.getElementById("dw-extra-tasks");
-  if (!fs) return;
+// Free-text "Weitere Arbeiten" repeater, used by the BU Arbeiten tab
+// (#dw-extra-tasks) and the BWT Arbeiten tab (#bwt-extra-tasks).
+// Returns the payload-based restore function, or null if the fieldset is absent.
+function initExtraTasksRepeater({ fieldsetId, countId, emptyId, lsKey, inputName }) {
+  const fs = document.getElementById(fieldsetId);
+  if (!fs) return null;
 
   const wrap = fs.querySelector(".da-items");
   const addBtn = fs.querySelector(".da-add");
-  const countBadge = document.getElementById("dw-extra-count");
-  const emptyHint = document.getElementById("dw-extra-empty");
-  const LS_KEY = "dwExtraTasks:v1";
+  const countBadge = document.getElementById(countId);
+  const emptyHint = document.getElementById(emptyId);
+  const LS_KEY = lsKey;
 
   function makeItem(value = "") {
     const item = document.createElement("div");
     item.className = "da-item wt-extra-item";
     item.setAttribute("data-kind", "extra");
     item.innerHTML = `
-      <textarea class="dw-extra" name="duschwanne[extraTasks][]"
+      <textarea class="dw-extra" name="${inputName}"
       aria-label="Zusätzliche Aufgabe" rows="2">${escapeHtml(value)}</textarea>
       <button type="button" class="wt-extra-move wt-extra-move-up" aria-label="Nach oben verschieben" title="Nach oben">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -7691,12 +7900,12 @@ document.addEventListener("DOMContentLoaded", () => {
     window.updatePricing?.();
   });
 
-  // Expose payload-based restore for global restore pipeline.
+  // Payload-based restore for the global restore pipeline.
   // Re-query the wrap on every call so a stale closure reference (e.g. if
   // the fieldset is re-rendered) can't silently drop rows.
-  window.restoreDWExtraTasksFromPayload = function (dw) {
+  const restoreFromPayload = function (dw) {
     const liveWrap =
-      document.querySelector("#dw-extra-tasks .da-items") || wrap;
+      document.querySelector(`#${fieldsetId} .da-items`) || wrap;
     if (!liveWrap) return;
 
     if (!dw || !Array.isArray(dw.extraTasks)) {
@@ -7732,11 +7941,33 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureOneRow();
   restoreFromLocalStorage();
   updateSummary();
-})();
 
-/* Selection-count badges on the checkbox groups (1–7) of the Arbeiten accordion. */
+  return restoreFromPayload;
+}
+
+window.restoreDWExtraTasksFromPayload = initExtraTasksRepeater({
+  fieldsetId: "dw-extra-tasks",
+  countId: "dw-extra-count",
+  emptyId: "dw-extra-empty",
+  lsKey: "dwExtraTasks:v1",
+  inputName: "duschwanne[extraTasks][]",
+});
+
+window.restoreBwtArbeitenExtraTasksFromPayload = initExtraTasksRepeater({
+  fieldsetId: "bwt-extra-tasks",
+  countId: "bwt-extra-count",
+  emptyId: "bwt-extra-empty",
+  lsKey: "bwtArbeitenExtraTasks:v1",
+  inputName: "bwt[extraTasks][]",
+});
+
+/* Selection-count badges on the checkbox groups of the Arbeiten accordions
+   (BU: #dw-worktasks, BWT: #bwt-worktasks). */
 (function initWorkTaskGroupCounts() {
-  const root = document.getElementById("dw-worktasks");
+  ["dw-worktasks", "bwt-worktasks"].forEach(initRoot);
+
+  function initRoot(rootId) {
+  const root = document.getElementById(rootId);
   if (!root) return;
 
   function updateGroup(group) {
@@ -7761,6 +7992,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   updateAll();
+  }
 })();
 
 /* ========== Kundendaten UI (contact, aufschlag/pflegegrad, etc.) ========== */
@@ -8018,6 +8250,38 @@ document.getElementById("kleinAufschlagToggle")?.addEventListener("change", (e) 
   window.refreshAllPanels?.();
 });
 
+// ── Legacy BWT-Angebote auf die aktuellen Freigrenzen umstellen ────────────
+// Angebote, die vor der Freigrenzen-Speicherung erstellt wurden, tragen kein
+// pricingRules-Flag und rechnen weiterhin mit den historischen 200 km / 2 h
+// (siehe restore path). Diese Zeile ist der einzige Weg, so ein Angebot
+// bewusst auf die aktuelle Admin-Einstellung zu heben; gespeichert wird die
+// Umstellung erst mit dem naechsten Speichern (buildPayload schreibt das Flag mit).
+function syncBwtFreigrenzenToggle() {
+  const row = document.getElementById("bwtFreigrenzenRow");
+  const cb = document.getElementById("bwtFreigrenzenToggle");
+  if (!row || !cb) return;
+
+  const isLegacyOffer = window.__bwtFreigrenzenLegacyOffer === true;
+  row.hidden = !isLegacyOffer;
+  row.style.display = isLegacyOffer ? "" : "none";
+  row.setAttribute("aria-hidden", isLegacyOffer ? "false" : "true");
+  cb.checked = Number(window.__bwtKmFreeThreshold) === Number(window.__bwtKmFreeThresholdLive)
+    && Number(window.__bwtTravelTimeFreeHours) === Number(window.__bwtTravelTimeFreeHoursLive);
+}
+window.syncBwtFreigrenzenToggle = syncBwtFreigrenzenToggle;
+
+document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) => {
+  if (e.target.checked) {
+    window.__bwtKmFreeThreshold = Number(window.__bwtKmFreeThresholdLive ?? 200);
+    window.__bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHoursLive ?? 2);
+  } else {
+    window.__bwtKmFreeThreshold = 200;
+    window.__bwtTravelTimeFreeHours = 2;
+  }
+  if (typeof renderTravelCostDebug === "function") renderTravelCostDebug();
+  window.refreshAllPanels?.();
+});
+
 (function initPflegegrad() {
   const form = document.getElementById("form-Kundendaten");
   const pgLevelRow = document.getElementById("pflegegradLevelRow");
@@ -8159,6 +8423,8 @@ document.getElementById("kleinAufschlagToggle")?.addEventListener("change", (e) 
     }
   }
   initWohnumfeldEntries([]);
+  initInternalTodos([]);
+  wireInternalTodos();
   apply();
   applyCopay();
   document.getElementById("wohnumfeldAddEntryBtn")?.addEventListener("click", () => {
@@ -10577,6 +10843,9 @@ function attachDuschwanneToPayload(payload) {
   }
 
   window.__pricing = null;
+  window.__frozen = window.__frozen === true;
+  window.__frozenPricing = window.__frozenPricing || null;
+  window.__locked = window.__locked === true;
   let pricingRequestSeq = 0;
   let latestAppliedPricingSeq = 0;
   let pricingRefreshTimer = null;
@@ -10682,11 +10951,58 @@ function attachDuschwanneToPayload(payload) {
     return data;
   };
 
+  window.applyOfferLockUI = function applyOfferLockUI(locked) {
+    document
+      .querySelectorAll(
+        'form[id^="form-"] input, form[id^="form-"] select, form[id^="form-"] textarea, form[id^="form-"] button',
+      )
+      .forEach((el) => { el.disabled = !!locked; });
+
+    let banner = document.getElementById("offerLockedBanner");
+    if (locked) {
+      if (!banner) {
+        banner = document.createElement("div");
+        banner.id = "offerLockedBanner";
+        banner.style.cssText =
+          "position:sticky;top:0;z-index:9999;background:#b91c1c;color:#fff;padding:8px 14px;text-align:center;font-weight:600;";
+        banner.textContent = "🔒 Dieses Angebot ist gesperrt – keine Änderungen möglich.";
+        document.body.prepend(banner);
+      }
+    } else if (banner) {
+      banner.remove();
+    }
+
+    document.getElementById("btnSaveDraft")?.toggleAttribute("disabled", !!locked);
+    document.getElementById("btnSaveDraftAs")?.toggleAttribute("disabled", !!locked);
+  };
+
+  window.freezeCurrentPricing = async function freezeCurrentPricing() {
+    const offerType = String(window.getCurrentOfferType?.() || "").toLowerCase();
+    let snapshot;
+    if (offerType === "ah") {
+      const ah = window.computeAHGesamt?.() || { gesamt: 0, eigenanteil: 0 };
+      snapshot = { total: ah.gesamt, selfPayAmount: ah.eigenanteil, _isAH: true };
+    } else {
+      const pl = typeof window.buildPayload === "function" ? window.buildPayload() : null;
+      snapshot = pl ? await fetchPrice(pl) : window.__pricing;
+    }
+    window.__frozen = true;
+    window.__frozenPricing = snapshot;
+    window.__pricing = snapshot;
+    window.dispatchEvent(new CustomEvent("pricing:updated", { detail: snapshot }));
+    if (typeof updateSummaryWidgetTotal === "function") updateSummaryWidgetTotal(snapshot?.total);
+    if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(snapshot?.selfPayAmount);
+    return snapshot;
+  };
+
   window.requestPricingRefresh = function requestPricingRefresh({
     delay = 120,
     payload = null,
     reason = "",
   } = {}) {
+    // Any live, user-driven field change un-freezes a previously frozen offer
+    // so what's shown reflects the edit; the next explicit save re-freezes it.
+    if (!window.__restoring) window.__frozen = false;
     clearTimeout(pricingRefreshTimer);
     window.__lastPricingRefreshMeta = {
       reason: reason || "",
@@ -11345,7 +11661,7 @@ function escapeHtml(s) {
       <div style="white-space:pre-line">${escapeHtml(stripBrand(decorateDALabel(l)))}${noMarkupTag}${finishHTML}</div>
       <div style="text-align:right">${qtyText}${unitText}</div>
       <div style="text-align:right">${euroC(l.unitPrice ?? 0)}${driftHTML}</div>
-      <div style="text-align:right; font-weight:600">${euroC(l.lineTotal ?? 0)}</div>
+      <div style="text-align:right">${euroC(l.lineTotal ?? 0)}</div>
     `;
       })
       .join("");
@@ -11743,9 +12059,9 @@ if (supportsOptional) {
   const optSum = data.optionalDisplayUI?.sum ?? 0;
 
   optCard = card(
-    "Optional Products",
+    "Optionale Produkte",
     optBody,
-    `<span class="kosten-subtotal-label">Summe:</span> ${euroC(optSum)}`,
+    `<span class="kosten-subtotal-label">Summe:</span> <b>${euroC(optSum)}</b>`,
     offerKey === "bu" ? "III" : "",
   );
 }
@@ -11800,7 +12116,7 @@ if (supportsOptional) {
     const matCard = card(
       matTitle,
       matBody,
-      `<span class="kosten-subtotal-label">Summe Material:</span> ${euroC(matSum)}${driftFooter}`,
+      `<span class="kosten-subtotal-label">Summe Material:</span> <b>${euroC(matSum)}</b>${driftFooter}`,
       isBuKosten ? "II" : "",
     );
 
@@ -11914,7 +12230,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     const enthaltCard = card(
       "Enthält je Einheit",
       svcBodyIncluded,
-      `<span class="kosten-subtotal-label">Summe Leistungen:</span> ${euroC(sumLeistungenEnth)}`,
+      `<span class="kosten-subtotal-label">Summe Leistungen:</span> <b>${euroC(sumLeistungenEnth)}</b>`,
     );
     const arbeitenCard = card(
       data.services?.title || "Auszuführende Arbeiten",
@@ -11958,9 +12274,9 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     const markupNote = `${markupBase ? ` auf ${euroC(markupBase)}` : ""}`;
     const sums = `
     <div class="kosten-sums">
-      <div><span>Arbeiten:</span> <b>${euroC(data.services?.sum || 0)}</b></div>
-      <div><span>${matTitle}:</span> <b>${euroC(matSum)}</b></div>
-      ${optSum ? `<div><span>Optional Products:</span> <b>${euroC(optSum)}</b></div>` : ""}
+      <div><span>${isBuKosten ? '<span class="side-num">I</span>' : ""}Auszuführende Arbeiten:</span> <b>${euroC(data.services?.sum || 0)}</b></div>
+      <div><span>${isBuKosten ? '<span class="side-num">II</span>' : ""}${matTitle}:</span> <b>${euroC(matSum)}</b></div>
+      ${optSum ? `<div><span>${isBuKosten ? '<span class="side-num">III</span>' : ""}Optionale Produkte:</span> <b>${euroC(optSum)}</b></div>` : ""}
       <div><span>Aufschlag (${aufPct}%${markupNote}):</span> <b>${euroC(data.markup || 0)}</b></div>
       <!-- Off for now: the per-line "ohne Aufschlag" tags already say which
            products are exempt. Re-enable if the summary line is wanted too.
@@ -13180,6 +13496,22 @@ function restoreWorkTasks(dw) {
   }
 }
 
+function restoreBwtArbeiten(bwt) {
+  if (!bwt) return;
+  // Older BWT offers have no workTasks key — leave the HTML default (checked).
+  if (Array.isArray(bwt.workTasks)) {
+    document
+      .querySelectorAll('input[type="checkbox"][name="bwt[workTasks][]"]')
+      .forEach((cb) => {
+        cb.checked = bwt.workTasks.includes(String(cb.value));
+        cb.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+  }
+  if (typeof window.restoreBwtArbeitenExtraTasksFromPayload === "function") {
+    window.restoreBwtArbeitenExtraTasksFromPayload(bwt);
+  }
+}
+
 function restoreWV(wv) {
   if (!wv) return;
   const prev = window.__RESTORING__;
@@ -13661,6 +13993,7 @@ function restoreKundendaten(k, offer) {
   setRadio("parkenMoeglich", k.parkenMoeglich);
   setByNameOrId("parkDetails", k.parkDetails || k.parksituationHinweis);
   setByNameOrId("notes", k.notes);
+  initInternalTodos(k["internalTodos[]"] || k.internalTodos);
   if (typeof window.syncKundendatenExtraFields === "function") {
     window.syncKundendatenExtraFields();
   }
@@ -13987,12 +14320,12 @@ function restoreOptionalPage(opt) {
       cat_GRAB: ["opt_CLPESG30","opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
       cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
       cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
-      cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35"],
+      cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40"],
       cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH", "opt_ONSHB"],
       cat_METER: ["opt_TECEADS"],
       cat_RAMPE: ["opt_RAMPE35"],
       cat_WESGH: ["opt_WESGH"],
-      cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003"],
+      cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003", "opt_CLPWCF10", "opt_WCBF", "opt_CLPSSI"],
       cat_REHA : ["opt_24081000","opt_24081100","opt_24081500","opt_24081600","opt_24081005",
         "opt_24081105", "opt_24081505", "opt_24081605", "opt_25670000", "opt_24081800",
         "opt_24096000", "opt_24097000", "opt_24096240", "opt_19034422", "opt_35035200",
@@ -14157,6 +14490,9 @@ const RESTORE_HANDLERS = {
     typeof restoreRabatt === "function" && restoreRabatt(p?.rabatt),
 
   bwt: (p, ctx) => typeof restoreBwt === "function" && restoreBwt(p?.bwt),
+
+  bwtArbeiten: (p, ctx) =>
+    typeof restoreBwtArbeiten === "function" && restoreBwtArbeiten(p?.bwt),
 
   hl: (p, ctx) => typeof restoreHl === "function" && restoreHl(p?.hl),
   bl: (p, ctx) => typeof restoreBl === "function" && restoreBl(p?.bl),
@@ -14353,6 +14689,7 @@ const RESTORE_HANDLERS = {
             (typeof window.saveFinalOfferSnapshot === "function"
               ? window.saveFinalOfferSnapshot()
               : undefined),
+          saveDraftBeforeSend: async () => window.__draftsManager?.quickSaveCurrentDraft?.({ silent: true }),
           onDealStageMoved: (dealId, offerType) => {
             const stageId =
               String(offerType || "").toLowerCase() === "ah"
@@ -14434,6 +14771,19 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     window.__kleinInAufschlag = p?.pricingRules?.kleinInAufschlag === true;
     window.__kleinAufschlagLegacyOffer = !window.__kleinInAufschlag;
 
+    // BWT Freigrenzen: pin to this offer's own saved snapshot (see RestoreManager.js).
+    const bwtKmSnap = p?.pricingRules?.bwtKmFreeThreshold;
+    const bwtHoursSnap = p?.pricingRules?.bwtTravelTimeFreeHours;
+    window.__bwtKmFreeThreshold = bwtKmSnap != null ? Number(bwtKmSnap) : 200;
+    window.__bwtTravelTimeFreeHours = bwtHoursSnap != null ? Number(bwtHoursSnap) : 2;
+    window.__bwtFreigrenzenLegacyOffer = bwtKmSnap == null && bwtHoursSnap == null;
+
+    // Freeze/lock: pin this offer's own saved state (see RestoreManager.js).
+    window.__frozen = p?.frozen === true;
+    window.__frozenPricing = p?.frozenPricing || null;
+    window.__locked = p?.locked === true;
+    window.applyOfferLockUI?.(window.__locked);
+
     // normalize offerType
     const rawOfferType =
       doc?.offerType ||
@@ -14464,10 +14814,18 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       RESTORE_HANDLERS.Rabatt(p, ctx);
     }
 
-    // Show loaded offer number if present
-    if (offer?.offerNumber) {
+    // Show loaded offer number if present.
+    // Drafts come in as { offerType, payload, draft } from DraftsManager, so there
+    // is no doc.offer to read the number from — fall back to the payload's own
+    // offerNumber. buildPayload() reads this input back (script.js:4239), and
+    // pricing.js uses payload.offerNumber to decide whether an offer was already
+    // quoted: without this, reopening a sent offer via the Entwurf list looked like
+    // a brand-new quote and its Duschabtrennung lines got repriced to today's
+    // supplier price instead of keeping (and reporting) the quoted one.
+    const restoredOfferNumber = offer?.offerNumber || p?.offerNumber || "";
+    if (restoredOfferNumber) {
       const el = document.querySelector("#offerNumber");
-      if (el) el.value = offer.offerNumber;
+      if (el) el.value = restoredOfferNumber;
     }
 
     // ✅ NEW: restore signature pad from payload (drafts/offers)
@@ -14650,7 +15008,13 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     .forEach((el) => dispatchChange(el));
 
   // ===== Recompute pricing =====
-  if (typeof window.updatePricing === "function") {
+  if (p?.frozen && p?.frozenPricing) {
+    window.__pricing = p.frozenPricing;
+    window.dispatchEvent(new CustomEvent("pricing:updated", { detail: p.frozenPricing }));
+    window.updateSummaryWidgetTotal?.(p.frozenPricing.total);
+    window.updateSummaryWidgetSelfPay?.(p.frozenPricing.selfPayAmount);
+    await window.refreshAllPanels?.();
+  } else if (typeof window.updatePricing === "function") {
     const pl =
       p || (typeof buildPayload === "function" ? buildPayload() : null);
     await window.updatePricing(pl);
@@ -16040,10 +16404,10 @@ window.setPricingData = function setPricingData(data) {
       frag.appendChild(document.createTextNode(text));
       return frag;
     };
-    byId("rb-arbeit-label")?.replaceChildren(labelWithNum("I", "Arbeit"));
-    byId("rb-material-label")?.replaceChildren(labelWithNum("II", "Material"));
+    byId("rb-arbeit-label")?.replaceChildren(labelWithNum("I", "Auszuführende Arbeiten"));
+    byId("rb-material-label")?.replaceChildren(labelWithNum("II", "Material für Badumbau"));
     byId("rb-opt-label")?.replaceChildren(
-      labelWithNum("III", "Optional Products"),
+      labelWithNum("III", "Optionale Produkte"),
     );
     const optRow = byId("rb-opt-row");
     if (optRow) {
@@ -16346,6 +16710,9 @@ function initBasinAutoAccessories() {
   const on35 = document.getElementById("opt_ON35");
   const qON35 = document.getElementById("qty_ON35");
 
+  const coair40 = document.getElementById("opt_COAIR40");
+  const qCOAIR40 = document.getElementById("qty_COAIR40");
+
   // Required accessories
   const wtbf = document.getElementById("opt_WTBF");
   const qWT = document.getElementById("qty_WTBF");
@@ -16374,6 +16741,7 @@ function initBasinAutoAccessories() {
     { key: "cl65", cb: cl65, qtyInput: qCL65 },
     { key: "cl55", cb: cl55, qtyInput: qCL55 },
     { key: "on35", cb: on35, qtyInput: qON35 },
+    { key: "coair40", cb: coair40, qtyInput: qCOAIR40 },
   ].filter((b) => b.cb && b.qtyInput);
 
   // ---------- helpers ----------
@@ -16417,61 +16785,28 @@ function initBasinAutoAccessories() {
   };
   const saveState = () => {
     const s = {
-      // each basin gets its own state
-      cl60: { checked: !!cl60.checked, qty: num(qCL60.value, 0) },
-      cl65:
-        cl65 && qCL65
-          ? { checked: !!cl65.checked, qty: num(qCL65.value, 0) }
-          : undefined,
-      cl55:
-        cl55 && qCL55
-          ? { checked: !!cl55.checked, qty: num(qCL55.value, 0) }
-          : undefined,
-      on35:
-        on35 && qON35
-          ? { checked: !!on35.checked, qty: num(qON35.value, 0) }
-          : undefined,
       wtbf: { checked: !!wtbf.checked, qty: num(qWT.value, 0) },
       rsl: { checked: !!rsl.checked, qty: num(qRSL.value, 0) },
       ev: { checked: !!ev.checked, qty: num(qEV.value, 0) },
     };
+    // each basin gets its own state
+    basins.forEach(({ key, cb, qtyInput }) => {
+      s[key] = { checked: !!cb.checked, qty: num(qtyInput.value, 0) };
+    });
     try {
       localStorage.setItem(KEY, JSON.stringify(s));
     } catch {}
   };
   const applyState = (s) => {
-    if (s.cl60) {
-      cl60.checked = !!s.cl60.checked;
-      dispatch(cl60);
-      if (Number.isFinite(s.cl60.qty)) {
-        qCL60.value = String(s.cl60.qty);
-        dispatch(qCL60);
+    basins.forEach(({ key, cb, qtyInput }) => {
+      if (!s[key]) return;
+      cb.checked = !!s[key].checked;
+      dispatch(cb);
+      if (Number.isFinite(s[key].qty)) {
+        qtyInput.value = String(s[key].qty);
+        dispatch(qtyInput);
       }
-    }
-    if (s.cl65 && cl65 && qCL65) {
-      cl65.checked = !!s.cl65.checked;
-      dispatch(cl65);
-      if (Number.isFinite(s.cl65.qty)) {
-        qCL65.value = String(s.cl65.qty);
-        dispatch(qCL65);
-      }
-    }
-    if (s.cl55 && cl55 && qCL55) {
-      cl55.checked = !!s.cl55.checked;
-      dispatch(cl55);
-      if (Number.isFinite(s.cl55.qty)) {
-        qCL55.value = String(s.cl55.qty);
-        dispatch(qCL55);
-      }
-    }
-    if (s.on35 && on35 && qON35) {
-      on35.checked = !!s.on35.checked;
-      dispatch(on35);
-      if (Number.isFinite(s.on35.qty)) {
-        qON35.value = String(s.on35.qty);
-        dispatch(qON35);
-      }
-    }
+    });
     if (s.wtbf) {
       wtbf.checked = !!s.wtbf.checked;
       dispatch(wtbf);
@@ -17318,6 +17653,7 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_CL65", "qty_CL65_wrap");
   wireTileQty("opt_CL55", "qty_CL55_wrap");
   wireTileQty("opt_ON35", "qty_ON35_wrap");
+  wireTileQty("opt_COAIR40", "qty_COAIR40_wrap");
   // ---- METER ----
   wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
   // ---- RAMPE ----
@@ -17401,7 +17737,31 @@ cat_SHOWER: "menu_SHOWER",
         requiredSeatHeight: "erhoeht",
         seatId: "CLSIAS",
       },
+      // Bodenmontage (montage defaults to "Wandmontage" for everything above)
+      {
+        productId: "CLPWCF10",
+        image: "./assets/CLPWCF10.jpg",
+        fallbackName: "Stand-Flachspül-WC clivia V2 plus +10cm Abgang waagerecht weiß",
+        category: "floor",
+        montage: "Bodenmontage",
+      },
+      {
+        productId: "WCBF",
+        image: "./assets/WCBF.jpg",
+        fallbackName: "Befestigungssatz Fischer S 8 RD 80 WCR",
+        category: "floor",
+        montage: "Bodenmontage",
+      },
+      {
+        productId: "CLPSSI",
+        image: "./assets/CLPSSI.jpg",
+        fallbackName: "WC-Sitz clivia V2 plus für Stand-WCs weiß",
+        category: "floor",
+        montage: "Bodenmontage",
+      },
     ];
+
+    const montageOf = (item) => item.montage || "Wandmontage";
 
     function formatEuroInline(value) {
       const num = Number(value);
@@ -17536,6 +17896,7 @@ cat_SHOWER: "menu_SHOWER",
       if (accessories.length) {
         const group = document.createElement("div");
         group.className = "wc-generated-group";
+        group.dataset.montage = "Wandmontage";
         group.style.width = "100%";
         const header = document.createElement("div");
         header.className = "subheader wc-products-subheader";
@@ -17556,6 +17917,7 @@ cat_SHOWER: "menu_SHOWER",
       if (wcs.length) {
         const group = document.createElement("div");
         group.className = "wc-generated-group";
+        group.dataset.montage = "Wandmontage";
         group.style.width = "100%";
         const header = document.createElement("div");
         header.className = "subheader wc-products-subheader";
@@ -17583,6 +17945,27 @@ cat_SHOWER: "menu_SHOWER",
           }
           grid.appendChild(pair);
         }
+        group.appendChild(grid);
+        wallProductsGrid.appendChild(group);
+      }
+
+      // Bodenmontage group
+      const floorProducts = WC_WALL_PRODUCTS.filter(
+        (item) => item.category === "floor",
+      );
+      if (floorProducts.length) {
+        const group = document.createElement("div");
+        group.className = "wc-generated-group";
+        group.dataset.montage = "Bodenmontage";
+        group.style.width = "100%";
+        const header = document.createElement("div");
+        header.className = "subheader wc-products-subheader";
+        header.textContent = "Produkte für Bodenmontage";
+        group.appendChild(header);
+        const grid = document.createElement("div");
+        grid.className = "opt-grid";
+        grid.style.width = "100%";
+        for (const item of floorProducts) grid.appendChild(buildTile(item));
         group.appendChild(grid);
         wallProductsGrid.appendChild(group);
       }
@@ -17871,23 +18254,48 @@ cat_SHOWER: "menu_SHOWER",
       el.style.display = show ? "" : "none";
     }
 
+    // Uncheck every tile of a montage when its group is hidden, so nothing
+    // invisible keeps pricing. on=true only re-applies the qty state, keeping
+    // the user's picks across seat-height changes.
+    function setMontageChecked(montage, on) {
+      WC_WALL_PRODUCTS.filter((item) => montageOf(item) === montage).forEach(
+        (item) => {
+          const cb = document.getElementById(`opt_${item.productId}`);
+          const wrap = document.getElementById(`qty_${item.productId}_wrap`);
+          if (!cb || !wrap) return;
+          if (!on) cb.checked = false;
+          applyGeneratedTileQty(cb, wrap);
+        },
+      );
+    }
+
     function applySeatVisibility() {
       const selectedMontage = document.querySelector('#form-optional input[name="wcMontage"]:checked')?.value || "";
       const showSeat = catWc.checked && selectedMontage === "Wandmontage";
+      const showFloor = catWc.checked && selectedMontage === "Bodenmontage";
 
       setWcGroupVisibility(seatWrap, showSeat);
-      setWcGroupVisibility(wallProductsWrap, showSeat);
+      setWcGroupVisibility(wallProductsWrap, showSeat || showFloor);
 
       if (!showSeat) {
         seatInputs.forEach((input) => {
           input.checked = false;
         });
+      }
+      if (!showSeat && !showFloor) {
         setWallProductsChecked(false);
         return;
       }
 
       ensureWallProductsRendered().then(() => {
         setWcGroupVisibility(wallProductsWrap, true);
+        wallProductsGrid
+          ?.querySelectorAll("[data-montage]")
+          .forEach((group) =>
+            setWcGroupVisibility(group, group.dataset.montage === selectedMontage),
+          );
+        setMontageChecked("Wandmontage", showSeat);
+        setMontageChecked("Bodenmontage", showFloor);
         syncSeatHeightDependentProducts();
         syncExclusiveWcSelection();
       });
@@ -17975,12 +18383,12 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
     cat_GRAB: ["opt_CLPESG30", "opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
     cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
     cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
-    cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35"],
+    cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40"],
     cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH", "opt_ONSHB"],
     cat_METER: ["opt_TECEADS"],
     cat_RAMPE: ["opt_RAMPE35"],
     cat_WESGH: ["opt_WESGH"],
-    cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003"],
+    cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003", "opt_CLPWCF10", "opt_WCBF", "opt_CLPSSI"],
     cat_REHA: [
       "opt_24081000", "opt_24081100", "opt_24081500", "opt_24081600",
       "opt_24081005", "opt_24081105", "opt_24081505", "opt_24081605",
@@ -18020,12 +18428,15 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
 
   // Show/hide "Erforderliches Zubehör" when CL60 is toggled (no cross-panel effects)
   (function wireBasinRequired() {
-    const wt = document.getElementById("opt_CL60");
+    // any basin keeps the required block open, not just CL60
+    const wts = ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40"]
+      .map((id) => document.getElementById(id))
+      .filter(Boolean);
     const reqWrap = document.getElementById("basinRequiredWrap");
-    if (!wt || !reqWrap) return;
+    if (!wts.length || !reqWrap) return;
 
     const apply = () => {
-      const on = !!wt.checked;
+      const on = wts.some((cb) => cb.checked);
       reqWrap.hidden = !on;
       reqWrap.setAttribute("aria-hidden", String(!on));
       if (!on) {
@@ -18051,7 +18462,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
       }
     };
 
-    wt.addEventListener("change", apply);
+    wts.forEach((cb) => cb.addEventListener("change", apply));
     apply();
 
     // Accessory tiles inside required block
@@ -21409,6 +21820,69 @@ async function sendPdfToAuftrag() {
   });
 })();
 
+// ===== Vor Ort unterschreiben: Signatur-Link erzeugen + sofort öffnen =====
+// Reuses the same POST /api/signing flow as the dev-tools link generator
+// above, but skips the email and opens the resulting /sign/:token page
+// directly so the rep can hand the iPad to the customer on the spot.
+(function initSignOnSite() {
+  const btn = document.getElementById("signOnSiteBtn");
+  const statusBox = document.getElementById("signOnSiteStatus");
+  const auftragInput = document.getElementById("auftragId");
+  if (!btn || !statusBox) return;
+
+  function setStatus(msg, type = "info") {
+    statusBox.hidden = false;
+    statusBox.className = "adobe-status " + (type === "error" ? "err" : "ok");
+    statusBox.textContent = msg;
+  }
+
+  btn.addEventListener("click", async () => {
+    if (typeof requireBereichValid === "function" && !requireBereichValid()) return;
+    if (typeof buildPayload !== "function") {
+      setStatus("buildPayload ist nicht verfügbar.", "error");
+      return;
+    }
+
+    const payload = buildPayload();
+    const offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
+    const activeOffer =
+      (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
+      window.activeOffer ||
+      "";
+    const dealId = (auftragInput?.value || "").trim();
+
+    try {
+      btn.disabled = true;
+      setStatus("Öffne Unterschriften-Ansicht …", "info");
+
+      const res = await fetch("/api/signing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payload,
+          offerNumber,
+          offerType: activeOffer,
+          dealId,
+          sendEmail: false,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || `Fehler (${res.status})`);
+
+      window.open(data.link, "_blank");
+      setStatus(
+        `Bereit zum Unterschreiben (${data.customerType}, ${data.documents.length} Dokument(e)). Tablet dem Kunden übergeben.`,
+        "success",
+      );
+    } catch (err) {
+      console.error("signOnSite error:", err);
+      setStatus(err.message || "Fehler beim Öffnen der Unterschriften-Ansicht.", "error");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
+
 // im DOMContentLoaded-Block aufrufen:
 document.addEventListener("DOMContentLoaded", () => {
   // ... dein bisheriger Code ...
@@ -21726,8 +22200,11 @@ function askBeforeGoingHome(onConfirm) {
 
   const toggleSidebar = (open) => {
     if (!sidebar) return;
+    // Never lock scrolling for a drawer that is hidden (e.g. on Hauptmenü)
+    if (open && getComputedStyle(sidebar).display === "none") return;
     sidebar.classList.toggle("open", open);
     backdrop?.classList.toggle("visible", open);
+    openBtn?.setAttribute("aria-expanded", String(!!open));
     if (open) {
       document.body.style.overflow = "hidden";
     } else {
@@ -26020,6 +26497,11 @@ function applyPlanningAppointmentToForm(entry, offerKey){
     startOfferFlow(offerKey || "bu");
   }
 
+  // Taken after startOfferFlow()'s reset bumped it: the background fills below
+  // must not write into a different offer if the user goes back to the
+  // Hauptmenü and starts a new one before they land.
+  const _generation = window.__formGeneration;
+
   setPlanningValue("#firstName", name.firstName || "");
   setPlanningValue("#lastName", name.lastName || "");
   setPlanningValue("#phone", entry?.phone || "");
@@ -26036,6 +26518,7 @@ function applyPlanningAppointmentToForm(entry, offerKey){
   // callback resets #auftragId via the postal manager, so we must win the race.
   const _planningDealId = entry?.importDealId || entry?.contactId || entry?.id || "";
   setTimeout(() => {
+    if (window.__formGeneration !== _generation) return;
     // syncSummaryLeadIds is not in scope here (different IIFE), so set fields directly
     ["auftragId", "mailAuftragId", "postAuftragId"].forEach((id) => {
       const el = document.getElementById(id);
@@ -26078,10 +26561,10 @@ function applyPlanningAppointmentToForm(entry, offerKey){
   // sometimes leaves email/phone/address blank — fetch the linked Bitrix
   // deal/contact ourselves (we already have the IDs) to fill those in.
   // Runs in the background so opening the configurator isn't blocked on it.
-  enrichPlanningAppointmentFromBitrix(entry);
+  enrichPlanningAppointmentFromBitrix(entry, _generation);
 }
 
-async function enrichPlanningAppointmentFromBitrix(entry){
+async function enrichPlanningAppointmentFromBitrix(entry, generation){
   const dealId = entry?.importDealId || "";
   const contactId = entry?.contactId || "";
   if (!dealId && !contactId) return;
@@ -26099,6 +26582,8 @@ async function enrichPlanningAppointmentFromBitrix(entry){
       if (res.ok) contact = data?.result || null;
     }
     if (!contact) return;
+    // Reset while we were fetching → this data belongs to a previous offer.
+    if (window.__formGeneration !== generation) return;
 
     const honorificId = String(
       contact?.HONORIFIC?.STATUS_ID ?? contact?.HONORIFIC ?? contact?.HONORIFIC_ID ?? "",

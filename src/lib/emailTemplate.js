@@ -23,7 +23,11 @@ export function formatInlineHtml(text) {
     /\b((?:https?:\/\/|www\.)[^\s<]+)\b/gi,
     (match) => {
       const href = /^https?:\/\//i.test(match) ? match : `https://${match}`;
-      return `<a href="${escapeHtml(href)}" style="color:#00a86b;text-decoration:none;">${match}</a>`;
+      // The online-signing link gets a descriptive label instead of the raw URL.
+      const linkText = /\/sign\//.test(match)
+        ? "&gt;&gt; Jetzt weitere Angaben erfassen (hier klicken) &lt;&lt;"
+        : match;
+      return `<a href="${escapeHtml(href)}" style="color:#00a86b;text-decoration:none;">${linkText}</a>`;
     }
   );
 }
@@ -177,7 +181,7 @@ export function buildEmailHtml(
   return `<!DOCTYPE html>
 <html lang="de">
   <body style="margin:0;padding:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#364047;">
-    <div style="max-width:640px;margin:0 auto;padding:24px 20px 12px 20px;">
+    <div style="max-width:640px;margin:0;padding:24px 20px 12px 20px;">
       ${renderBodyHtmlFromText(body)}
       <p style="margin:0 0 8px 0;line-height:1.55;color:#364047;font-size:16px;">--</p>
       <p style="margin:0 0 24px 0;line-height:1.55;color:#364047;font-size:16px;">Freundliche Grüße</p>

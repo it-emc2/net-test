@@ -52,19 +52,19 @@ export function paymentOptionsFor(customerType) {
 
 const BASE_CSS = `
   * { box-sizing: border-box; }
-  body { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 12pt; line-height: 1.5; margin: 0; }
-  h1 { font-size: 18pt; margin: 0 0 6px; }
-  h2 { font-size: 13pt; margin: 20px 0 8px; background: #ddd; border: 1px solid #000; padding: 5px 8px; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 11pt; line-height: 1.35; margin: 0; }
+  h1 { font-size: 16pt; margin: 0 0 6px; }
+  h2 { font-size: 12pt; margin: 12px 0 6px; background: #ddd; border: 1px solid #000; padding: 4px 8px; }
   .muted { color: #333; }
-  .row { margin: 4px 0; }
+  .row { margin: 3px 0; display: flex; gap: 8px; }
   .label { color: #333; font-size: 10pt; }
-  .box { border: 1px solid #000; padding: 12px 14px; margin: 10px 0; }
-  .opt { margin: 6px 0; font-size: 12pt; }
-  .sig-img { max-width: 320px; max-height: 140px; display: block; margin: 6px 0; }
-  .sig-line { border-top: 1px solid #000; width: 320px; margin-top: 4px; padding-top: 4px; font-size: 10pt; color: #333; }
-  .audit { margin-top: 26px; font-size: 8.5pt; color: #555; border-top: 1px solid #000; padding-top: 8px; }
-  .dochead { text-align: right; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px; }
-  .dochead img { height: 88px; width: auto; }
+  .box { border: 1px solid #000; padding: 8px 12px; margin: 6px 0; }
+  .opt { margin: 4px 0; font-size: 11pt; }
+  .sig-img { max-width: 180px; max-height: 65px; display: block; margin: 4px 0; }
+  .sig-line { border-top: 1px solid #000; width: 260px; margin-top: 4px; padding-top: 3px; font-size: 9.5pt; color: #333; }
+  .audit { margin-top: 12px; font-size: 8pt; color: #555; border-top: 1px solid #000; padding-top: 5px; }
+  .dochead { text-align: right; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 8px; }
+  .dochead img { height: 44px; width: auto; }
 `;
 
 // Logo header for the Vollmacht/Abtretung documents.
@@ -79,9 +79,40 @@ function effectivePrefill(sr, doc) {
   return Object.assign({}, sr.prefill || {}, doc?.editedFields || {});
 }
 
+// Fields required on the Vollmacht / Abtretung documents (every field shown
+// must be filled in before signing) — used for both the client-side check
+// (signpage/app.js, kept in sync manually since that file isn't a module)
+// and the server-side check below.
+export const VOLLMACHT_REQUIRED_FIELDS = [
+  ["lastName", "Nachname"],
+  ["firstName", "Vorname"],
+  ["street", "Straße"],
+  ["postalCode", "PLZ"],
+  ["city", "Ort"],
+  ["phone", "Telefon"],
+  ["geburtsdatum", "Geburtsdatum"],
+  ["kassenkundeName", "Krankenkasse"],
+  ["kk_versichertennr", "KVNR"],
+];
+export const ABTRETUNG_REQUIRED_FIELDS = [
+  ["lastName", "Nachname"],
+  ["firstName", "Vorname"],
+  ["geburtsdatum", "Geburtstag"],
+  ["kk_versichertennr", "Vers.-Nr."],
+  ["street", "Straße"],
+  ["postalCode", "PLZ"],
+  ["city", "Ort"],
+  ["phone", "Telefon"],
+  ["email", "E-Mail"],
+  ["pflegegrad", "Pflegegrad"],
+  ["kk_pflegegradSeit", "Pflegegrad seit"],
+  ["kassenkundeName", "Name der Pflegekasse"],
+  ["kk_krankenkasseAdresse", "Adresse der Pflegekasse"],
+];
+
 // Resolve all Vollmacht/Abtretung fields: customer edits (doc.editedFields)
 // override the snapshot (prefill for contact data, Kundendaten for Kasse data).
-function resolveFields(sr, doc) {
+export function resolveFields(sr, doc) {
   const p = sr.prefill || {};
   const k = sr.payloadSnapshot?.Kundendaten || {};
   const e = doc?.editedFields || {};
@@ -112,18 +143,26 @@ function fld(label, key, value, mode, locked = true) {
   return `<div class="fld"><span class="fld-label">${label}</span><input type="text" data-edit-field="${key}" value="${esc(value)}"${locked ? " disabled" : ""}></div>`;
 }
 
+const PFLEGEGRAD_GRADES = [
+  { value: "1", label: "1" },
+  { value: "2", label: "2" },
+  { value: "3", label: "3" },
+  { value: "4", label: "4" },
+  { value: "5", label: "5" },
+  { value: "beantragt", label: "beantragt" },
+];
+
 function pflegegradField(value, mode) {
-  const grades = ["1", "2", "3", "4", "5"];
   if (mode === "pdf") {
-    const marks = grades.map((g) => `${g === String(value) ? "☒" : "☐"} ${g}`).join(" &nbsp; ");
+    const marks = PFLEGEGRAD_GRADES.map(
+      (g) => `${g.value === String(value) ? "☒" : "☐"} ${g.label}`,
+    ).join(" &nbsp; ");
     return `<div class="row"><span class="label">Pflegegrad:</span><span>${marks}</span></div>`;
   }
-  return `<div class="fld"><span class="fld-label">Pflegegrad:</span><span class="pg-opts">${grades
-    .map(
-      (g) =>
-        `<label><input type="radio" name="pflegegrad" value="${g}"${g === String(value) ? " checked" : ""} disabled> ${g}</label>`,
-    )
-    .join("")}</span></div>`;
+  return `<div class="fld"><span class="fld-label">Pflegegrad:</span><span class="pg-opts">${PFLEGEGRAD_GRADES.map(
+    (g) =>
+      `<label><input type="radio" name="pflegegrad" value="${g.value}"${g.value === String(value) ? " checked" : ""} disabled> ${g.label}</label>`,
+  ).join("")}</span></div>`;
 }
 
 function editButton() {
@@ -310,9 +349,14 @@ const ANGEBOT_CSS = `
 .ang .matsub { font-weight:bold; margin:12px 0 4px; }
 .ang .matline { margin:2px 0; padding-left:2px; }
 .ang .totals { width:auto; margin-left:auto; min-width:300px; border-collapse:collapse; }
+.ang .totals + .totals { margin-top:14px; }
 .ang .totals td { padding:5px 8px; }
 .ang .totals td.num { text-align:right; white-space:nowrap; }
-.ang .totals tr.alt td { font-weight:bold; border-top:1px solid #000; }
+.ang .totals tr.alt td { border-top:1px solid #000; }
+.ang .totals tr.gesamtsumme td { font-weight:bold; font-size:12pt; }
+.ang .totals tr.eigenanteil td { font-weight:bold; font-size:12pt; background:#e5f0fc; border:2px solid #0066cc; border-top:2px solid #0066cc; }
+.ang .totals tr.eigenanteil td:first-child { border-right:none; }
+.ang .totals tr.eigenanteil td:last-child { border-left:none; }
 .ang .pay .opt { margin:5px 0; }
 .ang .sig-img { max-width:300px; max-height:130px; display:block; margin:6px 0; }
 .ang .hinweise { margin:16px 0; }
@@ -393,7 +437,7 @@ function festpreisBlock(d) {
   }
   if (isKK && d.hasSubsidyLine) {
     out.push(
-      `<p>Der Selbstkostenanteil beträgt ${esc(d.SelbstkostenanteilFmt || "")} unter Berücksichtigung eines gewährten Zuschusses durch die Pflegekasse i.H.v. ${esc(d.Zuschusskrankenkasse || "")}.</p>`,
+      `<p>Der Eigenanteil beträgt ${esc(d.SelbstkostenanteilFmt || "")} unter Berücksichtigung eines gewährten Zuschusses durch die Pflegekasse i.H.v. ${esc(d.Zuschusskrankenkasse || "")}.</p>`,
     );
   }
   return `<div class="hinweise">${out.join("")}</div>`;
@@ -427,14 +471,28 @@ export function buildAngebotHtml(data, opts = {}) {
   const d = data || {};
 
   const totals = Array.isArray(d.Totals) ? d.Totals : [];
-  const totalsTable = totals.length
-    ? `<table class="totals"><tbody>${totals
-        .map(
-          (t) =>
-            `<tr class="${t.isAlt ? "alt" : ""}"><td>${esc(t.label || "")}</td><td class="num">${esc(t.value || "")}</td></tr>`,
-        )
-        .join("")}</tbody></table>`
-    : "";
+  const renderTotalsRows = (rows) =>
+    rows
+      .map((t) => {
+        const rowClass = [
+          t.isAlt ? "alt" : "",
+          t.isGesamtsumme ? "gesamtsumme" : "",
+          t.isEigenanteil ? "eigenanteil" : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+        return `<tr class="${rowClass}"><td>${esc(t.label || "")}</td><td class="num">${esc(t.value || "")}</td></tr>`;
+      })
+      .join("");
+  const renderTotalsTable = (rows) =>
+    rows.length ? `<table class="totals"><tbody>${renderTotalsRows(rows)}</tbody></table>` : "";
+
+  // Nettobetrag/MwSt/Gesamtsumme in one table; Zuschuss/Eigenanteil (KK only)
+  // in a second table below, with a gap between them.
+  const baseTotalsRows = totals.filter((t) => !t.isSubsidyRow);
+  const subsidyTotalsRows = totals.filter((t) => t.isSubsidyRow);
+  const totalsTable =
+    renderTotalsTable(baseTotalsRows) + renderTotalsTable(subsidyTotalsRows);
 
   // Payment + signature live INSIDE the document. In 'display' mode they are
   // interactive (radios + signature pad); in 'pdf' mode they are baked in.

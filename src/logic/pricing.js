@@ -29,15 +29,19 @@ const WV_COLOR_ARTICLE = {
   "stein beige": { "997x2550": "V3WVK01", "1497x2550": "V3WV01" },
   "aragon grau": { "997x2550": "V3WVK22", "1497x2550": "V3WV22" },
   "stein grau": { "997x2550": "V3WVK02", "1497x2550": "V3WV02" },
-  "beton grau": { "997x2550": "V3WVK31", "1497x2550": "V3WV31" },
-  "beton grau metallic": { "997x2550": "V3WVK30", "1497x2550": "V3WV30" }, // Beton grau-metallic
   "aragon anthrazit": { "997x2550": "V3WVK21", "1497x2550": "V3WV21" },
   "schiefer grau": { "997x2550": "V3WVK08", "1497x2550": "V3WV08" },
   "schwarzwaldeiche hell": { "997x2550": "V3WVK23", "1497x2550": "V3WV23" },
   "stein anthrazit": { "997x2550": "V3WVK03", "1497x2550": "V3WV03" },
-  "metall oxydant": { "997x2550": "V3WVK10", "1497x2550": "V3WV10" },
+  "kalkstein natur": { "997x2550": "V3WVK05", "1497x2550": "V3WV05" },
+  "aragon schwarz": { "997x2550": "V3WVK20", "1497x2550": "V3WV20" },
   "sonderdekor": { "997x2550": "V3WVK999", "1497x2550": "V3WV999" }, // Wunschdekor nach Vorlage
 };
+
+// Colors billed by their own color-specific article (they have a real priced
+// row in the internal Products collection); every other mapped color still
+// bills through the shared 997x2550-size default until it's added there too.
+const WV_PRICED_COLORS = new Set(["marmor weiß", "kalkstein natur", "aragon schwarz"]);
 
 function normalizeWvColorKey(color) {
   return String(color || "")
@@ -65,6 +69,7 @@ function resolveWvArticle(size, colorDisplay, explicitPid, fallbackPid) {
 export const NO_MARKUP_IDS = new Set([
   "DUSCHKORB01", // Duschkorb ohne Bohren, Edelstahl Silber
   "78090000", // Duschhocker mit Soft-Drehsitz und Ablage, max 150 kg
+  "140322", // Lieferkosten Badewannentür — logistics fee, not Hassmann material
 ]);
 
 export default (ProductModel) => {
@@ -336,7 +341,7 @@ function grossToNet(gross, taxRate) {
       opt.qty_CLPESG30 || opt.qty_CLPESG40 || opt.qty_CLPESG60 || opt.qty_CLPESG80,
     );
     const fold = chosen(opt["optFold[]"], opt.qty_DEPSKG60 || opt.qty_DEPSKG85);
-    const basin = chosen(opt["optBasin[]"], opt.qty_CL60);
+    const basin = chosen(opt["optBasin[]"], opt.qty_CL60 || opt.qty_COAIR40);
     const tap = chosen(opt["optBasinTap[]"], opt.qty_CL_BASIN || opt.qty_DEPOH || opt.qty_ONSHB);
     const thermo = chosen(
       opt["optThermo[]"],
@@ -690,10 +695,12 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
   const base = `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`;
   const label = display ? `${base} — Farbe: ${display}` : base;
 
-  // Pricing stays on the size default (only V3WVK09 exists in the DB); the
-  // color-specific article number is carried for the Hassmann CSV only.
+  // Pricing stays on the size default unless the color has a real priced row
+  // in the internal Products collection (WV_PRICED_COLORS); the mapped
+  // color-specific article number is always carried for the Hassmann CSV.
   const article997 = resolveWvArticle("997x2550", display, pid, "V3WVK09");
-  add(pid || "V3WVK09", qty997, label, null, null, {
+  const priced997 = WV_PRICED_COLORS.has(normalizeWvColorKey(display)) ? article997 : "V3WVK09";
+  add(pid || priced997, qty997, label, null, null, {
     color: display,
     hassmannArticle: article997,
   });
@@ -708,7 +715,8 @@ if (qty1497 > 0) {
   const label = display ? `${base} — Farbe: ${display}` : base;
 
   const article1497 = resolveWvArticle("1497x2550", display, pid, "V3WV09");
-  add(pid || "V3WV09", qty1497, label, null, null, {
+  const priced1497 = WV_PRICED_COLORS.has(normalizeWvColorKey(display)) ? article1497 : "V3WV09";
+  add(pid || priced1497, qty1497, label, null, null, {
     color: display,
     hassmannArticle: article1497,
   });
@@ -730,7 +738,8 @@ const addExtras = (rows, panelLabel, size, defaultPid) => {
     const base = `- ${q} Stk Wandverkleidung 3.0 Alu ${panelLabel}`;
     const label = display ? `${base} — Farbe: ${display}` : base;
     const article = resolveWvArticle(size, display, pid, defaultPid);
-    add(pid || defaultPid, q, label, null, null, {
+    const priced = WV_PRICED_COLORS.has(normalizeWvColorKey(display)) ? article : defaultPid;
+    add(pid || priced, q, label, null, null, {
       color: display,
       hassmannArticle: article,
     });
@@ -790,7 +799,10 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
         // if user did not enter a valid value, fall back to Abschlussprofil qty
         qSilikon = qtyAbschlussprofil;
       }
-      if (qSilikon > 0) add("2000302", qSilikon);
+      if (qSilikon > 0) {
+        setCat("Kleinmaterial");
+        add("2000302", qSilikon);
+      }
     }
     setCat(null);
     // ------- BWT · Badewannentür materials -------
@@ -1604,28 +1616,23 @@ color: metaColor || null,
     const travelDays = Number.isFinite(travelDaysRaw)
       ? Math.max(0, travelDaysRaw)
       : 1;
+    // Freigrenzen (km/Reisezeit): buildPayload() snapshots the admin-config
+    // value that was live at save time into pricingRules (see script.js).
+    // If the admin later tightens/removes the free allowance, offers already
+    // saved keep the number they were quoted with instead of silently
+    // repricing on reopen. A payload with no snapshot predates this
+    // mechanism entirely — those keep the historical 200 km / 2 h that has
+    // always applied, NOT whatever the admin has configured right now.
+    const pr = payload?.pricingRules || {};
+    const kmFreeThreshold = pr.bwtKmFreeThreshold != null
+      ? Number(pr.bwtKmFreeThreshold)
+      : 200;
+
     const oneWayKm = Number(b.distanceKm || 0) || 0;
     const roundTripKm = Math.max(0, oneWayKm * 2 * travelDays);
-    const billedKm = Math.max(0, roundTripKm - cfg.get('BWT_KM_FREE_THRESHOLD', 200));
+    const billedKm = Math.max(0, roundTripKm - kmFreeThreshold);
     const kmRate = cfg.get('KM_RATE', 0.35);
     const kmAmount = round2(billedKm * kmRate);
-
-    const reise_hours_numeric = Number(b.ReiseHoursNumeric ?? 0) || 0;
-
-    // Reisezeit for bwt
-    const bwt_reise_Rate = cfg.get('LABOR_RATE_BWT', 79.5);
-    const bwt_handwerkerCount = cfg.get('BWT_WORKER_COUNT', 1);
-    const billed_reise_zeit = Math.max(0, reise_hours_numeric - cfg.get('BWT_TRAVEL_TIME_FREE_HOURS', 2));
-    const reise_ampunt_zeit = round2(
-      billed_reise_zeit * bwt_reise_Rate * bwt_handwerkerCount,
-    );
-
-    const bwt_reise_amount = reise_ampunt_zeit + kmAmount;
-
-    console.log("reise_hours_numeric ", reise_hours_numeric);
-    console.log("billed_reise_zeit ", billed_reise_zeit);
-    console.log("reise_ampunt_zeit ", reise_ampunt_zeit);
-    console.log("kmAmount ", kmAmount);
 
     // door quantity: sum of ALL BWT door variants, only real qty > 0
     const rawDoorQty =
@@ -1640,40 +1647,77 @@ color: metaColor || null,
 
     const out = [];
 
-    // 1) Kilometerpauschale (already reduced to >200km)
-    if (bwt_reise_amount > 0) {
+    // Same four lines BU shows (Fahrzeugbereitstellung/Werkzeug/Beräumung
+    // priced per Arbeitstag — same config keys computeServiceCosts() uses),
+    // plus BWT's own Kilometerpauschale/Facharbeiter/Reisezeit math below.
+    const workDays = Number(b.workDays ?? 0) || 0;
+    const formatQty = (n) => Number(n || 0).toFixed(2).replace(".", ",");
+    if (workDays > 0) {
+      const fahrzeugbereitstellung = cfg.get('FAHRZEUGBEREITSTELLUNG', 80.0);
+      const werkzeug = cfg.get('WERKZEUG', 7.5);
+      const beraeumung = cfg.get('BERAEUMUNG', 4.5);
       out.push({
-        key: "bwt_km",
-        label: `- ${roundTripKm} km Kilometerpauschale + Reisezeit`,
+        key: "fahrzeug",
+        label: `- ${formatQty(workDays)} Stk Fahrzeugbereitstellung`,
+        qty: workDays,
+        unitPrice: round2(fahrzeugbereitstellung),
+        lineTotal: round2(fahrzeugbereitstellung * workDays),
+      });
+      out.push({
+        key: "werkzeuge",
+        label: `- ${formatQty(workDays)} Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen`,
+        qty: workDays,
+        unitPrice: round2(werkzeug),
+        lineTotal: round2(werkzeug * workDays),
+      });
+      out.push({
+        key: "beraeumung",
+        label: `- ${formatQty(workDays)} Stk Beräumung der Baustelle`,
+        qty: workDays,
+        unitPrice: round2(beraeumung),
+        lineTotal: round2(beraeumung * workDays),
+      });
+    }
+
+    // Kilometerpauschale (already reduced by the free-km threshold) — its own
+    // line, not combined with Reisezeit.
+    if (kmAmount > 0) {
+      out.push({
+        key: "kilometer",
+        label: `- ${roundTripKm} km Kilometerpauschale`,
         qty: 1,
-        unitPrice: bwt_reise_amount,
-        lineTotal: bwt_reise_amount,
+        unitPrice: kmAmount,
+        lineTotal: kmAmount,
       });
     }
 
-    // 1b) Arbeitszeit (Facharbeiter) – same math as computeServiceCosts()
-    const arbeit_hours_numeric = Number(b.ArbeitHoursNumeric ?? 0) || 0;
-    if (arbeit_hours_numeric > 0 && bwt_reise_Rate > 0) {
-      const arbeitUnit = round2(bwt_handwerkerCount * bwt_reise_Rate);
-      const arbeitQtyStr = arbeit_hours_numeric.toFixed(2).replace(".", ",");
-      out.push({
-        key: "facharbeiter",
-        label: `- ${arbeitQtyStr} Std Arbeitszeit × ${bwt_handwerkerCount} Facharbeiter × ${String(bwt_reise_Rate).replace(".", ",")} €`,
-        qty: arbeit_hours_numeric,
-        unit: "Std",
-        unitPrice: arbeitUnit,
-        lineTotal: round2(arbeit_hours_numeric * arbeitUnit),
-      });
-    }
+    // Labor only (Kilometerpauschale/Reisezeit, Facharbeiter). Lieferkosten,
+    // Tür and Kleinmaterial are genuine materials — computeBwtMaterialExtras
+    // below builds those as priced material lines instead.
+    return out;
+  }
 
-    // If no door selected (qty 0 or no type), skip Lieferkosten / Tür / Kleinmaterial
-    if (!hasDoor) {
-      return out;
-    }
+  // Lieferkosten Badewannentür (140322) + Kleinmaterial (KM02) as priced
+  // material-line objects — same shape computeMaterials produces, so callers
+  // can push them straight into materials.lines / materials.sum.
+  async function computeBwtMaterialExtras(payload) {
+    const offer = getActiveOffer(payload);
+    if (offer !== "bwt") return [];
+
+    const bwt = payload?.bwt || {};
+
+    const rawDoorQty =
+      (Number(bwt?.bwtDoorStdQty || 0) || 0) +
+      (Number(bwt?.bwtDoorBudgetQty || 0) || 0) +
+      (Number(bwt?.bwtDoorIndWienGlasQty || 0) || 0) +
+      (Number(bwt?.bwtDoorVariodoorQty || 0) || 0) +
+      (Number(bwt?.bwtDoorIndWienQty || 0) || 0);
+
+    const doorQty = rawDoorQty > 0 ? rawDoorQty : 0;
+    if (doorQty <= 0) return [];
 
     const qtyStr = doorQty.toFixed(2).replace(/\.00$/, "");
 
-    // fetch unit prices for Lieferkosten + Kleinmaterial
     const ids = ["140322", "KM02"];
     const map = await getProductsByIds(ids);
 
@@ -1684,57 +1728,29 @@ color: metaColor || null,
     );
     const kleinPrice = Number(map.get("KM02")?.price || 0);
 
-    // 2) Lieferkosten Badewannentür (real price from DB)
+    const out = [];
+
     if (lieferPrice > 0) {
       out.push({
-        key: "140322",
-        label: `- ${qtyStr} Stk Lieferkosten Badewannentür`,
+        productId: "140322",
+        name: map.get("140322")?.name || "Lieferkosten Badewannentür",
         qty: doorQty,
         unitPrice: lieferPrice,
         lineTotal: round2(lieferPrice * doorQty),
+        label: `- ${qtyStr} Stk Lieferkosten Badewannentür`,
+        category: "Kleinmaterial",
       });
     }
 
-    // 3) Universal / Standard Tür (price forced to 0 here – already counted in materials)
-    // --- which door variants are selected? ---
-    const DOOR_VARIANTS = [
-      { key: "bwtDoorStdQty", label: "Universal / Standard Tür" },
-      { key: "bwtDoorBudgetQty", label: "Budget Tür" },
-      { key: "bwtDoorIndWienGlasQty", label: "Individuelle Tür Wien Glas" },
-      { key: "bwtDoorVariodoorQty", label: "Variodoor" },
-      { key: "bwtDoorIndWienQty", label: "Individuelle Tür Wien" },
-    ];
-
-    const doorLabelParts = [];
-    for (const v of DOOR_VARIANTS) {
-      const q = Number(bwt?.[v.key] || 0) || 0;
-      if (q > 0) doorLabelParts.push(v.label);
-    }
-
-    let doorLabelText = "Badewannentür";
-    if (doorLabelParts.length === 1) {
-      doorLabelText = doorLabelParts[0];
-    } else if (doorLabelParts.length > 1) {
-      doorLabelText = doorLabelParts.join(", ");
-    }
-
-    // 3) Tür (price forced to 0 here – already counted in materials)
-    out.push({
-      key: "",
-      label: `- ${qtyStr} Stk ${doorLabelText}`,
-      qty: doorQty,
-      unitPrice: 0,
-      lineTotal: 0,
-    });
-
-    // 4) Kleinmaterial (real price from DB)
     if (kleinPrice > 0) {
       out.push({
-        key: "km02",
-        label: `- ${qtyStr} Stk Kleinmaterial`,
+        productId: "KM02",
+        name: map.get("KM02")?.name || "Kleinmaterial",
         qty: doorQty,
         unitPrice: kleinPrice,
         lineTotal: round2(kleinPrice * doorQty),
+        label: `- ${qtyStr} Stk Kleinmaterial`,
+        category: "Kleinmaterial",
       });
     }
 
@@ -1743,6 +1759,13 @@ color: metaColor || null,
 
   return {
     computePrices: async (payload) => {
+      // Frozen offer: return the pinned snapshot verbatim, skipping every
+      // live config/product/Vigor-DB lookup below, so a saved offer's price
+      // never drifts when rates/products change later.
+      if (payload?.frozen === true && payload?.frozenPricing) {
+        return JSON.parse(JSON.stringify(payload.frozenPricing));
+      }
+
       // AH, HMS, WD compute pricing client-side — return empty shell to avoid BU fallback
       const _offerKey = String(
         payload?.activeOffer || payload?.currentOfferKey || payload?.offerType || ""
@@ -1802,17 +1825,36 @@ color: metaColor || null,
         payload?.offerType ||
         "bu";
 
-      // --- BWT: Enthält-je-Einheit rows with real prices ---
+      // --- BWT: Enthält-je-Einheit rows with real prices (labor only — the
+      // "Auszuführende Arbeiten" position) ---
       let bwtIncludedDisplayUI = [];
+      // --- BWT: Lieferkosten + Kleinmaterial as priced material lines (the
+      // "Material für Badewannentür" position) ---
+      let bwtMaterialExtrasTotal = 0;
       if (offer === "bwt") {
         try {
           bwtIncludedDisplayUI = await computeBwtIncludedLines(payload);
         } catch (e) {
           console.error("[pricing] computeBwtIncludedLines failed:", e);
         }
+
+        try {
+          const extras = await computeBwtMaterialExtras(payload);
+          for (const line of extras) {
+            materials.lines.push(line);
+            materials.sum = round2((materials.sum || 0) + line.lineTotal);
+            bwtMaterialExtrasTotal = round2(bwtMaterialExtrasTotal + line.lineTotal);
+          }
+        } catch (e) {
+          console.error("[pricing] computeBwtMaterialExtras failed:", e);
+        }
+
+        // Service lines shown under "Auszuführende Arbeiten" are the BWT labor
+        // rows, not whatever computeServiceCosts produced generically.
+        services.lines = bwtIncludedDisplayUI;
       }
 
-      // --- BWT: Summe Leistungen aus den 4 BWT-Zeilen + Extra Arbeitszeit ---
+      // --- BWT: Summe Leistungen aus den BWT-Leistungszeilen + Extra Arbeitszeit ---
       let bwtLeistungenSum = 0;
       if (
         offer === "bwt" &&
@@ -2154,7 +2196,14 @@ try {
       const base_total = round2(baseSubtotal + baseVat);
       // --- Rabatt on MATERIAL only (percent from payload.rabatt.materialDiscountPct) ---
       const materialPct = Number(payload?.rabatt?.materialDiscountPct || 0); // 0..0.09
-      const rabattAmount = round2((productsSubtotal || 0) * materialPct);
+      // BWT: Lieferkosten + Kleinmaterial live in materials.lines (for PDF/UI
+      // display), but they're a delivery fee/consumable, not discountable
+      // material — same price behavior as before they were reclassified.
+      const rabattBase =
+        offer === "bwt"
+          ? Math.max(0, (productsSubtotal || 0) - bwtMaterialExtrasTotal)
+          : productsSubtotal || 0;
+      const rabattAmount = round2(rabattBase * materialPct);
 
       // VAT is applied AFTER discount on net amount:
       const netAfterRabatt = round2((baseSubtotal || 0) - rabattAmount);

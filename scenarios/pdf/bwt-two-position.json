@@ -1,0 +1,46 @@
+{
+  "_note": "BWT two-position layout (Auszuführende Arbeiten / Material für Badewannentür), mirroring BU's Angebot structure. _computed values below are copied from a real pricing.computePrices() run (see PR description) so this fixture works without a DB connection, like the other scenarios/pdf fixtures.",
+  "activeOffer": "bwt",
+  "Kundendaten": {
+    "salutation": "Herr", "firstName": "Max", "lastName": "Mustermann",
+    "street": "Musterstraße 1", "postalCode": "12345", "city": "Musterstadt",
+    "payer": "Selbstzahler", "aufschlag": "35%",
+    "date": "2026-07-28"
+  },
+  "Arbeitszeit": {
+    "distanceKm": 30,
+    "extraTasks": [{ "task": "AZ-Zusatzaufgabe aus Arbeitszeit", "durationHHMM": "01:00" }]
+  },
+  "bwt": {
+    "workTasks": ["deliver_install_bwt_door"],
+    "extraTasks": ["Demontage der alten Duschabtrennung", "Silikonfugen erneuern"]
+  },
+  "duschwanne": {}, "wandverkleidung": {}, "duschabtrennung": {},
+  "optional": {}, "rabatt": {}, "hl": {}, "pricing": {},
+  "_computed": {
+    "services": {
+      "sum": 556.5,
+      "lines": [
+        { "key": "bwt_km", "label": "- 60 km Kilometerpauschale + Reisezeit", "qty": 1, "unitPrice": 79.5, "lineTotal": 79.5 },
+        { "key": "facharbeiter", "label": "- 6,00 Std Arbeitszeit × 1 Facharbeiter × 79,5 €", "qty": 6, "unitPrice": 79.5, "lineTotal": 477 }
+      ]
+    },
+    "servicesDisplayDocx": {
+      "lines": [
+        { "key": "bwt_km", "label": "- 60 km Kilometerpauschale + Reisezeit", "qty": 1, "unitPrice": 79.5, "lineTotal": 79.5 },
+        { "key": "facharbeiter", "label": "- 6,00 Std Arbeitszeit × 1 Facharbeiter × 79,5 €", "qty": 6, "unitPrice": 79.5, "lineTotal": 477 }
+      ]
+    },
+    "materialsDisplayDocx": {
+      "lines": [
+        { "productId": "1226", "qty": 1, "unitPrice": 860, "lineTotal": 860, "label": "- 1 Stk Universal / Standard Tür — Farbe: Weiß" },
+        { "productId": "140322", "qty": 1, "unitPrice": 59, "lineTotal": 59, "label": "- 1 Stk Lieferkosten Badewannentür" },
+        { "productId": "KM02", "qty": 1, "unitPrice": 150, "lineTotal": 150, "label": "- 1 Stk Kleinmaterial" }
+      ]
+    },
+    "material_plus_aufschlag": 1327,
+    "netAfterRabatt_and_Bonus": 1883.5,
+    "vatOnNet": 357.87,
+    "total": 2241.37
+  }
+}

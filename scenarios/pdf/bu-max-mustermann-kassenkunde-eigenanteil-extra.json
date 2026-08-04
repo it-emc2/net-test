@@ -1,0 +1,68 @@
+{
+  "_note": "BU/Kassenkunde, 1-Personen-Zuschuss (4.180 €) deckt die Gesamtsumme NICHT vollständig → Eigenanteil > 0 (Kunde zahlt drauf). Sonst identisch zum eigenanteil-0-Fixture.",
+  "activeOffer": "bu",
+  "Kundendaten": {
+    "salutation": "Herr", "firstName": "Max", "lastName": "Mustermann",
+    "street": "Musterstraße 1", "postalCode": "12345", "city": "Musterstadt",
+    "payer": "Kassenkunde", "budgetOption": "4180 maximal", "aufschlag": "35%",
+    "date": "2026-07-28", "wohnumfeld": { "done": false, "amount": 0 }
+  },
+  "services": { "title": "Auszuführende Arbeiten", "sum": 1927.74, "payer": "Kassenkunde" },
+  "materials": { "title": "Material für Badumbau" },
+  "Arbeitszeit": { "distanceKm": 0, "totalHoursNumeric": 20, "ArbeitHoursNumeric": 20, "ReiseHoursNumeric": 0 },
+  "duschwanne": {}, "wandverkleidung": {}, "duschabtrennung": {},
+  "optional": {}, "rabatt": {}, "bwt": {}, "hl": {}, "pricing": {},
+  "_computed": {
+    "total": 8181.12,
+    "netAfterRabatt_and_Bonus": 6874.89,
+    "Nettobetrag": 6874.89,
+    "vatOnNet": 1306.23,
+    "subsidyAmount": 4180,
+    "subsidyAmount_max": 4180,
+    "selfPayAmount": 4001.12,
+    "material_plus_aufschlag": 4947.15,
+    "servicesDisplayDocx": {
+      "lines": [
+        { "label": "- Verkleidung deckenhoch aller Bad-Wände" },
+        { "label": "- Anbringen zusätzlicher Haltegriffe" },
+        { "label": "- Entfernen und Entsorgen der Badewanne inkl. Befliesung" },
+        { "label": "- Einbau der Duschwanne" },
+        { "label": "- Einbau der Duschabtrennung" },
+        { "label": "- Auswechseln des Duschsystems inkl. Aufputz-Thermostat" },
+        { "label": "- Entfernen und Entsorgen eines Waschbeckens" },
+        { "label": "- Einbau eines Waschbeckens" },
+        { "label": "- Entfernen und Entsorgen einer Toilette" },
+        { "label": "- Einbau einer Toilette" },
+        { "label": "- Bauseits wird temporär der Heizkörper entfernt, während des Badumbaus durch emc2, damit können wir die Wandverkleidungsplatten dahinter montieren." },
+        { "label": "- Die Wandverkleidung wird vom Badfußboden ca. 10 cm erhöht montiert, damit bleibt die granitgraue Sockelleiste sichtbar." },
+        { "label": "- Montage eines Spiegels inkl. LED-Beleuchtung inkl. Glasablage, über dem Waschbecken." },
+        { "label": "- Bauseits werden Mehrfachsteckdosen seitlich, oberhalb des Waschbeckens installiert. Daran wird der LED-Spiegel mit angesteckt." },
+        { "label": "- 2,00 Stk Fahrzeugbereitstellung" },
+        { "label": "- 2,00 Stk Bereitstellung und Vorhaltung von Maschinen & Werkzeugen" },
+        { "label": "- 2,00 Stk Beräumung der Baustelle" },
+        { "label": "- 554 km Kilometerpauschale" }
+      ]
+    },
+    "materialsDisplayDocx": {
+      "lines": [
+        { "label": "- 1 Stk Wannenabdichtband-Set 3,4 m Nass-/Trockenanbindung entspr. DIN 18534", "category": "Kleinmaterial" },
+        { "label": "- 1 Stk Ablaufgarnitur Rohbauset m. Sifon BH60mm f. Flache Duschw. m. 90mm Ablauf", "category": "Kleinmaterial" },
+        { "label": "- 1 Stk Kleinmaterial groß", "category": "Kleinmaterial" },
+        { "label": "- 1 Set Stelzlager Pro justierbar 64–110 mm", "category": "Kleinmaterial" },
+        { "label": "- 3 Stk Wandverkleidung 3.0 Alu 997×2550 mm — Farbe: Marmor weiß", "category": "Wandverkleidung" },
+        { "label": "- 3 Stk Wandverkleidung 3.0 Alu 1497×2550 mm — Farbe: Marmor weiß", "category": "Wandverkleidung" },
+        { "label": "- 1 Stk Wandabdichtung BASIS-Set 5 qm DW bis 100 x 100 / BW bis 180 x 80 cm", "category": "Wandverkleidung" },
+        { "label": "- 12 Pkg Flächenkleber (Wandverkleidung)", "category": "Wandverkleidung" },
+        { "label": "- 3 Stk Abschlussprofil 3.0 255 cm silber eloxiert", "category": "Wandverkleidung" },
+        { "label": "- 2 Stk Verbindungsprofil(e)", "category": "Wandverkleidung" },
+        { "label": "- 3 Stk 450 Sanitär 1K Silicon Dichtstoff 310ml Kartusche weiß", "category": "Wandverkleidung" },
+        { "label": "- 1 Stk Duschsystem V1 Thermostat KB 250mm edge HB V1 5-fach u. Schlauch verchr.", "category": "Zubehör" },
+        { "label": "- 1 Stk Haltegriff clivia plus 32/800mm m. Ros. Edelstahl glatt poliert", "category": "Zubehör" },
+        { "label": "- 1 Stk Duschhocker mit Soft-Drehsitz und Ablage", "category": "Zubehör" },
+        { "label": "- 1 Stk Flächenspiegel clivia V2 500mm m.Glasablage m.LED-Leuchte oben", "category": "Zubehör" },
+        { "label": "- 1 Stk Duschwanne 150 x 70 x 3 cm — Farbe: Weiss", "category": "Duschwanne" },
+        { "label": "- 1 Stk Gleittür für Nische V2 rechts 1300x1950", "category": "Duschabtrennung" }
+      ]
+    }
+  }
+}

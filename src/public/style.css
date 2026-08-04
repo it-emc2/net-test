@@ -195,21 +195,7 @@ header {
   min-width: 0;
 }
 
-.sidebar-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border: 1px solid var(--border);
-  background: var(--panel);
-  border-radius: 10px;
-  font-size: 1.05rem;
-  color: var(--muted);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-.sidebar-toggle:hover { background: var(--accent-weak); color: var(--accent-strong); border-color: var(--accent); }
+/* .sidebar-toggle lives in index.html's inline styles (single source of truth) */
 
 .brand {
   display: flex;
@@ -519,6 +505,7 @@ h1 {
 }
 
 .side-link .dot {
+  flex-shrink: 0;
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -564,23 +551,23 @@ h1 {
   gap: 6px;
 }
 
+/* Not interactive: the groups never collapse, so the header is a label row.
+   Kill the .side-link hover so it doesn't invite a click. */
 .side-group-header {
-  font: inherit;
-  width: 100%;
-  text-align: left;
+  cursor: default;
+}
+
+.side-group-header:hover {
   background: transparent;
-  cursor: pointer;
 }
 
+/* Pushed to the right edge; purely an "has children below" marker, so it
+   never rotates. */
 .side-group-header .side-group-chevron {
-  width: 18px;
+  margin-left: auto;
   flex: none;
-  text-align: center;
   line-height: 1;
-  transition: transform 0.18s ease;
-}
-
-.side-group-header[aria-expanded="true"] .side-group-chevron {
+  opacity: 0.55;
   transform: rotate(90deg);
 }
 
@@ -598,20 +585,27 @@ h1 {
 }
 
 .side-group-body {
-  display: none;
+  display: grid;
   gap: 6px;
   margin-left: 21px;
   padding-left: 12px;
   border-left: 1px solid var(--border, rgba(0, 0, 0, 0.1));
 }
 
-.side-group-body.open {
-  display: grid;
-}
-
-/* Header mirrors the state of its children. */
+/* Header mirrors the state of its children. setStep only touches a.side-link,
+   so the header's own dot is driven from here. `active` comes after `done`
+   because a group holding the current step also holds done siblings. */
 .side-group:has(.side-link.done) > .side-group-header {
   color: var(--step-done);
+}
+
+.side-group:has(.side-link.done) > .side-group-header .dot {
+  border-color: var(--step-done);
+}
+
+.side-group:has(.side-link.done) > .side-group-header .dot::after {
+  background: var(--step-done);
+  transform: scale(1);
 }
 
 .side-group:has(.side-link.active) > .side-group-header {
@@ -620,23 +614,21 @@ h1 {
   color: var(--accent-strong);
 }
 
+.side-group:has(.side-link.active) > .side-group-header .dot {
+  border-color: var(--step-active);
+}
+
+.side-group:has(.side-link.active) > .side-group-header .dot::after {
+  background: var(--step-active);
+  transform: scale(1);
+}
+
 .main {
   padding: 0 20px 40px;
 }
 
 .main .container {
   padding-top: 16px;
-}
-
-.sidebar-toggle {
-  display: none;
-  border: 1px solid var(--border);
-  background: var(--panel);
-  padding: 8px 10px;
-  border-radius: 10px;
-  cursor: pointer;
-  gap: 8px;
-  align-items: center;
 }
 
 /* ---------- Card + form styling ---------- */
@@ -1312,20 +1304,20 @@ a.btn {
   line-height: 1;
 }
 
-#dw-extra-tasks.wt-extra-fieldset {
+:is(#dw-extra-tasks, #bwt-extra-tasks).wt-extra-fieldset {
   margin: 0;
   padding: 0;
   border: none;
   background: transparent;
 }
 
-#dw-extra-tasks .wt-extra-items {
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-items {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
 }
 
-#dw-extra-tasks .wt-extra-item.da-item {
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-item.da-item {
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -1336,12 +1328,12 @@ a.btn {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-#dw-extra-tasks .wt-extra-item:focus-within {
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-item:focus-within {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--ring);
 }
 
-#dw-extra-tasks .wt-extra-item .dw-extra {
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-item .dw-extra {
   flex: 1;
   min-width: 0;
   width: 100%;
@@ -1357,11 +1349,11 @@ a.btn {
 }
 
 
-#dw-extra-tasks .wt-extra-item input[type="text"]:focus {
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-item input[type="text"]:focus {
   outline: none;
 }
 
-#dw-extra-tasks .wt-extra-remove.da-remove {
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-remove.da-remove {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -1377,14 +1369,14 @@ a.btn {
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-#dw-extra-tasks .wt-extra-remove.da-remove:hover,
-#dw-extra-tasks .wt-extra-remove.da-remove:focus-visible {
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-remove.da-remove:hover,
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-remove.da-remove:focus-visible {
   background: rgba(239, 68, 68, 0.12);
   border-color: #ef4444;
   color: #ef4444;
 }
 
-#dw-extra-tasks .wt-extra-move {
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-move {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -1400,21 +1392,21 @@ a.btn {
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-#dw-extra-tasks .wt-extra-move:hover:not(:disabled),
-#dw-extra-tasks .wt-extra-move:focus-visible:not(:disabled) {
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-move:hover:not(:disabled),
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-move:focus-visible:not(:disabled) {
   background: var(--muted);
   border-color: var(--accent);
   color: var(--card-foreground);
 }
 
-#dw-extra-tasks .wt-extra-move:disabled {
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-move:disabled {
   opacity: 0.4;
   cursor: default;
 }
 
 /* Keep the chevron at its intrinsic size — inside the inline-flex button it
    otherwise collapses to 0px width and the arrow disappears. */
-#dw-extra-tasks .wt-extra-move svg {
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-move svg {
   flex: 0 0 auto;
   width: 16px;
   height: 16px;
@@ -1422,7 +1414,7 @@ a.btn {
   stroke: currentColor;
 }
 
-#dw-extra-tasks .wt-extra-add.da-add {
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-add.da-add {
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
@@ -1439,14 +1431,14 @@ a.btn {
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-#dw-extra-tasks .wt-extra-add.da-add:hover,
-#dw-extra-tasks .wt-extra-add.da-add:focus-visible {
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-add.da-add:hover,
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-add.da-add:focus-visible {
   background: var(--card-hover);
   border-color: var(--accent);
   border-style: solid;
 }
 
-#dw-extra-tasks .da-help {
+:is(#dw-extra-tasks, #bwt-extra-tasks) .da-help {
   display: block;
   margin-top: 0.6rem;
 }
@@ -3580,6 +3572,87 @@ label.image-check.is-checked .caption {
   font-size: 0.8rem;
   opacity: 0.75;
 }
+
+/* Drop zone for a hand-edited Angebot-DOCX (replaces the fresh render on send) */
+.mail-docx-zone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-top: 6px;
+  border: 1.5px dashed #b9c4cb;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.mail-docx-zone:hover,
+.mail-docx-zone:focus-visible,
+.mail-docx-zone.drag-over {
+  border-color: #00a86b;
+  background: rgba(0,168,107,0.06);
+}
+.mail-docx-zone.has-file {
+  border-style: solid;
+  border-color: #e0a636;
+  background: rgba(239,159,39,0.10);
+}
+.mail-docx-zone-badge {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(0,168,107,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+}
+.mail-docx-zone.has-file .mail-docx-zone-badge { background: rgba(239,159,39,0.18); }
+.mail-docx-zone-text { min-width: 0; flex: 1; }
+.mail-docx-zone-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.mail-docx-zone.has-file .mail-docx-zone-title { color: #854f0b; }
+.mail-docx-zone-sub {
+  font-size: 0.8rem;
+  opacity: 0.8;
+  line-height: 1.45;
+  margin-top: 2px;
+}
+.mail-docx-zone.has-file .mail-docx-zone-sub { color: #854f0b; opacity: 0.9; }
+.mail-docx-remove {
+  flex: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 700;
+  color: #854f0b;
+  padding: 6px 8px;
+}
+#sendOfferMail.btn-edited-docx {
+  background: linear-gradient(135deg, #f0b34e 0%, #d97706 100%);
+}
+#sendOfferMail.btn-edited-docx:hover {
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.25);
+}
+.mail-docx-send-note {
+  font-size: 0.8rem;
+  text-align: center;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+[data-mode="dark"] .mail-docx-zone { border-color: rgba(255,255,255,0.25); }
+[data-mode="dark"] .mail-docx-zone:hover,
+[data-mode="dark"] .mail-docx-zone:focus-visible,
+[data-mode="dark"] .mail-docx-zone.drag-over { border-color: #00a86b; }
+[data-mode="dark"] .mail-docx-zone.has-file { border-color: #e0a636; background: rgba(239,159,39,0.14); }
+[data-mode="dark"] .mail-docx-zone.has-file .mail-docx-zone-title,
+[data-mode="dark"] .mail-docx-zone.has-file .mail-docx-zone-sub,
+[data-mode="dark"] .mail-docx-remove { color: #fac775; }
 
 .mail-attach-grid{
   display: grid;
@@ -8710,4 +8783,108 @@ details.az-group[open] > summary.az-group-title::before {
   background: var(--bg);
   color: var(--text);
   font-size: 0.9rem;
+}
+
+/* ---------- Interne Liste (Kundendaten, nicht kundensichtbar) ---------- */
+.itodo-section > summary {
+  list-style: none;
+}
+
+.itodo-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.itodo-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(180, 83, 9, 0.1);
+  color: #b45309;
+  border: 1px solid rgba(180, 83, 9, 0.3);
+}
+
+:root[data-mode="dark"] .itodo-badge {
+  background: rgba(255, 176, 32, 0.14);
+  color: #ffb020;
+  border-color: rgba(255, 176, 32, 0.35);
+}
+
+.itodo-count {
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--muted-foreground);
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+.itodo-hint {
+  margin: 2px 0 12px;
+  font-size: 0.82rem;
+  color: var(--muted-foreground);
+}
+
+.itodo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.itodo-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+}
+
+.itodo-item::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.65;
+}
+
+.itodo-item input[type="text"] {
+  width: 100%;
+  padding: 4px 2px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.itodo-remove {
+  padding: 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted-foreground);
+  line-height: 0;
+  cursor: pointer;
+}
+
+.itodo-remove:hover,
+.itodo-remove:focus-visible {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.itodo-empty {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--muted-foreground);
 }
