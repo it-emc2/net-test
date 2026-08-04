@@ -29,15 +29,19 @@ const WV_COLOR_ARTICLE = {
   "stein beige": { "997x2550": "V3WVK01", "1497x2550": "V3WV01" },
   "aragon grau": { "997x2550": "V3WVK22", "1497x2550": "V3WV22" },
   "stein grau": { "997x2550": "V3WVK02", "1497x2550": "V3WV02" },
-  "beton grau": { "997x2550": "V3WVK31", "1497x2550": "V3WV31" },
-  "beton grau metallic": { "997x2550": "V3WVK30", "1497x2550": "V3WV30" }, // Beton grau-metallic
   "aragon anthrazit": { "997x2550": "V3WVK21", "1497x2550": "V3WV21" },
   "schiefer grau": { "997x2550": "V3WVK08", "1497x2550": "V3WV08" },
   "schwarzwaldeiche hell": { "997x2550": "V3WVK23", "1497x2550": "V3WV23" },
   "stein anthrazit": { "997x2550": "V3WVK03", "1497x2550": "V3WV03" },
-  "metall oxydant": { "997x2550": "V3WVK10", "1497x2550": "V3WV10" },
+  "kalkstein natur": { "997x2550": "V3WVK05", "1497x2550": "V3WV05" },
+  "aragon schwarz": { "997x2550": "V3WVK20", "1497x2550": "V3WV20" },
   "sonderdekor": { "997x2550": "V3WVK999", "1497x2550": "V3WV999" }, // Wunschdekor nach Vorlage
 };
+
+// Colors billed by their own color-specific article (they have a real priced
+// row in the internal Products collection); every other mapped color still
+// bills through the shared 997x2550-size default until it's added there too.
+const WV_PRICED_COLORS = new Set(["marmor weiß", "kalkstein natur", "aragon schwarz"]);
 
 function normalizeWvColorKey(color) {
   return String(color || "")
@@ -691,10 +695,12 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
   const base = `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`;
   const label = display ? `${base} — Farbe: ${display}` : base;
 
-  // Pricing stays on the size default (only V3WVK09 exists in the DB); the
-  // color-specific article number is carried for the Hassmann CSV only.
+  // Pricing stays on the size default unless the color has a real priced row
+  // in the internal Products collection (WV_PRICED_COLORS); the mapped
+  // color-specific article number is always carried for the Hassmann CSV.
   const article997 = resolveWvArticle("997x2550", display, pid, "V3WVK09");
-  add(pid || "V3WVK09", qty997, label, null, null, {
+  const priced997 = WV_PRICED_COLORS.has(normalizeWvColorKey(display)) ? article997 : "V3WVK09";
+  add(pid || priced997, qty997, label, null, null, {
     color: display,
     hassmannArticle: article997,
   });
@@ -709,7 +715,8 @@ if (qty1497 > 0) {
   const label = display ? `${base} — Farbe: ${display}` : base;
 
   const article1497 = resolveWvArticle("1497x2550", display, pid, "V3WV09");
-  add(pid || "V3WV09", qty1497, label, null, null, {
+  const priced1497 = WV_PRICED_COLORS.has(normalizeWvColorKey(display)) ? article1497 : "V3WV09";
+  add(pid || priced1497, qty1497, label, null, null, {
     color: display,
     hassmannArticle: article1497,
   });
@@ -731,7 +738,8 @@ const addExtras = (rows, panelLabel, size, defaultPid) => {
     const base = `- ${q} Stk Wandverkleidung 3.0 Alu ${panelLabel}`;
     const label = display ? `${base} — Farbe: ${display}` : base;
     const article = resolveWvArticle(size, display, pid, defaultPid);
-    add(pid || defaultPid, q, label, null, null, {
+    const priced = WV_PRICED_COLORS.has(normalizeWvColorKey(display)) ? article : defaultPid;
+    add(pid || priced, q, label, null, null, {
       color: display,
       hassmannArticle: article,
     });
