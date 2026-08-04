@@ -26331,6 +26331,55 @@ function renderTodayPlanningAppointments(){
   });
 
   attachCompanyTravelConnectors(todayPlanningAppointmentsFiltered);
+  updateTodayPlanningFullRouteLink();
+}
+
+// Builds one Google Maps multi-stop link covering every appointment of the
+// day (in list order) plus a round trip to/from the company address, so the
+// whole route can be opened at once (e.g. in the Tesla browser) instead of
+// entering each stop manually. Also builds an Apple Maps link for the last
+// leg (company -> final stop) since Apple Maps has no URL support for
+// multiple waypoints.
+function updateTodayPlanningFullRouteLink(){
+  const googleLink = document.getElementById("todayPlanningFullRoute");
+  const appleLink = document.getElementById("todayPlanningAppleRoute");
+  if(!googleLink && !appleLink) return;
+
+  const stops = todayPlanningAppointments
+    .filter(entry => !isPlanningEntryCancelled(entry) && entry?.address)
+    .map(entry => entry.address);
+  const companyAddress = todayPlanningAppointments.find(e => e?.companyAddress)?.companyAddress
+    || "Kornhausacker 10, Hof";
+
+  if(!stops.length){
+    googleLink?.removeAttribute("href");
+    googleLink?.setAttribute("aria-disabled", "true");
+    appleLink?.removeAttribute("href");
+    appleLink?.setAttribute("aria-disabled", "true");
+    return;
+  }
+
+  if(googleLink){
+    const params = new URLSearchParams({
+      api: "1",
+      origin: companyAddress,
+      destination: companyAddress,
+      waypoints: stops.join("|"),
+      travelmode: "driving",
+    });
+    googleLink.href = `https://www.google.com/maps/dir/?${params.toString()}`;
+    googleLink.removeAttribute("aria-disabled");
+  }
+
+  if(appleLink){
+    const params = new URLSearchParams({
+      saddr: companyAddress,
+      daddr: stops[stops.length - 1],
+      dirflg: "d",
+    });
+    appleLink.href = `https://maps.apple.com/?${params.toString()}`;
+    appleLink.removeAttribute("aria-disabled");
+  }
 }
 
 function filterTodayPlanningAppointments(query){
