@@ -12,6 +12,8 @@ const PORT = Number(process.env.E2E_PORT || 3001);
 const DB_NAME = "e2e-offline-sync";
 
 const USER = { email: "e2e@test.local", password: "e2e-password" };
+// Non-default on purpose; see the seed call below.
+const LABOR_RATE_OVERRIDE = { key: "LABOR_RATE_KK", value: 71.25 };
 
 async function waitForHealth(url, child, timeoutMs = 60000) {
   const deadline = Date.now() + timeoutMs;
@@ -58,6 +60,7 @@ module.exports = async () => {
   const mongoose = (await import("mongoose")).default;
   const { hashPassword } = await import("../../../src/services/authService.js");
   const User = (await import("../../../src/models/User.js")).default;
+  const AppConfig = (await import("../../../src/models/AppConfig.js")).default;
 
   await mongoose.connect(uri, { dbName: DB_NAME });
   await User.create({
@@ -67,6 +70,11 @@ module.exports = async () => {
     role: "admin",
     active: true,
   });
+  // A deliberately non-default rate. Without an override every config value
+  // equals pricing-core's hardcoded fallback, so the offline-pricing tests
+  // could not tell "used the cached config" from "used the built-in default".
+  await AppConfig.create({ key: LABOR_RATE_OVERRIDE.key, value: LABOR_RATE_OVERRIDE.value });
+
   await mongoose.disconnect();
 
   const child = spawn("node", ["src/app.js"], {
@@ -92,3 +100,4 @@ module.exports = async () => {
 
 module.exports.PORT = PORT;
 module.exports.USER = USER;
+module.exports.LABOR_RATE_OVERRIDE = LABOR_RATE_OVERRIDE;

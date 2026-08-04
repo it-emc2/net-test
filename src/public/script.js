@@ -10833,11 +10833,24 @@ function attachDuschwanneToPayload(payload) {
 /* ========== GLOBAL PRICING SERVICE (fetch -> cache -> event) ========== */
 (() => {
   async function fetchPrice(payload) {
-    const r = await fetch("/api/price", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    let r;
+    try {
+      r = await fetch("/api/price", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      // No signal. Run the server's own rules (logic/pricing-core.js) against
+      // the cached inputs so the technician still sees a total. Flagged
+      // `_local` so it can never be frozen or locked — that needs a figure the
+      // server confirmed. Live vigor prices are unavailable, so configurator
+      // snapshot prices are used, exactly as server-side on a vigor outage.
+      const { computePricesLocally } = await import("./pricing-client.js");
+      const local = await computePricesLocally(payload);
+      if (local) return local;
+      throw err; // nothing cached — no total is better than a wrong one
+    }
     if (!r.ok) throw new Error(await r.text());
     return r.json();
   }
@@ -10995,7 +11008,10 @@ function attachDuschwanneToPayload(payload) {
           console.warn("[pricing] freeze failed, offer stays unfrozen:", err);
           return null;
         });
-        if (!snapshot) return null;
+        // A locally computed total is fine to *show*, never to freeze: it uses
+        // cached rates and snapshot article prices, so pinning an offer to it
+        // could lock in a figure the server would not agree with.
+        if (!snapshot || snapshot._local) return null;
       } else {
         snapshot = window.__pricing;
       }
@@ -14647,6 +14663,25 @@ const RESTORE_HANDLERS = {
       return mod;
     } catch (e) {
       __startupWarn("[OfflineSaveQueue] init failed:", e);
+      return null;
+    }
+  })();
+
+  // Pricing inputs snapshot: refreshed whenever there is signal so that
+  // fetchPrice() can fall back to computing locally when there is not.
+  window.__pricingInputsReady = window.__pricingInputsReady || (async () => {
+    try {
+      await __domReady();
+      const { refreshInputs } = await import("./pricing-cache.js");
+      const inputs = await refreshInputs();
+      // Warm the offline path while there is still signal: pricing-client.js
+      // and logic/pricing-core.js are only imported when a price fetch fails,
+      // so unless they are already cached they cannot load at that moment.
+      await import("./pricing-client.js");
+      if (inputs) __startupLog(`[PricingInputs] cached ${inputs.products.length} products`);
+      return inputs;
+    } catch (e) {
+      __startupWarn("[PricingInputs] refresh failed:", e);
       return null;
     }
   })();

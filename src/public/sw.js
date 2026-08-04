@@ -21,7 +21,44 @@ const CACHE_PREFIX = "nt-shell-";
 // Product photos live here (see the CSP imgSrc list in app.js).
 const IMAGE_HOSTS = new Set(["media.onlineplus.store"]);
 
-self.addEventListener("install", () => self.skipWaiting());
+// Modules the offline path needs at the exact moment it cannot fetch them: the
+// price fallback only imports pricing-client.js once a price fetch has already
+// failed. Everything else is picked up as it gets used. "/" is deliberately
+// absent — see warmShell, which needs the redirect guard.
+const PRECACHE = [
+  "/script.js",
+  "/OfflineSaveQueue.js",
+  "/pricing-cache.js",
+  "/pricing-client.js",
+  "/logic/pricing-core.js",
+];
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    (async () => {
+      const cache = await caches.open(CACHE);
+      // One at a time: a single 404 or 401 must not fail the whole install.
+      await Promise.all(
+        PRECACHE.map((u) =>
+          cache.add(u).catch((err) => console.warn("[sw] precache miss", u, err)),
+        ),
+      );
+      await self.skipWaiting();
+    })(),
+  );
+});
+
+// Without this the shell is only cached from the *second* visit onward, since
+// the worker does not control the load that installed it.
+async function warmShell() {
+  const cache = await caches.open(CACHE);
+  try {
+    const res = await fetch("/", { credentials: "same-origin" });
+    if (res.ok && !res.redirected) await cache.put("/", res.clone());
+  } catch {
+    // No signal during activation — nothing to warm.
+  }
+}
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
@@ -33,6 +70,7 @@ self.addEventListener("activate", (event) => {
           .map((n) => caches.delete(n)),
       );
       await self.clients.claim();
+      await warmShell();
     })(),
   );
 });

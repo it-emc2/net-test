@@ -7,6 +7,7 @@ import morgan from "morgan";
 import compression from "compression";
 import path from "path";
 import { fileURLToPath } from "url";
+import { readFile } from "fs/promises";
 import mongoose from "mongoose";
 import offersRouter from "./routes/offers.js";
 import draftsRouter from "./routes/drafts.js";
@@ -50,7 +51,7 @@ import pricingFactory from "./logic/pricing.js";
 // app.txt (top imports)
 import latexTemplateRouter from "./routes/latex-template.js";
 import adminRouter from "./routes/admin.js";
-import configService from "./services/configService.js";
+import configService, { CONFIG_SCHEMA } from "./services/configService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -486,6 +487,41 @@ app.post("/api/price", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: String(err) });
+  }
+});
+
+// The pricing rules run in the browser too, for offline totals (see
+// public/pricing-client.js). Only this one file from src/logic is exposed, and
+// authGate keeps it behind the session — it is business logic, not an asset.
+const PRICING_CORE_SRC = await readFile(
+  path.join(__dirname, "logic", "pricing-core.js"),
+  "utf8",
+);
+app.get("/logic/pricing-core.js", (req, res) => {
+  res.type("application/javascript").send(PRICING_CORE_SRC);
+});
+
+// GET /api/price/inputs
+// Everything the browser needs to compute a total without us: the product
+// prices and the admin-tunable numbers. Cached client-side so a technician who
+// loses signal still sees live totals (see public/pricing-client.js).
+// ponytail: ships the whole product table in one response. Fine at the current
+// size; switch to a delta keyed on buildId if it ever gets heavy.
+app.get("/api/price/inputs", async (req, res) => {
+  try {
+    const config = {};
+    // Every schema key, so this never drifts from what pricing-core reads.
+    for (const def of CONFIG_SCHEMA) config[def.key] = configService.get(def.key);
+
+    const products = await Product.find(
+      {},
+      { _id: 0, productId: 1, price: 1, name: 1 },
+    ).lean();
+
+    res.json({ buildId: APP_BUILD_ID, config, products });
+  } catch (err) {
+    console.error("GET /api/price/inputs failed:", err);
+    res.status(500).json({ error: "Serverfehler beim Laden der Preis-Basisdaten" });
   }
 });
 
