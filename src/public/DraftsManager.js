@@ -486,9 +486,27 @@ export function initDraftsManager(options = {}) {
     // Freeze/save first, while the form is still enabled — buildPayload()
     // reads fields via FormData, which silently drops disabled controls, so
     // disabling the UI before this snapshot would lose every checked box.
-    window.__locked = true;
+    //
+    // Freeze before deciding to lock, not after: buildPayload() reads
+    // window.__locked when it runs, so the flag has to be final before the
+    // save. Locking pins a total permanently, so it needs a snapshot the
+    // server actually computed — offline we save an unlocked draft instead of
+    // freezing a price that may no longer match the form.
     const name = buildDraftDefaultName();
     try {
+      const snapshot = await window.freezeCurrentPricing?.();
+      if (window.freezeCurrentPricing && !snapshot) {
+        const result = await saveDraftWithName(name);
+        cfg.toast?.(
+          result?.queued
+            ? `Sperren braucht eine Verbindung. Entwurf offline gespeichert: ${name}`
+            : `Sperren braucht eine Verbindung. Entwurf gespeichert: ${name}`,
+          "warn",
+        );
+        return;
+      }
+
+      window.__locked = true;
       const result = await saveDraftWithName(name);
       window.applyOfferLockUI?.(true);
       updateLockButtonLabel();
@@ -500,6 +518,7 @@ export function initDraftsManager(options = {}) {
       );
     } catch (e) {
       window.__locked = false;
+      updateLockButtonLabel();
       console.error(e);
       cfg.toast?.(`Sperren fehlgeschlagen: ${e.message || e}`, "error");
     }

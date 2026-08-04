@@ -110,6 +110,79 @@ test("three offline saves replay in save order and list newest first", async ({
   expect(drafts.map((d) => d.name)).toEqual([...savedNames].reverse());
 });
 
+// v3's freeze feature made saveDraftWithName() await a fresh /api/price call
+// before touching the queue, which offline threw and lost the payload outright.
+// A price refresh must never cost the user their save.
+test("a price refresh that fails offline still queues the draft", async ({
+  page,
+  context,
+}) => {
+  await setCustomer(page, "Freeze", "Fallback");
+  await context.setOffline(true);
+
+  const name = await page.evaluate(() => window.quickSaveDraft());
+  expect(name).toBeTruthy();
+  expect(await readQueue(page)).toHaveLength(1);
+
+  await context.setOffline(false);
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+
+  await expect
+    .poll(async () => (await readQueue(page)).length, { timeout: 20000 })
+    .toBe(0);
+  expect(await searchDrafts(page, "Fallback")).toHaveLength(1);
+});
+
+// Locking pins a total permanently, so it must not happen against a price the
+// server never computed.
+test("Sperren offline saves the draft but does not lock it", async ({ page, context }) => {
+  await setCustomer(page, "Lock", "Offline");
+  await context.setOffline(true);
+
+  // #summaryWidget is display:none on the landing step, so the button has no
+  // box to click. Dispatch on the element instead — same real handler, and
+  // driving the wizard to reveal the rail is out of scope for this suite.
+  await page.evaluate(() => document.getElementById("btnLockOffer").click());
+
+  await expect.poll(async () => (await readQueue(page)).length, { timeout: 20000 }).toBe(1);
+  expect(await page.evaluate(() => window.__locked)).toBe(false);
+  expect(await page.evaluate(() => window.__frozen)).toBe(false);
+
+  // The queued payload must not claim to be locked or frozen either.
+  const payload = await page.evaluate(
+    () =>
+      new Promise((resolve, reject) => {
+        const open = indexedDB.open("nt-offline-save-queue");
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const req = open.result
+            .transaction("queue", "readonly")
+            .objectStore("queue")
+            .getAll();
+          req.onerror = () => reject(req.error);
+          req.onsuccess = () => resolve(req.result[0].body.payload);
+        };
+      }),
+  );
+  expect(payload.locked).toBe(false);
+  expect(payload.frozen).toBe(false);
+
+  // The lock button still offers to lock, rather than to unlock.
+  expect(await page.textContent("#btnLockOffer")).toContain("Sperren");
+});
+
+// Guards the normal path against the offline carve-out above.
+test("Sperren online locks, freezes and saves", async ({ page }) => {
+  await setCustomer(page, "Lock", "Online");
+
+  await page.evaluate(() => document.getElementById("btnLockOffer").click());
+
+  await expect.poll(async () => (await searchDrafts(page, "Online")).length).toBe(1);
+  expect(await page.evaluate(() => window.__locked)).toBe(true);
+  expect(await page.evaluate(() => window.__frozen)).toBe(true);
+  expect(await page.textContent("#btnLockOffer")).toContain("Entsperren");
+});
+
 test("a save whose response is lost is not duplicated on the next sweep", async ({
   page,
   context,

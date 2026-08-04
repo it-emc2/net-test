@@ -10984,7 +10984,21 @@ function attachDuschwanneToPayload(payload) {
       snapshot = { total: ah.gesamt, selfPayAmount: ah.eigenanteil, _isAH: true };
     } else {
       const pl = typeof window.buildPayload === "function" ? window.buildPayload() : null;
-      snapshot = pl ? await fetchPrice(pl) : window.__pricing;
+      if (pl) {
+        // A fresh snapshot needs the server. Offline this must not throw: the
+        // draft save calls us before reaching the offline queue, and losing
+        // the user's payload over a failed price refresh is worse than saving
+        // it with the pricing we already had. Returning null leaves __frozen
+        // and __frozenPricing untouched, so nothing gets frozen at a total
+        // the server never computed — Sperren checks for exactly that.
+        snapshot = await fetchPrice(pl).catch((err) => {
+          console.warn("[pricing] freeze failed, offer stays unfrozen:", err);
+          return null;
+        });
+        if (!snapshot) return null;
+      } else {
+        snapshot = window.__pricing;
+      }
     }
     window.__frozen = true;
     window.__frozenPricing = snapshot;
@@ -15935,7 +15949,14 @@ async function saveFinalOfferSnapshot() {
   // 5) Ensure pricing snapshot (use filtered payload!)
   let pricing = window.__pricing;
   if (!pricing && typeof window.updatePricing === "function") {
-    pricing = await window.updatePricing(filteredPayload);
+    // Needs the server, and there is nothing cached to fall back on if the
+    // page was opened while already offline. Must not abort the save — the
+    // offline queue below is the whole point; the offer route accepts a null
+    // pricing and it gets recomputed on the next edit.
+    pricing = await window.updatePricing(filteredPayload).catch((err) => {
+      console.warn("[pricing] snapshot unavailable, saving without it:", err);
+      return null;
+    });
   }
 
   // 6) Persist finished offer snapshot
