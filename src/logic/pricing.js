@@ -36,6 +36,11 @@ const WV_COLOR_ARTICLE = {
   "kalkstein natur": { "997x2550": "V3WVK05", "1497x2550": "V3WV05" },
   "aragon schwarz": { "997x2550": "V3WVK20", "1497x2550": "V3WV20" },
   "sonderdekor": { "997x2550": "V3WVK999", "1497x2550": "V3WV999" }, // Wunschdekor nach Vorlage
+  // Discontinued — no longer offered in the UI, but kept so old saved
+  // offers/drafts still resolve to the correct Hassmann article on reopen.
+  "beton grau": { "997x2550": "V3WVK31", "1497x2550": "V3WV31" },
+  "beton grau metallic": { "997x2550": "V3WVK30", "1497x2550": "V3WV30" },
+  "metall oxydant": { "997x2550": "V3WVK10", "1497x2550": "V3WV10" },
 };
 
 // Colors billed by their own color-specific article (they have a real priced
