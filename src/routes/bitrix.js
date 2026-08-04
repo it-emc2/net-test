@@ -367,6 +367,47 @@ async function updateDealStage({
   });
 }
 
+// Stages the deal moves to once the customer finishes online signing
+// (BU/BWT only — AH has no such step). Both live in deal category 38, the
+// same pipeline as ANG_VERSCHICKT_STAGE_ID above.
+const SIGNING_KASSE_STAGE_ID = "C38:UC_Q3LFJ2"; // "[VI] ANG online signiert - zur"
+const SIGNING_SZ_STAGE_ID = "C38:UC_5DII17"; // "[VI] AUTOM in FT anl. + überpr."
+const SIGNING_CATEGORY_ID = 38;
+
+// Fixed field values filled on the deal once a Kassenkunde completes online
+// signing (Vollmacht + Abtretung always get signed as part of that flow, so
+// these are always "Ja"/"emc2" — not derived from anything customer-specific).
+const SIGNING_KASSE_FIELDS = {
+  UF_CRM_1771944212969: "8396", // Antragsstellung bei Kasse durch -> emc2
+  UF_CRM_1771944969284: "8400", // [autom] Mail an Kd. bzgl. Antragsstellung -> Ja
+  UF_CRM_1772533113350: "8412", // Kassen-Vollmacht beim Kontakt hinterlegt? -> Ja
+  UF_CRM_1772533223056: "8418", // Abtretungserklärung §40 SGB XI hinterlegt? -> Ja
+};
+
+// Move a deal after the customer completes online signing (see signing.js).
+// Kassenkunde also gets the Vollmacht/Abtretung fields filled in; Selbstzahler
+// is just a stage move.
+async function updateDealAfterSigning({ dealId, customerType }) {
+  const numericId = Number(dealId);
+  if (!Number.isFinite(numericId) || numericId <= 0) {
+    throw new Error("dealId must be a positive number");
+  }
+
+  const isKasse = String(customerType || "").toUpperCase() === "KASSE";
+  const fields = {
+    categoryId: SIGNING_CATEGORY_ID,
+    stageId: isKasse ? SIGNING_KASSE_STAGE_ID : SIGNING_SZ_STAGE_ID,
+  };
+  if (isKasse) Object.assign(fields, SIGNING_KASSE_FIELDS);
+
+  return bxPost("crm.item.update", {
+    entityTypeId: DEAL_ENTITY_TYPE_ID,
+    id: numericId,
+    fields,
+    useOriginalUfNames: "Y",
+  });
+}
+
 async function getRequisiteIdForContact(contactId) {
   const data = await bxGet("crm.requisite.list", {
     filter: { ENTITY_TYPE_ID: OWNER_TYPE.contact, ENTITY_ID: Number(contactId) },
@@ -865,4 +906,4 @@ router.get("/calendar/week", async (_req, res) => {
 });
 
 export default router;
-export { addTimelineComment, updateDealStage };
+export { addTimelineComment, updateDealStage, updateDealAfterSigning };
