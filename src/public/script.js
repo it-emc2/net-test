@@ -10335,6 +10335,10 @@ function initSmartBathtubSearch() {
 
   if (!panel || !out || (!elB && !elL) || !task) return;
 
+  let inflight = null;
+  let reqSeq = 0;
+  let debounceT = null;
+
   const showPanel = (on) => {
     panel.hidden = !on;
     panel.setAttribute("aria-hidden", on ? "false" : "true");
@@ -10447,10 +10451,6 @@ window.updatePricing?.();
   }
 
   // fetch logic (same pattern as trays)
-  let inflight = null;
-  let reqSeq = 0;
-  let debounceT = null;
-
   async function fetchAndRender() {
     const b = elB ? parseNum(elB.value) : null;
     const l = elL ? parseNum(elL.value) : null;
