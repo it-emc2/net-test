@@ -1619,25 +1619,12 @@ color: metaColor || null,
     const kmFreeThreshold = pr.bwtKmFreeThreshold != null
       ? Number(pr.bwtKmFreeThreshold)
       : 200;
-    const travelFreeHours = pr.bwtTravelTimeFreeHours != null
-      ? Number(pr.bwtTravelTimeFreeHours)
-      : 2;
 
     const oneWayKm = Number(b.distanceKm || 0) || 0;
     const roundTripKm = Math.max(0, oneWayKm * 2 * travelDays);
     const billedKm = Math.max(0, roundTripKm - kmFreeThreshold);
     const kmRate = cfg.get('KM_RATE', 0.35);
     const kmAmount = round2(billedKm * kmRate);
-
-    const reise_hours_numeric = Number(b.ReiseHoursNumeric ?? 0) || 0;
-
-    // Reisezeit for bwt
-    const bwt_reise_Rate = cfg.get('LABOR_RATE_BWT', 79.5);
-    const bwt_handwerkerCount = cfg.get('BWT_WORKER_COUNT', 1);
-    const billed_reise_zeit = Math.max(0, reise_hours_numeric - travelFreeHours);
-    const reise_ampunt_zeit = round2(
-      billed_reise_zeit * bwt_reise_Rate * bwt_handwerkerCount,
-    );
 
     // door quantity: sum of ALL BWT door variants, only real qty > 0
     const rawDoorQty =
@@ -1693,34 +1680,6 @@ color: metaColor || null,
         qty: 1,
         unitPrice: kmAmount,
         lineTotal: kmAmount,
-      });
-    }
-
-    // Arbeitszeit (Facharbeiter) – same math as computeServiceCosts()
-    const arbeit_hours_numeric = Number(b.ArbeitHoursNumeric ?? 0) || 0;
-    if (arbeit_hours_numeric > 0 && bwt_reise_Rate > 0) {
-      const arbeitUnit = round2(bwt_handwerkerCount * bwt_reise_Rate);
-      const arbeitQtyStr = arbeit_hours_numeric.toFixed(2).replace(".", ",");
-      out.push({
-        key: "facharbeiter",
-        label: `- ${arbeitQtyStr} Std Arbeitszeit × ${bwt_handwerkerCount} Facharbeiter × ${String(bwt_reise_Rate).replace(".", ",")} €`,
-        qty: arbeit_hours_numeric,
-        unit: "Std",
-        unitPrice: arbeitUnit,
-        lineTotal: round2(arbeit_hours_numeric * arbeitUnit),
-      });
-    }
-
-    // Reisezeit (already reduced by the free-hours threshold) — its own line.
-    if (billed_reise_zeit > 0) {
-      const reiseQtyStr = billed_reise_zeit.toFixed(2).replace(".", ",");
-      out.push({
-        key: "reisezeit",
-        label: `- ${reiseQtyStr} Std Reisezeit × ${bwt_handwerkerCount} Facharbeiter × ${String(bwt_reise_Rate).replace(".", ",")} €`,
-        qty: billed_reise_zeit,
-        unit: "Std",
-        unitPrice: bwt_reise_Rate,
-        lineTotal: reise_ampunt_zeit,
       });
     }
 
