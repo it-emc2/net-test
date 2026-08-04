@@ -171,6 +171,51 @@ test("Sperren offline saves the draft but does not lock it", async ({ page, cont
   expect(await page.textContent("#btnLockOffer")).toContain("Sperren");
 });
 
+// Without a service worker, "offline" only lasted as long as the tab stayed
+// open: a reload on site gave a blank page and no route back to the queued
+// saves. The shell has to survive a reload, and API reads must still fail
+// rather than come back stale.
+test("the app still loads after a reload while offline", async ({ page, context }) => {
+  await page.waitForFunction(
+    () => navigator.serviceWorker.controller !== null,
+    null,
+    { timeout: 30000 },
+  );
+  // Reload once online so the shell and its modules go through the worker and
+  // land in the cache; wait for the full boot, since the managers arrive via
+  // dynamic import well after the load event.
+  await page.reload({ waitUntil: "load" });
+  await page.waitForFunction(() => typeof window.quickSaveDraft === "function", null, {
+    timeout: 30000,
+  });
+
+  await context.setOffline(true);
+  await page.reload({ waitUntil: "domcontentloaded" });
+
+  // The app booted from cache, not from the network.
+  await page.waitForFunction(() => typeof window.quickSaveDraft === "function", null, {
+    timeout: 30000,
+  });
+
+  // Offline must not bounce to /login: that page needs the network, and with
+  // a cached shell the redirect loops.
+  expect(new URL(page.url()).pathname).not.toBe("/login");
+
+  // A save still queues, so the technician is not stranded.
+  await setCustomer(page, "Reload", "Offline");
+  await page.evaluate(() => window.quickSaveDraft());
+  expect(await readQueue(page)).toHaveLength(1);
+
+  // API reads must not be served from cache.
+  const apiFailed = await page.evaluate(() =>
+    fetch("/api/drafts/search?offerType=bu").then(
+      () => false,
+      () => true,
+    ),
+  );
+  expect(apiFailed).toBe(true);
+});
+
 // Guards the normal path against the offline carve-out above.
 test("Sperren online locks, freezes and saves", async ({ page }) => {
   await setCustomer(page, "Lock", "Online");

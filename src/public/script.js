@@ -14651,6 +14651,22 @@ const RESTORE_HANDLERS = {
     }
   })();
 
+  // Offline app shell. Without it, losing signal survives only as long as the
+  // tab stays open — a reload on site would leave the technician with a blank
+  // page and no way to reach the queued saves.
+  window.__offlineShellReady = window.__offlineShellReady || (async () => {
+    try {
+      await __domReady();
+      const { registerOfflineShell } = await import("./sw-register.js");
+      const reg = await registerOfflineShell();
+      if (reg) __startupLog("[OfflineShell] registered");
+      return reg;
+    } catch (e) {
+      __startupWarn("[OfflineShell] init failed:", e);
+      return null;
+    }
+  })();
+
   window.__integrationsReady = window.__integrationsReady || (async () => {
     try {
       await __domReady();

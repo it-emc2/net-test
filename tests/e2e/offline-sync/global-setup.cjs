@@ -30,7 +30,25 @@ async function waitForHealth(url, child, timeoutMs = 60000) {
   throw new Error(`app did not become healthy within ${timeoutMs}ms`);
 }
 
+// A leftover app from an interrupted run answers /api/health but points at a
+// mongod that is long gone, so every test fails at login with a baffling 401.
+// Refuse to start rather than test against someone else's server.
+async function assertPortFree(port) {
+  let res;
+  try {
+    res = await fetch(`http://127.0.0.1:${port}/api/health`);
+  } catch {
+    return; // nothing listening — good
+  }
+  throw new Error(
+    `Port ${port} is already serving (/api/health -> ${res.status}). ` +
+      `Stop it first: pkill -f "node src/app.js". ` +
+      `Or pick another CORS-allowed port via E2E_PORT (3000/3001/5173).`,
+  );
+}
+
 module.exports = async () => {
+  await assertPortFree(PORT);
   const { MongoMemoryServer } = require("mongodb-memory-server");
   const mongod = await MongoMemoryServer.create();
   const uri = mongod.getUri();

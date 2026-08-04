@@ -18,7 +18,8 @@ module.exports = defineConfig({
     viewport: { width: 1280, height: 800 },
     screenshot: "only-on-failure",
     video: "retain-on-failure",
-    serviceWorkers: "block",
+    // This suite is the one place the offline shell must actually run.
+    serviceWorkers: "allow",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 });
