@@ -1352,6 +1352,7 @@ a.btn {
   width: 100%;
   box-sizing: border-box;
   border: none;
+  outline: none;
   background: transparent;
   color: var(--card-foreground);
   font: inherit;
@@ -1359,6 +1360,11 @@ a.btn {
   padding: 0.2rem 0;
   resize: vertical;
   overflow-wrap: break-word;
+}
+
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-item .dw-extra:focus {
+  border-color: transparent;
+  box-shadow: none;
 }
 
 
@@ -8879,6 +8885,11 @@ details.az-group[open] > summary.az-group-title::before {
   border: 1px solid var(--input-border);
 }
 
+.itodo-item:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
 .itodo-item::before {
   content: "";
   width: 6px;
@@ -8896,6 +8907,11 @@ details.az-group[open] > summary.az-group-title::before {
   background: transparent;
   color: var(--text);
   font-size: 0.95rem;
+}
+
+.itodo-item input[type="text"]:focus {
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .itodo-remove {
