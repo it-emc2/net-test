@@ -582,7 +582,8 @@ export function initDraftsManager(options = {}) {
     list.forEach((d) => {
       const id = d?._id || d?.id || "";
       const name = d?.name || d?.title || id;
-      const updated = d?.updatedAt ? new Date(d.updatedAt).toLocaleString("de-DE") : "";
+      const saved = d?.savedAt || d?.updatedAt;
+      const updated = saved ? new Date(saved).toLocaleString("de-DE") : "";
 
       const btn = document.createElement("button");
       btn.type = "button";
@@ -759,7 +760,8 @@ export function initDraftsManager(options = {}) {
         row.style.background = row.classList.contains("active") ? "#e0e7ff" : "transparent";
       };
 
-      const updated = d?.updatedAt ? new Date(d.updatedAt).toLocaleString("de-DE") : "";
+      const saved = d?.savedAt || d?.updatedAt;
+      const updated = saved ? new Date(saved).toLocaleString("de-DE") : "";
       row.innerHTML =
         `<strong style="color:var(--accent-strong);">${escapeHtml(String(label))}</strong>` +
         (updated ? ` <span style="font-size:0.85em; color:#6b7280;">(${escapeHtml(updated)})</span>` : "");

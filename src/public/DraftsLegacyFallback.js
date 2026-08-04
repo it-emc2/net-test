@@ -37,7 +37,8 @@ export function bootDraftsLegacyFallback() {
       btn.style.color='var(--text)';
       btn.onmouseenter=()=>btn.style.background='#eef2ff';
       btn.onmouseleave=()=>btn.style.background='transparent';
-      const updated = d.updatedAt ? new Date(d.updatedAt).toLocaleString('de-DE') : '';
+      const saved = d.savedAt || d.updatedAt;
+      const updated = saved ? new Date(saved).toLocaleString('de-DE') : '';
       btn.innerHTML = `<strong style="color:var(--accent-strong);">${d.name}</strong>` +
         (updated ? ` <span style="font-size:0.8em; color:#6b7280;">(${updated})</span>` : '');
       frag.appendChild(btn);

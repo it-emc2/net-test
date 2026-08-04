@@ -1,0 +1,91 @@
+/**
+ * @jest-environment jsdom
+ *
+ * Offline save queue replay.
+ *
+ * Bug: IndexedDB getAll() returns primary-key order and the primary key is a
+ * random UUID, so queued saves replayed in a random order. The server stamps
+ * its timestamps at replay time, so the draft list showed a random one of the
+ * offline saves as "newest". A 409 on replay also silently dropped the payload.
+ */
+
+import { jest } from '@jest/globals';
+
+import { makeIdbStub } from '../helpers/idb-stub.js';
+
+const idb = makeIdbStub();
+globalThis.indexedDB = idb.indexedDB;
+
+let queue;
+
+const draftRecord = (id, createdAt, name) => ({
+  id,
+  kind: 'draft',
+  offerKey: `draft:bu:${name}`,
+  url: '/api/drafts',
+  body: { name, offerType: 'bu', payload: { n: name }, savedAt: createdAt, clientSaveId: id },
+  createdAt,
+});
+
+const postedNames = () =>
+  globalThis.fetch.mock.calls.map((c) => JSON.parse(c[1].body).name);
+
+beforeAll(async () => {
+  globalThis.fetch = jest.fn(async () => ({ ok: true, status: 201 }));
+  window.toast = { success: jest.fn(), warn: jest.fn(), error: jest.fn() };
+  queue = await import('../../src/public/OfflineSaveQueue.js');
+});
+
+beforeEach(() => {
+  idb.data.clear();
+  globalThis.fetch.mockReset();
+  globalThis.fetch.mockResolvedValue({ ok: true, status: 201 });
+});
+
+test('replays queued saves in save order, not IndexedDB key order', async () => {
+  // Keys sort c < ... no: "aaa" < "bbb" < "ccc", so getAll() yields B, C, A —
+  // the order the user did NOT save in.
+  idb.data.set('ccc111', draftRecord('ccc111', '2026-07-28T10:00:00.000Z', 'A'));
+  idb.data.set('aaa111', draftRecord('aaa111', '2026-07-28T10:05:00.000Z', 'B'));
+  idb.data.set('bbb111', draftRecord('bbb111', '2026-07-28T10:10:00.000Z', 'C'));
+
+  await queue.retryAll();
+
+  expect(postedNames()).toEqual(['A', 'B', 'C']);
+  expect(idb.data.size).toBe(0);
+});
+
+test('a 409 on a draft re-saves under a new name instead of dropping the payload', async () => {
+  idb.data.set('abc123', draftRecord('abc123', '2026-07-28T10:00:00.000Z', 'ANG-BU-Meier'));
+
+  globalThis.fetch
+    .mockResolvedValueOnce({ ok: false, status: 409 })
+    .mockResolvedValueOnce({ ok: true, status: 201 });
+
+  await queue.retryAll();
+
+  expect(postedNames()).toEqual(['ANG-BU-Meier', 'ANG-BU-Meier-offline-abc123']);
+  expect(idb.data.size).toBe(0); // synced, not silently discarded
+  expect(window.toast.warn).toHaveBeenCalled();
+});
+
+test('a draft stays queued under its new name if the re-save also fails', async () => {
+  idb.data.set('abc123', draftRecord('abc123', '2026-07-28T10:00:00.000Z', 'ANG-BU-Meier'));
+
+  globalThis.fetch
+    .mockResolvedValueOnce({ ok: false, status: 409 })
+    .mockResolvedValueOnce({ ok: false, status: 500 });
+
+  await queue.retryAll();
+
+  expect(idb.data.get('abc123').body.name).toBe('ANG-BU-Meier-offline-abc123');
+});
+
+test('a queued save that is still offline is kept for the next sweep', async () => {
+  idb.data.set('abc123', draftRecord('abc123', '2026-07-28T10:00:00.000Z', 'ANG-BU-Meier'));
+  globalThis.fetch.mockRejectedValue(new TypeError('Failed to fetch'));
+
+  await queue.retryAll();
+
+  expect(idb.data.size).toBe(1);
+});

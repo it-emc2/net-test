@@ -137,3 +137,7 @@ out-Materialuebersicht.docx
 
 # Lokale PDF-Vorschauen (scripts/preview-pdf.mjs)
 preview-pdfs/
+
+# Playwright artifacts
+test-results/
+playwright-report/
