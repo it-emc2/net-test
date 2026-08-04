@@ -303,11 +303,33 @@
     var pg = container.querySelector('input[name="pflegegrad"]:checked');
     if (pg) editedFields.pflegegrad = pg.value;
 
-    // Vollmacht/Abtretungserklärung need Geburtsdatum + Versicherungsnummer for
-    // the Krankenkasse — required here since the BU-Konfigurator doesn't collect them.
-    if ((doc.key === "vollmacht" || doc.key === "abtretung") &&
-        (!editedFields.geburtsdatum || !editedFields.kk_versichertennr)) {
-      return showDocError("Bitte geben Sie Geburtsdatum und Versicherungsnummer an.");
+    // Vollmacht/Abtretungserklärung: every field shown on the document is
+    // mandatory (mirrored server-side in routes/signing.js, which is the
+    // authoritative check — this is just for immediate feedback).
+    var REQUIRED_FIELDS_BY_KEY = {
+      vollmacht: [
+        ["lastName", "Nachname"], ["firstName", "Vorname"], ["street", "Straße"],
+        ["postalCode", "PLZ"], ["city", "Ort"], ["phone", "Telefon"],
+        ["geburtsdatum", "Geburtsdatum"], ["kassenkundeName", "Krankenkasse"],
+        ["kk_versichertennr", "KVNR"],
+      ],
+      abtretung: [
+        ["lastName", "Nachname"], ["firstName", "Vorname"], ["geburtsdatum", "Geburtstag"],
+        ["kk_versichertennr", "Vers.-Nr."], ["street", "Straße"], ["postalCode", "PLZ"],
+        ["city", "Ort"], ["phone", "Telefon"], ["email", "E-Mail"], ["pflegegrad", "Pflegegrad"],
+        ["kk_pflegegradSeit", "Pflegegrad seit"], ["kassenkundeName", "Name der Pflegekasse"],
+        ["kk_krankenkasseAdresse", "Adresse der Pflegekasse"],
+      ],
+    };
+    REQUIRED_FIELDS_BY_KEY.abtretung_ah = REQUIRED_FIELDS_BY_KEY.abtretung;
+    var requiredFields = REQUIRED_FIELDS_BY_KEY[doc.key];
+    if (requiredFields) {
+      var missing = requiredFields
+        .filter(function (f) { return !String(editedFields[f[0]] || "").trim(); })
+        .map(function (f) { return f[1]; });
+      if (missing.length) {
+        return showDocError("Bitte füllen Sie alle Felder aus: " + missing.join(", "));
+      }
     }
 
     if (!primarySig || !primarySig.isFilled()) return showDocError("Bitte unterschreiben Sie im Feld.");

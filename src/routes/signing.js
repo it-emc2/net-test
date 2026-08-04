@@ -31,6 +31,9 @@ import {
   buildZusatzblattHtml,
   buildAbtretungAhHtml,
   hasPaymentChoice,
+  resolveFields,
+  VOLLMACHT_REQUIRED_FIELDS,
+  ABTRETUNG_REQUIRED_FIELDS,
 } from "../templates/signing-docs.js";
 import { buildEmailHtml } from "../lib/emailTemplate.js";
 
@@ -511,6 +514,24 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
         return res
           .status(400)
           .json({ error: "Bitte lassen Sie den/die Bevollmächtigte/n unterschreiben" });
+      }
+    }
+
+    // Vollmacht/Abtretung: every displayed field is mandatory.
+    const REQUIRED_FIELDS_BY_KEY = {
+      vollmacht: VOLLMACHT_REQUIRED_FIELDS,
+      abtretung: ABTRETUNG_REQUIRED_FIELDS,
+      abtretung_ah: ABTRETUNG_REQUIRED_FIELDS,
+    };
+    if (REQUIRED_FIELDS_BY_KEY[key]) {
+      const fields = resolveFields(sr, { editedFields });
+      const missing = REQUIRED_FIELDS_BY_KEY[key]
+        .filter(([field]) => !String(fields[field] || "").trim())
+        .map(([, label]) => label);
+      if (missing.length) {
+        return res
+          .status(400)
+          .json({ error: `Bitte füllen Sie alle Felder aus: ${missing.join(", ")}` });
       }
     }
 
