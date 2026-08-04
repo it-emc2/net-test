@@ -51,10 +51,8 @@ const setCustomer = (page, first, last) =>
 
 // Every test shares one app + one database, so scope each lookup to the
 // surname that test used rather than trying to wipe state between them.
-const searchDrafts = async (page, q) => {
-  const res = await page.request.get(
-    `/api/drafts/search?offerType=bu&q=${encodeURIComponent(q)}`,
-  );
+const searchDrafts = async (ctx, q) => {
+  const res = await ctx.get(`/api/drafts/search?offerType=bu&q=${encodeURIComponent(q)}`);
   expect(res.status()).toBe(200);
   return res.json();
 };
@@ -73,7 +71,12 @@ test.beforeEach(async ({ page }) => {
 test("three offline saves replay in save order and list newest first", async ({
   page,
   context,
+  request,
 }) => {
+  // Its own session: this context is deliberately outside the browser context,
+  // so context.setOffline() does not silence it.
+  expect((await request.post("/api/auth/login", { data: USER })).status()).toBe(200);
+
   await setCustomer(page, "Hans", "Meier");
 
   await context.setOffline(true);
@@ -96,17 +99,20 @@ test("three offline saves replay in save order and list newest first", async ({
   const ids = queued.map((r) => r.id);
   expect(ids).toEqual([...ids].sort());
 
-  // Nothing reached the server while offline.
-  await context.setOffline(false);
-  expect(await searchDrafts(page, "Meier")).toHaveLength(0);
+  // Nothing reached the server while offline. Asserted before reconnecting:
+  // going online fires the page's own `online` handler, so a sweep can already
+  // be in flight by the time a post-reconnect check would run — that race is
+  // what made this test flaky.
+  expect(await searchDrafts(request, "Meier")).toHaveLength(0);
 
+  await context.setOffline(false);
   await page.evaluate(() => window.dispatchEvent(new Event("online")));
 
   await expect
     .poll(async () => (await readQueue(page)).length, { timeout: 20000 })
     .toBe(0);
 
-  const drafts = await searchDrafts(page, "Meier");
+  const drafts = await searchDrafts(page.request, "Meier");
   expect(drafts.map((d) => d.name)).toEqual([...savedNames].reverse());
 });
 
@@ -130,7 +136,7 @@ test("a price refresh that fails offline still queues the draft", async ({
   await expect
     .poll(async () => (await readQueue(page)).length, { timeout: 20000 })
     .toBe(0);
-  expect(await searchDrafts(page, "Fallback")).toHaveLength(1);
+  expect(await searchDrafts(page.request, "Fallback")).toHaveLength(1);
 });
 
 // Locking pins a total permanently, so it must not happen against a price the
@@ -222,7 +228,7 @@ test("Sperren online locks, freezes and saves", async ({ page }) => {
 
   await page.evaluate(() => document.getElementById("btnLockOffer").click());
 
-  await expect.poll(async () => (await searchDrafts(page, "Online")).length).toBe(1);
+  await expect.poll(async () => (await searchDrafts(page.request, "Online")).length).toBe(1);
   expect(await page.evaluate(() => window.__locked)).toBe(true);
   expect(await page.evaluate(() => window.__frozen)).toBe(true);
   expect(await page.textContent("#btnLockOffer")).toContain("Entsperren");
@@ -249,7 +255,7 @@ test("a save whose response is lost is not duplicated on the next sweep", async 
   await context.setOffline(false);
   await page.evaluate(() => window.dispatchEvent(new Event("online")));
 
-  await expect.poll(async () => (await searchDrafts(page, "Response")).length).toBe(1);
+  await expect.poll(async () => (await searchDrafts(page.request, "Response")).length).toBe(1);
   expect(await readQueue(page)).toHaveLength(1); // client still thinks it is pending
 
   // Second sweep: the server matches clientSaveId and answers 200.
@@ -260,7 +266,7 @@ test("a save whose response is lost is not duplicated on the next sweep", async 
     .poll(async () => (await readQueue(page)).length, { timeout: 20000 })
     .toBe(0);
 
-  const drafts = await searchDrafts(page, "Response");
+  const drafts = await searchDrafts(page.request, "Response");
   expect(drafts).toHaveLength(1); // no duplicate
   expect(drafts[0].name).toBe(name); // and not renamed
 });

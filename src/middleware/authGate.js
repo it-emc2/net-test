@@ -8,7 +8,8 @@
 
 import { verifyToken, tokenFromReq } from "../services/authService.js";
 
-const ASSET_RE = /\.(js|mjs|css|png|jpe?g|gif|svg|webp|ico|woff2?|ttf|map|pdf)$/i;
+const ASSET_RE =
+  /\.(js|mjs|css|png|jpe?g|gif|svg|webp|ico|woff2?|ttf|map|pdf|webmanifest)$/i;
 
 function isPublicAsset(p) {
   // Shipped to the browser for offline pricing, but still business logic —
