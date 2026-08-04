@@ -20,7 +20,7 @@ import { fileURLToPath } from "url";
 import nodemailer from "nodemailer";
 
 import SigningRequest from "../models/SigningRequest.js";
-import { addTimelineComment } from "./bitrix.js";
+import { addTimelineComment, updateDealAfterSigning } from "./bitrix.js";
 import { generateOfferPdfBuffer, getOfferRenderData } from "./docx-template.js";
 import { htmlToPdfBuffer } from "../utils/htmlToPdf.js";
 import {
@@ -639,6 +639,20 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
           base64: p.buffer.toString("base64"),
         })),
       );
+      // Move the deal to the post-signing stage (BU/BWT only — AH has no
+      // such step). Non-fatal: a Bitrix hiccup shouldn't break the
+      // customer-facing signing confirmation.
+      if (!isAhOffer(sr) && sr.bitrixEntityType === "deal" && sr.bitrixEntityId) {
+        try {
+          await updateDealAfterSigning({
+            dealId: sr.bitrixEntityId,
+            customerType: sr.customerType,
+          });
+        } catch (err) {
+          console.warn("[signing] Bitrix deal stage update failed:", err?.message || err);
+        }
+      }
+
       completion = { completed: true };
     }
 
