@@ -316,7 +316,7 @@
       abtretung: [
         ["lastName", "Nachname"], ["firstName", "Vorname"], ["geburtsdatum", "Geburtstag"],
         ["kk_versichertennr", "Vers.-Nr."], ["street", "Straße"], ["postalCode", "PLZ"],
-        ["city", "Ort"], ["phone", "Telefon"], ["email", "E-Mail"], ["pflegegrad", "Pflegegrad"],
+        ["city", "Ort"], ["phone", "Telefon"], ["pflegegrad", "Pflegegrad"],
         ["kk_pflegegradSeit", "Pflegegrad seit"], ["kassenkundeName", "Name der Pflegekasse"],
         ["kk_krankenkasseAdresse", "Adresse der Pflegekasse"],
       ],

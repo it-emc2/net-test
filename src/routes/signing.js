@@ -535,6 +535,39 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
       }
     }
 
+    // Vollmacht/Abtretung share several fields (name, address, Geburtsdatum,
+    // KVNR, ...). If the customer fills/corrects one of these on whichever
+    // document they sign first, carry it into the shared snapshot so the
+    // other document picks it up via resolveFields() without asking again.
+    const PREFILL_CARRY_KEYS = [
+      "lastName", "firstName", "street", "postalCode", "city", "phone", "geburtsdatum",
+    ];
+    const KUNDENDATEN_CARRY_KEYS = ["kassenkundeName", "kk_versichertennr"];
+    if (key === "vollmacht" || key === "abtretung" || key === "abtretung_ah") {
+      sr.prefill = sr.prefill || {};
+      let touchedPrefill = false;
+      for (const k of PREFILL_CARRY_KEYS) {
+        const v = String(editedFields[k] || "").trim();
+        if (v) {
+          sr.prefill[k] = v;
+          touchedPrefill = true;
+        }
+      }
+      if (touchedPrefill) sr.markModified("prefill");
+
+      sr.payloadSnapshot = sr.payloadSnapshot || {};
+      sr.payloadSnapshot.Kundendaten = sr.payloadSnapshot.Kundendaten || {};
+      let touchedSnapshot = false;
+      for (const k of KUNDENDATEN_CARRY_KEYS) {
+        const v = String(editedFields[k] || "").trim();
+        if (v) {
+          sr.payloadSnapshot.Kundendaten[k] = v;
+          touchedSnapshot = true;
+        }
+      }
+      if (touchedSnapshot) sr.markModified("payloadSnapshot");
+    }
+
     doc.signatureImage = sig;
     doc.editedFields = editedFields;
     doc.extraFields = extraFields;

@@ -103,7 +103,6 @@ export const ABTRETUNG_REQUIRED_FIELDS = [
   ["postalCode", "PLZ"],
   ["city", "Ort"],
   ["phone", "Telefon"],
-  ["email", "E-Mail"],
   ["pflegegrad", "Pflegegrad"],
   ["kk_pflegegradSeit", "Pflegegrad seit"],
   ["kassenkundeName", "Name der Pflegekasse"],
