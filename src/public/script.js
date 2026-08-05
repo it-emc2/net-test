@@ -14667,6 +14667,24 @@ const RESTORE_HANDLERS = {
     }
   })();
 
+  // Crash/discard recovery for the work in progress. Must boot after the
+  // managers above, so buildPayload() reads a fully wired form.
+  window.__sessionRecoveryReady = window.__sessionRecoveryReady || (async () => {
+    try {
+      await __domReady();
+      // Wait for the drafts UI but never depend on it: offline its init can
+      // reject, and recovery is exactly what is needed most in that case.
+      await Promise.allSettled([window.__draftsReady]);
+      const { initSessionRecovery } = await import("./session-recovery.js");
+      const found = await initSessionRecovery();
+      __startupLog(`[SessionRecovery] ready${found ? " (snapshot offered)" : ""}`);
+      return found;
+    } catch (e) {
+      __startupWarn("[SessionRecovery] init failed:", e);
+      return null;
+    }
+  })();
+
   // Pricing inputs snapshot: refreshed whenever there is signal so that
   // fetchPrice() can fall back to computing locally when there is not.
   window.__pricingInputsReady = window.__pricingInputsReady || (async () => {

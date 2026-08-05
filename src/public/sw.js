@@ -25,9 +25,14 @@ const IMAGE_HOSTS = new Set(["media.onlineplus.store"]);
 // price fallback only imports pricing-client.js once a price fetch has already
 // failed. Everything else is picked up as it gets used. "/" is deliberately
 // absent — see warmShell, which needs the redirect guard.
+// ponytail: hand-maintained list of the offline-critical path only, not the
+// whole module graph. Everything else is cached the first time it is used, so
+// a page that installs the worker and goes offline within the same load is
+// degraded — acceptable, since the app is opened with signal before a visit.
 const PRECACHE = [
   "/script.js",
   "/OfflineSaveQueue.js",
+  "/session-recovery.js",
   "/pricing-cache.js",
   "/pricing-client.js",
   "/logic/pricing-core.js",
