@@ -72,3 +72,29 @@ test("a controlling service worker with a fetch handler is active", async ({ pag
   );
   expect(scope).toMatch(/\/$/);
 });
+
+// An ngrok tunnel is how this reaches a real iPhone (iOS needs HTTPS for
+// service workers and Add to Home Screen). The browser sends an Origin header
+// even on same-origin POSTs, so a tunnel host missing from the CORS allowlist
+// fails login with an unparseable HTML error rather than anything readable.
+test("tunnel origins used for on-device testing are accepted", async ({ request }) => {
+  const cases = [
+    ["https://noniconoclastic-pauletta-beloid.ngrok-free.dev", 200],
+    ["https://something.ngrok-free.app", 200],
+    ["https://evil.example.com", 500], // cors() rejects -> error handler
+  ];
+
+  for (const [origin, expected] of cases) {
+    const res = await request.post("/api/auth/login", {
+      headers: { origin },
+      data: { email: "nobody@test.local", password: "wrong" },
+      failOnStatusCode: false,
+    });
+    // 200 here means "reached the route"; the credentials are wrong on purpose,
+    // so an allowed origin answers 401 and a blocked one never gets that far.
+    const reachedRoute = res.status() === 401;
+    expect(reachedRoute, `${origin} should ${expected === 200 ? "" : "not "}reach the route`).toBe(
+      expected === 200,
+    );
+  }
+});

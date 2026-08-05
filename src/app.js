@@ -187,22 +187,32 @@ const allowedExact = new Set([
   "https://emczwei.bitrix24.de",
 ]);
 
+// ngrok has renamed its domains over time (ngrok.io -> ngrok-free.app ->
+// ngrok-free.dev), and a tunnel is how the app gets onto a real iPhone/iPad for
+// testing, since iOS refuses service workers and Add-to-Home-Screen over plain
+// http to a LAN address.
+//
+// Deliberately NOT widened in production: with credentials:true, every suffix
+// here is an origin any stranger can obtain and then call this API from a
+// logged-in employee's browser. Production keeps exactly the one domain it
+// already trusted, so this stays a dev-only convenience.
+const NGROK_SUFFIXES =
+  process.env.NODE_ENV === "production"
+    ? ["ngrok-free.app"]
+    : ["ngrok-free.app", "ngrok-free.dev", "ngrok.app", "ngrok.dev", "ngrok.io"];
+
 function isAllowedOrigin(origin) {
   if (!origin) return true;
   if (allowedExact.has(origin)) return true;
   try {
     const u = new URL(origin);
-    if (
-      u.protocol === "https:" &&
-      (u.hostname === "ngrok-free.app" ||
-        u.hostname.endsWith(".ngrok-free.app"))
-    ) {
-      return true;
-    }
+    if (u.protocol !== "https:") return false;
+    return NGROK_SUFFIXES.some(
+      (suffix) => u.hostname === suffix || u.hostname.endsWith(`.${suffix}`),
+    );
   } catch {
     return false;
   }
-  return false;
 }
 
 app.use(

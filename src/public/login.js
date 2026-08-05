@@ -27,7 +27,15 @@
         password: document.getElementById("password").value,
       }),
     })
-      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Login fehlgeschlagen"); return j; }); })
+      .then(function (r) {
+        return r.json().then(
+          function (j) { if (!r.ok) throw new Error(j.error || "Login fehlgeschlagen"); return j; },
+          function () {
+            // Not JSON: the request never reached the route (CORS, proxy, 5xx).
+            throw new Error("Server antwortete unerwartet (HTTP " + r.status + ")");
+          },
+        );
+      })
       .then(function () { window.location.href = nextUrl(); })
       .catch(function (e2) { err.textContent = e2.message; err.classList.add("show"); btn.disabled = false; });
   });
