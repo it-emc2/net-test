@@ -26585,8 +26585,9 @@ function applyPlanningAppointmentToForm(entry, offerKey){
     // Just simulates a manual zone-button click; absent/non-AH → routing/manual stays the source.
     const _zone = Number(entry?.zone);
     if (offerKey === "ah" && Number.isFinite(_zone) && _zone >= 1 && _zone <= 5) {
+      const _zoneMin = (_zone - 1) * 5 + 10;
       const zbtn = document.querySelector(
-        `#travelZoneButtons .az-zone-btn[data-zone-min="${_zone * 10}"]`
+        `#travelZoneButtons .az-zone-btn[data-zone-min="${_zoneMin}"]`
       );
       if (zbtn) zbtn.click();
     }
