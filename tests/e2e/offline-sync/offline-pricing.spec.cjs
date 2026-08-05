@@ -16,8 +16,12 @@ const priceNow = (page) =>
       total: result?.total ?? null,
       selfPay: result?.selfPayAmount ?? null,
       local: result?._local === true,
-      lines: Array.isArray(result?.materials) ? result.materials.length : null,
-      json: JSON.stringify(result ?? null),
+      lines: result?.materials?.lines?.length ?? null,
+      // The catalog side. With an empty Products collection every line prices
+      // at 0 and an equality check proves nothing about material pricing.
+      materialSum: result?.materials?.sum ?? null,
+      productsInSnapshot: (await (await import("/pricing-cache.js")).loadInputs())
+        ?.products?.length ?? 0,
     };
   });
 
@@ -91,6 +95,17 @@ test("the offline total matches the server total for the same payload", async ({
   expect(offline.total).toBe(online.total);
   expect(offline.selfPay).toBe(online.selfPay);
   expect(offline.lines).toBe(online.lines);
+  expect(offline.materialSum).toBe(online.materialSum);
+
+  // Guard against a vacuous pass: with no catalog every material line is 0, so
+  // the totals above would agree without the product lookups ever mattering.
+  if (online.productsInSnapshot > 0) {
+    expect(online.materialSum).toBeGreaterThan(0);
+  } else {
+    console.warn(
+      "[pricing] no products in the snapshot — material pricing not exercised",
+    );
+  }
 });
 
 test("a locally computed total is never frozen or locked", async ({ page, context }) => {
