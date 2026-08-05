@@ -370,7 +370,7 @@ async function updateDealStage({
 // Stages the deal moves to once the customer finishes online signing
 // (BU/BWT only — AH has no such step). Both live in deal category 38, the
 // same pipeline as ANG_VERSCHICKT_STAGE_ID above.
-const SIGNING_KASSE_STAGE_ID = "C38:UC_Q3LFJ2"; // "[VI] ANG online signiert - zur"
+const SIGNING_KASSE_STAGE_ID = "C38:UC_ON3GS1"; // "[VI] Antrag an Kasse stellen"
 const SIGNING_SZ_STAGE_ID = "C38:UC_5DII17"; // "[VI] AUTOM in FT anl. + überpr."
 const SIGNING_CATEGORY_ID = 38;
 
