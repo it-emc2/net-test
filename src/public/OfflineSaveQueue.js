@@ -36,6 +36,16 @@ async function addRecord(record) {
   });
 }
 
+async function putRecord(record) {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).put(record);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 async function deleteRecord(id) {
   const db = await openDb();
   return new Promise((resolve, reject) => {
@@ -74,49 +84,65 @@ function notifyConflict(record) {
   );
 }
 
-// The only entry point call sites use for a save. Native `fetch` throws only
-// on real network failure, never on 4xx/5xx — that's the offline signal.
-export async function trySaveOrQueue({ kind, offerKey, url, body }) {
+function notifyRenamed(oldName, newName) {
+  window.toast?.warn?.(
+    "Entwurf umbenannt",
+    `„${oldName}“ existierte bereits – der offline gespeicherte Stand wurde als „${newName}“ übertragen.`,
+  );
+}
+
+// Resolves to the Response, or to null on a real network failure (offline).
+// Native `fetch` throws only on network failure, never on 4xx/5xx.
+async function postRecord(record) {
   try {
-    const res = await fetch(url, {
+    return await fetch(record.url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify(body),
+      body: JSON.stringify(record.body),
     });
-    return { queued: false, res };
   } catch (err) {
-    const record = {
-      id: crypto.randomUUID(),
-      kind,
-      offerKey,
-      url,
-      body,
-      createdAt: new Date().toISOString(),
-    };
-    await addRecord(record);
-    renderBadge();
-    return { queued: true, id: record.id };
+    return null;
   }
+}
+
+// The only entry point call sites use for a save.
+export async function trySaveOrQueue({ kind, offerKey, url, body }) {
+  // `savedAt` is stamped here so the server records when the user actually
+  // saved, not when the sweep happened to reach the record. `clientSaveId`
+  // makes a replay of this exact save idempotent server-side.
+  const id = crypto.randomUUID();
+  const savedAt = new Date().toISOString();
+  const record = {
+    id,
+    kind,
+    offerKey,
+    url,
+    body: { ...body, savedAt, clientSaveId: id },
+    createdAt: savedAt,
+  };
+
+  const res = await postRecord(record);
+  if (res) return { queued: false, res };
+
+  await addRecord(record);
+  renderBadge();
+  return { queued: true, id };
 }
 
 // Sweeps every queued record. Called on reconnect and on page load.
 export async function retryAll() {
-  const records = await getAllRecords();
+  // IndexedDB getAll() yields primary-key order, and the primary key is a
+  // random UUID — replaying in that order lets an older save land last and
+  // win. Sort by save time so the server sees them as the user made them.
+  const records = (await getAllRecords()).sort((a, b) =>
+    String(a.createdAt) < String(b.createdAt) ? -1 : 1,
+  );
   let syncedCount = 0;
 
   for (const record of records) {
-    let res;
-    try {
-      res = await fetch(record.url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(record.body),
-      });
-    } catch (err) {
-      continue; // still offline, leave queued for the next sweep
-    }
+    const res = await postRecord(record);
+    if (!res) continue; // still offline, leave queued for the next sweep
 
     if (res.ok) {
       await deleteRecord(record.id);
@@ -125,19 +151,30 @@ export async function retryAll() {
     }
 
     if (res.status === 409) {
-      if (record.kind === "draft") {
-        // Only retryAll ever replays a record, so a 409 here can only mean
-        // this exact queued save already went through (a genuine name
-        // collision is caught synchronously in trySaveOrQueue's caller and
-        // never reaches the queue at all).
-        await deleteRecord(record.id);
-        syncedCount++;
-      } else {
+      if (record.kind !== "draft") {
         // Offer upserts by offerNumber, so a 409 here is a rare but real
         // conflict — don't silently drop it, and don't retry it forever.
         await deleteRecord(record.id);
         notifyConflict(record);
+        continue;
       }
+
+      // Replaying a save that already landed answers 200 (matched on
+      // clientSaveId), so a 409 is always a collision with a *different*
+      // draft — rename and retry rather than dropping the user's payload.
+      const oldName = record.body?.name;
+      const renamed = {
+        ...record,
+        body: { ...record.body, name: `${oldName}-offline-${record.id.slice(0, 6)}` },
+      };
+      await putRecord(renamed);
+      const retryRes = await postRecord(renamed);
+      if (retryRes?.ok) {
+        await deleteRecord(renamed.id);
+        syncedCount++;
+        notifyRenamed(oldName, renamed.body.name);
+      }
+      // Not ok? The record stays queued under its new name for the next sweep.
       continue;
     }
 

@@ -10833,11 +10833,24 @@ function attachDuschwanneToPayload(payload) {
 /* ========== GLOBAL PRICING SERVICE (fetch -> cache -> event) ========== */
 (() => {
   async function fetchPrice(payload) {
-    const r = await fetch("/api/price", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    let r;
+    try {
+      r = await fetch("/api/price", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      // No signal. Run the server's own rules (logic/pricing-core.js) against
+      // the cached inputs so the technician still sees a total. Flagged
+      // `_local` so it can never be frozen or locked — that needs a figure the
+      // server confirmed. Live vigor prices are unavailable, so configurator
+      // snapshot prices are used, exactly as server-side on a vigor outage.
+      const { computePricesLocally } = await import("./pricing-client.js");
+      const local = await computePricesLocally(payload);
+      if (local) return local;
+      throw err; // nothing cached — no total is better than a wrong one
+    }
     if (!r.ok) throw new Error(await r.text());
     return r.json();
   }
@@ -10984,7 +10997,24 @@ function attachDuschwanneToPayload(payload) {
       snapshot = { total: ah.gesamt, selfPayAmount: ah.eigenanteil, _isAH: true };
     } else {
       const pl = typeof window.buildPayload === "function" ? window.buildPayload() : null;
-      snapshot = pl ? await fetchPrice(pl) : window.__pricing;
+      if (pl) {
+        // A fresh snapshot needs the server. Offline this must not throw: the
+        // draft save calls us before reaching the offline queue, and losing
+        // the user's payload over a failed price refresh is worse than saving
+        // it with the pricing we already had. Returning null leaves __frozen
+        // and __frozenPricing untouched, so nothing gets frozen at a total
+        // the server never computed — Sperren checks for exactly that.
+        snapshot = await fetchPrice(pl).catch((err) => {
+          console.warn("[pricing] freeze failed, offer stays unfrozen:", err);
+          return null;
+        });
+        // A locally computed total is fine to *show*, never to freeze: it uses
+        // cached rates and snapshot article prices, so pinning an offer to it
+        // could lock in a figure the server would not agree with.
+        if (!snapshot || snapshot._local) return null;
+      } else {
+        snapshot = window.__pricing;
+      }
     }
     window.__frozen = true;
     window.__frozenPricing = snapshot;
@@ -14637,6 +14667,59 @@ const RESTORE_HANDLERS = {
     }
   })();
 
+  // Crash/discard recovery for the work in progress. Must boot after the
+  // managers above, so buildPayload() reads a fully wired form.
+  window.__sessionRecoveryReady = window.__sessionRecoveryReady || (async () => {
+    try {
+      await __domReady();
+      // Wait for the drafts UI but never depend on it: offline its init can
+      // reject, and recovery is exactly what is needed most in that case.
+      await Promise.allSettled([window.__draftsReady]);
+      const { initSessionRecovery } = await import("./session-recovery.js");
+      const found = await initSessionRecovery();
+      __startupLog(`[SessionRecovery] ready${found ? " (snapshot offered)" : ""}`);
+      return found;
+    } catch (e) {
+      __startupWarn("[SessionRecovery] init failed:", e);
+      return null;
+    }
+  })();
+
+  // Pricing inputs snapshot: refreshed whenever there is signal so that
+  // fetchPrice() can fall back to computing locally when there is not.
+  window.__pricingInputsReady = window.__pricingInputsReady || (async () => {
+    try {
+      await __domReady();
+      const { refreshInputs } = await import("./pricing-cache.js");
+      const inputs = await refreshInputs();
+      // Warm the offline path while there is still signal: pricing-client.js
+      // and logic/pricing-core.js are only imported when a price fetch fails,
+      // so unless they are already cached they cannot load at that moment.
+      await import("./pricing-client.js");
+      if (inputs) __startupLog(`[PricingInputs] cached ${inputs.products.length} products`);
+      return inputs;
+    } catch (e) {
+      __startupWarn("[PricingInputs] refresh failed:", e);
+      return null;
+    }
+  })();
+
+  // Offline app shell. Without it, losing signal survives only as long as the
+  // tab stays open — a reload on site would leave the technician with a blank
+  // page and no way to reach the queued saves.
+  window.__offlineShellReady = window.__offlineShellReady || (async () => {
+    try {
+      await __domReady();
+      const { registerOfflineShell } = await import("./sw-register.js");
+      const reg = await registerOfflineShell();
+      if (reg) __startupLog("[OfflineShell] registered");
+      return reg;
+    } catch (e) {
+      __startupWarn("[OfflineShell] init failed:", e);
+      return null;
+    }
+  })();
+
   window.__integrationsReady = window.__integrationsReady || (async () => {
     try {
       await __domReady();
@@ -15935,7 +16018,14 @@ async function saveFinalOfferSnapshot() {
   // 5) Ensure pricing snapshot (use filtered payload!)
   let pricing = window.__pricing;
   if (!pricing && typeof window.updatePricing === "function") {
-    pricing = await window.updatePricing(filteredPayload);
+    // Needs the server, and there is nothing cached to fall back on if the
+    // page was opened while already offline. Must not abort the save — the
+    // offline queue below is the whole point; the offer route accepts a null
+    // pricing and it gets recomputed on the next edit.
+    pricing = await window.updatePricing(filteredPayload).catch((err) => {
+      console.warn("[pricing] snapshot unavailable, saving without it:", err);
+      return null;
+    });
   }
 
   // 6) Persist finished offer snapshot

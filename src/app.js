@@ -7,8 +7,10 @@ import morgan from "morgan";
 import compression from "compression";
 import path from "path";
 import { fileURLToPath } from "url";
+import { readFile } from "fs/promises";
 import mongoose from "mongoose";
 import offersRouter from "./routes/offers.js";
+import draftsRouter from "./routes/drafts.js";
 import Service from "./models/Service.js"; // <‑‑ NEU
 import traysRouter from "./routes/trays.js";
 import vorhangRouter from "./routes/vorhang.js";
@@ -36,7 +38,6 @@ import { router as hlParseRouter } from "./routes/hl-parse.js";
 import Product from "./models/Product.js";
 import Submission from "./models/Submission.js";
 import Offer from "./models/Offer.js"; // (ESM import)
-import Draft from "./models/Draft.js";
 import emailRouter from "./routes/email.js";
 import todaysCustomersRouter from "./routes/todayscustomers.js"; // <‑‑ NEW
 import signingRouter, { signingPageHandler } from "./routes/signing.js";
@@ -50,7 +51,7 @@ import pricingFactory from "./logic/pricing.js";
 // app.txt (top imports)
 import latexTemplateRouter from "./routes/latex-template.js";
 import adminRouter from "./routes/admin.js";
-import configService from "./services/configService.js";
+import configService, { CONFIG_SCHEMA } from "./services/configService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -186,22 +187,32 @@ const allowedExact = new Set([
   "https://emczwei.bitrix24.de",
 ]);
 
+// ngrok has renamed its domains over time (ngrok.io -> ngrok-free.app ->
+// ngrok-free.dev), and a tunnel is how the app gets onto a real iPhone/iPad for
+// testing, since iOS refuses service workers and Add-to-Home-Screen over plain
+// http to a LAN address.
+//
+// Deliberately NOT widened in production: with credentials:true, every suffix
+// here is an origin any stranger can obtain and then call this API from a
+// logged-in employee's browser. Production keeps exactly the one domain it
+// already trusted, so this stays a dev-only convenience.
+const NGROK_SUFFIXES =
+  process.env.NODE_ENV === "production"
+    ? ["ngrok-free.app"]
+    : ["ngrok-free.app", "ngrok-free.dev", "ngrok.app", "ngrok.dev", "ngrok.io"];
+
 function isAllowedOrigin(origin) {
   if (!origin) return true;
   if (allowedExact.has(origin)) return true;
   try {
     const u = new URL(origin);
-    if (
-      u.protocol === "https:" &&
-      (u.hostname === "ngrok-free.app" ||
-        u.hostname.endsWith(".ngrok-free.app"))
-    ) {
-      return true;
-    }
+    if (u.protocol !== "https:") return false;
+    return NGROK_SUFFIXES.some(
+      (suffix) => u.hostname === suffix || u.hostname.endsWith(`.${suffix}`),
+    );
   } catch {
     return false;
   }
-  return false;
 }
 
 app.use(
@@ -489,115 +500,43 @@ app.post("/api/price", async (req, res) => {
   }
 });
 
+// The pricing rules run in the browser too, for offline totals (see
+// public/pricing-client.js). Only this one file from src/logic is exposed, and
+// authGate keeps it behind the session — it is business logic, not an asset.
+const PRICING_CORE_SRC = await readFile(
+  path.join(__dirname, "logic", "pricing-core.js"),
+  "utf8",
+);
+app.get("/logic/pricing-core.js", (req, res) => {
+  res.type("application/javascript").send(PRICING_CORE_SRC);
+});
+
+// GET /api/price/inputs
+// Everything the browser needs to compute a total without us: the product
+// prices and the admin-tunable numbers. Cached client-side so a technician who
+// loses signal still sees live totals (see public/pricing-client.js).
+// ponytail: ships the whole product table in one response. Fine at the current
+// size; switch to a delta keyed on buildId if it ever gets heavy.
+app.get("/api/price/inputs", async (req, res) => {
+  try {
+    const config = {};
+    // Every schema key, so this never drifts from what pricing-core reads.
+    for (const def of CONFIG_SCHEMA) config[def.key] = configService.get(def.key);
+
+    const products = await Product.find(
+      {},
+      { _id: 0, productId: 1, price: 1, name: 1 },
+    ).lean();
+
+    res.json({ buildId: APP_BUILD_ID, config, products });
+  } catch (err) {
+    console.error("GET /api/price/inputs failed:", err);
+    res.status(500).json({ error: "Serverfehler beim Laden der Preis-Basisdaten" });
+  }
+});
+
 // ---------------- Drafts (Entwürfe) ----------------
-
-// POST /api/drafts
-// body: { name, offerType, payload }
-app.post("/api/drafts", async (req, res) => {
-  try {
-    const { name, offerType, payload } = req.body || {};
-
-    if (!name || !offerType || !payload) {
-      return res
-        .status(400)
-        .json({ error: "name, offerType und payload sind erforderlich" });
-    }
-
-    const trimmedName = String(name).trim();
-    const trimmedOffer = String(offerType).trim();
-
-    if (!trimmedName) {
-      return res.status(400).json({ error: "Name darf nicht leer sein" });
-    }
-
-    // Ensure uniqueness per (offerType, name)
-    const existing = await Draft.findOne({
-      name: trimmedName,
-      offerType: trimmedOffer,
-    }).lean();
-    if (existing) {
-      return res
-        .status(409)
-        .json({
-          error:
-            "Ein Entwurf mit diesem Namen existiert bereits für diesen Bereich",
-        });
-    }
-
-    const doc = await Draft.create({
-      name: trimmedName,
-      offerType: trimmedOffer,
-      payload,
-    });
-
-    return res.status(201).json({
-      id: doc._id,
-      name: doc.name,
-      offerType: doc.offerType,
-      createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt,
-    });
-  } catch (err) {
-    console.error("POST /api/drafts failed:", err);
-    res.status(500).json({ error: "Serverfehler beim Speichern des Entwurfs" });
-  }
-});
-
-// GET /api/drafts/search?offerType=bu&q=meier
-app.get("/api/drafts/search", async (req, res) => {
-  try {
-    const { offerType, q } = req.query || {};
-    const filter = {};
-
-    if (!offerType) {
-      return res.status(400).json({ error: "offerType ist erforderlich" });
-    }
-
-    filter.offerType = String(offerType).trim();
-
-    if (q) {
-      const re = new RegExp(String(q).trim(), "i");
-      filter.name = re;
-    }
-
-    const docs = await Draft.find(filter, {
-      name: 1,
-      offerType: 1,
-      updatedAt: 1,
-    })
-      .sort({ updatedAt: -1 })
-      .limit(10)
-      .lean();
-
-    res.json(docs);
-  } catch (err) {
-    console.error("GET /api/drafts/search failed:", err);
-    res
-      .status(500)
-      .json({ error: "Serverfehler bei der Suche nach Entwürfen" });
-  }
-});
-
-// GET /api/drafts/:id
-app.get("/api/drafts/:id", async (req, res) => {
-  try {
-    const doc = await Draft.findById(req.params.id).lean();
-    if (!doc) return res.status(404).json({ error: "Entwurf nicht gefunden" });
-
-    // Keep it simple: send payload along with meta
-    res.json({
-      id: doc._id,
-      name: doc.name,
-      offerType: doc.offerType,
-      payload: doc.payload,
-      createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt,
-    });
-  } catch (err) {
-    console.error("GET /api/drafts/:id failed:", err);
-    res.status(500).json({ error: "Serverfehler beim Laden des Entwurfs" });
-  }
-});
+app.use("/api/drafts", draftsRouter);
 
 // ---------------- Submissions (legacy) ----------------
 app.post("/api/submissions", async (req, res) => {

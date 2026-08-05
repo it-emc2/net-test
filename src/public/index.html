@@ -8,6 +8,17 @@
 
   <title>Angebotskonfigurator-emc2</title>
 
+  <!-- PWA: installable + standalone on the iPad the technicians take on site.
+       The offline behaviour itself comes from sw.js and works in the browser
+       too; this only affects installability and how it launches. -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#1e5aa8" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <!-- iOS ignores the manifest's display mode; this is its equivalent. -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Angebote" />
+
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css" />
   <style>

@@ -19,6 +19,7 @@
     "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/unit",
     "test:integration": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/integration",
     "test:e2e": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/e2e",
+    "test:e2e:offline": "playwright test -c playwright.offline.config.cjs",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "format": "prettier --write \"src/**/*.{js,mjs,json}\"",
@@ -85,6 +86,7 @@
     "jest-environment-jsdom": "^29.7.0",
     "jest-junit": "^16.0.0",
     "jsdom": "^25.0.1",
+    "mongodb-memory-server": "^11.2.0",
     "nodemon": "^3.1.11",
     "prettier": "^3.4.2",
     "supertest": "^7.0.0"

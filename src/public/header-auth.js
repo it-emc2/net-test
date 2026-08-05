@@ -15,6 +15,9 @@
   }
 
   function redirectToLogin() {
+    // Never nest: on /login the URL already carries a next, and re-appending
+    // it each hop grows the query string without bound.
+    if (window.location.pathname === "/login") return;
     var next = encodeURIComponent(window.location.pathname + window.location.search);
     window.location.href = "/login?next=" + next;
   }
@@ -28,7 +31,14 @@
       if (avatarEl) avatarEl.textContent = initials(label);
       box.hidden = false;
     })
-    .catch(redirectToLogin);
+    .catch(function () {
+      // A request that never reached the server says nothing about the
+      // session. Offline this must not bounce to /login: the login page needs
+      // the network anyway, so it would strand a technician mid-visit — and
+      // with the shell cached it loops, each hop re-encoding the last next.
+      // Leave the cached page in place; the session is re-checked on the next
+      // load that has signal.
+    });
 
   logoutBtn.addEventListener("click", function () {
     fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" })
