@@ -63,6 +63,12 @@ test("the inputs snapshot carries the config and product prices", async ({ page 
 
   // The admin override, not pricing-core's hardcoded fallback. If the snapshot
   // carried defaults instead, the equality test below could not tell.
+  // Only meaningful in-memory: against a shared database we deliberately do not
+  // write an override, because that would change a real labour rate.
+  test.skip(
+    !LABOR_RATE_OVERRIDE,
+    "external database: no override seeded, so cached and default coincide",
+  );
   const rate = await page.evaluate(async () => {
     const m = await import("/pricing-cache.js");
     return (await m.loadInputs()).config.LABOR_RATE_KK;
