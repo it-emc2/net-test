@@ -14354,7 +14354,7 @@ function restoreOptionalPage(opt) {
       cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH", "opt_ONSHB"],
       cat_METER: ["opt_TECEADS"],
       cat_RAMPE: ["opt_RAMPE35"],
-      cat_WESGH: ["opt_WESGH"],
+      cat_WESGH: ["opt_WESGH", "opt_TRGAVS15", "opt_INSTMATROH"],
       cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003", "opt_CLPWCF10", "opt_WCBF", "opt_CLPSSI"],
       cat_REHA : ["opt_24081000","opt_24081100","opt_24081500","opt_24081600","opt_24081005",
         "opt_24081105", "opt_24081505", "opt_24081605", "opt_25670000", "opt_24081800",
@@ -17574,6 +17574,49 @@ function initOnshbAutoAccessory() {
   show(reqWrap, onshb.checked);
 }
 
+function initWesghAutoAccessory() {
+  const reqWrap = document.getElementById("wesghRequiredWrap");
+  const main = document.getElementById("opt_WESGH");
+  const qMain = document.getElementById("qty_WESGH");
+  const accessories = [
+    { cb: document.getElementById("opt_TRGAVS15"), qty: document.getElementById("qty_TRGAVS15") },
+    { cb: document.getElementById("opt_INSTMATROH"), qty: document.getElementById("qty_INSTMATROH") },
+  ].filter((a) => a.cb && a.qty);
+  if (!reqWrap || !main || !qMain || !accessories.length) return;
+
+  const dispatch = (el) => {
+    if (!el) return;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  const show = (el, v) => {
+    el.hidden = !v;
+    el.setAttribute("aria-hidden", String(!v));
+  };
+
+  const syncFromMain = () => {
+    if (!main.checked) return;
+    const qty = Number(qMain.value) || 1;
+    accessories.forEach((a) => {
+      if (!a.cb.checked) {
+        a.cb.checked = true;
+        dispatch(a.cb);
+      }
+      a.qty.value = String(qty);
+      dispatch(a.qty);
+    });
+  };
+
+  main.addEventListener("change", () => {
+    show(reqWrap, main.checked);
+    if (main.checked) syncFromMain();
+  });
+  qMain.addEventListener("input", syncFromMain);
+
+  // initial state (e.g. after restoring a saved offer)
+  show(reqWrap, main.checked);
+}
+
 function initOptionalMenus() {
   // Map main category checkboxes -> their panels
   const map = {
@@ -17750,6 +17793,9 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_RAMPE35", "qty_RAMPE35_wrap");
   // ---- WESGH ----
   wireTileQty("opt_WESGH", "qty_WESGH_wrap");
+  wireTileQty("opt_TRGAVS15", "qty_TRGAVS15_wrap");
+  wireTileQty("opt_INSTMATROH", "qty_INSTMATROH_wrap");
+  initWesghAutoAccessory();
 
   // ---- WC ----
   (function wireWcMenu() {
@@ -18477,7 +18523,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
     cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH", "opt_ONSHB"],
     cat_METER: ["opt_TECEADS"],
     cat_RAMPE: ["opt_RAMPE35"],
-    cat_WESGH: ["opt_WESGH"],
+    cat_WESGH: ["opt_WESGH", "opt_TRGAVS15", "opt_INSTMATROH"],
     cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003", "opt_CLPWCF10", "opt_WCBF", "opt_CLPSSI"],
     cat_REHA: [
       "opt_24081000", "opt_24081100", "opt_24081500", "opt_24081600",
