@@ -259,11 +259,19 @@ test("a save whose response is lost is not duplicated on the next sweep", async 
   expect(await readQueue(page)).toHaveLength(1); // client still thinks it is pending
 
   // Second sweep: the server matches clientSaveId and answers 200.
+  // Re-trigger on every poll rather than firing once — unrouting is not
+  // instantaneous, so a single dispatch can still be caught by the expiring
+  // intercept and then nothing would ever sweep again. The real app likewise
+  // retries on each online event and each page load.
   await page.unroute("**/api/drafts");
-  await page.evaluate(() => window.dispatchEvent(new Event("online")));
-
   await expect
-    .poll(async () => (await readQueue(page)).length, { timeout: 20000 })
+    .poll(
+      async () => {
+        await page.evaluate(() => window.dispatchEvent(new Event("online")));
+        return (await readQueue(page)).length;
+      },
+      { timeout: 20000, intervals: [250, 500, 1000] },
+    )
     .toBe(0);
 
   const drafts = await searchDrafts(page.request, "Response");
