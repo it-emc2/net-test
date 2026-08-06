@@ -764,6 +764,10 @@ export function initDraftsManager(options = {}) {
     const box = ensureModal().querySelector("#dmConfirmCancel");
     if (!box) return;
     box.classList.toggle("is-open", !!open);
+    if (open) {
+      modal.querySelector("#dmNameInput")?.blur();
+      box.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
   }
 
   function openSaveAsModal() {
