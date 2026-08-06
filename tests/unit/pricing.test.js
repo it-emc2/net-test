@@ -87,13 +87,15 @@ test('Example B — BWT door + grab bar applies global markup', async () => {
 
   const res = await computePrices(payload);
 
-  // materials: door 500 + global optional grab bar 30 → sum 530
-  // Aufschlag applies to BWT the same as BU: 20% of 530 = 106.
+  // materials: door 500 + global optional grab bar 30 + BWT Lieferkosten
+  // (140322, admin default 59) + Kleinmaterial (KM02, 10 from the fixture) →
+  // sum 599. Aufschlag applies to BWT the same as BU, but Lieferkosten/
+  // Kleinmaterial are markup-exempt: 20% of (500+30) = 106.
   const mat = res.materials;
-  expect(mat.sum).toBeCloseTo(530.0, 2);
+  expect(mat.sum).toBeCloseTo(599.0, 2);
   expect(res.markupPct).toBeCloseTo(0.2, 6);
   expect(res.markup).toBeCloseTo(106.0, 2);
-  expect(res.Nettobetrag).toBeCloseTo(646.0, 2);
-  expect(res.vatOnNet).toBeCloseTo(122.74, 2);
-  expect(res.total).toBeCloseTo(768.74, 2);
+  expect(res.Nettobetrag).toBeCloseTo(705.0, 2);
+  expect(res.vatOnNet).toBeCloseTo(133.95, 2);
+  expect(res.total).toBeCloseTo(838.95, 2);
 });

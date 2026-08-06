@@ -228,7 +228,9 @@ describe('Pricing Module', () => {
       test('calculates 8360 for two persons', async () => {
         const payload = createBasePayload({
           Kundendaten: {
-            budgetOption: 'ZWEI_PERSONEN_8360',
+            // Real value sent by the "twoPersons" checkbox (Kundendaten
+            // budgetOptionsPanel), not a made-up enum key.
+            budgetOption: 'Zwei Personen mit Pflegegrad',
             wohnumfeld: { done: false, amount: 0 }
           }
         });
@@ -279,28 +281,31 @@ describe('Pricing Module', () => {
   });
 
   describe('service costs', () => {
+    // Fahrzeug/Werkzeug/Beräumung are billed per Arbeitstag (workDays), not a
+    // flat one-off amount — createBasePayload() defaults workDays to 0, so
+    // these need it set explicitly to exercise the "one work day" case.
     test('includes Fahrzeugbereitstellung', async () => {
-      const payload = createBasePayload();
+      const payload = createBasePayload({ Arbeitszeit: { workDays: 1 } });
       const result = await pricing.computePrices(payload);
-      
+
       const fahrzeug = result.services.lines.find(l => l.key === 'fahrzeug');
       expect(fahrzeug).toBeDefined();
       expect(fahrzeug.amount).toBe(80);
     });
 
     test('includes Werkzeuge', async () => {
-      const payload = createBasePayload();
+      const payload = createBasePayload({ Arbeitszeit: { workDays: 1 } });
       const result = await pricing.computePrices(payload);
-      
+
       const werkzeug = result.services.lines.find(l => l.key === 'werkzeuge');
       expect(werkzeug).toBeDefined();
       expect(werkzeug.amount).toBe(7.5);
     });
 
     test('includes Beräumung', async () => {
-      const payload = createBasePayload();
+      const payload = createBasePayload({ Arbeitszeit: { workDays: 1 } });
       const result = await pricing.computePrices(payload);
-      
+
       const beraeumung = result.services.lines.find(l => l.key === 'beraeumung');
       expect(beraeumung).toBeDefined();
       expect(beraeumung.amount).toBe(4.5);
