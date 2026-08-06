@@ -14,7 +14,9 @@ import Docxtemplater from "docxtemplater";
 import ImageModule from "docxtemplater-image-module-free";
 
 import ProductModel from "../models/Product.js";
+import User from "../models/User.js";
 import pricingFactory from "../logic/pricing.js";
+import cfg from "../services/configService.js";
 
 
 // ============================
@@ -110,6 +112,14 @@ function getAngebotTemplatePath(body) {
     findOffer(body?.pricePreview) ||
     "bu"; // default for old flows
 
+  // Same payer lookup mapData() uses (services.payer, falling back to
+  // Kundendaten.payer) — needed here to pick the Kassenkunde-specific BU
+  // template before mapData/computed even exist.
+  const payerNorm = String(
+    body?.services?.payer || body?.Kundendaten?.payer || "",
+  ).toUpperCase();
+  const isKK = payerNorm === "KK" || payerNorm === "KASSENKUNDE";
+
   let file;
   switch (offer) {
     case "bwt":
@@ -124,14 +134,21 @@ function getAngebotTemplatePath(body) {
       file = "Angebot-BL.docx";
       break;
     case "ah":
-      file = "Angebot-AH.docx";
+    case "ah-alt":
+      // AH uses the DIN 5008 / A4 window-envelope template. Angebot-AH-alt-4.docx
+      // (aus generate-ah-alt.mjs) und das alte US-Letter Angebot-AH.docx bleiben
+      // im Repo, werden aber nicht mehr ausgeliefert.
+      file = "AH-Angebot.docx";
       break;
     case "bu":
       console.log("under bu ");
     // eslint-disable-next-line no-fallthrough
     default:
       console.log("under default ");
-      file = "Angebot.docx"; // <-- your BU template filename
+      // Kassenkunde BU offers use the template with the blue "Ihr
+      // Eigenanteil" box (§ 40 SGB XI totals row); Selbstzahler never
+      // renders that row, so the plain template is unaffected.
+      file = isKK ? "Angebot-BU-KK-2.docx" : "Angebot-10.docx";
       break;
   }
 
@@ -396,8 +413,34 @@ async function renderDocx(templatePath, data) {
   return doc.getZip().generate({ type: "nodebuffer" });
 }
 
+// Persistent LibreOffice profile: creating a fresh profile per conversion
+// (old HOME=tmpDir approach) cost 30-90s each time. One shared profile is
+// created once at boot and reused, so conversions only pay soffice startup.
+const LO_PROFILE_DIR = path.join(os.tmpdir(), "lo-profile");
+const LO_PROFILE_URL = `file://${LO_PROFILE_DIR}`;
+fsSync.mkdirSync(LO_PROFILE_DIR, { recursive: true });
+
+// Warm-up at boot: initialize the profile so the first user request
+// doesn't pay the one-time profile-creation cost. Fire-and-forget.
+spawn(
+  "soffice",
+  ["--headless", `-env:UserInstallation=${LO_PROFILE_URL}`, "--terminate_after_init"],
+  { stdio: "ignore", env: { ...process.env, HOME: LO_PROFILE_DIR } },
+).on("error", () => {});
+
+// A shared profile allows only one soffice instance at a time, so
+// conversions are serialized through this promise chain.
+// ponytail: global queue; switch to unoserver if concurrent load grows
+let loQueue = Promise.resolve();
+
 // ✅ IMPROVED: Much more robust LibreOffice PDF conversion
-async function convertDocxToPdf(docxBuffer) {
+function convertDocxToPdf(docxBuffer) {
+  const run = loQueue.then(() => convertDocxToPdfUnqueued(docxBuffer));
+  loQueue = run.catch(() => {});
+  return run;
+}
+
+async function convertDocxToPdfUnqueued(docxBuffer) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "docx2pdf-"));
   const timestamp = Date.now();
   const randomId = randomBytes(4).toString("hex");
@@ -411,6 +454,7 @@ async function convertDocxToPdf(docxBuffer) {
 
     const args = [
       "--headless",
+      `-env:UserInstallation=${LO_PROFILE_URL}`,
       "--convert-to",
       "pdf",
       "--outdir",
@@ -431,10 +475,8 @@ async function convertDocxToPdf(docxBuffer) {
         stdio: ["ignore", "ignore", "ignore"], // Suppress all output to avoid popups
         env: {
           ...process.env,
-          HOME: tmpDir, // Temporary home to avoid config conflicts
+          HOME: LO_PROFILE_DIR, // Stable home so the profile is reused, not rebuilt
           TMPDIR: tmpDir, // Ensure temp files go to our controlled location
-          DISPLAY: ":99", // Fake display to avoid GUI (if X11 is available)
-          LIBREOFFICE_USER_PATH: tmpDir, // Isolate user config
         },
         detached: false,
       });
@@ -462,9 +504,6 @@ async function convertDocxToPdf(docxBuffer) {
         resolve();
       });
     });
-
-    // Wait a bit for file system to sync
-    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Try multiple strategies to find the PDF
     let pdfBuffer = null;
@@ -592,14 +631,21 @@ async function convertDocxToPdf(docxBuffer) {
   }
 }
 
+// Data-only: pricing + mapData + sanitize, WITHOUT rendering docx/LibreOffice.
+// Used by the online-signing HTML renderer.
+async function getOfferRenderData(body) {
+  const computed = await pricing.computePrices(body || {});
+  const dataRaw = await mapData(body || {}, computed);
+  const data = deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST);
+  return { data, computed };
+}
+
 async function generateOfferPdfBuffer(body) {
   const templatePath = getAngebotTemplatePath(body);
   console.log("[pdf] Using template path:", templatePath);
   console.log("[pdf] Template exists?", fsSync.existsSync(templatePath));
 
-  const computed = await pricing.computePrices(body || {});
-  const dataRaw = await mapData(body || {}, computed);
-  const data = deepSanitizeDocxPayload(dataRaw, STATIC_DOCX_WORD_BLOCKLIST);
+  const { data, computed } = await getOfferRenderData(body);
 
   console.log("[pdf] SignatureImage present?", !!data.SignatureImage);
 
@@ -693,6 +739,9 @@ function normalizeSourceLine(raw) {
     name: name, // now the human label/Bezeichnung
     unit,
     quantity: qty,
+    // Export-only article number (e.g. color-specific Wandverkleidung code for
+    // the Hassmann CSV). Falls back to materialNumber when absent.
+    hassmannArticle: raw.hassmannArticle || null,
   };
 }
 
@@ -716,6 +765,7 @@ async function aggregateMaterialsForOverview(body = {}, computed = {}) {
           qty: l.qty,
           unit: l.unit || "Stck.",
           label: l.label || "",
+          hassmannArticle: l.hassmannArticle || null,
         }),
       );
     }
@@ -779,7 +829,11 @@ async function aggregateMaterialsForOverview(body = {}, computed = {}) {
       unit,
       quantity: 0,
       remarks: "",
+      hassmannArticle: l.hassmannArticle || null,
     };
+    // Preserve the export-only article number when merging lines.
+    if (!prev.hassmannArticle && l.hassmannArticle)
+      prev.hassmannArticle = l.hassmannArticle;
 
     // Prefer the longer/more descriptive name when merging
     if (l.name && (!prev.name || l.name.length > prev.name.length))
@@ -901,7 +955,20 @@ async function mapData(body = {}, computed = {}) {
 
   let ourSignatureDataUrl = null;
   if (includeOurSignature) {
-    ourSignatureDataUrl = await imageFileToDataUrl(ourSignatureFile);
+    // Prefer the Ansprechpartner user's own signature (assigned in admin);
+    // fall back to the legacy fixed signature file.
+    const apEmail = String(b?.ansprechpartner || "").trim().toLowerCase();
+    if (apEmail) {
+      try {
+        const apUser = await User.findOne({ email: apEmail }).lean();
+        if (apUser?.signatureDataUrl) ourSignatureDataUrl = apUser.signatureDataUrl;
+      } catch (e) {
+        console.warn("[DOCX] Ansprechpartner signature lookup failed:", e?.message || e);
+      }
+    }
+    if (!ourSignatureDataUrl) {
+      ourSignatureDataUrl = await imageFileToDataUrl(ourSignatureFile);
+    }
   }
 
   console.log("[DOCX] internal signature selected", {
@@ -1132,6 +1199,25 @@ async function mapData(body = {}, computed = {}) {
     }
   }
 
+  // BWT: Einleitungszeile direkt unter "Auszuführende Arbeiten", gefolgt von
+  // der Extra-Arbeitszeit (Arbeitszeit-Seite) und den freien "Weitere
+  // Arbeiten"-Zeilen aus dem Arbeiten-Tab.
+  const isBwtOffer =
+    (body.activeOffer || body.currentOfferKey || computed.activeOffer || "") ===
+    "bwt";
+  if (isBwtOffer) {
+    primary.unshift(
+      "Liefern und Montieren der nachfolgend aufgeführten Badewannentür",
+    );
+    // Extra Arbeitszeit (Arbeitszeit-Seite) …
+    ExtraAzTasks.forEach((row) => primary.push(row.Text));
+    // … dann die freien "Weitere Arbeiten"-Zeilen aus dem Arbeiten-Tab.
+    const bwtArbeitenExtra = (Array.isArray(bwt?.extraTasks) ? bwt.extraTasks : [])
+      .map((t) => String(t || "").trim())
+      .filter(Boolean);
+    bwtArbeitenExtra.forEach((t) => primary.push(t));
+  }
+
   // Arrays exactly as the template expects:
   const PrimaryServiceLines = primary.map((txt) => ({ ServiceLine: txt }));
   const IncludedServiceLines = included.map((txt) => ({ ServiceLine: txt }));
@@ -1167,7 +1253,11 @@ async function mapData(body = {}, computed = {}) {
     console.log('[docx] hidden word filter active:', docxBlockedWords);
   }
 
-  const MaterialsLines = matForDoc
+  // -------- BWT-specific Angebotspositionen --------
+  const offerKey =
+    body.activeOffer || body.currentOfferKey || computed.activeOffer || "";
+
+  const renderedMaterialRows = matForDoc
     .map((l) => {
       const qtyStr = Number(l.qty || 0)
         .toFixed(2)
@@ -1184,13 +1274,53 @@ async function mapData(body = {}, computed = {}) {
         console.log('[docx] filtered material line:', row.MaterialLine);
       }
       return !hide;
-    })
-    .map(({ MaterialLine }) => ({ MaterialLine }));
-  const PayerKind = services?.payer || b.payer || "";
+    });
 
-  // -------- BWT-specific Angebotspositionen --------
-  const offerKey =
-    body.activeOffer || body.currentOfferKey || computed.activeOffer || "";
+  // Group "Material für Badumbau" into fixed categories (BU offer only).
+  // Kleinmaterial → Fußboden → Wandverkleidung → Zubehör → Duschwanne →
+  // Duschabtrennung → Weiteres (fallback bucket, keeps nothing silently dropped).
+  const isBuOffer = !offerKey || offerKey === "bu";
+  const CATEGORY_ORDER = [
+    "Kleinmaterial",
+    "Fußboden",
+    "Wandverkleidung",
+    "Zubehör",
+    "Duschwanne",
+    "Duschabtrennung",
+    "Weiteres",
+  ];
+  const resolveMaterialCategory = (raw) => {
+    if (raw?.category) return raw.category;
+    if (raw?.source === "optional" || raw?.source === "optional_reha") return "Zubehör";
+    return "Weiteres";
+  };
+
+  let MaterialsLines;
+  if (isBuOffer) {
+    const grouped = new Map();
+    for (const row of renderedMaterialRows) {
+      const cat = resolveMaterialCategory(row._raw);
+      if (!grouped.has(cat)) grouped.set(cat, []);
+      grouped.get(cat).push(row);
+    }
+    MaterialsLines = [];
+    for (const cat of CATEGORY_ORDER) {
+      const rows = grouped.get(cat);
+      if (!rows || !rows.length) continue;
+      // IsSub marks a bold, spaced subcategory header (e.g. KLEINMATERIAL);
+      // item lines are IsSub:false. Consumed by the {#IsSub}/{^IsSub}
+      // condition in the Angebot.docx MaterialsLines loop.
+      MaterialsLines.push({ MaterialLine: cat.toUpperCase(), IsSub: true });
+      for (const row of rows)
+        MaterialsLines.push({ MaterialLine: row.MaterialLine, IsSub: false });
+    }
+  } else {
+    MaterialsLines = renderedMaterialRows.map(({ MaterialLine }) => ({
+      MaterialLine,
+      IsSub: false,
+    }));
+  }
+  const PayerKind = services?.payer || b.payer || "";
 
   let BwtRows = []; // Tür rows (usually 0 or 1)
   // let BwtGrabRows = [];   // Haltegriff rows (0 or 1)
@@ -1382,6 +1512,14 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
 
     const hasAnyGrab = grabLines.length > 0;
 
+    // Free-text "Weitere Arbeiten" from the BWT Arbeiten tab, appended after
+    // the Extra-Arbeitszeit bullets.
+    const BwtArbeitenTasks = (Array.isArray(bwt?.extraTasks) ? bwt.extraTasks : [])
+      .map((t) => String(t || "").trim())
+      .filter(Boolean)
+      .map((t) => ({ Text: t }));
+    const BwtAllExtraTasks = [...ExtraAzTasks, ...BwtArbeitenTasks];
+
     // --- Tür row (Pos 001) ---
     if (hasDoor) {
       const roundTripKm = Number(services?.distanceKm || 0);
@@ -1411,9 +1549,9 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
         HasBullet7: !!bullet7Text,
         Bullet7: bullet7Text,
 
-        // Extra Arbeitszeit bullets (from previous step)
-        HasExtraTasks: ExtraAzTasks.length > 0,
-        ExtraTasks: ExtraAzTasks,
+        // Extra Arbeitszeit bullets + free-text "Weitere Arbeiten" (Arbeiten tab)
+        HasExtraTasks: BwtAllExtraTasks.length > 0,
+        ExtraTasks: BwtAllExtraTasks,
 
         EnthKmQty,
         EnthDeliverQty: doorQtyPlain,
@@ -1461,10 +1599,8 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
   // Assemble up to two rows; first present gets pos "003", second "004"
   const BonusRows = [];
 
+  // 001 = Arbeiten, 002 = Material (beide fest im Template) → Bonus startet bei 003
   let pos = "003";
-  if (offerKey === "bwt"){
-      pos = "002";
-  }
 
   if (hasBonusGrab) {
     BonusRows.push({
@@ -1477,9 +1613,6 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
       gesamt: "0,00 €",
     });
     pos = "004";
-     if (offerKey === "bwt"){
-    pos = "003";
-  }
   }
 
   if (hasBonus300) {
@@ -1525,67 +1658,122 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     ...(hasZuschuss ? [{ label: 'Selbstkostenanteil', value: SelbstkostenanteilFmt }] : []),
   ]; */
 
-  const baseTotals = [
-    { label: "Nettobetrag", value: fmtCurrency(netAfterRabatt_and_Bonus) },
-    { label: "zzgl. 19% MwSt.", value: fmtCurrency(vatOnNet) },
-    { label: "Gesamtsumme", value: fmtCurrency(total) },
-  ];
-
-  // mark every second row (0-based: 1,3,5,...) as "alt"
-  const Totals = baseTotals.map((r, i) => ({ ...r, isAlt: i % 2 === 0 }));
-
   // Pick Regie-Stundensatz based on payer
   const payerNorm = String(PayerKind || "").toUpperCase();
   const isKK = payerNorm === "KK" || payerNorm === "KASSENKUNDE";
   const isSZ = payerNorm === "SZ" || payerNorm === "SELBSTZAHLER";
 
+  const baseTotals = [
+    { label: "Nettobetrag", value: fmtCurrency(netAfterRabatt_and_Bonus) },
+    { label: "zzgl. 19% MwSt.", value: fmtCurrency(vatOnNet) },
+    { label: "Gesamtsumme", value: fmtCurrency(total) },
+    // Kassenkunde: Zuschuss und Eigenanteil als eigene Zeilen, immer sichtbar
+    // (bei BWT nicht gewünscht). Zuschuss zeigt den vollen Anspruch (4180 € /
+    // 8360 €), reduziert um bereits genutzte Wohnumfeld-Beträge
+    // (subsidyAmount_max aus pricing.js) — bewusst NICHT auf die Gesamtsumme
+    // gedeckelt, damit bei "Nein" immer 4180/8360 steht statt der (kleineren)
+    // Gesamtsumme.
+    ...(isKK && offerKey !== "bwt"
+      ? [
+          {
+            label:
+              "Ihr voraussichtlicher Zuschuss nach §40 SGB XI abzüglich bereits erhaltener Leistung",
+            value: fmtCurrency(
+              toNum(computed?.subsidyAmount_max ?? computed?.subsidyAmount),
+            ),
+          },
+          {
+            label: "Ihr Eigenanteil",
+            value: SelbstkostenanteilFmt,
+          },
+        ]
+      : []),
+  ];
+
+  // mark every second row (0-based: 1,3,5,...) as "alt"
+  const Totals = baseTotals.map((r, i) => ({
+    ...r,
+    isAlt: i % 2 === 0,
+    isGesamtsumme: r.label === "Gesamtsumme",
+    // Stable hook for the docx template to give this exact row its own
+    // formatting (blue box), independent of isAlt/row position.
+    isEigenanteil: r.label === "Ihr Eigenanteil",
+    // Groups Zuschuss + Eigenanteil into their own table, apart from the
+    // Nettobetrag/MwSt/Gesamtsumme table (BU-KK offer layout).
+    isSubsidyRow: r.label === "Ihr Eigenanteil" || r.label.startsWith("Ihr voraussichtlicher Zuschuss"),
+  }));
+
+  // Flat placeholders for the BU-KK docx template, which renders Zuschuss/
+  // Eigenanteil as two static rows in their own table (no docxtemplater loop)
+  // rather than looping over Totals — mirrors the already-existing flat
+  // Nettobetrag/MwSt/Gesamtsumme/Selbstkostenanteil placeholders below.
+  const hasSubsidyTotals = isKK;
+  const IhrZuschussFmt = fmtCurrency(
+    toNum(computed?.subsidyAmount_max ?? computed?.subsidyAmount),
+  );
+
   const BASE_SELF_PAY_SENTENCE =
     "Dieser wird bei Auftragsbestätigung vorab fällig.";
 
+  // KK, Eigenanteil >= Schwelle: Wahlmöglichkeit zwischen 50/50 und 100 % Skonto
   const PARA_kk_uber2000_LINES = [
-    "Zahlungsbedingungen für den Selbstkostenanteil:",
-    "- 100 % sofort abzüglich 2 % Skonto oder",
-    "- 50 % sofort und 50 % nach Fertigstellung, ohne Abzug",
-    "Für die Anzahlung wird eine Anzahlungsrechnung erstellt. Die Überweisung darf erst nach Erhalt dieser Rechnung erfolgen.",
+    "Wählen Sie aus folgenden Zahlungsbedingungen für den Selbstkostenanteil (bitte ankreuzen):",
+    "O 50 % sofort und 50 % nach Fertigstellung, ohne Abzug oder",
+    "O 100 % sofort abzüglich 2 % Skonto",
+    "Für den Selbstkostenanteil wird eine separate Rechnung erstellt. Die Zahlung bitte erst nach Erhalt dieser Rechnung unter Angabe der Rechnungsnummer im Verwendungszweck durchführen.",
   ];
 
+  // KK, Eigenanteil < Schwelle: keine Wahl, 100 % sofort ohne Skonto (kein Ankreuzen nötig)
   const PARA_kk_unter2000_LINES = [
     "Zahlungsbedingungen für den Selbstkostenanteil:",
-    "100 % sofort bei Auftragsbestätigung – ohne Abzug",
-    "Für die Anzahlung wird eine Anzahlungsrechnung erstellt. Die Überweisung darf erst nach Erhalt dieser Rechnung erfolgen.",
+    "100 % sofort, aber ohne Skonto",
+    "Für den Selbstkostenanteil wird eine separate Rechnung erstellt. Die Zahlung bitte erst nach Erhalt dieser Rechnung unter Angabe der Rechnungsnummer im Verwendungszweck durchführen.",
   ];
 
-  // SZ: Selbstzahler-Text
+  // SZ: Selbstzahler-Zahlungsbedingungen (20/30/40 % Anzahlung)
   const PARA_sz_LINES = [
     "Wählen Sie aus folgenden Zahlungsbedingungen (bitte ankreuzen):",
     "O 20 % Anzahlung - ohne Abzug oder",
     "O 30 % Anzahlung abzüglich 1 % Skonto vom Anzahlungsbetrag oder",
     "O 40 % Anzahlung abzüglich 2 % Skonto vom Anzahlungsbetrag",
+    "Für die Anzahlung wird eine separate Rechnung erstellt. Die Zahlung bitte erst nach Erhalt dieser Rechnung unter Angabe der Rechnungsnummer im Verwendungszweck durchführen.",
   ];
 
   // Default: nichts anzeigen
   let SelfPayLines = [];
 
-  // Kassenkunde (KK) + es gibt einen Selbstkostenanteil
+  // Optional: vom Kunden gewählte Zahlungsbedingung (0-basiert über die "O"-Zeilen).
+  // Wird beim Online-Signieren gesetzt; leer => alle Optionen bleiben "O".
+  const selectedPayIdx = Number.isFinite(Number(b.selectedPaymentTermIdx))
+    ? Number(b.selectedPaymentTermIdx)
+    : -1;
+
+  // Map the payment lines, ticking the chosen "O" line (option index is 0-based
+  // over the "O …" lines, i.e. the title line at idx 0 is skipped).
+  const mapPayLines = (lines) => {
+    let optionIdx = -1;
+    return lines.map((text, idx) => {
+      let out = text;
+      if (idx > 0 && /^O\s/.test(text)) {
+        optionIdx += 1;
+        if (optionIdx === selectedPayIdx) out = text.replace(/^O\s/, "☒ ");
+      }
+      return { Text: out, IsTitle: idx === 0 };
+    });
+  };
+
+  // Kassenkunde (KK): KK-Block nur wenn ein Eigenanteil (Selbstkostenanteil) anfällt;
+  // unter der Schwelle nur die 100%-Zeile ohne Auswahlmöglichkeit.
   if (isKK && selfPayAmountNum > 0) {
-    const src =
-      selfPayAmountNum >= 2000
+    const kkLines =
+      selfPayAmountNum >= cfg.get("KK_PAYMENT_THRESHOLD", 2000)
         ? PARA_kk_uber2000_LINES
         : PARA_kk_unter2000_LINES;
-
-    SelfPayLines = src.map((text, idx) => ({
-      Text: text,
-      // erste Zeile fett
-      IsTitle: idx === 0,
-    }));
+    SelfPayLines = mapPayLines(kkLines);
   }
   // Selbstzahler (SZ): immer den SZ-Block anzeigen
   else if (isSZ) {
-    SelfPayLines = PARA_sz_LINES.map((text, idx) => ({
-      Text: text,
-      // erste Zeile fett (darin ist das Wort "Zahlungsbedingungen")
-      IsTitle: idx === 0,
-    }));
+    SelfPayLines = mapPayLines(PARA_sz_LINES);
   }
 
   // Prefer explicit rates per payer; fallback to computed laborRate if neither was selected yet
@@ -1599,8 +1787,55 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     ? `${regieRateNum.toFixed(2).replace(".", ",")}€`
     : "";
 
+  // ---- Address block ({KundenAnschrift}) + letter greeting ({GreetingLine}) ----
+  // The template holds each as a single placeholder (linebreaks:true renders \n).
+  // For one person the composed value is byte-identical to the legacy
+  // {Anrede}\n{Vorname} {Nachname} / {Greeting} {Nachname} layout. For two
+  // persons both names are included. The Zusammenfassung fields (kundenName /
+  // greetingLine) are free-text overrides that win when present.
+  const _sal = b.salutation || "";
+  const _pSal = b.partnerSalutation || "";
+  const _custName = [b.firstName, b.lastName].filter(Boolean).join(" ").trim();
+  const _partnerName = [b.partnerFirstName, b.partnerLastName].filter(Boolean).join(" ").trim();
+  const _isTwo = !!b.twoPersons && !!_partnerName;
+
+  const _nameFrag = (sal, name) => [sal, name].filter(Boolean).join(" ").trim();
+  const _greetOne = (sal) =>
+    sal === "Frau" ? "Sehr geehrte Frau"
+    : sal === "Herr" ? "Sehr geehrter Herr"
+    : sal === "Familie" ? "Sehr geehrte Familie"
+    : "Guten Tag";
+  const _greetFrag = (sal, last) => {
+    const l = (last || "").trim();
+    if (sal === "Frau") return `sehr geehrte Frau ${l}`.trim();
+    if (sal === "Herr") return `sehr geehrter Herr ${l}`.trim();
+    if (sal === "Familie") return `sehr geehrte Familie ${l}`.trim();
+    return "sehr geehrte Damen und Herren";
+  };
+
+  const _kundenNameOverride = String(b.kundenName || "").trim();
+  const _greetingOverride = String(b.greetingLine || "").replace(/,\s*$/, "").trim();
+
+  const KundenAnschrift =
+    _kundenNameOverride ||
+    (_isTwo
+      ? `${_nameFrag(_sal, _custName)} und ${_nameFrag(_pSal, _partnerName)}`.trim()
+      : [_sal, _custName].filter(Boolean).join("\n"));
+
+  let GreetingLine;
+  if (_greetingOverride) {
+    GreetingLine = _greetingOverride;
+  } else if (_isTwo) {
+    const two = `${_greetFrag(_sal, b.lastName)}, ${_greetFrag(_pSal, b.partnerLastName)}`;
+    GreetingLine = two.charAt(0).toUpperCase() + two.slice(1);
+  } else {
+    GreetingLine = [_greetOne(_sal), b.lastName].filter(Boolean).join(" ").trim();
+  }
+
   return {
     // Address / meta
+    KundenAnschrift,
+    GreetingLine,
     Anrede: b.salutation || "",
     Vorname: b.firstName || "",
     Nachname: b.lastName || "",
@@ -1716,6 +1951,12 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     Zuschusskrankenkasse, // formatted subsidy for template
     hasSubsidyLine: hasZuschuss,
 
+    // BU-KK offer: Zuschuss/Eigenanteil rendered as their own static table,
+    // separate from the Nettobetrag/MwSt/Gesamtsumme table — flat tags so
+    // the docx template doesn't need a loop for these two fixed rows.
+    hasSubsidyTotals,
+    IhrZuschussFmt,
+
     // Textblock zur Fälligkeit des Selbstkostenanteils unter oder nach 2000 fur kk
     SelfPayLines,
 
@@ -1779,6 +2020,23 @@ const AH_TASK_LABELS = {
   entlastung: "Entlastung pflegender Angehöriger (stundenweise Betreuung)",
 };
 
+// ── Fixed generic task bullet lists shown in the PDF (independent of svc.tasks selection) ──
+const AH_GENERIC_HAUSHALT_TASKS = [
+  "Reinigungsarbeiten",
+  "Fenster putzen",
+  "Böden saugen und wischen",
+  "Wäschepflege",
+  "etc.",
+];
+const AH_GENERIC_BEGLEITUNG_TASKS = [
+  "Begleitung zu Terminen (Arzt, Friseur, o.ä.)",
+  "gemeinsame Freizeitgestaltung",
+  "Begleitung bei der Pflege sozialer Kontakte",
+  "Einkäufe oder Besorgungen",
+  "10-Minuten-Aktivierung",
+  "leichte Gartenarbeiten (nach Absprache)",
+];
+
 // ── AH pricing constants (mirrors script.js computeAHGesamt) ──────────────
 const AH_FREQ = {
   "Wöchentlich":      52 / 12,
@@ -1791,6 +2049,7 @@ const AH_FREQ = {
 };
 const AH_ANFAHRT_PER_EINSATZ = 7.96;
 const AH_STUNDENSATZ_HND     = 40.56;
+const AH_STUNDENSATZ_AB      = 53.04;
 
 function r2(n) { return Math.round((Number(n) + Number.EPSILON) * 100) / 100; }
 
@@ -1821,21 +2080,28 @@ function fmtCount(n) {
   return n.toFixed(2).replace(".", ",");
 }
 
+const AH_SERVICE_ORDER = { Haushaltsnahedienstleistungen: 0, Alltagsbegleitung: 1 };
+
 function buildAhData(body) {
   const ah = body?.ah || {};
-  const rawServices = Array.isArray(ah.services) ? ah.services : [];
+  // HD always prints before AB, regardless of the order they were added in.
+  const rawServices = (Array.isArray(ah.services) ? ah.services : [])
+    .slice()
+    .sort((a, b) => (AH_SERVICE_ORDER[a.type] ?? 99) - (AH_SERVICE_ORDER[b.type] ?? 99));
   const ahNote = (ah.ahNote || "").trim();
 
-  // One-way travel time from the Arbeitszeit page
-  const travelTimeH = parseHHMM(body?.Arbeitszeit?.travelTimeHHMM || "");
+  // One-way travel time per visit — use zone billing minutes (ahTravelZone → billMin = (zone-1)*5+10)
+  // if zone is set; otherwise fall back to raw routing time. Hinfahrt only (return trip not billed).
+  const zoneNum = parseInt(body?.Arbeitszeit?.ahTravelZone || "0") || 0;
+  const travelTimeH = zoneNum > 0
+    ? ((zoneNum - 1) * 5 + 10) / 60
+    : parseHHMM(body?.Arbeitszeit?.travelTimeHHMM || "");
 
   // ── Compute AH pricing (same logic as computeAHGesamt on frontend) ──────
-  const hndSvc = rawServices.find((s) => s.type === "Haushaltsnahedienstleistungen");
-  let totalEinsaetze  = 0;
-  let totalMonatlichH = 0;
-
-  if (hndSvc) {
-    const scheds = Array.isArray(hndSvc.schedules) ? hndSvc.schedules : [];
+  function computeAhSvc(svc) {
+    let totalEinsaetze = 0, totalMonatlichH = 0;
+    if (!svc) return { totalEinsaetze, totalMonatlichH };
+    const scheds = Array.isArray(svc.schedules) ? svc.schedules : [];
     scheds.forEach((sched) => {
       const dauerH = parseHHMM(sched.dauer);
       const freq   = AH_FREQ[sched.regelmaessigkeit] || 0;
@@ -1843,11 +2109,44 @@ function buildAhData(body) {
       totalEinsaetze  += freq;
       totalMonatlichH += (dauerH + travelTimeH) * freq;
     });
+    return { totalEinsaetze, totalMonatlichH };
   }
 
-  const anfahrtTotal    = r2(totalEinsaetze * AH_ANFAHRT_PER_EINSATZ);
-  const leistungenTotal = r2(totalMonatlichH * AH_STUNDENSATZ_HND);
-  const gesamt          = r2(anfahrtTotal + leistungenTotal);
+  const hndSvc = rawServices.find((s) => s.type === "Haushaltsnahedienstleistungen");
+  const abSvc  = rawServices.find((s) => s.type === "Alltagsbegleitung");
+
+  const hnd = computeAhSvc(hndSvc);
+  const ab  = computeAhSvc(abSvc);
+
+  // Same visit as HnD: the trip is already paid for by HnD's Anfahrt, so AB
+  // only adds its own Anfahrt for visits beyond what HnD already covers.
+  const abCombinedVisit    = !!(abSvc && abSvc.combinedVisit);
+  const abAnfahrtEinsaetze = abCombinedVisit ? Math.max(0, ab.totalEinsaetze - hnd.totalEinsaetze) : ab.totalEinsaetze;
+
+  const totalMonatlichH = (hnd.totalMonatlichH || 0) + (ab.totalMonatlichH || 0);
+  const totalEinsaetze  = (hnd.totalEinsaetze  || 0) + abAnfahrtEinsaetze;
+
+  const anfahrtTotal    = r2(hnd.totalEinsaetze * AH_ANFAHRT_PER_EINSATZ);
+  const leistungenTotal = r2(hnd.totalMonatlichH * AH_STUNDENSATZ_HND);
+  const abAnfahrtTotal    = r2(abAnfahrtEinsaetze * AH_ANFAHRT_PER_EINSATZ);
+  const abLeistungenTotal = r2(ab.totalMonatlichH * AH_STUNDENSATZ_AB);
+  const gesamt = r2(anfahrtTotal + leistungenTotal + abAnfahrtTotal + abLeistungenTotal);
+
+  // ── Eigenanteil nach Entlastungsbetrag (§ 45b SGB XI) ───────────────────
+  // Nur für Kassenkunden und nur wenn der Berater den Entlastungsbetrag auf
+  // der Finanzierung-Seite bestätigt hat. Verhinderungspflege/Umwidmung
+  // bleiben bewusst außen vor (siehe Bildschirm-Eigenanteil in script.js).
+  const finAh = body?.Finanzierung || {};
+  const isKassenkunde =
+    String(body?.Kundendaten?.payer || "").toUpperCase() === "KASSENKUNDE";
+  const entlastungsbetrag =
+    isKassenkunde &&
+    (finAh.ahEntlastungsbetragNutzen === "on" ||
+      finAh.ahEntlastungsbetragNutzen === true)
+      ? Number(cfg.get("ENTLASTUNGSBETRAG_MONAT", 131)) || 0
+      : 0;
+  const ahEigenanteil = r2(Math.max(0, gesamt - entlastungsbetrag));
+  const hasEigenanteil = gesamt > 0 && entlastungsbetrag > 0;
 
   // ── Build per-service rows ──────────────────────────────────────────────
   const AhServices = rawServices.map((svc, idx) => {
@@ -1855,23 +2154,30 @@ function buildAhData(body) {
     const isBegleitung = svc.type === "Alltagsbegleitung";
 
     const title    = isHaushalt   ? "Angebot zur Unterstützung im Haushalt"
-                   : isBegleitung ? "Alltagsbegleitung"
+                   : isBegleitung ? "Angebot zur Unterstützung im Alltag"
                    : svc.type || "Dienstleistung";
-    const subtitle = isHaushalt   ? "– Haushaltsnahe Dienstleistung*" : "";
+    const subtitle = isHaushalt   ? "– Haushaltsnahe Dienstleistung*"
+                   : isBegleitung ? "– Alltagsbegleitung*"
+                   : "";
 
-    // Task labels
-    const AhServiceTasks = (Array.isArray(svc.tasks) ? svc.tasks : [])
-      .map((id) => ({ AhTaskLabel: AH_TASK_LABELS[id] || id }))
-      .filter((t) => t.AhTaskLabel);
+    // Task labels — fixed generic list per category, independent of which
+    // checkboxes the customer actually selected.
+    const genericTasks = isHaushalt   ? AH_GENERIC_HAUSHALT_TASKS
+                       : isBegleitung ? AH_GENERIC_BEGLEITUNG_TASKS
+                       : [];
+    const AhServiceTasks = genericTasks.map((label) => ({ AhTaskLabel: label }));
 
-    // Pricing per service: HnD uses the computed monthly figures
+    // Pricing per service
     let menge = "", einzelpreis = "", serviceGesamt = "";
-    if (isHaushalt && totalMonatlichH > 0) {
-      menge         = fmtHHMM(totalMonatlichH);
+    if (isHaushalt && hnd.totalMonatlichH > 0) {
+      menge         = fmtHHMM(hnd.totalMonatlichH);
       einzelpreis   = `${AH_STUNDENSATZ_HND.toFixed(2).replace(".", ",")} €`;
       serviceGesamt = fmtCurrency(leistungenTotal);
+    } else if (isBegleitung && ab.totalMonatlichH > 0) {
+      menge         = fmtHHMM(ab.totalMonatlichH);
+      einzelpreis   = `${AH_STUNDENSATZ_AB.toFixed(2).replace(".", ",")} €`;
+      serviceGesamt = fmtCurrency(abLeistungenTotal);
     } else {
-      // Alltagsbegleitung or unknown: show dauer from first schedule, no price yet
       const sched0 = (Array.isArray(svc.schedules) ? svc.schedules : [])[0] || {};
       menge = sched0.dauer ? `${sched0.dauer} h` : "";
     }
@@ -1889,46 +2195,56 @@ function buildAhData(body) {
 
   // ── Determine if HnD is among services (shows Servicepauschale) ────────
   const hasHnD = rawServices.some((s) => s.type === "Haushaltsnahedienstleistungen");
+  const hasAb  = rawServices.some((s) => s.type === "Alltagsbegleitung");
 
-  // ── Konditionen rows ────────────────────────────────────────────────────
-  const AhKondRows = [];
-  const firstSched = rawServices.flatMap((s) => s.schedules || []).find((s) => s.dauer);
+  // ── Konditionen rows — one set per service (HnD / AB), each built from
+  // that service's own schedule so both print in full when both are booked ──
+  function buildKondRows(svc, monatlichH) {
+    const rows = [];
+    const sched = (svc?.schedules || []).find((s) => s.dauer);
+    if (sched?.dauer) {
+      rows.push({
+        AhKondLabel: "Gewünschter Stundenumfang pro Einsatz:",
+        AhKondValue: `${sched.dauer} h`,
+      });
+    }
+    if (travelTimeH > 0 && sched) {
+      const dauerH     = parseHHMM(sched.dauer);
+      const inkAnfahrt = dauerH + travelTimeH;
+      const zoneLabel  = zoneNum > 0
+        ? `Zone ${zoneNum}${body?.Arbeitszeit?.distanceKm ? ` / ${body.Arbeitszeit.distanceKm} km` : ""}`
+        : "Zone";
+      rows.push({
+        AhKondLabel: `Stundenumfang pro Einsatz inkl. Anfahrt (${zoneLabel}):`,
+        AhKondValue: fmtHHMM(inkAnfahrt),
+      });
+    }
+    if (monatlichH > 0) {
+      rows.push({
+        AhKondLabel: "Monatlicher Stundenumfang:",
+        AhKondValue: fmtHHMM(monatlichH),
+      });
+    }
+    if (sched?.regelmaessigkeit) {
+      rows.push({
+        AhKondLabel: "Regelmäßigkeit:",
+        AhKondValue: sched.regelmaessigkeit,
+      });
+    }
+    if (sched?.bevorzugteTage) {
+      rows.push({ AhKondLabel: "Bevorzugte Tage:",   AhKondValue: sched.bevorzugteTage });
+    }
+    if (sched?.bevorzugteUhrzeit) {
+      rows.push({ AhKondLabel: "Bevorzugte Uhrzeit:", AhKondValue: sched.bevorzugteUhrzeit });
+    }
+    return rows;
+  }
 
-  if (firstSched?.dauer) {
-    AhKondRows.push({
-      AhKondLabel: "Gewünschter Stundenumfang pro Einsatz:",
-      AhKondValue: `${firstSched.dauer} h`,
-    });
-  }
-  if (travelTimeH > 0 && firstSched) {
-    const dauerH        = parseHHMM(firstSched.dauer);
-    const inkAnfahrt    = dauerH + travelTimeH;
-    const zoneLabel     = body?.Arbeitszeit?.distanceKm
-      ? `Zone / ${body.Arbeitszeit.distanceKm} km`
-      : "Zone";
-    AhKondRows.push({
-      AhKondLabel: `Stundenumfang pro Einsatz inkl. Anfahrt (${zoneLabel}):`,
-      AhKondValue: fmtHHMM(inkAnfahrt),
-    });
-  }
-  if (totalMonatlichH > 0) {
-    AhKondRows.push({
-      AhKondLabel: "Monatlicher Stundenumfang:",
-      AhKondValue: fmtHHMM(totalMonatlichH),
-    });
-  }
-  if (firstSched?.regelmaessigkeit) {
-    AhKondRows.push({
-      AhKondLabel: "Regelmäßigkeit:",
-      AhKondValue: firstSched.regelmaessigkeit,
-    });
-  }
-  if (firstSched?.bevorzugteTage) {
-    AhKondRows.push({ AhKondLabel: "Bevorzugte Tage:",   AhKondValue: firstSched.bevorzugteTage });
-  }
-  if (firstSched?.bevorzugteUhrzeit) {
-    AhKondRows.push({ AhKondLabel: "Bevorzugte Uhrzeit:", AhKondValue: firstSched.bevorzugteUhrzeit });
-  }
+  const AhKondRowsHnD = buildKondRows(hndSvc, hnd.totalMonatlichH);
+  const AhKondRowsAB  = buildKondRows(abSvc, ab.totalMonatlichH);
+
+  // Kept for any template still on the old single-table tag; now HnD-first.
+  const AhKondRows = [...AhKondRowsHnD, ...AhKondRowsAB];
   if (AhKondRows.length === 0) {
     AhKondRows.push({ AhKondLabel: "", AhKondValue: "" });
   }
@@ -1938,16 +2254,53 @@ function buildAhData(body) {
     ? `${fmtCount(totalEinsaetze)} Stück`
     : "";
 
+  const anfahrtGesamtCombined = r2(anfahrtTotal + abAnfahrtTotal);
+  // Kept only for the Bitrix sync fields below (unrelated to the docx Konditionen tables).
+  const firstSched = (hndSvc?.schedules || []).find((s) => s.dauer) || (abSvc?.schedules || []).find((s) => s.dauer);
+
   return {
     AhNote: ahNote,
     AhAnfahrtMenge:       anfahrtMengeStr,
     AhAnfahrtEinzelpreis: totalEinsaetze > 0 ? `${AH_ANFAHRT_PER_EINSATZ.toFixed(2).replace(".", ",")} €` : "",
-    AhAnfahrtGesamt:      anfahrtTotal > 0 ? fmtCurrency(anfahrtTotal) : "",
+    AhAnfahrtGesamt:      totalEinsaetze > 0 ? fmtCurrency(anfahrtGesamtCombined) : "",
     AhServices,
     AhHasServicepauschale: hasHnD,
     AhServicepausEinzelpreis: "1,20 €",
     AhGesamtbetrag: gesamt > 0 ? fmtCurrency(gesamt) : "",
+    // Eigenanteil-Zeile im Template: {#AhHasEigenanteil} … {AhEigenanteil} … {/AhHasEigenanteil}
+    AhHasEigenanteil: hasEigenanteil,
+    AhEntlastungsbetrag: fmtCurrency(entlastungsbetrag),
+    // leer, wenn keine Eigenanteil-Zeile gilt: so druckt auch ein Template mit
+    // falsch platziertem {/AhHasEigenanteil} keinen Betrag ohne Beschriftung
+    AhEigenanteil: hasEigenanteil ? fmtCurrency(ahEigenanteil) : "",
     AhKondRows,
+    AhKondRowsHnD,
+    AhKondRowsAB,
+    AhHasHnD: hasHnD,
+    AhHasAb: hasAb,
+    // Hinweis zur zusätzlichen Alltagsbegleitung – nur zeigen, wenn ein Angebot
+    // besteht und Alltagsbegleitung noch nicht gebucht ist.
+    AhShowAbHinweis: gesamt > 0 && !hasAb,
+    // Umgekehrter Hinweis: Alltagsbegleitung gebucht, aber keine HnD-Leistung.
+    AhShowHndHinweis: gesamt > 0 && hasAb && !hasHnD,
+
+    // Raw numeric data for the Bitrix CRM sync on deal-stage-move — purely
+    // additive, doesn't affect the DOCX template fields above.
+    AhBitrix: {
+      zoneNum,
+      hasHnD,
+      hasAb,
+      stundenProEinsatz: firstSched ? parseHHMM(firstSched.dauer) : 0,
+      tatsaechlicherStundenumfang: firstSched ? r2(parseHHMM(firstSched.dauer) + travelTimeH) : 0,
+      regelmaessigkeit: firstSched?.regelmaessigkeit || "",
+      monatlicherStundenumfang: r2(totalMonatlichH),
+      anzahlAnfahrtspauschalen: r2(totalEinsaetze),
+      anfahrtGesamt: anfahrtGesamtCombined,
+      gesamtpreisAB: abLeistungenTotal,
+      gesamtpreisHnD: leistungenTotal,
+      gesamtbetragAB: r2(abLeistungenTotal + anfahrtGesamtCombined),
+      gesamtbetragHnD: r2(leistungenTotal + anfahrtGesamtCombined),
+    },
   };
 }
 
@@ -2032,7 +2385,9 @@ router.post("/material-overview", async (req, res) => {
 
     const materials = rows.map((m, i) => ({
       pos: i + 1,
-      materialNumber: m.materialNumber || "", // blank for V5FB02 (floor panels)
+      // Prefer the color-specific article number (e.g. Wandverkleidung) so the
+      // Materialübersicht matches the Hassmann CSV; blank stays blank for V5FB02.
+      materialNumber: m.hassmannArticle || m.materialNumber || "", // blank for V5FB02 (floor panels)
       name: stripBrandNames(m.name || ""),
       quantity: formatQtyForOverview(m.quantity, m.unit || "Stck."),
       unit: m.unit || "Stck.",
@@ -2139,6 +2494,8 @@ export {
   mapData,
   getAngebotTemplatePath,
   generateOfferPdfBuffer,
+  getOfferRenderData,
   deepSanitizeDocxPayload,
   STATIC_DOCX_WORD_BLOCKLIST,
+  buildAhData,
 };

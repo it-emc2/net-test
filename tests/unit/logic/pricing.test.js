@@ -32,6 +32,7 @@ function createBasePayload(overrides = {}) {
     hl: overrides.hl || {},
     activeOffer: overrides.activeOffer || 'bu',
     pricing: overrides.pricing || {},
+    ...(overrides.pricingRules ? { pricingRules: overrides.pricingRules } : {}),
   };
 
   // Deep merge Kundendaten.wohnumfeld if provided separately
@@ -452,9 +453,90 @@ describe('Pricing Module', () => {
       });
 
       const result = await pricing.computePrices(payload);
-      
+
       expect(result.bwtIncludedDisplayUI).toBeDefined();
       expect(Array.isArray(result.bwtIncludedDisplayUI)).toBe(true);
+    });
+
+    // BWT_KM_FREE_THRESHOLD / BWT_TRAVEL_TIME_FREE_HOURS are admin-tunable.
+    // If the admin later tightens them, already-saved offers must keep the
+    // number they were quoted with — buildPayload() snapshots the value into
+    // pricingRules at save time; pricing.js must read that snapshot, not the
+    // live cfg.get(), and must fall back to the historical 200 km / 2 h (not
+    // whatever's live) when a payload predates this mechanism entirely.
+    test('Freigrenzen: snapshot in pricingRules wins over the live config; missing snapshot falls back to 200 km / 2 h', async () => {
+      const arbeitszeit = {
+        distanceKm: 18, // 36 km round trip
+        travelDays: 1,
+        workDays: 1,
+        ArbeitHoursNumeric: 5,
+        ReiseHoursNumeric: 2.5,
+      };
+      const payloadFor = (pricingRulesOverride) =>
+        createBasePayload({
+          activeOffer: 'bwt',
+          Arbeitszeit: arbeitszeit,
+          bwt: {},
+          ...(pricingRulesOverride ? { pricingRules: pricingRulesOverride } : {}),
+        });
+
+      const noSnapshot = await pricing.computePrices(payloadFor(undefined));
+      const explicitLegacy = await pricing.computePrices(
+        payloadFor({ bwtKmFreeThreshold: 200, bwtTravelTimeFreeHours: 2 }),
+      );
+      const explicitNoFreeAllowance = await pricing.computePrices(
+        payloadFor({ bwtKmFreeThreshold: 0, bwtTravelTimeFreeHours: 0 }),
+      );
+
+      // No snapshot at all (offer predates this feature) behaves exactly like
+      // an explicit 200/2 snapshot — both keep the historical free allowance.
+      expect(noSnapshot.services.sum).toBeCloseTo(explicitLegacy.services.sum, 2);
+
+      // An offer that explicitly opted into (or was created under) a 0/0
+      // rule bills strictly more: full Reisezeit + Kilometerpauschale kick in.
+      expect(explicitNoFreeAllowance.services.sum).toBeGreaterThan(noSnapshot.services.sum);
+    });
+
+    // Lieferkosten Badewannentür + Kleinmaterial moved from the "services"
+    // (Auszuführende Arbeiten) bucket into materials (Material für
+    // Badewannentür) so the PDF can show them as their own itemized position —
+    // same total price, different position. Guards against three ways that
+    // reclassification can silently break: still counted twice, still taxed
+    // with Aufschlag, or newly discounted by the material Rabatt %.
+    test('Lieferkosten + Kleinmaterial are materials, not services, and stay markup/rabatt-neutral', async () => {
+      mockProductModel.find.mockReturnValue({
+        lean: jest.fn().mockResolvedValue([
+          { productId: '1226', price: 800, name: 'Standard Tür' },
+          { productId: '140322', price: 59, name: 'Lieferkosten' },
+          { productId: 'KM02', price: 150, name: 'Kleinmaterial' },
+        ]),
+      });
+
+      const payload = createBasePayload({
+        activeOffer: 'bwt',
+        Kundendaten: { aufschlag: '35%' },
+        bwt: { bwtDoorStdQty: 1 },
+        rabatt: { materialDiscountPct: 0.05 },
+      });
+
+      const result = await pricing.computePrices(payload);
+
+      const byId = (id) =>
+        result.materials.lines.find((l) => l.productId === id);
+      expect(byId('140322')).toBeDefined();
+      expect(byId('KM02')).toBeDefined();
+
+      // Not double-counted in the labor/services bucket.
+      const inServices = (id) =>
+        (result.bwtIncludedDisplayUI || []).some((l) => l.productId === id || l.key === id);
+      expect(inServices('140322')).toBe(false);
+      expect(inServices('KM02')).toBe(false);
+
+      // Markup applies only to the door (800), not Lieferkosten/Kleinmaterial.
+      expect(result.markupBase).toBeCloseTo(800, 2);
+
+      // Rabatt (5%) applies only to the door (800), not Lieferkosten/Kleinmaterial.
+      expect(result.rabattAmount).toBeCloseTo(40, 2);
     });
   });
 
@@ -522,6 +604,40 @@ describe('Pricing Module', () => {
       expect(checkDecimals(result.markup)).toBe(true);
       expect(checkDecimals(result.vatOnNet)).toBe(true);
       expect(checkDecimals(result.total)).toBe(true);
+    });
+  });
+
+  describe('Aufschlag / Kleinmaterial rule is payload-gated', () => {
+    const km02Payload = (extra) =>
+      createBasePayload({
+        activeOffer: 'bu',
+        Kundendaten: { aufschlag: '50%' },
+        duschwanne: { smallMaterial: true },
+        ...extra,
+      });
+
+    beforeEach(() => {
+      mockProductModel.find.mockReturnValue({
+        lean: jest.fn().mockResolvedValue([
+          { productId: 'KM02', price: 100, name: 'Kleinmaterial' },
+        ]),
+      });
+    });
+
+    test('legacy payload (no flag) excludes Kleinmaterial from the markup', async () => {
+      const result = await pricing.computePrices(km02Payload());
+      const km = result.materials.lines.find((l) => l.productId === 'KM02');
+      expect(km).toBeDefined();
+      // KM02 is the only line and it is excluded → markup 0 (unchanged legacy).
+      expect(result.markup).toBe(0);
+    });
+
+    test('new-rules payload includes Kleinmaterial in the 50% markup', async () => {
+      const result = await pricing.computePrices(
+        km02Payload({ pricingRules: { kleinInAufschlag: true } }),
+      );
+      // Kleinmaterial (100) now part of the 50% Aufschlag base → markup 50.
+      expect(result.markup).toBe(50);
     });
   });
 });

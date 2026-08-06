@@ -18,13 +18,38 @@ import {
 export const router = express.Router();
 const pricing = pricingFactory(ProductModel);
 
-function isHassmannProduct(id) {
+// Article codes that are internal cost lines or belong to other suppliers and
+// must never end up in the Hassmann Warenkorb CSV. Hassmann either rejects them
+// as "Ungültige Artikelnummer" or fuzzy-matches them to the wrong product
+// (e.g. the internal "Kleinmaterial" code KM02 -> KONS4045ES).
+// This list is the immediate safeguard; the per-product `manufacturer` field
+// (checked below) is the primary, data-driven mechanism.
+const INTERNAL_NON_HASSMANN = new Set([
+  "KM02", // Kleinmaterial (internal cost line)
+  "AC004", // Kleinmaterial (budget variant)
+  "PLA5282", // Stelzlager
+  "R_4260602", // Flächenkleber
+  "2000302", // Silikon
+]);
+
+function isHassmannManufacturer(manufacturer) {
+  // Only exclude when a manufacturer is explicitly set AND it is not Hassmann.
+  // Unknown/empty manufacturer stays included so the cart is never silently
+  // emptied before the catalog is fully tagged.
+  const m = String(manufacturer || "").trim();
+  if (!m) return true;
+  return /hassmann/i.test(m);
+}
+
+function isHassmannProduct(id, manufacturer) {
   const s = String(id || "").trim();
   if (!s) return false;
 
   if (/^HASS_/i.test(s)) return false;
   if (s === "OPT_CUSTOM") return false;
   if (s === "REHA_DELIVERY") return false;
+  if (INTERNAL_NON_HASSMANN.has(s)) return false;
+  if (!isHassmannManufacturer(manufacturer)) return false;
 
   return true;
 }
@@ -103,7 +128,9 @@ async function buildMaterialOverviewDocx(body = {}) {
 
   const materials = rows.map((m, i) => ({
     pos: i + 1,
-    materialNumber: m.materialNumber,
+    // Prefer the color-specific article number (e.g. Wandverkleidung) so the
+    // Materialübersicht matches the Hassmann CSV; falls back to the ID.
+    materialNumber: m.hassmannArticle || m.materialNumber,
     name: m.name,
     quantity: formatQtyForOverview(m.quantity, m.unit || "Stck."),
     unit: m.unit || "Stck.",
@@ -242,15 +269,43 @@ router.post("/hassmann-cart", async (req, res) => {
 
     const rows = await aggregateMaterialsForOverview(bodyForOverview, computed);
 
+    // Look up the manufacturer for each material number so non-Hassmann
+    // articles can be filtered out of the CSV.
+    const materialNumbers = [
+      ...new Set(
+        rows
+          .map((r) => String(r.materialNumber || "").trim())
+          .filter(Boolean),
+      ),
+    ];
+    const manufacturerById = new Map();
+    if (materialNumbers.length) {
+      const docs = await ProductModel.find({
+        productId: { $in: materialNumbers },
+      })
+        .select("productId manufacturer")
+        .lean();
+      for (const d of docs) {
+        manufacturerById.set(d.productId, d.manufacturer || null);
+      }
+    }
+
     const filtered = rows.filter(
-      (r) => isHassmannProduct(r.materialNumber) && Number(r.quantity || 0) > 0,
+      (r) =>
+        isHassmannProduct(
+          r.materialNumber,
+          manufacturerById.get(String(r.materialNumber || "").trim()),
+        ) && Number(r.quantity || 0) > 0,
     );
 
     const lines = [
       //";Artikelnummer;Menge",
       ...filtered.map((r) => {
         const qty = Math.round(Number(r.quantity || 0));
-        return `ART;${r.materialNumber};${qty}`;
+        // Prefer the export-only article number (e.g. color-specific
+        // Wandverkleidung code) when present; otherwise the material number.
+        const artNo = String(r.hassmannArticle || r.materialNumber || "").trim();
+        return `ART;${artNo};${qty}`;
       }),
     ];
 

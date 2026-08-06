@@ -79,6 +79,11 @@ export const CONFIG_SCHEMA = [
     label: 'Stelzlager Standardmenge', unit: 'Stk', type: 'integer', section: 'bu', order: 4,
     description: 'Standard-Anzahl Stelzlager (PLA5282) bei Duschwanne',
   },
+  {
+    key: 'BU_BADOLUX_DISCOUNT', value: 0.20,
+    label: 'Badolux Rabatt', unit: '%', type: 'percent', section: 'bu', order: 5,
+    description: 'Rabatt auf Badolux-Duschwannen (0.20 = 20 %). Wird auf den Listenpreis angewandt; verändert die DB nicht.',
+  },
   // ── BWT – BADEWANNENTÜR ──────────────────────────────────────────────────
   {
     key: 'LABOR_RATE_BWT', value: 79.5,
@@ -86,12 +91,12 @@ export const CONFIG_SCHEMA = [
     description: 'Stundensatz für Badewannentür-Montage',
   },
   {
-    key: 'BWT_KM_FREE_THRESHOLD', value: 200,
+    key: 'BWT_KM_FREE_THRESHOLD', value: 0,
     label: 'Freikilometer BWT', unit: 'km', type: 'integer', section: 'bwt', order: 2,
     description: 'Rundtrip-km-Schwelle – nur km darüber werden berechnet',
   },
   {
-    key: 'BWT_TRAVEL_TIME_FREE_HOURS', value: 2,
+    key: 'BWT_TRAVEL_TIME_FREE_HOURS', value: 0,
     label: 'Freie Reisezeit BWT', unit: 'h', type: 'number', section: 'bwt', order: 3,
     description: 'Reisestunden die nicht berechnet werden (Freigrenze)',
   },
@@ -99,6 +104,38 @@ export const CONFIG_SCHEMA = [
     key: 'BWT_WORKER_COUNT', value: 1,
     label: 'Mitarbeiter BWT', unit: 'Pers.', type: 'integer', section: 'bwt', order: 4,
     description: 'Anzahl Monteure bei einem BWT-Einsatz',
+  },
+  {
+    key: 'BWT_LIEFERKOSTEN', value: 59.0,
+    label: 'Lieferkosten Badewannentür', unit: '€', type: 'euro', section: 'bwt', order: 5,
+    description: 'Lieferkosten je Badewannentür (Position 140322)',
+  },
+
+  // ── AH – ALLTAGSHILFE ────────────────────────────────────────────────────
+  {
+    key: 'ENTLASTUNGSBETRAG_MONAT', value: 131,
+    label: 'Entlastungsbetrag § 45b SGB XI', unit: '€/Monat', type: 'euro', section: 'ah', order: 1,
+    description: 'Monatlicher Entlastungsbetrag ab Pflegegrad 1, den die Pflegekasse für zweckgebundene Angebote übernimmt',
+  },
+  {
+    key: 'VERHINDERUNGSPFLEGE_JAHR', value: 2418,
+    label: 'Verhinderungspflege § 39 SGB XI', unit: '€/Jahr', type: 'euro', section: 'ah', order: 2,
+    description: 'Jahresbudget ab Pflegegrad 2 (1.612 € + 806 € aus Kurzzeitpflege), das anteilig auf den Eigenanteil angerechnet werden kann',
+  },
+  {
+    key: 'PFLEGESACHLEISTUNG_UMWIDMUNG_MAX_PCT', value: 40,
+    label: 'Pflegesachleistungen-Umwidmung § 45a Abs. 4', unit: '%', type: 'integer', section: 'ah', order: 3,
+    description: 'Maximaler Anteil ungenutzter Pflegesachleistungen, der dauerhaft in den Entlastungsbetrag umgewidmet werden kann',
+  },
+  {
+    key: 'STEUERABSETZ_PCT', value: 20,
+    label: 'Steuerliche Absetzbarkeit § 35a EStG', unit: '%', type: 'integer', section: 'ah', order: 4,
+    description: 'Anteil der selbst getragenen Kosten, den der Kunde über die Steuererklärung absetzen kann (informativ, keine Auswirkung auf die Rechnung)',
+  },
+  {
+    key: 'STEUERABSETZ_CAP_JAHR', value: 4000,
+    label: 'Steuerabsetzbarkeit Deckel', unit: '€/Jahr', type: 'euro', section: 'ah', order: 5,
+    description: 'Maximale jährliche Steuerermäßigung nach § 35a EStG',
   },
 
   // ── ZUSCHÜSSE & BONI ─────────────────────────────────────────────────────

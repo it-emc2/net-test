@@ -11,6 +11,7 @@
     "seed:flexofit": "node scripts/seedFlexofit.js",
     "seed:badewannen": "node scripts/seedBadewannen.js",
     "seed:badolux": "node scripts/seedbadolux.js",
+    "preview:pdf": "node scripts/preview-pdf.mjs",
     "health": "node -e \"fetch('http://localhost:'+(process.env.PORT||3000)+'/api/health').then(r=>r.text()).then(console.log).catch(console.error)\"",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
@@ -18,13 +19,17 @@
     "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/unit",
     "test:integration": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/integration",
     "test:e2e": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/e2e",
+    "test:e2e:offline": "playwright test -c playwright.offline.config.cjs",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "format": "prettier --write \"src/**/*.{js,mjs,json}\"",
     "format:check": "prettier --check \"src/**/*.{js,mjs,json}\"",
     "scenarios": "node ./scripts/run-scenarios.mjs",
     "validate": "npm run lint && npm run test:unit",
-    "test:address": "node scripts/test-routing.mjs"
+    "test:address": "node scripts/test-routing.mjs",
+    "gen:ah": "node src/templates/generate-ah.mjs",
+    "gen:ah-alt": "node src/templates/generate-ah-alt.mjs",
+    "gen:templates": "npm run gen:ah && npm run gen:ah-alt"
   },
   "keywords": [
     "express",
@@ -49,6 +54,7 @@
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
+    "imapflow": "^1.4.7",
     "mammoth": "^1.11.0",
     "mongoose": "^8.18.1",
     "morgan": "^1.10.1",
@@ -70,6 +76,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "@flydotio/dockerfile": "^0.7.10",
+    "@playwright/test": "^1.61.0",
     "@types/jest": "^29.5.14",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^9.1.0",
@@ -79,6 +86,7 @@
     "jest-environment-jsdom": "^29.7.0",
     "jest-junit": "^16.0.0",
     "jsdom": "^25.0.1",
+    "mongodb-memory-server": "^11.2.0",
     "nodemon": "^3.1.11",
     "prettier": "^3.4.2",
     "supertest": "^7.0.0"

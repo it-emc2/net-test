@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anmeldung – EmC2</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    body { font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 60%, #f1f5f9 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; color: #1e293b; }
+    .card { background: #fff; border-radius: 14px; padding: 40px 36px; width: 100%; max-width: 400px; box-shadow: 0 25px 50px rgba(0,0,0,.15); text-align: center; }
+    .logo { max-width: 220px; max-height: 90px; }
+    .subtitle { color: #64748b; font-size: 13px; letter-spacing: .5px; text-transform: uppercase; margin: 4px 0 30px; }
+    .field { text-align: left; margin-bottom: 16px; }
+    .field label { display: block; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    .field input { width: 100%; padding: 11px 14px; border: 1.5px solid #e2e8f0; border-radius: 6px; font-size: 14px; background: #f1f5f9; outline: none; }
+    .field input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.15); background: #fff; }
+    button { width: 100%; padding: 12px; background: #3b82f6; color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 6px; }
+    button:hover:not(:disabled) { background: #2563eb; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .err { margin-top: 14px; padding: 10px 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; color: #ef4444; font-size: 13px; text-align: left; display: none; }
+    .err.show { display: block; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img class="logo" src="/assets/logo.png" alt="EmC2" />
+    <p class="subtitle">Anmeldung</p>
+    <form id="form" autocomplete="on">
+      <div class="field">
+        <label for="email">E-Mail</label>
+        <input type="email" id="email" autocomplete="username" autofocus />
+      </div>
+      <div class="field">
+        <label for="password">Passwort</label>
+        <input type="password" id="password" autocomplete="current-password" />
+      </div>
+      <button type="submit" id="btn">Anmelden</button>
+      <div id="err" class="err"></div>
+    </form>
+  </div>
+  <script src="/login.js"></script>
+</body>
+</html>

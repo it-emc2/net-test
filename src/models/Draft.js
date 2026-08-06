@@ -17,6 +17,17 @@ const DraftSchema = new mongoose.Schema(
       type: Object,
       required: true, // result of buildPayload()
     },
+    // When the user hit save on the client. Differs from createdAt for drafts
+    // that were saved offline and only reached the server on a later sync.
+    savedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    // Client-generated id of the save that produced this draft. Lets a replay
+    // of the same queued save be recognised as already-applied (200, not 409).
+    clientSaveId: {
+      type: String,
+    },
   },
   {
     timestamps: true, // createdAt, updatedAt

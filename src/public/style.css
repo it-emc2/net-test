@@ -160,7 +160,9 @@
 
 html,
 body {
-  height: 100%;
+  /* min-height (not height:100%) so the body grows with content and stays the
+     scroll container — required for the sticky header to work full-length. */
+  min-height: 100%;
 }
 
 body {
@@ -171,19 +173,42 @@ body {
 }
 
 /* ---------- Header ---------- */
+/* ---------- App header (clean light bar) ---------- */
 header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  max-width: 1100px;
-  margin: 0 auto;
+  gap: 16px;
+  padding: 10px 22px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* .sidebar-toggle lives in index.html's inline styles (single source of truth) */
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
+  min-width: 0;
+}
+
+.brand-logo {
+  height: 34px;
+  width: auto;
+  display: block;
+  flex-shrink: 0;
 }
 
 .brand .dot {
@@ -196,7 +221,11 @@ header {
 
 h1 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .lead {
@@ -205,16 +234,153 @@ h1 {
   color: var(--muted);
 }
 
-.toggle {
+.theme-controls {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 14px;
+}
+
+/* Segmented group holding the theme selector + light/dark toggle */
+.ctl-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 6px;
+  background: var(--bg);
   border: 1px solid var(--border);
-  background: var(--panel);
-  padding: 8px 10px;
   border-radius: 12px;
-  box-shadow: var(--shadow);
+}
+
+.ctl-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.hdr-select {
+  height: 32px;
+  line-height: normal;
+  align-self: center;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 0.88rem;
+  font-family: inherit;
   cursor: pointer;
+  border-radius: 8px;
+  text-align: center;
+  text-align-last: center;
+  padding: 0 28px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: background-color 0.15s;
+}
+.hdr-select:hover { background-color: var(--accent-weak); }
+
+/* User chip */
+.user-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-box .avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.user-box .user-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: inherit;
+  white-space: nowrap;
+}
+
+.user-box #logoutBtn {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 10px;
+  font-size: 1rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.user-box #logoutBtn:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* Day → night sliding switch (same height as the theme select) */
+.mode-switch { display: inline-flex; align-items: center; align-self: center; height: 32px; margin: 0; cursor: pointer; }
+.mode-switch input { display: none; }
+
+.mode-track {
+  position: relative;
+  width: 62px;
+  height: 32px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fcd34d 0%, #fbbf24 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  transition: background 0.3s ease;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+.mode-ico { font-size: 13px; line-height: 1; z-index: 1; transition: opacity 0.25s ease; }
+.mode-sun { color: #fff; }
+.mode-moon { color: #cbd5e1; opacity: 0.55; }
+
+.mode-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mode-switch input:checked + .mode-track {
+  background: linear-gradient(135deg, #334155 0%, #0f172a 100%);
+}
+.mode-switch input:checked + .mode-track .mode-knob { left: 33px; }
+.mode-switch input:checked + .mode-track .mode-sun { opacity: 0.4; }
+.mode-switch input:checked + .mode-track .mode-moon { opacity: 1; color: #fde68a; }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap; border: 0;
 }
 
 .toggle input {
@@ -270,9 +436,10 @@ h1 {
 
 .sidebar {
   position: sticky;
-  top: 0;
+  /* dock below the sticky header (z 50) instead of sliding over it */
+  top: var(--header-h, 64px);
   align-self: start;
-  height: calc(100dvh);
+  height: calc(100dvh - var(--header-h, 64px));
   background: var(--panel);
   border-right: 1px solid var(--border);
   padding: 10px 10px 16px;
@@ -338,6 +505,7 @@ h1 {
 }
 
 .side-link .dot {
+  flex-shrink: 0;
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -375,23 +543,92 @@ h1 {
   transform: scale(1);
 }
 
+/* --- Sidebar step groups (Badumbau) ---------------------------------------
+   Deliberately NOT the .accordion-* component used by Developer/CRM: the
+   header is a .side-link so groups read as ordinary main entries. */
+.side-group {
+  display: grid;
+  gap: 6px;
+}
+
+/* Not interactive: the groups never collapse, so the header is a label row.
+   Kill the .side-link hover so it doesn't invite a click. */
+.side-group-header {
+  cursor: default;
+}
+
+.side-group-header:hover {
+  background: transparent;
+}
+
+/* Pushed to the right edge; purely an "has children below" marker, so it
+   never rotates. */
+.side-group-header .side-group-chevron {
+  margin-left: auto;
+  flex: none;
+  line-height: 1;
+  opacity: 0.55;
+  transform: rotate(90deg);
+}
+
+/* Roman numeral badge — the only place with a serif face, scoped to this span
+   so the app font stays untouched. */
+.side-num {
+  flex: none;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--accent-weak);
+  color: var(--accent-strong);
+}
+
+.side-group-body {
+  display: grid;
+  gap: 6px;
+  margin-left: 21px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+}
+
+/* Header mirrors the state of its children. setStep only touches a.side-link,
+   so the header's own dot is driven from here. `active` comes after `done`
+   because a group holding the current step also holds done siblings. */
+.side-group:has(.side-link.done) > .side-group-header {
+  color: var(--step-done);
+}
+
+.side-group:has(.side-link.done) > .side-group-header .dot {
+  border-color: var(--step-done);
+}
+
+.side-group:has(.side-link.done) > .side-group-header .dot::after {
+  background: var(--step-done);
+  transform: scale(1);
+}
+
+.side-group:has(.side-link.active) > .side-group-header {
+  background: var(--accent-weak);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.side-group:has(.side-link.active) > .side-group-header .dot {
+  border-color: var(--step-active);
+}
+
+.side-group:has(.side-link.active) > .side-group-header .dot::after {
+  background: var(--step-active);
+  transform: scale(1);
+}
+
 .main {
   padding: 0 20px 40px;
 }
 
 .main .container {
   padding-top: 16px;
-}
-
-.sidebar-toggle {
-  display: none;
-  border: 1px solid var(--border);
-  background: var(--panel);
-  padding: 8px 10px;
-  border-radius: 10px;
-  cursor: pointer;
-  gap: 8px;
-  align-items: center;
 }
 
 /* ---------- Card + form styling ---------- */
@@ -408,6 +645,111 @@ h1 {
   border-radius: 16px;
   padding: 16px;
   box-shadow: var(--shadow);
+}
+
+/* ── Kosten-Details: flat, paragraph-style sections (no boxed cards) ──
+   Scoped to #costsSummary so nothing outside the Kosten tab is affected. */
+#costsSummary .kosten-section {
+  margin: 0;
+}
+#costsSummary .kosten-section__title {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent-strong);
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--accent-weak);
+}
+/* Same roman badge as the sidebar groups, inline in a heading / summary label. */
+#costsSummary .kosten-section__title .side-num,
+#form-rabatt .side-num {
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: 2px;
+}
+/* "ohne Aufschlag" marker on a material/optional line. */
+#costsSummary .kosten-tag {
+  font-size: 10px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+#costsSummary .kosten-sums__note {
+  font-size: 11px;
+  color: var(--muted);
+}
+#costsSummary .kosten-col-head {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+#costsSummary .kosten-section__footer {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  text-align: right;
+}
+#costsSummary .kosten-subtotal-label {
+  color: var(--muted);
+  font-weight: 700;
+}
+#costsSummary .kosten-sums {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+}
+#costsSummary .kosten-sums > div {
+  display: flex;
+  gap: 12px;
+}
+#costsSummary .kosten-sums > div > span {
+  color: var(--muted);
+}
+/* Hairline above a summation step (Zwischensumme / Nettobetrag), so the ladder
+   reads as "everything above adds up to this". Stretches like __total does,
+   otherwise the border would only span the text width. */
+#costsSummary .kosten-sums__rule {
+  align-self: stretch;
+  justify-content: flex-end;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+#costsSummary .kosten-sums__subtotal {
+  font-size: 1.05rem;
+}
+#costsSummary .kosten-sums__subtotal > span {
+  color: var(--text);
+}
+#costsSummary .kosten-sums__total {
+  align-self: stretch;
+  justify-content: flex-end;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 2px solid var(--accent-weak);
+  font-size: 1.25rem;
+}
+#costsSummary .kosten-sums__total > span,
+#costsSummary .kosten-sums__total > b {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+/* Dark mode: lift the accent so headings/total stay legible on dark cards. */
+[data-mode="dark"] #costsSummary .kosten-section__title,
+[data-mode="dark"] #costsSummary .kosten-sums__total > span,
+[data-mode="dark"] #costsSummary .kosten-sums__total > b {
+  color: #c4b5fd;
+}
+[data-mode="dark"] #costsSummary .kosten-section__title {
+  border-bottom-color: rgba(167, 139, 250, 0.35);
+}
+[data-mode="dark"] #costsSummary .kosten-sums__total {
+  border-top-color: rgba(167, 139, 250, 0.35);
 }
 
 form {
@@ -576,6 +918,19 @@ button.secondary {
   border: 1px solid var(--accent-strong);
 }
 
+a.secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  text-decoration: none;
+  background: transparent;
+  color: var(--accent-strong);
+  border: 1px solid var(--accent-strong);
+}
+
 a.btn {
   text-decoration: none;
   display: inline-block;
@@ -663,9 +1018,10 @@ a.btn {
     inset: 0 auto 0 0;
     width: 84%;
     max-width: 320px;
+    height: 100dvh;
     transform: translateX(-105%);
     transition: transform 0.25s ease;
-    z-index: 50;
+    z-index: 60; /* drawer covers the sticky header (z 50) */
   }
 
   .sidebar.open {
@@ -677,7 +1033,7 @@ a.btn {
     inset: 0;
     background: rgba(15, 23, 42, 0.45);
     backdrop-filter: blur(2px);
-    z-index: 40;
+    z-index: 55;
     display: none;
   }
 
@@ -790,6 +1146,8 @@ a.btn {
 
 .section-block {
   margin-top: 1.25rem;
+  border: none;
+  padding: 0;
 }
 
 .section-title {
@@ -930,12 +1288,202 @@ a.btn {
   background: var(--card);
 }
 
+/* ---------- Work-task group headers: title + selection-count badge ---------- */
+.wt-extra-header,
+.wt-group-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wt-extra-count[hidden],
+.wt-group-count[hidden] {
+  display: none;
+}
+
+.wt-extra-count,
+.wt-group-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+:is(#dw-extra-tasks, #bwt-extra-tasks).wt-extra-fieldset {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-item.da-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--card);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-item:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-item .dw-extra {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--card-foreground);
+  font: inherit;
+  line-height: 1.35;
+  padding: 0.2rem 0;
+  resize: vertical;
+  overflow-wrap: break-word;
+}
+
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-item .dw-extra:focus {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-item input[type="text"]:focus {
+  outline: none;
+}
+
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-remove.da-remove {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-remove.da-remove:hover,
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-remove.da-remove:focus-visible {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-move {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-move:hover:not(:disabled),
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-move:focus-visible:not(:disabled) {
+  background: var(--muted);
+  border-color: var(--accent);
+  color: var(--card-foreground);
+}
+
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-move:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Keep the chevron at its intrinsic size — inside the inline-flex button it
+   otherwise collapses to 0px width and the arrow disappears. */
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-move svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  display: block;
+  stroke: currentColor;
+}
+
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-add.da-add {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.85rem;
+  border: 1px dashed var(--border);
+  border-radius: 0.65rem;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-add.da-add:hover,
+:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-add.da-add:focus-visible {
+  background: var(--card-hover);
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+:is(#dw-extra-tasks, #bwt-extra-tasks) .da-help {
+  display: block;
+  margin-top: 0.6rem;
+}
+
+.wt-extra-empty {
+  color: var(--muted-foreground);
+  font-size: 0.85rem;
+  font-style: italic;
+  margin: 0 0 0.6rem;
+}
+
 /* ---------- Aufschlag panel ---------- */
 .aufschlag-panel {
   background: var(--section-bg);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px;
+}
+
+/* On the Übersicht page the Aufschlag block is shown plain (no tinted panel);
+   other offers keep the panel look in their Kundendaten placement. */
+#page-Rabatt .aufschlag-panel {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
 }
 
 .aufschlag-panel[aria-hidden="true"] {
@@ -966,8 +1514,35 @@ a.btn {
   gap: 10px;
 }
 
-.sonderaufschlag-input-row input {
-  max-width: 180px;
+.sonderaufschlag-slider {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  height: 6px;
+}
+
+.sonderaufschlag-input-row input[type="text"] {
+  max-width: 100px;
+}
+
+.sonderaufschlag-auto-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.sonderaufschlag-target {
+  width: 100px;
+  min-width: 80px;
+}
+
+.sonderaufschlag-preset {
+  white-space: nowrap;
+  font-size: 0.85rem;
+  padding: 4px 10px;
 }
 
 .sonderaufschlag-unit {
@@ -988,10 +1563,89 @@ a.btn {
   font-weight: 600;
 }
 
-#toggleSonderaufschlag.is-active {
+#toggleSonderaufschlag.is-active,
+#toggleZielpreis.is-active {
   background: var(--accent-weak) !important;
   border-color: var(--accent) !important;
   color: var(--accent-strong) !important;
+}
+
+/* ---------- Aufschlag: unified single-value control ---------- */
+.aufschlag-value-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.aufschlag-value-box input[type="text"] {
+  width: 72px;
+  text-align: right;
+  font-weight: 600;
+}
+
+.aufschlag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.aufschlag-chip {
+  font-size: 0.9rem;
+  padding: 7px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--input-border);
+  background: var(--panel);
+  color: var(--foreground);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.aufschlag-chip:hover {
+  border-color: var(--accent);
+}
+
+.aufschlag-chip.active {
+  border-color: var(--accent);
+  background: var(--accent-weak);
+  color: var(--accent-strong);
+}
+
+#aufschlagBody > .sonderaufschlag-slider {
+  width: 100%;
+  margin: 2px 0 4px;
+}
+
+.aufschlag-warn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: rgba(234, 179, 8, 0.12);
+  color: #92400e;
+  border: 1px solid rgba(234, 179, 8, 0.35);
+}
+.aufschlag-warn[hidden] {
+  display: none;
+}
+
+.aufschlag-zielpreis {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* The .sonderaufschlag-auto-row display:flex would otherwise beat [hidden]. */
+#zielpreisWrap {
+  margin-top: 12px;
+}
+#zielpreisWrap[hidden] {
+  display: none;
 }
 
 /* ---------- Checkbox pill ---------- */
@@ -1067,6 +1721,186 @@ a.btn {
 /* ---------- Field spacing ---------- */
 .field {
   margin: 16px 0;
+}
+
+.dw-tray-extras-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-rows: auto auto auto;
+  gap: 16px;
+}
+
+.dw-tray-extras-grid > .field {
+  margin: 0;
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+}
+
+.dw-tray-extras-grid > .field .image-check {
+  width: 100%;
+  height: 100%;
+}
+
+/* Uniform product-tile cards: header / tile / note / qty-or-price, aligned
+   across the row via subgrid so cards with different optional content
+   (warning text, qty input) still line up instead of drifting to
+   whatever height their own content happens to need. */
+.product-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-rows: auto auto auto auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.product-tile-grid > .field {
+  margin: 0;
+  display: grid;
+  grid-row: span 4;
+  grid-template-rows: subgrid;
+  justify-items: start;
+}
+
+.product-tile-grid > .field .image-check {
+  width: min(220px, 100%);
+}
+
+/* #flooringPanel's >=1024px rule (below) blows product tiles up to a third
+   of the row and crops them; scope back to the standard fixed-size tile so
+   Fußboden and Wandverkleidung product cards match. */
+#flooringPanel .product-tile-grid .image-check {
+  max-width: min(220px, 100%);
+  flex: none;
+}
+
+#flooringPanel .product-tile-grid .img-wrap {
+  aspect-ratio: 4 / 5;
+}
+
+#flooringPanel .product-tile-grid .img-wrap img {
+  object-fit: contain;
+}
+
+/* ---------- Wandverkleidung: Abschlussprofil / Verbindungsprofil V3V row ----------
+   Subgrid so the head/image/footer sections of both cards line up on shared
+   row tracks even though the V3V card has more fields than the Abschlussprofil card. */
+.wv-profile-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr auto;
+  gap: 20px;
+  align-items: stretch;
+}
+
+@media (max-width: 760px) {
+  .wv-profile-row {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+  }
+}
+
+.wv-profile-card {
+  grid-row: 1 / span 3;
+  display: grid;
+  grid-template-rows: subgrid;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+@media (max-width: 760px) {
+  .wv-profile-card {
+    grid-row: auto;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+.wv-profile-card .card-head {
+  padding: 18px 18px 0;
+}
+
+.wv-profile-card .card-title {
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.wv-profile-card .card-sub {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.wv-profile-card .card-body {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.wv-profile-card .qty-area {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wv-profile-card .qty-area .field {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.wv-profile-card .card-foot {
+  margin: 0 18px 18px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  line-height: 1.35;
+}
+
+.wv-profile-card .card-foot .ic {
+  flex: 0 0 auto;
+}
+
+.wv-profile-card .card-foot .formula {
+  font-size: 0.75rem;
+  opacity: 0.85;
+  margin-top: 2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.wv-profile-card .card-foot.tone-info {
+  background: var(--section-bg);
+  color: var(--text);
+}
+
+.wv-profile-card .card-foot.tone-amber {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.wv-profile-card .card-foot.tone-ok {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+[data-mode="dark"] .wv-profile-card .card-foot.tone-amber {
+  background: #3a2c10;
+  color: #fbbf24;
+}
+
+[data-mode="dark"] .wv-profile-card .card-foot.tone-ok {
+  background: #0f2e1c;
+  color: #4ade80;
 }
 
 .radio-list {
@@ -1206,60 +2040,149 @@ label.image-check.is-checked .caption {
 
 /* ---------- Smart tray suggestions ---------- */
 #tray-suggestions .suggestion-heading {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 8px;
 }
 
 #tray-suggestions .suggestion-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 10px;
 }
 
 #tray-suggestions .suggestion-card {
   min-width: 0;
-  border: 1px solid var(--border, #e5e7eb);
+  border: 1.5px solid var(--border, #e5e7eb);
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   display: flex;
-  gap: 10px;
-  align-items: flex-start;
+  align-items: center;
+  gap: 0;
   cursor: pointer;
   background: var(--card);
   color: var(--card-foreground);
   transition: background-color 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
-}
-
-#tray-suggestions .suggestion-card > * {
-  min-width: 0;
+  position: relative;
 }
 
 #tray-suggestions .suggestion-card input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+/* body */
+#tray-suggestions .sc-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#tray-suggestions .sc-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+#tray-suggestions .sc-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 0.92rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+#tray-suggestions .sc-price {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--primary, #2563eb);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+#tray-suggestions .sc-dims {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+#tray-suggestions .sc-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
   margin-top: 2px;
 }
 
-#tray-suggestions .title {
+#tray-suggestions .sc-badge {
+  font-size: 10px;
   font-weight: 600;
-  line-height: 1.2;
-  overflow-wrap: anywhere;
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
 }
 
-#tray-suggestions .meta {
+#tray-suggestions .sc-badge--best {
+  background: rgba(37, 99, 235, 0.10);
+  color: var(--primary, #2563eb);
+  border: 1px solid rgba(37, 99, 235, 0.25);
+}
+
+#tray-suggestions .sc-badge--source {
+  background: transparent;
+  color: var(--foreground, #111827);
+  border: 1px solid var(--border);
+}
+
+#tray-suggestions .is-budget .sc-badge--source {
+  background: rgba(234, 179, 8, 0.12);
+  color: #92400e;
+  border-color: rgba(234, 179, 8, 0.35);
+}
+
+/* checkmark indicator */
+#tray-suggestions .sc-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
-  color: var(--muted-foreground);
-  overflow-wrap: anywhere;
+  font-weight: 700;
+  color: transparent;
+  background: transparent;
+  flex-shrink: 0;
+  margin-left: 10px;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 
 #tray-suggestions .suggestion-card:hover,
 #tray-suggestions .suggestion-card:focus-within {
   background: var(--card-hover);
   color: var(--card-foreground);
+  border-color: var(--ring, #2563eb);
 }
 
 #tray-suggestions .suggestion-card.is-selected {
   border-color: var(--ring, #2563eb);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
   background: var(--card-selected);
+}
+
+#tray-suggestions .suggestion-card.is-selected .sc-check {
+  background: var(--primary, #2563eb);
+  border-color: var(--primary, #2563eb);
+  color: #fff;
 }
 
 /* iPad / tablet Safari: ensure suggestions span full width and don’t collapse */
@@ -1583,39 +2506,6 @@ label.image-check.is-checked .caption {
   color: var(--foreground);
 }
 
-/* Make the routing suggestion CTA more prominent */
-#btnRoutingSuggest {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
-  color: #ffffff;
-  border: none;
-  border-radius: 14px;
-  padding: 10px 16px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  box-shadow: 0 10px 22px rgba(109, 40, 217, 0.25), 0 0 0 1px rgba(109, 40, 217, 0.2) inset;
-  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
-}
-
-#btnRoutingSuggest::after {
-  content: " ->";
-  font-weight: 700;
-}
-
-#btnRoutingSuggest:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.05);
-  box-shadow: 0 14px 28px rgba(109, 40, 217, 0.28), 0 0 0 2px rgba(109, 40, 217, 0.25) inset;
-}
-
-#btnRoutingSuggest:active {
-  transform: translateY(0);
-  filter: brightness(0.98);
-}
-
-#btnRoutingSuggest:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--ring), 0 10px 22px rgba(109, 40, 217, 0.25);
-}
 
 /* search dropdown */
 .customer-search-wrapper {
@@ -1705,23 +2595,28 @@ label.image-check.is-checked .caption {
 
 /* ========== ZUSAMMENFASSUNG PAGE STYLES ========== */
 
+/* Passthrough: the page already sits in a .card (with its own padding), so this
+   inner wrapper adds nothing — keeps the Zusammenfassung consistent with the
+   other tabs (single card, no extra container/padding). */
 .zusammenfassung-container {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 24px;
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 
 /* Header */
 .zusammenfassung-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px;
-  margin-bottom: 32px;
-  padding-bottom: 24px;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
 }
+.zusammenfassung-header .section-title { margin: 0; }
+.zusammenfassung-header .zf-ap-field { margin-left: 0; }
 
 .zusammenfassung-header h1 {
   font-size: 2rem;
@@ -2539,9 +3434,9 @@ label.image-check.is-checked .caption {
 /* Responsive */
 @media (max-width: 768px) {
   .zusammenfassung-container {
-    padding: 16px;
+    padding: 0;
   }
-  
+
   .zusammenfassung-header {
     flex-direction: column;
     align-items: stretch;
@@ -2614,6 +3509,24 @@ label.image-check.is-checked .caption {
 }
 #adobePdfStatus[data-type="error"], #mailStatus[data-type="error"], #postStatus[data-type="error"] { color: #ffb3b3; }
 
+/* Step-by-step send log (EmailManager pushStatus) */
+#mailStatus.mail-log {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  max-height: 220px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.03);
+}
+#mailStatus .mail-log-line--success { color: #1a7f4b; }
+#mailStatus .mail-log-line--error { color: #c0392b; }
+[data-mode="dark"] #mailStatus.mail-log { background: rgba(255, 255, 255, 0.05); }
+[data-mode="dark"] #mailStatus .mail-log-line--success { color: #6ee7a8; }
+[data-mode="dark"] #mailStatus .mail-log-line--error { color: #ffb3b3; }
+
 
 .mail-attach-box {
   margin-top: 8px;
@@ -2678,6 +3591,87 @@ label.image-check.is-checked .caption {
   font-size: 0.8rem;
   opacity: 0.75;
 }
+
+/* Drop zone for a hand-edited Angebot-DOCX (replaces the fresh render on send) */
+.mail-docx-zone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-top: 6px;
+  border: 1.5px dashed #b9c4cb;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.mail-docx-zone:hover,
+.mail-docx-zone:focus-visible,
+.mail-docx-zone.drag-over {
+  border-color: #00a86b;
+  background: rgba(0,168,107,0.06);
+}
+.mail-docx-zone.has-file {
+  border-style: solid;
+  border-color: #e0a636;
+  background: rgba(239,159,39,0.10);
+}
+.mail-docx-zone-badge {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(0,168,107,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+}
+.mail-docx-zone.has-file .mail-docx-zone-badge { background: rgba(239,159,39,0.18); }
+.mail-docx-zone-text { min-width: 0; flex: 1; }
+.mail-docx-zone-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.mail-docx-zone.has-file .mail-docx-zone-title { color: #854f0b; }
+.mail-docx-zone-sub {
+  font-size: 0.8rem;
+  opacity: 0.8;
+  line-height: 1.45;
+  margin-top: 2px;
+}
+.mail-docx-zone.has-file .mail-docx-zone-sub { color: #854f0b; opacity: 0.9; }
+.mail-docx-remove {
+  flex: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 700;
+  color: #854f0b;
+  padding: 6px 8px;
+}
+#sendOfferMail.btn-edited-docx {
+  background: linear-gradient(135deg, #f0b34e 0%, #d97706 100%);
+}
+#sendOfferMail.btn-edited-docx:hover {
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.25);
+}
+.mail-docx-send-note {
+  font-size: 0.8rem;
+  text-align: center;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+[data-mode="dark"] .mail-docx-zone { border-color: rgba(255,255,255,0.25); }
+[data-mode="dark"] .mail-docx-zone:hover,
+[data-mode="dark"] .mail-docx-zone:focus-visible,
+[data-mode="dark"] .mail-docx-zone.drag-over { border-color: #00a86b; }
+[data-mode="dark"] .mail-docx-zone.has-file { border-color: #e0a636; background: rgba(239,159,39,0.14); }
+[data-mode="dark"] .mail-docx-zone.has-file .mail-docx-zone-title,
+[data-mode="dark"] .mail-docx-zone.has-file .mail-docx-zone-sub,
+[data-mode="dark"] .mail-docx-remove { color: #fac775; }
 
 .mail-attach-grid{
   display: grid;
@@ -2747,11 +3741,13 @@ label.image-check.is-checked .caption {
 }
 
 /* ===== Additive: Badolux Low Budget mode UI helpers ===== */
-#form-duschwanne.budget-mode {
+#form-duschwanne.budget-mode,
+#form-fussboden.budget-mode {
   position: relative;
 }
 
-#form-duschwanne.budget-mode::before {
+#form-duschwanne.budget-mode::before,
+#form-fussboden.budget-mode::before {
   content: "💰 Low Budget Modus aktiv";
   display: block;
   margin: 10px 0 14px;
@@ -2765,18 +3761,6 @@ label.image-check.is-checked .caption {
 /* Optional: show badge on budget tray suggestions */
 .suggestion-card.is-budget {
   position: relative;
-}
-.suggestion-card.is-budget::after {
-  content: "💰 Budget";
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(255, 215, 0, 0.20);
-  border: 1px solid rgba(255, 215, 0, 0.45);
 }
 
 .sig-wrap {
@@ -3096,6 +4080,242 @@ label.image-check.is-checked .caption {
 
 #hlLegacyPipeSection{
   display: none !important;
+}
+
+/* HL: Konfigurator (Wizard) */
+.hl-wiz{
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+.hl-wiz__head{
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+/* Step bar: [Zurück] ← centered steps → [Weiter] */
+.hl-wiz__stepbar{
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 14px 0 4px;
+}
+.hl-wiz__stepbar > button{ flex: 0 0 auto; }
+.hl-wiz__steps{
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+}
+.hl-wiz__steps li{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.6;
+}
+.hl-wiz__steps li .hl-wiz__num{
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--border);
+  font-size: 12px;
+}
+.hl-wiz__steps li.is-active{
+  opacity: 1;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.hl-wiz__steps li.is-done{
+  opacity: 1;
+}
+.hl-wiz__steps li.is-active .hl-wiz__num,
+.hl-wiz__steps li.is-done .hl-wiz__num{
+  background: var(--accent);
+  color: #fff;
+}
+.hl-wiz__status{
+  margin: 8px 0;
+  min-height: 18px;
+}
+.hl-wiz__body{
+  margin: 6px 0 4px;
+}
+.hl-wiz__section-title{
+  font-weight: 700;
+  margin: 4px 0 10px;
+}
+.hl-wiz__hint{
+  font-size: 13px;
+  opacity: 0.8;
+  margin: 0 0 12px;
+}
+.hl-wiz__stepbar button[disabled]{
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Big choice cards (Bereich / Material) */
+.hl-wiz__cards{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.hl-wiz__card{
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: inherit;
+  padding: 20px;
+  cursor: pointer;
+  text-align: center;
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+.hl-wiz__card:hover{ border-color: var(--accent); }
+.hl-wiz__card.is-selected{
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--card));
+}
+.hl-wiz__card img{
+  width: 100%;
+  max-width: 240px;
+  height: 180px;
+  object-fit: contain;
+}
+.hl-wiz__card-title{ font-weight: 700; }
+.hl-wiz__card-sub{ font-size: 12px; opacity: 0.75; }
+
+/* Finish swatches */
+.hl-wiz__finishes{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.hl-wiz__finish{
+  border: 2px solid var(--border);
+  background: var(--card);
+  color: inherit;
+  border-radius: 8px;
+  padding: 12px 18px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+}
+.hl-wiz__finish.is-selected{
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.hl-wiz__finish[disabled]{
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Material group with meter inputs */
+.hl-wiz__group{
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+.hl-wiz__group-title{
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.hl-wiz__picks{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+.hl-wiz__pick{
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+}
+.hl-wiz__pick.is-selected{
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+}
+.hl-wiz__pick img{ width: 96px; height: 96px; object-fit: contain; }
+.hl-wiz__pick-name{ font-weight: 600; line-height: 1.25; font-size: 16px; }
+.hl-wiz__pick-meta{ font-size: 13px; opacity: 0.75; }
+.hl-wiz__qty{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.hl-wiz__qty input{
+  width: 96px;
+  padding: 9px 10px;
+  font-size: 16px; /* ≥16px stops iOS zoom-on-focus */
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg, transparent);
+  color: inherit;
+}
+.hl-wiz__qty label{ font-size: 13px; opacity: 0.8; }
+
+/* Übersicht */
+.hl-wiz__summary{
+  display: grid;
+  gap: 8px;
+}
+.hl-wiz__summary-row{
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  align-items: center;
+}
+.hl-wiz__summary-row .muted{ font-size: 12px; }
+.hl-wiz__empty{ opacity: 0.7; padding: 12px 0; }
+
+/* Commit confirmation banner on the Übersicht */
+.hl-wiz__committed{
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 14%, var(--card));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 15px;
+}
+.hl-wiz__committed.is-empty{
+  border-color: var(--border);
+  background: var(--card);
+  opacity: 0.85;
+}
+.hl-wiz__committed-actions{
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
 }
 
 
@@ -5192,6 +6412,25 @@ button.pad-clear {
   }
 }
 
+/* Hauptmenü on phones: keep desktop/tablet layout untouched, only relax the
+   cramped nested-scroll appointment list and the week-nav row that clips
+   its ">" button off-screen below 480px. */
+@media (max-width: 480px) {
+  #page-home .today-calendar-panel .today-customers-list,
+  #page-home .today-customers-list {
+    max-height: none;
+  }
+
+  #page-home .week-cal-head {
+    flex-wrap: wrap;
+  }
+
+  #page-home .week-cal-nav {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
 
 /* =========================================================
    Today Calendar Panel
@@ -5369,6 +6608,13 @@ button.pad-clear {
   color: #b91c1c;
 }
 
+.today-calendar-badge.is-deal {
+  background: rgba(37, 99, 235, .1);
+  border-color: rgba(37, 99, 235, .24);
+  color: #1d4ed8;
+  cursor: pointer;
+}
+
 .today-calendar-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5412,6 +6658,86 @@ button.pad-clear {
   margin-top: 12px;
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.today-calendar-done {
+  border: 1px solid color-mix(in srgb, #16a34a 30%, var(--border));
+  background: color-mix(in srgb, #16a34a 12%, var(--panel));
+  color: #15803d;
+  border-radius: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 700;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease, color .16s ease;
+}
+
+.today-calendar-done:hover,
+.today-calendar-done:focus-visible {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #16a34a 30%, transparent);
+}
+
+.today-calendar-done:disabled {
+  cursor: default;
+  opacity: .75;
+  box-shadow: none;
+}
+
+.today-calendar-call {
+  border: 1px solid color-mix(in srgb, #16a34a 32%, var(--border));
+  background: color-mix(in srgb, #16a34a 12%, var(--panel));
+  color: #15803d;
+  border-radius: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease, color .16s ease;
+}
+
+.today-calendar-call:hover,
+.today-calendar-call:focus-visible {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #16a34a 30%, transparent);
+}
+
+.today-calendar-navigate {
+  border: 1px solid color-mix(in srgb, #2563eb 32%, var(--border));
+  background: color-mix(in srgb, #2563eb 12%, var(--panel));
+  color: #1d4ed8;
+  border-radius: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease, color .16s ease;
+}
+
+.today-calendar-navigate:hover,
+.today-calendar-navigate:focus-visible {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #2563eb 30%, transparent);
 }
 
 .today-calendar-open {
@@ -5465,11 +6791,94 @@ button.pad-clear {
     justify-content: stretch;
   }
 
+  .today-calendar-call,
+  .today-calendar-navigate,
+  .today-calendar-done,
   .today-calendar-open {
     width: 100%;
   }
 }
 
+
+/* ===== Planning offer picker ============================================ */
+
+.planning-offer-picker-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.planning-offer-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease, color .15s ease, transform .1s ease;
+}
+
+.planning-offer-card i {
+  font-size: 1.6rem;
+  color: var(--accent);
+  transition: color .15s ease;
+}
+
+.planning-offer-card:hover,
+.planning-offer-card:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 18px -4px var(--ring);
+  transform: translateY(-2px);
+}
+
+.planning-offer-card:hover i,
+.planning-offer-card:focus-visible i {
+  color: #fff;
+}
+
+/* ===== Planning travel connector ======================================== */
+
+.planning-travel-connector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.planning-travel-connector i {
+  font-size: 0.72rem;
+}
+
+.today-pause-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: rgba(245, 158, 11, .12);
+  border: 1px solid rgba(245, 158, 11, .25);
+  color: #b45309;
+}
+
+.today-pause-chip[hidden] {
+  display: none;
+}
 
 /* ===== Wochenkalender Vertrieb ========================================== */
 
@@ -5502,9 +6911,49 @@ button.pad-clear {
   color: var(--muted);
 }
 
+/* ── Week navigation (prev / today / next) ── */
+.week-cal-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.week-cal-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, opacity 0.12s;
+}
+
+.week-cal-nav-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+  border-color: var(--accent);
+}
+
+.week-cal-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.week-cal-nav-today.is-active {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
 .week-cal-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(184px, 1fr));
   gap: 8px;
   overflow-x: auto;
 }
@@ -5622,6 +7071,32 @@ button.pad-clear {
   opacity: 0.75;
 }
 
+/* ── Day zone chip (dominant region for the day) ── */
+.week-cal-zone {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-strong);
+  font-size: 0.68rem;
+  font-weight: 700;
+  max-width: 100%;
+}
+
+.week-cal-zone i {
+  font-size: 0.6rem;
+  opacity: 0.85;
+}
+
+.week-cal-zone span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ── Appointment entries list ── */
 .week-cal-entries {
   display: flex;
@@ -5647,13 +7122,21 @@ button.pad-clear {
 /* ── Single appointment row ── */
 .week-cal-entry {
   display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 7px;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 8px;
   border-radius: 7px;
   background: var(--section-bg);
   cursor: pointer;
   transition: background 0.12s, box-shadow 0.12s;
+  min-width: 0;
+}
+
+.week-cal-entry-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -5683,14 +7166,16 @@ button.pad-clear {
 }
 
 .week-cal-entry-name {
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.78rem;
+  font-weight: 600;
   color: var(--text);
-  flex: 1;
   min-width: 0;
-  white-space: nowrap;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .week-cal-entry.is-cancelled .week-cal-entry-name {
@@ -5924,40 +7409,313 @@ button.pad-clear {
   }
 }
 
-
-/* ---------- Home offer load + global search ---------- */
-.home-load-panel {
+/* ===== Arbeitszeit page: grouped card layout ===== */
+.az-groups {
   display: grid;
-  gap: 12px;
-  margin-bottom: 4px;
-  max-width: 980px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 12px;
 }
 
+.az-group {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+
+.az-group--full {
+  grid-column: 1 / -1;
+}
+
+.az-group-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent-strong);
+  margin-bottom: 14px;
+  letter-spacing: 0.01em;
+}
+
+.az-legend-with-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.az-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.az-field-row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.az-field-row .field {
+  flex: 1 1 200px;
+}
+
+.az-field-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.az-routing-btn {
+  align-self: flex-start;
+}
+
+.az-routing-hint {
+  font-size: 0.85rem;
+}
+
+.az-routing-hint:empty {
+  display: none;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.az-zone-btn[aria-pressed="true"] {
+  background: var(--accent-weak);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.az-time-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.az-hint-toggle {
+  margin-top: 2px;
+}
+
+.az-hint-toggle summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent-strong);
+  list-style: none;
+  user-select: none;
+}
+
+.az-hint-toggle summary::-webkit-details-marker {
+  display: none;
+}
+
+.az-hint-toggle summary::before {
+  content: "▸ ";
+}
+
+.az-hint-toggle[open] summary::before {
+  content: "▾ ";
+}
+
+.az-hint-toggle .az-inline-note {
+  margin-top: 10px;
+}
+
+/* Collapsible az-group (e.g. Kostenübersicht): the group title doubles as the toggle */
+details.az-group > summary.az-group-title {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+details.az-group > summary.az-group-title::-webkit-details-marker {
+  display: none;
+}
+
+details.az-group > summary.az-group-title::before {
+  content: "▸ ";
+}
+
+details.az-group[open] > summary.az-group-title {
+  margin-bottom: 14px;
+}
+
+details.az-group[open] > summary.az-group-title::before {
+  content: "▾ ";
+}
+
+.az-debug-section {
+  margin-bottom: 14px;
+}
+
+.az-debug-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.az-debug-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.az-debug-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  font-weight: 800;
+}
+
+.az-debug-total span {
+  color: var(--text);
+}
+
+.az-debug-total strong {
+  color: var(--accent-strong);
+  font-size: 1.05rem;
+}
+
+.az-debug-subtotal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  font-weight: 700;
+}
+
+.az-debug-subtotal span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.az-debug-subtotal strong {
+  color: var(--text);
+}
+
+@media (max-width: 760px) {
+  .az-groups {
+    grid-template-columns: 1fr;
+  }
+
+  .az-group {
+    padding: 16px;
+  }
+
+  .az-field-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+
+/* ---------- Home offer load + global search ---------- */
+/* Home header row: title · Ansprechpartner (pushed right) · Admin */
+.home-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 18px;
+  flex-wrap: wrap;
+}
+.home-ap-field, .zf-ap-field {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.home-ap-field label, .zf-ap-field label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.home-ap-field select, .zf-ap-field select {
+  height: 38px;
+  min-width: 190px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--input-bg, var(--panel));
+  color: var(--text);
+  padding: 0 12px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+.home-admin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  background: var(--panel);
+  font-family: inherit;
+}
+.home-admin-btn:hover { color: var(--text); border-color: var(--accent); }
+
+.home-load-panel {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+/* Even, equally-sized search inputs */
 .home-load-row {
   display: flex;
-  gap: 8px;
-  max-width: 380px;
+  gap: 10px;
 }
 
 .home-load-row input {
   flex: 1 1 auto;
 }
 
+#loadOfferNumber {
+  min-height: 52px;
+  border-radius: 16px;
+  padding: 0 18px;
+  font-size: 1rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+.home-load-row .secondary {
+  min-height: 52px;
+  border-radius: 16px;
+  padding: 0 22px;
+  white-space: nowrap;
+}
+
 .home-global-search-field {
   margin: 0;
 }
 
-.home-global-search-label {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 0.88rem;
-  font-weight: 600;
+.home-search-heading {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
 }
 
 .home-global-search-wrap {
   position: relative;
   width: 100%;
-  max-width: 980px;
 }
 
 .home-global-search-icon {
@@ -6923,6 +8681,22 @@ button.pad-clear {
   color: var(--text);
 }
 
+[data-mode="dark"] #tray-suggestions .sc-badge--source {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted-foreground);
+  border-color: var(--border);
+}
+
+[data-mode="dark"] #tray-suggestions .is-budget .sc-badge--source {
+  background: rgba(234, 179, 8, 0.15);
+  color: #fbbf24;
+  border-color: rgba(234, 179, 8, 0.35);
+}
+
+[data-mode="dark"] #tray-suggestions .sc-check {
+  border-color: var(--border);
+}
+
 /* ── 30. Adobe section (already dark-bg, just fix subtext) ───── */
 [data-mode="dark"] .adobe-status {
   background: rgba(255, 255, 255, 0.05);
@@ -7047,4 +8821,118 @@ button.pad-clear {
   background: var(--bg);
   color: var(--text);
   font-size: 0.9rem;
+}
+
+/* ---------- Interne Liste (Kundendaten, nicht kundensichtbar) ---------- */
+.itodo-section > summary {
+  list-style: none;
+}
+
+.itodo-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.itodo-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(180, 83, 9, 0.1);
+  color: #b45309;
+  border: 1px solid rgba(180, 83, 9, 0.3);
+}
+
+:root[data-mode="dark"] .itodo-badge {
+  background: rgba(255, 176, 32, 0.14);
+  color: #ffb020;
+  border-color: rgba(255, 176, 32, 0.35);
+}
+
+.itodo-count {
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--muted-foreground);
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+.itodo-hint {
+  margin: 2px 0 12px;
+  font-size: 0.82rem;
+  color: var(--muted-foreground);
+}
+
+.itodo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.itodo-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+}
+
+.itodo-item:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.itodo-item::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.65;
+}
+
+.itodo-item input[type="text"] {
+  width: 100%;
+  padding: 4px 2px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.itodo-item input[type="text"]:focus {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.itodo-remove {
+  padding: 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted-foreground);
+  line-height: 0;
+  cursor: pointer;
+}
+
+.itodo-remove:hover,
+.itodo-remove:focus-visible {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.itodo-empty {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--muted-foreground);
 }

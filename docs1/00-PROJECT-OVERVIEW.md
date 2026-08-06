@@ -218,4 +218,3 @@ npm run health
 | `BINECT_USERNAME` | Binect auth user | `***` |
 | `BINECT_PASSWORD` | Binect auth password | `***` |
 | `PLANNING_API_BASE_URL` | Planning service | `https://route-plannung.fly.dev` |
-| `N8N_TODAYS_CUSTOMERS_URL` | n8n webhook URL | `***` |

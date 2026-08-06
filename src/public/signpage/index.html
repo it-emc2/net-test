@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dokumente unterschreiben – EmC2</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: Arial, Helvetica, sans-serif;
+      background: #eceae5; color: #111; padding: 24px 12px; font-size: 15px;
+    }
+    .sheet {
+      max-width: 880px; margin: 0 auto 20px; background: #fff;
+      border: 1px solid #000; padding: 10px 100px 100px;
+    }
+    .sheet__header { margin-bottom: 4px; }
+    .sheet__header .title { font-size: 13px; font-family: 'Courier New', monospace; color: #333; }
+    .progress { font-size: 13px; font-family: 'Courier New', monospace; color: #333; margin: 0 0 14px; }
+    .hidden { display: none !important; }
+    .feedback { padding: 12px 14px; font-size: 15px; border: 1px solid transparent; }
+    .feedback.is-success { background: #e6f6e6; border-color: #2e7d32; color: #1b5e20; }
+    .feedback.is-error { background: #fdecea; border-color: #b71c1c; color: #7f1d1d; white-space: pre-line; }
+    @media (max-width: 640px) {
+      body { padding: 10px 6px; }
+      .sheet { padding: 10px 14px 22px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading" class="sheet"><p>Dokument wird geladen …</p></div>
+  <div id="fatal" class="sheet feedback is-error hidden"></div>
+
+  <div id="app" class="hidden">
+    <main class="sheet">
+      <header class="sheet__header">
+        <span class="title">Online-Unterschrift</span>
+      </header>
+      <div class="progress" id="progress"></div>
+
+      <!-- The document (with its own checkboxes + signature + submit) is injected here. -->
+      <div id="docContainer"></div>
+
+      <div id="doneCard" class="feedback is-success hidden">
+        <strong>Vielen Dank!</strong>
+        Alle Dokumente wurden unterschrieben und an uns übermittelt.
+        Sie erhalten in Kürze eine Kopie per E-Mail.
+      </div>
+    </main>
+  </div>
+
+  <script src="/signpage/app.js"></script>
+</body>
+</html>

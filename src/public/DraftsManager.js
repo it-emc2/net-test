@@ -67,6 +67,7 @@ export function initDraftsManager(options = {}) {
   let lastLoadedDraftMeta = null;
   let modal = null;
   let saveAsBtn = null;
+  let lockBtn = null;
   let duplicateTimer = null;
 
   const setStatus = (txt) => {
@@ -206,6 +207,7 @@ export function initDraftsManager(options = {}) {
       updatedAt: draft?.updatedAt || null,
     };
 
+    updateLockButtonLabel();
     return draft;
   }
 
@@ -220,22 +222,33 @@ export function initDraftsManager(options = {}) {
     }
 
     const offerType = cfg.getOfferType();
+    // Always freeze on save: snapshot a fresh price computation so this
+    // offer's total never drifts if DB rates/prices change later.
+    await window.freezeCurrentPricing?.();
     const payload = cfg.buildPayload();
 
     if (!payload) {
       throw new Error("Keine Daten zum Speichern gefunden.");
     }
 
-    const res = await fetch(cfg.apiBase, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        name: trimmedName,
-        offerType,
-        payload,
-      }),
+    const queue = await import("./OfflineSaveQueue.js");
+    const { queued, res } = await queue.trySaveOrQueue({
+      kind: "draft",
+      offerKey: `draft:${offerType}:${trimmedName}`,
+      url: cfg.apiBase,
+      body: { name: trimmedName, offerType, payload },
     });
+
+    if (queued) {
+      lastLoadedDraftMeta = {
+        id: null,
+        name: trimmedName,
+        offerType: String(offerType || "bu").toLowerCase(),
+        updatedAt: new Date().toISOString(),
+        pending: true,
+      };
+      return { queued: true, name: trimmedName, offerType };
+    }
 
     if (res.status === 409) {
       const body = await res.json().catch(() => ({}));
@@ -256,13 +269,20 @@ export function initDraftsManager(options = {}) {
       updatedAt: new Date().toISOString(),
     };
 
-    return data;
+    return { ...data, queued: false };
   }
 
-  async function quickSaveCurrentDraft() {
+  async function quickSaveCurrentDraft(options = {}) {
+    const { silent = false } = options;
     const name = buildDraftDefaultName();
-    await saveDraftWithName(name);
-    cfg.toast?.(`Entwurf gespeichert: ${name}`, "success");
+    const result = await saveDraftWithName(name);
+    if (!silent) {
+      if (result?.queued) {
+        cfg.toast?.(`Offline gespeichert – wird automatisch synchronisiert: ${name}`, "warn");
+      } else {
+        cfg.toast?.(`Entwurf gespeichert: ${name}`, "success");
+      }
+    }
     return name;
   }
 
@@ -322,6 +342,7 @@ export function initDraftsManager(options = {}) {
         place-items:center;
         cursor:pointer;
         flex: 0 0 auto;
+        padding: 0;
       }
       .dm-body { display:grid; gap: 14px; }
       .dm-field { display:grid; gap: 8px; }
@@ -432,6 +453,76 @@ export function initDraftsManager(options = {}) {
     } else {
       saveAsBtn = document.getElementById("btnSaveDraftAs");
     }
+
+    if (!document.getElementById("btnLockOffer")) {
+      lockBtn = document.createElement("button");
+      lockBtn.type = "button";
+      lockBtn.id = "btnLockOffer";
+      lockBtn.className = "sw-save-btn sw-save-btn--secondary";
+      $summaryActions.appendChild(lockBtn);
+    } else {
+      lockBtn = document.getElementById("btnLockOffer");
+    }
+    updateLockButtonLabel();
+  }
+
+  function updateLockButtonLabel() {
+    if (!lockBtn) return;
+    const locked = window.__locked === true;
+    lockBtn.textContent = locked ? "🔓 Entsperren" : "🔒 Sperren";
+    lockBtn.title = locked
+      ? "Angebot wieder bearbeitbar machen"
+      : "Angebot einfrieren und komplett gegen Bearbeitung sperren";
+  }
+
+  async function toggleOfferLock() {
+    if (window.__locked === true) {
+      window.__locked = false;
+      window.applyOfferLockUI?.(false);
+      updateLockButtonLabel();
+      cfg.toast?.("Angebot entsperrt. Zum dauerhaften Speichern erneut sichern.", "info");
+      return;
+    }
+
+    // Freeze/save first, while the form is still enabled — buildPayload()
+    // reads fields via FormData, which silently drops disabled controls, so
+    // disabling the UI before this snapshot would lose every checked box.
+    //
+    // Freeze before deciding to lock, not after: buildPayload() reads
+    // window.__locked when it runs, so the flag has to be final before the
+    // save. Locking pins a total permanently, so it needs a snapshot the
+    // server actually computed — offline we save an unlocked draft instead of
+    // freezing a price that may no longer match the form.
+    const name = buildDraftDefaultName();
+    try {
+      const snapshot = await window.freezeCurrentPricing?.();
+      if (window.freezeCurrentPricing && !snapshot) {
+        const result = await saveDraftWithName(name);
+        cfg.toast?.(
+          result?.queued
+            ? `Sperren braucht eine Verbindung. Entwurf offline gespeichert: ${name}`
+            : `Sperren braucht eine Verbindung. Entwurf gespeichert: ${name}`,
+          "warn",
+        );
+        return;
+      }
+
+      window.__locked = true;
+      const result = await saveDraftWithName(name);
+      window.applyOfferLockUI?.(true);
+      updateLockButtonLabel();
+      cfg.toast?.(
+        result?.queued
+          ? `Offline gesperrt – wird automatisch synchronisiert: ${name}`
+          : `Angebot gesperrt & gespeichert: ${name}`,
+        "success",
+      );
+    } catch (e) {
+      window.__locked = false;
+      updateLockButtonLabel();
+      console.error(e);
+      cfg.toast?.(`Sperren fehlgeschlagen: ${e.message || e}`, "error");
+    }
   }
 
   function ensureModal() {
@@ -512,8 +603,12 @@ export function initDraftsManager(options = {}) {
 
       try {
         btn.disabled = true;
-        await saveDraftWithName(value);
-        cfg.toast?.(`Entwurf gespeichert: ${value}`, "success");
+        const result = await saveDraftWithName(value);
+        if (result?.queued) {
+          cfg.toast?.(`Offline gespeichert – wird automatisch synchronisiert: ${value}`, "warn");
+        } else {
+          cfg.toast?.(`Entwurf gespeichert: ${value}`, "success");
+        }
         closeModalNow();
       } catch (e) {
         console.error(e);
@@ -566,7 +661,8 @@ export function initDraftsManager(options = {}) {
     list.forEach((d) => {
       const id = d?._id || d?.id || "";
       const name = d?.name || d?.title || id;
-      const updated = d?.updatedAt ? new Date(d.updatedAt).toLocaleString("de-DE") : "";
+      const saved = d?.savedAt || d?.updatedAt;
+      const updated = saved ? new Date(saved).toLocaleString("de-DE") : "";
 
       const btn = document.createElement("button");
       btn.type = "button";
@@ -669,6 +765,10 @@ export function initDraftsManager(options = {}) {
     const box = ensureModal().querySelector("#dmConfirmCancel");
     if (!box) return;
     box.classList.toggle("is-open", !!open);
+    if (open) {
+      modal.querySelector("#dmNameInput")?.blur();
+      box.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
   }
 
   function openSaveAsModal() {
@@ -743,7 +843,8 @@ export function initDraftsManager(options = {}) {
         row.style.background = row.classList.contains("active") ? "#e0e7ff" : "transparent";
       };
 
-      const updated = d?.updatedAt ? new Date(d.updatedAt).toLocaleString("de-DE") : "";
+      const saved = d?.savedAt || d?.updatedAt;
+      const updated = saved ? new Date(saved).toLocaleString("de-DE") : "";
       row.innerHTML =
         `<strong style="color:var(--accent-strong);">${escapeHtml(String(label))}</strong>` +
         (updated ? ` <span style="font-size:0.85em; color:#6b7280;">(${escapeHtml(updated)})</span>` : "");
@@ -781,6 +882,11 @@ export function initDraftsManager(options = {}) {
   if (saveAsBtn && saveAsBtn.dataset.bound !== "1") {
     saveAsBtn.dataset.bound = "1";
     saveAsBtn.addEventListener("click", openSaveAsModal);
+  }
+
+  if (lockBtn && lockBtn.dataset.bound !== "1") {
+    lockBtn.dataset.bound = "1";
+    lockBtn.addEventListener("click", toggleOfferLock);
   }
 
   // Search as user types (debounced)

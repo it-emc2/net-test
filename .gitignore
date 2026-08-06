@@ -128,3 +128,16 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+.playwright-mcp/
+# Generated at runtime by PDF/material export (debug dumps) — never read
+out-Angebot.docx
+out-Materialuebersicht.docx
+.DS_Store
+
+# Lokale PDF-Vorschauen (scripts/preview-pdf.mjs)
+preview-pdfs/
+
+# Playwright artifacts
+test-results/
+playwright-report/

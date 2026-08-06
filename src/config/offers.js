@@ -5,8 +5,11 @@ export const OFFERS = {
     pages: [
       "Kundendaten",
       "Arbeitszeit",
+      "Arbeiten",
       "Duschwanne",
+      "Fussboden",
       "Wandverkleidung",
+      "DuschabtrennungNeu",
       "Duschabtrennung",
       "Optional",
       "Rabatt",

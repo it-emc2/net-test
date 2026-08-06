@@ -50,7 +50,7 @@ export function initIntegrationsManager(options = {}) {
         }
 
         const data = await res.json();
-        // expected n8n shape: { result: {...}, time: {...} }
+        // expected Bitrix shape: { result: {...}, time: {...} }
         const contact = data?.result;
         if (!contact || !contact.ID) {
           throw new Error("Kontakt nicht gefunden");

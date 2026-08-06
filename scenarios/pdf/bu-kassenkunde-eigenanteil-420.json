@@ -1,0 +1,22 @@
+{
+  "_note": "BU/Kassenkunde: Gesamtsumme per _computed auf 4.600 € fixiert, Zuschuss 4.180 € → Eigenanteil genau 420 €. Ohne _computed käme der Betrag aus Arbeitszeit + Produkten.",
+  "activeOffer": "bu",
+  "Kundendaten": {
+    "salutation": "Frau", "firstName": "Erika", "lastName": "Musterfrau",
+    "street": "Musterstraße 12", "postalCode": "12345", "city": "Musterstadt",
+    "payer": "Kassenkunde", "budgetOption": "4180 maximal", "aufschlag": "35%",
+    "date": "2026-07-28", "wohnumfeld": { "done": false, "amount": 0 }
+  },
+  "Arbeitszeit": { "distanceKm": 0, "totalHoursNumeric": 20, "ArbeitHoursNumeric": 20, "ReiseHoursNumeric": 0 },
+  "duschwanne": {}, "wandverkleidung": {}, "duschabtrennung": {},
+  "optional": {}, "rabatt": {}, "bwt": {}, "hl": {}, "pricing": {},
+  "_computed": {
+    "total": 4600,
+    "netAfterRabatt_and_Bonus": 3865.55,
+    "Nettobetrag": 3865.55,
+    "vatOnNet": 734.45,
+    "subsidyAmount": 4180,
+    "subsidyAmount_max": 4180,
+    "selfPayAmount": 420
+  }
+}

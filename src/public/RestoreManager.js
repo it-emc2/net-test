@@ -108,8 +108,14 @@ export function initRestoreManager({
       )
       .forEach((el) => dispatchChange(el));
 
-    // pricing & panels
-    if (typeof updatePricing === "function") {
+    // pricing & panels — a frozen offer shows its pinned snapshot instead of
+    // recomputing from current DB values.
+    if (payload?.frozen && payload?.frozenPricing) {
+      window.__pricing = payload.frozenPricing;
+      window.dispatchEvent(new CustomEvent("pricing:updated", { detail: payload.frozenPricing }));
+      window.updateSummaryWidgetTotal?.(payload.frozenPricing.total);
+      window.updateSummaryWidgetSelfPay?.(payload.frozenPricing.selfPayAmount);
+    } else if (typeof updatePricing === "function") {
       await updatePricing(payload);
       await updatePricing(payload); // keep your existing double-run behavior if needed
     }
@@ -133,6 +139,30 @@ export function initRestoreManager({
       window.__lastRestoredDoc = normalized.doc;
       window.__lastRestoredPayload = payload;
       window.__lastOfferPayload = payload;
+
+      // Preserve the offer's original Aufschlag rule: legacy drafts have no
+      // pricingRules flag → keep Kleinmaterial out of the Aufschlag so the
+      // total matches what was originally saved.
+      window.__kleinInAufschlag = payload?.pricingRules?.kleinInAufschlag === true;
+      // Merken, dass dieses Angebot noch nach der alten Regel gespeichert wurde,
+      // damit die Umstellen-Checkbox sichtbar (und ruecknehmbar) bleibt.
+      window.__kleinAufschlagLegacyOffer = !window.__kleinInAufschlag;
+
+      // BWT Freigrenzen: pin to this offer's own saved snapshot so reopening
+      // it doesn't silently reprice it to whatever the admin has configured
+      // right now. No snapshot at all → offer predates this mechanism →
+      // historical 200 km / 2 h, same fallback pricing.js uses server-side.
+      const bwtKmSnap = payload?.pricingRules?.bwtKmFreeThreshold;
+      const bwtHoursSnap = payload?.pricingRules?.bwtTravelTimeFreeHours;
+      window.__bwtKmFreeThreshold = bwtKmSnap != null ? Number(bwtKmSnap) : 200;
+      window.__bwtTravelTimeFreeHours = bwtHoursSnap != null ? Number(bwtHoursSnap) : 2;
+      window.__bwtFreigrenzenLegacyOffer = bwtKmSnap == null && bwtHoursSnap == null;
+
+      // Freeze/lock: pin this offer's own saved state.
+      window.__frozen = payload?.frozen === true;
+      window.__frozenPricing = payload?.frozenPricing || null;
+      window.__locked = payload?.locked === true;
+      window.applyOfferLockUI?.(window.__locked);
 
       console.log("[SKETCH][payload-stored]", {
         payloadKeys: Object.keys(payload || {}),
@@ -158,6 +188,26 @@ export function initRestoreManager({
         const el = document.querySelector("#offerNumber");
         if (el) el.value = offer.offerNumber;
       }
+
+      // Rehydrate the "Duschabtrennung (neu)" configurator from its saved engine state
+      try {
+        const cfgState = payload?.duschabtrennung?.configurator?.state || null;
+        if (cfgState && typeof window.__daConfigurator?.restore === "function") {
+          window.__daConfigurator.restore(cfgState);
+        }
+      } catch (e) {
+        console.warn("[daConfigurator] restore failed:", e?.message || e);
+      }
+
+      // Rehydrate the "Duschvorhang" configurator from its saved state
+      try {
+        const vhState = payload?.duschvorhang?.configurator?.state || null;
+        if (vhState && typeof window.__vorhangConfigurator?.restore === "function") {
+          window.__vorhangConfigurator.restore(vhState);
+        }
+      } catch (e) {
+        console.warn("[vorhang] restore failed:", e?.message || e);
+      }
     } finally {
       window.__restoring = false;
       window.__RESTORING__ = false;
@@ -165,6 +215,41 @@ export function initRestoreManager({
 
     const payload = normalized?.payload || normalizeOfferDoc(doc).payload;
     await postRestoreNudges(payload);
+
+    // Populate Auftrag ID fields from whichever key old/new drafts used
+    const resolvedAuftragId = String(
+      payload?.postal?.auftragId ||
+      payload?.dealId ||
+      normalized?.doc?.dealId ||
+      payload?.Kundendaten?.dealId ||
+      payload?.Zusammenfassung?.dealId ||
+      ""
+    ).trim();
+    if (resolvedAuftragId && typeof syncSummaryLeadIds === "function") {
+      syncSummaryLeadIds(resolvedAuftragId);
+    }
+
+    // Restore the E-Mail-Versand fields (Lead ID / Auftrag ID, recipient,
+    // subject and body). These live outside any form-* element, so they are
+    // restored explicitly here. The body carries the dynamic Ansprechpartner
+    // name embedded in its saved text.
+    try {
+      const mail = payload?.mail || {};
+      const setMailField = (id, value) => {
+        if (value == null || value === "") return;
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.value = value;
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+      setMailField("mailAuftragId", mail.auftragId || resolvedAuftragId);
+      setMailField("mailTo", mail.to);
+      setMailField("mailSubject", mail.subject);
+      setMailField("mailBody", mail.body);
+    } catch (e) {
+      console.warn("[restore] mail fields restore failed:", e?.message || e);
+    }
 
     try {
       await window.__drawingReady;

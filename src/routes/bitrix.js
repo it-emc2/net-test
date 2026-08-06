@@ -1,5 +1,7 @@
 // src/routes/bitrix.js
 import express from "express";
+import { buildAhData } from "./docx-template.js";
+import BitrixLog from "../models/BitrixLog.js";
 
 const router = express.Router();
 
@@ -7,6 +9,111 @@ const BITRIX_WEBHOOK_BASE = "https://emczwei.bitrix24.de/rest/2594/na0pingesg144
 
 // Bitrix constants (from your script)
 const OWNER_TYPE = { contact: 3, company: 4 };
+
+// Deal pipeline stage the offer email flow advances the deal to.
+// "[VI] ANG verschickt" lives in deal category 38 (STATUS_ID C38:UC_2ZDNEZ).
+const ANG_VERSCHICKT_STAGE_ID = "C38:UC_2ZDNEZ";
+const ANG_VERSCHICKT_CATEGORY_ID = 38;
+
+// AH (Alltagshilfe) offers use a separate pipeline: "[VI] ANG versch. / warten"
+// lives in deal category 52 (STATUS_ID C52:UC_SNAVG8).
+const AH_ANG_VERSCHICKT_STAGE_ID = "C52:UC_SNAVG8";
+const AH_ANG_VERSCHICKT_CATEGORY_ID = 52;
+
+// Fields the user is prompted for before entering "[VI] ANG verschickt".
+// Only Betrag (OPPORTUNITY) is asked — Währung is always EUR and defaulted
+// server-side in updateDealStage().
+const ANG_VERSCHICKT_REQUIRED_FIELDS = ["OPPORTUNITY"];
+
+// Stage a completed appointment ("Heutige Termine Planung") is moved to.
+// "Zuteilen HD/ AH/ DH" lives in deal category 72 (STATUS_ID C72:PREPARATION).
+const ZUTEILEN_STAGE_ID = "C72:PREPARATION";
+const ZUTEILEN_CATEGORY_ID = 72;
+
+// AH-specific deal fields, filled from buildAhData()'s AhBitrix output when an
+// AH deal is moved to "ANG verschickt". Field IDs/enum option IDs per Bitrix
+// crm.deal.fields (checked against real examples, see PR discussion).
+const AH_FIELD = {
+  ANFAHRTSZONE: "UF_CRM_1711019971",           // enum, single
+  STUNDEN_PRO_EINSATZ: "UF_CRM_1711019061",    // double
+  ART_DER_LEISTUNG: "UF_CRM_1711017420",       // enum, multiple
+  ANZAHL_ANFAHRTSPAUSCHALEN: "UF_CRM_1737548607", // double
+  MONATLICHER_STUNDENUMFANG: "UF_CRM_1711092227", // double
+  REGELMAESSIGKEIT: "UF_CRM_1711019214",       // enum, single
+  GESAMTPREIS_AB: "UF_CRM_1737557386",         // double
+  GESAMTPREIS_ANFAHRT: "UF_CRM_1737557868",    // double
+  GESAMTBETRAG_AB: "UF_CRM_1737644914",        // double
+  GESAMTPREIS_HND: "UF_CRM_1738336465",        // double
+  GESAMTBETRAG_HND: "UF_CRM_1738336847",       // double
+  TATSAECHLICHER_STUNDENUMFANG: "UF_CRM_1711092423", // double
+};
+
+// Anfahrtszone enum option IDs. Bitrix only defines Zone 1-5 (+ two Festpreis
+// options the app never produces); zoneNum is uncapped in the app, so clamp.
+const AH_ZONE_ENUM = { 1: "1928", 2: "1930", 3: "1932", 4: "1934", 5: "1936" };
+
+// Art der gewünschten Leistung enum option IDs (multi-select).
+const AH_LEISTUNG_ENUM = { hnd: "1862", ab: "4316" };
+
+// Regelmäßigkeit enum option IDs — keys match the app's raw regelmaessigkeit
+// strings 1:1 (same labels used in AH_FREQ, docx-template.js).
+const AH_REGELMAESSIGKEIT_ENUM = {
+  "Einmalig": "1904",
+  "Wöchentlich": "1906",
+  "14-tägig": "1908",
+  "alle drei Wochen": "4526",
+  "Monatlich": "1910",
+  "Vierteljährlich": "1912",
+  "Halbjährlich": "1914",
+  "Jährlich": "4528",
+  "Bei Bedarf": "4524",
+};
+
+// Builds the AH-specific UF_CRM_* fields object from an offer payload, for
+// merging into the crm.item.update call when moving an AH deal to
+// "ANG verschickt". `currentZoneValue` is the deal's existing Anfahrtszone
+// value (falsy/empty means "not set yet") — the zone is only ever filled in
+// once, never overwritten on a later resend.
+function buildAhBitrixFields(payload, currentZoneValue) {
+  const { AhBitrix } = buildAhData(payload || {});
+  const fields = {};
+
+  if (!currentZoneValue) {
+    const zoneId = AH_ZONE_ENUM[Math.min(5, Math.max(0, Math.round(AhBitrix.zoneNum)))];
+    if (zoneId) fields[AH_FIELD.ANFAHRTSZONE] = zoneId;
+  }
+
+  if (AhBitrix.stundenProEinsatz > 0) {
+    fields[AH_FIELD.STUNDEN_PRO_EINSATZ] = AhBitrix.stundenProEinsatz;
+  }
+
+  const leistungIds = [
+    AhBitrix.hasHnD ? AH_LEISTUNG_ENUM.hnd : null,
+    AhBitrix.hasAb ? AH_LEISTUNG_ENUM.ab : null,
+  ].filter(Boolean);
+  if (leistungIds.length) fields[AH_FIELD.ART_DER_LEISTUNG] = leistungIds;
+
+  if (AhBitrix.anzahlAnfahrtspauschalen > 0) {
+    fields[AH_FIELD.ANZAHL_ANFAHRTSPAUSCHALEN] = AhBitrix.anzahlAnfahrtspauschalen;
+  }
+  if (AhBitrix.monatlicherStundenumfang > 0) {
+    fields[AH_FIELD.MONATLICHER_STUNDENUMFANG] = AhBitrix.monatlicherStundenumfang;
+  }
+
+  const regelId = AH_REGELMAESSIGKEIT_ENUM[AhBitrix.regelmaessigkeit];
+  if (regelId) fields[AH_FIELD.REGELMAESSIGKEIT] = regelId;
+
+  if (AhBitrix.gesamtpreisAB > 0) fields[AH_FIELD.GESAMTPREIS_AB] = AhBitrix.gesamtpreisAB;
+  if (AhBitrix.gesamtpreisHnD > 0) fields[AH_FIELD.GESAMTPREIS_HND] = AhBitrix.gesamtpreisHnD;
+  if (AhBitrix.anfahrtGesamt > 0) fields[AH_FIELD.GESAMTPREIS_ANFAHRT] = AhBitrix.anfahrtGesamt;
+  if (AhBitrix.gesamtbetragAB > 0) fields[AH_FIELD.GESAMTBETRAG_AB] = AhBitrix.gesamtbetragAB;
+  if (AhBitrix.gesamtbetragHnD > 0) fields[AH_FIELD.GESAMTBETRAG_HND] = AhBitrix.gesamtbetragHnD;
+  if (AhBitrix.tatsaechlicherStundenumfang > 0) {
+    fields[AH_FIELD.TATSAECHLICHER_STUNDENUMFANG] = AhBitrix.tatsaechlicherStundenumfang;
+  }
+
+  return fields;
+}
 
 // ---------- helpers ----------
 function isEmpty(v) {
@@ -47,48 +154,69 @@ function buildQS(paramsObj) {
  *
  * Many Bitrix methods accept GET query params, so we use GET.
  */
+// All Bitrix calls (every offer type, every route) go through bxGet/bxPost,
+// so logging failures here covers the whole app in one place.
+function logBitrixFailure(method, paramsObj, err) {
+  console.error(`[bitrix] ${method} failed:`, err);
+  BitrixLog.create({
+    method,
+    message: err?.message || String(err),
+    params: paramsObj,
+  }).catch((logErr) => console.error("[bitrix] failed to write BitrixLog:", logErr));
+}
+
 async function bxGet(method, paramsObj = {}) {
-  if (!BITRIX_WEBHOOK_BASE) {
-    throw new Error(
-      "BITRIX_WEBHOOK_BASE is not configured (set it in env).",
-    );
+  try {
+    if (!BITRIX_WEBHOOK_BASE) {
+      throw new Error(
+        "BITRIX_WEBHOOK_BASE is not configured (set it in env).",
+      );
+    }
+
+    const qs = buildQS(paramsObj);
+    const url = `${BITRIX_WEBHOOK_BASE}/${method}.json${qs ? `?${qs}` : ""}`;
+
+    const res = await fetch(url, { method: "GET" });
+    const data = await res.json().catch(() => null);
+
+    if (!data) throw new Error("Invalid JSON response from Bitrix");
+    if (data.error) throw new Error(data.error_description || data.error);
+
+    return data;
+  } catch (err) {
+    logBitrixFailure(method, paramsObj, err);
+    throw err;
   }
-
-  const qs = buildQS(paramsObj);
-  const url = `${BITRIX_WEBHOOK_BASE}/${method}.json${qs ? `?${qs}` : ""}`;
-
-  const res = await fetch(url, { method: "GET" });
-  const data = await res.json().catch(() => null);
-
-  if (!data) throw new Error("Invalid JSON response from Bitrix");
-  if (data.error) throw new Error(data.error_description || data.error);
-
-  return data;
 }
 
 async function bxPost(method, paramsObj = {}) {
-  if (!BITRIX_WEBHOOK_BASE) {
-    throw new Error(
-      "BITRIX_WEBHOOK_BASE is not configured (set it in env).",
-    );
+  try {
+    if (!BITRIX_WEBHOOK_BASE) {
+      throw new Error(
+        "BITRIX_WEBHOOK_BASE is not configured (set it in env).",
+      );
+    }
+
+    const url = `${BITRIX_WEBHOOK_BASE}/${method}.json`;
+    const body = buildQS(paramsObj);
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+      },
+      body,
+    });
+    const data = await res.json().catch(() => null);
+
+    if (!data) throw new Error("Invalid JSON response from Bitrix");
+    if (data.error) throw new Error(data.error_description || data.error);
+
+    return data;
+  } catch (err) {
+    logBitrixFailure(method, paramsObj, err);
+    throw err;
   }
-
-  const url = `${BITRIX_WEBHOOK_BASE}/${method}.json`;
-  const body = buildQS(paramsObj);
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-    },
-    body,
-  });
-  const data = await res.json().catch(() => null);
-
-  if (!data) throw new Error("Invalid JSON response from Bitrix");
-  if (data.error) throw new Error(data.error_description || data.error);
-
-  return data;
 }
 
 async function addTimelineComment({
@@ -125,6 +253,159 @@ async function addTimelineComment({
   }
 
   return bxPost("crm.timeline.comment.add", { fields });
+}
+
+// entityTypeId for deals in the universal CRM item API.
+const DEAL_ENTITY_TYPE_ID = 2;
+
+// UF_CRM_1775019866756 ("Anzahl Umbautage") enumeration option IDs.
+const UMBAUTAGE_ENUM = {
+  NICHT_ZUTREFFEND: "8436",
+  HALF_DAY: "8444", // "0,5 (BWT / Handläufe)"
+  ONE_DAY: "8438",
+  TWO_DAYS: "8440",
+  THREE_DAYS: "8442",
+};
+
+// BWT/Handläufe offers always get the fixed 0,5-day option; BU offers derive
+// the day count from the Arbeitszeit tab (only 1/2/3 map to an enum option).
+function resolveUmbautageEnumId(workDays, offerType) {
+  const type = String(offerType || "").toLowerCase();
+  if (type === "bwt" || type === "hl") return UMBAUTAGE_ENUM.HALF_DAY;
+  switch (Math.round(Number(workDays) || 0)) {
+    case 1: return UMBAUTAGE_ENUM.ONE_DAY;
+    case 2: return UMBAUTAGE_ENUM.TWO_DAYS;
+    case 3: return UMBAUTAGE_ENUM.THREE_DAYS;
+    default: return UMBAUTAGE_ENUM.NICHT_ZUTREFFEND;
+  }
+}
+
+// Move a deal to a specific pipeline stage. STAGE_IDs are category-specific
+// (prefixed with C<categoryId>:), so when the target stage belongs to a
+// different pipeline the deal's category must change too. crm.deal.update
+// silently ignores CATEGORY_ID changes, so use crm.item.update (which does
+// support moving a deal between pipelines). Note crm.item.* uses camelCase
+// field names (stageId/categoryId/opportunity) unlike crm.deal.* (STAGE_ID…).
+// Custom UF_CRM_* fields keep their original field code either way.
+async function updateDealStage({
+  dealId,
+  stageId,
+  categoryId,
+  opportunity,
+  currencyId,
+  workDays,
+  offerType,
+  offerNumber,
+  finalTotal,
+  selfPayAmount,
+  extraFields,
+}) {
+  const numericId = Number(dealId);
+  if (!Number.isFinite(numericId) || numericId <= 0) {
+    throw new Error("dealId must be a positive number");
+  }
+  if (!stageId || !String(stageId).trim()) {
+    throw new Error("stageId is required");
+  }
+
+  // categoryId must be sent before/with stageId so the stage is valid for the
+  // target pipeline.
+  const fields = {};
+  if (categoryId !== undefined && categoryId !== null && String(categoryId) !== "") {
+    fields.categoryId = Number(categoryId);
+  }
+  fields.stageId = String(stageId).trim();
+
+  // AH has its own dedicated field set (see AH_* fields below, filled by the
+  // caller once the corresponding Bitrix field IDs are known) — none of the
+  // generic BU fields (Betrag, Umbautage, finalTotal, offerNumber, Eigenanteil)
+  // apply to it.
+  const isAhOffer = String(offerType || "").toLowerCase() === "ah";
+
+  // "Betrag und Währung" — required on some stages. Fill it from the offer total.
+  const amount = Number(opportunity);
+  if (!isAhOffer && Number.isFinite(amount) && amount > 0) {
+    fields.opportunity = amount;
+    // Keep the amount fixed instead of letting Bitrix recompute it from the
+    // (empty) product rows, which would reset it to 0.
+    fields.isManualOpportunity = "Y";
+    fields.currencyId = String(currencyId || "EUR").trim() || "EUR";
+  }
+
+  // Offer fields the sales team wants populated on the deal when the offer
+  // email goes out and the deal is moved to "ANG verschickt".
+  // AH has no "Umbautage" concept (per-Einsatz service, not a renovation), so
+  // this field is skipped for it.
+  if (!isAhOffer && (workDays !== undefined || offerType !== undefined)) {
+    fields.UF_CRM_1775019866756 = resolveUmbautageEnumId(workDays, offerType);
+  }
+  const finalTotalNum = Number(finalTotal);
+  if (!isAhOffer && Number.isFinite(finalTotalNum) && finalTotalNum > 0) {
+    fields.UF_CRM_1768391021079 = finalTotalNum;
+  }
+  if (!isAhOffer && offerNumber && String(offerNumber).trim()) {
+    fields.UF_CRM_1776156870205 = String(offerNumber).trim();
+  }
+  // Eigenanteil is only relevant for Kassenkunde; caller omits it otherwise.
+  const selfPayNum = Number(selfPayAmount);
+  if (!isAhOffer && Number.isFinite(selfPayNum) && selfPayNum > 0) {
+    fields.UF_CRM_1757490052931 = selfPayNum;
+  }
+
+  // AH's own field set (Anfahrtszone, Art der Leistung, Gesamtpreise, …),
+  // computed by the caller via buildAhBitrixFields().
+  if (extraFields) Object.assign(fields, extraFields);
+
+  return bxPost("crm.item.update", {
+    entityTypeId: DEAL_ENTITY_TYPE_ID,
+    id: numericId,
+    fields,
+    // crm.item.update expects UF_CRM_* keys camelCased (ufCrm_...) unless
+    // told otherwise — without this the custom fields above are silently
+    // dropped and land empty on the deal.
+    useOriginalUfNames: "Y",
+  });
+}
+
+// Stages the deal moves to once the customer finishes online signing
+// (BU/BWT only — AH has no such step). Both live in deal category 38, the
+// same pipeline as ANG_VERSCHICKT_STAGE_ID above.
+const SIGNING_KASSE_STAGE_ID = "C38:UC_ON3GS1"; // "[VI] Antrag an Kasse stellen"
+const SIGNING_SZ_STAGE_ID = "C38:UC_5DII17"; // "[VI] AUTOM in FT anl. + überpr."
+const SIGNING_CATEGORY_ID = 38;
+
+// Fixed field values filled on the deal once a Kassenkunde completes online
+// signing (Vollmacht + Abtretung always get signed as part of that flow, so
+// these are always "Ja"/"emc2" — not derived from anything customer-specific).
+const SIGNING_KASSE_FIELDS = {
+  UF_CRM_1771944212969: "8396", // Antragsstellung bei Kasse durch -> emc2
+  UF_CRM_1771944969284: "8400", // [autom] Mail an Kd. bzgl. Antragsstellung -> Ja
+  UF_CRM_1772533113350: "8412", // Kassen-Vollmacht beim Kontakt hinterlegt? -> Ja
+  UF_CRM_1772533223056: "8418", // Abtretungserklärung §40 SGB XI hinterlegt? -> Ja
+};
+
+// Move a deal after the customer completes online signing (see signing.js).
+// Kassenkunde also gets the Vollmacht/Abtretung fields filled in; Selbstzahler
+// is just a stage move.
+async function updateDealAfterSigning({ dealId, customerType }) {
+  const numericId = Number(dealId);
+  if (!Number.isFinite(numericId) || numericId <= 0) {
+    throw new Error("dealId must be a positive number");
+  }
+
+  const isKasse = String(customerType || "").toUpperCase() === "KASSE";
+  const fields = {
+    categoryId: SIGNING_CATEGORY_ID,
+    stageId: isKasse ? SIGNING_KASSE_STAGE_ID : SIGNING_SZ_STAGE_ID,
+  };
+  if (isKasse) Object.assign(fields, SIGNING_KASSE_FIELDS);
+
+  return bxPost("crm.item.update", {
+    entityTypeId: DEAL_ENTITY_TYPE_ID,
+    id: numericId,
+    fields,
+    useOriginalUfNames: "Y",
+  });
 }
 
 async function getRequisiteIdForContact(contactId) {
@@ -205,6 +486,26 @@ router.get("/contact/:id", async (req, res) => {
 });
 
 
+// GET /api/bitrix/contact/:id/deals — returns deal IDs linked to a contact
+router.get("/contact/:id/deals", async (req, res) => {
+  const contactId = String(req.params.id || "").trim();
+  if (!contactId) return res.status(400).json({ error: "Missing contact id" });
+  try {
+    const data = await bxGet("crm.deal.list", {
+      filter: { CONTACT_ID: contactId },
+      select: ["ID", "TITLE"],
+    });
+    const deals = (data?.result || []).map((d) => ({
+      id:    String(d.ID),
+      title: String(d.TITLE || "").trim(),
+    }));
+    return res.json({ deals });
+  } catch (err) {
+    console.error("GET /api/bitrix/contact/:id/deals error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
 // POST /api/bitrix/timeline/comment
 // Body: { entityType: 'deal'|'contact'|'company'|'lead'|..., entityId: number|string, comment: string }
 router.post("/timeline/comment", express.json({ limit: "25mb" }), async (req, res) => {
@@ -229,6 +530,263 @@ router.post("/timeline/comment", express.json({ limit: "25mb" }), async (req, re
     return res.json(data);
   } catch (err) {
     console.error("POST /api/bitrix/timeline/comment error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// GET /api/bitrix/deal/:id/ang-verschickt-fields
+// Reads the deal and reports which "[VI] ANG verschickt" required fields
+// (Betrag/Währung) are still empty, with options for the currency select.
+// GET /api/bitrix/deal/:id — deal + its linked contact, for the Hauptmenü
+// "Bitrix Deal laden" field (loads a deal directly, without knowing the
+// contact ID first).
+router.get("/deal/:id", async (req, res) => {
+  try {
+    const dealId = String(req.params.id || "").trim();
+    if (!dealId) return res.status(400).json({ error: "id is required" });
+
+    const dealResp = await bxGet("crm.deal.get", { id: dealId });
+    const deal = dealResp?.result;
+    if (!deal) return res.status(404).json({ error: "Deal not found" });
+
+    let contact = null;
+    if (deal.CONTACT_ID) {
+      const contactResp = await bxGet("crm.contact.get", { id: deal.CONTACT_ID });
+      contact = contactResp?.result || null;
+
+      if (contact) {
+        const hasAnyAddress =
+          !isEmpty(contact.ADDRESS) ||
+          !isEmpty(contact.ADDRESS_CITY) ||
+          !isEmpty(contact.ADDRESS_POSTAL_CODE);
+
+        if (!hasAnyAddress) {
+          const reqId = await getRequisiteIdForContact(contact.ID || deal.CONTACT_ID);
+          if (reqId) {
+            const reqAddr = await getAddressForRequisite(reqId);
+            if (reqAddr) patchContactAddressFromReq(contact, reqAddr);
+          }
+        }
+      }
+    }
+
+    return res.json({
+      deal: { id: Number(dealId), title: deal.TITLE || "", stageId: deal.STAGE_ID || "" },
+      contact,
+    });
+  } catch (err) {
+    console.error("GET /api/bitrix/deal/:id error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+router.get("/deal/:id/ang-verschickt-fields", async (req, res) => {
+  try {
+    const dealId = String(req.params.id || "").trim();
+    if (!dealId) return res.status(400).json({ error: "id is required" });
+
+    const dealResp = await bxGet("crm.deal.get", { id: dealId });
+    const deal = dealResp?.result;
+    if (!deal) return res.status(404).json({ error: "Deal not found" });
+
+    // Währung is always EUR, so it is not prompted; only Betrag is asked.
+    const meta = {
+      OPPORTUNITY: { label: "Betrag", type: "double" },
+    };
+
+    const fields = ANG_VERSCHICKT_REQUIRED_FIELDS.map((name) => {
+      const currentValue = deal[name];
+      // OPPORTUNITY of "0"/"0.00" counts as empty (no amount set yet).
+      const empty =
+        name === "OPPORTUNITY"
+          ? isEmpty(currentValue) || Number(currentValue) === 0
+          : isEmpty(currentValue);
+      return {
+        name,
+        label: meta[name]?.label || name,
+        type: meta[name]?.type || "string",
+        options: meta[name]?.options,
+        currentValue: currentValue ?? "",
+        isEmpty: empty,
+      };
+    });
+
+    return res.json({
+      dealId: Number(dealId),
+      title: deal.TITLE || "",
+      stageId: deal.STAGE_ID || "",
+      fields,
+      allFilled: fields.every((f) => !f.isEmpty),
+    });
+  } catch (err) {
+    console.error("GET /api/bitrix/deal/:id/ang-verschickt-fields error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// POST /api/bitrix/deal/:id/move-ang-verschickt
+// Body: { opportunity?: number, currencyId?: string }
+// Fills Betrag/Währung (if provided) and moves the deal to "[VI] ANG verschickt".
+router.post("/deal/:id/move-ang-verschickt", express.json(), async (req, res) => {
+  try {
+    const dealId = String(req.params.id || "").trim();
+    if (!dealId) return res.status(400).json({ error: "id is required" });
+
+    const dealResp = await bxGet("crm.deal.get", { id: dealId });
+    const deal = dealResp?.result;
+    if (!deal) return res.status(404).json({ error: "Deal not found" });
+
+    const isAh = String(req.body?.offerType || "").toLowerCase() === "ah";
+
+    // Resolve final Betrag/Währung from the request, falling back to whatever
+    // is already on the deal. AH doesn't use Betrag at all (see updateDealStage),
+    // so it's neither required nor read from the deal here.
+    const providedAmount = Number(req.body?.opportunity);
+    const amount = isAh
+      ? 0
+      : Number.isFinite(providedAmount) && providedAmount > 0
+        ? providedAmount
+        : Number(deal.OPPORTUNITY) || 0;
+    const currencyId =
+      String(req.body?.currencyId || "").trim() ||
+      String(deal.CURRENCY_ID || "").trim() ||
+      "EUR";
+
+    if (!isAh && !(amount > 0)) {
+      return res.status(400).json({
+        error: "Betrag (OPPORTUNITY) fehlt",
+        missing: ["OPPORTUNITY"],
+      });
+    }
+
+    // AH: derive its own field set from the offer payload sent by the client.
+    // Anfahrtszone is only filled in once — never overwritten on a resend.
+    let ahExtraFields;
+    if (isAh) {
+      let ahPayload = null;
+      try {
+        ahPayload = req.body?.payload ? JSON.parse(req.body.payload) : null;
+      } catch {
+        // ignore invalid JSON — AH fields just won't be set this time
+      }
+      if (ahPayload) {
+        ahExtraFields = buildAhBitrixFields(ahPayload, deal[AH_FIELD.ANFAHRTSZONE]);
+      }
+    }
+
+    const data = await updateDealStage({
+      dealId,
+      stageId: isAh ? AH_ANG_VERSCHICKT_STAGE_ID : ANG_VERSCHICKT_STAGE_ID,
+      categoryId: isAh ? AH_ANG_VERSCHICKT_CATEGORY_ID : ANG_VERSCHICKT_CATEGORY_ID,
+      opportunity: amount,
+      currencyId,
+      workDays: req.body?.workDays,
+      offerType: req.body?.offerType,
+      offerNumber: req.body?.offerNumber,
+      finalTotal: req.body?.finalTotal ?? amount,
+      selfPayAmount: req.body?.selfPayAmount,
+      extraFields: ahExtraFields,
+    });
+
+    return res.json({ ok: true, dealId: Number(dealId), result: data?.result ?? data });
+  } catch (err) {
+    console.error("POST /api/bitrix/deal/:id/move-ang-verschickt error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// POST /api/bitrix/deal/:id/move-zuteilen
+// Marks a completed appointment: moves the deal to "Zuteilen HD/ AH/ DH".
+router.post("/deal/:id/move-zuteilen", express.json(), async (req, res) => {
+  try {
+    const dealId = String(req.params.id || "").trim();
+    if (!dealId) return res.status(400).json({ error: "id is required" });
+
+    const data = await updateDealStage({
+      dealId,
+      stageId: ZUTEILEN_STAGE_ID,
+      categoryId: ZUTEILEN_CATEGORY_ID,
+    });
+
+    return res.json({ ok: true, dealId: Number(dealId), result: data?.result ?? data });
+  } catch (err) {
+    console.error("POST /api/bitrix/deal/:id/move-zuteilen error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// GET /api/bitrix/deals/stages?ids=123,456
+// Returns the current STAGE_ID for each deal — used by the today-planning
+// list to hide "Hat stattgefunden" for deals already moved past it.
+router.get("/deals/stages", async (req, res) => {
+  try {
+    const ids = String(req.query.ids || "")
+      .split(",")
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isFinite(n) && n > 0);
+
+    if (!ids.length) return res.json({ stages: {} });
+
+    const data = await bxGet("crm.item.list", {
+      entityTypeId: DEAL_ENTITY_TYPE_ID,
+      filter: { id: ids },
+      select: ["id", "stageId"],
+    });
+
+    const stages = {};
+    for (const item of data?.result?.items || []) {
+      stages[String(item.id)] = item.stageId;
+    }
+
+    return res.json({ stages });
+  } catch (err) {
+    console.error("GET /api/bitrix/deals/stages error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// GET /api/bitrix/activities/today
+// Returns today's CRM activities indexed by OWNER_ID (deal ID) with start/end times.
+// Used to enrich planning entries with exact Bitrix-confirmed appointment times.
+router.get("/activities/today", async (_req, res) => {
+  try {
+    const now = new Date();
+    const from = new Date(now); from.setHours(0, 0, 0, 0);
+    const to   = new Date(now); to.setHours(23, 59, 59, 999);
+
+    const [meetingsData, callsData] = await Promise.all([
+      bxGet("crm.activity.list", {
+        filter: { ">=START_TIME": from.toISOString(), "<=START_TIME": to.toISOString(), TYPE_ID: 3 },
+        select: ["ID", "SUBJECT", "START_TIME", "END_TIME", "OWNER_ID", "OWNER_TYPE_ID", "STATUS"],
+        order:  { START_TIME: "ASC" },
+      }).catch(() => ({ result: [] })),
+      bxGet("crm.activity.list", {
+        filter: { ">=START_TIME": from.toISOString(), "<=START_TIME": to.toISOString(), TYPE_ID: 1 },
+        select: ["ID", "SUBJECT", "START_TIME", "END_TIME", "OWNER_ID", "OWNER_TYPE_ID", "STATUS"],
+        order:  { START_TIME: "ASC" },
+      }).catch(() => ({ result: [] })),
+    ]);
+
+    const activities = [...(meetingsData.result || []), ...(callsData.result || [])];
+
+    // Index by OWNER_ID so the frontend can look up by importDealId
+    const byDealId = {};
+    for (const act of activities) {
+      const ownerId = String(act.OWNER_ID || "");
+      if (!ownerId) continue;
+      const start = new Date(act.START_TIME);
+      const end   = act.END_TIME ? new Date(act.END_TIME) : null;
+      byDealId[ownerId] = {
+        startMinutes: isNaN(start.getTime()) ? null : start.getHours() * 60 + start.getMinutes(),
+        endMinutes:   end && !isNaN(end.getTime()) ? end.getHours() * 60 + end.getMinutes() : null,
+        startISO:     isNaN(start.getTime()) ? null : start.toISOString(),
+        endISO:       end && !isNaN(end.getTime()) ? end.toISOString() : null,
+      };
+    }
+
+    return res.json({ byDealId });
+  } catch (err) {
+    console.error("GET /api/bitrix/activities/today error:", err);
     return res.status(500).json({ error: err?.message || String(err) });
   }
 });
@@ -348,4 +906,4 @@ router.get("/calendar/week", async (_req, res) => {
 });
 
 export default router;
-export { addTimelineComment };
+export { addTimelineComment, updateDealStage, updateDealAfterSigning };

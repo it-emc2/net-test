@@ -9,9 +9,11 @@ const MONGODB_URI = process.env.MONGODB_URI;
 const MONGODB_DB  = process.env.MONGODB_DB || 'KonfiguratorDB';
 
 const products = [
+  { productId: 'DUSCHKORB01', name: 'Duschkorb ohne Bohren, Edelstahl Silber (inkl. 3M-Klebepads, 2 Haken, Rasierhalter)', price: 24.99, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'V22WS1R', name: 'Wannenset individual 2.2 m. Wandhalter Schlauch u. HB 1-str. rund verchr. VIGOUR', price: 39.38, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'TEMPDSU250', name: 'Duschsystem Tempesta Flex verchromt m. Umstellung KB 210mm Brausegarn. Grohe', price: 165.83, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'V22BG903R', name: 'Brausegarnitur individ. 2.2 m. Stange 90cm Schlauch u. HB 3-str. rund verchr. VIGOUR', price: 66.55, widthCm: null, heightCm: null, lengthCm: null },
+  { productId: 'V12DS250E', name: 'Duschsystem V1 Thermostat KB 250mm edge HB V1 5-fach u. Schlauch verchr. VIGOUR', price: 214.50, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'DEDS2503E', name: 'Duschsystem derby Thermostat m KB 250mm HB 3.2 3-fach edge u. Schl. verchr. VIG (verchromt)', price: 278.40, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'CLTB', name: 'AP-Brause-Thermostat clivia, ohne Brausegarnitur', price: 95.76, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'DEPTB', name: 'AP-Brause-Thermostat derby plus m. therm. Desinfektion Safe-Tec verchromt VIGOUR', price: 198.40, widthCm: null, heightCm: null, lengthCm: null },
@@ -52,6 +54,7 @@ const products = [
   { productId: 'KM02', name: 'Kleinmaterial groß', price: 150.00, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'STELZ', name: 'Stelzlager höhenverstellar Set', price: 20.00, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'V5FB02', name: 'Fußboden individ.5.0 1500x200mm Lava beige (8 Paneele=2,4m/2) VIGOUR', price: 159.84, widthCm: 20, heightCm: null, lengthCm: 150 },
+  { productId: 'AVP-W', name: 'Aluverbundplatte weiß 1500x200mm (8 Paneele=2,4m/2)', price: 126.00, widthCm: 20, heightCm: null, lengthCm: 150 },
   { productId: 'V4FK600', name: 'Flächenkleber 3.0/4.0/5.0 Fußboden und Wandverkleidungspaneele 600ml', price: 16.56, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'TRBDSET7', name: 'TRINNITY Bodenabdichtung BASIS-Set 7 qm Dichtb., Sockelb., Außen- + Innenecke', price: 278.38, widthCm: null, heightCm: null, lengthCm: null },
   { productId: 'V4FK600', name: 'Flächenkleber 3.0/4.0/5.0 Fußboden und Wandverkleidungspaneele 600ml VIGOUR', price: 16.56, widthCm: null, heightCm: null, lengthCm: null },

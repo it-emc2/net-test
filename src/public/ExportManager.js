@@ -95,7 +95,7 @@ function __sanitizeCustomerPayloadFields(body) {
     "Abschlussprofil V3A": "Abschlussprofil V3 255 cm silber",
     "Flächenkleber R_4260602": "Flächenkleber (Wandverkleidung)",
     "flaechenkleber": "Flächenkleber (Wandverkleidung)",
-    "silikon": "Sanitär-Silikon 310ml weiß",
+    "Silikon": "Sanitär-Silikon 310ml weiß",
   };
 
   const keySpecific = {
@@ -310,6 +310,51 @@ export function initExportManager(options = {}) {
         : `${emoji} PDF fast fertig...`;
   }
 
+  // ---------- Session snapshot (survives an in-tab reset from a Safari inline PDF viewer) ----------
+  const SESSION_SNAPSHOT_KEY = "__exportSessionSnapshot";
+  const SESSION_SNAPSHOT_MAX_AGE_MS = 15 * 60 * 1000;
+
+  function saveSessionSnapshot() {
+    try {
+      const fullPayload = cfg.buildPayload?.();
+      if (!fullPayload) return;
+      const payload = cfg.filterPayloadByOffer(fullPayload);
+      sessionStorage.setItem(
+        SESSION_SNAPSHOT_KEY,
+        JSON.stringify({ payload, offerType: cfg.getCurrentOfferType(), timestamp: Date.now() }),
+      );
+    } catch (err) {
+      console.warn("[ExportManager] Failed to save session snapshot:", err);
+    }
+  }
+
+  function maybeOfferSessionRestore() {
+    let entry;
+    try {
+      const raw = sessionStorage.getItem(SESSION_SNAPSHOT_KEY);
+      if (!raw) return;
+      entry = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (!entry?.payload || Date.now() - entry.timestamp > SESSION_SNAPSHOT_MAX_AGE_MS) return;
+
+    // Only prompt when the form looks freshly reset (e.g. after the Safari inline-PDF-viewer
+    // navigated the tab back to a blank page) - not on every normal load of a page that already
+    // has a snapshot from earlier in the same session.
+    const offerNumberHasValue = !!cfg.offerNumberEl()?.value?.trim();
+    if (offerNumberHasValue) return;
+
+    const restore = window.confirm(
+      "Es wurde ein nicht gespeicherter Konfigurationsstand von vor kurzem gefunden (z.B. durch einen Tab-Reset beim Download). Jetzt wiederherstellen?",
+    );
+    if (!restore) return;
+
+    if (typeof window.restoreConfiguratorFromSnapshot === "function") {
+      window.restoreConfiguratorFromSnapshot({ payload: entry.payload });
+    }
+  }
+
   // ---------- Snapshot ----------
   async function saveFinalOfferSnapshot() {
     // This is optional. If buildPayload doesn't exist, just no-op.
@@ -356,6 +401,7 @@ export function initExportManager(options = {}) {
 
   // ---------- Downloads ----------
   async function downloadPDFWithProgress(endpoint, payload, fallbackFilename) {
+    saveSessionSnapshot();
     showPDFProgress("PDF-Generation gestartet...", "info");
     let timeLeft = 30;
     updatePDFTimer(timeLeft);
@@ -420,6 +466,7 @@ export function initExportManager(options = {}) {
   }
 
   async function downloadDocx(url, body) {
+    saveSessionSnapshot();
     console.groupCollapsed("[ExportManager][DOCX DEBUG] POST "+url);
     console.log("request body", body);
     console.groupEnd();
@@ -466,7 +513,6 @@ export function initExportManager(options = {}) {
 
   function goToKundendatenIfInvalid() {
     if (!cfg.requireBereichValid?.()) {
-      location.hash = "Kundendaten";
       return false;
     }
     return true;
@@ -492,6 +538,7 @@ export function initExportManager(options = {}) {
     window.saveFinalOfferSnapshot = window.saveFinalOfferSnapshot || saveFinalOfferSnapshot;
 
     stampOfferOnExport();
+    maybeOfferSessionRestore();
 
     // Legacy dev buttons
     bindButton("makePdf", async () => {

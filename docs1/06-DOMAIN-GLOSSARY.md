@@ -149,7 +149,7 @@ This project is a German-language application for bathroom renovation and access
 | Badolux | Product Line | Budget-friendly floor/tray products |
 | REHA | Rehabilitation | Healthcare/rehabilitation products (special VAT handling) |
 | GC Online Plus | GC Online Plus | Parent platform for iframe embedding |
-| n8n | Workflow Tool | Automation for today's customers webhook |
+| n8n | Workflow Tool | Historical: enriched Bitrix CRM fields; no longer called directly by the app |
 | OpenRouteService (ORS) | Routing API | Distance/direction calculation |
 | Photon | Geocoding | Address-to-coordinates (Komoot) |
 | Nominatim | Geocoding | OpenStreetMap geocoding (fallback) |

@@ -7,19 +7,26 @@
   <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css">
   <link rel="stylesheet" href="/admin/admin.css">
 </head>
-<body style="background:#0f172a;margin:0;">
+<body style="background:#f1f5f9;margin:0;">
 
   <!-- ── LOGIN ──────────────────────────────────────────────── -->
   <div id="login-overlay" class="login-overlay">
     <div class="login-card">
       <div class="login-logo">EMC²</div>
       <p class="login-subtitle">Admin Panel</p>
-      <form id="login-form" autocomplete="off">
+      <form id="login-form" autocomplete="on">
+        <div class="login-field">
+          <label for="email">E-Mail</label>
+          <div class="input-wrap">
+            <i class="fas fa-user input-icon"></i>
+            <input type="email" id="email" autocomplete="username" placeholder="E-Mail" autofocus>
+          </div>
+        </div>
         <div class="login-field">
           <label for="password">Passwort</label>
           <div class="input-wrap">
             <i class="fas fa-lock input-icon"></i>
-            <input type="password" id="password" placeholder="Passwort eingeben" autofocus>
+            <input type="password" id="password" autocomplete="current-password" placeholder="Passwort eingeben">
           </div>
         </div>
         <button type="submit" class="btn-primary btn-full" id="login-btn">

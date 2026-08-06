@@ -29,6 +29,10 @@ function buildAddressVariants({ street, postalCode, city, state, country }) {
   const cleanState = (state || "").trim();
   const cleanCountry = (country || "Deutschland").trim();
 
+  // For compound German city names like "Triebel/Vogtland", also try the primary name
+  // (part before "/") — geocoders often don't recognise the district suffix variant.
+  const simpleCity = cleanCity.includes("/") ? cleanCity.split("/")[0].trim() : null;
+
   // Variant 1: Full address with state (most specific)
   if (cleanStreet && cleanCity && cleanState) {
     variants.push(
@@ -42,6 +46,15 @@ function buildAddressVariants({ street, postalCode, city, state, country }) {
   if (cleanStreet && cleanCity) {
     variants.push(
       [cleanStreet, [cleanPostal, cleanCity].filter(Boolean).join(" "), cleanCountry]
+        .filter(Boolean)
+        .join(", ")
+    );
+  }
+
+  // Variant 2b: Same as variant 2 but with simplified city (e.g. "Triebel" instead of "Triebel/Vogtland")
+  if (simpleCity && cleanStreet) {
+    variants.push(
+      [cleanStreet, [cleanPostal, simpleCity].filter(Boolean).join(" "), cleanCountry]
         .filter(Boolean)
         .join(", ")
     );
@@ -62,9 +75,19 @@ function buildAddressVariants({ street, postalCode, city, state, country }) {
     variants.push(`${cleanPostal} ${cleanCity}, ${cleanCountry}`);
   }
 
+  // Variant 5b: Postal + simplified city
+  if (simpleCity && cleanPostal) {
+    variants.push(`${cleanPostal} ${simpleCity}, ${cleanCountry}`);
+  }
+
   // Variant 6: Just city and country
   if (cleanCity) {
     variants.push(`${cleanCity}, ${cleanCountry}`);
+  }
+
+  // Variant 6b: Just simplified city and country
+  if (simpleCity) {
+    variants.push(`${simpleCity}, ${cleanCountry}`);
   }
 
   // Remove duplicates while preserving order
@@ -105,6 +128,27 @@ function geocodeResultMatchesInput(result, addressParts = {}) {
   }
 
   if (wantCity && !hay.includes(wantCity)) {
+    // Compound German city names like "Triebel/Vogtland" normalize to "triebel vogtland".
+    // Geocoders return just "Triebel" — fall back to matching the primary city token only.
+    const primaryCity = wantCity.split(" ")[0];
+    if (primaryCity && primaryCity.length >= 3 && hay.includes(primaryCity)) {
+      return true;
+    }
+
+    // Merged municipalities sometimes repeat a segment, e.g. query
+    // "Mohlsdorf-Teichwolframsdorf-Mohlsdorf" while the geocoder answers with
+    // just "Mohlsdorf-Teichwolframsdorf". Try progressively shorter
+    // hyphen-joined prefixes before giving up. Also covers Ortsteil names
+    // like "Hof-Haidt", where the geocoder correctly answers with just the
+    // parent town "Hof" (len=1).
+    const citySegments = wantCity.split("-").filter(Boolean);
+    for (let len = citySegments.length - 1; len >= 1; len--) {
+      const candidate = citySegments.slice(0, len).join("-");
+      if (candidate.length >= 3 && hay.includes(candidate)) {
+        return true;
+      }
+    }
+
     return false;
   }
 

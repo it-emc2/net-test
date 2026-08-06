@@ -7,12 +7,20 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 FROM base AS build
+# Skip Puppeteer's automatic download during `npm ci`; we install the
+# version-matched Chrome explicitly into /app/.cache/puppeteer below so it gets
+# copied into the runtime image. (The distro `chromium` package is a newer,
+# unpinned build that crashes on launch — see runtime stage.)
+ENV PUPPETEER_SKIP_DOWNLOAD=true \
+    PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
       build-essential node-gyp pkg-config python-is-python3 && \
     rm -rf /var/lib/apt/lists/*
 COPY package-lock.json package.json ./
 RUN npm ci
+# Download the Chrome build that matches the installed Puppeteer version.
+RUN npx puppeteer browsers install chrome
 COPY . .
 
 FROM base AS runtime
@@ -33,8 +41,16 @@ RUN set -eux; \
     texlive-latex-base \
     texlive-latex-extra \
     texlive-fonts-recommended \
-    texlive-lang-german; \
+    texlive-lang-german \
+    chromium fonts-liberation; \
   rm -rf /var/lib/apt/lists/*
+
+# Puppeteer uses the version-matched Chrome copied in via the build stage's
+# cache dir. The distro `chromium` package above is kept only for the shared
+# libraries it pulls in (libgbm, libasound, libatk, …) which Chrome needs; its
+# own binary crashes on launch (SIGTRAP), so we do NOT point Puppeteer at it.
+ENV PUPPETEER_SKIP_DOWNLOAD=true \
+    PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
 
 RUN set -eux; \
   ARCH="$(dpkg --print-architecture)"; \
@@ -53,6 +69,9 @@ RUN set -eux; \
 RUN /opt/libreoffice*/program/soffice --version
 
 COPY --from=build /app /app
+
+# Sanity-check that Puppeteer can resolve its bundled Chrome from the cache dir.
+RUN node -e "console.log('puppeteer chrome:', require('puppeteer').executablePath())"
 
 EXPOSE 3000
 CMD ["npm", "run", "start"]

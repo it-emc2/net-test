@@ -157,9 +157,17 @@ const OFFERS = {
     pages: [
       "Kundendaten",
       "Arbeitszeit",
+      "Arbeiten",
       "Duschwanne",
+      "Fussboden",
       "Wandverkleidung",
+      // Order matters twice over: it drives Weiter/Zurück AND the done-circles
+      // in the sidebar (isDoneInFlow compares indices in this array). Keep it
+      // in sync with SIDEBAR_GROUPS in updateSidebarForOffer, or the circles
+      // light up out of sequence.
       "Duschabtrennung",
+      "DuschabtrennungNeu",
+      "Duschvorhang",
       "Optional",
       "Rabatt",
       "Kosten",
@@ -167,6 +175,7 @@ const OFFERS = {
       "admin",
       "services",
       "crm-emc2",
+      // "DaConfigDev",
     ],
   },
   bwt: {
@@ -174,6 +183,7 @@ const OFFERS = {
     pages: [
       "Kundendaten",
       "Arbeitszeit",
+      "bwtArbeiten",
       "bwt",
       "Rabatt",
       "Kosten",
@@ -183,7 +193,15 @@ const OFFERS = {
   },
   hl: {
     name: "HL · Handlauf",
-    pages: ["Kundendaten", "Arbeitszeit", "hl", "Kosten", "Zusammenfassung"],
+    pages: [
+      "Kundendaten",
+      "Arbeitszeit",
+      "hl",
+      "hlk",
+      "Rabatt",
+      "Kosten",
+      "Zusammenfassung",
+    ],
   },
   bl: {
     name: "BL · Badelift",
@@ -191,7 +209,7 @@ const OFFERS = {
   },
   ah: {
     name: "AH · Alltagshilfe",
-    pages: ["Kundendaten", "Arbeitszeit", "ah", "Kosten", "Zusammenfassung"],
+    pages: ["Kundendaten", "Arbeitszeit", "ah", "Finanzierung", "Kosten", "Zusammenfassung"],
   },
   hms: {
     name: "HMS · Hausmeisterservice",
@@ -557,6 +575,86 @@ const toast = {
 
 window.toast = window.toast || toast;
 
+// Update-checker: polls /api/version every 5 min; shows a refresh toast on new deploy
+(function startUpdateChecker() {
+  let knownBuildId = null;
+  let poller = null;
+
+  function showUpdateToast() {
+    if (document.getElementById("nt-update-banner")) return;
+
+    const el = document.createElement("div");
+    el.id = "nt-update-banner";
+    Object.assign(el.style, {
+      position: "fixed",
+      bottom: "24px",
+      left: "50%",
+      transform: "translateX(-50%) translateY(16px)",
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      padding: "9px 10px 9px 14px",
+      borderRadius: "12px",
+      background: "#0f172a",
+      color: "#f1f5f9",
+      fontSize: "13px",
+      fontWeight: "500",
+      boxShadow: "0 4px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.07)",
+      zIndex: "99999",
+      opacity: "0",
+      transition: "transform 0.22s ease, opacity 0.22s ease",
+      whiteSpace: "nowrap",
+      fontFamily: "inherit",
+      maxWidth: "calc(100vw - 32px)",
+    });
+    el.innerHTML = `
+      <span style="font-size:14px">🔄</span>
+      <span>Neue Version verfügbar</span>
+      <button
+        data-reload
+        style="padding:5px 12px;border-radius:7px;border:0;background:#3b82f6;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;line-height:1.5;"
+      >Neu laden</button>
+      <button
+        data-close
+        aria-label="Schließen"
+        style="padding:0 4px;border:0;background:transparent;color:#64748b;font-size:17px;cursor:pointer;font-family:inherit;line-height:1;"
+      >×</button>
+    `;
+    document.body.appendChild(el);
+    requestAnimationFrame(() => {
+      el.style.transform = "translateX(-50%) translateY(0)";
+      el.style.opacity = "1";
+    });
+
+    el.querySelector("[data-reload]").addEventListener("click", () => location.reload());
+
+    el.querySelector("[data-close]").addEventListener("click", () => {
+      el.style.transform = "translateX(-50%) translateY(16px)";
+      el.style.opacity = "0";
+      setTimeout(() => el.remove(), 220);
+    });
+  }
+
+  async function checkVersion() {
+    try {
+      const r = await fetch("/api/version", { cache: "no-store" });
+      if (!r.ok) return;
+      const { buildId } = await r.json();
+      if (knownBuildId === null) {
+        knownBuildId = buildId;
+        return;
+      }
+      if (buildId !== knownBuildId) {
+        showUpdateToast();
+        clearInterval(poller);
+      }
+    } catch (_) {}
+  }
+
+  checkVersion();
+  poller = setInterval(checkVersion, 10 * 1000);
+})();
+
 // top-level (once)
 window.__restoring = false;
 window.__RESTORING__ = false;
@@ -582,6 +680,22 @@ function updateOfferSpecificSections() {
   offer = String(offer || "")
     .trim()
     .toLowerCase();
+
+  // Relocate the Aufschlag section: for Badumbau (BU), Badewannentür (BWT) and
+  // Handlauf (HL) it lives on the Rabatt page, for every other offer it stays in
+  // its Kundendaten home. A single element is moved (not duplicated) so its IDs
+  // and serialization into payload.Kundendaten.aufschlag remain unchanged.
+  (function relocateAufschlag() {
+    var sec = document.getElementById("aufschlagSection");
+    if (!sec) return;
+    if (offer === "bu" || offer === "bwt" || offer === "hl") {
+      var mount = document.getElementById("aufschlagRabattMount");
+      if (mount && sec.parentElement !== mount) mount.appendChild(sec);
+    } else {
+      var home = document.getElementById("aufschlagHome");
+      if (home && sec.previousElementSibling !== home) home.after(sec);
+    }
+  })();
 
   document.querySelectorAll("[data-offer]").forEach(function (el) {
     var attr = (el.getAttribute("data-offer") || "").trim();
@@ -916,7 +1030,7 @@ function restoreTrinnityFloorSealing(dw) {
   const hasTRBD = chosen.some((s) => String(s || "").includes("TRBDSET7"));
   if (!hasTRBD) return;
 
-  const form = document.getElementById("form-duschwanne");
+  const form = document.getElementById("form-fussboden");
   const toggle = document.getElementById("addFlooring");
   const tile = document.getElementById("tile_TRBDSET7");
   const input = tile?.querySelector(
@@ -944,7 +1058,7 @@ function restoreTrinnityFloorSealing(dw) {
 
 function restoreFlooringSelections(dw) {
   if (!dw) return;
-  const f = document.getElementById("form-duschwanne");
+  const f = document.getElementById("form-fussboden");
   if (!f) return;
 
   // Normalize a stored entry like "TRINNITY Bodenabdichtung TRBDSET7" → "TRBDSET7"
@@ -1508,74 +1622,25 @@ function formatDurationHHMM(totalMinutes) {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
-function populateTimeSelectOptions(root) {
-  if (!root) return;
-  const hourSelect = root.querySelector(".time-hour-select");
-  const minuteSelect = root.querySelector(".time-minute-select");
-  if (hourSelect && !hourSelect.options.length) {
-    for (let h = 0; h <= 23; h += 1) {
-      const value = String(h).padStart(2, "0");
-      hourSelect.add(new Option(value, value));
-    }
-  }
-  if (minuteSelect && !minuteSelect.options.length) {
-    for (let m = 0; m < 60; m += 5) {
-      const value = String(m).padStart(2, "0");
-      minuteSelect.add(new Option(value, value));
-    }
-  }
-}
-
 function bindCompactTimeHelper(inputId, helperId) {
   const input = document.getElementById(inputId);
   const helperRoot = document.getElementById(helperId);
   if (!input || !helperRoot) return;
 
-  populateTimeSelectOptions(helperRoot);
-
-  const hourSelect = helperRoot.querySelector(".time-hour-select");
-  const minuteSelect = helperRoot.querySelector(".time-minute-select");
   const deltaButtons = helperRoot.querySelectorAll("[data-delta]");
-
-  function syncFromInput() {
-    const current = /^\d{1,2}:\d{2}$/.test(String(input.value || "").trim())
-      ? String(input.value).trim()
-      : "00:00";
-    const [hh, mm] = current.split(":");
-    if (hourSelect) hourSelect.value = hh.padStart(2, "0");
-    if (minuteSelect) {
-      const snappedMinute = String(Math.min(55, Math.floor(Number(mm || 0) / 5) * 5)).padStart(2, "0");
-      minuteSelect.value = snappedMinute;
-    }
-  }
 
   function emitInputEvents() {
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
-  function syncToInput() {
-    const hh = hourSelect?.value || "00";
-    const mm = minuteSelect?.value || "00";
-    input.value = `${hh}:${mm}`;
-    emitInputEvents();
-  }
-
   deltaButtons.forEach((button) => {
     button.addEventListener("click", () => {
       const delta = Number(button.dataset.delta || 0);
       input.value = formatDurationHHMM(parseDurationMinutes(input.value) + delta);
-      syncFromInput();
       emitInputEvents();
     });
   });
-
-  hourSelect?.addEventListener("change", syncToInput);
-  minuteSelect?.addEventListener("change", syncToInput);
-  input.addEventListener("input", syncFromInput);
-  input.addEventListener("change", syncFromInput);
-
-  syncFromInput();
 }
 
 
@@ -1692,7 +1757,7 @@ function computeArbeitszeitSuggestion() {
     pushArbeitszeitRow(rows, "wv1497", "Wandverkleidung 1497×2550", 40, qty1497);
   }
   if (document.getElementById("wvSilikonSelected")?.checked) {
-    pushArbeitszeitRow(rows, "silikon", "Silikon", 10, 1);
+    pushArbeitszeitRow(rows, "Silikon", "Silikon", 10, 1);
   }
   if (document.getElementById("addFlooring")?.checked) {
     const floorArea = parseArbeitszeitNumber(document.getElementById("floorArea")?.value || 0);
@@ -1855,28 +1920,82 @@ function renderTravelCostDebug() {
     return;
   }
 
-  if (isBwt) {
-    const workCost = laborHours * 79.5;
-    const travelCost = travelHours * 79.5;
-    const totalCost = workCost + travelCost;
-    box.innerHTML = `
+  const section = (title, rows) => `
+    <div class="az-debug-section">
+      <div class="az-debug-section-title">${title}</div>
       <div class="az-travel-debug-grid">
-        <div><span>Arbeitszeit</span><strong>${hours(laborHours)} h</strong></div>
-        <div><span>Reisezeit gesamt</span><strong>${hours(travelHours)} h</strong></div>
-        <div><span>Stundensatz (1 Facharbeiter)</span><strong>${euro(79.5)}/h</strong></div>
-        <div><span>Arbeitskosten</span><strong>${euro(workCost)}</strong></div>
-        <div><span>Reisezeit Fahrer</span><strong>${euro(travelCost)}</strong></div>
-        <div><span>Gesamtkosten aus Zeiten</span><strong>${euro(totalCost)}</strong></div>
+        ${rows.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("")}
       </div>
-      <div class="az-travel-debug-note">BWT aktiv: 1 Facharbeiter, 79,50 €/h für Arbeitszeit und Reisezeit.</div>
+    </div>
+  `;
+
+  const employeeSection = (title, rows, subtotal) => `
+    <div class="az-debug-section">
+      <div class="az-debug-section-title">${title}</div>
+      <div class="az-travel-debug-grid">
+        ${rows.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("")}
+      </div>
+      <div class="az-debug-subtotal">
+        <span>Zwischensumme</span>
+        <strong>${subtotal}</strong>
+      </div>
+    </div>
+  `;
+
+  if (isBwt) {
+    // Same free-Reisezeit threshold the real billing applies (pricing.js
+    // computeBwtIncludedLines) — so this preview matches what actually
+    // ends up in Kosten/PDF instead of showing the full undiscounted hours.
+    const freeHours = Number(window.__bwtTravelTimeFreeHours ?? 2) || 0;
+    const billedTravelHours = Math.max(0, travelHours - freeHours);
+    const workCost = laborHours * 79.5;
+    const travelCost = billedTravelHours * 79.5;
+
+    // Fahrzeugbereitstellung/Werkzeug/Beräumung — same per-Arbeitstag items
+    // BU shows, priced with the same admin-configurable values pricing.js
+    // uses (computeBwtIncludedLines).
+    const workDays = Number(window.arbeitstage_numeric ?? 0) || 0;
+    const fahrzeugRate = Number(window.__fahrzeugbereitstellung ?? 80) || 0;
+    const werkzeugRate = Number(window.__werkzeug ?? 7.5) || 0;
+    const beraeumungRate = Number(window.__beraeumung ?? 4.5) || 0;
+    const fahrzeugCost = workDays * fahrzeugRate;
+    const werkzeugCost = workDays * werkzeugRate;
+    const beraeumungCost = workDays * beraeumungRate;
+
+    const totalCost = workCost + travelCost + fahrzeugCost + werkzeugCost + beraeumungCost;
+    box.innerHTML = `
+      ${section("Zeiten", [
+        ["Arbeitszeit", `${hours(laborHours)} h`],
+        ["Reisezeit gesamt", `${hours(travelHours)} h`],
+        [`davon abrechenbar (abzgl. ${hours(freeHours)} h frei)`, `${hours(billedTravelHours)} h`],
+      ])}
+      ${section("Stundensatz", [["1 Facharbeiter", `${euro(79.5)}/h`]])}
+      ${section("Kosten", [
+        ["Arbeitskosten", euro(workCost)],
+        ["Reisezeit Fahrer (abrechenbar)", euro(travelCost)],
+        [`Fahrzeugbereitstellung (${hours(workDays)} Stk)`, euro(fahrzeugCost)],
+        [`Werkzeug (${hours(workDays)} Stk)`, euro(werkzeugCost)],
+        [`Beräumung der Baustelle (${hours(workDays)} Stk)`, euro(beraeumungCost)],
+      ])}
+      <div class="az-debug-total">
+        <span>Gesamtkosten aus Zeiten</span>
+        <strong>${euro(totalCost)}</strong>
+      </div>
+      <div class="az-travel-debug-note">BWT aktiv: 1 Facharbeiter, 79,50 €/h für Arbeitszeit und Reisezeit. Die ersten ${hours(freeHours)} h Reisezeit sind frei.</div>
     `;
+    syncBwtFreigrenzenToggle();
     return;
   }
 
-  const workCost = laborHours * 2 * laborRate;
-  const travelDriverCost = travelHours * laborRate;
-  const travelSecondWorkerCost = travelHours * secondWorkerRate;
-  const totalCost = workCost + travelDriverCost + travelSecondWorkerCost;
+  const employee1Work = laborHours * laborRate;
+  const employee1Travel = travelHours * laborRate;
+  const employee1Total = employee1Work + employee1Travel;
+
+  const employee2Work = laborHours * laborRate;
+  const employee2Travel = travelHours * secondWorkerRate;
+  const employee2Total = employee2Work + employee2Travel;
+
+  const totalCost = employee1Total + employee2Total;
 
   const extraHint =
     offer === "bu"
@@ -1884,15 +2003,33 @@ function renderTravelCostDebug() {
       : `<div class="az-travel-debug-note">Aktives Angebot: ${String(offer).toUpperCase()}. Standard für Alt-Angebote ohne gespeicherten Wert bleibt 25 €/h.</div>`;
 
   box.innerHTML = `
-    <div class="az-travel-debug-grid">
-      <div><span>Arbeitszeit</span><strong>${hours(laborHours)} h</strong></div>
-      <div><span>Reisezeit gesamt</span><strong>${hours(travelHours)} h</strong></div>
-      <div><span>Voller Satz / Fahrer</span><strong>${euro(laborRate)}/h</strong></div>
-      <div><span>2. Mitarbeiter Reisezeit</span><strong>${euro(secondWorkerRate)}/h</strong></div>
-      <div><span>Arbeitskosten (2 Mitarbeiter)</span><strong>${euro(workCost)}</strong></div>
-      <div><span>Reisezeit Fahrer</span><strong>${euro(travelDriverCost)}</strong></div>
-      <div><span>Reisezeit 2. Mitarbeiter</span><strong>${euro(travelSecondWorkerCost)}</strong></div>
-      <div><span>Gesamtkosten aus Zeiten</span><strong>${euro(totalCost)}</strong></div>
+    ${section("Zeiten", [
+      ["Arbeitszeit", `${hours(laborHours)} h`],
+      ["Reisezeit gesamt", `${hours(travelHours)} h`],
+    ])}
+    ${section("Stundensätze", [
+      ["Voller Satz / Fahrer", `${euro(laborRate)}/h`],
+      ["2. Mitarbeiter Reisezeit", `${euro(secondWorkerRate)}/h`],
+    ])}
+    ${employeeSection(
+      "Mitarbeiter 1 (Fahrer)",
+      [
+        ["Arbeitszeit", euro(employee1Work)],
+        ["Reisezeit", euro(employee1Travel)],
+      ],
+      euro(employee1Total),
+    )}
+    ${employeeSection(
+      "Mitarbeiter 2",
+      [
+        ["Arbeitszeit", euro(employee2Work)],
+        ["Reisezeit", euro(employee2Travel)],
+      ],
+      euro(employee2Total),
+    )}
+    <div class="az-debug-total">
+      <span>Gesamtkosten aus Zeiten</span>
+      <strong>${euro(totalCost)}</strong>
     </div>
     ${extraHint}
   `;
@@ -2110,12 +2247,15 @@ function resetAllForms() {
   const formIds = [
     "form-Kundendaten",
     "form-Arbeitszeit",
+    "form-Arbeiten",
     "form-duschwanne",
+    "form-fussboden",
     "form-wandverkleidung",
     "form-duschabtrennung",
     "form-optional",
     "form-rabatt",
     "form-bwt",
+    "form-bwtArbeiten",
     "form-hl",
     "form-bl",
     "form-admin",
@@ -2124,6 +2264,12 @@ function resetAllForms() {
     "form-hms",
     "form-wd",
   ];
+
+  // 0) Every reset starts a new "form generation". Background fills that were
+  // started for the previous customer (Bitrix enrich, delayed deal-id writes)
+  // compare against this and drop their result instead of writing into the
+  // fresh offer.
+  window.__formGeneration = (Number(window.__formGeneration) || 0) + 1;
 
   // 1) Reset all forms back to their HTML defaults
   formIds.forEach((id) => {
@@ -2198,6 +2344,16 @@ function resetAllForms() {
     Object.values(window.__drawingPads || {}).forEach((pad) => pad?.clear?.());
   } catch (e) {
     console.warn("[resetAllForms] drawing pad reset failed:", e);
+  }
+  try {
+    window.__daConfigurator?.reset?.();
+  } catch (e) {
+    console.warn("[resetAllForms] Duschabtrennung configurator reset failed:", e);
+  }
+  try {
+    window.__vorhangConfigurator?.reset?.();
+  } catch (e) {
+    console.warn("[resetAllForms] Duschvorhang configurator reset failed:", e);
   }
 
   [
@@ -2283,6 +2439,32 @@ function resetAllForms() {
     window.__RESTORING__ = false;
   } catch (e) {}
 
+  // 5b) The toggle sweep above ran with the restore guard on, so the WV
+  // consumables still carry their HTML `checked` defaults. Re-run the panel
+  // coupling now that the guard is off: a fresh offer has no panels, so they
+  // switch off instead of billing four items nobody selected.
+  recomputeWVFlachenQty();
+
+  // 5c) Everything the Routenvorschlag writes lives OUTSIDE the forms, so
+  // form.reset() cannot clear it: the hint block, the zone button selection,
+  // the AH zone cache and the HH:MM → numeric mirrors. Without this a deal
+  // opened from the Terminplanung leaks its km/Reisezeit into the next offer
+  // (visible in the hint, and billed via reise_hours_numeric below).
+  const _routingHint = document.getElementById("routingSuggestion");
+  if (_routingHint) _routingHint.innerHTML = "";
+  ["distanceKm", "travelTime"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  document
+    .querySelectorAll("#travelZoneButtons .az-zone-btn")
+    .forEach((b) => b.setAttribute("aria-pressed", "false"));
+  delete window.__ahZoneData;
+  window.updateAHZoneDisplay?.();
+  // Recomputes reise/arbeit/tage mirrors and repaints every travel hint
+  // (updateTravelPreview + renderTravelCostDebug) — must run before pricing.
+  window.updateTotalHours?.();
+
   // 6) One clean pricing refresh after reset
   window.updatePricing?.();
 
@@ -2299,6 +2481,8 @@ function resetAllForms() {
   if (typeof updateSummaryWidgetSubsidyVisibility === "function") {
     updateSummaryWidgetSubsidyVisibility();
   }
+  const _swDealRow = document.getElementById("swDealRow");
+  if (_swDealRow) _swDealRow.style.display = "none";
 
   // Re-apply default date after form.reset() clears date inputs
   ensureKundendatenDate(true);
@@ -2309,6 +2493,9 @@ function resetAllForms() {
 // NEW HELPER: Reset all repeater DOMs to clean state
 // ============================================================
 function resetAllRepeaterDOMs() {
+  // --- Interne Liste (Kundendaten) ---
+  initInternalTodos([]);
+
   // --- DW Extra Tasks ---
   if (typeof window.restoreDWExtraTasksFromPayload === "function") {
     window.restoreDWExtraTasksFromPayload({ extraTasks: [] });
@@ -2326,6 +2513,11 @@ function resetAllRepeaterDOMs() {
         }
       });
     }
+  }
+
+  // --- BWT Arbeiten tab: Weitere Arbeiten ---
+  if (typeof window.restoreBwtArbeitenExtraTasksFromPayload === "function") {
+    window.restoreBwtArbeitenExtraTasksFromPayload({ extraTasks: [] });
   }
 
   // --- BWT Extra Arbeitszeit ---
@@ -2448,6 +2640,11 @@ function resetAllRepeaterDOMs() {
   // --- Floor Area ---
   const floorArea = document.getElementById("floorArea");
   if (floorArea) floorArea.value = "";
+
+  // --- AH Leistungen (Alltagsbegleitung / Haushaltsnahedienstleistungen) ---
+  if (typeof window.restoreAhServices === "function") {
+    window.restoreAhServices([]);
+  }
 }
 
 // Effective list of steps used for prev/next navigation
@@ -2477,7 +2674,7 @@ function updateSidebarForOffer() {
   sideMenu.innerHTML = "";
 
   // Helper to create a <a class="side-link"> with the same structure as before
-  function makeLink(stepId, label) {
+  function makeLink(stepId, label, numeral) {
     const a = document.createElement("a");
     a.className = "side-link";
     a.href = `#${stepId}`;
@@ -2490,21 +2687,29 @@ function updateSidebarForOffer() {
     span.textContent = label;
 
     a.appendChild(dot);
+    if (numeral) a.appendChild(makeNumeral(numeral));
     a.appendChild(span);
 
     return a;
   }
 
-  // --- Always render "Auswahl der Leistung" as first item ---
+  function makeNumeral(numeral) {
+    const el = document.createElement("span");
+    el.className = "side-num";
+    el.textContent = numeral;
+    return el;
+  }
+
+  // --- Always render "Hauptmenü" as first item ---
   const homeNav = nav?.querySelector(
-    'a.step[data-step="Auswahl der Leistung"]',
+    'a.step[data-step="Hauptmenü"]',
   );
   const homeLabel = homeNav
     ? homeNav.textContent.trim()
-    : "Auswahl der Leistung";
+    : "Hauptmenü";
   sideMenu.appendChild(makeLink("home", homeLabel));
 
-  // If no offer is selected, we stop here → only Auswahl der Leistung is shown.
+  // If no offer is selected, we stop here → only Hauptmenü is shown.
   if (!activeOffer) {
     return;
   }
@@ -2519,22 +2724,108 @@ function updateSidebarForOffer() {
   );
 
   const specialLabels = {
-    bwt: "BWT",
+    bwt: "Badewannentür",
+    bwtArbeiten: "Arbeiten",
     hl: "HL",
+    hlk: "Konfigurator",
     bl: "BL",
-    ah: "AH",
+    ah: "Leistungen",
+    Finanzierung: "Finanzierung",
+    DuschabtrennungNeu: "Duschabtrennung (neu)",
+    Duschvorhang: "Duschvorhang",
+    Fussboden: "Fußboden",
+    // Rabatt page only exists in the Badumbau flow, so this rename is bu-only.
+    Rabatt: "Aufschlag / Rabatt",
+    Optional: "Optionale Produkte",
   };
 
-  normalPages.forEach((pageId) => {
-    const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
-    let label = navLink ? navLink.textContent.trim() : pageId;
+  // Badumbau and Badewannentür group their pages into numbered sections; every
+  // other offer keeps the flat list. Purely visual — page ids and flow order
+  // are untouched.
+  const isBu = activeOffer === "bu";
+  const isBwt = activeOffer === "bwt";
+  const SIDEBAR_GROUPS = isBu
+    ? [
+        { title: "Auszuführende Arbeiten", num: "I", pages: ["Arbeitszeit", "Arbeiten"] },
+        {
+          title: "Material für Badumbau",
+          num: "II",
+          pages: [
+            "Duschwanne",
+            "Fussboden",
+            "Wandverkleidung",
+            "Duschabtrennung",
+            "DuschabtrennungNeu",
+            "Duschvorhang",
+          ],
+        },
+      ]
+    : isBwt
+      ? [
+          { title: "Auszuführende Arbeiten", num: "I", pages: ["Arbeitszeit", "bwtArbeiten"] },
+        ]
+      : [];
+  const groupedByGroups = new Set(SIDEBAR_GROUPS.flatMap((g) => g.pages));
+  // Single-page sections get the numeral directly on the link (a one-child
+  // group would look odd) — BU does the same for Optional/III.
+  const linkNumerals = isBu ? { Optional: "III" } : isBwt ? { bwt: "II" } : {};
 
-    if (specialLabels[pageId]) {
-      label = specialLabels[pageId];
+  function labelFor(pageId) {
+    const navLink = nav?.querySelector(`a.step[data-step="${pageId}"]`);
+    return specialLabels[pageId] || (navLink ? navLink.textContent.trim() : pageId);
+  }
+
+  normalPages.forEach((pageId) => {
+    if (groupedByGroups.has(pageId)) {
+      // Render the whole group at the position of its first member.
+      const group = SIDEBAR_GROUPS.find((g) => g.pages[0] === pageId);
+      if (group) {
+        appendSideGroup(group, group.pages.filter((id) => normalPages.includes(id)));
+      }
+      return;
     }
 
-    sideMenu.appendChild(makeLink(pageId, label));
+    sideMenu.appendChild(makeLink(pageId, labelFor(pageId), linkNumerals[pageId]));
   });
+
+  // A group header is a .side-link with a chevron where the dot would be, so
+  // it sits flush with the ordinary entries above and below it.
+  function appendSideGroup(group, pageIds) {
+    if (!pageIds.length) return;
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "side-group";
+
+    // A div, not a button: the groups never collapse, so there is nothing to
+    // click. Same dot slot as an ordinary entry, chevron on the far right.
+    const header = document.createElement("div");
+    header.className = "side-link side-group-header";
+
+    const dot = document.createElement("div");
+    dot.className = "dot";
+
+    const title = document.createElement("span");
+    title.className = "side-group-title";
+    title.textContent = group.title;
+
+    const chevron = document.createElement("span");
+    chevron.className = "side-group-chevron";
+    chevron.textContent = "›";
+    chevron.setAttribute("aria-hidden", "true");
+
+    header.appendChild(dot);
+    if (group.num) header.appendChild(makeNumeral(group.num));
+    header.appendChild(title);
+    header.appendChild(chevron);
+
+    const body = document.createElement("div");
+    body.className = "side-group-body";
+    pageIds.forEach((pageId) => body.appendChild(makeLink(pageId, labelFor(pageId))));
+
+    wrapper.appendChild(header);
+    wrapper.appendChild(body);
+    sideMenu.appendChild(wrapper);
+  }
 
   function appendAccordionGroup(title, pageIds, labelOverrides = {}) {
     if (!pageIds.length) return;
@@ -2583,7 +2874,11 @@ function updateSidebarForOffer() {
 
   appendAccordionGroup(
     "Developer",
-    pages.filter((pageId) => pageId === "admin" || pageId === "services"),
+    pages.filter(
+      (pageId) =>
+        pageId === "admin" || pageId === "services" || pageId === "DaConfigDev",
+    ),
+    { DaConfigDev: "Duschabtrennung (DB-Test)" },
   );
   appendAccordionGroup(
     "CRM",
@@ -2616,6 +2911,9 @@ function syncDerivedPrefills(reason = "") {
   }
   try {
     refreshEmc2ContactPrefill();
+    // Re-fill #emc2_contact from the Ansprechpartner dropdown; form.reset()
+    // wipes it, and it is what the PDF prints as "Ansprechpartner".
+    window.syncAnsprechpartner?.();
   } catch (e) {
     console.warn("[syncDerivedPrefills] emc2 contact prefill failed:", { reason, error: e });
   }
@@ -2647,6 +2945,16 @@ function startOfferFlow(offerKey) {
 
   // Fresh start for this offer: clear all forms back to their HTML defaults
   resetAllForms();
+
+  // Fresh offer → new pricing rules (Kleinmaterial counts toward the Aufschlag).
+  window.__kleinInAufschlag = true;
+  window.__kleinAufschlagLegacyOffer = false;
+
+  // Fresh offer → BWT Freigrenzen follow today's live admin config, not
+  // whatever a previously-restored legacy offer pinned them to.
+  window.__bwtFreigrenzenLegacyOffer = false;
+  window.__bwtKmFreeThreshold = Number(window.__bwtKmFreeThresholdLive ?? 200);
+  window.__bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHoursLive ?? 2);
 
   // BWT: override Arbeitszeit default to 05:00 (1 worker, shorter job)
   if (offerKey === "bwt") {
@@ -2719,7 +3027,8 @@ function setStep(step) {
   });
 
   // 3) Left sidebar
-  const sideLinks = sideMenu?.querySelectorAll(".side-link");
+  // Anchors only — group headers are buttons without a data-step.
+  const sideLinks = sideMenu?.querySelectorAll("a.side-link");
   sideLinks?.forEach((sideLink) => {
     const s = sideLink.dataset.step;
     const isActive = s === step;
@@ -2743,6 +3052,10 @@ function setStep(step) {
   if (step === "rabatt" || step === "kosten") {
     setTimeout(() => window.updatePricing?.(), 0);
     setTimeout(() => window.refreshAllPanels?.(), 0);
+  }
+
+  if (step === "Arbeitszeit") {
+    setTimeout(() => window.updateAHZoneDisplay?.(), 0);
   }
 }
 
@@ -3039,6 +3352,103 @@ function collectDuschabtrennungQuickAdd(doc) {
     });
   });
   doc.duschabtrennung.quickAdd = qa;
+}
+
+// --- Duschabtrennung (neu) Konfigurator collector ---
+// The ported GC/Hassmann configurator exposes its resolved net line items via
+// window.__daConfigurator.getLines(). We APPEND them to payload.duschabtrennung.quickAdd
+// (must run AFTER collectDuschabtrennungQuickAdd, which overwrites that array) so the
+// existing pricing path (logic/pricing.js: payload.duschabtrennung.quickAdd) prices them.
+// We also persist the raw config state under payload.duschabtrennung.configurator for restore.
+function collectDuschabtrennungConfigurator(doc) {
+  doc.duschabtrennung = doc.duschabtrennung || {};
+  const api = window.__daConfigurator;
+  if (!api || typeof api.getLines !== "function") return;
+
+  let lines = [];
+  try {
+    lines = api.getLines() || [];
+  } catch (e) {
+    console.warn("[daConfigurator] getLines failed:", e?.message || e);
+    return;
+  }
+  if (!Array.isArray(lines) || !lines.length) return;
+
+  const qa = Array.isArray(doc.duschabtrennung.quickAdd)
+    ? doc.duschabtrennung.quickAdd
+    : [];
+
+  for (const ln of lines) {
+    const price = Number(ln?.net) || 0;
+    if (price <= 0) continue;
+    qa.push({
+      kind: "config",
+      label: ln.label || "Duschabtrennung (Konfigurator)",
+      qty: 1,
+      // pass a numeric net price: pricing.js parseMoneyStrict returns numbers as-is,
+      // avoiding the German-format ambiguity where "411.6" would parse to 4116.
+      price: price,
+      productId: ln.articleNumber || "",
+      finish: ln.finish || null,
+    });
+  }
+  doc.duschabtrennung.quickAdd = qa;
+
+  // persist for restore
+  try {
+    const state = typeof api.getState === "function" ? api.getState() : null;
+    doc.duschabtrennung.configurator = { state, lines };
+  } catch {
+    /* non-fatal */
+  }
+}
+
+// --- Duschvorhang Konfigurator collector ---
+// Same pattern as collectDuschabtrennungConfigurator: the Duschvorhang tab exposes
+// its selected net lines via window.__vorhangConfigurator.getLines(). We APPEND them
+// to payload.duschabtrennung.quickAdd (must run AFTER the two collectors above that
+// overwrite that array) so the existing pricing path prices them, and persist the
+// raw state under payload.duschvorhang.configurator for restore.
+function collectDuschvorhangConfigurator(doc) {
+  doc.duschabtrennung = doc.duschabtrennung || {};
+  const api = window.__vorhangConfigurator;
+  if (!api || typeof api.getLines !== "function") return;
+
+  let lines = [];
+  try {
+    lines = api.getLines() || [];
+  } catch (e) {
+    console.warn("[vorhang] getLines failed:", e?.message || e);
+    return;
+  }
+  if (!Array.isArray(lines) || !lines.length) return;
+
+  const qa = Array.isArray(doc.duschabtrennung.quickAdd)
+    ? doc.duschabtrennung.quickAdd
+    : [];
+
+  for (const ln of lines) {
+    const price = Number(ln?.net) || 0;
+    if (price <= 0) continue;
+    qa.push({
+      kind: "config",
+      label: ln.label || "Duschvorhang (Konfigurator)",
+      qty: Number(ln.qty) > 0 ? Number(ln.qty) : 1,
+      price: price,
+      productId: ln.articleNumber || "",
+      finish: ln.finish || null,
+    });
+  }
+  doc.duschabtrennung.quickAdd = qa;
+
+  // persist for restore
+  try {
+    doc.duschvorhang = doc.duschvorhang || {};
+    const state = typeof api.getState === "function" ? api.getState() : null;
+    doc.duschvorhang.configurator = { state, lines };
+  } catch {
+    /* non-fatal */
+  }
 }
 
 // helper: collect "Freier Posten / Sonderprodukte" rows from a container
@@ -3347,6 +3757,10 @@ try {
         const qty = Math.max(1, Number(qtyRaw || 1) || 1);
         const price = window.parseMoneyEuro ? window.parseMoneyEuro(priceRaw) : priceRaw;
 
+        // Tubes are priced per lfm → mark the row as meters so it isn't labelled "Stk".
+        const family = String(rowEl.dataset.hlCatalogFamily || "");
+        const unit = HL_TUBE_FAMILIES.includes(family) ? "m" : undefined;
+
         rows.push({
           kind: "hl-custom",
           group,
@@ -3354,6 +3768,7 @@ try {
           productId,
           qty,
           price,
+          ...(unit ? { unit } : {}),
         });
       });
     });
@@ -3442,6 +3857,69 @@ function collectBlExtras(payload) {
   if (noteEl) bl.blNote = noteEl.value || "";
 }
 
+/* ---------- Interne Liste (Kundendaten) ----------
+   Rows carry name="internalTodos[]", so formToObject serialisiert sie automatisch
+   nach Kundendaten["internalTodos[]"] – kein eigener Collector nötig.
+   Ausgabe an den Kunden erfolgt nicht: die DOCX-Tag-Maps in offerMapping.js /
+   docx-template.js sind Allowlists und enthalten diesen Key absichtlich nicht. */
+function createInternalTodoRow(text) {
+  const row = document.createElement("div");
+  row.className = "itodo-item";
+  row.innerHTML =
+    '<input type="text" name="internalTodos[]" placeholder="Interner Eintrag …" />' +
+    '<button type="button" class="itodo-remove" aria-label="Eintrag entfernen" title="Entfernen">' +
+    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<polyline points="3 6 5 6 21 6"></polyline>' +
+    '<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>' +
+    '<path d="M10 11v6"></path><path d="M14 11v6"></path>' +
+    "</svg></button>";
+  if (text) row.querySelector("input").value = String(text);
+  return row;
+}
+
+function syncInternalTodos() {
+  const list = document.getElementById("internalTodosList");
+  if (!list) return;
+  const n = list.querySelectorAll(".itodo-item").length;
+  const count = document.getElementById("internalTodosCount");
+  if (count) {
+    count.textContent = n === 1 ? "1 Eintrag" : `${n} Einträge`;
+    count.hidden = !n;
+  }
+  const empty = document.getElementById("internalTodosEmpty");
+  if (empty) empty.hidden = n > 0;
+}
+
+function initInternalTodos(items) {
+  const list = document.getElementById("internalTodosList");
+  if (!list) return;
+  const values = (Array.isArray(items) ? items : items ? [items] : [])
+    .map((v) => String(v ?? "").trim())
+    .filter(Boolean);
+  list.innerHTML = "";
+  values.forEach((v) => list.appendChild(createInternalTodoRow(v)));
+  // zugeklappt starten, bei vorhandenen Einträgen automatisch öffnen
+  const section = document.getElementById("internalTodosSection");
+  if (section) section.open = values.length > 0;
+  syncInternalTodos();
+}
+
+function wireInternalTodos() {
+  const list = document.getElementById("internalTodosList");
+  if (!list) return;
+  document.getElementById("internalTodosAddBtn")?.addEventListener("click", () => {
+    const row = createInternalTodoRow("");
+    list.appendChild(row);
+    row.querySelector("input").focus();
+    syncInternalTodos();
+  });
+  list.addEventListener("click", (e) => {
+    if (!e.target.closest(".itodo-remove")) return;
+    e.target.closest(".itodo-item")?.remove();
+    syncInternalTodos();
+  });
+}
+
 function createWohnumfeldEntryRow(amount, fuerWas) {
   const row = document.createElement("div");
   row.className = "wohnumfeld-entry-row";
@@ -3520,6 +3998,7 @@ function buildPayload() {
     Kundendaten: formToObject(document.getElementById("form-Kundendaten")),
     duschwanne: {
       ...formToObject(document.getElementById("form-duschwanne")),
+      ...formToObject(document.getElementById("form-fussboden")),
       computed: window.__DW_COMPUTED__ || {},
     },
     wandverkleidung: formToObject(document.getElementById("form-wandverkleidung")),
@@ -3531,12 +4010,36 @@ function buildPayload() {
     //CRITICAL reenable only when ready
     //bl: formToObject(document.getElementById("form-bl")),
     ah: formToObject(document.getElementById("form-ah")),
+    Finanzierung: formToObject(document.getElementById("form-Finanzierung")),
     hms: formToObject(document.getElementById("form-hms")),
     wd: formToObject(document.getElementById("form-wd")),
   };
 
   const effectiveAufschlag = window.getEffectiveAufschlagValue?.();
   if (effectiveAufschlag) payload.Kundendaten.aufschlag = effectiveAufschlag;
+
+  // Pricing-rules marker. New offers include Kleinmaterial in the Aufschlag;
+  // legacy drafts restore this as false (set in the restore path) so their
+  // totals don't drift when reopened. Absent → treated as new (default true).
+  payload.pricingRules = { kleinInAufschlag: window.__kleinInAufschlag !== false };
+
+  // BWT Freigrenzen (km/Reisezeit): snapshot whatever's currently in effect
+  // so this offer keeps its quoted price even if the admin later changes
+  // BWT_KM_FREE_THRESHOLD / BWT_TRAVEL_TIME_FREE_HOURS. Restored legacy
+  // offers (see restore path) keep these at the historical 200/2 default
+  // instead of the live-fetched value, so reopening one doesn't silently
+  // adopt today's config before the user has chosen to.
+  payload.pricingRules.bwtKmFreeThreshold = Number(window.__bwtKmFreeThreshold ?? 200);
+  payload.pricingRules.bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHours ?? 2);
+
+  // Freeze: once true, server/PDF/DOCX generation must return frozenPricing
+  // verbatim instead of recomputing from live DB values. Set only via
+  // freezeCurrentPricing() (Schnellspeichern/Speichern unter/Sperren); cleared
+  // the moment the user edits a field (see requestPricingRefresh).
+  payload.frozen = window.__frozen === true;
+  payload.frozenPricing = payload.frozen ? (window.__frozenPricing || null) : null;
+  // Locked: full edit-lock, independent of the price freeze above.
+  payload.locked = window.__locked === true;
 
   // Parse AH service lines from JSON hidden field
   if (payload.ah && payload.ah.ahServicesJson) {
@@ -3572,6 +4075,10 @@ function buildPayload() {
         const qty = Math.max(1, Number(qtyRaw || 1) || 1);
         const price = window.parseMoneyEuro ? window.parseMoneyEuro(priceRaw) : priceRaw;
 
+        // Tubes are priced per lfm → mark the row as meters so it isn't labelled "Stk".
+        const family = String(rowEl.dataset.hlCatalogFamily || "");
+        const unit = HL_TUBE_FAMILIES.includes(family) ? "m" : undefined;
+
         rows.push({
           kind: "hl-custom",
           group,
@@ -3579,6 +4086,7 @@ function buildPayload() {
           productId,
           qty,
           price,
+          ...(unit ? { unit } : {}),
         });
       });
     });
@@ -3597,6 +4105,8 @@ function buildPayload() {
 
   collectWandverkleidungMaterials(payload);
   collectDuschabtrennungQuickAdd(payload);
+  collectDuschabtrennungConfigurator(payload);
+  collectDuschvorhangConfigurator(payload);
 
   if (String(currentOfferKey || "").toLowerCase() === "bwt") {
     collectBwtMaterials(payload);
@@ -3647,7 +4157,7 @@ function buildPayload() {
      DUSCHWANNE: reliably collect workTasks array
      =========================== */
   try {
-    const formDW = document.getElementById("form-duschwanne");
+    const formDW = document.getElementById("form-Arbeiten") || document.getElementById("form-duschwanne");
     if (formDW) {
       const fdDW = new FormData(formDW);
       const dwTasks = fdDW.getAll("duschwanne[workTasks][]");
@@ -3662,6 +4172,9 @@ function buildPayload() {
       if ("duschwanne[workTasks][]" in payload.duschwanne) {
         delete payload.duschwanne["duschwanne[workTasks][]"];
       }
+
+      const wvHoehe = String(fdDW.get("duschwanne[wandverkleidungHoehe]") || "").trim();
+      if (wvHoehe) dw.wandverkleidungHoehe = wvHoehe;
     }
   } catch (e) {
     console.warn("[buildPayload] workTasks normalization failed:", e);
@@ -3671,18 +4184,25 @@ function buildPayload() {
      DUSCHWANNE: ensure multi-select arrays are captured
      =========================== */
   try {
-    const formDW = document.getElementById("form-duschwanne");
-    if (formDW) {
-      const fdDW = new FormData(formDW);
-      const getAllVals = (name) => fdDW.getAll(name).map((v) => String(v));
+    const formDW = document.getElementById("form-fussboden");
+    const formExtraTasks =
+      document.getElementById("form-Arbeiten") ||
+      document.getElementById("form-duschwanne");
+    if (formDW || formExtraTasks) {
+      const fdDW = formDW ? new FormData(formDW) : null;
+      const fdExtra = formExtraTasks ? new FormData(formExtraTasks) : null;
+      const getAllVals = (name) =>
+        (fdDW ? fdDW.getAll(name) : []).map((v) => String(v));
+      const getAllExtraVals = (name) =>
+        (fdExtra ? fdExtra.getAll(name) : []).map((v) => String(v));
 
       const flooringProduct = getAllVals("flooringProduct[]");
       const floorAdhesive = getAllVals("floorAdhesive[]");
       const floorSealing = getAllVals("floorSealing[]");
 
       let extraTasks = [
-        ...getAllVals("duschwanne[extraTasks][]"),
-        ...getAllVals("extraTasks[]"),
+        ...getAllExtraVals("duschwanne[extraTasks][]"),
+        ...getAllExtraVals("extraTasks[]"),
       ]
         .map((s) => s.trim())
         .filter(Boolean);
@@ -3849,13 +4369,29 @@ function buildPayload() {
     payload.Kundendaten.pflegekasseEmc2Antrag = "";
   }
 
+  // Two-person address/greeting overrides (Zusammenfassung). Only for a real
+  // two-person offer; otherwise leave empty so the PDF composes the single-person
+  // name/greeting itself. Empty string => mapData fallback.
+  const _twoPersonsFinal = !_isSZ && !!payload.Kundendaten.twoPersons;
+  payload.Kundendaten.kundenName = _twoPersonsFinal
+    ? String(document.getElementById("zfKundenName")?.value || "").trim()
+    : "";
+  payload.Kundendaten.greetingLine = _twoPersonsFinal
+    ? String(document.getElementById("zfGreetingLine")?.value || "").trim()
+    : "";
+
+  const rabattEnabled =
+    document.querySelector('input[name="rb-add-rabatt"]:checked')?.value === "ja";
   const pct = parseFloat(document.getElementById("rb-material-discount")?.value || "0");
   payload.rabatt = {
     ...payload.rabatt,
-    materialDiscountPct: isFinite(pct) ? pct / 100 : 0,
-    bonus300: !!document.getElementById("rb-bonus-300")?.checked,
-    bonusGrab: !!document.getElementById("rb-bonus-grab")?.checked,
-    showFreeGrabInMaterial: !!document.getElementById("rb-show-free-grab")?.checked,
+    rabattEnabled,
+    // When "Kein Rabatt" is selected, force everything to zero regardless of stale DOM.
+    materialDiscountPct: rabattEnabled && isFinite(pct) ? pct / 100 : 0,
+    bonus300: rabattEnabled && !!document.getElementById("rb-bonus-300")?.checked,
+    bonusGrab: rabattEnabled && !!document.getElementById("rb-bonus-grab")?.checked,
+    showFreeGrabInMaterial:
+      rabattEnabled && !!document.getElementById("rb-show-free-grab")?.checked,
   };
 
   payload.offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
@@ -3884,6 +4420,7 @@ function buildPayload() {
     );
 
     const distanceKm = (document.getElementById("distanceKm")?.value || "").toString().trim();
+    const ahTravelZone = parseInt(document.getElementById("ahTravelZone")?.value || "0") || 0;
     const travelSecondWorkerRate = getTravelSecondWorkerRateValue();
 
     const autoSuggestion =
@@ -3901,6 +4438,7 @@ function buildPayload() {
       laborHoursHHMM: laborHHMM,
       travelTimeHHMM: travelHHMM,
       distanceKm,
+      ahTravelZone,
       travelSecondWorkerRate,
       laborHoursSource: window.labor_hours_source || "manual",
       autoSuggestedHoursHHMM: autoSuggestion?.totalHoursHHMM || "",
@@ -4111,6 +4649,29 @@ if (anschlag) {
     console.warn("[buildPayload] BWT arrays capture failed:", e);
   }
 
+  // ---- BWT: Auszuführende-Arbeiten tab (workTasks checkbox + free-text list) ----
+  try {
+    const formBwtArbeiten = document.getElementById("form-bwtArbeiten");
+    if (formBwtArbeiten) {
+      const fd = new FormData(formBwtArbeiten);
+      const bwt = payload.bwt || (payload.bwt = {});
+      // Always set (even []) so unchecking/clearing survives save + reload.
+      bwt.workTasks = fd.getAll("bwt[workTasks][]").map((v) => String(v));
+      bwt.extraTasks = Array.from(
+        new Set(
+          fd
+            .getAll("bwt[extraTasks][]")
+            .map((v) => String(v).trim())
+            .filter(Boolean),
+        ),
+      );
+      if ("bwt[workTasks][]" in bwt) delete bwt["bwt[workTasks][]"];
+      if ("bwt[extraTasks][]" in bwt) delete bwt["bwt[extraTasks][]"];
+    }
+  } catch (e) {
+    console.warn("[buildPayload] BWT Arbeiten capture failed:", e);
+  }
+
   // ---- HL: enrich payload.hl with structured pipes + extras ----
   try {
     payload.hl = payload.hl || {};
@@ -4148,7 +4709,20 @@ if (anschlag) {
   payload.includeOurSignature = !!document.getElementById("includeOurSignature")?.checked;
   payload.ourSignatureUser =
     document.getElementById("ourSignatureUser")?.value?.trim() || "t.raithel";
+  // Persist auftragId at top level so it survives regardless of postal section usage
+  payload.auftragId = (document.getElementById("auftragId")?.value || "").trim() || undefined;
   payload.postal = readPostalStateForPayload();
+
+  // ✅ E-Mail-Versand fields (mail card lives outside any form-* element, so it
+  // is not picked up by formToObject above). Persist so drafts can restore the
+  // recipient, subject and body — the body also carries the dynamic
+  // Ansprechpartner name embedded in its text.
+  payload.mail = {
+    auftragId: (document.getElementById("mailAuftragId")?.value || "").trim(),
+    to: (document.getElementById("mailTo")?.value || "").trim(),
+    subject: (document.getElementById("mailSubject")?.value || "").trim(),
+    body: document.getElementById("mailBody")?.value || "",
+  };
 
   return filterPayloadByOffer(payload);
 
@@ -4664,7 +5238,6 @@ async function downloadPDFWithProgress(endpoint, payload) {
     }
 
     if (typeof requireBereichValid === "function" && !requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
 
@@ -4733,6 +5306,10 @@ async function downloadPDFWithProgress(endpoint, payload) {
     clearTimeout(autoRefreshTimer);
     autoRefreshTimer = setTimeout(async () => {
       if (!activePreviewConfig || previewInFlight) return;
+      // Re-check: the user may have navigated away during the debounce. An
+      // automatic refresh must not run (nor trigger requireBereichValid's
+      // toast/redirect) when the Zusammenfassung tab is no longer active.
+      if (!isZusammenfassungActive()) return;
       try {
         if (status) status.textContent = `${activePreviewConfig.title} wird aktualisiert…`;
         await openInlineDocumentPreview(activePreviewConfig);
@@ -4762,10 +5339,7 @@ async function downloadPDFWithProgress(endpoint, payload) {
     });
   }
 
-  bindPreviewButton("previewOfferDocx", "offer");
   bindPreviewButton("previewOfferPdf", "offer");
-  bindPreviewButton("previewMaterialOverviewPdf", "material");
-  bindPreviewButton("previewArbeitsberichtPdf", "arbeitsbericht");
   bindPreviewButton("previewKalkulation", "kalkulation");
   bindPreviewButton("previewHassmannCart", "hassmann");
 
@@ -4808,7 +5382,7 @@ async function downloadPDFWithProgress(endpoint, payload) {
 
 // === FIX: area <-> color coupling (self-contained) ===
 function syncColorWithAreaDW() {
-  const form = document.getElementById("form-duschwanne");
+  const form = document.getElementById("form-fussboden");
   if (!form) return;
 
   const areaEl = form.querySelector("#floorArea");
@@ -4907,7 +5481,6 @@ function collectAllFormData() {
 
   async function generateWithAdobe(endpoint, fileType) {
     if (typeof requireBereichValid === "function" && !requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
 
@@ -4964,7 +5537,6 @@ function collectAllFormData() {
 
   async function generateBoth() {
     if (typeof requireBereichValid === "function" && !requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
 
@@ -5045,9 +5617,18 @@ function collectAllFormData() {
 /* ========== HELPERS ========== */
 function flashInvalid(el) {
   if (!el) return;
-  el.style.borderColor = "var(--danger)";
-  el.scrollIntoView({ behavior: "smooth", block: "center" });
-  setTimeout(() => (el.style.borderColor = ""), 1200);
+  // Pill-styled radios/checkboxes (.radio-pill, .zone-pill, .payer-card,
+  // .check-pill, …) hide the native input with display:none and style a
+  // wrapper instead — flashing the input itself would be invisible, so walk
+  // up to the nearest rendered ancestor.
+  let target = el;
+  while (target.parentElement && getComputedStyle(target).display === "none") {
+    target = target.parentElement;
+  }
+  target.style.borderColor = "var(--danger)";
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.focus?.({ preventScroll: true });
+  setTimeout(() => (target.style.borderColor = ""), 1200);
 }
 function euro(n) {
   return new Intl.NumberFormat("de-DE", {
@@ -5272,6 +5853,71 @@ function updateSummaryWidgetSubsidyVisibility() {
   row.style.display = "";
 }
 
+window.fetchAndSetDeal = async function fetchAndSetDeal(contactId) {
+  const row   = document.getElementById("swDealRow");
+  const value = document.getElementById("swDealValue");
+  if (!row || !value) return;
+
+  const id = String(contactId || "").trim();
+  if (!id) { row.style.display = "none"; return; }
+
+  function applyDealId(dealId) {
+    ["auftragId", "mailAuftragId", "postAuftragId"].forEach(function(fieldId) {
+      var el = document.getElementById(fieldId);
+      if (el) {
+        el.value = dealId;
+        el.dispatchEvent(new Event("input",  { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+  }
+
+  try {
+    const res  = await fetch(`/api/bitrix/contact/${encodeURIComponent(id)}/deals`);
+    const data = await res.json();
+    const deals = Array.isArray(data.deals) ? data.deals : [];
+
+    if (deals.length === 0) {
+      row.style.display = "none";
+      return;
+    }
+
+    row.style.display = "";
+
+    if (deals.length === 1) {
+      applyDealId(deals[0].id);
+      value.textContent = deals[0].id;
+      return;
+    }
+
+    // Multiple deals — scrollable pick list
+    const list = document.createElement("div");
+    list.style.cssText =
+      "max-height:80px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; width:100%; margin-top:2px;";
+
+    deals.forEach(function(deal) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = deal.id;
+      btn.style.cssText =
+        "text-align:left; background:none; border:1px solid var(--border); border-radius:4px;" +
+        "padding:2px 6px; font-size:0.75rem; cursor:pointer; color:var(--text); white-space:nowrap;";
+      btn.addEventListener("click", function() {
+        applyDealId(deal.id);
+        value.textContent = deal.id;
+        list.remove();
+      });
+      list.appendChild(btn);
+    });
+
+    value.textContent = "";
+    value.appendChild(list);
+  } catch (e) {
+    console.warn("[fetchAndSetDeal] error:", e);
+    row.style.display = "none";
+  }
+};
+
 /* ========== End HELPERS  for the floating widget ========== */
 // #endregion
 // =================================================================
@@ -5316,6 +5962,17 @@ function validateDuschwanne() {
   let bad = f.querySelector('input[name="traySize"]:checked')
     ? null
     : f.querySelector('input[name="traySize"]')?.closest("label");
+  if (bad) {
+    flashInvalid(bad.tagName === "INPUT" ? bad : bad.querySelector("input"));
+    alert('Bitte füllen Sie alle Pflichtfelder in „Duschwanne" aus.');
+    return false;
+  }
+  return true;
+}
+function validateFussboden() {
+  const f = document.getElementById("form-fussboden");
+  if (!f) return true;
+  let bad = null;
   const add = f.querySelector("#addFlooring");
   if (add?.checked) {
     const area = f.querySelector("#floorArea");
@@ -5331,7 +5988,7 @@ function validateDuschwanne() {
   }
   if (bad) {
     flashInvalid(bad.tagName === "INPUT" ? bad : bad.querySelector("input"));
-    alert('Bitte füllen Sie alle Pflichtfelder in „Duschwanne" aus.');
+    alert('Bitte füllen Sie alle Pflichtfelder in „Fußboden" aus.');
     return false;
   }
   return true;
@@ -5371,15 +6028,44 @@ function requireBereichValid() {
   const form = document.getElementById("form-Kundendaten");
   if (typeof window.validateAufschlagSelection === "function") {
     const aufschlagOk = window.validateAufschlagSelection({ report: true });
-    if (!aufschlagOk) return false;
+    if (!aufschlagOk) {
+      // Aufschlag lives on the Kundendaten page for most offers, but is
+      // relocated onto the Rabatt page for bu/bwt/hl (see relocateAufschlag).
+      // Switch to wherever it actually is, not always "Kundendaten".
+      const sec = document.getElementById("aufschlagSection");
+      const step = sec?.closest(".page")?.id?.replace(/^page-/, "");
+      if (step && typeof window.setStep === "function") window.setStep(step);
+      flashInvalid(document.getElementById("sonderaufschlagValue"));
+      window.toast?.error(
+        "Angaben unvollständig",
+        "Bitte prüfen Sie die rot markierten Pflichtfelder."
+      );
+      return false;
+    }
   }
-  if (!form.reportValidity()) {
-    focusFirstBereichConditionalError();
-    return false;
+  // Auto-fill today's date if empty (previously done inside validateBereich).
+  const dateEl = document.getElementById("date");
+  if (dateEl && !dateEl.value) dateEl.valueAsDate = new Date();
+
+  // Decide validity WITHOUT navigating. checkValidity() works even while the
+  // Kundendaten tab is hidden, so we must NOT switch tabs first — doing that
+  // unconditionally yanked the user to Kundendaten on every export even when
+  // everything was valid (the PDF then generated anyway from another handler).
+  if (form.checkValidity()) return true;
+
+  // Invalid: now reveal the Kundendaten tab so the highlight/bubble is visible,
+  // then show exactly what's missing.
+  if (form.closest(".page")?.hidden && typeof window.setStep === "function") {
+    window.setStep("Kundendaten");
   }
-  const ok = validateBereich();
-  if (!ok) focusFirstBereichConditionalError();
-  return ok;
+  form.reportValidity();
+  flashInvalid(form.querySelector(":invalid"));
+  focusFirstBereichConditionalError();
+  window.toast?.error(
+    "Angaben unvollständig",
+    "Bitte prüfen Sie die rot markierten Pflichtfelder in „Kundendaten“."
+  );
+  return false;
 }
 function validateArbeitszeit() {
   const f = document.getElementById("form-Arbeitszeit");
@@ -5398,7 +6084,33 @@ const TILE_TO_OFFER = {
    "HMS-Hausmeister-Service": "hms",
    "WD-Winterdienst": "wd",
 };
-// Auswahl der Leistung tiles → start the corresponding offer flow
+const OFFER_KEY_LABELS = {
+  bu: "BU · Badumbau",
+  bwt: "BWT · Badewannentür",
+  hl: "HL · Handlauf",
+  bl: "BL · Badelift",
+  ah: "AH · Alltagshilfe",
+  hms: "HMS · Hausmeister-Service",
+  wd: "WD · Winterdienst",
+};
+
+// Applies the Hauptmenü-armed Bitrix deal (contact + dealId) to whichever
+// Konfigurator was just opened. Must run after startOfferFlow()'s
+// resetAllForms(), never before, or the values get wiped immediately.
+function applyArmedDealToForm() {
+  if (!window.armedHomeDeal) return;
+  fillCustomerForm(window.armedHomeDeal.contact);
+  ["auftragId", "mailAuftragId", "postAuftragId"].forEach((fieldId) => {
+    const el = document.getElementById(fieldId);
+    if (!el) return;
+    el.value = window.armedHomeDeal.dealId;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  window.armedHomeDeal = null;
+}
+
+// Hauptmenü tiles → start the corresponding offer flow
 document.addEventListener("click", (event) => {
   const tile = event.target.closest(".tile-btn");
   if (!tile) return;
@@ -5409,7 +6121,201 @@ document.addEventListener("click", (event) => {
 
   event.preventDefault();
   startOfferFlow(offerKey);
+  applyArmedDealToForm();
 });
+
+// ---------- Bitrix Deal-ID dialog (Hauptmenü) ----------
+function closeDealActionDialog() {
+  const modal = document.getElementById("dealActionModal");
+  if (!modal) return;
+  modal.hidden = true;
+  modal.setAttribute("aria-hidden", "true");
+}
+
+function openDealActionDialog(identity, existingItems) {
+  const modal = document.getElementById("dealActionModal");
+  const identityEl = document.getElementById("dealActionIdentity");
+  const tilesEl = document.getElementById("dealActionTiles");
+  const existingWrap = document.getElementById("dealActionExistingWrap");
+  const existingList = document.getElementById("dealActionExistingList");
+  if (!modal || !identityEl || !tilesEl || !existingWrap || !existingList) return;
+
+  identityEl.textContent =
+    `Deal #${identity.dealId}` +
+    (identity.dealTitle ? ` — ${identity.dealTitle}` : "") +
+    ` — von ${identity.contactName || "Kontakt geladen"}`;
+
+  tilesEl.innerHTML = "";
+  Object.entries(OFFER_KEY_LABELS).forEach(([offerKey, label]) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "secondary";
+    btn.textContent = label;
+    btn.addEventListener("click", () => {
+      closeDealActionDialog();
+      startOfferFlow(offerKey);
+      applyArmedDealToForm();
+    });
+    tilesEl.appendChild(btn);
+  });
+
+  const items = Array.isArray(existingItems) ? existingItems : [];
+  if (!items.length) {
+    existingWrap.hidden = true;
+    existingList.innerHTML = "";
+  } else {
+    existingWrap.hidden = false;
+    existingList.innerHTML = "";
+    items.forEach((item) => {
+      const isDraft = item._type === "draft";
+      const title =
+        [item.firstName, item.lastName].filter(Boolean).join(" ").trim() ||
+        item.name ||
+        item.offerNumber ||
+        "Ohne Titel";
+      const dateText = item.updatedAt
+        ? new Date(item.updatedAt).toLocaleString("de-DE")
+        : "";
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "home-search-result";
+      btn.innerHTML = `
+        <div class="home-search-result__top">
+          <div class="home-search-result__title"></div>
+          <div class="home-search-result__badges">
+            <span class="home-search-badge ${isDraft ? "home-search-badge--draft" : "home-search-badge--offer"}">${isDraft ? "Entwurf" : "Angebot"}</span>
+            ${item.offerType ? `<span class="home-search-badge"></span>` : ""}
+          </div>
+        </div>
+        <div class="home-search-result__meta">
+          ${item.offerNumber ? "<strong></strong>" : ""}
+        </div>
+      `;
+      btn.querySelector(".home-search-result__title").textContent = title;
+      if (item.offerType) {
+        btn.querySelector(".home-search-badge:last-child").textContent = String(item.offerType).toUpperCase();
+      }
+      if (item.offerNumber) {
+        btn.querySelector(".home-search-result__meta strong").textContent = item.offerNumber;
+      }
+      const metaEl = btn.querySelector(".home-search-result__meta");
+      if (dateText) metaEl.append(`${item.offerNumber ? " · " : ""}${dateText}`);
+
+      btn.addEventListener("click", async () => {
+        closeDealActionDialog();
+        window.armedHomeDeal = null;
+        await loadGlobalOfferSearchResult(item);
+      });
+      existingList.appendChild(btn);
+    });
+  }
+
+  modal.hidden = false;
+  modal.setAttribute("aria-hidden", "false");
+}
+
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-deal-action-close]")) closeDealActionDialog();
+});
+
+// Hauptmenü "Bitrix Deal laden" — loads a deal + its contact by Deal-ID,
+// looks up any existing drafts/offers already saved for it, then opens a
+// dialog to pick a Konfigurator or resume an existing one (no inline status
+// text on the Hauptmenü itself — the dialog carries that information).
+(() => {
+  const input = document.getElementById("homeDealIdInput");
+  const btn = document.getElementById("btnLoadDeal");
+  const statusEl = document.getElementById("homeDealStatus");
+  if (!input || !btn || !statusEl) return;
+
+  const setError = (msg) => {
+    statusEl.hidden = false;
+    statusEl.className = "status err";
+    statusEl.textContent = msg;
+  };
+
+  const loadDeal = async () => {
+    const id = input.value.trim();
+    if (!id) {
+      setError("Bitte eine Bitrix Deal-ID eingeben");
+      return;
+    }
+
+    statusEl.hidden = true;
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Laden…";
+
+    try {
+      const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(id)}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Fehler beim Laden des Deals");
+
+      const { deal, contact } = data;
+      if (!contact) throw new Error("Zu diesem Deal ist kein Kontakt hinterlegt");
+
+      const phone =
+        Array.isArray(contact.PHONE) && contact.PHONE[0] ? contact.PHONE[0].VALUE : "";
+      const email =
+        Array.isArray(contact.EMAIL) && contact.EMAIL[0] ? contact.EMAIL[0].VALUE : "";
+      const honorificId = String(
+        contact?.HONORIFIC?.STATUS_ID ?? contact?.HONORIFIC ?? contact?.HONORIFIC_ID ?? "",
+      ).trim();
+      const salutation = { HNR_DE_1: "Frau", HNR_DE_2: "Herr", "1": "Familie" }[honorificId] || "";
+
+      window.armedHomeDeal = {
+        dealId: deal.id,
+        contact: {
+          bitrixContactId: contact.ID,
+          customerNumber: contact.ID,
+          firstName: contact.NAME || "",
+          lastName: contact.LAST_NAME || "",
+          company: contact.COMPANY_TITLE || "",
+          email,
+          phone,
+          salutation,
+          street: contact.ADDRESS || "",
+          city: contact.ADDRESS_CITY || "",
+          postalCode: contact.ADDRESS_POSTAL_CODE || "",
+          state: contact.ADDRESS_REGION || contact.ADDRESS_PROVINCE || "",
+          country: contact.ADDRESS_COUNTRY || "",
+        },
+      };
+
+      const contactName = [contact.NAME, contact.LAST_NAME].filter(Boolean).join(" ");
+
+      // Best-effort: existing-drafts/offers lookup must never block opening
+      // the dialog if it fails or is slow.
+      let existingItems = [];
+      try {
+        const existingRes = await fetch(`/api/offers/by-deal/${encodeURIComponent(String(deal.id))}`);
+        if (existingRes.ok) existingItems = await existingRes.json();
+      } catch (e) {
+        console.warn("[deal dialog] by-deal lookup failed:", e);
+      }
+
+      openDealActionDialog(
+        { dealId: deal.id, dealTitle: deal.title, contactName: contactName || contact.COMPANY_TITLE || "" },
+        existingItems,
+      );
+    } catch (e) {
+      window.armedHomeDeal = null;
+      setError(e.message || "Fehler beim Laden des Deals");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  };
+
+  btn.addEventListener("click", loadDeal);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      loadDeal();
+    }
+  });
+})();
 /* ========== NAV BUTTONS ========== */
 document.body.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-nav]");
@@ -5436,7 +6342,9 @@ document.body.addEventListener("click", (e) => {
           ? validateArbeitszeit()
           : step === "duschwanne"
             ? validateDuschwanne()
-            : step === "wandverkleidung"
+            : step === "Fussboden"
+              ? validateFussboden()
+              : step === "wandverkleidung"
               ? validateWandverkleidung()
               : step === "duschabtrennung"
                 ? validateDuschabtrennung()
@@ -5452,6 +6360,65 @@ document.body.addEventListener("click", (e) => {
     setStep(flow[nextIdx]);
   }
 });
+// AH: Entlastungsbetrag (§ 45b SGB XI) — admin-configurable, defaults to 131€/Monat
+// while /admin/api/config/public is loading.
+window.__entlastungsbetragMonat = 131;
+// AH: Verhinderungspflege / Pflegesachleistungen-Umwidmung / § 35a — also admin-configurable.
+window.__verhinderungspflegeJahr = 2418;
+window.__steuerabsetzPct = 20;
+window.__steuerabsetzCapJahr = 4000;
+// BWT: Freigrenzen für Reisezeit/Kilometerpauschale — admin-konfigurierbar.
+// window.__bwt*Live always mirrors the current admin-panel value (refreshed
+// below); window.__bwtKmFreeThreshold/__bwtTravelTimeFreeHours is what
+// buildPayload() actually snapshots into the offer, and gets pinned to a
+// restored offer's own saved value in the restore path — so switching to a
+// legacy offer, then back to a fresh one, doesn't leak the legacy value into
+// the new offer (startOfferFlow resets it back to *Live).
+window.__bwtTravelTimeFreeHoursLive = 2;
+window.__bwtKmFreeThresholdLive = 200;
+window.__bwtTravelTimeFreeHours = 2;
+window.__bwtKmFreeThreshold = 200;
+window.__fahrzeugbereitstellung = 80.0;
+window.__werkzeug = 7.5;
+window.__beraeumung = 4.5;
+fetch("/admin/api/config/public")
+  .then(function (r) { return r.ok ? r.json() : null; })
+  .then(function (d) {
+    if (!d) return;
+    if (typeof d.ENTLASTUNGSBETRAG_MONAT === "number") {
+      window.__entlastungsbetragMonat = d.ENTLASTUNGSBETRAG_MONAT;
+      var labelVal = document.getElementById("ahEntlastungAutoLabelValue");
+      if (labelVal) labelVal.textContent = String(d.ENTLASTUNGSBETRAG_MONAT);
+      var ebLabel = document.getElementById("ebMonatLabel");
+      if (ebLabel) ebLabel.textContent = String(d.ENTLASTUNGSBETRAG_MONAT);
+    }
+    if (typeof d.VERHINDERUNGSPFLEGE_JAHR === "number") {
+      window.__verhinderungspflegeJahr = d.VERHINDERUNGSPFLEGE_JAHR;
+      var vpLabel = document.getElementById("vpJahresbudgetLabel");
+      if (vpLabel) vpLabel.textContent = String(d.VERHINDERUNGSPFLEGE_JAHR).replace(".", ",");
+      var vpSlider = document.getElementById("ahVerhinderungspflegeMonat");
+      if (vpSlider) vpSlider.max = String(Math.round((d.VERHINDERUNGSPFLEGE_JAHR / 12) * 100) / 100);
+    }
+    if (typeof d.STEUERABSETZ_PCT === "number") window.__steuerabsetzPct = d.STEUERABSETZ_PCT;
+    if (typeof d.STEUERABSETZ_CAP_JAHR === "number") window.__steuerabsetzCapJahr = d.STEUERABSETZ_CAP_JAHR;
+    if (typeof d.BWT_TRAVEL_TIME_FREE_HOURS === "number") {
+      window.__bwtTravelTimeFreeHoursLive = d.BWT_TRAVEL_TIME_FREE_HOURS;
+      // Only adopt it for the active offer if nothing has restored a pinned
+      // value yet (i.e. we're on a fresh, unsaved offer).
+      if (!window.__bwtFreigrenzenLegacyOffer) window.__bwtTravelTimeFreeHours = d.BWT_TRAVEL_TIME_FREE_HOURS;
+    }
+    if (typeof d.BWT_KM_FREE_THRESHOLD === "number") {
+      window.__bwtKmFreeThresholdLive = d.BWT_KM_FREE_THRESHOLD;
+      if (!window.__bwtFreigrenzenLegacyOffer) window.__bwtKmFreeThreshold = d.BWT_KM_FREE_THRESHOLD;
+    }
+    if (typeof d.FAHRZEUGBEREITSTELLUNG === "number") window.__fahrzeugbereitstellung = d.FAHRZEUGBEREITSTELLUNG;
+    if (typeof d.WERKZEUG === "number") window.__werkzeug = d.WERKZEUG;
+    if (typeof d.BERAEUMUNG === "number") window.__beraeumung = d.BERAEUMUNG;
+    if (typeof window.__refreshFinanzierungUI === "function") window.__refreshFinanzierungUI();
+    if (typeof renderTravelCostDebug === "function") renderTravelCostDebug();
+  })
+  .catch(function () {});
+
 // AH: dynamic multi-service card list
 (function initAhServicesPage() {
   var form = document.getElementById("form-ah");
@@ -5481,6 +6448,15 @@ document.body.addEventListener("click", (e) => {
     "Halbjährlich":      2 / 12,
     "Jährlich":          1 / 12,
   };
+
+  // "Optimize Dauer" button: fit under the (2025) monthly Entlastungsbetrag.
+  var STUNDENSATZ_HND = 40.56;
+  var STUNDENSATZ_AB  = 53.04;
+  var ANFAHRT_PER_EINSATZ = 7.96;
+  // Toggle: also count Anfahrtspauschale + Reisezeit (from getAHZoneData()) toward
+  // the 131,40€ fit, so the *total* invoice price (not just the service time) stays
+  // under budget. Set to false to fit on service price alone.
+  var OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT = true;
 
   var ALLTAGSTASKS = [
     { id: "wohnungsreinigung",  label: "Wohnungsreinigung (Staubsaugen, Wischen, Bad, Küche)" },
@@ -5519,21 +6495,21 @@ document.body.addEventListener("click", (e) => {
         card.querySelectorAll(".ah-sched-row").forEach(function (row) {
           var dEl = row.querySelector("[data-card-field=dauer]");
           var rEl = row.querySelector("[data-card-field=regelmaessigkeit]");
-          var uEl = row.querySelector("[data-card-field=bevorzugteUhrzeit]");
           schedules.push({
-            dauer:             dEl ? dEl.value : "",
-            regelmaessigkeit:  rEl ? rEl.value : "",
-            bevorzugteUhrzeit: uEl ? uEl.value : "",
+            dauer:            dEl ? dEl.value : "",
+            regelmaessigkeit: rEl ? rEl.value : "",
           });
         });
         var taskIds = [];
         card.querySelectorAll("input[type=checkbox][data-task-id]:checked").forEach(function (cb) {
           taskIds.push(cb.getAttribute("data-task-id"));
         });
+        var combinedVisitCb = card.querySelector(".ah-combined-visit");
         services.push({
           type: type,
           schedules: schedules,
           tasks: taskIds,
+          combinedVisit: combinedVisitCb ? combinedVisitCb.checked : false,
         });
       });
     });
@@ -5547,6 +6523,10 @@ document.body.addEventListener("click", (e) => {
     if (typeof getCurrentStep === "function" && getCurrentStep() === "Kosten" &&
         typeof window.renderFromData === "function") {
       window.renderFromData({});
+    }
+    // Live-refresh AH Kosten-Vorschau bar
+    if (typeof window.renderAHKostenPreview === "function") {
+      window.renderAHKostenPreview();
     }
   }
 
@@ -5580,7 +6560,7 @@ document.body.addEventListener("click", (e) => {
       row.style.cssText =
         "display:flex; align-items:center; gap:8px; padding:8px 12px;" +
         (isLast ? "" : "border-bottom:1px solid var(--border);") +
-        (isChecked ? "background:var(--accent-light,#eff6ff);" : "");
+        (isChecked ? "background:var(--accent-weak); color:var(--accent-strong);" : "");
 
       var cb = document.createElement("input");
       cb.type = "checkbox";
@@ -5597,7 +6577,8 @@ document.body.addEventListener("click", (e) => {
       });
 
       cb.addEventListener("change", function () {
-        row.style.background = cb.checked ? "var(--accent-light,#eff6ff)" : "";
+        row.style.background = cb.checked ? "var(--accent-weak)" : "";
+        row.style.color      = cb.checked ? "var(--accent-strong)" : "";
       });
 
       row.appendChild(cb);
@@ -5657,32 +6638,35 @@ document.body.addEventListener("click", (e) => {
 
     var infoPanel = document.createElement("div");
     infoPanel.style.cssText =
-      "display:none; font-size:0.75rem; background:var(--bg-alt,#f8fafc);" +
+      "display:none; font-size:0.75rem; background:var(--panel);" +
       "border:1px solid var(--border); border-radius:6px; padding:10px 12px; margin-top:4px;";
     infoPanel.innerHTML =
-      "<div style='font-weight:600; margin-bottom:6px; color:var(--text,#1e293b);'>Berechnungsregel</div>" +
-      "<div style='margin-bottom:6px; color:var(--text-muted,#64748b);'>" +
-        "Gesamt = <strong>Dauer × Häufigkeit × Zeitraum</strong><br>" +
-        "Basis: 52 Wochen/Jahr ÷ 12 → stabiler Monatsdurchschnitt." +
-      "</div>" +
-      "<table style='border-collapse:collapse; width:100%;'>" +
-        "<thead><tr style='color:var(--text-muted,#64748b);'>" +
-          "<th style='text-align:left; padding:2px 8px 2px 0; font-weight:500;'>Regelmäßigkeit</th>" +
-          "<th style='text-align:center; padding:2px 4px; font-weight:500;'>Formel</th>" +
-          "<th style='text-align:right; padding:2px 4px; font-weight:500;'>/ Monat</th>" +
-          "<th style='text-align:right; padding:2px 0 2px 4px; font-weight:500; color:var(--accent,#0ea5e9);'>Verwendet</th>" +
-        "</tr></thead>" +
-        "<tbody style='color:var(--text,#1e293b);'>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Wöchentlich</td><td style='text-align:center; padding:1px 4px;'>52 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 4,33×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 4,33×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>14-tägig</td><td style='text-align:center; padding:1px 4px;'>26 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 2,17×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 2,17×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>alle drei Wochen</td><td style='text-align:center; padding:1px 4px;'>(52÷3) ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 1,44×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 1,44×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Monatlich</td><td style='text-align:center; padding:1px 4px;'>1</td><td style='text-align:right; padding:1px 4px;'>1×</td><td style='text-align:right; padding:1px 0 1px 4px;'>1×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Vierteljährlich</td><td style='text-align:center; padding:1px 4px;'>4 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 0,33×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 0,33×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Halbjährlich</td><td style='text-align:center; padding:1px 4px;'>2 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 0,17×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 0,17×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Jährlich</td><td style='text-align:center; padding:1px 4px;'>1 ÷ 12</td><td style='text-align:right; padding:1px 4px;'>≈ 0,083×</td><td style='text-align:right; padding:1px 0 1px 4px;'>≈ 0,083×</td></tr>" +
-          "<tr><td style='padding:1px 8px 1px 0;'>Einmalig</td><td style='text-align:center; padding:1px 4px;'>1× gesamt</td><td style='text-align:right; padding:1px 4px;'>—</td><td style='text-align:right; padding:1px 0 1px 4px;'>—</td></tr>" +
+      "<div style='font-weight:700; margin-bottom:8px; color:var(--text,#1e293b); font-size:0.78rem; letter-spacing:0.01em;'>Berechnungsregel</div>" +
+      "<p style='margin:0 0 10px; font-size:0.73rem; color:var(--text-muted,#64748b); line-height:1.5;'>" +
+        "Gesamt = <strong style='color:var(--text,#1e293b);'>Dauer × Häufigkeit × Zeitraum</strong><br>" +
+        "Basis: 52 Wochen/Jahr ÷ 12 = stabiler Monatsdurchschnitt" +
+      "</p>" +
+      "<div style='border:1px solid var(--border); border-radius:6px; overflow:hidden;'>" +
+      "<table style='border-collapse:collapse; width:100%; font-size:0.74rem;'>" +
+        "<thead>" +
+          "<tr style='background:rgba(14,165,233,0.07);'>" +
+            "<th style='text-align:left; padding:7px 14px; font-weight:600; color:var(--text-muted,#64748b); border-bottom:1px solid var(--border);'>Regelmäßigkeit</th>" +
+            "<th style='text-align:center; padding:7px 14px; font-weight:600; color:var(--text-muted,#64748b); border-bottom:1px solid var(--border);'>Formel</th>" +
+            "<th style='text-align:right; padding:7px 14px; font-weight:600; color:var(--accent,#0ea5e9); border-bottom:1px solid var(--border);'>× / Monat</th>" +
+          "</tr>" +
+        "</thead>" +
+        "<tbody>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Wöchentlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>52 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>4,33×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>14-tägig</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>26 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>2,17×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>alle drei Wochen</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>(52÷3) ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>1,44×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Monatlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>1</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>1,00×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Vierteljährlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>4 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>0,33×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Halbjährlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>2 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>0,17×</td></tr>" +
+          "<tr style='border-bottom:1px dashed var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Jährlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>1 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>0,083×</td></tr>" +
+          "<tr style='background:rgba(0,0,0,0.03);'><td style='padding:8px 14px; color:var(--text-muted,#94a3b8); font-style:italic;'>Einmalig</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#94a3b8);'>1× gesamt</td><td style='padding:8px 14px; text-align:right; font-weight:600; color:var(--text-muted,#94a3b8);'>—</td></tr>" +
         "</tbody>" +
-      "</table>";
+      "</table>" +
+      "</div>";
 
     infoBtn.addEventListener("click", function () {
       var open = infoPanel.style.display !== "none";
@@ -5698,8 +6682,34 @@ document.body.addEventListener("click", (e) => {
     card.appendChild(header);
     card.appendChild(infoPanel);
 
+    // — Alltagsbegleitung-only: "same visit as HnD" toggle, so the
+    // Anfahrtspauschale isn't billed twice for one combined visit —
+    if (type === "Alltagsbegleitung") {
+      var combinedRow = document.createElement("label");
+      combinedRow.className = "ah-combined-visit-row";
+      combinedRow.style.cssText =
+        "display:flex; align-items:flex-start; gap:8px; padding:8px 10px; border-radius:6px;" +
+        "background:var(--accent-soft,rgba(124,58,237,0.08)); font-size:0.82rem; cursor:pointer;";
+
+      var combinedCb = document.createElement("input");
+      combinedCb.type = "checkbox";
+      combinedCb.className = "ah-combined-visit";
+      combinedCb.style.cssText = "margin-top:2px;";
+      combinedCb.checked = !!data.combinedVisit;
+
+      var combinedText = document.createElement("span");
+      combinedText.innerHTML =
+        "<strong>Gleicher Termin wie HnD</strong><br>" +
+        "<span style='color:var(--muted);'>Ein Besuch deckt beide Leistungen ab — Anfahrtspauschale wird nur einmal berechnet.</span>";
+
+      combinedRow.appendChild(combinedCb);
+      combinedRow.appendChild(combinedText);
+      card.appendChild(combinedRow);
+    }
+
     // — card-level schedule section (multi-row) —
-    var SCHED_COL  = "72px 1fr 88px 90px 24px";
+    var isHnd = type === "Haushaltsnahedienstleistungen";
+    var SCHED_COL = "84px 1fr 84px 24px 24px";
 
     var schedSection = document.createElement("div");
     schedSection.style.cssText = "border:1px solid var(--border); border-radius:6px; overflow:hidden;";
@@ -5708,8 +6718,8 @@ document.body.addEventListener("click", (e) => {
     schedHdr.style.cssText =
       "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center;" +
       "padding:4px 12px 3px; font-size:0.7rem; font-weight:600; color:var(--muted); user-select:none;" +
-      "background:var(--bg-alt,#f8fafc); border-bottom:1px solid var(--border);";
-    schedHdr.innerHTML = "<span>Dauer</span><span>Regelmäßigkeit</span><span>Bev. Uhrzeit</span><span style='text-align:right; color:var(--accent,#0ea5e9);'>/ Monat</span><span></span>";
+      "background:var(--panel); border-bottom:1px solid var(--border);";
+    schedHdr.innerHTML = "<span>Dauer (Std:Min)</span><span>Regelmäßigkeit</span><span style='text-align:right; color:var(--accent,#0ea5e9);'>/ Monat</span><span></span><span></span>";
 
     var schedRowsContainer = document.createElement("div");
     schedRowsContainer.className = "ah-sched-rows";
@@ -5722,13 +6732,50 @@ document.body.addEventListener("click", (e) => {
         "display:grid; grid-template-columns:" + SCHED_COL + "; gap:6px; align-items:center;" +
         "padding:8px 12px; border-top:1px solid var(--border);";
 
-      var rDauerInp = document.createElement("input");
-      rDauerInp.type = "text";
-      rDauerInp.setAttribute("data-card-field", "dauer");
-      rDauerInp.value = rowSched.dauer || "";
-      rDauerInp.placeholder = "1:10";
-      rDauerInp.style.cssText = "font-size:0.8rem; font-family:monospace;";
-      if (typeof wireDurationAutoFormat === "function") wireDurationAutoFormat(rDauerInp);
+      // Dauer as two inputs (hours + minutes) synced into a hidden "H:MM"
+      // field, so serialize()/doUpdateTotals()/updateRowTotal() keep reading
+      // data-card-field="dauer" unchanged.
+      var _initMins = parseDurationMinutes(rowSched.dauer || "");
+      var rDauerCell = document.createElement("div");
+      rDauerCell.style.cssText = "display:flex; align-items:center; gap:3px;";
+
+      var rDauerH = document.createElement("input");
+      rDauerH.type = "text"; rDauerH.inputMode = "numeric"; rDauerH.maxLength = 2;
+      rDauerH.className = "ah-dauer-h";
+      rDauerH.setAttribute("aria-label", "Stunden");
+      rDauerH.value = _initMins ? String(Math.floor(_initMins / 60)) : "";
+      rDauerH.placeholder = "hh";
+      rDauerH.style.cssText = "box-sizing:border-box; width:34px; font-size:0.8rem; font-family:monospace; text-align:center; padding:4px 2px;";
+
+      var rDauerSep = document.createElement("span");
+      rDauerSep.textContent = ":";
+      rDauerSep.style.cssText = "font-size:0.8rem; color:var(--muted);";
+
+      var rDauerM = document.createElement("input");
+      rDauerM.type = "text"; rDauerM.inputMode = "numeric"; rDauerM.maxLength = 2;
+      rDauerM.className = "ah-dauer-m";
+      rDauerM.setAttribute("aria-label", "Minuten");
+      rDauerM.value = _initMins ? String(_initMins % 60) : "";
+      rDauerM.placeholder = "mm";
+      rDauerM.style.cssText = "box-sizing:border-box; width:34px; font-size:0.8rem; font-family:monospace; text-align:center; padding:4px 2px;";
+
+      var rDauerHidden = document.createElement("input");
+      rDauerHidden.type = "hidden";
+      rDauerHidden.setAttribute("data-card-field", "dauer");
+      rDauerHidden.value = rowSched.dauer || "";
+
+      function syncDauer() {
+        var h = parseInt(rDauerH.value, 10); if (isNaN(h) || h < 0) h = 0;
+        var m = parseInt(rDauerM.value, 10); if (isNaN(m) || m < 0) m = 0;
+        if (m > 59) { m = 59; rDauerM.value = "59"; }
+        rDauerHidden.value = (h || m) ? (h + ":" + String(m).padStart(2, "0")) : "";
+        updateRowTotal();
+      }
+
+      rDauerCell.appendChild(rDauerH);
+      rDauerCell.appendChild(rDauerSep);
+      rDauerCell.appendChild(rDauerM);
+      rDauerCell.appendChild(rDauerHidden);
 
       var rRegelSel = document.createElement("select");
       rRegelSel.setAttribute("data-card-field", "regelmaessigkeit");
@@ -5740,14 +6787,6 @@ document.body.addEventListener("click", (e) => {
         rRegelSel.appendChild(o);
       });
 
-      var rUhrzeitInp = document.createElement("input");
-      rUhrzeitInp.type = "text";
-      rUhrzeitInp.setAttribute("data-card-field", "bevorzugteUhrzeit");
-      rUhrzeitInp.value = rowSched.bevorzugteUhrzeit || "";
-      rUhrzeitInp.placeholder = "09:00";
-      rUhrzeitInp.style.cssText = "font-size:0.8rem; font-family:monospace;";
-      if (typeof wireDurationAutoFormat === "function") wireDurationAutoFormat(rUhrzeitInp);
-
       // Per-row duration display
       var rRowTotal = document.createElement("div");
       rRowTotal.style.cssText =
@@ -5756,7 +6795,7 @@ document.body.addEventListener("click", (e) => {
       rRowTotal.textContent = "—";
 
       function updateRowTotal() {
-        var mins         = parseDurationMinutes(rDauerInp.value);
+        var mins         = parseDurationMinutes(rDauerHidden.value);
         var freq         = FREQ_PER_MONTH[rRegelSel.value];
         var periodMonths = Number(periodSel.value) || 1;
         var periodLabel  = periodMonths === 12 ? "/ Jahr" : "/ Mon.";
@@ -5771,8 +6810,10 @@ document.body.addEventListener("click", (e) => {
         rRowTotal.textContent = formatDurationHHMM(Math.round(rowMins)) + " " + periodLabel;
       }
 
-      rDauerInp.addEventListener("input", updateRowTotal);
-      rDauerInp.addEventListener("change", updateRowTotal);
+      rDauerH.addEventListener("input", syncDauer);
+      rDauerH.addEventListener("change", syncDauer);
+      rDauerM.addEventListener("input", syncDauer);
+      rDauerM.addEventListener("change", syncDauer);
       rRegelSel.addEventListener("change", updateRowTotal);
       periodSel.addEventListener("change", updateRowTotal);
       updateRowTotal();
@@ -5793,10 +6834,58 @@ document.body.addEventListener("click", (e) => {
         doUpdateTotals();
       });
 
-      row.appendChild(rDauerInp);
+      row.appendChild(rDauerCell);
       row.appendChild(rRegelSel);
-      row.appendChild(rUhrzeitInp);
       row.appendChild(rRowTotal);
+
+      // Snap Dauer to the largest 5-min multiple whose monthly price still
+      // fits under the Entlastungsbetrag, using the row's own hourly rate
+      // (HnD vs. Alltagsbegleitung). Anfahrt/Reisezeit are folded in when
+      // OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT is true.
+      var STUNDENSATZ = isHnd ? STUNDENSATZ_HND : STUNDENSATZ_AB;
+      function optimizeDauerForEntlastungsbetrag() {
+        var toggle = document.getElementById("ahEntlastungAuto");
+        if (!toggle || !toggle.checked) return;
+
+        var freq = rRegelSel.value === "Einmalig" ? 1 : FREQ_PER_MONTH[rRegelSel.value];
+        if (typeof freq !== "number") return;
+
+        var reisezeitH = 0, anfahrtPerEinsatz = 0;
+        if (OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT) {
+          var zoneData = typeof window.getAHZoneData === "function" ? window.getAHZoneData() : null;
+          reisezeitH = zoneData ? zoneData.billMin / 60 : 0;
+          anfahrtPerEinsatz = ANFAHRT_PER_EINSATZ;
+        }
+
+        var bestMins = 0;
+        for (var m = 5; m <= 480; m += 5) {
+          var price = Math.round(
+            (freq * anfahrtPerEinsatz + (m / 60 + reisezeitH) * freq * STUNDENSATZ) * 100
+          ) / 100;
+          if (price > window.__entlastungsbetragMonat) break;
+          bestMins = m;
+        }
+        rDauerH.value = bestMins ? String(Math.floor(bestMins / 60)) : "";
+        rDauerM.value = bestMins ? String(bestMins % 60) : "";
+        syncDauer();
+        serialize();
+        doUpdateTotals();
+      }
+
+      var rOptBtn = document.createElement("button");
+      rOptBtn.type = "button";
+      rOptBtn.title = "Dauer auf Entlastungsbetrag (" + window.__entlastungsbetragMonat + " €/Monat) optimieren";
+      rOptBtn.textContent = "⚡";
+      rOptBtn.style.cssText =
+        "background:none; border:1px solid var(--border); border-radius:4px;" +
+        "font-size:0.85rem; line-height:1; cursor:pointer; color:var(--accent,#0ea5e9);" +
+        "width:22px; height:22px; display:flex; align-items:center; justify-content:center; padding:0;";
+      rOptBtn.addEventListener("click", optimizeDauerForEntlastungsbetrag);
+      row.appendChild(rOptBtn);
+
+      // Auto-optimize whenever the user picks/changes Regelmäßigkeit.
+      rRegelSel.addEventListener("change", optimizeDauerForEntlastungsbetrag);
+
       row.appendChild(rRemoveBtn);
       return row;
     }
@@ -5977,6 +7066,9 @@ document.body.addEventListener("click", (e) => {
     updateTitlesAndButtons();
     serialize();
   };
+
+  // ── Initial render of the AH Kosten-Übersicht ─────────────────────────
+  if (typeof window.renderAHKostenPreview === "function") window.renderAHKostenPreview();
 })();
 // =================================================================
 // #region 10. PAGE SPECIFIC LOGIC (Wandverkleidung, Duschwanne, etc)
@@ -6229,11 +7321,47 @@ function recomputeWVFlachenQty() {
     out.dispatchEvent(new Event("input", { bubbles: true }));
     out.dispatchEvent(new Event("change", { bubbles: true }));
   }
+
+  syncWVConsumablesToPanels(total997 + total1497);
+}
+
+// The four consumables belong to a Wandverkleidung job, not to an empty offer:
+// no panels -> all off, first panel -> all on. Only the 0 -> n edge turns them
+// back on, so unticking one deliberately survives later panel edits.
+// var, not let: resetAllForms() runs during top-level script execution and
+// calls this, which would hit the temporal dead zone of a let and kill the
+// whole script at load.
+var lastWvPanelTotal = 0;
+function syncWVConsumablesToPanels(totalPanels) {
+  // Restore writes the saved state verbatim; never second-guess it.
+  if (window.__RESTORING__ || window.__restoring) {
+    lastWvPanelTotal = totalPanels;
+    return;
+  }
+
+  const wanted = totalPanels === 0 ? false : !lastWvPanelTotal ? true : null;
+  lastWvPanelTotal = totalPanels;
+  if (wanted === null) return;
+
+  for (const id of [
+    "wvSealingSelected",
+    "wvFlachenSelected",
+    "wvSilikonSelected",
+    "wvEndProfileSelected",
+  ]) {
+    const cb = document.getElementById(id);
+    if (!cb || cb.checked === wanted) continue;
+    cb.checked = wanted;
+    // Lets the qty-sync IIFE fill 1 / clear to 0 for the paired inputs.
+    cb.dispatchEvent(new Event("change", { bubbles: true }));
+  }
 }
 
 function initWVConnectorsUI() {
   const qtyVEl = document.getElementById("wvV3VQty"); // user-entered connectors
   const outEl = document.getElementById("wvV3VRuleText"); // hint line
+  const footEl = document.getElementById("wvV3VFoot"); // tone-colored footer
+  const iconEl = document.getElementById("wvV3VIcon");
   const cb997 = document.getElementById("wv997");
   const cb1497 = document.getElementById("wv1497");
   const q997El = document.getElementById("wvQty997");
@@ -6266,22 +7394,30 @@ function initWVConnectorsUI() {
       : 0;
 
     const totalPanels = q997 + q1497;
-    let rec = Math.max(0, totalPanels - 1); // joints between panels in a run
     const ecken = Math.max(0, n(corners?.value));
-    rec = Math.max(0, rec - ecken); // add vertical profiles for corners
-    return rec;
+    let rec = Math.max(0, totalPanels - 1); // joints between panels in a run
+    rec = Math.max(0, rec - ecken); // corners consume a joint each
+    return { rec, totalPanels, ecken };
   }
 
   function render() {
-    const rec = recommendedVCount();
+    const { rec, totalPanels, ecken } = recommendedVCount();
     const cur = n(qtyVEl.value);
-    if (rec > 0) {
-      outEl.classList.remove("warn");
-      outEl.textContent = `- Verbindungsprofil(e) empfohlen: ${rec} Stk • aktuell: ${cur} Stk`;
+    const formula = `<div class="formula">${rec} = ${totalPanels} Paneele − 1 Naht-Basis − ${ecken} Ecke(n)</div>`;
+
+    footEl?.classList.remove("tone-info", "tone-amber", "tone-ok");
+    if (rec === 0) {
+      footEl?.classList.add("tone-amber");
+      if (iconEl) iconEl.textContent = "⚠️";
+      outEl.innerHTML = `⚠️ Keine Verbindungsprofile empfohlen. Bitte Paneelanzahl (${totalPanels}) und Außenecke(n) (${ecken}) prüfen.${formula}`;
+    } else if (cur === rec) {
+      footEl?.classList.add("tone-ok");
+      if (iconEl) iconEl.textContent = "✅";
+      outEl.innerHTML = `Empfehlung: ${rec} Stück – passt zur eingetragenen Menge.${formula}`;
     } else {
-      outEl.classList.add("warn");
-      outEl.textContent =
-        "⚠️ Keine Verbindungsprofile empfohlen. Bitte Paneelanzahl und „Ecke(n) vorhanden“ prüfen.";
+      footEl?.classList.add("tone-info");
+      if (iconEl) iconEl.textContent = "ℹ️";
+      outEl.innerHTML = `Empfehlung: ${rec} Stück – aktuell eingetragen: ${cur} Stück.${formula}`;
     }
   }
 
@@ -6619,26 +7755,45 @@ document.addEventListener("DOMContentLoaded", () => {
 })();
 
 // ===== DUSCHWANNE: free-text extra tasks (repeater) =====
-(function initDWExtraTasks() {
-  const fs = document.getElementById("dw-extra-tasks");
-  if (!fs) return;
+// Free-text "Weitere Arbeiten" repeater, used by the BU Arbeiten tab
+// (#dw-extra-tasks) and the BWT Arbeiten tab (#bwt-extra-tasks).
+// Returns the payload-based restore function, or null if the fieldset is absent.
+function initExtraTasksRepeater({ fieldsetId, countId, emptyId, lsKey, inputName }) {
+  const fs = document.getElementById(fieldsetId);
+  if (!fs) return null;
 
   const wrap = fs.querySelector(".da-items");
   const addBtn = fs.querySelector(".da-add");
-  const LS_KEY = "dwExtraTasks:v1";
+  const countBadge = document.getElementById(countId);
+  const emptyHint = document.getElementById(emptyId);
+  const LS_KEY = lsKey;
 
   function makeItem(value = "") {
     const item = document.createElement("div");
-    item.className = "da-item";
+    item.className = "da-item wt-extra-item";
     item.setAttribute("data-kind", "extra");
     item.innerHTML = `
-      <div class="da-grid">
-        <label class="da-label" style="grid-column: 1 / -1;">
-          Aufgabe
-          <input class="dw-extra" type="text" name="duschwanne[extraTasks][]" value="${escapeHtml(value)}" />
-        </label>
-      </div>
-      <button type="button" class="da-remove" aria-label="Diese Zeile entfernen">🗑</button>
+      <textarea class="dw-extra" name="${inputName}"
+      aria-label="Zusätzliche Aufgabe" rows="2">${escapeHtml(value)}</textarea>
+      <button type="button" class="wt-extra-move wt-extra-move-up" aria-label="Nach oben verschieben" title="Nach oben">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="18 15 12 9 6 15"></polyline>
+        </svg>
+      </button>
+      <button type="button" class="wt-extra-move wt-extra-move-down" aria-label="Nach unten verschieben" title="Nach unten">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
+      <button type="button" class="da-remove wt-extra-remove" aria-label="Diese Zeile entfernen">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+          <path d="M10 11v6"></path>
+          <path d="M14 11v6"></path>
+          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+        </svg>
+      </button>
     `;
     wireItem(item);
     return item;
@@ -6647,6 +7802,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function wireItem(item) {
     const input = item.querySelector(".dw-extra");
     const removeBtn = item.querySelector(".da-remove");
+    const upBtn = item.querySelector(".wt-extra-move-up");
+    const downBtn = item.querySelector(".wt-extra-move-down");
 
     input?.addEventListener("input", saveState);
     removeBtn?.addEventListener("click", () => {
@@ -6657,8 +7814,53 @@ document.addEventListener("DOMContentLoaded", () => {
         item.remove();
       }
       saveState();
+      updateMoveButtons();
       window.updatePricing?.();
     });
+
+    upBtn?.addEventListener("click", () => {
+      const prev = item.previousElementSibling;
+      if (prev && prev.classList.contains("da-item")) {
+        wrap.insertBefore(item, prev);
+        saveState();
+        updateMoveButtons();
+        window.updatePricing?.();
+      }
+    });
+
+    downBtn?.addEventListener("click", () => {
+      const next = item.nextElementSibling;
+      if (next && next.classList.contains("da-item")) {
+        wrap.insertBefore(next, item);
+        saveState();
+        updateMoveButtons();
+        window.updatePricing?.();
+      }
+    });
+  }
+
+  // Disable "up" on the first row and "down" on the last row.
+  function updateMoveButtons() {
+    const items = Array.from(wrap.querySelectorAll(".da-item"));
+    const single = items.length <= 1;
+    items.forEach((it, i) => {
+      const up = it.querySelector(".wt-extra-move-up");
+      const down = it.querySelector(".wt-extra-move-down");
+      if (up) up.disabled = single || i === 0;
+      if (down) down.disabled = single || i === items.length - 1;
+    });
+  }
+
+  function updateSummary() {
+    const filled = Array.from(wrap.querySelectorAll(".dw-extra")).filter(
+      (i) => String(i.value || "").trim(),
+    );
+    if (countBadge) {
+      countBadge.textContent = String(filled.length);
+      countBadge.hidden = filled.length === 0;
+    }
+    if (emptyHint) emptyHint.hidden = filled.length > 0;
+    updateMoveButtons();
   }
 
   function saveState() {
@@ -6668,6 +7870,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       localStorage.setItem(LS_KEY, JSON.stringify(vals));
     } catch {}
+    updateSummary();
   }
 
   function restoreFromLocalStorage() {
@@ -6694,23 +7897,36 @@ document.addEventListener("DOMContentLoaded", () => {
   addBtn?.addEventListener("click", () => {
     wrap.appendChild(makeItem(""));
     saveState();
+    window.updatePricing?.();
   });
 
-  // Expose payload-based restore for global restore pipeline.
+  // Payload-based restore for the global restore pipeline.
   // Re-query the wrap on every call so a stale closure reference (e.g. if
   // the fieldset is re-rendered) can't silently drop rows.
-  window.restoreDWExtraTasksFromPayload = function (dw) {
+  const restoreFromPayload = function (dw) {
     const liveWrap =
-      document.querySelector("#dw-extra-tasks .da-items") || wrap;
+      document.querySelector(`#${fieldsetId} .da-items`) || wrap;
     if (!liveWrap) return;
 
     if (!dw || !Array.isArray(dw.extraTasks)) {
+      // extraTasks absent from payload (old offer format) — preserve LS,
+      // rebuild DOM from it so manually entered tasks survive offer loads.
+      let lsVals = null;
+      try {
+        lsVals = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+      } catch {}
       liveWrap.innerHTML = "";
-      liveWrap.appendChild(makeItem(""));
-      saveState();
+      if (Array.isArray(lsVals) && lsVals.length) {
+        lsVals.forEach((v) => liveWrap.appendChild(makeItem(v)));
+      } else {
+        liveWrap.appendChild(makeItem(""));
+      }
+      // No saveState() — LS is already authoritative here
+      updateSummary();
       return;
     }
 
+    // extraTasks explicitly set (including [] for reset) — DOM and LS both update
     liveWrap.innerHTML = "";
     if (dw.extraTasks.length === 0) {
       liveWrap.appendChild(makeItem(""));
@@ -6724,6 +7940,59 @@ document.addEventListener("DOMContentLoaded", () => {
 
   ensureOneRow();
   restoreFromLocalStorage();
+  updateSummary();
+
+  return restoreFromPayload;
+}
+
+window.restoreDWExtraTasksFromPayload = initExtraTasksRepeater({
+  fieldsetId: "dw-extra-tasks",
+  countId: "dw-extra-count",
+  emptyId: "dw-extra-empty",
+  lsKey: "dwExtraTasks:v1",
+  inputName: "duschwanne[extraTasks][]",
+});
+
+window.restoreBwtArbeitenExtraTasksFromPayload = initExtraTasksRepeater({
+  fieldsetId: "bwt-extra-tasks",
+  countId: "bwt-extra-count",
+  emptyId: "bwt-extra-empty",
+  lsKey: "bwtArbeitenExtraTasks:v1",
+  inputName: "bwt[extraTasks][]",
+});
+
+/* Selection-count badges on the checkbox groups of the Arbeiten accordions
+   (BU: #dw-worktasks, BWT: #bwt-worktasks). */
+(function initWorkTaskGroupCounts() {
+  ["dw-worktasks", "bwt-worktasks"].forEach(initRoot);
+
+  function initRoot(rootId) {
+  const root = document.getElementById(rootId);
+  if (!root) return;
+
+  function updateGroup(group) {
+    const badge = group.querySelector(".wt-group-count");
+    if (!badge) return; // group 8 (Weitere Arbeiten) manages its own badge
+    const checked = group.querySelectorAll(
+      'input[type="checkbox"]:checked',
+    ).length;
+    badge.textContent = String(checked);
+    badge.hidden = checked === 0;
+  }
+
+  function updateAll() {
+    root.querySelectorAll(".wt-group").forEach(updateGroup);
+  }
+
+  root.addEventListener("change", (e) => {
+    if (e.target.matches('input[type="checkbox"]')) {
+      const group = e.target.closest(".wt-group");
+      if (group) updateGroup(group);
+    }
+  });
+
+  updateAll();
+  }
 })();
 
 /* ========== Kundendaten UI (contact, aufschlag/pflegegrad, etc.) ========== */
@@ -6764,159 +8033,99 @@ window.parseAufschlagPercent = function parseAufschlagPercent(raw) {
 };
 
 window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
-  const customWrap = document.getElementById("sonderaufschlagWrap");
-  const customInput = document.getElementById("sonderaufschlagValue");
-  const customActive = !!(
-    customWrap &&
-    !customWrap.hidden &&
-    customWrap.getAttribute("aria-hidden") !== "true"
-  );
-
-  if (customActive && customInput) {
-    const pct = window.parseAufschlagPercent(customInput.value);
-    if (Number.isFinite(pct) && pct >= 35) {
-      return `${pct}%`;
-    }
-    return "";
-  }
-
-  return document.querySelector('input[name="aufschlag"]:checked')?.value || "";
+  // Single source of truth: the Aufschlag value field. Sub-35% values are
+  // allowed (a warning is shown), so no minimum gate here — empty/invalid → "".
+  const input = document.getElementById("sonderaufschlagValue");
+  if (!input) return "";
+  const pct = window.parseAufschlagPercent(input.value);
+  if (!Number.isFinite(pct)) return "";
+  return `${pct}%`;
 };
 
 (function initAufschlag() {
+  const AUFSCHLAG_MIN = 35;
+
   const payerRadios = Array.from(
     document.querySelectorAll('input[name="payer"]'),
   );
-  const aufschlagRadios = Array.from(
-    document.querySelectorAll('input[name="aufschlag"]'),
-  );
 
-  const r35 = document.querySelector('input[name="aufschlag"][value="35%"]');
-  const r40 = document.querySelector('input[name="aufschlag"][value="40%"]');
-  const r45 = document.querySelector('input[name="aufschlag"][value="45%"]');
-  const r50 = document.querySelector('input[name="aufschlag"][value="50%"]');
-  const r60 = document.querySelector('input[name="aufschlag"][value="60%"]');
-
-  const labelEl = document.getElementById("aufschlagLabel");
+  const input = document.getElementById("sonderaufschlagValue");
+  const slider = document.getElementById("sonderaufschlagSlider");
+  const chips = Array.from(document.querySelectorAll(".aufschlag-chip"));
+  const warnEl = document.getElementById("aufschlagWarn");
+  const errorEl = document.getElementById("sonderaufschlagError");
   const bodyEl = document.getElementById("aufschlagBody");
   const toggleBt = document.getElementById("toggleAufschlag");
-  const customToggleBt = document.getElementById("toggleSonderaufschlag");
-  const customWrap = document.getElementById("sonderaufschlagWrap");
-  const customInput = document.getElementById("sonderaufschlagValue");
-  const customError = document.getElementById("sonderaufschlagError");
+  const zielToggle = document.getElementById("toggleZielpreis");
+  const zielWrap = document.getElementById("zielpreisWrap");
+  const targetInput = document.getElementById("sonderaufschlagTarget");
+  const autoBtn = document.getElementById("btnSonderaufschlagAuto");
 
-  function setDisabled(el, disabled) {
-    if (!el) return;
-    el.disabled = disabled;
-    const pill = el.closest("label.radio-pill");
-    if (pill) {
-      pill.style.opacity = disabled ? "0.6" : "";
-      pill.style.pointerEvents = disabled ? "none" : "";
-      pill.setAttribute("aria-disabled", disabled ? "true" : "false");
-    }
+  function currentPct() {
+    return window.parseAufschlagPercent(input?.value);
   }
 
-  function isCustomMode() {
-    return !!(
-      customWrap &&
-      !customWrap.hidden &&
-      customWrap.getAttribute("aria-hidden") !== "true"
-    );
-  }
-
-  function anySelected() {
-    return !!window.getEffectiveAufschlagValue?.();
-  }
-
-  function setCustomError(message) {
-    if (!customInput) return false;
-    customInput.setCustomValidity(message || "");
-    customInput.setAttribute("aria-invalid", message ? "true" : "false");
-    if (customError) {
-      customError.hidden = !message;
-      customError.textContent = message || "";
+  // Sets HTML5 validity (for form submit) and optionally the visible error text.
+  function setError(message, { silent = false } = {}) {
+    if (!input) return !message;
+    input.setCustomValidity(message || "");
+    input.setAttribute("aria-invalid", message ? "true" : "false");
+    if (errorEl) {
+      const show = !!message && !silent;
+      errorEl.hidden = !show;
+      errorEl.textContent = show ? message : "";
     }
     return !message;
   }
 
-  function validateCustomInput() {
-    if (!customInput) return true;
-    if (!isCustomMode()) {
-      customInput.required = false;
-      return setCustomError("");
-    }
-
-    customInput.required = true;
-    const raw = String(customInput.value || "").trim();
-    const pct = window.parseAufschlagPercent(raw);
-
-    if (!raw) return setCustomError("Bitte geben Sie einen Sonderaufschlag ein.");
-    if (!Number.isFinite(pct)) return setCustomError("Bitte geben Sie eine gültige Zahl ein.");
-    if (pct < 35) {
-      return setCustomError("Der Sonderaufschlag muss mindestens 35% betragen.");
-    }
-    return setCustomError("");
+  // Reflect the current value into the slider, chip highlight, and sub-35% warning.
+  function render() {
+    const pct = currentPct();
+    const has = Number.isFinite(pct);
+    if (has && slider && pct >= 0 && pct <= 200) slider.value = pct;
+    chips.forEach((c) =>
+      c.classList.toggle("active", has && Number(c.dataset.value) === pct),
+    );
+    if (warnEl) warnEl.hidden = !(has && pct < AUFSCHLAG_MIN);
   }
 
   function validateAufschlagSelection({ report = false } = {}) {
-    const customMode = isCustomMode();
-    const selectedRadio = aufschlagRadios.find((r) => r.checked) || null;
+    if (!input) return true;
+    input.required = true;
+    const raw = String(input.value || "").trim();
+    const pct = window.parseAufschlagPercent(raw);
 
-    aufschlagRadios.forEach((r) => r.setCustomValidity(""));
-
-    if (customMode) {
-      const ok = validateCustomInput();
-      if (!ok && report) customInput?.reportValidity();
-      return ok;
-    }
-
-    const ok = !!selectedRadio;
-    if (!ok) {
-      const message =
-        "Bitte wählen Sie einen Aufschlag oder geben Sie einen Sonderaufschlag ein.";
-      aufschlagRadios.forEach((r) => r.setCustomValidity(message));
-      if (report) (aufschlagRadios[0] || customInput)?.reportValidity?.();
+    if (!raw) {
+      setError("Bitte geben Sie einen Aufschlag ein.", { silent: !report });
+      if (report) input.reportValidity?.();
       return false;
     }
-
+    if (!Number.isFinite(pct)) {
+      setError("Bitte geben Sie eine gültige Zahl ein.");
+      if (report) input.reportValidity?.();
+      return false;
+    }
+    // Sub-35% is allowed (warning only) — never blocks submission.
+    setError("");
     return true;
   }
 
-  function openCustomMode(prefill = "") {
-    if (!customWrap) return;
-    customWrap.hidden = false;
-    customWrap.setAttribute("aria-hidden", "false");
-    if (customToggleBt) customToggleBt.classList.add("is-active");
-    aufschlagRadios.forEach((r) => {
-      r.checked = false;
-    });
-    if (customInput) {
-      if (prefill !== undefined && prefill !== null && prefill !== "") {
-        customInput.value = String(prefill).replace(/%/g, "");
-      }
-      customInput.required = true;
-      validateCustomInput();
+  // Single entry point for setting the value from any source (chip, slider,
+  // restore, auto-calc). When pricing=true it dispatches a real input event so
+  // all downstream listeners (state bridge, Rabatt visibility) stay in sync.
+  function setAufschlag(value, { pricing = true } = {}) {
+    if (!input) return;
+    const pct = window.parseAufschlagPercent(value);
+    input.value = Number.isFinite(pct) ? String(pct).replace(".", ",") : "";
+    if (pricing) {
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    } else {
+      render();
+      validateAufschlagSelection();
     }
-  }
-
-  function closeCustomMode({ clear = true } = {}) {
-    if (!customWrap) return;
-    customWrap.hidden = true;
-    customWrap.setAttribute("aria-hidden", "true");
-    if (customToggleBt) customToggleBt.classList.remove("is-active");
-    if (customInput) {
-      customInput.required = false;
-      if (clear) customInput.value = "";
-    }
-    setCustomError("");
-  }
-
-  function currentSelection() {
-    return window.getEffectiveAufschlagValue?.() || "";
   }
 
   function setAufschlagVisible(visible) {
-    if (labelEl) labelEl.style.display = visible ? "" : "none";
     if (bodyEl) bodyEl.style.display = visible ? "" : "none";
     if (toggleBt) {
       toggleBt.textContent = visible ? "Ausblenden" : "Anzeigen";
@@ -6924,97 +8133,154 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
     }
   }
 
-  function toggleAufschlag() {
-    const currentlyVisible = !bodyEl || bodyEl.style.display !== "none";
-    setAufschlagVisible(!currentlyVisible);
-  }
-
   function applyAufschlagRules() {
     const payer = document.querySelector('input[name="payer"]:checked')?.value;
-
-    [r35, r40, r45, r50, r60].forEach((r) => setDisabled(r, false));
-
-    if (
-      !anySelected() &&
-      (payer === "Kassenkunde" || payer === "Selbstzahler")
-    ) {
-      if (r50) r50.checked = true;
+    const empty = !String(input?.value || "").trim();
+    if (empty && (payer === "Kassenkunde" || payer === "Selbstzahler")) {
+      setAufschlag(50, { pricing: false });
     }
   }
 
-  payerRadios.forEach((r) => r.addEventListener("change", applyAufschlagRules));
-  aufschlagRadios.forEach((r) =>
-    r.addEventListener("change", () => {
-      if (r.checked) closeCustomMode();
-      validateAufschlagSelection();
-    }),
+  function onFieldChanged() {
+    render();
+    validateAufschlagSelection();
+    if (!input.validationMessage) window.updatePricing?.();
+  }
+
+  chips.forEach((c) =>
+    c.addEventListener("click", () => setAufschlag(c.dataset.value)),
   );
 
-  if (toggleBt) toggleBt.addEventListener("click", toggleAufschlag);
+  input?.addEventListener("input", onFieldChanged);
+  input?.addEventListener("change", onFieldChanged);
 
-  customToggleBt?.addEventListener("click", () => {
-    if (isCustomMode()) {
-      closeCustomMode();
-      applyAufschlagRules();
-      window.updatePricing?.();
+  slider?.addEventListener("input", () => setAufschlag(slider.value));
+
+  if (toggleBt)
+    toggleBt.addEventListener("click", () => {
+      const visible = !bodyEl || bodyEl.style.display !== "none";
+      setAufschlagVisible(!visible);
+    });
+
+  zielToggle?.addEventListener("click", () => {
+    if (!zielWrap) return;
+    const open = zielWrap.hidden;
+    zielWrap.hidden = !open;
+    zielWrap.setAttribute("aria-hidden", open ? "false" : "true");
+    zielToggle.classList.toggle("is-active", open);
+  });
+
+  payerRadios.forEach((r) => r.addEventListener("change", applyAufschlagRules));
+
+  function applyAutomatisch(rawEur) {
+    const pricing = window.__pricing;
+    if (!pricing) {
+      alert("Bitte zuerst einen Preis berechnen (Preisvorschau laden).");
       return;
     }
-    const currentPct = window.parseAufschlagPercent(currentSelection());
-    openCustomMode(Number.isFinite(currentPct) ? String(currentPct) : "");
-    customInput?.focus();
-  });
-
-  customInput?.addEventListener("input", () => {
-    validateCustomInput();
-    validateAufschlagSelection();
-    if (!customInput.validationMessage) window.updatePricing?.();
-  });
-  customInput?.addEventListener("change", () => {
-    validateCustomInput();
-    validateAufschlagSelection();
-    if (!customInput.validationMessage) window.updatePricing?.();
-  });
-
-  setAufschlagVisible(true);
-  if (customInput?.value) {
-    openCustomMode(customInput.value);
-  } else {
-    closeCustomMode();
+    const { total: currentTotal, markup: currentMarkup, markupPct: currentPctVal, vatOnNet } = pricing;
+    if (!currentMarkup || currentMarkup <= 0) {
+      alert("Kein Aufschlag-Betrag vorhanden – Automatisch nicht möglich.");
+      return;
+    }
+    const targetTotal = parseFloat(String(rawEur).replace(/\s/g, "").replace(",", "."));
+    if (!Number.isFinite(targetTotal) || targetTotal <= 0) {
+      alert("Bitte einen gültigen Zielpreis eingeben.");
+      return;
+    }
+    // Factor = 1 + TAX_RATE, derived from actual server response to avoid hardcoding
+    const netAmount = currentTotal - (vatOnNet || 0);
+    const factor = netAmount > 0 ? currentTotal / netAmount : 1.19;
+    const newPct = currentPctVal + currentPctVal * (targetTotal - currentTotal) / (factor * currentMarkup);
+    const rounded = Math.round(newPct * 10000) / 100; // two decimal places, e.g. 29.73
+    if (!Number.isFinite(rounded) || rounded < 0) {
+      alert("Der berechnete Aufschlag wäre negativ – der Zielpreis liegt unter den Selbstkosten.");
+      return;
+    }
+    setAufschlag(String(rounded));
   }
-  applyAufschlagRules();
-  validateAufschlagSelection();
 
+  document.querySelectorAll(".sonderaufschlag-preset").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const target = btn.dataset.target;
+      if (targetInput) targetInput.value = target;
+      applyAutomatisch(target);
+    });
+  });
+
+  autoBtn?.addEventListener("click", () => applyAutomatisch(targetInput?.value || ""));
+
+  // Preserved contract: restore + auto-calc route values through here.
+  window.__setCustomAufschlag = function __setCustomAufschlag(value) {
+    setAufschlag(value, { pricing: false });
+  };
   window.validateAufschlagSelection = validateAufschlagSelection;
 
-  window.__setCustomAufschlag = function __setCustomAufschlag(value) {
-    const pct = window.parseAufschlagPercent(value);
-    if (!Number.isFinite(pct)) {
-      closeCustomMode();
-      applyAufschlagRules();
-      return;
-    }
-
-    if ([35, 40, 45, 50, 60].includes(pct)) {
-      closeCustomMode();
-      const radio = document.querySelector(
-        `input[name="aufschlag"][value="${pct}%"]`,
-      );
-      if (radio) {
-        radio.checked = true;
-        radio.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      return;
-    }
-
-    const display = String(pct).replace(".", ",");
-    openCustomMode(display);
-    if (customInput) {
-      customInput.value = display;
-      validateCustomInput();
-      customInput.dispatchEvent(new Event("input", { bubbles: true }));
-    }
-  };
+  // Init
+  setAufschlagVisible(true);
+  applyAufschlagRules();
+  render();
+  validateAufschlagSelection();
 })();
+
+// ── Legacy-Angebote auf die neue Aufschlag-Regel umstellen ──────────────────
+// Angebote, die vor der Umstellung gespeichert wurden, tragen kein
+// pricingRules-Flag und rechnen Kleinmaterial weiterhin NICHT in den Aufschlag
+// ein (siehe RestoreManager). Diese Zeile ist der einzige Weg, so ein Angebot
+// bewusst auf die neue Regel zu heben; gespeichert wird die Umstellung erst
+// mit dem naechsten Speichern (buildPayload schreibt das Flag mit).
+function syncKleinAufschlagToggle() {
+  const row = document.getElementById("kleinAufschlagRow");
+  const cb = document.getElementById("kleinAufschlagToggle");
+  if (!row || !cb) return;
+
+  // Sichtbar fuer jedes Angebot, das ALS Legacy geladen wurde - nicht abhaengig
+  // vom aktuellen Haken, sonst wuerde die Zeile beim Anhaken verschwinden und
+  // die Umstellung waere nicht mehr ruecknehmbar.
+  const isLegacyOffer = window.__kleinAufschlagLegacyOffer === true;
+  row.hidden = !isLegacyOffer;
+  row.style.display = isLegacyOffer ? "" : "none";
+  row.setAttribute("aria-hidden", isLegacyOffer ? "false" : "true");
+  cb.checked = window.__kleinInAufschlag !== false;
+}
+window.syncKleinAufschlagToggle = syncKleinAufschlagToggle;
+
+document.getElementById("kleinAufschlagToggle")?.addEventListener("change", (e) => {
+  window.__kleinInAufschlag = !!e.target.checked;
+  window.refreshAllPanels?.();
+});
+
+// ── Legacy BWT-Angebote auf die aktuellen Freigrenzen umstellen ────────────
+// Angebote, die vor der Freigrenzen-Speicherung erstellt wurden, tragen kein
+// pricingRules-Flag und rechnen weiterhin mit den historischen 200 km / 2 h
+// (siehe restore path). Diese Zeile ist der einzige Weg, so ein Angebot
+// bewusst auf die aktuelle Admin-Einstellung zu heben; gespeichert wird die
+// Umstellung erst mit dem naechsten Speichern (buildPayload schreibt das Flag mit).
+function syncBwtFreigrenzenToggle() {
+  const row = document.getElementById("bwtFreigrenzenRow");
+  const cb = document.getElementById("bwtFreigrenzenToggle");
+  if (!row || !cb) return;
+
+  const isLegacyOffer = window.__bwtFreigrenzenLegacyOffer === true;
+  row.hidden = !isLegacyOffer;
+  row.style.display = isLegacyOffer ? "" : "none";
+  row.setAttribute("aria-hidden", isLegacyOffer ? "false" : "true");
+  cb.checked = Number(window.__bwtKmFreeThreshold) === Number(window.__bwtKmFreeThresholdLive)
+    && Number(window.__bwtTravelTimeFreeHours) === Number(window.__bwtTravelTimeFreeHoursLive);
+}
+window.syncBwtFreigrenzenToggle = syncBwtFreigrenzenToggle;
+
+document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) => {
+  if (e.target.checked) {
+    window.__bwtKmFreeThreshold = Number(window.__bwtKmFreeThresholdLive ?? 200);
+    window.__bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHoursLive ?? 2);
+  } else {
+    window.__bwtKmFreeThreshold = 200;
+    window.__bwtTravelTimeFreeHours = 2;
+  }
+  if (typeof renderTravelCostDebug === "function") renderTravelCostDebug();
+  window.refreshAllPanels?.();
+});
 
 (function initPflegegrad() {
   const form = document.getElementById("form-Kundendaten");
@@ -7084,7 +8350,22 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
     show(pgLevelRow, has);
     setReq(pgRadios, has);
     if (!has) clearRadios(pgRadios);
-    const showBudget = kk && has && valid1;
+    // Respect the panel's own data-offer: never reveal it outside its allowed
+    // offers (e.g. AH). apply() only toggles .hidden, while data-offer toggles
+    // inline display — without this gate a stale display:"" from another offer
+    // lets apply() flash the panel on in AH. (root cause of random visibility)
+    const panelOffers = (budgetPanel?.getAttribute("data-offer") || "")
+      .toLowerCase()
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const offerNow = String(window.getCurrentOfferType?.() || "").toLowerCase();
+    // Fail open when the offer is unknown: only force-hide when we KNOW the
+    // current offer is one this panel excludes (e.g. AH). Otherwise the
+    // data-offer display toggle in updateOfferSpecificSections still scopes it.
+    const offerAllows =
+      !panelOffers.length || !offerNow || panelOffers.includes(offerNow);
+    const showBudget = kk && has && valid1 && offerAllows;
     show(budgetPanel, showBudget);
 
     if (!showBudget) {
@@ -7104,16 +8385,27 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
       }
     }
 
-    show(wePanel, kk);
+    // Same offer-scoping as budgetPanel: gate on wePanel's data-offer so it is
+    // both hidden AND not required outside its allowed offers (e.g. AH). Gating
+    // only visibility would leave a hidden required radio blocking validation.
+    const wePanelOffers = (wePanel?.getAttribute("data-offer") || "")
+      .toLowerCase()
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const weAllows =
+      !wePanelOffers.length || !offerNow || wePanelOffers.includes(offerNow);
+    const weOn = kk && weAllows;
+    show(wePanel, weOn);
     const weDoneRadios = Array.from(
       weDoneGroup?.querySelectorAll('input[name="wohnumfeldDone"]') || [],
     );
     const weAppRadios = Array.from(
       weAppGroup?.querySelectorAll('input[name="wohnumfeldApplication"]') || [],
     );
-    setReq(weDoneRadios, kk);
-    setReq(weAppRadios, kk);
-    if (!kk) {
+    setReq(weDoneRadios, weOn);
+    setReq(weAppRadios, weOn);
+    if (!weOn) {
       weDoneRadios.forEach((r) => (r.checked = false));
       weAppRadios.forEach((r) => (r.checked = false));
       show(weEntriesContainer, false);
@@ -7131,6 +8423,8 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
     }
   }
   initWohnumfeldEntries([]);
+  initInternalTodos([]);
+  wireInternalTodos();
   apply();
   applyCopay();
   document.getElementById("wohnumfeldAddEntryBtn")?.addEventListener("click", () => {
@@ -7440,6 +8734,92 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
 
   sync();
   window.syncKundendatenExtraFields = sync;
+})();
+
+// -------------------------------------------------------------------------
+// Two-person offer: editable name + greeting in Zusammenfassung.
+// Auto-composed from Kundendaten + Partner fields (kept in sync with the PDF
+// mapData composition), overridable by the user. Feeds {KundenAnschrift} /
+// {GreetingLine} in the offer template via payload.Kundendaten.
+// -------------------------------------------------------------------------
+(function initTwoPersonSummaryFields() {
+  const card = document.getElementById("zfTwoPersonCard");
+  const nameEl = document.getElementById("zfKundenName");
+  const greetEl = document.getElementById("zfGreetingLine");
+  if (!card || !nameEl || !greetEl) return;
+
+  const val = (id) => String(document.getElementById(id)?.value || "").trim();
+  const salutation = () =>
+    document.querySelector('input[name="salutation"]:checked')?.value || "";
+  const isTwoPersons = () =>
+    !!document.querySelector('input[name="twoPersons"]:checked') &&
+    document.querySelector('input[name="payer"]:checked')?.value !== "Selbstzahler";
+
+  const nameFrag = (sal, name) => [sal, name].filter(Boolean).join(" ").trim();
+  const greetFrag = (sal, last) => {
+    const l = (last || "").trim();
+    if (sal === "Frau") return `sehr geehrte Frau ${l}`.trim();
+    if (sal === "Herr") return `sehr geehrter Herr ${l}`.trim();
+    if (sal === "Familie") return `sehr geehrte Familie ${l}`.trim();
+    return "sehr geehrte Damen und Herren";
+  };
+
+  function composeName() {
+    const cust = [val("firstName"), val("lastName")].filter(Boolean).join(" ").trim();
+    const partner = [val("partnerFirstName"), val("partnerLastName")].filter(Boolean).join(" ").trim();
+    return `${nameFrag(salutation(), cust)} und ${nameFrag(val("partnerSalutation"), partner)}`.trim();
+  }
+  function composeGreeting() {
+    const two = `${greetFrag(salutation(), val("lastName"))}, ${greetFrag(val("partnerSalutation"), val("partnerLastName"))}`;
+    return two.charAt(0).toUpperCase() + two.slice(1);
+  }
+
+  // Auto-fill until the user edits the box (same "touched" pattern as the mail fields).
+  nameEl.addEventListener("input", () => (nameEl.dataset.touched = "1"));
+  greetEl.addEventListener("input", () => (greetEl.dataset.touched = "1"));
+
+  function refresh() {
+    const show = isTwoPersons();
+    card.hidden = !show;
+    card.setAttribute("aria-hidden", show ? "false" : "true");
+    if (!show) return;
+    if (nameEl.dataset.touched !== "1") nameEl.value = composeName();
+    if (greetEl.dataset.touched !== "1") greetEl.value = composeGreeting();
+  }
+
+  // Recompose when any source field changes.
+  const srcIds = [
+    "firstName", "lastName", "partnerFirstName", "partnerLastName", "partnerSalutation",
+  ];
+  srcIds.forEach((id) => {
+    const el = document.getElementById(id);
+    el?.addEventListener("input", refresh);
+    el?.addEventListener("change", refresh);
+  });
+  document.querySelectorAll('input[name="salutation"], input[name="twoPersons"], input[name="payer"]').forEach((el) => {
+    el.addEventListener("change", refresh);
+  });
+  window.addEventListener("offerflow:changed", refresh);
+  // Recompute when the Zusammenfassung tab becomes active (hashchange nav).
+  window.addEventListener("hashchange", refresh);
+
+  refresh();
+  // Restore hook: re-apply saved override values, then refresh visibility.
+  window.applyTwoPersonSummaryFields = function (k = {}) {
+    if (k.kundenName) {
+      nameEl.value = k.kundenName;
+      nameEl.dataset.touched = "1";
+    } else {
+      delete nameEl.dataset.touched;
+    }
+    if (k.greetingLine) {
+      greetEl.value = k.greetingLine;
+      greetEl.dataset.touched = "1";
+    } else {
+      delete greetEl.dataset.touched;
+    }
+    refresh();
+  };
 })();
 
 // save / load the whole Kundendaten page state so it can be reused across offer types
@@ -7933,7 +9313,7 @@ async function getProduct(id) {
 /* ========== FLOORING: LIVE PREVIEW + DB PRICES (adhesive/sealing) ==========
    NOTE: panels price now mirrors SERVER pricing; no client re-calculation. */
 (function initFlooringSection() {
-  const f = document.getElementById("form-duschwanne");
+  const f = document.getElementById("form-fussboden");
   if (!f) return;
   const toggle = document.getElementById("addFlooring");
   const panel = document.getElementById("flooringPanel");
@@ -8479,11 +9859,11 @@ document.addEventListener("change", (e) => {
   // run once so a pre-checked toggle shows its panel
   apply();
 
-  // When coming back to Duschwanne, re-apply and refresh from server pricing
+  // When coming back to Fußboden, re-apply and refresh from server pricing
   window.addEventListener("hashchange", () => {
     if (
       typeof getCurrentStep === "function" &&
-      getCurrentStep() === "duschwanne"
+      getCurrentStep() === "Fussboden"
     ) {
       apply();
       if (toggle?.checked) ensureUnits().then(updateUI);
@@ -8507,10 +9887,6 @@ function initSmartTraySearch() {
   const out = document.getElementById("tray-suggestions");
   const hiddenId = document.getElementById("chosenTrayProductId");
   const hiddenSize = document.getElementById("traySize");
-
-  // NEW: checkbox filters
-  const badoluxEl = document.getElementById("trayFilterBadolux");
-  const slateEl = document.getElementById("trayFilterSlate");
 
   if (!out || (!elB && !elL && !elH)) {
     console.warn("initSmartTraySearch: missing inputs or #tray-suggestions");
@@ -8587,91 +9963,92 @@ function initSmartTraySearch() {
     toggleSlateTrayColorVisibility();
   };
 
-  // Optional: make them mutually exclusive (comment out if you want both possible)
-  const enforceExclusiveFilters = (changed) => {
-    if (!changed) return;
-    if (changed === badoluxEl && badoluxEl?.checked && slateEl) slateEl.checked = false;
-    if (changed === slateEl && slateEl?.checked && badoluxEl) badoluxEl.checked = false;
-  };
-
   // ----- render -----
-  function renderSuggestions(list) {
-    if (!Array.isArray(list) || list.length === 0) {
-      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
-      applySelectedStyles();
-      return;
+  // Build the HTML for a single suggestion card.
+  // All cards share name="traySuggestion" so selection is single across rows.
+  const buildCard = (p, domId, sourceLabel, isBest, checked) => {
+    let dims = [p.widthCm, p.lengthCm].filter(Boolean).join(" × ") + " cm";
+    if (sourceLabel === "Badolux" && p.heightCm) {
+      dims += ` · H ${String(p.heightCm).replace(".", ",")} cm`;
     }
+    const price = p.price != null ? `${Number(p.price).toFixed(2)} €` : "";
+    const title = p.name || p.productId || "Duschwanne";
+    const value = p.productId || "";
+    const isBudget = sourceLabel === "Badolux";
 
-    // Only restore a saved PID if the user actually chose in THIS session
-    const allowAutoCheck = sessionStorage.getItem("dw_tray_touched") === "1";
-    let savedPid = null;
-    try {
-      const saved = JSON.parse(localStorage.getItem("dw_tray_selection") || "null");
-      savedPid = saved?.productId || null;
-    } catch {}
-
-    const budgetEl = document.getElementById("budgetToggle");
-    const wantBudget = !!budgetEl?.checked;
-
-    // Hide budget trays unless Low Budget mode is explicitly enabled
-    const filtered = wantBudget
-      ? list
-      : list.filter((p) => !p.isBudget);
-
-    if (filtered.length === 0) {
-      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
-      applySelectedStyles();
-      return;
-    }
-
-    const top = filtered.slice(0, 3);
-    const savedIndex =
-      allowAutoCheck && savedPid ? top.findIndex((p) => p.productId === savedPid) : -1;
-
-    const radios = top
-      .map((p, i) => {
-        const id = `tray-suggest-${i}`;
-        const dims = `${p.widthCm} × ${p.lengthCm} × ${p.heightCm} cm`;
-        const price = p.price != null ? ` — ${Number(p.price).toFixed(2)} €` : "";
-        const title = p.name || p.productId || "Duschwanne";
-        const value = p.productId || "";
-        const checkedAttr = i === savedIndex ? "checked" : "";
-
-        return `
-        <label class="suggestion-card${p.isBudget ? " is-budget" : ""}" for="${id}">
+    return `
+        <label class="suggestion-card${isBudget ? " is-budget" : ""}" for="${domId}">
           <input type="radio"
-                 id="${id}"
+                 id="${domId}"
                  name="traySuggestion"
                  value="${value}"
                  data-w="${p.widthCm || ""}"
                  data-l="${p.lengthCm || ""}"
                  data-h="${p.heightCm || ""}"
-                 ${checkedAttr} />
-          <div class="info">
-            <div class="title">${title}</div>
-            <div class="meta">${dims}${price}</div>
+                 ${checked ? "checked" : ""} />
+          <div class="sc-body">
+            <div class="sc-header">
+              <span class="sc-title">${title}</span>
+              ${price ? `<span class="sc-price">${price}</span>` : ""}
+            </div>
+            <div class="sc-dims">${dims}</div>
+            <div class="sc-badges">
+              ${isBest ? `<span class="sc-badge sc-badge--best">Beste Übereinstimmung</span>` : ""}
+              <span class="sc-badge sc-badge--source">${sourceLabel}</span>
+            </div>
           </div>
+          <div class="sc-check" aria-hidden="true">✓</div>
         </label>
       `;
-      })
-      .join("");
+  };
 
-    out.innerHTML = `
-      <div class="suggestion-heading" style="margin: 12px;">Vorschläge${top[0]?.isBudget ? " (Budget-Variante)" : ""}</div>
-      <div class="suggestion-list">${radios}</div>
+  // Build one labeled row: heading + up to 3 cards, or a "no matches" note.
+  const buildRow = (heading, list, keyPrefix, sourceLabel, savedPid) => {
+    const top = Array.isArray(list) ? list.slice(0, 3) : [];
+    const body =
+      top.length === 0
+        ? `<div class="meta">Keine passenden Vorschläge gefunden.</div>`
+        : `<div class="suggestion-list">${top
+            .map((p, i) =>
+              buildCard(
+                p,
+                `tray-suggest-${keyPrefix}-${i}`,
+                sourceLabel,
+                i === 0,
+                savedPid && p.productId === savedPid,
+              ),
+            )
+            .join("")}</div>`;
+
+    return `
+      <div class="suggestion-heading">${heading}</div>
+      ${body}
     `;
+  };
 
-    if (savedIndex >= 0) {
-      const restored = out.querySelectorAll('input[name="traySuggestion"]')[savedIndex];
-      applySelection(restored);
+  // Render both category rows: Hassmann (SLA*) and Badolux (source=badolux).
+  function renderTwoRows(hassmannList, badoluxList) {
+    // Only restore a saved PID if the user actually chose in THIS session
+    const allowAutoCheck = sessionStorage.getItem("dw_tray_touched") === "1";
+    let savedPid = null;
+    if (allowAutoCheck) {
+      try {
+        const saved = JSON.parse(localStorage.getItem("dw_tray_selection") || "null");
+        savedPid = saved?.productId || null;
+      } catch {}
     }
 
-    // (Re)bind change once per render (idempotent behavior)
-    out.addEventListener("change", (e) => {
-      if (e.target && e.target.name === "traySuggestion") {
-        applySelection(e.target);
-      }
-    });
+    out.innerHTML = `
+      ${buildRow("Hassmann", hassmannList, "hassmann", "Hassmann", savedPid)}
+      ${buildRow("Badolux", badoluxList, "badolux", "Badolux", savedPid)}
+    `;
+
+    if (savedPid) {
+      const restored = out.querySelector(
+        `input[name="traySuggestion"][value="${CSS.escape(savedPid)}"]`,
+      );
+      if (restored) applySelection(restored);
+    }
 
     applySelectedStyles();
   }
@@ -8701,23 +10078,20 @@ function initSmartTraySearch() {
       return;
     }
 
-    const qs = new URLSearchParams();
-    if (b !== null) qs.set("w", String(b));
-    if (l !== null) qs.set("l", String(l));
-    if (h !== null) qs.set("h", String(h));
+    // Base dimension query, shared by both category requests.
+    const baseQs = new URLSearchParams();
+    if (b !== null) baseQs.set("w", String(b));
+    if (l !== null) baseQs.set("l", String(l));
+    if (h !== null) baseQs.set("h", String(h));
 
-    // Additive: budget mode hint (frontend-first safe; backend may ignore)
-    const budgetEl = document.getElementById("budgetToggle");
-    const wantBudget = !!budgetEl?.checked;
-    if (wantBudget) qs.set("budget", "1");
+    // Hassmann row = slate series (SLA*); Badolux row = source=badolux.
+    const hassmannQs = new URLSearchParams(baseQs);
+    hassmannQs.set("series", "SLA");
+    const badoluxQs = new URLSearchParams(baseQs);
+    badoluxQs.set("source", "badolux");
 
-    // NEW: tray filters
-    // Badolux => source=badolux
-    if (badoluxEl?.checked) qs.set("source", "badolux");
-    // Slate => series=SLA (ID starts with SLA)
-    if (slateEl?.checked) qs.set("series", "SLA");
-
-    let url = `/api/trays/suggest?${qs.toString()}`;
+    const hassmannUrl = `/api/trays/suggest?${hassmannQs.toString()}`;
+    const badoluxUrl = `/api/trays/suggest?${badoluxQs.toString()}`;
 
     try {
       inflight?.abort?.();
@@ -8725,47 +10099,49 @@ function initSmartTraySearch() {
     inflight = new AbortController();
     const mySeq = ++reqSeq;
 
-    out.innerHTML = `<div class="meta">Suche… <code>${url}</code></div>`;
+    out.innerHTML = `<div class="meta">Suche…</div>`;
 
-    try {
-      let r = await fetch(url, {
-        signal: inflight.signal,
-        credentials: "include",
-      });
-      let text = await r.text();
+    const fetchList = async (url) => {
+      const r = await fetch(url, { signal: inflight.signal, credentials: "include" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      return Array.isArray(data?.results) ? data.results : [];
+    };
 
-      // Frontend-first safety: if backend rejects unknown params, retry once without budget
-      if (!r.ok && wantBudget) {
-        try {
-          const qs2 = new URLSearchParams(qs);
-          qs2.delete("budget");
-          url = `/api/trays/suggest?${qs2.toString()}`;
-          r = await fetch(url, { signal: inflight.signal, credentials: "include" });
-          text = await r.text();
-        } catch {}
-      }
+    // Run both category requests in parallel. allSettled so a failure in one
+    // category still lets the other row render.
+    const [hRes, bRes] = await Promise.allSettled([
+      fetchList(hassmannUrl),
+      fetchList(badoluxUrl),
+    ]);
 
-      if (mySeq !== reqSeq) return; // stale response, ignore
-      if (!r.ok) {
-        out.innerHTML = `<div class="text-sm text-destructive">Fehler ${r.status}</div><pre class="text-xs">${text}</pre>`;
-        return;
-      }
+    if (mySeq !== reqSeq) return; // stale/aborted response, ignore
 
-      const data = JSON.parse(text);
-      const list = Array.isArray(data?.results) ? data.results : [];
-      renderSuggestions(list);
-    } catch (err) {
-      if (err.name === "AbortError") return;
-      console.error("Smart tray search failed:", err);
-      if (mySeq !== reqSeq) return;
-      out.innerHTML = `<div class="text-sm text-destructive">Netzwerkfehler</div><pre class="text-xs">${String(err)}</pre>`;
+    const hassmannList = hRes.status === "fulfilled" ? hRes.value : [];
+    const badoluxList = bRes.status === "fulfilled" ? bRes.value : [];
+
+    if (hRes.status === "rejected" && hRes.reason?.name !== "AbortError") {
+      console.error("Hassmann tray search failed:", hRes.reason);
     }
+    if (bRes.status === "rejected" && bRes.reason?.name !== "AbortError") {
+      console.error("Badolux tray search failed:", bRes.reason);
+    }
+
+    renderTwoRows(hassmannList, badoluxList);
   }
 
   const request = () => {
     clearTimeout(debounceT);
     debounceT = setTimeout(fetchAndRender, 160);
   };
+
+  // Suggestion selection: bound once on the container (radios share a name,
+  // so picking any card in either row deselects the rest).
+  out.addEventListener("change", (e) => {
+    if (e.target && e.target.name === "traySuggestion") {
+      applySelection(e.target);
+    }
+  });
 
   // inputs -> clear chosen, update label, request
   [elB, elL, elH].forEach((el) => {
@@ -8776,16 +10152,6 @@ function initSmartTraySearch() {
       request();
     });
     el.addEventListener("change", () => {
-      clearChosen();
-      request();
-    });
-  });
-
-  // NEW: checkbox changes -> clear chosen + request (and optional exclusivity)
-  [badoluxEl, slateEl].forEach((el) => {
-    if (!el) return;
-    el.addEventListener("change", () => {
-      enforceExclusiveFilters(el); // comment this line out if you want both checked possible
       clearChosen();
       request();
     });
@@ -8969,6 +10335,10 @@ function initSmartBathtubSearch() {
 
   if (!panel || !out || (!elB && !elL) || !task) return;
 
+  let inflight = null;
+  let reqSeq = 0;
+  let debounceT = null;
+
   const showPanel = (on) => {
     panel.hidden = !on;
     panel.setAttribute("aria-hidden", on ? "false" : "true");
@@ -9081,10 +10451,6 @@ window.updatePricing?.();
   }
 
   // fetch logic (same pattern as trays)
-  let inflight = null;
-  let reqSeq = 0;
-  let debounceT = null;
-
   async function fetchAndRender() {
     const b = elB ? parseNum(elB.value) : null;
     const l = elL ? parseNum(elL.value) : null;
@@ -9449,21 +10815,50 @@ function attachDuschwanneToPayload(payload) {
     ? screenPid.trim()
     : null;
 
+  // Freier Posten: custom tray not found in the DB search
+  const dwCustomName = (document.getElementById("dwCustomName")?.value || "").trim();
+  const dwCustomPrice = (document.getElementById("dwCustomPrice")?.value || "").trim();
+  if (dwCustomName && dwCustomPrice) {
+    const dwCustomQty = Math.max(1, parseInt(document.getElementById("dwCustomQty")?.value, 10) || 1);
+    const dwCustomId = (document.getElementById("dwCustomId")?.value || "").trim();
+    payload.duschwanne.quickAdd = [
+      { label: dwCustomName, price: dwCustomPrice, qty: dwCustomQty, productId: dwCustomId },
+    ];
+  } else {
+    delete payload.duschwanne.quickAdd;
+  }
+
   return payload;
 }
 /* ========== GLOBAL PRICING SERVICE (fetch -> cache -> event) ========== */
 (() => {
   async function fetchPrice(payload) {
-    const r = await fetch("/api/price", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    let r;
+    try {
+      r = await fetch("/api/price", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      // No signal. Run the server's own rules (logic/pricing-core.js) against
+      // the cached inputs so the technician still sees a total. Flagged
+      // `_local` so it can never be frozen or locked — that needs a figure the
+      // server confirmed. Live vigor prices are unavailable, so configurator
+      // snapshot prices are used, exactly as server-side on a vigor outage.
+      const { computePricesLocally } = await import("./pricing-client.js");
+      const local = await computePricesLocally(payload);
+      if (local) return local;
+      throw err; // nothing cached — no total is better than a wrong one
+    }
     if (!r.ok) throw new Error(await r.text());
     return r.json();
   }
 
   window.__pricing = null;
+  window.__frozen = window.__frozen === true;
+  window.__frozenPricing = window.__frozenPricing || null;
+  window.__locked = window.__locked === true;
   let pricingRequestSeq = 0;
   let latestAppliedPricingSeq = 0;
   let pricingRefreshTimer = null;
@@ -9511,12 +10906,12 @@ function attachDuschwanneToPayload(payload) {
   window.updatePricing = async function updatePricing(payload) {
     // AH: all pricing is client-side — never call the server
     if (String(window.getCurrentOfferType?.() || "").toLowerCase() === "ah") {
-      const ah = window.computeAHGesamt?.() || { gesamt: 0 };
-      const ahData = { total: ah.gesamt, selfPayAmount: ah.gesamt, _isAH: true };
+      const ah = window.computeAHGesamt?.() || { gesamt: 0, eigenanteil: 0 };
+      const ahData = { total: ah.gesamt, selfPayAmount: ah.eigenanteil, _isAH: true };
       window.__pricing = ahData;
       window.dispatchEvent(new CustomEvent("pricing:updated", { detail: ahData }));
       if (typeof updateSummaryWidgetTotal === "function") updateSummaryWidgetTotal(ah.gesamt);
-      if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(ah.gesamt);
+      if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(ah.eigenanteil);
       return ahData;
     }
 
@@ -9569,11 +10964,75 @@ function attachDuschwanneToPayload(payload) {
     return data;
   };
 
+  window.applyOfferLockUI = function applyOfferLockUI(locked) {
+    document
+      .querySelectorAll(
+        'form[id^="form-"] input, form[id^="form-"] select, form[id^="form-"] textarea, form[id^="form-"] button',
+      )
+      .forEach((el) => { el.disabled = !!locked; });
+
+    let banner = document.getElementById("offerLockedBanner");
+    if (locked) {
+      if (!banner) {
+        banner = document.createElement("div");
+        banner.id = "offerLockedBanner";
+        banner.style.cssText =
+          "position:sticky;top:0;z-index:9999;background:#b91c1c;color:#fff;padding:8px 14px;text-align:center;font-weight:600;";
+        banner.textContent = "🔒 Dieses Angebot ist gesperrt – keine Änderungen möglich.";
+        document.body.prepend(banner);
+      }
+    } else if (banner) {
+      banner.remove();
+    }
+
+    document.getElementById("btnSaveDraft")?.toggleAttribute("disabled", !!locked);
+    document.getElementById("btnSaveDraftAs")?.toggleAttribute("disabled", !!locked);
+  };
+
+  window.freezeCurrentPricing = async function freezeCurrentPricing() {
+    const offerType = String(window.getCurrentOfferType?.() || "").toLowerCase();
+    let snapshot;
+    if (offerType === "ah") {
+      const ah = window.computeAHGesamt?.() || { gesamt: 0, eigenanteil: 0 };
+      snapshot = { total: ah.gesamt, selfPayAmount: ah.eigenanteil, _isAH: true };
+    } else {
+      const pl = typeof window.buildPayload === "function" ? window.buildPayload() : null;
+      if (pl) {
+        // A fresh snapshot needs the server. Offline this must not throw: the
+        // draft save calls us before reaching the offline queue, and losing
+        // the user's payload over a failed price refresh is worse than saving
+        // it with the pricing we already had. Returning null leaves __frozen
+        // and __frozenPricing untouched, so nothing gets frozen at a total
+        // the server never computed — Sperren checks for exactly that.
+        snapshot = await fetchPrice(pl).catch((err) => {
+          console.warn("[pricing] freeze failed, offer stays unfrozen:", err);
+          return null;
+        });
+        // A locally computed total is fine to *show*, never to freeze: it uses
+        // cached rates and snapshot article prices, so pinning an offer to it
+        // could lock in a figure the server would not agree with.
+        if (!snapshot || snapshot._local) return null;
+      } else {
+        snapshot = window.__pricing;
+      }
+    }
+    window.__frozen = true;
+    window.__frozenPricing = snapshot;
+    window.__pricing = snapshot;
+    window.dispatchEvent(new CustomEvent("pricing:updated", { detail: snapshot }));
+    if (typeof updateSummaryWidgetTotal === "function") updateSummaryWidgetTotal(snapshot?.total);
+    if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(snapshot?.selfPayAmount);
+    return snapshot;
+  };
+
   window.requestPricingRefresh = function requestPricingRefresh({
     delay = 120,
     payload = null,
     reason = "",
   } = {}) {
+    // Any live, user-driven field change un-freezes a previously frozen offer
+    // so what's shown reflects the edit; the next explicit save re-freezes it.
+    if (!window.__restoring) window.__frozen = false;
     clearTimeout(pricingRefreshTimer);
     window.__lastPricingRefreshMeta = {
       reason: reason || "",
@@ -9660,6 +11119,18 @@ window.getAHZoneData = function() {
   return null;
 };
 
+/* ========== AH: show selected Reisezone on the Arbeitszeit tab ========== */
+window.updateAHZoneDisplay = function updateAHZoneDisplay() {
+  var valEl = document.getElementById("ahZoneDisplayValue");
+  if (!valEl) return;
+  var zd = window.getAHZoneData?.() || null;
+  if (zd && zd.zone) {
+    valEl.textContent = "Zone " + zd.zone + " · Hinfahrt " + zd.billMin + " min pro Einsatz";
+  } else {
+    valEl.textContent = "Noch nicht bestimmt";
+  }
+};
+
 /* ========== AH: shared client-side pricing computation ========== */
 window.computeAHGesamt = function computeAHGesamt() {
   var AH_FREQ = {
@@ -9673,6 +11144,7 @@ window.computeAHGesamt = function computeAHGesamt() {
   };
   var ANFAHRT_PER_EINSATZ = 7.96;
   var STUNDENSATZ_HND     = 40.56;
+  var STUNDENSATZ_AB      = 53.04;
   var r2 = function(n) { return Math.round((Number(n) + Number.EPSILON) * 100) / 100; };
 
   var ahServices = [];
@@ -9681,52 +11153,332 @@ window.computeAHGesamt = function computeAHGesamt() {
     if (_j) ahServices = JSON.parse(_j.value || "[]");
   } catch {}
 
-  // Zone-based travel time (AH only) — Arbeitszeit travelTime field not used here
-  var zoneData    = window.getAHZoneData?.() || null;
-  var reisezeitH  = zoneData ? zoneData.billMin / 60 : 0;
+  var zoneData   = window.getAHZoneData?.() || null;
+  var reisezeitH = zoneData ? zoneData.billMin / 60 : 0;
+
+  function computeSvc(svc) {
+    var scheds = svc ? (svc.schedules || (svc.schedule ? [svc.schedule] : [])) : [];
+    var totalEinsaetze = 0, totalMonatlichH = 0, schedRows = [];
+    scheds.forEach(function(sched) {
+      var dauerH = (typeof parseDurationMinutes === "function" ? parseDurationMinutes(sched.dauer || "") : 0) / 60;
+      var freq   = AH_FREQ[sched.regelmaessigkeit] || 0;
+      if (!dauerH || !freq) return;
+      var perVisitH = dauerH + reisezeitH;
+      var monthlyH  = perVisitH * freq;
+      totalEinsaetze  += freq;
+      totalMonatlichH += monthlyH;
+      schedRows.push({
+        dauer:            sched.dauer || "",
+        regelmaessigkeit: sched.regelmaessigkeit || "",
+        dauerMin:         Math.round(dauerH * 60),
+        reiseRoundMin:    Math.round(reisezeitH * 60),
+        perVisitMin:      Math.round(perVisitH * 60),
+        freq:             freq,
+        monthlyH:         monthlyH,
+      });
+    });
+    return { totalEinsaetze: totalEinsaetze, totalMonatlichH: totalMonatlichH, schedRows: schedRows };
+  }
 
   var hndSvc = ahServices.find(function(s) { return s.type === "Haushaltsnahedienstleistungen"; });
-  if (!hndSvc) return { gesamt: 0, gesamtBase: 0, anfahrtTotal: 0, leistungenTotal: 0,
-                        totalEinsaetze: 0, totalMonatlichH: 0, tasks: [],
-                        isSelbstzahler: false, servicepauschale: 1.20,
-                        zoneData: zoneData, schedRows: [] };
+  var abSvc  = ahServices.find(function(s) { return s.type === "Alltagsbegleitung"; });
 
-  var scheds = hndSvc.schedules || (hndSvc.schedule ? [hndSvc.schedule] : []);
-  var totalEinsaetze = 0;
-  var totalMonatlichH = 0;
+  var hnd = computeSvc(hndSvc);
+  var ab  = computeSvc(abSvc);
 
-  var schedRows = [];
-  scheds.forEach(function(sched) {
-    var dauerH = (typeof parseDurationMinutes === "function" ? parseDurationMinutes(sched.dauer || "") : 0) / 60;
-    var freq   = AH_FREQ[sched.regelmaessigkeit] || 0;
-    if (!dauerH || !freq) return;
-    var perVisitH  = dauerH + 2 * reisezeitH;
-    var monthlyH   = perVisitH * freq;
-    totalEinsaetze  += freq;
-    totalMonatlichH += monthlyH;
-    schedRows.push({
-      dauer:           sched.dauer || "",
-      regelmaessigkeit: sched.regelmaessigkeit || "",
-      dauerMin:        Math.round(dauerH * 60),
-      reiseRoundMin:   Math.round(2 * reisezeitH * 60),
-      perVisitMin:     Math.round(perVisitH * 60),
-      freq:            freq,
-      monthlyH:        monthlyH,
+  var SERVICEPAUSCHALE = 1.20;
+  var AB_KM_RATE       = 0.35;
+  var isSelbstzahler   = (document.querySelector('input[name="payer"]:checked')?.value || "") === "Selbstzahler";
+
+  var anfahrtTotal    = r2(hnd.totalEinsaetze * ANFAHRT_PER_EINSATZ);
+  var leistungenTotal = r2(hnd.totalMonatlichH * STUNDENSATZ_HND);
+  var gesamtBase      = r2(anfahrtTotal + leistungenTotal);
+
+  // Same visit as HnD: the trip is already paid for by HnD's Anfahrt, so AB
+  // only adds its own Anfahrt for visits beyond what HnD already covers.
+  var abCombinedVisit   = !!(abSvc && abSvc.combinedVisit);
+  var abAnfahrtEinsaetze = abCombinedVisit ? Math.max(0, ab.totalEinsaetze - hnd.totalEinsaetze) : ab.totalEinsaetze;
+  var abAnfahrtTotal    = r2(abAnfahrtEinsaetze * ANFAHRT_PER_EINSATZ);
+  var abLeistungenTotal = r2(ab.totalMonatlichH * STUNDENSATZ_AB);
+  var abGesamtBase      = r2(abAnfahrtTotal + abLeistungenTotal);
+
+  var allBase = r2(gesamtBase + abGesamtBase);
+  var gesamt  = r2(allBase + (isSelbstzahler && hnd.totalMonatlichH > 0 ? SERVICEPAUSCHALE : 0));
+
+  // Kassenkunde: each financing source only counts once the consultant has explicitly
+  // confirmed it on the Finanzierung step — nothing is assumed, so skipping that step
+  // (or leaving every toggle off) leaves the Eigenanteil equal to the full Gesamt.
+  var entlastungsbetragNutzen  = !!document.getElementById("ahEntlastungsbetragNutzen")?.checked;
+  var entlastungsbetragMonat   = entlastungsbetragNutzen ? window.__entlastungsbetragMonat : 0;
+  var verhinderungspflegeMonat = Number(document.getElementById("ahVerhinderungspflegeMonat")?.value) || 0;
+  var umwidmungBeantragt       = !!document.getElementById("ahUmwidmungBeantragt")?.checked;
+  var umwidmungMonat           = umwidmungBeantragt ? (Number(document.getElementById("ahUmwidmungBetrag")?.value) || 0) : 0;
+  var eigenanteil = isSelbstzahler
+    ? gesamt
+    : r2(Math.max(0, gesamt - entlastungsbetragMonat - verhinderungspflegeMonat - umwidmungMonat));
+
+  // § 35a EStG: informational only, computed on the customer's actual out-of-pocket
+  // Eigenanteil — never fed back into eigenanteil itself.
+  var steuerabsetzJahr = isSelbstzahler ? 0 : r2(Math.min(
+    (window.__steuerabsetzCapJahr || 4000),
+    (eigenanteil * 12) * ((window.__steuerabsetzPct || 20) / 100)
+  ));
+
+  return {
+    gesamt:            gesamt,
+    eigenanteil:       eigenanteil,
+    entlastungsbetragNutzen: entlastungsbetragNutzen,
+    entlastungsbetragMonat: entlastungsbetragMonat,
+    verhinderungspflegeMonat: verhinderungspflegeMonat,
+    umwidmungMonat:    umwidmungMonat,
+    steuerabsetzJahr:  steuerabsetzJahr,
+    gesamtBase:        gesamtBase,
+    anfahrtTotal:      anfahrtTotal,
+    leistungenTotal:   leistungenTotal,
+    totalEinsaetze:    hnd.totalEinsaetze,
+    totalMonatlichH:   hnd.totalMonatlichH,
+    tasks:             hndSvc ? (hndSvc.tasks || []) : [],
+    isSelbstzahler:    isSelbstzahler,
+    servicepauschale:  SERVICEPAUSCHALE,
+    zoneData:          zoneData,
+    schedRows:         hnd.schedRows,
+    hasAb:             ab.totalMonatlichH > 0,
+    abTotalEinsaetze:  ab.totalEinsaetze,
+    abAnfahrtEinsaetze: abAnfahrtEinsaetze,
+    abCombinedVisit:   abCombinedVisit,
+    abTotalMonatlichH: ab.totalMonatlichH,
+    abAnfahrtTotal:    abAnfahrtTotal,
+    abLeistungenTotal: abLeistungenTotal,
+    abGesamtBase:      abGesamtBase,
+    abTasks:           abSvc ? (abSvc.tasks || []) : [],
+    abSchedRows:       ab.schedRows,
+    abKmRate:          AB_KM_RATE,
+    allBase:           allBase,
+  };
+};
+
+/* ========== AH: Kosten-Vorschau (live preview on AH page) ========== */
+window.renderAHKostenPreview = function renderAHKostenPreview() {
+  var fmtEuro = function(n) {
+    return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n) || 0);
+  };
+
+  var ah = window.computeAHGesamt?.() || {};
+  var hasHnd = (ah.totalMonatlichH || 0) > 0;
+  var hasAb  = !!ah.hasAb;
+
+  // Per-section live totals in each section header
+  var hdrHnd = document.getElementById("ahHeaderTotalHnd");
+  var hdrAb  = document.getElementById("ahHeaderTotalAb");
+  if (hdrHnd) hdrHnd.textContent = hasHnd ? fmtEuro(ah.gesamtBase   || 0) + " / Mon." : "—";
+  if (hdrAb)  hdrAb.textContent  = hasAb  ? fmtEuro(ah.abGesamtBase || 0) + " / Mon." : "—";
+
+  // Rich visual overview (single source of truth for the AH cost display)
+  if (typeof window.renderAHKostenOverview === "function") window.renderAHKostenOverview(ah);
+};
+
+/* ========== AH: rich visual Kosten-Übersicht (below the live preview) ========== */
+window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
+  var wrap = document.getElementById("ahKostenOverview");
+  if (!wrap) return;
+  ah = ah || window.computeAHGesamt?.() || {};
+
+  var eur = function (n) { return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n) || 0); };
+  var h2  = function (h) { return (Math.round((Number(h) || 0) * 100) / 100).toFixed(2).replace(".", ",") + " h"; };
+  var fac = function (n) {
+    n = Number(n) || 0;
+    var r = Math.round(n * 100) / 100;
+    var approx = (Math.abs(n - r) > 1e-9) ? "≈ " : "";
+    return approx + r.toFixed(2).replace(".", ",");
+  };
+  var esc = function (s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
+  };
+
+  var RATE_HND = 40.56, RATE_AB = 53.04, ANFAHRT = 7.96;
+  var COL = { svc: "#7c3aed", trav: "#f59e0b", anf: "#0ea5e9", pausch: "#10b981" };
+
+  function splitH(rows) {
+    var s = 0, t = 0;
+    (rows || []).forEach(function (r) {
+      var f = Number(r.freq) || 0;
+      s += (Number(r.dauerMin) || 0) / 60 * f;
+      t += (Number(r.reiseRoundMin) || 0) / 60 * f;
+    });
+    return { s: s, t: t };
+  }
+
+  var hasHnd = (ah.totalMonatlichH || 0) > 0;
+  var hasAb  = !!ah.hasAb;
+
+  // ── Empty state ──────────────────────────────────────────────────────────
+  if (!hasHnd && !hasAb) {
+    wrap.innerHTML =
+      '<div style="border:1px dashed var(--border); border-radius:14px; padding:28px 20px; text-align:center; background:var(--panel);">' +
+        '<div style="font-size:1.6rem; margin-bottom:6px;">🧮</div>' +
+        '<div style="font-weight:700; color:var(--text); margin-bottom:2px;">Noch keine Kosten berechnet</div>' +
+        '<div style="font-size:0.85rem; color:var(--muted);">Füge oben eine Leistung hinzu, um die Kostenübersicht zu sehen.</div>' +
+      '</div>';
+    return;
+  }
+
+  var sections = [];
+  if (hasHnd) sections.push({
+    title: "Haushaltsnahe Dienstleistungen", short: "HnD", rate: RATE_HND,
+    sp: splitH(ah.schedRows), billedH: ah.totalMonatlichH, leistungen: ah.leistungenTotal,
+    einsaetze: ah.totalEinsaetze, anfahrt: ah.anfahrtTotal,
+    servicepauschale: (ah.isSelbstzahler ? (ah.servicepauschale || 0) : 0),
+    base: ah.gesamtBase, sched: ah.schedRows,
+  });
+  if (hasAb) sections.push({
+    title: "Alltagsbegleitung", short: "AB", rate: RATE_AB,
+    sp: splitH(ah.abSchedRows), billedH: ah.abTotalMonatlichH, leistungen: ah.abLeistungenTotal,
+    einsaetze: ah.abAnfahrtEinsaetze, anfahrt: ah.abAnfahrtTotal,
+    combinedVisit: ah.abCombinedVisit,
+    servicepauschale: 0, base: ah.abGesamtBase, sched: ah.abSchedRows,
   });
 
-  var SERVICEPAUSCHALE    = 1.20;
-  var isSelbstzahler      = (document.querySelector('input[name="payer"]:checked')?.value || "") === "Selbstzahler";
-  var anfahrtTotal        = r2(totalEinsaetze * ANFAHRT_PER_EINSATZ);
-  var leistungenTotal     = r2(totalMonatlichH * STUNDENSATZ_HND);
-  var gesamtBase          = r2(anfahrtTotal + leistungenTotal);
-  var gesamt              = r2(gesamtBase + (isSelbstzahler ? SERVICEPAUSCHALE : 0));
-  return { gesamt: gesamt, gesamtBase: gesamtBase,
-           anfahrtTotal: anfahrtTotal, leistungenTotal: leistungenTotal,
-           totalEinsaetze: totalEinsaetze, totalMonatlichH: totalMonatlichH,
-           tasks: hndSvc.tasks || [], isSelbstzahler: isSelbstzahler,
-           servicepauschale: SERVICEPAUSCHALE, zoneData: zoneData,
-           schedRows: schedRows };
+  var zd = ah.zoneData || null;
+  var zoneChip = zd
+    ? '<span style="display:inline-flex; align-items:center; gap:5px; font-size:0.72rem; font-weight:600; background:rgba(255,255,255,0.18); color:#fff; padding:3px 9px; border-radius:999px;">📍 Zone ' + esc(zd.zone) + ' · ' + esc(zd.billMin) + ' min Hinfahrt</span>'
+    : '<span style="display:inline-flex; align-items:center; gap:5px; font-size:0.72rem; font-weight:600; background:rgba(255,255,255,0.18); color:#fff; padding:3px 9px; border-radius:999px;">⚠ Keine Zone</span>';
+
+  var gesamt = ah.gesamt || 0;
+  var yearly = gesamt * 12;
+
+  var financingParts = [];
+  if (ah.entlastungsbetragNutzen) financingParts.push("Entlastungsbetrag § 45b");
+  if (ah.verhinderungspflegeMonat > 0) financingParts.push("Verhinderungspflege § 39");
+  if (ah.umwidmungMonat > 0) financingParts.push("Umwidmung § 45a Abs. 4");
+  var financingNote = financingParts.length ? (" (Rest über " + financingParts.join(", ") + ")") : "";
+
+  // ── Segment bar + legend ──────────────────────────────────────────────────
+  function segBar(segs) {
+    var total = segs.reduce(function (a, s) { return a + s.v; }, 0) || 1;
+    var bars = segs.filter(function (s) { return s.v > 0; }).map(function (s) {
+      return '<div title="' + s.l + ': ' + eur(s.v) + '" style="width:' + (s.v / total * 100) + '%; background:' + s.c + ';"></div>';
+    }).join("");
+    return '<div style="display:flex; height:14px; border-radius:7px; overflow:hidden; background:var(--border);">' + bars + '</div>';
+  }
+  function legend(segs) {
+    return '<div style="display:flex; flex-wrap:wrap; gap:8px 16px; margin-top:9px; font-size:0.75rem; color:var(--muted);">' +
+      segs.filter(function (s) { return s.v > 0; }).map(function (s) {
+        return '<span style="display:inline-flex; align-items:center; gap:6px;">' +
+          '<span style="width:10px; height:10px; border-radius:3px; background:' + s.c + '; display:inline-block; flex-shrink:0;"></span>' +
+          '<span style="color:var(--text);">' + s.l + '</span> ' + eur(s.v) + '</span>';
+      }).join("") + '</div>';
+  }
+
+  function mathRow(label, sub, value, opts) {
+    opts = opts || {};
+    return '<div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:7px 0;' +
+      (opts.top ? ' border-top:1px solid var(--border); margin-top:2px;' : '') + '">' +
+      '<span style="' + (opts.strong ? 'font-weight:700; color:var(--text);' : 'color:var(--muted);') + '">' + label +
+        (sub ? ' <span style="font-size:0.76rem; color:var(--muted); font-weight:400;">' + sub + '</span>' : '') + '</span>' +
+      '<span style="' + (opts.strong ? 'font-weight:700; font-size:1.02rem; color:var(--text);' : 'color:var(--text);') + ' white-space:nowrap;">' + value + '</span>' +
+    '</div>';
+  }
+
+  function schedTable(sched) {
+    if (!sched || !sched.length) return "";
+    var rows = sched.map(function (r) {
+      return '<tr style="border-top:1px solid var(--border);">' +
+        '<td style="padding:6px 8px; color:var(--muted);">' + esc(r.regelmaessigkeit || "—") + '</td>' +
+        '<td style="padding:6px 8px; text-align:right;">' + (r.dauerMin || 0) + ' min</td>' +
+        '<td style="padding:6px 8px; text-align:right; color:' + COL.trav + ';">+ ' + (r.reiseRoundMin || 0) + ' min</td>' +
+        '<td style="padding:6px 8px; text-align:right; font-weight:600;">= ' + (r.perVisitMin || 0) + ' min</td>' +
+        '<td style="padding:6px 8px; text-align:right; color:' + COL.svc + '; font-weight:600;">&times; ' + fac(r.freq) + '</td>' +
+      '</tr>';
+    }).join("");
+    return '<details style="margin-top:12px;">' +
+      '<summary style="cursor:pointer; font-size:0.78rem; color:var(--muted); user-select:none;">Rechenweg pro Einsatz anzeigen</summary>' +
+      '<table style="border-collapse:collapse; width:100%; font-size:0.78rem; margin-top:8px;">' +
+        '<thead><tr style="color:var(--muted); text-align:left;">' +
+          '<th style="padding:6px 8px; font-weight:600;">Rhythmus</th>' +
+          '<th style="padding:6px 8px; text-align:right; font-weight:600;">Leistung</th>' +
+          '<th style="padding:6px 8px; text-align:right; font-weight:600;">Hinfahrt</th>' +
+          '<th style="padding:6px 8px; text-align:right; font-weight:600;">/ Einsatz</th>' +
+          '<th style="padding:6px 8px; text-align:right; font-weight:600;">× / Monat</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table>' +
+    '</details>';
+  }
+
+  function panel(cfg, isLast) {
+    var serviceCost = cfg.sp.s * cfg.rate;
+    var travelCost  = cfg.sp.t * cfg.rate;
+    var segs = [
+      { v: serviceCost,  c: COL.svc,    l: "Leistungszeit" },
+      { v: travelCost,   c: COL.trav,   l: "Fahrtzeit" },
+      { v: cfg.anfahrt,  c: COL.anf,    l: "Anfahrt" },
+    ];
+    if (cfg.servicepauschale) segs.push({ v: cfg.servicepauschale, c: COL.pausch, l: "Servicepauschale" });
+    var sectionTotal = cfg.base + (cfg.servicepauschale || 0);
+
+    var fahrtSub = zd ? '(Zone ' + esc(zd.zone) + ' · ' + esc(zd.billMin) + ' min / Einsatz)' : '';
+
+    return '<div style="padding:18px 20px;' + (isLast ? '' : ' border-bottom:1px solid var(--border);') + '">' +
+      // header
+      '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:14px;">' +
+        '<div style="display:flex; align-items:center; gap:9px;">' +
+          '<span style="width:11px; height:11px; border-radius:3px; background:' + COL.svc + '; display:inline-block;"></span>' +
+          '<span style="font-weight:700; font-size:1.02rem; color:var(--text);">' + esc(cfg.title) + '</span>' +
+          '<span style="font-size:0.72rem; font-weight:600; color:var(--muted); border:1px solid var(--border); border-radius:999px; padding:2px 8px;">' + eur(cfg.rate) + ' / Std.</span>' +
+        '</div>' +
+        '<div style="text-align:right;">' +
+          '<div style="font-size:1.35rem; font-weight:800; color:var(--text); line-height:1.1;">' + eur(sectionTotal) + '</div>' +
+          '<div style="font-size:0.72rem; color:var(--muted);">pro Monat</div>' +
+        '</div>' +
+      '</div>' +
+      segBar(segs) +
+      legend(segs) +
+      // math
+      '<div style="margin-top:14px; font-size:0.9rem;">' +
+        mathRow('Zeit vor Ort, pro Monat', '', h2(cfg.sp.s)) +
+        mathRow('Fahrtzeit, pro Monat', fahrtSub, h2(cfg.sp.t)) +
+        mathRow('Gesamtzeit pro Monat', '', h2(cfg.sp.s + cfg.sp.t), { top: true, strong: true }) +
+        mathRow('Gesamtzeit', '(' + h2(cfg.sp.s + cfg.sp.t) + ') × ' + eur(cfg.rate), eur(cfg.leistungen), { top: true, strong: false }) +
+        mathRow(
+          'Anfahrtspauschale' + (cfg.combinedVisit ? ' <span style="font-weight:400; color:' + COL.trav + ';">(kombiniert mit HnD)</span>' : ''),
+          fac(cfg.einsaetze) + ' Einsätze × ' + eur(ANFAHRT), eur(cfg.anfahrt)
+        ) +
+        (cfg.servicepauschale ? mathRow('Servicepauschale', '(inkl. MwSt.)', eur(cfg.servicepauschale)) : '') +
+        mathRow('Zwischensumme', '', eur(sectionTotal), { top: true, strong: true }) +
+      '</div>' +
+      schedTable(cfg.sched) +
+    '</div>';
+  }
+
+  var panelsHTML = sections.map(function (s, i) { return panel(s, i === sections.length - 1); }).join("");
+
+  wrap.innerHTML =
+    '<div style="border:1px solid var(--border); border-radius:16px; overflow:hidden; background:var(--panel); box-shadow:var(--shadow);">' +
+      // gradient header with grand total
+      '<div style="background:linear-gradient(135deg, var(--accent), var(--accent-strong)); color:#fff; padding:18px 20px;">' +
+        '<div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap;">' +
+          '<div>' +
+            '<div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; opacity:0.85;">Kosten-Übersicht</div>' +
+            '<div style="margin-top:6px;">' + zoneChip + '</div>' +
+          '</div>' +
+          '<div style="text-align:right;">' +
+            '<div style="font-size:2rem; font-weight:800; line-height:1;">' + eur(gesamt) + '</div>' +
+            '<div style="font-size:0.8rem; opacity:0.9; margin-top:3px;">pro Monat · ≈ ' + eur(yearly) + ' / Jahr</div>' +
+            (!ah.isSelbstzahler ?
+              '<div style="font-size:0.8rem; opacity:0.9; margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.3);">Eigenanteil: <b>' + eur(ah.eigenanteil) + '</b>' + financingNote + '</div>'
+              : '') +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      panelsHTML +
+      // footnote
+      '<div style="padding:12px 20px; border-top:1px solid var(--border); font-size:0.75rem; color:var(--muted); line-height:1.5; background:var(--bg);">' +
+        '<b>Hinweis zur Berechnung:</b> Monatliche Einsätze werden aus der Jahresfrequenz abgeleitet ' +
+        '(z. B. 14-tägig = 26×/Jahr ÷ 12 = 2,1667×/Monat). Angezeigte Faktoren sind auf 2 Nachkommastellen gerundet – ' +
+        'daher kann eine Handrechnung wie 2,17 × 7,96 € = 17,27 € minimal von der exakten Summe (2,1667 × 7,96 € = 17,25 €) abweichen. ' +
+        'Reisezeit umfasst nur die Hinfahrt; die Rückfahrt wird nicht berechnet.' +
+      '</div>' +
+    '</div>';
 };
 
 /* ========== Kosten Duschabtrennung========== */
@@ -9736,6 +11488,51 @@ window.computeAHGesamt = function computeAHGesamt() {
   const container = document.getElementById("costsSummary");
   if (!container) return;
 
+  // ── Kosten info button ──────────────────────────────────────────────────
+  const kostenToggle      = document.getElementById("kostenDetailsToggle");
+  const kostenHeaderTotal = document.getElementById("kostenHeaderTotal");
+  if (kostenToggle) {
+    const kostenInfoPanel = document.createElement("div");
+    kostenInfoPanel.style.cssText =
+      "display:none; font-size:0.75rem; background:var(--bg-alt,#f8fafc);" +
+      "border:1px solid var(--border); border-radius:6px; padding:10px 12px; margin-bottom:12px;";
+    kostenInfoPanel.innerHTML =
+      "<div style='font-weight:700; margin-bottom:8px; color:var(--text,#1e293b); font-size:0.78rem; letter-spacing:0.01em;'>Berechnungsregel</div>" +
+      "<p style='margin:0 0 10px; font-size:0.73rem; color:var(--text-muted,#64748b); line-height:1.5;'>" +
+        "Gesamt = <strong style='color:var(--text,#1e293b);'>Dauer × Häufigkeit × Zeitraum</strong><br>" +
+        "Basis: 52 Wochen/Jahr ÷ 12 = stabiler Monatsdurchschnitt" +
+      "</p>" +
+      "<div style='border:1px solid var(--border); border-radius:6px; overflow:hidden;'>" +
+      "<table style='border-collapse:collapse; width:100%; font-size:0.74rem;'>" +
+        "<thead>" +
+          "<tr style='background:rgba(14,165,233,0.07);'>" +
+            "<th style='text-align:left; padding:7px 14px; font-weight:600; color:var(--text-muted,#64748b); border-bottom:1px solid var(--border);'>Regelmäßigkeit</th>" +
+            "<th style='text-align:center; padding:7px 14px; font-weight:600; color:var(--text-muted,#64748b); border-bottom:1px solid var(--border);'>Formel</th>" +
+            "<th style='text-align:right; padding:7px 14px; font-weight:600; color:var(--accent,#0ea5e9); border-bottom:1px solid var(--border);'>× / Monat</th>" +
+          "</tr>" +
+        "</thead>" +
+        "<tbody>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Wöchentlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>52 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>4,33×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>14-tägig</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>26 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>2,17×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>alle drei Wochen</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>(52÷3) ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>1,44×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Monatlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>1</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>1,00×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Vierteljährlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>4 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>0,33×</td></tr>" +
+          "<tr style='border-bottom:1px solid var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Halbjährlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>2 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>0,17×</td></tr>" +
+          "<tr style='border-bottom:1px dashed var(--border);'><td style='padding:8px 14px; color:var(--text,#1e293b); font-weight:500;'>Jährlich</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#64748b);'>1 ÷ 12</td><td style='padding:8px 14px; text-align:right; font-weight:700; color:var(--accent,#0ea5e9);'>0,083×</td></tr>" +
+          "<tr style='background:rgba(0,0,0,0.03);'><td style='padding:8px 14px; color:var(--text-muted,#94a3b8); font-style:italic;'>Einmalig</td><td style='padding:8px 14px; text-align:center; font-family:monospace; color:var(--text-muted,#94a3b8);'>1× gesamt</td><td style='padding:8px 14px; text-align:right; font-weight:600; color:var(--text-muted,#94a3b8);'>—</td></tr>" +
+        "</tbody>" +
+      "</table>" +
+      "</div>";
+    container.parentNode.insertBefore(kostenInfoPanel, container);
+
+    kostenToggle.addEventListener("click", function () {
+      const open = kostenInfoPanel.style.display !== "none";
+      kostenInfoPanel.style.display  = open ? "none" : "";
+      kostenToggle.style.color       = open ? "var(--text-muted,#94a3b8)" : "var(--accent,#0ea5e9)";
+      kostenToggle.style.borderColor = open ? "var(--border)" : "var(--accent,#0ea5e9)";
+    });
+  }
+
   function euroC(n) {
     return new Intl.NumberFormat("de-DE", {
       style: "currency",
@@ -9743,17 +11540,23 @@ window.computeAHGesamt = function computeAHGesamt() {
     }).format(Number(n || 0));
   }
 
-  function card(title, bodyHTML, footerHTML = "") {
+  // Kosten-Details section: flat, paragraph-style block (no boxed card).
+  // Renders an accent-underlined heading, the line grid, and an optional
+  // right-aligned subtotal on a hairline. Styling lives in .kosten-section*.
+  // numeral: roman badge mirroring the sidebar groups (I Arbeit, II Material,
+  // III Optional) so a Kosten section is traceable to the tab it came from.
+  function card(title, bodyHTML, footerHTML = "", numeral = "") {
+    const num = numeral ? `<span class="side-num">${numeral}</span>` : "";
     return `
-      <div class="card" style="padding:12px;">
-        <div style="font-weight:700; margin-bottom:8px;">${title}</div>
-        <div>${bodyHTML}</div>
+      <section class="kosten-section">
+        <h3 class="kosten-section__title">${num}${title}</h3>
+        <div class="kosten-section__body">${bodyHTML}</div>
         ${
           footerHTML
-            ? `<div style="border-top:1px solid var(--border); margin-top:8px; padding-top:8px;">${footerHTML}</div>`
+            ? `<div class="kosten-section__footer">${footerHTML}</div>`
             : ""
         }
-      </div>
+      </section>
     `;
   }
   // UI-only: if a Duschabtrennung (Hassmann) quick-add has a user ID,
@@ -9771,6 +11574,11 @@ window.computeAHGesamt = function computeAHGesamt() {
 
     // Avoid double-appending when label already includes the same [ID]
     if (base.includes(`[${pid}]`)) return base;
+
+    // Duschabtrennung (neu) configurator lines (Vigour/Badolux) show only the product
+    // name in Kosten — no article code. The code still travels with the line for
+    // pricing/restore/CSV export, it's just not rendered here.
+    if (line.source === "vigour_config") return base;
 
     // 1) Original rule: show ID for Hassmann quick-add (kept as-is)
     if (!/^HASS_/i.test(pid) && /Hassmann/i.test(base)) {
@@ -9797,15 +11605,55 @@ function escapeHtml(s) {
     .replace(/'/g, "&#39;");
 }
 
+  const HIDDEN_BRANDS_RE = /\b(VIGOUR|TRINNITY|BADOLUX|RAMSAUER|CLIVIA\s+PLUS|DERBY\s+V3\s+PLUS|HEWI)\b\s*/gi;
+  function stripBrand(s) { return String(s).replace(HIDDEN_BRANDS_RE, "").trim(); }
+
+  // Kosten-Details: finish (Ausführung/Oberfläche) is collected on every Duschabtrennung
+  // (neu) line but not shown yet — flip this to true to display it once desired.
+  const SHOW_FINISH_IN_KOSTEN = false;
+
+  // Kosten-Details: "ohne Aufschlag" badge on every line the server left out of
+  // the Aufschlag base (NO_MARKUP_IDS in logic/pricing.js, plus Kleinmaterial on
+  // legacy offers). Flip to false to hide the badges — the Aufschlag row keeps
+  // showing the base it was applied to either way.
+  const SHOW_NO_MARKUP_TAG = true;
+
+  // BU material sections — mirrors CATEGORY_ORDER in routes/docx-template.js so
+  // the Kosten-Detail matches the Angebot. Inserts __subtitle header rows.
+  function groupMaterialRows(rows) {
+    const ORDER = ["Kleinmaterial", "Fußboden", "Wandverkleidung", "Zubehör", "Duschwanne", "Duschabtrennung", "Weiteres"];
+    const catOf = (r) =>
+      r.category ||
+      (r.source === "optional" || r.source === "optional_reha" ? "Zubehör" : "Weiteres");
+    const grouped = new Map();
+    for (const r of rows) {
+      const c = catOf(r);
+      if (!grouped.has(c)) grouped.set(c, []);
+      grouped.get(c).push(r);
+    }
+    const out = [];
+    for (const cat of ORDER) {
+      const g = grouped.get(cat);
+      if (!g || !g.length) continue;
+      out.push({ __subtitle: true, label: cat.toUpperCase() });
+      out.push(...g);
+    }
+    return out;
+  }
+
+  // Ids the server left out of the Aufschlag base (set per render, see
+  // renderFromData) — tagged in the line list so the markup stays explainable.
+  let noMarkupIds = new Set();
+
   function listLines(lines) {
     if (!Array.isArray(lines) || !lines.length)
       return '<div class="muted">Keine Positionen</div>';
 
     const header = `
-    <div style="font-size:12px;color:var(--muted)">Bezeichnung</div>
-    <div style="font-size:12px;color:var(--muted);text-align:right">Menge</div>
-    <div style="font-size:12px;color:var(--muted);text-align:right">Einzelpreis</div>
-    <div style="font-size:12px;color:var(--muted);text-align:right">Gesamt</div>
+    <div class="kosten-col-head">Bezeichnung</div>
+    <div class="kosten-col-head" style="text-align:right">Menge</div>
+    <div class="kosten-col-head" style="text-align:right">Einzelpreis</div>
+    <div class="kosten-col-head" style="text-align:right">Gesamt</div>
   `;
 
     const rows = lines
@@ -9819,11 +11667,31 @@ function escapeHtml(s) {
           ? String(qtyNum)
           : qtyNum.toFixed(2).replace(/\.?0+$/, "").replace(".", ",");
         const unitText = l.unit ? ` ${l.unit}` : "";
+        const finishHTML =
+          SHOW_FINISH_IN_KOSTEN && l.finish
+            ? `<div style="font-size:11px;color:var(--muted)">${escapeHtml(l.finish)}</div>`
+            : "";
+        // Saved offer whose supplier price moved since it was quoted: the quoted
+        // price stays the billed one, today's price is shown next to it so a loss
+        // is visible while the parts are being ordered.
+        const cur = Number(l.currentNet) || 0;
+        const quoted = Number(l.unitPrice) || 0;
+        const driftHTML =
+          cur > 0 && Math.abs(cur - quoted) >= 0.005
+            ? `<div style="font-size:11px;color:${cur > quoted ? "var(--danger, #c0392b)" : "var(--ok, #1e8449)"}">
+                 aktuell ${euroC(cur)} (${cur > quoted ? "+" : "−"}${euroC(Math.abs(cur - quoted))} pro Stk)
+               </div>`
+            : "";
+        const noMarkupTag =
+          SHOW_NO_MARKUP_TAG &&
+          noMarkupIds.has(String(l.productId || l.id || "").trim())
+          ? ` <span class="kosten-tag">ohne Aufschlag</span>`
+          : "";
         return `
-      <div style="white-space:pre-line">${escapeHtml(decorateDALabel(l))}</div>
+      <div style="white-space:pre-line">${escapeHtml(stripBrand(decorateDALabel(l)))}${noMarkupTag}${finishHTML}</div>
       <div style="text-align:right">${qtyText}${unitText}</div>
-      <div style="text-align:right">${euroC(l.unitPrice ?? 0)}</div>
-      <div style="text-align:right; font-weight:600">${euroC(l.lineTotal ?? 0)}</div>
+      <div style="text-align:right">${euroC(l.unitPrice ?? 0)}${driftHTML}</div>
+      <div style="text-align:right">${euroC(l.lineTotal ?? 0)}</div>
     `;
       })
       .join("");
@@ -9899,6 +11767,24 @@ function hasOptionalPageForCurrentOffer() {
       });
     }
 
+    // 1b) Arbeitszeit (Facharbeiter) from services – was previously dropped for BWT
+    const arbeitRow = svcSrc.find(
+      (s) =>
+        s.key === "facharbeiter" ||
+        /facharbeiter|arbeitszeit/i.test(String(s.label || s.name || "")),
+    );
+    if (arbeitRow && Number(arbeitRow.amount) > 0) {
+      out.push({
+        productId: arbeitRow.key || arbeitRow.productId || "facharbeiter",
+        label: String(arbeitRow.label || arbeitRow.name || "-"),
+        qty: Number(arbeitRow.qty ?? 1) || 1,
+        unitPrice: Number(
+          arbeitRow.unitPrice ?? arbeitRow.amount ?? 0,
+        ),
+        lineTotal: Number(arbeitRow.amount || 0),
+      });
+    }
+
     // 2) Materials: Tür + Lieferkosten + Kleinmaterial
     //    → take them from the *resolved* material list (with prices)
     const matSrc =
@@ -9946,6 +11832,219 @@ function hasOptionalPageForCurrentOffer() {
     return out;
   }
 
+// ── AH Kosten: pure Angebot-style table builder (testable in isolation) ─────
+window.__buildAHKostenHTML = function __buildAHKostenHTML(vm) {
+  vm = vm || {};
+  var HND_RATE = 40.56, AB_RATE = 53.04, ANFAHRT = 7.96;
+
+  var euro = function (n) {
+    return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(n) || 0);
+  };
+  var fmtH = function (h) {
+    return (Math.round((Number(h) || 0) * 100) / 100).toFixed(2).replace(".", ",");
+  };
+  var fmtNum = function (n) {
+    return new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(Number(n) || 0);
+  };
+  var esc = function (s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  };
+
+  var hhmm = function (min) {
+    var m = Math.round(Number(min) || 0);
+    var h = Math.floor(m / 60), r = m % 60;
+    return h + ":" + String(r).padStart(2, "0") + " h";
+  };
+
+  var toggleSeq = 0; // unique id per service details block
+
+  var footnote = function (title, body) {
+    return '<div style="margin-top:12px; padding:8px 0 0; border-top:1px dashed var(--border); font-size:0.8rem; color:var(--muted);">' +
+      '<span style="font-weight:600;">* Separate Direktrechnung — nicht im Gesamtbetrag.</span> ' +
+      "<b>" + esc(title) + "</b> " + body +
+    "</div>";
+  };
+
+  // Renders one service as an Angebot line-item table.
+  // opts: { title, subtitle, taskLabels, hours, rate, leistungenTotal,
+  //         einsaetze, anfahrtTotal, gesamtLabel, gesamtValue, extraRowsHTML, footnoteHTML,
+  //         schedRows, zoneData }
+  function serviceTable(opts) {
+    var tasks = (opts.taskLabels || []).filter(Boolean);
+    var tasksLine = tasks.length
+      ? '<div style="font-size:0.82rem; color:var(--muted); margin:2px 0 12px;">' +
+          '<span style="font-weight:600;">Enthaltene Leistungen:</span> ' +
+          tasks.map(esc).join(" · ") + "</div>"
+      : '<div style="margin-bottom:8px;"></div>';
+
+    var head =
+      '<div style="display:grid; grid-template-columns:1fr 90px 100px 110px; gap:6px 12px; ' +
+        'font-size:0.72rem; font-weight:600; color:var(--muted); text-transform:uppercase; ' +
+        'letter-spacing:0.04em; padding-bottom:6px; border-bottom:1px solid var(--border);">' +
+        "<span>Position</span>" +
+        '<span style="text-align:right;">Menge</span>' +
+        '<span style="text-align:right;">Einzelpreis</span>' +
+        '<span style="text-align:right;">Gesamt</span>' +
+      "</div>";
+
+    var rowStyle = 'display:grid; grid-template-columns:1fr 90px 100px 110px; gap:6px 12px; ' +
+      "align-items:center; padding:9px 0; border-bottom:1px solid var(--border); font-size:0.9rem;";
+
+    var leistungRow =
+      '<div style="' + rowStyle + '">' +
+        '<span>Leistungen <span style="font-size:0.78rem; color:var(--muted);">(inkl. Fahrtzeit Hinfahrt)</span></span>' +
+        '<span style="text-align:right; color:var(--muted);">' + fmtH(opts.hours) + " h</span>" +
+        '<span style="text-align:right; color:var(--muted);">' + euro(opts.rate) + "</span>" +
+        '<span style="text-align:right; font-weight:600;">' + euro(opts.leistungenTotal) + "</span>" +
+      "</div>";
+
+    var anfahrtRow =
+      '<div style="' + rowStyle + '">' +
+        "<span>Anfahrtspauschale" +
+        (opts.combinedVisit ? ' <span style="font-size:0.78rem; color:var(--muted);">(kombiniert mit HnD)</span>' : "") +
+        "</span>" +
+        '<span style="text-align:right; color:var(--muted);">' + fmtNum(opts.einsaetze) + "&times;</span>" +
+        '<span style="text-align:right; color:var(--muted);">' + euro(ANFAHRT) + "</span>" +
+        '<span style="text-align:right; font-weight:600;">' + euro(opts.anfahrtTotal) + "</span>" +
+      "</div>";
+
+    var totalRow =
+      '<div style="display:flex; justify-content:space-between; align-items:baseline; ' +
+        'padding-top:12px; font-size:1.05rem; font-weight:700;">' +
+        "<span>" + esc(opts.gesamtLabel || "Gesamt / Monat") + "</span>" +
+        "<span>" + euro(opts.gesamtValue) + "</span>" +
+      "</div>";
+
+    var detId = "ahDet" + (toggleSeq++);
+    var zoneHTML = opts.zoneData
+      ? '<div style="margin-bottom:8px; font-size:0.82rem; color:var(--muted);">' +
+          "<b>Zone " + esc(opts.zoneData.zone) + "</b> · Hinfahrt " + esc(opts.zoneData.billMin) +
+          " min pro Einsatz (im Stundensatz enthalten · Rückfahrt wird nicht berechnet)" +
+        "</div>"
+      : '<div style="margin-bottom:8px; font-size:0.82rem; color:#854d0e;">⚠ Keine Zone bestimmt.</div>';
+
+    var brkRows = (opts.schedRows || []).map(function (r) {
+      return '<tr style="border-top:1px solid var(--border);">' +
+        '<td style="padding:5px 8px; color:var(--muted);">' + esc(r.regelmaessigkeit) + "</td>" +
+        '<td style="padding:5px 8px; text-align:right;">' + r.dauerMin + " min</td>" +
+        '<td style="padding:5px 8px; text-align:right;">+ ' + r.reiseRoundMin + " min</td>" +
+        '<td style="padding:5px 8px; text-align:right;">= ' + r.perVisitMin + " min</td>" +
+        '<td style="padding:5px 8px; text-align:right; color:var(--accent,#0ea5e9); font-weight:600;">&times; ' +
+          (Math.round((Number(r.freq) || 0) * 100) / 100).toFixed(2).replace(".", ",") + " = " + hhmm(r.monthlyH * 60) + "</td>" +
+      "</tr>";
+    }).join("");
+
+    var breakdownTable = (opts.schedRows && opts.schedRows.length)
+      ? '<table style="border-collapse:collapse; width:100%; font-size:0.78rem; margin-top:4px;">' +
+          '<thead><tr style="color:var(--muted); font-weight:600;">' +
+            '<th style="padding:5px 8px; text-align:left;">Regelmäßigkeit</th>' +
+            '<th style="padding:5px 8px; text-align:right;">Leistung</th>' +
+            '<th style="padding:5px 8px; text-align:right;">+ Hinfahrt</th>' +
+            '<th style="padding:5px 8px; text-align:right;">= /Einsatz</th>' +
+            '<th style="padding:5px 8px; text-align:right;">&times; Freq = /Mon.</th>' +
+          "</tr></thead><tbody>" + brkRows + "</tbody></table>"
+      : "";
+
+    var detailsToggle =
+      '<button type="button" data-ah-details-toggle="' + detId + '" ' +
+        'style="background:none; border:1px solid var(--border); border-radius:6px; ' +
+        'padding:3px 10px; font-size:0.78rem; cursor:pointer; color:var(--muted); margin-top:10px;">' +
+        "ℹ Details</button>";
+
+    var detailsPanel =
+      '<div data-ah-details="' + detId + '" hidden ' +
+        'style="margin-top:10px; padding:10px 12px; background:var(--panel); ' +
+        'border:1px solid var(--border); border-radius:6px;">' +
+        zoneHTML + breakdownTable +
+      "</div>";
+
+    return (
+      '<section style="margin-bottom:24px;">' +
+        '<h3 style="margin:0 0 2px; font-size:1.05rem;">' + esc(opts.title) + "</h3>" +
+        (opts.subtitle ? '<div style="font-size:0.85rem; color:var(--muted); margin-bottom:6px;">' + esc(opts.subtitle) + "</div>" : "") +
+        tasksLine +
+        head +
+        leistungRow +
+        anfahrtRow +
+        (opts.extraRowsHTML || "") +
+        totalRow +
+        (opts.footnoteHTML || "") +
+        detailsToggle +
+        detailsPanel +
+      "</section>"
+    );
+  }
+
+  var html = "";
+  if (vm.hasHnd) {
+    var hndExtraRows = "";
+    var hndFootnote = "";
+    var hndTotal = vm.gesamtBase;
+    if (vm.isSelbstzahler) {
+      hndTotal = Math.round((vm.gesamtBase + (vm.servicepauschale || 0)) * 100) / 100;
+      hndExtraRows =
+        '<div style="display:grid; grid-template-columns:1fr 90px 100px 110px; gap:6px 12px; ' +
+          'align-items:center; padding:9px 0; border-bottom:1px solid var(--border); font-size:0.9rem;">' +
+          "<span>Servicepauschale Reinigungsutensilien <span style=\"font-size:0.78rem; color:var(--muted);\">(inkl. MwSt.)</span></span>" +
+          '<span style="text-align:right; color:var(--muted);">1&times;</span>' +
+          '<span style="text-align:right; color:var(--muted);">' + euro(vm.servicepauschale) + "</span>" +
+          '<span style="text-align:right; font-weight:600;">' + euro(vm.servicepauschale) + "</span>" +
+        "</div>";
+    } else {
+      hndFootnote = footnote(
+        "Servicepauschale Reinigungsutensilien für HnD:",
+        euro(vm.servicepauschale) + " / Monat · inkl. MwSt. Jährliche Abrechnung, direkt mit dem Kunden."
+      );
+    }
+    html += serviceTable({
+      title: "Haushaltsnahe Dienstleistungen",
+      subtitle: "Angebot zur Unterstützung im Haushalt",
+      taskLabels: vm.hndTaskLabels,
+      hours: vm.totalMonatlichH, rate: HND_RATE,
+      leistungenTotal: vm.leistungenTotal, einsaetze: vm.totalEinsaetze, anfahrtTotal: vm.anfahrtTotal,
+      gesamtLabel: "Gesamt HnD-Leistungen", gesamtValue: hndTotal,
+      extraRowsHTML: hndExtraRows, footnoteHTML: hndFootnote,
+      schedRows: vm.schedRows, zoneData: vm.zoneData,
+    });
+  }
+  if (vm.hasAb) {
+    html += serviceTable({
+      title: "Alltagsbegleitung",
+      subtitle: "",
+      taskLabels: vm.abTaskLabels,
+      hours: vm.abTotalMonatlichH,
+      rate: AB_RATE,
+      leistungenTotal: vm.abLeistungenTotal,
+      einsaetze: vm.abAnfahrtEinsaetze,
+      anfahrtTotal: vm.abAnfahrtTotal,
+      combinedVisit: vm.abCombinedVisit,
+      gesamtLabel: "Gesamt / Monat",
+      gesamtValue: vm.abGesamtBase,
+      footnoteHTML: footnote(
+        "Fahrten im Rahmen der Alltagsbegleitung:",
+        euro(vm.abKmRate) + " / km · inkl. MwSt. Wird bei Bedarf direkt abgerechnet."
+      ),
+      schedRows: vm.abSchedRows, zoneData: vm.zoneData,
+    });
+  }
+  if (vm.hasHnd && vm.hasAb) {
+    html +=
+      '<div style="display:flex; justify-content:space-between; align-items:baseline; ' +
+        'padding-top:14px; border-top:2px solid var(--border); font-size:1.15rem; font-weight:800;">' +
+        "<span>Gesamt / Monat</span><span>" + euro(vm.gesamt) + "</span>" +
+      "</div>";
+  }
+  if (!vm.hasHnd && !vm.hasAb) {
+    html =
+      '<div style="font-size:0.9rem; color:var(--muted); padding:8px 0;">' +
+      "Noch keine Leistung konfiguriert." +
+      "</div>";
+  }
+  return html;
+};
+
   // Make this async so we can await name lookups for optional items
   window.renderFromData = async function renderFromData(data) {
     if (!data) {
@@ -9961,6 +12060,12 @@ function hasOptionalPageForCurrentOffer() {
       // data is the computed pricing result from /api/price -> contains selfPayAmount
       updateSummaryWidgetSelfPay(data.selfPayAmount);
     }
+
+    noMarkupIds = new Set(
+      (Array.isArray(data.markupExemptIds) ? data.markupExemptIds : []).map(
+        String,
+      ),
+    );
 
     // --- Optional (Debug): use optionalDisplayUI if present, else fallback to items
 let optCard = "";
@@ -9984,9 +12089,10 @@ if (supportsOptional) {
   const optSum = data.optionalDisplayUI?.sum ?? 0;
 
   optCard = card(
-    "Additional gewählte Produkte",
+    "Optionale Produkte",
     optBody,
-    `<div style="text-align:right"><b>Summe:</b> ${euroC(optSum)}</div>`,
+    `<span class="kosten-subtotal-label">Summe:</span> <b>${euroC(optSum)}</b>`,
+    offerKey === "bu" ? "III" : "",
   );
 }
 
@@ -9999,16 +12105,21 @@ if (supportsOptional) {
         : data.materials && Array.isArray(data.materials.lines)
           ? data.materials.lines
           : [];
-    const matBody = listLines(
-      matLines.map((l) => ({
-        productId: l.productId || l.id,
-        name: l.name,
-        qty: l.qty,
-        unitPrice: l.unitPrice,
-        lineTotal: l.lineTotal,
-        label: l.label,
-      })),
-    );
+    const matRows = matLines.map((l) => ({
+      productId: l.productId || l.id,
+      name: l.name,
+      qty: l.qty,
+      unitPrice: l.unitPrice,
+      lineTotal: l.lineTotal,
+      label: l.label,
+      source: l.source,
+      finish: l.finish,
+      category: l.category,
+      currentNet: l.currentNet, // today's vigor price when it differs from the quoted one
+    }));
+    // BU: group into the same sections as the Angebot (docx-template CATEGORY_ORDER).
+    const isBuKosten = String(window.getCurrentOfferType?.() || "").toLowerCase() === "bu";
+    const matBody = isBuKosten ? listLines(groupMaterialRows(matRows)) : listLines(matRows);
     const mat = data.materialsDisplayUI?.lines || data.materials?.lines || [];
     const matSum = data.materialsDisplayUI?.sum ?? data.materials?.sum ?? 0;
 
@@ -10018,10 +12129,25 @@ if (supportsOptional) {
     //const matSum = (data.materialsDisplayUI && typeof data.materialsDisplayUI.sum === 'number')
     //  ? data.materialsDisplayUI.sum
     //  : (data.materials?.sum || 0);
+    const matTitle = (data.materials && data.materials.title) || "Material für Badumbau";
+    // Quoted vs. current supplier price for a reopened offer: the totals stay as
+    // quoted, this only warns that ordering today costs more (= lost margin).
+    const drift = data.materials?.vigorPriceDrift || null;
+    const driftTotal = Number(drift?.totalDelta) || 0;
+    const driftFooter =
+      drift && Math.abs(driftTotal) >= 0.005
+        ? `<div style="margin-top:6px;font-size:12px;color:${driftTotal > 0 ? "var(--danger, #c0392b)" : "var(--ok, #1e8449)"}">
+             Lieferantenpreis geändert: Material kostet heute
+             ${driftTotal > 0 ? "+" : "−"}${euroC(Math.abs(driftTotal))}
+             gegenüber dem Angebot (${drift.lines.length} Artikel).
+             Angebotspreise bleiben unverändert.
+           </div>`
+        : "";
     const matCard = card(
-      (data.materials && data.materials.title) || "Material für Badumbau",
+      matTitle,
       matBody,
-      `<div style="text-align:right"><b>Summe Material:</b> ${euroC(matSum)}</div>`,
+      `<span class="kosten-subtotal-label">Summe Material:</span> <b>${euroC(matSum)}</b>${driftFooter}`,
+      isBuKosten ? "II" : "",
     );
 
     // --- Leistungen (Debug): use servicesDisplayUI if present
@@ -10070,18 +12196,27 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         /bereitstellung.*werkzeug/i.test(plain) ||
         /ber.?umung der baustelle/i.test(plain) ||
         /kilometerpauschale/i.test(plain) ||
-        /facharbeiter/i.test(plain);
+        /facharbeiter/i.test(plain) ||
+        /anfahrt/i.test(plain);
 
       const laborRate = Number(data?.services?.laborRate || 0);
 
       // when building the Facharbeiter row:
       const isFacharbeiter =
         s.key === "facharbeiter" || /facharbeiter/i.test(s.label || "");
+      // Prefer the line's own unitPrice (labor lines now carry a crew/travel
+      // rate so Menge × Einzelpreis reconciles); fall back to the hourly rate.
+      const rowUnitPrice = Number.isFinite(Number(s.unitPrice))
+        ? Number(s.unitPrice)
+        : isFacharbeiter && laborRate
+          ? laborRate
+          : Number(s.amount ?? 0);
       const row = {
         productId: s.key || s.productId,
         label: label || s.name || s.productId || "-",
         qty: s.qty ?? 1,
-        unitPrice: isFacharbeiter && laborRate ? laborRate : (s.unitPrice ?? s.amount ?? 0),
+        unit: s.unit || "",
+        unitPrice: rowUnitPrice,
         lineTotal: s.amount,
       };
 
@@ -10121,21 +12256,68 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       ? includedSvcSum
       : data.services?.sum || 0;
 
-    const svcCard = `
-  ${card(data.services?.title || "Auszuführende Arbeiten", svcBodyPrimary)}
-  <div style="height:8px"></div>
-  ${card("Enthält je Einheit", svcBodyIncluded, `<div style="text-align:right"><b>Summe Leistungen:</b> ${euroC(sumLeistungenEnth)}</div>`)}
-`;
+    // Two separate sections; rendered Arbeiten first, then Enthält-je-Einheit.
+    const enthaltCard = card(
+      "Enthält je Einheit",
+      svcBodyIncluded,
+      `<span class="kosten-subtotal-label">Summe Leistungen:</span> <b>${euroC(sumLeistungenEnth)}</b>`,
+    );
+    const arbeitenCard = card(
+      data.services?.title || "Auszuführende Arbeiten",
+      svcBodyPrimary,
+      "",
+      isBuKosten ? "I" : "",
+    );
 
-    // <div>Produkte + Material: <b>${euroC(data.productsSubtotal || 0)}</b></div>
-    // --- Totals (unchanged)
+    // --- Totals: transparent, reconciling ladder (ordering prices → Aufschlag →
+    //   Zwischensumme → Rabatt/Bonus → Nettobetrag → MwSt. → Gesamt).
+    const optSum = Number(data.optionalDisplayUI?.sum || 0);
+    const rabattAmount = Number(data.rabattAmount || 0);
+    const bonusGross = Number(data.bonusGross || 0);
+    // Percent label: "19", "19,5" — never a trailing ",00".
+    const fmtPct = (frac) => {
+      const p = (Number(frac) || 0) * 100;
+      return Number.isInteger(p)
+        ? String(p)
+        : p.toFixed(2).replace(/\.?0+$/, "").replace(".", ",");
+    };
+    const aufPct = fmtPct(data.markupPct);
+    const taxPct = fmtPct(data.taxRate ?? 0.19);
+    // Pre-discount subtotal = Arbeiten + Material (+ Additional) + Aufschlag.
+    // Only shown when something is actually deducted below it, otherwise it
+    // would just repeat the Nettobetrag on the next line.
+    const hasDeduction = !!(rabattAmount || bonusGross);
+    // Aufschlag transparency: name the base it was applied to and every line
+    // left out of it (non-Hassmann products, Kleinmaterial on legacy offers).
+    const markupBase = Number(data.markupBase || 0);
+    const exemptLabels = [...noMarkupIds]
+      .map((id) => {
+        const line = [...matRows, ...opt].find(
+          (l) => String(l.productId || l.id || "").trim() === id,
+        );
+        const name = line
+          ? stripBrand(decorateDALabel(line)).replace(/^\s*-\s*\d+\s*Stk\s*/i, "")
+          : id;
+        return name.split(/[,\n]/)[0].trim().slice(0, 42) || id;
+      })
+      .filter(Boolean);
+    const markupNote = `${markupBase ? ` auf ${euroC(markupBase)}` : ""}`;
     const sums = `
-    <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
-      <div>Produkte + Material: <b>${euroC(data.material_afterRabatt_and_aufschlag || 0)}</b></div>
-      <div>Leistungen: <b>${euroC(data.services?.sum || 0)}</b></div>
-      <div>Aufschlag (${(() => { const p = (data.markupPct || 0) * 100; return Number.isInteger(p) ? String(p) : p.toFixed(2).replace(/\.?0+$/, "").replace(".", ","); })()}%): <b>${euroC(data.markup || 0)}</b></div>
-      <div style="font-size:1.05rem;">Zwischensumme (Netto): <b>${euroC(data.netAfterRabatt_and_Bonus || 0)}</b></div>
-      <div style="font-size:1.2rem;">Gesamt: <b>${euroC(data.total || 0)}</b></div>
+    <div class="kosten-sums">
+      <div><span>${isBuKosten ? '<span class="side-num">I</span>' : ""}Auszuführende Arbeiten:</span> <b>${euroC(data.services?.sum || 0)}</b></div>
+      <div><span>${isBuKosten ? '<span class="side-num">II</span>' : ""}${matTitle}:</span> <b>${euroC(matSum)}</b></div>
+      ${optSum ? `<div><span>${isBuKosten ? '<span class="side-num">III</span>' : ""}Optionale Produkte:</span> <b>${euroC(optSum)}</b></div>` : ""}
+      <div><span>Aufschlag (${aufPct}%${markupNote}):</span> <b>${euroC(data.markup || 0)}</b></div>
+      <!-- Off for now: the per-line "ohne Aufschlag" tags already say which
+           products are exempt. Re-enable if the summary line is wanted too.
+      \${exemptLabels.length ? \`<div class="kosten-sums__note">ohne Aufschlag: \${escapeHtml(exemptLabels.join(" · "))}</div>\` : ""}
+      -->
+      ${hasDeduction ? `<div class="kosten-sums__rule"><span>Zwischensumme:</span> <b>${euroC(data.Nettobetrag || 0)}</b></div>` : ""}
+      ${rabattAmount ? `<div><span>Rabatt:</span> <b>− ${euroC(rabattAmount)}</b></div>` : ""}
+      ${bonusGross ? `<div><span>Bonus / Gratis:</span> <b>− ${euroC(bonusGross)}</b></div>` : ""}
+      <div class="kosten-sums__rule kosten-sums__subtotal"><span>Nettobetrag:</span> <b>${euroC(data.netAfterRabatt_and_Bonus || 0)}</b></div>
+      <div><span>zzgl. ${taxPct}% MwSt.:</span> <b>${euroC(data.vatOnNet || 0)}</b></div>
+      <div class="kosten-sums__total"><span>Gesamt (brutto):</span> <b>${euroC(data.total || 0)}</b></div>
     </div>
   `;
     const totalsCard = card("Summen", sums);
@@ -10169,9 +12351,6 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     // ── AH: completely separate rendering path ───────────────────────
     const currentOfferForKosten = String(window.getCurrentOfferType?.() || "").toLowerCase();
     if (currentOfferForKosten === "ah") {
-      const SERVICEPAUSCHALE = 1.20;
-      const fmtH = (h) => (Math.round(h * 100) / 100).toFixed(2).replace(".", ",");
-
       const HND_TASK_LABELS = {
         "wohnungsreinigung": "Wohnungsreinigung (Staubsaugen, Wischen, Bad, Küche)",
         "fensterputzen":     "Fenster putzen",
@@ -10184,127 +12363,107 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         "post":              "Post holen und sortieren",
         "haustiere":         "Haustierversorgung (Füttern, Gassi gehen)",
       };
+      const AB_TASK_LABELS = {
+        "arzttermine":    "Begleitung zu Arztterminen",
+        "behoerdengaenge":"Begleitung zu Behördengängen",
+        "einkaufen_begl": "Begleitung zum Einkaufen (gemeinsam)",
+        "spaziergaenge":  "Spaziergänge / Bewegung an der frischen Luft",
+        "gesellschaft":   "Gesellschaft leisten / Gespräche führen",
+        "vorlesen":       "Vorlesen (Zeitung, Bücher)",
+        "aktivitaeten":   "Gemeinsame Aktivitäten (Spiele, Basteln, Kochen)",
+        "gedaechtnis":    "Gedächtnistraining / kognitive Aktivierung",
+        "korrespondenz":  "Unterstützung bei Korrespondenz (Briefe, Formulare)",
+        "fahrdienste":    "Fahrdienste (zum Friedhof, Friseur, Veranstaltungen)",
+        "entlastung":     "Entlastung pflegender Angehöriger (stundenweise Betreuung)",
+      };
 
       // Use the shared computation helper
-      const ah = window.computeAHGesamt?.() || { gesamt: 0, gesamtBase: 0, anfahrtTotal: 0, leistungenTotal: 0, totalEinsaetze: 0, totalMonatlichH: 0, tasks: [], isSelbstzahler: false, servicepauschale: 1.20, zoneData: null, schedRows: [] };
-      const { gesamt, gesamtBase, anfahrtTotal, leistungenTotal, totalEinsaetze, totalMonatlichH, tasks, isSelbstzahler, servicepauschale, zoneData, schedRows } = ah;
+      const ah = window.computeAHGesamt?.() || {
+        gesamt: 0, gesamtBase: 0, anfahrtTotal: 0, leistungenTotal: 0,
+        totalEinsaetze: 0, totalMonatlichH: 0, tasks: [],
+        isSelbstzahler: false, servicepauschale: 1.20, zoneData: null, schedRows: [],
+        hasAb: false, abTotalEinsaetze: 0, abAnfahrtEinsaetze: 0, abCombinedVisit: false, abTotalMonatlichH: 0,
+        abAnfahrtTotal: 0, abLeistungenTotal: 0, abGesamtBase: 0,
+        abTasks: [], abSchedRows: [], abKmRate: 0.35, allBase: 0,
+      };
+      const {
+        gesamt, gesamtBase, anfahrtTotal, leistungenTotal,
+        totalEinsaetze, totalMonatlichH, tasks, isSelbstzahler, servicepauschale, zoneData, schedRows,
+        hasAb, abTotalEinsaetze, abAnfahrtEinsaetze, abCombinedVisit, abTotalMonatlichH,
+        abAnfahrtTotal, abLeistungenTotal, abGesamtBase, abTasks, abSchedRows, abKmRate, allBase,
+      } = ah;
 
       // Keep widget in sync
       if (typeof updateSummaryWidgetTotal === "function") updateSummaryWidgetTotal(gesamt);
-      if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(gesamt);
+      if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(ah.eigenanteil);
 
-      const renderedCards = [];
-
-      // Zone info banner
-      const zoneBanner = zoneData
-        ? `<div style="margin-bottom:10px; padding:6px 10px; background:var(--accent-weak,#e0f2fe); border-radius:6px; font-size:0.82rem; display:flex; gap:16px; flex-wrap:wrap;">
-            <span><b>Zone ${zoneData.zone}</b></span>
-            <span>Hin-Fahrt: <b>${zoneData.billMin} min</b></span>
-            <span>Hin- &amp; Rückfahrt: <b>${2 * zoneData.billMin} min</b> (in Stundenumfang enthalten)</span>
-           </div>`
-        : `<div style="margin-bottom:10px; padding:6px 10px; background:#fef9c3; border-radius:6px; font-size:0.82rem; color:#854d0e;">
-            ⚠ Keine Zone bestimmt — bitte Adresse eingeben und Routing ausführen.
-           </div>`;
-
-      if (totalMonatlichH > 0) {
-        const taskBullets = (tasks || [])
-          .map(id => HND_TASK_LABELS[id]).filter(Boolean)
-          .map(t => `<li style="margin:1px 0; color:var(--muted);">${escapeHtml(t)}</li>`)
-          .join("");
-
-        const row1 = `
-          <div style="display:grid; grid-template-columns:1fr auto auto auto; gap:4px 12px; align-items:center; font-size:0.9rem;">
-            <div>Anfahrtspauschale Alltagshilfe</div>
-            <div style="text-align:right; color:var(--muted);">${fmtH(totalEinsaetze)} ×</div>
-            <div style="text-align:right; color:var(--muted);">${euroC(7.96)}</div>
-            <div style="text-align:right; font-weight:600;">${euroC(anfahrtTotal)}</div>
-          </div>`;
-
-        // Time breakdown table (one row per Zeitzeile)
-        const COL = "1fr 90px 90px 70px 80px";
-        const thStyle = "text-align:right; font-size:0.7rem; font-weight:600; color:var(--muted); padding-bottom:3px;";
-        const tdStyle = "text-align:right; font-size:0.82rem; color:var(--muted);";
-        const tdAccent = "text-align:right; font-size:0.82rem; font-weight:600; color:var(--accent,#0ea5e9);";
-
-        const breakdownRows = (schedRows || []).map(function(r) {
-          return `<div style="grid-column:1/-1; display:grid; grid-template-columns:${COL}; gap:2px 8px; align-items:center; padding:3px 0; border-top:1px solid var(--border);">
-            <div style="font-size:0.82rem; color:var(--muted);">${escapeHtml(r.regelmaessigkeit)}</div>
-            <div style="${tdStyle}">${r.dauerMin} min</div>
-            <div style="${tdStyle}">+ ${r.reiseRoundMin} min</div>
-            <div style="${tdStyle}">= ${r.perVisitMin} min</div>
-            <div style="${tdAccent}">× ${(Math.round(r.freq * 100) / 100).toFixed(2).replace(".", ",")} = ${formatDurationHHMM(Math.round(r.monthlyH * 60))}</div>
-          </div>`;
-        }).join("");
-
-        const breakdown = schedRows && schedRows.length ? `
-          <div style="margin-top:6px; padding:6px 8px; background:var(--bg-alt,#f8fafc); border-radius:6px; border:1px solid var(--border);">
-            <div style="display:grid; grid-template-columns:${COL}; gap:2px 8px; align-items:center; padding-bottom:3px;">
-              <div style="${thStyle} text-align:left;">Zeitzeile</div>
-              <div style="${thStyle}">Einsatz</div>
-              <div style="${thStyle}">+ H&amp;R Reise</div>
-              <div style="${thStyle}">= /Einsatz</div>
-              <div style="${thStyle}">× Freq = /Mon.</div>
-            </div>
-            ${breakdownRows}
-            <div style="text-align:right; font-size:0.82rem; font-weight:700; color:var(--accent,#0ea5e9); padding-top:4px; border-top:1px solid var(--border); margin-top:3px;">
-              Gesamt: ${formatDurationHHMM(Math.round(totalMonatlichH * 60))} / Monat
-            </div>
-          </div>` : "";
-
-        const row2 = `
-          <div style="display:grid; grid-template-columns:1fr auto auto auto; gap:4px 12px; align-items:start; font-size:0.9rem; margin-top:8px; padding-top:8px; border-top:1px solid var(--border);">
-            <div>
-              <div>Angebot zur Unterstützung im Haushalt</div>
-              <div style="font-size:0.85em; font-weight:600; color:var(--muted);">Haushaltsnahe Dienstleistung</div>
-              ${breakdown}
-              ${taskBullets ? `<ul style="margin:6px 0 0 10px; padding:0; font-size:0.85em;">${taskBullets}</ul>` : ""}
-            </div>
-            <div style="text-align:right; color:var(--muted);">${fmtH(totalMonatlichH)} h ×</div>
-            <div style="text-align:right; color:var(--muted);">${euroC(40.56)}</div>
-            <div style="text-align:right; font-weight:600;">${euroC(leistungenTotal)}</div>
-          </div>`;
-
-        renderedCards.push(card(
-          "HnD-Leistungen",
-          zoneBanner + row1 + row2,
-          `<div style="text-align:right;"><b>Zwischensumme:</b> ${euroC(gesamtBase)}</div>`
-        ));
+      // Keep header total in sync (builder emits the card body only)
+      if (kostenHeaderTotal && gesamt > 0) {
+        kostenHeaderTotal.textContent = euroC(gesamt) + " / Mon.";
+      }
+      // Reset toggle state whenever the breakdown re-renders
+      if (kostenToggle) {
+        if (kostenHeaderTotal) kostenHeaderTotal.style.display = "none";
       }
 
-      if (!renderedCards.length) {
-        renderedCards.push(card("HnD-Leistungen", zoneBanner + '<div class="muted">Noch keine HnD-Leistung konfiguriert.</div>'));
-      }
+      const vm = {
+        hasHnd: totalMonatlichH > 0,
+        hasAb: hasAb,
+        isSelbstzahler: isSelbstzahler,
+        servicepauschale: servicepauschale,
+        zoneData: zoneData,
+        totalMonatlichH: totalMonatlichH,
+        totalEinsaetze: totalEinsaetze,
+        anfahrtTotal: anfahrtTotal,
+        leistungenTotal: leistungenTotal,
+        gesamtBase: gesamtBase,
+        hndTaskLabels: (tasks || []).map((id) => HND_TASK_LABELS[id]).filter(Boolean),
+        schedRows: schedRows,
+        abTotalMonatlichH: abTotalMonatlichH,
+        abTotalEinsaetze: abTotalEinsaetze,
+        abAnfahrtEinsaetze: abAnfahrtEinsaetze,
+        abCombinedVisit: abCombinedVisit,
+        abAnfahrtTotal: abAnfahrtTotal,
+        abLeistungenTotal: abLeistungenTotal,
+        abGesamtBase: abGesamtBase,
+        abKmRate: abKmRate,
+        abTaskLabels: (abTasks || []).map((id) => AB_TASK_LABELS[id]).filter(Boolean),
+        abSchedRows: abSchedRows,
+        gesamt: gesamt,
+      };
 
-      // Servicepauschale: added to total for Selbstzahler, shown as note for Kassenkunde
-      const servicepauschaleBlock = isSelbstzahler
-        ? `<div style="margin-top:8px; display:flex; justify-content:space-between; align-items:center; font-size:0.9rem;">
-            <div>Servicepauschale Reinigungsutensilien für HnD <span style="font-size:0.78rem; color:var(--muted);">(inkl. MwSt.)</span></div>
-            <div style="font-weight:600;">${euroC(servicepauschale)} / Monat</div>
-           </div>`
-        : `<div style="margin-top:12px; padding:10px 12px; border:1px dashed var(--border); border-radius:8px; font-size:0.85rem;">
-            <div style="font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-bottom:6px;">* Separate Direktrechnung — nicht im Gesamtbetrag</div>
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-              <div>
-                <b>Servicepauschale Reinigungsutensilien für HnD</b>
-                <div style="font-size:0.8rem; color:var(--muted); margin-top:2px;">Inkl. MwSt. Jährliche Abrechnung nach tatsächlichen Monaten. Wird direkt mit dem Kunden abgerechnet.</div>
-              </div>
-              <div style="font-weight:600; white-space:nowrap;">${euroC(servicepauschale)} / Monat</div>
-            </div>
-           </div>`;
+      container.style.display = "flex";
+      const ahWrap = document.createElement("div");
+      ahWrap.className = "card";
+      ahWrap.style.cssText = "padding:16px 18px;";
+      ahWrap.innerHTML = window.__buildAHKostenHTML(vm);
 
-      const summenBody = `
-        <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
-          ${isSelbstzahler ? `<div style="color:var(--muted); font-size:0.85rem;">Zwischensumme: ${euroC(gesamtBase)}</div>` : ""}
-          ${isSelbstzahler ? servicepauschaleBlock : ""}
-          <div style="font-size:1.2rem;">Gesamtbetrag: <b>${euroC(gesamt)}</b></div>
-        </div>
-        ${!isSelbstzahler ? servicepauschaleBlock : ""}`;
+      // Wire ℹ Details toggles (delegated).
+      ahWrap.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-ah-details-toggle]");
+        if (!btn) return;
+        const id = btn.getAttribute("data-ah-details-toggle");
+        const panel = ahWrap.querySelector('[data-ah-details="' + id + '"]');
+        if (!panel) return;
+        const isHidden = panel.hasAttribute("hidden");
+        if (isHidden) panel.removeAttribute("hidden");
+        else panel.setAttribute("hidden", "");
+        btn.style.borderColor = isHidden ? "var(--accent,#0ea5e9)" : "var(--border)";
+        btn.style.color = isHidden ? "var(--accent,#0ea5e9)" : "var(--muted)";
+      });
 
-      container.innerHTML = [...renderedCards, card("Summen", summenBody)].join("");
-      return;
+      container.innerHTML = "";
+      container.appendChild(ahWrap);
+      return; // AH branch handled — do not fall through to generic renderer
     }
 
-    container.innerHTML = [matCard, optCard, svcCard, totalsCard].join("");
+    container.innerHTML = [
+      arbeitenCard,
+      enthaltCard,
+      matCard,
+      optCard,
+      totalsCard,
+    ].join("");
   };
 
   window.refreshAllPanels = async function refreshAllPanels() {
@@ -10716,15 +12875,9 @@ if (offerKey === "bwt" && isExtraAufgabe) {
         r.dispatchEvent(new Event("change", { bubbles: true }));
       }
     }
-    // aufschlag
+    // aufschlag (single value field; presets no longer exist as radios)
     if (payload.Kundendaten?.aufschlag) {
-      const r = document.querySelector(
-        `input[name="aufschlag"][value="${payload.Kundendaten.aufschlag}"]`,
-      );
-      if (r) {
-        r.checked = true;
-        r.dispatchEvent(new Event("change", { bubbles: true }));
-      }
+      window.__setCustomAufschlag?.(payload.Kundendaten.aufschlag);
     }
     // pflegegrad (just show/hide panels; exact mapping to Kundendaten panel already handled by initPflegegrad)
     if (payload.Kundendaten?.hasPflegegrad === "Ja") {
@@ -11366,6 +13519,27 @@ function restoreWorkTasks(dw) {
     });
     break; // stop after the group we found
   }
+
+  const wvInput = document.querySelector('input[name="duschwanne[wandverkleidungHoehe]"]');
+  if (wvInput && dw.wandverkleidungHoehe != null) {
+    wvInput.value = String(dw.wandverkleidungHoehe);
+  }
+}
+
+function restoreBwtArbeiten(bwt) {
+  if (!bwt) return;
+  // Older BWT offers have no workTasks key — leave the HTML default (checked).
+  if (Array.isArray(bwt.workTasks)) {
+    document
+      .querySelectorAll('input[type="checkbox"][name="bwt[workTasks][]"]')
+      .forEach((cb) => {
+        cb.checked = bwt.workTasks.includes(String(cb.value));
+        cb.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+  }
+  if (typeof window.restoreBwtArbeitenExtraTasksFromPayload === "function") {
+    window.restoreBwtArbeitenExtraTasksFromPayload(bwt);
+  }
 }
 
 function restoreWV(wv) {
@@ -11624,6 +13798,19 @@ function restoreRabatt(r) {
   setCheckboxById("rb-bonus-grab", !!r.bonusGrab);
   setCheckboxById("rb-show-free-grab", !!r.showFreeGrabInMaterial);
   syncShowFreeGrabRowVisibility();
+
+  // "Rabatt hinzufügen?" toggle: enabled if the offer had any discount/bonus,
+  // or an explicit rabattEnabled flag was saved.
+  const enabled =
+    !!r.rabattEnabled ||
+    (Number(r.materialDiscountPct) || 0) > 0 ||
+    !!r.bonus300 ||
+    !!r.bonusGrab;
+  const rr = document.querySelector(
+    `input[name="rb-add-rabatt"][value="${enabled ? "ja" : "nein"}"]`,
+  );
+  if (rr) rr.checked = true;
+  window.__applyRabattToggle?.();
 }
 
 function restoreBwt(bwt) {
@@ -11835,6 +14022,8 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("stockwerkBadSonst", k.stockwerkBadSonst || (isOtherStockwerk ? stockwerkValue : ""));
   setRadio("parkenMoeglich", k.parkenMoeglich);
   setByNameOrId("parkDetails", k.parkDetails || k.parksituationHinweis);
+  setByNameOrId("notes", k.notes);
+  initInternalTodos(k["internalTodos[]"] || k.internalTodos);
   if (typeof window.syncKundendatenExtraFields === "function") {
     window.syncKundendatenExtraFields();
   }
@@ -11844,6 +14033,8 @@ function restoreKundendaten(k, offer) {
   setRadio("hasContactPerson", k.hasContactPerson);
   setByNameOrId("cp_name", k.cp_name);
   setByNameOrId("cp_phone", k.cp_phone);
+  setRadio("cp_salutation", k.cp_salutation);
+  setByNameOrId("cp_email", k.cp_email);
   setByNameOrId("cp_street", k.cp_street);
   setByNameOrId("cp_city", k.cp_city);
   setByNameOrId("cp_state", k.cp_state);
@@ -11851,23 +14042,49 @@ function restoreKundendaten(k, offer) {
 
   // internals
   setByNameOrId("emc2_contact", k.emc2_contact);
+  setByNameOrId("ansprechpartner", k.ansprechpartner);
+  // re-select the Ansprechpartner dropdown from the loaded offer
+  if (typeof window.syncAnsprechpartner === "function") {
+    try { window.syncAnsprechpartner(); } catch { /* ignore */ }
+  }
   setByNameOrId("bitrixContactId", k.bitrixContactId || k.customerNumber);
   setRadio("payer", k.payer);
   setByNameOrId("kassenkundeName", k.kassenkundeName);
+  setByNameOrId("kk_geburtsdatum", k.kk_geburtsdatum ?? k.ah_geburtsdatum);
+  setByNameOrId("kk_versichertennr", k.kk_versichertennr ?? k.ah_versichertenr);
+  setByNameOrId("kk_krankenkasseAdresse", k.kk_krankenkasseAdresse);
+  setByNameOrId("kk_pflegegradSeit", k.kk_pflegegradSeit);
   setByNameOrId("partnerSalutation", k.partnerSalutation);
   setByNameOrId("partnerFirstName", k.partnerFirstName);
   setByNameOrId("partnerLastName", k.partnerLastName);
   if (k.partnerPflegegrad) setRadio("partnerPflegegrad", String(k.partnerPflegegrad));
   setByNameOrId("partnerKassenkundeName", k.partnerKassenkundeName);
+  // Two-person PDF name/greeting overrides (Zusammenfassung).
+  window.applyTwoPersonSummaryFields?.(k);
 
-  const kassenkundeWrap = document
-    .getElementById("kassenkundeName")
-    ?.closest(".field");
-  if (kassenkundeWrap) {
-    const show = String(k.payer || "") === "Kassenkunde";
-    kassenkundeWrap.style.display = show ? "" : "none";
-    const input = document.getElementById("kassenkundeName");
-    if (input) input.disabled = !show;
+  // Preparation checklist (all offers)
+  setCheckboxByName("prep_terminBestaetigt", k.prep_terminBestaetigt === "Ja");
+  setCheckboxByName("prep_erstberatungsbogen", k.prep_erstberatungsbogen === "Ja");
+  setCheckboxByName("prep_visitenkarten", k.prep_visitenkarten === "Ja");
+  setCheckboxByName("prep_leistungsuebersicht", k.prep_leistungsuebersicht === "Ja");
+  setCheckboxByName("prep_mustervertrag", k.prep_mustervertrag === "Ja");
+
+  // AH-specific Kundendaten fields (data-offer="ah"): captured on save via
+  // FormData but need explicit restore here since this handler is an allow-list.
+  // (ah_versichertenr / ah_geburtsdatum were superseded by the shared
+  // kk_versichertennr / kk_geburtsdatum fields above, restored with fallback.)
+  setByNameOrId("ah_mobilitaet", k.ah_mobilitaet);
+  setByNameOrId("ah_allergien", k.ah_allergien);
+  setByNameOrId("ah_demenz", k.ah_demenz);
+  setByNameOrId("ah_sprache", k.ah_sprache);
+  setByNameOrId("ah_sonstiges", k.ah_sonstiges);
+  setRadio("ah_alleinLebend", k.ah_alleinLebend);
+  setRadio("ah_haustiere", k.ah_haustiere);
+  setRadio("ah_schluessel", k.ah_schluessel);
+  setRadio("ah_bestehendeHilfe", k.ah_bestehendeHilfe);
+
+  if (typeof updateKassenkundeDetailsVisibility === "function") {
+    updateKassenkundeDetailsVisibility();
   }
 
   applySelbstzahlerVisibility();
@@ -11979,7 +14196,7 @@ function restoreDuschwanne(dw) {
   // flooring color from payload
   (function restoreFloorColorFromPayload(innerDw) {
     if (!innerDw) return;
-    const form = document.getElementById("form-duschwanne");
+    const form = document.getElementById("form-fussboden");
     if (!form) return;
 
     let vals = [];
@@ -12127,18 +14344,18 @@ function restoreOptionalPage(opt) {
         "opt_V22WS1R",
         "opt_TEMPDSU250",
         "opt_V22BG903R",
-        "opt_V22DS250E",
+        "opt_V12DS250E",
       ],
       cat_THERMO: ["opt_CLTB", "opt_DEPTB", "opt_CLB"],
       cat_GRAB: ["opt_CLPESG30","opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
       cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
       cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
-      cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55"],
-      cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH"],
+      cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40"],
+      cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH", "opt_ONSHB"],
       cat_METER: ["opt_TECEADS"],
       cat_RAMPE: ["opt_RAMPE35"],
-      cat_WESGH: ["opt_WESGH"],
-      cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003"],
+      cat_WESGH: ["opt_WESGH", "opt_TRGAVS15", "opt_INSTMATROH"],
+      cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003", "opt_CLPWCF10", "opt_WCBF", "opt_CLPSSI"],
       cat_REHA : ["opt_24081000","opt_24081100","opt_24081500","opt_24081600","opt_24081005",
         "opt_24081105", "opt_24081505", "opt_24081605", "opt_25670000", "opt_24081800",
         "opt_24096000", "opt_24097000", "opt_24096240", "opt_19034422", "opt_35035200",
@@ -12288,6 +14505,8 @@ const RESTORE_HANDLERS = {
   Kundendaten: (p, ctx) => restoreKundendaten(p?.Kundendaten, ctx.offer),
   Arbeitszeit: (p, ctx) => restoreArbeitszeit(p?.Arbeitszeit),
 
+  Arbeiten: (p, ctx) => restoreWorkTasks(p?.duschwanne),
+
   Duschwanne: (p, ctx) => restoreDuschwanne(p?.duschwanne),
 
   Wandverkleidung: (p, ctx) =>
@@ -12302,10 +14521,14 @@ const RESTORE_HANDLERS = {
 
   bwt: (p, ctx) => typeof restoreBwt === "function" && restoreBwt(p?.bwt),
 
+  bwtArbeiten: (p, ctx) =>
+    typeof restoreBwtArbeiten === "function" && restoreBwtArbeiten(p?.bwt),
+
   hl: (p, ctx) => typeof restoreHl === "function" && restoreHl(p?.hl),
   bl: (p, ctx) => typeof restoreBl === "function" && restoreBl(p?.bl),
 
   ah: (p, ctx) => typeof restoreAh === "function" && restoreAh(p?.ah),
+    Finanzierung: (p, ctx) => typeof restoreFinanzierung === "function" && restoreFinanzierung(p?.Finanzierung),
     hms: (p, ctx) => typeof restoreHms === "function" && restoreHms(p?.hms),
 
     wd: (p, ctx) => typeof restoreWd === "function" && restoreWd(p?.wd),
@@ -12430,6 +14653,73 @@ const RESTORE_HANDLERS = {
     }
   })();
 
+  window.__offlineQueueReady = window.__offlineQueueReady || (async () => {
+    try {
+      await __domReady();
+      // Unconditional — no feature flag: offline-safe saving must always be active.
+      const mod = await import("./OfflineSaveQueue.js");
+      window.__managers.offlineSaveQueue = mod;
+      __startupLog("[OfflineSaveQueue] initialized");
+      return mod;
+    } catch (e) {
+      __startupWarn("[OfflineSaveQueue] init failed:", e);
+      return null;
+    }
+  })();
+
+  // Crash/discard recovery for the work in progress. Must boot after the
+  // managers above, so buildPayload() reads a fully wired form.
+  window.__sessionRecoveryReady = window.__sessionRecoveryReady || (async () => {
+    try {
+      await __domReady();
+      // Wait for the drafts UI but never depend on it: offline its init can
+      // reject, and recovery is exactly what is needed most in that case.
+      await Promise.allSettled([window.__draftsReady]);
+      const { initSessionRecovery } = await import("./session-recovery.js");
+      const found = await initSessionRecovery();
+      __startupLog(`[SessionRecovery] ready${found ? " (snapshot offered)" : ""}`);
+      return found;
+    } catch (e) {
+      __startupWarn("[SessionRecovery] init failed:", e);
+      return null;
+    }
+  })();
+
+  // Pricing inputs snapshot: refreshed whenever there is signal so that
+  // fetchPrice() can fall back to computing locally when there is not.
+  window.__pricingInputsReady = window.__pricingInputsReady || (async () => {
+    try {
+      await __domReady();
+      const { refreshInputs } = await import("./pricing-cache.js");
+      const inputs = await refreshInputs();
+      // Warm the offline path while there is still signal: pricing-client.js
+      // and logic/pricing-core.js are only imported when a price fetch fails,
+      // so unless they are already cached they cannot load at that moment.
+      await import("./pricing-client.js");
+      if (inputs) __startupLog(`[PricingInputs] cached ${inputs.products.length} products`);
+      return inputs;
+    } catch (e) {
+      __startupWarn("[PricingInputs] refresh failed:", e);
+      return null;
+    }
+  })();
+
+  // Offline app shell. Without it, losing signal survives only as long as the
+  // tab stays open — a reload on site would leave the technician with a blank
+  // page and no way to reach the queued saves.
+  window.__offlineShellReady = window.__offlineShellReady || (async () => {
+    try {
+      await __domReady();
+      const { registerOfflineShell } = await import("./sw-register.js");
+      const reg = await registerOfflineShell();
+      if (reg) __startupLog("[OfflineShell] registered");
+      return reg;
+    } catch (e) {
+      __startupWarn("[OfflineShell] init failed:", e);
+      return null;
+    }
+  })();
+
   window.__integrationsReady = window.__integrationsReady || (async () => {
     try {
       await __domReady();
@@ -12482,6 +14772,15 @@ const RESTORE_HANDLERS = {
             (typeof window.saveFinalOfferSnapshot === "function"
               ? window.saveFinalOfferSnapshot()
               : undefined),
+          saveDraftBeforeSend: async () => window.__draftsManager?.quickSaveCurrentDraft?.({ silent: true }),
+          onDealStageMoved: (dealId, offerType) => {
+            const stageId =
+              String(offerType || "").toLowerCase() === "ah"
+                ? "C52:UC_SNAVG8"
+                : "C38:UC_2ZDNEZ";
+            window.markDealStage?.(dealId, stageId);
+            window.renderTodayPlanningAppointments?.();
+          },
         },
       });
       window.__managers.email = window.__emailManager;
@@ -12551,6 +14850,23 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     p = offer?.payload;
     if (!p) return;
 
+    // Preserve the offer's original Aufschlag rule (legacy drafts → false).
+    window.__kleinInAufschlag = p?.pricingRules?.kleinInAufschlag === true;
+    window.__kleinAufschlagLegacyOffer = !window.__kleinInAufschlag;
+
+    // BWT Freigrenzen: pin to this offer's own saved snapshot (see RestoreManager.js).
+    const bwtKmSnap = p?.pricingRules?.bwtKmFreeThreshold;
+    const bwtHoursSnap = p?.pricingRules?.bwtTravelTimeFreeHours;
+    window.__bwtKmFreeThreshold = bwtKmSnap != null ? Number(bwtKmSnap) : 200;
+    window.__bwtTravelTimeFreeHours = bwtHoursSnap != null ? Number(bwtHoursSnap) : 2;
+    window.__bwtFreigrenzenLegacyOffer = bwtKmSnap == null && bwtHoursSnap == null;
+
+    // Freeze/lock: pin this offer's own saved state (see RestoreManager.js).
+    window.__frozen = p?.frozen === true;
+    window.__frozenPricing = p?.frozenPricing || null;
+    window.__locked = p?.locked === true;
+    window.applyOfferLockUI?.(window.__locked);
+
     // normalize offerType
     const rawOfferType =
       doc?.offerType ||
@@ -12581,10 +14897,18 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       RESTORE_HANDLERS.Rabatt(p, ctx);
     }
 
-    // Show loaded offer number if present
-    if (offer?.offerNumber) {
+    // Show loaded offer number if present.
+    // Drafts come in as { offerType, payload, draft } from DraftsManager, so there
+    // is no doc.offer to read the number from — fall back to the payload's own
+    // offerNumber. buildPayload() reads this input back (script.js:4239), and
+    // pricing.js uses payload.offerNumber to decide whether an offer was already
+    // quoted: without this, reopening a sent offer via the Entwurf list looked like
+    // a brand-new quote and its Duschabtrennung lines got repriced to today's
+    // supplier price instead of keeping (and reporting) the quoted one.
+    const restoredOfferNumber = offer?.offerNumber || p?.offerNumber || "";
+    if (restoredOfferNumber) {
       const el = document.querySelector("#offerNumber");
-      if (el) el.value = offer.offerNumber;
+      if (el) el.value = restoredOfferNumber;
     }
 
     // ✅ NEW: restore signature pad from payload (drafts/offers)
@@ -12627,6 +14951,15 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       console.warn("[restore] internal signature restore failed:", e);
     }
 
+    // Restore the "Versand per Post" toggle state independently of the postal
+    // manager — this is just one boolean + a visibility sync and must not depend
+    // on manager readiness or on the field-restore path below succeeding.
+    try {
+      window.__setPostalSectionEnabled?.(!!p?.postal?.enabled);
+    } catch (e) {
+      console.warn("[restore] postal toggle restore failed:", e);
+    }
+
     try {
       if (window.__postalManager?.restoreFromPayload) {
         window.__postalManager.restoreFromPayload(p?.postal || {});
@@ -12635,6 +14968,12 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       }
     } catch (e) {
       console.warn("[restore] postal restore failed:", e);
+    }
+
+    // Restore auftragId — top-level field takes priority, fallback to postal section
+    const restoredAuftragId = p?.auftragId || p?.postal?.auftragId || "";
+    if (restoredAuftragId && typeof syncSummaryLeadIds === "function") {
+      syncSummaryLeadIds(restoredAuftragId);
     }
 
     await window.__drawingReady;
@@ -12655,7 +14994,7 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
 
   // Kundendaten dependencies
   fire('input[name="payer"]:checked');
-  fire('input[name="aufschlag"]:checked');
+  fire("#sonderaufschlagValue");
   fire('input[name="hasPflegegrad"]:checked');
   fire('input[name="pflegegrad"]:checked');
   fire('input[name="wohnumfeldDone"]:checked');
@@ -12687,7 +15026,7 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
   // Duschwanne dependencies
   fire("#addFlooring");
   document
-    .querySelectorAll('#form-duschwanne input[name*="workTasks"]')
+    .querySelectorAll('#form-Arbeiten input[name*="workTasks"], #form-duschwanne input[name*="workTasks"]')
     .forEach((el) => dispatchChange(el));
 
   // ✅ NEW: nudge bathtub + screen hidden fields so their listeners refresh UIs
@@ -12752,7 +15091,13 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     .forEach((el) => dispatchChange(el));
 
   // ===== Recompute pricing =====
-  if (typeof window.updatePricing === "function") {
+  if (p?.frozen && p?.frozenPricing) {
+    window.__pricing = p.frozenPricing;
+    window.dispatchEvent(new CustomEvent("pricing:updated", { detail: p.frozenPricing }));
+    window.updateSummaryWidgetTotal?.(p.frozenPricing.total);
+    window.updateSummaryWidgetSelfPay?.(p.frozenPricing.selfPayAmount);
+    await window.refreshAllPanels?.();
+  } else if (typeof window.updatePricing === "function") {
     const pl =
       p || (typeof buildPayload === "function" ? buildPayload() : null);
     await window.updatePricing(pl);
@@ -13088,6 +15433,16 @@ function restoreDuschwanne(dw) {
   setNumber("floorArea", dw.floorArea);
   setRadio("floorKind", dw.floorKind);
 
+  // Freier Posten: custom tray not found in the DB search
+  const dwCustom = Array.isArray(dw.quickAdd) ? dw.quickAdd[0] : null;
+  setByNameOrId("dwCustomName", dwCustom?.label || "");
+  setByNameOrId(
+    "dwCustomPrice",
+    dwCustom?.price != null ? String(dwCustom.price).replace(".", ",") : "",
+  );
+  setByNameOrId("dwCustomQty", dwCustom?.qty || 1);
+  setByNameOrId("dwCustomId", dwCustom?.productId || "");
+
   // ===== NEW: restore bathtub + wannenaufsatz =====
   setByNameOrId("bathtub_w_cm", dw.bathtub_w_cm);
   setByNameOrId("bathtub_l_cm", dw.bathtub_l_cm);
@@ -13121,7 +15476,7 @@ function restoreDuschwanne(dw) {
   // flooring color from payload
   (function restoreFloorColorFromPayload(innerDw) {
     if (!innerDw) return;
-    const form = document.getElementById("form-duschwanne");
+    const form = document.getElementById("form-fussboden");
     if (!form) return;
 
     let vals = [];
@@ -13663,30 +16018,52 @@ async function saveFinalOfferSnapshot() {
   // 5) Ensure pricing snapshot (use filtered payload!)
   let pricing = window.__pricing;
   if (!pricing && typeof window.updatePricing === "function") {
-    pricing = await window.updatePricing(filteredPayload);
+    // Needs the server, and there is nothing cached to fall back on if the
+    // page was opened while already offline. Must not abort the save — the
+    // offline queue below is the whole point; the offer route accepts a null
+    // pricing and it gets recomputed on the next edit.
+    pricing = await window.updatePricing(filteredPayload).catch((err) => {
+      console.warn("[pricing] snapshot unavailable, saving without it:", err);
+      return null;
+    });
   }
 
   // 6) Persist finished offer snapshot
   try {
-    await fetch("/api/offers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        offerNumber,
-        offerType,
-        payload: filteredPayload,
-        pricing,
-      }),
+    const queue = await import("./OfflineSaveQueue.js");
+    const { queued, res } = await queue.trySaveOrQueue({
+      kind: "offer",
+      offerKey: offerNumber,
+      url: "/api/offers",
+      body: { offerNumber, offerType, payload: filteredPayload, pricing },
     });
+
+    if (queued) {
+      window.toast?.warn?.(
+        "Offline",
+        `Angebot ${offerNumber} wird automatisch synchronisiert, sobald wieder online.`,
+      );
+      return;
+    }
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      window.toast?.error?.(
+        "Speichern fehlgeschlagen",
+        body.error || `Angebot ${offerNumber} konnte nicht gespeichert werden.`,
+      );
+      return;
+    }
+
+    window.toast?.success?.("Gespeichert", `Angebot ${offerNumber} wurde gespeichert.`);
   } catch (err) {
     console.error("Failed to save final offer snapshot:", err);
+    window.toast?.error?.("Speichern fehlgeschlagen", `Angebot ${offerNumber}: ${err.message}`);
   }
 }
 
 document.getElementById("makePdf")?.addEventListener("click", async () => {
   if (!requireBereichValid()) {
-    location.hash = "Kundendaten";
     return;
   }
   try {
@@ -13711,7 +16088,6 @@ document
   .getElementById("makePdfFromTemplate")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
     try {
@@ -13760,7 +16136,6 @@ async function downloadDocx(url, body) {
 
 document.getElementById("downloadDocx")?.addEventListener("click", async () => {
   if (!requireBereichValid()) {
-    location.hash = "Kundendaten";
     return;
   }
   try {
@@ -13773,7 +16148,6 @@ document.getElementById("downloadDocx")?.addEventListener("click", async () => {
 
 document.getElementById("sendForm")?.addEventListener("click", async () => {
   if (!requireBereichValid()) {
-    location.hash = "Kundendaten";
     return;
   }
   try {
@@ -13792,7 +16166,6 @@ document.getElementById("sendForm")?.addEventListener("click", async () => {
 
 document.getElementById("sendJson")?.addEventListener("click", async () => {
   if (!requireBereichValid()) {
-    location.hash = "Kundendaten";
     return;
   }
   try {
@@ -13814,7 +16187,6 @@ document
   .getElementById("downloadMaterialOverview")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
     try {
@@ -13846,7 +16218,6 @@ document
   .getElementById("downloadArbeitsbericht")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
     try {
@@ -13875,7 +16246,6 @@ document
   .getElementById("downloadLatexPdf")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
     try {
@@ -13894,7 +16264,6 @@ document
   .getElementById("downloadDocxAsPdf")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
     try {
@@ -13911,7 +16280,6 @@ document
   .getElementById("downloadKalkulationDocx")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
 
@@ -13939,7 +16307,6 @@ document
   .getElementById("downloadKalkulation")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
     try {
@@ -13967,7 +16334,6 @@ document
   // Kalkulation PDF
 document.getElementById("downloadKalkulation")?.addEventListener("click", async () => {
   if (!requireBereichValid()) {
-    location.hash = "Kundendaten";
     return;
   }
 
@@ -14098,7 +16464,12 @@ window.setPricingData = function setPricingData(data) {
         .toLocaleString("de-DE", { style: "currency", currency: "EUR" })
         .replace(/\u00A0/g, " ");
 
-    const mat = Number(data?.productsSubtotal ?? 0);
+    // Optional products are part of productsSubtotal — split them out so the
+    // Übersicht mirrors the Kosten tab (Material / Optional Products).
+    const optSum = Number(data?.optionalDisplayUI?.sum ?? 0);
+    const mat = optSum
+      ? Number(data?.materialsDisplayUI?.sum ?? 0)
+      : Number(data?.productsSubtotal ?? 0);
     const arbe = Number(data?.services?.sum ?? 0);
     const net = Number(data?.Nettobetrag ?? 0);
     const vat = Number(data?.baseVat ?? 0);
@@ -14107,6 +16478,32 @@ window.setPricingData = function setPricingData(data) {
 
     byId("rb-material")?.replaceChildren(document.createTextNode(fmt(mat)));
     byId("rb-arbeit")?.replaceChildren(document.createTextNode(fmt(arbe)));
+
+    // Roman numerals: only bu groups its pages (I Arbeit / II Material /
+    // III Optional Products) in the sidebar, so only bu gets the badges here.
+    const isBuRabatt =
+      String(window.getCurrentOfferType?.() || "").toLowerCase() === "bu";
+    const labelWithNum = (num, text) => {
+      const frag = document.createDocumentFragment();
+      if (isBuRabatt && num) {
+        const badge = document.createElement("span");
+        badge.className = "side-num";
+        badge.textContent = num;
+        frag.appendChild(badge);
+      }
+      frag.appendChild(document.createTextNode(text));
+      return frag;
+    };
+    byId("rb-arbeit-label")?.replaceChildren(labelWithNum("I", "Auszuführende Arbeiten"));
+    byId("rb-material-label")?.replaceChildren(labelWithNum("II", "Material für Badumbau"));
+    byId("rb-opt-label")?.replaceChildren(
+      labelWithNum("III", "Optionale Produkte"),
+    );
+    const optRow = byId("rb-opt-row");
+    if (optRow) {
+      optRow.style.display = optSum ? "contents" : "none";
+      byId("rb-opt")?.replaceChildren(document.createTextNode(fmt(optSum)));
+    }
     byId("rb-net")?.replaceChildren(document.createTextNode(fmt(net)));
     byId("rb-vat")?.replaceChildren(document.createTextNode(fmt(vat)));
     byId("rb-total")?.replaceChildren(document.createTextNode(fmt(total)));
@@ -14124,9 +16521,9 @@ window.setPricingData = function setPricingData(data) {
         : key === "kk" || key === "kassenkunde"
           ? "kassenkunde"
           : "";
-    const h2 = document.querySelector("#page-rabatt h2");
-    if (h2) {
-      h2.textContent =
+    const rabattHeading = document.getElementById("rb-rabatt-heading");
+    if (rabattHeading) {
+      rabattHeading.textContent =
         norm === "selbstzahler"
           ? "Rabatt für Selbstzahler"
           : norm === "kassenkunde"
@@ -14149,9 +16546,15 @@ window.setPricingData = function setPricingData(data) {
     const pctLabel = Number.isInteger(pctNum)
       ? String(pctNum)
       : pctNum.toFixed(2).replace(/\.?0+$/, "").replace(".", ",");
+    // Legacy offers keep Kleinmaterial out of the Aufschlag — say so, otherwise
+    // the number can't be reconciled by hand.
+    const kleinExcluded = window.__kleinInAufschlag === false;
     byId("rb-auf-label")?.replaceChildren(
-      document.createTextNode(`Aufschlag ${pctLabel}%`),
+      document.createTextNode(
+        `Aufschlag ${pctLabel}%${kleinExcluded ? " (ohne Kleinmaterial)" : ""}`,
+      ),
     );
+    syncKleinAufschlagToggle();
 
     // Show/hide 300€ bonus based on threshold (after rab.)
     (function gateBonus300() {
@@ -14264,6 +16667,60 @@ window.setPricingData = function setPricingData(data) {
 };
 
 // Show discount slider only for: KK + Aufschlag 50%
+// "Rabatt hinzufügen? Kein Rabatt / Rabatt hinzufügen" opt-in toggle.
+// Layered on top of the automatic KK + Aufschlag>=50% gate for the slider:
+// "Kein Rabatt" hides all discount controls and zeroes their values.
+(function initRabattToggle() {
+  const controls = document.getElementById("rb-rabatt-controls");
+  const radios = Array.from(
+    document.querySelectorAll('input[name="rb-add-rabatt"]'),
+  );
+  if (!controls || !radios.length) return;
+
+  const isEnabled = () =>
+    document.querySelector('input[name="rb-add-rabatt"]:checked')?.value === "ja";
+
+  function showControls(on) {
+    controls.hidden = !on;
+    controls.setAttribute("aria-hidden", String(!on));
+    controls.style.display = on ? "" : "none";
+  }
+
+  function resetRabattValues() {
+    const slider = document.getElementById("rb-material-discount");
+    if (slider && parseFloat(slider.value || "0") !== 0) {
+      slider.value = "0";
+      slider.dispatchEvent(new Event("input", { bubbles: true }));
+      slider.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    ["rb-bonus-300", "rb-bonus-grab", "rb-show-free-grab"].forEach((id) => {
+      const cb = document.getElementById(id);
+      if (cb && cb.checked) {
+        cb.checked = false;
+        cb.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+  }
+
+  function apply({ reset = true } = {}) {
+    const on = isEnabled();
+    showControls(on);
+    if (!on && reset && !window.__restoring) resetRabattValues();
+  }
+
+  radios.forEach((r) =>
+    r.addEventListener("change", () => {
+      apply();
+      window.updatePricing?.();
+    }),
+  );
+
+  // Exposed so restore can re-apply visibility without wiping restored values.
+  window.__applyRabattToggle = () => apply({ reset: false });
+
+  apply({ reset: false });
+})();
+
 (function initMaterialDiscountVisibility() {
   const sec =
     document.getElementById("rb-material-discount-section") ||
@@ -14313,9 +16770,10 @@ window.setPricingData = function setPricingData(data) {
   document
     .querySelectorAll('input[name="payer"]')
     .forEach((r) => r.addEventListener("change", apply));
-  document
-    .querySelectorAll('input[name="aufschlag"]')
-    .forEach((r) => r.addEventListener("change", apply));
+  // Aufschlag is now a single value field (no radios) — react to its changes.
+  const aufField = document.getElementById("sonderaufschlagValue");
+  aufField?.addEventListener("input", apply);
+  aufField?.addEventListener("change", apply);
   window.addEventListener("hashchange", () => {
     if (typeof getCurrentStep === "function" && getCurrentStep() === "rabatt")
       apply();
@@ -14338,6 +16796,12 @@ function initBasinAutoAccessories() {
 
   const cl55 = document.getElementById("opt_CL55");
   const qCL55 = document.getElementById("qty_CL55");
+
+  const on35 = document.getElementById("opt_ON35");
+  const qON35 = document.getElementById("qty_ON35");
+
+  const coair40 = document.getElementById("opt_COAIR40");
+  const qCOAIR40 = document.getElementById("qty_COAIR40");
 
   // Required accessories
   const wtbf = document.getElementById("opt_WTBF");
@@ -14366,6 +16830,8 @@ function initBasinAutoAccessories() {
     { key: "cl60", cb: cl60, qtyInput: qCL60 },
     { key: "cl65", cb: cl65, qtyInput: qCL65 },
     { key: "cl55", cb: cl55, qtyInput: qCL55 },
+    { key: "on35", cb: on35, qtyInput: qON35 },
+    { key: "coair40", cb: coair40, qtyInput: qCOAIR40 },
   ].filter((b) => b.cb && b.qtyInput);
 
   // ---------- helpers ----------
@@ -14409,49 +16875,28 @@ function initBasinAutoAccessories() {
   };
   const saveState = () => {
     const s = {
-      // each basin gets its own state
-      cl60: { checked: !!cl60.checked, qty: num(qCL60.value, 0) },
-      cl65:
-        cl65 && qCL65
-          ? { checked: !!cl65.checked, qty: num(qCL65.value, 0) }
-          : undefined,
-      cl55:
-        cl55 && qCL55
-          ? { checked: !!cl55.checked, qty: num(qCL55.value, 0) }
-          : undefined,
       wtbf: { checked: !!wtbf.checked, qty: num(qWT.value, 0) },
       rsl: { checked: !!rsl.checked, qty: num(qRSL.value, 0) },
       ev: { checked: !!ev.checked, qty: num(qEV.value, 0) },
     };
+    // each basin gets its own state
+    basins.forEach(({ key, cb, qtyInput }) => {
+      s[key] = { checked: !!cb.checked, qty: num(qtyInput.value, 0) };
+    });
     try {
       localStorage.setItem(KEY, JSON.stringify(s));
     } catch {}
   };
   const applyState = (s) => {
-    if (s.cl60) {
-      cl60.checked = !!s.cl60.checked;
-      dispatch(cl60);
-      if (Number.isFinite(s.cl60.qty)) {
-        qCL60.value = String(s.cl60.qty);
-        dispatch(qCL60);
+    basins.forEach(({ key, cb, qtyInput }) => {
+      if (!s[key]) return;
+      cb.checked = !!s[key].checked;
+      dispatch(cb);
+      if (Number.isFinite(s[key].qty)) {
+        qtyInput.value = String(s[key].qty);
+        dispatch(qtyInput);
       }
-    }
-    if (s.cl65 && cl65 && qCL65) {
-      cl65.checked = !!s.cl65.checked;
-      dispatch(cl65);
-      if (Number.isFinite(s.cl65.qty)) {
-        qCL65.value = String(s.cl65.qty);
-        dispatch(qCL65);
-      }
-    }
-    if (s.cl55 && cl55 && qCL55) {
-      cl55.checked = !!s.cl55.checked;
-      dispatch(cl55);
-      if (Number.isFinite(s.cl55.qty)) {
-        qCL55.value = String(s.cl55.qty);
-        dispatch(qCL55);
-      }
-    }
+    });
     if (s.wtbf) {
       wtbf.checked = !!s.wtbf.checked;
       dispatch(wtbf);
@@ -14670,7 +17115,14 @@ function initBasinAutoAccessories() {
     // When we are restoring after a full resetAllForms(),
     // do NOT allow a checked item to end up with qty 0.
     // Enforce minimum qty = 1 in that special case.
-    if (window.__restoring && v <= 0 && p.cb && p.cb.checked) {
+    // restoreWV() sets only __RESTORING__, the full restore paths set both —
+    // check both or the guard is inert on a bare restoreWV().
+    if (
+      (window.__restoring || window.__RESTORING__) &&
+      v <= 0 &&
+      p.cb &&
+      p.cb.checked
+    ) {
       v = 1;
       p.qty.value = v;
     }
@@ -14947,6 +17399,7 @@ async function suggestDistanceFromAddress(opts = {}) {
       window.__ahZoneData = { zone: zoneDef.zone, billMin: zoneDef.billMin, oneWayMins };
       const zoneEl = document.getElementById("ahTravelZone");
       if (zoneEl) zoneEl.value = zoneDef.zone;
+      window.updateAHZoneDisplay?.();
       window.updatePricing?.();
     }
 
@@ -14969,6 +17422,27 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.dataset.routingSuggestBound = "1";
     // Manual fallback: explicit force recalc
     btn.addEventListener("click", () => suggestDistanceFromAddress({ force: true }));
+  }
+
+  // Manual zone override: fill #travelTime (one-way) when address routing doesn't work
+  const zoneBox = document.getElementById("travelZoneButtons");
+  if (zoneBox && zoneBox.dataset.zoneBound !== "1") {
+    zoneBox.dataset.zoneBound = "1";
+    zoneBox.addEventListener("click", (e) => {
+      const zbtn = e.target.closest(".az-zone-btn");
+      if (!zbtn) return;
+      const mins = parseInt(zbtn.dataset.zoneMin, 10) || 0;
+      const travelTimeEl = document.getElementById("travelTime");
+      if (!travelTimeEl) return;
+      travelTimeEl.value =
+        typeof secondsToHHMM === "function" ? secondsToHHMM(mins * 60) : "";
+      travelTimeEl.dispatchEvent(new Event("input", { bubbles: true }));
+      travelTimeEl.dispatchEvent(new Event("change", { bubbles: true }));
+      // visual selection feedback
+      zoneBox.querySelectorAll(".az-zone-btn").forEach((b) =>
+        b.setAttribute("aria-pressed", b === zbtn ? "true" : "false")
+      );
+    });
   }
 
   // Optional: auto-update hint + auto-fill when address changes (safe mode = no overwrite)
@@ -15012,6 +17486,7 @@ document.addEventListener("DOMContentLoaded", () => {
       window.__ahZoneData = { zone: zoneDef.zone, billMin: zoneDef.billMin, oneWayMins: mins };
       const zoneEl = document.getElementById("ahTravelZone");
       if (zoneEl) zoneEl.value = zoneDef.zone;
+      window.updateAHZoneDisplay?.();
       window.updatePricing?.();
     };
     travelTimeEl.addEventListener("change", recomputeAHZone);
@@ -15059,6 +17534,89 @@ document.addEventListener("DOMContentLoaded", () => {
 
   setupHassmannEmbedFallback();
 });
+// ---- ONSHB -> YNORGH21825 rosette: auto-select required accessory, 1:1 qty ----
+function initOnshbAutoAccessory() {
+  const reqWrap = document.getElementById("tapRequiredWrap");
+  const onshb = document.getElementById("opt_ONSHB");
+  const qOnshb = document.getElementById("qty_ONSHB");
+  const rosette = document.getElementById("opt_YNORGH21825");
+  const qRosette = document.getElementById("qty_YNORGH21825");
+  if (!reqWrap || !onshb || !qOnshb || !rosette || !qRosette) return;
+
+  const dispatch = (el) => {
+    if (!el) return;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  const show = (el, v) => {
+    el.hidden = !v;
+    el.setAttribute("aria-hidden", String(!v));
+  };
+
+  const syncFromOnshb = () => {
+    if (!onshb.checked) return;
+    if (!rosette.checked) {
+      rosette.checked = true;
+      dispatch(rosette);
+    }
+    const qty = Number(qOnshb.value) || 1;
+    qRosette.value = String(qty);
+    dispatch(qRosette);
+  };
+
+  onshb.addEventListener("change", () => {
+    show(reqWrap, onshb.checked);
+    if (onshb.checked) syncFromOnshb();
+  });
+  qOnshb.addEventListener("input", syncFromOnshb);
+
+  // initial state (e.g. after restoring a saved offer)
+  show(reqWrap, onshb.checked);
+}
+
+function initWesghAutoAccessory() {
+  const reqWrap = document.getElementById("wesghRequiredWrap");
+  const main = document.getElementById("opt_WESGH");
+  const qMain = document.getElementById("qty_WESGH");
+  const accessories = [
+    { cb: document.getElementById("opt_TRGAVS15"), qty: document.getElementById("qty_TRGAVS15") },
+    { cb: document.getElementById("opt_INSTMATROH"), qty: document.getElementById("qty_INSTMATROH") },
+  ].filter((a) => a.cb && a.qty);
+  if (!reqWrap || !main || !qMain || !accessories.length) return;
+
+  const dispatch = (el) => {
+    if (!el) return;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  const show = (el, v) => {
+    el.hidden = !v;
+    el.setAttribute("aria-hidden", String(!v));
+  };
+
+  const syncFromMain = () => {
+    if (!main.checked) return;
+    const qty = Number(qMain.value) || 1;
+    accessories.forEach((a) => {
+      if (!a.cb.checked) {
+        a.cb.checked = true;
+        dispatch(a.cb);
+      }
+      a.qty.value = String(qty);
+      dispatch(a.qty);
+    });
+  };
+
+  main.addEventListener("change", () => {
+    show(reqWrap, main.checked);
+    if (main.checked) syncFromMain();
+  });
+  qMain.addEventListener("input", syncFromMain);
+
+  // initial state (e.g. after restoring a saved offer)
+  show(reqWrap, main.checked);
+}
+
 function initOptionalMenus() {
   // Map main category checkboxes -> their panels
   const map = {
@@ -15077,6 +17635,7 @@ cat_SHOWER: "menu_SHOWER",
     cat_WANNE: "menu_WANNE",
     cat_WC: "menu_WC",
     cat_SONDER: "menu_SONDER",
+    cat_DUSCHZUB: "menu_DUSCHZUB",
   };
 
   // ---- helpers ----
@@ -15120,6 +17679,13 @@ cat_SHOWER: "menu_SHOWER",
     try {
       localStorage.removeItem("basin_required_state");
     } catch {}
+
+    // BASIN_TAP-only: collapse "Erforderliches Zubehör" (ONSHB rosette) within this panel
+    const tapReqWrap = panel.querySelector("#tapRequiredWrap");
+    if (tapReqWrap) {
+      tapReqWrap.hidden = true;
+      tapReqWrap.setAttribute("aria-hidden", "true");
+    }
 
     // WC-only: hide Sitzhöhe when panel is reset
     const wcSeatWrap = panel.querySelector("#wcSeatHeightWrap");
@@ -15182,10 +17748,11 @@ cat_SHOWER: "menu_SHOWER",
   });
 
   // ---- SHOWER ----
+  wireTileQty("opt_DUSCHKORB01", "qty_DUSCHKORB01_wrap");
   wireTileQty("opt_V22WS1R", "qty_V22WS1R_wrap");
   wireTileQty("opt_TEMPDSU250", "qty_TEMPDSU250_wrap");
   wireTileQty("opt_V22BG903R", "qty_V22BG903R_wrap");
-  wireTileQty("opt_V22DS250E", "qty_V22DS250E_wrap");
+  wireTileQty("opt_V12DS250E", "qty_V12DS250E_wrap");
 
   // ---- THERMO ----
   wireTileQty("opt_CLTB", "qty_CLTB_wrap");
@@ -15210,17 +17777,25 @@ cat_SHOWER: "menu_SHOWER",
   // ---- BASIN TAP ----
   wireTileQty("opt_CL_BASIN", "qty_CL_BASIN_wrap");
   wireTileQty("opt_DEPOH", "qty_DEPOH_wrap");
+  wireTileQty("opt_ONSHB", "qty_ONSHB_wrap");
+  wireTileQty("opt_YNORGH21825", "qty_YNORGH21825_wrap");
+  initOnshbAutoAccessory();
 
   // ---- BASIN (main CL60 tile) ----
   wireTileQty("opt_CL60", "qty_CL60_wrap");
   wireTileQty("opt_CL65", "qty_CL65_wrap");
   wireTileQty("opt_CL55", "qty_CL55_wrap");
+  wireTileQty("opt_ON35", "qty_ON35_wrap");
+  wireTileQty("opt_COAIR40", "qty_COAIR40_wrap");
   // ---- METER ----
   wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
   // ---- RAMPE ----
   wireTileQty("opt_RAMPE35", "qty_RAMPE35_wrap");
   // ---- WESGH ----
   wireTileQty("opt_WESGH", "qty_WESGH_wrap");
+  wireTileQty("opt_TRGAVS15", "qty_TRGAVS15_wrap");
+  wireTileQty("opt_INSTMATROH", "qty_INSTMATROH_wrap");
+  initWesghAutoAccessory();
 
   // ---- WC ----
   (function wireWcMenu() {
@@ -15298,7 +17873,31 @@ cat_SHOWER: "menu_SHOWER",
         requiredSeatHeight: "erhoeht",
         seatId: "CLSIAS",
       },
+      // Bodenmontage (montage defaults to "Wandmontage" for everything above)
+      {
+        productId: "CLPWCF10",
+        image: "./assets/CLPWCF10.jpg",
+        fallbackName: "Stand-Flachspül-WC clivia V2 plus +10cm Abgang waagerecht weiß",
+        category: "floor",
+        montage: "Bodenmontage",
+      },
+      {
+        productId: "WCBF",
+        image: "./assets/WCBF.jpg",
+        fallbackName: "Befestigungssatz Fischer S 8 RD 80 WCR",
+        category: "floor",
+        montage: "Bodenmontage",
+      },
+      {
+        productId: "CLPSSI",
+        image: "./assets/CLPSSI.jpg",
+        fallbackName: "WC-Sitz clivia V2 plus für Stand-WCs weiß",
+        category: "floor",
+        montage: "Bodenmontage",
+      },
     ];
+
+    const montageOf = (item) => item.montage || "Wandmontage";
 
     function formatEuroInline(value) {
       const num = Number(value);
@@ -15433,6 +18032,7 @@ cat_SHOWER: "menu_SHOWER",
       if (accessories.length) {
         const group = document.createElement("div");
         group.className = "wc-generated-group";
+        group.dataset.montage = "Wandmontage";
         group.style.width = "100%";
         const header = document.createElement("div");
         header.className = "subheader wc-products-subheader";
@@ -15453,6 +18053,7 @@ cat_SHOWER: "menu_SHOWER",
       if (wcs.length) {
         const group = document.createElement("div");
         group.className = "wc-generated-group";
+        group.dataset.montage = "Wandmontage";
         group.style.width = "100%";
         const header = document.createElement("div");
         header.className = "subheader wc-products-subheader";
@@ -15480,6 +18081,27 @@ cat_SHOWER: "menu_SHOWER",
           }
           grid.appendChild(pair);
         }
+        group.appendChild(grid);
+        wallProductsGrid.appendChild(group);
+      }
+
+      // Bodenmontage group
+      const floorProducts = WC_WALL_PRODUCTS.filter(
+        (item) => item.category === "floor",
+      );
+      if (floorProducts.length) {
+        const group = document.createElement("div");
+        group.className = "wc-generated-group";
+        group.dataset.montage = "Bodenmontage";
+        group.style.width = "100%";
+        const header = document.createElement("div");
+        header.className = "subheader wc-products-subheader";
+        header.textContent = "Produkte für Bodenmontage";
+        group.appendChild(header);
+        const grid = document.createElement("div");
+        grid.className = "opt-grid";
+        grid.style.width = "100%";
+        for (const item of floorProducts) grid.appendChild(buildTile(item));
         group.appendChild(grid);
         wallProductsGrid.appendChild(group);
       }
@@ -15768,23 +18390,48 @@ cat_SHOWER: "menu_SHOWER",
       el.style.display = show ? "" : "none";
     }
 
+    // Uncheck every tile of a montage when its group is hidden, so nothing
+    // invisible keeps pricing. on=true only re-applies the qty state, keeping
+    // the user's picks across seat-height changes.
+    function setMontageChecked(montage, on) {
+      WC_WALL_PRODUCTS.filter((item) => montageOf(item) === montage).forEach(
+        (item) => {
+          const cb = document.getElementById(`opt_${item.productId}`);
+          const wrap = document.getElementById(`qty_${item.productId}_wrap`);
+          if (!cb || !wrap) return;
+          if (!on) cb.checked = false;
+          applyGeneratedTileQty(cb, wrap);
+        },
+      );
+    }
+
     function applySeatVisibility() {
       const selectedMontage = document.querySelector('#form-optional input[name="wcMontage"]:checked')?.value || "";
       const showSeat = catWc.checked && selectedMontage === "Wandmontage";
+      const showFloor = catWc.checked && selectedMontage === "Bodenmontage";
 
       setWcGroupVisibility(seatWrap, showSeat);
-      setWcGroupVisibility(wallProductsWrap, showSeat);
+      setWcGroupVisibility(wallProductsWrap, showSeat || showFloor);
 
       if (!showSeat) {
         seatInputs.forEach((input) => {
           input.checked = false;
         });
+      }
+      if (!showSeat && !showFloor) {
         setWallProductsChecked(false);
         return;
       }
 
       ensureWallProductsRendered().then(() => {
         setWcGroupVisibility(wallProductsWrap, true);
+        wallProductsGrid
+          ?.querySelectorAll("[data-montage]")
+          .forEach((group) =>
+            setWcGroupVisibility(group, group.dataset.montage === selectedMontage),
+          );
+        setMontageChecked("Wandmontage", showSeat);
+        setMontageChecked("Bodenmontage", showFloor);
         syncSeatHeightDependentProducts();
         syncExclusiveWcSelection();
       });
@@ -15861,22 +18508,23 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
 
   // ---- LIVE: when any kid is checked, auto-check its parent category ----
   const parentToKids = {
+    cat_DUSCHZUB: ["opt_DUSCHKORB01"],
     cat_SHOWER: [
       "opt_V22WS1R",
       "opt_TEMPDSU250",
       "opt_V22BG903R",
-      "opt_V22DS250E",
+      "opt_V12DS250E",
     ],
     cat_THERMO: ["opt_CLTB", "opt_DEPTB", "opt_CLB"],
     cat_GRAB: ["opt_CLPESG30", "opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
     cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
     cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
-    cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55"],
-    cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH"],
+    cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40"],
+    cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH", "opt_ONSHB"],
     cat_METER: ["opt_TECEADS"],
     cat_RAMPE: ["opt_RAMPE35"],
-    cat_WESGH: ["opt_WESGH"],
-    cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003"],
+    cat_WESGH: ["opt_WESGH", "opt_TRGAVS15", "opt_INSTMATROH"],
+    cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003", "opt_CLPWCF10", "opt_WCBF", "opt_CLPSSI"],
     cat_REHA: [
       "opt_24081000", "opt_24081100", "opt_24081500", "opt_24081600",
       "opt_24081005", "opt_24081105", "opt_24081505", "opt_24081605",
@@ -15916,12 +18564,15 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
 
   // Show/hide "Erforderliches Zubehör" when CL60 is toggled (no cross-panel effects)
   (function wireBasinRequired() {
-    const wt = document.getElementById("opt_CL60");
+    // any basin keeps the required block open, not just CL60
+    const wts = ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40"]
+      .map((id) => document.getElementById(id))
+      .filter(Boolean);
     const reqWrap = document.getElementById("basinRequiredWrap");
-    if (!wt || !reqWrap) return;
+    if (!wts.length || !reqWrap) return;
 
     const apply = () => {
-      const on = !!wt.checked;
+      const on = wts.some((cb) => cb.checked);
       reqWrap.hidden = !on;
       reqWrap.setAttribute("aria-hidden", String(!on));
       if (!on) {
@@ -15947,7 +18598,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
       }
     };
 
-    wt.addEventListener("change", apply);
+    wts.forEach((cb) => cb.addEventListener("change", apply));
     apply();
 
     // Accessory tiles inside required block
@@ -16019,7 +18670,7 @@ wireTileQty("hlWallAngledBall35", "qty_hlWallAngledBall35_wrap");
         "opt_V22WS1R", // Wannenset individual 2.2
         "opt_TEMPDSU250", // Duschsystem Tempesta Flex
         "opt_V22BG903R", // Brausegarnitur individ.2.2
-        "opt_V22DS250E", // Duschsystem V2 Thermostat
+        "opt_V12DS250E", // Duschsystem V1 Thermostat
       ],
     },
     {
@@ -16529,6 +19180,58 @@ function restoreAh(ah) {
   }
 }
 
+function restoreFinanzierung(fin) {
+  fin = fin || {};
+  var form = document.getElementById("form-Finanzierung");
+  if (!form) return;
+
+  ["ahEntlastungsbetragNutzen",
+   "clEntlastungAusgeschoepft", "clVerhinderungGenutzt", "clSachleistungPflegedienst",
+   "clKombileistung", "clRueckwirkend", "clSteuerhinweis", "clKostenvoranschlag",
+   "ahUmwidmungBeantragt"].forEach(function (name) {
+    var el = form.querySelector('[name="' + name + '"]');
+    if (el) el.checked = !!fin[name];
+  });
+
+  var vp = document.getElementById("ahVerhinderungspflegeMonat");
+  if (vp) vp.value = fin.ahVerhinderungspflegeMonat || 0;
+
+  var betrag = document.getElementById("ahUmwidmungBetrag");
+  if (betrag) betrag.value = fin.ahUmwidmungBetrag || "";
+
+  if (typeof window.__refreshFinanzierungUI === "function") window.__refreshFinanzierungUI();
+}
+
+(function initFinanzierungPage() {
+  var form = document.getElementById("form-Finanzierung");
+  if (!form) return;
+
+  var vp       = document.getElementById("ahVerhinderungspflegeMonat");
+  var vpOut    = document.getElementById("ahVerhinderungspflegeMonatOut");
+  var umCb     = document.getElementById("ahUmwidmungBeantragt");
+  var umField  = document.getElementById("ahUmwidmungBetragField");
+  var steuerEl = document.getElementById("ahSteuerabsetzBetrag");
+
+  function refresh() {
+    if (vp && vpOut) vpOut.textContent = Math.round(Number(vp.value) || 0) + " €";
+    if (umCb && umField) {
+      umField.hidden = !umCb.checked;
+      umField.setAttribute("aria-hidden", String(!umCb.checked));
+    }
+    if (steuerEl && typeof window.computeAHGesamt === "function") {
+      var ah = window.computeAHGesamt();
+      steuerEl.textContent = ah.steuerabsetzJahr > 0
+        ? "≈ " + new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(ah.steuerabsetzJahr) + " / Jahr Steuererstattung möglich"
+        : "—";
+    }
+  }
+
+  form.addEventListener("input", refresh);
+  form.addEventListener("change", refresh);
+  window.__refreshFinanzierungUI = refresh;
+  refresh();
+})();
+
 function restoreHms(hms) {
   if (!hms) return;
   const noteEl = document.getElementById("hmsNote");
@@ -16825,6 +19528,18 @@ window.addEventListener("offerflow:changed", () => {
   // ========== AUTO-REFRESH ON PAGE ENTER ==========
   
   function onEnterZusammenfassung() {
+  // Populate Auftrag ID field from any synced sibling that already has a value
+  const auftragIdEl = document.getElementById("auftragId");
+  if (auftragIdEl && !auftragIdEl.value.trim()) {
+    const sibling =
+      document.getElementById("postAuftragId") ||
+      document.getElementById("mailAuftragId");
+    const siblingVal = (sibling?.value || "").trim();
+    if (siblingVal && typeof syncSummaryLeadIds === "function") {
+      syncSummaryLeadIds(siblingVal);
+    }
+  }
+
   // Refresh pricing to ensure everything is up to date
   if (typeof window.updatePricing === 'function') {
     window.updatePricing().catch(err => {
@@ -17896,6 +20611,286 @@ window.addEventListener("offerflow:changed", () => {
 })();
 // #endregion
 // =================================================================
+// =================================================================
+// Optional-UX: category cards open a shared modal dialog (instead of
+// revealing panels inline down the page), in-panel search for large
+// product lists, sticky selection summary with removable chips.
+// Purely additive UI layer on top of initOptionalMenus — it never
+// touches pricing/reset logic. Each menu_* panel is physically moved
+// into the modal body once at init; all existing lookups elsewhere
+// use getElementById/querySelector scoped to the panel itself, so
+// they keep working regardless of where the panel lives in the DOM.
+// The modal stays INSIDE #form-optional so formToObject()/
+// '#form-optional input' queries still see the reparented panels.
+// =================================================================
+function initOptionalUX() {
+  const form = document.getElementById("form-optional");
+  if (!form || form.dataset.uxInit === "1") return;
+  form.dataset.uxInit = "1";
+
+  const CAT_MENU = {
+    cat_SHOWER: "menu_SHOWER",
+    cat_GRAB: "menu_GRAB",
+    cat_FOLD: "menu_FOLD",
+    cat_BASIN: "menu_BASIN",
+    cat_BASIN_TAP: "menu_BASIN_TAP",
+    cat_THERMO: "menu_THERMO",
+    cat_SEAT: "menu_SEAT",
+    cat_METER: "menu_METER",
+    cat_REHA: "menu_REHA",
+    cat_RAMPE: "menu_RAMPE",
+    cat_WANNE: "menu_WANNE",
+    cat_WC: "menu_WC",
+    cat_WESGH: "menu_WESGH",
+    cat_SONDER: "menu_SONDER",
+    cat_DUSCHZUB: "menu_DUSCHZUB",
+  };
+  const SEARCH_MIN_ITEMS = 8;
+
+  const catName = (catId) => {
+    const cb = document.getElementById(catId);
+    const cap = cb?.closest("label.image-check")?.querySelector(".caption");
+    return (cap?.textContent || catId).trim();
+  };
+
+  const isActive = (catId) => !!document.getElementById(catId)?.checked;
+
+  const menuCount = (menuId) => {
+    const menu = document.getElementById(menuId);
+    if (!menu) return 0;
+    if (menuId === "menu_SONDER") {
+      return Array.from(menu.querySelectorAll(".da-item")).filter(
+        (row) => (row.querySelector(".opt-name")?.value || "").trim()
+      ).length;
+    }
+    return menu.querySelectorAll('input[type="checkbox"]:checked').length;
+  };
+
+  // ---- modal: one shared dialog, panels reparented into its body ----
+  const modal = document.getElementById("optCategoryModal");
+  const modalBody = document.getElementById("optModalBody");
+  const modalTitle = document.getElementById("optModalTitle");
+  const modalDialog = modal?.querySelector(".opt-modal-dialog");
+  const modalClose = modal?.querySelector(".opt-modal-close");
+  const modalDone = modal?.querySelector(".opt-modal-done");
+  const modalBackdrop = modal?.querySelector(".opt-modal-backdrop");
+  const badges = {};
+  let currentCatId = null;
+  let lastFocused = null; // card that opened the modal, to restore focus on close
+
+  function openModalFor(catId) {
+    const menu = document.getElementById(CAT_MENU[catId]);
+    if (!modal || !modalBody || !menu) return;
+    lastFocused = document.activeElement;
+    modalBody
+      .querySelectorAll(".opt-modal-panel.is-current")
+      .forEach((el) => el.classList.remove("is-current"));
+    menu.classList.add("is-current");
+    if (modalTitle) modalTitle.textContent = catName(catId);
+    currentCatId = catId;
+    modal.hidden = false;
+    // Move keyboard focus into the dialog (announces title to screen readers).
+    modalDialog?.focus();
+  }
+
+  function closeModal() {
+    if (!modal || modal.hidden) return;
+    const catId = currentCatId;
+    modal.hidden = true;
+    if (catId) {
+      document.getElementById(CAT_MENU[catId])?.classList.remove("is-current");
+    }
+    currentCatId = null;
+    // Leaving the dialog with nothing picked clears the phantom selection
+    // instead of leaving the category checked-but-empty.
+    if (catId) {
+      const cat = document.getElementById(catId);
+      if (cat?.checked && menuCount(CAT_MENU[catId]) === 0) {
+        cat.checked = false;
+        cat.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }
+    scheduleRefresh();
+    // Return focus to the card that opened the modal.
+    if (lastFocused && typeof lastFocused.focus === "function") {
+      lastFocused.focus();
+    }
+    lastFocused = null;
+  }
+
+  modalClose?.addEventListener("click", closeModal);
+  modalDone?.addEventListener("click", closeModal);
+  modalBackdrop?.addEventListener("click", closeModal);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal && !modal.hidden) closeModal();
+  });
+
+  function refreshBadge(catId) {
+    const badge = badges[catId];
+    if (!badge) return;
+    const active = isActive(catId);
+    const n = active ? menuCount(CAT_MENU[catId]) : 0;
+    badge.textContent = `✓ ${n}`;
+    badge.classList.toggle("has-sel", n > 0);
+  }
+
+  function refreshAllBadges() {
+    Object.keys(badges).forEach(refreshBadge);
+  }
+
+  Object.entries(CAT_MENU).forEach(([catId, menuId]) => {
+    const cat = document.getElementById(catId);
+    const menu = document.getElementById(menuId);
+    if (!cat || !menu || !modalBody) return;
+
+    // Move the whole panel into the modal — same node, same listeners,
+    // just a different parent. IDs stay globally unique/lookup-able.
+    menu.classList.add("opt-modal-panel");
+    modalBody.appendChild(menu);
+
+    const label = cat.closest("label.image-check");
+    if (!label) return;
+
+    const badge = document.createElement("span");
+    badge.className = "opt-cat-badge";
+    label.appendChild(badge);
+    badges[catId] = badge;
+
+    // Intercept the native label→checkbox toggle: clicking a card should
+    // open its options in the modal, not just flip the box inline.
+    label.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (!cat.checked) {
+        cat.checked = true;
+        cat.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      openModalFor(catId); // re-clicking an already-configured card edits it
+    });
+
+    cat.addEventListener("change", () => {
+      if (!cat.checked && currentCatId === catId) closeModal();
+      refreshBadge(catId);
+    });
+  });
+
+  // ---- in-panel search for large product lists ----
+  Object.values(CAT_MENU).forEach((menuId) => {
+    const menu = document.getElementById(menuId);
+    const grid = menu?.querySelector(".opt-grid");
+    if (!grid) return;
+    const items = grid.querySelectorAll(".opt-item");
+    if (items.length < SEARCH_MIN_ITEMS) return;
+
+    const input = document.createElement("input");
+    input.type = "search";
+    input.className = "opt-panel-search";
+    input.placeholder = `Suchen… (${items.length} Produkte)`;
+    input.setAttribute("aria-label", "Produkte filtern");
+    grid.parentNode.insertBefore(input, grid);
+
+    const empty = document.createElement("div");
+    empty.className = "opt-search-empty";
+    empty.hidden = true;
+    empty.textContent = "Keine Produkte gefunden.";
+    grid.parentNode.insertBefore(empty, grid.nextSibling);
+
+    input.addEventListener("input", () => {
+      const q = input.value.trim().toLowerCase();
+      let visible = 0;
+      items.forEach((item) => {
+        const hit = !q || (item.textContent || "").toLowerCase().includes(q);
+        item.classList.toggle("opt-search-hidden", !hit);
+        if (hit) visible++;
+      });
+      empty.hidden = visible > 0;
+    });
+  });
+
+  // ---- sticky selection summary with removable chips ----
+  const bar = document.getElementById("optSelectionBar");
+  const chipsWrap = document.getElementById("optSelectionChips");
+
+  function makeChip(label, group, onRemove) {
+    const chip = document.createElement("span");
+    chip.className = "opt-chip";
+    chip.title = `${group}: ${label}`;
+    const txt = document.createElement("span");
+    txt.className = "opt-chip-label";
+    txt.textContent = label;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.setAttribute("aria-label", `${label} entfernen`);
+    btn.textContent = "×";
+    btn.addEventListener("click", () => {
+      onRemove();
+      scheduleRefresh();
+    });
+    chip.append(txt, btn);
+    return chip;
+  }
+
+  function renderSelectionBar() {
+    if (!bar || !chipsWrap) return;
+    chipsWrap.textContent = "";
+    let total = 0;
+    Object.entries(CAT_MENU).forEach(([catId, menuId]) => {
+      const menu = document.getElementById(menuId);
+      if (!menu || !isActive(catId)) return;
+      const group = catName(catId);
+      if (menuId === "menu_SONDER") {
+        menu.querySelectorAll(".da-item").forEach((row) => {
+          const name = (row.querySelector(".opt-name")?.value || "").trim();
+          if (!name) return;
+          total++;
+          chipsWrap.appendChild(
+            makeChip(name, group, () =>
+              row.querySelector(".da-remove")?.click()
+            )
+          );
+        });
+        return;
+      }
+      menu
+        .querySelectorAll('input[type="checkbox"]:checked')
+        .forEach((cb) => {
+          const cap = cb
+            .closest("label.image-check")
+            ?.querySelector(".caption");
+          const name = (cap?.textContent || cb.value || cb.id).trim();
+          if (!name) return;
+          total++;
+          chipsWrap.appendChild(
+            makeChip(name, group, () => {
+              cb.checked = false;
+              cb.dispatchEvent(new Event("change", { bubbles: true }));
+            })
+          );
+        });
+    });
+    bar.hidden = total === 0;
+    const head = bar.querySelector(".opt-selbar-head");
+    if (head) head.textContent = `Ausgewählte Optionen (${total})`;
+  }
+
+  // ---- shared refresh on any interaction in the Optional form ----
+  let refreshTimer = null;
+  function scheduleRefresh() {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
+      refreshAllBadges();
+      renderSelectionBar();
+    }, 60);
+  }
+  form.addEventListener("change", scheduleRefresh);
+  form.addEventListener("input", scheduleRefresh);
+  form.addEventListener("click", (e) => {
+    if (e.target.closest(".da-add, .da-remove")) scheduleRefresh();
+  });
+
+  refreshAllBadges();
+  renderSelectionBar();
+}
+
 // #region 13. GLOBAL EVENT LISTENERS (The Footer)
 // =================================================================
 
@@ -17921,6 +20916,7 @@ document.addEventListener("DOMContentLoaded", () => {
   safeInit("initBasinAutoAccessories", typeof initBasinAutoAccessories !== "undefined" ? initBasinAutoAccessories : null);
   safeInit("wireDAQtyAutoFill", wireDAQtyAutoFill);
   safeInit("initOptionalSonderprodukte", initOptionalSonderprodukte);
+  safeInit("initOptionalUX", typeof initOptionalUX !== "undefined" ? initOptionalUX : null);
 
   // ✅ these two control what you're missing in the screenshot
   safeInit("initBathtubSearch", initBathtubSearch);
@@ -18147,7 +21143,7 @@ if (bitrixIdInput && loadBitrixBtn) {
       const data = await res.json();
       console.log("[Bitrix frontend] raw data from backend:", data);
 
-      // n8n‑Antwort hat Form: { result: { ID, NAME, LAST_NAME, PHONE, EMAIL, ... }, time: {...} }
+      // Bitrix‑Antwort hat Form: { result: { ID, NAME, LAST_NAME, PHONE, EMAIL, ... }, time: {...} }
       const contact = data.result;
       if (!contact || !contact.ID) {
         throw new Error("Kontakt nicht gefunden");
@@ -18206,6 +21202,8 @@ customerNumber: contact.ID,
       }
 
       showCustomerMessage("Kontakt aus Bitrix übernommen", "success");
+      // Auto-fetch deals for this contact and show in summary widget
+      window.fetchAndSetDeal?.(contact.ID);
     } catch (e) {
       console.error(e);
       showCustomerMessage(
@@ -18505,7 +21503,7 @@ function initHassmannBestFinder() {
   });
 }
 
-// ===== Angebot als PDF erzeugen und an Auftrag (n8n) senden =====
+// ===== Angebot als PDF erzeugen und an Auftrag (Bitrix) senden =====
 (function initSendOfferPdfToAuftrag() {
   const auftragInput = document.getElementById("auftragId");
   const sendBtn = document.getElementById("sendPdfToAuftrag");
@@ -18840,28 +21838,184 @@ async function sendPdfToAuftrag() {
     };
 
     console.log("[BITRIX DEBUG] send success; updated lastSendState", window.__bitrixSendState);
-
-    if (typeof saveFinalOfferSnapshot === "function") {
-      try {
-        await saveFinalOfferSnapshot();
-      } catch (e) {
-        console.warn("[sendPdfToAuftrag] saveFinalOfferSnapshot fehlgeschlagen:", e);
-      }
-    }
   } catch (err) {
     console.error("sendPdfToAuftrag error:", err);
     setStatus(err.message || "Fehler beim Senden des Angebots-PDF.", "error");
   } finally {
     sendBtn.disabled = false;
+    if (typeof saveFinalOfferSnapshot === "function") {
+      saveFinalOfferSnapshot().catch(e =>
+        console.warn("[sendPdfToAuftrag] saveFinalOfferSnapshot fehlgeschlagen:", e)
+      );
+    }
   }
 }
 
   sendBtn.addEventListener("click", () => {
     if (typeof requireBereichValid === "function" && !requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
     sendPdfToAuftrag();
+  });
+})();
+
+// ===== Online-Signatur: Signatur-Link erzeugen (POST /api/signing) =====
+(function initCreateSigningLink() {
+  const btn = document.getElementById("createSigningLink");
+  const resultBox = document.getElementById("signingLinkResult");
+  const statusBox = document.getElementById("signingLinkStatus");
+  const sendEmailChk = document.getElementById("signingSendEmail");
+  const auftragInput = document.getElementById("auftragId");
+  if (!btn || !resultBox || !statusBox) return;
+
+  function setStatus(msg, type = "info") {
+    const ts = new Date().toLocaleTimeString();
+    const prefix = type === "success" ? "✅" : type === "error" ? "❌" : "ℹ️";
+    statusBox.className = "status " + (type === "error" ? "err" : "ok");
+    statusBox.textContent = `${prefix} [${ts}] ${msg}`;
+  }
+
+  async function createLink() {
+    if (typeof buildPayload !== "function") {
+      setStatus("buildPayload ist nicht verfügbar.", "error");
+      return;
+    }
+    const payload = buildPayload();
+
+    const offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
+    const activeOffer =
+      (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
+      window.activeOffer ||
+      "";
+    const dealId = (auftragInput?.value || "").trim();
+
+    try {
+      btn.disabled = true;
+      resultBox.innerHTML = "";
+      setStatus("Erzeuge Signatur-Link …", "info");
+
+      const res = await fetch("/api/signing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payload,
+          offerNumber,
+          offerType: activeOffer,
+          dealId,
+          sendEmail: !!sendEmailChk?.checked,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || `Fehler (${res.status})`);
+
+      const link = data.link;
+      const emailNote =
+        data.emailResult && data.emailResult.ok
+          ? " · E-Mail an Kunde gesendet"
+          : sendEmailChk?.checked
+            ? " · E-Mail konnte nicht gesendet werden"
+            : "";
+      setStatus(
+        `Signatur-Link erstellt (${data.customerType}, ${data.documents.length} Dokument(e))${emailNote}.`,
+        "success",
+      );
+
+      resultBox.innerHTML =
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+        '<input type="text" id="signingLinkField" readonly value="' +
+        String(link).replace(/"/g, "&quot;") +
+        '" style="flex:1;min-width:260px;padding:8px;border:1px solid #cfd6da;border-radius:6px;">' +
+        '<button type="button" id="copySigningLink" class="btn-bitrix">Kopieren</button>' +
+        "</div>";
+
+      const copyBtn = document.getElementById("copySigningLink");
+      const field = document.getElementById("signingLinkField");
+      copyBtn?.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(field.value);
+          copyBtn.textContent = "Kopiert ✓";
+          setTimeout(() => (copyBtn.textContent = "Kopieren"), 1500);
+        } catch {
+          field.select();
+          document.execCommand("copy");
+        }
+      });
+    } catch (err) {
+      console.error("createSigningLink error:", err);
+      setStatus(err.message || "Fehler beim Erstellen des Links.", "error");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  btn.addEventListener("click", () => {
+    if (typeof requireBereichValid === "function" && !requireBereichValid()) {
+      return;
+    }
+    createLink();
+  });
+})();
+
+// ===== Vor Ort unterschreiben: Signatur-Link erzeugen + sofort öffnen =====
+// Reuses the same POST /api/signing flow as the dev-tools link generator
+// above, but skips the email and opens the resulting /sign/:token page
+// directly so the rep can hand the iPad to the customer on the spot.
+(function initSignOnSite() {
+  const btn = document.getElementById("signOnSiteBtn");
+  const statusBox = document.getElementById("signOnSiteStatus");
+  const auftragInput = document.getElementById("auftragId");
+  if (!btn || !statusBox) return;
+
+  function setStatus(msg, type = "info") {
+    statusBox.hidden = false;
+    statusBox.className = "adobe-status " + (type === "error" ? "err" : "ok");
+    statusBox.textContent = msg;
+  }
+
+  btn.addEventListener("click", async () => {
+    if (typeof requireBereichValid === "function" && !requireBereichValid()) return;
+    if (typeof buildPayload !== "function") {
+      setStatus("buildPayload ist nicht verfügbar.", "error");
+      return;
+    }
+
+    const payload = buildPayload();
+    const offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
+    const activeOffer =
+      (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
+      window.activeOffer ||
+      "";
+    const dealId = (auftragInput?.value || "").trim();
+
+    try {
+      btn.disabled = true;
+      setStatus("Öffne Unterschriften-Ansicht …", "info");
+
+      const res = await fetch("/api/signing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payload,
+          offerNumber,
+          offerType: activeOffer,
+          dealId,
+          sendEmail: false,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || `Fehler (${res.status})`);
+
+      window.open(data.link, "_blank");
+      setStatus(
+        `Bereit zum Unterschreiben (${data.customerType}, ${data.documents.length} Dokument(e)). Tablet dem Kunden übergeben.`,
+        "success",
+      );
+    } catch (err) {
+      console.error("signOnSite error:", err);
+      setStatus(err.message || "Fehler beim Öffnen der Unterschriften-Ansicht.", "error");
+    } finally {
+      btn.disabled = false;
+    }
   });
 })();
 
@@ -18880,27 +22034,38 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// Show "Kassenkunde Name" only when payer is Kassenkunde
+// Show the Kassenkunde-only detail fields (Geburtsdatum, Versicherungsnummer,
+// Name/Adresse der Krankenkasse, Pflegegrad seit) only when payer is Kassenkunde.
+function updateKassenkundeDetailsVisibility() {
+  const wrap = document.getElementById("kassenkundeDetails");
+  if (!wrap) return;
+
+  const isKassenkunde =
+    document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde";
+
+  wrap.style.display = isKassenkunde ? "grid" : "none";
+  wrap.setAttribute("aria-hidden", isKassenkunde ? "false" : "true");
+
+  wrap.querySelectorAll("input, select, textarea").forEach((el) => {
+    el.disabled = !isKassenkunde;
+  });
+
+  // Geburtsdatum + Versicherungsnummer werden nur im BU-Konfigurator nicht benötigt.
+  const isBu = String(window.getCurrentOfferType?.() || "bu").toLowerCase() === "bu";
+  [
+    document.getElementById("kk_geburtsdatum")?.closest(".field"),
+    document.getElementById("kk_versichertennr")?.closest(".field"),
+  ].forEach((field) => {
+    if (field) field.style.display = isBu ? "none" : "";
+  });
+}
+window.updateKassenkundeDetailsVisibility = updateKassenkundeDetailsVisibility;
+
 document.addEventListener("DOMContentLoaded", () => {
-  const fieldWrap = document.getElementById("kassenkundeName")?.closest(".field");
-  if (!fieldWrap) return;
-
-  const radios = document.querySelectorAll('input[name="payer"]');
-  const nameInput = document.getElementById("kassenkundeName");
-
-  const update = () => {
-    const isKassenkunde = Array.from(radios).some(
-      (r) => r.checked && r.value === "Kassenkunde",
-    );
-    fieldWrap.style.display = isKassenkunde ? "" : "none";
-    if (nameInput) {
-      nameInput.disabled = !isKassenkunde;
-      if (!isKassenkunde) nameInput.value = "";
-    }
-  };
-
-  radios.forEach((r) => r.addEventListener("change", update));
-  update();
+  document
+    .querySelectorAll('input[name="payer"]')
+    .forEach((r) => r.addEventListener("change", updateKassenkundeDetailsVisibility));
+  updateKassenkundeDetailsVisibility();
 });
 // Hide Pflegegrad + Pflegekasse fields when customer is Selbstzahler
 function applySelbstzahlerVisibility() {
@@ -18908,7 +22073,8 @@ function applySelbstzahlerVisibility() {
     document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler";
 
   const pflegegradSection = document.getElementById("pflegegradSection");
-  if (pflegegradSection) pflegegradSection.style.display = isSelbstzahler ? "none" : "";
+  const isAH = (typeof window.getCurrentOfferType === "function" ? window.getCurrentOfferType() : "") === "ah";
+  if (pflegegradSection) pflegegradSection.style.display = (isSelbstzahler || isAH) ? "none" : "";
 
   const antragRow = document.getElementById("pflegekasseAntragRow");
   if (antragRow) antragRow.style.display = isSelbstzahler ? "none" : "";
@@ -19088,7 +22254,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // =================================================================
 // # end of HL 
 // =================================================================
-// Small helper: confirmation dialog before going back to Auswahl der Leistung from the sidebar
+// Small helper: confirmation dialog before going back to Hauptmenü from the sidebar
 
 function clearOfferNumberForNewOffer(reason = "") {
   const offerInput = document.getElementById("offerNumber");
@@ -19117,7 +22283,7 @@ function clearOfferNumberForNewOffer(reason = "") {
   }
 }
 
-// Small helper: confirmation dialog before going back to Auswahl der Leistung from the sidebar
+// Small helper: confirmation dialog before going back to Hauptmenü from the sidebar
 function askBeforeGoingHome(onConfirm) {
   const overlay = document.getElementById("homeConfirmOverlay");
   const cancelBtn = document.getElementById("homeConfirmCancel");
@@ -19129,7 +22295,7 @@ function askBeforeGoingHome(onConfirm) {
       "Wenn Sie zur Startseite zurückkehren, gehen alle eingegebenen Daten verloren und Sie müssen neu beginnen. Möchten Sie fortfahren?",
     );
     if (ok) {
-      clearOfferNumberForNewOffer("fallback native confirm -> back to Auswahl der Leistung");
+      clearOfferNumberForNewOffer("fallback native confirm -> back to Hauptmenü");
       if (typeof onConfirm === "function") onConfirm();
     }
     return;
@@ -19170,8 +22336,11 @@ function askBeforeGoingHome(onConfirm) {
 
   const toggleSidebar = (open) => {
     if (!sidebar) return;
+    // Never lock scrolling for a drawer that is hidden (e.g. on Hauptmenü)
+    if (open && getComputedStyle(sidebar).display === "none") return;
     sidebar.classList.toggle("open", open);
     backdrop?.classList.toggle("visible", open);
+    openBtn?.setAttribute("aria-expanded", String(!!open));
     if (open) {
       document.body.style.overflow = "hidden";
     } else {
@@ -20148,6 +23317,136 @@ function initHlFlexofitSearch() {
   });
 }
 
+// =================================================================
+// HL Flexofit: shared pure helpers (used by both Katalog + Konfigurator)
+// =================================================================
+
+// Innen-Beschlag finish by productId suffix (see Preisliste 01.06.24).
+// 07 = the single Edelstahl-gebürstet außen finish.
+const HL_FINISH_BY_SUFFIX = {
+  "02": "Schwarz",
+  "03": "Chrom glanz",
+  "04": "Chrom matt",
+  "05": "Messing brüniert",
+  "06": "Weiß",
+  "07": "Edelstahl gebürstet",
+  "09": "Messing hochglanz",
+  "10": "Anthrazit",
+  "11": "Nickel gebürstet",
+};
+
+// The 8 selectable innen finishes, in display order.
+const HL_INNEN_FINISHES = [
+  "Schwarz", "Chrom glanz", "Chrom matt", "Messing brüniert",
+  "Weiß", "Messing hochglanz", "Anthrazit", "Nickel gebürstet",
+];
+
+// Tube families priced per laufendem Meter (lfm) → quantity means meters, not pieces.
+const HL_TUBE_FAMILIES = ["Aluminiumrohr 35mm", "Stahlrohr 35mm", "Massivholz"];
+
+// Fitting families that carry a finish (vs. tubes / supports which don't).
+const HL_FITTING_FAMILIES = [
+  "Handlaufhalter innen",
+  "Decken-/Wand-/Bodenplatte innen",
+  "Flexo-Gelenk innen",
+  "Sonderabschluss innen",
+  "T-Bogen innen",
+  "Wandabschlussbogen innen",
+  "90-Grad-Bogen innen",
+];
+
+// Finish label for a fitting product, from its FF_<letter><2-digit> suffix.
+function hlFinishOf(p) {
+  const m = String(p?.productId || "").match(/^FF_[A-Za-z]+(\d{2})$/);
+  return m ? HL_FINISH_BY_SUFFIX[m[1]] || "" : "";
+}
+
+function productVariant(p) {
+  const name = String(p?.name || "");
+  const id = String(p?.productId || "");
+
+  if (/^FF_\d{2}[a-z]?$/i.test(id) && /Stahlrohr/i.test(name)) {
+    return name
+      .replace(/^Stahlrohr\s+35mm\s+Dekor\s+/i, "")
+      .replace(/\s+\(Innen\).*/i, "")
+      .trim();
+  }
+  if (/^FF_\d{2}$/i.test(id) && /Aluminiumrohr/i.test(name)) {
+    return name
+      .replace(/^Aluminiumrohr\s+35mm\s+/i, "")
+      .replace(/\s+\(Innen\/Außen\).*/i, "")
+      .trim();
+  }
+  if (/^FF_69$/i.test(id)) return "Edelstahl-Rohr / Deco-Rohr";
+  if (/^FF_20$/i.test(id)) return "Plexiglas 3,0 m";
+  if (/^FF_3/i.test(id)) {
+    return name
+      .replace(/^Massivholz\s+Handlauf\s+Ø35mm\s+/i, "")
+      .replace(/\s+\(Innen\).*/i, "")
+      .trim();
+  }
+  return name
+    .replace(/\s*\((?:Innen|Innen\/Außen)\)/gi, "")
+    .replace(/,\s*Preis pro lfm.*$/i, "")
+    .trim();
+}
+
+function imageFor(entry) {
+  const id = String(entry.product?.productId || "");
+  const variant = productVariant(entry.product);
+  const family = entry.family;
+
+  if (family === "Stahlrohr 35mm") return `assets/Stahl/${variant}.png`;
+  if (family === "Aluminiumrohr 35mm") return `assets/Aluminiumrohr/${variant}.png`;
+  if (family === "Plexiglas") return "assets/Stahlrohr.png";
+  if (family === "Massivholz") return "assets/Massivholz.png";
+  if (family === "Handlaufhalter innen") return "assets/SonstigeInnen/Handlaufhalter.png";
+  if (family === "Wandabschlussbogen innen") return "assets/SonstigeInnen/Wandabschlussbogen.png";
+  if (family === "Flexo-Gelenk innen") return "assets/SonstigeInnen/Flexo-Gelenk.png";
+  if (family === "90-Grad-Bogen innen") return "assets/SonstigeInnen/90 Bogen.png";
+  if (family === "Sonderabschluss innen") return "assets/SonstigeInnen/Sonderabschluss.png";
+  if (family === "T-Bogen innen") return "assets/SonstigeInnen/90 Bogen.png";
+  if (family === "Decken-/Wand-/Bodenplatte innen") return "assets/SonstigeInnen/Chrom matt.png";
+  if (id === "FF_E08") return "assets/Abdeckrosette .png";
+  if (/^FF_E0[125]$|^FF_E1[12]$/i.test(id)) return "assets/Edelstahlstütze.png";
+  if (/^FF_E22c$/i.test(id)) return "assets/Auflage für Edelstahlstütze.png";
+  if (/^FF_E22d$/i.test(id)) return "assets/Auflage für Edel lang.png";
+  if (/^FF_KFS|^FF_A06$/i.test(id)) return "assets/Wandanschluss gerade.png";
+  if (/^FF_S0001$/i.test(id)) return "assets/Wandanschluss schräg.png";
+  return "assets/Stahlrohr.png";
+}
+
+function familyEntriesFor(p) {
+  const id = String(p?.productId || "");
+  const name = String(p?.name || "");
+  const out = [];
+  const add = (family, areas, label) => out.push({ product: p, family, areas, label: label || productVariant(p) });
+
+  if (id === "FF_SL01") {
+    add("Stahlrohr 35mm", ["inside"], "Zuschnitt Stahlrohr");
+    add("Aluminiumrohr 35mm", ["inside", "outside"], "Zuschnitt Aluminiumrohr");
+    return out;
+  }
+
+  if (/^FF_(?:0[1-9]|10|12|13|14|15|18|22|9[0-5])$/i.test(id)) add("Stahlrohr 35mm", ["inside"]);
+  else if (id === "FF_20") add("Plexiglas", ["inside"]);
+  else if (/^FF_3/i.test(id)) add("Massivholz", ["inside"]);
+  else if (/^FF_(?:5[0-9]|6[0-6]|7[1-7]|8[2-5])$/i.test(id)) add("Aluminiumrohr 35mm", ["inside", "outside"]);
+  else if (id === "FF_69") add("Aluminiumrohr 35mm", ["inside", "outside"]);
+  else if (/^FF_H07$|^FF_W07$|^FF_F07$|^FF_D07$|^FF_B07$|^FF_S07$/i.test(id)) add("Beschläge Edelstahl außen", ["outside"]);
+  else if (/^FF_E|^FF_KE|^FF_KFS|^FF_A06$|^FF_S0001$/i.test(id)) add("Material Edelstahl außen", ["outside"]);
+  else if (/^FF_H/i.test(id)) add("Handlaufhalter innen", ["inside"]);
+  else if (/^FF_W/i.test(id)) add("Wandabschlussbogen innen", ["inside"]);
+  else if (/^FF_F/i.test(id)) add("Flexo-Gelenk innen", ["inside"]);
+  else if (/^FF_D/i.test(id)) add("Decken-/Wand-/Bodenplatte innen", ["inside"]);
+  else if (/^FF_T/i.test(id)) add("T-Bogen innen", ["inside"]);
+  else if (/^FF_B/i.test(id)) add("90-Grad-Bogen innen", ["inside"]);
+  else if (/^FF_S/i.test(id)) add("Sonderabschluss innen", ["inside"]);
+  else add(name.includes("Außen") ? "Weitere Produkte außen" : "Weitere Produkte innen", name.includes("Außen") ? ["outside"] : ["inside"]);
+
+  return out;
+}
+
 function initHlFlexofitCatalog() {
   const root = document.getElementById("hlFlexofitCatalog");
   const tabs = document.getElementById("hlFlexofitFamilyTabs");
@@ -20230,92 +23529,6 @@ function initHlFlexofitCatalog() {
         preferred.dispatchEvent(new Event("change", { bubbles: true }));
       }
     });
-  };
-
-  const productVariant = (p) => {
-    const name = String(p?.name || "");
-    const id = String(p?.productId || "");
-
-    if (/^FF_\d{2}[a-z]?$/i.test(id) && /Stahlrohr/i.test(name)) {
-      return name
-        .replace(/^Stahlrohr\s+35mm\s+Dekor\s+/i, "")
-        .replace(/\s+\(Innen\).*/i, "")
-        .trim();
-    }
-    if (/^FF_\d{2}$/i.test(id) && /Aluminiumrohr/i.test(name)) {
-      return name
-        .replace(/^Aluminiumrohr\s+35mm\s+/i, "")
-        .replace(/\s+\(Innen\/Außen\).*/i, "")
-        .trim();
-    }
-    if (/^FF_69$/i.test(id)) return "Edelstahl-Rohr / Deco-Rohr";
-    if (/^FF_20$/i.test(id)) return "Plexiglas 3,0 m";
-    if (/^FF_3/i.test(id)) {
-      return name
-        .replace(/^Massivholz\s+Handlauf\s+Ø35mm\s+/i, "")
-        .replace(/\s+\(Innen\).*/i, "")
-        .trim();
-    }
-    return name
-      .replace(/\s*\((?:Innen|Innen\/Außen)\)/gi, "")
-      .replace(/,\s*Preis pro lfm.*$/i, "")
-      .trim();
-  };
-
-  const imageFor = (entry) => {
-    const id = String(entry.product?.productId || "");
-    const variant = productVariant(entry.product);
-    const family = entry.family;
-
-    if (family === "Stahlrohr 35mm") return `assets/Stahl/${variant}.png`;
-    if (family === "Aluminiumrohr 35mm") return `assets/Aluminiumrohr/${variant}.png`;
-    if (family === "Plexiglas") return "assets/Stahlrohr.png";
-    if (family === "Massivholz") return "assets/Massivholz.png";
-    if (family === "Handlaufhalter innen") return "assets/SonstigeInnen/Handlaufhalter.png";
-    if (family === "Wandabschlussbogen innen") return "assets/SonstigeInnen/Wandabschlussbogen.png";
-    if (family === "Flexo-Gelenk innen") return "assets/SonstigeInnen/Flexo-Gelenk.png";
-    if (family === "90-Grad-Bogen innen") return "assets/SonstigeInnen/90 Bogen.png";
-    if (family === "Sonderabschluss innen") return "assets/SonstigeInnen/Sonderabschluss.png";
-    if (family === "T-Bogen innen") return "assets/SonstigeInnen/90 Bogen.png";
-    if (family === "Decken-/Wand-/Bodenplatte innen") return "assets/SonstigeInnen/Chrom matt.png";
-    if (id === "FF_E08") return "assets/Abdeckrosette .png";
-    if (/^FF_E0[125]$|^FF_E1[12]$/i.test(id)) return "assets/Edelstahlstütze.png";
-    if (/^FF_E22c$/i.test(id)) return "assets/Auflage für Edelstahlstütze.png";
-    if (/^FF_E22d$/i.test(id)) return "assets/Auflage für Edel lang.png";
-    if (/^FF_KFS|^FF_A06$/i.test(id)) return "assets/Wandanschluss gerade.png";
-    if (/^FF_S0001$/i.test(id)) return "assets/Wandanschluss schräg.png";
-    return "assets/Stahlrohr.png";
-  };
-
-  const familyEntriesFor = (p) => {
-    const id = String(p?.productId || "");
-    const name = String(p?.name || "");
-    const out = [];
-    const add = (family, areas, label) => out.push({ product: p, family, areas, label: label || productVariant(p) });
-
-    if (id === "FF_SL01") {
-      add("Stahlrohr 35mm", ["inside"], "Zuschnitt Stahlrohr");
-      add("Aluminiumrohr 35mm", ["inside", "outside"], "Zuschnitt Aluminiumrohr");
-      return out;
-    }
-
-    if (/^FF_(?:0[1-9]|10|12|13|14|15|18|22|9[0-5])$/i.test(id)) add("Stahlrohr 35mm", ["inside"]);
-    else if (id === "FF_20") add("Plexiglas", ["inside"]);
-    else if (/^FF_3/i.test(id)) add("Massivholz", ["inside"]);
-    else if (/^FF_(?:5[0-9]|6[0-6]|7[1-7]|8[2-5])$/i.test(id)) add("Aluminiumrohr 35mm", ["inside", "outside"]);
-    else if (id === "FF_69") add("Aluminiumrohr 35mm", ["inside", "outside"]);
-    else if (/^FF_H07$|^FF_W07$|^FF_F07$|^FF_D07$|^FF_B07$|^FF_S07$/i.test(id)) add("Beschläge Edelstahl außen", ["outside"]);
-    else if (/^FF_E|^FF_KE|^FF_KFS|^FF_A06$|^FF_S0001$/i.test(id)) add("Material Edelstahl außen", ["outside"]);
-    else if (/^FF_H/i.test(id)) add("Handlaufhalter innen", ["inside"]);
-    else if (/^FF_W/i.test(id)) add("Wandabschlussbogen innen", ["inside"]);
-    else if (/^FF_F/i.test(id)) add("Flexo-Gelenk innen", ["inside"]);
-    else if (/^FF_D/i.test(id)) add("Decken-/Wand-/Bodenplatte innen", ["inside"]);
-    else if (/^FF_T/i.test(id)) add("T-Bogen innen", ["inside"]);
-    else if (/^FF_B/i.test(id)) add("90-Grad-Bogen innen", ["inside"]);
-    else if (/^FF_S/i.test(id)) add("Sonderabschluss innen", ["inside"]);
-    else add(name.includes("Außen") ? "Weitere Produkte außen" : "Weitere Produkte innen", name.includes("Außen") ? ["outside"] : ["inside"]);
-
-    return out;
   };
 
   const render = () => {
@@ -20964,12 +24177,487 @@ function initBlProductCards() {
 
 
 
+// =================================================================
+// HL: Flexofit Konfigurator (geführter, schrittweiser Ablauf).
+// Reuses the exact same Quick-Add rows + pricing as the Katalog.
+// =================================================================
+function initHlFlexofitWizard() {
+  const root = document.getElementById("hlFlexofitWizard");
+  if (!root) return;
+
+  const stepsEl = document.getElementById("hlWizSteps");
+  const statusEl = document.getElementById("hlWizStatus");
+  const bodyEl = document.getElementById("hlWizBody");
+  const backBtn = document.getElementById("hlWizBack");
+  const nextBtn = document.getElementById("hlWizNext");
+  const resetBtn = document.getElementById("hlWizReset");
+  const areaInside = document.getElementById("hlAreaInside");
+  const areaOutside = document.getElementById("hlAreaOutside");
+
+  const TUBE_GROUPS = {
+    inside: ["Aluminiumrohr 35mm", "Stahlrohr 35mm", "Massivholz"],
+    outside: ["Aluminiumrohr 35mm"],
+  };
+  const STEP_LABELS = ["Bereich", "Rohr & Farbe", "Beschläge & Oberfläche", "Übersicht"];
+
+  let entries = [];
+  let loaded = false;
+  const state = {
+    step: 0,
+    area: "",          // "inside" | "outside"
+    tubeTab: "",       // active material tab in step 2
+    tubes: {},         // catalogKey -> { entry, meters }
+    finish: "",        // locked innen finish (outside is fixed)
+    fittings: {},      // catalogKey -> { entry, qty }
+  };
+
+  const money = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? `${n.toFixed(2).replace(".", ",")} EUR` : "";
+  };
+  const priceStr = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n.toFixed(2).replace(".", ",") : "";
+  };
+  const hlCatalogKey = (entry) =>
+    [entry.family, entry.product?.productId || "", entry.label || productVariant(entry.product)].join("::");
+
+  const outsideFinish = "Edelstahl gebürstet";
+  const activeFinish = () => (state.area === "outside" ? outsideFinish : state.finish);
+
+  const tubeEntriesFor = (family) =>
+    entries.filter(
+      (e) =>
+        e.family === family &&
+        e.areas.includes(state.area) &&
+        e.product?.productId !== "FF_SL01",
+    );
+
+  // Component families available for the current area/finish, as [{label, entry}].
+  const fittingChoices = () => {
+    if (state.area === "outside") {
+      return entries
+        .filter((e) => e.family === "Beschläge Edelstahl außen")
+        .map((e) => ({ label: productVariant(e.product), entry: e }));
+    }
+    if (!state.finish) return [];
+    return HL_FITTING_FAMILIES.map((fam) => {
+      const entry = entries.find(
+        (e) => e.family === fam && hlFinishOf(e.product) === state.finish,
+      );
+      return entry ? { label: fam.replace(/\s+innen$/, ""), entry } : null;
+    }).filter(Boolean);
+  };
+
+  const availableFinishes = () =>
+    HL_INNEN_FINISHES.filter((f) =>
+      entries.some((e) => HL_FITTING_FAMILIES.includes(e.family) && hlFinishOf(e.product) === f),
+    );
+
+  const imgTag = (entry) =>
+    `<img src="${imageFor(entry)}" alt="" loading="lazy" onerror="this.remove()" />`;
+
+  // ---- rendering -------------------------------------------------
+  const renderSteps = () => {
+    stepsEl.innerHTML = STEP_LABELS.map(
+      (label, i) =>
+        `<li class="${i === state.step ? "is-active" : i < state.step ? "is-done" : ""}">
+           <span class="hl-wiz__num">${i < state.step ? "✓" : i + 1}</span>${escapeHtml(label)}
+         </li>`,
+    ).join("");
+  };
+
+  const renderBereich = () => {
+    const card = (area, title, sub, img) => `
+      <button type="button" class="hl-wiz__card${state.area === area ? " is-selected" : ""}" data-area="${area}">
+        <img src="${img}" alt="" onerror="this.remove()" />
+        <span class="hl-wiz__card-title">${escapeHtml(title)}</span>
+        <span class="hl-wiz__card-sub">${escapeHtml(sub)}</span>
+      </button>`;
+    bodyEl.innerHTML = `
+      <div class="hl-wiz__section-title">Wo werden die Handläufe montiert?</div>
+      <div class="hl-wiz__cards">
+        ${card("inside", "Innenbereich", "Alu, Stahl & Holz · 8 Oberflächen", "./assets/Innenbereich.png")}
+        ${card("outside", "Außenbereich", "Aluminium/Edelstahl · Edelstahl gebürstet", "./assets/Außenbereich.png")}
+      </div>`;
+    bodyEl.querySelectorAll("[data-area]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.area = btn.dataset.area;
+        // Sync legacy area checkboxes so pricing/area logic stays consistent.
+        if (areaInside) areaInside.checked = state.area === "inside";
+        if (areaOutside) areaOutside.checked = state.area === "outside";
+        areaInside?.dispatchEvent(new Event("change", { bubbles: true }));
+        areaOutside?.dispatchEvent(new Event("change", { bubbles: true }));
+        // Area change invalidates downstream picks.
+        state.finish = "";
+        state.tubeTab = "";
+        render();
+      });
+    });
+  };
+
+  const renderTubes = () => {
+    // Only materials that actually have products in this area become tabs.
+    const groups = (TUBE_GROUPS[state.area] || []).filter((f) => tubeEntriesFor(f).length);
+    if (!groups.includes(state.tubeTab)) state.tubeTab = groups[0] || "";
+    const active = state.tubeTab;
+
+    const countIn = (family) =>
+      tubeEntriesFor(family).filter((e) => state.tubes[hlCatalogKey(e)]).length;
+
+    // Material tabs (only when there is more than one material to choose from).
+    const tabs =
+      groups.length > 1
+        ? `<div class="hl-wiz__finishes" role="tablist" aria-label="Material">` +
+          groups
+            .map((family) => {
+              const n = countIn(family);
+              return `<button type="button" class="hl-wiz__finish${family === active ? " is-selected" : ""}" data-tube-tab="${escapeHtml(family)}">${escapeHtml(family)}${n ? ` (${n})` : ""}</button>`;
+            })
+            .join("") +
+          `</div>`
+        : "";
+
+    const picks = (active ? tubeEntriesFor(active) : [])
+      .map((entry) => {
+        const key = hlCatalogKey(entry);
+        const sel = state.tubes[key];
+        const p = entry.product;
+        return `
+          <div>
+            <div class="hl-wiz__pick${sel ? " is-selected" : ""}" data-tube="${escapeHtml(key)}">
+              <span>${imgTag(entry)}</span>
+              <span>
+                <span class="hl-wiz__pick-name">${escapeHtml(entry.label || productVariant(p))}</span><br/>
+                <span class="hl-wiz__pick-meta">${escapeHtml(p.productId || "")} · ${money(p.price)}/Meter</span>
+              </span>
+            </div>
+            <div class="hl-wiz__qty" ${sel ? "" : "hidden"}>
+              <label>Länge (Meter):</label>
+              <input type="number" min="0" step="0.1" value="${sel ? sel.meters : 1}" data-tube-meters="${escapeHtml(key)}" />
+            </div>
+          </div>`;
+      })
+      .join("");
+
+    bodyEl.innerHTML = `
+      <div class="hl-wiz__section-title">Rohr &amp; Farbe wählen</div>
+      <p class="hl-wiz__hint">Material wählen, dann Farben markieren (Mehrfachauswahl). Rohre werden pro Meter berechnet — Länge je Farbe angeben.</p>
+      ${tabs}
+      ${picks ? `<div class="hl-wiz__picks">${picks}</div>` : '<div class="hl-wiz__empty">Keine Rohre für diesen Bereich verfügbar.</div>'}`;
+
+    bodyEl.querySelectorAll("[data-tube-tab]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.tubeTab = btn.dataset.tubeTab;
+        render();
+      });
+    });
+    bodyEl.querySelectorAll("[data-tube]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const key = el.dataset.tube;
+        if (state.tubes[key]) delete state.tubes[key];
+        else state.tubes[key] = { entry: entries.find((e) => hlCatalogKey(e) === key), meters: 1 };
+        render();
+      });
+    });
+    bodyEl.querySelectorAll("[data-tube-meters]").forEach((inp) => {
+      inp.addEventListener("click", (e) => e.stopPropagation());
+      inp.addEventListener("input", () => {
+        const key = inp.dataset.tubeMeters;
+        if (state.tubes[key]) state.tubes[key].meters = inp.value;
+      });
+    });
+  };
+
+  const renderFittings = () => {
+    let head = `<div class="hl-wiz__section-title">Beschläge &amp; Oberfläche</div>`;
+    if (state.area === "outside") {
+      head += `<p class="hl-wiz__hint">Im Außenbereich gibt es Beschläge nur in <b>${escapeHtml(outsideFinish)}</b>.</p>`;
+    } else {
+      const finishes = availableFinishes();
+      const locked = !!state.finish;
+      const swatches = finishes
+        .map(
+          (f) =>
+            `<button type="button" class="hl-wiz__finish${state.finish === f ? " is-selected" : ""}" data-finish="${escapeHtml(f)}">${escapeHtml(f)}</button>`,
+        )
+        .join("");
+      head += `<p class="hl-wiz__hint">Zuerst eine Oberfläche wählen — alle Beschläge werden dann in dieser Oberfläche kalkuliert.</p>
+               <div class="hl-wiz__finishes">${swatches}</div>`;
+      if (!locked) {
+        bodyEl.innerHTML = head + '<div class="hl-wiz__empty">Bitte zuerst eine Oberfläche auswählen.</div>';
+        bindFinishes();
+        return;
+      }
+    }
+
+    const choices = fittingChoices();
+    const cards = choices
+      .map(({ label, entry }) => {
+        const key = hlCatalogKey(entry);
+        const sel = state.fittings[key];
+        const p = entry.product;
+        return `
+          <div>
+            <div class="hl-wiz__pick${sel ? " is-selected" : ""}" data-fit="${escapeHtml(key)}">
+              <span>${imgTag(entry)}</span>
+              <span>
+                <span class="hl-wiz__pick-name">${escapeHtml(label)}</span><br/>
+                <span class="hl-wiz__pick-meta">${escapeHtml(p.productId || "")} · ${money(p.price)}</span>
+              </span>
+            </div>
+            <div class="hl-wiz__qty" ${sel ? "" : "hidden"}>
+              <label>Menge:</label>
+              <input type="number" min="1" step="1" value="${sel ? sel.qty : 1}" data-fit-qty="${escapeHtml(key)}" />
+            </div>
+          </div>`;
+      })
+      .join("");
+    bodyEl.innerHTML =
+      head +
+      `<div class="hl-wiz__picks">${cards || '<div class="hl-wiz__empty">Keine Beschläge verfügbar.</div>'}</div>`;
+
+    bindFinishes();
+    bodyEl.querySelectorAll("[data-fit]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const key = el.dataset.fit;
+        if (state.fittings[key]) delete state.fittings[key];
+        else state.fittings[key] = { entry: entries.find((e) => hlCatalogKey(e) === key), qty: 1 };
+        render();
+      });
+    });
+    bodyEl.querySelectorAll("[data-fit-qty]").forEach((inp) => {
+      inp.addEventListener("click", (e) => e.stopPropagation());
+      inp.addEventListener("input", () => {
+        const key = inp.dataset.fitQty;
+        if (state.fittings[key]) state.fittings[key].qty = inp.value;
+      });
+    });
+
+    function bindFinishes() {
+      bodyEl.querySelectorAll("[data-finish]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const next = btn.dataset.finish;
+          if (state.finish && state.finish !== next) {
+            // Switching finish: drop innen fittings tied to the old finish.
+            state.fittings = {};
+          }
+          state.finish = state.finish === next ? "" : next;
+          render();
+        });
+      });
+    }
+  };
+
+  const renderSummary = () => {
+    const rows = [];
+    Object.values(state.tubes).forEach(({ entry, meters }) => {
+      if (!entry) return;
+      const m = Number(String(meters).replace(",", ".")) || 0;
+      rows.push({
+        name: `${entry.family} · ${entry.label || productVariant(entry.product)}`,
+        detail: `${m} Meter × ${money(entry.product.price)}/Meter`,
+        total: m * Number(entry.product.price || 0),
+      });
+    });
+    Object.values(state.fittings).forEach(({ entry, qty }) => {
+      if (!entry) return;
+      const q = Number(qty) || 0;
+      const fin = hlFinishOf(entry.product) || activeFinish();
+      rows.push({
+        name: `${entry.label || productVariant(entry.product)}${fin ? ` · ${fin}` : ""}`,
+        detail: `${q} × ${money(entry.product.price)}`,
+        total: q * Number(entry.product.price || 0),
+      });
+    });
+    const sum = rows.reduce((a, r) => a + r.total, 0);
+    bodyEl.innerHTML = `
+      <div class="hl-wiz__section-title">Übersicht</div>
+      ${
+        rows.length
+          ? `<div class="hl-wiz__summary">
+               ${rows
+                 .map(
+                   (r) => `<div class="hl-wiz__summary-row">
+                     <span>${escapeHtml(r.name)}</span>
+                     <span class="muted">${escapeHtml(r.detail)}</span>
+                     <span><b>${money(r.total)}</b></span>
+                   </div>`,
+                 )
+                 .join("")}
+               <div class="hl-wiz__summary-row"><span><b>Summe (netto, EK)</b></span><span></span><span><b>${money(sum)}</b></span></div>
+             </div>
+             <p class="hl-wiz__hint" style="margin-top:12px">Mit „In Angebot übernehmen“ werden die Positionen als Freie Posten übernommen und in die Preisberechnung aufgenommen.</p>`
+          : '<div class="hl-wiz__empty">Noch nichts ausgewählt. Bitte in den vorherigen Schritten Rohre oder Beschläge wählen.</div>'
+      }`;
+  };
+
+  const render = () => {
+    renderSteps();
+    if (state.step === 0) renderBereich();
+    else if (state.step === 1) renderTubes();
+    else if (state.step === 2) renderFittings();
+    else renderSummary();
+
+    backBtn.disabled = state.step === 0;
+    const isLast = state.step === STEP_LABELS.length - 1;
+    nextBtn.innerHTML = isLast
+      ? '<i class="fa-solid fa-check"></i> In Angebot übernehmen'
+      : 'Weiter <i class="fa-solid fa-arrow-right"></i>';
+
+    // Gate progression.
+    let ok = true;
+    if (state.step === 0) ok = !!state.area;
+    if (state.step === 2 && state.area !== "outside") ok = !!state.finish || !Object.keys(state.fittings).length;
+    nextBtn.disabled = !ok;
+
+    const nTubes = Object.keys(state.tubes).length;
+    const nFit = Object.keys(state.fittings).length;
+    statusEl.textContent = state.area
+      ? `Bereich: ${state.area === "inside" ? "Innen" : "Außen"} · ${nTubes} Rohr(e) · ${nFit} Beschlag/-läge`
+      : "";
+  };
+
+  // ---- Quick-Add injection (same contract as the Katalog) --------
+  const targetWrap = () =>
+    document.getElementById("hlQuickAddItems_hausecke") ||
+    document.querySelector(".hl-quickadd-items");
+
+  const injectRow = (entry, { qty, price }) => {
+    const wrap = targetWrap();
+    const tpl = document.getElementById("tpl-hl-quickadd-row");
+    if (!wrap) return;
+    const key = hlCatalogKey(entry);
+
+    const rows = Array.from(wrap.querySelectorAll(".da-item"));
+    let row =
+      rows.find((r) => r.dataset.hlCatalogKey === key) ||
+      rows.find((r) => {
+        const empty = (sel) => !String(r.querySelector(sel)?.value || "").trim();
+        return empty(".da-name") && empty(".da-id") && empty(".da-price");
+      });
+
+    if (!row && tpl?.content?.firstElementChild) {
+      row = tpl.content.firstElementChild.cloneNode(true);
+      wrap.appendChild(row);
+      wireHlQuickAddRow(row);
+    }
+    if (!row) return;
+
+    row.dataset.hlCatalogKey = key;
+    row.dataset.hlCatalogFamily = entry.family;
+    row.dataset.hlCatalogAreas = entry.areas.join(",");
+
+    const setVal = (sel, value) => {
+      const el = row.querySelector(sel);
+      if (!el) return;
+      el.value = value;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    setVal(".da-name", entry.label || entry.product.name || entry.product.productId || "");
+    setVal(".da-id", entry.product.productId || "");
+    setVal(".da-qty", String(qty));
+    setVal(".da-price", price);
+  };
+
+  const applyToOffer = () => {
+    let count = 0;
+    Object.values(state.tubes).forEach(({ entry, meters }) => {
+      if (!entry) return;
+      const m = Number(String(meters).replace(",", ".")) || 0;
+      if (m <= 0) return;
+      injectRow(entry, { qty: m, price: priceStr(entry.product.price) });
+      count++;
+    });
+    Object.values(state.fittings).forEach(({ entry, qty }) => {
+      if (!entry) return;
+      const q = Number(qty) || 0;
+      if (q <= 0) return;
+      injectRow(entry, { qty: q, price: priceStr(entry.product.price) });
+      count++;
+    });
+    if (typeof window.updatePricing === "function") window.updatePricing();
+    if (typeof updateSummary === "function") updateSummary();
+    if (typeof showToast === "function") {
+      showToast(count ? `${count} Position(en) ins Angebot übernommen.` : "Nichts zu übernehmen.", count ? "success" : "warning");
+    }
+    showCommitBanner(count);
+  };
+
+  // Persistent confirmation on the Übersicht (toast is too easy to miss).
+  const gotoStep = (stepKey) => {
+    location.hash = `#${stepKey}`;
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+  };
+  const showCommitBanner = (count) => {
+    bodyEl.querySelector(".hl-wiz__committed")?.remove();
+    const div = document.createElement("div");
+    div.className = `hl-wiz__committed${count ? "" : " is-empty"}`;
+    div.innerHTML = count
+      ? `<span><b>✓ ${count} Position(en) übernommen</b> — sichtbar im <b>HL</b>-Tab (Freier Posten) und unter <b>Kosten</b>.</span>
+         <span class="hl-wiz__committed-actions">
+           <button type="button" class="secondary" data-goto="hl">Zum HL-Tab</button>
+           <button type="button" data-goto="Kosten">Zu den Kosten</button>
+         </span>`
+      : `<span>Nichts zu übernehmen — bitte zuerst Rohre oder Beschläge auswählen.</span>`;
+    bodyEl.appendChild(div);
+    div.querySelectorAll("[data-goto]").forEach((b) =>
+      b.addEventListener("click", () => gotoStep(b.dataset.goto)),
+    );
+    div.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
+
+  // ---- navigation ------------------------------------------------
+  backBtn.addEventListener("click", () => {
+    if (state.step > 0) {
+      state.step--;
+      render();
+    }
+  });
+  nextBtn.addEventListener("click", () => {
+    if (state.step < STEP_LABELS.length - 1) {
+      state.step++;
+      render();
+    } else {
+      applyToOffer();
+    }
+  });
+  resetBtn?.addEventListener("click", () => {
+    state.step = 0;
+    state.area = "";
+    state.tubeTab = "";
+    state.tubes = {};
+    state.finish = "";
+    state.fittings = {};
+    render();
+  });
+
+  const load = async () => {
+    if (loaded) return;
+    try {
+      const res = await fetch("/api/products?source=flexofit&limit=500");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const products = await res.json();
+      entries = products.flatMap(familyEntriesFor);
+      loaded = true;
+    } catch (err) {
+      console.warn("[HL Konfigurator] load failed:", err);
+      statusEl.textContent = "Flexofit-Produkte konnten nicht geladen werden.";
+    }
+    render();
+  };
+
+  load();
+}
+
 // init on load
 document.addEventListener("DOMContentLoaded", () => {
   initHlFlexofitSearch();
   initHlFlexofitCatalog();
   initHlQuickAddRepeater();
   initHlFlexofitImporter();
+  initHlFlexofitWizard();
 });
 
 
@@ -21201,7 +24889,7 @@ function setSaveCustomerStatus(btn, text, type = "info") {
 }
 
 // =================================================================
-// Today's Customers Panel (Bitrix → n8n → configurator)
+// Today's Customers Panel (Bitrix → configurator)
 // =================================================================
 
 (function(){
@@ -21849,10 +25537,17 @@ async function applyCalendarEventToForm(event){
 
   syncSummaryLeadIds(hydrated?.dealId || "");
   syncSummaryRecipientEmail(hydrated?.email || parsed.email || "");
+  // Auto-fetch deals for this contact
+  const _contactIdForDeals = hydrated?.bitrixContactId || parsed.contactId || "";
+  if (_contactIdForDeals) window.fetchAndSetDeal?.(_contactIdForDeals);
 
-  const normalizedTitle = normalizeCalendarText(event?.NAME || event?.TITLE || "");
-  if(normalizedTitle.includes("frau ")) setCalendarRadio("salutation", "Frau");
-  if(normalizedTitle.includes("herr ")) setCalendarRadio("salutation", "Herr");
+  if(hydrated?.salutation){
+    setCalendarRadio("salutation", hydrated.salutation);
+  } else {
+    const normalizedTitle = normalizeCalendarText(event?.NAME || event?.TITLE || "");
+    if(normalizedTitle.includes("frau ")) setCalendarRadio("salutation", "Frau");
+    if(normalizedTitle.includes("herr ")) setCalendarRadio("salutation", "Herr");
+  }
 
   try {
     if (typeof updateSummaryWidgetName === "function") {
@@ -21903,6 +25598,84 @@ const TODAY_PLANNING_STREAM_ENDPOINT = `/api/planning/stream`;
 let todayPlanningAppointments = [];
 let todayPlanningAppointmentsFiltered = [];
 let activePlanningAppointmentId = null;
+let _pendingPlanningEntry = null;
+
+// Deal stages fetched live from Bitrix — hides "Erfolgreich abgeschlossen"
+// for deals already moved to/past "ANG verschickt" on the today-planning list.
+const DONE_STAGE_IDS = new Set(["C38:UC_2ZDNEZ", "C52:UC_SNAVG8", "C72:PREPARATION"]);
+const dealStageById = new Map();
+
+function isDealDone(dealId) {
+  const stage = dealStageById.get(String(dealId || "").trim());
+  return !!stage && DONE_STAGE_IDS.has(stage);
+}
+
+function markDealStage(dealId, stageId) {
+  const id = String(dealId || "").trim();
+  if (!id || !stageId) return;
+  dealStageById.set(id, stageId);
+}
+
+async function fetchDealStages(dealIds) {
+  const ids = [...new Set(dealIds.map((id) => String(id || "").trim()).filter(Boolean))];
+  if (!ids.length) return;
+  try {
+    const res = await fetch(`/api/bitrix/deals/stages?ids=${ids.map(encodeURIComponent).join(",")}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+    for (const [dealId, stageId] of Object.entries(data?.stages || {})) {
+      markDealStage(dealId, stageId);
+    }
+    renderTodayPlanningAppointments();
+  } catch (e) {
+    console.warn("[planning] fetchDealStages failed:", e);
+  }
+}
+
+const PLANNING_OFFER_TYPES = [
+  { offerKey: "bu",  icon: "fa-shower",            title: "Badumbau" },
+  { offerKey: "bwt", icon: "fa-bath",               title: "Badewannentür" },
+  { offerKey: "hl",  icon: "fa-grip-lines-vertical", title: "Handlauf" },
+  { offerKey: "ah",  icon: "fa-hands-helping",       title: "Alltagshilfe" },
+  { offerKey: "wd",  icon: "fa-snowflake",           title: "Winterdienst" },
+  { offerKey: "hms", icon: "fa-toolbox",             title: "Hausmeister-Service" },
+];
+
+function openPlanningOfferPicker(entry) {
+  _pendingPlanningEntry = entry;
+  const modal = document.getElementById("planningOfferPickerModal");
+  const container = document.getElementById("planningOfferPickerCards");
+  if (!modal || !container) return;
+
+  container.innerHTML = PLANNING_OFFER_TYPES.map(rule =>
+    `<button type="button" class="planning-offer-card" data-offer-key="${rule.offerKey}">
+      <i class="fa-solid ${rule.icon}"></i>
+      <span>${rule.title}</span>
+    </button>`
+  ).join("");
+
+  container.querySelectorAll(".planning-offer-card").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const offerKey = btn.dataset.offerKey;
+      const entry = _pendingPlanningEntry;
+      closePlanningOfferPicker();
+      if (entry) {
+        applyPlanningAppointmentToForm(entry, offerKey);
+      }
+    });
+  });
+
+  modal.hidden = false;
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function closePlanningOfferPicker() {
+  const modal = document.getElementById("planningOfferPickerModal");
+  if (!modal) return;
+  modal.hidden = true;
+  modal.setAttribute("aria-hidden", "true");
+  _pendingPlanningEntry = null;
+}
 let todayPlanningEventSource = null;
 
 function normalizePlanningText(value){
@@ -22023,24 +25796,25 @@ function pickTodayPlanningDay(planning){
 function buildPlanningEntries(payload){
   const planning = payload?.planning || {};
 
-  let day = pickTodayPlanningDay(planning);
+  // Always prefer futurePlanned for today — travelMinutesAfter is only set there.
+  const todayKey = new Date().toLocaleDateString("sv-SE");
+  const todayFromFuture = (Array.isArray(planning?.futurePlanned) ? planning.futurePlanned : [])
+    .filter(c => c?.plannedDate === todayKey);
 
-  if(!day){
-    const todayKey = new Date().toLocaleDateString("sv-SE");
-    const todayFromFuture = (Array.isArray(planning?.futurePlanned) ? planning.futurePlanned : [])
-      .filter(c => c?.plannedDate === todayKey);
-    if(todayFromFuture.length){
-      const now = new Date();
-      day = {
-        date: todayKey,
-        customers: todayFromFuture,
-        locked: !!todayFromFuture[0]?.dayLocked,
-        dayIndex: todayFromFuture[0]?.dayIndex ?? 0,
-        label: now.toLocaleDateString("de-DE", { weekday: "long" }),
-        shortLabel: now.toLocaleDateString("de-DE", { weekday: "short" }).slice(0, 2),
-        dateLabel: now.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
-      };
-    }
+  let day = null;
+  if(todayFromFuture.length){
+    const now = new Date();
+    day = {
+      date: todayKey,
+      customers: todayFromFuture,
+      locked: !!todayFromFuture[0]?.dayLocked,
+      dayIndex: todayFromFuture[0]?.dayIndex ?? 0,
+      label: now.toLocaleDateString("de-DE", { weekday: "long" }),
+      shortLabel: now.toLocaleDateString("de-DE", { weekday: "short" }).slice(0, 2),
+      dateLabel: now.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+    };
+  } else {
+    day = pickTodayPlanningDay(planning);
   }
 
   const customers = Array.isArray(day?.customers) ? day.customers : [];
@@ -22088,6 +25862,14 @@ function formatPlanningTimeDisplay(entry){
   return "Dauer offen";
 }
 
+function formatTodayPause(planning){
+  const p = planning?.todayPause;
+  if(!p || !(Number(p.durationMinutes) > 0)) return null;
+  return p.start && p.end
+    ? `Pause ${p.start}–${p.end} · ${p.durationMinutes} Min`
+    : `Pause · ${p.durationMinutes} Min`;
+}
+
 function isPlanningEntryCancelled(entry){
   const value = entry?.cancelled;
   return value === true || value === "true" || value === 1 || value === "1";
@@ -22102,9 +25884,189 @@ function formatPlanningBadge(entry){
   return getPlanningPriorityLabel(entry?.priority);
 }
 
+function formatPlanningTypeClass(type){
+  switch((type || "").toUpperCase()){
+    case "BU":  return "is-bu";
+    case "BWT": return "is-bwt";
+    case "HMS": case "WD": return "is-hms";
+    case "HL":  return "is-hl";
+    case "AH":  return "is-ah";
+    default:    return "is-manual";
+  }
+}
+
 // ─── Week Calendar ────────────────────────────────────────────────────────────
 
 let __lastPlanningRawPayload = null;
+
+// Which week is currently shown, relative to the planning "current" week.
+// 0 = current week, -1 = previous, +1 = next. Driven by the ◀ / ▶ nav buttons.
+let __weekViewOffset = 0;
+// The day objects for the week currently on screen — used by the entry click
+// handler so clicking works on any navigated week, not just the current one.
+let __weekViewDays = [];
+
+const WEEK_DAY_SHORT = ["Mo", "Di", "Mi", "Do", "Fr"];
+const WEEK_DAY_LONG = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"];
+
+function toLocalDateKey(date){
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+// Monday of the week containing `date` (local time).
+function mondayOf(date){
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dow = d.getDay(); // 0=Sun..6=Sat
+  const toMonday = dow === 0 ? -6 : 1 - dow;
+  d.setDate(d.getDate() + toMonday);
+  return d;
+}
+
+// The Monday the planning backend considers "current" — prefer the value it
+// sends (planning.currentWeekStart), else derive from today.
+function planningCurrentMonday(payload){
+  const raw = payload?.planning?.currentWeekStart;
+  const parsed = raw ? parsePlanningDate(raw) : null;
+  return parsed ? mondayOf(parsed) : mondayOf(new Date());
+}
+
+// All dates present in the payload's rawWpByDate map (spans every planned week
+// the backend knows about). Used to bound how far ◀ / ▶ can navigate.
+function planningDataRange(payload){
+  const map = payload?.planning?.rawWpByDate;
+  if(!map || typeof map !== "object") return null;
+  const keys = Object.keys(map).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort();
+  if(!keys.length) return null;
+  return { minMonday: mondayOf(parsePlanningDate(keys[0])), maxMonday: mondayOf(parsePlanningDate(keys[keys.length - 1])) };
+}
+
+// Min / max offsets (relative to the current week) reachable with the data we
+// already have. Returns { min, max }; both 0 when there is no range info.
+function weekOffsetBounds(payload){
+  const range = planningDataRange(payload);
+  if(!range) return { min: 0, max: 0 };
+  const cur = planningCurrentMonday(payload).getTime();
+  const week = 7 * 86400000;
+  const min = Math.round((range.minMonday.getTime() - cur) / week);
+  const max = Math.round((range.maxMonday.getTime() - cur) / week);
+  // Always allow the current week even if it sits outside the data range.
+  return { min: Math.min(min, 0), max: Math.max(max, 0) };
+}
+
+// Build the 5 weekday objects for the week at `offset`. Offset 0 reuses the
+// backend's richer planning.days (it carries computed slot locks); other weeks
+// are assembled from rawWpByDate, which holds every planned week.
+function buildWeekDays(payload, offset){
+  const planning = payload?.planning || {};
+  if(offset === 0 && Array.isArray(planning.days) && planning.days.length){
+    return planning.days;
+  }
+  const monday = new Date(planningCurrentMonday(payload));
+  monday.setDate(monday.getDate() + offset * 7);
+  const byDate = (planning.rawWpByDate && typeof planning.rawWpByDate === "object") ? planning.rawWpByDate : {};
+  const lockedDays = (planning.board && typeof planning.board.lockedDays === "object") ? planning.board.lockedDays : {};
+
+  return Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const dateKey = toLocalDateKey(d);
+    const customers = Array.isArray(byDate[dateKey]) ? byDate[dateKey] : [];
+    return {
+      dayIndex: i,
+      date: dateKey,
+      shortLabel: WEEK_DAY_SHORT[i],
+      label: WEEK_DAY_LONG[i],
+      dateLabel: d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+      locked: Boolean(lockedDays[dateKey]),
+      customers,
+    };
+  });
+}
+
+// ── Zone detection ──────────────────────────────────────────────────────────
+// Maps the first two digits of a German PLZ (Leitregion) to a nearby major
+// city / region label. Offline lookup — no network calls. Falls back to the
+// single leading digit, then to the parsed city name.
+const PLZ_ZONES = {
+  "01": "Dresden",    "02": "Görlitz",     "03": "Cottbus",     "04": "Leipzig",
+  "06": "Halle",      "07": "Gera/Jena",   "08": "Zwickau",     "09": "Chemnitz",
+  "10": "Berlin",     "12": "Berlin",      "13": "Berlin",      "14": "Potsdam",
+  "15": "Frankfurt (Oder)", "16": "Brandenburg", "17": "Neubrandenburg",
+  "18": "Rostock",    "19": "Schwerin",
+  "20": "Hamburg",    "21": "Hamburg",     "22": "Hamburg",     "23": "Lübeck",
+  "24": "Kiel",       "25": "Husum",       "26": "Oldenburg",   "27": "Bremerhaven",
+  "28": "Bremen",     "29": "Lüneburg",
+  "30": "Hannover",   "31": "Hildesheim",  "32": "Herford",     "33": "Paderborn",
+  "34": "Kassel",     "35": "Marburg",     "36": "Fulda",       "37": "Göttingen",
+  "38": "Braunschweig", "39": "Magdeburg",
+  "40": "Düsseldorf", "41": "Mönchengladbach", "42": "Wuppertal", "44": "Dortmund",
+  "45": "Essen",      "46": "Oberhausen",  "47": "Duisburg",    "48": "Münster",
+  "49": "Osnabrück",
+  "50": "Köln",       "51": "Köln",        "52": "Aachen",      "53": "Bonn",
+  "54": "Trier",      "55": "Mainz",       "56": "Koblenz",     "57": "Siegen",
+  "58": "Hagen",      "59": "Hamm",
+  "60": "Frankfurt",  "61": "Bad Homburg", "63": "Offenbach",   "64": "Darmstadt",
+  "65": "Wiesbaden",  "66": "Saarbrücken", "67": "Ludwigshafen", "68": "Mannheim",
+  "69": "Heidelberg",
+  "70": "Stuttgart",  "71": "Stuttgart",   "72": "Tübingen",    "73": "Göppingen",
+  "74": "Heilbronn",  "75": "Pforzheim",   "76": "Karlsruhe",   "77": "Offenburg",
+  "78": "Villingen",  "79": "Freiburg",
+  "80": "München",    "81": "München",     "82": "Starnberg",   "83": "Rosenheim",
+  "84": "Landshut",   "85": "Ingolstadt",  "86": "Augsburg",    "87": "Kempten",
+  "88": "Ravensburg", "89": "Ulm",
+  "90": "Nürnberg",   "91": "Nürnberg",    "92": "Amberg",      "93": "Regensburg",
+  "94": "Passau",     "95": "Bayreuth",    "96": "Bamberg",     "97": "Würzburg",
+  "98": "Suhl",       "99": "Erfurt",
+};
+const PLZ_ZONES_1 = {
+  "0": "Sachsen/Ost", "1": "Berlin/Nord-Ost", "2": "Hamburg/Nord", "3": "Hannover/Mitte",
+  "4": "Ruhrgebiet",  "5": "Köln/West",       "6": "Rhein-Main",   "7": "Stuttgart/Süd-West",
+  "8": "München/Süd", "9": "Nürnberg/Franken",
+};
+
+function detectEntryZone(entry){
+  const parsed = parsePlanningAddress(entry?.address || "");
+  const plz = String(entry?.postalCode || parsed.postalCode || "").trim();
+  if(/^\d{5}$/.test(plz)){
+    return PLZ_ZONES[plz.slice(0, 2)] || PLZ_ZONES_1[plz.slice(0, 1)] || null;
+  }
+  const city = String(entry?.city || parsed.city || "").trim();
+  return city || null;
+}
+
+// Returns the dominant (most frequent) zone among a day's active entries,
+// plus the ordered list of distinct zones for that day.
+function computeDayZones(entries){
+  const counts = new Map();
+  const order = [];
+  for(const entry of entries){
+    if(isPlanningEntryCancelled(entry)) continue;
+    const zone = detectEntryZone(entry);
+    if(!zone) continue;
+    if(!counts.has(zone)) order.push(zone);
+    counts.set(zone, (counts.get(zone) || 0) + 1);
+  }
+  if(!order.length) return { dominant: null, zones: [] };
+  const dominant = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  return { dominant, zones: order };
+}
+
+// Compact badge label for the tight week-calendar columns.
+function formatPlanningBadgeCompact(entry){
+  if(isPlanningEntryCancelled(entry)) return "Abgesagt";
+  if(entry?.locked && Number.isFinite(Number(entry?.lockedSlot))){
+    return `Slot ${Number(entry.lockedSlot) + 1}`;
+  }
+  if(entry?.locked) return "Fixiert";
+  const norm = String(entry?.priority || "").trim().toLowerCase();
+  if(norm === "high") return "Hoch";
+  if(norm === "medium") return "Mittel";
+  if(norm === "low") return "Niedrig";
+  return "Termin";
+}
 
 function getPlanningWeekNumber(date) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -22118,8 +26080,13 @@ function renderWeekCalendar(payload) {
   const meta = document.getElementById("weekCalendarMeta");
   if (!grid) return;
 
-  const planning = payload?.planning || {};
-  const days = Array.isArray(planning.days) ? planning.days : [];
+  // Clamp the requested offset to what the available data actually covers.
+  const bounds = weekOffsetBounds(payload);
+  __weekViewOffset = Math.min(Math.max(__weekViewOffset, bounds.min), bounds.max);
+
+  const days = buildWeekDays(payload, __weekViewOffset);
+  __weekViewDays = days;
+  updateWeekNavButtons(bounds);
 
   // Sort days chronologically
   const sorted = [...days].sort((a, b) => {
@@ -22134,14 +26101,38 @@ function renderWeekCalendar(payload) {
   const totalEntries = sorted.reduce(
     (sum, d) => sum + (Array.isArray(d?.customers) ? d.customers.length : 0), 0
   );
-  const weekNum = getPlanningWeekNumber(now);
+  // KW / date range reflect the week on screen, not always today.
+  const firstDate = sorted.length ? parsePlanningDate(sorted[0]?.date) : null;
+  const lastDate = sorted.length ? parsePlanningDate(sorted[sorted.length - 1]?.date) : null;
+  const weekNum = getPlanningWeekNumber(firstDate || now);
+  const rangeLabel = (firstDate && lastDate)
+    ? `${firstDate.toLocaleDateString("de-DE", { day: "numeric", month: "short" })} – ${lastDate.toLocaleDateString("de-DE", { day: "numeric", month: "short" })}`
+    : "";
+  const weekWord = __weekViewOffset === 0 ? "diese Woche"
+    : __weekViewOffset === -1 ? "letzte Woche"
+    : __weekViewOffset === 1 ? "nächste Woche"
+    : `${Math.abs(__weekViewOffset)} Wochen ${__weekViewOffset < 0 ? "zurück" : "voraus"}`;
+
+  // Collect the distinct zones visited across the whole week (in day order).
+  const weekZones = [];
+  for (const d of sorted) {
+    const list = Array.isArray(d?.customers) ? d.customers : [];
+    for (const z of computeDayZones(list).zones) {
+      if (!weekZones.includes(z)) weekZones.push(z);
+    }
+  }
 
   if (meta) {
-    meta.textContent = `${totalEntries} Termin${totalEntries !== 1 ? "e" : ""} diese Woche · KW ${weekNum}`;
+    const parts = [
+      `${totalEntries} Termin${totalEntries !== 1 ? "e" : ""} · ${weekWord}`,
+      `KW ${weekNum}${rangeLabel ? ` (${rangeLabel})` : ""}`,
+    ];
+    if (weekZones.length) parts.push(weekZones.join(", "));
+    meta.textContent = parts.join(" · ");
   }
 
   if (!sorted.length) {
-    grid.innerHTML = `<div class="week-cal-empty"><i class="fa-regular fa-calendar-xmark"></i> Keine Planungstermine für diese Woche gefunden</div>`;
+    grid.innerHTML = `<div class="week-cal-empty"><i class="fa-regular fa-calendar-xmark"></i> Keine Planungstermine in dieser Woche</div>`;
     return;
   }
 
@@ -22171,6 +26162,11 @@ function renderWeekCalendar(payload) {
       ? `<i class="fa-solid fa-lock week-cal-day-lock-icon" title="Tag gesperrt"></i>`
       : "";
 
+    const dayZone = computeDayZones(entries).dominant;
+    const zoneChip = dayZone
+      ? `<div class="week-cal-zone" title="Schwerpunkt-Region an diesem Tag"><i class="fa-solid fa-location-dot"></i><span>${escapePlanningHtml(dayZone)}</span></div>`
+      : "";
+
     const entriesHtml = entries.length
       ? entries.map(entry => {
           const isCancelled = isPlanningEntryCancelled(entry);
@@ -22178,9 +26174,11 @@ function renderWeekCalendar(payload) {
           const badgeClass = isCancelled ? "is-cancelled" : (entry?.locked ? "is-bu" : "is-manual");
           const entryId = String(entry?.id || `${day?.date || ""}-${entry?.name || ""}`);
           return `<div class="week-cal-entry${isCancelled ? " is-cancelled" : ""}" data-wce-id="${escapePlanningHtml(entryId)}" data-wce-day="${escapePlanningHtml(day?.date || "")}">
-            <span class="week-cal-entry-time">${escapePlanningHtml(startTime || "–")}</span>
+            <div class="week-cal-entry-top">
+              <span class="week-cal-entry-time">${escapePlanningHtml(startTime || "–")}</span>
+              <span class="week-cal-entry-badge ${badgeClass}">${escapePlanningHtml(formatPlanningBadgeCompact(entry))}</span>
+            </div>
             <span class="week-cal-entry-name">${escapePlanningHtml(entry?.name || "Unbekannt")}</span>
-            <span class="week-cal-entry-badge ${badgeClass}">${escapePlanningHtml(formatPlanningBadge(entry))}</span>
           </div>`;
         }).join("")
       : `<div class="week-cal-empty-day"><i class="fa-regular fa-calendar-xmark"></i><span>Keine Termine</span></div>`;
@@ -22195,6 +26193,7 @@ function renderWeekCalendar(payload) {
         <div class="week-cal-day-date">${escapePlanningHtml(String(dateNum))}</div>
         <div class="week-cal-day-month">${escapePlanningHtml(monthName)}</div>
         <div class="week-cal-count">${activeCount} Termin${activeCount !== 1 ? "e" : ""}${cancelledCount ? `<span class="week-cal-cancelled-hint"> · ${cancelledCount} abg.</span>` : ""}</div>
+        ${zoneChip}
       </div>
       <div class="week-cal-entries">${entriesHtml}</div>
     </div>`;
@@ -22206,8 +26205,7 @@ function renderWeekCalendar(payload) {
       const entryId = el.dataset.wceId;
       const dayDate = el.dataset.wceDay;
       if (!__lastPlanningRawPayload) return;
-      const planningData = __lastPlanningRawPayload?.planning || {};
-      const day = (Array.isArray(planningData.days) ? planningData.days : [])
+      const day = (Array.isArray(__weekViewDays) ? __weekViewDays : [])
         .find(d => d?.date === dayDate);
       if (!day) return;
       const customer = (Array.isArray(day.customers) ? day.customers : [])
@@ -22228,7 +26226,96 @@ function renderWeekCalendar(payload) {
   });
 }
 
+// Enable/disable ◀ / ▶ and highlight "Diese Woche" based on where we are.
+function updateWeekNavButtons(bounds){
+  const prev = document.getElementById("weekCalPrev");
+  const next = document.getElementById("weekCalNext");
+  const today = document.getElementById("weekCalToday");
+  if(prev) prev.disabled = __weekViewOffset <= bounds.min;
+  if(next) next.disabled = __weekViewOffset >= bounds.max;
+  if(today){
+    const atCurrent = __weekViewOffset === 0;
+    today.disabled = atCurrent;
+    today.classList.toggle("is-active", atCurrent);
+  }
+}
+
+// Wire the week-navigation buttons once. Re-renders from the last payload we
+// received, so no new network/DB call is needed to change weeks.
+let __weekNavWired = false;
+function initWeekCalendarNav(){
+  if(__weekNavWired) return;
+  const prev = document.getElementById("weekCalPrev");
+  const next = document.getElementById("weekCalNext");
+  const today = document.getElementById("weekCalToday");
+  if(!prev && !next && !today) return;
+  __weekNavWired = true;
+
+  const rerender = () => {
+    if(__lastPlanningRawPayload) renderWeekCalendar(__lastPlanningRawPayload);
+  };
+  prev?.addEventListener("click", () => { __weekViewOffset -= 1; rerender(); });
+  next?.addEventListener("click", () => { __weekViewOffset += 1; rerender(); });
+  today?.addEventListener("click", () => { __weekViewOffset = 0; rerender(); });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Travel time from the company base to/from a planning entry's address, via
+// the existing /api/routing/suggest-distance endpoint (same one the BU
+// Arbeitszeit tab uses). Cached per address since it never changes intra-session.
+const __companyTravelMinutesCache = new Map();
+async function fetchCompanyTravelMinutes(entry){
+  const parsed = parsePlanningAddress(entry?.address || "");
+  const street = entry?.street || parsed.street;
+  const postalCode = entry?.postalCode || parsed.postalCode;
+  const city = entry?.city || parsed.city;
+  if(!street && !postalCode && !city) return null;
+
+  const key = `${street}|${postalCode}|${city}`;
+  if(__companyTravelMinutesCache.has(key)) return __companyTravelMinutesCache.get(key);
+
+  let minutes = null;
+  try {
+    const res = await fetch("/api/routing/suggest-distance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ Kundendaten: { street, postalCode, city } }),
+    });
+    const data = await res.json();
+    if(data?.ok && Number.isFinite(Number(data?.oneWaySeconds))){
+      minutes = Math.round(Number(data.oneWaySeconds) / 60);
+    }
+  } catch (e) {
+    console.error("[planning] company travel time lookup failed:", e);
+  }
+  __companyTravelMinutesCache.set(key, minutes);
+  return minutes;
+}
+
+// Adds an "Anfahrt von Firma" connector before the first card and a
+// "Rückfahrt zur Firma" connector after the last card. Fetched async so the
+// list itself renders immediately; the connectors pop in once resolved.
+function attachCompanyTravelConnectors(entries){
+  const list = document.getElementById("todayPlanningList");
+  if(!list || !entries.length) return;
+
+  const addConnector = (entry, position, className, label) => {
+    fetchCompanyTravelMinutes(entry).then(minutes => {
+      if(!(minutes > 0)) return;
+      const card = list.querySelector(`.today-calendar-card[data-id="${CSS.escape(String(entry.__entryId))}"]`);
+      if(!card) return;
+      const sibling = position === "beforebegin" ? card.previousElementSibling : card.nextElementSibling;
+      if(sibling?.classList.contains(className)) return;
+      card.insertAdjacentHTML(position, `<div class="planning-travel-connector ${className}"><i class="fa-solid fa-car-side"></i> ${minutes} Min ${label}</div>`);
+    });
+  };
+
+  const first = entries[0];
+  const last = entries[entries.length - 1];
+  addConnector(first, "beforebegin", "planning-travel-connector--start", "Anfahrt von Firma");
+  if(last !== first) addConnector(last, "afterend", "planning-travel-connector--end", "Rückfahrt zur Firma");
+}
 
 function renderTodayPlanningAppointments(){
   const list = document.getElementById("todayPlanningList");
@@ -22244,6 +26331,13 @@ function renderTodayPlanningAppointments(){
     const address = entry?.address || "Ort unbekannt";
     const email = entry?.email || "Keine E-Mail";
     const phone = entry?.phone || "Keine Telefonnummer";
+    const phoneHref = normalizePhoneHref(entry?.phone);
+    const callHtml = phoneHref
+      ? `<a class="today-calendar-call" href="tel:${escapePlanningHtml(phoneHref)}" aria-label="Kunde anrufen: ${escapePlanningHtml(entry.phone)}"><i class="fa-solid fa-phone"></i> Anrufen</a>`
+      : "";
+    const navigateHtml = entry?.address
+      ? `<a class="today-calendar-navigate" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(entry.address)}" target="_blank" rel="noopener" aria-label="Route zu ${escapePlanningHtml(entry.address)}"><i class="fa-solid fa-diamond-turn-right"></i> Route</a>`
+      : "";
     const subtitle = isCancelled
       ? "Termin abgesagt"
       : (entry?.dayLocked ? "Tag gesperrt" : (entry?.locked ? "Termin fixiert" : "Planungstermin"));
@@ -22256,6 +26350,11 @@ function renderTodayPlanningAppointments(){
     const badgeClass = isCancelled
       ? "is-cancelled"
       : (entry?.locked ? "is-bu" : "is-manual");
+
+    const travel = Number(entry?.travelMinutesAfter);
+    const travelHtml = travel > 0
+      ? `<div class="planning-travel-connector"><i class="fa-solid fa-car-side"></i> ${travel} Min Fahrt / Puffer</div>`
+      : "";
 
     return `
       <div class="today-customer-card today-calendar-card ${String(activePlanningAppointmentId) === String(entry.__entryId) ? "is-active" : ""} ${isCancelled ? "is-cancelled" : ""}" data-id="${escapePlanningHtml(entry.__entryId)}" ${isCancelled ? 'aria-disabled="true"' : ""}>
@@ -22270,7 +26369,9 @@ function renderTodayPlanningAppointments(){
 
           <div class="today-calendar-right">
             <span class="today-calendar-time"><i class="fa-regular fa-clock"></i> ${escapePlanningHtml(formatPlanningTimeDisplay(entry))}</span>
+            ${entry?.taetigkeitenBadge ? `<span class="today-calendar-badge ${formatPlanningTypeClass(entry.taetigkeitenBadge)}">${escapePlanningHtml(String(entry.taetigkeitenBadge).toUpperCase())}</span>` : ""}
             <span class="today-calendar-badge ${badgeClass}">${escapePlanningHtml(formatPlanningBadge(entry))}</span>
+            ${entry?.importDealId ? `<span class="today-calendar-badge is-deal">#${escapePlanningHtml(entry.importDealId)}</span>` : ""}
           </div>
         </div>
 
@@ -22284,21 +26385,28 @@ function renderTodayPlanningAppointments(){
         <div class="today-calendar-preview">${escapePlanningHtml(preview || "Keine weiteren Details")}</div>
 
         <div class="today-calendar-actions">
+          ${callHtml}
+          ${navigateHtml}
           <button type="button" class="today-calendar-open" ${isCancelled ? 'disabled aria-disabled="true"' : ""}><i class="fa-solid ${isCancelled ? "fa-ban" : "fa-arrow-right"}"></i> ${isCancelled ? "Nicht verfuegbar" : "In Konfigurator öffnen"}</button>
+          ${!isCancelled && entry?.importDealId && !isDealDone(entry.importDealId) ? `<button type="button" class="today-calendar-done"><i class="fa-solid fa-circle-check"></i> Hat stattgefunden</button>` : ""}
         </div>
       </div>
+      ${travelHtml}
     `;
   }).join("");
 
   list.querySelectorAll(".today-calendar-card").forEach(card => {
     const openButton = card.querySelector(".today-calendar-open");
+    const callButton = card.querySelector(".today-calendar-call");
+    const navigateButton = card.querySelector(".today-calendar-navigate");
+    const dealBadge = card.querySelector(".today-calendar-badge.is-deal");
     const onOpen = () => {
       const id = card.dataset.id;
       const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
       if(!entry || isPlanningEntryCancelled(entry)) return;
       activePlanningAppointmentId = id;
       renderTodayPlanningAppointments();
-      applyPlanningAppointmentToForm(entry);
+      openPlanningOfferPicker(entry);
     };
 
     card.addEventListener("click", onOpen);
@@ -22307,7 +26415,107 @@ function renderTodayPlanningAppointments(){
       ev.stopPropagation();
       onOpen();
     });
+    callButton?.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+    });
+    navigateButton?.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+    });
+    dealBadge?.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const id = card.dataset.id;
+      const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
+      const dealId = String(entry?.importDealId || "").trim();
+      if(!dealId) return;
+      window.open(`https://emczwei.bitrix24.de/crm/deal/details/${encodeURIComponent(dealId)}/`, "_blank", "noopener");
+    });
+
+    // "Hat stattgefunden" -> move the deal to "Zuteilen HD/ AH/ DH".
+    const doneButton = card.querySelector(".today-calendar-done");
+    doneButton?.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const id = card.dataset.id;
+      const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
+      const dealId = String(entry?.importDealId || "").trim();
+      if(!dealId) return;
+      if(!window.confirm("Der Termin hat stattgefunden; Deal auf „HD/AH/DH zuweisen“ verschieben?")) return;
+
+      doneButton.disabled = true;
+      const original = doneButton.innerHTML;
+      doneButton.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Verschiebe…`;
+      try {
+        const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}/move-zuteilen`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        });
+        const data = await res.json().catch(() => ({}));
+        if(!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+        doneButton.innerHTML = `<i class="fa-solid fa-circle-check"></i> Verschoben`;
+        markDealStage(dealId, "C72:PREPARATION");
+        (typeof showToast === "function") && showToast("Deal auf „Zuteilen HD/ AH/ DH“ verschoben.", "success");
+      } catch (e) {
+        console.error("[planning] move-zuteilen failed:", e);
+        doneButton.disabled = false;
+        doneButton.innerHTML = original;
+        (typeof showToast === "function")
+          ? showToast(`Fehler: ${e.message || e}`, "error")
+          : alert(`Fehler beim Verschieben: ${e.message || e}`);
+      }
+    });
   });
+
+  attachCompanyTravelConnectors(todayPlanningAppointmentsFiltered);
+  updateTodayPlanningFullRouteLink();
+}
+
+// Builds one Google Maps multi-stop link covering every appointment of the
+// day (in list order) plus a round trip to/from the company address, so the
+// whole route can be opened at once (e.g. in the Tesla browser) instead of
+// entering each stop manually. Also builds an Apple Maps link for the last
+// leg (company -> final stop) since Apple Maps has no URL support for
+// multiple waypoints.
+function updateTodayPlanningFullRouteLink(){
+  const googleLink = document.getElementById("todayPlanningFullRoute");
+  const appleLink = document.getElementById("todayPlanningAppleRoute");
+  if(!googleLink && !appleLink) return;
+
+  const stops = todayPlanningAppointments
+    .filter(entry => !isPlanningEntryCancelled(entry) && entry?.address)
+    .map(entry => entry.address);
+  const companyAddress = todayPlanningAppointments.find(e => e?.companyAddress)?.companyAddress
+    || "Kornhausacker 10, Hof";
+
+  if(!stops.length){
+    googleLink?.removeAttribute("href");
+    googleLink?.setAttribute("aria-disabled", "true");
+    appleLink?.removeAttribute("href");
+    appleLink?.setAttribute("aria-disabled", "true");
+    return;
+  }
+
+  if(googleLink){
+    const params = new URLSearchParams({
+      api: "1",
+      origin: companyAddress,
+      destination: companyAddress,
+      waypoints: stops.join("|"),
+      travelmode: "driving",
+    });
+    googleLink.href = `https://www.google.com/maps/dir/?${params.toString()}`;
+    googleLink.removeAttribute("aria-disabled");
+  }
+
+  if(appleLink){
+    const params = new URLSearchParams({
+      saddr: companyAddress,
+      daddr: stops[stops.length - 1],
+      dirflg: "d",
+    });
+    appleLink.href = `https://maps.apple.com/?${params.toString()}`;
+    appleLink.removeAttribute("aria-disabled");
+  }
 }
 
 function filterTodayPlanningAppointments(query){
@@ -22339,12 +26547,23 @@ function updateTodayPlanningMeta(day){
 
 function applyPlanningPayload(payload){
   __lastPlanningRawPayload = payload;
+  initWeekCalendarNav();
   renderWeekCalendar(payload);
 
   const list = document.getElementById("todayPlanningList");
-  const { day, entries } = buildPlanningEntries(payload || {});
+  const { day, entries, planning } = buildPlanningEntries(payload || {});
+
+  const pauseChip = document.getElementById("todayPlanningPause");
+  if(pauseChip){
+    const pauseText = formatTodayPause(planning);
+    pauseChip.hidden = !pauseText;
+    pauseChip.innerHTML = pauseText
+      ? `<i class="fa-solid fa-mug-hot"></i> ${escapePlanningHtml(pauseText)}`
+      : "";
+  }
 
   todayPlanningAppointments = entries;
+  fetchDealStages(entries.map(e => e?.importDealId).filter(Boolean));
   const activeStillVisible = entries.some(entry =>
     String(entry.__entryId) === String(activePlanningAppointmentId) && !isPlanningEntryCancelled(entry)
   );
@@ -22360,6 +26579,25 @@ function applyPlanningPayload(payload){
 
   if(list && !entries.length){
     list.innerHTML = `<div class="today-customers-empty">Keine Planungstermine für heute gefunden</div>`;
+  }
+}
+
+function enrichPlanningEntriesWithBitrixTimes(payload, byDealId){
+  if(!byDealId || typeof byDealId !== "object") return;
+  const sources = [
+    ...(Array.isArray(payload?.planning?.futurePlanned) ? payload.planning.futurePlanned : []),
+    ...(Array.isArray(payload?.planning?.days) ? payload.planning.days.flatMap(d => d.customers || []) : []),
+  ];
+  for(const customer of sources){
+    const dealId = String(customer?.importDealId || "");
+    if(!dealId || !byDealId[dealId]) continue;
+    const { startMinutes, endMinutes } = byDealId[dealId];
+    if(startMinutes !== null && startMinutes !== undefined){
+      customer.manualStartMinutes = startMinutes;
+    }
+    if(endMinutes !== null && endMinutes !== undefined && startMinutes !== null){
+      customer.duration = Math.max(0, endMinutes - startMinutes);
+    }
   }
 }
 
@@ -22380,6 +26618,10 @@ async function fetchTodayPlanningSnapshot(){
     }
 
     const payload = await response.json();
+    const bitrixTimes = await fetch("/api/bitrix/activities/today", { headers: { Accept: "application/json" } })
+      .then(r => r.ok ? r.json() : null)
+      .catch(() => null);
+    enrichPlanningEntriesWithBitrixTimes(payload, bitrixTimes?.byDealId || {});
     applyTodayPlanningPayload(payload);
   }catch(error){
     console.error("today planning failed", error);
@@ -22432,29 +26674,60 @@ function connectTodayPlanningStream(){
   };
 }
 
-function applyPlanningAppointmentToForm(entry){
+function applyPlanningAppointmentToForm(entry, offerKey){
   const name = parsePlanningName(entry?.name || "");
   const address = parsePlanningAddress(entry?.address || "");
 
   if(typeof startOfferFlow === "function"){
-    startOfferFlow("bu");
+    startOfferFlow(offerKey || "bu");
   }
+
+  // Taken after startOfferFlow()'s reset bumped it: the background fills below
+  // must not write into a different offer if the user goes back to the
+  // Hauptmenü and starts a new one before they land.
+  const _generation = window.__formGeneration;
 
   setPlanningValue("#firstName", name.firstName || "");
   setPlanningValue("#lastName", name.lastName || "");
   setPlanningValue("#phone", entry?.phone || "");
   setPlanningValue("#email", entry?.email || "");
-  setPlanningValue("#street", address.street || "");
-  setPlanningValue("#postalCode", address.postalCode || "");
-  setPlanningValue("#city", address.city || "");
-  setPlanningValue("#bitrixContactId", entry?.id || "");
+  setPlanningValue("#street", entry?.street || address.street || "");
+  setPlanningValue("#postalCode", entry?.postalCode || address.postalCode || "");
+  setPlanningValue("#city", entry?.city || address.city || "");
+  setPlanningValue("#bitrixContactId", entry?.contactId || "");
   setPlanningValue("#company", "");
   setPlanningValue("#country", "");
   setPlanningValue("#state", "");
 
-  if(typeof syncSummaryLeadIds === "function"){
-    syncSummaryLeadIds(entry?.id || "");
-  }
+  // Delay past startOfferFlow's 60 ms syncDerivedPrefills timeout — that
+  // callback resets #auftragId via the postal manager, so we must win the race.
+  const _planningDealId = entry?.importDealId || entry?.contactId || entry?.id || "";
+  setTimeout(() => {
+    if (window.__formGeneration !== _generation) return;
+    // syncSummaryLeadIds is not in scope here (different IIFE), so set fields directly
+    ["auftragId", "mailAuftragId", "postAuftragId"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.value = String(_planningDealId);
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+    const _planningContactId = entry?.contactId || "";
+    if (!entry?.importDealId && _planningContactId && typeof window.fetchAndSetDeal === "function") {
+      window.fetchAndSetDeal(_planningContactId);
+    }
+    // AH only: preselect the Reisezone from the planning entry's zone (1–5).
+    // Just simulates a manual zone-button click; absent/non-AH → routing/manual stays the source.
+    const _zone = Number(entry?.zone);
+    if (offerKey === "ah" && Number.isFinite(_zone) && _zone >= 1 && _zone <= 5) {
+      const _zoneMin = (_zone - 1) * 5 + 10;
+      const zbtn = document.querySelector(
+        `#travelZoneButtons .az-zone-btn[data-zone-min="${_zoneMin}"]`
+      );
+      if (zbtn) zbtn.click();
+    }
+  }, 120);
   if(typeof syncSummaryRecipientEmail === "function"){
     syncSummaryRecipientEmail(entry?.email || "");
   }
@@ -22469,11 +26742,78 @@ function applyPlanningAppointmentToForm(entry){
   } catch (error) {
     console.warn("today planning sidebar refresh failed", error);
   }
+
+  // The route-planning service has no Anrede/HONORIFIC field at all, and
+  // sometimes leaves email/phone/address blank — fetch the linked Bitrix
+  // deal/contact ourselves (we already have the IDs) to fill those in.
+  // Runs in the background so opening the configurator isn't blocked on it.
+  enrichPlanningAppointmentFromBitrix(entry, _generation);
+}
+
+async function enrichPlanningAppointmentFromBitrix(entry, generation){
+  const dealId = entry?.importDealId || "";
+  const contactId = entry?.contactId || "";
+  if (!dealId && !contactId) return;
+
+  try {
+    let contact = null;
+    if (dealId) {
+      const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) contact = data?.contact || null;
+    }
+    if (!contact && contactId) {
+      const res = await fetch(`/api/bitrix/contact/${encodeURIComponent(contactId)}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) contact = data?.result || null;
+    }
+    if (!contact) return;
+    // Reset while we were fetching → this data belongs to a previous offer.
+    if (window.__formGeneration !== generation) return;
+
+    const honorificId = String(
+      contact?.HONORIFIC?.STATUS_ID ?? contact?.HONORIFIC ?? contact?.HONORIFIC_ID ?? "",
+    ).trim();
+    const salutation = { HNR_DE_1: "Frau", HNR_DE_2: "Herr", "1": "Familie" }[honorificId] || "";
+    if (salutation && typeof setRadio === "function") {
+      setRadio("salutation", salutation);
+      document
+        .querySelectorAll('input[name="salutation"]')
+        .forEach((el) => el.dispatchEvent(new Event("change", { bubbles: true })));
+    }
+
+    const email = Array.isArray(contact.EMAIL) && contact.EMAIL[0] ? contact.EMAIL[0].VALUE : "";
+    const phone = Array.isArray(contact.PHONE) && contact.PHONE[0] ? contact.PHONE[0].VALUE : "";
+    const fillIfEmpty = (id, value) => {
+      const el = document.getElementById(id);
+      if (!el || el.value || !value) return;
+      el.value = value;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    fillIfEmpty("email", email);
+    fillIfEmpty("phone", phone);
+    fillIfEmpty("street", contact.ADDRESS || "");
+    fillIfEmpty("city", contact.ADDRESS_CITY || "");
+    fillIfEmpty("postalCode", contact.ADDRESS_POSTAL_CODE || "");
+
+    if (email && typeof syncSummaryRecipientEmail === "function") {
+      syncSummaryRecipientEmail(email);
+    }
+  } catch (error) {
+    console.warn("planning appointment bitrix enrich failed", error);
+  }
 }
 
 function initTodayPlanningPanel(){
   const panel = document.getElementById("todayPlanningPanel");
   if(!panel) return;
+
+  document.getElementById("planningOfferPickerClose")?.addEventListener("click", closePlanningOfferPicker);
+  document.getElementById("planningOfferPickerBackdrop")?.addEventListener("click", closePlanningOfferPicker);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closePlanningOfferPicker();
+  });
 
   const search = document.getElementById("todayPlanningSearch");
   const refresh = document.getElementById("refreshTodayPlanning");
@@ -22505,6 +26845,10 @@ document.addEventListener("DOMContentLoaded", initTodayPlanningPanel);
 // Expose for home debug panel
 window.__debug_getPlanningAppointments = () => todayPlanningAppointments;
 window.__debug_reloadPlanning = fetchTodayPlanningSnapshot;
+// Exposed for the EmailManager hook (different closure) to mark a deal's
+// offer as sent and refresh the today-planning list in the same tab.
+window.markDealStage = markDealStage;
+window.renderTodayPlanningAppointments = renderTodayPlanningAppointments;
 window.__debug_planningEndpoint = TODAY_PLANNING_SNAPSHOT_ENDPOINT;
 
 })();
@@ -22570,7 +26914,6 @@ document
   .getElementById("downloadHassmannCart")
   ?.addEventListener("click", async () => {
     if (!requireBereichValid()) {
-      location.hash = "Kundendaten";
       return;
     }
     try {
@@ -22795,6 +27138,12 @@ document
   ready(() => {
     initPostalSectionToggle();
 
+    // Restore-safe: expose a tiny setter for just the enabled/visibility state.
+    // Defined BEFORE the early-return guard below so draft restore can reliably
+    // toggle the "Versand per Post" section even if the optional send-form
+    // nodes are missing or the postal manager never initializes.
+    window.__setPostalSectionEnabled = (on) => syncPostalSectionVisibility(!!on);
+
     const sendBtn = document.getElementById("sendOfferPost");
     const statusBox = document.getElementById("postStatus");
     const attachmentList = document.getElementById("postAttachmentList");
@@ -23015,6 +27364,10 @@ document
 
       const recipient = state.recipient || {};
       if (fields.auftragId) fields.auftragId.value = state.auftragId || "";
+      // Sync to all three Auftrag ID fields (auftragId, mailAuftragId, postAuftragId)
+      if (state.auftragId && typeof syncSummaryLeadIds === "function") {
+        syncSummaryLeadIds(state.auftragId);
+      }
       if (fields.firstName) fields.firstName.value = recipient.firstName || "";
       if (fields.lastName) fields.lastName.value = recipient.lastName || "";
       if (fields.street) fields.street.value = recipient.street || "";

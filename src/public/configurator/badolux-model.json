@@ -1,0 +1,465 @@
+{
+  "meta": {
+    "schemaVersion": 2,
+    "supplier": "BADOLUX",
+    "source": "badolux-all.pdf",
+    "builtFrom": "badolux-prices.json → Duschabtrennungen (Gläser)",
+    "discount": 0.2,
+    "productCount": 7,
+    "leafCount": 7
+  },
+  "supplier": "BADOLUX",
+  "sizeAxisLabel": "Maß (cm)",
+  "params": [
+    {
+      "id": "Produkt",
+      "label": "Produkt",
+      "order": 0,
+      "mandatory": true,
+      "values": [
+        {
+          "value": "001_Walk_in_Wien",
+          "label": "Walk in - Wien",
+          "imageId": "001_Walk_in_Wien"
+        },
+        {
+          "value": "002_Pendel_Wien",
+          "label": "Pendel - Wien",
+          "imageId": "002_Pendel_Wien"
+        },
+        {
+          "value": "003_Falttur_Lissabon",
+          "label": "Falttür - Lissabon",
+          "imageId": "003_Falttur_Lissabon"
+        },
+        {
+          "value": "004_Faltur_mit_Festteil_Rom",
+          "label": "Faltür mit Festteil - Rom",
+          "imageId": "004_Faltur_mit_Festteil_Rom"
+        },
+        {
+          "value": "005_Schiebetur_Madrid_Wand_Wand_oben_gefuhrt",
+          "label": "Schiebetür - Madrid (Wand-Wand, oben geführt)",
+          "imageId": "005_Schiebetur_Madrid_Wand_Wand_oben_gefuhrt"
+        },
+        {
+          "value": "006_Schiebetur_Madrid_Wand_offen_unten_gefuhrt",
+          "label": "Schiebetür - Madrid (Wand-offen, unten geführt)",
+          "imageId": "006_Schiebetur_Madrid_Wand_offen_unten_gefuhrt"
+        },
+        {
+          "value": "007_Faltur_mit_Festteil_Stockholm",
+          "label": "Faltür mit Festteil - Stockholm",
+          "imageId": "007_Faltur_mit_Festteil_Stockholm"
+        }
+      ]
+    }
+  ],
+  "leaves": [
+    {
+      "selections": {
+        "Produkt": "001_Walk_in_Wien"
+      },
+      "finish": [],
+      "components": [
+        {
+          "key": "Glas",
+          "label": "Walk in - Wien",
+          "breite": [
+            "60 cm",
+            "70 cm",
+            "80 cm",
+            "90 cm",
+            "100 cm",
+            "120 cm"
+          ],
+          "hoehe": [
+            ""
+          ],
+          "sondermass": [],
+          "articles": [
+            {
+              "articleNumber": "60 cm",
+              "width": "60 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 202.48,
+              "discount": 0.2,
+              "net": 161.98,
+              "gros": 202.48,
+              "currency": "EUR",
+              "label": "Walk in - Wien 60 cm",
+              "spec": "Sicherheitsglas mit Nano Beschichtung 195 cm, Glasstärke 0,8 cm, inkl. Stabi und U-Profil",
+              "note": "Sondermaße auf Anfrage"
+            },
+            {
+              "articleNumber": "70 cm",
+              "width": "70 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 225.23,
+              "discount": 0.2,
+              "net": 180.18,
+              "gros": 225.23,
+              "currency": "EUR",
+              "label": "Walk in - Wien 70 cm",
+              "spec": "Sicherheitsglas mit Nano Beschichtung 195 cm, Glasstärke 0,8 cm, inkl. Stabi und U-Profil",
+              "note": "Sondermaße auf Anfrage"
+            },
+            {
+              "articleNumber": "80 cm",
+              "width": "80 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 241.15,
+              "discount": 0.2,
+              "net": 192.92,
+              "gros": 241.15,
+              "currency": "EUR",
+              "label": "Walk in - Wien 80 cm",
+              "spec": "Sicherheitsglas mit Nano Beschichtung 195 cm, Glasstärke 0,8 cm, inkl. Stabi und U-Profil",
+              "note": "Sondermaße auf Anfrage"
+            },
+            {
+              "articleNumber": "90 cm",
+              "width": "90 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 259.35,
+              "discount": 0.2,
+              "net": 207.48,
+              "gros": 259.35,
+              "currency": "EUR",
+              "label": "Walk in - Wien 90 cm",
+              "spec": "Sicherheitsglas mit Nano Beschichtung 195 cm, Glasstärke 0,8 cm, inkl. Stabi und U-Profil",
+              "note": "Sondermaße auf Anfrage"
+            },
+            {
+              "articleNumber": "100 cm",
+              "width": "100 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 270.73,
+              "discount": 0.2,
+              "net": 216.58,
+              "gros": 270.73,
+              "currency": "EUR",
+              "label": "Walk in - Wien 100 cm",
+              "spec": "Sicherheitsglas mit Nano Beschichtung 195 cm, Glasstärke 0,8 cm, inkl. Stabi und U-Profil",
+              "note": "Sondermaße auf Anfrage"
+            },
+            {
+              "articleNumber": "120 cm",
+              "width": "120 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 302.58,
+              "discount": 0.2,
+              "net": 242.06,
+              "gros": 302.58,
+              "currency": "EUR",
+              "label": "Walk in - Wien 120 cm",
+              "spec": "Sicherheitsglas mit Nano Beschichtung 195 cm, Glasstärke 0,8 cm, inkl. Stabi und U-Profil",
+              "note": "Sondermaße auf Anfrage"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "selections": {
+        "Produkt": "002_Pendel_Wien"
+      },
+      "finish": [],
+      "components": [
+        {
+          "key": "Glas",
+          "label": "Pendel - Wien",
+          "breite": [
+            "40 cm"
+          ],
+          "hoehe": [
+            ""
+          ],
+          "sondermass": [],
+          "articles": [
+            {
+              "articleNumber": "40 cm",
+              "width": "40 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 127.4,
+              "discount": 0.2,
+              "net": 101.92,
+              "gros": 127.4,
+              "currency": "EUR",
+              "label": "Pendel - Wien 40 cm",
+              "spec": "Sicherheitsglas mit Nano Beschichtung 195 x 40 x 0,8 cm, Spritzschutzverlängerung 90° einstellbar",
+              "note": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "selections": {
+        "Produkt": "003_Falttur_Lissabon"
+      },
+      "finish": [],
+      "components": [
+        {
+          "key": "Glas",
+          "label": "Falttür - Lissabon",
+          "breite": [
+            "80 cm",
+            "90 cm",
+            "100 cm",
+            "120 cm"
+          ],
+          "hoehe": [
+            ""
+          ],
+          "sondermass": [],
+          "articles": [
+            {
+              "articleNumber": "80 cm",
+              "width": "80 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 286.65,
+              "discount": 0.2,
+              "net": 229.32,
+              "gros": 286.65,
+              "currency": "EUR",
+              "label": "Falttür - Lissabon 80 cm",
+              "spec": "Sicherheitsglas mit Nano Beschichtung 195 x 80 / 90 / 100 / 120 x 0,8 cm",
+              "note": ""
+            },
+            {
+              "articleNumber": "90 cm",
+              "width": "90 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 302.58,
+              "discount": 0.2,
+              "net": 242.06,
+              "gros": 302.58,
+              "currency": "EUR",
+              "label": "Falttür - Lissabon 90 cm",
+              "spec": "Sicherheitsglas mit Nano Beschichtung 195 x 80 / 90 / 100 / 120 x 0,8 cm",
+              "note": ""
+            },
+            {
+              "articleNumber": "100 cm",
+              "width": "100 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 318.5,
+              "discount": 0.2,
+              "net": 254.8,
+              "gros": 318.5,
+              "currency": "EUR",
+              "label": "Falttür - Lissabon 100 cm",
+              "spec": "Sicherheitsglas mit Nano Beschichtung 195 x 80 / 90 / 100 / 120 x 0,8 cm",
+              "note": ""
+            },
+            {
+              "articleNumber": "120 cm",
+              "width": "120 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 357.1,
+              "discount": 0.2,
+              "net": 285.68,
+              "gros": 357.1,
+              "currency": "EUR",
+              "label": "Falttür - Lissabon 120 cm",
+              "spec": "Sicherheitsglas mit Nano Beschichtung 195 x 80 / 90 / 100 / 120 x 0,8 cm",
+              "note": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "selections": {
+        "Produkt": "004_Faltur_mit_Festteil_Rom"
+      },
+      "finish": [],
+      "components": [
+        {
+          "key": "Glas",
+          "label": "Faltür mit Festteil - Rom",
+          "breite": [
+            "140 (40er fest, 100er Falt)"
+          ],
+          "hoehe": [
+            ""
+          ],
+          "sondermass": [],
+          "articles": [
+            {
+              "articleNumber": "140 (40er fest, 100er Falt)",
+              "width": "140 (40er fest, 100er Falt)",
+              "height": "",
+              "sizeLabel": null,
+              "list": 423.15,
+              "discount": 0.2,
+              "net": 338.52,
+              "gros": 423.15,
+              "currency": "EUR",
+              "label": "Faltür mit Festteil - Rom 140 (40er fest, 100er Falt)",
+              "spec": "Gesamtlänge 140 cm, Faltwand 2 x 50 cm und 40 cm fest, Glasstärke 0,8 cm",
+              "note": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "selections": {
+        "Produkt": "005_Schiebetur_Madrid_Wand_Wand_oben_gefuhrt"
+      },
+      "finish": [],
+      "components": [
+        {
+          "key": "Glas",
+          "label": "Schiebetür - Madrid (Wand-Wand, oben geführt)",
+          "breite": [
+            "160 cm"
+          ],
+          "hoehe": [
+            ""
+          ],
+          "sondermass": [],
+          "articles": [
+            {
+              "articleNumber": "160 cm",
+              "width": "160 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 516.43,
+              "discount": 0.2,
+              "net": 413.14,
+              "gros": 516.43,
+              "currency": "EUR",
+              "label": "Schiebetür - Madrid (Wand-Wand, oben geführt) 160 cm",
+              "spec": "Schiebetür, 160 x 195 x 0,6 cm, Wand zu Wand Montage, oben geführt",
+              "note": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "selections": {
+        "Produkt": "006_Schiebetur_Madrid_Wand_offen_unten_gefuhrt"
+      },
+      "finish": [],
+      "components": [
+        {
+          "key": "Glas",
+          "label": "Schiebetür - Madrid (Wand-offen, unten geführt)",
+          "breite": [
+            "140 cm",
+            "160 cm",
+            "180 cm"
+          ],
+          "hoehe": [
+            ""
+          ],
+          "sondermass": [],
+          "articles": [
+            {
+              "articleNumber": "140 cm",
+              "width": "140 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 486.85,
+              "discount": 0.2,
+              "net": 389.48,
+              "gros": 486.85,
+              "currency": "EUR",
+              "label": "Schiebetür - Madrid (Wand-offen, unten geführt) 140 cm",
+              "spec": "Schiebetür, 140 / 160 / 180 x 195 x 0,6 cm, unten geführt",
+              "note": ""
+            },
+            {
+              "articleNumber": "160 cm",
+              "width": "160 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 502.78,
+              "discount": 0.2,
+              "net": 402.22,
+              "gros": 502.78,
+              "currency": "EUR",
+              "label": "Schiebetür - Madrid (Wand-offen, unten geführt) 160 cm",
+              "spec": "Schiebetür, 140 / 160 / 180 x 195 x 0,6 cm, unten geführt",
+              "note": ""
+            },
+            {
+              "articleNumber": "180 cm",
+              "width": "180 cm",
+              "height": "",
+              "sizeLabel": null,
+              "list": 559.43,
+              "discount": 0.2,
+              "net": 447.54,
+              "gros": 559.43,
+              "currency": "EUR",
+              "label": "Schiebetür - Madrid (Wand-offen, unten geführt) 180 cm",
+              "spec": "Schiebetür, 140 / 160 / 180 x 195 x 0,6 cm, unten geführt",
+              "note": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "selections": {
+        "Produkt": "007_Faltur_mit_Festteil_Stockholm"
+      },
+      "finish": [],
+      "components": [
+        {
+          "key": "Glas",
+          "label": "Faltür mit Festteil - Stockholm",
+          "breite": [
+            "180 (80er fest, 100er Falt)"
+          ],
+          "hoehe": [
+            ""
+          ],
+          "sondermass": [],
+          "articles": [
+            {
+              "articleNumber": "180 (80er fest, 100er Falt)",
+              "width": "180 (80er fest, 100er Falt)",
+              "height": "",
+              "sizeLabel": null,
+              "list": 368.55,
+              "discount": 0.2,
+              "net": 294.84,
+              "gros": 368.55,
+              "currency": "EUR",
+              "label": "Faltür mit Festteil - Stockholm 180 (80er fest, 100er Falt)",
+              "spec": "Gesamtlänge 180 cm, Faltwand 2 x 50 cm und 80 cm fest, Glasstärke 0,6 cm",
+              "note": ""
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sondermass": {},
+  "images": {
+    "001_Walk_in_Wien": "/assets/badolux/walk-in-wien.png",
+    "002_Pendel_Wien": "/assets/badolux/pendel-wien.png",
+    "003_Falttur_Lissabon": "/assets/badolux/flattuer-lissabon.png",
+    "004_Faltur_mit_Festteil_Rom": "/assets/badolux/faltuer-mit-festteil-rom.png",
+    "005_Schiebetur_Madrid_Wand_Wand_oben_gefuhrt": "/assets/badolux/schiebetuer-madrid.png",
+    "006_Schiebetur_Madrid_Wand_offen_unten_gefuhrt": "/assets/badolux/schiebetuer-unten-gefuehrt.png",
+    "007_Faltur_mit_Festteil_Stockholm": "/assets/badolux/faltuer-mit-festteil-stockholm.png"
+  }
+}
