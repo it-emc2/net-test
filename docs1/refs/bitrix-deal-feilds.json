@@ -6815,6 +6815,25 @@
           "SHOW_NO_VALUE": "Y"
         }
       },
+      "UF_CRM_1786003101407": {
+        "type": "double",
+        "isRequired": false,
+        "isReadOnly": false,
+        "isImmutable": false,
+        "isMultiple": false,
+        "isDynamic": true,
+        "title": "UF_CRM_1786003101407",
+        "listLabel": "MagicPlan Projekt-ID",
+        "formLabel": "MagicPlan Projekt-ID",
+        "filterLabel": "MagicPlan Projekt-ID",
+        "settings": {
+          "PRECISION": 2,
+          "SIZE": 20,
+          "MIN_VALUE": 0,
+          "MAX_VALUE": 0,
+          "DEFAULT_VALUE": null
+        }
+      },
       "UF_CRM_1711092227": {
         "type": "double",
         "isRequired": false,
@@ -8879,13 +8898,13 @@
       }
     },
     "time": {
-      "start": 1785760182,
-      "finish": 1785760182.750383,
-      "duration": 0.7503829002380371,
+      "start": 1786005656,
+      "finish": 1786005656.896683,
+      "duration": 0.8966829776763916,
       "processing": 0,
-      "date_start": "2026-08-03T15:29:42+03:00",
-      "date_finish": "2026-08-03T15:29:42+03:00",
-      "operating_reset_at": 1785760782,
+      "date_start": "2026-08-06T11:40:56+03:00",
+      "date_finish": "2026-08-06T11:40:56+03:00",
+      "operating_reset_at": 1786006256,
       "operating": 0
     }
   }
