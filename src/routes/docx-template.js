@@ -1207,7 +1207,7 @@ async function mapData(body = {}, computed = {}) {
     "bwt";
   if (isBwtOffer) {
     primary.unshift(
-      "Liefern und Montieren der nachfolgend aufgeführten Badewannentür",
+      "- Liefern und Montieren der nachfolgend aufgeführten Badewannentür",
     );
     // Extra Arbeitszeit (Arbeitszeit-Seite) …
     ExtraAzTasks.forEach((row) => primary.push(row.Text));
@@ -1215,7 +1215,7 @@ async function mapData(body = {}, computed = {}) {
     const bwtArbeitenExtra = (Array.isArray(bwt?.extraTasks) ? bwt.extraTasks : [])
       .map((t) => String(t || "").trim())
       .filter(Boolean);
-    bwtArbeitenExtra.forEach((t) => primary.push(t));
+    bwtArbeitenExtra.forEach((t) => primary.push(`- ${t}`));
   }
 
   // Arrays exactly as the template expects:

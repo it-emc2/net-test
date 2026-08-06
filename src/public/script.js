@@ -11733,6 +11733,27 @@ function hasOptionalPageForCurrentOffer() {
     return result;
   }
   // Build "Enthält je Einheit" lines for BWT only
+  // Kosten-Details: "Auszuführende Arbeiten" for BWT isn't priced (no
+  // data.services.lines), so read the selections straight off the
+  // Arbeiten tab instead — the checked work task(s) plus any Weitere
+  // Arbeiten free-text entries.
+  function buildBwtArbeitenLines() {
+    const out = [];
+    document
+      .querySelectorAll('#bwt-worktasks input[type="checkbox"][name="bwt[workTasks][]"]:checked')
+      .forEach((cb) => {
+        const title = cb.closest(".task-card")?.querySelector(".task-card__title")?.textContent?.trim();
+        if (title) out.push({ label: `- ${title}`, qty: 1, unit: "", unitPrice: 0, lineTotal: 0 });
+      });
+    document
+      .querySelectorAll('#bwt-extra-tasks textarea[name="bwt[extraTasks][]"]')
+      .forEach((ta) => {
+        const val = (ta.value || "").trim();
+        if (val) out.push({ label: `- ${val}`, qty: 1, unit: "", unitPrice: 0, lineTotal: 0 });
+      });
+    return out;
+  }
+
   function buildBwtIncludedLines(data) {
     const out = [];
     // If server already computed BWT "Enthält je Einheit" rows, use them directly
@@ -12237,6 +12258,8 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       if (currentOffer === "bwt") {
         isBwtOffer = true;
         includedSvc = buildBwtIncludedLines(data);
+        const bwtArbeitenLines = buildBwtArbeitenLines();
+        if (bwtArbeitenLines.length) primarySvc.push(...bwtArbeitenLines);
       }
     } catch (e) {
       console.warn("[kosten-debug] BWT Enthält-je-Einheit override failed:", e);

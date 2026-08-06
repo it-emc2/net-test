@@ -1872,6 +1872,26 @@ color: metaColor || null,
           console.error("[pricing] computeBwtMaterialExtras failed:", e);
         }
 
+        // Arbeitszeit (Facharbeiter/Reisezeit hours), with the price math
+        // spelled out in the label ("- 18,00 Std Arbeitszeit × 2 Facharbeiter
+        // × 69,50 €"): shown on the Kosten tab's "Enthält je Einheit" list so
+        // the calculation is visible there, but kept out of the offer PDF —
+        // computeServiceCosts already marks these docxHide:true, and the docx
+        // builder skips any line with that flag.
+        (services.lines || [])
+          .filter((l) => l?.key === "facharbeiter" || l?.key === "reisezeit")
+          .forEach((l) => {
+            bwtIncludedDisplayUI.push({
+              productId: l.key,
+              label: l.label,
+              qty: Number(l.qty || 0),
+              unit: l.unit || "",
+              unitPrice: Number(l.unitPrice || 0),
+              lineTotal: Number(l.amount || 0),
+              docxHide: true,
+            });
+          });
+
         // Service lines shown under "Auszuführende Arbeiten" are the BWT labor
         // rows, not whatever computeServiceCosts produced generically.
         services.lines = bwtIncludedDisplayUI;
