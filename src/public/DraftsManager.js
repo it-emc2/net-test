@@ -342,6 +342,7 @@ export function initDraftsManager(options = {}) {
         place-items:center;
         cursor:pointer;
         flex: 0 0 auto;
+        padding: 0;
       }
       .dm-body { display:grid; gap: 14px; }
       .dm-field { display:grid; gap: 8px; }
