@@ -439,6 +439,40 @@ describe('Pricing Module', () => {
       expect(grabLine.lineTotal).toBeCloseTo(135, 2);
     });
 
+    // Regression: Arbeitszeit (Facharbeiter hours) must be billed even though
+    // its price-math line is deliberately hidden from the offer PDF
+    // (docxHide:true). This used to be silently dropped from services.sum
+    // entirely when the BWT included-lines override replaced services.lines.
+    test('Arbeitszeit hours are billed even though the hour-math line is hidden from the offer', async () => {
+      const payload = createBasePayload({
+        activeOffer: 'bwt',
+        Arbeitszeit: {
+          totalHoursNumeric: 5,
+          ArbeitHoursNumeric: 5,
+          ReiseHoursNumeric: 0,
+          distanceKm: 0,
+        },
+        bwt: {},
+      });
+
+      const result = await pricing.computePrices(payload);
+
+      const visibleOnly = (result.bwtIncludedDisplayUI || [])
+        .filter((l) => !l.docxHide)
+        .reduce((acc, l) => acc + (Number(l.lineTotal) || 0), 0);
+
+      // services.sum must include the hidden labor line, not just
+      // Fahrzeug/Werkzeug/Beräumung.
+      expect(result.services.sum).toBeGreaterThan(visibleOnly);
+
+      const laborLine = (result.bwtIncludedDisplayUI || []).find(
+        (l) => l.productId === 'facharbeiter',
+      );
+      expect(laborLine).toBeDefined();
+      expect(laborLine.docxHide).toBe(true);
+      expect(laborLine.lineTotal).toBeGreaterThan(0);
+    });
+
     test('returns bwtIncludedDisplayUI for BWT offers', async () => {
       mockProductModel.find.mockReturnValue({
         lean: jest.fn().mockResolvedValue([
