@@ -1612,6 +1612,57 @@ color: metaColor || null,
 
     const posTitle = "Auszuführende Arbeiten";
     const sum = round2(lines.reduce((a, x) => a + (x.amount || 0), 0));
+
+    // Per-employee time + cost breakdown (Kalkulation-only reporting, not
+    // billing). Every crew member works the same on-site/travel hours; what
+    // differs is their billing rate — same split the BU Arbeitszeit tab's
+    // "Mitarbeiter 1 (Fahrer)" / "Mitarbeiter 2" debug preview shows, but
+    // using the actual rates that drive the Facharbeiter/Reisezeit lines
+    // above, so per-employee costs sum exactly to that Lohn total.
+    const employees = [];
+    if (isBwt) {
+      employees.push({
+        label: "Facharbeiter",
+        onSiteHours: laborHours,
+        travelHours: reise_hours_numeric,
+        onSiteRate: bwtLaborRate,
+        travelRate: bwtLaborRate,
+      });
+    } else if (handwerkerCount > 0) {
+      employees.push({
+        label: "Mitarbeiter 1 (Fahrer)",
+        onSiteHours: laborHours,
+        travelHours: reise_hours_numeric,
+        onSiteRate: laborRate,
+        travelRate: laborRate,
+      });
+      if (handwerkerCount > 1) {
+        employees.push({
+          label: "Mitarbeiter 2",
+          onSiteHours: laborHours,
+          travelHours: reise_hours_numeric,
+          onSiteRate: laborRate,
+          travelRate: sitz_reise_Rate,
+        });
+      }
+    }
+    const timeBreakdown = {
+      workHoursOverall: round2(laborHours * employees.length),
+      travelHoursOverall: round2(reise_hours_numeric * employees.length),
+      totalHoursOverall: round2((laborHours + reise_hours_numeric) * employees.length),
+      employees: employees.map((e) => {
+        const onSiteCost = round2(e.onSiteHours * e.onSiteRate);
+        const travelCost = round2(e.travelHours * e.travelRate);
+        return {
+          ...e,
+          totalHours: round2(e.onSiteHours + e.travelHours),
+          onSiteCost,
+          travelCost,
+          totalCost: round2(onSiteCost + travelCost),
+        };
+      }),
+    };
+
     return {
       title: posTitle,
       lines,
@@ -1620,9 +1671,12 @@ color: metaColor || null,
       zoneLabel: "",
       distanceKm: roundTripKm,
       laborHours,
+      reiseHours: reise_hours_numeric,
       laborRate,
+      isBwt,
       extraAufgabeAmount,
       travelSecondWorkerRate: sitz_reise_Rate,
+      timeBreakdown,
     };
   }
 

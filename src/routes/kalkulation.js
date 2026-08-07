@@ -10,6 +10,8 @@ import pricingFactory, { NO_MARKUP_IDS } from "../logic/pricing.js";
 
 // Reuse the same helpers you already have
 import { renderDocx, convertDocxToPdf, mapData } from "./docx-template.js";
+import { htmlToPdfBuffer } from "../utils/htmlToPdf.js";
+import { buildKalkulationV2Html } from "../templates/kalkulation-v2.js";
 
 export const router = express.Router();
 const pricing = pricingFactory(ProductModel);
@@ -138,14 +140,20 @@ function guessUnitForLine(line) {
   if (line?.unit) return String(line.unit);
   if (/kilometerpauschale/.test(label) || key === "km" || /\bkm\b/.test(label))
     return "km";
-  if (/facharbeiter/.test(label) || key === "facharbeiter") return "Std";
+  if (/facharbeiter|reisezeit|anfahrt/.test(label) || key === "facharbeiter" || key === "reisezeit")
+    return "Std";
   return "Stk";
 }
 
 function classifyCostType(line) {
   const label = String(line?.label || "").toLowerCase();
   const key = String(line?.key || "").toLowerCase();
-  if (key === "facharbeiter" || /facharbeiter/.test(label)) return "Lohn";
+  if (
+    key === "facharbeiter" ||
+    key === "reisezeit" ||
+    /facharbeiter|reisezeit|anfahrt/.test(label)
+  )
+    return "Lohn";
   return "Material";
 }
 
@@ -177,8 +185,11 @@ function hoursToColon(hours) {
 function buildCostLinesFromServices(svcLines = [], laborRateFallback = 0) {
   const out = [];
 
+  // Note: unlike the customer Angebot, the internal Kalkulation must show
+  // Facharbeiter/Reisezeit lines even though pricing-core flags them
+  // docxHide:true (that flag only means "hide from the customer document").
   for (const s of svcLines) {
-    if (!s || s.docxHide) continue;
+    if (!s) continue;
 
     const label = cleanLabel(s.label || s.name || "");
     if (!label) continue;
@@ -361,8 +372,9 @@ async function mapKalkulationData(body = {}, computed = {}, debugMeta = null) {
   const HasBonus300 = !!bonus300Row;
   const HasBonusGrab = !!bonusGrabRow;
 
-  const svcLines =
-    computed?.servicesDisplayDocx?.lines || computed?.services?.lines || [];
+  // Internal Kalkulation uses the full (unfiltered) service lines, not the
+  // customer-facing servicesDisplayDocx (which drops Facharbeiter/Reisezeit).
+  const svcLines = computed?.services?.lines || [];
   const matLines =
     computed?.materialsDisplayDocx?.lines || computed?.materials?.lines || [];
   const laborRate = Number(computed?.services?.laborRate || 0);
@@ -394,6 +406,44 @@ async function mapKalkulationData(body = {}, computed = {}, debugMeta = null) {
 
   const laborHours = Number(computed?.services?.laborHours || 0);
   const totalHoursLabel = hoursToHhMmLabel(laborHours);
+
+  const timeBreakdown = computed?.services?.timeBreakdown || {};
+  const isBwt = !!computed?.services?.isBwt;
+  const reiseHours = Number(computed?.services?.reiseHours || 0);
+  const travelSecondWorkerRate = Number(computed?.services?.travelSecondWorkerRate || 0);
+
+  const Employees = (timeBreakdown.employees || []).map((e, i) => ({
+    Index: i + 1,
+    Label: e.label,
+    OnSiteHoursLabel: hoursToHhMmLabel(e.onSiteHours),
+    TravelHoursLabel: hoursToHhMmLabel(e.travelHours),
+    TotalHoursLabel: hoursToHhMmLabel(e.totalHours),
+    OnSiteCostLabel: fmtCurrency(e.onSiteCost),
+    TravelCostLabel: fmtCurrency(e.travelCost),
+    TotalCostLabel: fmtCurrency(e.totalCost),
+  }));
+  const gesamtkostenAusZeiten = round2(
+    (timeBreakdown.employees || []).reduce((a, e) => a + (Number(e.totalCost) || 0), 0),
+  );
+
+  const Zeiterfassung = {
+    ArbeitszeitGesamtLabel: hoursToHhMmLabel(timeBreakdown.workHoursOverall || 0),
+    ReisezeitGesamtLabel: hoursToHhMmLabel(timeBreakdown.travelHoursOverall || 0),
+    GesamtzeitLabel: hoursToHhMmLabel(timeBreakdown.totalHoursOverall || 0),
+    Employees,
+    // Fields mirroring the BU Arbeitszeit tab's "Reisezeit Kosten" debug
+    // panel (script.js renderTravelCostDebug), reused verbatim for the
+    // Kalkulation's Pos001 box.
+    OfferBadge: isBwt ? "BWT" : "BU",
+    ArbeitszeitDezimalLabel: `${fmtNumberDE(laborHours, 2)} h`,
+    ReisezeitDezimalLabel: `${fmtNumberDE(reiseHours, 2)} h`,
+    VollerSatzLabel: `${fmtCurrency(laborRate)}/h`,
+    ZweiterMitarbeiterSatzLabel: `${fmtCurrency(travelSecondWorkerRate)}/h`,
+    GesamtkostenAusZeitenLabel: fmtCurrency(gesamtkostenAusZeiten),
+    ZeitenHinweisText: isBwt
+      ? `BWT aktiv: 1 Facharbeiter, ${fmtCurrency(laborRate)}/h für Arbeitszeit und Reisezeit.`
+      : "BU aktiv: Reisezeit wird hier separat mit Fahrer + 2. Mitarbeiter visualisiert.",
+  };
 
   const Greeting =
     b.salutation === "Frau"
@@ -535,12 +585,50 @@ async function mapKalkulationData(body = {}, computed = {}, debugMeta = null) {
     TitleLine: `Kalkulation zu ${offerNumber}`,
     TotalHoursLabel: totalHoursLabel,
 
+    // Per-employee on-site/travel time reporting (Kalkulation only). All crew
+    // members log identical on-site/travel hours (they work together), so
+    // the template shows one employee's hours + a headcount, not a repeated
+    // per-row table.
+    ArbeitszeitGesamtLabel: Zeiterfassung.ArbeitszeitGesamtLabel,
+    ReisezeitGesamtLabel: Zeiterfassung.ReisezeitGesamtLabel,
+    GesamtzeitLabel: Zeiterfassung.GesamtzeitLabel,
+    MitarbeiterCount: Zeiterfassung.Employees.length,
+    Employees: Zeiterfassung.Employees,
+    Employee1_Label: Zeiterfassung.Employees[0]?.Label || "",
+    Employee1_OnSiteHoursLabel: Zeiterfassung.Employees[0]?.OnSiteHoursLabel || "",
+    Employee1_TravelHoursLabel: Zeiterfassung.Employees[0]?.TravelHoursLabel || "",
+    Employee1_TotalHoursLabel: Zeiterfassung.Employees[0]?.TotalHoursLabel || "",
+    Employee1_OnSiteCostLabel: Zeiterfassung.Employees[0]?.OnSiteCostLabel || "",
+    Employee1_TravelCostLabel: Zeiterfassung.Employees[0]?.TravelCostLabel || "",
+    Employee1_TotalCostLabel: Zeiterfassung.Employees[0]?.TotalCostLabel || "",
+    Employee2_Label: Zeiterfassung.Employees[1]?.Label || "",
+    Employee2_OnSiteHoursLabel: Zeiterfassung.Employees[1]?.OnSiteHoursLabel || "",
+    Employee2_TravelHoursLabel: Zeiterfassung.Employees[1]?.TravelHoursLabel || "",
+    Employee2_TotalHoursLabel: Zeiterfassung.Employees[1]?.TotalHoursLabel || "",
+    Employee2_OnSiteCostLabel: Zeiterfassung.Employees[1]?.OnSiteCostLabel || "",
+    Employee2_TravelCostLabel: Zeiterfassung.Employees[1]?.TravelCostLabel || "",
+    Employee2_TotalCostLabel: Zeiterfassung.Employees[1]?.TotalCostLabel || "",
+
+    // "Reisezeit Kosten" panel fields (mirrors BU Arbeitszeit tab's debug view)
+    OfferBadge: Zeiterfassung.OfferBadge,
+    ArbeitszeitDezimalLabel: Zeiterfassung.ArbeitszeitDezimalLabel,
+    ReisezeitDezimalLabel: Zeiterfassung.ReisezeitDezimalLabel,
+    VollerSatzLabel: Zeiterfassung.VollerSatzLabel,
+    ZweiterMitarbeiterSatzLabel: Zeiterfassung.ZweiterMitarbeiterSatzLabel,
+    GesamtkostenAusZeitenLabel: Zeiterfassung.GesamtkostenAusZeitenLabel,
+    ZeitenHinweisText: Zeiterfassung.ZeitenHinweisText,
+
     SummaryRows,
 
     UstLabel: "Ust. 19 %",
     UstValue: fmtCurrency(vatOnNet),
     BruttoLabel: "Bruttosumme",
     BruttoValue: fmtCurrency(total),
+    // Derived from the same total/vatOnNet the Brutto/Ust rows use, so this
+    // always reconciles (Netto + Ust = Brutto) regardless of the separate
+    // Material/Lohn EK breakdown above.
+    NettoLabel: "Nettosumme",
+    NettoValue: fmtCurrency(round2(total - vatOnNet)),
 
     // --- Pos001 flat ---
     Pos001_No: Pos001.PosNo,
@@ -706,6 +794,7 @@ router.post("/preview", async (req, res) => {
     </div>
     <div class="card" style="min-width:320px">
       <h2>Totals</h2>
+      <div><b>${esc(data.NettoLabel)}:</b> ${esc(data.NettoValue)}</div>
       <div><b>${esc(data.UstLabel)}:</b> ${esc(data.UstValue)}</div>
       <div><b>${esc(data.BruttoLabel)}:</b> ${esc(data.BruttoValue)}</div>
     </div>
@@ -724,6 +813,37 @@ router.post("/preview", async (req, res) => {
 
   ${renderPosFlat("Pos001")}
   ${renderPosFlat("Pos002")}
+
+  <section class="card">
+    <h2>Zeiterfassung</h2>
+    <div><b>Arbeitszeit gesamt:</b> ${esc(data.ArbeitszeitGesamtLabel)}</div>
+    <div><b>Reisezeit gesamt:</b> ${esc(data.ReisezeitGesamtLabel)}</div>
+    <div><b>Gesamtzeit:</b> ${esc(data.GesamtzeitLabel)}</div>
+    <div><b>Anzahl Mitarbeiter:</b> ${esc(data.MitarbeiterCount)}</div>
+    <div><b>Vor Ort (je Mitarbeiter):</b> ${esc(data.Employee1_OnSiteHoursLabel)}</div>
+    <div><b>Anfahrt (je Mitarbeiter):</b> ${esc(data.Employee1_TravelHoursLabel)}</div>
+  </section>
+
+  <section class="card">
+    <h2>Reisezeit Kosten <span class="muted">${esc(data.OfferBadge)}</span></h2>
+    <h3>Zeiten</h3>
+    <div>Arbeitszeit: ${esc(data.ArbeitszeitDezimalLabel)}</div>
+    <div>Reisezeit gesamt: ${esc(data.ReisezeitDezimalLabel)}</div>
+    <h3>Stundensätze</h3>
+    <div>Voller Satz / Fahrer: ${esc(data.VollerSatzLabel)}</div>
+    ${data.OfferBadge === "BU" ? `<div>2. Mitarbeiter Reisezeit: ${esc(data.ZweiterMitarbeiterSatzLabel)}</div>` : ""}
+    ${(data.Employees || [])
+      .map(
+        (e) => `
+      <h3>${esc(e.Label)}</h3>
+      <div>Arbeitszeit: ${esc(e.OnSiteCostLabel)}</div>
+      <div>Reisezeit: ${esc(e.TravelCostLabel)}</div>
+      <div><b>Zwischensumme: ${esc(e.TotalCostLabel)}</b></div>`,
+      )
+      .join("")}
+    <div class="right"><b>Gesamtkosten aus Zeiten: ${esc(data.GesamtkostenAusZeitenLabel)}</b></div>
+    <div class="muted">${esc(data.ZeitenHinweisText)}</div>
+  </section>
 
   <section class="card">
     <h2>Bonus</h2>
@@ -894,6 +1014,65 @@ router.post("/pdf", async (req, res) => {
     console.error("[kalkulation/pdf] generation failed:", e);
     res.status(500).json({
       error: "Kalkulation PDF generation failed",
+      detail: e?.message || String(e),
+    });
+  }
+});
+
+// Kalkulation (neue Version) — HTML/Puppeteer instead of DOCX+LibreOffice.
+// Reuses mapKalkulationData for everything already correct there (Pos001/
+// Pos002 cost lines, Zeiterfassung, Reisezeit-Kosten panel, Boni), and adds
+// the Kalkulationsübersicht fields fresh from `computed` — matching the
+// app's own Kosten-Details math (I + II + III + Aufschlag − Bonus = Netto),
+// not the old SummaryRows model, which omits Fahrzeug/Werkzeug/Kilometer
+// entirely and doesn't reconcile.
+router.post("/pdf-v2", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const computed = await pricing.computePrices(body);
+    const data = await mapKalkulationData(body, computed, null);
+
+    const isBwt = !!computed?.services?.isBwt;
+    const posI = Number(computed?.services?.sum || 0);
+    const posII = Number(computed?.materialsDisplayUI?.sum || 0);
+    const posIII = Number(computed?.optionalDisplayUI?.sum || 0);
+    const aufschlag = Number(computed?.markup || 0);
+    const markupPct = Number(computed?.markupPct || 0);
+    const markupBase = Number(computed?.markupBase || 0);
+    const rabattAmount = Number(computed?.rabattAmount || 0);
+    const bonusGross = Number(computed?.bonusGross || 0);
+    const zwischensumme = Number(computed?.Nettobetrag ?? posI + posII + posIII + aufschlag);
+    const nettobetrag = Number(computed?.netAfterRabatt_and_Bonus || 0);
+
+    Object.assign(data, {
+      OfferBadge: isBwt ? "BWT" : "BU",
+      DealId: body?.dealId || body?.Kundendaten?.dealId || "",
+      PosI_Label: fmtCurrency(posI),
+      PosII_Label: fmtCurrency(posII),
+      PosIII_Label: fmtCurrency(posIII),
+      AufschlagLabel: `Aufschlag (${fmtPercentDE(markupPct * 100, 0)} auf ${fmtCurrency(markupBase)})`,
+      AufschlagValueLabel: fmtCurrency(aufschlag),
+      RabattValueLabel: rabattAmount > 0 ? `-${fmtCurrency(rabattAmount)}` : "",
+      ZwischensummeLabel: fmtCurrency(zwischensumme),
+      BonusGesamtLabel: bonusGross > 0 ? `-${fmtCurrency(bonusGross)}` : fmtCurrency(0),
+      NettobetragLabel: fmtCurrency(nettobetrag),
+    });
+
+    const html = buildKalkulationV2Html(data);
+    const pdfBuffer = await htmlToPdfBuffer(html);
+
+    const fname = `${safeFileName(
+      `Kalkulation_v2_${data.Projektnummer}_${data.Dokumentennummer}`,
+      "Kalkulation",
+    )}.pdf`;
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${fname}"`);
+    res.send(pdfBuffer);
+  } catch (e) {
+    console.error("[kalkulation/pdf-v2] generation failed:", e);
+    res.status(500).json({
+      error: "Kalkulation v2 PDF generation failed",
       detail: e?.message || String(e),
     });
   }

@@ -16325,35 +16325,6 @@ document
     }
   });
 
-  //Kalkualtion PDF
-  document
-  .getElementById("downloadKalkulation")
-  ?.addEventListener("click", async () => {
-    if (!requireBereichValid()) {
-      return;
-    }
-    try {
-      const payload = buildPayload();
-
-      // ensure active offer for server-side checks
-      if (!payload.activeOffer) {
-        payload.activeOffer =
-          (typeof getCurrentOfferType === "function" && getCurrentOfferType()) ||
-          payload.offerType ||
-          payload.currentOfferKey ||
-          "bu";
-      }
-
-      await downloadPDFWithProgress("/kalkulation/pdf", payload);
-    } catch (e) {
-      showPDFProgress(
-        `Kalkulation-Erstellung fehlgeschlagen: ${e.message}`,
-        "error",
-      );
-    }
-  });
-
-
   // Kalkulation PDF
 document.getElementById("downloadKalkulation")?.addEventListener("click", async () => {
   if (!requireBereichValid()) {
@@ -16377,6 +16348,30 @@ document.getElementById("downloadKalkulation")?.addEventListener("click", async 
   } catch (e) {
     console.error(e);
     showPDFProgress(`Kalkulation-Erstellung fehlgeschlagen: ${e?.message || e}`, "error");
+  }
+});
+
+// Kalkulation (neue Version) — HTML/Puppeteer statt DOCX+LibreOffice
+document.getElementById("downloadKalkulationV2")?.addEventListener("click", async () => {
+  if (!requireBereichValid()) {
+    return;
+  }
+
+  try {
+    const payload = buildPayload();
+
+    if (!payload.activeOffer) {
+      payload.activeOffer =
+        (typeof getCurrentOfferType === "function" && getCurrentOfferType()) ||
+        payload.offerType ||
+        payload.currentOfferKey ||
+        "bu";
+    }
+
+    await downloadPDFWithProgress("/kalkulation/pdf-v2", payload);
+  } catch (e) {
+    console.error(e);
+    showPDFProgress(`Kalkulation (neue Version) fehlgeschlagen: ${e?.message || e}`, "error");
   }
 });
 
