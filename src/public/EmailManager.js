@@ -315,6 +315,7 @@ export function initEmailManager(options = {}) {
   function buildBitrixEmailComment({ offerNumber, to, subject, body, attachmentNames }) {
     const when = new Date();
     const dt = when.toLocaleString("de-DE", {
+      timeZone: "Europe/Berlin",
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
