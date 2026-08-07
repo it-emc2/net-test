@@ -26400,6 +26400,8 @@ function renderTodayPlanningAppointments(){
           <div class="today-calendar-meta"><i class="fa-solid fa-calendar-days"></i><span>${escapePlanningHtml(entry?.dateLabel || "Ohne Datum")}</span></div>
         </div>
 
+        ${entry?.hinweise ? `<div class="today-calendar-hinweis"><i class="fa-solid fa-triangle-exclamation"></i><span>${escapePlanningHtml(entry.hinweise)}</span></div>` : ""}
+
         <div class="today-calendar-preview">${escapePlanningHtml(preview || "Keine weiteren Details")}</div>
 
         <div class="today-calendar-actions">
