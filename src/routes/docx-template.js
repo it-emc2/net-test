@@ -2090,11 +2090,11 @@ function buildAhData(body) {
     .sort((a, b) => (AH_SERVICE_ORDER[a.type] ?? 99) - (AH_SERVICE_ORDER[b.type] ?? 99));
   const ahNote = (ah.ahNote || "").trim();
 
-  // One-way travel time per visit — use zone billing minutes (ahTravelZone → billMin = (zone-1)*5+10)
+  // One-way travel time per visit — use zone billing minutes (ahTravelZone → billMin = (zone-1)*10+10)
   // if zone is set; otherwise fall back to raw routing time. Hinfahrt only (return trip not billed).
   const zoneNum = parseInt(body?.Arbeitszeit?.ahTravelZone || "0") || 0;
   const travelTimeH = zoneNum > 0
-    ? ((zoneNum - 1) * 5 + 10) / 60
+    ? ((zoneNum - 1) * 10 + 10) / 60
     : parseHHMM(body?.Arbeitszeit?.travelTimeHHMM || "");
 
   // ── Compute AH pricing (same logic as computeAHGesamt on frontend) ──────

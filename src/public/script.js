@@ -11079,14 +11079,14 @@ document
   ?.addEventListener("change", () => window.updatePricing?.());
 
 /* ========== AH: zone definitions ========== */
-// Ceiling to next 5-min step, minimum 10 min.
-// Zone 1 = 10 min, Zone 2 = 15 min, Zone 3 = 20 min, Zone 4 = 25 min …
-// Formula: billMin = max(10, ceil(oneWayMinutes / 5) × 5)
-//          zone    = (billMin - 10) / 5 + 1
+// Ceiling to next 10-min step, minimum 10 min.
+// Zone 1 = 10 min, Zone 2 = 20 min, Zone 3 = 30 min, Zone 4 = 40 min …
+// Formula: billMin = max(10, ceil(oneWayMinutes / 10) × 10)
+//          zone    = (billMin - 10) / 10 + 1
 
 window.computeAHZoneFromMinutes = function(oneWayMinutes) {
-  var billMin = Math.max(10, Math.ceil(oneWayMinutes / 5) * 5);
-  var zone    = (billMin - 10) / 5 + 1;
+  var billMin = Math.max(10, Math.ceil(oneWayMinutes / 10) * 10);
+  var zone    = (billMin - 10) / 10 + 1;
   return { zone: zone, billMin: billMin };
 };
 
@@ -11098,7 +11098,7 @@ window.getAHZoneData = function() {
   var el = document.getElementById("ahTravelZone");
   var zoneNum = parseInt(el?.value || "0") || 0;
   if (zoneNum) {
-    var billMin = (zoneNum - 1) * 5 + 10;
+    var billMin = (zoneNum - 1) * 10 + 10;
     return { zone: zoneNum, billMin: billMin };
   }
 
@@ -26744,7 +26744,7 @@ function applyPlanningAppointmentToForm(entry, offerKey){
     // Just simulates a manual zone-button click; absent/non-AH → routing/manual stays the source.
     const _zone = Number(entry?.zone);
     if (offerKey === "ah" && Number.isFinite(_zone) && _zone >= 1 && _zone <= 5) {
-      const _zoneMin = (_zone - 1) * 5 + 10;
+      const _zoneMin = (_zone - 1) * 10 + 10;
       const zbtn = document.querySelector(
         `#travelZoneButtons .az-zone-btn[data-zone-min="${_zoneMin}"]`
       );
