@@ -321,21 +321,19 @@ where `serviceWorkers: "allow"` — the offline shell must actually run.
 | `session-recovery.spec.cjs` | Snapshot + restore banner |
 | `pwa-install.spec.cjs` | Manifest + service-worker registration |
 
-> **Known issue — dynamic `import()` after a reload under full offline
+> **Test-harness quirk — dynamic `import()` under Chromium offline
 > emulation.** In `offline-planning.spec.cjs` the network is cut by aborting
 > `**/api/**` rather than with `context.setOffline(true)`. Under a full
 > Chromium offline emulation, *every* dynamic `import()` fails after a reload
 > — `/pricing-client.js`, `/OfflineSaveQueue.js`, `/PlanningCache.js` — even
-> though all of them are in `PRECACHE`, the service worker is controlling, and
-> a plain `fetch()` for the same URL returns 200 with the right MIME type from
-> the cache. `session-recovery.spec.cjs` is flaky for what may be the same
-> reason.
+> though all are in `PRECACHE`, the service worker is controlling, and a plain
+> `fetch()` for the same URL returns 200 from cache.
 >
-> If this reproduces on a real device rather than only under CDP network
-> emulation, then **the offline pricing fallback is also broken after a
-> reload**, since it reaches `pricing-client.js` through the same mechanism.
-> Worth confirming on an actual iPad before relying on any of it. This
-> predates the planning cache.
+> **This is a CDP emulation artifact, not real behaviour.** Verified on
+> 2026-08-10 in a WKWebView on an iPad simulator (iOS 18.6): with the server
+> killed and the app force-quit and relaunched, all four modules imported
+> fine. See the Phase 0 results in `docs/plan-ipad-local-first.md`. Keep the
+> abort-based approach in the spec; do not "fix" it back to `setOffline`.
 
 Unit coverage for the planning cache:
 

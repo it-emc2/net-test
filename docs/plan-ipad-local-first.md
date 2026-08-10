@@ -977,7 +977,85 @@ Every phase is independently shippable and independently revertable.
 
 ---
 
-## Phase 0 — Prove the platform before writing product code
+## Phase 0 — RESULTS (run 2026-08-10, iPad Pro 11" simulator, iOS 18.6)
+
+**Done. All three questions answered, and the news is good.** A throwaway
+WKWebView shell (~180 lines of Swift, built with `swiftc` against the simulator
+SDK — no Xcode project, nothing added to this repo) loaded the real
+configurator against a local throwaway MongoDB, and ran a JS probe via
+`callAsyncJavaScript`.
+
+### R1 — `WKAppBoundDomains` is required, and cheaper than feared
+
+| | With `WKAppBoundDomains` | Without |
+|---|---|---|
+| `navigator.serviceWorker.controller` | **true** | **false** |
+| Registration scope / state | `http://localhost:3001/` · `activated` | `null` / `null` |
+| Cache Storage | `nt-shell-<buildId>`, shell + modules + product images | **`[]` — empty** |
+| `evaluateJavaScript` / `callAsyncJavaScript` | **works** | works |
+| IndexedDB | works | works |
+
+Without the declaration a service worker **silently never registers** — no
+worker, no Cache Storage, therefore no offline shell at all. So it is not
+optional; it is the whole reason the offline stack functions in a WKWebView.
+
+**It does not cost `evaluateJavaScript`.** The entire probe ran through
+`callAsyncJavaScript` with `limitsNavigationsToAppBoundDomains = true`. The
+plan's original worry here was wrong.
+
+**What it does cost:** navigation is locked to the listed domains (max 10).
+Loading `https://example.com` failed with
+
+> `Attempted to navigate away from an app-bound domain or navigate after using restricted APIs`
+
+and the webview stayed on the app. **Every external link must be intercepted
+in `WKNavigationDelegate` and handed to Safari** — the Google Maps route links
+on the planning cards, `tel:`, `mailto:`, Bitrix. Phase 2 listed that as
+polish; it is now mandatory.
+
+### R5b — resolved, and it was a false alarm
+
+Dynamic `import()` of precached modules **works offline on real WebKit**, after
+a force-quit and relaunch with the server dead:
+
+```
+import: { "/PlanningCache.js":      "OK 6 exports",
+          "/pricing-client.js":     "OK 2 exports",
+          "/OfflineSaveQueue.js":   "OK 6 exports",
+          "/logic/pricing-core.js": "OK 2 exports" }
+```
+
+The Chromium failure was an artifact of CDP `setOffline` emulation, not real
+behaviour. **The offline pricing fallback is not broken.** Nothing to fix.
+
+### R2 — data survives a restart, but persistence is still not granted
+
+After force-quitting the app and relaunching with the server dead, the service
+worker served the shell and every store was intact:
+`nt-planning-cache` (enrichment, snapshot), `nt-offline-save-queue` (queue),
+`nt-pricing-inputs` (inputs), `nt-session-recovery` (snapshot). The session
+cookie survived too — no re-login.
+
+But `navigator.storage.persisted()` returned **`false`**, confirming what
+`sw-register.js` already suspected: WebKit does not implement persistent
+storage, so this data remains evictable under pressure. **Phase 4's durability
+backstop stays justified.**
+
+### Caveat on what "offline" meant here
+
+The server was killed — connection refused — not airplane mode, so
+`navigator.onLine` still read `true`. The mechanism exercised (fetch fails →
+service worker serves from cache) is the same one a real loss of signal takes,
+but true airplane-mode behaviour on a physical device is still unverified. It
+is worth five minutes on a real iPad during Phase 2.
+
+The spike lives in the session scratchpad under `phase0/`
+(`main.swift`, `probe.js`, `Info.plist`, `build.sh`) — deliberately outside
+this repo.
+
+---
+
+## Phase 0 — original brief
 **~1–2 days. No repository changes at all.**
 
 Throwaway Xcode project, not in this repo:
