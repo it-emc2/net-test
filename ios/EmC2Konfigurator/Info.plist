@@ -29,6 +29,19 @@
   <key>EMC2BaseURL</key>
   <string>https://oc.emc2.de</string>
 
+  <!-- Lets the offline save queue flush while the app is backgrounded, for the
+       case where the salesperson pockets the iPad and walks back into signal
+       without reopening it. Opportunistic: iOS decides if it ever runs, so the
+       foreground flush stays the guarantee. See BackgroundSync.swift. -->
+  <key>BGTaskSchedulerPermittedIdentifiers</key>
+  <array>
+    <string>de.emc2.konfigurator.sync</string>
+  </array>
+  <key>UIBackgroundModes</key>
+  <array>
+    <string>fetch</string>
+  </array>
+
   <!--
     The single most important key in this file.
 

@@ -5,7 +5,7 @@ business logic** and must not grow any: pricing, forms, drafts and the offline
 cache all live in `src/public/` and run identically in a browser. Everything
 here is a platform capability the web layer cannot reach on its own.
 
-Roughly 300 lines of Swift, three files.
+Roughly 550 lines of Swift, six files.
 
 See `docs/plan-ipad-local-first.md` for why it is built this way, and
 `docs1/13-OFFLINE-AND-SYNC.md` for how the offline layer works.
@@ -75,17 +75,41 @@ or `callAsyncJavaScript`, which the plan had feared.
 | **JS dialogs** | `alert`/`confirm` panels — without a `WKUIDelegate`, `confirm()` silently returns false and the drafts and session-recovery flows die |
 | **Offline fallback** | A retry screen, shown *only* when there is no cached shell — i.e. the app was installed and first opened with no connection |
 
+## Phase 3 additions
+
+| | |
+|---|---|
+| **Reachability** | `Reachability.swift` wraps `NWPathMonitor`. `navigator.onLine` reports whether an *interface* exists, not whether anything is reachable — it stays `true` on a captive portal, on Wi-Fi with no uplink, and on a van hotspot that has dropped data. On a real reconnect the shell dispatches the page's own `online` event, so `OfflineSaveQueue` and the planning panel react exactly as they do in a browser. **No web-side change and no bridge**: the event already exists. |
+| **Durable session** | `SessionKeychain.swift` copies the `net_session` cookie into the Keychain after each navigation and puts it back if the cookie store has lost it. The plan called for a Bearer token and a native login screen; that would mean teaching the whole web app to send a header it does not send today. Making the existing cookie durable leaves auth exactly as it was. |
+| **Background sync** | `BackgroundSync.swift` (`BGAppRefreshTask`) wakes the page long enough for its `online` handler to sweep the queue, for when the iPad is pocketed and walks back into signal without being reopened. |
+
+A matching server change makes the session **sliding**: `GET /api/auth/me`
+re-issues the cookie once a token is past halfway through its 7-day life. That
+endpoint runs on every load with signal, so anyone who opens the app even
+weekly never expires — which on site would otherwise strand them on a login
+page that itself needs the network.
+
+### Verification status — read before trusting these
+
+- **Sliding session** — unit tested (`tests/unit/auth-sliding-session.test.js`).
+- **Reachability** — the reconnect path is the same `online` event the offline
+  e2e suite already exercises, but the `NWPathMonitor` trigger itself has not
+  been driven end to end; that needs real network toggling on a device.
+- **Keychain persistence — NOT verified, and cannot be in an unsigned build.**
+  The cookie capture works (observed: the session cookie is found and read),
+  but `SecItemAdd` returns **-34018 `errSecMissingEntitlement`** because a
+  `CODE_SIGNING_ALLOWED=NO` build has no `application-identifier`. A signed
+  build gets one from its provisioning profile and the default keychain group
+  applies. **Confirm this on a signed build**: log in, delete
+  `Library/Cookies` + `Library/WebKit` from the app container, relaunch, and
+  check it opens signed in. The code logs a warning when the write is refused.
+- **Background sync** — cannot be triggered on demand without an lldb
+  `_simulateLaunchForTaskWithIdentifier` call. iOS decides whether it ever
+  runs, so treat it as "data arrives sooner", never as the guarantee. The
+  foreground flush remains the guarantee.
+
 ## What it deliberately does not do yet
 
-Phase 3 and 4 in the plan:
-
-- **Keychain-held auth token.** The session cookie currently lives in the web
-  view's data store. It survives relaunch, but not a data-store clear, and the
-  server token is a 7-day TTL with no refresh.
-- **`NWPathMonitor` reachability.** `navigator.onLine` lies on captive portals
-  and dead Wi-Fi; the page currently trusts it.
-- **`BGProcessingTask` background sync.** The offline queue flushes on
-  reconnect and on page load, but only while the app is open.
 - **Durability backstop.** `navigator.storage.persisted()` returns `false` on
   WebKit, so IndexedDB and Cache Storage remain evictable under storage
   pressure. Mirroring the queue to the app container is Phase 4.

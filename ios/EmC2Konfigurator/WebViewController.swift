@@ -26,6 +26,7 @@ final class WebViewController: UIViewController {
 
     private(set) var webView: WKWebView!
     private var offlineView: UIView?
+    private let reachability = Reachability()
 
     // MARK: - Lifecycle
 
@@ -33,8 +34,25 @@ final class WebViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
         setUpWebView()
-        load()
+        startWatchingTheNetwork()
+
+        // Put a saved session back before the first load, so the app opens
+        // signed in rather than on a login page it may not be able to reach.
+        SessionKeychain.restoreIfMissing(
+            into: webView,
+            host: baseURL.host ?? "",
+            secure: baseURL.scheme == "https",
+        ) { [weak self] in
+            self?.load()
+        }
     }
+
+    private func startWatchingTheNetwork() {
+        reachability.onReconnect = { [weak self] in self?.networkCameBack() }
+        reachability.start()
+    }
+
+    deinit { reachability.stop() }
 
     override var preferredStatusBarStyle: UIStatusBarStyle { .darkContent }
 
@@ -83,6 +101,22 @@ final class WebViewController: UIViewController {
     func reloadIfShowingOfflineFallback() {
         guard offlineView != nil else { return }
         load()
+    }
+
+    /// NWPathMonitor saw the connection return.
+    ///
+    /// Dispatching the page's own `online` event rather than inventing a new
+    /// hook is deliberate: OfflineSaveQueue and the planning panel both
+    /// already listen for it, so this needs no bridge and no change to the web
+    /// app. The queued drafts flush and the planning week refreshes exactly as
+    /// they would in a browser — the only difference is that the trigger is
+    /// now the OS's answer instead of `navigator.onLine`'s guess.
+    func networkCameBack() {
+        if offlineView != nil {
+            load()   // never had a shell to begin with; start over
+            return
+        }
+        webView.evaluateJavaScript("window.dispatchEvent(new Event('online'))")
     }
 
     // MARK: - Offline fallback
@@ -193,6 +227,9 @@ extension WebViewController: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         hideOfflineView()
+        // The value changes whenever the server slides the session forward, so
+        // take a copy on every navigation rather than only after login.
+        SessionKeychain.capture(from: webView)
     }
 
     func webView(_ webView: WKWebView,
