@@ -37,6 +37,7 @@ const PRECACHE = [
   // moment they are needed, which offline is exactly when they cannot be.
   "/OfflineSaveQueue.js",
   "/PlanningCache.js",
+  "/LocalDocsStore.js",
   "/session-recovery.js",
   "/pricing-cache.js",
   "/pricing-client.js",

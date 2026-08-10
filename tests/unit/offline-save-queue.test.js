@@ -89,3 +89,52 @@ test('a queued save that is still offline is kept for the next sweep', async () 
 
   expect(idb.data.size).toBe(1);
 });
+
+test('a record the server keeps rejecting is parked instead of retried forever', async () => {
+  // Not being offline: postRecord returns null then and nothing is counted.
+  // This is a real server answer that will never succeed — a malformed
+  // payload, say. Retrying it every sweep keeps the badge permanently at
+  // "wird synchronisiert", which reads as a slow sync rather than a failure.
+  idb.data.set('bad001', draftRecord('bad001', '2026-07-28T10:00:00.000Z', 'Broken'));
+  globalThis.fetch.mockResolvedValue({ ok: false, status: 400 });
+
+  for (let i = 0; i < 8; i++) await queue.retryAll();
+
+  const record = idb.data.get('bad001');
+  expect(record.stuck).toBe(true);
+  expect(record.failures).toBe(5);          // MAX_ATTEMPTS, then it stops
+  expect(globalThis.fetch).toHaveBeenCalledTimes(5);
+  expect(window.toast.error).toHaveBeenCalled();
+});
+
+test('parking one record does not stop the others syncing', async () => {
+  idb.data.set('bad001', { ...draftRecord('bad001', '2026-07-28T10:00:00.000Z', 'Broken'), stuck: true });
+  idb.data.set('ok0001', draftRecord('ok0001', '2026-07-28T10:05:00.000Z', 'Fine'));
+  globalThis.fetch.mockResolvedValue({ ok: true, status: 201 });
+
+  await queue.retryAll();
+
+  expect(postedNames()).toEqual(['Fine']);   // the stuck one is not retried
+  expect(idb.data.has('ok0001')).toBe(false);
+  expect(idb.data.has('bad001')).toBe(true); // kept, so it stays visible
+});
+
+test('a synced draft releases its local copy so the list stops showing it twice', async () => {
+  const local = await import('../../src/public/LocalDocsStore.js');
+  const record = draftRecord('sync01', '2026-07-28T10:00:00.000Z', 'ANG-BU-Meier');
+  idb.data.set('sync01', record);
+  await local.save({
+    key: record.offerKey,
+    kind: 'draft',
+    offerType: 'bu',
+    name: 'ANG-BU-Meier',
+    payload: { n: 1 },
+  });
+  expect(await local.get(record.offerKey)).not.toBeNull();
+
+  globalThis.fetch.mockResolvedValue({ ok: true, status: 201 });
+  await queue.retryAll();
+
+  // On the server now, so the normal drafts search owns it.
+  expect(await local.get(record.offerKey)).toBeNull();
+});

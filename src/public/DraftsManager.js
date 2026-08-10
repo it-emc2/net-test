@@ -142,16 +142,48 @@ export function initDraftsManager(options = {}) {
     if ($btnLoad) $btnLoad.disabled = !selectedId;
   }
 
+  // Local, not-yet-synced drafts, shaped like the server's rows so
+  // renderResults does not need to know the difference. The `local:` id prefix
+  // is what loadById uses to read from IndexedDB instead of the API.
+  async function fetchLocalDrafts(query) {
+    try {
+      const store = await import("./LocalDocsStore.js");
+      const docs = await store.listPending({ offerType: cfg.getOfferType(), query });
+      return docs.map((d) => ({
+        id: `local:${d.key}`,
+        name: d.name,
+        offerType: d.offerType,
+        savedAt: d.savedAt,
+        __local: true,
+      }));
+    } catch (err) {
+      console.warn("[drafts] local lookup failed:", err);
+      return [];
+    }
+  }
+
   async function fetchDrafts(query) {
     const offerType = cfg.getOfferType();
     const url = `${cfg.apiBase}/search?q=${encodeURIComponent(
       query || "",
     )}&offerType=${encodeURIComponent(offerType)}`;
 
-    const res = await fetch(url, { credentials: "include" });
+    let res;
+    try {
+      res = await fetch(url, { credentials: "include" });
+    } catch {
+      // No signal. Everything still queued is only available here, and
+      // without it the morning's work is invisible until sync.
+      return fetchLocalDrafts(query);
+    }
     if (!res.ok) throw new Error(`Draft search failed (${res.status})`);
     const data = await res.json();
-    return Array.isArray(data?.drafts) ? data.drafts : Array.isArray(data) ? data : [];
+    const remote = Array.isArray(data?.drafts) ? data.drafts : Array.isArray(data) ? data : [];
+
+    // Online, a queued draft is not on the server yet either, so it would
+    // vanish from the list between saving it and the sync going through.
+    const local = await fetchLocalDrafts(query);
+    return [...local, ...remote];
   }
 
   // --- API ---
@@ -169,15 +201,26 @@ export function initDraftsManager(options = {}) {
     if (!id) return null;
 
     setStatus("Loading…");
-    const res = await fetch(`${cfg.apiBase}/${encodeURIComponent(id)}`, {
-      credentials: "include",
-    });
-    if (!res.ok) throw new Error(`Draft load failed (${res.status})`);
 
-    const data = await res.json();
+    let draft;
+    if (String(id).startsWith("local:")) {
+      // A draft that has not reached the server yet — the payload lives in
+      // IndexedDB. Everything below this point is the shared restore path.
+      const store = await import("./LocalDocsStore.js");
+      const doc = await store.get(String(id).slice("local:".length));
+      if (!doc) throw new Error("Lokaler Entwurf nicht gefunden");
+      draft = { name: doc.name, offerType: doc.offerType, payload: doc.payload };
+    } else {
+      const res = await fetch(`${cfg.apiBase}/${encodeURIComponent(id)}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`Draft load failed (${res.status})`);
+      const data = await res.json();
+      draft = data?.draft || data;
+    }
+
     setStatus("");
 
-    const draft = data?.draft || data;
     const payload = draft?.payload || null;
 
     const rawOfferType =
@@ -231,15 +274,36 @@ export function initDraftsManager(options = {}) {
       throw new Error("Keine Daten zum Speichern gefunden.");
     }
 
+    const offerKey = `draft:${offerType}:${trimmedName}`;
     const queue = await import("./OfflineSaveQueue.js");
     const { queued, res } = await queue.trySaveOrQueue({
       kind: "draft",
-      offerKey: `draft:${offerType}:${trimmedName}`,
+      offerKey,
       url: cfg.apiBase,
       body: { name: trimmedName, offerType, payload },
     });
 
     if (queued) {
+      // Keep a readable copy so this draft can be found and reopened before
+      // it syncs. Deleted again the moment the queued save lands.
+      //
+      // Everything here is bookkeeping on top of a save the queue has already
+      // accepted, so it must not be able to throw: failing after that point
+      // would report a lost save to the user when the payload is in fact
+      // safely queued. Worst case they cannot reopen it until it syncs.
+      try {
+        const store = await import("./LocalDocsStore.js");
+        await store.save({
+          key: offerKey,
+          kind: "draft",
+          offerType,
+          name: trimmedName,
+          payload,
+        });
+      } catch (err) {
+        console.warn("[drafts] local copy not stored:", err);
+      }
+
       lastLoadedDraftMeta = {
         id: null,
         name: trimmedName,
@@ -845,9 +909,15 @@ export function initDraftsManager(options = {}) {
 
       const saved = d?.savedAt || d?.updatedAt;
       const updated = saved ? new Date(saved).toLocaleString("de-DE") : "";
+      // Say so when a draft is only on this device — it is not yet visible to
+      // the office, and that difference matters to the person reading the list.
+      const pending = d?.__local
+        ? ` <span style="font-size:0.8em;color:#b45309;font-weight:600;">· nur lokal</span>`
+        : "";
       row.innerHTML =
         `<strong style="color:var(--accent-strong);">${escapeHtml(String(label))}</strong>` +
-        (updated ? ` <span style="font-size:0.85em; color:#6b7280;">(${escapeHtml(updated)})</span>` : "");
+        (updated ? ` <span style="font-size:0.85em; color:#6b7280;">(${escapeHtml(updated)})</span>` : "") +
+        pending;
 
       row.addEventListener("click", async () => {
         setActiveRow(id);

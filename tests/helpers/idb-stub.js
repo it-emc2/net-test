@@ -28,10 +28,13 @@ export function makeIdbStub() {
       return req;
     };
 
+    // Real IndexedDB returns an IDBRequest from add/put/delete too, not a bare
+    // value. Callers legitimately inspect what comes back (`"result" in out`),
+    // and a primitive there throws.
     return {
-      add: (r, key) => data.set(keyFor(r, key), r),
-      put: (r, key) => data.set(keyFor(r, key), r),
-      delete: (key) => data.delete(key),
+      add: (r, key) => asRequest(() => data.set(keyFor(r, key), r) && undefined),
+      put: (r, key) => asRequest(() => data.set(keyFor(r, key), r) && undefined),
+      delete: (key) => asRequest(() => data.delete(key) && undefined),
       get: (key) => asRequest(() => data.get(key)),
       createIndex: () => {},
       getAll: () => asRequest(() => [...data.keys()].sort().map((k) => data.get(k))),

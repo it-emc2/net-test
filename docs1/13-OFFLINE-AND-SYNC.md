@@ -6,8 +6,8 @@ a tab discard, and have their work sync automatically when connectivity
 returns.
 
 This document describes what exists **today**. For the planned extensions
-(offline "heutige Planung" prefill, offline reopen of unsynced work, and the
-iPad/WKWebView shell) see `docs/plan-ipad-local-first.md`.
+(the iPad/WKWebView shell and the native bridge) see
+`docs/plan-ipad-local-first.md`.
 
 ---
 
@@ -36,6 +36,7 @@ Three rules explain most of the decisions below:
 | `src/public/sw-register.js` | Registers `sw.js?v=<buildId>`, requests persistent storage |
 | `src/public/OfflineSaveQueue.js` | IndexedDB write queue + reconnect replay + conflict handling |
 | `src/public/PlanningCache.js` | Caches the "Heutige Planung" week + per-appointment Bitrix enrichment |
+| `src/public/LocalDocsStore.js` | Drafts saved but not yet synced, so they can be found and reopened |
 | `src/public/session-recovery.js` | Debounced work-in-progress snapshot |
 | `src/public/pricing-cache.js` | Caches `GET /api/price/inputs` |
 | `src/public/pricing-client.js` | Runs `src/logic/pricing-core.js` in the browser |
@@ -53,6 +54,7 @@ iOS-specific meta lives in `index.html:14-20` (`apple-mobile-web-app-capable`,
 | `nt-offline-save-queue` | IndexedDB | `id` (uuid) | Queued draft + offer POSTs |
 | `nt-planning-cache` → `snapshot` | IndexedDB | `"current"` | `{payload, fetchedAt}` — the whole planned week |
 | `nt-planning-cache` → `enrichment` | IndexedDB | `key` | Per-appointment Bitrix fields (Anrede, contact) |
+| `nt-local-docs` → `docs` | IndexedDB | queue `offerKey` | Not-yet-synced drafts, readable offline |
 | `nt-session-recovery` | IndexedDB | `"current"` | `{payload, offerType, step, savedAt}` |
 | `nt-pricing-inputs` | IndexedDB | `"current"` | `{buildId, config, products, cachedAt}` |
 | `nt-shell-<buildId>` | Cache Storage | request URL | App shell, JS modules, product images |
@@ -176,8 +178,71 @@ real conflict that must be surfaced, not silently dropped.
 > bypassing the queue. That save is lost offline. Tracked as Gap 2 in
 > `docs/plan-ipad-local-first.md`.
 
-**Known ceiling:** there is no backoff or retry cap. A permanently failing
-record retries quietly on every reconnect and page load.
+**Retry cap.** A record the *server* rejects (neither ok nor 409 — a malformed
+payload, say) is counted, and after `MAX_ATTEMPTS` (5) it is marked `stuck`:
+skipped by later sweeps, kept in the queue, and reported separately in the
+badge as "N fehlgeschlagen". Without that it retried forever and the badge sat
+permanently at "wird synchronisiert", which reads as a slow sync rather than a
+failure. Being offline does not count towards the cap — `postRecord` returns
+null then and the record is left untouched.
+
+---
+
+## Reopening work that has not synced yet
+
+The queue guarantees a queued save is not lost. It cannot give the draft *back*
+before it syncs: the drafts list and load both go through `/api/drafts`, so
+with no signal the morning's work was invisible. Two customers before finding a
+bar of signal is a normal morning.
+
+`LocalDocsStore.js` (`nt-local-docs`) keeps a readable copy, keyed by the
+queue's own `offerKey` so a record and the queued save it belongs to always
+agree — and re-saving the same draft name overwrites rather than duplicating.
+
+```
+quickSaveDraft
+  └─ trySaveOrQueue()  queued? ─► LocalDocsStore.save()
+
+drafts list
+  ├─ server reachable ─► /api/drafts/search  ⊕ local pending   (merged)
+  └─ fetch throws     ─► local pending only
+
+loadById("local:<key>") ─► LocalDocsStore.get() ─► same restore path as a
+                                                   server draft
+
+retryAll → 2xx ─► LocalDocsStore.markSynced()  (deletes it)
+```
+
+**Scope is deliberately narrow: only work that has not reached the server.**
+Once synced, the normal search finds it, so the local record is deleted. The
+store holds the backlog, not an archive — which is why it needs no index and
+no pagination.
+
+Local rows are merged into the list even when online: between saving and the
+sweep landing, the server does not have the draft and the local store does, so
+without the merge it would briefly vanish from the list. They are labelled
+**"nur lokal"**, because "not yet visible to the office" is a real difference
+to the person reading the list.
+
+The bookkeeping is wrapped in its own `try`: it runs *after* the queue has
+accepted the save, so a failure there must never be reported as a lost save.
+Worst case the draft cannot be reopened until it syncs.
+
+**Not covered:** offers. Reopening a pending *offer* is not a workflow anyone
+asked for, and the pending count is already visible in the badge.
+
+### The wizard step across a restart — no change needed
+
+`konfigurator_state_v1` lives in `sessionStorage` and dies with the app, so a
+restart lands on the home screen. Promoting it to `localStorage` would be
+worse, not better: the DOM holds the form values, so the app would jump back
+into the middle of a wizard with every field empty, and only then offer the
+restore banner.
+
+`session-recovery.js` already does the right thing — it stores `step`
+alongside the payload and replays both together through
+`applyWizardState({offerType, step})` when the user accepts the banner. State
+and position are restored as one, on consent.
 
 ---
 
@@ -346,6 +411,7 @@ where `serviceWorkers: "allow"` — the offline shell must actually run.
 | `offline-sync.spec.cjs` | Queue ordering + replay against a **real** IndexedDB engine |
 | `offline-pricing.spec.cjs` | Local pricing fallback |
 | `offline-planning.spec.cjs` | Planning cache + prefill across a reload with the APIs down |
+| `offline-drafts.spec.cjs` | Finding and reopening an unsynced draft; release on sync |
 | `session-recovery.spec.cjs` | Snapshot + restore banner |
 | `pwa-install.spec.cjs` | Manifest + service-worker registration |
 
@@ -369,6 +435,7 @@ Unit coverage for the planning cache:
 |------|--------|
 | `tests/unit/planning-cache.test.js` | Store semantics: snapshot round-trip, key derivation, TTL, IndexedDB refusal |
 | `tests/unit/planning-offline-prefill.test.js` | The prefill itself, driven through the real `script.js`: Anrede fills from cache offline, live answers are cached, a mid-flight form reset is discarded |
+| `tests/unit/local-docs-store.test.js` | Pending-draft store: overwrite-by-name, offer-type scoping, release on sync |
 
 The unit suite's central claim — that `getAll()` hands back primary-key order —
 is only ever asserted against a stub written to behave that way. The e2e suite
@@ -378,8 +445,8 @@ exists to check it against a real engine.
 
 ## What is *not* offline today
 
-- Listing or reopening drafts (`GET /api/drafts/search`, `/api/drafts/:id`)
 - All document generation (PDF/DOCX/LaTeX — needs LibreOffice, Chromium, texlive)
 - Email sending, signing-link creation, CRM writes
 - Product search, routing/distance suggestion, admin config
-- Wizard position across an app restart (`sessionStorage`)
+- Wizard position across an app restart, other than through the session-recovery
+  banner (see above — deliberate)

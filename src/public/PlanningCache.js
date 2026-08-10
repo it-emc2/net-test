@@ -52,7 +52,11 @@ function tx(storeName, mode, run) {
         // `out` is an IDBRequest for reads and undefined for writes. Test for
         // the property rather than its value: a miss has `result === undefined`
         // and must resolve to undefined, not to the request object.
-        t.oncomplete = () => resolve(out && "result" in out ? out.result : undefined);
+        // Guard the type as well as the property: a store method that hands
+        // back a primitive would make `in` throw inside oncomplete, and the
+        // promise would then never settle at all.
+        t.oncomplete = () =>
+          resolve(out && typeof out === "object" && "result" in out ? out.result : undefined);
         t.onerror = () => reject(t.error);
       }),
   );

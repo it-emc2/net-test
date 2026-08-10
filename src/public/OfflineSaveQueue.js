@@ -91,6 +91,33 @@ function notifyRenamed(oldName, newName) {
   );
 }
 
+// How many times a record may be rejected by the *server* before it is parked.
+// Being offline does not count: postRecord returns null then and the record is
+// left untouched.
+const MAX_ATTEMPTS = 5;
+
+function notifyStuck(record, status) {
+  const label =
+    record.kind === "offer" ? `Angebot ${record.offerKey}` : `Entwurf ${record.offerKey}`;
+  window.toast?.error?.(
+    "Synchronisierung gestoppt",
+    `${label} wurde vom Server abgelehnt (${status}) und wird nicht weiter versucht.`,
+  );
+}
+
+// A draft is readable offline out of LocalDocsStore only until it reaches the
+// server; after that the normal drafts search finds it and the local copy is
+// just a stale duplicate.
+async function releaseLocalDoc(record) {
+  if (record.kind !== "draft") return;
+  try {
+    const store = await import("./LocalDocsStore.js");
+    await store.markSynced(record.offerKey);
+  } catch (err) {
+    console.warn("[offline-queue] local doc cleanup failed:", err);
+  }
+}
+
 // Resolves to the Response, or to null on a real network failure (offline).
 // Native `fetch` throws only on network failure, never on 4xx/5xx.
 async function postRecord(record) {
@@ -141,11 +168,14 @@ export async function retryAll() {
   let syncedCount = 0;
 
   for (const record of records) {
+    if (record.stuck) continue; // already given up on; see MAX_ATTEMPTS
+
     const res = await postRecord(record);
     if (!res) continue; // still offline, leave queued for the next sweep
 
     if (res.ok) {
       await deleteRecord(record.id);
+      await releaseLocalDoc(record);
       syncedCount++;
       continue;
     }
@@ -171,6 +201,7 @@ export async function retryAll() {
       const retryRes = await postRecord(renamed);
       if (retryRes?.ok) {
         await deleteRecord(renamed.id);
+        await releaseLocalDoc(renamed);
         syncedCount++;
         notifyRenamed(oldName, renamed.body.name);
       }
@@ -178,9 +209,17 @@ export async function retryAll() {
       continue;
     }
 
-    // ponytail: no backoff/retry cap — a permanently failing record just
-    // keeps retrying quietly on every reconnect/page load. Acceptable
-    // ceiling for v1; add a cap if that's ever actually observed.
+    // A server answer that is neither ok nor a 409 is a real rejection —
+    // a malformed payload, say. Retrying it forever means every future sweep
+    // pays for it and the "N ausstehend" badge never clears, so the user
+    // reads a permanent failure as a slow sync. Count the attempts and stop.
+    const failures = Number(record.failures || 0) + 1;
+    if (failures >= MAX_ATTEMPTS) {
+      await putRecord({ ...record, failures, stuck: true });
+      notifyStuck(record, res.status);
+    } else {
+      await putRecord({ ...record, failures });
+    }
   }
 
   if (syncedCount > 0) notifySynced(syncedCount);
@@ -222,15 +261,29 @@ function ensureBadgeEl() {
 export async function renderBadge() {
   const el = ensureBadgeEl();
   if (!el) return;
-  const count = await getPendingCount();
-  if (count <= 0) {
+  const all = await getAllRecords();
+  if (!all.length) {
     el.hidden = true;
     el.textContent = "";
     return;
   }
+
+  // A parked record is not "being synchronised" — saying so would leave the
+  // user waiting for something that is never going to happen.
+  const stuck = all.filter((r) => r.stuck).length;
+  const waiting = all.length - stuck;
+  const parts = [];
+  if (waiting > 0) {
+    parts.push(
+      waiting === 1 ? "1 ausstehend – wird synchronisiert" : `${waiting} ausstehend – wird synchronisiert`,
+    );
+  }
+  if (stuck > 0) {
+    parts.push(stuck === 1 ? "1 fehlgeschlagen" : `${stuck} fehlgeschlagen`);
+  }
+
   el.hidden = false;
-  el.textContent =
-    count === 1 ? "1 ausstehend – wird synchronisiert" : `${count} ausstehend – wird synchronisiert`;
+  el.textContent = parts.join(" · ");
 }
 
 export function initBadge() {
