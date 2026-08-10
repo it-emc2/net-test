@@ -4036,8 +4036,13 @@ function buildPayload() {
   // verbatim instead of recomputing from live DB values. Set only via
   // freezeCurrentPricing() (Schnellspeichern/Speichern unter/Sperren); cleared
   // the moment the user edits a field (see requestPricingRefresh).
-  payload.frozen = window.__frozen === true;
+  // The Kostenübersicht "Preise aktualisieren" button (Vigor price drift)
+  // explicitly asked to drop the pinned snapshot and reprice live — applies
+  // here too so PDF/DOCX generation (which builds its own payload) picks up
+  // the refreshed price instead of the old frozen one.
+  payload.frozen = window.__forceLiveVigorPricing ? false : window.__frozen === true;
   payload.frozenPricing = payload.frozen ? (window.__frozenPricing || null) : null;
+  if (window.__forceLiveVigorPricing) delete payload.offerNumber;
   // Locked: full edit-lock, independent of the price freeze above.
   payload.locked = window.__locked === true;
 
