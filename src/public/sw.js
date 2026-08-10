@@ -36,6 +36,10 @@ const PRECACHE = [
   "/pricing-cache.js",
   "/pricing-client.js",
   "/logic/pricing-core.js",
+  // Same reason as pricing-client.js: the planning fallback only imports this
+  // once the /api/planning/current fetch has already failed, i.e. exactly when
+  // it can no longer be fetched.
+  "/PlanningCache.js",
 ];
 
 self.addEventListener("install", (event) => {

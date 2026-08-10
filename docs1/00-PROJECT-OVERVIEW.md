@@ -30,8 +30,10 @@ The system generates professional quotes (Angebote) with dynamic pricing, materi
 | **Geolocation** | OpenRouteService, Photon (Komoot), Nominatim, OSRM |
 | **Postal Service** | Binect API |
 | **Deployment** | Docker on Fly.io (Frankfurt region) |
-| **Testing** | Jest 29 + Supertest + JSDOM |
+| **Testing** | Jest 29 + Supertest + JSDOM, Playwright (e2e + offline) |
 | **Code Quality** | ESLint 9 + Prettier |
+| **Auth** | Session cookie / Bearer, scrypt + HMAC, no external dep |
+| **Offline** | PWA: service worker + IndexedDB queue + browser-side pricing |
 
 ## Application URL
 
@@ -77,13 +79,21 @@ net-test/
 |   +-- logic/
 |   |   +-- pricing.js          # Core pricing computation engine (~1860 lines)
 |   |   +-- offerMapping.js     # Payload-to-DOCX template variable mapping
+|   +-- middleware/
+|   |   +-- authGate.js         # Single auth gate, runs before all routers
+|   +-- external/
+|   |   +-- vigorDb.js          # Read-only vigor product DB connection
+|   |   +-- magicApi.js         # Hassmann external API client
 |   +-- models/
 |   |   +-- Product.js          # Product catalog (Mongoose)
 |   |   +-- Service.js          # Service catalog (Mongoose)
 |   |   +-- Offer.js            # Saved offers (Mongoose)
 |   |   +-- Draft.js            # Draft offers (Mongoose)
 |   |   +-- Customer.js         # Customer data (Mongoose)
+|   |   +-- User.js             # Named users for the auth gate (Mongoose)
+|   |   +-- SigningRequest.js   # Online-signing requests (Mongoose)
 |   |   +-- EmailLog.js         # Email send log (Mongoose)
+|   |   +-- BitrixLog.js        # Bitrix REST call audit log (Mongoose)
 |   |   +-- Submission.js       # Legacy submissions (Mongoose)
 |   |   +-- StateManager.js     # Frontend state management (client-side)
 |   |   +-- AppConfig.js          # Key/value config store (Mongoose)
@@ -127,9 +137,17 @@ net-test/
 |   |   +-- pages/
 |   |       +-- KundendatenView.js # Customer data form view
 |   +-- public/                 # Frontend SPA
-|       +-- index.html          # Main HTML (8,645 lines)
-|       +-- script.js           # Main JS bundle (21,514 lines)
-|       +-- style.css           # Main CSS (6,499 lines)
+|       +-- index.html          # Main HTML (10,050 lines)
+|       +-- script.js           # Main JS bundle (27,698 lines)
+|       +-- style.css           # Main CSS (~6,500 lines)
+|       +-- sw.js / sw-register.js        # Offline app shell (PWA)
+|       +-- OfflineSaveQueue.js           # IndexedDB write queue + sync
+|       +-- session-recovery.js           # WIP snapshot / crash recovery
+|       +-- pricing-cache.js / pricing-client.js  # Browser-side pricing
+|       +-- manifest.webmanifest          # PWA manifest
+|       +-- configurator/       # Duschabtrennung sub-app (ES modules)
+|       +-- signpage/           # Public customer signing page
+|       +-- admin/              # Admin config panel
 |       +-- DraftsManager.js    # Draft management UI
 |       +-- ExportManager.js    # Export orchestration
 |       +-- EmailManager.js     # Email composition
@@ -179,6 +197,12 @@ npm run test:unit
 npm run test:integration
 npm run test:coverage
 
+# Offline / PWA end-to-end suite (owns its own MongoDB + app)
+npm run test:e2e:offline
+
+# Create a login user
+node scripts/createUser.mjs
+
 # Seed database
 npm run seed:products
 npm run seed:flexofit
@@ -218,3 +242,21 @@ npm run health
 | `BINECT_USERNAME` | Binect auth user | `***` |
 | `BINECT_PASSWORD` | Binect auth password | `***` |
 | `PLANNING_API_BASE_URL` | Planning service | `https://route-plannung.fly.dev` |
+| `PLANNING_API_KEY` | Planning service key (sent as `X-Api-Key`) | `***` |
+| `AUTH_SECRET` | HMAC secret for session tokens | `***` |
+| `EXTERNAL_API_KEY` | Shared key for `/api/*/external/*` — **fail-open if unset** | `***` |
+| `VIGOR_MONGODB_URI` | Separate read-only vigor product DB | `mongodb+srv://...` |
+| `PUBLIC_BASE_URL` | Base URL used to build signing links | `https://oc.emc2.de` |
+| `PUPPETEER_EXECUTABLE_PATH` | System Chromium in Docker | `/usr/bin/chromium` |
+| `NODE_ENV` | Enables `secure` cookies, narrows ngrok CORS | `production` |
+| `FLY_IMAGE_REF` | Set by Fly; becomes `APP_BUILD_ID` (service-worker cache key) | auto |
+
+### Databases
+
+Two MongoDB connections:
+
+- **Primary** — `MONGODB_URI` + `MONGODB_DB` (`KonfiguratorDB`). All
+  application collections.
+- **Vigor** — `VIGOR_MONGODB_URI` (falls back to `MONGODB_URI` with
+  `dbName: "vigor"`). **Read-only**, refreshed daily by a scraper, supplies
+  live net prices. See `src/external/vigorDb.js`.
