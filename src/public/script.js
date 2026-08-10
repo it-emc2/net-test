@@ -11488,6 +11488,32 @@ window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
   const container = document.getElementById("costsSummary");
   if (!container) return;
 
+  // ── Vigor price-drift "refresh" button: re-price a saved offer's config
+  // lines at today's live Vigor cost instead of the frozen quoted price. ──
+  container.addEventListener("click", async (e) => {
+    const btn = e.target.closest("#refreshVigorPricesBtn");
+    if (!btn) return;
+    btn.disabled = true;
+    btn.textContent = "Aktualisiere…";
+    try {
+      const payload =
+        typeof window.buildPayload === "function" ? window.buildPayload() : null;
+      if (!payload) return;
+      // Pricing keeps the quoted price only when payload.offerNumber is set
+      // (see pricing-core.js). Drop it for this one recalculation so the
+      // configurator lines are priced from the live Vigor DB, then have the
+      // caller re-render with the fresh numbers.
+      delete payload.offerNumber;
+      const data = await window.updatePricing(payload);
+      if (typeof renderFromData === "function") await renderFromData(data);
+    } catch (err) {
+      console.error("[pricing] refresh Vigor prices failed:", err);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Preise aktualisieren";
+    }
+  });
+
   // ── Kosten info button ──────────────────────────────────────────────────
   const kostenToggle      = document.getElementById("kostenDetailsToggle");
   const kostenHeaderTotal = document.getElementById("kostenHeaderTotal");
@@ -12162,6 +12188,7 @@ if (supportsOptional) {
              ${driftTotal > 0 ? "+" : "−"}${euroC(Math.abs(driftTotal))}
              gegenüber dem Angebot (${drift.lines.length} Artikel).
              Angebotspreise bleiben unverändert.
+             <button type="button" class="btn small" id="refreshVigorPricesBtn" style="margin-left:8px;">Preise aktualisieren</button>
            </div>`
         : "";
     const matCard = card(
