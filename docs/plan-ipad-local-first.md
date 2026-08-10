@@ -1041,7 +1041,14 @@ But `navigator.storage.persisted()` returned **`false`**, confirming what
 storage, so this data remains evictable under pressure. **Phase 4's durability
 backstop stays justified.**
 
-### R5 — CONFIRMED AND SERIOUS: the offline shell renders unstyled
+### R5 — CONFIRMED, THEN FIXED: the offline shell rendered unstyled
+
+> **Fixed and re-verified on the device.** `sw.js` now discovers the shell's
+> assets from `index.html` at install, plus a second pass for fonts inside the
+> stylesheets. Cache went from 14 entries to 39. An offline force-quit +
+> relaunch with the server dead now renders **fully styled, with icons, the
+> logo, and `Offline – Stand heute 13:16`**. Details below are kept as the
+> record of what the failure looked like and why the runtime cache missed it.
 
 Running the spike against the **real** planning data showed the Phase 1 cache
 working exactly as designed: offline, after a force-quit and relaunch with the

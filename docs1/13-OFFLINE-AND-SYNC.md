@@ -98,6 +98,34 @@ Two subtleties worth preserving:
 `warmShell()` on `activate` fetches `/` so the shell is available from the
 *first* visit, not the second.
 
+### What gets precached, and why it is discovered rather than listed
+
+`install` caches three sets:
+
+1. **Discovered from `index.html`** (`discoverShellAssets`) — the worker fetches
+   `/`, regexes every `src`/`href` ending in `.js`/`.mjs`/`.css`, and caches the
+   same-origin ones. This covers `style.css`, `script.js`, `ThemeManager.js`,
+   `header-auth.js`, `admin-modal.js`, `ansprechpartner.js` and the whole
+   `/configurator/` sub-app **without anyone maintaining a list**.
+2. **Fonts found inside those stylesheets** (`discoverFontsFrom`) — icon fonts
+   are referenced from CSS, not HTML, so a second pass extracts `url(...)`
+   entries ending in `woff2`/`woff`/`ttf`. Without it Font Awesome renders as a
+   giant black magnifying glass offline.
+3. **The explicit `PRECACHE` list** — only modules reached through a dynamic
+   `import()`, which no amount of HTML parsing can find, plus `/assets/logo.png`.
+
+Images are deliberately **not** discovered: `index.html` references 118 of them
+and they are almost all product photos, which the runtime cache picks up as
+they are used. The header logo is the one exception.
+
+**Why the runtime cache cannot replace this.** The worker does not control the
+load that registers it, so those subresources never reach a `fetch` handler. On
+every later load they are served from the HTTP/memory cache, so they never
+reach one either — they would never enter Cache Storage at all. This was not
+theoretical: `/style.css` was missing, and an offline relaunch on an iPad
+rendered the whole app unstyled while every byte of user data was intact.
+See the Phase 0 results in `docs/plan-ipad-local-first.md`.
+
 **Kill switch** — if the worker ever ships broken, deploy a `sw.js` whose only
 content is `self.addEventListener("install", () => self.registration.unregister())`
 and remove the register call.
