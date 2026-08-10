@@ -25,6 +25,16 @@ let pristine = null; // serialized empty-form baseline
 let timer = null;
 let started = false;
 
+// initSessionRecovery() only runs after DOM-ready + drafts-ready, which can lag
+// behind a fast typist on a slow connection. If the user already started
+// filling the form before that resolves, the "pristine" baseline below would
+// wrongly include their live input, making an unrelated old snapshot look
+// mismatched and popping the banner mid-typing. Track real input up front so
+// that race can't masquerade as a stale-snapshot prompt.
+let userTypedEarly = false;
+document.addEventListener("input", () => (userTypedEarly = true), { capture: true, once: true });
+document.addEventListener("change", () => (userTypedEarly = true), { capture: true, once: true });
+
 function openDb() {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
@@ -198,6 +208,12 @@ export async function initSessionRecovery() {
   attachListeners();
 
   if (!existing?.payload) return null;
+
+  // The user was already typing before this async check resolved: showing a
+  // "restore old state?" banner now would interrupt live work over a
+  // baseline that never was actually empty. Keep the snapshot for next boot
+  // instead of interrupting this one.
+  if (userTypedEarly) return null;
 
   showBanner(existing, {
     onRestore: async (bar, button) => {
