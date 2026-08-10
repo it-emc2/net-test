@@ -10862,6 +10862,11 @@ function attachDuschwanneToPayload(payload) {
   let pricingRequestSeq = 0;
   let latestAppliedPricingSeq = 0;
   let pricingRefreshTimer = null;
+  // Set by the Kostenübersicht "Preise aktualisieren" button (Vigor price
+  // drift). Sticky for the rest of the session so later recalcs (tab
+  // switches, field edits) don't silently re-freeze the old quoted price —
+  // it only resets on reload or once the offer is saved with fresh totals.
+  window.__forceLiveVigorPricing = false;
   window.__pricingDebug = window.__pricingDebug || { enabled: false };
 
   window.setPricingDebug = function setPricingDebug(enabled = true) {
@@ -10924,6 +10929,7 @@ function attachDuschwanneToPayload(payload) {
       console.warn("[pricing] No payload available");
       return null;
     }
+    if (window.__forceLiveVigorPricing) delete pl.offerNumber;
 
     const requestSeq = ++pricingRequestSeq;
     window.logPricingRefresh?.("updatePricing:start", { requestSeq });
@@ -11496,15 +11502,13 @@ window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
     btn.disabled = true;
     btn.textContent = "Aktualisiere…";
     try {
-      const payload =
-        typeof window.buildPayload === "function" ? window.buildPayload() : null;
-      if (!payload) return;
       // Pricing keeps the quoted price only when payload.offerNumber is set
-      // (see pricing-core.js). Drop it for this one recalculation so the
-      // configurator lines are priced from the live Vigor DB, then have the
-      // caller re-render with the fresh numbers.
-      delete payload.offerNumber;
-      const data = await window.updatePricing(payload);
+      // (see pricing-core.js). Flip this sticky flag so every recalculation
+      // from here on — including later tab switches — prices the
+      // configurator lines from the live Vigor DB instead of re-freezing
+      // the old quoted price.
+      window.__forceLiveVigorPricing = true;
+      const data = await window.updatePricing();
       if (typeof renderFromData === "function") await renderFromData(data);
     } catch (err) {
       console.error("[pricing] refresh Vigor prices failed:", err);
