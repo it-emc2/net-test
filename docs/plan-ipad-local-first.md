@@ -1041,6 +1041,56 @@ But `navigator.storage.persisted()` returned **`false`**, confirming what
 storage, so this data remains evictable under pressure. **Phase 4's durability
 backstop stays justified.**
 
+### R5 — CONFIRMED AND SERIOUS: the offline shell renders unstyled
+
+Running the spike against the **real** planning data showed the Phase 1 cache
+working exactly as designed: offline, after a force-quit and relaunch with the
+server dead, the whole planned week rendered from IndexedDB — both of today's
+appointments with addresses, phones and emails, plus the full Wochenkalender
+with all 15 appointments Mon–Fri.
+
+**But the page renders with no CSS at all.** Raw HTML, Times New Roman, Font
+Awesome icons drawn as a giant black magnifying glass. The probe explains why —
+this is the complete cache after two online loads:
+
+```
+/  /script.js  /session-recovery.js  /pricing-cache.js  /pricing-client.js
+/PlanningCache.js  /OfflineSaveQueue.js  /logic/pricing-core.js
+/configurator/assets/*.jpg  ×6
+```
+
+**`/style.css` is absent.** So are `/vendor/fontawesome/*`, every manager
+module (`DraftsManager`, `ExportManager`, `EmailManager`, `RestoreManager`,
+`AdminManager`, `ThemeManager`, …), `/admin-modal.js`, `/header-auth.js`,
+`/ansprechpartner.js` and the whole `/configurator/` sub-app.
+
+Why `staleWhileRevalidate` never caught them: the worker only registers on the
+first controlled load, and by then those subresources have already been
+requested. `clients.claim()` comes too late for that load, and on every load
+after it they are served from the HTTP/memory cache, so no `fetch` event ever
+reaches the worker. They therefore never enter Cache Storage at all — not on
+the second online load, not ever.
+
+Consequence: **a restart without signal gives the salesperson a page that
+looks broken**, even though every byte of their data is safe. Worse than a
+clean error, because it looks like the app is damaged.
+
+This is `PRECACHE` being a hand-maintained list — R5, previously theoretical,
+now demonstrated on the target platform. It predates the planning cache and
+affects the whole offline story.
+
+**Fix before Phase 2.** A native shell around an app that renders unstyled
+offline is worth nothing. Two options:
+
+- **(a) Extend `PRECACHE`** with `/style.css`, the Font Awesome CSS + woff2,
+  and the boot-critical modules. Simple, but the list keeps drifting — this
+  finding is what drift looks like.
+- **(b) Self-discovering precache**: on `install`, fetch `/`, regex the
+  `src`/`href` attributes out of the HTML and `cache.addAll` them. ~10 lines,
+  and it cannot drift for anything referenced from `index.html`. Dynamically
+  `import()`ed managers still need naming, so realistically (b) + a short
+  explicit list.
+
 ### Caveat on what "offline" meant here
 
 The server was killed — connection refused — not airplane mode, so
