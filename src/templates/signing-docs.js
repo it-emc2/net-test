@@ -206,7 +206,7 @@ function signatureBlock(doc, prefill, opts = {}) {
 const INTERACTIVE_CSS = `
 .opt-label { display:flex; align-items:flex-start; gap:8px; padding:6px 0; font-size:12pt; cursor:pointer; }
 .opt-label input { margin-top:4px; }
-#sigCanvas { width:100%; height:170px; border:1px solid #000; background:#fff; touch-action:none; cursor:crosshair; display:block; }
+.sig-canvas { width:100%; height:170px; border:1px solid #000; background:#fff; touch-action:none; cursor:crosshair; display:block; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
 .si-btnrow { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px; }
 .si-btnrow button { font-size:13px; padding:7px 14px; border:1px solid #aaa; background:#fff; cursor:pointer; }
 #submitBtn { background:#0066cc; color:#fff; border-color:#0066cc; font-weight:600; padding:10px 24px; font-size:15px; }
@@ -258,7 +258,7 @@ function interactiveSignatureBlock(opts = {}) {
   return `
     <h2>${esc(heading)}</h2>
     <p class="muted">${esc(hint)}</p>
-    <canvas id="sigCanvas${suffix}"></canvas>
+    <canvas id="sigCanvas${suffix}" class="sig-canvas"></canvas>
     <div class="si-btnrow">
       <button type="button" id="clearSig${suffix}">Löschen</button>
       <button type="button" class="si-linkbtn" id="toggleType${suffix}">Namen tippen statt zeichnen</button>
@@ -817,16 +817,18 @@ export function buildAbtretungHtml(sr, doc, mode = "pdf") {
 
 // ---- AH (Alltagshilfe) — Zusatzblatt + Abtretungserklärung §45b SGB XI ----
 
-// Optional Bevollmächtigte/r block: two free-typed contact fields (no
-// pre-filled value to protect, so unlike fld() they start unlocked) plus,
+// Optional Bevollmächtigte/r block: two free-typed contact fields, locked
+// like every other fld() until the section's edit button is tapped (kept
+// them disabled-by-default too, since an always-enabled input sitting next
+// to the signature pad below is a stray tap/stylus target on tablets) plus,
 // only when a name is given, their own signature (captured via the second
 // interactiveSignatureBlock({ suffix: "2" }) pad).
 function bevollmaechtigterBox(doc, mode) {
   const bevName = doc.editedFields?.bevollmaechtigterName || "";
   const bevPhone = doc.editedFields?.bevollmaechtigterTelefon || "";
   return `<div class="box">
-    ${fld("Nachname, Vorname Bevollmächtigte/r / abweichender Ansprechpartner:", "bevollmaechtigterName", bevName, mode, false)}
-    ${fld("Telefon:", "bevollmaechtigterTelefon", bevPhone, mode, false)}
+    ${fld("Nachname, Vorname Bevollmächtigte/r / abweichender Ansprechpartner:", "bevollmaechtigterName", bevName, mode)}
+    ${fld("Telefon:", "bevollmaechtigterTelefon", bevPhone, mode)}
   </div>`;
 }
 
@@ -844,7 +846,7 @@ function rechnungsversandBox(doc, prefill, mode) {
   return `<div class="box">
     <label class="opt-label"><input type="checkbox" id="rechnungPostCheckbox"><span>Ich möchte immer eine Rechnungskopie per Post erhalten. <sup>1)</sup></span></label>
     <label class="opt-label"><input type="checkbox" id="rechnungEmailCheckbox"><span>Ich möchte immer eine Rechnungskopie per E-Mail erhalten. <sup>1)</sup></span></label>
-    ${fld("E-Mail-Adresse:", "rechnungEmailAdresse", emailAdresse, mode, false)}
+    ${fld("E-Mail-Adresse:", "rechnungEmailAdresse", emailAdresse, mode)}
   </div>`;
 }
 
@@ -852,6 +854,7 @@ export function buildZusatzblattHtml(sr, doc, mode = "pdf") {
   const f = resolveFields(sr, doc);
   const custName = `${f.firstName} ${f.lastName}`.trim();
   const bevName = doc.editedFields?.bevollmaechtigterName || "";
+  const editBtn = mode === "pdf" ? "" : " " + editButton();
 
   // The Bevollmächtigte/r signature only exists (in the PDF) when a name was
   // actually given — it is an optional sub-section of an optional section.
@@ -882,14 +885,18 @@ export function buildZusatzblattHtml(sr, doc, mode = "pdf") {
     <p>II) über Sie direkt, wenn Sie privatversichert bzw. beihilfeberechtigt sind. Dazu erhalten Sie von uns eine Rechnung, die von Ihnen bei Ihrer privaten Kranken- bzw. Pflegekasse eingereicht wird.</p>
     <p>Es gelten unsere Allgemeinen Geschäftsbedingungen sowie unsere Datenschutzerklärung, diese finden Sie im Anhang und jederzeit unter: https://agb.emczwei.de bzw. https://datenschutz.emczwei.de. Mit Ihrer Unterschrift stimmen Sie diesen zu.</p>
 
-    <h2>Vollmacht / Abweichender Ansprechpartner (optionale Angabe)</h2>
-    <p class="muted">Wurde der Auftrag in Vollmacht für den Auftraggeber bestätigt oder erfolgt im Zuge der Auftragsumsetzung die Kommunikation auch mit einem/r vom Auftraggeber Bevollmächtigten, bitten wir um Angabe der Kontaktdaten:</p>
-    ${bevollmaechtigterBox(doc, mode)}
+    <div class="editsec">
+      <h2>Vollmacht / Abweichender Ansprechpartner (optionale Angabe)${editBtn}</h2>
+      <p class="muted">Wurde der Auftrag in Vollmacht für den Auftraggeber bestätigt oder erfolgt im Zuge der Auftragsumsetzung die Kommunikation auch mit einem/r vom Auftraggeber Bevollmächtigten, bitten wir um Angabe der Kontaktdaten:</p>
+      ${bevollmaechtigterBox(doc, mode)}
+    </div>
     <p class="muted">Hiermit bestätige ich, dass ich in Vollmacht für den Auftraggeber agiere und entsprechend befugt bin:</p>
     ${bevSignatureHtml}
 
-    <h2>Rechnungsversand (optionale Angabe)</h2>
-    ${rechnungsversandBox(doc, f, mode)}
+    <div class="editsec">
+      <h2>Rechnungsversand (optionale Angabe)${editBtn}</h2>
+      ${rechnungsversandBox(doc, f, mode)}
+    </div>
     <p class="muted" style="font-size:10.5pt;"><sup>1)</sup> Für unseren Mehraufwand, wenn wir Ihnen die Kopie der Kassenrechnung per Post oder E-Mail zusenden, müssen wir je Rechnungsversand eine Gebühr von 3,00&nbsp;€ inkl. MwSt. berechnen.</p>
 
     <p>Hiermit bestätige ich, <strong>${esc(custName)}</strong>, dass ich das Dokument zur Kenntnis genommen habe:</p>`;
