@@ -204,8 +204,25 @@ export async function trySaveOrQueue({ kind, offerKey, url, body }) {
   return { queued: true, id };
 }
 
-// Sweeps every queued record. Called on reconnect and on page load.
+let sweeping = false;
+
+// Sweeps every queued record. Called on reconnect, on page load, and whenever
+// the app comes back to the foreground.
 export async function retryAll() {
+  // Three triggers can overlap, and a second sweep would re-post records the
+  // first is still working through. clientSaveId makes that harmless
+  // server-side, but it is wasted requests on exactly the flaky connection
+  // that queued the work in the first place.
+  if (sweeping) return;
+  sweeping = true;
+  try {
+    await sweepQueue();
+  } finally {
+    sweeping = false;
+  }
+}
+
+async function sweepQueue() {
   // IndexedDB getAll() yields primary-key order, and the primary key is a
   // random UUID — replaying in that order lets an older save land last and
   // win. Sort by save time so the server sees them as the user made them.
@@ -341,5 +358,18 @@ export function initBadge() {
 // Module boot: registers the reconnect listener and flushes anything left
 // over from a previous session the moment the app is (re)opened.
 window.addEventListener("online", () => retryAll());
+
+// Coming back to the app is a reconnect the browser never announces.
+// `online` only fires when the *interface* changes, so a server that was
+// unreachable for any other reason — a captive portal, a VPN, oc.emc2.de
+// itself being down — never triggers it. And iOS resumes a backgrounded web
+// app rather than reloading it, so the boot sweep above does not re-run
+// either. Observed on the iPad: a draft saved while the server was down sat
+// in the queue after the server came back, through several app switches,
+// until the page was actually reloaded.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") retryAll();
+});
+
 initBadge();
 retryAll();

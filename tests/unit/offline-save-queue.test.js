@@ -203,3 +203,43 @@ describe('durability mirror', () => {
     stop();
   });
 });
+
+describe('foreground flush', () => {
+  test('coming back to the app sweeps the queue', async () => {
+    // `online` only fires when the interface changes, so a server that was
+    // unreachable for any other reason never triggers a sweep — and iOS
+    // resumes a backgrounded web app rather than reloading it, so the boot
+    // sweep does not re-run either.
+    idb.data.set('vis001', draftRecord('vis001', '2026-07-28T10:00:00.000Z', 'Foreground'));
+    globalThis.fetch.mockResolvedValue({ ok: true, status: 201 });
+
+    document.dispatchEvent(new Event('visibilitychange'));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(postedNames()).toEqual(['Foreground']);
+    expect(idb.data.size).toBe(0);
+  });
+
+  test('overlapping sweeps do not re-post the same record', async () => {
+    idb.data.set('dup001', draftRecord('dup001', '2026-07-28T10:00:00.000Z', 'Once'));
+
+    // Hold the first POST open so the second sweep starts while it is in
+    // flight — the situation three triggers firing together produce.
+    let release;
+    globalThis.fetch.mockImplementation(
+      () => new Promise((resolve) => { release = () => resolve({ ok: true, status: 201 }); }),
+    );
+
+    // `sweeping` is set synchronously before the first await, so the second
+    // call hits the guard even though the first has not reached its POST yet.
+    const first = queue.retryAll();
+    const second = queue.retryAll();   // must be a no-op, not a second sweep
+
+    while (!release) await new Promise((r) => setTimeout(r, 0));
+    release();
+    await Promise.all([first, second]);
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(idb.data.size).toBe(0);
+  });
+});

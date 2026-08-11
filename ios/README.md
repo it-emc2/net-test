@@ -128,9 +128,11 @@ time and `updatedAt` the post-restore sync — the whole chain.
 
 It is not a backup: it lives in the app container and goes with the app.
 
-## What it deliberately does not do yet
+## App icon
 
-- **App icon.** `AppIcon` is referenced but no asset catalogue ships yet.
+A plain "OC" in the app's theme blue (`#1e5aa8`), 1024×1024, no alpha —
+`Assets.xcassets/AppIcon.appiconset/icon-1024.png`. Generated rather than
+designed; replace it with real artwork whenever there is some.
 
 ## Testing offline
 
