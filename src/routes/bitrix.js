@@ -156,12 +156,13 @@ function buildQS(paramsObj) {
  */
 // All Bitrix calls (every offer type, every route) go through bxGet/bxPost,
 // so logging failures here covers the whole app in one place.
-function logBitrixFailure(method, paramsObj, err) {
+function logBitrixFailure(method, paramsObj, err, httpMethod) {
   console.error(`[bitrix] ${method} failed:`, err);
   BitrixLog.create({
     method,
     message: err?.message || String(err),
     params: paramsObj,
+    httpMethod,
   }).catch((logErr) => console.error("[bitrix] failed to write BitrixLog:", logErr));
 }
 
@@ -184,7 +185,7 @@ async function bxGet(method, paramsObj = {}) {
 
     return data;
   } catch (err) {
-    logBitrixFailure(method, paramsObj, err);
+    logBitrixFailure(method, paramsObj, err, "GET");
     throw err;
   }
 }
@@ -214,9 +215,23 @@ async function bxPost(method, paramsObj = {}) {
 
     return data;
   } catch (err) {
-    logBitrixFailure(method, paramsObj, err);
+    logBitrixFailure(method, paramsObj, err, "POST");
     throw err;
   }
+}
+
+// Replay a previously logged failed Bitrix call with its original params.
+// Marks the log entry resolved on success; a fresh failure logs a new entry
+// (via bxGet/bxPost above) and this rethrows, leaving the original untouched.
+export async function retryBitrixLog(logId) {
+  const log = await BitrixLog.findById(logId);
+  if (!log) throw new Error("Log-Eintrag nicht gefunden");
+  const call = log.httpMethod === "GET" ? bxGet : bxPost;
+  const result = await call(log.method, log.params || {});
+  log.resolved = true;
+  log.resolvedAt = new Date();
+  await log.save();
+  return result;
 }
 
 async function addTimelineComment({
