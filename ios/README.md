@@ -5,7 +5,7 @@ business logic** and must not grow any: pricing, forms, drafts and the offline
 cache all live in `src/public/` and run identically in a browser. Everything
 here is a platform capability the web layer cannot reach on its own.
 
-Roughly 550 lines of Swift, six files.
+Roughly 650 lines of Swift, seven files.
 
 See `docs/plan-ipad-local-first.md` for why it is built this way, and
 `docs1/13-OFFLINE-AND-SYNC.md` for how the offline layer works.
@@ -108,11 +108,28 @@ page that itself needs the network.
   runs, so treat it as "data arrives sooner", never as the guarantee. The
   foreground flush remains the guarantee.
 
+## Phase 4 — durability backstop
+
+`navigator.storage.persisted()` returns **false** on WebKit, so IndexedDB is
+evictable and a queued-but-unsynced save could be reclaimed under storage
+pressure. `DurabilityMirror.swift` keeps a copy of the queue in the app
+container and hands it back at document start; `native-bridge.js` restores
+anything missing and re-syncs.
+
+Only the save queue is mirrored — its records carry the full payload of every
+unsynced draft and offer, so restoring it restores the work, and the local
+drafts list is rebuilt from the same records. The planning and pricing caches
+are re-fetchable.
+
+**Verified on the device**: draft saved with the server down → queued and
+mirrored (9.6 KB) → `Library/WebKit` deleted to simulate eviction → next
+launch restored it and synced it to MongoDB. Its `savedAt` is the user's save
+time and `updatedAt` the post-restore sync — the whole chain.
+
+It is not a backup: it lives in the app container and goes with the app.
+
 ## What it deliberately does not do yet
 
-- **Durability backstop.** `navigator.storage.persisted()` returns `false` on
-  WebKit, so IndexedDB and Cache Storage remain evictable under storage
-  pressure. Mirroring the queue to the app container is Phase 4.
 - **App icon.** `AppIcon` is referenced but no asset catalogue ships yet.
 
 ## Testing offline

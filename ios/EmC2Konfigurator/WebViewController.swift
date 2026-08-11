@@ -27,6 +27,7 @@ final class WebViewController: UIViewController {
     private(set) var webView: WKWebView!
     private var offlineView: UIView?
     private let reachability = Reachability()
+    private let mirror = DurabilityMirror()
 
     // MARK: - Lifecycle
 
@@ -61,6 +62,12 @@ final class WebViewController: UIViewController {
         config.limitsNavigationsToAppBoundDomains = true   // see note 1 above
         config.websiteDataStore = .default()               // persistent, not ephemeral
         config.allowsInlineMediaPlayback = true
+
+        // Durability backstop: IndexedDB is evictable and WebKit refuses
+        // persistent storage, so the queue is mirrored into the app container
+        // and handed back at document start. See DurabilityMirror.
+        config.userContentController.add(mirror, name: DurabilityMirror.messageName)
+        config.userContentController.addUserScript(mirror.injectionScript())
 
         webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = self

@@ -33,6 +33,15 @@ const postedNames = () =>
 beforeAll(async () => {
   globalThis.fetch = jest.fn(async () => ({ ok: true, status: 201 }));
   window.toast = { success: jest.fn(), warn: jest.fn(), error: jest.fn() };
+  // jsdom has no crypto.randomUUID, and it is a non-writable getter, so patch
+  // the method on the existing object rather than replacing it.
+  if (!globalThis.crypto?.randomUUID) {
+    let n = 0;
+    Object.defineProperty(globalThis.crypto, 'randomUUID', {
+      configurable: true,
+      value: () => `test-uuid-${String(++n).padStart(4, '0')}`,
+    });
+  }
   queue = await import('../../src/public/OfflineSaveQueue.js');
 });
 
@@ -137,4 +146,60 @@ test('a synced draft releases its local copy so the list stops showing it twice'
 
   // On the server now, so the normal drafts search owns it.
   expect(await local.get(record.offerKey)).toBeNull();
+});
+
+describe('durability mirror', () => {
+  test('restores evicted records and reports how many came back', async () => {
+    // IndexedDB is evictable and WebKit refuses persistent storage, so on the
+    // iPad the native shell keeps a copy of the queue outside the web view.
+    // This is that copy being handed back after the browser threw it away.
+    const evicted = [
+      draftRecord('aaa111', '2026-07-28T10:00:00.000Z', 'Meier'),
+      draftRecord('bbb222', '2026-07-28T10:05:00.000Z', 'Schulz'),
+    ];
+
+    expect(idb.data.size).toBe(0);              // as if evicted
+    expect(await queue.restoreRecords(evicted)).toBe(2);
+    expect([...idb.data.keys()].sort()).toEqual(['aaa111', 'bbb222']);
+  });
+
+  test('never clobbers a record that is already there', async () => {
+    // The live queue is at least as fresh as a mirror taken earlier — the
+    // mirror must not resurrect a stale copy of a record still in flight.
+    const live = draftRecord('aaa111', '2026-07-28T11:00:00.000Z', 'Current');
+    idb.data.set('aaa111', live);
+
+    const stale = draftRecord('aaa111', '2026-07-28T10:00:00.000Z', 'Stale');
+    expect(await queue.restoreRecords([stale, draftRecord('ccc333', '2026-07-28T10:30:00.000Z', 'New')])).toBe(1);
+
+    expect(idb.data.get('aaa111').body.name).toBe('Current');
+    expect(idb.data.has('ccc333')).toBe(true);
+  });
+
+  test('an empty or malformed mirror is a no-op, not a crash', async () => {
+    for (const bad of [[], null, undefined, 'nonsense']) {
+      expect(await queue.restoreRecords(bad)).toBe(0);
+    }
+    expect(idb.data.size).toBe(0);
+  });
+
+  test('the mirror is told about every queue change', async () => {
+    const seen = [];
+    const stop = queue.onQueueChanged((records) => seen.push(records.length));
+
+    globalThis.fetch.mockRejectedValue(new TypeError('Failed to fetch'));
+    await queue.trySaveOrQueue({
+      kind: 'draft',
+      offerKey: 'draft:bu:Mirror',
+      url: '/api/drafts',
+      body: { name: 'Mirror', offerType: 'bu', payload: {} },
+    });
+    expect(seen).toEqual([1]);                  // queued -> mirrored
+
+    globalThis.fetch.mockResolvedValue({ ok: true, status: 201 });
+    await queue.retryAll();
+    expect(seen).toEqual([1, 0]);               // synced -> mirror cleared
+
+    stop();
+  });
 });

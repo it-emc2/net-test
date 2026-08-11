@@ -38,6 +38,7 @@ const PRECACHE = [
   "/OfflineSaveQueue.js",
   "/PlanningCache.js",
   "/LocalDocsStore.js",
+  "/native-bridge.js",
   "/session-recovery.js",
   "/pricing-cache.js",
   "/pricing-client.js",

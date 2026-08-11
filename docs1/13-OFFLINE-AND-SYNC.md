@@ -37,6 +37,7 @@ Three rules explain most of the decisions below:
 | `src/public/OfflineSaveQueue.js` | IndexedDB write queue + reconnect replay + conflict handling |
 | `src/public/PlanningCache.js` | Caches the "Heutige Planung" week + per-appointment Bitrix enrichment |
 | `src/public/LocalDocsStore.js` | Drafts saved but not yet synced, so they can be found and reopened |
+| `src/public/native-bridge.js` | Mirrors the save queue to the iPad shell so eviction cannot lose it. **Inert in a browser.** |
 | `src/public/session-recovery.js` | Debounced work-in-progress snapshot |
 | `src/public/pricing-cache.js` | Caches `GET /api/price/inputs` |
 | `src/public/pricing-client.js` | Runs `src/logic/pricing-core.js` in the browser |
@@ -63,9 +64,13 @@ iOS-specific meta lives in `index.html:14-20` (`apple-mobile-web-app-capable`,
 
 > **All IndexedDB and Cache Storage data is evictable.**
 > `navigator.storage.persist()` is a no-op on Safari, which
-> `sw-register.js` documents explicitly. Chrome grants it silently for
-> installed PWAs. This is the main durability risk and the primary motivation
-> for the native iPad shell.
+> `sw-register.js` documents explicitly, and `persisted()` returns **false**
+> on the iPad — measured on the device, not assumed. Chrome grants it silently
+> for installed PWAs.
+>
+> In a browser this remains a real risk. **Inside the iPad shell it is
+> covered**: the save queue is mirrored to the app container and restored if
+> the browser throws it away — see "Durability backstop" below.
 
 ---
 
@@ -230,6 +235,47 @@ Worst case the draft cannot be reopened until it syncs.
 
 **Not covered:** offers. Reopening a pending *offer* is not a workflow anyone
 asked for, and the pending count is already visible in the badge.
+
+## Durability backstop (iPad only)
+
+Everything IndexedDB holds is evictable and WebKit grants no persistent
+storage, so a queued-but-unsynced save could in principle be reclaimed under
+storage pressure — precisely the one thing the queue exists to prevent. Inside
+the native shell the queue is therefore mirrored outside the web view.
+
+```
+queue changes ─► OfflineSaveQueue.onQueueChanged
+                   └─ native-bridge.js ─► webkit.messageHandlers.durability
+                        └─ DurabilityMirror.swift
+                             └─ Application Support/offline-queue-mirror.json
+
+next launch  ─► WKUserScript sets window.__nativeQueueMirror (documentStart)
+                   └─ native-bridge.js: queue empty? restoreRecords()
+                        ├─ rebuild the "nur lokal" drafts from the payloads
+                        └─ retryAll()
+```
+
+Scope, deliberately narrow:
+
+- **Only the save queue.** Its records carry the full payload of every unsynced
+  draft and offer, so restoring it restores the work — and `nt-local-docs` is
+  rebuilt from those same records. The planning and pricing caches are
+  re-fetchable; losing them costs a round trip, not a day's work.
+- **Existing records win.** The live queue is at least as fresh as a mirror
+  taken earlier, so a restore never overwrites what is already there.
+- **Not a backup.** It lives in the app container and goes when the app is
+  deleted. It survives eviction, nothing more.
+- **`native-bridge.js` is a no-op in a browser.** Without `window.webkit`
+  nothing runs, so the office web app is unaffected.
+
+**Verified on the device** (2026-08-11, iPad Pro 11" simulator): a draft saved
+with the server down was queued and mirrored (9.6 KB with its payload);
+`Library/WebKit` was then deleted to simulate eviction; on the next launch the
+record was restored and synced. The resulting `Draft` in MongoDB carries
+`savedAt` from when the user saved and `updatedAt` from the post-restore sync
+— the whole chain, end to end.
+
+---
 
 ### The wizard step across a restart — no change needed
 

@@ -66,6 +66,52 @@ async function getAllRecords() {
   });
 }
 
+// Called after every change to the queue, with the full contents.
+//
+// IndexedDB is evictable and WebKit refuses persistent storage
+// (navigator.storage.persisted() is false on the iPad — measured, not
+// assumed), so on iOS the native shell keeps a copy outside the web view's
+// data store. In a browser nothing subscribes and this costs one function
+// call. See native-bridge.js.
+let onChanged = null;
+
+export function onQueueChanged(fn) {
+  onChanged = fn;
+  return () => { onChanged = null; };
+}
+
+async function notifyChanged() {
+  if (!onChanged) return;
+  try {
+    onChanged(await getAllRecords());
+  } catch (err) {
+    console.warn("[offline-queue] mirror notify failed:", err);
+  }
+}
+
+/// The whole queue, for the durability mirror to copy out.
+export async function getQueueSnapshot() {
+  return getAllRecords();
+}
+
+/// Used by the durability mirror to put evicted records back. Existing ids win:
+/// anything already here is at least as fresh as a copy taken earlier.
+export async function restoreRecords(records) {
+  if (!Array.isArray(records) || !records.length) return 0;
+  const existing = new Set((await getAllRecords()).map((r) => r.id));
+  let restored = 0;
+  for (const record of records) {
+    if (!record?.id || existing.has(record.id)) continue;
+    await putRecord(record);
+    restored++;
+  }
+  if (restored) {
+    await notifyChanged();
+    renderBadge();
+  }
+  return restored;
+}
+
 function notifySynced(count) {
   window.toast?.success?.(
     "Synchronisiert",
@@ -153,6 +199,7 @@ export async function trySaveOrQueue({ kind, offerKey, url, body }) {
   if (res) return { queued: false, res };
 
   await addRecord(record);
+  await notifyChanged();
   renderBadge();
   return { queued: true, id };
 }
@@ -223,6 +270,7 @@ export async function retryAll() {
   }
 
   if (syncedCount > 0) notifySynced(syncedCount);
+  await notifyChanged();
   renderBadge();
 }
 
