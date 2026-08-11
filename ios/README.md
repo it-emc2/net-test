@@ -13,7 +13,7 @@ See `docs/plan-ipad-local-first.md` for why it is built this way, and
 ## Build & run
 
 ```bash
-open ios/EmC2Konfigurator.xcodeproj
+open ios/EmC2Konfigurator.xcodeproj    # from the repo root
 ```
 
 Pick an iPad simulator and hit run. Or from the command line:
@@ -26,40 +26,17 @@ xcodebuild -project ios/EmC2Konfigurator.xcodeproj -scheme EmC2Konfigurator \
 
 There are no dependencies, no package manager, no CocoaPods.
 
-## Installing on a real iPhone or iPad (free Apple ID)
+## Installing on a real iPhone or iPad
 
-No paid Apple Developer account needed. The catch is that the signature
-**expires after 7 days** — after that the app refuses to launch until you
-repeat step 6. Your data survives (re-running is an upgrade install, so the
-container, the offline queue and the durability mirror all stay put); it is
-availability that breaks, not the work.
+See **`docs/deploy-ipad.md`** for the full walkthrough: free-Apple-ID signing,
+the 7-day expiry, the first-run checks, the offline test procedure and a
+troubleshooting table.
 
-1. **Xcode → Settings → Accounts → +** and sign in with any Apple ID. It
-   appears as a "Personal Team". Free accounts allow a handful of apps at a
-   time; the 7-day expiry is the limit you will actually hit.
-2. `open ios/EmC2Konfigurator.xcodeproj`
-3. Select the **EmC2Konfigurator** target → **Signing & Capabilities** →
-   tick *Automatically manage signing* → **Team** = your Personal Team.
-4. If Xcode complains the bundle identifier is unavailable, change
-   **Bundle Identifier** to something unique, e.g. `de.emc2.konfigurator.<yourname>`.
-   Nothing else depends on it.
-5. Plug the device in and trust the Mac. Pick it from the run-destination
-   menu at the top of the window.
-6. **⌘R**. First run only: the device will refuse to launch it until you go to
-   *Settings → General → VPN & Device Management*, tap your Apple ID, and
-   trust it. Then launch from the home screen.
-
-After the first cable install, Xcode can install over WiFi: *Window → Devices
-and Simulators →* select the device *→ Connect via network*.
-
-### If it does not work
-
-| Symptom | Cause |
-|---|---|
-| Blank white screen | The host in `EMC2BaseURL` is missing from `WKAppBoundDomains`. Both are in `Info.plist`. |
-| "Untrusted Developer" | Step 6 — trust the certificate in Settings. |
-| App will not open after a week | The 7-day signature expired. Repeat step 6. |
-| Stuck on the login page offline | Expected on a first launch: the service worker has to install and cache the shell once with a connection before it can serve it offline. |
+**The short version of the question everyone asks first:** changing the web app
+needs no rebuild. The shell loads the site at runtime, so a new field or a
+pricing change is just a deploy. Only changes to the shell itself — the server
+URL, the allowed hosts, downloads, reachability, the Keychain session, the
+durability mirror, the icon — need Xcode.
 
 ## Which server it talks to
 
