@@ -4233,6 +4233,23 @@ function buildPayload() {
   }
 
   /* ===========================
+     DUSCHABTRENNUNG: Trockenbau-Ausgleich statt Verbindungsprofil
+     =========================== */
+  try {
+    const widths = Array.from(
+      document.querySelectorAll("#dw-trockenbau .tb-items .tb-width"),
+    )
+      .map((el) => Number(el.value))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    if (widths.length) {
+      payload.duschwanne = payload.duschwanne || {};
+      payload.duschwanne.trockenbauAusgleich = widths.map((widthMm) => ({ widthMm }));
+    }
+  } catch (e) {
+    console.warn("[buildPayload] Trockenbau-Ausgleich capture failed:", e);
+  }
+
+  /* ===========================
      WV panel config + (NEW) additive extra colors
      =========================== */
   try {
@@ -7957,6 +7974,69 @@ window.restoreDWExtraTasksFromPayload = initExtraTasksRepeater({
   lsKey: "dwExtraTasks:v1",
   inputName: "duschwanne[extraTasks][]",
 });
+
+// ===== DUSCHABTRENNUNG: Trockenbau-Ausgleich statt Verbindungsprofil (repeater) =====
+// Each row = pauschal 50€ Material + 2 Std Arbeitszeit. Adding/removing a row bumps
+// the visible #laborHours ("Dauer vor Ort") field by ±2:00 — same mechanism as the
+// existing +5m/+15m quick buttons — so the hours flow through the normal Arbeitszeit
+// pipeline (Kosten tab, PDF) without any pricing special-casing.
+(function initTrockenbauAusgleich() {
+  const block = document.getElementById("dw-trockenbau");
+  if (!block) return;
+
+  const wrap = block.querySelector(".tb-items");
+  const addBtn = block.querySelector(".tb-add");
+  const TB_HOURS_PER_ROW = 2;
+
+  function bumpLaborHours(deltaHours) {
+    const input = document.getElementById("laborHours");
+    if (!input) return;
+    input.value = formatDurationHHMM(
+      parseDurationMinutes(input.value) + deltaHours * 60,
+    );
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function makeRow(widthMm = "") {
+    const row = document.createElement("div");
+    row.className = "tb-item";
+    row.innerHTML = `
+      <span>Breite</span>
+      <input type="number" class="tb-width" name="duschwanne[trockenbauAusgleich][]"
+        min="0" step="1" inputmode="numeric" placeholder="z. B. 130"
+        value="${escapeHtml(String(widthMm))}" />
+      <span>mm</span>
+      <span class="tb-cost">+50,00&nbsp;€ · +2&nbsp;Std</span>
+      <button type="button" class="tb-remove" aria-label="Diese Position entfernen">🗑</button>
+    `;
+    row.querySelector(".tb-remove").addEventListener("click", () => {
+      row.remove();
+      bumpLaborHours(-TB_HOURS_PER_ROW);
+      window.updatePricing?.();
+    });
+    return row;
+  }
+
+  addBtn?.addEventListener("click", () => {
+    wrap.appendChild(makeRow());
+    bumpLaborHours(TB_HOURS_PER_ROW);
+    window.updatePricing?.();
+  });
+
+  // Payload-based restore: rebuild rows silently — no laborHours side effect,
+  // the saved laborHours value already includes these hours.
+  window.restoreDWTrockenbauAusgleichFromPayload = function (dw) {
+    const liveWrap = document.querySelector("#dw-trockenbau .tb-items") || wrap;
+    if (!liveWrap) return;
+    liveWrap.innerHTML = "";
+    const rows = Array.isArray(dw?.trockenbauAusgleich) ? dw.trockenbauAusgleich : [];
+    rows.forEach((r) => {
+      const widthMm = r && typeof r === "object" ? r.widthMm : r;
+      liveWrap.appendChild(makeRow(widthMm ?? ""));
+    });
+  };
+})();
 
 window.restoreBwtArbeitenExtraTasksFromPayload = initExtraTasksRepeater({
   fieldsetId: "bwt-extra-tasks",
@@ -13582,6 +13662,10 @@ function restoreWorkTasks(dw) {
   const wvInput = document.querySelector('input[name="duschwanne[wandverkleidungHoehe]"]');
   if (wvInput && dw.wandverkleidungHoehe != null) {
     wvInput.value = String(dw.wandverkleidungHoehe);
+  }
+
+  if (typeof window.restoreDWTrockenbauAusgleichFromPayload === "function") {
+    window.restoreDWTrockenbauAusgleichFromPayload(dw);
   }
 }
 

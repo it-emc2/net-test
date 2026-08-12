@@ -503,11 +503,30 @@ function grossToNet(gross, taxRate) {
 
     // <<< end robust parse
 
-    return Array.from(picked).map((txt) => ({
+    const notes = Array.from(picked).map((txt) => ({
       key: "worknote",
       label: `- ${txt}`,
       amount: 0,
     }));
+
+    // Aluprofil-für-Trockenbau rows can repeat with the same width, so they can't
+    // go through the `picked` Set (it dedupes identical text) — appended here
+    // as their own bullets instead, one per gap.
+    const tbRows = Array.isArray(payload?.duschwanne?.trockenbauAusgleich)
+      ? payload.duschwanne.trockenbauAusgleich
+      : [];
+    for (const r of tbRows) {
+      const mm = String(
+        (r && typeof r === "object" ? r.widthMm : r) ?? "",
+      ).trim();
+      notes.push({
+        key: "worknote",
+        label: `- Aluprofil für Trockenbau${mm ? ` (${mm} mm)` : ""} statt Verbindungsprofil`,
+        amount: 0,
+      });
+    }
+
+    return notes;
   }
 
   async function computeMaterials(payload) {
@@ -1307,6 +1326,35 @@ console.log("[REHA DEBUG] selections =", selections);
       }
     } catch (e) {
       console.warn("[pricing] Duschwanne quickAdd (Freier Posten) failed:", e?.message || e);
+    }
+    setCat(null);
+
+    // ------- Duschabtrennung: Aluprofil für Trockenbau statt Verbindungsprofil
+    // (Arbeiten-Tab repeater). Flat price per gap, included in the normal
+    // Aufschlag base like any other Duschabtrennung material line — not in
+    // NO_MARKUP_IDS.
+    setCat("Duschabtrennung");
+    try {
+      const TROCKENBAU_AUSGLEICH_PRICE = 50;
+      const tbRows = payload?.duschwanne?.trockenbauAusgleich || [];
+      if (Array.isArray(tbRows) && tbRows.length) {
+        tbRows.forEach((r, i) => {
+          const mm = String(
+            (r && typeof r === "object" ? r.widthMm : r) ?? "",
+          ).trim();
+          add(
+            `TB_AUSGLEICH_${i}`,
+            1,
+            `- Aluprofil für Trockenbau${mm ? ` (${mm} mm)` : ""}`,
+            TROCKENBAU_AUSGLEICH_PRICE,
+          );
+        });
+      }
+    } catch (e) {
+      console.warn(
+        "[pricing] Aluprofil für Trockenbau (Duschabtrennung) failed:",
+        e?.message || e,
+      );
     }
     setCat(null);
 
