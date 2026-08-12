@@ -7,7 +7,7 @@
 // @typedef {Object} WizardModel  { params, leaves, sondermass, images }
 // @typedef {Object} WizardState  { selections:{paramId:value}, sizes:{compKey:{width,height}} }
 
-const FINISH_IDS = ["Glasart", "Beschichtung_mit_ohne", "Profilfarbe", "Einzugsautomatik"];
+const FINISH_IDS = ["Glasart", "Beschichtung_mit_ohne", "Profilfarbe", "Einzugsautomatik", "Radius"];
 const SIZE_IDS = ["Breite_mm", "Hoehe_mm"];
 
 // Finish/size/Sondermaß params sometimes leak into a leaf's configContext; they are NOT structure.
@@ -101,7 +101,7 @@ export function setComponentSondermass(state, compKey, sondermass) {
 }
 
 // Finish dimensions matched between a selection and a decoded article.
-const FINISH_DIMS = ["glasart", "beschichtung", "profilfarbe", "einzugsautomatik"];
+const FINISH_DIMS = ["glasart", "beschichtung", "profilfarbe", "einzugsautomatik", "radius"];
 
 /** Selected finish categories for the resolved leaf (only dims whose value carries a cat). */
 function selectedFinish(leaf, state) {
@@ -113,6 +113,7 @@ function selectedFinish(leaf, state) {
     else if (/Beschichtung/i.test(fp.id)) want.beschichtung = v.cat;
     else if (fp.id === "Profilfarbe") want.profilfarbe = v.cat;
     else if (/Einzugsautomatik/i.test(fp.id)) want.einzugsautomatik = v.cat;
+    else if (fp.id === "Radius") want.radius = v.cat;
   }
   return want;
 }

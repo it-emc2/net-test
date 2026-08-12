@@ -4903,11 +4903,19 @@ button.dm-btn-danger:focus-visible {
     font-size: 0.75rem; font-weight: 600; color: var(--accent-strong);
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-stock {
+    display: inline-flex; align-items: center; gap: 8px;
     font-size: 0.7rem; font-weight: 600;
-    padding: 1px 8px; border-radius: 999px; line-height: 1.5;
+    border-radius: 999px; padding: 6px 14px 6px 6px; line-height: 1.5;
   }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-in { color: #0a7d33; background: #e3f5e9; }
-  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-out { color: var(--muted); background: var(--border); }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-in { color: #fff; background: #0a7d33; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-out { color: #fff; background: #c81e3a; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-qty {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; flex: 0 0 auto; border-radius: 50%;
+    font-variant-numeric: tabular-nums;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-in .dac-stock-qty { background: #05541f; }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-stock-out .dac-stock-qty { background: #7a0e21; }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-line-price {
     margin-top: auto; padding-top: 6px; align-self: stretch;
     font-size: 0.95rem; font-weight: 700; color: var(--accent-strong);
