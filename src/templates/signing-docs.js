@@ -469,6 +469,8 @@ function acceptHeading() {
 
 export function buildAngebotHtml(data, opts = {}) {
   const mode = opts.mode || "display";
+  const doc = opts.doc || {};
+  const pdfLike = mode === "pdf" || doc.status === "signed";
   const d = data || {};
 
   const totals = Array.isArray(d.Totals) ? d.Totals : [];
@@ -501,7 +503,7 @@ export function buildAngebotHtml(data, opts = {}) {
   // payment terms and the customer's signature area.
   let payHtml = "";
   let sigHtml = "";
-  if (mode === "pdf") {
+  if (pdfLike) {
     const payLines = Array.isArray(d.SelfPayLines) ? d.SelfPayLines : [];
     payHtml = payLines.length
       ? `<h2>Zahlungsbedingungen</h2><div class="pay">${payLines
@@ -511,8 +513,8 @@ export function buildAngebotHtml(data, opts = {}) {
           )
           .join("")}</div>`
       : "";
-    const p = effectivePrefill(opts.sr || {}, opts.doc || {});
-    sigHtml = signatureBlock(opts.doc || {}, p);
+    const p = effectivePrefill(opts.sr || {}, doc);
+    sigHtml = signatureBlock(doc, p);
   } else {
     payHtml = interactivePaymentBlock(d);
     sigHtml = interactiveSignatureBlock() + submitBar("Unterschreiben & weiter");
@@ -619,6 +621,7 @@ export function buildAngebotHtml(data, opts = {}) {
 // ---- AH (Alltagshilfe) Angebot — mirrors the AH offer PDF; no payment terms ----
 export function buildAhAngebotHtml(data, opts = {}) {
   const mode = opts.mode || "display";
+  const doc = opts.doc || {};
   const d = data || {};
   const services = Array.isArray(d.AhServices) ? d.AhServices : [];
 
@@ -663,9 +666,9 @@ export function buildAhAngebotHtml(data, opts = {}) {
 
   // Signature: interactive on screen; baked in the final PDF. No payment terms.
   let sig = "";
-  if (mode === "pdf") {
-    const p = effectivePrefill(opts.sr || {}, opts.doc || {});
-    sig = signatureBlock(opts.doc || {}, p);
+  if (mode === "pdf" || doc.status === "signed") {
+    const p = effectivePrefill(opts.sr || {}, doc);
+    sig = signatureBlock(doc, p);
   } else {
     sig = interactiveSignatureBlock() + submitBar("Unterschreiben & absenden");
   }
@@ -734,12 +737,13 @@ function displayFragment(inner) {
 
 export function buildVollmachtHtml(sr, doc, mode = "pdf") {
   const f = resolveFields(sr, doc);
+  const pdfLike = mode === "pdf" || doc.status === "signed";
   const entlastung = !!doc.extraFields?.entlastungsguthaben;
   const budgetWuM = doc.extraFields?.budgetWuM !== false; // default on
   const editBtn = mode === "pdf" ? "" : " " + editButton();
 
   const guthaben =
-    mode === "pdf"
+    pdfLike
       ? `<div class="box">
            <div class="opt">${entlastung ? "☒" : "☐"} aktuelles Entlastungsguthaben</div>
            <div class="opt">${budgetWuM ? "☒" : "☐"} Budget für Wohnumfeldverbessernde Maßnahmen</div>
@@ -777,6 +781,7 @@ export function buildVollmachtHtml(sr, doc, mode = "pdf") {
     aufgehoben wird und kann jederzeit schriftlich widerrufen werden.</p>`;
 
   if (mode === "pdf") return wrap("Vollmacht für die Krankenkasse", body + signatureBlock(doc, f));
+  if (pdfLike) return displayFragment(body + signatureBlock(doc, f));
   return displayFragment(body + interactiveSignatureBlock() + submitBar("Unterschreiben & weiter"));
 }
 
@@ -814,6 +819,7 @@ export function buildAbtretungHtml(sr, doc, mode = "pdf") {
     §40 SGB XI direkt mit der Pflegekasse abrechnen darf.</p>`;
 
   if (mode === "pdf") return wrap("Abtretungserklärung", body + signatureBlock(doc, f));
+  if (doc.status === "signed") return displayFragment(body + signatureBlock(doc, f));
   return displayFragment(body + interactiveSignatureBlock() + submitBar("Unterschreiben & absenden"));
 }
 
@@ -854,6 +860,7 @@ function rechnungsversandBox(doc, prefill, mode) {
 
 export function buildZusatzblattHtml(sr, doc, mode = "pdf") {
   const f = resolveFields(sr, doc);
+  const pdfLike = mode === "pdf" || doc.status === "signed";
   const custName = `${f.firstName} ${f.lastName}`.trim();
   const bevName = doc.editedFields?.bevollmaechtigterName || "";
   const editBtn = mode === "pdf" ? "" : " " + editButton();
@@ -861,7 +868,7 @@ export function buildZusatzblattHtml(sr, doc, mode = "pdf") {
   // The Bevollmächtigte/r signature only exists (in the PDF) when a name was
   // actually given — it is an optional sub-section of an optional section.
   const bevSignatureHtml =
-    mode === "pdf"
+    pdfLike
       ? bevName
         ? signatureBlock(doc, f, {
             heading: "Unterschrift Bevollmächtigte/r",
@@ -897,7 +904,7 @@ export function buildZusatzblattHtml(sr, doc, mode = "pdf") {
 
     <div class="editsec">
       <h2>Rechnungsversand (optionale Angabe)${editBtn}</h2>
-      ${rechnungsversandBox(doc, f, mode)}
+      ${rechnungsversandBox(doc, f, pdfLike ? "pdf" : mode)}
     </div>
     <p class="muted" style="font-size:10.5pt;"><sup>1)</sup> Für unseren Mehraufwand, wenn wir Ihnen die Kopie der Kassenrechnung per Post oder E-Mail zusenden, müssen wir je Rechnungsversand eine Gebühr von 3,00&nbsp;€ inkl. MwSt. berechnen.</p>
 
@@ -908,6 +915,9 @@ export function buildZusatzblattHtml(sr, doc, mode = "pdf") {
       "Wichtige Hinweise zum Angebot / zu Terminen",
       body + signatureBlock(doc, f, { heading: "Datum, Unterschrift" }),
     );
+  }
+  if (doc.status === "signed") {
+    return displayFragment(body + signatureBlock(doc, f, { heading: "Datum, Unterschrift" }));
   }
   return displayFragment(
     body +
@@ -957,5 +967,6 @@ export function buildAbtretungAhHtml(sr, doc, mode = "pdf") {
 
   if (mode === "pdf")
     return wrap("Abtretungserklärung § 45b SGB XI", body + signatureBlock(doc, f));
+  if (doc.status === "signed") return displayFragment(body + signatureBlock(doc, f));
   return displayFragment(body + interactiveSignatureBlock() + submitBar("Unterschreiben & absenden"));
 }
