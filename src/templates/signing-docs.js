@@ -261,6 +261,8 @@ function interactiveSignatureBlock(opts = {}) {
     <canvas id="sigCanvas${suffix}" class="sig-canvas"></canvas>
     <div class="si-btnrow">
       <button type="button" id="clearSig${suffix}">Löschen</button>
+      <button type="button" id="copySig${suffix}">Kopieren</button>
+      <button type="button" id="pasteSig${suffix}">Einfügen</button>
       <button type="button" class="si-linkbtn" id="toggleType${suffix}">Namen tippen statt zeichnen</button>
       <button type="button" class="si-linkbtn" id="toggleUpload${suffix}">Bild hochladen</button>
     </div>
