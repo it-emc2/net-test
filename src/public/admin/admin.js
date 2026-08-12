@@ -317,8 +317,8 @@ function renderBitrixLogs() {
     <div id="bxlog-err" class="sign-err hidden"></div>
     <div class="table-wrap">
       <table class="sign-table">
-        <thead><tr><th>Zeit</th><th>Bitrix-Methode</th><th>Fehler</th><th>Parameter</th></tr></thead>
-        <tbody id="bxlog-rows"><tr><td colspan="4"><div class="empty-state"><i class="fas fa-circle-notch fa-spin"></i> Lade…</div></td></tr></tbody>
+        <thead><tr><th>Zeit</th><th>Bitrix-Methode</th><th>Fehler</th><th>Parameter</th><th>Status</th><th></th></tr></thead>
+        <tbody id="bxlog-rows"><tr><td colspan="6"><div class="empty-state"><i class="fas fa-circle-notch fa-spin"></i> Lade…</div></td></tr></tbody>
       </table>
     </div>
   </div>`;
@@ -335,7 +335,7 @@ async function loadBitrixLogs() {
     const rows = $('bxlog-rows');
     if (!rows) return;
     if (!(data.items || []).length) {
-      rows.innerHTML = '<tr><td colspan="4"><div class="empty-state">Keine Fehler in den letzten 30 Tagen.</div></td></tr>';
+      rows.innerHTML = '<tr><td colspan="6"><div class="empty-state">Keine Fehler in den letzten 30 Tagen.</div></td></tr>';
       return;
     }
     rows.innerHTML = data.items.map(it => `<tr>
@@ -343,7 +343,25 @@ async function loadBitrixLogs() {
       <td>${esc(it.method)}</td>
       <td>${esc(it.message)}</td>
       <td><pre class="bxlog-params">${esc(JSON.stringify(it.params || {}, null, 2))}</pre></td>
+      <td>${it.resolved ? '<span class="badge b-completed">Erledigt</span>' : '<span class="badge b-sent">Offen</span>'}</td>
+      <td>${it.resolved ? '' : `<button class="btn-ghost" data-retry="${it._id}"><i class="fas fa-rotate-right"></i> Erneut senden</button>`}</td>
     </tr>`).join('');
+
+    rows.querySelectorAll('button[data-retry]').forEach(b => {
+      b.addEventListener('click', async () => {
+        const id = b.getAttribute('data-retry');
+        b.disabled = true;
+        b.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+        try {
+          await api('POST', `/admin/api/bitrix-logs/${id}/retry`);
+          loadBitrixLogs();
+        } catch (e) {
+          b.disabled = false;
+          b.innerHTML = '<i class="fas fa-rotate-right"></i> Erneut senden';
+          window.alert('Erneut senden fehlgeschlagen: ' + (e.message || e));
+        }
+      });
+    });
   } catch (e) {
     if (err) { err.textContent = e.message || 'Fehler beim Laden.'; show(err); }
   }

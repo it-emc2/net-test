@@ -15,9 +15,12 @@
   var app = el("app");
   var container = el("docContainer");
 
-  var state = { docs: [], index: 0 };
+  var state = { docs: [], index: 0, maxIndex: 0 };
   var primarySig = null; // signature pad controller for #sigCanvas
   var secondarySig = null; // signature pad controller for #sigCanvas2 (Bevollmächtigte/r), if present
+  // In-memory only (module scope, reset on page load) so "Kopieren" on this
+  // page/customer session can never leak into another customer's session.
+  var copiedSignature = null;
 
   function showFatal(msg) {
     loading.classList.add("hidden");
@@ -46,14 +49,31 @@
         state.index = 0;
         while (state.index < state.docs.length && state.docs[state.index].status === "signed") state.index++;
         if (state.index >= state.docs.length) return showDone();
+        state.maxIndex = state.index;
         renderStep();
       })
       .catch(function (e) { showFatal(e.message || "Der Link ist ungültig oder abgelaufen."); });
   }
 
+  function updateNav() {
+    var nav = el("docNav");
+    if (!nav) return;
+    if (state.docs.length <= 1) { nav.classList.add("hidden"); return; }
+    nav.classList.remove("hidden");
+    el("prevDoc").disabled = state.index <= 0;
+    el("nextDoc").disabled = state.index >= state.maxIndex;
+  }
+
+  function goToDoc(i) {
+    if (i < 0 || i > state.maxIndex || i >= state.docs.length || i === state.index) return;
+    state.index = i;
+    renderStep();
+  }
+
   function renderStep() {
     var doc = state.docs[state.index];
     el("progress").textContent = "Dokument " + (state.index + 1) + " von " + state.docs.length;
+    updateNav();
     container.innerHTML = "<p>Dokument wird geladen …</p>";
     fetch("/api/signing/" + token + "/documents/" + doc.key + "/html")
       .then(function (r) { return r.text(); })
@@ -112,6 +132,16 @@
       refit: function () { if (!dirty) resize(); },
       isDirty: function () { return dirty; },
       toPng: function () { return canvas.toDataURL("image/png"); },
+      setFromDataUrl: function (dataUrl) {
+        var rect = canvas.getBoundingClientRect();
+        var img = new Image();
+        img.onload = function () {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, rect.width, rect.height);
+          dirty = true;
+        };
+        img.src = dataUrl;
+      },
     };
   }
 
@@ -227,22 +257,55 @@
       });
     });
 
-    return {
-      isFilled: function () {
-        var tw = el("typeWrap" + suffix);
-        var uw = el("uploadWrap" + suffix);
-        if (uw && !uw.classList.contains("hidden")) return !!uploaded;
-        if (tw && !tw.classList.contains("hidden")) return !!(el("typeName" + suffix).value || "").trim();
-        return pad.isDirty();
-      },
-      toPng: function () {
-        var tw = el("typeWrap" + suffix);
-        var uw = el("uploadWrap" + suffix);
-        if (uw && !uw.classList.contains("hidden")) return uploaded;
-        if (tw && !tw.classList.contains("hidden")) return typedNameToPng((el("typeName" + suffix).value || "").trim());
-        return pad.toPng();
-      },
-    };
+    function isFilled() {
+      var tw = el("typeWrap" + suffix);
+      var uw = el("uploadWrap" + suffix);
+      if (uw && !uw.classList.contains("hidden")) return !!uploaded;
+      if (tw && !tw.classList.contains("hidden")) return !!(el("typeName" + suffix).value || "").trim();
+      return pad.isDirty();
+    }
+    function toPng() {
+      var tw = el("typeWrap" + suffix);
+      var uw = el("uploadWrap" + suffix);
+      if (uw && !uw.classList.contains("hidden")) return uploaded;
+      if (tw && !tw.classList.contains("hidden")) return typedNameToPng((el("typeName" + suffix).value || "").trim());
+      return pad.toPng();
+    }
+
+    function flash(btn, text) {
+      var orig = btn.textContent;
+      btn.textContent = text;
+      setTimeout(function () { btn.textContent = orig; }, 1200);
+    }
+
+    var copyBtn = el("copySig" + suffix);
+    if (copyBtn) copyBtn.addEventListener("click", function () {
+      var box = el("docError");
+      if (box) box.classList.add("hidden");
+      if (!isFilled()) return showDocError("Bitte zuerst unterschreiben, bevor Sie kopieren.");
+      copiedSignature = toPng();
+      flash(copyBtn, "Kopiert!");
+    });
+
+    var pasteBtn = el("pasteSig" + suffix);
+    if (pasteBtn) pasteBtn.addEventListener("click", function () {
+      var box = el("docError");
+      if (box) box.classList.add("hidden");
+      if (!copiedSignature) return showDocError("Es wurde noch keine Unterschrift kopiert.");
+      // Paste always lands in the draw pad, regardless of source mode.
+      var tw = el("typeWrap" + suffix);
+      var uw = el("uploadWrap" + suffix);
+      if (tw) tw.classList.add("hidden");
+      if (uw) uw.classList.add("hidden");
+      var tb = el("toggleType" + suffix);
+      if (tb) tb.textContent = "Namen tippen statt zeichnen";
+      var ub = el("toggleUpload" + suffix);
+      if (ub) ub.textContent = "Bild hochladen";
+      pad.setFromDataUrl(copiedSignature);
+      flash(pasteBtn, "Eingefügt!");
+    });
+
+    return { isFilled: isFilled, toPng: toPng };
   }
 
   function wireControls() {
@@ -358,6 +421,7 @@
         state.index++;
         while (state.index < state.docs.length && state.docs[state.index].status === "signed") state.index++;
         if (state.index >= state.docs.length) return showDone();
+        state.maxIndex = Math.max(state.maxIndex, state.index);
         renderStep();
       })
       .catch(function (e) {
@@ -368,10 +432,14 @@
 
   function showDone() {
     container.innerHTML = "";
+    el("docNav").classList.add("hidden");
     el("progress").textContent = "";
     el("doneCard").classList.remove("hidden");
     window.scrollTo(0, 0);
   }
+
+  el("prevDoc").addEventListener("click", function () { goToDoc(state.index - 1); });
+  el("nextDoc").addEventListener("click", function () { goToDoc(state.index + 1); });
 
   start();
 })();

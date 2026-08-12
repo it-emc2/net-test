@@ -428,7 +428,7 @@ router.get("/:token/documents/:key/html", async (req, res) => {
     const doc = (sr.documents || []).find((x) => x.key === key) || { key };
     let html;
     if (key === "angebot") {
-      const { data } = await getOfferRenderData(sr.payloadSnapshot || {});
+      const { data } = await getOfferRenderData(payloadWithPaymentChoice(sr, doc));
       html = buildAngebotForOffer(data, { mode: "display", sr, doc });
     } else if (key === "vollmacht") {
       html = buildVollmachtHtml(sr, doc, "display");

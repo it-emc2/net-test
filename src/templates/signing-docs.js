@@ -206,7 +206,7 @@ function signatureBlock(doc, prefill, opts = {}) {
 const INTERACTIVE_CSS = `
 .opt-label { display:flex; align-items:flex-start; gap:8px; padding:6px 0; font-size:12pt; cursor:pointer; }
 .opt-label input { margin-top:4px; }
-#sigCanvas { width:100%; height:170px; border:1px solid #000; background:#fff; touch-action:none; cursor:crosshair; display:block; }
+.sig-canvas { width:100%; height:170px; border:1px solid #000; background:#fff; touch-action:none; cursor:crosshair; display:block; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
 .si-btnrow { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px; }
 .si-btnrow button { font-size:13px; padding:7px 14px; border:1px solid #aaa; background:#fff; cursor:pointer; }
 #submitBtn { background:#0066cc; color:#fff; border-color:#0066cc; font-weight:600; padding:10px 24px; font-size:15px; }
@@ -258,9 +258,11 @@ function interactiveSignatureBlock(opts = {}) {
   return `
     <h2>${esc(heading)}</h2>
     <p class="muted">${esc(hint)}</p>
-    <canvas id="sigCanvas${suffix}"></canvas>
+    <canvas id="sigCanvas${suffix}" class="sig-canvas"></canvas>
     <div class="si-btnrow">
       <button type="button" id="clearSig${suffix}">Löschen</button>
+      <button type="button" id="copySig${suffix}">Kopieren</button>
+      <button type="button" id="pasteSig${suffix}">Einfügen</button>
       <button type="button" class="si-linkbtn" id="toggleType${suffix}">Namen tippen statt zeichnen</button>
       <button type="button" class="si-linkbtn" id="toggleUpload${suffix}">Bild hochladen</button>
     </div>
@@ -467,6 +469,8 @@ function acceptHeading() {
 
 export function buildAngebotHtml(data, opts = {}) {
   const mode = opts.mode || "display";
+  const doc = opts.doc || {};
+  const pdfLike = mode === "pdf" || doc.status === "signed";
   const d = data || {};
 
   const totals = Array.isArray(d.Totals) ? d.Totals : [];
@@ -499,7 +503,7 @@ export function buildAngebotHtml(data, opts = {}) {
   // payment terms and the customer's signature area.
   let payHtml = "";
   let sigHtml = "";
-  if (mode === "pdf") {
+  if (pdfLike) {
     const payLines = Array.isArray(d.SelfPayLines) ? d.SelfPayLines : [];
     payHtml = payLines.length
       ? `<h2>Zahlungsbedingungen</h2><div class="pay">${payLines
@@ -509,8 +513,8 @@ export function buildAngebotHtml(data, opts = {}) {
           )
           .join("")}</div>`
       : "";
-    const p = effectivePrefill(opts.sr || {}, opts.doc || {});
-    sigHtml = signatureBlock(opts.doc || {}, p);
+    const p = effectivePrefill(opts.sr || {}, doc);
+    sigHtml = signatureBlock(doc, p);
   } else {
     payHtml = interactivePaymentBlock(d);
     sigHtml = interactiveSignatureBlock() + submitBar("Unterschreiben & weiter");
@@ -617,6 +621,7 @@ export function buildAngebotHtml(data, opts = {}) {
 // ---- AH (Alltagshilfe) Angebot — mirrors the AH offer PDF; no payment terms ----
 export function buildAhAngebotHtml(data, opts = {}) {
   const mode = opts.mode || "display";
+  const doc = opts.doc || {};
   const d = data || {};
   const services = Array.isArray(d.AhServices) ? d.AhServices : [];
 
@@ -661,9 +666,9 @@ export function buildAhAngebotHtml(data, opts = {}) {
 
   // Signature: interactive on screen; baked in the final PDF. No payment terms.
   let sig = "";
-  if (mode === "pdf") {
-    const p = effectivePrefill(opts.sr || {}, opts.doc || {});
-    sig = signatureBlock(opts.doc || {}, p);
+  if (mode === "pdf" || doc.status === "signed") {
+    const p = effectivePrefill(opts.sr || {}, doc);
+    sig = signatureBlock(doc, p);
   } else {
     sig = interactiveSignatureBlock() + submitBar("Unterschreiben & absenden");
   }
@@ -732,12 +737,13 @@ function displayFragment(inner) {
 
 export function buildVollmachtHtml(sr, doc, mode = "pdf") {
   const f = resolveFields(sr, doc);
+  const pdfLike = mode === "pdf" || doc.status === "signed";
   const entlastung = !!doc.extraFields?.entlastungsguthaben;
   const budgetWuM = doc.extraFields?.budgetWuM !== false; // default on
   const editBtn = mode === "pdf" ? "" : " " + editButton();
 
   const guthaben =
-    mode === "pdf"
+    pdfLike
       ? `<div class="box">
            <div class="opt">${entlastung ? "☒" : "☐"} aktuelles Entlastungsguthaben</div>
            <div class="opt">${budgetWuM ? "☒" : "☐"} Budget für Wohnumfeldverbessernde Maßnahmen</div>
@@ -775,6 +781,7 @@ export function buildVollmachtHtml(sr, doc, mode = "pdf") {
     aufgehoben wird und kann jederzeit schriftlich widerrufen werden.</p>`;
 
   if (mode === "pdf") return wrap("Vollmacht für die Krankenkasse", body + signatureBlock(doc, f));
+  if (pdfLike) return displayFragment(body + signatureBlock(doc, f));
   return displayFragment(body + interactiveSignatureBlock() + submitBar("Unterschreiben & weiter"));
 }
 
@@ -812,21 +819,24 @@ export function buildAbtretungHtml(sr, doc, mode = "pdf") {
     §40 SGB XI direkt mit der Pflegekasse abrechnen darf.</p>`;
 
   if (mode === "pdf") return wrap("Abtretungserklärung", body + signatureBlock(doc, f));
+  if (doc.status === "signed") return displayFragment(body + signatureBlock(doc, f));
   return displayFragment(body + interactiveSignatureBlock() + submitBar("Unterschreiben & absenden"));
 }
 
 // ---- AH (Alltagshilfe) — Zusatzblatt + Abtretungserklärung §45b SGB XI ----
 
-// Optional Bevollmächtigte/r block: two free-typed contact fields (no
-// pre-filled value to protect, so unlike fld() they start unlocked) plus,
+// Optional Bevollmächtigte/r block: two free-typed contact fields, locked
+// like every other fld() until the section's edit button is tapped (kept
+// them disabled-by-default too, since an always-enabled input sitting next
+// to the signature pad below is a stray tap/stylus target on tablets) plus,
 // only when a name is given, their own signature (captured via the second
 // interactiveSignatureBlock({ suffix: "2" }) pad).
 function bevollmaechtigterBox(doc, mode) {
   const bevName = doc.editedFields?.bevollmaechtigterName || "";
   const bevPhone = doc.editedFields?.bevollmaechtigterTelefon || "";
   return `<div class="box">
-    ${fld("Nachname, Vorname Bevollmächtigte/r / abweichender Ansprechpartner:", "bevollmaechtigterName", bevName, mode, false)}
-    ${fld("Telefon:", "bevollmaechtigterTelefon", bevPhone, mode, false)}
+    ${fld("Nachname, Vorname Bevollmächtigte/r / abweichender Ansprechpartner:", "bevollmaechtigterName", bevName, mode)}
+    ${fld("Telefon:", "bevollmaechtigterTelefon", bevPhone, mode)}
   </div>`;
 }
 
@@ -844,19 +854,21 @@ function rechnungsversandBox(doc, prefill, mode) {
   return `<div class="box">
     <label class="opt-label"><input type="checkbox" id="rechnungPostCheckbox"><span>Ich möchte immer eine Rechnungskopie per Post erhalten. <sup>1)</sup></span></label>
     <label class="opt-label"><input type="checkbox" id="rechnungEmailCheckbox"><span>Ich möchte immer eine Rechnungskopie per E-Mail erhalten. <sup>1)</sup></span></label>
-    ${fld("E-Mail-Adresse:", "rechnungEmailAdresse", emailAdresse, mode, false)}
+    ${fld("E-Mail-Adresse:", "rechnungEmailAdresse", emailAdresse, mode)}
   </div>`;
 }
 
 export function buildZusatzblattHtml(sr, doc, mode = "pdf") {
   const f = resolveFields(sr, doc);
+  const pdfLike = mode === "pdf" || doc.status === "signed";
   const custName = `${f.firstName} ${f.lastName}`.trim();
   const bevName = doc.editedFields?.bevollmaechtigterName || "";
+  const editBtn = mode === "pdf" ? "" : " " + editButton();
 
   // The Bevollmächtigte/r signature only exists (in the PDF) when a name was
   // actually given — it is an optional sub-section of an optional section.
   const bevSignatureHtml =
-    mode === "pdf"
+    pdfLike
       ? bevName
         ? signatureBlock(doc, f, {
             heading: "Unterschrift Bevollmächtigte/r",
@@ -882,14 +894,18 @@ export function buildZusatzblattHtml(sr, doc, mode = "pdf") {
     <p>II) über Sie direkt, wenn Sie privatversichert bzw. beihilfeberechtigt sind. Dazu erhalten Sie von uns eine Rechnung, die von Ihnen bei Ihrer privaten Kranken- bzw. Pflegekasse eingereicht wird.</p>
     <p>Es gelten unsere Allgemeinen Geschäftsbedingungen sowie unsere Datenschutzerklärung, diese finden Sie im Anhang und jederzeit unter: https://agb.emczwei.de bzw. https://datenschutz.emczwei.de. Mit Ihrer Unterschrift stimmen Sie diesen zu.</p>
 
-    <h2>Vollmacht / Abweichender Ansprechpartner (optionale Angabe)</h2>
-    <p class="muted">Wurde der Auftrag in Vollmacht für den Auftraggeber bestätigt oder erfolgt im Zuge der Auftragsumsetzung die Kommunikation auch mit einem/r vom Auftraggeber Bevollmächtigten, bitten wir um Angabe der Kontaktdaten:</p>
-    ${bevollmaechtigterBox(doc, mode)}
+    <div class="editsec">
+      <h2>Vollmacht / Abweichender Ansprechpartner (optionale Angabe)${editBtn}</h2>
+      <p class="muted">Wurde der Auftrag in Vollmacht für den Auftraggeber bestätigt oder erfolgt im Zuge der Auftragsumsetzung die Kommunikation auch mit einem/r vom Auftraggeber Bevollmächtigten, bitten wir um Angabe der Kontaktdaten:</p>
+      ${bevollmaechtigterBox(doc, mode)}
+    </div>
     <p class="muted">Hiermit bestätige ich, dass ich in Vollmacht für den Auftraggeber agiere und entsprechend befugt bin:</p>
     ${bevSignatureHtml}
 
-    <h2>Rechnungsversand (optionale Angabe)</h2>
-    ${rechnungsversandBox(doc, f, mode)}
+    <div class="editsec">
+      <h2>Rechnungsversand (optionale Angabe)${editBtn}</h2>
+      ${rechnungsversandBox(doc, f, pdfLike ? "pdf" : mode)}
+    </div>
     <p class="muted" style="font-size:10.5pt;"><sup>1)</sup> Für unseren Mehraufwand, wenn wir Ihnen die Kopie der Kassenrechnung per Post oder E-Mail zusenden, müssen wir je Rechnungsversand eine Gebühr von 3,00&nbsp;€ inkl. MwSt. berechnen.</p>
 
     <p>Hiermit bestätige ich, <strong>${esc(custName)}</strong>, dass ich das Dokument zur Kenntnis genommen habe:</p>`;
@@ -899,6 +915,9 @@ export function buildZusatzblattHtml(sr, doc, mode = "pdf") {
       "Wichtige Hinweise zum Angebot / zu Terminen",
       body + signatureBlock(doc, f, { heading: "Datum, Unterschrift" }),
     );
+  }
+  if (doc.status === "signed") {
+    return displayFragment(body + signatureBlock(doc, f, { heading: "Datum, Unterschrift" }));
   }
   return displayFragment(
     body +
@@ -948,5 +967,6 @@ export function buildAbtretungAhHtml(sr, doc, mode = "pdf") {
 
   if (mode === "pdf")
     return wrap("Abtretungserklärung § 45b SGB XI", body + signatureBlock(doc, f));
+  if (doc.status === "signed") return displayFragment(body + signatureBlock(doc, f));
   return displayFragment(body + interactiveSignatureBlock() + submitBar("Unterschreiben & absenden"));
 }

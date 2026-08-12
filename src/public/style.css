@@ -1231,6 +1231,92 @@ a.btn {
   line-height: 1.3;
 }
 
+/* ---------- Aluprofil für Trockenbau repeater (Duschabtrennung) ---------- */
+.tb-block {
+  grid-column: 1 / -1;
+  border: 1px dashed var(--accent);
+  border-radius: 0.75rem;
+  padding: 0.85rem 0.95rem;
+  background: var(--card-selected);
+}
+
+.tb-block__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.tb-block__title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--card-foreground);
+}
+
+.tb-block__hint {
+  color: var(--muted-foreground);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  margin: 0.3rem 0 0;
+}
+
+.tb-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.tb-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.tb-item .tb-width {
+  width: 4.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.85rem;
+  background: var(--input-background, var(--card));
+  color: var(--card-foreground);
+}
+
+.tb-item .tb-cost {
+  margin-left: auto;
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.tb-item .tb-remove {
+  border: none;
+  background: none;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0.1rem 0.2rem;
+}
+
+.tb-add {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: 1px solid var(--accent);
+  border-radius: 0.5rem;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  flex: none;
+}
+
 /* ---------- Work-tasks accordion ---------- */
 .wt-groups {
   display: flex;

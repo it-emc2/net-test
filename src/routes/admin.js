@@ -3,6 +3,7 @@ import configService, { CONFIG_SCHEMA } from '../services/configService.js';
 import AppConfig from '../models/AppConfig.js';
 import SigningRequest from '../models/SigningRequest.js';
 import BitrixLog from '../models/BitrixLog.js';
+import { retryBitrixLog } from './bitrix.js';
 import User from '../models/User.js';
 import {
   verifyPassword,
@@ -207,6 +208,16 @@ router.get('/api/bitrix-logs', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('GET /admin/api/bitrix-logs failed:', err);
     res.status(500).json({ error: String(err) });
+  }
+});
+
+// POST /admin/api/bitrix-logs/:id/retry — replay a failed Bitrix call as-is.
+router.post('/api/bitrix-logs/:id/retry', requireAdmin, async (req, res) => {
+  try {
+    const result = await retryBitrixLog(req.params.id);
+    res.json({ ok: true, result });
+  } catch (err) {
+    res.status(500).json({ error: err?.message || String(err) });
   }
 });
 

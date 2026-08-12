@@ -4036,8 +4036,13 @@ function buildPayload() {
   // verbatim instead of recomputing from live DB values. Set only via
   // freezeCurrentPricing() (Schnellspeichern/Speichern unter/Sperren); cleared
   // the moment the user edits a field (see requestPricingRefresh).
-  payload.frozen = window.__frozen === true;
+  // The Kostenübersicht "Preise aktualisieren" button (Vigor price drift)
+  // explicitly asked to drop the pinned snapshot and reprice live — applies
+  // here too so PDF/DOCX generation (which builds its own payload) picks up
+  // the refreshed price instead of the old frozen one.
+  payload.frozen = window.__forceLiveVigorPricing ? false : window.__frozen === true;
   payload.frozenPricing = payload.frozen ? (window.__frozenPricing || null) : null;
+  if (window.__forceLiveVigorPricing) delete payload.offerNumber;
   // Locked: full edit-lock, independent of the price freeze above.
   payload.locked = window.__locked === true;
 
@@ -4225,6 +4230,23 @@ function buildPayload() {
     }
   } catch (e) {
     console.warn("[buildPayload] flooring arrays capture failed:", e);
+  }
+
+  /* ===========================
+     DUSCHABTRENNUNG: Trockenbau-Ausgleich statt Verbindungsprofil
+     =========================== */
+  try {
+    const widths = Array.from(
+      document.querySelectorAll("#dw-trockenbau .tb-items .tb-width"),
+    )
+      .map((el) => Number(el.value))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    if (widths.length) {
+      payload.duschwanne = payload.duschwanne || {};
+      payload.duschwanne.trockenbauAusgleich = widths.map((widthMm) => ({ widthMm }));
+    }
+  } catch (e) {
+    console.warn("[buildPayload] Trockenbau-Ausgleich capture failed:", e);
   }
 
   /* ===========================
@@ -7953,6 +7975,69 @@ window.restoreDWExtraTasksFromPayload = initExtraTasksRepeater({
   inputName: "duschwanne[extraTasks][]",
 });
 
+// ===== DUSCHABTRENNUNG: Trockenbau-Ausgleich statt Verbindungsprofil (repeater) =====
+// Each row = pauschal 50€ Material + 2 Std Arbeitszeit. Adding/removing a row bumps
+// the visible #laborHours ("Dauer vor Ort") field by ±2:00 — same mechanism as the
+// existing +5m/+15m quick buttons — so the hours flow through the normal Arbeitszeit
+// pipeline (Kosten tab, PDF) without any pricing special-casing.
+(function initTrockenbauAusgleich() {
+  const block = document.getElementById("dw-trockenbau");
+  if (!block) return;
+
+  const wrap = block.querySelector(".tb-items");
+  const addBtn = block.querySelector(".tb-add");
+  const TB_HOURS_PER_ROW = 2;
+
+  function bumpLaborHours(deltaHours) {
+    const input = document.getElementById("laborHours");
+    if (!input) return;
+    input.value = formatDurationHHMM(
+      parseDurationMinutes(input.value) + deltaHours * 60,
+    );
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function makeRow(widthMm = "") {
+    const row = document.createElement("div");
+    row.className = "tb-item";
+    row.innerHTML = `
+      <span>Breite</span>
+      <input type="number" class="tb-width" name="duschwanne[trockenbauAusgleich][]"
+        min="0" step="1" inputmode="numeric" placeholder="z. B. 130"
+        value="${escapeHtml(String(widthMm))}" />
+      <span>mm</span>
+      <span class="tb-cost">+50,00&nbsp;€ · +2&nbsp;Std</span>
+      <button type="button" class="tb-remove" aria-label="Diese Position entfernen">🗑</button>
+    `;
+    row.querySelector(".tb-remove").addEventListener("click", () => {
+      row.remove();
+      bumpLaborHours(-TB_HOURS_PER_ROW);
+      window.updatePricing?.();
+    });
+    return row;
+  }
+
+  addBtn?.addEventListener("click", () => {
+    wrap.appendChild(makeRow());
+    bumpLaborHours(TB_HOURS_PER_ROW);
+    window.updatePricing?.();
+  });
+
+  // Payload-based restore: rebuild rows silently — no laborHours side effect,
+  // the saved laborHours value already includes these hours.
+  window.restoreDWTrockenbauAusgleichFromPayload = function (dw) {
+    const liveWrap = document.querySelector("#dw-trockenbau .tb-items") || wrap;
+    if (!liveWrap) return;
+    liveWrap.innerHTML = "";
+    const rows = Array.isArray(dw?.trockenbauAusgleich) ? dw.trockenbauAusgleich : [];
+    rows.forEach((r) => {
+      const widthMm = r && typeof r === "object" ? r.widthMm : r;
+      liveWrap.appendChild(makeRow(widthMm ?? ""));
+    });
+  };
+})();
+
 window.restoreBwtArbeitenExtraTasksFromPayload = initExtraTasksRepeater({
   fieldsetId: "bwt-extra-tasks",
   countId: "bwt-extra-count",
@@ -10862,6 +10947,11 @@ function attachDuschwanneToPayload(payload) {
   let pricingRequestSeq = 0;
   let latestAppliedPricingSeq = 0;
   let pricingRefreshTimer = null;
+  // Set by the Kostenübersicht "Preise aktualisieren" button (Vigor price
+  // drift). Sticky for the rest of the session so later recalcs (tab
+  // switches, field edits) don't silently re-freeze the old quoted price —
+  // it only resets on reload or once the offer is saved with fresh totals.
+  window.__forceLiveVigorPricing = false;
   window.__pricingDebug = window.__pricingDebug || { enabled: false };
 
   window.setPricingDebug = function setPricingDebug(enabled = true) {
@@ -10924,6 +11014,7 @@ function attachDuschwanneToPayload(payload) {
       console.warn("[pricing] No payload available");
       return null;
     }
+    if (window.__forceLiveVigorPricing) delete pl.offerNumber;
 
     const requestSeq = ++pricingRequestSeq;
     window.logPricingRefresh?.("updatePricing:start", { requestSeq });
@@ -11487,6 +11578,30 @@ window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
 (function initKostenDetails() {
   const container = document.getElementById("costsSummary");
   if (!container) return;
+
+  // ── Vigor price-drift "refresh" button: re-price a saved offer's config
+  // lines at today's live Vigor cost instead of the frozen quoted price. ──
+  container.addEventListener("click", async (e) => {
+    const btn = e.target.closest("#refreshVigorPricesBtn");
+    if (!btn) return;
+    btn.disabled = true;
+    btn.textContent = "Aktualisiere…";
+    try {
+      // Pricing keeps the quoted price only when payload.offerNumber is set
+      // (see pricing-core.js). Flip this sticky flag so every recalculation
+      // from here on — including later tab switches — prices the
+      // configurator lines from the live Vigor DB instead of re-freezing
+      // the old quoted price.
+      window.__forceLiveVigorPricing = true;
+      const data = await window.updatePricing();
+      if (typeof renderFromData === "function") await renderFromData(data);
+    } catch (err) {
+      console.error("[pricing] refresh Vigor prices failed:", err);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Preise aktualisieren";
+    }
+  });
 
   // ── Kosten info button ──────────────────────────────────────────────────
   const kostenToggle      = document.getElementById("kostenDetailsToggle");
@@ -12162,6 +12277,7 @@ if (supportsOptional) {
              ${driftTotal > 0 ? "+" : "−"}${euroC(Math.abs(driftTotal))}
              gegenüber dem Angebot (${drift.lines.length} Artikel).
              Angebotspreise bleiben unverändert.
+             <button type="button" class="btn small" id="refreshVigorPricesBtn" style="margin-left:8px;">Preise aktualisieren</button>
            </div>`
         : "";
     const matCard = card(
@@ -13546,6 +13662,10 @@ function restoreWorkTasks(dw) {
   const wvInput = document.querySelector('input[name="duschwanne[wandverkleidungHoehe]"]');
   if (wvInput && dw.wandverkleidungHoehe != null) {
     wvInput.value = String(dw.wandverkleidungHoehe);
+  }
+
+  if (typeof window.restoreDWTrockenbauAusgleichFromPayload === "function") {
+    window.restoreDWTrockenbauAusgleichFromPayload(dw);
   }
 }
 
