@@ -17,6 +17,10 @@
     .sheet__header { margin-bottom: 4px; }
     .sheet__header .title { font-size: 13px; font-family: 'Courier New', monospace; color: #333; }
     .progress { font-size: 13px; font-family: 'Courier New', monospace; color: #333; margin: 0 0 14px; }
+    .docnav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 14px; }
+    .docnav .progress { margin: 0; }
+    .docnav button { font-size: 13px; padding: 6px 12px; border: 1px solid #aaa; background: #fff; cursor: pointer; }
+    .docnav button:disabled { opacity: .4; cursor: not-allowed; }
     .hidden { display: none !important; }
     .feedback { padding: 12px 14px; font-size: 15px; border: 1px solid transparent; }
     .feedback.is-success { background: #e6f6e6; border-color: #2e7d32; color: #1b5e20; }
@@ -36,7 +40,11 @@
       <header class="sheet__header">
         <span class="title">Online-Unterschrift</span>
       </header>
-      <div class="progress" id="progress"></div>
+      <div class="docnav hidden" id="docNav">
+        <button type="button" id="prevDoc">&larr; Zurück</button>
+        <span class="progress" id="progress"></span>
+        <button type="button" id="nextDoc">Weiter &rarr;</button>
+      </div>
 
       <!-- The document (with its own checkboxes + signature + submit) is injected here. -->
       <div id="docContainer"></div>

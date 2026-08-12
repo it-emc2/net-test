@@ -15,7 +15,7 @@
   var app = el("app");
   var container = el("docContainer");
 
-  var state = { docs: [], index: 0 };
+  var state = { docs: [], index: 0, maxIndex: 0 };
   var primarySig = null; // signature pad controller for #sigCanvas
   var secondarySig = null; // signature pad controller for #sigCanvas2 (Bevollmächtigte/r), if present
   // In-memory only (module scope, reset on page load) so "Kopieren" on this
@@ -49,14 +49,31 @@
         state.index = 0;
         while (state.index < state.docs.length && state.docs[state.index].status === "signed") state.index++;
         if (state.index >= state.docs.length) return showDone();
+        state.maxIndex = state.index;
         renderStep();
       })
       .catch(function (e) { showFatal(e.message || "Der Link ist ungültig oder abgelaufen."); });
   }
 
+  function updateNav() {
+    var nav = el("docNav");
+    if (!nav) return;
+    if (state.docs.length <= 1) { nav.classList.add("hidden"); return; }
+    nav.classList.remove("hidden");
+    el("prevDoc").disabled = state.index <= 0;
+    el("nextDoc").disabled = state.index >= state.maxIndex;
+  }
+
+  function goToDoc(i) {
+    if (i < 0 || i > state.maxIndex || i >= state.docs.length || i === state.index) return;
+    state.index = i;
+    renderStep();
+  }
+
   function renderStep() {
     var doc = state.docs[state.index];
     el("progress").textContent = "Dokument " + (state.index + 1) + " von " + state.docs.length;
+    updateNav();
     container.innerHTML = "<p>Dokument wird geladen …</p>";
     fetch("/api/signing/" + token + "/documents/" + doc.key + "/html")
       .then(function (r) { return r.text(); })
@@ -404,6 +421,7 @@
         state.index++;
         while (state.index < state.docs.length && state.docs[state.index].status === "signed") state.index++;
         if (state.index >= state.docs.length) return showDone();
+        state.maxIndex = Math.max(state.maxIndex, state.index);
         renderStep();
       })
       .catch(function (e) {
@@ -414,10 +432,14 @@
 
   function showDone() {
     container.innerHTML = "";
+    el("docNav").classList.add("hidden");
     el("progress").textContent = "";
     el("doneCard").classList.remove("hidden");
     window.scrollTo(0, 0);
   }
+
+  el("prevDoc").addEventListener("click", function () { goToDoc(state.index - 1); });
+  el("nextDoc").addEventListener("click", function () { goToDoc(state.index + 1); });
 
   start();
 })();
