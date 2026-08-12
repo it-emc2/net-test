@@ -18,6 +18,9 @@
   var state = { docs: [], index: 0 };
   var primarySig = null; // signature pad controller for #sigCanvas
   var secondarySig = null; // signature pad controller for #sigCanvas2 (Bevollmächtigte/r), if present
+  // In-memory only (module scope, reset on page load) so "Kopieren" on this
+  // page/customer session can never leak into another customer's session.
+  var copiedSignature = null;
 
   function showFatal(msg) {
     loading.classList.add("hidden");
@@ -112,6 +115,16 @@
       refit: function () { if (!dirty) resize(); },
       isDirty: function () { return dirty; },
       toPng: function () { return canvas.toDataURL("image/png"); },
+      setFromDataUrl: function (dataUrl) {
+        var rect = canvas.getBoundingClientRect();
+        var img = new Image();
+        img.onload = function () {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, rect.width, rect.height);
+          dirty = true;
+        };
+        img.src = dataUrl;
+      },
     };
   }
 
@@ -227,22 +240,55 @@
       });
     });
 
-    return {
-      isFilled: function () {
-        var tw = el("typeWrap" + suffix);
-        var uw = el("uploadWrap" + suffix);
-        if (uw && !uw.classList.contains("hidden")) return !!uploaded;
-        if (tw && !tw.classList.contains("hidden")) return !!(el("typeName" + suffix).value || "").trim();
-        return pad.isDirty();
-      },
-      toPng: function () {
-        var tw = el("typeWrap" + suffix);
-        var uw = el("uploadWrap" + suffix);
-        if (uw && !uw.classList.contains("hidden")) return uploaded;
-        if (tw && !tw.classList.contains("hidden")) return typedNameToPng((el("typeName" + suffix).value || "").trim());
-        return pad.toPng();
-      },
-    };
+    function isFilled() {
+      var tw = el("typeWrap" + suffix);
+      var uw = el("uploadWrap" + suffix);
+      if (uw && !uw.classList.contains("hidden")) return !!uploaded;
+      if (tw && !tw.classList.contains("hidden")) return !!(el("typeName" + suffix).value || "").trim();
+      return pad.isDirty();
+    }
+    function toPng() {
+      var tw = el("typeWrap" + suffix);
+      var uw = el("uploadWrap" + suffix);
+      if (uw && !uw.classList.contains("hidden")) return uploaded;
+      if (tw && !tw.classList.contains("hidden")) return typedNameToPng((el("typeName" + suffix).value || "").trim());
+      return pad.toPng();
+    }
+
+    function flash(btn, text) {
+      var orig = btn.textContent;
+      btn.textContent = text;
+      setTimeout(function () { btn.textContent = orig; }, 1200);
+    }
+
+    var copyBtn = el("copySig" + suffix);
+    if (copyBtn) copyBtn.addEventListener("click", function () {
+      var box = el("docError");
+      if (box) box.classList.add("hidden");
+      if (!isFilled()) return showDocError("Bitte zuerst unterschreiben, bevor Sie kopieren.");
+      copiedSignature = toPng();
+      flash(copyBtn, "Kopiert!");
+    });
+
+    var pasteBtn = el("pasteSig" + suffix);
+    if (pasteBtn) pasteBtn.addEventListener("click", function () {
+      var box = el("docError");
+      if (box) box.classList.add("hidden");
+      if (!copiedSignature) return showDocError("Es wurde noch keine Unterschrift kopiert.");
+      // Paste always lands in the draw pad, regardless of source mode.
+      var tw = el("typeWrap" + suffix);
+      var uw = el("uploadWrap" + suffix);
+      if (tw) tw.classList.add("hidden");
+      if (uw) uw.classList.add("hidden");
+      var tb = el("toggleType" + suffix);
+      if (tb) tb.textContent = "Namen tippen statt zeichnen";
+      var ub = el("toggleUpload" + suffix);
+      if (ub) ub.textContent = "Bild hochladen";
+      pad.setFromDataUrl(copiedSignature);
+      flash(pasteBtn, "Eingefügt!");
+    });
+
+    return { isFilled: isFilled, toPng: toPng };
   }
 
   function wireControls() {
