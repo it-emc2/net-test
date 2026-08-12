@@ -29,6 +29,46 @@ const EXTRAS = [
   // { articleNumber: "VZVP6195HL", name: "Verbreiterung 6 Magnetleiste um 19,2 mm", finishText: "1950 mm silber hochglanz VIGOUR", net: 60.84, gros: 93.6, image: "VZVP6195.jpg" },
 ];
 
+// Viertelkreis-Duschwanne — hand-picked matching shower trays, not part of the wizard's
+// leaf/component tree (like the Verbreiterungsprofil EXTRAS above). Keyed by [radius][doorWidth];
+// each entry's own `label` is the color/model, `heightCm` is the tray's rim height (display-only —
+// not a selectable dimension, VIGOUR doesn't offer a choice here).
+const DUSCHWANNEN = {
+  500: {
+    800: [
+      { articleNumber: "ONAE80SF", label: "Weiß (Acryl one)", heightCm: 6.5, finishText: "Radius 50cm weiss VIGOUR", net: 105.53, gros: 234.5, image: "Duschwanne-onae80sf.jpg", stockQuantity: 0, stockText: "Ware im Nachtverbund Markt Schwaben (vorbehaltlich Prüfung) verfügbar, bei Bestellung bis 18:00 Uhr" },
+    ],
+    900: [
+      { articleNumber: "PURAE90", label: "Weiß (Hüppe Purano)", heightCm: 4.0, finishText: "Radius 50cm weiss", net: 376.38, gros: 651, image: "Duschwanne-purae90.jpg", stockQuantity: 0, stockText: "Die Ware ist aktuell nicht verfügbar und muss bestellt werden." },
+    ],
+    1000: [
+      { articleNumber: "ZIRKO100EF", label: "Weiß (Kaldewei Zirkon)", heightCm: 3.5, finishText: "weiss Kaldewei", net: 611.35, gros: 891, image: "Duschwanne-zirko100ef.jpg", stockQuantity: 0, stockText: "Die Ware ist aktuell nicht verfügbar und muss bestellt werden." },
+    ],
+  },
+  550: {
+    900: [
+      { articleNumber: "V3ME90AN", label: "Anthrazit matt", heightCm: 3.0, finishText: "Rad. 55cm SafeStepPlus anth. matt VIGOUR", net: 296.4, gros: 494, image: "Duschwanne-anthrazit.jpg", stockQuantity: 0, stockText: "Die Ware ist aktuell nicht verfügbar und muss bestellt werden." },
+      { articleNumber: "V3ME90BG", label: "Beige matt", heightCm: 3.0, finishText: "Rad. 55cm SafeStepPlus beige matt VIGOUR", net: 296.4, gros: 494, image: "Duschwanne-beige.jpg", stockQuantity: 0, stockText: "Die Ware ist aktuell nicht verfügbar und muss bestellt werden." },
+      { articleNumber: "V3ME90GR", label: "Grau matt", heightCm: 3.0, finishText: "Rad. 55cm SafeStepPlus grau matt VIGOUR", net: 296.4, gros: 494, image: "Duschwanne-grau.jpg", stockQuantity: 0, stockText: "Die Ware ist aktuell nicht verfügbar und muss bestellt werden." },
+      { articleNumber: "V3ME90SM", label: "Schwarz matt", heightCm: 3.0, finishText: "Rad. 55cm SafeStepPlus schw. matt VIGOUR", net: 296.4, gros: 494, image: "Duschwanne-schwarz.jpg", stockQuantity: 0, stockText: "Die Ware ist aktuell nicht verfügbar und muss bestellt werden." },
+      { articleNumber: "V3ME90SP", label: "Weiß matt", heightCm: 3.0, finishText: "Rad. 55cm SafeStepPlus weiss matt VIGOUR", net: 269.4, gros: 449, image: "Duschwanne-weiss.jpg", stockQuantity: 9, stockText: "Der Artikel ist im Lager verfügbar. Der Bestand beträgt 9 Stück." },
+    ],
+    1000: [
+      { articleNumber: "V3ME100AN", label: "Anthrazit matt", heightCm: 3.0, finishText: "Rad. 55cm SafeStepPlus anth. matt VIGOUR", net: 309.6, gros: 516, image: "Duschwanne-anthrazit.jpg", stockQuantity: 0, stockText: "Die Ware ist aktuell nicht verfügbar und muss bestellt werden." },
+      { articleNumber: "V3ME100BG", label: "Beige matt", heightCm: 3.0, finishText: "Rad. 55cm SafeStepPlus beige matt VIGOUR", net: 309.6, gros: 516, image: "Duschwanne-beige.jpg", stockQuantity: 0, stockText: "Die Ware ist aktuell nicht verfügbar und muss bestellt werden." },
+      { articleNumber: "V3ME100GR", label: "Grau matt", heightCm: 3.0, finishText: "Rad. 55cm SafeStepPlus grau matt VIGOUR", net: 309.6, gros: 516, image: "Duschwanne-grau.jpg", stockQuantity: 0, stockText: "Die Ware ist aktuell nicht verfügbar und muss bestellt werden." },
+      { articleNumber: "V3ME100SM", label: "Schwarz matt", heightCm: 3.0, finishText: "Rad. 55cm SafeStepPlus schw. matt VIGOUR", net: 309.6, gros: 516, image: "Duschwanne-schwarz.jpg", stockQuantity: 0, stockText: "Die Ware ist aktuell nicht verfügbar und muss bestellt werden." },
+      { articleNumber: "V3ME100SP", label: "Weiß matt", heightCm: 3.0, finishText: "Rad. 55cm SafeStepPlus weiss matt VIGOUR", net: 281.4, gros: 469, image: "Duschwanne-weiss.jpg", stockQuantity: 0, stockText: "Die Ware ist aktuell nicht verfügbar und muss bestellt werden." },
+    ],
+  },
+};
+
+function duschwannenDisplayName(d, widthMm) {
+  const widthCm = widthMm / 10;
+  const height = d.heightCm.toLocaleString("de-DE", { minimumFractionDigits: 1 });
+  return `Viertelkreis-Duschwanne ${widthCm}×${widthCm}×${height} cm ${d.label}`;
+}
+
 export function mountConfigurator(el, model, options = {}) {
   let state = w.settle(model, options.initialState || w.initialState());
   let pending = { width: null, height: null }; // in-progress component size
@@ -57,26 +97,70 @@ export function mountConfigurator(el, model, options = {}) {
     render();
   }
 
-  /** Engine result plus the hand-picked extras as ordinary lines (totals re-summed). */
+  // --- Viertelkreis-Duschwanne (matching shower tray) ------------------------
+  // Available only for the current door's radius + width combination. Kept on the
+  // engine state (as `duschwanne`, an articleNumber or null) next to `extras`, same
+  // persistence story.
+  function currentDoorWidth() {
+    const leaf = w.resolvedLeaf(model, state);
+    const c = leaf && leaf.components[0];
+    const size = c && state.sizes[c.key];
+    return size && !size.sondermass ? size.width : null;
+  }
+  const currentRadiusCat = () =>
+    state.selections.Radius === "550mm" ? "550" : state.selections.Radius === "500mm" ? "500" : null;
+  const duschwannenAvailable = () => {
+    const radiusCat = currentRadiusCat();
+    return radiusCat ? (DUSCHWANNEN[radiusCat] || {})[currentDoorWidth()] || [] : [];
+  };
+  const pickedDuschwanne = () =>
+    duschwannenAvailable().find((d) => d.articleNumber === state.duschwanne) ?? null;
+  function selectDuschwanne(articleNumber) {
+    state = {
+      ...state,
+      duschwanne: state.duschwanne === articleNumber ? null : articleNumber,
+    };
+    emit("onChange", state);
+    render();
+  }
+
+  /** Engine result plus the hand-picked extras/Duschwanne as ordinary lines (totals re-summed). */
   function resolved() {
     const cfg = w.resolveConfiguration(model, state);
     if (!cfg) return null;
     const picked = pickedExtras();
-    if (!picked.length) return cfg;
-    const lines = cfg.lines.concat(
-      picked.map((e) => ({
-        component: e.name,
-        key: "extra:" + e.articleNumber,
+    const dw = pickedDuschwanne();
+    const extraLines = picked.map((e) => ({
+      component: e.name,
+      key: "extra:" + e.articleNumber,
+      article: {
+        articleNumber: e.articleNumber,
+        displayName: e.name,
+        finishText: e.finishText,
+        net: e.net,
+        gros: e.gros,
+        currency: cfg.currency,
+      },
+    }));
+    if (dw) {
+      const dwName = duschwannenDisplayName(dw, currentDoorWidth());
+      extraLines.push({
+        component: dwName,
+        key: "duschwanne:" + dw.articleNumber,
         article: {
-          articleNumber: e.articleNumber,
-          displayName: e.name,
-          finishText: e.finishText,
-          net: e.net,
-          gros: e.gros,
+          articleNumber: dw.articleNumber,
+          displayName: dwName,
+          finishText: dw.finishText,
+          net: dw.net,
+          gros: dw.gros,
           currency: cfg.currency,
+          stockQuantity: dw.stockQuantity,
+          stockText: dw.stockText,
         },
-      })),
-    );
+      });
+    }
+    if (!extraLines.length) return cfg;
+    const lines = cfg.lines.concat(extraLines);
     return {
       ...cfg,
       lines,
@@ -144,7 +228,7 @@ export function mountConfigurator(el, model, options = {}) {
     const selections = {};
     for (const id of order.slice(0, idx))
       if (state.selections[id] != null) selections[id] = state.selections[id];
-    state = { ...w.settle(model, { selections, sizes: {} }), extras: state.extras };
+    state = { ...w.settle(model, { selections, sizes: {} }), extras: state.extras, duschwanne: state.duschwanne };
     pending = { width: null, height: null };
     emit("onChange", state);
     render();
@@ -174,7 +258,7 @@ export function mountConfigurator(el, model, options = {}) {
         (cs.phase === "structure" || cs.phase === "finish") &&
         cs.paramId === target
       ) {
-        state = { ...settled, extras: state.extras };
+        state = { ...settled, extras: state.extras, duschwanne: state.duschwanne };
         pending = { width: null, height: null };
         emit("onChange", state);
         render();
@@ -279,6 +363,7 @@ export function mountConfigurator(el, model, options = {}) {
                 w.applySelection(model, state, step.paramId, val.value),
               ),
               extras: state.extras, // applySelection drops unknown keys
+              duschwanne: state.duschwanne,
             };
             emit("onChange", state);
             render();
@@ -403,6 +488,7 @@ export function mountConfigurator(el, model, options = {}) {
     }
 
     renderExtras(main);
+    renderDuschwanne(main);
 
     if (step.phase === "done") {
       const done = document.createElement("p");
@@ -453,6 +539,44 @@ export function mountConfigurator(el, model, options = {}) {
       const img = document.createElement("img");
       img.src = "/assets/Verbreiterungsprofil/" + e.image;
       img.alt = e.name;
+      img.loading = "lazy";
+      img.onerror = () => wrap.remove();
+      wrap.appendChild(img);
+      btn.prepend(wrap);
+      grid.appendChild(btn);
+    }
+    group.appendChild(grid);
+    main.appendChild(group);
+  }
+
+  // Matching Viertelkreis-Duschwanne, shown once a Radius-550mm door width with a tray
+  // is picked. Single-select (click again to deselect) — mirrors renderExtras' look.
+  function renderDuschwanne(main) {
+    const items = duschwannenAvailable();
+    if (!items.length) return;
+
+    const group = document.createElement("div");
+    group.className = "dac-component";
+    const title = document.createElement("h4");
+    title.className = "dac-comp-title";
+    title.textContent = "Passende Duschwanne (optional)";
+    group.appendChild(title);
+
+    const grid = document.createElement("div");
+    grid.className = "dac-grid";
+    const width = currentDoorWidth();
+    for (const d of items) {
+      const name = duschwannenDisplayName(d, width);
+      const btn = optionButton(
+        { label: `${name} · ${euro(d.net)}`, imageId: null },
+        () => selectDuschwanne(d.articleNumber),
+      );
+      if (state.duschwanne === d.articleNumber) btn.dataset.selected = "true";
+      const wrap = document.createElement("span");
+      wrap.className = "dac-opt-img";
+      const img = document.createElement("img");
+      img.src = "/assets/" + d.image;
+      img.alt = name;
       img.loading = "lazy";
       img.onerror = () => wrap.remove();
       wrap.appendChild(img);
@@ -536,9 +660,13 @@ export function mountConfigurator(el, model, options = {}) {
           const stockSpan = document.createElement("span");
           stockSpan.className =
             "dac-line-stock " + (inStock ? "dac-stock-in" : "dac-stock-out");
-          stockSpan.textContent = inStock
-            ? `Auf Lager (${line.article.stockQuantity})`
-            : "Auf Bestellung";
+          const qty = document.createElement("span");
+          qty.className = "dac-stock-qty";
+          qty.textContent = String(Number(line.article.stockQuantity) || 0);
+          stockSpan.appendChild(qty);
+          stockSpan.appendChild(
+            document.createTextNode(inStock ? "Auf Lager" : "Auf Bestellung"),
+          );
           if (line.article.stockText) stockSpan.title = line.article.stockText;
           row.appendChild(stockSpan);
         }
