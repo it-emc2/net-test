@@ -1673,7 +1673,7 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     // (subsidyAmount_max aus pricing.js) — bewusst NICHT auf die Gesamtsumme
     // gedeckelt, damit bei "Nein" immer 4180/8360 steht statt der (kleineren)
     // Gesamtsumme.
-    ...(isKK && offerKey !== "bwt"
+    ...(isKK && offerKey !== "bwt" && offerKey !== "hl"
       ? [
           {
             label:
