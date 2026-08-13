@@ -24378,7 +24378,6 @@ function initHlFlexofitWizard() {
   const railEl = document.getElementById("hlWizRail");
   const panelEl = document.getElementById("hlWizPanel");
   const ledgerEl = document.getElementById("hlWizLedger");
-  const resetBtn = document.getElementById("hlWizReset");
   const areaInside = document.getElementById("hlAreaInside");
   const areaOutside = document.getElementById("hlAreaOutside");
   if (!railEl || !panelEl || !ledgerEl) return;
@@ -24943,10 +24942,6 @@ function initHlFlexofitWizard() {
       renderAll();
     },
   };
-
-  resetBtn?.addEventListener("click", () => {
-    window.__hlConfigurator.reset();
-  });
 
   configs = [mkConfig()];
   activeId = configs[0].id;

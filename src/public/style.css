@@ -4495,11 +4495,38 @@ label.image-check.is-checked .caption {
 .hl-wiz__ledger-total-label{ font-weight: 700; text-align: right; }
 .hl-wiz__ledger-table tfoot td{ padding: 11px 16px; font-weight: 700; border-top: 1.5px solid var(--border); font-variant-numeric: tabular-nums; }
 
-@media (max-width: 760px){
+/* Tablet/iPad (portrait + landscape) and below: the config rail moves above
+   the panel and becomes a horizontally-scrollable row of compact chips
+   instead of a narrow, cramped left sidebar. It stays stuck below the app's
+   sticky header (--header-h) while scrolling, so it's always reachable. */
+@media (max-width: 1024px){
   .hl-wiz__layout{ grid-template-columns: 1fr; }
-  .hl-wiz__rail{ position: static; }
+  .hl-wiz__rail{
+    position: sticky;
+    top: calc(var(--header-h, 64px) + 10px);
+    z-index: 10;
+    background: var(--bg, #fff);
+    min-width: 0;
+  }
+  .hl-wiz__rail-list{
+    flex-direction: row;
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    padding-bottom: 4px;
+    margin-bottom: 12px;
+  }
+  .hl-wiz__rail-item{
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 150px;
+    max-width: 220px;
+    scroll-snap-align: start;
+  }
+  .hl-wiz__rail-add{ width: auto; padding-left: 16px; padding-right: 16px; }
 }
-
 
 /* DA: DB search */
 .da-search-wrapper{
