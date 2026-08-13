@@ -4488,10 +4488,10 @@ label.image-check.is-checked .caption {
   font-variant-numeric: tabular-nums;
 }
 .hl-wiz__ledger-del{
-  border: none; background: transparent; opacity: 0.6; cursor: pointer; font-size: 14px;
-  width: 24px; height: 24px; border-radius: 6px;
+  border: none; background: #a23b3b; color:#fff; opacity: 0.6; cursor: pointer; font-size: 14px;
+  width: 24px; height: 24px; border-radius: 6px; opacity: 1;
+  padding: 0;
 }
-.hl-wiz__ledger-del:hover{ background: #a23b3b; color: #fff; opacity: 1; }
 .hl-wiz__ledger-total-label{ font-weight: 700; text-align: right; }
 .hl-wiz__ledger-table tfoot td{ padding: 11px 16px; font-weight: 700; border-top: 1.5px solid var(--border); font-variant-numeric: tabular-nums; }
 
