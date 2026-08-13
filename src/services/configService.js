@@ -111,6 +111,13 @@ export const CONFIG_SCHEMA = [
     description: 'Lieferkosten je Badewannentür (Position 140322)',
   },
 
+  // ── HL – HANDLÄUFE ───────────────────────────────────────────────────────
+  {
+    key: 'HL_LIEFERKOSTEN', value: 95.0,
+    label: 'Lieferkosten Handläufe', unit: '€', type: 'euro', section: 'hl', order: 1,
+    description: 'Pauschale Speditionskosten für lange Rohre je Handläufe-Angebot',
+  },
+
   // ── AH – ALLTAGSHILFE ────────────────────────────────────────────────────
   {
     key: 'ENTLASTUNGSBETRAG_MONAT', value: 131,

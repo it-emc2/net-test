@@ -7,6 +7,7 @@ const SECTIONS = [
   { id: 'fahrt',    label: 'Arbeitszeit & Fahrt',  icon: 'fa-car' },
   { id: 'bu',       label: 'BU – Badumbau',        icon: 'fa-bath' },
   { id: 'bwt',      label: 'BWT – Badewannentür',  icon: 'fa-door-open' },
+  { id: 'hl',       label: 'HL – Handläufe',       icon: 'fa-grip-lines' },
   { id: 'ah',       label: 'AH – Alltagshilfe',    icon: 'fa-hands-helping' },
   { id: 'zuschuss', label: 'Zuschüsse & Boni',     icon: 'fa-euro-sign' },
   { id: 'signing',  label: 'Signatur-Links',       icon: 'fa-file-signature', view: 'signing' },
