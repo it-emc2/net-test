@@ -1572,7 +1572,8 @@ color: metaColor || null,
     const laborHours = Arbeitszeit_hours_numeric;
 
     const isBwt = offer === "bwt";
-    const handwerkerCount = isBwt ? 1 : 2;
+    const isSingleWorker = isBwt || offer === "hl";
+    const handwerkerCount = isSingleWorker ? 1 : 2;
     const laborRateKK = cfg.get('LABOR_RATE_KK', 69.5);
     const laborRateSZ = cfg.get('LABOR_RATE_SZ', 59.5);
     const bwtLaborRate = cfg.get('LABOR_RATE_BWT', 79.5);
@@ -1644,11 +1645,11 @@ color: metaColor || null,
         });
       }
       if (reise_hours_numeric > 0) {
-        const reiseUnit = isBwt
-          ? round2(bwtLaborRate)
+        const reiseUnit = isSingleWorker
+          ? round2(laborRate)
           : round2(laborRate + sitz_reise_Rate);
-        const reiseLabel = isBwt
-          ? `- ${formatQty(reise_hours_numeric)} Std Anfahrt × ${handwerkerCount} Facharbeiter × ${formatQty(bwtLaborRate)} €`
+        const reiseLabel = isSingleWorker
+          ? `- ${formatQty(reise_hours_numeric)} Std Anfahrt × ${handwerkerCount} Facharbeiter × ${formatQty(laborRate)} €`
           : `- ${formatQty(reise_hours_numeric)} Std Anfahrt × (${formatQty(laborRate)} € + ${formatQty(sitz_reise_Rate)} €)`;
         lines.push({
           key: "reisezeit",
@@ -1698,13 +1699,13 @@ color: metaColor || null,
     // using the actual rates that drive the Facharbeiter/Reisezeit lines
     // above, so per-employee costs sum exactly to that Lohn total.
     const employees = [];
-    if (isBwt) {
+    if (isSingleWorker) {
       employees.push({
-        label: "Facharbeiter",
+        label: isBwt ? "Facharbeiter" : "Mitarbeiter 1 (Fahrer)",
         onSiteHours: laborHours,
         travelHours: reise_hours_numeric,
-        onSiteRate: bwtLaborRate,
-        travelRate: bwtLaborRate,
+        onSiteRate: laborRate,
+        travelRate: laborRate,
       });
     } else if (handwerkerCount > 0) {
       employees.push({
