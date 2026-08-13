@@ -1857,7 +1857,7 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     SignaturePresentText: hasSignature ? "" : "Unterschrift fehlt",
     SignatureDate: signatureDateFmt,
     Ansprechpartner: (b.emc2_contact || "").trim(),
-    Kundennummer: b.customerNumber || b.bitrixContactId || "",
+    Kundennummer: body.auftragId || b.customerNumber || b.bitrixContactId || "",
     Greeting:
       b.salutation === "Frau"
         ? "Sehr geehrte Frau"
