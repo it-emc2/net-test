@@ -9081,30 +9081,28 @@ button.dm-btn-danger:focus-visible {
         </form>
       </section>
 
-      <!-- hlk: Flexofit Konfigurator (eigener Tab nach HL) -->
+      <!-- hlk: Handlaufe Konfigurator (eigener Tab vor HL) -->
       <section class="card page" id="page-hlk" hidden>
-        <h2 style="margin: 0 0 12px">Flexofit Konfigurator</h2>
+        <h2 style="margin: 0 0 12px">Handlaufe</h2>
         <p class="muted" style="margin:0 0 16px">
-          Geführte Auswahl. Übernommene Positionen erscheinen als Freie Posten auf der HL-Seite und fließen in die Preisberechnung ein.
+          Mehrere Konfigurationen anlegen, benennen und einzeln bestücken. Positionen erscheinen automatisch in der Liste unten und fließen in die Preisberechnung ein.
         </p>
 
         <section id="hlFlexofitWizard" class="hl-wiz full field" aria-live="polite">
           <div class="hl-wiz__head">
             <div>
-              <div class="section-title">Flexofit Konfigurator</div>
-              <p class="section-subtitle">Schritt für Schritt: Bereich → Rohr &amp; Farbe → Beschläge &amp; Oberfläche → Übersicht.</p>
+              <div class="section-title">Handlaufe</div>
+              <p class="section-subtitle">Konfiguration wählen, Schritte in beliebiger Reihenfolge ausfüllen: Bereich, Rohr &amp; Farbe, Beschläge &amp; Oberfläche.</p>
             </div>
             <button type="button" id="hlWizReset" class="secondary">
               <i class="fa-solid fa-rotate-left"></i> Neu starten
             </button>
           </div>
-          <div class="hl-wiz__stepbar">
-            <button type="button" class="secondary" id="hlWizBack"><i class="fa-solid fa-arrow-left"></i> Zurück</button>
-            <ol class="hl-wiz__steps" id="hlWizSteps"></ol>
-            <button type="button" id="hlWizNext">Weiter <i class="fa-solid fa-arrow-right"></i></button>
+          <div class="hl-wiz__layout">
+            <aside id="hlWizRail" class="hl-wiz__rail" aria-live="polite"></aside>
+            <div id="hlWizPanel" class="hl-wiz__panel" aria-live="polite"></div>
           </div>
-          <div class="hl-wiz__status muted" id="hlWizStatus" aria-live="polite"></div>
-          <div class="hl-wiz__body" id="hlWizBody"></div>
+          <div id="hlWizLedger" class="hl-wiz__ledger" aria-live="polite"></div>
         </section>
 
         <div class="actions full" style="margin-top:16px">

@@ -196,8 +196,8 @@ const OFFERS = {
     pages: [
       "Kundendaten",
       "Arbeitszeit",
-      "hl",
       "hlk",
+      "hl",
       "Rabatt",
       "Kosten",
       "Zusammenfassung",
@@ -2355,6 +2355,11 @@ function resetAllForms() {
   } catch (e) {
     console.warn("[resetAllForms] Duschvorhang configurator reset failed:", e);
   }
+  try {
+    window.__hlConfigurator?.reset?.();
+  } catch (e) {
+    console.warn("[resetAllForms] Handlaufe configurator reset failed:", e);
+  }
 
   [
     "offerNumber",
@@ -2727,7 +2732,7 @@ function updateSidebarForOffer() {
     bwt: "Badewannentür",
     bwtArbeiten: "Arbeiten",
     hl: "HL",
-    hlk: "Konfigurator",
+    hlk: "Handlaufe",
     bl: "BL",
     ah: "Leistungen",
     Finanzierung: "Finanzierung",
@@ -3785,6 +3790,51 @@ try {
   }
 }
 
+// --- Handlaufe Konfigurator collector ---
+// The multi-config Handlaufe wizard exposes its resolved lines via
+// window.__hlConfigurator.getLines(). We APPEND them to payload.hl.quickAdd
+// (must run AFTER collectHlExtras, which sets/overwrites that array) so the
+// existing pricing path (logic/pricing-core.js: payload.hl.quickAdd) prices them.
+// We also persist { state, lines } under payload.hl.hlConfigurator for restore.
+function collectHlFlexofitConfigurator(payload) {
+  payload.hl = payload.hl || {};
+  const api = window.__hlConfigurator;
+  if (!api || typeof api.getLines !== "function") return;
+
+  let lines = [];
+  try {
+    lines = api.getLines() || [];
+  } catch (e) {
+    console.warn("[hlConfigurator] getLines failed:", e?.message || e);
+    return;
+  }
+  if (!Array.isArray(lines) || !lines.length) return;
+
+  const qa = Array.isArray(payload.hl.quickAdd) ? payload.hl.quickAdd : [];
+  for (const ln of lines) {
+    const price = Number(ln?.price) || 0;
+    if (price <= 0) continue;
+    const qty = Number(ln?.qty) || 0;
+    if (qty <= 0) continue;
+    qa.push({
+      kind: "hl-config",
+      label: ln.label || "Handlaufe (Konfigurator)",
+      productId: ln.productId || "",
+      qty,
+      price,
+      ...(ln.unit ? { unit: ln.unit } : {}),
+    });
+  }
+  payload.hl.quickAdd = qa;
+
+  try {
+    const state = typeof api.getState === "function" ? api.getState() : null;
+    payload.hl.hlConfigurator = { state, lines };
+  } catch {
+    /* non-fatal */
+  }
+}
+
 
 
 function collectBlExtras(payload) {
@@ -4120,6 +4170,7 @@ function buildPayload() {
 
   if (String(currentOfferKey || "").toLowerCase() === "hl") {
     collectHlExtras(payload);
+    collectHlFlexofitConfigurator(payload);
   }
 
   if (String(currentOfferKey || "").toLowerCase() === "bl") {
@@ -24323,66 +24374,67 @@ function initHlFlexofitWizard() {
   const root = document.getElementById("hlFlexofitWizard");
   if (!root) return;
 
-  const stepsEl = document.getElementById("hlWizSteps");
-  const statusEl = document.getElementById("hlWizStatus");
-  const bodyEl = document.getElementById("hlWizBody");
-  const backBtn = document.getElementById("hlWizBack");
-  const nextBtn = document.getElementById("hlWizNext");
+  const railEl = document.getElementById("hlWizRail");
+  const panelEl = document.getElementById("hlWizPanel");
+  const ledgerEl = document.getElementById("hlWizLedger");
   const resetBtn = document.getElementById("hlWizReset");
   const areaInside = document.getElementById("hlAreaInside");
   const areaOutside = document.getElementById("hlAreaOutside");
+  if (!railEl || !panelEl || !ledgerEl) return;
 
   const TUBE_GROUPS = {
     inside: ["Aluminiumrohr 35mm", "Stahlrohr 35mm", "Massivholz"],
     outside: ["Aluminiumrohr 35mm"],
   };
-  const STEP_LABELS = ["Bereich", "Rohr & Farbe", "Beschläge & Oberfläche", "Übersicht"];
+  const outsideFinish = "Edelstahl gebürstet";
 
   let entries = [];
+  let entriesByKey = new Map();
   let loaded = false;
-  const state = {
-    step: 0,
-    area: "",          // "inside" | "outside"
-    tubeTab: "",       // active material tab in step 2
-    tubes: {},         // catalogKey -> { entry, meters }
-    finish: "",        // locked innen finish (outside is fixed)
-    fittings: {},      // catalogKey -> { entry, qty }
-  };
+  let uidCounter = 0;
+  let configs = [];
+  let activeId = null;
 
   const money = (v) => {
     const n = Number(v);
     return Number.isFinite(n) ? `${n.toFixed(2).replace(".", ",")} EUR` : "";
   };
-  const priceStr = (v) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n.toFixed(2).replace(".", ",") : "";
-  };
   const hlCatalogKey = (entry) =>
     [entry.family, entry.product?.productId || "", entry.label || productVariant(entry.product)].join("::");
 
-  const outsideFinish = "Edelstahl gebürstet";
-  const activeFinish = () => (state.area === "outside" ? outsideFinish : state.finish);
+  const mkConfig = (overrides) => {
+    uidCounter += 1;
+    return {
+      id: `hlc${uidCounter}`,
+      name: `Handlaufe ${uidCounter}`,
+      area: "",
+      tubeTab: "",
+      tubes: {}, // catalogKey -> meters
+      finish: "",
+      fittings: {}, // catalogKey -> qty
+      open: { area: true, rohr: false, beschlaege: false },
+      ...overrides,
+    };
+  };
 
-  const tubeEntriesFor = (family) =>
+  const activeFinishFor = (c) => (c.area === "outside" ? outsideFinish : c.finish);
+
+  const tubeEntriesFor = (area, family) =>
     entries.filter(
-      (e) =>
-        e.family === family &&
-        e.areas.includes(state.area) &&
-        e.product?.productId !== "FF_SL01",
+      (e) => e.family === family && e.areas.includes(area) && e.product?.productId !== "FF_SL01",
     );
 
-  // Component families available for the current area/finish, as [{label, entry}].
-  const fittingChoices = () => {
-    if (state.area === "outside") {
+  // Component families available for a config's area/finish, as [{label, entry}].
+  const OUTSIDE_FITTING_FAMILIES = ["Beschläge Edelstahl außen", "Material Edelstahl außen"];
+  const fittingChoices = (c) => {
+    if (c.area === "outside") {
       return entries
-        .filter((e) => e.family === "Beschläge Edelstahl außen")
+        .filter((e) => OUTSIDE_FITTING_FAMILIES.includes(e.family))
         .map((e) => ({ label: productVariant(e.product), entry: e }));
     }
-    if (!state.finish) return [];
+    if (!c.finish) return [];
     return HL_FITTING_FAMILIES.map((fam) => {
-      const entry = entries.find(
-        (e) => e.family === fam && hlFinishOf(e.product) === state.finish,
-      );
+      const entry = entries.find((e) => e.family === fam && hlFinishOf(e.product) === c.finish);
       return entry ? { label: fam.replace(/\s+innen$/, ""), entry } : null;
     }).filter(Boolean);
   };
@@ -24395,55 +24447,70 @@ function initHlFlexofitWizard() {
   const imgTag = (entry) =>
     `<img src="${imageFor(entry)}" alt="" loading="lazy" onerror="this.remove()" />`;
 
-  // ---- rendering -------------------------------------------------
-  const renderSteps = () => {
-    stepsEl.innerHTML = STEP_LABELS.map(
-      (label, i) =>
-        `<li class="${i === state.step ? "is-active" : i < state.step ? "is-done" : ""}">
-           <span class="hl-wiz__num">${i < state.step ? "✓" : i + 1}</span>${escapeHtml(label)}
-         </li>`,
-    ).join("");
+  const isComplete = (c) =>
+    !!c.area &&
+    (Object.values(c.tubes).some((m) => Number(m) > 0) ||
+      Object.values(c.fittings).some((q) => Number(q) > 0));
+
+  const summaryTextFor = (c) => {
+    const parts = [];
+    if (c.area) parts.push(c.area === "inside" ? "Innen" : "Außen");
+    const nT = Object.keys(c.tubes).length;
+    const nF = Object.keys(c.fittings).length;
+    if (nT) parts.push(`${nT} Rohr${nT === 1 ? "" : "e"}`);
+    if (nF) parts.push(`${nF} Beschlag${nF === 1 ? "" : "-läge"}`);
+    return parts.join(" · ") || "Unvollständig";
   };
 
-  const renderBereich = () => {
+  // Open the next incomplete leaf step, collapse the rest.
+  const autoOpenNext = (c) => {
+    c.open = { area: false, rohr: false, beschlaege: false };
+    if (!c.area) c.open.area = true;
+    else if (!Object.keys(c.tubes).length) c.open.rohr = true;
+    else c.open.beschlaege = true;
+  };
+
+  const syncLegacyAreaCheckboxes = () => {
+    const hasInside = configs.some((c) => c.area === "inside");
+    const hasOutside = configs.some((c) => c.area === "outside");
+    if (areaInside) {
+      areaInside.checked = hasInside;
+      areaInside.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    if (areaOutside) {
+      areaOutside.checked = hasOutside;
+      areaOutside.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  };
+
+  const refreshOffer = () => {
+    if (typeof window.updatePricing === "function") window.updatePricing();
+    if (typeof updateSummary === "function") updateSummary();
+  };
+
+  // ---- leaf-step body builders ------------------------------------
+  const bereichBodyHtml = (c) => {
     const card = (area, title, sub, img) => `
-      <button type="button" class="hl-wiz__card${state.area === area ? " is-selected" : ""}" data-area="${area}">
+      <button type="button" class="hl-wiz__card${c.area === area ? " is-selected" : ""}" data-pick-area="${area}">
         <img src="${img}" alt="" onerror="this.remove()" />
         <span class="hl-wiz__card-title">${escapeHtml(title)}</span>
         <span class="hl-wiz__card-sub">${escapeHtml(sub)}</span>
       </button>`;
-    bodyEl.innerHTML = `
-      <div class="hl-wiz__section-title">Wo werden die Handläufe montiert?</div>
-      <div class="hl-wiz__cards">
+    return `<div class="hl-wiz__cards">
         ${card("inside", "Innenbereich", "Alu, Stahl & Holz · 8 Oberflächen", "./assets/Innenbereich.png")}
         ${card("outside", "Außenbereich", "Aluminium/Edelstahl · Edelstahl gebürstet", "./assets/Außenbereich.png")}
       </div>`;
-    bodyEl.querySelectorAll("[data-area]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        state.area = btn.dataset.area;
-        // Sync legacy area checkboxes so pricing/area logic stays consistent.
-        if (areaInside) areaInside.checked = state.area === "inside";
-        if (areaOutside) areaOutside.checked = state.area === "outside";
-        areaInside?.dispatchEvent(new Event("change", { bubbles: true }));
-        areaOutside?.dispatchEvent(new Event("change", { bubbles: true }));
-        // Area change invalidates downstream picks.
-        state.finish = "";
-        state.tubeTab = "";
-        render();
-      });
-    });
   };
 
-  const renderTubes = () => {
-    // Only materials that actually have products in this area become tabs.
-    const groups = (TUBE_GROUPS[state.area] || []).filter((f) => tubeEntriesFor(f).length);
-    if (!groups.includes(state.tubeTab)) state.tubeTab = groups[0] || "";
-    const active = state.tubeTab;
+  const rohrBodyHtml = (c) => {
+    if (!c.area) return `<div class="hl-wiz__empty">Bitte zuerst Bereich wählen.</div>`;
+    const groups = (TUBE_GROUPS[c.area] || []).filter((f) => tubeEntriesFor(c.area, f).length);
+    if (!groups.includes(c.tubeTab)) c.tubeTab = groups[0] || "";
+    const active = c.tubeTab;
 
     const countIn = (family) =>
-      tubeEntriesFor(family).filter((e) => state.tubes[hlCatalogKey(e)]).length;
+      tubeEntriesFor(c.area, family).filter((e) => c.tubes[hlCatalogKey(e)] != null).length;
 
-    // Material tabs (only when there is more than one material to choose from).
     const tabs =
       groups.length > 1
         ? `<div class="hl-wiz__finishes" role="tablist" aria-label="Material">` +
@@ -24456,320 +24523,430 @@ function initHlFlexofitWizard() {
           `</div>`
         : "";
 
-    const picks = (active ? tubeEntriesFor(active) : [])
+    const picks = (active ? tubeEntriesFor(c.area, active) : [])
       .map((entry) => {
         const key = hlCatalogKey(entry);
-        const sel = state.tubes[key];
+        const meters = c.tubes[key];
         const p = entry.product;
         return `
           <div>
-            <div class="hl-wiz__pick${sel ? " is-selected" : ""}" data-tube="${escapeHtml(key)}">
+            <div class="hl-wiz__pick${meters != null ? " is-selected" : ""}" data-tube="${escapeHtml(key)}">
               <span>${imgTag(entry)}</span>
               <span>
                 <span class="hl-wiz__pick-name">${escapeHtml(entry.label || productVariant(p))}</span><br/>
                 <span class="hl-wiz__pick-meta">${escapeHtml(p.productId || "")} · ${money(p.price)}/Meter</span>
               </span>
             </div>
-            <div class="hl-wiz__qty" ${sel ? "" : "hidden"}>
+            <div class="hl-wiz__qty" ${meters != null ? "" : "hidden"}>
               <label>Länge (Meter):</label>
-              <input type="number" min="0" step="0.1" value="${sel ? sel.meters : 1}" data-tube-meters="${escapeHtml(key)}" />
+              <input type="number" min="0" step="0.1" value="${meters != null ? meters : 1}" data-tube-meters="${escapeHtml(key)}" />
             </div>
           </div>`;
       })
       .join("");
 
-    bodyEl.innerHTML = `
-      <div class="hl-wiz__section-title">Rohr &amp; Farbe wählen</div>
+    return `
       <p class="hl-wiz__hint">Material wählen, dann Farben markieren (Mehrfachauswahl). Rohre werden pro Meter berechnet — Länge je Farbe angeben.</p>
       ${tabs}
       ${picks ? `<div class="hl-wiz__picks">${picks}</div>` : '<div class="hl-wiz__empty">Keine Rohre für diesen Bereich verfügbar.</div>'}`;
-
-    bodyEl.querySelectorAll("[data-tube-tab]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        state.tubeTab = btn.dataset.tubeTab;
-        render();
-      });
-    });
-    bodyEl.querySelectorAll("[data-tube]").forEach((el) => {
-      el.addEventListener("click", () => {
-        const key = el.dataset.tube;
-        if (state.tubes[key]) delete state.tubes[key];
-        else state.tubes[key] = { entry: entries.find((e) => hlCatalogKey(e) === key), meters: 1 };
-        render();
-      });
-    });
-    bodyEl.querySelectorAll("[data-tube-meters]").forEach((inp) => {
-      inp.addEventListener("click", (e) => e.stopPropagation());
-      inp.addEventListener("input", () => {
-        const key = inp.dataset.tubeMeters;
-        if (state.tubes[key]) state.tubes[key].meters = inp.value;
-      });
-    });
   };
 
-  const renderFittings = () => {
-    let head = `<div class="hl-wiz__section-title">Beschläge &amp; Oberfläche</div>`;
-    if (state.area === "outside") {
-      head += `<p class="hl-wiz__hint">Im Außenbereich gibt es Beschläge nur in <b>${escapeHtml(outsideFinish)}</b>.</p>`;
+  const beschlaegeBodyHtml = (c) => {
+    if (!c.area) return `<div class="hl-wiz__empty">Bitte zuerst Bereich wählen.</div>`;
+    let head;
+    if (c.area === "outside") {
+      head = `<p class="hl-wiz__hint">Beschläge und Montagematerial (Edelstahlstützen, Wandanschlüsse etc.) im Außenbereich gibt es nur in <b>${escapeHtml(outsideFinish)}</b>.</p>`;
     } else {
       const finishes = availableFinishes();
-      const locked = !!state.finish;
       const swatches = finishes
         .map(
           (f) =>
-            `<button type="button" class="hl-wiz__finish${state.finish === f ? " is-selected" : ""}" data-finish="${escapeHtml(f)}">${escapeHtml(f)}</button>`,
+            `<button type="button" class="hl-wiz__finish${c.finish === f ? " is-selected" : ""}" data-finish="${escapeHtml(f)}">${escapeHtml(f)}</button>`,
         )
         .join("");
-      head += `<p class="hl-wiz__hint">Zuerst eine Oberfläche wählen — alle Beschläge werden dann in dieser Oberfläche kalkuliert.</p>
-               <div class="hl-wiz__finishes">${swatches}</div>`;
-      if (!locked) {
-        bodyEl.innerHTML = head + '<div class="hl-wiz__empty">Bitte zuerst eine Oberfläche auswählen.</div>';
-        bindFinishes();
-        return;
+      head = `<p class="hl-wiz__hint">Zuerst eine Oberfläche wählen — alle Beschläge dieser Konfiguration werden dann in dieser Oberfläche kalkuliert.</p>
+              <div class="hl-wiz__finishes">${swatches}</div>`;
+      if (!c.finish) {
+        return head + '<div class="hl-wiz__empty">Bitte zuerst eine Oberfläche auswählen.</div>';
       }
     }
 
-    const choices = fittingChoices();
+    const choices = fittingChoices(c);
     const cards = choices
       .map(({ label, entry }) => {
         const key = hlCatalogKey(entry);
-        const sel = state.fittings[key];
+        const qty = c.fittings[key];
         const p = entry.product;
         return `
           <div>
-            <div class="hl-wiz__pick${sel ? " is-selected" : ""}" data-fit="${escapeHtml(key)}">
+            <div class="hl-wiz__pick${qty != null ? " is-selected" : ""}" data-fit="${escapeHtml(key)}">
               <span>${imgTag(entry)}</span>
               <span>
                 <span class="hl-wiz__pick-name">${escapeHtml(label)}</span><br/>
                 <span class="hl-wiz__pick-meta">${escapeHtml(p.productId || "")} · ${money(p.price)}</span>
               </span>
             </div>
-            <div class="hl-wiz__qty" ${sel ? "" : "hidden"}>
+            <div class="hl-wiz__qty" ${qty != null ? "" : "hidden"}>
               <label>Menge:</label>
-              <input type="number" min="1" step="1" value="${sel ? sel.qty : 1}" data-fit-qty="${escapeHtml(key)}" />
+              <input type="number" min="1" step="1" value="${qty != null ? qty : 1}" data-fit-qty="${escapeHtml(key)}" />
             </div>
           </div>`;
       })
       .join("");
-    bodyEl.innerHTML =
-      head +
-      `<div class="hl-wiz__picks">${cards || '<div class="hl-wiz__empty">Keine Beschläge verfügbar.</div>'}</div>`;
+    return head + `<div class="hl-wiz__picks">${cards || '<div class="hl-wiz__empty">Keine Beschläge verfügbar.</div>'}</div>`;
+  };
 
-    bindFinishes();
-    bodyEl.querySelectorAll("[data-fit]").forEach((el) => {
+  // ---- rendering ---------------------------------------------------
+  const renderRail = () => {
+    const items = configs
+      .map((c) => {
+        const complete = isComplete(c);
+        return `
+          <div class="hl-wiz__rail-item${c.id === activeId ? " is-active" : ""}" data-select-config="${escapeHtml(c.id)}">
+            <span class="hl-wiz__rail-dot${complete ? "" : " is-incomplete"}"></span>
+            <span class="hl-wiz__rail-name">
+              <strong>${escapeHtml(c.name)}</strong>
+              <span>${escapeHtml(summaryTextFor(c))}</span>
+            </span>
+            <button type="button" class="hl-wiz__rail-del"${configs.length <= 1 ? " disabled" : ""} data-remove-config="${escapeHtml(c.id)}" title="Konfiguration entfernen">×</button>
+          </div>`;
+      })
+      .join("");
+
+    railEl.innerHTML = `
+      <div class="hl-wiz__rail-title">Konfigurationen</div>
+      <div class="hl-wiz__rail-list">${items}</div>
+      <button type="button" class="hl-wiz__rail-add" data-add-config>
+        <i class="fa-solid fa-plus"></i> Weitere Konfiguration
+      </button>`;
+
+    railEl.querySelectorAll("[data-select-config]").forEach((el) => {
+      el.addEventListener("click", (e) => {
+        if (e.target.closest("[data-remove-config]")) return;
+        activeId = el.dataset.selectConfig;
+        renderAll();
+      });
+    });
+    railEl.querySelectorAll("[data-remove-config]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (configs.length <= 1) return;
+        const id = btn.dataset.removeConfig;
+        const c = configs.find((x) => x.id === id);
+        if (!window.confirm(`„${c?.name || "Konfiguration"}“ wirklich entfernen? Alle Auswahlen dieser Konfiguration gehen verloren.`)) return;
+        configs = configs.filter((x) => x.id !== id);
+        if (activeId === id) activeId = configs[0].id;
+        renderAll();
+        refreshOffer();
+      });
+    });
+    railEl.querySelector("[data-add-config]")?.addEventListener("click", () => {
+      const c = mkConfig();
+      configs.push(c);
+      activeId = c.id;
+      renderAll();
+    });
+  };
+
+  const renderPanel = () => {
+    const c = configs.find((x) => x.id === activeId);
+    if (!c) {
+      panelEl.innerHTML = "";
+      return;
+    }
+    const complete = isComplete(c);
+    const stepBody = { area: bereichBodyHtml(c), rohr: rohrBodyHtml(c), beschlaege: beschlaegeBodyHtml(c) };
+    const stepTitle = { area: "Bereich", rohr: "Rohr & Farbe", beschlaege: "Beschläge & Oberfläche" };
+    const nTubes = Object.keys(c.tubes).length;
+    const nFit = Object.keys(c.fittings).length;
+    const stepValue = {
+      area: c.area ? (c.area === "inside" ? "Innen" : "Außen") : "—",
+      rohr: nTubes ? `${nTubes} Rohr(e)` : "—",
+      beschlaege: c.area === "outside" || c.finish ? `${activeFinishFor(c)} · ${nFit} Beschlag/-läge` : "—",
+    };
+    const stepDone = {
+      area: !!c.area,
+      rohr: nTubes > 0,
+      beschlaege: c.area === "outside" ? nFit > 0 : !!c.finish && nFit > 0,
+    };
+    const steps = ["area", "rohr", "beschlaege"]
+      .map((key, i) => {
+        const open = !!c.open[key];
+        return `
+          <div class="hl-wiz__leaf-step${stepDone[key] ? " is-done" : ""}${open ? " is-open" : ""}">
+            <div class="hl-wiz__leaf-head" data-toggle-step="${key}">
+              <span class="hl-wiz__leaf-num">${stepDone[key] ? "✓" : i + 1}</span>
+              <span class="hl-wiz__leaf-title">${escapeHtml(stepTitle[key])}</span>
+              <span class="hl-wiz__leaf-value">${escapeHtml(stepValue[key])}</span>
+              <span class="hl-wiz__leaf-chevron">▾</span>
+            </div>
+            <div class="hl-wiz__leaf-body">${stepBody[key]}</div>
+          </div>`;
+      })
+      .join("");
+
+    panelEl.innerHTML = `
+      <div class="hl-wiz__panel-head">
+        <input type="text" class="hl-wiz__name-input" value="${escapeHtml(c.name)}" data-rename-config placeholder="Name der Konfiguration" />
+        <span class="hl-wiz__status-pill ${complete ? "is-good" : "is-warn"}">${complete ? "Vollständig" : "Unvollständig"}</span>
+      </div>
+      <div class="hl-wiz__leaf">${steps}</div>`;
+
+    panelEl.querySelectorAll("[data-toggle-step]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const key = el.dataset.toggleStep;
+        c.open[key] = !c.open[key];
+        renderPanel();
+      });
+    });
+    panelEl.querySelector("[data-rename-config]")?.addEventListener("change", (e) => {
+      c.name = e.target.value.trim() || c.name;
+      renderAll();
+    });
+    panelEl.querySelectorAll("[data-pick-area]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        c.area = btn.dataset.pickArea;
+        c.tubeTab = "";
+        c.finish = "";
+        c.tubes = {};
+        c.fittings = {};
+        syncLegacyAreaCheckboxes();
+        autoOpenNext(c);
+        renderAll();
+        refreshOffer();
+      });
+    });
+    panelEl.querySelectorAll("[data-tube-tab]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        c.tubeTab = btn.dataset.tubeTab;
+        renderPanel();
+      });
+    });
+    panelEl.querySelectorAll("[data-tube]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const key = el.dataset.tube;
+        if (c.tubes[key] != null) delete c.tubes[key];
+        else c.tubes[key] = 1;
+        autoOpenNext(c);
+        renderAll();
+        refreshOffer();
+      });
+    });
+    panelEl.querySelectorAll("[data-tube-meters]").forEach((inp) => {
+      inp.addEventListener("click", (e) => e.stopPropagation());
+      inp.addEventListener("change", () => {
+        const key = inp.dataset.tubeMeters;
+        const v = Math.max(0, Number(String(inp.value).replace(",", ".")) || 0);
+        if (v <= 0) delete c.tubes[key];
+        else c.tubes[key] = v;
+        renderAll();
+        refreshOffer();
+      });
+    });
+    panelEl.querySelectorAll("[data-finish]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const next = btn.dataset.finish;
+        if (c.finish && c.finish !== next) c.fittings = {};
+        c.finish = c.finish === next ? "" : next;
+        autoOpenNext(c);
+        renderAll();
+        refreshOffer();
+      });
+    });
+    panelEl.querySelectorAll("[data-fit]").forEach((el) => {
       el.addEventListener("click", () => {
         const key = el.dataset.fit;
-        if (state.fittings[key]) delete state.fittings[key];
-        else state.fittings[key] = { entry: entries.find((e) => hlCatalogKey(e) === key), qty: 1 };
-        render();
+        if (c.fittings[key] != null) delete c.fittings[key];
+        else c.fittings[key] = 1;
+        renderAll();
+        refreshOffer();
       });
     });
-    bodyEl.querySelectorAll("[data-fit-qty]").forEach((inp) => {
+    panelEl.querySelectorAll("[data-fit-qty]").forEach((inp) => {
       inp.addEventListener("click", (e) => e.stopPropagation());
-      inp.addEventListener("input", () => {
+      inp.addEventListener("change", () => {
         const key = inp.dataset.fitQty;
-        if (state.fittings[key]) state.fittings[key].qty = inp.value;
+        const v = Math.max(0, Number(inp.value) || 0);
+        if (v <= 0) delete c.fittings[key];
+        else c.fittings[key] = v;
+        renderAll();
+        refreshOffer();
       });
+    });
+  };
+
+  const renderLedger = () => {
+    const rows = [];
+    let total = 0;
+    let count = 0;
+    configs.forEach((c) => {
+      const cRows = [];
+      Object.entries(c.tubes).forEach(([key, meters]) => {
+        const m = Number(meters) || 0;
+        if (m <= 0) return;
+        const entry = entriesByKey.get(key);
+        if (!entry) return;
+        const price = Number(entry.product.price) || 0;
+        const lineTotal = m * price;
+        total += lineTotal;
+        count++;
+        cRows.push(`
+          <tr>
+            <td><div class="hl-wiz__ledger-name">${escapeHtml(entry.label || productVariant(entry.product))}</div><div class="hl-wiz__ledger-sub">${escapeHtml(entry.product.productId || "")}</div></td>
+            <td class="num"><span class="hl-wiz__ledger-qty"><input type="number" min="0" step="0.1" value="${m}" data-ledger-qty data-cid="${escapeHtml(c.id)}" data-key="${escapeHtml(key)}" data-kind="tube" /> m</span></td>
+            <td class="num">${money(price)}</td>
+            <td class="num">${money(lineTotal)}</td>
+            <td><button type="button" class="hl-wiz__ledger-del" data-ledger-del data-cid="${escapeHtml(c.id)}" data-key="${escapeHtml(key)}" data-kind="tube" title="Entfernen">×</button></td>
+          </tr>`);
+      });
+      Object.entries(c.fittings).forEach(([key, qty]) => {
+        const q = Number(qty) || 0;
+        if (q <= 0) return;
+        const entry = entriesByKey.get(key);
+        if (!entry) return;
+        const price = Number(entry.product.price) || 0;
+        const lineTotal = q * price;
+        total += lineTotal;
+        count++;
+        cRows.push(`
+          <tr>
+            <td><div class="hl-wiz__ledger-name">${escapeHtml(entry.label || productVariant(entry.product))}</div><div class="hl-wiz__ledger-sub">${escapeHtml(activeFinishFor(c) || "")}</div></td>
+            <td class="num"><span class="hl-wiz__ledger-qty"><input type="number" min="0" step="1" value="${q}" data-ledger-qty data-cid="${escapeHtml(c.id)}" data-key="${escapeHtml(key)}" data-kind="fit" /> Stk.</span></td>
+            <td class="num">${money(price)}</td>
+            <td class="num">${money(lineTotal)}</td>
+            <td><button type="button" class="hl-wiz__ledger-del" data-ledger-del data-cid="${escapeHtml(c.id)}" data-key="${escapeHtml(key)}" data-kind="fit" title="Entfernen">×</button></td>
+          </tr>`);
+      });
+      if (cRows.length) {
+        rows.push(`<tr class="hl-wiz__ledger-group"><td colspan="5">${escapeHtml(c.name)}</td></tr>`);
+        rows.push(...cRows);
+      }
     });
 
-    function bindFinishes() {
-      bodyEl.querySelectorAll("[data-finish]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const next = btn.dataset.finish;
-          if (state.finish && state.finish !== next) {
-            // Switching finish: drop innen fittings tied to the old finish.
-            state.fittings = {};
-          }
-          state.finish = state.finish === next ? "" : next;
-          render();
+    ledgerEl.innerHTML = `
+      <div class="hl-wiz__ledger-head">
+        <div class="hl-wiz__section-title" style="margin:0">Positionen — alle Konfigurationen</div>
+        <div class="muted">${count} Position${count === 1 ? "" : "en"}</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="hl-wiz__ledger-table">
+          <thead><tr><th>Position</th><th class="num">Menge</th><th class="num">Einzelpreis</th><th class="num">Summe</th><th></th></tr></thead>
+          <tbody>${rows.join("") || `<tr><td colspan="5" class="hl-wiz__empty">Noch keine Auswahl getroffen.</td></tr>`}</tbody>
+          <tfoot><tr><td colspan="3" class="hl-wiz__ledger-total-label">Gesamt (netto, EK)</td><td class="num">${money(total)}</td><td></td></tr></tfoot>
+        </table>
+      </div>`;
+
+    ledgerEl.querySelectorAll("[data-ledger-qty]").forEach((inp) => {
+      inp.addEventListener("change", () => {
+        const { cid, key, kind } = inp.dataset;
+        const c = configs.find((x) => x.id === cid);
+        if (!c) return;
+        const bag = kind === "tube" ? c.tubes : c.fittings;
+        const v = Math.max(0, Number(String(inp.value).replace(",", ".")) || 0);
+        if (v <= 0) delete bag[key];
+        else bag[key] = v;
+        renderAll();
+        refreshOffer();
+      });
+    });
+    ledgerEl.querySelectorAll("[data-ledger-del]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const { cid, key, kind } = btn.dataset;
+        const c = configs.find((x) => x.id === cid);
+        if (!c) return;
+        delete (kind === "tube" ? c.tubes : c.fittings)[key];
+        renderAll();
+        refreshOffer();
+      });
+    });
+  };
+
+  const renderAll = () => {
+    renderRail();
+    renderPanel();
+    renderLedger();
+  };
+
+  // ---- public API (mirrors window.__daConfigurator) ----------------
+  const getLines = () => {
+    const lines = [];
+    configs.forEach((c) => {
+      Object.entries(c.tubes).forEach(([key, meters]) => {
+        const m = Number(meters) || 0;
+        if (m <= 0) return;
+        const entry = entriesByKey.get(key);
+        if (!entry) return;
+        lines.push({
+          label: `${c.name} – ${entry.label || productVariant(entry.product)}`,
+          productId: entry.product.productId || "",
+          qty: m,
+          price: Number(entry.product.price) || 0,
+          unit: "m",
         });
       });
-    }
-  };
-
-  const renderSummary = () => {
-    const rows = [];
-    Object.values(state.tubes).forEach(({ entry, meters }) => {
-      if (!entry) return;
-      const m = Number(String(meters).replace(",", ".")) || 0;
-      rows.push({
-        name: `${entry.family} · ${entry.label || productVariant(entry.product)}`,
-        detail: `${m} Meter × ${money(entry.product.price)}/Meter`,
-        total: m * Number(entry.product.price || 0),
+      Object.entries(c.fittings).forEach(([key, qty]) => {
+        const q = Number(qty) || 0;
+        if (q <= 0) return;
+        const entry = entriesByKey.get(key);
+        if (!entry) return;
+        lines.push({
+          label: `${c.name} – ${entry.label || productVariant(entry.product)}`,
+          productId: entry.product.productId || "",
+          qty: q,
+          price: Number(entry.product.price) || 0,
+        });
       });
     });
-    Object.values(state.fittings).forEach(({ entry, qty }) => {
-      if (!entry) return;
-      const q = Number(qty) || 0;
-      const fin = hlFinishOf(entry.product) || activeFinish();
-      rows.push({
-        name: `${entry.label || productVariant(entry.product)}${fin ? ` · ${fin}` : ""}`,
-        detail: `${q} × ${money(entry.product.price)}`,
-        total: q * Number(entry.product.price || 0),
-      });
-    });
-    const sum = rows.reduce((a, r) => a + r.total, 0);
-    bodyEl.innerHTML = `
-      <div class="hl-wiz__section-title">Übersicht</div>
-      ${
-        rows.length
-          ? `<div class="hl-wiz__summary">
-               ${rows
-                 .map(
-                   (r) => `<div class="hl-wiz__summary-row">
-                     <span>${escapeHtml(r.name)}</span>
-                     <span class="muted">${escapeHtml(r.detail)}</span>
-                     <span><b>${money(r.total)}</b></span>
-                   </div>`,
-                 )
-                 .join("")}
-               <div class="hl-wiz__summary-row"><span><b>Summe (netto, EK)</b></span><span></span><span><b>${money(sum)}</b></span></div>
-             </div>
-             <p class="hl-wiz__hint" style="margin-top:12px">Mit „In Angebot übernehmen“ werden die Positionen als Freie Posten übernommen und in die Preisberechnung aufgenommen.</p>`
-          : '<div class="hl-wiz__empty">Noch nichts ausgewählt. Bitte in den vorherigen Schritten Rohre oder Beschläge wählen.</div>'
-      }`;
+    return lines;
   };
 
-  const render = () => {
-    renderSteps();
-    if (state.step === 0) renderBereich();
-    else if (state.step === 1) renderTubes();
-    else if (state.step === 2) renderFittings();
-    else renderSummary();
-
-    backBtn.disabled = state.step === 0;
-    const isLast = state.step === STEP_LABELS.length - 1;
-    nextBtn.innerHTML = isLast
-      ? '<i class="fa-solid fa-check"></i> In Angebot übernehmen'
-      : 'Weiter <i class="fa-solid fa-arrow-right"></i>';
-
-    // Gate progression.
-    let ok = true;
-    if (state.step === 0) ok = !!state.area;
-    if (state.step === 2 && state.area !== "outside") ok = !!state.finish || !Object.keys(state.fittings).length;
-    nextBtn.disabled = !ok;
-
-    const nTubes = Object.keys(state.tubes).length;
-    const nFit = Object.keys(state.fittings).length;
-    statusEl.textContent = state.area
-      ? `Bereich: ${state.area === "inside" ? "Innen" : "Außen"} · ${nTubes} Rohr(e) · ${nFit} Beschlag/-läge`
-      : "";
+  window.__hlConfigurator = {
+    getLines,
+    getState() {
+      return configs.map((c) => ({
+        name: c.name,
+        area: c.area,
+        tubeTab: c.tubeTab,
+        finish: c.finish,
+        tubes: { ...c.tubes },
+        fittings: { ...c.fittings },
+      }));
+    },
+    async restore(saved) {
+      await load();
+      uidCounter = 0;
+      const list = Array.isArray(saved) ? saved : [];
+      configs = list.length
+        ? list.map((s) => {
+            const c = mkConfig(s?.name ? { name: s.name } : {});
+            c.area = s?.area || "";
+            c.tubeTab = s?.tubeTab || "";
+            c.finish = s?.finish || "";
+            c.tubes = { ...(s?.tubes || {}) };
+            c.fittings = { ...(s?.fittings || {}) };
+            autoOpenNext(c);
+            return c;
+          })
+        : [mkConfig()];
+      activeId = configs[0].id;
+      syncLegacyAreaCheckboxes();
+      renderAll();
+    },
+    reset() {
+      uidCounter = 0;
+      configs = [mkConfig()];
+      activeId = configs[0].id;
+      syncLegacyAreaCheckboxes();
+      renderAll();
+    },
   };
 
-  // ---- Quick-Add injection (same contract as the Katalog) --------
-  const targetWrap = () =>
-    document.getElementById("hlQuickAddItems_hausecke") ||
-    document.querySelector(".hl-quickadd-items");
-
-  const injectRow = (entry, { qty, price }) => {
-    const wrap = targetWrap();
-    const tpl = document.getElementById("tpl-hl-quickadd-row");
-    if (!wrap) return;
-    const key = hlCatalogKey(entry);
-
-    const rows = Array.from(wrap.querySelectorAll(".da-item"));
-    let row =
-      rows.find((r) => r.dataset.hlCatalogKey === key) ||
-      rows.find((r) => {
-        const empty = (sel) => !String(r.querySelector(sel)?.value || "").trim();
-        return empty(".da-name") && empty(".da-id") && empty(".da-price");
-      });
-
-    if (!row && tpl?.content?.firstElementChild) {
-      row = tpl.content.firstElementChild.cloneNode(true);
-      wrap.appendChild(row);
-      wireHlQuickAddRow(row);
-    }
-    if (!row) return;
-
-    row.dataset.hlCatalogKey = key;
-    row.dataset.hlCatalogFamily = entry.family;
-    row.dataset.hlCatalogAreas = entry.areas.join(",");
-
-    const setVal = (sel, value) => {
-      const el = row.querySelector(sel);
-      if (!el) return;
-      el.value = value;
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
-    };
-    setVal(".da-name", entry.label || entry.product.name || entry.product.productId || "");
-    setVal(".da-id", entry.product.productId || "");
-    setVal(".da-qty", String(qty));
-    setVal(".da-price", price);
-  };
-
-  const applyToOffer = () => {
-    let count = 0;
-    Object.values(state.tubes).forEach(({ entry, meters }) => {
-      if (!entry) return;
-      const m = Number(String(meters).replace(",", ".")) || 0;
-      if (m <= 0) return;
-      injectRow(entry, { qty: m, price: priceStr(entry.product.price) });
-      count++;
-    });
-    Object.values(state.fittings).forEach(({ entry, qty }) => {
-      if (!entry) return;
-      const q = Number(qty) || 0;
-      if (q <= 0) return;
-      injectRow(entry, { qty: q, price: priceStr(entry.product.price) });
-      count++;
-    });
-    if (typeof window.updatePricing === "function") window.updatePricing();
-    if (typeof updateSummary === "function") updateSummary();
-    if (typeof showToast === "function") {
-      showToast(count ? `${count} Position(en) ins Angebot übernommen.` : "Nichts zu übernehmen.", count ? "success" : "warning");
-    }
-    showCommitBanner(count);
-  };
-
-  // Persistent confirmation on the Übersicht (toast is too easy to miss).
-  const gotoStep = (stepKey) => {
-    location.hash = `#${stepKey}`;
-    window.dispatchEvent(new HashChangeEvent("hashchange"));
-  };
-  const showCommitBanner = (count) => {
-    bodyEl.querySelector(".hl-wiz__committed")?.remove();
-    const div = document.createElement("div");
-    div.className = `hl-wiz__committed${count ? "" : " is-empty"}`;
-    div.innerHTML = count
-      ? `<span><b>✓ ${count} Position(en) übernommen</b> — sichtbar im <b>HL</b>-Tab (Freier Posten) und unter <b>Kosten</b>.</span>
-         <span class="hl-wiz__committed-actions">
-           <button type="button" class="secondary" data-goto="hl">Zum HL-Tab</button>
-           <button type="button" data-goto="Kosten">Zu den Kosten</button>
-         </span>`
-      : `<span>Nichts zu übernehmen — bitte zuerst Rohre oder Beschläge auswählen.</span>`;
-    bodyEl.appendChild(div);
-    div.querySelectorAll("[data-goto]").forEach((b) =>
-      b.addEventListener("click", () => gotoStep(b.dataset.goto)),
-    );
-    div.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  };
-
-  // ---- navigation ------------------------------------------------
-  backBtn.addEventListener("click", () => {
-    if (state.step > 0) {
-      state.step--;
-      render();
-    }
-  });
-  nextBtn.addEventListener("click", () => {
-    if (state.step < STEP_LABELS.length - 1) {
-      state.step++;
-      render();
-    } else {
-      applyToOffer();
-    }
-  });
   resetBtn?.addEventListener("click", () => {
-    state.step = 0;
-    state.area = "";
-    state.tubeTab = "";
-    state.tubes = {};
-    state.finish = "";
-    state.fittings = {};
-    render();
+    window.__hlConfigurator.reset();
   });
+
+  configs = [mkConfig()];
+  activeId = configs[0].id;
 
   const load = async () => {
     if (loaded) return;
@@ -24778,12 +24955,12 @@ function initHlFlexofitWizard() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const products = await res.json();
       entries = products.flatMap(familyEntriesFor);
+      entriesByKey = new Map(entries.map((e) => [hlCatalogKey(e), e]));
       loaded = true;
     } catch (err) {
       console.warn("[HL Konfigurator] load failed:", err);
-      statusEl.textContent = "Flexofit-Produkte konnten nicht geladen werden.";
     }
-    render();
+    renderAll();
   };
 
   load();
