@@ -1403,20 +1403,20 @@ a.btn {
   line-height: 1;
 }
 
-:is(#dw-extra-tasks, #bwt-extra-tasks).wt-extra-fieldset {
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks).wt-extra-fieldset {
   margin: 0;
   padding: 0;
   border: none;
   background: transparent;
 }
 
-:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-items {
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks) .wt-extra-items {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
 }
 
-:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-item.da-item {
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks) .wt-extra-item.da-item {
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -1427,12 +1427,12 @@ a.btn {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-item:focus-within {
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks) .wt-extra-item:focus-within {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--ring);
 }
 
-:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-item .dw-extra {
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks) .wt-extra-item .dw-extra {
   flex: 1;
   min-width: 0;
   width: 100%;
@@ -1448,17 +1448,17 @@ a.btn {
   overflow-wrap: break-word;
 }
 
-:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-item .dw-extra:focus {
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks) .wt-extra-item .dw-extra:focus {
   border-color: transparent;
   box-shadow: none;
 }
 
 
-:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-item input[type="text"]:focus {
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks) .wt-extra-item input[type="text"]:focus {
   outline: none;
 }
 
-:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-remove.da-remove {
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks) .wt-extra-remove.da-remove {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -1474,14 +1474,14 @@ a.btn {
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-remove.da-remove:hover,
-:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-remove.da-remove:focus-visible {
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks) .wt-extra-remove.da-remove:hover,
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks) .wt-extra-remove.da-remove:focus-visible {
   background: rgba(239, 68, 68, 0.12);
   border-color: #ef4444;
   color: #ef4444;
 }
 
-:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-move {
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks) .wt-extra-move {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -1497,21 +1497,21 @@ a.btn {
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-move:hover:not(:disabled),
-:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-move:focus-visible:not(:disabled) {
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks) .wt-extra-move:hover:not(:disabled),
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks) .wt-extra-move:focus-visible:not(:disabled) {
   background: var(--muted);
   border-color: var(--accent);
   color: var(--card-foreground);
 }
 
-:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-move:disabled {
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks) .wt-extra-move:disabled {
   opacity: 0.4;
   cursor: default;
 }
 
 /* Keep the chevron at its intrinsic size — inside the inline-flex button it
    otherwise collapses to 0px width and the arrow disappears. */
-:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-move svg {
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks) .wt-extra-move svg {
   flex: 0 0 auto;
   width: 16px;
   height: 16px;
@@ -1519,7 +1519,7 @@ a.btn {
   stroke: currentColor;
 }
 
-:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-add.da-add {
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks) .wt-extra-add.da-add {
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
@@ -1536,14 +1536,14 @@ a.btn {
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-add.da-add:hover,
-:is(#dw-extra-tasks, #bwt-extra-tasks) .wt-extra-add.da-add:focus-visible {
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks) .wt-extra-add.da-add:hover,
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks) .wt-extra-add.da-add:focus-visible {
   background: var(--card-hover);
   border-color: var(--accent);
   border-style: solid;
 }
 
-:is(#dw-extra-tasks, #bwt-extra-tasks) .da-help {
+:is(#dw-extra-tasks, #bwt-extra-tasks, #hl-extra-tasks) .da-help {
   display: block;
   margin-top: 0.6rem;
 }

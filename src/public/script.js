@@ -24865,7 +24865,8 @@ function initHlFlexofitWizard() {
     const rows = [];
     let total = 0;
     let count = 0;
-    configs.forEach((c) => {
+    const activeConfig = configs.find((x) => x.id === activeId);
+    (activeConfig ? [activeConfig] : configs).forEach((c) => {
       const cRows = [];
       Object.entries(c.tubes).forEach(([key, meters]) => {
         const m = Number(meters) || 0;
@@ -24904,14 +24905,14 @@ function initHlFlexofitWizard() {
           </tr>`);
       });
       if (cRows.length) {
-        rows.push(`<tr class="hl-wiz__ledger-group"><td colspan="5">${escapeHtml(c.name)}</td></tr>`);
+        if (!activeConfig) rows.push(`<tr class="hl-wiz__ledger-group"><td colspan="5">${escapeHtml(c.name)}</td></tr>`);
         rows.push(...cRows);
       }
     });
 
     ledgerEl.innerHTML = `
       <div class="hl-wiz__ledger-head">
-        <div class="hl-wiz__section-title" style="margin:0">Positionen — alle Konfigurationen</div>
+        <div class="hl-wiz__section-title" style="margin:0">Positionen — ${activeConfig ? escapeHtml(activeConfig.name) : "alle Konfigurationen"}</div>
         <div class="muted">${count} Position${count === 1 ? "" : "en"}</div>
       </div>
       <div style="overflow-x:auto">
