@@ -423,6 +423,10 @@ function handleBoot() {
       offerType: state.offerType,
       step,
     });
+    // Reload while mid-session: DOM reset to HTML defaults, so re-apply
+    // the same 05:00 default startOfferFlow sets on a fresh start. Any
+    // real saved-draft hydration that runs after this overwrites it.
+    applyOfferDefaultLaborHours(state.offerType);
     return;
   }
 
@@ -1892,6 +1896,7 @@ function renderTravelCostDebug() {
   if (badge) badge.textContent = String(offer || "bu").toUpperCase();
 
   const isBwt = offer === "bwt";
+  const isSingleWorker = isBwt || offer === "hl";
 
   const payer =
     document.querySelector('input[name="payer"]:checked')?.value ||
@@ -1991,6 +1996,30 @@ function renderTravelCostDebug() {
   const employee1Work = laborHours * laborRate;
   const employee1Travel = travelHours * laborRate;
   const employee1Total = employee1Work + employee1Travel;
+
+  if (isSingleWorker) {
+    box.innerHTML = `
+      ${section("Zeiten", [
+        ["Arbeitszeit", `${hours(laborHours)} h`],
+        ["Reisezeit gesamt", `${hours(travelHours)} h`],
+      ])}
+      ${section("Stundensatz", [["1 Facharbeiter", `${euro(laborRate)}/h`]])}
+      ${employeeSection(
+        "Mitarbeiter 1 (Fahrer)",
+        [
+          ["Arbeitszeit", euro(employee1Work)],
+          ["Reisezeit", euro(employee1Travel)],
+        ],
+        euro(employee1Total),
+      )}
+      <div class="az-debug-total">
+        <span>Gesamtkosten aus Zeiten</span>
+        <strong>${euro(employee1Total)}</strong>
+      </div>
+      <div class="az-travel-debug-note">HL aktiv: 1 Facharbeiter, ${euro(laborRate)}/h für Arbeitszeit und Reisezeit.</div>
+    `;
+    return;
+  }
 
   const employee2Work = laborHours * laborRate;
   const employee2Travel = travelHours * secondWorkerRate;
@@ -2954,6 +2983,14 @@ function syncDerivedPrefills(reason = "") {
 }
 window.syncDerivedPrefills = syncDerivedPrefills;
 
+// BWT/HL are single-worker, shorter jobs — default Arbeitszeit to 05:00
+// instead of the generic 07:00 (BU/BL/etc.) default.
+function applyOfferDefaultLaborHours(offerKey) {
+  if (offerKey !== "bwt" && offerKey !== "hl") return;
+  const laborEl = document.getElementById("laborHours");
+  if (laborEl) laborEl.value = "05:00";
+}
+
 function startOfferFlow(offerKey) {
   if (!OFFERS[offerKey]) return;
 
@@ -2970,17 +3007,8 @@ function startOfferFlow(offerKey) {
   window.__bwtKmFreeThreshold = Number(window.__bwtKmFreeThresholdLive ?? 200);
   window.__bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHoursLive ?? 2);
 
-  // BWT: override Arbeitszeit default to 05:00 (1 worker, shorter job)
-  if (offerKey === "bwt") {
-    const laborEl = document.getElementById("laborHours");
-    if (laborEl) laborEl.value = "05:00";
-  }
-
-  // HL: override Arbeitszeit default to 05:00 (1 worker, shorter job)
-  if (offerKey === "hl") {
-    const laborEl = document.getElementById("laborHours");
-    if (laborEl) laborEl.value = "05:00";
-  }
+  // BWT/HL: override Arbeitszeit default to 05:00 (1 worker, shorter job)
+  applyOfferDefaultLaborHours(offerKey);
 
   const pages = getPagesForOfferType(offerKey);
   if (!pages.length) return;
@@ -3001,6 +3029,12 @@ function startOfferFlow(offerKey) {
   } catch (e) {
     console.warn("[startOfferFlow] offerflow:changed dispatch failed:", e);
   }
+
+  // Travel-cost debug box (Kostenübersicht) shows the previous offer's
+  // stale render otherwise: switching offers doesn't fire an input/blur
+  // event on laborHours/travelTime, which is the only thing that normally
+  // triggers a recompute.
+  window.updateTotalHours?.();
 
   requestAnimationFrame(() => {
     syncDerivedPrefills("startOfferFlow:raf");
