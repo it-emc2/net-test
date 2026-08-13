@@ -196,6 +196,7 @@ const OFFERS = {
     pages: [
       "Kundendaten",
       "Arbeitszeit",
+      "hlArbeiten",
       "hlk",
       "hl",
       "Rabatt",
@@ -2257,6 +2258,7 @@ function resetAllForms() {
     "form-bwt",
     "form-bwtArbeiten",
     "form-hl",
+    "form-hlArbeiten",
     "form-bl",
     "form-admin",
     "form-as",
@@ -2358,7 +2360,7 @@ function resetAllForms() {
   try {
     window.__hlConfigurator?.reset?.();
   } catch (e) {
-    console.warn("[resetAllForms] Handlaufe configurator reset failed:", e);
+    console.warn("[resetAllForms] Handläufe configurator reset failed:", e);
   }
 
   [
@@ -2731,8 +2733,9 @@ function updateSidebarForOffer() {
   const specialLabels = {
     bwt: "Badewannentür",
     bwtArbeiten: "Arbeiten",
+    hlArbeiten: "Arbeiten",
     hl: "HL",
-    hlk: "Handlaufe",
+    hlk: "Handläufe",
     bl: "BL",
     ah: "Leistungen",
     Finanzierung: "Finanzierung",
@@ -2749,6 +2752,7 @@ function updateSidebarForOffer() {
   // are untouched.
   const isBu = activeOffer === "bu";
   const isBwt = activeOffer === "bwt";
+  const isHl = activeOffer === "hl";
   const SIDEBAR_GROUPS = isBu
     ? [
         { title: "Auszuführende Arbeiten", num: "I", pages: ["Arbeitszeit", "Arbeiten"] },
@@ -2769,7 +2773,12 @@ function updateSidebarForOffer() {
       ? [
           { title: "Auszuführende Arbeiten", num: "I", pages: ["Arbeitszeit", "bwtArbeiten"] },
         ]
-      : [];
+      : isHl
+        ? [
+            { title: "Auszuführende Arbeiten", num: "I", pages: ["Arbeitszeit", "hlArbeiten"] },
+            { title: "Material für Handläufe", num: "II", pages: ["hlk", "hl"] },
+          ]
+        : [];
   const groupedByGroups = new Set(SIDEBAR_GROUPS.flatMap((g) => g.pages));
   // Single-page sections get the numeral directly on the link (a one-child
   // group would look odd) — BU does the same for Optional/III.
@@ -2963,6 +2972,12 @@ function startOfferFlow(offerKey) {
 
   // BWT: override Arbeitszeit default to 05:00 (1 worker, shorter job)
   if (offerKey === "bwt") {
+    const laborEl = document.getElementById("laborHours");
+    if (laborEl) laborEl.value = "05:00";
+  }
+
+  // HL: override Arbeitszeit default to 05:00 (1 worker, shorter job)
+  if (offerKey === "hl") {
     const laborEl = document.getElementById("laborHours");
     if (laborEl) laborEl.value = "05:00";
   }
@@ -3790,8 +3805,8 @@ try {
   }
 }
 
-// --- Handlaufe Konfigurator collector ---
-// The multi-config Handlaufe wizard exposes its resolved lines via
+// --- Handläufe Konfigurator collector ---
+// The multi-config Handläufe wizard exposes its resolved lines via
 // window.__hlConfigurator.getLines(). We APPEND them to payload.hl.quickAdd
 // (must run AFTER collectHlExtras, which sets/overwrites that array) so the
 // existing pricing path (logic/pricing-core.js: payload.hl.quickAdd) prices them.
@@ -3818,7 +3833,7 @@ function collectHlFlexofitConfigurator(payload) {
     if (qty <= 0) continue;
     qa.push({
       kind: "hl-config",
-      label: ln.label || "Handlaufe (Konfigurator)",
+      label: ln.label || "Handläufe (Konfigurator)",
       category: ln.category || null,
       productId: ln.productId || "",
       qty,
@@ -4755,6 +4770,29 @@ if (anschlag) {
     payload.hl.mountType = hlX.mountType || [];
   } catch (e) {
     console.warn("[buildPayload] HL collectHL failed:", e);
+  }
+
+  // ---- HL: Auszuführende-Arbeiten tab (workTasks checkbox + free-text list) ----
+  try {
+    const formHlArbeiten = document.getElementById("form-hlArbeiten");
+    if (formHlArbeiten) {
+      const fd = new FormData(formHlArbeiten);
+      const hl = payload.hl || (payload.hl = {});
+      // Always set (even []) so unchecking/clearing survives save + reload.
+      hl.workTasks = fd.getAll("hl[workTasks][]").map((v) => String(v));
+      hl.extraTasks = Array.from(
+        new Set(
+          fd
+            .getAll("hl[extraTasks][]")
+            .map((v) => String(v).trim())
+            .filter(Boolean),
+        ),
+      );
+      if ("hl[workTasks][]" in hl) delete hl["hl[workTasks][]"];
+      if ("hl[extraTasks][]" in hl) delete hl["hl[extraTasks][]"];
+    }
+  } catch (e) {
+    console.warn("[buildPayload] HL Arbeiten capture failed:", e);
   }
 
 
@@ -8098,10 +8136,18 @@ window.restoreBwtArbeitenExtraTasksFromPayload = initExtraTasksRepeater({
   inputName: "bwt[extraTasks][]",
 });
 
+window.restoreHlArbeitenExtraTasksFromPayload = initExtraTasksRepeater({
+  fieldsetId: "hl-extra-tasks",
+  countId: "hl-extra-count",
+  emptyId: "hl-extra-empty",
+  lsKey: "hlArbeitenExtraTasks:v1",
+  inputName: "hl[extraTasks][]",
+});
+
 /* Selection-count badges on the checkbox groups of the Arbeiten accordions
-   (BU: #dw-worktasks, BWT: #bwt-worktasks). */
+   (BU: #dw-worktasks, BWT: #bwt-worktasks, HL: #hl-worktasks). */
 (function initWorkTaskGroupCounts() {
-  ["dw-worktasks", "bwt-worktasks"].forEach(initRoot);
+  ["dw-worktasks", "bwt-worktasks", "hl-worktasks"].forEach(initRoot);
 
   function initRoot(rootId) {
   const root = document.getElementById(rootId);
@@ -11785,21 +11831,27 @@ function escapeHtml(s) {
   // showing the base it was applied to either way.
   const SHOW_NO_MARKUP_TAG = true;
 
-  // BU material sections — mirrors CATEGORY_ORDER in routes/docx-template.js so
-  // the Kosten-Detail matches the Angebot. Inserts __subtitle header rows.
-  function groupMaterialRows(rows) {
-    const ORDER = ["Kleinmaterial", "Fußboden", "Wandverkleidung", "Zubehör", "Duschwanne", "Duschabtrennung", "Weiteres"];
+  // Material sections — mirrors the grouping in routes/docx-template.js so the
+  // Kosten-Detail matches the Angebot. Inserts __subtitle header rows.
+  // categoryOrder: fixed list (BU) or omitted for dynamic first-seen order (HL,
+  // grouped by Handläufe-Konfigurator name instead of a fixed category list).
+  function groupMaterialRows(rows, categoryOrder, fallbackLabel = "Weiteres") {
     const catOf = (r) =>
       r.category ||
-      (r.source === "optional" || r.source === "optional_reha" ? "Zubehör" : "Weiteres");
+      (r.source === "optional" || r.source === "optional_reha" ? "Zubehör" : fallbackLabel);
     const grouped = new Map();
+    const firstSeenOrder = [];
     for (const r of rows) {
       const c = catOf(r);
-      if (!grouped.has(c)) grouped.set(c, []);
+      if (!grouped.has(c)) {
+        grouped.set(c, []);
+        firstSeenOrder.push(c);
+      }
       grouped.get(c).push(r);
     }
+    const order = categoryOrder || firstSeenOrder;
     const out = [];
-    for (const cat of ORDER) {
+    for (const cat of order) {
       const g = grouped.get(cat);
       if (!g || !g.length) continue;
       out.push({ __subtitle: true, label: cat.toUpperCase() });
@@ -11807,6 +11859,7 @@ function escapeHtml(s) {
     }
     return out;
   }
+  const BU_MATERIAL_CATEGORY_ORDER = ["Kleinmaterial", "Fußboden", "Wandverkleidung", "Zubehör", "Duschwanne", "Duschabtrennung", "Weiteres"];
 
   // Ids the server left out of the Aufschlag base (set per render, see
   // renderFromData) — tagged in the line list so the markup stays explainable.
@@ -12305,9 +12358,18 @@ if (supportsOptional) {
       category: l.category,
       currentNet: l.currentNet, // today's vigor price when it differs from the quoted one
     }));
-    // BU: group into the same sections as the Angebot (docx-template CATEGORY_ORDER).
-    const isBuKosten = String(window.getCurrentOfferType?.() || "").toLowerCase() === "bu";
-    const matBody = isBuKosten ? listLines(groupMaterialRows(matRows)) : listLines(matRows);
+    // BU/HL: group into sections mirroring the Angebot (docx-template.js) —
+    // BU uses a fixed category order, HL groups by Handläufe-Konfigurator name
+    // (dynamic first-seen order).
+    const kostenOfferKey = String(window.getCurrentOfferType?.() || "").toLowerCase();
+    const isBuKostenGrouping = kostenOfferKey === "bu";
+    const isHlKostenGrouping = kostenOfferKey === "hl";
+    const showKostenNumerals = isBuKostenGrouping || isHlKostenGrouping;
+    const matBody = isBuKostenGrouping
+      ? listLines(groupMaterialRows(matRows, BU_MATERIAL_CATEGORY_ORDER))
+      : isHlKostenGrouping
+        ? listLines(groupMaterialRows(matRows, undefined, "Lieferkosten"))
+        : listLines(matRows);
     const mat = data.materialsDisplayUI?.lines || data.materials?.lines || [];
     const matSum = data.materialsDisplayUI?.sum ?? data.materials?.sum ?? 0;
 
@@ -12336,7 +12398,7 @@ if (supportsOptional) {
       matTitle,
       matBody,
       `<span class="kosten-subtotal-label">Summe Material:</span> <b>${euroC(matSum)}</b>${driftFooter}`,
-      isBuKosten ? "II" : "",
+      showKostenNumerals ? "II" : "",
     );
 
     // --- Leistungen (Debug): use servicesDisplayUI if present
@@ -12457,7 +12519,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       data.services?.title || "Auszuführende Arbeiten",
       svcBodyPrimary,
       "",
-      isBuKosten ? "I" : "",
+      showKostenNumerals ? "I" : "",
     );
 
     // --- Totals: transparent, reconciling ladder (ordering prices → Aufschlag →
@@ -12495,9 +12557,9 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     const markupNote = `${markupBase ? ` auf ${euroC(markupBase)}` : ""}`;
     const sums = `
     <div class="kosten-sums">
-      <div><span>${isBuKosten ? '<span class="side-num">I</span>' : ""}Auszuführende Arbeiten:</span> <b>${euroC(data.services?.sum || 0)}</b></div>
-      <div><span>${isBuKosten ? '<span class="side-num">II</span>' : ""}${matTitle}:</span> <b>${euroC(matSum)}</b></div>
-      ${optSum ? `<div><span>${isBuKosten ? '<span class="side-num">III</span>' : ""}Optionale Produkte:</span> <b>${euroC(optSum)}</b></div>` : ""}
+      <div><span>${showKostenNumerals ? '<span class="side-num">I</span>' : ""}Auszuführende Arbeiten:</span> <b>${euroC(data.services?.sum || 0)}</b></div>
+      <div><span>${showKostenNumerals ? '<span class="side-num">II</span>' : ""}${matTitle}:</span> <b>${euroC(matSum)}</b></div>
+      ${optSum ? `<div><span>${showKostenNumerals ? '<span class="side-num">III</span>' : ""}Optionale Produkte:</span> <b>${euroC(optSum)}</b></div>` : ""}
       <div><span>Aufschlag (${aufPct}%${markupNote}):</span> <b>${euroC(data.markup || 0)}</b></div>
       <!-- Off for now: the per-line "ohne Aufschlag" tags already say which
            products are exempt. Re-enable if the summary line is wanted too.
@@ -13737,6 +13799,22 @@ function restoreBwtArbeiten(bwt) {
   }
 }
 
+function restoreHlArbeiten(hl) {
+  if (!hl) return;
+  // Older HL offers have no workTasks key — leave the HTML default (checked).
+  if (Array.isArray(hl.workTasks)) {
+    document
+      .querySelectorAll('input[type="checkbox"][name="hl[workTasks][]"]')
+      .forEach((cb) => {
+        cb.checked = hl.workTasks.includes(String(cb.value));
+        cb.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+  }
+  if (typeof window.restoreHlArbeitenExtraTasksFromPayload === "function") {
+    window.restoreHlArbeitenExtraTasksFromPayload(hl);
+  }
+}
+
 function restoreWV(wv) {
   if (!wv) return;
   const prev = window.__RESTORING__;
@@ -14720,6 +14798,8 @@ const RESTORE_HANDLERS = {
     typeof restoreBwtArbeiten === "function" && restoreBwtArbeiten(p?.bwt),
 
   hl: (p, ctx) => typeof restoreHl === "function" && restoreHl(p?.hl),
+  hlArbeiten: (p, ctx) =>
+    typeof restoreHlArbeiten === "function" && restoreHlArbeiten(p?.hl),
   bl: (p, ctx) => typeof restoreBl === "function" && restoreBl(p?.bl),
 
   ah: (p, ctx) => typeof restoreAh === "function" && restoreAh(p?.ah),
@@ -24406,7 +24486,7 @@ function initHlFlexofitWizard() {
     uidCounter += 1;
     return {
       id: `hlc${uidCounter}`,
-      name: `Handlaufe ${uidCounter}`,
+      name: `Handläufe ${uidCounter}`,
       area: "",
       tubeTab: "",
       tubes: {}, // catalogKey -> meters
@@ -24526,27 +24606,21 @@ function initHlFlexofitWizard() {
     const picks = (active ? tubeEntriesFor(c.area, active) : [])
       .map((entry) => {
         const key = hlCatalogKey(entry);
-        const meters = c.tubes[key];
+        const selected = c.tubes[key] != null;
         const p = entry.product;
         return `
-          <div>
-            <div class="hl-wiz__pick${meters != null ? " is-selected" : ""}" data-tube="${escapeHtml(key)}">
-              <span>${imgTag(entry)}</span>
-              <span>
-                <span class="hl-wiz__pick-name">${escapeHtml(entry.label || productVariant(p))}</span><br/>
-                <span class="hl-wiz__pick-meta">${escapeHtml(p.productId || "")} · ${money(p.price)}/Meter</span>
-              </span>
-            </div>
-            <div class="hl-wiz__qty" ${meters != null ? "" : "hidden"}>
-              <label>Länge (Meter):</label>
-              <input type="number" min="0" step="0.1" value="${meters != null ? meters : 1}" data-tube-meters="${escapeHtml(key)}" />
-            </div>
+          <div class="hl-wiz__pick${selected ? " is-selected" : ""}" data-tube="${escapeHtml(key)}">
+            <span>${imgTag(entry)}</span>
+            <span>
+              <span class="hl-wiz__pick-name">${escapeHtml(entry.label || productVariant(p))}</span><br/>
+              <span class="hl-wiz__pick-meta">${escapeHtml(p.productId || "")} · ${money(p.price)}/Meter</span>
+            </span>
           </div>`;
       })
       .join("");
 
     return `
-      <p class="hl-wiz__hint">Material wählen, dann Farben markieren (Mehrfachauswahl). Rohre werden pro Meter berechnet — Länge je Farbe angeben.</p>
+      <p class="hl-wiz__hint">Material und eine Farbe wählen. Rohre werden pro Meter berechnet — Länge unten in der Positionsliste angeben.</p>
       ${tabs}
       ${picks ? `<div class="hl-wiz__picks">${picks}</div>` : '<div class="hl-wiz__empty">Keine Rohre für diesen Bereich verfügbar.</div>'}`;
   };
@@ -24575,25 +24649,20 @@ function initHlFlexofitWizard() {
     const cards = choices
       .map(({ label, entry }) => {
         const key = hlCatalogKey(entry);
-        const qty = c.fittings[key];
+        const selected = c.fittings[key] != null;
         const p = entry.product;
         return `
-          <div>
-            <div class="hl-wiz__pick${qty != null ? " is-selected" : ""}" data-fit="${escapeHtml(key)}">
-              <span>${imgTag(entry)}</span>
-              <span>
-                <span class="hl-wiz__pick-name">${escapeHtml(label)}</span><br/>
-                <span class="hl-wiz__pick-meta">${escapeHtml(p.productId || "")} · ${money(p.price)}</span>
-              </span>
-            </div>
-            <div class="hl-wiz__qty" ${qty != null ? "" : "hidden"}>
-              <label>Menge:</label>
-              <input type="number" min="1" step="1" value="${qty != null ? qty : 1}" data-fit-qty="${escapeHtml(key)}" />
-            </div>
+          <div class="hl-wiz__pick${selected ? " is-selected" : ""}" data-fit="${escapeHtml(key)}">
+            <span>${imgTag(entry)}</span>
+            <span>
+              <span class="hl-wiz__pick-name">${escapeHtml(label)}</span><br/>
+              <span class="hl-wiz__pick-meta">${escapeHtml(p.productId || "")} · ${money(p.price)}</span>
+            </span>
           </div>`;
       })
       .join("");
-    return head + `<div class="hl-wiz__picks">${cards || '<div class="hl-wiz__empty">Keine Beschläge verfügbar.</div>'}</div>`;
+    return head + `<div class="hl-wiz__picks">${cards || '<div class="hl-wiz__empty">Keine Beschläge verfügbar.</div>'}</div>` +
+      (choices.length ? `<p class="hl-wiz__hint" style="margin-top:12px">Menge je Beschlag unten in der Positionsliste angeben.</p>` : "");
   };
 
   // ---- rendering ---------------------------------------------------
@@ -24725,20 +24794,14 @@ function initHlFlexofitWizard() {
     panelEl.querySelectorAll("[data-tube]").forEach((el) => {
       el.addEventListener("click", () => {
         const key = el.dataset.tube;
-        if (c.tubes[key] != null) delete c.tubes[key];
-        else c.tubes[key] = 1;
+        if (c.tubes[key] != null) {
+          // Deselect: only one Rohr & Farbe allowed at a time.
+          c.tubes = {};
+        } else {
+          const prevMeters = Object.values(c.tubes)[0];
+          c.tubes = { [key]: prevMeters != null ? prevMeters : 1 };
+        }
         autoOpenNext(c);
-        renderAll();
-        refreshOffer();
-      });
-    });
-    panelEl.querySelectorAll("[data-tube-meters]").forEach((inp) => {
-      inp.addEventListener("click", (e) => e.stopPropagation());
-      inp.addEventListener("change", () => {
-        const key = inp.dataset.tubeMeters;
-        const v = Math.max(0, Number(String(inp.value).replace(",", ".")) || 0);
-        if (v <= 0) delete c.tubes[key];
-        else c.tubes[key] = v;
         renderAll();
         refreshOffer();
       });
@@ -24758,17 +24821,6 @@ function initHlFlexofitWizard() {
         const key = el.dataset.fit;
         if (c.fittings[key] != null) delete c.fittings[key];
         else c.fittings[key] = 1;
-        renderAll();
-        refreshOffer();
-      });
-    });
-    panelEl.querySelectorAll("[data-fit-qty]").forEach((inp) => {
-      inp.addEventListener("click", (e) => e.stopPropagation());
-      inp.addEventListener("change", () => {
-        const key = inp.dataset.fitQty;
-        const v = Math.max(0, Number(inp.value) || 0);
-        if (v <= 0) delete c.fittings[key];
-        else c.fittings[key] = v;
         renderAll();
         refreshOffer();
       });

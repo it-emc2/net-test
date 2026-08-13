@@ -209,7 +209,7 @@ export function initRestoreManager({
         console.warn("[vorhang] restore failed:", e?.message || e);
       }
 
-      // Rehydrate the Handlaufe Konfigurator from its saved state
+      // Rehydrate the Handläufe Konfigurator from its saved state
       try {
         const hlCfgState = payload?.hl?.hlConfigurator?.state || null;
         if (hlCfgState && typeof window.__hlConfigurator?.restore === "function") {

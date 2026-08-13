@@ -1280,7 +1280,7 @@ async function mapData(body = {}, computed = {}) {
   // Kleinmaterial → Fußboden → Wandverkleidung → Zubehör → Duschwanne →
   // Duschabtrennung → Weiteres (fallback bucket, keeps nothing silently dropped).
   const isBuOffer = !offerKey || offerKey === "bu";
-  // HL: group by Handlaufe-Konfigurator name instead of a fixed category list —
+  // HL: group by Handläufe-Konfigurator name instead of a fixed category list —
   // order follows first appearance (i.e. the order configs were added).
   const isHlOffer = offerKey === "hl";
   const BU_CATEGORY_ORDER = [
@@ -1292,10 +1292,13 @@ async function mapData(body = {}, computed = {}) {
     "Duschabtrennung",
     "Weiteres",
   ];
+  // HL's fallback bucket (Speditionskosten and any other uncategorized line)
+  // reads better as "Lieferkosten" than the generic BU-style "Weiteres".
+  const uncategorizedLabel = isHlOffer ? "Lieferkosten" : "Weiteres";
   const resolveMaterialCategory = (raw) => {
     if (raw?.category) return raw.category;
     if (raw?.source === "optional" || raw?.source === "optional_reha") return "Zubehör";
-    return "Weiteres";
+    return uncategorizedLabel;
   };
 
   let MaterialsLines;

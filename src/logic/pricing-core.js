@@ -205,7 +205,7 @@ export default (ProductModel, deps = {}) => {
       case "bwt":
         return "Material für Badewannentür";
       case "hl":
-        return "Material für Handlauf";
+        return "Material für Handläufe";
       case "bl":
         return "Material für Badelift";
       case "bu":
@@ -1058,7 +1058,7 @@ if (offer === "hl") {
 
           const label = `- ${qtyStr} ${unitLabel} ${base}`;
 
-          setCat(row?.category || "Weiteres");
+          setCat(row?.category || "Lieferkosten");
           add(pid, qty, label, unitPrice, "hl_quickadd", {
             unit: isMeters ? "m" : null,
           });
@@ -1066,6 +1066,35 @@ if (offer === "hl") {
       }
     } catch (e) {
       console.warn("[pricing] hl quick-add failed:", e?.message || e);
+    }
+
+    // ------- HL: permanent Lieferkosten (admin-configured, replaces the old
+    // manual "Speditionskosten" HL-tab field for NEW offers). If this payload
+    // already carries its own HL_LOGISTIK row — a legacy/reopened offer that
+    // was saved with a manually-typed Speditionskosten value — that value
+    // wins and we do NOT add a second line, so old offers keep pricing
+    // exactly as before.
+    try {
+      if (offer === "hl") {
+        const qa = payload?.hl?.quickAdd || [];
+        const hasLegacyLogistik =
+          Array.isArray(qa) && qa.some((r) => String(r?.productId || "") === "HL_LOGISTIK");
+        if (!hasLegacyLogistik) {
+          const lieferPrice = Number(cfg.get("HL_LIEFERKOSTEN", 95));
+          if (lieferPrice > 0) {
+            setCat("Lieferkosten");
+            add(
+              "HL_LOGISTIK",
+              1,
+              "- 1 Stk zzgl. Speditionskosten lange Rohre",
+              lieferPrice,
+              "hl_lieferkosten_default",
+            );
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[pricing] hl permanent Lieferkosten failed:", e?.message || e);
     }
 
     // ------- BL · Badelift materials -------
