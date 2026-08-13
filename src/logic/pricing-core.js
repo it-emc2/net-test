@@ -526,6 +526,27 @@ function grossToNet(gross, taxRate) {
       });
     }
 
+    // HL: same idea as the DW block above — the (always-checked) "Liefern und
+    // Montieren" task plus the free "Weitere Arbeiten" lines from the HL
+    // Arbeiten tab, shown on the Kosten tab's "Auszuführende Arbeiten" list.
+    if (getActiveOffer(payload) === "hl") {
+      const hl = payload?.hl || {};
+      const hlWorkTasks = Array.isArray(hl.workTasks) ? hl.workTasks : [];
+      if (hlWorkTasks.includes("deliver_install_hl_handrail")) {
+        notes.push({
+          key: "worknote",
+          label: "- Liefern und Montieren der nachfolgend aufgeführten Handläufe",
+          amount: 0,
+        });
+      }
+      const hlExtraTasks = (Array.isArray(hl.extraTasks) ? hl.extraTasks : [])
+        .map((t) => String(t || "").trim())
+        .filter(Boolean);
+      for (const t of hlExtraTasks) {
+        notes.push({ key: "worknote", label: `- ${t}`, amount: 0 });
+      }
+    }
+
     return notes;
   }
 

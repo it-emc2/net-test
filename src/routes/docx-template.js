@@ -1218,6 +1218,22 @@ async function mapData(body = {}, computed = {}) {
     bwtArbeitenExtra.forEach((t) => primary.push(`- ${t}`));
   }
 
+  // HL: same idea as BWT above — static "Liefern und Montieren" line, then
+  // the free "Weitere Arbeiten" lines from the HL Arbeiten tab.
+  const isHlOfferForServices =
+    (body.activeOffer || body.currentOfferKey || computed.activeOffer || "") ===
+    "hl";
+  if (isHlOfferForServices) {
+    const hl = body.hl || {};
+    primary.unshift(
+      "- Liefern und Montieren der nachfolgend aufgeführten Handläufe",
+    );
+    const hlArbeitenExtra = (Array.isArray(hl?.extraTasks) ? hl.extraTasks : [])
+      .map((t) => String(t || "").trim())
+      .filter(Boolean);
+    hlArbeitenExtra.forEach((t) => primary.push(`- ${t}`));
+  }
+
   // Arrays exactly as the template expects:
   const PrimaryServiceLines = primary.map((txt) => ({ ServiceLine: txt }));
   const IncludedServiceLines = included.map((txt) => ({ ServiceLine: txt }));
