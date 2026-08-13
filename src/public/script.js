@@ -3819,6 +3819,7 @@ function collectHlFlexofitConfigurator(payload) {
     qa.push({
       kind: "hl-config",
       label: ln.label || "Handlaufe (Konfigurator)",
+      category: ln.category || null,
       productId: ln.productId || "",
       qty,
       price,
@@ -24877,7 +24878,8 @@ function initHlFlexofitWizard() {
         const entry = entriesByKey.get(key);
         if (!entry) return;
         lines.push({
-          label: `${c.name} – ${entry.label || productVariant(entry.product)}`,
+          label: entry.label || productVariant(entry.product),
+          category: c.name,
           productId: entry.product.productId || "",
           qty: m,
           price: Number(entry.product.price) || 0,
@@ -24890,7 +24892,8 @@ function initHlFlexofitWizard() {
         const entry = entriesByKey.get(key);
         if (!entry) return;
         lines.push({
-          label: `${c.name} – ${entry.label || productVariant(entry.product)}`,
+          label: entry.label || productVariant(entry.product),
+          category: c.name,
           productId: entry.product.productId || "",
           qty: q,
           price: Number(entry.product.price) || 0,

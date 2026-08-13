@@ -1058,6 +1058,7 @@ if (offer === "hl") {
 
           const label = `- ${qtyStr} ${unitLabel} ${base}`;
 
+          setCat(row?.category || "Weiteres");
           add(pid, qty, label, unitPrice, "hl_quickadd", {
             unit: isMeters ? "m" : null,
           });

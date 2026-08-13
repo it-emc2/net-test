@@ -1280,7 +1280,10 @@ async function mapData(body = {}, computed = {}) {
   // Kleinmaterial → Fußboden → Wandverkleidung → Zubehör → Duschwanne →
   // Duschabtrennung → Weiteres (fallback bucket, keeps nothing silently dropped).
   const isBuOffer = !offerKey || offerKey === "bu";
-  const CATEGORY_ORDER = [
+  // HL: group by Handlaufe-Konfigurator name instead of a fixed category list —
+  // order follows first appearance (i.e. the order configs were added).
+  const isHlOffer = offerKey === "hl";
+  const BU_CATEGORY_ORDER = [
     "Kleinmaterial",
     "Fußboden",
     "Wandverkleidung",
@@ -1296,20 +1299,25 @@ async function mapData(body = {}, computed = {}) {
   };
 
   let MaterialsLines;
-  if (isBuOffer) {
+  if (isBuOffer || isHlOffer) {
     const grouped = new Map();
+    const firstSeenOrder = [];
     for (const row of renderedMaterialRows) {
       const cat = resolveMaterialCategory(row._raw);
-      if (!grouped.has(cat)) grouped.set(cat, []);
+      if (!grouped.has(cat)) {
+        grouped.set(cat, []);
+        firstSeenOrder.push(cat);
+      }
       grouped.get(cat).push(row);
     }
+    const categoryOrder = isBuOffer ? BU_CATEGORY_ORDER : firstSeenOrder;
     MaterialsLines = [];
-    for (const cat of CATEGORY_ORDER) {
+    for (const cat of categoryOrder) {
       const rows = grouped.get(cat);
       if (!rows || !rows.length) continue;
-      // IsSub marks a bold, spaced subcategory header (e.g. KLEINMATERIAL);
-      // item lines are IsSub:false. Consumed by the {#IsSub}/{^IsSub}
-      // condition in the Angebot.docx MaterialsLines loop.
+      // IsSub marks a bold, spaced subcategory header (e.g. KLEINMATERIAL or
+      // HANDLAUFE 1); item lines are IsSub:false. Consumed by the
+      // {#IsSub}/{^IsSub} condition in the Angebot docx's MaterialsLines loop.
       MaterialsLines.push({ MaterialLine: cat.toUpperCase(), IsSub: true });
       for (const row of rows)
         MaterialsLines.push({ MaterialLine: row.MaterialLine, IsSub: false });
