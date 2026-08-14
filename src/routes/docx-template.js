@@ -1467,9 +1467,15 @@ const selectedDoorPid = selectedDoorPids.length === 1 ? selectedDoorPids[0] : ""
 
 if (selectedDoorPid) {
   const raw = doorInfoById[selectedDoorPid];
-  const infoLines = Array.isArray(raw)
+  let infoLines = Array.isArray(raw)
     ? raw.map((x) => String(x || "").trim()).filter(Boolean)
     : [];
+  // ponytail: strip empty placeholder caption lines (e.g. "Höhe cm") that
+  // may still be saved in older drafts alongside the real "Höhe: 20 cm" lines
+  if (selectedDoorPid === "1227" || selectedDoorPid === "1228") {
+    const PLACEHOLDER_DOOR_LINE_RE = /^•?\s*(höhe|breite|standardbreiten?|tiefe\s*[ou])\b(?!:)/i;
+    infoLines = infoLines.filter((line) => !PLACEHOLDER_DOOR_LINE_RE.test(line));
+  }
 
   if (infoLines.length) {
     // New lines in DOCX (docxtemplater linebreaks:true)
