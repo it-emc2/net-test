@@ -42,7 +42,7 @@ const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-const DEFAULT_EXPIRY_DAYS = 14;
+const DEFAULT_EXPIRY_DAYS = 56;
 
 // Documents required per customer type.
 const DOCS_BY_TYPE = {
