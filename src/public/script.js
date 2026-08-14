@@ -4721,6 +4721,9 @@ if (anschlag) {
 }
         if (pid === "1227") {
           lines = Array.isArray(lines) ? [...lines] : [];
+          lines = lines.filter(
+            (line) => !/^•?\s*(höhe|breite|standardbreiten?|tiefe\s*[ou])\b/i.test(String(line || "").trim())
+          );
           const h = String(document.getElementById("bwtDoorIndWienHeight")?.value || "").trim();
           const w = String(document.getElementById("bwtDoorIndWienWidth")?.value || "").trim();
           const sw = String(document.getElementById("bwtDoorIndWienStdWidth")?.value || "").trim();
@@ -4736,6 +4739,9 @@ if (anschlag) {
         }
         if (pid === "1228") {
           lines = Array.isArray(lines) ? [...lines] : [];
+          lines = lines.filter(
+            (line) => !/^•?\s*(höhe|breite|standardbreiten?|tiefe\s*[ou])\b/i.test(String(line || "").trim())
+          );
           const h = String(document.getElementById("bwtDoorIndWienGlasHeight")?.value || "").trim();
           const w = String(document.getElementById("bwtDoorIndWienGlasWidth")?.value || "").trim();
           const sw = String(document.getElementById("bwtDoorIndWienGlasStdWidth")?.value || "").trim();
