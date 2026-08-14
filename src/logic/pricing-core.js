@@ -881,13 +881,22 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
       ];
 
       const doorInfoById = payload?.bwt?.doorInfoById || {};
+      // ponytail: placeholder caption lines (empty "Höhe cm" etc.) can end up
+      // saved in older drafts alongside the real "Höhe: 20 cm" value lines;
+      // strip them here so both old and new drafts render without duplicates.
+      const PLACEHOLDER_DOOR_LINE_RE = /^•?\s*(höhe|breite|standardbreiten?|tiefe\s*[ou])\b(?!:)/i;
 
 for (const door of doors) {
   if (!door.qty) continue;
 
-  const infoLines = Array.isArray(doorInfoById[String(door.pid)])
+  let infoLines = Array.isArray(doorInfoById[String(door.pid)])
     ? doorInfoById[String(door.pid)]
     : [];
+  if (door.pid === "1227" || door.pid === "1228") {
+    infoLines = infoLines.filter(
+      (line) => !PLACEHOLDER_DOOR_LINE_RE.test(String(line || "").trim())
+    );
+  }
 
   add(door.pid, door.qty, null, null, null, { doorInfoLines: infoLines });
 }
