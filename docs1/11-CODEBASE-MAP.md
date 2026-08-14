@@ -119,9 +119,27 @@ This document maps every significant file in the codebase with its purpose, key 
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `index.html` | 8,645 | Main SPA shell (all pages, forms, modals) |
-| `script.js` | 21,514 | Core logic bundle (navigation, pricing, forms, restoration) |
-| `style.css` | 6,499 | All styles (themes, responsive, components) |
+| `index.html` | 10,050 | Main SPA shell (all pages, forms, modals) |
+| `script.js` | 27,698 | Core logic bundle (navigation, pricing, forms, restoration, today's planning) |
+| `style.css` | ~6,500 | All styles (themes, responsive, components) |
+
+### Offline / PWA Layer (`src/public/`)
+
+See `13-OFFLINE-AND-SYNC.md` for how these fit together.
+
+| File | Lines | Purpose | Key Exports |
+|------|-------|---------|-------------|
+| `sw.js` | 167 | Offline app shell service worker | - |
+| `sw-register.js` | 43 | SW registration + persistent storage request | `registerOfflineShell` |
+| `OfflineSaveQueue.js` | 244 | IndexedDB write queue, reconnect replay, conflicts | `trySaveOrQueue`, `retryAll`, `getPendingCount`, `renderBadge` |
+| `session-recovery.js` | 250 | Debounced WIP snapshot + restore banner | `initSessionRecovery`, `__internals` |
+| `pricing-cache.js` | 60 | Caches `/api/price/inputs` in IndexedDB | `saveInputs`, `loadInputs`, `refreshInputs` |
+| `pricing-client.js` | 70 | Runs `logic/pricing-core.js` in the browser | `computePricesLocally`, `hasPricingInputs` |
+| `manifest.webmanifest` | 22 | PWA manifest | - |
+
+⚠️ `TodaysCustomers.js` (359 lines) is **dead code** — not imported anywhere.
+It duplicates `src/routes/todayscustomers.js` and hardcodes a Bitrix webhook
+token. Slated for deletion; see `docs/plan-ipad-local-first.md` §20 S1.
 
 ### Manager Modules
 

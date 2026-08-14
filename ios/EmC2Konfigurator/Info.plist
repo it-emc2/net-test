@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>UILaunchScreen</key>
+  <dict>
+    <key>UIColorName</key><string>systemBackgroundColor</string>
+  </dict>
+
+  <key>UIApplicationSceneManifest</key>
+  <dict>
+    <key>UIApplicationSupportsMultipleScenes</key><false/>
+    <key>UISceneConfigurations</key>
+    <dict>
+      <key>UIWindowSceneSessionRoleApplication</key>
+      <array>
+        <dict>
+          <key>UISceneConfigurationName</key><string>Default</string>
+          <key>UISceneDelegateClassName</key>
+          <string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+        </dict>
+      </array>
+    </dict>
+  </dict>
+
+  <!-- Which server this build talks to. Change here rather than in code; the
+       host must also appear in WKAppBoundDomains below or navigation to it is
+       refused outright. -->
+  <key>EMC2BaseURL</key>
+  <string>https://oc.emc2.de</string>
+
+  <!-- Lets the offline save queue flush while the app is backgrounded, for the
+       case where the salesperson pockets the iPad and walks back into signal
+       without reopening it. Opportunistic: iOS decides if it ever runs, so the
+       foreground flush stays the guarantee. See BackgroundSync.swift. -->
+  <key>BGTaskSchedulerPermittedIdentifiers</key>
+  <array>
+    <string>de.emc2.konfigurator.sync</string>
+  </array>
+  <key>UIBackgroundModes</key>
+  <array>
+    <string>fetch</string>
+  </array>
+
+  <!--
+    The single most important key in this file.
+
+    On iOS a WKWebView only gets service workers when the app declares
+    WKAppBoundDomains and the web view sets limitsNavigationsToAppBoundDomains.
+    Measured in the Phase 0 spike: without it the worker silently never
+    registers - no offline shell, no cached planning week, Cache Storage empty.
+
+    The cost is that navigation is confined to this list (max 10 entries), so
+    every external link has to be opened in Safari instead. See
+    WebViewController.decidePolicyFor.
+  -->
+  <key>WKAppBoundDomains</key>
+  <array>
+    <string>oc.emc2.de</string>
+    <string>angebotskonfigurator-emc2-v2.fly.dev</string>
+    <string>localhost</string>
+  </array>
+
+  <!-- Only so a debug build can point EMC2BaseURL at a local server over http.
+       Production is https and unaffected. -->
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsLocalNetworking</key><true/>
+  </dict>
+
+  <key>ITSAppUsesNonExemptEncryption</key><false/>
+</dict>
+</plist>

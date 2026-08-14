@@ -141,3 +141,8 @@ preview-pdfs/
 # Playwright artifacts
 test-results/
 playwright-report/
+
+# iOS build output
+ios/build/
+ios/DerivedData/
+ios/**/xcuserdata/
