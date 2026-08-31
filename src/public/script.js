@@ -27003,7 +27003,26 @@ function updateTodayPlanningMeta(day){
     year: "numeric",
   }).format(new Date());
 
-  meta.textContent = `${todayPlanningAppointments.length} Termin(e) für ${label}`;
+  const base = `${todayPlanningAppointments.length} Termin(e) für ${label}`;
+
+  // A cached week must never look live — the salesperson has to be able to
+  // tell that the plan may have moved since this was fetched.
+  if (todayPlanningCachedAt) {
+    meta.textContent = `${base} · Offline – Stand ${formatPlanningCacheAge(todayPlanningCachedAt)}`;
+    return;
+  }
+  meta.textContent = base;
+}
+
+// Lives here rather than in PlanningCache.js because this is its only caller
+// and updateTodayPlanningMeta is synchronous — it must not await a dynamic
+// import just to render a label.
+function formatPlanningCacheAge(iso){
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const time = d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  const today = new Date().toDateString() === d.toDateString();
+  return today ? `heute ${time}` : `${d.toLocaleDateString("de-DE")} ${time}`;
 }
 
 function applyPlanningPayload(payload){
@@ -27062,6 +27081,100 @@ function enrichPlanningEntriesWithBitrixTimes(payload, byDealId){
   }
 }
 
+// ── Offline planning cache (see PlanningCache.js) ──────────────────────────
+// ISO timestamp when the currently rendered planning data was fetched, if it
+// came from the cache; null while it is live. Read by updateTodayPlanningMeta
+// so a cached week is never presented as current.
+let todayPlanningCachedAt = null;
+
+// Re-fetching every appointment's Bitrix contact on every page load would be
+// ~50 requests for data that changes rarely.
+const PLANNING_ENRICHMENT_TTL_MS = 12 * 60 * 60 * 1000;
+
+// Bitrix rate-limits (the server answers "Too many requests" and backs off), so
+// a full week is not swept in one go. Today's appointments are the ones that
+// actually get opened; the rest fill in over subsequent loads.
+const PLANNING_WARM_MAX_PER_LOAD = 25;
+
+// Every appointment in the payload — the whole week, not just today. Same two
+// sources enrichPlanningEntriesWithBitrixTimes() walks.
+function allPlanningEntries(payload){
+  return [
+    ...(Array.isArray(payload?.planning?.futurePlanned) ? payload.planning.futurePlanned : []),
+    ...(Array.isArray(payload?.planning?.days) ? payload.planning.days.flatMap(d => d.customers || []) : []),
+  ];
+}
+
+async function cachePlanningSnapshot(payload){
+  try{
+    const cache = await import("./PlanningCache.js");
+    await cache.saveSnapshot(payload);
+  }catch(err){
+    console.warn("[planning] snapshot cache failed:", err);
+  }
+}
+
+// Returns true when a cached week was rendered, false when there is nothing
+// cached and the caller should show its error state.
+async function renderTodayPlanningFromCache(){
+  try{
+    const cache = await import("./PlanningCache.js");
+    const record = await cache.loadSnapshot();
+    if(!record?.payload) return false;
+
+    todayPlanningCachedAt = record.fetchedAt;
+    applyTodayPlanningPayload(record.payload);
+    return true;
+  }catch(err){
+    console.warn("[planning] cache render failed:", err);
+    return false;
+  }
+}
+
+// Fills the enrichment cache for the whole week while there is still signal,
+// so tapping an appointment on site can fill the Anrede without the network.
+// Sequential and TTL-guarded on purpose: this is background work behind a
+// server that talks to a rate-limited Bitrix, and finishing slowly is fine.
+async function warmPlanningEnrichment(payload){
+  try{
+    const cache = await import("./PlanningCache.js");
+    const seen = new Set();
+    let fetched = 0;
+    let skippedForCap = 0;
+
+    // Today first: those are the appointments that actually get opened today.
+    const todayKey = new Date().toLocaleDateString("sv-SE");
+    const all = allPlanningEntries(payload);
+    const ordered = [
+      ...all.filter(e => e?.plannedDate === todayKey),
+      ...all.filter(e => e?.plannedDate !== todayKey),
+    ];
+
+    for(const entry of ordered){
+      const key = cache.enrichmentKey(entry);
+      if(!key || seen.has(key)) continue;
+      seen.add(key);
+
+      const existing = await cache.loadEnrichment(key);
+      if(cache.isFresh(existing, PLANNING_ENRICHMENT_TTL_MS)) continue;
+
+      if(fetched >= PLANNING_WARM_MAX_PER_LOAD){ skippedForCap++; continue; }
+
+      const fields = await fetchPlanningEnrichment(entry);
+      fetched++;
+      if(fields) await cache.saveEnrichment(key, fields);
+    }
+
+    if(skippedForCap){
+      console.info(
+        `[planning] warmed ${fetched} appointments, ${skippedForCap} left for the next load (Bitrix rate limit)`,
+      );
+    }
+  }catch(err){
+    console.warn("[planning] enrichment warm failed:", err);
+  }
+}
+
 async function fetchTodayPlanningSnapshot(){
   const list = document.getElementById("todayPlanningList");
   const meta = document.getElementById("todayPlanningMeta");
@@ -27083,9 +27196,20 @@ async function fetchTodayPlanningSnapshot(){
       .then(r => r.ok ? r.json() : null)
       .catch(() => null);
     enrichPlanningEntriesWithBitrixTimes(payload, bitrixTimes?.byDealId || {});
+    todayPlanningCachedAt = null;
     applyTodayPlanningPayload(payload);
+
+    // After rendering, never before: a cache write must not be able to cost
+    // the user a list that already loaded. Both are fire-and-forget.
+    cachePlanningSnapshot(payload);
+    warmPlanningEnrichment(payload);
   }catch(error){
     console.error("today planning failed", error);
+
+    // No signal — fall back to the cached week rather than stranding the
+    // salesperson with no appointments and no prefill.
+    if(await renderTodayPlanningFromCache()) return;
+
     if(list){
       list.innerHTML = `<div class="today-customers-empty">Fehler beim Laden der Planungstermine</div>`;
     }
@@ -27115,13 +27239,21 @@ function connectTodayPlanningStream(){
     todayPlanningEventSource?.close?.();
   } catch {}
 
+  // EventSource reconnects on its own every few seconds, which offline is just
+  // a failing request loop against a server that is not there. Stay closed and
+  // let the "online" listener below bring the stream back.
+  if(navigator.onLine === false) return;
+
   todayPlanningEventSource = new EventSource(TODAY_PLANNING_STREAM_ENDPOINT);
 
   const handlePayload = (event) => {
     try {
       const payload = JSON.parse(event.data);
       if(payload?.planning){
+        // A live update supersedes anything rendered from the cache.
+        todayPlanningCachedAt = null;
         applyTodayPlanningPayload(payload);
+        cachePlanningSnapshot(payload);
       }
     } catch (error) {
       console.warn("planning stream payload parse failed", error);
@@ -27211,59 +27343,97 @@ function applyPlanningAppointmentToForm(entry, offerKey){
   enrichPlanningAppointmentFromBitrix(entry, _generation);
 }
 
-async function enrichPlanningAppointmentFromBitrix(entry, generation){
+// Bitrix contact -> the flat field set the form actually needs. Kept pure (no
+// DOM, no network) so the exact same shape can be cached and replayed offline.
+function planningEnrichmentFromContact(contact){
+  const honorificId = String(
+    contact?.HONORIFIC?.STATUS_ID ?? contact?.HONORIFIC ?? contact?.HONORIFIC_ID ?? "",
+  ).trim();
+  return {
+    salutation: { HNR_DE_1: "Frau", HNR_DE_2: "Herr", "1": "Familie" }[honorificId] || "",
+    email: Array.isArray(contact?.EMAIL) && contact.EMAIL[0] ? contact.EMAIL[0].VALUE : "",
+    phone: Array.isArray(contact?.PHONE) && contact.PHONE[0] ? contact.PHONE[0].VALUE : "",
+    street: contact?.ADDRESS || "",
+    city: contact?.ADDRESS_CITY || "",
+    postalCode: contact?.ADDRESS_POSTAL_CODE || "",
+  };
+}
+
+// Network path only. Returns the flat field set, or null when neither lookup
+// yielded a contact. Propagates a network failure so the caller (and the
+// week-warming loop) can tell "no signal" from "no such contact".
+async function fetchPlanningEnrichment(entry){
   const dealId = entry?.importDealId || "";
   const contactId = entry?.contactId || "";
-  if (!dealId && !contactId) return;
+  if (!dealId && !contactId) return null;
 
+  let contact = null;
+  if (dealId) {
+    const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}`);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) contact = data?.contact || null;
+  }
+  if (!contact && contactId) {
+    const res = await fetch(`/api/bitrix/contact/${encodeURIComponent(contactId)}`);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) contact = data?.result || null;
+  }
+  return contact ? planningEnrichmentFromContact(contact) : null;
+}
+
+function applyPlanningEnrichment(fields){
+  if (fields.salutation && typeof setRadio === "function") {
+    setRadio("salutation", fields.salutation);
+    document
+      .querySelectorAll('input[name="salutation"]')
+      .forEach((el) => el.dispatchEvent(new Event("change", { bubbles: true })));
+  }
+
+  const fillIfEmpty = (id, value) => {
+    const el = document.getElementById(id);
+    if (!el || el.value || !value) return;
+    el.value = value;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  fillIfEmpty("email", fields.email);
+  fillIfEmpty("phone", fields.phone);
+  fillIfEmpty("street", fields.street);
+  fillIfEmpty("city", fields.city);
+  fillIfEmpty("postalCode", fields.postalCode);
+
+  if (fields.email && typeof syncSummaryRecipientEmail === "function") {
+    syncSummaryRecipientEmail(fields.email);
+  }
+}
+
+async function enrichPlanningAppointmentFromBitrix(entry, generation){
+  if (!entry?.importDealId && !entry?.contactId) return;
+
+  let fields = null;
   try {
-    let contact = null;
-    if (dealId) {
-      const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}`);
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) contact = data?.contact || null;
-    }
-    if (!contact && contactId) {
-      const res = await fetch(`/api/bitrix/contact/${encodeURIComponent(contactId)}`);
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) contact = data?.result || null;
-    }
-    if (!contact) return;
-    // Reset while we were fetching → this data belongs to a previous offer.
-    if (window.__formGeneration !== generation) return;
-
-    const honorificId = String(
-      contact?.HONORIFIC?.STATUS_ID ?? contact?.HONORIFIC ?? contact?.HONORIFIC_ID ?? "",
-    ).trim();
-    const salutation = { HNR_DE_1: "Frau", HNR_DE_2: "Herr", "1": "Familie" }[honorificId] || "";
-    if (salutation && typeof setRadio === "function") {
-      setRadio("salutation", salutation);
-      document
-        .querySelectorAll('input[name="salutation"]')
-        .forEach((el) => el.dispatchEvent(new Event("change", { bubbles: true })));
-    }
-
-    const email = Array.isArray(contact.EMAIL) && contact.EMAIL[0] ? contact.EMAIL[0].VALUE : "";
-    const phone = Array.isArray(contact.PHONE) && contact.PHONE[0] ? contact.PHONE[0].VALUE : "";
-    const fillIfEmpty = (id, value) => {
-      const el = document.getElementById(id);
-      if (!el || el.value || !value) return;
-      el.value = value;
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
-    };
-    fillIfEmpty("email", email);
-    fillIfEmpty("phone", phone);
-    fillIfEmpty("street", contact.ADDRESS || "");
-    fillIfEmpty("city", contact.ADDRESS_CITY || "");
-    fillIfEmpty("postalCode", contact.ADDRESS_POSTAL_CODE || "");
-
-    if (email && typeof syncSummaryRecipientEmail === "function") {
-      syncSummaryRecipientEmail(email);
-    }
+    fields = await fetchPlanningEnrichment(entry);
   } catch (error) {
     console.warn("planning appointment bitrix enrich failed", error);
   }
+
+  // Live answer -> refresh the cache. No answer -> fall back to whatever the
+  // week's warm stored, which is the whole point on site: without it the
+  // Anrede stays blank, because the route-planning service has no such field.
+  try {
+    const cache = await import("./PlanningCache.js");
+    const key = cache.enrichmentKey(entry);
+    if (fields) await cache.saveEnrichment(key, fields);
+    else fields = await cache.loadEnrichment(key);
+  } catch (err) {
+    console.warn("[planning] enrichment cache unavailable:", err);
+  }
+
+  if (!fields) return;
+  // Reset while we were fetching → this data belongs to a previous offer.
+  if (window.__formGeneration !== generation) return;
+
+  applyPlanningEnrichment(fields);
 }
 
 function initTodayPlanningPanel(){
@@ -27292,6 +27462,13 @@ function initTodayPlanningPanel(){
   fetchTodayPlanningSnapshot();
   connectTodayPlanningStream();
 
+  // Back on signal: replace the cached week with live data and resubscribe.
+  // Same event OfflineSaveQueue uses to flush its queued saves.
+  window.addEventListener("online", () => {
+    fetchTodayPlanningSnapshot();
+    connectTodayPlanningStream();
+  });
+
   window.addEventListener("beforeunload", () => {
     try {
       todayPlanningEventSource?.close?.();
@@ -27311,6 +27488,10 @@ window.__debug_reloadPlanning = fetchTodayPlanningSnapshot;
 window.markDealStage = markDealStage;
 window.renderTodayPlanningAppointments = renderTodayPlanningAppointments;
 window.__debug_planningEndpoint = TODAY_PLANNING_SNAPSHOT_ENDPOINT;
+// The offline prefill is hard to exercise by hand (it needs a dropped
+// connection at the right moment), so expose the entry point the same way the
+// planning debug hooks above are exposed.
+window.__debug_enrichPlanningAppointment = enrichPlanningAppointmentFromBitrix;
 
 })();
 

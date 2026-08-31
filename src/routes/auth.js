@@ -6,6 +6,7 @@ import {
   createToken,
   verifyToken,
   tokenFromReq,
+  shouldRefresh,
   SESSION_COOKIE,
 } from "../services/authService.js";
 
@@ -62,10 +63,18 @@ router.post("/logout", (req, res) => {
 
 // GET /api/auth/me
 router.get("/me", async (req, res) => {
-  const t = verifyToken(tokenFromReq(req));
+  const raw = tokenFromReq(req);
+  const t = verifyToken(raw);
   if (!t) return res.status(401).json({ error: "Unauthorized" });
   const user = await User.findOne({ email: t.email, active: true }).lean();
   if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  // Sliding session. This runs on every page load that has signal, so a
+  // salesperson who opens the app even weekly never hits the 7-day expiry —
+  // which on site would strand them on a login page that itself needs the
+  // network. Only past halfway, so this is not a write on every request.
+  if (shouldRefresh(raw)) setSessionCookie(res, createToken(user.email));
+
   res.json({
     user: {
       email: user.email,

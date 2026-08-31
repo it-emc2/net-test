@@ -66,6 +66,52 @@ async function getAllRecords() {
   });
 }
 
+// Called after every change to the queue, with the full contents.
+//
+// IndexedDB is evictable and WebKit refuses persistent storage
+// (navigator.storage.persisted() is false on the iPad — measured, not
+// assumed), so on iOS the native shell keeps a copy outside the web view's
+// data store. In a browser nothing subscribes and this costs one function
+// call. See native-bridge.js.
+let onChanged = null;
+
+export function onQueueChanged(fn) {
+  onChanged = fn;
+  return () => { onChanged = null; };
+}
+
+async function notifyChanged() {
+  if (!onChanged) return;
+  try {
+    onChanged(await getAllRecords());
+  } catch (err) {
+    console.warn("[offline-queue] mirror notify failed:", err);
+  }
+}
+
+/// The whole queue, for the durability mirror to copy out.
+export async function getQueueSnapshot() {
+  return getAllRecords();
+}
+
+/// Used by the durability mirror to put evicted records back. Existing ids win:
+/// anything already here is at least as fresh as a copy taken earlier.
+export async function restoreRecords(records) {
+  if (!Array.isArray(records) || !records.length) return 0;
+  const existing = new Set((await getAllRecords()).map((r) => r.id));
+  let restored = 0;
+  for (const record of records) {
+    if (!record?.id || existing.has(record.id)) continue;
+    await putRecord(record);
+    restored++;
+  }
+  if (restored) {
+    await notifyChanged();
+    renderBadge();
+  }
+  return restored;
+}
+
 function notifySynced(count) {
   window.toast?.success?.(
     "Synchronisiert",
@@ -89,6 +135,33 @@ function notifyRenamed(oldName, newName) {
     "Entwurf umbenannt",
     `„${oldName}“ existierte bereits – der offline gespeicherte Stand wurde als „${newName}“ übertragen.`,
   );
+}
+
+// How many times a record may be rejected by the *server* before it is parked.
+// Being offline does not count: postRecord returns null then and the record is
+// left untouched.
+const MAX_ATTEMPTS = 5;
+
+function notifyStuck(record, status) {
+  const label =
+    record.kind === "offer" ? `Angebot ${record.offerKey}` : `Entwurf ${record.offerKey}`;
+  window.toast?.error?.(
+    "Synchronisierung gestoppt",
+    `${label} wurde vom Server abgelehnt (${status}) und wird nicht weiter versucht.`,
+  );
+}
+
+// A draft is readable offline out of LocalDocsStore only until it reaches the
+// server; after that the normal drafts search finds it and the local copy is
+// just a stale duplicate.
+async function releaseLocalDoc(record) {
+  if (record.kind !== "draft") return;
+  try {
+    const store = await import("./LocalDocsStore.js");
+    await store.markSynced(record.offerKey);
+  } catch (err) {
+    console.warn("[offline-queue] local doc cleanup failed:", err);
+  }
 }
 
 // Resolves to the Response, or to null on a real network failure (offline).
@@ -126,12 +199,30 @@ export async function trySaveOrQueue({ kind, offerKey, url, body }) {
   if (res) return { queued: false, res };
 
   await addRecord(record);
+  await notifyChanged();
   renderBadge();
   return { queued: true, id };
 }
 
-// Sweeps every queued record. Called on reconnect and on page load.
+let sweeping = false;
+
+// Sweeps every queued record. Called on reconnect, on page load, and whenever
+// the app comes back to the foreground.
 export async function retryAll() {
+  // Three triggers can overlap, and a second sweep would re-post records the
+  // first is still working through. clientSaveId makes that harmless
+  // server-side, but it is wasted requests on exactly the flaky connection
+  // that queued the work in the first place.
+  if (sweeping) return;
+  sweeping = true;
+  try {
+    await sweepQueue();
+  } finally {
+    sweeping = false;
+  }
+}
+
+async function sweepQueue() {
   // IndexedDB getAll() yields primary-key order, and the primary key is a
   // random UUID — replaying in that order lets an older save land last and
   // win. Sort by save time so the server sees them as the user made them.
@@ -141,11 +232,14 @@ export async function retryAll() {
   let syncedCount = 0;
 
   for (const record of records) {
+    if (record.stuck) continue; // already given up on; see MAX_ATTEMPTS
+
     const res = await postRecord(record);
     if (!res) continue; // still offline, leave queued for the next sweep
 
     if (res.ok) {
       await deleteRecord(record.id);
+      await releaseLocalDoc(record);
       syncedCount++;
       continue;
     }
@@ -171,6 +265,7 @@ export async function retryAll() {
       const retryRes = await postRecord(renamed);
       if (retryRes?.ok) {
         await deleteRecord(renamed.id);
+        await releaseLocalDoc(renamed);
         syncedCount++;
         notifyRenamed(oldName, renamed.body.name);
       }
@@ -178,12 +273,21 @@ export async function retryAll() {
       continue;
     }
 
-    // ponytail: no backoff/retry cap — a permanently failing record just
-    // keeps retrying quietly on every reconnect/page load. Acceptable
-    // ceiling for v1; add a cap if that's ever actually observed.
+    // A server answer that is neither ok nor a 409 is a real rejection —
+    // a malformed payload, say. Retrying it forever means every future sweep
+    // pays for it and the "N ausstehend" badge never clears, so the user
+    // reads a permanent failure as a slow sync. Count the attempts and stop.
+    const failures = Number(record.failures || 0) + 1;
+    if (failures >= MAX_ATTEMPTS) {
+      await putRecord({ ...record, failures, stuck: true });
+      notifyStuck(record, res.status);
+    } else {
+      await putRecord({ ...record, failures });
+    }
   }
 
   if (syncedCount > 0) notifySynced(syncedCount);
+  await notifyChanged();
   renderBadge();
 }
 
@@ -222,15 +326,29 @@ function ensureBadgeEl() {
 export async function renderBadge() {
   const el = ensureBadgeEl();
   if (!el) return;
-  const count = await getPendingCount();
-  if (count <= 0) {
+  const all = await getAllRecords();
+  if (!all.length) {
     el.hidden = true;
     el.textContent = "";
     return;
   }
+
+  // A parked record is not "being synchronised" — saying so would leave the
+  // user waiting for something that is never going to happen.
+  const stuck = all.filter((r) => r.stuck).length;
+  const waiting = all.length - stuck;
+  const parts = [];
+  if (waiting > 0) {
+    parts.push(
+      waiting === 1 ? "1 ausstehend – wird synchronisiert" : `${waiting} ausstehend – wird synchronisiert`,
+    );
+  }
+  if (stuck > 0) {
+    parts.push(stuck === 1 ? "1 fehlgeschlagen" : `${stuck} fehlgeschlagen`);
+  }
+
   el.hidden = false;
-  el.textContent =
-    count === 1 ? "1 ausstehend – wird synchronisiert" : `${count} ausstehend – wird synchronisiert`;
+  el.textContent = parts.join(" · ");
 }
 
 export function initBadge() {
@@ -240,5 +358,18 @@ export function initBadge() {
 // Module boot: registers the reconnect listener and flushes anything left
 // over from a previous session the moment the app is (re)opened.
 window.addEventListener("online", () => retryAll());
+
+// Coming back to the app is a reconnect the browser never announces.
+// `online` only fires when the *interface* changes, so a server that was
+// unreachable for any other reason — a captive portal, a VPN, oc.emc2.de
+// itself being down — never triggers it. And iOS resumes a backgrounded web
+// app rather than reloading it, so the boot sweep above does not re-run
+// either. Observed on the iPad: a draft saved while the server was down sat
+// in the queue after the server came back, through several app switches,
+// until the page was actually reloaded.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") retryAll();
+});
+
 initBadge();
 retryAll();

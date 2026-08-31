@@ -382,18 +382,37 @@ export function initExportManager(options = {}) {
       } catch {}
     }
 
+    // Must go through the offline queue, not a raw fetch: a bare fetch that
+    // rejects loses the offer silently. Same path as script.js's
+    // saveFinalOfferSnapshot() — see OfflineSaveQueue.trySaveOrQueue.
+    // Imported here rather than at module top so OfflineSaveQueue's boot
+    // side-effects (online listener, retryAll, badge) keep firing in the order
+    // script.js already establishes at boot.
     try {
-      await fetch("/api/offers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          offerNumber,
-          offerType,
-          payload: filteredPayload,
-          pricing,
-        }),
+      const queue = await import("./OfflineSaveQueue.js");
+      const { queued, res } = await queue.trySaveOrQueue({
+        kind: "offer",
+        offerKey: offerNumber,
+        url: "/api/offers",
+        body: { offerNumber, offerType, payload: filteredPayload, pricing },
       });
+
+      if (queued) {
+        window.toast?.warn?.(
+          "Offline",
+          `Angebot ${offerNumber} wird automatisch synchronisiert, sobald wieder online.`,
+        );
+        return;
+      }
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        console.error("[ExportManager] Failed to save final offer snapshot:", body);
+        window.toast?.error?.(
+          "Speichern fehlgeschlagen",
+          body.error || `Angebot ${offerNumber} konnte nicht gespeichert werden.`,
+        );
+      }
     } catch (err) {
       console.error("[ExportManager] Failed to save final offer snapshot:", err);
     }

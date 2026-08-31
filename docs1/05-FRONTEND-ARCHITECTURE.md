@@ -8,9 +8,12 @@ The frontend is a **Single Page Application (SPA)** built with vanilla JavaScrip
 
 ```
 src/public/
-+-- index.html              # Main SPA shell (8,645 lines)
-+-- script.js               # Core logic bundle (21,514 lines)
-+-- style.css               # Styles (6,499 lines)
++-- index.html              # Main SPA shell (10,050 lines)
++-- script.js               # Core logic bundle (27,698 lines)
++-- style.css               # Styles (~6,500 lines)
++-- login.html / login.js   # Public login page
+|
+|   # Manager modules (dynamically imported at boot, script.js:14563+)
 +-- DraftsManager.js        # Draft save/load/search
 +-- ExportManager.js        # PDF/DOCX export orchestration
 +-- EmailManager.js         # Email composition & sending
@@ -22,11 +25,37 @@ src/public/
 +-- AdminManager.js         # Product/service admin panel
 +-- ThemeManager.js         # Theme & dark mode
 +-- IntegrationsManager.js  # Bitrix CRM integration
-+-- TodaysCustomers.js      # Customer quick list
 +-- BadoluxLegacyFallback.js  # Legacy compat
 +-- DraftsLegacyFallback.js   # Legacy compat
-+-- assets/                 # 187 images, icons, product photos
+|
+|   # Classic scripts (index.html:10042-10046)
++-- admin-modal.js          # Admin modal launcher
++-- header-auth.js          # Header user widget + /api/auth/me check
++-- ansprechpartner.js      # Contact-person selector
+|
+|   # Offline / PWA layer — see 13-OFFLINE-AND-SYNC.md
++-- manifest.webmanifest    # PWA manifest
++-- sw.js                   # Offline app shell service worker
++-- sw-register.js          # SW registration + persistent storage request
++-- OfflineSaveQueue.js     # IndexedDB write queue + reconnect replay
++-- session-recovery.js     # WIP payload snapshot (survives tab discard)
++-- pricing-cache.js        # Caches /api/price/inputs in IndexedDB
++-- pricing-client.js       # Runs logic/pricing-core.js in the browser
+|
+|   # Sub-applications
++-- configurator/           # Duschabtrennung wizard (boot.js, engine.js,
+|                           #   configurator-ui.js, vorhang.js, *-model.json)
++-- signpage/              # Public customer signing page (/sign/:token)
++-- admin/                 # Admin config panel (own token)
+|
++-- assets/                 # images, icons, product photos
++-- icons/                  # PWA icons (192, 512, 512-maskable)
 +-- pdfjs/                  # PDF.js viewer integration
+|
++-- TodaysCustomers.js      # ⚠️ DEAD CODE — not imported anywhere. Duplicates
+                            #   routes/todayscustomers.js and hardcodes a Bitrix
+                            #   webhook token. Slated for deletion; see
+                            #   docs/plan-ipad-local-first.md §20 S1.
 ```
 
 ## Core Concepts

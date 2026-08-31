@@ -158,7 +158,7 @@ src/logic/
 ### Module System
 
 The frontend uses a hybrid approach:
-- **script.js** (21,514 lines): Legacy monolith with core functions exposed as window globals
+- **script.js** (27,698 lines): Legacy monolith with core functions exposed as window globals
 - **Manager modules**: Modern ES6 modules (DraftsManager, ExportManager, etc.) loaded via `<script type="module">`
 - **View classes**: MVC-style views (ViewBase, FormViewBase) with event-driven state sync
 
@@ -238,6 +238,37 @@ export function initSomeManager(deps) {
 
 Managers are registered globally: `window.__managers = { name: managerInstance, ... }`
 
+### Offline / local-first layer
+
+The frontend is a **partially local-first PWA**. See `13-OFFLINE-AND-SYNC.md`
+for the full picture.
+
+```
+src/public/
+├── manifest.webmanifest    PWA manifest (+ apple-mobile-web-app-* meta in index.html)
+├── sw.js                   offline app shell, cache keyed on APP_BUILD_ID
+├── sw-register.js          registers sw.js?v=<buildId>, requests persistent storage
+├── OfflineSaveQueue.js     IndexedDB write queue, replay on reconnect + page load
+├── session-recovery.js     debounced buildPayload() snapshot, survives tab discard
+├── pricing-cache.js        caches GET /api/price/inputs
+└── pricing-client.js       runs src/logic/pricing-core.js in the browser
+```
+
+Four client-side stores:
+
+| Store | Type | Contents |
+|-------|------|----------|
+| `nt-offline-save-queue` | IndexedDB | queued draft + offer POSTs |
+| `nt-session-recovery` | IndexedDB | work-in-progress payload snapshot |
+| `nt-pricing-inputs` | IndexedDB | products + config for offline pricing |
+| `nt-shell-<buildId>` | Cache Storage | app shell, modules, product images |
+
+The key architectural decision: `src/logic/pricing-core.js` has **no mongoose
+import and no server-only dependency**. Both `src/logic/pricing.js` (server,
+injects `configService` + `fetchVigourNetPrices`) and
+`src/public/pricing-client.js` (browser, injects the IndexedDB cache) wrap the
+same file, so an offline total is computed by identical code.
+
 ### View Hierarchy
 
 ```
@@ -264,24 +295,74 @@ ViewBase (abstract)
 - **CSP**: Content Security Policy allows specific iframe embedding sources
 - **CORS**: Origin whitelist for cross-origin requests
 - **Body Size Limit**: 25MB max JSON body
-- **No Authentication**: API endpoints are currently open (no JWT/session/API keys)
+- **Authentication**: session-based, enforced by `authGate` — see below
+
+### Authentication & Authorization
+
+> Earlier revisions of this document stated there was no authentication. That
+> is **no longer true**. A full auth layer exists.
+
+Implemented in `src/services/authService.js`, `src/routes/auth.js` and
+`src/middleware/authGate.js`. No external dependencies — scrypt for password
+hashing, HMAC-SHA256 for session tokens.
+
+**Login flow**
+
+1. `POST /api/auth/login { email, password }`
+2. Password verified with `crypto.scryptSync` against `User.passwordHash`,
+   stored as `"salt:hash"`, compared with `timingSafeEqual`
+3. Server mints `base64url("<exp>:<email>") + "." + hmac_sha256(...)` signed
+   with `AUTH_SECRET`, **7-day TTL**
+4. Set as the `net_session` cookie (`httpOnly`, `sameSite: lax`, `secure` in
+   production) **and** returned in the JSON body
+5. `GET /api/auth/me` resolves the current user; `POST /api/auth/logout` clears
+   the cookie
+
+`tokenFromReq()` accepts either `Authorization: Bearer <token>` or the cookie,
+so non-browser and native clients are supported.
+
+**`authGate` request classification** (runs before all routers):
+
+| Class | Matches | Requirement |
+|-------|---------|-------------|
+| Always public | `/login`, `/api/auth/*`, `/api/health`, `/health`, `/api/version` | none |
+| Public assets | `\.(js\|css\|png\|…)$`, `/pdfjs`, `/vendor`, `/signpage`, `/assets` | none |
+| Public signing | `/sign/*`, `/api/signing/*` except `/api/signing/status` | valid token in URL |
+| External API | `/api/offers/external/*`, `/api/arbeitsbericht/external/*` | `X-API-Key` = `EXTERNAL_API_KEY` |
+| Admin | `/admin/*` | self-guarded by the admin panel's own token |
+| Everything else | — | valid session (Bearer or cookie) |
+
+Unauthenticated requests: browser navigation (`GET` + `Accept: text/html`)
+redirects to `/login`; everything else gets `401 JSON`.
+
+**Notable carve-out:** `/logic/*` is explicitly excluded from the public-asset
+rule even though it matches `\.js$`. `pricing-core.js` is shipped to the
+browser for offline pricing but is business logic, not an asset.
 
 ### CSP Policy
 
 ```
 frame-ancestors: self, gconlineplus.de, *.gconlineplus.de, emczwei.bitrix24.de, bau-formular.fly.dev
-script-src: self, unsafe-inline (hashed), unpkg.com, cdn.bitrix24.com
+script-src: self, unpkg.com, emczwei.bitrix24.de, + 4 pinned sha256 inline hashes
 img-src: self, data:, blob:, media.onlineplus.store
+connect-src: self, emczwei.bitrix24.de, route-plannung.fly.dev, bau-formular.fly.dev, unpkg.com
 worker-src: self, blob:, unpkg.com
+object-src: none
 ```
 
-### Important Security Note
+Note the **pinned inline-script hashes** in `script-src` — adding or editing
+any inline `<script>` in `index.html` requires updating the hash list in
+`src/app.js`.
 
-There is **no authentication or authorization** on any endpoint. All APIs are publicly accessible. This appears to be by design for an internal/embedded tool, but it means:
-- Anyone with the URL can read/write offers, customers, products
-- No rate limiting is implemented
-- No CSRF protection for form submissions
-- No input sanitization middleware (individual routes handle validation)
+### Remaining security gaps
+
+- No rate limiting on login or any other endpoint
+- No CSRF token (mitigated by `sameSite: lax` on the session cookie)
+- No input-sanitization middleware; individual routes handle their own validation
+- `EXTERNAL_API_KEY` is **fail-open**: if the env var is unset, `/external/*`
+  is unauthenticated (a warning is logged once)
+- `isPublicAsset()` treats *every* `.js` under `src/public/` as world-readable,
+  so any file there that embeds a secret is exposed without a session
 
 ## Deployment Architecture
 
