@@ -5203,32 +5203,16 @@ img[alt="Variodoor"] {
 }
 
 #bwtDoors .bwt-door-extra {
-  display: grid;
+  display: none;
   gap: 8px;
   margin-top: 14px;
-  padding-top: 0;
-  border-top: 1px solid transparent;
-  opacity: 0;
-  max-height: 0;
-  overflow: hidden;
-  transform: translateY(-8px);
-  pointer-events: none;
-  transition:
-    max-height 0.28s ease,
-    opacity 0.22s ease,
-    transform 0.22s ease,
-    padding-top 0.22s ease,
-    border-color 0.22s ease;
+  padding-top: 14px;
+  border-top: 1px solid rgba(124, 58, 237, 0.14);
 }
 
 #bwtDoors .bwt-door-card.is-expanded .bwt-door-extra,
 #bwtDoors .bwt-door-card:has(input:checked) .bwt-door-extra {
-  opacity: 1;
-  max-height: 260px;
-  padding-top: 14px;
-  border-top-color: rgba(124, 58, 237, 0.14);
-  transform: translateY(0);
-  pointer-events: auto;
+  display: grid;
 }
 
 #bwtDoors .bwt-door-extra label {
@@ -5244,14 +5228,6 @@ img[alt="Variodoor"] {
 #bwtDoors .bwt-door-card .caption-sub--empty {
   min-height: 9.5rem;
 }
-
-@media (max-width: 700px) {
-  #bwtDoors .bwt-door-card.is-expanded .bwt-door-extra,
-  #bwtDoors .bwt-door-card:has(input:checked) .bwt-door-extra {
-    max-height: 320px;
-  }
-}
-
 
 /* Fix: inputs inside expanded BWT card extras must stay visible
    (global .image-check input rule hides them otherwise) */
