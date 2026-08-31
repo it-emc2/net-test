@@ -4946,14 +4946,74 @@ button:active,
   inset: auto !important;
   opacity: 1 !important;
   pointer-events: auto !important;
-  display: inline-block;
-  width: 82px !important;
-  min-width: 82px !important;
-  border-radius: 10px;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  border-radius: 8px;
   border: 1px solid #dbe2ea;
   background: #fff;
   color: #0f172a;
+  font-size: 0.86rem;
+  padding: 5px 8px;
   box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+#bwtDoors .bwt-door-card .bwt-door-height-inline:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+/* ===== BWT door specs: label + field grid (replaces the old inline
+   "• label <input> unit" text run, which read as a cramped sentence and
+   left the input's accessible name disconnected from its visible label) ===== */
+#bwtDoors .bwt-door-specs {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 7px;
+  align-items: center;
+}
+
+#bwtDoors .bwt-door-spec-row {
+  display: contents;
+}
+
+#bwtDoors .bwt-door-spec-row label {
+  font-size: 0.82rem;
+  color: #667085;
+  white-space: nowrap;
+}
+
+#bwtDoors .bwt-door-spec-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+#bwtDoors .bwt-door-spec-field .bwt-door-height-inline {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+#bwtDoors .bwt-door-spec-field .unit {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  color: #98a2b3;
+  white-space: nowrap;
+}
+
+#bwtDoors .bwt-door-facts {
+  display: block;
+  color: #667085;
+  line-height: 1.55;
+}
+
+#bwtDoors .bwt-door-specs + .bwt-door-facts {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eef0f4;
 }
 
 #bwtDoors label.image-check:has(input:checked),
