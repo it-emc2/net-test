@@ -4939,13 +4939,81 @@ button:active,
 }
 
 #bwtDoors .bwt-door-card .bwt-door-height-inline {
-  width: 82px !important;
-  min-width: 82px !important;
-  border-radius: 10px;
+  /* Undo the global ".image-check input" rule (position:absolute; opacity:0;
+     pointer-events:none) meant to invisibly cover the checkbox — it was also
+     swallowing these inline dimension inputs, leaving them blank and unclickable. */
+  position: static !important;
+  inset: auto !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  border-radius: 8px;
   border: 1px solid #dbe2ea;
   background: #fff;
   color: #0f172a;
+  font-size: 0.86rem;
+  padding: 5px 8px;
   box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+#bwtDoors .bwt-door-card .bwt-door-height-inline:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+/* ===== BWT door specs: label + field grid (replaces the old inline
+   "• label <input> unit" text run, which read as a cramped sentence and
+   left the input's accessible name disconnected from its visible label) ===== */
+#bwtDoors .bwt-door-specs {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 7px;
+  align-items: center;
+}
+
+#bwtDoors .bwt-door-spec-row {
+  display: contents;
+}
+
+#bwtDoors .bwt-door-spec-row label {
+  font-size: 0.82rem;
+  color: #667085;
+  white-space: nowrap;
+}
+
+#bwtDoors .bwt-door-spec-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+#bwtDoors .bwt-door-spec-field .bwt-door-height-inline {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+#bwtDoors .bwt-door-spec-field .unit {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  color: #98a2b3;
+  white-space: nowrap;
+}
+
+#bwtDoors .bwt-door-facts {
+  display: block;
+  color: #667085;
+  line-height: 1.55;
+}
+
+#bwtDoors .bwt-door-specs + .bwt-door-facts {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eef0f4;
 }
 
 #bwtDoors label.image-check:has(input:checked),
@@ -5072,10 +5140,21 @@ img[alt="Variodoor"] {
   display: block;
   flex: 1 1 auto;
   min-height: 9.5rem;
+  text-wrap: pretty;
 }
 
 #bwtDoors .bwt-door-card .caption-sub--empty {
   visibility: hidden;
+}
+
+/* The row-alignment min-height/flex-grow above is only needed while the extra
+   fields are collapsed — once a door is checked and its Menge/Farbe block
+   opens below, growing the caption to fill leftover row height just leaves a
+   dead gap above that block. */
+#bwtDoors .bwt-door-card.is-expanded .caption-sub,
+#bwtDoors .bwt-door-card:has(input:checked) .caption-sub {
+  flex: 0 1 auto;
+  min-height: 0;
 }
 
 #bwtDoors .bwt-door-card .caption-sub br {
@@ -5124,32 +5203,16 @@ img[alt="Variodoor"] {
 }
 
 #bwtDoors .bwt-door-extra {
-  display: grid;
+  display: none;
   gap: 8px;
   margin-top: 14px;
-  padding-top: 0;
-  border-top: 1px solid transparent;
-  opacity: 0;
-  max-height: 0;
-  overflow: hidden;
-  transform: translateY(-8px);
-  pointer-events: none;
-  transition:
-    max-height 0.28s ease,
-    opacity 0.22s ease,
-    transform 0.22s ease,
-    padding-top 0.22s ease,
-    border-color 0.22s ease;
+  padding-top: 14px;
+  border-top: 1px solid rgba(124, 58, 237, 0.14);
 }
 
 #bwtDoors .bwt-door-card.is-expanded .bwt-door-extra,
 #bwtDoors .bwt-door-card:has(input:checked) .bwt-door-extra {
-  opacity: 1;
-  max-height: 260px;
-  padding-top: 14px;
-  border-top-color: rgba(124, 58, 237, 0.14);
-  transform: translateY(0);
-  pointer-events: auto;
+  display: grid;
 }
 
 #bwtDoors .bwt-door-extra label {
@@ -5165,14 +5228,6 @@ img[alt="Variodoor"] {
 #bwtDoors .bwt-door-card .caption-sub--empty {
   min-height: 9.5rem;
 }
-
-@media (max-width: 700px) {
-  #bwtDoors .bwt-door-card.is-expanded .bwt-door-extra,
-  #bwtDoors .bwt-door-card:has(input:checked) .bwt-door-extra {
-    max-height: 320px;
-  }
-}
-
 
 /* Fix: inputs inside expanded BWT card extras must stay visible
    (global .image-check input rule hides them otherwise) */

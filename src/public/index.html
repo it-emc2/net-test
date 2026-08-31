@@ -8173,12 +8173,20 @@ button.dm-btn-danger:focus-visible {
                     </span>
                     <span class="caption">Universal / Standard Tür</span>
                     <span class="caption-sub">
-                      • Höhen
-                      <input id="bwtDoorStdHeight" name="bwtDoorStdHeight" class="bwt-door-height-inline" type="number"
-                        min="33" max="40" step="1" value="40" inputmode="numeric" aria-label="Höhe in cm" />
-                      cm abschneidbar<br />
-                      • Fix Bereite 40,5 cm<br />
-                      • Tiefe O 25cm U 25cm
+                      <span class="bwt-door-specs">
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorStdHeight">Höhen</label>
+                          <span class="bwt-door-spec-field">
+                            <input id="bwtDoorStdHeight" name="bwtDoorStdHeight" class="bwt-door-height-inline" type="number"
+                              min="33" max="40" step="1" value="40" inputmode="numeric" aria-label="Höhe in cm" />
+                            <span class="unit">cm abschneidbar</span>
+                          </span>
+                        </span>
+                      </span>
+                      <span class="bwt-door-facts">
+                        • Fix Bereite 40,5 cm<br />
+                        • Tiefe O 25cm U 25cm
+                      </span>
                     </span>
 
                     <div id="bwtDoorStdQtyWrap" class="field bwt-door-extra" aria-hidden="false" data-expand-in-card="true">
@@ -8205,29 +8213,51 @@ button.dm-btn-danger:focus-visible {
                     </span>
                     <span class="caption">Individual Tür - Wien</span>
                     <span class="caption-sub">
-                      • Höhe
-                      <input id="bwtDoorIndWienHeight" name="bwtDoorIndWienHeight" class="bwt-door-height-inline" type="number" min="20" max="50" step="0.5"
-                        inputmode="decimal" placeholder="20-50" aria-label="Höhe Individual Tür - Wien" />
-                      cm<br />
-                      • Breite
-                      <input id="bwtDoorIndWienWidth" name="bwtDoorIndWienWidth" class="bwt-door-height-inline" type="number" min="30" max="50" step="0.5"
-                        inputmode="decimal" placeholder="30-50" aria-label="Breite Individual Tür - Wien" />
-                      cm<br />
-                      • Standardbreiten
-                      <select id="bwtDoorIndWienStdWidth" name="bwtDoorIndWienStdWidth" class="bwt-door-height-inline" aria-label="Standardbreite Individual Tür - Wien">
-                        <option value="">–</option>
-                        <option value="30,5 cm">30,5</option>
-                        <option value="45,5 cm">45,5</option>
-                      </select>
-                      cm<br />
-                      • Tiefe O
-                      <input id="bwtDoorIndWienDepthTop" name="bwtDoorIndWienDepthTop" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
-                        inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe O Individual Tür - Wien" />
-                      cm<br />
-                      • Tiefe U
-                      <input id="bwtDoorIndWienDepthBottom" name="bwtDoorIndWienDepthBottom" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
-                        inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe U Individual Tür - Wien" />
-                      cm
+                      <span class="bwt-door-specs">
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienHeight">Höhe</label>
+                          <span class="bwt-door-spec-field">
+                            <input id="bwtDoorIndWienHeight" name="bwtDoorIndWienHeight" class="bwt-door-height-inline" type="number" min="20" max="50" step="0.5"
+                              inputmode="decimal" placeholder="20-50" aria-label="Höhe Individual Tür - Wien" />
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienWidth">Breite</label>
+                          <span class="bwt-door-spec-field">
+                            <input id="bwtDoorIndWienWidth" name="bwtDoorIndWienWidth" class="bwt-door-height-inline" type="number" min="30" max="50" step="0.5"
+                              inputmode="decimal" placeholder="30-50" aria-label="Breite Individual Tür - Wien" />
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienStdWidth">Standardbreiten</label>
+                          <span class="bwt-door-spec-field">
+                            <select id="bwtDoorIndWienStdWidth" name="bwtDoorIndWienStdWidth" class="bwt-door-height-inline" aria-label="Standardbreite Individual Tür - Wien">
+                              <option value="">–</option>
+                              <option value="30,5 cm">30,5</option>
+                              <option value="45,5 cm">45,5</option>
+                            </select>
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienDepthTop">Tiefe O</label>
+                          <span class="bwt-door-spec-field">
+                            <input id="bwtDoorIndWienDepthTop" name="bwtDoorIndWienDepthTop" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
+                              inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe O Individual Tür - Wien" />
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienDepthBottom">Tiefe U</label>
+                          <span class="bwt-door-spec-field">
+                            <input id="bwtDoorIndWienDepthBottom" name="bwtDoorIndWienDepthBottom" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
+                              inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe U Individual Tür - Wien" />
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                      </span>
                     </span>
 
                     <div id="bwtDoorIndWienQtyWrap" class="field bwt-door-extra" aria-hidden="true" data-expand-in-card="true">
@@ -8253,29 +8283,51 @@ button.dm-btn-danger:focus-visible {
                     </span>
                     <span class="caption">Individual Tür - Wien Glas</span>
                     <span class="caption-sub">
-                      • Höhe
-                      <input id="bwtDoorIndWienGlasHeight" name="bwtDoorIndWienGlasHeight" class="bwt-door-height-inline" type="number" min="20" max="50" step="0.5"
-                        inputmode="decimal" placeholder="20-50" aria-label="Höhe Individual Tür - Wien Glas" />
-                      cm<br />
-                      • Breite
-                      <input id="bwtDoorIndWienGlasWidth" name="bwtDoorIndWienGlasWidth" class="bwt-door-height-inline" type="number" min="30" max="50" step="0.5"
-                        inputmode="decimal" placeholder="30-50" aria-label="Breite Individual Tür - Wien Glas" />
-                      cm<br />
-                      • Standardbreiten
-                      <select id="bwtDoorIndWienGlasStdWidth" name="bwtDoorIndWienGlasStdWidth" class="bwt-door-height-inline" aria-label="Standardbreite Individual Tür - Wien Glas">
-                        <option value="">–</option>
-                        <option value="30,5 cm">30,5</option>
-                        <option value="45,5 cm">45,5</option>
-                      </select>
-                      cm<br />
-                      • Tiefe O
-                      <input id="bwtDoorIndWienGlasDepthTop" name="bwtDoorIndWienGlasDepthTop" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
-                        inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe O Individual Tür - Wien Glas" />
-                      cm<br />
-                      • Tiefe U
-                      <input id="bwtDoorIndWienGlasDepthBottom" name="bwtDoorIndWienGlasDepthBottom" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
-                        inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe U Individual Tür - Wien Glas" />
-                      cm
+                      <span class="bwt-door-specs">
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienGlasHeight">Höhe</label>
+                          <span class="bwt-door-spec-field">
+                            <input id="bwtDoorIndWienGlasHeight" name="bwtDoorIndWienGlasHeight" class="bwt-door-height-inline" type="number" min="20" max="50" step="0.5"
+                              inputmode="decimal" placeholder="20-50" aria-label="Höhe Individual Tür - Wien Glas" />
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienGlasWidth">Breite</label>
+                          <span class="bwt-door-spec-field">
+                            <input id="bwtDoorIndWienGlasWidth" name="bwtDoorIndWienGlasWidth" class="bwt-door-height-inline" type="number" min="30" max="50" step="0.5"
+                              inputmode="decimal" placeholder="30-50" aria-label="Breite Individual Tür - Wien Glas" />
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienGlasStdWidth">Standardbreiten</label>
+                          <span class="bwt-door-spec-field">
+                            <select id="bwtDoorIndWienGlasStdWidth" name="bwtDoorIndWienGlasStdWidth" class="bwt-door-height-inline" aria-label="Standardbreite Individual Tür - Wien Glas">
+                              <option value="">–</option>
+                              <option value="30,5 cm">30,5</option>
+                              <option value="45,5 cm">45,5</option>
+                            </select>
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienGlasDepthTop">Tiefe O</label>
+                          <span class="bwt-door-spec-field">
+                            <input id="bwtDoorIndWienGlasDepthTop" name="bwtDoorIndWienGlasDepthTop" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
+                              inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe O Individual Tür - Wien Glas" />
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienGlasDepthBottom">Tiefe U</label>
+                          <span class="bwt-door-spec-field">
+                            <input id="bwtDoorIndWienGlasDepthBottom" name="bwtDoorIndWienGlasDepthBottom" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
+                              inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe U Individual Tür - Wien Glas" />
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                      </span>
                     </span>
 
                     <div id="bwtDoorIndWienGlasQtyWrap" class="field bwt-door-extra" aria-hidden="true" data-expand-in-card="true">
@@ -8299,9 +8351,11 @@ button.dm-btn-danger:focus-visible {
                     </span>
                     <span class="caption">Budget Tür - Verona</span>
                     <span class="caption-sub">
-                      • Höhen 34,36,38,40 cm<br />
-                      • Fix Bereite 40,5 cm<br />
-                      • Tiefe O13 cm U20 cm
+                      <span class="bwt-door-facts">
+                        • Höhen 34,36,38,40 cm<br />
+                        • Fix Bereite 40,5 cm<br />
+                        • Tiefe O13 cm U20 cm
+                      </span>
                     </span>
 
                     <div id="bwtDoorBudgetQtyWrap" class="field bwt-door-extra" aria-hidden="true" data-expand-in-card="true">
