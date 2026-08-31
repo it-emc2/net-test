@@ -552,6 +552,8 @@ body {
 .signing-view .b-partially_signed { background: #fde68a; color: #92400e; }
 .signing-view .b-completed { background: #dcfce7; color: #15803d; }
 .signing-view .b-expired { background: #f1f5f9; color: #94a3b8; }
+.signing-view .b-failed { background: #fee2e2; color: #b91c1c; }
+.signing-view .b-neutral { background: #f1f5f9; color: var(--c-muted); }
 .signing-view .prog { font-variant-numeric: tabular-nums; color: var(--c-muted); }
 .signing-view .ts { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .signing-view .ts.none { color: var(--c-subtle); }
