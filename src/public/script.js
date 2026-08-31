@@ -3040,6 +3040,21 @@ function startOfferFlow(offerKey) {
     syncDerivedPrefills("startOfferFlow:raf");
   });
   window.setTimeout(() => syncDerivedPrefills("startOfferFlow:timeout"), 60);
+
+  // Deal-move flows (planning picker) fill #auftragId ~120ms after this call
+  // (see applyPlanningAppointmentToForm) — read it after that so the log
+  // still captures the deal when one was picked.
+  window.setTimeout(() => {
+    fetch("/api/bitrix/log-action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "configurator_opened",
+        dealId: document.getElementById("auftragId")?.value || "",
+        offerType: offerKey,
+      }),
+    }).catch(() => {});
+  }, 150);
 }
 function getCurrentStep() {
   const h = location.hash.replace("#", "");
@@ -26812,6 +26827,11 @@ function renderTodayPlanningAppointments(){
       const id = card.dataset.id;
       const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
       if(!entry || isPlanningEntryCancelled(entry)) return;
+      fetch("/api/bitrix/log-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event: "termin_opened", dealId: entry.importDealId || "" }),
+      }).catch(() => {});
       activePlanningAppointmentId = id;
       renderTodayPlanningAppointments();
       openPlanningOfferPicker(entry);
