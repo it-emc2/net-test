@@ -19025,6 +19025,11 @@ wireTileQty("hlWallAngledBall35", "qty_hlWallAngledBall35_wrap");
       .filter(Boolean);
     if (!members.length) return;
 
+    // Door tiles must stay clickable so switching doors is one click, not
+    // deselect-then-select — the change listener below already unchecks
+    // the previous door, so disabling the others here would just block that click.
+    if (group.name === "BWT Tür-Typ") return;
+
     const checked = members.find((cb) => cb.checked);
 
     members.forEach((cb) => {

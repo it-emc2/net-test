@@ -4939,6 +4939,14 @@ button:active,
 }
 
 #bwtDoors .bwt-door-card .bwt-door-height-inline {
+  /* Undo the global ".image-check input" rule (position:absolute; opacity:0;
+     pointer-events:none) meant to invisibly cover the checkbox — it was also
+     swallowing these inline dimension inputs, leaving them blank and unclickable. */
+  position: static !important;
+  inset: auto !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  display: inline-block;
   width: 82px !important;
   min-width: 82px !important;
   border-radius: 10px;
@@ -5072,10 +5080,21 @@ img[alt="Variodoor"] {
   display: block;
   flex: 1 1 auto;
   min-height: 9.5rem;
+  text-wrap: pretty;
 }
 
 #bwtDoors .bwt-door-card .caption-sub--empty {
   visibility: hidden;
+}
+
+/* The row-alignment min-height/flex-grow above is only needed while the extra
+   fields are collapsed — once a door is checked and its Menge/Farbe block
+   opens below, growing the caption to fill leftover row height just leaves a
+   dead gap above that block. */
+#bwtDoors .bwt-door-card.is-expanded .caption-sub,
+#bwtDoors .bwt-door-card:has(input:checked) .caption-sub {
+  flex: 0 1 auto;
+  min-height: 0;
 }
 
 #bwtDoors .bwt-door-card .caption-sub br {
