@@ -393,8 +393,31 @@ export function initEmailManager(options = {}) {
     return num.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
+  function logDialogEvent(dealId, event, offerExtra) {
+    if (!dealId) return;
+    fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}/log-dialog-event`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event,
+        offerNumber: offerExtra?.offerNumber,
+        offerType: offerExtra?.offerType,
+      }),
+    }).catch(() => {});
+  }
+
   function closeStageModal() {
-    document.getElementById("angStageOverlay")?.remove();
+    const overlay = document.getElementById("angStageOverlay");
+    // Log a "dismissed" event only if the move was never confirmed —
+    // moveBtn is removed from the DOM once the move succeeds (see
+    // submitStageMove), so its presence means the user closed without acting.
+    if (overlay?.querySelector("#angStageMoveBtn") && overlay.dataset.dealId) {
+      logDialogEvent(overlay.dataset.dealId, "move_dialog_dismissed", {
+        offerNumber: overlay.dataset.offerNumber,
+        offerType: overlay.dataset.offerType,
+      });
+    }
+    overlay?.remove();
   }
 
   // Success dialog shown after the email was sent. Offers the stage move.
@@ -403,6 +426,9 @@ export function initEmailManager(options = {}) {
     const overlay = document.createElement("div");
     overlay.id = "angStageOverlay";
     overlay.className = "ang-stage-overlay";
+    overlay.dataset.dealId = dealId || "";
+    overlay.dataset.offerNumber = offerExtra?.offerNumber || "";
+    overlay.dataset.offerType = offerExtra?.offerType || "";
     const atts = Array.isArray(attachmentNames) && attachmentNames.length
       ? attachmentNames.join(", ")
       : "-";
@@ -417,6 +443,7 @@ export function initEmailManager(options = {}) {
         </div>
       </div>`;
     document.body.appendChild(overlay);
+    if (dealId) logDialogEvent(dealId, "move_dialog_shown", offerExtra);
 
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) closeStageModal();
