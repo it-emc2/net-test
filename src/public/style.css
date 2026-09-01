@@ -866,7 +866,12 @@ textarea:focus {
   display: none;
 }
 
+.radio-pill input[type="number"] {
+  display: inline-block;
+}
+
 .radio-pill .circle {
+  flex-shrink: 0;
   width: 18px;
   height: 18px;
   border-radius: 50%;
