@@ -126,7 +126,7 @@ export function renderBodyHtmlFromText(body) {
 // incl. Steuer-Nr./Geschäftsführer). Selected via isAh.
 function footerHtml(isAh) {
   const p = (text, extraMargin) =>
-    `<p style="margin:0${extraMargin ? ` 0 ${extraMargin}px 0` : ""};line-height:1.5;color:#364047;font-size:9px;">${text}</p>`;
+    `<p style="margin:0${extraMargin ? ` 0 ${extraMargin}px 0` : ""};line-height:1.5;color:#364047;font-size:12px;">${text}</p>`;
 
   if (isAh) {
     return [
