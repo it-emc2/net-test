@@ -131,8 +131,11 @@ function showBanner(snap, { onRestore, onDiscard }) {
   const bar = document.createElement("div");
   bar.id = "sessionRecoveryBar";
   bar.setAttribute("role", "alertdialog");
+  // Sits in normal document flow, above the sticky header, so it pushes the
+  // header down instead of a fixed overlay covering it (it was covering
+  // the logo, theme switcher, and user menu until dismissed).
   bar.style.cssText =
-    "position:fixed;left:0;right:0;top:0;z-index:10050;display:flex;gap:12px;" +
+    "display:flex;gap:12px;" +
     "align-items:center;justify-content:center;flex-wrap:wrap;padding:12px 16px;" +
     "background:#fef3c7;color:#78350f;border-bottom:1px solid #f59e0b;" +
     "font-size:.95rem;box-shadow:0 2px 8px rgba(0,0,0,.12);";
@@ -163,7 +166,7 @@ function showBanner(snap, { onRestore, onDiscard }) {
   discardBtn.addEventListener("click", () => onDiscard(bar));
 
   bar.append(text, restoreBtn, discardBtn);
-  document.body.appendChild(bar);
+  document.body.insertBefore(bar, document.body.firstChild);
   return bar;
 }
 

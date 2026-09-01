@@ -2364,18 +2364,24 @@ button.dm-btn-danger:focus-visible {
         </div>
         <div class="home-load-panel">
           <div class="field home-load-row">
-            <input id="loadOfferNumber" type="text" placeholder="ANG2025-1008-092040" />
+            <div class="home-load-field">
+              <label for="loadOfferNumber" class="home-load-label">Angebot laden</label>
+              <input id="loadOfferNumber" type="text" placeholder="ANG2025-1008-092040" />
+            </div>
             <button type="button" id="btnLoadOffer" class="secondary">Angebot laden</button>
           </div>
 
           <div class="field home-load-row">
-            <input id="homeDealIdInput" type="text" placeholder="Bitrix Deal-ID, z. B. 48213" />
+            <div class="home-load-field">
+              <label for="homeDealIdInput" class="home-load-label">Bitrix Deal-ID</label>
+              <input id="homeDealIdInput" type="text" placeholder="z. B. 48213" />
+            </div>
             <button type="button" id="btnLoadDeal" class="secondary">Deal laden</button>
           </div>
           <div id="homeDealStatus" class="status" hidden></div>
 
           <div class="field home-global-search-field">
-            <h3 class="home-search-heading">Schnellsuche in Entwürfen + Angeboten</h3>
+            <h3 class="home-search-heading" id="homeSearchHeading">Schnellsuche in Entwürfen + Angeboten</h3>
             <div class="home-global-search-wrap">
               <span class="home-global-search-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" focusable="false">
@@ -2387,6 +2393,9 @@ button.dm-btn-danger:focus-visible {
                 type="text"
                 placeholder="Name, Datum, ANG-Nummer, Ort, Telefonnummer, Stichwort …"
                 autocomplete="off"
+                aria-labelledby="homeSearchHeading"
+                data-lpignore="true"
+                data-1p-ignore="true"
               />
               <div id="globalOfferSearchResults" class="home-global-search-results" hidden></div>
             </div>
@@ -2431,42 +2440,31 @@ button.dm-btn-danger:focus-visible {
           </section>
 
 
-          <!-- <section class="today-customers-panel today-calendar-panel" id="todayCalendarPanel" aria-labelledby="todayCalendarTitle">
-            <div class="today-customers-head">
-              <div>
-                <h3 id="todayCalendarTitle">Heutige Termine</h3>
-                <p id="todayCalendarMeta">Lade Termine…</p>
-              </div>
-
-              <div class="today-customers-actions">
-                <input type="text" id="todayCalendarSearch" placeholder="Name, Ort, Telefon, E-Mail…" autocomplete="off" />
-                <button type="button" id="refreshTodayCalendar" class="secondary">Aktualisieren</button>
-              </div>
-            </div>
-
-            <div id="todayCalendarList" class="today-customers-list">
-              <div class="today-customers-empty">Noch keine Termine geladen.</div>
-            </div>
-          </section> -->
-
           <section class="today-customers-panel today-calendar-panel" id="todayPlanningPanel" aria-labelledby="todayPlanningTitle">
             <div class="today-customers-head">
               <div>
                 <h3 id="todayPlanningTitle">Heutige Termine Planung</h3>
-                <p id="todayPlanningMeta">Lade Termine…</p>
+                <div class="meta-row">
+                  <span class="status-dot" id="todayPlanningStatusDot" aria-hidden="true"></span>
+                  <p id="todayPlanningMeta" aria-live="polite">Lade Termine…</p>
+                </div>
               </div>
 
               <div class="today-customers-actions">
-                <input type="text" id="todayPlanningSearch" placeholder="Name, Ort, Telefon, E-Mail…" autocomplete="off" />
+                <div class="search-wrap">
+                  <input type="text" id="todayPlanningSearch" placeholder="Name, Ort, Telefon, E-Mail…" autocomplete="off" data-lpignore="true" data-1p-ignore="true" />
+                  <button type="button" class="search-clear" id="todayPlanningSearchClear" aria-label="Suche löschen" hidden><i class="fa-solid fa-xmark"></i></button>
+                </div>
                 <a id="todayPlanningFullRoute" class="secondary" target="_blank" rel="noopener" title="Alle heutigen Termine + Rückfahrt zur Firma als eine Route öffnen"><i class="fa-solid fa-route"></i> Route (Google)</a>
-                <a id="todayPlanningAppleRoute" class="secondary" target="_blank" rel="noopener" title="Letzter Termin heute als Route zur Firma – Apple Maps unterstützt keine Zwischenstopps per Link"><i class="fa-brands fa-apple"></i> Route (Apple)</a>
-                <button type="button" id="refreshTodayPlanning" class="secondary">Aktualisieren</button>
+                <button type="button" id="refreshTodayPlanning" class="secondary"><i class="fa-solid fa-rotate" id="refreshTodayPlanningIcon"></i> <span id="refreshTodayPlanningLabel">Aktualisieren</span></button>
               </div>
             </div>
 
+            <div id="todayPlanningOverview" class="day-overview" hidden></div>
+
             <div id="todayPlanningPause" class="today-pause-chip" hidden></div>
 
-            <div id="todayPlanningList" class="today-customers-list">
+            <div id="todayPlanningList" class="today-customers-list" aria-live="polite">
               <div class="today-customers-empty">Noch keine Termine geladen.</div>
             </div>
           </section>
@@ -2493,8 +2491,8 @@ button.dm-btn-danger:focus-visible {
             </div>
           </section>
 
-          <!-- ── Home Debug Panel ─────────────────────────────────────────── -->
-          <div class="home-debug-wrap" id="homeDebugWrap">
+          <!-- ── Home Debug Panel (dev-only, see initHomeDebugPanel) ────────── -->
+          <div class="home-debug-wrap" id="homeDebugWrap" hidden>
             <button type="button" id="homeDebugToggle" class="home-debug-toggle" aria-pressed="false">
               <span class="home-debug-toggle-icon">🐛</span>
               <span class="home-debug-toggle-label">Debug</span>

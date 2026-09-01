@@ -20114,9 +20114,15 @@ window.addEventListener("offerflow:changed", () => {
 
 // ─── Home Debug Panel ────────────────────────────────────────────────────────
 (function initHomeDebugPanel() {
+  const wrap    = document.getElementById("homeDebugWrap");
   const toggle  = document.getElementById("homeDebugToggle");
   const panel   = document.getElementById("homeDebugPanel");
-  if (!toggle || !panel) return;
+  if (!wrap || !toggle || !panel) return;
+
+  // Dev-only tool — never expose raw endpoint dumps to regular users.
+  const isDevHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  if (!isDevHost) return;
+  wrap.hidden = false;
 
   // ── Toggle ───────────────────────────────────────────────────────────────
   let isOpen = false;
@@ -22661,6 +22667,7 @@ function askBeforeGoingHome(onConfirm) {
 
   function cleanup() {
     overlay.classList.remove("visible");
+    overlay.setAttribute("aria-hidden", "true");
     cancelBtn.removeEventListener("click", handleCancel);
     goBtn.removeEventListener("click", handleGo);
   }
@@ -22682,6 +22689,8 @@ function askBeforeGoingHome(onConfirm) {
   goBtn.addEventListener("click", handleGo);
 
   overlay.classList.add("visible");
+  overlay.setAttribute("aria-hidden", "false");
+  cancelBtn.focus();
 }
 
 //<!-- Sidebar + wizard nav sync -->
@@ -26296,8 +26305,15 @@ function buildPlanningEntries(payload){
 function formatPlanningStartTime(entry){
   const start = Number(entry?.manualStartMinutes);
   if(!Number.isFinite(start) || start < 0) return null;
-  const h = Math.floor(start / 60);
-  const m = start % 60;
+  return formatMinutesAsClock(start);
+}
+
+// Minutes-since-midnight -> "HH:MM", wrapping past 24h (e.g. a very late
+// Rückfahrt) instead of printing something like "25:10".
+function formatMinutesAsClock(totalMinutes){
+  const wrapped = ((Math.round(totalMinutes) % 1440) + 1440) % 1440;
+  const h = Math.floor(wrapped / 60);
+  const m = wrapped % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
@@ -26748,27 +26764,91 @@ async function fetchCompanyTravelMinutes(entry){
 }
 
 // Adds an "Anfahrt von Firma" connector before the first card and a
-// "Rückfahrt zur Firma" connector after the last card. Fetched async so the
-// list itself renders immediately; the connectors pop in once resolved.
+// "Rückfahrt zur Firma" connector after the last card, plus the day-overview
+// strip (Abfahrt/Rückkehr). Fetched async so the list itself renders
+// immediately; the connectors and overview pop in once resolved.
 function attachCompanyTravelConnectors(entries){
   const list = document.getElementById("todayPlanningList");
+  if(!entries.length) renderTodayPlanningOverview();
   if(!list || !entries.length) return;
-
-  const addConnector = (entry, position, className, label) => {
-    fetchCompanyTravelMinutes(entry).then(minutes => {
-      if(!(minutes > 0)) return;
-      const card = list.querySelector(`.today-calendar-card[data-id="${CSS.escape(String(entry.__entryId))}"]`);
-      if(!card) return;
-      const sibling = position === "beforebegin" ? card.previousElementSibling : card.nextElementSibling;
-      if(sibling?.classList.contains(className)) return;
-      card.insertAdjacentHTML(position, `<div class="planning-travel-connector ${className}"><i class="fa-solid fa-car-side"></i> ${minutes} Min ${label}</div>`);
-    });
-  };
 
   const first = entries[0];
   const last = entries[entries.length - 1];
-  addConnector(first, "beforebegin", "planning-travel-connector--start", "Anfahrt von Firma");
-  if(last !== first) addConnector(last, "afterend", "planning-travel-connector--end", "Rückfahrt zur Firma");
+
+  const addConnector = (entry, position, className, label, minutes) => {
+    const card = list.querySelector(`.today-calendar-card[data-id="${CSS.escape(String(entry.__entryId))}"]`);
+    if(!card) return;
+    const sibling = position === "beforebegin" ? card.previousElementSibling : card.nextElementSibling;
+    if(sibling?.classList.contains(className)) return;
+
+    const start = Number(entry?.manualStartMinutes);
+    const duration = Number(entry?.duration);
+    let etaHtml = "";
+    if(Number.isFinite(start)){
+      if(className.endsWith("--start")){
+        etaHtml = `<span class="ptc-eta">Abfahrt ca. ${formatMinutesAsClock(start - minutes)}</span>`;
+      } else if(Number.isFinite(duration)){
+        etaHtml = `<span class="ptc-eta">Ankunft ca. ${formatMinutesAsClock(start + duration + minutes)}</span>`;
+      }
+    }
+    card.insertAdjacentHTML(position, `<div class="planning-travel-connector ${className}"><i class="fa-solid fa-car-side"></i><span class="ptc-duration">${minutes} Min ${label}</span>${etaHtml}</div>`);
+  };
+
+  renderTodayPlanningOverview(); // hide any stale overview from a previous render while this resolves
+
+  Promise.all([fetchCompanyTravelMinutes(first), last !== first ? fetchCompanyTravelMinutes(last) : Promise.resolve(null)])
+    .then(([startMinutes, endMinutes]) => {
+      if(startMinutes > 0) addConnector(first, "beforebegin", "planning-travel-connector--start", "Anfahrt von Firma", startMinutes);
+      if(last !== first && endMinutes > 0) addConnector(last, "afterend", "planning-travel-connector--end", "Rückfahrt zur Firma", endMinutes);
+      renderTodayPlanningOverview({ first, last, startMinutes, endMinutes: last !== first ? endMinutes : startMinutes });
+    });
+}
+
+// The "when do I leave, when am I back" strip above the appointment list.
+function renderTodayPlanningOverview({ first, last, startMinutes, endMinutes } = {}){
+  const el = document.getElementById("todayPlanningOverview");
+  if(!el) return;
+
+  const firstStart = Number(first?.manualStartMinutes);
+  const lastStart = Number(last?.manualStartMinutes);
+  const lastDuration = Number(last?.duration);
+  const canShow = startMinutes > 0 && endMinutes > 0
+    && Number.isFinite(firstStart) && Number.isFinite(lastStart) && Number.isFinite(lastDuration);
+
+  if(!canShow){
+    el.hidden = true;
+    el.innerHTML = "";
+    return;
+  }
+
+  const departure = firstStart - startMinutes;
+  const lastEnd = lastStart + lastDuration;
+  const returnTime = lastEnd + endMinutes;
+  const totalTravel = startMinutes + endMinutes;
+
+  el.hidden = false;
+  el.innerHTML = `
+    <div class="day-overview__cell is-start">
+      <span class="day-overview__label"><i class="fa-solid fa-arrow-right-from-bracket"></i> Abfahrt Firma</span>
+      <span class="day-overview__value">${formatMinutesAsClock(departure)}</span>
+      <span class="day-overview__sub">${startMinutes} Min Anfahrt</span>
+    </div>
+    <div class="day-overview__cell">
+      <span class="day-overview__label">Erster Termin</span>
+      <span class="day-overview__value">${formatMinutesAsClock(firstStart)}</span>
+      <span class="day-overview__sub">${escapePlanningHtml(first?.name || "")}</span>
+    </div>
+    <div class="day-overview__cell">
+      <span class="day-overview__label">Letzter Termin endet</span>
+      <span class="day-overview__value">${formatMinutesAsClock(lastEnd)}</span>
+      <span class="day-overview__sub">${escapePlanningHtml(last?.name || "")}</span>
+    </div>
+    <div class="day-overview__cell is-end">
+      <span class="day-overview__label"><i class="fa-solid fa-arrow-right-to-bracket"></i> Rückkehr Firma</span>
+      <span class="day-overview__value">${formatMinutesAsClock(returnTime)}</span>
+      <span class="day-overview__sub">${endMinutes} Min Rückfahrt · ${totalTravel} Min Fahrzeit gesamt</span>
+    </div>
+  `;
 }
 
 function renderTodayPlanningAppointments(){
@@ -26807,7 +26887,14 @@ function renderTodayPlanningAppointments(){
 
     const travel = Number(entry?.travelMinutesAfter);
     const travelHtml = travel > 0
-      ? `<div class="planning-travel-connector"><i class="fa-solid fa-car-side"></i> ${travel} Min Fahrt / Puffer</div>`
+      ? (() => {
+          const start = Number(entry?.manualStartMinutes);
+          const duration = Number(entry?.duration);
+          const etaHtml = Number.isFinite(start) && Number.isFinite(duration)
+            ? `<span class="ptc-eta">an ca. ${formatMinutesAsClock(start + duration + travel)}</span>`
+            : "";
+          return `<div class="planning-travel-connector"><i class="fa-solid fa-car-side"></i><span class="ptc-duration">${travel} Min Fahrt / Puffer</span>${etaHtml}</div>`;
+        })()
       : "";
 
     return `
@@ -26934,13 +27021,10 @@ function renderTodayPlanningAppointments(){
 // Builds one Google Maps multi-stop link covering every appointment of the
 // day (in list order) plus a round trip to/from the company address, so the
 // whole route can be opened at once (e.g. in the Tesla browser) instead of
-// entering each stop manually. Also builds an Apple Maps link for the last
-// leg (company -> final stop) since Apple Maps has no URL support for
-// multiple waypoints.
+// entering each stop manually.
 function updateTodayPlanningFullRouteLink(){
   const googleLink = document.getElementById("todayPlanningFullRoute");
-  const appleLink = document.getElementById("todayPlanningAppleRoute");
-  if(!googleLink && !appleLink) return;
+  if(!googleLink) return;
 
   const stops = todayPlanningAppointments
     .filter(entry => !isPlanningEntryCancelled(entry) && entry?.address)
@@ -26949,34 +27033,20 @@ function updateTodayPlanningFullRouteLink(){
     || "Kornhausacker 10, Hof";
 
   if(!stops.length){
-    googleLink?.removeAttribute("href");
-    googleLink?.setAttribute("aria-disabled", "true");
-    appleLink?.removeAttribute("href");
-    appleLink?.setAttribute("aria-disabled", "true");
+    googleLink.removeAttribute("href");
+    googleLink.setAttribute("aria-disabled", "true");
     return;
   }
 
-  if(googleLink){
-    const params = new URLSearchParams({
-      api: "1",
-      origin: companyAddress,
-      destination: companyAddress,
-      waypoints: stops.join("|"),
-      travelmode: "driving",
-    });
-    googleLink.href = `https://www.google.com/maps/dir/?${params.toString()}`;
-    googleLink.removeAttribute("aria-disabled");
-  }
-
-  if(appleLink){
-    const params = new URLSearchParams({
-      saddr: companyAddress,
-      daddr: stops[stops.length - 1],
-      dirflg: "d",
-    });
-    appleLink.href = `https://maps.apple.com/?${params.toString()}`;
-    appleLink.removeAttribute("aria-disabled");
-  }
+  const params = new URLSearchParams({
+    api: "1",
+    origin: companyAddress,
+    destination: companyAddress,
+    waypoints: stops.join("|"),
+    travelmode: "driving",
+  });
+  googleLink.href = `https://www.google.com/maps/dir/?${params.toString()}`;
+  googleLink.removeAttribute("aria-disabled");
 }
 
 function filterTodayPlanningAppointments(query){
@@ -26994,6 +27064,7 @@ function filterTodayPlanningAppointments(query){
 
 function updateTodayPlanningMeta(day){
   const meta = document.getElementById("todayPlanningMeta");
+  const statusDot = document.getElementById("todayPlanningStatusDot");
   if(!meta) return;
 
   const label = day?.dateLabel || new Intl.DateTimeFormat("de-DE", {
@@ -27009,8 +27080,10 @@ function updateTodayPlanningMeta(day){
   // tell that the plan may have moved since this was fetched.
   if (todayPlanningCachedAt) {
     meta.textContent = `${base} · Offline – Stand ${formatPlanningCacheAge(todayPlanningCachedAt)}`;
+    statusDot?.classList.add("is-offline");
     return;
   }
+  statusDot?.classList.remove("is-offline");
   meta.textContent = base;
 }
 
@@ -27175,9 +27248,56 @@ async function warmPlanningEnrichment(payload){
   }
 }
 
-async function fetchTodayPlanningSnapshot(){
+// Bumped on every call so a slow, stale request (superseded by a newer
+// fetch — reconnect, manual refresh, the initial load itself) can tell it
+// lost the race and must not overwrite whatever the newer call already
+// rendered. Without this, an out-of-order failure could stomp a panel
+// (including the unrelated week calendar, see below) that a later, faster
+// call had already populated with good data.
+let todayPlanningRequestId = 0;
+
+function renderTodayPlanningError(){
   const list = document.getElementById("todayPlanningList");
   const meta = document.getElementById("todayPlanningMeta");
+  document.getElementById("todayPlanningStatusDot")?.classList.add("is-offline");
+
+  if(list){
+    // Deliberately its own component, not .today-customers-empty — a failed
+    // request must not look identical to "nothing scheduled today".
+    list.innerHTML = `
+      <div class="today-planning-error">
+        <span class="tpe-icon"><i class="fa-solid fa-triangle-exclamation"></i></span>
+        <div class="tpe-body">
+          <strong>Planungstermine konnten nicht geladen werden</strong>
+          <p>Die Verbindung zum Server ist fehlgeschlagen.</p>
+          <button type="button" class="tpe-retry" id="todayPlanningRetryBtn">
+            <i class="fa-solid fa-rotate"></i> Erneut versuchen
+          </button>
+        </div>
+      </div>`;
+    document.getElementById("todayPlanningRetryBtn")?.addEventListener("click", fetchTodayPlanningSnapshot);
+  }
+  if(meta){
+    meta.textContent = "Planungsdaten konnten nicht geladen werden";
+  }
+  renderTodayPlanningOverview();
+}
+
+function setTodayPlanningRefreshLoading(isLoading){
+  const btn = document.getElementById("refreshTodayPlanning");
+  const icon = document.getElementById("refreshTodayPlanningIcon");
+  const label = document.getElementById("refreshTodayPlanningLabel");
+  if(!btn) return;
+  btn.disabled = isLoading;
+  icon?.classList.toggle("spin", isLoading);
+  if(label) label.textContent = isLoading ? "Lädt…" : "Aktualisieren";
+}
+
+async function fetchTodayPlanningSnapshot(){
+  const requestId = ++todayPlanningRequestId;
+  const list = document.getElementById("todayPlanningList");
+  const meta = document.getElementById("todayPlanningMeta");
+  setTodayPlanningRefreshLoading(true);
   if(list){
     list.innerHTML = `<div class="today-customers-empty">Lade Termine…</div>`;
   }
@@ -27195,6 +27315,7 @@ async function fetchTodayPlanningSnapshot(){
     const bitrixTimes = await fetch("/api/bitrix/activities/today", { headers: { Accept: "application/json" } })
       .then(r => r.ok ? r.json() : null)
       .catch(() => null);
+    if(requestId !== todayPlanningRequestId) return; // superseded — a newer call already resolved
     enrichPlanningEntriesWithBitrixTimes(payload, bitrixTimes?.byDealId || {});
     todayPlanningCachedAt = null;
     applyTodayPlanningPayload(payload);
@@ -27205,23 +27326,16 @@ async function fetchTodayPlanningSnapshot(){
     warmPlanningEnrichment(payload);
   }catch(error){
     console.error("today planning failed", error);
+    if(requestId !== todayPlanningRequestId) return; // superseded — don't clobber a newer result
 
     // No signal — fall back to the cached week rather than stranding the
     // salesperson with no appointments and no prefill.
     if(await renderTodayPlanningFromCache()) return;
+    if(requestId !== todayPlanningRequestId) return; // the cache import above can race too
 
-    if(list){
-      list.innerHTML = `<div class="today-customers-empty">Fehler beim Laden der Planungstermine</div>`;
-    }
-    if(meta){
-      meta.textContent = "Planungsdaten konnten nicht geladen werden";
-    }
-    const weekGrid = document.getElementById("weekCalendarGrid");
-    const weekMeta = document.getElementById("weekCalendarMeta");
-    if(weekGrid){
-      weekGrid.innerHTML = `<div class="week-cal-empty"><i class="fa-solid fa-triangle-exclamation"></i> Planungsdaten konnten nicht geladen werden</div>`;
-    }
-    if(weekMeta) weekMeta.textContent = "Verbindung fehlgeschlagen";
+    renderTodayPlanningError();
+  }finally{
+    if(requestId === todayPlanningRequestId) setTodayPlanningRefreshLoading(false);
   }
 }
 
@@ -27447,11 +27561,22 @@ function initTodayPlanningPanel(){
   });
 
   const search = document.getElementById("todayPlanningSearch");
+  const searchClear = document.getElementById("todayPlanningSearchClear");
   const refresh = document.getElementById("refreshTodayPlanning");
 
   if(search){
     search.addEventListener("input", (event) => {
+      searchClear.hidden = !event.target.value;
       filterTodayPlanningAppointments(event.target.value);
+    });
+  }
+
+  if(searchClear && search){
+    searchClear.addEventListener("click", () => {
+      search.value = "";
+      searchClear.hidden = true;
+      filterTodayPlanningAppointments("");
+      search.focus();
     });
   }
 
