@@ -3826,6 +3826,14 @@ label.image-check.is-checked .caption {
   cursor: pointer;
 }
 
+/* Kassenkunden-Dokumente card (Zusammenfassung) */
+.doc-select-card {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+.doc-select-row { font-size: 0.95rem; }
+
 /* ===== Additive: Badolux Low Budget mode UI helpers ===== */
 #form-duschwanne.budget-mode,
 #form-fussboden.budget-mode {

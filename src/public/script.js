@@ -4880,6 +4880,16 @@ if (anschlag) {
   payload.auftragId = (document.getElementById("auftragId")?.value || "").trim() || undefined;
   payload.postal = readPostalStateForPayload();
 
+  // Kassenkunden-Dokumente checkboxes (#zfDocSelectionCard) — which optional
+  // documents ship with this Kassenkunde offer. Missing/true = included.
+  // Read by EmailManager.js (mail), initPostalSending() (post) and
+  // signing.js createSigningRequest() (online-signing document set).
+  payload.docSelection = {
+    abtretung: document.getElementById("docSel_abtretung")?.checked ?? true,
+    vollmacht: document.getElementById("docSel_vollmacht")?.checked ?? true,
+    barrierefrei: document.getElementById("docSel_barrierefrei")?.checked ?? true,
+  };
+
   // ✅ E-Mail-Versand fields (mail card lives outside any form-* element, so it
   // is not picked up by formToObject above). Persist so drafts can restore the
   // recipient, subject and body — the body also carries the dynamic
@@ -15305,6 +15315,17 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     const restoredAuftragId = p?.auftragId || p?.postal?.auftragId || "";
     if (restoredAuftragId && typeof syncSummaryLeadIds === "function") {
       syncSummaryLeadIds(restoredAuftragId);
+    }
+
+    // Restore Kassenkunden-Dokumente checkboxes. Missing field (older drafts)
+    // keeps every checkbox at its default (checked/included).
+    try {
+      const ds = p?.docSelection || {};
+      ["abtretung", "vollmacht", "barrierefrei"].forEach((id) => {
+        window.setDocumentSelected?.(id, ds[id] !== false);
+      });
+    } catch (e) {
+      console.warn("[restore] docSelection restore failed:", e);
     }
 
     await window.__drawingReady;
@@ -27739,6 +27760,51 @@ document
 
 
 
+// Kassenkunden-Dokumente (#zfDocSelectionCard): a single checkbox state that
+// drives mail attachments/body (EmailManager.js excludedPreset), postal
+// attachments (initPostalSending below) and — via payload.docSelection in
+// buildPayload() — which documents the online-signing link requires
+// (signing.js createSigningRequest). "angebot" is not part of this, it is
+// always included.
+function updateDocSelectionVisibility() {
+  const wrap = document.getElementById("zfDocSelectionCard");
+  if (!wrap) return;
+  const isKassenkunde =
+    document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde";
+  const isAh = String(window.getCurrentOfferType?.() || "bu").toLowerCase() === "ah";
+  const show = isKassenkunde && !isAh;
+  wrap.hidden = !show;
+  wrap.setAttribute("aria-hidden", show ? "false" : "true");
+}
+window.updateDocSelectionVisibility = updateDocSelectionVisibility;
+
+function setDocumentSelected(id, selected) {
+  const checkbox = document.getElementById(`docSel_${id}`);
+  if (checkbox && checkbox.checked !== !!selected) checkbox.checked = !!selected;
+
+  if (selected) window.__mailExcludedPreset?.delete(id);
+  else window.__mailExcludedPreset?.add(id);
+
+  window.__emailManager?.render?.();
+  window.__emailManager?.refreshPrefills?.();
+  window.__postalManager?.render?.();
+}
+window.setDocumentSelected = setDocumentSelected;
+
+document.addEventListener("DOMContentLoaded", () => {
+  document
+    .querySelectorAll('input[name="payer"]')
+    .forEach((r) => r.addEventListener("change", updateDocSelectionVisibility));
+  window.addEventListener("offerflow:changed", updateDocSelectionVisibility);
+  updateDocSelectionVisibility();
+
+  ["abtretung", "vollmacht", "barrierefrei"].forEach((id) => {
+    document
+      .getElementById(`docSel_${id}`)
+      ?.addEventListener("change", (e) => setDocumentSelected(id, e.target.checked));
+  });
+});
+
 (function initPostalSending() {
   function syncPostalSectionVisibility(forceState = null) {
     const toggleBtn = document.getElementById("togglePostalSectionBtn");
@@ -27807,11 +27873,26 @@ document
 
     const DEFAULT_POSTAL_ATTACHMENTS = [
       { id: "abtretung", type: "static", filename: "Abtretungserklärung.pdf", label: "Default" },
+      { id: "barrierefrei", type: "static", filename: "emc2_Barrierefreies_Wohnen.pdf", label: "Default" },
       { id: "vollmacht", type: "static", filename: "Vollmacht.pdf", label: "Default" },
       // Future-ready: add more predefined postal attachments here if needed.
     ];
 
-    let postalAttachments = DEFAULT_POSTAL_ATTACHMENTS.map((item) => ({ ...item }));
+    // Statics are recomputed from the same excludedPreset Set the mail section
+    // uses (window.__mailExcludedPreset, see EmailManager.js) plus the
+    // Selbstzahler/Kassenkunde payer rule — see computeStaticPostalAttachments().
+    // Only uploads are tracked as free-standing state in postalAttachments.
+    function computeStaticPostalAttachments() {
+      const isSZ =
+        document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler";
+      const payerExcluded = isSZ ? new Set(["abtretung", "vollmacht"]) : new Set();
+      const excluded = window.__mailExcludedPreset || new Set();
+      return DEFAULT_POSTAL_ATTACHMENTS.filter(
+        (item) => !payerExcluded.has(item.id) && !excluded.has(item.id),
+      ).map((item) => ({ ...item }));
+    }
+
+    let postalAttachments = [];
 
     function escapeHtmlLocal(value) {
       return String(value ?? "")
@@ -27961,7 +28042,7 @@ document
     });
 
     function resetPostalPanel() {
-      postalAttachments = DEFAULT_POSTAL_ATTACHMENTS.map((item) => ({ ...item }));
+      postalAttachments = [];
       postalSubjectTouched = false;
       postalBodyTouched = false;
       lastAutoPostalBody = "";
@@ -28032,7 +28113,10 @@ document
         : null;
 
       if (restoredAttachments) {
-        postalAttachments = restoredAttachments;
+        // Statics are recomputed from the (separately restored) docSelection
+        // checkboxes on the next renderAttachmentList() — only uploads carry
+        // over from the saved list.
+        postalAttachments = restoredAttachments.filter((item) => item.type === "upload");
       }
 
       postalSubjectTouched = !!String(fields.subject?.value || "").trim();
@@ -28052,6 +28136,10 @@ document
 
     window.addEventListener("offerflow:changed", () => {
       refreshPostalPrefills();
+    });
+
+    document.querySelectorAll('input[name="payer"]').forEach((el) => {
+      el.addEventListener("change", renderAttachmentList);
     });
 
     function fillPostalDefaults() {
@@ -28086,6 +28174,11 @@ document
     });
 
     function renderAttachmentList() {
+      postalAttachments = [
+        ...computeStaticPostalAttachments(),
+        ...postalAttachments.filter((item) => item.type === "upload"),
+      ];
+
       const tiles = [
         {
           id: "offer-main",
@@ -28118,13 +28211,24 @@ document
         .join("");
     }
 
+    // Removing a static (preset) tile unchecks the shared Kassenkunden-Dokumente
+    // checkbox — it also disappears from mail/signing, matching how the mail
+    // section's own "x" already behaves. Uploads are removed locally.
+    function handlePostRemove(id) {
+      const item = postalAttachments.find((a) => a.id === id);
+      if (!item) return;
+      if (item.type === "upload") {
+        postalAttachments = postalAttachments.filter((a) => a.id !== id);
+        renderAttachmentList();
+      } else {
+        window.setDocumentSelected?.(item.id, false);
+      }
+    }
+
     attachmentList.addEventListener("click", (event) => {
       const btn = event.target.closest("[data-post-remove]");
       if (!btn) return;
-      const id = String(btn.dataset.postRemove || "").trim();
-      if (!id) return;
-      postalAttachments = postalAttachments.filter((item) => item.id !== id);
-      renderAttachmentList();
+      handlePostRemove(String(btn.dataset.postRemove || "").trim());
     });
 
     attachmentList.addEventListener("keydown", (event) => {
@@ -28132,10 +28236,7 @@ document
       if (!btn) return;
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
-      const id = String(btn.dataset.postRemove || "").trim();
-      if (!id) return;
-      postalAttachments = postalAttachments.filter((item) => item.id !== id);
-      renderAttachmentList();
+      handlePostRemove(String(btn.dataset.postRemove || "").trim());
     });
 
     uploadInput.addEventListener("change", () => {
