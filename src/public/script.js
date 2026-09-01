@@ -5396,7 +5396,7 @@ async function downloadPDFWithProgress(endpoint, payload) {
     };
   }
 
-  async function openInlineDocumentPreview(input) {
+  async function openInlineDocumentPreview(input, { scrollIntoView = true } = {}) {
     const config =
       typeof input === "string" ? PREVIEW_CONFIGS[input] : input;
 
@@ -5445,7 +5445,7 @@ async function downloadPDFWithProgress(endpoint, payload) {
       }
 
       if (status) status.textContent = `${config.title} bereit.`;
-      section.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (scrollIntoView) section.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error) {
       console.error("[document-preview] failed:", error);
       if (sequence >= latestAppliedSequence) {
@@ -5479,7 +5479,7 @@ async function downloadPDFWithProgress(endpoint, payload) {
       if (!isZusammenfassungActive()) return;
       try {
         if (status) status.textContent = `${activePreviewConfig.title} wird aktualisiert…`;
-        await openInlineDocumentPreview(activePreviewConfig);
+        await openInlineDocumentPreview(activePreviewConfig, { scrollIntoView: false });
         if (status) status.textContent = `${activePreviewConfig.title} automatisch aktualisiert.`;
       } catch (error) {
         console.warn("[document-preview] auto refresh failed:", reason, error);
