@@ -3673,19 +3673,6 @@ button.dm-btn-danger:focus-visible {
                       <span class="task-card__hint">Montage & Befestigung</span>
                     </span>
                   </label>
-                  <label class="task-card">
-                    <input type="checkbox" name="duschwanne[workTasks][]" value="wandverkleidung_duschbereich" />
-                    <span class="task-card__body">
-                      <span class="task-card__title">
-                        Wandverkleidung in Duschbereich bis in einer Höhe von
-                        <input type="number" name="duschwanne[wandverkleidungHoehe]" min="0" step="1"
-                          inputmode="numeric" placeholder="___" style="width:5em"
-                          onclick="event.preventDefault();event.stopPropagation();" /> cm
-                      </span>
-                      <span class="task-card__hint">Montage & Verkleidung im Duschbereich</span>
-                    </span>
-                  </label>
-
                   <div class="tb-block" id="dw-trockenbau">
                     <div class="tb-block__head">
                       <span class="tb-block__title">Aluprofil für Trockenbau statt Verbindungsprofil</span>
@@ -4416,6 +4403,18 @@ button.dm-btn-danger:focus-visible {
 
               <label class="radio-pill"><input type="radio" name="wvKind" value="Keine" /><span
                   class="circle"></span><span>Keine Wandverkleidung</span></label>
+
+              <label class="radio-pill">
+                <input type="checkbox" name="duschwanne[workTasks][]" value="wandverkleidung_duschbereich"
+                  form="form-Arbeiten" />
+                <span class="circle"></span>
+                <span>
+                  Wandverkleidung in Duschbereich bis in einer Höhe von
+                  <input type="number" name="duschwanne[wandverkleidungHoehe]" min="0" step="1"
+                    inputmode="numeric" placeholder="___" style="width:5em" form="form-Arbeiten"
+                    onclick="event.preventDefault();event.stopPropagation();" /> cm
+                </span>
+              </label>
             </div>
           </div>
 
