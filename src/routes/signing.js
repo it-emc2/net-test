@@ -265,7 +265,7 @@ export async function createSigningRequest({
     sr,
     `🔗 Signatur-Link an Kunde versendet` +
       (sr.offerNumber ? ` (${sr.offerNumber})` : "") +
-      `\nGültig bis: ${expiresAt.toLocaleDateString("de-DE")}\nLink: ${link}`,
+      `\nGültig bis: ${expiresAt.toLocaleDateString("de-DE")}\n>> Hier Unterlagen online ausfüllen und unterzeichnen <<\n${link}`,
   );
 
   return { sr, link, token, customerType };
