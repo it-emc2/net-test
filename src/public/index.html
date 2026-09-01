@@ -7510,9 +7510,35 @@ button.dm-btn-danger:focus-visible {
             </div>
           </section>
 
+          <!-- Kassenkunden-Dokumente: which optional documents ship with this
+               Kassenkunde offer. Drives 3 places, all reading the same state:
+               EmailManager.js (mail attachment tiles + body text list),
+               initPostalSending() below (Post-Anhänge), and signing.js
+               (createSigningRequest reads payload.docSelection to decide which
+               documents the online-signing link requires). Angebot itself is
+               not a checkbox — it is always included. -->
+          <section id="zfDocSelectionCard" class="bitrix-section" hidden aria-hidden="true">
+            <h2 class="section-title">Kassenkunden-Dokumente</h2>
+            <p class="section-subtitle">Bestimmt, welche Unterlagen mitgehen — in der E-Mail, als PDF-Anhang, im Postversand und in der Online-Unterschrift. Das Angebot ist immer enthalten.</p>
+            <div class="bitrix-card doc-select-card">
+              <label class="inline-check doc-select-row">
+                <input type="checkbox" id="docSel_abtretung" checked />
+                <span>Abtretungserklärung zur Abrechnung mit der Krankenkasse</span>
+              </label>
+              <label class="inline-check doc-select-row">
+                <input type="checkbox" id="docSel_vollmacht" checked />
+                <span>Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3, 4, 5 SGB XI</span>
+              </label>
+              <label class="inline-check doc-select-row">
+                <input type="checkbox" id="docSel_barrierefrei" checked />
+                <span>Flyer „Barrierefreies Wohnen“</span>
+              </label>
+            </div>
+          </section>
+
           <!-- Bitrix Integration Section -->
           <section class="bitrix-section">
-            <h2 class="section-title">📤 Bitrix Integration</h2>
+            <h2 class="section-title">Bitrix Integration</h2>
             <div class="bitrix-card">
               <div class="bitrix-input-group">
                 <label for="auftragId">Auftrag ID</label>
@@ -7528,7 +7554,7 @@ button.dm-btn-danger:focus-visible {
 
           <!-- Main Export Actions -->
           <section class="export-section">
-            <h2 class="section-title">📄 Dokumentenstudio</h2>
+            <h2 class="section-title">Dokumentenstudio</h2>
             <p class="section-subtitle">Erstellen, prüfen und vergleichen Sie alle Ausgabedokumente an einem Ort.</p>
 
             <div class="export-cards">
@@ -7720,7 +7746,7 @@ button.dm-btn-danger:focus-visible {
 
           <!-- Email Versand (unter PDF Vorschau) -->
 <section class="mail-section">
-  <h2 class="section-title">✉️ Angebot per E-Mail senden</h2>
+  <h2 class="section-title">Angebot per E-Mail senden</h2>
 
   <div class="mail-card">
     <label for="mailAuftragId">Lead ID / Auftrag ID</label>
@@ -7786,7 +7812,7 @@ button.dm-btn-danger:focus-visible {
   </div>
 
 <section class="mail-section post-section" id="postalSummarySection" hidden>
-  <h2 class="section-title">📮 Angebot per Post senden</h2>
+  <h2 class="section-title">Angebot per Post senden</h2>
 
   <div class="mail-card post-card">
     <label for="postAuftragId">Lead ID / Auftrag ID</label>

@@ -3,6 +3,16 @@
 // Handles offer email sending UI + attachment tiles, decoupled from script.js
 // + posts a Bitrix timeline comment after successful send (best-effort)
 
+// Kassenkunde (non-AH) body-text lines for the 3 optional documents, in the
+// order they should be numbered. ids match cfg.presetAttachments below and
+// the checkboxes in #zfDocSelectionCard (index.html) — a single excludedPreset
+// Set drives both the attachment tiles and this text.
+const KASSE_DOC_LINES = [
+  { id: "abtretung", line: "Abtretungserklärung zur Abrechnung mit der Krankenkasse" },
+  { id: "vollmacht", line: "Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3, 4, 5 SGB XI" },
+  { id: "barrierefrei", line: 'Unseren aktuellen Flyer "Barrierefreies Wohnen"' },
+];
+
 export function initEmailManager(options = {}) {
   const cfg = {
     els: {
@@ -686,7 +696,9 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
 
     const attachmentList = isSelbstzahler
       ? `1. Ihr Angebot ${offerNumber}\n2. Unseren aktuellen Flyer "Barrierefreies Wohnen"`
-      : `1. Ihr Angebot ${offerNumber}\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3, 4, 5 SGB XI\n4. Unseren aktuellen Flyer "Barrierefreies Wohnen"`;
+      : [`Ihr Angebot ${offerNumber}`, ...KASSE_DOC_LINES.filter((p) => !excludedPreset.has(p.id)).map((p) => p.line)]
+          .map((line, i) => `${i + 1}. ${line}`)
+          .join("\n");
 
     return `${buildGreetingLine()}
 
