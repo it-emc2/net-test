@@ -25,7 +25,7 @@ export function formatInlineHtml(text) {
       const href = /^https?:\/\//i.test(match) ? match : `https://${match}`;
       // The online-signing link gets a descriptive label instead of the raw URL.
       const linkText = /\/sign\//.test(match)
-        ? "&gt;&gt; Jetzt weitere Angaben erfassen (hier klicken) &lt;&lt;"
+        ? "&gt;&gt; Hier Unterlagen online ausfüllen und unterzeichnen &lt;&lt;"
         : match;
       return `<a href="${escapeHtml(href)}" style="color:#00a86b;text-decoration:none;">${linkText}</a>`;
     }

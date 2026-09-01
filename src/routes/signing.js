@@ -299,7 +299,7 @@ router.post("/", express.json({ limit: "25mb" }), async (req, res) => {
       if (transporter) {
         const html =
           `<p style="font-weight:bold;">${SIGN_LINK_INTRO}</p>` +
-          `<p><a href="${link}">&gt;&gt; Jetzt weitere Angaben erfassen (hier klicken) &lt;&lt;</a></p>`;
+          `<p><a href="${link}">&gt;&gt; Hier Unterlagen online ausfüllen und unterzeichnen &lt;&lt;</a></p>`;
         const text = `${SIGN_LINK_INTRO}\n\n${link}`;
         try {
           const info = await transporter.sendMail({
