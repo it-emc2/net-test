@@ -211,14 +211,6 @@ header {
   flex-shrink: 0;
 }
 
-.brand .dot {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 6px var(--accent-weak);
-}
-
 h1 {
   margin: 0;
   font-size: 1.05rem;
@@ -226,6 +218,13 @@ h1 {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* overflow:hidden gives h1 an automatic flex min-width of 0, so on a narrow
+   header .theme-controls' non-shrinking controls can otherwise squeeze the
+   app title down to nothing. Floor it so it always shows *something*. */
+.brand h1 {
+  min-width: 44px;
 }
 
 .lead {
@@ -275,12 +274,19 @@ h1 {
   padding: 0 28px;
   appearance: none;
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>");
   background-repeat: no-repeat;
   background-position: right 10px center;
   transition: background-color 0.15s;
 }
 .hdr-select:hover { background-color: var(--accent-weak); }
+.hdr-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Chevron is a static data-URI (var() can't reach inside one), so it's kept
+   in sync with --muted's light/dark values by hand instead. */
+[data-mode="dark"] .hdr-select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>");
+}
 
 /* User chip */
 .user-box {
@@ -290,8 +296,8 @@ h1 {
 }
 
 .user-box .avatar {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: var(--accent);
   color: #fff;
@@ -312,8 +318,8 @@ h1 {
 }
 
 .user-box #logoutBtn {
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -335,7 +341,23 @@ h1 {
 
 /* Day → night sliding switch (same height as the theme select) */
 .mode-switch { display: inline-flex; align-items: center; align-self: center; height: 32px; margin: 0; cursor: pointer; }
-.mode-switch input { display: none; }
+/* display:none would drop this checkbox from the tab order entirely —
+   keep it focusable/visually hidden instead so keyboard users can reach it. */
+.mode-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.mode-switch input:focus-visible + .mode-track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 .mode-track {
   position: relative;
@@ -800,6 +822,8 @@ textarea {
   background: var(--input-bg);
   color: var(--text);
   outline: none;
+  font-family: inherit;
+  font-size: inherit;
   transition: border 0.12s, box-shadow 0.12s;
 }
 
@@ -908,6 +932,8 @@ button {
   border-radius: 10px;
   background: var(--accent);
   color: #fff;
+  font-family: inherit;
+  font-size: inherit;
   font-weight: 600;
   cursor: pointer;
 }
@@ -1051,6 +1077,24 @@ a.btn {
 
   header {
     padding-inline: 12px;
+  }
+}
+
+/* Header has no room for the domain switcher + full user chip once the
+   sidebar drawer kicks in; the domain select stays reachable in the Hauptmenü
+   "Ansprechpartner"/tile flow, so hiding it here is not a dead end. */
+@media (max-width: 560px) {
+  header .theme-controls {
+    gap: 8px;
+  }
+
+  header .ctl-group #themeSelect,
+  header .ctl-group .ctl-divider {
+    display: none;
+  }
+
+  header .user-box .user-name {
+    display: none;
   }
 }
 
@@ -6550,14 +6594,148 @@ button.pad-clear {
   flex-wrap: wrap;
 }
 
-#todayCustomersSearch {
+/* Route (Google), Aktualisieren, and search all share one height so the
+   header actions row reads as one aligned group instead of mismatched
+   button/link/input heights. */
+.today-customers-actions .secondary {
   height: 40px;
-  min-width: 260px;
-  padding: 0 14px;
-  border-radius: 12px;
-  border: 1px solid var(--input-border);
-  background: var(--input-bg);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 16px;
+}
+
+.today-customers-actions .secondary .spin {
+  animation: today-planning-spin .8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .today-customers-actions .secondary .spin { animation: none; }
+}
+@keyframes today-planning-spin {
+  to { transform: rotate(360deg); }
+}
+
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.meta-row p {
+  margin: 0;
+}
+
+/* Live (fresh fetch) vs offline (served from cache) at a glance. */
+.status-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success, #16a34a);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success, #16a34a) 25%, transparent);
+}
+.status-dot.is-offline {
+  background: var(--muted);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--muted) 20%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .status-dot:not(.is-offline) {
+    animation: today-planning-pulse-dot 2.2s ease-in-out infinite;
+  }
+}
+@keyframes today-planning-pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--success, #16a34a) 25%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--success, #16a34a) 12%, transparent); }
+}
+
+/* Search with a clear (×) button that only shows once there's text to clear. */
+.search-wrap {
+  position: relative;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.search-wrap input {
+  width: 100%;
+  padding-right: 34px;
+}
+/* The generic `input:not([type=checkbox]):not([type=radio])` base rule
+   outranks plain `input:focus` (two :not() selectors beat one :focus), so
+   the shared focus ring never actually shows on this input — same fix
+   already used for #globalOfferSearchInput. */
+#todayPlanningSearch:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+.search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.search-clear:hover {
+  background: color-mix(in srgb, var(--muted) 16%, transparent);
   color: var(--text);
+}
+
+/* Day overview: when to leave, when to be back — computed from the first
+   appointment's start time + Anfahrt, and the last appointment's end time +
+   Rückfahrt (see attachCompanyTravelConnectors in script.js). */
+.day-overview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.day-overview__cell {
+  background: var(--panel);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.day-overview__label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.day-overview__value {
+  font-size: 1.02rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.day-overview__sub {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.day-overview__cell.is-start .day-overview__label,
+.day-overview__cell.is-end .day-overview__label {
+  color: var(--accent-strong);
+}
+
+@media (max-width: 640px) {
+  .day-overview {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .today-customers-list {
@@ -6654,6 +6832,70 @@ button.pad-clear {
   color: var(--muted);
 }
 
+/* Distinct from .today-customers-empty on purpose — a failed request is not
+   the same thing as "no appointments today" and must not look like it. */
+.today-planning-error {
+  padding: 16px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--danger) 8%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border));
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.today-planning-error .tpe-icon {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+  color: var(--danger);
+}
+
+.today-planning-error .tpe-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.today-planning-error strong {
+  display: block;
+  color: var(--text);
+  font-size: 0.92rem;
+  margin-bottom: 3px;
+}
+
+.today-planning-error p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.today-planning-error .tpe-retry {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--danger);
+  background: transparent;
+  color: var(--danger);
+  border-radius: 9px;
+  padding: 7px 13px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.today-planning-error .tpe-retry:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
 @media (max-width: 720px) {
   .home-offer-types,
   .today-customers-panel {
@@ -6665,7 +6907,7 @@ button.pad-clear {
     width: 100%;
   }
 
-  #todayCustomersSearch {
+  #todayPlanningSearch {
     min-width: 0;
     width: 100%;
   }
@@ -6937,12 +7179,13 @@ button.pad-clear {
   overflow: hidden;
 }
 
+/* Equal-size 2x2 grid — was flex-wrap, which let each button size to its own
+   label ("Anrufen" vs "In Konfigurator öffnen") and end up visibly uneven. */
 .today-calendar-actions {
   margin-top: 12px;
-  display: flex;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
-  flex-wrap: wrap;
 }
 
 .today-calendar-done {
@@ -6954,6 +7197,11 @@ button.pad-clear {
   cursor: pointer;
   font-size: 0.86rem;
   font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
   transition: border-color .16s ease, box-shadow .16s ease, background .16s ease, color .16s ease;
 }
 
@@ -7032,6 +7280,11 @@ button.pad-clear {
   cursor: pointer;
   font-size: 0.86rem;
   font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
   transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease, background .16s ease, color .16s ease;
 }
 
@@ -7070,15 +7323,17 @@ button.pad-clear {
     grid-template-columns: 1fr;
   }
 
-  .today-calendar-actions {
-    justify-content: stretch;
-  }
-
+  /* "In Konfigurator öffnen" wraps to two lines at this width, which made
+     that row taller than "Anrufen"/"Route" above it — same min-height so all
+     four end up the same height instead of only matching within their own
+     grid row. */
   .today-calendar-call,
   .today-calendar-navigate,
   .today-calendar-done,
   .today-calendar-open {
-    width: 100%;
+    min-height: 68px;
+    font-size: 0.9rem;
+    text-align: center;
   }
 }
 
@@ -7132,17 +7387,64 @@ button.pad-clear {
 /* ===== Planning travel connector ======================================== */
 
 .planning-travel-connector {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  font-size: 0.78rem;
+  gap: 10px;
+  padding: 10px 0 10px 17px;
+  margin-left: 18px;
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--muted);
 }
 
+/* The dashed line threading appointment cards together into one timeline. */
+.planning-travel-connector::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: repeating-linear-gradient(to bottom, var(--border) 0 4px, transparent 4px 9px);
+}
+
 .planning-travel-connector i {
-  font-size: 0.72rem;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  margin-left: -30px;
+  font-size: 0.78rem;
+}
+
+.planning-travel-connector--start i,
+.planning-travel-connector--end i {
+  background: color-mix(in srgb, var(--accent-weak) 85%, var(--panel));
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  color: var(--accent-strong);
+}
+.planning-travel-connector--start::before,
+.planning-travel-connector--end::before {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.planning-travel-connector .ptc-duration {
+  color: var(--text);
+  font-weight: 700;
+}
+.planning-travel-connector .ptc-eta {
+  color: var(--muted);
+  font-weight: 500;
+}
+.planning-travel-connector .ptc-eta::before {
+  content: "· ";
 }
 
 .today-pause-chip {
@@ -7924,7 +8226,7 @@ details.az-group[open] > summary.az-group-title::before {
   white-space: nowrap;
 }
 .home-ap-field select, .zf-ap-field select {
-  height: 38px;
+  height: 44px;
   min-width: 190px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -7939,7 +8241,7 @@ details.az-group[open] > summary.az-group-title::before {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 38px;
+  height: 44px;
   padding: 0 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -7958,17 +8260,35 @@ details.az-group[open] > summary.az-group-title::before {
   margin-bottom: 18px;
 }
 
-/* Even, equally-sized search inputs */
+/* Even, equally-sized search inputs. Reset the generic .field margin (16px
+   0) so spacing between rows comes only from .home-load-panel's grid gap —
+   .home-global-search-field already carries this override; extend it here. */
 .home-load-row {
   display: flex;
   gap: 10px;
+  align-items: flex-end;
+  margin: 0;
 }
 
-.home-load-row input {
+.home-load-field {
   flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
 }
 
-#loadOfferNumber {
+/* Match .home-search-heading's weight/size so all three load-panel fields
+   share one label treatment instead of two competing styles. Spacing to the
+   input comes from .home-load-field's flex gap, not a margin. */
+.home-load-label {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.home-load-field input {
+  width: 100%;
   min-height: 52px;
   border-radius: 16px;
   padding: 0 18px;
@@ -7979,10 +8299,13 @@ details.az-group[open] > summary.az-group-title::before {
 }
 
 .home-load-row .secondary {
+  flex: none;
+  width: 168px;
   min-height: 52px;
   border-radius: 16px;
   padding: 0 22px;
   white-space: nowrap;
+  text-align: center;
 }
 
 .home-global-search-field {
@@ -8164,6 +8487,10 @@ details.az-group[open] > summary.az-group-title::before {
   .home-load-row {
     max-width: none;
     flex-direction: column;
+  }
+
+  .home-load-row .secondary {
+    width: 100%;
   }
 
   .home-global-search-wrap {
