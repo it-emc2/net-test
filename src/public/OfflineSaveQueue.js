@@ -324,9 +324,11 @@ function ensureBadgeEl() {
 }
 
 export async function renderBadge() {
+  const all = await getAllRecords();
+  updateConnStatus(all);
+
   const el = ensureBadgeEl();
   if (!el) return;
-  const all = await getAllRecords();
   if (!all.length) {
     el.hidden = true;
     el.textContent = "";
@@ -351,6 +353,36 @@ export async function renderBadge() {
   el.textContent = parts.join(" · ");
 }
 
+// Permanent header dot: offline / syncing / synced. Unlike the pending-count
+// badge above (which only exists inside a summary widget and only appears
+// once something is queued), this is always in the DOM so the user has one
+// place to glance at regardless of which tab or offer they are on.
+//
+// `navigator.onLine` is a real interface check here, not a stand-in for
+// reachability (the native iPad shell's own captive-portal-aware signal
+// drives the offline *fallback screen* separately) — good enough for a status
+// dot, where "briefly wrong on a captive portal" is a non-issue.
+function updateConnStatus(records) {
+  const el = document.getElementById("connStatus");
+  if (!el) return;
+
+  if (!navigator.onLine) {
+    el.dataset.state = "offline";
+    el.title = "Offline – Änderungen werden lokal gespeichert";
+    return;
+  }
+
+  const pending = records.filter((r) => !r.stuck).length;
+  if (pending > 0) {
+    el.dataset.state = "syncing";
+    el.title = pending === 1 ? "1 wird synchronisiert" : `${pending} werden synchronisiert`;
+    return;
+  }
+
+  el.dataset.state = "synced";
+  el.title = "Synchronisiert";
+}
+
 export function initBadge() {
   renderBadge();
 }
@@ -358,6 +390,9 @@ export function initBadge() {
 // Module boot: registers the reconnect listener and flushes anything left
 // over from a previous session the moment the app is (re)opened.
 window.addEventListener("online", () => retryAll());
+// retryAll() re-renders the dot once its sweep finishes; going offline has no
+// sweep to trigger one, so it needs its own listener.
+window.addEventListener("offline", () => renderBadge());
 
 // Coming back to the app is a reconnect the browser never announces.
 // `online` only fires when the *interface* changes, so a server that was

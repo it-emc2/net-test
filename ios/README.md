@@ -38,6 +38,15 @@ pricing change is just a deploy. Only changes to the shell itself — the server
 URL, the allowed hosts, downloads, reachability, the Keychain session, the
 durability mirror, the icon — need Xcode.
 
+This also covers backend/database changes (a new Mongoose field, a new
+collection): the shell has no schema of its own. `DurabilityMirror.swift`
+stores the save-queue payload as opaque bytes and `SessionKeychain` only
+handles a cookie, so neither cares what fields the JSON carries. The next
+`git pull` + deploy on the server is all that's needed; the app picks it up on
+its next load with signal, same as a browser tab. The only case that needs a
+rebuild is a change to native-only storage shape itself — e.g. renaming the
+mirror's file format in a way old mirrored JSON can't be read back into.
+
 ## Which server it talks to
 
 `EMC2BaseURL` in `EmC2Konfigurator/Info.plist`, default `https://oc.emc2.de`.

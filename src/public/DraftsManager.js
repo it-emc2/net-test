@@ -320,6 +320,8 @@ export function initDraftsManager(options = {}) {
     }
 
     if (!res.ok) {
+      const { handleSaveAuthExpired } = await import("./auth-recovery.js");
+      if (await handleSaveAuthExpired(res, "draft")) return { authExpired: true };
       const body = await res.json().catch(() => ({}));
       throw new Error(body.error || "Fehler beim Speichern des Entwurfs.");
     }
@@ -340,6 +342,7 @@ export function initDraftsManager(options = {}) {
     const { silent = false } = options;
     const name = buildDraftDefaultName();
     const result = await saveDraftWithName(name);
+    if (result?.authExpired) return name;
     if (!silent) {
       if (result?.queued) {
         cfg.toast?.(`Offline gespeichert – wird automatisch synchronisiert: ${name}`, "warn");
@@ -562,6 +565,7 @@ export function initDraftsManager(options = {}) {
       const snapshot = await window.freezeCurrentPricing?.();
       if (window.freezeCurrentPricing && !snapshot) {
         const result = await saveDraftWithName(name);
+        if (result?.authExpired) return;
         cfg.toast?.(
           result?.queued
             ? `Sperren braucht eine Verbindung. Entwurf offline gespeichert: ${name}`
@@ -573,6 +577,11 @@ export function initDraftsManager(options = {}) {
 
       window.__locked = true;
       const result = await saveDraftWithName(name);
+      if (result?.authExpired) {
+        window.__locked = false;
+        updateLockButtonLabel();
+        return;
+      }
       window.applyOfferLockUI?.(true);
       updateLockButtonLabel();
       cfg.toast?.(
@@ -668,6 +677,7 @@ export function initDraftsManager(options = {}) {
       try {
         btn.disabled = true;
         const result = await saveDraftWithName(value);
+        if (result?.authExpired) return;
         if (result?.queued) {
           cfg.toast?.(`Offline gespeichert – wird automatisch synchronisiert: ${value}`, "warn");
         } else {

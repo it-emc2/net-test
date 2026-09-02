@@ -43,6 +43,12 @@ beforeAll(async () => {
     });
   }
   queue = await import('../../src/public/OfflineSaveQueue.js');
+
+  // renderBadge() also drives the permanent header dot; give it an element
+  // to find. The real one lives in index.html's <header>, out of scope here.
+  const dot = document.createElement('span');
+  dot.id = 'connStatus';
+  document.body.appendChild(dot);
 });
 
 beforeEach(() => {
@@ -241,5 +247,29 @@ describe('foreground flush', () => {
 
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     expect(idb.data.size).toBe(0);
+  });
+});
+
+describe('connection status dot', () => {
+  const setOnline = (value) =>
+    Object.defineProperty(navigator, 'onLine', { value, configurable: true });
+
+  afterEach(() => setOnline(true));
+
+  test('offline interface wins regardless of the queue', async () => {
+    setOnline(false);
+    await queue.renderBadge();
+    expect(document.getElementById('connStatus').dataset.state).toBe('offline');
+  });
+
+  test('online with a queued record shows syncing', async () => {
+    idb.data.set('sync001', draftRecord('sync001', '2026-07-28T10:00:00.000Z', 'Pending'));
+    await queue.renderBadge();
+    expect(document.getElementById('connStatus').dataset.state).toBe('syncing');
+  });
+
+  test('online with an empty queue shows synced', async () => {
+    await queue.renderBadge();
+    expect(document.getElementById('connStatus').dataset.state).toBe('synced');
   });
 });
