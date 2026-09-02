@@ -3,6 +3,16 @@
 // Handles offer email sending UI + attachment tiles, decoupled from script.js
 // + posts a Bitrix timeline comment after successful send (best-effort)
 
+// Kassenkunde (non-AH) body-text lines for the 3 optional documents, in the
+// order they should be numbered. ids match cfg.presetAttachments below and
+// the checkboxes in #zfDocSelectionCard (index.html) — a single excludedPreset
+// Set drives both the attachment tiles and this text.
+const KASSE_DOC_LINES = [
+  { id: "abtretung", line: "Abtretungserklärung zur Abrechnung mit der Krankenkasse" },
+  { id: "vollmacht", line: "Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3, 4, 5 SGB XI" },
+  { id: "barrierefrei", line: 'Unseren aktuellen Flyer "Barrierefreies Wohnen"' },
+];
+
 export function initEmailManager(options = {}) {
   const cfg = {
     els: {
@@ -393,8 +403,31 @@ export function initEmailManager(options = {}) {
     return num.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
+  function logDialogEvent(dealId, event, offerExtra) {
+    if (!dealId) return;
+    fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}/log-dialog-event`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event,
+        offerNumber: offerExtra?.offerNumber,
+        offerType: offerExtra?.offerType,
+      }),
+    }).catch(() => {});
+  }
+
   function closeStageModal() {
-    document.getElementById("angStageOverlay")?.remove();
+    const overlay = document.getElementById("angStageOverlay");
+    // Log a "dismissed" event only if the move was never confirmed —
+    // moveBtn is removed from the DOM once the move succeeds (see
+    // submitStageMove), so its presence means the user closed without acting.
+    if (overlay?.querySelector("#angStageMoveBtn") && overlay.dataset.dealId) {
+      logDialogEvent(overlay.dataset.dealId, "move_dialog_dismissed", {
+        offerNumber: overlay.dataset.offerNumber,
+        offerType: overlay.dataset.offerType,
+      });
+    }
+    overlay?.remove();
   }
 
   // Success dialog shown after the email was sent. Offers the stage move.
@@ -403,6 +436,9 @@ export function initEmailManager(options = {}) {
     const overlay = document.createElement("div");
     overlay.id = "angStageOverlay";
     overlay.className = "ang-stage-overlay";
+    overlay.dataset.dealId = dealId || "";
+    overlay.dataset.offerNumber = offerExtra?.offerNumber || "";
+    overlay.dataset.offerType = offerExtra?.offerType || "";
     const atts = Array.isArray(attachmentNames) && attachmentNames.length
       ? attachmentNames.join(", ")
       : "-";
@@ -417,6 +453,7 @@ export function initEmailManager(options = {}) {
         </div>
       </div>`;
     document.body.appendChild(overlay);
+    if (dealId) logDialogEvent(dealId, "move_dialog_shown", offerExtra);
 
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) closeStageModal();
@@ -659,7 +696,9 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
 
     const attachmentList = isSelbstzahler
       ? `1. Ihr Angebot ${offerNumber}\n2. Unseren aktuellen Flyer "Barrierefreies Wohnen"`
-      : `1. Ihr Angebot ${offerNumber}\n2. Abtretungserklärung zur Abrechnung mit der Krankenkasse\n3. Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3, 4, 5 SGB XI\n4. Unseren aktuellen Flyer "Barrierefreies Wohnen"`;
+      : [`Ihr Angebot ${offerNumber}`, ...KASSE_DOC_LINES.filter((p) => !excludedPreset.has(p.id)).map((p) => p.line)]
+          .map((line, i) => `${i + 1}. ${line}`)
+          .join("\n");
 
     return `${buildGreetingLine()}
 
@@ -709,7 +748,7 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
       const href = /^https?:\/\//i.test(match) ? match : `https://${match}`;
       // The online-signing link gets a descriptive label instead of the raw URL.
       const linkText = /\/sign\//.test(match)
-        ? "&gt;&gt; Jetzt weitere Angaben erfassen (hier klicken) &lt;&lt;"
+        ? "&gt;&gt; Hier Unterlagen online ausfüllen und unterzeichnen &lt;&lt;"
         : match;
       return `<a href="${escapeHtml(href)}" style="color:#00a86b;text-decoration:none;">${linkText}</a>`;
     });

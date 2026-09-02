@@ -12,6 +12,7 @@ import net from "net";
 import dns from "dns";
 
 import EmailLog from "../models/EmailLog.js";
+import UserActionLog from "../models/UserActionLog.js";
 import { addTimelineComment } from "./bitrix.js";
 import { createSigningRequest } from "./signing.js";
 
@@ -554,6 +555,12 @@ router.post(
       offerNumber: payload?.offerNumber || offerNumber,
       offerType: payload?.activeOffer || offerType,
     });
+    UserActionLog.create({
+      event: "offer_sent",
+      dealId: String(dealId || ""),
+      offerNumber: payload?.offerNumber || offerNumber,
+      offerType: payload?.activeOffer || offerType,
+    }).catch((e) => console.warn("[email] UserActionLog offer_sent failed:", e?.message || e));
 
     let bitrixComment = { skipped: true, reason: "no target" };
     try {

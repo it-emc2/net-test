@@ -355,6 +355,69 @@ export function initExportManager(options = {}) {
     }
   }
 
+  // ---------- Snapshot ----------
+  async function saveFinalOfferSnapshot() {
+    // This is optional. If buildPayload doesn't exist, just no-op.
+    const fullPayload = cfg.buildPayload?.();
+    if (!fullPayload) return;
+
+    const filteredPayload = cfg.filterPayloadByOffer(fullPayload);
+
+    const rawOfferType =
+      filteredPayload?.activeOffer ||
+      filteredPayload?.offerType ||
+      cfg.getCurrentOfferType?.() ||
+      "bu";
+    const offerType = String(rawOfferType).trim().toLowerCase();
+
+    const offerNumber =
+      cfg.offerNumberEl()?.value?.trim() ||
+      (typeof genOfferNumber === "function" ? genOfferNumber() : "");
+
+    // Ensure pricing snapshot (best-effort)
+    let pricing = window.__pricing;
+    if (!pricing) {
+      try {
+        pricing = await cfg.updatePricing?.(filteredPayload);
+      } catch {}
+    }
+
+    // Must go through the offline queue, not a raw fetch: a bare fetch that
+    // rejects loses the offer silently. Same path as script.js's
+    // saveFinalOfferSnapshot() — see OfflineSaveQueue.trySaveOrQueue.
+    // Imported here rather than at module top so OfflineSaveQueue's boot
+    // side-effects (online listener, retryAll, badge) keep firing in the order
+    // script.js already establishes at boot.
+    try {
+      const queue = await import("./OfflineSaveQueue.js");
+      const { queued, res } = await queue.trySaveOrQueue({
+        kind: "offer",
+        offerKey: offerNumber,
+        url: "/api/offers",
+        body: { offerNumber, offerType, payload: filteredPayload, pricing },
+      });
+
+      if (queued) {
+        window.toast?.warn?.(
+          "Offline",
+          `Angebot ${offerNumber} wird automatisch synchronisiert, sobald wieder online.`,
+        );
+        return;
+      }
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        console.error("[ExportManager] Failed to save final offer snapshot:", body);
+        window.toast?.error?.(
+          "Speichern fehlgeschlagen",
+          body.error || `Angebot ${offerNumber} konnte nicht gespeichert werden.`,
+        );
+      }
+    } catch (err) {
+      console.error("[ExportManager] Failed to save final offer snapshot:", err);
+    }
+  }
+
   // ---------- Downloads ----------
   async function downloadPDFWithProgress(endpoint, payload, fallbackFilename) {
     saveSessionSnapshot();
@@ -398,6 +461,11 @@ export function initExportManager(options = {}) {
 
       clearInterval(timerInterval);
       showPDFProgress("PDF erfolgreich erstellt!", "success");
+
+      // best-effort snapshot after successful export
+      try {
+        await saveFinalOfferSnapshot();
+      } catch {}
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -486,6 +554,7 @@ export function initExportManager(options = {}) {
     window.showPDFProgress = window.showPDFProgress || showPDFProgress;
     window.downloadPDFWithProgress = window.downloadPDFWithProgress || downloadPDFWithProgress;
     window.downloadDocx = window.downloadDocx || downloadDocx;
+    window.saveFinalOfferSnapshot = window.saveFinalOfferSnapshot || saveFinalOfferSnapshot;
 
     stampOfferOnExport();
     maybeOfferSessionRestore();
@@ -589,5 +658,6 @@ export function initExportManager(options = {}) {
     showPDFProgress,
     downloadPDFWithProgress,
     downloadDocx,
+    saveFinalOfferSnapshot,
   };
 }

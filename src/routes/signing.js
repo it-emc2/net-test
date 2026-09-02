@@ -232,11 +232,18 @@ export async function createSigningRequest({
   // Otherwise the payer-based BU document set.
   const offerTypeNorm = String(offerType || payload?.activeOffer || "").toLowerCase();
   const isAh = offerTypeNorm === "ah" || offerTypeNorm === "ah-alt";
+  // payload.docSelection (set in buildPayload() from the Kassenkunden-Dokumente
+  // checkboxes) opts a document out of the KASSE set; missing/undefined keeps
+  // the default (included) so older saved offers without this field are
+  // unaffected. "angebot" is never optional.
+  const docSelection = payload?.docSelection || {};
   const docKeys = isAh
     ? customerType === "KASSE"
       ? ["angebot", "zusatzblatt", "abtretung_ah"]
       : ["angebot", "zusatzblatt"]
-    : DOCS_BY_TYPE[customerType] || DOCS_BY_TYPE.SZ;
+    : (DOCS_BY_TYPE[customerType] || DOCS_BY_TYPE.SZ).filter(
+        (key) => key === "angebot" || docSelection[key] !== false,
+      );
   const documents = docKeys.map((key) => ({
     key,
     status: "pending",
@@ -265,7 +272,7 @@ export async function createSigningRequest({
     sr,
     `🔗 Signatur-Link an Kunde versendet` +
       (sr.offerNumber ? ` (${sr.offerNumber})` : "") +
-      `\nGültig bis: ${expiresAt.toLocaleDateString("de-DE")}\nLink: ${link}`,
+      `\nGültig bis: ${expiresAt.toLocaleDateString("de-DE")}\n>> Hier Unterlagen online ausfüllen und unterzeichnen <<\n${link}`,
   );
 
   return { sr, link, token, customerType };
@@ -299,7 +306,7 @@ router.post("/", express.json({ limit: "25mb" }), async (req, res) => {
       if (transporter) {
         const html =
           `<p style="font-weight:bold;">${SIGN_LINK_INTRO}</p>` +
-          `<p><a href="${link}">&gt;&gt; Jetzt weitere Angaben erfassen (hier klicken) &lt;&lt;</a></p>`;
+          `<p><a href="${link}">&gt;&gt; Hier Unterlagen online ausfüllen und unterzeichnen &lt;&lt;</a></p>`;
         const text = `${SIGN_LINK_INTRO}\n\n${link}`;
         try {
           const info = await transporter.sendMail({

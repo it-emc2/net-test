@@ -12,6 +12,7 @@ const SECTIONS = [
   { id: 'zuschuss', label: 'Zuschüsse & Boni',     icon: 'fa-euro-sign' },
   { id: 'signing',  label: 'Signatur-Links',       icon: 'fa-file-signature', view: 'signing' },
   { id: 'bitrixlogs', label: 'Bitrix-Fehler',      icon: 'fa-triangle-exclamation', view: 'bitrixlogs' },
+  { id: 'userlogs', label: 'Aktivitäts-Log',       icon: 'fa-list-check', view: 'userlogs' },
   { id: 'users',    label: 'Benutzer',             icon: 'fa-users', view: 'users' },
 ];
 
@@ -102,6 +103,7 @@ function switchSection(id) {
   if (view) hide($('change-count'));
   if (view === 'signing') renderSigning();
   else if (view === 'bitrixlogs') renderBitrixLogs();
+  else if (view === 'userlogs') renderUserLogs();
   else if (view === 'users') renderUsers();
   else renderSection();
 }
@@ -388,6 +390,81 @@ async function loadBitrixLogs() {
         }
       });
     });
+  } catch (e) {
+    if (err) { err.textContent = e.message || 'Fehler beim Laden.'; show(err); }
+  }
+}
+
+const USERLOG_EVENT_BADGE = {
+  offer_sent: 'b-sent',
+  move_dialog_shown: 'b-neutral',
+  move_dialog_dismissed: 'b-expired',
+  move_succeeded: 'b-completed',
+  move_failed: 'b-failed',
+  termin_opened: 'b-neutral',
+  configurator_opened: 'b-neutral',
+};
+
+let userLogFilter = { event: '', dealId: '' };
+
+function renderUserLogs() {
+  const grid = $('config-grid');
+  grid.innerHTML = `<div class="signing-view">
+    <div class="toolbar">
+      <select id="ulog-event">
+        <option value="">Alle Ereignisse</option>
+        <option value="offer_sent">Angebot gesendet</option>
+        <option value="move_dialog_shown">Verschieben-Dialog gezeigt</option>
+        <option value="move_dialog_dismissed">Verschieben-Dialog geschlossen (ohne Aktion)</option>
+        <option value="move_succeeded">Deal verschoben</option>
+        <option value="move_failed">Deal-Verschieben fehlgeschlagen</option>
+        <option value="termin_opened">Termin geöffnet</option>
+        <option value="configurator_opened">Konfigurator geöffnet</option>
+      </select>
+      <input type="text" id="ulog-dealid" placeholder="Deal-ID…" />
+      <button class="btn-ghost" id="ulog-refresh"><i class="fas fa-rotate"></i> Aktualisieren</button>
+    </div>
+    <div id="ulog-err" class="sign-err hidden"></div>
+    <div class="table-wrap">
+      <table class="sign-table">
+        <thead><tr><th>Zeit</th><th>Ereignis</th><th>Deal</th><th>Angebot</th><th>Typ</th><th>Meldung</th></tr></thead>
+        <tbody id="ulog-rows"><tr><td colspan="6"><div class="empty-state"><i class="fas fa-circle-notch fa-spin"></i> Lade…</div></td></tr></tbody>
+      </table>
+    </div>
+  </div>`;
+
+  $('ulog-event').addEventListener('change', e => { userLogFilter.event = e.target.value; loadUserLogs(); });
+  const dealInput = $('ulog-dealid');
+  dealInput.addEventListener('input', () => {
+    clearTimeout(window.__ulogq);
+    window.__ulogq = setTimeout(() => { userLogFilter.dealId = dealInput.value.trim(); loadUserLogs(); }, 300);
+  });
+  $('ulog-refresh').addEventListener('click', loadUserLogs);
+  loadUserLogs();
+}
+
+async function loadUserLogs() {
+  const err = $('ulog-err');
+  if (err) hide(err);
+  try {
+    const params = new URLSearchParams();
+    if (userLogFilter.event) params.set('event', userLogFilter.event);
+    if (userLogFilter.dealId) params.set('dealId', userLogFilter.dealId);
+    const data = await api('GET', '/admin/api/user-action-logs?' + params.toString());
+    const rows = $('ulog-rows');
+    if (!rows) return;
+    if (!(data.items || []).length) {
+      rows.innerHTML = '<tr><td colspan="6"><div class="empty-state">Keine Einträge in den letzten 180 Tagen.</div></td></tr>';
+      return;
+    }
+    rows.innerHTML = data.items.map(it => `<tr>
+      <td>${fmtTs(it.createdAt)}</td>
+      <td><span class="badge ${USERLOG_EVENT_BADGE[it.event] || 'b-neutral'}">${esc(it.event)}</span></td>
+      <td>${esc(it.dealId || '-')}</td>
+      <td>${esc(it.offerNumber || '-')}</td>
+      <td>${esc(it.offerType || '-')}</td>
+      <td>${esc(it.message || '')}</td>
+    </tr>`).join('');
   } catch (e) {
     if (err) { err.textContent = e.message || 'Fehler beim Laden.'; show(err); }
   }

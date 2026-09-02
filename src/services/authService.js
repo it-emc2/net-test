@@ -34,6 +34,39 @@ export function createToken(email) {
   return Buffer.from(payload).toString("base64url") + "." + sig;
 }
 
+// True once a token is more than halfway through its life.
+//
+// A field device can be away from signal for days, and an expired session
+// strands it on a login page that itself needs the network. Re-issuing on the
+// way past halfway means anyone who opens the app even weekly never expires,
+// without extending the window for a token that is simply sitting unused.
+//
+// ponytail: sliding within the existing TTL, no absolute cap — a token that
+// keeps being used keeps living. Add a hard ceiling if that ever matters more
+// than a technician being locked out on site.
+export function shouldRefresh(token) {
+  const exp = expiryOf(token);
+  if (exp === null) return false;
+  const remaining = exp - Date.now();
+  // Already expired is not "nearing expiry" — there is nothing to slide, and
+  // verifyToken has rejected it long before this is asked.
+  return remaining > 0 && remaining < TOKEN_TTL_MS / 2;
+}
+
+function expiryOf(token) {
+  const dot = String(token || "").indexOf(".");
+  if (dot < 1) return null;
+  try {
+    const payload = Buffer.from(token.slice(0, dot), "base64url").toString();
+    const sep = payload.indexOf(":");
+    if (sep < 1) return null;
+    const exp = Number(payload.slice(0, sep));
+    return Number.isFinite(exp) && exp > 0 ? exp : null;
+  } catch {
+    return null;
+  }
+}
+
 // Returns { email } if valid, else null.
 export function verifyToken(token) {
   if (!token) return null;

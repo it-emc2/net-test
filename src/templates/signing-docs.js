@@ -417,7 +417,7 @@ function materialBlock(d) {
 }
 
 // Festpreis-/Hinweisblock nach der Gesamtsumme (BU-Angebot).
-// Der Festpreis-Satz wird immer gezeigt; der ACHTUNG-/Regie-Absatz nur wenn
+// Der Festpreis-Satz wird immer gezeigt; der HINWIES-/Regie-Absatz nur wenn
 // eine Duschwanne montiert wird; die Selbstkosten-/Zuschusszeile nur für
 // Kassenkunden mit gewährtem Zuschuss. Der Stundensatz kommt aus RegieRateFmt
 // (59,50€ SZ / 69,50€ KK).
@@ -433,7 +433,7 @@ function festpreisBlock(d) {
   ];
   if (hasDuschwanne) {
     out.push(
-      `<p><strong>ACHTUNG:</strong> Ob eine ebenerdige Montage der Duschwanne möglich ist, kann erst nach dem Ausbau der bestehenden Wanne beurteilt werden. Sollten dabei zusätzliche oder weitere Leistungen erforderlich oder von Ihnen gewünscht sein, können zusätzliche Kosten entstehen. Diese werden vorab mit Ihnen besprochen, bedürfen Ihrer Zustimmung und werden auf Regiebasis nach tatsächlichem Aufwand abgerechnet.${rate ? ` (Stundensatz-Facharbeiter: ${esc(rate)} netto)` : ""}</p>`,
+      `<p><strong>HINWEIS:</strong> Ob eine ebenerdige Montage der Duschwanne möglich ist, kann erst nach dem Ausbau der bestehenden Wanne beurteilt werden. Sollten dabei zusätzliche oder weitere Leistungen erforderlich oder von Ihnen gewünscht sein, können zusätzliche Kosten entstehen. Diese werden vorab mit Ihnen besprochen, bedürfen Ihrer Zustimmung und werden auf Regiebasis nach tatsächlichem Aufwand abgerechnet.${rate ? ` (Stundensatz Servicemonteur: ${esc(rate)} netto)` : ""}</p>`,
     );
   }
   if (isKK && d.hasSubsidyLine) {

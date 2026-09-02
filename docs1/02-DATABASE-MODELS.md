@@ -122,6 +122,8 @@ Stores work-in-progress offer drafts.
   name: String,             // Draft name (required, trimmed)
   offerType: String,        // "bu" | "bwt" | "hl" | "bl" (required)
   payload: Object,          // Full form data snapshot
+  savedAt: Date,            // When the USER hit save (client-stamped)
+  clientSaveId: String,     // Client-generated id of the save (idempotency)
   createdAt: Date,
   updatedAt: Date
 }
@@ -130,6 +132,19 @@ Stores work-in-progress offer drafts.
 **Indexes**: Compound unique index on `(offerType, name)` - no two drafts with same name and type
 
 **Draft Name Format**: `ANG-{TYPE}-{CUSTOMER}-{TIMESTAMP}` (auto-generated, or user-provided)
+
+**`savedAt` vs `createdAt`** — these differ for drafts saved offline that only
+reached the server on a later sync. `GET /api/drafts/search` deliberately sorts
+by `savedAt` (falling back to `updatedAt` for pre-offline records), otherwise a
+batch synced after an offline stretch would all get near-identical timestamps
+in replay order rather than the order the user actually made them.
+
+**`clientSaveId`** — stamped by `OfflineSaveQueue.trySaveOrQueue()`. When a
+queued save is replayed and its first attempt had in fact landed, the server
+matches on `clientSaveId` and answers **200 (idempotent success)** rather than
+409. This is what makes retry unconditionally safe. A 409 therefore always
+means a collision with a genuinely *different* draft, which the client resolves
+by renaming.
 
 ---
 
@@ -194,6 +209,94 @@ Tracks sent emails.
   updatedAt: Date
 }
 ```
+
+---
+
+### User (`src/models/User.js`)
+
+**Collection**: `users`
+
+Named users for the internal configurator + admin auth gate.
+
+```javascript
+{
+  email: String,             // unique, lowercase, trimmed, indexed
+  name: String,
+  firstName: String,
+  lastName: String,
+  passwordHash: String,      // scrypt, format "salt:hash"
+  role: String,              // 'user' | 'admin'
+  active: Boolean,           // default true; inactive users cannot log in
+  signatureDataUrl: String,  // PNG data URL, used when this user is the
+                             //   Ansprechpartner on a document
+  lastLoginAt: Date,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+Created via `scripts/createUser.mjs` or `POST /admin/api/users`.
+See `01-ARCHITECTURE.md` → Authentication & Authorization.
+
+---
+
+### SigningRequest (`src/models/SigningRequest.js`)
+
+**Collection**: `signingrequests`
+
+One document per offer sent to a customer for online signing. Everything the
+customer sees is a **snapshot taken at send time** — later edits to the offer
+do not change what was signed.
+
+```javascript
+{
+  token: String,             // >=32-char random hex, unique, the only thing in the URL
+  offerNumber: String,
+  offerId: ObjectId,         // ref: 'Offer'
+  offerType: String,
+  customerType: String,      // 'SZ' | 'KASSE' (from payload.Kundendaten.payer)
+  bitrixEntityType: String,  // 'deal' | 'contact'
+  bitrixEntityId: String,
+  customerEmail: String,
+  customerName: String,
+  payloadSnapshot: Mixed,    // required — source of prefill + PDF
+  prefill: Mixed,            // editable fields shown on the signing page
+  documents: [{
+    key: String,             // 'angebot'|'vollmacht'|'abtretung'|'zusatzblatt'|'abtretung_ah'
+    status: String,          // 'pending' | 'signed'
+    editedFields: Mixed,     // corrections the customer made
+    extraFields: Mixed,      // doc-specific input not in the offer payload
+    signatureImage: String,  // PNG data URL
+    place: String,
+    signedAt: Date,
+    signedIp: String,        // audit trail
+    userAgent: String
+  }],
+  status: String,            // 'sent'|'opened'|'partially_signed'|'completed'|'expired'
+  openedAt: Date,
+  completedAt: Date,
+  expiresAt: Date,           // default now + 14 days
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+**Indexes**: `token` (unique), `offerNumber`, `status`
+
+**Methods**: `recomputeStatus()` rolls the per-document states up into
+`status`; `isExpired()`.
+
+**Document sets by customer type**: SZ → `angebot`. KASSE → `angebot`,
+`vollmacht`, `abtretung`, `zusatzblatt`. AH offers → `abtretung_ah`.
+
+---
+
+### BitrixLog (`src/models/BitrixLog.js`)
+
+**Collection**: `bitrixlogs`
+
+Audit log of outbound Bitrix24 REST calls. Surfaced in the admin panel via
+`GET /admin/api/bitrix-logs`.
 
 ---
 

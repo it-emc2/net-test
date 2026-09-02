@@ -3110,6 +3110,21 @@ function startOfferFlow(offerKey) {
     syncDerivedPrefills("startOfferFlow:raf");
   });
   window.setTimeout(() => syncDerivedPrefills("startOfferFlow:timeout"), 60);
+
+  // Deal-move flows (planning picker) fill #auftragId ~120ms after this call
+  // (see applyPlanningAppointmentToForm) — read it after that so the log
+  // still captures the deal when one was picked.
+  window.setTimeout(() => {
+    fetch("/api/bitrix/log-action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "configurator_opened",
+        dealId: document.getElementById("auftragId")?.value || "",
+        offerType: offerKey,
+      }),
+    }).catch(() => {});
+  }, 150);
 }
 function getCurrentStep() {
   const h = location.hash.replace("#", "");
@@ -4930,6 +4945,16 @@ if (anschlag) {
   payload.auftragId = (document.getElementById("auftragId")?.value || "").trim() || undefined;
   payload.postal = readPostalStateForPayload();
 
+  // Kassenkunden-Dokumente checkboxes (#zfDocSelectionCard) — which optional
+  // documents ship with this Kassenkunde offer. Missing/true = included.
+  // Read by EmailManager.js (mail), initPostalSending() (post) and
+  // signing.js createSigningRequest() (online-signing document set).
+  payload.docSelection = {
+    abtretung: document.getElementById("docSel_abtretung")?.checked ?? true,
+    vollmacht: document.getElementById("docSel_vollmacht")?.checked ?? true,
+    barrierefrei: document.getElementById("docSel_barrierefrei")?.checked ?? true,
+  };
+
   // ✅ E-Mail-Versand fields (mail card lives outside any form-* element, so it
   // is not picked up by formToObject above). Persist so drafts can restore the
   // recipient, subject and body — the body also carries the dynamic
@@ -5009,6 +5034,7 @@ function attachProjectSketchesToPayload(payload) {
     payload.ah = payload.ah || {};
     payload.hms = payload.hms || {};
     payload.wd = payload.wd || {};
+    payload.wandverkleidung = payload.wandverkleidung || {};
 
     if (daNoteEl) payload.duschabtrennung.daNote = daNoteEl.value || "";
     if (bwtNoteEl) payload.bwt.bwtNote = bwtNoteEl.value || "";
@@ -5025,6 +5051,7 @@ function attachProjectSketchesToPayload(payload) {
     const ahSketch = getSketchDataFor("ah");
     const hmsSketch = getSketchDataFor("hms");
     const wdSketch = getSketchDataFor("wd");
+    const wvSketch = getSketchDataFor("wv");
 
     payload.duschabtrennung.sketch = { json: daSketch.json, dataUrl: daSketch.dataUrl };
     payload.bwt.sketch = { json: bwtSketch.json, dataUrl: bwtSketch.dataUrl };
@@ -5033,6 +5060,7 @@ function attachProjectSketchesToPayload(payload) {
     payload.ah.sketch = { json: ahSketch.json, dataUrl: ahSketch.dataUrl };
     payload.hms.sketch = { json: hmsSketch.json, dataUrl: hmsSketch.dataUrl };
     payload.wd.sketch = { json: wdSketch.json, dataUrl: wdSketch.dataUrl };
+    payload.wandverkleidung.sketch = { json: wvSketch.json, dataUrl: wvSketch.dataUrl };
   } catch (e) {
     console.warn("[buildPayload] attachProjectSketchesToPayload failed:", e);
   }
@@ -5446,7 +5474,7 @@ async function downloadPDFWithProgress(endpoint, payload) {
     };
   }
 
-  async function openInlineDocumentPreview(input) {
+  async function openInlineDocumentPreview(input, { scrollIntoView = true } = {}) {
     const config =
       typeof input === "string" ? PREVIEW_CONFIGS[input] : input;
 
@@ -5495,7 +5523,7 @@ async function downloadPDFWithProgress(endpoint, payload) {
       }
 
       if (status) status.textContent = `${config.title} bereit.`;
-      section.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (scrollIntoView) section.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error) {
       console.error("[document-preview] failed:", error);
       if (sequence >= latestAppliedSequence) {
@@ -5529,7 +5557,7 @@ async function downloadPDFWithProgress(endpoint, payload) {
       if (!isZusammenfassungActive()) return;
       try {
         if (status) status.textContent = `${activePreviewConfig.title} wird aktualisiert…`;
-        await openInlineDocumentPreview(activePreviewConfig);
+        await openInlineDocumentPreview(activePreviewConfig, { scrollIntoView: false });
         if (status) status.textContent = `${activePreviewConfig.title} automatisch aktualisiert.`;
       } catch (error) {
         console.warn("[document-preview] auto refresh failed:", reason, error);
@@ -13497,6 +13525,7 @@ async function saveCurrentDraft() {
     }
 
     if (!res.ok) {
+      if (await handleSaveAuthExpired(res, "draft")) return;
       const body = await res.json().catch(() => ({}));
       console.error("saveCurrentDraft failed:", body);
       alert(body.error || "Fehler beim Speichern des Entwurfs.");
@@ -13960,6 +13989,7 @@ function restoreWV(wv) {
   if (document.getElementById("wvColor_997")) setSelect("wvColor_997", sel997);
   if (document.getElementById("wvColor_1497")) setSelect("wvColor_1497", sel1497);
   setInputByNameOrId("wvSonderConfigNr", wv.wvSonderConfigNr || "");
+  setInputByNameOrId("wvNote", wv.wvNote || "");
 
   const pageWV = document.getElementById("page-Wandverkleidung");
   if (pageWV && wv.wvColor) pageWV.dataset.wvColorRestored = "1";
@@ -15365,6 +15395,17 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       syncSummaryLeadIds(restoredAuftragId);
     }
 
+    // Restore Kassenkunden-Dokumente checkboxes. Missing field (older drafts)
+    // keeps every checkbox at its default (checked/included).
+    try {
+      const ds = p?.docSelection || {};
+      ["abtretung", "vollmacht", "barrierefrei"].forEach((id) => {
+        window.setDocumentSelected?.(id, ds[id] !== false);
+      });
+    } catch (e) {
+      console.warn("[restore] docSelection restore failed:", e);
+    }
+
     await window.__drawingReady;
     restoreSketchFor("da", p?.duschabtrennung);
     restoreSketchFor("bwt", p?.bwt);
@@ -15373,6 +15414,7 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     restoreSketchFor("ah", p?.ah);
     restoreSketchFor("hms", p?.hms);
     restoreSketchFor("wd", p?.wd);
+    restoreSketchFor("wv", p?.wandverkleidung);
   } finally {
     window.__restoring = false;
     window.__RESTORING__ = false;
@@ -16375,6 +16417,32 @@ function initOptionalSonderprodukte() {
   applyCatVisibility();
 }
 
+// A save request came back 401: the session cookie expired mid-edit. Flush the
+// in-progress payload into the session-recovery snapshot (so it survives the
+// redirect) and send the user to log back in. pendingKind === "offer" lets
+// session-recovery auto-resave once the user restores after re-login.
+async function handleSaveAuthExpired(res, pendingKind) {
+  if (!res || res.status !== 401) return false;
+  try {
+    const sr = await import("./session-recovery.js");
+    await sr.__internals.flush();
+  } catch (err) {
+    console.warn("[save] could not flush session-recovery before redirect:", err);
+  }
+  try {
+    sessionStorage.setItem("nt_resume_save_after_login", pendingKind);
+  } catch {}
+  window.toast?.warn?.(
+    "Sitzung abgelaufen",
+    "Ihre Eingaben wurden gesichert. Bitte melden Sie sich erneut an.",
+  );
+  const next = encodeURIComponent(location.pathname + location.search);
+  setTimeout(() => {
+    window.location.href = `/login?next=${next}`;
+  }, 1500);
+  return true;
+}
+
 // Save a final offer snapshot after a successful export
 async function saveFinalOfferSnapshot() {
   if (typeof buildPayload !== "function") return;
@@ -16436,6 +16504,7 @@ async function saveFinalOfferSnapshot() {
     }
 
     if (!res.ok) {
+      if (await handleSaveAuthExpired(res, "offer")) return;
       const body = await res.json().catch(() => ({}));
       window.toast?.error?.(
         "Speichern fehlgeschlagen",
@@ -19099,6 +19168,11 @@ wireTileQty("hlWallAngledBall35", "qty_hlWallAngledBall35_wrap");
       .filter(Boolean);
     if (!members.length) return;
 
+    // Door tiles must stay clickable so switching doors is one click, not
+    // deselect-then-select — the change listener below already unchecks
+    // the previous door, so disabling the others here would just block that click.
+    if (group.name === "BWT Tür-Typ") return;
+
     const checked = members.find((cb) => cb.checked);
 
     members.forEach((cb) => {
@@ -20146,9 +20220,15 @@ window.addEventListener("offerflow:changed", () => {
 
 // ─── Home Debug Panel ────────────────────────────────────────────────────────
 (function initHomeDebugPanel() {
+  const wrap    = document.getElementById("homeDebugWrap");
   const toggle  = document.getElementById("homeDebugToggle");
   const panel   = document.getElementById("homeDebugPanel");
-  if (!toggle || !panel) return;
+  if (!wrap || !toggle || !panel) return;
+
+  // Dev-only tool — never expose raw endpoint dumps to regular users.
+  const isDevHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  if (!isDevHost) return;
+  wrap.hidden = false;
 
   // ── Toggle ───────────────────────────────────────────────────────────────
   let isOpen = false;
@@ -22693,6 +22773,7 @@ function askBeforeGoingHome(onConfirm) {
 
   function cleanup() {
     overlay.classList.remove("visible");
+    overlay.setAttribute("aria-hidden", "true");
     cancelBtn.removeEventListener("click", handleCancel);
     goBtn.removeEventListener("click", handleGo);
   }
@@ -22714,6 +22795,8 @@ function askBeforeGoingHome(onConfirm) {
   goBtn.addEventListener("click", handleGo);
 
   overlay.classList.add("visible");
+  overlay.setAttribute("aria-hidden", "false");
+  cancelBtn.focus();
 }
 
 //<!-- Sidebar + wizard nav sync -->
@@ -26328,8 +26411,15 @@ function buildPlanningEntries(payload){
 function formatPlanningStartTime(entry){
   const start = Number(entry?.manualStartMinutes);
   if(!Number.isFinite(start) || start < 0) return null;
-  const h = Math.floor(start / 60);
-  const m = start % 60;
+  return formatMinutesAsClock(start);
+}
+
+// Minutes-since-midnight -> "HH:MM", wrapping past 24h (e.g. a very late
+// Rückfahrt) instead of printing something like "25:10".
+function formatMinutesAsClock(totalMinutes){
+  const wrapped = ((Math.round(totalMinutes) % 1440) + 1440) % 1440;
+  const h = Math.floor(wrapped / 60);
+  const m = wrapped % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
@@ -26780,27 +26870,91 @@ async function fetchCompanyTravelMinutes(entry){
 }
 
 // Adds an "Anfahrt von Firma" connector before the first card and a
-// "Rückfahrt zur Firma" connector after the last card. Fetched async so the
-// list itself renders immediately; the connectors pop in once resolved.
+// "Rückfahrt zur Firma" connector after the last card, plus the day-overview
+// strip (Abfahrt/Rückkehr). Fetched async so the list itself renders
+// immediately; the connectors and overview pop in once resolved.
 function attachCompanyTravelConnectors(entries){
   const list = document.getElementById("todayPlanningList");
+  if(!entries.length) renderTodayPlanningOverview();
   if(!list || !entries.length) return;
-
-  const addConnector = (entry, position, className, label) => {
-    fetchCompanyTravelMinutes(entry).then(minutes => {
-      if(!(minutes > 0)) return;
-      const card = list.querySelector(`.today-calendar-card[data-id="${CSS.escape(String(entry.__entryId))}"]`);
-      if(!card) return;
-      const sibling = position === "beforebegin" ? card.previousElementSibling : card.nextElementSibling;
-      if(sibling?.classList.contains(className)) return;
-      card.insertAdjacentHTML(position, `<div class="planning-travel-connector ${className}"><i class="fa-solid fa-car-side"></i> ${minutes} Min ${label}</div>`);
-    });
-  };
 
   const first = entries[0];
   const last = entries[entries.length - 1];
-  addConnector(first, "beforebegin", "planning-travel-connector--start", "Anfahrt von Firma");
-  if(last !== first) addConnector(last, "afterend", "planning-travel-connector--end", "Rückfahrt zur Firma");
+
+  const addConnector = (entry, position, className, label, minutes) => {
+    const card = list.querySelector(`.today-calendar-card[data-id="${CSS.escape(String(entry.__entryId))}"]`);
+    if(!card) return;
+    const sibling = position === "beforebegin" ? card.previousElementSibling : card.nextElementSibling;
+    if(sibling?.classList.contains(className)) return;
+
+    const start = Number(entry?.manualStartMinutes);
+    const duration = Number(entry?.duration);
+    let etaHtml = "";
+    if(Number.isFinite(start)){
+      if(className.endsWith("--start")){
+        etaHtml = `<span class="ptc-eta">Abfahrt ca. ${formatMinutesAsClock(start - minutes)}</span>`;
+      } else if(Number.isFinite(duration)){
+        etaHtml = `<span class="ptc-eta">Ankunft ca. ${formatMinutesAsClock(start + duration + minutes)}</span>`;
+      }
+    }
+    card.insertAdjacentHTML(position, `<div class="planning-travel-connector ${className}"><i class="fa-solid fa-car-side"></i><span class="ptc-duration">${minutes} Min ${label}</span>${etaHtml}</div>`);
+  };
+
+  renderTodayPlanningOverview(); // hide any stale overview from a previous render while this resolves
+
+  Promise.all([fetchCompanyTravelMinutes(first), last !== first ? fetchCompanyTravelMinutes(last) : Promise.resolve(null)])
+    .then(([startMinutes, endMinutes]) => {
+      if(startMinutes > 0) addConnector(first, "beforebegin", "planning-travel-connector--start", "Anfahrt von Firma", startMinutes);
+      if(last !== first && endMinutes > 0) addConnector(last, "afterend", "planning-travel-connector--end", "Rückfahrt zur Firma", endMinutes);
+      renderTodayPlanningOverview({ first, last, startMinutes, endMinutes: last !== first ? endMinutes : startMinutes });
+    });
+}
+
+// The "when do I leave, when am I back" strip above the appointment list.
+function renderTodayPlanningOverview({ first, last, startMinutes, endMinutes } = {}){
+  const el = document.getElementById("todayPlanningOverview");
+  if(!el) return;
+
+  const firstStart = Number(first?.manualStartMinutes);
+  const lastStart = Number(last?.manualStartMinutes);
+  const lastDuration = Number(last?.duration);
+  const canShow = startMinutes > 0 && endMinutes > 0
+    && Number.isFinite(firstStart) && Number.isFinite(lastStart) && Number.isFinite(lastDuration);
+
+  if(!canShow){
+    el.hidden = true;
+    el.innerHTML = "";
+    return;
+  }
+
+  const departure = firstStart - startMinutes;
+  const lastEnd = lastStart + lastDuration;
+  const returnTime = lastEnd + endMinutes;
+  const totalTravel = startMinutes + endMinutes;
+
+  el.hidden = false;
+  el.innerHTML = `
+    <div class="day-overview__cell is-start">
+      <span class="day-overview__label"><i class="fa-solid fa-arrow-right-from-bracket"></i> Abfahrt Firma</span>
+      <span class="day-overview__value">${formatMinutesAsClock(departure)}</span>
+      <span class="day-overview__sub">${startMinutes} Min Anfahrt</span>
+    </div>
+    <div class="day-overview__cell">
+      <span class="day-overview__label">Erster Termin</span>
+      <span class="day-overview__value">${formatMinutesAsClock(firstStart)}</span>
+      <span class="day-overview__sub">${escapePlanningHtml(first?.name || "")}</span>
+    </div>
+    <div class="day-overview__cell">
+      <span class="day-overview__label">Letzter Termin endet</span>
+      <span class="day-overview__value">${formatMinutesAsClock(lastEnd)}</span>
+      <span class="day-overview__sub">${escapePlanningHtml(last?.name || "")}</span>
+    </div>
+    <div class="day-overview__cell is-end">
+      <span class="day-overview__label"><i class="fa-solid fa-arrow-right-to-bracket"></i> Rückkehr Firma</span>
+      <span class="day-overview__value">${formatMinutesAsClock(returnTime)}</span>
+      <span class="day-overview__sub">${endMinutes} Min Rückfahrt · ${totalTravel} Min Fahrzeit gesamt</span>
+    </div>
+  `;
 }
 
 function renderTodayPlanningAppointments(){
@@ -26839,7 +26993,14 @@ function renderTodayPlanningAppointments(){
 
     const travel = Number(entry?.travelMinutesAfter);
     const travelHtml = travel > 0
-      ? `<div class="planning-travel-connector"><i class="fa-solid fa-car-side"></i> ${travel} Min Fahrt / Puffer</div>`
+      ? (() => {
+          const start = Number(entry?.manualStartMinutes);
+          const duration = Number(entry?.duration);
+          const etaHtml = Number.isFinite(start) && Number.isFinite(duration)
+            ? `<span class="ptc-eta">an ca. ${formatMinutesAsClock(start + duration + travel)}</span>`
+            : "";
+          return `<div class="planning-travel-connector"><i class="fa-solid fa-car-side"></i><span class="ptc-duration">${travel} Min Fahrt / Puffer</span>${etaHtml}</div>`;
+        })()
       : "";
 
     return `
@@ -26892,6 +27053,11 @@ function renderTodayPlanningAppointments(){
       const id = card.dataset.id;
       const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
       if(!entry || isPlanningEntryCancelled(entry)) return;
+      fetch("/api/bitrix/log-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event: "termin_opened", dealId: entry.importDealId || "" }),
+      }).catch(() => {});
       activePlanningAppointmentId = id;
       renderTodayPlanningAppointments();
       openPlanningOfferPicker(entry);
@@ -26961,13 +27127,10 @@ function renderTodayPlanningAppointments(){
 // Builds one Google Maps multi-stop link covering every appointment of the
 // day (in list order) plus a round trip to/from the company address, so the
 // whole route can be opened at once (e.g. in the Tesla browser) instead of
-// entering each stop manually. Also builds an Apple Maps link for the last
-// leg (company -> final stop) since Apple Maps has no URL support for
-// multiple waypoints.
+// entering each stop manually.
 function updateTodayPlanningFullRouteLink(){
   const googleLink = document.getElementById("todayPlanningFullRoute");
-  const appleLink = document.getElementById("todayPlanningAppleRoute");
-  if(!googleLink && !appleLink) return;
+  if(!googleLink) return;
 
   const stops = todayPlanningAppointments
     .filter(entry => !isPlanningEntryCancelled(entry) && entry?.address)
@@ -26976,34 +27139,20 @@ function updateTodayPlanningFullRouteLink(){
     || "Kornhausacker 10, Hof";
 
   if(!stops.length){
-    googleLink?.removeAttribute("href");
-    googleLink?.setAttribute("aria-disabled", "true");
-    appleLink?.removeAttribute("href");
-    appleLink?.setAttribute("aria-disabled", "true");
+    googleLink.removeAttribute("href");
+    googleLink.setAttribute("aria-disabled", "true");
     return;
   }
 
-  if(googleLink){
-    const params = new URLSearchParams({
-      api: "1",
-      origin: companyAddress,
-      destination: companyAddress,
-      waypoints: stops.join("|"),
-      travelmode: "driving",
-    });
-    googleLink.href = `https://www.google.com/maps/dir/?${params.toString()}`;
-    googleLink.removeAttribute("aria-disabled");
-  }
-
-  if(appleLink){
-    const params = new URLSearchParams({
-      saddr: companyAddress,
-      daddr: stops[stops.length - 1],
-      dirflg: "d",
-    });
-    appleLink.href = `https://maps.apple.com/?${params.toString()}`;
-    appleLink.removeAttribute("aria-disabled");
-  }
+  const params = new URLSearchParams({
+    api: "1",
+    origin: companyAddress,
+    destination: companyAddress,
+    waypoints: stops.join("|"),
+    travelmode: "driving",
+  });
+  googleLink.href = `https://www.google.com/maps/dir/?${params.toString()}`;
+  googleLink.removeAttribute("aria-disabled");
 }
 
 function filterTodayPlanningAppointments(query){
@@ -27021,6 +27170,7 @@ function filterTodayPlanningAppointments(query){
 
 function updateTodayPlanningMeta(day){
   const meta = document.getElementById("todayPlanningMeta");
+  const statusDot = document.getElementById("todayPlanningStatusDot");
   if(!meta) return;
 
   const label = day?.dateLabel || new Intl.DateTimeFormat("de-DE", {
@@ -27030,7 +27180,28 @@ function updateTodayPlanningMeta(day){
     year: "numeric",
   }).format(new Date());
 
-  meta.textContent = `${todayPlanningAppointments.length} Termin(e) für ${label}`;
+  const base = `${todayPlanningAppointments.length} Termin(e) für ${label}`;
+
+  // A cached week must never look live — the salesperson has to be able to
+  // tell that the plan may have moved since this was fetched.
+  if (todayPlanningCachedAt) {
+    meta.textContent = `${base} · Offline – Stand ${formatPlanningCacheAge(todayPlanningCachedAt)}`;
+    statusDot?.classList.add("is-offline");
+    return;
+  }
+  statusDot?.classList.remove("is-offline");
+  meta.textContent = base;
+}
+
+// Lives here rather than in PlanningCache.js because this is its only caller
+// and updateTodayPlanningMeta is synchronous — it must not await a dynamic
+// import just to render a label.
+function formatPlanningCacheAge(iso){
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const time = d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  const today = new Date().toDateString() === d.toDateString();
+  return today ? `heute ${time}` : `${d.toLocaleDateString("de-DE")} ${time}`;
 }
 
 function applyPlanningPayload(payload){
@@ -27089,9 +27260,150 @@ function enrichPlanningEntriesWithBitrixTimes(payload, byDealId){
   }
 }
 
-async function fetchTodayPlanningSnapshot(){
+// ── Offline planning cache (see PlanningCache.js) ──────────────────────────
+// ISO timestamp when the currently rendered planning data was fetched, if it
+// came from the cache; null while it is live. Read by updateTodayPlanningMeta
+// so a cached week is never presented as current.
+let todayPlanningCachedAt = null;
+
+// Re-fetching every appointment's Bitrix contact on every page load would be
+// ~50 requests for data that changes rarely.
+const PLANNING_ENRICHMENT_TTL_MS = 12 * 60 * 60 * 1000;
+
+// Bitrix rate-limits (the server answers "Too many requests" and backs off), so
+// a full week is not swept in one go. Today's appointments are the ones that
+// actually get opened; the rest fill in over subsequent loads.
+const PLANNING_WARM_MAX_PER_LOAD = 25;
+
+// Every appointment in the payload — the whole week, not just today. Same two
+// sources enrichPlanningEntriesWithBitrixTimes() walks.
+function allPlanningEntries(payload){
+  return [
+    ...(Array.isArray(payload?.planning?.futurePlanned) ? payload.planning.futurePlanned : []),
+    ...(Array.isArray(payload?.planning?.days) ? payload.planning.days.flatMap(d => d.customers || []) : []),
+  ];
+}
+
+async function cachePlanningSnapshot(payload){
+  try{
+    const cache = await import("./PlanningCache.js");
+    await cache.saveSnapshot(payload);
+  }catch(err){
+    console.warn("[planning] snapshot cache failed:", err);
+  }
+}
+
+// Returns true when a cached week was rendered, false when there is nothing
+// cached and the caller should show its error state.
+async function renderTodayPlanningFromCache(){
+  try{
+    const cache = await import("./PlanningCache.js");
+    const record = await cache.loadSnapshot();
+    if(!record?.payload) return false;
+
+    todayPlanningCachedAt = record.fetchedAt;
+    applyTodayPlanningPayload(record.payload);
+    return true;
+  }catch(err){
+    console.warn("[planning] cache render failed:", err);
+    return false;
+  }
+}
+
+// Fills the enrichment cache for the whole week while there is still signal,
+// so tapping an appointment on site can fill the Anrede without the network.
+// Sequential and TTL-guarded on purpose: this is background work behind a
+// server that talks to a rate-limited Bitrix, and finishing slowly is fine.
+async function warmPlanningEnrichment(payload){
+  try{
+    const cache = await import("./PlanningCache.js");
+    const seen = new Set();
+    let fetched = 0;
+    let skippedForCap = 0;
+
+    // Today first: those are the appointments that actually get opened today.
+    const todayKey = new Date().toLocaleDateString("sv-SE");
+    const all = allPlanningEntries(payload);
+    const ordered = [
+      ...all.filter(e => e?.plannedDate === todayKey),
+      ...all.filter(e => e?.plannedDate !== todayKey),
+    ];
+
+    for(const entry of ordered){
+      const key = cache.enrichmentKey(entry);
+      if(!key || seen.has(key)) continue;
+      seen.add(key);
+
+      const existing = await cache.loadEnrichment(key);
+      if(cache.isFresh(existing, PLANNING_ENRICHMENT_TTL_MS)) continue;
+
+      if(fetched >= PLANNING_WARM_MAX_PER_LOAD){ skippedForCap++; continue; }
+
+      const fields = await fetchPlanningEnrichment(entry);
+      fetched++;
+      if(fields) await cache.saveEnrichment(key, fields);
+    }
+
+    if(skippedForCap){
+      console.info(
+        `[planning] warmed ${fetched} appointments, ${skippedForCap} left for the next load (Bitrix rate limit)`,
+      );
+    }
+  }catch(err){
+    console.warn("[planning] enrichment warm failed:", err);
+  }
+}
+
+// Bumped on every call so a slow, stale request (superseded by a newer
+// fetch — reconnect, manual refresh, the initial load itself) can tell it
+// lost the race and must not overwrite whatever the newer call already
+// rendered. Without this, an out-of-order failure could stomp a panel
+// (including the unrelated week calendar, see below) that a later, faster
+// call had already populated with good data.
+let todayPlanningRequestId = 0;
+
+function renderTodayPlanningError(){
   const list = document.getElementById("todayPlanningList");
   const meta = document.getElementById("todayPlanningMeta");
+  document.getElementById("todayPlanningStatusDot")?.classList.add("is-offline");
+
+  if(list){
+    // Deliberately its own component, not .today-customers-empty — a failed
+    // request must not look identical to "nothing scheduled today".
+    list.innerHTML = `
+      <div class="today-planning-error">
+        <span class="tpe-icon"><i class="fa-solid fa-triangle-exclamation"></i></span>
+        <div class="tpe-body">
+          <strong>Planungstermine konnten nicht geladen werden</strong>
+          <p>Die Verbindung zum Server ist fehlgeschlagen.</p>
+          <button type="button" class="tpe-retry" id="todayPlanningRetryBtn">
+            <i class="fa-solid fa-rotate"></i> Erneut versuchen
+          </button>
+        </div>
+      </div>`;
+    document.getElementById("todayPlanningRetryBtn")?.addEventListener("click", fetchTodayPlanningSnapshot);
+  }
+  if(meta){
+    meta.textContent = "Planungsdaten konnten nicht geladen werden";
+  }
+  renderTodayPlanningOverview();
+}
+
+function setTodayPlanningRefreshLoading(isLoading){
+  const btn = document.getElementById("refreshTodayPlanning");
+  const icon = document.getElementById("refreshTodayPlanningIcon");
+  const label = document.getElementById("refreshTodayPlanningLabel");
+  if(!btn) return;
+  btn.disabled = isLoading;
+  icon?.classList.toggle("spin", isLoading);
+  if(label) label.textContent = isLoading ? "Lädt…" : "Aktualisieren";
+}
+
+async function fetchTodayPlanningSnapshot(){
+  const requestId = ++todayPlanningRequestId;
+  const list = document.getElementById("todayPlanningList");
+  const meta = document.getElementById("todayPlanningMeta");
+  setTodayPlanningRefreshLoading(true);
   if(list){
     list.innerHTML = `<div class="today-customers-empty">Lade Termine…</div>`;
   }
@@ -27109,22 +27421,27 @@ async function fetchTodayPlanningSnapshot(){
     const bitrixTimes = await fetch("/api/bitrix/activities/today", { headers: { Accept: "application/json" } })
       .then(r => r.ok ? r.json() : null)
       .catch(() => null);
+    if(requestId !== todayPlanningRequestId) return; // superseded — a newer call already resolved
     enrichPlanningEntriesWithBitrixTimes(payload, bitrixTimes?.byDealId || {});
+    todayPlanningCachedAt = null;
     applyTodayPlanningPayload(payload);
+
+    // After rendering, never before: a cache write must not be able to cost
+    // the user a list that already loaded. Both are fire-and-forget.
+    cachePlanningSnapshot(payload);
+    warmPlanningEnrichment(payload);
   }catch(error){
     console.error("today planning failed", error);
-    if(list){
-      list.innerHTML = `<div class="today-customers-empty">Fehler beim Laden der Planungstermine</div>`;
-    }
-    if(meta){
-      meta.textContent = "Planungsdaten konnten nicht geladen werden";
-    }
-    const weekGrid = document.getElementById("weekCalendarGrid");
-    const weekMeta = document.getElementById("weekCalendarMeta");
-    if(weekGrid){
-      weekGrid.innerHTML = `<div class="week-cal-empty"><i class="fa-solid fa-triangle-exclamation"></i> Planungsdaten konnten nicht geladen werden</div>`;
-    }
-    if(weekMeta) weekMeta.textContent = "Verbindung fehlgeschlagen";
+    if(requestId !== todayPlanningRequestId) return; // superseded — don't clobber a newer result
+
+    // No signal — fall back to the cached week rather than stranding the
+    // salesperson with no appointments and no prefill.
+    if(await renderTodayPlanningFromCache()) return;
+    if(requestId !== todayPlanningRequestId) return; // the cache import above can race too
+
+    renderTodayPlanningError();
+  }finally{
+    if(requestId === todayPlanningRequestId) setTodayPlanningRefreshLoading(false);
   }
 }
 
@@ -27142,13 +27459,21 @@ function connectTodayPlanningStream(){
     todayPlanningEventSource?.close?.();
   } catch {}
 
+  // EventSource reconnects on its own every few seconds, which offline is just
+  // a failing request loop against a server that is not there. Stay closed and
+  // let the "online" listener below bring the stream back.
+  if(navigator.onLine === false) return;
+
   todayPlanningEventSource = new EventSource(TODAY_PLANNING_STREAM_ENDPOINT);
 
   const handlePayload = (event) => {
     try {
       const payload = JSON.parse(event.data);
       if(payload?.planning){
+        // A live update supersedes anything rendered from the cache.
+        todayPlanningCachedAt = null;
         applyTodayPlanningPayload(payload);
+        cachePlanningSnapshot(payload);
       }
     } catch (error) {
       console.warn("planning stream payload parse failed", error);
@@ -27238,59 +27563,97 @@ function applyPlanningAppointmentToForm(entry, offerKey){
   enrichPlanningAppointmentFromBitrix(entry, _generation);
 }
 
-async function enrichPlanningAppointmentFromBitrix(entry, generation){
+// Bitrix contact -> the flat field set the form actually needs. Kept pure (no
+// DOM, no network) so the exact same shape can be cached and replayed offline.
+function planningEnrichmentFromContact(contact){
+  const honorificId = String(
+    contact?.HONORIFIC?.STATUS_ID ?? contact?.HONORIFIC ?? contact?.HONORIFIC_ID ?? "",
+  ).trim();
+  return {
+    salutation: { HNR_DE_1: "Frau", HNR_DE_2: "Herr", "1": "Familie" }[honorificId] || "",
+    email: Array.isArray(contact?.EMAIL) && contact.EMAIL[0] ? contact.EMAIL[0].VALUE : "",
+    phone: Array.isArray(contact?.PHONE) && contact.PHONE[0] ? contact.PHONE[0].VALUE : "",
+    street: contact?.ADDRESS || "",
+    city: contact?.ADDRESS_CITY || "",
+    postalCode: contact?.ADDRESS_POSTAL_CODE || "",
+  };
+}
+
+// Network path only. Returns the flat field set, or null when neither lookup
+// yielded a contact. Propagates a network failure so the caller (and the
+// week-warming loop) can tell "no signal" from "no such contact".
+async function fetchPlanningEnrichment(entry){
   const dealId = entry?.importDealId || "";
   const contactId = entry?.contactId || "";
-  if (!dealId && !contactId) return;
+  if (!dealId && !contactId) return null;
 
+  let contact = null;
+  if (dealId) {
+    const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}`);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) contact = data?.contact || null;
+  }
+  if (!contact && contactId) {
+    const res = await fetch(`/api/bitrix/contact/${encodeURIComponent(contactId)}`);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) contact = data?.result || null;
+  }
+  return contact ? planningEnrichmentFromContact(contact) : null;
+}
+
+function applyPlanningEnrichment(fields){
+  if (fields.salutation && typeof setRadio === "function") {
+    setRadio("salutation", fields.salutation);
+    document
+      .querySelectorAll('input[name="salutation"]')
+      .forEach((el) => el.dispatchEvent(new Event("change", { bubbles: true })));
+  }
+
+  const fillIfEmpty = (id, value) => {
+    const el = document.getElementById(id);
+    if (!el || el.value || !value) return;
+    el.value = value;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  fillIfEmpty("email", fields.email);
+  fillIfEmpty("phone", fields.phone);
+  fillIfEmpty("street", fields.street);
+  fillIfEmpty("city", fields.city);
+  fillIfEmpty("postalCode", fields.postalCode);
+
+  if (fields.email && typeof syncSummaryRecipientEmail === "function") {
+    syncSummaryRecipientEmail(fields.email);
+  }
+}
+
+async function enrichPlanningAppointmentFromBitrix(entry, generation){
+  if (!entry?.importDealId && !entry?.contactId) return;
+
+  let fields = null;
   try {
-    let contact = null;
-    if (dealId) {
-      const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}`);
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) contact = data?.contact || null;
-    }
-    if (!contact && contactId) {
-      const res = await fetch(`/api/bitrix/contact/${encodeURIComponent(contactId)}`);
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) contact = data?.result || null;
-    }
-    if (!contact) return;
-    // Reset while we were fetching → this data belongs to a previous offer.
-    if (window.__formGeneration !== generation) return;
-
-    const honorificId = String(
-      contact?.HONORIFIC?.STATUS_ID ?? contact?.HONORIFIC ?? contact?.HONORIFIC_ID ?? "",
-    ).trim();
-    const salutation = { HNR_DE_1: "Frau", HNR_DE_2: "Herr", "1": "Familie" }[honorificId] || "";
-    if (salutation && typeof setRadio === "function") {
-      setRadio("salutation", salutation);
-      document
-        .querySelectorAll('input[name="salutation"]')
-        .forEach((el) => el.dispatchEvent(new Event("change", { bubbles: true })));
-    }
-
-    const email = Array.isArray(contact.EMAIL) && contact.EMAIL[0] ? contact.EMAIL[0].VALUE : "";
-    const phone = Array.isArray(contact.PHONE) && contact.PHONE[0] ? contact.PHONE[0].VALUE : "";
-    const fillIfEmpty = (id, value) => {
-      const el = document.getElementById(id);
-      if (!el || el.value || !value) return;
-      el.value = value;
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
-    };
-    fillIfEmpty("email", email);
-    fillIfEmpty("phone", phone);
-    fillIfEmpty("street", contact.ADDRESS || "");
-    fillIfEmpty("city", contact.ADDRESS_CITY || "");
-    fillIfEmpty("postalCode", contact.ADDRESS_POSTAL_CODE || "");
-
-    if (email && typeof syncSummaryRecipientEmail === "function") {
-      syncSummaryRecipientEmail(email);
-    }
+    fields = await fetchPlanningEnrichment(entry);
   } catch (error) {
     console.warn("planning appointment bitrix enrich failed", error);
   }
+
+  // Live answer -> refresh the cache. No answer -> fall back to whatever the
+  // week's warm stored, which is the whole point on site: without it the
+  // Anrede stays blank, because the route-planning service has no such field.
+  try {
+    const cache = await import("./PlanningCache.js");
+    const key = cache.enrichmentKey(entry);
+    if (fields) await cache.saveEnrichment(key, fields);
+    else fields = await cache.loadEnrichment(key);
+  } catch (err) {
+    console.warn("[planning] enrichment cache unavailable:", err);
+  }
+
+  if (!fields) return;
+  // Reset while we were fetching → this data belongs to a previous offer.
+  if (window.__formGeneration !== generation) return;
+
+  applyPlanningEnrichment(fields);
 }
 
 function initTodayPlanningPanel(){
@@ -27304,11 +27667,22 @@ function initTodayPlanningPanel(){
   });
 
   const search = document.getElementById("todayPlanningSearch");
+  const searchClear = document.getElementById("todayPlanningSearchClear");
   const refresh = document.getElementById("refreshTodayPlanning");
 
   if(search){
     search.addEventListener("input", (event) => {
+      searchClear.hidden = !event.target.value;
       filterTodayPlanningAppointments(event.target.value);
+    });
+  }
+
+  if(searchClear && search){
+    searchClear.addEventListener("click", () => {
+      search.value = "";
+      searchClear.hidden = true;
+      filterTodayPlanningAppointments("");
+      search.focus();
     });
   }
 
@@ -27318,6 +27692,13 @@ function initTodayPlanningPanel(){
 
   fetchTodayPlanningSnapshot();
   connectTodayPlanningStream();
+
+  // Back on signal: replace the cached week with live data and resubscribe.
+  // Same event OfflineSaveQueue uses to flush its queued saves.
+  window.addEventListener("online", () => {
+    fetchTodayPlanningSnapshot();
+    connectTodayPlanningStream();
+  });
 
   window.addEventListener("beforeunload", () => {
     try {
@@ -27338,6 +27719,10 @@ window.__debug_reloadPlanning = fetchTodayPlanningSnapshot;
 window.markDealStage = markDealStage;
 window.renderTodayPlanningAppointments = renderTodayPlanningAppointments;
 window.__debug_planningEndpoint = TODAY_PLANNING_SNAPSHOT_ENDPOINT;
+// The offline prefill is hard to exercise by hand (it needs a dropped
+// connection at the right moment), so expose the entry point the same way the
+// planning debug hooks above are exposed.
+window.__debug_enrichPlanningAppointment = enrichPlanningAppointmentFromBitrix;
 
 })();
 
@@ -27585,6 +27970,51 @@ document
 
 
 
+// Kassenkunden-Dokumente (#zfDocSelectionCard): a single checkbox state that
+// drives mail attachments/body (EmailManager.js excludedPreset), postal
+// attachments (initPostalSending below) and — via payload.docSelection in
+// buildPayload() — which documents the online-signing link requires
+// (signing.js createSigningRequest). "angebot" is not part of this, it is
+// always included.
+function updateDocSelectionVisibility() {
+  const wrap = document.getElementById("zfDocSelectionCard");
+  if (!wrap) return;
+  const isKassenkunde =
+    document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde";
+  const isAh = String(window.getCurrentOfferType?.() || "bu").toLowerCase() === "ah";
+  const show = isKassenkunde && !isAh;
+  wrap.hidden = !show;
+  wrap.setAttribute("aria-hidden", show ? "false" : "true");
+}
+window.updateDocSelectionVisibility = updateDocSelectionVisibility;
+
+function setDocumentSelected(id, selected) {
+  const checkbox = document.getElementById(`docSel_${id}`);
+  if (checkbox && checkbox.checked !== !!selected) checkbox.checked = !!selected;
+
+  if (selected) window.__mailExcludedPreset?.delete(id);
+  else window.__mailExcludedPreset?.add(id);
+
+  window.__emailManager?.render?.();
+  window.__emailManager?.refreshPrefills?.();
+  window.__postalManager?.render?.();
+}
+window.setDocumentSelected = setDocumentSelected;
+
+document.addEventListener("DOMContentLoaded", () => {
+  document
+    .querySelectorAll('input[name="payer"]')
+    .forEach((r) => r.addEventListener("change", updateDocSelectionVisibility));
+  window.addEventListener("offerflow:changed", updateDocSelectionVisibility);
+  updateDocSelectionVisibility();
+
+  ["abtretung", "vollmacht", "barrierefrei"].forEach((id) => {
+    document
+      .getElementById(`docSel_${id}`)
+      ?.addEventListener("change", (e) => setDocumentSelected(id, e.target.checked));
+  });
+});
+
 (function initPostalSending() {
   function syncPostalSectionVisibility(forceState = null) {
     const toggleBtn = document.getElementById("togglePostalSectionBtn");
@@ -27653,11 +28083,26 @@ document
 
     const DEFAULT_POSTAL_ATTACHMENTS = [
       { id: "abtretung", type: "static", filename: "Abtretungserklärung.pdf", label: "Default" },
+      { id: "barrierefrei", type: "static", filename: "emc2_Barrierefreies_Wohnen.pdf", label: "Default" },
       { id: "vollmacht", type: "static", filename: "Vollmacht.pdf", label: "Default" },
       // Future-ready: add more predefined postal attachments here if needed.
     ];
 
-    let postalAttachments = DEFAULT_POSTAL_ATTACHMENTS.map((item) => ({ ...item }));
+    // Statics are recomputed from the same excludedPreset Set the mail section
+    // uses (window.__mailExcludedPreset, see EmailManager.js) plus the
+    // Selbstzahler/Kassenkunde payer rule — see computeStaticPostalAttachments().
+    // Only uploads are tracked as free-standing state in postalAttachments.
+    function computeStaticPostalAttachments() {
+      const isSZ =
+        document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler";
+      const payerExcluded = isSZ ? new Set(["abtretung", "vollmacht"]) : new Set();
+      const excluded = window.__mailExcludedPreset || new Set();
+      return DEFAULT_POSTAL_ATTACHMENTS.filter(
+        (item) => !payerExcluded.has(item.id) && !excluded.has(item.id),
+      ).map((item) => ({ ...item }));
+    }
+
+    let postalAttachments = [];
 
     function escapeHtmlLocal(value) {
       return String(value ?? "")
@@ -27807,7 +28252,7 @@ document
     });
 
     function resetPostalPanel() {
-      postalAttachments = DEFAULT_POSTAL_ATTACHMENTS.map((item) => ({ ...item }));
+      postalAttachments = [];
       postalSubjectTouched = false;
       postalBodyTouched = false;
       lastAutoPostalBody = "";
@@ -27878,7 +28323,10 @@ document
         : null;
 
       if (restoredAttachments) {
-        postalAttachments = restoredAttachments;
+        // Statics are recomputed from the (separately restored) docSelection
+        // checkboxes on the next renderAttachmentList() — only uploads carry
+        // over from the saved list.
+        postalAttachments = restoredAttachments.filter((item) => item.type === "upload");
       }
 
       postalSubjectTouched = !!String(fields.subject?.value || "").trim();
@@ -27898,6 +28346,10 @@ document
 
     window.addEventListener("offerflow:changed", () => {
       refreshPostalPrefills();
+    });
+
+    document.querySelectorAll('input[name="payer"]').forEach((el) => {
+      el.addEventListener("change", renderAttachmentList);
     });
 
     function fillPostalDefaults() {
@@ -27932,6 +28384,11 @@ document
     });
 
     function renderAttachmentList() {
+      postalAttachments = [
+        ...computeStaticPostalAttachments(),
+        ...postalAttachments.filter((item) => item.type === "upload"),
+      ];
+
       const tiles = [
         {
           id: "offer-main",
@@ -27964,13 +28421,24 @@ document
         .join("");
     }
 
+    // Removing a static (preset) tile unchecks the shared Kassenkunden-Dokumente
+    // checkbox — it also disappears from mail/signing, matching how the mail
+    // section's own "x" already behaves. Uploads are removed locally.
+    function handlePostRemove(id) {
+      const item = postalAttachments.find((a) => a.id === id);
+      if (!item) return;
+      if (item.type === "upload") {
+        postalAttachments = postalAttachments.filter((a) => a.id !== id);
+        renderAttachmentList();
+      } else {
+        window.setDocumentSelected?.(item.id, false);
+      }
+    }
+
     attachmentList.addEventListener("click", (event) => {
       const btn = event.target.closest("[data-post-remove]");
       if (!btn) return;
-      const id = String(btn.dataset.postRemove || "").trim();
-      if (!id) return;
-      postalAttachments = postalAttachments.filter((item) => item.id !== id);
-      renderAttachmentList();
+      handlePostRemove(String(btn.dataset.postRemove || "").trim());
     });
 
     attachmentList.addEventListener("keydown", (event) => {
@@ -27978,10 +28446,7 @@ document
       if (!btn) return;
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
-      const id = String(btn.dataset.postRemove || "").trim();
-      if (!id) return;
-      postalAttachments = postalAttachments.filter((item) => item.id !== id);
-      renderAttachmentList();
+      handlePostRemove(String(btn.dataset.postRemove || "").trim());
     });
 
     uploadInput.addEventListener("change", () => {

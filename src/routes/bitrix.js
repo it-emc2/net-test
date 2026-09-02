@@ -2,10 +2,13 @@
 import express from "express";
 import { buildAhData } from "./docx-template.js";
 import BitrixLog from "../models/BitrixLog.js";
+import UserActionLog from "../models/UserActionLog.js";
 
 const router = express.Router();
 
-const BITRIX_WEBHOOK_BASE = "https://emczwei.bitrix24.de/rest/2594/na0pingesg144c5z";
+const BITRIX_WEBHOOK_BASE =
+  process.env.BITRIX_WEBHOOK_BASE ||
+  "https://emczwei.bitrix24.de/rest/2594/na0pingesg144c5z";
 
 // Bitrix constants (from your script)
 const OWNER_TYPE = { contact: 3, company: 4 };
@@ -703,11 +706,71 @@ router.post("/deal/:id/move-ang-verschickt", express.json(), async (req, res) =>
       extraFields: ahExtraFields,
     });
 
+    UserActionLog.create({
+      event: "move_succeeded",
+      dealId,
+      offerNumber: req.body?.offerNumber,
+      offerType: req.body?.offerType,
+    }).catch((e) => console.warn("[bitrix] UserActionLog move_succeeded failed:", e?.message || e));
+
     return res.json({ ok: true, dealId: Number(dealId), result: data?.result ?? data });
   } catch (err) {
     console.error("POST /api/bitrix/deal/:id/move-ang-verschickt error:", err);
+    UserActionLog.create({
+      event: "move_failed",
+      dealId: String(req.params.id || ""),
+      offerNumber: req.body?.offerNumber,
+      offerType: req.body?.offerType,
+      message: err?.message || String(err),
+    }).catch((e) => console.warn("[bitrix] UserActionLog move_failed failed:", e?.message || e));
     return res.status(500).json({ error: err?.message || String(err) });
   }
+});
+
+// POST /api/bitrix/log-action
+// Body: { event, dealId?, offerNumber?, offerType? }
+// Generic fire-and-forget audit log for client-side milestones that have no
+// dealId yet (e.g. opening a configurator before a deal is picked). Deal-scoped
+// events use /deal/:id/log-dialog-event instead.
+router.post("/log-action", express.json(), async (req, res) => {
+  const event = String(req.body?.event || "");
+  if (!["termin_opened", "configurator_opened"].includes(event)) {
+    return res.status(400).json({ error: "invalid event" });
+  }
+  try {
+    await UserActionLog.create({
+      event,
+      dealId: req.body?.dealId,
+      offerNumber: req.body?.offerNumber,
+      offerType: req.body?.offerType,
+    });
+  } catch (e) {
+    console.warn("[bitrix] UserActionLog log-action failed:", e?.message || e);
+  }
+  return res.json({ ok: true });
+});
+
+// POST /api/bitrix/deal/:id/log-dialog-event
+// Body: { event: "move_dialog_shown" | "move_dialog_dismissed", offerNumber?, offerType? }
+// Fire-and-forget audit trail for the "ANG verschickt" dialog shown after an
+// offer send, so we can tell apart "user never confirmed" from a real error.
+router.post("/deal/:id/log-dialog-event", express.json(), async (req, res) => {
+  const dealId = String(req.params.id || "").trim();
+  const event = String(req.body?.event || "");
+  if (!dealId || !["move_dialog_shown", "move_dialog_dismissed"].includes(event)) {
+    return res.status(400).json({ error: "invalid event" });
+  }
+  try {
+    await UserActionLog.create({
+      event,
+      dealId,
+      offerNumber: req.body?.offerNumber,
+      offerType: req.body?.offerType,
+    });
+  } catch (e) {
+    console.warn("[bitrix] UserActionLog dialog event failed:", e?.message || e);
+  }
+  return res.json({ ok: true });
 });
 
 // POST /api/bitrix/deal/:id/move-zuteilen

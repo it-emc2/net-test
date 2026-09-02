@@ -25,7 +25,7 @@ export function formatInlineHtml(text) {
       const href = /^https?:\/\//i.test(match) ? match : `https://${match}`;
       // The online-signing link gets a descriptive label instead of the raw URL.
       const linkText = /\/sign\//.test(match)
-        ? "&gt;&gt; Jetzt weitere Angaben erfassen (hier klicken) &lt;&lt;"
+        ? "&gt;&gt; Hier Unterlagen online ausfüllen und unterzeichnen &lt;&lt;"
         : match;
       return `<a href="${escapeHtml(href)}" style="color:#00a86b;text-decoration:none;">${linkText}</a>`;
     }
@@ -47,7 +47,7 @@ export function renderBodyHtmlFromText(body) {
       const bold = /^Keine Möglichkeit, die Dokumente auszudrucken\?/.test(text);
       const weight = bold ? "font-weight:bold;" : "";
       parts.push(
-        `<p style="margin:0 0 18px 0;line-height:1.55;color:#364047;font-size:12px;${weight}">${formatInlineHtml(text)}</p>`
+        `<p style="margin:0 0 18px 0;line-height:1.55;color:#000000;font-size:12px;${weight}">${formatInlineHtml(text)}</p>`
       );
     }
     paragraphBuffer = [];
@@ -56,7 +56,7 @@ export function renderBodyHtmlFromText(body) {
   function flushBullets() {
     if (!bulletBuffer.length) return;
     parts.push(
-      `<ul style="margin:0 0 24px 22px;padding:0;color:#364047;">${bulletBuffer
+      `<ul style="margin:0 0 24px 22px;padding:0;color:#000000;">${bulletBuffer
         .map(
           (item) =>
             `<li style="margin:0 0 10px 0;line-height:1.5;font-size:12px;"><strong>${formatInlineHtml(
@@ -71,7 +71,7 @@ export function renderBodyHtmlFromText(body) {
   function flushOrdered() {
     if (!orderedBuffer.length) return;
     parts.push(
-      `<ol style="margin:0 0 24px 28px;padding:0;color:#364047;">${orderedBuffer
+      `<ol style="margin:0 0 24px 28px;padding:0;color:#000000;">${orderedBuffer
         .map(
           (item) =>
             `<li style="margin:0 0 10px 0;line-height:1.5;font-size:12px;"><strong>${formatInlineHtml(
@@ -126,7 +126,7 @@ export function renderBodyHtmlFromText(body) {
 // incl. Steuer-Nr./Geschäftsführer). Selected via isAh.
 function footerHtml(isAh) {
   const p = (text, extraMargin) =>
-    `<p style="margin:0${extraMargin ? ` 0 ${extraMargin}px 0` : ""};line-height:1.5;color:#364047;font-size:9px;">${text}</p>`;
+    `<p style="margin:0${extraMargin ? ` 0 ${extraMargin}px 0` : ""};line-height:1.5;color:#000000;font-size:12px;">${text}</p>`;
 
   if (isAh) {
     return [
@@ -175,22 +175,22 @@ export function buildEmailHtml(
   // Personal name line is omitted when contactName is empty (e.g. the
   // signing-confirmation mail is signed generically as "Ihr Team von emc2").
   const contactNameHtml = String(contactName || "").trim()
-    ? `<p style="margin:0 0 6px 0;line-height:1.5;color:#364047;font-size:12px;">${escapeHtml(contactName)}</p>`
+    ? `<p style="margin:0 0 6px 0;line-height:1.5;color:#000000;font-size:12px;">${escapeHtml(contactName)}</p>`
     : "";
 
   return `<!DOCTYPE html>
 <html lang="de">
-  <body style="margin:0;padding:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#364047;">
+  <body style="margin:0;padding:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#000000;">
     <div style="max-width:640px;margin:0;padding:24px 20px 12px 20px;">
       ${renderBodyHtmlFromText(body)}
-      <p style="margin:0 0 8px 0;line-height:1.55;color:#364047;font-size:12px;">--</p>
-      <p style="margin:0 0 24px 0;line-height:1.55;color:#364047;font-size:12px;">Freundliche Grüße</p>
+      <p style="margin:0 0 8px 0;line-height:1.55;color:#000000;font-size:12px;">--</p>
+      <p style="margin:0 0 24px 0;line-height:1.55;color:#000000;font-size:12px;">Freundliche Grüße</p>
       ${contactNameHtml}
-      <p style="margin:0 0 28px 0;line-height:1.5;color:#364047;font-size:12px;">Ihr Team von emc2</p>
-      <p style="margin:0 0 18px 0;line-height:1.5;color:#364047;font-size:12px;">______________________________</p>
+      <p style="margin:0 0 28px 0;line-height:1.5;color:#000000;font-size:12px;">Ihr Team von emc2</p>
+      <p style="margin:0 0 18px 0;line-height:1.5;color:#000000;font-size:12px;">______________________________</p>
       ${footerHtml(isAh)}
       ${signatureImageHtml}
-      <p style="margin:0;line-height:1.7;color:#364047;font-size:9px;">
+      <p style="margin:0;line-height:1.7;color:#000000;font-size:9px;">
         Diese E-Mail enthält vertrauliche und/oder rechtlich geschützte Informationen. Der Inhalt dieser E-Mail ist ausschließlich für den bezeichneten Adressaten bestimmt. Bitte beachten Sie in diesem Fall, dass jede Form der Kenntnisnahme, Veröffentlichung, Vervielfältigung oder Weitergabe des Inhalts dieser E-Mail unzulässig ist. Wenn Sie nicht der richtige Adressat bzw. sein Vertreter sind oder diese E-Mail irrtümlich erhalten haben, informieren Sie bitte sofort den Absender und vernichten Sie diese E-Mail. Vielen Dank.
       </p>
     </div>

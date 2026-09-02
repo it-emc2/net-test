@@ -2408,18 +2408,24 @@ button.dm-btn-danger:focus-visible {
         </div>
         <div class="home-load-panel">
           <div class="field home-load-row">
-            <input id="loadOfferNumber" type="text" placeholder="ANG2025-1008-092040" />
+            <div class="home-load-field">
+              <label for="loadOfferNumber" class="home-load-label">Angebot laden</label>
+              <input id="loadOfferNumber" type="text" placeholder="ANG2025-1008-092040" />
+            </div>
             <button type="button" id="btnLoadOffer" class="secondary">Angebot laden</button>
           </div>
 
           <div class="field home-load-row">
-            <input id="homeDealIdInput" type="text" placeholder="Bitrix Deal-ID, z. B. 48213" />
+            <div class="home-load-field">
+              <label for="homeDealIdInput" class="home-load-label">Bitrix Deal-ID</label>
+              <input id="homeDealIdInput" type="text" placeholder="z. B. 48213" />
+            </div>
             <button type="button" id="btnLoadDeal" class="secondary">Deal laden</button>
           </div>
           <div id="homeDealStatus" class="status" hidden></div>
 
           <div class="field home-global-search-field">
-            <h3 class="home-search-heading">Schnellsuche in Entwürfen + Angeboten</h3>
+            <h3 class="home-search-heading" id="homeSearchHeading">Schnellsuche in Entwürfen + Angeboten</h3>
             <div class="home-global-search-wrap">
               <span class="home-global-search-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" focusable="false">
@@ -2431,6 +2437,9 @@ button.dm-btn-danger:focus-visible {
                 type="text"
                 placeholder="Name, Datum, ANG-Nummer, Ort, Telefonnummer, Stichwort …"
                 autocomplete="off"
+                aria-labelledby="homeSearchHeading"
+                data-lpignore="true"
+                data-1p-ignore="true"
               />
               <div id="globalOfferSearchResults" class="home-global-search-results" hidden></div>
             </div>
@@ -2475,42 +2484,31 @@ button.dm-btn-danger:focus-visible {
           </section>
 
 
-          <!-- <section class="today-customers-panel today-calendar-panel" id="todayCalendarPanel" aria-labelledby="todayCalendarTitle">
-            <div class="today-customers-head">
-              <div>
-                <h3 id="todayCalendarTitle">Heutige Termine</h3>
-                <p id="todayCalendarMeta">Lade Termine…</p>
-              </div>
-
-              <div class="today-customers-actions">
-                <input type="text" id="todayCalendarSearch" placeholder="Name, Ort, Telefon, E-Mail…" autocomplete="off" />
-                <button type="button" id="refreshTodayCalendar" class="secondary">Aktualisieren</button>
-              </div>
-            </div>
-
-            <div id="todayCalendarList" class="today-customers-list">
-              <div class="today-customers-empty">Noch keine Termine geladen.</div>
-            </div>
-          </section> -->
-
           <section class="today-customers-panel today-calendar-panel" id="todayPlanningPanel" aria-labelledby="todayPlanningTitle">
             <div class="today-customers-head">
               <div>
                 <h3 id="todayPlanningTitle">Heutige Termine Planung</h3>
-                <p id="todayPlanningMeta">Lade Termine…</p>
+                <div class="meta-row">
+                  <span class="status-dot" id="todayPlanningStatusDot" aria-hidden="true"></span>
+                  <p id="todayPlanningMeta" aria-live="polite">Lade Termine…</p>
+                </div>
               </div>
 
               <div class="today-customers-actions">
-                <input type="text" id="todayPlanningSearch" placeholder="Name, Ort, Telefon, E-Mail…" autocomplete="off" />
+                <div class="search-wrap">
+                  <input type="text" id="todayPlanningSearch" placeholder="Name, Ort, Telefon, E-Mail…" autocomplete="off" data-lpignore="true" data-1p-ignore="true" />
+                  <button type="button" class="search-clear" id="todayPlanningSearchClear" aria-label="Suche löschen" hidden><i class="fa-solid fa-xmark"></i></button>
+                </div>
                 <a id="todayPlanningFullRoute" class="secondary" target="_blank" rel="noopener" title="Alle heutigen Termine + Rückfahrt zur Firma als eine Route öffnen"><i class="fa-solid fa-route"></i> Route (Google)</a>
-                <a id="todayPlanningAppleRoute" class="secondary" target="_blank" rel="noopener" title="Letzter Termin heute als Route zur Firma – Apple Maps unterstützt keine Zwischenstopps per Link"><i class="fa-brands fa-apple"></i> Route (Apple)</a>
-                <button type="button" id="refreshTodayPlanning" class="secondary">Aktualisieren</button>
+                <button type="button" id="refreshTodayPlanning" class="secondary"><i class="fa-solid fa-rotate" id="refreshTodayPlanningIcon"></i> <span id="refreshTodayPlanningLabel">Aktualisieren</span></button>
               </div>
             </div>
 
+            <div id="todayPlanningOverview" class="day-overview" hidden></div>
+
             <div id="todayPlanningPause" class="today-pause-chip" hidden></div>
 
-            <div id="todayPlanningList" class="today-customers-list">
+            <div id="todayPlanningList" class="today-customers-list" aria-live="polite">
               <div class="today-customers-empty">Noch keine Termine geladen.</div>
             </div>
           </section>
@@ -2537,8 +2535,8 @@ button.dm-btn-danger:focus-visible {
             </div>
           </section>
 
-          <!-- ── Home Debug Panel ─────────────────────────────────────────── -->
-          <div class="home-debug-wrap" id="homeDebugWrap">
+          <!-- ── Home Debug Panel (dev-only, see initHomeDebugPanel) ────────── -->
+          <div class="home-debug-wrap" id="homeDebugWrap" hidden>
             <button type="button" id="homeDebugToggle" class="home-debug-toggle" aria-pressed="false">
               <span class="home-debug-toggle-icon">🐛</span>
               <span class="home-debug-toggle-label">Debug</span>
@@ -2612,7 +2610,7 @@ button.dm-btn-danger:focus-visible {
             <p></p>
           </div>
 
-        <div class="section-header">Kontaktdaten des Kunden</div>
+        <h2 style="margin: 0 0 12px">Kontaktdaten des Kunden</h2>
         <form id="form-Kundendaten" novalidate>
 
           <!-- AH only: Vorbereitung vor dem Termin -->
@@ -3359,7 +3357,7 @@ button.dm-btn-danger:focus-visible {
 
       <!-- Arbeitszeit -->
       <section class="card page" id="page-Arbeitszeit" hidden>
-        <div class="section-header">Arbeitszeit</div>
+        <h2 style="margin: 0 0 12px">Arbeitszeit</h2>
         <form id="form-Arbeitszeit" novalidate>
           <div class="full az-groups">
 
@@ -3719,19 +3717,6 @@ button.dm-btn-danger:focus-visible {
                       <span class="task-card__hint">Montage & Befestigung</span>
                     </span>
                   </label>
-                  <label class="task-card">
-                    <input type="checkbox" name="duschwanne[workTasks][]" value="wandverkleidung_duschbereich" />
-                    <span class="task-card__body">
-                      <span class="task-card__title">
-                        Wandverkleidung in Duschbereich bis in einer Höhe von
-                        <input type="number" name="duschwanne[wandverkleidungHoehe]" min="0" step="1"
-                          inputmode="numeric" placeholder="___" style="width:5em"
-                          onclick="event.preventDefault();event.stopPropagation();" /> cm
-                      </span>
-                      <span class="task-card__hint">Montage & Verkleidung im Duschbereich</span>
-                    </span>
-                  </label>
-
                   <div class="tb-block" id="dw-trockenbau">
                     <div class="tb-block__head">
                       <span class="tb-block__title">Aluprofil für Trockenbau statt Verbindungsprofil</span>
@@ -4445,27 +4430,92 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div class="field" style="align-self: center">
+            <div class="section-title">Ausführung</div>
             <label class="req">Welche Art der Wandverkleidung wird benötigt?</label>
             <div class="radio-group vertical" id="wvKindGroup" role="radiogroup" aria-label="Art der Wandverkleidung">
-              <label class="radio-pill"><input type="radio" name="wvKind" value="Fehlstellen" /><span
+              <label class="radio-pill"><input type="radio" name="wvKind" value="Fehlstellen" required /><span
                   class="circle"></span><span>Nur schließende Fehlstellen</span></label>
-              <label class="radio-pill"><input type="radio" name="wvKind" value="Deckenhoch" /><span
+              <label class="radio-pill"><input type="radio" name="wvKind" value="Deckenhoch" required /><span
                   class="circle"></span><span>Deckenhoch im Dusch/Wannenbereich</span></label>
 
-              <label class="radio-pill"><input type="radio" name="wvKind" value="Fliesenspiegel" checked /><span
+              <label class="radio-pill"><input type="radio" name="wvKind" value="Fliesenspiegel" checked required /><span
                   class="circle"></span><span>Fliesenspiegel</span></label>
-              <label class="radio-pill"><input type="radio" name="wvKind" value="Innenraum-der-Kabine" /><span
+              <label class="radio-pill"><input type="radio" name="wvKind" value="Innenraum-der-Kabine" required /><span
                   class="circle"></span><span>Innenraum der Kabine</span></label>
 
-              <label class="radio-pill"><input type="radio" name="wvKind" value="alle-Bad-Wände" /><span
+              <label class="radio-pill"><input type="radio" name="wvKind" value="alle-Bad-Wände" required /><span
                   class="circle"></span><span>alle Bad-Wände</span></label>
 
-              <label class="radio-pill"><input type="radio" name="wvKind" value="Keine" /><span
+              <label class="radio-pill"><input type="radio" name="wvKind" value="Keine" required /><span
                   class="circle"></span><span>Keine Wandverkleidung</span></label>
+
+              <label class="radio-pill">
+                <input type="checkbox" name="duschwanne[workTasks][]" value="wandverkleidung_duschbereich"
+                  form="form-Arbeiten" />
+                <span class="circle"></span>
+                <span>
+                  Wandverkleidung in Duschbereich bis in einer Höhe von
+                  <input type="number" name="duschwanne[wandverkleidungHoehe]" min="0" step="1"
+                    inputmode="numeric" placeholder="___" style="width:5em" form="form-Arbeiten"
+                    onclick="event.preventDefault();event.stopPropagation();" /> cm
+                </span>
+              </label>
             </div>
           </div>
 
+          <div class="field full">
+            <div class="section-title">Skizze &amp; Notiz</div>
+            <div class="project-sketch" data-sketch-key="wv">
+              <div class="project-sketch__head">
+                <div>
+                  <div class="project-sketch__title">Projekt-Skizze</div>
+                  <div class="project-sketch__subtitle">Für kurze Handskizzen direkt im Gespräch mit dem Kunden.</div>
+                </div>
+
+                <div class="project-sketch__controls">
+                  <div class="project-sketch__tools" role="toolbar" aria-label="Skizzenwerkzeuge">
+                    <button type="button" class="pad-tool active" data-tool="pen" title="Stift" aria-label="Stift"><i class="fa-solid fa-pen"></i></button>
+                    <button type="button" class="pad-tool" data-tool="eraser" title="Radierer" aria-label="Radierer"><i class="fa-solid fa-eraser"></i></button>
+                    <button type="button" class="pad-tool" data-tool="line" title="Linie" aria-label="Linie"><i class="fa-solid fa-slash"></i></button>
+                    <button type="button" class="pad-tool" data-tool="ruler" title="Lineal" aria-label="Lineal"><i class="fa-solid fa-ruler"></i></button>
+                    <button type="button" class="pad-undo" data-action="undo" title="Rückgängig" aria-label="Rückgängig"><i class="fa-solid fa-rotate-left"></i></button>
+                  </div>
+
+                  <div class="project-sketch__sizes" role="group" aria-label="Strichstärke">
+                    <button type="button" class="pad-size" data-size="2" title="Klein">S</button>
+                    <button type="button" class="pad-size active" data-size="4" title="Mittel">M</button>
+                    <button type="button" class="pad-size" data-size="7" title="Groß">L</button>
+                  </div>
+
+                  <div class="project-sketch__colors" role="group" aria-label="Farben">
+                    <button type="button" class="pad-color active" data-color="#0f172a" style="--swatch:#0f172a" title="Dunkel"></button>
+                    <button type="button" class="pad-color" data-color="#dc2626" style="--swatch:#dc2626" title="Rot"></button>
+                    <button type="button" class="pad-color" data-color="#2563eb" style="--swatch:#2563eb" title="Blau"></button>
+                    <button type="button" class="pad-color" data-color="#16a34a" style="--swatch:#16a34a" title="Grün"></button>
+                    <button type="button" class="pad-color" data-color="#d97706" style="--swatch:#d97706" title="Orange"></button>
+                    <button type="button" class="pad-color" data-color="#7c3aed" style="--swatch:#7c3aed" title="Lila"></button>
+                  </div>
+
+                  <button type="button" class="pad-clear btn-secondary">Skizze löschen</button>
+                </div>
+              </div>
+
+              <div class="project-sketch__canvas-wrap">
+                <canvas class="project-sketch__canvas" width="1200" height="420"></canvas>
+              </div>
+
+              <div class="project-sketch__hint">Die Skizze wird zusammen mit dem Entwurf, dem Angebot und beim Draft-Restore gespeichert.</div>
+              <input type="hidden" id="wvSketchDataUrl" name="wvSketchDataUrl" value="" />
+              <input type="hidden" id="wvSketchJson" name="wvSketchJson" value="" />
+            </div>
+
+            <label for="wvNote" style="margin-top:12px; display:block;">Notizen / Beschreibung zur Wandverkleidung</label>
+            <textarea id="wvNote" name="wvNote" rows="4"
+              placeholder="z. B. Besonderheiten, Kundenwünsche, Hinweise zur Ausführung …"></textarea>
+          </div>
+
           <div id="wvPanelsSection" class="full field">
+            <div class="section-title">Plattenwahl</div>
             <label class="req">Wandverkleidung</label>
             <div style="display: flex; gap: 14px; flex-wrap: wrap">
               <div class="field" style="min-width: 220px">
@@ -4473,13 +4523,13 @@ button.dm-btn-danger:focus-visible {
                   <input type="checkbox" id="wv997" name="wvPanels[]"
                     value="Wandverkleidung 3.0 Alu 997x2550 VIGOUR V3WVK09" data-product-id="V3WVK09" />
                   <span class="img-wrap"><img src="./assets/2213de9935c01b8fba3425df1cd46c4b.jpg"
-                      alt="Wandverkleidung 3.0 Alu 997x2550" /></span>
+                      alt="Wandverkleidung 3.0 Alu 997x2550" loading="lazy" /></span>
                   <span class="caption">Wandverkleidung 3.0 Alu 997×2550 mm</span>
                 </label>
                 <div id="wvQty997Wrap" class="field" hidden aria-hidden="true"
                   style="max-width: 260px; margin-top: 10px">
                   <label for="wvQty997" class="req">Menge 997×2550mm</label>
-                  <input id="wvQty997" name="wvQty997" type="number" min="0" step="1" placeholder="0" />
+                  <input id="wvQty997" name="wvQty997" type="number" min="0" step="1" placeholder="0" aria-required="true" />
                 </div>
                 <div class="field" style="margin-top: 8px">
                   <label for="wvColor_997">Farbe nur für 997×2550 (optional)</label>
@@ -4508,13 +4558,13 @@ button.dm-btn-danger:focus-visible {
                   <input type="checkbox" id="wv1497" name="wvPanels[]"
                     value="Wandverkleidung 3.0 Alu 1497x2550 VIGOUR V3WVK09" data-product-id="V3WV09" />
                   <span class="img-wrap"><img src="./assets/2213de9935c01b8fba3425df1cd46c4b.jpg"
-                      alt="Wandverkleidung 3.0 Alu 1497x2550" /></span>
+                      alt="Wandverkleidung 3.0 Alu 1497x2550" loading="lazy" /></span>
                   <span class="caption">Wandverkleidung 3.0 Alu 1497×2550 mm</span>
                 </label>
                 <div id="wvQty1497Wrap" class="field" hidden aria-hidden="true"
                   style="max-width: 260px; margin-top: 10px">
                   <label for="wvQty1497" class="req">Menge 1497×2550mm</label>
-                  <input id="wvQty1497" name="wvQty1497" type="number" min="0" step="1" placeholder="0" />
+                  <input id="wvQty1497" name="wvQty1497" type="number" min="0" step="1" placeholder="0" aria-required="true" />
                 </div>
                 <div class="field" style="margin-top: 8px">
                   <label for="wvColor_1497">Farbe nur für 1497×2550 (optional)</label>
@@ -4532,9 +4582,10 @@ button.dm-btn-danger:focus-visible {
                     <option value="Stein anthrazit">Stein anthrazit</option>
                     <option value="Stein beige">Stein beige</option>
                     <option value="Stein grau">Stein grau</option>
+                    <option value="Schwarzwaldeiche Hell">Schwarzwaldeiche Hell</option>
                   </select>
                 </div>
-               
+
               </div>
 
               <!-- Farbwahl -->
@@ -4542,56 +4593,56 @@ button.dm-btn-danger:focus-visible {
                 <label class="req">Dekor / Farbe der Wandverkleidung</label>
                 <div id="wvColors" style="display: flex; gap: 14px; flex-wrap: wrap">
                   <label class="image-check">
-                    <input type="radio" name="wvColor" value="Weiß" />
-                    <span class="img-wrap"><img src=".\assets\585c6146589e2f4c59e026c2b5373966.jpg" alt="Weiß" /></span>
+                    <input type="radio" name="wvColor" value="Weiß" required />
+                    <span class="img-wrap"><img src=".\assets\585c6146589e2f4c59e026c2b5373966.jpg" alt="Weiß" loading="lazy" /></span>
                     <span class="caption">Weiß</span>
                   </label>
 
                      <label class="image-check">
-                    <input type="radio" name="wvColor" value="Marmor weiß" checked />
-                    <span class="img-wrap"><img src="./assets/Marmor weiß.jpeg" alt="Marmor weiß" /></span>
+                    <input type="radio" name="wvColor" value="Marmor weiß" checked required />
+                    <span class="img-wrap"><img src="./assets/Marmor weiß.jpeg" alt="Marmor weiß" loading="lazy" /></span>
                     <span class="caption">Marmor weiß</span>
                   </label>
 
                    <label class="image-check">
-                    <input type="radio" name="wvColor" value="Struktur weiß" />
-                    <span class="img-wrap"><img src="./assets/Struktur weiß.jpeg" alt="Struktur weiß" /></span>
+                    <input type="radio" name="wvColor" value="Struktur weiß" required />
+                    <span class="img-wrap"><img src="./assets/Struktur weiß.jpeg" alt="Struktur weiß" loading="lazy" /></span>
                     <span class="caption">Struktur weiß</span>
                   </label>
 
                   
                   <label class="image-check">
-                    <input type="radio" name="wvColor" value="Stein beige" />
-                    <span class="img-wrap"><img src="./assets/Stein beige.jpeg" alt="Stein beige" /></span>
+                    <input type="radio" name="wvColor" value="Stein beige" required />
+                    <span class="img-wrap"><img src="./assets/Stein beige.jpeg" alt="Stein beige" loading="lazy" /></span>
                     <span class="caption">Stein beige</span>
                   </label>
 
                   <label class="image-check">
-                    <input type="radio" name="wvColor" value="Aragon grau" />
-                    <span class="img-wrap"><img src="./assets/Aragon grau.jpeg" alt="Aragon grau" /></span>
+                    <input type="radio" name="wvColor" value="Aragon grau" required />
+                    <span class="img-wrap"><img src="./assets/Aragon grau.jpeg" alt="Aragon grau" loading="lazy" /></span>
                     <span class="caption">Aragon grau</span>
                   </label>
   <label class="image-check">
-                    <input type="radio" name="wvColor" value="Stein grau" />
-                    <span class="img-wrap"><img src="./assets/stein grau .jpeg" alt="Stein grau" /></span>
+                    <input type="radio" name="wvColor" value="Stein grau" required />
+                    <span class="img-wrap"><img src="./assets/stein grau .jpeg" alt="Stein grau" loading="lazy" /></span>
                     <span class="caption">Stein grau</span>
                   </label>
                  
                     <label class="image-check">
-                    <input type="radio" name="wvColor" value="Kalkstein natur" />
-                    <span class="img-wrap"><img src="./assets/V3WVK05.jpg" alt="Kalkstein natur" /></span>
+                    <input type="radio" name="wvColor" value="Kalkstein natur" required />
+                    <span class="img-wrap"><img src="./assets/V3WVK05.jpg" alt="Kalkstein natur" loading="lazy" /></span>
                     <span class="caption">Kalkstein natur</span>
                   </label>
 
                   <label class="image-check">
-                    <input type="radio" name="wvColor" value="Aragon schwarz" />
-                    <span class="img-wrap"><img src="./assets/V3WVK20.jpg" alt="Aragon schwarz" /></span>
+                    <input type="radio" name="wvColor" value="Aragon schwarz" required />
+                    <span class="img-wrap"><img src="./assets/V3WVK20.jpg" alt="Aragon schwarz" loading="lazy" /></span>
                     <span class="caption">Aragon schwarz</span>
                   </label>
 
  <label class="image-check">
-                    <input type="radio" name="wvColor" value="Aragon anthrazit" />
-                    <span class="img-wrap"><img src="./assets/Aragon_anthrazit.jpg" alt="Aragon anthrazit" /></span>
+                    <input type="radio" name="wvColor" value="Aragon anthrazit" required />
+                    <span class="img-wrap"><img src="./assets/Aragon_anthrazit.jpg" alt="Aragon anthrazit" loading="lazy" /></span>
                     <span class="caption">Aragon anthrazit</span>
                   </label>
                
@@ -4599,8 +4650,8 @@ button.dm-btn-danger:focus-visible {
               
 
                   <label class="image-check">
-                    <input type="radio" name="wvColor" value="Schiefer grau" />
-                    <span class="img-wrap"><img src="./assets/schiefer-grau-wv.png" alt="Schiefer grau" /></span>
+                    <input type="radio" name="wvColor" value="Schiefer grau" required />
+                    <span class="img-wrap"><img src="./assets/schiefer-grau-wv.png" alt="Schiefer grau" loading="lazy" /></span>
                     <span class="caption">Schiefer grau</span>
                   </label>
 
@@ -4613,21 +4664,21 @@ button.dm-btn-danger:focus-visible {
 
 
                   <label class="image-check">
-                    <input type="radio" name="wvColor" value="Schwarzwaldeiche Hell" />
+                    <input type="radio" name="wvColor" value="Schwarzwaldeiche Hell" required />
                     <span class="img-wrap"><img src="./assets/Schwarzwaldeiche Hell.jpg"
-                        alt="Schwarzwaldeiche Hell" /></span>
+                        alt="Schwarzwaldeiche Hell" loading="lazy" /></span>
                     <span class="caption">Schwarzwaldeiche Hell</span>
                   </label>
 
                     <label class="image-check">
-                    <input type="radio" name="wvColor" value="Stein anthrazit" />
-                    <span class="img-wrap"><img src="./assets/Stein anthrazit.jpeg" alt="Stein anthrazit" /></span>
+                    <input type="radio" name="wvColor" value="Stein anthrazit" required />
+                    <span class="img-wrap"><img src="./assets/Stein anthrazit.jpeg" alt="Stein anthrazit" loading="lazy" /></span>
                     <span class="caption">Stein anthrazit</span>
                   </label>
 
                   <label class="image-check">
-                    <input type="radio" name="wvColor" value="Sonderdekor" />
-                    <span class="img-wrap"><img src="./assets/sonder.jpg" alt="Sonderdekor" /></span>
+                    <input type="radio" name="wvColor" value="Sonderdekor" required />
+                    <span class="img-wrap"><img src="./assets/sonder.jpg" alt="Sonderdekor" loading="lazy" /></span>
                     <span class="caption">Sonderdekor</span>
                   </label>
 
@@ -4661,13 +4712,16 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
 
+          <div class="full">
+            <div class="section-title">Zubehör</div>
+          </div>
           <div class="full product-tile-grid">
 
             <div id="wvSealingSection" class="field">
               <label class="req">Wandabdichtung BASIS-Set</label>
               <label class="image-check" data-product-id="TRWDSET5"><input type="checkbox" data-product-id="TRWDSET5" name="wvSealing" id="wvSealingSelected"
-                  data-product-id="TRWDSET5" value="TRINNITY Wandabdichtung BASIS TRWDSET5" checked /><span class="img-wrap"><img
-                    src="./assets/d110afd16622742ee292b063792121f1.jpg" alt="TRINNITY Wandabdichtung BASIS" /></span><span
+                  data-product-id="TRWDSET5" value="TRINNITY Wandabdichtung BASIS TRWDSET5" checked aria-required="true" /><span class="img-wrap"><img
+                    src="./assets/d110afd16622742ee292b063792121f1.jpg" alt="TRINNITY Wandabdichtung BASIS" loading="lazy" /></span><span
                   class="caption">Wandabdichtung BASIS-Set TRWDSET5</span></label>
               <div></div>
               <div></div>
@@ -4676,8 +4730,8 @@ button.dm-btn-danger:focus-visible {
             <div id="flechenSection" class="field">
               <label class="req">Flächenkleber</label>
               <label class="image-check"><input type="checkbox" id="wvFlachenSelected" name="flechenkleber"
-                  value="Flächenkleber R_4260602" checked /><span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG"
-                    alt="Flachen" /></span><span class="caption">Flächenkleber</span></label>
+                  value="Flächenkleber R_4260602" checked aria-required="true" /><span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG"
+                    alt="Flachen" loading="lazy" /></span><span class="caption">Flächenkleber</span></label>
               <div></div>
               <div class="field" style="max-width: 240px">
                 <label for="wvFlachenQty">Menge Flächenkleber</label>
@@ -4693,7 +4747,7 @@ button.dm-btn-danger:focus-visible {
             <div id="wvProfileAdhesiveSection" class="field">
               <label class="req">Silikon</label>
               <label class="image-check"><input type="checkbox" id="wvSilikonSelected" name="wvSilikon" value="silikon"
-                  checked /><span class="img-wrap"><img src="./assets/silikon_ransauer.jpg" alt="silikon" /></span><span
+                  checked aria-required="true" /><span class="img-wrap"><img src="./assets/silikon_ransauer.jpg" alt="silikon" loading="lazy" /></span><span
                   class="caption">Silikon</span></label>
               <div></div>
               <div class="field" style="max-width: 240px">
@@ -4706,6 +4760,9 @@ button.dm-btn-danger:focus-visible {
 
           <!-- Abschlussprofil + Verbindungsprofil V3V: same card layout, aligned via subgrid
                so the image/footer sections line up even though V3V has more fields. -->
+          <div class="full">
+            <div class="section-title">Abschluss- &amp; Verbindungsprofile</div>
+          </div>
           <div class="full wv-profile-row">
 
             <div id="wvEndProfileSection" class="wv-profile-card">
@@ -4716,21 +4773,21 @@ button.dm-btn-danger:focus-visible {
               <div class="card-body">
                 <label class="image-check">
                   <input type="checkbox" id="wvEndProfileSelected" name="wvEndProfile" value="Abschlussprofil V3A"
-                    checked />
+                    checked aria-required="true" />
                   <span class="img-wrap">
-                    <img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="Abschlussprofil V3A" />
+                    <img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="Abschlussprofil V3A" loading="lazy" />
                   </span>
                   <span class="caption">Abschlussprofil V3A</span>
                 </label>
                 <div class="qty-area">
                   <div class="field">
                     <label for="wvEndProfileQty" class="req">Menge Abschlussprofil</label>
-                    <input id="wvEndProfileQty" name="wvEndProfileQty" type="number" min="0" step="1" placeholder="0" />
+                    <input id="wvEndProfileQty" name="wvEndProfileQty" type="number" min="0" step="1" placeholder="0" aria-required="true" />
                   </div>
                 </div>
               </div>
               <div class="card-foot tone-info">
-                <span class="ic">ℹ️</span>
+                <span class="ic" aria-hidden="true">ℹ️</span>
                 <span>Diese Menge wird <strong>nicht automatisch berechnet</strong>. Bitte die Anzahl der Abschlussleisten prüfen, berechnen und ggf. anpassen.</span>
               </div>
             </div>
@@ -4744,14 +4801,14 @@ button.dm-btn-danger:focus-visible {
                 <label class="image-check">
                   <input type="checkbox" id="wvV3VSelected" name="wvV3VSelected" />
                   <span class="img-wrap">
-                    <img src="./assets/V3V.jpg" alt="Verbindungsprofil V3V" />
+                    <img src="./assets/V3V.jpg" alt="Verbindungsprofil V3V" loading="lazy" />
                   </span>
                   <span class="caption">Verbindungsprofil V3V</span>
                 </label>
                 <div class="qty-area">
                   <div class="field">
                     <label for="wvV3VQty" class="req">Menge Verbindungsprofil(e)</label>
-                    <input id="wvV3VQty" name="wvV3VQty" type="number" min="0" step="1" value="0" />
+                    <input id="wvV3VQty" name="wvV3VQty" type="number" min="0" step="1" value="0" aria-required="true" />
                   </div>
                   <div class="field">
                     <!-- Wandverkleidung: Ecke(n) vorhanden -->
@@ -4761,7 +4818,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
               </div>
               <div class="card-foot tone-info" id="wvV3VFoot">
-                <span class="ic" id="wvV3VIcon">ℹ️</span>
+                <span class="ic" id="wvV3VIcon" aria-hidden="true">ℹ️</span>
                 <div id="wvV3VRuleText"></div>
               </div>
 
@@ -7557,9 +7614,35 @@ button.dm-btn-danger:focus-visible {
             </div>
           </section>
 
+          <!-- Kassenkunden-Dokumente: which optional documents ship with this
+               Kassenkunde offer. Drives 3 places, all reading the same state:
+               EmailManager.js (mail attachment tiles + body text list),
+               initPostalSending() below (Post-Anhänge), and signing.js
+               (createSigningRequest reads payload.docSelection to decide which
+               documents the online-signing link requires). Angebot itself is
+               not a checkbox — it is always included. -->
+          <section id="zfDocSelectionCard" class="bitrix-section" hidden aria-hidden="true">
+            <h2 class="section-title">Kassenkunden-Dokumente</h2>
+            <p class="section-subtitle">Bestimmt, welche Unterlagen mitgehen — in der E-Mail, als PDF-Anhang, im Postversand und in der Online-Unterschrift. Das Angebot ist immer enthalten.</p>
+            <div class="bitrix-card doc-select-card">
+              <label class="inline-check doc-select-row">
+                <input type="checkbox" id="docSel_abtretung" checked />
+                <span>Abtretungserklärung zur Abrechnung mit der Krankenkasse</span>
+              </label>
+              <label class="inline-check doc-select-row">
+                <input type="checkbox" id="docSel_vollmacht" checked />
+                <span>Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3, 4, 5 SGB XI</span>
+              </label>
+              <label class="inline-check doc-select-row">
+                <input type="checkbox" id="docSel_barrierefrei" checked />
+                <span>Flyer „Barrierefreies Wohnen“</span>
+              </label>
+            </div>
+          </section>
+
           <!-- Bitrix Integration Section -->
           <section class="bitrix-section">
-            <h2 class="section-title">📤 Bitrix Integration</h2>
+            <h2 class="section-title">Bitrix Integration</h2>
             <div class="bitrix-card">
               <div class="bitrix-input-group">
                 <label for="auftragId">Auftrag ID</label>
@@ -7575,7 +7658,7 @@ button.dm-btn-danger:focus-visible {
 
           <!-- Main Export Actions -->
           <section class="export-section">
-            <h2 class="section-title">📄 Dokumentenstudio</h2>
+            <h2 class="section-title">Dokumentenstudio</h2>
             <p class="section-subtitle">Erstellen, prüfen und vergleichen Sie alle Ausgabedokumente an einem Ort.</p>
 
             <div class="export-cards">
@@ -7767,7 +7850,7 @@ button.dm-btn-danger:focus-visible {
 
           <!-- Email Versand (unter PDF Vorschau) -->
 <section class="mail-section">
-  <h2 class="section-title">✉️ Angebot per E-Mail senden</h2>
+  <h2 class="section-title">Angebot per E-Mail senden</h2>
 
   <div class="mail-card">
     <label for="mailAuftragId">Lead ID / Auftrag ID</label>
@@ -7833,7 +7916,7 @@ button.dm-btn-danger:focus-visible {
   </div>
 
 <section class="mail-section post-section" id="postalSummarySection" hidden>
-  <h2 class="section-title">📮 Angebot per Post senden</h2>
+  <h2 class="section-title">Angebot per Post senden</h2>
 
   <div class="mail-card post-card">
     <label for="postAuftragId">Lead ID / Auftrag ID</label>
@@ -8217,12 +8300,20 @@ button.dm-btn-danger:focus-visible {
                     </span>
                     <span class="caption">Universal / Standard Tür</span>
                     <span class="caption-sub">
-                      • Höhen
-                      <input id="bwtDoorStdHeight" name="bwtDoorStdHeight" class="bwt-door-height-inline" type="number"
-                        min="33" max="40" step="1" value="40" inputmode="numeric" aria-label="Höhe in cm" />
-                      cm abschneidbar<br />
-                      • Fix Bereite 40,5 cm<br />
-                      • Tiefe O 25cm U 25cm
+                      <span class="bwt-door-specs">
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorStdHeight">Höhen</label>
+                          <span class="bwt-door-spec-field">
+                            <input id="bwtDoorStdHeight" name="bwtDoorStdHeight" class="bwt-door-height-inline" type="number"
+                              min="33" max="40" step="1" value="40" inputmode="numeric" aria-label="Höhe in cm" />
+                            <span class="unit">cm abschneidbar</span>
+                          </span>
+                        </span>
+                      </span>
+                      <span class="bwt-door-facts">
+                        • Fix Bereite 40,5 cm<br />
+                        • Tiefe O 25cm U 25cm
+                      </span>
                     </span>
 
                     <div id="bwtDoorStdQtyWrap" class="field bwt-door-extra" aria-hidden="false" data-expand-in-card="true">
@@ -8249,29 +8340,51 @@ button.dm-btn-danger:focus-visible {
                     </span>
                     <span class="caption">Individual Tür - Wien</span>
                     <span class="caption-sub">
-                      • Höhe
-                      <input id="bwtDoorIndWienHeight" name="bwtDoorIndWienHeight" class="bwt-door-height-inline" type="number" min="20" max="50" step="0.5"
-                        inputmode="decimal" placeholder="20-50" aria-label="Höhe Individual Tür - Wien" />
-                      cm<br />
-                      • Breite
-                      <input id="bwtDoorIndWienWidth" name="bwtDoorIndWienWidth" class="bwt-door-height-inline" type="number" min="30" max="50" step="0.5"
-                        inputmode="decimal" placeholder="30-50" aria-label="Breite Individual Tür - Wien" />
-                      cm<br />
-                      • Standardbreiten
-                      <select id="bwtDoorIndWienStdWidth" name="bwtDoorIndWienStdWidth" class="bwt-door-height-inline" aria-label="Standardbreite Individual Tür - Wien">
-                        <option value="">–</option>
-                        <option value="30,5 cm">30,5</option>
-                        <option value="45,5 cm">45,5</option>
-                      </select>
-                      cm<br />
-                      • Tiefe O
-                      <input id="bwtDoorIndWienDepthTop" name="bwtDoorIndWienDepthTop" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
-                        inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe O Individual Tür - Wien" />
-                      cm<br />
-                      • Tiefe U
-                      <input id="bwtDoorIndWienDepthBottom" name="bwtDoorIndWienDepthBottom" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
-                        inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe U Individual Tür - Wien" />
-                      cm
+                      <span class="bwt-door-specs">
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienHeight">Höhe</label>
+                          <span class="bwt-door-spec-field">
+                            <input id="bwtDoorIndWienHeight" name="bwtDoorIndWienHeight" class="bwt-door-height-inline" type="number" min="20" max="50" step="0.5"
+                              inputmode="decimal" placeholder="20-50" aria-label="Höhe Individual Tür - Wien" />
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienWidth">Breite</label>
+                          <span class="bwt-door-spec-field">
+                            <input id="bwtDoorIndWienWidth" name="bwtDoorIndWienWidth" class="bwt-door-height-inline" type="number" min="30" max="50" step="0.5"
+                              inputmode="decimal" placeholder="30-50" aria-label="Breite Individual Tür - Wien" />
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienStdWidth">Standardbreiten</label>
+                          <span class="bwt-door-spec-field">
+                            <select id="bwtDoorIndWienStdWidth" name="bwtDoorIndWienStdWidth" class="bwt-door-height-inline" aria-label="Standardbreite Individual Tür - Wien">
+                              <option value="">–</option>
+                              <option value="30,5 cm">30,5</option>
+                              <option value="45,5 cm">45,5</option>
+                            </select>
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienDepthTop">Tiefe O</label>
+                          <span class="bwt-door-spec-field">
+                            <input id="bwtDoorIndWienDepthTop" name="bwtDoorIndWienDepthTop" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
+                              inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe O Individual Tür - Wien" />
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienDepthBottom">Tiefe U</label>
+                          <span class="bwt-door-spec-field">
+                            <input id="bwtDoorIndWienDepthBottom" name="bwtDoorIndWienDepthBottom" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
+                              inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe U Individual Tür - Wien" />
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                      </span>
                     </span>
 
                     <div id="bwtDoorIndWienQtyWrap" class="field bwt-door-extra" aria-hidden="true" data-expand-in-card="true">
@@ -8297,29 +8410,51 @@ button.dm-btn-danger:focus-visible {
                     </span>
                     <span class="caption">Individual Tür - Wien Glas</span>
                     <span class="caption-sub">
-                      • Höhe
-                      <input id="bwtDoorIndWienGlasHeight" name="bwtDoorIndWienGlasHeight" class="bwt-door-height-inline" type="number" min="20" max="50" step="0.5"
-                        inputmode="decimal" placeholder="20-50" aria-label="Höhe Individual Tür - Wien Glas" />
-                      cm<br />
-                      • Breite
-                      <input id="bwtDoorIndWienGlasWidth" name="bwtDoorIndWienGlasWidth" class="bwt-door-height-inline" type="number" min="30" max="50" step="0.5"
-                        inputmode="decimal" placeholder="30-50" aria-label="Breite Individual Tür - Wien Glas" />
-                      cm<br />
-                      • Standardbreiten
-                      <select id="bwtDoorIndWienGlasStdWidth" name="bwtDoorIndWienGlasStdWidth" class="bwt-door-height-inline" aria-label="Standardbreite Individual Tür - Wien Glas">
-                        <option value="">–</option>
-                        <option value="30,5 cm">30,5</option>
-                        <option value="45,5 cm">45,5</option>
-                      </select>
-                      cm<br />
-                      • Tiefe O
-                      <input id="bwtDoorIndWienGlasDepthTop" name="bwtDoorIndWienGlasDepthTop" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
-                        inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe O Individual Tür - Wien Glas" />
-                      cm<br />
-                      • Tiefe U
-                      <input id="bwtDoorIndWienGlasDepthBottom" name="bwtDoorIndWienGlasDepthBottom" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
-                        inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe U Individual Tür - Wien Glas" />
-                      cm
+                      <span class="bwt-door-specs">
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienGlasHeight">Höhe</label>
+                          <span class="bwt-door-spec-field">
+                            <input id="bwtDoorIndWienGlasHeight" name="bwtDoorIndWienGlasHeight" class="bwt-door-height-inline" type="number" min="20" max="50" step="0.5"
+                              inputmode="decimal" placeholder="20-50" aria-label="Höhe Individual Tür - Wien Glas" />
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienGlasWidth">Breite</label>
+                          <span class="bwt-door-spec-field">
+                            <input id="bwtDoorIndWienGlasWidth" name="bwtDoorIndWienGlasWidth" class="bwt-door-height-inline" type="number" min="30" max="50" step="0.5"
+                              inputmode="decimal" placeholder="30-50" aria-label="Breite Individual Tür - Wien Glas" />
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienGlasStdWidth">Standardbreiten</label>
+                          <span class="bwt-door-spec-field">
+                            <select id="bwtDoorIndWienGlasStdWidth" name="bwtDoorIndWienGlasStdWidth" class="bwt-door-height-inline" aria-label="Standardbreite Individual Tür - Wien Glas">
+                              <option value="">–</option>
+                              <option value="30,5 cm">30,5</option>
+                              <option value="45,5 cm">45,5</option>
+                            </select>
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienGlasDepthTop">Tiefe O</label>
+                          <span class="bwt-door-spec-field">
+                            <input id="bwtDoorIndWienGlasDepthTop" name="bwtDoorIndWienGlasDepthTop" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
+                              inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe O Individual Tür - Wien Glas" />
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                        <span class="bwt-door-spec-row">
+                          <label for="bwtDoorIndWienGlasDepthBottom">Tiefe U</label>
+                          <span class="bwt-door-spec-field">
+                            <input id="bwtDoorIndWienGlasDepthBottom" name="bwtDoorIndWienGlasDepthBottom" class="bwt-door-height-inline" type="number" min="7.5" max="40" step="0.5"
+                              inputmode="decimal" placeholder="7,5-40" aria-label="Tiefe U Individual Tür - Wien Glas" />
+                            <span class="unit">cm</span>
+                          </span>
+                        </span>
+                      </span>
                     </span>
 
                     <div id="bwtDoorIndWienGlasQtyWrap" class="field bwt-door-extra" aria-hidden="true" data-expand-in-card="true">
@@ -8343,9 +8478,11 @@ button.dm-btn-danger:focus-visible {
                     </span>
                     <span class="caption">Budget Tür - Verona</span>
                     <span class="caption-sub">
-                      • Höhen 34,36,38,40 cm<br />
-                      • Fix Bereite 40,5 cm<br />
-                      • Tiefe O13 cm U20 cm
+                      <span class="bwt-door-facts">
+                        • Höhen 34,36,38,40 cm<br />
+                        • Fix Bereite 40,5 cm<br />
+                        • Tiefe O13 cm U20 cm
+                      </span>
                     </span>
 
                     <div id="bwtDoorBudgetQtyWrap" class="field bwt-door-extra" aria-hidden="true" data-expand-in-card="true">
@@ -10202,6 +10339,8 @@ button.dm-btn-danger:focus-visible {
   <script src="./script.js"></script>
   <script src="/admin-modal.js"></script>
   <script src="/header-auth.js"></script>
+  <!-- No-op in a browser; only does anything inside the iPad shell. -->
+  <script type="module" src="/native-bridge.js"></script>
   <script src="/ansprechpartner.js"></script>
 
 </body>

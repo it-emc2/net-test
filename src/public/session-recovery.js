@@ -131,8 +131,11 @@ function showBanner(snap, { onRestore, onDiscard }) {
   const bar = document.createElement("div");
   bar.id = "sessionRecoveryBar";
   bar.setAttribute("role", "alertdialog");
+  // Sits in normal document flow, above the sticky header, so it pushes the
+  // header down instead of a fixed overlay covering it (it was covering
+  // the logo, theme switcher, and user menu until dismissed).
   bar.style.cssText =
-    "position:fixed;left:0;right:0;top:0;z-index:10050;display:flex;gap:12px;" +
+    "display:flex;gap:12px;" +
     "align-items:center;justify-content:center;flex-wrap:wrap;padding:12px 16px;" +
     "background:#fef3c7;color:#78350f;border-bottom:1px solid #f59e0b;" +
     "font-size:.95rem;box-shadow:0 2px 8px rgba(0,0,0,.12);";
@@ -163,7 +166,7 @@ function showBanner(snap, { onRestore, onDiscard }) {
   discardBtn.addEventListener("click", () => onDiscard(bar));
 
   bar.append(text, restoreBtn, discardBtn);
-  document.body.appendChild(bar);
+  document.body.insertBefore(bar, document.body.firstChild);
   return bar;
 }
 
@@ -191,6 +194,31 @@ async function applySnapshot(snap) {
   }
 }
 
+function takePendingSaveFlag() {
+  try {
+    const v = sessionStorage.getItem("nt_resume_save_after_login");
+    sessionStorage.removeItem("nt_resume_save_after_login");
+    return v;
+  } catch {
+    return null;
+  }
+}
+
+// Shared by both the manual "Wiederherstellen" click and the automatic
+// post-relogin resume below.
+async function restoreAndMaybeResave(existing, pendingSave) {
+  await applySnapshot(existing);
+  // Persist again straight away: the snapshot was consumed, and the tab
+  // could be discarded before the user touches anything.
+  await save();
+
+  if (pendingSave === "offer" && typeof window.saveFinalOfferSnapshot === "function") {
+    await window.saveFinalOfferSnapshot();
+  } else {
+    window.toast?.success?.("Wiederhergestellt", "Der letzte Stand wurde geladen.");
+  }
+}
+
 export async function initSessionRecovery() {
   if (started) return;
   started = true;
@@ -215,16 +243,28 @@ export async function initSessionRecovery() {
   // instead of interrupting this one.
   if (userTypedEarly) return null;
 
+  // A save that failed with an expired session (script.js:
+  // handleSaveAuthExpired) flushed this exact snapshot and flagged which kind
+  // of save it was, right before sending the user to /login. That is an
+  // unambiguous "resume what I was doing" signal — unlike an ordinary crash
+  // recovery, it does not need a confirmation click.
+  const pendingSave = takePendingSaveFlag();
+  if (pendingSave) {
+    try {
+      await restoreAndMaybeResave(existing, pendingSave);
+    } catch (err) {
+      console.error("[session-recovery] auto-resume failed:", err);
+      window.toast?.error?.("Wiederherstellen fehlgeschlagen", String(err?.message || err));
+    }
+    return existing;
+  }
+
   showBanner(existing, {
     onRestore: async (bar, button) => {
       button.disabled = true;
       try {
-        await applySnapshot(existing);
+        await restoreAndMaybeResave(existing, takePendingSaveFlag());
         bar.remove();
-        // Persist again straight away: the snapshot was consumed, and the tab
-        // could be discarded before the user touches anything.
-        await save();
-        window.toast?.success?.("Wiederhergestellt", "Der letzte Stand wurde geladen.");
       } catch (err) {
         console.error("[session-recovery] restore failed:", err);
         button.disabled = false;

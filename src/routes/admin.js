@@ -3,6 +3,7 @@ import configService, { CONFIG_SCHEMA } from '../services/configService.js';
 import AppConfig from '../models/AppConfig.js';
 import SigningRequest from '../models/SigningRequest.js';
 import BitrixLog from '../models/BitrixLog.js';
+import UserActionLog from '../models/UserActionLog.js';
 import { retryBitrixLog } from './bitrix.js';
 import User from '../models/User.js';
 import {
@@ -218,6 +219,28 @@ router.post('/api/bitrix-logs/:id/retry', requireAdmin, async (req, res) => {
     res.json({ ok: true, result });
   } catch (err) {
     res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// ---------------- User action logs (admin) ----------------
+
+// GET /admin/api/user-action-logs — last 500 events (auto-expire after 180 days).
+// Optional filters: event, dealId, offerNumber (all exact match).
+router.get('/api/user-action-logs', requireAdmin, async (req, res) => {
+  try {
+    const filter = {};
+    const event = String(req.query.event || '').trim();
+    const dealId = String(req.query.dealId || '').trim();
+    const offerNumber = String(req.query.offerNumber || '').trim();
+    if (event) filter.event = event;
+    if (dealId) filter.dealId = dealId;
+    if (offerNumber) filter.offerNumber = offerNumber;
+
+    const docs = await UserActionLog.find(filter).sort({ createdAt: -1 }).limit(500).lean();
+    res.json({ items: docs, total: docs.length });
+  } catch (err) {
+    console.error('GET /admin/api/user-action-logs failed:', err);
+    res.status(500).json({ error: String(err) });
   }
 });
 

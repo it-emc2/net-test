@@ -23,31 +23,121 @@ const IMAGE_HOSTS = new Set(["media.onlineplus.store"]);
 
 // Modules the offline path needs at the exact moment it cannot fetch them: the
 // price fallback only imports pricing-client.js once a price fetch has already
-// failed. Everything else is picked up as it gets used. "/" is deliberately
-// absent — see warmShell, which needs the redirect guard.
-// ponytail: hand-maintained list of the offline-critical path only, not the
-// whole module graph. Everything else is cached the first time it is used, so
-// a page that installs the worker and goes offline within the same load is
-// degraded — acceptable, since the app is opened with signal before a visit.
+// failed. "/" is deliberately absent — see warmShell, which needs the
+// redirect guard.
+//
+// Only modules reached through a dynamic import() need to be listed here.
+// Anything referenced from index.html is discovered automatically at install
+// (see discoverShellAssets), because a hand-maintained list drifts: it silently
+// lost /style.css, and an offline relaunch rendered the whole app unstyled
+// while every byte of the user's data was intact.
 const PRECACHE = [
-  "/script.js",
+  "/logic/pricing-core.js",
+  // Every module script.js pulls in with import(). They are fetched at the
+  // moment they are needed, which offline is exactly when they cannot be.
   "/OfflineSaveQueue.js",
+  "/PlanningCache.js",
+  "/LocalDocsStore.js",
+  "/native-bridge.js",
   "/session-recovery.js",
   "/pricing-cache.js",
   "/pricing-client.js",
-  "/logic/pricing-core.js",
+  "/DraftsManager.js",
+  "/DraftsLegacyFallback.js",
+  "/RestoreManager.js",
+  "/DrawingPadManager.js",
+  "/SignaturePadManager.js",
+  "/BadoluxManager.js",
+  "/BadoluxLegacyFallback.js",
+  "/IntegrationsManager.js",
+  "/AdminManager.js",
+  "/EmailManager.js",
+  "/sw-register.js",
+  // The only image worth precaching. Discovery deliberately ignores images:
+  // index.html references 118 of them and they are almost all product photos,
+  // which the runtime cache picks up as they are actually used. The header
+  // logo is different — a broken image there reads as a broken app.
+  "/assets/logo.png",
 ];
+
+// Everything the shell references — stylesheets, scripts, the configurator
+// sub-app — read straight out of index.html so this cannot drift away from
+// what the page actually loads.
+//
+// Why the runtime cache is not enough: the worker does not control the load
+// that registers it, so those subresources never reach a fetch handler. On
+// every later load they come from the HTTP cache, so they never reach one
+// either, and they never enter Cache Storage at all.
+async function discoverShellAssets() {
+  const res = await fetch("/", { credentials: "same-origin" });
+  // A redirect means authGate sent us to /login; there is no shell to read.
+  if (!res.ok || res.redirected) return [];
+
+  const html = await res.text();
+  const urls = new Set();
+  for (const [, raw] of html.matchAll(/(?:src|href)\s*=\s*["']([^"']+)["']/g)) {
+    if (!/\.(?:js|mjs|css)(?:[?#]|$)/i.test(raw)) continue;
+    let url;
+    try {
+      url = new URL(raw, self.location.origin);
+    } catch {
+      continue;
+    }
+    if (url.origin !== self.location.origin) continue; // CDNs are not ours to cache
+    urls.add(url.pathname);
+  }
+  return [...urls];
+}
+
+// Icon and web fonts are referenced from inside the CSS, not the HTML, so a
+// pass over the stylesheets is what stops Font Awesome rendering as a giant
+// black magnifying glass offline.
+async function discoverFontsFrom(cssPaths, cache) {
+  const fonts = new Set();
+  for (const path of cssPaths) {
+    const hit = await cache.match(path);
+    if (!hit) continue;
+    const css = await hit.clone().text();
+    for (const [, raw] of css.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)) {
+      if (!/\.(?:woff2?|ttf|otf|eot)(?:[?#]|$)/i.test(raw)) continue;
+      try {
+        const url = new URL(raw, self.location.origin + path);
+        if (url.origin === self.location.origin) fonts.add(url.pathname);
+      } catch {
+        // malformed url() — skip
+      }
+    }
+  }
+  return [...fonts];
+}
+
+// One at a time: a single 404 or 401 must not fail the whole install.
+const addAllSafely = (cache, urls) =>
+  Promise.all(
+    urls.map((u) =>
+      cache.add(u).catch((err) => console.warn("[sw] precache miss", u, err)),
+    ),
+  );
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE);
-      // One at a time: a single 404 or 401 must not fail the whole install.
-      await Promise.all(
-        PRECACHE.map((u) =>
-          cache.add(u).catch((err) => console.warn("[sw] precache miss", u, err)),
-        ),
-      );
+
+      let discovered = [];
+      try {
+        discovered = await discoverShellAssets();
+      } catch (err) {
+        // Offline at install, or the shell was unreadable. The explicit list
+        // below still gets us the offline-critical modules.
+        console.warn("[sw] shell discovery skipped:", err);
+      }
+
+      await addAllSafely(cache, [...new Set([...PRECACHE, ...discovered])]);
+
+      const css = discovered.filter((u) => u.endsWith(".css"));
+      await addAllSafely(cache, await discoverFontsFrom(css, cache));
+
       await self.skipWaiting();
     })(),
   );
