@@ -4386,22 +4386,23 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div class="field" style="align-self: center">
+            <div class="section-title">Ausführung</div>
             <label class="req">Welche Art der Wandverkleidung wird benötigt?</label>
             <div class="radio-group vertical" id="wvKindGroup" role="radiogroup" aria-label="Art der Wandverkleidung">
-              <label class="radio-pill"><input type="radio" name="wvKind" value="Fehlstellen" /><span
+              <label class="radio-pill"><input type="radio" name="wvKind" value="Fehlstellen" required /><span
                   class="circle"></span><span>Nur schließende Fehlstellen</span></label>
-              <label class="radio-pill"><input type="radio" name="wvKind" value="Deckenhoch" /><span
+              <label class="radio-pill"><input type="radio" name="wvKind" value="Deckenhoch" required /><span
                   class="circle"></span><span>Deckenhoch im Dusch/Wannenbereich</span></label>
 
-              <label class="radio-pill"><input type="radio" name="wvKind" value="Fliesenspiegel" checked /><span
+              <label class="radio-pill"><input type="radio" name="wvKind" value="Fliesenspiegel" checked required /><span
                   class="circle"></span><span>Fliesenspiegel</span></label>
-              <label class="radio-pill"><input type="radio" name="wvKind" value="Innenraum-der-Kabine" /><span
+              <label class="radio-pill"><input type="radio" name="wvKind" value="Innenraum-der-Kabine" required /><span
                   class="circle"></span><span>Innenraum der Kabine</span></label>
 
-              <label class="radio-pill"><input type="radio" name="wvKind" value="alle-Bad-Wände" /><span
+              <label class="radio-pill"><input type="radio" name="wvKind" value="alle-Bad-Wände" required /><span
                   class="circle"></span><span>alle Bad-Wände</span></label>
 
-              <label class="radio-pill"><input type="radio" name="wvKind" value="Keine" /><span
+              <label class="radio-pill"><input type="radio" name="wvKind" value="Keine" required /><span
                   class="circle"></span><span>Keine Wandverkleidung</span></label>
 
               <label class="radio-pill">
@@ -4418,7 +4419,59 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
 
+          <div class="field full">
+            <div class="section-title">Skizze &amp; Notiz</div>
+            <div class="project-sketch" data-sketch-key="wv">
+              <div class="project-sketch__head">
+                <div>
+                  <div class="project-sketch__title">Projekt-Skizze</div>
+                  <div class="project-sketch__subtitle">Für kurze Handskizzen direkt im Gespräch mit dem Kunden.</div>
+                </div>
+
+                <div class="project-sketch__controls">
+                  <div class="project-sketch__tools" role="toolbar" aria-label="Skizzenwerkzeuge">
+                    <button type="button" class="pad-tool active" data-tool="pen" title="Stift" aria-label="Stift"><i class="fa-solid fa-pen"></i></button>
+                    <button type="button" class="pad-tool" data-tool="eraser" title="Radierer" aria-label="Radierer"><i class="fa-solid fa-eraser"></i></button>
+                    <button type="button" class="pad-tool" data-tool="line" title="Linie" aria-label="Linie"><i class="fa-solid fa-slash"></i></button>
+                    <button type="button" class="pad-tool" data-tool="ruler" title="Lineal" aria-label="Lineal"><i class="fa-solid fa-ruler"></i></button>
+                    <button type="button" class="pad-undo" data-action="undo" title="Rückgängig" aria-label="Rückgängig"><i class="fa-solid fa-rotate-left"></i></button>
+                  </div>
+
+                  <div class="project-sketch__sizes" role="group" aria-label="Strichstärke">
+                    <button type="button" class="pad-size" data-size="2" title="Klein">S</button>
+                    <button type="button" class="pad-size active" data-size="4" title="Mittel">M</button>
+                    <button type="button" class="pad-size" data-size="7" title="Groß">L</button>
+                  </div>
+
+                  <div class="project-sketch__colors" role="group" aria-label="Farben">
+                    <button type="button" class="pad-color active" data-color="#0f172a" style="--swatch:#0f172a" title="Dunkel"></button>
+                    <button type="button" class="pad-color" data-color="#dc2626" style="--swatch:#dc2626" title="Rot"></button>
+                    <button type="button" class="pad-color" data-color="#2563eb" style="--swatch:#2563eb" title="Blau"></button>
+                    <button type="button" class="pad-color" data-color="#16a34a" style="--swatch:#16a34a" title="Grün"></button>
+                    <button type="button" class="pad-color" data-color="#d97706" style="--swatch:#d97706" title="Orange"></button>
+                    <button type="button" class="pad-color" data-color="#7c3aed" style="--swatch:#7c3aed" title="Lila"></button>
+                  </div>
+
+                  <button type="button" class="pad-clear btn-secondary">Skizze löschen</button>
+                </div>
+              </div>
+
+              <div class="project-sketch__canvas-wrap">
+                <canvas class="project-sketch__canvas" width="1200" height="420"></canvas>
+              </div>
+
+              <div class="project-sketch__hint">Die Skizze wird zusammen mit dem Entwurf, dem Angebot und beim Draft-Restore gespeichert.</div>
+              <input type="hidden" id="wvSketchDataUrl" name="wvSketchDataUrl" value="" />
+              <input type="hidden" id="wvSketchJson" name="wvSketchJson" value="" />
+            </div>
+
+            <label for="wvNote" style="margin-top:12px; display:block;">Notizen / Beschreibung zur Wandverkleidung</label>
+            <textarea id="wvNote" name="wvNote" rows="4"
+              placeholder="z. B. Besonderheiten, Kundenwünsche, Hinweise zur Ausführung …"></textarea>
+          </div>
+
           <div id="wvPanelsSection" class="full field">
+            <div class="section-title">Plattenwahl</div>
             <label class="req">Wandverkleidung</label>
             <div style="display: flex; gap: 14px; flex-wrap: wrap">
               <div class="field" style="min-width: 220px">
@@ -4426,13 +4479,13 @@ button.dm-btn-danger:focus-visible {
                   <input type="checkbox" id="wv997" name="wvPanels[]"
                     value="Wandverkleidung 3.0 Alu 997x2550 VIGOUR V3WVK09" data-product-id="V3WVK09" />
                   <span class="img-wrap"><img src="./assets/2213de9935c01b8fba3425df1cd46c4b.jpg"
-                      alt="Wandverkleidung 3.0 Alu 997x2550" /></span>
+                      alt="Wandverkleidung 3.0 Alu 997x2550" loading="lazy" /></span>
                   <span class="caption">Wandverkleidung 3.0 Alu 997×2550 mm</span>
                 </label>
                 <div id="wvQty997Wrap" class="field" hidden aria-hidden="true"
                   style="max-width: 260px; margin-top: 10px">
                   <label for="wvQty997" class="req">Menge 997×2550mm</label>
-                  <input id="wvQty997" name="wvQty997" type="number" min="0" step="1" placeholder="0" />
+                  <input id="wvQty997" name="wvQty997" type="number" min="0" step="1" placeholder="0" aria-required="true" />
                 </div>
                 <div class="field" style="margin-top: 8px">
                   <label for="wvColor_997">Farbe nur für 997×2550 (optional)</label>
@@ -4461,13 +4514,13 @@ button.dm-btn-danger:focus-visible {
                   <input type="checkbox" id="wv1497" name="wvPanels[]"
                     value="Wandverkleidung 3.0 Alu 1497x2550 VIGOUR V3WVK09" data-product-id="V3WV09" />
                   <span class="img-wrap"><img src="./assets/2213de9935c01b8fba3425df1cd46c4b.jpg"
-                      alt="Wandverkleidung 3.0 Alu 1497x2550" /></span>
+                      alt="Wandverkleidung 3.0 Alu 1497x2550" loading="lazy" /></span>
                   <span class="caption">Wandverkleidung 3.0 Alu 1497×2550 mm</span>
                 </label>
                 <div id="wvQty1497Wrap" class="field" hidden aria-hidden="true"
                   style="max-width: 260px; margin-top: 10px">
                   <label for="wvQty1497" class="req">Menge 1497×2550mm</label>
-                  <input id="wvQty1497" name="wvQty1497" type="number" min="0" step="1" placeholder="0" />
+                  <input id="wvQty1497" name="wvQty1497" type="number" min="0" step="1" placeholder="0" aria-required="true" />
                 </div>
                 <div class="field" style="margin-top: 8px">
                   <label for="wvColor_1497">Farbe nur für 1497×2550 (optional)</label>
@@ -4485,9 +4538,10 @@ button.dm-btn-danger:focus-visible {
                     <option value="Stein anthrazit">Stein anthrazit</option>
                     <option value="Stein beige">Stein beige</option>
                     <option value="Stein grau">Stein grau</option>
+                    <option value="Schwarzwaldeiche Hell">Schwarzwaldeiche Hell</option>
                   </select>
                 </div>
-               
+
               </div>
 
               <!-- Farbwahl -->
@@ -4495,56 +4549,56 @@ button.dm-btn-danger:focus-visible {
                 <label class="req">Dekor / Farbe der Wandverkleidung</label>
                 <div id="wvColors" style="display: flex; gap: 14px; flex-wrap: wrap">
                   <label class="image-check">
-                    <input type="radio" name="wvColor" value="Weiß" />
-                    <span class="img-wrap"><img src=".\assets\585c6146589e2f4c59e026c2b5373966.jpg" alt="Weiß" /></span>
+                    <input type="radio" name="wvColor" value="Weiß" required />
+                    <span class="img-wrap"><img src=".\assets\585c6146589e2f4c59e026c2b5373966.jpg" alt="Weiß" loading="lazy" /></span>
                     <span class="caption">Weiß</span>
                   </label>
 
                      <label class="image-check">
-                    <input type="radio" name="wvColor" value="Marmor weiß" checked />
-                    <span class="img-wrap"><img src="./assets/Marmor weiß.jpeg" alt="Marmor weiß" /></span>
+                    <input type="radio" name="wvColor" value="Marmor weiß" checked required />
+                    <span class="img-wrap"><img src="./assets/Marmor weiß.jpeg" alt="Marmor weiß" loading="lazy" /></span>
                     <span class="caption">Marmor weiß</span>
                   </label>
 
                    <label class="image-check">
-                    <input type="radio" name="wvColor" value="Struktur weiß" />
-                    <span class="img-wrap"><img src="./assets/Struktur weiß.jpeg" alt="Struktur weiß" /></span>
+                    <input type="radio" name="wvColor" value="Struktur weiß" required />
+                    <span class="img-wrap"><img src="./assets/Struktur weiß.jpeg" alt="Struktur weiß" loading="lazy" /></span>
                     <span class="caption">Struktur weiß</span>
                   </label>
 
                   
                   <label class="image-check">
-                    <input type="radio" name="wvColor" value="Stein beige" />
-                    <span class="img-wrap"><img src="./assets/Stein beige.jpeg" alt="Stein beige" /></span>
+                    <input type="radio" name="wvColor" value="Stein beige" required />
+                    <span class="img-wrap"><img src="./assets/Stein beige.jpeg" alt="Stein beige" loading="lazy" /></span>
                     <span class="caption">Stein beige</span>
                   </label>
 
                   <label class="image-check">
-                    <input type="radio" name="wvColor" value="Aragon grau" />
-                    <span class="img-wrap"><img src="./assets/Aragon grau.jpeg" alt="Aragon grau" /></span>
+                    <input type="radio" name="wvColor" value="Aragon grau" required />
+                    <span class="img-wrap"><img src="./assets/Aragon grau.jpeg" alt="Aragon grau" loading="lazy" /></span>
                     <span class="caption">Aragon grau</span>
                   </label>
   <label class="image-check">
-                    <input type="radio" name="wvColor" value="Stein grau" />
-                    <span class="img-wrap"><img src="./assets/stein grau .jpeg" alt="Stein grau" /></span>
+                    <input type="radio" name="wvColor" value="Stein grau" required />
+                    <span class="img-wrap"><img src="./assets/stein grau .jpeg" alt="Stein grau" loading="lazy" /></span>
                     <span class="caption">Stein grau</span>
                   </label>
                  
                     <label class="image-check">
-                    <input type="radio" name="wvColor" value="Kalkstein natur" />
-                    <span class="img-wrap"><img src="./assets/V3WVK05.jpg" alt="Kalkstein natur" /></span>
+                    <input type="radio" name="wvColor" value="Kalkstein natur" required />
+                    <span class="img-wrap"><img src="./assets/V3WVK05.jpg" alt="Kalkstein natur" loading="lazy" /></span>
                     <span class="caption">Kalkstein natur</span>
                   </label>
 
                   <label class="image-check">
-                    <input type="radio" name="wvColor" value="Aragon schwarz" />
-                    <span class="img-wrap"><img src="./assets/V3WVK20.jpg" alt="Aragon schwarz" /></span>
+                    <input type="radio" name="wvColor" value="Aragon schwarz" required />
+                    <span class="img-wrap"><img src="./assets/V3WVK20.jpg" alt="Aragon schwarz" loading="lazy" /></span>
                     <span class="caption">Aragon schwarz</span>
                   </label>
 
  <label class="image-check">
-                    <input type="radio" name="wvColor" value="Aragon anthrazit" />
-                    <span class="img-wrap"><img src="./assets/Aragon_anthrazit.jpg" alt="Aragon anthrazit" /></span>
+                    <input type="radio" name="wvColor" value="Aragon anthrazit" required />
+                    <span class="img-wrap"><img src="./assets/Aragon_anthrazit.jpg" alt="Aragon anthrazit" loading="lazy" /></span>
                     <span class="caption">Aragon anthrazit</span>
                   </label>
                
@@ -4552,8 +4606,8 @@ button.dm-btn-danger:focus-visible {
               
 
                   <label class="image-check">
-                    <input type="radio" name="wvColor" value="Schiefer grau" />
-                    <span class="img-wrap"><img src="./assets/schiefer-grau-wv.png" alt="Schiefer grau" /></span>
+                    <input type="radio" name="wvColor" value="Schiefer grau" required />
+                    <span class="img-wrap"><img src="./assets/schiefer-grau-wv.png" alt="Schiefer grau" loading="lazy" /></span>
                     <span class="caption">Schiefer grau</span>
                   </label>
 
@@ -4566,21 +4620,21 @@ button.dm-btn-danger:focus-visible {
 
 
                   <label class="image-check">
-                    <input type="radio" name="wvColor" value="Schwarzwaldeiche Hell" />
+                    <input type="radio" name="wvColor" value="Schwarzwaldeiche Hell" required />
                     <span class="img-wrap"><img src="./assets/Schwarzwaldeiche Hell.jpg"
-                        alt="Schwarzwaldeiche Hell" /></span>
+                        alt="Schwarzwaldeiche Hell" loading="lazy" /></span>
                     <span class="caption">Schwarzwaldeiche Hell</span>
                   </label>
 
                     <label class="image-check">
-                    <input type="radio" name="wvColor" value="Stein anthrazit" />
-                    <span class="img-wrap"><img src="./assets/Stein anthrazit.jpeg" alt="Stein anthrazit" /></span>
+                    <input type="radio" name="wvColor" value="Stein anthrazit" required />
+                    <span class="img-wrap"><img src="./assets/Stein anthrazit.jpeg" alt="Stein anthrazit" loading="lazy" /></span>
                     <span class="caption">Stein anthrazit</span>
                   </label>
 
                   <label class="image-check">
-                    <input type="radio" name="wvColor" value="Sonderdekor" />
-                    <span class="img-wrap"><img src="./assets/sonder.jpg" alt="Sonderdekor" /></span>
+                    <input type="radio" name="wvColor" value="Sonderdekor" required />
+                    <span class="img-wrap"><img src="./assets/sonder.jpg" alt="Sonderdekor" loading="lazy" /></span>
                     <span class="caption">Sonderdekor</span>
                   </label>
 
@@ -4614,13 +4668,16 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
 
+          <div class="full">
+            <div class="section-title">Zubehör</div>
+          </div>
           <div class="full product-tile-grid">
 
             <div id="wvSealingSection" class="field">
               <label class="req">Wandabdichtung BASIS-Set</label>
               <label class="image-check" data-product-id="TRWDSET5"><input type="checkbox" data-product-id="TRWDSET5" name="wvSealing" id="wvSealingSelected"
-                  data-product-id="TRWDSET5" value="TRINNITY Wandabdichtung BASIS TRWDSET5" checked /><span class="img-wrap"><img
-                    src="./assets/d110afd16622742ee292b063792121f1.jpg" alt="TRINNITY Wandabdichtung BASIS" /></span><span
+                  data-product-id="TRWDSET5" value="TRINNITY Wandabdichtung BASIS TRWDSET5" checked aria-required="true" /><span class="img-wrap"><img
+                    src="./assets/d110afd16622742ee292b063792121f1.jpg" alt="TRINNITY Wandabdichtung BASIS" loading="lazy" /></span><span
                   class="caption">Wandabdichtung BASIS-Set TRWDSET5</span></label>
               <div></div>
               <div></div>
@@ -4629,8 +4686,8 @@ button.dm-btn-danger:focus-visible {
             <div id="flechenSection" class="field">
               <label class="req">Flächenkleber</label>
               <label class="image-check"><input type="checkbox" id="wvFlachenSelected" name="flechenkleber"
-                  value="Flächenkleber R_4260602" checked /><span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG"
-                    alt="Flachen" /></span><span class="caption">Flächenkleber</span></label>
+                  value="Flächenkleber R_4260602" checked aria-required="true" /><span class="img-wrap"><img src="./assets/Flächen-Kleber.PNG"
+                    alt="Flachen" loading="lazy" /></span><span class="caption">Flächenkleber</span></label>
               <div></div>
               <div class="field" style="max-width: 240px">
                 <label for="wvFlachenQty">Menge Flächenkleber</label>
@@ -4646,7 +4703,7 @@ button.dm-btn-danger:focus-visible {
             <div id="wvProfileAdhesiveSection" class="field">
               <label class="req">Silikon</label>
               <label class="image-check"><input type="checkbox" id="wvSilikonSelected" name="wvSilikon" value="silikon"
-                  checked /><span class="img-wrap"><img src="./assets/silikon_ransauer.jpg" alt="silikon" /></span><span
+                  checked aria-required="true" /><span class="img-wrap"><img src="./assets/silikon_ransauer.jpg" alt="silikon" loading="lazy" /></span><span
                   class="caption">Silikon</span></label>
               <div></div>
               <div class="field" style="max-width: 240px">
@@ -4659,6 +4716,9 @@ button.dm-btn-danger:focus-visible {
 
           <!-- Abschlussprofil + Verbindungsprofil V3V: same card layout, aligned via subgrid
                so the image/footer sections line up even though V3V has more fields. -->
+          <div class="full">
+            <div class="section-title">Abschluss- &amp; Verbindungsprofile</div>
+          </div>
           <div class="full wv-profile-row">
 
             <div id="wvEndProfileSection" class="wv-profile-card">
@@ -4669,21 +4729,21 @@ button.dm-btn-danger:focus-visible {
               <div class="card-body">
                 <label class="image-check">
                   <input type="checkbox" id="wvEndProfileSelected" name="wvEndProfile" value="Abschlussprofil V3A"
-                    checked />
+                    checked aria-required="true" />
                   <span class="img-wrap">
-                    <img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="Abschlussprofil V3A" />
+                    <img src="./assets/6dd521ee32b126983e37b93433b29b95.jpg" alt="Abschlussprofil V3A" loading="lazy" />
                   </span>
                   <span class="caption">Abschlussprofil V3A</span>
                 </label>
                 <div class="qty-area">
                   <div class="field">
                     <label for="wvEndProfileQty" class="req">Menge Abschlussprofil</label>
-                    <input id="wvEndProfileQty" name="wvEndProfileQty" type="number" min="0" step="1" placeholder="0" />
+                    <input id="wvEndProfileQty" name="wvEndProfileQty" type="number" min="0" step="1" placeholder="0" aria-required="true" />
                   </div>
                 </div>
               </div>
               <div class="card-foot tone-info">
-                <span class="ic">ℹ️</span>
+                <span class="ic" aria-hidden="true">ℹ️</span>
                 <span>Diese Menge wird <strong>nicht automatisch berechnet</strong>. Bitte die Anzahl der Abschlussleisten prüfen, berechnen und ggf. anpassen.</span>
               </div>
             </div>
@@ -4697,14 +4757,14 @@ button.dm-btn-danger:focus-visible {
                 <label class="image-check">
                   <input type="checkbox" id="wvV3VSelected" name="wvV3VSelected" />
                   <span class="img-wrap">
-                    <img src="./assets/V3V.jpg" alt="Verbindungsprofil V3V" />
+                    <img src="./assets/V3V.jpg" alt="Verbindungsprofil V3V" loading="lazy" />
                   </span>
                   <span class="caption">Verbindungsprofil V3V</span>
                 </label>
                 <div class="qty-area">
                   <div class="field">
                     <label for="wvV3VQty" class="req">Menge Verbindungsprofil(e)</label>
-                    <input id="wvV3VQty" name="wvV3VQty" type="number" min="0" step="1" value="0" />
+                    <input id="wvV3VQty" name="wvV3VQty" type="number" min="0" step="1" value="0" aria-required="true" />
                   </div>
                   <div class="field">
                     <!-- Wandverkleidung: Ecke(n) vorhanden -->
@@ -4714,7 +4774,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
               </div>
               <div class="card-foot tone-info" id="wvV3VFoot">
-                <span class="ic" id="wvV3VIcon">ℹ️</span>
+                <span class="ic" id="wvV3VIcon" aria-hidden="true">ℹ️</span>
                 <div id="wvV3VRuleText"></div>
               </div>
 
