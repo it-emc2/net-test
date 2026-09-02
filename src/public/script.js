@@ -5536,8 +5536,22 @@ async function downloadPDFWithProgress(endpoint, payload) {
   });
 
   const summaryPage = document.getElementById("page-Zusammenfassung");
-  summaryPage?.addEventListener("input", () => schedulePreviewRefresh("input"), true);
-  summaryPage?.addEventListener("change", () => schedulePreviewRefresh("change"), true);
+  // The mail-section (recipient, subject, body, attachments) only affects how
+  // the offer is sent, never the offer PDF itself — skip it so typing an
+  // email address doesn't trigger a pointless PDF regeneration.
+  function affectsPreview(e) {
+    return !e.target.closest(".mail-section");
+  }
+  summaryPage?.addEventListener(
+    "input",
+    (e) => affectsPreview(e) && schedulePreviewRefresh("input"),
+    true,
+  );
+  summaryPage?.addEventListener(
+    "change",
+    (e) => affectsPreview(e) && schedulePreviewRefresh("change"),
+    true,
+  );
   window.addEventListener("pricing:updated", () => schedulePreviewRefresh("pricing"));
   window.addEventListener("hashchange", () => {
     if (isZusammenfassungActive()) schedulePreviewRefresh("navigation");
