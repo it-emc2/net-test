@@ -4959,6 +4959,7 @@ function attachProjectSketchesToPayload(payload) {
     payload.ah = payload.ah || {};
     payload.hms = payload.hms || {};
     payload.wd = payload.wd || {};
+    payload.wandverkleidung = payload.wandverkleidung || {};
 
     if (daNoteEl) payload.duschabtrennung.daNote = daNoteEl.value || "";
     if (bwtNoteEl) payload.bwt.bwtNote = bwtNoteEl.value || "";
@@ -4975,6 +4976,7 @@ function attachProjectSketchesToPayload(payload) {
     const ahSketch = getSketchDataFor("ah");
     const hmsSketch = getSketchDataFor("hms");
     const wdSketch = getSketchDataFor("wd");
+    const wvSketch = getSketchDataFor("wv");
 
     payload.duschabtrennung.sketch = { json: daSketch.json, dataUrl: daSketch.dataUrl };
     payload.bwt.sketch = { json: bwtSketch.json, dataUrl: bwtSketch.dataUrl };
@@ -4983,6 +4985,7 @@ function attachProjectSketchesToPayload(payload) {
     payload.ah.sketch = { json: ahSketch.json, dataUrl: ahSketch.dataUrl };
     payload.hms.sketch = { json: hmsSketch.json, dataUrl: hmsSketch.dataUrl };
     payload.wd.sketch = { json: wdSketch.json, dataUrl: wdSketch.dataUrl };
+    payload.wandverkleidung.sketch = { json: wvSketch.json, dataUrl: wvSketch.dataUrl };
   } catch (e) {
     console.warn("[buildPayload] attachProjectSketchesToPayload failed:", e);
   }
@@ -13902,6 +13905,7 @@ function restoreWV(wv) {
   if (document.getElementById("wvColor_997")) setSelect("wvColor_997", sel997);
   if (document.getElementById("wvColor_1497")) setSelect("wvColor_1497", sel1497);
   setInputByNameOrId("wvSonderConfigNr", wv.wvSonderConfigNr || "");
+  setInputByNameOrId("wvNote", wv.wvNote || "");
 
   const pageWV = document.getElementById("page-Wandverkleidung");
   if (pageWV && wv.wvColor) pageWV.dataset.wvColorRestored = "1";
@@ -15315,6 +15319,7 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     restoreSketchFor("ah", p?.ah);
     restoreSketchFor("hms", p?.hms);
     restoreSketchFor("wd", p?.wd);
+    restoreSketchFor("wv", p?.wandverkleidung);
   } finally {
     window.__restoring = false;
     window.__RESTORING__ = false;
