@@ -161,6 +161,13 @@ export const CONFIG_SCHEMA = [
     label: 'Neukundenbonus (Brutto)', unit: '€', type: 'euro', section: 'zuschuss', order: 3,
     description: 'Bruttowert des Neukundenbonus (Bonus 300 / Bestandkundenbonus)',
   },
+
+  // ── PREISBERECHNUNG ──────────────────────────────────────────────────────
+  {
+    key: 'AUTO_RECOMPUTE_PRICING', value: true,
+    label: 'Automatische Preisneuberechnung', type: 'boolean', section: 'shared', order: 7,
+    description: 'Bei geänderten Angeboten automatisch neu berechnen (inkl. Vigor-Live-Preis). Deaktiviert: der zuletzt gespeicherte Preis bleibt bis zur manuellen Neuberechnung bestehen.',
+  },
 ];
 
 const DEFAULTS_MAP = new Map(CONFIG_SCHEMA.map(d => [d.key, d.value]));
@@ -205,7 +212,8 @@ class ConfigService {
 
   async setMany(updates) {
     for (const [key, value] of Object.entries(updates)) {
-      await this.set(key, Number(value));
+      const def = CONFIG_SCHEMA.find(d => d.key === key);
+      await this.set(key, def?.type === 'boolean' ? Boolean(value) : Number(value));
     }
   }
 }

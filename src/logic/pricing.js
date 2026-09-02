@@ -5,9 +5,11 @@
 // pricingFactory(Product).
 import cfg from "../services/configService.js";
 import { fetchVigourNetPrices } from "../external/vigorDb.js";
+import Offer from "../models/Offer.js";
+import Draft from "../models/Draft.js";
 import pricingCore from "./pricing-core.js";
 
 export * from "./pricing-core.js";
 
 export default (ProductModel) =>
-  pricingCore(ProductModel, { cfg, fetchVigourNetPrices });
+  pricingCore(ProductModel, { cfg, fetchVigourNetPrices, OfferModel: Offer, DraftModel: Draft });

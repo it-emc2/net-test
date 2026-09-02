@@ -55,6 +55,7 @@ function hide(el) { el && el.classList.add('hidden'); }
 
 function formatNum(v, type) {
   if (v === null || v === undefined) return '';
+  if (type === 'boolean') return v ? 'Aktiv' : 'Inaktiv';
   const n = Number(v);
   if (type === 'integer') return String(Math.round(n));
   // Show up to 4 decimal places, strip trailing zeros
@@ -135,18 +136,25 @@ function buildCard(item) {
   const displayVal = pending ? changes.get(item.key) : item.value;
   const isModified = item.value !== item.defaultValue;
 
+  const input = item.type === 'boolean'
+    ? `<label class="config-checkbox-row">
+        <input type="checkbox" id="field-${item.key}" class="config-checkbox" ${displayVal ? 'checked' : ''}>
+        <span>${displayVal ? 'Aktiv' : 'Inaktiv'}</span>
+      </label>`
+    : `<input
+        type="number"
+        id="field-${item.key}"
+        class="config-input${pending ? ' input-changed' : ''}"
+        value="${formatNum(displayVal, item.type)}"
+        step="${stepFor(item.type)}"
+      >`;
+
   return `<div class="config-card${pending ? ' card-changed' : ''}" id="card-${item.key}">
     <div class="card-header">
       <div class="card-label">${item.label}</div>
       ${item.unit ? `<span class="unit-badge">${item.unit}</span>` : ''}
     </div>
-    <input
-      type="number"
-      id="field-${item.key}"
-      class="config-input${pending ? ' input-changed' : ''}"
-      value="${formatNum(displayVal, item.type)}"
-      step="${stepFor(item.type)}"
-    >
+    ${input}
     <div class="card-footer">
       ${item.description ? `<p class="card-desc">${item.description}</p>` : ''}
       ${item.note ? `<p class="card-note"><i class="fas fa-info-circle"></i> ${item.note}</p>` : ''}
@@ -162,6 +170,23 @@ function buildCard(item) {
 
 // ── Input handler ─────────────────────────────────────────────────────────
 function handleInput(item, input) {
+  if (item.type === 'boolean') {
+    const parsed = input.checked;
+    if (parsed !== item.value) changes.set(item.key, parsed);
+    else changes.delete(item.key);
+
+    const label = input.closest('.config-checkbox-row')?.querySelector('span');
+    if (label) label.textContent = parsed ? 'Aktiv' : 'Inaktiv';
+
+    const card = $(`card-${item.key}`);
+    const isChanged = changes.has(item.key);
+    card && card.classList.toggle('card-changed', isChanged);
+
+    updateTopbar();
+    renderNav();
+    return;
+  }
+
   const raw = input.value.trim();
   const parsed = item.type === 'integer' ? parseInt(raw, 10) : parseFloat(raw);
 

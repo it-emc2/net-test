@@ -135,10 +135,80 @@ __runWhenReady(async () => {
     });
   }
 
+  function bindRecomputePrice(){
+    const btn = document.getElementById('btnRecomputePrice');
+    if (!btn) return;
+    if (btn.dataset.bound === '1') return;
+    btn.dataset.bound = '1';
+
+    btn.addEventListener('click', async () => {
+      const offerNumber = document.getElementById('offerNumber')?.value?.trim();
+      if (!offerNumber) {
+        showToast('Kein Angebot geladen — zuerst speichern, dann neu berechnen.', 'error');
+        return;
+      }
+
+      btn.disabled = true;
+      try {
+        let res = await fetch(`/api/offers/${encodeURIComponent(offerNumber)}/recompute`, {
+          method: 'POST',
+        });
+        // No saved Offer under this number (e.g. still just an Entwurf) —
+        // try the most recently saved draft with the same offer number.
+        if (res.status === 404) {
+          res = await fetch('/api/drafts/recompute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ offerNumber }),
+          });
+        }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+        window.__pricing = data.pricing;
+        // If this offer/draft is frozen, buildPayload() sends __frozenPricing
+        // back on every future reprice (tab switches included) — re-pin it
+        // to the fresh price too, or the very next one would silently revert.
+        if (window.__frozen) window.__frozenPricing = data.pricing;
+        updateSummaryWidgetTotal(data.pricing?.total);
+        updateSummaryWidgetSelfPay(data.pricing?.selfPayAmount);
+        window.dispatchEvent(new CustomEvent('pricing:updated', { detail: data.pricing }));
+
+        if (typeof showToast === 'function') showToast('Preis neu berechnet.', 'success');
+      } catch (e) {
+        console.error('[recompute price] failed:', e);
+        showToast('Preis neu berechnen fehlgeschlagen: ' + (e.message || e), 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+
+  function updateStaleBadge(pricing){
+    const badge = document.getElementById('swStaleBadge');
+    if (!badge) return;
+    badge.hidden = !pricing?._stale;
+  }
+
+  function bindStaleBadge(){
+    if (document.documentElement.dataset.swStaleBound === '1') return;
+    document.documentElement.dataset.swStaleBound = '1';
+    window.addEventListener('pricing:updated', (ev) => updateStaleBadge(ev.detail));
+    updateStaleBadge(window.__pricing);
+  }
+
   function bindAll(){
     bindNameLive();
     bindSaveDraft();
+    bindRecomputePrice();
+    bindStaleBadge();
   }
+
+  // The button now lives inside the Kosten-Details render (see the Kosten
+  // renderer in script.js), which rebuilds that container's innerHTML on
+  // every price refresh — recreating the button node and losing its
+  // listener each time. Exposed so that renderer can rebind it right after.
+  window.bindRecomputePrice = bindRecomputePrice;
 
   ready(() => {
     bindAll();
@@ -4136,13 +4206,8 @@ function buildPayload() {
   // verbatim instead of recomputing from live DB values. Set only via
   // freezeCurrentPricing() (Schnellspeichern/Speichern unter/Sperren); cleared
   // the moment the user edits a field (see requestPricingRefresh).
-  // The Kostenübersicht "Preise aktualisieren" button (Vigor price drift)
-  // explicitly asked to drop the pinned snapshot and reprice live — applies
-  // here too so PDF/DOCX generation (which builds its own payload) picks up
-  // the refreshed price instead of the old frozen one.
-  payload.frozen = window.__forceLiveVigorPricing ? false : window.__frozen === true;
+  payload.frozen = window.__frozen === true;
   payload.frozenPricing = payload.frozen ? (window.__frozenPricing || null) : null;
-  if (window.__forceLiveVigorPricing) delete payload.offerNumber;
   // Locked: full edit-lock, independent of the price freeze above.
   payload.locked = window.__locked === true;
 
@@ -11085,11 +11150,6 @@ function attachDuschwanneToPayload(payload) {
   let pricingRequestSeq = 0;
   let latestAppliedPricingSeq = 0;
   let pricingRefreshTimer = null;
-  // Set by the Kostenübersicht "Preise aktualisieren" button (Vigor price
-  // drift). Sticky for the rest of the session so later recalcs (tab
-  // switches, field edits) don't silently re-freeze the old quoted price —
-  // it only resets on reload or once the offer is saved with fresh totals.
-  window.__forceLiveVigorPricing = false;
   window.__pricingDebug = window.__pricingDebug || { enabled: false };
 
   window.setPricingDebug = function setPricingDebug(enabled = true) {
@@ -11152,8 +11212,6 @@ function attachDuschwanneToPayload(payload) {
       console.warn("[pricing] No payload available");
       return null;
     }
-    if (window.__forceLiveVigorPricing) delete pl.offerNumber;
-
     const requestSeq = ++pricingRequestSeq;
     window.logPricingRefresh?.("updatePricing:start", { requestSeq });
     const data = await fetchPrice(pl);
@@ -11717,29 +11775,6 @@ window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
   const container = document.getElementById("costsSummary");
   if (!container) return;
 
-  // ── Vigor price-drift "refresh" button: re-price a saved offer's config
-  // lines at today's live Vigor cost instead of the frozen quoted price. ──
-  container.addEventListener("click", async (e) => {
-    const btn = e.target.closest("#refreshVigorPricesBtn");
-    if (!btn) return;
-    btn.disabled = true;
-    btn.textContent = "Aktualisiere…";
-    try {
-      // Pricing keeps the quoted price only when payload.offerNumber is set
-      // (see pricing-core.js). Flip this sticky flag so every recalculation
-      // from here on — including later tab switches — prices the
-      // configurator lines from the live Vigor DB instead of re-freezing
-      // the old quoted price.
-      window.__forceLiveVigorPricing = true;
-      const data = await window.updatePricing();
-      if (typeof renderFromData === "function") await renderFromData(data);
-    } catch (err) {
-      console.error("[pricing] refresh Vigor prices failed:", err);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "Preise aktualisieren";
-    }
-  });
 
   // ── Kosten info button ──────────────────────────────────────────────────
   const kostenToggle      = document.getElementById("kostenDetailsToggle");
@@ -11931,16 +11966,20 @@ function escapeHtml(s) {
           SHOW_FINISH_IN_KOSTEN && l.finish
             ? `<div style="font-size:11px;color:var(--muted)">${escapeHtml(l.finish)}</div>`
             : "";
-        // Saved offer whose supplier price moved since it was quoted: the quoted
-        // price stays the billed one, today's price is shown next to it so a loss
-        // is visible while the parts are being ordered.
+        // Saved offer whose supplier/DB price moved since it was quoted: the
+        // quoted price stays the billed one (right-hand columns), today's
+        // price is called out as a pill next to the name instead — living in
+        // the flexible name column, not the numeric Einzelpreis column, so a
+        // long note here can't widen that column and misalign every other
+        // row's price/qty/total the way stacking it under the price used to.
         const cur = Number(l.currentNet) || 0;
         const quoted = Number(l.unitPrice) || 0;
-        const driftHTML =
+        const driftUp = cur > quoted;
+        // Darker than the shared --danger/--ok tokens (~3.8:1 on white for
+        // --danger) so this stays readable at this size — WCAG AA for text.
+        const driftTag =
           cur > 0 && Math.abs(cur - quoted) >= 0.005
-            ? `<div style="font-size:11px;color:${cur > quoted ? "var(--danger, #c0392b)" : "var(--ok, #1e8449)"}">
-                 aktuell ${euroC(cur)} (${cur > quoted ? "+" : "−"}${euroC(Math.abs(cur - quoted))} pro Stk)
-               </div>`
+            ? ` <span class="kosten-tag" style="background:${driftUp ? "#fbeae8" : "#e8f5ee"};border-color:${driftUp ? "#f0c7c2" : "#bfe3cf"};color:${driftUp ? "#a5261c" : "#1e8449"};font-weight:600;" title="Angebotspreis ${euroC(quoted)} — heute ${euroC(cur)}">${driftUp ? "▲" : "▼"} ${driftUp ? "+" : "−"}${euroC(Math.abs(cur - quoted))} heute</span>`
             : "";
         const noMarkupTag =
           SHOW_NO_MARKUP_TAG &&
@@ -11948,18 +11987,20 @@ function escapeHtml(s) {
           ? ` <span class="kosten-tag">ohne Aufschlag</span>`
           : "";
         return `
-      <div style="white-space:pre-line">${escapeHtml(stripBrand(decorateDALabel(l)))}${noMarkupTag}${finishHTML}</div>
+      <div style="white-space:pre-line">${escapeHtml(stripBrand(decorateDALabel(l)))}${noMarkupTag}${driftTag}${finishHTML}</div>
       <div style="text-align:right">${qtyText}${unitText}</div>
-      <div style="text-align:right">${euroC(l.unitPrice ?? 0)}${driftHTML}</div>
+      <div style="text-align:right">${euroC(l.unitPrice ?? 0)}</div>
       <div style="text-align:right">${euroC(l.lineTotal ?? 0)}</div>
     `;
       })
       .join("");
 
     return `
-    <div style="display:grid; grid-template-columns: 1fr auto auto auto; gap:6px 10px; align-items:center;">
-      ${header}
-      ${rows}
+    <div style="overflow-x:auto;">
+      <div style="display:grid; grid-template-columns: 1fr auto auto auto; gap:6px 10px; align-items:center; min-width:520px;">
+        ${header}
+        ${rows}
+      </div>
     </div>
   `;
   }
@@ -12424,14 +12465,20 @@ if (supportsOptional) {
     // quoted, this only warns that ordering today costs more (= lost margin).
     const drift = data.materials?.vigorPriceDrift || null;
     const driftTotal = Number(drift?.totalDelta) || 0;
+    // Skip this aggregate line for a single drifted item — the per-line
+    // "aktuell X €" note above already says the same thing once; showing
+    // both here was pure repetition. With several drifted items (Vigor
+    // and/or plain DB-priced) this is where the total impact actually adds
+    // information a per-line note can't.
     const driftFooter =
-      drift && Math.abs(driftTotal) >= 0.005
-        ? `<div style="margin-top:6px;font-size:12px;color:${driftTotal > 0 ? "var(--danger, #c0392b)" : "var(--ok, #1e8449)"}">
-             Lieferantenpreis geändert: Material kostet heute
-             ${driftTotal > 0 ? "+" : "−"}${euroC(Math.abs(driftTotal))}
-             gegenüber dem Angebot (${drift.lines.length} Artikel).
-             Angebotspreise bleiben unverändert.
-             <button type="button" class="btn small" id="refreshVigorPricesBtn" style="margin-left:8px;">Preise aktualisieren</button>
+      drift && Math.abs(driftTotal) >= 0.005 && drift.lines.length > 1
+        ? `<div style="margin-top:10px;padding:10px 12px;border-radius:8px;font-size:12px;font-weight:600;
+               background:${driftTotal > 0 ? "#fbeae8" : "#e8f5ee"};
+               border:1px solid ${driftTotal > 0 ? "#f0c7c2" : "#bfe3cf"};
+               color:${driftTotal > 0 ? "#a5261c" : "#1e8449"}">
+             Preis geändert: ${drift.lines.length} Artikel kosten heute
+             ${driftTotal > 0 ? "insgesamt +" : "insgesamt −"}${euroC(Math.abs(driftTotal))}
+             gegenüber dem Angebot. Angebotspreise bleiben unverändert.
            </div>`
         : "";
     const matCard = card(
@@ -12613,7 +12660,18 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       <div class="kosten-sums__total"><span>Gesamt (brutto):</span> <b>${euroC(data.total || 0)}</b></div>
     </div>
   `;
-    const totalsCard = card("Summen", sums);
+    // Lives in the Summen card's own footer (not the summary widget, and not
+    // a floating row of its own) so it only ever shows on the Kosten-Details
+    // tab, reads as one action on the final total, and isn't a second,
+    // disconnected button next to the Material drift note above.
+    const recomputeFooter = `
+      <div class="kosten-recompute-row">
+        <button type="button" id="btnRecomputePrice" class="kosten-recompute-btn" title="Preis serverseitig neu berechnen (z.B. bei Vigor- oder Datenbank-Preisänderungen)">
+          Preis neu berechnen
+        </button>
+      </div>
+    `;
+    const totalsCard = card("Summen", sums, recomputeFooter);
 
     // --- Show/hide "Haltegriff gratis" checkbox based on CLPESG30 presence
     (function () {
@@ -12757,6 +12815,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       optCard,
       totalsCard,
     ].join("");
+    window.bindRecomputePrice?.();
   };
 
   window.refreshAllPanels = async function refreshAllPanels() {
@@ -13671,7 +13730,15 @@ function renderGlobalOfferSearchResults(list, state = {}) {
       const source = String(item.source || item.collection || item.kind || "").toLowerCase();
       const draftId = item._id || item.id || item.draftId || "";
       const offerNumber = item.offerNumber || item.angNumber || item.number || item.angebotNummer || "";
+      // _type is what /api/offers/search-all actually sets (mapSearchResult),
+      // based on which collection the doc came from — the reliable signal.
+      // Everything else here was already a fallback for other possible
+      // shapes; the last one (draftId present, no offerNumber) stopped being
+      // safe once Drafts started carrying their own offerNumber field too
+      // (added for the pricing-cache/recompute feature), so it must never
+      // be reached before the real _type check.
       const isDraft =
+        item._type === "draft" ||
         source.includes("draft") ||
         source.includes("entwurf") ||
         item.isDraft === true ||
@@ -13751,7 +13818,14 @@ async function loadGlobalOfferSearchResult(item) {
   const draftId = item._id || item.id || item.draftId || "";
   const offerNumber = item.offerNumber || item.angNumber || item.number || item.angebotNummer || "";
 
+  // _type is what /api/offers/search-all actually sets — see the matching
+  // comment in renderGlobalOfferSearchResults. Must come before the
+  // draftId-without-offerNumber fallback, which stopped being safe once
+  // Drafts started carrying their own offerNumber too: without this check,
+  // clicking a draft result here silently called loadOfferByNumber() instead
+  // of loadDraftById() and 404'd, since no Offer exists for that number.
   const isDraft =
+    item._type === "draft" ||
     source.includes("draft") ||
     source.includes("entwurf") ||
     item.isDraft === true ||
@@ -19155,6 +19229,12 @@ function initLivePricingSync() {
   // Single delegated listener covers ALL inputs/checkboxes/selects in the app
   const handler = (event) => {
     if (window.__restoring) return; // ← don’t spam while restoring
+    // Only a real user edit should un-freeze a saved offer. Restoring a
+    // saved draft/offer dispatches plenty of synthetic "change"/"input"
+    // events itself (directly, and indirectly via async panels that finish
+    // populating fields well after the restore's own __restoring window has
+    // closed) purely to trigger dependent UI — those are not edits.
+    if (event?.isTrusted === false) return;
     const target = event?.target;
     const isKundendatenPriorityTarget =
       target instanceof HTMLElement &&

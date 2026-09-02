@@ -21,6 +21,11 @@ const OfferSchema = new Schema(
 
     payload: { type: Schema.Types.Mixed, required: true },
     pricing: { type: Schema.Types.Mixed },
+    // Fingerprint of the price-relevant payload fields at the time `pricing`
+    // was computed — lets computePrices() serve the stored snapshot instead
+    // of recomputing (incl. a live Vigor DB round-trip) when nothing that
+    // affects price has changed since the last save.
+    pricingFingerprint: { type: String },
 
     customer: {
       salutation: String,

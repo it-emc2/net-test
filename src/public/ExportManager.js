@@ -355,50 +355,6 @@ export function initExportManager(options = {}) {
     }
   }
 
-  // ---------- Snapshot ----------
-  async function saveFinalOfferSnapshot() {
-    // This is optional. If buildPayload doesn't exist, just no-op.
-    const fullPayload = cfg.buildPayload?.();
-    if (!fullPayload) return;
-
-    const filteredPayload = cfg.filterPayloadByOffer(fullPayload);
-
-    const rawOfferType =
-      filteredPayload?.activeOffer ||
-      filteredPayload?.offerType ||
-      cfg.getCurrentOfferType?.() ||
-      "bu";
-    const offerType = String(rawOfferType).trim().toLowerCase();
-
-    const offerNumber =
-      cfg.offerNumberEl()?.value?.trim() ||
-      (typeof genOfferNumber === "function" ? genOfferNumber() : "");
-
-    // Ensure pricing snapshot (best-effort)
-    let pricing = window.__pricing;
-    if (!pricing) {
-      try {
-        pricing = await cfg.updatePricing?.(filteredPayload);
-      } catch {}
-    }
-
-    try {
-      await fetch("/api/offers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          offerNumber,
-          offerType,
-          payload: filteredPayload,
-          pricing,
-        }),
-      });
-    } catch (err) {
-      console.error("[ExportManager] Failed to save final offer snapshot:", err);
-    }
-  }
-
   // ---------- Downloads ----------
   async function downloadPDFWithProgress(endpoint, payload, fallbackFilename) {
     saveSessionSnapshot();
@@ -442,11 +398,6 @@ export function initExportManager(options = {}) {
 
       clearInterval(timerInterval);
       showPDFProgress("PDF erfolgreich erstellt!", "success");
-
-      // best-effort snapshot after successful export
-      try {
-        await saveFinalOfferSnapshot();
-      } catch {}
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -535,7 +486,6 @@ export function initExportManager(options = {}) {
     window.showPDFProgress = window.showPDFProgress || showPDFProgress;
     window.downloadPDFWithProgress = window.downloadPDFWithProgress || downloadPDFWithProgress;
     window.downloadDocx = window.downloadDocx || downloadDocx;
-    window.saveFinalOfferSnapshot = window.saveFinalOfferSnapshot || saveFinalOfferSnapshot;
 
     stampOfferOnExport();
     maybeOfferSessionRestore();
@@ -639,6 +589,5 @@ export function initExportManager(options = {}) {
     showPDFProgress,
     downloadPDFWithProgress,
     downloadDocx,
-    saveFinalOfferSnapshot,
   };
 }

@@ -3,8 +3,11 @@
 import express from 'express';
 import Offer from '../models/Offer.js';
 import Draft from '../models/Draft.js';
+import Product from '../models/Product.js';
+import pricingFactory, { computeFingerprint } from '../logic/pricing.js';
 
 export const router = express.Router();
+const pricing = pricingFactory(Product);
 
 function escapeRegex(value = '') {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -468,25 +471,78 @@ router.get('/:offerNumber', async (req, res) => {
   }
 });
 
+// POST /api/offers/:offerNumber/recompute - Force a fresh price computation
+// for an already-saved offer, bypassing the cache (and the auto-recompute
+// admin toggle), and persist the result.
+router.post('/:offerNumber/recompute', async (req, res) => {
+  try {
+    const { offerNumber } = req.params;
+    const offer = await Offer.findOne({ offerNumber });
+
+    if (!offer) {
+      return res.status(404).json({ error: 'Angebot nicht gefunden', offerNumber });
+    }
+
+    const pricingPayload = {
+      ...offer.payload,
+      offerNumber,
+      offerType: offer.offerType,
+      forceRecompute: true,
+    };
+    const computedPricing = await pricing.computePrices(pricingPayload);
+
+    // If this offer was frozen, its own payload.frozenPricing is what
+    // computePrices() serves on every future open (it's checked before the
+    // pricing/pricingFingerprint cache below) — re-pin it to the fresh
+    // price too, or reopening would silently revert to the old one.
+    if (offer.payload?.frozen === true) {
+      offer.payload = { ...offer.payload, frozenPricing: computedPricing };
+      offer.markModified('payload');
+    }
+    offer.pricing = computedPricing;
+    offer.pricingFingerprint = computeFingerprint(pricingPayload);
+    await offer.save();
+
+    res.json({
+      ok: true,
+      pricing: computedPricing,
+      message: `Preis für ${offerNumber} neu berechnet`,
+    });
+  } catch (err) {
+    console.error('[offers] recompute error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/offers - Save a new offer or update existing
 router.post('/', async (req, res) => {
   try {
-    const { offerNumber, offerType, payload, pricing, status } = req.body;
-    
+    const { offerNumber, offerType, payload, status } = req.body;
+
     if (!offerNumber) {
       return res.status(400).json({ error: 'offerNumber ist erforderlich' });
     }
-    
+
     if (!payload) {
       return res.status(400).json({ error: 'payload ist erforderlich' });
     }
+
+    // Price is always computed server-side on save — never trust a client-
+    // supplied `pricing` blob, and strip `frozen`/`frozenPricing` too: those
+    // are honored for drafts/previews (see pricing-core.js computePrices),
+    // but this route is what actually finalizes an offer's price, so it must
+    // never accept a client-fabricated snapshot.
+    const { frozen, frozenPricing, ...payloadForPricing } = payload;
+    const pricingPayload = { ...payloadForPricing, offerNumber, offerType };
+    const computedPricing = await pricing.computePrices(pricingPayload);
 
     // Prepare the offer document
     const offerDoc = {
       offerNumber,
       offerType: offerType || 'bu',
       payload,
-      pricing: pricing || null,
+      pricing: computedPricing,
+      pricingFingerprint: computeFingerprint(pricingPayload),
       status: status || 'saved',
       updatedAt: new Date()
     };
