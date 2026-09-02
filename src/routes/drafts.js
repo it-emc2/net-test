@@ -3,8 +3,54 @@
 // bare express app in tests; the handlers are unchanged.
 import express from "express";
 import Draft from "../models/Draft.js";
+import Product from "../models/Product.js";
+import pricingFactory, { computeFingerprint } from "../logic/pricing.js";
 
 const router = express.Router();
+const pricing = pricingFactory(Product);
+
+// POST /api/drafts/recompute  { offerNumber }
+// Forces a fresh price for the most recently saved draft with this offer
+// number, bypassing the cache (and the auto-recompute admin toggle), and
+// persists the result. Mirrors POST /api/offers/:offerNumber/recompute for
+// the case where nothing has been saved as a finalized Offer yet.
+router.post("/recompute", async (req, res) => {
+  try {
+    const offerNumber = String(req.body?.offerNumber || "").trim();
+    if (!offerNumber) {
+      return res.status(400).json({ error: "offerNumber ist erforderlich" });
+    }
+
+    const draft = await Draft.findOne({ offerNumber }).sort({ updatedAt: -1 });
+    if (!draft) {
+      return res.status(404).json({ error: "Kein Entwurf mit dieser Angebotsnummer gefunden", offerNumber });
+    }
+
+    const pricingPayload = { ...draft.payload, offerType: draft.offerType, forceRecompute: true };
+    const computedPricing = await pricing.computePrices(pricingPayload);
+
+    // If this draft was frozen, its own payload.frozenPricing is what
+    // computePrices() serves on every future open (checked before the
+    // pricing/pricingFingerprint cache below) — re-pin it to the fresh
+    // price too, or reopening would silently revert to the old one.
+    if (draft.payload?.frozen === true) {
+      draft.payload = { ...draft.payload, frozenPricing: computedPricing };
+      draft.markModified("payload");
+    }
+    draft.pricing = computedPricing;
+    draft.pricingFingerprint = computeFingerprint(pricingPayload);
+    await draft.save();
+
+    res.json({
+      ok: true,
+      pricing: computedPricing,
+      message: `Preis für Entwurf "${draft.name}" neu berechnet`,
+    });
+  } catch (err) {
+    console.error("[drafts] recompute error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // POST /api/drafts
 // body: { name, offerType, payload, savedAt?, clientSaveId? }
@@ -52,10 +98,19 @@ router.post("/", async (req, res) => {
 
     const parsedSavedAt = savedAt ? new Date(savedAt) : null;
 
+    // Price computed server-side on every draft save too, so reopening it
+    // later can serve this snapshot instead of recomputing (see pricing-core
+    // computePrices caching + the AUTO_RECOMPUTE_PRICING admin toggle).
+    const pricingPayload = { ...payload, offerType: trimmedOffer };
+    const computedPricing = await pricing.computePrices(pricingPayload);
+
     const doc = await Draft.create({
       name: trimmedName,
       offerType: trimmedOffer,
       payload,
+      offerNumber: String(payload?.offerNumber || "").trim() || undefined,
+      pricing: computedPricing,
+      pricingFingerprint: computeFingerprint(pricingPayload),
       savedAt:
         parsedSavedAt && !Number.isNaN(parsedSavedAt.getTime())
           ? parsedSavedAt
@@ -134,6 +189,7 @@ router.get("/:id", async (req, res) => {
       id: doc._id,
       name: doc.name,
       offerType: doc.offerType,
+      offerNumber: doc.offerNumber,
       payload: doc.payload,
       savedAt: doc.savedAt,
       createdAt: doc.createdAt,

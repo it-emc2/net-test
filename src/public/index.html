@@ -230,6 +230,17 @@
       font-weight: 700;
     }
 
+    .sw-stale-badge {
+      background: #fff3cd;
+      color: #7a5b00;
+      border: 1px solid #ffe08a;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin: 4px 0;
+    }
+
     /* Offline-queue badge: sits above/before the save buttons, only when it
        has something to say (JS keeps it hidden while the queue is empty). */
     #swOfflineBadge {
@@ -280,6 +291,39 @@
       border-color: var(--border);
       color: var(--text);
       font-weight: 500;
+    }
+
+    .kosten-recompute-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+
+    /* Outline treatment, not a solid fill — this recompute action hits a
+       live external price source and shouldn't be mistaken at a glance for
+       "Schnellspeichern" (a plain, low-risk local save), which owns the
+       solid accent fill everywhere else in the app. */
+    .kosten-recompute-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1.5px solid var(--accent-strong);
+      background: transparent;
+      color: var(--accent-strong);
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 7px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .kosten-recompute-btn:hover {
+      background: var(--accent-weak);
+    }
+
+    .kosten-recompute-btn:focus-visible {
+      outline: 2.5px solid var(--accent);
+      outline-offset: 2px;
     }
 
     #summaryWidget .sw-save-btn--secondary:hover,
@@ -10198,6 +10242,9 @@ button.dm-btn-danger:focus-visible {
     <div class="sw-line sw-total">
       <span class="sw-label">Gesamt:</span>
       <span id="swTotalValue" class="sw-value">–</span>
+    </div>
+    <div class="sw-stale-badge" id="swStaleBadge" hidden>
+      ⚠ Preis evtl. veraltet — bitte neu berechnen
     </div>
     <div class="sw-line sw-selfpay" id="swSelfPayRow">
       <span class="sw-label">Eigenanteil:</span>

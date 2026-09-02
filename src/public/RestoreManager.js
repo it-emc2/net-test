@@ -79,9 +79,17 @@ export function initRestoreManager({
       .getElementById("chosenScreenProductId")
       ?.dispatchEvent(new Event("change", { bubbles: true }));
 
-    window.__smartTray?.fetchAndRender?.();
-    window.__smartBathtub?.fetchAndRender?.();
-    window.__smartScreenPicker?.refresh?.();
+    // Awaited (not fire-and-forget): each of these populates fields
+    // asynchronously, which fires "change"/"input" events picked up by the
+    // global live-pricing watcher (initLivePricingSync in script.js). Left
+    // un-awaited, they used to resolve after this function returns — i.e.
+    // after window.__restoring is already cleared — silently un-freezing a
+    // just-restored frozen offer via requestPricingRefresh().
+    await Promise.all([
+      window.__smartTray?.fetchAndRender?.(),
+      window.__smartBathtub?.fetchAndRender?.(),
+      window.__smartScreenPicker?.refresh?.(),
+    ]);
 
     // Wandverkleidung dependencies
     fire('input[name="wvKind"]:checked');
@@ -184,9 +192,15 @@ export function initRestoreManager({
         restoreHandlers.Rabatt(payload, ctx);
       }
 
-      if (offer?.offerNumber) {
+      // Fall back to payload.offerNumber for drafts saved before the Draft
+      // document itself carried a top-level offerNumber field, or wherever
+      // the API response doesn't include it — without this, the field keeps
+      // whatever number this session auto-generated on load, so pricing/
+      // recompute calls target the wrong (nonexistent) saved record.
+      const restoredOfferNumber = offer?.offerNumber || payload?.offerNumber;
+      if (restoredOfferNumber) {
         const el = document.querySelector("#offerNumber");
-        if (el) el.value = offer.offerNumber;
+        if (el) el.value = restoredOfferNumber;
       }
 
       // Rehydrate the "Duschabtrennung (neu)" configurator from its saved engine state
@@ -218,13 +232,25 @@ export function initRestoreManager({
       } catch (e) {
         console.warn("[hlConfigurator] restore failed:", e?.message || e);
       }
+    } catch (e) {
+      window.__restoring = false;
+      window.__RESTORING__ = false;
+      throw e;
+    }
+
+    // __restoring stays true through postRestoreNudges too: it dispatches
+    // synthetic "change" events on checkboxes/radios to trigger dependent UI
+    // logic, and requestPricingRefresh() treats any such event as a real
+    // user edit that un-freezes the offer (window.__frozen = false) unless
+    // this guard is still up — clearing it before these nudges run silently
+    // discarded a just-restored freeze the moment the first nudge fired.
+    const payload = normalized?.payload || normalizeOfferDoc(doc).payload;
+    try {
+      await postRestoreNudges(payload);
     } finally {
       window.__restoring = false;
       window.__RESTORING__ = false;
     }
-
-    const payload = normalized?.payload || normalizeOfferDoc(doc).payload;
-    await postRestoreNudges(payload);
 
     // Populate Auftrag ID fields from whichever key old/new drafts used
     const resolvedAuftragId = String(

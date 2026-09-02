@@ -81,6 +81,26 @@ export const NO_MARKUP_IDS = new Set([
   "140322", // Lieferkosten Badewannentür — logistics fee, not Hassmann material
 ]);
 
+// JSON.stringify with object keys sorted at every level, so two payloads with
+// the same content but different key insertion order still fingerprint the
+// same (plain JSON.stringify does not guarantee that).
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  if (value && typeof value === "object") {
+    const keys = Object.keys(value).sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+// Stable fingerprint of the parts of a payload that affect price, so
+// computePrices() can tell "nothing priced changed since last save" from
+// "recompute". A false mismatch just costs an extra (still-correct) recompute.
+export function computeFingerprint(payload) {
+  const { pricing, frozenPricing, frozen, forceRecompute, ...rest } = payload || {};
+  return stableStringify(rest);
+}
+
 export default (ProductModel, deps = {}) => {
   const {
     // { get(key, fallback) } — admin-tunable business numbers.
@@ -88,12 +108,55 @@ export default (ProductModel, deps = {}) => {
     // (articleNumbers) => Promise<Map<id, netPrice>>; an empty Map is the
     // documented fallback (keep the configurator snapshot price).
     fetchVigourNetPrices,
+    // Optional: mongoose Offer/Draft models, server-only. Absent in the
+    // browser bundle, where every call is a fresh (uncached) computation.
+    OfferModel,
+    DraftModel,
   } = deps;
   if (!cfg || typeof cfg.get !== "function") {
     throw new Error("pricing-core: deps.cfg with get(key, fallback) is required");
   }
   if (typeof fetchVigourNetPrices !== "function") {
     throw new Error("pricing-core: deps.fetchVigourNetPrices is required");
+  }
+
+  // Fetch the most recently saved pricing snapshot for `Model` matching
+  // `query`, if any — a plain read, no fingerprint/toggle decision. Exposed
+  // separately (not just folded into lookupCachedPricing) because
+  // computeMaterials() also needs the raw snapshot to detect drift on
+  // plain DB-priced lines, not just to decide whether to serve it verbatim.
+  async function fetchPriorSnapshot(Model, query) {
+    if (!Model) return null;
+    try {
+      return await Model.findOne(query)
+        .select("pricing pricingFingerprint")
+        .sort({ updatedAt: -1 })
+        .lean();
+    } catch (e) {
+      console.warn("[pricing] cache lookup failed, recomputing:", e?.message || e);
+      return null;
+    }
+  }
+
+  // Decide what to do with a fetched snapshot: serve it verbatim (fingerprint
+  // match), serve it stale (auto-recompute disabled), or null to mean "no
+  // usable cache hit here, try the next source / recompute".
+  function cachedResponseFor(existing, payload) {
+    if (!existing?.pricing) return null;
+    if (existing.pricingFingerprint === computeFingerprint(payload)) {
+      return JSON.parse(JSON.stringify(existing.pricing));
+    }
+    // Priced inputs changed, but the admin has auto-recompute turned off:
+    // keep serving the last computed snapshot until someone hits "Preis
+    // neu berechnen" (payload.forceRecompute), rather than silently
+    // repricing on every open.
+    if (cfg.get("AUTO_RECOMPUTE_PRICING", true) === false) {
+      console.warn("[pricing] auto-recompute disabled — serving stale snapshot");
+      // _stale tells the UI to show the "price may be outdated, recompute?"
+      // hint — never persisted, just a response flag.
+      return { ...JSON.parse(JSON.stringify(existing.pricing)), _stale: true };
+    }
+    return null;
   }
 
   // Minimal helper: adjust only the visible label to billable qty (selected - 1)
@@ -550,7 +613,7 @@ function grossToNet(gross, taxRate) {
     return notes;
   }
 
-  async function computeMaterials(payload) {
+  async function computeMaterials(payload, priorSnapshot) {
     const offer = getActiveOffer(payload); // 'bu' | 'bwt' | 'hl'
     const markupPctForBwt = extractMarkupPct(payload); // 0.35 for "35%", etc.
 
@@ -1243,7 +1306,12 @@ console.log("[REHA DEBUG] selections =", selections);
         //                                  the loss the reopened offer is checked for
         //                                  (quoted 600, today 620 → -20 margin).
         const savedOfferNumber = String(payload?.offerNumber || "").trim();
-        const isSavedOffer = !!savedOfferNumber;
+        // A forced recompute ("Preis neu berechnen") means "give me today's
+        // real price for everything", same as the dedicated Vigor-refresh
+        // button (__forceLiveVigorPricing) — so it should also adopt a
+        // higher/lower live Vigor price here, not just report the drift and
+        // keep the quoted one.
+        const isSavedOffer = !!savedOfferNumber && payload?.forceRecompute !== true;
         const driftLines = [];
         let liveNet = new Map();
         const configIds = qa
@@ -1421,6 +1489,17 @@ console.log("[REHA DEBUG] selections =", selections);
     // ------- Resolve names/prices once
     const productMap = await getProductsByIds([...idsNeeded]);
 
+    // Drift on plain DB-priced lines (Optionale Produkte, Material, etc.) —
+    // same "keep quoted, warn about the difference" contract the Vigor
+    // Duschabtrennung check already applies below, extended to every other
+    // line, which previously had no such protection: a DB price change
+    // silently altered an already-quoted total with no warning at all.
+    const priorMaterialLines = priorSnapshot?.pricing?.materials?.lines || [];
+    const priorUnitById = new Map(
+      priorMaterialLines.map((pl) => [pl.productId, Number(pl.unitPrice) || 0]),
+    );
+    const productDriftLines = [];
+
     const resolved = lines.map((l) => {
       const prod = productMap.get(l.id) || { price: 0, name: "" };
 
@@ -1490,6 +1569,29 @@ if (infoLines.length) {
   finalLabel += "\n" + infoLines.map((t) => "   • " + t).join("\n");
 }
 
+      // Line was quoted before (this offer/draft was saved already) and its
+      // live DB price has since moved: keep billing the quoted price and
+      // flag the difference, exactly like the Vigor check below — but for
+      // any plain DB-priced line, not just Duschabtrennung config rows.
+      // forceRecompute ("Preis neu berechnen") skips this and adopts the
+      // live price, same as it already does for Vigor lines.
+      let lineCurrentNet = null;
+      if (payload?.forceRecompute !== true) {
+        const priorUnit = priorUnitById.get(l.id) || 0;
+        if (priorUnit > 0 && Math.abs(unit - priorUnit) >= 0.005) {
+          lineCurrentNet = unit;
+          productDriftLines.push({
+            productId: l.id,
+            name: displayName,
+            qty: l.qty,
+            quotedNet: priorUnit,
+            currentNet: unit,
+            deltaTotal: round2((unit - priorUnit) * l.qty),
+          });
+          unit = priorUnit;
+        }
+      }
+
       // --- BWT: Einstiegshilfen (Haltegriffe) ---
       let lineTotal;
       if (offer === "bwt") {
@@ -1530,7 +1632,7 @@ color: metaColor || null,
   source: l.source || null,
   finish: l?.meta?.finish || null,
   // Today's vigor net price when it differs from the quoted one (saved offers only).
-  currentNet: l?.meta?.currentNet ?? null,
+  currentNet: l?.meta?.currentNet ?? lineCurrentNet,
   hassmannArticle: l?.meta?.hassmannArticle || null,
   docxHide: !!l.docxHide,
   category: l.category || null,
@@ -1550,6 +1652,26 @@ color: metaColor || null,
     );
     const grabTotal = GRAB_IDS.reduce((a, id) => a + (grabQtyById[id] || 0), 0);
     const freeId = GRAB_IDS.find((id) => (grabQtyById[id] || 0) > 0) || null;
+
+    // Merge in drift from plain DB-priced lines — same shape as the Vigor
+    // drift above, just a different price source, so the existing
+    // Kosten-Details banner renders both without any UI change.
+    if (productDriftLines.length) {
+      const productTotalDelta = round2(
+        productDriftLines.reduce((a, d) => a + (d.deltaTotal || 0), 0),
+      );
+      vigorPriceDrift = vigorPriceDrift
+        ? {
+            ...vigorPriceDrift,
+            lines: [...vigorPriceDrift.lines, ...productDriftLines],
+            totalDelta: round2(vigorPriceDrift.totalDelta + productTotalDelta),
+          }
+        : {
+            offerNumber: String(payload?.offerNumber || "").trim(),
+            lines: productDriftLines,
+            totalDelta: productTotalDelta,
+          };
+    }
 
     return {
       title: getMaterialsTitle(offer),
@@ -1945,11 +2067,48 @@ color: metaColor || null,
 
   return {
     computePrices: async (payload) => {
-      // Frozen offer: return the pinned snapshot verbatim, skipping every
-      // live config/product/Vigor-DB lookup below, so a saved offer's price
-      // never drifts when rates/products change later.
-      if (payload?.frozen === true && payload?.frozenPricing) {
+      // 1) The client says nothing has changed since the last freeze
+      // (save/lock) — trust it and skip every DB/live lookup below. This is
+      // the more robust signal for "still the same offer, just switching
+      // tabs": buildPayload() re-derives several sub-objects on every call
+      // and isn't guaranteed byte-identical run to run, so relying on exact
+      // fingerprint equality alone (step 2) would recompute on noise, not
+      // just on real edits. Any actual field edit clears window.__frozen
+      // client-side (see requestPricingRefresh), so this only fires while
+      // truly nothing has been touched since the last save/lock.
+      // Not a security boundary — the one place that actually finalizes a
+      // price (offers.js save route) strips `frozen`/`frozenPricing` from
+      // the payload before it ever reaches here, so a client can't use this
+      // to fake the price of a real offer.
+      if (payload?.frozen === true && payload?.frozenPricing && payload?.forceRecompute !== true) {
         return JSON.parse(JSON.stringify(payload.frozenPricing));
+      }
+
+      // 2) Something changed (or nothing was ever frozen): check for a
+      // server-computed snapshot from the last save, subject to the
+      // AUTO_RECOMPUTE_PRICING admin toggle — this is what lets an edited
+      // offer/draft keep showing its last price instead of recomputing when
+      // auto-recompute is disabled. Offer (a finalized/invoiced price) takes
+      // priority over Draft (a work-in-progress snapshot) when a number
+      // somehow matches both.
+      // Kept beyond this block (not just a local const) — computeMaterials()
+      // reuses the same snapshot to flag drift on plain DB-priced lines
+      // (Optionale Produkte, Material, ...), not just to decide whether to
+      // serve it verbatim here.
+      let priorSnapshot = null;
+      const savedOfferNumber = String(payload?.offerNumber || "").trim();
+      if (savedOfferNumber && payload?.forceRecompute !== true) {
+        const existingOffer = await fetchPriorSnapshot(OfferModel, { offerNumber: savedOfferNumber });
+        const fromOffer = cachedResponseFor(existingOffer, payload);
+        if (fromOffer) return fromOffer;
+        if (existingOffer?.pricing) priorSnapshot = existingOffer;
+
+        if (!priorSnapshot) {
+          const existingDraft = await fetchPriorSnapshot(DraftModel, { offerNumber: savedOfferNumber });
+          const fromDraft = cachedResponseFor(existingDraft, payload);
+          if (fromDraft) return fromDraft;
+          if (existingDraft?.pricing) priorSnapshot = existingDraft;
+        }
       }
 
       // AH, HMS, WD compute pricing client-side — return empty shell to avoid BU fallback
@@ -1983,7 +2142,7 @@ color: metaColor || null,
 
       let materials = { title: "", lines: [], sum: 0 };
       try {
-        materials = await computeMaterials(payload);
+        materials = await computeMaterials(payload, priorSnapshot);
       } catch (e) {
         console.error("[pricing] computeMaterials failed:", e);
       }
