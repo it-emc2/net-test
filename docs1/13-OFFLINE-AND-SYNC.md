@@ -423,9 +423,49 @@ copy — conflating "couldn't check" with "no matches" was the original bug
 report this fixed.
 
 **Not covered by this pattern**: the Badewanne text/dimension searches, the
-screen-picker, Wandverkleidung's "Budget Wandpaneele" panel, the Optional-tab
-name/price resolution, and Duschvorhang's catalog — all still call `/api/*`
-live with no offline fallback. See "What is *not* offline today" below.
+screen-picker, the Optional-tab name/price resolution, and Duschvorhang's
+catalog — all still call `/api/*` live with no offline fallback. See "What is
+*not* offline today" below.
+
+---
+
+## Offline Wandverkleidung tab
+
+Simpler than either pricing or tray search: the whole tab (`index.html`
+~4446-4870, wired up by `setupWandverkleidungPage`, script.js:7407) is either
+static HTML with no fetch at all (the decor/Farbe grid, sealing/profile
+sections, premium panels — all hardcoded `<input>`/`<img>` pairs), or the one
+live call, `loadBudgetWandPanels()` (script.js:5900), which lists the 7
+Budget-Wandpaneele (Badolux `WP*`) products.
+
+```
+loadBudgetWandPanels()
+   │
+   ├─ GET /api/products?source=badolux&limit=800  (or ?q=badolux as fallback)
+   │    succeeds ──────────────► live list
+   └─ both fail / throw (offline) ─► import("./pricing-cache.js")
+                                       └─ loadInputs().products
+                                            filtered the same way: source ===
+                                            "badolux" && productId starts "WP"
+```
+
+No new snapshot, no shared core module: this endpoint returns nothing
+`/api/price/inputs` doesn't already ship for every product (`productId`,
+`name`, `source` — `price` isn't even used here, it's resolved elsewhere via
+`data-product-id` against the pricing snapshot, same as the static sections).
+So the fallback is a plain `try/catch` around the existing fetches, not a
+tray-search-style dependency-injected rules file — there was no
+matching/scoring logic to keep in sync between two callers in the first
+place.
+
+**Images**: none of this tab's images are on `media.onlineplus.store`
+(unlike the tray search's generic illustration) — they're all same-origin
+`/assets/...`, either static `<img>` tags or, for the 7 budget panels, a path
+built client-side from `productId` (`./assets/budget/${productId}.png`,
+script.js:5930) that never appears in `index.html` for `discoverShellAssets`
+to find. All ~26 files (~2.3 MB total: 19 static Wandverkleidung images +
+7 budget-panel photos) are now hardcoded into `sw.js`'s `PRECACHE`, next to
+the tray swatches — same reasoning: small, fixed, not per-visit opportunistic.
 
 ---
 
@@ -559,6 +599,7 @@ Unit coverage for the planning cache:
 | `tests/unit/local-docs-store.test.js` | Pending-draft store: overwrite-by-name, offer-type scoping, release on sync |
 | `tests/unit/tray-suggest-match.test.js` | `tray-search-core.js` rules, plus that the client-side predicates (`matchesTrayDims`, `matchesTraySeriesAndSource`) agree with the Mongo-filter cases (`buildTrayDimFilter`) they mirror |
 | `tests/unit/offline-save-queue.test.js` (describe block `connection status dot`) | The three `#connStatus` states against a fake `navigator.onLine` and a stubbed queue |
+| `tests/unit/wandverkleidung-offline.test.js` | `loadBudgetWandPanels()`'s fallback, driven through the real `script.js` (same eval-boot technique as `scriptBoots.test.js`, with a real `pricing-cache.js` stub): falls back on a failed fetch, empty cache doesn't throw, live fetch still wins when it succeeds |
 
 The unit suite's central claim — that `getAll()` hands back primary-key order —
 is only ever asserted against a stub written to behave that way. The e2e suite
@@ -570,11 +611,11 @@ exists to check it against a real engine.
 
 - All document generation (PDF/DOCX/LaTeX — needs LibreOffice, Chromium, texlive)
 - Email sending, signing-link creation, CRM writes
-- Product search and catalogs **except Duschwanne tray sizing** (see above) —
-  Badewanne text/dimension search, the screen-picker, Wandverkleidung's
-  "Budget Wandpaneele" panel, Optional-tab name/price resolution, and
-  Duschvorhang's catalog (`/api/vorhang/products`) all still fail live with no
-  fallback offline
+- Product search and catalogs **except Duschwanne tray sizing and the
+  Wandverkleidung tab** (see above) — Badewanne text/dimension search, the
+  screen-picker, Optional-tab name/price resolution, and Duschvorhang's
+  catalog (`/api/vorhang/products`) all still fail live with no fallback
+  offline
 - Routing/distance suggestion, admin config
 - Product photos not already viewed while online (opportunistic caching only —
   see the `PRECACHE` exceptions above for the handful that are always cached)

@@ -5902,16 +5902,28 @@ async function loadBudgetWandPanels() {
   if (__budgetWvLoading) return __budgetWvLoading;
 
   __budgetWvLoading = (async () => {
-    // Preferred (after backend update supports source filter)
-    let res = await fetch("/api/products?source=badolux&limit=800");
     let data = null;
+    try {
+      // Preferred (after backend update supports source filter)
+      let res = await fetch("/api/products?source=badolux&limit=800");
+      if (res.ok) data = await res.json().catch(() => null);
 
-    if (res.ok) data = await res.json().catch(() => null);
-
-    // Fallback if backend doesn't support source param yet
-    if (!Array.isArray(data)) {
-      res = await fetch("/api/products?q=badolux");
-      data = res.ok ? await res.json().catch(() => []) : [];
+      // Fallback if backend doesn't support source param yet
+      if (!Array.isArray(data)) {
+        res = await fetch("/api/products?q=badolux");
+        data = res.ok ? await res.json().catch(() => []) : null;
+      }
+      if (!Array.isArray(data)) throw new Error("no live product list");
+    } catch (err) {
+      // Offline: these are ordinary products in the same cached pricing
+      // snapshot every other price lookup already falls back to (see
+      // pricing-client.js) — no separate offline store needed, since this
+      // function never needed anything beyond productId/name/source, all of
+      // which /api/price/inputs already ships for every product.
+      console.warn("[wandverkleidung] live product list failed, using cached pricing snapshot:", err);
+      const { loadInputs } = await import("./pricing-cache.js");
+      const cached = await loadInputs();
+      data = cached?.products || [];
     }
 
     const items = (Array.isArray(data) ? data : []).filter((p) => {

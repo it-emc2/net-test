@@ -59,15 +59,47 @@ const PRECACHE = [
   // The only images worth precaching. Discovery deliberately ignores images:
   // index.html references 118 of them and they are almost all product photos,
   // which the runtime cache picks up as they are actually used. These are the
-  // exceptions — small, fixed, always needed regardless of what was browsed
-  // before going offline, where a miss reads as broken rather than "not yet
-  // viewed": the header logo, the generic Duschwanne illustration shown under
-  // the tray search (index.html, HassmannManager.js, script.js — the same
-  // file everywhere, not a per-product photo), and the six Hassmann/Slate
-  // tray color swatches (a fixed palette — see
-  // toggleSlateTrayColorVisibility in script.js).
+  // exceptions — small (a few MB combined), fixed regardless of what was
+  // browsed before going offline, where a miss reads as broken rather than
+  // "not yet viewed": the header logo, the generic Duschwanne illustration
+  // shown under the tray search (index.html, HassmannManager.js, script.js —
+  // the same file everywhere, not a per-product photo), the six Hassmann/
+  // Slate tray color swatches (a fixed palette — see
+  // toggleSlateTrayColorVisibility in script.js), and the whole
+  // Wandverkleidung tab (below).
   "/assets/logo.png",
   "/assets/duschwanne.jpeg",
+  // The whole Wandverkleidung tab, ~2.3MB total: every static swatch/profile
+  // image in its section of index.html, plus the 7 Budget-Wandpaneele
+  // (Badolux WP*) photos, whose path is built client-side from productId
+  // (script.js loadBudgetWandPanels()) and so never appears as an <img src>
+  // for discoverShellAssets to find either way.
+  "/assets/2213de9935c01b8fba3425df1cd46c4b.jpg",
+  "/assets/585c6146589e2f4c59e026c2b5373966.jpg",
+  "/assets/6dd521ee32b126983e37b93433b29b95.jpg",
+  "/assets/Aragon grau.jpeg",
+  "/assets/Aragon_anthrazit.jpg",
+  "/assets/Flächen-Kleber.PNG",
+  "/assets/Marmor weiß.jpeg",
+  "/assets/Schwarzwaldeiche Hell.jpg",
+  "/assets/Stein anthrazit.jpeg",
+  "/assets/Stein beige.jpeg",
+  "/assets/Struktur weiß.jpeg",
+  "/assets/V3V.jpg",
+  "/assets/V3WVK05.jpg",
+  "/assets/V3WVK20.jpg",
+  "/assets/c27108714a00d1e9ed265a5b07876a85.jpg",
+  "/assets/d110afd16622742ee292b063792121f1.jpg",
+  "/assets/schiefer-grau-wv.png",
+  "/assets/silikon_ransauer.jpg",
+  "/assets/sonder.jpg",
+  "/assets/budget/WP001.png",
+  "/assets/budget/WP002.png",
+  "/assets/budget/WP003.png",
+  "/assets/budget/WP004.png",
+  "/assets/budget/WP005.png",
+  "/assets/budget/WP006.png",
+  "/assets/budget/WP007.png",
   "/assets/slate-color-weiss.jpg",
   "/assets/slate-color-elfenbein.jpg",
   "/assets/slate-color-steingrau.jpg",
