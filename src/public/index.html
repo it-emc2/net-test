@@ -5138,49 +5138,6 @@ button.dm-btn-danger:focus-visible {
 
 <script type="module" src="/configurator/boot.js"></script>
 
-<!-- Developer-only DB-backed CLONE of the Duschabtrennung (neu) configurator.
-     Identical UI/engine, but the Vigour model is fetched live from the vigor DB
-     via /api/da-config/model/... Fully isolated: does NOT feed the offer. -->
-<section class="card page" id="page-DaConfigDev" hidden>
-  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; flex-wrap:wrap;">
-    <h2 style="margin:0;">Duschabtrennung (DB-Test)</h2>
-  </div>
-  <p class="section-subtitle" style="margin:0 0 12px;">
-    🧪 Entwickler-Vorschau: identischer Konfigurator, aber das Modell wird live aus
-    der Datenbank geladen. Diese Sektion wird <strong>nicht</strong> ins Angebot übernommen.
-  </p>
-
-  <template id="dac-config-template-dev">
-    <div class="dac-config-card" data-dac-card>
-      <div class="dac-config-head">
-        <h3 class="dac-config-title" data-dac-config-title>Duschabtrennung</h3>
-        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-          <div class="dac-supplier" role="radiogroup" aria-label="Hersteller" style="display:inline-flex; align-items:center; border:1px solid var(--border,#d0d5dd); border-radius:8px; overflow:hidden;">
-            <label style="cursor:pointer; font-size:14px;">
-              <input type="radio" data-dac-supplier-input value="vigour" checked style="position:absolute; opacity:0; pointer-events:none;">
-              <span>VIGOUR</span>
-            </label>
-            <label style="cursor:pointer; font-size:14px; border-left:1px solid var(--border,#d0d5dd);">
-              <input type="radio" data-dac-supplier-input value="badolux" style="position:absolute; opacity:0; pointer-events:none;">
-              <span>BADOLUX</span>
-            </label>
-          </div>
-          <button type="button" class="dac-config-remove" data-dac-remove hidden aria-label="Diese Duschabtrennung entfernen">
-            ✕ Entfernen
-          </button>
-        </div>
-      </div>
-      <div class="dac-mount" data-dac-mount><div class="dac-loading">Konfigurator wird geladen …</div></div>
-    </div>
-  </template>
-
-  <div id="dac-configs-dev"></div>
-
-  <button type="button" id="dac-add-config-dev" class="dac-add-config">+ Weitere Duschabtrennung hinzufügen</button>
-</section>
-
-<script type="module" src="/configurator/boot-dev.js"></script>
-
 <!-- Duschvorhang — curtain + rail system from the vigor catalog -->
 <style>
   #page-Duschvorhang .vh-enable {
