@@ -358,21 +358,43 @@ export async function renderBadge() {
 // once something is queued), this is always in the DOM so the user has one
 // place to glance at regardless of which tab or offer they are on.
 //
-// `navigator.onLine` only reflects whether a network interface exists, not
-// whether anything is reachable through it — measured on the iPad as staying
-// `true` for an entire offline session where the interface (Wi-Fi/loopback)
-// was fine but the configured server was simply down. `window.__nativeReachable`
-// is the override: set by the native shell's own NWPathMonitor-driven signal
-// (WebViewController.swift's networkWentAway()/networkCameBack(), and stamped
-// fresh on every navigation so a cold offline launch is correct immediately).
-// It is `undefined` in a plain browser, so `!== false` leaves that case
-// exactly as before — `navigator.onLine` alone, "briefly wrong on a captive
-// portal" being an acceptable gap there.
+// Two signals feed it, and neither alone is enough:
+//
+// - `navigator.onLine` / `window.__nativeReachable` (the latter set by the
+//   native shell's NWPathMonitor, see WebViewController.swift) answer "does a
+//   network interface exist at all" — genuine airplane mode, Wi-Fi off, no
+//   interface. Neither knows anything about whether *our server specifically*
+//   answers: measured directly — stopping the local dev server while Wi-Fi
+//   stayed up left both of these reporting "online" for the whole session,
+//   because from the OS's point of view it genuinely was. That is correct
+//   behavior for what they check, just not sufficient on its own.
+// - `serverReachable` (below) is the answer to the question those two can't
+//   ask: a small periodic `GET /api/version` probe — unauthenticated, never
+//   cached (sw.js's `/api/*` rule), and about as cheap a real round trip as
+//   this app has. Its failure is what actually flips the dot when the
+//   configured server (not the network) is what's down.
+let serverReachable = true;
+const HEALTH_CHECK_INTERVAL_MS = 20000;
+
+async function probeServerReachable() {
+  if (!navigator.onLine) return; // no interface at all — no point round-tripping
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
+    const res = await fetch("/api/version", { cache: "no-store", signal: ctrl.signal });
+    clearTimeout(timer);
+    serverReachable = res.ok;
+  } catch {
+    serverReachable = false;
+  }
+  renderBadge();
+}
+
 function updateConnStatus(records) {
   const el = document.getElementById("connStatus");
   if (!el) return;
 
-  const reachable = window.__nativeReachable !== false && navigator.onLine;
+  const reachable = window.__nativeReachable !== false && navigator.onLine && serverReachable;
   if (!reachable) {
     el.dataset.state = "offline";
     el.title = "Offline – Änderungen werden lokal gespeichert";
@@ -411,6 +433,19 @@ window.addEventListener("offline", () => renderBadge());
 // until the page was actually reloaded.
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") retryAll();
+});
+
+// The server-reachability probe: once at boot (so a cold launch with the
+// server down shows red immediately, not after the first interval), on an
+// interval while the app stays open, and on the same two moments retryAll()
+// already reacts to — a reconnect and the app coming back to the foreground
+// are exactly when a stale "offline" reading is most worth correcting sooner
+// than the next scheduled tick.
+probeServerReachable();
+setInterval(probeServerReachable, HEALTH_CHECK_INTERVAL_MS);
+window.addEventListener("online", () => probeServerReachable());
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") probeServerReachable();
 });
 
 initBadge();

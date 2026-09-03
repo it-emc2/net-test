@@ -213,28 +213,42 @@ retry sweep, and `online`/`offline` window events:
 
 | State | Meaning |
 |-------|---------|
-| 🔴 offline | `navigator.onLine` is false, **or** `window.__nativeReachable === false` |
-| 🟠 syncing | reachable, queue has ≥1 non-`stuck` record |
-| 🟢 synced | reachable, queue empty |
+| 🔴 offline | `navigator.onLine` is false, **or** `window.__nativeReachable === false`, **or** the last `/api/version` health check failed |
+| 🟠 syncing | none of the above, queue has ≥1 non-`stuck` record |
+| 🟢 synced | none of the above, queue empty |
 
 A `stuck` record alone does **not** turn the dot red or amber — that failure
 mode is already covered by the "N fehlgeschlagen" badge text, so the dot
 deliberately stays binary (network + pending-vs-not) rather than growing a
 fourth state.
 
-**Why `navigator.onLine` alone was not enough, on the iPad.** It reflects
-whether a network interface exists, not whether anything is reachable through
-it. Measured directly: launching the shell with the interface fine but the
-configured server down left the dot green for the *entire* offline session —
-not "briefly wrong" the way it would be recovering from a captive portal in a
-browser, because nothing ever corrected it. `window.__nativeReachable` is the
-fix — the native shell's own `NWPathMonitor` (`Reachability.swift`) sets it
-via `WebViewController.swift`'s `networkWentAway()`/`networkCameBack()`, and
-re-stamps it on every `didFinish` navigation so a cold launch that is already
-offline is correct immediately rather than waiting for a transition that may
-never come that session. `undefined` in a plain browser (`!== false` reads as
-reachable), so the office web app's behavior is unchanged — this only adds a
-correction, never a new failure mode.
+**Why `navigator.onLine` (and `NWPathMonitor`) alone were not enough.** Both
+answer "does a network interface exist," not "is our server reachable" — and
+those are different questions more often than the naming suggests. Measured
+twice, on two different mechanisms:
+
+1. Launching the shell with the interface fine but the configured server down
+   left the dot green for the *entire* offline session — nothing ever
+   corrected it, unlike a browser's brief captive-portal wrongness.
+   `window.__nativeReachable` was added to fix this: the native shell's own
+   `NWPathMonitor` (`Reachability.swift`) sets it via `WebViewController.swift`'s
+   `networkWentAway()`/`networkCameBack()`, re-stamped on every `didFinish`
+   navigation so a cold offline launch is correct immediately.
+2. That fix alone turned out **not** to cover the actual reported case:
+   stopping the local dev server while the Mac's Wi-Fi stayed up. Verified on
+   a real device — the dot stayed green, because `NWPathMonitor` reported the
+   path `.satisfied` throughout: the interface genuinely was fine, only the
+   *server process* was down, and no OS-level API can tell you that without
+   asking the server directly. `probeServerReachable()` is that ask: a small
+   periodic `GET /api/version` (unauthenticated, never cached, ~cheapest real
+   round trip this app has), run once at boot, every 20s, and on the same
+   reconnect/foreground moments `retryAll()` already reacts to. Its failure is
+   what actually flips the dot in the case that prompted this whole fix.
+
+`window.__nativeReachable` is `undefined` in a plain browser (`!== false`
+reads as reachable), so the office web app is unaffected by point 1 — but
+point 2's health check runs everywhere, browser included, since the interface
+vs. server-reachability gap is not iPad-specific.
 
 ---
 

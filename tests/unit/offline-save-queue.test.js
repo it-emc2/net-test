@@ -27,8 +27,12 @@ const draftRecord = (id, createdAt, name) => ({
   createdAt,
 });
 
+// Filters to actual queue POSTs — the connection-status dot's health-check
+// probe (GET /api/version, no body) also goes through this same fetch mock.
 const postedNames = () =>
-  globalThis.fetch.mock.calls.map((c) => JSON.parse(c[1].body).name);
+  globalThis.fetch.mock.calls
+    .filter((c) => c[1]?.body)
+    .map((c) => JSON.parse(c[1].body).name);
 
 beforeAll(async () => {
   globalThis.fetch = jest.fn(async () => ({ ok: true, status: 201 }));
