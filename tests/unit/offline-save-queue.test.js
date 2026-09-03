@@ -272,4 +272,31 @@ describe('connection status dot', () => {
     await queue.renderBadge();
     expect(document.getElementById('connStatus').dataset.state).toBe('synced');
   });
+
+  // window.__nativeReachable is the native iPad shell's override (see
+  // WebViewController.swift's networkWentAway()/networkCameBack()) for when
+  // navigator.onLine is simply wrong — measured staying true for an entire
+  // offline session where the interface was fine but the server was down.
+  describe('native shell override (window.__nativeReachable)', () => {
+    afterEach(() => { delete window.__nativeReachable; });
+
+    test('false overrides navigator.onLine === true', async () => {
+      window.__nativeReachable = false;
+      await queue.renderBadge();
+      expect(document.getElementById('connStatus').dataset.state).toBe('offline');
+    });
+
+    test('true does not mask a real navigator.onLine === false', async () => {
+      window.__nativeReachable = true;
+      setOnline(false);
+      await queue.renderBadge();
+      expect(document.getElementById('connStatus').dataset.state).toBe('offline');
+    });
+
+    test('undefined (plain browser, no native shell) defers to navigator.onLine', async () => {
+      expect(window.__nativeReachable).toBeUndefined();
+      await queue.renderBadge();
+      expect(document.getElementById('connStatus').dataset.state).toBe('synced');
+    });
+  });
 });

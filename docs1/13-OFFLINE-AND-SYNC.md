@@ -213,14 +213,28 @@ retry sweep, and `online`/`offline` window events:
 
 | State | Meaning |
 |-------|---------|
-| 🔴 offline | `navigator.onLine` is false — this is the OS interface check, so it can be briefly wrong on a captive portal; good enough for a status dot, where the native shell's `Reachability`-driven offline fallback screen is the thing that actually gates functionality |
-| 🟠 syncing | online, queue has ≥1 non-`stuck` record |
-| 🟢 synced | online, queue empty |
+| 🔴 offline | `navigator.onLine` is false, **or** `window.__nativeReachable === false` |
+| 🟠 syncing | reachable, queue has ≥1 non-`stuck` record |
+| 🟢 synced | reachable, queue empty |
 
 A `stuck` record alone does **not** turn the dot red or amber — that failure
 mode is already covered by the "N fehlgeschlagen" badge text, so the dot
 deliberately stays binary (network + pending-vs-not) rather than growing a
 fourth state.
+
+**Why `navigator.onLine` alone was not enough, on the iPad.** It reflects
+whether a network interface exists, not whether anything is reachable through
+it. Measured directly: launching the shell with the interface fine but the
+configured server down left the dot green for the *entire* offline session —
+not "briefly wrong" the way it would be recovering from a captive portal in a
+browser, because nothing ever corrected it. `window.__nativeReachable` is the
+fix — the native shell's own `NWPathMonitor` (`Reachability.swift`) sets it
+via `WebViewController.swift`'s `networkWentAway()`/`networkCameBack()`, and
+re-stamps it on every `didFinish` navigation so a cold launch that is already
+offline is correct immediately rather than waiting for a transition that may
+never come that session. `undefined` in a plain browser (`!== false` reads as
+reachable), so the office web app's behavior is unchanged — this only adds a
+correction, never a new failure mode.
 
 ---
 
@@ -545,6 +559,13 @@ listener, which also re-fetches the week.
 the login page needs the network anyway, so a redirect would strand a
 technician mid-visit, and with the shell cached it loops, re-encoding `next`
 each hop. The session is re-checked on the next load that has signal.
+
+That decision alone used to leave the header blank for the whole offline
+visit — no redirect, but also no name, since the fetch never resolved. Fixed
+the same way `SessionKeychain` makes the cookie itself durable: the display
+name from the last successful `/api/auth/me` is cached in `localStorage`
+(`nt_header_user`) and shown from there when the live call fails. Cleared on
+logout so a different user's next offline moment never shows the wrong name.
 
 Note the session token TTL is **7 days** with no refresh mechanism.
 

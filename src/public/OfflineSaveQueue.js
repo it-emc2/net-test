@@ -358,15 +358,22 @@ export async function renderBadge() {
 // once something is queued), this is always in the DOM so the user has one
 // place to glance at regardless of which tab or offer they are on.
 //
-// `navigator.onLine` is a real interface check here, not a stand-in for
-// reachability (the native iPad shell's own captive-portal-aware signal
-// drives the offline *fallback screen* separately) — good enough for a status
-// dot, where "briefly wrong on a captive portal" is a non-issue.
+// `navigator.onLine` only reflects whether a network interface exists, not
+// whether anything is reachable through it — measured on the iPad as staying
+// `true` for an entire offline session where the interface (Wi-Fi/loopback)
+// was fine but the configured server was simply down. `window.__nativeReachable`
+// is the override: set by the native shell's own NWPathMonitor-driven signal
+// (WebViewController.swift's networkWentAway()/networkCameBack(), and stamped
+// fresh on every navigation so a cold offline launch is correct immediately).
+// It is `undefined` in a plain browser, so `!== false` leaves that case
+// exactly as before — `navigator.onLine` alone, "briefly wrong on a captive
+// portal" being an acceptable gap there.
 function updateConnStatus(records) {
   const el = document.getElementById("connStatus");
   if (!el) return;
 
-  if (!navigator.onLine) {
+  const reachable = window.__nativeReachable !== false && navigator.onLine;
+  if (!reachable) {
     el.dataset.state = "offline";
     el.title = "Offline – Änderungen werden lokal gespeichert";
     return;

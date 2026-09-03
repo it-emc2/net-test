@@ -50,6 +50,7 @@ final class WebViewController: UIViewController {
 
     private func startWatchingTheNetwork() {
         reachability.onReconnect = { [weak self] in self?.networkCameBack() }
+        reachability.onDisconnect = { [weak self] in self?.networkWentAway() }
         reachability.start()
     }
 
@@ -123,7 +124,25 @@ final class WebViewController: UIViewController {
             load()   // never had a shell to begin with; start over
             return
         }
-        webView.evaluateJavaScript("window.dispatchEvent(new Event('online'))")
+        webView.evaluateJavaScript(
+            "window.__nativeReachable = true; window.dispatchEvent(new Event('online'));"
+        )
+    }
+
+    /// NWPathMonitor saw the connection genuinely drop — or the app launched
+    /// already offline. `navigator.onLine` cannot be overridden from here (it
+    /// is a browser-computed value, read-only from script), so instead this
+    /// sets a flag OfflineSaveQueue.js's connection-status dot consults
+    /// alongside it, and fires the same `offline` listener already wired for
+    /// the plain-browser case. Without this the dot stayed green through an
+    /// entire offline session on the iPad: the interface itself never went
+    /// down, only the configured server did, so `navigator.onLine` alone was
+    /// simply wrong for the whole visit — not "briefly", as it would be in a
+    /// browser on flaky Wi-Fi.
+    func networkWentAway() {
+        webView.evaluateJavaScript(
+            "window.__nativeReachable = false; window.dispatchEvent(new Event('offline'));"
+        )
     }
 
     // MARK: - Offline fallback
@@ -237,6 +256,11 @@ extension WebViewController: WKNavigationDelegate {
         // The value changes whenever the server slides the session forward, so
         // take a copy on every navigation rather than only after login.
         SessionKeychain.capture(from: webView)
+        // Stamp the fresh page with what NWPathMonitor already knows. A
+        // disconnect detected before this navigation finished (e.g. the app
+        // launched already offline) would otherwise be lost the moment the
+        // new document replaces the one `networkWentAway()` last touched.
+        webView.evaluateJavaScript("window.__nativeReachable = \(reachability.isReachable);")
     }
 
     func webView(_ webView: WKWebView,
