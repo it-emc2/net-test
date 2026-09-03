@@ -392,6 +392,13 @@ const SIGNING_KASSE_STAGE_ID = "C38:UC_ON3GS1"; // "[VI] Antrag an Kasse stellen
 const SIGNING_SZ_STAGE_ID = "C38:UC_5DII17"; // "[VI] AUTOM in FT anl. + überpr."
 const SIGNING_CATEGORY_ID = 38;
 
+// Stage AH deals move to once the customer finishes online signing. Same
+// category as AH_ANG_VERSCHICKT_CATEGORY_ID (52) above, different stage.
+// Currently shared by Kasse and Selbstzahler — placeholder until the
+// supervisor confirms a separate Kasse target stage for AH.
+const AH_SIGNING_STAGE_ID = "C52:UC_7NLTX7"; // "[VI] AUTOM in FT anleg. + überpr."
+const AH_SIGNING_CATEGORY_ID = 52;
+
 // Fixed field values filled on the deal once a Kassenkunde completes online
 // signing (Vollmacht + Abtretung always get signed as part of that flow, so
 // these are always "Ja"/"emc2" — not derived from anything customer-specific).
@@ -991,6 +998,6 @@ export {
   addTimelineComment,
   updateDealStage,
   updateDealAfterSigning,
-  AH_ANG_VERSCHICKT_CATEGORY_ID,
-  AH_ANG_VERSCHICKT_STAGE_ID,
+  AH_SIGNING_CATEGORY_ID,
+  AH_SIGNING_STAGE_ID,
 };

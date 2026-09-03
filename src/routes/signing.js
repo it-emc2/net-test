@@ -23,8 +23,8 @@ import SigningRequest from "../models/SigningRequest.js";
 import {
   addTimelineComment,
   updateDealAfterSigning,
-  AH_ANG_VERSCHICKT_CATEGORY_ID,
-  AH_ANG_VERSCHICKT_STAGE_ID,
+  AH_SIGNING_CATEGORY_ID,
+  AH_SIGNING_STAGE_ID,
 } from "./bitrix.js";
 import { generateOfferPdfBuffer, getOfferRenderData } from "./docx-template.js";
 import { htmlToPdfBuffer } from "../utils/htmlToPdf.js";
@@ -692,11 +692,11 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
             dealId: sr.bitrixEntityId,
             customerType: sr.customerType,
             // ponytail: AH placeholder — both Kasse and Selbstzahler land on
-            // the same "ANG versch. / warten" stage until the supervisor
-            // confirms separate KK/SZ target stages for AH.
+            // the same post-signing stage until the supervisor confirms a
+            // separate Kasse target stage for AH.
             ...(isAhOffer(sr) && {
-              categoryId: AH_ANG_VERSCHICKT_CATEGORY_ID,
-              stageId: AH_ANG_VERSCHICKT_STAGE_ID,
+              categoryId: AH_SIGNING_CATEGORY_ID,
+              stageId: AH_SIGNING_STAGE_ID,
             }),
           });
         } catch (err) {
