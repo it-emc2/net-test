@@ -2,6 +2,7 @@
 import { Router } from "express";
 import Product from "../models/Product.js";
 import cfg from "../services/configService.js";
+import { buildTrayDimFilter, scoreAndRank } from "../logic/tray-search-core.js";
 
 const r = Router();
 
@@ -25,68 +26,6 @@ function readQueryDims(q) {
 
 function normSource(v) {
   return String(v || "").trim().toLowerCase();
-}
-
-// Orientation-independent footprint matching. Tray categories disagree on which
-// physical side they store as "width": Hassmann/SLA stores width >= length,
-// Badolux/DW stores width <= length. So every comparison treats the footprint by
-// its sorted sides (max/min) and NEVER locks to widthCm/lengthCm — otherwise a
-// single typed axis (e.g. width 120) starves whichever category is rotated.
-export function buildTrayDimFilter({ w, l, h }) {
-  const filter = {};
-  if (w !== null && l !== null) {
-    const needMax = Math.max(w, l);
-    const needMin = Math.min(w, l);
-    filter.$expr = {
-      $and: [
-        { $gte: [{ $max: ["$widthCm", "$lengthCm"] }, needMax] },
-        { $gte: [{ $min: ["$widthCm", "$lengthCm"] }, needMin] },
-      ],
-    };
-  } else if (w !== null || l !== null) {
-    // Single axis: the one provided value may correspond to EITHER physical
-    // side, so a tray fits if its larger side covers it (max >= value).
-    const need = w !== null ? w : l;
-    filter.$expr = { $gte: [{ $max: ["$widthCm", "$lengthCm"] }, need] };
-  }
-  if (h !== null) filter.heightCm = { $gte: h };
-  return filter;
-}
-
-// Rank by closeness using ONLY provided axes, orientation-independently.
-export function scoreTray(p, { w, l, h }) {
-  let sum = 0;
-  const wc = Number(p.widthCm) || 0;
-  const lc = Number(p.lengthCm) || 0;
-  if (w !== null && l !== null) {
-    const td = [wc, lc].sort((a, b) => a - b);
-    const qd = [Math.min(w, l), Math.max(w, l)];
-    sum += (td[0] - qd[0]) ** 2 + (td[1] - qd[1]) ** 2;
-  } else if (w !== null || l !== null) {
-    const need = w !== null ? w : l;
-    // Distance to the nearest side (either orientation).
-    const d = Math.min(Math.abs(wc - need), Math.abs(lc - need));
-    sum += d * d;
-  }
-  if (h !== null) { const d = (Number(p.heightCm) || 0) - h; sum += d * d; }
-  return Math.sqrt(sum);
-}
-
-// Same rule as pricing.js: Badolux by source, or DW* productId.
-export function isBadoluxTray(p) {
-  return (
-    String(p.source || "").toLowerCase() === "badolux" ||
-    /^DW/i.test(String(p.productId || ""))
-  );
-}
-
-// Price to display in the suggestion cards — must match the Kosten tab, which
-// shows the tray line's unitPrice (net after the Badolux discount). Hassmann/SLA
-// trays are shown at list price; Badolux trays at list × (1 − discount).
-export function trayDisplayPrice(p, badoluxDiscount = 0.20) {
-  const base = Number(p.price) || 0;
-  if (!isBadoluxTray(p)) return base;
-  return Math.round(base * (1 - badoluxDiscount) * 100) / 100;
 }
 
 r.get("/suggest", async (req, res) => {
@@ -133,36 +72,7 @@ r.get("/suggest", async (req, res) => {
     ).lean();
 
     const badoluxDiscount = cfg.get("BU_BADOLUX_DISCOUNT", 0.20);
-    const mapped = docs.map((p) => {
-      const pid = String(p.productId || "");
-      const isDW = /^DW/i.test(pid);
-      const isSLA = /^SLA/i.test(pid);
-      const isBudget = normSource(p.source) === "badolux";
-      // Show the same price as the Kosten tab (net after Badolux discount).
-      return { ...p, price: trayDisplayPrice(p, badoluxDiscount), score: scoreTray(p, { w, l, h }), isDW, isSLA, isBudget };
-    });
-
-    const results = mapped
-      .sort((a, b) => {
-        if (wantBudget) {
-          // Budget mode: prioritize Badolux DW first, then other DW, then SLA
-          const aRank =
-            a.isDW && a.isBudget ? 0 : a.isDW ? 1 : a.isSLA ? 2 : 3;
-          const bRank =
-            b.isDW && b.isBudget ? 0 : b.isDW ? 1 : b.isSLA ? 2 : 3;
-
-          return (
-            aRank - bRank ||
-            a.score - b.score ||
-            (a.price ?? Infinity) - (b.price ?? Infinity)
-          );
-        }
-
-        // Default behavior: closeness then price
-        return a.score - b.score || (a.price ?? Infinity) - (b.price ?? Infinity);
-      })
-      .slice(0, 3)
-      .map(({ isDW, isSLA, ...p }) => p); // keep payload clean; keep isBudget for frontend
+    const results = scoreAndRank(docs, { w, l, h, budget: wantBudget }, badoluxDiscount);
 
     res.json({ input: { w, l, h }, results });
   } catch (e) {

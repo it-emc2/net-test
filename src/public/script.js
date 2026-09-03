@@ -5916,16 +5916,28 @@ async function loadBudgetWandPanels() {
   if (__budgetWvLoading) return __budgetWvLoading;
 
   __budgetWvLoading = (async () => {
-    // Preferred (after backend update supports source filter)
-    let res = await fetch("/api/products?source=badolux&limit=800");
     let data = null;
+    try {
+      // Preferred (after backend update supports source filter)
+      let res = await fetch("/api/products?source=badolux&limit=800");
+      if (res.ok) data = await res.json().catch(() => null);
 
-    if (res.ok) data = await res.json().catch(() => null);
-
-    // Fallback if backend doesn't support source param yet
-    if (!Array.isArray(data)) {
-      res = await fetch("/api/products?q=badolux");
-      data = res.ok ? await res.json().catch(() => []) : [];
+      // Fallback if backend doesn't support source param yet
+      if (!Array.isArray(data)) {
+        res = await fetch("/api/products?q=badolux");
+        data = res.ok ? await res.json().catch(() => []) : null;
+      }
+      if (!Array.isArray(data)) throw new Error("no live product list");
+    } catch (err) {
+      // Offline: these are ordinary products in the same cached pricing
+      // snapshot every other price lookup already falls back to (see
+      // pricing-client.js) — no separate offline store needed, since this
+      // function never needed anything beyond productId/name/source, all of
+      // which /api/price/inputs already ships for every product.
+      console.warn("[wandverkleidung] live product list failed, using cached pricing snapshot:", err);
+      const { loadInputs } = await import("./pricing-cache.js");
+      const cached = await loadInputs();
+      data = cached?.products || [];
     }
 
     const items = (Array.isArray(data) ? data : []).filter((p) => {
@@ -10333,11 +10345,17 @@ function initSmartTraySearch() {
   };
 
   // Build one labeled row: heading + up to 3 cards, or a "no matches" note.
-  const buildRow = (heading, list, keyPrefix, sourceLabel, savedPid) => {
+  // `local` means the list came from the offline fallback (cached snapshot)
+  // rather than a live request — worth saying, since "no matches" and
+  // "couldn't check" are different things to a technician on site.
+  const buildRow = (heading, list, keyPrefix, sourceLabel, savedPid, local) => {
     const top = Array.isArray(list) ? list.slice(0, 3) : [];
+    const emptyMsg = local
+      ? "Offline – keine passenden Vorschläge im zwischengespeicherten Bestand."
+      : "Keine passenden Vorschläge gefunden.";
     const body =
       top.length === 0
-        ? `<div class="meta">Keine passenden Vorschläge gefunden.</div>`
+        ? `<div class="meta">${emptyMsg}</div>`
         : `<div class="suggestion-list">${top
             .map((p, i) =>
               buildCard(
@@ -10351,13 +10369,13 @@ function initSmartTraySearch() {
             .join("")}</div>`;
 
     return `
-      <div class="suggestion-heading">${heading}</div>
+      <div class="suggestion-heading">${heading}${local ? ' <span class="meta">(offline)</span>' : ""}</div>
       ${body}
     `;
   };
 
   // Render both category rows: Hassmann (SLA*) and Badolux (source=badolux).
-  function renderTwoRows(hassmannList, badoluxList) {
+  function renderTwoRows(hassmannList, badoluxList, hassmannLocal, badoluxLocal) {
     // Only restore a saved PID if the user actually chose in THIS session
     const allowAutoCheck = sessionStorage.getItem("dw_tray_touched") === "1";
     let savedPid = null;
@@ -10369,8 +10387,8 @@ function initSmartTraySearch() {
     }
 
     out.innerHTML = `
-      ${buildRow("Hassmann", hassmannList, "hassmann", "Hassmann", savedPid)}
-      ${buildRow("Badolux", badoluxList, "badolux", "Badolux", savedPid)}
+      ${buildRow("Hassmann", hassmannList, "hassmann", "Hassmann", savedPid, hassmannLocal)}
+      ${buildRow("Badolux", badoluxList, "badolux", "Badolux", savedPid, badoluxLocal)}
     `;
 
     if (savedPid) {
@@ -10415,6 +10433,9 @@ function initSmartTraySearch() {
     if (h !== null) baseQs.set("h", String(h));
 
     // Hassmann row = slate series (SLA*); Badolux row = source=badolux.
+    const hassmannParams = { w: b, l, h, series: "SLA", source: "" };
+    const badoluxParams = { w: b, l, h, series: "", source: "badolux" };
+
     const hassmannQs = new URLSearchParams(baseQs);
     hassmannQs.set("series", "SLA");
     const badoluxQs = new URLSearchParams(baseQs);
@@ -10431,24 +10452,35 @@ function initSmartTraySearch() {
 
     out.innerHTML = `<div class="meta">Suche…</div>`;
 
-    const fetchList = async (url) => {
-      const r = await fetch(url, { signal: inflight.signal, credentials: "include" });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const data = await r.json();
-      return Array.isArray(data?.results) ? data.results : [];
+    // Falls back to the cached-snapshot match (tray-search-client.js) on any
+    // failure that isn't a deliberate abort, so "the server is unreachable"
+    // never looks the same as "no matching trays exist".
+    const fetchList = async (url, params) => {
+      try {
+        const r = await fetch(url, { signal: inflight.signal, credentials: "include" });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        return { list: Array.isArray(data?.results) ? data.results : [], local: false };
+      } catch (err) {
+        if (err?.name === "AbortError") throw err;
+        console.warn("[tray-search] live request failed, trying cached snapshot:", err);
+        const { suggestTraysLocally } = await import("./tray-search-client.js");
+        const local = await suggestTraysLocally(params).catch(() => null);
+        return { list: local?.results || [], local: true };
+      }
     };
 
     // Run both category requests in parallel. allSettled so a failure in one
     // category still lets the other row render.
     const [hRes, bRes] = await Promise.allSettled([
-      fetchList(hassmannUrl),
-      fetchList(badoluxUrl),
+      fetchList(hassmannUrl, hassmannParams),
+      fetchList(badoluxUrl, badoluxParams),
     ]);
 
     if (mySeq !== reqSeq) return; // stale/aborted response, ignore
 
-    const hassmannList = hRes.status === "fulfilled" ? hRes.value : [];
-    const badoluxList = bRes.status === "fulfilled" ? bRes.value : [];
+    const hassmannList = hRes.status === "fulfilled" ? hRes.value.list : [];
+    const badoluxList = bRes.status === "fulfilled" ? bRes.value.list : [];
 
     if (hRes.status === "rejected" && hRes.reason?.name !== "AbortError") {
       console.error("Hassmann tray search failed:", hRes.reason);
@@ -10457,7 +10489,12 @@ function initSmartTraySearch() {
       console.error("Badolux tray search failed:", bRes.reason);
     }
 
-    renderTwoRows(hassmannList, badoluxList);
+    renderTwoRows(
+      hassmannList,
+      badoluxList,
+      hRes.status === "fulfilled" && hRes.value.local,
+      bRes.status === "fulfilled" && bRes.value.local,
+    );
   }
 
   const request = () => {
@@ -13539,6 +13576,7 @@ async function saveCurrentDraft() {
     }
 
     if (!res.ok) {
+      const { handleSaveAuthExpired } = await import("./auth-recovery.js");
       if (await handleSaveAuthExpired(res, "draft")) return;
       const body = await res.json().catch(() => ({}));
       console.error("saveCurrentDraft failed:", body);
@@ -16431,32 +16469,6 @@ function initOptionalSonderprodukte() {
   applyCatVisibility();
 }
 
-// A save request came back 401: the session cookie expired mid-edit. Flush the
-// in-progress payload into the session-recovery snapshot (so it survives the
-// redirect) and send the user to log back in. pendingKind === "offer" lets
-// session-recovery auto-resave once the user restores after re-login.
-async function handleSaveAuthExpired(res, pendingKind) {
-  if (!res || res.status !== 401) return false;
-  try {
-    const sr = await import("./session-recovery.js");
-    await sr.__internals.flush();
-  } catch (err) {
-    console.warn("[save] could not flush session-recovery before redirect:", err);
-  }
-  try {
-    sessionStorage.setItem("nt_resume_save_after_login", pendingKind);
-  } catch {}
-  window.toast?.warn?.(
-    "Sitzung abgelaufen",
-    "Ihre Eingaben wurden gesichert. Bitte melden Sie sich erneut an.",
-  );
-  const next = encodeURIComponent(location.pathname + location.search);
-  setTimeout(() => {
-    window.location.href = `/login?next=${next}`;
-  }, 1500);
-  return true;
-}
-
 // Save a final offer snapshot after a successful export
 async function saveFinalOfferSnapshot() {
   if (typeof buildPayload !== "function") return;
@@ -16518,6 +16530,7 @@ async function saveFinalOfferSnapshot() {
     }
 
     if (!res.ok) {
+      const { handleSaveAuthExpired } = await import("./auth-recovery.js");
       if (await handleSaveAuthExpired(res, "offer")) return;
       const body = await res.json().catch(() => ({}));
       window.toast?.error?.(

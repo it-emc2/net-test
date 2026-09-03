@@ -1,4 +1,12 @@
-import { buildTrayDimFilter, scoreTray, isBadoluxTray, trayDisplayPrice } from '../../src/routes/trays.js';
+import {
+  buildTrayDimFilter,
+  scoreTray,
+  isBadoluxTray,
+  trayDisplayPrice,
+  matchesTrayDims,
+  matchesTraySeriesAndSource,
+  scoreAndRank,
+} from '../../src/logic/tray-search-core.js';
 
 // Tray categories disagree on which physical side is "width": Hassmann/SLA
 // stores width >= length, Badolux/DW stores width <= length. A 120-footprint
@@ -45,4 +53,58 @@ test('display price applies the Badolux discount so it matches the Kosten tab', 
 
 test('display price leaves Hassmann/SLA trays unchanged', () => {
   expect(trayDisplayPrice({ productId: 'SLA12070', source: 'hassmann', price: 341.46 }, 0.20)).toBe(341.46);
+});
+
+// matchesTrayDims is the offline fallback's in-memory stand-in for
+// buildTrayDimFilter's Mongo $expr — same cases as above, expressed as a
+// predicate over a plain object instead of a query. Both must agree, or a
+// tray shown online could vanish (or a wrong one appear) offline.
+describe('matchesTrayDims agrees with buildTrayDimFilter on the same cases', () => {
+  test('single axis: larger side must cover it, orientation-independent', () => {
+    const dims = { w: 120, l: null, h: null };
+    expect(matchesTrayDims({ widthCm: 120, lengthCm: 90 }, dims)).toBe(true);   // Hassmann orientation
+    expect(matchesTrayDims({ widthCm: 90, lengthCm: 120 }, dims)).toBe(true);   // Badolux orientation
+    expect(matchesTrayDims({ widthCm: 100, lengthCm: 110 }, dims)).toBe(false); // too small either way
+  });
+
+  test('two axes: footprint must cover both the larger and smaller side', () => {
+    const dims = { w: 120, l: 100, h: null };
+    expect(matchesTrayDims({ widthCm: 120, lengthCm: 100 }, dims)).toBe(true);
+    expect(matchesTrayDims({ widthCm: 100, lengthCm: 120 }, dims)).toBe(true); // rotated, still fits
+    expect(matchesTrayDims({ widthCm: 120, lengthCm: 90 }, dims)).toBe(false); // shorter side too small
+  });
+
+  test('height is a hard floor when provided', () => {
+    const dims = { w: null, l: null, h: 5 };
+    expect(matchesTrayDims({ heightCm: 5 }, dims)).toBe(true);
+    expect(matchesTrayDims({ heightCm: 4.9 }, dims)).toBe(false);
+  });
+});
+
+test('matchesTraySeriesAndSource mirrors the route\'s productId/source filter', () => {
+  const sla = { productId: 'SLA12070', source: 'hassmann' };
+  const dw = { productId: 'DW021', source: 'badolux' };
+  const other = { productId: 'PLA5282', source: '' };
+
+  expect(matchesTraySeriesAndSource(sla, { series: 'SLA', source: '' })).toBe(true);
+  expect(matchesTraySeriesAndSource(dw, { series: 'SLA', source: '' })).toBe(false);
+  expect(matchesTraySeriesAndSource(dw, { series: '', source: 'badolux' })).toBe(true);
+  expect(matchesTraySeriesAndSource(sla, { series: '', source: 'badolux' })).toBe(false);
+  expect(matchesTraySeriesAndSource(other, { series: '', source: '' })).toBe(false); // neither SLA nor DW
+});
+
+test('scoreAndRank sorts by closeness then price and trims to 3', () => {
+  const docs = [
+    { productId: 'SLA1', price: 300, widthCm: 130, lengthCm: 90 },
+    { productId: 'SLA2', price: 200, widthCm: 120, lengthCm: 90 }, // exact match, cheaper
+    { productId: 'SLA3', price: 250, widthCm: 120, lengthCm: 90 }, // exact match, pricier
+    { productId: 'SLA4', price: 100, widthCm: 150, lengthCm: 90 },
+    { productId: 'SLA5', price: 100, widthCm: 160, lengthCm: 90 },
+  ];
+  const results = scoreAndRank(docs, { w: 120, l: 90, h: null, budget: false }, 0.20);
+  expect(results).toHaveLength(3);
+  // Two exact-fit trays tie on score (0) and are ordered by price.
+  expect(results[0].productId).toBe('SLA2');
+  expect(results[1].productId).toBe('SLA3');
+  expect(results.some((r) => r.isDW !== undefined || r.isSLA !== undefined)).toBe(false); // internal flags stripped
 });

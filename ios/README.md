@@ -38,6 +38,15 @@ pricing change is just a deploy. Only changes to the shell itself — the server
 URL, the allowed hosts, downloads, reachability, the Keychain session, the
 durability mirror, the icon — need Xcode.
 
+This also covers backend/database changes (a new Mongoose field, a new
+collection): the shell has no schema of its own. `DurabilityMirror.swift`
+stores the save-queue payload as opaque bytes and `SessionKeychain` only
+handles a cookie, so neither cares what fields the JSON carries. The next
+`git pull` + deploy on the server is all that's needed; the app picks it up on
+its next load with signal, same as a browser tab. The only case that needs a
+rebuild is a change to native-only storage shape itself — e.g. renaming the
+mirror's file format in a way old mirrored JSON can't be read back into.
+
 ## Which server it talks to
 
 `EMC2BaseURL` in `EmC2Konfigurator/Info.plist`, default `https://oc.emc2.de`.
@@ -89,7 +98,7 @@ or `callAsyncJavaScript`, which the plan had feared.
 
 | | |
 |---|---|
-| **Reachability** | `Reachability.swift` wraps `NWPathMonitor`. `navigator.onLine` reports whether an *interface* exists, not whether anything is reachable — it stays `true` on a captive portal, on Wi-Fi with no uplink, and on a van hotspot that has dropped data. On a real reconnect the shell dispatches the page's own `online` event, so `OfflineSaveQueue` and the planning panel react exactly as they do in a browser. **No web-side change and no bridge**: the event already exists. |
+| **Reachability** | `Reachability.swift` wraps `NWPathMonitor`. `navigator.onLine` reports whether an *interface* exists, not whether anything is reachable — it stays `true` on a captive portal, on Wi-Fi with no uplink, and on a van hotspot that has dropped data. On a real reconnect the shell dispatches the page's own `online` event, so `OfflineSaveQueue` and the planning panel react exactly as they do in a browser. **No web-side change and no bridge**: the event already exists. On a real *disconnect* (or a launch that is already offline), `WebViewController.swift`'s `networkWentAway()` sets `window.__nativeReachable = false` and dispatches `offline` — added after the permanent connection dot (`OfflineSaveQueue.js`) was observed stuck green through a whole offline session, since `navigator.onLine` alone never corrected itself once the interface stayed up. |
 | **Durable session** | `SessionKeychain.swift` copies the `net_session` cookie into the Keychain after each navigation and puts it back if the cookie store has lost it. The plan called for a Bearer token and a native login screen; that would mean teaching the whole web app to send a header it does not send today. Making the existing cookie durable leaves auth exactly as it was. |
 | **Background sync** | `BackgroundSync.swift` (`BGAppRefreshTask`) wakes the page long enough for its `online` handler to sweep the queue, for when the iPad is pocketed and walks back into signal without being reopened. |
 
@@ -104,7 +113,10 @@ page that itself needs the network.
 - **Sliding session** — unit tested (`tests/unit/auth-sliding-session.test.js`).
 - **Reachability** — the reconnect path is the same `online` event the offline
   e2e suite already exercises, but the `NWPathMonitor` trigger itself has not
-  been driven end to end; that needs real network toggling on a device.
+  been driven end to end; that needs real network toggling on a device. The
+  disconnect path (`onDisconnect`/`networkWentAway()`) is newer still and
+  unverified on a device — see whether the cold-offline-launch case was
+  checked in the simulator before relying on it.
 - **Keychain persistence — NOT verified, and cannot be in an unsigned build.**
   The cookie capture works (observed: the session cookie is found and read),
   but `SecItemAdd` returns **-34018 `errSecMissingEntitlement`** because a

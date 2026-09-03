@@ -42,6 +42,9 @@ Three rules explain most of the decisions below:
 | `src/public/pricing-cache.js` | Caches `GET /api/price/inputs` |
 | `src/public/pricing-client.js` | Runs `src/logic/pricing-core.js` in the browser |
 | `src/logic/pricing-core.js` | Dependency-injected pricing rules — runs on **both** server and browser |
+| `src/public/tray-search-client.js` | Offline fallback for the Duschwanne suggestion boxes — runs `tray-search-core.js` against the cached `/api/price/inputs` snapshot |
+| `src/logic/tray-search-core.js` | Dependency-injected tray matching/scoring/pricing rules — runs on **both** `routes/trays.js` and the browser |
+| `src/public/auth-recovery.js` | Shared 401-on-save handler (flush session-recovery, toast, redirect to `/login`) — used by every save call site |
 
 iOS-specific meta lives in `index.html:14-20` (`apple-mobile-web-app-capable`,
 `apple-touch-icon`, …) because iOS ignores the manifest's `display` mode.
@@ -119,11 +122,16 @@ Two subtleties worth preserving:
    entries ending in `woff2`/`woff`/`ttf`. Without it Font Awesome renders as a
    giant black magnifying glass offline.
 3. **The explicit `PRECACHE` list** — only modules reached through a dynamic
-   `import()`, which no amount of HTML parsing can find, plus `/assets/logo.png`.
+   `import()`, which no amount of HTML parsing can find, plus a handful of
+   fixed images (see below).
 
-Images are deliberately **not** discovered: `index.html` references 118 of them
-and they are almost all product photos, which the runtime cache picks up as
-they are used. The header logo is the one exception.
+Images are deliberately **not** discovered: `index.html` references 118 of
+them and they are almost all product photos, which the runtime cache picks up
+as they are used. The exceptions, hardcoded into `PRECACHE` alongside
+`/assets/logo.png`: the generic Duschwanne illustration shown under the tray
+search, and the six Hassmann/Slate tray color swatches — all fixed, local,
+always needed regardless of what was browsed before going offline, where a
+miss reads as broken rather than "not yet viewed."
 
 **Why the runtime cache cannot replace this.** The worker does not control the
 load that registers it, so those subresources never reach a `fetch` handler. On
@@ -178,10 +186,16 @@ real conflict that must be surfaced, not silently dropped.
 |-----------|------|
 | `DraftsManager.js:235` (`quickSaveDraft`) | `draft` |
 | `script.js:16056` (`saveFinalOfferSnapshot`) | `offer` |
+| `ExportManager.js` (final-offer save after export) | `offer` |
 
-> ⚠️ `ExportManager.js:386` posts to `/api/offers` with a **raw `fetch`**,
-> bypassing the queue. That save is lost offline. Tracked as Gap 2 in
-> `docs/plan-ipad-local-first.md`.
+All four routed through `trySaveOrQueue` also share one auth-expiry path:
+`auth-recovery.js`'s `handleSaveAuthExpired()` catches a 401 (session cookie
+expired mid-edit), flushes the in-progress payload into session-recovery, and
+redirects to `/login` with auto-resume — instead of surfacing a generic
+"Speichern fehlgeschlagen" that gives no clue the work is still safe. This was
+missing from `DraftsManager.js` and `ExportManager.js` until it was pulled out
+of `script.js` into a shared module; check any *new* save call site actually
+imports it rather than reimplementing 401 handling.
 
 **Retry cap.** A record the *server* rejects (neither ok nor 409 — a malformed
 payload, say) is counted, and after `MAX_ATTEMPTS` (5) it is marked `stuck`:
@@ -190,6 +204,51 @@ badge as "N fehlgeschlagen". Without that it retried forever and the badge sat
 permanently at "wird synchronisiert", which reads as a slow sync rather than a
 failure. Being offline does not count towards the cap — `postRecord` returns
 null then and the record is left untouched.
+
+**Permanent connection/sync dot.** `#connStatus` in the page header (always
+present, unlike the pending-count badge above which only exists inside a
+summary widget once something is queued) shows one of three states, updated
+by `renderBadge()` at the same trigger points as the badge — queue write,
+retry sweep, and `online`/`offline` window events:
+
+| State | Meaning |
+|-------|---------|
+| 🔴 offline | `navigator.onLine` is false, **or** `window.__nativeReachable === false`, **or** the last `/api/version` health check failed |
+| 🟠 syncing | none of the above, queue has ≥1 non-`stuck` record |
+| 🟢 synced | none of the above, queue empty |
+
+A `stuck` record alone does **not** turn the dot red or amber — that failure
+mode is already covered by the "N fehlgeschlagen" badge text, so the dot
+deliberately stays binary (network + pending-vs-not) rather than growing a
+fourth state.
+
+**Why `navigator.onLine` (and `NWPathMonitor`) alone were not enough.** Both
+answer "does a network interface exist," not "is our server reachable" — and
+those are different questions more often than the naming suggests. Measured
+twice, on two different mechanisms:
+
+1. Launching the shell with the interface fine but the configured server down
+   left the dot green for the *entire* offline session — nothing ever
+   corrected it, unlike a browser's brief captive-portal wrongness.
+   `window.__nativeReachable` was added to fix this: the native shell's own
+   `NWPathMonitor` (`Reachability.swift`) sets it via `WebViewController.swift`'s
+   `networkWentAway()`/`networkCameBack()`, re-stamped on every `didFinish`
+   navigation so a cold offline launch is correct immediately.
+2. That fix alone turned out **not** to cover the actual reported case:
+   stopping the local dev server while the Mac's Wi-Fi stayed up. Verified on
+   a real device — the dot stayed green, because `NWPathMonitor` reported the
+   path `.satisfied` throughout: the interface genuinely was fine, only the
+   *server process* was down, and no OS-level API can tell you that without
+   asking the server directly. `probeServerReachable()` is that ask: a small
+   periodic `GET /api/version` (unauthenticated, never cached, ~cheapest real
+   round trip this app has), run once at boot, every 20s, and on the same
+   reconnect/foreground moments `retryAll()` already reacts to. Its failure is
+   what actually flips the dot in the case that prompted this whole fix.
+
+`window.__nativeReachable` is `undefined` in a plain browser (`!== false`
+reads as reachable), so the office web app is unaffected by point 1 — but
+point 2's health check runs everywhere, browser included, since the interface
+vs. server-reachability gap is not iPad-specific.
 
 ---
 
@@ -354,6 +413,90 @@ Three properties that must be preserved:
 
 ---
 
+## Offline tray search (Duschwanne)
+
+```
+GET /api/trays/suggest?w=&l=&h=&series=|source=
+   │
+   ├─ succeeds ──────────────► server result
+   └─ fetch throws (offline) ─► import("./tray-search-client.js")
+                                  └─ suggestTraysLocally({w,l,h,series,source})
+                                       ├─ loadInputs()  ← nt-pricing-inputs
+                                       └─ matchesTraySeriesAndSource() +
+                                          matchesTrayDims() + scoreAndRank()
+                                  └─ { ...result, _local: true }
+```
+
+Same shape as offline pricing, for the same reason: `tray-search-core.js`
+holds the filter/scoring/pricing rules and is imported by **both**
+`routes/trays.js` and `tray-search-client.js`, so a cached result can never
+disagree with what the server would have said. No new snapshot either — the
+existing `/api/price/inputs` product projection was extended with
+`widthCm`/`lengthCm`/`heightCm`/`source` (harmless `undefined` on non-tray
+products) rather than adding a second cache store.
+
+This was safe to do because the matching is pure dimension filtering with no
+live dependency: no stock gating, no live pricing feed (the Badolux discount
+is a static `CONFIG_SCHEMA` value, already in the same snapshot). Unlike
+offline pricing's `_local: true` vigor-net-price caveat, a cached tray result
+carries no correctness risk — it just goes stale at the same cadence as an
+admin-panel price change.
+
+`initSmartTraySearch` (script.js) falls back to the local match on any fetch
+failure that isn't a deliberate `AbortError`, and tags the row `(offline)` so
+a cached result never looks identical to a live one. A genuinely-empty local
+match says so explicitly ("Offline – keine passenden Vorschläge im
+zwischengespeicherten Bestand") rather than reusing the online empty-state
+copy — conflating "couldn't check" with "no matches" was the original bug
+report this fixed.
+
+**Not covered by this pattern**: the Badewanne text/dimension searches, the
+screen-picker, the Optional-tab name/price resolution, and Duschvorhang's
+catalog — all still call `/api/*` live with no offline fallback. See "What is
+*not* offline today" below.
+
+---
+
+## Offline Wandverkleidung tab
+
+Simpler than either pricing or tray search: the whole tab (`index.html`
+~4446-4870, wired up by `setupWandverkleidungPage`, script.js:7407) is either
+static HTML with no fetch at all (the decor/Farbe grid, sealing/profile
+sections, premium panels — all hardcoded `<input>`/`<img>` pairs), or the one
+live call, `loadBudgetWandPanels()` (script.js:5900), which lists the 7
+Budget-Wandpaneele (Badolux `WP*`) products.
+
+```
+loadBudgetWandPanels()
+   │
+   ├─ GET /api/products?source=badolux&limit=800  (or ?q=badolux as fallback)
+   │    succeeds ──────────────► live list
+   └─ both fail / throw (offline) ─► import("./pricing-cache.js")
+                                       └─ loadInputs().products
+                                            filtered the same way: source ===
+                                            "badolux" && productId starts "WP"
+```
+
+No new snapshot, no shared core module: this endpoint returns nothing
+`/api/price/inputs` doesn't already ship for every product (`productId`,
+`name`, `source` — `price` isn't even used here, it's resolved elsewhere via
+`data-product-id` against the pricing snapshot, same as the static sections).
+So the fallback is a plain `try/catch` around the existing fetches, not a
+tray-search-style dependency-injected rules file — there was no
+matching/scoring logic to keep in sync between two callers in the first
+place.
+
+**Images**: none of this tab's images are on `media.onlineplus.store`
+(unlike the tray search's generic illustration) — they're all same-origin
+`/assets/...`, either static `<img>` tags or, for the 7 budget panels, a path
+built client-side from `productId` (`./assets/budget/${productId}.png`,
+script.js:5930) that never appears in `index.html` for `discoverShellAssets`
+to find. All ~26 files (~2.3 MB total: 19 static Wandverkleidung images +
+7 budget-panel photos) are now hardcoded into `sw.js`'s `PRECACHE`, next to
+the tray swatches — same reasoning: small, fixed, not per-visit opportunistic.
+
+---
+
 ## Offline "Heutige Planung" prefill
 
 The primary field workflow: pick a planned appointment, pick an offer type, and
@@ -431,6 +574,13 @@ the login page needs the network anyway, so a redirect would strand a
 technician mid-visit, and with the shell cached it loops, re-encoding `next`
 each hop. The session is re-checked on the next load that has signal.
 
+That decision alone used to leave the header blank for the whole offline
+visit — no redirect, but also no name, since the fetch never resolved. Fixed
+the same way `SessionKeychain` makes the cookie itself durable: the display
+name from the last successful `/api/auth/me` is cached in `localStorage`
+(`nt_header_user`) and shown from there when the live call fails. Cleared on
+logout so a different user's next offline moment never shows the wrong name.
+
 Note the session token TTL is **7 days** with no refresh mechanism.
 
 ---
@@ -482,6 +632,9 @@ Unit coverage for the planning cache:
 | `tests/unit/planning-cache.test.js` | Store semantics: snapshot round-trip, key derivation, TTL, IndexedDB refusal |
 | `tests/unit/planning-offline-prefill.test.js` | The prefill itself, driven through the real `script.js`: Anrede fills from cache offline, live answers are cached, a mid-flight form reset is discarded |
 | `tests/unit/local-docs-store.test.js` | Pending-draft store: overwrite-by-name, offer-type scoping, release on sync |
+| `tests/unit/tray-suggest-match.test.js` | `tray-search-core.js` rules, plus that the client-side predicates (`matchesTrayDims`, `matchesTraySeriesAndSource`) agree with the Mongo-filter cases (`buildTrayDimFilter`) they mirror |
+| `tests/unit/offline-save-queue.test.js` (describe block `connection status dot`) | The three `#connStatus` states against a fake `navigator.onLine` and a stubbed queue |
+| `tests/unit/wandverkleidung-offline.test.js` | `loadBudgetWandPanels()`'s fallback, driven through the real `script.js` (same eval-boot technique as `scriptBoots.test.js`, with a real `pricing-cache.js` stub): falls back on a failed fetch, empty cache doesn't throw, live fetch still wins when it succeeds |
 
 The unit suite's central claim — that `getAll()` hands back primary-key order —
 is only ever asserted against a stub written to behave that way. The e2e suite
@@ -493,6 +646,17 @@ exists to check it against a real engine.
 
 - All document generation (PDF/DOCX/LaTeX — needs LibreOffice, Chromium, texlive)
 - Email sending, signing-link creation, CRM writes
-- Product search, routing/distance suggestion, admin config
+- Product search and catalogs **except Duschwanne tray sizing and the
+  Wandverkleidung tab** (see above) — Badewanne text/dimension search, the
+  screen-picker, Optional-tab name/price resolution, and Duschvorhang's
+  catalog (`/api/vorhang/products`) all still fail live with no fallback
+  offline
+- Routing/distance suggestion, admin config
+- Product photos not already viewed while online (opportunistic caching only —
+  see the `PRECACHE` exceptions above for the handful that are always cached)
+- The "Duschabtrennung (neu)" configurator tab's ~10 MB model file
+  (`configurator/vigor-model.json`) is cached opportunistically, not
+  precached, and is disproportionately likely to be evicted under iOS storage
+  pressure given its size — a known risk, not yet fixed
 - Wizard position across an app restart, other than through the session-recovery
   banner (see above — deliberate)

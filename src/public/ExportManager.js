@@ -406,6 +406,8 @@ export function initExportManager(options = {}) {
       }
 
       if (!res.ok) {
+        const { handleSaveAuthExpired } = await import("./auth-recovery.js");
+        if (await handleSaveAuthExpired(res, "offer")) return;
         const body = await res.json().catch(() => ({}));
         console.error("[ExportManager] Failed to save final offer snapshot:", body);
         window.toast?.error?.(

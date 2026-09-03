@@ -27,8 +27,12 @@ const draftRecord = (id, createdAt, name) => ({
   createdAt,
 });
 
+// Filters to actual queue POSTs — the connection-status dot's health-check
+// probe (GET /api/version, no body) also goes through this same fetch mock.
 const postedNames = () =>
-  globalThis.fetch.mock.calls.map((c) => JSON.parse(c[1].body).name);
+  globalThis.fetch.mock.calls
+    .filter((c) => c[1]?.body)
+    .map((c) => JSON.parse(c[1].body).name);
 
 beforeAll(async () => {
   globalThis.fetch = jest.fn(async () => ({ ok: true, status: 201 }));
@@ -43,6 +47,12 @@ beforeAll(async () => {
     });
   }
   queue = await import('../../src/public/OfflineSaveQueue.js');
+
+  // renderBadge() also drives the permanent header dot; give it an element
+  // to find. The real one lives in index.html's <header>, out of scope here.
+  const dot = document.createElement('span');
+  dot.id = 'connStatus';
+  document.body.appendChild(dot);
 });
 
 beforeEach(() => {
@@ -241,5 +251,56 @@ describe('foreground flush', () => {
 
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     expect(idb.data.size).toBe(0);
+  });
+});
+
+describe('connection status dot', () => {
+  const setOnline = (value) =>
+    Object.defineProperty(navigator, 'onLine', { value, configurable: true });
+
+  afterEach(() => setOnline(true));
+
+  test('offline interface wins regardless of the queue', async () => {
+    setOnline(false);
+    await queue.renderBadge();
+    expect(document.getElementById('connStatus').dataset.state).toBe('offline');
+  });
+
+  test('online with a queued record shows syncing', async () => {
+    idb.data.set('sync001', draftRecord('sync001', '2026-07-28T10:00:00.000Z', 'Pending'));
+    await queue.renderBadge();
+    expect(document.getElementById('connStatus').dataset.state).toBe('syncing');
+  });
+
+  test('online with an empty queue shows synced', async () => {
+    await queue.renderBadge();
+    expect(document.getElementById('connStatus').dataset.state).toBe('synced');
+  });
+
+  // window.__nativeReachable is the native iPad shell's override (see
+  // WebViewController.swift's networkWentAway()/networkCameBack()) for when
+  // navigator.onLine is simply wrong — measured staying true for an entire
+  // offline session where the interface was fine but the server was down.
+  describe('native shell override (window.__nativeReachable)', () => {
+    afterEach(() => { delete window.__nativeReachable; });
+
+    test('false overrides navigator.onLine === true', async () => {
+      window.__nativeReachable = false;
+      await queue.renderBadge();
+      expect(document.getElementById('connStatus').dataset.state).toBe('offline');
+    });
+
+    test('true does not mask a real navigator.onLine === false', async () => {
+      window.__nativeReachable = true;
+      setOnline(false);
+      await queue.renderBadge();
+      expect(document.getElementById('connStatus').dataset.state).toBe('offline');
+    });
+
+    test('undefined (plain browser, no native shell) defers to navigator.onLine', async () => {
+      expect(window.__nativeReachable).toBeUndefined();
+      await queue.renderBadge();
+      expect(document.getElementById('connStatus').dataset.state).toBe('synced');
+    });
   });
 });
