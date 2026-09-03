@@ -321,9 +321,9 @@ function renderSigning() {
       <table class="sign-table">
         <thead><tr>
           <th>Angebot</th><th>Kunde</th><th>Typ</th><th>Status</th><th>Dok.</th>
-          <th>Gesendet</th><th>Geöffnet</th><th>Unterschrieben</th><th>Gültig bis</th><th></th>
+          <th>Gesendet</th><th>Geöffnet</th><th>Unterschrieben</th><th>Gültig bis</th><th></th><th></th>
         </tr></thead>
-        <tbody id="sign-rows"><tr><td colspan="10"><div class="empty-state"><i class="fas fa-circle-notch fa-spin"></i> Lade…</div></td></tr></tbody>
+        <tbody id="sign-rows"><tr><td colspan="11"><div class="empty-state"><i class="fas fa-circle-notch fa-spin"></i> Lade…</div></td></tr></tbody>
       </table>
     </div>
   </div>`;
@@ -494,11 +494,16 @@ function renderSigningData(data) {
   const rows = $('sign-rows');
   if (!rows) return;
   if (!(data.items || []).length) {
-    rows.innerHTML = '<tr><td colspan="10"><div class="empty-state">Keine Signatur-Links gefunden.</div></td></tr>';
+    rows.innerHTML = '<tr><td colspan="11"><div class="empty-state">Keine Signatur-Links gefunden.</div></td></tr>';
     return;
   }
   rows.innerHTML = data.items.map(it => {
     const link = origin + '/sign/' + it.token;
+    const signedDocs = (it.documents || []).filter(d => d.status === 'signed');
+    const viewLinks = signedDocs.length
+      ? signedDocs.map(d => `<a href="/admin/api/signing/${esc(it.token)}/documents/${esc(d.key)}/pdf" target="_blank" rel="noopener">${esc(d.key)}</a>`).join(' · ')
+      : '<span class="ts none">–</span>';
+    const canSendBitrix = signedDocs.length > 0;
     return `<tr>
       <td><strong>${esc(it.offerNumber || '–')}</strong></td>
       <td><div class="cust-name">${esc(it.customerName || '–')}</div><div class="cust-mail">${esc(it.customerEmail || '')}</div></td>
@@ -509,7 +514,11 @@ function renderSigningData(data) {
       <td>${fmtTs(it.openedAt)}</td>
       <td>${fmtTs(it.completedAt)}</td>
       <td>${fmtTs(it.expiresAt)}</td>
-      <td><button class="btn-ghost" data-link="${esc(link)}"><i class="fas fa-copy"></i> Kopieren</button></td>
+      <td>${viewLinks}</td>
+      <td class="sign-actions">
+        <button class="btn-ghost" data-link="${esc(link)}"><i class="fas fa-copy"></i> Kopieren</button>
+        ${canSendBitrix ? `<button class="btn-ghost" data-send-bitrix="${esc(it.token)}"><i class="fas fa-paper-plane"></i> An Bitrix senden</button>` : ''}
+      </td>
     </tr>`;
   }).join('');
 
@@ -519,6 +528,22 @@ function renderSigningData(data) {
       (navigator.clipboard ? navigator.clipboard.writeText(l) : Promise.reject())
         .then(() => { b.innerHTML = '<i class="fas fa-check"></i> Kopiert'; setTimeout(() => { b.innerHTML = '<i class="fas fa-copy"></i> Kopieren'; }, 1500); })
         .catch(() => window.prompt('Link kopieren:', l));
+    });
+  });
+
+  rows.querySelectorAll('button[data-send-bitrix]').forEach(b => {
+    b.addEventListener('click', async () => {
+      const token = b.getAttribute('data-send-bitrix');
+      b.disabled = true;
+      b.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+      try {
+        const result = await api('POST', `/admin/api/signing/${token}/send-bitrix`);
+        b.innerHTML = `<i class="fas fa-check"></i> Gesendet (${result.sent.length})`;
+      } catch (e) {
+        b.disabled = false;
+        b.innerHTML = '<i class="fas fa-paper-plane"></i> An Bitrix senden';
+        window.alert(e.message || 'Fehler beim Senden.');
+      }
     });
   });
 }

@@ -62,7 +62,7 @@ function buildAngebotForOffer(data, opts) {
   return isAhOffer(opts.sr) ? buildAhAngebotHtml(data, opts) : buildAngebotHtml(data, opts);
 }
 
-const DOC_LABELS = {
+export const DOC_LABELS = {
   angebot: "Angebot",
   vollmacht: "Vollmacht für die Krankenkasse",
   abtretung: "Abtretungserklärung",
@@ -184,7 +184,7 @@ function payloadWithPaymentChoice(sr, doc) {
 }
 
 // Build the UNSIGNED PDF of a document for on-screen viewing.
-async function buildDocumentPdf(sr, key) {
+export async function buildDocumentPdf(sr, key) {
   const doc = (sr.documents || []).find((d) => d.key === key);
   if (key === "angebot") {
     const { pdfBuffer } = await generateOfferPdfBuffer(payloadWithPaymentChoice(sr, doc));
@@ -198,7 +198,7 @@ async function buildDocumentPdf(sr, key) {
 }
 
 // Build the FINAL SIGNED PDF for a document (used on completion).
-async function buildSignedPdf(sr, doc) {
+export async function buildSignedPdf(sr, doc) {
   if (doc.key === "angebot") {
     const { data } = await getOfferRenderData(payloadWithPaymentChoice(sr, doc));
     return htmlToPdfBuffer(buildAngebotForOffer(data, { mode: "pdf", sr, doc }));
@@ -276,6 +276,30 @@ export async function createSigningRequest({
   );
 
   return { sr, link, token, customerType };
+}
+
+// Manually push whatever documents are already signed to Bitrix, without
+// waiting for the remaining documents (e.g. the customer never finished and
+// the link expired). Used by the admin panel. Returns the posted filenames.
+export async function sendSignedDocsToBitrix(sr) {
+  const signedDocs = (sr.documents || []).filter((d) => d.status === "signed");
+  if (!signedDocs.length) return { sent: [] };
+
+  const signedPdfs = [];
+  for (const d of signedDocs) {
+    const buffer = await buildSignedPdf(sr, d);
+    signedPdfs.push({ filename: `${d.key}_${sr.offerNumber || "signiert"}.pdf`, buffer });
+  }
+
+  await postTimeline(
+    sr,
+    `📎 Unterschriebene Unterlagen manuell gesendet` +
+      (sr.offerNumber ? ` (${sr.offerNumber})` : "") +
+      ` — Vorgang war nicht vollständig abgeschlossen.\nSignierte PDFs sind angehängt.`,
+    signedPdfs.map((p) => ({ filename: p.filename, base64: p.buffer.toString("base64") })),
+  );
+
+  return { sent: signedPdfs.map((p) => p.filename) };
 }
 
 // ---------- internal routes ----------

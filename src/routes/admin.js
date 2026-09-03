@@ -5,6 +5,7 @@ import SigningRequest from '../models/SigningRequest.js';
 import BitrixLog from '../models/BitrixLog.js';
 import UserActionLog from '../models/UserActionLog.js';
 import { retryBitrixLog } from './bitrix.js';
+import { sendSignedDocsToBitrix, buildSignedPdf, buildDocumentPdf } from './signing.js';
 import User from '../models/User.js';
 import {
   verifyPassword,
@@ -182,6 +183,7 @@ router.get('/api/signing', requireAdmin, async (req, res) => {
       status: sr.status,
       signedCount: (sr.documents || []).filter((d) => d.status === 'signed').length,
       docCount: (sr.documents || []).length,
+      documents: (sr.documents || []).map((d) => ({ key: d.key, status: d.status })),
       createdAt: sr.createdAt,
       openedAt: sr.openedAt,
       completedAt: sr.completedAt,
@@ -196,6 +198,42 @@ router.get('/api/signing', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('GET /admin/api/signing failed:', err);
     res.status(500).json({ error: String(err) });
+  }
+});
+
+// POST /admin/api/signing/:token/send-bitrix — push whatever documents are
+// already signed to the Bitrix timeline, without waiting for the customer to
+// finish the rest (e.g. link expired before completion).
+router.post('/api/signing/:token/send-bitrix', requireAdmin, async (req, res) => {
+  try {
+    const sr = await SigningRequest.findOne({ token: req.params.token });
+    if (!sr) return res.status(404).json({ error: 'Nicht gefunden' });
+    const result = await sendSignedDocsToBitrix(sr);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('POST /admin/api/signing/:token/send-bitrix failed:', err);
+    res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// GET /admin/api/signing/:token/documents/:key/pdf — admin-only document view,
+// bypasses the customer-facing expiry gate. Signed docs render with the
+// captured signature; unsigned/pending docs render blank for preview.
+router.get('/api/signing/:token/documents/:key/pdf', requireAdmin, async (req, res) => {
+  try {
+    const sr = await SigningRequest.findOne({ token: req.params.token });
+    if (!sr) return res.status(404).json({ error: 'Nicht gefunden' });
+    const key = String(req.params.key || '');
+    const doc = (sr.documents || []).find((d) => d.key === key);
+    if (!doc) return res.status(404).json({ error: 'Dokument nicht gefunden' });
+
+    const pdf = doc.status === 'signed' ? await buildSignedPdf(sr, doc) : await buildDocumentPdf(sr, key);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${key}.pdf"`);
+    res.end(pdf);
+  } catch (err) {
+    console.error('GET /admin/api/signing/:token/documents/:key/pdf failed:', err);
+    res.status(500).json({ error: err?.message || String(err) });
   }
 });
 
