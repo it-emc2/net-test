@@ -1,6 +1,6 @@
 # Handover — offline support (iPad shell) session
 
-Branch: `claude/session-3272e5` · PR: (link added after creation) · Date: 2026-09-03
+Branch: `claude/session-3272e5` · PR: https://github.com/it-emc2/net-test/pull/191 · Date: 2026-09-03
 
 Read this instead of the conversation history. Points to the living docs
 rather than duplicating them — read those for detail, this file is the index
@@ -46,4 +46,4 @@ Also flagged but not fixed: the "Duschabtrennung (neu)" tab loads a **10MB** `co
 
 ## PR
 
-Created against `main`. **Do not merge without the user's explicit go-ahead** — a push to `main` auto-deploys to production via `.github/workflows/*` (Fly.io).
+https://github.com/it-emc2/net-test/pull/191 — open against `main`, not merged. **Do not merge without the user's explicit go-ahead** — a push to `main` auto-deploys to production via `.github/workflows/*` (Fly.io).
