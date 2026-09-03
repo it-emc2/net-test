@@ -511,6 +511,17 @@ app.get("/logic/pricing-core.js", (req, res) => {
   res.type("application/javascript").send(PRICING_CORE_SRC);
 });
 
+// Same reasoning, for the Duschwanne suggestion boxes (see
+// public/tray-search-client.js): the offline fallback runs the identical
+// scoring/filter rules routes/trays.js uses, not a reimplementation.
+const TRAY_SEARCH_CORE_SRC = await readFile(
+  path.join(__dirname, "logic", "tray-search-core.js"),
+  "utf8",
+);
+app.get("/logic/tray-search-core.js", (req, res) => {
+  res.type("application/javascript").send(TRAY_SEARCH_CORE_SRC);
+});
+
 // GET /api/price/inputs
 // Everything the browser needs to compute a total without us: the product
 // prices and the admin-tunable numbers. Cached client-side so a technician who
@@ -523,9 +534,13 @@ app.get("/api/price/inputs", async (req, res) => {
     // Every schema key, so this never drifts from what pricing-core reads.
     for (const def of CONFIG_SCHEMA) config[def.key] = configService.get(def.key);
 
+    // widthCm/lengthCm/heightCm/source are only set on tray products (see
+    // routes/trays.js) — undefined on everything else, harmless extra fields.
+    // Shipped here rather than a second snapshot so tray-search-client.js can
+    // reuse this same cached response instead of a parallel cache store.
     const products = await Product.find(
       {},
-      { _id: 0, productId: 1, price: 1, name: 1 },
+      { _id: 0, productId: 1, price: 1, name: 1, widthCm: 1, lengthCm: 1, heightCm: 1, source: 1 },
     ).lean();
 
     res.json({ buildId: APP_BUILD_ID, config, products });

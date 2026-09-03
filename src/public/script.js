@@ -10319,11 +10319,17 @@ function initSmartTraySearch() {
   };
 
   // Build one labeled row: heading + up to 3 cards, or a "no matches" note.
-  const buildRow = (heading, list, keyPrefix, sourceLabel, savedPid) => {
+  // `local` means the list came from the offline fallback (cached snapshot)
+  // rather than a live request — worth saying, since "no matches" and
+  // "couldn't check" are different things to a technician on site.
+  const buildRow = (heading, list, keyPrefix, sourceLabel, savedPid, local) => {
     const top = Array.isArray(list) ? list.slice(0, 3) : [];
+    const emptyMsg = local
+      ? "Offline – keine passenden Vorschläge im zwischengespeicherten Bestand."
+      : "Keine passenden Vorschläge gefunden.";
     const body =
       top.length === 0
-        ? `<div class="meta">Keine passenden Vorschläge gefunden.</div>`
+        ? `<div class="meta">${emptyMsg}</div>`
         : `<div class="suggestion-list">${top
             .map((p, i) =>
               buildCard(
@@ -10337,13 +10343,13 @@ function initSmartTraySearch() {
             .join("")}</div>`;
 
     return `
-      <div class="suggestion-heading">${heading}</div>
+      <div class="suggestion-heading">${heading}${local ? ' <span class="meta">(offline)</span>' : ""}</div>
       ${body}
     `;
   };
 
   // Render both category rows: Hassmann (SLA*) and Badolux (source=badolux).
-  function renderTwoRows(hassmannList, badoluxList) {
+  function renderTwoRows(hassmannList, badoluxList, hassmannLocal, badoluxLocal) {
     // Only restore a saved PID if the user actually chose in THIS session
     const allowAutoCheck = sessionStorage.getItem("dw_tray_touched") === "1";
     let savedPid = null;
@@ -10355,8 +10361,8 @@ function initSmartTraySearch() {
     }
 
     out.innerHTML = `
-      ${buildRow("Hassmann", hassmannList, "hassmann", "Hassmann", savedPid)}
-      ${buildRow("Badolux", badoluxList, "badolux", "Badolux", savedPid)}
+      ${buildRow("Hassmann", hassmannList, "hassmann", "Hassmann", savedPid, hassmannLocal)}
+      ${buildRow("Badolux", badoluxList, "badolux", "Badolux", savedPid, badoluxLocal)}
     `;
 
     if (savedPid) {
@@ -10401,6 +10407,9 @@ function initSmartTraySearch() {
     if (h !== null) baseQs.set("h", String(h));
 
     // Hassmann row = slate series (SLA*); Badolux row = source=badolux.
+    const hassmannParams = { w: b, l, h, series: "SLA", source: "" };
+    const badoluxParams = { w: b, l, h, series: "", source: "badolux" };
+
     const hassmannQs = new URLSearchParams(baseQs);
     hassmannQs.set("series", "SLA");
     const badoluxQs = new URLSearchParams(baseQs);
@@ -10417,24 +10426,35 @@ function initSmartTraySearch() {
 
     out.innerHTML = `<div class="meta">Suche…</div>`;
 
-    const fetchList = async (url) => {
-      const r = await fetch(url, { signal: inflight.signal, credentials: "include" });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const data = await r.json();
-      return Array.isArray(data?.results) ? data.results : [];
+    // Falls back to the cached-snapshot match (tray-search-client.js) on any
+    // failure that isn't a deliberate abort, so "the server is unreachable"
+    // never looks the same as "no matching trays exist".
+    const fetchList = async (url, params) => {
+      try {
+        const r = await fetch(url, { signal: inflight.signal, credentials: "include" });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        return { list: Array.isArray(data?.results) ? data.results : [], local: false };
+      } catch (err) {
+        if (err?.name === "AbortError") throw err;
+        console.warn("[tray-search] live request failed, trying cached snapshot:", err);
+        const { suggestTraysLocally } = await import("./tray-search-client.js");
+        const local = await suggestTraysLocally(params).catch(() => null);
+        return { list: local?.results || [], local: true };
+      }
     };
 
     // Run both category requests in parallel. allSettled so a failure in one
     // category still lets the other row render.
     const [hRes, bRes] = await Promise.allSettled([
-      fetchList(hassmannUrl),
-      fetchList(badoluxUrl),
+      fetchList(hassmannUrl, hassmannParams),
+      fetchList(badoluxUrl, badoluxParams),
     ]);
 
     if (mySeq !== reqSeq) return; // stale/aborted response, ignore
 
-    const hassmannList = hRes.status === "fulfilled" ? hRes.value : [];
-    const badoluxList = bRes.status === "fulfilled" ? bRes.value : [];
+    const hassmannList = hRes.status === "fulfilled" ? hRes.value.list : [];
+    const badoluxList = bRes.status === "fulfilled" ? bRes.value.list : [];
 
     if (hRes.status === "rejected" && hRes.reason?.name !== "AbortError") {
       console.error("Hassmann tray search failed:", hRes.reason);
@@ -10443,7 +10463,12 @@ function initSmartTraySearch() {
       console.error("Badolux tray search failed:", bRes.reason);
     }
 
-    renderTwoRows(hassmannList, badoluxList);
+    renderTwoRows(
+      hassmannList,
+      badoluxList,
+      hRes.status === "fulfilled" && hRes.value.local,
+      bRes.status === "fulfilled" && bRes.value.local,
+    );
   }
 
   const request = () => {

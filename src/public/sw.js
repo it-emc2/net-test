@@ -33,6 +33,7 @@ const IMAGE_HOSTS = new Set(["media.onlineplus.store"]);
 // while every byte of the user's data was intact.
 const PRECACHE = [
   "/logic/pricing-core.js",
+  "/logic/tray-search-core.js",
   // Every module script.js pulls in with import(). They are fetched at the
   // moment they are needed, which offline is exactly when they cannot be.
   "/OfflineSaveQueue.js",
@@ -42,6 +43,8 @@ const PRECACHE = [
   "/session-recovery.js",
   "/pricing-cache.js",
   "/pricing-client.js",
+  "/tray-search-client.js",
+  "/auth-recovery.js",
   "/DraftsManager.js",
   "/DraftsLegacyFallback.js",
   "/RestoreManager.js",
@@ -53,11 +56,24 @@ const PRECACHE = [
   "/AdminManager.js",
   "/EmailManager.js",
   "/sw-register.js",
-  // The only image worth precaching. Discovery deliberately ignores images:
+  // The only images worth precaching. Discovery deliberately ignores images:
   // index.html references 118 of them and they are almost all product photos,
-  // which the runtime cache picks up as they are actually used. The header
-  // logo is different — a broken image there reads as a broken app.
+  // which the runtime cache picks up as they are actually used. These are the
+  // exceptions — small, fixed, always needed regardless of what was browsed
+  // before going offline, where a miss reads as broken rather than "not yet
+  // viewed": the header logo, the generic Duschwanne illustration shown under
+  // the tray search (index.html, HassmannManager.js, script.js — the same
+  // file everywhere, not a per-product photo), and the six Hassmann/Slate
+  // tray color swatches (a fixed palette — see
+  // toggleSlateTrayColorVisibility in script.js).
   "/assets/logo.png",
+  "/assets/duschwanne.jpeg",
+  "/assets/slate-color-weiss.jpg",
+  "/assets/slate-color-elfenbein.jpg",
+  "/assets/slate-color-steingrau.jpg",
+  "/assets/slate-color-beton.jpg",
+  "/assets/slate-color-anthrazit.jpg",
+  "/assets/slate-color-schwarz.jpg",
 ];
 
 // Everything the shell references — stylesheets, scripts, the configurator
