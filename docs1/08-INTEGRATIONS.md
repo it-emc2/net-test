@@ -38,6 +38,53 @@ POST /api/bitrix/timeline/comment
 -> Used after: Email sending, document generation
 ```
 
+#### Deal Stage Movement (Offer Send & Online Signing)
+
+Applies to all three "Deal"-backed offer types: BU, BWT, AH. The CRM object is
+always a **pre-existing** Bitrix Deal (`crm.item`, `entityTypeId = 2`) — the
+app never creates a Deal/Lead itself, it reads `dealId` from the form
+(`#auftragId` / `#mailAuftragId`).
+
+**Step 1 — Send offer** (`POST /api/email/send-offer`, `src/routes/email.js:324-615`)
+Same route/logic for BU, BWT, AH (branches on `offerType`). On success:
+- Renders the offer PDF (template per type, see [Document Generation](07-DOCUMENT-GENERATION.md))
+- Sends the customer email + posts a Bitrix timeline comment with the PDF attached (`addTimelineComment`, `src/routes/bitrix.js:240-274`)
+- Creates a `SigningRequest` (online signing link), regardless of type
+- Does **not** move the deal stage — no automatic stage change happens here
+
+**Step 2 — "ANG verschickt" stage move** (manual button after send)
+`POST /api/bitrix/deal/:id/move-ang-verschickt` (`src/routes/bitrix.js:648-728`)
+
+| Type | Category | Stage | Required fields |
+|---|---|---|---|
+| BU | 38 | `C38:UC_2ZDNEZ` "[VI] ANG verschickt" | `OPPORTUNITY` (amount) |
+| BWT | 38 | `C38:UC_2ZDNEZ` (same as BU) | `OPPORTUNITY` + fixed Umbautage = 0,5 Tage |
+| AH | 52 | `C52:UC_SNAVG8` "[VI] ANG versch. / warten" | none — `amount` forced to 0, own `AH_FIELD.*` set instead |
+
+**Step 3 — Online signing** (`src/routes/signing.js`)
+Two independent mechanisms:
+- **On the spot** (iPad canvas, `SignaturePadManager.js`): signature image embedded directly into the rendered PDF/DOCX. No Bitrix call, no stage change.
+- **Remote link** (`/sign/:token`): customer signs each required document (offer, and for Kassenkunde also Vollmacht/Abtretung) individually. Once **all** documents on the link are signed (`src/routes/signing.js:597-697`):
+  1. Signed PDFs re-rendered
+  2. Confirmation email to customer with signed PDFs attached, BCC to `SIGNING_OFFICE_EMAIL` — happens for BU, BWT, **and** AH
+  3. Bitrix timeline comment "✅ Alle Dokumente unterschrieben"
+  4. Deal stage move via `updateDealAfterSigning()` (`src/routes/bitrix.js:405-435`)
+
+Post-signing stage move — same pipeline as the offer's own category (no funnel change):
+
+| Type / customer | Category | Stage | Extra fields |
+|---|---|---|---|
+| BU/BWT Selbstzahler | 38 | `C38:UC_5DII17` "AUTOM in FT anl. + überpr." | none |
+| BU/BWT Kassenkunde | 38 | `C38:UC_ON3GS1` "Antrag an Kasse stellen" | 4× `UF_CRM_*` flags (Antragsstellung, autom. Mail, Vollmacht hinterlegt, Abtretung §40 hinterlegt) |
+| AH (Selbstzahler or Kassenkunde) | 52 | `C52:UC_7NLTX7` "AUTOM in FT anleg. + überpr." | none — placeholder shared by both customer types until a separate Kasse target is confirmed |
+
+`updateDealAfterSigning({ dealId, customerType, categoryId?, stageId? })` defaults to the
+BU/BWT category-38 stages; the signing route passes an explicit `categoryId`/`stageId`
+override for AH (`src/routes/signing.js:685-701`).
+
+No n8n webhook is called anywhere in this flow (send, stage move, or signing) — verified by
+grep across `src/`; see [n8n section](#n8n---workflow-automation-historical) below.
+
 #### Today's Customers
 ```
 GET /api/bitrix/kundendaten?stageId=C72:UC_YOESDE

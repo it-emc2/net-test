@@ -392,6 +392,13 @@ const SIGNING_KASSE_STAGE_ID = "C38:UC_ON3GS1"; // "[VI] Antrag an Kasse stellen
 const SIGNING_SZ_STAGE_ID = "C38:UC_5DII17"; // "[VI] AUTOM in FT anl. + überpr."
 const SIGNING_CATEGORY_ID = 38;
 
+// Stage AH deals move to once the customer finishes online signing. Same
+// category as AH_ANG_VERSCHICKT_CATEGORY_ID (52) above, different stage.
+// Currently shared by Kasse and Selbstzahler — placeholder until the
+// supervisor confirms a separate Kasse target stage for AH.
+const AH_SIGNING_STAGE_ID = "C52:UC_7NLTX7"; // "[VI] AUTOM in FT anleg. + überpr."
+const AH_SIGNING_CATEGORY_ID = 52;
+
 // Fixed field values filled on the deal once a Kassenkunde completes online
 // signing (Vollmacht + Abtretung always get signed as part of that flow, so
 // these are always "Ja"/"emc2" — not derived from anything customer-specific).
@@ -404,8 +411,9 @@ const SIGNING_KASSE_FIELDS = {
 
 // Move a deal after the customer completes online signing (see signing.js).
 // Kassenkunde also gets the Vollmacht/Abtretung fields filled in; Selbstzahler
-// is just a stage move.
-async function updateDealAfterSigning({ dealId, customerType }) {
+// is just a stage move. categoryId/stageId let callers override the target
+// (used by AH, which isn't in category 38 at all).
+async function updateDealAfterSigning({ dealId, customerType, categoryId, stageId }) {
   const numericId = Number(dealId);
   if (!Number.isFinite(numericId) || numericId <= 0) {
     throw new Error("dealId must be a positive number");
@@ -413,10 +421,12 @@ async function updateDealAfterSigning({ dealId, customerType }) {
 
   const isKasse = String(customerType || "").toUpperCase() === "KASSE";
   const fields = {
-    categoryId: SIGNING_CATEGORY_ID,
-    stageId: isKasse ? SIGNING_KASSE_STAGE_ID : SIGNING_SZ_STAGE_ID,
+    categoryId: categoryId ?? SIGNING_CATEGORY_ID,
+    stageId: stageId ?? (isKasse ? SIGNING_KASSE_STAGE_ID : SIGNING_SZ_STAGE_ID),
   };
-  if (isKasse) Object.assign(fields, SIGNING_KASSE_FIELDS);
+  // Kasse UF fields (Vollmacht/Abtretung §40) belong to the BU/BWT category
+  // 38 pipeline only — skip them when overriding to a different category.
+  if (isKasse && categoryId === undefined) Object.assign(fields, SIGNING_KASSE_FIELDS);
 
   return bxPost("crm.item.update", {
     entityTypeId: DEAL_ENTITY_TYPE_ID,
@@ -984,4 +994,10 @@ router.get("/calendar/week", async (_req, res) => {
 });
 
 export default router;
-export { addTimelineComment, updateDealStage, updateDealAfterSigning };
+export {
+  addTimelineComment,
+  updateDealStage,
+  updateDealAfterSigning,
+  AH_SIGNING_CATEGORY_ID,
+  AH_SIGNING_STAGE_ID,
+};
