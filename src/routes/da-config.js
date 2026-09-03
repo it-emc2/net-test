@@ -1,9 +1,7 @@
 // routes/da-config.js
-// DB-backed model source for the "Duschabtrennung (DB-Test)" developer clone
-// (Task C, Part 1). Serves the SAME model JSON shape the static file provides,
-// but reads the Vigour model live from the "vigor" MongoDB (collection "models",
-// doc _id "vigour"). Badolux is not in the vigor DB, so it falls through to the
-// existing static file. The live "Duschabtrennung (neu)" section is untouched.
+// Model source for "Duschabtrennung (neu)". Reads the Vigour model live from
+// the "vigor" MongoDB (collection "models", doc _id "vigour"), scraper-refreshed
+// daily. Badolux is not in the vigor DB, so it's served from the static file.
 //
 // The main app connection points at KonfiguratorDB, so the dedicated vigor
 // connection comes from external/vigorDb.js.
@@ -50,7 +48,8 @@ r.get("/model/:supplier", async (req, res) => {
     }
     res.json(cache);
   } catch (e) {
-    console.error("[da-config] model failed:", e?.message || e);
+    console.error("[da-config] model refresh failed:", e?.message || e);
+    if (cache) return res.json(cache); // serve stale rather than fail a live offer
     res.status(502).json({ error: "vigor_model_unavailable" });
   }
 });

@@ -1,19 +1,18 @@
 // syncVigourNames.js
-// Enriches src/public/configurator/vigor-model.json with real supplier data from the
-// "vigor" MongoDB (db "vigor", collection "products", keyed by articleNumber). Adds
-// NEW, optional fields per article — displayName / finishText / stockText /
-// stockQuantity / sourceUrl / einbaumass — WITHOUT touching the existing `label`
-// (auto-generated) or `finish` object (glasart/beschichtung/profilfarbe), which
-// src/public/configurator/engine.js relies on to resolve the correct article variant.
-// The configurator's matching logic is therefore unchanged; the new fields are
-// display-only and simply absent when the DB has no data (e.g. Einbaumaß is missing
-// for the majority of articles).
+// Enriches vigor.models/_id="vigour" (served live by src/routes/da-config.js) with
+// real supplier data from the "vigor" MongoDB, collection "products" (keyed by
+// articleNumber). Adds NEW, optional fields per article — displayName / finishText /
+// stockText / stockQuantity / sourceUrl / einbaumass — WITHOUT touching the existing
+// `label` (auto-generated) or `finish` object (glasart/beschichtung/profilfarbe/
+// einzugsautomatik), which src/public/configurator/engine.js relies on to resolve the
+// correct article variant. The configurator's matching logic is therefore unchanged;
+// the new fields are display-only and simply absent when the DB has no data (e.g.
+// Einbaumaß is missing for the majority of articles).
 //
 // Run: node scripts/syncVigourNames.js
 // Re-run whenever the "vigor" DB is refreshed by the scraper. Stock/Einbaumaß are a
-// build-time snapshot — do NOT treat them as live inventory in saved offers.
+// sync-time snapshot — do NOT treat them as live inventory in saved offers.
 
-import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import mongoose from "mongoose";
@@ -22,14 +21,14 @@ import dotenv from "dotenv";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, "../.env") });
 
-const MODEL_PATH = join(__dirname, "../src/public/configurator/vigor-model.json");
-
 async function main() {
   const uri = process.env.VIGOR_MONGODB_URI || process.env.MONGODB_URI;
   if (!uri) throw new Error("VIGOR_MONGODB_URI (or MONGODB_URI) missing from .env");
 
-  await mongoose.connect(uri, { dbName: "vigor" });
-  const docs = await mongoose.connection.db
+  const conn = await mongoose.createConnection(uri, { dbName: "vigor" }).asPromise();
+  const db = conn.db;
+
+  const docs = await db
     .collection("products")
     .find(
       {},
@@ -47,7 +46,6 @@ async function main() {
       },
     )
     .toArray();
-  await mongoose.disconnect();
 
   // The scraper's natural key is {materialNumber, configHash}, not articleNumber —
   // the same articleNumber can be reached via multiple config paths, each saved as
@@ -96,7 +94,10 @@ async function main() {
   }
   console.log(`[syncVigourNames] loaded ${byArticle.size} products from vigor.products`);
 
-  const model = JSON.parse(readFileSync(MODEL_PATH, "utf8"));
+  const modelDoc = await db.collection("models").findOne({ _id: "vigour" });
+  if (!modelDoc?.model) throw new Error("vigor.models/_id=vigour not seeded");
+  const model = modelDoc.model;
+
   let matched = 0;
   let total = 0;
   const cov = { name: 0, finish: 0, stock: 0, sourceUrl: 0, einbaumass: 0 };
@@ -140,11 +141,15 @@ async function main() {
     namesSyncedAt: new Date().toISOString(),
     enrichedAt: new Date().toISOString(),
   };
-  writeFileSync(MODEL_PATH, JSON.stringify(model));
+
+  await db.collection("models").updateOne({ _id: "vigour" }, { $set: { model } });
+  await conn.close();
+
   console.log(
     `[syncVigourNames] matched ${matched}/${total} articles ` +
       `(name ${cov.name}, finish ${cov.finish}, stock ${cov.stock}, ` +
-      `sourceUrl ${cov.sourceUrl}, einbaumass ${cov.einbaumass}); wrote ${MODEL_PATH}`,
+      `sourceUrl ${cov.sourceUrl}, einbaumass ${cov.einbaumass}); ` +
+      `wrote vigor.models/_id=vigour`,
   );
 }
 
