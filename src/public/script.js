@@ -4775,25 +4775,6 @@ if (anschlag) {
   lines = Array.isArray(lines) ? [...lines] : [];
   lines.push(`Türanschlag: ${anschlag.toLowerCase()}`);
 }
-       if (pid === "1226") {
-  lines = Array.isArray(lines) ? [...lines] : [];
-
-  const h = String(document.getElementById("bwtDoorStdHeight")?.value || "").trim();
-
-  lines = lines.map((line) => {
-    const s = String(line || "").trim();
-    if (/^•?\s*höhen?\b.*abschneidbar/i.test(s)) {
-      return h ? `• Höhe: ${h} cm abschneidbar` : "• Höhe abschneidbar";
-    }
-    return s;
-  });
-
-  // fallback in case the source line was not found
-  const hasHeightLine = lines.some((line) => /^•?\s*höhe:/i.test(String(line || "").trim()));
-  if (!hasHeightLine && h) {
-    lines.unshift(`• Höhe: ${h} cm abschneidbar`);
-  }
-}
         if (pid === "1227") {
           lines = Array.isArray(lines) ? [...lines] : [];
           lines = lines.filter(
@@ -22646,25 +22627,6 @@ function ensureKundendatenDate(defaultIfEmpty = true) {
 
 document.addEventListener("DOMContentLoaded", () => {
   ensureKundendatenDate(true);
-});
-
-// BWT door height clamp (33-40)
-document.addEventListener("DOMContentLoaded", () => {
-  const heightInput = document.getElementById("bwtDoorStdHeight");
-  if (!heightInput) return;
-
-  const clamp = () => {
-    const raw = heightInput.value;
-    if (raw === "" || raw == null) return;
-    const n = Math.round(Number(raw));
-    if (!Number.isFinite(n)) return;
-    if (n < 33) heightInput.value = "33";
-    else if (n > 40) heightInput.value = "40";
-    else heightInput.value = String(n);
-  };
-
-  ["change", "blur"].forEach((ev) => heightInput.addEventListener(ev, clamp));
-  clamp();
 });
 
 // Duschwanne: auto-check TECEADS when "Armatur verlegen" is selected
