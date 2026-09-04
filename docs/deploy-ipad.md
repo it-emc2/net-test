@@ -170,7 +170,17 @@ real test.
 Build an offer far enough to export a PDF. It should appear in the normal iOS
 share sheet, where you can save it to Files or mail it.
 
-### 4. The offline test — the important one
+### 4. The connection status dot
+
+Look at the header. Turn on **Airplane Mode**: the dot should go from green to
+**red within a few seconds** — this is `NWPathMonitor` catching a real
+disconnect (PR #191), not `navigator.onLine`, which would stay green all
+session. Turn Airplane Mode back off: it should return to green once the app
+reaches the server again. This exact path (`onDisconnect` while already
+running) was unverified on a real device as of PR #191 — if it does not flip
+red, that is the thing to report.
+
+### 5. The offline test — the important one
 
 This is the whole reason the app exists. Do it once properly.
 

@@ -225,10 +225,49 @@ export async function createSigningRequest({
   dealId,
   contactId,
   baseUrl,
+  force = false,
 }) {
   const customerType = deriveCustomerType(payload);
   const prefill = extractPrefill(payload);
   const { bitrixEntityType, bitrixEntityId } = deriveBitrixTarget({ dealId, contactId });
+
+  // Reuse an in-progress request for the same offer rather than always
+  // minting a fresh one — otherwise re-opening "Vor Ort unterschreiben"
+  // orphans any already-signed documents. Only offers with a number can be
+  // matched this way.
+  const offerNumberStr = String(offerNumber || payload?.offerNumber || "");
+  let warning = null;
+  if (offerNumberStr) {
+    const candidates = await SigningRequest.find({
+      offerNumber: offerNumberStr,
+      status: { $nin: ["completed", "expired"] },
+    }).sort({ createdAt: -1 });
+    const existing = candidates.find((c) => !c.isExpired());
+    if (existing) {
+      const unchanged =
+        JSON.stringify(existing.payloadSnapshot) === JSON.stringify(payload);
+      if (unchanged) {
+        const base = String(baseUrl || "").replace(/\/+$/, "");
+        return {
+          sr: existing,
+          link: `${base}/sign/${existing.token}`,
+          token: existing.token,
+          customerType: existing.customerType,
+          reused: true,
+        };
+      }
+      const signedCount = (existing.documents || []).filter((d) => d.status === "signed").length;
+      if (signedCount > 0) {
+        warning =
+          `Das Angebot wurde geändert, seit der Kunde ${signedCount} von ` +
+          `${existing.documents.length} Dokument(en) unterschrieben hat. ` +
+          `Der bisherige Fortschritt geht mit dem neuen Link verloren.`;
+        // Ask before discarding real signed progress. `force` (set once the
+        // caller has shown the warning and the rep confirmed) skips this.
+        if (!force) return { needsConfirm: true, warning };
+      }
+    }
+  }
 
   const token = crypto.randomBytes(24).toString("hex");
   const expiresAt = new Date(Date.now() + DEFAULT_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
@@ -280,7 +319,7 @@ export async function createSigningRequest({
       `\nGültig bis: ${expiresAt.toLocaleDateString("de-DE")}\n>> Hier Unterlagen online ausfüllen und unterzeichnen <<\n${link}`,
   );
 
-  return { sr, link, token, customerType };
+  return { sr, link, token, customerType, warning };
 }
 
 // Manually push whatever documents are already signed to Bitrix, without
@@ -318,14 +357,19 @@ router.post("/", express.json({ limit: "25mb" }), async (req, res) => {
       return res.status(400).json({ error: "payload ist erforderlich" });
     }
 
-    const { sr, link, token, customerType } = await createSigningRequest({
+    const result = await createSigningRequest({
       payload,
       offerNumber: req.body?.offerNumber,
       offerType: req.body?.offerType,
       dealId: req.body?.dealId,
       contactId: req.body?.contactId,
       baseUrl: publicBaseUrl(req),
+      force: !!req.body?.force,
     });
+    if (result.needsConfirm) {
+      return res.status(409).json({ needsConfirm: true, warning: result.warning });
+    }
+    const { sr, link, token, customerType, reused } = result;
     const prefill = sr.prefill || {};
 
     // Optional: email the link to the customer right away.
@@ -360,6 +404,7 @@ router.post("/", express.json({ limit: "25mb" }), async (req, res) => {
       customerType,
       documents: sr.documents.map((d) => d.key),
       emailResult,
+      reused: !!reused,
     });
   } catch (err) {
     console.error("POST /api/signing failed:", err);

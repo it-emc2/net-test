@@ -389,6 +389,7 @@ router.post(
         dealId,
         contactId,
         baseUrl,
+        force: true,
       });
       body = body.includes("{{SIGN_LINK}}")
         ? body.split("{{SIGN_LINK}}").join(link)
