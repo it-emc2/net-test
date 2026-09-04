@@ -26250,22 +26250,6 @@ function markDealStage(dealId, stageId) {
   dealStageById.set(id, stageId);
 }
 
-async function fetchDealStages(dealIds) {
-  const ids = [...new Set(dealIds.map((id) => String(id || "").trim()).filter(Boolean))];
-  if (!ids.length) return;
-  try {
-    const res = await fetch(`/api/bitrix/deals/stages?ids=${ids.map(encodeURIComponent).join(",")}`);
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-    for (const [dealId, stageId] of Object.entries(data?.stages || {})) {
-      markDealStage(dealId, stageId);
-    }
-    renderTodayPlanningAppointments();
-  } catch (e) {
-    console.warn("[planning] fetchDealStages failed:", e);
-  }
-}
-
 const PLANNING_OFFER_TYPES = [
   { offerKey: "bu",  icon: "fa-shower",            title: "Badumbau" },
   { offerKey: "bwt", icon: "fa-bath",               title: "Badewannentür" },
@@ -27287,7 +27271,10 @@ function applyPlanningPayload(payload){
   }
 
   todayPlanningAppointments = entries;
-  fetchDealStages(entries.map(e => e?.importDealId).filter(Boolean));
+  // Deal "done" state is tracked locally (markDealStage) whenever *this app*
+  // moves the deal — via "Hat stattgefunden" or the Schnellspeichern
+  // auto-move below — instead of polling Bitrix for the current stage on
+  // every planning-stream push.
   const activeStillVisible = entries.some(entry =>
     String(entry.__entryId) === String(activePlanningAppointmentId) && !isPlanningEntryCancelled(entry)
   );
@@ -27375,6 +27362,11 @@ async function renderTodayPlanningFromCache(){
   }
 }
 
+// Spacing between warm-loop requests, so the loop itself can't outrun
+// Bitrix's per-second rate limit even when every request resolves fast.
+const PLANNING_WARM_REQUEST_GAP_MS = 600;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // Fills the enrichment cache for the whole week while there is still signal,
 // so tapping an appointment on site can fill the Anrede without the network.
 // Sequential and TTL-guarded on purpose: this is background work behind a
@@ -27404,6 +27396,7 @@ async function warmPlanningEnrichment(payload){
 
       if(fetched >= PLANNING_WARM_MAX_PER_LOAD){ skippedForCap++; continue; }
 
+      if(fetched > 0) await sleep(PLANNING_WARM_REQUEST_GAP_MS);
       const fields = await fetchPlanningEnrichment(entry);
       fetched++;
       if(fields) await cache.saveEnrichment(key, fields);
@@ -27760,9 +27753,16 @@ function initTodayPlanningPanel(){
 
   // Back on signal: replace the cached week with live data and resubscribe.
   // Same event OfflineSaveQueue uses to flush its queued saves.
+  // On a flaky connection (e.g. driving between appointments) "online" can
+  // fire repeatedly within seconds — debounce so a burst of events triggers
+  // one snapshot+warm cycle instead of one per event.
+  let onlineDebounceTimer = null;
   window.addEventListener("online", () => {
-    fetchTodayPlanningSnapshot();
-    connectTodayPlanningStream();
+    clearTimeout(onlineDebounceTimer);
+    onlineDebounceTimer = setTimeout(() => {
+      fetchTodayPlanningSnapshot();
+      connectTodayPlanningStream();
+    }, 2000);
   });
 
   window.addEventListener("beforeunload", () => {
@@ -27779,9 +27779,10 @@ document.addEventListener("DOMContentLoaded", initTodayPlanningPanel);
 // Expose for home debug panel
 window.__debug_getPlanningAppointments = () => todayPlanningAppointments;
 window.__debug_reloadPlanning = fetchTodayPlanningSnapshot;
-// Exposed for the EmailManager hook (different closure) to mark a deal's
-// offer as sent and refresh the today-planning list in the same tab.
+// Exposed for the EmailManager/DraftsManager hooks (different closures) to
+// mark a deal's stage locally and refresh the today-planning list in the same tab.
 window.markDealStage = markDealStage;
+window.isDealDone = isDealDone;
 window.renderTodayPlanningAppointments = renderTodayPlanningAppointments;
 window.__debug_planningEndpoint = TODAY_PLANNING_SNAPSHOT_ENDPOINT;
 // The offline prefill is hard to exercise by hand (it needs a dropped

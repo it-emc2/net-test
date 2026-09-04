@@ -79,9 +79,9 @@ export function enrichmentKey(entry) {
 // Bitrix appointment times have been merged into it in place — so the times
 // ride along and need no separate record.
 //
-// Deliberately not cached: the deal stages from /api/bitrix/deals/stages.
-// They only hide already-completed deals from the list, and an unknown stage
-// already falls through to "show it" — absent behaves the same as stale.
+// Deliberately not cached: per-deal "done" state (markDealStage). It's only
+// ever set locally when this app itself moves a deal's stage, and an unknown
+// stage already falls through to "show it" — absent behaves the same as stale.
 export async function saveSnapshot(payload) {
   try {
     await tx(SNAPSHOT_STORE, "readwrite", (s) =>
