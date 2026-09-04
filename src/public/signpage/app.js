@@ -441,5 +441,10 @@
   el("prevDoc").addEventListener("click", function () { goToDoc(state.index - 1); });
   el("nextDoc").addEventListener("click", function () { goToDoc(state.index + 1); });
 
+  // Only a logged-in rep (viewing from inside the OC app) gets a way back —
+  // set server-side (signingPageHandler) from the net_session cookie, never
+  // present for a customer who opened this link on their own device.
+  if (document.body.dataset.internalUser === "true") el("backToOc").classList.remove("hidden");
+
   start();
 })();

@@ -27,19 +27,22 @@
     .feedback { padding: 12px 14px; font-size: 15px; border: 1px solid transparent; }
     .feedback.is-success { background: #e6f6e6; border-color: #2e7d32; color: #1b5e20; }
     .feedback.is-error { background: #fdecea; border-color: #b71c1c; color: #7f1d1d; white-space: pre-line; }
+    #backToOc { display: block; margin: 0 0 14px; font-size: 13px; color: #333; text-decoration: none; }
+    #backToOc:hover { text-decoration: underline; }
     @media (max-width: 640px) {
       body { padding: 10px 6px; }
       .sheet { padding: 10px 14px 22px; }
     }
   </style>
 </head>
-<body>
+<body data-internal-user="false">
   <div id="loading" class="sheet"><p>Dokument wird geladen …</p></div>
   <div id="fatal" class="sheet feedback is-error hidden"></div>
 
   <div id="app" class="hidden">
     <main class="sheet">
       <header class="sheet__header">
+        <a href="/" id="backToOc" class="hidden">&larr; Zurück zum Konfigurator</a>
         <span class="title">Online-Unterschrift</span>
       </header>
       <div class="docnav hidden" id="docNav">

@@ -41,6 +41,7 @@ import {
   ABTRETUNG_REQUIRED_FIELDS,
 } from "../templates/signing-docs.js";
 import { buildEmailHtml } from "../lib/emailTemplate.js";
+import { verifyToken, tokenFromReq } from "../services/authService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -794,13 +795,16 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
 
 // GET /sign/:token — serve the customer-facing signing page.
 // Mounted directly on the app before the SPA fallback.
+//
+// A logged-in rep (net_session cookie, same as the main app) gets a "back to
+// OC" link on this page; a customer opening the same link on their own
+// device never has that cookie, so they never see it. See app.js.
 export function signingPageHandler(req, res) {
-  // dotfiles:'allow' so this works even when the app runs from a path that
-  // contains a dot-folder (e.g. a .claude worktree during testing).
-  res.sendFile(
-    path.join(__dirname, "..", "public", "signpage", "index.html"),
-    { dotfiles: "allow" },
-  );
+  const isInternalUser = !!verifyToken(tokenFromReq(req));
+  const html = fs
+    .readFileSync(path.join(__dirname, "..", "public", "signpage", "index.html"), "utf8")
+    .replace('data-internal-user="false"', `data-internal-user="${isInternalUser}"`);
+  res.type("html").send(html);
 }
 
 export default router;
