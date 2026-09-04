@@ -22483,19 +22483,32 @@ async function sendPdfToAuftrag() {
       btn.disabled = true;
       setStatus("Öffne Unterschriften-Ansicht …", "info");
 
-      const res = await fetch("/api/signing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          payload,
-          offerNumber,
-          offerType: activeOffer,
-          dealId,
-          sendEmail: false,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || `Fehler (${res.status})`);
+      async function requestSigningLink(force) {
+        const res = await fetch("/api/signing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            payload,
+            offerNumber,
+            offerType: activeOffer,
+            dealId,
+            sendEmail: false,
+            force,
+          }),
+        });
+        const body = await res.json().catch(() => ({}));
+        return { ok: res.ok, status: res.status, body };
+      }
+
+      let { ok, status, body: data } = await requestSigningLink(false);
+      if (!ok && status === 409 && data?.needsConfirm) {
+        if (!window.confirm(`${data.warning}\n\nTrotzdem fortfahren?`)) {
+          setStatus("Abgebrochen.", "info");
+          return;
+        }
+        ({ ok, status, body: data } = await requestSigningLink(true));
+      }
+      if (!ok) throw new Error(data?.error || `Fehler (${status})`);
 
       window.open(data.link, "_blank");
       setStatus(
