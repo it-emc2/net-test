@@ -45,6 +45,10 @@
         state.docs = (data.documents || []).slice();
         loading.classList.add("hidden");
         app.classList.remove("hidden");
+        // Reopen the actual offer instead of landing on Hauptmenü.
+        if (data.offerNumber) {
+          el("backToOc").href = "/?offer=" + encodeURIComponent(data.offerNumber);
+        }
         if (data.completed) return showDone();
         state.index = 0;
         while (state.index < state.docs.length && state.docs[state.index].status === "signed") state.index++;
