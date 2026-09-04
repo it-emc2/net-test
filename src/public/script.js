@@ -17007,17 +17007,14 @@ window.setPricingData = function setPricingData(data) {
     }
 
     // Aufschlag label
-    let mp = data?.markupPct;
-    if (!Number.isFinite(mp)) {
+    let pctNum = data?.markupPct;
+    if (Number.isFinite(pctNum)) {
+      pctNum = pctNum * 100; // server markupPct is always a fraction (0.35 = 35%)
+    } else {
       const raw = window.getEffectiveAufschlagValue?.() || "";
       const parsed = window.parseAufschlagPercent?.(raw);
-      if (Number.isFinite(parsed)) {
-        mp = String(raw).includes("%") ? parsed / 100 : parsed;
-      } else {
-        mp = 0;
-      }
+      pctNum = Number.isFinite(parsed) ? parsed : 0;
     }
-    const pctNum = mp <= 1 ? mp * 100 : mp;
     const pctLabel = Number.isInteger(pctNum)
       ? String(pctNum)
       : pctNum.toFixed(2).replace(/\.?0+$/, "").replace(".", ",");
