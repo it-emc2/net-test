@@ -338,11 +338,39 @@ export function initDraftsManager(options = {}) {
     return { ...data, queued: false };
   }
 
+  // Schnellspeichern during/after a "today's appointment" offer is the
+  // signal that the appointment happened — move the deal to "Zuteilen HD/
+  // AH/ DH" right here instead of waiting for the rep to also click "Hat
+  // stattgefunden" on the planning list. Scoped to deals that are actually
+  // on today's planning list, so drafting an offer for some other deal
+  // doesn't move it prematurely.
+  async function moveDealToZuteilenAfterQuickSave() {
+    try {
+      const dealId = String(document.getElementById("auftragId")?.value || "").trim();
+      if (!dealId || window.isDealDone?.(dealId)) return;
+      const isTodaysAppointment = (window.__debug_getPlanningAppointments?.() || [])
+        .some((entry) => String(entry?.importDealId || "") === dealId);
+      if (!isTodaysAppointment) return;
+
+      const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}/move-zuteilen`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      window.markDealStage?.(dealId, "C72:PREPARATION");
+      window.renderTodayPlanningAppointments?.();
+    } catch (err) {
+      console.warn("[drafts] auto move-zuteilen after quick save failed:", err);
+    }
+  }
+
   async function quickSaveCurrentDraft(options = {}) {
     const { silent = false } = options;
     const name = buildDraftDefaultName();
     const result = await saveDraftWithName(name);
     if (result?.authExpired) return name;
+    if (!result?.queued) moveDealToZuteilenAfterQuickSave();
     if (!silent) {
       if (result?.queued) {
         cfg.toast?.(`Offline gespeichert – wird automatisch synchronisiert: ${name}`, "warn");
