@@ -22471,6 +22471,20 @@ async function sendPdfToAuftrag() {
       return;
     }
 
+    // The signing flow takes over the whole screen with no way back except by
+    // reopening this offer (see the "Zurück zum Konfigurator" link on the
+    // signing page) — make sure it actually has a number and is saved as a
+    // real offer (not just a quick draft) before handing off.
+    const offerNumberInput = document.getElementById("offerNumber");
+    if (offerNumberInput && !offerNumberInput.value.trim() && typeof genOfferNumber === "function") {
+      offerNumberInput.value = genOfferNumber();
+    }
+    try {
+      await window.saveFinalOfferSnapshot?.();
+    } catch (err) {
+      console.error("[signOnSite] Angebot konnte nicht gespeichert werden:", err);
+    }
+
     const payload = buildPayload();
     const offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
     const activeOffer =
@@ -22528,6 +22542,22 @@ async function sendPdfToAuftrag() {
 document.addEventListener("DOMContentLoaded", () => {
   // ... dein bisheriger Code ...
   initHassmannBestFinder();
+});
+
+// ===== Deep-link back into a specific offer (?offer=<offerNumber>) =====
+// Used by the "Zurück zum Konfigurator" link on the online-signing page, so
+// it reopens the offer instead of landing on Hauptmenü.
+document.addEventListener("DOMContentLoaded", () => {
+  const params = new URLSearchParams(window.location.search);
+  const offerNumber = params.get("offer");
+  if (!offerNumber) return;
+  // Deferred past every other DOMContentLoaded handler (incl. the default
+  // "start fresh" home boot), which otherwise resets the very fields this
+  // just restored.
+  setTimeout(() => loadOfferByNumber(offerNumber), 0);
+  params.delete("offer");
+  const qs = params.toString();
+  history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
 });
 
 document.addEventListener("DOMContentLoaded", () => {
