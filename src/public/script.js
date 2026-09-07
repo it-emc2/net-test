@@ -17313,12 +17313,8 @@ function initBasinAutoAccessories() {
   const qEV = document.getElementById("qty_EV");
   const evLbl = document.querySelector('label[for="qty_EV"]');
 
-  // Linked-accessory display: which product(s) triggered the auto-add,
-  // and a live read-only quantity mirror next to each editable Menge field.
+  // Linked-accessory display: which product(s) triggered the auto-add.
   const chipsEl = document.getElementById("basinRequiredChips");
-  const qtyBadgeWtbf = document.getElementById("qtyBadge_WTBF");
-  const qtyBadgeRsl = document.getElementById("qtyBadge_RSL");
-  const qtyBadgeEv = document.getElementById("qtyBadge_EV");
 
   // CL60 + accessories must exist; CL65/CL55 may be absent in older HTML
   if (
@@ -17372,9 +17368,9 @@ function initBasinAutoAccessories() {
     const pairs = qty / 2;
     evLbl.textContent = `${base} (${Number.isInteger(pairs) ? pairs : pairs.toFixed(1)} paare)`;
 
-    // keep the "ausgelöst durch" chips + quantity badges in sync with
-    // current selections/values (called from every place that already
-    // recomputes WTBF/RSL/EV, so no extra call sites are needed)
+    // keep the "ausgelöst durch" chips in sync with current selections
+    // (called from every place that already recomputes WTBF/RSL/EV, so
+    // no extra call sites are needed)
     if (chipsEl) {
       const names = basins
         .filter((b) => b.cb.checked)
@@ -17390,9 +17386,6 @@ function initBasinAutoAccessories() {
         .map((n) => `<span class="basin-required-chip">${n}</span>`)
         .join("");
     }
-    if (qtyBadgeWtbf) qtyBadgeWtbf.textContent = "× " + num(qWT.value, 0);
-    if (qtyBadgeRsl) qtyBadgeRsl.textContent = "× " + num(qRSL.value, 0);
-    if (qtyBadgeEv) qtyBadgeEv.textContent = "× " + qty;
   };
 
   // ---------- persistence ----------
