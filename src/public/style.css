@@ -904,6 +904,9 @@ textarea:focus {
 
 .radio-pill input[type="number"] {
   display: inline-block;
+  position: static;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .radio-pill .circle {
