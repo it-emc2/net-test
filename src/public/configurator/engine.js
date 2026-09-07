@@ -136,7 +136,7 @@ export function resolveConfiguration(model, state) {
     for (const dim of FINISH_DIMS) {
       const wantVal = want[dim];
       if (wantVal == null) continue;                                  // dimension not selected
-      const offersDim = cand.some((x) => x.finish && x.finish[dim] != null);
+      const offersDim = new Set(cand.filter((x) => x.finish && x.finish[dim] != null).map((x) => x.finish[dim])).size > 1;
       if (!offersDim) continue;                                       // this component doesn't vary on this dim
       const narrowed = cand.filter((x) => x.finish && x.finish[dim] === wantVal);
       if (!narrowed.length) return null;                              // offered but chosen value unavailable → don't guess
