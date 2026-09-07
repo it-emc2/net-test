@@ -744,7 +744,7 @@ router.post("/deal/:id/move-ang-verschickt", express.json(), async (req, res) =>
 // events use /deal/:id/log-dialog-event instead.
 router.post("/log-action", express.json(), async (req, res) => {
   const event = String(req.body?.event || "");
-  if (!["termin_opened", "configurator_opened"].includes(event)) {
+  if (!["termin_opened", "configurator_opened", "duschabtrennung_leaf_selected"].includes(event)) {
     return res.status(400).json({ error: "invalid event" });
   }
   try {

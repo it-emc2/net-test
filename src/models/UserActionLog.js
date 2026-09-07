@@ -17,6 +17,7 @@ const UserActionLogSchema = new mongoose.Schema(
         "move_failed",
         "termin_opened",
         "configurator_opened",
+        "duschabtrennung_leaf_selected",
       ],
     },
     dealId: { type: String, default: "" },

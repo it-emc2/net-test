@@ -403,6 +403,7 @@ const USERLOG_EVENT_BADGE = {
   move_failed: 'b-failed',
   termin_opened: 'b-neutral',
   configurator_opened: 'b-neutral',
+  duschabtrennung_leaf_selected: 'b-neutral',
 };
 
 let userLogFilter = { event: '', dealId: '' };
@@ -420,6 +421,7 @@ function renderUserLogs() {
         <option value="move_failed">Deal-Verschieben fehlgeschlagen</option>
         <option value="termin_opened">Termin geöffnet</option>
         <option value="configurator_opened">Konfigurator geöffnet</option>
+        <option value="duschabtrennung_leaf_selected">Duschabtrennung: Blatt gewählt</option>
       </select>
       <input type="text" id="ulog-dealid" placeholder="Deal-ID…" />
       <button class="btn-ghost" id="ulog-refresh"><i class="fas fa-rotate"></i> Aktualisieren</button>

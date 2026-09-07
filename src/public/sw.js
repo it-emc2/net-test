@@ -21,6 +21,16 @@ const CACHE_PREFIX = "nt-shell-";
 // Product photos live here (see the CSP imgSrc list in app.js).
 const IMAGE_HOSTS = new Set(["media.onlineplus.store"]);
 
+// The Duschabtrennung sub-configurator's two catalog models. Unlike a price or
+// an offer, this is scraper-refreshed daily catalog data (da-config.js), so a
+// stale-while-revalidate cache — same as any other GET — is a fine trade for
+// being able to open the configurator offline at all. Everything else under
+// /api/ stays live-only, see the fetch handler below.
+const DA_CONFIG_MODEL_PATHS = new Set([
+  "/api/da-config/model/vigour",
+  "/api/da-config/model/badolux",
+]);
+
 // Modules the offline path needs at the exact moment it cannot fetch them: the
 // price fallback only imports pricing-client.js once a price fetch has already
 // failed. "/" is deliberately absent — see warmShell, which needs the
@@ -69,6 +79,8 @@ const PRECACHE = [
   // Wandverkleidung tab (below).
   "/assets/logo.png",
   "/assets/duschwanne.jpeg",
+  "/api/da-config/model/vigour",
+  "/api/da-config/model/badolux",
   // The whole Wandverkleidung tab, ~2.3MB total: every static swatch/profile
   // image in its section of index.html, plus the 7 Budget-Wandpaneele
   // (Badolux WP*) photos, whose path is built client-side from productId
@@ -291,7 +303,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Never answer API or admin reads from cache.
+  // Never answer API or admin reads from cache — except the DA-config catalog
+  // models, which are static-ish product data, not a price or an offer.
+  if (DA_CONFIG_MODEL_PATHS.has(url.pathname)) {
+    event.respondWith(staleWhileRevalidate(event));
+    return;
+  }
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/admin/")) {
     return;
   }
