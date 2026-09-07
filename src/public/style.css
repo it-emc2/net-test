@@ -2144,6 +2144,228 @@ label.image-check.is-checked .caption {
   margin-inline: auto;       /* center image in card */
 }
 
+/* ============================================================
+   Waschbecken (Optional → Waschtisch ohne Unterschrank):
+   explainer banner, Sonderprodukt tile, linked-accessory panel
+   ============================================================ */
+
+.basin-explainer {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  margin: 10px 0 14px;
+  background: var(--accent-weak);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.basin-explainer svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--accent-strong);
+}
+.basin-explainer p {
+  margin: 0;
+  font-size: 0.85em;
+  line-height: 1.5;
+  color: var(--text);
+}
+.basin-explainer strong {
+  color: var(--accent-strong);
+}
+
+/* Sonderprodukt tile: same card shape as the photographed products,
+   dashed border + plus icon instead of a photo */
+label.image-check.tile-custom {
+  border-style: dashed;
+}
+label.image-check.tile-custom:has(input:checked) {
+  border-style: solid;
+}
+.tile-custom-plus {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  border-radius: 10px;
+  border: 1.5px dashed var(--border);
+  background: transparent;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
+  color: var(--accent-strong);
+  border-style: solid;
+}
+
+/* connector between the product grid and the linked accessory panel */
+.basin-required-connector {
+  display: flex;
+  justify-content: center;
+  color: var(--accent);
+  opacity: 0.6;
+  margin: -2px 0 6px;
+}
+.basin-required-connector svg { width: 14px; height: 18px; }
+
+.basin-required-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.basin-required-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.basin-required-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 650;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: inherit;
+  white-space: nowrap;
+}
+.basin-required-sub {
+  margin: 6px 2px 12px;
+  font-size: 0.82em;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.qty-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 8px;
+  margin-left: 8px;
+  border-radius: 999px;
+  background: var(--section-bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* compact accessory row (WTBF / RSL / EV): thumbnail, name + tags, qty,
+   all in one line instead of a full-size selectable product card */
+.basin-acc-list {
+  display: flex;
+  flex-direction: column;
+}
+.basin-acc-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--border);
+}
+.basin-acc-row:last-child {
+  border-bottom: none;
+}
+
+.basin-acc-select {
+  position: relative;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+.basin-acc-select input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.basin-acc-thumb {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--panel);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.basin-acc-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.basin-acc-select:has(input:checked) .basin-acc-thumb {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+.basin-acc-select:has(input:focus-visible) .basin-acc-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.basin-acc-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.basin-acc-name {
+  font-size: 0.92em;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.basin-acc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10.5px;
+  font-weight: 650;
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.tag-auto {
+  background: var(--accent-weak);
+  color: var(--accent-strong);
+}
+.tag-required {
+  background: var(--section-bg);
+  color: var(--muted);
+}
+.tag-optional {
+  background: var(--section-bg);
+  color: var(--muted);
+}
+
+.basin-acc-qty {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.basin-acc-qty label {
+  font-size: 0.78em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.basin-acc-qty input {
+  width: 64px;
+}
+
+@media (max-width: 560px) {
+  .basin-acc-row { flex-wrap: wrap; }
+  .basin-acc-qty { flex: 1 1 100%; padding-left: 74px; }
+}
+
 /* HL: steel length/quality rows */
 .hl-steel-items {
   display: flex;
