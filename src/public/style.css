@@ -2240,7 +2240,7 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 
 /* plain section heading — no box, no icon, just weight/size */
 .basin-section-title {
-  margin: 0;
+  margin: 0 0 10px;
   font-size: 1em;
   font-weight: 700;
   color: var(--text);
@@ -2268,12 +2268,14 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
   color: var(--accent-strong);
 }
 .tag-required {
-  background: var(--section-bg);
+  background: var(--panel);
   color: var(--muted);
+  border: 1px solid var(--border);
 }
 .tag-optional {
-  background: var(--section-bg);
+  background: var(--panel);
   color: var(--muted);
+  border: 1px solid var(--border);
 }
 
 /* Shared tile grid for both the product picker and the linked-accessory
