@@ -14742,12 +14742,14 @@ function restoreOptionalPage(opt) {
     // Pull the Waschbecken Sonderprodukt row(s) out before handing the rest
     // to the global Sonderprodukte panel restore, and put them back into
     // the basin checkbox's own name/price fields instead.
-    const basinSonder = opt.quickAdd.find((x) => x?.productId === "BASIN_SONDER");
-    const restQuickAdd = opt.quickAdd.filter((x) => x?.productId !== "BASIN_SONDER");
+    const basinSonder = opt.quickAdd.find((x) => x?.source === "BASIN_SONDER");
+    const restQuickAdd = opt.quickAdd.filter((x) => x?.source !== "BASIN_SONDER");
     if (basinSonder) {
       const nameEl = document.getElementById("basinSonderName");
+      const artikelEl = document.getElementById("basinSonderArtikel");
       const priceEl = document.getElementById("basinSonderPrice");
       if (nameEl) nameEl.value = basinSonder.label ?? "";
+      if (artikelEl) artikelEl.value = basinSonder.productId ?? "";
       if (priceEl)
         priceEl.value =
           basinSonder.price != null ? String(basinSonder.price).replace(".", ",") : "";
@@ -16123,13 +16125,19 @@ function collectOptionalQuickAdd(payload) {
 
 // Waschbecken → Sonderprodukt (freier Posten inside #menu_BASIN).
 // Reuses the same payload.optional.quickAdd pricing path as the global
-// Sonderprodukte tab, tagged with productId "BASIN_SONDER" so restore can
-// route it back into the basin checkbox instead of the global panel.
+// Sonderprodukte tab. productId carries the user's own Artikelnummer (or ""
+// if left blank, same as the global Sonderprodukte rows); `source` is the
+// internal marker restore uses to route this item back into the basin
+// checkbox instead of the global panel — it must NOT be "BASIN_SONDER" as
+// the productId, or the backend's generic opt_/qty_ collector (which reads
+// opt_BASIN_SONDER / qty_BASIN_SONDER directly off payload.optional) would
+// price it a second time as a phantom 0€ "BASIN_SONDER" catalog line.
 function collectBasinSonderQuickAdd(payload) {
   const cb = document.getElementById("opt_BASIN_SONDER");
   if (!cb || !cb.checked) return;
 
   const name = document.getElementById("basinSonderName")?.value?.trim() || "";
+  const artikel = document.getElementById("basinSonderArtikel")?.value?.trim() || "";
   const priceV = document.getElementById("basinSonderPrice")?.value ?? "";
   const qtyV = document.getElementById("qty_BASIN_SONDER")?.value ?? "";
 
@@ -16147,7 +16155,8 @@ function collectBasinSonderQuickAdd(payload) {
     label: name,
     price,
     qty,
-    productId: "BASIN_SONDER",
+    productId: artikel,
+    source: "BASIN_SONDER",
   });
 }
 
