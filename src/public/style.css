@@ -2149,31 +2149,6 @@ label.image-check.is-checked .caption {
    explainer banner, Sonderprodukt tile, linked-accessory panel
    ============================================================ */
 
-.basin-explainer {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 12px 14px;
-  margin: 10px 0 14px;
-  background: var(--accent-weak);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-}
-.basin-explainer svg {
-  flex: 0 0 auto;
-  margin-top: 2px;
-  color: var(--accent-strong);
-}
-.basin-explainer p {
-  margin: 0;
-  font-size: 0.85em;
-  line-height: 1.5;
-  color: var(--text);
-}
-.basin-explainer strong {
-  color: var(--accent-strong);
-}
-
 /* Sonderprodukt tile: same card shape as the photographed products,
    dashed border + plus icon instead of a photo */
 label.image-check.tile-custom {
