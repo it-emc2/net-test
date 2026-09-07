@@ -311,6 +311,28 @@ export function mountConfigurator(el, model, options = {}) {
     return "/configurator/" + raw.replace(/_(jpe?g|png|webp|gif)$/i, ".$1");
   }
 
+  // Audit trail: which leaf/structure option the user picked, so support can
+  // reconstruct a training/onboarding session afterwards. Fire-and-forget,
+  // queued offline via OfflineSaveQueue (works in the offline iOS shell too —
+  // see native-bridge.js) and synced once back online.
+  function logLeafClick(paramId, val) {
+    import("../OfflineSaveQueue.js")
+      .then(({ trySaveOrQueue }) =>
+        trySaveOrQueue({
+          kind: "log",
+          offerKey: "",
+          url: "/api/bitrix/log-action",
+          body: {
+            event: "duschabtrennung_leaf_selected",
+            dealId: document.getElementById("auftragId")?.value || "",
+            offerType: "BU",
+            message: `${paramId}=${val.value} (${val.label})`,
+          },
+        }),
+      )
+      .catch((e) => console.warn("[dac] leaf click log failed:", e?.message || e));
+  }
+
   function optionButton(val, onClick) {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -357,6 +379,7 @@ export function mountConfigurator(el, model, options = {}) {
       for (const val of w.availableOptions(model, state, step.paramId)) {
         grid.appendChild(
           optionButton(val, () => {
+            logLeafClick(step.paramId, val);
             state = {
               ...w.settle(
                 model,

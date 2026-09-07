@@ -121,9 +121,14 @@ function notifySynced(count) {
   );
 }
 
+function recordLabel(record) {
+  if (record.kind === "offer") return `Angebot ${record.offerKey}`;
+  if (record.kind === "log") return "Hintergrund-Ereignis";
+  return `Entwurf ${record.offerKey}`;
+}
+
 function notifyConflict(record) {
-  const label =
-    record.kind === "offer" ? `Angebot ${record.offerKey}` : `Entwurf ${record.offerKey}`;
+  const label = recordLabel(record);
   window.toast?.error?.(
     "Synchronisierung fehlgeschlagen",
     `${label} konnte nicht automatisch synchronisiert werden (Konflikt) – bitte öffnen und Stand prüfen.`,
@@ -143,8 +148,7 @@ function notifyRenamed(oldName, newName) {
 const MAX_ATTEMPTS = 5;
 
 function notifyStuck(record, status) {
-  const label =
-    record.kind === "offer" ? `Angebot ${record.offerKey}` : `Entwurf ${record.offerKey}`;
+  const label = recordLabel(record);
   window.toast?.error?.(
     "Synchronisierung gestoppt",
     `${label} wurde vom Server abgelehnt (${status}) und wird nicht weiter versucht.`,
