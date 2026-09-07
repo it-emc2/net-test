@@ -509,6 +509,7 @@ async function mapKalkulationData(body = {}, computed = {}, debugMeta = null) {
       Beschreibung: x.Beschreibung,
       EK_je_Einheit: x.EK_je_Einheit,
       Gesamt: x.Gesamt,
+      _totalNum: x._totalNum,
     })),
     CostSum: fmtCurrency(sumTotals(svcCostLines)),
     SurchargeLines: svcCostLines.map((x) => ({
@@ -553,6 +554,7 @@ async function mapKalkulationData(body = {}, computed = {}, debugMeta = null) {
       Beschreibung: x.Beschreibung,
       EK_je_Einheit: x.EK_je_Einheit,
       Gesamt: x.Gesamt,
+      _totalNum: x._totalNum,
     })),
     CostSum: fmtCurrency(costSumNum),
     SurchargeLines: surchargeLines,
@@ -1043,6 +1045,18 @@ router.post("/pdf-v2", async (req, res) => {
     const bonusGross = Number(computed?.bonusGross || 0);
     const zwischensumme = Number(computed?.Nettobetrag ?? posI + posII + posIII + aufschlag);
     const nettobetrag = Number(computed?.netAfterRabatt_and_Bonus || 0);
+
+    // Pos. 0.002 used to print material_plus_aufschlag as its total, which
+    // bakes in the same Aufschlag/Rabatt/Bonus already shown once, further up,
+    // in the Kalkulationsübersicht (AufschlagLabel/RabattValueLabel/
+    // BonusGesamtLabel below) — showing it a second time here just made two
+    // numbers that don't visibly match. Pos. 0.002's own total is simply the
+    // sum of its own material rows.
+    const pos002Sum = round2(
+      (data.Pos002_CostLines || []).reduce((a, l) => a + (Number(l._totalNum) || 0), 0),
+    );
+    data.Pos002_UnitPrice = fmtCurrency(pos002Sum);
+    data.Pos002_LineTotal = fmtCurrency(pos002Sum);
 
     Object.assign(data, {
       OfferBadge: isBwt ? "BWT" : "BU",

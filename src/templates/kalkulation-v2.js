@@ -23,6 +23,12 @@ function logoDataUri() {
   return _logoDataUri;
 }
 
+function fmtCurrency(n) {
+  const num = Number(n);
+  if (!Number.isFinite(num)) return "";
+  return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(num);
+}
+
 function esc(v) {
   return String(v ?? "")
     .replace(/&/g, "&amp;")
@@ -90,6 +96,10 @@ function posBlock(prefix, data) {
   const title = data[`${prefix}_Title`];
   if (!no && !title) return "";
   const lines = data[`${prefix}_CostLines`] || [];
+  // Sum the visible rows (not the separately-computed PosLineTotal) so the
+  // printed "Summe Position" always matches what a person gets adding the
+  // rows above it by hand.
+  const rowSum = lines.reduce((a, l) => a + (Number(l._totalNum) || 0), 0);
   return `
     <div class="section-lbl">Position ${esc(no)} &mdash; ${esc(title)}</div>
     <div class="pos-card">
@@ -106,7 +116,7 @@ function posBlock(prefix, data) {
             (l) => `<tr><td>${esc(l.Kostenart)}</td><td class="num">${esc(l.Menge)}</td><td>${esc(l.Einheit)}</td><td>${esc(l.Beschreibung)}</td><td class="num">${esc(l.EK_je_Einheit)}</td><td class="num">${esc(l.Gesamt)}</td></tr>`,
           )
           .join("")}
-        <tr class="total"><td colspan="5">Summe Position ${esc(no)}</td><td class="num">${esc(data[`${prefix}_LineTotal`])}</td></tr>
+        <tr class="total"><td colspan="5">Summe Position ${esc(no)}</td><td class="num">${esc(fmtCurrency(rowSum))}</td></tr>
       </tbody>
     </table>`;
 }
