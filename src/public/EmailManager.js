@@ -9,7 +9,7 @@
 // Set drives both the attachment tiles and this text.
 const KASSE_DOC_LINES = [
   { id: "abtretung", line: "Abtretungserklärung zur Abrechnung mit der Krankenkasse" },
-  { id: "vollmacht", line: "Vollmacht zur Beantragung des Zuschusses nach §40 des Zuschusses nach §40 SGB XI" },
+  { id: "vollmacht", line: "Vollmacht zur Beantragung des Zuschusses nach §40 SGB XI" },
   { id: "barrierefrei", line: 'Unseren aktuellen Flyer "Barrierefreies Wohnen"' },
 ];
 

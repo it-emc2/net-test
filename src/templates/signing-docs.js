@@ -756,7 +756,7 @@ export function buildVollmachtHtml(sr, doc, mode = "pdf") {
   const body = `
     ${docHeader()}
     <h1>Vollmacht für die Krankenkasse</h1>
-    <p class="muted">Vollmacht zur Beantragung des Zuschusses nach §40 des Zuschusses nach §40 SGB XI
+    <p class="muted">Vollmacht zur Beantragung des Zuschusses nach §40 SGB XI
     und Abfrage des Entlastungsbudgets nach §45b SGB XI.</p>
     <div class="box">
       <div class="row"><span class="label">Bevollmächtigter:</span> <span>EmC2 Attila Landgrafe / EmC2 Soziale Dienste UG (haftungsbeschränkt), Waldstraße 5, 95032 Hof</span></div>
