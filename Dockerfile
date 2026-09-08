@@ -25,7 +25,7 @@ COPY . .
 
 FROM base AS runtime
 
-ARG LO_VERSION=25.8.6
+ARG LO_VERSION=25.8.7
 ARG LO_TARBALL_URL="https://download.documentfoundation.org/libreoffice/stable/${LO_VERSION}/deb/x86_64/LibreOffice_${LO_VERSION}_Linux_x86-64_deb.tar.gz"
 
 RUN set -eux; \
