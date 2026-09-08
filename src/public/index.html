@@ -6784,8 +6784,9 @@ button.dm-btn-danger:focus-visible {
 
           <!-- Waschtisch ohne Unterschrank (+ Pflicht-Zubehör) -->
           <div id="menu_BASIN" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Waschtisch ohne Unterschrank</div>
-            <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px">
+            <h4 class="basin-section-title">Waschtisch ohne Unterschrank</h4>
+            <p class="basin-required-sub">Sobald ein Waschbecken <strong>oder</strong> ein Sonderprodukt ausgewählt ist, ergänzt der Konfigurator automatisch Befestigungssatz und Siphon. Bei mehreren Auswahlen bleibt es bei einer Zeile je Artikel – nur die Menge summiert sich.</p>
+            <div class="basin-tile-grid">
               <div class="field" style="min-width: 0">
                 <label class="image-check"><input type="checkbox" id="opt_CL60" name="optBasin[]"
                     value="Waschtisch clivia 60x48 cm weiß VIGOUR CL60" /><span class="img-wrap"><img
@@ -6868,48 +6869,83 @@ button.dm-btn-danger:focus-visible {
                   <input id="qty_COAIR40" name="qty_COAIR40" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
+
+              <!-- Sonderprodukt: freier Posten, löst dieselbe Pflichtzubehör-Automatik aus wie ein Katalog-Waschtisch -->
+              <div class="field" style="min-width: 0">
+                <label class="image-check tile-custom"><input type="checkbox" id="opt_BASIN_SONDER" name="optBasin[]"
+                    value="Sonderprodukt (freier Posten)" /><span class="tile-custom-plus"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span><span class="caption">Sonderprodukt (freier Posten)</span></label>
+                <div id="qty_BASIN_SONDER_wrap" class="field" hidden aria-hidden="true">
+                  <div style="display: flex; gap: 10px; flex-wrap: wrap">
+                    <input id="basinSonderName" type="text" placeholder="Bezeichnung" style="flex: 2; min-width: 120px" />
+                    <input id="basinSonderArtikel" type="text" placeholder="Artikelnr." style="flex: 1; min-width: 90px" />
+                    <input id="basinSonderPrice" type="text" placeholder="Preis €" style="flex: 1; min-width: 90px" />
+                    <input id="qty_BASIN_SONDER" name="qty_BASIN_SONDER" type="number" min="1" step="1" placeholder="1"
+                      style="flex: 1; min-width: 60px" />
+                  </div>
+                </div>
+              </div>
             </div>
+
             <!-- Pflichtzubehör bei ausgewähltem Waschtisch -->
             <div id="basinRequiredWrap" class="muted" hidden aria-hidden="true" style="margin-top: 8px">
-              <div class="subheader">Erforderliches Zubehör</div>
-              <div style="display: flex; gap: 14px; flex-wrap: wrap">
+              <div class="basin-required-connector" aria-hidden="true">
+                <svg viewBox="0 0 14 20" fill="none"><path d="M7 0v14M7 14l-4-4M7 14l4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <div class="basin-required-head">
+                <h4 class="basin-section-title">Automatisch verknüpftes Zubehör</h4>
+                <div class="basin-required-chips" id="basinRequiredChips"></div>
+              </div>
+              <p class="basin-required-sub">
+                Wird ergänzt, sobald oben ein Waschbecken oder ein Sonderprodukt gewählt ist, und wieder entfernt, sobald keine Auswahl mehr besteht. Die Menge kann bei Bedarf jederzeit manuell reduziert werden.
+              </p>
+              <div class="basin-tile-grid">
                 <!-- WTBF (required when basin selected) -->
-                <div class="field" style="min-width: 220px">
+                <div class="field" style="min-width: 0">
                   <label class="image-check"><input type="checkbox" id="opt_WTBF" name="optBasinAcc[]"
                       value="Befestigungssatz Fischer WST 10x140 2 Stk. / Waschtisch WTBF" /><span class="img-wrap"><img
                         src="./assets/WTBF.jpg" alt="WTBF" /></span><span class="caption">Befestigungssatz Fischer WST
                       10x140 2 Stk. / Waschtisch WTBF</span></label>
+                  <div class="basin-acc-tags">
+                    <span class="tag tag-auto">Automatisch hinzugefügt</span>
+                    <span class="tag tag-required">Zwingend erforderlich</span>
+                  </div>
                   <div id="qty_WTBF_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
-                    <label for="qty_WTBF" class="req">Menge WTBF</label><input id="qty_WTBF" name="qty_WTBF"
+                    <label for="qty_WTBF" class="req">Menge</label><input id="qty_WTBF" name="qty_WTBF"
                       type="number" min="0" step="1" placeholder="0" />
                   </div>
                 </div>
                 <!-- RSL (required when basin selected) -->
-                <div class="field" style="min-width: 220px">
+                <div class="field" style="min-width: 0">
                   <label class="image-check"><input type="checkbox" id="opt_RSL" name="optBasinAcc[]"
                       value='Waschtisch-Röhrensiphon 1 1/4"G mit Verstellrohr 120mm TRINNITY RSL' /><span
                       class="img-wrap"><img src="./assets/51bbb10784d76d7201b75bfdf7af1b4b.jpg" alt="RSL" /></span><span
                       class="caption">Waschtisch-Röhrensiphon 1 1/4"G mit Verstellrohr 120mm RSL</span></label>
+                  <div class="basin-acc-tags">
+                    <span class="tag tag-auto">Automatisch hinzugefügt</span>
+                    <span class="tag tag-required">Zwingend erforderlich</span>
+                  </div>
                   <div id="qty_RSL_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
-                    <label for="qty_RSL" class="req">Menge RSL</label><input id="qty_RSL" name="qty_RSL" type="number"
+                    <label for="qty_RSL" class="req">Menge</label><input id="qty_RSL" name="qty_RSL" type="number"
                       min="0" step="1" placeholder="0" />
                   </div>
                 </div>
               </div>
 
               <!-- Optional zu Waschtisch ohne Unterschrank -->
-              <div class="full field" style="margin-top: 8px">
-                <div class="subheader">
-                  Optional zu Waschtisch ohne Unterschrank
-                </div>
-                <div style="display: flex; gap: 14px; flex-wrap: wrap">
-                  <div class="field" style="min-width: 220px">
+              <div class="full field" style="margin-top: 12px">
+                <h4 class="basin-section-title">Optional zu Waschtisch ohne Unterschrank</h4>
+                <div class="basin-tile-grid">
+                  <div class="field" style="min-width: 0">
                     <label class="image-check"><input type="checkbox" id="opt_EV" name="optBasinAcc[]"
                         value='SCHELL Eckventil COMFORT regulierbar ASAG 1/2" chrom EV' /><span class="img-wrap"><img
                           src="./assets/5916012808665944212.jpg" alt="EV" /></span><span class="caption">SCHELL
                         Eckventil COMFORT regulierbar ASAG 1/2" chrom EV</span></label>
+                    <div class="basin-acc-tags">
+                      <span class="tag tag-auto">Automatisch hinzugefügt</span>
+                      <span class="tag tag-optional">Optional · abwählbar</span>
+                    </div>
                     <div id="qty_EV_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
-                      <label for="qty_EV" class="req">Menge EV</label><input id="qty_EV" name="qty_EV" type="number"
+                      <label for="qty_EV" class="req">Menge</label><input id="qty_EV" name="qty_EV" type="number"
                         min="0" step="1" placeholder="0" />
                     </div>
                   </div>

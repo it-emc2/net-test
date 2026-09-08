@@ -305,10 +305,15 @@ export default (ProductModel, deps = {}) => {
     for (const [key, val] of Object.entries(opt)) {
       if (key.startsWith("opt_")) {
         const k = key.slice(4);
+        // BASIN_SONDER is a free-text Waschbecken item priced through
+        // optional.quickAdd (custom label/price), not a real catalog SKU —
+        // skip it here or it prices a second time as a phantom 0€ line.
+        if (k === "BASIN_SONDER") continue;
         const id = aliasToId[k] || k;
         push(id, opt[`qty_${k}`], Boolean(val));
       } else if (key.startsWith("qty_")) {
   const k = key.slice(4);
+  if (k === "BASIN_SONDER") continue;
 
   // ✅ IMPORTANT: if we already have opt_<k>, it will handle qty_<k> there
   // so we must NOT push again here (prevents duplicates)

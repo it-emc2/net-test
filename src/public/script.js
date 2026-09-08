@@ -4538,6 +4538,7 @@ function buildPayload() {
   }
 
   collectOptionalQuickAdd(payload);
+  collectBasinSonderQuickAdd(payload);
 
   let selectedMain = "";
   if (elMax?.checked) selectedMain = elMax.value;
@@ -14738,8 +14739,24 @@ function restoreOptionalPage(opt) {
   // gets the proper input listeners. Falls back to a minimal inline rebuild
   // if init hasn't run yet (e.g., DOM order edge case).
   if (Array.isArray(opt.quickAdd)) {
+    // Pull the Waschbecken Sonderprodukt row(s) out before handing the rest
+    // to the global Sonderprodukte panel restore, and put them back into
+    // the basin checkbox's own name/price fields instead.
+    const basinSonder = opt.quickAdd.find((x) => x?.source === "BASIN_SONDER");
+    const restQuickAdd = opt.quickAdd.filter((x) => x?.source !== "BASIN_SONDER");
+    if (basinSonder) {
+      const nameEl = document.getElementById("basinSonderName");
+      const artikelEl = document.getElementById("basinSonderArtikel");
+      const priceEl = document.getElementById("basinSonderPrice");
+      if (nameEl) nameEl.value = basinSonder.label ?? "";
+      if (artikelEl) artikelEl.value = basinSonder.productId ?? "";
+      if (priceEl)
+        priceEl.value =
+          basinSonder.price != null ? String(basinSonder.price).replace(".", ",") : "";
+    }
+
     if (typeof window.restoreOptionalSonderprodukteFromPayload === "function") {
-      window.restoreOptionalSonderprodukteFromPayload(opt.quickAdd);
+      window.restoreOptionalSonderprodukteFromPayload(restQuickAdd);
     } else {
       const panel =
         document.getElementById("optSonderPanel") ||
@@ -14750,7 +14767,7 @@ function restoreOptionalPage(opt) {
         rowsContainer
           .querySelectorAll(".da-item")
           .forEach((el) => el.remove());
-        const items = opt.quickAdd.length ? opt.quickAdd : [{}];
+        const items = restQuickAdd.length ? restQuickAdd : [{}];
         for (const data of items) {
           let node = null;
           if (tpl?.content?.firstElementChild) {
@@ -16106,6 +16123,43 @@ function collectOptionalQuickAdd(payload) {
   payload.optional.quickAdd = out;
 }
 
+// Waschbecken → Sonderprodukt (freier Posten inside #menu_BASIN).
+// Reuses the same payload.optional.quickAdd pricing path as the global
+// Sonderprodukte tab. productId carries the user's own Artikelnummer (or ""
+// if left blank, same as the global Sonderprodukte rows); `source` is the
+// internal marker restore uses to route this item back into the basin
+// checkbox instead of the global panel — it must NOT be "BASIN_SONDER" as
+// the productId, or the backend's generic opt_/qty_ collector (which reads
+// opt_BASIN_SONDER / qty_BASIN_SONDER directly off payload.optional) would
+// price it a second time as a phantom 0€ "BASIN_SONDER" catalog line.
+function collectBasinSonderQuickAdd(payload) {
+  const cb = document.getElementById("opt_BASIN_SONDER");
+  if (!cb || !cb.checked) return;
+
+  const name = document.getElementById("basinSonderName")?.value?.trim() || "";
+  const artikel = document.getElementById("basinSonderArtikel")?.value?.trim() || "";
+  const priceV = document.getElementById("basinSonderPrice")?.value ?? "";
+  const qtyV = document.getElementById("qty_BASIN_SONDER")?.value ?? "";
+
+  const price =
+    (typeof parseMoneyStrict === "function"
+      ? parseMoneyStrict(priceV)
+      : Number(String(priceV).replace(/\./g, "").replace(",", "."))) || 0;
+  const qty = Number(String(qtyV).replace(/[^\d]/g, "")) || 1;
+
+  if (!name || price <= 0) return;
+
+  if (!payload.optional) payload.optional = {};
+  if (!Array.isArray(payload.optional.quickAdd)) payload.optional.quickAdd = [];
+  payload.optional.quickAdd.push({
+    label: name,
+    price,
+    qty,
+    productId: artikel,
+    source: "BASIN_SONDER",
+  });
+}
+
 // === Optional → Sonderprodukte (Quick-Add) ===
 // Assumes presence of the following DOM nodes in index.html:
 //   #optSonderToggle  (optional UI toggle; we keep it if present)
@@ -17256,6 +17310,9 @@ function initBasinAutoAccessories() {
   const coair40 = document.getElementById("opt_COAIR40");
   const qCOAIR40 = document.getElementById("qty_COAIR40");
 
+  const basinSonder = document.getElementById("opt_BASIN_SONDER");
+  const qBasinSonder = document.getElementById("qty_BASIN_SONDER");
+
   // Required accessories
   const wtbf = document.getElementById("opt_WTBF");
   const qWT = document.getElementById("qty_WTBF");
@@ -17264,6 +17321,9 @@ function initBasinAutoAccessories() {
   const ev = document.getElementById("opt_EV");
   const qEV = document.getElementById("qty_EV");
   const evLbl = document.querySelector('label[for="qty_EV"]');
+
+  // Linked-accessory display: which product(s) triggered the auto-add.
+  const chipsEl = document.getElementById("basinRequiredChips");
 
   // CL60 + accessories must exist; CL65/CL55 may be absent in older HTML
   if (
@@ -17285,6 +17345,7 @@ function initBasinAutoAccessories() {
     { key: "cl55", cb: cl55, qtyInput: qCL55 },
     { key: "on35", cb: on35, qtyInput: qON35 },
     { key: "coair40", cb: coair40, qtyInput: qCOAIR40 },
+    { key: "sonder", cb: basinSonder, qtyInput: qBasinSonder },
   ].filter((b) => b.cb && b.qtyInput);
 
   // ---------- helpers ----------
@@ -17315,6 +17376,25 @@ function initBasinAutoAccessories() {
     const qty = num(qEV.value, 0);
     const pairs = qty / 2;
     evLbl.textContent = `${base} (${Number.isInteger(pairs) ? pairs : pairs.toFixed(1)} paare)`;
+
+    // keep the "ausgelöst durch" chips in sync with current selections
+    // (called from every place that already recomputes WTBF/RSL/EV, so
+    // no extra call sites are needed)
+    if (chipsEl) {
+      const names = basins
+        .filter((b) => b.cb.checked)
+        .map(
+          (b) =>
+            b.cb
+              .closest("label")
+              ?.querySelector(".caption")
+              ?.textContent?.replace(/\s+/g, " ")
+              .trim() || b.cb.value,
+        );
+      chipsEl.innerHTML = names
+        .map((n) => `<span class="basin-required-chip">${n}</span>`)
+        .join("");
+    }
   };
 
   // ---------- persistence ----------
@@ -17419,7 +17499,7 @@ function initBasinAutoAccessories() {
 
   // ---------- wire events ----------
   // When any basin is turned ON by the user: show required section, select accessories and set base values once
-  basins.forEach(({ cb, qtyInput }) => {
+  basins.forEach(({ key, cb, qtyInput }) => {
     cb.addEventListener("change", () => {
       if (cb.checked) {
         show(reqWrap, true);
@@ -17449,7 +17529,20 @@ function initBasinAutoAccessories() {
       } else {
         // if this one is turned off, we still keep the section visible
         // as long as any other basin is checked
-        show(reqWrap, anyBasinChecked());
+        const stillNeeded = anyBasinChecked();
+        show(reqWrap, stillNeeded);
+        // Sonderprodukt is a one-off custom item, not a shared catalog basin:
+        // removing it also removes the accessories it auto-added, unless a
+        // real basin still needs them.
+        if (key === "sonder" && !stillNeeded) {
+          [wtbf, rsl, ev].forEach((el) => {
+            if (el.checked) {
+              el.checked = false;
+              dispatch(el);
+            }
+          });
+        }
+        updateEvPairsLabel();
         saveState();
       }
     });
@@ -18240,6 +18333,7 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_CL55", "qty_CL55_wrap");
   wireTileQty("opt_ON35", "qty_ON35_wrap");
   wireTileQty("opt_COAIR40", "qty_COAIR40_wrap");
+  wireTileQty("opt_BASIN_SONDER", "qty_BASIN_SONDER_wrap");
   // ---- METER ----
   wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
   // ---- RAMPE ----
