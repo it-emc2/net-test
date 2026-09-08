@@ -23,6 +23,7 @@ export function initEmailManager(options = {}) {
       body: "#mailBody",
       preview: "#mailHtmlPreview",
       leadId: "#mailAuftragId",
+      antragGestellt: "#mailAntragGestellt",
       files: "#mailAttachments",
       editedDocx: "#mailEditedDocx",
       list: "#mailAttachmentList",
@@ -84,6 +85,7 @@ export function initEmailManager(options = {}) {
   const $body = document.querySelector(cfg.els.body);
   const $preview = document.querySelector(cfg.els.preview);
   const $leadId = document.querySelector(cfg.els.leadId);
+  const $antragGestellt = document.querySelector(cfg.els.antragGestellt);
   const $files = document.querySelector(cfg.els.files);
   const $editedDocx = document.querySelector(cfg.els.editedDocx);
   const $list = document.querySelector(cfg.els.list);
@@ -723,9 +725,7 @@ Keine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfac
 
 {{SIGN_LINK}}
 
-Sobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.
-
-Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
+${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\n"}Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
   }
 
   function escapeHtml(value) {
@@ -978,6 +978,11 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     const el = document.getElementById(id);
     el?.addEventListener("input", updateBodyDefault);
     el?.addEventListener("change", updateBodyDefault);
+  });
+
+  $antragGestellt?.addEventListener("change", () => {
+    updateBodyDefault();
+    updatePreview();
   });
 
   // Selbstzahler/Kassenkunde toggle: rebuild body (doc list) AND the attachment
