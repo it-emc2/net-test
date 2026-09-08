@@ -1304,7 +1304,18 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
       for (const d of bitrixDocs) fd.append("bitrixDocs", d.blob, d.filename);
       if (editedFile) fd.append("editedDocx", editedFile, editedFile.name);
 
-      const res = await fetch(cfg.apiUrl, { method: "POST", body: fd });
+      const sendTimeout = AbortSignal.timeout(60000);
+      let res;
+      try {
+        res = await fetch(cfg.apiUrl, { method: "POST", body: fd, signal: sendTimeout });
+      } catch (err) {
+        if (err.name === "TimeoutError" || err.name === "AbortError") {
+          throw new Error(
+            "Zeitüberschreitung — der Server antwortet nicht. Bitte nicht neu laden, kurz warten und Bitrix prüfen, ob die Mail trotzdem verschickt wurde, bevor erneut gesendet wird.",
+          );
+        }
+        throw err;
+      }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.detail || err.error || `HTTP ${res.status}`);

@@ -720,13 +720,50 @@ window.toast = window.toast || toast;
       }
       if (buildId !== knownBuildId) {
         showUpdateToast();
-        clearInterval(poller);
+        clearTimeout(poller);
       }
     } catch (_) {}
   }
 
+  function scheduleNextCheck() {
+    const next = new Date();
+    next.setHours(19, 30, 0, 0);
+    if (next <= new Date()) next.setDate(next.getDate() + 1);
+    poller = setTimeout(() => {
+      checkVersion();
+      scheduleNextCheck();
+    }, next - new Date());
+  }
+
   checkVersion();
-  poller = setInterval(checkVersion, 10 * 1000);
+  scheduleNextCheck();
+
+  window.__checkAppVersion = checkVersion;
+})();
+
+// Manual hard refresh: clears the SW app-shell cache (not IndexedDB drafts)
+// and unregisters the worker so it re-fetches everything fresh. Needed on
+// iOS (webview) where there's no "reload update" UX otherwise.
+(function setupHardRefresh() {
+  const btn = document.getElementById("hardRefreshBtn");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    try {
+      if ("caches" in window) {
+        const names = await caches.keys();
+        await Promise.all(names.map((n) => caches.delete(n)));
+      }
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+    } catch (err) {
+      console.warn("[hard-refresh] cleanup failed:", err);
+    } finally {
+      location.reload();
+    }
+  });
 })();
 
 // top-level (once)
