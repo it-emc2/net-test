@@ -397,8 +397,9 @@ async function updateDealStage({
     fields.UF_CRM_1776156870205 = String(offerNumber).trim();
   }
   // Eigenanteil is only relevant for Kassenkunde; caller omits it otherwise.
+  // 0 is a valid value (Kasse covers everything) — don't treat it as unset.
   const selfPayNum = Number(selfPayAmount);
-  if (!isAhOffer && Number.isFinite(selfPayNum) && selfPayNum > 0) {
+  if (!isAhOffer && Number.isFinite(selfPayNum) && selfPayNum >= 0) {
     fields.UF_CRM_1757490052931 = selfPayNum;
   }
 
@@ -461,8 +462,9 @@ async function updateDealAfterSigning({ dealId, customerType, categoryId, stageI
   if (isKasse && categoryId === undefined) Object.assign(fields, SIGNING_KASSE_FIELDS);
   // "Eigenanteil von Angebot (Brutto)" is a required field on the Kasse
   // stage — Bitrix bounces the deal back out of the stage without it.
+  // 0 is a valid value (Kasse covers everything) — don't treat it as unset.
   const selfPayNum = Number(selfPayAmount);
-  if (isKasse && Number.isFinite(selfPayNum) && selfPayNum > 0) {
+  if (isKasse && Number.isFinite(selfPayNum) && selfPayNum >= 0) {
     fields.UF_CRM_1757490052931 = selfPayNum;
   }
 
