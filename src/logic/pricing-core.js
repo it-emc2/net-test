@@ -534,7 +534,7 @@ function grossToNet(gross, taxRate) {
       install_distance_profile: "Einbau eines Abstandsprofils",
       // Thermostat / Duschsystem
       close_valve: "Stilllegen der Armatur",
-      relocate_faucet: "Versetzen, verlegen einer Armatur",
+      relocate_faucet: "Versetzen, Verlegen einer Armatur",
       relocate_drain: "Versetzen, verlegen eines Abflusses",
       convert_faucet: "Umbau einer Unterputz-Armatur in eine Aufputz-Armatur",
       replace_thermostat: "Auswechseln eines Aufputz-Thermostats",
