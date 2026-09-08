@@ -23,11 +23,6 @@ const ANG_VERSCHICKT_CATEGORY_ID = 38;
 const AH_ANG_VERSCHICKT_STAGE_ID = "C52:UC_SNAVG8";
 const AH_ANG_VERSCHICKT_CATEGORY_ID = 52;
 
-// Fields the user is prompted for before entering "[VI] ANG verschickt".
-// Only Betrag (OPPORTUNITY) is asked — Währung is always EUR and defaulted
-// server-side in updateDealStage().
-const ANG_VERSCHICKT_REQUIRED_FIELDS = ["OPPORTUNITY"];
-
 // Stage a completed appointment ("Heutige Termine Planung") is moved to.
 // "Zuteilen HD/ AH/ DH" lives in deal category 72 (STATUS_ID C72:PREPARATION).
 const ZUTEILEN_STAGE_ID = "C72:PREPARATION";
@@ -602,9 +597,6 @@ router.post("/timeline/comment", express.json({ limit: "25mb" }), async (req, re
   }
 });
 
-// GET /api/bitrix/deal/:id/ang-verschickt-fields
-// Reads the deal and reports which "[VI] ANG verschickt" required fields
-// (Betrag/Währung) are still empty, with options for the currency select.
 // GET /api/bitrix/deal/:id — deal + its linked contact, for the Hauptmenü
 // "Bitrix Deal laden" field (loads a deal directly, without knowing the
 // contact ID first).
@@ -644,50 +636,6 @@ router.get("/deal/:id", async (req, res) => {
     });
   } catch (err) {
     console.error("GET /api/bitrix/deal/:id error:", err);
-    return res.status(500).json({ error: err?.message || String(err) });
-  }
-});
-
-router.get("/deal/:id/ang-verschickt-fields", async (req, res) => {
-  try {
-    const dealId = String(req.params.id || "").trim();
-    if (!dealId) return res.status(400).json({ error: "id is required" });
-
-    const dealResp = await bxGet("crm.deal.get", { id: dealId });
-    const deal = dealResp?.result;
-    if (!deal) return res.status(404).json({ error: "Deal not found" });
-
-    // Währung is always EUR, so it is not prompted; only Betrag is asked.
-    const meta = {
-      OPPORTUNITY: { label: "Betrag", type: "double" },
-    };
-
-    const fields = ANG_VERSCHICKT_REQUIRED_FIELDS.map((name) => {
-      const currentValue = deal[name];
-      // OPPORTUNITY of "0"/"0.00" counts as empty (no amount set yet).
-      const empty =
-        name === "OPPORTUNITY"
-          ? isEmpty(currentValue) || Number(currentValue) === 0
-          : isEmpty(currentValue);
-      return {
-        name,
-        label: meta[name]?.label || name,
-        type: meta[name]?.type || "string",
-        options: meta[name]?.options,
-        currentValue: currentValue ?? "",
-        isEmpty: empty,
-      };
-    });
-
-    return res.json({
-      dealId: Number(dealId),
-      title: deal.TITLE || "",
-      stageId: deal.STAGE_ID || "",
-      fields,
-      allFilled: fields.every((f) => !f.isEmpty),
-    });
-  } catch (err) {
-    console.error("GET /api/bitrix/deal/:id/ang-verschickt-fields error:", err);
     return res.status(500).json({ error: err?.message || String(err) });
   }
 });

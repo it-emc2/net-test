@@ -406,6 +406,7 @@ router.post(
     // dialog still come from the payload (the DOCX isn't parsed back).
     let pdfBuf;
     let offerComputed;
+    let offerData;
     let editedDocxBuf = null;
     if (editedDocxFile) {
       if (!/\.docx$/i.test(editedDocxFile.originalname || "")) {
@@ -413,9 +414,9 @@ router.post(
       }
       editedDocxBuf = await fs.readFile(editedDocxFile.path);
       pdfBuf = await convertDocxToPdf(editedDocxBuf);
-      ({ computed: offerComputed } = await getOfferRenderData(payload || {}));
+      ({ computed: offerComputed, data: offerData } = await getOfferRenderData(payload || {}));
     } else {
-      ({ pdfBuffer: pdfBuf, computed: offerComputed } =
+      ({ pdfBuffer: pdfBuf, computed: offerComputed, data: offerData } =
         await generateOfferPdfBuffer(payload || {}));
     }
 
@@ -589,10 +590,17 @@ router.post(
 
     // The offer's final gross total (Gesamtsumme/Brutto). Returned so the
     // "Deal auf 'ANG verschickt' verschieben" dialog can prefill "Betrag".
-    const offerTotal = Number(offerComputed?.total) || 0;
+    // AH prices client-side (pricing.computePrices returns an empty shell for
+    // it), so its real total/Eigenanteil come from the AH-specific fields
+    // computed in buildAhData instead of offerComputed.
+    const offerTotal = isAh
+      ? Number(offerData?.AhGesamtNum) || 0
+      : Number(offerComputed?.total) || 0;
     // Eigenanteil (Kassenkunde self-pay share) — returned so the deal-move
     // dialog can send it on to Bitrix's "Eigenanteil von Angebot" field.
-    const selfPayAmount = Number(offerComputed?.selfPayAmount) || 0;
+    const selfPayAmount = isAh
+      ? Number(offerData?.AhEigenanteilNum) || 0
+      : Number(offerComputed?.selfPayAmount) || 0;
 
     res.json({
       ok: true,
