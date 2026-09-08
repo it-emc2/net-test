@@ -2309,6 +2309,11 @@ function buildAhData(body) {
     AhKondRows,
     AhKondRowsHnD,
     AhKondRowsAB,
+    // Raw numbers (not formatted strings) so the email route can prefill the
+    // "Betrag" field on the deal-move dialog — AH prices client-side, so the
+    // generic pricing.computePrices() total is always 0 for this offer type.
+    AhGesamtNum: gesamt,
+    AhEigenanteilNum: hasEigenanteil ? ahEigenanteil : 0,
     AhHasHnD: hasHnD,
     AhHasAb: hasAb,
     // Hinweis zur zusätzlichen Alltagsbegleitung – nur zeigen, wenn ein Angebot
