@@ -169,58 +169,90 @@ function logBitrixFailure(method, paramsObj, err, httpMethod) {
   }).catch((logErr) => console.error("[bitrix] failed to write BitrixLog:", logErr));
 }
 
-async function bxGet(method, paramsObj = {}) {
-  try {
-    if (!BITRIX_WEBHOOK_BASE) {
-      throw new Error(
-        "BITRIX_WEBHOOK_BASE is not configured (set it in env).",
-      );
-    }
+async function bxFetch(method, paramsObj, httpMethod) {
+  const qs = buildQS(paramsObj);
+  const url =
+    httpMethod === "GET"
+      ? `${BITRIX_WEBHOOK_BASE}/${method}.json${qs ? `?${qs}` : ""}`
+      : `${BITRIX_WEBHOOK_BASE}/${method}.json`;
 
-    const qs = buildQS(paramsObj);
-    const url = `${BITRIX_WEBHOOK_BASE}/${method}.json${qs ? `?${qs}` : ""}`;
+  const res = await fetch(url, {
+    method: httpMethod,
+    ...(httpMethod === "POST" && {
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body: qs,
+    }),
+  });
+  const data = await res.json().catch(() => null);
 
-    const res = await fetch(url, { method: "GET" });
-    const data = await res.json().catch(() => null);
+  if (!data) throw new Error("Invalid JSON response from Bitrix");
+  if (data.error) throw new Error(data.error_description || data.error);
 
-    if (!data) throw new Error("Invalid JSON response from Bitrix");
-    if (data.error) throw new Error(data.error_description || data.error);
+  return data;
+}
 
-    return data;
-  } catch (err) {
-    logBitrixFailure(method, paramsObj, err, "GET");
+// Bitrix webhooks throttle at ~2 req/sec (error_description "Too many
+// requests"), and this is by far the most common BitrixLog entry. Retry
+// those with backoff instead of failing/logging immediately.
+const RATE_LIMIT_RETRIES = 4;
+const RATE_LIMIT_DELAY_MS = 700;
+
+function isRateLimitError(err) {
+  return /too many requests/i.test(err?.message || "");
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Process-wide pacing: every Bitrix call, from any request, queues here and
+// waits its turn so calls actually leave at least BX_MIN_GAP_MS apart —
+// this is what keeps a single dialog's own 4 sequential calls (and any
+// others firing at the same time) from bunching up against the webhook's
+// shared 2 req/sec limit in the first place.
+// ponytail: single global queue, no per-method/per-user fairness — revisit
+// if one heavy caller starts starving the others.
+const BX_MIN_GAP_MS = 1000;
+let bxQueueTail = Promise.resolve(0);
+
+function throttleBxCall() {
+  const turn = bxQueueTail.then(async (lastStart) => {
+    const wait = lastStart + BX_MIN_GAP_MS - Date.now();
+    if (wait > 0) await sleep(wait);
+    return Date.now();
+  });
+  bxQueueTail = turn;
+  return turn;
+}
+
+async function bxCall(method, paramsObj, httpMethod) {
+  if (!BITRIX_WEBHOOK_BASE) {
+    const err = new Error("BITRIX_WEBHOOK_BASE is not configured (set it in env).");
+    logBitrixFailure(method, paramsObj, err, httpMethod);
     throw err;
+  }
+
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await throttleBxCall();
+      return await bxFetch(method, paramsObj, httpMethod);
+    } catch (err) {
+      if (isRateLimitError(err) && attempt < RATE_LIMIT_RETRIES) {
+        // ponytail: fixed backoff, no jitter/queue; revisit if Bitrix stays
+        // throttled past ~3s of retries.
+        await sleep(RATE_LIMIT_DELAY_MS * (attempt + 1));
+        continue;
+      }
+      logBitrixFailure(method, paramsObj, err, httpMethod);
+      throw err;
+    }
   }
 }
 
+async function bxGet(method, paramsObj = {}) {
+  return bxCall(method, paramsObj, "GET");
+}
+
 async function bxPost(method, paramsObj = {}) {
-  try {
-    if (!BITRIX_WEBHOOK_BASE) {
-      throw new Error(
-        "BITRIX_WEBHOOK_BASE is not configured (set it in env).",
-      );
-    }
-
-    const url = `${BITRIX_WEBHOOK_BASE}/${method}.json`;
-    const body = buildQS(paramsObj);
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-      },
-      body,
-    });
-    const data = await res.json().catch(() => null);
-
-    if (!data) throw new Error("Invalid JSON response from Bitrix");
-    if (data.error) throw new Error(data.error_description || data.error);
-
-    return data;
-  } catch (err) {
-    logBitrixFailure(method, paramsObj, err, "POST");
-    throw err;
-  }
+  return bxCall(method, paramsObj, "POST");
 }
 
 // Replay a previously logged failed Bitrix call with its original params.
