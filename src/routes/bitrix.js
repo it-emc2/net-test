@@ -413,7 +413,7 @@ const SIGNING_KASSE_FIELDS = {
 // Kassenkunde also gets the Vollmacht/Abtretung fields filled in; Selbstzahler
 // is just a stage move. categoryId/stageId let callers override the target
 // (used by AH, which isn't in category 38 at all).
-async function updateDealAfterSigning({ dealId, customerType, categoryId, stageId }) {
+async function updateDealAfterSigning({ dealId, customerType, categoryId, stageId, selfPayAmount }) {
   const numericId = Number(dealId);
   if (!Number.isFinite(numericId) || numericId <= 0) {
     throw new Error("dealId must be a positive number");
@@ -427,6 +427,12 @@ async function updateDealAfterSigning({ dealId, customerType, categoryId, stageI
   // Kasse UF fields (Vollmacht/Abtretung §40) belong to the BU/BWT category
   // 38 pipeline only — skip them when overriding to a different category.
   if (isKasse && categoryId === undefined) Object.assign(fields, SIGNING_KASSE_FIELDS);
+  // "Eigenanteil von Angebot (Brutto)" is a required field on the Kasse
+  // stage — Bitrix bounces the deal back out of the stage without it.
+  const selfPayNum = Number(selfPayAmount);
+  if (isKasse && Number.isFinite(selfPayNum) && selfPayNum > 0) {
+    fields.UF_CRM_1757490052931 = selfPayNum;
+  }
 
   return bxPost("crm.item.update", {
     entityTypeId: DEAL_ENTITY_TYPE_ID,

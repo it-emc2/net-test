@@ -758,9 +758,18 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
       // shouldn't break the customer-facing signing confirmation.
       if (sr.bitrixEntityType === "deal" && sr.bitrixEntityId) {
         try {
+          // "Antrag an Kasse stellen" has a required-field rule on Bitrix's
+          // side (Eigenanteil von Angebot (Brutto)) — without it the deal
+          // silently bounces back out of the stage. Not relevant for AH.
+          let selfPayAmount;
+          if (sr.customerType === "KASSE" && !isAhOffer(sr)) {
+            const { computed } = await getOfferRenderData(sr.payloadSnapshot || {});
+            selfPayAmount = Number(computed?.selfPayAmount) || 0;
+          }
           await updateDealAfterSigning({
             dealId: sr.bitrixEntityId,
             customerType: sr.customerType,
+            selfPayAmount,
             // ponytail: AH placeholder — both Kasse and Selbstzahler land on
             // the same post-signing stage until the supervisor confirms a
             // separate Kasse target stage for AH.
