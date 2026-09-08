@@ -3676,13 +3676,6 @@ button.dm-btn-danger:focus-visible {
                     </span>
                   </label>
                   <label class="task-card">
-                    <input type="checkbox" name="duschwanne[workTasks][]" value="remove_enclosure" />
-                    <span class="task-card__body">
-                      <span class="task-card__title">Entfernen und Entsorgen der Duschabtrennung</span>
-                      <span class="task-card__hint">Demontage vorhandener Abtrennung inkl. Entsorgung</span>
-                    </span>
-                  </label>
-                  <label class="task-card">
                     <input type="checkbox" name="duschwanne[workTasks][]" value="install_tray" />
                     <span class="task-card__body">
                       <span class="task-card__title">Einbau der Duschwanne</span>
@@ -3704,42 +3697,55 @@ button.dm-btn-danger:focus-visible {
                 <summary class="wt-group__header">
                   <span class="wt-group-title-row">3. Duschabtrennung <span class="wt-group-count" id="wt-count-duschabtrennung" hidden>0</span></span>
                 </summary>
-                <div class="wt-group__body task-cards">
-                  <label class="task-card">
-                    <input type="checkbox" name="duschwanne[workTasks][]" value="remove_shower_curtain" />
-                    <span class="task-card__body">
-                      <span class="task-card__title">Entfernen und Entsorgen des Duschvorhangs</span>
-                      <span class="task-card__hint">Demontage, Abtransport & fachgerechte Entsorgung</span>
-                    </span>
-                  </label>
-                  <label class="task-card">
-                    <input type="checkbox" name="duschwanne[workTasks][]" value="install_shower_curtain" />
-                    <span class="task-card__body">
-                      <span class="task-card__title">Einbau eines Duschvorhangs</span>
-                      <span class="task-card__hint">Montage & Befestigung</span>
-                    </span>
-                  </label>
-                  <label class="task-card">
-                    <input type="checkbox" name="duschwanne[workTasks][]" value="install_enclosure" />
-                    <span class="task-card__body">
-                      <span class="task-card__title">Einbau der Duschabtrennung</span>
-                      <span class="task-card__hint">Montage & Abdichtung gemäß Herstellerangaben</span>
-                    </span>
-                  </label>
-                  <label class="task-card">
-                    <input type="checkbox" name="duschwanne[workTasks][]" value="trockenbau_duschbereich" />
-                    <span class="task-card__body">
-                      <span class="task-card__title">Trockenbau im Duschbereich</span>
-                      <span class="task-card__hint">Montage & Verkleidung</span>
-                    </span>
-                  </label>
-                  <label class="task-card">
-                    <input type="checkbox" name="duschwanne[workTasks][]" value="install_distance_profile" />
-                    <span class="task-card__body">
-                      <span class="task-card__title">Einbau eines Abstandsprofils</span>
-                      <span class="task-card__hint">Montage & Befestigung</span>
-                    </span>
-                  </label>
+                <div class="wt-group__body">
+                  <div class="task-cards">
+                    <label class="task-card">
+                      <input type="checkbox" name="duschwanne[workTasks][]" value="remove_shower_curtain" />
+                      <span class="task-card__body">
+                        <span class="task-card__title">Entfernen und Entsorgen des Duschvorhangs</span>
+                        <span class="task-card__hint">Demontage, Abtransport & fachgerechte Entsorgung</span>
+                      </span>
+                    </label>
+                    <label class="task-card">
+                      <input type="checkbox" name="duschwanne[workTasks][]" value="remove_enclosure" />
+                      <span class="task-card__body">
+                        <span class="task-card__title">Entfernen und Entsorgen der Duschabtrennung</span>
+                        <span class="task-card__hint">Demontage vorhandener Abtrennung inkl. Entsorgung</span>
+                      </span>
+                    </label>
+                  </div>
+                  <div class="task-cards">
+                    <label class="task-card">
+                      <input type="checkbox" name="duschwanne[workTasks][]" value="install_shower_curtain" />
+                      <span class="task-card__body">
+                        <span class="task-card__title">Einbau eines Duschvorhangs</span>
+                        <span class="task-card__hint">Montage & Befestigung</span>
+                      </span>
+                    </label>
+                    <label class="task-card">
+                      <input type="checkbox" name="duschwanne[workTasks][]" value="install_enclosure" />
+                      <span class="task-card__body">
+                        <span class="task-card__title">Einbau der Duschabtrennung</span>
+                        <span class="task-card__hint">Montage & Abdichtung gemäß Herstellerangaben</span>
+                      </span>
+                    </label>
+                  </div>
+                  <div class="task-cards">
+                    <label class="task-card">
+                      <input type="checkbox" name="duschwanne[workTasks][]" value="trockenbau_duschbereich" />
+                      <span class="task-card__body">
+                        <span class="task-card__title">Trockenbau im Duschbereich</span>
+                        <span class="task-card__hint">Montage & Verkleidung</span>
+                      </span>
+                    </label>
+                    <label class="task-card">
+                      <input type="checkbox" name="duschwanne[workTasks][]" value="install_distance_profile" />
+                      <span class="task-card__body">
+                        <span class="task-card__title">Einbau eines Abstandsprofils</span>
+                        <span class="task-card__hint">Montage & Befestigung</span>
+                      </span>
+                    </label>
+                  </div>
                   <div class="tb-block" id="dw-trockenbau">
                     <div class="tb-block__head">
                       <span class="tb-block__title">Aluprofil für Trockenbau statt Verbindungsprofil</span>

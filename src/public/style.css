@@ -1292,6 +1292,12 @@ a.btn {
   line-height: 1.3;
 }
 
+/* ---------- Duschabtrennung group: task-cards grouped into rows (Entsorgung / Einbau / Sonstiges) ---------- */
+.wt-group__body > .task-cards + .task-cards,
+.wt-group__body > .task-cards + .tb-block {
+  margin-top: 0.75rem;
+}
+
 /* ---------- Aluprofil für Trockenbau repeater (Duschabtrennung) ---------- */
 .tb-block {
   grid-column: 1 / -1;
