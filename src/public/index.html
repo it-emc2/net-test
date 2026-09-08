@@ -1827,11 +1827,22 @@
     #page-Zusammenfassung .export-cards {
       display: grid;
       grid-template-columns: repeat(3, minmax(240px, 1fr));
+      /* meta / icon / title / description / actions — cards subgrid into
+         these so badge, title, description and the button block all line
+         up across cards, even when one card has more buttons than another. */
+      grid-template-rows: auto auto auto 1fr auto;
       gap: 16px;
     }
 
-    #page-Zusammenfassung .export-card {
+    #page-Zusammenfassung .export-card[hidden] {
+      display: none;
+    }
+
+    #page-Zusammenfassung .export-card:not([hidden]) {
       position: relative;
+      display: grid;
+      grid-row: span 5;
+      grid-template-rows: subgrid;
       padding: 18px 18px 16px;
       border-radius: 18px;
       text-align: left;
@@ -1915,8 +1926,22 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    #page-Zusammenfassung .document-card__actions--split .document-card__preview {
+    #page-Zusammenfassung .document-card__actions--split .document-card__preview,
+    #page-Zusammenfassung .document-card__actions--split .btn-newversion {
       grid-column: 1 / -1;
+    }
+
+    /* "Neue Version" — a distinct highlight action, not a second red PDF
+       button. Matches the accent gradient used for the card's top border
+       and the active preview-switcher tab. */
+    #page-Zusammenfassung .btn-newversion {
+      background: linear-gradient(135deg, #cf7331, #e99e5e);
+      color: #fff;
+      margin-top: 4px;
+    }
+
+    #page-Zusammenfassung .btn-newversion:hover {
+      box-shadow: 0 4px 12px rgba(198, 106, 41, 0.3);
     }
 
     #page-Zusammenfassung .document-card__preview,
@@ -7753,7 +7778,7 @@ button.dm-btn-danger:focus-visible {
                     <span class="btn-icon">👁️</span>
                     Vorschau anzeigen
                   </button>
-                  <button type="button" id="downloadKalkulationV2" class="btn-export btn-pdf">
+                  <button type="button" id="downloadKalkulationV2" class="btn-export btn-newversion">
                     <span class="btn-icon">✨</span>
                     Neue Version
                   </button>
