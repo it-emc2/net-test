@@ -140,13 +140,20 @@ export function initBadoluxManager(options = {}) {
     const empty = $(cfg.els.flooringBudgetEmpty);
     if (!group || !wrap) return;
 
+    // Clear only once the list is in: clearing before the await let two overlapping
+    // renders (toggle spam, or a restore re-applying a saved BP selection) both
+    // append, so every budget floor showed up twice.
+    const myToken = ++floorRenderToken;
+    const list = await loadBudgetFloorsFromBackend();
+    if (myToken !== floorRenderToken) return; // a newer render took over
+
     wrap.innerHTML = "";
 
-    const list = await loadBudgetFloorsFromBackend();
     const has = Array.isArray(list) && list.length > 0;
 
     if (!has) {
       if (empty) empty.hidden = false;
+      window.notifyBudgetTilesRendered?.();
       return;
     }
     if (empty) empty.hidden = true;
@@ -190,6 +197,9 @@ export function initBadoluxManager(options = {}) {
 
       wrap.appendChild(label);
     }
+
+    // Let the app re-apply a restored Badolux floor selection now that its tile exists.
+    window.notifyBudgetTilesRendered?.();
   }
 
   async function updateBudgetFloorVisibility() {

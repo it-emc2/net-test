@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Duschwanne: Standard / Premium</title>
+<style>
+:root{
+  --bg:#f6f7fb; --panel:#fff; --text:#1f2937; --muted:#6b7280; --border:#e5e7eb;
+  --accent:#7C3AED; --accent-weak:#ede9fe; --ring:rgba(124,58,237,.25);
+  --standard:#0f766e; --standard-weak:#ccfbf1;
+  --premium:#7C3AED; --premium-weak:#ede9fe;
+  --danger:#dc2626;
+  --shadow:0 10px 30px rgba(17,24,39,.08);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:24px}
+.wrap{max-width:1024px;margin:0 auto}
+.card{background:var(--panel);border-radius:16px;box-shadow:var(--shadow);padding:24px;margin-bottom:20px}
+h2{margin:0;font-size:1.45rem}
+h3{margin:0 0 10px;font-size:1rem}
+.mock-note{max-width:1024px;margin:0 auto 20px;padding:12px 16px;border-radius:12px;
+  background:#fffbeb;border:1px solid #fde68a;font-size:13px;color:#78350f}
+
+/* ---------- Kopf ---------- */
+.dw-head{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;justify-content:space-between;margin-bottom:20px}
+
+/* ---------- Segmented control ---------- */
+.tier-switch{display:inline-flex;flex-direction:column;gap:6px}
+.tier-switch__label{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.tier-seg{display:inline-flex;background:#eef0f5;border-radius:14px;padding:4px;gap:4px}
+.tier-seg button{
+  appearance:none;border:0;background:transparent;cursor:pointer;font:inherit;
+  min-height:52px;min-width:170px;padding:8px 20px;border-radius:11px;
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;
+  color:var(--muted);transition:background .15s,color .15s,box-shadow .15s}
+.tier-seg button strong{font-size:.98rem;font-weight:700}
+.tier-seg button span{font-size:11px;font-weight:500;opacity:.85}
+.tier-seg button[aria-pressed="true"]{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(17,24,39,.16)}
+.tier-seg button[data-tier="standard"][aria-pressed="true"]{box-shadow:0 1px 3px rgba(17,24,39,.16),inset 0 0 0 2px var(--standard)}
+.tier-seg button[data-tier="premium"][aria-pressed="true"]{box-shadow:0 1px 3px rgba(17,24,39,.16),inset 0 0 0 2px var(--premium)}
+.tier-seg button:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+
+/* Statuszeile, ersetzt das gelbe "Low Budget Modus aktiv" Banner */
+.tier-status{display:flex;align-items:center;gap:10px;margin:0 0 20px;padding:11px 14px;border-radius:12px;font-size:13px;font-weight:600}
+.tier-status .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.tier-status .rest{font-weight:500;color:var(--muted)}
+body[data-tier="standard"] .tier-status{background:var(--standard-weak);color:#134e4a}
+body[data-tier="standard"] .tier-status .dot{background:var(--standard)}
+body[data-tier="premium"] .tier-status{background:var(--premium-weak);color:#4c1d95}
+body[data-tier="premium"] .tier-status .dot{background:var(--premium)}
+
+.toggle-row{display:flex;align-items:center;gap:9px;font-weight:500;cursor:pointer;font-size:14px}
+.toggle-row input{transform:scale(1.25)}
+
+/* ---------- Maße ---------- */
+.sizes{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px}
+label.fld{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600}
+label.fld input{min-height:48px;padding:10px 12px;font-size:16px;border:1px solid #d1d5db;border-radius:10px;background:#fff;width:150px}
+label.fld input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+
+/* ---------- Vorschläge ---------- */
+.sug-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:20px 0 10px}
+.sug-head .count{font-size:12px;color:var(--muted)}
+.sug-list{display:grid;gap:10px}
+.sug{display:flex;align-items:center;gap:14px;padding:14px 16px;border:1.5px solid var(--border);
+  border-radius:14px;background:#fff;cursor:pointer;min-height:76px;transition:border-color .12s,background .12s}
+.sug:hover{background:#fafbfe}
+.sug.is-selected{border-color:var(--accent);background:#f7f4ff}
+body[data-tier="standard"] .sug.is-selected{border-color:var(--standard);background:#f0fdfa}
+.sug input{position:absolute;opacity:0;pointer-events:none}
+.sug .body{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.sug .t{font-weight:650;font-size:.96rem}
+.sug .d{font-size:12px;color:var(--muted)}
+.sug .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+.badge{font-size:10px;font-weight:700;letter-spacing:.03em;padding:3px 8px;border-radius:999px;border:1px solid}
+.badge--best{background:rgba(37,99,235,.1);color:#1d4ed8;border-color:rgba(37,99,235,.25)}
+.badge--tier-standard{background:var(--standard-weak);color:#115e59;border-color:#5eead4}
+.badge--tier-premium{background:var(--premium-weak);color:#5b21b6;border-color:#c4b5fd}
+.sug.is-pinned{border-color:#f59e0b;background:#fffbeb}
+.pinned-head{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#92400e;margin:0 0 8px}
+.pinned-note{font-size:12.5px;color:#78350f;margin:8px 0 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.badge--pinned{background:#fef3c7;color:#92400e;border-color:#fcd34d}
+.demo-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:20px;font-size:13px}
+/* Lagerbestand — 1:1 aus #page-DuschabtrennungNeu (.dac-line-stock) */
+.stock{display:inline-flex;align-items:center;gap:8px;font-size:.7rem;font-weight:600;
+  border-radius:999px;padding:6px 14px 6px 6px;line-height:1.5;white-space:nowrap}
+.stock-in{color:#fff;background:#0a7d33}
+.stock-out{color:#fff;background:#c81e3a}
+.stock-qty{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;
+  flex:0 0 auto;border-radius:50%;font-variant-numeric:tabular-nums}
+.stock-soon{color:#fff;background:#b45309}
+.stock-in .stock-qty{background:#05541f}
+.stock-out .stock-qty{background:#7a0e21}
+.stock-soon .stock-qty{background:#78350f}
+.sug .price{font-size:1.05rem;font-weight:750;white-space:nowrap}
+.sug .chk{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--border);display:flex;
+  align-items:center;justify-content:center;font-weight:800;color:transparent;flex:0 0 auto}
+.sug.is-selected .chk{background:var(--accent);border-color:var(--accent);color:#fff}
+body[data-tier="standard"] .sug.is-selected .chk{background:var(--standard);border-color:var(--standard)}
+
+/* ---------- Fallback / leer ---------- */
+.fallback{border:1.5px dashed #f59e0b;background:#fffbeb;border-radius:14px;padding:16px;display:flex;
+  gap:14px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.fallback p{margin:0;font-size:13.5px;color:#78350f;max-width:60ch}
+.fallback strong{display:block;margin-bottom:3px;font-size:14px}
+.btn{appearance:none;border:1px solid var(--border);background:#fff;border-radius:11px;min-height:46px;
+  padding:0 18px;font:inherit;font-weight:650;cursor:pointer}
+.btn:hover{background:#f3f4f6}
+.btn--primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn--primary:hover{filter:brightness(1.06)}
+
+/* ---------- Freier Posten ---------- */
+details.fp{border:1px solid var(--border);border-radius:14px;background:#fcfcfe;margin-top:22px;overflow:hidden}
+details.fp>summary{list-style:none;cursor:pointer;padding:15px 18px;display:flex;align-items:center;gap:10px;
+  font-weight:650;font-size:14px;min-height:56px}
+details.fp>summary::-webkit-details-marker{display:none}
+details.fp>summary .caret{margin-left:auto;transition:transform .15s;color:var(--muted)}
+details.fp[open]>summary .caret{transform:rotate(90deg)}
+details.fp[open]>summary{border-bottom:1px solid var(--border);background:#fff}
+.fp-body{padding:18px}
+.fp-grid{display:grid;grid-template-columns:2.2fr 1fr .8fr 1fr;gap:12px}
+.fp-help{margin:12px 0 0;font-size:12.5px;color:var(--muted)}
+details.fp.is-urgent{border-color:#f59e0b;background:#fffbeb}
+
+/* ---------- Zubehör ---------- */
+.acc{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;margin-top:6px}
+.acc-item{border:1.5px solid var(--border);border-radius:14px;padding:12px;background:#fff;display:flex;
+  flex-direction:column;gap:8px;position:relative}
+.acc-item .ph{height:78px;border-radius:10px;background:linear-gradient(135deg,#eef0f5,#e2e6ef);
+  display:flex;align-items:center;justify-content:center;color:#9aa1ae;font-size:11px}
+.acc-item .n{font-size:12.5px;font-weight:600;line-height:1.3}
+.acc-item .pid{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.acc-item label{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600}
+.acc-item input{transform:scale(1.2)}
+
+/* ---------- Debug ---------- */
+.debug{font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;background:#111827;color:#d1fae5;
+  border-radius:12px;padding:14px 16px;white-space:pre-wrap}
+.debug b{color:#fbbf24}
+
+@media (max-width:820px){
+  .fp-grid{grid-template-columns:1fr 1fr}
+  .tier-seg button{min-width:140px}
+  .dw-head{flex-direction:column;align-items:stretch}
+}
+</style>
+</head>
+<body data-tier="premium">
+<div class="mock-note">
+  <b>Mockup</b> — statische Beispieldaten, keine API. Zum Ausprobieren: Umschalter Standard/Premium klicken,
+  Länge <b>140</b> eingeben (Standard hat dann keinen Treffer → Wechsel-Hinweis), Länge <b>200</b> (keine Linie trifft → Freier Posten öffnet automatisch).
+  Unten zeigt die schwarze Box, was im Payload landet — unverändert <code>budgetMode</code>.
+</div>
+
+<div class="wrap">
+  <div class="demo-bar">
+    <button class="btn" id="demoMixed">Demo: alten Entwurf laden (Premium + Badolux-Wanne)</button>
+    <button class="btn" id="demoReset">Zurücksetzen</button>
+  </div>
+
+  <div class="card">
+
+    <div class="dw-head">
+      <h2>Duschwanne</h2>
+      <div style="display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap">
+        <label class="toggle-row"><input type="checkbox" checked> Hinweis zu möglichen Zusatzkosten</label>
+        <div class="tier-switch">
+          <span class="tier-switch__label">Produktlinie</span>
+          <div class="tier-seg" role="group" aria-label="Produktlinie wählen">
+            <button type="button" data-tier="standard" aria-pressed="false">
+              <strong>Standard</strong><span>Badolux · günstig</span>
+            </button>
+            <button type="button" data-tier="premium" aria-pressed="true">
+              <strong>Premium</strong><span>Vigour · Hassmann</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="tier-status">
+      <span class="dot"></span>
+      <span id="statusText"></span>
+      <span class="rest" id="statusRest"></span>
+    </p>
+
+    <!-- interne, unveränderte Checkbox: alles bestehende JS/Payload hängt weiter hier dran -->
+    <input id="budgetToggle" type="checkbox" name="budgetMode" value="1" hidden>
+
+    <h3>Maße (B × L in cm)</h3>
+    <div class="sizes">
+      <label class="fld">Breite <input id="w" type="number" value="100" min="20" step="1"></label>
+      <label class="fld">Länge <input id="l" type="number" value="100" min="20" step="1"></label>
+    </div>
+
+    <div id="pinnedSlot" style="margin-top:20px"></div>
+
+    <div class="sug-head">
+      <h3 id="sugTitle"></h3>
+      <span class="count" id="sugCount"></span>
+    </div>
+    <div class="sug-list" id="sugList"></div>
+    <div id="fallbackSlot" style="margin-top:12px"></div>
+
+    <details class="fp" id="fp">
+      <summary>
+        <span aria-hidden="true">✎</span>
+        <span id="fpTitle">Duschwanne nicht gefunden? Freien Posten anlegen</span>
+        <span class="caret" aria-hidden="true">›</span>
+      </summary>
+      <div class="fp-body">
+        <div class="fp-grid">
+          <label class="fld">Bezeichnung <input placeholder="z. B. Duschwanne geschwungen 100×100"></label>
+          <label class="fld">Preis <input inputmode="decimal" placeholder="799,00"></label>
+          <label class="fld">Menge <input type="number" value="1" min="1"></label>
+          <label class="fld">ID <input placeholder="DW-CUS-001"></label>
+        </div>
+        <p class="fp-help">Erscheint in Kosten &amp; Angebot unter „Duschwanne“. Feldnamen bleiben unverändert
+          (<code>dwCustomName/Price/Qty/Id</code>) — alte Entwürfe laden weiterhin.</p>
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
+    <h3 id="accTitle"></h3>
+    <div class="acc" id="acc"></div>
+  </div>
+
+  <div class="card">
+    <h3>Payload (unverändert)</h3>
+    <div class="debug" id="debug"></div>
+  </div>
+</div>
+
+<script>
+/* --- Beispieldaten, ersetzt /api/trays/suggest --- */
+const DATA = {
+  premium: [
+    {id:"SLA100100",  name:"Duschwanne Slate 100×100 flach", w:100, l:100, h:3, price:489.00,
+      stockQuantity:10, stockSymbol:2, stockText:"Der Artikel ist im Lager verfügbar. Der Bestand beträgt 10 Stück."},
+    {id:"SLA100120",  name:"Duschwanne Slate 100×120 flach", w:100, l:120, h:3, price:549.00,
+      stockQuantity:0, stockSymbol:3,
+      stockText:"Ware im Verbundhaus Wendelstein vorbehaltlich Prüfung verfügbar, Lieferzeit 2-5 Tage"},
+    {id:"SLA1001400", name:"Duschwanne Slate 100×140 flach", w:100, l:140, h:3, price:612.00,
+      stockQuantity:2,  stockSymbol:2, stockText:"Der Artikel ist im Lager verfügbar. Der Bestand beträgt 2 Stück."},
+    {id:"SLA90100",   name:"Duschwanne Slate 90×100 flach",  w:90,  l:100, h:3, price:459.00,
+      stockQuantity:0, stockSymbol:1,
+      stockText:"Die Ware ist aktuell nicht verfügbar und muss bestellt werden."},
+    {id:"SLA120100",  name:"Duschwanne Slate 120×100 flach", w:120, l:100, h:3, price:698.00,
+      stockQuantity:0, stockSymbol:1,
+      stockText:"Die Ware ist aktuell nicht verfügbar und muss bestellt werden."}
+  ],
+  standard: [
+    {id:"DWBL100100", name:"Badolux Duschwanne 100×100", w:100, l:100, h:3.5, price:279.00},
+    {id:"DWBL100120", name:"Badolux Duschwanne 100×120", w:100, l:120, h:3.5, price:319.00}
+  ]
+};
+const ACC = {
+  premium: [
+    {pid:"TRWDB",   n:"Wannenabdichtband-Set 3,4 m"},
+    {pid:"AGD9060", n:"Ablaufgarnitur Rohbauset BH60"},
+    {pid:"KM02",    n:"Kleinmaterial"},
+    {pid:"PLA5282", n:"Plattenlager Pro justierbar"}
+  ],
+  standard: [
+    {pid:"TRWDB",   n:"Wannenabdichtband-Set 3,4 m"},
+    {pid:"AGB001",  n:"Ablaufgarnitur Badolux"},
+    {pid:"AC004",   n:"Kleinmaterial Badolux"},
+    {pid:"PLA5282", n:"Plattenlager Pro justierbar"}
+  ]
+};
+const LABEL = {standard:{name:"Standard", brand:"Badolux"}, premium:{name:"Premium", brand:"Vigour / Hassmann"}};
+const OTHER = {standard:"premium", premium:"standard"};
+
+let tier = "premium", chosen = null, userOpenedFp = false, pinned = null;
+
+const $ = (s)=>document.querySelector(s);
+const eur = (n)=>n.toFixed(2).replace(".",",")+" €";
+
+// stockSymbol → Zustand. 3/6/9 haben immer stockQuantity 0, sind aber lieferbar,
+// deshalb Bernstein statt Rot. Ohne stockSymbol gilt die alte Regel: qty>0 = grün.
+const SOON = {
+  3: "Verbundhaus 2–5 Tage",
+  6: "Zentrallager 24 h",
+  9: "Nachtverbund bis 18 Uhr",
+};
+function stockState(p){
+  const qty = Number(p.stockQuantity) || 0;
+  const sym = p.stockSymbol;
+  if (qty > 0) return {cls:"stock-in", glyph:String(qty), text:"Auf Lager"};
+  if (SOON[sym]) return {cls:"stock-soon", glyph:"⏱", text:SOON[sym]};
+  return {cls:"stock-out", glyph:"0", text:"Auf Bestellung"};
+}
+// Badge nur wenn Lagerdaten vorhanden (Badolux ist nicht in der Vigor-DB → kein Badge)
+function stockBadge(p){
+  if(p.stockQuantity == null && p.stockText == null) return "";
+  const st = stockState(p);
+  return `<span class="stock ${st.cls}" title="${(p.stockText||"").replace(/"/g,"&quot;")}">
+      <span class="stock-qty">${st.glyph}</span>${st.text}</span>`;
+}
+
+function match(t){
+  const w=+$("#w").value||0, l=+$("#l").value||0;
+  if(!w&&!l) return [];
+  return DATA[t].filter(p=>(!w||p.w>=w)&&(!l||p.l>=l))
+    .sort((a,b)=>(a.w-b.w)||(a.l-b.l)).slice(0,3);
+}
+
+function setTier(t){
+  tier = t; chosen = null; pinned = null;
+  document.body.dataset.tier = t;
+  $("#budgetToggle").checked = (t === "standard");   // ← einzige Verbindung zur Alt-Logik
+  document.querySelectorAll(".tier-seg button")
+    .forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.tier===t)));
+  render();
+}
+
+function render(){
+  const L = LABEL[tier], list = match(tier), other = match(OTHER[tier]);
+
+  $("#statusText").textContent = `${L.name} aktiv`;
+  $("#statusRest").textContent = `— es werden ausschließlich ${L.brand}-Produkte angezeigt (Duschwanne, Fußboden, Wandverkleidung).`;
+  $("#sugTitle").textContent = `Passende ${L.name}-Duschwannen`;
+  $("#sugCount").textContent = list.length ? `${list.length} Treffer` : "";
+  if(pinned) $("#sugTitle").textContent = `Weitere ${L.name}-Duschwannen`;
+
+  // Gespeicherte Auswahl aus der anderen Linie: anheften statt Linie umschalten
+  //(Umschalten würde AGB001/AC004 ↔ AGD9060/KM02 und damit den Preis eines gespeicherten Angebots ändern)
+  const ps = $("#pinnedSlot");
+  if(pinned){
+    const o = OTHER[tier];
+    ps.innerHTML = `
+      <p class="pinned-head">⚑ Gespeicherte Auswahl aus der Linie ${LABEL[o].name}</p>
+      <label class="sug is-pinned is-selected">
+        <div class="body">
+          <div class="t">${pinned.name}</div>
+          <div class="d">${pinned.w} × ${pinned.l} cm · H ${String(pinned.h).replace(".",",")} cm · ${pinned.id}</div>
+          <div class="badges">
+            <span class="badge badge--pinned">${LABEL[o].brand}</span>
+            <span class="badge badge--tier-${tier}">Zubehör &amp; Preis: ${LABEL[tier].name}</span>
+            ${stockBadge(pinned)}
+          </div>
+        </div>
+        <div class="price">${eur(pinned.price)}</div>
+        <div class="chk">✓</div>
+      </label>
+      <p class="pinned-note">Linie und Preis bleiben unverändert, wie gespeichert.
+        <button class="btn" id="pinnedSwitch">Auf ${LABEL[o].name} umstellen</button></p>`;
+    $("#pinnedSwitch").onclick = ()=>setTier(o);
+  } else ps.innerHTML = "";
+
+  $("#sugList").innerHTML = list.map((p,i)=>`
+    <label class="sug${chosen===p.id?" is-selected":""}">
+      <input type="radio" name="traySuggestion" value="${p.id}" ${chosen===p.id?"checked":""}>
+      <div class="body">
+        <div class="t">${p.name}</div>
+        <div class="d">${p.w} × ${p.l} cm · H ${String(p.h).replace(".",",")} cm · ${p.id}</div>
+        <div class="badges">
+          ${i===0?'<span class="badge badge--best">Beste Übereinstimmung</span>':""}
+          <span class="badge badge--tier-${tier}">${L.brand}</span>
+          ${stockBadge(p)}
+        </div>
+      </div>
+      <div class="price">${eur(p.price)}</div>
+      <div class="chk">✓</div>
+    </label>`).join("");
+
+  const fb = $("#fallbackSlot");
+  if(pinned || list.length){
+    fb.innerHTML = "";
+  } else if(other.length){
+    fb.innerHTML = `<div class="fallback">
+      <p><strong>Keine ${L.name}-Duschwanne in dieser Größe.</strong>
+      In der Linie ${LABEL[OTHER[tier]].name} gibt es ${other.length} passende${other.length===1?"n":""} Treffer
+      ab ${eur(Math.min(...other.map(p=>p.price)))}.</p>
+      <button class="btn btn--primary" id="switchBtn">Zu ${LABEL[OTHER[tier]].name} wechseln</button></div>`;
+    $("#switchBtn").onclick = ()=>setTier(OTHER[tier]);
+  } else {
+    fb.innerHTML = `<div class="fallback">
+      <p><strong>Keine passende Duschwanne gefunden.</strong>
+      Weder Standard noch Premium liefert für diese Maße ein Produkt — bitte unten als freien Posten erfassen.</p></div>`;
+  }
+
+  const noneAnywhere = !pinned && !list.length && !other.length;
+  $("#fp").classList.toggle("is-urgent", noneAnywhere);
+  $("#fpTitle").textContent = noneAnywhere
+    ? "Sonderform / Maßanfertigung — freien Posten erfassen"
+    : "Duschwanne nicht gefunden? Freien Posten anlegen";
+  if(noneAnywhere && !userOpenedFp) $("#fp").open = true;
+
+  $("#accTitle").textContent = `Zubehör (${L.name})`;
+  $("#acc").innerHTML = ACC[tier].map(a=>`
+    <div class="acc-item">
+      <div class="ph">Produktbild</div>
+      <div class="n">${a.n}</div>
+      <div class="pid">${a.pid}</div>
+      <label><input type="checkbox" checked> übernehmen</label>
+    </div>`).join("");
+
+  $("#debug").innerHTML =
+`payload.duschwanne = {
+  <b>budgetMode</b>: ${tier==="standard" ? '"1"' : "undefined  // Feld fehlt = Premium, wie bisher"},
+  tray_w_cm: "${$("#w").value}", tray_l_cm: "${$("#l").value}",
+  chosenTrayProductId: ${pinned?`"${pinned.id}"   // andere Linie, bleibt erhalten`:(chosen?`"${chosen}"`:'""')},
+  drainSet → <b>${tier==="standard"?"AGB001":"AGD9060"}</b>, smallMaterial → <b>${tier==="standard"?"AC004":"KM02"}</b>
+}`;
+}
+
+document.querySelectorAll(".tier-seg button").forEach(b=>b.onclick=()=>setTier(b.dataset.tier));
+["w","l"].forEach(id=>$("#"+id).oninput=()=>{chosen=null;render();});
+$("#sugList").addEventListener("change",e=>{
+  if(e.target.name==="traySuggestion"){chosen=e.target.value;render();}
+});
+$("#fp").addEventListener("toggle",()=>{ if($("#fp").open) userOpenedFp = true; });
+
+$("#demoMixed").onclick = ()=>{
+  // simuliert einen Altbestand: budgetMode fehlt (=Premium), gespeicherte Wanne ist Badolux
+  setTier("premium");
+  $("#w").value = 100; $("#l").value = 100;
+  pinned = DATA.standard[0];
+  render();
+};
+$("#demoReset").onclick = ()=>{ $("#w").value=100; $("#l").value=100; setTier("premium"); };
+
+setTier("premium");
+</script>
+</body>
+</html>

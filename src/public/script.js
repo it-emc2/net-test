@@ -6036,13 +6036,21 @@ function addBudgetOptionsToSelect(selectEl, list) {
   }
 }
 
+// Guards against concurrent renders: the old code cleared the wrapper, then awaited
+// the product list, so two overlapping calls (toggle spam, or restore re-applying a
+// saved selection) both appended their tiles and every panel showed up twice.
+let __budgetWvRenderToken = 0;
+
 async function renderBudgetWvColors() {
   const wrap = document.getElementById("wvBudgetColors");
   const empty = document.getElementById("wvBudgetEmpty");
   if (!wrap) return;
 
-  wrap.innerHTML = "";
+  const myToken = ++__budgetWvRenderToken;
   const list = await loadBudgetWandPanels();
+  if (myToken !== __budgetWvRenderToken) return; // a newer render took over
+
+  wrap.innerHTML = "";
 
   if (!list.length) {
     if (empty) empty.hidden = false;
@@ -6093,7 +6101,37 @@ async function renderBudgetWvColors() {
 
   // If you have extra rows (.wv-extra-color), inject there too
   document.querySelectorAll("select.wv-extra-color").forEach((sel) => addBudgetOptionsToSelect(sel, list));
+
+  notifyBudgetTilesRendered();
 }
+
+// Badolux/Budget tiles (Budget-Fußboden, Budget-Wandpaneele) are fetched from the
+// backend and built asynchronously once #budgetToggle is on. Restore runs
+// synchronously, so a saved Badolux selection would target tiles that don't exist in
+// the DOM yet and be silently dropped.
+//
+// Rather than have each restore wait for a render (which races: two waiters each
+// kick off their own render, and a later render then wipes what an earlier waiter
+// just selected), the renderers announce themselves and the restores register what
+// to re-apply. Whoever renders last always re-applies the newest saved selection.
+const __budgetReapply = {};
+
+function registerBudgetReapply(key, fn) {
+  __budgetReapply[key] = fn;
+}
+
+// Called by renderBudgetFloors / renderBudgetWvColors once their tiles are in the DOM.
+function notifyBudgetTilesRendered() {
+  if (!document.getElementById("budgetToggle")?.checked) return;
+  for (const fn of Object.values(__budgetReapply)) {
+    try {
+      fn();
+    } catch (e) {
+      console.warn("[budget] re-apply after tile render failed:", e);
+    }
+  }
+}
+window.notifyBudgetTilesRendered = notifyBudgetTilesRendered;
 
 // =================================================================
 // Single-select enforcement for flooring (premium + budget)
@@ -14089,8 +14127,17 @@ function restoreWV(wv) {
   const sel997 = raw997 || (eff997 && eff997 !== global ? eff997 : "");
   const sel1497 = raw1497 || (eff1497 && eff1497 !== global ? eff1497 : "");
 
-  if (document.getElementById("wvColor_997")) setSelect("wvColor_997", sel997);
-  if (document.getElementById("wvColor_1497")) setSelect("wvColor_1497", sel1497);
+  // Badolux panels share name="wvColor" with the premium tiles and inject their
+  // <option>s into the 997/1497 selects, but both are built asynchronously by
+  // BadoluxManager. Applying the saved values a second time once those tiles exist is
+  // what keeps a restored Badolux wall colour from coming back empty.
+  const applyWvColors = () => {
+    if (wv.wvColor) setRadio("wvColor", wv.wvColor);
+    if (document.getElementById("wvColor_997")) setSelect("wvColor_997", sel997);
+    if (document.getElementById("wvColor_1497")) setSelect("wvColor_1497", sel1497);
+  };
+  applyWvColors();
+  registerBudgetReapply("wv", applyWvColors);
   setInputByNameOrId("wvSonderConfigNr", wv.wvSonderConfigNr || "");
   setInputByNameOrId("wvNote", wv.wvNote || "");
 
@@ -15946,10 +15993,18 @@ function setSignaturePadFromDataUrl(dataUrl) {
 function restoreDuschwanne(dw) {
   if (!dw) return;
 
-
-
-
-
+  // Low-Budget/Badolux mode. Absent in every offer saved before the flag existed and
+  // in every premium offer (the checkbox only serializes when checked), so a missing
+  // value must restore as OFF — otherwise a leftover sessionStorage["dw_budget_mode"]
+  // from an earlier offer in the same tab would flip this one to Badolux pricing
+  // (AGB001/AC004 instead of AGD9060/KM02). Set before the rest: BadoluxManager starts
+  // fetching the Badolux floor/panel tiles on this change event.
+  setCheckbox(
+    "budgetToggle",
+    dw.budgetMode === "1" ||
+      dw.budgetMode === 1 ||
+      dw.budgetMode === true,
+  );
 
   // numeric inputs (quiet during restore)
   setByNameOrId("tray_w_cm", dw.tray_w_cm);
@@ -16024,7 +16079,7 @@ function restoreDuschwanne(dw) {
   }
 
   // flooring color from payload
-  (function restoreFloorColorFromPayload(innerDw) {
+  function restoreFloorColorFromPayload(innerDw) {
     if (!innerDw) return;
     const form = document.getElementById("form-fussboden");
     if (!form) return;
@@ -16072,7 +16127,12 @@ function restoreDuschwanne(dw) {
     if (typeof syncColorWithAreaDW === "function") {
       syncColorWithAreaDW();
     }
-  })(dw);
+  }
+  restoreFloorColorFromPayload(dw);
+  // A Badolux (BP*) floor tile only exists once BadoluxManager has fetched and built
+  // the Budget-Fußboden group, which happens after this synchronous restore. Re-apply
+  // the saved selection then, otherwise it silently comes back unchecked.
+  registerBudgetReapply("floors", () => restoreFloorColorFromPayload(dw));
 
   if (typeof restoreTrinnityFloorSealing === "function") {
     restoreTrinnityFloorSealing(dw);
