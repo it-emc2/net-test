@@ -18,6 +18,7 @@ const UserActionLogSchema = new mongoose.Schema(
         "termin_opened",
         "configurator_opened",
         "duschabtrennung_leaf_selected",
+        "server_started",
       ],
     },
     dealId: { type: String, default: "" },

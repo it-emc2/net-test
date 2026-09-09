@@ -52,6 +52,7 @@ import pricingFactory from "./logic/pricing.js";
 import latexTemplateRouter from "./routes/latex-template.js";
 import adminRouter from "./routes/admin.js";
 import configService, { CONFIG_SCHEMA } from "./services/configService.js";
+import UserActionLog from "./models/UserActionLog.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -264,6 +265,14 @@ if (!MONGODB_URI) {
 }
 await mongoose.connect(MONGODB_URI, { dbName: MONGODB_DB });
 console.log("MongoDB connected ->", MONGODB_DB);
+
+// Persistent restart trail: Fly's own "instance refused connection" logs only
+// exist while the app is down, so the app can never log those itself. This
+// at least records every time it comes back up, so a gap between two
+// server_started rows can be queried later instead of hunting through Grafana.
+UserActionLog.create({ event: "server_started", message: `pid ${process.pid}` }).catch((e) =>
+  console.warn("[boot] UserActionLog server_started failed:", e?.message || e),
+);
 
 // ---------------- Config service ----------------
 await configService.init();
