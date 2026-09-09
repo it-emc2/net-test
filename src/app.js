@@ -52,10 +52,10 @@ import pricingFactory from "./logic/pricing.js";
 import latexTemplateRouter from "./routes/latex-template.js";
 import adminRouter from "./routes/admin.js";
 import configService, { CONFIG_SCHEMA } from "./services/configService.js";
+import UserActionLog from "./models/UserActionLog.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-import UserActionLog from "./models/UserActionLog.js";
 const app = express();
 
 const PORT = process.env.PORT || 3000;
