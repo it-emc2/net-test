@@ -10038,6 +10038,18 @@ details.az-group[open] > summary.az-group-title::before {
   margin: 0;
 }
 
+/* The global focus style is a 3px accent ring with (due to a pre-existing
+   specificity tie elsewhere in this file) no actual border-color change —
+   just a sudden vivid halo. Against this grid's tightly-spaced, equal-width
+   fields that reads as one field "growing" relative to its plain neighbors,
+   even though no dimension actually changes. Scoped to this redesign's own
+   grouped fields only — not the global input style used everywhere else. */
+.pgb-subcard input:focus,
+.pgb-subcard select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
 @media (max-width: 520px) {
   .pgb-field-row {
     grid-template-columns: 1fr;

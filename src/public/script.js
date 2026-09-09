@@ -4235,6 +4235,9 @@ function createWohnumfeldEntryRow(amount, fuerWas) {
   amtInput.min = "0";
   amtInput.step = "1";
   amtInput.placeholder = "0";
+  amtInput.setAttribute("data-lpignore", "true");
+  amtInput.setAttribute("data-1p-ignore", "");
+  amtInput.setAttribute("data-bwignore", "true");
   if (amount != null && amount !== "" && amount !== 0) amtInput.value = String(amount);
   amtInput.addEventListener("input", updatePgbWeSum);
   amtMoney.appendChild(amtInput);
@@ -4249,6 +4252,9 @@ function createWohnumfeldEntryRow(amount, fuerWas) {
   textInput.type = "text";
   textInput.className = "wohnumfeld-entry-fuerWas";
   textInput.placeholder = "z. B. Treppenlift 2023";
+  textInput.setAttribute("data-lpignore", "true");
+  textInput.setAttribute("data-1p-ignore", "");
+  textInput.setAttribute("data-bwignore", "true");
   if (fuerWas) textInput.value = String(fuerWas);
   textField.appendChild(textLabel);
   textField.appendChild(textInput);
