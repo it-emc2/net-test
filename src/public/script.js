@@ -26340,6 +26340,26 @@ function markDealStage(dealId, stageId) {
   dealStageById.set(id, stageId);
 }
 
+// A saved draft or a saved/sent offer already exists for this deal (Schnell-
+// speichern or Angebot senden) — hide "Hat stattgefunden" for it, same as an
+// explicit stage move. Checked once per dealId against our own DB (no Bitrix
+// call), not polled — replaces the old Bitrix-polling approach that got rate
+// limited.
+const checkedSavedDealIds = new Set();
+async function checkDealAlreadySaved(dealId) {
+  const id = String(dealId || "").trim();
+  if (!id || checkedSavedDealIds.has(id)) return;
+  checkedSavedDealIds.add(id);
+  try {
+    const res = await fetch(`/api/offers/by-deal/${encodeURIComponent(id)}`);
+    const data = await res.json().catch(() => []);
+    if (Array.isArray(data) && data.length) {
+      markDealStage(id, "C72:PREPARATION");
+      renderTodayPlanningAppointments();
+    }
+  } catch {}
+}
+
 const PLANNING_OFFER_TYPES = [
   { offerKey: "bu",  icon: "fa-shower",            title: "Badumbau" },
   { offerKey: "bwt", icon: "fa-bath",               title: "Badewannentür" },
@@ -27182,6 +27202,12 @@ function renderTodayPlanningAppointments(){
       ${travelHtml}
     `;
   }).join("");
+
+  todayPlanningAppointmentsFiltered.forEach(entry => {
+    if (entry?.importDealId && !isDealDone(entry.importDealId)) {
+      checkDealAlreadySaved(entry.importDealId);
+    }
+  });
 
   list.querySelectorAll(".today-calendar-card").forEach(card => {
     const openButton = card.querySelector(".today-calendar-open");

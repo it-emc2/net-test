@@ -308,6 +308,7 @@ export function mountConfigurator(el, model, options = {}) {
   function imageUrl(imageId) {
     const raw = model.images[imageId];
     if (!raw) return null;
+    if (raw.startsWith("/")) return raw;
     return "/configurator/" + raw.replace(/_(jpe?g|png|webp|gif)$/i, ".$1");
   }
 
