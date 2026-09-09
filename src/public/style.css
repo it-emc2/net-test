@@ -9858,7 +9858,12 @@ details.az-group[open] > summary.az-group-title::before {
   background: var(--bg);
 }
 
-.pgb-opt input {
+/* Direct child only — the checkbox that overlays the whole pill. A
+   descendant selector here would also match the nested copayAmount number
+   input inside .pgb-money and make it position:absolute/opacity:0, i.e.
+   invisible (that was a real bug: the copay € field rendered but could
+   never be seen). */
+.pgb-opt > input {
   position: absolute;
   inset: 0;
   opacity: 0;
@@ -9924,7 +9929,7 @@ details.az-group[open] > summary.az-group-title::before {
 /* inline € amount field (copay, Wohnumfeld entries) */
 .pgb-money {
   position: relative;
-  display: inline-flex;
+  display: block;
 }
 
 .pgb-opt .pgb-money {
