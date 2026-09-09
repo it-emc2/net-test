@@ -2893,55 +2893,65 @@ button.dm-btn-danger:focus-visible {
                       <input type="radio" name="payer" value="Selbstzahler" />
                       <div class="payer-card-inner">
                         <div class="icon">
-                          <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor"
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"></path>
                             <path d="M6 21v-2a6 6 0 0 1 6-6"></path>
                             <path d="M16 21v-2a6 6 0 0 0-3-5.197"></path>
                           </svg>
                         </div>
-                        <div class="payer-label">Selbstzahler</div>
-                        <div class="payer-radio"><span></span></div>
+                        <div class="payer-text">
+                          <div class="payer-label">Selbstzahler</div>
+                          <div class="payer-meta">Rechnung direkt an den Kunden</div>
+                        </div>
                       </div>
                     </label>
                     <label class="payer-card">
                       <input type="radio" name="payer" value="Kassenkunde" checked />
                       <div class="payer-card-inner">
                         <div class="icon">
-                          <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor"
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <rect x="5" y="3" width="14" height="14" rx="2"></rect>
                             <path d="M12 6v8M8 10h8"></path>
                             <path d="M3 21h18"></path>
                           </svg>
                         </div>
-                        <div class="payer-label">Kassenkunde</div>
-                        <div class="payer-radio"><span></span></div>
+                        <div class="payer-text">
+                          <div class="payer-label">Kassenkunde</div>
+                          <div class="payer-meta">Abrechnung über die Pflegekasse</div>
+                        </div>
                       </div>
                     </label>
                   </div>
-                  <div id="kassenkundeDetails" class="full" aria-hidden="true"
-                    style="display:none; grid-template-columns:1fr 1fr; gap:12px; margin-top:8px;">
-                    <div class="field">
-                      <label for="kk_geburtsdatum">Geburtsdatum</label>
-                      <input id="kk_geburtsdatum" name="kk_geburtsdatum" type="date" />
-                    </div>
-                    <div class="field">
-                      <label for="kk_versichertennr">Versicherungsnummer</label>
-                      <input id="kk_versichertennr" name="kk_versichertennr" type="text" placeholder="z. B. A123456789" />
-                    </div>
-                    <div class="field">
-                      <label for="kassenkundeName">Name der Krankenkasse</label>
-                      <input id="kassenkundeName" name="kassenkundeName" type="text" placeholder="z. B. AOK Nord" />
-                    </div>
-                    <div class="field">
-                      <label for="kk_krankenkasseAdresse">Adresse der Krankenkasse</label>
-                      <input id="kk_krankenkasseAdresse" name="kk_krankenkasseAdresse" type="text"
-                        placeholder="Straße, PLZ Ort" />
-                    </div>
-                    <div class="field full">
-                      <label for="kk_pflegegradSeit">Pflegegrad seit</label>
-                      <input id="kk_pflegegradSeit" name="kk_pflegegradSeit" type="month" />
+                  <div id="kassenkundeDetails" class="pgb-reveal" aria-hidden="true" hidden>
+                    <div class="pgb-reveal-in">
+                      <div class="pgb-subcard">
+                        <div class="pgb-subcard-title">Krankenkasse</div>
+                        <div class="pgb-field-row">
+                          <div class="pgb-field">
+                            <label for="kk_geburtsdatum">Geburtsdatum</label>
+                            <input id="kk_geburtsdatum" name="kk_geburtsdatum" type="date" />
+                          </div>
+                          <div class="pgb-field">
+                            <label for="kk_versichertennr">Versicherungsnummer</label>
+                            <input id="kk_versichertennr" name="kk_versichertennr" type="text" placeholder="z. B. A123456789" />
+                          </div>
+                          <div class="pgb-field">
+                            <label for="kassenkundeName">Name der Krankenkasse</label>
+                            <input id="kassenkundeName" name="kassenkundeName" type="text" placeholder="z. B. AOK Nord" />
+                          </div>
+                          <div class="pgb-field">
+                            <label for="kk_krankenkasseAdresse">Adresse der Krankenkasse</label>
+                            <input id="kk_krankenkasseAdresse" name="kk_krankenkasseAdresse" type="text"
+                              placeholder="Straße, PLZ Ort" />
+                          </div>
+                          <div class="pgb-field full">
+                            <label for="kk_pflegegradSeit">Pflegegrad seit</label>
+                            <input id="kk_pflegegradSeit" name="kk_pflegegradSeit" type="month" />
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -3027,156 +3037,163 @@ button.dm-btn-danger:focus-visible {
               <summary class="section-header" style="cursor: pointer">
                 Informationen über den Pflegegradbudget
               </summary>
-
-              <div class="full" style="margin-top: 8px">
-                <label class="req">Kunde hat Pflegegrad?</label>
-                <div class="radio-group vertical" id="hasPflegegradGroup" role="radiogroup">
-                  <label class="radio-pill"><input type="radio" name="hasPflegegrad" value="Ja" /><span
-                      class="circle"></span><span>Ja</span></label>
-                  <label class="radio-pill"><input type="radio" name="hasPflegegrad" value="Nein" /><span
-                      class="circle"></span><span>Nein</span></label>
+              <div style="
+                  display: grid;
+                  grid-template-columns: 1fr;
+                  gap: 14px;
+                  padding: 8px 0;
+                ">
+                <div>
+                  <label class="req">Kunde hat Pflegegrad?</label>
+                  <div class="pgb-seg" id="hasPflegegradGroup" role="radiogroup">
+                    <label class="pgb-seg-opt"><input type="radio" name="hasPflegegrad" value="Ja" /><svg class="tick" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5" /></svg>Ja</label>
+                    <label class="pgb-seg-opt"><input type="radio" name="hasPflegegrad" value="Nein" /><svg class="tick" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5" /></svg>Nein</label>
+                  </div>
                 </div>
-              </div>
 
-              <div id="pflegegradLevelRow" class="full" hidden aria-hidden="true" style="margin-top: 8px">
-                <label class="req">Welchen Pflegegrad?</label>
-                <div class="zones-grid" id="pflegegradLevelGrid" style="grid-template-columns: repeat(5, 1fr)">
-                  <label class="zone-pill"><input type="radio" name="pflegegrad" value="1" /><span
-                      class="dot"></span><span>1</span></label>
-                  <label class="zone-pill"><input type="radio" name="pflegegrad" value="2" /><span
-                      class="dot"></span><span>2</span></label>
-                  <label class="zone-pill"><input type="radio" name="pflegegrad" value="3" /><span
-                      class="dot"></span><span>3</span></label>
-                  <label class="zone-pill"><input type="radio" name="pflegegrad" value="4" /><span
-                      class="dot"></span><span>4</span></label>
-                  <label class="zone-pill"><input type="radio" name="pflegegrad" value="5" /><span
-                      class="dot"></span><span>5</span></label>
-                  <label class="zone-pill" data-offer="ah,bu"><input type="radio" name="pflegegrad" value="beantragt" /><span class="dot"></span><span>beantragt</span></label>
+                <div id="pflegegradLevelRow" class="full pgb-reveal" hidden aria-hidden="true">
+                <div class="pgb-reveal-in"><div>
+                  <label class="req">Welchen Pflegegrad?</label>
+                  <div class="zones-grid" id="pflegegradLevelGrid" style="grid-template-columns: repeat(6, 1fr)">
+                    <label class="zone-pill"><input type="radio" name="pflegegrad" value="1" /><span
+                        class="dot"></span><span>1</span></label>
+                    <label class="zone-pill"><input type="radio" name="pflegegrad" value="2" /><span
+                        class="dot"></span><span>2</span></label>
+                    <label class="zone-pill"><input type="radio" name="pflegegrad" value="3" /><span
+                        class="dot"></span><span>3</span></label>
+                    <label class="zone-pill"><input type="radio" name="pflegegrad" value="4" /><span
+                        class="dot"></span><span>4</span></label>
+                    <label class="zone-pill"><input type="radio" name="pflegegrad" value="5" /><span
+                        class="dot"></span><span>5</span></label>
+                    <label class="zone-pill" data-offer="ah,bu"><input type="radio" name="pflegegrad" value="beantragt" /><span class="dot"></span><span>beantragt</span></label>
+                  </div>
+
+                  <div id="budgetOptionsPanel" data-offer="bu,bwt,hl,bl,hms,wd" class="full pgb-reveal" hidden aria-hidden="true">
+                    <div class="pgb-reveal-in"><div class="pgb-subcard">
+                      <div class="pgb-subcard-title">Budget-Optionen</div>
+                      <div class="pgb-opt-row">
+                        <label class="pgb-opt">
+                          <input type="checkbox" name="budgetMax" value="4180 MAXIMAL" />
+                          <span class="box"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5" /></svg></span>
+                          <span class="otext">4.180€ MAXIMAL</span>
+                        </label>
+                        <label class="pgb-opt">
+                          <input type="checkbox" id="budgetCopay" name="budgetCopay" value="4180 mit Zuzahlung" />
+                          <span class="box"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5" /></svg></span>
+                          <span class="otext">Mögliche Zuzahlung durch Kunden</span>
+                          <span class="pgb-money" id="copayField" hidden aria-hidden="true"><span>€</span><input id="copayAmount" name="copayAmount" type="number" min="0" step="1" placeholder="0" /></span>
+                        </label>
+                        <label class="pgb-opt">
+                          <input type="checkbox" name="twoPersons" value="Zwei Personen mit Pflegegrad" />
+                          <span class="box"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5" /></svg></span>
+                          <span class="otext">2 Personen mit Pflegegrad</span>
+                          <span class="oamount">+ 4.180 €</span>
+                        </label>
+                        <label class="pgb-opt">
+                          <input type="checkbox" name="premium" value="Premium" />
+                          <span class="box"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5" /></svg></span>
+                          <span class="otext">Premium</span>
+                        </label>
+                      </div>
+
+                      <div class="pgb-budget-out" id="pgbBudgetOut" aria-live="polite" style="margin-top: 12px">
+                        <span>Anrechenbares Budget</span> <b>0 €</b>
+                      </div>
+
+                      <div id="ehepaarPartnerPanel" class="pgb-reveal" hidden aria-hidden="true">
+                        <div class="pgb-reveal-in"><div class="pgb-subcard" style="margin-top: 16px">
+                          <div class="pgb-subcard-title">Partner / Ehepartner</div>
+                          <div class="pgb-field-row">
+                            <div class="pgb-field">
+                              <label for="partnerSalutation">Anrede Partner</label>
+                              <select id="partnerSalutation" name="partnerSalutation">
+                                <option value="">Bitte wählen</option>
+                                <option value="Herr">Herr</option>
+                                <option value="Frau">Frau</option>
+                              </select>
+                            </div>
+                            <div></div>
+                            <div class="pgb-field">
+                              <label for="partnerFirstName" class="req">Vorname Partner</label>
+                              <input id="partnerFirstName" name="partnerFirstName" />
+                            </div>
+                            <div class="pgb-field">
+                              <label for="partnerLastName" class="req">Nachname Partner</label>
+                              <input id="partnerLastName" name="partnerLastName" />
+                            </div>
+                          </div>
+
+                          <div class="pgb-field full" style="margin-top: 12px">
+                            <label class="req">Pflegegrad Partner</label>
+                            <div class="zones-grid" id="partnerPflegegradGrid" style="grid-template-columns: repeat(5, 1fr)">
+                              <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="1" /><span class="dot"></span><span>1</span></label>
+                              <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="2" /><span class="dot"></span><span>2</span></label>
+                              <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="3" /><span class="dot"></span><span>3</span></label>
+                              <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="4" /><span class="dot"></span><span>4</span></label>
+                              <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="5" /><span class="dot"></span><span>5</span></label>
+                            </div>
+                          </div>
+
+                          <div class="pgb-field full" style="margin-top: 12px">
+                            <label for="partnerKassenkundeName">Name der Krankenkasse Partner</label>
+                            <input id="partnerKassenkundeName" name="partnerKassenkundeName" type="text" placeholder="z. B. AOK Nord" />
+                          </div>
+                        </div></div>
+                      </div>
+                    </div></div>
+                  </div>
+                </div></div>
                 </div>
-              </div>
 
-              <div id="budgetOptionsPanel" data-offer="bu,bwt,hl,bl,hms,wd" class="aufschlag-panel" hidden aria-hidden="true" style="margin-top: 8px">
-                <div class="full" style="
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 12px;
-                  ">
-                  <label class="check-pill"><input type="checkbox" name="budgetMax" value="4180 MAXIMAL" /><span
-                      class="box"></span><span>4.180€ MAXIMAL</span></label>
-                  <div style="
-                      display: grid;
-                      grid-template-columns: 2fr 250px;
-                      gap: 10px;
-                      align-items: center;
-                    ">
-                    <label class="check-pill"><input type="checkbox" id="budgetCopay" name="budgetCopay"
-                        value="4180 mit Zuzahlung" /><span class="box"></span>
-                      <span>
-                        <!-- 4.180€ Kunde mit Zuzahlung -->
-                        Mögliche Zuzahlung durch Kunden
-                      </span>
-                    </label>
+                <div id="wohnumfeldPanel" data-offer="bu,bwt,hl,bl,hms,wd" hidden aria-hidden="true">
+                  <label class="req">Wurden Wohnumfeldverbessernde Maßnahmen schon mal
+                    durchgeführt?</label>
+                  <div class="pgb-seg" id="wohnumfeldDoneGroup">
+                    <label class="pgb-seg-opt"><input type="radio" name="wohnumfeldDone" value="Ja" /><svg class="tick" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5" /></svg>Ja</label>
+                    <label class="pgb-seg-opt"><input type="radio" name="wohnumfeldDone" value="Nein" checked /><svg class="tick" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5" /></svg>Nein</label>
+                    <label class="pgb-seg-opt"><input type="radio" name="wohnumfeldDone" value="Unbekannt" /><svg class="tick" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5" /></svg>Unbekannt</label>
+                  </div>
 
-                    <div id="copayField" hidden aria-hidden="true">
-                      <!--  <label for="copayAmount" class="sr-only" -->
+                  <div id="wohnumfeldEntriesContainer" class="pgb-reveal" hidden aria-hidden="true">
+                    <div class="pgb-reveal-in"><div class="pgb-subcard">
+                      <div class="pgb-subcard-title">Bereits verbrauchte Beträge</div>
+                      <div id="wohnumfeldEntriesList" class="pgb-entries"></div>
+                      <button type="button" id="wohnumfeldAddEntryBtn" class="pgb-btn-ghost" style="margin-top: 8px;">
+                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3v10M3 8h10" /></svg>
+                        Weiterer Eintrag
+                      </button>
+                      <div class="pgb-sumline"><span>Bereits verbraucht</span> <b id="pgbWeSum">0 €</b></div>
+                    </div></div>
+                  </div>
 
-                      <input id="copayAmount" name="copayAmount" type="number" min="0" step="1" placeholder="€" />
+                  <!--  <div class="full" style="margin-top: 8px">
+                    <label class="req"
+                      >Antrag auf Wohnumfeld verbessernde Maßnahmen</label
+                    >
+                    <div
+                      class="radio-group vertical"
+                      id="wohnumfeldApplicationGroup"
+                    >
+                      <label class="radio-pill"
+                        ><input
+                          type="radio"
+                          name="wohnumfeldApplication"
+                          value="durch Kunde"
+                        /><span class="circle"></span
+                        ><span>durch Kunde</span></label
+                      >
+                      <label class="radio-pill"
+                        ><input
+                          type="radio"
+                          name="wohnumfeldApplication"
+                          value="durch EmC2"
+                        /><span class="circle"></span
+                        ><span>durch EmC2</span></label
+                      >
                     </div>
-                  </div>
+                  </div> -->
                 </div>
-                <div class="full" style="margin-top: 8px">
-                  <label class="check-pill"><input type="checkbox" name="twoPersons"
-                      value="Zwei Personen mit Pflegegrad" /><span class="box"></span><span>2 Personen mit Pflegegrad
-                      (8.360€)</span></label>
-                  <label class="check-pill"><input type="checkbox" name="premium" value="Premium" /><span
-                      class="box"></span><span>Premium</span></label>
-                </div>
-
               </div>
-
-              <div id="wohnumfeldPanel" data-offer="bu,bwt,hl,bl,hms,wd" class="aufschlag-panel" hidden aria-hidden="true" style="margin-top: 8px">
-                <label class="req">Wurden Wohnumfeldverbessernde Maßnahmen schon mal
-                  durchgeführt?</label>
-                <div class="radio-group vertical" id="wohnumfeldDoneGroup">
-                  <label class="radio-pill"><input type="radio" name="wohnumfeldDone" value="Ja" /><span
-                      class="circle"></span><span>Ja</span></label>
-                  <label class="radio-pill"><input type="radio" name="wohnumfeldDone" value="Nein" /><span
-                      class="circle"></span><span>Nein</span></label>
-                  <label class="radio-pill"><input type="radio" name="wohnumfeldDone" value="Unbekannt" /><span
-                      class="circle"></span><span>Unbekannt</span></label>
-                </div>
-
-                <div id="wohnumfeldEntriesContainer" class="full" hidden aria-hidden="true" style="margin-top: 8px">
-                  <div id="wohnumfeldEntriesList" style="display:flex; flex-direction:column; gap:6px;"></div>
-                  <button type="button" id="wohnumfeldAddEntryBtn" class="btn-secondary" style="margin-top:8px; padding:5px 14px; font-size:0.85rem;">+ Weiterer Eintrag</button>
-                </div>
-
-                <!--  <div class="full" style="margin-top: 8px">
-                  <label class="req"
-                    >Antrag auf Wohnumfeld verbessernde Maßnahmen</label
-                  >
-                  <div
-                    class="radio-group vertical"
-                    id="wohnumfeldApplicationGroup"
-                  >
-                    <label class="radio-pill"
-                      ><input
-                        type="radio"
-                        name="wohnumfeldApplication"
-                        value="durch Kunde"
-                      /><span class="circle"></span
-                      ><span>durch Kunde</span></label
-                    >
-                    <label class="radio-pill"
-                      ><input
-                        type="radio"
-                        name="wohnumfeldApplication"
-                        value="durch EmC2"
-                      /><span class="circle"></span
-                      ><span>durch EmC2</span></label
-                    >
-                  </div>
-                </div> -->
-              </div>
-
-                 <div id="ehepaarPartnerPanel" class="full aufschlag-panel" hidden aria-hidden="true" style="margin-top: 8px">
-            <div class="section-header" style="margin-bottom: 12px">Partner / Ehepartner</div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-              <div>
-                <label for="partnerSalutation">Anrede Partner</label>
-                <select id="partnerSalutation" name="partnerSalutation">
-                  <option value="">Bitte wählen</option>
-                  <option value="Herr">Herr</option>
-                  <option value="Frau">Frau</option>
-                </select>
-              </div>
-              <div></div>
-              <div>
-                <label for="partnerFirstName" class="req">Vorname Partner</label>
-                <input id="partnerFirstName" name="partnerFirstName" />
-              </div>
-              <div>
-                <label for="partnerLastName" class="req">Nachname Partner</label>
-                <input id="partnerLastName" name="partnerLastName" />
-              </div>
-            </div>
-
-            <div class="full" style="margin-top: 12px">
-              <label class="req">Pflegegrad Partner</label>
-              <div class="zones-grid" id="partnerPflegegradGrid" style="grid-template-columns: repeat(5, 1fr)">
-                <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="1" /><span class="dot"></span><span>1</span></label>
-                <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="2" /><span class="dot"></span><span>2</span></label>
-                <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="3" /><span class="dot"></span><span>3</span></label>
-                <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="4" /><span class="dot"></span><span>4</span></label>
-                <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="5" /><span class="dot"></span><span>5</span></label>
-              </div>
-            </div>
-
-            <div class="full" style="margin-top: 12px">
-              <label for="partnerKassenkundeName">Name der Krankenkasse Partner</label>
-              <input id="partnerKassenkundeName" name="partnerKassenkundeName" type="text" placeholder="z. B. AOK Nord" />
-            </div>
-          </div>
             </details>
           </div>
 

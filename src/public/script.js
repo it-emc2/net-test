@@ -823,6 +823,15 @@ function updateOfferSpecificSections() {
     var visible = offers.indexOf(offer) !== -1;
     el.style.display = visible ? "" : "none";
   });
+
+  // Re-sync the Kassenkunde sub-fields' BU-only hide (Geburtsdatum /
+  // Versicherungsnummer): it was previously only re-checked on a payer
+  // change, so switching into an offer (e.g. AH) from Hauptmenü left it
+  // showing whatever the last-evaluated offer type was until the user
+  // toggled payer manually.
+  if (typeof updateKassenkundeDetailsVisibility === "function") {
+    updateKassenkundeDetailsVisibility();
+  }
 }
 function showToast(message, type = "info") {
   const kind = String(type || "info").toLowerCase();
@@ -938,6 +947,26 @@ function setByProductId(pid, on) {
   }
   return true;
 }
+// Live "Anrechenbares Budget" readout for the Pflegegradbudget redesign —
+// purely a read-only display, uses the same 4.180/8.360 amounts already
+// shown in the checkbox labels. Never affects what gets saved.
+function updatePgbBudgetOut() {
+  const out = document.getElementById("pgbBudgetOut");
+  if (!out) return;
+  const form = document.getElementById("form-Kundendaten");
+  const checked = (name) =>
+    !!form?.querySelector(`input[name="${name}"]`)?.checked;
+  let total = 0;
+  if (checked("twoPersons")) total = 8360;
+  else if (checked("budgetMax")) total = 4180;
+  const copay = Number(document.getElementById("copayAmount")?.value || 0) || 0;
+  const fmt = (n) => n.toLocaleString("de-DE") + " €";
+  out.innerHTML = copay
+    ? `<span>Anrechenbares Budget</span> <b>${fmt(total)}</b> <span>+ Zuzahlung ${fmt(copay)}</span>`
+    : `<span>Anrechenbares Budget</span> <b>${fmt(total)}</b>`;
+}
+window.updatePgbBudgetOut = updatePgbBudgetOut;
+
 function enforceBudgetOptionsGroup() {
   const form = document.getElementById("form-Kundendaten");
   if (!form) return;
@@ -974,6 +1003,7 @@ function enforceBudgetOptionsGroup() {
       }
     }
   }
+  updatePgbBudgetOut();
 }
 
 function restoreBudgetPanel(Kundendaten) {
@@ -4174,41 +4204,71 @@ function wireInternalTodos() {
   });
 }
 
+// Live "Bereits verbraucht" sum for the Wohnumfeld-Einträge redesign —
+// purely a read-only display, never affects what readWohnumfeld() saves.
+function updatePgbWeSum() {
+  const out = document.getElementById("pgbWeSum");
+  if (!out) return;
+  const total = Array.from(
+    document.querySelectorAll(".wohnumfeld-entry-amount"),
+  ).reduce((sum, el) => {
+    const n = Number(String(el.value || "").replace(",", ".")) || 0;
+    return sum + n;
+  }, 0);
+  out.textContent = total.toLocaleString("de-DE") + " €";
+}
+
 function createWohnumfeldEntryRow(amount, fuerWas) {
   const row = document.createElement("div");
-  row.className = "wohnumfeld-entry-row";
-  row.style.cssText = "display:flex; gap:8px; align-items:center;";
+  row.className = "pgb-entry-row";
 
+  const amtField = document.createElement("div");
+  amtField.className = "pgb-ef";
+  const amtLabel = document.createElement("label");
+  amtLabel.textContent = "Betrag";
+  const amtMoney = document.createElement("span");
+  amtMoney.className = "pgb-money";
+  amtMoney.innerHTML = "<span>€</span>";
   const amtInput = document.createElement("input");
   amtInput.type = "number";
   amtInput.className = "wohnumfeld-entry-amount";
   amtInput.min = "0";
   amtInput.step = "1";
-  amtInput.placeholder = "EUR";
-  amtInput.style.cssText = "width:110px; flex-shrink:0;";
+  amtInput.placeholder = "0";
   if (amount != null && amount !== "" && amount !== 0) amtInput.value = String(amount);
+  amtInput.addEventListener("input", updatePgbWeSum);
+  amtMoney.appendChild(amtInput);
+  amtField.appendChild(amtLabel);
+  amtField.appendChild(amtMoney);
 
+  const textField = document.createElement("div");
+  textField.className = "pgb-ef";
+  const textLabel = document.createElement("label");
+  textLabel.textContent = "Wofür";
   const textInput = document.createElement("input");
   textInput.type = "text";
   textInput.className = "wohnumfeld-entry-fuerWas";
-  textInput.placeholder = "Für was";
-  textInput.style.cssText = "flex:1;";
+  textInput.placeholder = "z. B. Treppenlift 2023";
   if (fuerWas) textInput.value = String(fuerWas);
+  textField.appendChild(textLabel);
+  textField.appendChild(textInput);
 
   const removeBtn = document.createElement("button");
   removeBtn.type = "button";
-  removeBtn.className = "wohnumfeld-remove-btn btn-secondary";
-  removeBtn.textContent = "×";
-  removeBtn.style.cssText = "padding:4px 10px; flex-shrink:0; font-size:1.1rem; line-height:1;";
+  removeBtn.className = "pgb-iconbtn";
+  removeBtn.setAttribute("aria-label", "Eintrag entfernen");
+  removeBtn.innerHTML =
+    '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
   removeBtn.addEventListener("click", function () {
     const list = document.getElementById("wohnumfeldEntriesList");
-    if (list && list.querySelectorAll(".wohnumfeld-entry-row").length > 1) {
+    if (list && list.querySelectorAll(".pgb-entry-row").length > 1) {
       row.remove();
+      updatePgbWeSum();
     }
   });
 
-  row.appendChild(amtInput);
-  row.appendChild(textInput);
+  row.appendChild(amtField);
+  row.appendChild(textField);
   row.appendChild(removeBtn);
   return row;
 }
@@ -4222,6 +4282,7 @@ function initWohnumfeldEntries(entries) {
   } else {
     list.appendChild(createWohnumfeldEntryRow());
   }
+  updatePgbWeSum();
 }
 
 function readWohnumfeld() {
@@ -4229,7 +4290,7 @@ function readWohnumfeld() {
   const isJa = Array.from(wohDoneRadios).some((r) => r.checked && r.value === "Ja");
   if (!isJa) return { done: false, amount: 0, entries: [] };
 
-  const rows = document.querySelectorAll("#wohnumfeldEntriesList .wohnumfeld-entry-row");
+  const rows = document.querySelectorAll("#wohnumfeldEntriesList .pgb-entry-row");
   const entries = [];
   let totalAmount = 0;
 
@@ -8675,6 +8736,29 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
   window.refreshAllPanels?.();
 });
 
+// Pflichtdetails/Pflegegradbudget redesign: el.hidden/aria-hidden are still
+// set synchronously and stay authoritative for every existing check (offer
+// restore, validation-hint scroll, copay's closest("[hidden]")) — this only
+// layers a CSS open/close animation on top via the .pgb-open class. Opening
+// forces a synchronous reflow (reading offsetHeight) between unhiding and
+// adding .pgb-open so the transition has a real "closed" state to animate
+// from — deliberately NOT requestAnimationFrame, which Chrome throttles/
+// skips for backgrounded tabs and would leave the field invisible until the
+// tab regained focus. Closing is instant, exactly like before the redesign.
+function pgbReveal(el, on) {
+  if (!el) return;
+  if (on) {
+    el.hidden = false;
+    el.setAttribute("aria-hidden", "false");
+    void el.offsetHeight;
+    el.classList.add("pgb-open");
+  } else {
+    el.classList.remove("pgb-open");
+    el.hidden = true;
+    el.setAttribute("aria-hidden", "true");
+  }
+}
+
 (function initPflegegrad() {
   const form = document.getElementById("form-Kundendaten");
   const pgLevelRow = document.getElementById("pflegegradLevelRow");
@@ -8732,6 +8816,7 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
     show(copayField, on);
     // Make it optional: never mark as required
     if (!on && copayAmount) copayAmount.value = "";
+    updatePgbBudgetOut();
   }
 
   function apply() {
@@ -8740,7 +8825,7 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
     const val = pgVal();
     // before: const valid2 = Number.isInteger(val) && val>=2;
     const valid1 = Number.isInteger(val) && val >= 1; // allow from Pflegegrad 1
-    show(pgLevelRow, has);
+    pgbReveal(pgLevelRow, has);
     setReq(pgRadios, has);
     if (!has) clearRadios(pgRadios);
     // Respect the panel's own data-offer: never reveal it outside its allowed
@@ -8759,7 +8844,7 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
     const offerAllows =
       !panelOffers.length || !offerNow || panelOffers.includes(offerNow);
     const showBudget = kk && has && valid1 && offerAllows;
-    show(budgetPanel, showBudget);
+    pgbReveal(budgetPanel, showBudget);
 
     if (!showBudget) {
       // 1) always clear the copay checkbox + field
@@ -8801,19 +8886,20 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
     if (!weOn) {
       weDoneRadios.forEach((r) => (r.checked = false));
       weAppRadios.forEach((r) => (r.checked = false));
-      show(weEntriesContainer, false);
+      pgbReveal(weEntriesContainer, false);
     } else {
       const doneValue =
         form?.querySelector('input[name="wohnumfeldDone"]:checked')?.value || "";
       const showEntries = doneValue === "Ja";
-      show(weEntriesContainer, showEntries);
+      pgbReveal(weEntriesContainer, showEntries);
       if (showEntries) {
         const list = document.getElementById("wohnumfeldEntriesList");
-        if (list && !list.querySelector(".wohnumfeld-entry-row")) {
+        if (list && !list.querySelector(".pgb-entry-row")) {
           initWohnumfeldEntries([]);
         }
       }
     }
+    updatePgbBudgetOut();
   }
   initWohnumfeldEntries([]);
   initInternalTodos([]);
@@ -8835,6 +8921,7 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
       apply();
     if (t.id === "budgetCopay") applyCopay();
   });
+  copayAmount?.addEventListener("input", updatePgbBudgetOut);
 })();
 // Enforce mutual exclusion for Pflegebudget options + Copay dependency
 (function initBudgetOptionsGroupBehavior() {
@@ -8961,7 +9048,10 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
       hint.style.marginTop = "6px";
       hint.style.fontSize = "0.9rem";
       hint.style.display = "none";
-      afterEl.appendChild(hint);
+      // Sibling AFTER the group, not a child inside it — afterEl may be a
+      // layout container in its own right (e.g. the segmented-control grid),
+      // where an appended child would become an extra grid cell/column.
+      afterEl.after(hint);
     }
     return hint;
   }
@@ -9111,10 +9201,7 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
       if (!showStockwerkSonst) stockwerkInput.value = "";
     }
 
-    if (partnerPanel) {
-      partnerPanel.hidden = !showPartner;
-      partnerPanel.setAttribute("aria-hidden", showPartner ? "false" : "true");
-    }
+    pgbReveal(partnerPanel, showPartner);
     partnerInputs().forEach((el) => {
       el.disabled = !showPartner;
     });
@@ -9230,7 +9317,7 @@ function getKundendatenPageData() {
   const twoPersonsEl = q('input[name="twoPersons"]');
   const premiumEl = q('input[name="premium"]');
   const copayAmountEl = document.getElementById("copayAmount");
-  const weEntryRows = Array.from(document.querySelectorAll("#wohnumfeldEntriesList .wohnumfeld-entry-row"));
+  const weEntryRows = Array.from(document.querySelectorAll("#wohnumfeldEntriesList .pgb-entry-row"));
   const weEntriesData = weEntryRows.map((row) => {
     const amtEl = row.querySelector(".wohnumfeld-entry-amount");
     const fwEl = row.querySelector(".wohnumfeld-entry-fuerWas");
@@ -9470,7 +9557,7 @@ data.budgetOptionsPanel = selectedMain
 data.copayAmount = copayEl?.value || "";
 data.wohnumfeldDone = wohDoneChecked?.value || "";
 {
-  const saveEntryRows = Array.from(document.querySelectorAll("#wohnumfeldEntriesList .wohnumfeld-entry-row"));
+  const saveEntryRows = Array.from(document.querySelectorAll("#wohnumfeldEntriesList .pgb-entry-row"));
   const saveEntries = saveEntryRows.map((row) => {
     const amtEl = row.querySelector(".wohnumfeld-entry-amount");
     const fwEl = row.querySelector(".wohnumfeld-entry-fuerWas");
@@ -13804,7 +13891,15 @@ async function loadOfferByNumber(offerNumber) {
         (typeof loadWizardState === "function" ? loadWizardState() : {}) || {};
       state.offerType = offerType;
       state.step = targetStep;
-      if (typeof saveWizardState === "function") saveWizardState(state);
+      // saveWizardState(offerType, step) takes two args, not a state object —
+      // passing the object here stored it as the *offerType* value itself,
+      // corrupting getCurrentOfferType() into returning {offerType, step}
+      // instead of a plain string (root cause of offer-type-dependent
+      // toggles, e.g. the AH Geburtsdatum/Versicherungsnummer fields,
+      // needing an unrelated field change before they'd re-evaluate right).
+      if (typeof saveWizardState === "function") {
+        saveWizardState(state.offerType, state.step);
+      }
       setStep(targetStep);
     }
 
@@ -14625,6 +14720,17 @@ function restoreKundendaten(k, offer) {
 
   // restore numeric field last, after budgetCopay had a chance to re-open the field
   setNumber("copayAmount", k.copayAmount);
+  if (typeof updatePgbBudgetOut === "function") updatePgbBudgetOut();
+
+  // Partner panel depends on `twoPersons`, which restoreBudgetPanel sets
+  // above without dispatching a change event — resync now so the panel's
+  // visibility reflects the final restored value (the earlier call at the
+  // top of this function ran before twoPersons was set, so it saw a stale
+  // value; pre-existing bug, unrelated to the redesign, fixed here since
+  // this code was already being touched).
+  if (typeof window.syncKundendatenExtraFields === "function") {
+    window.syncKundendatenExtraFields();
+  }
 }
 
 // Arbeitszeit / Distanz
@@ -16128,8 +16234,10 @@ function setCurrentOfferType(offerType) {
 
   state.step = (flowSteps && flowSteps.find((s) => s !== "home")) || "home";
 
+  // saveWizardState(offerType, step) takes two args, not a state object —
+  // see the matching fix/comment a few hundred lines up in this file.
   if (typeof saveWizardState === "function") {
-    saveWizardState(state);
+    saveWizardState(state.offerType, state.step);
   }
 
   document.querySelectorAll("[data-offer-key]").forEach((tile) => {
@@ -22724,8 +22832,7 @@ function updateKassenkundeDetailsVisibility() {
   const isKassenkunde =
     document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde";
 
-  wrap.style.display = isKassenkunde ? "grid" : "none";
-  wrap.setAttribute("aria-hidden", isKassenkunde ? "false" : "true");
+  pgbReveal(wrap, isKassenkunde);
 
   wrap.querySelectorAll("input, select, textarea").forEach((el) => {
     el.disabled = !isKassenkunde;
@@ -22734,8 +22841,8 @@ function updateKassenkundeDetailsVisibility() {
   // Geburtsdatum + Versicherungsnummer werden nur im BU-Konfigurator nicht benötigt.
   const isBu = String(window.getCurrentOfferType?.() || "bu").toLowerCase() === "bu";
   [
-    document.getElementById("kk_geburtsdatum")?.closest(".field"),
-    document.getElementById("kk_versichertennr")?.closest(".field"),
+    document.getElementById("kk_geburtsdatum")?.closest(".pgb-field"),
+    document.getElementById("kk_versichertennr")?.closest(".pgb-field"),
   ].forEach((field) => {
     if (field) field.style.display = isBu ? "none" : "";
   });
