@@ -21,6 +21,7 @@ export function initBadoluxManager(options = {}) {
       renderBudgetWvColors: null,
       refreshTray: null,
       updatePricing: null,
+      syncTierUi: null,
     },
     ...options,
   };
@@ -212,6 +213,9 @@ export function initBadoluxManager(options = {}) {
   }
 
   function applyAll(on) {
+    // Keep the Standard/Premium switch in step, including the session-restore path
+    // below, which sets .checked directly and fires no change event.
+    cfg.hooks.syncTierUi?.(!!on);
     applyBudgetModeUI(on);
     swapAccessoryImages(on);
     updateBudgetFloorVisibility();

@@ -14,6 +14,9 @@ export function bootBadoluxLegacyFallback() {
   const isOn = () => !!getToggle()?.checked;
 
   function applyBudgetModeUI(on) {
+    // Keep the Standard/Premium switch in step — the session restore below sets
+    // .checked directly and fires no change event.
+    window.syncTierSwitchUi?.();
     const form = document.getElementById("form-duschwanne");
     if (form) form.classList.toggle("budget-mode", !!on);
     const fussbodenForm = document.getElementById("form-fussboden");

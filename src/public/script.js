@@ -10309,6 +10309,103 @@ document.addEventListener("change", (e) => {
   });
 })();
 
+/* ========== Produktlinie: Standard (Badolux) / Premium (Vigour, Hassmann) ==========
+   The UI wording changed, the data model did not: #budgetToggle (name=budgetMode,
+   value="1") is still the one flag. checked = Standard/Badolux, unchecked = Premium,
+   and an offer without the flag is Premium — which is exactly how every offer saved
+   before this redesign behaves. */
+
+const TIER_INFO = {
+  standard: {
+    name: "Standard",
+    brand: "Badolux",
+    note: "es werden ausschließlich Badolux-Produkte angezeigt (Duschwanne, Fußboden, Wandverkleidung).",
+  },
+  premium: {
+    name: "Premium",
+    brand: "Vigour / Hassmann",
+    note: "es werden ausschließlich Vigour/Hassmann-Produkte angezeigt (Duschwanne, Fußboden, Wandverkleidung).",
+  },
+};
+
+function getTrayTier() {
+  return document.getElementById("budgetToggle")?.checked ? "standard" : "premium";
+}
+
+// Single entry point for switching lines, so the buttons, the fallback link and the
+// pinned card all go through the same path as the old checkbox did.
+function setTrayTier(tier) {
+  const el = document.getElementById("budgetToggle");
+  if (!el) return;
+  const want = tier === "standard";
+  if (el.checked === want) return;
+  el.checked = want;
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+window.syncTierSwitchUi = syncTierSwitchUi;
+
+function syncTierSwitchUi() {
+  const tier = getTrayTier();
+  const info = TIER_INFO[tier];
+
+  document.querySelectorAll(".tier-seg__btn").forEach((btn) => {
+    btn.setAttribute("aria-pressed", String(btn.dataset.tier === tier));
+  });
+
+  const status = document.getElementById("tierStatus");
+  if (status) {
+    status.dataset.tier = tier;
+    const text = status.querySelector(".tier-status__text");
+    if (text) text.innerHTML = `<b>${info.name} aktiv</b> — ${info.note}`;
+  }
+}
+
+// Freier Posten stays collapsed until it is actually needed; when no line has a
+// product for these dimensions it opens itself and says so.
+function updateCustomPostVisibility(noMatchAnywhere) {
+  const details = document.getElementById("dw-custom-details");
+  if (!details) return;
+  details.classList.toggle("is-urgent", !!noMatchAnywhere);
+  const label = document.getElementById("dw-custom-summary-text");
+  if (label) {
+    label.textContent = noMatchAnywhere
+      ? "Sonderform / Maßanfertigung — freien Posten erfassen"
+      : "Duschwanne nicht gefunden? Freien Posten anlegen";
+  }
+  // Open once on the user's behalf, but never fight them: a manual close sticks.
+  if (noMatchAnywhere && !details.open && !details.dataset.userClosed) {
+    details.open = true;
+  }
+}
+
+function initTierSwitch() {
+  const toggle = document.getElementById("budgetToggle");
+  if (!toggle) return;
+
+  document.querySelectorAll(".tier-seg__btn").forEach((btn) => {
+    btn.addEventListener("click", () => setTrayTier(btn.dataset.tier));
+  });
+
+  // Also fires when a restore sets the flag, so the switch always shows the tier
+  // of the offer that is loaded.
+  toggle.addEventListener("change", syncTierSwitchUi);
+
+  const details = document.getElementById("dw-custom-details");
+  details?.addEventListener("toggle", () => {
+    if (details.open) delete details.dataset.userClosed;
+    else details.dataset.userClosed = "1";
+  });
+
+  syncTierSwitchUi();
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initTierSwitch, { once: true });
+} else {
+  initTierSwitch();
+}
+
 /* ========== SMART TRAY SEARCH (equal-or-bigger filter, persist/deselect) ========== */
 function initSmartTraySearch() {
   // ----- DOM -----
@@ -10397,7 +10494,7 @@ function initSmartTraySearch() {
   // ----- render -----
   // Build the HTML for a single suggestion card.
   // All cards share name="traySuggestion" so selection is single across rows.
-  const buildCard = (p, domId, sourceLabel, isBest, checked) => {
+  const buildCard = (p, domId, sourceLabel, isBest, checked, pinned) => {
     let dims = [p.widthCm, p.lengthCm].filter(Boolean).join(" × ") + " cm";
     if (sourceLabel === "Badolux" && p.heightCm) {
       dims += ` · H ${String(p.heightCm).replace(".", ",")} cm`;
@@ -10408,7 +10505,7 @@ function initSmartTraySearch() {
     const isBudget = sourceLabel === "Badolux";
 
     return `
-        <label class="suggestion-card${isBudget ? " is-budget" : ""}" for="${domId}">
+        <label class="suggestion-card${isBudget ? " is-budget" : ""}${pinned ? " is-pinned" : ""}" for="${domId}">
           <input type="radio"
                  id="${domId}"
                  name="traySuggestion"
@@ -10433,18 +10530,23 @@ function initSmartTraySearch() {
       `;
   };
 
-  // Build one labeled row: heading + up to 3 cards, or a "no matches" note.
-  // `local` means the list came from the offline fallback (cached snapshot)
-  // rather than a live request — worth saying, since "no matches" and
-  // "couldn't check" are different things to a technician on site.
-  const buildRow = (heading, list, keyPrefix, sourceLabel, savedPid, local) => {
+  // Build the row for the active Produktlinie: heading + up to 3 cards, or a
+  // "no matches" note. `local` means the list came from the offline fallback
+  // (cached snapshot) rather than a live request — worth saying, since "no
+  // matches" and "couldn't check" are different things to a technician on site.
+  const buildRow = (heading, list, keyPrefix, sourceLabel, savedPid, local, quietWhenEmpty) => {
     const top = Array.isArray(list) ? list.slice(0, 3) : [];
+    // An empty row is normally explained by the fallback box right below it; the
+    // offline case still needs saying, because "nothing matches" and "couldn't
+    // check" are different things to a technician on site.
     const emptyMsg = local
       ? "Offline – keine passenden Vorschläge im zwischengespeicherten Bestand."
-      : "Keine passenden Vorschläge gefunden.";
+      : quietWhenEmpty
+        ? ""
+        : "Keine passenden Vorschläge gefunden.";
     const body =
       top.length === 0
-        ? `<div class="meta">${emptyMsg}</div>`
+        ? (emptyMsg ? `<div class="meta">${emptyMsg}</div>` : "")
         : `<div class="suggestion-list">${top
             .map((p, i) =>
               buildCard(
@@ -10463,8 +10565,68 @@ function initSmartTraySearch() {
     `;
   };
 
-  // Render both category rows: Hassmann (SLA*) and Badolux (source=badolux).
-  function renderTwoRows(hassmannList, badoluxList, hassmannLocal, badoluxLocal) {
+  // Only one Produktlinie is shown at a time; the other is offered as a fallback
+  // when the active one has nothing for these dimensions.
+  const rowFor = (tier, lists) =>
+    tier === "standard"
+      ? { list: lists.badolux, local: lists.badoluxLocal, key: "badolux", brand: "Badolux", name: "Standard" }
+      : { list: lists.hassmann, local: lists.hassmannLocal, key: "hassmann", brand: "Hassmann", name: "Premium" };
+
+  // A saved offer can hold a tray from the OTHER line: until this redesign both
+  // rows were always visible, so nothing stopped a premium offer from carrying a
+  // Badolux tray. Show it pinned instead of switching the line automatically —
+  // the line drives the accessory articles (AGB001/AC004 vs AGD9060/KM02), so
+  // switching it would silently reprice a saved offer.
+  const buildPinned = (product, otherRow) => `
+      <div class="suggestion-pinned">
+        <p class="suggestion-pinned-head">⚑ Gespeicherte Auswahl aus der Linie ${otherRow.name}</p>
+        ${buildCard(product, "tray-suggest-pinned", otherRow.brand, false, true, true)}
+        <p class="suggestion-pinned-note">
+          Linie und Preis bleiben unverändert, wie gespeichert.
+          <button type="button" class="secondary" data-tray-switch="${otherRow.key}">
+            Auf ${otherRow.name} umstellen
+          </button>
+        </p>
+      </div>
+    `;
+
+  const buildFallback = (active, other) => {
+    if (!other.list.length) {
+      return `
+        <div class="tray-fallback">
+          <p><strong>Keine passende Duschwanne gefunden.</strong>
+          Weder Standard noch Premium liefert für diese Maße ein Produkt — bitte unten
+          als freien Posten erfassen.</p>
+        </div>`;
+    }
+    const cheapest = Math.min(
+      ...other.list.map((p) => Number(p.price)).filter(Number.isFinite),
+    );
+    const priceHint = Number.isFinite(cheapest)
+      ? ` ab ${cheapest.toFixed(2).replace(".", ",")} €`
+      : "";
+    return `
+      <div class="tray-fallback">
+        <p><strong>Keine ${active.name}-Duschwanne in dieser Größe.</strong>
+        In der Linie ${other.name} gibt es ${other.list.length} passende Treffer${priceHint}.</p>
+        <button type="button" class="secondary" data-tray-switch="${other.key}">
+          Zu ${other.name} wechseln
+        </button>
+      </div>`;
+  };
+
+  // Render the active Produktlinie only.
+  function renderRows(hassmannList, badoluxList, hassmannLocal, badoluxLocal) {
+    const lists = {
+      hassmann: Array.isArray(hassmannList) ? hassmannList : [],
+      badolux: Array.isArray(badoluxList) ? badoluxList : [],
+      hassmannLocal,
+      badoluxLocal,
+    };
+    const tier = getTrayTier();
+    const active = rowFor(tier, lists);
+    const other = rowFor(tier === "standard" ? "premium" : "standard", lists);
+
     // Only restore a saved PID if the user actually chose in THIS session
     const allowAutoCheck = sessionStorage.getItem("dw_tray_touched") === "1";
     let savedPid = null;
@@ -10475,9 +10637,20 @@ function initSmartTraySearch() {
       } catch {}
     }
 
+    // Saved tray belongs to the other line → pin it above the active list.
+    const pinnedProduct =
+      savedPid && !active.list.some((p) => p.productId === savedPid)
+        ? other.list.find((p) => p.productId === savedPid) || null
+        : null;
+
+    const heading = pinnedProduct
+      ? `Weitere ${active.name}-Duschwannen`
+      : `${active.name}-Duschwannen`;
+
     out.innerHTML = `
-      ${buildRow("Hassmann", hassmannList, "hassmann", "Hassmann", savedPid, hassmannLocal)}
-      ${buildRow("Badolux", badoluxList, "badolux", "Badolux", savedPid, badoluxLocal)}
+      ${pinnedProduct ? buildPinned(pinnedProduct, other) : ""}
+      ${buildRow(heading, active.list, active.key, active.brand, savedPid, active.local, !pinnedProduct)}
+      ${!pinnedProduct && !active.list.length ? buildFallback(active, other) : ""}
     `;
 
     if (savedPid) {
@@ -10488,6 +10661,7 @@ function initSmartTraySearch() {
     }
 
     applySelectedStyles();
+    updateCustomPostVisibility(!active.list.length && !other.list.length);
   }
 
   // ----- fetch logic (progressive) with abort + anti-stale guard -----
@@ -10578,7 +10752,7 @@ function initSmartTraySearch() {
       console.error("Badolux tray search failed:", bRes.reason);
     }
 
-    renderTwoRows(
+    renderRows(
       hassmannList,
       badoluxList,
       hRes.status === "fulfilled" && hRes.value.local,
@@ -10613,9 +10787,24 @@ function initSmartTraySearch() {
     });
   });
 
+  // Switch links inside the suggestion area (fallback banner + pinned card).
+  out.addEventListener("click", (e) => {
+    const btn = e.target?.closest?.("[data-tray-switch]");
+    if (!btn) return;
+    setTrayTier(btn.dataset.traySwitch === "badolux" ? "standard" : "premium");
+  });
+
   const budgetEl = document.getElementById("budgetToggle");
   budgetEl?.addEventListener("change", () => {
-    clearChosen();
+    // Switching the line by hand drops the picked tray. During a restore the flag
+    // is being set to match the offer being loaded, so its selection must survive.
+    if (!window.__RESTORING__) {
+      clearChosen();
+      try {
+        localStorage.removeItem("dw_tray_selection");
+        sessionStorage.removeItem("dw_tray_touched");
+      } catch {}
+    }
     request();
   });
 
@@ -15189,6 +15378,10 @@ const RESTORE_HANDLERS = {
           renderBudgetWvColors: () => window.renderBudgetWvColors?.(),
           refreshTray: () => window.__smartTray?.fetchAndRender?.(),
           updatePricing: () => window.updatePricing?.(),
+          // The manager restores sessionStorage["dw_budget_mode"] by setting
+          // .checked directly, without a change event — nothing else would notice,
+          // and the switch would still read Premium on a Standard session.
+          syncTierUi: () => window.syncTierSwitchUi?.(),
         },
       });
       window.__managers.badolux = window.__badoluxManager;

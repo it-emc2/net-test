@@ -4049,22 +4049,234 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 }
 .doc-select-row { font-size: 0.95rem; }
 
-/* ===== Additive: Badolux Low Budget mode UI helpers ===== */
+/* ===== Produktlinie Standard (Badolux) / Premium (Vigour, Hassmann) =====
+   Loest die Checkbox "Low Budget Variante priorisieren" ab. Die Klasse
+   .budget-mode wird weiterhin von BadoluxManager gesetzt (andere Regeln haengen
+   daran); das fruehere gelbe "Low Budget Modus aktiv"-Banner ersetzt jetzt der
+   Umschalter selbst zusammen mit .tier-status. */
 #form-duschwanne.budget-mode,
 #form-fussboden.budget-mode {
   position: relative;
 }
 
-#form-duschwanne.budget-mode::before,
-#form-fussboden.budget-mode::before {
-  content: "💰 Low Budget Modus aktiv";
-  display: block;
-  margin: 10px 0 14px;
-  padding: 10px 12px;
-  border-radius: 10px;
+.tier-switch {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tier-switch__label {
+  font-size: 12px;
   font-weight: 600;
-  background: rgba(255, 215, 0, 0.15);
-  border: 1px solid rgba(255, 215, 0, 0.35);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.tier-seg {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--section-bg-base, #eef0f5);
+}
+
+/* Touch targets sized for the tablet this is used on. */
+.tier-seg__btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  min-height: 52px;
+  min-width: 168px;
+  padding: 8px 20px;
+  border-radius: 11px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  color: var(--muted-foreground);
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tier-seg__btn strong {
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.tier-seg__btn span {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.tier-seg__btn[aria-pressed="true"] {
+  background: var(--card, #fff);
+  color: var(--card-foreground, #111827);
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.16);
+}
+
+.tier-seg__btn[data-tier="standard"][aria-pressed="true"] {
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.16), inset 0 0 0 2px var(--tier-standard, #0f766e);
+}
+
+.tier-seg__btn[data-tier="premium"][aria-pressed="true"] {
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.16), inset 0 0 0 2px var(--tier-premium, #7c3aed);
+}
+
+.tier-seg__btn:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Status line under the heading — the "which line am I in" indicator. */
+.tier-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tier-status__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.tier-status__text b {
+  font-weight: 700;
+}
+
+.tier-status[data-tier="standard"] {
+  background: #ccfbf1;
+  color: #134e4a;
+}
+
+.tier-status[data-tier="standard"] .tier-status__dot {
+  background: var(--tier-standard, #0f766e);
+}
+
+.tier-status[data-tier="premium"] {
+  background: var(--accent-weak, #ede9fe);
+  color: #4c1d95;
+}
+
+.tier-status[data-tier="premium"] .tier-status__dot {
+  background: var(--tier-premium, #7c3aed);
+}
+
+/* Saved tray from the other line: pinned, never auto-switched — switching the
+   line would change the accessory articles and therefore the saved price. */
+#tray-suggestions .suggestion-pinned {
+  margin-bottom: 14px;
+}
+
+#tray-suggestions .suggestion-pinned-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #92400e;
+}
+
+#tray-suggestions .suggestion-card.is-pinned {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+#tray-suggestions .suggestion-pinned-note {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: #78350f;
+}
+
+/* No product in the selected line for these dimensions. */
+#tray-suggestions .tray-fallback {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: 16px;
+  border: 1.5px dashed #f59e0b;
+  border-radius: 14px;
+  background: #fffbeb;
+}
+
+#tray-suggestions .tray-fallback p {
+  margin: 0;
+  max-width: 60ch;
+  font-size: 13.5px;
+  color: #78350f;
+}
+
+#tray-suggestions .tray-fallback strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 14px;
+}
+
+/* Freier Posten: collapsed until needed, opened automatically when no line matches. */
+.dw-custom-details {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card, #fff);
+  margin-top: 18px;
+  overflow: hidden;
+}
+
+.dw-custom-details > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 15px 18px;
+  font-weight: 650;
+  font-size: 14px;
+}
+
+.dw-custom-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.dw-custom-caret {
+  margin-left: auto;
+  color: var(--muted-foreground);
+  transition: transform 0.15s ease;
+}
+
+.dw-custom-details[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.dw-custom-details[open] .dw-custom-caret {
+  transform: rotate(90deg);
+}
+
+.dw-custom-details.is-urgent {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+@media (max-width: 820px) {
+  .tier-seg__btn {
+    min-width: 140px;
+  }
 }
 
 /* Optional: show badge on budget tray suggestions */
@@ -9484,6 +9696,39 @@ details.az-group[open] > summary.az-group-title::before {
 
 [data-mode="dark"] #tray-suggestions .sc-check {
   border-color: var(--border);
+}
+
+/* Produktlinie switch / Freier Posten in dark mode */
+[data-mode="dark"] .tier-seg {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+[data-mode="dark"] .tier-seg__btn[aria-pressed="true"] {
+  background: var(--card);
+  color: var(--text);
+}
+
+[data-mode="dark"] .tier-status[data-tier="standard"] {
+  background: rgba(15, 118, 110, 0.22);
+  color: #99f6e4;
+}
+
+[data-mode="dark"] .tier-status[data-tier="premium"] {
+  background: rgba(124, 58, 237, 0.22);
+  color: #ddd6fe;
+}
+
+[data-mode="dark"] #tray-suggestions .suggestion-card.is-pinned,
+[data-mode="dark"] #tray-suggestions .tray-fallback,
+[data-mode="dark"] .dw-custom-details.is-urgent {
+  background: rgba(234, 179, 8, 0.12);
+  border-color: rgba(234, 179, 8, 0.45);
+}
+
+[data-mode="dark"] #tray-suggestions .suggestion-pinned-head,
+[data-mode="dark"] #tray-suggestions .suggestion-pinned-note,
+[data-mode="dark"] #tray-suggestions .tray-fallback p {
+  color: #fcd34d;
 }
 
 /* ── 30. Adobe section (already dark-bg, just fix subtext) ───── */

@@ -1,6 +1,6 @@
 # Plan: Low-Budget → "Standard / Premium" (Phase 1: Duschwanne)
 
-Status: **step 1 (restore fix) implemented and verified, 2026-09-09.** UI redesign not started.
+Status: **steps 1–6 implemented and verified, 2026-09-09.** Remaining: step 7 (stock badges), then Fußboden + Wandverkleidung.
 Mockup: `docs/mockups/duschwanne-standard-premium.html` (open in browser, tablet width).
 
 ## 1. How it works today (verified in code)
@@ -108,11 +108,11 @@ but it would then differ from the Duschabtrennung page.
 ## 3. Implementation steps
 
 1. ~~**Restore fix**~~ ✅ **done** — see §5.
-2. **Markup** — replace the `<label for="budgetToggle">` block in `index.html:4045` with the segmented control. Keep `<input id="budgetToggle" name="budgetMode" value="1" hidden>` inside it so `formToObject`, `BadoluxManager`, and the legacy fallback keep working untouched. The segmented buttons only set `.checked` + dispatch `change`.
-3. **CSS** — new `.tier-switch` block; replace the `::before` yellow banner (`style.css:4053`) with the switch itself as the status indicator.
-4. **Tray rendering** — in `renderTwoRows()`, render one row based on `#budgetToggle.checked`; keep both fetches (cheap, parallel, already there) so the fallback banner can say whether the other line has matches.
-5. **Freier Posten** — wrap `#dw-custom` in a `<details>`; force-open when both lists are empty. Field names must not change.
-6. **Mismatch guard on restore (mandatory).** Because both rows are visible today, existing offers can carry a
+2. ~~**Markup**~~ ✅ — replace the `<label for="budgetToggle">` block in `index.html:4045` with the segmented control. Keep `<input id="budgetToggle" name="budgetMode" value="1" hidden>` inside it so `formToObject`, `BadoluxManager`, and the legacy fallback keep working untouched. The segmented buttons only set `.checked` + dispatch `change`.
+3. ~~**CSS**~~ ✅ — new `.tier-switch` block; replace the `::before` yellow banner (`style.css:4053`) with the switch itself as the status indicator.
+4. ~~**Tray rendering**~~ ✅ — in `renderTwoRows()`, render one row based on `#budgetToggle.checked`; keep both fetches (cheap, parallel, already there) so the fallback banner can say whether the other line has matches.
+5. ~~**Freier Posten**~~ ✅ — wrap `#dw-custom` in a `<details>`; force-open when both lists are empty. Field names must not change.
+6. ~~**Mismatch guard on restore**~~ ✅ Because both rows are visible today, existing offers can carry a
    `chosenTrayProductId` from the *other* line than their `budgetMode` (e.g. `budgetMode` absent = Premium, but a
    `DWBL…` Badolux tray saved). With one row rendered, that card would no longer exist in the DOM and the selection
    would vanish silently.
@@ -179,3 +179,36 @@ Unit suite: 6 suites / 13 tests fail **identically before and after** (`sidebarG
   Edits must go into the later one. Deleting the dead copy is a separate cleanup.
 - `.claude/launch.json` (git-excluded, local only) gained a `konfigurator-3000` entry so this worktree can run
   while another chat holds port 3001.
+
+
+## 6. Steps 2–6 — Duschwanne UI (done 2026-09-09)
+
+### ⚠️ Found while doing it: budgetMode never reached the payload
+
+`#budgetToggle` sat **outside** `#form-duschwanne` with no `form=` attribute, so `FormData` skipped it.
+Verified in the browser: `buildPayload().duschwanne.budgetMode` was absent even with the toggle on. Consequence:
+`pricing-core.js` `isBudgetMode` has **always** been false, so a Low-Budget offer showed the Badolux accessory
+*images* but was priced, exported and ordered with `AGD9060` / `KM02`.
+
+Fixed with `form="form-duschwanne"` on the input. **This changes prices for new Standard offers** — they now
+quote `AGB001` / `AC004` (cheaper), which is what is actually installed. Offers saved before this have no flag,
+restore as Premium, and are byte-for-byte unaffected.
+
+### What changed
+
+| Area | Change |
+|---|---|
+| `index.html` | Checkbox → segmented control (`.tier-switch`), status line `#tierStatus`. The input keeps its id/name/value and stays the single source of truth; the buttons only flip it. Freier Posten wrapped in `<details id="dw-custom-details">` — field names untouched |
+| `style.css` | `.tier-switch` / `.tier-seg` / `.tier-status`, pinned card, fallback box, collapsible Freier Posten, dark-mode overrides. The yellow „💰 Low Budget Modus aktiv" `::before` banner is gone — the switch is the indicator now |
+| `script.js` | `getTrayTier` / `setTrayTier` / `syncTierSwitchUi` / `initTierSwitch`; `renderTwoRows` → `renderRows` (one line + fallback + pinned card); `updateCustomPostVisibility`; the tier-change listener no longer wipes a restored selection (`window.__RESTORING__` guard) |
+| `BadoluxManager.js`, `BadoluxLegacyFallback.js` | New `syncTierUi` hook / `window.syncTierSwitchUi?.()` call: both restore `sessionStorage["dw_budget_mode"]` by setting `.checked` directly with no change event, so nothing else would notice and the switch would read Premium on a Standard session |
+
+### Verified in the running app (port 3000)
+
+- Premium default → only Hassmann cards; Standard → only Badolux cards; switch, status colour and heading all follow.
+- 100×210 in Standard → „Keine Standard-Duschwanne in dieser Größe. In der Linie Premium gibt es 2 passende Treffer ab 660,87 €" + working „Zu Premium wechseln".
+- 100×400 → neither line matches; Freier Posten opens itself, turns amber, relabels to „Sonderform / Maßanfertigung". A manual close sticks (`data-user-closed`).
+- Cross-line offer (Premium + saved `DW020`): pinned amber card above the Premium list, `chosenTrayProductId` stays `DW020`, tier stays Premium, „Auf Standard umstellen" offered but not taken automatically.
+- Old-draft restore, both cases, still green through the new UI, and `budgetMode` now round-trips (`"1"` / absent).
+- Tablet 768×1024: no horizontal overflow, 52px touch targets. No console errors.
+- Unit suite: 219 pass, same 6 pre-existing suites fail as before.

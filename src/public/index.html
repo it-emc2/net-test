@@ -4041,16 +4041,34 @@ button.dm-btn-danger:focus-visible {
             <span>Hinweis zu möglichen Zusatzkosten einblenden</span>
           </label>
 
-          <!-- Checkbox: Low Budget Variante priorisieren (additive) -->
-          <label for="budgetToggle"
-            style="display:flex; align-items:center; gap:8px; font-weight:500; cursor:pointer;">
+          <!-- Produktlinie: Standard (Badolux) statt "Low Budget", Premium (Vigour/
+               Hassmann) als Default. Die Checkbox bleibt die einzige Quelle der
+               Wahrheit und behaelt id/name/value: Payload, Preislogik
+               (dusch.budgetMode) und BadoluxManager haengen unveraendert daran, die
+               Buttons schalten sie nur um. form="form-duschwanne" ist noetig, weil sie
+               ausserhalb des <form> steht — ohne das Attribut landet budgetMode nicht
+               im Payload und die Badolux-Artikel werden nie berechnet. -->
+          <div class="tier-switch">
+            <span class="tier-switch__label">Produktlinie</span>
+            <div class="tier-seg" role="group" aria-label="Produktlinie waehlen">
+              <button type="button" class="tier-seg__btn" data-tier="standard" aria-pressed="false">
+                <strong>Standard</strong><span>Badolux &middot; guenstig</span>
+              </button>
+              <button type="button" class="tier-seg__btn" data-tier="premium" aria-pressed="true">
+                <strong>Premium</strong><span>Vigour &middot; Hassmann</span>
+              </button>
+            </div>
             <input id="budgetToggle" type="checkbox" name="budgetMode" value="1"
-              style="transform:scale(1.2); cursor:pointer;" />
-            <span>Low Budget Variante priorisieren</span>
-          </label>
+              form="form-duschwanne" hidden />
+          </div>
 
           </div>
         </div>
+
+        <p class="tier-status" id="tierStatus" data-tier="premium">
+          <span class="tier-status__dot" aria-hidden="true"></span>
+          <span class="tier-status__text"></span>
+        </p>
 
         <form id="form-duschwanne" autocomplete="on">
 
@@ -4075,8 +4093,13 @@ button.dm-btn-danger:focus-visible {
           <div><img src="./assets/duschwanne.jpeg" alt="Duschwanne" /></div>
 
           <!-- Freier Posten: Duschwanne nicht in der Suche gefunden (z. B. Sonderform, geschwungen) -->
+          <details class="dw-custom-details" id="dw-custom-details">
+            <summary>
+              <span aria-hidden="true">&#9998;</span>
+              <span id="dw-custom-summary-text">Duschwanne nicht gefunden? Freien Posten anlegen</span>
+              <span class="dw-custom-caret" aria-hidden="true">&rsaquo;</span>
+            </summary>
           <fieldset class="da-row full" id="dw-custom" aria-describedby="dw-custom-help">
-            <legend class="da-legend">Duschwanne nicht gefunden? Freier Posten</legend>
             <div class="da-items">
               <div class="da-item" data-kind="dw-custom">
                 <div class="da-grid-4">
@@ -4108,6 +4131,7 @@ button.dm-btn-danger:focus-visible {
               Erscheint in Kosten &amp; Angebot unter „Duschwanne".
             </small>
           </fieldset>
+          </details>
 
         <!-- Bathtub search (only visible when "Einbau der Badewanne" is selected) -->
 <div id="bathtubSearchPanel" class="field" hidden aria-hidden="true" style="margin-top:12px;">

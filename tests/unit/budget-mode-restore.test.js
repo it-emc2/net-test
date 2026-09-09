@@ -51,11 +51,17 @@ function makeReapplyRegistry(isBudgetOn) {
   };
 }
 
+/** Mirrors index.html: the checkbox lives OUTSIDE the form and is associated with
+ *  it via form=, which is what gets budgetMode into the payload at all. */
 function setupForm() {
   document.body.innerHTML = `
-    <form id="form-duschwanne">
-      <input id="budgetToggle" type="checkbox" name="budgetMode" value="1" />
-    </form>
+    <div class="tier-switch">
+      <button class="tier-seg__btn" data-tier="standard" aria-pressed="false"></button>
+      <button class="tier-seg__btn" data-tier="premium" aria-pressed="true"></button>
+      <input id="budgetToggle" type="checkbox" name="budgetMode" value="1"
+             form="form-duschwanne" hidden />
+    </div>
+    <form id="form-duschwanne"></form>
     <form id="form-fussboden">
       <input type="checkbox" name="flooringProduct[]" value="V5FB02|Lava-Beige" />
       <input type="checkbox" name="flooringProduct[]" value="V5FB02|Loft-Grau" />
@@ -153,5 +159,61 @@ describe("budgetMode save → restore", () => {
     registry.notify();
 
     expect(calls).toBe(0);
+  });
+});
+
+/** Mirrors script.js getTrayTier / rowFor: which line's products are shown */
+function getTrayTier() {
+  return document.getElementById("budgetToggle")?.checked ? "standard" : "premium";
+}
+
+function rowFor(tier, lists) {
+  return tier === "standard"
+    ? { list: lists.badolux, name: "Standard" }
+    : { list: lists.hassmann, name: "Premium" };
+}
+
+describe("Produktlinie Standard / Premium", () => {
+  const LISTS = {
+    hassmann: [{ productId: "SLA100100" }, { productId: "SLA110100" }],
+    badolux: [{ productId: "DW020" }],
+  };
+
+  test("premium is the default, so offers without the flag are unchanged", () => {
+    setupForm();
+    expect(getTrayTier()).toBe("premium");
+    expect(rowFor(getTrayTier(), LISTS).list).toBe(LISTS.hassmann);
+  });
+
+  test("standard shows the Badolux line only", () => {
+    const toggle = setupForm();
+    toggle.checked = true;
+    expect(getTrayTier()).toBe("standard");
+    expect(rowFor(getTrayTier(), LISTS).list).toBe(LISTS.badolux);
+  });
+
+  test("a saved tray from the other line is pinned, not auto-switched", () => {
+    const toggle = setupForm(); // premium
+    const savedPid = "DW020"; // Badolux tray saved on a premium offer
+    const active = rowFor(getTrayTier(), LISTS);
+    const other = rowFor("standard", LISTS);
+
+    const pinned =
+      savedPid && !active.list.some((p) => p.productId === savedPid)
+        ? other.list.find((p) => p.productId === savedPid) || null
+        : null;
+
+    expect(pinned).toEqual({ productId: "DW020" });
+    // the line — and therefore the accessory articles and the price — must not move
+    expect(toggle.checked).toBe(false);
+    expect(getTrayTier()).toBe("premium");
+  });
+
+  test("a tray from the active line is not pinned", () => {
+    setupForm(); // premium
+    const savedPid = "SLA100100";
+    const active = rowFor(getTrayTier(), LISTS);
+    const pinned = !active.list.some((p) => p.productId === savedPid);
+    expect(pinned).toBe(false);
   });
 });
