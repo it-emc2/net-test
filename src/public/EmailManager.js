@@ -23,6 +23,7 @@ export function initEmailManager(options = {}) {
       body: "#mailBody",
       preview: "#mailHtmlPreview",
       leadId: "#mailAuftragId",
+      antragGestellt: "#mailAntragGestellt",
       files: "#mailAttachments",
       editedDocx: "#mailEditedDocx",
       list: "#mailAttachmentList",
@@ -84,6 +85,7 @@ export function initEmailManager(options = {}) {
   const $body = document.querySelector(cfg.els.body);
   const $preview = document.querySelector(cfg.els.preview);
   const $leadId = document.querySelector(cfg.els.leadId);
+  const $antragGestellt = document.querySelector(cfg.els.antragGestellt);
   const $files = document.querySelector(cfg.els.files);
   const $editedDocx = document.querySelector(cfg.els.editedDocx);
   const $list = document.querySelector(cfg.els.list);
@@ -226,16 +228,11 @@ export function initEmailManager(options = {}) {
         padding:24px;box-shadow:0 18px 60px rgba(0,0,0,.28);font-family:Arial,Helvetica,sans-serif;color:#243038;}
       .ang-stage-title{margin:0 0 8px;font-size:19px;}
       .ang-stage-text{margin:0 0 14px;font-size:14px;line-height:1.5;color:#4a575f;}
-      .ang-stage-fields{display:flex;flex-direction:column;gap:12px;margin:0 0 14px;}
-      .ang-stage-field{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:#334049;}
-      .ang-stage-field input,.ang-stage-field select{padding:9px 10px;border:1px solid #cdd6dc;
-        border-radius:8px;font-size:14px;font-weight:400;}
       .ang-stage-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;}
       .ang-stage-btn{padding:9px 16px;border-radius:8px;border:1px solid #cdd6dc;background:#f2f5f7;
         cursor:pointer;font-size:14px;color:#243038;}
       .ang-stage-btn--primary{background:#00a86b;border-color:#00a86b;color:#fff;font-weight:600;}
       .ang-stage-btn:disabled{opacity:.6;cursor:default;}
-      .ang-stage-status{margin:10px 0 0;font-size:13px;color:#4a575f;}
       .ang-stage-error{color:#c0392b;}
     `;
     document.head.appendChild(style);
@@ -398,11 +395,6 @@ export function initEmailManager(options = {}) {
   // -----------------------------
   // "Deal auf 'ANG verschickt' verschieben" dialog
   // -----------------------------
-  function fmtEuro(n) {
-    const num = Number(n) || 0;
-    return num.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-
   function logDialogEvent(dealId, event, offerExtra) {
     if (!dealId) return;
     fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}/log-dialog-event`, {
@@ -459,92 +451,20 @@ export function initEmailManager(options = {}) {
       if (e.target === overlay) closeStageModal();
     });
     overlay.querySelector("#angStageCloseBtn")?.addEventListener("click", closeStageModal);
-    // Use .onclick (not addEventListener) so openStageForm can replace this
-    // handler with the confirm-submit one — otherwise both fire and the form
-    // re-opens on every click.
     const moveBtn = overlay.querySelector("#angStageMoveBtn");
-    if (moveBtn) moveBtn.onclick = () => openStageForm({ dealId, offerTotal, offerExtra });
+    if (moveBtn) moveBtn.onclick = () => submitStageMove({ dealId, offerTotal, offerExtra });
   }
 
-  // Fetches the empty required fields for the deal and renders inputs for them.
-  async function openStageForm({ dealId, offerTotal, offerExtra }) {
+  // Moves the deal straight to "ANG verschickt" using the offer's own
+  // computed total — no manual Betrag entry/confirm step, so it can never
+  // drift from "Finaler Auftragswert" and costs the user one less click.
+  async function submitStageMove({ dealId, offerTotal, offerExtra }) {
+    const moveBtn = document.getElementById("angStageMoveBtn");
     const body = document.querySelector("#angStageOverlay .ang-stage-body");
-    const moveBtn = document.getElementById("angStageMoveBtn");
-    if (!body) return;
-    body.innerHTML = `<p class="ang-stage-text">Lade Felder…</p>`;
+    const amount = Number(offerTotal) > 0 ? Number(offerTotal) : Number(offerExtra?.finalTotal) || 0;
+
     if (moveBtn) moveBtn.disabled = true;
-
-    let info;
-    try {
-      const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}/ang-verschickt-fields`);
-      info = await res.json();
-      if (!res.ok) throw new Error(info?.error || `HTTP ${res.status}`);
-    } catch (e) {
-      body.innerHTML = `<p class="ang-stage-error">Fehler beim Laden: ${e.message || e}</p>`;
-      if (moveBtn) moveBtn.disabled = false;
-      return;
-    }
-
-    const byName = Object.fromEntries((info.fields || []).map((f) => [f.name, f]));
-
-    // Betrag und Währung always mirrors the real computed offer total — no
-    // manual override, so it can never drift from "Finaler Auftragswert".
-    const amountField = byName.OPPORTUNITY;
-    const prefillAmount = fmtEuro(
-      Number(offerTotal) > 0 ? offerTotal : (amountField?.currentValue || 0),
-    );
-
-    const rows = [];
-    if (amountField) {
-      rows.push(`
-        <label class="ang-stage-field">
-          <span>Betrag (€)</span>
-          <input type="text" id="angFieldAmount" value="${prefillAmount}" inputmode="decimal" />
-        </label>`);
-    }
-    body.innerHTML = `
-      <p class="ang-stage-text">Vorausgefüllt mit dem finalen Angebotsbetrag — bei Bedarf anpassbar.</p>
-      <div class="ang-stage-fields">${rows.join("")}</div>
-      <p class="ang-stage-status" id="angStageStatus" hidden></p>`;
-
-    if (moveBtn) {
-      moveBtn.disabled = false;
-      moveBtn.textContent = "Verschieben bestätigen";
-      moveBtn.onclick = () => submitStageMove({ dealId, offerExtra });
-    }
-  }
-
-  function parseEuroInput(v) {
-    // "1.234,56 €" -> 1234.56
-    const s = String(v || "")
-      .replace(/[^\d.,-]/g, "")
-      .replace(/\./g, "")
-      .replace(",", ".");
-    return Number(s);
-  }
-
-  async function submitStageMove({ dealId, offerExtra }) {
-    const moveBtn = document.getElementById("angStageMoveBtn");
-    const statusEl = document.getElementById("angStageStatus");
-    const amountEl = document.getElementById("angFieldAmount");
-
-    const setModalStatus = (msg, isErr = false) => {
-      if (!statusEl) return;
-      statusEl.hidden = false;
-      statusEl.textContent = msg;
-      statusEl.classList.toggle("ang-stage-error", !!isErr);
-    };
-
-    // Betrag is editable, but whatever value is confirmed here is also used
-    // for "Finaler Auftragswert" — the two fields always mirror each other,
-    // sourced from the same confirmed amount. Währung is always EUR.
-    const amount = amountEl
-      ? parseEuroInput(amountEl.value)
-      : Number(offerExtra?.finalTotal) || 0;
-    if (!(amount > 0)) {
-      setModalStatus("Bitte einen gültigen Betrag eingeben.", true);
-      return;
-    }
+    if (body) body.innerHTML = `<p class="ang-stage-text">Verschiebe Deal…</p>`;
 
     const payload = { opportunity: amount, finalTotal: amount };
     if (offerExtra) {
@@ -560,8 +480,6 @@ export function initEmailManager(options = {}) {
       }
     }
 
-    if (moveBtn) moveBtn.disabled = true;
-    setModalStatus("Verschiebe Deal…");
     try {
       const res = await fetch(
         `/api/bitrix/deal/${encodeURIComponent(dealId)}/move-ang-verschickt`,
@@ -573,7 +491,6 @@ export function initEmailManager(options = {}) {
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-      const body = document.querySelector("#angStageOverlay .ang-stage-body");
       if (body) {
         body.innerHTML = `<p class="ang-stage-text">✅ Deal wurde auf „ANG verschickt" verschoben.</p>`;
       }
@@ -584,7 +501,7 @@ export function initEmailManager(options = {}) {
         console.warn("[EmailManager] onDealStageMoved hook failed:", e);
       }
     } catch (e) {
-      setModalStatus(`Fehler: ${e.message || e}`, true);
+      if (body) body.innerHTML = `<p class="ang-stage-error">Fehler: ${e.message || e}</p>`;
       if (moveBtn) moveBtn.disabled = false;
     }
   }
@@ -723,9 +640,7 @@ Keine Möglichkeit, die Dokumente auszudrucken? Kein Problem - nutzen Sie einfac
 
 {{SIGN_LINK}}
 
-Sobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.
-
-Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
+${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, übernehmen wir für Sie sämtliche weiteren Schritte und stellen den Antrag auf Zuschuss direkt bei Ihrer Pflegekasse – selbstverständlich kostenfrei. Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pflege- und Krankenkassen profitieren Sie von einer reibungslosen und professionellen Abwicklung.\n\n"}Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
   }
 
   function escapeHtml(value) {
@@ -978,6 +893,11 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     const el = document.getElementById(id);
     el?.addEventListener("input", updateBodyDefault);
     el?.addEventListener("change", updateBodyDefault);
+  });
+
+  $antragGestellt?.addEventListener("change", () => {
+    updateBodyDefault();
+    updatePreview();
   });
 
   // Selbstzahler/Kassenkunde toggle: rebuild body (doc list) AND the attachment

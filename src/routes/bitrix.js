@@ -23,11 +23,6 @@ const ANG_VERSCHICKT_CATEGORY_ID = 38;
 const AH_ANG_VERSCHICKT_STAGE_ID = "C52:UC_SNAVG8";
 const AH_ANG_VERSCHICKT_CATEGORY_ID = 52;
 
-// Fields the user is prompted for before entering "[VI] ANG verschickt".
-// Only Betrag (OPPORTUNITY) is asked — Währung is always EUR and defaulted
-// server-side in updateDealStage().
-const ANG_VERSCHICKT_REQUIRED_FIELDS = ["OPPORTUNITY"];
-
 // Stage a completed appointment ("Heutige Termine Planung") is moved to.
 // "Zuteilen HD/ AH/ DH" lives in deal category 72 (STATUS_ID C72:PREPARATION).
 const ZUTEILEN_STAGE_ID = "C72:PREPARATION";
@@ -169,58 +164,90 @@ function logBitrixFailure(method, paramsObj, err, httpMethod) {
   }).catch((logErr) => console.error("[bitrix] failed to write BitrixLog:", logErr));
 }
 
-async function bxGet(method, paramsObj = {}) {
-  try {
-    if (!BITRIX_WEBHOOK_BASE) {
-      throw new Error(
-        "BITRIX_WEBHOOK_BASE is not configured (set it in env).",
-      );
-    }
+async function bxFetch(method, paramsObj, httpMethod) {
+  const qs = buildQS(paramsObj);
+  const url =
+    httpMethod === "GET"
+      ? `${BITRIX_WEBHOOK_BASE}/${method}.json${qs ? `?${qs}` : ""}`
+      : `${BITRIX_WEBHOOK_BASE}/${method}.json`;
 
-    const qs = buildQS(paramsObj);
-    const url = `${BITRIX_WEBHOOK_BASE}/${method}.json${qs ? `?${qs}` : ""}`;
+  const res = await fetch(url, {
+    method: httpMethod,
+    ...(httpMethod === "POST" && {
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body: qs,
+    }),
+  });
+  const data = await res.json().catch(() => null);
 
-    const res = await fetch(url, { method: "GET" });
-    const data = await res.json().catch(() => null);
+  if (!data) throw new Error("Invalid JSON response from Bitrix");
+  if (data.error) throw new Error(data.error_description || data.error);
 
-    if (!data) throw new Error("Invalid JSON response from Bitrix");
-    if (data.error) throw new Error(data.error_description || data.error);
+  return data;
+}
 
-    return data;
-  } catch (err) {
-    logBitrixFailure(method, paramsObj, err, "GET");
+// Bitrix webhooks throttle at ~2 req/sec (error_description "Too many
+// requests"), and this is by far the most common BitrixLog entry. Retry
+// those with backoff instead of failing/logging immediately.
+const RATE_LIMIT_RETRIES = 4;
+const RATE_LIMIT_DELAY_MS = 700;
+
+function isRateLimitError(err) {
+  return /too many requests/i.test(err?.message || "");
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Process-wide pacing: every Bitrix call, from any request, queues here and
+// waits its turn so calls actually leave at least BX_MIN_GAP_MS apart —
+// this is what keeps a single dialog's own 4 sequential calls (and any
+// others firing at the same time) from bunching up against the webhook's
+// shared 2 req/sec limit in the first place.
+// ponytail: single global queue, no per-method/per-user fairness — revisit
+// if one heavy caller starts starving the others.
+const BX_MIN_GAP_MS = 1000;
+let bxQueueTail = Promise.resolve(0);
+
+function throttleBxCall() {
+  const turn = bxQueueTail.then(async (lastStart) => {
+    const wait = lastStart + BX_MIN_GAP_MS - Date.now();
+    if (wait > 0) await sleep(wait);
+    return Date.now();
+  });
+  bxQueueTail = turn;
+  return turn;
+}
+
+async function bxCall(method, paramsObj, httpMethod) {
+  if (!BITRIX_WEBHOOK_BASE) {
+    const err = new Error("BITRIX_WEBHOOK_BASE is not configured (set it in env).");
+    logBitrixFailure(method, paramsObj, err, httpMethod);
     throw err;
+  }
+
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await throttleBxCall();
+      return await bxFetch(method, paramsObj, httpMethod);
+    } catch (err) {
+      if (isRateLimitError(err) && attempt < RATE_LIMIT_RETRIES) {
+        // ponytail: fixed backoff, no jitter/queue; revisit if Bitrix stays
+        // throttled past ~3s of retries.
+        await sleep(RATE_LIMIT_DELAY_MS * (attempt + 1));
+        continue;
+      }
+      logBitrixFailure(method, paramsObj, err, httpMethod);
+      throw err;
+    }
   }
 }
 
+async function bxGet(method, paramsObj = {}) {
+  return bxCall(method, paramsObj, "GET");
+}
+
 async function bxPost(method, paramsObj = {}) {
-  try {
-    if (!BITRIX_WEBHOOK_BASE) {
-      throw new Error(
-        "BITRIX_WEBHOOK_BASE is not configured (set it in env).",
-      );
-    }
-
-    const url = `${BITRIX_WEBHOOK_BASE}/${method}.json`;
-    const body = buildQS(paramsObj);
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-      },
-      body,
-    });
-    const data = await res.json().catch(() => null);
-
-    if (!data) throw new Error("Invalid JSON response from Bitrix");
-    if (data.error) throw new Error(data.error_description || data.error);
-
-    return data;
-  } catch (err) {
-    logBitrixFailure(method, paramsObj, err, "POST");
-    throw err;
-  }
+  return bxCall(method, paramsObj, "POST");
 }
 
 // Replay a previously logged failed Bitrix call with its original params.
@@ -365,8 +392,9 @@ async function updateDealStage({
     fields.UF_CRM_1776156870205 = String(offerNumber).trim();
   }
   // Eigenanteil is only relevant for Kassenkunde; caller omits it otherwise.
+  // 0 is a valid value (Kasse covers everything) — don't treat it as unset.
   const selfPayNum = Number(selfPayAmount);
-  if (!isAhOffer && Number.isFinite(selfPayNum) && selfPayNum > 0) {
+  if (!isAhOffer && Number.isFinite(selfPayNum) && selfPayNum >= 0) {
     fields.UF_CRM_1757490052931 = selfPayNum;
   }
 
@@ -429,8 +457,9 @@ async function updateDealAfterSigning({ dealId, customerType, categoryId, stageI
   if (isKasse && categoryId === undefined) Object.assign(fields, SIGNING_KASSE_FIELDS);
   // "Eigenanteil von Angebot (Brutto)" is a required field on the Kasse
   // stage — Bitrix bounces the deal back out of the stage without it.
+  // 0 is a valid value (Kasse covers everything) — don't treat it as unset.
   const selfPayNum = Number(selfPayAmount);
-  if (isKasse && Number.isFinite(selfPayNum) && selfPayNum > 0) {
+  if (isKasse && Number.isFinite(selfPayNum) && selfPayNum >= 0) {
     fields.UF_CRM_1757490052931 = selfPayNum;
   }
 
@@ -568,9 +597,6 @@ router.post("/timeline/comment", express.json({ limit: "25mb" }), async (req, re
   }
 });
 
-// GET /api/bitrix/deal/:id/ang-verschickt-fields
-// Reads the deal and reports which "[VI] ANG verschickt" required fields
-// (Betrag/Währung) are still empty, with options for the currency select.
 // GET /api/bitrix/deal/:id — deal + its linked contact, for the Hauptmenü
 // "Bitrix Deal laden" field (loads a deal directly, without knowing the
 // contact ID first).
@@ -610,50 +636,6 @@ router.get("/deal/:id", async (req, res) => {
     });
   } catch (err) {
     console.error("GET /api/bitrix/deal/:id error:", err);
-    return res.status(500).json({ error: err?.message || String(err) });
-  }
-});
-
-router.get("/deal/:id/ang-verschickt-fields", async (req, res) => {
-  try {
-    const dealId = String(req.params.id || "").trim();
-    if (!dealId) return res.status(400).json({ error: "id is required" });
-
-    const dealResp = await bxGet("crm.deal.get", { id: dealId });
-    const deal = dealResp?.result;
-    if (!deal) return res.status(404).json({ error: "Deal not found" });
-
-    // Währung is always EUR, so it is not prompted; only Betrag is asked.
-    const meta = {
-      OPPORTUNITY: { label: "Betrag", type: "double" },
-    };
-
-    const fields = ANG_VERSCHICKT_REQUIRED_FIELDS.map((name) => {
-      const currentValue = deal[name];
-      // OPPORTUNITY of "0"/"0.00" counts as empty (no amount set yet).
-      const empty =
-        name === "OPPORTUNITY"
-          ? isEmpty(currentValue) || Number(currentValue) === 0
-          : isEmpty(currentValue);
-      return {
-        name,
-        label: meta[name]?.label || name,
-        type: meta[name]?.type || "string",
-        options: meta[name]?.options,
-        currentValue: currentValue ?? "",
-        isEmpty: empty,
-      };
-    });
-
-    return res.json({
-      dealId: Number(dealId),
-      title: deal.TITLE || "",
-      stageId: deal.STAGE_ID || "",
-      fields,
-      allFilled: fields.every((f) => !f.isEmpty),
-    });
-  } catch (err) {
-    console.error("GET /api/bitrix/deal/:id/ang-verschickt-fields error:", err);
     return res.status(500).json({ error: err?.message || String(err) });
   }
 });

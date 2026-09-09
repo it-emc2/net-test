@@ -56,7 +56,6 @@ import UserActionLog from "./models/UserActionLog.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const app = express();
 
 const PORT = process.env.PORT || 3000;
@@ -273,7 +272,6 @@ console.log("MongoDB connected ->", MONGODB_DB);
 UserActionLog.create({ event: "server_started", message: `pid ${process.pid}` }).catch((e) =>
   console.warn("[boot] UserActionLog server_started failed:", e?.message || e),
 );
-
 // ---------------- Config service ----------------
 await configService.init();
 
