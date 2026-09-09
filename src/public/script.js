@@ -1276,6 +1276,43 @@ function setByNameOrId(nameOrId, value) {
   }
 }
 
+// Ja/Nein/Sonstiges pills for a field that used to be plain free text (AH
+// "Besondere Hinweise"). The pills drive a hidden text input that still
+// carries the actual saved value, so legacy free-text drafts keep working:
+// restoreJaNeinText() below shows the text input + "Sonstiges" pill whenever
+// the saved value isn't exactly "Ja"/"Nein".
+["ah_mobilitaet", "ah_allergien", "ah_demenz", "ah_sprache"].forEach((field) => {
+  const textEl = document.getElementById(field);
+  if (!textEl) return;
+  document
+    .querySelectorAll(`input[name="${field}_choice"]`)
+    .forEach((r) =>
+      r.addEventListener("change", () => {
+        if (!r.checked) return;
+        if (r.value === "Sonstiges") {
+          textEl.hidden = false;
+          textEl.focus();
+        } else {
+          textEl.hidden = true;
+          textEl.value = r.value;
+        }
+      }),
+    );
+});
+
+function restoreJaNeinText(field, value) {
+  setByNameOrId(field, value);
+  const v = (value ?? "").toString();
+  const textEl = document.getElementById(field);
+  if (v === "Ja" || v === "Nein") {
+    setRadio(`${field}_choice`, v);
+    if (textEl) textEl.hidden = true;
+  } else if (v) {
+    setRadio(`${field}_choice`, "Sonstiges");
+    if (textEl) textEl.hidden = false;
+  }
+}
+
 function setSelect(nameOrId, value) {
   if (value === undefined || value === null) return;
   const el =
@@ -14556,10 +14593,10 @@ function restoreKundendaten(k, offer) {
   // FormData but need explicit restore here since this handler is an allow-list.
   // (ah_versichertenr / ah_geburtsdatum were superseded by the shared
   // kk_versichertennr / kk_geburtsdatum fields above, restored with fallback.)
-  setByNameOrId("ah_mobilitaet", k.ah_mobilitaet);
-  setByNameOrId("ah_allergien", k.ah_allergien);
-  setByNameOrId("ah_demenz", k.ah_demenz);
-  setByNameOrId("ah_sprache", k.ah_sprache);
+  restoreJaNeinText("ah_mobilitaet", k.ah_mobilitaet);
+  restoreJaNeinText("ah_allergien", k.ah_allergien);
+  restoreJaNeinText("ah_demenz", k.ah_demenz);
+  restoreJaNeinText("ah_sprache", k.ah_sprache);
   setByNameOrId("ah_sonstiges", k.ah_sonstiges);
   setRadio("ah_alleinLebend", k.ah_alleinLebend);
   setRadio("ah_haustiere", k.ah_haustiere);

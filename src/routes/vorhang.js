@@ -1,7 +1,7 @@
 // routes/vorhang.js
 // Live API for the "Duschvorhang" configurator tab. Reads curtain + rail-system
 // products from the SEPARATE "vigor" MongoDB (collection "products"), classified
-// by configContext.category ∈ { duschvorhang, vorhangstange }.
+// by configContext.category ∈ { duschvorhang, vorhangstange, vorhangringe }.
 //
 // The main app connection points at KonfiguratorDB, so the dedicated vigor
 // connection comes from external/vigorDb.js.
@@ -57,7 +57,7 @@ async function loadProducts() {
   const db = await getVigorDb();
   const docs = await db
     .collection("products")
-    .find({ "configContext.category": { $in: ["duschvorhang", "vorhangstange"] } })
+    .find({ "configContext.category": { $in: ["duschvorhang", "vorhangstange", "vorhangringe"] } })
     .toArray();
 
   // Dedup by articleNumber (same article can be scraped via multiple paths).
@@ -76,6 +76,8 @@ async function loadProducts() {
     const cat = d.configContext?.category;
     if (cat === "duschvorhang") {
       curtains.push(item);
+    } else if (cat === "vorhangringe") {
+      optional.push(item);
     } else {
       const role = classifyRail(d.articleNumber);
       if (role === "rod") rods.push(item);
