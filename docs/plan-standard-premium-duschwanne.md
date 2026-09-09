@@ -1,6 +1,6 @@
 # Plan: Low-Budget → "Standard / Premium" (Phase 1: Duschwanne)
 
-Status: **steps 1–6 implemented and verified, 2026-09-09.** Remaining: step 7 (stock badges), then Fußboden + Wandverkleidung.
+Status: **steps 1–7 implemented and verified, 2026-09-09.** Remaining: Fußboden + Wandverkleidung (phase 2).
 Mockup: `docs/mockups/duschwanne-standard-premium.html` (open in browser, tablet width).
 
 ## 1. How it works today (verified in code)
@@ -122,7 +122,7 @@ but it would then differ from the Duschabtrennung page.
    above the list, labelled „Gespeicherte Auswahl (<Marke>)", with an explicit
    „Zu <andere Linie> wechseln" button the user must press. Detection: the product's `source` /
    `productId` prefix vs the active tier.
-7. **Stock badge** — see 2b. Independent of the Standard/Premium work; can ship before or after.
+7. ~~**Stock badge**~~ ✅ — see §7.
 8. Fußboden + Wandverkleidung stay untouched in phase 1; they follow once Duschwanne is signed off.
 
 ## 4. Test checklist (regression is the risk, not the UI)
@@ -212,3 +212,41 @@ restore as Premium, and are byte-for-byte unaffected.
 - Old-draft restore, both cases, still green through the new UI, and `budgetMode` now round-trips (`"1"` / absent).
 - Tablet 768×1024: no horizontal overflow, 52px touch targets. No console errors.
 - Unit suite: 219 pass, same 6 pre-existing suites fail as before.
+
+
+## 7. Step 7 — Lagerbestand badges (done 2026-09-09)
+
+| Where | What |
+|---|---|
+| `src/external/vigorDb.js` | `fetchVigourStock(articleNumbers)` + `pickFreshestStock(docs)`, mirroring the existing `fetchVigourNetPrices` / `pickFreshestNetPrices` pair. Freshest-wins by `lastSeenAt`, counting only docs that actually carry stock data — the scraper reaches the same article through several config paths and not every path records stock |
+| `src/routes/trays.js` | `attachStock(results)` after `scoreAndRank`: one `$in` lookup, attaches `stockQuantity` / `stockText` / `stockSymbol` |
+| `src/public/script.js` | `trayStockState(p)` + the pill in `buildCard`, rendered only when the article carries stock data |
+| `src/public/style.css` | `.sc-stock` etc., same colours as `.dac-line-stock` on `#page-DuschabtrennungNeu` |
+
+### Fail-open **and** fail-fast
+
+The first version only caught the error. Measured against a server pointed at an unreachable vigor DB: the
+search still returned its results, but took the full mongoose server-selection timeout — 1.5 s with an explicit
+setting, and **30 s on the production URI, which has none**, on *every* search. A 30-second search is worse
+than no badges, so `attachStock` races the lookup against `STOCK_LOOKUP_TIMEOUT_MS = 1500`.
+
+Measured: unreachable vigor DB → 1.59 / 1.53 / 1.52 s, HTTP 200, 3 results, no stock fields, no badges.
+Healthy → 65–75 ms with stock attached.
+
+### Verified
+
+- `SLA100` qty 10 → green „10 Auf Lager"; `SLA110100` qty 0 sym 1 → red „0 Auf Bestellung";
+  `SLA11075` sym 3 → amber „⏱ Verbundhaus 2–5 Tage".
+- Badolux (`DW020`–`DW022`) come back with no stock fields at all → no badge, as intended.
+- `stockText` (which can contain `<b>` from the scraper) goes through `escapeHtml` **plus** a quote replacement
+  before landing in the `title` attribute — `escapeHtml` alone does not escape quotes.
+- `tests/unit/tray-stock-badge.test.js`: 11 tests. Full suite 229 pass; the 6 known suites still fail, and
+  `offline-save-queue` times out under parallel load but passes alone (same flakiness as `vigor-live-price`).
+
+### Not done on purpose
+
+- Display-only. `stockQuantity` is never written into the payload, PDF or DOCX — stock at quote time is not
+  stock at order time.
+- The Fußboden and Wandverkleidung tiles get no badges yet; that belongs with phase 2.
+- `#page-DuschabtrennungNeu` keeps its two-state badge: its data comes from the `syncVigourNames.js` snapshot,
+  which does not carry `stockSymbol`. Adding the field there is a small separate follow-up.

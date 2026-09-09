@@ -2443,6 +2443,39 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
   border: 1px solid var(--border);
 }
 
+/* Lagerbestand — gleiche Optik wie .dac-line-stock auf #page-DuschabtrennungNeu.
+   Gruen = auf Lager (Menge im Kreis), Bernstein = qty 0 aber lieferbar
+   (Verbundhaus/Zentrallager/Nachtverbund), Rot = muss bestellt werden. */
+#tray-suggestions .sc-stock {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 4px 12px 4px 4px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+#tray-suggestions .sc-stock-qty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  font-variant-numeric: tabular-nums;
+}
+
+#tray-suggestions .sc-stock--in { color: #fff; background: #0a7d33; }
+#tray-suggestions .sc-stock--in .sc-stock-qty { background: #05541f; }
+#tray-suggestions .sc-stock--out { color: #fff; background: #c81e3a; }
+#tray-suggestions .sc-stock--out .sc-stock-qty { background: #7a0e21; }
+#tray-suggestions .sc-stock--soon { color: #fff; background: #b45309; }
+#tray-suggestions .sc-stock--soon .sc-stock-qty { background: #78350f; }
+
 #tray-suggestions .is-budget .sc-badge--source {
   background: rgba(234, 179, 8, 0.12);
   color: #92400e;

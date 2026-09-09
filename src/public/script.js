@@ -10328,6 +10328,24 @@ const TIER_INFO = {
   },
 };
 
+// Lagerbestand aus der Vigor-DB. stockSymbol 3/6/9 fuehren immer stockQuantity 0,
+// sind aber lieferbar — deshalb ein eigener Bernstein-Zustand statt Rot. Ohne
+// stockSymbol (rund ein Drittel der Artikel) gilt die alte Regel: qty > 0 = auf
+// Lager. Reine Anzeige, landet nie im Angebot.
+const TRAY_STOCK_SOON = {
+  3: "Verbundhaus 2–5 Tage",
+  6: "Zentrallager 24 h",
+  9: "Nachtverbund bis 18 Uhr",
+};
+
+function trayStockState(p) {
+  const qty = Number(p?.stockQuantity) || 0;
+  if (qty > 0) return { cls: "sc-stock--in", glyph: String(qty), text: "Auf Lager" };
+  const soon = TRAY_STOCK_SOON[p?.stockSymbol];
+  if (soon) return { cls: "sc-stock--soon", glyph: "⏱", text: soon };
+  return { cls: "sc-stock--out", glyph: "0", text: "Auf Bestellung" };
+}
+
 function getTrayTier() {
   return document.getElementById("budgetToggle")?.checked ? "standard" : "premium";
 }
@@ -10504,6 +10522,16 @@ function initSmartTraySearch() {
     const value = p.productId || "";
     const isBudget = sourceLabel === "Badolux";
 
+    // Only articles the vigor DB actually knows get a badge — no data is not the
+    // same as "not available".
+    const hasStock = p.stockQuantity != null || p.stockText != null;
+    const stock = hasStock ? trayStockState(p) : null;
+    const stockBadge = stock
+      ? `<span class="sc-stock ${stock.cls}" title="${escapeHtml(p.stockText || "").replace(/"/g, "&quot;")}">
+              <span class="sc-stock-qty">${stock.glyph}</span>${stock.text}
+            </span>`
+      : "";
+
     return `
         <label class="suggestion-card${isBudget ? " is-budget" : ""}${pinned ? " is-pinned" : ""}" for="${domId}">
           <input type="radio"
@@ -10523,6 +10551,7 @@ function initSmartTraySearch() {
             <div class="sc-badges">
               ${isBest ? `<span class="sc-badge sc-badge--best">Beste Übereinstimmung</span>` : ""}
               <span class="sc-badge sc-badge--source">${sourceLabel}</span>
+              ${stockBadge}
             </div>
           </div>
           <div class="sc-check" aria-hidden="true">✓</div>
