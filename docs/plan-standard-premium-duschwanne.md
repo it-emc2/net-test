@@ -2,6 +2,7 @@
 
 Status: **steps 1–7 implemented and verified, 2026-09-09.** Remaining: Fußboden + Wandverkleidung (phase 2).
 Mockup: `docs/mockups/duschwanne-standard-premium.html` (open in browser, tablet width).
+Preise des Duschwannen-Zubehörs ändern: [preise-duschwanne-zubehoer.md](preise-duschwanne-zubehoer.md).
 
 ## 1. How it works today (verified in code)
 
@@ -242,6 +243,14 @@ Healthy → 65–75 ms with stock attached.
   before landing in the `title` attribute — `escapeHtml` alone does not escape quotes.
 - `tests/unit/tray-stock-badge.test.js`: 11 tests. Full suite 229 pass; the 6 known suites still fail, and
   `offline-save-queue` times out under parallel load but passes alone (same flakiness as `vigor-live-price`).
+
+### Follow-up für die Fachseite
+
+Weil `budgetMode` bis jetzt nie im Payload ankam, wurden die Badolux-Artikel **nie** abgerechnet — jedes
+Angebot lief über `AGD9060` / `KM02`. Seit der Korrektur wirken die hinterlegten Preise real, und zwei davon
+sehen falsch aus: `AGB001` (33,42 €) ist teurer als das Premium-Pendant `AGD9060` (20,20 €), und `AC004` ist
+ein „1KU-PU-Kleber" für 7,59 € an der Stelle von „Kleinmaterial groß" (150,00 €). Details und Änderungsweg:
+[preise-duschwanne-zubehoer.md](preise-duschwanne-zubehoer.md).
 
 ### Not done on purpose
 
