@@ -10611,7 +10611,8 @@ function initSmartTraySearch() {
         <p class="suggestion-pinned-head">⚑ Gespeicherte Auswahl aus der Linie ${otherRow.name}</p>
         ${buildCard(product, "tray-suggest-pinned", otherRow.brand, false, true, true)}
         <p class="suggestion-pinned-note">
-          Linie und Preis bleiben unverändert, wie gespeichert.
+          Linie und Preis bleiben unverändert, wie gespeichert. Ein Wechsel tauscht auch
+          Ablaufgarnitur und Kleinmaterial und ändert damit den Angebotspreis.
           <button type="button" class="secondary" data-tray-switch="${otherRow.key}">
             Auf ${otherRow.name} umstellen
           </button>
