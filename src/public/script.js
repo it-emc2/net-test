@@ -10479,11 +10479,19 @@ function initSmartTraySearch() {
     });
   };
 
-  const persistSelection = (productId, label) => {
+  // The dimensions in effect when the tray was picked are stored with it, so a
+  // later dimension change that drops the tray can offer them back.
+  const persistSelection = (productId, label, name) => {
     try {
       localStorage.setItem(
         "dw_tray_selection",
-        JSON.stringify({ productId, value: label }),
+        JSON.stringify({
+          productId,
+          value: label,
+          name: name || "",
+          searchW: elB?.value || "",
+          searchL: elL?.value || "",
+        }),
       );
     } catch {}
   };
@@ -10506,7 +10514,11 @@ function initSmartTraySearch() {
     if (hiddenSize) hiddenSize.value = label;
     toggleSlateTrayColorVisibility();
 
-    persistSelection(pid, label);
+    persistSelection(
+      pid,
+      label,
+      inputEl.closest(".suggestion-card")?.querySelector(".sc-title")?.textContent?.trim(),
+    );
     applySelectedStyles();
   };
 
@@ -10638,6 +10650,30 @@ function initSmartTraySearch() {
       </div>
     `;
 
+  // A dimension change can push the picked tray out of the results — it simply no
+  // longer fits. Dropping it is right, dropping it silently is not: the technician
+  // sees the choice and the price vanish with no reason given and no way back.
+  const buildDropped = (saved) => {
+    const what = saved.name || saved.productId;
+    const had =
+      saved.searchW || saved.searchL
+        ? ` (gesucht war ${saved.searchW || "?"} × ${saved.searchL || "?"} cm)`
+        : "";
+    return `
+      <div class="tray-fallback tray-dropped">
+        <p><strong>Bisherige Auswahl entfernt: ${escapeHtml(what)}</strong>
+        Sie passt nicht mehr zu den eingegebenen Maßen${had}. Bitte unten neu wählen.</p>
+        ${
+          saved.searchW || saved.searchL
+            ? `<button type="button" class="secondary" data-tray-restore-dims="1"
+                 data-w="${escapeHtml(saved.searchW)}" data-l="${escapeHtml(saved.searchL)}">
+                 Vorherige Maße zurück
+               </button>`
+            : ""
+        }
+      </div>`;
+  };
+
   const buildFallback = (active, other) => {
     if (!other.list.length) {
       return `
@@ -10677,18 +10713,25 @@ function initSmartTraySearch() {
 
     // Only restore a saved PID if the user actually chose in THIS session
     const allowAutoCheck = sessionStorage.getItem("dw_tray_touched") === "1";
-    let savedPid = null;
+    let saved = null;
     if (allowAutoCheck) {
       try {
-        const saved = JSON.parse(localStorage.getItem("dw_tray_selection") || "null");
-        savedPid = saved?.productId || null;
+        saved = JSON.parse(localStorage.getItem("dw_tray_selection") || "null");
       } catch {}
     }
+    const savedPid = saved?.productId || null;
 
     // Saved tray belongs to the other line → pin it above the active list.
     const pinnedProduct =
       savedPid && !active.list.some((p) => p.productId === savedPid)
         ? other.list.find((p) => p.productId === savedPid) || null
+        : null;
+
+    // Saved tray is in neither line: the dimensions no longer allow it. Say so
+    // instead of just letting the selection and the price disappear.
+    const dropped =
+      savedPid && !pinnedProduct && !active.list.some((p) => p.productId === savedPid)
+        ? saved
         : null;
 
     const heading = pinnedProduct
@@ -10697,8 +10740,9 @@ function initSmartTraySearch() {
 
     out.innerHTML = `
       ${pinnedProduct ? buildPinned(pinnedProduct, other) : ""}
-      ${buildRow(heading, active.list, active.key, active.brand, savedPid, active.local, !pinnedProduct)}
-      ${!pinnedProduct && !active.list.length ? buildFallback(active, other) : ""}
+      ${dropped ? buildDropped(dropped) : ""}
+      ${buildRow(heading, active.list, active.key, active.brand, savedPid, active.local, !pinnedProduct || !!dropped)}
+      ${!pinnedProduct && !dropped && !active.list.length ? buildFallback(active, other) : ""}
     `;
 
     if (savedPid) {
@@ -10833,6 +10877,18 @@ function initSmartTraySearch() {
       clearChosen();
       request();
     });
+  });
+
+  // "Vorherige Maße zurück" on the dropped-selection notice: put the dimensions
+  // that were in effect when the tray was picked back into the inputs, which
+  // re-runs the search and re-selects the tray.
+  out.addEventListener("click", (e) => {
+    const btn = e.target?.closest?.("[data-tray-restore-dims]");
+    if (!btn) return;
+    if (elB) elB.value = btn.dataset.w || "";
+    if (elL) elL.value = btn.dataset.l || "";
+    updateTraySizeFromInputs();
+    request();
   });
 
   // Switch links inside the suggestion area (fallback banner + pinned card).

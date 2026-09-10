@@ -339,3 +339,45 @@ describe("switching Produktlinie un-freezes a saved offer", () => {
     expect(s.w.refreshes).toEqual([]);
   });
 });
+
+/**
+ * Mirrors renderRows' three-way decision for a saved tray, after a dimension change.
+ *
+ * Reported: changing width or length silently dropped the picked tray and its
+ * price. Dropping is correct — an 80 cm tray does not fit a 90 cm requirement —
+ * but it has to be visible, and the dimensions it was picked under have to be
+ * offered back.
+ */
+function classifySaved(savedPid, activeList, otherList) {
+  if (!savedPid) return "none";
+  if (activeList.some((p) => p.productId === savedPid)) return "selected";
+  if (otherList.some((p) => p.productId === savedPid)) return "pinned";
+  return "dropped";
+}
+
+describe("a saved tray after the dimensions change", () => {
+  const active = [{ productId: "DW014" }, { productId: "DW020" }];
+  const other = [{ productId: "SLA100100" }];
+
+  test("still in the active line → simply stays selected", () => {
+    expect(classifySaved("DW014", active, other)).toBe("selected");
+  });
+
+  test("only in the other line → pinned", () => {
+    expect(classifySaved("SLA100100", active, other)).toBe("pinned");
+  });
+
+  test("in neither → dropped, and that must be shown", () => {
+    expect(classifySaved("DW007", active, other)).toBe("dropped");
+  });
+
+  test("nothing saved → nothing to say", () => {
+    expect(classifySaved(null, active, other)).toBe("none");
+  });
+
+  test("the dimensions it was picked under are stored with it, for the undo", () => {
+    const saved = { productId: "DW007", name: "Mineral Duschwanne SMC 80x100", searchW: "80", searchL: "100" };
+    expect(saved.searchW).toBe("80");
+    expect(saved.searchL).toBe("100");
+  });
+});
