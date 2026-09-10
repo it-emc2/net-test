@@ -298,3 +298,44 @@ describe("switching Produktlinie: what happens to the picked tray", () => {
     expect(sw.state.chosenTrayProductId).toBe("");
   });
 });
+
+/**
+ * Mirrors setTrayTier's freeze handling.
+ *
+ * Reported: on a restored offer the total did not move when switching lines. The
+ * offer was frozen (payload.frozen), and the live-pricing watcher deliberately
+ * ignores untrusted events — but the segmented control flips the checkbox
+ * programmatically, so its change event is untrusted and nothing un-froze. With
+ * the old visible checkbox the user's own click was trusted and this was free.
+ */
+function makeFreezeAwareSwitch() {
+  const w = { frozen: true, restoring: false, refreshes: [] };
+  return {
+    w,
+    setTier(_tier, { restoring = false } = {}) {
+      w.restoring = restoring;
+      // the guard inside setTrayTier
+      if (!w.restoring) {
+        // requestPricingRefresh clears the freeze and recomputes
+        w.frozen = false;
+        w.refreshes.push("produktlinie-switch");
+      }
+    },
+  };
+}
+
+describe("switching Produktlinie un-freezes a saved offer", () => {
+  test("a user switch un-freezes and recomputes", () => {
+    const s = makeFreezeAwareSwitch();
+    s.setTier("standard");
+    expect(s.w.frozen).toBe(false);
+    expect(s.w.refreshes).toEqual(["produktlinie-switch"]);
+  });
+
+  test("a restore does not — setting the line to match the offer is not an edit", () => {
+    const s = makeFreezeAwareSwitch();
+    s.setTier("standard", { restoring: true });
+    expect(s.w.frozen).toBe(true);
+    expect(s.w.refreshes).toEqual([]);
+  });
+});

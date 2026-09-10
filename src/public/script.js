@@ -10366,6 +10366,17 @@ function setTrayTier(tier, { keepSelection = false } = {}) {
   __trayTierKeepSelection = !!keepSelection;
   el.checked = want;
   el.dispatchEvent(new Event("change", { bubbles: true }));
+
+  // Switching the line swaps Ablaufgarnitur and Kleinmaterial, so it is a price
+  // edit and has to un-freeze a saved offer like any other edit. The live-pricing
+  // watcher can't do it for us: it ignores untrusted events on purpose (a restore
+  // fires plenty of synthetic ones), and the click lands on a button while the
+  // event comes from the hidden checkbox we flip. Before the segmented control the
+  // user clicked the checkbox itself, so the event was trusted and this was
+  // automatic. Skipped during a restore — that is not an edit.
+  if (!window.__restoring && !window.__RESTORING__) {
+    window.requestPricingRefresh?.({ delay: 180, reason: "produktlinie-switch" });
+  }
 }
 
 window.syncTierSwitchUi = syncTierSwitchUi;
