@@ -210,6 +210,7 @@ restore as Premium, and are byte-for-byte unaffected.
 - 100×210 in Standard → „Keine Standard-Duschwanne in dieser Größe. In der Linie Premium gibt es 2 passende Treffer ab 660,87 €" + working „Zu Premium wechseln".
 - 100×400 → neither line matches; Freier Posten opens itself, turns amber, relabels to „Sonderform / Maßanfertigung". A manual close sticks (`data-user-closed`).
 - Cross-line offer (Premium + saved `DW020`): pinned amber card above the Premium list, `chosenTrayProductId` stays `DW020`, tier stays Premium, „Auf Standard umstellen" offered but not taken automatically.
+- Pressing „Auf Standard umstellen" keeps the product selected (it belongs to the target line) — fixed 2026-09-10 after a report from the tablet; the tier-change listener cleared the selection on every switch. Only the pinned card carries `data-tray-keep="1"`; a click on the segmented control and the fallback banner still drop the selection as before.
 - Old-draft restore, both cases, still green through the new UI, and `budgetMode` now round-trips (`"1"` / absent).
 - Tablet 768×1024: no horizontal overflow, 52px touch targets. No console errors.
 - Unit suite: 219 pass, same 6 pre-existing suites fail as before.

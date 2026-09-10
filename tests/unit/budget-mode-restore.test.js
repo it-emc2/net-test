@@ -217,3 +217,84 @@ describe("Produktlinie Standard / Premium", () => {
     expect(pinned).toBe(false);
   });
 });
+
+/**
+ * Mirrors the tier-change listener in initSmartTraySearch: which switch paths keep
+ * the picked tray and which drop it.
+ *
+ * Reported: pressing "Auf Standard umstellen" on the pinned card cleared the
+ * selection. That button switches to the line the saved product BELONGS to, so
+ * clearing throws away exactly what the card exists to preserve.
+ */
+function makeTierSwitch() {
+  let tier = "premium";
+  let keepNext = false;
+  const state = { chosenTrayProductId: "", savedPid: null };
+
+  return {
+    get tier() {
+      return tier;
+    },
+    state,
+    setTier(next, { keepSelection = false, restoring = false } = {}) {
+      if (tier === next) return;
+      keepNext = keepSelection;
+      tier = next;
+      // the change listener
+      const keep = keepNext || restoring;
+      keepNext = false;
+      if (!keep) {
+        state.chosenTrayProductId = "";
+        state.savedPid = null;
+      }
+    },
+  };
+}
+
+describe("switching Produktlinie: what happens to the picked tray", () => {
+  test("the pinned card's button keeps its product — it belongs to the target line", () => {
+    const sw = makeTierSwitch();
+    sw.state.chosenTrayProductId = "DW020";
+    sw.state.savedPid = "DW020";
+
+    sw.setTier("standard", { keepSelection: true });
+
+    expect(sw.tier).toBe("standard");
+    expect(sw.state.chosenTrayProductId).toBe("DW020");
+  });
+
+  test("a deliberate click on the segmented control drops it", () => {
+    const sw = makeTierSwitch();
+    sw.state.chosenTrayProductId = "SLA100100";
+    sw.state.savedPid = "SLA100100";
+
+    sw.setTier("standard");
+
+    expect(sw.state.chosenTrayProductId).toBe("");
+    expect(sw.state.savedPid).toBeNull();
+  });
+
+  test("the fallback banner drops it too — there is nothing to carry over", () => {
+    const sw = makeTierSwitch();
+    sw.state.chosenTrayProductId = "";
+    sw.setTier("standard", { keepSelection: false });
+    expect(sw.state.chosenTrayProductId).toBe("");
+  });
+
+  test("a restore keeps it: the line is being set to match the offer", () => {
+    const sw = makeTierSwitch();
+    sw.state.chosenTrayProductId = "DW020";
+    sw.setTier("standard", { restoring: true });
+    expect(sw.state.chosenTrayProductId).toBe("DW020");
+  });
+
+  test("keepSelection does not leak into the next switch", () => {
+    const sw = makeTierSwitch();
+    sw.state.chosenTrayProductId = "DW020";
+    sw.setTier("standard", { keepSelection: true });
+    expect(sw.state.chosenTrayProductId).toBe("DW020");
+
+    sw.setTier("premium"); // plain switch right after
+    expect(sw.state.chosenTrayProductId).toBe("");
+  });
+});

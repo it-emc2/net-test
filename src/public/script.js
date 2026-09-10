@@ -10350,13 +10350,20 @@ function getTrayTier() {
   return document.getElementById("budgetToggle")?.checked ? "standard" : "premium";
 }
 
+// Switching lines normally drops the picked tray — the other line's products are
+// different ones. The pinned card is the exception: the saved product lives in the
+// line being switched TO, so it has to survive the switch, otherwise the button
+// throws away exactly the selection it exists to preserve.
+let __trayTierKeepSelection = false;
+
 // Single entry point for switching lines, so the buttons, the fallback link and the
 // pinned card all go through the same path as the old checkbox did.
-function setTrayTier(tier) {
+function setTrayTier(tier, { keepSelection = false } = {}) {
   const el = document.getElementById("budgetToggle");
   if (!el) return;
   const want = tier === "standard";
   if (el.checked === want) return;
+  __trayTierKeepSelection = !!keepSelection;
   el.checked = want;
   el.dispatchEvent(new Event("change", { bubbles: true }));
 }
@@ -10613,7 +10620,7 @@ function initSmartTraySearch() {
         <p class="suggestion-pinned-note">
           Linie und Preis bleiben unverändert, wie gespeichert. Ein Wechsel tauscht auch
           Ablaufgarnitur und Kleinmaterial und ändert damit den Angebotspreis.
-          <button type="button" class="secondary" data-tray-switch="${otherRow.key}">
+          <button type="button" class="secondary" data-tray-switch="${otherRow.key}" data-tray-keep="1">
             Auf ${otherRow.name} umstellen
           </button>
         </p>
@@ -10821,14 +10828,20 @@ function initSmartTraySearch() {
   out.addEventListener("click", (e) => {
     const btn = e.target?.closest?.("[data-tray-switch]");
     if (!btn) return;
-    setTrayTier(btn.dataset.traySwitch === "badolux" ? "standard" : "premium");
+    setTrayTier(btn.dataset.traySwitch === "badolux" ? "standard" : "premium", {
+      keepSelection: btn.dataset.trayKeep === "1",
+    });
   });
 
   const budgetEl = document.getElementById("budgetToggle");
   budgetEl?.addEventListener("change", () => {
-    // Switching the line by hand drops the picked tray. During a restore the flag
-    // is being set to match the offer being loaded, so its selection must survive.
-    if (!window.__RESTORING__) {
+    // Switching the line by hand drops the picked tray — the other line has other
+    // products. Two exceptions keep it: a restore is setting the line to match the
+    // offer being loaded, and the pinned card switches to the line its own saved
+    // product belongs to.
+    const keep = __trayTierKeepSelection || window.__RESTORING__;
+    __trayTierKeepSelection = false;
+    if (!keep) {
       clearChosen();
       try {
         localStorage.removeItem("dw_tray_selection");
