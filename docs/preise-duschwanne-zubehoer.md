@@ -32,6 +32,10 @@ Nur die Bilder werden zusätzlich getauscht (`src/public/assets/budget/*.png`, Z
 
 ### ⚠️ Zwei Auffälligkeiten, bitte fachlich prüfen
 
+> **Stand 2026-09-10: bewusst unverändert gelassen.** Klärung mit dem Vorgesetzten steht aus;
+> die Preise bleiben bis dahin genau so, wie sie hier dokumentiert sind. Wer sie später anpasst:
+> siehe „So ändert man einen Preis" weiter unten — Code-Änderung ist dafür keine nötig.
+
 Diese Zahlen wurden bis 2026-09-09 **nie berechnet** — `budgetMode` kam gar nicht im Payload an
 (siehe [plan-standard-premium-duschwanne.md](plan-standard-premium-duschwanne.md) §6), es wurden
 immer die Premium-Artikel abgerechnet. Seit der Korrektur wirken sie sich real auf Standard-Angebote aus:
