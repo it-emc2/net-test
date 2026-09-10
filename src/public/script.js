@@ -5719,11 +5719,13 @@ function syncColorWithAreaDW() {
     // area empty/0 -> NO color selected
     uncheckAll();
   } else if (!anyChecked) {
-    // area > 0 -> ensure exactly ONE is selected (default: Lava-Beige if present)
+    // area > 0 -> ensure exactly ONE is selected (default: Lava-Beige if present).
+    // Only ever pick from the active Produktlinie: the inactive line's tiles are
+    // hidden and disabled, and silently ticking one would put an invisible
+    // product on the offer.
+    const selectable = colors.filter((i) => !i.disabled);
     const def =
-      form.querySelector(
-        'input[name="flooringProduct[]"][data-color="Lava-Beige"]',
-      ) || colors[0];
+      selectable.find((i) => i.dataset.color === "Lava-Beige") || selectable[0];
     if (def) {
       def.checked = true;
       // make sure we keep exclusivity visually
@@ -6123,6 +6125,9 @@ function registerBudgetReapply(key, fn) {
 // Called by renderBudgetFloors / renderBudgetWvColors once their tiles are in the DOM.
 function notifyBudgetTilesRendered() {
   if (!document.getElementById("budgetToggle")?.checked) return;
+  // The Badolux tiles only exist now, so this is the first moment the active
+  // group can be enabled and given its default.
+  syncProduktlinieGroups({ announce: false });
   for (const fn of Object.values(__budgetReapply)) {
     try {
       fn();
@@ -10381,6 +10386,105 @@ function setTrayTier(tier, { keepSelection = false } = {}) {
 
 window.syncTierSwitchUi = syncTierSwitchUi;
 
+// Fußboden and Wandverkleidung each have a premium group and a Badolux group in
+// the markup. Only the active line's group is shown; the inactive one is hidden
+// AND disabled, so its inputs stay out of FormData and out of HTML validation
+// (the premium wvColor radios are `required` — a hidden required radio makes the
+// form unsubmittable and unfocusable).
+const PRODUKTLINIE_GROUPS = [
+  {
+    premium: "flooringPremiumGroup",
+    standard: "flooringBudgetGroup",
+    what: "Fußbodenfarbe",
+  },
+  {
+    premium: "wvColorSection",
+    standard: "wvBudgetColorSection",
+    what: "Wandverkleidungsfarbe",
+  },
+];
+
+function setGroupActive(el, active) {
+  if (!el) return;
+  el.hidden = !active;
+  el.setAttribute("aria-hidden", String(!active));
+  el.querySelectorAll("input, select, textarea").forEach((i) => {
+    i.disabled = !active;
+  });
+}
+
+// A selection in the line being left cannot simply stay: it would be an invisible
+// product on the offer. Drop it and say so, the same way the Duschwanne does.
+function clearHiddenLineSelection(el, what, otherName) {
+  if (!el) return null;
+  const checked = [...el.querySelectorAll("input:checked")];
+  if (!checked.length) return null;
+  const names = checked
+    .map(
+      (i) =>
+        i.closest("label")?.querySelector(".caption")?.textContent?.trim() ||
+        i.value.split("|").pop(),
+    )
+    .filter(Boolean);
+  checked.forEach((i) => {
+    i.checked = false;
+    if (typeof highlightTileForInput === "function") highlightTileForInput(i, false);
+  });
+  return `${what}: „${names.join(", ")}" gehört zur Linie ${otherName} und wurde entfernt.`;
+}
+
+// A `required` radio group is only satisfied by a CHECKED radio, and disabling the
+// premium radios does not lift that — the Badolux radios share name="wvColor". The
+// premium line has always had a default („Marmor weiß" is checked in the markup),
+// so the active line needs one too; without it the Wandverkleidung form is invalid
+// and validation points at a control the user cannot see.
+function ensureRadioDefault(groupEl) {
+  if (!groupEl || groupEl.hidden) return;
+  const radios = [...groupEl.querySelectorAll('input[type="radio"]:not(:disabled)')];
+  if (!radios.length) return;
+  const names = new Set(radios.map((r) => r.name).filter(Boolean));
+  for (const name of names) {
+    const anyRequired = document.querySelector(
+      `input[type="radio"][name="${name}"][required]`,
+    );
+    if (!anyRequired) continue;
+    const anyChecked = document.querySelector(
+      `input[type="radio"][name="${name}"]:checked`,
+    );
+    if (anyChecked) continue;
+    // Prefer the line's own default from the markup (the `checked` attribute)
+    // over "whatever comes first", so returning to Premium restores „Marmor
+    // weiß" rather than silently picking another decor.
+    const inGroup = radios.filter((r) => r.name === name);
+    const first = inGroup.find((r) => r.defaultChecked) || inGroup[0];
+    if (first) {
+      first.checked = true;
+      if (typeof highlightTileForInput === "function") highlightTileForInput(first, true);
+    }
+  }
+}
+
+function syncProduktlinieGroups({ announce = true } = {}) {
+  const tier = getTrayTier();
+  const leaving = tier === "standard" ? "premium" : "standard";
+  const notes = [];
+
+  for (const g of PRODUKTLINIE_GROUPS) {
+    const active = document.getElementById(g[tier]);
+    const inactive = document.getElementById(g[leaving]);
+    // Clear before hiding, so highlightTileForInput still sees a live element.
+    const note = clearHiddenLineSelection(inactive, g.what, TIER_INFO[leaving].name);
+    if (note) notes.push(note);
+    setGroupActive(inactive, false);
+    setGroupActive(active, true);
+    ensureRadioDefault(active);
+  }
+
+  if (announce && notes.length && typeof showToast === "function") {
+    showToast(notes.join(" "), "info");
+  }
+}
+
 function syncTierSwitchUi() {
   const tier = getTrayTier();
   const info = TIER_INFO[tier];
@@ -10389,12 +10493,18 @@ function syncTierSwitchUi() {
     btn.setAttribute("aria-pressed", String(btn.dataset.tier === tier));
   });
 
-  const status = document.getElementById("tierStatus");
-  if (status) {
+  // One status line per page that carries the switch.
+  document.querySelectorAll(".tier-status").forEach((status) => {
     status.dataset.tier = tier;
     const text = status.querySelector(".tier-status__text");
     if (text) text.innerHTML = `<b>${info.name} aktiv</b> — ${info.note}`;
-  }
+  });
+
+  // A restore is setting the line to match the offer, so nothing is "left" and
+  // there is nothing to announce.
+  syncProduktlinieGroups({
+    announce: !window.__restoring && !window.__RESTORING__,
+  });
 }
 
 // Freier Posten stays collapsed until it is actually needed; when no line has a

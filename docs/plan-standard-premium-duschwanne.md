@@ -1,6 +1,6 @@
 # Plan: Low-Budget → "Standard / Premium" (Phase 1: Duschwanne)
 
-Status: **steps 1–7 implemented and verified, 2026-09-09.** Remaining: Fußboden + Wandverkleidung (phase 2).
+Status: **phase 1 (Duschwanne) and phase 2 (Fußboden + Wandverkleidung) implemented and verified, 2026-09-10.**
 Mockup: `docs/mockups/duschwanne-standard-premium.html` (open in browser, tablet width).
 Preise des Duschwannen-Zubehörs ändern: [preise-duschwanne-zubehoer.md](preise-duschwanne-zubehoer.md).
 
@@ -124,7 +124,7 @@ but it would then differ from the Duschabtrennung page.
    „Zu <andere Linie> wechseln" button the user must press. Detection: the product's `source` /
    `productId` prefix vs the active tier.
 7. ~~**Stock badge**~~ ✅ — see §7.
-8. Fußboden + Wandverkleidung stay untouched in phase 1; they follow once Duschwanne is signed off.
+8. ~~Fußboden + Wandverkleidung~~ ✅ — see §8.
 
 ## 4. Test checklist (regression is the risk, not the UI)
 
@@ -262,3 +262,44 @@ ein „1KU-PU-Kleber" für 7,59 € an der Stelle von „Kleinmaterial groß" (1
 - The Fußboden and Wandverkleidung tiles get no badges yet; that belongs with phase 2.
 - `#page-DuschabtrennungNeu` keeps its two-state badge: its data comes from the `syncVigourNames.js` snapshot,
   which does not carry `stockSymbol`. Adding the field there is a small separate follow-up.
+
+
+## 8. Phase 2 — Fußboden + Wandverkleidung (done 2026-09-10)
+
+Same promise as the Duschwanne: only the active line is shown. One global flag still, as decided.
+
+| Area | Change |
+|---|---|
+| `index.html` | The segmented control + status line now also sit on `page-Fussboden` and `page-Wandverkleidung`. **Only the buttons** — the single `input[name=budgetMode]` stays on the Duschwanne page; a second one would put duplicate values in the payload. Labels renamed: „Budget-Fußboden (Badolux)" → „Standard-Fußboden (Badolux)", „Budget-Wandpaneele" → „Standard-Wandpaneele", premium groups labelled as such. `#flooringPremiumGroup` added as a handle |
+| `script.js` | `PRODUKTLINIE_GROUPS`, `setGroupActive`, `clearHiddenLineSelection`, `ensureRadioDefault`, `syncProduktlinieGroups`, called from `syncTierSwitchUi` and again from `notifyBudgetTilesRendered` once the async Badolux tiles exist. `syncTierSwitchUi` updates every `.tier-status`, not just `#tierStatus` |
+
+### Three things that had to be got right
+
+1. **`#wvBudgetColorSection` was nested inside `#wvColorSection`.** Hiding the premium group therefore hid the
+   Badolux panels with it, leaving Standard mode with no wall panels at all. Moved out to be a sibling.
+2. **Hidden is not enough — the inactive group is disabled too.** Otherwise its inputs stay in `FormData` and
+   in HTML validation, and the premium `wvColor` radios are `required`: a hidden required radio makes the form
+   unsubmittable and, worse, unfocusable.
+3. **A `required` radio group is only satisfied by a checked radio**, and both lines share `name="wvColor"`.
+   Disabling the premium radios does not lift the requirement, so the active line gets its own default via
+   `ensureRadioDefault` — preferring the markup's own `checked` attribute, so returning to Premium restores
+   „Marmor weiß" instead of silently picking another decor. Likewise `syncColorWithAreaDW` now only auto-picks
+   from enabled tiles, or it would tick an invisible premium floor while Standard is active.
+
+### Verified in the running app
+
+- Premium → premium groups visible, Badolux hidden + disabled. Standard → the reverse, and the Badolux panels
+  actually render (that is what the nesting fix bought).
+- Switching away from a line that holds a selection clears it and says so:
+  „Fußbodenfarbe: „Hydroträgerplatte steingrau" gehört zur Linie Standard und wurde entfernt." Price follows
+  (4736,20 € → 3635,64 €).
+- `form-wandverkleidung` stays **valid** in Premium, Standard, and back again — with „Marmor weiß" restored.
+- Restore, both cases, still green and **silent** (no toast): legacy premium offer → Premium, `V5FB02|Loft-Grau`,
+  flag absent; Standard offer → Standard, `BP003`, `WP004`, flag `"1"`.
+- Unit suite: 247 pass, same 6 pre-existing suites fail.
+
+### Still open
+
+- Per-section switches (Duschwanne/Fußboden/Wandverkleidung independently) — deliberately not built; one flag,
+  as decided 2026-09-09.
+- Stock badges exist only on the Duschwanne suggestions, not on floor/wall tiles.
