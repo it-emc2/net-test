@@ -26198,7 +26198,11 @@ function renderTodayCalendarEvents(){
       if(!event) return;
       activeCalendarEventId = id;
       renderTodayCalendarEvents();
-      applyCalendarEventToForm(event);
+      if (typeof window.openPlanningOfferPicker === "function") {
+        window.openPlanningOfferPicker(null, (offerKey) => applyCalendarEventToForm(event, offerKey));
+      } else {
+        applyCalendarEventToForm(event);
+      }
     };
 
     card.addEventListener("click", onOpen);
@@ -26265,7 +26269,7 @@ function hydrateCalendarEventFromTodayCustomer(event, parsed){
   };
 }
 
-async function applyCalendarEventToForm(event){
+async function applyCalendarEventToForm(event, offerKeyOverride){
   if(window.__todayCustomersPromise){
     try {
       await window.__todayCustomersPromise;
@@ -26280,8 +26284,9 @@ async function applyCalendarEventToForm(event){
   const locationFromTitle = getCalendarTitleLocation(event?.NAME || event?.TITLE || "");
   const hydrated = hydrateCalendarEventFromTodayCustomer(event, parsed);
 
-  if(detected.offerKey && typeof startOfferFlow === "function"){
-    startOfferFlow(detected.offerKey);
+  const offerKey = offerKeyOverride || detected.offerKey;
+  if(offerKey && typeof startOfferFlow === "function"){
+    startOfferFlow(offerKey);
   }
 
   setCalendarValue("#firstName", hydrated?.firstName || name.firstName || "");
@@ -26400,14 +26405,17 @@ async function checkDealAlreadySaved(dealId) {
 const PLANNING_OFFER_TYPES = [
   { offerKey: "bu",  icon: "fa-shower",            title: "Badumbau" },
   { offerKey: "bwt", icon: "fa-bath",               title: "Badewannentür" },
+  { offerKey: "bl",  icon: "fa-elevator",           title: "Badelift" },
   { offerKey: "hl",  icon: "fa-grip-lines-vertical", title: "Handlauf" },
   { offerKey: "ah",  icon: "fa-hands-helping",       title: "Alltagshilfe" },
   { offerKey: "wd",  icon: "fa-snowflake",           title: "Winterdienst" },
   { offerKey: "hms", icon: "fa-toolbox",             title: "Hausmeister-Service" },
 ];
 
-function openPlanningOfferPicker(entry) {
+let _pendingPlanningPick = null;
+function openPlanningOfferPicker(entry, onPick) {
   _pendingPlanningEntry = entry;
+  _pendingPlanningPick = onPick || null;
   const modal = document.getElementById("planningOfferPickerModal");
   const container = document.getElementById("planningOfferPickerCards");
   if (!modal || !container) return;
@@ -26423,10 +26431,10 @@ function openPlanningOfferPicker(entry) {
     btn.addEventListener("click", () => {
       const offerKey = btn.dataset.offerKey;
       const entry = _pendingPlanningEntry;
+      const pick = _pendingPlanningPick;
       closePlanningOfferPicker();
-      if (entry) {
-        applyPlanningAppointmentToForm(entry, offerKey);
-      }
+      if (pick) pick(offerKey);
+      else if (entry) applyPlanningAppointmentToForm(entry, offerKey);
     });
   });
 
@@ -26434,12 +26442,16 @@ function openPlanningOfferPicker(entry) {
   modal.setAttribute("aria-hidden", "false");
 }
 
+// Exposed for the Bitrix-calendar panel (separate IIFE), which reuses this picker.
+window.openPlanningOfferPicker = openPlanningOfferPicker;
+
 function closePlanningOfferPicker() {
   const modal = document.getElementById("planningOfferPickerModal");
   if (!modal) return;
   modal.hidden = true;
   modal.setAttribute("aria-hidden", "true");
   _pendingPlanningEntry = null;
+  _pendingPlanningPick = null;
 }
 let todayPlanningEventSource = null;
 
@@ -26993,7 +27005,7 @@ function renderWeekCalendar(payload) {
         dayLocked: !!day?.locked,
       };
       activePlanningAppointmentId = entryId;
-      applyPlanningAppointmentToForm(enriched);
+      openPlanningOfferPicker(enriched);
     });
   });
 }
