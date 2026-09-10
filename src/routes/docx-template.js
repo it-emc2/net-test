@@ -1701,12 +1701,13 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     { label: "zzgl. 19% MwSt.", value: fmtCurrency(vatOnNet) },
     { label: "Gesamtsumme", value: fmtCurrency(total) },
     // Kassenkunde: Zuschuss und Eigenanteil als eigene Zeilen, immer sichtbar
-    // (bei BWT nicht gewünscht). Zuschuss zeigt den vollen Anspruch (4180 € /
-    // 8360 €), reduziert um bereits genutzte Wohnumfeld-Beträge
-    // (subsidyAmount_max aus pricing.js) — bewusst NICHT auf die Gesamtsumme
-    // gedeckelt, damit bei "Nein" immer 4180/8360 steht statt der (kleineren)
-    // Gesamtsumme.
-    ...(isKK && offerKey !== "bwt" && offerKey !== "hl"
+    // (bei BWT, HL und BL nicht gewünscht — dort endet die Tabelle mit der
+    // Gesamtsumme, der Eigenanteil steht darunter im {#hasSubsidyLine}-Satz).
+    // Zuschuss zeigt den vollen Anspruch (4180 € / 8360 €), reduziert um
+    // bereits genutzte Wohnumfeld-Beträge (subsidyAmount_max aus pricing.js)
+    // — bewusst NICHT auf die Gesamtsumme gedeckelt, damit bei "Nein" immer
+    // 4180/8360 steht statt der (kleineren) Gesamtsumme.
+    ...(isKK && offerKey !== "bwt" && offerKey !== "hl" && offerKey !== "bl"
       ? [
           {
             label:
