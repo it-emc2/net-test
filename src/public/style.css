@@ -1022,13 +1022,22 @@ a.btn {
 .zone-pill {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: 0;
+  padding: 10px 8px;
   border: 1.5px solid var(--input-border);
   border-radius: 10px;
   background: var(--panel);
   cursor: pointer;
   user-select: none;
+  text-align: center;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.zone-pill:hover {
+  box-shadow: var(--shadow);
 }
 
 .zone-pill input {
@@ -1036,16 +1045,23 @@ a.btn {
 }
 
 .zone-pill .dot {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   border: 2px solid var(--input-border);
   display: inline-block;
+  flex-shrink: 0;
+  transition: border-color 0.12s, background 0.12s;
 }
 
 .zone-pill input:checked + .dot {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--ring);
+  background: var(--accent);
+}
+
+.zone-pill:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-weak);
 }
 
 .zone-pill input:checked + .dot + span {
@@ -1136,7 +1152,9 @@ a.btn {
 }
 
 .payer-card {
+  position: relative;
   display: block;
+  margin: 0;
   border-radius: 12px;
   border: 1.5px solid var(--border);
   background: var(--panel);
@@ -1150,15 +1168,20 @@ a.btn {
 }
 
 .payer-card input {
-  display: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
 }
 
 .payer-card-inner {
   display: grid;
-  grid-template-columns: 80px 1fr 24px;
+  grid-template-columns: 34px 1fr;
   align-items: center;
   gap: 12px;
-  padding: 16px;
+  padding: 13px 14px;
+  min-height: 62px;
 }
 
 .payer-card .icon {
@@ -1167,34 +1190,46 @@ a.btn {
   justify-content: center;
 }
 
-.payer-card .payer-label {
-  font-weight: 600;
+.payer-card .icon svg {
+  width: 27px;
+  height: 27px;
 }
 
-.payer-card .payer-radio {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 2px solid var(--input-border);
+.payer-card .payer-text {
   display: grid;
-  place-items: center;
+  gap: 1px;
+  min-width: 0;
 }
 
-.payer-card .payer-radio span {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: transparent;
+.payer-card .payer-label {
+  font-weight: 620;
+  font-size: 0.93rem;
 }
 
-.payer-card input:checked + .payer-card-inner .payer-radio {
+.payer-card .payer-meta {
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.payer-card:has(input:checked) {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--ring);
+  background: var(--accent-weak);
 }
 
-.payer-card input:checked + .payer-card-inner .icon,
-.payer-card input:checked + .payer-card-inner .payer-label {
+.payer-card input:checked ~ .payer-card-inner .icon,
+.payer-card input:checked ~ .payer-card-inner .payer-label {
   color: var(--accent-strong);
+}
+
+.payer-card input:checked ~ .payer-card-inner .payer-meta {
+  color: var(--accent-strong);
+  opacity: 0.8;
+}
+
+.payer-card input:focus-visible ~ .payer-card-inner {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 10px;
 }
 
 /* ---------- Misc grids ---------- */
@@ -9717,6 +9752,430 @@ details.az-group[open] > summary.az-group-title::before {
 .itodo-remove:focus-visible {
   color: var(--danger);
   background: rgba(239, 68, 68, 0.1);
+}
+
+/* =========================================================================
+   Pflichtdetails / Pflegegradbudget redesign (pgb-*)
+   Scoped to #offerRequiredDetails / #pflegegradSection only — new class
+   names throughout so the shared .radio-pill/.check-pill/.aufschlag-panel
+   components used elsewhere in the app are untouched.
+   ========================================================================= */
+
+/* segmented control: replaces the stretched full-width vertical radio-pill
+   for the Ja/Nein and Ja/Nein/Unbekannt choices in these two sections */
+.pgb-seg {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  border: 1.5px solid var(--input-border);
+  border-radius: 10px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.pgb-seg-opt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 14px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 520;
+  color: var(--muted);
+  transition: background 0.12s, color 0.12s;
+}
+
+.pgb-seg-opt:last-child {
+  border-right: 0;
+}
+
+.pgb-seg-opt input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.pgb-seg-opt:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.pgb-seg-opt .tick {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.pgb-seg-opt:has(input:checked) {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 640;
+}
+
+.pgb-seg-opt:has(input:checked) .tick {
+  opacity: 1;
+}
+
+.pgb-seg-opt:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* option rows: replaces .check-pill for the 4 budget checkboxes only */
+.pgb-opt-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pgb-opt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 14px;
+  border: 1.5px solid var(--input-border);
+  border-radius: 10px;
+  background: var(--panel);
+  cursor: pointer;
+  transition: border-color 0.14s, background 0.14s;
+}
+
+.pgb-opt:hover {
+  border-color: var(--accent);
+  background: var(--bg);
+}
+
+/* Direct child only — the checkbox that overlays the whole pill. A
+   descendant selector here would also match the nested copayAmount number
+   input inside .pgb-money and make it position:absolute/opacity:0, i.e.
+   invisible (that was a real bug: the copay € field rendered but could
+   never be seen). */
+.pgb-opt > input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.pgb-opt .box {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid var(--input-border);
+  position: relative;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.pgb-opt .box svg {
+  width: 12px;
+  height: 12px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.pgb-opt input:checked ~ .box {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.pgb-opt input:checked ~ .box svg {
+  opacity: 1;
+}
+
+.pgb-opt:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-weak);
+}
+
+.pgb-opt:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pgb-opt .otext {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pgb-opt .oamount {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pgb-opt:has(input:checked) .oamount {
+  color: var(--accent-strong);
+}
+
+/* inline € amount field (copay, Wohnumfeld entries) */
+.pgb-money {
+  position: relative;
+  display: block;
+}
+
+.pgb-opt .pgb-money {
+  flex: 0 0 110px;
+  margin-left: auto;
+}
+
+.pgb-entries .pgb-money {
+  width: 100%;
+}
+
+.pgb-money > span {
+  position: absolute;
+  left: 10px;
+  top: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.pgb-money input {
+  padding-left: 22px !important;
+  width: 100%;
+}
+
+/* live budget readout */
+.pgb-budget-out {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: var(--accent-weak);
+  color: var(--success);
+  font-size: 0.83rem;
+  font-weight: 550;
+}
+
+.pgb-budget-out b {
+  font-size: 1.02rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* reveal panels: animated open/close, still driven by el.hidden underneath —
+   see pgbReveal() in script.js. Opening animates via .pgb-open; closing is
+   instant (el.hidden is set synchronously, matching the pre-redesign
+   behavior exactly, so nothing that reads .hidden needs to change). */
+/* Opacity-only fade — deliberately NOT a grid-template-rows height animation.
+   That technique (0fr -> 1fr) depends on the grid track-sizing algorithm
+   picking up the content's intrinsic height for an auto-height container,
+   which did not resolve reliably here (computed height stayed 0 even with
+   the open class/!important applied). Opacity has no such dependency: the
+   element's real layout height is correct the instant [hidden] is removed,
+   so nothing about its size or interactivity depends on the animation. */
+.pgb-reveal {
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.pgb-reveal.pgb-open {
+  opacity: 1;
+  margin-top: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pgb-reveal {
+    transition: none;
+  }
+}
+
+.pgb-subcard {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.pgb-subcard-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-strong);
+  margin: 0 0 12px;
+}
+
+/* field rows inside pgb-subcard: NOT the global .field (margin:16px 0) —
+   that would double up with this grid's own gap */
+.pgb-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.pgb-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pgb-field.full {
+  grid-column: 1 / -1;
+}
+
+.pgb-field > label {
+  margin: 0;
+}
+
+/* The global focus style is a 3px accent ring with (due to a pre-existing
+   specificity tie elsewhere in this file) no actual border-color change —
+   just a sudden vivid halo. Against this grid's tightly-spaced, equal-width
+   fields that reads as one field "growing" relative to its plain neighbors,
+   even though no dimension actually changes. Scoped to this redesign's own
+   grouped fields only — not the global input style used everywhere else. */
+.pgb-subcard input:focus,
+.pgb-subcard select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+@media (max-width: 520px) {
+  .pgb-field-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Wohnumfeld entries */
+.pgb-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pgb-entry-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 40px;
+  gap: 8px;
+  align-items: end;
+}
+
+.pgb-entry-row .pgb-ef {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.pgb-entry-row .pgb-ef label {
+  font-size: 0.72rem;
+  margin: 0;
+  color: var(--muted);
+}
+
+.pgb-entry-row:not(:first-child) .pgb-ef {
+  position: relative;
+}
+
+.pgb-entry-row:not(:first-child) .pgb-ef label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.pgb-iconbtn {
+  height: 44px;
+  width: 40px;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  background: var(--panel);
+  border: 1.5px solid var(--input-border);
+  border-radius: 10px;
+  color: var(--muted);
+  font-weight: 400;
+  line-height: normal;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.pgb-iconbtn:hover {
+  color: var(--req-mark);
+  border-color: var(--req-mark);
+}
+
+.pgb-btn-ghost {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1.5px dashed var(--input-border);
+  background: transparent;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 0.83rem;
+  font-weight: 600;
+  padding: 9px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.pgb-btn-ghost:hover {
+  background: var(--accent-weak);
+}
+
+.pgb-sumline {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.82rem;
+  color: var(--muted);
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
+
+.pgb-sumline b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+  font-weight: 640;
+}
+
+@media (max-width: 480px) {
+  .pgb-entry-row {
+    grid-template-columns: 1fr 40px;
+  }
+  .pgb-entry-row .pgb-ef:first-child {
+    grid-column: 1 / -1;
+  }
+  .pgb-opt {
+    flex-wrap: wrap;
+    min-height: 0;
+    padding: 11px 14px;
+  }
+  .pgb-opt .pgb-money {
+    margin-left: 28px;
+    flex-basis: 120px;
+  }
 }
 
 .itodo-empty {
