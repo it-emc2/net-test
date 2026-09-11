@@ -203,26 +203,23 @@ export function initBadoluxManager(options = {}) {
     window.notifyBudgetTilesRendered?.();
   }
 
+  // Renders the Badolux floor tiles on request. Visibility belongs to the Fußboden
+  // line in script.js, not to this manager's checkbox.
   async function updateBudgetFloorVisibility() {
-    const group = $(cfg.els.flooringBudgetGroup);
-    if (!group) return;
-    const on = isOn();
-    group.hidden = !on;
-    group.setAttribute("aria-hidden", (!on).toString());
-    if (on) await renderBudgetFloors();
+    if (!$(cfg.els.flooringBudgetGroup)) return;
+    await renderBudgetFloors();
   }
 
+  // Only the Duschwanne's own concerns live here now. Fußboden and Wandverkleidung
+  // have had their own Produktlinie since 2026-09-11, so their visibility is owned
+  // by syncProduktlinieGroups() in script.js — driving it from this one checkbox
+  // would switch all three sections at once again.
   function applyAll(on) {
-    // Keep the Standard/Premium switch in step, including the session-restore path
-    // below, which sets .checked directly and fires no change event.
+    // Keep the Standard/Premium switches in step, including the session-restore
+    // path below, which sets .checked directly and fires no change event.
     cfg.hooks.syncTierUi?.(!!on);
     applyBudgetModeUI(on);
     swapAccessoryImages(on);
-    updateBudgetFloorVisibility();
-
-    // WV budget hooks (optional)
-    cfg.hooks.setWvBudgetVisibility?.(!!on);
-    if (on) cfg.hooks.renderBudgetWvColors?.();
 
     // smart tray refresh (optional)
     cfg.hooks.refreshTray?.();

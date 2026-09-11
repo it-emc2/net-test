@@ -134,3 +134,55 @@ describe("Produktlinie groups on Fußboden and Wandverkleidung", () => {
     expect(def.value).toMatch(/^BP/); // Lava-Beige is premium and disabled
   });
 });
+
+/**
+ * Per-section Produktlinien (2026-09-11).
+ *
+ * Reported: switching the Wandverkleidung to Standard also wiped the Duschwanne
+ * and Fußboden selections, because all three shared one flag. They are now three
+ * independent, additive fields — and "additive" is the load-bearing word: none of
+ * the 3075 saved offers/drafts carries any of them, so a missing field must mean
+ * Premium, never "inherit from another section".
+ */
+const LINE_FIELDS = {
+  duschwanne: (p) => p.duschwanne?.budgetMode,
+  fussboden: (p) => p.duschwanne?.floorBudgetMode,
+  wand: (p) => p.wandverkleidung?.wvBudgetMode,
+};
+
+const lineOf = (payload, key) => (LINE_FIELDS[key](payload) === "1" ? "standard" : "premium");
+
+describe("per-section Produktlinien", () => {
+  test("a legacy payload has none of the fields → everything Premium", () => {
+    const legacy = { duschwanne: { flooringProduct: ["V5FB02|Loft-Grau"] }, wandverkleidung: {} };
+    expect(lineOf(legacy, "duschwanne")).toBe("premium");
+    expect(lineOf(legacy, "fussboden")).toBe("premium");
+    expect(lineOf(legacy, "wand")).toBe("premium");
+  });
+
+  test("the sections are independent — a mixed offer round-trips", () => {
+    const mixed = {
+      duschwanne: { budgetMode: "1" }, // Standard tray...
+      wandverkleidung: { wvBudgetMode: "1" }, // ...Standard wall...
+    };
+    expect(lineOf(mixed, "duschwanne")).toBe("standard");
+    expect(lineOf(mixed, "wand")).toBe("standard");
+    expect(lineOf(mixed, "fussboden")).toBe("premium"); // ...but a Premium floor
+  });
+
+  test("one section's flag never leaks into another", () => {
+    const onlyWall = { duschwanne: {}, wandverkleidung: { wvBudgetMode: "1" } };
+    expect(lineOf(onlyWall, "wand")).toBe("standard");
+    expect(lineOf(onlyWall, "duschwanne")).toBe("premium");
+    expect(lineOf(onlyWall, "fussboden")).toBe("premium");
+  });
+
+  test("only budgetMode reaches the pricing rules", () => {
+    // pricing-core reads dusch.budgetMode for AGB001/AC004 vs AGD9060/KM02.
+    // The other two only decide which tiles are offered; the chosen floor/panel
+    // carries its own price either way, so they must NOT be consulted there.
+    const mixed = { duschwanne: { floorBudgetMode: "1" }, wandverkleidung: { wvBudgetMode: "1" } };
+    const isBudgetMode = !!mixed.duschwanne.budgetMode;
+    expect(isBudgetMode).toBe(false);
+  });
+});

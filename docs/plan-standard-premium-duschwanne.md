@@ -1,6 +1,6 @@
 # Plan: Low-Budget → "Standard / Premium" (Phase 1: Duschwanne)
 
-Status: **phase 1 (Duschwanne) and phase 2 (Fußboden + Wandverkleidung) implemented and verified, 2026-09-10.**
+Status: **phases 1–3 implemented and verified; per-section Produktlinien since 2026-09-11.**
 Mockup: `docs/mockups/duschwanne-standard-premium.html` (open in browser, tablet width).
 Preise des Duschwannen-Zubehörs ändern: [preise-duschwanne-zubehoer.md](preise-duschwanne-zubehoer.md).
 
@@ -37,8 +37,7 @@ This must be fixed as part of this work, otherwise the redesign will be blamed f
 - Duschwanne suggestions: show **only** the selected line (Standard → Badolux, Premium → Hassmann).
 - The other line is offered only as a fallback when the selected line has **no match** for the entered size ("Keine Standard-Duschwanne in dieser Größe – Premium anzeigen?").
 - Freier Posten: collapsed by default, auto-expands when neither line matches.
-- **Scope: one global switch** for Duschwanne + Fußboden + Wandverkleidung, exactly as today (one `budgetMode` flag).
-  Per-section switches are explicitly out of scope for now — decided 2026-09-09. Do not introduce a second flag.
+- ~~**Scope: one global switch**~~ — superseded 2026-09-11: the sections have their own lines now, see §9.
 
 ### Mapping (do not change)
 
@@ -303,3 +302,52 @@ Same promise as the Duschwanne: only the active line is shown. One global flag s
 - Per-section switches (Duschwanne/Fußboden/Wandverkleidung independently) — deliberately not built; one flag,
   as decided 2026-09-09.
 - Stock badges exist only on the Duschwanne suggestions, not on floor/wall tiles.
+
+
+## 9. Per-section Produktlinien (2026-09-11)
+
+The global flag made switching the Wandverkleidung throw away the Duschwanne and Fußboden selections. That is
+not how these are sold — a Badolux floor next to a Vigour shower tray is a normal combination.
+
+### Data model
+
+| Section | Field | Lives in | Reaches pricing? |
+|---|---|---|---|
+| Duschwanne | `budgetMode` | `payload.duschwanne` (unchanged) | **yes** — swaps `AGB001`/`AC004` ↔ `AGD9060`/`KM02` |
+| Fußboden | `floorBudgetMode` | `payload.duschwanne` (the Fußboden form merges in there) | no |
+| Wandverkleidung | `wvBudgetMode` | `payload.wandverkleidung` | no |
+
+All three are **additive and independent**: a missing field means Premium, and one section's field is never
+consulted for another. No migration and no version marker are needed, because **none of the 3075 saved
+offers/drafts carries any of them** (verified) — every one of them restores exactly as before.
+
+Deliberately *no* fallback from `budgetMode` to the other two: it would misfire on precisely the combination
+this change exists to allow (Standard Duschwanne + Premium Fußboden). The only cost is that a draft saved
+during the 2026-09-09/10 testing window, which has `budgetMode` alone, restores with Premium floor and wall.
+
+`floorBudgetMode` and `wvBudgetMode` are UI-only — the chosen floor panel or wall decor carries its own price,
+so the server never needs the flag. Do not add them to `pricing-core.js`.
+
+### Implementation
+
+`PRODUKT_LINES` maps each key to its toggle, its page and its groups; `getLine(key)` / `setLine(key, tier)`
+replace the single getter/setter (`setTrayTier` remains as the Duschwanne-specific wrapper). A switch belongs
+to the line of the page it sits on (`lineKeyForElement`). `syncProduktlinieGroups` walks all three lines and
+only touches each one's own groups. `BadoluxManager.applyAll` no longer touches Fußboden or Wandverkleidung —
+driving them from the Duschwanne checkbox is exactly the bug — it keeps the accessory images and the
+`.budget-mode` class.
+
+**Watch out:** the renderers end by calling `notifyBudgetTilesRendered()`, which calls back into
+`syncProduktlinieGroups`. Rendering from there again is an infinite loop that freezes the tab — hence the
+`render: false` argument on that path. Cost me two wedged browser tabs to find.
+
+### Verified in the running app
+
+- Duschwanne `SLA100` + premium floor + premium wall, then switch **only** the Wandverkleidung: tray and floor
+  untouched, only the wall line flips. That was the report.
+- Payload round-trip: mixed → `budgetMode` absent, `floorBudgetMode` absent, `wvBudgetMode: "1"`;
+  all-Standard → all three `"1"`.
+- Restore, legacy payload with a poisoned `sessionStorage`: all three Premium, `V5FB02|Loft-Grau`, „Marmor weiß".
+- Restore, mixed payload: Duschwanne Standard, Fußboden **Premium**, Wandverkleidung Standard — each section
+  following its own field.
+- Unit suite: 251 pass, same 6 pre-existing suites fail.

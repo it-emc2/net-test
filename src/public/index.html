@@ -4300,6 +4300,10 @@ button.dm-btn-danger:focus-visible {
                 <strong>Premium</strong><span>Vigour &middot; Hassmann</span>
               </button>
             </div>
+            <!-- Eigene Linie fuer den Fussboden. Rein additiv: fehlt das Feld (jedes
+                 Altangebot), gilt Premium — wie bisher. -->
+            <input id="floorLineToggle" type="checkbox" name="floorBudgetMode" value="1"
+              form="form-fussboden" hidden />
           </div>
         </div>
 
@@ -4548,6 +4552,9 @@ button.dm-btn-danger:focus-visible {
                 <strong>Premium</strong><span>Vigour &middot; Hassmann</span>
               </button>
             </div>
+            <!-- Eigene Linie fuer die Wandverkleidung, additiv wie oben. -->
+            <input id="wvLineToggle" type="checkbox" name="wvBudgetMode" value="1"
+              form="form-wandverkleidung" hidden />
           </div>
         </div>
 

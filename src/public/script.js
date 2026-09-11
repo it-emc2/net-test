@@ -6123,12 +6123,17 @@ function registerBudgetReapply(key, fn) {
 }
 
 // Called by renderBudgetFloors / renderBudgetWvColors once their tiles are in the DOM.
+// Which line each registered re-applier belongs to.
+const REAPPLY_LINE = { floors: "fussboden", wv: "wand" };
+
 function notifyBudgetTilesRendered() {
-  if (!document.getElementById("budgetToggle")?.checked) return;
   // The Badolux tiles only exist now, so this is the first moment the active
-  // group can be enabled and given its default.
-  syncProduktlinieGroups({ announce: false });
-  for (const fn of Object.values(__budgetReapply)) {
+  // group can be enabled and given its default. render:false — we are inside the
+  // renderer's own completion hook.
+  syncProduktlinieGroups({ announce: false, render: false });
+  for (const [key, fn] of Object.entries(__budgetReapply)) {
+    // Only re-apply for a section that is actually on the Badolux line.
+    if (getLine(REAPPLY_LINE[key] || "duschwanne") !== "standard") continue;
     try {
       fn();
     } catch (e) {
@@ -10320,16 +10325,27 @@ document.addEventListener("change", (e) => {
    and an offer without the flag is Premium — which is exactly how every offer saved
    before this redesign behaves. */
 
+const LINE_LABEL = {
+  duschwanne: "Duschwanne",
+  fussboden: "Fußboden",
+  wand: "Wandverkleidung",
+};
+
+// Each line is set per section, so the status line says which section it is talking
+// about — otherwise „Standard aktiv" on the Fußboden page reads as if it applied to
+// the whole offer, which is exactly the confusion the per-section split removes.
 const TIER_INFO = {
   standard: {
     name: "Standard",
     brand: "Badolux",
-    note: "es werden ausschließlich Badolux-Produkte angezeigt (Duschwanne, Fußboden, Wandverkleidung).",
+    note: (key) =>
+      `für ${LINE_LABEL[key] || "diesen Bereich"} werden ausschließlich Badolux-Produkte angezeigt. Andere Bereiche bleiben unberührt.`,
   },
   premium: {
     name: "Premium",
     brand: "Vigour / Hassmann",
-    note: "es werden ausschließlich Vigour/Hassmann-Produkte angezeigt (Duschwanne, Fußboden, Wandverkleidung).",
+    note: (key) =>
+      `für ${LINE_LABEL[key] || "diesen Bereich"} werden ausschließlich Vigour/Hassmann-Produkte angezeigt. Andere Bereiche bleiben unberührt.`,
   },
 };
 
@@ -10351,8 +10367,43 @@ function trayStockState(p) {
   return { cls: "sc-stock--out", glyph: "0", text: "Auf Bestellung" };
 }
 
+// Three independent lines, one per section. They were a single global flag until
+// 2026-09-11; switching the Wandverkleidung then also threw away the Duschwanne and
+// Fußboden selections, which is not how these get sold — a Badolux floor next to a
+// Vigour shower tray is a normal combination.
+//
+// Each line is its own checkbox and its own payload field. All three are additive:
+// a missing field means Premium, so every offer saved before this (all 3075 of
+// them — none carries any of these fields) restores exactly as it did.
+// Only `budgetMode` reaches the pricing rules (it swaps the Duschwanne accessories
+// AGB001/AC004 ↔ AGD9060/KM02); the other two decide which tiles are offered, and
+// the chosen product carries its own price either way.
+const PRODUKT_LINES = {
+  duschwanne: { toggle: "budgetToggle", page: "page-Duschwanne", groups: [] },
+  fussboden: {
+    toggle: "floorLineToggle",
+    page: "page-Fussboden",
+    groups: [
+      { premium: "flooringPremiumGroup", standard: "flooringBudgetGroup", what: "Fußbodenfarbe" },
+    ],
+  },
+  wand: {
+    toggle: "wvLineToggle",
+    page: "page-Wandverkleidung",
+    groups: [
+      { premium: "wvColorSection", standard: "wvBudgetColorSection", what: "Wandverkleidungsfarbe" },
+    ],
+  },
+};
+
+function getLine(key) {
+  const cfg = PRODUKT_LINES[key];
+  return document.getElementById(cfg?.toggle)?.checked ? "standard" : "premium";
+}
+
+// The Duschwanne suggestions follow the Duschwanne line.
 function getTrayTier() {
-  return document.getElementById("budgetToggle")?.checked ? "standard" : "premium";
+  return getLine("duschwanne");
 }
 
 // Switching lines normally drops the picked tray — the other line's products are
@@ -10363,12 +10414,12 @@ let __trayTierKeepSelection = false;
 
 // Single entry point for switching lines, so the buttons, the fallback link and the
 // pinned card all go through the same path as the old checkbox did.
-function setTrayTier(tier, { keepSelection = false } = {}) {
-  const el = document.getElementById("budgetToggle");
+function setLine(key, tier, { keepSelection = false } = {}) {
+  const el = document.getElementById(PRODUKT_LINES[key]?.toggle);
   if (!el) return;
   const want = tier === "standard";
   if (el.checked === want) return;
-  __trayTierKeepSelection = !!keepSelection;
+  if (key === "duschwanne") __trayTierKeepSelection = !!keepSelection;
   el.checked = want;
   el.dispatchEvent(new Event("change", { bubbles: true }));
 
@@ -10380,8 +10431,15 @@ function setTrayTier(tier, { keepSelection = false } = {}) {
   // user clicked the checkbox itself, so the event was trusted and this was
   // automatic. Skipped during a restore — that is not an edit.
   if (!window.__restoring && !window.__RESTORING__) {
-    window.requestPricingRefresh?.({ delay: 180, reason: "produktlinie-switch" });
+    window.requestPricingRefresh?.({ delay: 180, reason: `produktlinie-${key}` });
   }
+
+  syncTierSwitchUi();
+}
+
+// Kept for the Duschwanne call sites (pinned card, fallback banner, its own buttons).
+function setTrayTier(tier, opts) {
+  setLine("duschwanne", tier, opts);
 }
 
 window.syncTierSwitchUi = syncTierSwitchUi;
@@ -10391,19 +10449,6 @@ window.syncTierSwitchUi = syncTierSwitchUi;
 // AND disabled, so its inputs stay out of FormData and out of HTML validation
 // (the premium wvColor radios are `required` — a hidden required radio makes the
 // form unsubmittable and unfocusable).
-const PRODUKTLINIE_GROUPS = [
-  {
-    premium: "flooringPremiumGroup",
-    standard: "flooringBudgetGroup",
-    what: "Fußbodenfarbe",
-  },
-  {
-    premium: "wvColorSection",
-    standard: "wvBudgetColorSection",
-    what: "Wandverkleidungsfarbe",
-  },
-];
-
 function setGroupActive(el, active) {
   if (!el) return;
   el.hidden = !active;
@@ -10464,20 +10509,33 @@ function ensureRadioDefault(groupEl) {
   }
 }
 
-function syncProduktlinieGroups({ announce = true } = {}) {
-  const tier = getTrayTier();
-  const leaving = tier === "standard" ? "premium" : "standard";
+// `render` must be false when this is called FROM a renderer's completion hook:
+// the renderers end by calling notifyBudgetTilesRendered(), which calls back in
+// here, and rendering again from there is an infinite loop.
+function syncProduktlinieGroups({ announce = true, render = true } = {}) {
   const notes = [];
 
-  for (const g of PRODUKTLINIE_GROUPS) {
-    const active = document.getElementById(g[tier]);
-    const inactive = document.getElementById(g[leaving]);
-    // Clear before hiding, so highlightTileForInput still sees a live element.
-    const note = clearHiddenLineSelection(inactive, g.what, TIER_INFO[leaving].name);
-    if (note) notes.push(note);
-    setGroupActive(inactive, false);
-    setGroupActive(active, true);
-    ensureRadioDefault(active);
+  for (const [key, cfg] of Object.entries(PRODUKT_LINES)) {
+    const tier = getLine(key);
+    const leaving = tier === "standard" ? "premium" : "standard";
+
+    // The Badolux tiles are fetched from the backend; render them the moment this
+    // section's line asks for them, independent of the other two sections.
+    if (render && tier === "standard") {
+      if (key === "fussboden") window.__badoluxManager?._renderBudgetFloors?.();
+      if (key === "wand") window.renderBudgetWvColors?.();
+    }
+
+    for (const g of cfg.groups) {
+      const active = document.getElementById(g[tier]);
+      const inactive = document.getElementById(g[leaving]);
+      // Clear before hiding, so highlightTileForInput still sees a live element.
+      const note = clearHiddenLineSelection(inactive, g.what, TIER_INFO[leaving].name);
+      if (note) notes.push(note);
+      setGroupActive(inactive, false);
+      setGroupActive(active, true);
+      ensureRadioDefault(active);
+    }
   }
 
   if (announce && notes.length && typeof showToast === "function") {
@@ -10485,19 +10543,27 @@ function syncProduktlinieGroups({ announce = true } = {}) {
   }
 }
 
-function syncTierSwitchUi() {
-  const tier = getTrayTier();
-  const info = TIER_INFO[tier];
+// Which line a switch belongs to is decided by the page it sits on.
+function lineKeyForElement(el) {
+  const page = el?.closest?.("section.page")?.id;
+  return Object.keys(PRODUKT_LINES).find((k) => PRODUKT_LINES[k].page === page) || null;
+}
 
+function syncTierSwitchUi() {
   document.querySelectorAll(".tier-seg__btn").forEach((btn) => {
-    btn.setAttribute("aria-pressed", String(btn.dataset.tier === tier));
+    const key = lineKeyForElement(btn);
+    if (!key) return;
+    btn.setAttribute("aria-pressed", String(btn.dataset.tier === getLine(key)));
   });
 
-  // One status line per page that carries the switch.
   document.querySelectorAll(".tier-status").forEach((status) => {
+    const key = lineKeyForElement(status);
+    if (!key) return;
+    const tier = getLine(key);
+    const info = TIER_INFO[tier];
     status.dataset.tier = tier;
     const text = status.querySelector(".tier-status__text");
-    if (text) text.innerHTML = `<b>${info.name} aktiv</b> — ${info.note}`;
+    if (text) text.innerHTML = `<b>${info.name} aktiv</b> — ${info.note(key)}`;
   });
 
   // A restore is setting the line to match the offer, so nothing is "left" and
@@ -10530,12 +10596,16 @@ function initTierSwitch() {
   if (!toggle) return;
 
   document.querySelectorAll(".tier-seg__btn").forEach((btn) => {
-    btn.addEventListener("click", () => setTrayTier(btn.dataset.tier));
+    const key = lineKeyForElement(btn);
+    if (!key) return;
+    btn.addEventListener("click", () => setLine(key, btn.dataset.tier));
   });
 
-  // Also fires when a restore sets the flag, so the switch always shows the tier
-  // of the offer that is loaded.
-  toggle.addEventListener("change", syncTierSwitchUi);
+  // Each section's own checkbox drives its own groups; a restore flips them
+  // directly, so listen on all three.
+  Object.values(PRODUKT_LINES).forEach((cfg) => {
+    document.getElementById(cfg.toggle)?.addEventListener("change", syncTierSwitchUi);
+  });
 
   const details = document.getElementById("dw-custom-details");
   details?.addEventListener("toggle", () => {
@@ -14512,6 +14582,11 @@ function restoreWV(wv) {
   if (!wv) return;
   const prev = window.__RESTORING__;
   window.__RESTORING__ = true;
+  // Wandverkleidung line, additive like the other two.
+  setCheckbox(
+    "wvLineToggle",
+    wv.wvBudgetMode === "1" || wv.wvBudgetMode === 1 || wv.wvBudgetMode === true,
+  );
   // ensure additive WV extras UI exists before restoring
   try { setupWandverkleidungPage(); } catch (e) { console.warn('[WV] setup during restore failed:', e); }
   // Kind is a radio
@@ -16412,12 +16487,11 @@ function restoreDuschwanne(dw) {
   // from an earlier offer in the same tab would flip this one to Badolux pricing
   // (AGB001/AC004 instead of AGD9060/KM02). Set before the rest: BadoluxManager starts
   // fetching the Badolux floor/panel tiles on this change event.
-  setCheckbox(
-    "budgetToggle",
-    dw.budgetMode === "1" ||
-      dw.budgetMode === 1 ||
-      dw.budgetMode === true,
-  );
+  const isOn = (v) => v === "1" || v === 1 || v === true;
+  setCheckbox("budgetToggle", isOn(dw.budgetMode));
+  // Fußboden has its own line since 2026-09-11. Absent in every offer saved before
+  // that (and in every Premium offer), which restores as Premium — unchanged.
+  setCheckbox("floorLineToggle", isOn(dw.floorBudgetMode));
 
   // numeric inputs (quiet during restore)
   setByNameOrId("tray_w_cm", dw.tray_w_cm);
