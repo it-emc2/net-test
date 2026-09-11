@@ -67,12 +67,17 @@ add(floorPid, panels, …);                                        // Preis = DB
 `BU_FLOOR_PANEL_SIZE_M2 = 0,3 m²` ist das **Premium**-Paneel (V5FB02, 1500 × 200 mm).
 Ein Badolux-**Paket** sind aber **1,49 m²**. Bei 12 m² Fläche:
 
-| | Menge | Einzelpreis | Summe |
-|---|---|---|---|
-| heute (0,3 m²) | 46 | 35,16 € | **1.617,36 €** |
-| korrekt (1,49 m²) | 10 | 35,16 € | **351,60 €** |
+| 12 m² Fläche | Menge | Einzelpreis | Summe | |
+|---|---|---|---|---|
+| Premium V5FB02 | 46 Paneele | 19,98 € | 919,08 € | ✅ korrekt (÷8-Regel greift) |
+| **Standard BP003 heute** | 46 „Paneele" | 35,16 € | **1.617,36 €** | ❌ |
+| Standard BP003 korrekt | 10 Pakete | 35,16 € | 351,60 € | |
 
-Also rund **das 4,6-fache**. Der Fehler steckt nur in der Menge, nicht im Preis.
+Also rund **das 4,6-fache**. Der Fehler steckt nur in der Menge, nicht im Preis — am 2026-09-11 live
+gegen die Preis-Engine nachgerechnet, nicht nur überschlagen.
+
+Für Premium gibt es diese Umrechnung schon (`unit = unit / 8` für V5FB02/AVP-W in `pricing-core.js`),
+für die Badolux-Pakete fehlt sie.
 
 ### Wandverkleidung
 
@@ -171,10 +176,16 @@ Praxis meist Abfall ist.
     (Aktuell: 0 gespeicherte Angebote/Entwürfe enthalten überhaupt eine Badolux-Boden- oder
     -Wandauswahl — Stand 2026-09-10. Das Risiko ist damit heute praktisch null, wächst aber mit jedem
     Tag, an dem die Standard-Linie im Einsatz ist.)
-16. **Premium-Boden prüfen**: V5FB02 heißt „1500x200mm (8 Paneele = 2,4 m²)" und kostet 159,84 €.
-    Ist das der Preis **pro Paneel** oder **pro Paket mit 8 Stück**? Die Rechnung nimmt heute
-    „pro Paneel à 0,3 m²" an. Wenn 159,84 € ein Paket sind, ist auch die Premium-Seite um Faktor 8 zu
-    teuer. **Das bitte zuerst klären** — es betrifft Angebote, die längst draußen sind.
+16. ~~**Premium-Boden prüfen**~~ — **erledigt, 2026-09-11, keine Frage mehr.**
+    In der Vigor-DB steht V5FB02 mit `unit: "Paket"`, `netPrice: 159,84 €`, „8 Paneele = 2,4 m²".
+    `pricing-core.js` hat dafür bereits eine Sonderregel:
+    ```js
+    if (l.id === "V5FB02" || l.id === "AVP-W") unit = round2(unit / 8);
+    ```
+    Ein **neu gerechnetes** Angebot über 12 m² ergibt 46 Paneele × **19,98 €** = 919,08 € — korrekt.
+    Die 159,84 € auf alten Angeboten sind der **gehaltene Angebotspreis** (Preis-Persistenz): das
+    Angebot wurde vor Einführung der Regel gespeichert, die Abweichung wird als `currentNet: 19,98`
+    ausgewiesen statt still neu berechnet. Alles in Ordnung, nichts zu tun.
 
 ---
 
@@ -184,7 +195,6 @@ Nacheinander, nicht alles auf einmal — die beiden Bereiche haben unterschiedli
 
 | Schritt | Umfang | Warum in dieser Reihenfolge |
 |---|---|---|
-| **0** | Frage 16 klären (Premium-Boden: Paneel oder Paket?) | Betrifft bestehende Angebote; alles andere kann warten |
 | **1** | **Fußboden Standard**: Paketgröße 1,49 m² + Rabatt | Kleinster Eingriff — eine Konstante je Linie, Formel bleibt |
 | **2** | **Wandverkleidung Standard**: eigene Mengenlogik + Eingabefelder + Zubehör | Strukturell: neue Eingaben, neues UI, neue Zeilen im Angebot |
 | **3** | Artikelnummern (DN…) + Grafikkosten-Position, falls gewünscht | Additiv, blockiert nichts |
