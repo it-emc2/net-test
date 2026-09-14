@@ -483,6 +483,10 @@ router.post('/:offerNumber/recompute', async (req, res) => {
       return res.status(404).json({ error: 'Angebot nicht gefunden', offerNumber });
     }
 
+    if (offer.locked) {
+      return res.status(409).json({ error: 'Angebot ist gesperrt — Preis kann nicht neu berechnet werden.' });
+    }
+
     const pricingPayload = {
       ...offer.payload,
       offerNumber,
@@ -544,6 +548,7 @@ router.post('/', async (req, res) => {
       pricing: computedPricing,
       pricingFingerprint: computeFingerprint(pricingPayload),
       status: status || 'saved',
+      locked: true,
       updatedAt: new Date()
     };
 

@@ -129,7 +129,7 @@ export default (ProductModel, deps = {}) => {
     if (!Model) return null;
     try {
       return await Model.findOne(query)
-        .select("pricing pricingFingerprint")
+        .select("pricing pricingFingerprint locked")
         .sort({ updatedAt: -1 })
         .lean();
     } catch (e) {
@@ -2085,6 +2085,23 @@ color: metaColor || null,
       // price (offers.js save route) strips `frozen`/`frozenPricing` from
       // the payload before it ever reaches here, so a client can't use this
       // to fake the price of a real offer.
+      const savedOfferNumber = String(payload?.offerNumber || "").trim();
+
+      // 0) A saved Offer marked `locked` is a finalized, sent document — its
+      // price is immutable. Checked against the DB record itself (never a
+      // client-supplied `frozen` flag) and never bypassed by
+      // `forceRecompute`: that's the actual guarantee. The only way to
+      // change a locked offer's price is the deliberate edit-and-resave
+      // flow through the save route (offers.js POST /), which always
+      // recomputes fresh and re-locks with the new snapshot.
+      let existingOfferSnapshot = null;
+      if (savedOfferNumber) {
+        existingOfferSnapshot = await fetchPriorSnapshot(OfferModel, { offerNumber: savedOfferNumber });
+        if (existingOfferSnapshot?.locked && existingOfferSnapshot?.pricing) {
+          return JSON.parse(JSON.stringify(existingOfferSnapshot.pricing));
+        }
+      }
+
       if (payload?.frozen === true && payload?.frozenPricing && payload?.forceRecompute !== true) {
         return JSON.parse(JSON.stringify(payload.frozenPricing));
       }
@@ -2101,12 +2118,10 @@ color: metaColor || null,
       // (Optionale Produkte, Material, ...), not just to decide whether to
       // serve it verbatim here.
       let priorSnapshot = null;
-      const savedOfferNumber = String(payload?.offerNumber || "").trim();
       if (savedOfferNumber && payload?.forceRecompute !== true) {
-        const existingOffer = await fetchPriorSnapshot(OfferModel, { offerNumber: savedOfferNumber });
-        const fromOffer = cachedResponseFor(existingOffer, payload);
+        const fromOffer = cachedResponseFor(existingOfferSnapshot, payload);
         if (fromOffer) return fromOffer;
-        if (existingOffer?.pricing) priorSnapshot = existingOffer;
+        if (existingOfferSnapshot?.pricing) priorSnapshot = existingOfferSnapshot;
 
         if (!priorSnapshot) {
           const existingDraft = await fetchPriorSnapshot(DraftModel, { offerNumber: savedOfferNumber });
