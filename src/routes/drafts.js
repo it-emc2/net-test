@@ -26,6 +26,10 @@ router.post("/recompute", async (req, res) => {
       return res.status(404).json({ error: "Kein Entwurf mit dieser Angebotsnummer gefunden", offerNumber });
     }
 
+    if (draft.locked) {
+      return res.status(409).json({ error: "Entwurf ist gesperrt — Preis kann nicht neu berechnet werden." });
+    }
+
     const pricingPayload = { ...draft.payload, offerType: draft.offerType, forceRecompute: true };
     const computedPricing = await pricing.computePrices(pricingPayload);
 
