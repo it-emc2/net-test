@@ -8809,9 +8809,10 @@ function pgbReveal(el, on) {
     return r && r.value === "Ja";
   }
   function pgVal() {
-    const r = form?.querySelector('input[name="pflegegrad"]:checked');
-    return r ? parseInt(r.value, 10) : NaN;
-  }
+  const r = form?.querySelector('input[name="pflegegrad"]:checked');
+  if (!r) return NaN;
+  return r.value === "beantragt" ? "beantragt" : parseInt(r.value, 10);
+}
 
   function applyCopay() {
     const on = !!(
@@ -8830,7 +8831,7 @@ function pgbReveal(el, on) {
     const has = hasPG();
     const val = pgVal();
     // before: const valid2 = Number.isInteger(val) && val>=2;
-    const valid1 = Number.isInteger(val) && val >= 1; // allow from Pflegegrad 1
+    const valid1 = val === "beantragt" || (Number.isInteger(val) && val >= 1); // allow from Pflegegrad 1
     pgbReveal(pgLevelRow, has);
     setReq(pgRadios, has);
     if (!has) clearRadios(pgRadios);
