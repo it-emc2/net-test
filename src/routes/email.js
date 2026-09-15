@@ -153,7 +153,7 @@ function getBitrixTargetFromPayload(payload = {}) {
   return null;
 }
 
-function buildBitrixEmailComment({ offerNumber, to, subject, body, attachmentNames }) {
+function buildBitrixEmailComment({ offerNumber, to, subject, body, attachmentNames, bitrixOnly = false }) {
   const when = new Date();
   const dt = when.toLocaleString("de-DE", {
     timeZone: "Europe/Berlin",
@@ -174,10 +174,12 @@ function buildBitrixEmailComment({ offerNumber, to, subject, body, attachmentNam
     rawBody.length > maxLen ? `${rawBody.slice(0, maxLen)}\n…(gekürzt)…` : rawBody;
 
   return [
-    "📧 Email automatisch von OC gesendet",
+    bitrixOnly
+      ? "📎 Dokumente von OC in Bitrix abgelegt (kein E-Mail-Versand)"
+      : "📧 Email automatisch von OC gesendet",
     offerNumber ? `Angebot: ${safe(offerNumber).trim()}` : null,
     `Datum/Zeit: ${dt}`,
-    `Empfänger: ${safe(to).trim() || "-"}`,
+    bitrixOnly ? null : `Empfänger: ${safe(to).trim() || "-"}`,
     `Betreff: ${safe(subject).trim() || "-"}`,
     `Anhänge: ${Array.isArray(attachmentNames) && attachmentNames.length ? attachmentNames.join(", ") : "-"}`,
     "",
@@ -325,7 +327,8 @@ router.post(
   "/send-offer",
   upload.fields([
     { name: "attachments", maxCount: 10 },
-    { name: "bitrixDocs", maxCount: 5 },
+    // 3 generated docs + the user's Bitrix-only uploads
+    { name: "bitrixDocs", maxCount: 15 },
     { name: "editedDocx", maxCount: 1 },
   ]),
   async (req, res) => {
@@ -342,7 +345,13 @@ router.post(
     const offerNumber = String(req.body.offerNumber || "");
     const offerType = String(req.body.offerType || "");
 
-    if (!to) return res.status(400).json({ error: "Missing 'to'" });
+    // Bitrix-only mode: render + archive the documents on the timeline, but
+    // send no customer email (no SMTP, no Sent copy, no signing link, no EmailLog).
+    const bitrixOnly = ["1", "true", "on", "yes"].includes(
+      String(req.body.bitrixOnly || "").toLowerCase(),
+    );
+
+    if (!to && !bitrixOnly) return res.status(400).json({ error: "Missing 'to'" });
 
     // Parse payload (JSON string because multipart)
     let payload = {};
@@ -378,7 +387,11 @@ router.post(
 
     // ---- Online-signing link: create a signing request and inject the link ----
     // The body may contain a {{SIGN_LINK}} placeholder (from the compose UI).
-    try {
+    if (bitrixOnly) {
+      // No customer email goes out — don't create a signing request for a link
+      // nobody receives; just drop the placeholder.
+      body = body.split("{{SIGN_LINK}}").join("");
+    } else try {
       const baseUrl =
         String(process.env.PUBLIC_BASE_URL || "").trim() ||
         `${req.protocol}://${req.get("host")}`;
@@ -514,55 +527,60 @@ router.post(
       isAh,
     });
 
-    // ---- Send via SMTP ----
-    console.log("[email] runtime:", process.platform, "node", process.version, "cwd", process.cwd());
-    const transporter = buildTransport();
+    // ---- Send via SMTP (skipped entirely in Bitrix-only mode) ----
+    let info = { messageId: "" };
+    if (!bitrixOnly) {
+      console.log("[email] runtime:", process.platform, "node", process.version, "cwd", process.cwd());
+      const transporter = buildTransport();
 
-    // verify() is optional; can slow things down / fail on some servers
-    // await transporter.verify();
+      // verify() is optional; can slow things down / fail on some servers
+      // await transporter.verify();
 
-    // IMPORTANT: safest "from" is the authenticated account
-    const from = smtpFrom();
+      // IMPORTANT: safest "from" is the authenticated account
+      const from = smtpFrom();
 
-    // Optional reply-to: set SMTP_REPLY_TO if you want replies elsewhere
-    const replyTo = process.env.SMTP_REPLY_TO || from;
+      // Optional reply-to: set SMTP_REPLY_TO if you want replies elsewhere
+      const replyTo = process.env.SMTP_REPLY_TO || from;
 
-    const mailOptions = {
-      from,
-      replyTo,
-      to,
-      ...(cc ? { cc } : {}),
-      subject,
-      text: textBody,
-      html: htmlBody,
-      attachments: mailAttachments,
-    };
-    const info = await transporter.sendMail(mailOptions);
+      const mailOptions = {
+        from,
+        replyTo,
+        to,
+        ...(cc ? { cc } : {}),
+        subject,
+        text: textBody,
+        html: htmlBody,
+        attachments: mailAttachments,
+      };
+      info = await transporter.sendMail(mailOptions);
 
-    // Save a copy to the IMAP "Sent" folder so it appears in mail clients.
-    try {
-      const sent = await saveToSentFolder(mailOptions);
-      if (!sent.ok) console.warn("[email] Sent copy skipped:", sent.reason);
-    } catch (imapErr) {
-      console.warn("[email] Saving to Sent folder failed:", imapErr?.message || imapErr);
+      // Save a copy to the IMAP "Sent" folder so it appears in mail clients.
+      try {
+        const sent = await saveToSentFolder(mailOptions);
+        if (!sent.ok) console.warn("[email] Sent copy skipped:", sent.reason);
+      } catch (imapErr) {
+        console.warn("[email] Saving to Sent folder failed:", imapErr?.message || imapErr);
+      }
+
+      // ---- DB log (only names + content) ----
+      await EmailLog.create({
+        to,
+        ...(cc ? { cc } : {}),
+        subject,
+        body: textBody,
+        attachmentNames,
+        offerNumber: payload?.offerNumber || offerNumber,
+        offerType: payload?.activeOffer || offerType,
+      });
     }
 
-    // ---- DB log (only names + content) ----
-    await EmailLog.create({
-      to,
-      ...(cc ? { cc } : {}),
-      subject,
-      body: textBody,
-      attachmentNames,
-      offerNumber: payload?.offerNumber || offerNumber,
-      offerType: payload?.activeOffer || offerType,
-    });
+    const actionEvent = bitrixOnly ? "offer_bitrix_only" : "offer_sent";
     UserActionLog.create({
-      event: "offer_sent",
+      event: actionEvent,
       dealId: String(dealId || ""),
       offerNumber: payload?.offerNumber || offerNumber,
       offerType: payload?.activeOffer || offerType,
-    }).catch((e) => console.warn("[email] UserActionLog offer_sent failed:", e?.message || e));
+    }).catch((e) => console.warn(`[email] UserActionLog ${actionEvent} failed:`, e?.message || e));
 
     let bitrixComment = { skipped: true, reason: "no target" };
     try {
@@ -576,6 +594,7 @@ router.post(
             subject,
             body,
             attachmentNames,
+            bitrixOnly,
           }),
           attachments: bitrixAttachments,
         });
@@ -604,6 +623,7 @@ router.post(
 
     res.json({
       ok: true,
+      bitrixOnly,
       messageId: info.messageId,
       attachmentNames,
       bitrixComment,

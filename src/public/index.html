@@ -7971,20 +7971,64 @@ button.dm-btn-danger:focus-visible {
       <input id="mailEditedDocx" type="file" accept=".docx" hidden />
     </div>
 
-    <label for="mailAttachments">Zusätzliche Anhänge (optional)</label>
-    <input id="mailAttachments" type="file" multiple />
+    <!-- Attachments: the file input is driven by the "+ Datei" button in the
+         panel header; EmailManager.js renders the rows into #mailAttachmentList. -->
+    <input id="mailAttachments" type="file" multiple hidden />
 
-    <!-- Visible attachments list -->
     <div class="mail-attach-box">
-      <div class="mail-attach-title">Anhänge</div>
-  <div id="mailAttachmentList" class="mail-attach-grid"></div>
-        <div class="mail-attach-hint">Mit „✕“ kann ein Anhang entfernt werden.</div>
+      <div class="mail-attach-head">
+        <div class="mail-attach-title">Anhänge</div>
+        <span id="mailAttachCount" class="mail-attach-count">0 Dateien</span>
+        <label for="mailAttachments" class="mail-attach-add">+ Datei hinzufügen</label>
+      </div>
+      <div id="mailAttachmentList" class="mail-attach-grid"></div>
+
+      <!-- Bitrix-only uploads: never attached to the customer email, they ride
+           along to the Deal-Timeline on send (backend field: bitrixDocs). -->
+      <input id="mailBitrixAttachments" type="file" multiple hidden />
+
+      <div class="mail-attach-head mail-attach-head--sub">
+        <div class="mail-attach-title">Nur für Bitrix</div>
+        <span id="mailBitrixAttachCount" class="mail-attach-count">0 Dateien</span>
+        <label for="mailBitrixAttachments" class="mail-attach-add">+ Datei hinzufügen</label>
+      </div>
+      <div id="mailBitrixAttachmentList" class="mail-attach-grid"></div>
+      <!-- iPad workflow: magicplan screenshot → Fotos → hier auswählen. On iOS
+           the file input opens the native sheet (Fotomediathek / Foto aufnehmen
+           / Dateien). Images are downscaled client-side before they are queued
+           into the Bitrix-only list. -->
+      <div id="planDropZone" class="plan-zone" role="button" tabindex="0"
+           aria-label="Grundriss oder Foto hinzufügen">
+        <div class="plan-zone-badge">📐</div>
+        <div class="plan-zone-text">
+          <div class="plan-zone-title">Grundriss / Fotos hinzufügen</div>
+          <div class="plan-zone-sub">
+            magicplan-Screenshot aus „Fotos“ wählen, Bild einfügen (⌘V) oder hier ablegen.
+            Landet in der Bitrix-Timeline, nicht in der Kunden-E-Mail.
+          </div>
+        </div>
+        <input id="planFiles" type="file" accept="image/*" multiple hidden />
+      </div>
+
+      <div class="mail-attach-hint">
+        Diese Dateien gehen nicht an den Kunden — sie landen beim Senden nur in der Bitrix-Timeline.
+      </div>
     </div>
 
-    <button type="button" id="sendOfferMail" class="btn-export btn-pdf">
-      <span class="btn-icon">📨</span>
-      Senden
-    </button>
+    <div class="mail-send-row">
+      <button type="button" id="sendOfferMail" class="btn-export btn-pdf">
+        <span class="btn-icon">📨</span>
+        An Kunden senden
+      </button>
+      <button type="button" id="sendOfferBitrix" class="btn-export btn-bitrix-only">
+        <span class="btn-icon">📎</span>
+        Nur in Bitrix ablegen
+      </button>
+    </div>
+    <div class="mail-send-note">
+      „Nur in Bitrix ablegen“ erzeugt dieselben Dokumente und hängt sie an die Deal-Timeline —
+      ohne E-Mail an den Kunden und ohne Unterschrift-Link.
+    </div>
     <div id="mailDocxSendNote" class="mail-docx-send-note" hidden>
       PDF wird aus Ihrer bearbeiteten Datei erzeugt
     </div>
@@ -8042,9 +8086,11 @@ button.dm-btn-danger:focus-visible {
     <input id="postAttachments" type="file" accept="application/pdf,.pdf" multiple />
 
     <div class="mail-attach-box">
-      <div class="mail-attach-title">Im Postversand enthalten</div>
+      <div class="mail-attach-head">
+        <div class="mail-attach-title">Im Postversand enthalten</div>
+      </div>
       <div id="postAttachmentList" class="mail-attach-grid"></div>
-      <div class="mail-attach-hint">Die Angebots-PDF ist das Hauptdokument für den Postversand. Mit „✕“ können Standard- oder hochgeladene Anhänge vor dem Versand entfernt werden.</div>
+      <div class="mail-attach-hint">Die Angebots-PDF ist das Hauptdokument für den Postversand.</div>
     </div>
 
     <button type="button" id="sendOfferPost" class="btn-export btn-pdf">

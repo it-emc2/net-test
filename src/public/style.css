@@ -3865,12 +3865,49 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 
 
 .mail-attach-box {
-  margin-top: 8px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.15);
-  background: rgba(255,255,255,0.05);
+  margin-top: 12px;
+  padding: 12px 14px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(128,128,128,0.28);
+  background: rgba(128,128,128,0.06);
 }
+
+.mail-attach-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.mail-attach-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(128,128,128,0.35);
+  opacity: 0.8;
+}
+
+.mail-attach-head--sub {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(128,128,128,0.3);
+}
+
+.mail-attach-add {
+  margin-left: auto;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,168,107,0.55);
+  color: #00a86b;
+  background: rgba(0,168,107,0.10);
+  white-space: nowrap;
+}
+
+.mail-attach-add:hover { background: rgba(0,168,107,0.20); }
 
 .mail-preview-box {
   margin-top: 6px;
@@ -3891,7 +3928,6 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 .mail-attach-title {
   font-size: 0.9rem;
   font-weight: 600;
-  margin-bottom: 8px;
 }
 
 .mail-attach-list {
@@ -3923,9 +3959,9 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 }
 
 .mail-attach-hint {
-  margin-top: 8px;
-  font-size: 0.8rem;
-  opacity: 0.75;
+  margin-top: 10px;
+  font-size: 0.78rem;
+  opacity: 0.7;
 }
 
 /* Drop zone for a hand-edited Angebot-DOCX (replaces the fresh render on send) */
@@ -4009,58 +4045,190 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 [data-mode="dark"] .mail-docx-zone.has-file .mail-docx-zone-sub,
 [data-mode="dark"] .mail-docx-remove { color: #fac775; }
 
-.mail-attach-grid{
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 10px;
-  margin-top: 6px;
+/* Grundriss/Foto zone — iPad: tap opens the native Photos/Camera/Files sheet */
+.plan-zone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-top: 10px;
+  border: 1.5px dashed rgba(128,128,128,0.45);
+  border-radius: 12px;
+  background: rgba(128,128,128,0.05);
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
 }
 
-.mail-attach-tile{
-  position: relative;
-  border-radius: 12px;
-  padding: 10px 12px;
-  border: 1px solid rgba(255,255,255,0.18);
-  background: rgba(255,255,255,0.06);
-  min-height: 70px;
+.plan-zone:hover,
+.plan-zone:focus-visible,
+.plan-zone.drag-over {
+  border-color: #00a86b;
+  background: rgba(0,168,107,0.10);
+}
 
+.plan-zone-badge {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  font-size: 1.15rem;
+  background: rgba(128,128,128,0.14);
+}
+
+.plan-zone-text { min-width: 0; }
+
+.plan-zone-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.plan-zone-sub {
+  margin-top: 3px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  opacity: 0.72;
+}
+
+/* Touch targets: give the zone real height on a tablet/phone */
+@media (hover: none) {
+  .plan-zone { padding: 18px 16px; }
+}
+
+.mail-attach-grid{
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  gap: 6px;
+}
+
+/* One attachment = one row: type glyph, name + meta, remove button. Shared by
+   the email panel (EmailManager.js) and the postal panel (script.js). */
+.mail-attach-tile{
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(128,128,128,0.22);
+  background: rgba(128,128,128,0.05);
+}
+
+.mail-attach-tile:hover{
+  border-color: rgba(128,128,128,0.40);
+  background: rgba(128,128,128,0.10);
+}
+
+.mail-attach-tile::before{
+  content: "📄";
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  font-size: 0.95rem;
+  background: rgba(128,128,128,0.14);
+}
+
+.mail-attach-tile[data-ext="pdf"]::before{ content: "📕"; }
+.mail-attach-tile[data-ext="docx"]::before,
+.mail-attach-tile[data-ext="doc"]::before{ content: "📘"; }
+.mail-attach-tile[data-ext="csv"]::before,
+.mail-attach-tile[data-ext="xlsx"]::before{ content: "📗"; }
+.mail-attach-tile[data-ext="png"]::before,
+.mail-attach-tile[data-ext="jpg"]::before,
+.mail-attach-tile[data-ext="jpeg"]::before{ content: "🖼️"; }
+
+.mail-attach-main{
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .mail-attach-name{
-  font-size: 0.88rem;
-  line-height: 1.2;
-  word-break: break-word;
-  padding-right: 26px; /* space for X */
+  font-size: 0.86rem;
+  line-height: 1.25;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mail-attach-meta{
-  margin-top: 6px;
-  font-size: 0.75rem;
-  opacity: 0.75;
+  margin-top: 2px;
+  font-size: 0.72rem;
+  opacity: 0.65;
+}
+
+.mail-attach-lock{
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(128,128,128,0.32);
+  opacity: 0.7;
 }
 
 .mail-attach-x{
-  position: absolute;
-  top: 6px;
-  right: 8px;
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 8px;
   display: grid;
   place-items: center;
 
   cursor: pointer;
-  font-weight: 800;
-  border: 1px solid rgba(255,255,255,0.2);
-  background: rgba(0,0,0,0.2);
-  user-select: none;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: inherit;
+  border: 1px solid transparent;
+  background: transparent;
+  opacity: 0;
+  transition: opacity .12s ease, background .12s ease;
+}
+
+.mail-attach-tile:hover .mail-attach-x,
+.mail-attach-x:focus-visible{
+  opacity: 1;
 }
 
 .mail-attach-x:hover{
-  background: rgba(0,0,0,0.35);
+  color: #c0392b;
+  border-color: rgba(192,57,43,0.45);
+  background: rgba(192,57,43,0.12);
+}
+
+/* Touch devices have no hover — keep the remove button permanently visible. */
+@media (hover: none) {
+  .mail-attach-x{ opacity: 1; }
+}
+
+/* Send actions: customer email (primary) + Bitrix-only archive (secondary) */
+.mail-send-row{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.btn-bitrix-only{
+  background: transparent;
+  border: 1px solid rgba(0,120,215,0.55);
+  color: #0a84d8;
+}
+
+.btn-bitrix-only:hover{ background: rgba(0,120,215,0.12); }
+
+.mail-send-note{
+  margin-top: 8px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  opacity: 0.7;
 }
 
 /* ===== Additive: inline checkbox styling (matches Hinweis checkbox) ===== */
