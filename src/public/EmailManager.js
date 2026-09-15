@@ -1108,6 +1108,95 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
 
   renderBitrixList();
 
+  // ---- Grundriss / Fotos (iPad workflow) --------------------------------
+  // A magicplan screenshot lives in Photos; on iOS this file input opens the
+  // native sheet, so it is 3 taps. Images are downscaled before upload —
+  // an iPad screenshot is ~4 MB PNG, Bitrix chokes on a timeline full of those.
+  const $planZone = document.getElementById("planDropZone");
+  const $planFiles = document.getElementById("planFiles");
+
+  const MAX_EDGE = 1600;
+
+  async function downscaleImage(file) {
+    if (!/^image\//.test(file.type || "")) return file;
+    try {
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+      const w = Math.round(bitmap.width * scale);
+      const h = Math.round(bitmap.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
+      bitmap.close?.();
+      const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.85));
+      if (!blob) return file;
+      const base = (file.name || "Grundriss").replace(/\.[^.]+$/, "");
+      return new File([blob], `${base}.jpg`, { type: "image/jpeg" });
+    } catch (e) {
+      // HEIC or anything the browser can't decode: send the original.
+      console.warn("[EmailManager] Bild-Verkleinerung fehlgeschlagen:", e);
+      return file;
+    }
+  }
+
+  async function addPlanFiles(files) {
+    const imgs = Array.from(files || []).filter((f) => /^image\//.test(f.type || ""));
+    if (!imgs.length) return;
+    const stamp = new Date().toISOString().slice(0, 10);
+    const prepared = [];
+    for (const [i, f] of imgs.entries()) {
+      const small = await downscaleImage(f);
+      // Screenshots are all called "image.png" — give them a useful name.
+      const named = /^(image|screenshot|img)[-_. 0-9]*\.(jpe?g|png)$/i.test(small.name)
+        ? new File([small], `Grundriss_${stamp}_${i + 1}.jpg`, { type: small.type })
+        : small;
+      prepared.push(named);
+    }
+    bitrixFiles = dedup(bitrixFiles.concat(prepared));
+    renderBitrixList();
+  }
+
+  $planZone?.addEventListener("click", () => $planFiles?.click());
+  $planZone?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      $planFiles?.click();
+    }
+  });
+  $planFiles?.addEventListener("change", async () => {
+    await addPlanFiles($planFiles.files);
+    $planFiles.value = "";
+  });
+
+  ["dragenter", "dragover"].forEach((ev) =>
+    $planZone?.addEventListener(ev, (e) => {
+      e.preventDefault();
+      $planZone.classList.add("drag-over");
+    }),
+  );
+  ["dragleave", "drop"].forEach((ev) =>
+    $planZone?.addEventListener(ev, () => $planZone.classList.remove("drag-over")),
+  );
+  $planZone?.addEventListener("drop", (e) => {
+    e.preventDefault();
+    addPlanFiles(e.dataTransfer?.files);
+  });
+
+  // Paste an image from the clipboard (iPad: copy screenshot → ⌘V / Einsetzen).
+  // Ignored while typing in a field so it never hijacks a normal text paste.
+  document.addEventListener("paste", (e) => {
+    if (!$planZone || !document.body.contains($planZone)) return;
+    const t = e.target;
+    if (t && (t.matches?.("input, textarea") || t.isContentEditable)) return;
+    const files = Array.from(e.clipboardData?.files || []).filter((f) =>
+      /^image\//.test(f.type || ""),
+    );
+    if (!files.length) return;
+    e.preventDefault();
+    addPlanFiles(files);
+  });
+
   renderList();
 
   function reset() {

@@ -4045,6 +4045,57 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 [data-mode="dark"] .mail-docx-zone.has-file .mail-docx-zone-sub,
 [data-mode="dark"] .mail-docx-remove { color: #fac775; }
 
+/* Grundriss/Foto zone — iPad: tap opens the native Photos/Camera/Files sheet */
+.plan-zone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-top: 10px;
+  border: 1.5px dashed rgba(128,128,128,0.45);
+  border-radius: 12px;
+  background: rgba(128,128,128,0.05);
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+}
+
+.plan-zone:hover,
+.plan-zone:focus-visible,
+.plan-zone.drag-over {
+  border-color: #00a86b;
+  background: rgba(0,168,107,0.10);
+}
+
+.plan-zone-badge {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  font-size: 1.15rem;
+  background: rgba(128,128,128,0.14);
+}
+
+.plan-zone-text { min-width: 0; }
+
+.plan-zone-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.plan-zone-sub {
+  margin-top: 3px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  opacity: 0.72;
+}
+
+/* Touch targets: give the zone real height on a tablet/phone */
+@media (hover: none) {
+  .plan-zone { padding: 18px 16px; }
+}
+
 .mail-attach-grid{
   display: flex;
   flex-direction: column;
