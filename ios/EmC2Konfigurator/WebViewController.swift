@@ -73,7 +73,11 @@ final class WebViewController: UIViewController {
         webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = self
         webView.uiDelegate = self
-        webView.allowsBackForwardNavigationGestures = false // it is a wizard, not a site
+        // The shell has no chrome, so this gesture is the only way back out of a
+        // navigation that replaced the app: an inline PDF, the signing page, a
+        // login redirect. Nothing in the wizard pushes history (it uses
+        // replaceState), so the swipe is a no-op everywhere else.
+        webView.allowsBackForwardNavigationGestures = true
         webView.scrollView.bounces = false                  // no rubber-banding on a form
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.translatesAutoresizingMaskIntoConstraints = false
@@ -219,6 +223,16 @@ extension WebViewController: WKNavigationDelegate {
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url = navigationAction.request.url else {
             decisionHandler(.allow)
+            return
+        }
+
+        // An <a download> (the offer PDF, handed over as a blob). Without this the
+        // policy falls through to .allow and a displayable type — PDF — renders
+        // full screen in place of the app. .download routes it to the share sheet
+        // via WKDownloadDelegate instead; the navigationResponse check below only
+        // catches types the web view cannot show at all, e.g. DOCX.
+        if navigationAction.shouldPerformDownload {
+            decisionHandler(.download)
             return
         }
 
