@@ -5,13 +5,10 @@ import Offer from '../models/Offer.js';
 import Draft from '../models/Draft.js';
 import Product from '../models/Product.js';
 import pricingFactory, { computeFingerprint } from '../logic/pricing.js';
+import { nameSearchRegex } from "../utils/searchRegex.js";
 
 export const router = express.Router();
 const pricing = pricingFactory(Product);
-
-function escapeRegex(value = '') {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
 
 function normalizeValue(value) {
   if (value == null) return '';
@@ -177,7 +174,7 @@ router.get('/search-all', async (req, res) => {
       return res.json([]);
     }
 
-    const safeRegex = new RegExp(escapeRegex(q), 'i');
+    const safeRegex = nameSearchRegex(q);
 
     const searchFields = [
       'offerNumber',
@@ -301,7 +298,7 @@ router.get('/external/search', async (req, res) => {
       return res.json({ results: [], query: q, limit });
     }
 
-    const safeRegex = new RegExp(escapeRegex(q), 'i');
+    const safeRegex = nameSearchRegex(q);
 
     const searchFields = [
       'offerNumber',

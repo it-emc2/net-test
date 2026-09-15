@@ -5,6 +5,7 @@ import express from "express";
 import Draft from "../models/Draft.js";
 import Product from "../models/Product.js";
 import pricingFactory, { computeFingerprint } from "../logic/pricing.js";
+import { nameSearchRegex } from "../utils/searchRegex.js";
 
 const router = express.Router();
 const pricing = pricingFactory(Product);
@@ -157,8 +158,7 @@ router.get("/search", async (req, res) => {
     filter.offerType = String(offerType).trim();
 
     if (q) {
-      const re = new RegExp(String(q).trim(), "i");
-      filter.name = re;
+      filter.name = nameSearchRegex(q);
     }
 
     // Sort by savedAt (when the user saved) rather than updatedAt (when the
