@@ -241,7 +241,12 @@ app.options(
 
 // ---------------- Common middleware ----------------
 app.use(compression());
-app.use(morgan("dev"));
+app.use(
+  morgan("dev", {
+    // Polling endpoints; they drown out everything else in the logs.
+    skip: (req) => req.path === "/api/version" || req.path === "/api/planning/stream",
+  }),
+);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: "25mb" }));
 
