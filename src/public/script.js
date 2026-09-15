@@ -28739,7 +28739,7 @@ document.addEventListener("DOMContentLoaded", () => {
           id: "offer-main",
           type: "main",
           filename: getOfferPdfTileName(),
-          label: "Offer PDF",
+          label: "Angebots-PDF",
           deletable: false,
           size: 0,
         },
@@ -28751,15 +28751,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
       attachmentList.innerHTML = tiles
         .map((item) => {
+          const filename = String(item.filename || "Datei");
+          const ext = (filename.split(".").pop() || "").toLowerCase();
           const removeBtn = item.deletable
-            ? `<div class="mail-attach-x" data-post-remove="${escapeHtmlLocal(item.id)}" aria-label="Anhang entfernen" role="button" tabindex="0">✕</div>`
-            : "";
+            ? `<button type="button" class="mail-attach-x" data-post-remove="${escapeHtmlLocal(item.id)}" aria-label="${escapeHtmlLocal(filename)} entfernen">✕</button>`
+            : `<span class="mail-attach-lock">Pflicht</span>`;
 
           return `
-            <div class="mail-attach-tile">
+            <div class="mail-attach-tile" data-ext="${escapeHtmlLocal(ext)}">
+              <div class="mail-attach-main">
+                <div class="mail-attach-name" title="${escapeHtmlLocal(filename)}">${escapeHtmlLocal(filename)}</div>
+                <div class="mail-attach-meta">${escapeHtmlLocal(item.label || "Anhang")} ${item.type === "upload" ? "· " + escapeHtmlLocal(fmtFileSize(item.size || 0)) : ""}</div>
+              </div>
               ${removeBtn}
-              <div class="mail-attach-name">${escapeHtmlLocal(item.filename || "Datei")}</div>
-              <div class="mail-attach-meta">${escapeHtmlLocal(item.label || "Anhang")} ${item.type === "upload" ? "· " + escapeHtmlLocal(fmtFileSize(item.size || 0)) : ""}</div>
             </div>
           `;
         })

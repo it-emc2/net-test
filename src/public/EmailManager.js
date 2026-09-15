@@ -79,6 +79,8 @@ export function initEmailManager(options = {}) {
   cfg.bitrix = { ...(cfg.bitrix || {}), ...(options.bitrix || {}) };
 
   const $btn = document.querySelector(cfg.els.btnSend);
+  // Optional "Bitrix only" button — same send path, no customer email.
+  const $btnBitrix = document.querySelector("#sendOfferBitrix");
   const $to = document.querySelector(cfg.els.to);
   const $cc = document.querySelector(cfg.els.cc);
   const $subject = document.querySelector(cfg.els.subject);
@@ -99,6 +101,10 @@ export function initEmailManager(options = {}) {
 
   const excludedPreset = new Set();
   let userFiles = [];
+  // Uploads that go to the Bitrix timeline only — never to the customer email.
+  const $bitrixFiles = document.getElementById("mailBitrixAttachments");
+  const $bitrixList = document.getElementById("mailBitrixAttachmentList");
+  let bitrixFiles = [];
 
   // expose for compatibility (some code may read this)
   window.__mailExcludedPreset = excludedPreset;
@@ -423,7 +429,7 @@ export function initEmailManager(options = {}) {
   }
 
   // Success dialog shown after the email was sent. Offers the stage move.
-  function showSentDialog({ dealId, offerTotal, attachmentNames, offerExtra }) {
+  function showSentDialog({ dealId, offerTotal, attachmentNames, offerExtra, bitrixOnly = false }) {
     closeStageModal();
     const overlay = document.createElement("div");
     overlay.id = "angStageOverlay";
@@ -436,7 +442,7 @@ export function initEmailManager(options = {}) {
       : "-";
     overlay.innerHTML = `
       <div class="ang-stage-modal" role="dialog" aria-modal="true" aria-labelledby="angStageTitle">
-        <h3 id="angStageTitle" class="ang-stage-title">✅ E-Mail gesendet</h3>
+        <h3 id="angStageTitle" class="ang-stage-title">${bitrixOnly ? "✅ Dokumente in Bitrix abgelegt" : "✅ E-Mail gesendet"}</h3>
         <p class="ang-stage-text">Anhänge: ${atts}</p>
         <div class="ang-stage-body"></div>
         <div class="ang-stage-actions">
@@ -945,34 +951,56 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
     $files.files = dt.files;
   }
 
+  function fmtSize(bytes) {
+    const n = Number(bytes) || 0;
+    if (!n) return "";
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+    return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
   function makeTile({ name, meta, removable, onRemove }) {
     const tile = document.createElement("div");
     tile.className = "mail-attach-tile";
+    // CSS picks the file-type glyph from this attribute.
+    tile.dataset.ext = (String(name).split(".").pop() || "").toLowerCase();
+
+    const main = document.createElement("div");
+    main.className = "mail-attach-main";
 
     const label = document.createElement("div");
     label.className = "mail-attach-name";
     label.textContent = name;
-
-    tile.appendChild(label);
+    label.title = name;
+    main.appendChild(label);
 
     if (meta) {
       const m = document.createElement("div");
       m.className = "mail-attach-meta";
       m.textContent = meta;
-      tile.appendChild(m);
+      main.appendChild(m);
     }
 
+    tile.appendChild(main);
+
     if (removable) {
-      const x = document.createElement("div");
+      const x = document.createElement("button");
+      x.type = "button";
       x.className = "mail-attach-x";
       x.textContent = "✕";
-      x.title = "Remove";
+      x.title = `${name} entfernen`;
+      x.setAttribute("aria-label", `${name} entfernen`);
       x.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
         onRemove?.();
       });
       tile.appendChild(x);
+    } else {
+      const lock = document.createElement("span");
+      lock.className = "mail-attach-lock";
+      lock.textContent = "Pflicht";
+      tile.appendChild(lock);
     }
 
     return tile;
@@ -984,7 +1012,7 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
     // Offer PDF (always attached by backend)
     const offerNumber = getOfferNumber();
     const offerPdfName = `${offerNumber || "Angebot"}.pdf`;
-    $list.appendChild(makeTile({ name: offerPdfName, meta: "Offer PDF", removable: false }));
+    $list.appendChild(makeTile({ name: offerPdfName, meta: "Angebots-PDF", removable: false }));
 
     // Presets (Selbstzahler: no Abtretung/Vollmacht -> fewer attachments)
     const isSZ =
@@ -1015,7 +1043,7 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       $list.appendChild(
         makeTile({
           name: f.name,
-          meta: "Added",
+          meta: `Hinzugefügt · ${fmtSize(f.size)}`,
           removable: true,
           onRemove: () => {
             userFiles.splice(idx, 1);
@@ -1025,30 +1053,68 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
         }),
       );
     });
+
+    const $count = document.getElementById("mailAttachCount");
+    if ($count) {
+      const n = $list.childElementCount;
+      $count.textContent = n === 1 ? "1 Datei" : `${n} Dateien`;
+    }
   }
 
-  $files.addEventListener("change", () => {
-    const newly = Array.from($files.files || []);
-    userFiles = userFiles.concat(newly);
-
-    // de-dup by name+size+lastModified
+  // de-dup by name+size+lastModified
+  function dedup(files) {
     const seen = new Set();
-    userFiles = userFiles.filter((f) => {
+    return files.filter((f) => {
       const k = `${f.name}|${f.size}|${f.lastModified}`;
       if (seen.has(k)) return false;
       seen.add(k);
       return true;
     });
+  }
 
+  $files.addEventListener("change", () => {
+    userFiles = dedup(userFiles.concat(Array.from($files.files || [])));
     syncFileInput();
     renderList();
   });
+
+  $bitrixFiles?.addEventListener("change", () => {
+    bitrixFiles = dedup(bitrixFiles.concat(Array.from($bitrixFiles.files || [])));
+    renderBitrixList();
+  });
+
+  function renderBitrixList() {
+    if (!$bitrixList) return;
+    $bitrixList.innerHTML = "";
+    bitrixFiles.forEach((f, idx) => {
+      $bitrixList.appendChild(
+        makeTile({
+          name: f.name,
+          meta: `Nur Bitrix · ${fmtSize(f.size)}`,
+          removable: true,
+          onRemove: () => {
+            bitrixFiles.splice(idx, 1);
+            renderBitrixList();
+          },
+        }),
+      );
+    });
+    const $count = document.getElementById("mailBitrixAttachCount");
+    if ($count) {
+      const n = bitrixFiles.length;
+      $count.textContent = n === 1 ? "1 Datei" : `${n} Dateien`;
+    }
+  }
+
+  renderBitrixList();
 
   renderList();
 
   function reset() {
     excludedPreset.clear();
     userFiles = [];
+    bitrixFiles = [];
+    if ($bitrixFiles) $bitrixFiles.value = "";
     subjectTouched = false;
     toTouched = false;
     ccTouched = false;
@@ -1063,6 +1129,7 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
 
     syncFileInput();
     renderList();
+    renderBitrixList();
     updatePreview();
 
     $status.classList.remove("mail-log");
@@ -1128,7 +1195,7 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
     return docs;
   }
 
-  async function send() {
+  async function send({ bitrixOnly = false } = {}) {
     try {
       if (cfg.hooks.requireBereichValid && !cfg.hooks.requireBereichValid()) {
         location.hash = "Kundendaten";
@@ -1145,7 +1212,7 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       }
 
       const to = ($to.value || "").trim();
-      if (!to) {
+      if (!to && !bitrixOnly) {
         setStatus("Please enter a recipient email.", "error");
         return false;
       }
@@ -1173,9 +1240,11 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
         document.querySelector(cfg.bitrix.contactIdSelector)?.value || "",
       ).trim();
 
-      $btn.disabled = true;
+      setSendingState(true);
       startStatusLog();
-      pushStatus("Sende-Vorgang gestartet …");
+      pushStatus(
+        bitrixOnly ? "Bitrix-Ablage gestartet …" : "Sende-Vorgang gestartet …",
+      );
 
       // Optional hand-edited Angebot-DOCX: sent to the backend, which converts
       // it to PDF instead of rendering a fresh offer.
@@ -1193,9 +1262,13 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       });
 
       pushStatus(
-        editedFile
-          ? "Konvertiere geänderte DOCX zu PDF & sende E-Mail …"
-          : "Erzeuge Angebots-PDF & sende E-Mail …",
+        bitrixOnly
+          ? (editedFile
+              ? "Konvertiere geänderte DOCX zu PDF & lege Dokumente in Bitrix ab …"
+              : "Erzeuge Angebots-PDF & lege Dokumente in Bitrix ab …")
+          : (editedFile
+              ? "Konvertiere geänderte DOCX zu PDF & sende E-Mail …"
+              : "Erzeuge Angebots-PDF & sende E-Mail …"),
       );
 
       const subject = ($subject.value || offerNumber || "Angebot").trim();
@@ -1209,6 +1282,7 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
 
       const fd = new FormData();
       fd.append("to", to);
+      if (bitrixOnly) fd.append("bitrixOnly", "1");
       if (cc) fd.append("cc", cc);
       fd.append("subject", subject);
       fd.append("body", body);
@@ -1222,6 +1296,7 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
 
       for (const f of userFiles) fd.append("attachments", f, f.name);
       for (const d of bitrixDocs) fd.append("bitrixDocs", d.blob, d.filename);
+      for (const f of bitrixFiles) fd.append("bitrixDocs", f, f.name);
       if (editedFile) fd.append("editedDocx", editedFile, editedFile.name);
 
       const sendTimeout = AbortSignal.timeout(60000);
@@ -1244,7 +1319,7 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       const data = await res.json().catch(() => ({}));
 
       pushStatus(
-        `E-Mail gesendet — Anhänge: ${data.attachmentNames?.join(", ") || "-"}`,
+        `${bitrixOnly ? "In Bitrix abgelegt" : "E-Mail gesendet"} — Anhänge: ${data.attachmentNames?.join(", ") || "-"}`,
         "success",
       );
 
@@ -1255,6 +1330,7 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       try {
         const tgt = getBitrixTarget();
         showSentDialog({
+          bitrixOnly,
           dealId: tgt?.entityType === "deal" ? tgt.entityId : "",
           offerTotal: Number(data?.offerTotal) || 0,
           attachmentNames: data.attachmentNames || [],
@@ -1274,7 +1350,7 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
         console.warn("[EmailManager] sent dialog failed:", e);
       }
 
-      if (!data?.bitrixComment) {
+      if (!bitrixOnly && !data?.bitrixComment) {
         try {
           const comment = buildBitrixEmailComment({
             offerNumber,
@@ -1299,13 +1375,23 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       pushStatus(`Senden fehlgeschlagen: ${e.message || e}`, "error");
       return false;
     } finally {
-      $btn.disabled = false;
+      setSendingState(false);
     }
+  }
+
+  function setSendingState(busy) {
+    $btn.disabled = busy;
+    if ($btnBitrix) $btnBitrix.disabled = busy;
   }
 
   $btn.addEventListener("click", (e) => {
     e.preventDefault();
     send();
+  });
+
+  $btnBitrix?.addEventListener("click", (e) => {
+    e.preventDefault();
+    send({ bitrixOnly: true });
   });
 
   return { send, render: renderList, excludedPreset, reset, refreshPrefills };
