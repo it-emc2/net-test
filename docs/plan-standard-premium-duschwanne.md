@@ -351,3 +351,40 @@ driving them from the Duschwanne checkbox is exactly the bug — it keeps the ac
 - Restore, mixed payload: Duschwanne Standard, Fußboden **Premium**, Wandverkleidung Standard — each section
   following its own field.
 - Unit suite: 251 pass, same 6 pre-existing suites fail.
+
+
+## 10. Warnung statt Meldung beim Linienwechsel (2026-09-16)
+
+Zwei Meldungen aus der Praxis:
+
+1. Auf einem **neuen** Angebot erschien beim Wechsel „Wandverkleidungsfarbe: „Marmor weiß" gehört zur
+   Linie Premium und wurde entfernt" — „Marmor weiß" ist aber der **Vorgabewert aus dem Markup**, den
+   niemand ausgewählt hat und der beim Zurückwechseln sofort wieder da ist. Es ging nichts verloren,
+   also war die Meldung reines Rauschen.
+2. Bei einem **geladenen Angebot/Entwurf** soll **vorher** gewarnt werden, nicht hinterher gemeldet.
+
+Gelöst über „war das überhaupt eine Auswahl?" statt Raten:
+
+- `__lineUserChoice` je Bereich, gesetzt von einem delegierten `change`-Listener, der **nur echte
+  (`isTrusted`) Eingaben** zählt — eine Wiederherstellung feuert reichlich synthetische Events.
+- `restoreWV` / `restoreDuschwanne` setzen die Markierung selbst, wenn das Angebot eine Farbe bzw.
+  einen Bodenbelag mitbringt: eine gespeicherte Auswahl ist eine echte Auswahl.
+- `setLine()` fragt **vor** dem Umschalten per `window.confirm` (die im Projekt übliche Form für
+  Datenverlust-Warnungen, vgl. „Alle Auswahlen dieser Konfiguration gehen verloren"). Abbrechen lässt
+  Linie **und** Auswahl unangetastet.
+- Nach dem Wechsel wird die Markierung zurückgesetzt — die Vorgabe der neuen Linie ist keine Auswahl.
+- Der nachgelagerte Toast entfällt ersatzlos; `clearHiddenLineSelection()` räumt nur noch auf.
+
+Dialogtext: „Wandverkleidung auf „Standard" umstellen? — Die bisherige Auswahl „Stein beige" gehört zur
+Linie Premium und wird entfernt. Sie müssen anschließend neu wählen."
+
+### Geprüft
+
+| Fall | Verhalten |
+|---|---|
+| Neues Angebot, nur Vorgabe | 0 Dialoge, 0 Toasts; „Marmor weiß" ist nach Hin- und Zurückwechseln wieder da |
+| Eigene Wahl „Stein beige", **Abbrechen** | Linie bleibt Premium, „Stein beige" bleibt gewählt |
+| Eigene Wahl „Stein beige", **OK** | Wechselt, neue Linie startet auf ihrer Vorgabe |
+| Geladenes Angebot (Wand + Boden) | Beide Bereiche warnen mit Namen; die Wiederherstellung selbst fragt nichts |
+
+Unit-Suite: 257 grün, dieselben 6 vorbestehenden Suites rot.

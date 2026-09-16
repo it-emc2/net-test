@@ -186,3 +186,93 @@ describe("per-section Produktlinien", () => {
     expect(isBudgetMode).toBe(false);
   });
 });
+
+/**
+ * Warning before a line switch throws away a selection (2026-09-16).
+ *
+ * Reported: switching the Wandverkleidung on a BRAND-NEW offer announced
+ * „Wandverkleidungsfarbe: 'Marmor weiß' … wurde entfernt" — but that is the
+ * markup's own default, which nobody picked and which comes straight back on
+ * switching back. Nothing was lost, so nothing should be said. A real choice, on
+ * the other hand, must be confirmed BEFORE it disappears, not reported after.
+ */
+function makeLineWithChoiceTracking() {
+  const state = { tier: "premium", userChoice: false, selection: "Marmor weiß", asked: [] };
+  return {
+    state,
+    /** mirrors the trusted-change listener */
+    userPicks(value) {
+      state.selection = value;
+      state.userChoice = true;
+    },
+    /** mirrors restoreWV marking a saved colour as a real choice */
+    restore(value) {
+      state.selection = value;
+      state.userChoice = !!String(value || "").trim();
+    },
+    /** mirrors setLine's guard */
+    switchTo(tier, confirmFn) {
+      const atRisk = state.userChoice ? state.selection : "";
+      if (atRisk) {
+        state.asked.push(atRisk);
+        if (!confirmFn()) return false; // cancelled: nothing changes
+      }
+      state.tier = tier;
+      state.userChoice = false; // the new line starts on its own default
+      state.selection = tier === "standard" ? "WP001|Marmor weiß" : "Marmor weiß";
+      return true;
+    },
+  };
+}
+
+describe("switching a line warns only about real losses", () => {
+  test("a brand-new offer switches silently — the default is not a choice", () => {
+    const l = makeLineWithChoiceTracking();
+    const ok = l.switchTo("standard", () => {
+      throw new Error("must not ask");
+    });
+    expect(ok).toBe(true);
+    expect(l.state.asked).toEqual([]);
+  });
+
+  test("switching back restores exactly the default, so nothing was lost", () => {
+    const l = makeLineWithChoiceTracking();
+    l.switchTo("standard", () => true);
+    l.switchTo("premium", () => true);
+    expect(l.state.selection).toBe("Marmor weiß");
+    expect(l.state.asked).toEqual([]);
+  });
+
+  test("a chosen decor is confirmed first, and Abbrechen changes nothing", () => {
+    const l = makeLineWithChoiceTracking();
+    l.userPicks("Stein beige");
+    const ok = l.switchTo("standard", () => false);
+    expect(ok).toBe(false);
+    expect(l.state.asked).toEqual(["Stein beige"]);
+    expect(l.state.tier).toBe("premium");
+    expect(l.state.selection).toBe("Stein beige");
+  });
+
+  test("confirming goes through", () => {
+    const l = makeLineWithChoiceTracking();
+    l.userPicks("Stein beige");
+    expect(l.switchTo("standard", () => true)).toBe(true);
+    expect(l.state.tier).toBe("standard");
+  });
+
+  test("a colour out of a saved offer counts as a real choice", () => {
+    const l = makeLineWithChoiceTracking();
+    l.restore("Stein beige");
+    l.switchTo("standard", () => true);
+    expect(l.state.asked).toEqual(["Stein beige"]);
+  });
+
+  test("an offer that saved no colour does not ask", () => {
+    const l = makeLineWithChoiceTracking();
+    l.restore("");
+    l.switchTo("standard", () => {
+      throw new Error("must not ask");
+    });
+    expect(l.state.asked).toEqual([]);
+  });
+});

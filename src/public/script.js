@@ -6130,7 +6130,7 @@ function notifyBudgetTilesRendered() {
   // The Badolux tiles only exist now, so this is the first moment the active
   // group can be enabled and given its default. render:false — we are inside the
   // renderer's own completion hook.
-  syncProduktlinieGroups({ announce: false, render: false });
+  syncProduktlinieGroups({ render: false });
   for (const [key, fn] of Object.entries(__budgetReapply)) {
     // Only re-apply for a section that is actually on the Badolux line.
     if (getLine(REAPPLY_LINE[key] || "duschwanne") !== "standard") continue;
@@ -10401,6 +10401,51 @@ function getLine(key) {
   return document.getElementById(cfg?.toggle)?.checked ? "standard" : "premium";
 }
 
+// Whether the user (or a restored offer) actually chose something in a section, as
+// opposed to the default the page ships with. Without this, switching a line on a
+// brand-new offer announced the removal of „Marmor weiß" — the markup default that
+// nobody picked, and that comes straight back when switching back.
+const __lineUserChoice = { duschwanne: false, fussboden: false, wand: false };
+
+function markLineChoice(key, on = true) {
+  if (key in __lineUserChoice) __lineUserChoice[key] = !!on;
+}
+window.markLineChoice = markLineChoice;
+
+function lineKeyForGroupElement(el) {
+  for (const [key, cfg] of Object.entries(PRODUKT_LINES)) {
+    for (const g of cfg.groups) {
+      if (el?.closest?.(`#${g.premium}, #${g.standard}`)) return key;
+    }
+  }
+  return null;
+}
+
+// Real user input only: a restore fires plenty of synthetic change events, and
+// those are handled explicitly in the restore functions instead.
+document.addEventListener("change", (e) => {
+  if (!e.isTrusted) return;
+  const key = lineKeyForGroupElement(e.target);
+  if (key) markLineChoice(key, true);
+});
+
+// What the user would lose by switching this section's line, or "" if nothing.
+function lineSelectionAtRisk(key) {
+  if (!__lineUserChoice[key]) return "";
+  const tier = getLine(key);
+  const names = [];
+  for (const g of PRODUKT_LINES[key]?.groups || []) {
+    const current = document.getElementById(g[tier]);
+    for (const i of current?.querySelectorAll("input:checked") || []) {
+      const n =
+        i.closest("label")?.querySelector(".caption")?.textContent?.trim() ||
+        String(i.value).split("|").pop();
+      if (n) names.push(n);
+    }
+  }
+  return names.join(", ");
+}
+
 // The Duschwanne suggestions follow the Duschwanne line.
 function getTrayTier() {
   return getLine("duschwanne");
@@ -10419,6 +10464,25 @@ function setLine(key, tier, { keepSelection = false } = {}) {
   if (!el) return;
   const want = tier === "standard";
   if (el.checked === want) return;
+
+  // Ask before throwing away a real choice — the other line has different
+  // products, so the selection cannot come along. Nothing is asked when only the
+  // page default is selected: switching back re-selects exactly that default, so
+  // there is nothing to lose and nothing worth interrupting for.
+  const atRisk = lineSelectionAtRisk(key);
+  if (atRisk && !window.__restoring && !window.__RESTORING__) {
+    const from = TIER_INFO[getLine(key)].name;
+    const to = TIER_INFO[tier].name;
+    const ok = window.confirm(
+      `${LINE_LABEL[key]} auf „${to}" umstellen?\n\n` +
+        `Die bisherige Auswahl „${atRisk}" gehört zur Linie ${from} und wird entfernt. ` +
+        `Sie müssen anschließend neu wählen.`,
+    );
+    if (!ok) return;
+  }
+  // The new line starts on its own default, which is not a user choice.
+  markLineChoice(key, false);
+
   if (key === "duschwanne") __trayTierKeepSelection = !!keepSelection;
   el.checked = want;
   el.dispatchEvent(new Event("change", { bubbles: true }));
@@ -10459,23 +10523,14 @@ function setGroupActive(el, active) {
 }
 
 // A selection in the line being left cannot simply stay: it would be an invisible
-// product on the offer. Drop it and say so, the same way the Duschwanne does.
-function clearHiddenLineSelection(el, what, otherName) {
-  if (!el) return null;
-  const checked = [...el.querySelectorAll("input:checked")];
-  if (!checked.length) return null;
-  const names = checked
-    .map(
-      (i) =>
-        i.closest("label")?.querySelector(".caption")?.textContent?.trim() ||
-        i.value.split("|").pop(),
-    )
-    .filter(Boolean);
-  checked.forEach((i) => {
+// product on the offer. The warning happens up front in setLine(); by the time we
+// get here the user has already agreed, so this just clears.
+function clearHiddenLineSelection(el) {
+  if (!el) return;
+  el.querySelectorAll("input:checked").forEach((i) => {
     i.checked = false;
     if (typeof highlightTileForInput === "function") highlightTileForInput(i, false);
   });
-  return `${what}: „${names.join(", ")}" gehört zur Linie ${otherName} und wurde entfernt.`;
 }
 
 // A `required` radio group is only satisfied by a CHECKED radio, and disabling the
@@ -10512,8 +10567,7 @@ function ensureRadioDefault(groupEl) {
 // `render` must be false when this is called FROM a renderer's completion hook:
 // the renderers end by calling notifyBudgetTilesRendered(), which calls back in
 // here, and rendering again from there is an infinite loop.
-function syncProduktlinieGroups({ announce = true, render = true } = {}) {
-  const notes = [];
+function syncProduktlinieGroups({ render = true } = {}) {
 
   for (const [key, cfg] of Object.entries(PRODUKT_LINES)) {
     const tier = getLine(key);
@@ -10530,16 +10584,12 @@ function syncProduktlinieGroups({ announce = true, render = true } = {}) {
       const active = document.getElementById(g[tier]);
       const inactive = document.getElementById(g[leaving]);
       // Clear before hiding, so highlightTileForInput still sees a live element.
-      const note = clearHiddenLineSelection(inactive, g.what, TIER_INFO[leaving].name);
-      if (note) notes.push(note);
+      // Silent: setLine() has already asked, if there was anything worth asking about.
+      clearHiddenLineSelection(inactive);
       setGroupActive(inactive, false);
       setGroupActive(active, true);
       ensureRadioDefault(active);
     }
-  }
-
-  if (announce && notes.length && typeof showToast === "function") {
-    showToast(notes.join(" "), "info");
   }
 }
 
@@ -10566,11 +10616,7 @@ function syncTierSwitchUi() {
     if (text) text.innerHTML = `<b>${info.name} aktiv</b> — ${info.note(key)}`;
   });
 
-  // A restore is setting the line to match the offer, so nothing is "left" and
-  // there is nothing to announce.
-  syncProduktlinieGroups({
-    announce: !window.__restoring && !window.__RESTORING__,
-  });
+  syncProduktlinieGroups();
 }
 
 // Freier Posten stays collapsed until it is actually needed; when no line has a
@@ -14587,6 +14633,9 @@ function restoreWV(wv) {
     "wvLineToggle",
     wv.wvBudgetMode === "1" || wv.wvBudgetMode === 1 || wv.wvBudgetMode === true,
   );
+  // A colour that came out of a saved offer is a real choice, so switching the
+  // line later must warn about losing it.
+  if (String(wv.wvColor || "").trim()) markLineChoice("wand", true);
   // ensure additive WV extras UI exists before restoring
   try { setupWandverkleidungPage(); } catch (e) { console.warn('[WV] setup during restore failed:', e); }
   // Kind is a radio
@@ -16492,6 +16541,10 @@ function restoreDuschwanne(dw) {
   // Fußboden has its own line since 2026-09-11. Absent in every offer saved before
   // that (and in every Premium offer), which restores as Premium — unchanged.
   setCheckbox("floorLineToggle", isOn(dw.floorBudgetMode));
+  const savedFloor = dw.flooringProduct ?? dw["flooringProduct[]"];
+  if (Array.isArray(savedFloor) ? savedFloor.length : String(savedFloor || "").trim()) {
+    markLineChoice("fussboden", true);
+  }
 
   // numeric inputs (quiet during restore)
   setByNameOrId("tray_w_cm", dw.tray_w_cm);
