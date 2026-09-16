@@ -630,6 +630,11 @@ app.use(express.static(path.join(__dirname, "public")));
 
 
 
+// Unmatched /api/* must 404 as JSON, not fall through to the SPA HTML below
+// (a removed/renamed endpoint hit by a stale frontend bundle used to return
+// HTTP 200 index.html, which then failed with "Unexpected token <" on res.json()).
+app.use("/api", (req, res) => res.status(404).json({ error: "Not found" }));
+
 // ---------------- SPA fallback (keep LAST) ----------------
 app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
