@@ -3764,7 +3764,12 @@ function readPostalStateForPayload() {
       : null;
 
   return {
-    enabled: !!window.__postalSectionEnabled,
+    // Legacy field from the old "Versand per Post" toggle in Kundendaten. The
+    // toggle is gone (both ways are tabs now), but saved offers keep whatever
+    // they had: restored as-is, written back unchanged, never read by the UI.
+    ...(window.__legacyPostalEnabled === undefined
+      ? {}
+      : { enabled: window.__legacyPostalEnabled }),
     auftragId: get("postAuftragId"),
     recipient: {
       firstName: get("postFirstName"),
@@ -15598,14 +15603,9 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       console.warn("[restore] internal signature restore failed:", e);
     }
 
-    // Restore the "Versand per Post" toggle state independently of the postal
-    // manager — this is just one boolean + a visibility sync and must not depend
-    // on manager readiness or on the field-restore path below succeeding.
-    try {
-      window.__setPostalSectionEnabled?.(!!p?.postal?.enabled);
-    } catch (e) {
-      console.warn("[restore] postal toggle restore failed:", e);
-    }
+    // Legacy "Versand per Post" flag: kept verbatim so re-saving an old offer
+    // does not drop it. Nothing renders it — Post is a tab now.
+    window.__legacyPostalEnabled = p?.postal?.enabled;
 
     try {
       if (window.__postalManager?.restoreFromPayload) {
@@ -28378,35 +28378,32 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-(function initPostalSending() {
-  function syncPostalSectionVisibility(forceState = null) {
-    const toggleBtn = document.getElementById("togglePostalSectionBtn");
-    const postalSection = document.getElementById("postalSummarySection");
-    if (!toggleBtn || !postalSection) return;
+// Versandart-Tabs on Zusammenfassung: E-Mail and Post are two panels of the
+// same card stack, E-Mail active on load. This replaced the "Versand per Post"
+// toggle in Kundendaten — both ways are always available now, so there is no
+// enabled/disabled state left to store (payload.postal.enabled is only carried
+// through for old records, see readPostalStateForPayload).
+(function initSendTabs() {
+  const DEFAULT_TAB = "mail";
 
-    if (typeof forceState === "boolean") {
-      window.__postalSectionEnabled = forceState;
-    }
+  function showSendTab(key) {
+    const buttons = document.querySelectorAll("[data-send-tab]");
+    if (!buttons.length) return;
 
-    const isVisible = !!window.__postalSectionEnabled;
-    postalSection.hidden = !isVisible;
-    toggleBtn.setAttribute("aria-expanded", String(isVisible));
-    toggleBtn.classList.toggle("is-active", isVisible);
-  }
-
-  function initPostalSectionToggle() {
-    const toggleBtn = document.getElementById("togglePostalSectionBtn");
-    const postalSection = document.getElementById("postalSummarySection");
-    if (!toggleBtn || !postalSection || toggleBtn.dataset.bound === "1") return;
-
-    toggleBtn.dataset.bound = "1";
-    window.__postalSectionEnabled = !!window.__postalSectionEnabled;
-    syncPostalSectionVisibility();
-
-    toggleBtn.addEventListener("click", () => {
-      syncPostalSectionVisibility(!window.__postalSectionEnabled);
+    buttons.forEach((btn) => {
+      const active = btn.dataset.sendTab === key;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-selected", String(active));
     });
+
+    document.querySelectorAll("[data-send-panel]").forEach((panel) => {
+      panel.hidden = panel.dataset.sendPanel !== key;
+    });
+
+    if (key === "post") window.__updatePostAddressWarning?.();
   }
+
+  window.__showSendTab = showSendTab;
 
   function ready(fn) {
     if (document.readyState === "loading") {
@@ -28417,14 +28414,26 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   ready(() => {
-    initPostalSectionToggle();
+    const buttons = document.querySelectorAll("[data-send-tab]");
+    if (!buttons.length) return;
 
-    // Restore-safe: expose a tiny setter for just the enabled/visibility state.
-    // Defined BEFORE the early-return guard below so draft restore can reliably
-    // toggle the "Versand per Post" section even if the optional send-form
-    // nodes are missing or the postal manager never initializes.
-    window.__setPostalSectionEnabled = (on) => syncPostalSectionVisibility(!!on);
+    buttons.forEach((btn) =>
+      btn.addEventListener("click", () => showSendTab(btn.dataset.sendTab)),
+    );
+    showSendTab(DEFAULT_TAB);
+  });
+})();
 
+(function initPostalSending() {
+  function ready(fn) {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", fn, { once: true });
+    } else {
+      fn();
+    }
+  }
+
+  ready(() => {
     const sendBtn = document.getElementById("sendOfferPost");
     const statusBox = document.getElementById("postStatus");
     const attachmentList = document.getElementById("postAttachmentList");
@@ -28559,7 +28568,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function serializePostalState() {
       return {
-        enabled: !!window.__postalSectionEnabled,
         auftragId: String(fields.auftragId?.value || "").trim(),
         recipient: {
           firstName: String(fields.firstName?.value || "").trim(),
@@ -28580,8 +28588,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function restorePostalState(state = {}) {
-      syncPostalSectionVisibility(!!state.enabled);
-
       const recipient = state.recipient || {};
       if (fields.auftragId) fields.auftragId.value = state.auftragId || "";
       // Sync to all three Auftrag ID fields (auftragId, mailAuftragId, postAuftragId)
@@ -28619,11 +28625,42 @@ document.addEventListener("DOMContentLoaded", () => {
       statusBox.dataset.type = "";
       statusBox.hidden = true;
       renderAttachmentList();
+      updatePostAddressWarning();
     }
+
+    // onlinebrief24 reads the recipient out of the PDF's address window, so an
+    // incomplete address is an undeliverable letter. Warn as soon as the Post
+    // tab is opened; validate() still blocks the send itself.
+    const ADDRESS_LABELS = {
+      firstName: "Vorname",
+      lastName: "Nachname",
+      street: "Straße",
+      zipCode: "PLZ",
+      city: "Ort",
+    };
+
+    function updatePostAddressWarning() {
+      const box = document.getElementById("postAddressWarning");
+      if (!box) return;
+
+      const missing = Object.entries(ADDRESS_LABELS)
+        .filter(([key]) => !String(fields[key]?.value || "").trim())
+        .map(([, label]) => label);
+
+      box.hidden = missing.length === 0;
+      const list = document.getElementById("postAddressWarningFields");
+      if (list) list.textContent = missing.length ? ` Es fehlt: ${missing.join(", ")}.` : "";
+    }
+    window.__updatePostAddressWarning = updatePostAddressWarning;
+
+    Object.values(fields).forEach((field) =>
+      field?.addEventListener("input", updatePostAddressWarning),
+    );
 
     function refreshPostalPrefills() {
       fillPostalDefaults();
       renderAttachmentList();
+      updatePostAddressWarning();
     }
 
     window.addEventListener("offerflow:changed", () => {
