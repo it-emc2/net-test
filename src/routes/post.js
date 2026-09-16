@@ -253,7 +253,15 @@ async function ob24Fetch(apiPath, { method = "POST", body } = {}) {
   return payload;
 }
 
-function buildBitrixPostalComment({ recipient, offerNumber, printjobId, printjob, mode, attachmentNames }) {
+function buildBitrixPostalComment({
+  recipient,
+  offerNumber,
+  printjobId,
+  printjob,
+  mode,
+  attachmentNames,
+  docWarnings,
+}) {
   const item = Array.isArray(printjob?.items) ? printjob.items[0] : null;
   const statusText = printjob?.status || item?.status || "-";
   const pages = item?.pages ? `${item.pages} Seiten` : "-";
@@ -268,6 +276,12 @@ function buildBitrixPostalComment({ recipient, offerNumber, printjobId, printjob
     `📎 Anhänge: ${(attachmentNames || []).join(", ") || "-"}`,
     `🕒 ${new Date().toLocaleString("de-DE")}`,
   ];
+
+  // A document that could not be generated is named here rather than silently
+  // missing from the timeline — the letter itself went out either way.
+  if (Array.isArray(docWarnings) && docWarnings.length) {
+    lines.push("", "⚠️ Nicht erzeugt:", ...docWarnings.map((warning) => `• ${warning}`));
+  }
 
   return lines.join("\n");
 }
@@ -354,6 +368,8 @@ router.post("/send", async (req, res) => {
       dispatchDate,
       registered,
       attachments,
+      bitrixDocs,
+      docWarnings,
       meta,
       dealId,
       bitrixEntityType,
@@ -436,13 +452,20 @@ router.post("/send", async (req, res) => {
 
     let bitrixResult = null;
     try {
+      // Documents built by the client for the timeline only (Angebot-DOCX,
+      // Hassmann-CSV, Kalkulation) — the same set the e-mail flow archives.
+      const extraDocs = (Array.isArray(bitrixDocs) ? bitrixDocs : []).filter(
+        (doc) => doc?.filename && doc?.base64,
+      );
+
       const comment = buildBitrixPostalComment({
         recipient,
         offerNumber,
         printjobId,
         printjob,
         mode,
-        attachmentNames,
+        attachmentNames: [...attachmentNames, ...extraDocs.map((doc) => doc.filename)],
+        docWarnings,
       });
 
       // Bundle the same documents we handed to onlinebrief24 (main + attachments)
@@ -453,6 +476,7 @@ router.post("/send", async (req, res) => {
         ...requestedAttachments
           .filter((a) => a?.filename && a?.base64)
           .map((a) => ({ filename: a.filename, base64: a.base64 })),
+        ...extraDocs.map((doc) => ({ filename: doc.filename, base64: doc.base64 })),
       ];
 
       const resolvedEntityType =

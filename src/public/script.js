@@ -28868,6 +28868,31 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
+        // Same document set the e-mail flow archives on the Bitrix timeline
+        // (Angebot-DOCX, Hassmann-CSV, Kalkulation aus der HTML-Version).
+        // Best-effort: a document that fails to build is reported in the
+        // timeline comment instead of blocking the postage.
+        const docWarnings = [];
+        let bitrixDocs = [];
+        try {
+          const docs =
+            (await window.__collectBitrixDocs?.(
+              buildPayload(),
+              offerNumber,
+              (msg) => setStatus(msg, "info"),
+              { onError: (message) => docWarnings.push(message) },
+            )) || [];
+          bitrixDocs = await Promise.all(
+            docs.map(async (doc) => ({
+              filename: doc.filename,
+              base64: await blobToBase64Local(doc.blob),
+            })),
+          );
+        } catch (error) {
+          console.error("[post] Bitrix-Dokumente fehlgeschlagen:", error);
+          docWarnings.push(error?.message || "Bitrix-Dokumente konnten nicht erzeugt werden.");
+        }
+
         setStatus("Sende Brief an onlinebrief24 …", "info");
         const response = await fetch("/api/post/send", {
           method: "POST",
@@ -28886,6 +28911,8 @@ document.addEventListener("DOMContentLoaded", () => {
               base64: pdfBase64,
             },
             attachments: attachmentPayload,
+            bitrixDocs,
+            docWarnings,
             meta: {
               offerNumber: offerNumber,
               dealId: String(fields.auftragId?.value || "").trim(),
@@ -28910,6 +28937,32 @@ document.addEventListener("DOMContentLoaded", () => {
           lastOfferNumber: offerNumber,
           lastSentAt: Date.now(),
         };
+
+        // Same success dialog as the e-mail send, including the optional
+        // "Deal auf ANG verschickt verschieben" action.
+        try {
+          const payload = buildPayload();
+          const dealId = String(fields.auftragId?.value || "").trim();
+          window.__showSentDialog?.({
+            via: "post",
+            dealId,
+            offerTotal: Number(payload?.pricing?.finalTotal) || 0,
+            attachmentNames: [
+              ...(result.attachmentNames || []),
+              ...bitrixDocs.map((doc) => doc.filename),
+            ],
+            offerExtra: {
+              workDays: Number(payload?.Arbeitszeit?.workDays) || 0,
+              offerType: payload.activeOffer || "",
+              offerNumber,
+              isKassenkunde: payload?.Kundendaten?.payer === "Kassenkunde",
+              finalTotal: Number(payload?.pricing?.finalTotal) || 0,
+              payload,
+            },
+          });
+        } catch (error) {
+          console.warn("[post] sent dialog failed:", error);
+        }
       } catch (error) {
         console.error("[post] send error", error);
         setStatus(error?.message || "Postversand fehlgeschlagen.", "error");
