@@ -28896,6 +28896,75 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
+    // Live mode has no safety net: onlinebrief24 prints and franks immediately
+    // and the job can only be deleted within 15 minutes. So a live send asks
+    // once, showing exactly who receives what. Test mode stays one click —
+    // there the job only lands in the Warenkorb.
+    async function getPostalMode() {
+      try {
+        const resp = await fetch("/api/post/config");
+        const data = await resp.json().catch(() => ({}));
+        return String(data?.mode || "").toLowerCase();
+      } catch (error) {
+        console.warn("[post] mode lookup failed:", error);
+        return ""; // unknown -> treated as live below, better one question too many
+      }
+    }
+
+    function confirmLiveSend({ recipientLines, documents, offerNumber }) {
+      return new Promise((resolve) => {
+        document.getElementById("postLiveConfirmOverlay")?.remove();
+
+        const overlay = document.createElement("div");
+        overlay.id = "postLiveConfirmOverlay";
+        overlay.className = "ang-stage-overlay";
+        overlay.innerHTML = `
+          <div class="ang-stage-modal" role="dialog" aria-modal="true" aria-labelledby="postLiveConfirmTitle">
+            <h3 id="postLiveConfirmTitle" class="ang-stage-title">Brief verbindlich versenden?</h3>
+            <p class="ang-stage-text">
+              Der Brief wird sofort gedruckt, frankiert und an die Deutsche Post übergeben.
+              Eine Stornierung ist nur innerhalb von 15 Minuten möglich.
+            </p>
+            <p class="ang-stage-text"><strong>Empfänger</strong><br>${recipientLines
+              .map((line) => escapeHtmlLocal(line))
+              .join("<br>")}</p>
+            <p class="ang-stage-text"><strong>Sendung</strong> (${documents.length} ${
+              documents.length === 1 ? "Dokument" : "Dokumente"
+            })<br>${documents.map((name) => escapeHtmlLocal(name)).join("<br>")}</p>
+            <p class="ang-stage-text" id="postLiveConfirmBalance">Angebot: ${escapeHtmlLocal(offerNumber)}</p>
+            <div class="ang-stage-actions">
+              <button type="button" class="ang-stage-btn ang-stage-btn--primary" id="postLiveConfirmOk">Verbindlich senden</button>
+              <button type="button" class="ang-stage-btn" id="postLiveConfirmCancel">Abbrechen</button>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+
+        // Balance is a nice-to-have: shown when it arrives, never blocks.
+        fetch("/api/post/balance")
+          .then((resp) => resp.json())
+          .then((data) => {
+            const line = document.getElementById("postLiveConfirmBalance");
+            if (line && data?.ok && data.balance !== undefined) {
+              line.innerHTML = `Angebot: ${escapeHtmlLocal(offerNumber)} · Guthaben: ${escapeHtmlLocal(
+                String(data.balance),
+              )} ${escapeHtmlLocal(String(data.currency || "EUR"))}`;
+            }
+          })
+          .catch(() => {});
+
+        const close = (value) => {
+          overlay.remove();
+          resolve(value);
+        };
+        overlay.querySelector("#postLiveConfirmOk").addEventListener("click", () => close(true));
+        overlay.querySelector("#postLiveConfirmCancel").addEventListener("click", () => close(false));
+        overlay.addEventListener("click", (event) => {
+          if (event.target === overlay) close(false);
+        });
+        setTimeout(() => overlay.querySelector("#postLiveConfirmCancel")?.focus(), 50);
+      });
+    }
+
     function validate() {
       let firstInvalid = null;
       [fields.firstName, fields.lastName, fields.street, fields.zipCode, fields.city, fields.country].forEach((el) => {
@@ -28945,6 +29014,22 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!(await requireDealId())) return;
 
         const offerNumber = getResolvedOfferNumberForPostal();
+
+        if ((await getPostalMode()) !== "test") {
+          const confirmed = await confirmLiveSend({
+            offerNumber,
+            recipientLines: [
+              `${String(fields.firstName?.value || "").trim()} ${String(fields.lastName?.value || "").trim()}`.trim(),
+              String(fields.street?.value || "").trim(),
+              `${String(fields.zipCode?.value || "").trim()} ${String(fields.city?.value || "").trim()}`.trim(),
+            ].filter(Boolean),
+            documents: [getOfferPdfTileName(), ...postalAttachments.map((item) => item.filename)],
+          });
+          if (!confirmed) {
+            setStatus("Versand abgebrochen.", "info");
+            return;
+          }
+        }
 
         sendBtn.disabled = true;
         setStatus("Erzeuge Angebots-PDF …", "info");

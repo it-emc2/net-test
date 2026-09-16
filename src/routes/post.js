@@ -549,6 +549,17 @@ router.post("/send", async (req, res) => {
   }
 });
 
+// Which mode the server is in. The frontend asks before every send so it can
+// warn on live sends only — in test mode the job just lands in the Warenkorb.
+router.get("/config", (_req, res) => {
+  try {
+    const { mode } = getConfig();
+    return res.json({ ok: true, mode });
+  } catch (error) {
+    return res.status(500).json({ ok: false, error: error?.message || "Konfiguration unvollständig." });
+  }
+});
+
 // Guthaben — handy for a health check before a live send.
 router.get("/balance", async (_req, res) => {
   try {
