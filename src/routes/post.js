@@ -370,6 +370,7 @@ router.post("/send", async (req, res) => {
       attachments,
       bitrixDocs,
       docWarnings,
+      dealIdOverride,
       meta,
       dealId,
       bitrixEntityType,
@@ -437,6 +438,16 @@ router.post("/send", async (req, res) => {
       printjob = result?.data || null;
     } catch (err) {
       throw withStage(err, "submit_printjob", { mainFilename, offerNumber });
+    }
+
+    // A send without an Auftrag/Deal-ID is released in the frontend by
+    // re-entering the user's password; there is no Bitrix entity to record it
+    // on, so the audit trail is this log line.
+    if (dealIdOverride?.confirmedBy) {
+      console.warn("[post] sent without dealId — released by", dealIdOverride.confirmedBy, {
+        offerNumber,
+        recipient: recipient?.name,
+      });
     }
 
     const printjobId = printjob?.id;

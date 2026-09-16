@@ -28823,6 +28823,79 @@ document.addEventListener("DOMContentLoaded", () => {
       return { blob: await resp.blob(), filename: getOfferPdfTileName() };
     }
 
+    // Without an Auftrag/Deal-ID the letter still goes out, but nothing is
+    // recorded in Bitrix — no comment, no archived documents. That is a gap
+    // nobody notices later, so the send is blocked and can only be released by
+    // re-entering the logged-in user's own password (POST /api/auth/confirm-
+    // password). The release is valid for that one send.
+    let dealIdOverride = null;
+
+    function askPasswordOverride() {
+      return new Promise((resolve) => {
+        document.getElementById("postOverrideOverlay")?.remove();
+
+        const overlay = document.createElement("div");
+        overlay.id = "postOverrideOverlay";
+        overlay.className = "ang-stage-overlay";
+        overlay.innerHTML = `
+          <div class="ang-stage-modal" role="dialog" aria-modal="true" aria-labelledby="postOverrideTitle">
+            <h3 id="postOverrideTitle" class="ang-stage-title">Ohne Auftrag/Deal-ID senden?</h3>
+            <p class="ang-stage-text">
+              Ohne Auftrag-ID wird dieser Brief <strong>nicht in Bitrix dokumentiert</strong> —
+              weder Kommentar noch Angebot, Kalkulation oder Anlagen.
+              Zum Freigeben bitte das eigene Passwort eingeben.
+            </p>
+            <input type="password" id="postOverridePassword" class="ang-stage-input"
+                   autocomplete="current-password" placeholder="Passwort"
+                   style="width:100%;padding:10px;margin:10px 0;border:1px solid #ccc;border-radius:8px;" />
+            <div class="ang-stage-body"></div>
+            <div class="ang-stage-actions">
+              <button type="button" class="ang-stage-btn ang-stage-btn--primary" id="postOverrideConfirm">Freigeben und senden</button>
+              <button type="button" class="ang-stage-btn" id="postOverrideCancel">Abbrechen</button>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+
+        const input = overlay.querySelector("#postOverridePassword");
+        const note = overlay.querySelector(".ang-stage-body");
+        const close = (value) => {
+          overlay.remove();
+          resolve(value);
+        };
+
+        async function confirm() {
+          const password = String(input.value || "");
+          if (!password) return input.focus();
+
+          note.innerHTML = `<p class="ang-stage-text">Prüfe Passwort …</p>`;
+          try {
+            const resp = await fetch("/api/auth/confirm-password", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ password }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(data?.error || `HTTP ${resp.status}`);
+            close({ confirmedBy: data.email || "" });
+          } catch (error) {
+            note.innerHTML = `<p class="ang-stage-error">${error?.message || "Passwort falsch"}</p>`;
+            input.value = "";
+            input.focus();
+          }
+        }
+
+        overlay.querySelector("#postOverrideConfirm").addEventListener("click", confirm);
+        overlay.querySelector("#postOverrideCancel").addEventListener("click", () => close(null));
+        overlay.addEventListener("click", (event) => {
+          if (event.target === overlay) close(null);
+        });
+        input.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") confirm();
+        });
+        setTimeout(() => input.focus(), 50);
+      });
+    }
+
     function validate() {
       let firstInvalid = null;
       [fields.firstName, fields.lastName, fields.street, fields.zipCode, fields.city, fields.country].forEach((el) => {
@@ -28839,10 +28912,37 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    async function requireDealId() {
+      const dealId = String(fields.auftragId?.value || "").trim();
+      clearInputError(fields.auftragId);
+      if (dealId) {
+        dealIdOverride = null;
+        return true;
+      }
+
+      markInputError(fields.auftragId);
+      setStatus(
+        "Ohne Auftrag/Deal-ID wird der Brief nicht in Bitrix dokumentiert. Freigabe mit Passwort erforderlich.",
+        "warn",
+      );
+
+      const override = await askPasswordOverride();
+      if (!override) {
+        fields.auftragId?.focus();
+        setStatus("Abgebrochen — bitte Auftrag/Deal-ID eintragen.", "error");
+        return false;
+      }
+
+      dealIdOverride = override;
+      clearInputError(fields.auftragId);
+      return true;
+    }
+
     sendBtn.addEventListener("click", async () => {
       try {
         fillPostalDefaults();
         validate();
+        if (!(await requireDealId())) return;
 
         const offerNumber = getResolvedOfferNumberForPostal();
 
@@ -28913,6 +29013,7 @@ document.addEventListener("DOMContentLoaded", () => {
             attachments: attachmentPayload,
             bitrixDocs,
             docWarnings,
+            dealIdOverride,
             meta: {
               offerNumber: offerNumber,
               dealId: String(fields.auftragId?.value || "").trim(),
