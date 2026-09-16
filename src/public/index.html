@@ -7903,13 +7903,14 @@ button.dm-btn-danger:focus-visible {
             </div>
           </section>
 
-          <!-- Kassenkunden-Dokumente: which optional documents ship with this Kassenkunde offer. Drives 3 places, all reading the same state:
+          <!-- Mitgesendete Unterlagen: which optional documents ship with this offer. Drives 3 places, all reading the same state:
               EmailManager.js (mail attachment tiles + body text list), initPostalSending() below (Post-Anhänge), and signing.js
               (createSigningRequest reads payload.docSelection to decide which documents the online-signing link requires). Angebot itself is
-              not a checkbox — it is always included. -->
+              not a checkbox — it is always included. Shown for Kassenkunde and Selbstzahler; the payer only seeds the default tick state
+              (applyPayerDocDefaults in script.js) — Selbstzahler starts without Abtretung/Vollmacht but can opt in. -->
           <section id="zfDocSelectionCard" class="bitrix-section" hidden aria-hidden="true">
-            <h2 class="section-title">Kassenkunden-Dokumente</h2>
-            <p class="section-subtitle">Bestimmt, welche Unterlagen mitgehen — in der E-Mail, als PDF-Anhang, im Postversand und in der Online-Unterschrift. Das Angebot ist immer enthalten.</p>
+            <h2 class="section-title">Mitgesendete Unterlagen</h2>
+            <p class="section-subtitle">Bestimmt, welche Unterlagen mitgehen — in der E-Mail, als PDF-Anhang, im Postversand und in der Online-Unterschrift. Das Angebot ist immer enthalten. Bei Selbstzahlern sind Abtretung und Vollmacht voreingestellt abgewählt.</p>
             <div class="bitrix-card doc-select-card">
               <label class="inline-check doc-select-row">
                 <input type="checkbox" id="docSel_abtretung" checked />
@@ -8076,12 +8077,6 @@ button.dm-btn-danger:focus-visible {
       </div>
     </div>
 
-    <label for="postSubject">Briefbetreff</label>
-    <input id="postSubject" type="text" placeholder="ANG-..." />
-
-    <label for="postBody">Brieftext</label>
-    <textarea id="postBody" rows="16" placeholder="Hello ..."></textarea>
-
     <label for="postAttachments">Zusätzliche Anhänge (optional, PDF)</label>
     <input id="postAttachments" type="file" accept="application/pdf,.pdf" multiple />
 
@@ -8090,7 +8085,7 @@ button.dm-btn-danger:focus-visible {
         <div class="mail-attach-title">Im Postversand enthalten</div>
       </div>
       <div id="postAttachmentList" class="mail-attach-grid"></div>
-      <div class="mail-attach-hint">Die Angebots-PDF ist das Hauptdokument für den Postversand.</div>
+      <div class="mail-attach-hint">Die Angebots-PDF ist der Brief selbst – Anschrift, Betreff und Anschreiben stehen darin. Alles Weitere wird als Anlage beigelegt.</div>
     </div>
 
     <button type="button" id="sendOfferPost" class="btn-export btn-pdf">

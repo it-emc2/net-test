@@ -30,7 +30,7 @@
      MongoDB        External APIs    File I/O
      (Mongoose)     (Bitrix, ORS,   (DOCX templates,
                      Hassmann,       PDF generation,
-                     Binect, n8n)    LibreOffice)
+                     onlinebrief24, n8n)    LibreOffice)
 ```
 
 ## Request Flow
@@ -396,7 +396,7 @@ Photon (Komoot)     -> Geocoding fallback
 Nominatim (OSM)     -> Geocoding fallback
 OSRM                -> Routing fallback
 Hassmann API        -> Shower enclosure products
-Binect              -> Postal delivery service
+onlinebrief24       -> Postal delivery service
 Adobe PDF Services  -> Document generation
 n8n                 -> Workflow automation (today's customers)
 Route Planning API  -> Planning service (route-plannung.fly.dev)

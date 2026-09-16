@@ -231,32 +231,40 @@ Each variant is tried until a valid result (matching postal code + city) is foun
 
 ---
 
-## Binect - Postal Delivery Service
+## onlinebrief24 - Postal Delivery Service
 
 ### Overview
-Sends physical mail (printed letters) to customers via Binect API.
+Sends physical mail (printed letters) to customers via the onlinebrief24.de / letterei.de API v1.
+API docs: `docs1/refs/onlinebrief24-api.pdf.pdf`.
 
 ### Configuration
-- **Base URL**: `BINECT_BASE_URL` env var (default: `https://app.binect.de/binectapi/v1`)
-- **Authentication**: Basic auth (`BINECT_USERNAME`, `BINECT_PASSWORD`)
+- **Base URL**: `OB24_BASE_URL` env var (default: `https://api.onlinebrief24.de/v1`)
+- **Authentication**: `auth { apiKey, apiSecret, mode }` object in the JSON body of **every** request
+  (`OB24_API_KEY`, `OB24_API_SECRET`)
+- **Mode**: `OB24_MODE` = `test` (default, job is parked in the onlinebrief24 Warenkorb for 7 days)
+  or `live` (sent immediately)
 
 ### Workflow
 
 ```
-1. Validate & normalize recipient address
+1. Validate recipient address (sanity check only - see note below)
    |
-2. POST /documents -> Upload main document (base64)
+2. Render the offer PDF
    |
-3. PUT /documents/{id}/coverpage -> Add cover page (optional)
+3. POST /v1/printjobs -> letter = offer PDF (base64 + md5 checksum),
+                         base64_attachments = static/uploaded PDFs
    |
-4. POST /documents -> Upload each attachment
-   |
-5. PUT /documents/{mainId}/attachments/{attachId} -> Link attachments
-   |
-6. POST /sendings/{id} -> Send document for printing/delivery
-   |
-7. POST /api/bitrix/timeline/comment -> Record in CRM (optional)
+4. POST /api/bitrix/timeline/comment -> Record in CRM (optional)
 ```
+
+**Note**: onlinebrief24 has no recipient-address and no cover-text fields. The address must sit in
+the PDF's DIN-5008 address window - the Angebot template (`src/templates/Angebot.docx`) already
+contains it, so the offer PDF *is* the letter.
+
+### Print specification
+Default `{ color: "4", mode: "duplex", shipping: "national" }`, overridable per request via
+`specification`. Optional per request: `dispatchDate` (future date), `registered` (`r1` Einschreiben
+Einwurf / `r2` Einschreiben). Max 50 MB per PDF.
 
 ### Static Attachments
 Pre-configured attachments that can be included:
@@ -358,7 +366,7 @@ The stream endpoint supports real-time updates via SSE, with automatic abort on 
          |           Pricing             |
          v               |               v
    +----------+          |         +-----------+
-   | Bitrix24 |          |         | Binect    |
+   | Bitrix24 |          |         | OB24      |
    | CRM      |          |         | (postal)  |
    +----------+          |         +-----------+
          |               |

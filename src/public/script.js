@@ -2579,8 +2579,6 @@ function resetAllForms() {
     "postZip",
     "postCity",
     "postCountry",
-    "postSubject",
-    "postBody",
   ].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.value = "";
@@ -3776,8 +3774,6 @@ function readPostalStateForPayload() {
       city: get("postCity"),
       country: get("postCountry"),
     },
-    subject: get("postSubject"),
-    body: String(document.getElementById("postBody")?.value || ""),
     attachments: Array.isArray(managerState?.attachments)
       ? managerState.attachments
       : undefined,
@@ -15634,6 +15630,8 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       ["abtretung", "vollmacht", "barrierefrei"].forEach((id) => {
         window.setDocumentSelected?.(id, ds[id] !== false);
       });
+      window.__lastPayerForDocDefaults =
+        document.querySelector('input[name="payer"]:checked')?.value || "";
     } catch (e) {
       console.warn("[restore] docSelection restore failed:", e);
     }
@@ -28324,14 +28322,30 @@ document
 function updateDocSelectionVisibility() {
   const wrap = document.getElementById("zfDocSelectionCard");
   if (!wrap) return;
-  const isKassenkunde =
-    document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde";
+  const payer = document.querySelector('input[name="payer"]:checked')?.value;
   const isAh = String(window.getCurrentOfferType?.() || "bu").toLowerCase() === "ah";
-  const show = isKassenkunde && !isAh;
+  const show = (payer === "Kassenkunde" || payer === "Selbstzahler") && !isAh;
   wrap.hidden = !show;
   wrap.setAttribute("aria-hidden", show ? "false" : "true");
 }
 window.updateDocSelectionVisibility = updateDocSelectionVisibility;
+
+// The payer only sets the DEFAULT tick state: a Selbstzahler normally gets
+// neither Abtretung nor Vollmacht, but can opt in by ticking the box. From
+// there the checkboxes are the single source of truth (mail text, mail and
+// postal attachments, signing) — no code may hard-filter by payer any more.
+// __lastPayerForDocDefaults guards against clobbering a restored draft: the
+// restore path sets it after writing the saved docSelection, so the
+// post-restore payer "change" nudge is a no-op.
+function applyPayerDocDefaults() {
+  const payer = document.querySelector('input[name="payer"]:checked')?.value || "";
+  if (payer === window.__lastPayerForDocDefaults) return;
+  window.__lastPayerForDocDefaults = payer;
+
+  const selected = payer !== "Selbstzahler";
+  ["abtretung", "vollmacht"].forEach((id) => setDocumentSelected(id, selected));
+}
+window.applyPayerDocDefaults = applyPayerDocDefaults;
 
 function setDocumentSelected(id, selected) {
   const checkbox = document.getElementById(`docSel_${id}`);
@@ -28347,10 +28361,14 @@ function setDocumentSelected(id, selected) {
 window.setDocumentSelected = setDocumentSelected;
 
 document.addEventListener("DOMContentLoaded", () => {
-  document
-    .querySelectorAll('input[name="payer"]')
-    .forEach((r) => r.addEventListener("change", updateDocSelectionVisibility));
+  document.querySelectorAll('input[name="payer"]').forEach((r) =>
+    r.addEventListener("change", () => {
+      applyPayerDocDefaults();
+      updateDocSelectionVisibility();
+    }),
+  );
   window.addEventListener("offerflow:changed", updateDocSelectionVisibility);
+  applyPayerDocDefaults();
   updateDocSelectionVisibility();
 
   ["abtretung", "vollmacht", "barrierefrei"].forEach((id) => {
@@ -28422,29 +28440,27 @@ document.addEventListener("DOMContentLoaded", () => {
       zipCode: document.getElementById("postZip"),
       city: document.getElementById("postCity"),
       country: document.getElementById("postCountry"),
-      subject: document.getElementById("postSubject"),
-      body: document.getElementById("postBody"),
     };
 
+    // Postversand only. The Flyer "Barrierefreies Wohnen" is mail-only and never
+    // goes out by post — keep in sync with STATIC_POSTAL_ATTACHMENTS in
+    // src/routes/post.js, which refuses it as well.
     const DEFAULT_POSTAL_ATTACHMENTS = [
       { id: "abtretung", type: "static", filename: "Abtretungserklärung.pdf", label: "Default" },
-      { id: "barrierefrei", type: "static", filename: "emc2_Barrierefreies_Wohnen.pdf", label: "Default" },
       { id: "vollmacht", type: "static", filename: "Vollmacht.pdf", label: "Default" },
       // Future-ready: add more predefined postal attachments here if needed.
     ];
 
     // Statics are recomputed from the same excludedPreset Set the mail section
-    // uses (window.__mailExcludedPreset, see EmailManager.js) plus the
-    // Selbstzahler/Kassenkunde payer rule — see computeStaticPostalAttachments().
+    // uses (window.__mailExcludedPreset, see EmailManager.js), which the
+    // Kassenkunden-Dokumente checkboxes drive. The payer only seeds those
+    // checkboxes (applyPayerDocDefaults) — it is not a filter here.
     // Only uploads are tracked as free-standing state in postalAttachments.
     function computeStaticPostalAttachments() {
-      const isSZ =
-        document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler";
-      const payerExcluded = isSZ ? new Set(["abtretung", "vollmacht"]) : new Set();
       const excluded = window.__mailExcludedPreset || new Set();
-      return DEFAULT_POSTAL_ATTACHMENTS.filter(
-        (item) => !payerExcluded.has(item.id) && !excluded.has(item.id),
-      ).map((item) => ({ ...item }));
+      return DEFAULT_POSTAL_ATTACHMENTS.filter((item) => !excluded.has(item.id)).map((item) => ({
+        ...item,
+      }));
     }
 
     let postalAttachments = [];
@@ -28527,80 +28543,8 @@ document.addEventListener("DOMContentLoaded", () => {
       return `${getResolvedOfferNumberForPostal()}.pdf`;
     }
 
-    function getOfferSubjectSuffix() {
-      const activeOffer = String(getActiveOfferForPostal() || "").trim().toLowerCase();
-      const suffixByOffer = {
-        bu: "zum Badumbau",
-        bwt: "zur Badewannentür",
-        hl: "zum Handlauf",
-        bl: "zum Badelift",
-        ah: "zur Alltagshilfe",
-        hms: "zum Hausmeisterservice",
-        wd: "zum Winterdienst",
-      };
-      return suffixByOffer[activeOffer] || "";
-    }
-
-    function buildPostalSubjectDefault() {
-      const offerNumber = getResolvedOfferNumberForPostal();
-      const suffix = getOfferSubjectSuffix();
-      const base = offerNumber
-        ? `emc2 | Ihr Angebot ${offerNumber}`
-        : "emc2 | Ihr Angebot";
-      return suffix ? `${base} ${suffix}` : base;
-    }
-
-    function computeRecipientName() {
-      const firstName = String(document.getElementById("firstName")?.value || "").trim();
-      const lastName = String(document.getElementById("lastName")?.value || "").trim();
-      return [firstName, lastName].filter(Boolean).join(" ").trim();
-    }
-
-    let postalBodyTouched = false;
-    let lastAutoPostalBody = "";
-
-    function getPreferredPostalBodyTemplate() {
-      const mailBodyEl = document.getElementById("mailBody");
-      const mailBody = String(mailBodyEl?.value || "").trim();
-      if (mailBody) return mailBody;
-      return "";
-    }
-
-    function syncPostalBodyWithMailTemplate(force = false) {
-      const preferred = getPreferredPostalBodyTemplate();
-      if (!preferred || !fields.body) return;
-
-      const current = String(fields.body.value || "").trim();
-      const legacy =
-        "Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie Ihr Angebot.\n\nMit freundlichen Grüßen\nEmC2";
-
-      const shouldSync =
-        force ||
-        !postalBodyTouched ||
-        !current ||
-        current === legacy ||
-        current === lastAutoPostalBody;
-
-      if (shouldSync) {
-        fields.body.value = preferred;
-        lastAutoPostalBody = preferred;
-        postalBodyTouched = false;
-      }
-    }
-
-    let postalSubjectTouched = false;
-    fields.subject?.addEventListener("input", () => {
-      postalSubjectTouched = true;
-    });
-    fields.body?.addEventListener("input", () => {
-      postalBodyTouched = String(fields.body?.value || "").trim() !== lastAutoPostalBody;
-    });
-
     function resetPostalPanel() {
       postalAttachments = [];
-      postalSubjectTouched = false;
-      postalBodyTouched = false;
-      lastAutoPostalBody = "";
 
       Object.values(fields).forEach((field) => {
         if (field) field.value = "";
@@ -28625,8 +28569,6 @@ document.addEventListener("DOMContentLoaded", () => {
           city: String(fields.city?.value || "").trim(),
           country: String(fields.country?.value || "").trim(),
         },
-        subject: String(fields.subject?.value || "").trim(),
-        body: String(fields.body?.value || ""),
         attachments: postalAttachments.map((item) => ({
           id: item.id,
           type: item.type,
@@ -28652,8 +28594,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (fields.zipCode) fields.zipCode.value = recipient.zipCode || "";
       if (fields.city) fields.city.value = recipient.city || "";
       if (fields.country) fields.country.value = recipient.country || "DE";
-      if (fields.subject) fields.subject.value = state.subject || "";
-      if (fields.body) fields.body.value = state.body || "";
 
       const restoredAttachments = Array.isArray(state.attachments)
         ? state.attachments
@@ -28674,9 +28614,6 @@ document.addEventListener("DOMContentLoaded", () => {
         postalAttachments = restoredAttachments.filter((item) => item.type === "upload");
       }
 
-      postalSubjectTouched = !!String(fields.subject?.value || "").trim();
-      postalBodyTouched = !!String(fields.body?.value || "").trim();
-      lastAutoPostalBody = String(fields.body?.value || "");
       uploadInput.value = "";
       statusBox.textContent = "";
       statusBox.dataset.type = "";
@@ -28708,25 +28645,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!String(fields.zipCode?.value || "").trim()) fields.zipCode.value = String(document.getElementById("postalCode")?.value || "").trim();
       if (!String(fields.city?.value || "").trim()) fields.city.value = String(document.getElementById("city")?.value || "").trim();
       if (!String(fields.country?.value || "").trim()) fields.country.value = String(document.getElementById("country")?.value || "Deutschland").trim() || "Deutschland";
-
-      if (fields.subject && !postalSubjectTouched) {
-        fields.subject.value = buildPostalSubjectDefault();
-      }
-      syncPostalBodyWithMailTemplate();
     }
-
-    syncPostalBodyWithMailTemplate();
-    document.getElementById("mailBody")?.addEventListener("input", () => {
-      syncPostalBodyWithMailTemplate();
-    });
-    document.getElementById("mailBody")?.addEventListener("change", () => {
-      syncPostalBodyWithMailTemplate();
-    });
-    document.querySelectorAll('input[name="salutation"]').forEach((el) => {
-      el.addEventListener("change", () => {
-        syncPostalBodyWithMailTemplate();
-      });
-    });
 
     function renderAttachmentList() {
       postalAttachments = [
@@ -28912,7 +28831,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        setStatus("Sende Brief an Binect …", "info");
+        setStatus("Sende Brief an onlinebrief24 …", "info");
         const response = await fetch("/api/post/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -28925,8 +28844,6 @@ document.addEventListener("DOMContentLoaded", () => {
               city: String(fields.city?.value || "").trim(),
               country: String(fields.country?.value || "Deutschland").trim() || "Deutschland",
             },
-            subject: String(fields.subject?.value || "").trim(),
-            body: String(fields.body?.value || "").trim(),
             document: {
               filename: pdfFilename || getOfferPdfTileName(),
               base64: pdfBase64,
@@ -28945,7 +28862,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         setStatus(
-          `Postversand erfolgreich gestartet. Dokument-ID: ${result.documentId || "-"} · Anhänge: ${result.attachmentCount || 0}`,
+          result.mode === "test"
+            ? `Testmodus: Auftrag ${result.printjobId || "-"} liegt im onlinebrief24-Warenkorb · Anlagen: ${result.attachmentCount || 0}`
+            : `Postversand erfolgreich gestartet. Auftrag: ${result.printjobId || "-"} · Anlagen: ${result.attachmentCount || 0}`,
           "success",
         );
 

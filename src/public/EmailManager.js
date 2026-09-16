@@ -617,11 +617,16 @@ Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pf
 Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     }
 
-    const attachmentList = isSelbstzahler
-      ? `1. Ihr Angebot ${offerNumber}\n2. Unseren aktuellen Flyer "Barrierefreies Wohnen"`
-      : [`Ihr Angebot ${offerNumber}`, ...KASSE_DOC_LINES.filter((p) => !excludedPreset.has(p.id)).map((p) => p.line)]
-          .map((line, i) => `${i + 1}. ${line}`)
-          .join("\n");
+    // Selbstzahler vs Kassenkunde is not a branch here any more: the payer only
+    // seeds the #zfDocSelectionCard checkboxes (applyPayerDocDefaults in
+    // script.js), and this list follows the checkboxes — so a Selbstzahler who
+    // ticks Abtretung/Vollmacht gets them named in the text too.
+    const attachmentList = [
+      `Ihr Angebot ${offerNumber}`,
+      ...KASSE_DOC_LINES.filter((p) => !excludedPreset.has(p.id)).map((p) => p.line),
+    ]
+      .map((line, i) => `${i + 1}. ${line}`)
+      .join("\n");
 
     return `${buildGreetingLine()}
 
@@ -1019,9 +1024,9 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler";
     const isAh = getOfferType() === "ah";
     const presetList = isAh ? cfg.ahPresetAttachments : cfg.presetAttachments;
-    const payerHidden = isSZ
-      ? new Set(isAh ? ["abtretung_ah", "vollmacht"] : ["abtretung", "vollmacht"])
-      : new Set();
+    // Non-AH: the checkboxes decide (excludedPreset). AH keeps its own payer rule.
+    const payerHidden =
+      isSZ && isAh ? new Set(["abtretung_ah", "vollmacht"]) : new Set();
     for (const p of presetList) {
       if (payerHidden.has(p.id)) continue;
       if (excludedPreset.has(p.id)) continue;
