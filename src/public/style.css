@@ -10017,12 +10017,28 @@ details.az-group[open] > summary.az-group-title::before {
 /* Farbe zuerst: der Verweis „wie oben gewählt" in den Platten-Selects zeigt
    damit nach oben statt nach unten. Genau diese Umkehrung liest sich sonst wie
    zwei gleichzeitig gewählte Farben. */
-#wvColorSection { order: -2; flex: 1 1 100%; }
-#wvBudgetColorSection { order: -1; flex: 1 1 100%; }
+#wvPanelsSection #wvColorSection { order: -2; flex: 1 1 100%; width: 100%; }
+#wvPanelsSection #wvBudgetColorSection { order: -1; flex: 1 1 100%; width: 100%; }
 
-/* Jede Plattengröße als eigene Karte statt loser Felder. */
-#wvPanelsSection > .section-title + label.req + div > .field {
-  flex: 1 1 320px;
+/* Dekor-Kacheln als Raster, damit sie in die Breite laufen statt in eine
+   endlose Spalte. */
+#wvColors,
+#wvBudgetColors {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 12px;
+}
+
+#wvColors .image-check,
+#wvBudgetColors .image-check {
+  width: 100%;
+}
+
+/* Nur die beiden Plattengrößen werden zu Karten. Die Farbbereiche tragen
+   ebenfalls die Klasse .field und würden sonst mitgefasst — mit höherer
+   Spezifität als ihre eigene Regel, was sie in eine schmale Spalte presst. */
+#wvPanelsSection > .section-title + label.req + div > .field:has(input[name="wvPanels[]"]) {
+  flex: 1 1 340px;
   border: 1.5px solid var(--border);
   border-radius: 14px;
   padding: 14px;
