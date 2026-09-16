@@ -6,9 +6,37 @@
 // The main app connection points at KonfiguratorDB, so the dedicated vigor
 // connection comes from external/vigorDb.js.
 import { Router } from "express";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { getVigorDb } from "../external/vigorDb.js";
 
 const r = Router();
+
+// Images are downloaded once from the Vigor CDN and served same-origin —
+// hotlinking the CDN URL directly breaks under CSP imgSrc drift (see other
+// categories, which follow the same pattern via scripts/add-product.mjs).
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ASSETS_DIR = path.join(__dirname, "..", "public", "assets", "vorhang");
+
+async function ensureLocalImage(articleNumber, url) {
+  if (!articleNumber || !url) return null;
+  const target = path.join(ASSETS_DIR, `${articleNumber}.jpg`);
+  try {
+    await fs.access(target);
+    return `/assets/vorhang/${articleNumber}.jpg`;
+  } catch {}
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    await fs.mkdir(ASSETS_DIR, { recursive: true });
+    await fs.writeFile(target, Buffer.from(await res.arrayBuffer()));
+    return `/assets/vorhang/${articleNumber}.jpg`;
+  } catch (e) {
+    console.error(`[vorhang] image download failed for ${articleNumber}:`, e?.message || e);
+    return null;
+  }
+}
 
 
 // Parse the width/length (in mm) a product covers, from its article code + name.
@@ -35,7 +63,8 @@ function classifyRail(article) {
   return "optional"; // Verbindungsbogen, Kupplung, Deckenstütze …
 }
 
-function toItem(d) {
+async function toItem(d) {
+  const sourceUrl = Array.isArray(d.images) && d.images.length ? d.images[0] : null;
   return {
     articleNumber: d.articleNumber,
     name: d.name || d.articleNumber,
@@ -43,7 +72,7 @@ function toItem(d) {
     gross: Number(d.grosPrice) || 0,
     unit: d.unit || "Stück",
     finish: d.finish || null,
-    image: Array.isArray(d.images) && d.images.length ? d.images[0] : null,
+    image: await ensureLocalImage(d.articleNumber, sourceUrl),
     sizeCm: parseSizeCm(d.articleNumber, d.name),
   };
 }
@@ -71,8 +100,10 @@ async function loadProducts() {
   const rods = [];
   const mandatory = [];
   const optional = [];
-  for (const d of seen.values()) {
-    const item = toItem(d);
+  const docsList = [...seen.values()];
+  const items = await Promise.all(docsList.map(toItem));
+  for (const [i, d] of docsList.entries()) {
+    const item = items[i];
     const cat = d.configContext?.category;
     if (cat === "duschvorhang") {
       curtains.push(item);
