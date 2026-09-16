@@ -10003,3 +10003,78 @@ details.az-group[open] > summary.az-group-title::before {
   font-style: italic;
   color: var(--muted-foreground);
 }
+
+
+/* ===== Wandverkleidung: Plattenwahl lesbarer machen (2026-09-16) =====
+   Reine Darstellung. Kein Element wird verschoben, umbenannt oder entfernt —
+   die Reihenfolge entsteht über `order` im bestehenden Flex-Container, damit
+   jedes id/name/form bleibt, wo Restore, Payload und Preislogik es erwarten. */
+#wvPanelsSection > .section-title + label.req + div {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+/* Farbe zuerst: der Verweis „wie oben gewählt" in den Platten-Selects zeigt
+   damit nach oben statt nach unten. Genau diese Umkehrung liest sich sonst wie
+   zwei gleichzeitig gewählte Farben. */
+#wvColorSection { order: -2; flex: 1 1 100%; }
+#wvBudgetColorSection { order: -1; flex: 1 1 100%; }
+
+/* Jede Plattengröße als eigene Karte statt loser Felder. */
+#wvPanelsSection > .section-title + label.req + div > .field {
+  flex: 1 1 320px;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  background: var(--card, #fff);
+}
+
+#wvPanelsSection > .section-title + label.req + div > .field:has(input[name="wvPanels[]"]:checked) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+/* Mengenfeld und Farb-Select auf Tablet-Größe. */
+#wvQty997, #wvQty1497 {
+  min-height: 48px;
+  font-size: 17px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.wv-color-per-row {
+  min-height: 48px;
+  font-size: 15px;
+}
+
+/* Laufende Zusammenfassung unter der Plattenwahl. */
+.wv-summary {
+  order: 99;
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: var(--accent-weak);
+  color: var(--accent-strong);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.wv-summary .wv-chip {
+  background: var(--card, #fff);
+  color: var(--card-foreground, #111827);
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.wv-summary.is-empty {
+  background: var(--section-bg-base, #eef0f5);
+  color: var(--muted-foreground);
+  font-weight: 600;
+}
