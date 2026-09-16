@@ -2579,8 +2579,6 @@ function resetAllForms() {
     "postZip",
     "postCity",
     "postCountry",
-    "postSubject",
-    "postBody",
   ].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.value = "";
@@ -3766,7 +3764,12 @@ function readPostalStateForPayload() {
       : null;
 
   return {
-    enabled: !!window.__postalSectionEnabled,
+    // Legacy field from the old "Versand per Post" toggle in Kundendaten. The
+    // toggle is gone (both ways are tabs now), but saved offers keep whatever
+    // they had: restored as-is, written back unchanged, never read by the UI.
+    ...(window.__legacyPostalEnabled === undefined
+      ? {}
+      : { enabled: window.__legacyPostalEnabled }),
     auftragId: get("postAuftragId"),
     recipient: {
       firstName: get("postFirstName"),
@@ -3776,8 +3779,6 @@ function readPostalStateForPayload() {
       city: get("postCity"),
       country: get("postCountry"),
     },
-    subject: get("postSubject"),
-    body: String(document.getElementById("postBody")?.value || ""),
     attachments: Array.isArray(managerState?.attachments)
       ? managerState.attachments
       : undefined,
@@ -15602,14 +15603,9 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       console.warn("[restore] internal signature restore failed:", e);
     }
 
-    // Restore the "Versand per Post" toggle state independently of the postal
-    // manager — this is just one boolean + a visibility sync and must not depend
-    // on manager readiness or on the field-restore path below succeeding.
-    try {
-      window.__setPostalSectionEnabled?.(!!p?.postal?.enabled);
-    } catch (e) {
-      console.warn("[restore] postal toggle restore failed:", e);
-    }
+    // Legacy "Versand per Post" flag: kept verbatim so re-saving an old offer
+    // does not drop it. Nothing renders it — Post is a tab now.
+    window.__legacyPostalEnabled = p?.postal?.enabled;
 
     try {
       if (window.__postalManager?.restoreFromPayload) {
@@ -15634,6 +15630,8 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       ["abtretung", "vollmacht", "barrierefrei"].forEach((id) => {
         window.setDocumentSelected?.(id, ds[id] !== false);
       });
+      window.__lastPayerForDocDefaults =
+        document.querySelector('input[name="payer"]:checked')?.value || "";
     } catch (e) {
       console.warn("[restore] docSelection restore failed:", e);
     }
@@ -28324,14 +28322,30 @@ document
 function updateDocSelectionVisibility() {
   const wrap = document.getElementById("zfDocSelectionCard");
   if (!wrap) return;
-  const isKassenkunde =
-    document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde";
+  const payer = document.querySelector('input[name="payer"]:checked')?.value;
   const isAh = String(window.getCurrentOfferType?.() || "bu").toLowerCase() === "ah";
-  const show = isKassenkunde && !isAh;
+  const show = (payer === "Kassenkunde" || payer === "Selbstzahler") && !isAh;
   wrap.hidden = !show;
   wrap.setAttribute("aria-hidden", show ? "false" : "true");
 }
 window.updateDocSelectionVisibility = updateDocSelectionVisibility;
+
+// The payer only sets the DEFAULT tick state: a Selbstzahler normally gets
+// neither Abtretung nor Vollmacht, but can opt in by ticking the box. From
+// there the checkboxes are the single source of truth (mail text, mail and
+// postal attachments, signing) — no code may hard-filter by payer any more.
+// __lastPayerForDocDefaults guards against clobbering a restored draft: the
+// restore path sets it after writing the saved docSelection, so the
+// post-restore payer "change" nudge is a no-op.
+function applyPayerDocDefaults() {
+  const payer = document.querySelector('input[name="payer"]:checked')?.value || "";
+  if (payer === window.__lastPayerForDocDefaults) return;
+  window.__lastPayerForDocDefaults = payer;
+
+  const selected = payer !== "Selbstzahler";
+  ["abtretung", "vollmacht"].forEach((id) => setDocumentSelected(id, selected));
+}
+window.applyPayerDocDefaults = applyPayerDocDefaults;
 
 function setDocumentSelected(id, selected) {
   const checkbox = document.getElementById(`docSel_${id}`);
@@ -28347,10 +28361,14 @@ function setDocumentSelected(id, selected) {
 window.setDocumentSelected = setDocumentSelected;
 
 document.addEventListener("DOMContentLoaded", () => {
-  document
-    .querySelectorAll('input[name="payer"]')
-    .forEach((r) => r.addEventListener("change", updateDocSelectionVisibility));
+  document.querySelectorAll('input[name="payer"]').forEach((r) =>
+    r.addEventListener("change", () => {
+      applyPayerDocDefaults();
+      updateDocSelectionVisibility();
+    }),
+  );
   window.addEventListener("offerflow:changed", updateDocSelectionVisibility);
+  applyPayerDocDefaults();
   updateDocSelectionVisibility();
 
   ["abtretung", "vollmacht", "barrierefrei"].forEach((id) => {
@@ -28360,35 +28378,32 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-(function initPostalSending() {
-  function syncPostalSectionVisibility(forceState = null) {
-    const toggleBtn = document.getElementById("togglePostalSectionBtn");
-    const postalSection = document.getElementById("postalSummarySection");
-    if (!toggleBtn || !postalSection) return;
+// Versandart-Tabs on Zusammenfassung: E-Mail and Post are two panels of the
+// same card stack, E-Mail active on load. This replaced the "Versand per Post"
+// toggle in Kundendaten — both ways are always available now, so there is no
+// enabled/disabled state left to store (payload.postal.enabled is only carried
+// through for old records, see readPostalStateForPayload).
+(function initSendTabs() {
+  const DEFAULT_TAB = "mail";
 
-    if (typeof forceState === "boolean") {
-      window.__postalSectionEnabled = forceState;
-    }
+  function showSendTab(key) {
+    const buttons = document.querySelectorAll("[data-send-tab]");
+    if (!buttons.length) return;
 
-    const isVisible = !!window.__postalSectionEnabled;
-    postalSection.hidden = !isVisible;
-    toggleBtn.setAttribute("aria-expanded", String(isVisible));
-    toggleBtn.classList.toggle("is-active", isVisible);
-  }
-
-  function initPostalSectionToggle() {
-    const toggleBtn = document.getElementById("togglePostalSectionBtn");
-    const postalSection = document.getElementById("postalSummarySection");
-    if (!toggleBtn || !postalSection || toggleBtn.dataset.bound === "1") return;
-
-    toggleBtn.dataset.bound = "1";
-    window.__postalSectionEnabled = !!window.__postalSectionEnabled;
-    syncPostalSectionVisibility();
-
-    toggleBtn.addEventListener("click", () => {
-      syncPostalSectionVisibility(!window.__postalSectionEnabled);
+    buttons.forEach((btn) => {
+      const active = btn.dataset.sendTab === key;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-selected", String(active));
     });
+
+    document.querySelectorAll("[data-send-panel]").forEach((panel) => {
+      panel.hidden = panel.dataset.sendPanel !== key;
+    });
+
+    if (key === "post") window.__updatePostAddressWarning?.();
   }
+
+  window.__showSendTab = showSendTab;
 
   function ready(fn) {
     if (document.readyState === "loading") {
@@ -28399,14 +28414,26 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   ready(() => {
-    initPostalSectionToggle();
+    const buttons = document.querySelectorAll("[data-send-tab]");
+    if (!buttons.length) return;
 
-    // Restore-safe: expose a tiny setter for just the enabled/visibility state.
-    // Defined BEFORE the early-return guard below so draft restore can reliably
-    // toggle the "Versand per Post" section even if the optional send-form
-    // nodes are missing or the postal manager never initializes.
-    window.__setPostalSectionEnabled = (on) => syncPostalSectionVisibility(!!on);
+    buttons.forEach((btn) =>
+      btn.addEventListener("click", () => showSendTab(btn.dataset.sendTab)),
+    );
+    showSendTab(DEFAULT_TAB);
+  });
+})();
 
+(function initPostalSending() {
+  function ready(fn) {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", fn, { once: true });
+    } else {
+      fn();
+    }
+  }
+
+  ready(() => {
     const sendBtn = document.getElementById("sendOfferPost");
     const statusBox = document.getElementById("postStatus");
     const attachmentList = document.getElementById("postAttachmentList");
@@ -28422,29 +28449,27 @@ document.addEventListener("DOMContentLoaded", () => {
       zipCode: document.getElementById("postZip"),
       city: document.getElementById("postCity"),
       country: document.getElementById("postCountry"),
-      subject: document.getElementById("postSubject"),
-      body: document.getElementById("postBody"),
     };
 
+    // Postversand only. The Flyer "Barrierefreies Wohnen" is mail-only and never
+    // goes out by post — keep in sync with STATIC_POSTAL_ATTACHMENTS in
+    // src/routes/post.js, which refuses it as well.
     const DEFAULT_POSTAL_ATTACHMENTS = [
       { id: "abtretung", type: "static", filename: "Abtretungserklärung.pdf", label: "Default" },
-      { id: "barrierefrei", type: "static", filename: "emc2_Barrierefreies_Wohnen.pdf", label: "Default" },
       { id: "vollmacht", type: "static", filename: "Vollmacht.pdf", label: "Default" },
       // Future-ready: add more predefined postal attachments here if needed.
     ];
 
     // Statics are recomputed from the same excludedPreset Set the mail section
-    // uses (window.__mailExcludedPreset, see EmailManager.js) plus the
-    // Selbstzahler/Kassenkunde payer rule — see computeStaticPostalAttachments().
+    // uses (window.__mailExcludedPreset, see EmailManager.js), which the
+    // Kassenkunden-Dokumente checkboxes drive. The payer only seeds those
+    // checkboxes (applyPayerDocDefaults) — it is not a filter here.
     // Only uploads are tracked as free-standing state in postalAttachments.
     function computeStaticPostalAttachments() {
-      const isSZ =
-        document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler";
-      const payerExcluded = isSZ ? new Set(["abtretung", "vollmacht"]) : new Set();
       const excluded = window.__mailExcludedPreset || new Set();
-      return DEFAULT_POSTAL_ATTACHMENTS.filter(
-        (item) => !payerExcluded.has(item.id) && !excluded.has(item.id),
-      ).map((item) => ({ ...item }));
+      return DEFAULT_POSTAL_ATTACHMENTS.filter((item) => !excluded.has(item.id)).map((item) => ({
+        ...item,
+      }));
     }
 
     let postalAttachments = [];
@@ -28527,80 +28552,8 @@ document.addEventListener("DOMContentLoaded", () => {
       return `${getResolvedOfferNumberForPostal()}.pdf`;
     }
 
-    function getOfferSubjectSuffix() {
-      const activeOffer = String(getActiveOfferForPostal() || "").trim().toLowerCase();
-      const suffixByOffer = {
-        bu: "zum Badumbau",
-        bwt: "zur Badewannentür",
-        hl: "zum Handlauf",
-        bl: "zum Badelift",
-        ah: "zur Alltagshilfe",
-        hms: "zum Hausmeisterservice",
-        wd: "zum Winterdienst",
-      };
-      return suffixByOffer[activeOffer] || "";
-    }
-
-    function buildPostalSubjectDefault() {
-      const offerNumber = getResolvedOfferNumberForPostal();
-      const suffix = getOfferSubjectSuffix();
-      const base = offerNumber
-        ? `emc2 | Ihr Angebot ${offerNumber}`
-        : "emc2 | Ihr Angebot";
-      return suffix ? `${base} ${suffix}` : base;
-    }
-
-    function computeRecipientName() {
-      const firstName = String(document.getElementById("firstName")?.value || "").trim();
-      const lastName = String(document.getElementById("lastName")?.value || "").trim();
-      return [firstName, lastName].filter(Boolean).join(" ").trim();
-    }
-
-    let postalBodyTouched = false;
-    let lastAutoPostalBody = "";
-
-    function getPreferredPostalBodyTemplate() {
-      const mailBodyEl = document.getElementById("mailBody");
-      const mailBody = String(mailBodyEl?.value || "").trim();
-      if (mailBody) return mailBody;
-      return "";
-    }
-
-    function syncPostalBodyWithMailTemplate(force = false) {
-      const preferred = getPreferredPostalBodyTemplate();
-      if (!preferred || !fields.body) return;
-
-      const current = String(fields.body.value || "").trim();
-      const legacy =
-        "Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie Ihr Angebot.\n\nMit freundlichen Grüßen\nEmC2";
-
-      const shouldSync =
-        force ||
-        !postalBodyTouched ||
-        !current ||
-        current === legacy ||
-        current === lastAutoPostalBody;
-
-      if (shouldSync) {
-        fields.body.value = preferred;
-        lastAutoPostalBody = preferred;
-        postalBodyTouched = false;
-      }
-    }
-
-    let postalSubjectTouched = false;
-    fields.subject?.addEventListener("input", () => {
-      postalSubjectTouched = true;
-    });
-    fields.body?.addEventListener("input", () => {
-      postalBodyTouched = String(fields.body?.value || "").trim() !== lastAutoPostalBody;
-    });
-
     function resetPostalPanel() {
       postalAttachments = [];
-      postalSubjectTouched = false;
-      postalBodyTouched = false;
-      lastAutoPostalBody = "";
 
       Object.values(fields).forEach((field) => {
         if (field) field.value = "";
@@ -28615,7 +28568,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function serializePostalState() {
       return {
-        enabled: !!window.__postalSectionEnabled,
         auftragId: String(fields.auftragId?.value || "").trim(),
         recipient: {
           firstName: String(fields.firstName?.value || "").trim(),
@@ -28625,8 +28577,6 @@ document.addEventListener("DOMContentLoaded", () => {
           city: String(fields.city?.value || "").trim(),
           country: String(fields.country?.value || "").trim(),
         },
-        subject: String(fields.subject?.value || "").trim(),
-        body: String(fields.body?.value || ""),
         attachments: postalAttachments.map((item) => ({
           id: item.id,
           type: item.type,
@@ -28638,8 +28588,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function restorePostalState(state = {}) {
-      syncPostalSectionVisibility(!!state.enabled);
-
       const recipient = state.recipient || {};
       if (fields.auftragId) fields.auftragId.value = state.auftragId || "";
       // Sync to all three Auftrag ID fields (auftragId, mailAuftragId, postAuftragId)
@@ -28652,8 +28600,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (fields.zipCode) fields.zipCode.value = recipient.zipCode || "";
       if (fields.city) fields.city.value = recipient.city || "";
       if (fields.country) fields.country.value = recipient.country || "DE";
-      if (fields.subject) fields.subject.value = state.subject || "";
-      if (fields.body) fields.body.value = state.body || "";
 
       const restoredAttachments = Array.isArray(state.attachments)
         ? state.attachments
@@ -28674,19 +28620,47 @@ document.addEventListener("DOMContentLoaded", () => {
         postalAttachments = restoredAttachments.filter((item) => item.type === "upload");
       }
 
-      postalSubjectTouched = !!String(fields.subject?.value || "").trim();
-      postalBodyTouched = !!String(fields.body?.value || "").trim();
-      lastAutoPostalBody = String(fields.body?.value || "");
       uploadInput.value = "";
       statusBox.textContent = "";
       statusBox.dataset.type = "";
       statusBox.hidden = true;
       renderAttachmentList();
+      updatePostAddressWarning();
     }
+
+    // onlinebrief24 reads the recipient out of the PDF's address window, so an
+    // incomplete address is an undeliverable letter. Warn as soon as the Post
+    // tab is opened; validate() still blocks the send itself.
+    const ADDRESS_LABELS = {
+      firstName: "Vorname",
+      lastName: "Nachname",
+      street: "Straße",
+      zipCode: "PLZ",
+      city: "Ort",
+    };
+
+    function updatePostAddressWarning() {
+      const box = document.getElementById("postAddressWarning");
+      if (!box) return;
+
+      const missing = Object.entries(ADDRESS_LABELS)
+        .filter(([key]) => !String(fields[key]?.value || "").trim())
+        .map(([, label]) => label);
+
+      box.hidden = missing.length === 0;
+      const list = document.getElementById("postAddressWarningFields");
+      if (list) list.textContent = missing.length ? ` Es fehlt: ${missing.join(", ")}.` : "";
+    }
+    window.__updatePostAddressWarning = updatePostAddressWarning;
+
+    Object.values(fields).forEach((field) =>
+      field?.addEventListener("input", updatePostAddressWarning),
+    );
 
     function refreshPostalPrefills() {
       fillPostalDefaults();
       renderAttachmentList();
+      updatePostAddressWarning();
     }
 
     window.addEventListener("offerflow:changed", () => {
@@ -28708,25 +28682,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!String(fields.zipCode?.value || "").trim()) fields.zipCode.value = String(document.getElementById("postalCode")?.value || "").trim();
       if (!String(fields.city?.value || "").trim()) fields.city.value = String(document.getElementById("city")?.value || "").trim();
       if (!String(fields.country?.value || "").trim()) fields.country.value = String(document.getElementById("country")?.value || "Deutschland").trim() || "Deutschland";
-
-      if (fields.subject && !postalSubjectTouched) {
-        fields.subject.value = buildPostalSubjectDefault();
-      }
-      syncPostalBodyWithMailTemplate();
     }
-
-    syncPostalBodyWithMailTemplate();
-    document.getElementById("mailBody")?.addEventListener("input", () => {
-      syncPostalBodyWithMailTemplate();
-    });
-    document.getElementById("mailBody")?.addEventListener("change", () => {
-      syncPostalBodyWithMailTemplate();
-    });
-    document.querySelectorAll('input[name="salutation"]').forEach((el) => {
-      el.addEventListener("change", () => {
-        syncPostalBodyWithMailTemplate();
-      });
-    });
 
     function renderAttachmentList() {
       postalAttachments = [
@@ -28867,6 +28823,148 @@ document.addEventListener("DOMContentLoaded", () => {
       return { blob: await resp.blob(), filename: getOfferPdfTileName() };
     }
 
+    // Without an Auftrag/Deal-ID the letter still goes out, but nothing is
+    // recorded in Bitrix — no comment, no archived documents. That is a gap
+    // nobody notices later, so the send is blocked and can only be released by
+    // re-entering the logged-in user's own password (POST /api/auth/confirm-
+    // password). The release is valid for that one send.
+    let dealIdOverride = null;
+
+    function askPasswordOverride() {
+      return new Promise((resolve) => {
+        document.getElementById("postOverrideOverlay")?.remove();
+
+        const overlay = document.createElement("div");
+        overlay.id = "postOverrideOverlay";
+        overlay.className = "ang-stage-overlay";
+        overlay.innerHTML = `
+          <div class="ang-stage-modal" role="dialog" aria-modal="true" aria-labelledby="postOverrideTitle">
+            <h3 id="postOverrideTitle" class="ang-stage-title">Ohne Auftrag/Deal-ID senden?</h3>
+            <p class="ang-stage-text">
+              Ohne Auftrag-ID wird dieser Brief <strong>nicht in Bitrix dokumentiert</strong> —
+              weder Kommentar noch Angebot, Kalkulation oder Anlagen.
+              Zum Freigeben bitte das eigene Passwort eingeben.
+            </p>
+            <input type="password" id="postOverridePassword" class="ang-stage-input"
+                   autocomplete="current-password" placeholder="Passwort"
+                   style="width:100%;padding:10px;margin:10px 0;border:1px solid #ccc;border-radius:8px;" />
+            <div class="ang-stage-body"></div>
+            <div class="ang-stage-actions">
+              <button type="button" class="ang-stage-btn ang-stage-btn--primary" id="postOverrideConfirm">Freigeben und senden</button>
+              <button type="button" class="ang-stage-btn" id="postOverrideCancel">Abbrechen</button>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+
+        const input = overlay.querySelector("#postOverridePassword");
+        const note = overlay.querySelector(".ang-stage-body");
+        const close = (value) => {
+          overlay.remove();
+          resolve(value);
+        };
+
+        async function confirm() {
+          const password = String(input.value || "");
+          if (!password) return input.focus();
+
+          note.innerHTML = `<p class="ang-stage-text">Prüfe Passwort …</p>`;
+          try {
+            const resp = await fetch("/api/auth/confirm-password", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ password }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(data?.error || `HTTP ${resp.status}`);
+            close({ confirmedBy: data.email || "" });
+          } catch (error) {
+            note.innerHTML = `<p class="ang-stage-error">${error?.message || "Passwort falsch"}</p>`;
+            input.value = "";
+            input.focus();
+          }
+        }
+
+        overlay.querySelector("#postOverrideConfirm").addEventListener("click", confirm);
+        overlay.querySelector("#postOverrideCancel").addEventListener("click", () => close(null));
+        overlay.addEventListener("click", (event) => {
+          if (event.target === overlay) close(null);
+        });
+        input.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") confirm();
+        });
+        setTimeout(() => input.focus(), 50);
+      });
+    }
+
+    // Live mode has no safety net: onlinebrief24 prints and franks immediately
+    // and the job can only be deleted within 15 minutes. So a live send asks
+    // once, showing exactly who receives what. Test mode stays one click —
+    // there the job only lands in the Warenkorb.
+    async function getPostalMode() {
+      try {
+        const resp = await fetch("/api/post/config");
+        const data = await resp.json().catch(() => ({}));
+        return String(data?.mode || "").toLowerCase();
+      } catch (error) {
+        console.warn("[post] mode lookup failed:", error);
+        return ""; // unknown -> treated as live below, better one question too many
+      }
+    }
+
+    function confirmLiveSend({ recipientLines, documents, offerNumber }) {
+      return new Promise((resolve) => {
+        document.getElementById("postLiveConfirmOverlay")?.remove();
+
+        const overlay = document.createElement("div");
+        overlay.id = "postLiveConfirmOverlay";
+        overlay.className = "ang-stage-overlay";
+        overlay.innerHTML = `
+          <div class="ang-stage-modal" role="dialog" aria-modal="true" aria-labelledby="postLiveConfirmTitle">
+            <h3 id="postLiveConfirmTitle" class="ang-stage-title">Brief verbindlich versenden?</h3>
+            <p class="ang-stage-text">
+              Der Brief wird sofort gedruckt, frankiert und an die Deutsche Post übergeben.
+              Eine Stornierung ist nur innerhalb von 15 Minuten möglich.
+            </p>
+            <p class="ang-stage-text"><strong>Empfänger</strong><br>${recipientLines
+              .map((line) => escapeHtmlLocal(line))
+              .join("<br>")}</p>
+            <p class="ang-stage-text"><strong>Sendung</strong> (${documents.length} ${
+              documents.length === 1 ? "Dokument" : "Dokumente"
+            })<br>${documents.map((name) => escapeHtmlLocal(name)).join("<br>")}</p>
+            <p class="ang-stage-text" id="postLiveConfirmBalance">Angebot: ${escapeHtmlLocal(offerNumber)}</p>
+            <div class="ang-stage-actions">
+              <button type="button" class="ang-stage-btn ang-stage-btn--primary" id="postLiveConfirmOk">Verbindlich senden</button>
+              <button type="button" class="ang-stage-btn" id="postLiveConfirmCancel">Abbrechen</button>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+
+        // Balance is a nice-to-have: shown when it arrives, never blocks.
+        fetch("/api/post/balance")
+          .then((resp) => resp.json())
+          .then((data) => {
+            const line = document.getElementById("postLiveConfirmBalance");
+            if (line && data?.ok && data.balance !== undefined) {
+              line.innerHTML = `Angebot: ${escapeHtmlLocal(offerNumber)} · Guthaben: ${escapeHtmlLocal(
+                String(data.balance),
+              )} ${escapeHtmlLocal(String(data.currency || "EUR"))}`;
+            }
+          })
+          .catch(() => {});
+
+        const close = (value) => {
+          overlay.remove();
+          resolve(value);
+        };
+        overlay.querySelector("#postLiveConfirmOk").addEventListener("click", () => close(true));
+        overlay.querySelector("#postLiveConfirmCancel").addEventListener("click", () => close(false));
+        overlay.addEventListener("click", (event) => {
+          if (event.target === overlay) close(false);
+        });
+        setTimeout(() => overlay.querySelector("#postLiveConfirmCancel")?.focus(), 50);
+      });
+    }
+
     function validate() {
       let firstInvalid = null;
       [fields.firstName, fields.lastName, fields.street, fields.zipCode, fields.city, fields.country].forEach((el) => {
@@ -28883,12 +28981,55 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    async function requireDealId() {
+      const dealId = String(fields.auftragId?.value || "").trim();
+      clearInputError(fields.auftragId);
+      if (dealId) {
+        dealIdOverride = null;
+        return true;
+      }
+
+      markInputError(fields.auftragId);
+      setStatus(
+        "Ohne Auftrag/Deal-ID wird der Brief nicht in Bitrix dokumentiert. Freigabe mit Passwort erforderlich.",
+        "warn",
+      );
+
+      const override = await askPasswordOverride();
+      if (!override) {
+        fields.auftragId?.focus();
+        setStatus("Abgebrochen — bitte Auftrag/Deal-ID eintragen.", "error");
+        return false;
+      }
+
+      dealIdOverride = override;
+      clearInputError(fields.auftragId);
+      return true;
+    }
+
     sendBtn.addEventListener("click", async () => {
       try {
         fillPostalDefaults();
         validate();
+        if (!(await requireDealId())) return;
 
         const offerNumber = getResolvedOfferNumberForPostal();
+
+        if ((await getPostalMode()) !== "test") {
+          const confirmed = await confirmLiveSend({
+            offerNumber,
+            recipientLines: [
+              `${String(fields.firstName?.value || "").trim()} ${String(fields.lastName?.value || "").trim()}`.trim(),
+              String(fields.street?.value || "").trim(),
+              `${String(fields.zipCode?.value || "").trim()} ${String(fields.city?.value || "").trim()}`.trim(),
+            ].filter(Boolean),
+            documents: [getOfferPdfTileName(), ...postalAttachments.map((item) => item.filename)],
+          });
+          if (!confirmed) {
+            setStatus("Versand abgebrochen.", "info");
+            return;
+          }
+        }
 
         sendBtn.disabled = true;
         setStatus("Erzeuge Angebots-PDF …", "info");
@@ -28912,7 +29053,32 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        setStatus("Sende Brief an Binect …", "info");
+        // Same document set the e-mail flow archives on the Bitrix timeline
+        // (Angebot-DOCX, Hassmann-CSV, Kalkulation aus der HTML-Version).
+        // Best-effort: a document that fails to build is reported in the
+        // timeline comment instead of blocking the postage.
+        const docWarnings = [];
+        let bitrixDocs = [];
+        try {
+          const docs =
+            (await window.__collectBitrixDocs?.(
+              buildPayload(),
+              offerNumber,
+              (msg) => setStatus(msg, "info"),
+              { onError: (message) => docWarnings.push(message) },
+            )) || [];
+          bitrixDocs = await Promise.all(
+            docs.map(async (doc) => ({
+              filename: doc.filename,
+              base64: await blobToBase64Local(doc.blob),
+            })),
+          );
+        } catch (error) {
+          console.error("[post] Bitrix-Dokumente fehlgeschlagen:", error);
+          docWarnings.push(error?.message || "Bitrix-Dokumente konnten nicht erzeugt werden.");
+        }
+
+        setStatus("Sende Brief an onlinebrief24 …", "info");
         const response = await fetch("/api/post/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -28925,13 +29091,14 @@ document.addEventListener("DOMContentLoaded", () => {
               city: String(fields.city?.value || "").trim(),
               country: String(fields.country?.value || "Deutschland").trim() || "Deutschland",
             },
-            subject: String(fields.subject?.value || "").trim(),
-            body: String(fields.body?.value || "").trim(),
             document: {
               filename: pdfFilename || getOfferPdfTileName(),
               base64: pdfBase64,
             },
             attachments: attachmentPayload,
+            bitrixDocs,
+            docWarnings,
+            dealIdOverride,
             meta: {
               offerNumber: offerNumber,
               dealId: String(fields.auftragId?.value || "").trim(),
@@ -28945,7 +29112,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         setStatus(
-          `Postversand erfolgreich gestartet. Dokument-ID: ${result.documentId || "-"} · Anhänge: ${result.attachmentCount || 0}`,
+          result.mode === "test"
+            ? `Testmodus: Auftrag ${result.printjobId || "-"} liegt im onlinebrief24-Warenkorb · Anlagen: ${result.attachmentCount || 0}`
+            : `Postversand erfolgreich gestartet. Auftrag: ${result.printjobId || "-"} · Anlagen: ${result.attachmentCount || 0}`,
           "success",
         );
 
@@ -28954,6 +29123,32 @@ document.addEventListener("DOMContentLoaded", () => {
           lastOfferNumber: offerNumber,
           lastSentAt: Date.now(),
         };
+
+        // Same success dialog as the e-mail send, including the optional
+        // "Deal auf ANG verschickt verschieben" action.
+        try {
+          const payload = buildPayload();
+          const dealId = String(fields.auftragId?.value || "").trim();
+          window.__showSentDialog?.({
+            via: "post",
+            dealId,
+            offerTotal: Number(payload?.pricing?.finalTotal) || 0,
+            attachmentNames: [
+              ...(result.attachmentNames || []),
+              ...bitrixDocs.map((doc) => doc.filename),
+            ],
+            offerExtra: {
+              workDays: Number(payload?.Arbeitszeit?.workDays) || 0,
+              offerType: payload.activeOffer || "",
+              offerNumber,
+              isKassenkunde: payload?.Kundendaten?.payer === "Kassenkunde",
+              finalTotal: Number(payload?.pricing?.finalTotal) || 0,
+              payload,
+            },
+          });
+        } catch (error) {
+          console.warn("[post] sent dialog failed:", error);
+        }
       } catch (error) {
         console.error("[post] send error", error);
         setStatus(error?.message || "Postversand fehlgeschlagen.", "error");

@@ -1946,7 +1946,8 @@
 
     #page-Zusammenfassung .document-card__preview,
     #page-Zusammenfassung .document-preview-actions .btn-export,
-    #page-Zusammenfassung .document-preview-switcher button {
+    #page-Zusammenfassung .document-preview-switcher button,
+    #page-Zusammenfassung .send-tab-switcher button {
       border: 1px solid rgba(44, 91, 67, 0.26);
       background: #fff;
       color: #2f6a4d;
@@ -1955,7 +1956,8 @@
 
     #page-Zusammenfassung .document-card__preview:hover,
     #page-Zusammenfassung .document-preview-actions .btn-export:hover,
-    #page-Zusammenfassung .document-preview-switcher button:hover {
+    #page-Zusammenfassung .document-preview-switcher button:hover,
+    #page-Zusammenfassung .send-tab-switcher button:hover {
       border-color: rgba(44, 91, 67, 0.45);
       background: #f6fbf8;
       color: #1f5339;
@@ -1976,7 +1978,8 @@
       margin: 14px 0 16px;
     }
 
-    #page-Zusammenfassung .document-preview-switcher button {
+    #page-Zusammenfassung .document-preview-switcher button,
+    #page-Zusammenfassung .send-tab-switcher button {
       border-radius: 999px;
       padding: 8px 14px;
       font-size: 0.83rem;
@@ -1985,11 +1988,44 @@
       transition: all 0.2s ease;
     }
 
-    #page-Zusammenfassung .document-preview-switcher button.is-active {
+    #page-Zusammenfassung .document-preview-switcher button.is-active,
+    #page-Zusammenfassung .send-tab-switcher button.is-active {
       background: linear-gradient(135deg, #cf7331, #e99e5e);
       border-color: transparent;
       color: #fff;
       box-shadow: 0 10px 20px rgba(198, 106, 41, 0.22);
+    }
+
+    /* Versandart-Tabs (E-Mail / Post) — same pill look as the document
+       switcher above, just wider and with a separating rule. */
+    #page-Zusammenfassung .send-tab-switcher {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 26px 0 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(194, 153, 111, 0.22);
+    }
+
+    #page-Zusammenfassung .send-tab-switcher button {
+      padding: 10px 20px;
+      font-size: 0.92rem;
+    }
+
+    #page-Zusammenfassung .post-address-warning {
+      margin: 0 0 16px;
+      padding: 12px 14px;
+      border: 1px solid #e3b341;
+      border-left: 4px solid #e3b341;
+      border-radius: 10px;
+      background: #fdf7e7;
+      color: #6b4e11;
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    #page-Zusammenfassung .post-address-warning strong {
+      color: #8a5a00;
     }
 
     #page-Zusammenfassung .document-text-preview {
@@ -2144,68 +2180,6 @@ button.dm-btn-danger:focus-visible {
       width: 100%;
     }
 
-    .customer-contact-row .customer-post-toggle {
-      min-width: 180px;
-      height: 48px;
-      align-self: end;
-      white-space: nowrap;
-      display: inline-flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 10px 14px;
-      border-radius: 10px;
-      background: var(--input-bg);
-      border: 1.5px solid var(--input-border);
-      cursor: pointer;
-      user-select: none;
-      color: inherit;
-      font-weight: 400;
-    }
-
-    .customer-contact-row .customer-post-toggle:hover,
-    .customer-contact-row .customer-post-toggle:focus-visible,
-    .customer-contact-row .customer-post-toggle:active {
-      background: var(--input-bg);
-      color: inherit;
-      border-color: var(--input-border);
-      box-shadow: none;
-      transform: none;
-    }
-
-    .customer-contact-row .customer-post-toggle.is-active {
-      border-color: var(--accent);
-    }
-
-    .customer-contact-row .customer-post-toggle .circle {
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      border: 2px solid var(--input-border);
-      display: grid;
-      place-items: center;
-      background: transparent;
-      transition: border 0.15s;
-      flex: 0 0 auto;
-    }
-
-    .customer-contact-row .customer-post-toggle .circle::after {
-      content: "";
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: transparent;
-    }
-
-    .customer-contact-row .customer-post-toggle.is-active .circle {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--ring);
-    }
-
-    .customer-contact-row .customer-post-toggle.is-active .circle::after {
-      background: var(--accent);
-    }
-
     .customer-phone-row {
       max-width: 540px;
     }
@@ -2263,8 +2237,7 @@ button.dm-btn-danger:focus-visible {
         grid-template-columns: 1fr;
       }
 
-      .customer-contact-row .customer-email-field input,
-      .customer-contact-row .customer-post-toggle {
+      .customer-contact-row .customer-email-field input {
         max-width: 100%;
         width: 100%;
       }
@@ -2759,10 +2732,6 @@ button.dm-btn-danger:focus-visible {
               <label for="email">Email</label><input id="email" name="email" type="email"
                 placeholder="name@example.com" />
             </div>
-            <button type="button" id="togglePostalSectionBtn" class="customer-post-toggle" aria-controls="postalSummarySection" aria-expanded="false">
-              <span class="circle" aria-hidden="true"></span>
-              <span>Versand per Post</span>
-            </button>
           </div>
 
           <div class="full">
@@ -7903,13 +7872,14 @@ button.dm-btn-danger:focus-visible {
             </div>
           </section>
 
-          <!-- Kassenkunden-Dokumente: which optional documents ship with this Kassenkunde offer. Drives 3 places, all reading the same state:
+          <!-- Mitgesendete Unterlagen: which optional documents ship with this offer. Drives 3 places, all reading the same state:
               EmailManager.js (mail attachment tiles + body text list), initPostalSending() below (Post-Anhänge), and signing.js
               (createSigningRequest reads payload.docSelection to decide which documents the online-signing link requires). Angebot itself is
-              not a checkbox — it is always included. -->
+              not a checkbox — it is always included. Shown for Kassenkunde and Selbstzahler; the payer only seeds the default tick state
+              (applyPayerDocDefaults in script.js) — Selbstzahler starts without Abtretung/Vollmacht but can opt in. -->
           <section id="zfDocSelectionCard" class="bitrix-section" hidden aria-hidden="true">
-            <h2 class="section-title">Kassenkunden-Dokumente</h2>
-            <p class="section-subtitle">Bestimmt, welche Unterlagen mitgehen — in der E-Mail, als PDF-Anhang, im Postversand und in der Online-Unterschrift. Das Angebot ist immer enthalten.</p>
+            <h2 class="section-title">Mitgesendete Unterlagen</h2>
+            <p class="section-subtitle">Bestimmt, welche Unterlagen mitgehen — in der E-Mail, als PDF-Anhang, im Postversand und in der Online-Unterschrift. Das Angebot ist immer enthalten. Bei Selbstzahlern sind Abtretung und Vollmacht voreingestellt abgewählt.</p>
             <div class="bitrix-card doc-select-card">
               <label class="inline-check doc-select-row">
                 <input type="checkbox" id="docSel_abtretung" checked />
@@ -7927,7 +7897,23 @@ button.dm-btn-danger:focus-visible {
           </section>
 
           <!-- Email Versand (unter PDF Vorschau) -->
-<section class="mail-section">
+<!-- Versandart: E-Mail vs Post. Replaces the old "Versand per Post" toggle in
+     Kundendaten — both ways are always available now, you just switch tab.
+     The "Mitgesendete Unterlagen" card above stays shared: one tick state
+     feeds mail, post and the signing link. -->
+<div class="send-tab-switcher" role="tablist" aria-label="Versandart">
+  <button type="button" role="tab" id="sendTabBtn-mail" data-send-tab="mail"
+          aria-controls="sendTabPanel-mail" aria-selected="true" class="is-active">
+    ✉️ Angebot per E-Mail
+  </button>
+  <button type="button" role="tab" id="sendTabBtn-post" data-send-tab="post"
+          aria-controls="sendTabPanel-post" aria-selected="false">
+    📮 Angebot per Post
+  </button>
+</div>
+
+<section class="mail-section" id="sendTabPanel-mail" role="tabpanel"
+         data-send-panel="mail" aria-labelledby="sendTabBtn-mail">
   <h2 class="section-title">Angebot per E-Mail senden</h2>
 
   <div class="mail-card">
@@ -8043,8 +8029,18 @@ button.dm-btn-danger:focus-visible {
   </div>
 </section>
 
-<section class="mail-section post-section" id="postalSummarySection" hidden>
+<section class="mail-section post-section" id="postalSummarySection" role="tabpanel"
+         data-send-panel="post" aria-labelledby="sendTabBtn-post" hidden>
   <h2 class="section-title">Angebot per Post senden</h2>
+
+  <!-- onlinebrief24 reads the address out of the PDF, so an incomplete address
+       means an undeliverable letter. Warn while typing; the send button still
+       blocks hard (validate() in initPostalSending). -->
+  <div id="postAddressWarning" class="post-address-warning" hidden>
+    <strong>Unvollständige Postadresse.</strong>
+    <span id="postAddressWarningFields"></span>
+    Ohne vollständige Anschrift kann der Brief nicht zugestellt werden.
+  </div>
 
   <div class="mail-card post-card">
     <label for="postAuftragId">Lead ID / Auftrag ID</label>
@@ -8077,12 +8073,6 @@ button.dm-btn-danger:focus-visible {
       </div>
     </div>
 
-    <label for="postSubject">Briefbetreff</label>
-    <input id="postSubject" type="text" placeholder="ANG-..." />
-
-    <label for="postBody">Brieftext</label>
-    <textarea id="postBody" rows="16" placeholder="Hello ..."></textarea>
-
     <label for="postAttachments">Zusätzliche Anhänge (optional, PDF)</label>
     <input id="postAttachments" type="file" accept="application/pdf,.pdf" multiple />
 
@@ -8091,7 +8081,7 @@ button.dm-btn-danger:focus-visible {
         <div class="mail-attach-title">Im Postversand enthalten</div>
       </div>
       <div id="postAttachmentList" class="mail-attach-grid"></div>
-      <div class="mail-attach-hint">Die Angebots-PDF ist das Hauptdokument für den Postversand.</div>
+      <div class="mail-attach-hint">Die Angebots-PDF ist der Brief selbst – Anschrift, Betreff und Anschreiben stehen darin. Alles Weitere wird als Anlage beigelegt.</div>
     </div>
 
     <button type="button" id="sendOfferPost" class="btn-export btn-pdf">

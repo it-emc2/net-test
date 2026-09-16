@@ -287,11 +287,9 @@ function getPresetAttachments(excludePresetSet, isSelbstzahler, offerType) {
       .map((p) => ({ filename: p.filename, path: p.absPath }));
   }
 
-  // Selbstzahler get only the Angebot (added elsewhere) + the flyer — no
-  // Abtretung/Vollmacht. Kassenkunde get all four.
-  const payerExcluded = isSelbstzahler
-    ? new Set(["abtretung", "vollmacht"])
-    : new Set();
+  // Which of these ship is decided purely by the Kassenkunden-Dokumente
+  // checkboxes (-> excludePreset). The payer only seeds those checkboxes in the
+  // frontend (applyPayerDocDefaults), so a Selbstzahler can opt back in.
   const preset = [
     {
       id: "abtretung",
@@ -312,7 +310,6 @@ function getPresetAttachments(excludePresetSet, isSelbstzahler, offerType) {
 
   return preset
     .filter((p) => !excludePresetSet.has(p.id))
-    .filter((p) => !payerExcluded.has(p.id))
     .filter((p) => fsSync.existsSync(p.absPath))
     .map((p) => ({
       filename: p.filename,

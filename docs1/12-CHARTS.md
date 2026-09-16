@@ -32,7 +32,7 @@ graph TB
         GEO[Geocoding<br/>Photon / ORS / Nominatim]
         ROUTE[Routing<br/>ORS / OSRM]
         SMTP[SMTP Server<br/>Email]
-        BINECT[Binect<br/>Postal Delivery]
+        OB24[onlinebrief24<br/>Postal Delivery]
         ADOBE[Adobe PDF Services]
         N8N[n8n Webhooks]
         PLAN[Planning API<br/>route-plannung.fly.dev]
@@ -55,7 +55,7 @@ graph TB
     RT --> GEO
     RT --> ROUTE
     RT --> SMTP
-    RT --> BINECT
+    RT --> OB24
     RT --> ADOBE
     RT --> N8N
     RT --> PLAN
@@ -714,7 +714,7 @@ graph TD
     Docker --> NOM_C
 
     Docker -->|"SMTP"| SMTP_C[SMTP Server]
-    Docker -->|"HTTPS"| BINECT_C[Binect Postal]
+    Docker -->|"HTTPS"| OB24_C[onlinebrief24 Postal]
     Docker -->|"HTTPS"| HASS_C[Hassmann API]
     Docker -->|"SSE proxy"| PLAN_C[Planning API]
 ```

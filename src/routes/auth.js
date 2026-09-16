@@ -55,6 +55,28 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// POST /api/auth/confirm-password  { password }
+// Re-confirms the password of the user who is already logged in — used to
+// release an action that is normally blocked (currently: a postal send without
+// an Auftrag/Deal-ID, which would leave no record in Bitrix). No session is
+// created or refreshed here, the password is never logged.
+router.post("/confirm-password", async (req, res) => {
+  const token = verifyToken(tokenFromReq(req));
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
+
+  const password = String(req.body?.password || "");
+  if (!password) return res.status(400).json({ error: "Passwort erforderlich" });
+
+  const user = await User.findOne({ email: token.email, active: true });
+  if (!user || !verifyPassword(password, user.passwordHash)) {
+    console.warn("[auth] confirm-password failed for", token.email);
+    return res.status(401).json({ error: "Passwort falsch" });
+  }
+
+  console.log("[auth] confirm-password ok for", token.email);
+  return res.json({ ok: true, email: user.email, name: user.name || "" });
+});
+
 // POST /api/auth/logout
 router.post("/logout", (req, res) => {
   res.clearCookie(SESSION_COOKIE, { path: "/" });

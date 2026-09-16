@@ -429,7 +429,8 @@ export function initEmailManager(options = {}) {
   }
 
   // Success dialog shown after the email was sent. Offers the stage move.
-  function showSentDialog({ dealId, offerTotal, attachmentNames, offerExtra, bitrixOnly = false }) {
+  // The postal send reuses it through window.__showSentDialog (title via `via`).
+  function showSentDialog({ dealId, offerTotal, attachmentNames, offerExtra, bitrixOnly = false, via = "mail" }) {
     closeStageModal();
     const overlay = document.createElement("div");
     overlay.id = "angStageOverlay";
@@ -442,7 +443,9 @@ export function initEmailManager(options = {}) {
       : "-";
     overlay.innerHTML = `
       <div class="ang-stage-modal" role="dialog" aria-modal="true" aria-labelledby="angStageTitle">
-        <h3 id="angStageTitle" class="ang-stage-title">${bitrixOnly ? "✅ Dokumente in Bitrix abgelegt" : "✅ E-Mail gesendet"}</h3>
+        <h3 id="angStageTitle" class="ang-stage-title">${
+          via === "post" ? "✅ Brief übergeben" : bitrixOnly ? "✅ Dokumente in Bitrix abgelegt" : "✅ E-Mail gesendet"
+        }</h3>
         <p class="ang-stage-text">Anhänge: ${atts}</p>
         <div class="ang-stage-body"></div>
         <div class="ang-stage-actions">
@@ -617,11 +620,16 @@ Dank unserer langjährigen Erfahrung und etablierten Zusammenarbeit mit allen Pf
 Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     }
 
-    const attachmentList = isSelbstzahler
-      ? `1. Ihr Angebot ${offerNumber}\n2. Unseren aktuellen Flyer "Barrierefreies Wohnen"`
-      : [`Ihr Angebot ${offerNumber}`, ...KASSE_DOC_LINES.filter((p) => !excludedPreset.has(p.id)).map((p) => p.line)]
-          .map((line, i) => `${i + 1}. ${line}`)
-          .join("\n");
+    // Selbstzahler vs Kassenkunde is not a branch here any more: the payer only
+    // seeds the #zfDocSelectionCard checkboxes (applyPayerDocDefaults in
+    // script.js), and this list follows the checkboxes — so a Selbstzahler who
+    // ticks Abtretung/Vollmacht gets them named in the text too.
+    const attachmentList = [
+      `Ihr Angebot ${offerNumber}`,
+      ...KASSE_DOC_LINES.filter((p) => !excludedPreset.has(p.id)).map((p) => p.line),
+    ]
+      .map((line, i) => `${i + 1}. ${line}`)
+      .join("\n");
 
     return `${buildGreetingLine()}
 
@@ -1019,9 +1027,9 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler";
     const isAh = getOfferType() === "ah";
     const presetList = isAh ? cfg.ahPresetAttachments : cfg.presetAttachments;
-    const payerHidden = isSZ
-      ? new Set(isAh ? ["abtretung_ah", "vollmacht"] : ["abtretung", "vollmacht"])
-      : new Set();
+    // Non-AH: the checkboxes decide (excludedPreset). AH keeps its own payer rule.
+    const payerHidden =
+      isSZ && isAh ? new Set(["abtretung_ah", "vollmacht"]) : new Set();
     for (const p of presetList) {
       if (payerHidden.has(p.id)) continue;
       if (excludedPreset.has(p.id)) continue;
@@ -1261,12 +1269,25 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
     return { blob: await resp.blob(), filename };
   }
 
-  async function collectBitrixDocs(payload, offerNumber, onStep, { skipAngebotDocx = false } = {}) {
+  // Extra documents for the Bitrix timeline — used by the e-mail send and, via
+  // window.__collectBitrixDocs, by the postal send, so both archive the same set.
+  // The Kalkulation comes from /kalkulation/pdf-v2, the HTML-rendered "Neue
+  // Version"; the old DOCX-based /kalkulation/pdf stays available for manual
+  // download only.
+  // onError turns the all-or-nothing behaviour into best-effort: the e-mail
+  // send omits it and aborts on the first failure (never mail a partial set),
+  // the postal send passes it so a broken document can't block the postage.
+  async function collectBitrixDocs(
+    payload,
+    offerNumber,
+    onStep,
+    { skipAngebotDocx = false, onError = null } = {},
+  ) {
     const safeNo = String(offerNumber || "Angebot").replace(/[^A-Za-z0-9_\-]+/g, "_");
     const jobs = [
       { endpoint: "/docx-template", name: `${safeNo}.docx`, label: "Angebot-DOCX" },
       { endpoint: "/material-overview/hassmann-cart", name: `Hassmann_Warenkorb_${safeNo}.csv`, label: "Hassmann-Warenkorb (CSV)" },
-      { endpoint: "/kalkulation/pdf", name: `Kalkulation_${safeNo}.pdf`, label: "Kalkulation-PDF" },
+      { endpoint: "/kalkulation/pdf-v2", name: `Kalkulation_${safeNo}.pdf`, label: "Kalkulation-PDF" },
       // When a hand-edited DOCX is sent, the backend archives that file on the
       // Bitrix timeline instead of a freshly rendered (unedited) Angebot-DOCX.
     ].filter((j) => !(skipAngebotDocx && j.endpoint === "/docx-template"));
@@ -1277,12 +1298,14 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
         docs.push(await fetchBitrixExtraDoc(job.endpoint, payload, job.name));
       } catch (e) {
         console.error("[EmailManager] Bitrix-Dokument fehlgeschlagen:", job.endpoint, e);
-        // Abort the whole send: don't email a partial document set.
-        throw new Error(`${job.label} konnte nicht erzeugt werden: ${e.message || e}`);
+        const message = `${job.label} konnte nicht erzeugt werden: ${e.message || e}`;
+        if (!onError) throw new Error(message);
+        onError(message);
       }
     }
     return docs;
   }
+  window.__collectBitrixDocs = collectBitrixDocs;
 
   async function send({ bitrixOnly = false } = {}) {
     try {
@@ -1482,6 +1505,8 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
     e.preventDefault();
     send({ bitrixOnly: true });
   });
+
+  window.__showSentDialog = showSentDialog;
 
   return { send, render: renderList, excludedPreset, reset, refreshPrefills };
 }

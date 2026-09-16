@@ -104,9 +104,10 @@ fly secrets set PDF_SERVICES_CLIENT_ID="***"
 fly secrets set PDF_SERVICES_CLIENT_SECRET="***"
 
 # Postal delivery (optional)
-fly secrets set BINECT_BASE_URL="https://app.binect.de/binectapi/v1"
-fly secrets set BINECT_USERNAME="***"
-fly secrets set BINECT_PASSWORD="***"
+fly secrets set OB24_BASE_URL="https://api.onlinebrief24.de/v1"
+fly secrets set OB24_API_KEY="***"
+fly secrets set OB24_API_SECRET="***"
+fly secrets set OB24_MODE="live"
 
 # Workflow
 fly secrets set PLANNING_API_BASE_URL="https://route-plannung.fly.dev"

@@ -2,34 +2,35 @@ import express from "express";
 import fs from "fs/promises";
 import fsSync from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
+import crypto from "crypto";
+import { PDFDocument } from "pdf-lib";
+import https from "node:https";
 import { addTimelineComment } from "./bitrix.js";
 
 const router = express.Router();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const DEFAULT_BASE_URL = "https://app.binect.de/binectapi/v1";
-const DEFAULT_OPTIONS = {
-  simplex: false,
-  color: false,
-  envelope: "DINLANG",
+// onlinebrief24.de / letterei.de API v1 (Stand 30.07.2026, docs1/refs/onlinebrief24-api.pdf.pdf).
+// One request does everything: POST /v1/printjobs with the letter as base64.
+// There is NO recipient-address field and no cover text — the address must sit
+// in the PDF's DIN-5008 address window. Our Angebot template already has it
+// (src/templates/Angebot.docx), so the offer PDF IS the letter and everything
+// else rides along in base64_attachments.
+const DEFAULT_BASE_URL = "https://api.onlinebrief24.de/v1";
+const DEFAULT_SPECIFICATION = {
+  color: "4", // 1 = s/w, 4 = Farbe
+  mode: "duplex", // simplex, duplex
+  shipping: "national", // national, international, auto
 };
+const MAX_PDF_BYTES = 50 * 1024 * 1024; // 50 MB je PDF laut Doku
 
-const DEFAULT_BITRIX_WEBHOOK_BASE =
-  "https://emczwei.bitrix24.de/rest/2594/na0pingesg144c5z";
-
+// Postversand only. The Flyer "Barrierefreies Wohnen" is deliberately NOT here:
+// it goes out by e-mail only (and it is a landscape document, which onlinebrief24
+// rejects anyway). The frontend list in script.js must stay in sync.
 const STATIC_POSTAL_ATTACHMENTS = {
   abtretung: {
     id: "abtretung",
     filename: "Abtretungserklärung.pdf",
     absPath: path.join(process.cwd(), "src", "public", "assets", "Email", "Abtretungserklärung.pdf"),
-  },
-  barrierefrei: {
-    id: "barrierefrei",
-    filename: "emc2_Barrierefreies_Wohnen.pdf",
-    absPath: path.join(process.cwd(), "src", "public", "assets", "Email", "emc2_Barrierefreies_Wohnen.pdf"),
   },
   vollmacht: {
     id: "vollmacht",
@@ -38,7 +39,6 @@ const STATIC_POSTAL_ATTACHMENTS = {
   },
   // Future-ready: add more predefined postal attachments here if needed.
 };
-
 
 function maskBase64(value) {
   const s = String(value || "");
@@ -56,11 +56,15 @@ function summarizeForLog(value) {
   const clone = { ...value };
 
   if (clone.base64) clone.base64 = maskBase64(clone.base64);
-  if (clone.content && typeof clone.content === "object") {
-    clone.content = {
-      ...clone.content,
-      content: maskBase64(clone.content.content),
-    };
+  if (clone.base64_file) clone.base64_file = maskBase64(clone.base64_file);
+  if (Array.isArray(clone.base64_attachments)) {
+    clone.base64_attachments = clone.base64_attachments.map((item) => maskBase64(item));
+  }
+  if (clone.auth && typeof clone.auth === "object") {
+    clone.auth = { ...clone.auth, apiKey: "***", apiSecret: "***" };
+  }
+  if (clone.letter && typeof clone.letter === "object") {
+    clone.letter = summarizeForLog(clone.letter);
   }
   if (clone.document && typeof clone.document === "object") {
     clone.document = {
@@ -95,90 +99,151 @@ function withStage(error, stage, extra = {}) {
 }
 
 function getConfig() {
-  const baseUrl = String(process.env.BINECT_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, "");
-  const username = process.env.BINECT_USERNAME || process.env.BINNECT_USERNAME || "";
-  const password = process.env.BINECT_PASSWORD || process.env.BINNECT_PASSWORD || "";
+  const baseUrl = String(process.env.OB24_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, "");
+  const apiKey = process.env.OB24_API_KEY || "";
+  const apiSecret = process.env.OB24_API_SECRET || "";
+  // "test" parkt den Auftrag im Warenkorb (7 Tage), "live" versendet sofort.
+  const mode = String(process.env.OB24_MODE || "test").trim().toLowerCase() === "live" ? "live" : "test";
 
-  if (!username || !password) {
-    throw new Error("Binect credentials missing. Set BINECT_USERNAME and BINECT_PASSWORD in .env.");
+  if (!apiKey || !apiSecret) {
+    throw new Error("onlinebrief24 credentials missing. Set OB24_API_KEY and OB24_API_SECRET in .env.");
   }
 
-  return { baseUrl, username, password };
+  return { baseUrl, apiKey, apiSecret, mode };
 }
 
-function getBitrixWebhookBase() {
-  return String(process.env.BITRIX_WEBHOOK_BASE || DEFAULT_BITRIX_WEBHOOK_BASE).replace(/\/$/, "");
+function md5(value) {
+  return crypto.createHash("md5").update(String(value)).digest("hex");
 }
 
-function authHeader(username, password) {
-  return `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
-}
+// onlinebrief24 only accepts A4 portrait and rejects everything else with
+// "Das PDF ist verschlüsselt oder liegt nicht im richtigen Format vor". Our
+// Angebot templates are still US Letter (612x792) and uploads can be anything,
+// so every PDF is fitted onto A4 here — scaled to fit, centred horizontally and
+// anchored at the top so the address block stays where the envelope window
+// expects it. Pages that already are A4 portrait are left untouched.
+const A4 = { width: 595.28, height: 841.89 };
+const A4_TOLERANCE = 3; // pt — LibreOffice/Word round A4 slightly differently
 
-function compactObject(obj) {
-  return Object.fromEntries(
-    Object.entries(obj || {}).filter(([, value]) => value !== undefined && value !== null && value !== ""),
+function isA4Portrait(page) {
+  const { width, height } = page.getSize();
+  return (
+    Math.abs(width - A4.width) <= A4_TOLERANCE &&
+    Math.abs(height - A4.height) <= A4_TOLERANCE &&
+    page.getRotation().angle % 360 === 0
   );
 }
 
-function buildQS(paramsObj) {
-  const sp = new URLSearchParams();
-  const add = (k, v) => {
-    if (v !== undefined && v !== null) sp.append(k, String(v));
-  };
-
-  for (const [k, v] of Object.entries(paramsObj || {})) {
-    if (Array.isArray(v)) {
-      for (const item of v) add(`${k}[]`, item);
-    } else if (typeof v === "object" && v !== null) {
-      for (const [kk, vv] of Object.entries(v)) add(`${k}[${kk}]`, vv);
-    } else {
-      add(k, v);
-    }
+async function normalizeToA4(base64, label) {
+  let source;
+  try {
+    source = await PDFDocument.load(Buffer.from(base64, "base64"));
+  } catch {
+    throw new Error(`${label} konnte nicht gelesen werden (beschädigt oder passwortgeschützt).`);
   }
-  return sp.toString();
+
+  const pages = source.getPages();
+  if (pages.every(isA4Portrait)) return base64;
+
+  // ponytail: rotated source pages are scaled by their unrotated box; no rotated
+  // input has shown up yet — revisit if onlinebrief24 rejects one.
+  const target = await PDFDocument.create();
+  const embedded = await target.embedPages(pages);
+
+  embedded.forEach((embeddedPage, index) => {
+    const { width, height } = pages[index].getSize();
+    const scale = Math.min(A4.width / width, A4.height / height);
+    const page = target.addPage([A4.width, A4.height]);
+    page.drawPage(embeddedPage, {
+      xScale: scale,
+      yScale: scale,
+      x: (A4.width - width * scale) / 2,
+      y: A4.height - height * scale,
+    });
+  });
+
+  logPost("normalized to A4", { label, pages: pages.length, from: pages[0].getSize() });
+  return Buffer.from(await target.save()).toString("base64");
 }
 
-async function binectFetch(apiPath, { method = "GET", body } = {}) {
-  const { baseUrl, username, password } = getConfig();
+function assertPdfSize(base64, label) {
+  const bytes = Math.floor((String(base64 || "").length * 3) / 4);
+  if (bytes > MAX_PDF_BYTES) {
+    throw new Error(`${label} ist größer als 50 MB (${(bytes / 1024 / 1024).toFixed(1)} MB).`);
+  }
+  return bytes;
+}
+
+// onlinebrief24 wants the auth object in the JSON body of a GET too, which
+// fetch() rejects ("Request with GET/HEAD method cannot have body") — so GETs
+// go out through node:https instead. POSTs keep using fetch.
+function httpsJson(url, method, payload) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(payload);
+    const target = new URL(url);
+    const req = https.request(
+      {
+        hostname: target.hostname,
+        path: `${target.pathname}${target.search}`,
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "Content-Length": Buffer.byteLength(data),
+        },
+      },
+      (res) => {
+        let raw = "";
+        res.on("data", (chunk) => (raw += chunk));
+        res.on("end", () =>
+          resolve({
+            ok: res.statusCode >= 200 && res.statusCode < 300,
+            status: res.statusCode,
+            headers: { get: (name) => res.headers[String(name).toLowerCase()] || "" },
+            json: async () => JSON.parse(raw || "null"),
+            text: async () => raw,
+          }),
+        );
+      },
+    );
+    req.on("error", reject);
+    req.end(data);
+  });
+}
+
+// The auth object travels in the JSON body of EVERY request — including GETs.
+async function ob24Fetch(apiPath, { method = "POST", body } = {}) {
+  const { baseUrl, apiKey, apiSecret, mode } = getConfig();
   const url = `${baseUrl}${apiPath}`;
-  const headers = {
-    Authorization: authHeader(username, password),
-    Accept: "application/json",
-  };
+  const payloadBody = { auth: { apiKey, apiSecret, mode }, ...(body || {}) };
 
-  if (body !== undefined) headers["Content-Type"] = "application/json";
-
-  logPost(`Binect request -> ${method} ${apiPath}`, body);
+  logPost(`OB24 request -> ${method} ${apiPath}`, payloadBody);
 
   const startedAt = Date.now();
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  const res =
+    method === "GET"
+      ? await httpsJson(url, method, payloadBody)
+      : await fetch(url, {
+          method,
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(payloadBody),
+        });
 
   const durationMs = Date.now() - startedAt;
   const contentType = res.headers.get("content-type") || "";
-  const isJson = contentType.includes("application/json");
-  const payload = isJson
+  const payload = contentType.includes("application/json")
     ? await res.json().catch(() => null)
     : await res.text().catch(() => "");
 
-  logPost(`Binect response <- ${method} ${apiPath}`, {
-    status: res.status,
-    ok: res.ok,
-    durationMs,
-    payload,
-  });
+  logPost(`OB24 response <- ${method} ${apiPath}`, { status: res.status, ok: res.ok, durationMs, payload });
 
-  if (!res.ok) {
+  if (!res.ok || (payload && typeof payload === "object" && payload.status && Number(payload.status) >= 400)) {
     const message =
-      typeof payload === "string"
-        ? payload
-        : payload?.error?.text || payload?.error || payload?.text || payload?.message || `Binect error ${res.status}`;
+      (typeof payload === "string" ? payload : payload?.message || payload?.error) ||
+      `onlinebrief24 error ${res.status}`;
 
-    const err = new Error(message || `Binect error ${res.status}`);
-    err.status = res.status;
+    const err = new Error(message);
+    err.status = res.status >= 400 ? res.status : Number(payload?.status) || 500;
     err.payload = payload;
     err.apiPath = apiPath;
     err.method = method;
@@ -188,86 +253,52 @@ async function binectFetch(apiPath, { method = "GET", body } = {}) {
   return payload;
 }
 
-async function bitrixGet(method, paramsObj = {}) {
-  const base = getBitrixWebhookBase();
-  if (!base) throw new Error("BITRIX_WEBHOOK_BASE is not configured.");
-
-  const qs = buildQS(paramsObj);
-  const url = `${base}/${method}.json${qs ? `?${qs}` : ""}`;
-
-  const res = await fetch(url, { method: "GET" });
-  const data = await res.json().catch(() => null);
-
-  if (!data) throw new Error("Invalid JSON response from Bitrix");
-  if (data.error) throw new Error(data.error_description || data.error);
-
-  return data;
-}
-
-async function notifyBitrixTimelineComment({ entityType = "deal", entityId, comment }) {
-  if (entityId === undefined || entityId === null || String(entityId).trim() === "") {
-    return { skipped: true, reason: "missing entityId" };
-  }
-  if (!comment || !String(comment).trim()) {
-    return { skipped: true, reason: "missing comment" };
-  }
-
-  const numericId = Number(entityId);
-  if (!Number.isFinite(numericId) || numericId <= 0) {
-    return { skipped: true, reason: "invalid entityId" };
-  }
-
-  return bitrixGet("crm.timeline.comment.add", {
-    fields: {
-      ENTITY_ID: numericId,
-      ENTITY_TYPE: entityType,
-      COMMENT: String(comment).trim(),
-    },
-  });
-}
-
-function buildBitrixPostalComment({ recipient, offerNumber, documentId, sendingStatus, attachmentNames }) {
-  const statusText =
-    sendingStatus?.text ||
-    sendingStatus?.label ||
-    sendingStatus?.name ||
-    sendingStatus?.code ||
-    "-";
+function buildBitrixPostalComment({
+  recipient,
+  offerNumber,
+  printjobId,
+  printjob,
+  mode,
+  attachmentNames,
+  docWarnings,
+}) {
+  const item = Array.isArray(printjob?.items) ? printjob.items[0] : null;
+  const statusText = printjob?.status || item?.status || "-";
+  const pages = item?.pages ? `${item.pages} Seiten` : "-";
 
   const lines = [
     "📬 Angebot per Post versendet",
     "",
     `👤 Kunde: ${String(recipient?.name || "-").trim() || "-"}`,
     `📄 Angebot: ${String(offerNumber || "-").trim() || "-"}`,
-    `🆔 Binect: ${String(documentId || "-").trim() || "-"}`,
-    `📦 Status: ${String(statusText)}`,
+    `🆔 onlinebrief24: ${String(printjobId || "-").trim() || "-"}${mode === "test" ? " (Testmodus – liegt im Warenkorb)" : ""}`,
+    `📦 Status: ${statusText} · ${pages}`,
     `📎 Anhänge: ${(attachmentNames || []).join(", ") || "-"}`,
     `🕒 ${new Date().toLocaleString("de-DE")}`,
   ];
 
+  // A document that could not be generated is named here rather than silently
+  // missing from the timeline — the letter itself went out either way.
+  if (Array.isArray(docWarnings) && docWarnings.length) {
+    lines.push("", "⚠️ Nicht erzeugt:", ...docWarnings.map((warning) => `• ${warning}`));
+  }
+
   return lines.join("\n");
 }
 
+// OB24 needs no address fields (the PDF carries them) — this stays as a sanity
+// check so we never post a letter for a customer without a usable address.
 function normalizeRecipientAddress(recipient = {}) {
   const name = String(recipient.name || "").trim();
   const street = String(recipient.street || "").trim();
   const zipCode = String(recipient.zipCode || recipient.zip || recipient.postalCode || "").trim();
   const city = String(recipient.city || "").trim();
-  const country = String(recipient.country || "DE").trim() || "DE";
-  const nameExtend = String(recipient.nameExtend || recipient.company || "").trim();
 
   if (!name || !street || !zipCode || !city) {
     throw new Error("Recipient address is incomplete. Name, street, zip code and city are required.");
   }
 
-  return compactObject({
-    name,
-    nameExtend,
-    street,
-    zipCode,
-    city,
-    country,
-  });
+  return { name, street, zipCode, city };
 }
 
 async function loadStaticAttachmentById(id) {
@@ -332,31 +363,18 @@ router.post("/send", async (req, res) => {
     const {
       recipient,
       auftragId,
-      subject,
-      body: letterBody,
       document,
-      options,
-      attributes,
+      specification,
+      dispatchDate,
+      registered,
       attachments,
+      bitrixDocs,
+      docWarnings,
+      dealIdOverride,
       meta,
       dealId,
       bitrixEntityType,
     } = req.body || {};
-
-    logPost("parsed request fields", {
-      auftragId,
-      subject,
-      letterBodyPreview: String(letterBody || "").slice(0, 160),
-      recipient,
-      meta,
-      dealId,
-      bitrixEntityType,
-      document: {
-        filename: document?.filename,
-        base64: document?.base64 || document?.content || "",
-      },
-      attachments,
-    });
 
     const mainFilename = String(document?.filename || "").trim() || "Angebot.pdf";
     const mainBase64 = String(document?.base64 || document?.content || "").trim();
@@ -366,177 +384,102 @@ router.post("/send", async (req, res) => {
       return res.status(400).json({ error: "Main document base64 is required." });
     }
 
-    let receivingAddress;
     try {
-      receivingAddress = normalizeRecipientAddress(recipient || {});
-      logPost("normalized recipient address", receivingAddress);
+      normalizeRecipientAddress(recipient || {});
     } catch (err) {
       throw withStage(err, "normalize_recipient", { recipient });
     }
 
     const offerNumber =
       String(meta?.offerNumber || req.body?.offerNumber || "").trim() || mainFilename.replace(/\.pdf$/i, "");
-    logPost("resolved offer number", { offerNumber, mainFilename });
 
     let requestedAttachments;
     try {
       requestedAttachments = await normalizeRequestedAttachments(attachments);
-      logPost("normalized requested attachments", requestedAttachments.map((item) => ({
-        type: item.type,
-        id: item.id,
-        filename: item.filename,
-        base64: item.base64,
-      })));
     } catch (err) {
       throw withStage(err, "normalize_attachments", { attachments });
     }
 
-    const uploadPayload = {
-      content: {
-        filename: mainFilename,
-        content: mainBase64,
+    let letterBase64;
+    try {
+      assertPdfSize(mainBase64, mainFilename);
+      for (const att of requestedAttachments) assertPdfSize(att.base64, att.filename);
+
+      letterBase64 = await normalizeToA4(mainBase64, mainFilename);
+      for (const att of requestedAttachments) {
+        att.base64 = await normalizeToA4(att.base64, att.filename);
+      }
+    } catch (err) {
+      throw withStage(err, "normalize_pdf");
+    }
+
+    const letter = {
+      base64_file: letterBase64,
+      base64_file_checksum: md5(letterBase64),
+      filename_original: mainFilename,
+      specification: {
+        ...DEFAULT_SPECIFICATION,
+        ...(specification && typeof specification === "object" ? specification : {}),
       },
-      options: {
-        ...DEFAULT_OPTIONS,
-        ...(options && typeof options === "object" ? options : {}),
-      },
-      attributes: [
-        ...(Array.isArray(attributes) ? attributes.filter(Boolean) : []),
-        ...(auftragId ? [{ key: "auftragId", value: String(auftragId) }] : []),
-        ...(offerNumber ? [{ key: "offerNumber", value: String(offerNumber) }] : []),
-      ],
+      notice: [offerNumber, auftragId ? `Auftrag ${auftragId}` : ""].filter(Boolean).join(" / ").slice(0, 255),
     };
-    logPost("document upload payload prepared", uploadPayload);
 
-    let uploadedDocument;
+    if (requestedAttachments.length) {
+      letter.base64_attachments = requestedAttachments.map((item) => item.base64);
+    }
+    if (dispatchDate) letter.dispatch_date = String(dispatchDate).trim();
+    if (registered === "r1" || registered === "r2") letter.registered = registered;
+
+    const { mode } = getConfig();
+
+    let printjob;
     try {
-      uploadedDocument = await binectFetch("/documents", {
-        method: "POST",
-        body: uploadPayload,
-      });
-      logPost("document upload result", uploadedDocument);
+      const result = await ob24Fetch("/printjobs", { method: "POST", body: { letter } });
+      printjob = result?.data || null;
     } catch (err) {
-      throw withStage(err, "upload_document", { mainFilename, offerNumber });
+      throw withStage(err, "submit_printjob", { mainFilename, offerNumber });
     }
 
-    const documentId = uploadedDocument?.id;
-    if (!documentId) {
-      throw withStage(new Error("Binect did not return a document id."), "upload_document_result", {
-        uploadedDocument,
+    // A send without an Auftrag/Deal-ID is released in the frontend by
+    // re-entering the user's password; there is no Bitrix entity to record it
+    // on, so the audit trail is this log line.
+    if (dealIdOverride?.confirmedBy) {
+      console.warn("[post] sent without dealId — released by", dealIdOverride.confirmedBy, {
+        offerNumber,
+        recipient: recipient?.name,
       });
     }
 
-    const uploadedStatusCode = Number(uploadedDocument?.status?.code || 0);
-    if (uploadedStatusCode === 7) {
-      throw withStage(
-        new Error(uploadedDocument?.status?.text || "The uploaded PDF was rejected by Binect validation."),
-        "document_validation",
-        { uploadedDocument },
-      );
-    }
-
-    if (String(subject || "").trim() || String(letterBody || "").trim()) {
-      const coverpagePayload = {
-        receivingAddress,
-        coverText: {
-          subject: String(subject || "").trim(),
-          text: String(letterBody || "").trim() || "Anbei erhalten Sie Ihr Angebot.",
-          date: new Date().toISOString().slice(0, 10),
-        },
-      };
-
-      try {
-        logPost("coverpage payload", coverpagePayload);
-        const coverpageResult = await binectFetch(`/documents/${documentId}/coverpage`, {
-          method: "PUT",
-          body: coverpagePayload,
-        });
-        logPost("coverpage result", coverpageResult);
-      } catch (err) {
-        throw withStage(err, "coverpage", { documentId, subject, hasBody: !!String(letterBody || "").trim() });
-      }
-    } else {
-      logPost("coverpage skipped");
-    }
-
-    const uploadedAttachmentIds = [];
-    for (const attachment of requestedAttachments) {
-      try {
-        logPost("creating attachment", {
-          type: attachment.type,
-          id: attachment.id,
-          filename: attachment.filename,
-          base64: attachment.base64,
-        });
-
-        const createdAttachment = await binectFetch("/attachments", {
-          method: "POST",
-          body: {
-            content: {
-              filename: attachment.filename,
-              content: attachment.base64,
-            },
-            newSheet: true,
-            remarks: attachment.type === "upload" ? "Upload Post-Anhang" : "Automatischer Post-Anhang",
-          },
-        });
-
-        logPost("attachment created", createdAttachment);
-
-        if (createdAttachment?.id) uploadedAttachmentIds.push(createdAttachment.id);
-      } catch (err) {
-        throw withStage(err, attachment.type === "upload" ? "upload_user_attachment" : "upload_static_attachment", {
-          filename: attachment.filename,
-          attachmentType: attachment.type,
-        });
-      }
-    }
-
-    if (uploadedAttachmentIds.length) {
-      try {
-        logPost("linking attachments", { documentId, uploadedAttachmentIds });
-        const linkResult = await binectFetch(`/documents/${documentId}/attachments`, {
-          method: "PATCH",
-          body: uploadedAttachmentIds,
-        });
-        logPost("attachments linked", linkResult);
-      } catch (err) {
-        throw withStage(err, "link_attachments", { documentId, uploadedAttachmentIds });
-      }
-    } else {
-      logPost("no attachments to link");
-    }
-
-    let sendingDocument;
-    try {
-      logPost("sending document", { documentId });
-      sendingDocument = await binectFetch(`/sendings/${documentId}`, {
-        method: "POST",
+    const printjobId = printjob?.id;
+    if (!printjobId) {
+      throw withStage(new Error("onlinebrief24 did not return a printjob id."), "submit_printjob_result", {
+        printjob,
       });
-      logPost("sending result", sendingDocument);
-    } catch (err) {
-      throw withStage(err, "send_document", { documentId });
     }
 
     const attachmentNames = [mainFilename, ...requestedAttachments.map((item) => item.filename)];
 
-    const timelineEntityId =
-      meta?.dealId ??
-      dealId ??
-      auftragId ??
-      null;
+    const timelineEntityId = meta?.dealId ?? dealId ?? auftragId ?? null;
 
     let bitrixResult = null;
     try {
+      // Documents built by the client for the timeline only (Angebot-DOCX,
+      // Hassmann-CSV, Kalkulation) — the same set the e-mail flow archives.
+      const extraDocs = (Array.isArray(bitrixDocs) ? bitrixDocs : []).filter(
+        (doc) => doc?.filename && doc?.base64,
+      );
+
       const comment = buildBitrixPostalComment({
         recipient,
         offerNumber,
-        documentId,
-        sendingStatus: sendingDocument?.status,
-        attachmentNames,
+        printjobId,
+        printjob,
+        mode,
+        attachmentNames: [...attachmentNames, ...extraDocs.map((doc) => doc.filename)],
+        docWarnings,
       });
 
-      // Bundle the same documents we handed to Binect (main + requested attachments)
+      // Bundle the same documents we handed to onlinebrief24 (main + attachments)
       // as base64 files for the Bitrix timeline entry — matches the email flow
       // so every offer type (bu, hl, bwt, bl, ah, hms, wd) gets a full document bundle.
       const bitrixAttachments = [
@@ -544,17 +487,11 @@ router.post("/send", async (req, res) => {
         ...requestedAttachments
           .filter((a) => a?.filename && a?.base64)
           .map((a) => ({ filename: a.filename, base64: a.base64 })),
+        ...extraDocs.map((doc) => ({ filename: doc.filename, base64: doc.base64 })),
       ];
 
       const resolvedEntityType =
         String(bitrixEntityType || meta?.bitrixEntityType || "deal").trim() || "deal";
-
-      logPost("bitrix comment prepared", {
-        entityType: resolvedEntityType,
-        entityId: timelineEntityId,
-        comment,
-        attachmentCount: bitrixAttachments.length,
-      });
 
       if (timelineEntityId) {
         bitrixResult = await addTimelineComment({
@@ -581,14 +518,14 @@ router.post("/send", async (req, res) => {
 
     return res.json({
       ok: true,
-      provider: "binect",
-      documentId,
-      uploadStatus: uploadedDocument?.status || null,
-      sendingStatus: sendingDocument?.status || null,
+      provider: "onlinebrief24",
+      mode,
+      printjobId,
+      status: printjob?.status || null,
       attachmentCount: requestedAttachments.length,
       attachmentNames,
       bitrix: bitrixResult,
-      document: sendingDocument,
+      document: printjob,
     });
   } catch (error) {
     console.error("[post] send failed:", {
@@ -609,6 +546,27 @@ router.post("/send", async (req, res) => {
       stage: error?.stage || null,
       debug: error?.debug || null,
     });
+  }
+});
+
+// Which mode the server is in. The frontend asks before every send so it can
+// warn on live sends only — in test mode the job just lands in the Warenkorb.
+router.get("/config", (_req, res) => {
+  try {
+    const { mode } = getConfig();
+    return res.json({ ok: true, mode });
+  } catch (error) {
+    return res.status(500).json({ ok: false, error: error?.message || "Konfiguration unvollständig." });
+  }
+});
+
+// Guthaben — handy for a health check before a live send.
+router.get("/balance", async (_req, res) => {
+  try {
+    const result = await ob24Fetch("/balance", { method: "GET" });
+    return res.json({ ok: true, ...(result?.data || {}) });
+  } catch (error) {
+    return res.status(error?.status || 500).json({ ok: false, error: error?.message || "Balance-Abfrage fehlgeschlagen." });
   }
 });
 
