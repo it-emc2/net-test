@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Wandverkleidung neu</title>
+<style>
+:root{
+  --bg:#f6f7fb; --panel:#fff; --text:#1f2937; --muted:#6b7280; --border:#e5e7eb;
+  --accent:#7C3AED; --accent-weak:#ede9fe; --accent-strong:#6d28d9; --ring:rgba(124,58,237,.25);
+  --standard:#0f766e; --standard-weak:#ccfbf1;
+  --shadow:0 10px 30px rgba(17,24,39,.08);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:24px}
+.wrap{max-width:1040px;margin:0 auto}
+.card{background:var(--panel);border-radius:16px;box-shadow:var(--shadow);padding:22px;margin-bottom:18px}
+h2{margin:0;font-size:1.4rem}
+h3{margin:0 0 4px;font-size:1.02rem}
+.note{max-width:1040px;margin:0 auto 18px;padding:12px 16px;border-radius:12px;
+  background:#fffbeb;border:1px solid #fde68a;font-size:13px;color:#78350f}
+.sub{font-size:12.5px;color:var(--muted);margin:0 0 14px}
+
+/* step heads */
+.step{display:flex;align-items:baseline;gap:10px;margin:0 0 4px}
+.step .n{width:24px;height:24px;border-radius:50%;background:var(--accent-weak);color:var(--accent-strong);
+  font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+
+/* Ausführung */
+.pills{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.pill{display:flex;align-items:center;gap:10px;padding:13px 15px;border:1.5px solid var(--border);
+  border-radius:12px;background:#fff;cursor:pointer;min-height:52px;font-size:14px}
+.pill input{accent-color:var(--accent);width:18px;height:18px}
+.pill:has(input:checked){border-color:var(--accent);background:#faf8ff}
+
+/* ---- Plattenwahl ---- */
+.global-color{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:13px 15px;
+  border:1px solid var(--border);border-radius:12px;background:#fafbfe;margin-bottom:14px}
+.global-color b{font-size:13.5px}
+.swatch{width:26px;height:26px;border-radius:7px;border:1px solid rgba(0,0,0,.15);flex:0 0 auto}
+.btn{appearance:none;border:1px solid var(--border);background:#fff;border-radius:11px;min-height:44px;
+  padding:0 16px;font:inherit;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:9px}
+.btn:hover{background:#f3f4f6}
+.btn--primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn--ghost{border-style:dashed;color:var(--muted);font-weight:500}
+
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px}
+.panel{border:1.5px solid var(--border);border-radius:14px;background:#fff;overflow:hidden;
+  display:flex;flex-direction:column}
+.panel.is-on{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+.panel__head{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border)}
+.panel__head input{width:20px;height:20px;accent-color:var(--accent)}
+.panel__title{font-weight:700;font-size:.97rem}
+.panel__dim{font-size:12px;color:var(--muted)}
+.panel__body{padding:14px 16px;display:flex;flex-direction:column;gap:13px}
+.panel[aria-disabled="true"] .panel__body{opacity:.4;pointer-events:none}
+
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.row__label{font-size:13px;font-weight:600}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:11px;overflow:hidden}
+.stepper button{width:46px;height:46px;border:0;background:#fff;font-size:20px;cursor:pointer;color:var(--text)}
+.stepper button:hover{background:#f3f4f6}
+.stepper input{width:58px;height:46px;border:0;border-left:1px solid var(--border);border-right:1px solid var(--border);
+  text-align:center;font:inherit;font-weight:700;font-size:16px}
+
+.colorbtn{display:flex;align-items:center;gap:10px;width:100%;justify-content:flex-start;
+  border:1px solid var(--border);border-radius:11px;background:#fff;min-height:48px;padding:0 13px;
+  cursor:pointer;font:inherit}
+.colorbtn:hover{background:#fafbfe}
+.colorbtn .name{font-weight:600;font-size:13.5px}
+.colorbtn .tag{margin-left:auto;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;
+  background:#f1f5f9;color:var(--muted)}
+.colorbtn .tag.is-override{background:var(--accent-weak);color:var(--accent-strong)}
+
+.extras{display:flex;flex-direction:column;gap:8px}
+.extra{display:flex;align-items:center;gap:9px;font-size:13px;background:#fafbfe;
+  border:1px solid var(--border);border-radius:10px;padding:8px 10px}
+.extra .x{margin-left:auto;border:0;background:transparent;cursor:pointer;color:var(--muted);font-size:17px}
+.panel__foot{margin-top:auto;padding:11px 16px;border-top:1px solid var(--border);background:#fafbfe;
+  font-size:12.5px;color:var(--muted)}
+
+/* summary */
+.summary{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:14px 16px;border-radius:12px;
+  background:var(--accent-weak);color:#4c1d95;font-weight:600;font-size:13.5px}
+.summary .chip{display:inline-flex;align-items:center;gap:7px;background:#fff;border-radius:999px;
+  padding:5px 11px;font-size:12.5px;color:var(--text)}
+
+/* colour picker */
+.ov{position:fixed;inset:0;background:rgba(15,23,42,.35);display:none;align-items:center;justify-content:center;z-index:50}
+.ov.on{display:flex}
+.dlg{background:var(--panel);border-radius:16px;padding:20px;max-width:560px;width:calc(100% - 32px);
+  box-shadow:0 18px 40px rgba(15,23,42,.45);max-height:86vh;overflow:auto}
+.dlg h3{margin:0 0 3px}
+.dlg .hint{font-size:12.5px;color:var(--muted);margin:0 0 15px}
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
+.sw{border:1.5px solid var(--border);border-radius:12px;background:#fff;padding:8px;cursor:pointer;text-align:center}
+.sw:hover{border-color:var(--accent)}
+.sw.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+.sw .chip2{height:56px;border-radius:8px;border:1px solid rgba(0,0,0,.12);margin-bottom:7px}
+.sw .cap{font-size:11.5px;font-weight:600;line-height:1.25}
+.dlg-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
+
+/* accessories */
+.acc{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.acc-item{border:1px solid var(--border);border-radius:12px;padding:13px 14px;background:#fff}
+.acc-item .t{font-size:13.5px;font-weight:650;display:flex;align-items:center;gap:9px}
+.acc-item input[type=checkbox]{width:19px;height:19px;accent-color:var(--accent)}
+.acc-item .q{margin-top:9px;display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted)}
+.acc-item .q input{width:74px;height:40px;border:1px solid var(--border);border-radius:9px;text-align:center;font:inherit}
+.auto{font-size:11.5px;color:var(--accent-strong);background:var(--accent-weak);border-radius:999px;padding:2px 8px}
+
+.payload{font:12px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;background:#111827;color:#d1fae5;
+  border-radius:12px;padding:14px 16px;white-space:pre-wrap}
+.payload b{color:#fbbf24}
+@media (max-width:820px){ .panels{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="note">
+  <b>Mockup</b> — nur Darstellung, keine App-Änderung, keine echten Preise. Alle Feldnamen des heutigen
+  Formulars bleiben erhalten (siehe schwarzer Kasten unten): <code>wvPanels[]</code>, <code>wvQty997</code>,
+  <code>wvQty1497</code>, <code>wvColor</code>, <code>wvColor_997</code>, <code>wvColor_1497</code>,
+  <code>extraColors</code>. Alte Angebote und Entwürfe laden damit unverändert.
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <h2>Wandverkleidungsplatten</h2>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">Produktlinie</span>
+        <b style="font-size:13.5px">Premium</b>
+        <span style="font-size:12px;color:var(--muted)">Vigour · Hassmann</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="step"><span class="n">1</span><h3>Ausführung</h3></div>
+    <p class="sub">Welche Art der Wandverkleidung wird benötigt?</p>
+    <div class="pills">
+      <label class="pill"><input type="radio" name="wvKind"> Nur schließende Fehlstellen</label>
+      <label class="pill"><input type="radio" name="wvKind" checked> Deckenhoch im Dusch-/Wannenbereich</label>
+      <label class="pill"><input type="radio" name="wvKind"> Fliesenspiegel</label>
+      <label class="pill"><input type="radio" name="wvKind"> Innenraum der Kabine</label>
+      <label class="pill"><input type="radio" name="wvKind"> alle Bad-Wände</label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="step"><span class="n">2</span><h3>Plattenwahl</h3></div>
+    <p class="sub">Menge und Farbe stehen jetzt <b>an der Platte</b> — nicht mehr an zwei Stellen gleichzeitig.</p>
+
+    <div class="global-color">
+      <span class="swatch" id="gSw"></span>
+      <div>
+        <b id="gName">Marmor weiß</b>
+        <div style="font-size:12px;color:var(--muted)">Farbe für alle Platten</div>
+      </div>
+      <button class="btn" style="margin-left:auto" onclick="openPicker('global')">Farbe ändern</button>
+    </div>
+
+    <div class="panels" id="panels"></div>
+  </div>
+
+  <div class="card">
+    <div class="step"><span class="n">3</span><h3>Zubehör &amp; Profile</h3></div>
+    <p class="sub">Mengen werden aus der Plattenzahl vorgeschlagen und können überschrieben werden.</p>
+    <div class="acc" id="acc"></div>
+  </div>
+
+  <div class="card">
+    <div class="summary" id="summary"></div>
+  </div>
+
+  <div class="card">
+    <h3>Payload (unverändert)</h3>
+    <div class="payload" id="payload"></div>
+  </div>
+</div>
+
+<div class="ov" id="ov" onclick="if(event.target===this)closePicker()">
+  <div class="dlg" role="dialog" aria-modal="true">
+    <h3 id="dlgTitle">Farbe wählen</h3>
+    <p class="hint" id="dlgHint"></p>
+    <div class="swatches" id="swatches"></div>
+    <div class="dlg-actions">
+      <button class="btn" onclick="closePicker()">Abbrechen</button>
+      <button class="btn" id="inheritBtn" onclick="useGlobal()">Farbe für alle verwenden</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const COLORS = [
+  ["Weiß","#f7f7f5"],["Marmor weiß","#efeeec"],["Struktur weiß","#eceae6"],
+  ["Stein beige","#d8ccb8"],["Aragon grau","#b6b3ae"],["Stein grau","#a9a9a6"],
+  ["Kalkstein natur","#cbc2b2"],["Aragon schwarz","#3b3a38"],["Aragon anthrazit","#55534f"],
+  ["Schiefer grau","#7b7d7e"],["Schwarzwaldeiche Hell","#c19a6b"],["Stein anthrazit","#4a4a48"],
+  ["Sonderdekor","#ede9fe"],
+];
+const hex = (n)=> (COLORS.find(c=>c[0]===n)||["",'#ddd'])[1];
+
+// mirrors today's model: one global colour + optional per-panel override + extras
+let state = {
+  global: "Marmor weiß",
+  panels: {
+    "997":  {on:true,  qty:2, override:null, extras:[], label:"Wandverkleidung 3.0 Alu 997×2550 mm",  m2:2.54},
+    "1497": {on:false, qty:0, override:null, extras:[], label:"Wandverkleidung 3.0 Alu 1497×2550 mm", m2:3.82},
+  },
+};
+let picking = null;
+
+const eff = (k)=> state.panels[k].override || state.global;
+
+function render(){
+  document.getElementById('gSw').style.background = hex(state.global);
+  document.getElementById('gName').textContent = state.global;
+
+  document.getElementById('panels').innerHTML = Object.entries(state.panels).map(([k,p])=>`
+    <div class="panel ${p.on?'is-on':''}" aria-disabled="${!p.on}">
+      <label class="panel__head">
+        <input type="checkbox" ${p.on?'checked':''} onchange="toggle('${k}',this.checked)">
+        <span>
+          <span class="panel__title">${p.label.replace('Wandverkleidung 3.0 Alu ','')}</span>
+          <span class="panel__dim">Wandverkleidung 3.0 Alu · ${p.m2.toFixed(2).replace('.',',')} m² je Platte</span>
+        </span>
+      </label>
+      <div class="panel__body">
+        <div class="row">
+          <span class="row__label">Menge</span>
+          <span class="stepper">
+            <button onclick="bump('${k}',-1)" aria-label="weniger">−</button>
+            <input value="${p.qty}" onchange="setQty('${k}',this.value)" inputmode="numeric">
+            <button onclick="bump('${k}',1)" aria-label="mehr">+</button>
+          </span>
+        </div>
+        <button class="colorbtn" onclick="openPicker('${k}')">
+          <span class="swatch" style="background:${hex(eff(k))}"></span>
+          <span class="name">${eff(k)}</span>
+          <span class="tag ${p.override?'is-override':''}">${p.override?'eigene Farbe':'wie oben'}</span>
+        </button>
+        ${p.extras.length?`<div class="extras">${p.extras.map((e,i)=>`
+          <div class="extra"><span class="swatch" style="background:${hex(e.color)}"></span>
+            <span>${e.color}</span><span style="color:var(--muted)">× ${e.qty}</span>
+            <button class="x" onclick="delExtra('${k}',${i})" aria-label="entfernen">×</button></div>`).join('')}</div>`:''}
+        <button class="btn btn--ghost" onclick="addExtra('${k}')" style="width:100%">+ weitere Farbe für diese Größe</button>
+      </div>
+      <div class="panel__foot">${p.on?`${totalQty(k)} Platten · ${(totalQty(k)*p.m2).toFixed(2).replace('.',',')} m²`:'nicht gewählt'}</div>
+    </div>`).join('');
+
+  renderAcc(); renderSummary(); renderPayload();
+}
+
+const totalQty = (k)=> state.panels[k].on ? state.panels[k].qty + state.panels[k].extras.reduce((a,e)=>a+e.qty,0) : 0;
+const allPanels = ()=> totalQty("997") + totalQty("1497");
+const allM2 = ()=> totalQty("997")*state.panels["997"].m2 + totalQty("1497")*state.panels["1497"].m2;
+
+function renderAcc(){
+  const n = allPanels();
+  document.getElementById('acc').innerHTML = `
+    <div class="acc-item"><div class="t"><input type="checkbox" checked> Wandabdichtung BASIS-Set</div>
+      <div class="q">TRWDSET5</div></div>
+    <div class="acc-item"><div class="t"><input type="checkbox" checked> Flächenkleber</div>
+      <div class="q">Menge <input value="${Math.max(1,n)}"> <span class="auto">Vorschlag: 1 je Platte</span></div></div>
+    <div class="acc-item"><div class="t"><input type="checkbox" checked> Silikon</div>
+      <div class="q">Menge <input value="${Math.max(1,Math.ceil(n/2))}"> <span class="auto">Vorschlag: 1 je 2 Platten</span></div></div>
+    <div class="acc-item"><div class="t"><input type="checkbox" checked> Abschlussprofil 255 cm</div>
+      <div class="q">Menge <input value="${Math.max(1,n)}"> <span class="auto">Vorschlag: 1 je Platte</span></div></div>
+    <div class="acc-item"><div class="t"><input type="checkbox"> Verbindungsprofil(e)</div>
+      <div class="q">Menge <input value="${Math.max(0,n-1)}"> <span class="auto">Vorschlag: Platten − 1</span></div></div>
+    <div class="acc-item"><div class="t"><input type="checkbox"> Außenecke(n)</div>
+      <div class="q">Anzahl <input value="0"></div></div>`;
+}
+
+function renderSummary(){
+  const byColor = {};
+  for (const k of Object.keys(state.panels)) {
+    const p = state.panels[k]; if(!p.on) continue;
+    byColor[eff(k)] = (byColor[eff(k)]||0) + p.qty;
+    p.extras.forEach(e=> byColor[e.color] = (byColor[e.color]||0) + e.qty);
+  }
+  const chips = Object.entries(byColor).filter(([,v])=>v>0)
+    .map(([c,v])=>`<span class="chip"><span class="swatch" style="width:16px;height:16px;background:${hex(c)}"></span>${c} × ${v}</span>`).join('');
+  document.getElementById('summary').innerHTML =
+    `<span>${allPanels()} Platten · ${allM2().toFixed(2).replace('.',',')} m²</span>${chips || '<span class="chip">keine Platte gewählt</span>'}`;
+}
+
+function renderPayload(){
+  const s=state, p9=s.panels["997"], p14=s.panels["1497"];
+  document.getElementById('payload').innerHTML =
+`payload.wandverkleidung = {
+  <b>wvPanels[]</b>: [${[p9.on?'"V3WVK09"':null,p14.on?'"V3WV09"':null].filter(Boolean).join(', ')}],
+  <b>wvQty997</b>: "${p9.on?p9.qty:0}",   <b>wvQty1497</b>: "${p14.on?p14.qty:0}",
+  <b>wvColor</b>: "${s.global}",
+  <b>wvColor_997</b>: ${p9.override?`"${p9.override}"`:'""  // leer = wie oben'},
+  <b>wvColor_1497</b>: ${p14.override?`"${p14.override}"`:'""  // leer = wie oben'},
+  <b>extraColors</b>: { "997x2550": [${p9.extras.map(e=>`{color:"${e.color}",qty:${e.qty}}`).join(', ')}],
+                 "1497x2550": [${p14.extras.map(e=>`{color:"${e.color}",qty:${e.qty}}`).join(', ')}] }
+}`;
+}
+
+function toggle(k,on){ state.panels[k].on=on; if(on && state.panels[k].qty<1) state.panels[k].qty=1; if(!on) state.panels[k].qty=0; render(); }
+function bump(k,d){ state.panels[k].qty=Math.max(0,state.panels[k].qty+d); if(state.panels[k].qty>0) state.panels[k].on=true; render(); }
+function setQty(k,v){ state.panels[k].qty=Math.max(0,parseInt(v,10)||0); render(); }
+function addExtra(k){ state.panels[k].extras.push({color: COLORS[3][0], qty:1}); state.panels[k].on=true; render(); }
+function delExtra(k,i){ state.panels[k].extras.splice(i,1); render(); }
+
+function openPicker(which){
+  picking = which;
+  const isGlobal = which==='global';
+  document.getElementById('dlgTitle').textContent = isGlobal ? 'Farbe für alle Platten' : `Farbe für ${state.panels[which].label.replace('Wandverkleidung 3.0 Alu ','')}`;
+  document.getElementById('dlgHint').textContent = isGlobal
+    ? 'Gilt für jede Platte, die keine eigene Farbe hat.'
+    : 'Weicht nur für diese Größe von der Farbe oben ab.';
+  document.getElementById('inheritBtn').style.display = isGlobal ? 'none' : '';
+  const cur = isGlobal ? state.global : eff(which);
+  document.getElementById('swatches').innerHTML = COLORS.map(([n,c])=>`
+    <button class="sw ${n===cur?'on':''}" onclick="pick('${n}')">
+      <div class="chip2" style="background:${c}"></div><div class="cap">${n}</div></button>`).join('');
+  document.getElementById('ov').classList.add('on');
+}
+function pick(name){
+  if (picking==='global') state.global = name;
+  else state.panels[picking].override = (name===state.global) ? null : name;
+  closePicker(); render();
+}
+function useGlobal(){ state.panels[picking].override=null; closePicker(); render(); }
+function closePicker(){ document.getElementById('ov').classList.remove('on'); }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closePicker(); });
+
+render();
+</script>
+</body>
+</html>
