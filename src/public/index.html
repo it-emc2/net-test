@@ -339,7 +339,8 @@
 
     /* ---------------- Hauptmenü confirm modal ---------------- */
 
-    #homeConfirmOverlay {
+    #homeConfirmOverlay,
+    #appConfirmOverlay {
       position: fixed;
       inset: 0;
       display: none;
@@ -349,11 +350,13 @@
       z-index: 9990;
     }
 
-    #homeConfirmOverlay.visible {
+    #homeConfirmOverlay.visible,
+    #appConfirmOverlay.visible {
       display: flex;
     }
 
-    .home-confirm-dialog {
+    .home-confirm-dialog,
+    .app-confirm-dialog {
       background: var(--panel);
       color: var(--text);
       border-radius: 16px;
@@ -363,21 +366,35 @@
       width: calc(100% - 32px);
     }
 
-    .home-confirm-dialog h3 {
+    .home-confirm-dialog h3,
+    .app-confirm-dialog h3 {
       margin: 0 0 8px;
       font-size: 1.05rem;
     }
 
-    .home-confirm-dialog p {
+    .home-confirm-dialog p,
+    .app-confirm-dialog p {
       margin: 0 0 16px;
       font-size: 0.95rem;
       color: var(--muted);
     }
 
-    .home-confirm-actions {
+    .home-confirm-actions,
+    .app-confirm-actions {
       display: flex;
       justify-content: flex-end;
       gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Touch targets for the tablet this is used on. */
+    .app-confirm-actions button {
+      min-height: 46px;
+      padding: 0 18px;
+    }
+
+    .app-confirm-dialog p {
+      white-space: pre-line;
     }
 
     /* ---------------- Layout ---------------- */
@@ -10417,6 +10434,19 @@ button.dm-btn-danger:focus-visible {
       <footer class="hl-import-modal__foot">
         <button type="button" class="secondary" data-deal-action-close>Abbrechen</button>
       </footer>
+    </div>
+  </div>
+
+  <!-- Generic confirmation dialog (appConfirm() in script.js). Same look as the
+       Hauptmenü dialog below; used wherever an action would discard user input. -->
+  <div id="appConfirmOverlay" class="app-confirm-overlay" aria-hidden="true">
+    <div class="app-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="appConfirmTitle">
+      <h3 id="appConfirmTitle"></h3>
+      <p id="appConfirmMessage"></p>
+      <div class="app-confirm-actions">
+        <button type="button" class="secondary" id="appConfirmCancel">Abbrechen</button>
+        <button type="button" class="primary" id="appConfirmOk">Fortfahren</button>
+      </div>
     </div>
   </div>
 

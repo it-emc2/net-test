@@ -375,8 +375,24 @@ Gelöst über „war das überhaupt eine Auswahl?" statt Raten:
 - Nach dem Wechsel wird die Markierung zurückgesetzt — die Vorgabe der neuen Linie ist keine Auswahl.
 - Der nachgelagerte Toast entfällt ersatzlos; `clearHiddenLineSelection()` räumt nur noch auf.
 
+Seit 2026-09-16 als **eigener Dialog im App-Design** statt `window.confirm` — `appConfirm()` in
+`script.js`, Markup `#appConfirmOverlay` in `index.html`. Optik über dieselben CSS-Regeln wie der
+bestehende Hauptmenü-Dialog (`#homeConfirmOverlay`), die dafür nur um den zweiten Selektor erweitert
+wurden; kein zweites Aussehen, keine doppelte CSS. Generisch gehalten, damit weitere Stellen ihn
+mitbenutzen können.
+
+- Abbrechen, **Escape** und Klick auf den Hintergrund brechen ab und lassen Linie **und** Auswahl stehen.
+- Fokus liegt auf **Abbrechen** — ein versehentliches Enter darf nichts verwerfen.
+- Buttons mit 46 px Höhe für das Tablet; Meldung mit `white-space: pre-line`, damit der Produktname
+  umbrechen kann.
+- Fällt auf `window.confirm` zurück, wenn das Markup fehlt (gleiches Muster wie `askBeforeGoingHome`) —
+  ein fehlender Dialog darf eine Frage nach Datenverlust niemals still mit „ja" beantworten.
+- `setLine()` ist dadurch `async`; alle Aufrufer sind Event-Handler, die nichts zurücklesen. Nach dem
+  Dialog wird erneut geprüft, ob die Checkbox zwischenzeitlich schon umgestellt wurde.
+
 Dialogtext: „Wandverkleidung auf „Standard" umstellen? — Die bisherige Auswahl „Stein beige" gehört zur
-Linie Premium und wird entfernt. Sie müssen anschließend neu wählen."
+Linie Premium und wird entfernt. Sie müssen anschließend neu wählen." Bestätigen-Button: „Auf Standard
+umstellen".
 
 ### Geprüft
 
@@ -387,4 +403,9 @@ Linie Premium und wird entfernt. Sie müssen anschließend neu wählen."
 | Eigene Wahl „Stein beige", **OK** | Wechselt, neue Linie startet auf ihrer Vorgabe |
 | Geladenes Angebot (Wand + Boden) | Beide Bereiche warnen mit Namen; die Wiederherstellung selbst fragt nichts |
 
-Unit-Suite: 257 grün, dieselben 6 vorbestehenden Suites rot.
+Dialog zusätzlich geprüft: Abbrechen / Escape / Hintergrundklick lassen Premium + „Stein beige" stehen,
+nur „Auf Standard umstellen" schaltet um; Tablet 768×1024 ohne horizontalen Überlauf; Vorgabewert ohne
+eigene Wahl zeigt weiterhin **0** Dialoge.
+
+Unit-Suite: 256 grün, dieselben 6 vorbestehenden Suites rot (`offline-save-queue` läuft unter Last in
+einen Timeout, allein grün — bekannt, unabhängig von dieser Änderung).

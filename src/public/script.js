@@ -10401,6 +10401,58 @@ function getLine(key) {
   return document.getElementById(cfg?.toggle)?.checked ? "standard" : "premium";
 }
 
+// App-styled confirmation dialog, same look as the Hauptmenü one. Resolves true
+// when the user confirms. Falls back to window.confirm if the markup is missing,
+// the same way askBeforeGoingHome() does — a missing dialog must never silently
+// answer "yes" to a question about discarding someone's input.
+function appConfirm({ title, message, confirmLabel = "Fortfahren", cancelLabel = "Abbrechen" }) {
+  const overlay = document.getElementById("appConfirmOverlay");
+  const titleEl = document.getElementById("appConfirmTitle");
+  const msgEl = document.getElementById("appConfirmMessage");
+  const okBtn = document.getElementById("appConfirmOk");
+  const cancelBtn = document.getElementById("appConfirmCancel");
+
+  if (!overlay || !titleEl || !msgEl || !okBtn || !cancelBtn) {
+    return Promise.resolve(window.confirm(`${title}\n\n${message}`));
+  }
+
+  titleEl.textContent = title;
+  msgEl.textContent = message;
+  okBtn.textContent = confirmLabel;
+  cancelBtn.textContent = cancelLabel;
+
+  return new Promise((resolve) => {
+    const close = (result) => {
+      overlay.classList.remove("visible");
+      overlay.setAttribute("aria-hidden", "true");
+      okBtn.removeEventListener("click", onOk);
+      cancelBtn.removeEventListener("click", onCancel);
+      overlay.removeEventListener("click", onBackdrop);
+      document.removeEventListener("keydown", onKey);
+      resolve(result);
+    };
+    const onOk = () => close(true);
+    const onCancel = () => close(false);
+    const onBackdrop = (e) => {
+      if (e.target === overlay) close(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") close(false);
+    };
+
+    okBtn.addEventListener("click", onOk);
+    cancelBtn.addEventListener("click", onCancel);
+    overlay.addEventListener("click", onBackdrop);
+    document.addEventListener("keydown", onKey);
+
+    overlay.classList.add("visible");
+    overlay.setAttribute("aria-hidden", "false");
+    // Focus Abbrechen, not Fortfahren: a stray Enter must not discard anything.
+    cancelBtn.focus();
+  });
+}
+window.appConfirm = appConfirm;
+
 // Whether the user (or a restored offer) actually chose something in a section, as
 // opposed to the default the page ships with. Without this, switching a line on a
 // brand-new offer announced the removal of „Marmor weiß" — the markup default that
@@ -10459,7 +10511,7 @@ let __trayTierKeepSelection = false;
 
 // Single entry point for switching lines, so the buttons, the fallback link and the
 // pinned card all go through the same path as the old checkbox did.
-function setLine(key, tier, { keepSelection = false } = {}) {
+async function setLine(key, tier, { keepSelection = false } = {}) {
   const el = document.getElementById(PRODUKT_LINES[key]?.toggle);
   if (!el) return;
   const want = tier === "standard";
@@ -10473,12 +10525,16 @@ function setLine(key, tier, { keepSelection = false } = {}) {
   if (atRisk && !window.__restoring && !window.__RESTORING__) {
     const from = TIER_INFO[getLine(key)].name;
     const to = TIER_INFO[tier].name;
-    const ok = window.confirm(
-      `${LINE_LABEL[key]} auf „${to}" umstellen?\n\n` +
-        `Die bisherige Auswahl „${atRisk}" gehört zur Linie ${from} und wird entfernt. ` +
+    const ok = await appConfirm({
+      title: `${LINE_LABEL[key]} auf „${to}" umstellen?`,
+      message:
+        `Die bisherige Auswahl „${atRisk}" gehört zur Linie ${from} und wird entfernt.\n` +
         `Sie müssen anschließend neu wählen.`,
-    );
+      confirmLabel: `Auf ${to} umstellen`,
+    });
     if (!ok) return;
+    // The checkbox may have been flipped elsewhere while the dialog was open.
+    if (el.checked === want) return;
   }
   // The new line starts on its own default, which is not a user choice.
   markLineChoice(key, false);
