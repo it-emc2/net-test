@@ -13,8 +13,14 @@
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);
-  font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:24px}
-.wrap{max-width:1040px;margin:0 auto}
+  font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:24px}
+.wrap{max-width:1120px;margin:0 auto;padding-bottom:84px}
+body.t-port .wrap{max-width:800px}
+/* Ansicht-Umschalter nur im Mockup */
+.viewbar{position:fixed;top:10px;right:14px;z-index:60;display:flex;gap:6px;background:#fff;
+  border:1px solid var(--border);border-radius:11px;padding:4px;box-shadow:var(--shadow);font-size:12px}
+.viewbar button{border:0;background:transparent;border-radius:8px;min-height:44px;padding:0 13px;cursor:pointer;font:inherit;font-weight:600;color:var(--muted)}
+.viewbar button.on{background:var(--accent-weak);color:var(--accent-strong)}
 .card{background:var(--panel);border-radius:16px;box-shadow:var(--shadow);padding:22px;margin-bottom:18px}
 h2{margin:0;font-size:1.4rem}
 h3{margin:0 0 4px;font-size:1.02rem}
@@ -28,9 +34,18 @@ h3{margin:0 0 4px;font-size:1.02rem}
   font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
 
 /* Ausführung */
-.pills{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
-.pill{display:flex;align-items:center;gap:10px;padding:13px 15px;border:1.5px solid var(--border);
-  border-radius:12px;background:#fff;cursor:pointer;min-height:52px;font-size:14px}
+.pills{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+body.t-port .pills{grid-template-columns:1fr}
+
+/* Zusatzoption: gehört zur Arbeiten-Liste, nicht zu wvKind */
+.pill--extra{grid-column:1/-1;border-style:dashed;background:#fbfaff;align-items:flex-start;flex-wrap:wrap}
+.pill--extra .body{display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1}
+.pill--extra input[type=number]{width:104px;height:48px;border:1px solid var(--border);border-radius:10px;
+  text-align:center;font:inherit;font-size:17px;font-weight:700;background:#fff}
+.pill--extra .cm{font-weight:600}
+.pill--extra .src{flex-basis:100%;font-size:11.5px;color:var(--muted);margin-top:2px}
+.pill{display:flex;align-items:center;gap:12px;padding:14px 16px;border:1.5px solid var(--border);
+  border-radius:12px;background:#fff;cursor:pointer;min-height:60px;font-size:15px}
 .pill input{accent-color:var(--accent);width:18px;height:18px}
 .pill:has(input:checked){border-color:var(--accent);background:#faf8ff}
 
@@ -81,8 +96,10 @@ h3{margin:0 0 4px;font-size:1.02rem}
   font-size:12.5px;color:var(--muted)}
 
 /* summary */
-.summary{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:14px 16px;border-radius:12px;
-  background:var(--accent-weak);color:#4c1d95;font-weight:600;font-size:13.5px}
+.summary{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;align-items:center;gap:14px;
+  flex-wrap:wrap;padding:12px 20px;background:rgba(255,255,255,.96);border-top:1px solid var(--border);
+  box-shadow:0 -6px 20px rgba(17,24,39,.07);color:#4c1d95;font-weight:700;font-size:14px;
+  backdrop-filter:saturate(1.2) blur(6px)}
 .summary .chip{display:inline-flex;align-items:center;gap:7px;background:#fff;border-radius:999px;
   padding:5px 11px;font-size:12.5px;color:var(--text)}
 
@@ -104,10 +121,13 @@ h3{margin:0 0 4px;font-size:1.02rem}
 /* accessories */
 .acc{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
 .acc-item{border:1px solid var(--border);border-radius:12px;padding:13px 14px;background:#fff}
-.acc-item .t{font-size:13.5px;font-weight:650;display:flex;align-items:center;gap:9px}
-.acc-item input[type=checkbox]{width:19px;height:19px;accent-color:var(--accent)}
-.acc-item .q{margin-top:9px;display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted)}
-.acc-item .q input{width:74px;height:40px;border:1px solid var(--border);border-radius:9px;text-align:center;font:inherit}
+/* Die ganze Zeile ist das Tippziel, nicht nur das Kästchen. */
+.acc-item .t{font-size:14px;font-weight:650;display:flex;align-items:center;gap:12px;
+  min-height:48px;cursor:pointer;margin:-4px 0}
+.acc-item input[type=checkbox]{width:24px;height:24px;flex:0 0 auto;accent-color:var(--accent)}
+.acc-item .q{margin-top:10px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.acc-item .q input{width:88px;height:48px;border:1px solid var(--border);border-radius:10px;
+  text-align:center;font:inherit;font-size:16px;font-weight:700;color:var(--text)}
 .auto{font-size:11.5px;color:var(--accent-strong);background:var(--accent-weak);border-radius:999px;padding:2px 8px}
 
 .payload{font:12px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;background:#111827;color:#d1fae5;
@@ -117,6 +137,11 @@ h3{margin:0 0 4px;font-size:1.02rem}
 </style>
 </head>
 <body>
+<div class="viewbar">
+  <button id="vL" class="on" onclick="setView('land')">11" Querformat</button>
+  <button id="vP" onclick="setView('port')">Hochformat</button>
+</div>
+
 <div class="note">
   <b>Mockup</b> — nur Darstellung, keine App-Änderung, keine echten Preise. Alle Feldnamen des heutigen
   Formulars bleiben erhalten (siehe schwarzer Kasten unten): <code>wvPanels[]</code>, <code>wvQty997</code>,
@@ -140,11 +165,26 @@ h3{margin:0 0 4px;font-size:1.02rem}
     <div class="step"><span class="n">1</span><h3>Ausführung</h3></div>
     <p class="sub">Welche Art der Wandverkleidung wird benötigt?</p>
     <div class="pills">
-      <label class="pill"><input type="radio" name="wvKind"> Nur schließende Fehlstellen</label>
-      <label class="pill"><input type="radio" name="wvKind" checked> Deckenhoch im Dusch-/Wannenbereich</label>
-      <label class="pill"><input type="radio" name="wvKind"> Fliesenspiegel</label>
-      <label class="pill"><input type="radio" name="wvKind"> Innenraum der Kabine</label>
-      <label class="pill"><input type="radio" name="wvKind"> alle Bad-Wände</label>
+      <label class="pill"><input type="radio" name="wvKind" value="Fehlstellen" onchange="setKind(this)"> Nur schließende Fehlstellen</label>
+      <label class="pill"><input type="radio" name="wvKind" value="Deckenhoch" checked onchange="setKind(this)"> Deckenhoch im Dusch/Wannenbereich</label>
+      <label class="pill"><input type="radio" name="wvKind" value="Fliesenspiegel" onchange="setKind(this)"> Fliesenspiegel</label>
+      <label class="pill"><input type="radio" name="wvKind" value="Innenraum-der-Kabine" onchange="setKind(this)"> Innenraum der Kabine</label>
+      <label class="pill"><input type="radio" name="wvKind" value="alle-Bad-Wände" onchange="setKind(this)"> alle Bad-Wände</label>
+      <label class="pill"><input type="radio" name="wvKind" value="Keine" onchange="setKind(this)"> Keine Wandverkleidung</label>
+
+      <!-- Zusatzoption. Kein wvKind-Radio, sondern eine Checkbox der Arbeiten-Liste
+           (form-Arbeiten) — landet in payload.duschwanne.workTasks, nicht in
+           payload.wandverkleidung. Deshalb hier bewusst abgesetzt dargestellt. -->
+      <label class="pill pill--extra">
+        <input type="checkbox" id="dusch" onchange="setDusch(this.checked)">
+        <span class="body">
+          <span>Wandverkleidung in Duschbereich bis in einer Höhe von</span>
+          <input type="number" id="duschH" min="0" step="1" inputmode="numeric" placeholder="___"
+                 value="200" onclick="event.stopPropagation()" oninput="renderPayload()">
+          <span class="cm">cm</span>
+        </span>
+        <span class="src">Zusätzlich zur Auswahl oben · wird unter „Auszuführende Arbeiten" geführt</span>
+      </label>
     </div>
   </div>
 
@@ -170,9 +210,7 @@ h3{margin:0 0 4px;font-size:1.02rem}
     <div class="acc" id="acc"></div>
   </div>
 
-  <div class="card">
-    <div class="summary" id="summary"></div>
-  </div>
+  <div class="summary" id="summary"></div>
 
   <div class="card">
     <h3>Payload (unverändert)</h3>
@@ -211,6 +249,8 @@ let state = {
   },
 };
 let picking = null;
+state.kind = "Deckenhoch";
+state.duschbereich = false;
 
 const eff = (k)=> state.panels[k].override || state.global;
 
@@ -260,17 +300,17 @@ const allM2 = ()=> totalQty("997")*state.panels["997"].m2 + totalQty("1497")*sta
 function renderAcc(){
   const n = allPanels();
   document.getElementById('acc').innerHTML = `
-    <div class="acc-item"><div class="t"><input type="checkbox" checked> Wandabdichtung BASIS-Set</div>
+    <div class="acc-item"><label class="t"><input type="checkbox" checked> Wandabdichtung BASIS-Set</label>
       <div class="q">TRWDSET5</div></div>
-    <div class="acc-item"><div class="t"><input type="checkbox" checked> Flächenkleber</div>
+    <div class="acc-item"><label class="t"><input type="checkbox" checked> Flächenkleber</label>
       <div class="q">Menge <input value="${Math.max(1,n)}"> <span class="auto">Vorschlag: 1 je Platte</span></div></div>
-    <div class="acc-item"><div class="t"><input type="checkbox" checked> Silikon</div>
+    <div class="acc-item"><label class="t"><input type="checkbox" checked> Silikon</label>
       <div class="q">Menge <input value="${Math.max(1,Math.ceil(n/2))}"> <span class="auto">Vorschlag: 1 je 2 Platten</span></div></div>
-    <div class="acc-item"><div class="t"><input type="checkbox" checked> Abschlussprofil 255 cm</div>
+    <div class="acc-item"><label class="t"><input type="checkbox" checked> Abschlussprofil 255 cm</label>
       <div class="q">Menge <input value="${Math.max(1,n)}"> <span class="auto">Vorschlag: 1 je Platte</span></div></div>
-    <div class="acc-item"><div class="t"><input type="checkbox"> Verbindungsprofil(e)</div>
+    <div class="acc-item"><label class="t"><input type="checkbox"> Verbindungsprofil(e)</label>
       <div class="q">Menge <input value="${Math.max(0,n-1)}"> <span class="auto">Vorschlag: Platten − 1</span></div></div>
-    <div class="acc-item"><div class="t"><input type="checkbox"> Außenecke(n)</div>
+    <div class="acc-item"><label class="t"><input type="checkbox"> Außenecke(n)</label>
       <div class="q">Anzahl <input value="0"></div></div>`;
 }
 
@@ -289,8 +329,15 @@ function renderSummary(){
 
 function renderPayload(){
   const s=state, p9=s.panels["997"], p14=s.panels["1497"];
+  const h = document.getElementById('duschH')?.value || "";
   document.getElementById('payload').innerHTML =
-`payload.wandverkleidung = {
+`payload.duschwanne = {                      // eigene Form (form-Arbeiten), unverändert
+  <b>workTasks</b>: [${s.duschbereich?'"wandverkleidung_duschbereich"':''}],
+  <b>wandverkleidungHoehe</b>: "${s.duschbereich?h:''}"
+}
+
+payload.wandverkleidung = {
+  <b>wvKind</b>: "${s.kind}",
   <b>wvPanels[]</b>: [${[p9.on?'"V3WVK09"':null,p14.on?'"V3WV09"':null].filter(Boolean).join(', ')}],
   <b>wvQty997</b>: "${p9.on?p9.qty:0}",   <b>wvQty1497</b>: "${p14.on?p14.qty:0}",
   <b>wvColor</b>: "${s.global}",
@@ -300,6 +347,9 @@ function renderPayload(){
                  "1497x2550": [${p14.extras.map(e=>`{color:"${e.color}",qty:${e.qty}}`).join(', ')}] }
 }`;
 }
+
+function setKind(el){ state.kind = el.value; renderPayload(); }
+function setDusch(on){ state.duschbereich = on; renderPayload(); }
 
 function toggle(k,on){ state.panels[k].on=on; if(on && state.panels[k].qty<1) state.panels[k].qty=1; if(!on) state.panels[k].qty=0; render(); }
 function bump(k,d){ state.panels[k].qty=Math.max(0,state.panels[k].qty+d); if(state.panels[k].qty>0) state.panels[k].on=true; render(); }
@@ -330,6 +380,11 @@ function useGlobal(){ state.panels[picking].override=null; closePicker(); render
 function closePicker(){ document.getElementById('ov').classList.remove('on'); }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closePicker(); });
 
+function setView(v){
+  document.body.classList.toggle('t-port', v==='port');
+  document.getElementById('vL').classList.toggle('on', v==='land');
+  document.getElementById('vP').classList.toggle('on', v==='port');
+}
 render();
 </script>
 </body>
