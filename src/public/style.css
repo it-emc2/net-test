@@ -3838,7 +3838,7 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
   display: grid;
   gap: 8px;
 }
-.mail-card input, .mail-card textarea {
+.mail-card input:not([type="checkbox"]):not([type="radio"]), .mail-card textarea {
   width: 100%;
   border-radius: 10px;
   padding: 10px;
