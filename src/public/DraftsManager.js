@@ -265,9 +265,8 @@ export function initDraftsManager(options = {}) {
     }
 
     const offerType = cfg.getOfferType();
-    // Always freeze on save: snapshot a fresh price computation so this
-    // offer's total never drifts if DB rates/prices change later.
-    await window.freezeCurrentPricing?.();
+    // No freeze on a plain draft save: an Entwurf must keep following current
+    // rates/prices. Only Sperren (toggleOfferLock) freezes a total.
     const payload = cfg.buildPayload();
 
     if (!payload) {
