@@ -26480,7 +26480,7 @@ let _pendingPlanningEntry = null;
 
 // Deal stages fetched live from Bitrix — hides "Erfolgreich abgeschlossen"
 // for deals already moved to/past "ANG verschickt" on the today-planning list.
-const DONE_STAGE_IDS = new Set(["C38:UC_2ZDNEZ", "C52:UC_SNAVG8", "C72:PREPARATION"]);
+const DONE_STAGE_IDS = new Set(["C38:UC_2ZDNEZ", "C52:UC_SNAVG8", "C72:PREPARATION", "C72:UC_MXCAGT"]);
 const dealStageById = new Map();
 
 function isDealDone(dealId) {
@@ -26556,6 +26556,67 @@ function openPlanningOfferPicker(entry, onPick) {
 
 // Exposed for the Bitrix-calendar panel (separate IIFE), which reuses this picker.
 window.openPlanningOfferPicker = openPlanningOfferPicker;
+
+let _noContactDealId = null;
+
+function openPlanningNoContactDialog(dealId) {
+  const modal = document.getElementById("planningNoContactModal");
+  if (!modal) return;
+  _noContactDealId = String(dealId || "").trim();
+  // Fresh state every time — the modal is reused across cards.
+  const first = modal.querySelector('input[name="planningNoContactReason"]');
+  if (first) first.checked = true;
+  const note = document.getElementById("planningNoContactNote");
+  if (note) note.value = "";
+  const submit = document.getElementById("planningNoContactSubmit");
+  if (submit) { submit.disabled = false; submit.textContent = "Verschieben & kommentieren"; }
+  modal.hidden = false;
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function closePlanningNoContactDialog() {
+  const modal = document.getElementById("planningNoContactModal");
+  if (!modal) return;
+  modal.hidden = true;
+  modal.setAttribute("aria-hidden", "true");
+  _noContactDealId = null;
+}
+
+async function submitPlanningNoContact() {
+  const dealId = _noContactDealId;
+  if (!dealId) return;
+  const modal = document.getElementById("planningNoContactModal");
+  const reason = modal?.querySelector('input[name="planningNoContactReason"]:checked')?.value || "Kunde nicht erreichbar";
+  const note = String(document.getElementById("planningNoContactNote")?.value || "").trim();
+  const comment = `\u{1F4F5} Termin nicht zustande gekommen \u2013 ${reason}` + (note ? `\n${note}` : "");
+
+  const submit = document.getElementById("planningNoContactSubmit");
+  if (submit) { submit.disabled = true; submit.textContent = "Verschiebe\u2026"; }
+  try {
+    const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}/move-besichtigung`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ comment }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+    markDealStage(dealId, "C72:UC_MXCAGT");
+    closePlanningNoContactDialog();
+    renderTodayPlanningAppointments();
+    (typeof showToast === "function") && showToast(
+      data?.commentFailed
+        ? "Deal verschoben \u2014 Kommentar konnte nicht gespeichert werden."
+        : "Deal auf \u201EBesichtigungstermin vereinbaren\u201C verschoben.",
+      data?.commentFailed ? "error" : "success",
+    );
+  } catch (e) {
+    console.error("[planning] move-besichtigung failed:", e);
+    if (submit) { submit.disabled = false; submit.textContent = "Verschieben & kommentieren"; }
+    (typeof showToast === "function")
+      ? showToast(`Fehler: ${e.message || e}`, "error")
+      : alert(`Fehler beim Verschieben: ${e.message || e}`);
+  }
+}
 
 function closePlanningOfferPicker() {
   const modal = document.getElementById("planningOfferPickerModal");
@@ -27358,6 +27419,7 @@ function renderTodayPlanningAppointments(){
           ${navigateHtml}
           <button type="button" class="today-calendar-open" ${isCancelled ? 'disabled aria-disabled="true"' : ""}><i class="fa-solid ${isCancelled ? "fa-ban" : "fa-arrow-right"}"></i> ${isCancelled ? "Nicht verfuegbar" : "In Konfigurator öffnen"}</button>
           ${!isCancelled && entry?.importDealId && !isDealDone(entry.importDealId) ? `<button type="button" class="today-calendar-done"><i class="fa-solid fa-circle-check"></i> Hat stattgefunden</button>` : ""}
+          ${!isCancelled && entry?.importDealId && !isDealDone(entry.importDealId) ? `<button type="button" class="today-calendar-noshow"><i class="fa-solid fa-phone-slash"></i> Nicht erreicht</button>` : ""}
         </div>
       </div>
       ${travelHtml}
@@ -27443,6 +27505,17 @@ function renderTodayPlanningAppointments(){
           ? showToast(`Fehler: ${e.message || e}`, "error")
           : alert(`Fehler beim Verschieben: ${e.message || e}`);
       }
+    });
+
+    // "Nicht erreicht" -> ask for a reason, then move the deal back to
+    // "Besichtigungstermin vereinbaren" and log the reason on its timeline.
+    card.querySelector(".today-calendar-noshow")?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const id = card.dataset.id;
+      const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
+      const dealId = String(entry?.importDealId || "").trim();
+      if(dealId) openPlanningNoContactDialog(dealId);
     });
   });
 
@@ -27997,8 +28070,12 @@ function initTodayPlanningPanel(){
 
   document.getElementById("planningOfferPickerClose")?.addEventListener("click", closePlanningOfferPicker);
   document.getElementById("planningOfferPickerBackdrop")?.addEventListener("click", closePlanningOfferPicker);
+  document.getElementById("planningNoContactClose")?.addEventListener("click", closePlanningNoContactDialog);
+  document.getElementById("planningNoContactBackdrop")?.addEventListener("click", closePlanningNoContactDialog);
+  document.getElementById("planningNoContactCancel")?.addEventListener("click", closePlanningNoContactDialog);
+  document.getElementById("planningNoContactSubmit")?.addEventListener("click", submitPlanningNoContact);
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closePlanningOfferPicker();
+    if (e.key === "Escape") { closePlanningOfferPicker(); closePlanningNoContactDialog(); }
   });
 
   const search = document.getElementById("todayPlanningSearch");

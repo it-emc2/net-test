@@ -7532,6 +7532,108 @@ button.pad-clear {
   box-shadow: none;
 }
 
+/* "Nicht erreicht" — same shape as .today-calendar-done, amber instead of green */
+.today-calendar-noshow {
+  border: 1px solid color-mix(in srgb, #d97706 32%, var(--border));
+  background: color-mix(in srgb, #d97706 12%, var(--panel));
+  color: #b45309;
+  border-radius: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease, color .16s ease;
+}
+
+.today-calendar-noshow:hover,
+.today-calendar-noshow:focus-visible {
+  border-color: #d97706;
+  background: #d97706;
+  color: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #d97706 30%, transparent);
+}
+
+/* ===== "Nicht erreicht" reason dialog ==================================== */
+
+.nocontact-hint {
+  margin: 0 0 12px;
+  font-size: .88rem;
+  color: var(--muted, #64748b);
+}
+
+.nocontact-reasons {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px 12px;
+  margin: 0 0 14px;
+}
+
+.nocontact-reasons legend {
+  padding: 0 6px;
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted, #64748b);
+}
+
+.nocontact-reasons label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 4px;
+  cursor: pointer;
+  font-size: .92rem;
+}
+
+.nocontact-reasons input[type="radio"] {
+  width: auto;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: #d97706;
+}
+
+.nocontact-note-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--muted, #64748b);
+}
+
+.nocontact-note {
+  width: 100%;
+  resize: vertical;
+}
+
+.nocontact-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.nocontact-submit {
+  border: 1px solid #d97706;
+  background: #d97706;
+  color: #fff;
+  border-radius: 12px;
+  padding: 9px 16px;
+  font-size: .9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.nocontact-submit:disabled {
+  cursor: default;
+  opacity: .7;
+}
+
 .today-calendar-call {
   border: 1px solid color-mix(in srgb, #16a34a 32%, var(--border));
   background: color-mix(in srgb, #16a34a 12%, var(--panel));
@@ -7643,6 +7745,7 @@ button.pad-clear {
   .today-calendar-call,
   .today-calendar-navigate,
   .today-calendar-done,
+  .today-calendar-noshow,
   .today-calendar-open {
     min-height: 68px;
     font-size: 0.9rem;

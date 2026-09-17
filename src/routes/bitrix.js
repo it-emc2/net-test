@@ -28,6 +28,10 @@ const AH_ANG_VERSCHICKT_CATEGORY_ID = 52;
 const ZUTEILEN_STAGE_ID = "C72:PREPARATION";
 const ZUTEILEN_CATEGORY_ID = 72;
 
+// Stage an appointment is sent back to when the customer could not be reached
+// ("Nicht erreicht" on the planning list). Same pipeline (category 72).
+const BESICHTIGUNG_STAGE_ID = "C72:UC_MXCAGT";
+
 // AH-specific deal fields, filled from buildAhData()'s AhBitrix output when an
 // AH deal is moved to "ANG verschickt". Field IDs/enum option IDs per Bitrix
 // crm.deal.fields (checked against real examples, see PR discussion).
@@ -787,6 +791,40 @@ router.post("/deal/:id/move-zuteilen", express.json(), async (req, res) => {
     return res.json({ ok: true, dealId: Number(dealId), result: data?.result ?? data });
   } catch (err) {
     console.error("POST /api/bitrix/deal/:id/move-zuteilen error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// POST /api/bitrix/deal/:id/move-besichtigung
+// Customer could not be reached: moves the deal back to "[VI] Besichtigungs-
+// termin vereinbaren" and records the reason as a timeline comment.
+// Body: { comment: string }
+router.post("/deal/:id/move-besichtigung", express.json(), async (req, res) => {
+  try {
+    const dealId = String(req.params.id || "").trim();
+    if (!dealId) return res.status(400).json({ error: "id is required" });
+    const comment = String(req.body?.comment || "").trim();
+    if (!comment) return res.status(400).json({ error: "comment is required" });
+
+    const data = await updateDealStage({
+      dealId,
+      stageId: BESICHTIGUNG_STAGE_ID,
+      categoryId: ZUTEILEN_CATEGORY_ID,
+    });
+
+    // The stage move already happened — a failing comment must not report the
+    // whole action as failed, or the user retries and moves the deal twice.
+    let commentFailed = false;
+    try {
+      await addTimelineComment({ entityType: "deal", entityId: dealId, comment });
+    } catch (e) {
+      commentFailed = true;
+      console.warn("[bitrix] move-besichtigung comment failed:", e?.message || e);
+    }
+
+    return res.json({ ok: true, dealId: Number(dealId), commentFailed, result: data?.result ?? data });
+  } catch (err) {
+    console.error("POST /api/bitrix/deal/:id/move-besichtigung error:", err);
     return res.status(500).json({ error: err?.message || String(err) });
   }
 });
