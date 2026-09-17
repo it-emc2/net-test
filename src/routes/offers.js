@@ -492,14 +492,6 @@ router.post('/:offerNumber/recompute', async (req, res) => {
     };
     const computedPricing = await pricing.computePrices(pricingPayload);
 
-    // If this offer was frozen, its own payload.frozenPricing is what
-    // computePrices() serves on every future open (it's checked before the
-    // pricing/pricingFingerprint cache below) — re-pin it to the fresh
-    // price too, or reopening would silently revert to the old one.
-    if (offer.payload?.frozen === true) {
-      offer.payload = { ...offer.payload, frozenPricing: computedPricing };
-      offer.markModified('payload');
-    }
     offer.pricing = computedPricing;
     offer.pricingFingerprint = computeFingerprint(pricingPayload);
     await offer.save();
@@ -529,12 +521,10 @@ router.post('/', async (req, res) => {
     }
 
     // Price is always computed server-side on save — never trust a client-
-    // supplied `pricing` blob, and strip `frozen`/`frozenPricing` too: those
-    // are honored for drafts/previews (see pricing-core.js computePrices),
-    // but this route is what actually finalizes an offer's price, so it must
-    // never accept a client-fabricated snapshot.
-    const { frozen, frozenPricing, ...payloadForPricing } = payload;
-    const pricingPayload = { ...payloadForPricing, offerNumber, offerType };
+    // supplied `pricing` blob. Re-saving an offer number that is already
+    // sent keeps that offer's pinned price (pricing-core step 1); a changed
+    // offer is saved as a new Entwurf under a new number instead.
+    const pricingPayload = { ...payload, offerNumber, offerType };
     const computedPricing = await pricing.computePrices(pricingPayload);
 
     // Prepare the offer document

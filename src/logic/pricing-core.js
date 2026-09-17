@@ -97,7 +97,7 @@ function stableStringify(value) {
 // computePrices() can tell "nothing priced changed since last save" from
 // "recompute". A false mismatch just costs an extra (still-correct) recompute.
 export function computeFingerprint(payload) {
-  const { pricing, frozenPricing, frozen, forceRecompute, ...rest } = payload || {};
+  const { pricing, forceRecompute, ...rest } = payload || {};
   return stableStringify(rest);
 }
 
@@ -2072,28 +2072,14 @@ color: metaColor || null,
 
   return {
     computePrices: async (payload) => {
-      // 1) The client says nothing has changed since the last freeze
-      // (save/lock) — trust it and skip every DB/live lookup below. This is
-      // the more robust signal for "still the same offer, just switching
-      // tabs": buildPayload() re-derives several sub-objects on every call
-      // and isn't guaranteed byte-identical run to run, so relying on exact
-      // fingerprint equality alone (step 2) would recompute on noise, not
-      // just on real edits. Any actual field edit clears window.__frozen
-      // client-side (see requestPricingRefresh), so this only fires while
-      // truly nothing has been touched since the last save/lock.
-      // Not a security boundary — the one place that actually finalizes a
-      // price (offers.js save route) strips `frozen`/`frozenPricing` from
-      // the payload before it ever reaches here, so a client can't use this
-      // to fake the price of a real offer.
       const savedOfferNumber = String(payload?.offerNumber || "").trim();
 
-      // 0) A saved Offer marked `locked` is a finalized, sent document — its
-      // price is immutable. Checked against the DB record itself (never a
-      // client-supplied `frozen` flag) and never bypassed by
-      // `forceRecompute`: that's the actual guarantee. The only way to
-      // change a locked offer's price is the deliberate edit-and-resave
-      // flow through the save route (offers.js POST /), which always
-      // recomputes fresh and re-locks with the new snapshot.
+      // 1) A saved Offer marked `locked` is a finalized, sent document — its
+      // price is immutable. Checked against the DB record itself, never a
+      // client-supplied flag, and never bypassed by `forceRecompute`: that
+      // is the actual guarantee. Editing a sent offer means saving it as a
+      // new Entwurf, which gets its own offer number (routes/drafts.js
+      // freshNumberIfSent) and therefore prices against current values.
       let existingOfferSnapshot = null;
       if (savedOfferNumber) {
         existingOfferSnapshot = await fetchPriorSnapshot(OfferModel, { offerNumber: savedOfferNumber });
@@ -2102,11 +2088,7 @@ color: metaColor || null,
         }
       }
 
-      if (payload?.frozen === true && payload?.frozenPricing && payload?.forceRecompute !== true) {
-        return JSON.parse(JSON.stringify(payload.frozenPricing));
-      }
-
-      // 2) Something changed (or nothing was ever frozen): check for a
+      // 2) Not a sent offer: check for a
       // server-computed snapshot from the last save, subject to the
       // AUTO_RECOMPUTE_PRICING admin toggle — this is what lets an edited
       // offer/draft keep showing its last price instead of recomputing when

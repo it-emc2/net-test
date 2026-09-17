@@ -67,7 +67,6 @@ export function initDraftsManager(options = {}) {
   let lastLoadedDraftMeta = null;
   let modal = null;
   let saveAsBtn = null;
-  let lockBtn = null;
   let duplicateTimer = null;
 
   const setStatus = (txt) => {
@@ -243,6 +242,11 @@ export function initDraftsManager(options = {}) {
       throw new Error("No restore function available on window");
     }
 
+    // An Entwurf is editable by definition — drop the sent-offer read-only
+    // state if we came from a sent offer.
+    const { exitSentMode } = await import("./SentOfferBar.js");
+    exitSentMode();
+
     lastLoadedDraftMeta = {
       id: draft?._id || draft?.id || id,
       name: draft?.name || "",
@@ -250,7 +254,6 @@ export function initDraftsManager(options = {}) {
       updatedAt: draft?.updatedAt || null,
     };
 
-    updateLockButtonLabel();
     return draft;
   }
 
@@ -265,8 +268,8 @@ export function initDraftsManager(options = {}) {
     }
 
     const offerType = cfg.getOfferType();
-    // No freeze on a plain draft save: an Entwurf must keep following current
-    // rates/prices. Only Sperren (toggleOfferLock) freezes a total.
+    // No freeze on save: an Entwurf follows current rates/prices. A price is
+    // only pinned once the offer is actually sent (Offer.locked, server-side).
     const payload = cfg.buildPayload();
 
     if (!payload) {
@@ -386,6 +389,17 @@ export function initDraftsManager(options = {}) {
       }
     }
     return name;
+  }
+
+  // "Neue Version erstellen" on a sent offer: a plain draft save, except the
+  // caller needs the result — the server hands back the fresh offer number it
+  // assigned (routes/drafts.js freshNumberIfSent) and saveDraftWithName()
+  // has already written it into the offer-number field.
+  async function createOfferVersion() {
+    const name = buildDraftDefaultName();
+    const result = await saveDraftWithName(name);
+    if (result?.authExpired) throw new Error("Sitzung abgelaufen — bitte neu anmelden.");
+    return { ...result, name };
   }
 
   function ensureModalStyles() {
@@ -554,82 +568,6 @@ export function initDraftsManager(options = {}) {
       $summaryActions.appendChild(saveAsBtn);
     } else {
       saveAsBtn = document.getElementById("btnSaveDraftAs");
-    }
-
-    if (!document.getElementById("btnLockOffer")) {
-      lockBtn = document.createElement("button");
-      lockBtn.type = "button";
-      lockBtn.id = "btnLockOffer";
-      lockBtn.className = "sw-save-btn sw-save-btn--secondary";
-      $summaryActions.appendChild(lockBtn);
-    } else {
-      lockBtn = document.getElementById("btnLockOffer");
-    }
-    updateLockButtonLabel();
-  }
-
-  function updateLockButtonLabel() {
-    if (!lockBtn) return;
-    const locked = window.__locked === true;
-    lockBtn.textContent = locked ? "🔓 Entsperren" : "🔒 Sperren";
-    lockBtn.title = locked
-      ? "Angebot wieder bearbeitbar machen"
-      : "Angebot einfrieren und komplett gegen Bearbeitung sperren";
-  }
-
-  async function toggleOfferLock() {
-    if (window.__locked === true) {
-      window.__locked = false;
-      window.applyOfferLockUI?.(false);
-      updateLockButtonLabel();
-      cfg.toast?.("Angebot entsperrt. Zum dauerhaften Speichern erneut sichern.", "info");
-      return;
-    }
-
-    // Freeze/save first, while the form is still enabled — buildPayload()
-    // reads fields via FormData, which silently drops disabled controls, so
-    // disabling the UI before this snapshot would lose every checked box.
-    //
-    // Freeze before deciding to lock, not after: buildPayload() reads
-    // window.__locked when it runs, so the flag has to be final before the
-    // save. Locking pins a total permanently, so it needs a snapshot the
-    // server actually computed — offline we save an unlocked draft instead of
-    // freezing a price that may no longer match the form.
-    const name = buildDraftDefaultName();
-    try {
-      const snapshot = await window.freezeCurrentPricing?.();
-      if (window.freezeCurrentPricing && !snapshot) {
-        const result = await saveDraftWithName(name);
-        if (result?.authExpired) return;
-        cfg.toast?.(
-          result?.queued
-            ? `Sperren braucht eine Verbindung. Entwurf offline gespeichert: ${name}`
-            : `Sperren braucht eine Verbindung. Entwurf gespeichert: ${name}`,
-          "warn",
-        );
-        return;
-      }
-
-      window.__locked = true;
-      const result = await saveDraftWithName(name);
-      if (result?.authExpired) {
-        window.__locked = false;
-        updateLockButtonLabel();
-        return;
-      }
-      window.applyOfferLockUI?.(true);
-      updateLockButtonLabel();
-      cfg.toast?.(
-        result?.queued
-          ? `Offline gesperrt – wird automatisch synchronisiert: ${name}`
-          : `Angebot gesperrt & gespeichert: ${name}`,
-        "success",
-      );
-    } catch (e) {
-      window.__locked = false;
-      updateLockButtonLabel();
-      console.error(e);
-      cfg.toast?.(`Sperren fehlgeschlagen: ${e.message || e}`, "error");
     }
   }
 
@@ -988,6 +926,7 @@ export function initDraftsManager(options = {}) {
   window.quickSaveDraft = quickSaveCurrentDraft;
   window.saveCurrentDraft = quickSaveCurrentDraft; // legacy btnSaveDraft becomes Quick Save
   window.openSaveDraftAs = openSaveAsModal;
+  window.createOfferVersion = createOfferVersion;
   window.searchDraftsForCurrentOfferType = search;
   window.loadDraftById = loadById;
 
@@ -997,11 +936,6 @@ export function initDraftsManager(options = {}) {
   if (saveAsBtn && saveAsBtn.dataset.bound !== "1") {
     saveAsBtn.dataset.bound = "1";
     saveAsBtn.addEventListener("click", openSaveAsModal);
-  }
-
-  if (lockBtn && lockBtn.dataset.bound !== "1") {
-    lockBtn.dataset.bound = "1";
-    lockBtn.addEventListener("click", toggleOfferLock);
   }
 
   // Search as user types (debounced)
@@ -1054,6 +988,7 @@ export function initDraftsManager(options = {}) {
     search,
     loadById,
     quickSaveCurrentDraft,
+    createOfferVersion,
     openSaveAsModal,
     saveDraftWithName,
     buildDraftDefaultName,

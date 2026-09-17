@@ -23,7 +23,7 @@ const OfferSchema = new Schema(
     pricing: { type: Schema.Types.Mixed },
     // Every saved Offer is a finalized, sent document — its price must never
     // change again except via a deliberate edit-and-resave of this same
-    // offer. Source of truth for immutability checks (not payload.frozen).
+    // offer. Source of truth for every immutability check.
     locked: { type: Boolean, default: true },
     // Fingerprint of the price-relevant payload fields at the time `pricing`
     // was computed — lets computePrices() serve the stored snapshot instead

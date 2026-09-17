@@ -57,14 +57,6 @@ router.post("/recompute", async (req, res) => {
     const pricingPayload = { ...draft.payload, offerType: draft.offerType, forceRecompute: true };
     const computedPricing = await pricing.computePrices(pricingPayload);
 
-    // If this draft was frozen, its own payload.frozenPricing is what
-    // computePrices() serves on every future open (checked before the
-    // pricing/pricingFingerprint cache below) — re-pin it to the fresh
-    // price too, or reopening would silently revert to the old one.
-    if (draft.payload?.frozen === true) {
-      draft.payload = { ...draft.payload, frozenPricing: computedPricing };
-      draft.markModified("payload");
-    }
     draft.pricing = computedPricing;
     draft.pricingFingerprint = computeFingerprint(pricingPayload);
     await draft.save();

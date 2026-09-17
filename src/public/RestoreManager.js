@@ -83,8 +83,8 @@ export function initRestoreManager({
     // asynchronously, which fires "change"/"input" events picked up by the
     // global live-pricing watcher (initLivePricingSync in script.js). Left
     // un-awaited, they used to resolve after this function returns — i.e.
-    // after window.__restoring is already cleared — silently un-freezing a
-    // just-restored frozen offer via requestPricingRefresh().
+    // after window.__restoring is already cleared — so a restore looked
+    // like a user edit to requestPricingRefresh().
     await Promise.all([
       window.__smartTray?.fetchAndRender?.(),
       window.__smartBathtub?.fetchAndRender?.(),
@@ -116,14 +116,9 @@ export function initRestoreManager({
       )
       .forEach((el) => dispatchChange(el));
 
-    // pricing & panels — a frozen offer shows its pinned snapshot instead of
-    // recomputing from current DB values.
-    if (payload?.frozen && payload?.frozenPricing) {
-      window.__pricing = payload.frozenPricing;
-      window.dispatchEvent(new CustomEvent("pricing:updated", { detail: payload.frozenPricing }));
-      window.updateSummaryWidgetTotal?.(payload.frozenPricing.total);
-      window.updateSummaryWidgetSelfPay?.(payload.frozenPricing.selfPayAmount);
-    } else if (typeof updatePricing === "function") {
+    // pricing & panels — a sent offer's total is pinned server-side
+    // (Offer.locked, see pricing-core computePrices), so this returns it.
+    if (typeof updatePricing === "function") {
       await updatePricing(payload);
       await updatePricing(payload); // keep your existing double-run behavior if needed
     }
@@ -165,12 +160,6 @@ export function initRestoreManager({
       window.__bwtKmFreeThreshold = bwtKmSnap != null ? Number(bwtKmSnap) : 200;
       window.__bwtTravelTimeFreeHours = bwtHoursSnap != null ? Number(bwtHoursSnap) : 2;
       window.__bwtFreigrenzenLegacyOffer = bwtKmSnap == null && bwtHoursSnap == null;
-
-      // Freeze/lock: pin this offer's own saved state.
-      window.__frozen = payload?.frozen === true;
-      window.__frozenPricing = payload?.frozenPricing || null;
-      window.__locked = payload?.locked === true;
-      window.applyOfferLockUI?.(window.__locked);
 
       console.log("[SKETCH][payload-stored]", {
         payloadKeys: Object.keys(payload || {}),
@@ -240,10 +229,7 @@ export function initRestoreManager({
 
     // __restoring stays true through postRestoreNudges too: it dispatches
     // synthetic "change" events on checkboxes/radios to trigger dependent UI
-    // logic, and requestPricingRefresh() treats any such event as a real
-    // user edit that un-freezes the offer (window.__frozen = false) unless
-    // this guard is still up — clearing it before these nudges run silently
-    // discarded a just-restored freeze the moment the first nudge fired.
+    // logic, which downstream listeners must not mistake for real user edits.
     const payload = normalized?.payload || normalizeOfferDoc(doc).payload;
     try {
       await postRestoreNudges(payload);
