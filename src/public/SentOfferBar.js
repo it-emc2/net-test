@@ -1,18 +1,15 @@
 // src/public/SentOfferBar.js
 //
 // State bar for an offer that has already been sent. A sent offer's price is
-// pinned server-side (Offer.locked — see logic/pricing-core.js), so the form
-// must not pretend to be editable: editing it would change nothing the user
-// can save, and the total would silently stay on the sent figure. Instead the
-// document is shown read-only with one way forward — create a new version,
-// which becomes an Entwurf under its own offer number and prices against
-// current values again (routes/drafts.js freshNumberIfSent).
+// pinned server-side (Offer.locked — see logic/pricing-core.js), which is not
+// obvious from the form alone: edits are possible but the total will not move
+// until the offer is saved as a new version, which becomes an Entwurf under
+// its own offer number and prices against current values again
+// (routes/drafts.js freshNumberIfSent).
 //
-// Read-only is done with the native `inert` attribute, never with `disabled`:
-// buildPayload() reads the form via FormData, which silently drops disabled
-// controls, so disabling the form would empty the very payload the new version
-// is built from. `inert` takes the fields out of pointer, keyboard and screen
-// reader reach while leaving their values intact.
+// The form stays fully interactive on purpose: accordions, dialogs and pickers
+// have to open so the user can review what was actually sent. Only the price
+// is fixed, and the bar is what says so.
 
 const BAR_ID = "sentOfferBar";
 const STYLE_ID = "sent-offer-bar-styles";
@@ -74,18 +71,6 @@ function ensureStyles() {
       font-weight: 600;
     }
     #${BAR_ID} button[disabled] { opacity: .6; cursor: progress; }
-    #${BAR_ID}.is-flashing { animation: sob-flash .5s ease-out 2; }
-    @keyframes sob-flash {
-      0%, 100% { background: var(--panel); }
-      50% { background: var(--accent-weak, #ede9fe); }
-    }
-    body.${BODY_CLASS} form[id^="form-"][inert] {
-      opacity: .72;
-      filter: saturate(.85);
-    }
-    @media (prefers-reduced-motion: reduce) {
-      #${BAR_ID}.is-flashing { animation: none; }
-    }
   `;
   document.head.appendChild(style);
 }
@@ -107,19 +92,11 @@ function clearOffsets() {
   document.documentElement.style.removeProperty("--header-h");
 }
 
-const setFormsInert = (inert) => {
-  document
-    .querySelectorAll('form[id^="form-"]')
-    .forEach((f) => { f.inert = inert; });
-};
-
 function formatDate(value) {
   if (!value) return "";
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("de-DE");
 }
-
-let clickCatcher = null;
 
 export function isSentMode() {
   return document.body.classList.contains(BODY_CLASS);
@@ -128,13 +105,8 @@ export function isSentMode() {
 export function exitSentMode() {
   document.body.classList.remove(BODY_CLASS);
   document.getElementById(BAR_ID)?.remove();
-  setFormsInert(false);
   clearOffsets();
   window.removeEventListener("resize", syncOffsets);
-  if (clickCatcher) {
-    document.removeEventListener("click", clickCatcher, true);
-    clickCatcher = null;
-  }
 }
 
 /**
@@ -163,28 +135,15 @@ export function enterSentMode({ offerNumber, sentAt, onNewVersion } = {}) {
     <div class="sob-actions">
       <button type="button" data-action="new-version">Neue Version erstellen</button>
     </div>
-    <p class="sob-hint">Versendete Angebote sind schreibgeschützt — für Änderungen eine neue Version erstellen.</p>
+    <p class="sob-hint">Der Preis bleibt auf dem versendeten Stand. Änderungen wirken sich erst in einer neuen Version aus.</p>
   `;
   // Not via innerHTML: the number comes from the server and is rendered as text.
   bar.querySelector(".sob-number").textContent = offerNumber || "";
 
   document.querySelector("body > header")?.after(bar);
   document.body.classList.add(BODY_CLASS);
-  setFormsInert(true);
   syncOffsets();
   window.addEventListener("resize", syncOffsets, { passive: true });
-
-  // An inert form receives no events, so a click inside one is delivered to
-  // the page section around it: the user tried to edit, and the bar flashes
-  // to say why nothing happened.
-  clickCatcher = (ev) => {
-    if (ev.target.closest?.(`#${BAR_ID}`)) return;
-    if (!ev.target.closest?.('section[id^="page-"]')) return;
-    bar.classList.remove("is-flashing");
-    void bar.offsetWidth; // restart the animation
-    bar.classList.add("is-flashing");
-  };
-  document.addEventListener("click", clickCatcher, true);
 
   const btn = bar.querySelector('[data-action="new-version"]');
   btn.addEventListener("click", async () => {
