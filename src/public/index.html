@@ -10434,6 +10434,35 @@ button.dm-btn-danger:focus-visible {
     </div>
   </div>
 
+  <!-- "Nicht erreicht" — reason picker before sending a deal back to Besichtigungstermin -->
+  <div id="planningNoContactModal" class="hl-import-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="planningNoContactTitle">
+    <div class="hl-import-modal__backdrop" id="planningNoContactBackdrop"></div>
+    <div class="hl-import-modal__dialog" role="document" style="width:min(520px,94vw)">
+      <header class="hl-import-modal__head">
+        <h3 id="planningNoContactTitle" style="margin:0">Kunde nicht erreicht</h3>
+        <button type="button" class="hl-import-modal__close" id="planningNoContactClose" aria-label="Schlie&szlig;en">&times;</button>
+      </header>
+      <div class="hl-import-modal__body">
+        <p class="nocontact-hint">Der Deal wird zur&uuml;ck auf &bdquo;Besichtigungstermin vereinbaren&ldquo; verschoben und der Grund als Kommentar hinterlegt.</p>
+        <fieldset class="nocontact-reasons">
+          <legend>Grund</legend>
+          <label><input type="radio" name="planningNoContactReason" value="Kunde nicht erreichbar" checked /> <span>Kunde nicht erreichbar</span></label>
+          <label><input type="radio" name="planningNoContactReason" value="Kunde war nicht zu Hause" /> <span>Kunde war nicht zu Hause</span></label>
+          <label><input type="radio" name="planningNoContactReason" value="Termin vom Kunden abgesagt" /> <span>Termin vom Kunden abgesagt</span></label>
+          <label><input type="radio" name="planningNoContactReason" value="Kunde w&uuml;nscht neuen Termin" /> <span>Kunde w&uuml;nscht neuen Termin</span></label>
+          <label><input type="radio" name="planningNoContactReason" value="Falsche / ung&uuml;ltige Kontaktdaten" /> <span>Falsche / ung&uuml;ltige Kontaktdaten</span></label>
+          <label><input type="radio" name="planningNoContactReason" value="Sonstiges" /> <span>Sonstiges</span></label>
+        </fieldset>
+        <label class="nocontact-note-label" for="planningNoContactNote">Kommentar (optional)</label>
+        <textarea id="planningNoContactNote" class="nocontact-note" rows="3" placeholder="Zus&auml;tzliche Anmerkung &hellip;"></textarea>
+        <div class="nocontact-actions">
+          <button type="button" class="secondary" id="planningNoContactCancel">Abbrechen</button>
+          <button type="button" class="nocontact-submit" id="planningNoContactSubmit">Verschieben &amp; kommentieren</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Admin Panel Modal — starts hidden via display:none (not the `hidden` attr, which loses to inline display:flex) -->
   <div id="adminModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:center;justify-content:center;backdrop-filter:blur(3px);">
     <div style="background:#0f172a;border-radius:12px;width:min(1060px,96vw);height:min(88vh,820px);display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,.45);overflow:hidden;">
