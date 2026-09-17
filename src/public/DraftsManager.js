@@ -327,6 +327,14 @@ export function initDraftsManager(options = {}) {
 
     const data = await res.json().catch(() => ({}));
     const newId = data?.id || data?._id || data?.draft?._id || data?.draft?.id || null;
+    // The server renumbers a draft that still carries an already-sent offer's
+    // number (see routes/drafts.js freshNumberIfSent) — adopt it, or the next
+    // save would send the sent number again and the price stays pinned to it.
+    if (data?.offerNumber && data.offerNumber !== payload?.offerNumber) {
+      const el = document.querySelector("#offerNumber, input[name='offerNumber']");
+      if (el) el.value = data.offerNumber;
+    }
+
     lastLoadedDraftMeta = {
       id: newId,
       name: trimmedName,

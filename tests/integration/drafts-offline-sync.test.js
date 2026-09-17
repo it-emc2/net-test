@@ -17,6 +17,7 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 
 import draftsRouter from '../../src/routes/drafts.js';
 import Draft from '../../src/models/Draft.js';
+import Offer from '../../src/models/Offer.js';
 import { makeIdbStub } from '../helpers/idb-stub.js';
 
 const app = express();
@@ -84,6 +85,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await Draft.deleteMany({});
+  await Offer.deleteMany({});
   idb.data.clear();
   globalThis.fetch = realFetch;
 });
@@ -224,4 +226,39 @@ test('three offline saves sync in save order and list newest first', async () =>
     'ANG-BU-1005',
     'ANG-BU-1000',
   ]);
+});
+
+// A draft that still carries the number of an already-sent (locked) offer
+// would inherit that offer's pinned price forever (pricing-core computePrices
+// returns a locked offer's snapshot for any payload with its number).
+test('a draft under an already-sent offer number gets its own number', async () => {
+  await Offer.create({
+    offerNumber: 'ANG2026-0714-142434',
+    offerType: 'bu',
+    payload: {},
+    pricing: { total: 5710.76 },
+    locked: true,
+  });
+
+  const res = await save({
+    name: 'Kopie eines verschickten Angebots',
+    offerType: 'bu',
+    payload: { offerNumber: 'ANG2026-0714-142434' },
+  }).expect(201);
+
+  expect(res.body.offerNumber).toMatch(/^ANG\d{4}-\d{4}-\d{6}/);
+  expect(res.body.offerNumber).not.toBe('ANG2026-0714-142434');
+
+  const stored = await Draft.findById(res.body.id).lean();
+  expect(stored.payload.offerNumber).toBe(res.body.offerNumber);
+});
+
+test('a draft under an unsent offer number keeps it', async () => {
+  const res = await save({
+    name: 'Laufender Entwurf',
+    offerType: 'bu',
+    payload: { offerNumber: 'ANG2026-0101-090000' },
+  }).expect(201);
+
+  expect(res.body.offerNumber).toBe('ANG2026-0101-090000');
 });
