@@ -1831,22 +1831,101 @@
       padding: 4px 0;
     }
 
-    /* Angebotscheck: Ampel-Liste, gruppiert wie die Übersicht */
-    #zfAngebotscheck .zf-check-head {
+    /* Angebotscheck: Gesamtstatus, dann je Abschnitt eine sortierte Liste.
+       Jede Zeile ist ein Button auf die Seite, die sie behebt. */
+    #page-Angebotscheck .zf-check-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
       font-weight: 700;
-      margin-bottom: 10px;
+      font-size: 1.05rem;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      margin-bottom: 16px;
     }
-    #zfAngebotscheck .zf-check-group + .zf-check-group {
-      margin-top: 10px;
+    #page-Angebotscheck .zf-check-head.is-rot {
+      border-color: #ef4444;
     }
-    #zfAngebotscheck .zf-check-group__title {
+    #page-Angebotscheck .zf-check-head.is-gelb {
+      border-color: #f59e0b;
+    }
+    #page-Angebotscheck .zf-check-head.is-gruen {
+      border-color: var(--accent);
+      background: var(--accent-weak);
+    }
+    #page-Angebotscheck .zf-check-group + .zf-check-group {
+      margin-top: 18px;
+    }
+    #page-Angebotscheck .zf-check-group__title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
       font-weight: 600;
+      margin-bottom: 8px;
     }
-    #zfAngebotscheck .zf-check-findings {
-      margin: 4px 0 0;
-      padding-left: 28px;
+    #page-Angebotscheck .zf-check-group__counts {
+      display: flex;
+      gap: 6px;
+      margin-left: auto;
+    }
+    #page-Angebotscheck .zf-check-count {
+      font-size: 0.78rem;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: var(--accent-weak);
+      color: var(--accent-strong);
+    }
+    #page-Angebotscheck .zf-check-rows {
+      display: grid;
+      gap: 6px;
+    }
+    #page-Angebotscheck .zf-check-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      width: 100%;
+      text-align: left;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-left-width: 3px;
+      border-radius: 8px;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+    #page-Angebotscheck .zf-check-row:disabled {
+      cursor: default;
+    }
+    #page-Angebotscheck .zf-check-row:not(:disabled):hover {
+      background: var(--accent-weak);
+    }
+    #page-Angebotscheck .zf-check-row.is-rot {
+      border-left-color: #ef4444;
+    }
+    #page-Angebotscheck .zf-check-row.is-gelb {
+      border-left-color: #f59e0b;
+    }
+    #page-Angebotscheck .zf-check-row.is-gruen {
+      border-left-color: var(--accent);
+    }
+    #page-Angebotscheck .zf-check-row__text {
+      display: grid;
+      gap: 2px;
+      flex: 1;
+    }
+    #page-Angebotscheck .zf-check-row__detail {
+      font-size: 0.86rem;
       color: var(--muted);
-      font-size: 0.92rem;
+    }
+    #page-Angebotscheck .zf-check-row__go {
+      opacity: 0.5;
+      font-size: 1.1rem;
+      line-height: 1.2;
+    }
+    #page-Angebotscheck .zf-check-empty {
+      color: var(--muted);
     }
 
     /* Zusammenfassung: document workspace */

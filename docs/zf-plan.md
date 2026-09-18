@@ -118,11 +118,31 @@ dieses Angebot wirklich enthält.
 | Einbau eines Abstandsprofils | Duschabtrennung | 🟡 |
 | Einbau des Wannenaufsatzes | Duschabtrennung oder Wanne | 🟡 |
 
+Beide Richtungen werden geprüft:
+
+- Arbeitsschritt angehakt, Produkt fehlt → 🔴/🟡
+- Produkt gewählt, Arbeitsschritt fehlt → 🟡 („wer baut das ein?"), Zeile
+  zeigt auf **Arbeiten**. Die weichen Kopplungen haben bewusst keine
+  Gegenrichtung (`noReverse`) — eine Wandverkleidung ohne Trockenbau ist
+  normal. Teilen sich zwei Arbeitsschritte dasselbe Produkt (`sharesWith`,
+  z. B. WC/Dusch-WC), meldet keiner das Produkt als verwaist.
+- beides vorhanden → 🟢
+
+**Erfüllte Regeln verschwinden nicht**, sie werden grün. Nur eine Kopplung,
+die dieses Angebot gar nicht berührt, erzeugt keine Zeile.
+
 Gelesen wird über `readSelection()`: Arbeitsschritte und Optionalprodukte aus
 dem DOM, Materialkategorien aus den bepreisten Zeilen.
 
 Bewusst ohne Regel: alle „Entfernen und Entsorgen"-Schritte, Stilllegen/
 Versetzen von Armatur und Abfluss, UP→AP-Umbau, Bademöbel, Sitzbadewanne.
+
+## Darstellung
+
+Gesamtstatus oben, darunter je Abschnitt eine nach Schwere sortierte Liste
+(🔴 → 🟡 → 🟢) mit Zählern im Abschnittstitel. Jede Zeile ist ein Button und
+springt per `location.hash` auf die Seite, die sie behebt — reine
+Schrittnavigation, das Formular bleibt unangetastet.
 
 ## Neue Regel hinzufügen
 
@@ -143,6 +163,4 @@ Prüfung nie blockieren.
   `buildPayload()` mitgeschrieben werden.
 - Kein manuelles „als versendet markieren" — nur ein Versand aus der App
   setzt den Status.
-- Die Gegenrichtung (Produkt gewählt, aber der passende Arbeitsschritt fehlt)
-  ist noch offen — wäre 12 weitere 🟡-Regeln.
 - KI-basierte Prüfung: später, gleiche Ausgabestruktur.
