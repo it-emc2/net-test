@@ -237,7 +237,11 @@ const OFFERS = {
       "Optional",
       "Rabatt",
       "Kosten",
+      // The old single Zusammenfassung page is three steps for bu: the check,
+      // the send page (still id "Zusammenfassung") and the checklist.
+      "Angebotscheck",
       "Zusammenfassung",
+      "Checkliste",
       "admin",
       "services",
       "crm-emc2",
@@ -2948,6 +2952,9 @@ function updateSidebarForOffer() {
   // other offer keeps the flat list. Purely visual — page ids and flow order
   // are untouched.
   const isBu = activeOffer === "bu";
+  // bu splits the Zusammenfassung into three steps; the send page keeps the
+  // old id, so only its label changes — and only for bu.
+  if (isBu) specialLabels.Zusammenfassung = "Angebotsversand";
   const isBwt = activeOffer === "bwt";
   const isHl = activeOffer === "hl";
   const SIDEBAR_GROUPS = isBu
@@ -2964,6 +2971,12 @@ function updateSidebarForOffer() {
             "DuschabtrennungNeu",
             "Duschvorhang",
           ],
+        },
+        {
+          // No numeral: these three are the closing steps, not a numbered
+          // part of the offer.
+          title: "Zusammenfassung",
+          pages: ["Angebotscheck", "Zusammenfassung", "Checkliste"],
         },
       ]
     : isBwt

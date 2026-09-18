@@ -21,6 +21,22 @@ Zusammenfassung
 
 Integration/Test-Branch: `test/zusammenfassung`.
 
+## Seiten
+
+Für **bu** ist die Zusammenfassung seit dem Umbau eine Sidebar-Gruppe mit drei
+Schritten (ohne Nummern-Badge):
+
+| Schritt | Page-ID | Inhalt |
+|---|---|---|
+| Angebotscheck | `page-Angebotscheck` | Ampel + Findings |
+| Angebotsversand | `page-Zusammenfassung` | Dokumentenstudio, Vorschau, Unterlagen, Mail/Post |
+| Checkliste | `page-Checkliste` | abgeleitete Zeilen + zwei Haken |
+
+Die Versand-Seite behält bewusst die alte ID `Zusammenfassung`: sämtlicher
+bestehender Code (Preview-Refresh, `onEnterZusammenfassung`, Mail/Post) hängt
+daran. Für bu wird nur das Sidebar-Label auf „Angebotsversand" umgestellt;
+alle anderen Angebotstypen behalten die eine Seite mit altem Namen.
+
 ## Gruppierung
 
 Ergebnisse werden nach den BU-Abschnitten der Übersicht gruppiert

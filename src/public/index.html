@@ -1823,44 +1823,6 @@
       overflow: hidden;
     }
 
-    /* Zusammenfassung: die drei Blöcke als aufklappbare, nummerierte Gruppen
-       (gleiche Nummern-Badges wie Sidebar und Übersicht). */
-    .zf-group > .zf-group__head {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      cursor: pointer;
-      list-style: none;
-      font-size: 1.25rem;
-      font-weight: 700;
-      margin: 0 0 8px;
-    }
-    .zf-group > .zf-group__head::-webkit-details-marker {
-      display: none;
-    }
-    .zf-group > .zf-group__head::after {
-      content: "⌄";
-      margin-left: auto;
-      font-size: 1.1rem;
-      line-height: 1;
-      opacity: 0.6;
-      transition: transform 0.15s ease;
-    }
-    .zf-group[open] > .zf-group__head::after {
-      transform: rotate(180deg);
-    }
-    /* Die verschachtelten Abschnitte tragen ihren eigenen Rahmen — innerhalb
-       einer Gruppe wäre das eine Box in der Box. */
-    .zf-group .export-section,
-    .zf-group .adobe-section,
-    .zf-group .preview-section,
-    .zf-group .mail-section,
-    .zf-group #zfDocSelectionCard {
-      border: 0;
-      padding-left: 0;
-      padding-right: 0;
-    }
-
     /* Checkliste: abgeleitete Zeilen (Label links, Wert rechts) */
     #zfCheckliste .zf-chk-derived {
       display: flex;
@@ -7691,6 +7653,17 @@ button.dm-btn-danger:focus-visible {
       <!-- Zusammenfassung -->
 
       <!-- Replace the existing page-Zusammenfassung content with this -->
+      <section class="card page" id="page-Angebotscheck" hidden>
+        <h2 style="margin:0 0 12px;">Angebotscheck</h2>
+            <p class="section-subtitle">Regelbasierte Prüfung: passt die Auswahl zum Angebot?</p>
+            <div class="bitrix-card zf-check-body"></div>
+
+        <div class="actions full">
+          <button type="button" data-nav="prev" class="secondary">Zurück</button>
+          <button type="button" data-nav="next">Weiter</button>
+        </div>
+      </section>
+
       <section id="page-Zusammenfassung" class="card page" hidden>
         <div class="zusammenfassung-container">
 
@@ -7729,19 +7702,11 @@ button.dm-btn-danger:focus-visible {
             </div>
           </section>
 
-          <!-- Angebotscheck (BU only) — regelbasierte Plausibilitätsprüfung.
-               Gefüllt von angebotscheck.js, gruppiert wie die Übersicht (I/II/III). -->
-          <details id="zfAngebotscheck" class="bitrix-section zf-group" hidden open>
-            <summary class="zf-group__head"><span class="side-num">I</span>Angebotscheck</summary>
-            <p class="section-subtitle">Regelbasierte Prüfung: passt die Auswahl zum Angebot?</p>
-            <div class="bitrix-card zf-check-body"></div>
-          </details>
-
           <!-- Angebotsversand (BU only) — Status, wie und wann das Angebot
                rausgegangen ist. Der Versand selbst passiert weiter unten in den
-               Mail/Post-Tabs; gefüllt von angebotsversand.js. -->
-          <details id="zfVersand" class="bitrix-section zf-group" hidden open>
-            <summary class="zf-group__head"><span class="side-num">II</span>Angebotsversand</summary>
+          <!-- Angebotsversand: Status plus alles, was zum Versenden gehört
+               (Dokumentenstudio, Vorschau, Unterlagen, Mail/Post). -->
+          <section id="zfVersand" class="bitrix-section">
             <div class="bitrix-card"><div id="zfVersandStatus">Noch nicht versendet.</div></div>
           <!-- Main Export Actions -->
           <section class="export-section">
@@ -8154,32 +8119,7 @@ button.dm-btn-danger:focus-visible {
     <div id="postStatus" class="adobe-status" hidden></div>
   </div>
 </section>
-
-          </details>
-
-          <!-- Checkliste (BU only) — zwei abgeleitete Zeilen (Angebotscheck,
-               Versand) plus zwei Haken zum Abhaken; gefüllt von checkliste.js. -->
-          <details id="zfCheckliste" class="bitrix-section zf-group" hidden open>
-            <summary class="zf-group__head"><span class="side-num">III</span>Checkliste</summary>
-            <div class="bitrix-card doc-select-card">
-              <div class="zf-chk-derived">
-                <span>Status Angebotscheck</span>
-                <strong id="zfChkCheckStatus">⚪️ Noch nicht geprüft</strong>
-              </div>
-              <div class="zf-chk-derived">
-                <span>Angebot versendet?</span>
-                <strong id="zfChkVersendet">Nein</strong>
-              </div>
-              <label class="inline-check doc-select-row">
-                <input type="checkbox" id="zfChk_skizze" />
-                <span>Magicplan Skizze erstellt</span>
-              </label>
-              <label class="inline-check doc-select-row">
-                <input type="checkbox" id="zfChk_fotos" />
-                <span>Fotoaufnahmen erstellt</span>
-              </label>
-            </div>
-          </details>
+          </section>
 
           <!-- Bitrix Integration Section -->
           <section class="bitrix-section">
@@ -8262,10 +8202,41 @@ button.dm-btn-danger:focus-visible {
               <span class="nav-icon">←</span>
               Zurück
             </button>
+            <button type="button" data-nav="next" class="btn-nav">
+              Weiter
+              <span class="nav-icon">→</span>
+            </button>
           </nav>
 
         </div>
       </section>
+
+      <section class="card page" id="page-Checkliste" hidden>
+        <h2 style="margin:0 0 12px;">Checkliste</h2>
+            <div class="bitrix-card doc-select-card">
+              <div class="zf-chk-derived">
+                <span>Status Angebotscheck</span>
+                <strong id="zfChkCheckStatus">⚪️ Noch nicht geprüft</strong>
+              </div>
+              <div class="zf-chk-derived">
+                <span>Angebot versendet?</span>
+                <strong id="zfChkVersendet">Nein</strong>
+              </div>
+              <label class="inline-check doc-select-row">
+                <input type="checkbox" id="zfChk_skizze" />
+                <span>Magicplan Skizze erstellt</span>
+              </label>
+              <label class="inline-check doc-select-row">
+                <input type="checkbox" id="zfChk_fotos" />
+                <span>Fotoaufnahmen erstellt</span>
+              </label>
+            </div>
+
+        <div class="actions full">
+          <button type="button" data-nav="prev" class="secondary">Zurück</button>
+        </div>
+      </section>
+
 
       <!-- Kosten-Details -->
       <section class="card page" id="page-Kosten" hidden>

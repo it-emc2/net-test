@@ -63,11 +63,8 @@ function paintDerived() {
 }
 
 function paint() {
-  const section = document.getElementById("zfCheckliste");
-  if (!section) return;
-  // BU only for now.
-  section.hidden =
-    String(window.getCurrentOfferType?.() || "").toLowerCase() !== "bu";
+  // Own wizard step, and only bu has it in its flow — no offer-type check here.
+  if (!document.getElementById("page-Checkliste")) return;
   window.__zfCheckliste = readCheckliste();
   paintDerived();
 }

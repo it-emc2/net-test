@@ -165,16 +165,12 @@ export function renderAngebotscheck(root, result) {
 }
 
 function paint() {
-  const section = document.getElementById("zfAngebotscheck");
-  if (!section) return;
-  // BU only for now.
-  const isBu =
-    String(window.getCurrentOfferType?.() || "").toLowerCase() === "bu";
-  section.hidden = !isBu;
-  if (!isBu) return;
+  // Own wizard step, and only bu has it in its flow — no offer-type check here.
+  const body = document.querySelector("#page-Angebotscheck .zf-check-body");
+  if (!body) return;
 
   const result = runAngebotscheck(window.__pricing);
-  renderAngebotscheck(section.querySelector(".zf-check-body"), result);
+  renderAngebotscheck(body, result);
   // Task 2 (Versand) and Task 3 (Checkliste) read the status from here.
   window.__angebotscheck = result;
   window.dispatchEvent(
