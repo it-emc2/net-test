@@ -28380,6 +28380,9 @@ function setDocumentSelected(id, selected) {
 
   window.__emailManager?.render?.();
   window.__emailManager?.refreshPrefills?.();
+  // refreshPrefills() only rebuilds an untouched body, and a reopened offer's
+  // body always counts as touched — sync the numbered list explicitly.
+  window.__emailManager?.syncDocListInBody?.();
   window.__postalManager?.render?.();
 }
 window.setDocumentSelected = setDocumentSelected;

@@ -587,6 +587,45 @@ export function initEmailManager(options = {}) {
     return one.charAt(0).toUpperCase() + one.slice(1);
   }
 
+  const DOC_LIST_ANCHOR = "Im Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:";
+
+  // The numbered attachment list of the Kassenkunden body, following the
+  // #zfDocSelectionCard checkboxes (excludedPreset).
+  function buildAttachmentLines() {
+    const offerNumber = getOfferNumber() || "ANG-2025-_____";
+    return [
+      `Ihr Angebot ${offerNumber}`,
+      ...KASSE_DOC_LINES.filter((p) => !excludedPreset.has(p.id)).map((p) => p.line),
+    ].map((line, i) => `${i + 1}. ${line}`);
+  }
+
+  // Rewrite only the numbered list, leaving the rest of the body alone.
+  //
+  // Toggling a document checkbox has to reach the text even when the body
+  // counts as edited: reopening a saved offer writes the stored body
+  // programmatically, which marks it touched, and a saved body may also carry
+  // genuinely hand-written text that a full rebuild would throw away.
+  function syncDocListInBody() {
+    if (getOfferType() === "ah") return; // AH has a fixed list, no checkboxes
+    const lines = ($body.value || "").split("\n");
+    const anchorAt = lines.findIndex((l) => l.trim() === DOC_LIST_ANCHOR);
+    if (anchorAt === -1) return;
+
+    const isItem = (l) => /^\s*\d+\.\s/.test(l);
+    let start = anchorAt + 1;
+    while (start < lines.length && !lines[start].trim()) start++;
+    let end = start;
+    while (end < lines.length && isItem(lines[end])) end++;
+    if (end === start) return; // no list where one is expected — leave it be
+
+    const next = buildAttachmentLines();
+    if (lines.slice(start, end).join("\n") === next.join("\n")) return;
+
+    lines.splice(start, end - start, ...next);
+    $body.value = lines.join("\n");
+    updatePreview();
+  }
+
   function buildDefaultMailBody() {
     const offerNumber = getOfferNumber() || "ANG-2025-_____";
     const isSelbstzahler =
@@ -624,12 +663,7 @@ Bei Rückfragen stehe ich Ihnen gerne zur Verfügung.`;
     // seeds the #zfDocSelectionCard checkboxes (applyPayerDocDefaults in
     // script.js), and this list follows the checkboxes — so a Selbstzahler who
     // ticks Abtretung/Vollmacht gets them named in the text too.
-    const attachmentList = [
-      `Ihr Angebot ${offerNumber}`,
-      ...KASSE_DOC_LINES.filter((p) => !excludedPreset.has(p.id)).map((p) => p.line),
-    ]
-      .map((line, i) => `${i + 1}. ${line}`)
-      .join("\n");
+    const attachmentList = buildAttachmentLines().join("\n");
 
     return `${buildGreetingLine()}
 
@@ -1508,5 +1542,5 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
 
   window.__showSentDialog = showSentDialog;
 
-  return { send, render: renderList, excludedPreset, reset, refreshPrefills };
+  return { send, render: renderList, excludedPreset, reset, refreshPrefills, syncDocListInBody };
 }
