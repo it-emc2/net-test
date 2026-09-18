@@ -1823,6 +1823,14 @@
       overflow: hidden;
     }
 
+    /* Checkliste: abgeleitete Zeilen (Label links, Wert rechts) */
+    #zfCheckliste .zf-chk-derived {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 4px 0;
+    }
+
     /* Angebotscheck: Ampel-Liste, gruppiert wie die Übersicht */
     #zfAngebotscheck .zf-check-head {
       font-weight: 700;
@@ -7700,6 +7708,30 @@ button.dm-btn-danger:focus-visible {
             <div class="bitrix-card"><div id="zfVersandStatus">Noch nicht versendet.</div></div>
           </section>
 
+          <!-- Checkliste (BU only) — zwei abgeleitete Zeilen (Angebotscheck,
+               Versand) plus zwei Haken zum Abhaken; gefüllt von checkliste.js. -->
+          <section id="zfCheckliste" class="bitrix-section" hidden>
+            <h2 class="section-title">Checkliste</h2>
+            <div class="bitrix-card doc-select-card">
+              <div class="zf-chk-derived">
+                <span>Status Angebotscheck</span>
+                <strong id="zfChkCheckStatus">⚪️ Noch nicht geprüft</strong>
+              </div>
+              <div class="zf-chk-derived">
+                <span>Angebot versendet?</span>
+                <strong id="zfChkVersendet">Nein</strong>
+              </div>
+              <label class="inline-check doc-select-row">
+                <input type="checkbox" id="zfChk_skizze" />
+                <span>Magicplan Skizze erstellt</span>
+              </label>
+              <label class="inline-check doc-select-row">
+                <input type="checkbox" id="zfChk_fotos" />
+                <span>Fotoaufnahmen erstellt</span>
+              </label>
+            </div>
+          </section>
+
           <!-- Bitrix Integration Section -->
           <section class="bitrix-section">
             <h2 class="section-title">Bitrix Integration</h2>
@@ -10518,6 +10550,7 @@ button.dm-btn-danger:focus-visible {
   <script src="/ansprechpartner.js"></script>
   <script type="module" src="/angebotscheck.js"></script>
   <script type="module" src="/angebotsversand.js"></script>
+  <script type="module" src="/checkliste.js"></script>
 
 </body>
 

@@ -17,7 +17,7 @@ Zusammenfassung
 |---|--------|--------|
 | 1 | `feat/zf-angebotscheck` | Regelwerk + Ampel-Block. **Fertig.** |
 | 2 | `feat/zf-angebotsversand` | Versandstatus (Mail/Post + Zeitpunkt). **Fertig.** |
-| 3 | `feat/zf-checkliste` | Checkliste; spiegelt Status aus 1 und „versendet?" aus 2. |
+| 3 | `feat/zf-checkliste` | Checkliste; spiegelt Status aus 1 und „versendet?" aus 2. **Fertig.** |
 
 Integration/Test-Branch: `test/zusammenfassung`.
 
@@ -62,13 +62,22 @@ Geplantes Persistenz-Objekt am Angebot (Task 2 + 3 füllen ihren Zweig):
 zusammenfassung: {
   check:      { status, findings, geprueftAm },   // noch nicht persistiert
   versand:    { art: "mail" | "post" | null, versendetAm: null },  // fertig
-  checkliste: { skizzeErstellt: false, fotosErstellt: false },
+  checkliste: { skizzeErstellt: false, fotosErstellt: false },  // fertig
 }
 ```
 
 `payload.zusammenfassung` wird in `buildPayload()` (script.js) geschrieben und
 im `RestoreManager` zurückgelesen. `Offer.payload` ist `Mixed` — kein
 Schema-Änderung nötig.
+
+`src/public/checkliste.js` — zwei Zeilen sind abgeleitet und read-only
+(Angebotscheck-Ampel aus Task 1, „Angebot versendet?" aus Task 2), zwei werden
+von Hand abgehakt und landen in `payload.zusammenfassung.checkliste`:
+
+```js
+window.__zfCheckliste = { skizzeErstellt: false, fotosErstellt: false };
+window.setZfCheckliste(checkliste);  // vom RestoreManager beim Öffnen
+```
 
 ## Neue Regel hinzufügen
 
@@ -84,6 +93,11 @@ Prüfung nie blockieren.
 
 ## Offen
 
+- Der Angebotscheck-Status wird noch **nicht** persistiert (nur zur Laufzeit
+  berechnet). Für einen historischen Nachweis müsste `check` in
+  `buildPayload()` mitgeschrieben werden.
+- Kein manuelles „als versendet markieren" — nur ein Versand aus der App
+  setzt den Status.
 - Das aktuelle Regelset ist ein Platzhalter (Vollständigkeit/Plausibilität).
   Die fachlichen Regeln müssen noch definiert werden.
 - KI-basierte Prüfung: später, gleiche Ausgabestruktur.

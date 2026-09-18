@@ -5071,6 +5071,10 @@ if (anschlag) {
   payload.zusammenfassung = {
     ...(payload.zusammenfassung || {}),
     versand: window.__zfVersand || { art: null, versendetAm: null },
+    checkliste: window.__zfCheckliste || {
+      skizzeErstellt: false,
+      fotosErstellt: false,
+    },
   };
 
   payload.mail = {
