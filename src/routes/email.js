@@ -275,8 +275,8 @@ function getPresetAttachments(excludePresetSet, isSelbstzahler, offerType) {
       },
       {
         id: "vollmacht",
-        filename: "Vollmacht.pdf",
-        absPath: emailDir("Vollmacht.pdf"),
+        filename: "Vollmacht_SGB_45b_EmC2 Soziale Dienste UG.pdf",
+        absPath: emailDir("Vollmacht_SGB_45b_EmC2 Soziale Dienste UG.pdf"),
       },
     ];
 

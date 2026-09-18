@@ -730,6 +730,12 @@ export function buildAhAngebotHtml(data, opts = {}) {
 
 // ---- Phase 2 (Kassenkunde) — ready to wire ----
 
+// AH (Alltagshilfe) offers carry their own §45b document wording.
+function isAhSr(sr) {
+  const t = String(sr?.offerType || "").toLowerCase();
+  return t === "ah" || t === "ah-alt";
+}
+
 // Wrap a Vollmacht/Abtretung body for on-screen display (scoped, interactive).
 function displayFragment(inner) {
   return `<div class="signdoc"><style>${DOC_CSS}${INTERACTIVE_CSS}</style>${inner}</div>`;
@@ -741,25 +747,39 @@ export function buildVollmachtHtml(sr, doc, mode = "pdf") {
   const entlastung = !!doc.extraFields?.entlastungsguthaben;
   const budgetWuM = doc.extraFields?.budgetWuM !== false; // default on
   const editBtn = mode === "pdf" ? "" : " " + editButton();
+  // AH and BU are two legally distinct Vollmachten: AH only queries the
+  // Entlastungsbudget (§45b, EmC2 Soziale Dienste UG), BU only applies for the
+  // Zuschuss (§40 Abs. 3,4,5, EmC2 Attila Landgrafe).
+  const ah = isAhSr(sr);
+  const scope = ah
+    ? "Vollmacht zur Abfrage des Entlastungsbudgets nach §45b SGB XI."
+    : "Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI.";
+  const bevollmaechtigter = ah
+    ? "EmC2 Soziale Dienste UG (haftungsbeschränkt), Waldstraße 5, 95032 Hof"
+    : "EmC2 Attila Landgrafe, Waldstraße 5, 95032 Hof";
 
-  const guthaben =
-    pdfLike
+  const guthaben = ah
+    ? pdfLike
       ? `<div class="box">
            <div class="opt">${entlastung ? "☒" : "☐"} aktuelles Entlastungsguthaben</div>
+         </div>`
+      : `<div class="box">
+           <label class="opt-label"><input type="checkbox" id="entlastungCheckbox" checked><span>aktuelles Entlastungsguthaben (§45b SGB XI)</span></label>
+         </div>`
+    : pdfLike
+      ? `<div class="box">
            <div class="opt">${budgetWuM ? "☒" : "☐"} Budget für Wohnumfeldverbessernde Maßnahmen</div>
          </div>`
       : `<div class="box">
-           <label class="opt-label"><input type="checkbox" id="entlastungCheckbox"><span>aktuelles Entlastungsguthaben (§45b SGB XI)</span></label>
            <label class="opt-label"><input type="checkbox" id="budgetWuMCheckbox" checked><span>Budget für Wohnumfeldverbessernde Maßnahmen</span></label>
          </div>`;
 
   const body = `
     ${docHeader()}
     <h1>Vollmacht für die Krankenkasse</h1>
-    <p class="muted">Vollmacht zur Beantragung des Zuschusses nach §40 SGB XI
-    und Abfrage des Entlastungsbudgets nach §45b SGB XI.</p>
+    <p class="muted">${scope}</p>
     <div class="box">
-      <div class="row"><span class="label">Bevollmächtigter:</span> <span>EmC2 Attila Landgrafe / EmC2 Soziale Dienste UG (haftungsbeschränkt), Waldstraße 5, 95032 Hof</span></div>
+      <div class="row"><span class="label">Bevollmächtigter:</span> <span>${bevollmaechtigter}</span></div>
     </div>
     <div class="editsec">
       <h2>Vollmachtgeber/in${editBtn}</h2>
@@ -790,7 +810,7 @@ export function buildAbtretungHtml(sr, doc, mode = "pdf") {
   const editBtn = mode === "pdf" ? "" : " " + editButton();
   const body = `
     ${docHeader()}
-    <h1>Abtretungserklärung für wohnumfeldverbessernde Maßnahmen (§40 SGB XI)</h1>
+    <h1>Abtretungserklärung für wohnumfeldverbessernde Maßnahmen § 40 SGB XI</h1>
     <div class="editsec">
       <h2>Kontaktdaten Auftraggeber${editBtn}</h2>
       <div class="box">
