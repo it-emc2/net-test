@@ -62,9 +62,14 @@ export function setVersand(versand) {
 function paint() {
   const section = document.getElementById("zfVersand");
   if (!section) return;
-  // BU only for now.
-  section.hidden =
-    String(window.getCurrentOfferType?.() || "").toLowerCase() !== "bu";
+  // The group also holds Dokumentenstudio and the Mail/Post tabs, which every
+  // offer type needs — so it is never hidden. BU-only is just the status line
+  // and the section numeral.
+  const isBu =
+    String(window.getCurrentOfferType?.() || "").toLowerCase() === "bu";
+  section.querySelector(".side-num")?.toggleAttribute("hidden", !isBu);
+  const card = document.getElementById("zfVersandStatus")?.closest(".bitrix-card");
+  if (card) card.hidden = !isBu;
   publish();
 }
 
