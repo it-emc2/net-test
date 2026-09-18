@@ -192,3 +192,12 @@ test("each row renders as a button carrying its target page", () => {
   expect(buttons[0].dataset.target).toBeTruthy();
   expect(root.querySelector(".zf-check-head").textContent).toContain("🔴");
 });
+
+test("two tasks wanting the same product group give one reverse row", () => {
+  // Duschsystem mit/ohne Thermostat both want a Duschsystem product.
+  withTasks([], '<input type="checkbox" name="optShower[]" checked />');
+  const shower = rowsOf(runAngebotscheck(ok, readSelection(ok))).filter((r) =>
+    r.id.startsWith("produkt-replace_shower"),
+  );
+  expect(shower).toHaveLength(1);
+});

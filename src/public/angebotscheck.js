@@ -340,6 +340,9 @@ function workRows(selection) {
         details: picked ? [] : [`Es fehlt ${rule.needs}.`],
       });
     } else if (picked && !rule.noReverse && !coveredBySibling) {
+      // Two tasks can want the same product group (Duschsystem with/without
+      // Thermostat) — that is one orphaned product, not two.
+      if (rows.some((r) => r.title === rule.needs)) continue;
       rows.push({
         id: `produkt-${rule.task}`,
         group: "arbeiten",

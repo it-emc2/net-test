@@ -1831,8 +1831,15 @@
       padding: 4px 0;
     }
 
-    /* Angebotscheck: Gesamtstatus, dann je Abschnitt eine sortierte Liste.
-       Jede Zeile ist ein Button auf die Seite, die sie behebt. */
+    /* Angebotscheck: Gesamtstatus, darunter je Abschnitt ein eingerückter
+       Strang — wie ein Kommentarbaum: eine Linie links, die Zeilen daran. */
+    #page-Angebotscheck .zf-check-body {
+      display: block;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 22px;
+      background: var(--card);
+    }
     #page-Angebotscheck .zf-check-head {
       display: flex;
       align-items: center;
@@ -1840,29 +1847,27 @@
       font-weight: 700;
       font-size: 1.05rem;
       padding: 12px 14px;
-      border-radius: 10px;
       border: 1px solid var(--border);
-      margin-bottom: 16px;
+      border-left-width: 4px;
+      border-radius: 10px;
+      margin-bottom: 18px;
     }
-    #page-Angebotscheck .zf-check-head.is-rot {
-      border-color: #ef4444;
-    }
-    #page-Angebotscheck .zf-check-head.is-gelb {
-      border-color: #f59e0b;
-    }
+    #page-Angebotscheck .zf-check-head.is-rot { border-left-color: #ef4444; }
+    #page-Angebotscheck .zf-check-head.is-gelb { border-left-color: #f59e0b; }
     #page-Angebotscheck .zf-check-head.is-gruen {
-      border-color: var(--accent);
+      border-left-color: var(--accent);
       background: var(--accent-weak);
     }
+
     #page-Angebotscheck .zf-check-group + .zf-check-group {
-      margin-top: 18px;
+      margin-top: 20px;
     }
     #page-Angebotscheck .zf-check-group__title {
       display: flex;
       align-items: center;
       gap: 10px;
-      font-weight: 600;
-      margin-bottom: 8px;
+      font-weight: 700;
+      margin-bottom: 6px;
     }
     #page-Angebotscheck .zf-check-group__counts {
       display: flex;
@@ -1871,48 +1876,72 @@
     }
     #page-Angebotscheck .zf-check-count {
       font-size: 0.78rem;
-      padding: 1px 7px;
+      font-weight: 600;
+      padding: 1px 8px;
       border-radius: 999px;
-      background: var(--accent-weak);
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    #page-Angebotscheck .zf-check-group__title > span:first-child {
+      white-space: nowrap;
+    }
+    #page-Angebotscheck .zf-check-count.is-rot {
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+    #page-Angebotscheck .zf-check-count.is-gelb {
+      border-color: #f59e0b;
+      color: #b45309;
+    }
+    #page-Angebotscheck .zf-check-count.is-gruen {
+      border-color: var(--accent);
       color: var(--accent-strong);
     }
+
+    /* Der Strang: eine durchgehende Linie, die Zeilen hängen daran. */
     #page-Angebotscheck .zf-check-rows {
       display: grid;
-      gap: 6px;
+      gap: 1px;
+      margin-left: 7px;
+      padding-left: 16px;
+      border-left: 2px solid var(--border);
     }
     #page-Angebotscheck .zf-check-row {
+      position: relative;
       display: flex;
       align-items: flex-start;
       gap: 10px;
       width: 100%;
       text-align: left;
-      padding: 10px 12px;
-      border: 1px solid var(--border);
-      border-left-width: 3px;
+      padding: 8px 10px;
+      border: 0;
       border-radius: 8px;
       background: transparent;
       color: inherit;
       font: inherit;
       cursor: pointer;
     }
-    #page-Angebotscheck .zf-check-row:disabled {
-      cursor: default;
+    /* kurzer Ast von der Linie zur Zeile */
+    #page-Angebotscheck .zf-check-row::before {
+      content: "";
+      position: absolute;
+      left: -16px;
+      top: 18px;
+      width: 12px;
+      height: 2px;
+      background: var(--border);
     }
+    #page-Angebotscheck .zf-check-row:disabled { cursor: default; }
     #page-Angebotscheck .zf-check-row:not(:disabled):hover {
       background: var(--accent-weak);
     }
-    #page-Angebotscheck .zf-check-row.is-rot {
-      border-left-color: #ef4444;
-    }
-    #page-Angebotscheck .zf-check-row.is-gelb {
-      border-left-color: #f59e0b;
-    }
-    #page-Angebotscheck .zf-check-row.is-gruen {
-      border-left-color: var(--accent);
+    #page-Angebotscheck .zf-check-row__dot {
+      line-height: 1.5;
+      font-size: 0.8rem;
     }
     #page-Angebotscheck .zf-check-row__text {
       display: grid;
-      gap: 2px;
+      gap: 1px;
       flex: 1;
     }
     #page-Angebotscheck .zf-check-row__detail {
@@ -1920,13 +1949,11 @@
       color: var(--muted);
     }
     #page-Angebotscheck .zf-check-row__go {
-      opacity: 0.5;
+      opacity: 0.45;
       font-size: 1.1rem;
       line-height: 1.2;
     }
-    #page-Angebotscheck .zf-check-empty {
-      color: var(--muted);
-    }
+    #page-Angebotscheck .zf-check-empty { color: var(--muted); }
 
     /* Zusammenfassung: document workspace */
     #page-Zusammenfassung .export-cards {
@@ -7735,7 +7762,7 @@ button.dm-btn-danger:focus-visible {
       <section class="card page" id="page-Angebotscheck" hidden>
         <h2 style="margin:0 0 12px;">Angebotscheck</h2>
             <p class="section-subtitle">Regelbasierte Prüfung: passt die Auswahl zum Angebot?</p>
-            <div class="bitrix-card zf-check-body"></div>
+            <div class="zf-check-body"></div>
 
         <div class="actions full">
           <button type="button" data-nav="prev" class="secondary">Zurück</button>
