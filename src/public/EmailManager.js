@@ -59,7 +59,7 @@ export function initEmailManager(options = {}) {
         id: "abtretung_ah",
         name: "Abtretungserklärung_SGB_45b_EmC2 Soziale Dienste UG.pdf",
       },
-      { id: "vollmacht", name: "Vollmacht.pdf" },
+      { id: "vollmacht", name: "Vollmacht_SGB_45b_EmC2 Soziale Dienste UG.pdf" },
     ],
 
     hooks: {
