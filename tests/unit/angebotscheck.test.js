@@ -143,6 +143,42 @@ test("soft couplings have no reverse (Wandverkleidung without Trockenbau is fine
     .toBeUndefined();
 });
 
+test("an empty product catalog is yellow, not red", () => {
+  // menu_WANNE exists but has no products yet — nothing to pick.
+  withTasks(["install_bathtub"], '<div id="menu_WANNE"></div>');
+  const found = row(runAngebotscheck(ok, readSelection(ok)), "arbeit-install_bathtub");
+  expect(found.status).toBe("gelb");
+  expect(found.details[0]).toContain("kein Produkt hinterlegt");
+
+  // …and it goes green on its own once a product exists and is ticked.
+  withTasks(
+    ["install_bathtub"],
+    '<div id="menu_WANNE"><input type="checkbox" checked /></div>',
+  );
+  expect(row(runAngebotscheck(ok, readSelection(ok)), "arbeit-install_bathtub").status)
+    .toBe("gruen");
+});
+
+test("Duschvorhang is read from its configurator, not from the priced category", () => {
+  withTasks(["install_shower_curtain"]);
+  delete window.__vorhangConfigurator;
+  expect(
+    row(runAngebotscheck(ok, readSelection(ok)), "arbeit-install_shower_curtain").status,
+  ).toBe("rot");
+
+  window.__vorhangConfigurator = { getLines: () => [{ net: 79, label: "Vorhang" }] };
+  expect(
+    row(runAngebotscheck(ok, readSelection(ok)), "arbeit-install_shower_curtain").status,
+  ).toBe("gruen");
+  delete window.__vorhangConfigurator;
+});
+
+test("Duschabtrennung rows point at the new tab", () => {
+  withTasks(["install_enclosure"]);
+  expect(row(runAngebotscheck(ok, readSelection(ok)), "arbeit-install_enclosure").target)
+    .toBe("DuschabtrennungNeu");
+});
+
 test("a panel product (WC) counts as selected", () => {
   withTasks(["install_toilet"], '<div id="menu_WC"><input type="checkbox" checked /></div>');
   expect(row(runAngebotscheck(ok, readSelection(ok)), "arbeit-install_toilet").status)

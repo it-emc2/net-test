@@ -183,6 +183,7 @@ export const WORK_RULES = [
     group: "optional",
     target: "Optional",
     severity: "rot",
+    catalog: "menu_WANNE",
     has: (sel) => sel.panel("menu_WANNE"),
   },
   {
@@ -192,6 +193,7 @@ export const WORK_RULES = [
     group: "optional",
     target: "Optional",
     severity: "rot",
+    catalog: "menu_WC",
     has: (sel) => sel.panel("menu_WC"),
     sharesWith: ["install_shower_wc"],
   },
@@ -202,6 +204,7 @@ export const WORK_RULES = [
     group: "optional",
     target: "Optional",
     severity: "rot",
+    catalog: "menu_WC",
     has: (sel) => sel.panel("menu_WC"),
     sharesWith: ["install_toilet"],
   },
@@ -219,9 +222,10 @@ export const WORK_RULES = [
     label: "Einbau der Duschabtrennung",
     needs: "eine Duschabtrennung",
     group: "material",
-    target: "Duschabtrennung",
+    target: "DuschabtrennungNeu",
     severity: "rot",
-    has: (sel) => sel.material("Duschabtrennung"),
+    has: (sel) =>
+      sel.material("Duschabtrennung") || sel.configurator("__daConfigurator"),
     sharesWith: ["install_bathtub_screen", "install_distance_profile"],
   },
   {
@@ -231,7 +235,10 @@ export const WORK_RULES = [
     group: "material",
     target: "Duschvorhang",
     severity: "rot",
-    has: (sel) => sel.material("Duschvorhang") || sel.material("Zubehör"),
+    // The curtain configurator appends its lines to duschabtrennung.quickAdd,
+    // so the priced category says "Duschabtrennung" — only the configurator
+    // itself knows a curtain was picked.
+    has: (sel) => sel.configurator("__vorhangConfigurator"),
   },
 
   // --- soft couplings: plausible without, so only a hint ---------------
@@ -263,7 +270,7 @@ export const WORK_RULES = [
     label: "Einbau eines Abstandsprofils",
     needs: "eine Duschabtrennung",
     group: "material",
-    target: "Duschabtrennung",
+    target: "DuschabtrennungNeu",
     severity: "gelb",
     has: (sel) => sel.material("Duschabtrennung"),
     noReverse: true,
@@ -274,7 +281,7 @@ export const WORK_RULES = [
     label: "Einbau des Wannenaufsatzes",
     needs: "eine Duschabtrennung oder eine Wanne",
     group: "material",
-    target: "Duschabtrennung",
+    target: "DuschabtrennungNeu",
     severity: "gelb",
     has: (sel) => sel.material("Duschabtrennung") || sel.panel("menu_WANNE"),
     noReverse: true,
@@ -304,6 +311,18 @@ export function readSelection(pricing, doc = document) {
     tasks,
     opt: (name) => checked(`input[name="${name}"]:checked`),
     panel: (menuId) => checked(`#${menuId} input[type="checkbox"]:checked`),
+    // A category whose products are loaded at runtime can be empty — then the
+    // rule is unfulfillable and saying "fehlt" would be wrong.
+    panelEmpty: (menuId) =>
+      !doc.querySelector(`#${menuId} input[type="checkbox"]`),
+    configurator: (globalName) => {
+      try {
+        const api = window[globalName];
+        return (api?.getLines?.() || []).length > 0;
+      } catch {
+        return false;
+      }
+    },
     material: (category) =>
       matLines.some(
         (l) =>
@@ -331,13 +350,22 @@ function workRows(selection) {
     );
 
     if (ticked) {
+      // Nothing to pick yet: the category has no products at all. That is a
+      // catalog gap, not a mistake in this offer — and it turns green by
+      // itself as soon as a product is added and selected.
+      const emptyCatalog =
+        !picked && rule.catalog && selection.panelEmpty(rule.catalog);
       rows.push({
         id: `arbeit-${rule.task}`,
         group: rule.group,
         target: rule.target,
         title: rule.label,
-        status: picked ? "gruen" : rule.severity,
-        details: picked ? [] : [`Es fehlt ${rule.needs}.`],
+        status: picked ? "gruen" : emptyCatalog ? "gelb" : rule.severity,
+        details: picked
+          ? []
+          : emptyCatalog
+            ? [`In dieser Kategorie ist noch kein Produkt hinterlegt.`]
+            : [`Es fehlt ${rule.needs}.`],
       });
     } else if (picked && !rule.noReverse && !coveredBySibling) {
       // Two tasks can want the same product group (Duschsystem with/without

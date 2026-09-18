@@ -131,8 +131,19 @@ Beide Richtungen werden geprüft:
 **Erfüllte Regeln verschwinden nicht**, sie werden grün. Nur eine Kopplung,
 die dieses Angebot gar nicht berührt, erzeugt keine Zeile.
 
-Gelesen wird über `readSelection()`: Arbeitsschritte und Optionalprodukte aus
-dem DOM, Materialkategorien aus den bepreisten Zeilen.
+Gelesen wird über `readSelection()`:
+
+- Arbeitsschritte und Optionalprodukte aus dem DOM
+- Materialkategorien aus den bepreisten Zeilen
+- Duschvorhang und Duschabtrennung aus ihren Konfiguratoren
+  (`__vorhangConfigurator`, `__daConfigurator`) — der Vorhang hängt seine
+  Zeilen an `duschabtrennung.quickAdd`, die bepreiste Kategorie kann beide
+  also nicht unterscheiden.
+
+Kategorien, deren Produkte erst zur Laufzeit geladen werden (Wanne, WC),
+melden 🟡 „kein Produkt hinterlegt", solange der Katalog leer ist — die Regel
+wäre sonst nicht erfüllbar. Sobald ein Produkt existiert und gewählt ist,
+wird die Zeile von allein grün.
 
 Bewusst ohne Regel: alle „Entfernen und Entsorgen"-Schritte, Stilllegen/
 Versetzen von Armatur und Abfluss, UP→AP-Umbau, Bademöbel, Sitzbadewanne.
