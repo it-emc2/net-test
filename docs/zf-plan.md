@@ -95,6 +95,35 @@ window.__zfCheckliste = { skizzeErstellt: false, fotosErstellt: false };
 window.setZfCheckliste(checkliste);  // vom RestoreManager beim Öffnen
 ```
 
+## Arbeit ⇄ Produkt
+
+`WORK_RULES` koppelt einen angehakten Arbeitsschritt an die Auswahl, die er
+braucht. **Nicht angehakt = keine Regel** — der Angebotscheck listet nur, was
+dieses Angebot wirklich enthält.
+
+12 harte Kopplungen (🔴) und 4 weiche (🟡):
+
+| Arbeit | braucht | 🚦 |
+|---|---|---|
+| Auswechseln eines Aufputz-Thermostats | Thermostat-Produkt | 🔴 |
+| Duschsystem ohne Thermostat | Duschsystem-Produkt | 🔴 |
+| Duschsystem inkl. Thermostat | Duschsystem-Produkt (ein Produkt deckt beides) | 🔴 |
+| Waschbecken-Armatur auswechseln | Einhand-Waschtischbatterie | 🔴 |
+| Einbau eines Waschbeckens | Waschtisch | 🔴 |
+| Einbau eines Duschkorbes | Duschzubehör | 🔴 |
+| Einbau der Badewanne | Produkt aus „Wanne" | 🔴 |
+| Einbau einer Toilette / eines Dusch-WCs | Produkt aus „WC" | 🔴 |
+| Einbau Duschwanne / Duschabtrennung / Duschvorhang | passendes Material | 🔴 |
+| Trockenbau Duschbereich / WC | Wandverkleidung | 🟡 |
+| Einbau eines Abstandsprofils | Duschabtrennung | 🟡 |
+| Einbau des Wannenaufsatzes | Duschabtrennung oder Wanne | 🟡 |
+
+Gelesen wird über `readSelection()`: Arbeitsschritte und Optionalprodukte aus
+dem DOM, Materialkategorien aus den bepreisten Zeilen.
+
+Bewusst ohne Regel: alle „Entfernen und Entsorgen"-Schritte, Stilllegen/
+Versetzen von Armatur und Abfluss, UP→AP-Umbau, Bademöbel, Sitzbadewanne.
+
 ## Neue Regel hinzufügen
 
 Ein Eintrag in `RULES` in `src/public/angebotscheck.js`:
@@ -114,6 +143,6 @@ Prüfung nie blockieren.
   `buildPayload()` mitgeschrieben werden.
 - Kein manuelles „als versendet markieren" — nur ein Versand aus der App
   setzt den Status.
-- Das aktuelle Regelset ist ein Platzhalter (Vollständigkeit/Plausibilität).
-  Die fachlichen Regeln müssen noch definiert werden.
+- Die Gegenrichtung (Produkt gewählt, aber der passende Arbeitsschritt fehlt)
+  ist noch offen — wäre 12 weitere 🟡-Regeln.
 - KI-basierte Prüfung: später, gleiche Ausgabestruktur.

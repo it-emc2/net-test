@@ -94,8 +94,193 @@ export const RULES = [
   },
 ];
 
+/* ------------------------------------------------- Arbeit ⇄ Produkt rules */
+
+/**
+ * Every entry couples one ticked work task to the selection it requires.
+ * A rule that is not ticked produces nothing at all — the Angebotscheck only
+ * ever lists what this offer actually contains.
+ *
+ * `has(sel)` gets the selection reader built by readSelection().
+ */
+export const WORK_RULES = [
+  // --- hard couplings -------------------------------------------------
+  {
+    task: "replace_thermostat",
+    label: "Auswechseln eines Aufputz-Thermostats",
+    needs: "Produkt aus „Austausch eines Thermostates“",
+    group: "optional",
+    severity: "rot",
+    has: (sel) => sel.opt("optThermo[]"),
+  },
+  {
+    task: "replace_shower_no_thermo",
+    label: "Auswechseln des Duschsystems ohne Thermostat",
+    needs: "Produkt aus „Auswechseln des Duschsystems“",
+    group: "optional",
+    severity: "rot",
+    has: (sel) => sel.opt("optShower[]"),
+  },
+  {
+    // One product covers system + thermostat (confirmed) — no extra Thermostat.
+    task: "replace_shower_with_thermo",
+    label: "Auswechseln des Duschsystems inkl. Aufputz-Thermostat",
+    needs: "Produkt aus „Auswechseln des Duschsystems“",
+    group: "optional",
+    severity: "rot",
+    has: (sel) => sel.opt("optShower[]"),
+  },
+  {
+    task: "replace_sink_faucet",
+    label: "Auswechseln einer Waschbecken-Armatur",
+    needs: "Produkt aus „Einhand-Waschtischbatterie“",
+    group: "optional",
+    severity: "rot",
+    has: (sel) => sel.opt("optBasinTap[]"),
+  },
+  {
+    task: "install_sink",
+    label: "Einbau eines Waschbeckens",
+    needs: "Produkt aus „Waschtisch ohne Unterschrank“",
+    group: "optional",
+    severity: "rot",
+    has: (sel) => sel.opt("optBasin[]"),
+  },
+  {
+    task: "install_shower_basket",
+    label: "Einbau eines Duschkorbes",
+    needs: "Produkt aus „Duschzubehör“",
+    group: "optional",
+    severity: "rot",
+    has: (sel) => sel.opt("optDuschzub[]"),
+  },
+  {
+    task: "install_bathtub",
+    label: "Einbau der Badewanne",
+    needs: "Produkt aus „Wanne“",
+    group: "optional",
+    severity: "rot",
+    has: (sel) => sel.panel("menu_WANNE"),
+  },
+  {
+    task: "install_toilet",
+    label: "Einbau einer Toilette",
+    needs: "Produkt aus „WC“",
+    group: "optional",
+    severity: "rot",
+    has: (sel) => sel.panel("menu_WC"),
+  },
+  {
+    task: "install_shower_wc",
+    label: "Einbau eines Dusch-WCs",
+    needs: "Produkt aus „WC“",
+    group: "optional",
+    severity: "rot",
+    has: (sel) => sel.panel("menu_WC"),
+  },
+  {
+    task: "install_tray",
+    label: "Einbau der Duschwanne",
+    needs: "eine Duschwanne",
+    group: "material",
+    severity: "rot",
+    has: (sel) => sel.material("Duschwanne"),
+  },
+  {
+    task: "install_enclosure",
+    label: "Einbau der Duschabtrennung",
+    needs: "eine Duschabtrennung",
+    group: "material",
+    severity: "rot",
+    has: (sel) => sel.material("Duschabtrennung"),
+  },
+  {
+    task: "install_shower_curtain",
+    label: "Einbau eines Duschvorhangs",
+    needs: "einen Duschvorhang",
+    group: "material",
+    severity: "rot",
+    has: (sel) => sel.material("Duschvorhang") || sel.material("Zubehör"),
+  },
+
+  // --- soft couplings: plausible without, so only a hint ---------------
+  {
+    task: "trockenbau_duschbereich",
+    label: "Trockenbau im Duschbereich",
+    needs: "eine Wandverkleidung",
+    group: "material",
+    severity: "gelb",
+    has: (sel) => sel.material("Wandverkleidung"),
+  },
+  {
+    task: "trockenbau_wc",
+    label: "Trockenbau für das WC",
+    needs: "eine Wandverkleidung",
+    group: "material",
+    severity: "gelb",
+    has: (sel) => sel.material("Wandverkleidung"),
+  },
+  {
+    task: "install_distance_profile",
+    label: "Einbau eines Abstandsprofils",
+    needs: "eine Duschabtrennung",
+    group: "material",
+    severity: "gelb",
+    has: (sel) => sel.material("Duschabtrennung"),
+  },
+  {
+    task: "install_bathtub_screen",
+    label: "Einbau des Wannenaufsatzes",
+    needs: "eine Duschabtrennung oder eine Wanne",
+    group: "material",
+    severity: "gelb",
+    has: (sel) => sel.material("Duschabtrennung") || sel.panel("menu_WANNE"),
+  },
+];
+
+/**
+ * Reads what the user picked. The work tasks and the optional products live in
+ * the DOM (they are not all visible in `pricing`), the material categories come
+ * from the priced lines.
+ */
+export function readSelection(pricing, doc = document) {
+  const checked = (selector) => !!doc.querySelector(selector);
+  const tasks = new Set(
+    Array.from(
+      doc.querySelectorAll(
+        'input[name="duschwanne[workTasks][]"]:checked,' +
+          'input[name="duschwanne[extraTasks][]"]:checked',
+      ),
+    ).map((el) => el.value),
+  );
+  const matLines = lines(
+    pricing?.materialsDisplayUI || pricing?.materials || {},
+  );
+  return {
+    tasks,
+    opt: (name) => checked(`input[name="${name}"]:checked`),
+    panel: (menuId) => checked(`#${menuId} input[type="checkbox"]:checked`),
+    material: (category) =>
+      matLines.some(
+        (l) =>
+          String(l?.category || "").toLowerCase() === category.toLowerCase(),
+      ),
+  };
+}
+
+/** Turns the ticked work tasks into RULES-shaped entries. */
+function workRules(selection) {
+  if (!selection) return [];
+  return WORK_RULES.filter((r) => selection.tasks.has(r.task)).map((r) => ({
+    id: `arbeit-${r.task}`,
+    group: r.group,
+    severity: r.severity,
+    test: () => !r.has(selection) && `„${r.label}“ — es fehlt ${r.needs}.`,
+  }));
+}
+
 /** pricing = the payload behind the `pricing:updated` event / window.__pricing. */
-export function runAngebotscheck(pricing) {
+export function runAngebotscheck(pricing, selection = null) {
   const ctx = {
     services: pricing?.servicesDisplayUI || pricing?.services || {},
     materials: pricing?.materialsDisplayUI || pricing?.materials || {},
@@ -105,7 +290,7 @@ export function runAngebotscheck(pricing) {
   const groups = GROUPS.map((g) => ({ ...g, status: "gruen", findings: [] }));
   const byKey = new Map(groups.map((g) => [g.key, g]));
 
-  for (const rule of RULES) {
+  for (const rule of [...RULES, ...workRules(selection)]) {
     const group = byKey.get(rule.group);
     if (!group) continue;
     let hits;
@@ -169,7 +354,10 @@ function paint() {
   const body = document.querySelector("#page-Angebotscheck .zf-check-body");
   if (!body) return;
 
-  const result = runAngebotscheck(window.__pricing);
+  const result = runAngebotscheck(
+    window.__pricing,
+    readSelection(window.__pricing),
+  );
   renderAngebotscheck(body, result);
   // Task 2 (Versand) and Task 3 (Checkliste) read the status from here.
   window.__angebotscheck = result;
