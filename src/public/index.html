@@ -7691,6 +7691,15 @@ button.dm-btn-danger:focus-visible {
             <div class="bitrix-card zf-check-body"></div>
           </section>
 
+          <!-- Angebotsversand (BU only) — Status, wie und wann das Angebot
+               rausgegangen ist. Der Versand selbst passiert weiter unten in den
+               Mail/Post-Tabs; gefüllt von angebotsversand.js. -->
+          <section id="zfVersand" class="bitrix-section" hidden>
+            <h2 class="section-title">Angebotsversand</h2>
+            <p class="section-subtitle">Versendet wird weiter unten per E-Mail oder Post.</p>
+            <div class="bitrix-card"><div id="zfVersandStatus">Noch nicht versendet.</div></div>
+          </section>
+
           <!-- Bitrix Integration Section -->
           <section class="bitrix-section">
             <h2 class="section-title">Bitrix Integration</h2>
@@ -10508,6 +10517,7 @@ button.dm-btn-danger:focus-visible {
   <script type="module" src="/native-bridge.js"></script>
   <script src="/ansprechpartner.js"></script>
   <script type="module" src="/angebotscheck.js"></script>
+  <script type="module" src="/angebotsversand.js"></script>
 
 </body>
 

@@ -5066,6 +5066,13 @@ if (anschlag) {
   // is not picked up by formToObject above). Persist so drafts can restore the
   // recipient, subject and body — the body also carries the dynamic
   // Ansprechpartner name embedded in its text.
+  // Zusammenfassung: Angebotscheck / Angebotsversand / Checkliste.
+  // See docs/zf-plan.md. Only the Versand branch is filled so far.
+  payload.zusammenfassung = {
+    ...(payload.zusammenfassung || {}),
+    versand: window.__zfVersand || { art: null, versendetAm: null },
+  };
+
   payload.mail = {
     auftragId: (document.getElementById("mailAuftragId")?.value || "").trim(),
     to: (document.getElementById("mailTo")?.value || "").trim(),

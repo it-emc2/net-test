@@ -16,7 +16,7 @@ Zusammenfassung
 | # | Branch | Umfang |
 |---|--------|--------|
 | 1 | `feat/zf-angebotscheck` | Regelwerk + Ampel-Block. **Fertig.** |
-| 2 | `feat/zf-angebotsversand` | Mail/Post-Auswahl, schreibt `versandArt` + `versendetAm`. |
+| 2 | `feat/zf-angebotsversand` | Versandstatus (Mail/Post + Zeitpunkt). **Fertig.** |
 | 3 | `feat/zf-checkliste` | Checkliste; spiegelt Status aus 1 und „versendet?" aus 2. |
 
 Integration/Test-Branch: `test/zusammenfassung`.
@@ -31,6 +31,19 @@ Ergebnisse werden nach den BU-Abschnitten der Übersicht gruppiert
 - **III** Optionale Produkte → `optionalDisplayUI`
 
 ## Schnittstelle für Task 2 + 3
+
+`src/public/angebotsversand.js` hält den Versandstatus:
+
+```js
+window.__zfVersand = { art: "mail" | "post" | null, versendetAm: "<ISO>" | null };
+window.markAngebotVersendet(art);   // von showSentDialog() in EmailManager.js
+window.setZfVersand(versand);       // vom RestoreManager beim Öffnen
+window.addEventListener("versand:updated", …);
+```
+
+Der Versand selbst bleibt unverändert (Mail/Post-Tabs). Gebucht wird in
+`showSentDialog()` — der gemeinsamen Erfolgsstelle beider Wege; ein reiner
+Bitrix-Upload (`bitrixOnly`) zählt nicht als Versand.
 
 `src/public/angebotscheck.js` setzt nach jeder Prüfung:
 
@@ -47,11 +60,15 @@ Geplantes Persistenz-Objekt am Angebot (Task 2 + 3 füllen ihren Zweig):
 
 ```js
 zusammenfassung: {
-  check:      { status, findings, geprueftAm },
-  versand:    { art: "mail" | "post" | null, versendetAm: null },
+  check:      { status, findings, geprueftAm },   // noch nicht persistiert
+  versand:    { art: "mail" | "post" | null, versendetAm: null },  // fertig
   checkliste: { skizzeErstellt: false, fotosErstellt: false },
 }
 ```
+
+`payload.zusammenfassung` wird in `buildPayload()` (script.js) geschrieben und
+im `RestoreManager` zurückgelesen. `Offer.payload` ist `Mixed` — kein
+Schema-Änderung nötig.
 
 ## Neue Regel hinzufügen
 

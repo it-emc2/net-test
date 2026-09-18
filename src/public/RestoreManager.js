@@ -255,6 +255,9 @@ export function initRestoreManager({
     // subject and body). These live outside any form-* element, so they are
     // restored explicitly here. The body carries the dynamic Ansprechpartner
     // name embedded in its saved text.
+    // Zusammenfassung: how/when this offer was sent (docs/zf-plan.md).
+    window.setZfVersand?.(payload?.zusammenfassung?.versand);
+
     try {
       const mail = payload?.mail || {};
       const setMailField = (id, value) => {

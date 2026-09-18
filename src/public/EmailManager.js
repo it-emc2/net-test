@@ -431,6 +431,10 @@ export function initEmailManager(options = {}) {
   // Success dialog shown after the email was sent. Offers the stage move.
   // The postal send reuses it through window.__showSentDialog (title via `via`).
   function showSentDialog({ dealId, offerTotal, attachmentNames, offerExtra, bitrixOnly = false, via = "mail" }) {
+    // Angebotsversand (Zusammenfassung): both the mail and the postal send end
+    // up here, so this is the single place that knows the offer went out.
+    // A Bitrix-only drop never reached the customer — not a Versand.
+    if (!bitrixOnly) window.markAngebotVersendet?.(via);
     closeStageModal();
     const overlay = document.createElement("div");
     overlay.id = "angStageOverlay";
