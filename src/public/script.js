@@ -26451,14 +26451,26 @@ async function checkDealAlreadySaved(dealId) {
   const id = String(dealId || "").trim();
   if (!id || checkedSavedDealIds.has(id)) return;
   checkedSavedDealIds.add(id);
+  if (await dealHasSavedOffer(id)) {
+    markDealStage(id, "C72:PREPARATION");
+    renderTodayPlanningAppointments();
+  }
+}
+
+// Same lookup as checkDealAlreadySaved, but callable again right before a
+// stage-moving click — closes the race where the background check hasn't
+// resolved yet when the user clicks. Hits only our own DB, never Bitrix, so
+// it doesn't reintroduce the rate-limiting this list was built to avoid.
+async function dealHasSavedOffer(dealId) {
+  const id = String(dealId || "").trim();
+  if (!id) return false;
   try {
     const res = await fetch(`/api/offers/by-deal/${encodeURIComponent(id)}`);
     const data = await res.json().catch(() => []);
-    if (Array.isArray(data) && data.length) {
-      markDealStage(id, "C72:PREPARATION");
-      renderTodayPlanningAppointments();
-    }
-  } catch {}
+    return Array.isArray(data) && data.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 const PLANNING_OFFER_TYPES = [
@@ -27366,7 +27378,7 @@ function renderTodayPlanningAppointments(){
           ${navigateHtml}
           <button type="button" class="today-calendar-open" ${isCancelled ? 'disabled aria-disabled="true"' : ""}><i class="fa-solid ${isCancelled ? "fa-ban" : "fa-arrow-right"}"></i> ${isCancelled ? "Nicht verfuegbar" : "In Konfigurator öffnen"}</button>
           ${!isCancelled && entry?.importDealId && !isDealDone(entry.importDealId) ? `<button type="button" class="today-calendar-done"><i class="fa-solid fa-circle-check"></i> Hat stattgefunden</button>` : ""}
-          ${!isCancelled && entry?.importDealId && !isDealDone(entry.importDealId) ? `<button type="button" class="today-calendar-noshow"><i class="fa-solid fa-phone-slash"></i> Nicht erreicht</button>` : ""}
+          ${!isCancelled && entry?.importDealId && !isDealDone(entry.importDealId) ? `<button type="button" class="today-calendar-noshow"><i class="fa-solid fa-phone-slash"></i> Termin hat nicht statt gefunden.</button>` : ""}
         </div>
       </div>
       ${travelHtml}
@@ -27428,6 +27440,11 @@ function renderTodayPlanningAppointments(){
       const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
       const dealId = String(entry?.importDealId || "").trim();
       if(!dealId) return;
+      if (await dealHasSavedOffer(dealId)) {
+        markDealStage(dealId, "C72:PREPARATION");
+        renderTodayPlanningAppointments();
+        return;
+      }
       if(!window.confirm("Der Termin hat stattgefunden; Deal auf „HD/AH/DH zuweisen“ verschieben?")) return;
 
       doneButton.disabled = true;
@@ -27441,8 +27458,8 @@ function renderTodayPlanningAppointments(){
         });
         const data = await res.json().catch(() => ({}));
         if(!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-        doneButton.innerHTML = `<i class="fa-solid fa-circle-check"></i> Verschoben`;
         markDealStage(dealId, "C72:PREPARATION");
+        renderTodayPlanningAppointments();
         (typeof showToast === "function") && showToast("Deal auf „Zuteilen HD/ AH/ DH“ verschoben.", "success");
       } catch (e) {
         console.error("[planning] move-zuteilen failed:", e);
@@ -27456,13 +27473,19 @@ function renderTodayPlanningAppointments(){
 
     // "Nicht erreicht" -> ask for a reason, then move the deal back to
     // "Besichtigungstermin vereinbaren" and log the reason on its timeline.
-    card.querySelector(".today-calendar-noshow")?.addEventListener("click", (ev) => {
+    card.querySelector(".today-calendar-noshow")?.addEventListener("click", async (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
       const id = card.dataset.id;
       const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
       const dealId = String(entry?.importDealId || "").trim();
-      if(dealId) openPlanningNoContactDialog(dealId);
+      if(!dealId) return;
+      if (await dealHasSavedOffer(dealId)) {
+        markDealStage(dealId, "C72:PREPARATION");
+        renderTodayPlanningAppointments();
+        return;
+      }
+      openPlanningNoContactDialog(dealId);
     });
   });
 
