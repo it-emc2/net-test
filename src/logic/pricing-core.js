@@ -2247,78 +2247,64 @@ color: metaColor || null,
       // --- add the selected Duschwanne (from smart search) as a material line ---
       // --- add selected Badewanne + (optional) Wannenaufsatz as material lines ---
 try {
-  const bathtubPid = payload?.duschwanne?.chosenBathtubProductId;
-
-  // robust workTasks read (your payload has weird keys sometimes)
   const dw = payload?.duschwanne || {};
-  const workTasksRaw =
-    dw.workTasks ||
-    dw["workTasks[]"] ||
-    dw["duschwanne[workTasks][]"] ||
-    payload?.["duschwanne[workTasks][]"];
-
-  const workTasks = Array.isArray(workTasksRaw)
-    ? workTasksRaw.map((x) => String(x))
-    : typeof workTasksRaw === "string" && workTasksRaw.trim()
-      ? [workTasksRaw.trim()]
-      : [];
-
-  if (bathtubPid) {
-    const already = (materials?.lines || []).some(
-      (l) => l?.productId === bathtubPid || l?.id === bathtubPid
-    );
-
-    if (!already) {
-      const p = await ProductModel.findOne({ productId: bathtubPid }).lean();
-      if (p) {
-        const unit = Number(p.price || 0);
-        const qty = 1;
-        const line = {
-          productId: p.productId,
-          name: p.name || "",
-          qty,
-          unitPrice: unit,
-          lineTotal: round2(unit * qty),
-          label: `- ${qty} Stk Badewanne`,
-        };
-        materials.lines.push(line);
-        materials.sum = round2((materials.sum || 0) + line.lineTotal);
-      }
-    }
-  }
-
-  // Wannenaufsatz only if its installation is selected
-  const wantsScreen = workTasks.includes("install_bathtub_screen");
-  // ✅ Backwards compatible: accept either new or old field names
+  const bathtubPid = dw.chosenBathtubProductId;
+  // Backwards compatible: accept either new or old field names
   const screenPid =
-    payload?.duschwanne?.wannenaufsatzProductId ||
-    payload?.duschwanne?.chosenScreenProductId ||
+    dw.wannenaufsatzProductId ||
+    dw.chosenScreenProductId ||
     payload?.chosenScreenProductId ||
     null;
-    
-  if (wantsScreen && screenPid) {
-    const already = (materials?.lines || []).some(
-      (l) => l?.productId === screenPid || l?.id === screenPid
-    );
 
-    if (!already) {
-      const p = await ProductModel.findOne({ productId: screenPid }).lean();
-      if (p) {
-        const unit = Number(p.price || 0);
-        const qty = 1;
-        const line = {
-          productId: p.productId,
-          name: p.name || "",
-          qty,
-          unitPrice: unit,
-          lineTotal: round2(unit * qty),
-          label: `- ${qty} Stk Wannenaufsatz`,
-        };
-        materials.lines.push(line);
-        materials.sum = round2((materials.sum || 0) + line.lineTotal);
-      }
-    }
+  // Both articles are picked straight out of the vigor catalog, which is also
+  // where their price lives — so quote the live net price. A vigor outage must
+  // not drop the line: it falls back to the snapshot the configurator saved with
+  // the selection, then to the internal Products price.
+  let live = new Map();
+  try {
+    live = await getLiveVigourNetPrices([bathtubPid, screenPid].filter(Boolean));
+  } catch (e) {
+    console.error(
+      "[pricing] vigor live price lookup failed for Wanne lines — using snapshot:",
+      e?.message || e,
+    );
   }
+
+  const addWanneLine = async (pid, snapName, snapPrice, label) => {
+    if (!pid) return;
+    const already = (materials?.lines || []).some(
+      (l) => l?.productId === pid || l?.id === pid,
+    );
+    if (already) return;
+
+    const p = await ProductModel.findOne({ productId: pid }).lean();
+    const unit = Number(live.get(pid) ?? snapPrice ?? p?.price ?? 0);
+    if (!(unit > 0)) return;
+
+    const line = {
+      productId: pid,
+      name: snapName || p?.name || pid,
+      qty: 1,
+      unitPrice: unit,
+      lineTotal: round2(unit),
+      label: `- 1 Stk ${label}`,
+    };
+    materials.lines.push(line);
+    materials.sum = round2((materials.sum || 0) + line.lineTotal);
+  };
+
+  await addWanneLine(
+    bathtubPid,
+    dw.chosenBathtubName,
+    dw.chosenBathtubPrice,
+    "Badewanne",
+  );
+  await addWanneLine(
+    screenPid,
+    dw.chosenScreenName,
+    dw.chosenScreenPrice,
+    "Wannenaufsatz",
+  );
 } catch (e) {
   console.warn("[pricing] addBathtubLines failed:", e?.message || e);
 }

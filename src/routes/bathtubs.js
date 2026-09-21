@@ -1,258 +1,144 @@
 // routes/bathtubs.js
+// Catalog for the "Wanne" category on the Optional tab: Novellini Iris bathtubs
+// and their Wannenaufsätze, sourced from the vigor DB (category "badewanne").
+//
+// Vigor stores no structured dimensions or variant attributes for these — every
+// attribute lives in the free-text `name` + `finish` pair, so it is parsed here,
+// once, server-side. The client only renders what this returns.
 import { Router } from "express";
-import Product from "../models/Product.js";
+import { getVigorDb } from "../external/vigorDb.js";
 
 const r = Router();
 
-// Parse numbers; accepts "101", "101.0", "101,0"
-function parseDim(v) {
-  if (v == null) return null;
-  const s = String(v).trim().replace(/\./g, "").replace(",", ".");
-  const n = Number(s);
+const num = (v) => {
+  const n = Number(v);
   return Number.isFinite(n) ? n : null;
-}
+};
 
-function readTubQueryDims(q) {
-  const w = parseDim(q.w ?? q.b ?? q.width ?? q.widthCm);
-  const l = parseDim(q.l ?? q.length ?? q.lengthCm);
-  return { w, l };
-}
+// `name` + `finish` for the 18 Iris articles follow two stable shapes:
+//   tub    "Badewanne Acryl Iris 160x70/80cm weiß li" + "m.2 Schürzen weiß m.Abl. Novellini"
+//   screen "NOV Iris COMBY Wannenaufsatz für Iris li" + "24/60x140cm ESG klar chrom.m.S70"
+//   screen "Wannenaufsatz für Iris links Höhe 140cm"  + "24/60cm klappb. ESG klar chrom Novellini"
+export function parseWanneDoc(doc) {
+  const articleNumber = String(doc?.articleNumber || "").trim();
+  if (!articleNumber) return null;
 
-/**
- * Bathtub side from productId:
- * - IRIS160LS -> L
- * - IRIS160RS -> R
- */
-function tubSideFromProductId(pid) {
-  const s = String(pid || "").toUpperCase();
-  if (s.includes("LS")) return "L";
-  if (s.includes("RS")) return "R";
-  return null;
-}
+  const name = String(doc?.name || "").trim();
+  const finish = String(doc?.finish || "").trim();
+  const text = `${name} ${finish}`;
+  const isScreen = /^IRISWA/i.test(articleNumber);
 
-/**
- * Map bathtub widthCm to nearest supported bucket.
- * Your website catalog currently has buckets 70 and 75 (no 80 screens).
- * Example: tub width 80 -> nearest bucket 75.
- */
-function widthBucketFromTubWidth(w) {
-  const buckets = [70, 75]; // <-- IMPORTANT: update only if you actually add IRISWAS80* later
-  if (!Number.isFinite(w)) return null;
+  // Side is taken from the article number, which is the canonical key: tubs carry
+  // it after the size block (IRIS160L2SWE), screens as the last character.
+  const sideChar = isScreen
+    ? (articleNumber.match(/([LR])$/i)?.[1] ?? null)
+    : (articleNumber.match(/^IRIS\d+([LR])/i)?.[1] ?? null);
+  const side = sideChar ? (sideChar.toUpperCase() === "L" ? "links" : "rechts") : null;
 
-  let best = buckets[0];
-  let bestD = Math.abs(w - best);
-  for (const b of buckets) {
-    const d = Math.abs(w - b);
-    if (d < bestD) {
-      best = b;
-      bestD = d;
-    }
-  }
-  return best;
-}
+  const base = {
+    articleNumber,
+    type: isScreen ? "screen" : "tub",
+    name,
+    finish,
+    netPrice: num(doc?.netPrice),
+    grosPrice: num(doc?.grosPrice),
+    unit: doc?.unit || "Stück",
+    brand: doc?.brand || null,
+    side,
+  };
 
-/**
- * BATHTUB SUGGEST
- * GET /api/bathtubs/suggest?w=..&l=..
- * - Only IRIS* bathtubs; exclude IRISWAS* screens
- * - Strict >= on provided axes (like trays)
- * - Rank by closeness
- */
-r.get("/suggest", async (req, res) => {
-  try {
-    const { w, l } = readTubQueryDims(req.query);
-
-    if (w === null && l === null) {
-      return res.status(400).json({ error: "Provide at least one of w, l" });
-    }
-
-    // IRIS* but NOT IRISWAS*
-    const filter = { productId: /^IRIS(?!WAS)/i };
-    const axesForScore = [];
-
-    if (w !== null) {
-      filter.widthCm = { $gte: w };
-      axesForScore.push(["widthCm", w]);
-    }
-    if (l !== null) {
-      filter.lengthCm = { $gte: l };
-      axesForScore.push(["lengthCm", l]);
-    }
-
-    const docs = await Product.find(filter, {
-      productId: 1,
-      name: 1,
-      price: 1,
-      widthCm: 1,
-      lengthCm: 1,
-    }).lean();
-
-    const score = (p) => {
-      let sum = 0;
-      for (const [key, want] of axesForScore) {
-        const have = Number(p[key]) || 0; // have >= want because of filter
-        const d = have - want;
-        sum += d * d;
-      }
-      return Math.sqrt(sum);
+  if (!isScreen) {
+    // "160x70/80cm" -> 160 long, tapered 70..80 wide
+    const m = name.match(/(\d+)\s*x\s*(\d+)(?:\/(\d+))?\s*cm/i);
+    return {
+      ...base,
+      lengthCm: num(m?.[1]),
+      widthCm: num(m?.[2]),
+      widthMaxCm: num(m?.[3]) ?? num(m?.[2]),
+      schuerze: /m\.\s*2\s*Sch(ü|u)rzen/i.test(finish)
+        ? "2 Schürzen"
+        : /m\.\s*Frontsch(ü|u)rze/i.test(finish)
+          ? "Frontschürze"
+          : null,
+      // m.WE = Wanneneinlauf (water enters through the tub), m.Abl. = plain drain
+      zulauf: /m\.\s*WE\b/i.test(finish)
+        ? "Wanneneinlauf"
+        : /m\.\s*Abl/i.test(finish)
+          ? "Ablauf"
+          : null,
     };
+  }
 
-    const results = docs
-      .map((p) => ({ ...p, score: score(p) }))
+  // "24/60x140cm" carries width x height; the folding variants say "24/60cm"
+  // and put the height in the name instead ("Höhe 140cm").
+  const wh = finish.match(/(\d+)\s*x\s*(\d+)\s*cm/i);
+  const widthOnly = finish.match(/\/(\d+)\s*cm/i);
+  const heightFromName = name.match(/H(ö|o)he\s*(\d+)\s*cm/i);
+
+  return {
+    ...base,
+    widthCm: num(wh?.[1]) ?? num(widthOnly?.[1]),
+    heightCm: num(wh?.[2]) ?? num(heightFromName?.[2]),
+    // "m.S70" = supplied with a 70 cm side panel; the folding variants have none.
+    seitenwand: finish.match(/m\.\s*S(\d+)/i)?.[1]
+      ? `S${finish.match(/m\.\s*S(\d+)/i)[1]}`
+      : "ohne",
+    klappbar: /klappb/i.test(text),
+    glas: /ESG\s*klar/i.test(finish) ? "ESG klar" : null,
+    rahmen: /chrom/i.test(finish) ? "chrom" : null,
+  };
+}
+
+/**
+ * GET /api/bathtubs/catalog
+ * The whole Iris catalog (18 articles), parsed. Small enough to send at once —
+ * the client filters locally, so there is no search/debounce round trip.
+ */
+r.get("/catalog", async (_req, res) => {
+  try {
+    const db = await getVigorDb();
+    const docs = await db
+      .collection("products")
+      .find(
+        { category: "badewanne" },
+        {
+          projection: {
+            articleNumber: 1,
+            name: 1,
+            finish: 1,
+            netPrice: 1,
+            grosPrice: 1,
+            unit: 1,
+            brand: 1,
+            lastSeenAt: 1,
+          },
+        },
+      )
+      .toArray();
+
+    // The scraper can hold several docs per article; keep the freshest with a
+    // usable price, mirroring pickFreshestNetPrices' rule.
+    const best = new Map();
+    for (const d of docs) {
+      const parsed = parseWanneDoc(d);
+      if (!parsed || !(parsed.netPrice > 0)) continue;
+      const seen = d.lastSeenAt ? new Date(d.lastSeenAt).getTime() || 0 : 0;
+      const prev = best.get(parsed.articleNumber);
+      if (!prev || seen >= prev.seen) best.set(parsed.articleNumber, { parsed, seen });
+    }
+
+    const items = [...best.values()]
+      .map((v) => v.parsed)
       .sort(
         (a, b) =>
-          a.score - b.score || (a.price ?? Infinity) - (b.price ?? Infinity),
-      )
-      .slice(0, 3);
+          a.type.localeCompare(b.type) ||
+          a.netPrice - b.netPrice ||
+          a.articleNumber.localeCompare(b.articleNumber),
+      );
 
-    res.json({ input: { w, l }, results });
+    res.json({ count: items.length, items });
   } catch (e) {
-    console.error("bathtubs/suggest error:", e);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-/**
- * SCREEN SUGGEST (bucket-based)
- * GET /api/bathtubs/screens/suggest?bucket=70|75&side=L|R
- *
- * Uses families from your website list + DB:
- * - IRISWAS{bucket}{L/R}
- * - IRISWA14S{bucket}{L/R}
- * - IRISWA14{L/R}    (no bucket digits)
- *
- * Ranking:
- * 1) side match (if provided)
- * 2) height 150 preferred over 140
- * 3) cheapest
- */
-r.get("/screens/suggest", async (req, res) => {
-  try {
-    const bucketRaw = String(req.query.bucket || "").trim();
-    const bucket = Number(bucketRaw);
-    if (!Number.isFinite(bucket)) {
-      return res.status(400).json({ error: "bucket is required (e.g. 70, 75)" });
-    }
-
-    const sideRaw = String(req.query.side || "").trim().toUpperCase();
-    const wantSide = sideRaw === "L" || sideRaw === "R" ? sideRaw : null;
-
-    const reWAS = new RegExp(`^IRISWAS${bucket}`, "i");
-    const reWA14S = new RegExp(`^IRISWA14S${bucket}`, "i");
-    const reWA14Plain = /^IRISWA14[LR]$/i;
-
-    const docs = await Product.find(
-      {
-        $or: [
-          { productId: reWAS },
-          { productId: reWA14S },
-          { productId: reWA14Plain },
-        ],
-      },
-      { productId: 1, name: 1, price: 1, heightCm: 1 }
-    ).lean();
-
-    const sideRank = (pid) => {
-      if (!wantSide) return 0;
-      const s = String(pid || "").toUpperCase();
-      return s.endsWith(wantSide) ? 0 : 1;
-    };
-
-    const heightRank = (h) => {
-      const n = Number(h);
-      if (!Number.isFinite(n)) return 9;
-      if (n === 150) return 0;
-      if (n === 140) return 1;
-      return 5;
-    };
-
-    const results = docs
-      .sort(
-        (a, b) =>
-          sideRank(a.productId) - sideRank(b.productId) ||
-          heightRank(a.heightCm) - heightRank(b.heightCm) ||
-          (a.price ?? Infinity) - (b.price ?? Infinity),
-      )
-      .slice(0, 3);
-
-    res.json({ input: { bucket, side: wantSide }, results });
-  } catch (e) {
-    console.error("bathtubs/screens/suggest error:", e);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-/**
- * SCREEN RECOMMENDATION (hint only)
- * GET /api/bathtubs/recommend-screen?bathtubProductId=IRIS...
- *
- * - bucket from tub.widthCm (mapped to [70,75])
- * - side from tub productId (LS/RS)
- * - tries in priority order:
- *   IRISWAS{bucket}{side} -> IRISWA14S{bucket}{side} -> IRISWA14{side}
- * - fallback: cheapest among (IRISWAS{bucket}*, IRISWA14S{bucket}*, IRISWA14L/R)
- */
-r.get("/recommend-screen", async (req, res) => {
-  try {
-    const bathtubProductId = String(req.query.bathtubProductId || "").trim();
-    if (!bathtubProductId) {
-      return res.status(400).json({ error: "bathtubProductId is required" });
-    }
-
-    const tub = await Product.findOne(
-      { productId: bathtubProductId },
-      { productId: 1, name: 1, widthCm: 1 }
-    ).lean();
-
-    if (!tub) return res.status(404).json({ error: "Bathtub not found" });
-
-    const tubWidth = Number(tub.widthCm);
-    const bucket = widthBucketFromTubWidth(tubWidth);
-    const side = tubSideFromProductId(tub.productId); // L/R or null
-
-    if (!bucket) return res.json({ bathtub: tub, recommended: null });
-
-    const candidates = [];
-    const pushSide = (s) => {
-      candidates.push(`IRISWAS${bucket}${s}`);
-      candidates.push(`IRISWA14S${bucket}${s}`);
-      candidates.push(`IRISWA14${s}`);
-    };
-
-    if (side === "L" || side === "R") {
-      pushSide(side);
-      pushSide(side === "L" ? "R" : "L"); // fallback other side
-    } else {
-      pushSide("L");
-      pushSide("R");
-    }
-
-    // 1) exact match on preferred ids
-    let rec = await Product.findOne(
-      { productId: { $in: candidates } },
-      { productId: 1, name: 1, price: 1, heightCm: 1 }
-    ).lean();
-
-    // 2) fallback: cheapest among bucket families + IRISWA14L/R
-    if (!rec) {
-      const reWAS = new RegExp(`^IRISWAS${bucket}`, "i");
-      const reWA14S = new RegExp(`^IRISWA14S${bucket}`, "i");
-
-      const docs = await Product.find(
-        { $or: [{ productId: reWAS }, { productId: reWA14S }, { productId: /^IRISWA14[LR]$/i }] },
-        { productId: 1, name: 1, price: 1, heightCm: 1 }
-      ).lean();
-
-      rec =
-        docs.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity))[0] || null;
-    }
-
-    res.json({
-      bathtub: tub,
-      recommended: rec ? { ...rec, bucket, side } : null,
-    });
-  } catch (e) {
-    console.error("bathtubs/recommend-screen error:", e);
+    console.error("bathtubs/catalog error:", e);
     res.status(500).json({ error: "Server error" });
   }
 });

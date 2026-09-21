@@ -87,8 +87,7 @@ export function initRestoreManager({
     // like a user edit to requestPricingRefresh().
     await Promise.all([
       window.__smartTray?.fetchAndRender?.(),
-      window.__smartBathtub?.fetchAndRender?.(),
-      window.__smartScreenPicker?.refresh?.(),
+      window.__wannePicker?.render?.(),
     ]);
 
     // Wandverkleidung dependencies
