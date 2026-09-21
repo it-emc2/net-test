@@ -10670,574 +10670,235 @@ function initSmartTraySearch() {
 
   window.__smartTray = { fetchAndRender };
 }
-// Smart search for bathtubs (Badewanne). Reuses the same suggestion-card/list CSS.
-// - Visible only when work task "install_bathtub" is selected
-// - Searches /api/products?q=...
-// - Filters to productId starting with "IRIS" but excludes "IRISWAS" (Wannenaufsatz)
-function initBathtubSearch() {
-  const panel = document.getElementById("bathtubSearchPanel");
-  const input = document.getElementById("bathtubSearch");
-  const out = document.getElementById("bathtub-suggestions");
-  const hiddenId = document.getElementById("chosenBathtubProductId");
+/* ========== WANNE PICKER (Optional tab, menu_WANNE) ==========
+   Badewanne + Wannenaufsatz, sourced from the vigor catalog through
+   /api/bathtubs/catalog. The catalog is 18 articles, so it is fetched once and
+   filtered in memory — no per-keystroke request, no debounce, no abort races.
+   Attributes are parsed server-side (routes/bathtubs.js); this only renders. */
+function initWannePicker() {
+  const panel = document.getElementById("menu_WANNE");
+  const grid = document.getElementById("wanneGrid");
+  const filtersEl = document.getElementById("wanneFilters");
+  const countEl = document.getElementById("wanneCount");
+  const summaryEl = document.getElementById("wanneSummary");
+  if (!panel || !grid || !filtersEl) return;
 
-  const task = document.querySelector(
-    'input[name="duschwanne[workTasks][]"][value="install_bathtub"]'
-  );
-
-  if (!panel || !input || !out || !hiddenId || !task) return;
-
-  const toUpper = (v) => String(v || "").toUpperCase();
-
-  const applySelectedStyles = () => {
-    const cards = Array.from(out.querySelectorAll(".suggestion-card"));
-    const checked = out.querySelector('input[name="bathtubSuggestion"]:checked');
-    cards.forEach((card) => {
-      const inEl = card.querySelector('input[name="bathtubSuggestion"]');
-      card.classList.toggle("is-selected", !!checked && inEl === checked);
-    });
+  // Hidden inputs keep their original ids and the payload.duschwanne.* path, so
+  // pricing, restore and saved offers keep working after the move to this tab.
+  const FIELDS = {
+    tub: {
+      id: "chosenBathtubProductId",
+      name: "chosenBathtubName",
+      price: "chosenBathtubPrice",
+      size: "bathtubSize",
+    },
+    screen: {
+      id: "chosenScreenProductId",
+      name: "chosenScreenName",
+      price: "chosenScreenPrice",
+    },
   };
 
-  const applySelection = (inputEl) => {
-    if (!inputEl) return;
-    const pid = inputEl.value || "";
-    hiddenId.value = pid;
-    hiddenId?.dispatchEvent(new Event("change", { bubbles: true }));
-    applySelectedStyles();
+  const FACETS = {
+    tub: [["side", "Seite"], ["schuerze", "Schürze"], ["zulauf", "Zulauf"]],
+    screen: [["side", "Seite"], ["heightCm", "Höhe"], ["seitenwand", "Seitenwand"]],
+  };
+
+  const LABELS = { tub: "Badewanne", screen: "Wannenaufsatz" };
+
+  let items = [];
+  let type = "tub";
+  let filters = {};
+
+  const esc = (s) =>
+    String(s ?? "").replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+    );
+  const eur = (n) => Number(n || 0).toFixed(2).replace(".", ",") + " €";
+  const showVal = (k, v) => (k === "heightCm" ? `${v} cm` : String(v));
+  const ofType = (t) => items.filter((p) => p.type === (t || type));
+
+  // `skip` lets a facet count its own options against the OTHER active filters,
+  // so switching between two options of one facet never shows a zero.
+  const matches = (p, skip) =>
+    Object.entries(filters).every(
+      ([k, v]) => k === skip || v == null || String(p[k]) === String(v),
+    );
+
+  const setHidden = (id, val) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = val == null ? "" : String(val);
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+
+  const selectedId = (t) =>
+    (document.getElementById(FIELDS[t].id)?.value || "").trim();
+  const selectedItem = (t) =>
+    items.find((p) => p.type === t && p.articleNumber === selectedId(t)) || null;
+
+  const tubSizeLabel = (p) =>
+    p.lengthCm && p.widthCm
+      ? `${p.lengthCm} x ${p.widthCm}${p.widthMaxCm && p.widthMaxCm !== p.widthCm ? "/" + p.widthMaxCm : ""} cm`
+      : "";
+
+  // Once a tub is picked, the sensible screen is the cheapest one hinged on the
+  // same side — every Iris tub is 160x70/80, so size no longer discriminates.
+  function recommendedScreenId() {
+    const tub = selectedItem("tub");
+    if (!tub?.side) return null;
+    const same = ofType("screen")
+      .filter((p) => p.side === tub.side)
+      .sort((a, b) => a.netPrice - b.netPrice);
+    return same[0]?.articleNumber || null;
+  }
+
+  function applySelection(p) {
+    const f = FIELDS[p.type];
+    const isSame = selectedId(p.type) === p.articleNumber;
+    setHidden(f.id, isSame ? "" : p.articleNumber);
+    setHidden(f.name, isSame ? "" : p.name);
+    setHidden(f.price, isSame ? "" : p.netPrice);
+    if (f.size) setHidden(f.size, isSame ? "" : tubSizeLabel(p));
+    render();
     window.updatePricing?.();
-  };
+  }
 
-  const showPanel = (on) => {
-    panel.hidden = !on;
-    panel.setAttribute("aria-hidden", on ? "false" : "true");
-    if (!on) {
-      input.value = "";
-      out.innerHTML = "";
-      hiddenId.value = "";
-    }
-  };
-
-  // initial state + toggle on any install_bathtub checkbox (may appear in multiple groups)
-  const allBathtubTasks = document.querySelectorAll('input[name="duschwanne[workTasks][]"][value="install_bathtub"]');
-  const anyBathtubChecked = () => Array.from(allBathtubTasks).some(t => t.checked);
-  showPanel(anyBathtubChecked());
-  allBathtubTasks.forEach(t => t.addEventListener("change", () => showPanel(anyBathtubChecked())));
-
-  function renderSuggestions(list) {
-    if (!Array.isArray(list) || list.length === 0) {
-      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
-      applySelectedStyles();
-      return;
-    }
-
-    const top = list.slice(0, 5);
-
-    const radios = top
-      .map((p, i) => {
-        const id = `bathtub-suggest-${i}`;
-        const title = p.name || p.productId || "Badewanne";
-        const price = p.price != null ? ` — ${Number(p.price).toFixed(2)} €` : "";
-        const value = p.productId || "";
-        return `
-          <label class="suggestion-card" for="${id}">
-            <input type="radio" id="${id}" name="bathtubSuggestion" value="${value}" />
-            <div class="info">
-              <div class="title">${title}</div>
-              <div class="meta">${value}${price}</div>
-            </div>
-          </label>
-        `;
+  function renderFilters() {
+    const reco = recommendedScreenId();
+    filtersEl.innerHTML = FACETS[type]
+      .map(([key, label]) => {
+        const values = [
+          ...new Set(ofType().map((p) => p[key]).filter((v) => v != null && v !== "")),
+        ].sort();
+        if (values.length < 2) return "";
+        const chips = values
+          .map((v) => {
+            const n = ofType().filter(
+              (p) => String(p[key]) === String(v) && matches(p, key),
+            ).length;
+            return `<button type="button" class="wanne-chip" data-fkey="${esc(key)}" data-fval="${esc(v)}"
+              aria-pressed="${String(filters[key]) === String(v)}" ${n ? "" : "disabled"}>${esc(
+                showVal(key, v),
+              )} <span class="n">${n}</span></button>`;
+          })
+          .join("");
+        return `<div class="wanne-fgroup"><div class="wanne-flabel">${esc(label)}</div><div class="wanne-chips">${chips}</div></div>`;
       })
       .join("");
-
-    out.innerHTML = `
-      <div class="suggestion-heading" style="margin-top: 12px;">Vorschläge</div>
-      <div class="suggestion-list">${radios}</div>
-    `;
-
-    out.addEventListener("change", (e) => {
-      if (e.target && e.target.name === "bathtubSuggestion") {
-        applySelection(e.target);
-      }
-    });
-
-    applySelectedStyles();
+    return reco;
   }
 
-  let inflight = null;
-  let reqSeq = 0;
-  let debounceT = null;
-
-  async function fetchAndRender(q) {
-    const query = String(q || "").trim();
-    if (!query) {
-      out.innerHTML = "";
-      return;
-    }
-
-    try { inflight?.abort?.(); } catch {}
-    inflight = new AbortController();
-    const mySeq = ++reqSeq;
-
-    const url = `/api/products?q=${encodeURIComponent(query)}`;
-    out.innerHTML = `<div class="meta">Suche…</div>`;
-
-    try {
-      const r = await fetch(url, { signal: inflight.signal, credentials: "include" });
-      const text = await r.text();
-      if (mySeq !== reqSeq) return;
-      if (!r.ok) {
-        out.innerHTML = `<div class="text-sm text-destructive">Fehler ${r.status}</div><pre class="text-xs">${text}</pre>`;
-        return;
-      }
-
-      const data = JSON.parse(text);
-      const arr = Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : []);
-
-      // Only IRIS* but exclude IRISWAS* (screen)
-      const list = arr
-        .filter((p) => toUpper(p?.productId).startsWith("IRIS"))
-        .filter((p) => !toUpper(p?.productId).startsWith("IRISWAS"));
-
-      renderSuggestions(list);
-    } catch (err) {
-      if (err?.name === "AbortError") return;
-      if (mySeq !== reqSeq) return;
-      out.innerHTML = `<div class="text-sm text-destructive">Netzwerkfehler</div><pre class="text-xs">${String(err)}</pre>`;
-    }
-  }
-
-  const request = () => {
-    clearTimeout(debounceT);
-    debounceT = setTimeout(() => fetchAndRender(input.value), 180);
-  };
-
-  input.addEventListener("input", () => {
-    hiddenId.value = "";
-    request();
-  });
-  input.addEventListener("change", () => {
-    hiddenId.value = "";
-    request();
-  });
-}
-/* ========== SMART BATHTUB SEARCH (same UX as trays) ========== */
-function initSmartBathtubSearch() {
-  // Show only when "install_bathtub" is checked
-  const task = document.querySelector(
-    'input[name="duschwanne[workTasks][]"][value="install_bathtub"]'
-  );
-
-  const panel = document.getElementById("bathtubSearchPanel");
-  const elB = document.querySelector('input[name="bathtub_w_cm"]');
-  const elL = document.querySelector('input[name="bathtub_l_cm"]');
-  const out = document.getElementById("bathtub-suggestions");
-  const hiddenId = document.getElementById("chosenBathtubProductId");
-  const hiddenSize = document.getElementById("bathtubSize");
-
-  if (!panel || !out || (!elB && !elL) || !task) return;
-
-  let inflight = null;
-  let reqSeq = 0;
-  let debounceT = null;
-
-  const showPanel = (on) => {
-    panel.hidden = !on;
-    panel.setAttribute("aria-hidden", on ? "false" : "true");
-    if (!on) {
-      if (elB) elB.value = "";
-      if (elL) elL.value = "";
-      out.innerHTML = "";
-      if (hiddenId) {
-        hiddenId.value = "";
-        hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      if (hiddenSize) hiddenSize.value = "";
-      try { inflight?.abort?.(); } catch {}
-      reqSeq++;
-    }
-  };
-
-  // initial state + toggle on any install_bathtub checkbox (may appear in multiple groups)
-  const allBathtubTasks2 = document.querySelectorAll('input[name="duschwanne[workTasks][]"][value="install_bathtub"]');
-  const anyBathtubChecked2 = () => Array.from(allBathtubTasks2).some(t => t.checked);
-  showPanel(anyBathtubChecked2());
-  allBathtubTasks2.forEach(t => t.addEventListener("change", () => showPanel(anyBathtubChecked2())));
-
-  const parseNum = (v) => {
-    if (v == null) return null;
-    const raw = String(v).trim();
-    if (raw === "") return null;
-    const s = raw.replace(/\./g, "").replace(",", ".");
-    const n = Number(s);
-    if (!Number.isFinite(n)) return null;
-    return n > 0 ? n : null;
-  };
-
-  const makeLabel = (w, l) => (w && l ? `${w} x ${l} cm` : "");
-
-  const applySelectedStyles = () => {
-    const cards = Array.from(out.querySelectorAll(".suggestion-card"));
-    const checked = out.querySelector('input[name="bathtubSuggestion"]:checked');
-    cards.forEach((card) => {
-      const input = card.querySelector('input[name="bathtubSuggestion"]');
-      card.classList.toggle("is-selected", checked && input === checked);
-    });
-  };
-
-  const applySelection = (inputEl) => {
-    if (!inputEl) return;
-    const pid = inputEl.value || "";
-    const w = Number(inputEl.dataset.w) || null;
-    const l = Number(inputEl.dataset.l) || null;
-    const label = makeLabel(w, l);
-
-    if (hiddenId) {
-  hiddenId.value = pid;
-  hiddenId.dispatchEvent(new Event("change", { bubbles: true })); // ✅ important
-}
-if (hiddenSize) hiddenSize.value = label;
-
-applySelectedStyles();
-window.updatePricing?.();
-  };
-
-  function renderSuggestions(list) {
-    if (!Array.isArray(list) || list.length === 0) {
-      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
-      applySelectedStyles();
-      return;
-    }
-
-    const top = list.slice(0, 3);
-    const current = (hiddenId?.value || "").trim();
-
-    const radios = top
-      .map((p, i) => {
-        const id = `bathtub-suggest-${i}`;
-        const dims = `${p.widthCm} × ${p.lengthCm} cm`;
-        const price = p.price != null ? ` — ${Number(p.price).toFixed(2)} €` : "";
-        const title = p.name || p.productId || "Badewanne";
-        const value = p.productId || "";
-
-        return `
-          <label class="suggestion-card" for="${id}">
-            <input type="radio"
-                   id="${id}"
-                   name="bathtubSuggestion"
-                   value="${value}"
-                   ${current && current === value ? "checked" : ""}
-                   data-w="${p.widthCm || ""}"
-                   data-l="${p.lengthCm || ""}" />
-            <div class="info">
-              <div class="title">${title}</div>
-              <div class="meta">${dims}${price}</div>
-            </div>
-          </label>
-        `;
-      })
-      .join("");
-
-    out.innerHTML = `
-      <div class="suggestion-heading" style="margin-top: 12px;">Vorschläge</div>
-      <div class="suggestion-list">${radios}</div>
-    `;
-
-    out.addEventListener("change", (e) => {
-      if (e.target && e.target.name === "bathtubSuggestion") {
-        applySelection(e.target);
-      }
+  function render() {
+    panel.querySelectorAll(".wanne-seg button").forEach((b) => {
+      b.setAttribute("aria-pressed", String(b.dataset.wtype === type));
     });
 
-    applySelectedStyles();
-  }
+    const reco = renderFilters();
+    const all = ofType();
+    const list = all
+      .filter((p) => matches(p))
+      .sort(
+        (a, b) =>
+          (b.articleNumber === reco ? 1 : 0) - (a.articleNumber === reco ? 1 : 0) ||
+          a.netPrice - b.netPrice,
+      );
 
-  // fetch logic (same pattern as trays)
-  async function fetchAndRender() {
-    const b = elB ? parseNum(elB.value) : null;
-    const l = elL ? parseNum(elL.value) : null;
+    if (countEl) countEl.textContent = `${list.length} von ${all.length}`;
 
-    if (b === null && l === null) {
-      out.innerHTML = "";
-      if (hiddenId) {
-  hiddenId.value = "";
-  hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
-}
-      if (hiddenSize) hiddenSize.value = "";
-      try { inflight?.abort?.(); } catch {}
-      reqSeq++;
-      return;
-    }
-
-    const qs = new URLSearchParams();
-    if (b !== null) qs.set("w", String(b));
-    if (l !== null) qs.set("l", String(l));
-    const url = `/api/bathtubs/suggest?${qs.toString()}`;
-
-    try { inflight?.abort?.(); } catch {}
-    inflight = new AbortController();
-    const mySeq = ++reqSeq;
-
-    out.innerHTML = `<div class="meta">Suche… <code>${url}</code></div>`;
-
-    try {
-      const r = await fetch(url, { signal: inflight.signal, credentials: "include" });
-      const text = await r.text();
-      if (mySeq !== reqSeq) return;
-      if (!r.ok) {
-        out.innerHTML = `<div class="text-sm text-destructive">Fehler ${r.status}</div><pre class="text-xs">${text}</pre>`;
-        return;
-      }
-      const data = JSON.parse(text);
-      const list = Array.isArray(data?.results) ? data.results : [];
-      renderSuggestions(list);
-    } catch (err) {
-      if (err?.name === "AbortError") return;
-      if (mySeq !== reqSeq) return;
-      out.innerHTML = `<div class="text-sm text-destructive">Netzwerkfehler</div><pre class="text-xs">${String(err)}</pre>`;
-    }
-  }
-
-  const request = () => {
-    clearTimeout(debounceT);
-    debounceT = setTimeout(fetchAndRender, 160);
-  };
-
-  [elB, elL].forEach((el) => {
-    if (!el) return;
-    el.addEventListener("input", () => {
-      if (hiddenId) {
-        hiddenId.value = "";
-        hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      if (hiddenSize) hiddenSize.value = makeLabel(parseNum(elB?.value), parseNum(elL?.value));
-      request();
-    });
-    el.addEventListener("change", () => {
-      if (hiddenId) hiddenId.value = "";
-      request();
-    });
-  });
-
-  // initial kick
-  request();
-
-  window.__smartBathtub = { fetchAndRender };
-}
-function initSmartScreenPickerBucket() {
-  const task = document.querySelector(
-    'input[name="duschwanne[workTasks][]"][value="install_bathtub_screen"]',
-  );
-
-  const bathtubIdEl = document.getElementById("chosenBathtubProductId");
-  const panel = document.getElementById("screenPickerPanel");
-  const hint = document.getElementById("screen-reco-hint");
-  const out = document.getElementById("screen-suggestions");
-  const chosen = document.getElementById("chosenScreenProductId");
-
-  const elW = document.querySelector('input[name="screen_w_cm"]');
-  const elH = document.querySelector('input[name="screen_h_cm"]');
-
-  if (!task || !bathtubIdEl || !panel || !hint || !out || !chosen) return;
-
-  let inflight = null;
-  let reqSeq = 0;
-  let debounceT = null;
-
-  const parseNum = (v) => {
-    if (v == null) return null;
-    const s = String(v).trim().replace(/\./g, "").replace(",", ".");
-    if (!s) return null;
-    const n = Number(s);
-    return Number.isFinite(n) && n > 0 ? n : null;
-  };
-
-  const setVisible = (on) => {
-    panel.hidden = !on;
-    panel.setAttribute("aria-hidden", on ? "false" : "true");
-    if (!on) {
-      hint.textContent = "";
-      out.innerHTML = "";
-      chosen.value = "";
-      if (elW) elW.value = "";
-      if (elH) elH.value = "";
-      try {
-        inflight?.abort?.();
-      } catch {}
-      reqSeq++;
-    }
-  };
-
-  const applySelectedStyles = () => {
-    const cards = Array.from(out.querySelectorAll(".suggestion-card"));
-    const checked = out.querySelector('input[name="screenSuggestion"]:checked');
-    cards.forEach((card) => {
-      const input = card.querySelector('input[name="screenSuggestion"]');
-      card.classList.toggle("is-selected", checked && input === checked);
-    });
-  };
-
-  const renderSuggestions = (list) => {
-    if (!Array.isArray(list) || list.length === 0) {
-      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
-      applySelectedStyles();
-      return;
-    }
-
-    const top = list.slice(0, 3);
-    const current = (chosen.value || "").trim();
-
-    out.innerHTML = `
-      <div class="suggestion-heading" style="margin-top: 12px;">Vorschläge</div>
-      ${top
-        .map((p, i) => {
-          const id = `screen-suggest-${i}`;
-          const price = p.price != null ? ` — ${Number(p.price).toFixed(2)} €` : "";
-          const title = p.name || p.productId || "Wannenaufsatz";
-          const value = p.productId || "";
-          const checked = current && current === value ? "checked" : "";
-          return `
-            <label class="suggestion-card" for="${id}">
-              <input
-                type="radio"
-                id="${id}"
-                name="screenSuggestion"
-                value="${value}"
-                ${checked}
-              />
-              <div class="info">
-                <div class="title">${window.escapeHtml ? escapeHtml(title) : title}</div>
-                <div class="meta">${value}${price}</div>
-              </div>
-            </label>
-          `;
+    const chosen = selectedId(type);
+    grid.innerHTML =
+      list
+        .map((p) => {
+          const pills = FACETS[type]
+            .map(([k]) =>
+              p[k] == null || p[k] === ""
+                ? ""
+                : `<span class="wanne-pill">${esc(showVal(k, p[k]))}</span>`,
+            )
+            .join("");
+          return `<button type="button" class="wanne-card" data-art="${esc(p.articleNumber)}"
+            aria-pressed="${chosen === p.articleNumber}">
+            ${p.articleNumber === reco ? '<span class="wanne-reco">Empfohlen</span><br>' : ""}
+            <span class="wanne-art">${esc(p.articleNumber)}</span>
+            <div class="wanne-name">${esc(p.name)}</div>
+            <div class="wanne-pills">${pills}</div>
+            <div class="wanne-finish">${esc(p.finish)}</div>
+            <div class="wanne-price">${eur(p.netPrice)}</div>
+          </button>`;
         })
-        .join("")}
-    `;
+        .join("") ||
+      `<div class="muted">Keine Treffer. Filter lockern.</div>`;
 
-    out.querySelectorAll('input[name="screenSuggestion"]').forEach((r) => {
-      r.addEventListener("change", () => {
-        chosen.value = r.value || "";
-        applySelectedStyles();
-        window.updatePricing?.();
-      });
-    });
-
-    applySelectedStyles();
-  };
-
-  async function refreshInternal() {
-    const wants = !!task.checked;
-    if (!wants) {
-      setVisible(false);
-      return;
-    }
-
-    setVisible(true);
-
-    const bathtubPid = (bathtubIdEl.value || "").trim();
-    if (!bathtubPid) {
-      hint.textContent = "Bitte zuerst eine Badewanne auswählen.";
-      out.innerHTML = "";
-      chosen.value = "";
-      return;
-    }
-
-    // Manual input takes priority over bucket suggestions
-    const w = parseNum(elW?.value);
-    const h = parseNum(elH?.value);
-    const hasManual = w !== null || h !== null;
-
-    // We still fetch recommendation to show the hint (and maybe side)
-    hint.textContent = "Empfehlung wird geladen…";
-    out.innerHTML = `<div class="meta">Suche…</div>`;
-
-    try {
-      inflight?.abort?.();
-    } catch {}
-    inflight = new AbortController();
-    const mySeq = ++reqSeq;
-
-    const recUrl = `/api/bathtubs/recommend-screen?bathtubProductId=${encodeURIComponent(
-      bathtubPid,
-    )}`;
-
-    const recRes = await fetch(recUrl, {
-      signal: inflight.signal,
-      credentials: "include",
-    });
-
-    const recText = await recRes.text();
-    if (mySeq !== reqSeq) return;
-    if (!recRes.ok) {
-      hint.textContent = "Empfehlung konnte nicht geladen werden.";
-      out.innerHTML = `<pre class="text-xs">${recText}</pre>`;
-      return;
-    }
-
-    const recData = JSON.parse(recText);
-    const rec = recData?.recommended;
-
-    if (!rec || !rec.bucket) {
-      hint.textContent = "Keine Empfehlung gefunden.";
-      out.innerHTML = "";
-      return;
-    }
-
-    // show hint always (even if manual mode)
-    hint.textContent = `Empfohlen: ${rec.productId}`;
-
-    // Build suggest query
-    const qs = new URLSearchParams();
-
-    if (hasManual) {
-      // manual search takes priority
-      if (w !== null) qs.set("w", String(w));
-      if (h !== null) qs.set("h", String(h));
-      // optional: keep side preference if backend supports it
-      if (rec.side === "L" || rec.side === "R") qs.set("side", rec.side);
-    } else {
-      // default bucket search
-      qs.set("bucket", String(rec.bucket));
-      if (rec.side === "L" || rec.side === "R") qs.set("side", rec.side);
-    }
-
-    const sugUrl = `/api/bathtubs/screens/suggest?${qs.toString()}`;
-
-    const sugRes = await fetch(sugUrl, {
-      signal: inflight.signal,
-      credentials: "include",
-    });
-
-    const sugText = await sugRes.text();
-    if (mySeq !== reqSeq) return;
-    if (!sugRes.ok) {
-      out.innerHTML = `<div class="text-sm text-destructive">Fehler ${sugRes.status}</div><pre class="text-xs">${sugText}</pre>`;
-      return;
-    }
-
-    const sugData = JSON.parse(sugText);
-    renderSuggestions(Array.isArray(sugData?.results) ? sugData.results : []);
+    renderSummary();
   }
 
-  const refresh = () => {
-    clearTimeout(debounceT);
-    debounceT = setTimeout(refreshInternal, 150);
-  };
+  function renderSummary() {
+    if (!summaryEl) return;
+    const tub = selectedItem("tub");
+    const screen = selectedItem("screen");
+    if (!tub && !screen) {
+      summaryEl.innerHTML = `<span class="muted">Noch nichts ausgewählt.</span>`;
+      return;
+    }
+    const rows = [
+      tub && `${LABELS.tub}: <strong>${esc(tub.articleNumber)}</strong> — ${eur(tub.netPrice)}`,
+      screen &&
+        `${LABELS.screen}: <strong>${esc(screen.articleNumber)}</strong> — ${eur(screen.netPrice)}`,
+    ].filter(Boolean);
+    const total = (tub?.netPrice || 0) + (screen?.netPrice || 0);
+    summaryEl.innerHTML =
+      rows.join("<br>") + `<div style="margin-top:6px"><strong>Summe: ${eur(total)}</strong></div>`;
+  }
 
-  // triggers
-  task.addEventListener("change", refresh);
-  bathtubIdEl.addEventListener("change", refresh);
-
-  // manual input triggers (priority)
-  [elW, elH].forEach((el) => {
-    if (!el) return;
-    el.addEventListener("input", refresh);
-    el.addEventListener("change", refresh);
+  panel.addEventListener("click", (e) => {
+    const seg = e.target.closest(".wanne-seg button");
+    if (seg) {
+      type = seg.dataset.wtype;
+      filters = {};
+      return render();
+    }
+    const chip = e.target.closest(".wanne-chip");
+    if (chip && !chip.disabled) {
+      const { fkey, fval } = chip.dataset;
+      filters[fkey] = String(filters[fkey]) === String(fval) ? null : fval;
+      return render();
+    }
+    if (e.target.closest("#wanneReset")) {
+      filters = {};
+      return render();
+    }
+    const card = e.target.closest(".wanne-card");
+    if (card) {
+      const p = items.find((x) => x.articleNumber === card.dataset.art);
+      if (p) applySelection(p);
+    }
   });
 
-  // initial
-  window.__smartScreenPicker = { refresh };
-  refresh();
+  async function load() {
+    try {
+      const res = await fetch("/api/bathtubs/catalog", { credentials: "same-origin" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      items = Array.isArray(data?.items) ? data.items : [];
+    } catch (e) {
+      console.error("[wanne] catalog load failed:", e?.message || e);
+      grid.innerHTML = `<div class="muted">Katalog konnte nicht geladen werden.</div>`;
+      return;
+    }
+    render();
+  }
+
+  // A restored offer fills the hidden inputs after this init runs; re-render so
+  // the saved pick shows as selected instead of an empty-looking grid.
+  ["chosenBathtubProductId", "chosenScreenProductId"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", () => {
+      if (items.length) render();
+    });
+  });
+
+  window.__wannePicker = { reload: load, render };
+  load();
 }
 function initTraySizeAutoLabel() {
   const traySizeEl = document.getElementById("traySize");
@@ -11296,25 +10957,29 @@ function attachDuschwanneToPayload(payload) {
   const pid = document.getElementById("chosenTrayProductId")?.value || null;
   const size = document.getElementById("traySize")?.value || "";
 
-  // bathtub (new)
-  const bPid = document.getElementById("chosenBathtubProductId")?.value || "";
+  // bathtub + screen: picked on the Optional tab (menu_WANNE), but kept on the
+  // duschwanne payload path so saved offers and pricing stay compatible.
+  const val = (id) => (document.getElementById(id)?.value || "").trim();
+  const bPid = val("chosenBathtubProductId");
   const bSize = document.getElementById("bathtubSize")?.value || "";
-
-  // screen (new) - NO DEFAULT
-  const screenPid =
-    document.getElementById("chosenScreenProductId")?.value || "";
+  const screenPid = val("chosenScreenProductId");
 
   payload.duschwanne = payload.duschwanne || {};
   payload.duschwanne.chosenTrayProductId = pid;
   payload.duschwanne.traySize = size;
   payload.duschwanne.trayColor = getTrayColorValue();
 
-  payload.duschwanne.chosenBathtubProductId = bPid.trim() ? bPid.trim() : null;
+  payload.duschwanne.chosenBathtubProductId = bPid || null;
   payload.duschwanne.bathtubSize = bSize;
 
-  payload.duschwanne.wannenaufsatzProductId = screenPid.trim()
-    ? screenPid.trim()
-    : null;
+  payload.duschwanne.wannenaufsatzProductId = screenPid || null;
+
+  // Price/name snapshot from the vigor catalog at selection time. Pricing quotes
+  // the live vigor price and only falls back to these when vigor is unreachable.
+  payload.duschwanne.chosenBathtubName = val("chosenBathtubName") || null;
+  payload.duschwanne.chosenBathtubPrice = Number(val("chosenBathtubPrice")) || null;
+  payload.duschwanne.chosenScreenName = val("chosenScreenName") || null;
+  payload.duschwanne.chosenScreenPrice = Number(val("chosenScreenPrice")) || null;
 
   // Freier Posten: custom tray not found in the DB search
   const dwCustomName = (document.getElementById("dwCustomName")?.value || "").trim();
@@ -13560,20 +13225,18 @@ function restoreTraySelection(dw) {
   // ===== PATCH: restore bathtub + wannenaufsatz =====
 
 // restore bathtub size inputs if present in payload (optional)
-setByNameOrId("bathtub_w_cm", dw.bathtub_w_cm);
-setByNameOrId("bathtub_l_cm", dw.bathtub_l_cm);
-
 // restore bathtub hidden fields
 setHiddenById("chosenBathtubProductId", dw.chosenBathtubProductId);
 setHiddenById("bathtubSize", dw.bathtubSize);
+setHiddenById("chosenBathtubName", dw.chosenBathtubName);
+setHiddenById("chosenBathtubPrice", dw.chosenBathtubPrice);
 
-// screen id is stored in payload as wannenaufsatzProductId
-const screenPid = dw.wannenaufsatzProductId || "";
+// screen id is stored as wannenaufsatzProductId; offers saved before the move
+// to the Optional tab used chosenScreenProductId, so accept either.
+const screenPid = dw.wannenaufsatzProductId || dw.chosenScreenProductId || "";
 setHiddenById("chosenScreenProductId", screenPid);
-
-// restore manual screen search inputs if you store them (optional)
-setByNameOrId("screen_w_cm", dw.screen_w_cm);
-setByNameOrId("screen_h_cm", dw.screen_h_cm);
+setHiddenById("chosenScreenName", dw.chosenScreenName);
+setHiddenById("chosenScreenPrice", dw.chosenScreenPrice);
 
 // persist selections for smart UIs (so radios re-check)
 try {
@@ -15656,17 +15319,8 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
   ) {
     window.__smartTray.fetchAndRender();
   }
-  if (
-    window.__smartBathtub &&
-    typeof window.__smartBathtub.fetchAndRender === "function"
-  ) {
-    window.__smartBathtub.fetchAndRender();
-  }
-  if (
-    window.__smartScreenPicker &&
-    typeof window.__smartScreenPicker.refresh === "function"
-  ) {
-    window.__smartScreenPicker.refresh();
+  if (window.__wannePicker && typeof window.__wannePicker.render === "function") {
+    window.__wannePicker.render();
   }
 
   // Wandverkleidung dependencies
@@ -16051,20 +15705,18 @@ function restoreDuschwanne(dw) {
   setByNameOrId("dwCustomQty", dwCustom?.qty || 1);
   setByNameOrId("dwCustomId", dwCustom?.productId || "");
 
-  // ===== NEW: restore bathtub + wannenaufsatz =====
-  setByNameOrId("bathtub_w_cm", dw.bathtub_w_cm);
-  setByNameOrId("bathtub_l_cm", dw.bathtub_l_cm);
-
+  // ===== restore bathtub + wannenaufsatz (Optional tab, menu_WANNE) =====
   setHiddenById("chosenBathtubProductId", dw.chosenBathtubProductId);
   setHiddenById("bathtubSize", dw.bathtubSize);
+  setHiddenById("chosenBathtubName", dw.chosenBathtubName);
+  setHiddenById("chosenBathtubPrice", dw.chosenBathtubPrice);
 
+  // Offers saved before the move used chosenScreenProductId — accept either.
   const screenPid =
     dw.wannenaufsatzProductId || dw.chosenScreenProductId || "";
   setHiddenById("chosenScreenProductId", screenPid);
-
-  // (optional) manual screen search inputs if stored
-  setByNameOrId("screen_w_cm", dw.screen_w_cm);
-  setByNameOrId("screen_h_cm", dw.screen_h_cm);
+  setHiddenById("chosenScreenName", dw.chosenScreenName);
+  setHiddenById("chosenScreenPrice", dw.chosenScreenPrice);
 
   // work tasks
   if (typeof restoreWorkTasks === "function") {
@@ -21361,6 +21013,12 @@ function initOptionalUX() {
         (row) => (row.querySelector(".opt-name")?.value || "").trim()
       ).length;
     }
+    // The Wanne picker selects into hidden fields, not checkboxes.
+    if (menuId === "menu_WANNE") {
+      return ["chosenBathtubProductId", "chosenScreenProductId"].filter(
+        (id) => (document.getElementById(id)?.value || "").trim()
+      ).length;
+    }
     return menu.querySelectorAll('input[type="checkbox"]:checked').length;
   };
 
@@ -21548,6 +21206,28 @@ function initOptionalUX() {
         });
         return;
       }
+      if (menuId === "menu_WANNE") {
+        [
+          ["chosenBathtubProductId", ["chosenBathtubName", "chosenBathtubPrice", "bathtubSize"]],
+          ["chosenScreenProductId", ["chosenScreenName", "chosenScreenPrice"]],
+        ].forEach(([idField, alsoClear]) => {
+          const el = document.getElementById(idField);
+          const art = (el?.value || "").trim();
+          if (!art) return;
+          total++;
+          chipsWrap.appendChild(
+            makeChip(art, group, () => {
+              [idField, ...alsoClear].forEach((id) => {
+                const f = document.getElementById(id);
+                if (f) f.value = "";
+              });
+              el.dispatchEvent(new Event("change", { bubbles: true }));
+              window.updatePricing?.();
+            })
+          );
+        });
+        return;
+      }
       menu
         .querySelectorAll('input[type="checkbox"]:checked')
         .forEach((cb) => {
@@ -21616,10 +21296,7 @@ document.addEventListener("DOMContentLoaded", () => {
   safeInit("initOptionalSonderprodukte", initOptionalSonderprodukte);
   safeInit("initOptionalUX", typeof initOptionalUX !== "undefined" ? initOptionalUX : null);
 
-  // ✅ these two control what you're missing in the screenshot
-  safeInit("initBathtubSearch", initBathtubSearch);
-  safeInit("initSmartBathtubSearch", initSmartBathtubSearch);
-  safeInit("initSmartScreenPickerBucket", initSmartScreenPickerBucket);
+  safeInit("initWannePicker", initWannePicker);
 
   safeInit("initStateDrivenPricingSync", initStateDrivenPricingSync);
   safeInit("initLivePricingSync", initLivePricingSync);
