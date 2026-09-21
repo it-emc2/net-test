@@ -26968,9 +26968,6 @@ function renderTodayPlanningOverview({ first, last, startMinutes, endMinutes } =
   }
 
   const departure = firstStart - startMinutes;
-  const lastEnd = lastStart + lastDuration;
-  const returnTime = lastEnd + endMinutes;
-  const totalTravel = startMinutes + endMinutes;
 
   el.hidden = false;
   el.innerHTML = `
@@ -26983,16 +26980,6 @@ function renderTodayPlanningOverview({ first, last, startMinutes, endMinutes } =
       <span class="day-overview__label">Erster Termin</span>
       <span class="day-overview__value">${formatMinutesAsClock(firstStart)}</span>
       <span class="day-overview__sub">${escapePlanningHtml(first?.name || "")}</span>
-    </div>
-    <div class="day-overview__cell">
-      <span class="day-overview__label">Letzter Termin endet</span>
-      <span class="day-overview__value">${formatMinutesAsClock(lastEnd)}</span>
-      <span class="day-overview__sub">${escapePlanningHtml(last?.name || "")}</span>
-    </div>
-    <div class="day-overview__cell is-end">
-      <span class="day-overview__label"><i class="fa-solid fa-arrow-right-to-bracket"></i> Rückkehr Firma</span>
-      <span class="day-overview__value">${formatMinutesAsClock(returnTime)}</span>
-      <span class="day-overview__sub">${endMinutes} Min Rückfahrt · ${totalTravel} Min Fahrzeit gesamt</span>
     </div>
   `;
 }
