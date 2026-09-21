@@ -10705,6 +10705,22 @@ function initWannePicker() {
   };
 
   const LABELS = { tub: "Badewanne", screen: "Wannenaufsatz" };
+  const FALLBACK_IMG = "./assets/vk-brutto.jpg";
+
+  // Product images come from the scraper's CDN. If one 404s or the CDN is
+  // unreachable, swap in the local placeholder rather than showing a broken
+  // image. "error" does not bubble, hence the capturing listener; an inline
+  // onerror would need 'unsafe-inline' in the CSP script-src.
+  grid.addEventListener(
+    "error",
+    (e) => {
+      const img = e.target;
+      if (img?.tagName !== "IMG" || img.dataset.fallback) return;
+      img.dataset.fallback = "1";
+      img.src = FALLBACK_IMG;
+    },
+    true,
+  );
 
   let items = [];
   let type = "tub";
@@ -10817,14 +10833,21 @@ function initWannePicker() {
                 : `<span class="wanne-pill">${esc(showVal(k, p[k]))}</span>`,
             )
             .join("");
+          // alt="" on purpose: the name sits right beside it, so the image is
+          // decorative and a screen reader would otherwise read it twice.
+          // No loading="lazy": the grid renders while the panel is still
+          // hidden, so lazy images never enter the viewport and never load.
           return `<button type="button" class="wanne-card" data-art="${esc(p.articleNumber)}"
             aria-pressed="${chosen === p.articleNumber}">
-            ${p.articleNumber === reco ? '<span class="wanne-reco">Empfohlen</span><br>' : ""}
-            <span class="wanne-art">${esc(p.articleNumber)}</span>
-            <div class="wanne-name">${esc(p.name)}</div>
-            <div class="wanne-pills">${pills}</div>
-            <div class="wanne-finish">${esc(p.finish)}</div>
-            <div class="wanne-price">${eur(p.netPrice)}</div>
+            <span class="wanne-thumb"><img src="${esc(p.image || FALLBACK_IMG)}" alt="" /></span>
+            <span class="wanne-body">
+              ${p.articleNumber === reco ? '<span class="wanne-reco">Empfohlen</span><br>' : ""}
+              <span class="wanne-art">${esc(p.articleNumber)}</span>
+              <div class="wanne-name">${esc(p.name)}</div>
+              <div class="wanne-pills">${pills}</div>
+              <div class="wanne-finish">${esc(p.finish)}</div>
+              <div class="wanne-price">${eur(p.netPrice)}</div>
+            </span>
           </button>`;
         })
         .join("") ||

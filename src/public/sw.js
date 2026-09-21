@@ -238,8 +238,14 @@ async function cacheFirst(request) {
   const res = await fetch(request);
   // Cross-origin images without CORS come back opaque (status 0), which is
   // still worth keeping — the browser can render it, we just can't inspect it.
+  // The write is only an optimisation, and browsers disagree about storing
+  // opaque responses, so a rejected put must not take the image down with it.
   if (res && (res.ok || res.type === "opaque")) {
-    await cache.put(request, res.clone());
+    try {
+      await cache.put(request, res.clone());
+    } catch (e) {
+      console.warn("[sw] could not cache", request.url, e?.message || e);
+    }
   }
   return res;
 }

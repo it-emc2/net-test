@@ -90,3 +90,17 @@ test('screen: 140 cm COMBY variant is distinguished from the 150 cm one', () => 
 test('a doc without an article number is dropped', () => {
   expect(parseWanneDoc({ name: 'x', finish: 'y' })).toBeNull();
 });
+
+// The picker renders the scraper's CDN url directly and falls back to a local
+// placeholder when there is none, so the field must be the url or null — never
+// an empty string or undefined, which would render as a broken <img src="">.
+test('image passes the first scraper url through, or null when absent', () => {
+  const withImg = parseWanneDoc({
+    ...doc('IRISWA14L', 'n', 'f'),
+    images: ['https://media.onlineplus.store/abc', 'https://media.onlineplus.store/def'],
+  });
+  expect(withImg.image).toBe('https://media.onlineplus.store/abc');
+
+  expect(parseWanneDoc(doc('IRISWA14L', 'n', 'f')).image).toBeNull();
+  expect(parseWanneDoc({ ...doc('IRISWA14L', 'n', 'f'), images: [] }).image).toBeNull();
+});

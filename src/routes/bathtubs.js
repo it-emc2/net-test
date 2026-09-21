@@ -45,6 +45,12 @@ export function parseWanneDoc(doc) {
     unit: doc?.unit || "Stück",
     brand: doc?.brand || null,
     side,
+    // Served straight from the scraper's CDN, which app.js already allows in
+    // the CSP img-src — so nothing is downloaded into the repo and the picture
+    // follows whatever the scraper last saw. The 8 COMBY screens legitimately
+    // share two images (one per side): they differ only in height and side
+    // panel width, which a product photo does not show.
+    image: doc?.images?.[0] || null,
   };
 
   if (!isScreen) {
@@ -110,6 +116,7 @@ r.get("/catalog", async (_req, res) => {
             grosPrice: 1,
             unit: 1,
             brand: 1,
+            images: 1,
             lastSeenAt: 1,
           },
         },
