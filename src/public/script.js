@@ -10863,8 +10863,8 @@ function initSmartTraySearch() {
             <div class="sc-badges">
               ${isBest ? `<span class="sc-badge sc-badge--best">Beste Übereinstimmung</span>` : ""}
               <span class="sc-badge sc-badge--source">${sourceLabel}</span>
-              ${stockBadge}
             </div>
+            ${stockBadge}
           </div>
           <div class="sc-check" aria-hidden="true">✓</div>
         </label>
