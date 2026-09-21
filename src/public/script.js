@@ -13562,6 +13562,9 @@ async function applySentOfferState(offer) {
         nr ? `${nr} — Preise werden neu berechnet.` : "Preise werden neu berechnet.",
       );
       window.requestPricingRefresh?.({ reason: "new-offer-version" });
+      window.dispatchEvent(
+        new CustomEvent("offerflow:changed", { detail: { reason: "new-offer-version" } }),
+      );
     },
   });
 }
