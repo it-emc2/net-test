@@ -320,7 +320,7 @@ function interactivePaymentBlock(data) {
         )
         .join("")}
     </div>
-    ${footer.map((f) => `<p class="muted" style="font-size:10.5pt;">${esc(f)}</p>`).join("")}`;
+    ${footer.map((f) => `<p>${esc(f)}</p>`).join("")}`;
 }
 
 // ---- Angebot as HTML (same content as the docx offer, clean layout) ----
