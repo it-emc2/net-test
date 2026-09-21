@@ -10379,7 +10379,14 @@ function trayStockState(p) {
 // AGB001/AC004 ↔ AGD9060/KM02); the other two decide which tiles are offered, and
 // the chosen product carries its own price either way.
 const PRODUKT_LINES = {
-  duschwanne: { toggle: "budgetToggle", page: "page-Duschwanne", groups: [] },
+  duschwanne: {
+    toggle: "budgetToggle",
+    page: "page-Duschwanne",
+    // No premium id: there is nothing to hide on that side, the row simply doesn't
+    // exist for Premium. setGroupActive/clearHiddenLineSelection no-op on a
+    // missing element, so leaving it out is safe.
+    groups: [{ premium: "", standard: "dwAbflussBadoluxRow", what: "Abfluss (Badolux)" }],
+  },
   fussboden: {
     toggle: "floorLineToggle",
     page: "page-Fussboden",
@@ -15317,6 +15324,7 @@ function restoreDuschwanne(dw) {
   setCheckbox("ebenerdigeToggle", !!dw.ebenerdigeMontage);
   setCheckbox("abdichtSet", !!dw.abdichtSet);
   setCheckbox("drainSet", !!dw.drainSet);
+  setCheckbox("drainBadolux", dw.drainBadolux == null ? true : !!dw.drainBadolux);
   setCheckbox("smallMaterial", !!dw.smallMaterial);
   setCheckbox("stelzlager", !!dw.stelzlager);
   if (dw.stelzlagerQty != null) {
@@ -16617,6 +16625,7 @@ function restoreDuschwanne(dw) {
   setCheckbox("ebenerdigeToggle", !!dw.ebenerdigeMontage);
   setCheckbox("abdichtSet", !!dw.abdichtSet);
   setCheckbox("drainSet", !!dw.drainSet);
+  setCheckbox("drainBadolux", dw.drainBadolux == null ? true : !!dw.drainBadolux);
   setCheckbox("smallMaterial", !!dw.smallMaterial);
   setCheckbox("stelzlager", !!dw.stelzlager);
   if (dw.stelzlagerQty != null) {

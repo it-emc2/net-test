@@ -150,6 +150,10 @@ push('SLB001', 'Schwallleiste zu Duschwannen ohne Rand', 13.62);
             heightCm: p.heightCm ?? null,
             lengthCm: p.lengthCm ?? null,
             source: 'badolux',
+            // Every Badolux product must carry this: it's what excludes it from the
+            // Hassmann Warenkorb CSV export (see routes/material-overview.js) and
+            // what future order-automation will key off to batch Badolux orders.
+            manufacturer: 'Badolux',
           },
         },
         upsert: true,

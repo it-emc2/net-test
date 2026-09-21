@@ -682,21 +682,17 @@ function grossToNet(gross, taxRate) {
   });
 };
 
-   const isBudgetMode =
-  !!dusch?.budgetMode ||
-  dusch?.budgetMode === "1" ||
-  dusch?.budgetMode === 1 ||
-  dusch?.budgetMode === true;
     // ------- Duschwanne ancillary
     setCat("Kleinmaterial");
     if (dusch.abdichtSet) add("TRWDB", 1);
- 
 
-if (dusch.drainSet) add(isBudgetMode ? "AGB001" : "AGD9060", 1);
-    // Budget flag is purely additive: old offers won't have it -> treated as OFF.
-
-
-if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
+    // Standard/Premium only swaps the accessory images (BadoluxManager); price and
+    // product stay AGD9060/KM02 either way, so switching the line never changes an
+    // already-priced offer.
+    if (dusch.drainSet) add("AGD9060", 1);
+    if (dusch.smallMaterial) add("KM02", 1);
+    // Standard-only extra row: Badolux drain, on top of the Ablaufgarnitur above.
+    if (dusch.drainBadolux) add("AGB001", 1);
     if (dusch.stelzlager) {
       const stelzQty = Math.max(1, parseInt(dusch.stelzlagerQty, 10) || cfg.get('BU_STELZLAGER_DEFAULT_QTY', 8));
       add("PLA5282", stelzQty);
