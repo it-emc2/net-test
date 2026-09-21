@@ -156,6 +156,11 @@ app.use(
           "https://bau-formular.fly.dev",
           // if your viewer fetches PDFs or assets from unpkg via fetch/XHR:
           "https://unpkg.com",
+          // sw.js caches product images from this host (IMAGE_HOSTS) by
+          // re-fetching them, and a service worker's fetch() is governed by
+          // connect-src, not img-src. Without it every CDN product image fails
+          // with ERR_FAILED as soon as the offline shell is registered.
+          "https://media.onlineplus.store",
         ],
 
         objectSrc: ["'none'"],
