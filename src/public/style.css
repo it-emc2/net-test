@@ -1893,6 +1893,13 @@ a.btn {
   grid-template-rows: subgrid;
 }
 
+/* display:grid above would otherwise beat [hidden] (same gotcha as
+   .sonderaufschlag-auto-row) — the Standard-only Badolux drain row must
+   actually disappear when Premium is active, not just get aria-hidden. */
+.dw-tray-extras-grid > .field[hidden] {
+  display: none;
+}
+
 .dw-tray-extras-grid > .field .image-check {
   width: 100%;
   height: 100%;

@@ -4292,8 +4292,30 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
 
+          <!-- Standard-only, extra to the Ablaufgarnitur above (Badolux drain). 5th grid
+               item: with only 4 columns fitting per row it naturally wraps below 1-4,
+               same card size, no separate layout needed. Shown/enabled only in the
+               Standard line (see PRODUKT_LINES.duschwanne in script.js); price stays
+               AGB001's own, it does not replace AGD9060. -->
+          <div class="field" id="dwAbflussBadoluxRow" hidden aria-hidden="true">
+            <label class="req">Abfluss für Duschwanne mit und ohne Rand</label>
+            <label class="image-check" data-product-id="AGB001">
+              <input
+                type="checkbox"
+                id="drainBadolux"
+                name="drainBadolux"
+                value="Abfluss für Duschwanne mit und ohne Rand"
+                data-product-id="AGB001"
+                checked
+              />
+              <span class="img-wrap">
+                <img src="./assets/budget/AGB001.png" alt="Abfluss für Duschwanne mit und ohne Rand" />
+              </span>
+              <span class="caption">Abfluss für Duschwanne mit und ohne Rand</span>
+            </label>
           </div>
 
+          </div>
 
           <div class="actions full">
             <button type="button" data-nav="prev" class="secondary">
