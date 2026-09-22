@@ -618,7 +618,7 @@ function grossToNet(gross, taxRate) {
     return notes;
   }
 
-  async function computeMaterials(payload, priorSnapshot) {
+  async function computeMaterials(payload, priorSnapshot, isLockedOffer = false) {
     const offer = getActiveOffer(payload); // 'bu' | 'bwt' | 'hl'
     const markupPctForBwt = extractMarkupPct(payload); // 0.35 for "35%", etc.
 
@@ -1316,7 +1316,14 @@ console.log("[REHA DEBUG] selections =", selections);
         // button (__forceLiveVigorPricing) — so it should also adopt a
         // higher/lower live Vigor price here, not just report the drift and
         // keep the quoted one.
-        const isSavedOffer = !!savedOfferNumber && payload?.forceRecompute !== true;
+        //
+        // Gated on `isLockedOffer` (an actual sent Offer, DB-verified —
+        // see computePrices) rather than "offerNumber is non-empty": every
+        // draft gets an offerNumber from the moment it's created, long
+        // before anything is saved, so a string-truthiness check treated
+        // every fresh draft as "already quoted" and showed phantom price
+        // drift. Only a truly sent, locked offer keeps its old price.
+        const isSavedOffer = isLockedOffer && payload?.forceRecompute !== true;
         const driftLines = [];
         let liveNet = new Map();
         const configIds = qa
@@ -1574,14 +1581,18 @@ if (infoLines.length) {
   finalLabel += "\n" + infoLines.map((t) => "   • " + t).join("\n");
 }
 
-      // Line was quoted before (this offer/draft was saved already) and its
-      // live DB price has since moved: keep billing the quoted price and
-      // flag the difference, exactly like the Vigor check below — but for
-      // any plain DB-priced line, not just Duschabtrennung config rows.
+      // Line was quoted before on a SENT offer (isLockedOffer, DB-verified)
+      // and its live DB price has since moved: keep billing the quoted
+      // price and flag the difference, exactly like the Vigor check below
+      // — but for any plain DB-priced line, not just Duschabtrennung config
+      // rows. Gated on isLockedOffer, not just "a priorSnapshot exists",
+      // because priorSnapshot can also be an unsent Draft's own last save —
+      // that's not a quote to protect, just this draft's previous state,
+      // and comparing against it produced phantom drift on every edit.
       // forceRecompute ("Preis neu berechnen") skips this and adopts the
       // live price, same as it already does for Vigor lines.
       let lineCurrentNet = null;
-      if (payload?.forceRecompute !== true) {
+      if (isLockedOffer && payload?.forceRecompute !== true) {
         const priorUnit = priorUnitById.get(l.id) || 0;
         if (priorUnit > 0 && Math.abs(unit - priorUnit) >= 0.005) {
           lineCurrentNet = unit;
@@ -2144,7 +2155,7 @@ color: metaColor || null,
 
       let materials = { title: "", lines: [], sum: 0 };
       try {
-        materials = await computeMaterials(payload, priorSnapshot);
+        materials = await computeMaterials(payload, priorSnapshot, !!existingOfferSnapshot?.locked);
       } catch (e) {
         console.error("[pricing] computeMaterials failed:", e);
       }
