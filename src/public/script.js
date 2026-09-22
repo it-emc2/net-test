@@ -1806,6 +1806,9 @@ function bindCompactTimeHelper(inputId, helperId) {
   function emitInputEvents() {
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
+    // Synthetic events are ignored by the global live-pricing listener
+    // (isTrusted === false, to avoid re-pricing on restore), so trigger it here.
+    window.requestPricingRefresh?.({ delay: 80, reason: "compact-time-helper" });
   }
 
   deltaButtons.forEach((button) => {
@@ -2028,6 +2031,9 @@ function applyArbeitszeitSuggestion() {
     window.__settingLaborHoursFromSuggestion = false;
   }, 0);
   window.labor_hours_source = "auto";
+  // Synthetic events above are ignored by the global live-pricing listener
+  // (isTrusted === false), so trigger it here.
+  window.requestPricingRefresh?.({ delay: 80, reason: "arbeitszeit-suggestion-apply" });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
