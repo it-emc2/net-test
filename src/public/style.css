@@ -5122,6 +5122,22 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 .dac-stock-in  .dac-stock-qty { background: #05541f; }
 .dac-stock-out .dac-stock-qty { background: #7a0e21; }
 
+/* Eigenes Lager badge — distinct orange/amber so it stands out from Vigor green */
+.wv-own-lager-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 0.7rem; font-weight: 600;
+  border-radius: 999px; padding: 6px 14px 6px 6px; line-height: 1.5;
+  background: #b45309; color: #fff;
+  margin-top: 4px;
+}
+.wv-own-lager-qty {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; flex: 0 0 auto; border-radius: 50%;
+  background: #78350f; font-variant-numeric: tabular-nums;
+}
+#wvProductCard .wv-own-lager-badge,
+#wvcProductCard .wv-own-lager-badge { display: inline-flex; }
+
 /* ---------- Flooring mini calculator ---------- */
 .flooring-panel-head {
   display: flex;

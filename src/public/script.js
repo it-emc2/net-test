@@ -6792,6 +6792,7 @@ fetch("/admin/api/config/public")
     if (typeof d.FAHRZEUGBEREITSTELLUNG === "number") window.__fahrzeugbereitstellung = d.FAHRZEUGBEREITSTELLUNG;
     if (typeof d.WERKZEUG === "number") window.__werkzeug = d.WERKZEUG;
     if (typeof d.BERAEUMUNG === "number") window.__beraeumung = d.BERAEUMUNG;
+    if (d.WV_OWN_LAGER && typeof d.WV_OWN_LAGER === "object") window.__wvOwnLager = d.WV_OWN_LAGER;
     if (typeof window.__refreshFinanzierungUI === "function") window.__refreshFinanzierungUI();
     if (typeof renderTravelCostDebug === "function") renderTravelCostDebug();
   })
@@ -7602,6 +7603,13 @@ function setupWandverkleidungPage() {
       return `<span class="dac-line-stock dac-stock-${inStock ? "in" : "out"}" title="${title}"><span class="dac-stock-qty">${qty}</span>${inStock ? "Auf Lager" : "Auf Bestellung"}</span>`;
     }
 
+    function ownLagerBadge(artId) {
+      const lager = window.__wvOwnLager || {};
+      const qty = lager[artId];
+      if (!qty || qty <= 0) return "";
+      return `<span class="wv-own-lager-badge"><span class="wv-own-lager-qty">${qty}</span>Im eigenen Lager</span>`;
+    }
+
     function buildCardHtml(d, artId) {
       const inStock = d.stockQuantity > 0;
       return `<div class="wv-product-card">
@@ -7615,7 +7623,8 @@ function setupWandverkleidungPage() {
           <div class="wv-product-card-stock ${inStock ? "in" : "out"}">${d.stockText || (inStock ? "Auf Lager" : "Auf Bestellung")}</div>
         </div>
       </div>
-      ${stockSpan(d)}`;
+      ${stockSpan(d)}
+      ${ownLagerBadge(artId)}`;
     }
 
     async function fetchFull(artId) {
@@ -10663,6 +10672,10 @@ document.addEventListener("change", (e) => {
     }
     if (!d) { wvcCardEl.hidden = true; return; }
     const inStock = d.stockQuantity > 0;
+    const ownQty = (window.__wvOwnLager || {})[artId];
+    const ownBadge = (ownQty > 0)
+      ? `<span class="wv-own-lager-badge"><span class="wv-own-lager-qty">${ownQty}</span>Im eigenen Lager</span>`
+      : "";
     wvcCardEl.innerHTML = `<div class="wv-product-card">
       ${d.image ? `<img src="${d.image}" alt="${d.name}" />` : ""}
       <div class="wv-product-card-info">
@@ -10674,7 +10687,8 @@ document.addEventListener("change", (e) => {
         <div class="wv-product-card-stock ${inStock ? "in" : "out"}">${d.stockText || (inStock ? "Auf Lager" : "Auf Bestellung")}</div>
       </div>
     </div>
-    ${wvcStockSpan(d)}`;
+    ${wvcStockSpan(d)}
+    ${ownBadge}`;
     wvcCardEl.hidden = false;
   }
 

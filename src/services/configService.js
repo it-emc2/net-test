@@ -162,6 +162,13 @@ export const CONFIG_SCHEMA = [
     description: 'Bruttowert des Neukundenbonus (Bonus 300 / Bestandkundenbonus)',
   },
 
+  // ── WV EIGENES LAGER ─────────────────────────────────────────────────────
+  {
+    key: 'WV_OWN_LAGER', value: {},
+    label: 'Eigenes WV-Lager', type: 'json', section: 'bu', order: 6,
+    description: 'WV-Artikel im eigenen Lager. Format: {"V3WVK09": 5, "V3WV01": 2}',
+  },
+
   // ── PREISBERECHNUNG ──────────────────────────────────────────────────────
   {
     key: 'AUTO_RECOMPUTE_PRICING', value: true,
