@@ -7688,7 +7688,7 @@ function setupWandverkleidungPage() {
       const lager = window.__wvOwnLager || {};
       const artToColor = buildArtToColor();
 
-      // Summary line above the color grid
+      // Summary line above the color grid — one chip per article (keeps sizes separate)
       const colorsEl = document.getElementById("wvColors");
       if (!colorsEl) return;
       let hint = document.getElementById("wvOwnLagerHint");
@@ -7699,36 +7699,35 @@ function setupWandverkleidungPage() {
         colorsEl.parentElement.insertBefore(hint, colorsEl);
       }
 
-      // Collect in-stock colors (prefer 997 label, deduplicate by colorKey)
-      const seen = new Map();
+      const hintItems = [];
       for (const [artId, qty] of Object.entries(lager)) {
         if (!(qty > 0)) continue;
         const info = artToColor.get(artId);
         if (!info) continue;
-        if (!seen.has(info.colorKey) || info.size === 997) seen.set(info.colorKey, { display: info.display, qty });
+        hintItems.push(`<span class="wv-hint-item">${info.display} ${info.size}mm <strong>${qty}×</strong></span>`);
       }
-      if (seen.size) {
-        const items = [...seen.values()].map(({ display, qty }) => `<span class="wv-hint-item">${display} <strong>${qty}×</strong></span>`).join("");
-        hint.innerHTML = `<span class="wv-hint-label">Eigenes Lager:</span> ${items}`;
+      if (hintItems.length) {
+        hint.innerHTML = `<span class="wv-hint-label">Eigenes Lager:</span> ${hintItems.join("")}`;
         hint.hidden = false;
       } else {
         hint.hidden = true;
       }
 
-      // Tile overlays
+      // Tile overlays — show each available size + qty
       page.querySelectorAll('input[name="wvColor"]').forEach((radio) => {
         const label = radio.closest(".image-check");
         if (!label) return;
         const colorKey = radio.value.trim().toLowerCase();
         const entry = WV_ART_STANDALONE[colorKey];
-        // Check if either size is in own stock
         const qty997 = entry ? (lager[entry[997]] || 0) : 0;
         const qty1497 = entry ? (lager[entry[1497]] || 0) : 0;
-        const totalQty = qty997 + qty1497;
         let badge = label.querySelector(".wv-tile-own-badge");
-        if (totalQty > 0) {
+        if (qty997 > 0 || qty1497 > 0) {
           if (!badge) { badge = document.createElement("span"); badge.className = "wv-tile-own-badge"; label.appendChild(badge); }
-          badge.textContent = `${totalQty} Stk`;
+          const parts = [];
+          if (qty997 > 0) parts.push(`997: ${qty997}`);
+          if (qty1497 > 0) parts.push(`1497: ${qty1497}`);
+          badge.textContent = parts.join(" / ");
         } else if (badge) {
           badge.remove();
         }
@@ -10776,21 +10775,23 @@ document.addEventListener("change", (e) => {
       hint.className = "wv-own-lager-hint";
       colorsEl.parentElement.insertBefore(hint, colorsEl);
     }
-    const seen = new Map();
+    // Build reverse: artId → {display, size}
+    const artToColorWvc = new Map();
+    for (const [ck, entry] of Object.entries(WV_ART)) {
+      const display = ck.replace(/\b\w/g, c => c.toUpperCase());
+      artToColorWvc.set(entry[997],  { display, size: 997 });
+      artToColorWvc.set(entry[1497], { display, size: 1497 });
+    }
+
+    const hintItemsWvc = [];
     for (const [artId, qty] of Object.entries(lager)) {
       if (!(qty > 0)) continue;
-      for (const [ck, entry] of Object.entries(WV_ART)) {
-        if (entry[997] === artId || entry[1497] === artId) {
-          if (!seen.has(ck)) {
-            const display = ck.replace(/\b\w/g, c => c.toUpperCase());
-            seen.set(ck, { display, qty: (lager[entry[997]] || 0) + (lager[entry[1497]] || 0) });
-          }
-        }
-      }
+      const info = artToColorWvc.get(artId);
+      if (!info) continue;
+      hintItemsWvc.push(`<span class="wv-hint-item">${info.display} ${info.size}mm <strong>${qty}×</strong></span>`);
     }
-    if (seen.size) {
-      const items = [...seen.values()].map(({ display, qty }) => `<span class="wv-hint-item">${display} <strong>${qty}×</strong></span>`).join("");
-      hint.innerHTML = `<span class="wv-hint-label">Eigenes Lager:</span> ${items}`;
+    if (hintItemsWvc.length) {
+      hint.innerHTML = `<span class="wv-hint-label">Eigenes Lager:</span> ${hintItemsWvc.join("")}`;
       hint.hidden = false;
     } else {
       hint.hidden = true;
@@ -10801,11 +10802,15 @@ document.addEventListener("change", (e) => {
       if (!label) return;
       const ck = radio.value.trim().toLowerCase();
       const entry = WV_ART[ck];
-      const totalQty = entry ? ((lager[entry[997]] || 0) + (lager[entry[1497]] || 0)) : 0;
+      const qty997 = entry ? (lager[entry[997]] || 0) : 0;
+      const qty1497 = entry ? (lager[entry[1497]] || 0) : 0;
       let badge = label.querySelector(".wv-tile-own-badge");
-      if (totalQty > 0) {
+      if (qty997 > 0 || qty1497 > 0) {
         if (!badge) { badge = document.createElement("span"); badge.className = "wv-tile-own-badge"; label.appendChild(badge); }
-        badge.textContent = `${totalQty} Stk`;
+        const parts = [];
+        if (qty997 > 0) parts.push(`997: ${qty997}`);
+        if (qty1497 > 0) parts.push(`1497: ${qty1497}`);
+        badge.textContent = parts.join(" / ");
       } else if (badge) {
         badge.remove();
       }
