@@ -1510,6 +1510,11 @@ console.log("[REHA DEBUG] selections =", selections);
     // ------- Resolve names/prices once
     const productMap = await getProductsByIds([...idsNeeded]);
 
+    // WV panel articles (V3WV* / V3WVK*) are priced in Vigor, not in the
+    // internal BU Products collection. Look them up live before resolution.
+    const wvArticleIds = [...new Set(lines.map(l => l.id).filter(id => /^V3WVK?\d/.test(id)))];
+    const vigorWvPrices = wvArticleIds.length ? await getLiveVigourNetPrices(wvArticleIds) : new Map();
+
     // Drift on plain DB-priced lines (Optionale Produkte, Material, etc.) —
     // same "keep quoted, warn about the difference" contract the Vigor
     // Duschabtrennung check already applies below, extended to every other
@@ -1529,6 +1534,8 @@ console.log("[REHA DEBUG] selections =", selections);
         unit = round2((Number(prod.price) || 0) / Number(l.perM2Base)); // €/m² from set
       } else if (Number.isFinite(l.unitOverride)) {
         unit = Number(l.unitOverride);
+      } else if (vigorWvPrices.has(l.id)) {
+        unit = Number(vigorWvPrices.get(l.id)) || 0;
       } else {
         unit = Number(prod.price) || 0;
       }
@@ -1555,7 +1562,7 @@ if (l.source === "hl_pipe") {
       const metaColor = typeof l?.meta?.color === "string" ? l.meta.color.trim() : "";
 
       const displayName =
-        metaColor && (l.id === "V3WVK09" || l.id === "V3WV09")
+        metaColor && /^V3WVK?\d/.test(l.id)
           ? `${displayNameBase} — Farbe: ${metaColor}`
           : displayNameBase;
 

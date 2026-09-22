@@ -5106,7 +5106,21 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 .wv-product-card-stock.out { background: #f3f4f6; color: #6b7280; }
 [data-mode="dark"] .wv-product-card { background: rgba(255,255,255,0.06); border-color: rgba(167,139,250,0.25); }
 [data-mode="dark"] .wv-product-card-name { color: #f3f4f6; }
-#wvProductCard .dac-line-stock, #wvcProductCard .dac-line-stock { display: block; margin-top: 6px; }
+#wvProductCard .dac-line-stock, #wvcProductCard .dac-line-stock { display: inline-flex; margin-top: 6px; }
+.dac-line-stock {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 0.7rem; font-weight: 600;
+  border-radius: 999px; padding: 6px 14px 6px 6px; line-height: 1.5;
+}
+.dac-stock-in  { color: #fff; background: #0a7d33; }
+.dac-stock-out { color: #fff; background: #c81e3a; }
+.dac-stock-qty {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; flex: 0 0 auto; border-radius: 50%;
+  font-variant-numeric: tabular-nums;
+}
+.dac-stock-in  .dac-stock-qty { background: #05541f; }
+.dac-stock-out .dac-stock-qty { background: #7a0e21; }
 
 /* ---------- Flooring mini calculator ---------- */
 .flooring-panel-head {
