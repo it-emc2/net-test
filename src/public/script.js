@@ -25105,6 +25105,7 @@ function initHlFlexofitWizard() {
     outside: ["Aluminiumrohr 35mm"],
   };
   const outsideFinish = "Edelstahl gebürstet";
+  const SONDER_TAB = "__sonder__";
 
   let entries = [];
   let entriesByKey = new Map();
@@ -25130,6 +25131,7 @@ function initHlFlexofitWizard() {
       tubes: {}, // catalogKey -> meters
       finish: "",
       fittings: {}, // catalogKey -> qty
+      sonderprodukte: [],
       open: { area: true, rohr: false, beschlaege: false },
       ...overrides,
     };
@@ -25168,15 +25170,18 @@ function initHlFlexofitWizard() {
   const isComplete = (c) =>
     !!c.area &&
     (Object.values(c.tubes).some((m) => Number(m) > 0) ||
-      Object.values(c.fittings).some((q) => Number(q) > 0));
+      Object.values(c.fittings).some((q) => Number(q) > 0) ||
+      (c.sonderprodukte || []).some((s) => s.name && Number(s.price) > 0 && Number(s.qty) > 0));
 
   const summaryTextFor = (c) => {
     const parts = [];
     if (c.area) parts.push(c.area === "inside" ? "Innen" : "Außen");
     const nT = Object.keys(c.tubes).length;
     const nF = Object.keys(c.fittings).length;
+    const nS = (c.sonderprodukte || []).filter((s) => s.name && Number(s.price) > 0).length;
     if (nT) parts.push(`${nT} Rohr${nT === 1 ? "" : "e"}`);
     if (nF) parts.push(`${nF} Beschlag${nF === 1 ? "" : "-läge"}`);
+    if (nS) parts.push(`${nS} Sonderprodukt${nS === 1 ? "" : "e"}`);
     return parts.join(" · ") || "Unvollständig";
   };
 
@@ -25184,7 +25189,7 @@ function initHlFlexofitWizard() {
   const autoOpenNext = (c) => {
     c.open = { area: false, rohr: false, beschlaege: false };
     if (!c.area) c.open.area = true;
-    else if (!Object.keys(c.tubes).length) c.open.rohr = true;
+    else if (!Object.keys(c.tubes).length && !(c.sonderprodukte || []).some((s) => s.name && Number(s.price) > 0)) c.open.rohr = true;
     else c.open.beschlaege = true;
   };
 
@@ -25223,23 +25228,37 @@ function initHlFlexofitWizard() {
   const rohrBodyHtml = (c) => {
     if (!c.area) return `<div class="hl-wiz__empty">Bitte zuerst Bereich wählen.</div>`;
     const groups = (TUBE_GROUPS[c.area] || []).filter((f) => tubeEntriesFor(c.area, f).length);
-    if (!groups.includes(c.tubeTab)) c.tubeTab = groups[0] || "";
+    if (!groups.includes(c.tubeTab) && c.tubeTab !== SONDER_TAB) c.tubeTab = groups[0] || SONDER_TAB;
     const active = c.tubeTab;
 
     const countIn = (family) =>
       tubeEntriesFor(c.area, family).filter((e) => c.tubes[hlCatalogKey(e)] != null).length;
+    const nSonder = (c.sonderprodukte || []).filter((s) => s.name && Number(s.price) > 0).length;
 
-    const tabs =
-      groups.length > 1
-        ? `<div class="hl-wiz__finishes" role="tablist" aria-label="Material">` +
-          groups
-            .map((family) => {
-              const n = countIn(family);
-              return `<button type="button" class="hl-wiz__finish${family === active ? " is-selected" : ""}" data-tube-tab="${escapeHtml(family)}">${escapeHtml(family)}${n ? ` (${n})` : ""}</button>`;
-            })
-            .join("") +
-          `</div>`
-        : "";
+    const tabs = `<div class="hl-wiz__finishes" role="tablist" aria-label="Material">` +
+      groups.map((family) => {
+        const n = countIn(family);
+        return `<button type="button" class="hl-wiz__finish${family === active ? " is-selected" : ""}" data-tube-tab="${escapeHtml(family)}">${escapeHtml(family)}${n ? ` (${n})` : ""}</button>`;
+      }).join("") +
+      `<button type="button" class="hl-wiz__finish${active === SONDER_TAB ? " is-selected" : ""}" data-tube-tab="${SONDER_TAB}">Sonderprodukt${nSonder ? ` (${nSonder})` : ""}</button>` +
+      `</div>`;
+
+    if (active === SONDER_TAB) {
+      const sonders = c.sonderprodukte || [];
+      const rows = sonders.map((s, idx) => `
+        <div class="hl-wiz__sonder-row">
+          <input type="text" placeholder="Bezeichnung" value="${escapeHtml(String(s.name || ""))}" data-sonder-name data-idx="${idx}" />
+          <input type="text" inputmode="decimal" placeholder="Preis netto" value="${escapeHtml(String(s.price || ""))}" data-sonder-price data-idx="${idx}" />
+          <input type="text" placeholder="Artikel-ID" value="${escapeHtml(String(s.articleId || ""))}" data-sonder-article data-idx="${idx}" />
+          <input type="number" min="1" step="1" placeholder="1" value="${Number(s.qty) > 0 ? s.qty : 1}" data-sonder-qty data-idx="${idx}" />
+          <button type="button" class="hl-wiz__sonder-del" data-sonder-del data-idx="${idx}" title="Entfernen">×</button>
+        </div>`).join("");
+      return `<p class="hl-wiz__hint">Material und eine Farbe wählen. Rohre werden pro Meter berechnet — Länge unten in der Positionsliste angeben.</p>
+        ${tabs}
+        <p class="hl-wiz__hint" style="margin-top:14px">Bezeichnung, Netto-Preis (EK) und Artikel-ID eingeben — Menge unten in der Positionsliste anpassen.</p>
+        <div class="hl-wiz__sonder-list">${rows}</div>
+        <button type="button" class="hl-wiz__sonder-add" data-sonder-add><i class="fa-solid fa-plus"></i> Sonderprodukt hinzufügen</button>`;
+    }
 
     const picks = (active ? tubeEntriesFor(c.area, active) : [])
       .map((entry) => {
@@ -25366,14 +25385,15 @@ function initHlFlexofitWizard() {
     const stepTitle = { area: "Bereich", rohr: "Rohr & Farbe", beschlaege: "Beschläge & Oberfläche" };
     const nTubes = Object.keys(c.tubes).length;
     const nFit = Object.keys(c.fittings).length;
+    const nSonderValid = (c.sonderprodukte || []).filter((s) => s.name && Number(s.price) > 0 && Number(s.qty) > 0).length;
     const stepValue = {
       area: c.area ? (c.area === "inside" ? "Innen" : "Außen") : "—",
-      rohr: nTubes ? `${nTubes} Rohr(e)` : "—",
+      rohr: nTubes ? `${nTubes} Rohr(e)` : nSonderValid ? `${nSonderValid} Sonderprodukt(e)` : "—",
       beschlaege: c.area === "outside" || c.finish ? `${activeFinishFor(c)} · ${nFit} Beschlag/-läge` : "—",
     };
     const stepDone = {
       area: !!c.area,
-      rohr: nTubes > 0,
+      rohr: nTubes > 0 || nSonderValid > 0,
       beschlaege: c.area === "outside" ? nFit > 0 : !!c.finish && nFit > 0,
     };
     const steps = ["area", "rohr", "beschlaege"]
@@ -25463,6 +25483,32 @@ function initHlFlexofitWizard() {
         refreshOffer();
       });
     });
+    panelEl.querySelectorAll("[data-sonder-name],[data-sonder-price],[data-sonder-article],[data-sonder-qty]").forEach((inp) => {
+      inp.addEventListener("change", () => {
+        const idx = Number(inp.dataset.idx);
+        while (c.sonderprodukte.length <= idx) c.sonderprodukte.push({ name: "", price: "", articleId: "", qty: 1 });
+        const s = c.sonderprodukte[idx];
+        if ("sonderName" in inp.dataset) s.name = inp.value.trim();
+        if ("sonderPrice" in inp.dataset) s.price = parseFloat(String(inp.value).replace(",", ".")) || "";
+        if ("sonderArticle" in inp.dataset) s.articleId = inp.value.trim();
+        if ("sonderQty" in inp.dataset) s.qty = Math.max(1, parseInt(inp.value) || 1);
+        renderLedger();
+        refreshOffer();
+      });
+    });
+    panelEl.querySelectorAll("[data-sonder-del]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = Number(btn.dataset.idx);
+        c.sonderprodukte.splice(idx, 1);
+        renderPanel();
+        renderLedger();
+        refreshOffer();
+      });
+    });
+    panelEl.querySelector("[data-sonder-add]")?.addEventListener("click", () => {
+      c.sonderprodukte.push({ name: "", price: "", articleId: "", qty: 1 });
+      renderPanel();
+    });
   };
 
   const renderLedger = () => {
@@ -25508,6 +25554,22 @@ function initHlFlexofitWizard() {
             <td><button type="button" class="hl-wiz__ledger-del" data-ledger-del data-cid="${escapeHtml(c.id)}" data-key="${escapeHtml(key)}" data-kind="fit" title="Entfernen">×</button></td>
           </tr>`);
       });
+      (c.sonderprodukte || []).forEach((s, idx) => {
+        const q = Number(s.qty) || 0;
+        const price = parseFloat(String(s.price || "").replace(",", ".")) || 0;
+        if (q <= 0 || !s.name || price <= 0) return;
+        const lineTotal = q * price;
+        total += lineTotal;
+        count++;
+        cRows.push(`
+          <tr>
+            <td><div class="hl-wiz__ledger-name">${escapeHtml(s.name)}</div><div class="hl-wiz__ledger-sub">${escapeHtml(s.articleId || "")}</div></td>
+            <td class="num"><span class="hl-wiz__ledger-qty"><input type="number" min="0" step="1" value="${q}" data-ledger-qty data-cid="${escapeHtml(c.id)}" data-key="${SONDER_TAB}:${idx}" data-kind="sonder" /> Stk.</span></td>
+            <td class="num">${money(price)}</td>
+            <td class="num">${money(lineTotal)}</td>
+            <td><button type="button" class="hl-wiz__ledger-del" data-ledger-del data-cid="${escapeHtml(c.id)}" data-key="${SONDER_TAB}:${idx}" data-kind="sonder" title="Entfernen">×</button></td>
+          </tr>`);
+      });
       if (cRows.length) {
         if (!activeConfig) rows.push(`<tr class="hl-wiz__ledger-group"><td colspan="5">${escapeHtml(c.name)}</td></tr>`);
         rows.push(...cRows);
@@ -25532,10 +25594,15 @@ function initHlFlexofitWizard() {
         const { cid, key, kind } = inp.dataset;
         const c = configs.find((x) => x.id === cid);
         if (!c) return;
-        const bag = kind === "tube" ? c.tubes : c.fittings;
         const v = Math.max(0, Number(String(inp.value).replace(",", ".")) || 0);
-        if (v <= 0) delete bag[key];
-        else bag[key] = v;
+        if (kind === "sonder") {
+          const idx = Number(key.split(":")[1]);
+          if (c.sonderprodukte[idx]) c.sonderprodukte[idx].qty = v > 0 ? v : 0;
+        } else {
+          const bag = kind === "tube" ? c.tubes : c.fittings;
+          if (v <= 0) delete bag[key];
+          else bag[key] = v;
+        }
         renderAll();
         refreshOffer();
       });
@@ -25545,7 +25612,12 @@ function initHlFlexofitWizard() {
         const { cid, key, kind } = btn.dataset;
         const c = configs.find((x) => x.id === cid);
         if (!c) return;
-        delete (kind === "tube" ? c.tubes : c.fittings)[key];
+        if (kind === "sonder") {
+          const idx = Number(key.split(":")[1]);
+          c.sonderprodukte.splice(idx, 1);
+        } else {
+          delete (kind === "tube" ? c.tubes : c.fittings)[key];
+        }
         renderAll();
         refreshOffer();
       });
@@ -25589,6 +25661,18 @@ function initHlFlexofitWizard() {
           price: Number(entry.product.price) || 0,
         });
       });
+      (c.sonderprodukte || []).forEach((s) => {
+        const q = Number(s.qty) || 0;
+        const price = parseFloat(String(s.price || "").replace(",", ".")) || 0;
+        if (q <= 0 || !s.name || price <= 0) return;
+        lines.push({
+          label: s.name,
+          category: c.name,
+          productId: s.articleId || "HL_SONDER",
+          qty: q,
+          price,
+        });
+      });
     });
     return lines;
   };
@@ -25603,6 +25687,7 @@ function initHlFlexofitWizard() {
         finish: c.finish,
         tubes: { ...c.tubes },
         fittings: { ...c.fittings },
+        sonderprodukte: [...(c.sonderprodukte || [])],
       }));
     },
     async restore(saved) {
@@ -25617,6 +25702,7 @@ function initHlFlexofitWizard() {
             c.finish = s?.finish || "";
             c.tubes = { ...(s?.tubes || {}) };
             c.fittings = { ...(s?.fittings || {}) };
+            c.sonderprodukte = Array.isArray(s?.sonderprodukte) ? [...s.sonderprodukte] : [];
             autoOpenNext(c);
             return c;
           })
