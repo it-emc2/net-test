@@ -778,7 +778,7 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
       add(
         wallCladdingHassmannPid,
         wallCladdingQty,
-        `- ${wallCladdingQty} Stk Fußboden-Paneele (Wandverkleidung ${wallCladdingSize}×2550mm) — Farbe: ${wallCladdingColor}`,
+        `- ${wallCladdingQty} Stk Aluverbundplatte (${wallCladdingColor}) · ${wallCladdingHassmannPid}`,
         null,
         null,
         { color: wallCladdingColor, hassmannArticle: wallCladdingHassmannPid },
