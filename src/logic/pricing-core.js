@@ -1560,11 +1560,11 @@ if (l.source === "hl_pipe") {
 
       const displayNameBase = (prod.name || "").trim() || l.id;
       const metaColor = typeof l?.meta?.color === "string" ? l.meta.color.trim() : "";
+      const isWvPanel = /^V3WVK?\d/.test(l.id);
 
-      const displayName =
-        metaColor && /^V3WVK?\d/.test(l.id)
-          ? `${displayNameBase} — Farbe: ${metaColor}`
-          : displayNameBase;
+      const displayName = isWvPanel
+        ? (metaColor ? `Aluverbundplatte (${metaColor}) · ${l.id}` : `Aluverbundplatte · ${l.id}`)
+        : displayNameBase;
 
       const builtLabel = l.id === "PLA5282"
         ? `- 1 Set ${displayNameBase}`

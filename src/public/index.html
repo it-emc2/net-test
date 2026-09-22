@@ -4267,37 +4267,12 @@ button.dm-btn-danger:focus-visible {
                 <div class="floor-calc-card__title-row">
                   <div>
                     <div class="floor-calc-card__title">Flächenrechner</div>
-                    <div class="floor-calc-card__hint">Mehrere Flächen addieren oder Aussparungen abziehen. Bitte alle Eingaben in Meter.</div>
+                    <div class="floor-calc-card__hint">Flächen addieren oder Aussparungen abziehen — Angaben in Metern.</div>
                   </div>
                 </div>
 
                 <div id="floorCalcRows" class="floor-calc-rows" aria-live="polite"></div>
-
-                <template id="floorCalcRowTemplate">
-                  <div class="floor-calc-row">
-                    <button type="button" class="floor-calc-sign" data-sign="add" aria-label="Zeile wird addiert">+</button>
-
-                    <label class="field floor-calc-field" style="margin:0;">
-                      <span>Länge</span>
-                      <input class="floor-calc-length" type="number" min="0" step="0.1" inputmode="decimal" placeholder="z. B. 200" />
-                    </label>
-
-                    <span class="floor-calc-times" aria-hidden="true">×</span>
-
-                    <label class="field floor-calc-field" style="margin:0;">
-                      <span>Breite</span>
-                      <input class="floor-calc-width" type="number" min="0" step="0.1" inputmode="decimal" placeholder="z. B. 120" />
-                    </label>
-
-                    <div class="floor-calc-row-area">
-                      <div class="floor-calc-row-area__label">Fläche</div>
-                      <div class="floor-calc-row-result">0,00 m²</div>
-                    </div>
-
-                    <button type="button" class="floor-calc-add-row" aria-label="Weitere Zeile hinzufügen">+</button>
-                    <button type="button" class="floor-calc-remove-row" aria-label="Zeile entfernen">−</button>
-                  </div>
-                </template>
+                <button type="button" id="floorCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
 
                 <div class="floor-calc-result-row">
                   <div>
@@ -4457,22 +4432,44 @@ button.dm-btn-danger:focus-visible {
           <div id="wallCladdingPanel" class="field" aria-hidden="true" hidden>
             <div class="flooring-panel-head">
               <h3 style="margin: 0">Wandverkleidung</h3>
+              <button type="button" id="wvcCalcToggle" class="secondary flooring-calc-toggle" aria-expanded="false"
+                aria-controls="wvcCalcPanel">Flächenrechner öffnen</button>
             </div>
 
-            <div class="field flooring-area-field" style="max-width: 360px;">
-              <label for="wallCladdingArea" class="req">gewünschte Fläche m²</label>
-              <input id="wallCladdingArea" name="wallCladdingArea" inputmode="decimal" placeholder="z. B. 8,5" />
-              <small class="muted flooring-area-help">Sie können die Fläche direkt eingeben.</small>
+            <div class="flooring-top-grid">
+              <div class="field flooring-area-field" style="margin:0;">
+                <label for="wallCladdingArea" class="req">gewünschte Fläche m²</label>
+                <input id="wallCladdingArea" name="wallCladdingArea" inputmode="decimal" placeholder="z. B. 8,5" />
+                <small class="muted flooring-area-help">Sie können die Fläche direkt eingeben oder den Flächenrechner verwenden.</small>
 
-              <div class="field" style="margin-top: 14px;">
-                <label class="req">Welche Art der Fußbodenverkleidung wird benötigt?</label>
-                <div class="radio-group vertical" role="radiogroup" aria-label="Art der Fußbodenverkleidung">
-                  <label class="radio-pill"><input type="radio" name="wallCladdingKind" value="Fehlstellen" /><span
-                      class="circle"></span><span>Nur schließende Fehlstellen</span></label>
-                  <label class="radio-pill"><input type="radio" name="wallCladdingKind" value="Gesamtes-Bad" /><span
-                      class="circle"></span><span>Gesamter Badboden</span></label>
+                <div class="field" style="margin-top: 14px;">
+                  <label class="req">Welche Art der Fußbodenverkleidung wird benötigt?</label>
+                  <div class="radio-group vertical" role="radiogroup" aria-label="Art der Fußbodenverkleidung">
+                    <label class="radio-pill"><input type="radio" name="wallCladdingKind" value="Fehlstellen" /><span
+                        class="circle"></span><span>Nur schließende Fehlstellen</span></label>
+                    <label class="radio-pill"><input type="radio" name="wallCladdingKind" value="Gesamtes-Bad" /><span
+                        class="circle"></span><span>Gesamter Badboden</span></label>
+                  </div>
                 </div>
               </div>
+
+              <aside id="wvcCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
+                <div class="floor-calc-card__title-row">
+                  <div>
+                    <div class="floor-calc-card__title">Flächenrechner</div>
+                    <div class="floor-calc-card__hint">Flächen addieren oder Aussparungen abziehen — Angaben in Metern.</div>
+                  </div>
+                </div>
+                <div id="wvcCalcRows" class="floor-calc-rows" aria-live="polite"></div>
+                <button type="button" id="wvcCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
+                <div class="floor-calc-result-row">
+                  <div>
+                    <div class="floor-calc-result-label">Gesamtfläche</div>
+                    <div id="wvcCalcResult" class="floor-calc-result-value">0,00 m²</div>
+                  </div>
+                  <button type="button" id="wvcCalcApply" class="floor-calc-apply">In Fläche übernehmen</button>
+                </div>
+              </aside>
             </div>
 
             <div id="wallCladdingSuggestion" hidden style="margin-top:16px;">

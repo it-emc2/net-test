@@ -9957,6 +9957,138 @@ async function getProduct(id) {
   }
 }
 
+/* ========== FLOOR AREA CALCULATOR (reusable) ========== */
+function makeFloorCalc({ toggleEl, panelEl, rowsEl, totalEl, applyBtn, addRowBtn, areaInput }) {
+  if (!rowsEl) return { setOpen: () => {}, computeTotal: () => 0 };
+
+  function parseNum(v) {
+    const n = Number(String(v || "").replace(",", "."));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+  function fmt(v) {
+    return (Number(v) || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function createRow() {
+    const row = document.createElement("div");
+    row.className = "floor-calc-row";
+    row.dataset.sign = "add";
+    row.innerHTML = `
+      <div class="floor-calc-row__controls">
+        <button type="button" class="floor-calc-sign" data-sign="add" aria-label="Fläche addieren">+ Addieren</button>
+        <button type="button" class="floor-calc-remove-row" aria-label="Zeile entfernen">×</button>
+      </div>
+      <div class="floor-calc-row__inputs">
+        <label class="field floor-calc-field" style="margin:0;">
+          <span>Länge (m)</span>
+          <input class="floor-calc-length" type="number" min="0" step="0.01" inputmode="decimal" placeholder="z. B. 3,20" />
+        </label>
+        <span class="floor-calc-times" aria-hidden="true">×</span>
+        <label class="field floor-calc-field" style="margin:0;">
+          <span>Breite (m)</span>
+          <input class="floor-calc-width" type="number" min="0" step="0.01" inputmode="decimal" placeholder="z. B. 1,80" />
+        </label>
+        <div class="floor-calc-row-area">
+          <div class="floor-calc-row-area__label">= Fläche</div>
+          <div class="floor-calc-row-result">0,00 m²</div>
+        </div>
+      </div>`;
+    return row;
+  }
+
+  function computeTotal() {
+    let total = 0;
+    rowsEl.querySelectorAll(".floor-calc-row").forEach(row => {
+      const l = parseNum(row.querySelector(".floor-calc-length")?.value);
+      const w = parseNum(row.querySelector(".floor-calc-width")?.value);
+      const area = l * w;
+      const sign = row.dataset.sign === "subtract" ? -1 : 1;
+      const el = row.querySelector(".floor-calc-row-result");
+      if (el) el.textContent = `${fmt(area)} m²`;
+      total += sign * area;
+    });
+    total = Math.max(0, total);
+    if (totalEl) totalEl.textContent = `${fmt(total)} m²`;
+    return total;
+  }
+
+  function setOpen(open) {
+    if (!panelEl) return;
+    panelEl.hidden = !open;
+    panelEl.setAttribute("aria-hidden", open ? "false" : "true");
+    if (toggleEl) {
+      toggleEl.textContent = open ? "Flächenrechner schließen" : "Flächenrechner öffnen";
+      toggleEl.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+  }
+
+  toggleEl?.addEventListener("click", () => {
+    const open = !!panelEl?.hidden;
+    setOpen(open);
+    if (open) computeTotal();
+  });
+
+  addRowBtn?.addEventListener("click", () => {
+    rowsEl.appendChild(createRow());
+    computeTotal();
+  });
+
+  rowsEl.addEventListener("click", e => {
+    const t = e.target;
+    if (!(t instanceof HTMLElement)) return;
+    const row = t.closest(".floor-calc-row");
+    if (!row) return;
+
+    if (t.closest(".floor-calc-sign")) {
+      const toSubtract = row.dataset.sign !== "subtract";
+      row.dataset.sign = toSubtract ? "subtract" : "add";
+      const btn = row.querySelector(".floor-calc-sign");
+      if (btn) {
+        btn.textContent = toSubtract ? "− Abziehen" : "+ Addieren";
+        btn.dataset.sign = toSubtract ? "subtract" : "add";
+        btn.setAttribute("aria-label", toSubtract ? "Fläche abziehen" : "Fläche addieren");
+      }
+      computeTotal();
+      return;
+    }
+
+    if (t.closest(".floor-calc-remove-row")) {
+      if (rowsEl.querySelectorAll(".floor-calc-row").length > 1) {
+        row.remove();
+      } else {
+        row.querySelectorAll("input").forEach(i => { i.value = ""; });
+        row.dataset.sign = "add";
+        const btn = row.querySelector(".floor-calc-sign");
+        if (btn) { btn.textContent = "+ Addieren"; btn.dataset.sign = "add"; }
+        const res = row.querySelector(".floor-calc-row-result");
+        if (res) res.textContent = "0,00 m²";
+      }
+      computeTotal();
+    }
+  });
+
+  rowsEl.addEventListener("input", e => {
+    const t = e.target;
+    if (!(t instanceof HTMLInputElement)) return;
+    if (!t.classList.contains("floor-calc-length") && !t.classList.contains("floor-calc-width")) return;
+    computeTotal();
+  });
+
+  applyBtn?.addEventListener("click", () => {
+    const total = computeTotal();
+    if (areaInput) {
+      areaInput.value = fmt(total);
+      areaInput.dispatchEvent(new Event("input", { bubbles: true }));
+      areaInput.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  });
+
+  rowsEl.appendChild(createRow());
+  computeTotal();
+
+  return { setOpen, computeTotal };
+}
+
 /* ========== FLOORING: LIVE PREVIEW + DB PRICES (adhesive/sealing) ==========
    NOTE: panels price now mirrors SERVER pricing; no client re-calculation. */
 (function initFlooringSection() {
@@ -9969,7 +10101,6 @@ async function getProduct(id) {
   const calcPanel = document.getElementById("floorCalcPanel");
   const calcRows = document.getElementById("floorCalcRows");
   const calcTotalEl = document.getElementById("floorCalcResult");
-  const calcRowTemplate = document.getElementById("floorCalcRowTemplate");
   const calcApplyBtn = document.getElementById("floorCalcApply");
   const floorKindInputs = Array.from(f.querySelectorAll('input[name="floorKind"]'));
 
@@ -10014,75 +10145,18 @@ async function getProduct(id) {
       maximumFractionDigits: 2,
     });
   }
-  function setCalcOpen(open) {
-    if (!calcPanel) return;
-    calcPanel.hidden = !open;
-    calcPanel.setAttribute("aria-hidden", open ? "false" : "true");
-    if (calcToggle) {
-      calcToggle.textContent = open
-        ? "Flächenrechner schließen"
-        : "Flächenrechner öffnen";
-      calcToggle.setAttribute("aria-expanded", open ? "true" : "false");
-    }
-  }
-  function createFloorCalcRow() {
-    if (calcRowTemplate?.content?.firstElementChild) {
-      const row = calcRowTemplate.content.firstElementChild.cloneNode(true);
-      row.dataset.sign = "add";
-      const signBtn = row.querySelector(".floor-calc-sign");
-      if (signBtn) {
-        signBtn.textContent = "+";
-        signBtn.dataset.sign = "add";
-        signBtn.setAttribute("aria-label", "Zeile wird addiert");
-      }
-      return row;
-    }
+  const calc = makeFloorCalc({
+    toggleEl: calcToggle,
+    panelEl: calcPanel,
+    rowsEl: calcRows,
+    totalEl: calcTotalEl,
+    applyBtn: calcApplyBtn,
+    addRowBtn: document.getElementById("floorCalcAddRow"),
+    areaInput: area,
+  });
 
-    const row = document.createElement("div");
-    row.className = "floor-calc-row";
-    row.dataset.sign = "add";
-    row.innerHTML = `
-      <button type="button" class="floor-calc-sign" data-sign="add" aria-label="Zeile wird addiert">+</button>
-      <label class="field floor-calc-field" style="margin:0;">
-        <span>Länge (m)</span>
-        <input class="floor-calc-length" type="number" min="0" step="0.1" inputmode="decimal" placeholder="z. B. 2,5" />
-      </label>
-      <span class="floor-calc-times" aria-hidden="true">×</span>
-      <label class="field floor-calc-field" style="margin:0;">
-        <span>Breite (m)</span>
-        <input class="floor-calc-width" type="number" min="0" step="0.1" inputmode="decimal" placeholder="z. B. 1,2" />
-      </label>
-      <div class="floor-calc-row-area">
-        <div class="floor-calc-row-area__label">Fläche</div>
-        <div class="floor-calc-row-result">0,00 m²</div>
-      </div>
-      <button type="button" class="floor-calc-add-row" aria-label="Weitere Zeile hinzufügen">+</button>
-      <button type="button" class="floor-calc-remove-row" aria-label="Zeile entfernen">−</button>
-    `;
-    return row;
-  }
-  function computeFloorCalcTotal() {
-    if (!calcRows) return 0;
-    let total = 0;
-    calcRows.querySelectorAll(".floor-calc-row").forEach((row) => {
-      const length = parseCalcNumber(
-        row.querySelector(".floor-calc-length")?.value || "",
-      );
-      const width = parseCalcNumber(
-        row.querySelector(".floor-calc-width")?.value || "",
-      );
-      const areaM2 = length * width;
-      const sign = row.dataset.sign === "subtract" ? -1 : 1;
-      const resultEl = row.querySelector(".floor-calc-row-result");
-      if (resultEl) {
-        resultEl.textContent = `${formatAreaValue(areaM2)} m²`;
-      }
-      total += sign * areaM2;
-    });
-    total = Math.max(0, total);
-    if (calcTotalEl) calcTotalEl.textContent = `${formatAreaValue(total)} m²`;
-    return total;
-  }
+  function setCalcOpen(open) { calc.setOpen(open); }
+  function computeFloorCalcTotal() { return calc.computeTotal(); }
   const packsForAdhesive = (m2) => Math.ceil(m2 / 0.6 - 1e-12);
   const setsForSealing = (m2) => (m2 > 0 ? 1 : 0);
 
@@ -10238,90 +10312,6 @@ function updateFlooringPanelsPriceFromPricing() {
     updateFlooringPanelsPriceFromPricing();
     // individ. price (unitPanel × entered m²)
     // updateIndividPrice();
-  }
-
-  if (calcToggle) {
-    calcToggle.addEventListener("click", () => {
-      const isOpen = !calcPanel?.hidden;
-      setCalcOpen(!isOpen);
-      if (!isOpen) computeFloorCalcTotal();
-    });
-  }
-  if (calcRows) {
-    calcRows.addEventListener("click", (event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLElement)) return;
-      const row = target.closest(".floor-calc-row");
-      if (!row) return;
-
-      if (target.closest(".floor-calc-sign")) {
-        const nextIsSubtract = row.dataset.sign !== "subtract";
-        row.dataset.sign = nextIsSubtract ? "subtract" : "add";
-        const signBtn = row.querySelector(".floor-calc-sign");
-        if (signBtn) {
-          signBtn.textContent = nextIsSubtract ? "−" : "+";
-          signBtn.dataset.sign = nextIsSubtract ? "subtract" : "add";
-          signBtn.setAttribute(
-            "aria-label",
-            nextIsSubtract ? "Zeile wird abgezogen" : "Zeile wird addiert",
-          );
-        }
-        computeFloorCalcTotal();
-        return;
-      }
-
-      if (target.closest(".floor-calc-add-row")) {
-        row.insertAdjacentElement("afterend", createFloorCalcRow());
-        computeFloorCalcTotal();
-        return;
-      }
-
-      if (target.closest(".floor-calc-remove-row")) {
-        if (calcRows.querySelectorAll(".floor-calc-row").length > 1) {
-          row.remove();
-        } else {
-          row.querySelectorAll("input").forEach((input) => {
-            input.value = "";
-          });
-          row.dataset.sign = "add";
-          const signBtn = row.querySelector(".floor-calc-sign");
-          if (signBtn) {
-            signBtn.textContent = "+";
-            signBtn.dataset.sign = "add";
-            signBtn.setAttribute("aria-label", "Zeile wird addiert");
-          }
-          const resultEl = row.querySelector(".floor-calc-row-result");
-          if (resultEl) resultEl.textContent = "0,00 m²";
-        }
-        computeFloorCalcTotal();
-      }
-    });
-    calcRows.addEventListener("input", (event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLInputElement)) return;
-      if (
-        !target.classList.contains("floor-calc-length") &&
-        !target.classList.contains("floor-calc-width")
-      ) {
-        return;
-      }
-      computeFloorCalcTotal();
-    });
-  }
-  if (calcRows && !calcRows.querySelector(".floor-calc-row")) {
-    calcRows.appendChild(createFloorCalcRow());
-    computeFloorCalcTotal();
-  }
-
-  if (calcApplyBtn) {
-    calcApplyBtn.addEventListener("click", () => {
-      const total = computeFloorCalcTotal();
-      if (area) {
-        area.value = formatAreaValue(total);
-        area.dispatchEvent(new Event("input", { bubbles: true }));
-        area.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-    });
   }
 
   // ---- persistence for area field
@@ -10823,6 +10813,16 @@ document.addEventListener("change", (e) => {
   if (toggle.checked) renderWvcProductCard(selectedColor());
   toggle.addEventListener("change", () => { if (toggle.checked) renderWvcProductCard(selectedColor()); else wvcCardEl && (wvcCardEl.hidden = true); });
 })();
+
+makeFloorCalc({
+  toggleEl: document.getElementById("wvcCalcToggle"),
+  panelEl: document.getElementById("wvcCalcPanel"),
+  rowsEl: document.getElementById("wvcCalcRows"),
+  totalEl: document.getElementById("wvcCalcResult"),
+  applyBtn: document.getElementById("wvcCalcApply"),
+  addRowBtn: document.getElementById("wvcCalcAddRow"),
+  areaInput: document.getElementById("wallCladdingArea"),
+});
 
 /* ========== SMART TRAY SEARCH (equal-or-bigger filter, persist/deselect) ========== */
 function initSmartTraySearch() {
