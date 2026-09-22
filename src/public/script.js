@@ -10406,17 +10406,40 @@ document.addEventListener("change", (e) => {
   if (!toggle || !panel) return;
 
   const PANEL_AREA_M2 = { 997: 0.997 * 2.55, 1497: 1.497 * 2.55 };
-  // V3WVK09 = 997mm, V3WV09 = 1497mm (Marmor weiß default, same price tier)
-  const PRICE_IDS = { 997: "V3WVK09", 1497: "V3WV09" };
-  let prices = {}; // { "V3WVK09": net, "V3WV09": net }
-  let pricesFetched = false;
+  // mirrors WV_COLOR_ARTICLE in pricing-core.js — article IDs per color + size
+  const WV_ART = {
+    "weiß":                { 997: "V3WVK07", 1497: "V3WV07" },
+    "marmor weiß":         { 997: "V3WVK09", 1497: "V3WV09" },
+    "struktur weiß":       { 997: "V3WVK06", 1497: "V3WV06" },
+    "stein beige":         { 997: "V3WVK01", 1497: "V3WV01" },
+    "aragon grau":         { 997: "V3WVK22", 1497: "V3WV22" },
+    "stein grau":          { 997: "V3WVK02", 1497: "V3WV02" },
+    "aragon anthrazit":    { 997: "V3WVK21", 1497: "V3WV21" },
+    "schiefer grau":       { 997: "V3WVK08", 1497: "V3WV08" },
+    "schwarzwaldeiche hell":{ 997: "V3WVK23", 1497: "V3WV23" },
+    "stein anthrazit":     { 997: "V3WVK03", 1497: "V3WV03" },
+    "kalkstein natur":     { 997: "V3WVK05", 1497: "V3WV05" },
+    "aragon schwarz":      { 997: "V3WVK20", 1497: "V3WV20" },
+  };
+  const priceCache = new Map(); // articleId → net price
 
-  async function ensurePrices() {
-    if (pricesFetched) return;
-    pricesFetched = true;
+  function selectedColor() {
+    const chk = form.querySelector('input[name="wallCladdingColor"]:checked');
+    return (chk?.value || "Marmor weiß").trim().toLowerCase();
+  }
+
+  function articleIds(colorKey) {
+    const entry = WV_ART[colorKey] || WV_ART["marmor weiß"];
+    return { id997: entry[997], id1497: entry[1497] };
+  }
+
+  async function ensurePrices(colorKey) {
+    const { id997, id1497 } = articleIds(colorKey);
+    const missing = [id997, id1497].filter((id) => !priceCache.has(id));
+    if (!missing.length) return;
     try {
-      const r = await fetch(`/api/vigor-prices?ids=${Object.values(PRICE_IDS).join(",")}`);
-      if (r.ok) prices = await r.json();
+      const r = await fetch(`/api/vigor-prices?ids=${missing.join(",")}`);
+      if (r.ok) { const data = await r.json(); Object.entries(data).forEach(([k, v]) => priceCache.set(k, v)); }
     } catch {}
   }
 
@@ -10441,8 +10464,10 @@ document.addEventListener("change", (e) => {
   const fmt = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const eur = (n) => n > 0 ? `${fmt(n)} €` : "";
 
-  function buildCard(opt, isBest, selectedSize) {
-    const unitNet = prices[PRICE_IDS[opt.size]] || 0;
+  function buildCard(opt, isBest, selectedSize, colorKey) {
+    const { id997, id1497 } = articleIds(colorKey);
+    const artId = opt.size === 997 ? id997 : id1497;
+    const unitNet = priceCache.get(artId) || 0;
     const totalNet = unitNet * opt.qty;
     const priceHtml = unitNet > 0
       ? `<span class="wvc-price">${eur(totalNet)}</span><span class="wvc-unit">(${eur(unitNet)} / Stk.)</span>`
@@ -10476,9 +10501,10 @@ document.addEventListener("change", (e) => {
     if (!cardsEl) return;
     const result = computeSuggestion(areaEl?.value);
     if (!result) { suggestionBox.hidden = true; return; }
+    const colorKey = selectedColor();
     cardsEl.innerHTML =
-      buildCard(result.opt997, result.best.size === 997, selectedSize) +
-      buildCard(result.opt1497, result.best.size === 1497, selectedSize);
+      buildCard(result.opt997, result.best.size === 997, selectedSize, colorKey) +
+      buildCard(result.opt1497, result.best.size === 1497, selectedSize, colorKey);
     cardsEl.querySelectorAll(".wvc-card").forEach((btn) => {
       btn.addEventListener("click", () => {
         applyOption(Number(btn.dataset.size), Number(btn.dataset.qty));
@@ -10488,7 +10514,7 @@ document.addEventListener("change", (e) => {
   }
 
   async function updateSuggestion() {
-    await ensurePrices();
+    await ensurePrices(selectedColor());
     const selectedSize = panelSizeEl?.value ? Number(panelSizeEl.value) : null;
     renderCards(selectedSize);
   }
@@ -10498,6 +10524,14 @@ document.addEventListener("change", (e) => {
     const qty = Number(qtyInput.value) || 0;
     if (qtyEl) qtyEl.value = qty;
     if (qty > 0) window.updatePricing?.();
+  });
+
+  // Re-render cards + update pricing when color changes
+  form.addEventListener("change", (e) => {
+    if (e.target.name === "wallCladdingColor") {
+      updateSuggestion();
+      if (toggle.checked) window.updatePricing?.();
+    }
   });
 
   toggle.addEventListener("change", () => showPanel(toggle.checked));
