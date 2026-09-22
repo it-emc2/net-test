@@ -5285,6 +5285,7 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
   line-height: 1;
   flex: 0 0 auto;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
+  padding: 0;
 }
 
 .floor-calc-remove-row:hover {
