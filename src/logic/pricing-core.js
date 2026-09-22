@@ -778,7 +778,7 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
       add(
         wallCladdingHassmannPid,
         wallCladdingQty,
-        `- ${wallCladdingQty} Stk Aluverbundplatte (${wallCladdingColor}) · ${wallCladdingHassmannPid}`,
+        `- ${wallCladdingQty} Stk Aluverbundplatte (${wallCladdingColor})`,
         null,
         null,
         { color: wallCladdingColor, hassmannArticle: wallCladdingHassmannPid },
