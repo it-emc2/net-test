@@ -10867,7 +10867,7 @@ function initWannePicker() {
     const tub = selectedItem("tub");
     const screen = selectedItem("screen");
     if (!tub && !screen) {
-      summaryEl.innerHTML = `<span class="muted">Noch nichts ausgewählt.</span>`;
+      summaryEl.innerHTML = `<span class="wanne-empty">Noch nichts ausgewählt.</span>`;
       return;
     }
     const rows = [

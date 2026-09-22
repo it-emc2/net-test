@@ -7003,47 +7003,52 @@ button.dm-btn-danger:focus-visible {
           </div>
           <div id="menu_WANNE" class="full field" hidden aria-hidden="true">
             <style>
-              #menu_WANNE .wanne-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 14px; }
-              #menu_WANNE .wanne-seg { display: inline-flex; border: 1px solid #c9ccd2; border-radius: 8px; overflow: hidden; }
+              #menu_WANNE .wanne-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 14px; }
+              #menu_WANNE .wanne-seg { display: inline-flex; border: 1.5px solid var(--input-border); border-radius: 10px; overflow: hidden; background: var(--bg); }
               /* These controls are <button>s, and the app's global button colour is
                  white — so every one of them must set its own colour, or its text
                  and any child without an explicit colour renders white on white. */
-              #menu_WANNE .wanne-seg button { border: 0; background: #fff; color: #1f2328; font: inherit; font-size: 14px; padding: 8px 18px; cursor: pointer; }
-              #menu_WANNE .wanne-seg button[aria-pressed="true"] { background: #1f6feb; color: #fff; }
+              #menu_WANNE .wanne-seg button { border: 0; background: var(--panel); color: var(--muted); font: inherit; font-size: 14px; font-weight: 520; padding: 8px 18px; cursor: pointer; transition: background .12s, color .12s; }
+              #menu_WANNE .wanne-seg button + button { border-left: 1px solid var(--border); }
+              #menu_WANNE .wanne-seg button:hover { background: var(--bg); color: var(--text); }
+              #menu_WANNE .wanne-seg button[aria-pressed="true"] { background: var(--accent); color: #fff; font-weight: 640; }
+              #menu_WANNE .wanne-count { color: var(--muted); font-size: 13px; font-weight: 600; padding: 4px 2px; }
+              #menu_WANNE .wanne-reset { margin-left: auto; padding: 7px 14px; font-size: 12.5px; border-radius: 8px; }
               #menu_WANNE .wanne-fgroup { margin-bottom: 10px; }
-              #menu_WANNE .wanne-flabel { font-size: 12px; color: #6b7280; margin-bottom: 5px; }
+              #menu_WANNE .wanne-flabel { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
               #menu_WANNE .wanne-chips { display: flex; gap: 6px; flex-wrap: wrap; }
-              #menu_WANNE .wanne-chip { border: 1px solid #d8dbe0; background: #fff; color: #1f2328; border-radius: 8px; font: inherit; font-size: 13px; padding: 5px 11px; cursor: pointer; }
-              #menu_WANNE .wanne-chip[aria-pressed="true"] { background: #e7f0fd; border-color: #1f6feb; color: #14448f; }
+              #menu_WANNE .wanne-chip { border: 1px solid var(--border); background: var(--panel); color: var(--text); border-radius: 999px; font: inherit; font-size: 12.5px; font-weight: 600; padding: 5px 12px; cursor: pointer; transition: background .12s, border-color .12s, color .12s; }
+              #menu_WANNE .wanne-chip[aria-pressed="true"] { background: var(--accent-weak); border-color: var(--accent); color: var(--accent-strong); }
               #menu_WANNE .wanne-chip[disabled] { opacity: .4; cursor: default; }
-              #menu_WANNE .wanne-chip .n { color: #9aa1ab; }
+              #menu_WANNE .wanne-chip .n { color: var(--muted); }
+              #menu_WANNE .wanne-chip[aria-pressed="true"] .n { color: inherit; opacity: .75; }
               #menu_WANNE .wanne-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 10px; }
-              #menu_WANNE .wanne-card { text-align: left; background: #fff; color: #1f2328; border: 1px solid #e2e5ea; border-radius: 12px; padding: 12px; font: inherit; cursor: pointer; display: flex; gap: 12px; align-items: flex-start; width: 100%; }
-              #menu_WANNE .wanne-card[aria-pressed="true"] { border: 2px solid #1f6feb; padding: 11px; }
-              #menu_WANNE .wanne-thumb { flex: 0 0 72px; width: 72px; aspect-ratio: 4/5; background: #f7f8fa; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+              #menu_WANNE .wanne-card { text-align: left; background: var(--panel); color: var(--text); border: 2px solid var(--border); border-radius: 12px; padding: 12px; font: inherit; cursor: pointer; display: flex; gap: 12px; align-items: flex-start; width: 100%; transition: border-color .15s, box-shadow .15s; }
+              #menu_WANNE .wanne-card:hover { border-color: var(--input-border); }
+              #menu_WANNE .wanne-card[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+              #menu_WANNE .wanne-thumb { flex: 0 0 72px; width: 72px; aspect-ratio: 4/5; background: var(--bg); border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
               #menu_WANNE .wanne-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
               /* min-width:0 keeps the long product names from pushing the
                  thumbnail out of the card instead of wrapping. */
               #menu_WANNE .wanne-body { min-width: 0; flex: 1; }
-              #menu_WANNE .wanne-art { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #6b7280; }
-              #menu_WANNE .wanne-name { font-size: 13px; line-height: 1.35; margin: 2px 0 6px; }
+              #menu_WANNE .wanne-art { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: var(--muted); }
+              #menu_WANNE .wanne-name { font-size: 13px; line-height: 1.35; margin: 2px 0 6px; color: var(--text); }
               #menu_WANNE .wanne-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
-              #menu_WANNE .wanne-pill { font-size: 11px; background: #f2f4f7; color: #4b5563; border-radius: 6px; padding: 2px 7px; }
-              #menu_WANNE .wanne-finish { font-size: 11px; color: #9aa1ab; margin-bottom: 7px; }
-              #menu_WANNE .wanne-price { font-size: 15px; font-weight: 600; }
-              #menu_WANNE .wanne-reco { display: inline-block; font-size: 11px; background: #e7f0fd; color: #14448f; border-radius: 6px; padding: 2px 8px; margin-bottom: 5px; }
-              #menu_WANNE .wanne-summary { margin-top: 14px; padding-top: 12px; border-top: 1px solid #e2e5ea; font-size: 13px; }
+              #menu_WANNE .wanne-pill { font-size: 11px; background: var(--section-bg); color: var(--muted); border-radius: 6px; padding: 2px 7px; }
+              #menu_WANNE .wanne-finish { font-size: 11px; color: var(--muted); margin-bottom: 7px; }
+              #menu_WANNE .wanne-price { font-size: 15px; font-weight: 700; color: var(--text); }
+              #menu_WANNE .wanne-reco { display: inline-block; font-size: 11px; font-weight: 600; background: var(--accent-weak); color: var(--accent-strong); border-radius: 6px; padding: 2px 8px; margin-bottom: 5px; }
+              #menu_WANNE .wanne-summary { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text); }
+              #menu_WANNE .wanne-empty { display: inline-block; padding: 4px 0; color: #000; }
             </style>
-
-            <div class="subheader">Wanne</div>
 
             <div class="wanne-bar">
               <div class="wanne-seg" role="group" aria-label="Produkttyp">
                 <button type="button" data-wtype="tub" aria-pressed="true">Badewanne</button>
                 <button type="button" data-wtype="screen" aria-pressed="false">Wannenaufsatz</button>
               </div>
-              <span id="wanneCount" class="muted"></span>
-              <button type="button" id="wanneReset" style="margin-left:auto; font-size:12px;">Filter zurücksetzen</button>
+              <span id="wanneCount" class="wanne-count"></span>
+              <button type="button" id="wanneReset" class="secondary wanne-reset">Filter zurücksetzen</button>
             </div>
 
             <div id="wanneFilters"></div>
