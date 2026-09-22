@@ -5106,6 +5106,7 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 .wv-product-card-stock.out { background: #f3f4f6; color: #6b7280; }
 [data-mode="dark"] .wv-product-card { background: rgba(255,255,255,0.06); border-color: rgba(167,139,250,0.25); }
 [data-mode="dark"] .wv-product-card-name { color: #f3f4f6; }
+#wvProductCard .dac-line-stock, #wvcProductCard .dac-line-stock { display: block; margin-top: 6px; }
 
 /* ---------- Flooring mini calculator ---------- */
 .flooring-panel-head {

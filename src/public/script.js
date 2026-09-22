@@ -7593,23 +7593,18 @@ function setupWandverkleidungPage() {
     };
     const cache = new Map();
 
-    async function renderCard() {
-      const checked997 = page.querySelector('input[name="wvColor"]:checked');
-      const colorVal = (checked997?.value || "Marmor weiß").trim().toLowerCase();
-      if (colorVal === "sonderdekor") { cardEl.hidden = true; return; }
-      const entry = WV_ART_STANDALONE[colorVal] || WV_ART_STANDALONE["marmor weiß"];
-      // prefer 997 as the reference article (both sizes share the same product line)
-      const artId = entry[997];
-      let d = cache.get(artId);
-      if (!d) {
-        try {
-          const r = await fetch(`/api/vigor-prices?ids=${artId}&full=1`);
-          if (r.ok) { const j = await r.json(); d = j[artId]; if (d) cache.set(artId, d); }
-        } catch {}
-      }
-      if (!d) { cardEl.hidden = true; return; }
+    function stockSpan(d) {
       const inStock = d.stockQuantity > 0;
-      cardEl.innerHTML = `<div class="wv-product-card">
+      const qty = d.stockQuantity ?? 0;
+      const title = d.stockText || (inStock
+        ? "Der Artikel ist im Lager verfügbar."
+        : "Die Ware ist aktuell nicht verfügbar und muss bestellt werden.");
+      return `<span class="dac-line-stock dac-stock-${inStock ? "in" : "out"}" title="${title}"><span class="dac-stock-qty">${qty}</span>${inStock ? "Auf Lager" : "Auf Bestellung"}</span>`;
+    }
+
+    function buildCardHtml(d, artId) {
+      const inStock = d.stockQuantity > 0;
+      return `<div class="wv-product-card">
         ${d.image ? `<img src="${d.image}" alt="${d.name}" />` : ""}
         <div class="wv-product-card-info">
           <div class="wv-product-card-name">${d.name || artId}</div>
@@ -7619,11 +7614,58 @@ function setupWandverkleidungPage() {
           ${d.netPrice ? `<div class="wv-product-card-price">${d.netPrice.toFixed(2).replace(".", ",")} €</div>` : ""}
           <div class="wv-product-card-stock ${inStock ? "in" : "out"}">${d.stockText || (inStock ? "Auf Lager" : "Auf Bestellung")}</div>
         </div>
-      </div>`;
+      </div>
+      ${stockSpan(d)}`;
+    }
+
+    async function fetchFull(artId) {
+      let d = cache.get(artId);
+      if (d) return d;
+      try {
+        const r = await fetch(`/api/vigor-prices?ids=${artId}&full=1`);
+        if (r.ok) { const j = await r.json(); d = j[artId]; if (d) cache.set(artId, d); }
+      } catch {}
+      return d || null;
+    }
+
+    function selectColorKey(selectId) {
+      const v = document.getElementById(selectId)?.value?.trim().toLowerCase();
+      return v || null;
+    }
+
+    async function renderCard() {
+      const globalColor = (page.querySelector('input[name="wvColor"]:checked')?.value || "Marmor weiß").trim().toLowerCase();
+      const cb997 = document.getElementById("wv997");
+      const cb1497 = document.getElementById("wv1497");
+      const panels = [];
+
+      if (cb997?.checked) {
+        const ck = selectColorKey("wvColor_997") || globalColor;
+        if (ck !== "sonderdekor") panels.push({ artId: (WV_ART_STANDALONE[ck] || WV_ART_STANDALONE["marmor weiß"])[997] });
+      }
+      if (cb1497?.checked) {
+        const ck = selectColorKey("wvColor_1497") || globalColor;
+        if (ck !== "sonderdekor") panels.push({ artId: (WV_ART_STANDALONE[ck] || WV_ART_STANDALONE["marmor weiß"])[1497] });
+      }
+      // no checkboxes present — fallback to global color, 997 article
+      if (!panels.length && !cb997 && !cb1497 && globalColor !== "sonderdekor") {
+        panels.push({ artId: (WV_ART_STANDALONE[globalColor] || WV_ART_STANDALONE["marmor weiß"])[997] });
+      }
+
+      if (!panels.length) { cardEl.hidden = true; return; }
+
+      const fetched = await Promise.all(panels.map(p => fetchFull(p.artId).then(d => ({ artId: p.artId, d }))));
+      const parts = fetched.filter(r => r.d).map(r => buildCardHtml(r.d, r.artId));
+      if (!parts.length) { cardEl.hidden = true; return; }
+      cardEl.innerHTML = parts.join("");
       cardEl.hidden = false;
     }
 
     page.querySelectorAll('input[name="wvColor"]').forEach((r) => r.addEventListener("change", renderCard));
+    document.getElementById("wv997")?.addEventListener("change", renderCard);
+    document.getElementById("wv1497")?.addEventListener("change", renderCard);
+    document.getElementById("wvColor_997")?.addEventListener("change", renderCard);
+    document.getElementById("wvColor_1497")?.addEventListener("change", renderCard);
     renderCard();
   })();
 
@@ -10597,6 +10639,15 @@ document.addEventListener("change", (e) => {
   const wvcCardEl = document.getElementById("wvcProductCard");
   const wvcFullCache = new Map();
 
+  function wvcStockSpan(d) {
+    const inStock = d.stockQuantity > 0;
+    const qty = d.stockQuantity ?? 0;
+    const title = d.stockText || (inStock
+      ? "Der Artikel ist im Lager verfügbar."
+      : "Die Ware ist aktuell nicht verfügbar und muss bestellt werden.");
+    return `<span class="dac-line-stock dac-stock-${inStock ? "in" : "out"}" title="${title}"><span class="dac-stock-qty">${qty}</span>${inStock ? "Auf Lager" : "Auf Bestellung"}</span>`;
+  }
+
   async function renderWvcProductCard(colorKey) {
     if (!wvcCardEl) return;
     const { id997, id1497 } = articleIds(colorKey);
@@ -10622,7 +10673,8 @@ document.addEventListener("change", (e) => {
         ${d.netPrice ? `<div class="wv-product-card-price">${d.netPrice.toFixed(2).replace(".", ",")} €</div>` : ""}
         <div class="wv-product-card-stock ${inStock ? "in" : "out"}">${d.stockText || (inStock ? "Auf Lager" : "Auf Bestellung")}</div>
       </div>
-    </div>`;
+    </div>
+    ${wvcStockSpan(d)}`;
     wvcCardEl.hidden = false;
   }
 
