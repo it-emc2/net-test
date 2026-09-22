@@ -4848,6 +4848,51 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 .hl-wiz__pick img{ width: 96px; height: 96px; object-fit: contain; }
 .hl-wiz__pick-name{ font-weight: 600; line-height: 1.25; font-size: 16px; }
 .hl-wiz__pick-meta{ font-size: 13px; opacity: 0.75; }
+.hl-wiz__sonder-list{ display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.hl-wiz__sonder-row{
+  display: grid;
+  grid-template-columns: 1fr 130px 130px 70px 32px;
+  gap: 8px;
+  align-items: center;
+}
+.hl-wiz__sonder-row input{
+  padding: 8px 10px;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg, transparent);
+  color: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+.hl-wiz__sonder-del{
+  background: none;
+  border: none;
+  color: var(--muted, #888);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+  line-height: 1;
+}
+.hl-wiz__sonder-del:hover{ color: var(--danger, #c00); }
+.hl-wiz__sonder-add{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--accent);
+}
+.hl-wiz__sonder-add:hover{ background: color-mix(in srgb, var(--accent) 8%, transparent); }
+@media (max-width: 640px){
+  .hl-wiz__sonder-row{ grid-template-columns: 1fr 70px 32px; }
+  .hl-wiz__sonder-row input[data-sonder-price],
+  .hl-wiz__sonder-row input[data-sonder-article]{ grid-column: 1 / -1; }
+}
 .hl-wiz__qty{
   display: flex;
   align-items: center;
