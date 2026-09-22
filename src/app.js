@@ -52,6 +52,7 @@ import pricingFactory from "./logic/pricing.js";
 import latexTemplateRouter from "./routes/latex-template.js";
 import adminRouter from "./routes/admin.js";
 import configService, { CONFIG_SCHEMA } from "./services/configService.js";
+import { fetchVigourNetPrices } from "./external/vigorDb.js";
 import UserActionLog from "./models/UserActionLog.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -503,6 +504,54 @@ app.get("/api/products/:id", async (req, res) => {
     res.json(p);
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ---------------- Vigor product lookup (WV panel suggestion cards + product cards) ----------------
+app.get("/api/vigor-prices", authGate, async (req, res) => {
+  try {
+    const ids = String(req.query.ids || "").split(",").map((s) => s.trim()).filter(Boolean);
+    if (!ids.length) return res.json({});
+
+    if (req.query.full !== "1") {
+      const map = await fetchVigourNetPrices(ids);
+      return res.json(Object.fromEntries(map));
+    }
+
+    // full=1: return rich product info for product cards
+    const { getVigorDb } = await import("./external/vigorDb.js");
+    const db = await getVigorDb();
+    const docs = await db.collection("products")
+      .find({ articleNumber: { $in: ids } }, {
+        projection: { articleNumber: 1, name: 1, netPrice: 1, listPrice: 1, images: 1, stockQuantity: 1, stockText: 1, lastSeenAt: 1 },
+      }).toArray();
+
+    // freshest-wins per article (same rule as fetchVigourNetPrices)
+    const best = new Map();
+    for (const d of docs) {
+      const net = Number(d?.netPrice);
+      if (!(net > 0)) continue;
+      const seen = d.lastSeenAt ? new Date(d.lastSeenAt).getTime() || 0 : 0;
+      const prev = best.get(d.articleNumber);
+      if (!prev || seen >= prev._seen) best.set(d.articleNumber, { ...d, _seen: seen });
+    }
+
+    const result = {};
+    for (const [id, d] of best) {
+      result[id] = {
+        articleNumber: d.articleNumber,
+        name: d.name || "",
+        netPrice: Number(d.netPrice),
+        listPrice: Number(d.listPrice) || null,
+        image: d.images?.[0] || null,
+        stockQuantity: d.stockQuantity ?? null,
+        stockText: d.stockText || null,
+      };
+    }
+    res.json(result);
+  } catch (err) {
+    console.error("GET /api/vigor-prices failed:", err);
     res.status(500).json({ error: String(err) });
   }
 });

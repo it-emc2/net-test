@@ -143,6 +143,13 @@ function buildCard(item) {
         <input type="checkbox" id="field-${item.key}" class="config-checkbox" ${displayVal ? 'checked' : ''}>
         <span>${displayVal ? 'Aktiv' : 'Inaktiv'}</span>
       </label>`
+    : item.type === 'json'
+    ? `<textarea
+        id="field-${item.key}"
+        class="config-input config-json${pending ? ' input-changed' : ''}"
+        rows="4"
+        spellcheck="false"
+      >${JSON.stringify(displayVal ?? {}, null, 2)}</textarea>`
     : `<input
         type="number"
         id="field-${item.key}"
@@ -190,6 +197,29 @@ function handleInput(item, input) {
   }
 
   const raw = input.value.trim();
+
+  if (item.type === 'json') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (JSON.stringify(parsed) !== JSON.stringify(item.value)) {
+        changes.set(item.key, parsed);
+      } else {
+        changes.delete(item.key);
+      }
+      input.classList.remove('input-error');
+    } catch {
+      input.classList.add('input-error');
+      changes.delete(item.key);
+    }
+    const card = $(`card-${item.key}`);
+    const isChanged = changes.has(item.key);
+    card && card.classList.toggle('card-changed', isChanged);
+    input.classList.toggle('input-changed', isChanged && !input.classList.contains('input-error'));
+    updateTopbar();
+    renderNav();
+    return;
+  }
+
   const parsed = item.type === 'integer' ? parseInt(raw, 10) : parseFloat(raw);
 
   if (!isNaN(parsed)) {

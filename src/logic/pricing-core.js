@@ -765,6 +765,26 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
       // }
     }
 
+    // ------- Fußboden aus Wandverkleidung-Paneelen (Fußboden-Tab: Flächen-Empfehlung)
+    setCat("Fußboden");
+    const wallCladdingQty = Number(dusch.wallCladdingQty || 0) || 0;
+    if (dusch.addWallCladding && wallCladdingQty > 0) {
+      const wallCladdingSize = String(dusch.wallCladdingPanelSize || "997").trim();
+      const wallCladdingSizeKey = wallCladdingSize === "1497" ? "1497x2550" : "997x2550";
+      const wallCladdingColor = String(dusch.wallCladdingColor || "Marmor weiß").trim();
+      const wallCladdingFallbackPid = wallCladdingSizeKey === "1497x2550" ? "V3WV09" : "V3WVK09";
+      // hassmannArticle = color-specific article (for Hassmann CSV)
+      const wallCladdingHassmannPid = resolveWvArticle(wallCladdingSizeKey, wallCladdingColor, null, wallCladdingFallbackPid);
+      add(
+        wallCladdingHassmannPid,
+        wallCladdingQty,
+        `- ${wallCladdingQty} Stk Fußboden-Paneele (Wandverkleidung ${wallCladdingSize}×2550mm) — Farbe: ${wallCladdingColor}`,
+        null,
+        null,
+        { color: wallCladdingColor, hassmannArticle: wallCladdingHassmannPid },
+      );
+    }
+
     // ------- Wandverkleidung
     setCat("Wandverkleidung");
     // Main panel quantity (user picks one color + qty here)
@@ -826,12 +846,10 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
   const base = `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`;
   const label = display ? `${base} — Farbe: ${display}` : base;
 
-  // Pricing stays on the size default unless the color has a real priced row
-  // in the internal Products collection (WV_PRICED_COLORS); the mapped
-  // color-specific article number is always carried for the Hassmann CSV.
+  // All color-specific articles exist in the Vigor DB with live net prices —
+  // bill directly on the color article (hassmannArticle = billing article).
   const article997 = resolveWvArticle("997x2550", display, pid, "V3WVK09");
-  const priced997 = WV_PRICED_COLORS.has(normalizeWvColorKey(display)) ? article997 : "V3WVK09";
-  add(pid || priced997, qty997, label, null, null, {
+  add(pid || article997, qty997, label, null, null, {
     color: display,
     hassmannArticle: article997,
   });
@@ -846,8 +864,7 @@ if (qty1497 > 0) {
   const label = display ? `${base} — Farbe: ${display}` : base;
 
   const article1497 = resolveWvArticle("1497x2550", display, pid, "V3WV09");
-  const priced1497 = WV_PRICED_COLORS.has(normalizeWvColorKey(display)) ? article1497 : "V3WV09";
-  add(pid || priced1497, qty1497, label, null, null, {
+  add(pid || article1497, qty1497, label, null, null, {
     color: display,
     hassmannArticle: article1497,
   });
@@ -869,8 +886,7 @@ const addExtras = (rows, panelLabel, size, defaultPid) => {
     const base = `- ${q} Stk Wandverkleidung 3.0 Alu ${panelLabel}`;
     const label = display ? `${base} — Farbe: ${display}` : base;
     const article = resolveWvArticle(size, display, pid, defaultPid);
-    const priced = WV_PRICED_COLORS.has(normalizeWvColorKey(display)) ? article : defaultPid;
-    add(pid || priced, q, label, null, null, {
+    add(pid || article, q, label, null, null, {
       color: display,
       hassmannArticle: article,
     });
@@ -1501,6 +1517,11 @@ console.log("[REHA DEBUG] selections =", selections);
     // ------- Resolve names/prices once
     const productMap = await getProductsByIds([...idsNeeded]);
 
+    // WV panel articles (V3WV* / V3WVK*) are priced in Vigor, not in the
+    // internal BU Products collection. Look them up live before resolution.
+    const wvArticleIds = [...new Set(lines.map(l => l.id).filter(id => /^V3WVK?\d/.test(id)))];
+    const vigorWvPrices = wvArticleIds.length ? await getLiveVigourNetPrices(wvArticleIds) : new Map();
+
     // Drift on plain DB-priced lines (Optionale Produkte, Material, etc.) —
     // same "keep quoted, warn about the difference" contract the Vigor
     // Duschabtrennung check already applies below, extended to every other
@@ -1520,6 +1541,8 @@ console.log("[REHA DEBUG] selections =", selections);
         unit = round2((Number(prod.price) || 0) / Number(l.perM2Base)); // €/m² from set
       } else if (Number.isFinite(l.unitOverride)) {
         unit = Number(l.unitOverride);
+      } else if (vigorWvPrices.has(l.id)) {
+        unit = Number(vigorWvPrices.get(l.id)) || 0;
       } else {
         unit = Number(prod.price) || 0;
       }
@@ -1544,11 +1567,11 @@ if (l.source === "hl_pipe") {
 
       const displayNameBase = (prod.name || "").trim() || l.id;
       const metaColor = typeof l?.meta?.color === "string" ? l.meta.color.trim() : "";
+      const isWvPanel = /^V3WVK?\d/.test(l.id);
 
-      const displayName =
-        metaColor && (l.id === "V3WVK09" || l.id === "V3WV09")
-          ? `${displayNameBase} — Farbe: ${metaColor}`
-          : displayNameBase;
+      const displayName = isWvPanel
+        ? (metaColor ? `Aluverbundplatte (${metaColor}) · ${l.id}` : `Aluverbundplatte · ${l.id}`)
+        : displayNameBase;
 
       const builtLabel = l.id === "PLA5282"
         ? `- 1 Set ${displayNameBase}`

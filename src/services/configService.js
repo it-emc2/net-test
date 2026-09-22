@@ -162,6 +162,13 @@ export const CONFIG_SCHEMA = [
     description: 'Bruttowert des Neukundenbonus (Bonus 300 / Bestandkundenbonus)',
   },
 
+  // ── WV EIGENES LAGER ─────────────────────────────────────────────────────
+  {
+    key: 'WV_OWN_LAGER', value: {},
+    label: 'Eigenes WV-Lager', type: 'json', section: 'bu', order: 6,
+    description: 'WV-Artikel im eigenen Lager. Format: {"V3WVK09": 5, "V3WV01": 2}',
+  },
+
   // ── PREISBERECHNUNG ──────────────────────────────────────────────────────
   {
     key: 'AUTO_RECOMPUTE_PRICING', value: true,
@@ -213,7 +220,10 @@ class ConfigService {
   async setMany(updates) {
     for (const [key, value] of Object.entries(updates)) {
       const def = CONFIG_SCHEMA.find(d => d.key === key);
-      await this.set(key, def?.type === 'boolean' ? Boolean(value) : Number(value));
+      const coerced = def?.type === 'boolean' ? Boolean(value)
+        : def?.type === 'json' ? value
+        : Number(value);
+      await this.set(key, coerced);
     }
   }
 }

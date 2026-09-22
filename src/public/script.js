@@ -6798,6 +6798,10 @@ fetch("/admin/api/config/public")
     if (typeof d.FAHRZEUGBEREITSTELLUNG === "number") window.__fahrzeugbereitstellung = d.FAHRZEUGBEREITSTELLUNG;
     if (typeof d.WERKZEUG === "number") window.__werkzeug = d.WERKZEUG;
     if (typeof d.BERAEUMUNG === "number") window.__beraeumung = d.BERAEUMUNG;
+    if (d.WV_OWN_LAGER && typeof d.WV_OWN_LAGER === "object") {
+      window.__wvOwnLager = d.WV_OWN_LAGER;
+      document.dispatchEvent(new CustomEvent("wvOwnLagerLoaded"));
+    }
     if (typeof window.__refreshFinanzierungUI === "function") window.__refreshFinanzierungUI();
     if (typeof renderTravelCostDebug === "function") renderTravelCostDebug();
   })
@@ -7578,6 +7582,173 @@ function setupWandverkleidungPage() {
     .querySelectorAll('input[type="radio"][name="wvColor"]')
     .forEach((radio) => radio.addEventListener("change", syncSonderDecorUi));
   syncSonderDecorUi();
+
+  // ---- standalone WV product card ----
+  (function initWvProductCard() {
+    const cardEl = document.getElementById("wvProductCard");
+    if (!cardEl) return;
+    const WV_ART_STANDALONE = {
+      "weiß":                { 997: "V3WVK07", 1497: "V3WV07" },
+      "marmor weiß":         { 997: "V3WVK09", 1497: "V3WV09" },
+      "struktur weiß":       { 997: "V3WVK06", 1497: "V3WV06" },
+      "stein beige":         { 997: "V3WVK01", 1497: "V3WV01" },
+      "aragon grau":         { 997: "V3WVK22", 1497: "V3WV22" },
+      "stein grau":          { 997: "V3WVK02", 1497: "V3WV02" },
+      "aragon anthrazit":    { 997: "V3WVK21", 1497: "V3WV21" },
+      "schiefer grau":       { 997: "V3WVK08", 1497: "V3WV08" },
+      "schwarzwaldeiche hell":{ 997: "V3WVK23", 1497: "V3WV23" },
+      "stein anthrazit":     { 997: "V3WVK03", 1497: "V3WV03" },
+      "kalkstein natur":     { 997: "V3WVK05", 1497: "V3WV05" },
+      "aragon schwarz":      { 997: "V3WVK20", 1497: "V3WV20" },
+    };
+    const cache = new Map();
+
+    function stockSpan(d) {
+      const inStock = d.stockQuantity > 0;
+      const qty = d.stockQuantity ?? 0;
+      const title = d.stockText || (inStock
+        ? "Der Artikel ist im Lager verfügbar."
+        : "Die Ware ist aktuell nicht verfügbar und muss bestellt werden.");
+      return `<span class="dac-line-stock dac-stock-${inStock ? "in" : "out"}" title="${title}"><span class="dac-stock-qty">${qty}</span>${inStock ? "Auf Lager" : "Auf Bestellung"}</span>`;
+    }
+
+    function ownLagerBadge(artId) {
+      const lager = window.__wvOwnLager || {};
+      const qty = lager[artId];
+      if (!qty || qty <= 0) return "";
+      return `<span class="wv-own-lager-badge"><span class="wv-own-lager-qty">${qty}</span>Im eigenen Lager</span>`;
+    }
+
+    function buildCardHtml(d, artId) {
+      const inStock = d.stockQuantity > 0;
+      return `<div class="wv-product-card">
+        ${d.image ? `<img src="${d.image}" alt="${d.name}" />` : ""}
+        <div class="wv-product-card-info">
+          <div class="wv-product-card-name">${d.name || artId}</div>
+          <div class="wv-product-card-art">${artId}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+          ${d.netPrice ? `<div class="wv-product-card-price">${d.netPrice.toFixed(2).replace(".", ",")} €</div>` : ""}
+          <div class="wv-product-card-stock ${inStock ? "in" : "out"}">${d.stockText || (inStock ? "Auf Lager" : "Auf Bestellung")}</div>
+        </div>
+      </div>
+      ${stockSpan(d)}
+      ${ownLagerBadge(artId)}`;
+    }
+
+    async function fetchFull(artId) {
+      let d = cache.get(artId);
+      if (d) return d;
+      try {
+        const r = await fetch(`/api/vigor-prices?ids=${artId}&full=1`);
+        if (r.ok) { const j = await r.json(); d = j[artId]; if (d) cache.set(artId, d); }
+      } catch {}
+      return d || null;
+    }
+
+    function selectColorKey(selectId) {
+      const v = document.getElementById(selectId)?.value?.trim().toLowerCase();
+      return v || null;
+    }
+
+    async function renderCard() {
+      const globalColor = (page.querySelector('input[name="wvColor"]:checked')?.value || "Marmor weiß").trim().toLowerCase();
+      const cb997 = document.getElementById("wv997");
+      const cb1497 = document.getElementById("wv1497");
+      const panels = [];
+
+      if (cb997?.checked) {
+        const ck = selectColorKey("wvColor_997") || globalColor;
+        if (ck !== "sonderdekor") panels.push({ artId: (WV_ART_STANDALONE[ck] || WV_ART_STANDALONE["marmor weiß"])[997] });
+      }
+      if (cb1497?.checked) {
+        const ck = selectColorKey("wvColor_1497") || globalColor;
+        if (ck !== "sonderdekor") panels.push({ artId: (WV_ART_STANDALONE[ck] || WV_ART_STANDALONE["marmor weiß"])[1497] });
+      }
+      // no checkboxes present — fallback to global color, 997 article
+      if (!panels.length && !cb997 && !cb1497 && globalColor !== "sonderdekor") {
+        panels.push({ artId: (WV_ART_STANDALONE[globalColor] || WV_ART_STANDALONE["marmor weiß"])[997] });
+      }
+
+      if (!panels.length) { cardEl.hidden = true; return; }
+
+      const fetched = await Promise.all(panels.map(p => fetchFull(p.artId).then(d => ({ artId: p.artId, d }))));
+      const parts = fetched.filter(r => r.d).map(r => buildCardHtml(r.d, r.artId));
+      if (!parts.length) { cardEl.hidden = true; return; }
+      cardEl.innerHTML = parts.join("");
+      cardEl.hidden = false;
+    }
+
+    // Build reverse map: artId → {colorKey, displayName, size}
+    function buildArtToColor() {
+      const map = new Map();
+      for (const [ck, sizes] of Object.entries(WV_ART_STANDALONE)) {
+        const display = ck.replace(/\b\w/g, c => c.toUpperCase());
+        map.set(sizes[997],  { colorKey: ck, display, size: 997 });
+        map.set(sizes[1497], { colorKey: ck, display, size: 1497 });
+      }
+      return map;
+    }
+
+    function applyOwnLagerToTiles() {
+      const lager = window.__wvOwnLager || {};
+      const artToColor = buildArtToColor();
+
+      // Summary line above the color grid — one chip per article (keeps sizes separate)
+      const colorsEl = document.getElementById("wvColors");
+      if (!colorsEl) return;
+      let hint = document.getElementById("wvOwnLagerHint");
+      if (!hint) {
+        hint = document.createElement("div");
+        hint.id = "wvOwnLagerHint";
+        hint.className = "wv-own-lager-hint";
+        colorsEl.parentElement.insertBefore(hint, colorsEl);
+      }
+
+      const hintItems = [];
+      for (const [artId, qty] of Object.entries(lager)) {
+        if (!(qty > 0)) continue;
+        const info = artToColor.get(artId);
+        if (!info) continue;
+        hintItems.push(`<span class="wv-hint-item">${info.display} ${info.size}mm <strong>${qty}×</strong></span>`);
+      }
+      if (hintItems.length) {
+        hint.innerHTML = `<span class="wv-hint-label">Eigenes Lager:</span> ${hintItems.join("")}`;
+        hint.hidden = false;
+      } else {
+        hint.hidden = true;
+      }
+
+      // Tile overlays — show each available size + qty
+      page.querySelectorAll('input[name="wvColor"]').forEach((radio) => {
+        const label = radio.closest(".image-check");
+        if (!label) return;
+        const colorKey = radio.value.trim().toLowerCase();
+        const entry = WV_ART_STANDALONE[colorKey];
+        const qty997 = entry ? (lager[entry[997]] || 0) : 0;
+        const qty1497 = entry ? (lager[entry[1497]] || 0) : 0;
+        let badge = label.querySelector(".wv-tile-own-badge");
+        if (qty997 > 0 || qty1497 > 0) {
+          if (!badge) { badge = document.createElement("span"); badge.className = "wv-tile-own-badge"; label.appendChild(badge); }
+          const parts = [];
+          if (qty997 > 0) parts.push(`997: ${qty997}`);
+          if (qty1497 > 0) parts.push(`1497: ${qty1497}`);
+          badge.textContent = parts.join(" / ");
+        } else if (badge) {
+          badge.remove();
+        }
+      });
+    }
+
+    page.querySelectorAll('input[name="wvColor"]').forEach((r) => r.addEventListener("change", renderCard));
+    document.getElementById("wv997")?.addEventListener("change", renderCard);
+    document.getElementById("wv1497")?.addEventListener("change", renderCard);
+    document.getElementById("wvColor_997")?.addEventListener("change", renderCard);
+    document.getElementById("wvColor_1497")?.addEventListener("change", renderCard);
+    document.addEventListener("wvOwnLagerLoaded", () => { renderCard(); applyOwnLagerToTiles(); });
+    renderCard();
+    applyOwnLagerToTiles();
+  })();
 
   // ---- NEW: "Zusätzliche Farben" UI (additive, backward compatible) ----
   function ensureExtrasUI(fromSelectId, listId, btnId, titleText) {
@@ -9792,6 +9963,138 @@ async function getProduct(id) {
   }
 }
 
+/* ========== FLOOR AREA CALCULATOR (reusable) ========== */
+function makeFloorCalc({ toggleEl, panelEl, rowsEl, totalEl, applyBtn, addRowBtn, areaInput }) {
+  if (!rowsEl) return { setOpen: () => {}, computeTotal: () => 0 };
+
+  function parseNum(v) {
+    const n = Number(String(v || "").replace(",", "."));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+  function fmt(v) {
+    return (Number(v) || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function createRow() {
+    const row = document.createElement("div");
+    row.className = "floor-calc-row";
+    row.dataset.sign = "add";
+    row.innerHTML = `
+      <div class="floor-calc-row__controls">
+        <button type="button" class="floor-calc-sign" data-sign="add" aria-label="Fläche addieren">+ Addieren</button>
+        <button type="button" class="floor-calc-remove-row" aria-label="Zeile entfernen">×</button>
+      </div>
+      <div class="floor-calc-row__inputs">
+        <label class="field floor-calc-field" style="margin:0;">
+          <span>Länge (m)</span>
+          <input class="floor-calc-length" type="number" min="0" step="0.01" inputmode="decimal" placeholder="z. B. 3,20" />
+        </label>
+        <span class="floor-calc-times" aria-hidden="true">×</span>
+        <label class="field floor-calc-field" style="margin:0;">
+          <span>Breite (m)</span>
+          <input class="floor-calc-width" type="number" min="0" step="0.01" inputmode="decimal" placeholder="z. B. 1,80" />
+        </label>
+        <div class="floor-calc-row-area">
+          <div class="floor-calc-row-area__label">= Fläche</div>
+          <div class="floor-calc-row-result">0,00 m²</div>
+        </div>
+      </div>`;
+    return row;
+  }
+
+  function computeTotal() {
+    let total = 0;
+    rowsEl.querySelectorAll(".floor-calc-row").forEach(row => {
+      const l = parseNum(row.querySelector(".floor-calc-length")?.value);
+      const w = parseNum(row.querySelector(".floor-calc-width")?.value);
+      const area = l * w;
+      const sign = row.dataset.sign === "subtract" ? -1 : 1;
+      const el = row.querySelector(".floor-calc-row-result");
+      if (el) el.textContent = `${fmt(area)} m²`;
+      total += sign * area;
+    });
+    total = Math.max(0, total);
+    if (totalEl) totalEl.textContent = `${fmt(total)} m²`;
+    return total;
+  }
+
+  function setOpen(open) {
+    if (!panelEl) return;
+    panelEl.hidden = !open;
+    panelEl.setAttribute("aria-hidden", open ? "false" : "true");
+    if (toggleEl) {
+      toggleEl.textContent = open ? "Flächenrechner schließen" : "Flächenrechner öffnen";
+      toggleEl.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+  }
+
+  toggleEl?.addEventListener("click", () => {
+    const open = !!panelEl?.hidden;
+    setOpen(open);
+    if (open) computeTotal();
+  });
+
+  addRowBtn?.addEventListener("click", () => {
+    rowsEl.appendChild(createRow());
+    computeTotal();
+  });
+
+  rowsEl.addEventListener("click", e => {
+    const t = e.target;
+    if (!(t instanceof HTMLElement)) return;
+    const row = t.closest(".floor-calc-row");
+    if (!row) return;
+
+    if (t.closest(".floor-calc-sign")) {
+      const toSubtract = row.dataset.sign !== "subtract";
+      row.dataset.sign = toSubtract ? "subtract" : "add";
+      const btn = row.querySelector(".floor-calc-sign");
+      if (btn) {
+        btn.textContent = toSubtract ? "− Abziehen" : "+ Addieren";
+        btn.dataset.sign = toSubtract ? "subtract" : "add";
+        btn.setAttribute("aria-label", toSubtract ? "Fläche abziehen" : "Fläche addieren");
+      }
+      computeTotal();
+      return;
+    }
+
+    if (t.closest(".floor-calc-remove-row")) {
+      if (rowsEl.querySelectorAll(".floor-calc-row").length > 1) {
+        row.remove();
+      } else {
+        row.querySelectorAll("input").forEach(i => { i.value = ""; });
+        row.dataset.sign = "add";
+        const btn = row.querySelector(".floor-calc-sign");
+        if (btn) { btn.textContent = "+ Addieren"; btn.dataset.sign = "add"; }
+        const res = row.querySelector(".floor-calc-row-result");
+        if (res) res.textContent = "0,00 m²";
+      }
+      computeTotal();
+    }
+  });
+
+  rowsEl.addEventListener("input", e => {
+    const t = e.target;
+    if (!(t instanceof HTMLInputElement)) return;
+    if (!t.classList.contains("floor-calc-length") && !t.classList.contains("floor-calc-width")) return;
+    computeTotal();
+  });
+
+  applyBtn?.addEventListener("click", () => {
+    const total = computeTotal();
+    if (areaInput) {
+      areaInput.value = fmt(total);
+      areaInput.dispatchEvent(new Event("input", { bubbles: true }));
+      areaInput.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  });
+
+  rowsEl.appendChild(createRow());
+  computeTotal();
+
+  return { setOpen, computeTotal };
+}
+
 /* ========== FLOORING: LIVE PREVIEW + DB PRICES (adhesive/sealing) ==========
    NOTE: panels price now mirrors SERVER pricing; no client re-calculation. */
 (function initFlooringSection() {
@@ -9804,7 +10107,6 @@ async function getProduct(id) {
   const calcPanel = document.getElementById("floorCalcPanel");
   const calcRows = document.getElementById("floorCalcRows");
   const calcTotalEl = document.getElementById("floorCalcResult");
-  const calcRowTemplate = document.getElementById("floorCalcRowTemplate");
   const calcApplyBtn = document.getElementById("floorCalcApply");
   const floorKindInputs = Array.from(f.querySelectorAll('input[name="floorKind"]'));
 
@@ -9849,75 +10151,18 @@ async function getProduct(id) {
       maximumFractionDigits: 2,
     });
   }
-  function setCalcOpen(open) {
-    if (!calcPanel) return;
-    calcPanel.hidden = !open;
-    calcPanel.setAttribute("aria-hidden", open ? "false" : "true");
-    if (calcToggle) {
-      calcToggle.textContent = open
-        ? "Flächenrechner schließen"
-        : "Flächenrechner öffnen";
-      calcToggle.setAttribute("aria-expanded", open ? "true" : "false");
-    }
-  }
-  function createFloorCalcRow() {
-    if (calcRowTemplate?.content?.firstElementChild) {
-      const row = calcRowTemplate.content.firstElementChild.cloneNode(true);
-      row.dataset.sign = "add";
-      const signBtn = row.querySelector(".floor-calc-sign");
-      if (signBtn) {
-        signBtn.textContent = "+";
-        signBtn.dataset.sign = "add";
-        signBtn.setAttribute("aria-label", "Zeile wird addiert");
-      }
-      return row;
-    }
+  const calc = makeFloorCalc({
+    toggleEl: calcToggle,
+    panelEl: calcPanel,
+    rowsEl: calcRows,
+    totalEl: calcTotalEl,
+    applyBtn: calcApplyBtn,
+    addRowBtn: document.getElementById("floorCalcAddRow"),
+    areaInput: area,
+  });
 
-    const row = document.createElement("div");
-    row.className = "floor-calc-row";
-    row.dataset.sign = "add";
-    row.innerHTML = `
-      <button type="button" class="floor-calc-sign" data-sign="add" aria-label="Zeile wird addiert">+</button>
-      <label class="field floor-calc-field" style="margin:0;">
-        <span>Länge (m)</span>
-        <input class="floor-calc-length" type="number" min="0" step="0.1" inputmode="decimal" placeholder="z. B. 2,5" />
-      </label>
-      <span class="floor-calc-times" aria-hidden="true">×</span>
-      <label class="field floor-calc-field" style="margin:0;">
-        <span>Breite (m)</span>
-        <input class="floor-calc-width" type="number" min="0" step="0.1" inputmode="decimal" placeholder="z. B. 1,2" />
-      </label>
-      <div class="floor-calc-row-area">
-        <div class="floor-calc-row-area__label">Fläche</div>
-        <div class="floor-calc-row-result">0,00 m²</div>
-      </div>
-      <button type="button" class="floor-calc-add-row" aria-label="Weitere Zeile hinzufügen">+</button>
-      <button type="button" class="floor-calc-remove-row" aria-label="Zeile entfernen">−</button>
-    `;
-    return row;
-  }
-  function computeFloorCalcTotal() {
-    if (!calcRows) return 0;
-    let total = 0;
-    calcRows.querySelectorAll(".floor-calc-row").forEach((row) => {
-      const length = parseCalcNumber(
-        row.querySelector(".floor-calc-length")?.value || "",
-      );
-      const width = parseCalcNumber(
-        row.querySelector(".floor-calc-width")?.value || "",
-      );
-      const areaM2 = length * width;
-      const sign = row.dataset.sign === "subtract" ? -1 : 1;
-      const resultEl = row.querySelector(".floor-calc-row-result");
-      if (resultEl) {
-        resultEl.textContent = `${formatAreaValue(areaM2)} m²`;
-      }
-      total += sign * areaM2;
-    });
-    total = Math.max(0, total);
-    if (calcTotalEl) calcTotalEl.textContent = `${formatAreaValue(total)} m²`;
-    return total;
-  }
+  function setCalcOpen(open) { calc.setOpen(open); }
+  function computeFloorCalcTotal() { return calc.computeTotal(); }
   const packsForAdhesive = (m2) => Math.ceil(m2 / 0.6 - 1e-12);
   const setsForSealing = (m2) => (m2 > 0 ? 1 : 0);
 
@@ -10073,90 +10318,6 @@ function updateFlooringPanelsPriceFromPricing() {
     updateFlooringPanelsPriceFromPricing();
     // individ. price (unitPanel × entered m²)
     // updateIndividPrice();
-  }
-
-  if (calcToggle) {
-    calcToggle.addEventListener("click", () => {
-      const isOpen = !calcPanel?.hidden;
-      setCalcOpen(!isOpen);
-      if (!isOpen) computeFloorCalcTotal();
-    });
-  }
-  if (calcRows) {
-    calcRows.addEventListener("click", (event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLElement)) return;
-      const row = target.closest(".floor-calc-row");
-      if (!row) return;
-
-      if (target.closest(".floor-calc-sign")) {
-        const nextIsSubtract = row.dataset.sign !== "subtract";
-        row.dataset.sign = nextIsSubtract ? "subtract" : "add";
-        const signBtn = row.querySelector(".floor-calc-sign");
-        if (signBtn) {
-          signBtn.textContent = nextIsSubtract ? "−" : "+";
-          signBtn.dataset.sign = nextIsSubtract ? "subtract" : "add";
-          signBtn.setAttribute(
-            "aria-label",
-            nextIsSubtract ? "Zeile wird abgezogen" : "Zeile wird addiert",
-          );
-        }
-        computeFloorCalcTotal();
-        return;
-      }
-
-      if (target.closest(".floor-calc-add-row")) {
-        row.insertAdjacentElement("afterend", createFloorCalcRow());
-        computeFloorCalcTotal();
-        return;
-      }
-
-      if (target.closest(".floor-calc-remove-row")) {
-        if (calcRows.querySelectorAll(".floor-calc-row").length > 1) {
-          row.remove();
-        } else {
-          row.querySelectorAll("input").forEach((input) => {
-            input.value = "";
-          });
-          row.dataset.sign = "add";
-          const signBtn = row.querySelector(".floor-calc-sign");
-          if (signBtn) {
-            signBtn.textContent = "+";
-            signBtn.dataset.sign = "add";
-            signBtn.setAttribute("aria-label", "Zeile wird addiert");
-          }
-          const resultEl = row.querySelector(".floor-calc-row-result");
-          if (resultEl) resultEl.textContent = "0,00 m²";
-        }
-        computeFloorCalcTotal();
-      }
-    });
-    calcRows.addEventListener("input", (event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLInputElement)) return;
-      if (
-        !target.classList.contains("floor-calc-length") &&
-        !target.classList.contains("floor-calc-width")
-      ) {
-        return;
-      }
-      computeFloorCalcTotal();
-    });
-  }
-  if (calcRows && !calcRows.querySelector(".floor-calc-row")) {
-    calcRows.appendChild(createFloorCalcRow());
-    computeFloorCalcTotal();
-  }
-
-  if (calcApplyBtn) {
-    calcApplyBtn.addEventListener("click", () => {
-      const total = computeFloorCalcTotal();
-      if (area) {
-        area.value = formatAreaValue(total);
-        area.dispatchEvent(new Event("input", { bubbles: true }));
-        area.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-    });
   }
 
   // ---- persistence for area field
@@ -10359,6 +10520,315 @@ document.addEventListener("change", (e) => {
     updateFlooringPanelsPriceFromPricing();
   });
 })();
+
+/* ========== FUSSBODEN PAGE: Fußboden/Wandverkleidung inner tab switch ========== */
+(function initFussbodenTabSwitch() {
+  const page = document.getElementById("page-Fussboden");
+  if (!page) return;
+  const btns = {
+    fbTabFloor: document.getElementById("fbTabBtnFloor"),
+    fbTabWall: document.getElementById("fbTabBtnWall"),
+  };
+  const panels = {
+    fbTabFloor: document.getElementById("fbTabFloor"),
+    fbTabWall: document.getElementById("fbTabWall"),
+  };
+
+  function activate(target) {
+    Object.keys(panels).forEach((key) => {
+      const isActive = key === target;
+      if (panels[key]) {
+        panels[key].hidden = !isActive;
+        panels[key].setAttribute("aria-hidden", isActive ? "false" : "true");
+      }
+      if (btns[key]) {
+        btns[key].classList.toggle("active", isActive);
+        btns[key].setAttribute("aria-selected", isActive ? "true" : "false");
+      }
+    });
+  }
+
+  Object.entries(btns).forEach(([key, btn]) => {
+    btn?.addEventListener("click", () => activate(key));
+  });
+})();
+
+/* ========== WANDVERKLEIDUNG-IM-FUSSBODEN-TAB: Fläche → Platten-Empfehlung ==========
+   Panel coverage per size (m²), always rounded UP — full panel price even
+   with leftover waste, no partial panels sold. Self-contained: writes into
+   its own wallCladding* fields, independent of the standalone Wandverkleidung
+   page's wv997/wv1497 fields. */
+(function initWallCladdingSection() {
+  const form = document.getElementById("form-fussboden");
+  if (!form) return;
+  const toggle = document.getElementById("addWallCladding");
+  const panel = document.getElementById("wallCladdingPanel");
+  const areaEl = document.getElementById("wallCladdingArea");
+  const suggestionBox = document.getElementById("wallCladdingSuggestion");
+  const cardsEl = document.getElementById("wallCladdingCards");
+  const qtyRow = document.getElementById("wallCladdingQtyRow");
+  const qtyInput = document.getElementById("wallCladdingQtyInput");
+  const panelSizeEl = document.getElementById("wallCladdingPanelSize");
+  const qtyEl = document.getElementById("wallCladdingQty");
+  if (!toggle || !panel) return;
+
+  const PANEL_AREA_M2 = { 997: 0.997 * 2.55, 1497: 1.497 * 2.55 };
+  // mirrors WV_COLOR_ARTICLE in pricing-core.js — article IDs per color + size
+  const WV_ART = {
+    "weiß":                { 997: "V3WVK07", 1497: "V3WV07" },
+    "marmor weiß":         { 997: "V3WVK09", 1497: "V3WV09" },
+    "struktur weiß":       { 997: "V3WVK06", 1497: "V3WV06" },
+    "stein beige":         { 997: "V3WVK01", 1497: "V3WV01" },
+    "aragon grau":         { 997: "V3WVK22", 1497: "V3WV22" },
+    "stein grau":          { 997: "V3WVK02", 1497: "V3WV02" },
+    "aragon anthrazit":    { 997: "V3WVK21", 1497: "V3WV21" },
+    "schiefer grau":       { 997: "V3WVK08", 1497: "V3WV08" },
+    "schwarzwaldeiche hell":{ 997: "V3WVK23", 1497: "V3WV23" },
+    "stein anthrazit":     { 997: "V3WVK03", 1497: "V3WV03" },
+    "kalkstein natur":     { 997: "V3WVK05", 1497: "V3WV05" },
+    "aragon schwarz":      { 997: "V3WVK20", 1497: "V3WV20" },
+  };
+  const priceCache = new Map(); // articleId → net price
+
+  function selectedColor() {
+    const chk = form.querySelector('input[name="wallCladdingColor"]:checked');
+    return (chk?.value || "Marmor weiß").trim().toLowerCase();
+  }
+
+  function articleIds(colorKey) {
+    const entry = WV_ART[colorKey] || WV_ART["marmor weiß"];
+    return { id997: entry[997], id1497: entry[1497] };
+  }
+
+  async function ensurePrices(colorKey) {
+    const { id997, id1497 } = articleIds(colorKey);
+    const missing = [id997, id1497].filter((id) => !priceCache.has(id));
+    if (!missing.length) return;
+    try {
+      const r = await fetch(`/api/vigor-prices?ids=${missing.join(",")}`);
+      if (r.ok) { const data = await r.json(); Object.entries(data).forEach(([k, v]) => priceCache.set(k, v)); }
+    } catch {}
+  }
+
+  function showPanel(on) {
+    panel.hidden = !on;
+    panel.setAttribute("aria-hidden", on ? "false" : "true");
+  }
+
+  function computeSuggestion(areaRaw) {
+    const area = Number(String(areaRaw ?? "").replace(",", ".")) || 0;
+    if (area <= 0) return null;
+    const opt997 = { size: 997, qty: Math.ceil(area / PANEL_AREA_M2[997]) };
+    opt997.covered = opt997.qty * PANEL_AREA_M2[997];
+    opt997.waste = opt997.covered - area;
+    const opt1497 = { size: 1497, qty: Math.ceil(area / PANEL_AREA_M2[1497]) };
+    opt1497.covered = opt1497.qty * PANEL_AREA_M2[1497];
+    opt1497.waste = opt1497.covered - area;
+    const best = opt1497.waste <= opt997.waste ? opt1497 : opt997;
+    return { area, opt997, opt1497, best };
+  }
+
+  const fmt = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const eur = (n) => n > 0 ? `${fmt(n)} €` : "";
+
+  function buildCard(opt, isBest, selectedSize, colorKey) {
+    const { id997, id1497 } = articleIds(colorKey);
+    const artId = opt.size === 997 ? id997 : id1497;
+    const unitNet = priceCache.get(artId) || 0;
+    const totalNet = unitNet * opt.qty;
+    const priceHtml = unitNet > 0
+      ? `<span class="wvc-price">${eur(totalNet)}</span><span class="wvc-unit">(${eur(unitNet)} / Stk.)</span>`
+      : "";
+    const isSelected = selectedSize === opt.size;
+    return `
+      <button type="button" class="wvc-card${isBest ? " wvc-best" : ""}${isSelected ? " wvc-selected" : ""}"
+              data-size="${opt.size}" data-qty="${opt.qty}">
+        <div class="wvc-card-head">
+          <span class="wvc-size">${opt.size}×2550 mm</span>
+          ${isBest ? `<span class="wvc-badge">Empfehlung</span>` : ""}
+        </div>
+        <div class="wvc-qty">${opt.qty} Stück</div>
+        <div class="wvc-coverage">${fmt(opt.covered)} m² abgedeckt · ${fmt(opt.waste)} m² Verschnitt</div>
+        ${priceHtml ? `<div class="wvc-price-row">${priceHtml}</div>` : ""}
+        <div class="wvc-select-label">${isSelected ? "✓ Ausgewählt" : "Auswählen"}</div>
+      </button>`;
+  }
+
+  function applyOption(size, qty) {
+    if (panelSizeEl) panelSizeEl.value = size;
+    if (qtyEl) qtyEl.value = qty;
+    if (qtyInput) { qtyInput.value = qty; qtyInput.min = 1; }
+    if (qtyRow) { qtyRow.hidden = false; }
+    renderCards(size);
+    if (typeof updateKostenDetails === "function") updateKostenDetails();
+    window.updatePricing?.();
+  }
+
+  function renderCards(selectedSize) {
+    if (!cardsEl) return;
+    const result = computeSuggestion(areaEl?.value);
+    if (!result) { suggestionBox.hidden = true; return; }
+    const colorKey = selectedColor();
+    cardsEl.innerHTML =
+      buildCard(result.opt997, result.best.size === 997, selectedSize, colorKey) +
+      buildCard(result.opt1497, result.best.size === 1497, selectedSize, colorKey);
+    cardsEl.querySelectorAll(".wvc-card").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        applyOption(Number(btn.dataset.size), Number(btn.dataset.qty));
+      });
+    });
+    suggestionBox.hidden = false;
+  }
+
+  async function updateSuggestion() {
+    await ensurePrices(selectedColor());
+    const selectedSize = panelSizeEl?.value ? Number(panelSizeEl.value) : null;
+    renderCards(selectedSize);
+  }
+
+  // qty input lets user override after applying
+  qtyInput?.addEventListener("input", () => {
+    const qty = Number(qtyInput.value) || 0;
+    if (qtyEl) qtyEl.value = qty;
+    if (qty > 0) window.updatePricing?.();
+  });
+
+  // Re-render cards + update pricing when color changes
+  form.addEventListener("change", (e) => {
+    if (e.target.name === "wallCladdingColor") {
+      updateSuggestion();
+      if (toggle.checked) window.updatePricing?.();
+    }
+  });
+
+  toggle.addEventListener("change", () => showPanel(toggle.checked));
+  showPanel(toggle.checked);
+  areaEl?.addEventListener("input", updateSuggestion);
+  updateSuggestion();
+
+  // ---- product card for selected WVC color ----
+  const wvcCardEl = document.getElementById("wvcProductCard");
+  const wvcFullCache = new Map();
+
+  function wvcStockSpan(d) {
+    const inStock = d.stockQuantity > 0;
+    const qty = d.stockQuantity ?? 0;
+    const title = d.stockText || (inStock
+      ? "Der Artikel ist im Lager verfügbar."
+      : "Die Ware ist aktuell nicht verfügbar und muss bestellt werden.");
+    return `<span class="dac-line-stock dac-stock-${inStock ? "in" : "out"}" title="${title}"><span class="dac-stock-qty">${qty}</span>${inStock ? "Auf Lager" : "Auf Bestellung"}</span>`;
+  }
+
+  async function renderWvcProductCard(colorKey) {
+    if (!wvcCardEl) return;
+    const { id997, id1497 } = articleIds(colorKey);
+    const panelSizeVal = panelSizeEl?.value || "997";
+    const artId = panelSizeVal === "1497" ? id1497 : id997;
+    if (!artId) { wvcCardEl.hidden = true; return; }
+    let d = wvcFullCache.get(artId);
+    if (!d) {
+      try {
+        const r = await fetch(`/api/vigor-prices?ids=${artId}&full=1`);
+        if (r.ok) { const j = await r.json(); d = j[artId]; if (d) wvcFullCache.set(artId, d); }
+      } catch {}
+    }
+    if (!d) { wvcCardEl.hidden = true; return; }
+    const inStock = d.stockQuantity > 0;
+    const ownQty = (window.__wvOwnLager || {})[artId];
+    const ownBadge = (ownQty > 0)
+      ? `<span class="wv-own-lager-badge"><span class="wv-own-lager-qty">${ownQty}</span>Im eigenen Lager</span>`
+      : "";
+    wvcCardEl.innerHTML = `<div class="wv-product-card">
+      ${d.image ? `<img src="${d.image}" alt="${d.name}" />` : ""}
+      <div class="wv-product-card-info">
+        <div class="wv-product-card-name">${d.name || artId}</div>
+        <div class="wv-product-card-art">${artId}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+        ${d.netPrice ? `<div class="wv-product-card-price">${d.netPrice.toFixed(2).replace(".", ",")} €</div>` : ""}
+        <div class="wv-product-card-stock ${inStock ? "in" : "out"}">${d.stockText || (inStock ? "Auf Lager" : "Auf Bestellung")}</div>
+      </div>
+    </div>
+    ${wvcStockSpan(d)}
+    ${ownBadge}`;
+    wvcCardEl.hidden = false;
+  }
+
+  form.addEventListener("change", (e) => {
+    if (e.target.name === "wallCladdingColor" || e.target.name === "wallCladdingPanelSize") {
+      renderWvcProductCard(selectedColor());
+    }
+  });
+  function applyWvcOwnLagerToTiles() {
+    const lager = window.__wvOwnLager || {};
+    // Summary above wallCladdingColors
+    const colorsEl = document.getElementById("wallCladdingColors");
+    if (!colorsEl) return;
+    let hint = document.getElementById("wvcOwnLagerHint");
+    if (!hint) {
+      hint = document.createElement("div");
+      hint.id = "wvcOwnLagerHint";
+      hint.className = "wv-own-lager-hint";
+      colorsEl.parentElement.insertBefore(hint, colorsEl);
+    }
+    // Build reverse: artId → {display, size}
+    const artToColorWvc = new Map();
+    for (const [ck, entry] of Object.entries(WV_ART)) {
+      const display = ck.replace(/\b\w/g, c => c.toUpperCase());
+      artToColorWvc.set(entry[997],  { display, size: 997 });
+      artToColorWvc.set(entry[1497], { display, size: 1497 });
+    }
+
+    const hintItemsWvc = [];
+    for (const [artId, qty] of Object.entries(lager)) {
+      if (!(qty > 0)) continue;
+      const info = artToColorWvc.get(artId);
+      if (!info) continue;
+      hintItemsWvc.push(`<span class="wv-hint-item">${info.display} ${info.size}mm <strong>${qty}×</strong></span>`);
+    }
+    if (hintItemsWvc.length) {
+      hint.innerHTML = `<span class="wv-hint-label">Eigenes Lager:</span> ${hintItemsWvc.join("")}`;
+      hint.hidden = false;
+    } else {
+      hint.hidden = true;
+    }
+    // Tile overlays
+    form.querySelectorAll('input[name="wallCladdingColor"]').forEach((radio) => {
+      const label = radio.closest(".image-check");
+      if (!label) return;
+      const ck = radio.value.trim().toLowerCase();
+      const entry = WV_ART[ck];
+      const qty997 = entry ? (lager[entry[997]] || 0) : 0;
+      const qty1497 = entry ? (lager[entry[1497]] || 0) : 0;
+      let badge = label.querySelector(".wv-tile-own-badge");
+      if (qty997 > 0 || qty1497 > 0) {
+        if (!badge) { badge = document.createElement("span"); badge.className = "wv-tile-own-badge"; label.appendChild(badge); }
+        const parts = [];
+        if (qty997 > 0) parts.push(`997: ${qty997}`);
+        if (qty1497 > 0) parts.push(`1497: ${qty1497}`);
+        badge.textContent = parts.join(" / ");
+      } else if (badge) {
+        badge.remove();
+      }
+    });
+  }
+
+  document.addEventListener("wvOwnLagerLoaded", () => { if (toggle.checked) renderWvcProductCard(selectedColor()); applyWvcOwnLagerToTiles(); });
+  applyWvcOwnLagerToTiles();
+  // initial render if toggle already checked
+  if (toggle.checked) renderWvcProductCard(selectedColor());
+  toggle.addEventListener("change", () => { if (toggle.checked) renderWvcProductCard(selectedColor()); else wvcCardEl && (wvcCardEl.hidden = true); });
+})();
+
+makeFloorCalc({
+  toggleEl: document.getElementById("wvcCalcToggle"),
+  panelEl: document.getElementById("wvcCalcPanel"),
+  rowsEl: document.getElementById("wvcCalcRows"),
+  totalEl: document.getElementById("wvcCalcResult"),
+  applyBtn: document.getElementById("wvcCalcApply"),
+  addRowBtn: document.getElementById("wvcCalcAddRow"),
+  areaInput: document.getElementById("wallCladdingArea"),
+});
 
 /* ========== SMART TRAY SEARCH (equal-or-bigger filter, persist/deselect) ========== */
 function initSmartTraySearch() {

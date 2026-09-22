@@ -4221,7 +4221,16 @@ button.dm-btn-danger:focus-visible {
           <h2 style="margin:0">Fußboden</h2>
         </div>
 
+        <div class="fb-tab-switch" role="tablist" aria-label="Fußboden oder Wandverkleidung">
+          <button type="button" class="fb-tab-switch-btn active" id="fbTabBtnFloor" data-target="fbTabFloor"
+            role="tab" aria-selected="true">Fußboden</button>
+          <button type="button" class="fb-tab-switch-btn" id="fbTabBtnWall" data-target="fbTabWall" role="tab"
+            aria-selected="false">Wandverkleidung</button>
+        </div>
+
         <form id="form-fussboden" autocomplete="on">
+
+        <div id="fbTabFloor" class="fb-tabpanel full">
 
           <div class="field">
             <label class="check-pill"><input type="checkbox" id="addFlooring" name="addFlooring" /><span
@@ -4258,37 +4267,12 @@ button.dm-btn-danger:focus-visible {
                 <div class="floor-calc-card__title-row">
                   <div>
                     <div class="floor-calc-card__title">Flächenrechner</div>
-                    <div class="floor-calc-card__hint">Mehrere Flächen addieren oder Aussparungen abziehen. Bitte alle Eingaben in Meter.</div>
+                    <div class="floor-calc-card__hint">Flächen addieren oder Aussparungen abziehen — Angaben in Metern.</div>
                   </div>
                 </div>
 
                 <div id="floorCalcRows" class="floor-calc-rows" aria-live="polite"></div>
-
-                <template id="floorCalcRowTemplate">
-                  <div class="floor-calc-row">
-                    <button type="button" class="floor-calc-sign" data-sign="add" aria-label="Zeile wird addiert">+</button>
-
-                    <label class="field floor-calc-field" style="margin:0;">
-                      <span>Länge</span>
-                      <input class="floor-calc-length" type="number" min="0" step="0.1" inputmode="decimal" placeholder="z. B. 200" />
-                    </label>
-
-                    <span class="floor-calc-times" aria-hidden="true">×</span>
-
-                    <label class="field floor-calc-field" style="margin:0;">
-                      <span>Breite</span>
-                      <input class="floor-calc-width" type="number" min="0" step="0.1" inputmode="decimal" placeholder="z. B. 120" />
-                    </label>
-
-                    <div class="floor-calc-row-area">
-                      <div class="floor-calc-row-area__label">Fläche</div>
-                      <div class="floor-calc-row-result">0,00 m²</div>
-                    </div>
-
-                    <button type="button" class="floor-calc-add-row" aria-label="Weitere Zeile hinzufügen">+</button>
-                    <button type="button" class="floor-calc-remove-row" aria-label="Zeile entfernen">−</button>
-                  </div>
-                </template>
+                <button type="button" id="floorCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
 
                 <div class="floor-calc-result-row">
                   <div>
@@ -4435,6 +4419,152 @@ button.dm-btn-danger:focus-visible {
 
             </div>
           </div>
+
+        </div>
+
+        <div id="fbTabWall" class="fb-tabpanel full" hidden aria-hidden="true">
+
+          <div class="field">
+            <label class="check-pill"><input type="checkbox" id="addWallCladding" name="addWallCladding" /><span
+                class="box"></span><span>Möchten Sie Wandverkleidung als Fußboden hinzufügen?</span></label>
+          </div>
+
+          <div id="wallCladdingPanel" class="field" aria-hidden="true" hidden>
+            <div class="flooring-panel-head">
+              <h3 style="margin: 0">Wandverkleidung</h3>
+              <button type="button" id="wvcCalcToggle" class="secondary flooring-calc-toggle" aria-expanded="false"
+                aria-controls="wvcCalcPanel">Flächenrechner öffnen</button>
+            </div>
+
+            <div class="flooring-top-grid">
+              <div class="field flooring-area-field" style="margin:0;">
+                <label for="wallCladdingArea" class="req">gewünschte Fläche m²</label>
+                <input id="wallCladdingArea" name="wallCladdingArea" inputmode="decimal" placeholder="z. B. 8,5" />
+                <small class="muted flooring-area-help">Sie können die Fläche direkt eingeben oder den Flächenrechner verwenden.</small>
+
+                <div class="field" style="margin-top: 14px;">
+                  <label class="req">Welche Art der Fußbodenverkleidung wird benötigt?</label>
+                  <div class="radio-group vertical" role="radiogroup" aria-label="Art der Fußbodenverkleidung">
+                    <label class="radio-pill"><input type="radio" name="wallCladdingKind" value="Fehlstellen" /><span
+                        class="circle"></span><span>Nur schließende Fehlstellen</span></label>
+                    <label class="radio-pill"><input type="radio" name="wallCladdingKind" value="Gesamtes-Bad" /><span
+                        class="circle"></span><span>Gesamter Badboden</span></label>
+                  </div>
+                </div>
+              </div>
+
+              <aside id="wvcCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
+                <div class="floor-calc-card__title-row">
+                  <div>
+                    <div class="floor-calc-card__title">Flächenrechner</div>
+                    <div class="floor-calc-card__hint">Flächen addieren oder Aussparungen abziehen — Angaben in Metern.</div>
+                  </div>
+                </div>
+                <div id="wvcCalcRows" class="floor-calc-rows" aria-live="polite"></div>
+                <button type="button" id="wvcCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
+                <div class="floor-calc-result-row">
+                  <div>
+                    <div class="floor-calc-result-label">Gesamtfläche</div>
+                    <div id="wvcCalcResult" class="floor-calc-result-value">0,00 m²</div>
+                  </div>
+                  <button type="button" id="wvcCalcApply" class="floor-calc-apply">In Fläche übernehmen</button>
+                </div>
+              </aside>
+            </div>
+
+            <div id="wallCladdingSuggestion" hidden style="margin-top:16px;">
+              <div id="wallCladdingCards" class="wvc-cards"></div>
+              <div id="wallCladdingQtyRow" class="field" hidden style="margin-top:12px;">
+                <label for="wallCladdingQtyInput">Anzahl Paneele (anpassbar)</label>
+                <input type="number" id="wallCladdingQtyInput" min="1" step="1" style="max-width:140px;" />
+              </div>
+            </div>
+
+            <input type="hidden" id="wallCladdingPanelSize" name="wallCladdingPanelSize" value="" />
+            <input type="hidden" id="wallCladdingQty" name="wallCladdingQty" value="" />
+
+            <!-- Label + color tiles, same pattern as the Fußboden color grid above -->
+            <div class="field">
+              <label class="req">Wandverkleidung 3.0 — Farbe</label>
+
+              <div id="wallCladdingColors">
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Weiß" />
+                  <span class="img-wrap"><img src="./assets/585c6146589e2f4c59e026c2b5373966.jpg" alt="Weiß" /></span>
+                  <span class="caption">Weiß</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Marmor weiß" checked />
+                  <span class="img-wrap"><img src="./assets/Marmor weiß.jpeg" alt="Marmor weiß" /></span>
+                  <span class="caption">Marmor weiß</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Struktur weiß" />
+                  <span class="img-wrap"><img src="./assets/Struktur weiß.jpeg" alt="Struktur weiß" /></span>
+                  <span class="caption">Struktur weiß</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Stein beige" />
+                  <span class="img-wrap"><img src="./assets/Stein beige.jpeg" alt="Stein beige" /></span>
+                  <span class="caption">Stein beige</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Aragon grau" />
+                  <span class="img-wrap"><img src="./assets/Aragon grau.jpeg" alt="Aragon grau" /></span>
+                  <span class="caption">Aragon grau</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Stein grau" />
+                  <span class="img-wrap"><img src="./assets/stein grau .jpeg" alt="Stein grau" /></span>
+                  <span class="caption">Stein grau</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Kalkstein natur" />
+                  <span class="img-wrap"><img src="./assets/V3WVK05.jpg" alt="Kalkstein natur" /></span>
+                  <span class="caption">Kalkstein natur</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Aragon schwarz" />
+                  <span class="img-wrap"><img src="./assets/V3WVK20.jpg" alt="Aragon schwarz" /></span>
+                  <span class="caption">Aragon schwarz</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Aragon anthrazit" />
+                  <span class="img-wrap"><img src="./assets/Aragon_anthrazit.jpg" alt="Aragon anthrazit" /></span>
+                  <span class="caption">Aragon anthrazit</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Schiefer grau" />
+                  <span class="img-wrap"><img src="./assets/schiefer-grau-wv.png" alt="Schiefer grau" /></span>
+                  <span class="caption">Schiefer grau</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Schwarzwaldeiche Hell" />
+                  <span class="img-wrap"><img src="./assets/Schwarzwaldeiche Hell.jpg" alt="Schwarzwaldeiche Hell" /></span>
+                  <span class="caption">Schwarzwaldeiche Hell</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Stein anthrazit" />
+                  <span class="img-wrap"><img src="./assets/Stein anthrazit.jpeg" alt="Stein anthrazit" /></span>
+                  <span class="caption">Stein anthrazit</span>
+                </label>
+              </div>
+              <div id="wvcProductCard" hidden></div>
+            </div>
+          </div>
+
+        </div>
 
           <div class="actions full">
             <button type="button" data-nav="prev" class="secondary">
@@ -4709,6 +4839,7 @@ button.dm-btn-danger:focus-visible {
                   </label>
 
                 </div>
+                <div id="wvProductCard" hidden></div>
 
                 <div id="wvSonderDecorDetails" class="field full" hidden aria-hidden="true" style="margin-top: 14px">
                   <label for="wvSonderConfigNr" class="req">Konfigurations-Nr.</label>
