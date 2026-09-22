@@ -13548,6 +13548,11 @@ async function applySentOfferState(offer) {
     offerNumber: offer.offerNumber,
     sentAt: offer.updatedAt || offer.createdAt,
     onNewVersion: async () => {
+      // The new version belongs to whoever is creating it now, not the
+      // original sender: reset Ansprechpartner (name + signature) and the
+      // date, which the restore from the sent offer left stale.
+      window.resetAnsprechpartnerToMe?.();
+      ensureKundendatenDate(false);
       const result = await window.createOfferVersion?.();
       const nr = result?.offerNumber;
       if (result?.queued) {
