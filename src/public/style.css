@@ -5122,6 +5122,27 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 .dac-stock-in  .dac-stock-qty { background: #05541f; }
 .dac-stock-out .dac-stock-qty { background: #7a0e21; }
 
+/* Eigenes Lager — summary line above color tiles */
+.wv-own-lager-hint {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  font-size: 0.8rem; margin-bottom: 10px; color: #6b7280;
+}
+.wv-hint-label { font-weight: 600; color: #92400e; }
+.wv-hint-item {
+  background: #fef3c7; color: #92400e; border-radius: 6px;
+  padding: 2px 8px; white-space: nowrap;
+}
+.wv-hint-item strong { font-weight: 700; }
+
+/* Tile overlay badge */
+.wv-tile-own-badge {
+  position: absolute; top: 6px; right: 6px;
+  background: #b45309; color: #fff;
+  font-size: 0.65rem; font-weight: 700;
+  border-radius: 999px; padding: 2px 7px;
+  pointer-events: none; line-height: 1.4;
+}
+
 /* Eigenes Lager badge — distinct orange/amber so it stands out from Vigor green */
 .wv-own-lager-badge {
   display: inline-flex; align-items: center; gap: 8px;

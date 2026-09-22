@@ -7673,13 +7673,76 @@ function setupWandverkleidungPage() {
       cardEl.hidden = false;
     }
 
+    // Build reverse map: artId → {colorKey, displayName, size}
+    function buildArtToColor() {
+      const map = new Map();
+      for (const [ck, sizes] of Object.entries(WV_ART_STANDALONE)) {
+        const display = ck.replace(/\b\w/g, c => c.toUpperCase());
+        map.set(sizes[997],  { colorKey: ck, display, size: 997 });
+        map.set(sizes[1497], { colorKey: ck, display, size: 1497 });
+      }
+      return map;
+    }
+
+    function applyOwnLagerToTiles() {
+      const lager = window.__wvOwnLager || {};
+      const artToColor = buildArtToColor();
+
+      // Summary line above the color grid
+      const colorsEl = document.getElementById("wvColors");
+      if (!colorsEl) return;
+      let hint = document.getElementById("wvOwnLagerHint");
+      if (!hint) {
+        hint = document.createElement("div");
+        hint.id = "wvOwnLagerHint";
+        hint.className = "wv-own-lager-hint";
+        colorsEl.parentElement.insertBefore(hint, colorsEl);
+      }
+
+      // Collect in-stock colors (prefer 997 label, deduplicate by colorKey)
+      const seen = new Map();
+      for (const [artId, qty] of Object.entries(lager)) {
+        if (!(qty > 0)) continue;
+        const info = artToColor.get(artId);
+        if (!info) continue;
+        if (!seen.has(info.colorKey) || info.size === 997) seen.set(info.colorKey, { display: info.display, qty });
+      }
+      if (seen.size) {
+        const items = [...seen.values()].map(({ display, qty }) => `<span class="wv-hint-item">${display} <strong>${qty}×</strong></span>`).join("");
+        hint.innerHTML = `<span class="wv-hint-label">Eigenes Lager:</span> ${items}`;
+        hint.hidden = false;
+      } else {
+        hint.hidden = true;
+      }
+
+      // Tile overlays
+      page.querySelectorAll('input[name="wvColor"]').forEach((radio) => {
+        const label = radio.closest(".image-check");
+        if (!label) return;
+        const colorKey = radio.value.trim().toLowerCase();
+        const entry = WV_ART_STANDALONE[colorKey];
+        // Check if either size is in own stock
+        const qty997 = entry ? (lager[entry[997]] || 0) : 0;
+        const qty1497 = entry ? (lager[entry[1497]] || 0) : 0;
+        const totalQty = qty997 + qty1497;
+        let badge = label.querySelector(".wv-tile-own-badge");
+        if (totalQty > 0) {
+          if (!badge) { badge = document.createElement("span"); badge.className = "wv-tile-own-badge"; label.appendChild(badge); }
+          badge.textContent = `${totalQty} Stk`;
+        } else if (badge) {
+          badge.remove();
+        }
+      });
+    }
+
     page.querySelectorAll('input[name="wvColor"]').forEach((r) => r.addEventListener("change", renderCard));
     document.getElementById("wv997")?.addEventListener("change", renderCard);
     document.getElementById("wv1497")?.addEventListener("change", renderCard);
     document.getElementById("wvColor_997")?.addEventListener("change", renderCard);
     document.getElementById("wvColor_1497")?.addEventListener("change", renderCard);
-    document.addEventListener("wvOwnLagerLoaded", renderCard);
+    document.addEventListener("wvOwnLagerLoaded", () => { renderCard(); applyOwnLagerToTiles(); });
     renderCard();
+    applyOwnLagerToTiles();
   })();
 
   // ---- NEW: "Zusätzliche Farben" UI (additive, backward compatible) ----
@@ -10701,7 +10764,56 @@ document.addEventListener("change", (e) => {
       renderWvcProductCard(selectedColor());
     }
   });
-  document.addEventListener("wvOwnLagerLoaded", () => { if (toggle.checked) renderWvcProductCard(selectedColor()); });
+  function applyWvcOwnLagerToTiles() {
+    const lager = window.__wvOwnLager || {};
+    // Summary above wallCladdingColors
+    const colorsEl = document.getElementById("wallCladdingColors");
+    if (!colorsEl) return;
+    let hint = document.getElementById("wvcOwnLagerHint");
+    if (!hint) {
+      hint = document.createElement("div");
+      hint.id = "wvcOwnLagerHint";
+      hint.className = "wv-own-lager-hint";
+      colorsEl.parentElement.insertBefore(hint, colorsEl);
+    }
+    const seen = new Map();
+    for (const [artId, qty] of Object.entries(lager)) {
+      if (!(qty > 0)) continue;
+      for (const [ck, entry] of Object.entries(WV_ART)) {
+        if (entry[997] === artId || entry[1497] === artId) {
+          if (!seen.has(ck)) {
+            const display = ck.replace(/\b\w/g, c => c.toUpperCase());
+            seen.set(ck, { display, qty: (lager[entry[997]] || 0) + (lager[entry[1497]] || 0) });
+          }
+        }
+      }
+    }
+    if (seen.size) {
+      const items = [...seen.values()].map(({ display, qty }) => `<span class="wv-hint-item">${display} <strong>${qty}×</strong></span>`).join("");
+      hint.innerHTML = `<span class="wv-hint-label">Eigenes Lager:</span> ${items}`;
+      hint.hidden = false;
+    } else {
+      hint.hidden = true;
+    }
+    // Tile overlays
+    form.querySelectorAll('input[name="wallCladdingColor"]').forEach((radio) => {
+      const label = radio.closest(".image-check");
+      if (!label) return;
+      const ck = radio.value.trim().toLowerCase();
+      const entry = WV_ART[ck];
+      const totalQty = entry ? ((lager[entry[997]] || 0) + (lager[entry[1497]] || 0)) : 0;
+      let badge = label.querySelector(".wv-tile-own-badge");
+      if (totalQty > 0) {
+        if (!badge) { badge = document.createElement("span"); badge.className = "wv-tile-own-badge"; label.appendChild(badge); }
+        badge.textContent = `${totalQty} Stk`;
+      } else if (badge) {
+        badge.remove();
+      }
+    });
+  }
+
+  document.addEventListener("wvOwnLagerLoaded", () => { if (toggle.checked) renderWvcProductCard(selectedColor()); applyWvcOwnLagerToTiles(); });
+  applyWvcOwnLagerToTiles();
   // initial render if toggle already checked
   if (toggle.checked) renderWvcProductCard(selectedColor());
   toggle.addEventListener("change", () => { if (toggle.checked) renderWvcProductCard(selectedColor()); else wvcCardEl && (wvcCardEl.hidden = true); });
