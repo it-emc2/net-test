@@ -220,7 +220,10 @@ class ConfigService {
   async setMany(updates) {
     for (const [key, value] of Object.entries(updates)) {
       const def = CONFIG_SCHEMA.find(d => d.key === key);
-      await this.set(key, def?.type === 'boolean' ? Boolean(value) : Number(value));
+      const coerced = def?.type === 'boolean' ? Boolean(value)
+        : def?.type === 'json' ? value
+        : Number(value);
+      await this.set(key, coerced);
     }
   }
 }

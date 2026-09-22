@@ -6792,7 +6792,10 @@ fetch("/admin/api/config/public")
     if (typeof d.FAHRZEUGBEREITSTELLUNG === "number") window.__fahrzeugbereitstellung = d.FAHRZEUGBEREITSTELLUNG;
     if (typeof d.WERKZEUG === "number") window.__werkzeug = d.WERKZEUG;
     if (typeof d.BERAEUMUNG === "number") window.__beraeumung = d.BERAEUMUNG;
-    if (d.WV_OWN_LAGER && typeof d.WV_OWN_LAGER === "object") window.__wvOwnLager = d.WV_OWN_LAGER;
+    if (d.WV_OWN_LAGER && typeof d.WV_OWN_LAGER === "object") {
+      window.__wvOwnLager = d.WV_OWN_LAGER;
+      document.dispatchEvent(new CustomEvent("wvOwnLagerLoaded"));
+    }
     if (typeof window.__refreshFinanzierungUI === "function") window.__refreshFinanzierungUI();
     if (typeof renderTravelCostDebug === "function") renderTravelCostDebug();
   })
@@ -7675,6 +7678,7 @@ function setupWandverkleidungPage() {
     document.getElementById("wv1497")?.addEventListener("change", renderCard);
     document.getElementById("wvColor_997")?.addEventListener("change", renderCard);
     document.getElementById("wvColor_1497")?.addEventListener("change", renderCard);
+    document.addEventListener("wvOwnLagerLoaded", renderCard);
     renderCard();
   })();
 
@@ -10697,6 +10701,7 @@ document.addEventListener("change", (e) => {
       renderWvcProductCard(selectedColor());
     }
   });
+  document.addEventListener("wvOwnLagerLoaded", () => { if (toggle.checked) renderWvcProductCard(selectedColor()); });
   // initial render if toggle already checked
   if (toggle.checked) renderWvcProductCard(selectedColor());
   toggle.addEventListener("change", () => { if (toggle.checked) renderWvcProductCard(selectedColor()); else wvcCardEl && (wvcCardEl.hidden = true); });
