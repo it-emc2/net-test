@@ -7573,6 +7573,60 @@ function setupWandverkleidungPage() {
     .forEach((radio) => radio.addEventListener("change", syncSonderDecorUi));
   syncSonderDecorUi();
 
+  // ---- standalone WV product card ----
+  (function initWvProductCard() {
+    const cardEl = document.getElementById("wvProductCard");
+    if (!cardEl) return;
+    const WV_ART_STANDALONE = {
+      "weiß":                { 997: "V3WVK07", 1497: "V3WV07" },
+      "marmor weiß":         { 997: "V3WVK09", 1497: "V3WV09" },
+      "struktur weiß":       { 997: "V3WVK06", 1497: "V3WV06" },
+      "stein beige":         { 997: "V3WVK01", 1497: "V3WV01" },
+      "aragon grau":         { 997: "V3WVK22", 1497: "V3WV22" },
+      "stein grau":          { 997: "V3WVK02", 1497: "V3WV02" },
+      "aragon anthrazit":    { 997: "V3WVK21", 1497: "V3WV21" },
+      "schiefer grau":       { 997: "V3WVK08", 1497: "V3WV08" },
+      "schwarzwaldeiche hell":{ 997: "V3WVK23", 1497: "V3WV23" },
+      "stein anthrazit":     { 997: "V3WVK03", 1497: "V3WV03" },
+      "kalkstein natur":     { 997: "V3WVK05", 1497: "V3WV05" },
+      "aragon schwarz":      { 997: "V3WVK20", 1497: "V3WV20" },
+    };
+    const cache = new Map();
+
+    async function renderCard() {
+      const checked997 = page.querySelector('input[name="wvColor"]:checked');
+      const colorVal = (checked997?.value || "Marmor weiß").trim().toLowerCase();
+      if (colorVal === "sonderdekor") { cardEl.hidden = true; return; }
+      const entry = WV_ART_STANDALONE[colorVal] || WV_ART_STANDALONE["marmor weiß"];
+      // prefer 997 as the reference article (both sizes share the same product line)
+      const artId = entry[997];
+      let d = cache.get(artId);
+      if (!d) {
+        try {
+          const r = await fetch(`/api/vigor-prices?ids=${artId}&full=1`);
+          if (r.ok) { const j = await r.json(); d = j[artId]; if (d) cache.set(artId, d); }
+        } catch {}
+      }
+      if (!d) { cardEl.hidden = true; return; }
+      const inStock = d.stockQuantity > 0;
+      cardEl.innerHTML = `<div class="wv-product-card">
+        ${d.image ? `<img src="${d.image}" alt="${d.name}" />` : ""}
+        <div class="wv-product-card-info">
+          <div class="wv-product-card-name">${d.name || artId}</div>
+          <div class="wv-product-card-art">${artId}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+          ${d.netPrice ? `<div class="wv-product-card-price">${d.netPrice.toFixed(2).replace(".", ",")} €</div>` : ""}
+          <div class="wv-product-card-stock ${inStock ? "in" : "out"}">${d.stockText || (inStock ? "Auf Lager" : "Auf Bestellung")}</div>
+        </div>
+      </div>`;
+      cardEl.hidden = false;
+    }
+
+    page.querySelectorAll('input[name="wvColor"]').forEach((r) => r.addEventListener("change", renderCard));
+    renderCard();
+  })();
+
   // ---- NEW: "Zusätzliche Farben" UI (additive, backward compatible) ----
   function ensureExtrasUI(fromSelectId, listId, btnId, titleText) {
     const fromSelect = document.getElementById(fromSelectId);
@@ -10538,6 +10592,48 @@ document.addEventListener("change", (e) => {
   showPanel(toggle.checked);
   areaEl?.addEventListener("input", updateSuggestion);
   updateSuggestion();
+
+  // ---- product card for selected WVC color ----
+  const wvcCardEl = document.getElementById("wvcProductCard");
+  const wvcFullCache = new Map();
+
+  async function renderWvcProductCard(colorKey) {
+    if (!wvcCardEl) return;
+    const { id997, id1497 } = articleIds(colorKey);
+    const panelSizeVal = panelSizeEl?.value || "997";
+    const artId = panelSizeVal === "1497" ? id1497 : id997;
+    if (!artId) { wvcCardEl.hidden = true; return; }
+    let d = wvcFullCache.get(artId);
+    if (!d) {
+      try {
+        const r = await fetch(`/api/vigor-prices?ids=${artId}&full=1`);
+        if (r.ok) { const j = await r.json(); d = j[artId]; if (d) wvcFullCache.set(artId, d); }
+      } catch {}
+    }
+    if (!d) { wvcCardEl.hidden = true; return; }
+    const inStock = d.stockQuantity > 0;
+    wvcCardEl.innerHTML = `<div class="wv-product-card">
+      ${d.image ? `<img src="${d.image}" alt="${d.name}" />` : ""}
+      <div class="wv-product-card-info">
+        <div class="wv-product-card-name">${d.name || artId}</div>
+        <div class="wv-product-card-art">${artId}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+        ${d.netPrice ? `<div class="wv-product-card-price">${d.netPrice.toFixed(2).replace(".", ",")} €</div>` : ""}
+        <div class="wv-product-card-stock ${inStock ? "in" : "out"}">${d.stockText || (inStock ? "Auf Lager" : "Auf Bestellung")}</div>
+      </div>
+    </div>`;
+    wvcCardEl.hidden = false;
+  }
+
+  form.addEventListener("change", (e) => {
+    if (e.target.name === "wallCladdingColor" || e.target.name === "wallCladdingPanelSize") {
+      renderWvcProductCard(selectedColor());
+    }
+  });
+  // initial render if toggle already checked
+  if (toggle.checked) renderWvcProductCard(selectedColor());
+  toggle.addEventListener("change", () => { if (toggle.checked) renderWvcProductCard(selectedColor()); else wvcCardEl && (wvcCardEl.hidden = true); });
 })();
 
 /* ========== SMART TRAY SEARCH (equal-or-bigger filter, persist/deselect) ========== */

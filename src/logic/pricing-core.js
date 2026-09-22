@@ -775,13 +775,8 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
       const wallCladdingFallbackPid = wallCladdingSizeKey === "1497x2550" ? "V3WV09" : "V3WVK09";
       // hassmannArticle = color-specific article (for Hassmann CSV)
       const wallCladdingHassmannPid = resolveWvArticle(wallCladdingSizeKey, wallCladdingColor, null, wallCladdingFallbackPid);
-      // billing pid: same WV_PRICED_COLORS logic as standalone WV tab —
-      // only 3 colors have a priced row in Products; everything else bills on the size default
-      const wallCladdingBillPid = WV_PRICED_COLORS.has(normalizeWvColorKey(wallCladdingColor))
-        ? wallCladdingHassmannPid
-        : wallCladdingFallbackPid;
       add(
-        wallCladdingBillPid,
+        wallCladdingHassmannPid,
         wallCladdingQty,
         `- ${wallCladdingQty} Stk Fußboden-Paneele (Wandverkleidung ${wallCladdingSize}×2550mm) — Farbe: ${wallCladdingColor}`,
         null,
@@ -851,12 +846,10 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
   const base = `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`;
   const label = display ? `${base} — Farbe: ${display}` : base;
 
-  // Pricing stays on the size default unless the color has a real priced row
-  // in the internal Products collection (WV_PRICED_COLORS); the mapped
-  // color-specific article number is always carried for the Hassmann CSV.
+  // All color-specific articles exist in the Vigor DB with live net prices —
+  // bill directly on the color article (hassmannArticle = billing article).
   const article997 = resolveWvArticle("997x2550", display, pid, "V3WVK09");
-  const priced997 = WV_PRICED_COLORS.has(normalizeWvColorKey(display)) ? article997 : "V3WVK09";
-  add(pid || priced997, qty997, label, null, null, {
+  add(pid || article997, qty997, label, null, null, {
     color: display,
     hassmannArticle: article997,
   });
@@ -871,8 +864,7 @@ if (qty1497 > 0) {
   const label = display ? `${base} — Farbe: ${display}` : base;
 
   const article1497 = resolveWvArticle("1497x2550", display, pid, "V3WV09");
-  const priced1497 = WV_PRICED_COLORS.has(normalizeWvColorKey(display)) ? article1497 : "V3WV09";
-  add(pid || priced1497, qty1497, label, null, null, {
+  add(pid || article1497, qty1497, label, null, null, {
     color: display,
     hassmannArticle: article1497,
   });
@@ -894,8 +886,7 @@ const addExtras = (rows, panelLabel, size, defaultPid) => {
     const base = `- ${q} Stk Wandverkleidung 3.0 Alu ${panelLabel}`;
     const label = display ? `${base} — Farbe: ${display}` : base;
     const article = resolveWvArticle(size, display, pid, defaultPid);
-    const priced = WV_PRICED_COLORS.has(normalizeWvColorKey(display)) ? article : defaultPid;
-    add(pid || priced, q, label, null, null, {
+    add(pid || article, q, label, null, null, {
       color: display,
       hassmannArticle: article,
     });
