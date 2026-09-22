@@ -773,16 +773,20 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
       const wallCladdingSizeKey = wallCladdingSize === "1497" ? "1497x2550" : "997x2550";
       const wallCladdingColor = String(dusch.wallCladdingColor || "Marmor weiß").trim();
       const wallCladdingFallbackPid = wallCladdingSizeKey === "1497x2550" ? "V3WV09" : "V3WVK09";
-      const wallCladdingPid = resolveWvArticle(
-        wallCladdingSizeKey,
-        wallCladdingColor,
-        null,
-        wallCladdingFallbackPid,
-      );
+      // hassmannArticle = color-specific article (for Hassmann CSV)
+      const wallCladdingHassmannPid = resolveWvArticle(wallCladdingSizeKey, wallCladdingColor, null, wallCladdingFallbackPid);
+      // billing pid: same WV_PRICED_COLORS logic as standalone WV tab —
+      // only 3 colors have a priced row in Products; everything else bills on the size default
+      const wallCladdingBillPid = WV_PRICED_COLORS.has(normalizeWvColorKey(wallCladdingColor))
+        ? wallCladdingHassmannPid
+        : wallCladdingFallbackPid;
       add(
-        wallCladdingPid,
+        wallCladdingBillPid,
         wallCladdingQty,
         `- ${wallCladdingQty} Stk Fußboden-Paneele (Wandverkleidung ${wallCladdingSize}×2550mm) — Farbe: ${wallCladdingColor}`,
+        null,
+        null,
+        { color: wallCladdingColor, hassmannArticle: wallCladdingHassmannPid },
       );
     }
 
