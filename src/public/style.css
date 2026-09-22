@@ -5049,6 +5049,46 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
   color: #fff;
 }
 
+/* ---------- Wandverkleidung-als-Fußboden panel option cards ---------- */
+.wvc-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
+}
+.wvc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 2px solid rgba(124, 58, 237, 0.18);
+  border-radius: 14px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.wvc-card:hover { border-color: var(--accent); }
+.wvc-card.wvc-best { border-color: var(--accent); background: rgba(124, 58, 237, 0.04); }
+.wvc-card.wvc-selected { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,58,237,0.18); }
+.wvc-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.wvc-size { font-weight: 700; font-size: 0.97rem; color: #1f2937; }
+.wvc-badge { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; background: var(--accent); color: #fff; border-radius: 999px; padding: 2px 8px; }
+.wvc-qty { font-size: 1.15rem; font-weight: 700; color: var(--accent-strong, #5b21b6); }
+.wvc-coverage { font-size: 0.8rem; color: #6b7280; }
+.wvc-price-row { display: flex; align-items: baseline; gap: 6px; margin-top: 4px; }
+.wvc-price { font-size: 1.05rem; font-weight: 700; color: #1f2937; }
+.wvc-unit { font-size: 0.78rem; color: #6b7280; }
+.wvc-select-label { margin-top: 6px; font-size: 0.82rem; font-weight: 600; color: var(--accent); }
+.wvc-card.wvc-selected .wvc-select-label { color: #16a34a; }
+@media (max-width: 480px) { .wvc-cards { grid-template-columns: 1fr; } }
+[data-mode="dark"] .wvc-card { background: rgba(255,255,255,0.06); border-color: rgba(167,139,250,0.25); }
+[data-mode="dark"] .wvc-card.wvc-best,
+[data-mode="dark"] .wvc-card.wvc-selected { border-color: var(--accent); }
+[data-mode="dark"] .wvc-size { color: #f3f4f6; }
+[data-mode="dark"] .wvc-price { color: #f3f4f6; }
+
 /* ---------- Flooring mini calculator ---------- */
 .flooring-panel-head {
   display: flex;

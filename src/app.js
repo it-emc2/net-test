@@ -52,6 +52,7 @@ import pricingFactory from "./logic/pricing.js";
 import latexTemplateRouter from "./routes/latex-template.js";
 import adminRouter from "./routes/admin.js";
 import configService, { CONFIG_SCHEMA } from "./services/configService.js";
+import { fetchVigourNetPrices } from "./external/vigorDb.js";
 import UserActionLog from "./models/UserActionLog.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -503,6 +504,19 @@ app.get("/api/products/:id", async (req, res) => {
     res.json(p);
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// ---------------- Vigor net-price lookup (WV panel suggestion cards) ----------------
+app.get("/api/vigor-prices", authGate, async (req, res) => {
+  try {
+    const ids = String(req.query.ids || "").split(",").map((s) => s.trim()).filter(Boolean);
+    if (!ids.length) return res.json({});
+    const map = await fetchVigourNetPrices(ids);
+    res.json(Object.fromEntries(map));
+  } catch (err) {
+    console.error("GET /api/vigor-prices failed:", err);
     res.status(500).json({ error: String(err) });
   }
 });

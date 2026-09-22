@@ -4474,11 +4474,12 @@ button.dm-btn-danger:focus-visible {
                 </div>
               </div>
 
-              <div id="wallCladdingSuggestion" class="hint" style="margin-top:10px;" hidden>
-                <div id="wallCladdingSuggestionText"></div>
-                <button type="button" id="wallCladdingApplySuggestion" class="secondary" style="margin-top:6px;">
-                  Empfehlung übernehmen
-                </button>
+              <div id="wallCladdingSuggestion" hidden style="margin-top:12px;">
+                <div id="wallCladdingCards" class="wvc-cards"></div>
+                <div id="wallCladdingQtyRow" class="field" hidden style="margin-top:12px;">
+                  <label for="wallCladdingQtyInput">Anzahl Paneele (anpassbar)</label>
+                  <input type="number" id="wallCladdingQtyInput" min="1" step="1" style="max-width:140px;" />
+                </div>
               </div>
 
               <input type="hidden" id="wallCladdingPanelSize" name="wallCladdingPanelSize" value="" />

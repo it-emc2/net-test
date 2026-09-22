@@ -10398,13 +10398,27 @@ document.addEventListener("change", (e) => {
   const panel = document.getElementById("wallCladdingPanel");
   const areaEl = document.getElementById("wallCladdingArea");
   const suggestionBox = document.getElementById("wallCladdingSuggestion");
-  const suggestionText = document.getElementById("wallCladdingSuggestionText");
-  const applyBtn = document.getElementById("wallCladdingApplySuggestion");
+  const cardsEl = document.getElementById("wallCladdingCards");
+  const qtyRow = document.getElementById("wallCladdingQtyRow");
+  const qtyInput = document.getElementById("wallCladdingQtyInput");
   const panelSizeEl = document.getElementById("wallCladdingPanelSize");
   const qtyEl = document.getElementById("wallCladdingQty");
   if (!toggle || !panel) return;
 
   const PANEL_AREA_M2 = { 997: 0.997 * 2.55, 1497: 1.497 * 2.55 };
+  // V3WVK09 = 997mm, V3WV09 = 1497mm (Marmor weiß default, same price tier)
+  const PRICE_IDS = { 997: "V3WVK09", 1497: "V3WV09" };
+  let prices = {}; // { "V3WVK09": net, "V3WV09": net }
+  let pricesFetched = false;
+
+  async function ensurePrices() {
+    if (pricesFetched) return;
+    pricesFetched = true;
+    try {
+      const r = await fetch(`/api/vigor-prices?ids=${Object.values(PRICE_IDS).join(",")}`);
+      if (r.ok) prices = await r.json();
+    } catch {}
+  }
 
   function showPanel(on) {
     panel.hidden = !on;
@@ -10424,39 +10438,71 @@ document.addEventListener("change", (e) => {
     return { area, opt997, opt1497, best };
   }
 
-  function updateSuggestion() {
-    if (!suggestionBox || !suggestionText) return;
-    const result = computeSuggestion(areaEl?.value);
-    if (!result) {
-      suggestionBox.hidden = true;
-      return;
-    }
-    const fmt = (n) =>
-      n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    suggestionText.innerHTML =
-      `Empfehlung: <strong>${result.best.qty} × ${result.best.size}×2550mm</strong> ` +
-      `(deckt ${fmt(result.best.covered)} m², ${fmt(result.best.waste)} m² Verschnitt).<br>` +
-      `Alternativ: ${result.opt997.qty} × 997×2550mm oder ${result.opt1497.qty} × 1497×2550mm.`;
-    suggestionBox.dataset.bestSize = String(result.best.size);
-    suggestionBox.dataset.bestQty = String(result.best.qty);
-    suggestionBox.hidden = false;
+  const fmt = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const eur = (n) => n > 0 ? `${fmt(n)} €` : "";
+
+  function buildCard(opt, isBest, selectedSize) {
+    const unitNet = prices[PRICE_IDS[opt.size]] || 0;
+    const totalNet = unitNet * opt.qty;
+    const priceHtml = unitNet > 0
+      ? `<span class="wvc-price">${eur(totalNet)}</span><span class="wvc-unit">(${eur(unitNet)} / Stk.)</span>`
+      : "";
+    const isSelected = selectedSize === opt.size;
+    return `
+      <button type="button" class="wvc-card${isBest ? " wvc-best" : ""}${isSelected ? " wvc-selected" : ""}"
+              data-size="${opt.size}" data-qty="${opt.qty}">
+        <div class="wvc-card-head">
+          <span class="wvc-size">${opt.size}×2550 mm</span>
+          ${isBest ? `<span class="wvc-badge">Empfehlung</span>` : ""}
+        </div>
+        <div class="wvc-qty">${opt.qty} Stück</div>
+        <div class="wvc-coverage">${fmt(opt.covered)} m² abgedeckt · ${fmt(opt.waste)} m² Verschnitt</div>
+        ${priceHtml ? `<div class="wvc-price-row">${priceHtml}</div>` : ""}
+        <div class="wvc-select-label">${isSelected ? "✓ Ausgewählt" : "Auswählen"}</div>
+      </button>`;
   }
 
-  function applySuggestion() {
-    const size = suggestionBox?.dataset.bestSize;
-    const qty = suggestionBox?.dataset.bestQty;
-    if (!size || !qty) return;
+  function applyOption(size, qty) {
     if (panelSizeEl) panelSizeEl.value = size;
     if (qtyEl) qtyEl.value = qty;
+    if (qtyInput) { qtyInput.value = qty; qtyInput.min = 1; }
+    if (qtyRow) { qtyRow.hidden = false; }
+    renderCards(size);
     if (typeof updateKostenDetails === "function") updateKostenDetails();
     window.updatePricing?.();
   }
 
+  function renderCards(selectedSize) {
+    if (!cardsEl) return;
+    const result = computeSuggestion(areaEl?.value);
+    if (!result) { suggestionBox.hidden = true; return; }
+    cardsEl.innerHTML =
+      buildCard(result.opt997, result.best.size === 997, selectedSize) +
+      buildCard(result.opt1497, result.best.size === 1497, selectedSize);
+    cardsEl.querySelectorAll(".wvc-card").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        applyOption(Number(btn.dataset.size), Number(btn.dataset.qty));
+      });
+    });
+    suggestionBox.hidden = false;
+  }
+
+  async function updateSuggestion() {
+    await ensurePrices();
+    const selectedSize = panelSizeEl?.value ? Number(panelSizeEl.value) : null;
+    renderCards(selectedSize);
+  }
+
+  // qty input lets user override after applying
+  qtyInput?.addEventListener("input", () => {
+    const qty = Number(qtyInput.value) || 0;
+    if (qtyEl) qtyEl.value = qty;
+    if (qty > 0) window.updatePricing?.();
+  });
+
   toggle.addEventListener("change", () => showPanel(toggle.checked));
   showPanel(toggle.checked);
-
   areaEl?.addEventListener("input", updateSuggestion);
-  applyBtn?.addEventListener("click", applySuggestion);
   updateSuggestion();
 })();
 
