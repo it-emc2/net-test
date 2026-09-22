@@ -4533,6 +4533,7 @@ function buildPayload() {
       if (extraTasks.length) payload.duschwanne.extraTasks = Array.from(new Set(extraTasks));
 
       payload.duschwanne.addFlooring = !!document.getElementById("addFlooring")?.checked;
+      payload.duschwanne.addWallCladding = !!document.getElementById("addWallCladding")?.checked;
     }
   } catch (e) {
     console.warn("[buildPayload] flooring arrays capture failed:", e);
@@ -14998,6 +14999,26 @@ function restoreDuschwanne(dw) {
     restoreTrinnityFloorSealing(dw);
   }
 
+  // Restore Wandverkleidung als Fußboden (WVC)
+  if (dw.addWallCladding) {
+    setCheckbox("addWallCladding", true);
+    document.getElementById("addWallCladding")
+      ?.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  if (dw.wallCladdingArea) setNumber("wallCladdingArea", dw.wallCladdingArea);
+  if (dw.wallCladdingKind) setRadio("wallCladdingKind", dw.wallCladdingKind);
+  if (dw.wallCladdingColor) {
+    setRadio("wallCladdingColor", dw.wallCladdingColor);
+    document.querySelector(`input[name="wallCladdingColor"][value="${dw.wallCladdingColor}"]`)
+      ?.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  if (dw.wallCladdingArea) {
+    document.getElementById("wallCladdingArea")
+      ?.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  if (dw.wallCladdingPanelSize) setHiddenById("wallCladdingPanelSize", dw.wallCladdingPanelSize);
+  if (dw.wallCladdingQty) setHiddenById("wallCladdingQty", dw.wallCladdingQty);
+
   // persist SmartTray selection in storage
   try {
     const pid = dw.chosenTrayProductId || "";
@@ -16283,6 +16304,26 @@ function restoreDuschwanne(dw) {
   if (typeof restoreTrinnityFloorSealing === "function") {
     restoreTrinnityFloorSealing(dw);
   }
+
+  // Restore Wandverkleidung als Fußboden (WVC)
+  if (dw.addWallCladding) {
+    setCheckbox("addWallCladding", true);
+    document.getElementById("addWallCladding")
+      ?.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  if (dw.wallCladdingArea) setNumber("wallCladdingArea", dw.wallCladdingArea);
+  if (dw.wallCladdingKind) setRadio("wallCladdingKind", dw.wallCladdingKind);
+  if (dw.wallCladdingColor) {
+    setRadio("wallCladdingColor", dw.wallCladdingColor);
+    document.querySelector(`input[name="wallCladdingColor"][value="${dw.wallCladdingColor}"]`)
+      ?.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  if (dw.wallCladdingArea) {
+    document.getElementById("wallCladdingArea")
+      ?.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  if (dw.wallCladdingPanelSize) setHiddenById("wallCladdingPanelSize", dw.wallCladdingPanelSize);
+  if (dw.wallCladdingQty) setHiddenById("wallCladdingQty", dw.wallCladdingQty);
 
   // persist SmartTray selection in storage
   try {
