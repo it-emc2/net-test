@@ -10354,6 +10354,112 @@ document.addEventListener("change", (e) => {
   });
 })();
 
+/* ========== FUSSBODEN PAGE: Fußboden/Wandverkleidung inner tab switch ========== */
+(function initFussbodenTabSwitch() {
+  const page = document.getElementById("page-Fussboden");
+  if (!page) return;
+  const btns = {
+    fbTabFloor: document.getElementById("fbTabBtnFloor"),
+    fbTabWall: document.getElementById("fbTabBtnWall"),
+  };
+  const panels = {
+    fbTabFloor: document.getElementById("fbTabFloor"),
+    fbTabWall: document.getElementById("fbTabWall"),
+  };
+
+  function activate(target) {
+    Object.keys(panels).forEach((key) => {
+      const isActive = key === target;
+      if (panels[key]) {
+        panels[key].hidden = !isActive;
+        panels[key].setAttribute("aria-hidden", isActive ? "false" : "true");
+      }
+      if (btns[key]) {
+        btns[key].classList.toggle("active", isActive);
+        btns[key].setAttribute("aria-selected", isActive ? "true" : "false");
+      }
+    });
+  }
+
+  Object.entries(btns).forEach(([key, btn]) => {
+    btn?.addEventListener("click", () => activate(key));
+  });
+})();
+
+/* ========== WANDVERKLEIDUNG-IM-FUSSBODEN-TAB: Fläche → Platten-Empfehlung ==========
+   Panel coverage per size (m²), always rounded UP — full panel price even
+   with leftover waste, no partial panels sold. Self-contained: writes into
+   its own wallCladding* fields, independent of the standalone Wandverkleidung
+   page's wv997/wv1497 fields. */
+(function initWallCladdingSection() {
+  const form = document.getElementById("form-fussboden");
+  if (!form) return;
+  const toggle = document.getElementById("addWallCladding");
+  const panel = document.getElementById("wallCladdingPanel");
+  const areaEl = document.getElementById("wallCladdingArea");
+  const suggestionBox = document.getElementById("wallCladdingSuggestion");
+  const suggestionText = document.getElementById("wallCladdingSuggestionText");
+  const applyBtn = document.getElementById("wallCladdingApplySuggestion");
+  const panelSizeEl = document.getElementById("wallCladdingPanelSize");
+  const qtyEl = document.getElementById("wallCladdingQty");
+  if (!toggle || !panel) return;
+
+  const PANEL_AREA_M2 = { 997: 0.997 * 2.55, 1497: 1.497 * 2.55 };
+
+  function showPanel(on) {
+    panel.hidden = !on;
+    panel.setAttribute("aria-hidden", on ? "false" : "true");
+  }
+
+  function computeSuggestion(areaRaw) {
+    const area = Number(String(areaRaw ?? "").replace(",", ".")) || 0;
+    if (area <= 0) return null;
+    const opt997 = { size: 997, qty: Math.ceil(area / PANEL_AREA_M2[997]) };
+    opt997.covered = opt997.qty * PANEL_AREA_M2[997];
+    opt997.waste = opt997.covered - area;
+    const opt1497 = { size: 1497, qty: Math.ceil(area / PANEL_AREA_M2[1497]) };
+    opt1497.covered = opt1497.qty * PANEL_AREA_M2[1497];
+    opt1497.waste = opt1497.covered - area;
+    const best = opt1497.waste <= opt997.waste ? opt1497 : opt997;
+    return { area, opt997, opt1497, best };
+  }
+
+  function updateSuggestion() {
+    if (!suggestionBox || !suggestionText) return;
+    const result = computeSuggestion(areaEl?.value);
+    if (!result) {
+      suggestionBox.hidden = true;
+      return;
+    }
+    const fmt = (n) =>
+      n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    suggestionText.innerHTML =
+      `Empfehlung: <strong>${result.best.qty} × ${result.best.size}×2550mm</strong> ` +
+      `(deckt ${fmt(result.best.covered)} m², ${fmt(result.best.waste)} m² Verschnitt).<br>` +
+      `Alternativ: ${result.opt997.qty} × 997×2550mm oder ${result.opt1497.qty} × 1497×2550mm.`;
+    suggestionBox.dataset.bestSize = String(result.best.size);
+    suggestionBox.dataset.bestQty = String(result.best.qty);
+    suggestionBox.hidden = false;
+  }
+
+  function applySuggestion() {
+    const size = suggestionBox?.dataset.bestSize;
+    const qty = suggestionBox?.dataset.bestQty;
+    if (!size || !qty) return;
+    if (panelSizeEl) panelSizeEl.value = size;
+    if (qtyEl) qtyEl.value = qty;
+    if (typeof updateKostenDetails === "function") updateKostenDetails();
+    window.updatePricing?.();
+  }
+
+  toggle.addEventListener("change", () => showPanel(toggle.checked));
+  showPanel(toggle.checked);
+
+  areaEl?.addEventListener("input", updateSuggestion);
+  applyBtn?.addEventListener("click", applySuggestion);
+  updateSuggestion();
+})();
+
 /* ========== SMART TRAY SEARCH (equal-or-bigger filter, persist/deselect) ========== */
 function initSmartTraySearch() {
   // ----- DOM -----

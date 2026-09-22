@@ -765,6 +765,27 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
       // }
     }
 
+    // ------- Fußboden aus Wandverkleidung-Paneelen (Fußboden-Tab: Flächen-Empfehlung)
+    setCat("Fußboden");
+    const wallCladdingQty = Number(dusch.wallCladdingQty || 0) || 0;
+    if (dusch.addWallCladding && wallCladdingQty > 0) {
+      const wallCladdingSize = String(dusch.wallCladdingPanelSize || "997").trim();
+      const wallCladdingSizeKey = wallCladdingSize === "1497" ? "1497x2550" : "997x2550";
+      const wallCladdingColor = String(dusch.wallCladdingColor || "Marmor weiß").trim();
+      const wallCladdingFallbackPid = wallCladdingSizeKey === "1497x2550" ? "V3WV09" : "V3WVK09";
+      const wallCladdingPid = resolveWvArticle(
+        wallCladdingSizeKey,
+        wallCladdingColor,
+        null,
+        wallCladdingFallbackPid,
+      );
+      add(
+        wallCladdingPid,
+        wallCladdingQty,
+        `- ${wallCladdingQty} Stk Fußboden-Paneele (Wandverkleidung ${wallCladdingSize}×2550mm) — Farbe: ${wallCladdingColor}`,
+      );
+    }
+
     // ------- Wandverkleidung
     setCat("Wandverkleidung");
     // Main panel quantity (user picks one color + qty here)
