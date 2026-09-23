@@ -8124,6 +8124,18 @@ button.dm-btn-danger:focus-visible {
       </div>
       <div id="mailAttachmentList" class="mail-attach-grid"></div>
 
+      <!-- Produktbilder-PDF: optional second attachment with product images -->
+      <div class="mail-attach-head mail-attach-head--sub mail-prodimg-head">
+        <label class="mail-prodimg-toggle">
+          <input type="checkbox" id="mailIncludeProductImages" />
+          <span>Produktbilder-PDF anhängen</span>
+        </label>
+      </div>
+      <div id="mailProductImgPanel" hidden>
+        <div id="mailProductImgList" class="mail-prodimg-list"></div>
+        <div class="mail-attach-hint" id="mailProductImgHint" hidden>Keine Produkte mit Bild gefunden.</div>
+      </div>
+
       <!-- Bitrix-only uploads: never attached to the customer email, they ride
            along to the Deal-Timeline on send (backend field: bitrixDocs). -->
       <input id="mailBitrixAttachments" type="file" multiple hidden />

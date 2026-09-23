@@ -1056,6 +1056,26 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
     const offerPdfName = `${offerNumber || "Angebot"}.pdf`;
     $list.appendChild(makeTile({ name: offerPdfName, meta: "Angebots-PDF", removable: false }));
 
+    // Produktbilder-PDF tile (when checkbox is on and at least one product is selected)
+    if ($prodImgCheck?.checked) {
+      const anyChecked = [...(productImgState.values())].some(Boolean);
+      if (anyChecked) {
+        const safeNo = String(offerNumber || "Angebot").replace(/[^\w\-]+/g, "_");
+        $list.appendChild(
+          makeTile({
+            name: `Produktbilder_${safeNo}.pdf`,
+            meta: "Produktbilder",
+            removable: true,
+            onRemove: () => {
+              if ($prodImgCheck) $prodImgCheck.checked = false;
+              if ($prodImgPanel) $prodImgPanel.hidden = true;
+              renderList();
+            },
+          }),
+        );
+      }
+    }
+
     // Presets (Selbstzahler: no Abtretung/Vollmacht -> fewer attachments)
     const isSZ =
       document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler";
@@ -1101,6 +1121,146 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       const n = $list.childElementCount;
       $count.textContent = n === 1 ? "1 Datei" : `${n} Dateien`;
     }
+  }
+
+  // ---- Produktbilder-PDF ----
+  const $prodImgCheck = document.getElementById("mailIncludeProductImages");
+  const $prodImgPanel = document.getElementById("mailProductImgPanel");
+  const $prodImgList = document.getElementById("mailProductImgList");
+  const $prodImgHint = document.getElementById("mailProductImgHint");
+
+  // productId -> checked state; populated on first toggle-open
+  const productImgState = new Map(); // productId -> boolean (checked)
+  const customProductImages = new Map(); // productId -> data URL (user upload)
+  let productImgLoaded = false;
+
+  function renderProductImgList(products) {
+    if (!$prodImgList) return;
+    $prodImgList.innerHTML = "";
+    if (!products.length) {
+      if ($prodImgHint) $prodImgHint.hidden = false;
+      return;
+    }
+    if ($prodImgHint) $prodImgHint.hidden = true;
+    for (const p of products) {
+      const row = document.createElement("div");
+      const hasAnyImage = p.hasImage || customProductImages.has(p.productId);
+      row.className = "mail-prodimg-item" + (hasAnyImage ? "" : " no-image");
+
+      // Thumbnail
+      const thumb = document.createElement("img");
+      thumb.className = "prodimg-thumb";
+      const customUrl = customProductImages.get(p.productId);
+      if (customUrl || p.imageUrl) {
+        thumb.src = customUrl || p.imageUrl;
+      } else {
+        thumb.src = "";
+        thumb.style.display = "none";
+      }
+      thumb.alt = "";
+
+      // Checkbox (wrapped in label for click area)
+      const lbl = document.createElement("label");
+      lbl.className = "prodimg-cb-label";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.value = p.productId;
+      const current = productImgState.has(p.productId)
+        ? productImgState.get(p.productId)
+        : p.defaultInclude;
+      cb.checked = current;
+      if (!hasAnyImage) cb.disabled = true;
+      cb.addEventListener("change", () => {
+        productImgState.set(p.productId, cb.checked);
+        renderList();
+      });
+      productImgState.set(p.productId, cb.checked);
+      lbl.appendChild(cb);
+
+      const name = document.createElement("span");
+      name.className = "prodimg-name";
+      name.textContent = p.name;
+      name.title = p.name;
+
+      const qty = document.createElement("span");
+      qty.className = "prodimg-qty";
+      qty.textContent = `${p.qty ?? ""} ${p.unit || "Stck."}`.trim();
+
+      // Upload button
+      const fileInput = document.createElement("input");
+      fileInput.type = "file";
+      fileInput.accept = "image/*";
+      fileInput.style.display = "none";
+      fileInput.addEventListener("change", () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          customProductImages.set(p.productId, ev.target.result);
+          thumb.src = ev.target.result;
+          thumb.style.display = "";
+          row.classList.remove("no-image");
+          cb.disabled = false;
+          if (!productImgState.has(p.productId) || !productImgState.get(p.productId)) {
+            cb.checked = true;
+            productImgState.set(p.productId, true);
+          }
+          renderList();
+        };
+        reader.readAsDataURL(file);
+      });
+      const uploadBtn = document.createElement("button");
+      uploadBtn.type = "button";
+      uploadBtn.className = "prodimg-upload-btn";
+      uploadBtn.title = "Eigenes Bild";
+      uploadBtn.textContent = "📷";
+      uploadBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        fileInput.click();
+      });
+
+      row.appendChild(thumb);
+      row.appendChild(lbl);
+      row.appendChild(name);
+      row.appendChild(qty);
+      row.appendChild(uploadBtn);
+      row.appendChild(fileInput);
+      $prodImgList.appendChild(row);
+    }
+    renderList();
+  }
+
+  async function loadProductImgList() {
+    if (productImgLoaded) return;
+    productImgLoaded = true;
+    try {
+      const payload = cfg.hooks.buildPayload?.() || {};
+      const res = await fetch("/api/email/product-image-list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payload }),
+      });
+      const data = await res.json().catch(() => ({}));
+      renderProductImgList(data.products || []);
+    } catch (e) {
+      console.warn("[EmailManager] product-image-list failed:", e);
+      if ($prodImgHint) { $prodImgHint.textContent = "Fehler beim Laden der Produktliste."; $prodImgHint.hidden = false; }
+    }
+  }
+
+  $prodImgCheck?.addEventListener("change", () => {
+    const on = !!$prodImgCheck.checked;
+    if ($prodImgPanel) $prodImgPanel.hidden = !on;
+    if (on) loadProductImgList();
+    renderList();
+  });
+
+  function getExcludedProductImageIds() {
+    const excluded = [];
+    $prodImgList?.querySelectorAll("input[type=checkbox]").forEach((cb) => {
+      if (!cb.checked) excluded.push(cb.value);
+    });
+    return excluded;
   }
 
   // de-dup by name+size+lastModified
@@ -1246,6 +1406,14 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
     userFiles = [];
     bitrixFiles = [];
     if ($bitrixFiles) $bitrixFiles.value = "";
+    // Reset product image state
+    productImgState.clear();
+    customProductImages.clear();
+    productImgLoaded = false;
+    if ($prodImgCheck) $prodImgCheck.checked = false;
+    if ($prodImgPanel) $prodImgPanel.hidden = true;
+    if ($prodImgList) $prodImgList.innerHTML = "";
+    if ($prodImgHint) $prodImgHint.hidden = true;
     subjectTouched = false;
     toTouched = false;
     ccTouched = false;
@@ -1437,6 +1605,12 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       fd.append("payload", JSON.stringify(payload));
       fd.append("excludePreset", JSON.stringify(Array.from(excludedPreset)));
       fd.append("excludeBitrixPresets", excludeBitrixPresets ? "1" : "");
+      const includeProductImages = !!$prodImgCheck?.checked;
+      fd.append("includeProductImages", includeProductImages ? "1" : "");
+      if (includeProductImages) {
+        fd.append("excludeProductImageIds", JSON.stringify(getExcludedProductImageIds()));
+        fd.append("productCustomImageData", JSON.stringify(Object.fromEntries(customProductImages)));
+      }
       fd.append("dealId", dealId);
       fd.append("contactId", contactId);
 
