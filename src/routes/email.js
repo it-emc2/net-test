@@ -32,6 +32,7 @@ import {
   shouldSkipByDefault,
   PRODUCT_IMAGE_SKIP_KEYWORDS,
 } from "../lib/productImagePdf.js";
+import configService from "../services/configService.js";
 
 const router = express.Router();
 
@@ -360,7 +361,8 @@ router.post("/product-image-list", express.json(), async (req, res) => {
     const lines = await aggregateMaterialsForOverview(payload, computed);
     const assetsDir = path.join(process.cwd(), "src", "public", "assets");
 
-    const filteredLines = lines.filter((l) => l.materialNumber);
+    const adminSkipIds = new Set((configService.get("PRODUCT_IMAGE_SKIP_IDS", [])).map(String));
+    const filteredLines = lines.filter((l) => l.materialNumber && !adminSkipIds.has(String(l.materialNumber)));
     const imageMap = await resolveProductImages(
       filteredLines.map((l) => l.materialNumber),
       assetsDir,
@@ -402,7 +404,8 @@ router.post("/preview-product-image-pdf", express.json({ limit: "20mb" }), async
     const { computed } = await getOfferRenderData(payload);
     const lines = await aggregateMaterialsForOverview(payload, computed);
     const assetsDir = path.join(process.cwd(), "src", "public", "assets");
-    const excludeSet = new Set(excludeProductImageIds.map(String));
+    const adminSkipIdsPreview = new Set((configService.get("PRODUCT_IMAGE_SKIP_IDS", [])).map(String));
+    const excludeSet = new Set([...excludeProductImageIds.map(String), ...adminSkipIdsPreview]);
     const sendFinishMap = buildFinishMap(payload);
     const products = lines
       .filter((l) => l.materialNumber && !excludeSet.has(l.materialNumber))
@@ -559,9 +562,11 @@ router.post(
     let productImageFilename = null;
     if (includeProductImages) {
       try {
-        const excludeProductImageIds = new Set(
-          JSON.parse(req.body.excludeProductImageIds || "[]").map(String),
-        );
+        const adminSkipIdsSend = new Set((configService.get("PRODUCT_IMAGE_SKIP_IDS", [])).map(String));
+        const excludeProductImageIds = new Set([
+          ...JSON.parse(req.body.excludeProductImageIds || "[]").map(String),
+          ...adminSkipIdsSend,
+        ]);
         const productCustomImageData = JSON.parse(req.body.productCustomImageData || "{}");
         const assetsDir = path.join(process.cwd(), "src", "public", "assets");
         const lines = await aggregateMaterialsForOverview(payload, offerComputed || {});

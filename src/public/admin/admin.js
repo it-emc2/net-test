@@ -143,6 +143,14 @@ function buildCard(item) {
         <input type="checkbox" id="field-${item.key}" class="config-checkbox" ${displayVal ? 'checked' : ''}>
         <span>${displayVal ? 'Aktiv' : 'Inaktiv'}</span>
       </label>`
+    : item.type === 'text-list'
+    ? `<textarea
+        id="field-${item.key}"
+        class="config-input config-text-list${pending ? ' input-changed' : ''}"
+        rows="6"
+        spellcheck="false"
+        placeholder="Eine Artikelnummer pro Zeile"
+      >${(Array.isArray(displayVal) ? displayVal : []).join('\n')}</textarea>`
     : item.type === 'json'
     ? `<textarea
         id="field-${item.key}"
@@ -198,7 +206,16 @@ function handleInput(item, input) {
 
   const raw = input.value.trim();
 
-  if (item.type === 'json') {
+  if (item.type === 'text-list') {
+    const parsed = raw.split('\n').map(s => s.trim()).filter(Boolean);
+    const current = Array.isArray(item.value) ? item.value : [];
+    if (JSON.stringify(parsed) !== JSON.stringify(current)) {
+      changes.set(item.key, parsed);
+    } else {
+      changes.delete(item.key);
+    }
+    input.classList.remove('input-error');
+  } else if (item.type === 'json') {
     try {
       const parsed = JSON.parse(raw);
       if (JSON.stringify(parsed) !== JSON.stringify(item.value)) {
