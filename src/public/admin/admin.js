@@ -216,6 +216,13 @@ function handleInput(item, input) {
       changes.delete(item.key);
     }
     input.classList.remove('input-error');
+    const card = $(`card-${item.key}`);
+    const isChanged = changes.has(item.key);
+    card && card.classList.toggle('card-changed', isChanged);
+    input.classList.toggle('input-changed', isChanged);
+    updateTopbar();
+    renderNav();
+    return;
   } else if (item.type === 'json') {
     try {
       const parsed = JSON.parse(raw);
