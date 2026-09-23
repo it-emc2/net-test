@@ -42,15 +42,14 @@ export async function resolveProductImages(productIds, assetsDir) {
   const ids = [...new Set(productIds.filter(Boolean))];
   const result = new Map();
 
+  const LOCAL_EXTS = [".jpg", ".jpeg", ".png", ".PNG", ".JPG", ".JPEG"];
   const localChecks = await Promise.all(
     ids.map(async (id) => {
-      const p = path.join(assetsDir, `${id}.jpg`);
-      try {
-        await fs.access(p);
-        return { id, localPath: p };
-      } catch {
-        return { id, localPath: null };
+      for (const ext of LOCAL_EXTS) {
+        const p = path.join(assetsDir, `${id}${ext}`);
+        try { await fs.access(p); return { id, localPath: p }; } catch {}
       }
+      return { id, localPath: null };
     }),
   );
 
@@ -97,7 +96,9 @@ async function toDataUri(src) {
   }
   try {
     const buf = await fs.readFile(src);
-    return `data:image/jpeg;base64,${buf.toString("base64")}`;
+    const ext = src.split(".").pop().toLowerCase();
+    const mime = ext === "png" ? "image/png" : "image/jpeg";
+    return `data:${mime};base64,${buf.toString("base64")}`;
   } catch {
     return null;
   }
