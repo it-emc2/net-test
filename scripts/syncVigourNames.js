@@ -2,12 +2,15 @@
 // Enriches vigor.models/_id="vigour" (served live by src/routes/da-config.js) with
 // real supplier data from the "vigor" MongoDB, collection "products" (keyed by
 // articleNumber). Adds NEW, optional fields per article — displayName / finishText /
-// stockText / stockQuantity / sourceUrl / einbaumass — WITHOUT touching the existing
-// `label` (auto-generated) or `finish` object (glasart/beschichtung/profilfarbe/
-// einzugsautomatik), which src/public/configurator/engine.js relies on to resolve the
-// correct article variant. The configurator's matching logic is therefore unchanged;
-// the new fields are display-only and simply absent when the DB has no data (e.g.
-// Einbaumaß is missing for the majority of articles).
+// stockText / stockQuantity / sourceUrl / einbaumass — and leaves the upstream `label`
+// (auto-generated) alone, which src/public/configurator/engine.js relies on for display.
+//
+// article.finish.profilfarbe is the one exception: the scraper's own text decoder
+// mislabels every abbreviated "hochglanz" spelling ("sil.hochg.", "silb.hochgl.", …)
+// as "matt" whenever "PflegeCare" (mit Beschichtung) is also present in the text —
+// glasart/beschichtung/einzugsautomatik are unaffected. Since finishText (info.finish)
+// spells the color out in full and is right here, re-derive profilfarbe from it instead
+// of trusting the upstream value — see decodeProfilfarbe() below.
 //
 // Run: node scripts/syncVigourNames.js
 // Re-run whenever the "vigor" DB is refreshed by the scraper. Stock/Einbaumaß are a
@@ -20,6 +23,17 @@ import dotenv from "dotenv";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, "../.env") });
+
+// "hochg" catches every abbreviation the scraper's finishText uses for hochglanz
+// (hochg., hochgl., hochgla., hochglan., hochglanz); must be checked before "matt"
+// since the buggy upstream decoder defaults those abbreviations to "matt".
+export function decodeProfilfarbe(finishText) {
+  if (!finishText) return null;
+  if (/hochg/i.test(finishText)) return "hochglanz";
+  if (/schwarz/i.test(finishText)) return "schwarz";
+  if (/matt/i.test(finishText)) return "matt";
+  return null;
+}
 
 async function main() {
   const uri = process.env.VIGOR_MONGODB_URI || process.env.MONGODB_URI;
@@ -100,7 +114,7 @@ async function main() {
 
   let matched = 0;
   let total = 0;
-  const cov = { name: 0, finish: 0, stock: 0, sourceUrl: 0, einbaumass: 0 };
+  const cov = { name: 0, finish: 0, stock: 0, sourceUrl: 0, einbaumass: 0, profilfarbeFixed: 0 };
 
   for (const leaf of model.leaves || []) {
     for (const comp of leaf.components || []) {
@@ -118,6 +132,11 @@ async function main() {
         if (info.finish) {
           article.finishText = info.finish;
           cov.finish++;
+          const profilfarbe = decodeProfilfarbe(info.finish);
+          if (profilfarbe && article.finish && article.finish.profilfarbe !== profilfarbe) {
+            article.finish.profilfarbe = profilfarbe;
+            cov.profilfarbeFixed++;
+          }
         }
         if (info.sourceUrl) {
           article.sourceUrl = info.sourceUrl;
@@ -148,7 +167,8 @@ async function main() {
   console.log(
     `[syncVigourNames] matched ${matched}/${total} articles ` +
       `(name ${cov.name}, finish ${cov.finish}, stock ${cov.stock}, ` +
-      `sourceUrl ${cov.sourceUrl}, einbaumass ${cov.einbaumass}); ` +
+      `sourceUrl ${cov.sourceUrl}, einbaumass ${cov.einbaumass}, ` +
+      `profilfarbe corrected ${cov.profilfarbeFixed}); ` +
       `wrote vigor.models/_id=vigour`,
   );
 }

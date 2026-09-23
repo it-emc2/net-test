@@ -618,7 +618,7 @@ function grossToNet(gross, taxRate) {
     return notes;
   }
 
-  async function computeMaterials(payload, priorSnapshot) {
+  async function computeMaterials(payload, priorSnapshot, isLockedOffer = false) {
     const offer = getActiveOffer(payload); // 'bu' | 'bwt' | 'hl'
     const markupPctForBwt = extractMarkupPct(payload); // 0.35 for "35%", etc.
 
@@ -765,6 +765,26 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
       // }
     }
 
+    // ------- Fußboden aus Wandverkleidung-Paneelen (Fußboden-Tab: Flächen-Empfehlung)
+    setCat("Fußboden");
+    const wallCladdingQty = Number(dusch.wallCladdingQty || 0) || 0;
+    if (dusch.addWallCladding && wallCladdingQty > 0) {
+      const wallCladdingSize = String(dusch.wallCladdingPanelSize || "997").trim();
+      const wallCladdingSizeKey = wallCladdingSize === "1497" ? "1497x2550" : "997x2550";
+      const wallCladdingColor = String(dusch.wallCladdingColor || "Marmor weiß").trim();
+      const wallCladdingFallbackPid = wallCladdingSizeKey === "1497x2550" ? "V3WV09" : "V3WVK09";
+      // hassmannArticle = color-specific article (for Hassmann CSV)
+      const wallCladdingHassmannPid = resolveWvArticle(wallCladdingSizeKey, wallCladdingColor, null, wallCladdingFallbackPid);
+      add(
+        wallCladdingHassmannPid,
+        wallCladdingQty,
+        `- ${wallCladdingQty} Stk Aluverbundplatte (${wallCladdingColor})`,
+        null,
+        null,
+        { color: wallCladdingColor, hassmannArticle: wallCladdingHassmannPid },
+      );
+    }
+
     // ------- Wandverkleidung
     setCat("Wandverkleidung");
     // Main panel quantity (user picks one color + qty here)
@@ -826,12 +846,10 @@ if (dusch.smallMaterial) add(isBudgetMode ? "AC004" : "KM02", 1);
   const base = `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`;
   const label = display ? `${base} — Farbe: ${display}` : base;
 
-  // Pricing stays on the size default unless the color has a real priced row
-  // in the internal Products collection (WV_PRICED_COLORS); the mapped
-  // color-specific article number is always carried for the Hassmann CSV.
+  // All color-specific articles exist in the Vigor DB with live net prices —
+  // bill directly on the color article (hassmannArticle = billing article).
   const article997 = resolveWvArticle("997x2550", display, pid, "V3WVK09");
-  const priced997 = WV_PRICED_COLORS.has(normalizeWvColorKey(display)) ? article997 : "V3WVK09";
-  add(pid || priced997, qty997, label, null, null, {
+  add(pid || article997, qty997, label, null, null, {
     color: display,
     hassmannArticle: article997,
   });
@@ -846,8 +864,7 @@ if (qty1497 > 0) {
   const label = display ? `${base} — Farbe: ${display}` : base;
 
   const article1497 = resolveWvArticle("1497x2550", display, pid, "V3WV09");
-  const priced1497 = WV_PRICED_COLORS.has(normalizeWvColorKey(display)) ? article1497 : "V3WV09";
-  add(pid || priced1497, qty1497, label, null, null, {
+  add(pid || article1497, qty1497, label, null, null, {
     color: display,
     hassmannArticle: article1497,
   });
@@ -869,8 +886,7 @@ const addExtras = (rows, panelLabel, size, defaultPid) => {
     const base = `- ${q} Stk Wandverkleidung 3.0 Alu ${panelLabel}`;
     const label = display ? `${base} — Farbe: ${display}` : base;
     const article = resolveWvArticle(size, display, pid, defaultPid);
-    const priced = WV_PRICED_COLORS.has(normalizeWvColorKey(display)) ? article : defaultPid;
-    add(pid || priced, q, label, null, null, {
+    add(pid || article, q, label, null, null, {
       color: display,
       hassmannArticle: article,
     });
@@ -1316,7 +1332,14 @@ console.log("[REHA DEBUG] selections =", selections);
         // button (__forceLiveVigorPricing) — so it should also adopt a
         // higher/lower live Vigor price here, not just report the drift and
         // keep the quoted one.
-        const isSavedOffer = !!savedOfferNumber && payload?.forceRecompute !== true;
+        //
+        // Gated on `isLockedOffer` (an actual sent Offer, DB-verified —
+        // see computePrices) rather than "offerNumber is non-empty": every
+        // draft gets an offerNumber from the moment it's created, long
+        // before anything is saved, so a string-truthiness check treated
+        // every fresh draft as "already quoted" and showed phantom price
+        // drift. Only a truly sent, locked offer keeps its old price.
+        const isSavedOffer = isLockedOffer && payload?.forceRecompute !== true;
         const driftLines = [];
         let liveNet = new Map();
         const configIds = qa
@@ -1494,6 +1517,11 @@ console.log("[REHA DEBUG] selections =", selections);
     // ------- Resolve names/prices once
     const productMap = await getProductsByIds([...idsNeeded]);
 
+    // WV panel articles (V3WV* / V3WVK*) are priced in Vigor, not in the
+    // internal BU Products collection. Look them up live before resolution.
+    const wvArticleIds = [...new Set(lines.map(l => l.id).filter(id => /^V3WVK?\d/.test(id)))];
+    const vigorWvPrices = wvArticleIds.length ? await getLiveVigourNetPrices(wvArticleIds) : new Map();
+
     // Drift on plain DB-priced lines (Optionale Produkte, Material, etc.) —
     // same "keep quoted, warn about the difference" contract the Vigor
     // Duschabtrennung check already applies below, extended to every other
@@ -1513,6 +1541,8 @@ console.log("[REHA DEBUG] selections =", selections);
         unit = round2((Number(prod.price) || 0) / Number(l.perM2Base)); // €/m² from set
       } else if (Number.isFinite(l.unitOverride)) {
         unit = Number(l.unitOverride);
+      } else if (vigorWvPrices.has(l.id)) {
+        unit = Number(vigorWvPrices.get(l.id)) || 0;
       } else {
         unit = Number(prod.price) || 0;
       }
@@ -1537,11 +1567,11 @@ if (l.source === "hl_pipe") {
 
       const displayNameBase = (prod.name || "").trim() || l.id;
       const metaColor = typeof l?.meta?.color === "string" ? l.meta.color.trim() : "";
+      const isWvPanel = /^V3WVK?\d/.test(l.id);
 
-      const displayName =
-        metaColor && (l.id === "V3WVK09" || l.id === "V3WV09")
-          ? `${displayNameBase} — Farbe: ${metaColor}`
-          : displayNameBase;
+      const displayName = isWvPanel
+        ? (metaColor ? `Aluverbundplatte (${metaColor}) · ${l.id}` : `Aluverbundplatte · ${l.id}`)
+        : displayNameBase;
 
       const builtLabel = l.id === "PLA5282"
         ? `- 1 Set ${displayNameBase}`
@@ -1574,14 +1604,18 @@ if (infoLines.length) {
   finalLabel += "\n" + infoLines.map((t) => "   • " + t).join("\n");
 }
 
-      // Line was quoted before (this offer/draft was saved already) and its
-      // live DB price has since moved: keep billing the quoted price and
-      // flag the difference, exactly like the Vigor check below — but for
-      // any plain DB-priced line, not just Duschabtrennung config rows.
+      // Line was quoted before on a SENT offer (isLockedOffer, DB-verified)
+      // and its live DB price has since moved: keep billing the quoted
+      // price and flag the difference, exactly like the Vigor check below
+      // — but for any plain DB-priced line, not just Duschabtrennung config
+      // rows. Gated on isLockedOffer, not just "a priorSnapshot exists",
+      // because priorSnapshot can also be an unsent Draft's own last save —
+      // that's not a quote to protect, just this draft's previous state,
+      // and comparing against it produced phantom drift on every edit.
       // forceRecompute ("Preis neu berechnen") skips this and adopts the
       // live price, same as it already does for Vigor lines.
       let lineCurrentNet = null;
-      if (payload?.forceRecompute !== true) {
+      if (isLockedOffer && payload?.forceRecompute !== true) {
         const priorUnit = priorUnitById.get(l.id) || 0;
         if (priorUnit > 0 && Math.abs(unit - priorUnit) >= 0.005) {
           lineCurrentNet = unit;
@@ -2144,7 +2178,7 @@ color: metaColor || null,
 
       let materials = { title: "", lines: [], sum: 0 };
       try {
-        materials = await computeMaterials(payload, priorSnapshot);
+        materials = await computeMaterials(payload, priorSnapshot, !!existingOfferSnapshot?.locked);
       } catch (e) {
         console.error("[pricing] computeMaterials failed:", e);
       }
@@ -2247,78 +2281,64 @@ color: metaColor || null,
       // --- add the selected Duschwanne (from smart search) as a material line ---
       // --- add selected Badewanne + (optional) Wannenaufsatz as material lines ---
 try {
-  const bathtubPid = payload?.duschwanne?.chosenBathtubProductId;
-
-  // robust workTasks read (your payload has weird keys sometimes)
   const dw = payload?.duschwanne || {};
-  const workTasksRaw =
-    dw.workTasks ||
-    dw["workTasks[]"] ||
-    dw["duschwanne[workTasks][]"] ||
-    payload?.["duschwanne[workTasks][]"];
-
-  const workTasks = Array.isArray(workTasksRaw)
-    ? workTasksRaw.map((x) => String(x))
-    : typeof workTasksRaw === "string" && workTasksRaw.trim()
-      ? [workTasksRaw.trim()]
-      : [];
-
-  if (bathtubPid) {
-    const already = (materials?.lines || []).some(
-      (l) => l?.productId === bathtubPid || l?.id === bathtubPid
-    );
-
-    if (!already) {
-      const p = await ProductModel.findOne({ productId: bathtubPid }).lean();
-      if (p) {
-        const unit = Number(p.price || 0);
-        const qty = 1;
-        const line = {
-          productId: p.productId,
-          name: p.name || "",
-          qty,
-          unitPrice: unit,
-          lineTotal: round2(unit * qty),
-          label: `- ${qty} Stk Badewanne`,
-        };
-        materials.lines.push(line);
-        materials.sum = round2((materials.sum || 0) + line.lineTotal);
-      }
-    }
-  }
-
-  // Wannenaufsatz only if its installation is selected
-  const wantsScreen = workTasks.includes("install_bathtub_screen");
-  // ✅ Backwards compatible: accept either new or old field names
+  const bathtubPid = dw.chosenBathtubProductId;
+  // Backwards compatible: accept either new or old field names
   const screenPid =
-    payload?.duschwanne?.wannenaufsatzProductId ||
-    payload?.duschwanne?.chosenScreenProductId ||
+    dw.wannenaufsatzProductId ||
+    dw.chosenScreenProductId ||
     payload?.chosenScreenProductId ||
     null;
-    
-  if (wantsScreen && screenPid) {
-    const already = (materials?.lines || []).some(
-      (l) => l?.productId === screenPid || l?.id === screenPid
-    );
 
-    if (!already) {
-      const p = await ProductModel.findOne({ productId: screenPid }).lean();
-      if (p) {
-        const unit = Number(p.price || 0);
-        const qty = 1;
-        const line = {
-          productId: p.productId,
-          name: p.name || "",
-          qty,
-          unitPrice: unit,
-          lineTotal: round2(unit * qty),
-          label: `- ${qty} Stk Wannenaufsatz`,
-        };
-        materials.lines.push(line);
-        materials.sum = round2((materials.sum || 0) + line.lineTotal);
-      }
-    }
+  // Both articles are picked straight out of the vigor catalog, which is also
+  // where their price lives — so quote the live net price. A vigor outage must
+  // not drop the line: it falls back to the snapshot the configurator saved with
+  // the selection, then to the internal Products price.
+  let live = new Map();
+  try {
+    live = await getLiveVigourNetPrices([bathtubPid, screenPid].filter(Boolean));
+  } catch (e) {
+    console.error(
+      "[pricing] vigor live price lookup failed for Wanne lines — using snapshot:",
+      e?.message || e,
+    );
   }
+
+  const addWanneLine = async (pid, snapName, snapPrice, label) => {
+    if (!pid) return;
+    const already = (materials?.lines || []).some(
+      (l) => l?.productId === pid || l?.id === pid,
+    );
+    if (already) return;
+
+    const p = await ProductModel.findOne({ productId: pid }).lean();
+    const unit = Number(live.get(pid) ?? snapPrice ?? p?.price ?? 0);
+    if (!(unit > 0)) return;
+
+    const line = {
+      productId: pid,
+      name: snapName || p?.name || pid,
+      qty: 1,
+      unitPrice: unit,
+      lineTotal: round2(unit),
+      label: `- 1 Stk ${label}`,
+    };
+    materials.lines.push(line);
+    materials.sum = round2((materials.sum || 0) + line.lineTotal);
+  };
+
+  await addWanneLine(
+    bathtubPid,
+    dw.chosenBathtubName,
+    dw.chosenBathtubPrice,
+    "Badewanne",
+  );
+  await addWanneLine(
+    screenPid,
+    dw.chosenScreenName,
+    dw.chosenScreenPrice,
+    "Wannenaufsatz",
+  );
 } catch (e) {
   console.warn("[pricing] addBathtubLines failed:", e?.message || e);
 }

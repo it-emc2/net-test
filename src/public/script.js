@@ -1810,6 +1810,9 @@ function bindCompactTimeHelper(inputId, helperId) {
   function emitInputEvents() {
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
+    // Synthetic events are ignored by the global live-pricing listener
+    // (isTrusted === false, to avoid re-pricing on restore), so trigger it here.
+    window.requestPricingRefresh?.({ delay: 80, reason: "compact-time-helper" });
   }
 
   deltaButtons.forEach((button) => {
@@ -2032,6 +2035,9 @@ function applyArbeitszeitSuggestion() {
     window.__settingLaborHoursFromSuggestion = false;
   }, 0);
   window.labor_hours_source = "auto";
+  // Synthetic events above are ignored by the global live-pricing listener
+  // (isTrusted === false), so trigger it here.
+  window.requestPricingRefresh?.({ delay: 80, reason: "arbeitszeit-suggestion-apply" });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -6816,6 +6822,10 @@ fetch("/admin/api/config/public")
     if (typeof d.FAHRZEUGBEREITSTELLUNG === "number") window.__fahrzeugbereitstellung = d.FAHRZEUGBEREITSTELLUNG;
     if (typeof d.WERKZEUG === "number") window.__werkzeug = d.WERKZEUG;
     if (typeof d.BERAEUMUNG === "number") window.__beraeumung = d.BERAEUMUNG;
+    if (d.WV_OWN_LAGER && typeof d.WV_OWN_LAGER === "object") {
+      window.__wvOwnLager = d.WV_OWN_LAGER;
+      document.dispatchEvent(new CustomEvent("wvOwnLagerLoaded"));
+    }
     if (typeof window.__refreshFinanzierungUI === "function") window.__refreshFinanzierungUI();
     if (typeof renderTravelCostDebug === "function") renderTravelCostDebug();
   })
@@ -7596,6 +7606,173 @@ function setupWandverkleidungPage() {
     .querySelectorAll('input[type="radio"][name="wvColor"]')
     .forEach((radio) => radio.addEventListener("change", syncSonderDecorUi));
   syncSonderDecorUi();
+
+  // ---- standalone WV product card ----
+  (function initWvProductCard() {
+    const cardEl = document.getElementById("wvProductCard");
+    if (!cardEl) return;
+    const WV_ART_STANDALONE = {
+      "weiß":                { 997: "V3WVK07", 1497: "V3WV07" },
+      "marmor weiß":         { 997: "V3WVK09", 1497: "V3WV09" },
+      "struktur weiß":       { 997: "V3WVK06", 1497: "V3WV06" },
+      "stein beige":         { 997: "V3WVK01", 1497: "V3WV01" },
+      "aragon grau":         { 997: "V3WVK22", 1497: "V3WV22" },
+      "stein grau":          { 997: "V3WVK02", 1497: "V3WV02" },
+      "aragon anthrazit":    { 997: "V3WVK21", 1497: "V3WV21" },
+      "schiefer grau":       { 997: "V3WVK08", 1497: "V3WV08" },
+      "schwarzwaldeiche hell":{ 997: "V3WVK23", 1497: "V3WV23" },
+      "stein anthrazit":     { 997: "V3WVK03", 1497: "V3WV03" },
+      "kalkstein natur":     { 997: "V3WVK05", 1497: "V3WV05" },
+      "aragon schwarz":      { 997: "V3WVK20", 1497: "V3WV20" },
+    };
+    const cache = new Map();
+
+    function stockSpan(d) {
+      const inStock = d.stockQuantity > 0;
+      const qty = d.stockQuantity ?? 0;
+      const title = d.stockText || (inStock
+        ? "Der Artikel ist im Lager verfügbar."
+        : "Die Ware ist aktuell nicht verfügbar und muss bestellt werden.");
+      return `<span class="dac-line-stock dac-stock-${inStock ? "in" : "out"}" title="${title}"><span class="dac-stock-qty">${qty}</span>${inStock ? "Auf Lager" : "Auf Bestellung"}</span>`;
+    }
+
+    function ownLagerBadge(artId) {
+      const lager = window.__wvOwnLager || {};
+      const qty = lager[artId];
+      if (!qty || qty <= 0) return "";
+      return `<span class="wv-own-lager-badge"><span class="wv-own-lager-qty">${qty}</span>Im eigenen Lager</span>`;
+    }
+
+    function buildCardHtml(d, artId) {
+      const inStock = d.stockQuantity > 0;
+      return `<div class="wv-product-card">
+        ${d.image ? `<img src="${d.image}" alt="${d.name}" />` : ""}
+        <div class="wv-product-card-info">
+          <div class="wv-product-card-name">${d.name || artId}</div>
+          <div class="wv-product-card-art">${artId}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+          ${d.netPrice ? `<div class="wv-product-card-price">${d.netPrice.toFixed(2).replace(".", ",")} €</div>` : ""}
+          <div class="wv-product-card-stock ${inStock ? "in" : "out"}">${d.stockText || (inStock ? "Auf Lager" : "Auf Bestellung")}</div>
+        </div>
+      </div>
+      ${stockSpan(d)}
+      ${ownLagerBadge(artId)}`;
+    }
+
+    async function fetchFull(artId) {
+      let d = cache.get(artId);
+      if (d) return d;
+      try {
+        const r = await fetch(`/api/vigor-prices?ids=${artId}&full=1`);
+        if (r.ok) { const j = await r.json(); d = j[artId]; if (d) cache.set(artId, d); }
+      } catch {}
+      return d || null;
+    }
+
+    function selectColorKey(selectId) {
+      const v = document.getElementById(selectId)?.value?.trim().toLowerCase();
+      return v || null;
+    }
+
+    async function renderCard() {
+      const globalColor = (page.querySelector('input[name="wvColor"]:checked')?.value || "Marmor weiß").trim().toLowerCase();
+      const cb997 = document.getElementById("wv997");
+      const cb1497 = document.getElementById("wv1497");
+      const panels = [];
+
+      if (cb997?.checked) {
+        const ck = selectColorKey("wvColor_997") || globalColor;
+        if (ck !== "sonderdekor") panels.push({ artId: (WV_ART_STANDALONE[ck] || WV_ART_STANDALONE["marmor weiß"])[997] });
+      }
+      if (cb1497?.checked) {
+        const ck = selectColorKey("wvColor_1497") || globalColor;
+        if (ck !== "sonderdekor") panels.push({ artId: (WV_ART_STANDALONE[ck] || WV_ART_STANDALONE["marmor weiß"])[1497] });
+      }
+      // no checkboxes present — fallback to global color, 997 article
+      if (!panels.length && !cb997 && !cb1497 && globalColor !== "sonderdekor") {
+        panels.push({ artId: (WV_ART_STANDALONE[globalColor] || WV_ART_STANDALONE["marmor weiß"])[997] });
+      }
+
+      if (!panels.length) { cardEl.hidden = true; return; }
+
+      const fetched = await Promise.all(panels.map(p => fetchFull(p.artId).then(d => ({ artId: p.artId, d }))));
+      const parts = fetched.filter(r => r.d).map(r => buildCardHtml(r.d, r.artId));
+      if (!parts.length) { cardEl.hidden = true; return; }
+      cardEl.innerHTML = parts.join("");
+      cardEl.hidden = false;
+    }
+
+    // Build reverse map: artId → {colorKey, displayName, size}
+    function buildArtToColor() {
+      const map = new Map();
+      for (const [ck, sizes] of Object.entries(WV_ART_STANDALONE)) {
+        const display = ck.replace(/\b\w/g, c => c.toUpperCase());
+        map.set(sizes[997],  { colorKey: ck, display, size: 997 });
+        map.set(sizes[1497], { colorKey: ck, display, size: 1497 });
+      }
+      return map;
+    }
+
+    function applyOwnLagerToTiles() {
+      const lager = window.__wvOwnLager || {};
+      const artToColor = buildArtToColor();
+
+      // Summary line above the color grid — one chip per article (keeps sizes separate)
+      const colorsEl = document.getElementById("wvColors");
+      if (!colorsEl) return;
+      let hint = document.getElementById("wvOwnLagerHint");
+      if (!hint) {
+        hint = document.createElement("div");
+        hint.id = "wvOwnLagerHint";
+        hint.className = "wv-own-lager-hint";
+        colorsEl.parentElement.insertBefore(hint, colorsEl);
+      }
+
+      const hintItems = [];
+      for (const [artId, qty] of Object.entries(lager)) {
+        if (!(qty > 0)) continue;
+        const info = artToColor.get(artId);
+        if (!info) continue;
+        hintItems.push(`<span class="wv-hint-item">${info.display} ${info.size}mm <strong>${qty}×</strong></span>`);
+      }
+      if (hintItems.length) {
+        hint.innerHTML = `<span class="wv-hint-label">Eigenes Lager:</span> ${hintItems.join("")}`;
+        hint.hidden = false;
+      } else {
+        hint.hidden = true;
+      }
+
+      // Tile overlays — show each available size + qty
+      page.querySelectorAll('input[name="wvColor"]').forEach((radio) => {
+        const label = radio.closest(".image-check");
+        if (!label) return;
+        const colorKey = radio.value.trim().toLowerCase();
+        const entry = WV_ART_STANDALONE[colorKey];
+        const qty997 = entry ? (lager[entry[997]] || 0) : 0;
+        const qty1497 = entry ? (lager[entry[1497]] || 0) : 0;
+        let badge = label.querySelector(".wv-tile-own-badge");
+        if (qty997 > 0 || qty1497 > 0) {
+          if (!badge) { badge = document.createElement("span"); badge.className = "wv-tile-own-badge"; label.appendChild(badge); }
+          const parts = [];
+          if (qty997 > 0) parts.push(`997: ${qty997}`);
+          if (qty1497 > 0) parts.push(`1497: ${qty1497}`);
+          badge.textContent = parts.join(" / ");
+        } else if (badge) {
+          badge.remove();
+        }
+      });
+    }
+
+    page.querySelectorAll('input[name="wvColor"]').forEach((r) => r.addEventListener("change", renderCard));
+    document.getElementById("wv997")?.addEventListener("change", renderCard);
+    document.getElementById("wv1497")?.addEventListener("change", renderCard);
+    document.getElementById("wvColor_997")?.addEventListener("change", renderCard);
+    document.getElementById("wvColor_1497")?.addEventListener("change", renderCard);
+    document.addEventListener("wvOwnLagerLoaded", () => { renderCard(); applyOwnLagerToTiles(); });
+    renderCard();
+    applyOwnLagerToTiles();
+  })();
 
   // ---- NEW: "Zusätzliche Farben" UI (additive, backward compatible) ----
   function ensureExtrasUI(fromSelectId, listId, btnId, titleText) {
@@ -9810,6 +9987,138 @@ async function getProduct(id) {
   }
 }
 
+/* ========== FLOOR AREA CALCULATOR (reusable) ========== */
+function makeFloorCalc({ toggleEl, panelEl, rowsEl, totalEl, applyBtn, addRowBtn, areaInput }) {
+  if (!rowsEl) return { setOpen: () => {}, computeTotal: () => 0 };
+
+  function parseNum(v) {
+    const n = Number(String(v || "").replace(",", "."));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+  function fmt(v) {
+    return (Number(v) || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function createRow() {
+    const row = document.createElement("div");
+    row.className = "floor-calc-row";
+    row.dataset.sign = "add";
+    row.innerHTML = `
+      <div class="floor-calc-row__controls">
+        <button type="button" class="floor-calc-sign" data-sign="add" aria-label="Fläche addieren">+ Addieren</button>
+        <button type="button" class="floor-calc-remove-row" aria-label="Zeile entfernen">×</button>
+      </div>
+      <div class="floor-calc-row__inputs">
+        <label class="field floor-calc-field" style="margin:0;">
+          <span>Länge (m)</span>
+          <input class="floor-calc-length" type="number" min="0" step="0.01" inputmode="decimal" placeholder="z. B. 3,20" />
+        </label>
+        <span class="floor-calc-times" aria-hidden="true">×</span>
+        <label class="field floor-calc-field" style="margin:0;">
+          <span>Breite (m)</span>
+          <input class="floor-calc-width" type="number" min="0" step="0.01" inputmode="decimal" placeholder="z. B. 1,80" />
+        </label>
+        <div class="floor-calc-row-area">
+          <div class="floor-calc-row-area__label">= Fläche</div>
+          <div class="floor-calc-row-result">0,00 m²</div>
+        </div>
+      </div>`;
+    return row;
+  }
+
+  function computeTotal() {
+    let total = 0;
+    rowsEl.querySelectorAll(".floor-calc-row").forEach(row => {
+      const l = parseNum(row.querySelector(".floor-calc-length")?.value);
+      const w = parseNum(row.querySelector(".floor-calc-width")?.value);
+      const area = l * w;
+      const sign = row.dataset.sign === "subtract" ? -1 : 1;
+      const el = row.querySelector(".floor-calc-row-result");
+      if (el) el.textContent = `${fmt(area)} m²`;
+      total += sign * area;
+    });
+    total = Math.max(0, total);
+    if (totalEl) totalEl.textContent = `${fmt(total)} m²`;
+    return total;
+  }
+
+  function setOpen(open) {
+    if (!panelEl) return;
+    panelEl.hidden = !open;
+    panelEl.setAttribute("aria-hidden", open ? "false" : "true");
+    if (toggleEl) {
+      toggleEl.textContent = open ? "Flächenrechner schließen" : "Flächenrechner öffnen";
+      toggleEl.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+  }
+
+  toggleEl?.addEventListener("click", () => {
+    const open = !!panelEl?.hidden;
+    setOpen(open);
+    if (open) computeTotal();
+  });
+
+  addRowBtn?.addEventListener("click", () => {
+    rowsEl.appendChild(createRow());
+    computeTotal();
+  });
+
+  rowsEl.addEventListener("click", e => {
+    const t = e.target;
+    if (!(t instanceof HTMLElement)) return;
+    const row = t.closest(".floor-calc-row");
+    if (!row) return;
+
+    if (t.closest(".floor-calc-sign")) {
+      const toSubtract = row.dataset.sign !== "subtract";
+      row.dataset.sign = toSubtract ? "subtract" : "add";
+      const btn = row.querySelector(".floor-calc-sign");
+      if (btn) {
+        btn.textContent = toSubtract ? "− Abziehen" : "+ Addieren";
+        btn.dataset.sign = toSubtract ? "subtract" : "add";
+        btn.setAttribute("aria-label", toSubtract ? "Fläche abziehen" : "Fläche addieren");
+      }
+      computeTotal();
+      return;
+    }
+
+    if (t.closest(".floor-calc-remove-row")) {
+      if (rowsEl.querySelectorAll(".floor-calc-row").length > 1) {
+        row.remove();
+      } else {
+        row.querySelectorAll("input").forEach(i => { i.value = ""; });
+        row.dataset.sign = "add";
+        const btn = row.querySelector(".floor-calc-sign");
+        if (btn) { btn.textContent = "+ Addieren"; btn.dataset.sign = "add"; }
+        const res = row.querySelector(".floor-calc-row-result");
+        if (res) res.textContent = "0,00 m²";
+      }
+      computeTotal();
+    }
+  });
+
+  rowsEl.addEventListener("input", e => {
+    const t = e.target;
+    if (!(t instanceof HTMLInputElement)) return;
+    if (!t.classList.contains("floor-calc-length") && !t.classList.contains("floor-calc-width")) return;
+    computeTotal();
+  });
+
+  applyBtn?.addEventListener("click", () => {
+    const total = computeTotal();
+    if (areaInput) {
+      areaInput.value = fmt(total);
+      areaInput.dispatchEvent(new Event("input", { bubbles: true }));
+      areaInput.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  });
+
+  rowsEl.appendChild(createRow());
+  computeTotal();
+
+  return { setOpen, computeTotal };
+}
+
 /* ========== FLOORING: LIVE PREVIEW + DB PRICES (adhesive/sealing) ==========
    NOTE: panels price now mirrors SERVER pricing; no client re-calculation. */
 (function initFlooringSection() {
@@ -9822,7 +10131,6 @@ async function getProduct(id) {
   const calcPanel = document.getElementById("floorCalcPanel");
   const calcRows = document.getElementById("floorCalcRows");
   const calcTotalEl = document.getElementById("floorCalcResult");
-  const calcRowTemplate = document.getElementById("floorCalcRowTemplate");
   const calcApplyBtn = document.getElementById("floorCalcApply");
   const floorKindInputs = Array.from(f.querySelectorAll('input[name="floorKind"]'));
 
@@ -9867,75 +10175,18 @@ async function getProduct(id) {
       maximumFractionDigits: 2,
     });
   }
-  function setCalcOpen(open) {
-    if (!calcPanel) return;
-    calcPanel.hidden = !open;
-    calcPanel.setAttribute("aria-hidden", open ? "false" : "true");
-    if (calcToggle) {
-      calcToggle.textContent = open
-        ? "Flächenrechner schließen"
-        : "Flächenrechner öffnen";
-      calcToggle.setAttribute("aria-expanded", open ? "true" : "false");
-    }
-  }
-  function createFloorCalcRow() {
-    if (calcRowTemplate?.content?.firstElementChild) {
-      const row = calcRowTemplate.content.firstElementChild.cloneNode(true);
-      row.dataset.sign = "add";
-      const signBtn = row.querySelector(".floor-calc-sign");
-      if (signBtn) {
-        signBtn.textContent = "+";
-        signBtn.dataset.sign = "add";
-        signBtn.setAttribute("aria-label", "Zeile wird addiert");
-      }
-      return row;
-    }
+  const calc = makeFloorCalc({
+    toggleEl: calcToggle,
+    panelEl: calcPanel,
+    rowsEl: calcRows,
+    totalEl: calcTotalEl,
+    applyBtn: calcApplyBtn,
+    addRowBtn: document.getElementById("floorCalcAddRow"),
+    areaInput: area,
+  });
 
-    const row = document.createElement("div");
-    row.className = "floor-calc-row";
-    row.dataset.sign = "add";
-    row.innerHTML = `
-      <button type="button" class="floor-calc-sign" data-sign="add" aria-label="Zeile wird addiert">+</button>
-      <label class="field floor-calc-field" style="margin:0;">
-        <span>Länge (m)</span>
-        <input class="floor-calc-length" type="number" min="0" step="0.1" inputmode="decimal" placeholder="z. B. 2,5" />
-      </label>
-      <span class="floor-calc-times" aria-hidden="true">×</span>
-      <label class="field floor-calc-field" style="margin:0;">
-        <span>Breite (m)</span>
-        <input class="floor-calc-width" type="number" min="0" step="0.1" inputmode="decimal" placeholder="z. B. 1,2" />
-      </label>
-      <div class="floor-calc-row-area">
-        <div class="floor-calc-row-area__label">Fläche</div>
-        <div class="floor-calc-row-result">0,00 m²</div>
-      </div>
-      <button type="button" class="floor-calc-add-row" aria-label="Weitere Zeile hinzufügen">+</button>
-      <button type="button" class="floor-calc-remove-row" aria-label="Zeile entfernen">−</button>
-    `;
-    return row;
-  }
-  function computeFloorCalcTotal() {
-    if (!calcRows) return 0;
-    let total = 0;
-    calcRows.querySelectorAll(".floor-calc-row").forEach((row) => {
-      const length = parseCalcNumber(
-        row.querySelector(".floor-calc-length")?.value || "",
-      );
-      const width = parseCalcNumber(
-        row.querySelector(".floor-calc-width")?.value || "",
-      );
-      const areaM2 = length * width;
-      const sign = row.dataset.sign === "subtract" ? -1 : 1;
-      const resultEl = row.querySelector(".floor-calc-row-result");
-      if (resultEl) {
-        resultEl.textContent = `${formatAreaValue(areaM2)} m²`;
-      }
-      total += sign * areaM2;
-    });
-    total = Math.max(0, total);
-    if (calcTotalEl) calcTotalEl.textContent = `${formatAreaValue(total)} m²`;
-    return total;
-  }
+  function setCalcOpen(open) { calc.setOpen(open); }
+  function computeFloorCalcTotal() { return calc.computeTotal(); }
   const packsForAdhesive = (m2) => Math.ceil(m2 / 0.6 - 1e-12);
   const setsForSealing = (m2) => (m2 > 0 ? 1 : 0);
 
@@ -10091,90 +10342,6 @@ function updateFlooringPanelsPriceFromPricing() {
     updateFlooringPanelsPriceFromPricing();
     // individ. price (unitPanel × entered m²)
     // updateIndividPrice();
-  }
-
-  if (calcToggle) {
-    calcToggle.addEventListener("click", () => {
-      const isOpen = !calcPanel?.hidden;
-      setCalcOpen(!isOpen);
-      if (!isOpen) computeFloorCalcTotal();
-    });
-  }
-  if (calcRows) {
-    calcRows.addEventListener("click", (event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLElement)) return;
-      const row = target.closest(".floor-calc-row");
-      if (!row) return;
-
-      if (target.closest(".floor-calc-sign")) {
-        const nextIsSubtract = row.dataset.sign !== "subtract";
-        row.dataset.sign = nextIsSubtract ? "subtract" : "add";
-        const signBtn = row.querySelector(".floor-calc-sign");
-        if (signBtn) {
-          signBtn.textContent = nextIsSubtract ? "−" : "+";
-          signBtn.dataset.sign = nextIsSubtract ? "subtract" : "add";
-          signBtn.setAttribute(
-            "aria-label",
-            nextIsSubtract ? "Zeile wird abgezogen" : "Zeile wird addiert",
-          );
-        }
-        computeFloorCalcTotal();
-        return;
-      }
-
-      if (target.closest(".floor-calc-add-row")) {
-        row.insertAdjacentElement("afterend", createFloorCalcRow());
-        computeFloorCalcTotal();
-        return;
-      }
-
-      if (target.closest(".floor-calc-remove-row")) {
-        if (calcRows.querySelectorAll(".floor-calc-row").length > 1) {
-          row.remove();
-        } else {
-          row.querySelectorAll("input").forEach((input) => {
-            input.value = "";
-          });
-          row.dataset.sign = "add";
-          const signBtn = row.querySelector(".floor-calc-sign");
-          if (signBtn) {
-            signBtn.textContent = "+";
-            signBtn.dataset.sign = "add";
-            signBtn.setAttribute("aria-label", "Zeile wird addiert");
-          }
-          const resultEl = row.querySelector(".floor-calc-row-result");
-          if (resultEl) resultEl.textContent = "0,00 m²";
-        }
-        computeFloorCalcTotal();
-      }
-    });
-    calcRows.addEventListener("input", (event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLInputElement)) return;
-      if (
-        !target.classList.contains("floor-calc-length") &&
-        !target.classList.contains("floor-calc-width")
-      ) {
-        return;
-      }
-      computeFloorCalcTotal();
-    });
-  }
-  if (calcRows && !calcRows.querySelector(".floor-calc-row")) {
-    calcRows.appendChild(createFloorCalcRow());
-    computeFloorCalcTotal();
-  }
-
-  if (calcApplyBtn) {
-    calcApplyBtn.addEventListener("click", () => {
-      const total = computeFloorCalcTotal();
-      if (area) {
-        area.value = formatAreaValue(total);
-        area.dispatchEvent(new Event("input", { bubbles: true }));
-        area.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-    });
   }
 
   // ---- persistence for area field
@@ -10377,6 +10544,315 @@ document.addEventListener("change", (e) => {
     updateFlooringPanelsPriceFromPricing();
   });
 })();
+
+/* ========== FUSSBODEN PAGE: Fußboden/Wandverkleidung inner tab switch ========== */
+(function initFussbodenTabSwitch() {
+  const page = document.getElementById("page-Fussboden");
+  if (!page) return;
+  const btns = {
+    fbTabFloor: document.getElementById("fbTabBtnFloor"),
+    fbTabWall: document.getElementById("fbTabBtnWall"),
+  };
+  const panels = {
+    fbTabFloor: document.getElementById("fbTabFloor"),
+    fbTabWall: document.getElementById("fbTabWall"),
+  };
+
+  function activate(target) {
+    Object.keys(panels).forEach((key) => {
+      const isActive = key === target;
+      if (panels[key]) {
+        panels[key].hidden = !isActive;
+        panels[key].setAttribute("aria-hidden", isActive ? "false" : "true");
+      }
+      if (btns[key]) {
+        btns[key].classList.toggle("active", isActive);
+        btns[key].setAttribute("aria-selected", isActive ? "true" : "false");
+      }
+    });
+  }
+
+  Object.entries(btns).forEach(([key, btn]) => {
+    btn?.addEventListener("click", () => activate(key));
+  });
+})();
+
+/* ========== WANDVERKLEIDUNG-IM-FUSSBODEN-TAB: Fläche → Platten-Empfehlung ==========
+   Panel coverage per size (m²), always rounded UP — full panel price even
+   with leftover waste, no partial panels sold. Self-contained: writes into
+   its own wallCladding* fields, independent of the standalone Wandverkleidung
+   page's wv997/wv1497 fields. */
+(function initWallCladdingSection() {
+  const form = document.getElementById("form-fussboden");
+  if (!form) return;
+  const toggle = document.getElementById("addWallCladding");
+  const panel = document.getElementById("wallCladdingPanel");
+  const areaEl = document.getElementById("wallCladdingArea");
+  const suggestionBox = document.getElementById("wallCladdingSuggestion");
+  const cardsEl = document.getElementById("wallCladdingCards");
+  const qtyRow = document.getElementById("wallCladdingQtyRow");
+  const qtyInput = document.getElementById("wallCladdingQtyInput");
+  const panelSizeEl = document.getElementById("wallCladdingPanelSize");
+  const qtyEl = document.getElementById("wallCladdingQty");
+  if (!toggle || !panel) return;
+
+  const PANEL_AREA_M2 = { 997: 0.997 * 2.55, 1497: 1.497 * 2.55 };
+  // mirrors WV_COLOR_ARTICLE in pricing-core.js — article IDs per color + size
+  const WV_ART = {
+    "weiß":                { 997: "V3WVK07", 1497: "V3WV07" },
+    "marmor weiß":         { 997: "V3WVK09", 1497: "V3WV09" },
+    "struktur weiß":       { 997: "V3WVK06", 1497: "V3WV06" },
+    "stein beige":         { 997: "V3WVK01", 1497: "V3WV01" },
+    "aragon grau":         { 997: "V3WVK22", 1497: "V3WV22" },
+    "stein grau":          { 997: "V3WVK02", 1497: "V3WV02" },
+    "aragon anthrazit":    { 997: "V3WVK21", 1497: "V3WV21" },
+    "schiefer grau":       { 997: "V3WVK08", 1497: "V3WV08" },
+    "schwarzwaldeiche hell":{ 997: "V3WVK23", 1497: "V3WV23" },
+    "stein anthrazit":     { 997: "V3WVK03", 1497: "V3WV03" },
+    "kalkstein natur":     { 997: "V3WVK05", 1497: "V3WV05" },
+    "aragon schwarz":      { 997: "V3WVK20", 1497: "V3WV20" },
+  };
+  const priceCache = new Map(); // articleId → net price
+
+  function selectedColor() {
+    const chk = form.querySelector('input[name="wallCladdingColor"]:checked');
+    return (chk?.value || "Marmor weiß").trim().toLowerCase();
+  }
+
+  function articleIds(colorKey) {
+    const entry = WV_ART[colorKey] || WV_ART["marmor weiß"];
+    return { id997: entry[997], id1497: entry[1497] };
+  }
+
+  async function ensurePrices(colorKey) {
+    const { id997, id1497 } = articleIds(colorKey);
+    const missing = [id997, id1497].filter((id) => !priceCache.has(id));
+    if (!missing.length) return;
+    try {
+      const r = await fetch(`/api/vigor-prices?ids=${missing.join(",")}`);
+      if (r.ok) { const data = await r.json(); Object.entries(data).forEach(([k, v]) => priceCache.set(k, v)); }
+    } catch {}
+  }
+
+  function showPanel(on) {
+    panel.hidden = !on;
+    panel.setAttribute("aria-hidden", on ? "false" : "true");
+  }
+
+  function computeSuggestion(areaRaw) {
+    const area = Number(String(areaRaw ?? "").replace(",", ".")) || 0;
+    if (area <= 0) return null;
+    const opt997 = { size: 997, qty: Math.ceil(area / PANEL_AREA_M2[997]) };
+    opt997.covered = opt997.qty * PANEL_AREA_M2[997];
+    opt997.waste = opt997.covered - area;
+    const opt1497 = { size: 1497, qty: Math.ceil(area / PANEL_AREA_M2[1497]) };
+    opt1497.covered = opt1497.qty * PANEL_AREA_M2[1497];
+    opt1497.waste = opt1497.covered - area;
+    const best = opt1497.waste <= opt997.waste ? opt1497 : opt997;
+    return { area, opt997, opt1497, best };
+  }
+
+  const fmt = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const eur = (n) => n > 0 ? `${fmt(n)} €` : "";
+
+  function buildCard(opt, isBest, selectedSize, colorKey) {
+    const { id997, id1497 } = articleIds(colorKey);
+    const artId = opt.size === 997 ? id997 : id1497;
+    const unitNet = priceCache.get(artId) || 0;
+    const totalNet = unitNet * opt.qty;
+    const priceHtml = unitNet > 0
+      ? `<span class="wvc-price">${eur(totalNet)}</span><span class="wvc-unit">(${eur(unitNet)} / Stk.)</span>`
+      : "";
+    const isSelected = selectedSize === opt.size;
+    return `
+      <button type="button" class="wvc-card${isBest ? " wvc-best" : ""}${isSelected ? " wvc-selected" : ""}"
+              data-size="${opt.size}" data-qty="${opt.qty}">
+        <div class="wvc-card-head">
+          <span class="wvc-size">${opt.size}×2550 mm</span>
+          ${isBest ? `<span class="wvc-badge">Empfehlung</span>` : ""}
+        </div>
+        <div class="wvc-qty">${opt.qty} Stück</div>
+        <div class="wvc-coverage">${fmt(opt.covered)} m² abgedeckt · ${fmt(opt.waste)} m² Verschnitt</div>
+        ${priceHtml ? `<div class="wvc-price-row">${priceHtml}</div>` : ""}
+        <div class="wvc-select-label">${isSelected ? "✓ Ausgewählt" : "Auswählen"}</div>
+      </button>`;
+  }
+
+  function applyOption(size, qty) {
+    if (panelSizeEl) panelSizeEl.value = size;
+    if (qtyEl) qtyEl.value = qty;
+    if (qtyInput) { qtyInput.value = qty; qtyInput.min = 1; }
+    if (qtyRow) { qtyRow.hidden = false; }
+    renderCards(size);
+    if (typeof updateKostenDetails === "function") updateKostenDetails();
+    window.updatePricing?.();
+  }
+
+  function renderCards(selectedSize) {
+    if (!cardsEl) return;
+    const result = computeSuggestion(areaEl?.value);
+    if (!result) { suggestionBox.hidden = true; return; }
+    const colorKey = selectedColor();
+    cardsEl.innerHTML =
+      buildCard(result.opt997, result.best.size === 997, selectedSize, colorKey) +
+      buildCard(result.opt1497, result.best.size === 1497, selectedSize, colorKey);
+    cardsEl.querySelectorAll(".wvc-card").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        applyOption(Number(btn.dataset.size), Number(btn.dataset.qty));
+      });
+    });
+    suggestionBox.hidden = false;
+  }
+
+  async function updateSuggestion() {
+    await ensurePrices(selectedColor());
+    const selectedSize = panelSizeEl?.value ? Number(panelSizeEl.value) : null;
+    renderCards(selectedSize);
+  }
+
+  // qty input lets user override after applying
+  qtyInput?.addEventListener("input", () => {
+    const qty = Number(qtyInput.value) || 0;
+    if (qtyEl) qtyEl.value = qty;
+    if (qty > 0) window.updatePricing?.();
+  });
+
+  // Re-render cards + update pricing when color changes
+  form.addEventListener("change", (e) => {
+    if (e.target.name === "wallCladdingColor") {
+      updateSuggestion();
+      if (toggle.checked) window.updatePricing?.();
+    }
+  });
+
+  toggle.addEventListener("change", () => showPanel(toggle.checked));
+  showPanel(toggle.checked);
+  areaEl?.addEventListener("input", updateSuggestion);
+  updateSuggestion();
+
+  // ---- product card for selected WVC color ----
+  const wvcCardEl = document.getElementById("wvcProductCard");
+  const wvcFullCache = new Map();
+
+  function wvcStockSpan(d) {
+    const inStock = d.stockQuantity > 0;
+    const qty = d.stockQuantity ?? 0;
+    const title = d.stockText || (inStock
+      ? "Der Artikel ist im Lager verfügbar."
+      : "Die Ware ist aktuell nicht verfügbar und muss bestellt werden.");
+    return `<span class="dac-line-stock dac-stock-${inStock ? "in" : "out"}" title="${title}"><span class="dac-stock-qty">${qty}</span>${inStock ? "Auf Lager" : "Auf Bestellung"}</span>`;
+  }
+
+  async function renderWvcProductCard(colorKey) {
+    if (!wvcCardEl) return;
+    const { id997, id1497 } = articleIds(colorKey);
+    const panelSizeVal = panelSizeEl?.value || "997";
+    const artId = panelSizeVal === "1497" ? id1497 : id997;
+    if (!artId) { wvcCardEl.hidden = true; return; }
+    let d = wvcFullCache.get(artId);
+    if (!d) {
+      try {
+        const r = await fetch(`/api/vigor-prices?ids=${artId}&full=1`);
+        if (r.ok) { const j = await r.json(); d = j[artId]; if (d) wvcFullCache.set(artId, d); }
+      } catch {}
+    }
+    if (!d) { wvcCardEl.hidden = true; return; }
+    const inStock = d.stockQuantity > 0;
+    const ownQty = (window.__wvOwnLager || {})[artId];
+    const ownBadge = (ownQty > 0)
+      ? `<span class="wv-own-lager-badge"><span class="wv-own-lager-qty">${ownQty}</span>Im eigenen Lager</span>`
+      : "";
+    wvcCardEl.innerHTML = `<div class="wv-product-card">
+      ${d.image ? `<img src="${d.image}" alt="${d.name}" />` : ""}
+      <div class="wv-product-card-info">
+        <div class="wv-product-card-name">${d.name || artId}</div>
+        <div class="wv-product-card-art">${artId}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+        ${d.netPrice ? `<div class="wv-product-card-price">${d.netPrice.toFixed(2).replace(".", ",")} €</div>` : ""}
+        <div class="wv-product-card-stock ${inStock ? "in" : "out"}">${d.stockText || (inStock ? "Auf Lager" : "Auf Bestellung")}</div>
+      </div>
+    </div>
+    ${wvcStockSpan(d)}
+    ${ownBadge}`;
+    wvcCardEl.hidden = false;
+  }
+
+  form.addEventListener("change", (e) => {
+    if (e.target.name === "wallCladdingColor" || e.target.name === "wallCladdingPanelSize") {
+      renderWvcProductCard(selectedColor());
+    }
+  });
+  function applyWvcOwnLagerToTiles() {
+    const lager = window.__wvOwnLager || {};
+    // Summary above wallCladdingColors
+    const colorsEl = document.getElementById("wallCladdingColors");
+    if (!colorsEl) return;
+    let hint = document.getElementById("wvcOwnLagerHint");
+    if (!hint) {
+      hint = document.createElement("div");
+      hint.id = "wvcOwnLagerHint";
+      hint.className = "wv-own-lager-hint";
+      colorsEl.parentElement.insertBefore(hint, colorsEl);
+    }
+    // Build reverse: artId → {display, size}
+    const artToColorWvc = new Map();
+    for (const [ck, entry] of Object.entries(WV_ART)) {
+      const display = ck.replace(/\b\w/g, c => c.toUpperCase());
+      artToColorWvc.set(entry[997],  { display, size: 997 });
+      artToColorWvc.set(entry[1497], { display, size: 1497 });
+    }
+
+    const hintItemsWvc = [];
+    for (const [artId, qty] of Object.entries(lager)) {
+      if (!(qty > 0)) continue;
+      const info = artToColorWvc.get(artId);
+      if (!info) continue;
+      hintItemsWvc.push(`<span class="wv-hint-item">${info.display} ${info.size}mm <strong>${qty}×</strong></span>`);
+    }
+    if (hintItemsWvc.length) {
+      hint.innerHTML = `<span class="wv-hint-label">Eigenes Lager:</span> ${hintItemsWvc.join("")}`;
+      hint.hidden = false;
+    } else {
+      hint.hidden = true;
+    }
+    // Tile overlays
+    form.querySelectorAll('input[name="wallCladdingColor"]').forEach((radio) => {
+      const label = radio.closest(".image-check");
+      if (!label) return;
+      const ck = radio.value.trim().toLowerCase();
+      const entry = WV_ART[ck];
+      const qty997 = entry ? (lager[entry[997]] || 0) : 0;
+      const qty1497 = entry ? (lager[entry[1497]] || 0) : 0;
+      let badge = label.querySelector(".wv-tile-own-badge");
+      if (qty997 > 0 || qty1497 > 0) {
+        if (!badge) { badge = document.createElement("span"); badge.className = "wv-tile-own-badge"; label.appendChild(badge); }
+        const parts = [];
+        if (qty997 > 0) parts.push(`997: ${qty997}`);
+        if (qty1497 > 0) parts.push(`1497: ${qty1497}`);
+        badge.textContent = parts.join(" / ");
+      } else if (badge) {
+        badge.remove();
+      }
+    });
+  }
+
+  document.addEventListener("wvOwnLagerLoaded", () => { if (toggle.checked) renderWvcProductCard(selectedColor()); applyWvcOwnLagerToTiles(); });
+  applyWvcOwnLagerToTiles();
+  // initial render if toggle already checked
+  if (toggle.checked) renderWvcProductCard(selectedColor());
+  toggle.addEventListener("change", () => { if (toggle.checked) renderWvcProductCard(selectedColor()); else wvcCardEl && (wvcCardEl.hidden = true); });
+})();
+
+makeFloorCalc({
+  toggleEl: document.getElementById("wvcCalcToggle"),
+  panelEl: document.getElementById("wvcCalcPanel"),
+  rowsEl: document.getElementById("wvcCalcRows"),
+  totalEl: document.getElementById("wvcCalcResult"),
+  applyBtn: document.getElementById("wvcCalcApply"),
+  addRowBtn: document.getElementById("wvcCalcAddRow"),
+  areaInput: document.getElementById("wallCladdingArea"),
+});
 
 /* ========== SMART TRAY SEARCH (equal-or-bigger filter, persist/deselect) ========== */
 function initSmartTraySearch() {
@@ -10694,574 +11170,258 @@ function initSmartTraySearch() {
 
   window.__smartTray = { fetchAndRender };
 }
-// Smart search for bathtubs (Badewanne). Reuses the same suggestion-card/list CSS.
-// - Visible only when work task "install_bathtub" is selected
-// - Searches /api/products?q=...
-// - Filters to productId starting with "IRIS" but excludes "IRISWAS" (Wannenaufsatz)
-function initBathtubSearch() {
-  const panel = document.getElementById("bathtubSearchPanel");
-  const input = document.getElementById("bathtubSearch");
-  const out = document.getElementById("bathtub-suggestions");
-  const hiddenId = document.getElementById("chosenBathtubProductId");
+/* ========== WANNE PICKER (Optional tab, menu_WANNE) ==========
+   Badewanne + Wannenaufsatz, sourced from the vigor catalog through
+   /api/bathtubs/catalog. The catalog is 18 articles, so it is fetched once and
+   filtered in memory — no per-keystroke request, no debounce, no abort races.
+   Attributes are parsed server-side (routes/bathtubs.js); this only renders. */
+function initWannePicker() {
+  const panel = document.getElementById("menu_WANNE");
+  const grid = document.getElementById("wanneGrid");
+  const filtersEl = document.getElementById("wanneFilters");
+  const countEl = document.getElementById("wanneCount");
+  const summaryEl = document.getElementById("wanneSummary");
+  if (!panel || !grid || !filtersEl) return;
 
-  const task = document.querySelector(
-    'input[name="duschwanne[workTasks][]"][value="install_bathtub"]'
-  );
-
-  if (!panel || !input || !out || !hiddenId || !task) return;
-
-  const toUpper = (v) => String(v || "").toUpperCase();
-
-  const applySelectedStyles = () => {
-    const cards = Array.from(out.querySelectorAll(".suggestion-card"));
-    const checked = out.querySelector('input[name="bathtubSuggestion"]:checked');
-    cards.forEach((card) => {
-      const inEl = card.querySelector('input[name="bathtubSuggestion"]');
-      card.classList.toggle("is-selected", !!checked && inEl === checked);
-    });
+  // Hidden inputs keep their original ids and the payload.duschwanne.* path, so
+  // pricing, restore and saved offers keep working after the move to this tab.
+  const FIELDS = {
+    tub: {
+      id: "chosenBathtubProductId",
+      name: "chosenBathtubName",
+      price: "chosenBathtubPrice",
+      size: "bathtubSize",
+    },
+    screen: {
+      id: "chosenScreenProductId",
+      name: "chosenScreenName",
+      price: "chosenScreenPrice",
+    },
   };
 
-  const applySelection = (inputEl) => {
-    if (!inputEl) return;
-    const pid = inputEl.value || "";
-    hiddenId.value = pid;
-    hiddenId?.dispatchEvent(new Event("change", { bubbles: true }));
-    applySelectedStyles();
+  const FACETS = {
+    tub: [["side", "Seite"], ["schuerze", "Schürze"], ["zulauf", "Zulauf"]],
+    screen: [["side", "Seite"], ["heightCm", "Höhe"], ["seitenwand", "Seitenwand"]],
+  };
+
+  const LABELS = { tub: "Badewanne", screen: "Wannenaufsatz" };
+  const FALLBACK_IMG = "./assets/vk-brutto.jpg";
+
+  // Product images come from the scraper's CDN. If one 404s or the CDN is
+  // unreachable, swap in the local placeholder rather than showing a broken
+  // image. "error" does not bubble, hence the capturing listener; an inline
+  // onerror would need 'unsafe-inline' in the CSP script-src.
+  grid.addEventListener(
+    "error",
+    (e) => {
+      const img = e.target;
+      if (img?.tagName !== "IMG" || img.dataset.fallback) return;
+      img.dataset.fallback = "1";
+      img.src = FALLBACK_IMG;
+    },
+    true,
+  );
+
+  let items = [];
+  let type = "tub";
+  let filters = {};
+
+  const esc = (s) =>
+    String(s ?? "").replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+    );
+  const eur = (n) => Number(n || 0).toFixed(2).replace(".", ",") + " €";
+  const showVal = (k, v) => (k === "heightCm" ? `${v} cm` : String(v));
+  const ofType = (t) => items.filter((p) => p.type === (t || type));
+
+  // `skip` lets a facet count its own options against the OTHER active filters,
+  // so switching between two options of one facet never shows a zero.
+  const matches = (p, skip) =>
+    Object.entries(filters).every(
+      ([k, v]) => k === skip || v == null || String(p[k]) === String(v),
+    );
+
+  const setHidden = (id, val) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = val == null ? "" : String(val);
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+
+  const selectedId = (t) =>
+    (document.getElementById(FIELDS[t].id)?.value || "").trim();
+  const selectedItem = (t) =>
+    items.find((p) => p.type === t && p.articleNumber === selectedId(t)) || null;
+
+  const tubSizeLabel = (p) =>
+    p.lengthCm && p.widthCm
+      ? `${p.lengthCm} x ${p.widthCm}${p.widthMaxCm && p.widthMaxCm !== p.widthCm ? "/" + p.widthMaxCm : ""} cm`
+      : "";
+
+  // Once a tub is picked, the sensible screen is the cheapest one hinged on the
+  // same side — every Iris tub is 160x70/80, so size no longer discriminates.
+  function recommendedScreenId() {
+    const tub = selectedItem("tub");
+    if (!tub?.side) return null;
+    const same = ofType("screen")
+      .filter((p) => p.side === tub.side)
+      .sort((a, b) => a.netPrice - b.netPrice);
+    return same[0]?.articleNumber || null;
+  }
+
+  function applySelection(p) {
+    const f = FIELDS[p.type];
+    const isSame = selectedId(p.type) === p.articleNumber;
+    setHidden(f.id, isSame ? "" : p.articleNumber);
+    setHidden(f.name, isSame ? "" : p.name);
+    setHidden(f.price, isSame ? "" : p.netPrice);
+    if (f.size) setHidden(f.size, isSame ? "" : tubSizeLabel(p));
+    render();
     window.updatePricing?.();
-  };
+  }
 
-  const showPanel = (on) => {
-    panel.hidden = !on;
-    panel.setAttribute("aria-hidden", on ? "false" : "true");
-    if (!on) {
-      input.value = "";
-      out.innerHTML = "";
-      hiddenId.value = "";
-    }
-  };
-
-  // initial state + toggle on any install_bathtub checkbox (may appear in multiple groups)
-  const allBathtubTasks = document.querySelectorAll('input[name="duschwanne[workTasks][]"][value="install_bathtub"]');
-  const anyBathtubChecked = () => Array.from(allBathtubTasks).some(t => t.checked);
-  showPanel(anyBathtubChecked());
-  allBathtubTasks.forEach(t => t.addEventListener("change", () => showPanel(anyBathtubChecked())));
-
-  function renderSuggestions(list) {
-    if (!Array.isArray(list) || list.length === 0) {
-      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
-      applySelectedStyles();
-      return;
-    }
-
-    const top = list.slice(0, 5);
-
-    const radios = top
-      .map((p, i) => {
-        const id = `bathtub-suggest-${i}`;
-        const title = p.name || p.productId || "Badewanne";
-        const price = p.price != null ? ` — ${Number(p.price).toFixed(2)} €` : "";
-        const value = p.productId || "";
-        return `
-          <label class="suggestion-card" for="${id}">
-            <input type="radio" id="${id}" name="bathtubSuggestion" value="${value}" />
-            <div class="info">
-              <div class="title">${title}</div>
-              <div class="meta">${value}${price}</div>
-            </div>
-          </label>
-        `;
+  function renderFilters() {
+    const reco = recommendedScreenId();
+    filtersEl.innerHTML = FACETS[type]
+      .map(([key, label]) => {
+        const values = [
+          ...new Set(ofType().map((p) => p[key]).filter((v) => v != null && v !== "")),
+        ].sort();
+        if (values.length < 2) return "";
+        const chips = values
+          .map((v) => {
+            const n = ofType().filter(
+              (p) => String(p[key]) === String(v) && matches(p, key),
+            ).length;
+            return `<button type="button" class="wanne-chip" data-fkey="${esc(key)}" data-fval="${esc(v)}"
+              aria-pressed="${String(filters[key]) === String(v)}" ${n ? "" : "disabled"}>${esc(
+                showVal(key, v),
+              )} <span class="n">${n}</span></button>`;
+          })
+          .join("");
+        return `<div class="wanne-fgroup"><div class="wanne-flabel">${esc(label)}</div><div class="wanne-chips">${chips}</div></div>`;
       })
       .join("");
-
-    out.innerHTML = `
-      <div class="suggestion-heading" style="margin-top: 12px;">Vorschläge</div>
-      <div class="suggestion-list">${radios}</div>
-    `;
-
-    out.addEventListener("change", (e) => {
-      if (e.target && e.target.name === "bathtubSuggestion") {
-        applySelection(e.target);
-      }
-    });
-
-    applySelectedStyles();
+    return reco;
   }
 
-  let inflight = null;
-  let reqSeq = 0;
-  let debounceT = null;
-
-  async function fetchAndRender(q) {
-    const query = String(q || "").trim();
-    if (!query) {
-      out.innerHTML = "";
-      return;
-    }
-
-    try { inflight?.abort?.(); } catch {}
-    inflight = new AbortController();
-    const mySeq = ++reqSeq;
-
-    const url = `/api/products?q=${encodeURIComponent(query)}`;
-    out.innerHTML = `<div class="meta">Suche…</div>`;
-
-    try {
-      const r = await fetch(url, { signal: inflight.signal, credentials: "include" });
-      const text = await r.text();
-      if (mySeq !== reqSeq) return;
-      if (!r.ok) {
-        out.innerHTML = `<div class="text-sm text-destructive">Fehler ${r.status}</div><pre class="text-xs">${text}</pre>`;
-        return;
-      }
-
-      const data = JSON.parse(text);
-      const arr = Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : []);
-
-      // Only IRIS* but exclude IRISWAS* (screen)
-      const list = arr
-        .filter((p) => toUpper(p?.productId).startsWith("IRIS"))
-        .filter((p) => !toUpper(p?.productId).startsWith("IRISWAS"));
-
-      renderSuggestions(list);
-    } catch (err) {
-      if (err?.name === "AbortError") return;
-      if (mySeq !== reqSeq) return;
-      out.innerHTML = `<div class="text-sm text-destructive">Netzwerkfehler</div><pre class="text-xs">${String(err)}</pre>`;
-    }
-  }
-
-  const request = () => {
-    clearTimeout(debounceT);
-    debounceT = setTimeout(() => fetchAndRender(input.value), 180);
-  };
-
-  input.addEventListener("input", () => {
-    hiddenId.value = "";
-    request();
-  });
-  input.addEventListener("change", () => {
-    hiddenId.value = "";
-    request();
-  });
-}
-/* ========== SMART BATHTUB SEARCH (same UX as trays) ========== */
-function initSmartBathtubSearch() {
-  // Show only when "install_bathtub" is checked
-  const task = document.querySelector(
-    'input[name="duschwanne[workTasks][]"][value="install_bathtub"]'
-  );
-
-  const panel = document.getElementById("bathtubSearchPanel");
-  const elB = document.querySelector('input[name="bathtub_w_cm"]');
-  const elL = document.querySelector('input[name="bathtub_l_cm"]');
-  const out = document.getElementById("bathtub-suggestions");
-  const hiddenId = document.getElementById("chosenBathtubProductId");
-  const hiddenSize = document.getElementById("bathtubSize");
-
-  if (!panel || !out || (!elB && !elL) || !task) return;
-
-  let inflight = null;
-  let reqSeq = 0;
-  let debounceT = null;
-
-  const showPanel = (on) => {
-    panel.hidden = !on;
-    panel.setAttribute("aria-hidden", on ? "false" : "true");
-    if (!on) {
-      if (elB) elB.value = "";
-      if (elL) elL.value = "";
-      out.innerHTML = "";
-      if (hiddenId) {
-        hiddenId.value = "";
-        hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      if (hiddenSize) hiddenSize.value = "";
-      try { inflight?.abort?.(); } catch {}
-      reqSeq++;
-    }
-  };
-
-  // initial state + toggle on any install_bathtub checkbox (may appear in multiple groups)
-  const allBathtubTasks2 = document.querySelectorAll('input[name="duschwanne[workTasks][]"][value="install_bathtub"]');
-  const anyBathtubChecked2 = () => Array.from(allBathtubTasks2).some(t => t.checked);
-  showPanel(anyBathtubChecked2());
-  allBathtubTasks2.forEach(t => t.addEventListener("change", () => showPanel(anyBathtubChecked2())));
-
-  const parseNum = (v) => {
-    if (v == null) return null;
-    const raw = String(v).trim();
-    if (raw === "") return null;
-    const s = raw.replace(/\./g, "").replace(",", ".");
-    const n = Number(s);
-    if (!Number.isFinite(n)) return null;
-    return n > 0 ? n : null;
-  };
-
-  const makeLabel = (w, l) => (w && l ? `${w} x ${l} cm` : "");
-
-  const applySelectedStyles = () => {
-    const cards = Array.from(out.querySelectorAll(".suggestion-card"));
-    const checked = out.querySelector('input[name="bathtubSuggestion"]:checked');
-    cards.forEach((card) => {
-      const input = card.querySelector('input[name="bathtubSuggestion"]');
-      card.classList.toggle("is-selected", checked && input === checked);
-    });
-  };
-
-  const applySelection = (inputEl) => {
-    if (!inputEl) return;
-    const pid = inputEl.value || "";
-    const w = Number(inputEl.dataset.w) || null;
-    const l = Number(inputEl.dataset.l) || null;
-    const label = makeLabel(w, l);
-
-    if (hiddenId) {
-  hiddenId.value = pid;
-  hiddenId.dispatchEvent(new Event("change", { bubbles: true })); // ✅ important
-}
-if (hiddenSize) hiddenSize.value = label;
-
-applySelectedStyles();
-window.updatePricing?.();
-  };
-
-  function renderSuggestions(list) {
-    if (!Array.isArray(list) || list.length === 0) {
-      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
-      applySelectedStyles();
-      return;
-    }
-
-    const top = list.slice(0, 3);
-    const current = (hiddenId?.value || "").trim();
-
-    const radios = top
-      .map((p, i) => {
-        const id = `bathtub-suggest-${i}`;
-        const dims = `${p.widthCm} × ${p.lengthCm} cm`;
-        const price = p.price != null ? ` — ${Number(p.price).toFixed(2)} €` : "";
-        const title = p.name || p.productId || "Badewanne";
-        const value = p.productId || "";
-
-        return `
-          <label class="suggestion-card" for="${id}">
-            <input type="radio"
-                   id="${id}"
-                   name="bathtubSuggestion"
-                   value="${value}"
-                   ${current && current === value ? "checked" : ""}
-                   data-w="${p.widthCm || ""}"
-                   data-l="${p.lengthCm || ""}" />
-            <div class="info">
-              <div class="title">${title}</div>
-              <div class="meta">${dims}${price}</div>
-            </div>
-          </label>
-        `;
-      })
-      .join("");
-
-    out.innerHTML = `
-      <div class="suggestion-heading" style="margin-top: 12px;">Vorschläge</div>
-      <div class="suggestion-list">${radios}</div>
-    `;
-
-    out.addEventListener("change", (e) => {
-      if (e.target && e.target.name === "bathtubSuggestion") {
-        applySelection(e.target);
-      }
+  function render() {
+    panel.querySelectorAll(".wanne-seg button").forEach((b) => {
+      b.setAttribute("aria-pressed", String(b.dataset.wtype === type));
     });
 
-    applySelectedStyles();
-  }
+    const reco = renderFilters();
+    const all = ofType();
+    const list = all
+      .filter((p) => matches(p))
+      .sort(
+        (a, b) =>
+          (b.articleNumber === reco ? 1 : 0) - (a.articleNumber === reco ? 1 : 0) ||
+          a.netPrice - b.netPrice,
+      );
 
-  // fetch logic (same pattern as trays)
-  async function fetchAndRender() {
-    const b = elB ? parseNum(elB.value) : null;
-    const l = elL ? parseNum(elL.value) : null;
+    if (countEl) countEl.textContent = `${list.length} von ${all.length}`;
 
-    if (b === null && l === null) {
-      out.innerHTML = "";
-      if (hiddenId) {
-  hiddenId.value = "";
-  hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
-}
-      if (hiddenSize) hiddenSize.value = "";
-      try { inflight?.abort?.(); } catch {}
-      reqSeq++;
-      return;
-    }
-
-    const qs = new URLSearchParams();
-    if (b !== null) qs.set("w", String(b));
-    if (l !== null) qs.set("l", String(l));
-    const url = `/api/bathtubs/suggest?${qs.toString()}`;
-
-    try { inflight?.abort?.(); } catch {}
-    inflight = new AbortController();
-    const mySeq = ++reqSeq;
-
-    out.innerHTML = `<div class="meta">Suche… <code>${url}</code></div>`;
-
-    try {
-      const r = await fetch(url, { signal: inflight.signal, credentials: "include" });
-      const text = await r.text();
-      if (mySeq !== reqSeq) return;
-      if (!r.ok) {
-        out.innerHTML = `<div class="text-sm text-destructive">Fehler ${r.status}</div><pre class="text-xs">${text}</pre>`;
-        return;
-      }
-      const data = JSON.parse(text);
-      const list = Array.isArray(data?.results) ? data.results : [];
-      renderSuggestions(list);
-    } catch (err) {
-      if (err?.name === "AbortError") return;
-      if (mySeq !== reqSeq) return;
-      out.innerHTML = `<div class="text-sm text-destructive">Netzwerkfehler</div><pre class="text-xs">${String(err)}</pre>`;
-    }
-  }
-
-  const request = () => {
-    clearTimeout(debounceT);
-    debounceT = setTimeout(fetchAndRender, 160);
-  };
-
-  [elB, elL].forEach((el) => {
-    if (!el) return;
-    el.addEventListener("input", () => {
-      if (hiddenId) {
-        hiddenId.value = "";
-        hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      if (hiddenSize) hiddenSize.value = makeLabel(parseNum(elB?.value), parseNum(elL?.value));
-      request();
-    });
-    el.addEventListener("change", () => {
-      if (hiddenId) hiddenId.value = "";
-      request();
-    });
-  });
-
-  // initial kick
-  request();
-
-  window.__smartBathtub = { fetchAndRender };
-}
-function initSmartScreenPickerBucket() {
-  const task = document.querySelector(
-    'input[name="duschwanne[workTasks][]"][value="install_bathtub_screen"]',
-  );
-
-  const bathtubIdEl = document.getElementById("chosenBathtubProductId");
-  const panel = document.getElementById("screenPickerPanel");
-  const hint = document.getElementById("screen-reco-hint");
-  const out = document.getElementById("screen-suggestions");
-  const chosen = document.getElementById("chosenScreenProductId");
-
-  const elW = document.querySelector('input[name="screen_w_cm"]');
-  const elH = document.querySelector('input[name="screen_h_cm"]');
-
-  if (!task || !bathtubIdEl || !panel || !hint || !out || !chosen) return;
-
-  let inflight = null;
-  let reqSeq = 0;
-  let debounceT = null;
-
-  const parseNum = (v) => {
-    if (v == null) return null;
-    const s = String(v).trim().replace(/\./g, "").replace(",", ".");
-    if (!s) return null;
-    const n = Number(s);
-    return Number.isFinite(n) && n > 0 ? n : null;
-  };
-
-  const setVisible = (on) => {
-    panel.hidden = !on;
-    panel.setAttribute("aria-hidden", on ? "false" : "true");
-    if (!on) {
-      hint.textContent = "";
-      out.innerHTML = "";
-      chosen.value = "";
-      if (elW) elW.value = "";
-      if (elH) elH.value = "";
-      try {
-        inflight?.abort?.();
-      } catch {}
-      reqSeq++;
-    }
-  };
-
-  const applySelectedStyles = () => {
-    const cards = Array.from(out.querySelectorAll(".suggestion-card"));
-    const checked = out.querySelector('input[name="screenSuggestion"]:checked');
-    cards.forEach((card) => {
-      const input = card.querySelector('input[name="screenSuggestion"]');
-      card.classList.toggle("is-selected", checked && input === checked);
-    });
-  };
-
-  const renderSuggestions = (list) => {
-    if (!Array.isArray(list) || list.length === 0) {
-      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
-      applySelectedStyles();
-      return;
-    }
-
-    const top = list.slice(0, 3);
-    const current = (chosen.value || "").trim();
-
-    out.innerHTML = `
-      <div class="suggestion-heading" style="margin-top: 12px;">Vorschläge</div>
-      ${top
-        .map((p, i) => {
-          const id = `screen-suggest-${i}`;
-          const price = p.price != null ? ` — ${Number(p.price).toFixed(2)} €` : "";
-          const title = p.name || p.productId || "Wannenaufsatz";
-          const value = p.productId || "";
-          const checked = current && current === value ? "checked" : "";
-          return `
-            <label class="suggestion-card" for="${id}">
-              <input
-                type="radio"
-                id="${id}"
-                name="screenSuggestion"
-                value="${value}"
-                ${checked}
-              />
-              <div class="info">
-                <div class="title">${window.escapeHtml ? escapeHtml(title) : title}</div>
-                <div class="meta">${value}${price}</div>
-              </div>
-            </label>
-          `;
+    const chosen = selectedId(type);
+    grid.innerHTML =
+      list
+        .map((p) => {
+          const pills = FACETS[type]
+            .map(([k]) =>
+              p[k] == null || p[k] === ""
+                ? ""
+                : `<span class="wanne-pill">${esc(showVal(k, p[k]))}</span>`,
+            )
+            .join("");
+          // alt="" on purpose: the name sits right beside it, so the image is
+          // decorative and a screen reader would otherwise read it twice.
+          // No loading="lazy": the grid renders while the panel is still
+          // hidden, so lazy images never enter the viewport and never load.
+          return `<button type="button" class="wanne-card" data-art="${esc(p.articleNumber)}"
+            aria-pressed="${chosen === p.articleNumber}">
+            <span class="wanne-thumb"><img src="${esc(p.image || FALLBACK_IMG)}" alt="" /></span>
+            <span class="wanne-body">
+              ${p.articleNumber === reco ? '<span class="wanne-reco">Empfohlen</span><br>' : ""}
+              <span class="wanne-art">${esc(p.articleNumber)}</span>
+              <div class="wanne-name">${esc(p.name)}</div>
+              <div class="wanne-pills">${pills}</div>
+              <div class="wanne-finish">${esc(p.finish)}</div>
+              <div class="wanne-price">${eur(p.netPrice)}</div>
+            </span>
+          </button>`;
         })
-        .join("")}
-    `;
+        .join("") ||
+      `<div class="muted">Keine Treffer. Filter lockern.</div>`;
 
-    out.querySelectorAll('input[name="screenSuggestion"]').forEach((r) => {
-      r.addEventListener("change", () => {
-        chosen.value = r.value || "";
-        applySelectedStyles();
-        window.updatePricing?.();
-      });
-    });
-
-    applySelectedStyles();
-  };
-
-  async function refreshInternal() {
-    const wants = !!task.checked;
-    if (!wants) {
-      setVisible(false);
-      return;
-    }
-
-    setVisible(true);
-
-    const bathtubPid = (bathtubIdEl.value || "").trim();
-    if (!bathtubPid) {
-      hint.textContent = "Bitte zuerst eine Badewanne auswählen.";
-      out.innerHTML = "";
-      chosen.value = "";
-      return;
-    }
-
-    // Manual input takes priority over bucket suggestions
-    const w = parseNum(elW?.value);
-    const h = parseNum(elH?.value);
-    const hasManual = w !== null || h !== null;
-
-    // We still fetch recommendation to show the hint (and maybe side)
-    hint.textContent = "Empfehlung wird geladen…";
-    out.innerHTML = `<div class="meta">Suche…</div>`;
-
-    try {
-      inflight?.abort?.();
-    } catch {}
-    inflight = new AbortController();
-    const mySeq = ++reqSeq;
-
-    const recUrl = `/api/bathtubs/recommend-screen?bathtubProductId=${encodeURIComponent(
-      bathtubPid,
-    )}`;
-
-    const recRes = await fetch(recUrl, {
-      signal: inflight.signal,
-      credentials: "include",
-    });
-
-    const recText = await recRes.text();
-    if (mySeq !== reqSeq) return;
-    if (!recRes.ok) {
-      hint.textContent = "Empfehlung konnte nicht geladen werden.";
-      out.innerHTML = `<pre class="text-xs">${recText}</pre>`;
-      return;
-    }
-
-    const recData = JSON.parse(recText);
-    const rec = recData?.recommended;
-
-    if (!rec || !rec.bucket) {
-      hint.textContent = "Keine Empfehlung gefunden.";
-      out.innerHTML = "";
-      return;
-    }
-
-    // show hint always (even if manual mode)
-    hint.textContent = `Empfohlen: ${rec.productId}`;
-
-    // Build suggest query
-    const qs = new URLSearchParams();
-
-    if (hasManual) {
-      // manual search takes priority
-      if (w !== null) qs.set("w", String(w));
-      if (h !== null) qs.set("h", String(h));
-      // optional: keep side preference if backend supports it
-      if (rec.side === "L" || rec.side === "R") qs.set("side", rec.side);
-    } else {
-      // default bucket search
-      qs.set("bucket", String(rec.bucket));
-      if (rec.side === "L" || rec.side === "R") qs.set("side", rec.side);
-    }
-
-    const sugUrl = `/api/bathtubs/screens/suggest?${qs.toString()}`;
-
-    const sugRes = await fetch(sugUrl, {
-      signal: inflight.signal,
-      credentials: "include",
-    });
-
-    const sugText = await sugRes.text();
-    if (mySeq !== reqSeq) return;
-    if (!sugRes.ok) {
-      out.innerHTML = `<div class="text-sm text-destructive">Fehler ${sugRes.status}</div><pre class="text-xs">${sugText}</pre>`;
-      return;
-    }
-
-    const sugData = JSON.parse(sugText);
-    renderSuggestions(Array.isArray(sugData?.results) ? sugData.results : []);
+    renderSummary();
   }
 
-  const refresh = () => {
-    clearTimeout(debounceT);
-    debounceT = setTimeout(refreshInternal, 150);
-  };
+  function renderSummary() {
+    if (!summaryEl) return;
+    const tub = selectedItem("tub");
+    const screen = selectedItem("screen");
+    if (!tub && !screen) {
+      summaryEl.innerHTML = `<span class="wanne-empty">Noch nichts ausgewählt.</span>`;
+      return;
+    }
+    const rows = [
+      tub && `${LABELS.tub}: <strong>${esc(tub.articleNumber)}</strong> — ${eur(tub.netPrice)}`,
+      screen &&
+        `${LABELS.screen}: <strong>${esc(screen.articleNumber)}</strong> — ${eur(screen.netPrice)}`,
+    ].filter(Boolean);
+    const total = (tub?.netPrice || 0) + (screen?.netPrice || 0);
+    summaryEl.innerHTML =
+      rows.join("<br>") + `<div style="margin-top:6px"><strong>Summe: ${eur(total)}</strong></div>`;
+  }
 
-  // triggers
-  task.addEventListener("change", refresh);
-  bathtubIdEl.addEventListener("change", refresh);
-
-  // manual input triggers (priority)
-  [elW, elH].forEach((el) => {
-    if (!el) return;
-    el.addEventListener("input", refresh);
-    el.addEventListener("change", refresh);
+  panel.addEventListener("click", (e) => {
+    const seg = e.target.closest(".wanne-seg button");
+    if (seg) {
+      type = seg.dataset.wtype;
+      filters = {};
+      return render();
+    }
+    const chip = e.target.closest(".wanne-chip");
+    if (chip && !chip.disabled) {
+      const { fkey, fval } = chip.dataset;
+      filters[fkey] = String(filters[fkey]) === String(fval) ? null : fval;
+      return render();
+    }
+    if (e.target.closest("#wanneReset")) {
+      filters = {};
+      return render();
+    }
+    const card = e.target.closest(".wanne-card");
+    if (card) {
+      const p = items.find((x) => x.articleNumber === card.dataset.art);
+      if (p) applySelection(p);
+    }
   });
 
-  // initial
-  window.__smartScreenPicker = { refresh };
-  refresh();
+  async function load() {
+    try {
+      const res = await fetch("/api/bathtubs/catalog", { credentials: "same-origin" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      items = Array.isArray(data?.items) ? data.items : [];
+    } catch (e) {
+      console.error("[wanne] catalog load failed:", e?.message || e);
+      grid.innerHTML = `<div class="muted">Katalog konnte nicht geladen werden.</div>`;
+      return;
+    }
+    render();
+  }
+
+  // A restored offer fills the hidden inputs after this init runs; re-render so
+  // the saved pick shows as selected instead of an empty-looking grid.
+  ["chosenBathtubProductId", "chosenScreenProductId"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", () => {
+      if (items.length) render();
+    });
+  });
+
+  window.__wannePicker = { reload: load, render };
+  load();
 }
 function initTraySizeAutoLabel() {
   const traySizeEl = document.getElementById("traySize");
@@ -11320,25 +11480,29 @@ function attachDuschwanneToPayload(payload) {
   const pid = document.getElementById("chosenTrayProductId")?.value || null;
   const size = document.getElementById("traySize")?.value || "";
 
-  // bathtub (new)
-  const bPid = document.getElementById("chosenBathtubProductId")?.value || "";
+  // bathtub + screen: picked on the Optional tab (menu_WANNE), but kept on the
+  // duschwanne payload path so saved offers and pricing stay compatible.
+  const val = (id) => (document.getElementById(id)?.value || "").trim();
+  const bPid = val("chosenBathtubProductId");
   const bSize = document.getElementById("bathtubSize")?.value || "";
-
-  // screen (new) - NO DEFAULT
-  const screenPid =
-    document.getElementById("chosenScreenProductId")?.value || "";
+  const screenPid = val("chosenScreenProductId");
 
   payload.duschwanne = payload.duschwanne || {};
   payload.duschwanne.chosenTrayProductId = pid;
   payload.duschwanne.traySize = size;
   payload.duschwanne.trayColor = getTrayColorValue();
 
-  payload.duschwanne.chosenBathtubProductId = bPid.trim() ? bPid.trim() : null;
+  payload.duschwanne.chosenBathtubProductId = bPid || null;
   payload.duschwanne.bathtubSize = bSize;
 
-  payload.duschwanne.wannenaufsatzProductId = screenPid.trim()
-    ? screenPid.trim()
-    : null;
+  payload.duschwanne.wannenaufsatzProductId = screenPid || null;
+
+  // Price/name snapshot from the vigor catalog at selection time. Pricing quotes
+  // the live vigor price and only falls back to these when vigor is unreachable.
+  payload.duschwanne.chosenBathtubName = val("chosenBathtubName") || null;
+  payload.duschwanne.chosenBathtubPrice = Number(val("chosenBathtubPrice")) || null;
+  payload.duschwanne.chosenScreenName = val("chosenScreenName") || null;
+  payload.duschwanne.chosenScreenPrice = Number(val("chosenScreenPrice")) || null;
 
   // Freier Posten: custom tray not found in the DB search
   const dwCustomName = (document.getElementById("dwCustomName")?.value || "").trim();
@@ -13584,20 +13748,18 @@ function restoreTraySelection(dw) {
   // ===== PATCH: restore bathtub + wannenaufsatz =====
 
 // restore bathtub size inputs if present in payload (optional)
-setByNameOrId("bathtub_w_cm", dw.bathtub_w_cm);
-setByNameOrId("bathtub_l_cm", dw.bathtub_l_cm);
-
 // restore bathtub hidden fields
 setHiddenById("chosenBathtubProductId", dw.chosenBathtubProductId);
 setHiddenById("bathtubSize", dw.bathtubSize);
+setHiddenById("chosenBathtubName", dw.chosenBathtubName);
+setHiddenById("chosenBathtubPrice", dw.chosenBathtubPrice);
 
-// screen id is stored in payload as wannenaufsatzProductId
-const screenPid = dw.wannenaufsatzProductId || "";
+// screen id is stored as wannenaufsatzProductId; offers saved before the move
+// to the Optional tab used chosenScreenProductId, so accept either.
+const screenPid = dw.wannenaufsatzProductId || dw.chosenScreenProductId || "";
 setHiddenById("chosenScreenProductId", screenPid);
-
-// restore manual screen search inputs if you store them (optional)
-setByNameOrId("screen_w_cm", dw.screen_w_cm);
-setByNameOrId("screen_h_cm", dw.screen_h_cm);
+setHiddenById("chosenScreenName", dw.chosenScreenName);
+setHiddenById("chosenScreenPrice", dw.chosenScreenPrice);
 
 // persist selections for smart UIs (so radios re-check)
 try {
@@ -13886,6 +14048,11 @@ async function applySentOfferState(offer) {
     offerNumber: offer.offerNumber,
     sentAt: offer.updatedAt || offer.createdAt,
     onNewVersion: async () => {
+      // The new version belongs to whoever is creating it now, not the
+      // original sender: reset Ansprechpartner (name + signature) and the
+      // date, which the restore from the sent offer left stale.
+      window.resetAnsprechpartnerToMe?.();
+      ensureKundendatenDate(false);
       const result = await window.createOfferVersion?.();
       const nr = result?.offerNumber;
       if (result?.queued) {
@@ -13900,6 +14067,9 @@ async function applySentOfferState(offer) {
         nr ? `${nr} — Preise werden neu berechnet.` : "Preise werden neu berechnet.",
       );
       window.requestPricingRefresh?.({ reason: "new-offer-version" });
+      window.dispatchEvent(
+        new CustomEvent("offerflow:changed", { detail: { reason: "new-offer-version" } }),
+      );
     },
   });
 }
@@ -15680,17 +15850,8 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
   ) {
     window.__smartTray.fetchAndRender();
   }
-  if (
-    window.__smartBathtub &&
-    typeof window.__smartBathtub.fetchAndRender === "function"
-  ) {
-    window.__smartBathtub.fetchAndRender();
-  }
-  if (
-    window.__smartScreenPicker &&
-    typeof window.__smartScreenPicker.refresh === "function"
-  ) {
-    window.__smartScreenPicker.refresh();
+  if (window.__wannePicker && typeof window.__wannePicker.render === "function") {
+    window.__wannePicker.render();
   }
 
   // Wandverkleidung dependencies
@@ -16075,20 +16236,18 @@ function restoreDuschwanne(dw) {
   setByNameOrId("dwCustomQty", dwCustom?.qty || 1);
   setByNameOrId("dwCustomId", dwCustom?.productId || "");
 
-  // ===== NEW: restore bathtub + wannenaufsatz =====
-  setByNameOrId("bathtub_w_cm", dw.bathtub_w_cm);
-  setByNameOrId("bathtub_l_cm", dw.bathtub_l_cm);
-
+  // ===== restore bathtub + wannenaufsatz (Optional tab, menu_WANNE) =====
   setHiddenById("chosenBathtubProductId", dw.chosenBathtubProductId);
   setHiddenById("bathtubSize", dw.bathtubSize);
+  setHiddenById("chosenBathtubName", dw.chosenBathtubName);
+  setHiddenById("chosenBathtubPrice", dw.chosenBathtubPrice);
 
+  // Offers saved before the move used chosenScreenProductId — accept either.
   const screenPid =
     dw.wannenaufsatzProductId || dw.chosenScreenProductId || "";
   setHiddenById("chosenScreenProductId", screenPid);
-
-  // (optional) manual screen search inputs if stored
-  setByNameOrId("screen_w_cm", dw.screen_w_cm);
-  setByNameOrId("screen_h_cm", dw.screen_h_cm);
+  setHiddenById("chosenScreenName", dw.chosenScreenName);
+  setHiddenById("chosenScreenPrice", dw.chosenScreenPrice);
 
   // work tasks
   if (typeof restoreWorkTasks === "function") {
@@ -21385,6 +21544,12 @@ function initOptionalUX() {
         (row) => (row.querySelector(".opt-name")?.value || "").trim()
       ).length;
     }
+    // The Wanne picker selects into hidden fields, not checkboxes.
+    if (menuId === "menu_WANNE") {
+      return ["chosenBathtubProductId", "chosenScreenProductId"].filter(
+        (id) => (document.getElementById(id)?.value || "").trim()
+      ).length;
+    }
     return menu.querySelectorAll('input[type="checkbox"]:checked').length;
   };
 
@@ -21572,6 +21737,28 @@ function initOptionalUX() {
         });
         return;
       }
+      if (menuId === "menu_WANNE") {
+        [
+          ["chosenBathtubProductId", ["chosenBathtubName", "chosenBathtubPrice", "bathtubSize"]],
+          ["chosenScreenProductId", ["chosenScreenName", "chosenScreenPrice"]],
+        ].forEach(([idField, alsoClear]) => {
+          const el = document.getElementById(idField);
+          const art = (el?.value || "").trim();
+          if (!art) return;
+          total++;
+          chipsWrap.appendChild(
+            makeChip(art, group, () => {
+              [idField, ...alsoClear].forEach((id) => {
+                const f = document.getElementById(id);
+                if (f) f.value = "";
+              });
+              el.dispatchEvent(new Event("change", { bubbles: true }));
+              window.updatePricing?.();
+            })
+          );
+        });
+        return;
+      }
       menu
         .querySelectorAll('input[type="checkbox"]:checked')
         .forEach((cb) => {
@@ -21640,10 +21827,7 @@ document.addEventListener("DOMContentLoaded", () => {
   safeInit("initOptionalSonderprodukte", initOptionalSonderprodukte);
   safeInit("initOptionalUX", typeof initOptionalUX !== "undefined" ? initOptionalUX : null);
 
-  // ✅ these two control what you're missing in the screenshot
-  safeInit("initBathtubSearch", initBathtubSearch);
-  safeInit("initSmartBathtubSearch", initSmartBathtubSearch);
-  safeInit("initSmartScreenPickerBucket", initSmartScreenPickerBucket);
+  safeInit("initWannePicker", initWannePicker);
 
   safeInit("initStateDrivenPricingSync", initStateDrivenPricingSync);
   safeInit("initLivePricingSync", initLivePricingSync);
@@ -26475,14 +26659,26 @@ async function checkDealAlreadySaved(dealId) {
   const id = String(dealId || "").trim();
   if (!id || checkedSavedDealIds.has(id)) return;
   checkedSavedDealIds.add(id);
+  if (await dealHasSavedOffer(id)) {
+    markDealStage(id, "C72:PREPARATION");
+    renderTodayPlanningAppointments();
+  }
+}
+
+// Same lookup as checkDealAlreadySaved, but callable again right before a
+// stage-moving click — closes the race where the background check hasn't
+// resolved yet when the user clicks. Hits only our own DB, never Bitrix, so
+// it doesn't reintroduce the rate-limiting this list was built to avoid.
+async function dealHasSavedOffer(dealId) {
+  const id = String(dealId || "").trim();
+  if (!id) return false;
   try {
     const res = await fetch(`/api/offers/by-deal/${encodeURIComponent(id)}`);
     const data = await res.json().catch(() => []);
-    if (Array.isArray(data) && data.length) {
-      markDealStage(id, "C72:PREPARATION");
-      renderTodayPlanningAppointments();
-    }
-  } catch {}
+    return Array.isArray(data) && data.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 const PLANNING_OFFER_TYPES = [
@@ -27280,9 +27476,6 @@ function renderTodayPlanningOverview({ first, last, startMinutes, endMinutes } =
   }
 
   const departure = firstStart - startMinutes;
-  const lastEnd = lastStart + lastDuration;
-  const returnTime = lastEnd + endMinutes;
-  const totalTravel = startMinutes + endMinutes;
 
   el.hidden = false;
   el.innerHTML = `
@@ -27295,16 +27488,6 @@ function renderTodayPlanningOverview({ first, last, startMinutes, endMinutes } =
       <span class="day-overview__label">Erster Termin</span>
       <span class="day-overview__value">${formatMinutesAsClock(firstStart)}</span>
       <span class="day-overview__sub">${escapePlanningHtml(first?.name || "")}</span>
-    </div>
-    <div class="day-overview__cell">
-      <span class="day-overview__label">Letzter Termin endet</span>
-      <span class="day-overview__value">${formatMinutesAsClock(lastEnd)}</span>
-      <span class="day-overview__sub">${escapePlanningHtml(last?.name || "")}</span>
-    </div>
-    <div class="day-overview__cell is-end">
-      <span class="day-overview__label"><i class="fa-solid fa-arrow-right-to-bracket"></i> Rückkehr Firma</span>
-      <span class="day-overview__value">${formatMinutesAsClock(returnTime)}</span>
-      <span class="day-overview__sub">${endMinutes} Min Rückfahrt · ${totalTravel} Min Fahrzeit gesamt</span>
     </div>
   `;
 }
@@ -27390,7 +27573,7 @@ function renderTodayPlanningAppointments(){
           ${navigateHtml}
           <button type="button" class="today-calendar-open" ${isCancelled ? 'disabled aria-disabled="true"' : ""}><i class="fa-solid ${isCancelled ? "fa-ban" : "fa-arrow-right"}"></i> ${isCancelled ? "Nicht verfuegbar" : "In Konfigurator öffnen"}</button>
           ${!isCancelled && entry?.importDealId && !isDealDone(entry.importDealId) ? `<button type="button" class="today-calendar-done"><i class="fa-solid fa-circle-check"></i> Hat stattgefunden</button>` : ""}
-          ${!isCancelled && entry?.importDealId && !isDealDone(entry.importDealId) ? `<button type="button" class="today-calendar-noshow"><i class="fa-solid fa-phone-slash"></i> Nicht erreicht</button>` : ""}
+          ${!isCancelled && entry?.importDealId && !isDealDone(entry.importDealId) ? `<button type="button" class="today-calendar-noshow"><i class="fa-solid fa-phone-slash"></i> Termin hat nicht statt gefunden.</button>` : ""}
         </div>
       </div>
       ${travelHtml}
@@ -27452,6 +27635,11 @@ function renderTodayPlanningAppointments(){
       const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
       const dealId = String(entry?.importDealId || "").trim();
       if(!dealId) return;
+      if (await dealHasSavedOffer(dealId)) {
+        markDealStage(dealId, "C72:PREPARATION");
+        renderTodayPlanningAppointments();
+        return;
+      }
       if(!window.confirm("Der Termin hat stattgefunden; Deal auf „HD/AH/DH zuweisen“ verschieben?")) return;
 
       doneButton.disabled = true;
@@ -27465,8 +27653,8 @@ function renderTodayPlanningAppointments(){
         });
         const data = await res.json().catch(() => ({}));
         if(!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-        doneButton.innerHTML = `<i class="fa-solid fa-circle-check"></i> Verschoben`;
         markDealStage(dealId, "C72:PREPARATION");
+        renderTodayPlanningAppointments();
         (typeof showToast === "function") && showToast("Deal auf „Zuteilen HD/ AH/ DH“ verschoben.", "success");
       } catch (e) {
         console.error("[planning] move-zuteilen failed:", e);
@@ -27480,13 +27668,19 @@ function renderTodayPlanningAppointments(){
 
     // "Nicht erreicht" -> ask for a reason, then move the deal back to
     // "Besichtigungstermin vereinbaren" and log the reason on its timeline.
-    card.querySelector(".today-calendar-noshow")?.addEventListener("click", (ev) => {
+    card.querySelector(".today-calendar-noshow")?.addEventListener("click", async (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
       const id = card.dataset.id;
       const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
       const dealId = String(entry?.importDealId || "").trim();
-      if(dealId) openPlanningNoContactDialog(dealId);
+      if(!dealId) return;
+      if (await dealHasSavedOffer(dealId)) {
+        markDealStage(dealId, "C72:PREPARATION");
+        renderTodayPlanningAppointments();
+        return;
+      }
+      openPlanningNoContactDialog(dealId);
     });
   });
 
@@ -28404,6 +28598,9 @@ function setDocumentSelected(id, selected) {
 
   window.__emailManager?.render?.();
   window.__emailManager?.refreshPrefills?.();
+  // refreshPrefills() only rebuilds an untouched body, and a reopened offer's
+  // body always counts as touched — sync the numbered list explicitly.
+  window.__emailManager?.syncDocListInBody?.();
   window.__postalManager?.render?.();
 }
 window.setDocumentSelected = setDocumentSelected;

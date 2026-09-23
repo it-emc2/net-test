@@ -17,6 +17,7 @@ import { addTimelineComment } from "./bitrix.js";
 import { createSigningRequest } from "./signing.js";
 
 import { buildEmailHtml } from "../lib/emailTemplate.js";
+import { resolveAnsprechpartner } from "../lib/ansprechpartner.js";
 
 // Offer PDF generation (your existing utilities)
 import {
@@ -275,8 +276,8 @@ function getPresetAttachments(excludePresetSet, isSelbstzahler, offerType) {
       },
       {
         id: "vollmacht",
-        filename: "Vollmacht.pdf",
-        absPath: emailDir("Vollmacht.pdf"),
+        filename: "Vollmacht_SGB_45b_EmC2 Soziale Dienste UG.pdf",
+        absPath: emailDir("Vollmacht_SGB_45b_EmC2 Soziale Dienste UG.pdf"),
       },
     ];
 
@@ -362,6 +363,13 @@ router.post(
     const contactId = String(req.body.contactId || "").trim();
     if (dealId) payload.bitrixDealId = dealId;
     if (contactId) payload.bitrixContactId = contactId;
+
+    // Re-derive Ansprechpartner name from the selected email server-side —
+    // the PDF (mapData below), the internal signature-image lookup, and the
+    // email signature (contactName below) all read payload.Kundendaten, so
+    // this one normalization keeps all three consistent with whichever
+    // Ansprechpartner was actually picked, never a spoofed free-text name.
+    payload.Kundendaten = await resolveAnsprechpartner(payload.Kundendaten, req.user);
 
     // Parse excludePreset
     const excludePreset = new Set();

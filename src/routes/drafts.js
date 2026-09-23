@@ -7,6 +7,7 @@ import Offer from "../models/Offer.js";
 import Product from "../models/Product.js";
 import pricingFactory, { computeFingerprint } from "../logic/pricing.js";
 import { nameSearchRegex } from "../utils/searchRegex.js";
+import { resolveAnsprechpartner } from "../lib/ansprechpartner.js";
 
 const router = express.Router();
 const pricing = pricingFactory(Product);
@@ -120,9 +121,25 @@ router.post("/", async (req, res) => {
 
     const sentNumber = String(payload?.offerNumber || "").trim();
     const freshNumber = await freshNumberIfSent(sentNumber);
-    const draftPayload = freshNumber
+    let draftPayload = freshNumber
       ? { ...payload, offerNumber: freshNumber }
       : payload;
+
+    // Ansprechpartner name is never trusted from the client as free text —
+    // always re-derived here from whichever Ansprechpartner email was
+    // selected (falls back to the logged-in user if that email is missing
+    // or unknown). Keeps the printed name, email signature, and internal
+    // signature image in lockstep everywhere, not just on new versions.
+    const resolvedKundendaten = await resolveAnsprechpartner(draftPayload.Kundendaten, req.user);
+
+    // New version of a sent offer additionally gets today's date server-side
+    // — the client resets this too, but a client can lie about it.
+    if (freshNumber) {
+      const p2 = (n) => String(n).padStart(2, "0");
+      const today = new Date();
+      resolvedKundendaten.date = `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`;
+    }
+    draftPayload = { ...draftPayload, Kundendaten: resolvedKundendaten };
 
     // Price computed server-side on every draft save too, so reopening it
     // later can serve this snapshot instead of recomputing (see pricing-core

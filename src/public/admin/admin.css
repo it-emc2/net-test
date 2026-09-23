@@ -483,6 +483,18 @@ body {
   background: #fff;
 }
 
+.config-json {
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 400;
+  resize: vertical;
+}
+
+.config-input.input-error {
+  border-color: #dc2626;
+  background: #fef2f2;
+}
+
 .config-checkbox-row {
   display: flex;
   align-items: center;

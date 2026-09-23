@@ -77,6 +77,7 @@ const PUBLIC_CONFIG_KEYS = [
   'FAHRZEUGBEREITSTELLUNG',
   'WERKZEUG',
   'BERAEUMUNG',
+  'WV_OWN_LAGER',
 ];
 router.get('/api/config/public', async (req, res) => {
   try {
