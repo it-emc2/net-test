@@ -28,7 +28,7 @@ const IMAGE_HOSTS = new Set(["media.onlineplus.store"]);
 // /api/ stays live-only, see the fetch handler below.
 const DA_CONFIG_MODEL_PATHS = new Set([
   "/api/da-config/model/vigour",
-  "/api/da-config/model/badolux",
+  "/configurator/badolux-model.json",
 ]);
 
 // Modules the offline path needs at the exact moment it cannot fetch them: the
@@ -80,7 +80,7 @@ const PRECACHE = [
   "/assets/logo.png",
   "/assets/duschwanne.jpeg",
   "/api/da-config/model/vigour",
-  "/api/da-config/model/badolux",
+  "/configurator/badolux-model.json",
   // The whole Wandverkleidung tab, ~2.3MB total: every static swatch/profile
   // image in its section of index.html, plus the 7 Budget-Wandpaneele
   // (Badolux WP*) photos, whose path is built client-side from productId

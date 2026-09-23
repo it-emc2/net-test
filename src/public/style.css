@@ -4090,6 +4090,7 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 .prodimg-upload-btn { flex-shrink: 0; cursor: pointer; background: none; border: 1px solid rgba(128,128,128,0.3); border-radius: 5px; padding: 2px 5px; font-size: 0.75rem; line-height: 1.4; opacity: 0.6; }
 .prodimg-upload-btn:hover { opacity: 1; background: rgba(128,128,128,0.1); }
 [data-mode="dark"] .mail-prodimg-item { border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); }
+.mail-prodimg-preview-btn { margin: 8px 0 4px; font-size: 0.8rem; }
 
 /* Grundriss/Foto zone — iPad: tap opens the native Photos/Camera/Files sheet */
 .plan-zone {

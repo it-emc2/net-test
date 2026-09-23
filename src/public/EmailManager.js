@@ -1263,6 +1263,36 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
     renderList();
   });
 
+  document.getElementById("mailProductImgPreview")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Lade…";
+    try {
+      const payload = cfg.hooks.buildPayload?.() || {};
+      const res = await fetch("/api/email/preview-product-image-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payload,
+          excludeProductImageIds: getExcludedProductImageIds(),
+          productCustomImageData: Object.fromEntries(customProductImages),
+        }),
+      });
+      if (res.status === 204) { alert("Keine Produktbilder vorhanden."); return; }
+      if (!res.ok) { alert("Fehler beim Generieren des PDFs."); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      alert("Fehler: " + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
+  });
+
   function getExcludedProductImageIds() {
     const excluded = [];
     $prodImgList?.querySelectorAll("input[type=checkbox]").forEach((cb) => {

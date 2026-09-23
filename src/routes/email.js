@@ -396,6 +396,39 @@ router.post("/product-image-list", express.json(), async (req, res) => {
   }
 });
 
+router.post("/preview-product-image-pdf", express.json({ limit: "20mb" }), async (req, res) => {
+  try {
+    const { payload = {}, excludeProductImageIds = [], productCustomImageData = {} } = req.body || {};
+    const { computed } = await getOfferRenderData(payload);
+    const lines = await aggregateMaterialsForOverview(payload, computed);
+    const assetsDir = path.join(process.cwd(), "src", "public", "assets");
+    const excludeSet = new Set(excludeProductImageIds.map(String));
+    const sendFinishMap = buildFinishMap(payload);
+    const products = lines
+      .filter((l) => l.materialNumber && !excludeSet.has(l.materialNumber))
+      .map((l) => ({
+        productId: l.materialNumber,
+        name: l.name || l.materialNumber,
+        finish: sendFinishMap.get(l.materialNumber) || null,
+        qty: l.quantity,
+        unit: l.unit || "Stck.",
+      }));
+    const dacMap = buildDacPreviewMap(payload);
+    const mergedCustom = {};
+    for (const [id, relUrl] of dacMap) {
+      mergedCustom[id] = path.join(process.cwd(), "src", "public", relUrl);
+    }
+    Object.assign(mergedCustom, productCustomImageData);
+    const buf = await generateProductImagePdf(products, assetsDir, mergedCustom);
+    if (!buf) return res.status(204).end();
+    res.set({ "Content-Type": "application/pdf", "Content-Disposition": "inline" });
+    res.send(buf);
+  } catch (e) {
+    console.error("[email] preview-product-image-pdf failed:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // multipart/form-data:
 // fields: to, subject, body, offerNumber, offerType, payload (json string), excludePreset (json array string)
 // files: attachments[], editedDocx (optional: hand-edited Angebot-DOCX used instead of a fresh render)

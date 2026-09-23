@@ -20,7 +20,8 @@ function isPublicAsset(p) {
     p.startsWith("/pdfjs") ||
     p.startsWith("/vendor") ||
     p.startsWith("/signpage") ||
-    p.startsWith("/assets")
+    p.startsWith("/assets") ||
+    p.startsWith("/configurator/")
   );
 }
 

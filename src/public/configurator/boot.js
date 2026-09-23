@@ -11,7 +11,7 @@ const addBtn = document.getElementById("dac-add-config");
 if (configsEl && template && addBtn) {
   const MODELS = {
     vigour: "/api/da-config/model/vigour",
-    badolux: "/api/da-config/model/badolux",
+    badolux: "/configurator/badolux-model.json",
   };
 
   const models = {}; // supplier -> parsed model (cached across all cards)
