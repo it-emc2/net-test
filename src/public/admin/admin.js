@@ -57,6 +57,7 @@ function hide(el) { el && el.classList.add('hidden'); }
 function formatNum(v, type) {
   if (v === null || v === undefined) return '';
   if (type === 'boolean') return v ? 'Aktiv' : 'Inaktiv';
+  if (type === 'json' || type === 'text-list') return Array.isArray(v) ? `[${v.length} Einträge]` : '–';
   const n = Number(v);
   if (type === 'integer') return String(Math.round(n));
   // Show up to 4 decimal places, strip trailing zeros
@@ -207,7 +208,7 @@ function handleInput(item, input) {
   const raw = input.value.trim();
 
   if (item.type === 'text-list') {
-    const parsed = raw.split('\n').map(s => s.trim()).filter(Boolean);
+    const parsed = raw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
     const current = Array.isArray(item.value) ? item.value : [];
     if (JSON.stringify(parsed) !== JSON.stringify(current)) {
       changes.set(item.key, parsed);
