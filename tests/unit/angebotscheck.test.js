@@ -144,19 +144,55 @@ test("soft couplings have no reverse (Wandverkleidung without Trockenbau is fine
 });
 
 test("an empty product catalog is yellow, not red", () => {
-  // menu_WANNE exists but has no products yet — nothing to pick.
-  withTasks(["install_bathtub"], '<div id="menu_WANNE"></div>');
-  const found = row(runAngebotscheck(ok, readSelection(ok)), "arbeit-install_bathtub");
+  // menu_WC exists but has no products yet — nothing to pick.
+  withTasks(["install_toilet"], '<div id="menu_WC"></div>');
+  const found = row(runAngebotscheck(ok, readSelection(ok)), "arbeit-install_toilet");
   expect(found.status).toBe("gelb");
   expect(found.details[0]).toContain("kein Produkt hinterlegt");
 
   // …and it goes green on its own once a product exists and is ticked.
   withTasks(
+    ["install_toilet"],
+    '<div id="menu_WC"><input type="checkbox" checked /></div>',
+  );
+  expect(row(runAngebotscheck(ok, readSelection(ok)), "arbeit-install_toilet").status)
+    .toBe("gruen");
+});
+
+test("Badewanne is read from the picker's hidden field, not from a checkbox", () => {
+  // The Wanne picker writes chosenBathtubProductId — an empty menu_WANNE says
+  // nothing about whether a tub was chosen.
+  withTasks(
     ["install_bathtub"],
-    '<div id="menu_WANNE"><input type="checkbox" checked /></div>',
+    '<div id="menu_WANNE"></div><input type="hidden" id="chosenBathtubProductId" value="" />',
+  );
+  expect(row(runAngebotscheck(ok, readSelection(ok)), "arbeit-install_bathtub").status)
+    .toBe("rot");
+
+  withTasks(
+    ["install_bathtub"],
+    '<div id="menu_WANNE"></div><input type="hidden" id="chosenBathtubProductId" value="V2PT83LC" />',
   );
   expect(row(runAngebotscheck(ok, readSelection(ok)), "arbeit-install_bathtub").status)
     .toBe("gruen");
+});
+
+test("Wannenaufsatz accepts the picker's screen field", () => {
+  const noMaterial = { materialsDisplayUI: { sum: 0, lines: [] } };
+  withTasks(["install_bathtub_screen"]);
+  expect(
+    row(runAngebotscheck(noMaterial, readSelection(noMaterial)), "arbeit-install_bathtub_screen")
+      .status,
+  ).toBe("gelb");
+
+  withTasks(
+    ["install_bathtub_screen"],
+    '<input type="hidden" id="chosenScreenProductId" value="SCR1" />',
+  );
+  expect(
+    row(runAngebotscheck(noMaterial, readSelection(noMaterial)), "arbeit-install_bathtub_screen")
+      .status,
+  ).toBe("gruen");
 });
 
 test("Duschvorhang is read from its configurator, not from the priced category", () => {

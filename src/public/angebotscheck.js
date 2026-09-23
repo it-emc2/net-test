@@ -183,8 +183,9 @@ export const WORK_RULES = [
     group: "optional",
     target: "Optional",
     severity: "rot",
-    catalog: "menu_WANNE",
-    has: (sel) => sel.panel("menu_WANNE"),
+    // The Wanne picker (menu_WANNE) selects into hidden fields, not
+    // checkboxes — same special case as menuCount() in script.js.
+    has: (sel) => sel.field("chosenBathtubProductId"),
   },
   {
     task: "install_toilet",
@@ -283,7 +284,10 @@ export const WORK_RULES = [
     group: "material",
     target: "DuschabtrennungNeu",
     severity: "gelb",
-    has: (sel) => sel.material("Duschabtrennung") || sel.panel("menu_WANNE"),
+    has: (sel) =>
+      sel.material("Duschabtrennung") ||
+      sel.configurator("__daConfigurator") ||
+      sel.field("chosenScreenProductId"),
     noReverse: true,
     sharesWith: ["install_enclosure", "install_distance_profile"],
   },
@@ -311,6 +315,7 @@ export function readSelection(pricing, doc = document) {
     tasks,
     opt: (name) => checked(`input[name="${name}"]:checked`),
     panel: (menuId) => checked(`#${menuId} input[type="checkbox"]:checked`),
+    field: (id) => !!doc.getElementById(id)?.value?.trim(),
     // A category whose products are loaded at runtime can be empty — then the
     // rule is unfulfillable and saying "fehlt" would be wrong.
     panelEmpty: (menuId) =>
