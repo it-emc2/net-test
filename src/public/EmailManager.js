@@ -1177,10 +1177,18 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       productImgState.set(p.productId, cb.checked);
       lbl.appendChild(cb);
 
+      const nameWrap = document.createElement("span");
+      nameWrap.className = "prodimg-name";
       const name = document.createElement("span");
-      name.className = "prodimg-name";
       name.textContent = p.name;
       name.title = p.name;
+      nameWrap.appendChild(name);
+      if (p.finish) {
+        const fin = document.createElement("span");
+        fin.className = "prodimg-finish";
+        fin.textContent = p.finish;
+        nameWrap.appendChild(fin);
+      }
 
       const qty = document.createElement("span");
       qty.className = "prodimg-qty";
@@ -1221,7 +1229,7 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
 
       row.appendChild(thumb);
       row.appendChild(lbl);
-      row.appendChild(name);
+      row.appendChild(nameWrap);
       row.appendChild(qty);
       row.appendChild(uploadBtn);
       row.appendChild(fileInput);

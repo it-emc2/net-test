@@ -325,6 +325,17 @@ function getPresetAttachments(excludePresetSet, isSelbstzahler, offerType) {
     }));
 }
 
+// Maps productId -> finish text from payload.duschabtrennung.quickAdd (kind="config" entries).
+function buildFinishMap(payload) {
+  const map = new Map();
+  for (const q of payload?.duschabtrennung?.quickAdd || []) {
+    if (q.kind === "config" && q.productId && q.finish) {
+      map.set(String(q.productId), q.finish);
+    }
+  }
+  return map;
+}
+
 // Maps DA configurator article numbers to their configuration preview URL.
 // previewImages is [{articleNumbers: [...], imageUrl: '...'}] saved by collectDuschabtrennungConfigurator.
 function buildDacPreviewMap(payload) {
@@ -355,8 +366,9 @@ router.post("/product-image-list", express.json(), async (req, res) => {
       assetsDir,
     );
 
-    // Build a lookup: productId -> configurator preview URL (relative, served statically)
+    // Build lookups: productId -> configurator preview URL / finish text
     const dacPreviewMap = buildDacPreviewMap(payload);
+    const finishMap = buildFinishMap(payload);
 
     const products = filteredLines.map((l) => {
       const img = imageMap.get(l.materialNumber) || {};
@@ -368,6 +380,7 @@ router.post("/product-image-list", express.json(), async (req, res) => {
       return {
         productId: l.materialNumber,
         name: l.name || l.materialNumber,
+        finish: finishMap.get(l.materialNumber) || null,
         qty: l.quantity,
         unit: l.unit || "Stck.",
         hasImage,
@@ -519,11 +532,13 @@ router.post(
         const productCustomImageData = JSON.parse(req.body.productCustomImageData || "{}");
         const assetsDir = path.join(process.cwd(), "src", "public", "assets");
         const lines = await aggregateMaterialsForOverview(payload, offerComputed || {});
+        const sendFinishMap = buildFinishMap(payload);
         const products = lines
           .filter((l) => l.materialNumber && !excludeProductImageIds.has(l.materialNumber))
           .map((l) => ({
             productId: l.materialNumber,
             name: l.name || l.materialNumber,
+            finish: sendFinishMap.get(l.materialNumber) || null,
             qty: l.quantity,
             unit: l.unit || "Stck.",
           }));

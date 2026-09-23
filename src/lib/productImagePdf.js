@@ -136,6 +136,7 @@ export async function generateProductImagePdf(products, assetsDir, customImageDa
     <div class="card">
       <div class="img-wrap"><img src="${c.dataUri}" alt="${escHtml(c.name)}" /></div>
       <div class="name">${escHtml(c.name || c.productId)}</div>
+      ${c.finish ? `<div class="finish">${escHtml(c.finish)}</div>` : ""}
       <div class="qty">${escHtml(String(c.qty ?? ""))} ${escHtml(c.unit || "Stck.")}</div>
     </div>`,
     )
@@ -152,7 +153,8 @@ export async function generateProductImagePdf(products, assetsDir, customImageDa
   .card{border:1px solid #e0e5e8;border-radius:8px;padding:10px;text-align:center;break-inside:avoid;}
   .img-wrap{height:130px;display:flex;align-items:center;justify-content:center;margin-bottom:8px;}
   .card img{max-width:100%;max-height:130px;object-fit:contain;display:block;}
-  .name{font-size:10px;font-weight:bold;line-height:1.3;margin-bottom:3px;word-break:break-word;}
+  .name{font-size:10px;font-weight:bold;line-height:1.3;margin-bottom:2px;word-break:break-word;}
+  .finish{font-size:9px;color:#555;line-height:1.3;margin-bottom:2px;word-break:break-word;}
   .qty{font-size:9px;color:#888;}
 </style>
 </head>
