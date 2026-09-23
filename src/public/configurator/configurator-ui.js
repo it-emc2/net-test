@@ -789,6 +789,10 @@ export function mountConfigurator(el, model, options = {}) {
     state: () => state,
     resolved,
     reset,
+    previewImageUrl: () => {
+      const v = leafPreview();
+      return v ? imageUrl(v.imageId) : null;
+    },
     destroy: () => {
       el.innerHTML = "";
     },

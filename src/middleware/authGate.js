@@ -39,7 +39,8 @@ function isAlwaysPublic(p) {
     p.startsWith("/api/auth") ||
     p === "/api/health" ||
     p === "/health" ||
-    p === "/api/version"
+    p === "/api/version" ||
+    p.startsWith("/api/da-config/model/")
   );
 }
 

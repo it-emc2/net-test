@@ -118,7 +118,7 @@ export async function generateProductImagePdf(products, assetsDir, customImageDa
     products.map(async (p) => {
       let dataUri = null;
       if (customImageData[p.productId]) {
-        dataUri = customImageData[p.productId];
+        dataUri = await toDataUri(customImageData[p.productId]);
       } else {
         const img = imageMap.get(p.productId) || {};
         dataUri = await toDataUri(img.localPath || img.vigorUrl || null);

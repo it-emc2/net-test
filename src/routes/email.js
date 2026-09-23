@@ -325,6 +325,21 @@ function getPresetAttachments(excludePresetSet, isSelbstzahler, offerType) {
     }));
 }
 
+// Maps DA configurator article numbers to their configuration preview URL.
+// previewImages is [{articleNumbers: [...], imageUrl: '...'}] saved by collectDuschabtrennungConfigurator.
+function buildDacPreviewMap(payload) {
+  const map = new Map();
+  const previews = payload?.duschabtrennung?.configurator?.previewImages;
+  if (!Array.isArray(previews)) return map;
+  for (const { articleNumbers, imageUrl } of previews) {
+    if (!imageUrl || !Array.isArray(articleNumbers)) continue;
+    for (const id of articleNumbers) {
+      if (id) map.set(String(id), imageUrl);
+    }
+  }
+  return map;
+}
+
 // Returns the product list (with image availability) for the "Produktbilder-PDF" checkbox in the UI.
 // Body: { payload: {...} }
 router.post("/product-image-list", express.json(), async (req, res) => {
@@ -340,12 +355,16 @@ router.post("/product-image-list", express.json(), async (req, res) => {
       assetsDir,
     );
 
+    // Build a lookup: productId -> configurator preview URL (relative, served statically)
+    const dacPreviewMap = buildDacPreviewMap(payload);
+
     const products = filteredLines.map((l) => {
       const img = imageMap.get(l.materialNumber) || {};
-      const hasImage = !!(img.localPath || img.vigorUrl);
+      const dacPreview = dacPreviewMap.get(l.materialNumber) || null;
+      const hasImage = !!(img.localPath || img.vigorUrl || dacPreview);
       const imageUrl = img.localPath
         ? `/assets/${l.materialNumber}.jpg`
-        : img.vigorUrl || null;
+        : img.vigorUrl || dacPreview || null;
       return {
         productId: l.materialNumber,
         name: l.name || l.materialNumber,
@@ -508,7 +527,15 @@ router.post(
             qty: l.quantity,
             unit: l.unit || "Stck.",
           }));
-        productImageBuf = await generateProductImagePdf(products, assetsDir, productCustomImageData);
+        // Server-side fallback: DA configurator preview images (relative URL → disk path).
+        // Client uploads in productCustomImageData win (merged last).
+        const dacMap = buildDacPreviewMap(payload);
+        const mergedCustom = {};
+        for (const [id, relUrl] of dacMap) {
+          mergedCustom[id] = path.join(process.cwd(), "src", "public", relUrl);
+        }
+        Object.assign(mergedCustom, productCustomImageData); // client upload wins
+        productImageBuf = await generateProductImagePdf(products, assetsDir, mergedCustom);
         if (productImageBuf) {
           const safeNo = String(payload?.offerNumber || offerNumber || "Angebot").replace(
             /[^\w\-]+/g,

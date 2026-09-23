@@ -141,6 +141,17 @@ if (configsEl && template && addBtn) {
         }));
       });
     },
+    // Returns [{articleNumbers: [...], imageUrl: '...'}] per completed card.
+    // Used by collectDuschabtrennungConfigurator to persist preview images.
+    getPreviewImageData() {
+      return entries
+        .filter((entry) => entry.resolved && entry.instance)
+        .map((entry) => ({
+          articleNumbers: entry.resolved.lines.map((l) => l.article.articleNumber),
+          imageUrl: entry.instance.previewImageUrl?.() || null,
+        }))
+        .filter((d) => d.imageUrl);
+    },
     getState() {
       // array of raw engine states {selections, sizes, __supplier} — one per card
       return entries
