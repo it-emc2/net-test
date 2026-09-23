@@ -1239,7 +1239,6 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
   }
 
   async function loadProductImgList() {
-    if (productImgLoaded) return;
     productImgLoaded = true;
     try {
       const payload = cfg.hooks.buildPayload?.() || {};
