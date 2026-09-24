@@ -199,18 +199,78 @@ export function mountConfigurator(el, model, options = {}) {
     return v;
   }
 
-  function leafPreviewEl(v) {
+  // Product photos (article.image, attached server-side from vigor.products) for the
+  // picked finish. Only Glasart + Profilfarbe are visible in a photo, so only those
+  // must match (Beschichtung / Einzugsautomatik are ignored). Shown once every one of
+  // those dims the component offers is picked — a photo with a guessed profile colour
+  // is exactly the misleading preview this replaces. Prefers the picked size.
+  const PHOTO_DIMS = { Glasart: "glasart", Profilfarbe: "profilfarbe" };
+  function productImages() {
+    const leaf = w.resolvedLeaf(model, state);
+    if (!leaf) return [];
+    const want = {};
+    for (const fp of leaf.finish || []) {
+      const dim = PHOTO_DIMS[fp.id];
+      if (!dim) continue;
+      want[dim] = fp.values.find((v) => v.value === state.selections[fp.id])?.cat ?? null;
+    }
+    const out = [];
+    for (const c of leaf.components) {
+      let cand = c.articles;
+      let ok = true;
+      for (const [dim, cat] of Object.entries(want)) {
+        if (new Set(cand.map((a) => a.finish?.[dim]).filter((x) => x != null)).size <= 1) continue;
+        if (cat == null) { ok = false; break; }
+        cand = cand.filter((a) => a.finish?.[dim] === cat);
+      }
+      if (!ok) continue;
+      cand = cand.filter((a) => a.image);
+      const size = state.sizes[c.key];
+      const a =
+        (size && cand.find((x) => (size.sondermass ? x.sizeLabel === size.sondermass : x.width === size.width && x.height === size.height))) ||
+        cand[0];
+      if (a && !out.some((x) => x.src === a.image))
+        out.push({ src: a.image, label: a.displayName || c.label });
+    }
+    return out;
+  }
+
+  /** Gallery for the preview: product photos first, the leaf image last. */
+  function previewImages() {
+    const v = leafPreview();
+    const imgs = productImages();
+    if (v) imgs.push({ src: imageUrl(v.imageId), label: v.label });
+    return imgs;
+  }
+
+  function leafPreviewEl(images) {
+    const v = leafPreview();
     const wrap = document.createElement("div");
     wrap.className = "dac-leaf-preview";
-    const img = document.createElement("img");
-    img.src = imageUrl(v.imageId);
-    img.alt = v.label;
-    img.loading = "lazy";
-    img.onerror = () => wrap.remove();
-    wrap.appendChild(img);
+    const main = document.createElement("img");
+    main.src = images[0].src;
+    main.alt = images[0].label;
+    main.loading = "lazy";
+    main.onerror = () => (images.length > 1 && main.src !== images.at(-1).src ? (main.src = images.at(-1).src) : wrap.remove());
+    main.addEventListener("click", () => openLightbox(images, 0));
+    wrap.appendChild(main);
+    if (images.length > 1) {
+      const thumbs = document.createElement("div");
+      thumbs.className = "dac-leaf-thumbs";
+      images.slice(1).forEach((im, i) => {
+        const t = document.createElement("img");
+        t.src = im.src;
+        t.alt = im.label;
+        t.loading = "lazy";
+        t.onerror = () => t.remove();
+        t.addEventListener("click", () => openLightbox(images, i + 1));
+        thumbs.appendChild(t);
+      });
+      wrap.appendChild(thumbs);
+    }
     const cap = document.createElement("span");
     cap.className = "dac-leaf-preview-label";
-    cap.textContent = v.label;
+    cap.textContent = v ? v.label : images[0].label;
     wrap.appendChild(cap);
     return wrap;
   }
@@ -369,8 +429,8 @@ export function mountConfigurator(el, model, options = {}) {
 
     // Show the leaf's product image as soon as it's pinned down (right after the
     // last structure question), and keep it visible through finish + sizing.
-    const leafPrev = leafPreview();
-    if (leafPrev) main.appendChild(leafPreviewEl(leafPrev));
+    const previews = previewImages();
+    if (previews.length) main.appendChild(leafPreviewEl(previews));
 
     if (step.phase === "structure" || step.phase === "finish") {
       const p = paramMeta(step.paramId);
@@ -623,18 +683,11 @@ export function mountConfigurator(el, model, options = {}) {
     productsCol.className = "dac-summary-products";
     body.appendChild(productsCol);
 
-    const leafPrev = leafPreview();
-    if (leafPrev) {
+    const previews = previewImages();
+    if (previews.length) {
       const imageCol = document.createElement("div");
       imageCol.className = "dac-summary-image";
-      const previewEl = leafPreviewEl(leafPrev);
-      const img = previewEl.querySelector("img");
-      if (img) {
-        img.addEventListener("click", () =>
-          openLightbox(img.src, leafPrev.label),
-        );
-      }
-      imageCol.appendChild(previewEl);
+      imageCol.appendChild(leafPreviewEl(previews));
       body.appendChild(imageCol);
     }
 
@@ -727,19 +780,34 @@ export function mountConfigurator(el, model, options = {}) {
     }
   }
 
-  function openLightbox(src, alt) {
+  function openLightbox(images, start) {
+    let idx = start || 0;
     const overlay = document.createElement("div");
     overlay.className = "dac-lightbox-overlay";
     const img = document.createElement("img");
-    img.src = src;
-    img.alt = alt || "";
-    const closeBtn = document.createElement("button");
-    closeBtn.type = "button";
-    closeBtn.className = "dac-lightbox-close";
-    closeBtn.setAttribute("aria-label", "Schließen");
-    closeBtn.textContent = "×";
-    overlay.appendChild(img);
-    overlay.appendChild(closeBtn);
+    const cap = document.createElement("div");
+    cap.className = "dac-lightbox-caption";
+    const btn = (cls, label, text) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = cls;
+      b.setAttribute("aria-label", label);
+      b.textContent = text;
+      return b;
+    };
+    const closeBtn = btn("dac-lightbox-close", "Schließen", "×");
+    const prevBtn = btn("dac-lightbox-nav dac-lightbox-prev", "Vorheriges Bild", "‹");
+    const nextBtn = btn("dac-lightbox-nav dac-lightbox-next", "Nächstes Bild", "›");
+    const show = (i) => {
+      idx = (i + images.length) % images.length;
+      img.src = images[idx].src;
+      img.alt = images[idx].label || "";
+      cap.textContent =
+        (images.length > 1 ? `${idx + 1} / ${images.length} · ` : "") + (images[idx].label || "");
+    };
+    overlay.append(img, cap, closeBtn);
+    if (images.length > 1) overlay.append(prevBtn, nextBtn);
+    show(idx);
 
     const close = () => {
       overlay.remove();
@@ -747,11 +815,23 @@ export function mountConfigurator(el, model, options = {}) {
     };
     const onKey = (e) => {
       if (e.key === "Escape") close();
+      else if (e.key === "ArrowLeft") show(idx - 1);
+      else if (e.key === "ArrowRight") show(idx + 1);
     };
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) close();
     });
     closeBtn.addEventListener("click", close);
+    prevBtn.addEventListener("click", () => show(idx - 1));
+    nextBtn.addEventListener("click", () => show(idx + 1));
+    let touchX = null;
+    overlay.addEventListener("touchstart", (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+    overlay.addEventListener("touchend", (e) => {
+      if (touchX == null || images.length < 2) return;
+      const dx = e.changedTouches[0].clientX - touchX;
+      touchX = null;
+      if (Math.abs(dx) > 40) show(idx + (dx < 0 ? 1 : -1));
+    });
     document.addEventListener("keydown", onKey);
 
     document.body.appendChild(overlay);
