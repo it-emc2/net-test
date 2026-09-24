@@ -229,11 +229,8 @@ export const WORK_RULES = [
     target: "Optional",
     severity: "rot",
     // The Wanne picker (menu_WANNE) selects into hidden fields, not
-    // checkboxes — same special case as menuCount() in script.js. The priced
-    // line is accepted as well: it is what the offer actually contains, and
-    // it survives a picker that has not written its field yet.
-    has: (sel) =>
-      sel.field("chosenBathtubProductId") || sel.labelled("Badewanne"),
+    // checkboxes — same special case as menuCount() in script.js.
+    has: (sel) => sel.field("chosenBathtubProductId"),
   },
   {
     task: "install_toilet",
@@ -335,8 +332,7 @@ export const WORK_RULES = [
     has: (sel) =>
       sel.material("Duschabtrennung") ||
       sel.configurator("__daConfigurator") ||
-      sel.field("chosenScreenProductId") ||
-      sel.labelled("Wannenaufsatz"),
+      sel.field("chosenScreenProductId"),
     noReverse: true,
     sharesWith: ["install_enclosure", "install_distance_profile"],
   },
@@ -369,14 +365,6 @@ export function readSelection(pricing, doc = document) {
     ticked: (id) => !!doc.getElementById(id)?.checked,
     product: (productId) =>
       checked(`input[data-product-id="${productId}"]:checked`),
-    // Bathtub and Wannenaufsatz lines carry no category, only a label — so
-    // this is the only way to see them in the priced material.
-    labelled: (text) =>
-      matLines.some((l) =>
-        `${l?.label || ""} ${l?.name || ""}`
-          .toLowerCase()
-          .includes(text.toLowerCase()),
-      ),
     // A category whose products are loaded at runtime can be empty — then the
     // rule is unfulfillable and saying "fehlt" would be wrong.
     panelEmpty: (menuId) =>
