@@ -73,3 +73,40 @@
   max-width: 100%;
   max-height: 100%;               /* 100% resolves cleanly against flex container's 250px */
 }
+
+/* Stützklappgriffe */
+.griff2-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: stretch;       /* ← equalizes row height */
+}
+.griff2-tile-grid > .field {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.griff2-tile-grid > .field > .image-check {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  flex: 1;                    /* card fills the .field height */
+}
+.griff2-tile-grid > .field > .image-check .caption {
+  flex: 1;                    /* caption grows to eat leftover → aligns bottoms */
+}
+
+.griff2-tile-grid .img-wrap {
+  display: flex !important;       /* override the global display:grid */
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: unset !important;
+  height: 300px;
+}
+
+.griff2-tile-grid .img-wrap img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;               /* 100% resolves cleanly against flex container's 250px */
+}
