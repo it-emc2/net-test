@@ -23,6 +23,17 @@ async function loadVigourModel() {
   const db = await getVigorDb();
   const doc = await db.collection("models").findOne({ _id: "vigour" });
   if (!doc?.model) throw new Error("vigor.models/_id=vigour not seeded");
+  // Model articles carry no image — attach each article's product photo from
+  // vigor.products so the preview can show the picked finish, not just the leaf.
+  const articles = doc.model.leaves.flatMap((l) => l.components.flatMap((c) => c.articles));
+  const imgs = new Map();
+  const products = await db
+    .collection("products")
+    .find({ articleNumber: { $in: [...new Set(articles.map((a) => a.articleNumber))] }, "images.0": { $exists: true } })
+    .project({ articleNumber: 1, images: 1 })
+    .toArray();
+  for (const p of products) imgs.set(p.articleNumber, p.images[0]);
+  for (const a of articles) if (imgs.has(a.articleNumber)) a.image = imgs.get(a.articleNumber);
   return doc.model;
 }
 
