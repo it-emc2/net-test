@@ -117,10 +117,12 @@ export const RULES = [
       [
         ["TRWDB", "Wannenabdichtband-Set"],
         ["AGD9060", "Ablaufgarnitur"],
-        ["smallMaterial", "Kleinmaterial"],
+        ["KM02", "Kleinmaterial"],
         ["PLA5282", "Stelzlager höhenverstellbar Set"],
       ]
-        .filter(([id]) => !sel.ticked(id))
+        // Matched by data-product-id: only the Kleinmaterial box carries an
+        // id attribute, the other three have none.
+        .filter(([pid]) => !sel.product(pid))
         .map(([, label]) => `Nicht gewählt: ${label}.`),
   },
   {
@@ -361,6 +363,8 @@ export function readSelection(pricing, doc = document) {
     field: (id) => !!doc.getElementById(id)?.value?.trim(),
     value: (id) => String(doc.getElementById(id)?.value ?? "").trim(),
     ticked: (id) => !!doc.getElementById(id)?.checked,
+    product: (productId) =>
+      checked(`input[data-product-id="${productId}"]:checked`),
     // A category whose products are loaded at runtime can be empty — then the
     // rule is unfulfillable and saying "fehlt" would be wrong.
     panelEmpty: (menuId) =>

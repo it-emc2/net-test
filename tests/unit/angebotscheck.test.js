@@ -319,15 +319,17 @@ test("without a selection the form rules stay silent", () => {
 
 /* ------------------------------------------------- Duschwanne accessories */
 
-const ACCESSORIES = ["TRWDB", "AGD9060", "smallMaterial", "PLA5282"];
+const ACCESSORIES = ["TRWDB", "AGD9060", "KM02", "PLA5282"];
 
+// Mirrors the real markup: these boxes are identified by data-product-id,
+// only the Kleinmaterial one happens to carry an id as well.
 function withTray(tickedAccessories) {
   document.body.innerHTML =
     '<input type="checkbox" name="duschwanne[workTasks][]" value="install_tray" checked />' +
     ACCESSORIES.map(
-      (id) =>
-        `<input type="checkbox" id="${id}" ${
-          tickedAccessories.includes(id) ? "checked" : ""
+      (pid) =>
+        `<input type="checkbox" data-product-id="${pid}" ${
+          tickedAccessories.includes(pid) ? "checked" : ""
         } />`,
     ).join("");
 }
@@ -342,7 +344,7 @@ test("a Duschwanne without its four accessories is red, one detail each", () => 
 });
 
 test("only the missing accessories are listed", () => {
-  withTray(["TRWDB", "smallMaterial"]);
+  withTray(["TRWDB", "KM02"]);
   const found = row(runAngebotscheck(ok, readSelection(ok)), "duschwanne-zubehoer");
   expect(found.details).toHaveLength(2);
   expect(found.details.join(" ")).toContain("Ablaufgarnitur");
@@ -367,4 +369,49 @@ test("no Duschwanne at all means no accessory row", () => {
   document.body.innerHTML = "";
   expect(row(runAngebotscheck(noTray, readSelection(noTray)), "duschwanne-zubehoer"))
     .toBeUndefined();
+});
+
+/* ------------------------------------------- selectors vs. the real markup */
+
+test("every selector the rules use exists in index.html", async () => {
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const { JSDOM } = await import("jsdom");
+  const html = fs.readFileSync(
+    path.resolve(process.cwd(), "src/public/index.html"),
+    "utf8",
+  );
+  const doc = new JSDOM(html).window.document;
+
+  // Duschwanne accessories — matched by data-product-id, not by id.
+  for (const pid of ACCESSORIES) {
+    expect(doc.querySelector(`input[data-product-id="${pid}"]`)).not.toBeNull();
+  }
+  // Arbeitszeit fields.
+  for (const id of ["distanceKm", "travelTime"]) {
+    expect(doc.getElementById(id)).not.toBeNull();
+  }
+  // The Wanne picker's hidden fields.
+  for (const id of ["chosenBathtubProductId", "chosenScreenProductId"]) {
+    expect(doc.getElementById(id)).not.toBeNull();
+  }
+  // Optional product groups every WORK_RULE refers to by input name.
+  for (const name of [
+    "optThermo[]",
+    "optShower[]",
+    "optBasinTap[]",
+    "optBasin[]",
+    "optDuschzub[]",
+    "duschwanne[workTasks][]",
+  ]) {
+    expect(doc.querySelector(`input[name="${name}"]`)).not.toBeNull();
+  }
+  // Runtime-filled panels must at least exist as containers.
+  expect(doc.getElementById("menu_WC")).not.toBeNull();
+  // And each coupled work task must be a real checkbox value.
+  for (const rule of WORK_RULES) {
+    expect(
+      doc.querySelector(`input[value="${rule.task}"]`),
+    ).not.toBeNull();
+  }
 });
