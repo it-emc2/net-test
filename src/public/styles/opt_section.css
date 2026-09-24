@@ -1,0 +1,37 @@
+/* CSS for Optional Section goes here */
+
+.shower-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: stretch;       /* ← equalizes row height */
+}
+.shower-tile-grid > .field {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.shower-tile-grid > .field > .image-check {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  flex: 1;                    /* card fills the .field height */
+}
+.shower-tile-grid > .field > .image-check .caption {
+  flex: 1;                    /* caption grows to eat leftover → aligns bottoms */
+}
+
+.shower-tile-grid .img-wrap {
+  display: flex !important;       /* override the global display:grid */
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: unset !important;
+  height: 300px;
+}
+
+.shower-tile-grid .img-wrap img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;               /* 100% resolves cleanly against flex container's 250px */
+}
