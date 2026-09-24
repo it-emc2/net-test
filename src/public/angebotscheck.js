@@ -103,6 +103,27 @@ export const RULES = [
         .map((l) => `Preis 0,00 €: ${name(l)}`),
   },
   {
+    // Everything a tray needs to actually be installed. Adding a fifth item
+    // is one line here.
+    id: "duschwanne-zubehoer",
+    group: "material",
+    target: "Duschwanne",
+    title: "Zubehör zur Duschwanne vollständig",
+    severity: "rot",
+    needsSelection: true,
+    applies: ({ sel, materials }) =>
+      sel.tasks.has("install_tray") || hasCategory(lines(materials), "Duschwanne"),
+    test: ({ sel }) =>
+      [
+        ["TRWDB", "Wannenabdichtband-Set"],
+        ["AGD9060", "Ablaufgarnitur"],
+        ["smallMaterial", "Kleinmaterial"],
+        ["PLA5282", "Stelzlager höhenverstellbar Set"],
+      ]
+        .filter(([id]) => !sel.ticked(id))
+        .map(([, label]) => `Nicht gewählt: ${label}.`),
+  },
+  {
     id: "duschwanne-ohne-abtrennung",
     group: "material",
     title: "Duschwanne mit Abtrennung",
@@ -339,6 +360,7 @@ export function readSelection(pricing, doc = document) {
     panel: (menuId) => checked(`#${menuId} input[type="checkbox"]:checked`),
     field: (id) => !!doc.getElementById(id)?.value?.trim(),
     value: (id) => String(doc.getElementById(id)?.value ?? "").trim(),
+    ticked: (id) => !!doc.getElementById(id)?.checked,
     // A category whose products are loaded at runtime can be empty — then the
     // rule is unfulfillable and saying "fehlt" would be wrong.
     panelEmpty: (menuId) =>
@@ -418,6 +440,12 @@ function standingRows(ctx) {
     // Rules that read the form need a selection; without one they cannot
     // judge anything, so they stay silent rather than guess.
     if (rule.needsSelection && !ctx.sel) return null;
+    // A rule that only makes sense for certain offers says so itself.
+    try {
+      if (rule.applies && !rule.applies(ctx)) return null;
+    } catch {
+      return null;
+    }
     let hits;
     try {
       hits = rule.test(ctx);

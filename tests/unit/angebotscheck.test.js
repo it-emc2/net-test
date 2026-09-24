@@ -316,3 +316,55 @@ test("without a selection the form rules stay silent", () => {
   expect(row(r, "anfahrt-fehlt")).toBeUndefined();
   expect(row(r, "reisezeit-fehlt")).toBeUndefined();
 });
+
+/* ------------------------------------------------- Duschwanne accessories */
+
+const ACCESSORIES = ["TRWDB", "AGD9060", "smallMaterial", "PLA5282"];
+
+function withTray(tickedAccessories) {
+  document.body.innerHTML =
+    '<input type="checkbox" name="duschwanne[workTasks][]" value="install_tray" checked />' +
+    ACCESSORIES.map(
+      (id) =>
+        `<input type="checkbox" id="${id}" ${
+          tickedAccessories.includes(id) ? "checked" : ""
+        } />`,
+    ).join("");
+}
+
+test("a Duschwanne without its four accessories is red, one detail each", () => {
+  withTray([]);
+  const found = row(runAngebotscheck(ok, readSelection(ok)), "duschwanne-zubehoer");
+  expect(found.status).toBe("rot");
+  expect(found.details).toHaveLength(4);
+  expect(found.details.join(" ")).toContain("Wannenabdichtband-Set");
+  expect(found.target).toBe("Duschwanne");
+});
+
+test("only the missing accessories are listed", () => {
+  withTray(["TRWDB", "smallMaterial"]);
+  const found = row(runAngebotscheck(ok, readSelection(ok)), "duschwanne-zubehoer");
+  expect(found.details).toHaveLength(2);
+  expect(found.details.join(" ")).toContain("Ablaufgarnitur");
+  expect(found.details.join(" ")).toContain("Stelzlager");
+});
+
+test("all four ticked turns the row green", () => {
+  withTray(ACCESSORIES);
+  expect(row(runAngebotscheck(ok, readSelection(ok)), "duschwanne-zubehoer").status)
+    .toBe("gruen");
+});
+
+test("the accessory rule applies to a priced Duschwanne too, not just the task", () => {
+  // no work task ticked, but `ok` carries a Duschwanne line
+  document.body.innerHTML = "";
+  expect(row(runAngebotscheck(ok, readSelection(ok)), "duschwanne-zubehoer").status)
+    .toBe("rot");
+});
+
+test("no Duschwanne at all means no accessory row", () => {
+  const noTray = { materialsDisplayUI: { sum: 0, lines: [] } };
+  document.body.innerHTML = "";
+  expect(row(runAngebotscheck(noTray, readSelection(noTray)), "duschwanne-zubehoer"))
+    .toBeUndefined();
+});

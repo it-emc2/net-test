@@ -105,9 +105,12 @@ Gelten immer, unabhängig von der Auswahl — u. a.:
 | Reisezeit erfasst (`travelTime` ≠ 00:00) | 🔴 | Arbeitszeit |
 | Arbeitspositionen erfasst / bepreist | 🔴 / 🟡 | Arbeiten |
 | Material erfasst, Artikel-ID, Preis > 0 | 🔴 / 🟡 | Material |
+| Zubehör zur Duschwanne vollständig (TRWDB, AGD9060, Kleinmaterial, PLA5282) | 🔴 | Duschwanne |
 
 Regeln mit `needsSelection` lesen das Formular; ohne `selection` erzeugen sie
-gar keine Zeile, statt zu raten.
+gar keine Zeile, statt zu raten. Mit `applies(ctx)` sagt eine Regel selbst,
+wann sie überhaupt gilt — die Zubehör-Regel z. B. nur, wenn eine Duschwanne
+eingebaut wird.
 
 ## Arbeit ⇄ Produkt
 
