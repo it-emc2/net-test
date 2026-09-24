@@ -415,3 +415,20 @@ test("every selector the rules use exists in index.html", async () => {
     ).not.toBeNull();
   }
 });
+
+test("a priced Badewanne line satisfies the rule even without the hidden field", () => {
+  const withTub = {
+    ...ok,
+    materialsDisplayUI: {
+      sum: 900,
+      lines: [
+        { productId: "DW01", category: "Duschwanne", qty: 1, lineTotal: 500 },
+        { productId: "V2PT83LC", label: "- 1 Stk Badewanne", qty: 1, lineTotal: 400 },
+      ],
+    },
+  };
+  withTasks(["install_bathtub"]); // no hidden field in the DOM at all
+  expect(
+    row(runAngebotscheck(withTub, readSelection(withTub)), "arbeit-install_bathtub").status,
+  ).toBe("gruen");
+});
