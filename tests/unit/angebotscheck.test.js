@@ -177,22 +177,34 @@ test("Badewanne is read from the picker's hidden field, not from a checkbox", ()
     .toBe("gruen");
 });
 
-test("Wannenaufsatz accepts the picker's screen field", () => {
-  const noMaterial = { materialsDisplayUI: { sum: 0, lines: [] } };
-  withTasks(["install_bathtub_screen"]);
-  expect(
-    row(runAngebotscheck(noMaterial, readSelection(noMaterial)), "arbeit-install_bathtub_screen")
-      .status,
-  ).toBe("gelb");
+test("Wannenaufsatz needs its own product from the Wanne picker", () => {
+  // A tub alone does not cover it, and neither does a Duschabtrennung —
+  // `ok` carries a Duschabtrennung line.
+  withTasks(
+    ["install_bathtub_screen"],
+    '<input type="hidden" id="chosenBathtubProductId" value="TUB1" />',
+  );
+  const found = row(runAngebotscheck(ok, readSelection(ok)), "arbeit-install_bathtub_screen");
+  expect(found.status).toBe("rot");
+  expect(found.details[0]).toContain("Wannenaufsatz");
 
   withTasks(
     ["install_bathtub_screen"],
     '<input type="hidden" id="chosenScreenProductId" value="SCR1" />',
   );
   expect(
-    row(runAngebotscheck(noMaterial, readSelection(noMaterial)), "arbeit-install_bathtub_screen")
-      .status,
+    row(runAngebotscheck(ok, readSelection(ok)), "arbeit-install_bathtub_screen").status,
   ).toBe("gruen");
+});
+
+test("tub and screen are independent", () => {
+  // Only a screen picked, only the Badewanne task ticked → still red.
+  withTasks(
+    ["install_bathtub"],
+    '<input type="hidden" id="chosenScreenProductId" value="SCR1" />',
+  );
+  expect(row(runAngebotscheck(ok, readSelection(ok)), "arbeit-install_bathtub").status)
+    .toBe("rot");
 });
 
 test("Duschvorhang is read from its configurator, not from the priced category", () => {

@@ -128,12 +128,12 @@ dieses Angebot wirklich enthält.
 | Waschbecken-Armatur auswechseln | Einhand-Waschtischbatterie | 🔴 |
 | Einbau eines Waschbeckens | Waschtisch | 🔴 |
 | Einbau eines Duschkorbes | Duschzubehör | 🔴 |
-| Einbau der Badewanne | Produkt aus „Wanne" | 🔴 |
+| Einbau der Badewanne | Badewanne aus dem Wanne-Picker | 🔴 |
+| Einbau des Wannenaufsatzes | Wannenaufsatz aus dem Wanne-Picker | 🔴 |
 | Einbau einer Toilette / eines Dusch-WCs | Produkt aus „WC" | 🔴 |
 | Einbau Duschwanne / Duschabtrennung / Duschvorhang | passendes Material | 🔴 |
 | Trockenbau Duschbereich / WC | Wandverkleidung | 🟡 |
 | Einbau eines Abstandsprofils | Duschabtrennung | 🟡 |
-| Einbau des Wannenaufsatzes | Duschabtrennung oder Wanne | 🟡 |
 
 Beide Richtungen werden geprüft:
 

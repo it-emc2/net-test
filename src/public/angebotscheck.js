@@ -233,6 +233,17 @@ export const WORK_RULES = [
     has: (sel) => sel.field("chosenBathtubProductId"),
   },
   {
+    // Own tab in the Wanne picker, own work task — a tub does not cover it and
+    // a Duschabtrennung is not a substitute.
+    task: "install_bathtub_screen",
+    label: "Einbau des Wannenaufsatzes",
+    needs: "Produkt aus „Wanne“ → Wannenaufsatz",
+    group: "optional",
+    target: "Optional",
+    severity: "rot",
+    has: (sel) => sel.field("chosenScreenProductId"),
+  },
+  {
     task: "install_toilet",
     label: "Einbau einer Toilette",
     needs: "Produkt aus „WC“",
@@ -272,7 +283,7 @@ export const WORK_RULES = [
     severity: "rot",
     has: (sel) =>
       sel.material("Duschabtrennung") || sel.configurator("__daConfigurator"),
-    sharesWith: ["install_bathtub_screen", "install_distance_profile"],
+    sharesWith: ["install_distance_profile"],
   },
   {
     task: "install_shower_curtain",
@@ -320,21 +331,7 @@ export const WORK_RULES = [
     severity: "gelb",
     has: (sel) => sel.material("Duschabtrennung"),
     noReverse: true,
-    sharesWith: ["install_enclosure", "install_bathtub_screen"],
-  },
-  {
-    task: "install_bathtub_screen",
-    label: "Einbau des Wannenaufsatzes",
-    needs: "eine Duschabtrennung oder eine Wanne",
-    group: "material",
-    target: "DuschabtrennungNeu",
-    severity: "gelb",
-    has: (sel) =>
-      sel.material("Duschabtrennung") ||
-      sel.configurator("__daConfigurator") ||
-      sel.field("chosenScreenProductId"),
-    noReverse: true,
-    sharesWith: ["install_enclosure", "install_distance_profile"],
+    sharesWith: ["install_enclosure"],
   },
 ];
 
