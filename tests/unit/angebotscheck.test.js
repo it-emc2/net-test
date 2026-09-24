@@ -273,3 +273,46 @@ test("two tasks wanting the same product group give one reverse row", () => {
   );
   expect(shower).toHaveLength(1);
 });
+
+/* --------------------------------------------------------- Arbeitszeit tab */
+
+function withArbeitszeit(distance, travel) {
+  document.body.innerHTML =
+    `<input id="distanceKm" value="${distance}" />` +
+    `<input id="travelTime" value="${travel}" />`;
+}
+
+test("empty Anfahrt and Reisezeit are red, not green", () => {
+  withArbeitszeit("", "");
+  const r = runAngebotscheck(ok, readSelection(ok));
+  expect(row(r, "anfahrt-fehlt").status).toBe("rot");
+  expect(row(r, "reisezeit-fehlt").status).toBe("rot");
+  expect(row(r, "anfahrt-fehlt").target).toBe("Arbeitszeit");
+  expect(r.status).toBe("rot");
+});
+
+test("a zero distance or 00:00 travel time counts as missing", () => {
+  withArbeitszeit("0", "00:00");
+  const r = runAngebotscheck(ok, readSelection(ok));
+  expect(row(r, "anfahrt-fehlt").status).toBe("rot");
+  expect(row(r, "reisezeit-fehlt").status).toBe("rot");
+});
+
+test("filled Anfahrt and Reisezeit are green", () => {
+  withArbeitszeit("42", "00:45");
+  const r = runAngebotscheck(ok, readSelection(ok));
+  expect(row(r, "anfahrt-fehlt").status).toBe("gruen");
+  expect(row(r, "reisezeit-fehlt").status).toBe("gruen");
+});
+
+test("a decimal distance with a comma still counts", () => {
+  withArbeitszeit("12,5", "01:00");
+  expect(row(runAngebotscheck(ok, readSelection(ok)), "anfahrt-fehlt").status)
+    .toBe("gruen");
+});
+
+test("without a selection the form rules stay silent", () => {
+  const r = runAngebotscheck(ok);
+  expect(row(r, "anfahrt-fehlt")).toBeUndefined();
+  expect(row(r, "reisezeit-fehlt")).toBeUndefined();
+});

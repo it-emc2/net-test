@@ -95,6 +95,20 @@ window.__zfCheckliste = { skizzeErstellt: false, fotosErstellt: false };
 window.setZfCheckliste(checkliste);  // vom RestoreManager beim Öffnen
 ```
 
+## Stehende Regeln
+
+Gelten immer, unabhängig von der Auswahl — u. a.:
+
+| Regel | 🚦 | Seite |
+|---|---|---|
+| Anfahrt erfasst (`distanceKm` > 0) | 🔴 | Arbeitszeit |
+| Reisezeit erfasst (`travelTime` ≠ 00:00) | 🔴 | Arbeitszeit |
+| Arbeitspositionen erfasst / bepreist | 🔴 / 🟡 | Arbeiten |
+| Material erfasst, Artikel-ID, Preis > 0 | 🔴 / 🟡 | Material |
+
+Regeln mit `needsSelection` lesen das Formular; ohne `selection` erzeugen sie
+gar keine Zeile, statt zu raten.
+
 ## Arbeit ⇄ Produkt
 
 `WORK_RULES` koppelt einen angehakten Arbeitsschritt an die Auswahl, die er

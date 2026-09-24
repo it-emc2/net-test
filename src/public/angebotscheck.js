@@ -53,6 +53,28 @@ export const RULES = [
       "Arbeitspositionen vorhanden, aber Summe ist 0,00 €.",
   },
   {
+    id: "anfahrt-fehlt",
+    group: "arbeiten",
+    target: "Arbeitszeit",
+    title: "Anfahrt erfasst",
+    severity: "rot",
+    needsSelection: true,
+    test: ({ sel }) =>
+      !(Number(sel.value("distanceKm").replace(",", ".")) > 0) &&
+      "Keine Entfernung zum Kunden eingetragen.",
+  },
+  {
+    id: "reisezeit-fehlt",
+    group: "arbeiten",
+    target: "Arbeitszeit",
+    title: "Reisezeit erfasst",
+    severity: "rot",
+    needsSelection: true,
+    test: ({ sel }) =>
+      !/[1-9]/.test(sel.value("travelTime")) &&
+      "Keine Reisezeit (Hin-Fahrt) eingetragen.",
+  },
+  {
     id: "material-leer",
     group: "material",
     title: "Material erfasst",
@@ -316,6 +338,7 @@ export function readSelection(pricing, doc = document) {
     opt: (name) => checked(`input[name="${name}"]:checked`),
     panel: (menuId) => checked(`#${menuId} input[type="checkbox"]:checked`),
     field: (id) => !!doc.getElementById(id)?.value?.trim(),
+    value: (id) => String(doc.getElementById(id)?.value ?? "").trim(),
     // A category whose products are loaded at runtime can be empty — then the
     // rule is unfulfillable and saying "fehlt" would be wrong.
     panelEmpty: (menuId) =>
@@ -392,6 +415,9 @@ function workRows(selection) {
 /** One row per standing rule, green when it passes. */
 function standingRows(ctx) {
   return RULES.map((rule) => {
+    // Rules that read the form need a selection; without one they cannot
+    // judge anything, so they stay silent rather than guess.
+    if (rule.needsSelection && !ctx.sel) return null;
     let hits;
     try {
       hits = rule.test(ctx);
@@ -403,7 +429,7 @@ function standingRows(ctx) {
     return {
       id: rule.id,
       group: rule.group,
-      target: group?.target,
+      target: rule.target || group?.target,
       title: rule.title,
       status: details.length ? rule.severity : "gruen",
       details,
@@ -417,6 +443,7 @@ export function runAngebotscheck(pricing, selection = null) {
     services: pricing?.servicesDisplayUI || pricing?.services || {},
     materials: pricing?.materialsDisplayUI || pricing?.materials || {},
     optionals: pricing?.optionalDisplayUI || {},
+    sel: selection,
   };
 
   const groups = GROUPS.map((g) => ({ ...g, status: "gruen", rows: [] }));
