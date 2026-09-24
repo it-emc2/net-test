@@ -15122,6 +15122,7 @@ function restoreOptionalPage(opt) {
         "opt_TEMPDSU250",
         "opt_V22BG903R",
         "opt_V12DS250E",
+        "opt_STRAYT",
       ],
       cat_THERMO: ["opt_CLTB", "opt_DEPTB", "opt_CLB"],
       cat_GRAB: ["opt_CLPESG30","opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
@@ -18592,6 +18593,7 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_TEMPDSU250", "qty_TEMPDSU250_wrap");
   wireTileQty("opt_V22BG903R", "qty_V22BG903R_wrap");
   wireTileQty("opt_V12DS250E", "qty_V12DS250E_wrap");
+  wireTileQty("opt_STRAYT", "qty_STRAYT_wrap");
 
   // ---- THERMO ----
   wireTileQty("opt_CLTB", "qty_CLTB_wrap");
@@ -19354,6 +19356,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
       "opt_TEMPDSU250",
       "opt_V22BG903R",
       "opt_V12DS250E",
+      "opt_STRAYT",
     ],
     cat_THERMO: ["opt_CLTB", "opt_DEPTB", "opt_CLB"],
     cat_GRAB: ["opt_CLPESG30", "opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
@@ -19510,7 +19513,8 @@ wireTileQty("hlWallAngledBall35", "qty_hlWallAngledBall35_wrap");
         "opt_V22WS1R", // Wannenset individual 2.2
         "opt_TEMPDSU250", // Duschsystem Tempesta Flex
         "opt_V22BG903R", // Brausegarnitur individ.2.2
-        "opt_V12DS250E", // Duschsystem V1 Thermostat
+        "opt_V12DS250E", // Duschsystem V1 Thermostat,
+        "opt_STRAYT", // New edge duschsystem
       ],
     },
     {
