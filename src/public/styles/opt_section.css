@@ -1,28 +1,28 @@
 /* CSS for Optional Section goes here */
 
 /* Haltegriff */
-.griff-tile-grid {
+.opt-tile-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 14px;
   align-items: stretch;       /* ← equalizes row height */
 }
-.griff-tile-grid > .field {
+.opt-tile-grid > .field {
   display: flex;
   flex-direction: column;
   margin: 0;
 }
-.griff-tile-grid > .field > .image-check {
+.opt-tile-grid > .field > .image-check {
   display: flex;
   flex-direction: column;
   width: 100%;
   flex: 1;                    /* card fills the .field height */
 }
-.griff-tile-grid > .field > .image-check .caption {
+.opt-tile-grid > .field > .image-check .caption {
   flex: 1;                    /* caption grows to eat leftover → aligns bottoms */
 }
 
-.griff-tile-grid .img-wrap {
+.opt-tile-grid .img-wrap {
   display: flex !important;       /* override the global display:grid */
   align-items: center;
   justify-content: center;
@@ -30,118 +30,7 @@
   height: 300px;
 }
 
-.griff-tile-grid .img-wrap img {
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;               /* 100% resolves cleanly against flex container's 250px */
-}
-
-/* Duschsystem */
-.shower-tile-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 14px;
-  align-items: stretch;       /* ← equalizes row height */
-}
-.shower-tile-grid > .field {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-}
-.shower-tile-grid > .field > .image-check {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  flex: 1;                    /* card fills the .field height */
-}
-.shower-tile-grid > .field > .image-check .caption {
-  flex: 1;                    /* caption grows to eat leftover → aligns bottoms */
-}
-
-.shower-tile-grid .img-wrap {
-  display: flex !important;       /* override the global display:grid */
-  align-items: center;
-  justify-content: center;
-  aspect-ratio: unset !important;
-  height: 300px;
-}
-
-.shower-tile-grid .img-wrap img {
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;               /* 100% resolves cleanly against flex container's 250px */
-}
-
-/* Stützklappgriffe */
-.griff2-tile-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 14px;
-  align-items: stretch;       /* ← equalizes row height */
-}
-.griff2-tile-grid > .field {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-}
-.griff2-tile-grid > .field > .image-check {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  flex: 1;                    /* card fills the .field height */
-}
-.griff2-tile-grid > .field > .image-check .caption {
-  flex: 1;                    /* caption grows to eat leftover → aligns bottoms */
-}
-
-.griff2-tile-grid .img-wrap {
-  display: flex !important;       /* override the global display:grid */
-  align-items: center;
-  justify-content: center;
-  aspect-ratio: unset !important;
-  height: 300px;
-}
-
-.griff2-tile-grid .img-wrap img {
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;               /* 100% resolves cleanly against flex container's 250px */
-}
-
-/* Washtischbatterie */
-.washtischbatterie-tile-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 14px;
-  align-items: stretch;       /* ← equalizes row height */
-}
-.washtischbatterie-tile-grid > .field {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-}
-.washtischbatterie-tile-grid > .field > .image-check {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  flex: 1;                    /* card fills the .field height */
-}
-.washtischbatterie-tile-grid > .field > .image-check .caption {
-  flex: 1;                    /* caption grows to eat leftover → aligns bottoms */
-}
-
-.washtischbatterie-tile-grid .img-wrap {
-  display: flex !important;       /* override the global display:grid */
-  align-items: center;
-  justify-content: center;
-  aspect-ratio: unset !important;
-  height: 300px;
-}
-
-.washtischbatterie-tile-grid .img-wrap img {
+.opt-tile-grid .img-wrap img {
   width: auto;
   height: auto;
   max-width: 100%;
