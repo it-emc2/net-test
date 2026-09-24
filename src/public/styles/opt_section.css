@@ -35,3 +35,66 @@
   max-width: 100%;
   max-height: 100%;               /* 100% resolves cleanly against flex container's 250px */
 }
+
+/* WC carousel tiles: match img-wrap height */
+#wcWallProductsGrid .image-check .img-carousel {
+  display: flex;          /* ← makes height work on the span */
+  flex-direction: column;
+  position: relative;
+  height: 200px;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #eef0f4;
+}
+
+#wcWallProductsGrid .img-carousel__track {
+  display: flex;
+  height: 100%;
+  flex: 1;
+}
+
+#wcWallProductsGrid .img-carousel__slide {
+  flex: 0 0 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#wcWallProductsGrid .img-carousel__slide img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* WC accessories grid: equal-height cards */
+#wcWallProductsGrid .opt-grid:not(.wc-pairs-grid) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+#wcWallProductsGrid .opt-grid:not(.wc-pairs-grid) > .opt-item {
+  display: flex;
+  flex-direction: column;
+}
+
+#wcWallProductsGrid .opt-grid:not(.wc-pairs-grid) > .opt-item > .image-check {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  flex: 1;
+}
+
+#wcWallProductsGrid .opt-grid:not(.wc-pairs-grid) > .opt-item > .image-check .caption {
+  flex: 1;
+}
+
+.wc-products-subheader {
+  color: var(--text);   /* or just: color: #000; */
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 8px;
+}

@@ -18876,8 +18876,7 @@ cat_SHOWER: "menu_SHOWER",
         group.className = "wc-generated-group";
         group.dataset.montage = "Wandmontage";
         group.style.width = "100%";
-        const header = document.createElement("div");
-        header.className = "subheader wc-products-subheader";
+        const header = document.createElement("h4");
         header.textContent = "Produkte für Wandmontage";
         group.appendChild(header);
         const grid = document.createElement("div");
@@ -18897,8 +18896,7 @@ cat_SHOWER: "menu_SHOWER",
         group.className = "wc-generated-group";
         group.dataset.montage = "Wandmontage";
         group.style.width = "100%";
-        const header = document.createElement("div");
-        header.className = "subheader wc-products-subheader";
+        const header = document.createElement("h4");
         header.textContent = "WCs für Wandmontage";
         group.appendChild(header);
         const grid = document.createElement("div");
@@ -18936,8 +18934,7 @@ cat_SHOWER: "menu_SHOWER",
         group.className = "wc-generated-group";
         group.dataset.montage = "Bodenmontage";
         group.style.width = "100%";
-        const header = document.createElement("div");
-        header.className = "subheader wc-products-subheader";
+        const header = document.createElement("h4");
         header.textContent = "Produkte für Bodenmontage";
         group.appendChild(header);
         const grid = document.createElement("div");
