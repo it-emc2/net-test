@@ -24,7 +24,15 @@ import {
   generateOfferPdfBuffer,
   convertDocxToPdf,
   getOfferRenderData,
+  aggregateMaterialsForOverview,
 } from "./docx-template.js";
+import {
+  generateProductImagePdf,
+  resolveProductImages,
+  shouldSkipByDefault,
+  PRODUCT_IMAGE_SKIP_KEYWORDS,
+} from "../lib/productImagePdf.js";
+import configService from "../services/configService.js";
 
 const router = express.Router();
 
@@ -318,6 +326,112 @@ function getPresetAttachments(excludePresetSet, isSelbstzahler, offerType) {
     }));
 }
 
+// Maps productId -> finish text from payload.duschabtrennung.quickAdd (kind="config" entries).
+function buildFinishMap(payload) {
+  const map = new Map();
+  for (const q of payload?.duschabtrennung?.quickAdd || []) {
+    if (q.kind === "config" && q.productId && q.finish) {
+      map.set(String(q.productId), q.finish);
+    }
+  }
+  return map;
+}
+
+// Maps DA configurator article numbers to their configuration preview URL.
+// previewImages is [{articleNumbers: [...], imageUrl: '...'}] saved by collectDuschabtrennungConfigurator.
+function buildDacPreviewMap(payload) {
+  const map = new Map();
+  const previews = payload?.duschabtrennung?.configurator?.previewImages;
+  if (!Array.isArray(previews)) return map;
+  for (const { articleNumbers, imageUrl } of previews) {
+    if (!imageUrl || !Array.isArray(articleNumbers)) continue;
+    for (const id of articleNumbers) {
+      if (id) map.set(String(id), imageUrl);
+    }
+  }
+  return map;
+}
+
+// Returns the product list (with image availability) for the "Produktbilder-PDF" checkbox in the UI.
+// Body: { payload: {...} }
+router.post("/product-image-list", express.json(), async (req, res) => {
+  try {
+    const payload = req.body?.payload || req.body || {};
+    const { computed } = await getOfferRenderData(payload);
+    const lines = await aggregateMaterialsForOverview(payload, computed);
+    const assetsDir = path.join(process.cwd(), "src", "public", "assets");
+
+    const adminSkipIds = new Set((configService.get("PRODUCT_IMAGE_SKIP_IDS", [])).map(String));
+    const filteredLines = lines.filter((l) => l.materialNumber && !adminSkipIds.has(String(l.materialNumber)));
+    const imageMap = await resolveProductImages(
+      filteredLines.map((l) => l.materialNumber),
+      assetsDir,
+    );
+
+    // Build lookups: productId -> configurator preview URL / finish text
+    const dacPreviewMap = buildDacPreviewMap(payload);
+    const finishMap = buildFinishMap(payload);
+
+    const products = filteredLines.map((l) => {
+      const img = imageMap.get(l.materialNumber) || {};
+      const dacPreview = dacPreviewMap.get(l.materialNumber) || null;
+      const hasImage = !!(img.localPath || img.vigorUrl || dacPreview);
+      const imageUrl = img.localPath
+        ? `/assets/${l.materialNumber}.jpg`
+        : img.vigorUrl || dacPreview || null;
+      return {
+        productId: l.materialNumber,
+        name: l.name || l.materialNumber,
+        finish: finishMap.get(l.materialNumber) || null,
+        qty: l.quantity,
+        unit: l.unit || "Stck.",
+        hasImage,
+        imageUrl,
+        defaultInclude: hasImage && !shouldSkipByDefault(l.name || ""),
+      };
+    });
+
+    res.json({ products, skipKeywords: PRODUCT_IMAGE_SKIP_KEYWORDS });
+  } catch (e) {
+    console.error("[email] product-image-list failed:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post("/preview-product-image-pdf", express.json({ limit: "20mb" }), async (req, res) => {
+  try {
+    const { payload = {}, excludeProductImageIds = [], productCustomImageData = {} } = req.body || {};
+    const { computed } = await getOfferRenderData(payload);
+    const lines = await aggregateMaterialsForOverview(payload, computed);
+    const assetsDir = path.join(process.cwd(), "src", "public", "assets");
+    const adminSkipIdsPreview = new Set((configService.get("PRODUCT_IMAGE_SKIP_IDS", [])).map(String));
+    const excludeSet = new Set([...excludeProductImageIds.map(String), ...adminSkipIdsPreview]);
+    const sendFinishMap = buildFinishMap(payload);
+    const products = lines
+      .filter((l) => l.materialNumber && !excludeSet.has(l.materialNumber))
+      .map((l) => ({
+        productId: l.materialNumber,
+        name: l.name || l.materialNumber,
+        finish: sendFinishMap.get(l.materialNumber) || null,
+        qty: l.quantity,
+        unit: l.unit || "Stck.",
+      }));
+    const dacMap = buildDacPreviewMap(payload);
+    const mergedCustom = {};
+    for (const [id, relUrl] of dacMap) {
+      mergedCustom[id] = path.join(process.cwd(), "src", "public", relUrl);
+    }
+    Object.assign(mergedCustom, productCustomImageData);
+    const buf = await generateProductImagePdf(products, assetsDir, mergedCustom);
+    if (!buf) return res.status(204).end();
+    res.set({ "Content-Type": "application/pdf", "Content-Disposition": "inline" });
+    res.send(buf);
+  } catch (e) {
+    console.error("[email] preview-product-image-pdf failed:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // multipart/form-data:
 // fields: to, subject, body, offerNumber, offerType, payload (json string), excludePreset (json array string)
 // files: attachments[], editedDocx (optional: hand-edited Angebot-DOCX used instead of a fresh render)
@@ -439,6 +553,54 @@ router.post(
     }
 
     const angebotFilename = safeOfferFilename(payload?.offerNumber || offerNumber);
+
+    // ---- Product image PDF (optional, user-triggered) ----
+    const includeProductImages = ["1", "true", "on", "yes"].includes(
+      String(req.body.includeProductImages || "").toLowerCase(),
+    );
+    let productImageBuf = null;
+    let productImageFilename = null;
+    if (includeProductImages) {
+      try {
+        const adminSkipIdsSend = new Set((configService.get("PRODUCT_IMAGE_SKIP_IDS", [])).map(String));
+        const excludeProductImageIds = new Set([
+          ...JSON.parse(req.body.excludeProductImageIds || "[]").map(String),
+          ...adminSkipIdsSend,
+        ]);
+        const productCustomImageData = JSON.parse(req.body.productCustomImageData || "{}");
+        const assetsDir = path.join(process.cwd(), "src", "public", "assets");
+        const lines = await aggregateMaterialsForOverview(payload, offerComputed || {});
+        const sendFinishMap = buildFinishMap(payload);
+        const products = lines
+          .filter((l) => l.materialNumber && !excludeProductImageIds.has(l.materialNumber))
+          .map((l) => ({
+            productId: l.materialNumber,
+            name: l.name || l.materialNumber,
+            finish: sendFinishMap.get(l.materialNumber) || null,
+            qty: l.quantity,
+            unit: l.unit || "Stck.",
+          }));
+        // Server-side fallback: DA configurator preview images (relative URL → disk path).
+        // Client uploads in productCustomImageData win (merged last).
+        const dacMap = buildDacPreviewMap(payload);
+        const mergedCustom = {};
+        for (const [id, relUrl] of dacMap) {
+          mergedCustom[id] = path.join(process.cwd(), "src", "public", relUrl);
+        }
+        Object.assign(mergedCustom, productCustomImageData); // client upload wins
+        productImageBuf = await generateProductImagePdf(products, assetsDir, mergedCustom);
+        if (productImageBuf) {
+          const safeNo = String(payload?.offerNumber || offerNumber || "Angebot").replace(
+            /[^\w\-]+/g,
+            "_",
+          );
+          productImageFilename = `Produktbilder_${safeNo}.pdf`;
+        }
+      } catch (imgErr) {
+        console.warn("[email] Produktbilder-PDF generation failed:", imgErr?.message || imgErr);
+      }
+    }
+
     const signatureCid = "emc2-signature-picture";
     const signatureImagePath = path.join(
       process.cwd(),
@@ -468,6 +630,9 @@ router.post(
 
     const mailAttachments = [
       { filename: angebotFilename, content: pdfBuf, contentType: "application/pdf" },
+      ...(productImageBuf && productImageFilename
+        ? [{ filename: productImageFilename, content: productImageBuf, contentType: "application/pdf" }]
+        : []),
       ...presetAttachments,
       ...uploadAttachments,
       ...inlineAttachments,
@@ -475,6 +640,7 @@ router.post(
 
     const attachmentNames = [
       angebotFilename,
+      ...(productImageFilename ? [productImageFilename] : []),
       ...presetAttachments.map((a) => a.filename),
       ...uploadAttachments.map((a) => a.filename),
     ];
@@ -493,6 +659,9 @@ router.post(
         filename: angebotFilename,
         base64: pdfBuf.toString("base64"),
       },
+      ...(productImageBuf && productImageFilename
+        ? [{ filename: productImageFilename, base64: productImageBuf.toString("base64") }]
+        : []),
       // Archive the hand-edited DOCX on the timeline so Bitrix shows exactly
       // what was sent (the client skips its fresh Angebot-DOCX in this case).
       ...(editedDocxBuf

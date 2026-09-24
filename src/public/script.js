@@ -3636,7 +3636,8 @@ function collectDuschabtrennungConfigurator(doc) {
   // persist for restore
   try {
     const state = typeof api.getState === "function" ? api.getState() : null;
-    doc.duschabtrennung.configurator = { state, lines };
+    const previewImages = typeof api.getPreviewImageData === "function" ? api.getPreviewImageData() : [];
+    doc.duschabtrennung.configurator = { state, lines, previewImages };
   } catch {
     /* non-fatal */
   }

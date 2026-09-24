@@ -169,6 +169,17 @@ export const CONFIG_SCHEMA = [
     description: 'WV-Artikel im eigenen Lager. Format: {"V3WVK09": 5, "V3WV01": 2}',
   },
 
+  // ── PRODUKTBILDER-PDF ────────────────────────────────────────────────────
+  {
+    key: 'PRODUCT_IMAGE_SKIP_IDS',
+    value: [],
+    label: 'Produktbilder: Ausgeschlossene Artikelnummern',
+    type: 'text-list',
+    section: 'shared',
+    order: 8,
+    description: 'Artikelnummern (eine pro Zeile), die nie im Produktbilder-PDF auftauchen',
+  },
+
   // ── PREISBERECHNUNG ──────────────────────────────────────────────────────
   {
     key: 'AUTO_RECOMPUTE_PRICING', value: true,
@@ -221,7 +232,7 @@ class ConfigService {
     for (const [key, value] of Object.entries(updates)) {
       const def = CONFIG_SCHEMA.find(d => d.key === key);
       const coerced = def?.type === 'boolean' ? Boolean(value)
-        : def?.type === 'json' ? value
+        : (def?.type === 'json' || def?.type === 'text-list') ? value
         : Number(value);
       await this.set(key, coerced);
     }

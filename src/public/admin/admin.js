@@ -57,6 +57,7 @@ function hide(el) { el && el.classList.add('hidden'); }
 function formatNum(v, type) {
   if (v === null || v === undefined) return '';
   if (type === 'boolean') return v ? 'Aktiv' : 'Inaktiv';
+  if (type === 'json' || type === 'text-list') return Array.isArray(v) ? `[${v.length} Einträge]` : '–';
   const n = Number(v);
   if (type === 'integer') return String(Math.round(n));
   // Show up to 4 decimal places, strip trailing zeros
@@ -143,6 +144,14 @@ function buildCard(item) {
         <input type="checkbox" id="field-${item.key}" class="config-checkbox" ${displayVal ? 'checked' : ''}>
         <span>${displayVal ? 'Aktiv' : 'Inaktiv'}</span>
       </label>`
+    : item.type === 'text-list'
+    ? `<textarea
+        id="field-${item.key}"
+        class="config-input config-text-list${pending ? ' input-changed' : ''}"
+        rows="6"
+        spellcheck="false"
+        placeholder="Eine Artikelnummer pro Zeile"
+      >${(Array.isArray(displayVal) ? displayVal : []).join('\n')}</textarea>`
     : item.type === 'json'
     ? `<textarea
         id="field-${item.key}"
@@ -198,7 +207,23 @@ function handleInput(item, input) {
 
   const raw = input.value.trim();
 
-  if (item.type === 'json') {
+  if (item.type === 'text-list') {
+    const parsed = raw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+    const current = Array.isArray(item.value) ? item.value : [];
+    if (JSON.stringify(parsed) !== JSON.stringify(current)) {
+      changes.set(item.key, parsed);
+    } else {
+      changes.delete(item.key);
+    }
+    input.classList.remove('input-error');
+    const card = $(`card-${item.key}`);
+    const isChanged = changes.has(item.key);
+    card && card.classList.toggle('card-changed', isChanged);
+    input.classList.toggle('input-changed', isChanged);
+    updateTopbar();
+    renderNav();
+    return;
+  } else if (item.type === 'json') {
     try {
       const parsed = JSON.parse(raw);
       if (JSON.stringify(parsed) !== JSON.stringify(item.value)) {

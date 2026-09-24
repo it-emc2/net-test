@@ -4048,6 +4048,50 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
 [data-mode="dark"] .mail-docx-zone.has-file .mail-docx-zone-sub,
 [data-mode="dark"] .mail-docx-remove { color: #fac775; }
 
+/* Produktbilder-PDF toggle + product checkbox list */
+.mail-prodimg-head { margin-bottom: 0; }
+.mail-prodimg-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  user-select: none;
+}
+.mail-prodimg-toggle input[type="checkbox"] { cursor: pointer; accent-color: #00a86b; }
+.mail-prodimg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.mail-prodimg-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  border: 1px solid rgba(128,128,128,0.18);
+  background: rgba(128,128,128,0.04);
+}
+.mail-prodimg-item input[type="checkbox"] { cursor: pointer; accent-color: #00a86b; flex: 0 0 auto; }
+.mail-prodimg-item.no-image { opacity: 0.45; }
+.mail-prodimg-item.no-image .prodimg-upload-btn { opacity: 1; }
+.mail-prodimg-item .prodimg-name { flex: 1 1 auto; min-width: 0; overflow: hidden; display: flex; flex-direction: column; gap: 1px; }
+.mail-prodimg-item .prodimg-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-prodimg-item .prodimg-finish { font-size: 0.72rem; color: #888; }
+.mail-prodimg-item .prodimg-qty { flex: 0 0 auto; font-size: 0.75rem; color: #888; }
+.prodimg-thumb { width: 32px; height: 32px; object-fit: contain; border-radius: 4px; flex-shrink: 0; }
+.prodimg-cb-label { display: flex; align-items: center; flex: 0 0 auto; }
+.prodimg-upload-btn { flex-shrink: 0; cursor: pointer; background: none; border: 1px solid rgba(128,128,128,0.3); border-radius: 5px; padding: 2px 5px; font-size: 0.75rem; line-height: 1.4; opacity: 0.6; }
+.prodimg-upload-btn:hover { opacity: 1; background: rgba(128,128,128,0.1); }
+[data-mode="dark"] .mail-prodimg-item { border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); }
+.mail-prodimg-preview-btn { margin: 8px 0 4px; font-size: 0.8rem; }
+
 /* Grundriss/Foto zone — iPad: tap opens the native Photos/Camera/Files sheet */
 .plan-zone {
   display: flex;

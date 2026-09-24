@@ -11,7 +11,7 @@ const addBtn = document.getElementById("dac-add-config");
 if (configsEl && template && addBtn) {
   const MODELS = {
     vigour: "/api/da-config/model/vigour",
-    badolux: "/api/da-config/model/badolux",
+    badolux: "/configurator/badolux-model.json",
   };
 
   const models = {}; // supplier -> parsed model (cached across all cards)
@@ -140,6 +140,17 @@ if (configsEl && template && addBtn) {
           finish: l.article.finishText || null,
         }));
       });
+    },
+    // Returns [{articleNumbers: [...], imageUrl: '...'}] per completed card.
+    // Used by collectDuschabtrennungConfigurator to persist preview images.
+    getPreviewImageData() {
+      return entries
+        .filter((entry) => entry.resolved && entry.instance)
+        .map((entry) => ({
+          articleNumbers: entry.resolved.lines.map((l) => l.article.articleNumber),
+          imageUrl: entry.instance.previewImageUrl?.() || null,
+        }))
+        .filter((d) => d.imageUrl);
     },
     getState() {
       // array of raw engine states {selections, sizes, __supplier} — one per card
