@@ -15134,7 +15134,7 @@ function restoreOptionalPage(opt) {
       cat_METER: ["opt_TECEADS"],
       cat_RAMPE: ["opt_RAMPE35"],
       cat_WESGH: ["opt_WESGH", "opt_TRGAVS15", "opt_INSTMATROH"],
-      cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003", "opt_CLPWCF10", "opt_WCBF", "opt_CLPSSI"],
+      cat_WC: (window.WC_PRODUCT_IDS || []).map((id) => `opt_${id}`) /* from WC_WALL_PRODUCTS */,
       cat_REHA : ["opt_24081000","opt_24081100","opt_24081500","opt_24081600","opt_24081005",
         "opt_24081105", "opt_24081505", "opt_24081605", "opt_25670000", "opt_24081800",
         "opt_24096000", "opt_24097000", "opt_24096240", "opt_19034422", "opt_35035200",
@@ -15176,12 +15176,15 @@ function restoreOptionalPage(opt) {
   document.getElementById("cat_WC")?.dispatchEvent(new Event("change", { bubbles: true }));
   document.querySelector('#form-optional input[name="wcMontage"]:checked')?.dispatchEvent(new Event("change", { bubbles: true }));
 
-  const wcProductIds = ["CVIS3WCT112", "SCHALL", "V1DON", "DERSIAS", "CLSIAS", "DERWWCOSVP", "DEDWWC", "CLPWWCOS5", "0601010003"];
+  const wcProductIds = window.WC_PRODUCT_IDS || [];
   requestAnimationFrame(() => {
     wcProductIds.forEach((pid) => {
       const cb = document.getElementById(`opt_${pid}`);
       const qty = document.getElementById(`qty_${pid}`);
-      const savedQty = opt[`qty_${pid}`];
+      // A saved WC selection without this product (e.g. saved before it was
+      // added to WC_WALL_PRODUCTS) means "not selected" — otherwise new
+      // required products would silently appear in old offers/drafts.
+      const savedQty = opt[`qty_${pid}`] ?? (opt.wcMontage ? "0" : undefined);
       if (qty != null && savedQty != null) {
         qty.value = String(savedQty);
       }
@@ -18678,6 +18681,13 @@ cat_SHOWER: "menu_SHOWER",
         category: "accessory",
       },
       {
+        productId: "WWCAG90",
+        image: "./assets/WWCAG90.jpg",
+        fallbackName: "Wand-WC-Anschlussgarnitur PE d:90mm",
+        category: "accessory",
+        montage: "both", // one tile, moved into the visible montage group
+      },
+      {
         productId: "DERSIAS",
         image: "./assets/DERSIAS.jpg",
         fallbackName: "WC-Sitz derby rund",
@@ -18739,6 +18749,9 @@ cat_SHOWER: "menu_SHOWER",
         montage: "Bodenmontage",
       },
     ];
+
+    // Single source for the cat_WC kid lists and the saved-offer restore.
+    window.WC_PRODUCT_IDS = WC_WALL_PRODUCTS.map((item) => item.productId);
 
     const montageOf = (item) => item.montage || "Wandmontage";
 
@@ -18871,79 +18884,75 @@ cat_SHOWER: "menu_SHOWER",
         return card;
       };
 
-      // Accessories group (no seats here anymore)
-      if (accessories.length) {
+      // Per montage: required products (pre-checked), WC+seat pairs
+      // (exclusive), optional products (user-driven). Group order matters:
+      // "both" tiles move into the first non-WC group of the active montage.
+      const addGroup = (montage, kind, title, fill) => {
         const group = document.createElement("div");
         group.className = "wc-generated-group";
-        group.dataset.montage = "Wandmontage";
+        group.dataset.montage = montage;
+        group.dataset.kind = kind;
         group.style.width = "100%";
         const header = document.createElement("h4");
-        header.textContent = "Produkte für Wandmontage";
+        header.textContent = title;
         group.appendChild(header);
         const grid = document.createElement("div");
-        grid.className = "opt-grid";
+        grid.className = kind === "wc" ? "opt-grid wc-pairs-grid" : "opt-grid";
         grid.style.width = "100%";
-        for (const item of accessories) grid.appendChild(buildTile(item));
+        fill(grid);
         group.appendChild(grid);
         wallProductsGrid.appendChild(group);
-      }
+      };
 
-      // WCs group: each WC paired with its corresponding seat tile, every
-      // pair on its own row. Shared seats (e.g. DERSIAS for both DERWWCOSVP
-      // and DEDWWC) are rendered in every pair — the first occurrence keeps
-      // the canonical opt_/qty_ ids; subsequent occurrences are alias tiles.
-      if (wcs.length) {
-        const group = document.createElement("div");
-        group.className = "wc-generated-group";
-        group.dataset.montage = "Wandmontage";
-        group.style.width = "100%";
-        const header = document.createElement("h4");
-        header.textContent = "WCs für Wandmontage";
-        group.appendChild(header);
-        const grid = document.createElement("div");
-        grid.className = "opt-grid wc-pairs-grid";
-        grid.style.width = "100%";
-        const renderedSeats = new Set();
-        for (const wc of wcs) {
-          const pair = document.createElement("div");
-          pair.className = "wc-pair";
-          pair.dataset.wcProductId = wc.productId;
-          pair.appendChild(buildTile(wc));
-          const seat = wc.seatId && seatById[wc.seatId];
-          if (seat) {
-            if (!renderedSeats.has(seat.productId)) {
-              pair.appendChild(buildTile(seat));
-              renderedSeats.add(seat.productId);
-            } else {
-              pair.appendChild(
-                buildTile(seat, { idSuffix: `__pair_${wc.productId}` }),
-              );
-            }
-          }
-          grid.appendChild(pair);
+      // Shared seats (e.g. DERSIAS for both DERWWCOSVP and DEDWWC) are
+      // rendered in every pair — the first occurrence keeps the canonical
+      // opt_/qty_ ids; subsequent occurrences are alias tiles.
+      const renderedSeats = new Set();
+      for (const montage of ["Wandmontage", "Bodenmontage"]) {
+        const inMontage = (item) =>
+          montageOf(item) === montage ||
+          (item.montage === "both" && montage === "Wandmontage"); // rendered once, moved later
+        const required = accessories.filter(inMontage);
+        const wcsHere = wcs.filter(inMontage);
+        const optional = WC_WALL_PRODUCTS.filter(
+          (item) => item.category === "floor" && inMontage(item),
+        );
+
+        if (required.length) {
+          addGroup(montage, "required", `Produkte für ${montage}`, (grid) => {
+            for (const item of required) grid.appendChild(buildTile(item));
+          });
         }
-        group.appendChild(grid);
-        wallProductsGrid.appendChild(group);
-      }
 
-      // Bodenmontage group
-      const floorProducts = WC_WALL_PRODUCTS.filter(
-        (item) => item.category === "floor",
-      );
-      if (floorProducts.length) {
-        const group = document.createElement("div");
-        group.className = "wc-generated-group";
-        group.dataset.montage = "Bodenmontage";
-        group.style.width = "100%";
-        const header = document.createElement("h4");
-        header.textContent = "Produkte für Bodenmontage";
-        group.appendChild(header);
-        const grid = document.createElement("div");
-        grid.className = "opt-grid";
-        grid.style.width = "100%";
-        for (const item of floorProducts) grid.appendChild(buildTile(item));
-        group.appendChild(grid);
-        wallProductsGrid.appendChild(group);
+        if (wcsHere.length) {
+          addGroup(montage, "wc", `WCs für ${montage}`, (grid) => {
+            for (const wc of wcsHere) {
+              const pair = document.createElement("div");
+              pair.className = "wc-pair";
+              pair.dataset.wcProductId = wc.productId;
+              pair.appendChild(buildTile(wc));
+              const seat = wc.seatId && seatById[wc.seatId];
+              if (seat) {
+                if (!renderedSeats.has(seat.productId)) {
+                  pair.appendChild(buildTile(seat));
+                  renderedSeats.add(seat.productId);
+                } else {
+                  pair.appendChild(
+                    buildTile(seat, { idSuffix: `__pair_${wc.productId}` }),
+                  );
+                }
+              }
+              grid.appendChild(pair);
+            }
+          });
+        }
+
+        if (optional.length) {
+          const title = required.length ? `Weitere Produkte für ${montage}` : `Produkte für ${montage}`;
+          addGroup(montage, "optional", title, (grid) => {
+            for (const item of optional) grid.appendChild(buildTile(item));
+          });
+        }
       }
 
       await Promise.all(
@@ -19245,6 +19254,7 @@ cat_SHOWER: "menu_SHOWER",
       );
     }
 
+    let lastMontage = null;
     function applySeatVisibility() {
       const selectedMontage = document.querySelector('#form-optional input[name="wcMontage"]:checked')?.value || "";
       const showSeat = catWc.checked && selectedMontage === "Wandmontage";
@@ -19260,6 +19270,7 @@ cat_SHOWER: "menu_SHOWER",
       }
       if (!showSeat && !showFloor) {
         setWallProductsChecked(false);
+        lastMontage = null;
         return;
       }
 
@@ -19272,6 +19283,24 @@ cat_SHOWER: "menu_SHOWER",
           );
         setMontageChecked("Wandmontage", showSeat);
         setMontageChecked("Bodenmontage", showFloor);
+        // "both" tiles: move into the active montage's first non-WC group
+        const targetGrid = wallProductsGrid?.querySelector(
+          `[data-montage="${selectedMontage}"]:not([data-kind="wc"]) .opt-grid`,
+        );
+        const switched = lastMontage !== selectedMontage;
+        WC_WALL_PRODUCTS.forEach((item) => {
+          const both = item.montage === "both";
+          if (item.category !== "accessory" && !both) return;
+          if (!both && montageOf(item) !== selectedMontage) return;
+          const cb = document.getElementById(`opt_${item.productId}`);
+          if (!cb) return;
+          const card = cb.closest(".opt-item");
+          if (both && targetGrid && card.parentElement !== targetGrid) targetGrid.appendChild(card);
+          // required products are re-checked whenever the montage changes
+          if (switched && item.category === "accessory") cb.checked = true;
+          applyGeneratedTileQty(cb, document.getElementById(`qty_${item.productId}_wrap`));
+        });
+        lastMontage = selectedMontage;
         syncSeatHeightDependentProducts();
         syncExclusiveWcSelection();
       });
@@ -19365,7 +19394,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
     cat_METER: ["opt_TECEADS"],
     cat_RAMPE: ["opt_RAMPE35"],
     cat_WESGH: ["opt_WESGH", "opt_TRGAVS15", "opt_INSTMATROH"],
-    cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003", "opt_CLPWCF10", "opt_WCBF", "opt_CLPSSI"],
+    cat_WC: (window.WC_PRODUCT_IDS || []).map((id) => `opt_${id}`) /* from WC_WALL_PRODUCTS */,
     cat_REHA: [
       "opt_24081000", "opt_24081100", "opt_24081500", "opt_24081600",
       "opt_24081005", "opt_24081105", "opt_24081505", "opt_24081605",
