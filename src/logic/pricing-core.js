@@ -1555,7 +1555,8 @@ if (l.source === "hl_pipe") {
       let finalLabel = label;
 // --- BWT: Universal / Standard Tür (1226) color suffix for Kosten/UI ---
 if (offer === "bwt" && String(l.id || "").trim() === "1226") {
-  const c = String(payload?.bwt?.bwtDoorStdColor || "").trim();
+  const raw = String(payload?.bwt?.tray_color || payload?.bwt?.bwtDoorStdColor || "").trim();
+  const c = { "weiß": "Weiß", Beige: "Bahama Beige", bahama_beige: "Bahama Beige", manhattan: "Manhattan" }[raw] || raw;
   if (c && !/—\s*Farbe:/i.test(finalLabel)) {
     finalLabel += ` — Farbe: ${c}`;
   }
