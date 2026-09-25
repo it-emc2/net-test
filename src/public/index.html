@@ -8617,12 +8617,13 @@ button.dm-btn-danger:focus-visible {
                       <input id="bwtDoorStdQty" name="bwtDoorStdQty" type="number" min="1" step="1" placeholder="1"
                         inputmode="numeric" value="1" />
 
-                      <label for="bwtDoorStdColor" class="req">Farbe Universal / Standard Tür</label>
-                      <select id="bwtDoorStdColor" name="bwtDoorStdColor">
-                        <option value="weiß" selected>weiß</option>
-                        <option value="Beige">Beige</option>
-                        <option value="Manhattan">Manhattan</option>
-                      </select>
+                      <label id="bwtDoorStdColorLabel" class="req">Farbe Universal / Standard Tür</label>
+                      <div class="bwt-door-colors" role="radiogroup" aria-labelledby="bwtDoorStdColorLabel">
+                        <input type="text" id="bwtDoorStdColor" name="bwtDoorStdColor" value="weiß" style="display:none" tabindex="-1" aria-hidden="true" />
+                        <button type="button" role="radio" data-value="weiß"><span class="bwt-door-colors__dot" style="background:#fffdfa"></span>Weiß</button>
+                        <button type="button" role="radio" data-value="Beige"><span class="bwt-door-colors__dot" style="background:#FDF5EA"></span>Bahama Beige</button>
+                        <button type="button" role="radio" data-value="Manhattan"><span class="bwt-door-colors__dot" style="background:#D1D0CC"></span>Manhattan</button>
+                      </div>
                     </div>
                   </label>
                 </div>
@@ -8786,12 +8787,13 @@ button.dm-btn-danger:focus-visible {
                       <input id="bwtDoorBudgetQty" name="bwtDoorBudgetQty" type="number" min="1" step="1"
                         placeholder="1" inputmode="numeric" value="1" />
 
-                      <label for="bwtDoorBudgetColor" class="req">Farbe Budget Tür - Verona</label>
-                      <select id="bwtDoorBudgetColor" name="bwtDoorBudgetColor">
-                        <option value="weiß" selected>weiß</option>
-                        <option value="Beige">Beige</option>
-                        <option value="Manhattan">Manhattan</option>
-                      </select>
+                      <label id="bwtDoorBudgetColorLabel" class="req">Farbe Budget Tür - Verona</label>
+                      <div class="bwt-door-colors" role="radiogroup" aria-labelledby="bwtDoorBudgetColorLabel">
+                        <input type="text" id="bwtDoorBudgetColor" name="bwtDoorBudgetColor" value="weiß" style="display:none" tabindex="-1" aria-hidden="true" />
+                        <button type="button" role="radio" data-value="weiß"><span class="bwt-door-colors__dot" style="background:#fffdfa"></span>Weiß</button>
+                        <button type="button" role="radio" data-value="Beige"><span class="bwt-door-colors__dot" style="background:#FDF5EA"></span>Bahama Beige</button>
+                        <button type="button" role="radio" data-value="Manhattan"><span class="bwt-door-colors__dot" style="background:#D1D0CC"></span>Manhattan</button>
+                      </div>
                     </div>
                   </label>
                 </div>
@@ -8811,12 +8813,13 @@ button.dm-btn-danger:focus-visible {
                       <input id="bwtDoorVariodoorQty" name="bwtDoorVariodoorQty" type="number" min="1" step="1"
                         placeholder="1" inputmode="numeric" value="1" />
 
-                      <label for="bwtDoorVariodoorColor" class="req">Farbe Variodoor</label>
-                      <select id="bwtDoorVariodoorColor" name="bwtDoorVariodoorColor">
-                        <option value="weiß" selected>weiß</option>
-                        <option value="Beige">Beige</option>
-                        <option value="Manhattan">Manhattan</option>
-                      </select>
+                      <label id="bwtDoorVariodoorColorLabel" class="req">Farbe Variodoor</label>
+                      <div class="bwt-door-colors" role="radiogroup" aria-labelledby="bwtDoorVariodoorColorLabel">
+                        <input type="text" id="bwtDoorVariodoorColor" name="bwtDoorVariodoorColor" value="weiß" style="display:none" tabindex="-1" aria-hidden="true" />
+                        <button type="button" role="radio" data-value="weiß"><span class="bwt-door-colors__dot" style="background:#fffdfa"></span>Weiß</button>
+                        <button type="button" role="radio" data-value="Beige"><span class="bwt-door-colors__dot" style="background:#FDF5EA"></span>Bahama Beige</button>
+                        <button type="button" role="radio" data-value="Manhattan"><span class="bwt-door-colors__dot" style="background:#D1D0CC"></span>Manhattan</button>
+                      </div>
                     </div>
                   </label>
                 </div>
@@ -8861,47 +8864,6 @@ button.dm-btn-danger:focus-visible {
               </div>
 
               <div class="bwt-config-card">
-                <div class="section-title">Farbe der Tür</div>
-                <p class="section-subtitle">Bitte wählen Sie eine Wunschfarbe aus.</p>
-
-                <div class="color-swatch-group">
-                  <label class="color-swatch">
-                    <input type="radio" name="tray_color" value="Weiß" aria-label="Weiß (#fffdfa)" />
-                    <div class="color-swatch__preview" style="background-color: #fffdfa;"></div>
-                    <div class="color-swatch__info">
-                      <div class="color-swatch__radio">
-                        <div class="color-swatch__radio-inner"></div>
-                      </div>
-                      <span class="color-swatch__label">Weiß</span>
-                      <span class="color-swatch__code">#fffdfa</span>
-                    </div>
-                  </label>
-
-                  <label class="color-swatch">
-                    <input type="radio" name="tray_color" value="manhattan" aria-label="Manhattan (#D1D0CC)" />
-                    <div class="color-swatch__preview" style="background-color: #D1D0CC;"></div>
-                    <div class="color-swatch__info">
-                      <div class="color-swatch__radio">
-                        <div class="color-swatch__radio-inner"></div>
-                      </div>
-                      <span class="color-swatch__label">Manhattan</span>
-                      <span class="color-swatch__code">#D1D0CC</span>
-                    </div>
-                  </label>
-
-                  <label class="color-swatch">
-                    <input type="radio" name="tray_color" value="bahama_beige" aria-label="Bahama Beige (#FDF5EA)" />
-                    <div class="color-swatch__preview" style="background-color: #FDF5EA;"></div>
-                    <div class="color-swatch__info">
-                      <div class="color-swatch__radio">
-                        <div class="color-swatch__radio-inner"></div>
-                      </div>
-                      <span class="color-swatch__label">Bahama Beige</span>
-                      <span class="color-swatch__code">#FDF5EA</span>
-                    </div>
-                  </label>
-                </div>
-
                 <div class="bwt-note-box">
                   <strong>Hinweis:</strong><br>
                   - Zusätzlicher Verschluss 49€ EK-Preis grundsätzlich wird automatisch mitkalkuliert.<br>

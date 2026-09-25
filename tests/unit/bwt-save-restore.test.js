@@ -76,7 +76,6 @@ function restoreBwt(bwt) {
 
   // Qtys & colors
   if (bwt.bwtDoorStdQty != null) setByNameOrId("bwtDoorStdQty", bwt.bwtDoorStdQty);
-  if (bwt.bwtDoorStdColor != null) setByNameOrId("bwtDoorStdColor", bwt.bwtDoorStdColor);
   if (bwt.bwtDoorStdHeight != null) setByNameOrId("bwtDoorStdHeight", bwt.bwtDoorStdHeight);
 
   // Individual Tür - Wien dimensions
@@ -95,8 +94,11 @@ function restoreBwt(bwt) {
   // Anschlag (Links / Rechts radio)
   if (bwt.bwtAnschlag) setRadio("bwtAnschlag", bwt.bwtAnschlag);
 
-  // Farbe (tray_color radio)
-  if (bwt.tray_color) setRadio("tray_color", bwt.tray_color);
+  // Door colors; old offers saved it in the removed "Farbe der Tür" card (tray_color)
+  const trayColor = { "Weiß": "weiß", manhattan: "Manhattan", bahama_beige: "Beige" }[bwt.tray_color];
+  ["bwtDoorStdColor", "bwtDoorBudgetColor", "bwtDoorVariodoorColor"].forEach((k) =>
+    setByNameOrId(k, trayColor || bwt[k]),
+  );
 }
 
 // ─── Minimal BWT form HTML ───────────────────────────────────────────────────
@@ -114,11 +116,10 @@ function buildBwtForm() {
 
     <!-- Standard Tür fields -->
     <input id="bwtDoorStdQty"    name="bwtDoorStdQty"    type="number" value="1" />
-    <select id="bwtDoorStdColor" name="bwtDoorStdColor">
-      <option value="weiß" selected>weiß</option>
-      <option value="Beige">Beige</option>
-      <option value="Manhattan">Manhattan</option>
-    </select>
+    <!-- Door color pills write these hidden inputs -->
+    <input type="text" id="bwtDoorStdColor"       name="bwtDoorStdColor"       value="weiß" style="display:none" />
+    <input type="text" id="bwtDoorBudgetColor"    name="bwtDoorBudgetColor"    value="weiß" style="display:none" />
+    <input type="text" id="bwtDoorVariodoorColor" name="bwtDoorVariodoorColor" value="weiß" style="display:none" />
     <input id="bwtDoorStdHeight" name="bwtDoorStdHeight" type="number" value="40" min="33" max="40" />
 
     <!-- Individual Tür - Wien fields -->
@@ -152,11 +153,6 @@ function buildBwtForm() {
     <!-- Türanschlag (Links / Rechts) -->
     <input type="radio" name="bwtAnschlag" value="Links"  />
     <input type="radio" name="bwtAnschlag" value="Rechts" />
-
-    <!-- Farbe (tray_color) -->
-    <input type="radio" name="tray_color" value="Weiß"         />
-    <input type="radio" name="tray_color" value="manhattan"    />
-    <input type="radio" name="tray_color" value="bahama_beige" />
   `;
   document.body.appendChild(form);
   return form;
@@ -197,23 +193,8 @@ describe("BWT Save/Restore – Anschlag, Farbe, door dimensions", () => {
       expect(bwt.bwtAnschlag).toBeUndefined();
     });
 
-    test("captures tray_color=Weiß", () => {
-      document.querySelector('input[name="tray_color"][value="Weiß"]').checked = true;
-      const bwt = formToObject(form);
-      expect(bwt.tray_color).toBe("Weiß");
-    });
 
-    test("captures tray_color=manhattan", () => {
-      document.querySelector('input[name="tray_color"][value="manhattan"]').checked = true;
-      const bwt = formToObject(form);
-      expect(bwt.tray_color).toBe("manhattan");
-    });
 
-    test("captures tray_color=bahama_beige", () => {
-      document.querySelector('input[name="tray_color"][value="bahama_beige"]').checked = true;
-      const bwt = formToObject(form);
-      expect(bwt.tray_color).toBe("bahama_beige");
-    });
 
     test("captures bwtDoorStdHeight number value", () => {
       document.getElementById("bwtDoorStdHeight").value = "36";
@@ -305,35 +286,8 @@ describe("BWT Save/Restore – Anschlag, Farbe, door dimensions", () => {
       expect(document.querySelector('input[name="bwtAnschlag"][value="Rechts"]').checked).toBe(true);
     });
 
-    test("tray_color=manhattan survives save/restore", () => {
-      document.querySelector('input[name="tray_color"][value="manhattan"]').checked = true;
-      const payload = formToObject(form);
 
-      document.querySelectorAll('input[name="tray_color"]').forEach((r) => r.checked = false);
 
-      restoreBwt(payload);
-      expect(document.querySelector('input[name="tray_color"][value="manhattan"]').checked).toBe(true);
-    });
-
-    test("tray_color=bahama_beige survives save/restore", () => {
-      document.querySelector('input[name="tray_color"][value="bahama_beige"]').checked = true;
-      const payload = formToObject(form);
-
-      document.querySelectorAll('input[name="tray_color"]').forEach((r) => r.checked = false);
-
-      restoreBwt(payload);
-      expect(document.querySelector('input[name="tray_color"][value="bahama_beige"]').checked).toBe(true);
-    });
-
-    test("tray_color=Weiß survives save/restore", () => {
-      document.querySelector('input[name="tray_color"][value="Weiß"]').checked = true;
-      const payload = formToObject(form);
-
-      document.querySelectorAll('input[name="tray_color"]').forEach((r) => r.checked = false);
-
-      restoreBwt(payload);
-      expect(document.querySelector('input[name="tray_color"][value="Weiß"]').checked).toBe(true);
-    });
 
     test("bwtDoorStdHeight survives save/restore", () => {
       document.getElementById("bwtDoorStdHeight").value = "36";
@@ -343,6 +297,30 @@ describe("BWT Save/Restore – Anschlag, Farbe, door dimensions", () => {
 
       restoreBwt(payload);
       expect(document.getElementById("bwtDoorStdHeight").value).toBe("36");
+    });
+
+    test.each([
+      ["Weiß", "weiß"],
+      ["manhattan", "Manhattan"],
+      ["bahama_beige", "Beige"],
+    ])("legacy tray_color=%s is migrated into door colors (%s)", (tray, expected) => {
+      restoreBwt({ bwtDoorStdColor: "weiß", tray_color: tray });
+      expect(document.getElementById("bwtDoorStdColor").value).toBe(expected);
+      expect(document.getElementById("bwtDoorBudgetColor").value).toBe(expected);
+      expect(document.getElementById("bwtDoorVariodoorColor").value).toBe(expected);
+    });
+
+    test("Budget and Variodoor colors survive save/restore", () => {
+      document.getElementById("bwtDoorBudgetColor").value = "Beige";
+      document.getElementById("bwtDoorVariodoorColor").value = "Manhattan";
+      const payload = formToObject(form);
+
+      document.getElementById("bwtDoorBudgetColor").value = "weiß";
+      document.getElementById("bwtDoorVariodoorColor").value = "weiß";
+
+      restoreBwt(payload);
+      expect(document.getElementById("bwtDoorBudgetColor").value).toBe("Beige");
+      expect(document.getElementById("bwtDoorVariodoorColor").value).toBe("Manhattan");
     });
 
     test("bwtDoorStdColor survives save/restore", () => {
@@ -425,13 +403,12 @@ describe("BWT Save/Restore – Anschlag, Farbe, door dimensions", () => {
       expect(document.getElementById("bwtDoorIndWienGlasFrameColor").value).toBe("anthrazit");
     });
 
-    test("complete scenario: Anschlag=Rechts + tray_color=manhattan + Wien door", () => {
+    test("complete scenario: Anschlag=Rechts + Wien door", () => {
       document.getElementById("bwtDoorStd").checked = false;
       document.getElementById("bwtDoorIndWien").checked = true;
       document.getElementById("bwtDoorIndWienHeight").value = "30";
       document.getElementById("bwtDoorIndWienWidth").value = "35";
       document.querySelector('input[name="bwtAnschlag"][value="Rechts"]').checked = true;
-      document.querySelector('input[name="tray_color"][value="manhattan"]').checked = true;
 
       const payload = formToObject(form);
 
@@ -440,7 +417,6 @@ describe("BWT Save/Restore – Anschlag, Farbe, door dimensions", () => {
       expect(payload.bwtDoorIndWienHeight).toBe("30");
       expect(payload.bwtDoorIndWienWidth).toBe("35");
       expect(payload.bwtAnschlag).toBe("Rechts");
-      expect(payload.tray_color).toBe("manhattan");
 
       // Full reset
       document.getElementById("bwtDoorStd").checked = true;
@@ -448,7 +424,6 @@ describe("BWT Save/Restore – Anschlag, Farbe, door dimensions", () => {
       document.getElementById("bwtDoorIndWienHeight").value = "";
       document.getElementById("bwtDoorIndWienWidth").value = "";
       document.querySelectorAll('input[name="bwtAnschlag"]').forEach((r) => r.checked = false);
-      document.querySelectorAll('input[name="tray_color"]').forEach((r) => r.checked = false);
 
       // Restore
       restoreBwt(payload);
@@ -458,9 +433,6 @@ describe("BWT Save/Restore – Anschlag, Farbe, door dimensions", () => {
       expect(document.getElementById("bwtDoorIndWienWidth").value).toBe("35");
       expect(
         document.querySelector('input[name="bwtAnschlag"][value="Rechts"]').checked
-      ).toBe(true);
-      expect(
-        document.querySelector('input[name="tray_color"][value="manhattan"]').checked
       ).toBe(true);
     });
   });
@@ -522,7 +494,6 @@ describe("BWT Save/Restore – Anschlag, Farbe, door dimensions", () => {
 
       // These lines were never reached in the buggy version:
       if (bwt.bwtAnschlag) setRadio("bwtAnschlag", bwt.bwtAnschlag);
-      if (bwt.tray_color) setRadio("tray_color", bwt.tray_color);
     }
 
     /** Fixed version with typeof guard – mirrors the fix in script.js */
@@ -538,7 +509,6 @@ describe("BWT Save/Restore – Anschlag, Farbe, door dimensions", () => {
 
       // These lines ARE reached now:
       if (bwt.bwtAnschlag) setRadio("bwtAnschlag", bwt.bwtAnschlag);
-      if (bwt.tray_color) setRadio("tray_color", bwt.tray_color);
     }
 
     test("BUGGY version: calling undefined function crashes restore, Anschlag not set", () => {
@@ -553,18 +523,15 @@ describe("BWT Save/Restore – Anschlag, Farbe, door dimensions", () => {
 
     test("FIXED version: typeof guard prevents crash, Anschlag IS restored", () => {
       document.querySelector('input[name="bwtAnschlag"][value="Links"]').checked = true;
-      document.querySelector('input[name="tray_color"][value="manhattan"]').checked = true;
       const payload = formToObject(form);
 
       document.querySelectorAll('input[name="bwtAnschlag"]').forEach((r) => r.checked = false);
-      document.querySelectorAll('input[name="tray_color"]').forEach((r) => r.checked = false);
 
       // The fixed restore does NOT throw
       expect(() => restoreBwtFixed(payload)).not.toThrow();
 
-      // And Anschlag + Farbe are correctly restored
+      // And Anschlag is correctly restored
       expect(document.querySelector('input[name="bwtAnschlag"][value="Links"]').checked).toBe(true);
-      expect(document.querySelector('input[name="tray_color"][value="manhattan"]').checked).toBe(true);
     });
   });
 });

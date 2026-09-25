@@ -1661,6 +1661,33 @@ function hoursToHHMM(n) {
   return `${h}:${String(m).padStart(2, "0")}`;
 }
 
+// BWT door color pills: buttons write the hidden bwtDoor*Color inputs, which stay
+// the saved/restored value. restoreBwt() calls window.syncBwtDoorColors().
+(function initBwtDoorColors() {
+  const form = document.getElementById("form-bwt");
+  if (!form) return;
+  const sync = () =>
+    form.querySelectorAll(".bwt-door-colors").forEach((group) => {
+      const input = group.querySelector("input");
+      group.querySelectorAll("button[data-value]").forEach((b) =>
+        b.setAttribute("aria-checked", String(b.dataset.value === input.value)),
+      );
+    });
+  form.addEventListener("click", (e) => {
+    const b = e.target.closest(".bwt-door-colors button[data-value]");
+    if (!b) return;
+    e.preventDefault(); // don't toggle the surrounding door card checkbox
+    const input = b.closest(".bwt-door-colors").querySelector("input");
+    input.value = b.dataset.value;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    sync();
+  });
+  form.addEventListener("reset", () => setTimeout(sync));
+  window.syncBwtDoorColors = sync;
+  sync();
+})();
+
 (function initBwtSteelAutoNote() {
   const form = document.getElementById("form-bwt");
   if (!form) return;
@@ -14621,9 +14648,6 @@ function restoreBwt(bwt) {
   if (bwt.bwtDoorStdQty != null) {
     setByNameOrId("bwtDoorStdQty", bwt.bwtDoorStdQty);
   }
-  if (bwt.bwtDoorStdColor != null) {
-  setByNameOrId("bwtDoorStdColor", bwt.bwtDoorStdColor);
-}
 
   if (bwt.bwtDoorBudgetQty != null) {
     setByNameOrId("bwtDoorBudgetQty", bwt.bwtDoorBudgetQty);
@@ -14685,10 +14709,12 @@ if (typeof syncBwtDoorStdHeightCaption === "function") {
     setRadio("bwtAnschlag", bwt.bwtAnschlag);
   }
 
-  // --- Farbe (tray_color: color radio group) ---
-  if (bwt.tray_color) {
-    setRadio("tray_color", bwt.tray_color);
-  }
+  // --- Farbe: old offers saved it in the removed "Farbe der Tür" card (tray_color) ---
+  const trayColor = { "Weiß": "weiß", manhattan: "Manhattan", bahama_beige: "Beige" }[bwt.tray_color];
+  ["bwtDoorStdColor", "bwtDoorBudgetColor", "bwtDoorVariodoorColor"].forEach((k) =>
+    setByNameOrId(k, trayColor || bwt[k]),
+  );
+  window.syncBwtDoorColors?.();
 
   // --- Haltegriffe (bwtAids[] + *_Qty) ---
   let aids = [];
@@ -20262,8 +20288,6 @@ window.addEventListener("offerflow:changed", () => {
         bwtDoorStdHeight: "36", // valid range: 33–40
         // bwtAnschlag must match the HTML radio value exactly ("Links" or "Rechts")
         bwtAnschlag: "Rechts",
-        // tray_color must match HTML radio value exactly ("Weiß", "manhattan", "bahama_beige")
-        tray_color: "Weiß",
         bwtAids: ["Haltegriff30"],
         bwtAidsHaltegriff30Qty: "1",
         bwtNote: "Musterdaten für Badewannentür.",
@@ -20511,7 +20535,6 @@ window.addEventListener("offerflow:changed", () => {
                   bwtDoorStdColor: "weiß",
                   bwtDoorStdHeight: "36",
                   bwtAnschlag: "Rechts",
-                  tray_color: "Weiß",
                   bwtAids: ["Haltegriff30"],
                   bwtAidsHaltegriff30Qty: "1",
                   bwtNote: "Musterdaten · Badewannentür",

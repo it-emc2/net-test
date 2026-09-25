@@ -1440,14 +1440,20 @@ if (doorAnschlag) {
   bullet1Text += ` - Türanschlag: ${doorAnschlag}`;
 }
 
-// Farbe (derive from whichever door type is selected)
+// Farbe of the selected door; old offers saved it in the removed "Farbe der Tür" card (tray_color)
+const colorByDoorType = {
+  "Universal / Standard Tür": bwt?.bwtDoorStdColor,
+  "Budget Tür - Verona": bwt?.bwtDoorBudgetColor,
+  Variodoor: bwt?.bwtDoorVariodoorColor,
+};
+const rawDoorColor = String(
+  bwt?.tray_color ||
+    [].concat(bwt?.bwtDoorType || []).map((t) => colorByDoorType[t]).find(Boolean) ||
+    "",
+).trim();
 const doorColor =
-  (bwt?.bwtDoorStdColor ||
-    bwt?.bwtDoorBudgetColor ||
-    bwt?.bwtDoorVariodoorColor ||
-    bwt?.bwtDoorIndWienColor ||
-    bwt?.bwtDoorIndWienGlasColor ||
-    "").trim();
+  { "weiß": "Weiß", Beige: "Bahama Beige", bahama_beige: "Bahama Beige", manhattan: "Manhattan" }[rawDoorColor] ||
+  rawDoorColor;
 
 if (doorColor) {
   bullet1Text += ` - Farbe: ${doorColor}`;
