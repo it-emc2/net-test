@@ -8801,7 +8801,35 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
 
   payerRadios.forEach((r) => r.addEventListener("change", applyAufschlagRules));
 
-  function applyAutomatisch(rawEur) {
+  // Largest u (Aufschlag in 1/10000 %) with priceAt(u) <= goal, starting the
+  // search at the estimate u0. Price is monotone in u but not linear (server
+  // rounds per step, BWT grabs carry the Aufschlag in their line price), so we
+  // bracket with growing steps and then bisect. Returns -1 if even u=0 is over.
+  async function findBestAufschlagUnits(priceAt, u0, goal) {
+    let lo = Math.max(0, u0);
+    let step = 1;
+    while ((await priceAt(lo)) > goal) {
+      if (lo === 0) return -1;
+      lo = Math.max(0, lo - step);
+      step *= 2;
+    }
+    step = 1;
+    let hi = lo + step;
+    while ((await priceAt(hi)) <= goal) {
+      lo = hi;
+      step *= 2;
+      hi = lo + step;
+    }
+    while (hi - lo > 1) {
+      const mid = Math.floor((lo + hi) / 2);
+      if ((await priceAt(mid)) <= goal) lo = mid;
+      else hi = mid;
+    }
+    return lo;
+  }
+  window.__findBestAufschlagUnits = findBestAufschlagUnits;
+
+  async function applyAutomatisch(rawEur) {
     const pricing = window.__pricing;
     if (!pricing) {
       alert("Bitte zuerst einen Preis berechnen (Preisvorschau laden).");
@@ -8812,7 +8840,10 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
       alert("Kein Aufschlag-Betrag vorhanden – Automatisch nicht möglich.");
       return;
     }
-    const targetTotal = parseFloat(String(rawEur).replace(/\s/g, "").replace(",", "."));
+    // "4.180" / "4.180,50" → thousands dots removed before parsing
+    const targetTotal = parseFloat(
+      String(rawEur).replace(/\s/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", "."),
+    );
     if (!Number.isFinite(targetTotal) || targetTotal <= 0) {
       alert("Bitte einen gültigen Zielpreis eingeben.");
       return;
@@ -8820,13 +8851,36 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
     // Factor = 1 + TAX_RATE, derived from actual server response to avoid hardcoding
     const netAmount = currentTotal - (vatOnNet || 0);
     const factor = netAmount > 0 ? currentTotal / netAmount : 1.19;
-    const newPct = currentPctVal + currentPctVal * (targetTotal - currentTotal) / (factor * currentMarkup);
-    const rounded = Math.round(newPct * 10000) / 100; // two decimal places, e.g. 29.73
-    if (!Number.isFinite(rounded) || rounded < 0) {
-      alert("Der berechnete Aufschlag wäre negativ – der Zielpreis liegt unter den Selbstkosten.");
-      return;
+    const estPct = currentPctVal + currentPctVal * (targetTotal - currentTotal) / (factor * currentMarkup);
+    const u0 = Number.isFinite(estPct) ? Math.floor(estPct * 1e6) : 0; // 1 unit = 0.0001 %
+
+    // Total must end up strictly below the target — as close as possible.
+    const goal = Math.round(targetTotal * 100 - 1) / 100;
+    const pctStr = (u) => (u / 10000).toFixed(4);
+    const cache = new Map();
+    const priceAt = async (u) => {
+      if (!cache.has(u)) {
+        const pl = window.buildPayload();
+        pl.Kundendaten = { ...(pl.Kundendaten || {}), aufschlag: `${pctStr(u)}%` };
+        cache.set(u, Number((await window.__fetchPrice(pl))?.total));
+      }
+      return cache.get(u);
+    };
+
+    if (autoBtn) autoBtn.disabled = true;
+    try {
+      const best = await findBestAufschlagUnits(priceAt, u0, goal);
+      if (best < 0) {
+        alert("Der berechnete Aufschlag wäre negativ – der Zielpreis liegt unter den Selbstkosten.");
+        return;
+      }
+      setAufschlag(pctStr(best));
+    } catch (err) {
+      console.error("[Zielpreis]", err);
+      alert("Zielpreis-Berechnung fehlgeschlagen. Bitte erneut versuchen.");
+    } finally {
+      if (autoBtn) autoBtn.disabled = false;
     }
-    setAufschlag(String(rounded));
   }
 
   document.querySelectorAll(".sonderaufschlag-preset").forEach((btn) => {
@@ -11522,6 +11576,7 @@ function attachDuschwanneToPayload(payload) {
     if (!r.ok) throw new Error(await r.text());
     return r.json();
   }
+  window.__fetchPrice = fetchPrice; // Zielpreis search: price a payload without applying it
 
   window.__pricing = null;
   let pricingRequestSeq = 0;
