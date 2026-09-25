@@ -1248,16 +1248,24 @@ async function mapData(body = {}, computed = {}) {
 
   // Title and totals unchanged:
   const ServicePosTitle = services?.title || "Auszuführende Arbeiten";
-  const ServiceUnitPrice = fmtCurrency(services?.sum || 0);
-  const ServiceTotal = fmtCurrency(services?.sum || 0);
+  // Aktion Haltegriff: Material/Arbeit carry the fixed display values of the
+  // free 30 cm grab bar and the bonus row takes them back off (net effect 0).
+  // Snapshots priced before this existed lack the fields → old layout.
+  const hasGrabDisplay = computed?.grabBonusMaterial !== undefined;
+  const grabBonusMat = Number(computed?.grabBonusMaterial || 0);
+  const grabBonusArb = Number(computed?.grabBonusArbeit || 0);
+  const grabBonusTotal = grabBonusMat + grabBonusArb;
+
+  const ServiceUnitPrice = fmtCurrency((services?.sum || 0) + grabBonusArb);
+  const ServiceTotal = fmtCurrency((services?.sum || 0) + grabBonusArb);
 
   // Materials block
   const MaterialsPosTitle = materials?.title || "Material für Badumbau";
-  const MaterialsUnitPrice = fmtCurrency(material_plus_aufschlag || 0);
+  const MaterialsUnitPrice = fmtCurrency((material_plus_aufschlag || 0) + grabBonusMat);
 
   //const MaterialsTotal = fmtCurrency(materials?.sum || 0);
 
-  const MaterialsTotal = fmtCurrency(material_plus_aufschlag || 0);
+  const MaterialsTotal = fmtCurrency((material_plus_aufschlag || 0) + grabBonusMat);
 
   // Materials block (lines for "Material für Badumbau")
   // Materials block
@@ -1561,14 +1569,18 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
 
       // "Summe Leistungen" from pricing.js (already incl. BWT + Extra Arbeitszeit)
       const serviceSum = Number(services?.sum || 0) || 0;
+      const bwtPos001 =
+        bonusGross + netAfterRabatt_and_Bonus +
+        (hasGrabDisplay ? grabBonusTotal - Number(computed?.grabBonusReal || 0) : 0);
 
       BwtRows.push({
         Pos: "001",
         Menge: formatQty(doorQty),
 
         // add Summe Leistungen to both unit price and total to the door price 
-        Einheitspreis: fmtCurrency(bonusGross + netAfterRabatt_and_Bonus), //Einheitspreis: fmtCurrency(doorUnitPrice + serviceSum)
-        Gesamt: fmtCurrency(bonusGross + netAfterRabatt_and_Bonus), // fmtCurrency(doorMaterialsTotal + serviceSum)
+        // Pre-bonus value; the Aktion-Haltegriff counts with its display value.
+        Einheitspreis: fmtCurrency(bwtPos001), //Einheitspreis: fmtCurrency(doorUnitPrice + serviceSum)
+        Gesamt: fmtCurrency(bwtPos001), // fmtCurrency(doorMaterialsTotal + serviceSum)
 
         Title: "Liefern und Montieren einer Badewannentür",
         Bullet1: bullet1Text,
@@ -1635,15 +1647,15 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
   // 001 = Arbeiten, 002 = Material (beide fest im Template) → Bonus startet bei 003
   let pos = "003";
 
-  if (hasBonusGrab) {
+  if (hasGrabDisplay ? grabBonusTotal > 0 : hasBonusGrab) {
     BonusRows.push({
       Bonus: pos,
       BonusMenge: "1 Stk",
       BonusLabel: "Aktion: Haltegriff",
       BonusDetail:
         "1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage",
-      preis: "0,00 €",
-      gesamt: "0,00 €",
+      preis: hasGrabDisplay ? `-${fmtCurrency(grabBonusTotal)}` : "0,00 €",
+      gesamt: hasGrabDisplay ? `-${fmtCurrency(grabBonusTotal)}` : "0,00 €",
     });
     pos = "004";
   }

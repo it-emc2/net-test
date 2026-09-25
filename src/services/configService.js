@@ -161,6 +161,16 @@ export const CONFIG_SCHEMA = [
     label: 'Neukundenbonus (Brutto)', unit: '€', type: 'euro', section: 'zuschuss', order: 3,
     description: 'Bruttowert des Neukundenbonus (Bonus 300 / Bestandkundenbonus)',
   },
+  {
+    key: 'GRAB_BONUS_MATERIAL_NET', value: 100,
+    label: 'Aktion Haltegriff – Material (Netto)', unit: '€', type: 'euro', section: 'zuschuss', order: 4,
+    description: 'Materialwert des Gratis-Haltegriffs (30 cm) im Angebot; wird in der Aktionszeile wieder abgezogen',
+  },
+  {
+    key: 'GRAB_BONUS_LABOR_NET', value: 47.06,
+    label: 'Aktion Haltegriff – Arbeit (Netto)', unit: '€', type: 'euro', section: 'zuschuss', order: 5,
+    description: 'Montagewert des Gratis-Haltegriffs im Angebot (Material + Arbeit = 147,06 € netto = 175 € brutto)',
+  },
 
   // ── WV EIGENES LAGER ─────────────────────────────────────────────────────
   {

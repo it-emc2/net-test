@@ -209,6 +209,51 @@ describe('Pricing Module', () => {
         
         expect(result.bonusFlags.bonus_Haltegriff).toBe(true);
       });
+
+      describe('Aktion Haltegriff (30 cm only)', () => {
+        const grabs = [
+          { productId: 'CLPESG30', price: 40, name: 'Haltegriff 30' },
+          { productId: 'CLPESG40', price: 50, name: 'Haltegriff 40' },
+        ];
+        const run = (optional, rabatt = { bonusGrab: true }) => {
+          mockProductModel.find.mockReturnValue({
+            lean: jest.fn().mockResolvedValue(grabs),
+          });
+          return pricing.computePrices(createBasePayload({ optional, rabatt }));
+        };
+        const net = (r) => r.netAfterRabatt_and_Bonus;
+
+        test('1× 30 cm is fully free (incl. Aufschlag); Angebot rows net to 0', async () => {
+          const withBonus = await run({ opt_CLPESG30: true, qty_CLPESG30: 1 });
+          const without = await run({ opt_CLPESG30: true, qty_CLPESG30: 1 }, {});
+          const none = await run({});
+
+          expect(withBonus.grabCounts.freeId).toBe('CLPESG30');
+          expect(withBonus.grabBonusMaterial).toBe(100);
+          expect(withBonus.grabBonusArbeit).toBe(47.06);
+          expect(net(withBonus)).toBeCloseTo(net(none), 2);
+          expect(net(without)).toBeGreaterThan(net(none) + 40); // 40 € + Aufschlag
+          // Arbeiten + Material − Aktion = Netto
+          expect(
+            withBonus.services.sum + withBonus.grabBonusArbeit +
+            withBonus.material_plus_aufschlag + withBonus.grabBonusMaterial -
+            (withBonus.grabBonusMaterial + withBonus.grabBonusArbeit),
+          ).toBeCloseTo(net(withBonus), 2);
+        });
+
+        test('40 cm is never free', async () => {
+          const r = await run({ opt_CLPESG40: true, qty_CLPESG40: 1 });
+          expect(r.grabCounts.freeId).toBeNull();
+          expect(r.grabBonusMaterial).toBe(0);
+          expect(r.bonusGross).toBe(0);
+        });
+
+        test('2× 30 cm → only one free, the other billed with Aufschlag', async () => {
+          const one = await run({ opt_CLPESG30: true, qty_CLPESG30: 1 }, {});
+          const two = await run({ opt_CLPESG30: true, qty_CLPESG30: 2 });
+          expect(net(two)).toBeCloseTo(net(one), 2);
+        });
+      });
     });
 
     describe('subsidy calculation', () => {

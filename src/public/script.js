@@ -1470,25 +1470,6 @@ function wireDAQtyAutoFill() {
 
 // Refresh when a panel becomes visible (by hash or tab click)
 
-function syncShowFreeGrabRowVisibility() {
-  const row = document.getElementById("rb-show-free-grab-row");
-  const bonusGrab = document.getElementById("rb-bonus-grab");
-  const showFree = document.getElementById("rb-show-free-grab");
-  if (!row) return;
-
-  const pricing = window.getCanonicalPricingData?.() || null;
-  const total = Number(pricing?.grabCounts?.total || 0);
-  const shouldShow = !!bonusGrab?.checked && total > 0;
-
-  row.style.display = shouldShow ? "" : "none";
-  row.hidden = !shouldShow;
-  row.setAttribute("aria-hidden", String(!shouldShow));
-
-  if (!shouldShow && showFree) {
-    showFree.checked = false;
-  }
-}
-
 function autoRefreshOnEnter() {
   // 1) Hash-based navigation (#rabatt, #kosten-details, #debug …)
   window.addEventListener("hashchange", () => {
@@ -1514,10 +1495,6 @@ function autoRefreshOnEnter() {
 
   // 3) Bonus checkbox itself should also re-render on change
   document.getElementById("rb-bonus-grab")?.addEventListener("change", () => {
-    syncShowFreeGrabRowVisibility();
-    refetchAndRender();
-  });
-  document.getElementById("rb-show-free-grab")?.addEventListener("change", () => {
     refetchAndRender();
   });
 }
@@ -4726,8 +4703,6 @@ function buildPayload() {
     materialDiscountPct: rabattEnabled && isFinite(pct) ? pct / 100 : 0,
     bonus300: rabattEnabled && !!document.getElementById("rb-bonus-300")?.checked,
     bonusGrab: rabattEnabled && !!document.getElementById("rb-bonus-grab")?.checked,
-    showFreeGrabInMaterial:
-      rabattEnabled && !!document.getElementById("rb-show-free-grab")?.checked,
   };
 
   payload.offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
@@ -12925,6 +12900,11 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     const optSum = Number(data.optionalDisplayUI?.sum || 0);
     const rabattAmount = Number(data.rabattAmount || 0);
     const bonusGross = Number(data.bonusGross || 0);
+    // Aktion Haltegriff: the Angebot shows fixed Material/Arbeit values instead
+    // of the real purchase price — say so, so the two can be compared.
+    const grabReal = Number(data.grabBonusReal || 0);
+    const grabMat = Number(data.grabBonusMaterial || 0);
+    const grabArb = Number(data.grabBonusArbeit || 0);
     // Percent label: "19", "19,5" — never a trailing ",00".
     const fmtPct = (frac) => {
       const p = (Number(frac) || 0) * 100;
@@ -12966,6 +12946,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       ${hasDeduction ? `<div class="kosten-sums__rule"><span>Zwischensumme:</span> <b>${euroC(data.Nettobetrag || 0)}</b></div>` : ""}
       ${rabattAmount ? `<div><span>Rabatt:</span> <b>− ${euroC(rabattAmount)}</b></div>` : ""}
       ${bonusGross ? `<div><span>Bonus / Gratis:</span> <b>− ${euroC(bonusGross)}</b></div>` : ""}
+      ${grabReal ? `<div class="kosten-sums__note">davon Aktion Haltegriff ${euroC(grabReal)} (Einkauf) · im Angebot: +${euroC(grabMat)} Material, +${euroC(grabArb)} Arbeit, −${euroC(grabMat + grabArb)} Aktion — Nettobetrag gleich</div>` : ""}
       <div class="kosten-sums__rule kosten-sums__subtotal"><span>Nettobetrag:</span> <b>${euroC(data.netAfterRabatt_and_Bonus || 0)}</b></div>
       <div><span>zzgl. ${taxPct}% MwSt.:</span> <b>${euroC(data.vatOnNet || 0)}</b></div>
       <div class="kosten-sums__total"><span>Gesamt (brutto):</span> <b>${euroC(data.total || 0)}</b></div>
@@ -12990,8 +12971,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       if (!bonusGrab) return;
 
       // authoritative source from server:
-      const total = Number(data?.grabCounts?.total || 0);
-    const shouldShow = total > 0;
+      const shouldShow = Number(data?.grabCounts?.cl30 || 0) > 0;
 
       const row =
         bonusGrab.closest(".form-row") ||
@@ -14547,8 +14527,6 @@ function restoreRabatt(r) {
   }
   setCheckboxById("rb-bonus-300", !!r.bonus300);
   setCheckboxById("rb-bonus-grab", !!r.bonusGrab);
-  setCheckboxById("rb-show-free-grab", !!r.showFreeGrabInMaterial);
-  syncShowFreeGrabRowVisibility();
 
   // "Rabatt hinzufügen?" toggle: enabled if the offer had any discount/bonus,
   // or an explicit rabattEnabled flag was saved.
@@ -17233,12 +17211,6 @@ async function __recalcRabattNow() {
 
 
 document
-  .getElementById("rb-show-free-grab")
-  ?.addEventListener("change", async () => {
-    await __recalcRabattNow();
-  });
-
-document
   .getElementById("rb-bonus-300")
   ?.addEventListener("change", async () => {
     const cb = document.getElementById("rb-bonus-300");
@@ -17439,8 +17411,8 @@ window.setPricingData = function setPricingData(data) {
       document.getElementById("rb-bonus-grab")?.parentElement;
     const cb = document.getElementById("rb-bonus-grab");
 
-    const total = Number(data?.grabCounts?.total || 0);
-    const allow = total > 0;
+    // Aktion Haltegriff applies to a 30 cm grab bar only.
+    const allow = Number(data?.grabCounts?.cl30 || 0) > 0;
 
     if (row) {
       row.style.display = allow ? "" : "none";
@@ -17448,23 +17420,9 @@ window.setPricingData = function setPricingData(data) {
       row.setAttribute("aria-hidden", String(!allow));
     }
     if (!allow && cb && cb.checked) {
-      //cb.checked = false;
+      cb.checked = false;
       cb.dispatchEvent(new Event("change", { bubbles: true }));
     }
-
-    const showFreeRow = document.getElementById("rb-show-free-grab-row");
-    const showFreeCb = document.getElementById("rb-show-free-grab");
-    const allowShowFree = allow && !!cb?.checked;
-
-    if (showFreeRow) {
-      showFreeRow.style.display = allowShowFree ? "" : "none";
-      showFreeRow.hidden = !allowShowFree;
-      showFreeRow.setAttribute("aria-hidden", String(!allowShowFree));
-    }
-    if (!allowShowFree && showFreeCb?.checked) {
-      showFreeCb.checked = false;
-    }
-    syncShowFreeGrabRowVisibility();
   })();
 };
 
@@ -17495,7 +17453,7 @@ window.setPricingData = function setPricingData(data) {
       slider.dispatchEvent(new Event("input", { bubbles: true }));
       slider.dispatchEvent(new Event("change", { bubbles: true }));
     }
-    ["rb-bonus-300", "rb-bonus-grab", "rb-show-free-grab"].forEach((id) => {
+    ["rb-bonus-300", "rb-bonus-grab"].forEach((id) => {
       const cb = document.getElementById(id);
       if (cb && cb.checked) {
         cb.checked = false;
