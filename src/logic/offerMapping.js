@@ -268,13 +268,21 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
   const HasIncluded = included.length > 0;
 
   const ServicePosTitle = services?.title || "Auszuführende Arbeiten";
-  const ServiceUnitPrice = fmtCurrency(services?.sum || 0);
-  const ServiceTotal = fmtCurrency(services?.sum || 0);
+  // Aktion Haltegriff: Material/Arbeit carry the fixed display values of the
+  // free 30 cm grab bar and the bonus row takes them back off (net effect 0).
+  // Snapshots priced before this existed lack the fields → old layout.
+  const hasGrabDisplay = computed?.grabBonusMaterial !== undefined;
+  const grabBonusMat = Number(computed?.grabBonusMaterial || 0);
+  const grabBonusArb = Number(computed?.grabBonusArbeit || 0);
+  const grabBonusTotal = grabBonusMat + grabBonusArb;
+
+  const ServiceUnitPrice = fmtCurrency((services?.sum || 0) + grabBonusArb);
+  const ServiceTotal = fmtCurrency((services?.sum || 0) + grabBonusArb);
 
   // ---- Materials block ----
   const MaterialsPosTitle = materials?.title || "Material für Badumbau";
-  const MaterialsUnitPrice = fmtCurrency(material_plus_aufschlag || 0);
-  const MaterialsTotal = fmtCurrency(material_plus_aufschlag || 0);
+  const MaterialsUnitPrice = fmtCurrency((material_plus_aufschlag || 0) + grabBonusMat);
+  const MaterialsTotal = fmtCurrency((material_plus_aufschlag || 0) + grabBonusMat);
 
   const matForDoc =
     computed.materialsDisplayDocx?.lines || computed.materials?.lines || [];
@@ -530,15 +538,15 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
   const BonusRows = [];
   let pos = "003";
 
-  if (hasBonusGrab) {
+  if (hasGrabDisplay ? grabBonusTotal > 0 : hasBonusGrab) {
     BonusRows.push({
       Bonus: pos,
       BonusMenge: "1 Stk",
       BonusLabel: "Aktion: Haltegriff",
       BonusDetail:
         "1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage",
-      preis: "0,00 €",
-      gesamt: "0,00 €",
+      preis: hasGrabDisplay ? `-${fmtCurrency(grabBonusTotal)}` : "0,00 €",
+      gesamt: hasGrabDisplay ? `-${fmtCurrency(grabBonusTotal)}` : "0,00 €",
     });
     pos = "004";
   }

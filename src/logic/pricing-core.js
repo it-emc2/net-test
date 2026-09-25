@@ -159,33 +159,7 @@ export default (ProductModel, deps = {}) => {
     return null;
   }
 
-  // Minimal helper: adjust only the visible label to billable qty (selected - 1)
-  // - Does NOT change qty, unitPrice, or lineTotal (so totals remain untouched).
-  // - If billable becomes 0 and hideWhenZero=true, remove the line from the list (keeps "0 Stk" hidden).
-  function setGrabLabelToBillable(list, freeId, { hideWhenZero = false } = {}) {
-    if (!freeId) return;
-    const row = list?.find((l) => (l.productId || l.id) === freeId);
-    if (!row) return;
-
-    const selectedQty = Number(row.qty || 0) || 0;
-    const billableQty = Math.max(0, selectedQty - 1);
-
-    if (billableQty === 0 && hideWhenZero) {
-      const idx = list.indexOf(row);
-      if (idx > -1) list.splice(idx, 1);
-      return;
-    }
-
-    // strip any "(hidden)" that older logic may have appended
-    const baseName = (row.name || row.label || row.productId || "")
-      .replace(/\s*\(hidden\)\s*$/, "")
-      .trim();
-
-    row.label = `- ${billableQty} Stk ${baseName}`;
-    // IMPORTANT: do not touch row.qty / row.unitPrice / row.lineTotal
-  }
-
-  // Kosten-Details (internal ordering view) counterpart of the above: the free
+  // Kosten-Details (internal ordering view) view of the Aktion-Haltegriff: the free
   // grab bar is still ordered and paid for by us, so the quantity must stay
   // truthful. Only annotate the line; never rewrite its qty.
   function markGrabFreeInUI(list, freeId) {
@@ -1690,7 +1664,8 @@ color: metaColor || null,
       }),
     );
     const grabTotal = GRAB_IDS.reduce((a, id) => a + (grabQtyById[id] || 0), 0);
-    const freeId = GRAB_IDS.find((id) => (grabQtyById[id] || 0) > 0) || null;
+    // Aktion Haltegriff: only a 30 cm grab bar can be the free one.
+    const freeId = grabQtyById.CLPESG30 > 0 ? "CLPESG30" : null;
 
     // Merge in drift from plain DB-priced lines — same shape as the Vigor
     // drift above, just a different price source, so the existing
@@ -2445,78 +2420,19 @@ try {
 
       // ===== Apply bonus presentation rules =====
       const freeId = grabCounts?.freeId || null;
-      const ONLY_ONE_GRAB = grabCounts.total === 1;
 
       // UI rules (presentation only)
       if (bonusHG && grabCounts.total > 0) {
-        // NOT setGrabLabelToBillable() here: the Kosten tab is the internal
+        // The Kosten tab is the internal
         // ordering view, and the free grab bar still has to be BOUGHT. Keep the
         // real qty/price and just flag which one is free — the money side is
         // already covered by the "Bonus / Gratis" row in the Summen.
         markGrabFreeInUI(uiOptionals, freeId);
-
-        // Single grab bar → hide the worknote in UI (to mirror DOCX behavior)
-        if (ONLY_ONE_GRAB) {
-          const GRAB_NOTE = "Anbringen zusätzlicher Haltegriffe";
-          const uiNoteIdx = uiServices.findIndex((s) =>
-            (s.label || "").includes(GRAB_NOTE),
-          );
-          if (uiNoteIdx >= 0) uiServices.splice(uiNoteIdx, 1);
-        }
       }
 
-      // DOCX rules (presentation only)
-      if (bonusHG && grabCounts.total > 0) {
-        const showFreeGrabInMaterial =
-          payload?.rabatt?.showFreeGrabInMaterial === true;
-
-        if (ONLY_ONE_GRAB) {
-          if (showFreeGrabInMaterial) {
-            // Keep the single free grab visible in DOCX material lines.
-            // Be defensive: if a previous step removed it or it is missing here,
-            // reinsert it from the authoritative material lines.
-            let row = docxMaterials.find((l) => (l.productId || l.id) === freeId);
-            if (!row) {
-              const originalRow = allMatLines.find(
-                (l) => !l.docxHide && (l.productId || l.id) === freeId,
-              );
-              if (originalRow) {
-                docxMaterials.push({ ...originalRow });
-                row = docxMaterials.find((l) => (l.productId || l.id) === freeId);
-              }
-            }
-
-            // Force a visible material label for the single free grab.
-            if (row) {
-              const baseName = (row.name || row.label || row.productId || "")
-                .replace(/^\s*-\s*\d+\s*Stk\s*/i, "")
-                .replace(/\s*\(hidden\)\s*$/i, "")
-                .trim();
-              row.label = `- 1 Stk ${baseName}`;
-            }
-          } else {
-            // Single grab bar → hide it completely in DOCX materials
-            const idx = docxMaterials.findIndex(
-              (l) => (l.productId || l.id) === freeId,
-            );
-            if (idx >= 0) docxMaterials.splice(idx, 1);
-
-            // Remove the worknote line from DOCX services
-            const GRAB_NOTE = "Anbringen zusätzlicher Haltegriffe";
-            const dn = docxServices.findIndex((s) =>
-              (s.label || "").includes(GRAB_NOTE),
-            );
-            if (dn >= 0) docxServices.splice(dn, 1);
-          }
-        } else {
-          // Multiple → decrement one from DOCX (hide when becomes 0),
-          // unless the user explicitly wants the free grab still shown.
-          setGrabLabelToBillable(docxMaterials, freeId, {
-            hideWhenZero: !showFreeGrabInMaterial,
-          });
-        }
-      }
-
+      // DOCX: the free grab bar always stays listed in Material with its real
+      // qty — the Angebot prices it at GRAB_BONUS_MATERIAL_NET and takes it
+      // back off in the "Aktion: Haltegriff" row.
 
       // Pack adjusted displays (presentation only; totals remain from server truth)
       const materialsDisplayUI = {
@@ -2568,7 +2484,10 @@ try {
           markupExemptIds.push(id);
           continue;
         }
-        markupBase += qty * unitPrice;
+        // The free Aktion-Haltegriff is fully free: no Aufschlag on that unit.
+        const freeQty =
+          flags.bonus_Haltegriff && id === materials?.grabCounts?.freeId ? 1 : 0;
+        markupBase += (qty - freeQty) * unitPrice;
       }
 
       // Final markup using the existing percentage
@@ -2608,14 +2527,25 @@ try {
         bonusGross += bonusVal;
         bonus_neu += bonusVal;
       }
+      // Angebot display of the free grab bar: fixed Material + Arbeit values
+      // (= 175 € brutto) added to Pos. 001/002 and taken back off in its own
+      // bonus row. Net effect 0; only set while the bonus actually applies.
+      let grabBonusMaterial = 0;
+      let grabBonusArbeit = 0;
+      let grabBonusReal = 0; // what the free unit really costs (part of bonusGross)
       if (flags.bonus_Haltegriff) {
         const freeId = materials?.grabCounts?.freeId;
         if (freeId) {
           const freeLine = (materials?.lines || []).find(
             (l) => (l.productId || l.id) === freeId,
           );
-          const unit = Number(freeLine?.unitPrice) || 0;
-          bonusGross += round2(unit);
+          const qty = Number(freeLine?.qty) || 0;
+          // per-unit price as billed (BWT grabs carry their Aufschlag in lineTotal)
+          const unit = qty ? (Number(freeLine?.lineTotal) || 0) / qty : 0;
+          grabBonusReal = round2(unit);
+          bonusGross += grabBonusReal;
+          grabBonusMaterial = cfg.get('GRAB_BONUS_MATERIAL_NET', 100);
+          grabBonusArbeit = cfg.get('GRAB_BONUS_LABOR_NET', 47.06);
         }
       }
 
@@ -2718,6 +2648,9 @@ try {
 
         // rabatt + bonus:
         bonusGross,
+        grabBonusMaterial,
+        grabBonusArbeit,
+        grabBonusReal,
         bonusFlags: flags,
         flags: flags,
 
