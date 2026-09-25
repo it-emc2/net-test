@@ -38,16 +38,35 @@ function escHtml(str) {
  * Returns Map<productId, { localPath: string|null, vigorUrl: string|null }>
  * Checks local assets first; falls back to Vigor DB images field for missing ones.
  */
-export async function resolveProductImages(productIds, assetsDir) {
+// WV panels picked on the Fußboden tab are named "Aluverbundplatte (…)" (see
+// pricing-core displayName). They keep the normal product photo — the
+// produktbilder/ photos show the panel mounted on a wall.
+export function floorWvIds(lines) {
+  return new Set(
+    lines
+      .filter((l) => /^V3WVK?\d/.test(l.productId || l.materialNumber || "") && /^Aluverbundplatte/.test(l.name || ""))
+      .map((l) => l.productId || l.materialNumber),
+  );
+}
+
+export async function resolveProductImages(productIds, assetsDir, noCustomIds = new Set()) {
   const ids = [...new Set(productIds.filter(Boolean))];
   const result = new Map();
 
   const LOCAL_EXTS = [".jpg", ".jpeg", ".png", ".PNG", ".JPG", ".JPEG"];
   const localChecks = await Promise.all(
     ids.map(async (id) => {
-      for (const ext of LOCAL_EXTS) {
-        const p = path.join(assetsDir, `${id}${ext}`);
-        try { await fs.access(p); return { id, localPath: p }; } catch {}
+      // assets/produktbilder/<id>.<ext> overrides the section image in assets/.
+      // WV 997 (V3WVKnn) shares the 1497 photo (V3WVnn) — same decor.
+      const custom = path.join(assetsDir, "produktbilder");
+      const candidates = noCustomIds.has(id)
+        ? [[assetsDir, id]]
+        : [[custom, id], [custom, id.replace(/^V3WVK/, "V3WV")], [assetsDir, id]];
+      for (const [dir, name] of candidates) {
+        for (const ext of LOCAL_EXTS) {
+          const p = path.join(dir, `${name}${ext}`);
+          try { await fs.access(p); return { id, localPath: p }; } catch {}
+        }
       }
       return { id, localPath: null };
     }),
@@ -113,6 +132,7 @@ export async function generateProductImagePdf(products, assetsDir, customImageDa
   const imageMap = await resolveProductImages(
     products.map((p) => p.productId),
     assetsDir,
+    floorWvIds(products),
   );
 
   const cards = await Promise.all(
