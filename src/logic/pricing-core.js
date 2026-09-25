@@ -1544,7 +1544,7 @@ if (l.source === "hl_pipe") {
       const isWvPanel = /^V3WVK?\d/.test(l.id);
 
       const displayName = isWvPanel
-        ? (metaColor ? `Aluverbundplatte (${metaColor}) · ${l.id}` : `Aluverbundplatte · ${l.id}`)
+        ? (metaColor ? `Aluverbundplatte (${metaColor})` : `Aluverbundplatte`)
         : displayNameBase;
 
       const builtLabel = l.id === "PLA5282"
