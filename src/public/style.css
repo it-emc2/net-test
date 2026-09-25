@@ -10665,21 +10665,21 @@ details.az-group[open] > summary.az-group-title::before {
 
 /* BWT door color pills (replace the old <select>; hidden input keeps the value) */
 #bwtDoors .bwt-door-colors {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: grid;
+  gap: 8px;
 }
 #bwtDoors .bwt-door-colors button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
   border: 1px solid #cbd5e1;
-  border-radius: 999px;
+  border-radius: 10px;
   background: #fff;
   color: #1f2937;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   cursor: pointer;
 }
 #bwtDoors .bwt-door-colors button:hover {
@@ -10695,8 +10695,8 @@ details.az-group[open] > summary.az-group-title::before {
   outline-offset: 2px;
 }
 #bwtDoors .bwt-door-colors__dot {
-  width: 16px;
-  height: 16px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 1px solid #cbd5e1;
   flex-shrink: 0;
