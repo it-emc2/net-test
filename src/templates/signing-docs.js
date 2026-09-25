@@ -445,19 +445,24 @@ function festpreisBlock(d) {
 }
 
 // Abschlussblock: Grußformel + Gültigkeit + Unterschrift des zuständigen
-// EmC2-Mitarbeiters (aus OurSignatureImage) + "Ihr Team von EmC2".
-// Gilt für BU und AH.
+// EmC2-Mitarbeiters (aus OurSignatureImage) + Name (Ansprechpartner) +
+// "Ihr Team von EmC2". Jede Zeile ein eigener Absatz. Gilt für BU und AH.
+// Doku: docs/online-signing-form.md
 function closingBlock(d) {
   const validity = d.ValidityDate
-    ? ` Dieses Angebot ist gültig bis ${esc(d.ValidityDate)}.`
+    ? `<p>Dieses Angebot ist gültig bis ${esc(d.ValidityDate)}.</p>`
     : "";
   const sigImg = d.OurSignatureImage
     ? `<img class="our-sig-img" src="${d.OurSignatureImage}" alt="Unterschrift EmC2">`
     : "";
+  const name = d.Ansprechpartner ? `<p>${esc(d.Ansprechpartner)}</p>` : "";
   return `
     <div class="closing">
-      <p>Für Rückfragen stehen wir Ihnen gerne zur Verfügung. Wir bedanken uns für Ihr Vertrauen und freuen uns, von Ihnen zu hören.${validity} Mit freundlichen Grüßen.</p>
+      <p>Für Rückfragen stehen wir Ihnen gerne zur Verfügung. Wir bedanken uns für Ihr Vertrauen und freuen uns, von Ihnen zu hören.</p>
+      ${validity}
+      <p>Mit freundlichen Grüßen</p>
       ${sigImg}
+      ${name}
       <p class="b">Ihr Team von EmC2</p>
     </div>`;
 }
