@@ -555,7 +555,7 @@ export function mapOfferToDocxData(body = {}, computed = {}) {
     BonusRows.push({
       Bonus: pos,
       BonusMenge: "1 Stk",
-      BonusLabel: "Bestandkundenbonus:",
+      BonusLabel: "Neukundenbonus:",
       BonusDetail: "-- Rabatt von 300 € ab einem Gesamtwert von 3.000",
       preis: `-${cfg.get('BONUS_NEW_CUSTOMER_GROSS', 252.1).toFixed(2).replace('.', ',')} €`,
       gesamt: `-${cfg.get('BONUS_NEW_CUSTOMER_GROSS', 252.1).toFixed(2).replace('.', ',')} €`,

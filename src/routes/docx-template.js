@@ -1677,7 +1677,7 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     BonusRows.push({
       Bonus: pos,
       BonusMenge: "1 Stk",
-      BonusLabel: "Bestandkundenbonus:",
+      BonusLabel: "Neukundenbonus:",
       BonusDetail: "-- Rabatt von 300 € ab einem Gesamtwert von 3.000",
       preis: "-252,10 €",
       gesamt: "-252,10 €",

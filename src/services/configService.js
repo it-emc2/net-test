@@ -159,7 +159,7 @@ export const CONFIG_SCHEMA = [
   {
     key: 'BONUS_NEW_CUSTOMER_GROSS', value: 252.1,
     label: 'Neukundenbonus (Brutto)', unit: '€', type: 'euro', section: 'zuschuss', order: 3,
-    description: 'Bruttowert des Neukundenbonus (Bonus 300 / Bestandkundenbonus)',
+    description: 'Bruttowert des Neukundenbonus (Bonus 300)',
   },
   {
     key: 'GRAB_BONUS_MATERIAL_NET', value: 100,
