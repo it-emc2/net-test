@@ -8801,28 +8801,46 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
 
   payerRadios.forEach((r) => r.addEventListener("change", applyAufschlagRules));
 
-  // Largest u (Aufschlag in 1/10000 %) with priceAt(u) <= goal, starting the
-  // search at the estimate u0. Price is monotone in u but not linear (server
-  // rounds per step, BWT grabs carry the Aufschlag in their line price), so we
-  // bracket with growing steps and then bisect. Returns -1 if even u=0 is over.
-  async function findBestAufschlagUnits(priceAt, u0, goal) {
+  // Largest u (Aufschlag in 1/10000 %) with priceAt(u) <= goal, starting at
+  // the estimate u0. slope = estimated € per unit. Price is monotone in u but
+  // not linear (server rounds per step, BWT grabs carry the Aufschlag in their
+  // line price): first jump straight at the goal using the slope, then bracket
+  // (steps of ~1 ct) and bisect. Stops as soon as a price hits the goal exactly
+  // — a higher u with the same price changes nothing. -1 if even u=0 is over.
+  async function findBestAufschlagUnits(priceAt, u0, goal, slope) {
+    const hit = (p) => Math.abs(p - goal) < 0.005;
     let lo = Math.max(0, u0);
-    let step = 1;
-    while ((await priceAt(lo)) > goal) {
+    let p;
+    if (slope > 0) {
+      for (let i = 0; i < 3; i++) {
+        p = await priceAt(lo);
+        if (hit(p)) return lo;
+        const next = Math.max(0, lo + Math.floor((goal - p) / slope));
+        if (next === lo) break;
+        lo = next;
+      }
+    }
+    const step0 = slope > 0 ? Math.max(1, Math.floor(0.01 / slope)) : 1;
+    let step = step0;
+    while ((p = await priceAt(lo)) > goal) {
       if (lo === 0) return -1;
       lo = Math.max(0, lo - step);
       step *= 2;
     }
-    step = 1;
+    if (hit(p)) return lo;
+    step = step0;
     let hi = lo + step;
-    while ((await priceAt(hi)) <= goal) {
+    while ((p = await priceAt(hi)) <= goal) {
+      if (hit(p)) return hi;
       lo = hi;
       step *= 2;
       hi = lo + step;
     }
     while (hi - lo > 1) {
       const mid = Math.floor((lo + hi) / 2);
-      if ((await priceAt(mid)) <= goal) lo = mid;
+      p = await priceAt(mid);
+      if (hit(p)) return mid;
+      if (p <= goal) lo = mid;
       else hi = mid;
     }
     return lo;
@@ -8862,14 +8880,26 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
       if (!cache.has(u)) {
         const pl = window.buildPayload();
         pl.Kundendaten = { ...(pl.Kundendaten || {}), aufschlag: `${pctStr(u)}%` };
+        pl._priceTag = `Zielpreis ${targetTotal} € · call #${cache.size + 1}`; // DEBUG Zielpreis: server log label
         cache.set(u, Number((await window.__fetchPrice(pl))?.total));
+        // DEBUG Zielpreis: one line per /api/price call
+        console.log(`[Zielpreis] call #${cache.size}: ${pctStr(u)}% → ${cache.get(u)} € ${cache.get(u) <= goal ? "≤" : ">"} goal ${goal}`);
+      } else {
+        console.log(`[Zielpreis] cached: ${pctStr(u)}% → ${cache.get(u)} €`);
       }
       return cache.get(u);
     };
 
     if (autoBtn) autoBtn.disabled = true;
+    // DEBUG Zielpreis
+    console.log(`[Zielpreis] target ${targetTotal} € | goal ${goal} € | current ${currentTotal} € @ ${(currentPctVal * 100).toFixed(4)}% | markup ${currentMarkup} € | estimate ${pctStr(u0)}%`);
+    console.time("[Zielpreis] duration");
     try {
-      const best = await findBestAufschlagUnits(priceAt, u0, goal);
+      // € per unit: total grows by factor × markupBase per 100 % (1 unit = 1e-6)
+      const slope = currentPctVal > 0 ? (factor * currentMarkup / currentPctVal) * 1e-6 : 0;
+      const best = await findBestAufschlagUnits(priceAt, u0, goal, slope);
+      console.log(`[Zielpreis] DONE: ${cache.size} server call(s) → ${pctStr(best)}% = ${cache.get(best)} €${Math.abs(cache.get(best) - goal) < 0.005 ? " (goal hit → stopped early)" : ""}`);
+      console.timeEnd("[Zielpreis] duration");
       if (best < 0) {
         alert("Der berechnete Aufschlag wäre negativ – der Zielpreis liegt unter den Selbstkosten.");
         return;

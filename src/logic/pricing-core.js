@@ -230,7 +230,6 @@ export default (ProductModel, deps = {}) => {
     // default to 'bu' for backward compatibility
     const k = payload?.activeOffer;
     if (k === "bu" || k === "bwt" || k === "hl" || k === "bl" || k === "ah" || k === "hms" || k === "wd") {
-      console.log("current offer type is ", k);
       return k;
     }
 
@@ -1241,7 +1240,6 @@ if (offer === "hl") {
 
       const rehaIds = extractRehaIdsFromOptional(opt);
       let hasReha = false;
-console.log("[REHA DEBUG] selections =", selections);
 
       for (const s of selections) {
         const pid = String(s.productId || "").trim();

@@ -14,10 +14,13 @@ test.each([
 ])("base %p fixed %p target %p", async (base, fixed, target) => {
   const price = async (u) => r2(r2(fixed + r2((base * u) / 1e6)) * 1.19);
   const goal = Math.round(target * 100 - 1) / 100;
-  for (const u0 of [0, 297312, 999999]) {
-    const best = await find(price, u0, goal);
-    expect(await price(best)).toBeLessThan(target);
-    expect(await price(best + 1)).toBeGreaterThan(goal);
+  // with and without the slope hint (€ per unit = base × 1.19 × 1e-6)
+  for (const [u0, slope] of [0, 297312, 999999].flatMap((u) => [[u, undefined], [u, base * 1.19e-6]])) {
+    const best = await find(price, u0, goal, slope);
+    const p = await price(best);
+    expect(p).toBeLessThan(target);
+    // either exactly 1 ct below (early stop) or the next step would go over
+    if (p !== goal) expect(await price(best + 1)).toBeGreaterThan(goal);
   }
 });
 
