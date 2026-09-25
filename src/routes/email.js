@@ -29,6 +29,7 @@ import {
 import {
   generateProductImagePdf,
   resolveProductImages,
+  floorWvIds,
   shouldSkipByDefault,
   PRODUCT_IMAGE_SKIP_KEYWORDS,
 } from "../lib/productImagePdf.js";
@@ -337,10 +338,38 @@ function buildFinishMap(payload) {
   return map;
 }
 
+// Material rows for the Produktbilder-PDF. The overview blanks the article
+// number of floor panels (V5FB02) for the Angebot; restore it here.
+async function imageLines(payload, computed) {
+  const rows = await aggregateMaterialsForOverview(payload, computed);
+  // V5FB02's DB name carries one fixed color ("Lava beige") — name it by the picked one.
+  const fp = String([].concat(payload?.duschwanne?.flooringProduct || [])[0] || "");
+  const floorColor = fp.startsWith("V5FB02|") ? fp.split("|")[1].replace(/-/g, " ") : "";
+  return rows.map((r) => ({
+    ...r,
+    materialNumber: r.materialNumber || r.productId,
+    name: r.productId === "V5FB02" && floorColor ? `Fußboden-Paneele (${floorColor})` : r.name,
+  }));
+}
+
+// Section tile photos of the Fußboden colors (index.html #form-fussboden) —
+// V5FB02 is one article for all colors, so its image is picked by color.
+const FLOOR_IMAGES = {
+  "AVP-W|Weiß": "/assets/585c6146589e2f4c59e026c2b5373966.jpg",
+  "V5FB02|Lava-Beige": "/assets/V5_Lava_Beige.jpg",
+  "V5FB02|Schiefer-Beige": "/assets/V5_Schiefer_beige.jpg",
+  "V5FB02|Loft-Grau": "/assets/V5_loft_grau.jpg",
+  "V5FB02|Speckstein-Schwarz": "/assets/V5_Speckstein_schwarz.jpg",
+  "V5FB02|Eiche-Natur": "/assets/V5_Eiche_natur.jpg",
+};
+
 // Maps DA configurator article numbers to their configuration preview URL.
 // previewImages is [{articleNumbers: [...], imageUrl: '...'}] saved by collectDuschabtrennungConfigurator.
 function buildDacPreviewMap(payload) {
   const map = new Map();
+  // Fußboden: pricing bills only the first selected flooring product.
+  const fp = [].concat(payload?.duschwanne?.flooringProduct || [])[0];
+  if (fp && FLOOR_IMAGES[fp]) map.set(fp.split("|")[0], FLOOR_IMAGES[fp]);
   const previews = payload?.duschabtrennung?.configurator?.previewImages;
   if (!Array.isArray(previews)) return map;
   for (const { articleNumbers, imageUrl } of previews) {
@@ -358,7 +387,7 @@ router.post("/product-image-list", express.json(), async (req, res) => {
   try {
     const payload = req.body?.payload || req.body || {};
     const { computed } = await getOfferRenderData(payload);
-    const lines = await aggregateMaterialsForOverview(payload, computed);
+    const lines = await imageLines(payload, computed);
     const assetsDir = path.join(process.cwd(), "src", "public", "assets");
 
     const adminSkipIds = new Set((configService.get("PRODUCT_IMAGE_SKIP_IDS", [])).map(String));
@@ -366,6 +395,7 @@ router.post("/product-image-list", express.json(), async (req, res) => {
     const imageMap = await resolveProductImages(
       filteredLines.map((l) => l.materialNumber),
       assetsDir,
+      floorWvIds(filteredLines),
     );
 
     // Build lookups: productId -> configurator preview URL / finish text
@@ -376,9 +406,10 @@ router.post("/product-image-list", express.json(), async (req, res) => {
       const img = imageMap.get(l.materialNumber) || {};
       const dacPreview = dacPreviewMap.get(l.materialNumber) || null;
       const hasImage = !!(img.localPath || img.vigorUrl || dacPreview);
-      const imageUrl = img.localPath
-        ? `/assets/${l.materialNumber}.jpg`
-        : img.vigorUrl || dacPreview || null;
+      // same precedence as the PDF: configurator/section preview wins
+      const imageUrl = dacPreview || (img.localPath
+        ? `/assets/${path.relative(assetsDir, img.localPath).split(path.sep).join("/")}`
+        : img.vigorUrl || null);
       return {
         productId: l.materialNumber,
         name: l.name || l.materialNumber,
@@ -402,7 +433,7 @@ router.post("/preview-product-image-pdf", express.json({ limit: "20mb" }), async
   try {
     const { payload = {}, excludeProductImageIds = [], productCustomImageData = {} } = req.body || {};
     const { computed } = await getOfferRenderData(payload);
-    const lines = await aggregateMaterialsForOverview(payload, computed);
+    const lines = await imageLines(payload, computed);
     const assetsDir = path.join(process.cwd(), "src", "public", "assets");
     const adminSkipIdsPreview = new Set((configService.get("PRODUCT_IMAGE_SKIP_IDS", [])).map(String));
     const excludeSet = new Set([...excludeProductImageIds.map(String), ...adminSkipIdsPreview]);
@@ -569,7 +600,7 @@ router.post(
         ]);
         const productCustomImageData = JSON.parse(req.body.productCustomImageData || "{}");
         const assetsDir = path.join(process.cwd(), "src", "public", "assets");
-        const lines = await aggregateMaterialsForOverview(payload, offerComputed || {});
+        const lines = await imageLines(payload, offerComputed || {});
         const sendFinishMap = buildFinishMap(payload);
         const products = lines
           .filter((l) => l.materialNumber && !excludeProductImageIds.has(l.materialNumber))

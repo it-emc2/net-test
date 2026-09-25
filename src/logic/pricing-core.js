@@ -1543,8 +1543,13 @@ if (l.source === "hl_pipe") {
       const metaColor = typeof l?.meta?.color === "string" ? l.meta.color.trim() : "";
       const isWvPanel = /^V3WVK?\d/.test(l.id);
 
+      // WV panels picked on the Fußboden tab are "Aluverbundplatte"; picked on
+      // the Wandverkleidung tab they keep the "Wandverkleidung" name.
+      const wvBase = l.category === "Fußboden"
+        ? "Aluverbundplatte"
+        : `Wandverkleidung 3.0 Alu ${/^V3WVK/.test(l.id) ? "997" : "1497"}×2550 mm`;
       const displayName = isWvPanel
-        ? (metaColor ? `Aluverbundplatte (${metaColor})` : `Aluverbundplatte`)
+        ? (metaColor ? `${wvBase} (${metaColor})` : wvBase)
         : displayNameBase;
 
       const builtLabel = l.id === "PLA5282"

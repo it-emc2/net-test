@@ -772,8 +772,14 @@ async function aggregateMaterialsForOverview(body = {}, computed = {}) {
   }
 
   // 2) body.materials (fallback from client)
+  // The client still reports WV panels under the generic V3WVK09/V3WV09 id,
+  // while pricing bills the color-specific article (e.g. V3WVK03) — skip the
+  // client copy when pricing already has WV panels, or it shows up twice.
+  const isWvId = (id) => /^V3WVK?\d/.test(String(id || ""));
+  const computedHasWv = src.some((l) => l && isWvId(l.materialNumber));
   if (Array.isArray(body?.materials)) {
     for (const m of body.materials) {
+      if (computedHasWv && isWvId(m?.productId || m?.id)) continue;
       src.push(normalizeSourceLine(m));
     }
   }
@@ -825,6 +831,7 @@ async function aggregateMaterialsForOverview(body = {}, computed = {}) {
 
     const prev = map.get(key) || {
       materialNumber: isFloorPanelLine(l) ? "" : l.materialNumber, // empty for V5FB02
+      productId: l.materialNumber, // real id, kept for the Produktbilder-PDF
       name: l.name,
       unit,
       quantity: 0,
