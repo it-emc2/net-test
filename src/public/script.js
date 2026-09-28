@@ -26181,6 +26181,9 @@ function syncSummaryLeadIds(rawLeadId){
     postAuftragId.dispatchEvent(new Event("change", { bubbles: true }));
   }
 }
+// Offer restore, postal restore and onEnterZusammenfassung live in other
+// scopes and guard with `typeof syncSummaryLeadIds` — without this they skip silently.
+window.syncSummaryLeadIds = syncSummaryLeadIds;
 
 function syncSummaryRecipientEmail(rawEmail){
   const email = String(rawEmail || "").trim();
