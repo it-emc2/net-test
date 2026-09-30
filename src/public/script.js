@@ -4712,7 +4712,10 @@ function buildPayload() {
   // Two-person address/greeting overrides (Zusammenfassung). Only for a real
   // two-person offer; otherwise leave empty so the PDF composes the single-person
   // name/greeting itself. Empty string => mapData fallback.
-  const _twoPersonsFinal = !_isSZ && !!payload.Kundendaten.twoPersons;
+  const _twoPersonsFinal = !_isSZ && (
+    /^ah/.test(String(window.getCurrentOfferType?.() || "").toLowerCase())
+      ? !!payload.Kundendaten.ahZweiPersonen
+      : !!payload.Kundendaten.twoPersons);
   payload.Kundendaten.kundenName = _twoPersonsFinal
     ? String(document.getElementById("zfKundenName")?.value || "").trim()
     : "";
@@ -6750,6 +6753,31 @@ document.body.addEventListener("click", (e) => {
 // AH: Entlastungsbetrag (§ 45b SGB XI) — admin-configurable, defaults to 131€/Monat
 // while /admin/api/config/public is loading.
 window.__entlastungsbetragMonat = 131;
+// Monthly Entlastungsbetrag incl. the "2 Personen mit Pflegegrad" doubling
+// (§ 45b is per insured person). Used by pricing and the ⚡ Dauer optimizer.
+window.getAHEntlastungsbetragMonat = function () {
+  var zwei = !!document.getElementById("ahZweiPersonen")?.checked;
+  return window.__entlastungsbetragMonat * (zwei ? 2 : 1);
+};
+// AH prices client-side, but the bottom bar (Gesamt / Eigenanteil) only
+// refreshed via updatePricing() on step changes. Call this after any AH
+// price input changes so the bar follows immediately.
+window.refreshAHPricing = function () {
+  if (/^ah/.test(String(window.getCurrentOfferType?.() || "").toLowerCase()) &&
+      typeof window.updatePricing === "function") {
+    window.updatePricing();
+  }
+};
+(function initAhPerson2Toggle() {
+  var cb = document.getElementById("ahZweiPersonen");
+  var box = document.getElementById("ahPerson2Fields");
+  if (!cb || !box) return;
+  cb.addEventListener("change", function () {
+    box.hidden = !cb.checked;
+    box.setAttribute("aria-hidden", String(!cb.checked));
+    window.refreshAHPricing(); // Entlastungsbetrag ×1 / ×2
+  });
+})();
 // AH: Verhinderungspflege / Pflegesachleistungen-Umwidmung / § 35a — also admin-configurable.
 window.__verhinderungspflegeJahr = 2418;
 window.__steuerabsetzPct = 20;
@@ -6778,6 +6806,8 @@ fetch("/admin/api/config/public")
       if (labelVal) labelVal.textContent = String(d.ENTLASTUNGSBETRAG_MONAT);
       var ebLabel = document.getElementById("ebMonatLabel");
       if (ebLabel) ebLabel.textContent = String(d.ENTLASTUNGSBETRAG_MONAT);
+      var ebLabel2 = document.getElementById("ebMonatLabel2");
+      if (ebLabel2) ebLabel2.textContent = String(d.ENTLASTUNGSBETRAG_MONAT);
     }
     if (typeof d.VERHINDERUNGSPFLEGE_JAHR === "number") {
       window.__verhinderungspflegeJahr = d.VERHINDERUNGSPFLEGE_JAHR;
@@ -6919,7 +6949,92 @@ fetch("/admin/api/config/public")
     if (typeof window.renderAHKostenPreview === "function") {
       window.renderAHKostenPreview();
     }
+    window.refreshAHPricing?.();
   }
+
+  // Largest 5-min Dauer (≤ 8 h) for ONE row whose monthly price fits the
+  // Entlastungsbetrag on its own. Visits rarer than monthly (Vierteljährlich/
+  // Halbjährlich/Jährlich) each fall in their own month, so one visit must fit
+  // that month's budget — no pooling of several months into one visit.
+  function maxMinsForBudget(freq, rate) {
+    freq = Math.max(freq, 1);
+    var reisezeitH = 0, anfahrtPerEinsatz = 0;
+    if (OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT) {
+      var zoneData = typeof window.getAHZoneData === "function" ? window.getAHZoneData() : null;
+      reisezeitH = zoneData ? zoneData.billMin / 60 : 0;
+      anfahrtPerEinsatz = ANFAHRT_PER_EINSATZ;
+    }
+    var budget = window.getAHEntlastungsbetragMonat();
+    var bestMins = 0;
+    for (var m = 5; m <= 480; m += 5) {
+      var price = Math.round(
+        (freq * anfahrtPerEinsatz + (m / 60 + reisezeitH) * freq * rate) * 100
+      ) / 100;
+      if (price > budget) break;
+      bestMins = m;
+    }
+    return bestMins;
+  }
+
+  // "⚡ Gesamtzeit": scale every row's Dauer by ONE factor (keeps the entered
+  // HnD:AB ratio) so the whole AH price fits the Entlastungsbetrag. Prices via
+  // computeAHGesamt, so zone, "Gleicher Termin" and 2 Personen all count.
+  function optimizeAllForEntlastungsbetrag() {
+    serialize();
+    var services = JSON.parse(jsonInput.value || "[]");
+    var rows = [], si = 0;
+    [alltagsList, haushaltList].forEach(function (list) { // same order as serialize()
+      list.querySelectorAll(".ah-service-card").forEach(function (card) {
+        var rate = card.getAttribute("data-type") === "Haushaltsnahedienstleistungen" ? STUNDENSATZ_HND : STUNDENSATZ_AB;
+        var svc = services[si++];
+        card.querySelectorAll(".ah-sched-row").forEach(function (row, ri) {
+          var sched = svc.schedules[ri];
+          var freq  = FREQ_PER_MONTH[sched.regelmaessigkeit]; // Einmalig isn't priced → skipped
+          var base  = parseDurationMinutes(sched.dauer);
+          if (base && typeof freq === "number") {
+            rows.push({ row: row, sched: sched, base: base, cap: maxMinsForBudget(freq, rate) });
+          }
+        });
+      });
+    });
+    if (!rows.length) return;
+
+    var budget = window.getAHEntlastungsbetragMonat();
+    var original = jsonInput.value;
+    // ≥ 5 min per row: never silently wipe a service the consultant entered.
+    function minsAt(r, k) { return Math.max(5, Math.min(r.cap, Math.floor((r.base * k) / 5) * 5)); }
+    function priceAt(k) {
+      rows.forEach(function (r) {
+        var m = minsAt(r, k);
+        r.sched.dauer = Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0");
+      });
+      jsonInput.value = JSON.stringify(services);
+      return window.computeAHGesamt().allBase;
+    }
+    if (priceAt(0) > budget) {
+      // Even 5 min per row exceeds the budget (fixed Anfahrt + Reisezeit alone).
+      jsonInput.value = original;
+      alert("Die gewählten Leistungen passen nicht in den Entlastungsbetrag (" + budget +
+        " €/Monat): schon Anfahrt und Fahrtzeit liegen darüber. Bitte Regelmäßigkeit reduzieren " +
+        "oder \"Gleicher Termin wie HnD\" nutzen.");
+      return;
+    }
+    var lo = 0, hi = Math.max.apply(null, rows.map(function (r) { return r.cap / r.base; })) + 0.01;
+    for (var i = 0; i < 40; i++) {
+      var mid = (lo + hi) / 2;
+      if (priceAt(mid) <= budget) lo = mid; else hi = mid;
+    }
+
+    rows.forEach(function (r) {
+      var m = minsAt(r, lo);
+      var hEl = r.row.querySelector(".ah-dauer-h"), mEl = r.row.querySelector(".ah-dauer-m");
+      hEl.value = String(Math.floor(m / 60));
+      mEl.value = String(m % 60);
+      hEl.dispatchEvent(new Event("input", { bubbles: true })); // syncDauer → serialize → totals
+    });
+  }
+  var optimizeAllBtn = document.getElementById("ahOptimizeAllBtn");
+  if (optimizeAllBtn) optimizeAllBtn.addEventListener("click", optimizeAllForEntlastungsbetrag);
 
   // ── Title / remove-button / empty-hint upkeep ─────────────────────
   function updateTitlesAndButtons() {
@@ -7091,7 +7206,7 @@ fetch("/admin/api/config/public")
       var combinedText = document.createElement("span");
       combinedText.innerHTML =
         "<strong>Gleicher Termin wie HnD</strong><br>" +
-        "<span style='color:var(--muted);'>Ein Besuch deckt beide Leistungen ab — Anfahrtspauschale wird nur einmal berechnet.</span>";
+        "<span style='color:var(--muted);'>Ein Besuch deckt beide Leistungen ab — Anfahrt und Reisezeit werden am gemeinsamen Tag nur einmal berechnet.</span>";
 
       combinedRow.appendChild(combinedCb);
       combinedRow.appendChild(combinedText);
@@ -7240,22 +7355,7 @@ fetch("/admin/api/config/public")
 
         var freq = rRegelSel.value === "Einmalig" ? 1 : FREQ_PER_MONTH[rRegelSel.value];
         if (typeof freq !== "number") return;
-
-        var reisezeitH = 0, anfahrtPerEinsatz = 0;
-        if (OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT) {
-          var zoneData = typeof window.getAHZoneData === "function" ? window.getAHZoneData() : null;
-          reisezeitH = zoneData ? zoneData.billMin / 60 : 0;
-          anfahrtPerEinsatz = ANFAHRT_PER_EINSATZ;
-        }
-
-        var bestMins = 0;
-        for (var m = 5; m <= 480; m += 5) {
-          var price = Math.round(
-            (freq * anfahrtPerEinsatz + (m / 60 + reisezeitH) * freq * STUNDENSATZ) * 100
-          ) / 100;
-          if (price > window.__entlastungsbetragMonat) break;
-          bestMins = m;
-        }
+        var bestMins = maxMinsForBudget(freq, STUNDENSATZ);
         rDauerH.value = bestMins ? String(Math.floor(bestMins / 60)) : "";
         rDauerM.value = bestMins ? String(bestMins % 60) : "";
         syncDauer();
@@ -7265,7 +7365,7 @@ fetch("/admin/api/config/public")
 
       var rOptBtn = document.createElement("button");
       rOptBtn.type = "button";
-      rOptBtn.title = "Dauer auf Entlastungsbetrag (" + window.__entlastungsbetragMonat + " €/Monat) optimieren";
+      rOptBtn.title = "Dauer auf Entlastungsbetrag optimieren";
       rOptBtn.textContent = "⚡";
       rOptBtn.style.cssText =
         "background:none; border:1px solid var(--border); border-radius:4px;" +
@@ -9491,8 +9591,15 @@ function pgbReveal(el, on) {
   const val = (id) => String(document.getElementById(id)?.value || "").trim();
   const salutation = () =>
     document.querySelector('input[name="salutation"]:checked')?.value || "";
+  // AH has its own "2 Personen" switch + p2* fields in Kundendaten; BU uses twoPersons + partner*.
+  const isAh = () => /^ah/.test(String(window.getCurrentOfferType?.() || "").toLowerCase());
+  const pSal = () => isAh()
+    ? document.querySelector('input[name="p2Salutation"]:checked')?.value || ""
+    : val("partnerSalutation");
+  const pFirst = () => val(isAh() ? "p2FirstName" : "partnerFirstName");
+  const pLast = () => val(isAh() ? "p2LastName" : "partnerLastName");
   const isTwoPersons = () =>
-    !!document.querySelector('input[name="twoPersons"]:checked') &&
+    !!document.querySelector(isAh() ? "#ahZweiPersonen:checked" : 'input[name="twoPersons"]:checked') &&
     document.querySelector('input[name="payer"]:checked')?.value !== "Selbstzahler";
 
   const nameFrag = (sal, name) => [sal, name].filter(Boolean).join(" ").trim();
@@ -9506,11 +9613,11 @@ function pgbReveal(el, on) {
 
   function composeName() {
     const cust = [val("firstName"), val("lastName")].filter(Boolean).join(" ").trim();
-    const partner = [val("partnerFirstName"), val("partnerLastName")].filter(Boolean).join(" ").trim();
-    return `${nameFrag(salutation(), cust)} und ${nameFrag(val("partnerSalutation"), partner)}`.trim();
+    const partner = [pFirst(), pLast()].filter(Boolean).join(" ").trim();
+    return `${nameFrag(salutation(), cust)} und ${nameFrag(pSal(), partner)}`.trim();
   }
   function composeGreeting() {
-    const two = `${greetFrag(salutation(), val("lastName"))}, ${greetFrag(val("partnerSalutation"), val("partnerLastName"))}`;
+    const two = `${greetFrag(salutation(), val("lastName"))}, ${greetFrag(pSal(), pLast())}`;
     return two.charAt(0).toUpperCase() + two.slice(1);
   }
 
@@ -9530,13 +9637,14 @@ function pgbReveal(el, on) {
   // Recompose when any source field changes.
   const srcIds = [
     "firstName", "lastName", "partnerFirstName", "partnerLastName", "partnerSalutation",
+    "p2FirstName", "p2LastName", "ahZweiPersonen",
   ];
   srcIds.forEach((id) => {
     const el = document.getElementById(id);
     el?.addEventListener("input", refresh);
     el?.addEventListener("change", refresh);
   });
-  document.querySelectorAll('input[name="salutation"], input[name="twoPersons"], input[name="payer"]').forEach((el) => {
+  document.querySelectorAll('input[name="salutation"], input[name="twoPersons"], input[name="payer"], input[name="p2Salutation"]').forEach((el) => {
     el.addEventListener("change", refresh);
   });
   window.addEventListener("offerflow:changed", refresh);
@@ -11879,10 +11987,13 @@ window.computeAHGesamt = function computeAHGesamt() {
   var leistungenTotal = r2(hnd.totalMonatlichH * STUNDENSATZ_HND);
   var gesamtBase      = r2(anfahrtTotal + leistungenTotal);
 
-  // Same visit as HnD: the trip is already paid for by HnD's Anfahrt, so AB
-  // only adds its own Anfahrt for visits beyond what HnD already covers.
+  // Same visit as HnD: on shared days (min of both visit counts) HnD keeps the
+  // trip — Anfahrt and Reisezeit — so AB bills neither for those visits.
   var abCombinedVisit   = !!(abSvc && abSvc.combinedVisit);
-  var abAnfahrtEinsaetze = abCombinedVisit ? Math.max(0, ab.totalEinsaetze - hnd.totalEinsaetze) : ab.totalEinsaetze;
+  var abSharedEinsaetze = abCombinedVisit ? Math.min(hnd.totalEinsaetze, ab.totalEinsaetze) : 0;
+  var abSharedReiseH    = abSharedEinsaetze * reisezeitH;
+  ab.totalMonatlichH    = Math.max(0, ab.totalMonatlichH - abSharedReiseH);
+  var abAnfahrtEinsaetze = ab.totalEinsaetze - abSharedEinsaetze;
   var abAnfahrtTotal    = r2(abAnfahrtEinsaetze * ANFAHRT_PER_EINSATZ);
   var abLeistungenTotal = r2(ab.totalMonatlichH * STUNDENSATZ_AB);
   var abGesamtBase      = r2(abAnfahrtTotal + abLeistungenTotal);
@@ -11894,7 +12005,7 @@ window.computeAHGesamt = function computeAHGesamt() {
   // confirmed it on the Finanzierung step — nothing is assumed, so skipping that step
   // (or leaving every toggle off) leaves the Eigenanteil equal to the full Gesamt.
   var entlastungsbetragNutzen  = !!document.getElementById("ahEntlastungsbetragNutzen")?.checked;
-  var entlastungsbetragMonat   = entlastungsbetragNutzen ? window.__entlastungsbetragMonat : 0;
+  var entlastungsbetragMonat   = entlastungsbetragNutzen ? window.getAHEntlastungsbetragMonat() : 0;
   var verhinderungspflegeMonat = Number(document.getElementById("ahVerhinderungspflegeMonat")?.value) || 0;
   var umwidmungBeantragt       = !!document.getElementById("ahUmwidmungBeantragt")?.checked;
   var umwidmungMonat           = umwidmungBeantragt ? (Number(document.getElementById("ahUmwidmungBetrag")?.value) || 0) : 0;
@@ -11930,6 +12041,8 @@ window.computeAHGesamt = function computeAHGesamt() {
     hasAb:             ab.totalMonatlichH > 0,
     abTotalEinsaetze:  ab.totalEinsaetze,
     abAnfahrtEinsaetze: abAnfahrtEinsaetze,
+    abSharedEinsaetze: abSharedEinsaetze,
+    abSharedReiseH:    abSharedReiseH,
     abCombinedVisit:   abCombinedVisit,
     abTotalMonatlichH: ab.totalMonatlichH,
     abAnfahrtTotal:    abAnfahrtTotal,
@@ -12019,7 +12132,11 @@ window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
   });
   if (hasAb) sections.push({
     title: "Alltagsbegleitung", short: "AB", rate: RATE_AB,
-    sp: splitH(ah.abSchedRows), billedH: ah.abTotalMonatlichH, leistungen: ah.abLeistungenTotal,
+    sp: (function () {
+      var x = splitH(ah.abSchedRows);
+      x.t = Math.max(0, x.t - (ah.abSharedReiseH || 0)); // shared days: HnD carries the Fahrtzeit
+      return x;
+    })(), billedH: ah.abTotalMonatlichH, leistungen: ah.abLeistungenTotal,
     einsaetze: ah.abAnfahrtEinsaetze, anfahrt: ah.abAnfahrtTotal,
     combinedVisit: ah.abCombinedVisit,
     servicepauschale: 0, base: ah.abGesamtBase, sched: ah.abSchedRows,
@@ -14843,6 +14960,12 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("date", k.date);
   setByNameOrId("firstName", k.firstName);
   setByNameOrId("lastName", k.lastName);
+  // AH: 2. Person mit Pflegegrad (checkbox change reveals the fields)
+  setByNameOrId("ahZweiPersonen", !!k.ahZweiPersonen);
+  setRadio("p2Salutation", k.p2Salutation);
+  setByNameOrId("p2FirstName", k.p2FirstName || "");
+  setByNameOrId("p2LastName", k.p2LastName || "");
+  setRadio("p2Pflegegrad", k.p2Pflegegrad);
   setByNameOrId("phone", k.phone);
   setByNameOrId("email", k.email);
   setByNameOrId("street", k.street);
@@ -20169,6 +20292,7 @@ function restoreFinanzierung(fin) {
   var steuerEl = document.getElementById("ahSteuerabsetzBetrag");
 
   function refresh() {
+    window.refreshAHPricing?.();
     if (vp && vpOut) vpOut.textContent = Math.round(Number(vp.value) || 0) + " €";
     if (umCb && umField) {
       umField.hidden = !umCb.checked;

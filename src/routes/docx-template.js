@@ -1852,11 +1852,18 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
   // {Anrede}\n{Vorname} {Nachname} / {Greeting} {Nachname} layout. For two
   // persons both names are included. The Zusammenfassung fields (kundenName /
   // greetingLine) are free-text overrides that win when present.
+  // AH has its own "2 Personen" switch + p2* fields (Kundendaten); BU uses
+  // twoPersons + partner*. Both feed the same composition below.
+  const _isAhOffer = /^ah/.test(String(body.activeOffer || "").toLowerCase());
   const _sal = b.salutation || "";
-  const _pSal = b.partnerSalutation || "";
+  const _pSal = (_isAhOffer ? b.p2Salutation : b.partnerSalutation) || "";
+  const _pLast = (_isAhOffer ? b.p2LastName : b.partnerLastName) || "";
   const _custName = [b.firstName, b.lastName].filter(Boolean).join(" ").trim();
-  const _partnerName = [b.partnerFirstName, b.partnerLastName].filter(Boolean).join(" ").trim();
-  const _isTwo = !!b.twoPersons && !!_partnerName;
+  const _partnerName = [_isAhOffer ? b.p2FirstName : b.partnerFirstName, _pLast]
+    .filter(Boolean).join(" ").trim();
+  const _isTwo =
+    (_isAhOffer ? b.ahZweiPersonen === "on" || b.ahZweiPersonen === true : !!b.twoPersons) &&
+    !!_partnerName;
 
   const _nameFrag = (sal, name) => [sal, name].filter(Boolean).join(" ").trim();
   const _greetOne = (sal) =>
@@ -1885,7 +1892,7 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
   if (_greetingOverride) {
     GreetingLine = _greetingOverride;
   } else if (_isTwo) {
-    const two = `${_greetFrag(_sal, b.lastName)}, ${_greetFrag(_pSal, b.partnerLastName)}`;
+    const two = `${_greetFrag(_sal, b.lastName)}, ${_greetFrag(_pSal, _pLast)}`;
     GreetingLine = two.charAt(0).toUpperCase() + two.slice(1);
   } else {
     GreetingLine = [_greetOne(_sal), b.lastName].filter(Boolean).join(" ").trim();
@@ -1898,11 +1905,11 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     Anrede: b.salutation || "",
     Vorname: b.firstName || "",
     Nachname: b.lastName || "",
-    PartnerAnrede: b.partnerSalutation || "",
-    PartnerVorname: b.partnerFirstName || "",
-    PartnerNachname: b.partnerLastName || "",
+    PartnerAnrede: _pSal,
+    PartnerVorname: (_isAhOffer ? b.p2FirstName : b.partnerFirstName) || "",
+    PartnerNachname: _pLast,
     PflegegradKunde: b.pflegegrad || "",
-    PflegegradPartner: b.partnerPflegegrad || "",
+    PflegegradPartner: (_isAhOffer ? b.p2Pflegegrad : b.partnerPflegegrad) || "",
     KrankenkasseKunde: b.kassenkundeName || "",
     KrankenkassePartner: b.partnerKassenkundeName || "",
     Adresse: b.street || "",
@@ -2177,10 +2184,13 @@ function buildAhData(body) {
   const hnd = computeAhSvc(hndSvc);
   const ab  = computeAhSvc(abSvc);
 
-  // Same visit as HnD: the trip is already paid for by HnD's Anfahrt, so AB
-  // only adds its own Anfahrt for visits beyond what HnD already covers.
+  // Same visit as HnD: on shared days (min of both visit counts) HnD keeps the
+  // trip — Anfahrt and Reisezeit — so AB bills neither for those visits.
+  // Mirrors computeAHGesamt in script.js.
   const abCombinedVisit    = !!(abSvc && abSvc.combinedVisit);
-  const abAnfahrtEinsaetze = abCombinedVisit ? Math.max(0, ab.totalEinsaetze - hnd.totalEinsaetze) : ab.totalEinsaetze;
+  const abSharedEinsaetze  = abCombinedVisit ? Math.min(hnd.totalEinsaetze, ab.totalEinsaetze) : 0;
+  ab.totalMonatlichH       = Math.max(0, ab.totalMonatlichH - abSharedEinsaetze * travelTimeH);
+  const abAnfahrtEinsaetze = ab.totalEinsaetze - abSharedEinsaetze;
 
   const totalMonatlichH = (hnd.totalMonatlichH || 0) + (ab.totalMonatlichH || 0);
   const totalEinsaetze  = (hnd.totalEinsaetze  || 0) + abAnfahrtEinsaetze;
@@ -2191,21 +2201,38 @@ function buildAhData(body) {
   const abLeistungenTotal = r2(ab.totalMonatlichH * AH_STUNDENSATZ_AB);
   const gesamt = r2(anfahrtTotal + leistungenTotal + abAnfahrtTotal + abLeistungenTotal);
 
-  // ── Eigenanteil nach Entlastungsbetrag (§ 45b SGB XI) ───────────────────
-  // Nur für Kassenkunden und nur wenn der Berater den Entlastungsbetrag auf
-  // der Finanzierung-Seite bestätigt hat. Verhinderungspflege/Umwidmung
-  // bleiben bewusst außen vor (siehe Bildschirm-Eigenanteil in script.js).
+  // ── Eigenanteil (Kassenkunde) — mirrors computeAHGesamt in script.js ────
+  // Only sources the consultant confirmed on the Finanzierung step count:
+  // Entlastungsbetrag § 45b (×2 for "2 Personen mit Pflegegrad"),
+  // Verhinderungspflege § 39, Umwidmung § 45a Abs. 4.
   const finAh = body?.Finanzierung || {};
+  const on = (v) => v === "on" || v === true;
   const isKassenkunde =
     String(body?.Kundendaten?.payer || "").toUpperCase() === "KASSENKUNDE";
+  const ebProPerson = Number(cfg.get("ENTLASTUNGSBETRAG_MONAT", 131)) || 0;
+  const kd = body?.Kundendaten || {};
+  const zweiPersonen = on(kd.ahZweiPersonen);
   const entlastungsbetrag =
-    isKassenkunde &&
-    (finAh.ahEntlastungsbetragNutzen === "on" ||
-      finAh.ahEntlastungsbetragNutzen === true)
-      ? Number(cfg.get("ENTLASTUNGSBETRAG_MONAT", 131)) || 0
+    isKassenkunde && on(finAh.ahEntlastungsbetragNutzen)
+      ? ebProPerson * (zweiPersonen ? 2 : 1)
       : 0;
-  const ahEigenanteil = r2(Math.max(0, gesamt - entlastungsbetrag));
-  const hasEigenanteil = gesamt > 0 && entlastungsbetrag > 0;
+  const verhinderungspflege = isKassenkunde ? Number(finAh.ahVerhinderungspflegeMonat) || 0 : 0;
+  const umwidmung =
+    isKassenkunde && on(finAh.ahUmwidmungBeantragt) ? Number(finAh.ahUmwidmungBetrag) || 0 : 0;
+  const abzug = r2(entlastungsbetrag + verhinderungspflege + umwidmung);
+  const ahEigenanteil = r2(Math.max(0, gesamt - abzug));
+  const hasEigenanteil = gesamt > 0 && abzug > 0;
+  const abzugParts = [];
+  if (entlastungsbetrag > 0) {
+    abzugParts.push(
+      zweiPersonen
+        ? `Entlastungsbetrag § 45b SGB XI (2 × ${fmtCurrency(ebProPerson)})`
+        : "Entlastungsbetrag § 45b SGB XI",
+    );
+  }
+  if (verhinderungspflege > 0) abzugParts.push("Verhinderungspflege § 39 SGB XI");
+  if (umwidmung > 0) abzugParts.push("Umwidmung § 45a Abs. 4 SGB XI");
+  const abzugLabel = "abzgl. " + abzugParts.join(", ");
 
   // ── Build per-service rows ──────────────────────────────────────────────
   const AhServices = rawServices.map((svc, idx) => {
@@ -2301,6 +2328,20 @@ function buildAhData(body) {
 
   const AhKondRowsHnD = buildKondRows(hndSvc, hnd.totalMonatlichH);
   const AhKondRowsAB  = buildKondRows(abSvc, ab.totalMonatlichH);
+  if (abSharedEinsaetze > 0) {
+    // Every AB visit rides along with HnD → no AB visit has Anfahrt, so the
+    // "inkl. Anfahrt" row would be wrong; drop it.
+    if (abAnfahrtEinsaetze <= 1e-9) {
+      const j = AhKondRowsAB.findIndex((r) => r.AhKondLabel.includes("inkl. Anfahrt"));
+      if (j >= 0) AhKondRowsAB.splice(j, 1);
+    }
+    // Insert after the "inkl. Anfahrt" row so it reads as its exception.
+    const i = AhKondRowsAB.findIndex((r) => r.AhKondLabel.startsWith("Monatlicher"));
+    AhKondRowsAB.splice(i < 0 ? AhKondRowsAB.length : i, 0, {
+      AhKondLabel: "Gemeinsamer Termin mit Haushaltsnahen Dienstleistungen:",
+      AhKondValue: `${fmtCount(abSharedEinsaetze)} Einsätze/Monat ohne Anfahrt`,
+    });
+  }
 
   // Kept for any template still on the old single-table tag; now HnD-first.
   const AhKondRows = [...AhKondRowsHnD, ...AhKondRowsAB];
@@ -2328,7 +2369,8 @@ function buildAhData(body) {
     AhGesamtbetrag: gesamt > 0 ? fmtCurrency(gesamt) : "",
     // Eigenanteil-Zeile im Template: {#AhHasEigenanteil} … {AhEigenanteil} … {/AhHasEigenanteil}
     AhHasEigenanteil: hasEigenanteil,
-    AhEntlastungsbetrag: fmtCurrency(entlastungsbetrag),
+    AhAbzugLabel: abzugLabel,
+    AhEntlastungsbetrag: fmtCurrency(abzug),
     // leer, wenn keine Eigenanteil-Zeile gilt: so druckt auch ein Template mit
     // falsch platziertem {/AhHasEigenanteil} keinen Betrag ohne Beschriftung
     AhEigenanteil: hasEigenanteil ? fmtCurrency(ahEigenanteil) : "",
