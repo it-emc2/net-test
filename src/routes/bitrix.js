@@ -268,6 +268,12 @@ export async function retryBitrixLog(logId) {
   return result;
 }
 
+// Separate internal-only timeline comment; returns null when the note is empty.
+function buildInternalNoteComment(note) {
+  const text = String(note ?? "").replace(/\r\n?/g, "\n").trim().slice(0, 5000);
+  return text ? `🔒 INTERNE NOTIZ (nicht für Kunden)\n\n${text}` : null;
+}
+
 async function addTimelineComment({
   entityType,
   entityId,
@@ -1013,6 +1019,7 @@ async function setDealOfferLink(dealId, offerNumber) {
 export {
   setDealOfferLink,
   addTimelineComment,
+  buildInternalNoteComment,
   updateDealStage,
   updateDealAfterSigning,
   AH_SIGNING_CATEGORY_ID,

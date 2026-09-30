@@ -5,7 +5,7 @@ import path from "path";
 import crypto from "crypto";
 import { PDFDocument } from "pdf-lib";
 import https from "node:https";
-import { addTimelineComment, setDealOfferLink } from "./bitrix.js";
+import { addTimelineComment, buildInternalNoteComment, setDealOfferLink } from "./bitrix.js";
 
 const router = express.Router();
 
@@ -374,6 +374,7 @@ router.post("/send", async (req, res) => {
       meta,
       dealId,
       bitrixEntityType,
+      internalNote,
     } = req.body || {};
 
     const mainFilename = String(document?.filename || "").trim() || "Angebot.pdf";
@@ -501,6 +502,14 @@ router.post("/send", async (req, res) => {
           comment,
           attachments: bitrixAttachments,
         });
+        const noteComment = buildInternalNoteComment(internalNote);
+        if (noteComment) {
+          await addTimelineComment({
+            entityType: resolvedEntityType,
+            entityId: timelineEntityId,
+            comment: noteComment,
+          });
+        }
       } else {
         bitrixResult = { skipped: true, reason: "missing entityId" };
       }

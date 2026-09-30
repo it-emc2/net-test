@@ -13,7 +13,7 @@ import dns from "dns";
 
 import EmailLog from "../models/EmailLog.js";
 import UserActionLog from "../models/UserActionLog.js";
-import { addTimelineComment, setDealOfferLink } from "./bitrix.js";
+import { addTimelineComment, buildInternalNoteComment, setDealOfferLink } from "./bitrix.js";
 import { createSigningRequest } from "./signing.js";
 
 import { buildEmailHtml } from "../lib/emailTemplate.js";
@@ -806,6 +806,8 @@ router.post(
           }),
           attachments: bitrixAttachments,
         });
+        const noteComment = buildInternalNoteComment(req.body.internalNote);
+        if (noteComment) await addTimelineComment({ ...target, comment: noteComment });
       }
     } catch (bitrixErr) {
       console.warn("[email] Bitrix timeline comment failed:", bitrixErr);
