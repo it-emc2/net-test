@@ -6759,6 +6759,15 @@ window.getAHEntlastungsbetragMonat = function () {
   var zwei = !!document.getElementById("ahZweiPersonen")?.checked;
   return window.__entlastungsbetragMonat * (zwei ? 2 : 1);
 };
+// AH prices client-side, but the bottom bar (Gesamt / Eigenanteil) only
+// refreshed via updatePricing() on step changes. Call this after any AH
+// price input changes so the bar follows immediately.
+window.refreshAHPricing = function () {
+  if (/^ah/.test(String(window.getCurrentOfferType?.() || "").toLowerCase()) &&
+      typeof window.updatePricing === "function") {
+    window.updatePricing();
+  }
+};
 (function initAhPerson2Toggle() {
   var cb = document.getElementById("ahZweiPersonen");
   var box = document.getElementById("ahPerson2Fields");
@@ -6766,6 +6775,7 @@ window.getAHEntlastungsbetragMonat = function () {
   cb.addEventListener("change", function () {
     box.hidden = !cb.checked;
     box.setAttribute("aria-hidden", String(!cb.checked));
+    window.refreshAHPricing(); // Entlastungsbetrag ×1 / ×2
   });
 })();
 // AH: Verhinderungspflege / Pflegesachleistungen-Umwidmung / § 35a — also admin-configurable.
@@ -6939,6 +6949,7 @@ fetch("/admin/api/config/public")
     if (typeof window.renderAHKostenPreview === "function") {
       window.renderAHKostenPreview();
     }
+    window.refreshAHPricing?.();
   }
 
   // Largest 5-min Dauer (≤ 8 h) for ONE row whose monthly price fits the
@@ -20276,6 +20287,7 @@ function restoreFinanzierung(fin) {
   var steuerEl = document.getElementById("ahSteuerabsetzBetrag");
 
   function refresh() {
+    window.refreshAHPricing?.();
     if (vp && vpOut) vpOut.textContent = Math.round(Number(vp.value) || 0) + " €";
     if (umCb && umField) {
       umField.hidden = !umCb.checked;
