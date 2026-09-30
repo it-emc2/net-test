@@ -13,7 +13,7 @@ import dns from "dns";
 
 import EmailLog from "../models/EmailLog.js";
 import UserActionLog from "../models/UserActionLog.js";
-import { addTimelineComment } from "./bitrix.js";
+import { addTimelineComment, setDealOfferLink } from "./bitrix.js";
 import { createSigningRequest } from "./signing.js";
 
 import { buildEmailHtml } from "../lib/emailTemplate.js";
@@ -791,6 +791,9 @@ router.post(
     try {
       const target = getBitrixTargetFromPayload(payload);
       if (target) {
+        if (target.entityType === "deal") {
+          await setDealOfferLink(target.entityId, payload?.offerNumber || offerNumber);
+        }
         bitrixComment = await addTimelineComment({
           ...target,
           comment: buildBitrixEmailComment({
