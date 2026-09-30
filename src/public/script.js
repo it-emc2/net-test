@@ -11769,7 +11769,13 @@ document
 // Formula: billMin = max(10, ceil(oneWayMinutes / 10) × 10)
 //          zone    = (billMin - 10) / 10 + 1
 
+// Hof city PLZs are always Zone 1 (routing often returns 11 min at the edge).
+// Capped at 15 min so a manual Zone 2+ button click is still respected.
+var AH_ZONE1_PLZ = ["95026", "95028", "95030", "95032"];
+
 window.computeAHZoneFromMinutes = function(oneWayMinutes) {
+  var plz = (document.getElementById("postalCode")?.value || "").trim();
+  if (AH_ZONE1_PLZ.indexOf(plz) !== -1 && oneWayMinutes <= 15) oneWayMinutes = 10;
   var billMin = Math.max(10, Math.ceil(oneWayMinutes / 10) * 10);
   var zone    = (billMin - 10) / 10 + 1;
   return { zone: zone, billMin: billMin };
