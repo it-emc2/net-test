@@ -239,6 +239,7 @@ export function initRestoreManager({
 
     // Populate Auftrag ID fields from whichever key old/new drafts used
     const resolvedAuftragId = String(
+      payload?.auftragId ||
       payload?.postal?.auftragId ||
       payload?.dealId ||
       normalized?.doc?.dealId ||

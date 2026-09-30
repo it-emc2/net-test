@@ -26316,6 +26316,9 @@ function syncSummaryLeadIds(rawLeadId){
     postAuftragId.dispatchEvent(new Event("change", { bubbles: true }));
   }
 }
+// Offer restore, postal restore and onEnterZusammenfassung live in other
+// scopes and guard with `typeof syncSummaryLeadIds` — without this they skip silently.
+window.syncSummaryLeadIds = syncSummaryLeadIds;
 
 function syncSummaryRecipientEmail(rawEmail){
   const email = String(rawEmail || "").trim();
@@ -28990,6 +28993,25 @@ document.addEventListener("DOMContentLoaded", () => {
       country: document.getElementById("postCountry"),
     };
 
+    // Two-way mirror with the Bitrix #auftragId, like EmailManager's
+    // syncLeadIdFields — flows that only write #auftragId must reach Post too.
+    const mainAuftragId = document.getElementById("auftragId");
+    if (mainAuftragId && fields.auftragId) {
+      const pull = () => {
+        if (fields.auftragId.value !== mainAuftragId.value) fields.auftragId.value = mainAuftragId.value;
+      };
+      const push = () => {
+        if (mainAuftragId.value === fields.auftragId.value) return;
+        mainAuftragId.value = fields.auftragId.value;
+        mainAuftragId.dispatchEvent(new Event("input", { bubbles: true }));
+        mainAuftragId.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+      mainAuftragId.addEventListener("input", pull);
+      mainAuftragId.addEventListener("change", pull);
+      fields.auftragId.addEventListener("input", push);
+      fields.auftragId.addEventListener("change", push);
+    }
+
     // Postversand only. The Flyer "Barrierefreies Wohnen" is mail-only and never
     // goes out by post — keep in sync with STATIC_POSTAL_ATTACHMENTS in
     // src/routes/post.js, which refuses it as well.
@@ -29211,6 +29233,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     function fillPostalDefaults() {
+      if (fields.auftragId && !String(fields.auftragId.value || "").trim()) {
+        fields.auftragId.value = String(document.getElementById("auftragId")?.value || "").trim();
+      }
       if (!String(fields.firstName?.value || "").trim()) {
         fields.firstName.value = String(document.getElementById("firstName")?.value || "").trim();
       }
