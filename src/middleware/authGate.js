@@ -82,6 +82,10 @@ export function authGate(req, res, next) {
   }
 
   const acceptsHtml = String(req.headers.accept || "").includes("text/html");
-  if (req.method === "GET" && acceptsHtml) return res.redirect("/login");
+  if (req.method === "GET" && acceptsHtml) {
+    // Keep deep links (e.g. /?offer=123 from Bitrix) across the login; login.js validates `next`.
+    const dest = req.originalUrl || "/";
+    return res.redirect(dest.startsWith("/?offer=") ? `/login?next=${encodeURIComponent(dest)}` : "/login");
+  }
   return res.status(401).json({ error: "Unauthorized" });
 }

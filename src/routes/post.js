@@ -5,7 +5,7 @@ import path from "path";
 import crypto from "crypto";
 import { PDFDocument } from "pdf-lib";
 import https from "node:https";
-import { addTimelineComment, buildInternalNoteComment } from "./bitrix.js";
+import { addTimelineComment, buildInternalNoteComment, setDealOfferLink } from "./bitrix.js";
 
 const router = express.Router();
 
@@ -495,6 +495,7 @@ router.post("/send", async (req, res) => {
         String(bitrixEntityType || meta?.bitrixEntityType || "deal").trim() || "deal";
 
       if (timelineEntityId) {
+        if (resolvedEntityType === "deal") await setDealOfferLink(timelineEntityId, offerNumber);
         bitrixResult = await addTimelineComment({
           entityType: resolvedEntityType,
           entityId: timelineEntityId,

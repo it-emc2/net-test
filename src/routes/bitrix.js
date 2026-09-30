@@ -996,7 +996,28 @@ router.get("/calendar/week", async (_req, res) => {
 });
 
 export default router;
+// Deal field "Angebotslink-oc" (url): one click from the deal reopens the offer in OC.
+const OFFER_LINK_FIELD = "UF_CRM_1790772236055";
+const OFFER_LINK_BASE = process.env.OFFER_LINK_BASE || "https://oc.emc2.de";
+
+// Best-effort: never throws, so a Bitrix hiccup can't fail an offer send.
+async function setDealOfferLink(dealId, offerNumber) {
+  const id = String(dealId || "").trim();
+  const n = String(offerNumber || "").trim();
+  if (!id || !n) return { skipped: true };
+  try {
+    await bxPost("crm.deal.update", {
+      id,
+      fields: { [OFFER_LINK_FIELD]: `${OFFER_LINK_BASE}/?offer=${encodeURIComponent(n)}` },
+    });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err?.message || String(err) };
+  }
+}
+
 export {
+  setDealOfferLink,
   addTimelineComment,
   buildInternalNoteComment,
   updateDealStage,
