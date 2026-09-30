@@ -29502,6 +29502,7 @@ document.addEventListener("DOMContentLoaded", () => {
             attachments: attachmentPayload,
             bitrixDocs,
             docWarnings,
+            internalNote: document.getElementById("internalNote")?.value || "",
             dealIdOverride,
             meta: {
               offerNumber: offerNumber,
@@ -29521,6 +29522,9 @@ document.addEventListener("DOMContentLoaded", () => {
             : `Postversand erfolgreich gestartet. Auftrag: ${result.printjobId || "-"} · Anlagen: ${result.attachmentCount || 0}`,
           "success",
         );
+
+        const noteEl = document.getElementById("internalNote");
+        if (noteEl) noteEl.value = "";
 
         window.__bitrixSendState = {
           lastOfferType: getActiveOfferForPostal() || null,
