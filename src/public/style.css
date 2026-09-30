@@ -10701,3 +10701,8 @@ details.az-group[open] > summary.az-group-title::before {
   border: 1px solid #cbd5e1;
   flex-shrink: 0;
 }
+
+.internal-note-card{margin:0 0 16px;padding:12px 14px;background:#fff8e1;border:1px solid #f0c36d;border-radius:10px}
+.internal-note-label{display:block;font-weight:600;margin-bottom:6px}
+.internal-note-card textarea{width:100%;box-sizing:border-box;resize:vertical}
+.internal-note-hint{margin:6px 0 0;font-size:.85em;opacity:.75}

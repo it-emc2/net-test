@@ -1634,6 +1634,7 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       const fd = new FormData();
       fd.append("to", to);
       if (bitrixOnly) fd.append("bitrixOnly", "1");
+      fd.append("internalNote", document.getElementById("internalNote")?.value || "");
       if (cc) fd.append("cc", cc);
       fd.append("subject", subject);
       fd.append("body", body);
@@ -1674,6 +1675,9 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
       }
 
       const data = await res.json().catch(() => ({}));
+
+      const noteEl = document.getElementById("internalNote");
+      if (noteEl) noteEl.value = "";
 
       pushStatus(
         `${bitrixOnly ? "In Bitrix abgelegt" : "E-Mail gesendet"} — Anhänge: ${data.attachmentNames?.join(", ") || "-"}`,
