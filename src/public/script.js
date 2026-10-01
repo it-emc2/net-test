@@ -645,7 +645,14 @@ const toast = {
 
 window.toast = window.toast || toast;
 
-// Update-checker: polls /api/version every 5 min; shows a refresh toast on new deploy
+// Update-checker: checks /api/version at boot, when the tab comes back into
+// view, and daily at 19:30. On a new deploy it reloads by itself while the form
+// is untouched; once the user has typed, it only offers the reload (toast).
+// Fresh-page reload after the SW swap is in sw-register.js.
+window.__userEdited = false;
+document.addEventListener("input", () => (window.__userEdited = true), { capture: true, once: true });
+document.addEventListener("change", () => (window.__userEdited = true), { capture: true, once: true });
+
 (function startUpdateChecker() {
   let knownBuildId = null;
   let poller = null;
@@ -715,8 +722,9 @@ window.toast = window.toast || toast;
         return;
       }
       if (buildId !== knownBuildId) {
-        showUpdateToast();
         clearTimeout(poller);
+        if (!window.__userEdited) location.reload();
+        else showUpdateToast();
       }
     } catch (_) {}
   }
@@ -733,6 +741,9 @@ window.toast = window.toast || toast;
 
   checkVersion();
   scheduleNextCheck();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") checkVersion();
+  });
 
   window.__checkAppVersion = checkVersion;
 })();
