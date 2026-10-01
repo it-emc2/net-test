@@ -510,7 +510,10 @@ export function initEmailManager(options = {}) {
         console.warn("[EmailManager] onDealStageMoved hook failed:", e);
       }
     } catch (e) {
-      if (body) body.innerHTML = `<p class="ang-stage-error">Fehler: ${e.message || e}</p>`;
+      // The offer itself already went out — say so, or users resend it.
+      if (body) {
+        body.innerHTML = `<p class="ang-stage-error">Deal konnte nicht verschoben werden: ${e.message || e}<br>Das Angebot wurde trotzdem versendet – bitte NICHT erneut senden.</p>`;
+      }
       if (moveBtn) moveBtn.disabled = false;
     }
   }
@@ -1546,7 +1549,13 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
   }
   window.__collectBitrixDocs = collectBitrixDocs;
 
+  let sending = false;
+
   async function send({ bitrixOnly = false } = {}) {
+    // Lock before the first await (draft save, PDF build) — otherwise repeated
+    // clicks while it "looks idle" each start their own send.
+    if (sending) return false;
+    setSendingState(true);
     try {
       if (cfg.hooks.requireBereichValid && !cfg.hooks.requireBereichValid()) {
         location.hash = "Kundendaten";
@@ -1591,7 +1600,6 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
         document.querySelector(cfg.bitrix.contactIdSelector)?.value || "",
       ).trim();
 
-      setSendingState(true);
       startStatusLog();
       pushStatus(
         bitrixOnly ? "Bitrix-Ablage gestartet …" : "Sende-Vorgang gestartet …",
@@ -1741,8 +1749,17 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
   }
 
   function setSendingState(busy) {
-    $btn.disabled = busy;
-    if ($btnBitrix) $btnBitrix.disabled = busy;
+    sending = busy;
+    for (const b of [$btn, $btnBitrix]) {
+      if (!b) continue;
+      b.disabled = busy;
+      if (busy) {
+        b.dataset.idleLabel = b.innerHTML;
+        b.innerHTML = '<span class="btn-icon">⏳</span> Wird gesendet …';
+      } else if (b.dataset.idleLabel) {
+        b.innerHTML = b.dataset.idleLabel;
+      }
+    }
   }
 
   $btn.addEventListener("click", (e) => {
