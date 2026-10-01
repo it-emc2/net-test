@@ -649,9 +649,12 @@ window.toast = window.toast || toast;
 // view, and daily at 19:30. On a new deploy it reloads by itself while the form
 // is untouched; once the user has typed, it only offers the reload (toast).
 // Fresh-page reload after the SW swap is in sw-register.js.
+// isTrusted: the app fires ~150 synthetic change/input events itself (restore,
+// defaults), which must not count as the user having typed.
 window.__userEdited = false;
-document.addEventListener("input", () => (window.__userEdited = true), { capture: true, once: true });
-document.addEventListener("change", () => (window.__userEdited = true), { capture: true, once: true });
+const markUserEdited = (e) => { if (e.isTrusted) window.__userEdited = true; };
+document.addEventListener("input", markUserEdited, true);
+document.addEventListener("change", markUserEdited, true);
 
 (function startUpdateChecker() {
   let knownBuildId = null;
