@@ -160,6 +160,19 @@ export function initRestoreManager({
       window.__bwtTravelTimeFreeHours = bwtHoursSnap != null ? Number(bwtHoursSnap) : 2;
       window.__bwtFreigrenzenLegacyOffer = bwtKmSnap == null && bwtHoursSnap == null;
 
+      // Aktion Haltegriff: only an offer that actually got the bonus is pinned
+      // to its saved grab-bar list (no snapshot → the 30 cm-only rule it was
+      // priced with). Without the bonus there's no price to protect, so it
+      // follows today's admin list.
+      if (payload?.rabatt?.bonusGrab) {
+        const grabSnap = payload?.pricingRules?.grabBonusIds;
+        window.__grabBonusIds = Array.isArray(grabSnap) ? grabSnap : ["CLPESG30"];
+        window.__grabBonusIdsPinned = true;
+      } else {
+        window.__grabBonusIds = window.__grabBonusIdsLive || ["CLPESG30"];
+        window.__grabBonusIdsPinned = false;
+      }
+
       console.log("[SKETCH][payload-stored]", {
         payloadKeys: Object.keys(payload || {}),
         hlKeys: payload?.hl ? Object.keys(payload.hl) : [],

@@ -210,7 +210,7 @@ describe('Pricing Module', () => {
         expect(result.bonusFlags.bonus_Haltegriff).toBe(true);
       });
 
-      describe('Aktion Haltegriff (30 cm only)', () => {
+      describe('Aktion Haltegriff (pricingRules.grabBonusIds, default 30 cm)', () => {
         const grabs = [
           { productId: 'CLPESG30', price: 40, name: 'Haltegriff 30' },
           { productId: 'CLPESG40', price: 50, name: 'Haltegriff 40' },
@@ -246,6 +246,24 @@ describe('Pricing Module', () => {
           expect(r.grabCounts.freeId).toBeNull();
           expect(r.grabBonusMaterial).toBe(0);
           expect(r.bonusGross).toBe(0);
+        });
+
+        test("eligibility follows the offer's pricingRules.grabBonusIds snapshot", async () => {
+          mockProductModel.find.mockReturnValue({
+            lean: jest.fn().mockResolvedValue(grabs),
+          });
+          const with40 = (grabBonusIds) =>
+            pricing.computePrices(createBasePayload({
+              optional: { opt_CLPESG40: true, qty_CLPESG40: 1 },
+              rabatt: { bonusGrab: true },
+              pricingRules: { grabBonusIds },
+            }));
+          const none = await run({});
+          const listed = await with40(['CLPESG30', 'CLPESG40']);
+          expect(listed.grabCounts.freeId).toBe('CLPESG40');
+          expect(net(listed)).toBeCloseTo(net(none), 2);
+          // removed from the snapshot → not free any more
+          expect((await with40(['CLPESG30'])).grabCounts.freeId).toBeNull();
         });
 
         test('2× 30 cm → only one free, the other billed with Aufschlag', async () => {

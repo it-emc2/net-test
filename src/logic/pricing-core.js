@@ -1668,8 +1668,17 @@ color: metaColor || null,
       }),
     );
     const grabTotal = GRAB_IDS.reduce((a, id) => a + (grabQtyById[id] || 0), 0);
-    // Aktion Haltegriff: only a 30 cm grab bar can be the free one.
-    const freeId = grabQtyById.CLPESG30 > 0 ? "CLPESG30" : null;
+    // Aktion Haltegriff: the free one is the first eligible article in the offer.
+    // The eligible list is the offer's own snapshot (pricingRules.grabBonusIds,
+    // taken from GRAB_BONUS_IDS at save time), so later admin edits never
+    // reprice a saved offer. Absent → the historical 30 cm-only rule.
+    const grabBonusIds = Array.isArray(payload?.pricingRules?.grabBonusIds)
+      ? payload.pricingRules.grabBonusIds
+      : ["CLPESG30"];
+    const freeId =
+      grabBonusIds.find((id) =>
+        resolved.some((l) => (l.productId || l.id) === id && Number(l.qty) > 0),
+      ) || null;
 
     // Merge in drift from plain DB-priced lines — same shape as the Vigor
     // drift above, just a different price source, so the existing
