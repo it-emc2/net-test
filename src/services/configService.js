@@ -171,6 +171,11 @@ export const CONFIG_SCHEMA = [
     label: 'Aktion Haltegriff – Arbeit (Netto)', unit: '€', type: 'euro', section: 'zuschuss', order: 5,
     description: 'Montagewert des Gratis-Haltegriffs im Angebot (Material + Arbeit = 147,06 € netto = 175 € brutto)',
   },
+  {
+    key: 'GRAB_BONUS_IDS', value: ['CLPESG30'],
+    label: 'Aktion Haltegriff – berechtigte Artikel', type: 'text-list', section: 'zuschuss', order: 6,
+    description: 'Artikelnummern (eine pro Zeile), für die "Haltegriff gratis" im Rabatt-Tab angeboten wird. Bei mehreren im Angebot ist der zuerst gelistete gratis. Gilt für neue Angebote — gespeicherte Angebote/Entwürfe behalten ihre Liste.',
+  },
 
   // ── WV EIGENES LAGER ─────────────────────────────────────────────────────
   {

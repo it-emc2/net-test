@@ -127,7 +127,10 @@ function renderSection() {
     const input = $(`field-${item.key}`);
     if (input) {
       input.addEventListener('input', () => handleInput(item, input));
-      input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); });
+      // Textareas (text-list/json) need Enter for new lines.
+      if (input.tagName !== 'TEXTAREA') {
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); });
+      }
     }
     const resetBtn = $(`reset-${item.key}`);
     if (resetBtn) resetBtn.addEventListener('click', () => resetKey(item));

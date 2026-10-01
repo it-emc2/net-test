@@ -20,6 +20,8 @@
   function closeModal() {
     modal.style.display = 'none';
     document.body.style.overflow = '';
+    // Pick up settings saved in the panel (e.g. Aktion-Haltegriff list).
+    window.__loadPublicConfig?.();
   }
 
   openBtn.addEventListener('click', openModal);

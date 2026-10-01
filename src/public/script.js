@@ -1401,6 +1401,14 @@ function setCheckbox(nameOrId, on) {
 // =================================================================
 // #region 5. AUTO-CALCULATION & FORMATTING WIRING & black white theme
 // =================================================================
+// Aktion Haltegriff: is a grab bar from the active list in this pricing result?
+function hasEligibleGrab(data) {
+  const ids = window.__grabBonusIds || ["CLPESG30"];
+  return (data?.materials?.lines || []).some(
+    (l) => ids.includes(l.productId || l.id) && Number(l.qty) > 0,
+  );
+}
+
 async function refetchAndRender() {
   const payload = buildPayload();
   const res = await fetch("/api/price", {
@@ -1494,7 +1502,9 @@ function autoRefreshOnEnter() {
     });
 
   // 3) Bonus checkbox itself should also re-render on change
-  document.getElementById("rb-bonus-grab")?.addEventListener("change", () => {
+  document.getElementById("rb-bonus-grab")?.addEventListener("change", (e) => {
+    // Rabatt given → freeze this offer's grab-bar list against later admin edits.
+    if (e.target.checked) window.__grabBonusIdsPinned = true;
     refetchAndRender();
   });
 }
@@ -3180,6 +3190,8 @@ function startOfferFlow(offerKey) {
   window.__bwtFreigrenzenLegacyOffer = false;
   window.__bwtKmFreeThreshold = Number(window.__bwtKmFreeThresholdLive ?? 200);
   window.__bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHoursLive ?? 2);
+  window.__grabBonusIdsPinned = false;
+  window.__grabBonusIds = window.__grabBonusIdsLive || ["CLPESG30"];
 
   // BWT/HL: override Arbeitszeit default to 05:00 (1 worker, shorter job)
   applyOfferDefaultLaborHours(offerKey);
@@ -4734,6 +4746,16 @@ function buildPayload() {
     bonus300: rabattEnabled && !!document.getElementById("rb-bonus-300")?.checked,
     bonusGrab: rabattEnabled && !!document.getElementById("rb-bonus-grab")?.checked,
   };
+
+  // Aktion Haltegriff: snapshot the eligible grab bars so a later admin edit
+  // can't add/remove the bonus on this offer. Only sent while the bonus is on
+  // and the list differs from the historical 30 cm-only rule (= what pricing
+  // assumes when absent): any other offer keeps its pricing fingerprint, so
+  // an admin edit never makes unrelated saved offers recompute.
+  const grabIds = window.__grabBonusIds || ["CLPESG30"];
+  if (payload.rabatt.bonusGrab && JSON.stringify(grabIds) !== '["CLPESG30"]') {
+    payload.pricingRules.grabBonusIds = [...grabIds];
+  }
 
   payload.offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
 
@@ -6793,10 +6815,17 @@ window.__bwtTravelTimeFreeHoursLive = 2;
 window.__bwtKmFreeThresholdLive = 200;
 window.__bwtTravelTimeFreeHours = 2;
 window.__bwtKmFreeThreshold = 200;
+// Aktion Haltegriff: eligible grab bars (GRAB_BONUS_IDS). Same Live/pinned
+// split as the BWT Freigrenzen above.
+window.__grabBonusIdsLive = ["CLPESG30"];
+window.__grabBonusIds = ["CLPESG30"];
 window.__fahrzeugbereitstellung = 80.0;
 window.__werkzeug = 7.5;
 window.__beraeumung = 4.5;
-fetch("/admin/api/config/public")
+// Re-run when the admin modal closes (admin-modal.js), so edits there apply
+// without a page reload.
+window.__loadPublicConfig = function () {
+return fetch("/admin/api/config/public", { cache: "no-store" })
   .then(function (r) { return r.ok ? r.json() : null; })
   .then(function (d) {
     if (!d) return;
@@ -6828,6 +6857,15 @@ fetch("/admin/api/config/public")
       window.__bwtKmFreeThresholdLive = d.BWT_KM_FREE_THRESHOLD;
       if (!window.__bwtFreigrenzenLegacyOffer) window.__bwtKmFreeThreshold = d.BWT_KM_FREE_THRESHOLD;
     }
+    if (Array.isArray(d.GRAB_BONUS_IDS)) {
+      window.__grabBonusIdsLive = d.GRAB_BONUS_IDS;
+      if (!window.__grabBonusIdsPinned) {
+        const changed = JSON.stringify(window.__grabBonusIds) !== JSON.stringify(d.GRAB_BONUS_IDS);
+        window.__grabBonusIds = d.GRAB_BONUS_IDS;
+        // Re-price so the "Haltegriff gratis" checkbox follows the new list.
+        if (changed && window.getCurrentOfferType?.()) refetchAndRender().catch(function () {});
+      }
+    }
     if (typeof d.FAHRZEUGBEREITSTELLUNG === "number") window.__fahrzeugbereitstellung = d.FAHRZEUGBEREITSTELLUNG;
     if (typeof d.WERKZEUG === "number") window.__werkzeug = d.WERKZEUG;
     if (typeof d.BERAEUMUNG === "number") window.__beraeumung = d.BERAEUMUNG;
@@ -6839,6 +6877,8 @@ fetch("/admin/api/config/public")
     if (typeof renderTravelCostDebug === "function") renderTravelCostDebug();
   })
   .catch(function () {});
+};
+window.__loadPublicConfig();
 
 // AH: dynamic multi-service card list
 (function initAhServicesPage() {
@@ -13200,13 +13240,13 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     `;
     const totalsCard = card("Summen", sums, recomputeFooter);
 
-    // --- Show/hide "Haltegriff gratis" checkbox based on CLPESG30 presence
+    // --- Show/hide "Haltegriff gratis" checkbox: server sets freeId only for admin-listed grab bars
     (function () {
       const bonusGrab = document.getElementById("rb-bonus-grab");
       if (!bonusGrab) return;
 
       // authoritative source from server:
-      const shouldShow = Number(data?.grabCounts?.cl30 || 0) > 0;
+      const shouldShow = hasEligibleGrab(data);
 
       const row =
         bonusGrab.closest(".form-row") ||
@@ -17654,8 +17694,8 @@ window.setPricingData = function setPricingData(data) {
       document.getElementById("rb-bonus-grab")?.parentElement;
     const cb = document.getElementById("rb-bonus-grab");
 
-    // Aktion Haltegriff applies to a 30 cm grab bar only.
-    const allow = Number(data?.grabCounts?.cl30 || 0) > 0;
+    // Aktion Haltegriff applies to the grab bars listed in the admin panel.
+    const allow = hasEligibleGrab(data);
 
     if (row) {
       row.style.display = allow ? "" : "none";
