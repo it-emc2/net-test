@@ -29571,7 +29571,13 @@ document.addEventListener("DOMContentLoaded", () => {
       return true;
     }
 
+    // Set once a letter went out; keeps the button locked until the panel is
+    // reset or another offer is loaded, so one click = at most one letter.
+    let postalSent = false;
+
     sendBtn.addEventListener("click", async () => {
+      if (sendBtn.disabled) return;
+      sendBtn.disabled = true;
       try {
         fillPostalDefaults();
         validate();
@@ -29595,7 +29601,6 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        sendBtn.disabled = true;
         setStatus("Erzeuge Angebots-PDF …", "info");
         const { blob: pdfBlob, filename: pdfFilename } = await fetchOfferPdfBlobLocal();
         const pdfBase64 = await blobToBase64Local(pdfBlob);
@@ -29643,10 +29648,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         setStatus("Sende Brief an onlinebrief24 …", "info");
-        const response = await fetch("/api/post/send", {
+        const sendLetter = (forceResend) => fetch("/api/post/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            forceResend,
             auftragId: String(fields.auftragId?.value || "").trim(),
             recipient: {
               name: `${String(fields.firstName?.value || "").trim()} ${String(fields.lastName?.value || "").trim()}`.trim(),
@@ -29671,7 +29677,22 @@ document.addEventListener("DOMContentLoaded", () => {
           }),
         });
 
-        const result = await response.json().catch(() => ({}));
+        let response = await sendLetter(false);
+        let result = await response.json().catch(() => ({}));
+        if (response.status === 409 && result?.code === "ALREADY_SENT") {
+          const when = result.lastSentAt ? new Date(result.lastSentAt).toLocaleString("de-DE") : "-";
+          const again = window.confirm(
+            `Für diesen Deal wurde bereits am ${when} ein Brief versendet ` +
+              `(${result.lastOfferNumber || "-"}, onlinebrief24 ${result.lastPrintjobId || "-"}).\n\n` +
+              "Wirklich einen ZWEITEN Brief versenden?",
+          );
+          if (!again) {
+            setStatus("Versand abgebrochen – Brief wurde bereits versendet.", "info");
+            return;
+          }
+          response = await sendLetter(true);
+          result = await response.json().catch(() => ({}));
+        }
         if (!response.ok || result?.ok === false) {
           throw new Error(result?.error || `Postversand fehlgeschlagen (${response.status}).`);
         }
@@ -29682,6 +29703,8 @@ document.addEventListener("DOMContentLoaded", () => {
             : `Postversand erfolgreich gestartet. Auftrag: ${result.printjobId || "-"} · Anlagen: ${result.attachmentCount || 0}`,
           "success",
         );
+
+        postalSent = true;
 
         const noteEl = document.getElementById("internalNote");
         if (noteEl) noteEl.value = "";
@@ -29697,10 +29720,11 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           const payload = buildPayload();
           const dealId = String(fields.auftragId?.value || "").trim();
+          const offerTotal = Number(window.__pricing?.total) || 0;
           window.__showSentDialog?.({
             via: "post",
             dealId,
-            offerTotal: Number(payload?.pricing?.finalTotal) || 0,
+            offerTotal,
             attachmentNames: [
               ...(result.attachmentNames || []),
               ...bitrixDocs.map((doc) => doc.filename),
@@ -29710,7 +29734,8 @@ document.addEventListener("DOMContentLoaded", () => {
               offerType: payload.activeOffer || "",
               offerNumber,
               isKassenkunde: payload?.Kundendaten?.payer === "Kassenkunde",
-              finalTotal: Number(payload?.pricing?.finalTotal) || 0,
+              selfPayAmount: Number(window.__pricing?.selfPayAmount) || 0,
+              finalTotal: offerTotal,
               payload,
             },
           });
@@ -29721,14 +29746,25 @@ document.addEventListener("DOMContentLoaded", () => {
         console.error("[post] send error", error);
         setStatus(error?.message || "Postversand fehlgeschlagen.", "error");
       } finally {
-        sendBtn.disabled = false;
+        sendBtn.disabled = postalSent;
       }
     });
 
+    const unlockSend = () => {
+      postalSent = false;
+      sendBtn.disabled = false;
+    };
+
     window.__postalManager = {
-      reset: resetPostalPanel,
+      reset: () => {
+        unlockSend();
+        resetPostalPanel();
+      },
       getState: serializePostalState,
-      restoreFromPayload: restorePostalState,
+      restoreFromPayload: (state) => {
+        unlockSend();
+        restorePostalState(state);
+      },
       render: renderAttachmentList,
       refreshPrefills: refreshPostalPrefills,
     };
