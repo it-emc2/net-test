@@ -10706,3 +10706,9 @@ details.az-group[open] > summary.az-group-title::before {
 .internal-note-label{display:block;font-weight:600;margin-bottom:6px}
 .internal-note-card textarea{width:100%;box-sizing:border-box;resize:vertical}
 .internal-note-hint{margin:6px 0 0;font-size:.85em;opacity:.75}
+
+/* Dark mode: hardcoded light backgrounds on internal note + Dokumentenstudio cards */
+[data-mode="dark"] .internal-note-card{background:rgba(240,195,109,.08);border-color:rgba(240,195,109,.35);color:var(--text)}
+[data-mode="dark"] #page-Zusammenfassung .export-card:not([hidden]){background:var(--card);border-color:var(--border)}
+[data-mode="dark"] #page-Zusammenfassung .document-card__format{background:rgba(255,255,255,.08);color:var(--text)}
+[data-mode="dark"] #page-Zusammenfassung .document-card__badge{color:#f2bc78}
