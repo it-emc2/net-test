@@ -220,6 +220,20 @@ class ConfigService {
     } catch (err) {
       console.warn('ConfigService: DB load failed, using defaults:', err.message);
     }
+    // Multiple Fly machines: admin edits only hit one machine's cache, so re-sync periodically.
+    if (!this._refreshTimer) {
+      this._refreshTimer = setInterval(() => this._refresh(), 60_000);
+      this._refreshTimer.unref();
+    }
+  }
+
+  async _refresh() {
+    try {
+      const docs = await AppConfig.find({}).lean();
+      for (const doc of docs) this._cache.set(doc.key, doc.value);
+    } catch (err) {
+      console.warn('ConfigService: refresh failed, keeping cache:', err.message);
+    }
   }
 
   async seed() {
