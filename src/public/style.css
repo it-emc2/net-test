@@ -3317,6 +3317,25 @@ label.image-check.tile-custom:has(input:checked) .tile-custom-plus {
   margin-top: 8px;
 }
 
+/* An empty status line shouldn't reserve a flex row (gap + margin). */
+.bitrix-status:empty {
+  display: none;
+}
+
+/* .bitrix-card centres its items, but the input sits under a label — so align
+   the button with the input's row, not with the label+input group's middle. */
+.btn-bitrix {
+  align-self: flex-end;
+}
+
+/* Same box for both controls, so their edges match regardless of font size
+   or how the button's emoji renders. */
+.input-auftrag,
+.btn-bitrix {
+  height: 46px;
+  box-sizing: border-box;
+}
+
 /* Preview Section */
 .preview-section {
   margin-bottom: 40px;
