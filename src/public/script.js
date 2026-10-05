@@ -11338,6 +11338,9 @@ if (document.readyState === "loading") {
     const best = opt1497.waste <= opt997.waste ? opt1497 : opt997;
     return { area, opt997, opt1497, best };
   }
+  // Shared with the Wandverkleidung page's Flächenrechner, so both places use the
+  // same panel sizes and the same "least waste wins" rule.
+  window.computeWvPanelSuggestion = computeSuggestion;
 
   const fmt = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const eur = (n) => n > 0 ? `${fmt(n)} €` : "";
@@ -11540,6 +11543,113 @@ makeFloorCalc({
   addRowBtn: document.getElementById("wvcCalcAddRow"),
   areaInput: document.getElementById("wallCladdingArea"),
 });
+
+/* ========== WANDVERKLEIDUNG-SEITE: Wandfläche → Plattenvorschlag ==========
+   Same building blocks as the Fußboden page and the WV-als-Fußboden tab:
+   makeFloorCalc for the calculator, computeWvPanelSuggestion for the math. The
+   area (wvArea) is additive — absent in every saved offer, which simply shows no
+   suggestion. On the premium line it only proposes quantities; nothing changes
+   until a card is tapped. */
+(function initWvPageArea() {
+  const areaEl = document.getElementById("wvArea");
+  const box = document.getElementById("wvAreaSuggestion");
+  const cardsEl = document.getElementById("wvAreaCards");
+  if (!areaEl || !box || !cardsEl) return;
+
+  makeFloorCalc({
+    toggleEl: document.getElementById("wvaCalcToggle"),
+    panelEl: document.getElementById("wvaCalcPanel"),
+    rowsEl: document.getElementById("wvaCalcRows"),
+    totalEl: document.getElementById("wvaCalcResult"),
+    applyBtn: document.getElementById("wvaCalcApply"),
+    addRowBtn: document.getElementById("wvaCalcAddRow"),
+    areaInput: areaEl,
+  });
+
+  const fmt = (n) =>
+    (Number(n) || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // Which size is currently in use, so the matching card reads "✓ Ausgewählt".
+  const selectedSize = () => {
+    const on997 = document.getElementById("wv997")?.checked;
+    const on1497 = document.getElementById("wv1497")?.checked;
+    return on997 && !on1497 ? 997 : on1497 && !on997 ? 1497 : null;
+  };
+
+  function card(opt, isBest, isSelected) {
+    return `
+      <button type="button" class="wvc-card${isBest ? " wvc-best" : ""}${isSelected ? " wvc-selected" : ""}"
+              data-size="${opt.size}" data-qty="${opt.qty}">
+        <div class="wvc-card-head">
+          <span class="wvc-size">${opt.size}×2550 mm</span>
+          ${isBest ? `<span class="wvc-badge">Empfehlung</span>` : ""}
+        </div>
+        <div class="wvc-qty">${opt.qty} Stück</div>
+        <div class="wvc-coverage">${fmt(opt.covered)} m² abgedeckt · ${fmt(opt.waste)} m² Verschnitt</div>
+        <div class="wvc-select-label">${isSelected ? "✓ Ausgewählt" : "Auswählen"}</div>
+      </button>`;
+  }
+
+  function render() {
+    // The Standard line has no 997/1497 panels to propose — it is priced from
+    // the area directly (see the Keramico line in pricing-core).
+    const premium = typeof getLine !== "function" || getLine("wand") === "premium";
+    const result = premium ? window.computeWvPanelSuggestion?.(areaEl.value) : null;
+    if (!result) {
+      box.hidden = true;
+      cardsEl.innerHTML = "";
+      return;
+    }
+    const sel = selectedSize();
+    cardsEl.innerHTML =
+      card(result.opt997, result.best.size === 997, sel === 997) +
+      card(result.opt1497, result.best.size === 1497, sel === 1497);
+    box.hidden = false;
+  }
+
+  // Taking a suggestion means "this size covers the wall": set it, clear the
+  // other. The quantities are written explicitly rather than left to each
+  // checkbox's change handler: that handler is only wired once the page has been
+  // opened, and pricing reads the QUANTITY, not the checkbox — a size switched
+  // off but still holding "2" would bill two extra panels.
+  function apply(size, qty) {
+    const rows = [
+      { size: 997, cb: "wv997", qty: "wvQty997" },
+      { size: 1497, cb: "wv1497", qty: "wvQty1497" },
+    ];
+    for (const r of rows) {
+      const cb = document.getElementById(r.cb);
+      const q = document.getElementById(r.qty);
+      if (!cb || !q) continue;
+      const on = r.size === size;
+      q.value = on ? String(qty) : "0";
+      if (cb.checked !== on) {
+        cb.checked = on;
+        cb.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      // The handler sets "1" when it switches a size on; restore the suggestion.
+      q.value = on ? String(qty) : "0";
+      q.dispatchEvent(new Event("input", { bubbles: true }));
+      q.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    render();
+    // Programmatic events are ignored by the live-pricing watcher on purpose.
+    window.requestPricingRefresh?.({ delay: 120, reason: "wv-area-suggestion" });
+  }
+
+  cardsEl.addEventListener("click", (e) => {
+    const btn = e.target.closest?.(".wvc-card");
+    if (!btn) return;
+    apply(Number(btn.dataset.size), Number(btn.dataset.qty));
+  });
+  areaEl.addEventListener("input", render);
+  areaEl.addEventListener("change", render);
+  document.getElementById("wv997")?.addEventListener("change", render);
+  document.getElementById("wv1497")?.addEventListener("change", render);
+  document.getElementById("wvLineToggle")?.addEventListener("change", render);
+  window.renderWvAreaSuggestion = render;
+  render();
+})();
 
 /* ========== SMART TRAY SEARCH (equal-or-bigger filter, persist/deselect) ========== */
 function initSmartTraySearch() {
@@ -15237,6 +15347,9 @@ function restoreWV(wv) {
   applyWvColors();
   registerBudgetReapply("wv", applyWvColors);
   setInputByNameOrId("wvSonderConfigNr", wv.wvSonderConfigNr || "");
+  // Wandfläche (additiv seit 2026-10): fehlt in Altangeboten → bleibt leer.
+  setInputByNameOrId("wvArea", wv.wvArea || "");
+  window.renderWvAreaSuggestion?.();
   setInputByNameOrId("wvNote", wv.wvNote || "");
 
   const pageWV = document.getElementById("page-Wandverkleidung");

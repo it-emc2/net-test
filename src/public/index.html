@@ -4808,9 +4808,47 @@ button.dm-btn-danger:focus-visible {
 
           <div id="wvPanelsSection" class="full field">
             <div class="section-title">Plattenwahl</div>
+
+            <!-- Wandfläche + Flächenrechner, gleiche Bausteine wie auf der Fußboden-Seite
+                 (makeFloorCalc). Premium: schlägt 997/1497 vor. Standard: daraus wird die
+                 Keramico-Menge berechnet. wvArea ist additiv — fehlt in jedem Altangebot. -->
+            <div class="flooring-panel-head">
+              <h3 style="margin: 0">Wandfläche</h3>
+              <button type="button" id="wvaCalcToggle" class="secondary flooring-calc-toggle" aria-expanded="false"
+                aria-controls="wvaCalcPanel">Flächenrechner öffnen</button>
+            </div>
+            <div class="flooring-top-grid">
+              <div class="field flooring-area-field" style="margin:0;">
+                <label for="wvArea">Wandfläche m²</label>
+                <input id="wvArea" name="wvArea" inputmode="decimal" placeholder="z. B. 8,5" />
+                <small class="muted flooring-area-help">Fläche direkt eingeben oder den Flächenrechner verwenden.</small>
+              </div>
+              <aside id="wvaCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
+                <div class="floor-calc-card__title-row">
+                  <div>
+                    <div class="floor-calc-card__title">Flächenrechner</div>
+                    <div class="floor-calc-card__hint">Wandflächen addieren oder Aussparungen (Fenster, Türen) abziehen — Angaben in Metern.</div>
+                  </div>
+                </div>
+                <div id="wvaCalcRows" class="floor-calc-rows" aria-live="polite"></div>
+                <button type="button" id="wvaCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
+                <div class="floor-calc-result-row">
+                  <div>
+                    <div class="floor-calc-result-label">Gesamtfläche</div>
+                    <div id="wvaCalcResult" class="floor-calc-result-value">0,00 m²</div>
+                  </div>
+                  <button type="button" id="wvaCalcApply" class="floor-calc-apply">In Fläche übernehmen</button>
+                </div>
+              </aside>
+            </div>
+            <div id="wvAreaSuggestion" hidden style="margin: 14px 0 18px;">
+              <div class="muted" style="margin-bottom: 8px;">Vorschlag für diese Fläche — antippen übernimmt die Menge:</div>
+              <div id="wvAreaCards" class="wvc-cards"></div>
+            </div>
+
             <label class="req">Wandverkleidung</label>
             <div style="display: flex; gap: 14px; flex-wrap: wrap">
-              <div class="field" style="min-width: 220px">
+              <div class="field" id="wvPanelField997" style="min-width: 220px">
                 <label class="image-check">
                   <input type="checkbox" id="wv997" name="wvPanels[]"
                     value="Wandverkleidung 3.0 Alu 997x2550 VIGOUR V3WVK09" data-product-id="V3WVK09" />
@@ -4845,7 +4883,7 @@ button.dm-btn-danger:focus-visible {
                 
               </div>
 
-              <div class="field" style="min-width: 220px">
+              <div class="field" id="wvPanelField1497" style="min-width: 220px">
                 <label class="image-check">
                   <input type="checkbox" id="wv1497" name="wvPanels[]"
                     value="Wandverkleidung 3.0 Alu 1497x2550 VIGOUR V3WVK09" data-product-id="V3WV09" />
