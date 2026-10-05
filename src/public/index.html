@@ -1823,12 +1823,65 @@
       overflow: hidden;
     }
 
-    /* Checkliste: abgeleitete Zeilen (Label links, Wert rechts) */
-    #zfCheckliste .zf-chk-derived {
+    /* Checkliste: nummerierte Gruppen wie in bau-formular. Pflichtpunkte
+       tragen ein *, offene Pflichtpunkte werden rot. */
+    #page-Checkliste .zf-chk-intro {
+      margin: 0 0 12px;
+      color: var(--muted);
+    }
+    #page-Checkliste .zf-chk-summary {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    #page-Checkliste .zf-chk-summary.is-open { color: #b42318; }
+    #page-Checkliste .zf-chk-summary.is-done { color: var(--accent-strong); }
+    #page-Checkliste .zf-chk-group {
+      margin-top: 14px;
+      padding: 14px 18px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--accent-weak);
+    }
+    #page-Checkliste .zf-chk-group h3 {
+      margin: 0 0 6px;
+      font-size: 1rem;
+      color: var(--accent-strong);
+    }
+    #page-Checkliste .zf-chk-item {
       display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 4px 0;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 10px;
+      line-height: 1.45;
+      cursor: pointer;
+    }
+    #page-Checkliste .zf-chk-item input {
+      margin-top: 3px;
+      flex: 0 0 auto;
+    }
+    #page-Checkliste .zf-chk-item.is-auto { cursor: default; }
+    #page-Checkliste .zf-chk-item__text small {
+      display: block;
+      color: var(--muted);
+    }
+    #page-Checkliste .zf-chk-item.is-required .zf-chk-item__label::after {
+      content: " *";
+      color: #f59e0b;
+      font-weight: 700;
+    }
+    #page-Checkliste .zf-chk-item.is-missing {
+      color: #b42318;
+      font-weight: 600;
+    }
+
+    /* Sidebar: rot, solange die Checkliste offen ist. Am <html> gesetzt, weil
+       die Sidebar bei jeder Navigation neu gebaut wird. */
+    html[data-zf-checkliste-open] .side-link[data-step="Checkliste"] .dot {
+      border-color: #ef4444;
+    }
+    html[data-zf-checkliste-open] .side-link[data-step="Checkliste"] .dot::after {
+      background: #ef4444;
+      transform: scale(1);
     }
 
     /* Angebotscheck: Gesamtstatus, darunter je Abschnitt ein eingerückter
@@ -8473,25 +8526,38 @@ button.dm-btn-danger:focus-visible {
       </section>
 
       <section class="card page" id="page-Checkliste" hidden>
-        <h2 style="margin:0 0 12px;">Checkliste</h2>
-            <div class="bitrix-card doc-select-card">
-              <div class="zf-chk-derived">
-                <span>Status Angebotscheck</span>
-                <strong id="zfChkCheckStatus">⚪️ Noch nicht geprüft</strong>
-              </div>
-              <div class="zf-chk-derived">
-                <span>Angebot versendet?</span>
-                <strong id="zfChkVersendet">Nein</strong>
-              </div>
-              <label class="inline-check doc-select-row">
-                <input type="checkbox" id="zfChk_skizze" />
-                <span>Magicplan Skizze erstellt</span>
-              </label>
-              <label class="inline-check doc-select-row">
-                <input type="checkbox" id="zfChk_fotos" />
-                <span>Fotoaufnahmen erstellt</span>
-              </label>
-            </div>
+        <!-- Aufbau angelehnt an die Montage-Checkliste in bau-formular:
+             nummerierte Gruppen, Pflichtpunkte mit *, vom System bekannte
+             Punkte werden automatisch abgehakt und gesperrt. -->
+        <h2 style="margin:0 0 4px;">Checkliste Badumbau</h2>
+        <p class="zf-chk-intro">Bitte alle Punkte abhaken, sobald sie erledigt oder geprüft wurden.</p>
+        <div id="zfChkSummary" class="zf-chk-summary"></div>
+
+        <div class="zf-chk-group">
+          <h3>1. Angebot</h3>
+          <label class="zf-chk-item is-required is-auto">
+            <input type="checkbox" id="zfChk_check" disabled />
+            <span class="zf-chk-item__text"><span class="zf-chk-item__label">Angebotscheck ohne fehlende Punkte</span>
+              <small id="zfChkCheckStatus">⚪️ Noch nicht geprüft</small></span>
+          </label>
+          <label class="zf-chk-item is-required is-auto">
+            <input type="checkbox" id="zfChk_versendet" disabled />
+            <span class="zf-chk-item__text"><span class="zf-chk-item__label">Angebot versendet</span>
+              <small id="zfChkVersendet">Nein</small></span>
+          </label>
+        </div>
+
+        <div class="zf-chk-group">
+          <h3>2. Aufmaß &amp; Dokumentation</h3>
+          <label class="zf-chk-item is-required">
+            <input type="checkbox" id="zfChk_skizze" />
+            <span class="zf-chk-item__text"><span class="zf-chk-item__label">Magicplan Skizze erstellt</span></span>
+          </label>
+          <label class="zf-chk-item is-required">
+            <input type="checkbox" id="zfChk_fotos" />
+            <span class="zf-chk-item__text"><span class="zf-chk-item__label">Fotoaufnahmen erstellt</span></span>
+          </label>
+        </div>
 
         <div class="actions full">
           <button type="button" data-nav="prev" class="secondary">Zurück</button>

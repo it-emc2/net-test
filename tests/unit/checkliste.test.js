@@ -50,3 +50,69 @@ test("restoring nothing clears the boxes", () => {
   setCheckliste(undefined);
   expect(window.__zfCheckliste).toEqual(emptyCheckliste());
 });
+
+/* ------------------------------------------- required items & auto rows */
+
+import { paintCheckliste, REQUIRED, checkDone } from "../../src/public/checkliste.js";
+
+function mountCheckliste() {
+  document.body.innerHTML = `
+    <div id="zfChkSummary"></div>
+    ${REQUIRED.map(
+      (id) =>
+        `<label class="zf-chk-item"><input type="checkbox" id="${id}" /></label>`,
+    ).join("")}
+    <small id="zfChkCheckStatus"></small><small id="zfChkVersendet"></small>`;
+}
+
+afterEach(() => {
+  delete window.__angebotscheck;
+  delete window.__zfVersand;
+  document.documentElement.removeAttribute("data-zf-checkliste-open");
+});
+
+test("nothing done: every required row is red and the sidebar marker is set", () => {
+  mountCheckliste();
+  const r = paintCheckliste();
+  expect(r).toEqual({ done: 0, total: 4, complete: false });
+  expect(document.querySelectorAll(".zf-chk-item.is-missing")).toHaveLength(4);
+  expect(document.documentElement.hasAttribute("data-zf-checkliste-open")).toBe(true);
+  expect(document.getElementById("zfChkSummary").textContent).toContain("0 von 4");
+});
+
+test("auto rows tick themselves from the check and the Versand", () => {
+  mountCheckliste();
+  window.__angebotscheck = { status: "gelb" }; // hints only → counts as done
+  window.__zfVersand = { art: "mail", versendetAm: "2026-10-05T10:00:00.000Z" };
+  paintCheckliste();
+  expect(document.getElementById("zfChk_check").checked).toBe(true);
+  expect(document.getElementById("zfChk_versendet").checked).toBe(true);
+});
+
+test("a red Angebotscheck keeps its row open", () => {
+  expect(checkDone({ status: "rot" })).toBe(false);
+  expect(checkDone({ status: "gruen" })).toBe(true);
+  expect(checkDone(undefined)).toBe(false);
+});
+
+test("all four done: green summary and the sidebar marker is cleared", () => {
+  mountCheckliste();
+  window.__angebotscheck = { status: "gruen" };
+  window.__zfVersand = { art: "post", versendetAm: "2026-10-05T10:00:00.000Z" };
+  document.getElementById(BOXES.skizzeErstellt).checked = true;
+  document.getElementById(BOXES.fotosErstellt).checked = true;
+  const r = paintCheckliste();
+  expect(r.complete).toBe(true);
+  expect(document.querySelectorAll(".is-missing")).toHaveLength(0);
+  expect(document.documentElement.hasAttribute("data-zf-checkliste-open")).toBe(false);
+});
+
+test("every required id exists in the real page markup", async () => {
+  const fs = await import("node:fs");
+  const { JSDOM } = await import("jsdom");
+  const doc = new JSDOM(fs.readFileSync("src/public/index.html", "utf8")).window.document;
+  const page = doc.getElementById("page-Checkliste");
+  for (const id of [...REQUIRED, "zfChkSummary", "zfChkCheckStatus", "zfChkVersendet"]) {
+    expect(page.querySelector(`#${id}`)).not.toBeNull();
+  }
+});

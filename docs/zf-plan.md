@@ -86,9 +86,23 @@ zusammenfassung: {
 im `RestoreManager` zurückgelesen. `Offer.payload` ist `Mixed` — kein
 Schema-Änderung nötig.
 
-`src/public/checkliste.js` — zwei Zeilen sind abgeleitet und read-only
-(Angebotscheck-Ampel aus Task 1, „Angebot versendet?" aus Task 2), zwei werden
-von Hand abgehakt und landen in `payload.zusammenfassung.checkliste`:
+`src/public/checkliste.js` — Aufbau angelehnt an die Montage-Checkliste in
+bau-formular: nummerierte Gruppen, Pflichtpunkte mit `*`.
+
+| Gruppe | Punkt | Quelle |
+|---|---|---|
+| 1. Angebot | Angebotscheck ohne fehlende Punkte | automatisch, gesperrt — erledigt, sobald kein 🔴 mehr offen ist (🟡 sind Hinweise) |
+| 1. Angebot | Angebot versendet | automatisch, gesperrt — aus dem Versandstatus |
+| 2. Aufmaß & Dokumentation | Magicplan Skizze erstellt | von Hand |
+| 2. Aufmaß & Dokumentation | Fotoaufnahmen erstellt | von Hand |
+
+Alle vier sind Pflicht. Offene Pflichtpunkte werden rot, oben steht
+„X von 4 Pflichtpunkten erledigt", und der Sidebar-Punkt „Checkliste" bleibt
+rot, bis alles erledigt ist (`data-zf-checkliste-open` am `<html>`, weil die
+Sidebar bei jeder Navigation neu gebaut wird). Gesperrt wird nichts — nur
+angezeigt.
+
+Persistiert werden nur die zwei Handhaken:
 
 ```js
 window.__zfCheckliste = { skizzeErstellt: false, fotosErstellt: false };
