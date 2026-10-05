@@ -679,9 +679,6 @@ function grossToNet(gross, taxRate) {
 
     if (addFlooring && floorArea > 0) {
       const floorWaste = cfg.get('BU_FLOOR_WASTE_FACTOR', 1.15);
-      const floorPanelSize = cfg.get('BU_FLOOR_PANEL_SIZE_M2', 0.3);
-      // Paneele inkl. Verschnitt
-      const panels = ceilSafe((floorArea * floorWaste) / floorPanelSize);
 
       // minimal inline color extraction from the first selected item
       const fp = Array.isArray(dusch.flooringProduct)
@@ -691,10 +688,25 @@ function grossToNet(gross, taxRate) {
       const floorPid =
         fp && fp.includes("|") ? fp.split("|", 2)[0].trim() : "V5FB02";
 
+      // Badolux-Hydroträgerplatten (BP*) are sold per PACK of 1,49 m², not per
+      // 0,3-m² panel like V5FB02/AVP-W. Dividing them by the panel size billed a
+      // 12-m² floor as 46 units instead of 10 — about 4,6× too much. Decided by
+      // the product, not by the Fußboden Produktlinie flag: that flag only picks
+      // which tiles are offered, and a BP product comes in packs either way.
+      const isPackFloor = /^BP/i.test(floorPid);
+      const floorUnitSize = isPackFloor
+        ? cfg.get('BU_FLOOR_PACK_SIZE_M2_STANDARD', 1.49)
+        : cfg.get('BU_FLOOR_PANEL_SIZE_M2', 0.3);
+      // Einheiten (Paneele bzw. Pakete) inkl. Verschnitt, immer aufgerundet
+      const panels = ceilSafe((floorArea * floorWaste) / floorUnitSize);
+      const floorPanelSize = floorUnitSize;
+      const unitLabel = String(floorUnitSize).replace(".", ",");
+
       // AVP-W is named after its section caption ("Aluverbundplatte weiß");
       // the V5FB02 variants keep the generic "Fußboden-Paneele … Farbe: X" form.
-      const floorLabel =
-        floorPid === "AVP-W"
+      const floorLabel = isPackFloor
+        ? `- ${panels} Pkg Hydroträgerplatte (1 Pkg = ${unitLabel} m²)${color ? " — Farbe: " + color : ""}`
+        : floorPid === "AVP-W"
           ? `- ${panels} Stk Aluverbundplatte weiß (1 Paneele = ${floorPanelSize} m²)`
           : `- ${panels} Stk Fußboden-Paneele (1 Paneele = ${floorPanelSize} m²)${color ? " — Farbe: " + color : ""}`;
 

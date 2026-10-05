@@ -65,6 +65,11 @@ export const CONFIG_SCHEMA = [
     description: 'Fläche eines einzelnen Bodenpaneels (V5FB02)',
   },
   {
+    key: 'BU_FLOOR_PACK_SIZE_M2_STANDARD', value: 1.49,
+    label: 'Standard-Boden Paketgröße', unit: 'm²', type: 'number', section: 'bu', order: 7,
+    description: 'Fläche eines Pakets Badolux-Hydroträgerplatte (BP001–BP005). Laut Lieferantenblatt 1,49 m² pro Paket.',
+  },
+  {
     key: 'BU_FLOOR_WASTE_FACTOR', value: 1.15,
     label: 'Verschnittfaktor Boden', unit: '', type: 'number', section: 'bu', order: 2,
     description: 'Aufschlag für Verschnitt bei Bodenpaneelen (1.15 = +15 %)',
