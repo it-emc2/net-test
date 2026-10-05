@@ -71,7 +71,7 @@ This document maps every significant file in the codebase with its purpose, key 
 | `routing.js` | `/api/routing` | - | Geolocation + distance |
 | `planning.js` | `/api/planning` | - | Planning SSE stream |
 | `todayscustomers.js` | `/api/todayscustomers` | - | Today's customer list |
-| `post.js` | `/api/post` | - | Postal delivery (Binect) |
+| `post.js` | `/api/post` | - | Postal delivery (onlinebrief24) |
 | `material-overview.js` | `/material-overview` | - | Material list PDF |
 | `admin.js` | `/admin` | - | Admin panel auth + config CRUD (password-protected) |
 

@@ -108,21 +108,6 @@ test("the offline total matches the server total for the same payload", async ({
   }
 });
 
-test("a locally computed total is never frozen or locked", async ({ page, context }) => {
-  await context.setOffline(true);
-
-  // A total is available…
-  const offline = await priceNow(page);
-  expect(offline.local).toBe(true);
-
-  // …but freezing refuses it, so Sperren cannot pin a price the server has not
-  // confirmed. Both must stay false.
-  const frozen = await page.evaluate(() => window.freezeCurrentPricing());
-  expect(frozen).toBeNull();
-  expect(await page.evaluate(() => window.__frozen)).toBe(false);
-  expect(await page.evaluate(() => window.__locked)).toBe(false);
-});
-
 test("with no cached snapshot, pricing fails instead of inventing a number", async ({
   page,
   context,

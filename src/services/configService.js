@@ -159,7 +159,40 @@ export const CONFIG_SCHEMA = [
   {
     key: 'BONUS_NEW_CUSTOMER_GROSS', value: 252.1,
     label: 'Neukundenbonus (Brutto)', unit: '€', type: 'euro', section: 'zuschuss', order: 3,
-    description: 'Bruttowert des Neukundenbonus (Bonus 300 / Bestandkundenbonus)',
+    description: 'Bruttowert des Neukundenbonus (Bonus 300)',
+  },
+  {
+    key: 'GRAB_BONUS_MATERIAL_NET', value: 100,
+    label: 'Aktion Haltegriff – Material (Netto)', unit: '€', type: 'euro', section: 'zuschuss', order: 4,
+    description: 'Materialwert des Gratis-Haltegriffs (30 cm) im Angebot; wird in der Aktionszeile wieder abgezogen',
+  },
+  {
+    key: 'GRAB_BONUS_LABOR_NET', value: 47.06,
+    label: 'Aktion Haltegriff – Arbeit (Netto)', unit: '€', type: 'euro', section: 'zuschuss', order: 5,
+    description: 'Montagewert des Gratis-Haltegriffs im Angebot (Material + Arbeit = 147,06 € netto = 175 € brutto)',
+  },
+  {
+    key: 'GRAB_BONUS_IDS', value: ['CLPESG30'],
+    label: 'Aktion Haltegriff – berechtigte Artikel', type: 'text-list', section: 'zuschuss', order: 6,
+    description: 'Artikelnummern (eine pro Zeile), für die "Haltegriff gratis" im Rabatt-Tab angeboten wird. Bei mehreren im Angebot ist der zuerst gelistete gratis. Gilt für neue Angebote — gespeicherte Angebote/Entwürfe behalten ihre Liste.',
+  },
+
+  // ── WV EIGENES LAGER ─────────────────────────────────────────────────────
+  {
+    key: 'WV_OWN_LAGER', value: {},
+    label: 'Eigenes WV-Lager', type: 'json', section: 'bu', order: 6,
+    description: 'WV-Artikel im eigenen Lager. Format: {"V3WVK09": 5, "V3WV01": 2}',
+  },
+
+  // ── PRODUKTBILDER-PDF ────────────────────────────────────────────────────
+  {
+    key: 'PRODUCT_IMAGE_SKIP_IDS',
+    value: [],
+    label: 'Produktbilder: Ausgeschlossene Artikelnummern',
+    type: 'text-list',
+    section: 'shared',
+    order: 8,
+    description: 'Artikelnummern (eine pro Zeile), die nie im Produktbilder-PDF auftauchen',
   },
 
   // ── PREISBERECHNUNG ──────────────────────────────────────────────────────
@@ -187,6 +220,20 @@ class ConfigService {
     } catch (err) {
       console.warn('ConfigService: DB load failed, using defaults:', err.message);
     }
+    // Multiple Fly machines: admin edits only hit one machine's cache, so re-sync periodically.
+    if (!this._refreshTimer) {
+      this._refreshTimer = setInterval(() => this._refresh(), 60_000);
+      this._refreshTimer.unref();
+    }
+  }
+
+  async _refresh() {
+    try {
+      const docs = await AppConfig.find({}).lean();
+      for (const doc of docs) this._cache.set(doc.key, doc.value);
+    } catch (err) {
+      console.warn('ConfigService: refresh failed, keeping cache:', err.message);
+    }
   }
 
   async seed() {
@@ -213,7 +260,10 @@ class ConfigService {
   async setMany(updates) {
     for (const [key, value] of Object.entries(updates)) {
       const def = CONFIG_SCHEMA.find(d => d.key === key);
-      await this.set(key, def?.type === 'boolean' ? Boolean(value) : Number(value));
+      const coerced = def?.type === 'boolean' ? Boolean(value)
+        : (def?.type === 'json' || def?.type === 'text-list') ? value
+        : Number(value);
+      await this.set(key, coerced);
     }
   }
 }

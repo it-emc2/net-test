@@ -144,7 +144,7 @@ This project is a German-language application for bathroom renovation and access
 |------|--------|---------|
 | Bitrix | Bitrix24 CRM | Customer relationship management |
 | Hassmann | External API | Shower enclosure product catalog |
-| Binect | Postal Service | Physical mail delivery API |
+| onlinebrief24 | Postal Service | Physical mail delivery API |
 | Flexofit | Product Line | Flexible fitting products |
 | Badolux | Product Line | Budget-friendly floor/tray products |
 | REHA | Rehabilitation | Healthcare/rehabilitation products (special VAT handling) |

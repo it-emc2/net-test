@@ -166,10 +166,6 @@ __runWhenReady(async () => {
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
         window.__pricing = data.pricing;
-        // If this offer/draft is frozen, buildPayload() sends __frozenPricing
-        // back on every future reprice (tab switches included) — re-pin it
-        // to the fresh price too, or the very next one would silently revert.
-        if (window.__frozen) window.__frozenPricing = data.pricing;
         updateSummaryWidgetTotal(data.pricing?.total);
         updateSummaryWidgetSelfPay(data.pricing?.selfPayAmount);
         window.dispatchEvent(new CustomEvent('pricing:updated', { detail: data.pricing }));
@@ -649,7 +645,17 @@ const toast = {
 
 window.toast = window.toast || toast;
 
-// Update-checker: polls /api/version every 5 min; shows a refresh toast on new deploy
+// Update-checker: checks /api/version at boot, when the tab comes back into
+// view, and daily at 19:30. On a new deploy it reloads by itself while the form
+// is untouched; once the user has typed, it only offers the reload (toast).
+// Fresh-page reload after the SW swap is in sw-register.js.
+// isTrusted: the app fires ~150 synthetic change/input events itself (restore,
+// defaults), which must not count as the user having typed.
+window.__userEdited = false;
+const markUserEdited = (e) => { if (e.isTrusted) window.__userEdited = true; };
+document.addEventListener("input", markUserEdited, true);
+document.addEventListener("change", markUserEdited, true);
+
 (function startUpdateChecker() {
   let knownBuildId = null;
   let poller = null;
@@ -719,8 +725,9 @@ window.toast = window.toast || toast;
         return;
       }
       if (buildId !== knownBuildId) {
-        showUpdateToast();
         clearTimeout(poller);
+        if (!window.__userEdited) location.reload();
+        else showUpdateToast();
       }
     } catch (_) {}
   }
@@ -737,6 +744,9 @@ window.toast = window.toast || toast;
 
   checkVersion();
   scheduleNextCheck();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") checkVersion();
+  });
 
   window.__checkAppVersion = checkVersion;
 })();
@@ -823,6 +833,15 @@ function updateOfferSpecificSections() {
     var visible = offers.indexOf(offer) !== -1;
     el.style.display = visible ? "" : "none";
   });
+
+  // Re-sync the Kassenkunde sub-fields' BU-only hide (Geburtsdatum /
+  // Versicherungsnummer): it was previously only re-checked on a payer
+  // change, so switching into an offer (e.g. AH) from Hauptmenü left it
+  // showing whatever the last-evaluated offer type was until the user
+  // toggled payer manually.
+  if (typeof updateKassenkundeDetailsVisibility === "function") {
+    updateKassenkundeDetailsVisibility();
+  }
 }
 function showToast(message, type = "info") {
   const kind = String(type || "info").toLowerCase();
@@ -938,6 +957,26 @@ function setByProductId(pid, on) {
   }
   return true;
 }
+// Live "Anrechenbares Budget" readout for the Pflegegradbudget redesign —
+// purely a read-only display, uses the same 4.180/8.360 amounts already
+// shown in the checkbox labels. Never affects what gets saved.
+function updatePgbBudgetOut() {
+  const out = document.getElementById("pgbBudgetOut");
+  if (!out) return;
+  const form = document.getElementById("form-Kundendaten");
+  const checked = (name) =>
+    !!form?.querySelector(`input[name="${name}"]`)?.checked;
+  let total = 0;
+  if (checked("twoPersons")) total = 8360;
+  else if (checked("budgetMax")) total = 4180;
+  const copay = Number(document.getElementById("copayAmount")?.value || 0) || 0;
+  const fmt = (n) => n.toLocaleString("de-DE") + " €";
+  out.innerHTML = copay
+    ? `<span>Anrechenbares Budget</span> <b>${fmt(total)}</b> <span>+ Zuzahlung ${fmt(copay)}</span>`
+    : `<span>Anrechenbares Budget</span> <b>${fmt(total)}</b>`;
+}
+window.updatePgbBudgetOut = updatePgbBudgetOut;
+
 function enforceBudgetOptionsGroup() {
   const form = document.getElementById("form-Kundendaten");
   if (!form) return;
@@ -974,6 +1013,7 @@ function enforceBudgetOptionsGroup() {
       }
     }
   }
+  updatePgbBudgetOut();
 }
 
 function restoreBudgetPanel(Kundendaten) {
@@ -1375,6 +1415,14 @@ function setCheckbox(nameOrId, on) {
 // =================================================================
 // #region 5. AUTO-CALCULATION & FORMATTING WIRING & black white theme
 // =================================================================
+// Aktion Haltegriff: is a grab bar from the active list in this pricing result?
+function hasEligibleGrab(data) {
+  const ids = window.__grabBonusIds || ["CLPESG30"];
+  return (data?.materials?.lines || []).some(
+    (l) => ids.includes(l.productId || l.id) && Number(l.qty) > 0,
+  );
+}
+
 async function refetchAndRender() {
   const payload = buildPayload();
   const res = await fetch("/api/price", {
@@ -1444,25 +1492,6 @@ function wireDAQtyAutoFill() {
 
 // Refresh when a panel becomes visible (by hash or tab click)
 
-function syncShowFreeGrabRowVisibility() {
-  const row = document.getElementById("rb-show-free-grab-row");
-  const bonusGrab = document.getElementById("rb-bonus-grab");
-  const showFree = document.getElementById("rb-show-free-grab");
-  if (!row) return;
-
-  const pricing = window.getCanonicalPricingData?.() || null;
-  const total = Number(pricing?.grabCounts?.total || 0);
-  const shouldShow = !!bonusGrab?.checked && total > 0;
-
-  row.style.display = shouldShow ? "" : "none";
-  row.hidden = !shouldShow;
-  row.setAttribute("aria-hidden", String(!shouldShow));
-
-  if (!shouldShow && showFree) {
-    showFree.checked = false;
-  }
-}
-
 function autoRefreshOnEnter() {
   // 1) Hash-based navigation (#rabatt, #kosten-details, #debug …)
   window.addEventListener("hashchange", () => {
@@ -1487,11 +1516,9 @@ function autoRefreshOnEnter() {
     });
 
   // 3) Bonus checkbox itself should also re-render on change
-  document.getElementById("rb-bonus-grab")?.addEventListener("change", () => {
-    syncShowFreeGrabRowVisibility();
-    refetchAndRender();
-  });
-  document.getElementById("rb-show-free-grab")?.addEventListener("change", () => {
+  document.getElementById("rb-bonus-grab")?.addEventListener("change", (e) => {
+    // Rabatt given → freeze this offer's grab-bar list against later admin edits.
+    if (e.target.checked) window.__grabBonusIdsPinned = true;
     refetchAndRender();
   });
 }
@@ -1634,6 +1661,33 @@ function hoursToHHMM(n) {
   const m = mins % 60;
   return `${h}:${String(m).padStart(2, "0")}`;
 }
+
+// BWT door color pills: buttons write the hidden bwtDoor*Color inputs, which stay
+// the saved/restored value. restoreBwt() calls window.syncBwtDoorColors().
+(function initBwtDoorColors() {
+  const form = document.getElementById("form-bwt");
+  if (!form) return;
+  const sync = () =>
+    form.querySelectorAll(".bwt-door-colors").forEach((group) => {
+      const input = group.querySelector("input");
+      group.querySelectorAll("button[data-value]").forEach((b) =>
+        b.setAttribute("aria-checked", String(b.dataset.value === input.value)),
+      );
+    });
+  form.addEventListener("click", (e) => {
+    const b = e.target.closest(".bwt-door-colors button[data-value]");
+    if (!b) return;
+    e.preventDefault(); // don't toggle the surrounding door card checkbox
+    const input = b.closest(".bwt-door-colors").querySelector("input");
+    input.value = b.dataset.value;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    sync();
+  });
+  form.addEventListener("reset", () => setTimeout(sync));
+  window.syncBwtDoorColors = sync;
+  sync();
+})();
 
 (function initBwtSteelAutoNote() {
   const form = document.getElementById("form-bwt");
@@ -1780,6 +1834,9 @@ function bindCompactTimeHelper(inputId, helperId) {
   function emitInputEvents() {
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
+    // Synthetic events are ignored by the global live-pricing listener
+    // (isTrusted === false, to avoid re-pricing on restore), so trigger it here.
+    window.requestPricingRefresh?.({ delay: 80, reason: "compact-time-helper" });
   }
 
   deltaButtons.forEach((button) => {
@@ -2002,6 +2059,9 @@ function applyArbeitszeitSuggestion() {
     window.__settingLaborHoursFromSuggestion = false;
   }, 0);
   window.labor_hours_source = "auto";
+  // Synthetic events above are ignored by the global live-pricing listener
+  // (isTrusted === false), so trigger it here.
+  window.requestPricingRefresh?.({ delay: 80, reason: "arbeitszeit-suggestion-apply" });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -2417,6 +2477,7 @@ let currentOfferKey = null;
 // UPDATED resetAllForms() - Complete localStorage + DOM cleanup
 // ============================================================
 function resetAllForms() {
+  import("./SentOfferBar.js").then((m) => m.exitSentMode());
   const formIds = [
     "form-Kundendaten",
     "form-Arbeitszeit",
@@ -2549,8 +2610,6 @@ function resetAllForms() {
     "postZip",
     "postCity",
     "postCountry",
-    "postSubject",
-    "postBody",
   ].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.value = "";
@@ -3145,6 +3204,8 @@ function startOfferFlow(offerKey) {
   window.__bwtFreigrenzenLegacyOffer = false;
   window.__bwtKmFreeThreshold = Number(window.__bwtKmFreeThresholdLive ?? 200);
   window.__bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHoursLive ?? 2);
+  window.__grabBonusIdsPinned = false;
+  window.__grabBonusIds = window.__grabBonusIdsLive || ["CLPESG30"];
 
   // BWT/HL: override Arbeitszeit default to 05:00 (1 worker, shorter job)
   applyOfferDefaultLaborHours(offerKey);
@@ -3605,7 +3666,8 @@ function collectDuschabtrennungConfigurator(doc) {
   // persist for restore
   try {
     const state = typeof api.getState === "function" ? api.getState() : null;
-    doc.duschabtrennung.configurator = { state, lines };
+    const previewImages = typeof api.getPreviewImageData === "function" ? api.getPreviewImageData() : [];
+    doc.duschabtrennung.configurator = { state, lines, previewImages };
   } catch {
     /* non-fatal */
   }
@@ -3736,7 +3798,12 @@ function readPostalStateForPayload() {
       : null;
 
   return {
-    enabled: !!window.__postalSectionEnabled,
+    // Legacy field from the old "Versand per Post" toggle in Kundendaten. The
+    // toggle is gone (both ways are tabs now), but saved offers keep whatever
+    // they had: restored as-is, written back unchanged, never read by the UI.
+    ...(window.__legacyPostalEnabled === undefined
+      ? {}
+      : { enabled: window.__legacyPostalEnabled }),
     auftragId: get("postAuftragId"),
     recipient: {
       firstName: get("postFirstName"),
@@ -3746,8 +3813,6 @@ function readPostalStateForPayload() {
       city: get("postCity"),
       country: get("postCountry"),
     },
-    subject: get("postSubject"),
-    body: String(document.getElementById("postBody")?.value || ""),
     attachments: Array.isArray(managerState?.attachments)
       ? managerState.attachments
       : undefined,
@@ -4174,41 +4239,77 @@ function wireInternalTodos() {
   });
 }
 
+// Live "Bereits verbraucht" sum for the Wohnumfeld-Einträge redesign —
+// purely a read-only display, never affects what readWohnumfeld() saves.
+function updatePgbWeSum() {
+  const out = document.getElementById("pgbWeSum");
+  if (!out) return;
+  const total = Array.from(
+    document.querySelectorAll(".wohnumfeld-entry-amount"),
+  ).reduce((sum, el) => {
+    const n = Number(String(el.value || "").replace(",", ".")) || 0;
+    return sum + n;
+  }, 0);
+  out.textContent = total.toLocaleString("de-DE") + " €";
+}
+
 function createWohnumfeldEntryRow(amount, fuerWas) {
   const row = document.createElement("div");
-  row.className = "wohnumfeld-entry-row";
-  row.style.cssText = "display:flex; gap:8px; align-items:center;";
+  row.className = "pgb-entry-row";
 
+  const amtField = document.createElement("div");
+  amtField.className = "pgb-ef";
+  const amtLabel = document.createElement("label");
+  amtLabel.textContent = "Betrag";
+  const amtMoney = document.createElement("span");
+  amtMoney.className = "pgb-money";
+  amtMoney.innerHTML = "<span>€</span>";
   const amtInput = document.createElement("input");
   amtInput.type = "number";
   amtInput.className = "wohnumfeld-entry-amount";
   amtInput.min = "0";
   amtInput.step = "1";
-  amtInput.placeholder = "EUR";
-  amtInput.style.cssText = "width:110px; flex-shrink:0;";
+  amtInput.placeholder = "0";
+  amtInput.setAttribute("data-lpignore", "true");
+  amtInput.setAttribute("data-1p-ignore", "");
+  amtInput.setAttribute("data-bwignore", "true");
   if (amount != null && amount !== "" && amount !== 0) amtInput.value = String(amount);
+  amtInput.addEventListener("input", updatePgbWeSum);
+  amtMoney.appendChild(amtInput);
+  amtField.appendChild(amtLabel);
+  amtField.appendChild(amtMoney);
 
+  const textField = document.createElement("div");
+  textField.className = "pgb-ef";
+  const textLabel = document.createElement("label");
+  textLabel.textContent = "Wofür";
   const textInput = document.createElement("input");
   textInput.type = "text";
   textInput.className = "wohnumfeld-entry-fuerWas";
-  textInput.placeholder = "Für was";
-  textInput.style.cssText = "flex:1;";
+  textInput.placeholder = "z. B. Treppenlift 2023";
+  textInput.setAttribute("data-lpignore", "true");
+  textInput.setAttribute("data-1p-ignore", "");
+  textInput.setAttribute("data-bwignore", "true");
   if (fuerWas) textInput.value = String(fuerWas);
+  textField.appendChild(textLabel);
+  textField.appendChild(textInput);
 
   const removeBtn = document.createElement("button");
   removeBtn.type = "button";
-  removeBtn.className = "wohnumfeld-remove-btn btn-secondary";
-  removeBtn.textContent = "×";
-  removeBtn.style.cssText = "padding:4px 10px; flex-shrink:0; font-size:1.1rem; line-height:1;";
+  removeBtn.className = "pgb-iconbtn";
+  removeBtn.setAttribute("aria-label", "Eintrag entfernen");
+  removeBtn.innerHTML =
+    '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
   removeBtn.addEventListener("click", function () {
     const list = document.getElementById("wohnumfeldEntriesList");
-    if (list && list.querySelectorAll(".wohnumfeld-entry-row").length > 1) {
+    if (list && list.querySelectorAll(".pgb-entry-row").length > 1) {
       row.remove();
+      updatePgbWeSum();
     }
   });
 
-  row.appendChild(amtInput);
-  row.appendChild(textInput);
+  row.appendChild(amtField);
+  row.appendChild(textField);
   row.appendChild(removeBtn);
   return row;
 }
@@ -4222,6 +4323,7 @@ function initWohnumfeldEntries(entries) {
   } else {
     list.appendChild(createWohnumfeldEntryRow());
   }
+  updatePgbWeSum();
 }
 
 function readWohnumfeld() {
@@ -4229,7 +4331,7 @@ function readWohnumfeld() {
   const isJa = Array.from(wohDoneRadios).some((r) => r.checked && r.value === "Ja");
   if (!isJa) return { done: false, amount: 0, entries: [] };
 
-  const rows = document.querySelectorAll("#wohnumfeldEntriesList .wohnumfeld-entry-row");
+  const rows = document.querySelectorAll("#wohnumfeldEntriesList .pgb-entry-row");
   const entries = [];
   let totalAmount = 0;
 
@@ -4285,15 +4387,6 @@ function buildPayload() {
   // adopt today's config before the user has chosen to.
   payload.pricingRules.bwtKmFreeThreshold = Number(window.__bwtKmFreeThreshold ?? 200);
   payload.pricingRules.bwtTravelTimeFreeHours = Number(window.__bwtTravelTimeFreeHours ?? 2);
-
-  // Freeze: once true, server/PDF/DOCX generation must return frozenPricing
-  // verbatim instead of recomputing from live DB values. Set only via
-  // freezeCurrentPricing() (Schnellspeichern/Speichern unter/Sperren); cleared
-  // the moment the user edits a field (see requestPricingRefresh).
-  payload.frozen = window.__frozen === true;
-  payload.frozenPricing = payload.frozen ? (window.__frozenPricing || null) : null;
-  // Locked: full edit-lock, independent of the price freeze above.
-  payload.locked = window.__locked === true;
 
   // Parse AH service lines from JSON hidden field
   if (payload.ah && payload.ah.ahServicesJson) {
@@ -4645,7 +4738,10 @@ function buildPayload() {
   // Two-person address/greeting overrides (Zusammenfassung). Only for a real
   // two-person offer; otherwise leave empty so the PDF composes the single-person
   // name/greeting itself. Empty string => mapData fallback.
-  const _twoPersonsFinal = !_isSZ && !!payload.Kundendaten.twoPersons;
+  const _twoPersonsFinal = !_isSZ && (
+    /^ah/.test(String(window.getCurrentOfferType?.() || "").toLowerCase())
+      ? !!payload.Kundendaten.ahZweiPersonen
+      : !!payload.Kundendaten.twoPersons);
   payload.Kundendaten.kundenName = _twoPersonsFinal
     ? String(document.getElementById("zfKundenName")?.value || "").trim()
     : "";
@@ -4663,9 +4759,17 @@ function buildPayload() {
     materialDiscountPct: rabattEnabled && isFinite(pct) ? pct / 100 : 0,
     bonus300: rabattEnabled && !!document.getElementById("rb-bonus-300")?.checked,
     bonusGrab: rabattEnabled && !!document.getElementById("rb-bonus-grab")?.checked,
-    showFreeGrabInMaterial:
-      rabattEnabled && !!document.getElementById("rb-show-free-grab")?.checked,
   };
+
+  // Aktion Haltegriff: snapshot the eligible grab bars so a later admin edit
+  // can't add/remove the bonus on this offer. Only sent while the bonus is on
+  // and the list differs from the historical 30 cm-only rule (= what pricing
+  // assumes when absent): any other offer keeps its pricing fingerprint, so
+  // an admin edit never makes unrelated saved offers recompute.
+  const grabIds = window.__grabBonusIds || ["CLPESG30"];
+  if (payload.rabatt.bonusGrab && JSON.stringify(grabIds) !== '["CLPESG30"]') {
+    payload.pricingRules.grabBonusIds = [...grabIds];
+  }
 
   payload.offerNumber = (document.getElementById("offerNumber")?.value || "").trim();
 
@@ -6733,6 +6837,31 @@ document.body.addEventListener("click", (e) => {
 // AH: Entlastungsbetrag (§ 45b SGB XI) — admin-configurable, defaults to 131€/Monat
 // while /admin/api/config/public is loading.
 window.__entlastungsbetragMonat = 131;
+// Monthly Entlastungsbetrag incl. the "2 Personen mit Pflegegrad" doubling
+// (§ 45b is per insured person). Used by pricing and the ⚡ Dauer optimizer.
+window.getAHEntlastungsbetragMonat = function () {
+  var zwei = !!document.getElementById("ahZweiPersonen")?.checked;
+  return window.__entlastungsbetragMonat * (zwei ? 2 : 1);
+};
+// AH prices client-side, but the bottom bar (Gesamt / Eigenanteil) only
+// refreshed via updatePricing() on step changes. Call this after any AH
+// price input changes so the bar follows immediately.
+window.refreshAHPricing = function () {
+  if (/^ah/.test(String(window.getCurrentOfferType?.() || "").toLowerCase()) &&
+      typeof window.updatePricing === "function") {
+    window.updatePricing();
+  }
+};
+(function initAhPerson2Toggle() {
+  var cb = document.getElementById("ahZweiPersonen");
+  var box = document.getElementById("ahPerson2Fields");
+  if (!cb || !box) return;
+  cb.addEventListener("change", function () {
+    box.hidden = !cb.checked;
+    box.setAttribute("aria-hidden", String(!cb.checked));
+    window.refreshAHPricing(); // Entlastungsbetrag ×1 / ×2
+  });
+})();
 // AH: Verhinderungspflege / Pflegesachleistungen-Umwidmung / § 35a — also admin-configurable.
 window.__verhinderungspflegeJahr = 2418;
 window.__steuerabsetzPct = 20;
@@ -6748,10 +6877,17 @@ window.__bwtTravelTimeFreeHoursLive = 2;
 window.__bwtKmFreeThresholdLive = 200;
 window.__bwtTravelTimeFreeHours = 2;
 window.__bwtKmFreeThreshold = 200;
+// Aktion Haltegriff: eligible grab bars (GRAB_BONUS_IDS). Same Live/pinned
+// split as the BWT Freigrenzen above.
+window.__grabBonusIdsLive = ["CLPESG30"];
+window.__grabBonusIds = ["CLPESG30"];
 window.__fahrzeugbereitstellung = 80.0;
 window.__werkzeug = 7.5;
 window.__beraeumung = 4.5;
-fetch("/admin/api/config/public")
+// Re-run when the admin modal closes (admin-modal.js), so edits there apply
+// without a page reload.
+window.__loadPublicConfig = function () {
+return fetch("/admin/api/config/public", { cache: "no-store" })
   .then(function (r) { return r.ok ? r.json() : null; })
   .then(function (d) {
     if (!d) return;
@@ -6761,6 +6897,8 @@ fetch("/admin/api/config/public")
       if (labelVal) labelVal.textContent = String(d.ENTLASTUNGSBETRAG_MONAT);
       var ebLabel = document.getElementById("ebMonatLabel");
       if (ebLabel) ebLabel.textContent = String(d.ENTLASTUNGSBETRAG_MONAT);
+      var ebLabel2 = document.getElementById("ebMonatLabel2");
+      if (ebLabel2) ebLabel2.textContent = String(d.ENTLASTUNGSBETRAG_MONAT);
     }
     if (typeof d.VERHINDERUNGSPFLEGE_JAHR === "number") {
       window.__verhinderungspflegeJahr = d.VERHINDERUNGSPFLEGE_JAHR;
@@ -6781,13 +6919,28 @@ fetch("/admin/api/config/public")
       window.__bwtKmFreeThresholdLive = d.BWT_KM_FREE_THRESHOLD;
       if (!window.__bwtFreigrenzenLegacyOffer) window.__bwtKmFreeThreshold = d.BWT_KM_FREE_THRESHOLD;
     }
+    if (Array.isArray(d.GRAB_BONUS_IDS)) {
+      window.__grabBonusIdsLive = d.GRAB_BONUS_IDS;
+      if (!window.__grabBonusIdsPinned) {
+        const changed = JSON.stringify(window.__grabBonusIds) !== JSON.stringify(d.GRAB_BONUS_IDS);
+        window.__grabBonusIds = d.GRAB_BONUS_IDS;
+        // Re-price so the "Haltegriff gratis" checkbox follows the new list.
+        if (changed && window.getCurrentOfferType?.()) refetchAndRender().catch(function () {});
+      }
+    }
     if (typeof d.FAHRZEUGBEREITSTELLUNG === "number") window.__fahrzeugbereitstellung = d.FAHRZEUGBEREITSTELLUNG;
     if (typeof d.WERKZEUG === "number") window.__werkzeug = d.WERKZEUG;
     if (typeof d.BERAEUMUNG === "number") window.__beraeumung = d.BERAEUMUNG;
+    if (d.WV_OWN_LAGER && typeof d.WV_OWN_LAGER === "object") {
+      window.__wvOwnLager = d.WV_OWN_LAGER;
+      document.dispatchEvent(new CustomEvent("wvOwnLagerLoaded"));
+    }
     if (typeof window.__refreshFinanzierungUI === "function") window.__refreshFinanzierungUI();
     if (typeof renderTravelCostDebug === "function") renderTravelCostDebug();
   })
   .catch(function () {});
+};
+window.__loadPublicConfig();
 
 // AH: dynamic multi-service card list
 (function initAhServicesPage() {
@@ -6898,7 +7051,92 @@ fetch("/admin/api/config/public")
     if (typeof window.renderAHKostenPreview === "function") {
       window.renderAHKostenPreview();
     }
+    window.refreshAHPricing?.();
   }
+
+  // Largest 5-min Dauer (≤ 8 h) for ONE row whose monthly price fits the
+  // Entlastungsbetrag on its own. Visits rarer than monthly (Vierteljährlich/
+  // Halbjährlich/Jährlich) each fall in their own month, so one visit must fit
+  // that month's budget — no pooling of several months into one visit.
+  function maxMinsForBudget(freq, rate) {
+    freq = Math.max(freq, 1);
+    var reisezeitH = 0, anfahrtPerEinsatz = 0;
+    if (OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT) {
+      var zoneData = typeof window.getAHZoneData === "function" ? window.getAHZoneData() : null;
+      reisezeitH = zoneData ? zoneData.billMin / 60 : 0;
+      anfahrtPerEinsatz = ANFAHRT_PER_EINSATZ;
+    }
+    var budget = window.getAHEntlastungsbetragMonat();
+    var bestMins = 0;
+    for (var m = 5; m <= 480; m += 5) {
+      var price = Math.round(
+        (freq * anfahrtPerEinsatz + (m / 60 + reisezeitH) * freq * rate) * 100
+      ) / 100;
+      if (price > budget) break;
+      bestMins = m;
+    }
+    return bestMins;
+  }
+
+  // "⚡ Gesamtzeit": scale every row's Dauer by ONE factor (keeps the entered
+  // HnD:AB ratio) so the whole AH price fits the Entlastungsbetrag. Prices via
+  // computeAHGesamt, so zone, "Gleicher Termin" and 2 Personen all count.
+  function optimizeAllForEntlastungsbetrag() {
+    serialize();
+    var services = JSON.parse(jsonInput.value || "[]");
+    var rows = [], si = 0;
+    [alltagsList, haushaltList].forEach(function (list) { // same order as serialize()
+      list.querySelectorAll(".ah-service-card").forEach(function (card) {
+        var rate = card.getAttribute("data-type") === "Haushaltsnahedienstleistungen" ? STUNDENSATZ_HND : STUNDENSATZ_AB;
+        var svc = services[si++];
+        card.querySelectorAll(".ah-sched-row").forEach(function (row, ri) {
+          var sched = svc.schedules[ri];
+          var freq  = FREQ_PER_MONTH[sched.regelmaessigkeit]; // Einmalig isn't priced → skipped
+          var base  = parseDurationMinutes(sched.dauer);
+          if (base && typeof freq === "number") {
+            rows.push({ row: row, sched: sched, base: base, cap: maxMinsForBudget(freq, rate) });
+          }
+        });
+      });
+    });
+    if (!rows.length) return;
+
+    var budget = window.getAHEntlastungsbetragMonat();
+    var original = jsonInput.value;
+    // ≥ 5 min per row: never silently wipe a service the consultant entered.
+    function minsAt(r, k) { return Math.max(5, Math.min(r.cap, Math.floor((r.base * k) / 5) * 5)); }
+    function priceAt(k) {
+      rows.forEach(function (r) {
+        var m = minsAt(r, k);
+        r.sched.dauer = Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0");
+      });
+      jsonInput.value = JSON.stringify(services);
+      return window.computeAHGesamt().allBase;
+    }
+    if (priceAt(0) > budget) {
+      // Even 5 min per row exceeds the budget (fixed Anfahrt + Reisezeit alone).
+      jsonInput.value = original;
+      alert("Die gewählten Leistungen passen nicht in den Entlastungsbetrag (" + budget +
+        " €/Monat): schon Anfahrt und Fahrtzeit liegen darüber. Bitte Regelmäßigkeit reduzieren " +
+        "oder \"Gleicher Termin wie HnD\" nutzen.");
+      return;
+    }
+    var lo = 0, hi = Math.max.apply(null, rows.map(function (r) { return r.cap / r.base; })) + 0.01;
+    for (var i = 0; i < 40; i++) {
+      var mid = (lo + hi) / 2;
+      if (priceAt(mid) <= budget) lo = mid; else hi = mid;
+    }
+
+    rows.forEach(function (r) {
+      var m = minsAt(r, lo);
+      var hEl = r.row.querySelector(".ah-dauer-h"), mEl = r.row.querySelector(".ah-dauer-m");
+      hEl.value = String(Math.floor(m / 60));
+      mEl.value = String(m % 60);
+      hEl.dispatchEvent(new Event("input", { bubbles: true })); // syncDauer → serialize → totals
+    });
+  }
+  var optimizeAllBtn = document.getElementById("ahOptimizeAllBtn");
+  if (optimizeAllBtn) optimizeAllBtn.addEventListener("click", optimizeAllForEntlastungsbetrag);
 
   // ── Title / remove-button / empty-hint upkeep ─────────────────────
   function updateTitlesAndButtons() {
@@ -7070,7 +7308,7 @@ fetch("/admin/api/config/public")
       var combinedText = document.createElement("span");
       combinedText.innerHTML =
         "<strong>Gleicher Termin wie HnD</strong><br>" +
-        "<span style='color:var(--muted);'>Ein Besuch deckt beide Leistungen ab — Anfahrtspauschale wird nur einmal berechnet.</span>";
+        "<span style='color:var(--muted);'>Ein Besuch deckt beide Leistungen ab — Anfahrt und Reisezeit werden am gemeinsamen Tag nur einmal berechnet.</span>";
 
       combinedRow.appendChild(combinedCb);
       combinedRow.appendChild(combinedText);
@@ -7219,22 +7457,7 @@ fetch("/admin/api/config/public")
 
         var freq = rRegelSel.value === "Einmalig" ? 1 : FREQ_PER_MONTH[rRegelSel.value];
         if (typeof freq !== "number") return;
-
-        var reisezeitH = 0, anfahrtPerEinsatz = 0;
-        if (OPTIMIZE_INCLUDE_ANFAHRT_REISEZEIT) {
-          var zoneData = typeof window.getAHZoneData === "function" ? window.getAHZoneData() : null;
-          reisezeitH = zoneData ? zoneData.billMin / 60 : 0;
-          anfahrtPerEinsatz = ANFAHRT_PER_EINSATZ;
-        }
-
-        var bestMins = 0;
-        for (var m = 5; m <= 480; m += 5) {
-          var price = Math.round(
-            (freq * anfahrtPerEinsatz + (m / 60 + reisezeitH) * freq * STUNDENSATZ) * 100
-          ) / 100;
-          if (price > window.__entlastungsbetragMonat) break;
-          bestMins = m;
-        }
+        var bestMins = maxMinsForBudget(freq, STUNDENSATZ);
         rDauerH.value = bestMins ? String(Math.floor(bestMins / 60)) : "";
         rDauerM.value = bestMins ? String(bestMins % 60) : "";
         syncDauer();
@@ -7244,7 +7467,7 @@ fetch("/admin/api/config/public")
 
       var rOptBtn = document.createElement("button");
       rOptBtn.type = "button";
-      rOptBtn.title = "Dauer auf Entlastungsbetrag (" + window.__entlastungsbetragMonat + " €/Monat) optimieren";
+      rOptBtn.title = "Dauer auf Entlastungsbetrag optimieren";
       rOptBtn.textContent = "⚡";
       rOptBtn.style.cssText =
         "background:none; border:1px solid var(--border); border-radius:4px;" +
@@ -7564,6 +7787,173 @@ function setupWandverkleidungPage() {
     .querySelectorAll('input[type="radio"][name="wvColor"]')
     .forEach((radio) => radio.addEventListener("change", syncSonderDecorUi));
   syncSonderDecorUi();
+
+  // ---- standalone WV product card ----
+  (function initWvProductCard() {
+    const cardEl = document.getElementById("wvProductCard");
+    if (!cardEl) return;
+    const WV_ART_STANDALONE = {
+      "weiß":                { 997: "V3WVK07", 1497: "V3WV07" },
+      "marmor weiß":         { 997: "V3WVK09", 1497: "V3WV09" },
+      "struktur weiß":       { 997: "V3WVK06", 1497: "V3WV06" },
+      "stein beige":         { 997: "V3WVK01", 1497: "V3WV01" },
+      "aragon grau":         { 997: "V3WVK22", 1497: "V3WV22" },
+      "stein grau":          { 997: "V3WVK02", 1497: "V3WV02" },
+      "aragon anthrazit":    { 997: "V3WVK21", 1497: "V3WV21" },
+      "schiefer grau":       { 997: "V3WVK08", 1497: "V3WV08" },
+      "schwarzwaldeiche hell":{ 997: "V3WVK23", 1497: "V3WV23" },
+      "stein anthrazit":     { 997: "V3WVK03", 1497: "V3WV03" },
+      "kalkstein natur":     { 997: "V3WVK05", 1497: "V3WV05" },
+      "aragon schwarz":      { 997: "V3WVK20", 1497: "V3WV20" },
+    };
+    const cache = new Map();
+
+    function stockSpan(d) {
+      const inStock = d.stockQuantity > 0;
+      const qty = d.stockQuantity ?? 0;
+      const title = d.stockText || (inStock
+        ? "Der Artikel ist im Lager verfügbar."
+        : "Die Ware ist aktuell nicht verfügbar und muss bestellt werden.");
+      return `<span class="dac-line-stock dac-stock-${inStock ? "in" : "out"}" title="${title}"><span class="dac-stock-qty">${qty}</span>${inStock ? "Auf Lager" : "Auf Bestellung"}</span>`;
+    }
+
+    function ownLagerBadge(artId) {
+      const lager = window.__wvOwnLager || {};
+      const qty = lager[artId];
+      if (!qty || qty <= 0) return "";
+      return `<span class="wv-own-lager-badge"><span class="wv-own-lager-qty">${qty}</span>Im eigenen Lager</span>`;
+    }
+
+    function buildCardHtml(d, artId) {
+      const inStock = d.stockQuantity > 0;
+      return `<div class="wv-product-card">
+        ${d.image ? `<img src="${d.image}" alt="${d.name}" />` : ""}
+        <div class="wv-product-card-info">
+          <div class="wv-product-card-name">${d.name || artId}</div>
+          <div class="wv-product-card-art">${artId}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+          ${d.netPrice ? `<div class="wv-product-card-price">${d.netPrice.toFixed(2).replace(".", ",")} €</div>` : ""}
+          <div class="wv-product-card-stock ${inStock ? "in" : "out"}">${d.stockText || (inStock ? "Auf Lager" : "Auf Bestellung")}</div>
+        </div>
+      </div>
+      ${stockSpan(d)}
+      ${ownLagerBadge(artId)}`;
+    }
+
+    async function fetchFull(artId) {
+      let d = cache.get(artId);
+      if (d) return d;
+      try {
+        const r = await fetch(`/api/vigor-prices?ids=${artId}&full=1`);
+        if (r.ok) { const j = await r.json(); d = j[artId]; if (d) cache.set(artId, d); }
+      } catch {}
+      return d || null;
+    }
+
+    function selectColorKey(selectId) {
+      const v = document.getElementById(selectId)?.value?.trim().toLowerCase();
+      return v || null;
+    }
+
+    async function renderCard() {
+      const globalColor = (page.querySelector('input[name="wvColor"]:checked')?.value || "Marmor weiß").trim().toLowerCase();
+      const cb997 = document.getElementById("wv997");
+      const cb1497 = document.getElementById("wv1497");
+      const panels = [];
+
+      if (cb997?.checked) {
+        const ck = selectColorKey("wvColor_997") || globalColor;
+        if (ck !== "sonderdekor") panels.push({ artId: (WV_ART_STANDALONE[ck] || WV_ART_STANDALONE["marmor weiß"])[997] });
+      }
+      if (cb1497?.checked) {
+        const ck = selectColorKey("wvColor_1497") || globalColor;
+        if (ck !== "sonderdekor") panels.push({ artId: (WV_ART_STANDALONE[ck] || WV_ART_STANDALONE["marmor weiß"])[1497] });
+      }
+      // no checkboxes present — fallback to global color, 997 article
+      if (!panels.length && !cb997 && !cb1497 && globalColor !== "sonderdekor") {
+        panels.push({ artId: (WV_ART_STANDALONE[globalColor] || WV_ART_STANDALONE["marmor weiß"])[997] });
+      }
+
+      if (!panels.length) { cardEl.hidden = true; return; }
+
+      const fetched = await Promise.all(panels.map(p => fetchFull(p.artId).then(d => ({ artId: p.artId, d }))));
+      const parts = fetched.filter(r => r.d).map(r => buildCardHtml(r.d, r.artId));
+      if (!parts.length) { cardEl.hidden = true; return; }
+      cardEl.innerHTML = parts.join("");
+      cardEl.hidden = false;
+    }
+
+    // Build reverse map: artId → {colorKey, displayName, size}
+    function buildArtToColor() {
+      const map = new Map();
+      for (const [ck, sizes] of Object.entries(WV_ART_STANDALONE)) {
+        const display = ck.replace(/\b\w/g, c => c.toUpperCase());
+        map.set(sizes[997],  { colorKey: ck, display, size: 997 });
+        map.set(sizes[1497], { colorKey: ck, display, size: 1497 });
+      }
+      return map;
+    }
+
+    function applyOwnLagerToTiles() {
+      const lager = window.__wvOwnLager || {};
+      const artToColor = buildArtToColor();
+
+      // Summary line above the color grid — one chip per article (keeps sizes separate)
+      const colorsEl = document.getElementById("wvColors");
+      if (!colorsEl) return;
+      let hint = document.getElementById("wvOwnLagerHint");
+      if (!hint) {
+        hint = document.createElement("div");
+        hint.id = "wvOwnLagerHint";
+        hint.className = "wv-own-lager-hint";
+        colorsEl.parentElement.insertBefore(hint, colorsEl);
+      }
+
+      const hintItems = [];
+      for (const [artId, qty] of Object.entries(lager)) {
+        if (!(qty > 0)) continue;
+        const info = artToColor.get(artId);
+        if (!info) continue;
+        hintItems.push(`<span class="wv-hint-item">${info.display} ${info.size}mm <strong>${qty}×</strong></span>`);
+      }
+      if (hintItems.length) {
+        hint.innerHTML = `<span class="wv-hint-label">Eigenes Lager:</span> ${hintItems.join("")}`;
+        hint.hidden = false;
+      } else {
+        hint.hidden = true;
+      }
+
+      // Tile overlays — show each available size + qty
+      page.querySelectorAll('input[name="wvColor"]').forEach((radio) => {
+        const label = radio.closest(".image-check");
+        if (!label) return;
+        const colorKey = radio.value.trim().toLowerCase();
+        const entry = WV_ART_STANDALONE[colorKey];
+        const qty997 = entry ? (lager[entry[997]] || 0) : 0;
+        const qty1497 = entry ? (lager[entry[1497]] || 0) : 0;
+        let badge = label.querySelector(".wv-tile-own-badge");
+        if (qty997 > 0 || qty1497 > 0) {
+          if (!badge) { badge = document.createElement("span"); badge.className = "wv-tile-own-badge"; label.appendChild(badge); }
+          const parts = [];
+          if (qty997 > 0) parts.push(`997: ${qty997}`);
+          if (qty1497 > 0) parts.push(`1497: ${qty1497}`);
+          badge.textContent = parts.join(" / ");
+        } else if (badge) {
+          badge.remove();
+        }
+      });
+    }
+
+    page.querySelectorAll('input[name="wvColor"]').forEach((r) => r.addEventListener("change", renderCard));
+    document.getElementById("wv997")?.addEventListener("change", renderCard);
+    document.getElementById("wv1497")?.addEventListener("change", renderCard);
+    document.getElementById("wvColor_997")?.addEventListener("change", renderCard);
+    document.getElementById("wvColor_1497")?.addEventListener("change", renderCard);
+    document.addEventListener("wvOwnLagerLoaded", () => { renderCard(); applyOwnLagerToTiles(); });
+    renderCard();
+    applyOwnLagerToTiles();
+  })();
 
   // ---- NEW: "Zusätzliche Farben" UI (additive, backward compatible) ----
   function ensureExtrasUI(fromSelectId, listId, btnId, titleText) {
@@ -8613,7 +9003,53 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
 
   payerRadios.forEach((r) => r.addEventListener("change", applyAufschlagRules));
 
-  function applyAutomatisch(rawEur) {
+  // Largest u (Aufschlag in 1/10000 %) with priceAt(u) <= goal, starting at
+  // the estimate u0. slope = estimated € per unit. Price is monotone in u but
+  // not linear (server rounds per step, BWT grabs carry the Aufschlag in their
+  // line price): first jump straight at the goal using the slope, then bracket
+  // (steps of ~1 ct) and bisect. Stops as soon as a price hits the goal exactly
+  // — a higher u with the same price changes nothing. -1 if even u=0 is over.
+  async function findBestAufschlagUnits(priceAt, u0, goal, slope) {
+    const hit = (p) => Math.abs(p - goal) < 0.005;
+    let lo = Math.max(0, u0);
+    let p;
+    if (slope > 0) {
+      for (let i = 0; i < 3; i++) {
+        p = await priceAt(lo);
+        if (hit(p)) return lo;
+        const next = Math.max(0, lo + Math.floor((goal - p) / slope));
+        if (next === lo) break;
+        lo = next;
+      }
+    }
+    const step0 = slope > 0 ? Math.max(1, Math.floor(0.01 / slope)) : 1;
+    let step = step0;
+    while ((p = await priceAt(lo)) > goal) {
+      if (lo === 0) return -1;
+      lo = Math.max(0, lo - step);
+      step *= 2;
+    }
+    if (hit(p)) return lo;
+    step = step0;
+    let hi = lo + step;
+    while ((p = await priceAt(hi)) <= goal) {
+      if (hit(p)) return hi;
+      lo = hi;
+      step *= 2;
+      hi = lo + step;
+    }
+    while (hi - lo > 1) {
+      const mid = Math.floor((lo + hi) / 2);
+      p = await priceAt(mid);
+      if (hit(p)) return mid;
+      if (p <= goal) lo = mid;
+      else hi = mid;
+    }
+    return lo;
+  }
+  window.__findBestAufschlagUnits = findBestAufschlagUnits;
+
+  async function applyAutomatisch(rawEur) {
     const pricing = window.__pricing;
     if (!pricing) {
       alert("Bitte zuerst einen Preis berechnen (Preisvorschau laden).");
@@ -8624,7 +9060,10 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
       alert("Kein Aufschlag-Betrag vorhanden – Automatisch nicht möglich.");
       return;
     }
-    const targetTotal = parseFloat(String(rawEur).replace(/\s/g, "").replace(",", "."));
+    // "4.180" / "4.180,50" → thousands dots removed before parsing
+    const targetTotal = parseFloat(
+      String(rawEur).replace(/\s/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", "."),
+    );
     if (!Number.isFinite(targetTotal) || targetTotal <= 0) {
       alert("Bitte einen gültigen Zielpreis eingeben.");
       return;
@@ -8632,13 +9071,48 @@ window.getEffectiveAufschlagValue = function getEffectiveAufschlagValue() {
     // Factor = 1 + TAX_RATE, derived from actual server response to avoid hardcoding
     const netAmount = currentTotal - (vatOnNet || 0);
     const factor = netAmount > 0 ? currentTotal / netAmount : 1.19;
-    const newPct = currentPctVal + currentPctVal * (targetTotal - currentTotal) / (factor * currentMarkup);
-    const rounded = Math.round(newPct * 10000) / 100; // two decimal places, e.g. 29.73
-    if (!Number.isFinite(rounded) || rounded < 0) {
-      alert("Der berechnete Aufschlag wäre negativ – der Zielpreis liegt unter den Selbstkosten.");
-      return;
+    const estPct = currentPctVal + currentPctVal * (targetTotal - currentTotal) / (factor * currentMarkup);
+    const u0 = Number.isFinite(estPct) ? Math.floor(estPct * 1e6) : 0; // 1 unit = 0.0001 %
+
+    // Total must end up strictly below the target — as close as possible.
+    const goal = Math.round(targetTotal * 100 - 1) / 100;
+    const pctStr = (u) => (u / 10000).toFixed(4);
+    const cache = new Map();
+    const priceAt = async (u) => {
+      if (!cache.has(u)) {
+        const pl = window.buildPayload();
+        pl.Kundendaten = { ...(pl.Kundendaten || {}), aufschlag: `${pctStr(u)}%` };
+        pl._priceTag = `Zielpreis ${targetTotal} € · call #${cache.size + 1}`; // DEBUG Zielpreis: server log label
+        cache.set(u, Number((await window.__fetchPrice(pl))?.total));
+        // DEBUG Zielpreis: one line per /api/price call
+        console.log(`[Zielpreis] call #${cache.size}: ${pctStr(u)}% → ${cache.get(u)} € ${cache.get(u) <= goal ? "≤" : ">"} goal ${goal}`);
+      } else {
+        console.log(`[Zielpreis] cached: ${pctStr(u)}% → ${cache.get(u)} €`);
+      }
+      return cache.get(u);
+    };
+
+    if (autoBtn) autoBtn.disabled = true;
+    // DEBUG Zielpreis
+    console.log(`[Zielpreis] target ${targetTotal} € | goal ${goal} € | current ${currentTotal} € @ ${(currentPctVal * 100).toFixed(4)}% | markup ${currentMarkup} € | estimate ${pctStr(u0)}%`);
+    console.time("[Zielpreis] duration");
+    try {
+      // € per unit: total grows by factor × markupBase per 100 % (1 unit = 1e-6)
+      const slope = currentPctVal > 0 ? (factor * currentMarkup / currentPctVal) * 1e-6 : 0;
+      const best = await findBestAufschlagUnits(priceAt, u0, goal, slope);
+      console.log(`[Zielpreis] DONE: ${cache.size} server call(s) → ${pctStr(best)}% = ${cache.get(best)} €${Math.abs(cache.get(best) - goal) < 0.005 ? " (goal hit → stopped early)" : ""}`);
+      console.timeEnd("[Zielpreis] duration");
+      if (best < 0) {
+        alert("Der berechnete Aufschlag wäre negativ – der Zielpreis liegt unter den Selbstkosten.");
+        return;
+      }
+      setAufschlag(pctStr(best));
+    } catch (err) {
+      console.error("[Zielpreis]", err);
+      alert("Zielpreis-Berechnung fehlgeschlagen. Bitte erneut versuchen.");
+    } finally {
+      if (autoBtn) autoBtn.disabled = false;
     }
-    setAufschlag(String(rounded));
   }
 
   document.querySelectorAll(".sonderaufschlag-preset").forEach((btn) => {
@@ -8723,6 +9197,29 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
   window.refreshAllPanels?.();
 });
 
+// Pflichtdetails/Pflegegradbudget redesign: el.hidden/aria-hidden are still
+// set synchronously and stay authoritative for every existing check (offer
+// restore, validation-hint scroll, copay's closest("[hidden]")) — this only
+// layers a CSS open/close animation on top via the .pgb-open class. Opening
+// forces a synchronous reflow (reading offsetHeight) between unhiding and
+// adding .pgb-open so the transition has a real "closed" state to animate
+// from — deliberately NOT requestAnimationFrame, which Chrome throttles/
+// skips for backgrounded tabs and would leave the field invisible until the
+// tab regained focus. Closing is instant, exactly like before the redesign.
+function pgbReveal(el, on) {
+  if (!el) return;
+  if (on) {
+    el.hidden = false;
+    el.setAttribute("aria-hidden", "false");
+    void el.offsetHeight;
+    el.classList.add("pgb-open");
+  } else {
+    el.classList.remove("pgb-open");
+    el.hidden = true;
+    el.setAttribute("aria-hidden", "true");
+  }
+}
+
 (function initPflegegrad() {
   const form = document.getElementById("form-Kundendaten");
   const pgLevelRow = document.getElementById("pflegegradLevelRow");
@@ -8767,9 +9264,10 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
     return r && r.value === "Ja";
   }
   function pgVal() {
-    const r = form?.querySelector('input[name="pflegegrad"]:checked');
-    return r ? parseInt(r.value, 10) : NaN;
-  }
+  const r = form?.querySelector('input[name="pflegegrad"]:checked');
+  if (!r) return NaN;
+  return r.value === "beantragt" ? "beantragt" : parseInt(r.value, 10);
+}
 
   function applyCopay() {
     const on = !!(
@@ -8780,6 +9278,7 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
     show(copayField, on);
     // Make it optional: never mark as required
     if (!on && copayAmount) copayAmount.value = "";
+    updatePgbBudgetOut();
   }
 
   function apply() {
@@ -8787,8 +9286,8 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
     const has = hasPG();
     const val = pgVal();
     // before: const valid2 = Number.isInteger(val) && val>=2;
-    const valid1 = Number.isInteger(val) && val >= 1; // allow from Pflegegrad 1
-    show(pgLevelRow, has);
+    const valid1 = val === "beantragt" || (Number.isInteger(val) && val >= 1); // allow from Pflegegrad 1
+    pgbReveal(pgLevelRow, has);
     setReq(pgRadios, has);
     if (!has) clearRadios(pgRadios);
     // Respect the panel's own data-offer: never reveal it outside its allowed
@@ -8807,7 +9306,7 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
     const offerAllows =
       !panelOffers.length || !offerNow || panelOffers.includes(offerNow);
     const showBudget = kk && has && valid1 && offerAllows;
-    show(budgetPanel, showBudget);
+    pgbReveal(budgetPanel, showBudget);
 
     if (!showBudget) {
       // 1) always clear the copay checkbox + field
@@ -8849,19 +9348,20 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
     if (!weOn) {
       weDoneRadios.forEach((r) => (r.checked = false));
       weAppRadios.forEach((r) => (r.checked = false));
-      show(weEntriesContainer, false);
+      pgbReveal(weEntriesContainer, false);
     } else {
       const doneValue =
         form?.querySelector('input[name="wohnumfeldDone"]:checked')?.value || "";
       const showEntries = doneValue === "Ja";
-      show(weEntriesContainer, showEntries);
+      pgbReveal(weEntriesContainer, showEntries);
       if (showEntries) {
         const list = document.getElementById("wohnumfeldEntriesList");
-        if (list && !list.querySelector(".wohnumfeld-entry-row")) {
+        if (list && !list.querySelector(".pgb-entry-row")) {
           initWohnumfeldEntries([]);
         }
       }
     }
+    updatePgbBudgetOut();
   }
   initWohnumfeldEntries([]);
   initInternalTodos([]);
@@ -8883,6 +9383,7 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
       apply();
     if (t.id === "budgetCopay") applyCopay();
   });
+  copayAmount?.addEventListener("input", updatePgbBudgetOut);
 })();
 // Enforce mutual exclusion for Pflegebudget options + Copay dependency
 (function initBudgetOptionsGroupBehavior() {
@@ -9009,7 +9510,10 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
       hint.style.marginTop = "6px";
       hint.style.fontSize = "0.9rem";
       hint.style.display = "none";
-      afterEl.appendChild(hint);
+      // Sibling AFTER the group, not a child inside it — afterEl may be a
+      // layout container in its own right (e.g. the segmented-control grid),
+      // where an appended child would become an extra grid cell/column.
+      afterEl.after(hint);
     }
     return hint;
   }
@@ -9159,10 +9663,7 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
       if (!showStockwerkSonst) stockwerkInput.value = "";
     }
 
-    if (partnerPanel) {
-      partnerPanel.hidden = !showPartner;
-      partnerPanel.setAttribute("aria-hidden", showPartner ? "false" : "true");
-    }
+    pgbReveal(partnerPanel, showPartner);
     partnerInputs().forEach((el) => {
       el.disabled = !showPartner;
     });
@@ -9192,8 +9693,15 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
   const val = (id) => String(document.getElementById(id)?.value || "").trim();
   const salutation = () =>
     document.querySelector('input[name="salutation"]:checked')?.value || "";
+  // AH has its own "2 Personen" switch + p2* fields in Kundendaten; BU uses twoPersons + partner*.
+  const isAh = () => /^ah/.test(String(window.getCurrentOfferType?.() || "").toLowerCase());
+  const pSal = () => isAh()
+    ? document.querySelector('input[name="p2Salutation"]:checked')?.value || ""
+    : val("partnerSalutation");
+  const pFirst = () => val(isAh() ? "p2FirstName" : "partnerFirstName");
+  const pLast = () => val(isAh() ? "p2LastName" : "partnerLastName");
   const isTwoPersons = () =>
-    !!document.querySelector('input[name="twoPersons"]:checked') &&
+    !!document.querySelector(isAh() ? "#ahZweiPersonen:checked" : 'input[name="twoPersons"]:checked') &&
     document.querySelector('input[name="payer"]:checked')?.value !== "Selbstzahler";
 
   const nameFrag = (sal, name) => [sal, name].filter(Boolean).join(" ").trim();
@@ -9207,11 +9715,11 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
 
   function composeName() {
     const cust = [val("firstName"), val("lastName")].filter(Boolean).join(" ").trim();
-    const partner = [val("partnerFirstName"), val("partnerLastName")].filter(Boolean).join(" ").trim();
-    return `${nameFrag(salutation(), cust)} und ${nameFrag(val("partnerSalutation"), partner)}`.trim();
+    const partner = [pFirst(), pLast()].filter(Boolean).join(" ").trim();
+    return `${nameFrag(salutation(), cust)} und ${nameFrag(pSal(), partner)}`.trim();
   }
   function composeGreeting() {
-    const two = `${greetFrag(salutation(), val("lastName"))}, ${greetFrag(val("partnerSalutation"), val("partnerLastName"))}`;
+    const two = `${greetFrag(salutation(), val("lastName"))}, ${greetFrag(pSal(), pLast())}`;
     return two.charAt(0).toUpperCase() + two.slice(1);
   }
 
@@ -9231,13 +9739,14 @@ document.getElementById("bwtFreigrenzenToggle")?.addEventListener("change", (e) 
   // Recompose when any source field changes.
   const srcIds = [
     "firstName", "lastName", "partnerFirstName", "partnerLastName", "partnerSalutation",
+    "p2FirstName", "p2LastName", "ahZweiPersonen",
   ];
   srcIds.forEach((id) => {
     const el = document.getElementById(id);
     el?.addEventListener("input", refresh);
     el?.addEventListener("change", refresh);
   });
-  document.querySelectorAll('input[name="salutation"], input[name="twoPersons"], input[name="payer"]').forEach((el) => {
+  document.querySelectorAll('input[name="salutation"], input[name="twoPersons"], input[name="payer"], input[name="p2Salutation"]').forEach((el) => {
     el.addEventListener("change", refresh);
   });
   window.addEventListener("offerflow:changed", refresh);
@@ -9278,7 +9787,7 @@ function getKundendatenPageData() {
   const twoPersonsEl = q('input[name="twoPersons"]');
   const premiumEl = q('input[name="premium"]');
   const copayAmountEl = document.getElementById("copayAmount");
-  const weEntryRows = Array.from(document.querySelectorAll("#wohnumfeldEntriesList .wohnumfeld-entry-row"));
+  const weEntryRows = Array.from(document.querySelectorAll("#wohnumfeldEntriesList .pgb-entry-row"));
   const weEntriesData = weEntryRows.map((row) => {
     const amtEl = row.querySelector(".wohnumfeld-entry-amount");
     const fwEl = row.querySelector(".wohnumfeld-entry-fuerWas");
@@ -9518,7 +10027,7 @@ data.budgetOptionsPanel = selectedMain
 data.copayAmount = copayEl?.value || "";
 data.wohnumfeldDone = wohDoneChecked?.value || "";
 {
-  const saveEntryRows = Array.from(document.querySelectorAll("#wohnumfeldEntriesList .wohnumfeld-entry-row"));
+  const saveEntryRows = Array.from(document.querySelectorAll("#wohnumfeldEntriesList .pgb-entry-row"));
   const saveEntries = saveEntryRows.map((row) => {
     const amtEl = row.querySelector(".wohnumfeld-entry-amount");
     const fwEl = row.querySelector(".wohnumfeld-entry-fuerWas");
@@ -9751,6 +10260,138 @@ async function getProduct(id) {
   }
 }
 
+/* ========== FLOOR AREA CALCULATOR (reusable) ========== */
+function makeFloorCalc({ toggleEl, panelEl, rowsEl, totalEl, applyBtn, addRowBtn, areaInput }) {
+  if (!rowsEl) return { setOpen: () => {}, computeTotal: () => 0 };
+
+  function parseNum(v) {
+    const n = Number(String(v || "").replace(",", "."));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+  function fmt(v) {
+    return (Number(v) || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function createRow() {
+    const row = document.createElement("div");
+    row.className = "floor-calc-row";
+    row.dataset.sign = "add";
+    row.innerHTML = `
+      <div class="floor-calc-row__controls">
+        <button type="button" class="floor-calc-sign" data-sign="add" aria-label="Fläche addieren">+ Addieren</button>
+        <button type="button" class="floor-calc-remove-row" aria-label="Zeile entfernen">×</button>
+      </div>
+      <div class="floor-calc-row__inputs">
+        <label class="field floor-calc-field" style="margin:0;">
+          <span>Länge (m)</span>
+          <input class="floor-calc-length" type="number" min="0" step="0.01" inputmode="decimal" placeholder="z. B. 3,20" />
+        </label>
+        <span class="floor-calc-times" aria-hidden="true">×</span>
+        <label class="field floor-calc-field" style="margin:0;">
+          <span>Breite (m)</span>
+          <input class="floor-calc-width" type="number" min="0" step="0.01" inputmode="decimal" placeholder="z. B. 1,80" />
+        </label>
+        <div class="floor-calc-row-area">
+          <div class="floor-calc-row-area__label">= Fläche</div>
+          <div class="floor-calc-row-result">0,00 m²</div>
+        </div>
+      </div>`;
+    return row;
+  }
+
+  function computeTotal() {
+    let total = 0;
+    rowsEl.querySelectorAll(".floor-calc-row").forEach(row => {
+      const l = parseNum(row.querySelector(".floor-calc-length")?.value);
+      const w = parseNum(row.querySelector(".floor-calc-width")?.value);
+      const area = l * w;
+      const sign = row.dataset.sign === "subtract" ? -1 : 1;
+      const el = row.querySelector(".floor-calc-row-result");
+      if (el) el.textContent = `${fmt(area)} m²`;
+      total += sign * area;
+    });
+    total = Math.max(0, total);
+    if (totalEl) totalEl.textContent = `${fmt(total)} m²`;
+    return total;
+  }
+
+  function setOpen(open) {
+    if (!panelEl) return;
+    panelEl.hidden = !open;
+    panelEl.setAttribute("aria-hidden", open ? "false" : "true");
+    if (toggleEl) {
+      toggleEl.textContent = open ? "Flächenrechner schließen" : "Flächenrechner öffnen";
+      toggleEl.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+  }
+
+  toggleEl?.addEventListener("click", () => {
+    const open = !!panelEl?.hidden;
+    setOpen(open);
+    if (open) computeTotal();
+  });
+
+  addRowBtn?.addEventListener("click", () => {
+    rowsEl.appendChild(createRow());
+    computeTotal();
+  });
+
+  rowsEl.addEventListener("click", e => {
+    const t = e.target;
+    if (!(t instanceof HTMLElement)) return;
+    const row = t.closest(".floor-calc-row");
+    if (!row) return;
+
+    if (t.closest(".floor-calc-sign")) {
+      const toSubtract = row.dataset.sign !== "subtract";
+      row.dataset.sign = toSubtract ? "subtract" : "add";
+      const btn = row.querySelector(".floor-calc-sign");
+      if (btn) {
+        btn.textContent = toSubtract ? "− Abziehen" : "+ Addieren";
+        btn.dataset.sign = toSubtract ? "subtract" : "add";
+        btn.setAttribute("aria-label", toSubtract ? "Fläche abziehen" : "Fläche addieren");
+      }
+      computeTotal();
+      return;
+    }
+
+    if (t.closest(".floor-calc-remove-row")) {
+      if (rowsEl.querySelectorAll(".floor-calc-row").length > 1) {
+        row.remove();
+      } else {
+        row.querySelectorAll("input").forEach(i => { i.value = ""; });
+        row.dataset.sign = "add";
+        const btn = row.querySelector(".floor-calc-sign");
+        if (btn) { btn.textContent = "+ Addieren"; btn.dataset.sign = "add"; }
+        const res = row.querySelector(".floor-calc-row-result");
+        if (res) res.textContent = "0,00 m²";
+      }
+      computeTotal();
+    }
+  });
+
+  rowsEl.addEventListener("input", e => {
+    const t = e.target;
+    if (!(t instanceof HTMLInputElement)) return;
+    if (!t.classList.contains("floor-calc-length") && !t.classList.contains("floor-calc-width")) return;
+    computeTotal();
+  });
+
+  applyBtn?.addEventListener("click", () => {
+    const total = computeTotal();
+    if (areaInput) {
+      areaInput.value = fmt(total);
+      areaInput.dispatchEvent(new Event("input", { bubbles: true }));
+      areaInput.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  });
+
+  rowsEl.appendChild(createRow());
+  computeTotal();
+
+  return { setOpen, computeTotal };
+}
+
 /* ========== FLOORING: LIVE PREVIEW + DB PRICES (adhesive/sealing) ==========
    NOTE: panels price now mirrors SERVER pricing; no client re-calculation. */
 (function initFlooringSection() {
@@ -9763,7 +10404,6 @@ async function getProduct(id) {
   const calcPanel = document.getElementById("floorCalcPanel");
   const calcRows = document.getElementById("floorCalcRows");
   const calcTotalEl = document.getElementById("floorCalcResult");
-  const calcRowTemplate = document.getElementById("floorCalcRowTemplate");
   const calcApplyBtn = document.getElementById("floorCalcApply");
   const floorKindInputs = Array.from(f.querySelectorAll('input[name="floorKind"]'));
 
@@ -9808,75 +10448,18 @@ async function getProduct(id) {
       maximumFractionDigits: 2,
     });
   }
-  function setCalcOpen(open) {
-    if (!calcPanel) return;
-    calcPanel.hidden = !open;
-    calcPanel.setAttribute("aria-hidden", open ? "false" : "true");
-    if (calcToggle) {
-      calcToggle.textContent = open
-        ? "Flächenrechner schließen"
-        : "Flächenrechner öffnen";
-      calcToggle.setAttribute("aria-expanded", open ? "true" : "false");
-    }
-  }
-  function createFloorCalcRow() {
-    if (calcRowTemplate?.content?.firstElementChild) {
-      const row = calcRowTemplate.content.firstElementChild.cloneNode(true);
-      row.dataset.sign = "add";
-      const signBtn = row.querySelector(".floor-calc-sign");
-      if (signBtn) {
-        signBtn.textContent = "+";
-        signBtn.dataset.sign = "add";
-        signBtn.setAttribute("aria-label", "Zeile wird addiert");
-      }
-      return row;
-    }
+  const calc = makeFloorCalc({
+    toggleEl: calcToggle,
+    panelEl: calcPanel,
+    rowsEl: calcRows,
+    totalEl: calcTotalEl,
+    applyBtn: calcApplyBtn,
+    addRowBtn: document.getElementById("floorCalcAddRow"),
+    areaInput: area,
+  });
 
-    const row = document.createElement("div");
-    row.className = "floor-calc-row";
-    row.dataset.sign = "add";
-    row.innerHTML = `
-      <button type="button" class="floor-calc-sign" data-sign="add" aria-label="Zeile wird addiert">+</button>
-      <label class="field floor-calc-field" style="margin:0;">
-        <span>Länge (m)</span>
-        <input class="floor-calc-length" type="number" min="0" step="0.1" inputmode="decimal" placeholder="z. B. 2,5" />
-      </label>
-      <span class="floor-calc-times" aria-hidden="true">×</span>
-      <label class="field floor-calc-field" style="margin:0;">
-        <span>Breite (m)</span>
-        <input class="floor-calc-width" type="number" min="0" step="0.1" inputmode="decimal" placeholder="z. B. 1,2" />
-      </label>
-      <div class="floor-calc-row-area">
-        <div class="floor-calc-row-area__label">Fläche</div>
-        <div class="floor-calc-row-result">0,00 m²</div>
-      </div>
-      <button type="button" class="floor-calc-add-row" aria-label="Weitere Zeile hinzufügen">+</button>
-      <button type="button" class="floor-calc-remove-row" aria-label="Zeile entfernen">−</button>
-    `;
-    return row;
-  }
-  function computeFloorCalcTotal() {
-    if (!calcRows) return 0;
-    let total = 0;
-    calcRows.querySelectorAll(".floor-calc-row").forEach((row) => {
-      const length = parseCalcNumber(
-        row.querySelector(".floor-calc-length")?.value || "",
-      );
-      const width = parseCalcNumber(
-        row.querySelector(".floor-calc-width")?.value || "",
-      );
-      const areaM2 = length * width;
-      const sign = row.dataset.sign === "subtract" ? -1 : 1;
-      const resultEl = row.querySelector(".floor-calc-row-result");
-      if (resultEl) {
-        resultEl.textContent = `${formatAreaValue(areaM2)} m²`;
-      }
-      total += sign * areaM2;
-    });
-    total = Math.max(0, total);
-    if (calcTotalEl) calcTotalEl.textContent = `${formatAreaValue(total)} m²`;
-    return total;
-  }
+  function setCalcOpen(open) { calc.setOpen(open); }
+  function computeFloorCalcTotal() { return calc.computeTotal(); }
   const packsForAdhesive = (m2) => Math.ceil(m2 / 0.6 - 1e-12);
   const setsForSealing = (m2) => (m2 > 0 ? 1 : 0);
 
@@ -10032,90 +10615,6 @@ function updateFlooringPanelsPriceFromPricing() {
     updateFlooringPanelsPriceFromPricing();
     // individ. price (unitPanel × entered m²)
     // updateIndividPrice();
-  }
-
-  if (calcToggle) {
-    calcToggle.addEventListener("click", () => {
-      const isOpen = !calcPanel?.hidden;
-      setCalcOpen(!isOpen);
-      if (!isOpen) computeFloorCalcTotal();
-    });
-  }
-  if (calcRows) {
-    calcRows.addEventListener("click", (event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLElement)) return;
-      const row = target.closest(".floor-calc-row");
-      if (!row) return;
-
-      if (target.closest(".floor-calc-sign")) {
-        const nextIsSubtract = row.dataset.sign !== "subtract";
-        row.dataset.sign = nextIsSubtract ? "subtract" : "add";
-        const signBtn = row.querySelector(".floor-calc-sign");
-        if (signBtn) {
-          signBtn.textContent = nextIsSubtract ? "−" : "+";
-          signBtn.dataset.sign = nextIsSubtract ? "subtract" : "add";
-          signBtn.setAttribute(
-            "aria-label",
-            nextIsSubtract ? "Zeile wird abgezogen" : "Zeile wird addiert",
-          );
-        }
-        computeFloorCalcTotal();
-        return;
-      }
-
-      if (target.closest(".floor-calc-add-row")) {
-        row.insertAdjacentElement("afterend", createFloorCalcRow());
-        computeFloorCalcTotal();
-        return;
-      }
-
-      if (target.closest(".floor-calc-remove-row")) {
-        if (calcRows.querySelectorAll(".floor-calc-row").length > 1) {
-          row.remove();
-        } else {
-          row.querySelectorAll("input").forEach((input) => {
-            input.value = "";
-          });
-          row.dataset.sign = "add";
-          const signBtn = row.querySelector(".floor-calc-sign");
-          if (signBtn) {
-            signBtn.textContent = "+";
-            signBtn.dataset.sign = "add";
-            signBtn.setAttribute("aria-label", "Zeile wird addiert");
-          }
-          const resultEl = row.querySelector(".floor-calc-row-result");
-          if (resultEl) resultEl.textContent = "0,00 m²";
-        }
-        computeFloorCalcTotal();
-      }
-    });
-    calcRows.addEventListener("input", (event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLInputElement)) return;
-      if (
-        !target.classList.contains("floor-calc-length") &&
-        !target.classList.contains("floor-calc-width")
-      ) {
-        return;
-      }
-      computeFloorCalcTotal();
-    });
-  }
-  if (calcRows && !calcRows.querySelector(".floor-calc-row")) {
-    calcRows.appendChild(createFloorCalcRow());
-    computeFloorCalcTotal();
-  }
-
-  if (calcApplyBtn) {
-    calcApplyBtn.addEventListener("click", () => {
-      const total = computeFloorCalcTotal();
-      if (area) {
-        area.value = formatAreaValue(total);
-        area.dispatchEvent(new Event("input", { bubbles: true }));
-        area.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-    });
   }
 
   // ---- persistence for area field
@@ -10550,13 +11049,14 @@ async function setLine(key, tier, { keepSelection = false } = {}) {
   el.checked = want;
   el.dispatchEvent(new Event("change", { bubbles: true }));
 
-  // Switching the line swaps Ablaufgarnitur and Kleinmaterial, so it is a price
-  // edit and has to un-freeze a saved offer like any other edit. The live-pricing
-  // watcher can't do it for us: it ignores untrusted events on purpose (a restore
-  // fires plenty of synthetic ones), and the click lands on a button while the
-  // event comes from the hidden checkbox we flip. Before the segmented control the
-  // user clicked the checkbox itself, so the event was trusted and this was
-  // automatic. Skipped during a restore — that is not an edit.
+  // Switching the line can change the offer (the Duschwanne line adds or removes
+  // the Standard-only Badolux drain row AGB001), so ask for a recompute. The
+  // live-pricing watcher can't do it for us: it ignores untrusted events on
+  // purpose (a restore fires plenty of synthetic ones), and the click lands on a
+  // button while the event comes from the hidden checkbox we flip.
+  // Safe for sent offers: a `locked` offer's price is enforced server-side in
+  // pricing-core (checked against the DB record, never bypassed), so this refresh
+  // cannot reprice it. Skipped during a restore — that is not an edit.
   if (!window.__restoring && !window.__RESTORING__) {
     window.requestPricingRefresh?.({ delay: 180, reason: `produktlinie-${key}` });
   }
@@ -10730,6 +11230,316 @@ if (document.readyState === "loading") {
 } else {
   initTierSwitch();
 }
+
+
+/* ========== FUSSBODEN PAGE: Fußboden/Wandverkleidung inner tab switch ========== */
+(function initFussbodenTabSwitch() {
+  const page = document.getElementById("page-Fussboden");
+  if (!page) return;
+  const btns = {
+    fbTabFloor: document.getElementById("fbTabBtnFloor"),
+    fbTabWall: document.getElementById("fbTabBtnWall"),
+  };
+  const panels = {
+    fbTabFloor: document.getElementById("fbTabFloor"),
+    fbTabWall: document.getElementById("fbTabWall"),
+  };
+
+  function activate(target) {
+    Object.keys(panels).forEach((key) => {
+      const isActive = key === target;
+      if (panels[key]) {
+        panels[key].hidden = !isActive;
+        panels[key].setAttribute("aria-hidden", isActive ? "false" : "true");
+      }
+      if (btns[key]) {
+        btns[key].classList.toggle("active", isActive);
+        btns[key].setAttribute("aria-selected", isActive ? "true" : "false");
+      }
+    });
+  }
+
+  Object.entries(btns).forEach(([key, btn]) => {
+    btn?.addEventListener("click", () => activate(key));
+  });
+})();
+
+/* ========== WANDVERKLEIDUNG-IM-FUSSBODEN-TAB: Fläche → Platten-Empfehlung ==========
+   Panel coverage per size (m²), always rounded UP — full panel price even
+   with leftover waste, no partial panels sold. Self-contained: writes into
+   its own wallCladding* fields, independent of the standalone Wandverkleidung
+   page's wv997/wv1497 fields. */
+(function initWallCladdingSection() {
+  const form = document.getElementById("form-fussboden");
+  if (!form) return;
+  const toggle = document.getElementById("addWallCladding");
+  const panel = document.getElementById("wallCladdingPanel");
+  const areaEl = document.getElementById("wallCladdingArea");
+  const suggestionBox = document.getElementById("wallCladdingSuggestion");
+  const cardsEl = document.getElementById("wallCladdingCards");
+  const qtyRow = document.getElementById("wallCladdingQtyRow");
+  const qtyInput = document.getElementById("wallCladdingQtyInput");
+  const panelSizeEl = document.getElementById("wallCladdingPanelSize");
+  const qtyEl = document.getElementById("wallCladdingQty");
+  if (!toggle || !panel) return;
+
+  const PANEL_AREA_M2 = { 997: 0.997 * 2.55, 1497: 1.497 * 2.55 };
+  // mirrors WV_COLOR_ARTICLE in pricing-core.js — article IDs per color + size
+  const WV_ART = {
+    "weiß":                { 997: "V3WVK07", 1497: "V3WV07" },
+    "marmor weiß":         { 997: "V3WVK09", 1497: "V3WV09" },
+    "struktur weiß":       { 997: "V3WVK06", 1497: "V3WV06" },
+    "stein beige":         { 997: "V3WVK01", 1497: "V3WV01" },
+    "aragon grau":         { 997: "V3WVK22", 1497: "V3WV22" },
+    "stein grau":          { 997: "V3WVK02", 1497: "V3WV02" },
+    "aragon anthrazit":    { 997: "V3WVK21", 1497: "V3WV21" },
+    "schiefer grau":       { 997: "V3WVK08", 1497: "V3WV08" },
+    "schwarzwaldeiche hell":{ 997: "V3WVK23", 1497: "V3WV23" },
+    "stein anthrazit":     { 997: "V3WVK03", 1497: "V3WV03" },
+    "kalkstein natur":     { 997: "V3WVK05", 1497: "V3WV05" },
+    "aragon schwarz":      { 997: "V3WVK20", 1497: "V3WV20" },
+  };
+  const priceCache = new Map(); // articleId → net price
+
+  function selectedColor() {
+    const chk = form.querySelector('input[name="wallCladdingColor"]:checked');
+    return (chk?.value || "Marmor weiß").trim().toLowerCase();
+  }
+
+  function articleIds(colorKey) {
+    const entry = WV_ART[colorKey] || WV_ART["marmor weiß"];
+    return { id997: entry[997], id1497: entry[1497] };
+  }
+
+  async function ensurePrices(colorKey) {
+    const { id997, id1497 } = articleIds(colorKey);
+    const missing = [id997, id1497].filter((id) => !priceCache.has(id));
+    if (!missing.length) return;
+    try {
+      const r = await fetch(`/api/vigor-prices?ids=${missing.join(",")}`);
+      if (r.ok) { const data = await r.json(); Object.entries(data).forEach(([k, v]) => priceCache.set(k, v)); }
+    } catch {}
+  }
+
+  function showPanel(on) {
+    panel.hidden = !on;
+    panel.setAttribute("aria-hidden", on ? "false" : "true");
+  }
+
+  function computeSuggestion(areaRaw) {
+    const area = Number(String(areaRaw ?? "").replace(",", ".")) || 0;
+    if (area <= 0) return null;
+    const opt997 = { size: 997, qty: Math.ceil(area / PANEL_AREA_M2[997]) };
+    opt997.covered = opt997.qty * PANEL_AREA_M2[997];
+    opt997.waste = opt997.covered - area;
+    const opt1497 = { size: 1497, qty: Math.ceil(area / PANEL_AREA_M2[1497]) };
+    opt1497.covered = opt1497.qty * PANEL_AREA_M2[1497];
+    opt1497.waste = opt1497.covered - area;
+    const best = opt1497.waste <= opt997.waste ? opt1497 : opt997;
+    return { area, opt997, opt1497, best };
+  }
+
+  const fmt = (n) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const eur = (n) => n > 0 ? `${fmt(n)} €` : "";
+
+  function buildCard(opt, isBest, selectedSize, colorKey) {
+    const { id997, id1497 } = articleIds(colorKey);
+    const artId = opt.size === 997 ? id997 : id1497;
+    const unitNet = priceCache.get(artId) || 0;
+    const totalNet = unitNet * opt.qty;
+    const priceHtml = unitNet > 0
+      ? `<span class="wvc-price">${eur(totalNet)}</span><span class="wvc-unit">(${eur(unitNet)} / Stk.)</span>`
+      : "";
+    const isSelected = selectedSize === opt.size;
+    return `
+      <button type="button" class="wvc-card${isBest ? " wvc-best" : ""}${isSelected ? " wvc-selected" : ""}"
+              data-size="${opt.size}" data-qty="${opt.qty}">
+        <div class="wvc-card-head">
+          <span class="wvc-size">${opt.size}×2550 mm</span>
+          ${isBest ? `<span class="wvc-badge">Empfehlung</span>` : ""}
+        </div>
+        <div class="wvc-qty">${opt.qty} Stück</div>
+        <div class="wvc-coverage">${fmt(opt.covered)} m² abgedeckt · ${fmt(opt.waste)} m² Verschnitt</div>
+        ${priceHtml ? `<div class="wvc-price-row">${priceHtml}</div>` : ""}
+        <div class="wvc-select-label">${isSelected ? "✓ Ausgewählt" : "Auswählen"}</div>
+      </button>`;
+  }
+
+  function applyOption(size, qty) {
+    if (panelSizeEl) panelSizeEl.value = size;
+    if (qtyEl) qtyEl.value = qty;
+    if (qtyInput) { qtyInput.value = qty; qtyInput.min = 1; }
+    if (qtyRow) { qtyRow.hidden = false; }
+    renderCards(size);
+    if (typeof updateKostenDetails === "function") updateKostenDetails();
+    window.updatePricing?.();
+  }
+
+  function renderCards(selectedSize) {
+    if (!cardsEl) return;
+    const result = computeSuggestion(areaEl?.value);
+    if (!result) { suggestionBox.hidden = true; return; }
+    const colorKey = selectedColor();
+    cardsEl.innerHTML =
+      buildCard(result.opt997, result.best.size === 997, selectedSize, colorKey) +
+      buildCard(result.opt1497, result.best.size === 1497, selectedSize, colorKey);
+    cardsEl.querySelectorAll(".wvc-card").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        applyOption(Number(btn.dataset.size), Number(btn.dataset.qty));
+      });
+    });
+    suggestionBox.hidden = false;
+  }
+
+  async function updateSuggestion() {
+    await ensurePrices(selectedColor());
+    const selectedSize = panelSizeEl?.value ? Number(panelSizeEl.value) : null;
+    renderCards(selectedSize);
+  }
+
+  // qty input lets user override after applying
+  qtyInput?.addEventListener("input", () => {
+    const qty = Number(qtyInput.value) || 0;
+    if (qtyEl) qtyEl.value = qty;
+    if (qty > 0) window.updatePricing?.();
+  });
+
+  // Re-render cards + update pricing when color changes
+  form.addEventListener("change", (e) => {
+    if (e.target.name === "wallCladdingColor") {
+      updateSuggestion();
+      if (toggle.checked) window.updatePricing?.();
+    }
+  });
+
+  toggle.addEventListener("change", () => showPanel(toggle.checked));
+  showPanel(toggle.checked);
+  areaEl?.addEventListener("input", updateSuggestion);
+  updateSuggestion();
+
+  // ---- product card for selected WVC color ----
+  const wvcCardEl = document.getElementById("wvcProductCard");
+  const wvcFullCache = new Map();
+
+  function wvcStockSpan(d) {
+    const inStock = d.stockQuantity > 0;
+    const qty = d.stockQuantity ?? 0;
+    const title = d.stockText || (inStock
+      ? "Der Artikel ist im Lager verfügbar."
+      : "Die Ware ist aktuell nicht verfügbar und muss bestellt werden.");
+    return `<span class="dac-line-stock dac-stock-${inStock ? "in" : "out"}" title="${title}"><span class="dac-stock-qty">${qty}</span>${inStock ? "Auf Lager" : "Auf Bestellung"}</span>`;
+  }
+
+  async function renderWvcProductCard(colorKey) {
+    if (!wvcCardEl) return;
+    const { id997, id1497 } = articleIds(colorKey);
+    const panelSizeVal = panelSizeEl?.value || "997";
+    const artId = panelSizeVal === "1497" ? id1497 : id997;
+    if (!artId) { wvcCardEl.hidden = true; return; }
+    let d = wvcFullCache.get(artId);
+    if (!d) {
+      try {
+        const r = await fetch(`/api/vigor-prices?ids=${artId}&full=1`);
+        if (r.ok) { const j = await r.json(); d = j[artId]; if (d) wvcFullCache.set(artId, d); }
+      } catch {}
+    }
+    if (!d) { wvcCardEl.hidden = true; return; }
+    const inStock = d.stockQuantity > 0;
+    const ownQty = (window.__wvOwnLager || {})[artId];
+    const ownBadge = (ownQty > 0)
+      ? `<span class="wv-own-lager-badge"><span class="wv-own-lager-qty">${ownQty}</span>Im eigenen Lager</span>`
+      : "";
+    wvcCardEl.innerHTML = `<div class="wv-product-card">
+      ${d.image ? `<img src="${d.image}" alt="${d.name}" />` : ""}
+      <div class="wv-product-card-info">
+        <div class="wv-product-card-name">${d.name || artId}</div>
+        <div class="wv-product-card-art">${artId}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+        ${d.netPrice ? `<div class="wv-product-card-price">${d.netPrice.toFixed(2).replace(".", ",")} €</div>` : ""}
+        <div class="wv-product-card-stock ${inStock ? "in" : "out"}">${d.stockText || (inStock ? "Auf Lager" : "Auf Bestellung")}</div>
+      </div>
+    </div>
+    ${wvcStockSpan(d)}
+    ${ownBadge}`;
+    wvcCardEl.hidden = false;
+  }
+
+  form.addEventListener("change", (e) => {
+    if (e.target.name === "wallCladdingColor" || e.target.name === "wallCladdingPanelSize") {
+      renderWvcProductCard(selectedColor());
+    }
+  });
+  function applyWvcOwnLagerToTiles() {
+    const lager = window.__wvOwnLager || {};
+    // Summary above wallCladdingColors
+    const colorsEl = document.getElementById("wallCladdingColors");
+    if (!colorsEl) return;
+    let hint = document.getElementById("wvcOwnLagerHint");
+    if (!hint) {
+      hint = document.createElement("div");
+      hint.id = "wvcOwnLagerHint";
+      hint.className = "wv-own-lager-hint";
+      colorsEl.parentElement.insertBefore(hint, colorsEl);
+    }
+    // Build reverse: artId → {display, size}
+    const artToColorWvc = new Map();
+    for (const [ck, entry] of Object.entries(WV_ART)) {
+      const display = ck.replace(/\b\w/g, c => c.toUpperCase());
+      artToColorWvc.set(entry[997],  { display, size: 997 });
+      artToColorWvc.set(entry[1497], { display, size: 1497 });
+    }
+
+    const hintItemsWvc = [];
+    for (const [artId, qty] of Object.entries(lager)) {
+      if (!(qty > 0)) continue;
+      const info = artToColorWvc.get(artId);
+      if (!info) continue;
+      hintItemsWvc.push(`<span class="wv-hint-item">${info.display} ${info.size}mm <strong>${qty}×</strong></span>`);
+    }
+    if (hintItemsWvc.length) {
+      hint.innerHTML = `<span class="wv-hint-label">Eigenes Lager:</span> ${hintItemsWvc.join("")}`;
+      hint.hidden = false;
+    } else {
+      hint.hidden = true;
+    }
+    // Tile overlays
+    form.querySelectorAll('input[name="wallCladdingColor"]').forEach((radio) => {
+      const label = radio.closest(".image-check");
+      if (!label) return;
+      const ck = radio.value.trim().toLowerCase();
+      const entry = WV_ART[ck];
+      const qty997 = entry ? (lager[entry[997]] || 0) : 0;
+      const qty1497 = entry ? (lager[entry[1497]] || 0) : 0;
+      let badge = label.querySelector(".wv-tile-own-badge");
+      if (qty997 > 0 || qty1497 > 0) {
+        if (!badge) { badge = document.createElement("span"); badge.className = "wv-tile-own-badge"; label.appendChild(badge); }
+        const parts = [];
+        if (qty997 > 0) parts.push(`997: ${qty997}`);
+        if (qty1497 > 0) parts.push(`1497: ${qty1497}`);
+        badge.textContent = parts.join(" / ");
+      } else if (badge) {
+        badge.remove();
+      }
+    });
+  }
+
+  document.addEventListener("wvOwnLagerLoaded", () => { if (toggle.checked) renderWvcProductCard(selectedColor()); applyWvcOwnLagerToTiles(); });
+  applyWvcOwnLagerToTiles();
+  // initial render if toggle already checked
+  if (toggle.checked) renderWvcProductCard(selectedColor());
+  toggle.addEventListener("change", () => { if (toggle.checked) renderWvcProductCard(selectedColor()); else wvcCardEl && (wvcCardEl.hidden = true); });
+})();
+
+makeFloorCalc({
+  toggleEl: document.getElementById("wvcCalcToggle"),
+  panelEl: document.getElementById("wvcCalcPanel"),
+  rowsEl: document.getElementById("wvcCalcRows"),
+  totalEl: document.getElementById("wvcCalcResult"),
+  applyBtn: document.getElementById("wvcCalcApply"),
+  addRowBtn: document.getElementById("wvcCalcAddRow"),
+  areaInput: document.getElementById("wallCladdingArea"),
+});
 
 /* ========== SMART TRAY SEARCH (equal-or-bigger filter, persist/deselect) ========== */
 function initSmartTraySearch() {
@@ -11213,574 +12023,258 @@ function initSmartTraySearch() {
 
   window.__smartTray = { fetchAndRender };
 }
-// Smart search for bathtubs (Badewanne). Reuses the same suggestion-card/list CSS.
-// - Visible only when work task "install_bathtub" is selected
-// - Searches /api/products?q=...
-// - Filters to productId starting with "IRIS" but excludes "IRISWAS" (Wannenaufsatz)
-function initBathtubSearch() {
-  const panel = document.getElementById("bathtubSearchPanel");
-  const input = document.getElementById("bathtubSearch");
-  const out = document.getElementById("bathtub-suggestions");
-  const hiddenId = document.getElementById("chosenBathtubProductId");
+/* ========== WANNE PICKER (Optional tab, menu_WANNE) ==========
+   Badewanne + Wannenaufsatz, sourced from the vigor catalog through
+   /api/bathtubs/catalog. The catalog is 18 articles, so it is fetched once and
+   filtered in memory — no per-keystroke request, no debounce, no abort races.
+   Attributes are parsed server-side (routes/bathtubs.js); this only renders. */
+function initWannePicker() {
+  const panel = document.getElementById("menu_WANNE");
+  const grid = document.getElementById("wanneGrid");
+  const filtersEl = document.getElementById("wanneFilters");
+  const countEl = document.getElementById("wanneCount");
+  const summaryEl = document.getElementById("wanneSummary");
+  if (!panel || !grid || !filtersEl) return;
 
-  const task = document.querySelector(
-    'input[name="duschwanne[workTasks][]"][value="install_bathtub"]'
-  );
-
-  if (!panel || !input || !out || !hiddenId || !task) return;
-
-  const toUpper = (v) => String(v || "").toUpperCase();
-
-  const applySelectedStyles = () => {
-    const cards = Array.from(out.querySelectorAll(".suggestion-card"));
-    const checked = out.querySelector('input[name="bathtubSuggestion"]:checked');
-    cards.forEach((card) => {
-      const inEl = card.querySelector('input[name="bathtubSuggestion"]');
-      card.classList.toggle("is-selected", !!checked && inEl === checked);
-    });
+  // Hidden inputs keep their original ids and the payload.duschwanne.* path, so
+  // pricing, restore and saved offers keep working after the move to this tab.
+  const FIELDS = {
+    tub: {
+      id: "chosenBathtubProductId",
+      name: "chosenBathtubName",
+      price: "chosenBathtubPrice",
+      size: "bathtubSize",
+    },
+    screen: {
+      id: "chosenScreenProductId",
+      name: "chosenScreenName",
+      price: "chosenScreenPrice",
+    },
   };
 
-  const applySelection = (inputEl) => {
-    if (!inputEl) return;
-    const pid = inputEl.value || "";
-    hiddenId.value = pid;
-    hiddenId?.dispatchEvent(new Event("change", { bubbles: true }));
-    applySelectedStyles();
+  const FACETS = {
+    tub: [["side", "Seite"], ["schuerze", "Schürze"], ["zulauf", "Zulauf"]],
+    screen: [["side", "Seite"], ["heightCm", "Höhe"], ["seitenwand", "Seitenwand"]],
+  };
+
+  const LABELS = { tub: "Badewanne", screen: "Wannenaufsatz" };
+  const FALLBACK_IMG = "./assets/vk-brutto.jpg";
+
+  // Product images come from the scraper's CDN. If one 404s or the CDN is
+  // unreachable, swap in the local placeholder rather than showing a broken
+  // image. "error" does not bubble, hence the capturing listener; an inline
+  // onerror would need 'unsafe-inline' in the CSP script-src.
+  grid.addEventListener(
+    "error",
+    (e) => {
+      const img = e.target;
+      if (img?.tagName !== "IMG" || img.dataset.fallback) return;
+      img.dataset.fallback = "1";
+      img.src = FALLBACK_IMG;
+    },
+    true,
+  );
+
+  let items = [];
+  let type = "tub";
+  let filters = {};
+
+  const esc = (s) =>
+    String(s ?? "").replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+    );
+  const eur = (n) => Number(n || 0).toFixed(2).replace(".", ",") + " €";
+  const showVal = (k, v) => (k === "heightCm" ? `${v} cm` : String(v));
+  const ofType = (t) => items.filter((p) => p.type === (t || type));
+
+  // `skip` lets a facet count its own options against the OTHER active filters,
+  // so switching between two options of one facet never shows a zero.
+  const matches = (p, skip) =>
+    Object.entries(filters).every(
+      ([k, v]) => k === skip || v == null || String(p[k]) === String(v),
+    );
+
+  const setHidden = (id, val) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = val == null ? "" : String(val);
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+
+  const selectedId = (t) =>
+    (document.getElementById(FIELDS[t].id)?.value || "").trim();
+  const selectedItem = (t) =>
+    items.find((p) => p.type === t && p.articleNumber === selectedId(t)) || null;
+
+  const tubSizeLabel = (p) =>
+    p.lengthCm && p.widthCm
+      ? `${p.lengthCm} x ${p.widthCm}${p.widthMaxCm && p.widthMaxCm !== p.widthCm ? "/" + p.widthMaxCm : ""} cm`
+      : "";
+
+  // Once a tub is picked, the sensible screen is the cheapest one hinged on the
+  // same side — every Iris tub is 160x70/80, so size no longer discriminates.
+  function recommendedScreenId() {
+    const tub = selectedItem("tub");
+    if (!tub?.side) return null;
+    const same = ofType("screen")
+      .filter((p) => p.side === tub.side)
+      .sort((a, b) => a.netPrice - b.netPrice);
+    return same[0]?.articleNumber || null;
+  }
+
+  function applySelection(p) {
+    const f = FIELDS[p.type];
+    const isSame = selectedId(p.type) === p.articleNumber;
+    setHidden(f.id, isSame ? "" : p.articleNumber);
+    setHidden(f.name, isSame ? "" : p.name);
+    setHidden(f.price, isSame ? "" : p.netPrice);
+    if (f.size) setHidden(f.size, isSame ? "" : tubSizeLabel(p));
+    render();
     window.updatePricing?.();
-  };
+  }
 
-  const showPanel = (on) => {
-    panel.hidden = !on;
-    panel.setAttribute("aria-hidden", on ? "false" : "true");
-    if (!on) {
-      input.value = "";
-      out.innerHTML = "";
-      hiddenId.value = "";
-    }
-  };
-
-  // initial state + toggle on any install_bathtub checkbox (may appear in multiple groups)
-  const allBathtubTasks = document.querySelectorAll('input[name="duschwanne[workTasks][]"][value="install_bathtub"]');
-  const anyBathtubChecked = () => Array.from(allBathtubTasks).some(t => t.checked);
-  showPanel(anyBathtubChecked());
-  allBathtubTasks.forEach(t => t.addEventListener("change", () => showPanel(anyBathtubChecked())));
-
-  function renderSuggestions(list) {
-    if (!Array.isArray(list) || list.length === 0) {
-      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
-      applySelectedStyles();
-      return;
-    }
-
-    const top = list.slice(0, 5);
-
-    const radios = top
-      .map((p, i) => {
-        const id = `bathtub-suggest-${i}`;
-        const title = p.name || p.productId || "Badewanne";
-        const price = p.price != null ? ` — ${Number(p.price).toFixed(2)} €` : "";
-        const value = p.productId || "";
-        return `
-          <label class="suggestion-card" for="${id}">
-            <input type="radio" id="${id}" name="bathtubSuggestion" value="${value}" />
-            <div class="info">
-              <div class="title">${title}</div>
-              <div class="meta">${value}${price}</div>
-            </div>
-          </label>
-        `;
+  function renderFilters() {
+    const reco = recommendedScreenId();
+    filtersEl.innerHTML = FACETS[type]
+      .map(([key, label]) => {
+        const values = [
+          ...new Set(ofType().map((p) => p[key]).filter((v) => v != null && v !== "")),
+        ].sort();
+        if (values.length < 2) return "";
+        const chips = values
+          .map((v) => {
+            const n = ofType().filter(
+              (p) => String(p[key]) === String(v) && matches(p, key),
+            ).length;
+            return `<button type="button" class="wanne-chip" data-fkey="${esc(key)}" data-fval="${esc(v)}"
+              aria-pressed="${String(filters[key]) === String(v)}" ${n ? "" : "disabled"}>${esc(
+                showVal(key, v),
+              )} <span class="n">${n}</span></button>`;
+          })
+          .join("");
+        return `<div class="wanne-fgroup"><div class="wanne-flabel">${esc(label)}</div><div class="wanne-chips">${chips}</div></div>`;
       })
       .join("");
-
-    out.innerHTML = `
-      <div class="suggestion-heading" style="margin-top: 12px;">Vorschläge</div>
-      <div class="suggestion-list">${radios}</div>
-    `;
-
-    out.addEventListener("change", (e) => {
-      if (e.target && e.target.name === "bathtubSuggestion") {
-        applySelection(e.target);
-      }
-    });
-
-    applySelectedStyles();
+    return reco;
   }
 
-  let inflight = null;
-  let reqSeq = 0;
-  let debounceT = null;
-
-  async function fetchAndRender(q) {
-    const query = String(q || "").trim();
-    if (!query) {
-      out.innerHTML = "";
-      return;
-    }
-
-    try { inflight?.abort?.(); } catch {}
-    inflight = new AbortController();
-    const mySeq = ++reqSeq;
-
-    const url = `/api/products?q=${encodeURIComponent(query)}`;
-    out.innerHTML = `<div class="meta">Suche…</div>`;
-
-    try {
-      const r = await fetch(url, { signal: inflight.signal, credentials: "include" });
-      const text = await r.text();
-      if (mySeq !== reqSeq) return;
-      if (!r.ok) {
-        out.innerHTML = `<div class="text-sm text-destructive">Fehler ${r.status}</div><pre class="text-xs">${text}</pre>`;
-        return;
-      }
-
-      const data = JSON.parse(text);
-      const arr = Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : []);
-
-      // Only IRIS* but exclude IRISWAS* (screen)
-      const list = arr
-        .filter((p) => toUpper(p?.productId).startsWith("IRIS"))
-        .filter((p) => !toUpper(p?.productId).startsWith("IRISWAS"));
-
-      renderSuggestions(list);
-    } catch (err) {
-      if (err?.name === "AbortError") return;
-      if (mySeq !== reqSeq) return;
-      out.innerHTML = `<div class="text-sm text-destructive">Netzwerkfehler</div><pre class="text-xs">${String(err)}</pre>`;
-    }
-  }
-
-  const request = () => {
-    clearTimeout(debounceT);
-    debounceT = setTimeout(() => fetchAndRender(input.value), 180);
-  };
-
-  input.addEventListener("input", () => {
-    hiddenId.value = "";
-    request();
-  });
-  input.addEventListener("change", () => {
-    hiddenId.value = "";
-    request();
-  });
-}
-/* ========== SMART BATHTUB SEARCH (same UX as trays) ========== */
-function initSmartBathtubSearch() {
-  // Show only when "install_bathtub" is checked
-  const task = document.querySelector(
-    'input[name="duschwanne[workTasks][]"][value="install_bathtub"]'
-  );
-
-  const panel = document.getElementById("bathtubSearchPanel");
-  const elB = document.querySelector('input[name="bathtub_w_cm"]');
-  const elL = document.querySelector('input[name="bathtub_l_cm"]');
-  const out = document.getElementById("bathtub-suggestions");
-  const hiddenId = document.getElementById("chosenBathtubProductId");
-  const hiddenSize = document.getElementById("bathtubSize");
-
-  if (!panel || !out || (!elB && !elL) || !task) return;
-
-  let inflight = null;
-  let reqSeq = 0;
-  let debounceT = null;
-
-  const showPanel = (on) => {
-    panel.hidden = !on;
-    panel.setAttribute("aria-hidden", on ? "false" : "true");
-    if (!on) {
-      if (elB) elB.value = "";
-      if (elL) elL.value = "";
-      out.innerHTML = "";
-      if (hiddenId) {
-        hiddenId.value = "";
-        hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      if (hiddenSize) hiddenSize.value = "";
-      try { inflight?.abort?.(); } catch {}
-      reqSeq++;
-    }
-  };
-
-  // initial state + toggle on any install_bathtub checkbox (may appear in multiple groups)
-  const allBathtubTasks2 = document.querySelectorAll('input[name="duschwanne[workTasks][]"][value="install_bathtub"]');
-  const anyBathtubChecked2 = () => Array.from(allBathtubTasks2).some(t => t.checked);
-  showPanel(anyBathtubChecked2());
-  allBathtubTasks2.forEach(t => t.addEventListener("change", () => showPanel(anyBathtubChecked2())));
-
-  const parseNum = (v) => {
-    if (v == null) return null;
-    const raw = String(v).trim();
-    if (raw === "") return null;
-    const s = raw.replace(/\./g, "").replace(",", ".");
-    const n = Number(s);
-    if (!Number.isFinite(n)) return null;
-    return n > 0 ? n : null;
-  };
-
-  const makeLabel = (w, l) => (w && l ? `${w} x ${l} cm` : "");
-
-  const applySelectedStyles = () => {
-    const cards = Array.from(out.querySelectorAll(".suggestion-card"));
-    const checked = out.querySelector('input[name="bathtubSuggestion"]:checked');
-    cards.forEach((card) => {
-      const input = card.querySelector('input[name="bathtubSuggestion"]');
-      card.classList.toggle("is-selected", checked && input === checked);
-    });
-  };
-
-  const applySelection = (inputEl) => {
-    if (!inputEl) return;
-    const pid = inputEl.value || "";
-    const w = Number(inputEl.dataset.w) || null;
-    const l = Number(inputEl.dataset.l) || null;
-    const label = makeLabel(w, l);
-
-    if (hiddenId) {
-  hiddenId.value = pid;
-  hiddenId.dispatchEvent(new Event("change", { bubbles: true })); // ✅ important
-}
-if (hiddenSize) hiddenSize.value = label;
-
-applySelectedStyles();
-window.updatePricing?.();
-  };
-
-  function renderSuggestions(list) {
-    if (!Array.isArray(list) || list.length === 0) {
-      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
-      applySelectedStyles();
-      return;
-    }
-
-    const top = list.slice(0, 3);
-    const current = (hiddenId?.value || "").trim();
-
-    const radios = top
-      .map((p, i) => {
-        const id = `bathtub-suggest-${i}`;
-        const dims = `${p.widthCm} × ${p.lengthCm} cm`;
-        const price = p.price != null ? ` — ${Number(p.price).toFixed(2)} €` : "";
-        const title = p.name || p.productId || "Badewanne";
-        const value = p.productId || "";
-
-        return `
-          <label class="suggestion-card" for="${id}">
-            <input type="radio"
-                   id="${id}"
-                   name="bathtubSuggestion"
-                   value="${value}"
-                   ${current && current === value ? "checked" : ""}
-                   data-w="${p.widthCm || ""}"
-                   data-l="${p.lengthCm || ""}" />
-            <div class="info">
-              <div class="title">${title}</div>
-              <div class="meta">${dims}${price}</div>
-            </div>
-          </label>
-        `;
-      })
-      .join("");
-
-    out.innerHTML = `
-      <div class="suggestion-heading" style="margin-top: 12px;">Vorschläge</div>
-      <div class="suggestion-list">${radios}</div>
-    `;
-
-    out.addEventListener("change", (e) => {
-      if (e.target && e.target.name === "bathtubSuggestion") {
-        applySelection(e.target);
-      }
+  function render() {
+    panel.querySelectorAll(".wanne-seg button").forEach((b) => {
+      b.setAttribute("aria-pressed", String(b.dataset.wtype === type));
     });
 
-    applySelectedStyles();
-  }
+    const reco = renderFilters();
+    const all = ofType();
+    const list = all
+      .filter((p) => matches(p))
+      .sort(
+        (a, b) =>
+          (b.articleNumber === reco ? 1 : 0) - (a.articleNumber === reco ? 1 : 0) ||
+          a.netPrice - b.netPrice,
+      );
 
-  // fetch logic (same pattern as trays)
-  async function fetchAndRender() {
-    const b = elB ? parseNum(elB.value) : null;
-    const l = elL ? parseNum(elL.value) : null;
+    if (countEl) countEl.textContent = `${list.length} von ${all.length}`;
 
-    if (b === null && l === null) {
-      out.innerHTML = "";
-      if (hiddenId) {
-  hiddenId.value = "";
-  hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
-}
-      if (hiddenSize) hiddenSize.value = "";
-      try { inflight?.abort?.(); } catch {}
-      reqSeq++;
-      return;
-    }
-
-    const qs = new URLSearchParams();
-    if (b !== null) qs.set("w", String(b));
-    if (l !== null) qs.set("l", String(l));
-    const url = `/api/bathtubs/suggest?${qs.toString()}`;
-
-    try { inflight?.abort?.(); } catch {}
-    inflight = new AbortController();
-    const mySeq = ++reqSeq;
-
-    out.innerHTML = `<div class="meta">Suche… <code>${url}</code></div>`;
-
-    try {
-      const r = await fetch(url, { signal: inflight.signal, credentials: "include" });
-      const text = await r.text();
-      if (mySeq !== reqSeq) return;
-      if (!r.ok) {
-        out.innerHTML = `<div class="text-sm text-destructive">Fehler ${r.status}</div><pre class="text-xs">${text}</pre>`;
-        return;
-      }
-      const data = JSON.parse(text);
-      const list = Array.isArray(data?.results) ? data.results : [];
-      renderSuggestions(list);
-    } catch (err) {
-      if (err?.name === "AbortError") return;
-      if (mySeq !== reqSeq) return;
-      out.innerHTML = `<div class="text-sm text-destructive">Netzwerkfehler</div><pre class="text-xs">${String(err)}</pre>`;
-    }
-  }
-
-  const request = () => {
-    clearTimeout(debounceT);
-    debounceT = setTimeout(fetchAndRender, 160);
-  };
-
-  [elB, elL].forEach((el) => {
-    if (!el) return;
-    el.addEventListener("input", () => {
-      if (hiddenId) {
-        hiddenId.value = "";
-        hiddenId.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      if (hiddenSize) hiddenSize.value = makeLabel(parseNum(elB?.value), parseNum(elL?.value));
-      request();
-    });
-    el.addEventListener("change", () => {
-      if (hiddenId) hiddenId.value = "";
-      request();
-    });
-  });
-
-  // initial kick
-  request();
-
-  window.__smartBathtub = { fetchAndRender };
-}
-function initSmartScreenPickerBucket() {
-  const task = document.querySelector(
-    'input[name="duschwanne[workTasks][]"][value="install_bathtub_screen"]',
-  );
-
-  const bathtubIdEl = document.getElementById("chosenBathtubProductId");
-  const panel = document.getElementById("screenPickerPanel");
-  const hint = document.getElementById("screen-reco-hint");
-  const out = document.getElementById("screen-suggestions");
-  const chosen = document.getElementById("chosenScreenProductId");
-
-  const elW = document.querySelector('input[name="screen_w_cm"]');
-  const elH = document.querySelector('input[name="screen_h_cm"]');
-
-  if (!task || !bathtubIdEl || !panel || !hint || !out || !chosen) return;
-
-  let inflight = null;
-  let reqSeq = 0;
-  let debounceT = null;
-
-  const parseNum = (v) => {
-    if (v == null) return null;
-    const s = String(v).trim().replace(/\./g, "").replace(",", ".");
-    if (!s) return null;
-    const n = Number(s);
-    return Number.isFinite(n) && n > 0 ? n : null;
-  };
-
-  const setVisible = (on) => {
-    panel.hidden = !on;
-    panel.setAttribute("aria-hidden", on ? "false" : "true");
-    if (!on) {
-      hint.textContent = "";
-      out.innerHTML = "";
-      chosen.value = "";
-      if (elW) elW.value = "";
-      if (elH) elH.value = "";
-      try {
-        inflight?.abort?.();
-      } catch {}
-      reqSeq++;
-    }
-  };
-
-  const applySelectedStyles = () => {
-    const cards = Array.from(out.querySelectorAll(".suggestion-card"));
-    const checked = out.querySelector('input[name="screenSuggestion"]:checked');
-    cards.forEach((card) => {
-      const input = card.querySelector('input[name="screenSuggestion"]');
-      card.classList.toggle("is-selected", checked && input === checked);
-    });
-  };
-
-  const renderSuggestions = (list) => {
-    if (!Array.isArray(list) || list.length === 0) {
-      out.innerHTML = `<div class="meta">Keine passenden Vorschläge gefunden.</div>`;
-      applySelectedStyles();
-      return;
-    }
-
-    const top = list.slice(0, 3);
-    const current = (chosen.value || "").trim();
-
-    out.innerHTML = `
-      <div class="suggestion-heading" style="margin-top: 12px;">Vorschläge</div>
-      ${top
-        .map((p, i) => {
-          const id = `screen-suggest-${i}`;
-          const price = p.price != null ? ` — ${Number(p.price).toFixed(2)} €` : "";
-          const title = p.name || p.productId || "Wannenaufsatz";
-          const value = p.productId || "";
-          const checked = current && current === value ? "checked" : "";
-          return `
-            <label class="suggestion-card" for="${id}">
-              <input
-                type="radio"
-                id="${id}"
-                name="screenSuggestion"
-                value="${value}"
-                ${checked}
-              />
-              <div class="info">
-                <div class="title">${window.escapeHtml ? escapeHtml(title) : title}</div>
-                <div class="meta">${value}${price}</div>
-              </div>
-            </label>
-          `;
+    const chosen = selectedId(type);
+    grid.innerHTML =
+      list
+        .map((p) => {
+          const pills = FACETS[type]
+            .map(([k]) =>
+              p[k] == null || p[k] === ""
+                ? ""
+                : `<span class="wanne-pill">${esc(showVal(k, p[k]))}</span>`,
+            )
+            .join("");
+          // alt="" on purpose: the name sits right beside it, so the image is
+          // decorative and a screen reader would otherwise read it twice.
+          // No loading="lazy": the grid renders while the panel is still
+          // hidden, so lazy images never enter the viewport and never load.
+          return `<button type="button" class="wanne-card" data-art="${esc(p.articleNumber)}"
+            aria-pressed="${chosen === p.articleNumber}">
+            <span class="wanne-thumb"><img src="${esc(p.image || FALLBACK_IMG)}" alt="" /></span>
+            <span class="wanne-body">
+              ${p.articleNumber === reco ? '<span class="wanne-reco">Empfohlen</span><br>' : ""}
+              <span class="wanne-art">${esc(p.articleNumber)}</span>
+              <div class="wanne-name">${esc(p.name)}</div>
+              <div class="wanne-pills">${pills}</div>
+              <div class="wanne-finish">${esc(p.finish)}</div>
+              <div class="wanne-price">${eur(p.netPrice)}</div>
+            </span>
+          </button>`;
         })
-        .join("")}
-    `;
+        .join("") ||
+      `<div class="muted">Keine Treffer. Filter lockern.</div>`;
 
-    out.querySelectorAll('input[name="screenSuggestion"]').forEach((r) => {
-      r.addEventListener("change", () => {
-        chosen.value = r.value || "";
-        applySelectedStyles();
-        window.updatePricing?.();
-      });
-    });
-
-    applySelectedStyles();
-  };
-
-  async function refreshInternal() {
-    const wants = !!task.checked;
-    if (!wants) {
-      setVisible(false);
-      return;
-    }
-
-    setVisible(true);
-
-    const bathtubPid = (bathtubIdEl.value || "").trim();
-    if (!bathtubPid) {
-      hint.textContent = "Bitte zuerst eine Badewanne auswählen.";
-      out.innerHTML = "";
-      chosen.value = "";
-      return;
-    }
-
-    // Manual input takes priority over bucket suggestions
-    const w = parseNum(elW?.value);
-    const h = parseNum(elH?.value);
-    const hasManual = w !== null || h !== null;
-
-    // We still fetch recommendation to show the hint (and maybe side)
-    hint.textContent = "Empfehlung wird geladen…";
-    out.innerHTML = `<div class="meta">Suche…</div>`;
-
-    try {
-      inflight?.abort?.();
-    } catch {}
-    inflight = new AbortController();
-    const mySeq = ++reqSeq;
-
-    const recUrl = `/api/bathtubs/recommend-screen?bathtubProductId=${encodeURIComponent(
-      bathtubPid,
-    )}`;
-
-    const recRes = await fetch(recUrl, {
-      signal: inflight.signal,
-      credentials: "include",
-    });
-
-    const recText = await recRes.text();
-    if (mySeq !== reqSeq) return;
-    if (!recRes.ok) {
-      hint.textContent = "Empfehlung konnte nicht geladen werden.";
-      out.innerHTML = `<pre class="text-xs">${recText}</pre>`;
-      return;
-    }
-
-    const recData = JSON.parse(recText);
-    const rec = recData?.recommended;
-
-    if (!rec || !rec.bucket) {
-      hint.textContent = "Keine Empfehlung gefunden.";
-      out.innerHTML = "";
-      return;
-    }
-
-    // show hint always (even if manual mode)
-    hint.textContent = `Empfohlen: ${rec.productId}`;
-
-    // Build suggest query
-    const qs = new URLSearchParams();
-
-    if (hasManual) {
-      // manual search takes priority
-      if (w !== null) qs.set("w", String(w));
-      if (h !== null) qs.set("h", String(h));
-      // optional: keep side preference if backend supports it
-      if (rec.side === "L" || rec.side === "R") qs.set("side", rec.side);
-    } else {
-      // default bucket search
-      qs.set("bucket", String(rec.bucket));
-      if (rec.side === "L" || rec.side === "R") qs.set("side", rec.side);
-    }
-
-    const sugUrl = `/api/bathtubs/screens/suggest?${qs.toString()}`;
-
-    const sugRes = await fetch(sugUrl, {
-      signal: inflight.signal,
-      credentials: "include",
-    });
-
-    const sugText = await sugRes.text();
-    if (mySeq !== reqSeq) return;
-    if (!sugRes.ok) {
-      out.innerHTML = `<div class="text-sm text-destructive">Fehler ${sugRes.status}</div><pre class="text-xs">${sugText}</pre>`;
-      return;
-    }
-
-    const sugData = JSON.parse(sugText);
-    renderSuggestions(Array.isArray(sugData?.results) ? sugData.results : []);
+    renderSummary();
   }
 
-  const refresh = () => {
-    clearTimeout(debounceT);
-    debounceT = setTimeout(refreshInternal, 150);
-  };
+  function renderSummary() {
+    if (!summaryEl) return;
+    const tub = selectedItem("tub");
+    const screen = selectedItem("screen");
+    if (!tub && !screen) {
+      summaryEl.innerHTML = `<span class="wanne-empty">Noch nichts ausgewählt.</span>`;
+      return;
+    }
+    const rows = [
+      tub && `${LABELS.tub}: <strong>${esc(tub.articleNumber)}</strong> — ${eur(tub.netPrice)}`,
+      screen &&
+        `${LABELS.screen}: <strong>${esc(screen.articleNumber)}</strong> — ${eur(screen.netPrice)}`,
+    ].filter(Boolean);
+    const total = (tub?.netPrice || 0) + (screen?.netPrice || 0);
+    summaryEl.innerHTML =
+      rows.join("<br>") + `<div style="margin-top:6px"><strong>Summe: ${eur(total)}</strong></div>`;
+  }
 
-  // triggers
-  task.addEventListener("change", refresh);
-  bathtubIdEl.addEventListener("change", refresh);
-
-  // manual input triggers (priority)
-  [elW, elH].forEach((el) => {
-    if (!el) return;
-    el.addEventListener("input", refresh);
-    el.addEventListener("change", refresh);
+  panel.addEventListener("click", (e) => {
+    const seg = e.target.closest(".wanne-seg button");
+    if (seg) {
+      type = seg.dataset.wtype;
+      filters = {};
+      return render();
+    }
+    const chip = e.target.closest(".wanne-chip");
+    if (chip && !chip.disabled) {
+      const { fkey, fval } = chip.dataset;
+      filters[fkey] = String(filters[fkey]) === String(fval) ? null : fval;
+      return render();
+    }
+    if (e.target.closest("#wanneReset")) {
+      filters = {};
+      return render();
+    }
+    const card = e.target.closest(".wanne-card");
+    if (card) {
+      const p = items.find((x) => x.articleNumber === card.dataset.art);
+      if (p) applySelection(p);
+    }
   });
 
-  // initial
-  window.__smartScreenPicker = { refresh };
-  refresh();
+  async function load() {
+    try {
+      const res = await fetch("/api/bathtubs/catalog", { credentials: "same-origin" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      items = Array.isArray(data?.items) ? data.items : [];
+    } catch (e) {
+      console.error("[wanne] catalog load failed:", e?.message || e);
+      grid.innerHTML = `<div class="muted">Katalog konnte nicht geladen werden.</div>`;
+      return;
+    }
+    render();
+  }
+
+  // A restored offer fills the hidden inputs after this init runs; re-render so
+  // the saved pick shows as selected instead of an empty-looking grid.
+  ["chosenBathtubProductId", "chosenScreenProductId"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", () => {
+      if (items.length) render();
+    });
+  });
+
+  window.__wannePicker = { reload: load, render };
+  load();
 }
 function initTraySizeAutoLabel() {
   const traySizeEl = document.getElementById("traySize");
@@ -11839,25 +12333,29 @@ function attachDuschwanneToPayload(payload) {
   const pid = document.getElementById("chosenTrayProductId")?.value || null;
   const size = document.getElementById("traySize")?.value || "";
 
-  // bathtub (new)
-  const bPid = document.getElementById("chosenBathtubProductId")?.value || "";
+  // bathtub + screen: picked on the Optional tab (menu_WANNE), but kept on the
+  // duschwanne payload path so saved offers and pricing stay compatible.
+  const val = (id) => (document.getElementById(id)?.value || "").trim();
+  const bPid = val("chosenBathtubProductId");
   const bSize = document.getElementById("bathtubSize")?.value || "";
-
-  // screen (new) - NO DEFAULT
-  const screenPid =
-    document.getElementById("chosenScreenProductId")?.value || "";
+  const screenPid = val("chosenScreenProductId");
 
   payload.duschwanne = payload.duschwanne || {};
   payload.duschwanne.chosenTrayProductId = pid;
   payload.duschwanne.traySize = size;
   payload.duschwanne.trayColor = getTrayColorValue();
 
-  payload.duschwanne.chosenBathtubProductId = bPid.trim() ? bPid.trim() : null;
+  payload.duschwanne.chosenBathtubProductId = bPid || null;
   payload.duschwanne.bathtubSize = bSize;
 
-  payload.duschwanne.wannenaufsatzProductId = screenPid.trim()
-    ? screenPid.trim()
-    : null;
+  payload.duschwanne.wannenaufsatzProductId = screenPid || null;
+
+  // Price/name snapshot from the vigor catalog at selection time. Pricing quotes
+  // the live vigor price and only falls back to these when vigor is unreachable.
+  payload.duschwanne.chosenBathtubName = val("chosenBathtubName") || null;
+  payload.duschwanne.chosenBathtubPrice = Number(val("chosenBathtubPrice")) || null;
+  payload.duschwanne.chosenScreenName = val("chosenScreenName") || null;
+  payload.duschwanne.chosenScreenPrice = Number(val("chosenScreenPrice")) || null;
 
   // Freier Posten: custom tray not found in the DB search
   const dwCustomName = (document.getElementById("dwCustomName")?.value || "").trim();
@@ -11887,8 +12385,8 @@ function attachDuschwanneToPayload(payload) {
     } catch (err) {
       // No signal. Run the server's own rules (logic/pricing-core.js) against
       // the cached inputs so the technician still sees a total. Flagged
-      // `_local` so it can never be frozen or locked — that needs a figure the
-      // server confirmed. Live vigor prices are unavailable, so configurator
+      // `_local` so it is never persisted as an offer's price — that needs a
+      // figure the server confirmed. Live vigor prices are unavailable, so configurator
       // snapshot prices are used, exactly as server-side on a vigor outage.
       const { computePricesLocally } = await import("./pricing-client.js");
       const local = await computePricesLocally(payload);
@@ -11898,11 +12396,9 @@ function attachDuschwanneToPayload(payload) {
     if (!r.ok) throw new Error(await r.text());
     return r.json();
   }
+  window.__fetchPrice = fetchPrice; // Zielpreis search: price a payload without applying it
 
   window.__pricing = null;
-  window.__frozen = window.__frozen === true;
-  window.__frozenPricing = window.__frozenPricing || null;
-  window.__locked = window.__locked === true;
   let pricingRequestSeq = 0;
   let latestAppliedPricingSeq = 0;
   let pricingRefreshTimer = null;
@@ -12007,75 +12503,11 @@ function attachDuschwanneToPayload(payload) {
     return data;
   };
 
-  window.applyOfferLockUI = function applyOfferLockUI(locked) {
-    document
-      .querySelectorAll(
-        'form[id^="form-"] input, form[id^="form-"] select, form[id^="form-"] textarea, form[id^="form-"] button',
-      )
-      .forEach((el) => { el.disabled = !!locked; });
-
-    let banner = document.getElementById("offerLockedBanner");
-    if (locked) {
-      if (!banner) {
-        banner = document.createElement("div");
-        banner.id = "offerLockedBanner";
-        banner.style.cssText =
-          "position:sticky;top:0;z-index:9999;background:#b91c1c;color:#fff;padding:8px 14px;text-align:center;font-weight:600;";
-        banner.textContent = "🔒 Dieses Angebot ist gesperrt – keine Änderungen möglich.";
-        document.body.prepend(banner);
-      }
-    } else if (banner) {
-      banner.remove();
-    }
-
-    document.getElementById("btnSaveDraft")?.toggleAttribute("disabled", !!locked);
-    document.getElementById("btnSaveDraftAs")?.toggleAttribute("disabled", !!locked);
-  };
-
-  window.freezeCurrentPricing = async function freezeCurrentPricing() {
-    const offerType = String(window.getCurrentOfferType?.() || "").toLowerCase();
-    let snapshot;
-    if (offerType === "ah") {
-      const ah = window.computeAHGesamt?.() || { gesamt: 0, eigenanteil: 0 };
-      snapshot = { total: ah.gesamt, selfPayAmount: ah.eigenanteil, _isAH: true };
-    } else {
-      const pl = typeof window.buildPayload === "function" ? window.buildPayload() : null;
-      if (pl) {
-        // A fresh snapshot needs the server. Offline this must not throw: the
-        // draft save calls us before reaching the offline queue, and losing
-        // the user's payload over a failed price refresh is worse than saving
-        // it with the pricing we already had. Returning null leaves __frozen
-        // and __frozenPricing untouched, so nothing gets frozen at a total
-        // the server never computed — Sperren checks for exactly that.
-        snapshot = await fetchPrice(pl).catch((err) => {
-          console.warn("[pricing] freeze failed, offer stays unfrozen:", err);
-          return null;
-        });
-        // A locally computed total is fine to *show*, never to freeze: it uses
-        // cached rates and snapshot article prices, so pinning an offer to it
-        // could lock in a figure the server would not agree with.
-        if (!snapshot || snapshot._local) return null;
-      } else {
-        snapshot = window.__pricing;
-      }
-    }
-    window.__frozen = true;
-    window.__frozenPricing = snapshot;
-    window.__pricing = snapshot;
-    window.dispatchEvent(new CustomEvent("pricing:updated", { detail: snapshot }));
-    if (typeof updateSummaryWidgetTotal === "function") updateSummaryWidgetTotal(snapshot?.total);
-    if (typeof updateSummaryWidgetSelfPay === "function") updateSummaryWidgetSelfPay(snapshot?.selfPayAmount);
-    return snapshot;
-  };
-
   window.requestPricingRefresh = function requestPricingRefresh({
     delay = 120,
     payload = null,
     reason = "",
   } = {}) {
-    // Any live, user-driven field change un-freezes a previously frozen offer
-    // so what's shown reflects the edit; the next explicit save re-freezes it.
-    if (!window.__restoring) window.__frozen = false;
     clearTimeout(pricingRefreshTimer);
     window.__lastPricingRefreshMeta = {
       reason: reason || "",
@@ -12127,7 +12559,13 @@ document
 // Formula: billMin = max(10, ceil(oneWayMinutes / 10) × 10)
 //          zone    = (billMin - 10) / 10 + 1
 
+// Hof city PLZs are always Zone 1 (routing often returns 11 min at the edge).
+// Capped at 15 min so a manual Zone 2+ button click is still respected.
+var AH_ZONE1_PLZ = ["95026", "95028", "95030", "95032"];
+
 window.computeAHZoneFromMinutes = function(oneWayMinutes) {
+  var plz = (document.getElementById("postalCode")?.value || "").trim();
+  if (AH_ZONE1_PLZ.indexOf(plz) !== -1 && oneWayMinutes <= 15) oneWayMinutes = 10;
   var billMin = Math.max(10, Math.ceil(oneWayMinutes / 10) * 10);
   var zone    = (billMin - 10) / 10 + 1;
   return { zone: zone, billMin: billMin };
@@ -12237,10 +12675,13 @@ window.computeAHGesamt = function computeAHGesamt() {
   var leistungenTotal = r2(hnd.totalMonatlichH * STUNDENSATZ_HND);
   var gesamtBase      = r2(anfahrtTotal + leistungenTotal);
 
-  // Same visit as HnD: the trip is already paid for by HnD's Anfahrt, so AB
-  // only adds its own Anfahrt for visits beyond what HnD already covers.
+  // Same visit as HnD: on shared days (min of both visit counts) HnD keeps the
+  // trip — Anfahrt and Reisezeit — so AB bills neither for those visits.
   var abCombinedVisit   = !!(abSvc && abSvc.combinedVisit);
-  var abAnfahrtEinsaetze = abCombinedVisit ? Math.max(0, ab.totalEinsaetze - hnd.totalEinsaetze) : ab.totalEinsaetze;
+  var abSharedEinsaetze = abCombinedVisit ? Math.min(hnd.totalEinsaetze, ab.totalEinsaetze) : 0;
+  var abSharedReiseH    = abSharedEinsaetze * reisezeitH;
+  ab.totalMonatlichH    = Math.max(0, ab.totalMonatlichH - abSharedReiseH);
+  var abAnfahrtEinsaetze = ab.totalEinsaetze - abSharedEinsaetze;
   var abAnfahrtTotal    = r2(abAnfahrtEinsaetze * ANFAHRT_PER_EINSATZ);
   var abLeistungenTotal = r2(ab.totalMonatlichH * STUNDENSATZ_AB);
   var abGesamtBase      = r2(abAnfahrtTotal + abLeistungenTotal);
@@ -12252,7 +12693,7 @@ window.computeAHGesamt = function computeAHGesamt() {
   // confirmed it on the Finanzierung step — nothing is assumed, so skipping that step
   // (or leaving every toggle off) leaves the Eigenanteil equal to the full Gesamt.
   var entlastungsbetragNutzen  = !!document.getElementById("ahEntlastungsbetragNutzen")?.checked;
-  var entlastungsbetragMonat   = entlastungsbetragNutzen ? window.__entlastungsbetragMonat : 0;
+  var entlastungsbetragMonat   = entlastungsbetragNutzen ? window.getAHEntlastungsbetragMonat() : 0;
   var verhinderungspflegeMonat = Number(document.getElementById("ahVerhinderungspflegeMonat")?.value) || 0;
   var umwidmungBeantragt       = !!document.getElementById("ahUmwidmungBeantragt")?.checked;
   var umwidmungMonat           = umwidmungBeantragt ? (Number(document.getElementById("ahUmwidmungBetrag")?.value) || 0) : 0;
@@ -12288,6 +12729,8 @@ window.computeAHGesamt = function computeAHGesamt() {
     hasAb:             ab.totalMonatlichH > 0,
     abTotalEinsaetze:  ab.totalEinsaetze,
     abAnfahrtEinsaetze: abAnfahrtEinsaetze,
+    abSharedEinsaetze: abSharedEinsaetze,
+    abSharedReiseH:    abSharedReiseH,
     abCombinedVisit:   abCombinedVisit,
     abTotalMonatlichH: ab.totalMonatlichH,
     abAnfahrtTotal:    abAnfahrtTotal,
@@ -12377,7 +12820,11 @@ window.renderAHKostenOverview = function renderAHKostenOverview(ah) {
   });
   if (hasAb) sections.push({
     title: "Alltagsbegleitung", short: "AB", rate: RATE_AB,
-    sp: splitH(ah.abSchedRows), billedH: ah.abTotalMonatlichH, leistungen: ah.abLeistungenTotal,
+    sp: (function () {
+      var x = splitH(ah.abSchedRows);
+      x.t = Math.max(0, x.t - (ah.abSharedReiseH || 0)); // shared days: HnD carries the Fahrtzeit
+      return x;
+    })(), billedH: ah.abTotalMonatlichH, leistungen: ah.abLeistungenTotal,
     einsaetze: ah.abAnfahrtEinsaetze, anfahrt: ah.abAnfahrtTotal,
     combinedVisit: ah.abCombinedVisit,
     servicepauschale: 0, base: ah.abGesamtBase, sched: ah.abSchedRows,
@@ -13370,6 +13817,11 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     const optSum = Number(data.optionalDisplayUI?.sum || 0);
     const rabattAmount = Number(data.rabattAmount || 0);
     const bonusGross = Number(data.bonusGross || 0);
+    // Aktion Haltegriff: the Angebot shows fixed Material/Arbeit values instead
+    // of the real purchase price — say so, so the two can be compared.
+    const grabReal = Number(data.grabBonusReal || 0);
+    const grabMat = Number(data.grabBonusMaterial || 0);
+    const grabArb = Number(data.grabBonusArbeit || 0);
     // Percent label: "19", "19,5" — never a trailing ",00".
     const fmtPct = (frac) => {
       const p = (Number(frac) || 0) * 100;
@@ -13411,6 +13863,7 @@ if (offerKey === "bwt" && isExtraAufgabe) {
       ${hasDeduction ? `<div class="kosten-sums__rule"><span>Zwischensumme:</span> <b>${euroC(data.Nettobetrag || 0)}</b></div>` : ""}
       ${rabattAmount ? `<div><span>Rabatt:</span> <b>− ${euroC(rabattAmount)}</b></div>` : ""}
       ${bonusGross ? `<div><span>Bonus / Gratis:</span> <b>− ${euroC(bonusGross)}</b></div>` : ""}
+      ${grabReal ? `<div class="kosten-sums__note">davon Aktion Haltegriff ${euroC(grabReal)} (Einkauf) · im Angebot: +${euroC(grabMat)} Material, +${euroC(grabArb)} Arbeit, −${euroC(grabMat + grabArb)} Aktion — Nettobetrag gleich</div>` : ""}
       <div class="kosten-sums__rule kosten-sums__subtotal"><span>Nettobetrag:</span> <b>${euroC(data.netAfterRabatt_and_Bonus || 0)}</b></div>
       <div><span>zzgl. ${taxPct}% MwSt.:</span> <b>${euroC(data.vatOnNet || 0)}</b></div>
       <div class="kosten-sums__total"><span>Gesamt (brutto):</span> <b>${euroC(data.total || 0)}</b></div>
@@ -13429,14 +13882,13 @@ if (offerKey === "bwt" && isExtraAufgabe) {
     `;
     const totalsCard = card("Summen", sums, recomputeFooter);
 
-    // --- Show/hide "Haltegriff gratis" checkbox based on CLPESG30 presence
+    // --- Show/hide "Haltegriff gratis" checkbox: server sets freeId only for admin-listed grab bars
     (function () {
       const bonusGrab = document.getElementById("rb-bonus-grab");
       if (!bonusGrab) return;
 
       // authoritative source from server:
-      const total = Number(data?.grabCounts?.total || 0);
-    const shouldShow = total > 0;
+      const shouldShow = hasEligibleGrab(data);
 
       const row =
         bonusGrab.closest(".form-row") ||
@@ -14170,20 +14622,18 @@ function restoreTraySelection(dw) {
   // ===== PATCH: restore bathtub + wannenaufsatz =====
 
 // restore bathtub size inputs if present in payload (optional)
-setByNameOrId("bathtub_w_cm", dw.bathtub_w_cm);
-setByNameOrId("bathtub_l_cm", dw.bathtub_l_cm);
-
 // restore bathtub hidden fields
 setHiddenById("chosenBathtubProductId", dw.chosenBathtubProductId);
 setHiddenById("bathtubSize", dw.bathtubSize);
+setHiddenById("chosenBathtubName", dw.chosenBathtubName);
+setHiddenById("chosenBathtubPrice", dw.chosenBathtubPrice);
 
-// screen id is stored in payload as wannenaufsatzProductId
-const screenPid = dw.wannenaufsatzProductId || "";
+// screen id is stored as wannenaufsatzProductId; offers saved before the move
+// to the Optional tab used chosenScreenProductId, so accept either.
+const screenPid = dw.wannenaufsatzProductId || dw.chosenScreenProductId || "";
 setHiddenById("chosenScreenProductId", screenPid);
-
-// restore manual screen search inputs if you store them (optional)
-setByNameOrId("screen_w_cm", dw.screen_w_cm);
-setByNameOrId("screen_h_cm", dw.screen_h_cm);
+setHiddenById("chosenScreenName", dw.chosenScreenName);
+setHiddenById("chosenScreenPrice", dw.chosenScreenPrice);
 
 // persist selections for smart UIs (so radios re-check)
 try {
@@ -14430,7 +14880,15 @@ async function loadOfferByNumber(offerNumber) {
         (typeof loadWizardState === "function" ? loadWizardState() : {}) || {};
       state.offerType = offerType;
       state.step = targetStep;
-      if (typeof saveWizardState === "function") saveWizardState(state);
+      // saveWizardState(offerType, step) takes two args, not a state object —
+      // passing the object here stored it as the *offerType* value itself,
+      // corrupting getCurrentOfferType() into returning {offerType, step}
+      // instead of a plain string (root cause of offer-type-dependent
+      // toggles, e.g. the AH Geburtsdatum/Versicherungsnummer fields,
+      // needing an unrelated field change before they'd re-evaluate right).
+      if (typeof saveWizardState === "function") {
+        saveWizardState(state.offerType, state.step);
+      }
       setStep(targetStep);
     }
 
@@ -14438,12 +14896,56 @@ async function loadOfferByNumber(offerNumber) {
       await window.restoreConfiguratorFromOffer(doc);
     }
 
+    // A saved Offer is a sent document: its price is pinned server-side, so
+    // show it read-only rather than letting the user edit a form whose total
+    // can no longer move (see SentOfferBar.js).
+    await applySentOfferState(offer);
+
     return true;
   } catch (err) {
     console.error("Failed to load offer:", err);
     alert("Fehler beim Laden des Angebots.");
     return false;
   }
+}
+
+// Read-only state for an already-sent offer, plus the one way out of it:
+// "Neue Version erstellen" saves the current state as an Entwurf, which the
+// server gives its own offer number so pricing goes live again.
+async function applySentOfferState(offer) {
+  const { enterSentMode, exitSentMode } = await import("./SentOfferBar.js");
+  if (!offer?.locked) {
+    exitSentMode();
+    return;
+  }
+  enterSentMode({
+    offerNumber: offer.offerNumber,
+    sentAt: offer.updatedAt || offer.createdAt,
+    onNewVersion: async () => {
+      // The new version belongs to whoever is creating it now, not the
+      // original sender: reset Ansprechpartner (name + signature) and the
+      // date, which the restore from the sent offer left stale.
+      window.resetAnsprechpartnerToMe?.();
+      ensureKundendatenDate(false);
+      const result = await window.createOfferVersion?.();
+      const nr = result?.offerNumber;
+      if (result?.queued) {
+        window.toast?.warn?.(
+          "Offline",
+          "Neue Version offline gespeichert — Nummer und Preis folgen beim Sync.",
+        );
+        return;
+      }
+      window.toast?.success?.(
+        "Neue Version erstellt",
+        nr ? `${nr} — Preise werden neu berechnet.` : "Preise werden neu berechnet.",
+      );
+      window.requestPricingRefresh?.({ reason: "new-offer-version" });
+      window.dispatchEvent(
+        new CustomEvent("offerflow:changed", { detail: { reason: "new-offer-version" } }),
+      );
+    },
+  });
 }
 
 function renderGlobalOfferSearchResults(list, state = {}) {
@@ -14959,8 +15461,6 @@ function restoreRabatt(r) {
   }
   setCheckboxById("rb-bonus-300", !!r.bonus300);
   setCheckboxById("rb-bonus-grab", !!r.bonusGrab);
-  setCheckboxById("rb-show-free-grab", !!r.showFreeGrabInMaterial);
-  syncShowFreeGrabRowVisibility();
 
   // "Rabatt hinzufügen?" toggle: enabled if the offer had any discount/bonus,
   // or an explicit rabattEnabled flag was saved.
@@ -15033,9 +15533,6 @@ function restoreBwt(bwt) {
   if (bwt.bwtDoorStdQty != null) {
     setByNameOrId("bwtDoorStdQty", bwt.bwtDoorStdQty);
   }
-  if (bwt.bwtDoorStdColor != null) {
-  setByNameOrId("bwtDoorStdColor", bwt.bwtDoorStdColor);
-}
 
   if (bwt.bwtDoorBudgetQty != null) {
     setByNameOrId("bwtDoorBudgetQty", bwt.bwtDoorBudgetQty);
@@ -15097,10 +15594,12 @@ if (typeof syncBwtDoorStdHeightCaption === "function") {
     setRadio("bwtAnschlag", bwt.bwtAnschlag);
   }
 
-  // --- Farbe (tray_color: color radio group) ---
-  if (bwt.tray_color) {
-    setRadio("tray_color", bwt.tray_color);
-  }
+  // --- Farbe: old offers saved it in the removed "Farbe der Tür" card (tray_color) ---
+  const trayColor = { "Weiß": "weiß", manhattan: "Manhattan", bahama_beige: "Beige" }[bwt.tray_color];
+  ["bwtDoorStdColor", "bwtDoorBudgetColor", "bwtDoorVariodoorColor"].forEach((k) =>
+    setByNameOrId(k, trayColor || bwt[k]),
+  );
+  window.syncBwtDoorColors?.();
 
   // --- Haltegriffe (bwtAids[] + *_Qty) ---
   let aids = [];
@@ -15166,6 +15665,12 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("date", k.date);
   setByNameOrId("firstName", k.firstName);
   setByNameOrId("lastName", k.lastName);
+  // AH: 2. Person mit Pflegegrad (checkbox change reveals the fields)
+  setByNameOrId("ahZweiPersonen", !!k.ahZweiPersonen);
+  setRadio("p2Salutation", k.p2Salutation);
+  setByNameOrId("p2FirstName", k.p2FirstName || "");
+  setByNameOrId("p2LastName", k.p2LastName || "");
+  setRadio("p2Pflegegrad", k.p2Pflegegrad);
   setByNameOrId("phone", k.phone);
   setByNameOrId("email", k.email);
   setByNameOrId("street", k.street);
@@ -15268,6 +15773,17 @@ function restoreKundendaten(k, offer) {
 
   // restore numeric field last, after budgetCopay had a chance to re-open the field
   setNumber("copayAmount", k.copayAmount);
+  if (typeof updatePgbBudgetOut === "function") updatePgbBudgetOut();
+
+  // Partner panel depends on `twoPersons`, which restoreBudgetPanel sets
+  // above without dispatching a change event — resync now so the panel's
+  // visibility reflects the final restored value (the earlier call at the
+  // top of this function ran before twoPersons was set, so it saw a stale
+  // value; pre-existing bug, unrelated to the redesign, fixed here since
+  // this code was already being touched).
+  if (typeof window.syncKundendatenExtraFields === "function") {
+    window.syncKundendatenExtraFields();
+  }
 }
 
 // Arbeitszeit / Distanz
@@ -15525,17 +16041,18 @@ function restoreOptionalPage(opt) {
         "opt_TEMPDSU250",
         "opt_V22BG903R",
         "opt_V12DS250E",
+        "opt_STRAYT",
       ],
       cat_THERMO: ["opt_CLTB", "opt_DEPTB", "opt_CLB"],
       cat_GRAB: ["opt_CLPESG30","opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
       cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
       cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
-      cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40"],
+      cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40", "opt_DEP65U"],
       cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH", "opt_ONSHB"],
       cat_METER: ["opt_TECEADS"],
       cat_RAMPE: ["opt_RAMPE35"],
       cat_WESGH: ["opt_WESGH", "opt_TRGAVS15", "opt_INSTMATROH"],
-      cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003", "opt_CLPWCF10", "opt_WCBF", "opt_CLPSSI"],
+      cat_WC: (window.WC_PRODUCT_IDS || []).map((id) => `opt_${id}`) /* from WC_WALL_PRODUCTS */,
       cat_REHA : ["opt_24081000","opt_24081100","opt_24081500","opt_24081600","opt_24081005",
         "opt_24081105", "opt_24081505", "opt_24081605", "opt_25670000", "opt_24081800",
         "opt_24096000", "opt_24097000", "opt_24096240", "opt_19034422", "opt_35035200",
@@ -15577,12 +16094,15 @@ function restoreOptionalPage(opt) {
   document.getElementById("cat_WC")?.dispatchEvent(new Event("change", { bubbles: true }));
   document.querySelector('#form-optional input[name="wcMontage"]:checked')?.dispatchEvent(new Event("change", { bubbles: true }));
 
-  const wcProductIds = ["CVIS3WCT112", "SCHALL", "V1DON", "DERSIAS", "CLSIAS", "DERWWCOSVP", "DEDWWC", "CLPWWCOS5", "0601010003"];
+  const wcProductIds = window.WC_PRODUCT_IDS || [];
   requestAnimationFrame(() => {
     wcProductIds.forEach((pid) => {
       const cb = document.getElementById(`opt_${pid}`);
       const qty = document.getElementById(`qty_${pid}`);
-      const savedQty = opt[`qty_${pid}`];
+      // A saved WC selection without this product (e.g. saved before it was
+      // added to WC_WALL_PRODUCTS) means "not selected" — otherwise new
+      // required products would silently appear in old offers/drafts.
+      const savedQty = opt[`qty_${pid}`] ?? (opt.wcMontage ? "0" : undefined);
       if (qty != null && savedQty != null) {
         qty.value = String(savedQty);
       }
@@ -16047,12 +16567,6 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     window.__bwtTravelTimeFreeHours = bwtHoursSnap != null ? Number(bwtHoursSnap) : 2;
     window.__bwtFreigrenzenLegacyOffer = bwtKmSnap == null && bwtHoursSnap == null;
 
-    // Freeze/lock: pin this offer's own saved state (see RestoreManager.js).
-    window.__frozen = p?.frozen === true;
-    window.__frozenPricing = p?.frozenPricing || null;
-    window.__locked = p?.locked === true;
-    window.applyOfferLockUI?.(window.__locked);
-
     // normalize offerType
     const rawOfferType =
       doc?.offerType ||
@@ -16137,14 +16651,9 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       console.warn("[restore] internal signature restore failed:", e);
     }
 
-    // Restore the "Versand per Post" toggle state independently of the postal
-    // manager — this is just one boolean + a visibility sync and must not depend
-    // on manager readiness or on the field-restore path below succeeding.
-    try {
-      window.__setPostalSectionEnabled?.(!!p?.postal?.enabled);
-    } catch (e) {
-      console.warn("[restore] postal toggle restore failed:", e);
-    }
+    // Legacy "Versand per Post" flag: kept verbatim so re-saving an old offer
+    // does not drop it. Nothing renders it — Post is a tab now.
+    window.__legacyPostalEnabled = p?.postal?.enabled;
 
     try {
       if (window.__postalManager?.restoreFromPayload) {
@@ -16169,6 +16678,8 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
       ["abtretung", "vollmacht", "barrierefrei"].forEach((id) => {
         window.setDocumentSelected?.(id, ds[id] !== false);
       });
+      window.__lastPayerForDocDefaults =
+        document.querySelector('input[name="payer"]:checked')?.value || "";
     } catch (e) {
       console.warn("[restore] docSelection restore failed:", e);
     }
@@ -16242,17 +16753,8 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
   ) {
     window.__smartTray.fetchAndRender();
   }
-  if (
-    window.__smartBathtub &&
-    typeof window.__smartBathtub.fetchAndRender === "function"
-  ) {
-    window.__smartBathtub.fetchAndRender();
-  }
-  if (
-    window.__smartScreenPicker &&
-    typeof window.__smartScreenPicker.refresh === "function"
-  ) {
-    window.__smartScreenPicker.refresh();
+  if (window.__wannePicker && typeof window.__wannePicker.render === "function") {
+    window.__wannePicker.render();
   }
 
   // Wandverkleidung dependencies
@@ -16289,13 +16791,9 @@ async function restoreConfiguratorFromOffer_LEGACY(doc) {
     .forEach((el) => dispatchChange(el));
 
   // ===== Recompute pricing =====
-  if (p?.frozen && p?.frozenPricing) {
-    window.__pricing = p.frozenPricing;
-    window.dispatchEvent(new CustomEvent("pricing:updated", { detail: p.frozenPricing }));
-    window.updateSummaryWidgetTotal?.(p.frozenPricing.total);
-    window.updateSummaryWidgetSelfPay?.(p.frozenPricing.selfPayAmount);
-    await window.refreshAllPanels?.();
-  } else if (typeof window.updatePricing === "function") {
+  // A sent offer's price is pinned server-side (Offer.locked — see
+  // pricing-core computePrices), so this recompute returns it unchanged.
+  if (typeof window.updatePricing === "function") {
     const pl =
       p || (typeof buildPayload === "function" ? buildPayload() : null);
     await window.updatePricing(pl);
@@ -16653,20 +17151,18 @@ function restoreDuschwanne(dw) {
   setByNameOrId("dwCustomQty", dwCustom?.qty || 1);
   setByNameOrId("dwCustomId", dwCustom?.productId || "");
 
-  // ===== NEW: restore bathtub + wannenaufsatz =====
-  setByNameOrId("bathtub_w_cm", dw.bathtub_w_cm);
-  setByNameOrId("bathtub_l_cm", dw.bathtub_l_cm);
-
+  // ===== restore bathtub + wannenaufsatz (Optional tab, menu_WANNE) =====
   setHiddenById("chosenBathtubProductId", dw.chosenBathtubProductId);
   setHiddenById("bathtubSize", dw.bathtubSize);
+  setHiddenById("chosenBathtubName", dw.chosenBathtubName);
+  setHiddenById("chosenBathtubPrice", dw.chosenBathtubPrice);
 
+  // Offers saved before the move used chosenScreenProductId — accept either.
   const screenPid =
     dw.wannenaufsatzProductId || dw.chosenScreenProductId || "";
   setHiddenById("chosenScreenProductId", screenPid);
-
-  // (optional) manual screen search inputs if stored
-  setByNameOrId("screen_w_cm", dw.screen_w_cm);
-  setByNameOrId("screen_h_cm", dw.screen_h_cm);
+  setHiddenById("chosenScreenName", dw.chosenScreenName);
+  setHiddenById("chosenScreenPrice", dw.chosenScreenPrice);
 
   // work tasks
   if (typeof restoreWorkTasks === "function") {
@@ -16793,8 +17289,10 @@ function setCurrentOfferType(offerType) {
 
   state.step = (flowSteps && flowSteps.find((s) => s !== "home")) || "home";
 
+  // saveWizardState(offerType, step) takes two args, not a state object —
+  // see the matching fix/comment a few hundred lines up in this file.
   if (typeof saveWizardState === "function") {
-    saveWizardState(state);
+    saveWizardState(state.offerType, state.step);
   }
 
   document.querySelectorAll("[data-offer-key]").forEach((tile) => {
@@ -17677,12 +18175,6 @@ async function __recalcRabattNow() {
 
 
 document
-  .getElementById("rb-show-free-grab")
-  ?.addEventListener("change", async () => {
-    await __recalcRabattNow();
-  });
-
-document
   .getElementById("rb-bonus-300")
   ?.addEventListener("change", async () => {
     const cb = document.getElementById("rb-bonus-300");
@@ -17883,8 +18375,8 @@ window.setPricingData = function setPricingData(data) {
       document.getElementById("rb-bonus-grab")?.parentElement;
     const cb = document.getElementById("rb-bonus-grab");
 
-    const total = Number(data?.grabCounts?.total || 0);
-    const allow = total > 0;
+    // Aktion Haltegriff applies to the grab bars listed in the admin panel.
+    const allow = hasEligibleGrab(data);
 
     if (row) {
       row.style.display = allow ? "" : "none";
@@ -17892,23 +18384,9 @@ window.setPricingData = function setPricingData(data) {
       row.setAttribute("aria-hidden", String(!allow));
     }
     if (!allow && cb && cb.checked) {
-      //cb.checked = false;
+      cb.checked = false;
       cb.dispatchEvent(new Event("change", { bubbles: true }));
     }
-
-    const showFreeRow = document.getElementById("rb-show-free-grab-row");
-    const showFreeCb = document.getElementById("rb-show-free-grab");
-    const allowShowFree = allow && !!cb?.checked;
-
-    if (showFreeRow) {
-      showFreeRow.style.display = allowShowFree ? "" : "none";
-      showFreeRow.hidden = !allowShowFree;
-      showFreeRow.setAttribute("aria-hidden", String(!allowShowFree));
-    }
-    if (!allowShowFree && showFreeCb?.checked) {
-      showFreeCb.checked = false;
-    }
-    syncShowFreeGrabRowVisibility();
   })();
 };
 
@@ -17939,7 +18417,7 @@ window.setPricingData = function setPricingData(data) {
       slider.dispatchEvent(new Event("input", { bubbles: true }));
       slider.dispatchEvent(new Event("change", { bubbles: true }));
     }
-    ["rb-bonus-300", "rb-bonus-grab", "rb-show-free-grab"].forEach((id) => {
+    ["rb-bonus-300", "rb-bonus-grab"].forEach((id) => {
       const cb = document.getElementById(id);
       if (cb && cb.checked) {
         cb.checked = false;
@@ -18049,6 +18527,9 @@ function initBasinAutoAccessories() {
   const coair40 = document.getElementById("opt_COAIR40");
   const qCOAIR40 = document.getElementById("qty_COAIR40");
 
+  const dep65u = document.getElementById("opt_DEP65U");
+  const qDEP65U = document.getElementById("qty_DEP65U");
+
   const basinSonder = document.getElementById("opt_BASIN_SONDER");
   const qBasinSonder = document.getElementById("qty_BASIN_SONDER");
 
@@ -18084,6 +18565,7 @@ function initBasinAutoAccessories() {
     { key: "cl55", cb: cl55, qtyInput: qCL55 },
     { key: "on35", cb: on35, qtyInput: qON35 },
     { key: "coair40", cb: coair40, qtyInput: qCOAIR40 },
+    { key: "dep65u", cb: dep65u, qtyInput: qDEP65U },
     { key: "sonder", cb: basinSonder, qtyInput: qBasinSonder },
   ].filter((b) => b.cb && b.qtyInput);
 
@@ -19038,6 +19520,7 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_TEMPDSU250", "qty_TEMPDSU250_wrap");
   wireTileQty("opt_V22BG903R", "qty_V22BG903R_wrap");
   wireTileQty("opt_V12DS250E", "qty_V12DS250E_wrap");
+  wireTileQty("opt_STRAYT", "qty_STRAYT_wrap");
 
   // ---- THERMO ----
   wireTileQty("opt_CLTB", "qty_CLTB_wrap");
@@ -19072,6 +19555,7 @@ cat_SHOWER: "menu_SHOWER",
   wireTileQty("opt_CL55", "qty_CL55_wrap");
   wireTileQty("opt_ON35", "qty_ON35_wrap");
   wireTileQty("opt_COAIR40", "qty_COAIR40_wrap");
+  wireTileQty("opt_DEP65U", "qty_DEP65U_wrap");
   wireTileQty("opt_BASIN_SONDER", "qty_BASIN_SONDER_wrap");
   // ---- METER ----
   wireTileQty("opt_TECEADS", "qty_TECEADS_wrap");
@@ -19119,6 +19603,13 @@ cat_SHOWER: "menu_SHOWER",
         image: "./assets/Gipskarton.jpg",
         fallbackName: "Knauf Gipskarton-Bauplatte GKBI imprägniert",
         category: "accessory",
+      },
+      {
+        productId: "WWCAG90",
+        image: "./assets/WWCAG90.jpg",
+        fallbackName: "Wand-WC-Anschlussgarnitur PE d:90mm",
+        category: "accessory",
+        montage: "both", // one tile, moved into the visible montage group
       },
       {
         productId: "DERSIAS",
@@ -19182,6 +19673,9 @@ cat_SHOWER: "menu_SHOWER",
         montage: "Bodenmontage",
       },
     ];
+
+    // Single source for the cat_WC kid lists and the saved-offer restore.
+    window.WC_PRODUCT_IDS = WC_WALL_PRODUCTS.map((item) => item.productId);
 
     const montageOf = (item) => item.montage || "Wandmontage";
 
@@ -19314,82 +19808,75 @@ cat_SHOWER: "menu_SHOWER",
         return card;
       };
 
-      // Accessories group (no seats here anymore)
-      if (accessories.length) {
+      // Per montage: required products (pre-checked), WC+seat pairs
+      // (exclusive), optional products (user-driven). Group order matters:
+      // "both" tiles move into the first non-WC group of the active montage.
+      const addGroup = (montage, kind, title, fill) => {
         const group = document.createElement("div");
         group.className = "wc-generated-group";
-        group.dataset.montage = "Wandmontage";
+        group.dataset.montage = montage;
+        group.dataset.kind = kind;
         group.style.width = "100%";
-        const header = document.createElement("div");
-        header.className = "subheader wc-products-subheader";
-        header.textContent = "Produkte für Wandmontage";
+        const header = document.createElement("h4");
+        header.textContent = title;
         group.appendChild(header);
         const grid = document.createElement("div");
-        grid.className = "opt-grid";
+        grid.className = kind === "wc" ? "opt-grid wc-pairs-grid" : "opt-grid";
         grid.style.width = "100%";
-        for (const item of accessories) grid.appendChild(buildTile(item));
+        fill(grid);
         group.appendChild(grid);
         wallProductsGrid.appendChild(group);
-      }
+      };
 
-      // WCs group: each WC paired with its corresponding seat tile, every
-      // pair on its own row. Shared seats (e.g. DERSIAS for both DERWWCOSVP
-      // and DEDWWC) are rendered in every pair — the first occurrence keeps
-      // the canonical opt_/qty_ ids; subsequent occurrences are alias tiles.
-      if (wcs.length) {
-        const group = document.createElement("div");
-        group.className = "wc-generated-group";
-        group.dataset.montage = "Wandmontage";
-        group.style.width = "100%";
-        const header = document.createElement("div");
-        header.className = "subheader wc-products-subheader";
-        header.textContent = "WCs für Wandmontage";
-        group.appendChild(header);
-        const grid = document.createElement("div");
-        grid.className = "opt-grid wc-pairs-grid";
-        grid.style.width = "100%";
-        const renderedSeats = new Set();
-        for (const wc of wcs) {
-          const pair = document.createElement("div");
-          pair.className = "wc-pair";
-          pair.dataset.wcProductId = wc.productId;
-          pair.appendChild(buildTile(wc));
-          const seat = wc.seatId && seatById[wc.seatId];
-          if (seat) {
-            if (!renderedSeats.has(seat.productId)) {
-              pair.appendChild(buildTile(seat));
-              renderedSeats.add(seat.productId);
-            } else {
-              pair.appendChild(
-                buildTile(seat, { idSuffix: `__pair_${wc.productId}` }),
-              );
-            }
-          }
-          grid.appendChild(pair);
+      // Shared seats (e.g. DERSIAS for both DERWWCOSVP and DEDWWC) are
+      // rendered in every pair — the first occurrence keeps the canonical
+      // opt_/qty_ ids; subsequent occurrences are alias tiles.
+      const renderedSeats = new Set();
+      for (const montage of ["Wandmontage", "Bodenmontage"]) {
+        const inMontage = (item) =>
+          montageOf(item) === montage ||
+          (item.montage === "both" && montage === "Wandmontage"); // rendered once, moved later
+        const required = accessories.filter(inMontage);
+        const wcsHere = wcs.filter(inMontage);
+        const optional = WC_WALL_PRODUCTS.filter(
+          (item) => item.category === "floor" && inMontage(item),
+        );
+
+        if (required.length) {
+          addGroup(montage, "required", `Produkte für ${montage}`, (grid) => {
+            for (const item of required) grid.appendChild(buildTile(item));
+          });
         }
-        group.appendChild(grid);
-        wallProductsGrid.appendChild(group);
-      }
 
-      // Bodenmontage group
-      const floorProducts = WC_WALL_PRODUCTS.filter(
-        (item) => item.category === "floor",
-      );
-      if (floorProducts.length) {
-        const group = document.createElement("div");
-        group.className = "wc-generated-group";
-        group.dataset.montage = "Bodenmontage";
-        group.style.width = "100%";
-        const header = document.createElement("div");
-        header.className = "subheader wc-products-subheader";
-        header.textContent = "Produkte für Bodenmontage";
-        group.appendChild(header);
-        const grid = document.createElement("div");
-        grid.className = "opt-grid";
-        grid.style.width = "100%";
-        for (const item of floorProducts) grid.appendChild(buildTile(item));
-        group.appendChild(grid);
-        wallProductsGrid.appendChild(group);
+        if (wcsHere.length) {
+          addGroup(montage, "wc", `WCs für ${montage}`, (grid) => {
+            for (const wc of wcsHere) {
+              const pair = document.createElement("div");
+              pair.className = "wc-pair";
+              pair.dataset.wcProductId = wc.productId;
+              pair.appendChild(buildTile(wc));
+              const seat = wc.seatId && seatById[wc.seatId];
+              if (seat) {
+                if (!renderedSeats.has(seat.productId)) {
+                  pair.appendChild(buildTile(seat));
+                  renderedSeats.add(seat.productId);
+                } else {
+                  pair.appendChild(
+                    buildTile(seat, { idSuffix: `__pair_${wc.productId}` }),
+                  );
+                }
+              }
+              grid.appendChild(pair);
+            }
+          });
+        }
+
+        if (optional.length) {
+          const title = required.length ? `Weitere Produkte für ${montage}` : `Produkte für ${montage}`;
+          addGroup(montage, "optional", title, (grid) => {
+            for (const item of optional) grid.appendChild(buildTile(item));
+          });
+        }
       }
 
       await Promise.all(
@@ -19691,6 +20178,7 @@ cat_SHOWER: "menu_SHOWER",
       );
     }
 
+    let lastMontage = null;
     function applySeatVisibility() {
       const selectedMontage = document.querySelector('#form-optional input[name="wcMontage"]:checked')?.value || "";
       const showSeat = catWc.checked && selectedMontage === "Wandmontage";
@@ -19706,6 +20194,7 @@ cat_SHOWER: "menu_SHOWER",
       }
       if (!showSeat && !showFloor) {
         setWallProductsChecked(false);
+        lastMontage = null;
         return;
       }
 
@@ -19718,6 +20207,24 @@ cat_SHOWER: "menu_SHOWER",
           );
         setMontageChecked("Wandmontage", showSeat);
         setMontageChecked("Bodenmontage", showFloor);
+        // "both" tiles: move into the active montage's first non-WC group
+        const targetGrid = wallProductsGrid?.querySelector(
+          `[data-montage="${selectedMontage}"]:not([data-kind="wc"]) .opt-grid`,
+        );
+        const switched = lastMontage !== selectedMontage;
+        WC_WALL_PRODUCTS.forEach((item) => {
+          const both = item.montage === "both";
+          if (item.category !== "accessory" && !both) return;
+          if (!both && montageOf(item) !== selectedMontage) return;
+          const cb = document.getElementById(`opt_${item.productId}`);
+          if (!cb) return;
+          const card = cb.closest(".opt-item");
+          if (both && targetGrid && card.parentElement !== targetGrid) targetGrid.appendChild(card);
+          // required products are re-checked whenever the montage changes
+          if (switched && item.category === "accessory") cb.checked = true;
+          applyGeneratedTileQty(cb, document.getElementById(`qty_${item.productId}_wrap`));
+        });
+        lastMontage = selectedMontage;
         syncSeatHeightDependentProducts();
         syncExclusiveWcSelection();
       });
@@ -19800,17 +20307,18 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
       "opt_TEMPDSU250",
       "opt_V22BG903R",
       "opt_V12DS250E",
+      "opt_STRAYT",
     ],
     cat_THERMO: ["opt_CLTB", "opt_DEPTB", "opt_CLB"],
     cat_GRAB: ["opt_CLPESG30", "opt_CLPESG40", "opt_CLPESG60", "opt_CLPESG80"],
     cat_FOLD: ["opt_DEPSKG60", "opt_DEPSKG85"],
     cat_SEAT: ["opt_DEPKS", "opt_CLPESDH", "opt_78090000"],
-    cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40"],
+    cat_BASIN: ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40", "opt_DEP65U"],
     cat_BASIN_TAP: ["opt_CL_BASIN", "opt_DEPOH", "opt_ONSHB"],
     cat_METER: ["opt_TECEADS"],
     cat_RAMPE: ["opt_RAMPE35"],
     cat_WESGH: ["opt_WESGH", "opt_TRGAVS15", "opt_INSTMATROH"],
-    cat_WC: ["opt_CVIS3WCT112", "opt_SCHALL", "opt_V1DON", "opt_DERSIAS", "opt_CLSIAS", "opt_DERWWCOSVP", "opt_DEDWWC", "opt_CLPWWCOS5", "opt_0601010003", "opt_CLPWCF10", "opt_WCBF", "opt_CLPSSI"],
+    cat_WC: (window.WC_PRODUCT_IDS || []).map((id) => `opt_${id}`) /* from WC_WALL_PRODUCTS */,
     cat_REHA: [
       "opt_24081000", "opt_24081100", "opt_24081500", "opt_24081600",
       "opt_24081005", "opt_24081105", "opt_24081505", "opt_24081605",
@@ -19851,7 +20359,7 @@ wireTileQty("opt_10440000", "qty_10440000_wrap");
   // Show/hide "Erforderliches Zubehör" when CL60 is toggled (no cross-panel effects)
   (function wireBasinRequired() {
     // any basin keeps the required block open, not just CL60
-    const wts = ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40"]
+    const wts = ["opt_CL60", "opt_CL65", "opt_CL55", "opt_ON35", "opt_COAIR40", "opt_DEP65U"]
       .map((id) => document.getElementById(id))
       .filter(Boolean);
     const reqWrap = document.getElementById("basinRequiredWrap");
@@ -19956,7 +20464,8 @@ wireTileQty("hlWallAngledBall35", "qty_hlWallAngledBall35_wrap");
         "opt_V22WS1R", // Wannenset individual 2.2
         "opt_TEMPDSU250", // Duschsystem Tempesta Flex
         "opt_V22BG903R", // Brausegarnitur individ.2.2
-        "opt_V12DS250E", // Duschsystem V1 Thermostat
+        "opt_V12DS250E", // Duschsystem V1 Thermostat,
+        "opt_STRAYT", // New edge duschsystem
       ],
     },
     {
@@ -20510,6 +21019,7 @@ function restoreFinanzierung(fin) {
   var steuerEl = document.getElementById("ahSteuerabsetzBetrag");
 
   function refresh() {
+    window.refreshAHPricing?.();
     if (vp && vpOut) vpOut.textContent = Math.round(Number(vp.value) || 0) + " €";
     if (umCb && umField) {
       umField.hidden = !umCb.checked;
@@ -20706,8 +21216,6 @@ window.addEventListener("offerflow:changed", () => {
         bwtDoorStdHeight: "36", // valid range: 33–40
         // bwtAnschlag must match the HTML radio value exactly ("Links" or "Rechts")
         bwtAnschlag: "Rechts",
-        // tray_color must match HTML radio value exactly ("Weiß", "manhattan", "bahama_beige")
-        tray_color: "Weiß",
         bwtAids: ["Haltegriff30"],
         bwtAidsHaltegriff30Qty: "1",
         bwtNote: "Musterdaten für Badewannentür.",
@@ -20955,7 +21463,6 @@ window.addEventListener("offerflow:changed", () => {
                   bwtDoorStdColor: "weiß",
                   bwtDoorStdHeight: "36",
                   bwtAnschlag: "Rechts",
-                  tray_color: "Weiß",
                   bwtAids: ["Haltegriff30"],
                   bwtAidsHaltegriff30Qty: "1",
                   bwtNote: "Musterdaten · Badewannentür",
@@ -21966,6 +22473,12 @@ function initOptionalUX() {
         (row) => (row.querySelector(".opt-name")?.value || "").trim()
       ).length;
     }
+    // The Wanne picker selects into hidden fields, not checkboxes.
+    if (menuId === "menu_WANNE") {
+      return ["chosenBathtubProductId", "chosenScreenProductId"].filter(
+        (id) => (document.getElementById(id)?.value || "").trim()
+      ).length;
+    }
     return menu.querySelectorAll('input[type="checkbox"]:checked').length;
   };
 
@@ -22153,6 +22666,28 @@ function initOptionalUX() {
         });
         return;
       }
+      if (menuId === "menu_WANNE") {
+        [
+          ["chosenBathtubProductId", ["chosenBathtubName", "chosenBathtubPrice", "bathtubSize"]],
+          ["chosenScreenProductId", ["chosenScreenName", "chosenScreenPrice"]],
+        ].forEach(([idField, alsoClear]) => {
+          const el = document.getElementById(idField);
+          const art = (el?.value || "").trim();
+          if (!art) return;
+          total++;
+          chipsWrap.appendChild(
+            makeChip(art, group, () => {
+              [idField, ...alsoClear].forEach((id) => {
+                const f = document.getElementById(id);
+                if (f) f.value = "";
+              });
+              el.dispatchEvent(new Event("change", { bubbles: true }));
+              window.updatePricing?.();
+            })
+          );
+        });
+        return;
+      }
       menu
         .querySelectorAll('input[type="checkbox"]:checked')
         .forEach((cb) => {
@@ -22221,10 +22756,7 @@ document.addEventListener("DOMContentLoaded", () => {
   safeInit("initOptionalSonderprodukte", initOptionalSonderprodukte);
   safeInit("initOptionalUX", typeof initOptionalUX !== "undefined" ? initOptionalUX : null);
 
-  // ✅ these two control what you're missing in the screenshot
-  safeInit("initBathtubSearch", initBathtubSearch);
-  safeInit("initSmartBathtubSearch", initSmartBathtubSearch);
-  safeInit("initSmartScreenPickerBucket", initSmartScreenPickerBucket);
+  safeInit("initWannePicker", initWannePicker);
 
   safeInit("initStateDrivenPricingSync", initStateDrivenPricingSync);
   safeInit("initLivePricingSync", initLivePricingSync);
@@ -23389,8 +23921,7 @@ function updateKassenkundeDetailsVisibility() {
   const isKassenkunde =
     document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde";
 
-  wrap.style.display = isKassenkunde ? "grid" : "none";
-  wrap.setAttribute("aria-hidden", isKassenkunde ? "false" : "true");
+  pgbReveal(wrap, isKassenkunde);
 
   wrap.querySelectorAll("input, select, textarea").forEach((el) => {
     el.disabled = !isKassenkunde;
@@ -23399,8 +23930,8 @@ function updateKassenkundeDetailsVisibility() {
   // Geburtsdatum + Versicherungsnummer werden nur im BU-Konfigurator nicht benötigt.
   const isBu = String(window.getCurrentOfferType?.() || "bu").toLowerCase() === "bu";
   [
-    document.getElementById("kk_geburtsdatum")?.closest(".field"),
-    document.getElementById("kk_versichertennr")?.closest(".field"),
+    document.getElementById("kk_geburtsdatum")?.closest(".pgb-field"),
+    document.getElementById("kk_versichertennr")?.closest(".pgb-field"),
   ].forEach((field) => {
     if (field) field.style.display = isBu ? "none" : "";
   });
@@ -25527,6 +26058,7 @@ function initHlFlexofitWizard() {
     outside: ["Aluminiumrohr 35mm"],
   };
   const outsideFinish = "Edelstahl gebürstet";
+  const SONDER_TAB = "__sonder__";
 
   let entries = [];
   let entriesByKey = new Map();
@@ -25552,6 +26084,7 @@ function initHlFlexofitWizard() {
       tubes: {}, // catalogKey -> meters
       finish: "",
       fittings: {}, // catalogKey -> qty
+      sonderprodukte: [],
       open: { area: true, rohr: false, beschlaege: false },
       ...overrides,
     };
@@ -25590,15 +26123,18 @@ function initHlFlexofitWizard() {
   const isComplete = (c) =>
     !!c.area &&
     (Object.values(c.tubes).some((m) => Number(m) > 0) ||
-      Object.values(c.fittings).some((q) => Number(q) > 0));
+      Object.values(c.fittings).some((q) => Number(q) > 0) ||
+      (c.sonderprodukte || []).some((s) => s.name && Number(s.price) > 0 && Number(s.qty) > 0));
 
   const summaryTextFor = (c) => {
     const parts = [];
     if (c.area) parts.push(c.area === "inside" ? "Innen" : "Außen");
     const nT = Object.keys(c.tubes).length;
     const nF = Object.keys(c.fittings).length;
+    const nS = (c.sonderprodukte || []).filter((s) => s.name && Number(s.price) > 0).length;
     if (nT) parts.push(`${nT} Rohr${nT === 1 ? "" : "e"}`);
     if (nF) parts.push(`${nF} Beschlag${nF === 1 ? "" : "-läge"}`);
+    if (nS) parts.push(`${nS} Sonderprodukt${nS === 1 ? "" : "e"}`);
     return parts.join(" · ") || "Unvollständig";
   };
 
@@ -25606,7 +26142,7 @@ function initHlFlexofitWizard() {
   const autoOpenNext = (c) => {
     c.open = { area: false, rohr: false, beschlaege: false };
     if (!c.area) c.open.area = true;
-    else if (!Object.keys(c.tubes).length) c.open.rohr = true;
+    else if (!Object.keys(c.tubes).length && !(c.sonderprodukte || []).some((s) => s.name && Number(s.price) > 0)) c.open.rohr = true;
     else c.open.beschlaege = true;
   };
 
@@ -25645,23 +26181,37 @@ function initHlFlexofitWizard() {
   const rohrBodyHtml = (c) => {
     if (!c.area) return `<div class="hl-wiz__empty">Bitte zuerst Bereich wählen.</div>`;
     const groups = (TUBE_GROUPS[c.area] || []).filter((f) => tubeEntriesFor(c.area, f).length);
-    if (!groups.includes(c.tubeTab)) c.tubeTab = groups[0] || "";
+    if (!groups.includes(c.tubeTab) && c.tubeTab !== SONDER_TAB) c.tubeTab = groups[0] || SONDER_TAB;
     const active = c.tubeTab;
 
     const countIn = (family) =>
       tubeEntriesFor(c.area, family).filter((e) => c.tubes[hlCatalogKey(e)] != null).length;
+    const nSonder = (c.sonderprodukte || []).filter((s) => s.name && Number(s.price) > 0).length;
 
-    const tabs =
-      groups.length > 1
-        ? `<div class="hl-wiz__finishes" role="tablist" aria-label="Material">` +
-          groups
-            .map((family) => {
-              const n = countIn(family);
-              return `<button type="button" class="hl-wiz__finish${family === active ? " is-selected" : ""}" data-tube-tab="${escapeHtml(family)}">${escapeHtml(family)}${n ? ` (${n})` : ""}</button>`;
-            })
-            .join("") +
-          `</div>`
-        : "";
+    const tabs = `<div class="hl-wiz__finishes" role="tablist" aria-label="Material">` +
+      groups.map((family) => {
+        const n = countIn(family);
+        return `<button type="button" class="hl-wiz__finish${family === active ? " is-selected" : ""}" data-tube-tab="${escapeHtml(family)}">${escapeHtml(family)}${n ? ` (${n})` : ""}</button>`;
+      }).join("") +
+      `<button type="button" class="hl-wiz__finish${active === SONDER_TAB ? " is-selected" : ""}" data-tube-tab="${SONDER_TAB}">Sonderprodukt${nSonder ? ` (${nSonder})` : ""}</button>` +
+      `</div>`;
+
+    if (active === SONDER_TAB) {
+      const sonders = c.sonderprodukte || [];
+      const rows = sonders.map((s, idx) => `
+        <div class="hl-wiz__sonder-row">
+          <input type="text" placeholder="Bezeichnung" value="${escapeHtml(String(s.name || ""))}" data-sonder-name data-idx="${idx}" />
+          <input type="text" inputmode="decimal" placeholder="Preis netto" value="${escapeHtml(String(s.price || ""))}" data-sonder-price data-idx="${idx}" />
+          <input type="text" placeholder="Artikel-ID" value="${escapeHtml(String(s.articleId || ""))}" data-sonder-article data-idx="${idx}" />
+          <input type="number" min="1" step="1" placeholder="1" value="${Number(s.qty) > 0 ? s.qty : 1}" data-sonder-qty data-idx="${idx}" />
+          <button type="button" class="hl-wiz__sonder-del" data-sonder-del data-idx="${idx}" title="Entfernen">×</button>
+        </div>`).join("");
+      return `<p class="hl-wiz__hint">Material und eine Farbe wählen. Rohre werden pro Meter berechnet — Länge unten in der Positionsliste angeben.</p>
+        ${tabs}
+        <p class="hl-wiz__hint" style="margin-top:14px">Bezeichnung, Netto-Preis (EK) und Artikel-ID eingeben — Menge unten in der Positionsliste anpassen.</p>
+        <div class="hl-wiz__sonder-list">${rows}</div>
+        <button type="button" class="hl-wiz__sonder-add" data-sonder-add><i class="fa-solid fa-plus"></i> Sonderprodukt hinzufügen</button>`;
+    }
 
     const picks = (active ? tubeEntriesFor(c.area, active) : [])
       .map((entry) => {
@@ -25788,14 +26338,15 @@ function initHlFlexofitWizard() {
     const stepTitle = { area: "Bereich", rohr: "Rohr & Farbe", beschlaege: "Beschläge & Oberfläche" };
     const nTubes = Object.keys(c.tubes).length;
     const nFit = Object.keys(c.fittings).length;
+    const nSonderValid = (c.sonderprodukte || []).filter((s) => s.name && Number(s.price) > 0 && Number(s.qty) > 0).length;
     const stepValue = {
       area: c.area ? (c.area === "inside" ? "Innen" : "Außen") : "—",
-      rohr: nTubes ? `${nTubes} Rohr(e)` : "—",
+      rohr: nTubes ? `${nTubes} Rohr(e)` : nSonderValid ? `${nSonderValid} Sonderprodukt(e)` : "—",
       beschlaege: c.area === "outside" || c.finish ? `${activeFinishFor(c)} · ${nFit} Beschlag/-läge` : "—",
     };
     const stepDone = {
       area: !!c.area,
-      rohr: nTubes > 0,
+      rohr: nTubes > 0 || nSonderValid > 0,
       beschlaege: c.area === "outside" ? nFit > 0 : !!c.finish && nFit > 0,
     };
     const steps = ["area", "rohr", "beschlaege"]
@@ -25885,6 +26436,32 @@ function initHlFlexofitWizard() {
         refreshOffer();
       });
     });
+    panelEl.querySelectorAll("[data-sonder-name],[data-sonder-price],[data-sonder-article],[data-sonder-qty]").forEach((inp) => {
+      inp.addEventListener("change", () => {
+        const idx = Number(inp.dataset.idx);
+        while (c.sonderprodukte.length <= idx) c.sonderprodukte.push({ name: "", price: "", articleId: "", qty: 1 });
+        const s = c.sonderprodukte[idx];
+        if ("sonderName" in inp.dataset) s.name = inp.value.trim();
+        if ("sonderPrice" in inp.dataset) s.price = parseFloat(String(inp.value).replace(",", ".")) || "";
+        if ("sonderArticle" in inp.dataset) s.articleId = inp.value.trim();
+        if ("sonderQty" in inp.dataset) s.qty = Math.max(1, parseInt(inp.value) || 1);
+        renderLedger();
+        refreshOffer();
+      });
+    });
+    panelEl.querySelectorAll("[data-sonder-del]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = Number(btn.dataset.idx);
+        c.sonderprodukte.splice(idx, 1);
+        renderPanel();
+        renderLedger();
+        refreshOffer();
+      });
+    });
+    panelEl.querySelector("[data-sonder-add]")?.addEventListener("click", () => {
+      c.sonderprodukte.push({ name: "", price: "", articleId: "", qty: 1 });
+      renderPanel();
+    });
   };
 
   const renderLedger = () => {
@@ -25930,6 +26507,22 @@ function initHlFlexofitWizard() {
             <td><button type="button" class="hl-wiz__ledger-del" data-ledger-del data-cid="${escapeHtml(c.id)}" data-key="${escapeHtml(key)}" data-kind="fit" title="Entfernen">×</button></td>
           </tr>`);
       });
+      (c.sonderprodukte || []).forEach((s, idx) => {
+        const q = Number(s.qty) || 0;
+        const price = parseFloat(String(s.price || "").replace(",", ".")) || 0;
+        if (q <= 0 || !s.name || price <= 0) return;
+        const lineTotal = q * price;
+        total += lineTotal;
+        count++;
+        cRows.push(`
+          <tr>
+            <td><div class="hl-wiz__ledger-name">${escapeHtml(s.name)}</div><div class="hl-wiz__ledger-sub">${escapeHtml(s.articleId || "")}</div></td>
+            <td class="num"><span class="hl-wiz__ledger-qty"><input type="number" min="0" step="1" value="${q}" data-ledger-qty data-cid="${escapeHtml(c.id)}" data-key="${SONDER_TAB}:${idx}" data-kind="sonder" /> Stk.</span></td>
+            <td class="num">${money(price)}</td>
+            <td class="num">${money(lineTotal)}</td>
+            <td><button type="button" class="hl-wiz__ledger-del" data-ledger-del data-cid="${escapeHtml(c.id)}" data-key="${SONDER_TAB}:${idx}" data-kind="sonder" title="Entfernen">×</button></td>
+          </tr>`);
+      });
       if (cRows.length) {
         if (!activeConfig) rows.push(`<tr class="hl-wiz__ledger-group"><td colspan="5">${escapeHtml(c.name)}</td></tr>`);
         rows.push(...cRows);
@@ -25954,10 +26547,15 @@ function initHlFlexofitWizard() {
         const { cid, key, kind } = inp.dataset;
         const c = configs.find((x) => x.id === cid);
         if (!c) return;
-        const bag = kind === "tube" ? c.tubes : c.fittings;
         const v = Math.max(0, Number(String(inp.value).replace(",", ".")) || 0);
-        if (v <= 0) delete bag[key];
-        else bag[key] = v;
+        if (kind === "sonder") {
+          const idx = Number(key.split(":")[1]);
+          if (c.sonderprodukte[idx]) c.sonderprodukte[idx].qty = v > 0 ? v : 0;
+        } else {
+          const bag = kind === "tube" ? c.tubes : c.fittings;
+          if (v <= 0) delete bag[key];
+          else bag[key] = v;
+        }
         renderAll();
         refreshOffer();
       });
@@ -25967,7 +26565,12 @@ function initHlFlexofitWizard() {
         const { cid, key, kind } = btn.dataset;
         const c = configs.find((x) => x.id === cid);
         if (!c) return;
-        delete (kind === "tube" ? c.tubes : c.fittings)[key];
+        if (kind === "sonder") {
+          const idx = Number(key.split(":")[1]);
+          c.sonderprodukte.splice(idx, 1);
+        } else {
+          delete (kind === "tube" ? c.tubes : c.fittings)[key];
+        }
         renderAll();
         refreshOffer();
       });
@@ -26011,6 +26614,18 @@ function initHlFlexofitWizard() {
           price: Number(entry.product.price) || 0,
         });
       });
+      (c.sonderprodukte || []).forEach((s) => {
+        const q = Number(s.qty) || 0;
+        const price = parseFloat(String(s.price || "").replace(",", ".")) || 0;
+        if (q <= 0 || !s.name || price <= 0) return;
+        lines.push({
+          label: s.name,
+          category: c.name,
+          productId: s.articleId || "HL_SONDER",
+          qty: q,
+          price,
+        });
+      });
     });
     return lines;
   };
@@ -26025,6 +26640,7 @@ function initHlFlexofitWizard() {
         finish: c.finish,
         tubes: { ...c.tubes },
         fittings: { ...c.fittings },
+        sonderprodukte: [...(c.sonderprodukte || [])],
       }));
     },
     async restore(saved) {
@@ -26039,6 +26655,7 @@ function initHlFlexofitWizard() {
             c.finish = s?.finish || "";
             c.tubes = { ...(s?.tubes || {}) };
             c.fittings = { ...(s?.fittings || {}) };
+            c.sonderprodukte = Array.isArray(s?.sonderprodukte) ? [...s.sonderprodukte] : [];
             autoOpenNext(c);
             return c;
           })
@@ -26420,6 +27037,9 @@ function syncSummaryLeadIds(rawLeadId){
     postAuftragId.dispatchEvent(new Event("change", { bubbles: true }));
   }
 }
+// Offer restore, postal restore and onEnterZusammenfassung live in other
+// scopes and guard with `typeof syncSummaryLeadIds` — without this they skip silently.
+window.syncSummaryLeadIds = syncSummaryLeadIds;
 
 function syncSummaryRecipientEmail(rawEmail){
   const email = String(rawEmail || "").trim();
@@ -26863,7 +27483,11 @@ function renderTodayCalendarEvents(){
       if(!event) return;
       activeCalendarEventId = id;
       renderTodayCalendarEvents();
-      applyCalendarEventToForm(event);
+      if (typeof window.openPlanningOfferPicker === "function") {
+        window.openPlanningOfferPicker(null, (offerKey) => applyCalendarEventToForm(event, offerKey));
+      } else {
+        applyCalendarEventToForm(event);
+      }
     };
 
     card.addEventListener("click", onOpen);
@@ -26930,7 +27554,7 @@ function hydrateCalendarEventFromTodayCustomer(event, parsed){
   };
 }
 
-async function applyCalendarEventToForm(event){
+async function applyCalendarEventToForm(event, offerKeyOverride){
   if(window.__todayCustomersPromise){
     try {
       await window.__todayCustomersPromise;
@@ -26945,8 +27569,9 @@ async function applyCalendarEventToForm(event){
   const locationFromTitle = getCalendarTitleLocation(event?.NAME || event?.TITLE || "");
   const hydrated = hydrateCalendarEventFromTodayCustomer(event, parsed);
 
-  if(detected.offerKey && typeof startOfferFlow === "function"){
-    startOfferFlow(detected.offerKey);
+  const offerKey = offerKeyOverride || detected.offerKey;
+  if(offerKey && typeof startOfferFlow === "function"){
+    startOfferFlow(offerKey);
   }
 
   setCalendarValue("#firstName", hydrated?.firstName || name.firstName || "");
@@ -27028,7 +27653,7 @@ let _pendingPlanningEntry = null;
 
 // Deal stages fetched live from Bitrix — hides "Erfolgreich abgeschlossen"
 // for deals already moved to/past "ANG verschickt" on the today-planning list.
-const DONE_STAGE_IDS = new Set(["C38:UC_2ZDNEZ", "C52:UC_SNAVG8", "C72:PREPARATION"]);
+const DONE_STAGE_IDS = new Set(["C38:UC_2ZDNEZ", "C52:UC_SNAVG8", "C72:PREPARATION", "C72:UC_MXCAGT"]);
 const dealStageById = new Map();
 
 function isDealDone(dealId) {
@@ -27042,17 +27667,52 @@ function markDealStage(dealId, stageId) {
   dealStageById.set(id, stageId);
 }
 
+// A saved draft or a saved/sent offer already exists for this deal (Schnell-
+// speichern or Angebot senden) — hide "Hat stattgefunden" for it, same as an
+// explicit stage move. Checked once per dealId against our own DB (no Bitrix
+// call), not polled — replaces the old Bitrix-polling approach that got rate
+// limited.
+const checkedSavedDealIds = new Set();
+async function checkDealAlreadySaved(dealId) {
+  const id = String(dealId || "").trim();
+  if (!id || checkedSavedDealIds.has(id)) return;
+  checkedSavedDealIds.add(id);
+  if (await dealHasSavedOffer(id)) {
+    markDealStage(id, "C72:PREPARATION");
+    renderTodayPlanningAppointments();
+  }
+}
+
+// Same lookup as checkDealAlreadySaved, but callable again right before a
+// stage-moving click — closes the race where the background check hasn't
+// resolved yet when the user clicks. Hits only our own DB, never Bitrix, so
+// it doesn't reintroduce the rate-limiting this list was built to avoid.
+async function dealHasSavedOffer(dealId) {
+  const id = String(dealId || "").trim();
+  if (!id) return false;
+  try {
+    const res = await fetch(`/api/offers/by-deal/${encodeURIComponent(id)}`);
+    const data = await res.json().catch(() => []);
+    return Array.isArray(data) && data.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 const PLANNING_OFFER_TYPES = [
   { offerKey: "bu",  icon: "fa-shower",            title: "Badumbau" },
   { offerKey: "bwt", icon: "fa-bath",               title: "Badewannentür" },
+  { offerKey: "bl",  icon: "fa-elevator",           title: "Badelift" },
   { offerKey: "hl",  icon: "fa-grip-lines-vertical", title: "Handlauf" },
   { offerKey: "ah",  icon: "fa-hands-helping",       title: "Alltagshilfe" },
   { offerKey: "wd",  icon: "fa-snowflake",           title: "Winterdienst" },
   { offerKey: "hms", icon: "fa-toolbox",             title: "Hausmeister-Service" },
 ];
 
-function openPlanningOfferPicker(entry) {
+let _pendingPlanningPick = null;
+function openPlanningOfferPicker(entry, onPick) {
   _pendingPlanningEntry = entry;
+  _pendingPlanningPick = onPick || null;
   const modal = document.getElementById("planningOfferPickerModal");
   const container = document.getElementById("planningOfferPickerCards");
   if (!modal || !container) return;
@@ -27068,15 +27728,79 @@ function openPlanningOfferPicker(entry) {
     btn.addEventListener("click", () => {
       const offerKey = btn.dataset.offerKey;
       const entry = _pendingPlanningEntry;
+      const pick = _pendingPlanningPick;
       closePlanningOfferPicker();
-      if (entry) {
-        applyPlanningAppointmentToForm(entry, offerKey);
-      }
+      if (pick) pick(offerKey);
+      else if (entry) applyPlanningAppointmentToForm(entry, offerKey);
     });
   });
 
   modal.hidden = false;
   modal.setAttribute("aria-hidden", "false");
+}
+
+// Exposed for the Bitrix-calendar panel (separate IIFE), which reuses this picker.
+window.openPlanningOfferPicker = openPlanningOfferPicker;
+
+let _noContactDealId = null;
+
+function openPlanningNoContactDialog(dealId) {
+  const modal = document.getElementById("planningNoContactModal");
+  if (!modal) return;
+  _noContactDealId = String(dealId || "").trim();
+  // Fresh state every time — the modal is reused across cards.
+  const first = modal.querySelector('input[name="planningNoContactReason"]');
+  if (first) first.checked = true;
+  const note = document.getElementById("planningNoContactNote");
+  if (note) note.value = "";
+  const submit = document.getElementById("planningNoContactSubmit");
+  if (submit) { submit.disabled = false; submit.textContent = "Verschieben & kommentieren"; }
+  modal.hidden = false;
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function closePlanningNoContactDialog() {
+  const modal = document.getElementById("planningNoContactModal");
+  if (!modal) return;
+  modal.hidden = true;
+  modal.setAttribute("aria-hidden", "true");
+  _noContactDealId = null;
+}
+
+async function submitPlanningNoContact() {
+  const dealId = _noContactDealId;
+  if (!dealId) return;
+  const modal = document.getElementById("planningNoContactModal");
+  const reason = modal?.querySelector('input[name="planningNoContactReason"]:checked')?.value || "Kunde nicht erreichbar";
+  const note = String(document.getElementById("planningNoContactNote")?.value || "").trim();
+  const comment = `\u{1F4F5} Termin nicht zustande gekommen \u2013 ${reason}` + (note ? `\n${note}` : "");
+
+  const submit = document.getElementById("planningNoContactSubmit");
+  if (submit) { submit.disabled = true; submit.textContent = "Verschiebe\u2026"; }
+  try {
+    const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}/move-besichtigung`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ comment }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+    markDealStage(dealId, "C72:UC_MXCAGT");
+    closePlanningNoContactDialog();
+    renderTodayPlanningAppointments();
+    (typeof showToast === "function") && showToast(
+      data?.commentFailed
+        ? "Deal verschoben \u2014 Kommentar konnte nicht gespeichert werden."
+        : "Deal auf \u201EBesichtigungstermin vereinbaren\u201C verschoben.",
+      data?.commentFailed ? "error" : "success",
+    );
+  } catch (e) {
+    console.error("[planning] move-besichtigung failed:", e);
+    if (submit) { submit.disabled = false; submit.textContent = "Verschieben & kommentieren"; }
+    (typeof showToast === "function")
+      ? showToast(`Fehler: ${e.message || e}`, "error")
+      : alert(`Fehler beim Verschieben: ${e.message || e}`);
+  }
 }
 
 function closePlanningOfferPicker() {
@@ -27085,6 +27809,7 @@ function closePlanningOfferPicker() {
   modal.hidden = true;
   modal.setAttribute("aria-hidden", "true");
   _pendingPlanningEntry = null;
+  _pendingPlanningPick = null;
 }
 let todayPlanningEventSource = null;
 
@@ -27638,7 +28363,7 @@ function renderWeekCalendar(payload) {
         dayLocked: !!day?.locked,
       };
       activePlanningAppointmentId = entryId;
-      applyPlanningAppointmentToForm(enriched);
+      openPlanningOfferPicker(enriched);
     });
   });
 }
@@ -27769,9 +28494,6 @@ function renderTodayPlanningOverview({ first, last, startMinutes, endMinutes } =
   }
 
   const departure = firstStart - startMinutes;
-  const lastEnd = lastStart + lastDuration;
-  const returnTime = lastEnd + endMinutes;
-  const totalTravel = startMinutes + endMinutes;
 
   el.hidden = false;
   el.innerHTML = `
@@ -27784,16 +28506,6 @@ function renderTodayPlanningOverview({ first, last, startMinutes, endMinutes } =
       <span class="day-overview__label">Erster Termin</span>
       <span class="day-overview__value">${formatMinutesAsClock(firstStart)}</span>
       <span class="day-overview__sub">${escapePlanningHtml(first?.name || "")}</span>
-    </div>
-    <div class="day-overview__cell">
-      <span class="day-overview__label">Letzter Termin endet</span>
-      <span class="day-overview__value">${formatMinutesAsClock(lastEnd)}</span>
-      <span class="day-overview__sub">${escapePlanningHtml(last?.name || "")}</span>
-    </div>
-    <div class="day-overview__cell is-end">
-      <span class="day-overview__label"><i class="fa-solid fa-arrow-right-to-bracket"></i> Rückkehr Firma</span>
-      <span class="day-overview__value">${formatMinutesAsClock(returnTime)}</span>
-      <span class="day-overview__sub">${endMinutes} Min Rückfahrt · ${totalTravel} Min Fahrzeit gesamt</span>
     </div>
   `;
 }
@@ -27879,11 +28591,18 @@ function renderTodayPlanningAppointments(){
           ${navigateHtml}
           <button type="button" class="today-calendar-open" ${isCancelled ? 'disabled aria-disabled="true"' : ""}><i class="fa-solid ${isCancelled ? "fa-ban" : "fa-arrow-right"}"></i> ${isCancelled ? "Nicht verfuegbar" : "In Konfigurator öffnen"}</button>
           ${!isCancelled && entry?.importDealId && !isDealDone(entry.importDealId) ? `<button type="button" class="today-calendar-done"><i class="fa-solid fa-circle-check"></i> Hat stattgefunden</button>` : ""}
+          ${!isCancelled && entry?.importDealId && !isDealDone(entry.importDealId) ? `<button type="button" class="today-calendar-noshow"><i class="fa-solid fa-phone-slash"></i> Termin hat nicht statt gefunden.</button>` : ""}
         </div>
       </div>
       ${travelHtml}
     `;
   }).join("");
+
+  todayPlanningAppointmentsFiltered.forEach(entry => {
+    if (entry?.importDealId && !isDealDone(entry.importDealId)) {
+      checkDealAlreadySaved(entry.importDealId);
+    }
+  });
 
   list.querySelectorAll(".today-calendar-card").forEach(card => {
     const openButton = card.querySelector(".today-calendar-open");
@@ -27934,6 +28653,11 @@ function renderTodayPlanningAppointments(){
       const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
       const dealId = String(entry?.importDealId || "").trim();
       if(!dealId) return;
+      if (await dealHasSavedOffer(dealId)) {
+        markDealStage(dealId, "C72:PREPARATION");
+        renderTodayPlanningAppointments();
+        return;
+      }
       if(!window.confirm("Der Termin hat stattgefunden; Deal auf „HD/AH/DH zuweisen“ verschieben?")) return;
 
       doneButton.disabled = true;
@@ -27947,8 +28671,8 @@ function renderTodayPlanningAppointments(){
         });
         const data = await res.json().catch(() => ({}));
         if(!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-        doneButton.innerHTML = `<i class="fa-solid fa-circle-check"></i> Verschoben`;
         markDealStage(dealId, "C72:PREPARATION");
+        renderTodayPlanningAppointments();
         (typeof showToast === "function") && showToast("Deal auf „Zuteilen HD/ AH/ DH“ verschoben.", "success");
       } catch (e) {
         console.error("[planning] move-zuteilen failed:", e);
@@ -27958,6 +28682,23 @@ function renderTodayPlanningAppointments(){
           ? showToast(`Fehler: ${e.message || e}`, "error")
           : alert(`Fehler beim Verschieben: ${e.message || e}`);
       }
+    });
+
+    // "Nicht erreicht" -> ask for a reason, then move the deal back to
+    // "Besichtigungstermin vereinbaren" and log the reason on its timeline.
+    card.querySelector(".today-calendar-noshow")?.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const id = card.dataset.id;
+      const entry = todayPlanningAppointments.find(item => String(item?.__entryId) === String(id));
+      const dealId = String(entry?.importDealId || "").trim();
+      if(!dealId) return;
+      if (await dealHasSavedOffer(dealId)) {
+        markDealStage(dealId, "C72:PREPARATION");
+        renderTodayPlanningAppointments();
+        return;
+      }
+      openPlanningNoContactDialog(dealId);
     });
   });
 
@@ -28512,8 +29253,12 @@ function initTodayPlanningPanel(){
 
   document.getElementById("planningOfferPickerClose")?.addEventListener("click", closePlanningOfferPicker);
   document.getElementById("planningOfferPickerBackdrop")?.addEventListener("click", closePlanningOfferPicker);
+  document.getElementById("planningNoContactClose")?.addEventListener("click", closePlanningNoContactDialog);
+  document.getElementById("planningNoContactBackdrop")?.addEventListener("click", closePlanningNoContactDialog);
+  document.getElementById("planningNoContactCancel")?.addEventListener("click", closePlanningNoContactDialog);
+  document.getElementById("planningNoContactSubmit")?.addEventListener("click", submitPlanningNoContact);
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closePlanningOfferPicker();
+    if (e.key === "Escape") { closePlanningOfferPicker(); closePlanningNoContactDialog(); }
   });
 
   const search = document.getElementById("todayPlanningSearch");
@@ -28837,14 +29582,30 @@ document
 function updateDocSelectionVisibility() {
   const wrap = document.getElementById("zfDocSelectionCard");
   if (!wrap) return;
-  const isKassenkunde =
-    document.querySelector('input[name="payer"]:checked')?.value === "Kassenkunde";
+  const payer = document.querySelector('input[name="payer"]:checked')?.value;
   const isAh = String(window.getCurrentOfferType?.() || "bu").toLowerCase() === "ah";
-  const show = isKassenkunde && !isAh;
+  const show = (payer === "Kassenkunde" || payer === "Selbstzahler") && !isAh;
   wrap.hidden = !show;
   wrap.setAttribute("aria-hidden", show ? "false" : "true");
 }
 window.updateDocSelectionVisibility = updateDocSelectionVisibility;
+
+// The payer only sets the DEFAULT tick state: a Selbstzahler normally gets
+// neither Abtretung nor Vollmacht, but can opt in by ticking the box. From
+// there the checkboxes are the single source of truth (mail text, mail and
+// postal attachments, signing) — no code may hard-filter by payer any more.
+// __lastPayerForDocDefaults guards against clobbering a restored draft: the
+// restore path sets it after writing the saved docSelection, so the
+// post-restore payer "change" nudge is a no-op.
+function applyPayerDocDefaults() {
+  const payer = document.querySelector('input[name="payer"]:checked')?.value || "";
+  if (payer === window.__lastPayerForDocDefaults) return;
+  window.__lastPayerForDocDefaults = payer;
+
+  const selected = payer !== "Selbstzahler";
+  ["abtretung", "vollmacht"].forEach((id) => setDocumentSelected(id, selected));
+}
+window.applyPayerDocDefaults = applyPayerDocDefaults;
 
 function setDocumentSelected(id, selected) {
   const checkbox = document.getElementById(`docSel_${id}`);
@@ -28855,15 +29616,22 @@ function setDocumentSelected(id, selected) {
 
   window.__emailManager?.render?.();
   window.__emailManager?.refreshPrefills?.();
+  // refreshPrefills() only rebuilds an untouched body, and a reopened offer's
+  // body always counts as touched — sync the numbered list explicitly.
+  window.__emailManager?.syncDocListInBody?.();
   window.__postalManager?.render?.();
 }
 window.setDocumentSelected = setDocumentSelected;
 
 document.addEventListener("DOMContentLoaded", () => {
-  document
-    .querySelectorAll('input[name="payer"]')
-    .forEach((r) => r.addEventListener("change", updateDocSelectionVisibility));
+  document.querySelectorAll('input[name="payer"]').forEach((r) =>
+    r.addEventListener("change", () => {
+      applyPayerDocDefaults();
+      updateDocSelectionVisibility();
+    }),
+  );
   window.addEventListener("offerflow:changed", updateDocSelectionVisibility);
+  applyPayerDocDefaults();
   updateDocSelectionVisibility();
 
   ["abtretung", "vollmacht", "barrierefrei"].forEach((id) => {
@@ -28873,35 +29641,32 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-(function initPostalSending() {
-  function syncPostalSectionVisibility(forceState = null) {
-    const toggleBtn = document.getElementById("togglePostalSectionBtn");
-    const postalSection = document.getElementById("postalSummarySection");
-    if (!toggleBtn || !postalSection) return;
+// Versandart-Tabs on Zusammenfassung: E-Mail and Post are two panels of the
+// same card stack, E-Mail active on load. This replaced the "Versand per Post"
+// toggle in Kundendaten — both ways are always available now, so there is no
+// enabled/disabled state left to store (payload.postal.enabled is only carried
+// through for old records, see readPostalStateForPayload).
+(function initSendTabs() {
+  const DEFAULT_TAB = "mail";
 
-    if (typeof forceState === "boolean") {
-      window.__postalSectionEnabled = forceState;
-    }
+  function showSendTab(key) {
+    const buttons = document.querySelectorAll("[data-send-tab]");
+    if (!buttons.length) return;
 
-    const isVisible = !!window.__postalSectionEnabled;
-    postalSection.hidden = !isVisible;
-    toggleBtn.setAttribute("aria-expanded", String(isVisible));
-    toggleBtn.classList.toggle("is-active", isVisible);
-  }
-
-  function initPostalSectionToggle() {
-    const toggleBtn = document.getElementById("togglePostalSectionBtn");
-    const postalSection = document.getElementById("postalSummarySection");
-    if (!toggleBtn || !postalSection || toggleBtn.dataset.bound === "1") return;
-
-    toggleBtn.dataset.bound = "1";
-    window.__postalSectionEnabled = !!window.__postalSectionEnabled;
-    syncPostalSectionVisibility();
-
-    toggleBtn.addEventListener("click", () => {
-      syncPostalSectionVisibility(!window.__postalSectionEnabled);
+    buttons.forEach((btn) => {
+      const active = btn.dataset.sendTab === key;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-selected", String(active));
     });
+
+    document.querySelectorAll("[data-send-panel]").forEach((panel) => {
+      panel.hidden = panel.dataset.sendPanel !== key;
+    });
+
+    if (key === "post") window.__updatePostAddressWarning?.();
   }
+
+  window.__showSendTab = showSendTab;
 
   function ready(fn) {
     if (document.readyState === "loading") {
@@ -28912,14 +29677,26 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   ready(() => {
-    initPostalSectionToggle();
+    const buttons = document.querySelectorAll("[data-send-tab]");
+    if (!buttons.length) return;
 
-    // Restore-safe: expose a tiny setter for just the enabled/visibility state.
-    // Defined BEFORE the early-return guard below so draft restore can reliably
-    // toggle the "Versand per Post" section even if the optional send-form
-    // nodes are missing or the postal manager never initializes.
-    window.__setPostalSectionEnabled = (on) => syncPostalSectionVisibility(!!on);
+    buttons.forEach((btn) =>
+      btn.addEventListener("click", () => showSendTab(btn.dataset.sendTab)),
+    );
+    showSendTab(DEFAULT_TAB);
+  });
+})();
 
+(function initPostalSending() {
+  function ready(fn) {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", fn, { once: true });
+    } else {
+      fn();
+    }
+  }
+
+  ready(() => {
     const sendBtn = document.getElementById("sendOfferPost");
     const statusBox = document.getElementById("postStatus");
     const attachmentList = document.getElementById("postAttachmentList");
@@ -28935,29 +29712,46 @@ document.addEventListener("DOMContentLoaded", () => {
       zipCode: document.getElementById("postZip"),
       city: document.getElementById("postCity"),
       country: document.getElementById("postCountry"),
-      subject: document.getElementById("postSubject"),
-      body: document.getElementById("postBody"),
     };
 
+    // Two-way mirror with the Bitrix #auftragId, like EmailManager's
+    // syncLeadIdFields — flows that only write #auftragId must reach Post too.
+    const mainAuftragId = document.getElementById("auftragId");
+    if (mainAuftragId && fields.auftragId) {
+      const pull = () => {
+        if (fields.auftragId.value !== mainAuftragId.value) fields.auftragId.value = mainAuftragId.value;
+      };
+      const push = () => {
+        if (mainAuftragId.value === fields.auftragId.value) return;
+        mainAuftragId.value = fields.auftragId.value;
+        mainAuftragId.dispatchEvent(new Event("input", { bubbles: true }));
+        mainAuftragId.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+      mainAuftragId.addEventListener("input", pull);
+      mainAuftragId.addEventListener("change", pull);
+      fields.auftragId.addEventListener("input", push);
+      fields.auftragId.addEventListener("change", push);
+    }
+
+    // Postversand only. The Flyer "Barrierefreies Wohnen" is mail-only and never
+    // goes out by post — keep in sync with STATIC_POSTAL_ATTACHMENTS in
+    // src/routes/post.js, which refuses it as well.
     const DEFAULT_POSTAL_ATTACHMENTS = [
       { id: "abtretung", type: "static", filename: "Abtretungserklärung.pdf", label: "Default" },
-      { id: "barrierefrei", type: "static", filename: "emc2_Barrierefreies_Wohnen.pdf", label: "Default" },
       { id: "vollmacht", type: "static", filename: "Vollmacht.pdf", label: "Default" },
       // Future-ready: add more predefined postal attachments here if needed.
     ];
 
     // Statics are recomputed from the same excludedPreset Set the mail section
-    // uses (window.__mailExcludedPreset, see EmailManager.js) plus the
-    // Selbstzahler/Kassenkunde payer rule — see computeStaticPostalAttachments().
+    // uses (window.__mailExcludedPreset, see EmailManager.js), which the
+    // Kassenkunden-Dokumente checkboxes drive. The payer only seeds those
+    // checkboxes (applyPayerDocDefaults) — it is not a filter here.
     // Only uploads are tracked as free-standing state in postalAttachments.
     function computeStaticPostalAttachments() {
-      const isSZ =
-        document.querySelector('input[name="payer"]:checked')?.value === "Selbstzahler";
-      const payerExcluded = isSZ ? new Set(["abtretung", "vollmacht"]) : new Set();
       const excluded = window.__mailExcludedPreset || new Set();
-      return DEFAULT_POSTAL_ATTACHMENTS.filter(
-        (item) => !payerExcluded.has(item.id) && !excluded.has(item.id),
-      ).map((item) => ({ ...item }));
+      return DEFAULT_POSTAL_ATTACHMENTS.filter((item) => !excluded.has(item.id)).map((item) => ({
+        ...item,
+      }));
     }
 
     let postalAttachments = [];
@@ -29040,80 +29834,8 @@ document.addEventListener("DOMContentLoaded", () => {
       return `${getResolvedOfferNumberForPostal()}.pdf`;
     }
 
-    function getOfferSubjectSuffix() {
-      const activeOffer = String(getActiveOfferForPostal() || "").trim().toLowerCase();
-      const suffixByOffer = {
-        bu: "zum Badumbau",
-        bwt: "zur Badewannentür",
-        hl: "zum Handlauf",
-        bl: "zum Badelift",
-        ah: "zur Alltagshilfe",
-        hms: "zum Hausmeisterservice",
-        wd: "zum Winterdienst",
-      };
-      return suffixByOffer[activeOffer] || "";
-    }
-
-    function buildPostalSubjectDefault() {
-      const offerNumber = getResolvedOfferNumberForPostal();
-      const suffix = getOfferSubjectSuffix();
-      const base = offerNumber
-        ? `emc2 | Ihr Angebot ${offerNumber}`
-        : "emc2 | Ihr Angebot";
-      return suffix ? `${base} ${suffix}` : base;
-    }
-
-    function computeRecipientName() {
-      const firstName = String(document.getElementById("firstName")?.value || "").trim();
-      const lastName = String(document.getElementById("lastName")?.value || "").trim();
-      return [firstName, lastName].filter(Boolean).join(" ").trim();
-    }
-
-    let postalBodyTouched = false;
-    let lastAutoPostalBody = "";
-
-    function getPreferredPostalBodyTemplate() {
-      const mailBodyEl = document.getElementById("mailBody");
-      const mailBody = String(mailBodyEl?.value || "").trim();
-      if (mailBody) return mailBody;
-      return "";
-    }
-
-    function syncPostalBodyWithMailTemplate(force = false) {
-      const preferred = getPreferredPostalBodyTemplate();
-      if (!preferred || !fields.body) return;
-
-      const current = String(fields.body.value || "").trim();
-      const legacy =
-        "Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie Ihr Angebot.\n\nMit freundlichen Grüßen\nEmC2";
-
-      const shouldSync =
-        force ||
-        !postalBodyTouched ||
-        !current ||
-        current === legacy ||
-        current === lastAutoPostalBody;
-
-      if (shouldSync) {
-        fields.body.value = preferred;
-        lastAutoPostalBody = preferred;
-        postalBodyTouched = false;
-      }
-    }
-
-    let postalSubjectTouched = false;
-    fields.subject?.addEventListener("input", () => {
-      postalSubjectTouched = true;
-    });
-    fields.body?.addEventListener("input", () => {
-      postalBodyTouched = String(fields.body?.value || "").trim() !== lastAutoPostalBody;
-    });
-
     function resetPostalPanel() {
       postalAttachments = [];
-      postalSubjectTouched = false;
-      postalBodyTouched = false;
-      lastAutoPostalBody = "";
 
       Object.values(fields).forEach((field) => {
         if (field) field.value = "";
@@ -29128,7 +29850,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function serializePostalState() {
       return {
-        enabled: !!window.__postalSectionEnabled,
         auftragId: String(fields.auftragId?.value || "").trim(),
         recipient: {
           firstName: String(fields.firstName?.value || "").trim(),
@@ -29138,8 +29859,6 @@ document.addEventListener("DOMContentLoaded", () => {
           city: String(fields.city?.value || "").trim(),
           country: String(fields.country?.value || "").trim(),
         },
-        subject: String(fields.subject?.value || "").trim(),
-        body: String(fields.body?.value || ""),
         attachments: postalAttachments.map((item) => ({
           id: item.id,
           type: item.type,
@@ -29151,8 +29870,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function restorePostalState(state = {}) {
-      syncPostalSectionVisibility(!!state.enabled);
-
       const recipient = state.recipient || {};
       if (fields.auftragId) fields.auftragId.value = state.auftragId || "";
       // Sync to all three Auftrag ID fields (auftragId, mailAuftragId, postAuftragId)
@@ -29165,8 +29882,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (fields.zipCode) fields.zipCode.value = recipient.zipCode || "";
       if (fields.city) fields.city.value = recipient.city || "";
       if (fields.country) fields.country.value = recipient.country || "DE";
-      if (fields.subject) fields.subject.value = state.subject || "";
-      if (fields.body) fields.body.value = state.body || "";
 
       const restoredAttachments = Array.isArray(state.attachments)
         ? state.attachments
@@ -29187,19 +29902,47 @@ document.addEventListener("DOMContentLoaded", () => {
         postalAttachments = restoredAttachments.filter((item) => item.type === "upload");
       }
 
-      postalSubjectTouched = !!String(fields.subject?.value || "").trim();
-      postalBodyTouched = !!String(fields.body?.value || "").trim();
-      lastAutoPostalBody = String(fields.body?.value || "");
       uploadInput.value = "";
       statusBox.textContent = "";
       statusBox.dataset.type = "";
       statusBox.hidden = true;
       renderAttachmentList();
+      updatePostAddressWarning();
     }
+
+    // onlinebrief24 reads the recipient out of the PDF's address window, so an
+    // incomplete address is an undeliverable letter. Warn as soon as the Post
+    // tab is opened; validate() still blocks the send itself.
+    const ADDRESS_LABELS = {
+      firstName: "Vorname",
+      lastName: "Nachname",
+      street: "Straße",
+      zipCode: "PLZ",
+      city: "Ort",
+    };
+
+    function updatePostAddressWarning() {
+      const box = document.getElementById("postAddressWarning");
+      if (!box) return;
+
+      const missing = Object.entries(ADDRESS_LABELS)
+        .filter(([key]) => !String(fields[key]?.value || "").trim())
+        .map(([, label]) => label);
+
+      box.hidden = missing.length === 0;
+      const list = document.getElementById("postAddressWarningFields");
+      if (list) list.textContent = missing.length ? ` Es fehlt: ${missing.join(", ")}.` : "";
+    }
+    window.__updatePostAddressWarning = updatePostAddressWarning;
+
+    Object.values(fields).forEach((field) =>
+      field?.addEventListener("input", updatePostAddressWarning),
+    );
 
     function refreshPostalPrefills() {
       fillPostalDefaults();
       renderAttachmentList();
+      updatePostAddressWarning();
     }
 
     window.addEventListener("offerflow:changed", () => {
@@ -29211,6 +29954,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     function fillPostalDefaults() {
+      if (fields.auftragId && !String(fields.auftragId.value || "").trim()) {
+        fields.auftragId.value = String(document.getElementById("auftragId")?.value || "").trim();
+      }
       if (!String(fields.firstName?.value || "").trim()) {
         fields.firstName.value = String(document.getElementById("firstName")?.value || "").trim();
       }
@@ -29221,25 +29967,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!String(fields.zipCode?.value || "").trim()) fields.zipCode.value = String(document.getElementById("postalCode")?.value || "").trim();
       if (!String(fields.city?.value || "").trim()) fields.city.value = String(document.getElementById("city")?.value || "").trim();
       if (!String(fields.country?.value || "").trim()) fields.country.value = String(document.getElementById("country")?.value || "Deutschland").trim() || "Deutschland";
-
-      if (fields.subject && !postalSubjectTouched) {
-        fields.subject.value = buildPostalSubjectDefault();
-      }
-      syncPostalBodyWithMailTemplate();
     }
-
-    syncPostalBodyWithMailTemplate();
-    document.getElementById("mailBody")?.addEventListener("input", () => {
-      syncPostalBodyWithMailTemplate();
-    });
-    document.getElementById("mailBody")?.addEventListener("change", () => {
-      syncPostalBodyWithMailTemplate();
-    });
-    document.querySelectorAll('input[name="salutation"]').forEach((el) => {
-      el.addEventListener("change", () => {
-        syncPostalBodyWithMailTemplate();
-      });
-    });
 
     function renderAttachmentList() {
       postalAttachments = [
@@ -29252,7 +29980,7 @@ document.addEventListener("DOMContentLoaded", () => {
           id: "offer-main",
           type: "main",
           filename: getOfferPdfTileName(),
-          label: "Offer PDF",
+          label: "Angebots-PDF",
           deletable: false,
           size: 0,
         },
@@ -29264,15 +29992,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
       attachmentList.innerHTML = tiles
         .map((item) => {
+          const filename = String(item.filename || "Datei");
+          const ext = (filename.split(".").pop() || "").toLowerCase();
           const removeBtn = item.deletable
-            ? `<div class="mail-attach-x" data-post-remove="${escapeHtmlLocal(item.id)}" aria-label="Anhang entfernen" role="button" tabindex="0">✕</div>`
-            : "";
+            ? `<button type="button" class="mail-attach-x" data-post-remove="${escapeHtmlLocal(item.id)}" aria-label="${escapeHtmlLocal(filename)} entfernen">✕</button>`
+            : `<span class="mail-attach-lock">Pflicht</span>`;
 
           return `
-            <div class="mail-attach-tile">
+            <div class="mail-attach-tile" data-ext="${escapeHtmlLocal(ext)}">
+              <div class="mail-attach-main">
+                <div class="mail-attach-name" title="${escapeHtmlLocal(filename)}">${escapeHtmlLocal(filename)}</div>
+                <div class="mail-attach-meta">${escapeHtmlLocal(item.label || "Anhang")} ${item.type === "upload" ? "· " + escapeHtmlLocal(fmtFileSize(item.size || 0)) : ""}</div>
+              </div>
               ${removeBtn}
-              <div class="mail-attach-name">${escapeHtmlLocal(item.filename || "Datei")}</div>
-              <div class="mail-attach-meta">${escapeHtmlLocal(item.label || "Anhang")} ${item.type === "upload" ? "· " + escapeHtmlLocal(fmtFileSize(item.size || 0)) : ""}</div>
             </div>
           `;
         })
@@ -29376,6 +30108,148 @@ document.addEventListener("DOMContentLoaded", () => {
       return { blob: await resp.blob(), filename: getOfferPdfTileName() };
     }
 
+    // Without an Auftrag/Deal-ID the letter still goes out, but nothing is
+    // recorded in Bitrix — no comment, no archived documents. That is a gap
+    // nobody notices later, so the send is blocked and can only be released by
+    // re-entering the logged-in user's own password (POST /api/auth/confirm-
+    // password). The release is valid for that one send.
+    let dealIdOverride = null;
+
+    function askPasswordOverride() {
+      return new Promise((resolve) => {
+        document.getElementById("postOverrideOverlay")?.remove();
+
+        const overlay = document.createElement("div");
+        overlay.id = "postOverrideOverlay";
+        overlay.className = "ang-stage-overlay";
+        overlay.innerHTML = `
+          <div class="ang-stage-modal" role="dialog" aria-modal="true" aria-labelledby="postOverrideTitle">
+            <h3 id="postOverrideTitle" class="ang-stage-title">Ohne Auftrag/Deal-ID senden?</h3>
+            <p class="ang-stage-text">
+              Ohne Auftrag-ID wird dieser Brief <strong>nicht in Bitrix dokumentiert</strong> —
+              weder Kommentar noch Angebot, Kalkulation oder Anlagen.
+              Zum Freigeben bitte das eigene Passwort eingeben.
+            </p>
+            <input type="password" id="postOverridePassword" class="ang-stage-input"
+                   autocomplete="current-password" placeholder="Passwort"
+                   style="width:100%;padding:10px;margin:10px 0;border:1px solid #ccc;border-radius:8px;" />
+            <div class="ang-stage-body"></div>
+            <div class="ang-stage-actions">
+              <button type="button" class="ang-stage-btn ang-stage-btn--primary" id="postOverrideConfirm">Freigeben und senden</button>
+              <button type="button" class="ang-stage-btn" id="postOverrideCancel">Abbrechen</button>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+
+        const input = overlay.querySelector("#postOverridePassword");
+        const note = overlay.querySelector(".ang-stage-body");
+        const close = (value) => {
+          overlay.remove();
+          resolve(value);
+        };
+
+        async function confirm() {
+          const password = String(input.value || "");
+          if (!password) return input.focus();
+
+          note.innerHTML = `<p class="ang-stage-text">Prüfe Passwort …</p>`;
+          try {
+            const resp = await fetch("/api/auth/confirm-password", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ password }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(data?.error || `HTTP ${resp.status}`);
+            close({ confirmedBy: data.email || "" });
+          } catch (error) {
+            note.innerHTML = `<p class="ang-stage-error">${error?.message || "Passwort falsch"}</p>`;
+            input.value = "";
+            input.focus();
+          }
+        }
+
+        overlay.querySelector("#postOverrideConfirm").addEventListener("click", confirm);
+        overlay.querySelector("#postOverrideCancel").addEventListener("click", () => close(null));
+        overlay.addEventListener("click", (event) => {
+          if (event.target === overlay) close(null);
+        });
+        input.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") confirm();
+        });
+        setTimeout(() => input.focus(), 50);
+      });
+    }
+
+    // Live mode has no safety net: onlinebrief24 prints and franks immediately
+    // and the job can only be deleted within 15 minutes. So a live send asks
+    // once, showing exactly who receives what. Test mode stays one click —
+    // there the job only lands in the Warenkorb.
+    async function getPostalMode() {
+      try {
+        const resp = await fetch("/api/post/config");
+        const data = await resp.json().catch(() => ({}));
+        return String(data?.mode || "").toLowerCase();
+      } catch (error) {
+        console.warn("[post] mode lookup failed:", error);
+        return ""; // unknown -> treated as live below, better one question too many
+      }
+    }
+
+    function confirmLiveSend({ recipientLines, documents, offerNumber }) {
+      return new Promise((resolve) => {
+        document.getElementById("postLiveConfirmOverlay")?.remove();
+
+        const overlay = document.createElement("div");
+        overlay.id = "postLiveConfirmOverlay";
+        overlay.className = "ang-stage-overlay";
+        overlay.innerHTML = `
+          <div class="ang-stage-modal" role="dialog" aria-modal="true" aria-labelledby="postLiveConfirmTitle">
+            <h3 id="postLiveConfirmTitle" class="ang-stage-title">Brief verbindlich versenden?</h3>
+            <p class="ang-stage-text">
+              Der Brief wird sofort gedruckt, frankiert und an die Deutsche Post übergeben.
+              Eine Stornierung ist nur innerhalb von 15 Minuten möglich.
+            </p>
+            <p class="ang-stage-text"><strong>Empfänger</strong><br>${recipientLines
+              .map((line) => escapeHtmlLocal(line))
+              .join("<br>")}</p>
+            <p class="ang-stage-text"><strong>Sendung</strong> (${documents.length} ${
+              documents.length === 1 ? "Dokument" : "Dokumente"
+            })<br>${documents.map((name) => escapeHtmlLocal(name)).join("<br>")}</p>
+            <p class="ang-stage-text" id="postLiveConfirmBalance">Angebot: ${escapeHtmlLocal(offerNumber)}</p>
+            <div class="ang-stage-actions">
+              <button type="button" class="ang-stage-btn ang-stage-btn--primary" id="postLiveConfirmOk">Verbindlich senden</button>
+              <button type="button" class="ang-stage-btn" id="postLiveConfirmCancel">Abbrechen</button>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+
+        // Balance is a nice-to-have: shown when it arrives, never blocks.
+        fetch("/api/post/balance")
+          .then((resp) => resp.json())
+          .then((data) => {
+            const line = document.getElementById("postLiveConfirmBalance");
+            if (line && data?.ok && data.balance !== undefined) {
+              line.innerHTML = `Angebot: ${escapeHtmlLocal(offerNumber)} · Guthaben: ${escapeHtmlLocal(
+                String(data.balance),
+              )} ${escapeHtmlLocal(String(data.currency || "EUR"))}`;
+            }
+          })
+          .catch(() => {});
+
+        const close = (value) => {
+          overlay.remove();
+          resolve(value);
+        };
+        overlay.querySelector("#postLiveConfirmOk").addEventListener("click", () => close(true));
+        overlay.querySelector("#postLiveConfirmCancel").addEventListener("click", () => close(false));
+        overlay.addEventListener("click", (event) => {
+          if (event.target === overlay) close(false);
+        });
+        setTimeout(() => overlay.querySelector("#postLiveConfirmCancel")?.focus(), 50);
+      });
+    }
+
     function validate() {
       let firstInvalid = null;
       [fields.firstName, fields.lastName, fields.street, fields.zipCode, fields.city, fields.country].forEach((el) => {
@@ -29392,14 +30266,62 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    async function requireDealId() {
+      const dealId = String(fields.auftragId?.value || "").trim();
+      clearInputError(fields.auftragId);
+      if (dealId) {
+        dealIdOverride = null;
+        return true;
+      }
+
+      markInputError(fields.auftragId);
+      setStatus(
+        "Ohne Auftrag/Deal-ID wird der Brief nicht in Bitrix dokumentiert. Freigabe mit Passwort erforderlich.",
+        "warn",
+      );
+
+      const override = await askPasswordOverride();
+      if (!override) {
+        fields.auftragId?.focus();
+        setStatus("Abgebrochen — bitte Auftrag/Deal-ID eintragen.", "error");
+        return false;
+      }
+
+      dealIdOverride = override;
+      clearInputError(fields.auftragId);
+      return true;
+    }
+
+    // Set once a letter went out; keeps the button locked until the panel is
+    // reset or another offer is loaded, so one click = at most one letter.
+    let postalSent = false;
+
     sendBtn.addEventListener("click", async () => {
+      if (sendBtn.disabled) return;
+      sendBtn.disabled = true;
       try {
         fillPostalDefaults();
         validate();
+        if (!(await requireDealId())) return;
 
         const offerNumber = getResolvedOfferNumberForPostal();
 
-        sendBtn.disabled = true;
+        if ((await getPostalMode()) !== "test") {
+          const confirmed = await confirmLiveSend({
+            offerNumber,
+            recipientLines: [
+              `${String(fields.firstName?.value || "").trim()} ${String(fields.lastName?.value || "").trim()}`.trim(),
+              String(fields.street?.value || "").trim(),
+              `${String(fields.zipCode?.value || "").trim()} ${String(fields.city?.value || "").trim()}`.trim(),
+            ].filter(Boolean),
+            documents: [getOfferPdfTileName(), ...postalAttachments.map((item) => item.filename)],
+          });
+          if (!confirmed) {
+            setStatus("Versand abgebrochen.", "info");
+            return;
+          }
+        }
+
         setStatus("Erzeuge Angebots-PDF …", "info");
         const { blob: pdfBlob, filename: pdfFilename } = await fetchOfferPdfBlobLocal();
         const pdfBase64 = await blobToBase64Local(pdfBlob);
@@ -29421,11 +30343,37 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
 
-        setStatus("Sende Brief an Binect …", "info");
-        const response = await fetch("/api/post/send", {
+        // Same document set the e-mail flow archives on the Bitrix timeline
+        // (Angebot-DOCX, Hassmann-CSV, Kalkulation aus der HTML-Version).
+        // Best-effort: a document that fails to build is reported in the
+        // timeline comment instead of blocking the postage.
+        const docWarnings = [];
+        let bitrixDocs = [];
+        try {
+          const docs =
+            (await window.__collectBitrixDocs?.(
+              buildPayload(),
+              offerNumber,
+              (msg) => setStatus(msg, "info"),
+              { onError: (message) => docWarnings.push(message) },
+            )) || [];
+          bitrixDocs = await Promise.all(
+            docs.map(async (doc) => ({
+              filename: doc.filename,
+              base64: await blobToBase64Local(doc.blob),
+            })),
+          );
+        } catch (error) {
+          console.error("[post] Bitrix-Dokumente fehlgeschlagen:", error);
+          docWarnings.push(error?.message || "Bitrix-Dokumente konnten nicht erzeugt werden.");
+        }
+
+        setStatus("Sende Brief an onlinebrief24 …", "info");
+        const sendLetter = (forceResend) => fetch("/api/post/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            forceResend,
             auftragId: String(fields.auftragId?.value || "").trim(),
             recipient: {
               name: `${String(fields.firstName?.value || "").trim()} ${String(fields.lastName?.value || "").trim()}`.trim(),
@@ -29434,13 +30382,15 @@ document.addEventListener("DOMContentLoaded", () => {
               city: String(fields.city?.value || "").trim(),
               country: String(fields.country?.value || "Deutschland").trim() || "Deutschland",
             },
-            subject: String(fields.subject?.value || "").trim(),
-            body: String(fields.body?.value || "").trim(),
             document: {
               filename: pdfFilename || getOfferPdfTileName(),
               base64: pdfBase64,
             },
             attachments: attachmentPayload,
+            bitrixDocs,
+            docWarnings,
+            internalNote: document.getElementById("internalNote")?.value || "",
+            dealIdOverride,
             meta: {
               offerNumber: offerNumber,
               dealId: String(fields.auftragId?.value || "").trim(),
@@ -29448,33 +30398,94 @@ document.addEventListener("DOMContentLoaded", () => {
           }),
         });
 
-        const result = await response.json().catch(() => ({}));
+        let response = await sendLetter(false);
+        let result = await response.json().catch(() => ({}));
+        if (response.status === 409 && result?.code === "ALREADY_SENT") {
+          const when = result.lastSentAt ? new Date(result.lastSentAt).toLocaleString("de-DE") : "-";
+          const again = window.confirm(
+            `Für diesen Deal wurde bereits am ${when} ein Brief versendet ` +
+              `(${result.lastOfferNumber || "-"}, onlinebrief24 ${result.lastPrintjobId || "-"}).\n\n` +
+              "Wirklich einen ZWEITEN Brief versenden?",
+          );
+          if (!again) {
+            setStatus("Versand abgebrochen – Brief wurde bereits versendet.", "info");
+            return;
+          }
+          response = await sendLetter(true);
+          result = await response.json().catch(() => ({}));
+        }
         if (!response.ok || result?.ok === false) {
           throw new Error(result?.error || `Postversand fehlgeschlagen (${response.status}).`);
         }
 
         setStatus(
-          `Postversand erfolgreich gestartet. Dokument-ID: ${result.documentId || "-"} · Anhänge: ${result.attachmentCount || 0}`,
+          result.mode === "test"
+            ? `Testmodus: Auftrag ${result.printjobId || "-"} liegt im onlinebrief24-Warenkorb · Anlagen: ${result.attachmentCount || 0}`
+            : `Postversand erfolgreich gestartet. Auftrag: ${result.printjobId || "-"} · Anlagen: ${result.attachmentCount || 0}`,
           "success",
         );
+
+        postalSent = true;
+
+        const noteEl = document.getElementById("internalNote");
+        if (noteEl) noteEl.value = "";
 
         window.__bitrixSendState = {
           lastOfferType: getActiveOfferForPostal() || null,
           lastOfferNumber: offerNumber,
           lastSentAt: Date.now(),
         };
+
+        // Same success dialog as the e-mail send, including the optional
+        // "Deal auf ANG verschickt verschieben" action.
+        try {
+          const payload = buildPayload();
+          const dealId = String(fields.auftragId?.value || "").trim();
+          const offerTotal = Number(window.__pricing?.total) || 0;
+          window.__showSentDialog?.({
+            via: "post",
+            dealId,
+            offerTotal,
+            attachmentNames: [
+              ...(result.attachmentNames || []),
+              ...bitrixDocs.map((doc) => doc.filename),
+            ],
+            offerExtra: {
+              workDays: Number(payload?.Arbeitszeit?.workDays) || 0,
+              offerType: payload.activeOffer || "",
+              offerNumber,
+              isKassenkunde: payload?.Kundendaten?.payer === "Kassenkunde",
+              selfPayAmount: Number(window.__pricing?.selfPayAmount) || 0,
+              finalTotal: offerTotal,
+              payload,
+            },
+          });
+        } catch (error) {
+          console.warn("[post] sent dialog failed:", error);
+        }
       } catch (error) {
         console.error("[post] send error", error);
         setStatus(error?.message || "Postversand fehlgeschlagen.", "error");
       } finally {
-        sendBtn.disabled = false;
+        sendBtn.disabled = postalSent;
       }
     });
 
+    const unlockSend = () => {
+      postalSent = false;
+      sendBtn.disabled = false;
+    };
+
     window.__postalManager = {
-      reset: resetPostalPanel,
+      reset: () => {
+        unlockSend();
+        resetPostalPanel();
+      },
       getState: serializePostalState,
-      restoreFromPayload: restorePostalState,
+      restoreFromPayload: (state) => {
+        unlockSend();
+        restorePostalState(state);
+      },
       render: renderAttachmentList,
       refreshPrefills: refreshPostalPrefills,
     };

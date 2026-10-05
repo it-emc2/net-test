@@ -97,7 +97,7 @@ function stableStringify(value) {
 // computePrices() can tell "nothing priced changed since last save" from
 // "recompute". A false mismatch just costs an extra (still-correct) recompute.
 export function computeFingerprint(payload) {
-  const { pricing, frozenPricing, frozen, forceRecompute, ...rest } = payload || {};
+  const { pricing, forceRecompute, ...rest } = payload || {};
   return stableStringify(rest);
 }
 
@@ -129,7 +129,7 @@ export default (ProductModel, deps = {}) => {
     if (!Model) return null;
     try {
       return await Model.findOne(query)
-        .select("pricing pricingFingerprint")
+        .select("pricing pricingFingerprint locked")
         .sort({ updatedAt: -1 })
         .lean();
     } catch (e) {
@@ -159,33 +159,7 @@ export default (ProductModel, deps = {}) => {
     return null;
   }
 
-  // Minimal helper: adjust only the visible label to billable qty (selected - 1)
-  // - Does NOT change qty, unitPrice, or lineTotal (so totals remain untouched).
-  // - If billable becomes 0 and hideWhenZero=true, remove the line from the list (keeps "0 Stk" hidden).
-  function setGrabLabelToBillable(list, freeId, { hideWhenZero = false } = {}) {
-    if (!freeId) return;
-    const row = list?.find((l) => (l.productId || l.id) === freeId);
-    if (!row) return;
-
-    const selectedQty = Number(row.qty || 0) || 0;
-    const billableQty = Math.max(0, selectedQty - 1);
-
-    if (billableQty === 0 && hideWhenZero) {
-      const idx = list.indexOf(row);
-      if (idx > -1) list.splice(idx, 1);
-      return;
-    }
-
-    // strip any "(hidden)" that older logic may have appended
-    const baseName = (row.name || row.label || row.productId || "")
-      .replace(/\s*\(hidden\)\s*$/, "")
-      .trim();
-
-    row.label = `- ${billableQty} Stk ${baseName}`;
-    // IMPORTANT: do not touch row.qty / row.unitPrice / row.lineTotal
-  }
-
-  // Kosten-Details (internal ordering view) counterpart of the above: the free
+  // Kosten-Details (internal ordering view) view of the Aktion-Haltegriff: the free
   // grab bar is still ordered and paid for by us, so the quantity must stay
   // truthful. Only annotate the line; never rewrite its qty.
   function markGrabFreeInUI(list, freeId) {
@@ -256,7 +230,6 @@ export default (ProductModel, deps = {}) => {
     // default to 'bu' for backward compatibility
     const k = payload?.activeOffer;
     if (k === "bu" || k === "bwt" || k === "hl" || k === "bl" || k === "ah" || k === "hms" || k === "wd") {
-      console.log("current offer type is ", k);
       return k;
     }
 
@@ -618,7 +591,7 @@ function grossToNet(gross, taxRate) {
     return notes;
   }
 
-  async function computeMaterials(payload, priorSnapshot) {
+  async function computeMaterials(payload, priorSnapshot, isLockedOffer = false) {
     const offer = getActiveOffer(payload); // 'bu' | 'bwt' | 'hl'
     const markupPctForBwt = extractMarkupPct(payload); // 0.35 for "35%", etc.
 
@@ -761,6 +734,26 @@ function grossToNet(gross, taxRate) {
       // }
     }
 
+    // ------- Fußboden aus Wandverkleidung-Paneelen (Fußboden-Tab: Flächen-Empfehlung)
+    setCat("Fußboden");
+    const wallCladdingQty = Number(dusch.wallCladdingQty || 0) || 0;
+    if (dusch.addWallCladding && wallCladdingQty > 0) {
+      const wallCladdingSize = String(dusch.wallCladdingPanelSize || "997").trim();
+      const wallCladdingSizeKey = wallCladdingSize === "1497" ? "1497x2550" : "997x2550";
+      const wallCladdingColor = String(dusch.wallCladdingColor || "Marmor weiß").trim();
+      const wallCladdingFallbackPid = wallCladdingSizeKey === "1497x2550" ? "V3WV09" : "V3WVK09";
+      // hassmannArticle = color-specific article (for Hassmann CSV)
+      const wallCladdingHassmannPid = resolveWvArticle(wallCladdingSizeKey, wallCladdingColor, null, wallCladdingFallbackPid);
+      add(
+        wallCladdingHassmannPid,
+        wallCladdingQty,
+        `- ${wallCladdingQty} Stk Aluverbundplatte (${wallCladdingColor})`,
+        null,
+        null,
+        { color: wallCladdingColor, hassmannArticle: wallCladdingHassmannPid },
+      );
+    }
+
     // ------- Wandverkleidung
     setCat("Wandverkleidung");
     // Main panel quantity (user picks one color + qty here)
@@ -822,12 +815,10 @@ function grossToNet(gross, taxRate) {
   const base = `- ${qty997} Stk Wandverkleidung 3.0 Alu 997×2550 mm`;
   const label = display ? `${base} — Farbe: ${display}` : base;
 
-  // Pricing stays on the size default unless the color has a real priced row
-  // in the internal Products collection (WV_PRICED_COLORS); the mapped
-  // color-specific article number is always carried for the Hassmann CSV.
+  // All color-specific articles exist in the Vigor DB with live net prices —
+  // bill directly on the color article (hassmannArticle = billing article).
   const article997 = resolveWvArticle("997x2550", display, pid, "V3WVK09");
-  const priced997 = WV_PRICED_COLORS.has(normalizeWvColorKey(display)) ? article997 : "V3WVK09";
-  add(pid || priced997, qty997, label, null, null, {
+  add(pid || article997, qty997, label, null, null, {
     color: display,
     hassmannArticle: article997,
   });
@@ -842,8 +833,7 @@ if (qty1497 > 0) {
   const label = display ? `${base} — Farbe: ${display}` : base;
 
   const article1497 = resolveWvArticle("1497x2550", display, pid, "V3WV09");
-  const priced1497 = WV_PRICED_COLORS.has(normalizeWvColorKey(display)) ? article1497 : "V3WV09";
-  add(pid || priced1497, qty1497, label, null, null, {
+  add(pid || article1497, qty1497, label, null, null, {
     color: display,
     hassmannArticle: article1497,
   });
@@ -865,8 +855,7 @@ const addExtras = (rows, panelLabel, size, defaultPid) => {
     const base = `- ${q} Stk Wandverkleidung 3.0 Alu ${panelLabel}`;
     const label = display ? `${base} — Farbe: ${display}` : base;
     const article = resolveWvArticle(size, display, pid, defaultPid);
-    const priced = WV_PRICED_COLORS.has(normalizeWvColorKey(display)) ? article : defaultPid;
-    add(pid || priced, q, label, null, null, {
+    add(pid || article, q, label, null, null, {
       color: display,
       hassmannArticle: article,
     });
@@ -1247,7 +1236,6 @@ if (offer === "hl") {
 
       const rehaIds = extractRehaIdsFromOptional(opt);
       let hasReha = false;
-console.log("[REHA DEBUG] selections =", selections);
 
       for (const s of selections) {
         const pid = String(s.productId || "").trim();
@@ -1312,7 +1300,14 @@ console.log("[REHA DEBUG] selections =", selections);
         // button (__forceLiveVigorPricing) — so it should also adopt a
         // higher/lower live Vigor price here, not just report the drift and
         // keep the quoted one.
-        const isSavedOffer = !!savedOfferNumber && payload?.forceRecompute !== true;
+        //
+        // Gated on `isLockedOffer` (an actual sent Offer, DB-verified —
+        // see computePrices) rather than "offerNumber is non-empty": every
+        // draft gets an offerNumber from the moment it's created, long
+        // before anything is saved, so a string-truthiness check treated
+        // every fresh draft as "already quoted" and showed phantom price
+        // drift. Only a truly sent, locked offer keeps its old price.
+        const isSavedOffer = isLockedOffer && payload?.forceRecompute !== true;
         const driftLines = [];
         let liveNet = new Map();
         const configIds = qa
@@ -1490,6 +1485,11 @@ console.log("[REHA DEBUG] selections =", selections);
     // ------- Resolve names/prices once
     const productMap = await getProductsByIds([...idsNeeded]);
 
+    // WV panel articles (V3WV* / V3WVK*) are priced in Vigor, not in the
+    // internal BU Products collection. Look them up live before resolution.
+    const wvArticleIds = [...new Set(lines.map(l => l.id).filter(id => /^V3WVK?\d/.test(id)))];
+    const vigorWvPrices = wvArticleIds.length ? await getLiveVigourNetPrices(wvArticleIds) : new Map();
+
     // Drift on plain DB-priced lines (Optionale Produkte, Material, etc.) —
     // same "keep quoted, warn about the difference" contract the Vigor
     // Duschabtrennung check already applies below, extended to every other
@@ -1509,6 +1509,8 @@ console.log("[REHA DEBUG] selections =", selections);
         unit = round2((Number(prod.price) || 0) / Number(l.perM2Base)); // €/m² from set
       } else if (Number.isFinite(l.unitOverride)) {
         unit = Number(l.unitOverride);
+      } else if (vigorWvPrices.has(l.id)) {
+        unit = Number(vigorWvPrices.get(l.id)) || 0;
       } else {
         unit = Number(prod.price) || 0;
       }
@@ -1533,11 +1535,16 @@ if (l.source === "hl_pipe") {
 
       const displayNameBase = (prod.name || "").trim() || l.id;
       const metaColor = typeof l?.meta?.color === "string" ? l.meta.color.trim() : "";
+      const isWvPanel = /^V3WVK?\d/.test(l.id);
 
-      const displayName =
-        metaColor && (l.id === "V3WVK09" || l.id === "V3WV09")
-          ? `${displayNameBase} — Farbe: ${metaColor}`
-          : displayNameBase;
+      // WV panels picked on the Fußboden tab are "Aluverbundplatte"; picked on
+      // the Wandverkleidung tab they keep the "Wandverkleidung" name.
+      const wvBase = l.category === "Fußboden"
+        ? "Aluverbundplatte"
+        : `Wandverkleidung 3.0 Alu ${/^V3WVK/.test(l.id) ? "997" : "1497"}×2550 mm`;
+      const displayName = isWvPanel
+        ? (metaColor ? `${wvBase} (${metaColor})` : wvBase)
+        : displayNameBase;
 
       const builtLabel = l.id === "PLA5282"
         ? `- 1 Set ${displayNameBase}`
@@ -1547,7 +1554,8 @@ if (l.source === "hl_pipe") {
       let finalLabel = label;
 // --- BWT: Universal / Standard Tür (1226) color suffix for Kosten/UI ---
 if (offer === "bwt" && String(l.id || "").trim() === "1226") {
-  const c = String(payload?.bwt?.bwtDoorStdColor || "").trim();
+  const raw = String(payload?.bwt?.tray_color || payload?.bwt?.bwtDoorStdColor || "").trim();
+  const c = { "weiß": "Weiß", Beige: "Bahama Beige", bahama_beige: "Bahama Beige", manhattan: "Manhattan" }[raw] || raw;
   if (c && !/—\s*Farbe:/i.test(finalLabel)) {
     finalLabel += ` — Farbe: ${c}`;
   }
@@ -1570,14 +1578,18 @@ if (infoLines.length) {
   finalLabel += "\n" + infoLines.map((t) => "   • " + t).join("\n");
 }
 
-      // Line was quoted before (this offer/draft was saved already) and its
-      // live DB price has since moved: keep billing the quoted price and
-      // flag the difference, exactly like the Vigor check below — but for
-      // any plain DB-priced line, not just Duschabtrennung config rows.
+      // Line was quoted before on a SENT offer (isLockedOffer, DB-verified)
+      // and its live DB price has since moved: keep billing the quoted
+      // price and flag the difference, exactly like the Vigor check below
+      // — but for any plain DB-priced line, not just Duschabtrennung config
+      // rows. Gated on isLockedOffer, not just "a priorSnapshot exists",
+      // because priorSnapshot can also be an unsent Draft's own last save —
+      // that's not a quote to protect, just this draft's previous state,
+      // and comparing against it produced phantom drift on every edit.
       // forceRecompute ("Preis neu berechnen") skips this and adopts the
       // live price, same as it already does for Vigor lines.
       let lineCurrentNet = null;
-      if (payload?.forceRecompute !== true) {
+      if (isLockedOffer && payload?.forceRecompute !== true) {
         const priorUnit = priorUnitById.get(l.id) || 0;
         if (priorUnit > 0 && Math.abs(unit - priorUnit) >= 0.005) {
           lineCurrentNet = unit;
@@ -1652,7 +1664,17 @@ color: metaColor || null,
       }),
     );
     const grabTotal = GRAB_IDS.reduce((a, id) => a + (grabQtyById[id] || 0), 0);
-    const freeId = GRAB_IDS.find((id) => (grabQtyById[id] || 0) > 0) || null;
+    // Aktion Haltegriff: the free one is the first eligible article in the offer.
+    // The eligible list is the offer's own snapshot (pricingRules.grabBonusIds,
+    // taken from GRAB_BONUS_IDS at save time), so later admin edits never
+    // reprice a saved offer. Absent → the historical 30 cm-only rule.
+    const grabBonusIds = Array.isArray(payload?.pricingRules?.grabBonusIds)
+      ? payload.pricingRules.grabBonusIds
+      : ["CLPESG30"];
+    const freeId =
+      grabBonusIds.find((id) =>
+        resolved.some((l) => (l.productId || l.id) === id && Number(l.qty) > 0),
+      ) || null;
 
     // Merge in drift from plain DB-priced lines — same shape as the Vigor
     // drift above, just a different price source, so the existing
@@ -2068,24 +2090,23 @@ color: metaColor || null,
 
   return {
     computePrices: async (payload) => {
-      // 1) The client says nothing has changed since the last freeze
-      // (save/lock) — trust it and skip every DB/live lookup below. This is
-      // the more robust signal for "still the same offer, just switching
-      // tabs": buildPayload() re-derives several sub-objects on every call
-      // and isn't guaranteed byte-identical run to run, so relying on exact
-      // fingerprint equality alone (step 2) would recompute on noise, not
-      // just on real edits. Any actual field edit clears window.__frozen
-      // client-side (see requestPricingRefresh), so this only fires while
-      // truly nothing has been touched since the last save/lock.
-      // Not a security boundary — the one place that actually finalizes a
-      // price (offers.js save route) strips `frozen`/`frozenPricing` from
-      // the payload before it ever reaches here, so a client can't use this
-      // to fake the price of a real offer.
-      if (payload?.frozen === true && payload?.frozenPricing && payload?.forceRecompute !== true) {
-        return JSON.parse(JSON.stringify(payload.frozenPricing));
+      const savedOfferNumber = String(payload?.offerNumber || "").trim();
+
+      // 1) A saved Offer marked `locked` is a finalized, sent document — its
+      // price is immutable. Checked against the DB record itself, never a
+      // client-supplied flag, and never bypassed by `forceRecompute`: that
+      // is the actual guarantee. Editing a sent offer means saving it as a
+      // new Entwurf, which gets its own offer number (routes/drafts.js
+      // freshNumberIfSent) and therefore prices against current values.
+      let existingOfferSnapshot = null;
+      if (savedOfferNumber) {
+        existingOfferSnapshot = await fetchPriorSnapshot(OfferModel, { offerNumber: savedOfferNumber });
+        if (existingOfferSnapshot?.locked && existingOfferSnapshot?.pricing) {
+          return JSON.parse(JSON.stringify(existingOfferSnapshot.pricing));
+        }
       }
 
-      // 2) Something changed (or nothing was ever frozen): check for a
+      // 2) Not a sent offer: check for a
       // server-computed snapshot from the last save, subject to the
       // AUTO_RECOMPUTE_PRICING admin toggle — this is what lets an edited
       // offer/draft keep showing its last price instead of recomputing when
@@ -2097,12 +2118,10 @@ color: metaColor || null,
       // (Optionale Produkte, Material, ...), not just to decide whether to
       // serve it verbatim here.
       let priorSnapshot = null;
-      const savedOfferNumber = String(payload?.offerNumber || "").trim();
       if (savedOfferNumber && payload?.forceRecompute !== true) {
-        const existingOffer = await fetchPriorSnapshot(OfferModel, { offerNumber: savedOfferNumber });
-        const fromOffer = cachedResponseFor(existingOffer, payload);
+        const fromOffer = cachedResponseFor(existingOfferSnapshot, payload);
         if (fromOffer) return fromOffer;
-        if (existingOffer?.pricing) priorSnapshot = existingOffer;
+        if (existingOfferSnapshot?.pricing) priorSnapshot = existingOfferSnapshot;
 
         if (!priorSnapshot) {
           const existingDraft = await fetchPriorSnapshot(DraftModel, { offerNumber: savedOfferNumber });
@@ -2143,7 +2162,7 @@ color: metaColor || null,
 
       let materials = { title: "", lines: [], sum: 0 };
       try {
-        materials = await computeMaterials(payload, priorSnapshot);
+        materials = await computeMaterials(payload, priorSnapshot, !!existingOfferSnapshot?.locked);
       } catch (e) {
         console.error("[pricing] computeMaterials failed:", e);
       }
@@ -2246,78 +2265,64 @@ color: metaColor || null,
       // --- add the selected Duschwanne (from smart search) as a material line ---
       // --- add selected Badewanne + (optional) Wannenaufsatz as material lines ---
 try {
-  const bathtubPid = payload?.duschwanne?.chosenBathtubProductId;
-
-  // robust workTasks read (your payload has weird keys sometimes)
   const dw = payload?.duschwanne || {};
-  const workTasksRaw =
-    dw.workTasks ||
-    dw["workTasks[]"] ||
-    dw["duschwanne[workTasks][]"] ||
-    payload?.["duschwanne[workTasks][]"];
-
-  const workTasks = Array.isArray(workTasksRaw)
-    ? workTasksRaw.map((x) => String(x))
-    : typeof workTasksRaw === "string" && workTasksRaw.trim()
-      ? [workTasksRaw.trim()]
-      : [];
-
-  if (bathtubPid) {
-    const already = (materials?.lines || []).some(
-      (l) => l?.productId === bathtubPid || l?.id === bathtubPid
-    );
-
-    if (!already) {
-      const p = await ProductModel.findOne({ productId: bathtubPid }).lean();
-      if (p) {
-        const unit = Number(p.price || 0);
-        const qty = 1;
-        const line = {
-          productId: p.productId,
-          name: p.name || "",
-          qty,
-          unitPrice: unit,
-          lineTotal: round2(unit * qty),
-          label: `- ${qty} Stk Badewanne`,
-        };
-        materials.lines.push(line);
-        materials.sum = round2((materials.sum || 0) + line.lineTotal);
-      }
-    }
-  }
-
-  // Wannenaufsatz only if its installation is selected
-  const wantsScreen = workTasks.includes("install_bathtub_screen");
-  // ✅ Backwards compatible: accept either new or old field names
+  const bathtubPid = dw.chosenBathtubProductId;
+  // Backwards compatible: accept either new or old field names
   const screenPid =
-    payload?.duschwanne?.wannenaufsatzProductId ||
-    payload?.duschwanne?.chosenScreenProductId ||
+    dw.wannenaufsatzProductId ||
+    dw.chosenScreenProductId ||
     payload?.chosenScreenProductId ||
     null;
-    
-  if (wantsScreen && screenPid) {
-    const already = (materials?.lines || []).some(
-      (l) => l?.productId === screenPid || l?.id === screenPid
-    );
 
-    if (!already) {
-      const p = await ProductModel.findOne({ productId: screenPid }).lean();
-      if (p) {
-        const unit = Number(p.price || 0);
-        const qty = 1;
-        const line = {
-          productId: p.productId,
-          name: p.name || "",
-          qty,
-          unitPrice: unit,
-          lineTotal: round2(unit * qty),
-          label: `- ${qty} Stk Wannenaufsatz`,
-        };
-        materials.lines.push(line);
-        materials.sum = round2((materials.sum || 0) + line.lineTotal);
-      }
-    }
+  // Both articles are picked straight out of the vigor catalog, which is also
+  // where their price lives — so quote the live net price. A vigor outage must
+  // not drop the line: it falls back to the snapshot the configurator saved with
+  // the selection, then to the internal Products price.
+  let live = new Map();
+  try {
+    live = await getLiveVigourNetPrices([bathtubPid, screenPid].filter(Boolean));
+  } catch (e) {
+    console.error(
+      "[pricing] vigor live price lookup failed for Wanne lines — using snapshot:",
+      e?.message || e,
+    );
   }
+
+  const addWanneLine = async (pid, snapName, snapPrice, label) => {
+    if (!pid) return;
+    const already = (materials?.lines || []).some(
+      (l) => l?.productId === pid || l?.id === pid,
+    );
+    if (already) return;
+
+    const p = await ProductModel.findOne({ productId: pid }).lean();
+    const unit = Number(live.get(pid) ?? snapPrice ?? p?.price ?? 0);
+    if (!(unit > 0)) return;
+
+    const line = {
+      productId: pid,
+      name: snapName || p?.name || pid,
+      qty: 1,
+      unitPrice: unit,
+      lineTotal: round2(unit),
+      label: `- 1 Stk ${label}`,
+    };
+    materials.lines.push(line);
+    materials.sum = round2((materials.sum || 0) + line.lineTotal);
+  };
+
+  await addWanneLine(
+    bathtubPid,
+    dw.chosenBathtubName,
+    dw.chosenBathtubPrice,
+    "Badewanne",
+  );
+  await addWanneLine(
+    screenPid,
+    dw.chosenScreenName,
+    dw.chosenScreenPrice,
+    "Wannenaufsatz",
+  );
 } catch (e) {
   console.warn("[pricing] addBathtubLines failed:", e?.message || e);
 }
@@ -2424,78 +2429,19 @@ try {
 
       // ===== Apply bonus presentation rules =====
       const freeId = grabCounts?.freeId || null;
-      const ONLY_ONE_GRAB = grabCounts.total === 1;
 
       // UI rules (presentation only)
       if (bonusHG && grabCounts.total > 0) {
-        // NOT setGrabLabelToBillable() here: the Kosten tab is the internal
+        // The Kosten tab is the internal
         // ordering view, and the free grab bar still has to be BOUGHT. Keep the
         // real qty/price and just flag which one is free — the money side is
         // already covered by the "Bonus / Gratis" row in the Summen.
         markGrabFreeInUI(uiOptionals, freeId);
-
-        // Single grab bar → hide the worknote in UI (to mirror DOCX behavior)
-        if (ONLY_ONE_GRAB) {
-          const GRAB_NOTE = "Anbringen zusätzlicher Haltegriffe";
-          const uiNoteIdx = uiServices.findIndex((s) =>
-            (s.label || "").includes(GRAB_NOTE),
-          );
-          if (uiNoteIdx >= 0) uiServices.splice(uiNoteIdx, 1);
-        }
       }
 
-      // DOCX rules (presentation only)
-      if (bonusHG && grabCounts.total > 0) {
-        const showFreeGrabInMaterial =
-          payload?.rabatt?.showFreeGrabInMaterial === true;
-
-        if (ONLY_ONE_GRAB) {
-          if (showFreeGrabInMaterial) {
-            // Keep the single free grab visible in DOCX material lines.
-            // Be defensive: if a previous step removed it or it is missing here,
-            // reinsert it from the authoritative material lines.
-            let row = docxMaterials.find((l) => (l.productId || l.id) === freeId);
-            if (!row) {
-              const originalRow = allMatLines.find(
-                (l) => !l.docxHide && (l.productId || l.id) === freeId,
-              );
-              if (originalRow) {
-                docxMaterials.push({ ...originalRow });
-                row = docxMaterials.find((l) => (l.productId || l.id) === freeId);
-              }
-            }
-
-            // Force a visible material label for the single free grab.
-            if (row) {
-              const baseName = (row.name || row.label || row.productId || "")
-                .replace(/^\s*-\s*\d+\s*Stk\s*/i, "")
-                .replace(/\s*\(hidden\)\s*$/i, "")
-                .trim();
-              row.label = `- 1 Stk ${baseName}`;
-            }
-          } else {
-            // Single grab bar → hide it completely in DOCX materials
-            const idx = docxMaterials.findIndex(
-              (l) => (l.productId || l.id) === freeId,
-            );
-            if (idx >= 0) docxMaterials.splice(idx, 1);
-
-            // Remove the worknote line from DOCX services
-            const GRAB_NOTE = "Anbringen zusätzlicher Haltegriffe";
-            const dn = docxServices.findIndex((s) =>
-              (s.label || "").includes(GRAB_NOTE),
-            );
-            if (dn >= 0) docxServices.splice(dn, 1);
-          }
-        } else {
-          // Multiple → decrement one from DOCX (hide when becomes 0),
-          // unless the user explicitly wants the free grab still shown.
-          setGrabLabelToBillable(docxMaterials, freeId, {
-            hideWhenZero: !showFreeGrabInMaterial,
-          });
-        }
-      }
-
+      // DOCX: the free grab bar always stays listed in Material with its real
+      // qty — the Angebot prices it at GRAB_BONUS_MATERIAL_NET and takes it
+      // back off in the "Aktion: Haltegriff" row.
 
       // Pack adjusted displays (presentation only; totals remain from server truth)
       const materialsDisplayUI = {
@@ -2547,7 +2493,10 @@ try {
           markupExemptIds.push(id);
           continue;
         }
-        markupBase += qty * unitPrice;
+        // The free Aktion-Haltegriff is fully free: no Aufschlag on that unit.
+        const freeQty =
+          flags.bonus_Haltegriff && id === materials?.grabCounts?.freeId ? 1 : 0;
+        markupBase += (qty - freeQty) * unitPrice;
       }
 
       // Final markup using the existing percentage
@@ -2587,14 +2536,25 @@ try {
         bonusGross += bonusVal;
         bonus_neu += bonusVal;
       }
+      // Angebot display of the free grab bar: fixed Material + Arbeit values
+      // (= 175 € brutto) added to Pos. 001/002 and taken back off in its own
+      // bonus row. Net effect 0; only set while the bonus actually applies.
+      let grabBonusMaterial = 0;
+      let grabBonusArbeit = 0;
+      let grabBonusReal = 0; // what the free unit really costs (part of bonusGross)
       if (flags.bonus_Haltegriff) {
         const freeId = materials?.grabCounts?.freeId;
         if (freeId) {
           const freeLine = (materials?.lines || []).find(
             (l) => (l.productId || l.id) === freeId,
           );
-          const unit = Number(freeLine?.unitPrice) || 0;
-          bonusGross += round2(unit);
+          const qty = Number(freeLine?.qty) || 0;
+          // per-unit price as billed (BWT grabs carry their Aufschlag in lineTotal)
+          const unit = qty ? (Number(freeLine?.lineTotal) || 0) / qty : 0;
+          grabBonusReal = round2(unit);
+          bonusGross += grabBonusReal;
+          grabBonusMaterial = cfg.get('GRAB_BONUS_MATERIAL_NET', 100);
+          grabBonusArbeit = cfg.get('GRAB_BONUS_LABOR_NET', 47.06);
         }
       }
 
@@ -2697,6 +2657,9 @@ try {
 
         // rabatt + bonus:
         bonusGross,
+        grabBonusMaterial,
+        grabBonusArbeit,
+        grabBonusReal,
         bonusFlags: flags,
         flags: flags,
 

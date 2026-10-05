@@ -20,6 +20,7 @@
   <meta name="apple-mobile-web-app-title" content="Angebote" />
 
   <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./styles/opt_section.css" />
   <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css" />
   <style>
     /* Fußboden prices hidden per request — delete/comment this rule to re-enable */
@@ -1307,7 +1308,7 @@
       }
     }
 
-    .opt-grid {
+    .opt-grid:not(.wc-pairs-grid) {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 14px;
@@ -1963,7 +1964,8 @@
 
     #page-Zusammenfassung .document-card__preview,
     #page-Zusammenfassung .document-preview-actions .btn-export,
-    #page-Zusammenfassung .document-preview-switcher button {
+    #page-Zusammenfassung .document-preview-switcher button,
+    #page-Zusammenfassung .send-tab-switcher button {
       border: 1px solid rgba(44, 91, 67, 0.26);
       background: #fff;
       color: #2f6a4d;
@@ -1972,7 +1974,8 @@
 
     #page-Zusammenfassung .document-card__preview:hover,
     #page-Zusammenfassung .document-preview-actions .btn-export:hover,
-    #page-Zusammenfassung .document-preview-switcher button:hover {
+    #page-Zusammenfassung .document-preview-switcher button:hover,
+    #page-Zusammenfassung .send-tab-switcher button:hover {
       border-color: rgba(44, 91, 67, 0.45);
       background: #f6fbf8;
       color: #1f5339;
@@ -1993,7 +1996,8 @@
       margin: 14px 0 16px;
     }
 
-    #page-Zusammenfassung .document-preview-switcher button {
+    #page-Zusammenfassung .document-preview-switcher button,
+    #page-Zusammenfassung .send-tab-switcher button {
       border-radius: 999px;
       padding: 8px 14px;
       font-size: 0.83rem;
@@ -2002,11 +2006,44 @@
       transition: all 0.2s ease;
     }
 
-    #page-Zusammenfassung .document-preview-switcher button.is-active {
+    #page-Zusammenfassung .document-preview-switcher button.is-active,
+    #page-Zusammenfassung .send-tab-switcher button.is-active {
       background: linear-gradient(135deg, #cf7331, #e99e5e);
       border-color: transparent;
       color: #fff;
       box-shadow: 0 10px 20px rgba(198, 106, 41, 0.22);
+    }
+
+    /* Versandart-Tabs (E-Mail / Post) — same pill look as the document
+       switcher above, just wider and with a separating rule. */
+    #page-Zusammenfassung .send-tab-switcher {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 26px 0 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(194, 153, 111, 0.22);
+    }
+
+    #page-Zusammenfassung .send-tab-switcher button {
+      padding: 10px 20px;
+      font-size: 0.92rem;
+    }
+
+    #page-Zusammenfassung .post-address-warning {
+      margin: 0 0 16px;
+      padding: 12px 14px;
+      border: 1px solid #e3b341;
+      border-left: 4px solid #e3b341;
+      border-radius: 10px;
+      background: #fdf7e7;
+      color: #6b4e11;
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    #page-Zusammenfassung .post-address-warning strong {
+      color: #8a5a00;
     }
 
     #page-Zusammenfassung .document-text-preview {
@@ -2161,68 +2198,6 @@ button.dm-btn-danger:focus-visible {
       width: 100%;
     }
 
-    .customer-contact-row .customer-post-toggle {
-      min-width: 180px;
-      height: 48px;
-      align-self: end;
-      white-space: nowrap;
-      display: inline-flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 10px 14px;
-      border-radius: 10px;
-      background: var(--input-bg);
-      border: 1.5px solid var(--input-border);
-      cursor: pointer;
-      user-select: none;
-      color: inherit;
-      font-weight: 400;
-    }
-
-    .customer-contact-row .customer-post-toggle:hover,
-    .customer-contact-row .customer-post-toggle:focus-visible,
-    .customer-contact-row .customer-post-toggle:active {
-      background: var(--input-bg);
-      color: inherit;
-      border-color: var(--input-border);
-      box-shadow: none;
-      transform: none;
-    }
-
-    .customer-contact-row .customer-post-toggle.is-active {
-      border-color: var(--accent);
-    }
-
-    .customer-contact-row .customer-post-toggle .circle {
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      border: 2px solid var(--input-border);
-      display: grid;
-      place-items: center;
-      background: transparent;
-      transition: border 0.15s;
-      flex: 0 0 auto;
-    }
-
-    .customer-contact-row .customer-post-toggle .circle::after {
-      content: "";
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: transparent;
-    }
-
-    .customer-contact-row .customer-post-toggle.is-active .circle {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--ring);
-    }
-
-    .customer-contact-row .customer-post-toggle.is-active .circle::after {
-      background: var(--accent);
-    }
-
     .customer-phone-row {
       max-width: 540px;
     }
@@ -2280,8 +2255,7 @@ button.dm-btn-danger:focus-visible {
         grid-template-columns: 1fr;
       }
 
-      .customer-contact-row .customer-email-field input,
-      .customer-contact-row .customer-post-toggle {
+      .customer-contact-row .customer-email-field input {
         max-width: 100%;
         width: 100%;
       }
@@ -2760,6 +2734,32 @@ button.dm-btn-danger:focus-visible {
           <div>
             <label for="lastName" class="req">Nachname</label><input id="lastName" name="lastName" required />
           </div>
+          <!-- AH: 2. Person mit Pflegegrad (doubles the Entlastungsbetrag) -->
+          <div class="full" data-offer="ah">
+            <label class="check-pill"><input type="checkbox" id="ahZweiPersonen" name="ahZweiPersonen" /><span class="box"></span>
+              <span>2 Personen mit Pflegegrad im Haushalt (Entlastungsbetrag 2 × <span id="ebMonatLabel2">131</span> €/Monat)</span>
+            </label>
+            <div id="ahPerson2Fields" hidden aria-hidden="true" style="margin-top:8px; padding:12px 16px; border:1px solid var(--border); border-radius:8px;">
+              <div style="font-weight:700; margin-bottom:8px;">2. Person</div>
+              <div style="display:flex; gap:8px; margin-bottom:8px;">
+                <label class="radio-pill"><input type="radio" name="p2Salutation" value="Frau" /><span class="circle"></span><span>Frau</span></label>
+                <label class="radio-pill"><input type="radio" name="p2Salutation" value="Herr" /><span class="circle"></span><span>Herr</span></label>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div><label for="p2FirstName">Vorname</label><input id="p2FirstName" name="p2FirstName" /></div>
+                <div><label for="p2LastName">Nachname</label><input id="p2LastName" name="p2LastName" /></div>
+              </div>
+              <label style="margin-top:8px;">Pflegegrad</label>
+              <div class="zones-grid" style="grid-template-columns: repeat(6, 1fr)">
+                <label class="zone-pill"><input type="radio" name="p2Pflegegrad" value="1" /><span class="dot"></span><span>1</span></label>
+                <label class="zone-pill"><input type="radio" name="p2Pflegegrad" value="2" /><span class="dot"></span><span>2</span></label>
+                <label class="zone-pill"><input type="radio" name="p2Pflegegrad" value="3" /><span class="dot"></span><span>3</span></label>
+                <label class="zone-pill"><input type="radio" name="p2Pflegegrad" value="4" /><span class="dot"></span><span>4</span></label>
+                <label class="zone-pill"><input type="radio" name="p2Pflegegrad" value="5" /><span class="dot"></span><span>5</span></label>
+                <label class="zone-pill"><input type="radio" name="p2Pflegegrad" value="beantragt" /><span class="dot"></span><span>beantragt</span></label>
+              </div>
+            </div>
+          </div>
 
 
           <div class="full customer-phone-row">
@@ -2776,10 +2776,6 @@ button.dm-btn-danger:focus-visible {
               <label for="email">Email</label><input id="email" name="email" type="email"
                 placeholder="name@example.com" />
             </div>
-            <button type="button" id="togglePostalSectionBtn" class="customer-post-toggle" aria-controls="postalSummarySection" aria-expanded="false">
-              <span class="circle" aria-hidden="true"></span>
-              <span>Versand per Post</span>
-            </button>
           </div>
 
           <div class="full">
@@ -2910,55 +2906,65 @@ button.dm-btn-danger:focus-visible {
                       <input type="radio" name="payer" value="Selbstzahler" />
                       <div class="payer-card-inner">
                         <div class="icon">
-                          <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor"
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"></path>
                             <path d="M6 21v-2a6 6 0 0 1 6-6"></path>
                             <path d="M16 21v-2a6 6 0 0 0-3-5.197"></path>
                           </svg>
                         </div>
-                        <div class="payer-label">Selbstzahler</div>
-                        <div class="payer-radio"><span></span></div>
+                        <div class="payer-text">
+                          <div class="payer-label">Selbstzahler</div>
+                          <div class="payer-meta">Rechnung direkt an den Kunden</div>
+                        </div>
                       </div>
                     </label>
                     <label class="payer-card">
                       <input type="radio" name="payer" value="Kassenkunde" checked />
                       <div class="payer-card-inner">
                         <div class="icon">
-                          <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor"
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <rect x="5" y="3" width="14" height="14" rx="2"></rect>
                             <path d="M12 6v8M8 10h8"></path>
                             <path d="M3 21h18"></path>
                           </svg>
                         </div>
-                        <div class="payer-label">Kassenkunde</div>
-                        <div class="payer-radio"><span></span></div>
+                        <div class="payer-text">
+                          <div class="payer-label">Kassenkunde</div>
+                          <div class="payer-meta">Abrechnung über die Pflegekasse</div>
+                        </div>
                       </div>
                     </label>
                   </div>
-                  <div id="kassenkundeDetails" class="full" aria-hidden="true"
-                    style="display:none; grid-template-columns:1fr 1fr; gap:12px; margin-top:8px;">
-                    <div class="field">
-                      <label for="kk_geburtsdatum">Geburtsdatum</label>
-                      <input id="kk_geburtsdatum" name="kk_geburtsdatum" type="date" />
-                    </div>
-                    <div class="field">
-                      <label for="kk_versichertennr">Versicherungsnummer</label>
-                      <input id="kk_versichertennr" name="kk_versichertennr" type="text" placeholder="z. B. A123456789" />
-                    </div>
-                    <div class="field">
-                      <label for="kassenkundeName">Name der Krankenkasse</label>
-                      <input id="kassenkundeName" name="kassenkundeName" type="text" placeholder="z. B. AOK Nord" />
-                    </div>
-                    <div class="field">
-                      <label for="kk_krankenkasseAdresse">Adresse der Krankenkasse</label>
-                      <input id="kk_krankenkasseAdresse" name="kk_krankenkasseAdresse" type="text"
-                        placeholder="Straße, PLZ Ort" />
-                    </div>
-                    <div class="field full">
-                      <label for="kk_pflegegradSeit">Pflegegrad seit</label>
-                      <input id="kk_pflegegradSeit" name="kk_pflegegradSeit" type="month" />
+                  <div id="kassenkundeDetails" class="pgb-reveal" aria-hidden="true" hidden>
+                    <div class="pgb-reveal-in">
+                      <div class="pgb-subcard">
+                        <div class="pgb-subcard-title">Krankenkasse</div>
+                        <div class="pgb-field-row">
+                          <div class="pgb-field">
+                            <label for="kk_geburtsdatum">Geburtsdatum</label>
+                            <input id="kk_geburtsdatum" name="kk_geburtsdatum" type="date" data-lpignore="true" data-1p-ignore data-bwignore="true" />
+                          </div>
+                          <div class="pgb-field">
+                            <label for="kk_versichertennr">Versicherungsnummer</label>
+                            <input id="kk_versichertennr" name="kk_versichertennr" type="text" placeholder="z. B. A123456789" data-lpignore="true" data-1p-ignore data-bwignore="true" />
+                          </div>
+                          <div class="pgb-field">
+                            <label for="kassenkundeName">Name der Krankenkasse</label>
+                            <input id="kassenkundeName" name="kassenkundeName" type="text" placeholder="z. B. AOK Nord" data-lpignore="true" data-1p-ignore data-bwignore="true" />
+                          </div>
+                          <div class="pgb-field">
+                            <label for="kk_krankenkasseAdresse">Adresse der Krankenkasse</label>
+                            <input id="kk_krankenkasseAdresse" name="kk_krankenkasseAdresse" type="text"
+                              placeholder="Straße, PLZ Ort" data-lpignore="true" data-1p-ignore data-bwignore="true" />
+                          </div>
+                          <div class="pgb-field full">
+                            <label for="kk_pflegegradSeit">Pflegegrad seit</label>
+                            <input id="kk_pflegegradSeit" name="kk_pflegegradSeit" type="month" data-lpignore="true" data-1p-ignore data-bwignore="true" />
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2972,7 +2978,7 @@ button.dm-btn-danger:focus-visible {
                     <label class="req" id="aufschlagLabel" for="sonderaufschlagValue">Aufschlag</label>
                     <div class="aufschlag-value-box">
                       <input id="sonderaufschlagValue" name="sonderaufschlagValue" type="text" inputmode="decimal"
-                        autocomplete="off" pattern="^\s*\d{1,4}([.,]\d{1,2})?\s*$" placeholder="z. B. 50"
+                        autocomplete="off" pattern="^\s*\d{1,4}([.,]\d{1,4})?\s*$" placeholder="z. B. 50"
                         aria-label="Aufschlag in Prozent" />
                       <span class="sonderaufschlag-unit">%</span>
                     </div>
@@ -3044,156 +3050,163 @@ button.dm-btn-danger:focus-visible {
               <summary class="section-header" style="cursor: pointer">
                 Informationen über den Pflegegradbudget
               </summary>
-
-              <div class="full" style="margin-top: 8px">
-                <label class="req">Kunde hat Pflegegrad?</label>
-                <div class="radio-group vertical" id="hasPflegegradGroup" role="radiogroup">
-                  <label class="radio-pill"><input type="radio" name="hasPflegegrad" value="Ja" /><span
-                      class="circle"></span><span>Ja</span></label>
-                  <label class="radio-pill"><input type="radio" name="hasPflegegrad" value="Nein" /><span
-                      class="circle"></span><span>Nein</span></label>
+              <div style="
+                  display: grid;
+                  grid-template-columns: 1fr;
+                  gap: 14px;
+                  padding: 8px 0;
+                ">
+                <div>
+                  <label class="req">Kunde hat Pflegegrad?</label>
+                  <div class="pgb-seg" id="hasPflegegradGroup" role="radiogroup">
+                    <label class="pgb-seg-opt"><input type="radio" name="hasPflegegrad" value="Ja" /><svg class="tick" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5" /></svg>Ja</label>
+                    <label class="pgb-seg-opt"><input type="radio" name="hasPflegegrad" value="Nein" /><svg class="tick" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5" /></svg>Nein</label>
+                  </div>
                 </div>
-              </div>
 
-              <div id="pflegegradLevelRow" class="full" hidden aria-hidden="true" style="margin-top: 8px">
-                <label class="req">Welchen Pflegegrad?</label>
-                <div class="zones-grid" id="pflegegradLevelGrid" style="grid-template-columns: repeat(5, 1fr)">
-                  <label class="zone-pill"><input type="radio" name="pflegegrad" value="1" /><span
-                      class="dot"></span><span>1</span></label>
-                  <label class="zone-pill"><input type="radio" name="pflegegrad" value="2" /><span
-                      class="dot"></span><span>2</span></label>
-                  <label class="zone-pill"><input type="radio" name="pflegegrad" value="3" /><span
-                      class="dot"></span><span>3</span></label>
-                  <label class="zone-pill"><input type="radio" name="pflegegrad" value="4" /><span
-                      class="dot"></span><span>4</span></label>
-                  <label class="zone-pill"><input type="radio" name="pflegegrad" value="5" /><span
-                      class="dot"></span><span>5</span></label>
-                  <label class="zone-pill" data-offer="ah,bu"><input type="radio" name="pflegegrad" value="beantragt" /><span class="dot"></span><span>beantragt</span></label>
+                <div id="pflegegradLevelRow" class="full pgb-reveal" hidden aria-hidden="true">
+                <div class="pgb-reveal-in"><div>
+                  <label class="req">Welchen Pflegegrad?</label>
+                  <div class="zones-grid" id="pflegegradLevelGrid" style="grid-template-columns: repeat(6, 1fr)">
+                    <label class="zone-pill"><input type="radio" name="pflegegrad" value="1" /><span
+                        class="dot"></span><span>1</span></label>
+                    <label class="zone-pill"><input type="radio" name="pflegegrad" value="2" /><span
+                        class="dot"></span><span>2</span></label>
+                    <label class="zone-pill"><input type="radio" name="pflegegrad" value="3" /><span
+                        class="dot"></span><span>3</span></label>
+                    <label class="zone-pill"><input type="radio" name="pflegegrad" value="4" /><span
+                        class="dot"></span><span>4</span></label>
+                    <label class="zone-pill"><input type="radio" name="pflegegrad" value="5" /><span
+                        class="dot"></span><span>5</span></label>
+                    <label class="zone-pill" data-offer="ah,bu"><input type="radio" name="pflegegrad" value="beantragt" /><span class="dot"></span><span>beantragt</span></label>
+                  </div>
+
+                  <div id="budgetOptionsPanel" data-offer="bu,bwt,hl,bl,hms,wd" class="full pgb-reveal" hidden aria-hidden="true">
+                    <div class="pgb-reveal-in"><div class="pgb-subcard">
+                      <div class="pgb-subcard-title">Budget-Optionen</div>
+                      <div class="pgb-opt-row">
+                        <label class="pgb-opt">
+                          <input type="checkbox" name="budgetMax" value="4180 MAXIMAL" />
+                          <span class="box"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5" /></svg></span>
+                          <span class="otext">4.180€ MAXIMAL</span>
+                        </label>
+                        <label class="pgb-opt">
+                          <input type="checkbox" id="budgetCopay" name="budgetCopay" value="4180 mit Zuzahlung" />
+                          <span class="box"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5" /></svg></span>
+                          <span class="otext">Mögliche Zuzahlung durch Kunden</span>
+                          <span class="pgb-money" id="copayField" hidden aria-hidden="true"><span>€</span><input id="copayAmount" name="copayAmount" type="number" min="0" step="1" placeholder="0" data-lpignore="true" data-1p-ignore data-bwignore="true" /></span>
+                        </label>
+                        <label class="pgb-opt">
+                          <input type="checkbox" name="twoPersons" value="Zwei Personen mit Pflegegrad" />
+                          <span class="box"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5" /></svg></span>
+                          <span class="otext">2 Personen mit Pflegegrad</span>
+                          <span class="oamount">+ 4.180 €</span>
+                        </label>
+                        <label class="pgb-opt">
+                          <input type="checkbox" name="premium" value="Premium" />
+                          <span class="box"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5" /></svg></span>
+                          <span class="otext">Premium</span>
+                        </label>
+                      </div>
+
+                      <div class="pgb-budget-out" id="pgbBudgetOut" aria-live="polite" style="margin-top: 12px">
+                        <span>Anrechenbares Budget</span> <b>0 €</b>
+                      </div>
+
+                      <div id="ehepaarPartnerPanel" class="pgb-reveal" hidden aria-hidden="true">
+                        <div class="pgb-reveal-in"><div class="pgb-subcard" style="margin-top: 16px">
+                          <div class="pgb-subcard-title">Partner / Ehepartner</div>
+                          <div class="pgb-field-row">
+                            <div class="pgb-field">
+                              <label for="partnerSalutation">Anrede Partner</label>
+                              <select id="partnerSalutation" name="partnerSalutation">
+                                <option value="">Bitte wählen</option>
+                                <option value="Herr">Herr</option>
+                                <option value="Frau">Frau</option>
+                              </select>
+                            </div>
+                            <div></div>
+                            <div class="pgb-field">
+                              <label for="partnerFirstName" class="req">Vorname Partner</label>
+                              <input id="partnerFirstName" name="partnerFirstName" data-lpignore="true" data-1p-ignore data-bwignore="true" />
+                            </div>
+                            <div class="pgb-field">
+                              <label for="partnerLastName" class="req">Nachname Partner</label>
+                              <input id="partnerLastName" name="partnerLastName" data-lpignore="true" data-1p-ignore data-bwignore="true" />
+                            </div>
+                          </div>
+
+                          <div class="pgb-field full" style="margin-top: 12px">
+                            <label class="req">Pflegegrad Partner</label>
+                            <div class="zones-grid" id="partnerPflegegradGrid" style="grid-template-columns: repeat(5, 1fr)">
+                              <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="1" /><span class="dot"></span><span>1</span></label>
+                              <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="2" /><span class="dot"></span><span>2</span></label>
+                              <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="3" /><span class="dot"></span><span>3</span></label>
+                              <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="4" /><span class="dot"></span><span>4</span></label>
+                              <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="5" /><span class="dot"></span><span>5</span></label>
+                            </div>
+                          </div>
+
+                          <div class="pgb-field full" style="margin-top: 12px">
+                            <label for="partnerKassenkundeName">Name der Krankenkasse Partner</label>
+                            <input id="partnerKassenkundeName" name="partnerKassenkundeName" type="text" placeholder="z. B. AOK Nord" data-lpignore="true" data-1p-ignore data-bwignore="true" />
+                          </div>
+                        </div></div>
+                      </div>
+                    </div></div>
+                  </div>
+                </div></div>
                 </div>
-              </div>
 
-              <div id="budgetOptionsPanel" data-offer="bu,bwt,hl,bl,hms,wd" class="aufschlag-panel" hidden aria-hidden="true" style="margin-top: 8px">
-                <div class="full" style="
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 12px;
-                  ">
-                  <label class="check-pill"><input type="checkbox" name="budgetMax" value="4180 MAXIMAL" /><span
-                      class="box"></span><span>4.180€ MAXIMAL</span></label>
-                  <div style="
-                      display: grid;
-                      grid-template-columns: 2fr 250px;
-                      gap: 10px;
-                      align-items: center;
-                    ">
-                    <label class="check-pill"><input type="checkbox" id="budgetCopay" name="budgetCopay"
-                        value="4180 mit Zuzahlung" /><span class="box"></span>
-                      <span>
-                        <!-- 4.180€ Kunde mit Zuzahlung -->
-                        Mögliche Zuzahlung durch Kunden
-                      </span>
-                    </label>
+                <div id="wohnumfeldPanel" data-offer="bu,bwt,hl,bl,hms,wd" hidden aria-hidden="true">
+                  <label class="req">Wurden Wohnumfeldverbessernde Maßnahmen schon mal
+                    durchgeführt?</label>
+                  <div class="pgb-seg" id="wohnumfeldDoneGroup">
+                    <label class="pgb-seg-opt"><input type="radio" name="wohnumfeldDone" value="Ja" /><svg class="tick" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5" /></svg>Ja</label>
+                    <label class="pgb-seg-opt"><input type="radio" name="wohnumfeldDone" value="Nein" checked /><svg class="tick" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5" /></svg>Nein</label>
+                    <label class="pgb-seg-opt"><input type="radio" name="wohnumfeldDone" value="Unbekannt" /><svg class="tick" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5" /></svg>Unbekannt</label>
+                  </div>
 
-                    <div id="copayField" hidden aria-hidden="true">
-                      <!--  <label for="copayAmount" class="sr-only" -->
+                  <div id="wohnumfeldEntriesContainer" class="pgb-reveal" hidden aria-hidden="true">
+                    <div class="pgb-reveal-in"><div class="pgb-subcard">
+                      <div class="pgb-subcard-title">Bereits verbrauchte Beträge</div>
+                      <div id="wohnumfeldEntriesList" class="pgb-entries"></div>
+                      <button type="button" id="wohnumfeldAddEntryBtn" class="pgb-btn-ghost" style="margin-top: 8px;">
+                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3v10M3 8h10" /></svg>
+                        Weiterer Eintrag
+                      </button>
+                      <div class="pgb-sumline"><span>Bereits verbraucht</span> <b id="pgbWeSum">0 €</b></div>
+                    </div></div>
+                  </div>
 
-                      <input id="copayAmount" name="copayAmount" type="number" min="0" step="1" placeholder="€" />
+                  <!--  <div class="full" style="margin-top: 8px">
+                    <label class="req"
+                      >Antrag auf Wohnumfeld verbessernde Maßnahmen</label
+                    >
+                    <div
+                      class="radio-group vertical"
+                      id="wohnumfeldApplicationGroup"
+                    >
+                      <label class="radio-pill"
+                        ><input
+                          type="radio"
+                          name="wohnumfeldApplication"
+                          value="durch Kunde"
+                        /><span class="circle"></span
+                        ><span>durch Kunde</span></label
+                      >
+                      <label class="radio-pill"
+                        ><input
+                          type="radio"
+                          name="wohnumfeldApplication"
+                          value="durch EmC2"
+                        /><span class="circle"></span
+                        ><span>durch EmC2</span></label
+                      >
                     </div>
-                  </div>
+                  </div> -->
                 </div>
-                <div class="full" style="margin-top: 8px">
-                  <label class="check-pill"><input type="checkbox" name="twoPersons"
-                      value="Zwei Personen mit Pflegegrad" /><span class="box"></span><span>2 Personen mit Pflegegrad
-                      (8.360€)</span></label>
-                  <label class="check-pill"><input type="checkbox" name="premium" value="Premium" /><span
-                      class="box"></span><span>Premium</span></label>
-                </div>
-
               </div>
-
-              <div id="wohnumfeldPanel" data-offer="bu,bwt,hl,bl,hms,wd" class="aufschlag-panel" hidden aria-hidden="true" style="margin-top: 8px">
-                <label class="req">Wurden Wohnumfeldverbessernde Maßnahmen schon mal
-                  durchgeführt?</label>
-                <div class="radio-group vertical" id="wohnumfeldDoneGroup">
-                  <label class="radio-pill"><input type="radio" name="wohnumfeldDone" value="Ja" /><span
-                      class="circle"></span><span>Ja</span></label>
-                  <label class="radio-pill"><input type="radio" name="wohnumfeldDone" value="Nein" /><span
-                      class="circle"></span><span>Nein</span></label>
-                  <label class="radio-pill"><input type="radio" name="wohnumfeldDone" value="Unbekannt" /><span
-                      class="circle"></span><span>Unbekannt</span></label>
-                </div>
-
-                <div id="wohnumfeldEntriesContainer" class="full" hidden aria-hidden="true" style="margin-top: 8px">
-                  <div id="wohnumfeldEntriesList" style="display:flex; flex-direction:column; gap:6px;"></div>
-                  <button type="button" id="wohnumfeldAddEntryBtn" class="btn-secondary" style="margin-top:8px; padding:5px 14px; font-size:0.85rem;">+ Weiterer Eintrag</button>
-                </div>
-
-                <!--  <div class="full" style="margin-top: 8px">
-                  <label class="req"
-                    >Antrag auf Wohnumfeld verbessernde Maßnahmen</label
-                  >
-                  <div
-                    class="radio-group vertical"
-                    id="wohnumfeldApplicationGroup"
-                  >
-                    <label class="radio-pill"
-                      ><input
-                        type="radio"
-                        name="wohnumfeldApplication"
-                        value="durch Kunde"
-                      /><span class="circle"></span
-                      ><span>durch Kunde</span></label
-                    >
-                    <label class="radio-pill"
-                      ><input
-                        type="radio"
-                        name="wohnumfeldApplication"
-                        value="durch EmC2"
-                      /><span class="circle"></span
-                      ><span>durch EmC2</span></label
-                    >
-                  </div>
-                </div> -->
-              </div>
-
-                 <div id="ehepaarPartnerPanel" class="full aufschlag-panel" hidden aria-hidden="true" style="margin-top: 8px">
-            <div class="section-header" style="margin-bottom: 12px">Partner / Ehepartner</div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-              <div>
-                <label for="partnerSalutation">Anrede Partner</label>
-                <select id="partnerSalutation" name="partnerSalutation">
-                  <option value="">Bitte wählen</option>
-                  <option value="Herr">Herr</option>
-                  <option value="Frau">Frau</option>
-                </select>
-              </div>
-              <div></div>
-              <div>
-                <label for="partnerFirstName" class="req">Vorname Partner</label>
-                <input id="partnerFirstName" name="partnerFirstName" />
-              </div>
-              <div>
-                <label for="partnerLastName" class="req">Nachname Partner</label>
-                <input id="partnerLastName" name="partnerLastName" />
-              </div>
-            </div>
-
-            <div class="full" style="margin-top: 12px">
-              <label class="req">Pflegegrad Partner</label>
-              <div class="zones-grid" id="partnerPflegegradGrid" style="grid-template-columns: repeat(5, 1fr)">
-                <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="1" /><span class="dot"></span><span>1</span></label>
-                <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="2" /><span class="dot"></span><span>2</span></label>
-                <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="3" /><span class="dot"></span><span>3</span></label>
-                <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="4" /><span class="dot"></span><span>4</span></label>
-                <label class="zone-pill"><input type="radio" name="partnerPflegegrad" value="5" /><span class="dot"></span><span>5</span></label>
-              </div>
-            </div>
-
-            <div class="full" style="margin-top: 12px">
-              <label for="partnerKassenkundeName">Name der Krankenkasse Partner</label>
-              <input id="partnerKassenkundeName" name="partnerKassenkundeName" type="text" placeholder="z. B. AOK Nord" />
-            </div>
-          </div>
             </details>
           </div>
 
@@ -4152,39 +4165,7 @@ button.dm-btn-danger:focus-visible {
           </fieldset>
           </details>
 
-        <!-- Bathtub search (only visible when "Einbau der Badewanne" is selected) -->
-<div id="bathtubSearchPanel" class="field" hidden aria-hidden="true" style="margin-top:12px;">
-  <label>Badewanne auswählen (Maße B × L in cm)</label>
-
-  <div class="row" style="gap:8px;">
-    <input type="number" min="20" step="1" placeholder="Breite" name="bathtub_w_cm">
-    <input type="number" min="2" step="1" placeholder="Länge" name="bathtub_l_cm">
-  </div>
-
-  <div id="bathtub-suggestions" class="space-y-2" style="margin-top:8px;"></div>
-
-  <input type="hidden" id="chosenBathtubProductId" name="chosenBathtubProductId">
-  <input type="hidden" id="bathtubSize" name="bathtubSize">
-
-
-</div>
-        <!-- Wannenaufsatz auswählen (only visible when "Wannenaufsatz " is selected) -->
-
-<div id="screenPickerPanel" class="field" hidden aria-hidden="true" style="margin-top:12px;">
-  <div id="screen-reco-hint" class="meta" style="margin-bottom:6px;"></div>
-
-  <label>Wannenaufsatz auswählen</label>
-
- <div class="row" style="gap:8px; margin-top:8px;">
-  <input type="number" min="1" step="1" placeholder="Breite (cm)" name="screen_w_cm" />
-  <input type="number" min="1" step="1" placeholder="Höhe (cm)" name="screen_h_cm" />
-</div>
-
-  <div id="screen-suggestions" class="space-y-2" style="margin-top:8px;"></div>
-
-  <!-- final chosen screen product -->
-  <input type="hidden" id="chosenScreenProductId" name="chosenScreenProductId" />
-</div>
+          <!-- Badewanne + Wannenaufsatz now live on the Optional tab (menu_WANNE). -->
 
           <div class="field full" id="slateTrayColorSection" hidden aria-hidden="true">
             <label class="req">Farbe der Duschwanne Slate</label>
@@ -4353,7 +4334,16 @@ button.dm-btn-danger:focus-visible {
           <span class="tier-status__text"></span>
         </p>
 
+        <div class="fb-tab-switch" role="tablist" aria-label="Fußboden oder Wandverkleidung">
+          <button type="button" class="fb-tab-switch-btn active" id="fbTabBtnFloor" data-target="fbTabFloor"
+            role="tab" aria-selected="true">Fußboden</button>
+          <button type="button" class="fb-tab-switch-btn" id="fbTabBtnWall" data-target="fbTabWall" role="tab"
+            aria-selected="false">Wandverkleidung</button>
+        </div>
+
         <form id="form-fussboden" autocomplete="on">
+
+        <div id="fbTabFloor" class="fb-tabpanel full">
 
           <div class="field">
             <label class="check-pill"><input type="checkbox" id="addFlooring" name="addFlooring" /><span
@@ -4390,37 +4380,12 @@ button.dm-btn-danger:focus-visible {
                 <div class="floor-calc-card__title-row">
                   <div>
                     <div class="floor-calc-card__title">Flächenrechner</div>
-                    <div class="floor-calc-card__hint">Mehrere Flächen addieren oder Aussparungen abziehen. Bitte alle Eingaben in Meter.</div>
+                    <div class="floor-calc-card__hint">Flächen addieren oder Aussparungen abziehen — Angaben in Metern.</div>
                   </div>
                 </div>
 
                 <div id="floorCalcRows" class="floor-calc-rows" aria-live="polite"></div>
-
-                <template id="floorCalcRowTemplate">
-                  <div class="floor-calc-row">
-                    <button type="button" class="floor-calc-sign" data-sign="add" aria-label="Zeile wird addiert">+</button>
-
-                    <label class="field floor-calc-field" style="margin:0;">
-                      <span>Länge</span>
-                      <input class="floor-calc-length" type="number" min="0" step="0.1" inputmode="decimal" placeholder="z. B. 200" />
-                    </label>
-
-                    <span class="floor-calc-times" aria-hidden="true">×</span>
-
-                    <label class="field floor-calc-field" style="margin:0;">
-                      <span>Breite</span>
-                      <input class="floor-calc-width" type="number" min="0" step="0.1" inputmode="decimal" placeholder="z. B. 120" />
-                    </label>
-
-                    <div class="floor-calc-row-area">
-                      <div class="floor-calc-row-area__label">Fläche</div>
-                      <div class="floor-calc-row-result">0,00 m²</div>
-                    </div>
-
-                    <button type="button" class="floor-calc-add-row" aria-label="Weitere Zeile hinzufügen">+</button>
-                    <button type="button" class="floor-calc-remove-row" aria-label="Zeile entfernen">−</button>
-                  </div>
-                </template>
+                <button type="button" id="floorCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
 
                 <div class="floor-calc-result-row">
                   <div>
@@ -4568,6 +4533,152 @@ button.dm-btn-danger:focus-visible {
 
             </div>
           </div>
+
+        </div>
+
+        <div id="fbTabWall" class="fb-tabpanel full" hidden aria-hidden="true">
+
+          <div class="field">
+            <label class="check-pill"><input type="checkbox" id="addWallCladding" name="addWallCladding" /><span
+                class="box"></span><span>Möchten Sie Wandverkleidung als Fußboden hinzufügen?</span></label>
+          </div>
+
+          <div id="wallCladdingPanel" class="field" aria-hidden="true" hidden>
+            <div class="flooring-panel-head">
+              <h3 style="margin: 0">Wandverkleidung</h3>
+              <button type="button" id="wvcCalcToggle" class="secondary flooring-calc-toggle" aria-expanded="false"
+                aria-controls="wvcCalcPanel">Flächenrechner öffnen</button>
+            </div>
+
+            <div class="flooring-top-grid">
+              <div class="field flooring-area-field" style="margin:0;">
+                <label for="wallCladdingArea" class="req">gewünschte Fläche m²</label>
+                <input id="wallCladdingArea" name="wallCladdingArea" inputmode="decimal" placeholder="z. B. 8,5" />
+                <small class="muted flooring-area-help">Sie können die Fläche direkt eingeben oder den Flächenrechner verwenden.</small>
+
+                <div class="field" style="margin-top: 14px;">
+                  <label class="req">Welche Art der Fußbodenverkleidung wird benötigt?</label>
+                  <div class="radio-group vertical" role="radiogroup" aria-label="Art der Fußbodenverkleidung">
+                    <label class="radio-pill"><input type="radio" name="wallCladdingKind" value="Fehlstellen" /><span
+                        class="circle"></span><span>Nur schließende Fehlstellen</span></label>
+                    <label class="radio-pill"><input type="radio" name="wallCladdingKind" value="Gesamtes-Bad" /><span
+                        class="circle"></span><span>Gesamter Badboden</span></label>
+                  </div>
+                </div>
+              </div>
+
+              <aside id="wvcCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
+                <div class="floor-calc-card__title-row">
+                  <div>
+                    <div class="floor-calc-card__title">Flächenrechner</div>
+                    <div class="floor-calc-card__hint">Flächen addieren oder Aussparungen abziehen — Angaben in Metern.</div>
+                  </div>
+                </div>
+                <div id="wvcCalcRows" class="floor-calc-rows" aria-live="polite"></div>
+                <button type="button" id="wvcCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
+                <div class="floor-calc-result-row">
+                  <div>
+                    <div class="floor-calc-result-label">Gesamtfläche</div>
+                    <div id="wvcCalcResult" class="floor-calc-result-value">0,00 m²</div>
+                  </div>
+                  <button type="button" id="wvcCalcApply" class="floor-calc-apply">In Fläche übernehmen</button>
+                </div>
+              </aside>
+            </div>
+
+            <div id="wallCladdingSuggestion" hidden style="margin-top:16px;">
+              <div id="wallCladdingCards" class="wvc-cards"></div>
+              <div id="wallCladdingQtyRow" class="field" hidden style="margin-top:12px;">
+                <label for="wallCladdingQtyInput">Anzahl Paneele (anpassbar)</label>
+                <input type="number" id="wallCladdingQtyInput" min="1" step="1" style="max-width:140px;" />
+              </div>
+            </div>
+
+            <input type="hidden" id="wallCladdingPanelSize" name="wallCladdingPanelSize" value="" />
+            <input type="hidden" id="wallCladdingQty" name="wallCladdingQty" value="" />
+
+            <!-- Label + color tiles, same pattern as the Fußboden color grid above -->
+            <div class="field">
+              <label class="req">Wandverkleidung 3.0 — Farbe</label>
+
+              <div id="wallCladdingColors">
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Weiß" />
+                  <span class="img-wrap"><img src="./assets/585c6146589e2f4c59e026c2b5373966.jpg" alt="Weiß" /></span>
+                  <span class="caption">Weiß</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Marmor weiß" checked />
+                  <span class="img-wrap"><img src="./assets/Marmor weiß.jpeg" alt="Marmor weiß" /></span>
+                  <span class="caption">Marmor weiß</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Struktur weiß" />
+                  <span class="img-wrap"><img src="./assets/Struktur weiß.jpeg" alt="Struktur weiß" /></span>
+                  <span class="caption">Struktur weiß</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Stein beige" />
+                  <span class="img-wrap"><img src="./assets/Stein beige.jpeg" alt="Stein beige" /></span>
+                  <span class="caption">Stein beige</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Aragon grau" />
+                  <span class="img-wrap"><img src="./assets/Aragon grau.jpeg" alt="Aragon grau" /></span>
+                  <span class="caption">Aragon grau</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Stein grau" />
+                  <span class="img-wrap"><img src="./assets/stein grau .jpeg" alt="Stein grau" /></span>
+                  <span class="caption">Stein grau</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Kalkstein natur" />
+                  <span class="img-wrap"><img src="./assets/V3WVK05.jpg" alt="Kalkstein natur" /></span>
+                  <span class="caption">Kalkstein natur</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Aragon schwarz" />
+                  <span class="img-wrap"><img src="./assets/V3WVK20.jpg" alt="Aragon schwarz" /></span>
+                  <span class="caption">Aragon schwarz</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Aragon anthrazit" />
+                  <span class="img-wrap"><img src="./assets/Aragon_anthrazit.jpg" alt="Aragon anthrazit" /></span>
+                  <span class="caption">Aragon anthrazit</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Schiefer grau" />
+                  <span class="img-wrap"><img src="./assets/schiefer-grau-wv.png" alt="Schiefer grau" /></span>
+                  <span class="caption">Schiefer grau</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Schwarzwaldeiche Hell" />
+                  <span class="img-wrap"><img src="./assets/Schwarzwaldeiche Hell.jpg" alt="Schwarzwaldeiche Hell" /></span>
+                  <span class="caption">Schwarzwaldeiche Hell</span>
+                </label>
+
+                <label class="image-check">
+                  <input type="radio" name="wallCladdingColor" value="Stein anthrazit" />
+                  <span class="img-wrap"><img src="./assets/Stein anthrazit.jpeg" alt="Stein anthrazit" /></span>
+                  <span class="caption">Stein anthrazit</span>
+                </label>
+              </div>
+              <div id="wvcProductCard" hidden></div>
+            </div>
+          </div>
+
+        </div>
 
           <div class="actions full">
             <button type="button" data-nav="prev" class="secondary">
@@ -4864,6 +4975,7 @@ button.dm-btn-danger:focus-visible {
                   </label>
 
                 </div>
+                <div id="wvProductCard" hidden></div>
 
                 <div id="wvSonderDecorDetails" class="field full" hidden aria-hidden="true" style="margin-top: 14px">
                   <label for="wvSonderConfigNr" class="req">Konfigurations-Nr.</label>
@@ -5085,7 +5197,13 @@ button.dm-btn-danger:focus-visible {
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview img {
     width: 64px; height: 64px; object-fit: contain; border-radius: 8px;
-    background: #fff; flex: 0 0 auto;
+    background: #fff; flex: 0 0 auto; cursor: pointer;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-thumbs {
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview .dac-leaf-thumbs img {
+    width: 40px; height: 40px; border: 1px solid var(--border);
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-leaf-preview-label {
     font-size: 0.85rem; color: var(--text); font-weight: 600;
@@ -5097,6 +5215,9 @@ button.dm-btn-danger:focus-visible {
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview img {
     width: 100%; height: 260px; cursor: pointer;
     border: 1px solid var(--border); border-radius: 8px;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-thumbs img {
+    width: 56px; height: 56px;
   }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-summary .dac-leaf-preview-label {
     text-align: center;
@@ -5241,6 +5362,19 @@ button.dm-btn-danger:focus-visible {
     padding: 0px;
   }
   .dac-lightbox-close:hover { background: #fff; }
+  .dac-lightbox-nav {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 48px; height: 48px; border-radius: 50%; border: none;
+    background: rgba(255, 255, 255, 0.9); color: #111;
+    font-size: 30px; line-height: 1; cursor: pointer; padding: 0;
+  }
+  .dac-lightbox-nav:hover { background: #fff; }
+  .dac-lightbox-prev { left: 16px; }
+  .dac-lightbox-next { right: 16px; }
+  .dac-lightbox-caption {
+    position: absolute; bottom: 16px; left: 0; right: 0;
+    text-align: center; color: #fff; font-size: 14px; padding: 0 16px;
+  }
 
   @media (max-width: 760px) {
     :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt {
@@ -5362,7 +5496,7 @@ button.dm-btn-danger:focus-visible {
   }
   #page-Duschvorhang .vh-acc-grid .img-wrap img { width: 100%; height: 100%; object-fit: contain; }
   #page-Duschvorhang .vh-acc .vh-qty-field { max-width: 168px; }
-  /* cards reuse the Optional tab's .image-check / .opt-item look */
+  /* cards reuse the Optional tab's .image-check / .field look */
   #page-Duschvorhang .vh-price-row { text-align: center; }
   #page-Duschvorhang .vh-price { font-weight: 700; color: var(--text); }
   #page-Duschvorhang .vh-muted { color: var(--muted); font-weight: 500; }
@@ -6206,12 +6340,8 @@ button.dm-btn-danger:focus-visible {
 
           <!-- Menüs, erscheinen je nach Auswahl -->
           <div id="menu_REHA" class="full field" hidden aria-hidden="true">
-            <div class="subheader">REHA-Team</div>
-            <div class="opt-grid">
-
-
-
-              <div class="opt-item">
+            <div class="opt-tile-grid">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24081000" name="optReha[]"
                     value="VitaL Hüftkissen schwarz 24081000" /><span class="img-wrap"><img src="./assets/24081000.jpg"
                       alt="24081000" /></span><span class="caption">VitaL Hüftkissen schwarz 24081000</span></label>
@@ -6221,7 +6351,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
               </div>
 
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24081100" name="optReha[]"
                     value="VitaL Hüftkissen blau 24081100" /><span class="img-wrap"><img src="./assets/24081100.jpg"
                       alt="24081100" /></span><span class="caption">VitaL Hüftkissen blau 24081100</span></label>
@@ -6231,7 +6361,7 @@ button.dm-btn-danger:focus-visible {
                 </div>
               </div>
 
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24081500" name="optReha[]"
                     value="VitaL Steißbeinkissen schwarz 24081500" /><span class="img-wrap"><img
                       src="./assets/24081500.jpg" alt="24081500" /></span><span class="caption">VitaL Steißbeinkissen
@@ -6241,7 +6371,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24081500" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24081600" name="optReha[]"
                     value="VitaL Steißbeinkissen blau 24081600" /><span class="img-wrap"><img
                       src="./assets/24081600.jpg" alt="24081600" /></span><span class="caption">VitaL Steißbeinkissen
@@ -6251,7 +6381,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24081600" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24081005" name="optReha[]"
                     value="Bezug zu VitaL Hüftkissen schwarz 24081005" /><span class="img-wrap"><img
                       src="./assets/24081005.jpg" alt="24081005" /></span><span class="caption">Bezug zu VitaL
@@ -6261,7 +6391,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24081005" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24081105" name="optReha[]"
                     value="Bezug zu VitaL Hüftkissen blau 24081105" /><span class="img-wrap"><img
                       src="./assets/24081105.jpg" alt="24081105" /></span><span class="caption">Bezug zu VitaL
@@ -6271,7 +6401,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24081105" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24081505" name="optReha[]"
                     value="Bezug zu VitaL Steißbeinkissen schwarz 24081505" /><span class="img-wrap"><img
                       src="./assets/24081505.jpg" alt="24081505" /></span><span class="caption">Bezug zu VitaL
@@ -6281,7 +6411,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24081505" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24081605" name="optReha[]"
                     value="Bezug zu VitaL Steißbeinkissen blau 24081605" /><span class="img-wrap"><img
                       src="./assets/24081605.jpg" alt="24081605" /></span><span class="caption">Bezug zu VitaL
@@ -6291,7 +6421,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24081605" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_25670000" name="optReha[]"
                     value="RUSSKA Sitzring 25670000" /><span class="img-wrap"><img src="./assets/25670000.jpg"
                       alt="25670000" /></span><span class="caption">RUSSKA Sitzring 25670000</span></label>
@@ -6300,7 +6430,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_25670000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24081800" name="optReha[]"
                     value="VitaL Hüftkissen Mobil/Auto 24081800" /><span class="img-wrap"><img
                       src="./assets/24081800.jpg" alt="24081800" /></span><span class="caption">VitaL Hüftkissen
@@ -6310,7 +6440,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24081800" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24096000" name="optReha[]"
                     value="RUSSKA Komfort-Sitzkissen 24096000" /><span class="img-wrap"><img src="./assets/24096000.jpg"
                       alt="24096000" /></span><span class="caption">RUSSKA Komfort-Sitzkissen 24096000</span></label>
@@ -6319,7 +6449,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24096000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24097000" name="optReha[]"
                     value="RUSSKA Kissen zur Sitzerhöhung 24097000" /><span class="img-wrap"><img
                       src="./assets/24097000.jpg" alt="24097000" /></span><span class="caption">RUSSKA Kissen zur
@@ -6329,7 +6459,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24097000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_24096240" name="optReha[]"
                     value="RUSSKA Kissen zur Sitzerhöhung 24096240" /><span class="img-wrap"><img
                       src="./assets/24096240.jpg" alt="24096240" /></span><span class="caption">RUSSKA Kissen zur
@@ -6339,7 +6469,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_24096240" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_19034422" name="optReha[]"
                     value="Lück Rhombo-therm soft Kissen 19034422" /><span class="img-wrap"><img
                       src="./assets/19034422.jpg" alt="19034422" /></span><span class="caption">Lück Rhombo-therm soft
@@ -6349,7 +6479,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_19034422" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_35035200" name="optReha[]"
                     value="Hepro Haltestange Gripo 35035200" /><span class="img-wrap"><img src="./assets/35035200.jpg"
                       alt="35035200" /></span><span class="caption">Hepro Haltestange Gripo 35035200</span></label>
@@ -6358,7 +6488,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_35035200" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_35035145" name="optReha[]"
                     value="HEPRO Griffbügel Triangel 35035145" /><span class="img-wrap"><img src="./assets/35035145.jpg"
                       alt="35035145" /></span><span class="caption">HEPRO Griffbügel Triangel 35035145</span></label>
@@ -6367,7 +6497,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_35035145" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_35035148" name="optReha[]"
                     value="HEPRO Stützbügel mit Hängegriff 35035148" /><span class="img-wrap"><img
                       src="./assets/35035148.jpg" alt="35035148" /></span><span class="caption">HEPRO Stützbügel mit
@@ -6377,7 +6507,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_35035148" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_35035281" name="optReha[]"
                     value="HEPRO Ringgriff Ø 30 cm 35035281" /><span class="img-wrap"><img src="./assets/35035281.jpg"
                       alt="35035281" /></span><span class="caption">HEPRO Ringgriff Ø 30 cm 35035281</span></label>
@@ -6386,7 +6516,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_35035281" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_35035280" name="optReha[]"
                     value="HEPRO Ringgriff  Ø 40 cm 35035280" /><span class="img-wrap"><img src="./assets/35035280.jpg"
                       alt="35035280" /></span><span class="caption">HEPRO Ringgriff Ø 40 cm 35035280</span></label>
@@ -6395,7 +6525,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_35035280" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78700800" name="optReha[]"
                     value="RUSSKA laguna Duschhocker mit Hygieneausschnitt 78700800" /><span class="img-wrap"><img
                       src="./assets/78700800.jpg" alt="78700800" /></span><span class="caption">RUSSKA laguna
@@ -6405,7 +6535,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78700800" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78701700" name="optReha[]"
                     value="Duschstuhl mit Armlehnen und Rückenlehne 78701700" /><span class="img-wrap"><img
                       src="./assets/78701700.jpg" alt="78701700" /></span><span class="caption">Duschstuhl mit Armlehnen
@@ -6415,7 +6545,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78701700" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78700400" name="optReha[]"
                     value="RUSSKA laguna Duschstuhl 78700400" /><span class="img-wrap"><img src="./assets/78700400.jpg"
                       alt="78700400" /></span><span class="caption">RUSSKA laguna Duschstuhl 78700400</span></label>
@@ -6424,7 +6554,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78700400" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78701500" name="optReha[]"
                     value="Duschstuhl mit Rückenlehne 78701500" /><span class="img-wrap"><img
                       src="./assets/78701500.jpg" alt="78701500" /></span><span class="caption">Duschstuhl mit
@@ -6434,7 +6564,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78701500" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78700750" name="optReha[]"
                     value="Soft-Auflage zu laguna Duschstuhl 78700750" /><span class="img-wrap"><img
                       src="./assets/78700750.jpg" alt="78700750" /></span><span class="caption">Soft-Auflage zu laguna
@@ -6444,7 +6574,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78700750" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78700850" name="optReha[]"
                     value="Soft-Auflage zu laguna Duschhocker und Duschstuhl mit Hygieneausschnitt 78700850" /><span
                     class="img-wrap"><img src="./assets/78700850.jpg" alt="78700850" /></span><span
@@ -6455,7 +6585,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78700850" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_11096600" name="optReha[]"
                     value="RUSSKA Funk-Sensormatte Step Control rechteckig 75 x 55 x 1 cm (ohne Empfänger Plus) 11096600" /><span
                     class="img-wrap"><img src="./assets/11096600.jpg" alt="11096600" /></span><span
@@ -6466,7 +6596,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_11096600" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_11096610" name="optReha[]"
                     value=" RUSSKA Funk-Sensormatte Step Control halbrund 110 x 70 x 1 cm (ohne Empfänger Plus) 11096610" /><span
                     class="img-wrap"><img src="./assets/11096610.jpg" alt="11096610" /></span><span class="caption">
@@ -6477,7 +6607,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_11096610" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_11020600" name="optReha[]"
                     value="RUSSKA Drehsitz Komfort 11020600" /><span class="img-wrap"><img src="./assets/11020600.jpg"
                       alt="11020600" /></span><span class="caption">RUSSKA Drehsitz Komfort 11020600</span></label>
@@ -6486,7 +6616,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_11020600" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_11020700" name="optReha[]"
                     value="RUSSKA Aufstehhilfe: für Körpergewicht 35–105 kg 11020700" /><span class="img-wrap"><img
                       src="./assets/11020700.jpg" alt="11020700" /></span><span class="caption">RUSSKA Aufstehhilfe: für
@@ -6496,7 +6626,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_11020700" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_11020710" name="optReha[]"
                     value="Aufstehhilfe: für Körpergewicht 60–180 kg 11020710" /><span class="img-wrap"><img
                       src="./assets/11020710.jpg" alt="11020710" /></span><span class="caption">Aufstehhilfe: für
@@ -6506,7 +6636,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_11020710" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_11020300" name="optReha[]"
                     value="RUSSKA Flexibler Drehsitz 11020300" /><span class="img-wrap"><img src="./assets/11020300.jpg"
                       alt="11020300" /></span><span class="caption">RUSSKA Flexibler Drehsitz 11020300</span></label>
@@ -6515,7 +6645,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_11020300" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_14661000" name="optReha[]"
                     value="Greifhilfe Classic 45 cm 14661000" /><span class="img-wrap"><img src="./assets/14661000.jpg"
                       alt="14661000" /></span><span class="caption">Greifhilfe Classic 45 cm 14661000</span></label>
@@ -6524,7 +6654,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_14661000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_14662000" name="optReha[]"
                     value="Greifhilfe Classic 70 cm 14662000" /><span class="img-wrap"><img src="./assets/14662000.jpg"
                       alt="14662000" /></span><span class="caption">Greifhilfe Classic 70 cm 14662000</span></label>
@@ -6533,7 +6663,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_14662000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_26013000" name="optReha[]"
                     value="RUSSKA Strumpf-Anziehhilfe aus Frottee 26013000" /><span class="img-wrap"><img
                       src="./assets/26013000.jpg" alt="26013000" /></span><span class="caption">RUSSKA
@@ -6543,7 +6673,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_26013000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_26014000" name="optReha[]"
                     value="Strumpf-Anziehhilfe aus Kunststoff kleine Nuten 26014000" /><span class="img-wrap"><img
                       src="./assets/26014000.jpg" alt="26014000" /></span><span class="caption">Strumpf-Anziehhilfe aus
@@ -6553,7 +6683,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_26014000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_26014200" name="optReha[]"
                     value="Strumpf-Anziehhilfe aus Kunststoff große Nuten 26014200" /><span class="img-wrap"><img
                       src="./assets/26014200.jpg" alt="26014200" /></span><span class="caption">Strumpf-Anziehhilfe aus
@@ -6563,7 +6693,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_26014200" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_091095504" name="optReha[]"
                     value="homecraft Strumpfhosen-Anziehhilfe Dorking 091095504" /><span class="img-wrap"><img
                       src="./assets/091095504.jpg" alt="091095504" /></span><span class="caption">homecraft
@@ -6573,7 +6703,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_091095504" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_10440000" name="optReha[]"
                     value="RUSSKA Teleskopischer Schuhanzieher 10440000" /><span class="img-wrap"><img
                       src="./assets/10440000.jpg" alt="10440000" /></span><span class="caption">RUSSKA Teleskopischer
@@ -6583,7 +6713,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_10440000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78061000" name="optReha[]"
                     value="Badebrett Deluxe mit Soft-Drehsitz 78061000" /><span class="img-wrap"><img src="./assets/78061000.jpg"
                       alt="78061000" /></span><span class="caption">Badebrett Deluxe mit Soft-Drehsitz 78061000</span></label>
@@ -6592,7 +6722,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78061000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78062300" name="optReha[]"
                     value="RUSSKA Drehbarer Aluminium-Badewannensitz mit Armlehnen und Rückenlehne 78062300" /><span class="img-wrap"><img src="./assets/78062300.jpg"
                       alt="78062300" /></span><span class="caption">RUSSKA Drehbarer Aluminium-Badewannensitz mit Armlehnen und Rückenlehne 78062300</span></label>
@@ -6601,7 +6731,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78062300" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78700150" name="optReha[]"
                     value="Soft-Auflage zu laguna Badewannensitzen hellgrau 78700150" /><span class="img-wrap"><img src="./assets/78700150.jpg"
                       alt="78700150" /></span><span class="caption">Soft-Auflage zu laguna Badewannensitzen hellgrau 78700150</span></label>
@@ -6610,7 +6740,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78700150" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78058100" name="optReha[]"
                     value="Badebrett Basic 68 cm 78058100" /><span class="img-wrap"><img src="./assets/78058100.jpg"
                       alt="78058100" /></span><span class="caption">Badebrett Basic 68 cm 78058100</span></label>
@@ -6619,7 +6749,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78058100" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78059100" name="optReha[]"
                     value="Badebrett Basic 73 cm 78059100" /><span class="img-wrap"><img src="./assets/78059100.jpg"
                       alt="78059100" /></span><span class="caption">Badebrett Basic 73 cm 78059100</span></label>
@@ -6628,7 +6758,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78059100" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78700000" name="optReha[]"
                     value="RUSSKA laguna Badewannensitz ohne Rückenlehne 78700000" /><span class="img-wrap"><img src="./assets/78700000.jpg"
                       alt="78700000" /></span><span class="caption">RUSSKA laguna Badewannensitz ohne Rückenlehne 78700000</span></label>
@@ -6637,7 +6767,7 @@ button.dm-btn-danger:focus-visible {
                     name="qty_78700000" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
-              <div class="opt-item">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_78700100" name="optReha[]"
                     value="RUSSKA laguna Badewannensitz mit Rückenlehne 78700100" /><span class="img-wrap"><img src="./assets/78700100.jpg"
                       alt="78700100" /></span><span class="caption">RUSSKA laguna Badewannensitz mit Rückenlehne 78700100</span></label>
@@ -6654,9 +6784,8 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div id="menu_SHOWER" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Duscharmatur</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
-              <div class="field" style="min-width: 220px">
+            <div class="opt-tile-grid">
+              <div class="field">
                 <label class="image-check"><input type="checkbox" id="opt_V22WS1R" name="optShower[]"
                     value="Wannenset individual 2.2 m.Wandhalter Schlauch u.HB 1-str. rund verchr. VIGOUR V22WS1R" /><span
                     class="img-wrap"><img src="./assets/V22WS1R.jpg" alt="V22WS1R" /></span><span
@@ -6700,12 +6829,22 @@ button.dm-btn-danger:focus-visible {
                     name="qty_V12DS250E" type="number" min="0" step="1" placeholder="0" />
                 </div>
               </div>
+              <div class="field" style="min-width: 220px">
+                <label class="image-check"><input type="checkbox" id="opt_STRAYT" name="optShower[]"
+                    value="Duschsäule m.Thermostat Strayt STRAYT" /><span
+                    class="img-wrap"><img src="./assets/STRAYT.jpg" alt="STRAYT" /></span><span
+                    class="caption">Duschsäule m.Thermostat Strayt Chrom Poliert
+                    </span></label>
+                <div id="qty_STRAYT_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
+                  <label for="qty_STRAYT" class="req">Menge STRAYT</label><input id="qty_STRAYT"
+                    name="qty_STRAYT" type="number" min="0" step="1" placeholder="0" />
+                </div>
+              </div>
             </div>
           </div>
 
           <div id="menu_THERMO" class="full field" hidden aria-hidden="true">
-            <div class="subheader">AP‑Thermostat / Brausebatterie</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <div class="opt-tile-grid">
               <div class="field" style="min-width: 220px">
                 <label class="image-check"><input type="checkbox" id="opt_CLTB" name="optThermo[]"
                     value="AP-Brause-Thermostat clivia, ohne Brausegarnitur CLTB" /><span class="img-wrap"><img
@@ -6743,8 +6882,7 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div id="menu_GRAB" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Haltegriffe</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <div class="opt-tile-grid">
 
               <div class="field" style="min-width: 220px">
                 <label class="image-check"><input type="checkbox" id="opt_CLPESG30" name="optGrab[]"
@@ -6793,8 +6931,7 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div id="menu_FOLD" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Stützklappgriff</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <div class="opt-tile-grid">
               <div class="field" style="min-width: 220px">
                 <label class="image-check"><input type="checkbox" id="opt_DEPSKG60" name="optFold[]"
                     value="Stützklappgriff derby plus 600mm verchromt VIGOUR DEPSKG60" /><span class="img-wrap"><img
@@ -6819,8 +6956,7 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div id="menu_SEAT" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Duschhocker </div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <div class="opt-tile-grid">
 
               <div class="field" style="min-width: 220px" hidden>
                 <label class="image-check"><input type="checkbox" id="opt_DEPKS" name="optSeat[]"
@@ -6864,8 +7000,7 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div id="menu_BASIN_TAP" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Einhand‑Waschtischbatterie</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <div class="opt-tile-grid">
               <div class="field" style="min-width: 220px">
                 <label class="image-check"><input type="checkbox" id="opt_CL_BASIN" name="optBasinTap[]"
                     value="Einhand-Waschtischbatterie clivia mit Ablaufgarnitur verchromt VIGOUR CL" /><span
@@ -6902,7 +7037,7 @@ button.dm-btn-danger:focus-visible {
             </div>
             <!-- Pflichtzubehör bei ausgewählter ONSHB -->
             <div id="tapRequiredWrap" class="muted" hidden aria-hidden="true" style="margin-top: 8px">
-              <div class="subheader">Erforderliches Zubehör</div>
+              <h4>Erforderliches Zubehör</h4>
               <div style="display: flex; gap: 14px; flex-wrap: wrap">
                 <div class="field" style="min-width: 220px">
                   <label class="image-check"><input type="checkbox" id="opt_YNORGH21825" name="optBasinTapAcc[]"
@@ -6922,7 +7057,7 @@ button.dm-btn-danger:focus-visible {
           <div id="menu_BASIN" class="full field" hidden aria-hidden="true">
             <h4 class="basin-section-title">Waschtisch ohne Unterschrank</h4>
             <p class="basin-required-sub">Sobald ein Waschbecken <strong>oder</strong> ein Sonderprodukt ausgewählt ist, ergänzt der Konfigurator automatisch Befestigungssatz und Siphon. Bei mehreren Auswahlen bleibt es bei einer Zeile je Artikel – nur die Menge summiert sich.</p>
-            <div class="basin-tile-grid">
+            <div class="opt-tile-grid">
               <div class="field" style="min-width: 0">
                 <label class="image-check"><input type="checkbox" id="opt_CL60" name="optBasin[]"
                     value="Waschtisch clivia 60x48 cm weiß VIGOUR CL60" /><span class="img-wrap"><img
@@ -7006,6 +7141,24 @@ button.dm-btn-danger:focus-visible {
                 </div>
               </div>
 
+              <!-- DEP65U -->
+              <div class="field" style="min-width: 0">
+                <label class="image-check">
+                  <input type="checkbox" id="opt_DEP65U" name="optBasin[]"
+                    value="Waschtisch derby plus care 65x55 cm unterfahrbar weiss VIGOUR DEP65U" />
+                  <span class="img-wrap">
+                    <img src="./assets/DEP65U.jpg" alt="DEP65U" />
+                  </span>
+                  <span class="caption">
+                    Waschtisch derby plus care 65x55 cm DEP65U
+                  </span>
+                </label>
+                <div id="qty_DEP65U_wrap" class="field" hidden aria-hidden="true" style="max-width: 220px">
+                  <label for="qty_DEP65U" class="req">Menge DEP65U</label>
+                  <input id="qty_DEP65U" name="qty_DEP65U" type="number" min="0" step="1" placeholder="0" />
+                </div>
+              </div>
+
               <!-- Sonderprodukt: freier Posten, löst dieselbe Pflichtzubehör-Automatik aus wie ein Katalog-Waschtisch -->
               <div class="field" style="min-width: 0">
                 <label class="image-check tile-custom"><input type="checkbox" id="opt_BASIN_SONDER" name="optBasin[]"
@@ -7034,7 +7187,7 @@ button.dm-btn-danger:focus-visible {
               <p class="basin-required-sub">
                 Wird ergänzt, sobald oben ein Waschbecken oder ein Sonderprodukt gewählt ist, und wieder entfernt, sobald keine Auswahl mehr besteht. Die Menge kann bei Bedarf jederzeit manuell reduziert werden.
               </p>
-              <div class="basin-tile-grid">
+              <div class="opt-tile-grid">
                 <!-- WTBF (required when basin selected) -->
                 <div class="field" style="min-width: 0">
                   <label class="image-check"><input type="checkbox" id="opt_WTBF" name="optBasinAcc[]"
@@ -7070,7 +7223,7 @@ button.dm-btn-danger:focus-visible {
               <!-- Optional zu Waschtisch ohne Unterschrank -->
               <div class="full field" style="margin-top: 12px">
                 <h4 class="basin-section-title">Optional zu Waschtisch ohne Unterschrank</h4>
-                <div class="basin-tile-grid">
+                <div class="opt-tile-grid">
                   <div class="field" style="min-width: 0">
                     <label class="image-check"><input type="checkbox" id="opt_EV" name="optBasinAcc[]"
                         value='SCHELL Eckventil COMFORT regulierbar ASAG 1/2" chrom EV' /><span class="img-wrap"><img
@@ -7131,8 +7284,7 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div id="menu_METER" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Verlege-Meter</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <div class="opt-tile-grid">
               <div class="field" style="min-width: 220px">
                 <label class="image-check"><input type="checkbox" id="opt_TECEADS" name="optMeter[]"
                     value="TECE ADS Abdichtung/Verlegung pro Meter TECEADS" /><span class="img-wrap"><img
@@ -7146,8 +7298,7 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
           <div id="menu_RAMPE" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Rampe</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <div class="opt-tile-grid">
               <div class="field" style="min-width: 220px">
                 <label class="image-check"><input type="checkbox" id="opt_RAMPE35" name="optRampe[]"
                     value="Rampe 3.5 cm Hoch" /><span class="img-wrap"><img src="./assets/rampe.PNG"
@@ -7160,38 +7311,90 @@ button.dm-btn-danger:focus-visible {
             </div>
           </div>
           <div id="menu_WANNE" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Wanne</div>
-            <div class="muted" style="margin-top: 6px">
-              Dieser Bereich ist vorbereitet und kann bei Bedarf um passende Wannenprodukte erweitert werden.
+            <style>
+              #menu_WANNE .wanne-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 14px; }
+              #menu_WANNE .wanne-seg { display: inline-flex; border: 1.5px solid var(--input-border); border-radius: 10px; overflow: hidden; background: var(--bg); }
+              /* These controls are <button>s, and the app's global button colour is
+                 white — so every one of them must set its own colour, or its text
+                 and any child without an explicit colour renders white on white. */
+              #menu_WANNE .wanne-seg button { border: 0; background: var(--panel); color: var(--muted); font: inherit; font-size: 14px; font-weight: 520; padding: 8px 18px; cursor: pointer; transition: background .12s, color .12s; }
+              #menu_WANNE .wanne-seg button + button { border-left: 1px solid var(--border); }
+              #menu_WANNE .wanne-seg button:hover { background: var(--bg); color: var(--text); }
+              #menu_WANNE .wanne-seg button[aria-pressed="true"] { background: var(--accent); color: #fff; font-weight: 640; }
+              #menu_WANNE .wanne-count { color: var(--muted); font-size: 13px; font-weight: 600; padding: 4px 2px; }
+              #menu_WANNE .wanne-reset { margin-left: auto; padding: 7px 14px; font-size: 12.5px; border-radius: 8px; }
+              #menu_WANNE .wanne-fgroup { margin-bottom: 10px; }
+              #menu_WANNE .wanne-flabel { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+              #menu_WANNE .wanne-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+              #menu_WANNE .wanne-chip { border: 1px solid var(--border); background: var(--panel); color: var(--text); border-radius: 999px; font: inherit; font-size: 12.5px; font-weight: 600; padding: 5px 12px; cursor: pointer; transition: background .12s, border-color .12s, color .12s; }
+              #menu_WANNE .wanne-chip[aria-pressed="true"] { background: var(--accent-weak); border-color: var(--accent); color: var(--accent-strong); }
+              #menu_WANNE .wanne-chip[disabled] { opacity: .4; cursor: default; }
+              #menu_WANNE .wanne-chip .n { color: var(--muted); }
+              #menu_WANNE .wanne-chip[aria-pressed="true"] .n { color: inherit; opacity: .75; }
+              #menu_WANNE .wanne-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 10px; }
+              #menu_WANNE .wanne-card { text-align: left; background: var(--panel); color: var(--text); border: 2px solid var(--border); border-radius: 12px; padding: 12px; font: inherit; cursor: pointer; display: flex; gap: 12px; align-items: flex-start; width: 100%; transition: border-color .15s, box-shadow .15s; }
+              #menu_WANNE .wanne-card:hover { border-color: var(--input-border); }
+              #menu_WANNE .wanne-card[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+              #menu_WANNE .wanne-thumb { flex: 0 0 72px; width: 72px; aspect-ratio: 4/5; background: var(--bg); border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+              #menu_WANNE .wanne-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+              /* min-width:0 keeps the long product names from pushing the
+                 thumbnail out of the card instead of wrapping. */
+              #menu_WANNE .wanne-body { min-width: 0; flex: 1; }
+              #menu_WANNE .wanne-art { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: var(--muted); }
+              #menu_WANNE .wanne-name { font-size: 13px; line-height: 1.35; margin: 2px 0 6px; color: var(--text); }
+              #menu_WANNE .wanne-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
+              #menu_WANNE .wanne-pill { font-size: 11px; background: var(--section-bg); color: var(--muted); border-radius: 6px; padding: 2px 7px; }
+              #menu_WANNE .wanne-finish { font-size: 11px; color: var(--muted); margin-bottom: 7px; }
+              #menu_WANNE .wanne-price { font-size: 15px; font-weight: 700; color: var(--text); }
+              #menu_WANNE .wanne-reco { display: inline-block; font-size: 11px; font-weight: 600; background: var(--accent-weak); color: var(--accent-strong); border-radius: 6px; padding: 2px 8px; margin-bottom: 5px; }
+              #menu_WANNE .wanne-summary { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text); }
+              #menu_WANNE .wanne-empty { display: inline-block; padding: 4px 0; color: #000; }
+            </style>
+
+            <div class="wanne-bar">
+              <div class="wanne-seg" role="group" aria-label="Produkttyp">
+                <button type="button" data-wtype="tub" aria-pressed="true">Badewanne</button>
+                <button type="button" data-wtype="screen" aria-pressed="false">Wannenaufsatz</button>
+              </div>
+              <span id="wanneCount" class="wanne-count"></span>
+              <button type="button" id="wanneReset" class="secondary wanne-reset">Filter zurücksetzen</button>
             </div>
+
+            <div id="wanneFilters"></div>
+            <div id="wanneGrid" class="wanne-grid"></div>
+            <div id="wanneSummary" class="wanne-summary"></div>
+
+            <input type="hidden" id="chosenBathtubProductId" name="chosenBathtubProductId" />
+            <input type="hidden" id="bathtubSize" name="bathtubSize" />
+            <input type="hidden" id="chosenBathtubName" name="chosenBathtubName" />
+            <input type="hidden" id="chosenBathtubPrice" name="chosenBathtubPrice" />
+            <input type="hidden" id="chosenScreenProductId" name="chosenScreenProductId" />
+            <input type="hidden" id="chosenScreenName" name="chosenScreenName" />
+            <input type="hidden" id="chosenScreenPrice" name="chosenScreenPrice" />
           </div>
           <!-- NEW children for “Sonderprodukte” -->
           <div id="menu_WC" class="full field wc-menu" hidden aria-hidden="true">
-            <div class="subheader">WC</div>
+            <div class="wc-option-group">
+              <label class="req">Montageart</label>
+              <div class="wc-montage-grid">
+                <label class="image-radio wc-montage-card large">
+                  <input type="radio" name="wcMontage" value="Wandmontage" />
+                  <span class="img-wrap">
+                    <img src="./assets/Wandmontage.jpg" alt="Wandmontage WC" />
+                  </span>
+                  <span class="caption">Wandmontage</span>
+                </label>
 
-           <div class="wc-option-group">
-  <label class="req">Montageart</label>
+                <label class="image-radio wc-montage-card large">
+                  <input type="radio" name="wcMontage" value="Bodenmontage" />
+                  <span class="img-wrap">
+                    <img src="./assets/Bodenmontage.jpg" alt="Bodenmontage WC" />
+                  </span>
+                  <span class="caption">Bodenmontage</span>
+                </label>
 
-  <div class="wc-montage-grid">
-
-    <label class="image-radio wc-montage-card large">
-      <input type="radio" name="wcMontage" value="Wandmontage" />
-      <span class="img-wrap">
-        <img src="./assets/Wandmontage.jpg" alt="Wandmontage WC" />
-      </span>
-      <span class="caption">Wandmontage</span>
-    </label>
-
-    <label class="image-radio wc-montage-card large">
-      <input type="radio" name="wcMontage" value="Bodenmontage" />
-      <span class="img-wrap">
-        <img src="./assets/Bodenmontage.jpg" alt="Bodenmontage WC" />
-      </span>
-      <span class="caption">Bodenmontage</span>
-    </label>
-
-  </div>
-</div>
+              </div>
+            </div>
 
             <div id="wcSeatHeightWrap" class="wc-option-group" hidden aria-hidden="true">
               <label class="req">Sitzhöhe</label>
@@ -7209,15 +7412,15 @@ button.dm-btn-danger:focus-visible {
               </div>
             </div>
 
-            <div id="wcWallProductsWrap" class="wc-option-group" hidden aria-hidden="true">
+            <div id="wcWallProductsWrap" hidden aria-hidden="true">
             
               <div id="wcWallProductsGrid" class="opt-grid"></div>
             </div>
           </div>
 
           <div id="menu_WESGH" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Wandeinbau-Waschgeräte-Siphon komplett DN 40/50</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <h4>Wandeinbau-Waschgeräte-Siphon komplett DN 40/50</h4>
+            <div class="opt-tile-grid">
               <div class="field" style="min-width: 220px">
                 <label class="image-check"><input type="checkbox" id="opt_WESGH" name="optWesgh[]"
                     value="Wandeinbau-Waschgeraete-Siphon komplett DN 40/50" /><span class="img-wrap"><img src="./assets/WESGH.jpg"
@@ -7231,7 +7434,7 @@ button.dm-btn-danger:focus-visible {
             <div id="wesghRequiredWrap" class="muted" hidden aria-hidden="true" style="margin-top:8px">
               <div class="subheader">Erforderliches Zubehör</div>
               <div style="display: flex; gap: 14px; flex-wrap: wrap">
-                <div class="opt-item">
+                <div class="field">
                   <label class="image-check">
                     <input type="checkbox" id="opt_TRGAVS15" name="optWesgh[]"
                       value="Geräte-Schrägsitzventil TRINNITY 1/2&quot; m.Rückflussverh.verchromt TRGAVS15" />
@@ -7243,7 +7446,7 @@ button.dm-btn-danger:focus-visible {
                     <input id="qty_TRGAVS15" name="qty_TRGAVS15" type="number" min="0" step="1" placeholder="0" />
                   </div>
                 </div>
-                <div class="opt-item">
+                <div class="field">
                   <label class="image-check">
                     <input type="checkbox" id="opt_INSTMATROH" name="optWesgh[]"
                       value="Installations Material Roh INSTMATROH" />
@@ -7301,8 +7504,7 @@ button.dm-btn-danger:focus-visible {
           </div>
 
           <div id="menu_DUSCHZUB" class="full field" hidden aria-hidden="true">
-            <div class="subheader">Duschzubehör</div>
-            <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <div class="opt-tile-grid">
               <div class="field" style="min-width: 220px">
                 <label class="image-check"><input type="checkbox" id="opt_DUSCHKORB01" name="optDuschzub[]"
                     value="Duschkorb Duschablage ohne Bohren - Shampoohalter zum Kleben aus rostfreiem Edelstahl mit Original 3M-Klebepads, 2 beweglichen Haken, Extra-Rasierhalter (Edelstahl Silber) DUSCHKORB01" /><span
@@ -7450,7 +7652,7 @@ button.dm-btn-danger:focus-visible {
               <label class="check-pill">
                 <input type="checkbox" id="rb-bonus-300" />
                 <span class="box"></span>
-                <span>Möchten Sie den Neu- oder Bestandskundenbonus in Höhe von 252,10 € hinzufügen?
+                <span>Möchten Sie den Neukundenbonus in Höhe von 252,10 € hinzufügen?
                   (Rabatt von 300 € ab einem Gesamtwert von 3.000 €)</span>
               </label>
             </div>
@@ -7460,14 +7662,6 @@ button.dm-btn-danger:focus-visible {
                 <input type="checkbox" id="rb-bonus-grab" />
                 <span class="box"></span>
                 <span>Aktion: Haltegriff GRATIS: 1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage.</span>
-              </label>
-            </div>
-
-            <div class="full field" id="rb-show-free-grab-row" hidden aria-hidden="true" style="display:none; padding-left:28px; margin-top:-6px;">
-              <label class="check-pill" style="border-style:dashed;">
-                <input type="checkbox" id="rb-show-free-grab" />
-                <span class="box"></span>
-                <span>Möchten Sie die Haltegriffe im Angebot zeigen?</span>
               </label>
             </div>
 
@@ -7998,13 +8192,14 @@ button.dm-btn-danger:focus-visible {
             </div>
           </section>
 
-          <!-- Kassenkunden-Dokumente: which optional documents ship with this Kassenkunde offer. Drives 3 places, all reading the same state:
+          <!-- Mitgesendete Unterlagen: which optional documents ship with this offer. Drives 3 places, all reading the same state:
               EmailManager.js (mail attachment tiles + body text list), initPostalSending() below (Post-Anhänge), and signing.js
               (createSigningRequest reads payload.docSelection to decide which documents the online-signing link requires). Angebot itself is
-              not a checkbox — it is always included. -->
+              not a checkbox — it is always included. Shown for Kassenkunde and Selbstzahler; the payer only seeds the default tick state
+              (applyPayerDocDefaults in script.js) — Selbstzahler starts without Abtretung/Vollmacht but can opt in. -->
           <section id="zfDocSelectionCard" class="bitrix-section" hidden aria-hidden="true">
-            <h2 class="section-title">Kassenkunden-Dokumente</h2>
-            <p class="section-subtitle">Bestimmt, welche Unterlagen mitgehen — in der E-Mail, als PDF-Anhang, im Postversand und in der Online-Unterschrift. Das Angebot ist immer enthalten.</p>
+            <h2 class="section-title">Mitgesendete Unterlagen</h2>
+            <p class="section-subtitle">Bestimmt, welche Unterlagen mitgehen — in der E-Mail, als PDF-Anhang, im Postversand und in der Online-Unterschrift. Das Angebot ist immer enthalten. Bei Selbstzahlern sind Abtretung und Vollmacht voreingestellt abgewählt.</p>
             <div class="bitrix-card doc-select-card">
               <label class="inline-check doc-select-row">
                 <input type="checkbox" id="docSel_abtretung" checked />
@@ -8012,7 +8207,7 @@ button.dm-btn-danger:focus-visible {
               </label>
               <label class="inline-check doc-select-row">
                 <input type="checkbox" id="docSel_vollmacht" checked />
-                <span>Vollmacht zur Beantragung des Zuschusses nach §40 SGB XI</span>
+                <span>Vollmacht zur Beantragung des Zuschusses nach §40 Abs. 3,4,5 SGB XI</span>
               </label>
               <label class="inline-check doc-select-row">
                 <input type="checkbox" id="docSel_barrierefrei" checked />
@@ -8022,7 +8217,31 @@ button.dm-btn-danger:focus-visible {
           </section>
 
           <!-- Email Versand (unter PDF Vorschau) -->
-<section class="mail-section">
+<!-- Interne Notiz: goes ONLY to a separate Bitrix timeline comment (email.js / post.js),
+     never into the mail body, PDF or post payload. -->
+<section class="internal-note-card" id="internalNoteCard">
+  <label for="internalNote" class="internal-note-label">🔒 Interne Notiz fürs Team (nur in Bitrix, nicht für Kunden)</label>
+  <textarea id="internalNote" rows="3" maxlength="5000" placeholder="z. B. Besonderheiten, Absprachen, Hinweise für Innendienst/Montage …"></textarea>
+  <p class="internal-note-hint">Erscheint als eigener Kommentar in der Deal-Timeline. Wird nicht in E-Mail, PDF oder Brief übernommen.</p>
+</section>
+
+<!-- Versandart: E-Mail vs Post. Replaces the old "Versand per Post" toggle in
+     Kundendaten — both ways are always available now, you just switch tab.
+     The "Mitgesendete Unterlagen" card above stays shared: one tick state
+     feeds mail, post and the signing link. -->
+<div class="send-tab-switcher" role="tablist" aria-label="Versandart">
+  <button type="button" role="tab" id="sendTabBtn-mail" data-send-tab="mail"
+          aria-controls="sendTabPanel-mail" aria-selected="true" class="is-active">
+    ✉️ Angebot per E-Mail
+  </button>
+  <button type="button" role="tab" id="sendTabBtn-post" data-send-tab="post"
+          aria-controls="sendTabPanel-post" aria-selected="false">
+    📮 Angebot per Post
+  </button>
+</div>
+
+<section class="mail-section" id="sendTabPanel-mail" role="tabpanel"
+         data-send-panel="mail" aria-labelledby="sendTabBtn-mail">
   <h2 class="section-title">Angebot per E-Mail senden</h2>
 
   <div class="mail-card">
@@ -8066,20 +8285,77 @@ button.dm-btn-danger:focus-visible {
       <input id="mailEditedDocx" type="file" accept=".docx" hidden />
     </div>
 
-    <label for="mailAttachments">Zusätzliche Anhänge (optional)</label>
-    <input id="mailAttachments" type="file" multiple />
+    <!-- Attachments: the file input is driven by the "+ Datei" button in the
+         panel header; EmailManager.js renders the rows into #mailAttachmentList. -->
+    <input id="mailAttachments" type="file" multiple hidden />
 
-    <!-- Visible attachments list -->
     <div class="mail-attach-box">
-      <div class="mail-attach-title">Anhänge</div>
-  <div id="mailAttachmentList" class="mail-attach-grid"></div>
-        <div class="mail-attach-hint">Mit „✕“ kann ein Anhang entfernt werden.</div>
+      <div class="mail-attach-head">
+        <div class="mail-attach-title">Anhänge</div>
+        <span id="mailAttachCount" class="mail-attach-count">0 Dateien</span>
+        <label for="mailAttachments" class="mail-attach-add">+ Datei hinzufügen</label>
+      </div>
+      <div id="mailAttachmentList" class="mail-attach-grid"></div>
+
+      <!-- Produktbilder-PDF: optional second attachment with product images -->
+      <div class="mail-attach-head mail-attach-head--sub mail-prodimg-head">
+        <label class="mail-prodimg-toggle">
+          <input type="checkbox" id="mailIncludeProductImages" />
+          <span>Produktbilder-PDF anhängen</span>
+        </label>
+      </div>
+      <div id="mailProductImgPanel" hidden>
+        <div id="mailProductImgList" class="mail-prodimg-list"></div>
+        <div class="mail-attach-hint" id="mailProductImgHint" hidden>Keine Produkte mit Bild gefunden.</div>
+        <button type="button" id="mailProductImgPreview" class="btn-secondary mail-prodimg-preview-btn">PDF Vorschau</button>
+      </div>
+
+      <!-- Bitrix-only uploads: never attached to the customer email, they ride
+           along to the Deal-Timeline on send (backend field: bitrixDocs). -->
+      <input id="mailBitrixAttachments" type="file" multiple hidden />
+
+      <div class="mail-attach-head mail-attach-head--sub">
+        <div class="mail-attach-title">Nur für Bitrix</div>
+        <span id="mailBitrixAttachCount" class="mail-attach-count">0 Dateien</span>
+        <label for="mailBitrixAttachments" class="mail-attach-add">+ Datei hinzufügen</label>
+      </div>
+      <div id="mailBitrixAttachmentList" class="mail-attach-grid"></div>
+      <!-- iPad workflow: magicplan screenshot → Fotos → hier auswählen. On iOS
+           the file input opens the native sheet (Fotomediathek / Foto aufnehmen
+           / Dateien). Images are downscaled client-side before they are queued
+           into the Bitrix-only list. -->
+      <div id="planDropZone" class="plan-zone" role="button" tabindex="0"
+           aria-label="Grundriss oder Foto hinzufügen">
+        <div class="plan-zone-badge">📐</div>
+        <div class="plan-zone-text">
+          <div class="plan-zone-title">Grundriss / Fotos hinzufügen</div>
+          <div class="plan-zone-sub">
+            magicplan-Screenshot aus „Fotos“ wählen, Bild einfügen (⌘V) oder hier ablegen.
+            Landet in der Bitrix-Timeline, nicht in der Kunden-E-Mail.
+          </div>
+        </div>
+        <input id="planFiles" type="file" accept="image/*" multiple hidden />
+      </div>
+
+      <div class="mail-attach-hint">
+        Diese Dateien gehen nicht an den Kunden — sie landen beim Senden nur in der Bitrix-Timeline.
+      </div>
     </div>
 
-    <button type="button" id="sendOfferMail" class="btn-export btn-pdf">
-      <span class="btn-icon">📨</span>
-      Senden
-    </button>
+    <div class="mail-send-row">
+      <button type="button" id="sendOfferMail" class="btn-export btn-pdf">
+        <span class="btn-icon">📨</span>
+        An Kunden senden
+      </button>
+      <button type="button" id="sendOfferBitrix" class="btn-export btn-bitrix-only">
+        <span class="btn-icon">📎</span>
+        Nur in Bitrix ablegen
+      </button>
+    </div>
+    <div class="mail-send-note">
+      „Nur in Bitrix ablegen“ erzeugt dieselben Dokumente und hängt sie an die Deal-Timeline —
+      ohne E-Mail an den Kunden und ohne Unterschrift-Link.
+    </div>
     <div id="mailDocxSendNote" class="mail-docx-send-note" hidden>
       PDF wird aus Ihrer bearbeiteten Datei erzeugt
     </div>
@@ -8092,9 +8368,20 @@ button.dm-btn-danger:focus-visible {
 
     <div id="mailStatus" class="adobe-status" hidden></div>
   </div>
+</section>
 
-<section class="mail-section post-section" id="postalSummarySection" hidden>
+<section class="mail-section post-section" id="postalSummarySection" role="tabpanel"
+         data-send-panel="post" aria-labelledby="sendTabBtn-post" hidden>
   <h2 class="section-title">Angebot per Post senden</h2>
+
+  <!-- onlinebrief24 reads the address out of the PDF, so an incomplete address
+       means an undeliverable letter. Warn while typing; the send button still
+       blocks hard (validate() in initPostalSending). -->
+  <div id="postAddressWarning" class="post-address-warning" hidden>
+    <strong>Unvollständige Postadresse.</strong>
+    <span id="postAddressWarningFields"></span>
+    Ohne vollständige Anschrift kann der Brief nicht zugestellt werden.
+  </div>
 
   <div class="mail-card post-card">
     <label for="postAuftragId">Lead ID / Auftrag ID</label>
@@ -8127,19 +8414,15 @@ button.dm-btn-danger:focus-visible {
       </div>
     </div>
 
-    <label for="postSubject">Briefbetreff</label>
-    <input id="postSubject" type="text" placeholder="ANG-..." />
-
-    <label for="postBody">Brieftext</label>
-    <textarea id="postBody" rows="16" placeholder="Hello ..."></textarea>
-
     <label for="postAttachments">Zusätzliche Anhänge (optional, PDF)</label>
     <input id="postAttachments" type="file" accept="application/pdf,.pdf" multiple />
 
     <div class="mail-attach-box">
-      <div class="mail-attach-title">Im Postversand enthalten</div>
+      <div class="mail-attach-head">
+        <div class="mail-attach-title">Im Postversand enthalten</div>
+      </div>
       <div id="postAttachmentList" class="mail-attach-grid"></div>
-      <div class="mail-attach-hint">Die Angebots-PDF ist das Hauptdokument für den Postversand. Mit „✕“ können Standard- oder hochgeladene Anhänge vor dem Versand entfernt werden.</div>
+      <div class="mail-attach-hint">Die Angebots-PDF ist der Brief selbst – Anschrift, Betreff und Anschreiben stehen darin. Alles Weitere wird als Anlage beigelegt.</div>
     </div>
 
     <button type="button" id="sendOfferPost" class="btn-export btn-pdf">
@@ -8490,12 +8773,13 @@ button.dm-btn-danger:focus-visible {
                       <input id="bwtDoorStdQty" name="bwtDoorStdQty" type="number" min="1" step="1" placeholder="1"
                         inputmode="numeric" value="1" />
 
-                      <label for="bwtDoorStdColor" class="req">Farbe Universal / Standard Tür</label>
-                      <select id="bwtDoorStdColor" name="bwtDoorStdColor">
-                        <option value="weiß" selected>weiß</option>
-                        <option value="Beige">Beige</option>
-                        <option value="Manhattan">Manhattan</option>
-                      </select>
+                      <label id="bwtDoorStdColorLabel" class="req">Farbe Universal / Standard Tür</label>
+                      <div class="bwt-door-colors" role="radiogroup" aria-labelledby="bwtDoorStdColorLabel">
+                        <input type="text" id="bwtDoorStdColor" name="bwtDoorStdColor" value="weiß" style="display:none" tabindex="-1" aria-hidden="true" />
+                        <button type="button" role="radio" data-value="weiß"><span class="bwt-door-colors__dot" style="background:#fffdfa"></span>Weiß</button>
+                        <button type="button" role="radio" data-value="Beige"><span class="bwt-door-colors__dot" style="background:#FDF5EA"></span>Bahama Beige</button>
+                        <button type="button" role="radio" data-value="Manhattan"><span class="bwt-door-colors__dot" style="background:#D1D0CC"></span>Manhattan</button>
+                      </div>
                     </div>
                   </label>
                 </div>
@@ -8659,12 +8943,13 @@ button.dm-btn-danger:focus-visible {
                       <input id="bwtDoorBudgetQty" name="bwtDoorBudgetQty" type="number" min="1" step="1"
                         placeholder="1" inputmode="numeric" value="1" />
 
-                      <label for="bwtDoorBudgetColor" class="req">Farbe Budget Tür - Verona</label>
-                      <select id="bwtDoorBudgetColor" name="bwtDoorBudgetColor">
-                        <option value="weiß" selected>weiß</option>
-                        <option value="Beige">Beige</option>
-                        <option value="Manhattan">Manhattan</option>
-                      </select>
+                      <label id="bwtDoorBudgetColorLabel" class="req">Farbe Budget Tür - Verona</label>
+                      <div class="bwt-door-colors" role="radiogroup" aria-labelledby="bwtDoorBudgetColorLabel">
+                        <input type="text" id="bwtDoorBudgetColor" name="bwtDoorBudgetColor" value="weiß" style="display:none" tabindex="-1" aria-hidden="true" />
+                        <button type="button" role="radio" data-value="weiß"><span class="bwt-door-colors__dot" style="background:#fffdfa"></span>Weiß</button>
+                        <button type="button" role="radio" data-value="Beige"><span class="bwt-door-colors__dot" style="background:#FDF5EA"></span>Bahama Beige</button>
+                        <button type="button" role="radio" data-value="Manhattan"><span class="bwt-door-colors__dot" style="background:#D1D0CC"></span>Manhattan</button>
+                      </div>
                     </div>
                   </label>
                 </div>
@@ -8684,12 +8969,13 @@ button.dm-btn-danger:focus-visible {
                       <input id="bwtDoorVariodoorQty" name="bwtDoorVariodoorQty" type="number" min="1" step="1"
                         placeholder="1" inputmode="numeric" value="1" />
 
-                      <label for="bwtDoorVariodoorColor" class="req">Farbe Variodoor</label>
-                      <select id="bwtDoorVariodoorColor" name="bwtDoorVariodoorColor">
-                        <option value="weiß" selected>weiß</option>
-                        <option value="Beige">Beige</option>
-                        <option value="Manhattan">Manhattan</option>
-                      </select>
+                      <label id="bwtDoorVariodoorColorLabel" class="req">Farbe Variodoor</label>
+                      <div class="bwt-door-colors" role="radiogroup" aria-labelledby="bwtDoorVariodoorColorLabel">
+                        <input type="text" id="bwtDoorVariodoorColor" name="bwtDoorVariodoorColor" value="weiß" style="display:none" tabindex="-1" aria-hidden="true" />
+                        <button type="button" role="radio" data-value="weiß"><span class="bwt-door-colors__dot" style="background:#fffdfa"></span>Weiß</button>
+                        <button type="button" role="radio" data-value="Beige"><span class="bwt-door-colors__dot" style="background:#FDF5EA"></span>Bahama Beige</button>
+                        <button type="button" role="radio" data-value="Manhattan"><span class="bwt-door-colors__dot" style="background:#D1D0CC"></span>Manhattan</button>
+                      </div>
                     </div>
                   </label>
                 </div>
@@ -8708,74 +8994,32 @@ button.dm-btn-danger:focus-visible {
 
             <div class="bwt-config-grid">
               <div class="bwt-config-card">
-                <label class="bwt-inline-label">Wählen Sie den Türanschlag</label>
+                <div class="bwt-inline-label">Anschlag</div>
+                <p class="bwt-anschlag-hint">Auf welcher Seite sollen die Scharniere der Tür sein?</p>
                 <div class="door-select bwt-door-side-select" id="bwtAnschlagGroup" role="radiogroup" aria-label="Anschlag der Tür">
                   <label class="door-card">
                     <input type="radio" name="bwtAnschlag" value="Links" />
                     <div class="door-image">
-                      <img src="./assets/links.png" alt="Tür-Anschlag links" />
-                      <div class="door-overlay">
-                        <span class="door-label">Tür-Anschlag links</span>
-                      </div>
-                      <div class="door-check">✓</div>
+                      <img src="./assets/BWT/tuerAnschlag/links-anschlag.png" alt="Tür-Anschlag links" />
                     </div>
+                    <span class="door-label">← Links</span>
                   </label>
+
+                  <div class="door-illustration" aria-hidden="true">
+                    <img src="./assets/BWT/tuerAnschlag/tueranschlag-tub.png" alt="" />
+                  </div>
 
                   <label class="door-card">
                     <input type="radio" name="bwtAnschlag" value="Rechts" />
                     <div class="door-image">
-                      <img src="./assets/rechts.jpeg" alt="Tür-Anschlag rechts" />
-                      <div class="door-overlay">
-                        <span class="door-label">Tür-Anschlag rechts</span>
-                      </div>
-                      <div class="door-check">✓</div>
+                      <img src="./assets/BWT/tuerAnschlag/rechts-anschlag.png" alt="Tür-Anschlag rechts" />
                     </div>
+                    <span class="door-label">Rechts →</span>
                   </label>
                 </div>
               </div>
 
               <div class="bwt-config-card">
-                <div class="section-title">Farbe der Tür</div>
-                <p class="section-subtitle">Bitte wählen Sie eine Wunschfarbe aus.</p>
-
-                <div class="color-swatch-group">
-                  <label class="color-swatch">
-                    <input type="radio" name="tray_color" value="Weiß" aria-label="Weiß (#fffdfa)" />
-                    <div class="color-swatch__preview" style="background-color: #fffdfa;"></div>
-                    <div class="color-swatch__info">
-                      <div class="color-swatch__radio">
-                        <div class="color-swatch__radio-inner"></div>
-                      </div>
-                      <span class="color-swatch__label">Weiß</span>
-                      <span class="color-swatch__code">#fffdfa</span>
-                    </div>
-                  </label>
-
-                  <label class="color-swatch">
-                    <input type="radio" name="tray_color" value="manhattan" aria-label="Manhattan (#D1D0CC)" />
-                    <div class="color-swatch__preview" style="background-color: #D1D0CC;"></div>
-                    <div class="color-swatch__info">
-                      <div class="color-swatch__radio">
-                        <div class="color-swatch__radio-inner"></div>
-                      </div>
-                      <span class="color-swatch__label">Manhattan</span>
-                      <span class="color-swatch__code">#D1D0CC</span>
-                    </div>
-                  </label>
-
-                  <label class="color-swatch">
-                    <input type="radio" name="tray_color" value="bahama_beige" aria-label="Bahama Beige (#FDF5EA)" />
-                    <div class="color-swatch__preview" style="background-color: #FDF5EA;"></div>
-                    <div class="color-swatch__info">
-                      <div class="color-swatch__radio">
-                        <div class="color-swatch__radio-inner"></div>
-                      </div>
-                      <span class="color-swatch__label">Bahama Beige</span>
-                      <span class="color-swatch__code">#FDF5EA</span>
-                    </div>
-                  </label>
-                </div>
-
                 <div class="bwt-note-box">
                   <strong>Hinweis:</strong><br>
                   - Zusätzlicher Verschluss 49€ EK-Preis grundsätzlich wird automatisch mitkalkuliert.<br>
@@ -9561,6 +9805,8 @@ button.dm-btn-danger:focus-visible {
           <div class="field full" style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
             <input type="checkbox" id="ahEntlastungAuto" name="ahEntlastungAuto" />
             <label for="ahEntlastungAuto" style="margin:0; font-weight:500;">Dauer automatisch auf Entlastungsbetrag (<span id="ahEntlastungAutoLabelValue">131</span>&nbsp;€/Monat) optimieren</label>
+            <button type="button" id="ahOptimizeAllBtn" class="btn-secondary" style="margin-left:auto; padding:4px 10px; font-size:0.82rem;"
+              title="Alle Zeiten im gleichen Verhältnis anpassen, sodass der Gesamtbetrag in den Entlastungsbetrag passt">⚡ Gesamtzeit auf Entlastungsbetrag optimieren</button>
           </div>
           <!-- Haushaltsnahe Dienstleistungen section -->
           <div class="full" style="border:1px solid var(--border); border-radius:8px; overflow:hidden;">
@@ -10495,13 +10741,42 @@ button.dm-btn-danger:focus-visible {
   <!-- Angebotsart picker — shown when opening a planning appointment in Konfigurator -->
   <div id="planningOfferPickerModal" class="hl-import-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="planningOfferPickerTitle">
     <div class="hl-import-modal__backdrop" id="planningOfferPickerBackdrop"></div>
-    <div class="hl-import-modal__dialog" role="document" style="width:min(560px,94vw)">
+    <div class="hl-import-modal__dialog" role="document" style="width:min(1040px,94vw)">
       <header class="hl-import-modal__head">
         <h3 id="planningOfferPickerTitle" style="margin:0">Welche Angebotsart möchten Sie öffnen?</h3>
         <button type="button" class="hl-import-modal__close" id="planningOfferPickerClose" aria-label="Schließen">&times;</button>
       </header>
       <div class="hl-import-modal__body">
         <div id="planningOfferPickerCards" class="planning-offer-picker-cards"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- "Nicht erreicht" — reason picker before sending a deal back to Besichtigungstermin -->
+  <div id="planningNoContactModal" class="hl-import-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="planningNoContactTitle">
+    <div class="hl-import-modal__backdrop" id="planningNoContactBackdrop"></div>
+    <div class="hl-import-modal__dialog" role="document" style="width:min(520px,94vw)">
+      <header class="hl-import-modal__head">
+        <h3 id="planningNoContactTitle" style="margin:0">Kunde nicht erreicht</h3>
+        <button type="button" class="hl-import-modal__close" id="planningNoContactClose" aria-label="Schlie&szlig;en">&times;</button>
+      </header>
+      <div class="hl-import-modal__body">
+        <p class="nocontact-hint">Der Deal wird zur&uuml;ck auf &bdquo;Besichtigungstermin vereinbaren&ldquo; verschoben und der Grund als Kommentar hinterlegt.</p>
+        <fieldset class="nocontact-reasons">
+          <legend>Grund</legend>
+          <label><input type="radio" name="planningNoContactReason" value="Kunde nicht erreichbar" checked /> <span>Kunde nicht erreichbar</span></label>
+          <label><input type="radio" name="planningNoContactReason" value="Kunde war nicht zu Hause" /> <span>Kunde war nicht zu Hause</span></label>
+          <label><input type="radio" name="planningNoContactReason" value="Termin vom Kunden abgesagt" /> <span>Termin vom Kunden abgesagt</span></label>
+          <label><input type="radio" name="planningNoContactReason" value="Kunde w&uuml;nscht neuen Termin" /> <span>Kunde w&uuml;nscht neuen Termin</span></label>
+          <label><input type="radio" name="planningNoContactReason" value="Falsche / ung&uuml;ltige Kontaktdaten" /> <span>Falsche / ung&uuml;ltige Kontaktdaten</span></label>
+          <label><input type="radio" name="planningNoContactReason" value="Sonstiges" /> <span>Sonstiges</span></label>
+        </fieldset>
+        <label class="nocontact-note-label" for="planningNoContactNote">Kommentar (optional)</label>
+        <textarea id="planningNoContactNote" class="nocontact-note" rows="3" placeholder="Zus&auml;tzliche Anmerkung &hellip;"></textarea>
+        <div class="nocontact-actions">
+          <button type="button" class="secondary" id="planningNoContactCancel">Abbrechen</button>
+          <button type="button" class="nocontact-submit" id="planningNoContactSubmit">Verschieben &amp; kommentieren</button>
+        </div>
       </div>
     </div>
   </div>

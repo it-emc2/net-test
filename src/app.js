@@ -52,10 +52,11 @@ import pricingFactory from "./logic/pricing.js";
 import latexTemplateRouter from "./routes/latex-template.js";
 import adminRouter from "./routes/admin.js";
 import configService, { CONFIG_SCHEMA } from "./services/configService.js";
+import { fetchVigourNetPrices } from "./external/vigorDb.js";
+import UserActionLog from "./models/UserActionLog.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-import UserActionLog from "./models/UserActionLog.js";
 const app = express();
 
 const PORT = process.env.PORT || 3000;
@@ -156,6 +157,11 @@ app.use(
           "https://bau-formular.fly.dev",
           // if your viewer fetches PDFs or assets from unpkg via fetch/XHR:
           "https://unpkg.com",
+          // sw.js caches product images from this host (IMAGE_HOSTS) by
+          // re-fetching them, and a service worker's fetch() is governed by
+          // connect-src, not img-src. Without it every CDN product image fails
+          // with ERR_FAILED as soon as the offline shell is registered.
+          "https://media.onlineplus.store",
         ],
 
         objectSrc: ["'none'"],
@@ -182,6 +188,8 @@ const allowedExact = new Set([
   "http://127.0.0.1:3000",
   "http://localhost:3001",
   "http://127.0.0.1:3001",
+  "http://localhost:3002",
+  "http://127.0.0.1:3002",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "https://emczwei.bitrix24.de",
@@ -241,7 +249,12 @@ app.options(
 
 // ---------------- Common middleware ----------------
 app.use(compression());
-app.use(morgan("dev"));
+app.use(
+  morgan("dev", {
+    // Polling endpoints; they drown out everything else in the logs.
+    skip: (req) => req.path === "/api/version" || req.path === "/api/planning/stream",
+  }),
+);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: "25mb" }));
 
@@ -495,11 +508,64 @@ app.get("/api/products/:id", async (req, res) => {
   }
 });
 
+// ---------------- Vigor product lookup (WV panel suggestion cards + product cards) ----------------
+app.get("/api/vigor-prices", authGate, async (req, res) => {
+  try {
+    const ids = String(req.query.ids || "").split(",").map((s) => s.trim()).filter(Boolean);
+    if (!ids.length) return res.json({});
+
+    if (req.query.full !== "1") {
+      const map = await fetchVigourNetPrices(ids);
+      return res.json(Object.fromEntries(map));
+    }
+
+    // full=1: return rich product info for product cards
+    const { getVigorDb } = await import("./external/vigorDb.js");
+    const db = await getVigorDb();
+    const docs = await db.collection("products")
+      .find({ articleNumber: { $in: ids } }, {
+        projection: { articleNumber: 1, name: 1, netPrice: 1, listPrice: 1, images: 1, stockQuantity: 1, stockText: 1, lastSeenAt: 1 },
+      }).toArray();
+
+    // freshest-wins per article (same rule as fetchVigourNetPrices)
+    const best = new Map();
+    for (const d of docs) {
+      const net = Number(d?.netPrice);
+      if (!(net > 0)) continue;
+      const seen = d.lastSeenAt ? new Date(d.lastSeenAt).getTime() || 0 : 0;
+      const prev = best.get(d.articleNumber);
+      if (!prev || seen >= prev._seen) best.set(d.articleNumber, { ...d, _seen: seen });
+    }
+
+    const result = {};
+    for (const [id, d] of best) {
+      result[id] = {
+        articleNumber: d.articleNumber,
+        name: d.name || "",
+        netPrice: Number(d.netPrice),
+        listPrice: Number(d.listPrice) || null,
+        image: d.images?.[0] || null,
+        stockQuantity: d.stockQuantity ?? null,
+        stockText: d.stockText || null,
+      };
+    }
+    res.json(result);
+  } catch (err) {
+    console.error("GET /api/vigor-prices failed:", err);
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // ---------------- Pricing (stateless) ----------------
 app.post("/api/price", async (req, res) => {
   try {
     const payload = req.body;
     const result = await pricing.computePrices(payload);
+    // One readable line per price call (replaces the per-helper spam).
+    console.log(
+      `[price] ${payload?.activeOffer || "bu"} | Aufschlag ${payload?.Kundendaten?.aufschlag || "–"} | total ${result?.total} € | markup ${result?.markup} €` +
+        (payload?._priceTag ? ` | ${payload._priceTag}` : " | UI refresh"),
+    );
     res.json(result);
   } catch (err) {
     console.error(err);
@@ -624,6 +690,11 @@ app.use(express.static(path.join(__dirname, "public")));
 
 
 
+
+// Unmatched /api/* must 404 as JSON, not fall through to the SPA HTML below
+// (a removed/renamed endpoint hit by a stale frontend bundle used to return
+// HTTP 200 index.html, which then failed with "Unexpected token <" on res.json()).
+app.use("/api", (req, res) => res.status(404).json({ error: "Not found" }));
 
 // ---------------- SPA fallback (keep LAST) ----------------
 app.get(/.*/, (req, res) => {

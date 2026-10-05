@@ -11,6 +11,7 @@ const UserActionLogSchema = new mongoose.Schema(
       trim: true,
       enum: [
         "offer_sent",
+        "offer_bitrix_only",
         "move_dialog_shown",
         "move_dialog_dismissed",
         "move_succeeded",

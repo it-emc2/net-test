@@ -501,24 +501,31 @@ Generate material overview PDF.
 ## Postal Delivery
 
 ### `POST /api/post/send`
-Send document via postal service (Binect).
+Send document via postal service (onlinebrief24).
 
 **Body**:
 ```json
 {
-  "recipient": { "name": "...", "street": "...", "city": "...", "postalCode": "..." },
-  "document": "base64...",
-  "options": { "color": false, "duplex": true },
-  "attachments": ["Abtretungserklaerung", "Vollmacht"],
+  "recipient": { "name": "...", "street": "...", "city": "...", "zipCode": "..." },
+  "document": { "filename": "ANG-1234.pdf", "base64": "..." },
+  "specification": { "color": "4", "mode": "duplex", "shipping": "national" },
+  "dispatchDate": "2026-10-01",
+  "registered": "r1",
+  "attachments": [{ "type": "static", "id": "vollmacht" }, { "type": "upload", "filename": "x.pdf", "base64": "..." }],
   "meta": { "offerNumber": "..." },
   "dealId": "456",
   "bitrixEntityType": "deal"
 }
 ```
 
-**Workflow**: Upload document -> Add coverpage -> Upload attachments -> Send -> Post Bitrix comment
+`recipient` is only a sanity check - onlinebrief24 reads the address from the PDF's address window.
 
-**Response**: `{ ok: true, documentId: "...", uploadStatus: {...}, sendingStatus: {...}, bitrix: {...} }`
+**Workflow**: POST /v1/printjobs (letter + attachments in one call) -> Post Bitrix comment
+
+**Response**: `{ ok: true, provider: "onlinebrief24", mode: "test|live", printjobId: 6035143, status: "queue", attachmentNames: [...], bitrix: {...} }`
+
+### `GET /api/post/balance`
+onlinebrief24 account balance - useful as a pre-flight check before going live.
 
 ---
 

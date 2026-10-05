@@ -57,7 +57,6 @@ async function getPricing() {
 
 // Returns the same shape as POST /api/price, plus `_local: true` so callers can
 // tell a locally computed total from a server-confirmed one. Nothing may be
-// frozen or locked on a `_local` result — see freezeCurrentPricing.
 export async function computePricesLocally(payload) {
   const pricing = await getPricing();
   if (!pricing) return null;

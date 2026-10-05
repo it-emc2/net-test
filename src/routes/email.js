@@ -13,17 +13,27 @@ import dns from "dns";
 
 import EmailLog from "../models/EmailLog.js";
 import UserActionLog from "../models/UserActionLog.js";
-import { addTimelineComment } from "./bitrix.js";
+import { addTimelineComment, buildInternalNoteComment, setDealOfferLink } from "./bitrix.js";
 import { createSigningRequest } from "./signing.js";
 
 import { buildEmailHtml } from "../lib/emailTemplate.js";
+import { resolveAnsprechpartner } from "../lib/ansprechpartner.js";
 
 // Offer PDF generation (your existing utilities)
 import {
   generateOfferPdfBuffer,
   convertDocxToPdf,
   getOfferRenderData,
+  aggregateMaterialsForOverview,
 } from "./docx-template.js";
+import {
+  generateProductImagePdf,
+  resolveProductImages,
+  floorWvIds,
+  shouldSkipByDefault,
+  PRODUCT_IMAGE_SKIP_KEYWORDS,
+} from "../lib/productImagePdf.js";
+import configService from "../services/configService.js";
 
 const router = express.Router();
 
@@ -153,7 +163,7 @@ function getBitrixTargetFromPayload(payload = {}) {
   return null;
 }
 
-function buildBitrixEmailComment({ offerNumber, to, subject, body, attachmentNames }) {
+function buildBitrixEmailComment({ offerNumber, to, subject, body, attachmentNames, bitrixOnly = false }) {
   const when = new Date();
   const dt = when.toLocaleString("de-DE", {
     timeZone: "Europe/Berlin",
@@ -174,10 +184,12 @@ function buildBitrixEmailComment({ offerNumber, to, subject, body, attachmentNam
     rawBody.length > maxLen ? `${rawBody.slice(0, maxLen)}\n…(gekürzt)…` : rawBody;
 
   return [
-    "📧 Email automatisch von OC gesendet",
+    bitrixOnly
+      ? "📎 Dokumente von OC in Bitrix abgelegt (kein E-Mail-Versand)"
+      : "📧 Email automatisch von OC gesendet",
     offerNumber ? `Angebot: ${safe(offerNumber).trim()}` : null,
     `Datum/Zeit: ${dt}`,
-    `Empfänger: ${safe(to).trim() || "-"}`,
+    bitrixOnly ? null : `Empfänger: ${safe(to).trim() || "-"}`,
     `Betreff: ${safe(subject).trim() || "-"}`,
     `Anhänge: ${Array.isArray(attachmentNames) && attachmentNames.length ? attachmentNames.join(", ") : "-"}`,
     "",
@@ -273,8 +285,8 @@ function getPresetAttachments(excludePresetSet, isSelbstzahler, offerType) {
       },
       {
         id: "vollmacht",
-        filename: "Vollmacht.pdf",
-        absPath: emailDir("Vollmacht.pdf"),
+        filename: "Vollmacht_SGB_45b_EmC2 Soziale Dienste UG.pdf",
+        absPath: emailDir("Vollmacht_SGB_45b_EmC2 Soziale Dienste UG.pdf"),
       },
     ];
 
@@ -285,11 +297,9 @@ function getPresetAttachments(excludePresetSet, isSelbstzahler, offerType) {
       .map((p) => ({ filename: p.filename, path: p.absPath }));
   }
 
-  // Selbstzahler get only the Angebot (added elsewhere) + the flyer — no
-  // Abtretung/Vollmacht. Kassenkunde get all four.
-  const payerExcluded = isSelbstzahler
-    ? new Set(["abtretung", "vollmacht"])
-    : new Set();
+  // Which of these ship is decided purely by the Kassenkunden-Dokumente
+  // checkboxes (-> excludePreset). The payer only seeds those checkboxes in the
+  // frontend (applyPayerDocDefaults), so a Selbstzahler can opt back in.
   const preset = [
     {
       id: "abtretung",
@@ -310,13 +320,148 @@ function getPresetAttachments(excludePresetSet, isSelbstzahler, offerType) {
 
   return preset
     .filter((p) => !excludePresetSet.has(p.id))
-    .filter((p) => !payerExcluded.has(p.id))
     .filter((p) => fsSync.existsSync(p.absPath))
     .map((p) => ({
       filename: p.filename,
       path: p.absPath,
     }));
 }
+
+// Maps productId -> finish text from payload.duschabtrennung.quickAdd (kind="config" entries).
+function buildFinishMap(payload) {
+  const map = new Map();
+  for (const q of payload?.duschabtrennung?.quickAdd || []) {
+    if (q.kind === "config" && q.productId && q.finish) {
+      map.set(String(q.productId), q.finish);
+    }
+  }
+  return map;
+}
+
+// Material rows for the Produktbilder-PDF. The overview blanks the article
+// number of floor panels (V5FB02) for the Angebot; restore it here.
+async function imageLines(payload, computed) {
+  const rows = await aggregateMaterialsForOverview(payload, computed);
+  // V5FB02's DB name carries one fixed color ("Lava beige") — name it by the picked one.
+  const fp = String([].concat(payload?.duschwanne?.flooringProduct || [])[0] || "");
+  const floorColor = fp.startsWith("V5FB02|") ? fp.split("|")[1].replace(/-/g, " ") : "";
+  return rows.map((r) => ({
+    ...r,
+    materialNumber: r.materialNumber || r.productId,
+    name: r.productId === "V5FB02" && floorColor ? `Fußboden-Paneele (${floorColor})` : r.name,
+  }));
+}
+
+// Section tile photos of the Fußboden colors (index.html #form-fussboden) —
+// V5FB02 is one article for all colors, so its image is picked by color.
+const FLOOR_IMAGES = {
+  "AVP-W|Weiß": "/assets/585c6146589e2f4c59e026c2b5373966.jpg",
+  "V5FB02|Lava-Beige": "/assets/V5_Lava_Beige.jpg",
+  "V5FB02|Schiefer-Beige": "/assets/V5_Schiefer_beige.jpg",
+  "V5FB02|Loft-Grau": "/assets/V5_loft_grau.jpg",
+  "V5FB02|Speckstein-Schwarz": "/assets/V5_Speckstein_schwarz.jpg",
+  "V5FB02|Eiche-Natur": "/assets/V5_Eiche_natur.jpg",
+};
+
+// Maps DA configurator article numbers to their configuration preview URL.
+// previewImages is [{articleNumbers: [...], imageUrl: '...'}] saved by collectDuschabtrennungConfigurator.
+function buildDacPreviewMap(payload) {
+  const map = new Map();
+  // Fußboden: pricing bills only the first selected flooring product.
+  const fp = [].concat(payload?.duschwanne?.flooringProduct || [])[0];
+  if (fp && FLOOR_IMAGES[fp]) map.set(fp.split("|")[0], FLOOR_IMAGES[fp]);
+  const previews = payload?.duschabtrennung?.configurator?.previewImages;
+  if (!Array.isArray(previews)) return map;
+  for (const { articleNumbers, imageUrl } of previews) {
+    if (!imageUrl || !Array.isArray(articleNumbers)) continue;
+    for (const id of articleNumbers) {
+      if (id) map.set(String(id), imageUrl);
+    }
+  }
+  return map;
+}
+
+// Returns the product list (with image availability) for the "Produktbilder-PDF" checkbox in the UI.
+// Body: { payload: {...} }
+router.post("/product-image-list", express.json(), async (req, res) => {
+  try {
+    const payload = req.body?.payload || req.body || {};
+    const { computed } = await getOfferRenderData(payload);
+    const lines = await imageLines(payload, computed);
+    const assetsDir = path.join(process.cwd(), "src", "public", "assets");
+
+    const adminSkipIds = new Set((configService.get("PRODUCT_IMAGE_SKIP_IDS", [])).map(String));
+    const filteredLines = lines.filter((l) => l.materialNumber && !adminSkipIds.has(String(l.materialNumber)));
+    const imageMap = await resolveProductImages(
+      filteredLines.map((l) => l.materialNumber),
+      assetsDir,
+      floorWvIds(filteredLines),
+    );
+
+    // Build lookups: productId -> configurator preview URL / finish text
+    const dacPreviewMap = buildDacPreviewMap(payload);
+    const finishMap = buildFinishMap(payload);
+
+    const products = filteredLines.map((l) => {
+      const img = imageMap.get(l.materialNumber) || {};
+      const dacPreview = dacPreviewMap.get(l.materialNumber) || null;
+      const hasImage = !!(img.localPath || img.vigorUrl || dacPreview);
+      // same precedence as the PDF: configurator/section preview wins
+      const imageUrl = dacPreview || (img.localPath
+        ? `/assets/${path.relative(assetsDir, img.localPath).split(path.sep).join("/")}`
+        : img.vigorUrl || null);
+      return {
+        productId: l.materialNumber,
+        name: l.name || l.materialNumber,
+        finish: finishMap.get(l.materialNumber) || null,
+        qty: l.quantity,
+        unit: l.unit || "Stck.",
+        hasImage,
+        imageUrl,
+        defaultInclude: hasImage && !shouldSkipByDefault(l.name || ""),
+      };
+    });
+
+    res.json({ products, skipKeywords: PRODUCT_IMAGE_SKIP_KEYWORDS });
+  } catch (e) {
+    console.error("[email] product-image-list failed:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post("/preview-product-image-pdf", express.json({ limit: "20mb" }), async (req, res) => {
+  try {
+    const { payload = {}, excludeProductImageIds = [], productCustomImageData = {} } = req.body || {};
+    const { computed } = await getOfferRenderData(payload);
+    const lines = await imageLines(payload, computed);
+    const assetsDir = path.join(process.cwd(), "src", "public", "assets");
+    const adminSkipIdsPreview = new Set((configService.get("PRODUCT_IMAGE_SKIP_IDS", [])).map(String));
+    const excludeSet = new Set([...excludeProductImageIds.map(String), ...adminSkipIdsPreview]);
+    const sendFinishMap = buildFinishMap(payload);
+    const products = lines
+      .filter((l) => l.materialNumber && !excludeSet.has(l.materialNumber))
+      .map((l) => ({
+        productId: l.materialNumber,
+        name: l.name || l.materialNumber,
+        finish: sendFinishMap.get(l.materialNumber) || null,
+        qty: l.quantity,
+        unit: l.unit || "Stck.",
+      }));
+    const dacMap = buildDacPreviewMap(payload);
+    const mergedCustom = {};
+    for (const [id, relUrl] of dacMap) {
+      mergedCustom[id] = path.join(process.cwd(), "src", "public", relUrl);
+    }
+    Object.assign(mergedCustom, productCustomImageData);
+    const buf = await generateProductImagePdf(products, assetsDir, mergedCustom);
+    if (!buf) return res.status(204).end();
+    res.set({ "Content-Type": "application/pdf", "Content-Disposition": "inline" });
+    res.send(buf);
+  } catch (e) {
+    console.error("[email] preview-product-image-pdf failed:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // multipart/form-data:
 // fields: to, subject, body, offerNumber, offerType, payload (json string), excludePreset (json array string)
@@ -325,7 +470,8 @@ router.post(
   "/send-offer",
   upload.fields([
     { name: "attachments", maxCount: 10 },
-    { name: "bitrixDocs", maxCount: 5 },
+    // 3 generated docs + the user's Bitrix-only uploads
+    { name: "bitrixDocs", maxCount: 15 },
     { name: "editedDocx", maxCount: 1 },
   ]),
   async (req, res) => {
@@ -342,7 +488,13 @@ router.post(
     const offerNumber = String(req.body.offerNumber || "");
     const offerType = String(req.body.offerType || "");
 
-    if (!to) return res.status(400).json({ error: "Missing 'to'" });
+    // Bitrix-only mode: render + archive the documents on the timeline, but
+    // send no customer email (no SMTP, no Sent copy, no signing link, no EmailLog).
+    const bitrixOnly = ["1", "true", "on", "yes"].includes(
+      String(req.body.bitrixOnly || "").toLowerCase(),
+    );
+
+    if (!to && !bitrixOnly) return res.status(400).json({ error: "Missing 'to'" });
 
     // Parse payload (JSON string because multipart)
     let payload = {};
@@ -356,6 +508,13 @@ router.post(
     const contactId = String(req.body.contactId || "").trim();
     if (dealId) payload.bitrixDealId = dealId;
     if (contactId) payload.bitrixContactId = contactId;
+
+    // Re-derive Ansprechpartner name from the selected email server-side —
+    // the PDF (mapData below), the internal signature-image lookup, and the
+    // email signature (contactName below) all read payload.Kundendaten, so
+    // this one normalization keeps all three consistent with whichever
+    // Ansprechpartner was actually picked, never a spoofed free-text name.
+    payload.Kundendaten = await resolveAnsprechpartner(payload.Kundendaten, req.user);
 
     // Parse excludePreset
     const excludePreset = new Set();
@@ -378,7 +537,11 @@ router.post(
 
     // ---- Online-signing link: create a signing request and inject the link ----
     // The body may contain a {{SIGN_LINK}} placeholder (from the compose UI).
-    try {
+    if (bitrixOnly) {
+      // No customer email goes out — don't create a signing request for a link
+      // nobody receives; just drop the placeholder.
+      body = body.split("{{SIGN_LINK}}").join("");
+    } else try {
       const baseUrl =
         String(process.env.PUBLIC_BASE_URL || "").trim() ||
         `${req.protocol}://${req.get("host")}`;
@@ -421,6 +584,54 @@ router.post(
     }
 
     const angebotFilename = safeOfferFilename(payload?.offerNumber || offerNumber);
+
+    // ---- Product image PDF (optional, user-triggered) ----
+    const includeProductImages = ["1", "true", "on", "yes"].includes(
+      String(req.body.includeProductImages || "").toLowerCase(),
+    );
+    let productImageBuf = null;
+    let productImageFilename = null;
+    if (includeProductImages) {
+      try {
+        const adminSkipIdsSend = new Set((configService.get("PRODUCT_IMAGE_SKIP_IDS", [])).map(String));
+        const excludeProductImageIds = new Set([
+          ...JSON.parse(req.body.excludeProductImageIds || "[]").map(String),
+          ...adminSkipIdsSend,
+        ]);
+        const productCustomImageData = JSON.parse(req.body.productCustomImageData || "{}");
+        const assetsDir = path.join(process.cwd(), "src", "public", "assets");
+        const lines = await imageLines(payload, offerComputed || {});
+        const sendFinishMap = buildFinishMap(payload);
+        const products = lines
+          .filter((l) => l.materialNumber && !excludeProductImageIds.has(l.materialNumber))
+          .map((l) => ({
+            productId: l.materialNumber,
+            name: l.name || l.materialNumber,
+            finish: sendFinishMap.get(l.materialNumber) || null,
+            qty: l.quantity,
+            unit: l.unit || "Stck.",
+          }));
+        // Server-side fallback: DA configurator preview images (relative URL → disk path).
+        // Client uploads in productCustomImageData win (merged last).
+        const dacMap = buildDacPreviewMap(payload);
+        const mergedCustom = {};
+        for (const [id, relUrl] of dacMap) {
+          mergedCustom[id] = path.join(process.cwd(), "src", "public", relUrl);
+        }
+        Object.assign(mergedCustom, productCustomImageData); // client upload wins
+        productImageBuf = await generateProductImagePdf(products, assetsDir, mergedCustom);
+        if (productImageBuf) {
+          const safeNo = String(payload?.offerNumber || offerNumber || "Angebot").replace(
+            /[^\w\-]+/g,
+            "_",
+          );
+          productImageFilename = `Produktbilder_${safeNo}.pdf`;
+        }
+      } catch (imgErr) {
+        console.warn("[email] Produktbilder-PDF generation failed:", imgErr?.message || imgErr);
+      }
+    }
+
     const signatureCid = "emc2-signature-picture";
     const signatureImagePath = path.join(
       process.cwd(),
@@ -450,6 +661,9 @@ router.post(
 
     const mailAttachments = [
       { filename: angebotFilename, content: pdfBuf, contentType: "application/pdf" },
+      ...(productImageBuf && productImageFilename
+        ? [{ filename: productImageFilename, content: productImageBuf, contentType: "application/pdf" }]
+        : []),
       ...presetAttachments,
       ...uploadAttachments,
       ...inlineAttachments,
@@ -457,6 +671,7 @@ router.post(
 
     const attachmentNames = [
       angebotFilename,
+      ...(productImageFilename ? [productImageFilename] : []),
       ...presetAttachments.map((a) => a.filename),
       ...uploadAttachments.map((a) => a.filename),
     ];
@@ -475,6 +690,9 @@ router.post(
         filename: angebotFilename,
         base64: pdfBuf.toString("base64"),
       },
+      ...(productImageBuf && productImageFilename
+        ? [{ filename: productImageFilename, base64: productImageBuf.toString("base64") }]
+        : []),
       // Archive the hand-edited DOCX on the timeline so Bitrix shows exactly
       // what was sent (the client skips its fresh Angebot-DOCX in this case).
       ...(editedDocxBuf
@@ -514,60 +732,68 @@ router.post(
       isAh,
     });
 
-    // ---- Send via SMTP ----
-    console.log("[email] runtime:", process.platform, "node", process.version, "cwd", process.cwd());
-    const transporter = buildTransport();
+    // ---- Send via SMTP (skipped entirely in Bitrix-only mode) ----
+    let info = { messageId: "" };
+    if (!bitrixOnly) {
+      console.log("[email] runtime:", process.platform, "node", process.version, "cwd", process.cwd());
+      const transporter = buildTransport();
 
-    // verify() is optional; can slow things down / fail on some servers
-    // await transporter.verify();
+      // verify() is optional; can slow things down / fail on some servers
+      // await transporter.verify();
 
-    // IMPORTANT: safest "from" is the authenticated account
-    const from = smtpFrom();
+      // IMPORTANT: safest "from" is the authenticated account
+      const from = smtpFrom();
 
-    // Optional reply-to: set SMTP_REPLY_TO if you want replies elsewhere
-    const replyTo = process.env.SMTP_REPLY_TO || from;
+      // Optional reply-to: set SMTP_REPLY_TO if you want replies elsewhere
+      const replyTo = process.env.SMTP_REPLY_TO || from;
 
-    const mailOptions = {
-      from,
-      replyTo,
-      to,
-      ...(cc ? { cc } : {}),
-      subject,
-      text: textBody,
-      html: htmlBody,
-      attachments: mailAttachments,
-    };
-    const info = await transporter.sendMail(mailOptions);
+      const mailOptions = {
+        from,
+        replyTo,
+        to,
+        ...(cc ? { cc } : {}),
+        subject,
+        text: textBody,
+        html: htmlBody,
+        attachments: mailAttachments,
+      };
+      info = await transporter.sendMail(mailOptions);
 
-    // Save a copy to the IMAP "Sent" folder so it appears in mail clients.
-    try {
-      const sent = await saveToSentFolder(mailOptions);
-      if (!sent.ok) console.warn("[email] Sent copy skipped:", sent.reason);
-    } catch (imapErr) {
-      console.warn("[email] Saving to Sent folder failed:", imapErr?.message || imapErr);
+      // Save a copy to the IMAP "Sent" folder so it appears in mail clients.
+      try {
+        const sent = await saveToSentFolder(mailOptions);
+        if (!sent.ok) console.warn("[email] Sent copy skipped:", sent.reason);
+      } catch (imapErr) {
+        console.warn("[email] Saving to Sent folder failed:", imapErr?.message || imapErr);
+      }
+
+      // ---- DB log (only names + content) ----
+      await EmailLog.create({
+        to,
+        ...(cc ? { cc } : {}),
+        subject,
+        body: textBody,
+        attachmentNames,
+        offerNumber: payload?.offerNumber || offerNumber,
+        offerType: payload?.activeOffer || offerType,
+      });
     }
 
-    // ---- DB log (only names + content) ----
-    await EmailLog.create({
-      to,
-      ...(cc ? { cc } : {}),
-      subject,
-      body: textBody,
-      attachmentNames,
-      offerNumber: payload?.offerNumber || offerNumber,
-      offerType: payload?.activeOffer || offerType,
-    });
+    const actionEvent = bitrixOnly ? "offer_bitrix_only" : "offer_sent";
     UserActionLog.create({
-      event: "offer_sent",
+      event: actionEvent,
       dealId: String(dealId || ""),
       offerNumber: payload?.offerNumber || offerNumber,
       offerType: payload?.activeOffer || offerType,
-    }).catch((e) => console.warn("[email] UserActionLog offer_sent failed:", e?.message || e));
+    }).catch((e) => console.warn(`[email] UserActionLog ${actionEvent} failed:`, e?.message || e));
 
     let bitrixComment = { skipped: true, reason: "no target" };
     try {
       const target = getBitrixTargetFromPayload(payload);
       if (target) {
+        if (target.entityType === "deal") {
+          await setDealOfferLink(target.entityId, payload?.offerNumber || offerNumber);
+        }
         bitrixComment = await addTimelineComment({
           ...target,
           comment: buildBitrixEmailComment({
@@ -576,9 +802,12 @@ router.post(
             subject,
             body,
             attachmentNames,
+            bitrixOnly,
           }),
           attachments: bitrixAttachments,
         });
+        const noteComment = buildInternalNoteComment(req.body.internalNote);
+        if (noteComment) await addTimelineComment({ ...target, comment: noteComment });
       }
     } catch (bitrixErr) {
       console.warn("[email] Bitrix timeline comment failed:", bitrixErr);
@@ -604,6 +833,7 @@ router.post(
 
     res.json({
       ok: true,
+      bitrixOnly,
       messageId: info.messageId,
       attachmentNames,
       bitrixComment,

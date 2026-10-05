@@ -200,15 +200,13 @@ When sending an offer via email (`POST /api/email/send-offer`):
    - `Vollmacht.pdf` - Power of attorney form
 3. **User-uploaded attachments**: Up to 10 additional files
 
-## Postal Delivery (Binect)
+## Postal Delivery (onlinebrief24)
 
 For physical mail delivery via `POST /api/post/send`:
 
-1. Upload document to Binect API
-2. Add cover page (optional)
-3. Upload and link static attachments
-4. Submit for printing and delivery
-5. Track via document ID
+1. Render the offer PDF (it already carries the address window + subject + letter text)
+2. POST it to `/v1/printjobs` as `base64_file` + md5 checksum, static/uploaded PDFs as `base64_attachments`
+3. Track via the returned printjob id
 
 ## Signature Embedding
 

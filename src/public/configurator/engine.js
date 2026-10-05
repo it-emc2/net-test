@@ -53,8 +53,9 @@ export function availableOptions(model, state, paramId) {
     for (const l of matchingLeaves(model, others)) if (l.selections[paramId] != null) present.add(l.selections[paramId]);
     return param.values.filter((v) => present.has(v.value));
   }
-  const fp = finishParams(resolvedLeaf(model, state)).find((p) => p.id === paramId);
-  return fp ? fp.values : [];
+  const leaf = resolvedLeaf(model, state);
+  const fp = finishParams(leaf).find((p) => p.id === paramId);
+  return fp ? availableFinishValues(leaf, state, paramId) : [];
 }
 
 /** The single resolved leaf once structure selection pins one down, else null. */
@@ -103,19 +104,56 @@ export function setComponentSondermass(state, compKey, sondermass) {
 // Finish dimensions matched between a selection and a decoded article.
 const FINISH_DIMS = ["glasart", "beschichtung", "profilfarbe", "einzugsautomatik", "radius"];
 
+function finishDimKey(fpId) {
+  if (fpId === "Glasart") return "glasart";
+  if (/Beschichtung/i.test(fpId)) return "beschichtung";
+  if (fpId === "Profilfarbe") return "profilfarbe";
+  if (/Einzugsautomatik/i.test(fpId)) return "einzugsautomatik";
+  if (fpId === "Radius") return "radius";
+  return null;
+}
+
 /** Selected finish categories for the resolved leaf (only dims whose value carries a cat). */
 function selectedFinish(leaf, state) {
   const want = {};
   for (const fp of (leaf.finish || [])) {
     const v = fp.values.find((x) => x.value === state.selections[fp.id]);
-    if (!v || v.cat == null) continue;
-    if (fp.id === "Glasart") want.glasart = v.cat;
-    else if (/Beschichtung/i.test(fp.id)) want.beschichtung = v.cat;
-    else if (fp.id === "Profilfarbe") want.profilfarbe = v.cat;
-    else if (/Einzugsautomatik/i.test(fp.id)) want.einzugsautomatik = v.cat;
-    else if (fp.id === "Radius") want.radius = v.cat;
+    const key = finishDimKey(fp.id);
+    if (!v || v.cat == null || !key) continue;
+    want[key] = v.cat;
   }
   return want;
+}
+
+/** Values of finish param `paramId` still reachable given the OTHER finish picks already made.
+ *  Excludes a value once every component that varies on this dim has zero articles for it under
+ *  those picks — e.g. the catalog offers "silber hochglanz" only without the water-repellent
+ *  coating, so once "mit Beschichtung" is chosen, "hochglanz" must drop out of Profilfarbe rather
+ *  than stay selectable and resolve to an empty configuration. */
+function componentVariesOn(c, dimKey) {
+  return new Set(c.articles.filter((x) => x.finish?.[dimKey] != null).map((x) => x.finish[dimKey])).size > 1;
+}
+
+function availableFinishValues(leaf, state, paramId) {
+  const fp = (leaf?.finish || []).find((p) => p.id === paramId);
+  if (!fp) return [];
+  const dimKey = finishDimKey(paramId);
+  if (!dimKey) return fp.values;
+  return fp.values.filter((v) => {
+    if (v.cat == null) return true;
+    return leaf.components.every((c) => {
+      if (!componentVariesOn(c, dimKey)) return true; // this component doesn't discriminate on the dim at all
+      let cand = c.articles;
+      for (const otherFp of leaf.finish) {
+        if (otherFp.id === paramId) continue;
+        const otherKey = finishDimKey(otherFp.id);
+        const otherVal = otherFp.values.find((x) => x.value === state.selections[otherFp.id]);
+        if (!otherKey || !otherVal || otherVal.cat == null || !componentVariesOn(c, otherKey)) continue;
+        cand = cand.filter((x) => x.finish?.[otherKey] === otherVal.cat);
+      }
+      return cand.some((x) => x.finish?.[dimKey] === v.cat);
+    });
+  });
 }
 
 /** Resolve one article per component of the resolved leaf (by size + selected finish). null until complete.

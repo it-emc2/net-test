@@ -772,8 +772,14 @@ async function aggregateMaterialsForOverview(body = {}, computed = {}) {
   }
 
   // 2) body.materials (fallback from client)
+  // The client still reports WV panels under the generic V3WVK09/V3WV09 id,
+  // while pricing bills the color-specific article (e.g. V3WVK03) — skip the
+  // client copy when pricing already has WV panels, or it shows up twice.
+  const isWvId = (id) => /^V3WVK?\d/.test(String(id || ""));
+  const computedHasWv = src.some((l) => l && isWvId(l.materialNumber));
   if (Array.isArray(body?.materials)) {
     for (const m of body.materials) {
+      if (computedHasWv && isWvId(m?.productId || m?.id)) continue;
       src.push(normalizeSourceLine(m));
     }
   }
@@ -825,6 +831,7 @@ async function aggregateMaterialsForOverview(body = {}, computed = {}) {
 
     const prev = map.get(key) || {
       materialNumber: isFloorPanelLine(l) ? "" : l.materialNumber, // empty for V5FB02
+      productId: l.materialNumber, // real id, kept for the Produktbilder-PDF
       name: l.name,
       unit,
       quantity: 0,
@@ -1248,16 +1255,24 @@ async function mapData(body = {}, computed = {}) {
 
   // Title and totals unchanged:
   const ServicePosTitle = services?.title || "Auszuführende Arbeiten";
-  const ServiceUnitPrice = fmtCurrency(services?.sum || 0);
-  const ServiceTotal = fmtCurrency(services?.sum || 0);
+  // Aktion Haltegriff: Material/Arbeit carry the fixed display values of the
+  // free 30 cm grab bar and the bonus row takes them back off (net effect 0).
+  // Snapshots priced before this existed lack the fields → old layout.
+  const hasGrabDisplay = computed?.grabBonusMaterial !== undefined;
+  const grabBonusMat = Number(computed?.grabBonusMaterial || 0);
+  const grabBonusArb = Number(computed?.grabBonusArbeit || 0);
+  const grabBonusTotal = grabBonusMat + grabBonusArb;
+
+  const ServiceUnitPrice = fmtCurrency((services?.sum || 0) + grabBonusArb);
+  const ServiceTotal = fmtCurrency((services?.sum || 0) + grabBonusArb);
 
   // Materials block
   const MaterialsPosTitle = materials?.title || "Material für Badumbau";
-  const MaterialsUnitPrice = fmtCurrency(material_plus_aufschlag || 0);
+  const MaterialsUnitPrice = fmtCurrency((material_plus_aufschlag || 0) + grabBonusMat);
 
   //const MaterialsTotal = fmtCurrency(materials?.sum || 0);
 
-  const MaterialsTotal = fmtCurrency(material_plus_aufschlag || 0);
+  const MaterialsTotal = fmtCurrency((material_plus_aufschlag || 0) + grabBonusMat);
 
   // Materials block (lines for "Material für Badumbau")
   // Materials block
@@ -1440,14 +1455,20 @@ if (doorAnschlag) {
   bullet1Text += ` - Türanschlag: ${doorAnschlag}`;
 }
 
-// Farbe (derive from whichever door type is selected)
+// Farbe of the selected door; old offers saved it in the removed "Farbe der Tür" card (tray_color)
+const colorByDoorType = {
+  "Universal / Standard Tür": bwt?.bwtDoorStdColor,
+  "Budget Tür - Verona": bwt?.bwtDoorBudgetColor,
+  Variodoor: bwt?.bwtDoorVariodoorColor,
+};
+const rawDoorColor = String(
+  bwt?.tray_color ||
+    [].concat(bwt?.bwtDoorType || []).map((t) => colorByDoorType[t]).find(Boolean) ||
+    "",
+).trim();
 const doorColor =
-  (bwt?.bwtDoorStdColor ||
-    bwt?.bwtDoorBudgetColor ||
-    bwt?.bwtDoorVariodoorColor ||
-    bwt?.bwtDoorIndWienColor ||
-    bwt?.bwtDoorIndWienGlasColor ||
-    "").trim();
+  { "weiß": "Weiß", Beige: "Bahama Beige", bahama_beige: "Bahama Beige", manhattan: "Manhattan" }[rawDoorColor] ||
+  rawDoorColor;
 
 if (doorColor) {
   bullet1Text += ` - Farbe: ${doorColor}`;
@@ -1561,14 +1582,18 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
 
       // "Summe Leistungen" from pricing.js (already incl. BWT + Extra Arbeitszeit)
       const serviceSum = Number(services?.sum || 0) || 0;
+      const bwtPos001 =
+        bonusGross + netAfterRabatt_and_Bonus +
+        (hasGrabDisplay ? grabBonusTotal - Number(computed?.grabBonusReal || 0) : 0);
 
       BwtRows.push({
         Pos: "001",
         Menge: formatQty(doorQty),
 
         // add Summe Leistungen to both unit price and total to the door price 
-        Einheitspreis: fmtCurrency(bonusGross + netAfterRabatt_and_Bonus), //Einheitspreis: fmtCurrency(doorUnitPrice + serviceSum)
-        Gesamt: fmtCurrency(bonusGross + netAfterRabatt_and_Bonus), // fmtCurrency(doorMaterialsTotal + serviceSum)
+        // Pre-bonus value; the Aktion-Haltegriff counts with its display value.
+        Einheitspreis: fmtCurrency(bwtPos001), //Einheitspreis: fmtCurrency(doorUnitPrice + serviceSum)
+        Gesamt: fmtCurrency(bwtPos001), // fmtCurrency(doorMaterialsTotal + serviceSum)
 
         Title: "Liefern und Montieren einer Badewannentür",
         Bullet1: bullet1Text,
@@ -1635,15 +1660,15 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
   // 001 = Arbeiten, 002 = Material (beide fest im Template) → Bonus startet bei 003
   let pos = "003";
 
-  if (hasBonusGrab) {
+  if (hasGrabDisplay ? grabBonusTotal > 0 : hasBonusGrab) {
     BonusRows.push({
       Bonus: pos,
       BonusMenge: "1 Stk",
       BonusLabel: "Aktion: Haltegriff",
       BonusDetail:
         "1 Haltegriff gratis im Wert von 175 € inkl. Lieferung und Montage",
-      preis: "0,00 €",
-      gesamt: "0,00 €",
+      preis: hasGrabDisplay ? `-${fmtCurrency(grabBonusTotal)}` : "0,00 €",
+      gesamt: hasGrabDisplay ? `-${fmtCurrency(grabBonusTotal)}` : "0,00 €",
     });
     pos = "004";
   }
@@ -1652,7 +1677,7 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     BonusRows.push({
       Bonus: pos,
       BonusMenge: "1 Stk",
-      BonusLabel: "Bestandkundenbonus:",
+      BonusLabel: "Neukundenbonus:",
       BonusDetail: "-- Rabatt von 300 € ab einem Gesamtwert von 3.000",
       preis: "-252,10 €",
       gesamt: "-252,10 €",
@@ -1701,12 +1726,13 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     { label: "zzgl. 19% MwSt.", value: fmtCurrency(vatOnNet) },
     { label: "Gesamtsumme", value: fmtCurrency(total) },
     // Kassenkunde: Zuschuss und Eigenanteil als eigene Zeilen, immer sichtbar
-    // (bei BWT nicht gewünscht). Zuschuss zeigt den vollen Anspruch (4180 € /
-    // 8360 €), reduziert um bereits genutzte Wohnumfeld-Beträge
-    // (subsidyAmount_max aus pricing.js) — bewusst NICHT auf die Gesamtsumme
-    // gedeckelt, damit bei "Nein" immer 4180/8360 steht statt der (kleineren)
-    // Gesamtsumme.
-    ...(isKK && offerKey !== "bwt" && offerKey !== "hl"
+    // (bei BWT, HL und BL nicht gewünscht — dort endet die Tabelle mit der
+    // Gesamtsumme, der Eigenanteil steht darunter im {#hasSubsidyLine}-Satz).
+    // Zuschuss zeigt den vollen Anspruch (4180 € / 8360 €), reduziert um
+    // bereits genutzte Wohnumfeld-Beträge (subsidyAmount_max aus pricing.js)
+    // — bewusst NICHT auf die Gesamtsumme gedeckelt, damit bei "Nein" immer
+    // 4180/8360 steht statt der (kleineren) Gesamtsumme.
+    ...(isKK && offerKey !== "bwt" && offerKey !== "hl" && offerKey !== "bl"
       ? [
           {
             label:
@@ -1826,11 +1852,18 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
   // {Anrede}\n{Vorname} {Nachname} / {Greeting} {Nachname} layout. For two
   // persons both names are included. The Zusammenfassung fields (kundenName /
   // greetingLine) are free-text overrides that win when present.
+  // AH has its own "2 Personen" switch + p2* fields (Kundendaten); BU uses
+  // twoPersons + partner*. Both feed the same composition below.
+  const _isAhOffer = /^ah/.test(String(body.activeOffer || "").toLowerCase());
   const _sal = b.salutation || "";
-  const _pSal = b.partnerSalutation || "";
+  const _pSal = (_isAhOffer ? b.p2Salutation : b.partnerSalutation) || "";
+  const _pLast = (_isAhOffer ? b.p2LastName : b.partnerLastName) || "";
   const _custName = [b.firstName, b.lastName].filter(Boolean).join(" ").trim();
-  const _partnerName = [b.partnerFirstName, b.partnerLastName].filter(Boolean).join(" ").trim();
-  const _isTwo = !!b.twoPersons && !!_partnerName;
+  const _partnerName = [_isAhOffer ? b.p2FirstName : b.partnerFirstName, _pLast]
+    .filter(Boolean).join(" ").trim();
+  const _isTwo =
+    (_isAhOffer ? b.ahZweiPersonen === "on" || b.ahZweiPersonen === true : !!b.twoPersons) &&
+    !!_partnerName;
 
   const _nameFrag = (sal, name) => [sal, name].filter(Boolean).join(" ").trim();
   const _greetOne = (sal) =>
@@ -1859,7 +1892,7 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
   if (_greetingOverride) {
     GreetingLine = _greetingOverride;
   } else if (_isTwo) {
-    const two = `${_greetFrag(_sal, b.lastName)}, ${_greetFrag(_pSal, b.partnerLastName)}`;
+    const two = `${_greetFrag(_sal, b.lastName)}, ${_greetFrag(_pSal, _pLast)}`;
     GreetingLine = two.charAt(0).toUpperCase() + two.slice(1);
   } else {
     GreetingLine = [_greetOne(_sal), b.lastName].filter(Boolean).join(" ").trim();
@@ -1872,11 +1905,11 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     Anrede: b.salutation || "",
     Vorname: b.firstName || "",
     Nachname: b.lastName || "",
-    PartnerAnrede: b.partnerSalutation || "",
-    PartnerVorname: b.partnerFirstName || "",
-    PartnerNachname: b.partnerLastName || "",
+    PartnerAnrede: _pSal,
+    PartnerVorname: (_isAhOffer ? b.p2FirstName : b.partnerFirstName) || "",
+    PartnerNachname: _pLast,
     PflegegradKunde: b.pflegegrad || "",
-    PflegegradPartner: b.partnerPflegegrad || "",
+    PflegegradPartner: (_isAhOffer ? b.p2Pflegegrad : b.partnerPflegegrad) || "",
     KrankenkasseKunde: b.kassenkundeName || "",
     KrankenkassePartner: b.partnerKassenkundeName || "",
     Adresse: b.street || "",
@@ -2151,10 +2184,13 @@ function buildAhData(body) {
   const hnd = computeAhSvc(hndSvc);
   const ab  = computeAhSvc(abSvc);
 
-  // Same visit as HnD: the trip is already paid for by HnD's Anfahrt, so AB
-  // only adds its own Anfahrt for visits beyond what HnD already covers.
+  // Same visit as HnD: on shared days (min of both visit counts) HnD keeps the
+  // trip — Anfahrt and Reisezeit — so AB bills neither for those visits.
+  // Mirrors computeAHGesamt in script.js.
   const abCombinedVisit    = !!(abSvc && abSvc.combinedVisit);
-  const abAnfahrtEinsaetze = abCombinedVisit ? Math.max(0, ab.totalEinsaetze - hnd.totalEinsaetze) : ab.totalEinsaetze;
+  const abSharedEinsaetze  = abCombinedVisit ? Math.min(hnd.totalEinsaetze, ab.totalEinsaetze) : 0;
+  ab.totalMonatlichH       = Math.max(0, ab.totalMonatlichH - abSharedEinsaetze * travelTimeH);
+  const abAnfahrtEinsaetze = ab.totalEinsaetze - abSharedEinsaetze;
 
   const totalMonatlichH = (hnd.totalMonatlichH || 0) + (ab.totalMonatlichH || 0);
   const totalEinsaetze  = (hnd.totalEinsaetze  || 0) + abAnfahrtEinsaetze;
@@ -2165,21 +2201,38 @@ function buildAhData(body) {
   const abLeistungenTotal = r2(ab.totalMonatlichH * AH_STUNDENSATZ_AB);
   const gesamt = r2(anfahrtTotal + leistungenTotal + abAnfahrtTotal + abLeistungenTotal);
 
-  // ── Eigenanteil nach Entlastungsbetrag (§ 45b SGB XI) ───────────────────
-  // Nur für Kassenkunden und nur wenn der Berater den Entlastungsbetrag auf
-  // der Finanzierung-Seite bestätigt hat. Verhinderungspflege/Umwidmung
-  // bleiben bewusst außen vor (siehe Bildschirm-Eigenanteil in script.js).
+  // ── Eigenanteil (Kassenkunde) — mirrors computeAHGesamt in script.js ────
+  // Only sources the consultant confirmed on the Finanzierung step count:
+  // Entlastungsbetrag § 45b (×2 for "2 Personen mit Pflegegrad"),
+  // Verhinderungspflege § 39, Umwidmung § 45a Abs. 4.
   const finAh = body?.Finanzierung || {};
+  const on = (v) => v === "on" || v === true;
   const isKassenkunde =
     String(body?.Kundendaten?.payer || "").toUpperCase() === "KASSENKUNDE";
+  const ebProPerson = Number(cfg.get("ENTLASTUNGSBETRAG_MONAT", 131)) || 0;
+  const kd = body?.Kundendaten || {};
+  const zweiPersonen = on(kd.ahZweiPersonen);
   const entlastungsbetrag =
-    isKassenkunde &&
-    (finAh.ahEntlastungsbetragNutzen === "on" ||
-      finAh.ahEntlastungsbetragNutzen === true)
-      ? Number(cfg.get("ENTLASTUNGSBETRAG_MONAT", 131)) || 0
+    isKassenkunde && on(finAh.ahEntlastungsbetragNutzen)
+      ? ebProPerson * (zweiPersonen ? 2 : 1)
       : 0;
-  const ahEigenanteil = r2(Math.max(0, gesamt - entlastungsbetrag));
-  const hasEigenanteil = gesamt > 0 && entlastungsbetrag > 0;
+  const verhinderungspflege = isKassenkunde ? Number(finAh.ahVerhinderungspflegeMonat) || 0 : 0;
+  const umwidmung =
+    isKassenkunde && on(finAh.ahUmwidmungBeantragt) ? Number(finAh.ahUmwidmungBetrag) || 0 : 0;
+  const abzug = r2(entlastungsbetrag + verhinderungspflege + umwidmung);
+  const ahEigenanteil = r2(Math.max(0, gesamt - abzug));
+  const hasEigenanteil = gesamt > 0 && abzug > 0;
+  const abzugParts = [];
+  if (entlastungsbetrag > 0) {
+    abzugParts.push(
+      zweiPersonen
+        ? `Entlastungsbetrag § 45b SGB XI (2 × ${fmtCurrency(ebProPerson)})`
+        : "Entlastungsbetrag § 45b SGB XI",
+    );
+  }
+  if (verhinderungspflege > 0) abzugParts.push("Verhinderungspflege § 39 SGB XI");
+  if (umwidmung > 0) abzugParts.push("Umwidmung § 45a Abs. 4 SGB XI");
+  const abzugLabel = "abzgl. " + abzugParts.join(", ");
 
   // ── Build per-service rows ──────────────────────────────────────────────
   const AhServices = rawServices.map((svc, idx) => {
@@ -2275,6 +2328,20 @@ function buildAhData(body) {
 
   const AhKondRowsHnD = buildKondRows(hndSvc, hnd.totalMonatlichH);
   const AhKondRowsAB  = buildKondRows(abSvc, ab.totalMonatlichH);
+  if (abSharedEinsaetze > 0) {
+    // Every AB visit rides along with HnD → no AB visit has Anfahrt, so the
+    // "inkl. Anfahrt" row would be wrong; drop it.
+    if (abAnfahrtEinsaetze <= 1e-9) {
+      const j = AhKondRowsAB.findIndex((r) => r.AhKondLabel.includes("inkl. Anfahrt"));
+      if (j >= 0) AhKondRowsAB.splice(j, 1);
+    }
+    // Insert after the "inkl. Anfahrt" row so it reads as its exception.
+    const i = AhKondRowsAB.findIndex((r) => r.AhKondLabel.startsWith("Monatlicher"));
+    AhKondRowsAB.splice(i < 0 ? AhKondRowsAB.length : i, 0, {
+      AhKondLabel: "Gemeinsamer Termin mit Haushaltsnahen Dienstleistungen:",
+      AhKondValue: `${fmtCount(abSharedEinsaetze)} Einsätze/Monat ohne Anfahrt`,
+    });
+  }
 
   // Kept for any template still on the old single-table tag; now HnD-first.
   const AhKondRows = [...AhKondRowsHnD, ...AhKondRowsAB];
@@ -2302,7 +2369,8 @@ function buildAhData(body) {
     AhGesamtbetrag: gesamt > 0 ? fmtCurrency(gesamt) : "",
     // Eigenanteil-Zeile im Template: {#AhHasEigenanteil} … {AhEigenanteil} … {/AhHasEigenanteil}
     AhHasEigenanteil: hasEigenanteil,
-    AhEntlastungsbetrag: fmtCurrency(entlastungsbetrag),
+    AhAbzugLabel: abzugLabel,
+    AhEntlastungsbetrag: fmtCurrency(abzug),
     // leer, wenn keine Eigenanteil-Zeile gilt: so druckt auch ein Template mit
     // falsch platziertem {/AhHasEigenanteil} keinen Betrag ohne Beschriftung
     AhEigenanteil: hasEigenanteil ? fmtCurrency(ahEigenanteil) : "",

@@ -10,6 +10,7 @@
   if (!sels.length) return;
 
   var users = [];
+  var me = null;
 
   function setAll(email) {
     sels.forEach(function (s) { s.value = email; });
@@ -31,7 +32,7 @@
   ])
     .then(function (res) {
       users = Array.isArray(res[0]) ? res[0] : [];
-      var me = res[1] && res[1].user ? res[1].user : null;
+      me = res[1] && res[1].user ? res[1].user : null;
 
       var opts = users
         .map(function (u) { return '<option value="' + u.email + '">' + (u.name || u.email) + "</option>"; })
@@ -71,6 +72,13 @@
     }
   }
   window.syncAnsprechpartner = syncFromOffer;
+
+  // "Neue Version erstellen": the new version is the logged-in user's
+  // document now, not the original sender's — reset Ansprechpartner (and
+  // with it the email signature name/image, see docx-template.js) to me.
+  window.resetAnsprechpartnerToMe = function () {
+    if (me && me.email) apply(me.email);
+  };
 
   sels.forEach(function (s) {
     s.addEventListener("change", function () { apply(s.value); });

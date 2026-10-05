@@ -141,6 +141,7 @@ dist
 .superpowers
 .tmp-claude
 .playwright-mcp
+.impeccable
 
 # Editor / CI / test artifacts
 .vscode
@@ -156,3 +157,6 @@ out-Materialuebersicht.docx
 # Docs (not used at runtime)
 docs
 docs1
+
+# iOS only for tablet installation
+ios

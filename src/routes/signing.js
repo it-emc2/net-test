@@ -51,10 +51,11 @@ const router = express.Router();
 const DEFAULT_EXPIRY_DAYS = 56;
 
 // Documents required per customer type.
-const DOCS_BY_TYPE = {
-  SZ: ["angebot"],
-  KASSE: ["angebot", "vollmacht", "abtretung"], // Phase 2 wires vollmacht/abtretung
-};
+// Optional documents (never "angebot") follow the Kassenkunden-Dokumente
+// checkboxes. Kassenkunde: included unless explicitly unticked — which also
+// keeps older saved offers without docSelection working. Selbstzahler: only
+// when explicitly ticked, since the default there is unticked.
+const OPTIONAL_DOCS = ["vollmacht", "abtretung"];
 
 // AH (Alltagshilfe) offers: no payment terms, own document set (Zusatzblatt
 // + Abtretung §45b for Kassenkunde). Detected by offer type.
@@ -286,8 +287,10 @@ export async function createSigningRequest({
     ? customerType === "KASSE"
       ? ["angebot", "zusatzblatt", "abtretung_ah"]
       : ["angebot", "zusatzblatt"]
-    : (DOCS_BY_TYPE[customerType] || DOCS_BY_TYPE.SZ).filter(
-        (key) => key === "angebot" || docSelection[key] !== false,
+    : ["angebot", ...OPTIONAL_DOCS].filter(
+        (key) =>
+          key === "angebot" ||
+          (customerType === "KASSE" ? docSelection[key] !== false : docSelection[key] === true),
       );
   const documents = docKeys.map((key) => ({
     key,

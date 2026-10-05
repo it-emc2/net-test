@@ -110,12 +110,20 @@ export async function listPending({ offerType, query } = {}) {
   }
 
   const wantType = String(offerType || "").toLowerCase();
-  const needle = String(query || "").trim().toLowerCase();
+  // Names are stored ASCII-slugified, so fold both sides: typing "Müller"
+  // must find the draft saved as "…-Muller-…". Mirrors nameSearchRegex.
+  const fold = (v) =>
+    String(v || "")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/ß/g, "ss")
+      .toLowerCase();
+  const needle = fold(query).trim();
 
   return all
     .filter((d) => d.kind === "draft")
     .filter((d) => !wantType || d.offerType === wantType)
-    .filter((d) => !needle || String(d.name || "").toLowerCase().includes(needle))
+    .filter((d) => !needle || fold(d.name).includes(needle))
     .sort((a, b) => String(b.savedAt || "").localeCompare(String(a.savedAt || "")));
 }
 

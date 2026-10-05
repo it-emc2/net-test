@@ -5,13 +5,10 @@ import Offer from '../models/Offer.js';
 import Draft from '../models/Draft.js';
 import Product from '../models/Product.js';
 import pricingFactory, { computeFingerprint } from '../logic/pricing.js';
+import { nameSearchRegex } from "../utils/searchRegex.js";
 
 export const router = express.Router();
 const pricing = pricingFactory(Product);
-
-function escapeRegex(value = '') {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
 
 function normalizeValue(value) {
   if (value == null) return '';
@@ -177,7 +174,7 @@ router.get('/search-all', async (req, res) => {
       return res.json([]);
     }
 
-    const safeRegex = new RegExp(escapeRegex(q), 'i');
+    const safeRegex = nameSearchRegex(q);
 
     const searchFields = [
       'offerNumber',
@@ -301,7 +298,7 @@ router.get('/external/search', async (req, res) => {
       return res.json({ results: [], query: q, limit });
     }
 
-    const safeRegex = new RegExp(escapeRegex(q), 'i');
+    const safeRegex = nameSearchRegex(q);
 
     const searchFields = [
       'offerNumber',
@@ -483,6 +480,10 @@ router.post('/:offerNumber/recompute', async (req, res) => {
       return res.status(404).json({ error: 'Angebot nicht gefunden', offerNumber });
     }
 
+    if (offer.locked) {
+      return res.status(409).json({ error: 'Angebot ist gesperrt — Preis kann nicht neu berechnet werden.' });
+    }
+
     const pricingPayload = {
       ...offer.payload,
       offerNumber,
@@ -491,14 +492,6 @@ router.post('/:offerNumber/recompute', async (req, res) => {
     };
     const computedPricing = await pricing.computePrices(pricingPayload);
 
-    // If this offer was frozen, its own payload.frozenPricing is what
-    // computePrices() serves on every future open (it's checked before the
-    // pricing/pricingFingerprint cache below) — re-pin it to the fresh
-    // price too, or reopening would silently revert to the old one.
-    if (offer.payload?.frozen === true) {
-      offer.payload = { ...offer.payload, frozenPricing: computedPricing };
-      offer.markModified('payload');
-    }
     offer.pricing = computedPricing;
     offer.pricingFingerprint = computeFingerprint(pricingPayload);
     await offer.save();
@@ -528,12 +521,10 @@ router.post('/', async (req, res) => {
     }
 
     // Price is always computed server-side on save — never trust a client-
-    // supplied `pricing` blob, and strip `frozen`/`frozenPricing` too: those
-    // are honored for drafts/previews (see pricing-core.js computePrices),
-    // but this route is what actually finalizes an offer's price, so it must
-    // never accept a client-fabricated snapshot.
-    const { frozen, frozenPricing, ...payloadForPricing } = payload;
-    const pricingPayload = { ...payloadForPricing, offerNumber, offerType };
+    // supplied `pricing` blob. Re-saving an offer number that is already
+    // sent keeps that offer's pinned price (pricing-core step 1); a changed
+    // offer is saved as a new Entwurf under a new number instead.
+    const pricingPayload = { ...payload, offerNumber, offerType };
     const computedPricing = await pricing.computePrices(pricingPayload);
 
     // Prepare the offer document
@@ -544,6 +535,7 @@ router.post('/', async (req, res) => {
       pricing: computedPricing,
       pricingFingerprint: computeFingerprint(pricingPayload),
       status: status || 'saved',
+      locked: true,
       updatedAt: new Date()
     };
 

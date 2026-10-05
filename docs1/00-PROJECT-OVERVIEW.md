@@ -28,7 +28,7 @@ The system generates professional quotes (Angebote) with dynamic pricing, materi
 | **Email** | Nodemailer (SMTP) |
 | **CRM** | Bitrix24 REST API |
 | **Geolocation** | OpenRouteService, Photon (Komoot), Nominatim, OSRM |
-| **Postal Service** | Binect API |
+| **Postal Service** | onlinebrief24 API |
 | **Deployment** | Docker on Fly.io (Frankfurt region) |
 | **Testing** | Jest 29 + Supertest + JSDOM, Playwright (e2e + offline) |
 | **Code Quality** | ESLint 9 + Prettier |
@@ -120,7 +120,7 @@ net-test/
 |   |   +-- admin.js              # Admin config management API
 |   |   +-- planning.js         # Planning API (SSE streaming)
 |   |   +-- todayscustomers.js  # Today's customer list
-|   |   +-- post.js             # Postal delivery (Binect)
+|   |   +-- post.js             # Postal delivery (onlinebrief24)
 |   |   +-- material-overview.js # Material list overview
 |   +-- services/
 |   |   +-- ApiService.js       # Frontend HTTP client
@@ -238,9 +238,10 @@ npm run health
 | `PDF_SERVICES_CLIENT_ID` | Adobe PDF SDK ID | `***` |
 | `PDF_SERVICES_CLIENT_SECRET` | Adobe PDF SDK secret | `***` |
 | `BITRIX_WEBHOOK_BASE` | Bitrix24 webhook URL | `https://emczwei.bitrix24.de/rest/...` |
-| `BINECT_BASE_URL` | Postal service API | `https://app.binect.de/binectapi/v1` |
-| `BINECT_USERNAME` | Binect auth user | `***` |
-| `BINECT_PASSWORD` | Binect auth password | `***` |
+| `OB24_BASE_URL` | Postal service API | `https://api.onlinebrief24.de/v1` |
+| `OB24_API_KEY` | onlinebrief24 API key | `***` |
+| `OB24_API_SECRET` | onlinebrief24 API secret | `***` |
+| `OB24_MODE` | `test` (Warenkorb) or `live` | `test` |
 | `PLANNING_API_BASE_URL` | Planning service | `https://route-plannung.fly.dev` |
 | `PLANNING_API_KEY` | Planning service key (sent as `X-Api-Key`) | `***` |
 | `AUTH_SECRET` | HMAC secret for session tokens | `***` |

@@ -28,6 +28,10 @@ const AH_ANG_VERSCHICKT_CATEGORY_ID = 52;
 const ZUTEILEN_STAGE_ID = "C72:PREPARATION";
 const ZUTEILEN_CATEGORY_ID = 72;
 
+// Stage an appointment is sent back to when the customer could not be reached
+// ("Nicht erreicht" on the planning list). Same pipeline (category 72).
+const BESICHTIGUNG_STAGE_ID = "C72:UC_MXCAGT";
+
 // AH-specific deal fields, filled from buildAhData()'s AhBitrix output when an
 // AH deal is moved to "ANG verschickt". Field IDs/enum option IDs per Bitrix
 // crm.deal.fields (checked against real examples, see PR discussion).
@@ -262,6 +266,12 @@ export async function retryBitrixLog(logId) {
   log.resolvedAt = new Date();
   await log.save();
   return result;
+}
+
+// Separate internal-only timeline comment; returns null when the note is empty.
+function buildInternalNoteComment(note) {
+  const text = String(note ?? "").replace(/\r\n?/g, "\n").trim().slice(0, 5000);
+  return text ? `🔒 INTERNE NOTIZ (nicht für Kunden)\n\n${text}` : null;
 }
 
 async function addTimelineComment({
@@ -791,6 +801,40 @@ router.post("/deal/:id/move-zuteilen", express.json(), async (req, res) => {
   }
 });
 
+// POST /api/bitrix/deal/:id/move-besichtigung
+// Customer could not be reached: moves the deal back to "[VI] Besichtigungs-
+// termin vereinbaren" and records the reason as a timeline comment.
+// Body: { comment: string }
+router.post("/deal/:id/move-besichtigung", express.json(), async (req, res) => {
+  try {
+    const dealId = String(req.params.id || "").trim();
+    if (!dealId) return res.status(400).json({ error: "id is required" });
+    const comment = String(req.body?.comment || "").trim();
+    if (!comment) return res.status(400).json({ error: "comment is required" });
+
+    const data = await updateDealStage({
+      dealId,
+      stageId: BESICHTIGUNG_STAGE_ID,
+      categoryId: ZUTEILEN_CATEGORY_ID,
+    });
+
+    // The stage move already happened — a failing comment must not report the
+    // whole action as failed, or the user retries and moves the deal twice.
+    let commentFailed = false;
+    try {
+      await addTimelineComment({ entityType: "deal", entityId: dealId, comment });
+    } catch (e) {
+      commentFailed = true;
+      console.warn("[bitrix] move-besichtigung comment failed:", e?.message || e);
+    }
+
+    return res.json({ ok: true, dealId: Number(dealId), commentFailed, result: data?.result ?? data });
+  } catch (err) {
+    console.error("POST /api/bitrix/deal/:id/move-besichtigung error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
 // GET /api/bitrix/activities/today
 // Returns today's CRM activities indexed by OWNER_ID (deal ID) with start/end times.
 // Used to enrich planning entries with exact Bitrix-confirmed appointment times.
@@ -952,8 +996,30 @@ router.get("/calendar/week", async (_req, res) => {
 });
 
 export default router;
+// Deal field "Angebotslink-oc" (url): one click from the deal reopens the offer in OC.
+const OFFER_LINK_FIELD = "UF_CRM_1790772236055";
+const OFFER_LINK_BASE = process.env.OFFER_LINK_BASE || "https://oc.emc2.de";
+
+// Best-effort: never throws, so a Bitrix hiccup can't fail an offer send.
+async function setDealOfferLink(dealId, offerNumber) {
+  const id = String(dealId || "").trim();
+  const n = String(offerNumber || "").trim();
+  if (!id || !n) return { skipped: true };
+  try {
+    await bxPost("crm.deal.update", {
+      id,
+      fields: { [OFFER_LINK_FIELD]: `${OFFER_LINK_BASE}/?offer=${encodeURIComponent(n)}` },
+    });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err?.message || String(err) };
+  }
+}
+
 export {
+  setDealOfferLink,
   addTimelineComment,
+  buildInternalNoteComment,
   updateDealStage,
   updateDealAfterSigning,
   AH_SIGNING_CATEGORY_ID,

@@ -3,11 +3,36 @@
 // bare express app in tests; the handlers are unchanged.
 import express from "express";
 import Draft from "../models/Draft.js";
+import Offer from "../models/Offer.js";
 import Product from "../models/Product.js";
 import pricingFactory, { computeFingerprint } from "../logic/pricing.js";
+import { nameSearchRegex } from "../utils/searchRegex.js";
+import { resolveAnsprechpartner } from "../lib/ansprechpartner.js";
 
 const router = express.Router();
 const pricing = pricingFactory(Product);
+
+// A draft carrying the offer number of an already-sent (locked) Offer is a new
+// version of it, not that offer: computePrices() pins every price under a
+// locked number to the sent total, so keeping the number would leave the
+// Entwurf stuck on it forever. Give it its own number instead — same format as
+// the client's genOfferNumber(), bumped on the rare same-second collision.
+async function freshNumberIfSent(offerNumber) {
+  if (!offerNumber) return null;
+  if (!(await Offer.exists({ offerNumber, locked: true }))) return null;
+
+  const d = new Date();
+  const p2 = (n) => String(n).padStart(2, "0");
+  const base = `ANG${d.getFullYear()}-${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`;
+  for (let i = 0; i < 10; i++) {
+    const candidate = i === 0 ? base : `${base}-${i}`;
+    const taken =
+      (await Offer.exists({ offerNumber: candidate })) ||
+      (await Draft.exists({ offerNumber: candidate }));
+    if (!taken) return candidate;
+  }
+  return `${base}-${Date.now().toString().slice(-4)}`;
+}
 
 // POST /api/drafts/recompute  { offerNumber }
 // Forces a fresh price for the most recently saved draft with this offer
@@ -26,17 +51,13 @@ router.post("/recompute", async (req, res) => {
       return res.status(404).json({ error: "Kein Entwurf mit dieser Angebotsnummer gefunden", offerNumber });
     }
 
+    if (draft.locked) {
+      return res.status(409).json({ error: "Entwurf ist gesperrt — Preis kann nicht neu berechnet werden." });
+    }
+
     const pricingPayload = { ...draft.payload, offerType: draft.offerType, forceRecompute: true };
     const computedPricing = await pricing.computePrices(pricingPayload);
 
-    // If this draft was frozen, its own payload.frozenPricing is what
-    // computePrices() serves on every future open (checked before the
-    // pricing/pricingFingerprint cache below) — re-pin it to the fresh
-    // price too, or reopening would silently revert to the old one.
-    if (draft.payload?.frozen === true) {
-      draft.payload = { ...draft.payload, frozenPricing: computedPricing };
-      draft.markModified("payload");
-    }
     draft.pricing = computedPricing;
     draft.pricingFingerprint = computeFingerprint(pricingPayload);
     await draft.save();
@@ -98,17 +119,39 @@ router.post("/", async (req, res) => {
 
     const parsedSavedAt = savedAt ? new Date(savedAt) : null;
 
+    const sentNumber = String(payload?.offerNumber || "").trim();
+    const freshNumber = await freshNumberIfSent(sentNumber);
+    let draftPayload = freshNumber
+      ? { ...payload, offerNumber: freshNumber }
+      : payload;
+
+    // Ansprechpartner name is never trusted from the client as free text —
+    // always re-derived here from whichever Ansprechpartner email was
+    // selected (falls back to the logged-in user if that email is missing
+    // or unknown). Keeps the printed name, email signature, and internal
+    // signature image in lockstep everywhere, not just on new versions.
+    const resolvedKundendaten = await resolveAnsprechpartner(draftPayload.Kundendaten, req.user);
+
+    // New version of a sent offer additionally gets today's date server-side
+    // — the client resets this too, but a client can lie about it.
+    if (freshNumber) {
+      const p2 = (n) => String(n).padStart(2, "0");
+      const today = new Date();
+      resolvedKundendaten.date = `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`;
+    }
+    draftPayload = { ...draftPayload, Kundendaten: resolvedKundendaten };
+
     // Price computed server-side on every draft save too, so reopening it
     // later can serve this snapshot instead of recomputing (see pricing-core
     // computePrices caching + the AUTO_RECOMPUTE_PRICING admin toggle).
-    const pricingPayload = { ...payload, offerType: trimmedOffer };
+    const pricingPayload = { ...draftPayload, offerType: trimmedOffer };
     const computedPricing = await pricing.computePrices(pricingPayload);
 
     const doc = await Draft.create({
       name: trimmedName,
       offerType: trimmedOffer,
-      payload,
-      offerNumber: String(payload?.offerNumber || "").trim() || undefined,
+      payload: draftPayload,
+      offerNumber: String(draftPayload?.offerNumber || "").trim() || undefined,
       pricing: computedPricing,
       pricingFingerprint: computeFingerprint(pricingPayload),
       savedAt:
@@ -122,6 +165,7 @@ router.post("/", async (req, res) => {
       id: doc._id,
       name: doc.name,
       offerType: doc.offerType,
+      offerNumber: doc.offerNumber,
       savedAt: doc.savedAt,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
@@ -153,8 +197,7 @@ router.get("/search", async (req, res) => {
     filter.offerType = String(offerType).trim();
 
     if (q) {
-      const re = new RegExp(String(q).trim(), "i");
-      filter.name = re;
+      filter.name = nameSearchRegex(q);
     }
 
     // Sort by savedAt (when the user saved) rather than updatedAt (when the
