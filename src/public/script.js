@@ -26981,6 +26981,7 @@ const TODAY_PLANNING_STREAM_ENDPOINT = `/api/planning/stream`;
 
 let todayPlanningAppointments = [];
 let todayPlanningAppointmentsFiltered = [];
+let todayPlanningPause = null;
 let activePlanningAppointmentId = null;
 let _pendingPlanningEntry = null;
 
@@ -27852,7 +27853,22 @@ function renderTodayPlanningAppointments(){
     return;
   }
 
-  list.innerHTML = todayPlanningAppointmentsFiltered.map(entry => {
+  // Pause pill rides on the travel row after the last appointment starting
+  // before the pause; no start time -> after the last appointment.
+  const pauseText = formatTodayPause({ todayPause: todayPlanningPause });
+  const [ph, pm] = String(todayPlanningPause?.start || "").split(":").map(Number);
+  const pauseStart = ph * 60 + pm;
+  let pauseIndex = todayPlanningAppointmentsFiltered.length - 1;
+  if(Number.isFinite(pauseStart)){
+    const after = todayPlanningAppointmentsFiltered.findIndex(e => Number(e?.manualStartMinutes) > pauseStart);
+    if(after !== -1) pauseIndex = Math.max(after - 1, 0);
+  }
+  const pauseHtml = pauseText
+    ? `<span class="today-pause-chip"><i class="fa-solid fa-mug-hot"></i> ${escapePlanningHtml(pauseText)}</span>`
+    : "";
+
+  list.innerHTML = todayPlanningAppointmentsFiltered.map((entry, index) => {
+    const pausePill = index === pauseIndex ? pauseHtml : "";
     const isCancelled = isPlanningEntryCancelled(entry);
     const address = entry?.address || "Ort unbekannt";
     const email = entry?.email || "Keine E-Mail";
@@ -27885,9 +27901,9 @@ function renderTodayPlanningAppointments(){
           const etaHtml = Number.isFinite(start) && Number.isFinite(duration)
             ? `<span class="ptc-eta">an ca. ${formatMinutesAsClock(start + duration + travel)}</span>`
             : "";
-          return `<div class="planning-travel-connector"><i class="fa-solid fa-car-side"></i><span class="ptc-duration">${travel} Min Fahrt / Puffer</span>${etaHtml}</div>`;
+          return `<div class="planning-travel-connector"><i class="fa-solid fa-car-side"></i><span class="ptc-duration">${travel} Min Fahrt / Puffer</span>${etaHtml}${pausePill}</div>`;
         })()
-      : "";
+      : (pausePill ? `<div class="planning-travel-connector planning-pause-row">${pausePill}</div>` : "");
 
     return `
       <div class="today-customer-card today-calendar-card ${String(activePlanningAppointmentId) === String(entry.__entryId) ? "is-active" : ""} ${isCancelled ? "is-cancelled" : ""}" data-id="${escapePlanningHtml(entry.__entryId)}" ${isCancelled ? 'aria-disabled="true"' : ""}>
@@ -28127,14 +28143,7 @@ function applyPlanningPayload(payload){
   const list = document.getElementById("todayPlanningList");
   const { day, entries, planning } = buildPlanningEntries(payload || {});
 
-  const pauseChip = document.getElementById("todayPlanningPause");
-  if(pauseChip){
-    const pauseText = formatTodayPause(planning);
-    pauseChip.hidden = !pauseText;
-    pauseChip.innerHTML = pauseText
-      ? `<i class="fa-solid fa-mug-hot"></i> ${escapePlanningHtml(pauseText)}`
-      : "";
-  }
+  todayPlanningPause = planning?.todayPause || null;
 
   todayPlanningAppointments = entries;
   // Deal "done" state is tracked locally (markDealStage) whenever *this app*
