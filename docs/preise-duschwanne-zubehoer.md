@@ -6,15 +6,21 @@ Es gibt dafür **keine Oberfläche** — das Admin-Panel (`/admin/`) verwaltet n
 
 ## Welcher Artikel gehört zu welcher Zeile
 
-Die Auswahl `Standard` / `Premium` (intern weiterhin `budgetMode`) tauscht zwei der vier Artikel aus.
+> **Stand 2026-10-05 (seit PR #232): kein Tausch mehr.** Beide Linien rechnen dieselben
+> Grundartikel ab; `budgetMode` tauscht nichts mehr aus. Standard hat eine **zusätzliche**,
+> abwählbare Zeile „Abfluss (Badolux)" `AGB001`. `AC004` wird nicht mehr berechnet.
+> Der Block „Zwei Auffälligkeiten" weiter unten beschreibt den alten Tausch und ist damit erledigt
+> (die Preise selbst sind unverändert).
+
 Die Zuordnung steht in [`src/logic/pricing-core.js`](../src/logic/pricing-core.js) im Block `------- Duschwanne ancillary`.
 
-| Zeile im Konfigurator | Premium | Standard | Preis identisch? |
+| Zeile im Konfigurator | Premium | Standard | Abrechnung |
 |---|---|---|---|
-| Wannenabdichtband-Set 3,4 m, DIN 18534 | `TRWDB` | `TRWDB` | ja — kein Tausch |
-| Ablaufgarnitur Rohbauset m. Sifon BH60mm | `AGD9060` | `AGB001` | nein |
-| Kleinmaterial | `KM02` | `AC004` | nein |
-| Stelzlager / Plattenlager Pro 64–110 mm | `PLA5282` | `PLA5282` | ja — kein Tausch (Menge über `stelzlagerQty`) |
+| Wannenabdichtband-Set 3,4 m, DIN 18534 | `TRWDB` | `TRWDB` | wenn angehakt |
+| Ablaufgarnitur Rohbauset m. Sifon BH60mm | `AGD9060` | `AGD9060` | wenn angehakt (`drainSet`) |
+| Kleinmaterial | `KM02` | `KM02` | wenn angehakt (`smallMaterial`) |
+| Abfluss (Badolux) | — | `AGB001` | nur Standard, wenn angehakt (`drainBadolux`) |
+| Stelzlager / Plattenlager Pro 64–110 mm | `PLA5282` | `PLA5282` | Menge über `stelzlagerQty` |
 
 Nur die Bilder werden zusätzlich getauscht (`src/public/assets/budget/*.png`, Zuordnung in
 [`BadoluxManager.js`](../src/public/BadoluxManager.js) `swapAccessoryImages`) — das hat mit dem Preis nichts zu tun.

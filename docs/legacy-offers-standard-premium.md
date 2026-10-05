@@ -1,5 +1,12 @@
 # Altbestand & Standard/Premium: was passiert beim Öffnen?
 
+> **Stand 2026-10-05:** Der Zubehör-Tausch `AGB001/AC004 ↔ AGD9060/KM02` existiert seit PR #232
+> nicht mehr (siehe [preise-duschwanne-zubehoer.md](preise-duschwanne-zubehoer.md)); die −147 €
+> weiter unten sind damit Geschichte. Neu seitdem, alle nur für **Badolux-Artikel**, die kein
+> gesendetes Angebot enthält (2762 reale Datensätze mit Wand bzw. 272 mit Boden alt/neu identisch):
+> Badolux-Boden `BP*` je Paket 1,49 m²; Keramico-Wand `WP*` aus der Wandfläche
+> (⌈m² × 1,15 ÷ 0,247⌉). Gesendete Angebote sind zusätzlich serverseitig preisgesperrt.
+
 Kurzantwort: **Nichts.** Kein einziges gespeichertes Angebot und kein Entwurf ändert beim Öffnen
 seinen Preis. Der Grund ist unromantisch: `budgetMode` konnte bis 2026-09-09 gar nicht gespeichert
 werden (die Checkbox stand außerhalb von `#form-duschwanne`, siehe
