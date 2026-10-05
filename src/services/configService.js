@@ -65,6 +65,16 @@ export const CONFIG_SCHEMA = [
     description: 'Fläche eines einzelnen Bodenpaneels (V5FB02)',
   },
   {
+    key: 'BU_WV_STANDARD_PANEL_M2', value: 0.247,
+    label: 'Standard-Wandpaneel Fläche', unit: 'm²', type: 'number', section: 'bu', order: 8,
+    description: 'Fläche eines Keramico-Wandpaneels 2600 × 95 mm (WP001–WP007).',
+  },
+  {
+    key: 'BU_WV_STANDARD_WASTE_FACTOR', value: 1.15,
+    label: 'Verschnittfaktor Standard-Wand', unit: '', type: 'number', section: 'bu', order: 9,
+    description: 'Aufschlag für Verschnitt bei Keramico-Wandpaneelen (1.15 = +15 %). Arbeitsannahme bis zur Klärung mit der Montage.',
+  },
+  {
     key: 'BU_FLOOR_PACK_SIZE_M2_STANDARD', value: 1.49,
     label: 'Standard-Boden Paketgröße', unit: 'm²', type: 'number', section: 'bu', order: 7,
     description: 'Fläche eines Pakets Badolux-Hydroträgerplatte (BP001–BP005). Laut Lieferantenblatt 1,49 m² pro Paket.',

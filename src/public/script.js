@@ -10898,6 +10898,12 @@ const PRODUKT_LINES = {
     page: "page-Wandverkleidung",
     groups: [
       { premium: "wvColorSection", standard: "wvBudgetColorSection", what: "Wandverkleidungsfarbe" },
+      // The 997/1497 Alu panels are Premium only: Standard (Keramico) is priced
+      // from the Wandfläche. resetFields zeroes the quantities when hidden —
+      // buildPayload reads them straight from the DOM, so a hidden "2" would
+      // come back as two billed panels the moment Premium is chosen again.
+      { premium: "wvPanelField997", standard: "", what: "Wandverkleidung 997×2550", resetFields: true },
+      { premium: "wvPanelField1497", standard: "", what: "Wandverkleidung 1497×2550", resetFields: true },
     ],
   },
 };
@@ -10973,7 +10979,9 @@ window.markLineChoice = markLineChoice;
 function lineKeyForGroupElement(el) {
   for (const [key, cfg] of Object.entries(PRODUKT_LINES)) {
     for (const g of cfg.groups) {
-      if (el?.closest?.(`#${g.premium}, #${g.standard}`)) return key;
+      // A side without an element is "" — skip it, "#" is an invalid selector.
+      const sel = [g.premium, g.standard].filter(Boolean).map((id) => `#${id}`).join(", ");
+      if (sel && el?.closest?.(sel)) return key;
     }
   }
   return null;
@@ -11088,11 +11096,18 @@ function setGroupActive(el, active) {
 // A selection in the line being left cannot simply stay: it would be an invisible
 // product on the offer. The warning happens up front in setLine(); by the time we
 // get here the user has already agreed, so this just clears.
-function clearHiddenLineSelection(el) {
+function clearHiddenLineSelection(el, { resetFields = false } = {}) {
   if (!el) return;
   el.querySelectorAll("input:checked").forEach((i) => {
     i.checked = false;
     if (typeof highlightTileForInput === "function") highlightTileForInput(i, false);
+  });
+  if (!resetFields) return;
+  el.querySelectorAll('input[type="number"]').forEach((i) => (i.value = "0"));
+  el.querySelectorAll("select").forEach((s) => (s.value = ""));
+  el.querySelectorAll('[id$="Wrap"]').forEach((w) => {
+    w.hidden = true;
+    w.setAttribute("aria-hidden", "true");
   });
 }
 
@@ -11148,7 +11163,7 @@ function syncProduktlinieGroups({ render = true } = {}) {
       const inactive = document.getElementById(g[leaving]);
       // Clear before hiding, so highlightTileForInput still sees a live element.
       // Silent: setLine() has already asked, if there was anything worth asking about.
-      clearHiddenLineSelection(inactive);
+      clearHiddenLineSelection(inactive, g);
       setGroupActive(inactive, false);
       setGroupActive(active, true);
       ensureRadioDefault(active);
@@ -11644,6 +11659,14 @@ makeFloorCalc({
   });
   areaEl.addEventListener("input", render);
   areaEl.addEventListener("change", render);
+  // Standard (Keramico) is priced from this field. "In Fläche übernehmen" fires
+  // untrusted events the live-pricing watcher ignores, so ask explicitly.
+  areaEl.addEventListener("change", () => {
+    if (window.__restoring || window.__RESTORING__) return;
+    if (getLine("wand") === "standard") {
+      window.requestPricingRefresh?.({ delay: 150, reason: "wv-area" });
+    }
+  });
   document.getElementById("wv997")?.addEventListener("change", render);
   document.getElementById("wv1497")?.addEventListener("change", render);
   document.getElementById("wvLineToggle")?.addEventListener("change", render);

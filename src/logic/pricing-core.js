@@ -768,9 +768,21 @@ function grossToNet(gross, taxRate) {
 
     // ------- Wandverkleidung
     setCat("Wandverkleidung");
+    // Keramico Standard-Wandpaneele (WP001–WP007, 2600×95 mm = 0,247 m² each) are
+    // a different product from the 997/1497×2550 Alu panels: they are priced from
+    // the wall AREA, not from panel counts. Riding them on wvQty997/wvQty1497
+    // billed "Wandverkleidung 3.0 Alu 997×2550 mm" quantities for narrow planks.
+    // So when the decor is a Keramico panel, the Alu quantities and extras are
+    // forced to 0 — every Alu line and every Alu-derived fallback (Flächenkleber,
+    // Verbindungsprofile) drops out — and one Keramico line is added from wvArea
+    // further down. No saved offer carries a WP* decor, so none is affected.
+    const wvColorRaw = String(wv?.wvColor || "").trim();
+    const keramicoPid = wvColorRaw.includes("|") ? wvColorRaw.split("|", 1)[0].trim() : "";
+    const isKeramico = /^WP/i.test(keramicoPid);
+
     // Main panel quantity (user picks one color + qty here)
-    const qty997 = Number(wv?.wvQty997 || 0) || 0;
-    const qty1497 = Number(wv?.wvQty1497 || 0) || 0;
+    const qty997 = isKeramico ? 0 : Number(wv?.wvQty997 || 0) || 0;
+    const qty1497 = isKeramico ? 0 : Number(wv?.wvQty1497 || 0) || 0;
 
     // OLD global color (fallback)
     const wvColor = String(wv?.wvColor || "").trim();
@@ -806,8 +818,8 @@ function grossToNet(gross, taxRate) {
       return fromCfg || [];
     };
 
-    const extras997 = readExtras("997x2550");
-    const extras1497 = readExtras("1497x2550");
+    const extras997 = isKeramico ? [] : readExtras("997x2550");
+    const extras1497 = isKeramico ? [] : readExtras("1497x2550");
     const sumQty = (rows) =>
       rows.reduce((acc, r) => acc + (Number(r?.qty) || 0), 0);
     const extrasQty997 = sumQty(extras997);
@@ -875,6 +887,29 @@ const addExtras = (rows, panelLabel, size, defaultPid) => {
 };
 addExtras(extras997, "997×2550 mm", "997x2550", "V3WVK09");
 addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
+
+    // Keramico Standard-Wandpaneele, Flächenmodell (decided 2026-10-05, a working
+    // assumption until the Handwerker confirms the rule):
+    //   Paneele = ⌈Wandfläche × Verschnitt ÷ Paneelfläche⌉
+    // Always rounded up — a part panel is a whole panel. Both values are editable
+    // in the Admin panel. This model is cheap for walls well under 2,60 m high,
+    // where the cut-off is usually waste.
+    if (isKeramico) {
+      const wallArea = Number(String(wv?.wvArea ?? "").replace(",", ".")) || 0;
+      const kWaste = cfg.get('BU_WV_STANDARD_WASTE_FACTOR', 1.15);
+      const kUnit = cfg.get('BU_WV_STANDARD_PANEL_M2', 0.247);
+      const kQty = wallArea > 0 && kUnit > 0 ? ceilSafe((wallArea * kWaste) / kUnit) : 0;
+      if (kQty > 0) {
+        const display = formatWvColor(wvColorRaw.split("|").slice(1).join("|").trim());
+        const areaTxt = String(round2(wallArea)).replace(".", ",");
+        const pct = Math.round((kWaste - 1) * 100);
+        add(
+          keramicoPid,
+          kQty,
+          `- ${kQty} Stk Wandpaneel Keramico 2600×95 mm${display ? " — Farbe: " + display : ""} (für ${areaTxt} m² inkl. ${pct} % Verschnitt)`,
+        );
+      }
+    }
 
     if (wv?.wvSealing) add("TRWDSET5", 1);
     if (wv?.flechenkleber) {
