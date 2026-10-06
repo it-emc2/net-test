@@ -9624,12 +9624,11 @@ function pgbReveal(el, on) {
   form.addEventListener("change", (e) => {
     const name = e.target?.name || "";
     if (["pflegekasseAntrag", "wohnsituation", "badStockwerk", "twoPersons"].includes(name)) sync();
-    // Miete → "Genehmigung des Vermieters erforderlich" an, Eigentum → aus.
+    // Miete → "Genehmigung des Vermieters erforderlich?" = Ja, Eigentum → Nein.
     // Beim Wiederherstellen eines Entwurfs nicht, dort zählt der gespeicherte Wert.
     if (name === "wohnsituation" && !window.__restoring) {
-      const cb = document.getElementById("vermieterGenehmigungErforderlich");
-      if (cb && e.target.value === "Miete") cb.checked = true;
-      if (cb && e.target.value === "Eigentum") cb.checked = false;
+      if (e.target.value === "Miete") setRadio("vermieterGenehmigungErforderlich", "Ja");
+      if (e.target.value === "Eigentum") setRadio("vermieterGenehmigungErforderlich", "Nein");
     }
   });
 
@@ -9666,13 +9665,12 @@ function pgbReveal(el, on) {
       const formContactId = document.getElementById("bitrixContactId")?.value.trim();
       if (formContactId && contact?.ID && String(contact.ID) !== formContactId) return;
 
-      const cb = document.getElementById("vermieterGenehmigungErforderlich");
       if (vermieter?.erforderlich === true) {
         setRadio("wohnsituation", "Miete");
-        if (cb) cb.checked = true;
+        setRadio("vermieterGenehmigungErforderlich", "Ja");
       } else if (vermieter?.erforderlich === false) {
         setRadio("wohnsituation", "Eigentum");
-        if (cb) cb.checked = false;
+        setRadio("vermieterGenehmigungErforderlich", "Nein");
       }
       if (vermieter?.liegtVor === true) setRadio("vermieterGenehmigung", "Ja");
       if (vermieter?.liegtVor === false) setRadio("vermieterGenehmigung", "Nein");
@@ -9680,6 +9678,18 @@ function pgbReveal(el, on) {
       console.warn("[vermieter] Deal konnte nicht geladen werden:", e);
     }
   });
+
+  // Pflichtfeld nur bei BU/BWT. Bei anderen Angeboten ist die Zeile nur
+  // ausgeblendet (data-offer), würde aber sonst die Formularprüfung blockieren.
+  // requireBereichValid() springt beim Senden/Export automatisch hierher zurück.
+  const syncRequired = () => {
+    const on = ["bu", "bwt"].includes(currentOfferKey);
+    document
+      .querySelectorAll('input[name="vermieterGenehmigungErforderlich"]')
+      .forEach((el) => { el.required = on; });
+  };
+  window.addEventListener("offerflow:changed", syncRequired);
+  syncRequired();
 })();
 
 // -------------------------------------------------------------------------
@@ -9843,7 +9853,7 @@ function getKundendatenPageData() {
     wohnsituation: data.wohnsituation || checkedValue("wohnsituation"),
     vermieterGenehmigung:
       data.vermieterGenehmigung || checkedValue("vermieterGenehmigung"),
-    vermieterGenehmigungErforderlich: checked("vermieterGenehmigungErforderlich"),
+    vermieterGenehmigungErforderlich: checkedValue("vermieterGenehmigungErforderlich"), // "Ja" | "Nein" | ""
     zugangWohnung: data.zugangWohnung || checkedValue("zugangWohnung"),
     badStockwerk:
       (checkedValue("badStockwerk") === "Anderes OG"
@@ -15091,7 +15101,9 @@ function restoreKundendaten(k, offer) {
   setRadio("pflegekasseEmc2Antrag", k.pflegekasseEmc2Antrag);
   setRadio("wohnsituation", k.wohnsituation);
   setRadio("vermieterGenehmigung", k.vermieterGenehmigung);
-  setByNameOrId("vermieterGenehmigungErforderlich", !!k.vermieterGenehmigungErforderlich);
+  // Ältere Entwürfe speicherten einen Boolean (Checkbox): true → "Ja", false → offen lassen.
+  const vgErf = k.vermieterGenehmigungErforderlich === true ? "Ja" : k.vermieterGenehmigungErforderlich;
+  if (vgErf === "Ja" || vgErf === "Nein") setRadio("vermieterGenehmigungErforderlich", vgErf);
   setRadio("zugangWohnung", k.zugangWohnung || k.wohnungszugang);
   const stockwerkValue = String(k.badStockwerk || k.stockwerkBad || "");
   const isOtherStockwerk = !!stockwerkValue && !["UG", "EG", "1. OG", "2. OG"].includes(stockwerkValue);

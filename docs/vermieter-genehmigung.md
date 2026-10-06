@@ -11,7 +11,7 @@ Bitrix-Deal ──GET /api/bitrix/deal/:id──▶ vermieter { erforderlich, li
                                               │ (true / false / null)
 Kundendaten-Formular ◀────────────────────────┘
   • Wohnsituation (Miete/Eigentum)
-  • ☐ Genehmigung des Vermieters erforderlich     ← neue Checkbox (BU, BWT)
+  • Genehmigung des Vermieters erforderlich? Ja/Nein  ← Pflichtfeld (BU, BWT)
   • Genehmigung des Vermieters liegt vor? Ja/Nein/Noch ausstehend
         │
         ▼ payload.Kundendaten
@@ -34,13 +34,15 @@ Code: `vermieterFromDeal()` in `src/routes/bitrix.js` (Feld-IDs und Werte-IDs al
 
 ## Wann erscheint der Satz im Angebot?
 
-`VermieterZustimmungHinweis = (BU oder BWT) && Checkbox an && "liegt vor" ≠ "Ja"`
+`VermieterZustimmungHinweis = (BU oder BWT) && erforderlich = "Ja" && "liegt vor" ≠ "Ja"`
 
 ## Formular-Verhalten (`src/public/script.js`)
 
 - `initVermieterFromDeal()`: lauscht auf `change` von `#auftragId`. Alle Deal-Ladewege (Kalender, Hauptmenü, Planung, manuelle Eingabe) schreiben dort hinein. Läuft nur bei BU/BWT, nicht beim Wiederherstellen eines Entwurfs (`window.__restoring`), und nur wenn der Deal zum Kontakt im Formular passt.
-- Wohnsituation Miete → Checkbox an, Eigentum → aus. Manuell änderbar.
-- Gespeichert als `Kundendaten.vermieterGenehmigungErforderlich` (boolean).
+- Wohnsituation Miete → "Ja", Eigentum → "Nein". Manuell änderbar.
+- **Pflichtfeld** (nur BU/BWT): `required` wird je Angebotstyp gesetzt (`offerflow:changed`), weil ausgeblendete Felder anderer Angebote sonst die Prüfung blockieren. Rot (CSS `#vermieterErforderlichRow`), solange nichts gewählt. Beim Senden/Export springt `requireBereichValid()` automatisch zurück zu Kundendaten.
+- Ohne Deal-Information (kein Listenfeld, keine Wohnsituation-Zeile) bleibt das Feld leer → Berater muss wählen.
+- Gespeichert als `Kundendaten.vermieterGenehmigungErforderlich` = `"Ja"` | `"Nein"` | `""`. Alte Entwürfe (Boolean `true`) werden als "Ja" geladen.
 
 ## "Wichtige Hinweise" im Angebot
 

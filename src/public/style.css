@@ -10718,3 +10718,11 @@ details.az-group[open] > summary.az-group-title::before {
 [data-mode="dark"] #page-Zusammenfassung .export-card:not([hidden]){background:var(--card);border-color:var(--border)}
 [data-mode="dark"] #page-Zusammenfassung .document-card__format{background:rgba(255,255,255,.08);color:var(--text)}
 [data-mode="dark"] #page-Zusammenfassung .document-card__badge{color:#f2bc78}
+
+/* Kundendaten (BU/BWT): "Genehmigung des Vermieters erforderlich?" ist Pflicht —
+   rot, solange weder Ja noch Nein gewählt ist. Doku: docs/vermieter-genehmigung.md */
+#vermieterErforderlichRow:not(:has(input:checked)) > label { color: var(--danger); }
+#vermieterErforderlichRow:not(:has(input:checked)) .radio-pill {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}

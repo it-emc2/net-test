@@ -3290,11 +3290,14 @@ button.dm-btn-danger:focus-visible {
 
                 <!-- BU/BWT: steuert den Satz "Der Auftrag kommt erst mit schriftlicher Zustimmung
                      des Vermieters zustande." im Angebot. Auto aus Bitrix-Deal / Wohnsituation.
-                     Doku: docs/vermieter-genehmigung.md -->
-                <div class="full" data-offer="bu,bwt">
-                  <label class="check-pill"><input type="checkbox" id="vermieterGenehmigungErforderlich" name="vermieterGenehmigungErforderlich" /><span class="box"></span>
-                    <span>Genehmigung des Vermieters erforderlich</span>
-                  </label>
+                     Pflichtfeld bei BU/BWT (required wird in script.js je Angebotstyp gesetzt),
+                     rot solange nichts gewählt. Doku: docs/vermieter-genehmigung.md -->
+                <div id="vermieterErforderlichRow" class="full" data-offer="bu,bwt">
+                  <label class="req">Genehmigung des Vermieters erforderlich?</label>
+                  <div class="radio-group" role="radiogroup" aria-label="Genehmigung des Vermieters erforderlich?">
+                    <label class="radio-pill"><input type="radio" name="vermieterGenehmigungErforderlich" value="Ja" /><span class="circle"></span><span>Ja</span></label>
+                    <label class="radio-pill"><input type="radio" name="vermieterGenehmigungErforderlich" value="Nein" /><span class="circle"></span><span>Nein</span></label>
+                  </div>
                 </div>
 
                 <div id="vermieterGenehmigungRow" class="full" data-offer="bu,bwt,hl,bl,hms,wd" hidden aria-hidden="true">
