@@ -9624,10 +9624,62 @@ function pgbReveal(el, on) {
   form.addEventListener("change", (e) => {
     const name = e.target?.name || "";
     if (["pflegekasseAntrag", "wohnsituation", "badStockwerk", "twoPersons"].includes(name)) sync();
+    // Miete → "Genehmigung des Vermieters erforderlich" an, Eigentum → aus.
+    // Beim Wiederherstellen eines Entwurfs nicht, dort zählt der gespeicherte Wert.
+    if (name === "wohnsituation" && !window.__restoring) {
+      const cb = document.getElementById("vermieterGenehmigungErforderlich");
+      if (cb && e.target.value === "Miete") cb.checked = true;
+      if (cb && e.target.value === "Eigentum") cb.checked = false;
+    }
   });
 
   sync();
   window.syncKundendatenExtraFields = sync;
+})();
+
+// -------------------------------------------------------------------------
+// BU/BWT: Vermieter-Genehmigung aus dem Bitrix-Deal vorbelegen.
+// Sobald #auftragId eine Deal-ID bekommt (Kalender, Hauptmenü, Planung, Hand),
+// liefert GET /api/bitrix/deal/:id -> vermieter { erforderlich, liegtVor }
+// (je true/false/null). null = unbekannt -> Formular bleibt wie es ist.
+// Doku: docs/vermieter-genehmigung.md
+// -------------------------------------------------------------------------
+(function initVermieterFromDeal() {
+  const input = document.getElementById("auftragId");
+  if (!input) return;
+  let lastId = "";
+
+  input.addEventListener("change", async () => {
+    const id = input.value.trim();
+    if (!id) lastId = ""; // neues Angebot -> gleicher Deal darf wieder laden
+    if (window.__restoring || !/^\d+$/.test(id) || id === lastId) return;
+    if (!["bu", "bwt"].includes(currentOfferKey)) return;
+    lastId = id;
+
+    try {
+      const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(id)}`);
+      if (!res.ok || input.value.trim() !== id) return; // Fehler oder ID inzwischen geändert
+      const { contact, vermieter } = await res.json();
+
+      // Schutz: manche Flows schreiben eine Kontakt-ID ins Feld. Gehört der
+      // Deal zu einem anderen Kontakt als im Formular, nichts übernehmen.
+      const formContactId = document.getElementById("bitrixContactId")?.value.trim();
+      if (formContactId && contact?.ID && String(contact.ID) !== formContactId) return;
+
+      const cb = document.getElementById("vermieterGenehmigungErforderlich");
+      if (vermieter?.erforderlich === true) {
+        setRadio("wohnsituation", "Miete");
+        if (cb) cb.checked = true;
+      } else if (vermieter?.erforderlich === false) {
+        setRadio("wohnsituation", "Eigentum");
+        if (cb) cb.checked = false;
+      }
+      if (vermieter?.liegtVor === true) setRadio("vermieterGenehmigung", "Ja");
+      if (vermieter?.liegtVor === false) setRadio("vermieterGenehmigung", "Nein");
+    } catch (e) {
+      console.warn("[vermieter] Deal konnte nicht geladen werden:", e);
+    }
+  });
 })();
 
 // -------------------------------------------------------------------------
@@ -9791,6 +9843,7 @@ function getKundendatenPageData() {
     wohnsituation: data.wohnsituation || checkedValue("wohnsituation"),
     vermieterGenehmigung:
       data.vermieterGenehmigung || checkedValue("vermieterGenehmigung"),
+    vermieterGenehmigungErforderlich: checked("vermieterGenehmigungErforderlich"),
     zugangWohnung: data.zugangWohnung || checkedValue("zugangWohnung"),
     badStockwerk:
       (checkedValue("badStockwerk") === "Anderes OG"
@@ -15038,6 +15091,7 @@ function restoreKundendaten(k, offer) {
   setRadio("pflegekasseEmc2Antrag", k.pflegekasseEmc2Antrag);
   setRadio("wohnsituation", k.wohnsituation);
   setRadio("vermieterGenehmigung", k.vermieterGenehmigung);
+  setByNameOrId("vermieterGenehmigungErforderlich", !!k.vermieterGenehmigungErforderlich);
   setRadio("zugangWohnung", k.zugangWohnung || k.wohnungszugang);
   const stockwerkValue = String(k.badStockwerk || k.stockwerkBad || "");
   const isOtherStockwerk = !!stockwerkValue && !["UG", "EG", "1. OG", "2. OG"].includes(stockwerkValue);

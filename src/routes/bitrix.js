@@ -607,6 +607,41 @@ router.post("/timeline/comment", express.json({ limit: "25mb" }), async (req, re
   }
 });
 
+// Vermieter-Genehmigung aus dem Deal ableiten (BU/BWT Kundendaten-Checkbox).
+// Doku: docs/vermieter-genehmigung.md
+// Reihenfolge: 1) Listenfeld (von n8n befüllt) 2) Datei-Feld "Bestätigung vom
+// Vermieter" 3) Zeile "Wohnsituation:" in der Auftragsbeschreibung (alte Deals).
+// Rückgabe je Wert: true / false / null (= unbekannt, Formular nicht anfassen).
+const VERMIETER_FIELD = "UF_CRM_1791270927983"; // Genehmigung des Vermieters erforderlich
+const VERMIETER_VALUES = {
+  "8540": { erforderlich: true, liegtVor: false }, // Ja – Zustimmung fehlt
+  "8546": { erforderlich: true, liegtVor: true }, // Ja – Zustimmung liegt vor
+  "8542": { erforderlich: false, liegtVor: null }, // Nein (Eigentümer)
+  // "8544" Unklar → wie leer, Fallback auf Text
+};
+const VERMIETER_FILE_FIELD = "UF_CRM_1741678430123"; // Bestätigung vom Vermieter für Umbauten
+const AUFTRAGSBESCHREIBUNG_FIELD = "UF_CRM_1711018687";
+
+function vermieterFromDeal(deal) {
+  const result = { erforderlich: null, liegtVor: null };
+  const fromField = VERMIETER_VALUES[String(deal[VERMIETER_FIELD] || "")];
+  if (fromField) Object.assign(result, fromField);
+
+  // Datei-Feld ist "multiple": leer = [] oder false.
+  const files = deal[VERMIETER_FILE_FIELD];
+  if (Array.isArray(files) ? files.length > 0 : !!files) result.liegtVor = true;
+
+  if (result.erforderlich === null) {
+    // Die Zeile "Einverständnis des Vermieters" wird bewusst ignoriert: sie
+    // steht oft auf "Vorhanden/Eigentümer", auch bei Mietern.
+    const text = String(deal[AUFTRAGSBESCHREIBUNG_FIELD] || "");
+    const wohn = (text.match(/^\s*Wohnsituation:[ \t]*(.*)$/im)?.[1] || "").trim();
+    if (/miet/i.test(wohn)) result.erforderlich = true;
+    else if (/eigent/i.test(wohn)) result.erforderlich = false;
+  }
+  return result;
+}
+
 // GET /api/bitrix/deal/:id — deal + its linked contact, for the Hauptmenü
 // "Bitrix Deal laden" field (loads a deal directly, without knowing the
 // contact ID first).
@@ -643,6 +678,7 @@ router.get("/deal/:id", async (req, res) => {
     return res.json({
       deal: { id: Number(dealId), title: deal.TITLE || "", stageId: deal.STAGE_ID || "" },
       contact,
+      vermieter: vermieterFromDeal(deal),
     });
   } catch (err) {
     console.error("GET /api/bitrix/deal/:id error:", err);

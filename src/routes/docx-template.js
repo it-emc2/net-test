@@ -2028,8 +2028,18 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
 
     // for Regie-Stundensatz
     RegieRateFmt,
-    // for the toggle is on (ebenerdigNote / ebenerdigeMontage
-    EbenerdigHinweis,
+    // for the toggle is on (ebenerdigNote / ebenerdigeMontage)
+    // Nur Badumbau — bei BWT/HL/BL nie (Wichtige Hinweise).
+    EbenerdigHinweis: ["bwt", "hl", "bl"].includes(offerKey) ? [] : EbenerdigHinweis,
+
+    // "Wichtige Hinweise" — Doku: docs/vermieter-genehmigung.md
+    // Vermieter-Satz: BU/BWT, Checkbox an und Genehmigung liegt nicht schon vor.
+    VermieterZustimmungHinweis:
+      (!offerKey || offerKey === "bu" || offerKey === "bwt") &&
+      toBoolish(b.vermieterGenehmigungErforderlich) &&
+      b.vermieterGenehmigung !== "Ja",
+    // Pflegekassen-Bewilligungs-Satz: alle Kassenkunden-Angebote.
+    IsKassenkunde: isKK,
 
     // BWT table rows (used only in Angebot-BWT.docx)
     BwtRows,
