@@ -3653,7 +3653,7 @@ function collectDuschabtrennungConfigurator(doc) {
     qa.push({
       kind: "config",
       label: ln.label || "Duschabtrennung (Konfigurator)",
-      qty: 1,
+      qty: Math.max(1, Number(ln?.qty) || 1),
       // pass a numeric net price: pricing.js parseMoneyStrict returns numbers as-is,
       // avoiding the German-format ambiguity where "411.6" would parse to 4116.
       price: price,
