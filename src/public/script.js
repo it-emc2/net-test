@@ -15450,7 +15450,7 @@ function restoreOptionalPage(opt) {
   document.querySelector('#form-optional input[name="wcMontage"]:checked')?.dispatchEvent(new Event("change", { bubbles: true }));
 
   const wcProductIds = window.WC_PRODUCT_IDS || [];
-  requestAnimationFrame(() => {
+  const applySavedWcSelection = () => {
     wcProductIds.forEach((pid) => {
       const cb = document.getElementById(`opt_${pid}`);
       const qty = document.getElementById(`qty_${pid}`);
@@ -15466,7 +15466,20 @@ function restoreOptionalPage(opt) {
         cb.dispatchEvent(new Event("change", { bubbles: true }));
       }
     });
-  });
+  };
+  // This used to run only inside requestAnimationFrame, which the browser never
+  // fires while the tab or app is in the background. Restoring then left the WC
+  // tiles on their render defaults (ensureWallProductsRendered: accessories on,
+  // WC and seat off) — a saved Dusch-WC DEDWWC + seat DERSIAS silently became
+  // WWCAG90, and the draft repriced about 1.338 € lower. Same trap as pgbReveal.
+  //
+  // The cat_WC / wcMontage change events above render the tiles synchronously,
+  // so they exist now: apply right away, so the restore's own pricing pass
+  // already sees the saved WCs. The second pass catches anything rendered late,
+  // via setTimeout, which background tabs throttle but still run. Both passes
+  // set the same saved values, so running twice is harmless.
+  applySavedWcSelection();
+  setTimeout(applySavedWcSelection, 0);
 }
 
 // Duschabtrennung quick-add (you already have logic inside restoreConfiguratorFromOffer;
