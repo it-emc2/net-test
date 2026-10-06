@@ -5155,6 +5155,23 @@ button.dm-btn-danger:focus-visible {
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-img img {
     width: 100%; height: 100%; object-fit: contain; display: block;
   }
+  /* selected Verbreiterungsprofil tile + its Menge input; the cell takes the tile's flex slot */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-cell {
+    display: flex; flex-direction: column; gap: 6px;
+    flex: 1 1 calc((100% - (3 * 14px)) / 4);
+    max-width: calc((100% - (3 * 14px)) / 4);
+    min-width: 200px;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-cell > .dac-opt {
+    flex: 1 1 auto; max-width: none;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-qty {
+    display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+    font-size: 0.85rem; margin: 0; text-align: left;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-qty input {
+    width: 100%; box-sizing: border-box;
+  }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-label {
     font-size: 0.9rem; color: var(--text); line-height: 1.25;
   }
@@ -5279,7 +5296,7 @@ button.dm-btn-danger:focus-visible {
   }
 
   @media (max-width: 760px) {
-    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt {
+    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) :is(.dac-opt, .dac-extra-cell) {
       flex-basis: calc((100% - 14px) / 2);
       max-width: calc((100% - 14px) / 2);
     }
