@@ -8142,19 +8142,25 @@ button.pad-clear {
 .today-pause-chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin: 0 0 12px;
-  padding: 6px 14px;
+  gap: 10px;
+  margin-left: auto;
+  padding: 10px 20px;
   border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: 700;
   background: rgba(245, 158, 11, .12);
   border: 1px solid rgba(245, 158, 11, .25);
   color: #b45309;
 }
 
-.today-pause-chip[hidden] {
-  display: none;
+.planning-travel-connector .today-pause-chip i {
+  width: auto;
+  height: auto;
+  margin: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font-size: 1rem;
 }
 
 /* ===== Wochenkalender Vertrieb ========================================== */
