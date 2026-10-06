@@ -15057,6 +15057,7 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("cp_name", k.cp_name);
   setByNameOrId("cp_phone", k.cp_phone);
   setRadio("cp_salutation", k.cp_salutation);
+  setByNameOrId("emailCc", k.emailCc);
   setByNameOrId("cp_email", k.cp_email);
   setByNameOrId("cp_street", k.cp_street);
   setByNameOrId("cp_city", k.cp_city);
