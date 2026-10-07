@@ -686,6 +686,41 @@ router.get("/deal/:id", async (req, res) => {
   }
 });
 
+// POST /api/bitrix/deal/:id/kasse-freigabe
+// Body: { filename, base64 }. Appends the file to "Bestätigung der Kasse für
+// Wohnumfeldverb. Maßnahmen" (multi-file; existing files are kept) and
+// leaves a timeline note.
+const KASSE_FREIGABE_FIELD = "UF_CRM_1741678405915";
+router.post("/deal/:id/kasse-freigabe", express.json({ limit: "25mb" }), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const filename = String(req.body?.filename || "").trim();
+    const base64 = String(req.body?.base64 || "").replace(/^data:[^,]*,/, "").trim();
+    if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: "Ungültige Auftrag-ID" });
+    if (!filename || !base64) return res.status(400).json({ error: "Datei fehlt" });
+
+    const deal = (await bxGet("crm.deal.get", { id }))?.result;
+    if (!deal) return res.status(404).json({ error: "Auftrag nicht gefunden" });
+    const existing = (Array.isArray(deal[KASSE_FREIGABE_FIELD]) ? deal[KASSE_FREIGABE_FIELD] : [])
+      .filter((f) => f?.id)
+      .map((f) => ({ id: f.id }));
+
+    await bxPost("crm.deal.update", {
+      id,
+      fields: { [KASSE_FREIGABE_FIELD]: [...existing, { fileData: [filename, base64] }] },
+    });
+    await addTimelineComment({
+      entityType: "deal",
+      entityId: id,
+      comment: `📎 Freigabe der Kasse hochgeladen (Konfigurator): ${filename}\nAblage im Feld „Bestätigung der Kasse für Wohnumfeldverb. Maßnahmen“.`,
+    });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("POST /api/bitrix/deal/:id/kasse-freigabe error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
 // POST /api/bitrix/deal/:id/move-ang-verschickt
 // Body: { opportunity?: number, currencyId?: string }
 // Fills Betrag/Währung (if provided) and moves the deal to "[VI] ANG verschickt".

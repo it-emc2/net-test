@@ -3164,6 +3164,19 @@ button.dm-btn-danger:focus-visible {
                     </div></div>
                   </div>
 
+                  <div id="kasseFreigabeRow" style="margin-top: 12px">
+                    <label for="kasseFreigabeFile">Freigabe der Kasse</label>
+                    <label class="pgb-btn-ghost" for="kasseFreigabeFile" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:100%;box-sizing:border-box;min-height:120px;padding:20px;text-align:center">
+                      <span style="display:flex;align-items:center;gap:8px">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        Foto aufnehmen / Datei hochladen
+                      </span>
+                      <span style="font-weight:400;font-size:.85em;opacity:.75">Bestätigung der Kasse für Wohnumfeldverb. Maßnahmen – wird beim Auftrag in Bitrix24 abgelegt.</span>
+                    </label>
+                    <input id="kasseFreigabeFile" type="file" accept="image/*,application/pdf,.pdf" hidden />
+                    <span id="kasseFreigabeStatus" aria-live="polite" style="display:block;margin-top:6px"></span>
+                  </div>
+
                   <!--  <div class="full" style="margin-top: 8px">
                     <label class="req"
                       >Antrag auf Wohnumfeld verbessernde Maßnahmen</label
