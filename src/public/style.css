@@ -11146,3 +11146,9 @@ details.az-group[open] > summary.az-group-title::before {
 .kmp-k { font-size: 0.72rem; color: #6b7280; }
 [data-mode="dark"] .kmp-card { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); }
 [data-mode="dark"] .kmp-name { color: #f3f4f6; }
+/* A non-wrapping scroller's min-content is the width of all its cards, which
+   stretched the whole Wandverkleidung section past the page. width:0 +
+   min-width:100% makes it fill its parent without pushing it wider. */
+.kmp-track { width: 0; min-width: 100%; }
+/* display:flex on these would otherwise beat the hidden attribute. */
+.kc-cutlist[hidden], .kmp[hidden] { display: none; }
