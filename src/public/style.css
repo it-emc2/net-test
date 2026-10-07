@@ -11152,3 +11152,11 @@ details.az-group[open] > summary.az-group-title::before {
 .kmp-track { width: 0; min-width: 100%; }
 /* display:flex on these would otherwise beat the hidden attribute. */
 .kc-cutlist[hidden], .kmp[hidden] { display: none; }
+/* Same size and look as the colour tiles above (label.image-check). */
+.kmp-track { gap: 14px; }
+.kmp-card { flex: 0 0 220px; gap: 8px; padding: 12px; border: 2px solid #e5e7eb; border-radius: 12px; }
+.kmp-img { height: auto; aspect-ratio: 4 / 5; border-radius: 10px; border: 1px solid #eef0f4; }
+.kmp-name { font-size: 0.9rem; font-weight: 600; color: #6b7280; }
+.kmp-card.is-selected .kmp-name { color: var(--accent); }
+.kmp-card.is-selected { border-color: rgb(117, 193, 159); box-shadow: none; }
+.kmp-card.is-selected .kmp-name { color: rgb(59, 138, 104); }
