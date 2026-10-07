@@ -91,3 +91,17 @@ Boden-Hydroträgerplatte (BP001–005, 1,49 m²/Paket) — kein Abgleich möglic
 **Darstellung:** 3D-Szene (SVG) aus der Duschkabinen-Zeichen-Engine des Shops (`buildScene`/`project`/`fitCamera`, ~1.400 Zeilen), Wände in Farben A #b06a32 / B #54748f / C #5f8a5f, Paneel-Streifen mit Nummern-Marken, Zuschnitte gestrichelt, rückseitige Wand transparent, Person als Größenreferenz (nicht bei U-Form), Fokus auf Eingabe bzw. Hover auf Paneel hebt hervor und blendet den Rest ab, Ansicht dreht sich bei Bewegung, Zahlen zählen animiert hoch.
 
 **Urheberrecht:** Code von Blackwell Studio (Footer „Designed and Developed by"). Unveränderte Übernahme nur mit Freigabe von CleverBad/Blackwell.
+
+## 9. Standard (Keramico) vs. Premium (Vigour) — historische Angebote, Stand 2026-10-07
+
+589 gesendete Angebote mit Premium-Wand (997/1497). Premium = tatsächlich angebotene Paneel-Zeilen; Keramico = gleiche Wandbreite nach dem Shop-Rechner × 116,10 €. Die echte Wandbreite ist unbekannt (nur Paneelzahl gespeichert) → Spanne:
+best = kleinste Wand, die diese Premium-Paneele noch braucht · mid = Mitte, ≤ 1 Ecke · worst = volle Premium-Abdeckung + 1 Teilpaneel je Ecke.
+
+| Szenario | Keramico | Premium | Δ | günstiger in |
+|---|---|---|---|---|
+| best | 176.820 € | 278.485 € | −36,5 % | 589/589 |
+| mid | 198.647 € | 278.485 € | −28,7 % | 588/589 |
+| worst | 248.802 € | 278.485 € | −10,7 % | 318/589 (inkl. Profile 427/589) |
+
+Je cm Wandbreite: Keramico 1,22 € · Vigour 997 1,69 € · Vigour 1497 1,76 €. Nachteil nur bei sehr kleinen Wänden knapp über 95 cm (1 × 997 = 168 € vs. 2 × Keramico = 232,20 €).
+Nicht enthalten: Keramico-Zubehör (Kleber, Abschlussleiste), Arbeitszeit, Premium-Profile V3A/V3V nur in „inkl. Profile".
