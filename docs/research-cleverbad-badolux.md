@@ -77,3 +77,17 @@ Boden-Hydroträgerplatte (BP001–005, 1,49 m²/Paket) — kein Abgleich möglic
 6. Amalfi-Wannen mit Rand aufnehmen?
 7. Zubehör: AGB001-Preis/Artikel, Winkelleisten 33,42 → 2,17 €, Dichtband 10 m, Keramico-Zubehör (Kleber, Abschlussleiste, Kappe).
 8. Wandhöhe > 255 cm: Shop macht keine Aussage.
+
+## 8. „Bedarf berechnen" (Produktseite Keramico) — Analyse 2026-10-07
+
+**Logik** (aus dem ausgelieferten JS, Modul `berechnePaneelBedarf` + `buildPanelPlan`):
+
+- Situationen: Eine Wand (Rückwand) · Ecke (links + Rückwand) · U-Form (links + Rückwand + rechts); Eingabe je Wand: Breite in cm. Platzhalter 120 / 180 / 120.
+- **Jede Wand wird einzeln geplant**: Stücke à 95 cm, das letzte Stück ist der Rest → Paneele = Σ ⌈Breite ÷ 95⌉.
+- Schnitte = Anzahl Paneele schmaler als 95 cm (± 0,5 cm). Verschnitt = Paneele × 95 − Σ Breiten. Höhe fest 255 cm, keine Höheneingabe.
+- Reststücke werden **nicht** über Ecken weiterverwendet (der Hinweistext behauptet das, der Code tut es nicht). Beispiel 100 / 200 / 90 cm → 6 Paneele, 3 Schnitte: „Platte 2 am Ende auf 5 cm, Platte 5 am Ende auf 10 cm, Platte 6 am Ende auf 90 cm".
+- Ergebnis: Paneele (Stück), Empfohlene Schnitte, Materialpreis (Anzahl × Preis), Schnittliste, Button „Menge übernehmen".
+
+**Darstellung:** 3D-Szene (SVG) aus der Duschkabinen-Zeichen-Engine des Shops (`buildScene`/`project`/`fitCamera`, ~1.400 Zeilen), Wände in Farben A #b06a32 / B #54748f / C #5f8a5f, Paneel-Streifen mit Nummern-Marken, Zuschnitte gestrichelt, rückseitige Wand transparent, Person als Größenreferenz (nicht bei U-Form), Fokus auf Eingabe bzw. Hover auf Paneel hebt hervor und blendet den Rest ab, Ansicht dreht sich bei Bewegung, Zahlen zählen animiert hoch.
+
+**Urheberrecht:** Code von Blackwell Studio (Footer „Designed and Developed by"). Unveränderte Übernahme nur mit Freigabe von CleverBad/Blackwell.
