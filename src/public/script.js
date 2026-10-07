@@ -6056,6 +6056,17 @@ function highlightTileForInput(input, on) {
   input?.closest("label.image-check")?.classList.toggle("is-checked", !!on);
 }
 
+// A radio that gets unchecked fires no change event, so a tile highlighted by
+// code (page default, restore) kept its border after another tile was picked
+// and two tiles looked selected. Re-sync the whole radio group instead.
+document.addEventListener("change", (e) => {
+  const t = e.target;
+  if (t?.type !== "radio" || !t.name || !t.closest?.("label.image-check")) return;
+  document
+    .querySelectorAll(`input[type="radio"][name="${CSS.escape(t.name)}"]`)
+    .forEach((r) => highlightTileForInput(r, r.checked));
+});
+
 // =================================================================
 // Budget Wandpaneele (Badolux) — Option A: extra group (additive)
 // Loads from backend: source=badolux + dimensions ~ 997/1497 × 2550
@@ -6109,8 +6120,8 @@ async function loadBudgetWandPanels() {
     __budgetWvCache = items.map((p) => ({
       productId: p.productId,
       name: p.name || p.productId,
-      // Convention for images (adjust if you store differently)
-      img: `./assets/budget/${p.productId}.png`,
+      // Colour swatches from cleverbad.de (Badolux's shop), cropped to the 4:5 tile.
+      img: `./assets/budget/${p.productId}.webp`,
     }));
     return __budgetWvCache;
   })();
