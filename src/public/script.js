@@ -11751,6 +11751,16 @@ makeFloorCalc({
     }, 320);
   }
 
+  // Image for the chosen decor: the local swatch for WP001–006, the picked
+  // motif (loaded from cleverbad.de) for the Sonder-Dekor, otherwise none.
+  function decorImage() {
+    const color = document.querySelector('input[name="wvColor"]:checked')?.value || "";
+    const pid = color.split("|")[0];
+    if (/^WP00[1-6]$/i.test(pid)) return `./assets/budget/${pid.toUpperCase()}.webp`;
+    if (/^WP007$/i.test(pid)) return document.querySelector(".kmp-card.is-selected img")?.src || "";
+    return "";
+  }
+
   function project(x, y, z, cam) {
     return [cam.ox + cam.s * (x * AX[0] + z * DEPTH[0]), cam.oy + cam.s * (-y + x * AX[1] + z * DEPTH[1])];
   }
@@ -11813,7 +11823,19 @@ makeFloorCalc({
     const P = (wall, p, y) => project(...toXYZ[wall](p, y), cam);
     const quad = (wall, a, b) => [P(wall, a, 0), P(wall, b, 0), P(wall, b, DRAW_H), P(wall, a, DRAW_H)];
 
-    let out = "";
+    // The chosen decor on the walls: one image per 95-cm panel, slanted with
+    // the wall. The pattern's own space is wall-local (u = cm along the wall,
+    // v = cm down from the top), mapped to the screen by an affine matrix.
+    const tex = decorImage();
+    let defs = "";
+    if (tex) {
+      walls.forEach((key, i) => {
+        const o = P(key, 0, DRAW_H), u = P(key, 1, DRAW_H), v = P(key, 0, DRAW_H - 1);
+        const m = [u[0] - o[0], u[1] - o[1], v[0] - o[0], v[1] - o[1], o[0], o[1]].map((n) => n.toFixed(4)).join(" ");
+        defs += `<pattern id="kcTex${i}" patternUnits="userSpaceOnUse" width="${core.KERAMICO_PANEL_CM}" height="${DRAW_H}" patternTransform="matrix(${m})"><image href="${esc(tex)}" width="${core.KERAMICO_PANEL_CM}" height="${DRAW_H}" preserveAspectRatio="xMidYMid slice"/></pattern>`;
+      });
+    }
+    let out = defs ? `<defs>${defs}</defs>` : "";
     out += `<polygon class="kc-floor" points="${pts([[0, 0, 0], [W, 0, 0], [W, 0, D], [0, 0, D]].map(([x, y, z]) => project(x, y, z, cam)))}"/>`;
 
     const labels = { left: [], right: [], inline: [] };
@@ -11838,7 +11860,8 @@ makeFloorCalc({
         nowKeys.add(k);
         const q = quad(key, pc.start, pc.start + pc.breite);
         const isNew = !shownKeys.has(k);
-        out += `<polygon class="kc-piece${pc.platte % 2 ? "" : " kc-piece--alt"}${pc.zuschnitt ? " kc-piece--cut" : ""}${isNew ? " kc-new" : ""}" data-platte="${pc.platte}" points="${pts(q)}" style="--kc-solid:${tone.solid};animation-delay:${isNew ? (pc.platte - 1) * 45 : 0}ms"/>`;
+        const fill = tex ? `fill:url(#kcTex${i});fill-opacity:1;` : "";
+        out += `<polygon class="kc-piece${pc.platte % 2 ? "" : " kc-piece--alt"}${pc.zuschnitt ? " kc-piece--cut" : ""}${isNew ? " kc-new" : ""}" data-platte="${pc.platte}" points="${pts(q)}" style="${fill}--kc-solid:${tone.solid};animation-delay:${isNew ? (pc.platte - 1) * 45 : 0}ms"/>`;
         if (pc.start > 0.5) {
           const a = P(key, pc.start, 0), b = P(key, pc.start, DRAW_H);
           out += `<line class="kc-seam" x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}"/>`;
@@ -11941,6 +11964,11 @@ makeFloorCalc({
     });
   }
   heightEl?.addEventListener("input", render);
+  // Repaint the walls when the decor or the Sonder-Dekor motif changes.
+  document.addEventListener("change", (e) => {
+    if (e.target?.name === "wvColor") render();
+  });
+  document.getElementById("kmpTrack")?.addEventListener("click", () => setTimeout(render, 0));
   // Hover (mouse) or tap (iPad) on a panel highlights it and its label.
   svg.addEventListener("pointerover", (e) => {
     const p = e.target.closest?.("[data-platte]")?.dataset.platte;
