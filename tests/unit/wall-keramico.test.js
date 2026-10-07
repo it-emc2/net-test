@@ -60,7 +60,7 @@ describe("Keramico wall (Standard) pricing", () => {
     const k = ls.find((l) => l.productId === "WP003");
     expect(k.qty).toBe(6);
     expect(k.unitPrice).toBeCloseTo(116.1, 2);
-    expect(k.label).toBe("- 6 Stk Wandpaneel Keramico 950×2550 mm — Farbe: grau (U-Form: 100 + 200 + 90 cm, 3 Zuschnitte)");
+    expect(k.label).toBe("- 6 Stk Wandpaneel 950×2550 mm — Farbe: grau (U-Form: 100 + 200 + 90 cm, 3 Zuschnitte)");
     expect(ls.find((l) => /997|1497/.test(l.label || ""))).toBeUndefined();
   });
 

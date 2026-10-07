@@ -962,7 +962,7 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
         add(
           keramicoPid,
           plan.gesamt,
-          `- ${plan.gesamt} Stk Wandpaneel Keramico 950×2550 mm${display ? " — Farbe: " + display : ""}${motifTxt} (${KERAMICO_SITUATIONS[plan.situation].label}: ${widthsTxt} cm, ${cutsTxt})`,
+          `- ${plan.gesamt} Stk Wandpaneel 950×2550 mm${display ? " — Farbe: " + display : ""}${motifTxt} (${KERAMICO_SITUATIONS[plan.situation].label}: ${widthsTxt} cm, ${cutsTxt})`,
           undefined,
           null,
           kDiscount > 0 ? { discount: kDiscount } : null,
