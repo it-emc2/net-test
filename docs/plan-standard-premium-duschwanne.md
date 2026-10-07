@@ -9,7 +9,7 @@ Status: **phases 1–3 implemented and verified; per-section Produktlinien since
 > | Section | Standard (Badolux) pricing | Config key (Admin) |
 > |---|---|---|
 > | Fußboden `BP*` | ⌈m² × 1,15 ÷ 1,49⌉ packs | `BU_FLOOR_PACK_SIZE_M2_STANDARD` |
-> | Wand `WP*` Keramico | ⌈Wandfläche × 1,15 ÷ 0,247⌉ panels; 997/1497 fields hidden + zeroed | `BU_WV_STANDARD_PANEL_M2`, `BU_WV_STANDARD_WASTE_FACTOR` |
+> | Wand `WP*` Keramico | ⌈Wandfläche × 1,15 ÷ 2,4225⌉ panels; 997/1497 fields hidden + zeroed | `BU_WV_STANDARD_PANEL_M2`, `BU_WV_STANDARD_WASTE_FACTOR` |
 > | Wand Premium | unchanged; new Flächenrechner suggests 997/1497 quantities (`wvArea`, additive) | — |
 >
 > Open (business): wall rule for heights > 2,60 m, Keramico accessories, Keramico work time

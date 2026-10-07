@@ -768,7 +768,7 @@ function grossToNet(gross, taxRate) {
 
     // ------- Wandverkleidung
     setCat("Wandverkleidung");
-    // Keramico Standard-Wandpaneele (WP001–WP007, 2600×95 mm = 0,247 m² each) are
+    // Keramico Standard-Wandpaneele (WP001–WP007, 950×2550 mm = 2,4225 m² each) are
     // a different product from the 997/1497×2550 Alu panels: they are priced from
     // the wall AREA, not from panel counts. Riding them on wvQty997/wvQty1497
     // billed "Wandverkleidung 3.0 Alu 997×2550 mm" quantities for narrow planks.
@@ -897,7 +897,7 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
     if (isKeramico) {
       const wallArea = Number(String(wv?.wvArea ?? "").replace(",", ".")) || 0;
       const kWaste = cfg.get('BU_WV_STANDARD_WASTE_FACTOR', 1.15);
-      const kUnit = cfg.get('BU_WV_STANDARD_PANEL_M2', 0.247);
+      const kUnit = cfg.get('BU_WV_STANDARD_PANEL_M2', 2.4225);
       const kQty = wallArea > 0 && kUnit > 0 ? ceilSafe((wallArea * kWaste) / kUnit) : 0;
       if (kQty > 0) {
         const display = formatWvColor(wvColorRaw.split("|").slice(1).join("|").trim());
@@ -906,7 +906,7 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
         add(
           keramicoPid,
           kQty,
-          `- ${kQty} Stk Wandpaneel Keramico 2600×95 mm${display ? " — Farbe: " + display : ""} (für ${areaTxt} m² inkl. ${pct} % Verschnitt)`,
+          `- ${kQty} Stk Wandpaneel Keramico 950×2550 mm${display ? " — Farbe: " + display : ""} (für ${areaTxt} m² inkl. ${pct} % Verschnitt)`,
         );
       }
     }

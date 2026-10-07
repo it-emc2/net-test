@@ -5,7 +5,7 @@
 > weiter unten sind damit Geschichte. Neu seitdem, alle nur für **Badolux-Artikel**, die kein
 > gesendetes Angebot enthält (2762 reale Datensätze mit Wand bzw. 272 mit Boden alt/neu identisch):
 > Badolux-Boden `BP*` je Paket 1,49 m²; Keramico-Wand `WP*` aus der Wandfläche
-> (⌈m² × 1,15 ÷ 0,247⌉). Gesendete Angebote sind zusätzlich serverseitig preisgesperrt.
+> (⌈m² × 1,15 ÷ 2,4225⌉). Gesendete Angebote sind zusätzlich serverseitig preisgesperrt.
 
 Kurzantwort: **Nichts.** Kein einziges gespeichertes Angebot und kein Entwurf ändert beim Öffnen
 seinen Preis. Der Grund ist unromantisch: `budgetMode` konnte bis 2026-09-09 gar nicht gespeichert

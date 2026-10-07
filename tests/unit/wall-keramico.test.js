@@ -1,6 +1,6 @@
 /**
- * Standard-Wandpaneele (Keramico WP*, 2600×95 mm = 0,247 m²) are priced from the
- * Wandfläche: ⌈Fläche × 1,15 ÷ 0,247⌉. They rode on the 997/1497 Alu quantities
+ * Standard-Wandpaneele (Keramico WP*, 950×2550 mm = 2,4225 m²) are priced from the
+ * Wandfläche: ⌈Fläche × 1,15 ÷ 2,4225⌉. They rode on the 997/1497 Alu quantities
  * before. Alu panels (every saved offer) must not change.
  */
 import pricingCore from "../../src/logic/pricing-core.js";
@@ -36,10 +36,10 @@ describe("Keramico wall (Standard)", () => {
   test("priced from the area, Alu quantities ignored", async () => {
     const ls = await lines({ wvColor: "WP003|Beton grau", wvArea: "10", wvQty997: 2, wvQty1497: 1 });
     const k = ls.find((l) => l.productId === "WP003");
-    // 10 × 1,15 = 11,5 ÷ 0,247 = 46,56 → 47
-    expect(k.qty).toBe(47);
-    expect(k.lineTotal).toBeCloseTo(47 * 129, 2);
-    expect(k.label).toMatch(/47 Stk Wandpaneel Keramico 2600×95 mm .*für 10 m² inkl\. 15 % Verschnitt/);
+    // 10 × 1,15 = 11,5 ÷ 2,4225 = 4,75 → 5
+    expect(k.qty).toBe(5);
+    expect(k.lineTotal).toBeCloseTo(5 * 129, 2);
+    expect(k.label).toMatch(/5 Stk Wandpaneel Keramico 950×2550 mm .*für 10 m² inkl\. 15 % Verschnitt/);
     expect(ls.filter((l) => l.qty > 0 && l.productId === "WP003")).toHaveLength(1);
     expect(ls.find((l) => /997|1497/.test(l.label || ""))).toBeUndefined();
   });
@@ -51,6 +51,6 @@ describe("Keramico wall (Standard)", () => {
 
   test("comma decimal", async () => {
     const ls = await lines({ wvColor: "WP003|x", wvArea: "8,5" });
-    expect(ls.find((l) => l.productId === "WP003").qty).toBe(40); // 9,775/0,247=39,57
+    expect(ls.find((l) => l.productId === "WP003").qty).toBe(5); // 9,775/2,4225=4,04
   });
 });

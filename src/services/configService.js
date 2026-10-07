@@ -65,9 +65,9 @@ export const CONFIG_SCHEMA = [
     description: 'Fläche eines einzelnen Bodenpaneels (V5FB02)',
   },
   {
-    key: 'BU_WV_STANDARD_PANEL_M2', value: 0.247,
+    key: 'BU_WV_STANDARD_PANEL_M2', value: 2.4225,
     label: 'Standard-Wandpaneel Fläche', unit: 'm²', type: 'number', section: 'bu', order: 8,
-    description: 'Fläche eines Keramico-Wandpaneels 2600 × 95 mm (WP001–WP007).',
+    description: 'Fläche eines Keramico-Wandpaneels 950 × 2550 mm (WP001–WP007), laut cleverbad.de (Badolux-Shop).',
   },
   {
     key: 'BU_WV_STANDARD_WASTE_FACTOR', value: 1.15,

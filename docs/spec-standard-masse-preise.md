@@ -4,6 +4,12 @@
 Noch nichts davon ist implementiert.** Sobald die Antworten da sind, wird dieses Dokument die Vorlage
 für die Umsetzung.
 
+> **Korrektur 2026-10-07:** Ein Keramico-Paneel ist **95 cm breit × 255 cm hoch** (2,4225 m²), nicht
+> 2600 × 95 mm — bestätigt auf cleverbad.de (Badolux-Shop), siehe
+> [research-cleverbad-badolux.md](research-cleverbad-badolux.md). Alle Stellen unten, die von einem
+> 9,5-cm-„Brett" bzw. 0,247 m² ausgehen, sind damit überholt. Die DN-Nummern sind Dekor-Nummern
+> (gleich für Wand und Boden); der Shop führt eigene Artikelnummern PRI73WP08–13.
+
 Quellen: die beiden Preisblätter (Keramico Wandpaneele Seite 9 / PG 3, Boden Seite 10 / PG 3),
 dazu der heutige Stand in `src/logic/pricing-core.js` und `KonfiguratorDB.Products`.
 
@@ -15,7 +21,7 @@ dazu der heutige Stand in `src/logic/pricing-core.js` und `KonfiguratorDB.Produc
 
 | | |
 |---|---|
-| Maß | **2600 × 95 mm** = **0,247 m² pro Stück** |
+| Maß | **950 × 2550 mm** = **2,4225 m² pro Stück** (korrigiert 2026-10-07 lt. cleverbad.de; vorher fälschlich „2600 × 95 mm") |
 | Standard-Dekor | **129,00 € / Stück** |
 | Sonder-Dekor | **169,00 € / Stück** |
 | Nach Kundenwunsch | zzgl. **Grafikkosten 39,00 €/Std** |
