@@ -69,8 +69,8 @@ Boden-Hydroträgerplatte (BP001–005, 1,49 m²/Paket) — kein Abgleich möglic
 
 ## 7. Offene Entscheidungen (einzeln umsetzen)
 
-1. Keramico-Maß auf 95 × 255 cm korrigieren (Config `BU_WV_STANDARD_PANEL_M2` 0,247 → 2,4225, Label, DB-Maße, Spec).
-2. Keramico 10 % Nachlass: `BDX-WP-*` nutzen **oder** Rabatt im Code wie bei Wannen.
+1. ✅ Keramico-Maß 95 × 255 cm (bfd99895). Offen: DB-Felder widthCm/heightCm von WP001–006.
+2. ✅ Keramico −10 % nur auf WP001–006, Admin-Schlüssel `BU_WV_STANDARD_DISCOUNT` (0 = aus). Artikelnummern bleiben laut Blatt (DN…); cleverbad-Nummern als Referenz in `src/templates/test/badolux-prices.json`.
 3. Mengenmodell Wand: Fläche × 1,15 **oder** Laufbreite ÷ 95 cm (wie Shop-Rechner).
 4. Boden 20 % Nachlass (analog 2).
 5. Wannen-Nachlass 20 % → 25 %?

@@ -79,18 +79,19 @@
       "discount": "10%",
       "spec": "Keramico-Simple Wall Vollkunststoff Paneel zur Verwendung in Nasszellen, 2600 x 95 mm",
       "note": "Wandpaneele nach Kundenwunsch zzgl. Grafikkosten 39,00 €/Std.",
+      "shop_reference": "cleverbad.de (Badolux-Shop), Stand 2026-10-07: Keramico WP950 = 950 x 2550 mm (die 2600 x 95 mm oben sind ein Übertragungsfehler), 128,41 EUR brutto B2C. Nur Referenz, unsere Preise bleiben laut Blatt. Siehe docs/research-cleverbad-badolux.md",
       "products": [
         {
           "name": "Standard-Dekor",
           "einheit": "Stück",
           "preis": 129.00,
           "farben": [
-            { "farbe": "Marmor weiß", "artikelnummer": "DN3287-3" },
-            { "farbe": "steingrau", "artikelnummer": "DN9031-004" },
-            { "farbe": "grau", "artikelnummer": "DN8604-009" },
-            { "farbe": "creme", "artikelnummer": "DN3403-6" },
-            { "farbe": "Sahara", "artikelnummer": "DN4595-5" },
-            { "farbe": "Cafe", "artikelnummer": "DN8604-003" }
+            { "farbe": "Marmor weiß", "artikelnummer": "DN3287-3", "cleverbad_artikelnummer": "PRI73WP08" },
+            { "farbe": "steingrau", "artikelnummer": "DN9031-004", "cleverbad_artikelnummer": "PRI73WP09" },
+            { "farbe": "grau", "artikelnummer": "DN8604-009", "cleverbad_artikelnummer": "PRI73WP10" },
+            { "farbe": "creme", "artikelnummer": "DN3403-6", "cleverbad_artikelnummer": "PRI73WP11" },
+            { "farbe": "Sahara", "artikelnummer": "DN4595-5", "cleverbad_artikelnummer": "PRI73WP12" },
+            { "farbe": "Cafe", "artikelnummer": "DN8604-003", "cleverbad_artikelnummer": "PRI73WP13" }
           ]
         },
         {

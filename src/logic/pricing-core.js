@@ -903,10 +903,18 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
         const display = formatWvColor(wvColorRaw.split("|").slice(1).join("|").trim());
         const areaTxt = String(round2(wallArea)).replace(".", ",");
         const pct = Math.round((kWaste - 1) * 100);
+        // Badolux grants −10 % on the six Standard-Dekore (WP001–006) only, not
+        // on the Sonder-Dekor WP007. Admin key; 0 switches it off.
+        const kDiscount = /^WP00[1-6]$/i.test(keramicoPid)
+          ? cfg.get('BU_WV_STANDARD_DISCOUNT', 0.10)
+          : 0;
         add(
           keramicoPid,
           kQty,
           `- ${kQty} Stk Wandpaneel Keramico 950×2550 mm${display ? " — Farbe: " + display : ""} (für ${areaTxt} m² inkl. ${pct} % Verschnitt)`,
+          undefined,
+          null,
+          kDiscount > 0 ? { discount: kDiscount } : null,
         );
       }
     }
@@ -1578,6 +1586,9 @@ if (l.source === "hl_pipe") {
       if (l.source === "optional_reha") {
       unit = round2(grossToNet(unit, cfg.get('TAX_RATE', 0.19)));
     }
+      // Supplier discount off the DB price (e.g. Keramico −10 %), set per line.
+      const lineDiscount = Number(l?.meta?.discount) || 0;
+      if (lineDiscount > 0 && lineDiscount < 1) unit = round2(unit * (1 - lineDiscount));
 
 
       const displayNameBase = (prod.name || "").trim() || l.id;

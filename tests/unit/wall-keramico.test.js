@@ -7,6 +7,7 @@ import pricingCore from "../../src/logic/pricing-core.js";
 
 const PRODUCTS = {
   WP003: { productId: "WP003", name: "Keramico Wandpaneel", price: 129 },
+  WP007: { productId: "WP007", name: "Wandpaneel Sonder-Dekor", price: 169 },
   V3WVK09: { productId: "V3WVK09", name: "Wandverkleidung 997", price: 300 },
   R_4260602: { productId: "R_4260602", name: "Flächenkleber", price: 11.82 },
 };
@@ -18,8 +19,9 @@ const ProductModel = {
   findOne: () => ({ lean: async () => null }),
 };
 const noDoc = { findOne: () => ({ select: () => ({ lean: async () => null }), lean: async () => null }) };
+let overrides = {};
 const { computePrices } = pricingCore(ProductModel, {
-  cfg: { get: (_k, def) => def },
+  cfg: { get: (k, def) => (k in overrides ? overrides[k] : def) },
   fetchVigourNetPrices: async () => new Map(),
   OfferModel: noDoc,
   DraftModel: noDoc,
@@ -38,7 +40,8 @@ describe("Keramico wall (Standard)", () => {
     const k = ls.find((l) => l.productId === "WP003");
     // 10 × 1,15 = 11,5 ÷ 2,4225 = 4,75 → 5
     expect(k.qty).toBe(5);
-    expect(k.lineTotal).toBeCloseTo(5 * 129, 2);
+    expect(k.unitPrice).toBeCloseTo(116.1, 2); // 129 − 10 %
+    expect(k.lineTotal).toBeCloseTo(5 * 116.1, 2);
     expect(k.label).toMatch(/5 Stk Wandpaneel Keramico 950×2550 mm .*für 10 m² inkl\. 15 % Verschnitt/);
     expect(ls.filter((l) => l.qty > 0 && l.productId === "WP003")).toHaveLength(1);
     expect(ls.find((l) => /997|1497/.test(l.label || ""))).toBeUndefined();
@@ -52,5 +55,17 @@ describe("Keramico wall (Standard)", () => {
   test("comma decimal", async () => {
     const ls = await lines({ wvColor: "WP003|x", wvArea: "8,5" });
     expect(ls.find((l) => l.productId === "WP003").qty).toBe(5); // 9,775/2,4225=4,04
+  });
+
+  test("Sonder-Dekor WP007 gets no discount", async () => {
+    const ls = await lines({ wvColor: "WP007|Sonder", wvArea: "10" });
+    expect(ls.find((l) => l.productId === "WP007").unitPrice).toBe(169);
+  });
+
+  test("discount can be switched off in the Admin panel", async () => {
+    overrides = { BU_WV_STANDARD_DISCOUNT: 0 };
+    const ls = await lines({ wvColor: "WP003|x", wvArea: "10" });
+    overrides = {};
+    expect(ls.find((l) => l.productId === "WP003").unitPrice).toBe(129);
   });
 });
