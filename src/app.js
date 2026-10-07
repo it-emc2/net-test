@@ -146,6 +146,9 @@ app.use(
           "blob:",
           "https://media.onlineplus.store",
           // "https://*.onlineplus.store",
+          // Keramico motif panels, shown straight from cleverbad.de's image
+          // storage (Badolux's shop) — see assets/badolux/keramico-motive.json.
+          "https://lojjuyeivvvykspkfaxl.supabase.co",
         ],
 
         fontSrc: ["'self'", "data:"],
@@ -162,6 +165,8 @@ app.use(
           // connect-src, not img-src. Without it every CDN product image fails
           // with ERR_FAILED as soon as the offline shell is registered.
           "https://media.onlineplus.store",
+          // Same reason for the Keramico motif images (img-src above).
+          "https://lojjuyeivvvykspkfaxl.supabase.co",
         ],
 
         objectSrc: ["'none'"],

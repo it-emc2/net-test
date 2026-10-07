@@ -5077,6 +5077,17 @@ button.dm-btn-danger:focus-visible {
                 <div id="wvBudgetEmpty" class="hint" style="margin-top:8px" hidden>
                   Keine Standard-Wandpaneele verfügbar.
                 </div>
+                <!-- Sonder-Dekor: Motiv aus dem cleverbad.de-Sortiment. Bilder werden direkt
+                     von dort geladen (assets/badolux/keramico-motive.json). wvMotif ist additiv. -->
+                <div id="wvMotifPicker" class="kmp" hidden>
+                  <div class="kmp-head">
+                    <b>Motiv für Sonder-Dekor</b>
+                    <span id="kmpChosen" class="kmp-chosen">Noch kein Motiv gewählt</span>
+                  </div>
+                  <div id="kmpFilters" class="kmp-filters" role="group" aria-label="Kollektion"></div>
+                  <div id="kmpTrack" class="kmp-track" role="listbox" aria-label="Motive"></div>
+                  <input type="hidden" id="wvMotif" name="wvMotif" value="" />
+                </div>
               </div>
             </div>
           </div>

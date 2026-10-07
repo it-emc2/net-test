@@ -74,6 +74,15 @@ describe("Keramico wall (Standard) pricing", () => {
     expect(ls.find((l) => l.productId === "WP007").unitPrice).toBe(169);
   });
 
+  test("Sonder-Dekor names the chosen motif", async () => {
+    const ls = await lines({ wvColor: "WP007|Sonder", wvKBack: "180", wvMotif: "PRE97WP22|Arcadia" });
+    expect(ls.find((l) => l.productId === "WP007").label).toMatch(/Farbe: Sonder — Motiv: Arcadia \(PRE97WP22\) \(Eine Wand: 180 cm/);
+    const own = await lines({ wvColor: "WP007|Sonder", wvKBack: "180", wvMotif: "eigen|Eigenes Motiv nach Absprache" });
+    expect(own.find((l) => l.productId === "WP007").label).toMatch(/Motiv: Eigenes Motiv nach Absprache \(Eine/);
+    const std = await lines({ wvColor: "WP003|grau", wvKBack: "180", wvMotif: "PRE97WP22|Arcadia" });
+    expect(std.find((l) => l.productId === "WP003").label).not.toMatch(/Motiv/);
+  });
+
   test("discount can be switched off in the Admin panel", async () => {
     overrides = { BU_WV_STANDARD_DISCOUNT: 0 };
     const ls = await lines({ wvColor: "WP003|x", wvKBack: "180" });

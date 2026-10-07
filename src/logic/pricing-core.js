@@ -948,6 +948,12 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
           .map((w) => String(w.cm).replace(".", ","))
           .join(" + ");
         const cutsTxt = plan.schnitte === 1 ? "1 Zuschnitt" : `${plan.schnitte} Zuschnitte`;
+        // Sonder-Dekor: the motif picked in the cleverbad.de scroller ("SKU|Name",
+        // or "eigen|…" for a customer's own image).
+        const [motifSku, ...motifName] = String(wv?.wvMotif || "").split("|");
+        const motifTxt = /^WP007$/i.test(keramicoPid) && motifName.length
+          ? ` — Motiv: ${motifName.join("|").trim()}${motifSku && motifSku !== "eigen" ? ` (${motifSku})` : ""}`
+          : "";
         // Badolux grants −10 % on the six Standard-Dekore (WP001–006) only, not
         // on the Sonder-Dekor WP007. Admin key; 0 switches it off.
         const kDiscount = /^WP00[1-6]$/i.test(keramicoPid)
@@ -956,7 +962,7 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
         add(
           keramicoPid,
           plan.gesamt,
-          `- ${plan.gesamt} Stk Wandpaneel Keramico 950×2550 mm${display ? " — Farbe: " + display : ""} (${KERAMICO_SITUATIONS[plan.situation].label}: ${widthsTxt} cm, ${cutsTxt})`,
+          `- ${plan.gesamt} Stk Wandpaneel Keramico 950×2550 mm${display ? " — Farbe: " + display : ""}${motifTxt} (${KERAMICO_SITUATIONS[plan.situation].label}: ${widthsTxt} cm, ${cutsTxt})`,
           undefined,
           null,
           kDiscount > 0 ? { discount: kDiscount } : null,

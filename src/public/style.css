@@ -11128,3 +11128,21 @@ details.az-group[open] > summary.az-group-title::before {
 .kc-note { margin: 0 0 12px; color: #6b7280; font-size: 0.85rem; line-height: 1.4; background: none; border: 0; padding: 0; }
 .kc-legend.kc-note { margin: 6px 0 12px; font-size: 0.78rem; }
 #wvPanelsLabel[hidden] { display: none; }
+
+/* ---------- Sonder-Dekor Motiv-Scroller ---------- */
+.kmp { margin-top: 16px; padding: 14px 0 4px; border-top: 1px solid rgba(10,10,10,0.1); }
+.kmp-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.kmp-chosen { font-size: 0.85rem; color: #6b7280; }
+.kmp-chosen.is-set { color: #15803d; font-weight: 600; }
+.kmp-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.kmp-track { display: flex; gap: 12px; overflow-x: auto; padding: 4px 2px 12px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+.kmp-card { flex: 0 0 128px; display: flex; flex-direction: column; gap: 4px; padding: 6px; border: 2px solid rgba(10,10,10,0.1); border-radius: 12px; background: #fff; font: inherit; text-align: left; cursor: pointer; scroll-snap-align: start; transition: border-color .15s, box-shadow .15s; }
+.kmp-card[hidden] { display: none; }
+.kmp-card.is-selected { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,58,237,0.18); }
+.kmp-img { display: block; height: 176px; border-radius: 8px; overflow: hidden; background: #f3f4f6; }
+.kmp-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.kmp-img--own { display: grid; place-items: center; text-align: center; font-size: 0.85rem; color: #6b7280; border: 1px dashed rgba(10,10,10,0.25); }
+.kmp-name { font-size: 0.82rem; font-weight: 600; color: #111; line-height: 1.2; }
+.kmp-k { font-size: 0.72rem; color: #6b7280; }
+[data-mode="dark"] .kmp-card { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); }
+[data-mode="dark"] .kmp-name { color: #f3f4f6; }

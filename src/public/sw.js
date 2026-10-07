@@ -19,7 +19,7 @@ const CACHE = `nt-shell-${VERSION}`;
 const CACHE_PREFIX = "nt-shell-";
 
 // Product photos live here (see the CSP imgSrc list in app.js).
-const IMAGE_HOSTS = new Set(["media.onlineplus.store"]);
+const IMAGE_HOSTS = new Set(["media.onlineplus.store", "lojjuyeivvvykspkfaxl.supabase.co"]);
 
 // The Duschabtrennung sub-configurator's two catalog models. Unlike a price or
 // an offer, this is scraper-refreshed daily catalog data (da-config.js), so a

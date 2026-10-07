@@ -11951,6 +11951,104 @@ makeFloorCalc({
   window.renderKeramicoCalc = render;
 })();
 
+/* ========== Sonder-Dekor: Motiv-Scroller (Wandverkleidung, Standard) ==========
+   Shown only while WP007 (Sonder-Dekor) is the chosen decor. The motif list is
+   a snapshot of cleverbad.de (Badolux's shop); the images are loaded straight
+   from the shop's storage, nothing is downloaded into the app. The choice goes
+   into the offer as wvMotif ("SKU|Name") and is named on the Keramico line. */
+(function initKeramicoMotifPicker() {
+  const box = document.getElementById("wvMotifPicker");
+  const track = document.getElementById("kmpTrack");
+  const filters = document.getElementById("kmpFilters");
+  const chosenEl = document.getElementById("kmpChosen");
+  const input = document.getElementById("wvMotif");
+  if (!box || !track || !input) return;
+
+  const OWN = "eigen|Eigenes Motiv nach Absprache";
+  let data = null;
+  let loading = null;
+  let filter = "";
+
+  const load = () =>
+    (loading ||= fetch("./assets/badolux/keramico-motive.json")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => (data = j))
+      .catch(() => null));
+
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+  function build() {
+    if (!data || track.childElementCount) return;
+    const ks = data.kollektionen || [];
+    filters.innerHTML = ["", ...ks]
+      .map((k) => `<button type="button" class="kc-chip" data-k="${esc(k)}" aria-pressed="${k === filter}">${esc(k || "Alle")}</button>`)
+      .join("");
+    track.innerHTML =
+      `<button type="button" class="kmp-card kmp-card--own" role="option" data-value="${esc(OWN)}" data-k="">
+         <span class="kmp-img kmp-img--own">Eigenes<br>Motiv</span>
+         <span class="kmp-name">Eigenes Motiv</span><span class="kmp-k">nach Absprache</span>
+       </button>` +
+      data.motive
+        .map(
+          (m) => `<button type="button" class="kmp-card" role="option" data-value="${esc(`${m.sku}|${m.name}`)}" data-k="${esc(m.kollektion)}" title="${esc(`${m.name} · ${m.sku} · Dekor ${m.dekor}`)}">
+            <span class="kmp-img"><img loading="lazy" decoding="async" referrerpolicy="no-referrer" src="${esc(data.imgBase + m.img)}" alt="${esc(m.name)}"></span>
+            <span class="kmp-name">${esc(m.name)}</span><span class="kmp-k">${esc(m.kollektion)}</span>
+          </button>`,
+        )
+        .join("");
+  }
+
+  function paint() {
+    const val = input.value;
+    track.querySelectorAll(".kmp-card").forEach((c) => {
+      const on = c.dataset.value === val;
+      c.classList.toggle("is-selected", on);
+      c.setAttribute("aria-selected", String(on));
+      c.hidden = !!filter && c.dataset.k !== filter && !c.classList.contains("kmp-card--own");
+    });
+    filters.querySelectorAll(".kc-chip").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.k === filter)));
+    chosenEl.textContent = val ? `Gewählt: ${val.split("|").slice(1).join("|")}` : "Noch kein Motiv gewählt";
+    chosenEl.classList.toggle("is-set", !!val);
+  }
+
+  // Visible while WP007 is the decor; a restore may set wvMotif before the
+  // Badolux tiles exist, so a saved motif also keeps it open until they do.
+  async function render() {
+    const color = document.querySelector('input[name="wvColor"]:checked')?.value || "";
+    const show = /^WP007\|/i.test(color) || (!color && !!input.value);
+    box.hidden = !show;
+    if (!show) {
+      if (color && input.value) input.value = ""; // another decor was picked
+      return;
+    }
+    await load();
+    build();
+    paint();
+  }
+
+  track.addEventListener("click", (e) => {
+    const card = e.target.closest?.(".kmp-card");
+    if (!card) return;
+    input.value = card.dataset.value;
+    paint();
+    window.requestPricingRefresh?.({ delay: 150, reason: "keramico-motif" });
+  });
+  // A motif the shop removed or renamed: drop the broken image, keep the name.
+  track.addEventListener("error", (e) => e.target?.tagName === "IMG" && e.target.remove(), true);
+  filters.addEventListener("click", (e) => {
+    const chip = e.target.closest?.(".kc-chip");
+    if (!chip) return;
+    filter = chip.dataset.k;
+    paint();
+    track.scrollTo({ left: 0, behavior: "smooth" });
+  });
+  document.addEventListener("change", (e) => {
+    if (e.target?.name === "wvColor") render();
+  });
+  window.addEventListener("pricing:updated", () => render());
+  window.renderKeramicoMotif = render;
+})();
+
 /* ========== SMART TRAY SEARCH (equal-or-bigger filter, persist/deselect) ========== */
 function initSmartTraySearch() {
   // ----- DOM -----
@@ -15650,8 +15748,9 @@ function restoreWV(wv) {
   // Wandfläche (additiv seit 2026-10): fehlt in Altangeboten → bleibt leer.
   setInputByNameOrId("wvArea", wv.wvArea || "");
   setInputByNameOrId("wvKSituation", wv.wvKSituation || "wand");
-  for (const k of ["wvKLinks", "wvKBack", "wvKRechts", "wvKHoehe"]) setInputByNameOrId(k, wv[k] || "");
+  for (const k of ["wvKLinks", "wvKBack", "wvKRechts", "wvKHoehe", "wvMotif"]) setInputByNameOrId(k, wv[k] || "");
   window.renderKeramicoCalc?.();
+  window.renderKeramicoMotif?.();
   window.renderWvAreaSuggestion?.();
   setInputByNameOrId("wvNote", wv.wvNote || "");
 
