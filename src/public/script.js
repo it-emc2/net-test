@@ -10904,6 +10904,10 @@ const PRODUKT_LINES = {
       // come back as two billed panels the moment Premium is chosen again.
       { premium: "wvPanelField997", standard: "", what: "Wandverkleidung 997×2550", resetFields: true },
       { premium: "wvPanelField1497", standard: "", what: "Wandverkleidung 1497×2550", resetFields: true },
+      // Premium: Wandfläche + 997/1497 suggestion. Standard: Keramico calculator
+      // by wall widths. Hidden inputs are disabled, so they stay out of the payload.
+      { premium: "wvAreaBlock", standard: "wvKeramicoCalc", what: "Wandmaße" },
+      { premium: "wvPanelsLabel", standard: "", what: "" },
     ],
   },
 };
@@ -11606,8 +11610,8 @@ makeFloorCalc({
   }
 
   function render() {
-    // The Standard line has no 997/1497 panels to propose — it is priced from
-    // the area directly (see the Keramico line in pricing-core).
+    // The Standard line has no 997/1497 panels to propose — it has its own
+    // Keramico calculator (initKeramicoCalc).
     const premium = typeof getLine !== "function" || getLine("wand") === "premium";
     const result = premium ? window.computeWvPanelSuggestion?.(areaEl.value) : null;
     if (!result) {
@@ -11659,19 +11663,281 @@ makeFloorCalc({
   });
   areaEl.addEventListener("input", render);
   areaEl.addEventListener("change", render);
-  // Standard (Keramico) is priced from this field. "In Fläche übernehmen" fires
-  // untrusted events the live-pricing watcher ignores, so ask explicitly.
-  areaEl.addEventListener("change", () => {
-    if (window.__restoring || window.__RESTORING__) return;
-    if (getLine("wand") === "standard") {
-      window.requestPricingRefresh?.({ delay: 150, reason: "wv-area" });
-    }
-  });
   document.getElementById("wv997")?.addEventListener("change", render);
   document.getElementById("wv1497")?.addEventListener("change", render);
   document.getElementById("wvLineToggle")?.addEventListener("change", render);
   window.renderWvAreaSuggestion = render;
   render();
+})();
+
+/* ========== Keramico-Bedarfsrechner (Wandverkleidung, Standard) ==========
+   Same rule as „Bedarf berechnen" on cleverbad.de (Badolux's shop): the wall
+   widths go into the offer (wvK*) and pricing-core counts the panels with
+   keramicoPanelPlan — this module only imports that function to draw the
+   same plan, so the drawing and the offer can never disagree. Our own SVG,
+   not the shop's code. */
+(function initKeramicoCalc() {
+  const root = document.getElementById("wvKeramicoCalc");
+  const svg = document.getElementById("kcSvg");
+  if (!root || !svg) return;
+
+  const sitEl = document.getElementById("wvKSituation");
+  const heightEl = document.getElementById("wvKHoehe");
+  const warnEl = document.getElementById("kcHeightWarn");
+  const cutListEl = document.getElementById("kcCutList");
+  const inputs = {
+    links: document.getElementById("wvKLinks"),
+    back: document.getElementById("wvKBack"),
+    rechts: document.getElementById("wvKRechts"),
+  };
+  // Wall colours by position in the situation (A, B, C), as on the shop page.
+  const TONES = [
+    { letter: "A", solid: "#b06a32", wash: "rgba(176,106,50,0.16)" },
+    { letter: "B", solid: "#54748f", wash: "rgba(84,116,143,0.16)" },
+    { letter: "C", solid: "#5f8a5f", wash: "rgba(95,138,95,0.16)" },
+  ];
+  const PREVIEW_CM = { links: 120, back: 180, rechts: 120 }; // drawn while empty
+  const DRAW_H = 200; // drawn wall height; the panel itself is 255 cm
+  // Axonometric view, turned a little like the shop's: the back wall recedes
+  // slightly to the right, depth runs towards the viewer down-left.
+  const AX = [0.9, 0.12]; // screen offset per cm along the back wall
+  const DEPTH = [-0.55, 0.32]; // screen offset per cm towards the viewer
+  const VIEW = { w: 560, h: 320 };
+
+  let core = null; // { keramicoPanelPlan, KERAMICO_SITUATIONS, KERAMICO_HEIGHT_CM }
+  let shownKeys = new Set();
+  let focusWall = null;
+
+  import("/logic/pricing-core.js")
+    .then((m) => {
+      core = m;
+      render();
+    })
+    .catch((err) => console.warn("[keramico] pricing-core import failed:", err));
+
+  const num = (el) => Number(String(el?.value ?? "").replace(",", ".")) || 0;
+  const fmtCm = (n) => String(Math.round(n * 10) / 10).replace(".", ",");
+  const situation = () => (core?.KERAMICO_SITUATIONS[sitEl.value] ? sitEl.value : "wand");
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+  // Count up to the new value. The timeout guarantees the final number even
+  // when requestAnimationFrame doesn't run (background tab).
+  function setCount(el, value) {
+    if (!el) return;
+    const from = Number(el.dataset.v || 0);
+    el.dataset.v = String(value);
+    if (from === value) return void (el.textContent = String(value));
+    const t0 = performance.now();
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / 280);
+      if (el.dataset.v !== String(value)) return;
+      el.textContent = String(Math.round(from + (value - from) * (1 - (1 - k) ** 3)));
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+    setTimeout(() => {
+      if (el.dataset.v === String(value)) el.textContent = String(value);
+    }, 320);
+  }
+
+  function project(x, y, z, cam) {
+    return [cam.ox + cam.s * (x * AX[0] + z * DEPTH[0]), cam.oy + cam.s * (-y + x * AX[1] + z * DEPTH[1])];
+  }
+  const pts = (arr) => arr.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+  function signedArea(poly) {
+    let a = 0;
+    for (let i = 0; i < poly.length; i++) {
+      const [x1, y1] = poly[i];
+      const [x2, y2] = poly[(i + 1) % poly.length];
+      a += x1 * y2 - x2 * y1;
+    }
+    return a / 2;
+  }
+
+  function render() {
+    if (!core) return;
+    const sit = situation();
+    const walls = core.KERAMICO_SITUATIONS[sit].walls;
+
+    root.querySelectorAll(".kc-chip").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.sit === sit)));
+    root.querySelectorAll(".kc-row[data-wall]").forEach((row) => {
+      const i = walls.indexOf(row.dataset.wall);
+      row.hidden = i < 0;
+      const dot = row.querySelector(".kc-dot");
+      if (i >= 0 && dot) {
+        dot.textContent = TONES[i].letter;
+        dot.style.background = TONES[i].solid;
+      }
+    });
+
+    const widths = { links: num(inputs.links), back: num(inputs.back), rechts: num(inputs.rechts) };
+    const plan = core.keramicoPanelPlan(sit, widths);
+
+    // ---- geometry: walls drawn at their real width, or a preview width while empty
+    const drawn = {};
+    for (const k of walls) drawn[k] = Math.max(40, widths[k] > 0 ? widths[k] : PREVIEW_CM[k]);
+    const W = drawn.back;
+    const sideL = drawn.links || 0;
+    const sideR = drawn.rechts || 0;
+    const D = Math.max(sideL, sideR, 100);
+    // Wall-local position p (cm from the wall's start) → 3D point. Left wall runs
+    // from the front to the corner, back wall left→right, right wall corner→front.
+    const toXYZ = {
+      links: (p, y) => [0, y, sideL - p],
+      back: (p, y) => [p, y, 0],
+      rechts: (p, y) => [W, y, p],
+    };
+    const corners = [[0, 0, 0], [W, 0, 0], [W, 0, D], [0, 0, D], [0, DRAW_H, 0], [W, DRAW_H, 0], [0, DRAW_H, sideL], [W, DRAW_H, sideR]];
+    const side = walls.length > 1 ? 74 : 16; // room for leader labels
+    const raw = corners.map(([x, y, z]) => project(x, y, z, { ox: 0, oy: 0, s: 1 }));
+    const minX = Math.min(...raw.map((p) => p[0])), maxX = Math.max(...raw.map((p) => p[0]));
+    const minY = Math.min(...raw.map((p) => p[1])), maxY = Math.max(...raw.map((p) => p[1]));
+    // Capped so a single short wall doesn't fill the whole stage.
+    const s = Math.min((VIEW.w - 2 * side) / (maxX - minX), (VIEW.h - 24) / (maxY - minY), 1.25);
+    const cam = {
+      s,
+      ox: (VIEW.w - (maxX - minX) * s) / 2 - minX * s,
+      oy: (VIEW.h - (maxY - minY) * s) / 2 - minY * s,
+    };
+    const P = (wall, p, y) => project(...toXYZ[wall](p, y), cam);
+    const quad = (wall, a, b) => [P(wall, a, 0), P(wall, b, 0), P(wall, b, DRAW_H), P(wall, a, DRAW_H)];
+
+    let out = "";
+    out += `<polygon class="kc-floor" points="${pts([[0, 0, 0], [W, 0, 0], [W, 0, D], [0, 0, D]].map(([x, y, z]) => project(x, y, z, cam)))}"/>`;
+
+    const labels = { left: [], right: [], inline: [] };
+    const nowKeys = new Set();
+    // Back wall first, side walls over it (painter's order).
+    const order = [...walls].sort((a, b) => (a === "back" ? -1 : b === "back" ? 1 : 0));
+    // The back wall is always seen from the front; a side wall whose outline
+    // winds the other way shows its back to the viewer → drawn see-through.
+    const frontSign = Math.sign(signedArea(quad("back", 0, W)));
+    for (const key of order) {
+      const i = walls.indexOf(key);
+      const tone = TONES[i];
+      const len = drawn[key];
+      const base = quad(key, 0, len);
+      const back = Math.sign(signedArea(base)) !== frontSign;
+      const cls = `kc-wall${back ? " kc-wall--back" : ""}`;
+      out += `<g class="${cls}" data-wall="${i}">`;
+      out += `<polygon class="kc-wall-base" points="${pts(base)}" style="fill:${tone.wash};stroke:${tone.solid}"/>`;
+      const pieces = plan.pieces.filter((p) => p.key === key);
+      for (const pc of pieces) {
+        const k = `${sit}-${key}-${pc.platte}-${pc.breite}`;
+        nowKeys.add(k);
+        const q = quad(key, pc.start, pc.start + pc.breite);
+        const isNew = !shownKeys.has(k);
+        out += `<polygon class="kc-piece${pc.platte % 2 ? "" : " kc-piece--alt"}${pc.zuschnitt ? " kc-piece--cut" : ""}${isNew ? " kc-new" : ""}" data-platte="${pc.platte}" points="${pts(q)}" style="--kc-solid:${tone.solid};animation-delay:${isNew ? (pc.platte - 1) * 45 : 0}ms"/>`;
+        if (pc.start > 0.5) {
+          const a = P(key, pc.start, 0), b = P(key, pc.start, DRAW_H);
+          out += `<line class="kc-seam" x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}"/>`;
+        }
+        const c = P(key, pc.start + pc.breite / 2, DRAW_H * 0.52);
+        const bucket = key === "back" ? "inline" : key === "links" ? "left" : "right";
+        labels[bucket].push({ c, pc, i });
+      }
+      const top = P(key, len / 2, DRAW_H * 0.9);
+      out += `<g class="kc-badge"><circle cx="${top[0].toFixed(1)}" cy="${top[1].toFixed(1)}" r="9" fill="${tone.solid}"/><text x="${top[0].toFixed(1)}" y="${(top[1] + 3.5).toFixed(1)}">${tone.letter}</text></g>`;
+      out += `</g>`;
+    }
+
+    const pill = (x, y, pc, i) =>
+      `<g class="kc-mark" data-platte="${pc.platte}" data-wall="${i}"><rect x="${(x - 22).toFixed(1)}" y="${(y - 9).toFixed(1)}" width="44" height="18" rx="9"/><circle cx="${(x - 12).toFixed(1)}" cy="${y.toFixed(1)}" r="6"/><text class="kc-mark-n" x="${(x - 12).toFixed(1)}" y="${(y + 2.6).toFixed(1)}">${pc.platte}</text><text class="kc-mark-w" x="${(x + 6).toFixed(1)}" y="${(y + 3.4).toFixed(1)}">${fmtCm(pc.breite)}</text></g>`;
+    for (const l of labels.inline) out += pill(l.c[0], l.c[1], l.pc, l.i);
+    // Side walls are foreshortened: labels sit in the margins with a leader line.
+    for (const [bucket, x] of [["left", 26], ["right", VIEW.w - 26]]) {
+      const list = labels[bucket].sort((a, b) => a.c[1] - b.c[1]);
+      const y0 = VIEW.h / 2 - ((list.length - 1) * 22) / 2;
+      list.forEach((l, n) => {
+        const y = y0 + n * 22;
+        out += `<line class="kc-leader" data-platte="${l.pc.platte}" data-wall="${l.i}" x1="${(bucket === "left" ? x + 22 : x - 22).toFixed(1)}" y1="${y.toFixed(1)}" x2="${l.c[0].toFixed(1)}" y2="${l.c[1].toFixed(1)}"/>`;
+        out += pill(x, y, l.pc, l.i);
+      });
+    }
+    svg.innerHTML = out;
+    svg.classList.toggle("kc-svg--empty", plan.gesamt === 0);
+    shownKeys = nowKeys;
+    applyFocus();
+
+    // ---- results
+    setCount(document.getElementById("kcCount"), plan.gesamt);
+    setCount(document.getElementById("kcCuts"), plan.schnitte);
+    const unitEl = document.getElementById("kcCutsUnit");
+    if (unitEl) unitEl.textContent = plan.schnitte === 1 ? "Schnitt" : "Schnitte";
+    const cuts = plan.pieces.filter((p) => p.zuschnitt);
+    cutListEl.hidden = cuts.length === 0;
+    cutListEl.innerHTML = cuts.length
+      ? `<b>${cuts.length === 1 ? "1 Zuschnitt" : `${cuts.length} Zuschnitte`} vor Ort</b><span>Geliefert werden ${plan.gesamt} Paneele ungeschnitten (95 × 255 cm). Zuschnitt: ${cuts.map((p) => `Platte ${p.platte} auf ${fmtCm(p.breite)} cm`).join(", ")}. Verschnitt gesamt ${fmtCm(plan.verschnitt)} cm Breite.</span>`
+      : "";
+
+    const h = num(heightEl);
+    const maxH = core.KERAMICO_HEIGHT_CM;
+    warnEl.hidden = !(h > maxH);
+    warnEl.textContent = h > maxH
+      ? `Wandhöhe ${fmtCm(h)} cm liegt über der Paneelhöhe von ${maxH} cm. Die Paneele decken die Wand nicht bis oben ab — Ausführung bitte klären (z. B. Abschlussleiste oder zweite Reihe). Die Menge berücksichtigt das nicht.`
+      : "";
+    paintPrice();
+  }
+
+  // Price comes from the offer itself (pricing-core, incl. Nachlass), not from
+  // a second calculation here.
+  function paintPrice() {
+    const el = document.getElementById("kcPrice");
+    if (!el) return;
+    const line = (window.__pricing?.materials?.lines || []).find((l) => /^WP\d/i.test(l.productId || ""));
+    el.textContent = line
+      ? `${Number(line.lineTotal || 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+      : "–";
+    el.title = line ? `${line.qty} × ${Number(line.unitPrice || 0).toLocaleString("de-DE", { minimumFractionDigits: 2 })} € netto` : "";
+  }
+
+  function applyFocus(hoverPlatte = null) {
+    svg.classList.toggle("kc-has-focus", focusWall !== null || hoverPlatte !== null);
+    svg.querySelectorAll("[data-wall]").forEach((el) => {
+      const on = hoverPlatte !== null
+        ? el.dataset.platte === String(hoverPlatte) || (el.classList.contains("kc-wall") && el.querySelector(`[data-platte="${hoverPlatte}"]`))
+        : focusWall !== null && el.dataset.wall === String(focusWall);
+      el.classList.toggle("kc-on", !!on);
+    });
+    svg.querySelectorAll(".kc-piece").forEach((el) => el.classList.toggle("kc-on", hoverPlatte !== null && el.dataset.platte === String(hoverPlatte)));
+  }
+
+  const refresh = (reason) => {
+    if (window.__restoring || window.__RESTORING__) return;
+    window.requestPricingRefresh?.({ delay: 250, reason });
+  };
+
+  root.querySelectorAll(".kc-chip").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      if (sitEl.value === btn.dataset.sit) return;
+      sitEl.value = btn.dataset.sit;
+      render();
+      refresh("keramico-situation");
+    }),
+  );
+  for (const [key, el] of Object.entries(inputs)) {
+    el?.addEventListener("input", () => {
+      render();
+      refresh("keramico-width");
+    });
+    el?.addEventListener("focus", () => {
+      focusWall = core?.KERAMICO_SITUATIONS[situation()].walls.indexOf(key) ?? null;
+      applyFocus();
+    });
+    el?.addEventListener("blur", () => {
+      focusWall = null;
+      applyFocus();
+    });
+  }
+  heightEl?.addEventListener("input", render);
+  // Hover (mouse) or tap (iPad) on a panel highlights it and its label.
+  svg.addEventListener("pointerover", (e) => {
+    const p = e.target.closest?.("[data-platte]")?.dataset.platte;
+    if (p) applyFocus(p);
+  });
+  svg.addEventListener("pointerleave", () => applyFocus());
+  window.addEventListener("pricing:updated", paintPrice);
+  window.renderKeramicoCalc = render;
 })();
 
 /* ========== SMART TRAY SEARCH (equal-or-bigger filter, persist/deselect) ========== */
@@ -15372,6 +15638,9 @@ function restoreWV(wv) {
   setInputByNameOrId("wvSonderConfigNr", wv.wvSonderConfigNr || "");
   // Wandfläche (additiv seit 2026-10): fehlt in Altangeboten → bleibt leer.
   setInputByNameOrId("wvArea", wv.wvArea || "");
+  setInputByNameOrId("wvKSituation", wv.wvKSituation || "wand");
+  for (const k of ["wvKLinks", "wvKBack", "wvKRechts", "wvKHoehe"]) setInputByNameOrId(k, wv[k] || "");
+  window.renderKeramicoCalc?.();
   window.renderWvAreaSuggestion?.();
   setInputByNameOrId("wvNote", wv.wvNote || "");
 

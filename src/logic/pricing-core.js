@@ -96,6 +96,50 @@ function stableStringify(value) {
 // Stable fingerprint of the parts of a payload that affect price, so
 // computePrices() can tell "nothing priced changed since last save" from
 // "recompute". A false mismatch just costs an extra (still-correct) recompute.
+// Keramico WP950 panels (Badolux) are 95 × 255 cm. Mirrors the „Bedarf
+// berechnen" rule on cleverbad.de, Badolux's own shop: every wall is planned on
+// its own in 95-cm strips from its start, the last strip is cut to the rest.
+// Offcuts are NOT carried round a corner (the shop's text suggests they are, its
+// code doesn't). Shared with the calculator in script.js so the drawing and the
+// offer can never disagree.
+export const KERAMICO_PANEL_CM = 95;
+export const KERAMICO_HEIGHT_CM = 255;
+export const KERAMICO_SITUATIONS = {
+  wand: { label: "Eine Wand", walls: ["back"] },
+  ecke: { label: "Ecke", walls: ["links", "back"] },
+  u: { label: "U-Form", walls: ["links", "back", "rechts"] },
+};
+export function keramicoPanelPlan(situation, widths = {}) {
+  const sit = KERAMICO_SITUATIONS[situation] ? situation : "wand";
+  const panelMm = KERAMICO_PANEL_CM * 10;
+  const pieces = [];
+  const walls = KERAMICO_SITUATIONS[sit].walls.map((key, index) => {
+    const cm = Number(String(widths?.[key] ?? "").replace(",", ".")) || 0;
+    const mm = cm > 0 ? Math.round(cm * 10) : 0;
+    for (let x = 0; x < mm; x += panelMm) {
+      const w = Math.min(panelMm, mm - x);
+      pieces.push({
+        wall: index,
+        key,
+        platte: pieces.length + 1,
+        start: x / 10,
+        breite: w / 10,
+        zuschnitt: w < panelMm - 5,
+      });
+    }
+    return { key, index, cm: mm / 10 };
+  });
+  const total = walls.reduce((a, w) => a + w.cm, 0);
+  return {
+    situation: sit,
+    walls,
+    pieces,
+    gesamt: pieces.length,
+    schnitte: pieces.filter((p) => p.zuschnitt).length,
+    verschnitt: Math.round((pieces.length * KERAMICO_PANEL_CM - total) * 10) / 10,
+  };
+}
+
 export function computeFingerprint(payload) {
   const { pricing, forceRecompute, ...rest } = payload || {};
   return stableStringify(rest);
@@ -774,7 +818,8 @@ function grossToNet(gross, taxRate) {
     // billed "Wandverkleidung 3.0 Alu 997×2550 mm" quantities for narrow planks.
     // So when the decor is a Keramico panel, the Alu quantities and extras are
     // forced to 0 — every Alu line and every Alu-derived fallback (Flächenkleber,
-    // Verbindungsprofile) drops out — and one Keramico line is added from wvArea
+    // Verbindungsprofile) drops out — and one Keramico line is added from the
+    // wall widths of the Keramico calculator (wvK*)
     // further down. No saved offer carries a WP* decor, so none is affected.
     const wvColorRaw = String(wv?.wvColor || "").trim();
     const keramicoPid = wvColorRaw.includes("|") ? wvColorRaw.split("|", 1)[0].trim() : "";
@@ -888,21 +933,21 @@ const addExtras = (rows, panelLabel, size, defaultPid) => {
 addExtras(extras997, "997×2550 mm", "997x2550", "V3WVK09");
 addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
 
-    // Keramico Standard-Wandpaneele, Flächenmodell (decided 2026-10-05, a working
-    // assumption until the Handwerker confirms the rule):
-    //   Paneele = ⌈Wandfläche × Verschnitt ÷ Paneelfläche⌉
-    // Always rounded up — a part panel is a whole panel. Both values are editable
-    // in the Admin panel. This model is cheap for walls well under 2,60 m high,
-    // where the cut-off is usually waste.
+    // Keramico Standard-Wandpaneele: quantity from the wall widths, the same
+    // rule as the calculator on the page (keramicoPanelPlan above).
     if (isKeramico) {
-      const wallArea = Number(String(wv?.wvArea ?? "").replace(",", ".")) || 0;
-      const kWaste = cfg.get('BU_WV_STANDARD_WASTE_FACTOR', 1.15);
-      const kUnit = cfg.get('BU_WV_STANDARD_PANEL_M2', 2.4225);
-      const kQty = wallArea > 0 && kUnit > 0 ? ceilSafe((wallArea * kWaste) / kUnit) : 0;
-      if (kQty > 0) {
+      const plan = keramicoPanelPlan(wv?.wvKSituation, {
+        links: wv?.wvKLinks,
+        back: wv?.wvKBack,
+        rechts: wv?.wvKRechts,
+      });
+      if (plan.gesamt > 0) {
         const display = formatWvColor(wvColorRaw.split("|").slice(1).join("|").trim());
-        const areaTxt = String(round2(wallArea)).replace(".", ",");
-        const pct = Math.round((kWaste - 1) * 100);
+        const widthsTxt = plan.walls
+          .filter((w) => w.cm > 0)
+          .map((w) => String(w.cm).replace(".", ","))
+          .join(" + ");
+        const cutsTxt = plan.schnitte === 1 ? "1 Zuschnitt" : `${plan.schnitte} Zuschnitte`;
         // Badolux grants −10 % on the six Standard-Dekore (WP001–006) only, not
         // on the Sonder-Dekor WP007. Admin key; 0 switches it off.
         const kDiscount = /^WP00[1-6]$/i.test(keramicoPid)
@@ -910,8 +955,8 @@ addExtras(extras1497, "1497×2550 mm", "1497x2550", "V3WV09");
           : 0;
         add(
           keramicoPid,
-          kQty,
-          `- ${kQty} Stk Wandpaneel Keramico 950×2550 mm${display ? " — Farbe: " + display : ""} (für ${areaTxt} m² inkl. ${pct} % Verschnitt)`,
+          plan.gesamt,
+          `- ${plan.gesamt} Stk Wandpaneel Keramico 950×2550 mm${display ? " — Farbe: " + display : ""} (${KERAMICO_SITUATIONS[plan.situation].label}: ${widthsTxt} cm, ${cutsTxt})`,
           undefined,
           null,
           kDiscount > 0 ? { discount: kDiscount } : null,

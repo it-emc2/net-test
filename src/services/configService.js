@@ -65,19 +65,9 @@ export const CONFIG_SCHEMA = [
     description: 'Fläche eines einzelnen Bodenpaneels (V5FB02)',
   },
   {
-    key: 'BU_WV_STANDARD_PANEL_M2', value: 2.4225,
-    label: 'Standard-Wandpaneel Fläche', unit: 'm²', type: 'number', section: 'bu', order: 8,
-    description: 'Fläche eines Keramico-Wandpaneels 950 × 2550 mm (WP001–WP007), laut cleverbad.de (Badolux-Shop).',
-  },
-  {
     key: 'BU_WV_STANDARD_DISCOUNT', value: 0.10,
     label: 'Nachlass Standard-Wandpaneele', unit: '%', type: 'percent', section: 'bu', order: 10,
     description: 'Badolux-Nachlass auf die sechs Keramico-Standard-Dekore WP001–WP006 (0.10 = −10 %, 129 € → 116,10 €). Nicht auf Sonder-Dekor WP007. 0 = kein Nachlass.',
-  },
-  {
-    key: 'BU_WV_STANDARD_WASTE_FACTOR', value: 1.15,
-    label: 'Verschnittfaktor Standard-Wand', unit: '', type: 'number', section: 'bu', order: 9,
-    description: 'Aufschlag für Verschnitt bei Keramico-Wandpaneelen (1.15 = +15 %). Arbeitsannahme bis zur Klärung mit der Montage.',
   },
   {
     key: 'BU_FLOOR_PACK_SIZE_M2_STANDARD', value: 1.49,

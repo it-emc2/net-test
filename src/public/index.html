@@ -4809,44 +4809,79 @@ button.dm-btn-danger:focus-visible {
           <div id="wvPanelsSection" class="full field">
             <div class="section-title">Plattenwahl</div>
 
-            <!-- Wandfläche + Flächenrechner, gleiche Bausteine wie auf der Fußboden-Seite
-                 (makeFloorCalc). Premium: schlägt 997/1497 vor. Standard: daraus wird die
-                 Keramico-Menge berechnet. wvArea ist additiv — fehlt in jedem Altangebot. -->
-            <div class="flooring-panel-head">
-              <h3 style="margin: 0">Wandfläche</h3>
-              <button type="button" id="wvaCalcToggle" class="secondary flooring-calc-toggle" aria-expanded="false"
-                aria-controls="wvaCalcPanel">Flächenrechner öffnen</button>
-            </div>
-            <div class="flooring-top-grid">
-              <div class="field flooring-area-field" style="margin:0;">
-                <label for="wvArea">Wandfläche m²</label>
-                <input id="wvArea" name="wvArea" inputmode="decimal" placeholder="z. B. 8,5" />
-                <small class="muted flooring-area-help">Fläche direkt eingeben oder den Flächenrechner verwenden.</small>
+            <div id="wvAreaBlock">
+              <!-- Wandfläche + Flächenrechner, gleiche Bausteine wie auf der Fußboden-Seite
+                   (makeFloorCalc). Nur Premium: schlägt 997/1497 vor. wvArea ist additiv —
+                   fehlt in jedem Altangebot. -->
+              <div class="flooring-panel-head">
+                <h3 style="margin: 0">Wandfläche</h3>
+                <button type="button" id="wvaCalcToggle" class="secondary flooring-calc-toggle" aria-expanded="false"
+                  aria-controls="wvaCalcPanel">Flächenrechner öffnen</button>
               </div>
-              <aside id="wvaCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
-                <div class="floor-calc-card__title-row">
-                  <div>
-                    <div class="floor-calc-card__title">Flächenrechner</div>
-                    <div class="floor-calc-card__hint">Wandflächen addieren oder Aussparungen (Fenster, Türen) abziehen — Angaben in Metern.</div>
-                  </div>
+              <div class="flooring-top-grid">
+                <div class="field flooring-area-field" style="margin:0;">
+                  <label for="wvArea">Wandfläche m²</label>
+                  <input id="wvArea" name="wvArea" inputmode="decimal" placeholder="z. B. 8,5" />
+                  <small class="muted flooring-area-help">Fläche direkt eingeben oder den Flächenrechner verwenden.</small>
                 </div>
-                <div id="wvaCalcRows" class="floor-calc-rows" aria-live="polite"></div>
-                <button type="button" id="wvaCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
-                <div class="floor-calc-result-row">
-                  <div>
-                    <div class="floor-calc-result-label">Gesamtfläche</div>
-                    <div id="wvaCalcResult" class="floor-calc-result-value">0,00 m²</div>
+                <aside id="wvaCalcPanel" class="floor-calc-card" aria-hidden="true" hidden>
+                  <div class="floor-calc-card__title-row">
+                    <div>
+                      <div class="floor-calc-card__title">Flächenrechner</div>
+                      <div class="floor-calc-card__hint">Wandflächen addieren oder Aussparungen (Fenster, Türen) abziehen — Angaben in Metern.</div>
+                    </div>
                   </div>
-                  <button type="button" id="wvaCalcApply" class="floor-calc-apply">In Fläche übernehmen</button>
-                </div>
-              </aside>
-            </div>
-            <div id="wvAreaSuggestion" hidden style="margin: 14px 0 18px;">
-              <div class="muted" style="margin-bottom: 8px;">Vorschlag für diese Fläche — antippen übernimmt die Menge:</div>
-              <div id="wvAreaCards" class="wvc-cards"></div>
+                  <div id="wvaCalcRows" class="floor-calc-rows" aria-live="polite"></div>
+                  <button type="button" id="wvaCalcAddRow" class="floor-calc-add-btn">+ Zeile hinzufügen</button>
+                  <div class="floor-calc-result-row">
+                    <div>
+                      <div class="floor-calc-result-label">Gesamtfläche</div>
+                      <div id="wvaCalcResult" class="floor-calc-result-value">0,00 m²</div>
+                    </div>
+                    <button type="button" id="wvaCalcApply" class="floor-calc-apply">In Fläche übernehmen</button>
+                  </div>
+                </aside>
+              </div>
+              <div id="wvAreaSuggestion" hidden style="margin: 14px 0 18px;">
+                <div class="muted" style="margin-bottom: 8px;">Vorschlag für diese Fläche — antippen übernimmt die Menge:</div>
+                <div id="wvAreaCards" class="wvc-cards"></div>
+              </div>
             </div>
 
-            <label class="req">Wandverkleidung</label>
+            <!-- Standard (Keramico 95 × 255 cm): Bedarfsrechner nach Wandbreiten, gleiche
+                 Regel wie cleverbad.de (keramicoPanelPlan in pricing-core). Felder wvK* sind
+                 additiv — fehlen in jedem Altangebot. -->
+            <div id="wvKeramicoCalc" class="kc" hidden aria-hidden="true">
+              <div class="kc-head">
+                <h3>Bedarf berechnen</h3>
+                <p class="kc-note">Ein Keramico-Paneel ist 95 cm breit und 255 cm hoch. Wandsituation wählen und die Breiten eintragen — die Paneele laufen von links über jede Wand.</p>
+              </div>
+              <div class="kc-sits" role="group" aria-label="Wandsituation">
+                <button type="button" class="kc-chip" data-sit="wand" aria-pressed="true">Eine Wand</button>
+                <button type="button" class="kc-chip" data-sit="ecke" aria-pressed="false">Ecke</button>
+                <button type="button" class="kc-chip" data-sit="u" aria-pressed="false">U-Form</button>
+              </div>
+              <input type="hidden" id="wvKSituation" name="wvKSituation" value="wand" />
+              <div class="kc-stage">
+                <svg id="kcSvg" class="kc-svg" viewBox="0 0 560 320" role="img" aria-label="Aufteilung der Paneele"></svg>
+              </div>
+              <p class="kc-legend kc-note">Jede Marke zeigt die Plattennummer und die Breite des Stücks in cm. Gestrichelte Stücke werden vor Ort zugeschnitten.</p>
+              <div class="kc-rows">
+                <label class="kc-row" data-wall="links"><span class="kc-dot"></span><span class="kc-name">Linke Wand</span><input id="wvKLinks" name="wvKLinks" type="number" inputmode="decimal" min="0" max="2000" step="1" placeholder="120" /><span class="kc-unit">cm</span></label>
+                <label class="kc-row" data-wall="back"><span class="kc-dot"></span><span class="kc-name">Rückwand</span><input id="wvKBack" name="wvKBack" type="number" inputmode="decimal" min="0" max="2000" step="1" placeholder="180" /><span class="kc-unit">cm</span></label>
+                <label class="kc-row" data-wall="rechts"><span class="kc-dot"></span><span class="kc-name">Rechte Wand</span><input id="wvKRechts" name="wvKRechts" type="number" inputmode="decimal" min="0" max="2000" step="1" placeholder="120" /><span class="kc-unit">cm</span></label>
+                <label class="kc-row kc-row--height"><span class="kc-dot kc-dot--h">H</span><span class="kc-name">Wandhöhe</span><input id="wvKHoehe" name="wvKHoehe" type="number" inputmode="decimal" min="0" max="1000" step="1" placeholder="255" /><span class="kc-unit">cm</span></label>
+              </div>
+              <div id="kcHeightWarn" class="kc-warn" role="status" hidden></div>
+              <div class="kc-stats">
+                <div class="kc-stat"><span class="kc-stat-label">Paneele</span><span><b id="kcCount">0</b> Stück</span></div>
+                <div class="kc-stat"><span class="kc-stat-label">Empfohlene Schnitte</span><span><b id="kcCuts">0</b> <span id="kcCutsUnit">Schnitte</span></span></div>
+                <div class="kc-stat"><span class="kc-stat-label">Materialpreis</span><span><b id="kcPrice">–</b></span></div>
+              </div>
+              <div id="kcCutList" class="kc-cutlist" hidden></div>
+            </div>
+
+            <label id="wvPanelsLabel" class="req">Wandverkleidung</label>
             <div style="display: flex; gap: 14px; flex-wrap: wrap">
               <div class="field" id="wvPanelField997" style="min-width: 220px">
                 <label class="image-check">
