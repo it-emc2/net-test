@@ -713,13 +713,14 @@ router.post("/deal/:id/upload/:type", express.json({ limit: "25mb" }), async (re
 
     const deal = (await bxGet("crm.deal.get", { id }))?.result;
     if (!deal) return res.status(404).json({ error: "Auftrag nicht gefunden" });
-    const existing = (Array.isArray(deal[cfg.field]) ? deal[cfg.field] : [])
-      .filter((f) => f?.id)
-      .map((f) => ({ id: f.id }));
-
-    await bxPost("crm.deal.update", {
+    // Multi-file append (verified on deal 65278, 10/2026): only crm.item.update with
+    // the existing file objects exactly as crm.deal.get returns them + the new file as
+    // [name, base64] appends. crm.deal.update, or existing files as {id}, REPLACE the field.
+    const existing = (Array.isArray(deal[cfg.field]) ? deal[cfg.field] : []).filter((f) => f?.id);
+    await bxPost("crm.item.update", {
+      entityTypeId: DEAL_ENTITY_TYPE_ID,
       id,
-      fields: { [cfg.field]: [...existing, { fileData: [filename, base64] }] },
+      fields: { ["ufCrm_" + cfg.field.slice("UF_CRM_".length)]: [...existing, [filename, base64]] },
     });
     // Read back: Bitrix may replace instead of append on multi-file fields.
     const after = (await bxGet("crm.deal.get", { id }))?.result?.[cfg.field];
