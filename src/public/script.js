@@ -9643,42 +9643,72 @@ function pgbReveal(el, on) {
 // (je true/false/null). null = unbekannt -> Formular bleibt wie es ist.
 // Doku: docs/vermieter-genehmigung.md
 // -------------------------------------------------------------------------
-// Freigabe der Kasse: Foto/Datei -> Bitrix-Auftrag (Feld + Timeline-Notiz)
-(function initKasseFreigabeUpload() {
-  const input = document.getElementById("kasseFreigabeFile");
-  const status = document.getElementById("kasseFreigabeStatus");
-  if (!input || !status) return;
-  const say = (msg, ok) => {
-    status.textContent = msg;
-    status.style.color = ok === false ? "#c0392b" : ok ? "#1e8449" : "";
+// Foto/Datei-Uploads -> Bitrix-Auftrag (Feld + Timeline-Notiz): Kasse, Vermieter.
+// Doku: docs/kasse-freigabe-upload.md
+(function initDealUploads() {
+  const setup = (type, inputId, statusId, onDone) => {
+    const input = document.getElementById(inputId);
+    const status = document.getElementById(statusId);
+    const box = document.querySelector(`label.dealUploadBox[for="${inputId}"]`);
+    if (!input || !status || !box) return;
+    const title = box.querySelector(".du-title");
+    const hint = box.querySelector(".du-hint");
+    const done = [];
+    // state: "" | busy | ok | err — shown inside the box, mirrored to the aria-live span
+    const show = (state, t, h) => {
+      if (state) box.dataset.state = state; else delete box.dataset.state;
+      box.setAttribute("aria-busy", state === "busy" ? "true" : "false");
+      title.textContent = t;
+      hint.textContent = h;
+      status.textContent = `${t} ${h}`;
+    };
+    input.addEventListener("change", async () => {
+      const file = input.files && input.files[0];
+      input.value = "";
+      if (!file) return;
+      const dealId = (document.getElementById("auftragId")?.value || "").trim();
+      if (!/^\d+$/.test(dealId)) return show("err", "Auftrag ID fehlt", "Bitte zuerst eine Auftrag ID eintragen und erneut wählen.");
+      if (file.size > 15 * 1024 * 1024) return show("err", "Datei zu groß", "Maximal 15 MB. Bitte erneut wählen.");
+      show("busy", "Wird hochgeladen …", file.name);
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(String(r.result).split(",")[1] || "");
+          r.onerror = () => reject(r.error);
+          r.readAsDataURL(file);
+        });
+        const resp = await fetch(`/api/bitrix/deal/${dealId}/upload/${type}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename: file.name || `${type}.jpg`, base64 }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || resp.status);
+        done.push(file.name);
+        show("ok", "✓ In Bitrix24 hochgeladen", `${done.join(", ")} – tippen für weitere Datei${data.kept === false ? " (Hinweis: Feld enthält nur die neueste Datei, frühere siehe Timeline)" : ""}`);
+        if (onDone) onDone();
+      } catch (e) {
+        show("err", "Upload fehlgeschlagen", `${e.message || e} – tippen zum erneuten Versuch`);
+      }
+    });
   };
-  input.addEventListener("change", async () => {
-    const file = input.files && input.files[0];
-    input.value = "";
-    if (!file) return;
-    const dealId = (document.getElementById("auftragId")?.value || "").trim();
-    if (!/^\d+$/.test(dealId)) return say("Bitte zuerst eine Auftrag ID eintragen.", false);
-    if (file.size > 15 * 1024 * 1024) return say("Datei zu groß (max. 15 MB).", false);
-    say("Wird hochgeladen …");
-    try {
-      const base64 = await new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(String(r.result).split(",")[1] || "");
-        r.onerror = () => reject(r.error);
-        r.readAsDataURL(file);
-      });
-      const resp = await fetch(`/api/bitrix/deal/${dealId}/kasse-freigabe`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: file.name || "Freigabe-Kasse.jpg", base64 }),
-      });
-      const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(data.error || resp.status);
-      say(`✓ „${file.name}“ in Bitrix24 hochgeladen (Timeline-Notiz erstellt).`, true);
-    } catch (e) {
-      say(`Upload fehlgeschlagen: ${e.message || e}`, false);
-    }
-  });
+
+  setup("kasse", "kasseFreigabeFile", "kasseFreigabeStatus");
+  // Vermieter-Bestätigung hochgeladen => "liegt vor" = Ja (Satz entfällt im Angebot)
+  setup("vermieter", "vermieterUploadFile", "vermieterUploadStatus", () =>
+    setRadio("vermieterGenehmigung", "Ja"),
+  );
+
+  // Vermieter-Upload nur zeigen, wenn Genehmigung erforderlich = Ja
+  const row = document.getElementById("vermieterUploadRow");
+  const sync = () => {
+    if (row) row.hidden = document.querySelector('input[name="vermieterGenehmigungErforderlich"]:checked')?.value !== "Ja";
+  };
+  document
+    .querySelectorAll('input[name="vermieterGenehmigungErforderlich"]')
+    .forEach((el) => el.addEventListener("change", sync));
+  window.addEventListener("offerflow:changed", sync);
+  sync();
 })();
 
 (function initVermieterFromDeal() {

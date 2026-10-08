@@ -10726,3 +10726,18 @@ details.az-group[open] > summary.az-group-title::before {
   border-color: var(--danger);
   background: color-mix(in srgb, var(--danger) 8%, transparent);
 }
+
+/* Deal-Upload-Boxen (Kasse / Vermieter): Zustand direkt in der Box */
+.dealUploadBox { transition: background .15s, border-color .15s, color .15s; }
+.dealUploadBox[data-state="busy"] { pointer-events: none; opacity: .75; }
+.dealUploadBox[data-state="ok"] { border-color: #1e8449; background: #eaf7ef; color: #1e8449; }
+.dealUploadBox[data-state="err"] { border-color: #c0392b; background: #fdecea; color: #c0392b; }
+.dealUploadBox .du-spin {
+  display: none; width: 18px; height: 18px; border-radius: 50%;
+  border: 2.5px solid currentColor; border-right-color: transparent;
+  animation: du-rot .8s linear infinite;
+}
+.dealUploadBox[data-state="busy"] .du-spin { display: inline-block; }
+.dealUploadBox[data-state="busy"] .du-ico { display: none; }
+@keyframes du-rot { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .dealUploadBox .du-spin { animation-duration: 2s; } }
