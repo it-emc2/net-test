@@ -15217,6 +15217,10 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("partnerLastName", k.partnerLastName);
   if (k.partnerPflegegrad) setRadio("partnerPflegegrad", String(k.partnerPflegegrad));
   setByNameOrId("partnerKassenkundeName", k.partnerKassenkundeName);
+  setByNameOrId("partnerGeburtsdatum", k.partnerGeburtsdatum);
+  setByNameOrId("partnerKvnr", k.partnerKvnr);
+  setByNameOrId("partnerPflegegradSeit", k.partnerPflegegradSeit);
+  setByNameOrId("partnerKrankenkasseAdresse", k.partnerKrankenkasseAdresse);
   // Two-person PDF name/greeting overrides (Zusammenfassung).
   window.applyTwoPersonSummaryFields?.(k);
 

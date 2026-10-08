@@ -481,6 +481,68 @@ async function updateDealAfterSigning({ dealId, customerType, categoryId, stageI
   });
 }
 
+// Two-person offers: the partner is a second insured person and needs their
+// own contact (documents are filed per contact). Finds an existing contact by
+// name (excluding ones whose PLZ is known and differs), else creates one, and
+// links it to the deal. Never modifies an existing contact. More than one
+// candidate is ambiguous -> { ambiguous: true } so a human decides.
+async function ensurePartnerContact({ dealId, firstName, lastName, postalCode, city, street, phone, email }) {
+  const first = String(firstName || "").trim();
+  const last = String(lastName || "").trim();
+  if (!first || !last) throw new Error("partner first/last name required");
+  const plz = String(postalCode || "").trim();
+
+  const found = await bxPost("crm.contact.list", {
+    filter: { NAME: first, LAST_NAME: last },
+    select: ["ID", "ADDRESS_POSTAL_CODE"],
+  });
+  const candidates = (Array.isArray(found?.result) ? found.result : []).filter((c) => {
+    const cp = String(c.ADDRESS_POSTAL_CODE || "").trim();
+    return !plz || !cp || cp === plz;
+  });
+  if (candidates.length > 1) return { ambiguous: true, candidates: candidates.map((c) => c.ID) };
+
+  let contactId;
+  let created = false;
+  if (candidates.length === 1) {
+    contactId = Number(candidates[0].ID);
+  } else {
+    const fields = {
+      NAME: first,
+      LAST_NAME: last,
+      OPENED: "Y",
+      ...(phone && { PHONE: [{ VALUE: String(phone), VALUE_TYPE: "WORK" }] }),
+      ...(email && { EMAIL: [{ VALUE: String(email), VALUE_TYPE: "WORK" }] }),
+      ...(street && { ADDRESS: String(street) }),
+      ...(plz && { ADDRESS_POSTAL_CODE: plz }),
+      ...(city && { ADDRESS_CITY: String(city) }),
+    };
+    const added = await bxPost("crm.contact.add", { fields });
+    contactId = Number(added?.result);
+    if (!Number.isFinite(contactId) || contactId <= 0) throw new Error("crm.contact.add returned no id");
+    created = true;
+  }
+
+  if (dealId) {
+    try {
+      await bxPost("crm.deal.contact.add", {
+        id: Number(dealId),
+        fields: { CONTACT_ID: contactId, IS_PRIMARY: "N" },
+      });
+    } catch (err) {
+      // already linked (existing contact) is fine; anything else is logged by bxCall
+      console.warn("[bitrix] deal.contact.add:", err?.message || err);
+    }
+  }
+  return { contactId, created };
+}
+
+async function getDealContactId(dealId) {
+  const d = await bxGet("crm.deal.get", { id: Number(dealId) });
+  const id = Number(d?.result?.CONTACT_ID);
+  return Number.isFinite(id) && id > 0 ? id : null;
+}
+
 async function getRequisiteIdForContact(contactId) {
   const data = await bxGet("crm.requisite.list", {
     filter: { ENTITY_TYPE_ID: OWNER_TYPE.contact, ENTITY_ID: Number(contactId) },
@@ -1109,6 +1171,8 @@ async function setDealOfferLink(dealId, offerNumber) {
 }
 
 export {
+  ensurePartnerContact,
+  getDealContactId,
   setDealOfferLink,
   addTimelineComment,
   buildInternalNoteComment,

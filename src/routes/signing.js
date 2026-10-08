@@ -23,6 +23,8 @@ import SigningRequest from "../models/SigningRequest.js";
 import {
   addTimelineComment,
   updateDealAfterSigning,
+  ensurePartnerContact,
+  getDealContactId,
   AH_SIGNING_CATEGORY_ID,
   AH_SIGNING_STAGE_ID,
 } from "./bitrix.js";
@@ -37,6 +39,8 @@ import {
   buildAbtretungAhHtml,
   hasPaymentChoice,
   resolveFields,
+  isPartnerKey,
+  baseDocKey,
   VOLLMACHT_REQUIRED_FIELDS,
   ABTRETUNG_REQUIRED_FIELDS,
 } from "../templates/signing-docs.js";
@@ -76,6 +80,28 @@ export const DOC_LABELS = {
   zusatzblatt: "Zusatzblatt – Wichtige Hinweise",
   abtretung_ah: "Abtretungserklärung § 45b SGB XI",
 };
+
+// Two-person BU offers (twoPersons + partner name) get a second Vollmacht and
+// Abtretungserklärung for the partner: keys "<key>_p2".
+function hasPartner(payload) {
+  const k = payload?.Kundendaten || {};
+  return (
+    !!k.twoPersons &&
+    !!String(k.partnerFirstName || "").trim() &&
+    !!String(k.partnerLastName || "").trim()
+  );
+}
+
+// "Vollmacht für die Krankenkasse – Else Fröhlich" style label; the person
+// name is only added for two-person requests, where it disambiguates.
+function docLabel(sr, key) {
+  const base = DOC_LABELS[baseDocKey(key)] || key;
+  if (!(sr.documents || []).some((d) => isPartnerKey(d.key))) return base;
+  if (!["vollmacht", "abtretung"].includes(baseDocKey(key))) return base;
+  const f = resolveFields(sr, { key });
+  const name = `${f.firstName} ${f.lastName}`.trim();
+  return `${base} – ${isPartnerKey(key) ? "Person 2" : "Person 1"}${name ? ` (${name})` : ""}`;
+}
 
 // ---------- helpers ----------
 
@@ -197,8 +223,8 @@ export async function buildDocumentPdf(sr, key) {
     const { pdfBuffer } = await generateOfferPdfBuffer(payloadWithPaymentChoice(sr, doc));
     return pdfBuffer;
   }
-  if (key === "vollmacht") return htmlToPdfBuffer(buildVollmachtHtml(sr, doc || {}));
-  if (key === "abtretung") return htmlToPdfBuffer(buildAbtretungHtml(sr, doc || {}));
+  if (baseDocKey(key) === "vollmacht") return htmlToPdfBuffer(buildVollmachtHtml(sr, doc || { key }));
+  if (baseDocKey(key) === "abtretung") return htmlToPdfBuffer(buildAbtretungHtml(sr, doc || { key }));
   if (key === "zusatzblatt") return htmlToPdfBuffer(buildZusatzblattHtml(sr, doc || {}));
   if (key === "abtretung_ah") return htmlToPdfBuffer(buildAbtretungAhHtml(sr, doc || {}));
   throw new Error(`Dokumenttyp "${key}" wird noch nicht unterstützt`);
@@ -210,11 +236,77 @@ export async function buildSignedPdf(sr, doc) {
     const { data } = await getOfferRenderData(payloadWithPaymentChoice(sr, doc));
     return htmlToPdfBuffer(buildAngebotForOffer(data, { mode: "pdf", sr, doc }));
   }
-  if (doc.key === "vollmacht") return htmlToPdfBuffer(buildVollmachtHtml(sr, doc));
-  if (doc.key === "abtretung") return htmlToPdfBuffer(buildAbtretungHtml(sr, doc));
+  if (baseDocKey(doc.key) === "vollmacht") return htmlToPdfBuffer(buildVollmachtHtml(sr, doc));
+  if (baseDocKey(doc.key) === "abtretung") return htmlToPdfBuffer(buildAbtretungHtml(sr, doc));
   if (doc.key === "zusatzblatt") return htmlToPdfBuffer(buildZusatzblattHtml(sr, doc));
   if (doc.key === "abtretung_ah") return htmlToPdfBuffer(buildAbtretungAhHtml(sr, doc));
   throw new Error(`Dokumenttyp "${doc.key}" wird noch nicht unterstützt`);
+}
+
+// Two-person offers: person 1's PDFs (incl. the Angebot) go to the main
+// contact, person 2's to the partner contact. The deal timeline already got
+// the full set. A flagged deal comment covers the ambiguous-match case.
+async function filePerPersonDocs(sr, signedPdfs) {
+  const k = sr.payloadSnapshot?.Kundendaten || {};
+  const dealId = sr.bitrixEntityType === "deal" ? sr.bitrixEntityId : "";
+  const mainContactId =
+    sr.bitrixEntityType === "contact"
+      ? Number(sr.bitrixEntityId)
+      : dealId
+        ? await getDealContactId(dealId)
+        : null;
+
+  let partnerContactId = Number(sr.partnerContactId) || null;
+  if (!partnerContactId) {
+    const r = await ensurePartnerContact({
+      dealId,
+      firstName: k.partnerFirstName,
+      lastName: k.partnerLastName,
+      postalCode: sr.prefill?.postalCode,
+      city: sr.prefill?.city,
+      street: sr.prefill?.street,
+      phone: sr.prefill?.phone,
+      email: sr.prefill?.email,
+    });
+    if (r.ambiguous) {
+      await postTimeline(
+        sr,
+        `⚠️ Partner „${k.partnerFirstName} ${k.partnerLastName}": mehrere passende Kontakte in Bitrix ` +
+          `(IDs ${r.candidates.join(", ")}). Bitte Kontakt manuell zuordnen – die Unterlagen von ` +
+          `Person 2 liegen am Deal.`,
+      );
+      return;
+    }
+    partnerContactId = r.contactId;
+    sr.partnerContactId = String(partnerContactId);
+    await postTimeline(
+      sr,
+      r.created
+        ? `👥 Kontakt für Partner angelegt: ${k.partnerFirstName} ${k.partnerLastName} (ID ${partnerContactId})`
+        : `👥 Partner mit bestehendem Kontakt verknüpft: ${k.partnerFirstName} ${k.partnerLastName} (ID ${partnerContactId})`,
+    );
+  }
+
+  const toAttachments = (pdfs) =>
+    pdfs.map((p) => ({ filename: p.filename, base64: p.buffer.toString("base64") }));
+  const isP2 = (p) => /^(vollmacht|abtretung)_p2_/.test(p.filename);
+  const note = (who) =>
+    `✅ Unterschriebene Unterlagen ${who}` + (sr.offerNumber ? ` (${sr.offerNumber})` : "");
+
+  if (mainContactId) {
+    await addTimelineComment({
+      entityType: "contact",
+      entityId: mainContactId,
+      comment: note("(Person 1)"),
+      attachments: toAttachments(signedPdfs.filter((p) => !isP2(p))),
+    });
+  }
+  await addTimelineComment({
+    entityType: "contact",
+    entityId: partnerContactId,
+    comment: note("(Person 2)"),
+    attachments: toAttachments(signedPdfs.filter(isP2)),
+  });
 }
 
 // ---------- core: create a signing request (reused by the route and email.js) ----------
@@ -287,11 +379,18 @@ export async function createSigningRequest({
     ? customerType === "KASSE"
       ? ["angebot", "zusatzblatt", "abtretung_ah"]
       : ["angebot", "zusatzblatt"]
-    : ["angebot", ...OPTIONAL_DOCS].filter(
-        (key) =>
-          key === "angebot" ||
-          (customerType === "KASSE" ? docSelection[key] !== false : docSelection[key] === true),
-      );
+    : [
+        "angebot",
+        ...OPTIONAL_DOCS.filter((key) =>
+          customerType === "KASSE" ? docSelection[key] !== false : docSelection[key] === true,
+        ),
+        // Partner (2nd insured person) signs their own set, same selection.
+        ...(hasPartner(payload)
+          ? OPTIONAL_DOCS.filter((key) =>
+              customerType === "KASSE" ? docSelection[key] !== false : docSelection[key] === true,
+            ).map((key) => `${key}_p2`)
+          : []),
+      ];
   const documents = docKeys.map((key) => ({
     key,
     status: "pending",
@@ -490,7 +589,7 @@ router.get("/:token", async (req, res) => {
       prefill: sr.prefill,
       documents: (sr.documents || []).map((d) => ({
         key: d.key,
-        label: DOC_LABELS[d.key] || d.key,
+        label: docLabel(sr, d.key),
         status: d.status,
       })),
     });
@@ -515,9 +614,9 @@ router.get("/:token/documents/:key/html", async (req, res) => {
     if (key === "angebot") {
       const { data } = await getOfferRenderData(payloadWithPaymentChoice(sr, doc));
       html = buildAngebotForOffer(data, { mode: "display", sr, doc });
-    } else if (key === "vollmacht") {
+    } else if (baseDocKey(key) === "vollmacht") {
       html = buildVollmachtHtml(sr, doc, "display");
-    } else if (key === "abtretung") {
+    } else if (baseDocKey(key) === "abtretung") {
       html = buildAbtretungHtml(sr, doc, "display");
     } else if (key === "zusatzblatt") {
       html = buildZusatzblattHtml(sr, doc, "display");
@@ -608,9 +707,9 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
       abtretung: ABTRETUNG_REQUIRED_FIELDS,
       abtretung_ah: ABTRETUNG_REQUIRED_FIELDS,
     };
-    if (REQUIRED_FIELDS_BY_KEY[key]) {
-      const fields = resolveFields(sr, { editedFields });
-      const missing = REQUIRED_FIELDS_BY_KEY[key]
+    if (REQUIRED_FIELDS_BY_KEY[baseDocKey(key)]) {
+      const fields = resolveFields(sr, { key, editedFields });
+      const missing = REQUIRED_FIELDS_BY_KEY[baseDocKey(key)]
         .filter(([field]) => !String(fields[field] || "").trim())
         .map(([, label]) => label);
       if (missing.length) {
@@ -628,10 +727,24 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
       "lastName", "firstName", "street", "postalCode", "city", "phone", "geburtsdatum",
     ];
     const KUNDENDATEN_CARRY_KEYS = ["kassenkundeName", "kk_versichertennr"];
-    if (key === "vollmacht" || key === "abtretung" || key === "abtretung_ah") {
+    // Partner documents carry the person-specific fields into partner* so
+    // they never overwrite the main customer's data; address/phone are shared.
+    const PARTNER_CARRY = {
+      lastName: "partnerLastName",
+      firstName: "partnerFirstName",
+      geburtsdatum: "partnerGeburtsdatum",
+      kassenkundeName: "partnerKassenkundeName",
+      kk_versichertennr: "partnerKvnr",
+      kk_pflegegradSeit: "partnerPflegegradSeit",
+      kk_krankenkasseAdresse: "partnerKrankenkasseAdresse",
+    };
+    const partnerDoc = isPartnerKey(key);
+    if (["vollmacht", "abtretung", "abtretung_ah"].includes(baseDocKey(key))) {
       sr.prefill = sr.prefill || {};
       let touchedPrefill = false;
-      for (const k of PREFILL_CARRY_KEYS) {
+      for (const k of partnerDoc
+        ? ["street", "postalCode", "city", "phone"]
+        : PREFILL_CARRY_KEYS) {
         const v = String(editedFields[k] || "").trim();
         if (v) {
           sr.prefill[k] = v;
@@ -643,10 +756,13 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
       sr.payloadSnapshot = sr.payloadSnapshot || {};
       sr.payloadSnapshot.Kundendaten = sr.payloadSnapshot.Kundendaten || {};
       let touchedSnapshot = false;
-      for (const k of KUNDENDATEN_CARRY_KEYS) {
-        const v = String(editedFields[k] || "").trim();
+      const carryMap = partnerDoc
+        ? PARTNER_CARRY
+        : Object.fromEntries(KUNDENDATEN_CARRY_KEYS.map((k) => [k, k]));
+      for (const [from, to] of Object.entries(carryMap)) {
+        const v = String(editedFields[from] || "").trim();
         if (v) {
-          sr.payloadSnapshot.Kundendaten[k] = v;
+          sr.payloadSnapshot.Kundendaten[to] = v;
           touchedSnapshot = true;
         }
       }
@@ -664,7 +780,7 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
 
     await postTimeline(
       sr,
-      `✍️ Dokument „${DOC_LABELS[key] || key}" unterschrieben am ` +
+      `✍️ Dokument „${docLabel(sr, key)}" unterschrieben am ` +
         `${doc.signedAt.toLocaleString("de-DE")}` +
         (sr.offerNumber ? ` (${sr.offerNumber})` : ""),
     );
@@ -757,6 +873,17 @@ router.post("/:token/documents/:key", express.json({ limit: "10mb" }), async (re
           base64: p.buffer.toString("base64"),
         })),
       );
+      // Two-person offers: file each person's signed PDFs on their own
+      // Bitrix contact (partner contact is created if it doesn't exist).
+      // Non-fatal, like the stage update below.
+      if (sr.documents.some((d) => isPartnerKey(d.key))) {
+        try {
+          await filePerPersonDocs(sr, signedPdfs);
+        } catch (err) {
+          console.warn("[signing] per-contact filing failed:", err?.message || err);
+        }
+      }
+
       // Move the deal to the post-signing stage. Non-fatal: a Bitrix hiccup
       // shouldn't break the customer-facing signing confirmation.
       if (sr.bitrixEntityType === "deal" && sr.bitrixEntityId) {
