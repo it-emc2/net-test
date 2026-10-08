@@ -61,6 +61,9 @@ const SigningRequestSchema = new Schema(
     bitrixEntityType: { type: String, default: "" }, // 'deal' | 'contact'
     bitrixEntityId: { type: String, default: "" },
 
+    // two-person offers: Bitrix contact of the partner (2nd insured person)
+    partnerContactId: { type: String, default: "" },
+
     // recipient (for the completion copy email)
     customerEmail: { type: String, default: "" },
     customerName: { type: String, default: "" },

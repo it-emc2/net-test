@@ -76,7 +76,8 @@
 
   function renderStep() {
     var doc = state.docs[state.index];
-    el("progress").textContent = "Dokument " + (state.index + 1) + " von " + state.docs.length;
+    el("progress").textContent = "Dokument " + (state.index + 1) + " von " + state.docs.length +
+      (/_p2$/.test(doc.key) || /Person 1/.test(doc.label || "") ? " – " + doc.label : "");
     updateNav();
     container.innerHTML = "<p>Dokument wird geladen …</p>";
     fetch("/api/signing/" + token + "/documents/" + doc.key + "/html")
@@ -389,7 +390,7 @@
       ],
     };
     REQUIRED_FIELDS_BY_KEY.abtretung_ah = REQUIRED_FIELDS_BY_KEY.abtretung;
-    var requiredFields = REQUIRED_FIELDS_BY_KEY[doc.key];
+    var requiredFields = REQUIRED_FIELDS_BY_KEY[doc.key.replace(/_p2$/, "")];
     if (requiredFields) {
       var missing = requiredFields
         .filter(function (f) { return !String(editedFields[f[0]] || "").trim(); })
