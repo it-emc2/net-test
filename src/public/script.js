@@ -9685,7 +9685,7 @@ function pgbReveal(el, on) {
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok) throw new Error(data.error || resp.status);
         done.push(file.name);
-        show("ok", "✓ In Bitrix24 hochgeladen", `${done.join(", ")} – tippen für weitere Datei`);
+        show("ok", "✓ In Bitrix24 hochgeladen", `${done.join(", ")} – tippen für weitere Datei${data.kept === false ? " (Hinweis: Feld enthält nur die neueste Datei, frühere siehe Timeline)" : ""}`);
         if (onDone) onDone();
       } catch (e) {
         show("err", "Upload fehlgeschlagen", `${e.message || e} – tippen zum erneuten Versuch`);

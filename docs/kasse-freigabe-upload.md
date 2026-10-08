@@ -6,7 +6,8 @@ Foto/Datei hochladen, wird als Datei am Deal abgelegt + Timeline-Notiz.
 Upload-Box (script.js: initDealUploads)
   └─ POST /api/bitrix/deal/:id/upload/:type { filename, base64 }   (bitrix.js, DEAL_UPLOADS)
        ├─ crm.deal.update  Mehrfach-Datei-Feld (vorhandene Dateien bleiben)
-       └─ Timeline-Kommentar "📎 … hochgeladen (Konfigurator): <Datei>"
+       ├─ Read-back: Feld-Anzahl vorher+1? sonst Warnung (Antwort `kept:false`)
+       └─ Timeline-Kommentar (Datei zusätzlich als Anhang) "📎 … hochgeladen (Konfigurator): <Datei>"
 ```
 
 | type | UI | Bitrix-Feld | Nebenwirkung |
@@ -16,3 +17,5 @@ Upload-Box (script.js: initDealUploads)
 
 - Upload sofort nach Auswahl; braucht numerische `#auftragId`. Max. 15 MB, Bild oder PDF.
 - Nicht Teil des Angebots-Payloads. Neuer Typ = Eintrag in `DEAL_UPLOADS` + Upload-Box + `setup(...)`-Aufruf.
+
+- Bitrix ersetzt bei Mehrfach-Dateifeldern evtl. statt anzuhängen (Beobachtung 10/2026, Update mit `[{id}…, {fileData}]`). Darum liegt jede Datei zusätzlich als Anhang in der Timeline-Notiz; Read-back warnt, wenn das Feld ersetzt wurde.

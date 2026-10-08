@@ -721,12 +721,20 @@ router.post("/deal/:id/upload/:type", express.json({ limit: "25mb" }), async (re
       id,
       fields: { [cfg.field]: [...existing, { fileData: [filename, base64] }] },
     });
+    // Read back: Bitrix may replace instead of append on multi-file fields.
+    const after = (await bxGet("crm.deal.get", { id }))?.result?.[cfg.field];
+    const afterCount = Array.isArray(after) ? after.length : 0;
+    const kept = afterCount >= existing.length + 1;
+    if (!kept) console.warn(`[upload:${req.params.type}] deal ${id}: ${existing.length} file(s) before, ${afterCount} after — field was replaced`);
+
+    // The timeline copy always survives, even if the field got replaced.
     await addTimelineComment({
       entityType: "deal",
       entityId: id,
-      comment: `📎 ${cfg.note} hochgeladen (Konfigurator): ${filename}\nAblage im Feld „${cfg.label}“.`,
+      comment: `📎 ${cfg.note} hochgeladen (Konfigurator): ${filename}\nAblage im Feld „${cfg.label}“ und als Anhang an dieser Notiz.${kept ? "" : "\n⚠️ Das Feld enthält nur die neueste Datei – frühere Dateien ggf. in älteren Notizen."}`,
+      attachments: [{ filename, base64 }],
     });
-    return res.json({ ok: true });
+    return res.json({ ok: true, kept });
   } catch (err) {
     console.error("POST /api/bitrix/deal/:id/upload/:type error:", err);
     return res.status(500).json({ error: err?.message || String(err) });
