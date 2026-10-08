@@ -669,6 +669,41 @@ router.post("/timeline/comment", express.json({ limit: "25mb" }), async (req, re
   }
 });
 
+// Vermieter-Genehmigung aus dem Deal ableiten (BU/BWT Kundendaten-Checkbox).
+// Doku: docs/vermieter-genehmigung.md
+// Reihenfolge: 1) Listenfeld (von n8n befüllt) 2) Datei-Feld "Bestätigung vom
+// Vermieter" 3) Zeile "Wohnsituation:" in der Auftragsbeschreibung (alte Deals).
+// Rückgabe je Wert: true / false / null (= unbekannt, Formular nicht anfassen).
+const VERMIETER_FIELD = "UF_CRM_1791270927983"; // Genehmigung des Vermieters erforderlich
+const VERMIETER_VALUES = {
+  "8540": { erforderlich: true, liegtVor: false }, // Ja – Zustimmung fehlt
+  "8546": { erforderlich: true, liegtVor: true }, // Ja – Zustimmung liegt vor
+  "8542": { erforderlich: false, liegtVor: null }, // Nein (Eigentümer)
+  // "8544" Unklar → wie leer, Fallback auf Text
+};
+const VERMIETER_FILE_FIELD = "UF_CRM_1741678430123"; // Bestätigung vom Vermieter für Umbauten
+const AUFTRAGSBESCHREIBUNG_FIELD = "UF_CRM_1711018687";
+
+function vermieterFromDeal(deal) {
+  const result = { erforderlich: null, liegtVor: null };
+  const fromField = VERMIETER_VALUES[String(deal[VERMIETER_FIELD] || "")];
+  if (fromField) Object.assign(result, fromField);
+
+  // Datei-Feld ist "multiple": leer = [] oder false.
+  const files = deal[VERMIETER_FILE_FIELD];
+  if (Array.isArray(files) ? files.length > 0 : !!files) result.liegtVor = true;
+
+  if (result.erforderlich === null) {
+    // Die Zeile "Einverständnis des Vermieters" wird bewusst ignoriert: sie
+    // steht oft auf "Vorhanden/Eigentümer", auch bei Mietern.
+    const text = String(deal[AUFTRAGSBESCHREIBUNG_FIELD] || "");
+    const wohn = (text.match(/^\s*Wohnsituation:[ \t]*(.*)$/im)?.[1] || "").trim();
+    if (/miet/i.test(wohn)) result.erforderlich = true;
+    else if (/eigent/i.test(wohn)) result.erforderlich = false;
+  }
+  return result;
+}
+
 // GET /api/bitrix/deal/:id — deal + its linked contact, for the Hauptmenü
 // "Bitrix Deal laden" field (loads a deal directly, without knowing the
 // contact ID first).
@@ -705,9 +740,66 @@ router.get("/deal/:id", async (req, res) => {
     return res.json({
       deal: { id: Number(dealId), title: deal.TITLE || "", stageId: deal.STAGE_ID || "" },
       contact,
+      vermieter: vermieterFromDeal(deal),
     });
   } catch (err) {
     console.error("GET /api/bitrix/deal/:id error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
+// POST /api/bitrix/deal/:id/upload/:type   (type: kasse | vermieter)
+// Body: { filename, base64 }. Appends the file to the multi-file deal field
+// (existing files are kept) and leaves a timeline note.
+const DEAL_UPLOADS = {
+  kasse: {
+    field: "UF_CRM_1741678405915",
+    label: "Bestätigung der Kasse für Wohnumfeldverb. Maßnahmen",
+    note: "Freigabe der Kasse",
+  },
+  vermieter: {
+    field: VERMIETER_FILE_FIELD,
+    label: "Bestätigung vom Vermieter für Umbauten",
+    note: "Bestätigung des Vermieters",
+  },
+};
+router.post("/deal/:id/upload/:type", express.json({ limit: "25mb" }), async (req, res) => {
+  try {
+    const cfg = DEAL_UPLOADS[req.params.type];
+    if (!cfg) return res.status(400).json({ error: "Unbekannter Upload-Typ" });
+    const id = Number(req.params.id);
+    const filename = String(req.body?.filename || "").trim();
+    const base64 = String(req.body?.base64 || "").replace(/^data:[^,]*,/, "").trim();
+    if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: "Ungültige Auftrag-ID" });
+    if (!filename || !base64) return res.status(400).json({ error: "Datei fehlt" });
+
+    const deal = (await bxGet("crm.deal.get", { id }))?.result;
+    if (!deal) return res.status(404).json({ error: "Auftrag nicht gefunden" });
+    // Multi-file append (verified on deal 65278, 10/2026): only crm.item.update with
+    // the existing file objects exactly as crm.deal.get returns them + the new file as
+    // [name, base64] appends. crm.deal.update, or existing files as {id}, REPLACE the field.
+    const existing = (Array.isArray(deal[cfg.field]) ? deal[cfg.field] : []).filter((f) => f?.id);
+    await bxPost("crm.item.update", {
+      entityTypeId: DEAL_ENTITY_TYPE_ID,
+      id,
+      fields: { ["ufCrm_" + cfg.field.slice("UF_CRM_".length)]: [...existing, [filename, base64]] },
+    });
+    // Read back: Bitrix may replace instead of append on multi-file fields.
+    const after = (await bxGet("crm.deal.get", { id }))?.result?.[cfg.field];
+    const afterCount = Array.isArray(after) ? after.length : 0;
+    const kept = afterCount >= existing.length + 1;
+    if (!kept) console.warn(`[upload:${req.params.type}] deal ${id}: ${existing.length} file(s) before, ${afterCount} after — field was replaced`);
+
+    // The timeline copy always survives, even if the field got replaced.
+    await addTimelineComment({
+      entityType: "deal",
+      entityId: id,
+      comment: `📎 ${cfg.note} hochgeladen (Konfigurator): ${filename}\nAblage im Feld „${cfg.label}“ und als Anhang an dieser Notiz.${kept ? "" : "\n⚠️ Das Feld enthält nur die neueste Datei – frühere Dateien ggf. in älteren Notizen."}`,
+      attachments: [{ filename, base64 }],
+    });
+    return res.json({ ok: true, kept });
+  } catch (err) {
+    console.error("POST /api/bitrix/deal/:id/upload/:type error:", err);
     return res.status(500).json({ error: err?.message || String(err) });
   }
 });

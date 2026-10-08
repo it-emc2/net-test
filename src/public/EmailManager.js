@@ -547,6 +547,7 @@ export function initEmailManager(options = {}) {
   const $customerEmail = document.querySelector("#email");
   const $lastName = document.querySelector("#lastName");
   const $cpEmail = document.querySelector("#cp_email");
+  const $customerCc = document.querySelector("#emailCc");
   const $cpName = document.querySelector("#cp_name");
 
   function getCustomerSalutation() {
@@ -893,8 +894,8 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
 
   function updateCcDefault() {
     if (ccTouched || !$cc) return;
-    const v = ($cpEmail?.value || "").trim();
-    $cc.value = v;
+    const v = [$customerCc?.value, $cpEmail?.value].map((x) => (x || "").trim()).filter(Boolean);
+    $cc.value = [...new Set(v)].join(", ");
   }
 
   function updateBodyDefault() {
@@ -914,6 +915,8 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
   $customerEmail?.addEventListener("input", updateRecipientDefault);
   $customerEmail?.addEventListener("change", updateRecipientDefault);
 
+  $customerCc?.addEventListener("input", updateCcDefault);
+  $customerCc?.addEventListener("change", updateCcDefault);
   $cpEmail?.addEventListener("input", updateCcDefault);
   $cpEmail?.addEventListener("change", updateCcDefault);
 

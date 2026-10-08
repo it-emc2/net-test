@@ -137,6 +137,7 @@ if (configsEl && template && addBtn) {
           label: l.article.displayName || l.component,
           articleNumber: l.article.articleNumber,
           net: l.article.net,
+          qty: l.qty || 1,
           finish: l.article.finishText || null,
         }));
       });

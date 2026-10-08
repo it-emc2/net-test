@@ -3653,7 +3653,7 @@ function collectDuschabtrennungConfigurator(doc) {
     qa.push({
       kind: "config",
       label: ln.label || "Duschabtrennung (Konfigurator)",
-      qty: 1,
+      qty: Math.max(1, Number(ln?.qty) || 1),
       // pass a numeric net price: pricing.js parseMoneyStrict returns numbers as-is,
       // avoiding the German-format ambiguity where "411.6" would parse to 4116.
       price: price,
@@ -9624,10 +9624,140 @@ function pgbReveal(el, on) {
   form.addEventListener("change", (e) => {
     const name = e.target?.name || "";
     if (["pflegekasseAntrag", "wohnsituation", "badStockwerk", "twoPersons"].includes(name)) sync();
+    // Miete → "Genehmigung des Vermieters erforderlich?" = Ja, Eigentum → Nein.
+    // Beim Wiederherstellen eines Entwurfs nicht, dort zählt der gespeicherte Wert.
+    if (name === "wohnsituation" && !window.__restoring) {
+      if (e.target.value === "Miete") setRadio("vermieterGenehmigungErforderlich", "Ja");
+      if (e.target.value === "Eigentum") setRadio("vermieterGenehmigungErforderlich", "Nein");
+    }
   });
 
   sync();
   window.syncKundendatenExtraFields = sync;
+})();
+
+// -------------------------------------------------------------------------
+// BU/BWT: Vermieter-Genehmigung aus dem Bitrix-Deal vorbelegen.
+// Sobald #auftragId eine Deal-ID bekommt (Kalender, Hauptmenü, Planung, Hand),
+// liefert GET /api/bitrix/deal/:id -> vermieter { erforderlich, liegtVor }
+// (je true/false/null). null = unbekannt -> Formular bleibt wie es ist.
+// Doku: docs/vermieter-genehmigung.md
+// -------------------------------------------------------------------------
+// Foto/Datei-Uploads -> Bitrix-Auftrag (Feld + Timeline-Notiz): Kasse, Vermieter.
+// Doku: docs/kasse-freigabe-upload.md
+(function initDealUploads() {
+  const setup = (type, inputId, statusId, onDone) => {
+    const input = document.getElementById(inputId);
+    const status = document.getElementById(statusId);
+    const box = document.querySelector(`label.dealUploadBox[for="${inputId}"]`);
+    if (!input || !status || !box) return;
+    const title = box.querySelector(".du-title");
+    const hint = box.querySelector(".du-hint");
+    const done = [];
+    // state: "" | busy | ok | err — shown inside the box, mirrored to the aria-live span
+    const show = (state, t, h) => {
+      if (state) box.dataset.state = state; else delete box.dataset.state;
+      box.setAttribute("aria-busy", state === "busy" ? "true" : "false");
+      title.textContent = t;
+      hint.textContent = h;
+      status.textContent = `${t} ${h}`;
+    };
+    input.addEventListener("change", async () => {
+      const file = input.files && input.files[0];
+      input.value = "";
+      if (!file) return;
+      const dealId = (document.getElementById("auftragId")?.value || "").trim();
+      if (!/^\d+$/.test(dealId)) return show("err", "Auftrag ID fehlt", "Bitte zuerst eine Auftrag ID eintragen und erneut wählen.");
+      if (file.size > 15 * 1024 * 1024) return show("err", "Datei zu groß", "Maximal 15 MB. Bitte erneut wählen.");
+      show("busy", "Wird hochgeladen …", file.name);
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(String(r.result).split(",")[1] || "");
+          r.onerror = () => reject(r.error);
+          r.readAsDataURL(file);
+        });
+        const resp = await fetch(`/api/bitrix/deal/${dealId}/upload/${type}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename: file.name || `${type}.jpg`, base64 }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || resp.status);
+        done.push(file.name);
+        show("ok", "✓ In Bitrix24 hochgeladen", `${done.join(", ")} – tippen für weitere Datei${data.kept === false ? " (Hinweis: Feld enthält nur die neueste Datei, frühere siehe Timeline)" : ""}`);
+        if (onDone) onDone();
+      } catch (e) {
+        show("err", "Upload fehlgeschlagen", `${e.message || e} – tippen zum erneuten Versuch`);
+      }
+    });
+  };
+
+  setup("kasse", "kasseFreigabeFile", "kasseFreigabeStatus");
+  // Vermieter-Bestätigung hochgeladen => "liegt vor" = Ja (Satz entfällt im Angebot)
+  setup("vermieter", "vermieterUploadFile", "vermieterUploadStatus", () =>
+    setRadio("vermieterGenehmigung", "Ja"),
+  );
+
+  // Vermieter-Upload nur zeigen, wenn Genehmigung erforderlich = Ja
+  const row = document.getElementById("vermieterUploadRow");
+  const sync = () => {
+    if (row) row.hidden = document.querySelector('input[name="vermieterGenehmigungErforderlich"]:checked')?.value !== "Ja";
+  };
+  document
+    .querySelectorAll('input[name="vermieterGenehmigungErforderlich"]')
+    .forEach((el) => el.addEventListener("change", sync));
+  window.addEventListener("offerflow:changed", sync);
+  sync();
+})();
+
+(function initVermieterFromDeal() {
+  const input = document.getElementById("auftragId");
+  if (!input) return;
+  let lastId = "";
+
+  input.addEventListener("change", async () => {
+    const id = input.value.trim();
+    if (!id) lastId = ""; // neues Angebot -> gleicher Deal darf wieder laden
+    if (window.__restoring || !/^\d+$/.test(id) || id === lastId) return;
+    if (!["bu", "bwt"].includes(currentOfferKey)) return;
+    lastId = id;
+
+    try {
+      const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(id)}`);
+      if (!res.ok || input.value.trim() !== id) return; // Fehler oder ID inzwischen geändert
+      const { contact, vermieter } = await res.json();
+
+      // Schutz: manche Flows schreiben eine Kontakt-ID ins Feld. Gehört der
+      // Deal zu einem anderen Kontakt als im Formular, nichts übernehmen.
+      const formContactId = document.getElementById("bitrixContactId")?.value.trim();
+      if (formContactId && contact?.ID && String(contact.ID) !== formContactId) return;
+
+      if (vermieter?.erforderlich === true) {
+        setRadio("wohnsituation", "Miete");
+        setRadio("vermieterGenehmigungErforderlich", "Ja");
+      } else if (vermieter?.erforderlich === false) {
+        setRadio("wohnsituation", "Eigentum");
+        setRadio("vermieterGenehmigungErforderlich", "Nein");
+      }
+      if (vermieter?.liegtVor === true) setRadio("vermieterGenehmigung", "Ja");
+      if (vermieter?.liegtVor === false) setRadio("vermieterGenehmigung", "Nein");
+    } catch (e) {
+      console.warn("[vermieter] Deal konnte nicht geladen werden:", e);
+    }
+  });
+
+  // Pflichtfeld nur bei BU/BWT. Bei anderen Angeboten ist die Zeile nur
+  // ausgeblendet (data-offer), würde aber sonst die Formularprüfung blockieren.
+  // requireBereichValid() springt beim Senden/Export automatisch hierher zurück.
+  const syncRequired = () => {
+    const on = ["bu", "bwt"].includes(currentOfferKey);
+    document
+      .querySelectorAll('input[name="vermieterGenehmigungErforderlich"]')
+      .forEach((el) => { el.required = on; });
+  };
+  window.addEventListener("offerflow:changed", syncRequired);
+  syncRequired();
 })();
 
 // -------------------------------------------------------------------------
@@ -9791,6 +9921,7 @@ function getKundendatenPageData() {
     wohnsituation: data.wohnsituation || checkedValue("wohnsituation"),
     vermieterGenehmigung:
       data.vermieterGenehmigung || checkedValue("vermieterGenehmigung"),
+    vermieterGenehmigungErforderlich: checkedValue("vermieterGenehmigungErforderlich"), // "Ja" | "Nein" | ""
     zugangWohnung: data.zugangWohnung || checkedValue("zugangWohnung"),
     badStockwerk:
       (checkedValue("badStockwerk") === "Anderes OG"
@@ -15038,6 +15169,9 @@ function restoreKundendaten(k, offer) {
   setRadio("pflegekasseEmc2Antrag", k.pflegekasseEmc2Antrag);
   setRadio("wohnsituation", k.wohnsituation);
   setRadio("vermieterGenehmigung", k.vermieterGenehmigung);
+  // Ältere Entwürfe speicherten einen Boolean (Checkbox): true → "Ja", false → offen lassen.
+  const vgErf = k.vermieterGenehmigungErforderlich === true ? "Ja" : k.vermieterGenehmigungErforderlich;
+  if (vgErf === "Ja" || vgErf === "Nein") setRadio("vermieterGenehmigungErforderlich", vgErf);
   setRadio("zugangWohnung", k.zugangWohnung || k.wohnungszugang);
   const stockwerkValue = String(k.badStockwerk || k.stockwerkBad || "");
   const isOtherStockwerk = !!stockwerkValue && !["UG", "EG", "1. OG", "2. OG"].includes(stockwerkValue);
@@ -15057,6 +15191,7 @@ function restoreKundendaten(k, offer) {
   setByNameOrId("cp_name", k.cp_name);
   setByNameOrId("cp_phone", k.cp_phone);
   setRadio("cp_salutation", k.cp_salutation);
+  setByNameOrId("emailCc", k.emailCc);
   setByNameOrId("cp_email", k.cp_email);
   setByNameOrId("cp_street", k.cp_street);
   setByNameOrId("cp_city", k.cp_city);
@@ -15453,7 +15588,7 @@ function restoreOptionalPage(opt) {
   document.querySelector('#form-optional input[name="wcMontage"]:checked')?.dispatchEvent(new Event("change", { bubbles: true }));
 
   const wcProductIds = window.WC_PRODUCT_IDS || [];
-  requestAnimationFrame(() => {
+  const applySavedWcSelection = () => {
     wcProductIds.forEach((pid) => {
       const cb = document.getElementById(`opt_${pid}`);
       const qty = document.getElementById(`qty_${pid}`);
@@ -15469,7 +15604,20 @@ function restoreOptionalPage(opt) {
         cb.dispatchEvent(new Event("change", { bubbles: true }));
       }
     });
-  });
+  };
+  // This used to run only inside requestAnimationFrame, which the browser never
+  // fires while the tab or app is in the background. Restoring then left the WC
+  // tiles on their render defaults (ensureWallProductsRendered: accessories on,
+  // WC and seat off) — a saved Dusch-WC DEDWWC + seat DERSIAS silently became
+  // WWCAG90, and the draft repriced about 1.338 € lower. Same trap as pgbReveal.
+  //
+  // The cat_WC / wcMontage change events above render the tiles synchronously,
+  // so they exist now: apply right away, so the restore's own pricing pass
+  // already sees the saved WCs. The second pass catches anything rendered late,
+  // via setTimeout, which background tabs throttle but still run. Both passes
+  // set the same saved values, so running twice is harmless.
+  applySavedWcSelection();
+  setTimeout(applySavedWcSelection, 0);
 }
 
 // Duschabtrennung quick-add (you already have logic inside restoreConfiguratorFromOffer;
@@ -26985,6 +27133,7 @@ const TODAY_PLANNING_STREAM_ENDPOINT = `/api/planning/stream`;
 
 let todayPlanningAppointments = [];
 let todayPlanningAppointmentsFiltered = [];
+let todayPlanningPause = null;
 let activePlanningAppointmentId = null;
 let _pendingPlanningEntry = null;
 
@@ -27856,7 +28005,22 @@ function renderTodayPlanningAppointments(){
     return;
   }
 
-  list.innerHTML = todayPlanningAppointmentsFiltered.map(entry => {
+  // Pause pill rides on the travel row after the last appointment starting
+  // before the pause; no start time -> after the last appointment.
+  const pauseText = formatTodayPause({ todayPause: todayPlanningPause });
+  const [ph, pm] = String(todayPlanningPause?.start || "").split(":").map(Number);
+  const pauseStart = ph * 60 + pm;
+  let pauseIndex = todayPlanningAppointmentsFiltered.length - 1;
+  if(Number.isFinite(pauseStart)){
+    const after = todayPlanningAppointmentsFiltered.findIndex(e => Number(e?.manualStartMinutes) > pauseStart);
+    if(after !== -1) pauseIndex = Math.max(after - 1, 0);
+  }
+  const pauseHtml = pauseText
+    ? `<span class="today-pause-chip"><i class="fa-solid fa-mug-hot"></i> ${escapePlanningHtml(pauseText)}</span>`
+    : "";
+
+  list.innerHTML = todayPlanningAppointmentsFiltered.map((entry, index) => {
+    const pausePill = index === pauseIndex ? pauseHtml : "";
     const isCancelled = isPlanningEntryCancelled(entry);
     const address = entry?.address || "Ort unbekannt";
     const email = entry?.email || "Keine E-Mail";
@@ -27889,9 +28053,9 @@ function renderTodayPlanningAppointments(){
           const etaHtml = Number.isFinite(start) && Number.isFinite(duration)
             ? `<span class="ptc-eta">an ca. ${formatMinutesAsClock(start + duration + travel)}</span>`
             : "";
-          return `<div class="planning-travel-connector"><i class="fa-solid fa-car-side"></i><span class="ptc-duration">${travel} Min Fahrt / Puffer</span>${etaHtml}</div>`;
+          return `<div class="planning-travel-connector"><i class="fa-solid fa-car-side"></i><span class="ptc-duration">${travel} Min Fahrt / Puffer</span>${etaHtml}${pausePill}</div>`;
         })()
-      : "";
+      : (pausePill ? `<div class="planning-travel-connector planning-pause-row">${pausePill}</div>` : "");
 
     return `
       <div class="today-customer-card today-calendar-card ${String(activePlanningAppointmentId) === String(entry.__entryId) ? "is-active" : ""} ${isCancelled ? "is-cancelled" : ""}" data-id="${escapePlanningHtml(entry.__entryId)}" ${isCancelled ? 'aria-disabled="true"' : ""}>
@@ -28131,14 +28295,7 @@ function applyPlanningPayload(payload){
   const list = document.getElementById("todayPlanningList");
   const { day, entries, planning } = buildPlanningEntries(payload || {});
 
-  const pauseChip = document.getElementById("todayPlanningPause");
-  if(pauseChip){
-    const pauseText = formatTodayPause(planning);
-    pauseChip.hidden = !pauseText;
-    pauseChip.innerHTML = pauseText
-      ? `<i class="fa-solid fa-mug-hot"></i> ${escapePlanningHtml(pauseText)}`
-      : "";
-  }
+  todayPlanningPause = planning?.todayPause || null;
 
   todayPlanningAppointments = entries;
   // Deal "done" state is tracked locally (markDealStage) whenever *this app*

@@ -2167,7 +2167,7 @@ button.dm-btn-danger:focus-visible {
 
     .customer-contact-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 12px;
       align-items: end;
     }
@@ -2532,8 +2532,6 @@ button.dm-btn-danger:focus-visible {
 
             <div id="todayPlanningOverview" class="day-overview" hidden></div>
 
-            <div id="todayPlanningPause" class="today-pause-chip" hidden></div>
-
             <div id="todayPlanningList" class="today-customers-list" aria-live="polite">
               <div class="today-customers-empty">Noch keine Termine geladen.</div>
             </div>
@@ -2758,6 +2756,10 @@ button.dm-btn-danger:focus-visible {
             <div class="customer-email-field">
               <label for="email">Email</label><input id="email" name="email" type="email"
                 placeholder="name@example.com" />
+            </div>
+            <div class="customer-email-field">
+              <label for="emailCc">Email (CC)</label><input id="emailCc" name="emailCc" type="email" multiple
+                placeholder="cc@example.com" />
             </div>
           </div>
 
@@ -3183,6 +3185,19 @@ button.dm-btn-danger:focus-visible {
                     </div></div>
                   </div>
 
+                  <div id="kasseFreigabeRow" style="margin-top: 12px">
+                    <label for="kasseFreigabeFile">Freigabe der Kasse</label>
+                    <label class="pgb-btn-ghost dealUploadBox" for="kasseFreigabeFile" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:100%;box-sizing:border-box;min-height:120px;padding:20px;text-align:center">
+                      <span style="display:flex;align-items:center;gap:8px">
+                        <span class="du-spin" aria-hidden="true"></span><svg class="du-ico" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        <span class="du-title">Foto aufnehmen / Datei hochladen</span>
+                      </span>
+                      <span class="du-hint" style="font-weight:400;font-size:.85em;opacity:.75">Bestätigung der Kasse für Wohnumfeldverb. Maßnahmen – wird beim Auftrag in Bitrix24 abgelegt.</span>
+                    </label>
+                    <input id="kasseFreigabeFile" type="file" accept="image/*,application/pdf,.pdf" hidden />
+                    <span id="kasseFreigabeStatus" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)"></span>
+                  </div>
+
                   <!--  <div class="full" style="margin-top: 8px">
                     <label class="req"
                       >Antrag auf Wohnumfeld verbessernde Maßnahmen</label
@@ -3305,6 +3320,33 @@ button.dm-btn-danger:focus-visible {
                     <label class="radio-pill" data-offer="ah"><input type="radio" name="wohnsituation" value="betreut" /><span class="circle"></span><span>betreut</span></label>
                     <label class="radio-pill" data-offer="ah"><input type="radio" name="wohnsituation" value="bei Angehörigen" /><span class="circle"></span><span>bei Angehörigen</span></label>
                   </div>
+                </div>
+
+                <!-- BU/BWT: steuert den Satz "Der Auftrag kommt erst mit schriftlicher Zustimmung
+                     des Vermieters zustande." im Angebot. Auto aus Bitrix-Deal / Wohnsituation.
+                     Pflichtfeld bei BU/BWT (required wird in script.js je Angebotstyp gesetzt),
+                     rot solange nichts gewählt. Doku: docs/vermieter-genehmigung.md -->
+                <div id="vermieterErforderlichRow" class="full" data-offer="bu,bwt">
+                  <label class="req">Genehmigung des Vermieters erforderlich?</label>
+                  <div class="radio-group" role="radiogroup" aria-label="Genehmigung des Vermieters erforderlich?">
+                    <label class="radio-pill"><input type="radio" name="vermieterGenehmigungErforderlich" value="Ja" /><span class="circle"></span><span>Ja</span></label>
+                    <label class="radio-pill"><input type="radio" name="vermieterGenehmigungErforderlich" value="Nein" /><span class="circle"></span><span>Nein</span></label>
+                  </div>
+                </div>
+
+                <!-- Upload "Bestätigung vom Vermieter für Umbauten" -> Bitrix (nur bei erforderlich = Ja).
+                     Setzt "liegt vor" = Ja. Doku: docs/kasse-freigabe-upload.md -->
+                <div id="vermieterUploadRow" class="full" data-offer="bu,bwt" hidden>
+                  <label for="vermieterUploadFile">Bestätigung des Vermieters</label>
+                  <label class="pgb-btn-ghost dealUploadBox" for="vermieterUploadFile" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:100%;box-sizing:border-box;min-height:120px;padding:20px;text-align:center">
+                    <span style="display:flex;align-items:center;gap:8px">
+                      <span class="du-spin" aria-hidden="true"></span><svg class="du-ico" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                      <span class="du-title">Foto aufnehmen / Datei hochladen</span>
+                    </span>
+                    <span class="du-hint" style="font-weight:400;font-size:.85em;opacity:.75">Bestätigung vom Vermieter für Umbauten – wird beim Auftrag in Bitrix24 abgelegt.</span>
+                  </label>
+                  <input id="vermieterUploadFile" type="file" accept="image/*,application/pdf,.pdf" hidden />
+                  <span id="vermieterUploadStatus" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)"></span>
                 </div>
 
                 <div id="vermieterGenehmigungRow" class="full" data-offer="bu,bwt,hl,bl,hms,wd" hidden aria-hidden="true">
@@ -5162,6 +5204,23 @@ button.dm-btn-danger:focus-visible {
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-img img {
     width: 100%; height: 100%; object-fit: contain; display: block;
   }
+  /* selected Verbreiterungsprofil tile + its Menge input; the cell takes the tile's flex slot */
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-cell {
+    display: flex; flex-direction: column; gap: 6px;
+    flex: 1 1 calc((100% - (3 * 14px)) / 4);
+    max-width: calc((100% - (3 * 14px)) / 4);
+    min-width: 200px;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-cell > .dac-opt {
+    flex: 1 1 auto; max-width: none;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-qty {
+    display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+    font-size: 0.85rem; margin: 0; text-align: left;
+  }
+  :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-extra-qty input {
+    width: 100%; box-sizing: border-box;
+  }
   :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt-label {
     font-size: 0.9rem; color: var(--text); line-height: 1.25;
   }
@@ -5286,7 +5345,7 @@ button.dm-btn-danger:focus-visible {
   }
 
   @media (max-width: 760px) {
-    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) .dac-opt {
+    :is(#page-DuschabtrennungNeu, #page-DaConfigDev) :is(.dac-opt, .dac-extra-cell) {
       flex-basis: calc((100% - 14px) / 2);
       max-width: calc((100% - 14px) / 2);
     }

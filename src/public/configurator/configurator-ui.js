@@ -72,7 +72,7 @@ function duschwannenDisplayName(d, widthMm) {
 export function mountConfigurator(el, model, options = {}) {
   let state = w.settle(model, options.initialState || w.initialState());
   let pending = { width: null, height: null }; // in-progress component size
-  let extrasOpen = false; // Verbreiterungsprofil section collapsed by default
+  let extrasOpen = true; // Verbreiterungsprofil section open by default
   const emit = (name, payload) => {
     if (typeof options[name] === "function") options[name](payload);
   };
@@ -93,6 +93,13 @@ export function mountConfigurator(el, model, options = {}) {
         ? ids.filter((x) => x !== articleNumber)
         : [...ids, articleNumber],
     };
+    emit("onChange", state);
+    render();
+  }
+  const extraQty = (articleNumber) =>
+    Math.max(1, Math.floor(Number((state.extrasQty || {})[articleNumber]) || 1));
+  function setExtraQty(articleNumber, qty) {
+    state = { ...state, extrasQty: { ...(state.extrasQty || {}), [articleNumber]: qty } };
     emit("onChange", state);
     render();
   }
@@ -133,6 +140,7 @@ export function mountConfigurator(el, model, options = {}) {
     const extraLines = picked.map((e) => ({
       component: e.name,
       key: "extra:" + e.articleNumber,
+      qty: extraQty(e.articleNumber),
       article: {
         articleNumber: e.articleNumber,
         displayName: e.name,
@@ -164,8 +172,8 @@ export function mountConfigurator(el, model, options = {}) {
     return {
       ...cfg,
       lines,
-      net: lines.reduce((s, l) => s + l.article.net, 0),
-      gros: lines.reduce((s, l) => s + l.article.gros, 0),
+      net: lines.reduce((s, l) => s + l.article.net * (l.qty || 1), 0),
+      gros: lines.reduce((s, l) => s + l.article.gros * (l.qty || 1), 0),
     };
   }
 
@@ -288,7 +296,7 @@ export function mountConfigurator(el, model, options = {}) {
     const selections = {};
     for (const id of order.slice(0, idx))
       if (state.selections[id] != null) selections[id] = state.selections[id];
-    state = { ...w.settle(model, { selections, sizes: {} }), extras: state.extras, duschwanne: state.duschwanne };
+    state = { ...w.settle(model, { selections, sizes: {} }), extras: state.extras, extrasQty: state.extrasQty, duschwanne: state.duschwanne };
     pending = { width: null, height: null };
     emit("onChange", state);
     render();
@@ -318,7 +326,7 @@ export function mountConfigurator(el, model, options = {}) {
         (cs.phase === "structure" || cs.phase === "finish") &&
         cs.paramId === target
       ) {
-        state = { ...settled, extras: state.extras, duschwanne: state.duschwanne };
+        state = { ...settled, extras: state.extras, extrasQty: state.extrasQty, duschwanne: state.duschwanne };
         pending = { width: null, height: null };
         emit("onChange", state);
         render();
@@ -447,6 +455,7 @@ export function mountConfigurator(el, model, options = {}) {
                 w.applySelection(model, state, step.paramId, val.value),
               ),
               extras: state.extras, // applySelection drops unknown keys
+              extrasQty: state.extrasQty,
               duschwanne: state.duschwanne,
             };
             emit("onChange", state);
@@ -616,7 +625,8 @@ export function mountConfigurator(el, model, options = {}) {
         },
         () => toggleExtra(e.articleNumber),
       );
-      if (ids.includes(e.articleNumber)) btn.dataset.selected = "true";
+      const selected = ids.includes(e.articleNumber);
+      if (selected) btn.dataset.selected = "true";
       // extras carry a plain asset path, not a model imageId → build the <img> here
       const wrap = document.createElement("span");
       wrap.className = "dac-opt-img";
@@ -627,7 +637,28 @@ export function mountConfigurator(el, model, options = {}) {
       img.onerror = () => wrap.remove();
       wrap.appendChild(img);
       btn.prepend(wrap);
-      grid.appendChild(btn);
+      if (!selected) {
+        grid.appendChild(btn);
+        continue;
+      }
+      // Menge input next to (not inside) the button — inputs can't nest in <button>
+      const cell = document.createElement("div");
+      cell.className = "dac-extra-cell";
+      const qtyLabel = document.createElement("label");
+      qtyLabel.className = "dac-extra-qty";
+      qtyLabel.textContent = "Menge:";
+      const qtyInput = document.createElement("input");
+      qtyInput.type = "number";
+      qtyInput.min = "1";
+      qtyInput.step = "1";
+      qtyInput.value = String(extraQty(e.articleNumber));
+      // change (not input) so the re-render doesn't steal focus mid-typing
+      qtyInput.addEventListener("change", () =>
+        setExtraQty(e.articleNumber, Math.max(1, Math.floor(Number(qtyInput.value) || 1))),
+      );
+      qtyLabel.appendChild(qtyInput);
+      cell.append(btn, qtyLabel);
+      grid.appendChild(cell);
     }
     group.appendChild(grid);
     main.appendChild(group);
@@ -701,7 +732,8 @@ export function mountConfigurator(el, model, options = {}) {
 
         const nameSpan = document.createElement("span");
         nameSpan.className = "dac-line-name";
-        nameSpan.textContent = line.article.displayName || line.component;
+        nameSpan.textContent =
+          (line.qty > 1 ? `${line.qty}× ` : "") + (line.article.displayName || line.component);
         row.appendChild(nameSpan);
 
         const artSpan = document.createElement("span");
@@ -750,7 +782,7 @@ export function mountConfigurator(el, model, options = {}) {
 
         const priceSpan = document.createElement("span");
         priceSpan.className = "dac-line-price";
-        priceSpan.textContent = euro(line.article.net);
+        priceSpan.textContent = euro(line.article.net * (line.qty || 1));
         row.appendChild(priceSpan);
 
         if (line.article.sourceUrl) {
