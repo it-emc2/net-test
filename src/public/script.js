@@ -9649,19 +9649,27 @@ function pgbReveal(el, on) {
   const setup = (type, inputId, statusId, onDone) => {
     const input = document.getElementById(inputId);
     const status = document.getElementById(statusId);
-    if (!input || !status) return;
-    const say = (msg, ok) => {
-      status.textContent = msg;
-      status.style.color = ok === false ? "#c0392b" : ok ? "#1e8449" : "";
+    const box = document.querySelector(`label.dealUploadBox[for="${inputId}"]`);
+    if (!input || !status || !box) return;
+    const title = box.querySelector(".du-title");
+    const hint = box.querySelector(".du-hint");
+    const done = [];
+    // state: "" | busy | ok | err — shown inside the box, mirrored to the aria-live span
+    const show = (state, t, h) => {
+      if (state) box.dataset.state = state; else delete box.dataset.state;
+      box.setAttribute("aria-busy", state === "busy" ? "true" : "false");
+      title.textContent = t;
+      hint.textContent = h;
+      status.textContent = `${t} ${h}`;
     };
     input.addEventListener("change", async () => {
       const file = input.files && input.files[0];
       input.value = "";
       if (!file) return;
       const dealId = (document.getElementById("auftragId")?.value || "").trim();
-      if (!/^\d+$/.test(dealId)) return say("Bitte zuerst eine Auftrag ID eintragen.", false);
-      if (file.size > 15 * 1024 * 1024) return say("Datei zu groß (max. 15 MB).", false);
-      say("Wird hochgeladen …");
+      if (!/^\d+$/.test(dealId)) return show("err", "Auftrag ID fehlt", "Bitte zuerst eine Auftrag ID eintragen und erneut wählen.");
+      if (file.size > 15 * 1024 * 1024) return show("err", "Datei zu groß", "Maximal 15 MB. Bitte erneut wählen.");
+      show("busy", "Wird hochgeladen …", file.name);
       try {
         const base64 = await new Promise((resolve, reject) => {
           const r = new FileReader();
@@ -9676,10 +9684,11 @@ function pgbReveal(el, on) {
         });
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok) throw new Error(data.error || resp.status);
-        say(`✓ „${file.name}“ in Bitrix24 hochgeladen (Timeline-Notiz erstellt).`, true);
+        done.push(file.name);
+        show("ok", "✓ In Bitrix24 hochgeladen", `${done.join(", ")} – tippen für weitere Datei`);
         if (onDone) onDone();
       } catch (e) {
-        say(`Upload fehlgeschlagen: ${e.message || e}`, false);
+        show("err", "Upload fehlgeschlagen", `${e.message || e} – tippen zum erneuten Versuch`);
       }
     });
   };
