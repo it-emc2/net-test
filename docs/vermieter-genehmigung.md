@@ -41,6 +41,7 @@ Code: `vermieterFromDeal()` in `src/routes/bitrix.js` (Feld-IDs und Werte-IDs al
 - `initVermieterFromDeal()`: lauscht auf `change` von `#auftragId`. Alle Deal-Ladewege (Kalender, Hauptmenü, Planung, manuelle Eingabe) schreiben dort hinein. Läuft nur bei BU/BWT, nicht beim Wiederherstellen eines Entwurfs (`window.__restoring`), und nur wenn der Deal zum Kontakt im Formular passt.
 - Wohnsituation Miete → "Ja", Eigentum → "Nein". Manuell änderbar.
 - **Pflichtfeld** (nur BU/BWT): `required` wird je Angebotstyp gesetzt (`offerflow:changed`), weil ausgeblendete Felder anderer Angebote sonst die Prüfung blockieren. Rot (CSS `#vermieterErforderlichRow`), solange nichts gewählt. Beim Senden/Export springt `requireBereichValid()` automatisch zurück zu Kundendaten.
+- Upload "Bestätigung des Vermieters" (nur bei erforderlich = Ja): legt die Datei in `UF_CRM_1741678430123` ab und setzt "liegt vor" = Ja. Siehe [kasse-freigabe-upload.md](kasse-freigabe-upload.md).
 - Ohne Deal-Information (kein Listenfeld, keine Wohnsituation-Zeile) bleibt das Feld leer → Berater muss wählen.
 - Gespeichert als `Kundendaten.vermieterGenehmigungErforderlich` = `"Ja"` | `"Nein"` | `""`. Alte Entwürfe (Boolean `true`) werden als "Ja" geladen.
 
