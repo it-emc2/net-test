@@ -11,7 +11,7 @@ import pricingFactory, { NO_MARKUP_IDS } from "../logic/pricing.js";
 // Reuse the same helpers you already have
 import { renderDocx, convertDocxToPdf, mapData } from "./docx-template.js";
 import { htmlToPdfBuffer } from "../utils/htmlToPdf.js";
-import { buildKalkulationV2Html } from "../templates/kalkulation-v2.js";
+import { buildKalkulationV2Html, KALKULATION_V2_FOOTER } from "../templates/kalkulation-v2.js";
 
 export const router = express.Router();
 const pricing = pricingFactory(ProductModel);
@@ -361,7 +361,34 @@ function buildBonusPos(posNo, row) {
    NOTE: returns FLAT placeholder keys (no dot nesting)
    =========================== */
 
+// Locked offers return their send-time pricing snapshot verbatim. Snapshots
+// older than 2026-08 lack the reporting-only fields below, so the Kalkulation
+// showed 0 Reisezeit / 0 Mitarbeiter / "Aufschlag auf 0,00 €". Fill them in
+// without touching any priced value.
+function backfillLegacySnapshot(body, computed) {
+  const svc = computed?.services;
+  if (svc && !svc.timeBreakdown) {
+    try {
+      // ponytail: uses current admin rates for the per-employee costs; only
+      // differs from the locked Lohn line if LABOR_RATE_* changed since send.
+      const fresh = pricing.computeServiceCosts(body);
+      svc.timeBreakdown = fresh.timeBreakdown;
+      svc.reiseHours ??= fresh.reiseHours;
+      svc.isBwt ??= fresh.isBwt;
+      svc.travelSecondWorkerRate ??= fresh.travelSecondWorkerRate;
+    } catch (e) {
+      console.warn("[kalkulation] time backfill failed:", e?.message || e);
+    }
+  }
+  const pct = Number(computed?.markupPct || 0);
+  if (computed && computed.markupBase == null && pct > 0) {
+    // Exact base that produced the stored markup (markup = base × pct).
+    computed.markupBase = round2(Number(computed.markup || 0) / pct);
+  }
+}
+
 async function mapKalkulationData(body = {}, computed = {}, debugMeta = null) {
+  backfillLegacySnapshot(body, computed);
   const b = body?.Kundendaten || {};
   const offerNumber = safeOfferNumber(body);
 
@@ -1073,7 +1100,7 @@ router.post("/pdf-v2", async (req, res) => {
     });
 
     const html = buildKalkulationV2Html(data);
-    const pdfBuffer = await htmlToPdfBuffer(html);
+    const pdfBuffer = await htmlToPdfBuffer(html, { footerTemplate: KALKULATION_V2_FOOTER });
 
     const fname = `${safeFileName(
       `Kalkulation_v2_${data.Projektnummer}_${data.Dokumentennummer}`,

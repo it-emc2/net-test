@@ -2696,5 +2696,8 @@ try {
         material_plus_aufschlag,
       };
     },
+    // Pure on the payload (no DB) — lets the Kalkulation backfill time
+    // reporting for locked offers whose snapshot predates timeBreakdown.
+    computeServiceCosts,
   };
 };
