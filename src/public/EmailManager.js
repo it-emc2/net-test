@@ -630,6 +630,14 @@ export function initEmailManager(options = {}) {
     updatePreview();
   }
 
+  // Same gate as the payload in script.js: the tick only counts while Rabatt is "ja".
+  function bonusGrabOn() {
+    return (
+      document.querySelector('input[name="rb-add-rabatt"]:checked')?.value === "ja" &&
+      !!document.getElementById("rb-bonus-grab")?.checked
+    );
+  }
+
   function buildDefaultMailBody() {
     const offerNumber = getOfferNumber() || "ANG-2025-_____";
     const isSelbstzahler =
@@ -678,8 +686,7 @@ vielen Dank für Ihr Interesse an unseren Dienstleistungen. Mit emc2 entscheiden
 • 5 Jahre Gewährleistung – unsere Sicherheit für Ihre Investition.
 • Professionelle Antragsstellung - auf Wunsch übernehmen wir die Antragsstellung bei der Pflegekasse für Sie.
 • Exklusiver Neukundenbonus – profitieren Sie von unserem besonderen Willkommensvorteil.
-• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.
-
+${bonusGrabOn() ? "• Gratis Haltegriff – für mehr Komfort und Sicherheit in Ihrem Alltag.\n" : ""}
 Unser Ziel ist es, Ihr Leben leichter, sicherer und komfortabler zu machen.
 
 Im Anhang erhalten Sie wie gewünscht die folgenden Unterlagen:
@@ -947,6 +954,11 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
     const el = document.getElementById(id);
     el?.addEventListener("input", updateBodyDefault);
     el?.addEventListener("change", updateBodyDefault);
+  });
+
+  document.getElementById("rb-bonus-grab")?.addEventListener("change", updateBodyDefault);
+  document.querySelectorAll('input[name="rb-add-rabatt"]').forEach((el) => {
+    el.addEventListener("change", updateBodyDefault);
   });
 
   $antragGestellt?.addEventListener("change", () => {
