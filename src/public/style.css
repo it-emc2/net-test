@@ -7850,7 +7850,7 @@ button.pad-clear {
   font-size: .92rem;
 }
 
-.nocontact-reasons input[type="radio"] {
+.nocontact-reasons input[type="checkbox"] {
   width: auto;
   margin: 0;
   flex: 0 0 auto;

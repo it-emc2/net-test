@@ -27231,8 +27231,8 @@ function openPlanningNoContactDialog(dealId) {
   if (!modal) return;
   _noContactDealId = String(dealId || "").trim();
   // Fresh state every time — the modal is reused across cards.
-  const first = modal.querySelector('input[name="planningNoContactReason"]');
-  if (first) first.checked = true;
+  const boxes = modal.querySelectorAll('input[name="planningNoContactReason"]');
+  boxes.forEach((b, i) => { b.checked = i === 0; });
   const note = document.getElementById("planningNoContactNote");
   if (note) note.value = "";
   const submit = document.getElementById("planningNoContactSubmit");
@@ -27253,9 +27253,12 @@ async function submitPlanningNoContact() {
   const dealId = _noContactDealId;
   if (!dealId) return;
   const modal = document.getElementById("planningNoContactModal");
-  const reason = modal?.querySelector('input[name="planningNoContactReason"]:checked')?.value || "Kunde nicht erreichbar";
+  const reasons = [...(modal?.querySelectorAll('input[name="planningNoContactReason"]:checked') || [])].map(i => i.value);
+  if (!reasons.length) reasons.push("Kunde nicht erreichbar");
   const note = String(document.getElementById("planningNoContactNote")?.value || "").trim();
-  const comment = `\u{1F4F5} Termin nicht zustande gekommen \u2013 ${reason}` + (note ? `\n${note}` : "");
+  const comment = reasons.length === 1
+    ? `\u{1F4F5} Termin nicht zustande gekommen \u2013 ${reasons[0]}` + (note ? `\n${note}` : "")
+    : `\u{1F4F5} Termin nicht zustande gekommen:\n${reasons.map(r => `\u2022 ${r}`).join("\n")}` + (note ? `\n${note}` : "");
 
   const submit = document.getElementById("planningNoContactSubmit");
   if (submit) { submit.disabled = true; submit.textContent = "Verschiebe\u2026"; }
