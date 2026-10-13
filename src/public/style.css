@@ -1880,7 +1880,8 @@ a.btn {
 
 /* ---------- Make the Fußboden/Wandverkleidung toggles bigger (match each other) ---------- */
 .check-pill:has(#addFlooring),
-.check-pill:has(#addWallCladding) {
+.check-pill:has(#addWallCladding),
+.check-pill:has(#dwTrayToggle) {
   padding: 14px 18px;
   gap: 14px;
   font-size: 1.02rem;
@@ -1888,14 +1889,16 @@ a.btn {
 }
 
 .check-pill:has(#addFlooring) .box,
-.check-pill:has(#addWallCladding) .box {
+.check-pill:has(#addWallCladding) .box,
+.check-pill:has(#dwTrayToggle) .box {
   width: 24px;
   height: 24px;
   border-radius: 6px;
 }
 
 .check-pill:has(#addFlooring) input:checked + .box::after,
-.check-pill:has(#addWallCladding) input:checked + .box::after {
+.check-pill:has(#addWallCladding) input:checked + .box::after,
+.check-pill:has(#dwTrayToggle) input:checked + .box::after {
   inset: 5px;
 }
 
@@ -1920,28 +1923,19 @@ a.btn {
 /* Duschwanne an/aus: one attribute on the form hides every tray-only part.
    An attribute rather than [hidden] on each element, because other code
    toggles [hidden] on some of them (e.g. the Slate colour section). */
-.dw-tray-switch {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--accent-weak);
-  cursor: pointer;
-  margin-bottom: 8px;
-}
-.dw-tray-switch input {
-  transform: scale(1.3);
-  margin-top: 4px;
-  cursor: pointer;
-}
+/* Description line under the switch's question (the pill itself is the
+   shared .check-pill, sized like the Fußboden/Wandverkleidung toggles). */
 .dw-tray-switch__text {
   display: grid;
   gap: 2px;
 }
 .dw-tray-switch__text small {
   color: var(--muted);
+  font-size: 0.85rem;
+}
+/* The two-line text would otherwise squeeze the box below its 24px. */
+.check-pill:has(#dwTrayToggle) .box {
+  flex: none;
 }
 #form-duschwanne[data-tray-off] .dw-tray-only {
   display: none !important;

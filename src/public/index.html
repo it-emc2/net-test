@@ -4298,13 +4298,11 @@ button.dm-btn-danger:focus-visible {
                Stelzlager gehen nicht ins Angebot (die Auswahl bleibt erhalten).
                Kleinmaterial ist nicht daran gekoppelt. Kein name-Attribut:
                buildPayload() schreibt duschwanne.trayEnabled selbst. -->
-          <label class="field full dw-tray-switch" for="dwTrayToggle">
-            <input type="checkbox" id="dwTrayToggle" />
-            <span class="dw-tray-switch__text">
-              <strong>Duschwanne im Angebot</strong>
-              <small>Ausgeschaltet werden Duschwanne, Abdichtband, Ablaufgarnitur und Stelzlager nicht berechnet. Die Auswahl bleibt erhalten.</small>
-            </span>
-          </label>
+          <div class="field full">
+            <label class="check-pill"><input type="checkbox" id="dwTrayToggle" /><span
+                class="box"></span><span class="dw-tray-switch__text">Möchten Sie eine Duschwanne hinzufügen?
+                <small>Ohne Duschwanne werden Duschwanne, Abdichtband, Ablaufgarnitur und Stelzlager nicht berechnet. Die Auswahl bleibt erhalten.</small></span></label>
+          </div>
 
           <!-- Put this above the radio group -->
           <div id="traySmartSearch" class="field dw-tray-only">
