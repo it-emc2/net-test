@@ -1373,6 +1373,8 @@ if (offer === "hl") {
             });
           }
 
+          // Duschvorhang lines ride along in this array but get their own heading
+          setCat(x?.group === "Duschvorhang" ? "Duschvorhang" : "Duschabtrennung");
           add(
             pid,
             qty,

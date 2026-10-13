@@ -5459,13 +5459,65 @@ button.dm-btn-danger:focus-visible {
     border-color: var(--accent); background: var(--accent-weak, var(--ring)); font-weight: 700;
   }
   #page-Duschvorhang .vh-qty-field { max-width: 220px; margin-top: 4px; }
+  /* Vorhang-Situation (Nische / Ecke / U-Form) — same language as the WV Bedarfsrechner */
+  #page-Duschvorhang .vhc { margin: 4px 0 24px; padding: 18px 18px 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--panel); }
+  #page-Duschvorhang .vhc-head h3 { margin: 0 0 4px; font-size: 1.05rem; font-weight: 600; }
+  #page-Duschvorhang .vhc-note { margin: 0 0 14px; color: var(--muted); font-size: 0.85rem; line-height: 1.4; }
+  #page-Duschvorhang .vhc-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  #page-Duschvorhang .vhc-chip {
+    display: inline-flex; align-items: baseline; gap: 8px; min-height: 42px; padding: 0 18px;
+    border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text);
+    font: inherit; font-size: 0.92rem; font-weight: 600; cursor: pointer; transition: background .2s, color .2s, border-color .2s;
+  }
+  #page-Duschvorhang .vhc-chip small { font-weight: 500; font-size: 0.78rem; opacity: .7; }
+  #page-Duschvorhang .vhc-chip:hover { border-color: var(--accent); }
+  #page-Duschvorhang .vhc-chip[aria-pressed="true"] { background: var(--accent-weak); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); color: var(--text); }
+  #page-Duschvorhang .vhc-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #page-Duschvorhang .vhc-main { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr); gap: 20px; align-items: center; }
+  #page-Duschvorhang .vhc-stage { border-radius: 12px; background: var(--accent-weak); padding: 8px; }
+  #page-Duschvorhang .vhc-svg { display: block; width: 100%; height: auto; }
+  #page-Duschvorhang .vhc-floor { fill: #fff; opacity: .7; }
+  #page-Duschvorhang .vhc-wall { stroke: #57534e; stroke-width: 9; stroke-linecap: square; }
+  #page-Duschvorhang .vhc-walltext { fill: #78716c; font-size: 10px; text-anchor: middle; letter-spacing: .08em; text-transform: uppercase; }
+  #page-Duschvorhang .vhc-rod { stroke: #44403c; stroke-width: 4.5; stroke-linecap: round; }
+  #page-Duschvorhang .vhc-curtain { fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-linecap: round; opacity: .75; }
+  #page-Duschvorhang .vhc-corner { fill: var(--accent); stroke: #fff; stroke-width: 2.5; }
+  #page-Duschvorhang .vhc-rosette { fill: #fff; stroke: #44403c; stroke-width: 2; }
+  #page-Duschvorhang .vhc-badge rect { fill: #fff; stroke: rgba(10,10,10,.18); }
+  #page-Duschvorhang .vhc-badge circle { fill: #44403c; }
+  #page-Duschvorhang .vhc-badge-n { fill: #fff; font-size: 11px; font-weight: 700; text-anchor: middle; }
+  #page-Duschvorhang .vhc-badge-t { fill: #1c1917; font-size: 13px; font-weight: 600; text-anchor: middle; }
+  #page-Duschvorhang .vhc-svg [data-leg] { transition: opacity .2s; }
+  #page-Duschvorhang .vhc-has-focus [data-leg]:not(.vhc-on) { opacity: .3; }
+  #page-Duschvorhang .vhc-badge.vhc-on circle { fill: var(--accent); }
+  #page-Duschvorhang .vhc-rows { display: grid; gap: 10px; }
+  #page-Duschvorhang .vhc-row { display: grid; grid-template-columns: 26px minmax(100px, 1fr) 100px auto; align-items: center; gap: 10px; margin: 0; font-weight: 500; }
+  #page-Duschvorhang .vhc-row input { height: 46px; font-size: 1rem; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; font-family: inherit; }
+  #page-Duschvorhang .vhc-row input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+  #page-Duschvorhang .vhc-dot { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #44403c; color: #fff; font-size: 0.78rem; font-weight: 700; }
+  #page-Duschvorhang .vhc-row:focus-within .vhc-dot { background: var(--accent); }
+  #page-Duschvorhang .vhc-unit { color: var(--muted); font-size: 0.85rem; }
+  #page-Duschvorhang .vhc-legend { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 6px; color: var(--muted); font-size: 0.8rem; }
+  #page-Duschvorhang .vhc-legend li { display: flex; align-items: center; gap: 8px; }
+  #page-Duschvorhang .vhc-lg { display: inline-block; flex: none; }
+  #page-Duschvorhang .vhc-lg--rod { width: 20px; height: 4px; border-radius: 2px; background: #44403c; }
+  #page-Duschvorhang .vhc-lg--corner { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); }
+  #page-Duschvorhang .vhc-lg--ros { width: 10px; height: 10px; border-radius: 2px; border: 2px solid #44403c; }
+  #page-Duschvorhang .vhc-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 16px; }
+  #page-Duschvorhang .vhc-stat { display: flex; flex-direction: column; gap: 4px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 0.88rem; color: var(--muted); }
+  #page-Duschvorhang .vhc-stat b { font-size: 1.3rem; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+  #page-Duschvorhang .vhc-stat-label { font-size: 0.78rem; }
+  @media (max-width: 760px) {
+    #page-Duschvorhang .vhc-main { grid-template-columns: 1fr; }
+    #page-Duschvorhang .vhc-stats { grid-template-columns: 1fr 1fr; }
+  }
 </style>
 <section class="card page" id="page-Duschvorhang" hidden>
   <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; flex-wrap:wrap;">
     <h2 style="margin:0;">Duschvorhang</h2>
   </div>
   <p class="section-subtitle" style="margin:0 0 18px;">
-    Breite eingeben — passender Duschvorhang, Vorhangstange und Befestigung werden
+    Nische, Ecke oder U-Form wählen und die Seitenlängen eingeben — Duschvorhang, Stangen und Befestigung werden
     vorausgewählt und mit Netto-Preisen automatisch dem Angebot hinzugefügt.
   </p>
   <div id="vorhang-mount"><div class="dac-loading">Produkte werden geladen …</div></div>

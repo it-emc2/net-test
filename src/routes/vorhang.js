@@ -108,6 +108,9 @@ async function loadProducts() {
     if (cat === "duschvorhang") {
       curtains.push(item);
     } else if (cat === "vorhangringe") {
+      // sold per Beutel; the finish text carries the pack size ("VPE = 10 Stück")
+      const vpe = String(d.finish || "").match(/VPE\s*=\s*(\d+)/i);
+      if (vpe) item.packNote = `Beutel à ${vpe[1]} Ringe`;
       optional.push(item);
     } else {
       const role = classifyRail(d.articleNumber);

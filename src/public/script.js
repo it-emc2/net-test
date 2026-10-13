@@ -3707,6 +3707,7 @@ function collectDuschvorhangConfigurator(doc) {
       price: price,
       productId: ln.articleNumber || "",
       finish: ln.finish || null,
+      group: "Duschvorhang", // own Material heading in Kosten + Angebot PDF
     });
   }
   doc.duschabtrennung.quickAdd = qa;
@@ -12689,7 +12690,7 @@ function escapeHtml(s) {
     }
     return out;
   }
-  const BU_MATERIAL_CATEGORY_ORDER = ["Kleinmaterial", "Fußboden", "Wandverkleidung", "Zubehör", "Duschwanne", "Duschabtrennung", "Weiteres"];
+  const BU_MATERIAL_CATEGORY_ORDER = ["Kleinmaterial", "Fußboden", "Wandverkleidung", "Zubehör", "Duschwanne", "Duschabtrennung", "Duschvorhang", "Weiteres"];
 
   // Ids the server left out of the Aufschlag base (set per render, see
   // renderFromData) — tagged in the line list so the markup stays explainable.
