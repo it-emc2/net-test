@@ -27266,7 +27266,7 @@ async function submitPlanningNoContact() {
     const res = await fetch(`/api/bitrix/deal/${encodeURIComponent(dealId)}/move-besichtigung`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ comment }),
+      body: JSON.stringify({ comment, reason: reasons.join(", ") + (note ? ` – ${note}` : "") }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
@@ -27276,8 +27276,10 @@ async function submitPlanningNoContact() {
     (typeof showToast === "function") && showToast(
       data?.commentFailed
         ? "Deal verschoben \u2014 Kommentar konnte nicht gespeichert werden."
-        : "Deal auf \u201EBesichtigungstermin vereinbaren\u201C verschoben.",
-      data?.commentFailed ? "error" : "success",
+        : data?.plannerSynced === false
+          ? "Deal verschoben \u2014 Routenplaner nicht aktualisiert, bitte Innendienst informieren."
+          : "Deal auf \u201EBesichtigungstermin vereinbaren\u201C verschoben.",
+      data?.commentFailed || data?.plannerSynced === false ? "error" : "success",
     );
   } catch (e) {
     console.error("[planning] move-besichtigung failed:", e);

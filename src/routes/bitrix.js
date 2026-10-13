@@ -3,6 +3,9 @@ import express from "express";
 import { buildAhData } from "./docx-template.js";
 import BitrixLog from "../models/BitrixLog.js";
 import UserActionLog from "../models/UserActionLog.js";
+import User from "../models/User.js";
+import { verifyToken, tokenFromReq } from "../services/authService.js";
+import { notifyTerminNotHeld } from "./planning.js";
 
 const router = express.Router();
 
@@ -896,7 +899,7 @@ router.post("/deal/:id/move-zuteilen", express.json(), async (req, res) => {
 // POST /api/bitrix/deal/:id/move-besichtigung
 // Customer could not be reached: moves the deal back to "[VI] Besichtigungs-
 // termin vereinbaren" and records the reason as a timeline comment.
-// Body: { comment: string }
+// Body: { comment: string, reason?: string }
 router.post("/deal/:id/move-besichtigung", express.json(), async (req, res) => {
   try {
     const dealId = String(req.params.id || "").trim();
@@ -920,7 +923,16 @@ router.post("/deal/:id/move-besichtigung", express.json(), async (req, res) => {
       console.warn("[bitrix] move-besichtigung comment failed:", e?.message || e);
     }
 
-    return res.json({ ok: true, dealId: Number(dealId), commentFailed, result: data?.result ?? data });
+    const email = verifyToken(tokenFromReq(req))?.email;
+    const user = email ? await User.findOne({ email }).lean().catch(() => null) : null;
+    const planner = await notifyTerminNotHeld({
+      dealId,
+      reason: String(req.body?.reason || "").trim() || comment,
+      by: user?.name || email || null,
+    });
+    if (!planner.ok) console.warn("[planning] termin-not-held sync failed:", planner.error);
+
+    return res.json({ ok: true, dealId: Number(dealId), commentFailed, plannerSynced: planner.ok, result: data?.result ?? data });
   } catch (err) {
     console.error("POST /api/bitrix/deal/:id/move-besichtigung error:", err);
     return res.status(500).json({ error: err?.message || String(err) });
