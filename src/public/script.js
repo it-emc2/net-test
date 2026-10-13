@@ -6430,6 +6430,55 @@ function validateWandverkleidung() {
   }
   return true;
 }
+// D_65418: Dekor defaults to "Marmor weiß" and wvKind to "Fliesenspiegel", so a
+// forgotten Plattenformat (997/1497) silently drops every panel, profile and
+// consumable from Angebot + Kalkulation. Same totals as pricing-core.
+function wvPanelsMissing(payload, offerType) {
+  if (offerType !== "bu") return false;
+  const wv = payload?.wandverkleidung;
+  if (!wv?.wvKind || wv.wvKind === "Keine") return false;
+  const extras = Object.values(wv.extraColors || {}).flat();
+  const total =
+    (Number(wv.wvQty997) || 0) +
+    (Number(wv.wvQty1497) || 0) +
+    extras.reduce((acc, r) => acc + (Number(r?.qty) || 0), 0);
+  return total === 0;
+}
+window.wvPanelsMissing = wvPanelsMissing;
+// Resolves true = proceed anyway, false = back to the WV tab.
+window.confirmWvPanels = function (payload, offerType) {
+  if (!wvPanelsMissing(payload, offerType)) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    document.getElementById("wvMissingOverlay")?.remove();
+    const overlay = document.createElement("div");
+    overlay.id = "wvMissingOverlay";
+    overlay.className = "ang-stage-overlay";
+    overlay.innerHTML = `
+      <div class="ang-stage-modal" role="dialog" aria-modal="true" aria-labelledby="wvMissingTitle">
+        <h3 id="wvMissingTitle" class="ang-stage-title">Wandverkleidung ohne Platten</h3>
+        <p class="ang-stage-text">
+          Wandverkleidung „${escapeHtml(payload.wandverkleidung.wvKind)}“ ist gewählt, aber kein
+          Plattenformat (997 / 1497) bzw. keine Menge – im Angebot stehen 0 Platten.
+        </p>
+        <div class="ang-stage-actions">
+          <button type="button" class="ang-stage-btn ang-stage-btn--primary" id="wvMissingFix">Zur Wandverkleidung</button>
+          <button type="button" class="ang-stage-btn" id="wvMissingGo">Trotzdem fortfahren</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = (value) => {
+      overlay.remove();
+      if (!value) location.hash = "Wandverkleidung";
+      resolve(value);
+    };
+    overlay.querySelector("#wvMissingFix").addEventListener("click", () => close(false));
+    overlay.querySelector("#wvMissingGo").addEventListener("click", () => close(true));
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close(false);
+    });
+    setTimeout(() => overlay.querySelector("#wvMissingFix")?.focus(), 50);
+  });
+};
 function validateOptional() {
   return true;
 }
@@ -23203,6 +23252,7 @@ async function sendPdfToAuftrag() {
       (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
       window.activeOffer ||
       "";
+    if (!(await window.confirmWvPanels(payload, activeOffer))) return;
     const dealId = (auftragInput?.value || "").trim();
 
     try {
@@ -23315,6 +23365,7 @@ async function sendPdfToAuftrag() {
       (typeof getCurrentOfferType === "function" ? getCurrentOfferType() : "") ||
       window.activeOffer ||
       "";
+    if (!(await window.confirmWvPanels(payload, activeOffer))) return;
     const dealId = (auftragInput?.value || "").trim();
 
     try {
