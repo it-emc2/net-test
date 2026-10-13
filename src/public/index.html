@@ -5464,14 +5464,17 @@ button.dm-btn-danger:focus-visible {
   #page-Duschvorhang .vhc-head h3 { margin: 0 0 4px; font-size: 1.05rem; font-weight: 600; }
   #page-Duschvorhang .vhc-note { margin: 0 0 14px; color: var(--muted); font-size: 0.85rem; line-height: 1.4; }
   #page-Duschvorhang .vhc-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-  #page-Duschvorhang .vhc-chip {
-    display: inline-flex; align-items: baseline; gap: 8px; min-height: 42px; padding: 0 18px;
+  #page-Duschvorhang button.vhc-chip {
+    display: inline-flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px;
+    min-height: 44px; height: auto; margin: 0; padding: 0 18px; line-height: 1.2; text-align: center; white-space: nowrap;
     border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text);
     font: inherit; font-size: 0.92rem; font-weight: 600; cursor: pointer; transition: background .2s, color .2s, border-color .2s;
   }
-  #page-Duschvorhang .vhc-chip small { font-weight: 500; font-size: 0.78rem; opacity: .7; }
-  #page-Duschvorhang .vhc-chip:hover { border-color: var(--accent); }
-  #page-Duschvorhang .vhc-chip[aria-pressed="true"] { background: var(--accent-weak); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); color: var(--text); }
+  #page-Duschvorhang button.vhc-chip > span,
+  #page-Duschvorhang button.vhc-chip > small { display: inline; margin: 0; padding: 0; line-height: 1.2; }
+  #page-Duschvorhang button.vhc-chip > small { font-weight: 500; font-size: 0.78rem; opacity: .7; }
+  #page-Duschvorhang button.vhc-chip:hover { border-color: var(--accent); }
+  #page-Duschvorhang button.vhc-chip[aria-pressed="true"] { background: var(--accent-weak); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); color: var(--text); }
   #page-Duschvorhang .vhc-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   #page-Duschvorhang .vhc-main { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr); gap: 20px; align-items: center; }
   #page-Duschvorhang .vhc-stage { border-radius: 12px; background: var(--accent-weak); padding: 8px; }
@@ -5482,6 +5485,7 @@ button.dm-btn-danger:focus-visible {
   #page-Duschvorhang .vhc-rod { stroke: #44403c; stroke-width: 4.5; stroke-linecap: round; }
   #page-Duschvorhang .vhc-curtain { fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-linecap: round; opacity: .75; }
   #page-Duschvorhang .vhc-corner { fill: var(--accent); stroke: #fff; stroke-width: 2.5; }
+  #page-Duschvorhang .vhc-joint { fill: #fff; stroke: var(--accent); stroke-width: 2.5; }
   #page-Duschvorhang .vhc-rosette { fill: #fff; stroke: #44403c; stroke-width: 2; }
   #page-Duschvorhang .vhc-badge rect { fill: #fff; stroke: rgba(10,10,10,.18); }
   #page-Duschvorhang .vhc-badge circle { fill: #44403c; }
@@ -5502,6 +5506,7 @@ button.dm-btn-danger:focus-visible {
   #page-Duschvorhang .vhc-lg { display: inline-block; flex: none; }
   #page-Duschvorhang .vhc-lg--rod { width: 20px; height: 4px; border-radius: 2px; background: #44403c; }
   #page-Duschvorhang .vhc-lg--corner { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); }
+  #page-Duschvorhang .vhc-lg--joint { width: 10px; height: 10px; border-radius: 50%; border: 2.5px solid var(--accent); box-sizing: border-box; }
   #page-Duschvorhang .vhc-lg--ros { width: 10px; height: 10px; border-radius: 2px; border: 2px solid #44403c; }
   #page-Duschvorhang .vhc-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 16px; }
   #page-Duschvorhang .vhc-stat { display: flex; flex-direction: column; gap: 4px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 0.88rem; color: var(--muted); }

@@ -6,7 +6,7 @@
 // lines flow into the offer via window.__vorhangConfigurator.getLines(),
 // consumed by buildPayload() (collectDuschvorhangConfigurator in script.js).
 
-import { SHAPES, ART, legValues, configLabel, applyPlan, fromSaved, buildLines } from "./vorhang-plan.js";
+import { SHAPES, ART, legValues, configLabel, planParts, applyPlan, fromSaved, buildLines } from "./vorhang-plan.js";
 
 const mountEl = document.getElementById("vorhang-mount");
 
@@ -87,6 +87,7 @@ if (mountEl) {
     const g = GEOM[shape];
     const keys = SHAPES[shape].legs;
     const vals = legValues(shape, state.legs);
+    const rodsPerLeg = planParts(shape, state.legs, catalog).rodsPerLeg;
     const parts = [];
     parts.push(`<rect class="vhc-floor" x="${shape === "u" ? 70 : 40}" y="30" width="${shape === "u" ? 220 : shape === "ecke" ? 230 : 280}" height="146" rx="4"/>`);
     for (const [x1, y1, x2, y2] of g.walls) parts.push(`<line class="vhc-wall" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`);
@@ -96,10 +97,24 @@ if (mountEl) {
       const [x1, y1] = g.rod[i], [x2, y2] = g.rod[i + 1];
       const w = wave(x1, y1, x2, y2, g.center);
       const k = keys[i];
-      parts.push(`<g class="vhc-seg" data-leg="${k}"><path class="vhc-curtain" d="${w.d}"/><line class="vhc-rod" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/></g>`);
+      // one rod piece per Stange on this side, joined by a Kupplung (ring marker)
+      const n = Math.max(1, rodsPerLeg[i] || 0);
+      const pt = (t) => [x1 + (x2 - x1) * t, y1 + (y2 - y1) * t];
+      let rods = "";
+      const gap = 7 / Math.hypot(x2 - x1, y2 - y1); // small visual gap at each Kupplung
+      for (let j = 0; j < n; j++) {
+        const [ax, ay] = pt(j / n + (j > 0 ? gap : 0)), [bx2, by2] = pt((j + 1) / n - (j < n - 1 ? gap : 0));
+        rods += `<line class="vhc-rod" x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx2.toFixed(1)}" y2="${by2.toFixed(1)}"/>`;
+      }
+      for (let j = 1; j < n; j++) {
+        const [jx, jy] = pt(j / n);
+        rods += `<circle class="vhc-joint" cx="${jx.toFixed(1)}" cy="${jy.toFixed(1)}" r="6.5"/>`;
+      }
+      parts.push(`<g class="vhc-seg" data-leg="${k}"><path class="vhc-curtain" d="${w.d}"/>${rods}</g>`);
       const bx = (x1 + x2) / 2 - w.nx * 26, by = (y1 + y2) / 2 - w.ny * 26;
-      const txt = vals[i] > 0 ? `${vals[i]} cm` : "– cm";
-      badges.push(`<g class="vhc-badge" data-leg="${k}"><rect x="${bx - 42}" y="${by - 15}" width="84" height="30" rx="15"/><circle cx="${bx - 27}" cy="${by}" r="10"/><text class="vhc-badge-n" x="${bx - 27}" y="${by + 4}">${i + 1}</text><text class="vhc-badge-t" x="${bx + 9}" y="${by + 4.5}">${txt}</text></g>`);
+      const txt = vals[i] > 0 ? `${vals[i]} cm${n > 1 ? ` · ${n}×` : ""}` : "– cm";
+      const bw = n > 1 ? 112 : 84;
+      badges.push(`<g class="vhc-badge" data-leg="${k}"><rect x="${bx - bw / 2}" y="${by - 15}" width="${bw}" height="30" rx="15"/><circle cx="${bx - bw / 2 + 15}" cy="${by}" r="10"/><text class="vhc-badge-n" x="${bx - bw / 2 + 15}" y="${by + 4}">${i + 1}</text><text class="vhc-badge-t" x="${bx + 9}" y="${by + 4.5}">${txt}</text></g>`);
     }
     // wall rosettes at both rod ends, Bogen + Deckenstütze at every corner
     const ends = [g.rod[0], g.rod[g.rod.length - 1]];
@@ -160,11 +175,6 @@ if (mountEl) {
     const rows = SHAPES[shape].legs
       .map((k, i) => `<label class="vhc-row" data-leg="${k}"><span class="vhc-dot">${i + 1}</span><span class="vhc-name">${names[k]}</span><input type="number" inputmode="decimal" min="1" max="2000" step="1" data-leg="${k}" value="${esc(state.legs?.[k] ?? "")}" placeholder="${k === "b" && shape === "u" ? 120 : 90}"><span class="vhc-unit">cm</span></label>`)
       .join("");
-    const section = (title, items, kind) =>
-      items.length
-        ? `<div class="vh-section"><div class="vh-step-title">${title}</div><div class="vh-grid vh-acc-grid">${items.map((it) => tile(it, kind)).join("")}</div></div>`
-        : "";
-
     mountEl.innerHTML = `
       <div class="field">
         <label class="check-pill"><input type="checkbox" id="vh-enable" ${state.enabled ? "checked" : ""} /><span class="box"></span><span>Duschvorhang zum Angebot hinzufügen</span></label>
@@ -183,18 +193,28 @@ if (mountEl) {
               <ul class="vhc-legend">
                 <li><i class="vhc-lg vhc-lg--rod"></i>Vorhangstange (vor Ort gekürzt)</li>
                 <li><i class="vhc-lg vhc-lg--corner"></i>Verbindungsbogen + Deckenstütze</li>
+                <li><i class="vhc-lg vhc-lg--joint"></i>Kupplung (zwei Stangen verbunden)</li>
                 <li><i class="vhc-lg vhc-lg--ros"></i>Wandbefestigung (Rosette)</li>
               </ul>
             </div>
           </div>
           <div class="vhc-stats">${statsHtml()}</div>
         </div>
+        <div class="vh-tiles">${tilesHtml()}</div>
+      </div>`;
+    wire();
+  };
+
+  const tilesHtml = () => {
+    const section = (title, items, kind) =>
+      items.length
+        ? `<div class="vh-section"><div class="vh-step-title">${title}</div><div class="vh-grid vh-acc-grid">${items.map((it) => tile(it, kind)).join("")}</div></div>`
+        : "";
+    return `
         ${section("Duschvorhang", catalog.curtains, "curtain")}
         ${section("Vorhangstangen", catalog.rods, "rod")}
         ${section("Erforderliche Befestigung", catalog.mandatory || [], "rosette")}
-        ${section("Zubehör", catalog.optional || [], "opt")}
-      </div>`;
-    wire();
+        ${section("Zubehör", catalog.optional || [], "opt")}`;
   };
 
   const replan = () => {
@@ -219,22 +239,53 @@ if (mountEl) {
       }),
     );
 
-    const svg = mountEl.querySelector(".vhc-svg");
-    const focusLeg = (k) => {
-      svg?.classList.toggle("vhc-has-focus", !!k);
-      svg?.querySelectorAll("[data-leg]").forEach((el) => el.classList.toggle("vhc-on", el.dataset.leg === k));
-    };
+    // Side lengths update live while typing (iPad: no blur needed). Only the
+    // drawing, stats and tiles are redrawn, so the input keeps focus + keyboard.
+    let typingTimer = null;
     mountEl.querySelectorAll(".vhc-row input").forEach((inp) => {
+      const commit = () => {
+        clearTimeout(typingTimer);
+        const v = Number(inp.value);
+        const next = Number.isFinite(v) && v > 0 ? Math.round(v) : null;
+        if ((state.legs?.[inp.dataset.leg] ?? null) === next && state.shape) return;
+        state.legs = { ...state.legs, [inp.dataset.leg]: next };
+        state.shape = viewShape();
+        applyPlan(state, catalog);
+        refreshParts();
+        refreshOffer();
+      };
       inp.addEventListener("focus", () => focusLeg(inp.dataset.leg));
       inp.addEventListener("blur", () => focusLeg(null));
-      inp.addEventListener("change", () => {
-        const v = Number(inp.value);
-        state.legs = { ...state.legs, [inp.dataset.leg]: Number.isFinite(v) && v > 0 ? Math.round(v) : null };
-        replan();
+      inp.addEventListener("input", () => {
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(commit, 300);
       });
+      inp.addEventListener("change", commit);
     });
 
-    // item tiles — every group shares the same toggle + Menge logic
+    wireTiles();
+  };
+
+  // highlight one side in the drawing (the one being typed)
+  const focusLeg = (k) => {
+    const svg = mountEl.querySelector(".vhc-svg");
+    svg?.classList.toggle("vhc-has-focus", !!k);
+    svg?.querySelectorAll("[data-leg]").forEach((el) => el.classList.toggle("vhc-on", el.dataset.leg === k));
+  };
+
+  const refreshParts = () => {
+    const stage = mountEl.querySelector(".vhc-stage");
+    if (stage) stage.innerHTML = drawSvg();
+    const tiles = mountEl.querySelector(".vh-tiles");
+    if (tiles) tiles.innerHTML = tilesHtml();
+    updateStats();
+    wireTiles();
+    const active = document.activeElement;
+    if (active && mountEl.contains(active) && active.dataset?.leg) focusLeg(active.dataset.leg);
+  };
+
+  // item tiles — every group shares the same toggle + Menge logic
+  const wireTiles = () => {
     mountEl.querySelectorAll(".vh-acc").forEach((row) => {
       const art = row.dataset.art;
       const key = QTY_MAP[row.dataset.kind];

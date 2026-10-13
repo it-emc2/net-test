@@ -40,6 +40,8 @@ export function planParts(shape, legs, catalog) {
   let kupplung = 0;
   const v = legValues(shape, legs).filter((x) => x > 0);
   const longestRod = maxSize(catalog?.rods);
+  // per side (in shape order, 0 = not entered): how many rods it takes
+  const rodsPerLeg = legValues(shape, legs).map((len) => (len > 0 && longestRod > 0 ? Math.ceil(len / longestRod) : len > 0 ? 1 : 0));
   for (const len of v) {
     const n = longestRod > 0 ? Math.ceil(len / longestRod) : 1;
     const rod = nearestAtLeast(catalog?.rods, len / n);
@@ -54,7 +56,7 @@ export function planParts(shape, legs, catalog) {
     if (c) curtainQty[c.articleNumber] = n;
   }
   const corners = v.length ? (SHAPES[shape] || SHAPES.nische).legs.length - 1 : 0;
-  return { rodQty, curtainQty, kupplung, corners, total };
+  return { rodQty, curtainQty, kupplung, corners, total, rodsPerLeg };
 }
 
 // Apply a fresh plan onto the state: curtains/rods/Bogen/Kupplung/Deckenstütze are
