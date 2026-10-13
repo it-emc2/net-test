@@ -4292,10 +4292,22 @@ button.dm-btn-danger:focus-visible {
           </div>
         </div>
 
-        <form id="form-duschwanne" autocomplete="on">
+        <form id="form-duschwanne" autocomplete="on" data-tray-off>
+
+          <!-- Duschwanne an/aus. Aus = Wanne + Abdichtband, Ablaufgarnitur und
+               Stelzlager gehen nicht ins Angebot (die Auswahl bleibt erhalten).
+               Kleinmaterial ist nicht daran gekoppelt. Kein name-Attribut:
+               buildPayload() schreibt duschwanne.trayEnabled selbst. -->
+          <label class="field full dw-tray-switch" for="dwTrayToggle">
+            <input type="checkbox" id="dwTrayToggle" />
+            <span class="dw-tray-switch__text">
+              <strong>Duschwanne im Angebot</strong>
+              <small>Ausgeschaltet werden Duschwanne, Abdichtband, Ablaufgarnitur und Stelzlager nicht berechnet. Die Auswahl bleibt erhalten.</small>
+            </span>
+          </label>
 
           <!-- Put this above the radio group -->
-          <div id="traySmartSearch" class="field">
+          <div id="traySmartSearch" class="field dw-tray-only">
 
   <!-- <label>Maße (B × L × H in cm)</label> -->
             <label>Maße (B × L in cm)</label>
@@ -4312,10 +4324,10 @@ button.dm-btn-danger:focus-visible {
             <input type="hidden" id="traySize" name="traySize">
           </div>
 
-          <div><img src="./assets/duschwanne.jpeg" alt="Duschwanne" /></div>
+          <div class="dw-tray-only"><img src="./assets/duschwanne.jpeg" alt="Duschwanne" /></div>
 
           <!-- Freier Posten: Duschwanne nicht in der Suche gefunden (z. B. Sonderform, geschwungen) -->
-          <fieldset class="da-row full" id="dw-custom" aria-describedby="dw-custom-help">
+          <fieldset class="da-row full dw-tray-only" id="dw-custom" aria-describedby="dw-custom-help">
             <legend class="da-legend">Duschwanne nicht gefunden? Freier Posten</legend>
             <div class="da-items">
               <div class="da-item" data-kind="dw-custom">
@@ -4351,7 +4363,7 @@ button.dm-btn-danger:focus-visible {
 
           <!-- Badewanne + Wannenaufsatz now live on the Optional tab (menu_WANNE). -->
 
-          <div class="field" id="slateTrayColorSection" hidden aria-hidden="true">
+          <div class="field dw-tray-only" id="slateTrayColorSection" hidden aria-hidden="true">
             <label class="req">Farbe der Duschwanne Slate</label>
             <div style="display:flex; gap:14px; flex-wrap:wrap;">
 
@@ -4402,7 +4414,7 @@ button.dm-btn-danger:focus-visible {
 
           <div class="field full dw-tray-extras-grid">
 
-          <div class="field">
+          <div class="field dw-tray-only">
             <label class="req">Wannenabdichtband-Set 3,4 m Nass-/Trockenanbindung
               entspr. DIN 18534</label>
             <label class="image-check" data-product-id="TRWDB"><input type="checkbox" data-product-id="TRWDB" name="abdichtSet" value="Wannenabdichtband-Set TRWDB"
@@ -4410,7 +4422,7 @@ button.dm-btn-danger:focus-visible {
                   alt="Wannenabdichtband-Set" /></span><span class="caption">Wannenabdichtband-Set TRWDB</span></label>
           </div>
 
-          <div class="field">
+          <div class="field dw-tray-only">
   <label class="req">Ablaufgarnitur Rohbauset m. Sifon BH60mm f. flache Duschw. m.
     90mm Ablauf</label>
 
@@ -4443,7 +4455,7 @@ button.dm-btn-danger:focus-visible {
 </label>
           </div>
 
-          <div class="field">
+          <div class="field dw-tray-only">
             <label>Stelzlager höhenverstellbar Set</label>
             <label class="image-check" data-product-id="PLA5282"><input type="checkbox" data-product-id="PLA5282" name="stelzlager" value="PLA5282" checked /><span
                 class="img-wrap"><img src="./assets/66c7f69e3b6da9039473c86f44789340.jpg"

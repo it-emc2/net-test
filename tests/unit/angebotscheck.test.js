@@ -427,3 +427,50 @@ test("every selector the rules use exists in index.html", async () => {
     ).not.toBeNull();
   }
 });
+
+/* ------------------------------------------------- Duschwanne an/aus switch */
+
+function withSwitch(on, tasks = [], extra = "") {
+  withTasks(
+    tasks,
+    `<input type="checkbox" id="dwTrayToggle" ${on ? "checked" : ""} />` + extra,
+  );
+}
+
+test("switch off, no tray task: one yellow 'Keine Duschwanne im Angebot'", () => {
+  withSwitch(false);
+  const found = row(runAngebotscheck(ok, readSelection(ok)), "duschwanne-aus");
+  expect(found.status).toBe("gelb");
+  expect(found.details[0]).toBe("Keine Duschwanne im Angebot.");
+  expect(found.target).toBe("Duschwanne");
+});
+
+test("switch off while the old tray is removed: the hint says so", () => {
+  withSwitch(false, ["remove_showertub"]);
+  expect(
+    row(runAngebotscheck(ok, readSelection(ok)), "duschwanne-aus").details[0],
+  ).toContain("Alte Duschwanne wird entfernt");
+});
+
+test("switch off with 'Einbau der Duschwanne' ticked: red, and it names the switch", () => {
+  const noTray = { materialsDisplayUI: { sum: 0, lines: [] } };
+  withSwitch(false, ["install_tray"]);
+  const r = runAngebotscheck(noTray, readSelection(noTray));
+  const found = row(r, "arbeit-install_tray");
+  expect(found.status).toBe("rot");
+  expect(found.details[0]).toContain("ausgeschaltet");
+  expect(row(r, "duschwanne-aus")).toBeUndefined(); // no duplicate hint
+});
+
+test("switch off suppresses the accessory row", () => {
+  withSwitch(false);
+  expect(row(runAngebotscheck(ok, readSelection(ok)), "duschwanne-zubehoer"))
+    .toBeUndefined();
+});
+
+test("switch on: no hint, accessories are checked", () => {
+  withSwitch(true);
+  const r = runAngebotscheck(ok, readSelection(ok));
+  expect(row(r, "duschwanne-aus")).toBeUndefined();
+  expect(row(r, "duschwanne-zubehoer").status).toBe("rot"); // none ticked
+});

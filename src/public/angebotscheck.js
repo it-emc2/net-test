@@ -103,6 +103,25 @@ export const RULES = [
         .map((l) => `Preis 0,00 €: ${name(l)}`),
   },
   {
+    // The Duschwanne switch is off. Only a hint — plenty of Badumbau offers
+    // have no tray (Badewanne, Wanne bleibt) — unless the old tray is being
+    // removed, then the missing replacement is worth a closer look.
+    // "Einbau der Duschwanne" ticked with the switch off is red, but that row
+    // belongs to the work-task coupling, so this one steps aside.
+    id: "duschwanne-aus",
+    group: "material",
+    target: "Duschwanne",
+    title: "Duschwanne im Angebot",
+    severity: "gelb",
+    needsSelection: true,
+    applies: ({ sel }) =>
+      sel.trayEnabled() === false && !sel.tasks.has("install_tray"),
+    test: ({ sel }) =>
+      sel.tasks.has("remove_showertub")
+        ? "Alte Duschwanne wird entfernt, aber keine neue Duschwanne im Angebot."
+        : "Keine Duschwanne im Angebot.",
+  },
+  {
     // Everything a tray needs to actually be installed. Adding a fifth item
     // is one line here.
     id: "duschwanne-zubehoer",
@@ -111,8 +130,11 @@ export const RULES = [
     title: "Zubehör zur Duschwanne vollständig",
     severity: "rot",
     needsSelection: true,
-    applies: ({ sel, materials }) =>
-      sel.tasks.has("install_tray") || hasCategory(lines(materials), "Duschwanne"),
+    applies: ({ sel, materials }) => {
+      const on = sel.trayEnabled();
+      if (on !== null) return on; // the switch decides whether a tray is in play
+      return sel.tasks.has("install_tray") || hasCategory(lines(materials), "Duschwanne");
+    },
     test: ({ sel }) =>
       [
         ["TRWDB", "Wannenabdichtband-Set"],
@@ -269,6 +291,10 @@ export const WORK_RULES = [
     task: "install_tray",
     label: "Einbau der Duschwanne",
     needs: "eine Duschwanne",
+    missingText: (sel) =>
+      sel.trayEnabled() === false
+        ? "Die Duschwanne ist auf der Duschwanne-Seite ausgeschaltet."
+        : null,
     group: "material",
     target: "Duschwanne",
     severity: "rot",
@@ -360,6 +386,11 @@ export function readSelection(pricing, doc = document) {
     field: (id) => !!doc.getElementById(id)?.value?.trim(),
     value: (id) => String(doc.getElementById(id)?.value ?? "").trim(),
     ticked: (id) => !!doc.getElementById(id)?.checked,
+    // Duschwanne an/aus on the Duschwanne page; null where the page is absent.
+    trayEnabled: () => {
+      const el = doc.getElementById("dwTrayToggle");
+      return el ? el.checked : null;
+    },
     product: (productId) =>
       checked(`input[data-product-id="${productId}"]:checked`),
     // A category whose products are loaded at runtime can be empty — then the
@@ -416,7 +447,7 @@ function workRows(selection) {
           ? []
           : emptyCatalog
             ? [`In dieser Kategorie ist noch kein Produkt hinterlegt.`]
-            : [`Es fehlt ${rule.needs}.`],
+            : [rule.missingText?.(selection) || `Es fehlt ${rule.needs}.`],
       });
     } else if (picked && !rule.noReverse && !coveredBySibling) {
       // Two tasks can want the same product group (Duschsystem with/without

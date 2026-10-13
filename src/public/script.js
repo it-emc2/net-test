@@ -2517,6 +2517,9 @@ function resetAllForms() {
       form.reset();
     }
   });
+  // A new offer starts without a Duschwanne; form.reset() unticks the switch
+  // but does not touch the form's data-tray-off attribute.
+  setDwTrayEnabled(false);
 
   // 2) Clear ALL localStorage keys used by repeaters/persisted UI state
   const localStorageKeysToClear = [
@@ -5094,6 +5097,9 @@ if (anschlag) {
   }
 
   payload.activeOffer = currentOfferKey || null;
+
+  // Duschwanne an/aus — strips only the tray keys, never the Fußboden ones.
+  applyDwTraySwitch(payload.duschwanne || (payload.duschwanne = {}), isDwTrayEnabled());
 
   
   // ✅ Signature (customer-drawn signature)
@@ -10349,6 +10355,82 @@ function renderCustomerSearchResults(list) {
 
   customerSearchResults.classList.add("visible");
 }
+
+/* ========== DUSCHWANNE AN/AUS ========== */
+// Off = payload.duschwanne looks exactly like a Duschwanne page where nothing
+// was picked: no tray, no custom tray, none of the three tray accessories.
+// That is deliberate — it keeps the pricing fingerprint of saved offers
+// stable, so a locked offer is never repriced just because it was reopened.
+// Inert fields (dimensions, colour, Stelzlager quantity) are left as the form
+// gives them; they produce no price without a tray / without the Stelzlager.
+// Kleinmaterial and everything Fußboden writes here are never touched.
+// Saved offers predate the switch. Without an explicit flag the switch is on
+// whenever the saved data carries a tray or any tray accessory — and the
+// accessories are ticked by default, so practically every old BU offer comes
+// back "on" with an unchanged payload, i.e. an unchanged price.
+function deriveDwTrayEnabled(dw) {
+  if (typeof dw?.trayEnabled === "boolean") return dw.trayEnabled;
+  return !!(
+    dw?.chosenTrayProductId ||
+    (Array.isArray(dw?.quickAdd) && dw.quickAdd.length) ||
+    dw?.dwCustomName ||
+    dw?.dwCustomPrice ||
+    dw?.abdichtSet ||
+    dw?.drainSet ||
+    dw?.stelzlager
+  );
+}
+
+function isDwTrayEnabled() {
+  return !!document.getElementById("dwTrayToggle")?.checked;
+}
+
+function setDwTrayEnabled(on) {
+  const toggle = document.getElementById("dwTrayToggle");
+  if (toggle) toggle.checked = !!on;
+  document
+    .getElementById("form-duschwanne")
+    ?.toggleAttribute("data-tray-off", !on);
+}
+
+// Applied to payload.duschwanne in buildPayload(). The lists live inside the
+// function on purpose: buildPayload() can run during boot before a top-level
+// const further down this file is initialised (temporal dead zone).
+function applyDwTraySwitch(dw, enabled) {
+  // traySuggestion is the radio of the clicked search result — it only
+  // exists while the suggestion list is rendered, which needs a tray.
+  const DW_TRAY_DROP = ["quickAdd", "abdichtSet", "drainSet", "stelzlager", "traySuggestion"];
+  const DW_TRAY_EMPTY = {
+    chosenTrayProductId: null,
+    traySize: "", // the legacy PDF prints it on its own
+    dwCustomName: "",
+    dwCustomPrice: "",
+    dwCustomQty: "1",
+    dwCustomId: "",
+  };
+  if (!enabled) {
+    for (const key of DW_TRAY_DROP) delete dw[key];
+    for (const [key, value] of Object.entries(DW_TRAY_EMPTY)) {
+      if (key in dw) dw[key] = value;
+    }
+  }
+  dw.trayEnabled = !!enabled;
+  return dw;
+}
+
+window.setDwTrayEnabled = setDwTrayEnabled;
+window.isDwTrayEnabled = isDwTrayEnabled;
+
+(function initDwTraySwitch() {
+  const toggle = document.getElementById("dwTrayToggle");
+  if (!toggle) return;
+  toggle.addEventListener("change", () => {
+    setDwTrayEnabled(toggle.checked);
+    // Re-price: the tray and its accessories just entered or left the offer.
+    toggle.form?.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  setDwTrayEnabled(toggle.checked);
+})();
 
 /* ========== DUSCHWANNE DEFAULTS ========== */
 (function initDuschwanneDefaults() {
@@ -16662,6 +16744,11 @@ function setSignaturePadFromDataUrl(dataUrl) {
 
 function restoreDuschwanne(dw) {
   if (!dw) return;
+
+  // Duschwanne an/aus. Everything below is restored exactly as saved, switch
+  // on or off — the rebuilt payload must equal the saved one, or a locked
+  // offer gets a new pricing fingerprint and is repriced on open.
+  setDwTrayEnabled(deriveDwTrayEnabled(dw));
 
 
 

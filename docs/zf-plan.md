@@ -179,6 +179,25 @@ wird die Zeile von allein grün.
 Bewusst ohne Regel: alle „Entfernen und Entsorgen"-Schritte, Stilllegen/
 Versetzen von Armatur und Abfluss, UP→AP-Umbau, Bademöbel, Sitzbadewanne.
 
+## Duschwanne an/aus
+
+Schalter „Duschwanne im Angebot" oben auf der Duschwanne-Seite. Aus =
+Duschwanne, Freier Posten, Abdichtband, Ablaufgarnitur und Stelzlager gehen
+nicht ins Angebot; Kleinmaterial, Ebenerdige Montage und Budget-Modus sind
+nicht daran gekoppelt.
+
+- Neues Angebot: aus. Gespeicherte Angebote/Entwürfe: wie gespeichert
+  (`duschwanne.trayEnabled`); ohne Flag (alles vor dem Schalter) an, sobald
+  eine Wanne, ein Freier Posten oder eines der drei Zubehörteile gespeichert
+  ist — so behalten alte Angebote exakt ihren Payload und Preis.
+- Aus erzeugt genau den Payload einer unberührten Duschwanne-Seite (preis-
+  wirksame Keys entfernt bzw. geleert, inerte Felder bleiben). Restore stellt
+  immer alles wie gespeichert her.
+- `duschwanne.trayEnabled` und `zusammenfassung` zählen nicht zum
+  Preis-Fingerprint.
+- Angebotscheck: Einbau der Duschwanne + aus → 🔴; aus ohne diese Aufgabe →
+  🟡 „Keine Duschwanne im Angebot" (bzw. „Alte Duschwanne wird entfernt …").
+
 ## Darstellung
 
 Gesamtstatus oben, darunter je Abschnitt eine nach Schwere sortierte Liste
