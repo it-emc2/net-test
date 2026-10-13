@@ -111,11 +111,33 @@ export const ABTRETUNG_REQUIRED_FIELDS = [
 
 // Resolve all Vollmacht/Abtretung fields: customer edits (doc.editedFields)
 // override the snapshot (prefill for contact data, Kundendaten for Kasse data).
+// Partner documents (two-person offers) use the key suffix "_p2"; they share
+// the main customer's household contact data but read the partner* fields.
+export const isPartnerKey = (key) => /_p2$/.test(String(key || ""));
+export const baseDocKey = (key) => String(key || "").replace(/_p2$/, "");
+
 export function resolveFields(sr, doc) {
   const p = sr.prefill || {};
   const k = sr.payloadSnapshot?.Kundendaten || {};
   const e = doc?.editedFields || {};
   const pick = (key, dflt) => (e[key] !== undefined ? e[key] : dflt);
+  if (isPartnerKey(doc?.key)) {
+    return {
+      firstName: pick("firstName", k.partnerFirstName || ""),
+      lastName: pick("lastName", k.partnerLastName || ""),
+      street: pick("street", p.street || ""),
+      postalCode: pick("postalCode", p.postalCode || ""),
+      city: pick("city", p.city || ""),
+      phone: pick("phone", p.phone || ""),
+      email: pick("email", p.email || ""),
+      geburtsdatum: pick("geburtsdatum", k.partnerGeburtsdatum || ""),
+      kassenkundeName: pick("kassenkundeName", k.partnerKassenkundeName || ""),
+      kk_versichertennr: pick("kk_versichertennr", k.partnerKvnr || ""),
+      pflegegrad: pick("pflegegrad", String(k.partnerPflegegrad || "")),
+      kk_pflegegradSeit: pick("kk_pflegegradSeit", k.partnerPflegegradSeit || ""),
+      kk_krankenkasseAdresse: pick("kk_krankenkasseAdresse", k.partnerKrankenkasseAdresse || ""),
+    };
+  }
   return {
     firstName: pick("firstName", p.firstName || ""),
     lastName: pick("lastName", p.lastName || ""),
