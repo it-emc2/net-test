@@ -9770,7 +9770,7 @@ function pgbReveal(el, on) {
     const id = input.value.trim();
     if (!id) lastId = ""; // neues Angebot -> gleicher Deal darf wieder laden
     if (window.__restoring || !/^\d+$/.test(id) || id === lastId) return;
-    if (!["bu", "bwt"].includes(currentOfferKey)) return;
+    if (!["bu", "bwt", "hl"].includes(currentOfferKey)) return;
     lastId = id;
 
     try {
@@ -9797,11 +9797,11 @@ function pgbReveal(el, on) {
     }
   });
 
-  // Pflichtfeld nur bei BU/BWT. Bei anderen Angeboten ist die Zeile nur
+  // Pflichtfeld nur bei BU/BWT/HL. Bei anderen Angeboten ist die Zeile nur
   // ausgeblendet (data-offer), würde aber sonst die Formularprüfung blockieren.
   // requireBereichValid() springt beim Senden/Export automatisch hierher zurück.
   const syncRequired = () => {
-    const on = ["bu", "bwt"].includes(currentOfferKey);
+    const on = ["bu", "bwt", "hl"].includes(currentOfferKey);
     document
       .querySelectorAll('input[name="vermieterGenehmigungErforderlich"]')
       .forEach((el) => { el.required = on; });

@@ -2034,9 +2034,9 @@ const enthDoorLabel = doorVariantText || "Universal / Standard Tür";
     EbenerdigHinweis: ["bwt", "hl", "bl"].includes(offerKey) ? [] : EbenerdigHinweis,
 
     // "Wichtige Hinweise" — Doku: docs/vermieter-genehmigung.md
-    // Vermieter-Satz: BU/BWT, Checkbox an und Genehmigung liegt nicht schon vor.
+    // Vermieter-Satz: BU/BWT/HL, Checkbox an und Genehmigung liegt nicht schon vor.
     VermieterZustimmungHinweis:
-      (!offerKey || offerKey === "bu" || offerKey === "bwt") &&
+      (!offerKey || ["bu", "bwt", "hl"].includes(offerKey)) &&
       toBoolish(b.vermieterGenehmigungErforderlich) &&
       b.vermieterGenehmigung !== "Ja",
     // Pflegekassen-Bewilligungs-Satz: alle Kassenkunden-Angebote.

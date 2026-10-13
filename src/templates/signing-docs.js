@@ -471,11 +471,13 @@ function festpreisBlock(d) {
   }
   if (isKK) {
     out.push(
-      `Der Auftrag kommt erst mit schriftlicher Bewilligung des Zuschusses durch die Pflegekasse zustande. Wird der Zuschuss abgelehnt, können Sie – wenn gewünscht – den Auftrag auch auf eigene Kosten erteilen. Es gilt dann der angebotene Preis.`,
+      `Sollte die Pflegekasse den Zuschuss endgültig ablehnen – auch trotz eingereichtem Widerspruch – wird der Auftrag nichtig. Sie können aber – wenn gewünscht – den Auftrag auch auf eigene Kosten erteilen. Es gilt dann der angebotene Preis.`,
     );
   }
   if (d.VermieterZustimmungHinweis) {
-    out.push(`Der Auftrag kommt erst mit schriftlicher Zustimmung des Vermieters zustande.`);
+    out.push(
+      `Dieser Auftrag setzt die schriftliche Zustimmung Ihres Vermieters voraus.${isKK ? " Bitte senden Sie uns diese spätestens mit der Zuschussbestätigung Ihrer Pflegekasse zu." : ""}`,
+    );
   }
   return `<div class="hinweise"><p class="b">Wichtige Hinweise:</p><ul>${out.map((t) => `<li>${t}</li>`).join("")}</ul></div>`;
 }
