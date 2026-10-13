@@ -3305,7 +3305,7 @@ button.dm-btn-danger:focus-visible {
                      des Vermieters zustande." im Angebot. Auto aus Bitrix-Deal / Wohnsituation.
                      Pflichtfeld bei BU/BWT (required wird in script.js je Angebotstyp gesetzt),
                      rot solange nichts gewählt. Doku: docs/vermieter-genehmigung.md -->
-                <div id="vermieterErforderlichRow" class="full" data-offer="bu,bwt">
+                <div id="vermieterErforderlichRow" class="full" data-offer="bu,bwt,hl">
                   <label class="req">Genehmigung des Vermieters erforderlich?</label>
                   <div class="radio-group" role="radiogroup" aria-label="Genehmigung des Vermieters erforderlich?">
                     <label class="radio-pill"><input type="radio" name="vermieterGenehmigungErforderlich" value="Ja" /><span class="circle"></span><span>Ja</span></label>
@@ -3315,7 +3315,7 @@ button.dm-btn-danger:focus-visible {
 
                 <!-- Upload "Bestätigung vom Vermieter für Umbauten" -> Bitrix (nur bei erforderlich = Ja).
                      Setzt "liegt vor" = Ja. Doku: docs/kasse-freigabe-upload.md -->
-                <div id="vermieterUploadRow" class="full" data-offer="bu,bwt" hidden>
+                <div id="vermieterUploadRow" class="full" data-offer="bu,bwt,hl" hidden>
                   <label for="vermieterUploadFile">Bestätigung des Vermieters</label>
                   <label class="pgb-btn-ghost dealUploadBox" for="vermieterUploadFile" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:100%;box-sizing:border-box;min-height:120px;padding:20px;text-align:center">
                     <span style="display:flex;align-items:center;gap:8px">
