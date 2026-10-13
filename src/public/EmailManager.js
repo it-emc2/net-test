@@ -1603,6 +1603,10 @@ ${$antragGestellt?.checked ? "" : "Sobald uns Ihre Unterlagen vorliegen, überne
           "bu";
       }
 
+      if (window.confirmWvPanels && !(await window.confirmWvPanels(payload, payload.activeOffer))) {
+        return false;
+      }
+
       try {
         await cfg.hooks.saveDraftBeforeSend?.();
       } catch (e) {
